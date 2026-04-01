@@ -15,6 +15,7 @@
 <nav class="tab-bar">
 <a href="/lg/peers" hx-get="/lg/peers" hx-target="#content" hx-push-url="true"{{if eq .ActiveTab "peers"}} class="tab-active"{{end}}>Peers</a>
 <a href="/lg/search" hx-get="/lg/search" hx-target="#content" hx-push-url="true"{{if eq .ActiveTab "search"}} class="tab-active"{{end}}>Search</a>
+<a href="/lg/help" hx-get="/lg/help" hx-target="#content" hx-push-url="true"{{if eq .ActiveTab "help"}} class="tab-active"{{end}}>Help</a>
 </nav>
 <a class="nav-brand" href="/lg/peers"><img class="ze-logo" src="/lg/assets/ze.svg" alt="Ze" width="28" height="28"> Ze Looking Glass</a>
 <button class="theme-toggle" id="theme-toggle" title="Toggle dark/light mode">&#9789;</button>

@@ -1,0 +1,104 @@
+{{define "help"}}
+<h1>Help</h1>
+
+<div class="help-cards">
+
+<div class="help-card" data-help="peers">
+<div class="help-icon">&#128279;</div>
+<h3>Peers</h3>
+<p>BGP session overview. Click a peer to see its routes.</p>
+</div>
+
+<div class="help-card" data-help="search">
+<div class="help-icon">&#128269;</div>
+<h3>Search</h3>
+<p>Find routes by prefix, AS path, or community. Filters combine.</p>
+</div>
+
+<div class="help-card" data-help="aspath">
+<div class="help-icon">&#127760;</div>
+<h3>AS Path Graph</h3>
+<p>Topology of autonomous systems for a prefix. Shows peering links between ASes.</p>
+</div>
+
+<div class="help-card" data-help="nexthop">
+<div class="help-icon">&#128204;</div>
+<h3>Next Hop Graph</h3>
+<p>Internal forwarding view. Which routers point to which egress. Green nodes are egress points.</p>
+</div>
+
+<div class="help-card" data-help="detail">
+<div class="help-icon">&#128196;</div>
+<h3>Route Detail</h3>
+<p>Click any route row to expand full attributes: communities, originator, cluster list.</p>
+</div>
+
+<div class="help-card" data-help="dark">
+<div class="help-icon">&#127763;</div>
+<h3>Dark Mode</h3>
+<p>Moon icon in the header. Preference saved in your browser.</p>
+</div>
+
+<div class="help-card" data-help="api">
+<div class="help-icon">&#128268;</div>
+<h3>API</h3>
+<p>Birdwatcher-compatible REST under <code>/api/looking-glass/</code></p>
+</div>
+
+</div>
+
+<div id="help-detail" class="help-detail-panel"></div>
+
+<template id="help-peers">
+<p>The peers table shows every BGP session: state (up/down), uptime,
+accepted route count, and remote AS. Rows are colour-coded by state.</p>
+<p>Click a peer row to navigate to its route table where you can browse
+all received prefixes, or download them as JSON.</p>
+</template>
+
+<template id="help-search">
+<p><strong>Prefix</strong> -- CIDR (<code>10.0.0.0/24</code>) or host
+(<code>10.0.0.1</code>). Host addresses match the most-specific covering prefix.</p>
+<p><strong>AS Path</strong> -- space-separated ASNs matched anywhere in the path.</p>
+<p><strong>Community</strong> -- standard format <code>ASN:value</code>.</p>
+<p><strong>Family</strong> -- IPv4 Unicast, IPv6 Unicast, or All.</p>
+<p>All non-empty fields must match (AND logic).</p>
+</template>
+
+<template id="help-aspath">
+<p>After searching a prefix, click <strong>AS Path</strong> above the route table.
+Each node is an AS (with organization name from Team Cymru DNS). Edges show
+the peering relationships seen in AS paths. AS prepending is collapsed.</p>
+<p>Layout: origin AS on the right, upstream providers on the left.</p>
+</template>
+
+<template id="help-nexthop">
+<p>Click <strong>Next Hop</strong> to see the internal forwarding topology. Each node is a
+router (by next-hop IP). Egress routers (whose next-hop is themselves) are highlighted green.</p>
+<p>Useful for spotting asymmetric forwarding or overloaded egress points.</p>
+</template>
+
+<template id="help-detail">
+<p>Expanding a route shows all BGP attributes: origin, local preference, MED,
+communities, extended communities, large communities, originator ID, and cluster list.</p>
+</template>
+
+<template id="help-dark">
+<p>Click the moon/sun icon in the top-right corner. The theme is stored in
+localStorage and persists across sessions. The default follows your OS preference.</p>
+</template>
+
+<template id="help-api">
+<table class="help-api-table">
+<thead><tr><th>Endpoint</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>status</code></td><td>Router status and version</td></tr>
+<tr><td><code>protocols/bgp</code></td><td>All peers with state and route counts</td></tr>
+<tr><td><code>routes/protocol/{name}</code></td><td>Routes from a named peer</td></tr>
+<tr><td><code>routes/table/{family}</code></td><td>Routes for a given family</td></tr>
+<tr><td><code>routes/search?prefix=X</code></td><td>Search by prefix</td></tr>
+</tbody>
+</table>
+</template>
+
+{{end}}

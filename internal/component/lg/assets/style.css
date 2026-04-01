@@ -180,6 +180,25 @@ tbody tr.best-route { background: var(--best-bg); }
 .detail-panel dd { color: var(--detail-dd); word-break: break-all; }
 .route-detail { background: var(--detail-bg); }
 
+/* Help page */
+.help-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.help-card { background: var(--table-bg); border-radius: 6px; padding: 1.2rem; box-shadow: 0 1px 3px var(--shadow); cursor: pointer; transition: box-shadow 0.15s; }
+.help-card:hover { box-shadow: 0 2px 8px var(--shadow); }
+.help-card h3 { margin: 0.5rem 0 0.3rem; font-size: 0.95rem; color: var(--heading); }
+.help-card p { font-size: 0.85rem; line-height: 1.5; color: var(--text); margin: 0; }
+.help-icon { font-size: 1.6rem; }
+.help-card.active { border-color: var(--btn-bg); box-shadow: 0 2px 8px var(--shadow); border-left: 3px solid var(--btn-bg); }
+.help-detail-panel { display: none; margin-top: 1rem; padding: 1.2rem; background: var(--table-bg); border-radius: 6px; border-left: 3px solid var(--btn-bg); box-shadow: 0 1px 3px var(--shadow); }
+.help-detail-panel.visible { display: block; }
+.help-detail-panel p { font-size: 0.85rem; line-height: 1.5; margin-bottom: 0.4rem; }
+.help-detail-panel code { background: var(--table-head); padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.85em; }
+.help-section { margin-bottom: 1.5rem; }
+.help-section h2 { margin-top: 0; }
+.help-section p { margin-bottom: 0.5rem; line-height: 1.5; font-size: 0.9rem; }
+.help-section code { background: var(--table-head); padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.85em; }
+.help-api-table { margin-top: 0.5rem; }
+.help-api-table code { background: var(--table-head); padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.85em; }
+
 /* Graph */
 .graph-controls { margin: 1rem 0 0.5rem; display: flex; gap: 0.5rem; }
 .graph-mode-btn { padding: 0.3rem 0.8rem; background: var(--table-bg); color: var(--text); border: 1px solid var(--table-border); border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-family: monospace; }

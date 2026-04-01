@@ -216,6 +216,9 @@ func (s *LGServer) registerRoutes() error {
 	// Graph handler (AS path topology SVG).
 	s.mux.HandleFunc("GET /lg/graph", s.handleGraph)
 
+	// Help page.
+	s.mux.HandleFunc("GET /lg/help", s.handleUIHelp)
+
 	// Root redirect.
 	s.mux.HandleFunc("GET /lg/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/lg/" {

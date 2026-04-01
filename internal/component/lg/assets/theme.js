@@ -39,6 +39,32 @@ document.addEventListener('DOMContentLoaded', function() {
   document.addEventListener('htmx:afterSettle', applyGraphMode);
   applyGraphMode();
 
+  // Help card expand/collapse -- detail shown below cards.
+  document.addEventListener('click', function(e) {
+    var card = e.target.closest('.help-card');
+    if (!card) return;
+    var key = card.getAttribute('data-help');
+    if (!key) return;
+    var panel = document.getElementById('help-detail');
+    var tmpl = document.getElementById('help-' + key);
+    if (!panel || !tmpl) return;
+
+    // Toggle off if clicking the same card.
+    if (card.classList.contains('active')) {
+      card.classList.remove('active');
+      panel.classList.remove('visible');
+      while (panel.firstChild) panel.removeChild(panel.firstChild);
+      return;
+    }
+
+    // Deactivate all cards, activate clicked one.
+    document.querySelectorAll('.help-card').forEach(function(c) { c.classList.remove('active'); });
+    card.classList.add('active');
+    while (panel.firstChild) panel.removeChild(panel.firstChild);
+    panel.appendChild(tmpl.content.cloneNode(true));
+    panel.classList.add('visible');
+  });
+
   var btn = document.getElementById('theme-toggle');
   if (btn) btn.addEventListener('click', function() {
     var h = document.documentElement;

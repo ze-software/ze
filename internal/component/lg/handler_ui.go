@@ -42,6 +42,20 @@ func (s *LGServer) handleUIPeers(w http.ResponseWriter, r *http.Request) {
 	s.renderPage(w, "peers", data)
 }
 
+// handleUIHelp renders the help page.
+func (s *LGServer) handleUIHelp(w http.ResponseWriter, r *http.Request) {
+	data := map[string]any{
+		"Title":     "Help",
+		"ActiveTab": "help",
+	}
+
+	if isHTMXRequest(r) {
+		s.renderFragment(w, "help", data)
+		return
+	}
+	s.renderPage(w, "help", data)
+}
+
 // handleUISearchForm renders the route search form.
 func (s *LGServer) handleUISearchForm(w http.ResponseWriter, r *http.Request) {
 	data := map[string]any{
