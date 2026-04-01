@@ -7,6 +7,7 @@ paths:
 
 **BLOCKING:** All CLI commands MUST follow these patterns.
 Rationale: `.claude/rationale/cli-patterns.md`
+Structural template: `.claude/patterns/cli-command.md`
 
 ## Dispatch
 

@@ -9,6 +9,7 @@ paths:
 
 **BLOCKING:** All plugins MUST follow these patterns.
 Rationale: `.claude/rationale/plugin-design.md`
+Structural template: `.claude/patterns/plugin.md`
 
 ## Architecture
 

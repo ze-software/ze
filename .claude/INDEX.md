@@ -1,5 +1,41 @@
 # Ze Documentation Index
 
+## I Want To...
+
+| Task | Read first | Then |
+|------|-----------|------|
+| Understand the modular core | `patterns/registration.md` | `docs/architecture/core-design.md` |
+| Add a CLI command | `patterns/cli-command.md` | `rules/cli-patterns.md` |
+| Add a web page/endpoint | `patterns/web-endpoint.md` | `docs/architecture/web-interface.md` |
+| Create a plugin | `patterns/plugin.md` | `rules/plugin-design.md` |
+| Add a config option | `patterns/config-option.md` | `rules/config-design.md` |
+| Add a .ci functional test | `patterns/functional-test.md` | `docs/architecture/testing/ci-format.md` |
+| Modify wire encoding | `rules/buffer-first.md` | `docs/architecture/buffer-architecture.md` |
+| Add route processing | `rules/architecture-summary.md` | `docs/architecture/core-design.md` |
+| Add NLRI family support | `patterns/plugin.md` (NLRI codec section) | `docs/architecture/wire/nlri.md` |
+| Add an attribute | `rules/buffer-first.md` | `docs/architecture/wire/attributes.md` |
+| Add a capability | `patterns/plugin.md` (capabilities section) | `docs/architecture/wire/capabilities.md` |
+| Implement an RFC | `rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
+| Write a spec | `rules/planning.md` | `plan/TEMPLATE.md` |
+
+## Pattern Cookbooks
+
+Mechanical recipes for creating common artifacts. Read before coding.
+
+| Pattern | File | What it covers |
+|---------|------|---------------|
+| **Registration** | `patterns/registration.md` | **All registries, startup flow, modular core architecture** |
+| CLI Command | `patterns/cli-command.md` | Offline/online dispatch, grammar, YANG tree, exit codes |
+| Web Endpoint | `patterns/web-endpoint.md` | Handler sequence, templates, HTMX OOB, route registration |
+| Plugin | `patterns/plugin.md` | register.go, logger, SDK protocol, filters, codecs |
+| Config Option | `patterns/config-option.md` | YANG leaf, env var, validator, naming across layers |
+| Functional Test | `patterns/functional-test.md` | .ci format, test directories, templates, expectations |
+
+## Learned Summaries (Curated)
+
+Structural decisions, patterns, and gotchas extracted from 500+ completed specs.
+Full index: `.claude/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
+
 ## Architecture Docs
 
 | Area | Doc |

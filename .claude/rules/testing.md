@@ -7,6 +7,7 @@ paths:
 # Testing
 
 Rationale: `.claude/rationale/testing.md`
+Structural template: `.claude/patterns/functional-test.md`
 
 ## Fix Code, Not Tests
 
