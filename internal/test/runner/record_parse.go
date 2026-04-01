@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/test/ci"
 	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
@@ -514,24 +515,30 @@ func nextMarker(line string, offset int, markers ...string) int {
 	return best
 }
 
-// parseHTTP handles http=method:seq=N:url=URL:status=CODE[:contains=TEXT] lines.
+// parseHTTP handles http=method:seq=N:url=URL:status=CODE[:contains=TEXT][:timeout=DUR] lines.
 // Uses marker-based parsing (nextMarker) because URLs contain colons that would
 // confuse simple colon-splitting. Each marker's value extends to the next known
 // marker or end-of-line, so marker order in the input does not matter.
+// Method "wait" polls until the condition is met (retries on content mismatch).
 func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
-	if method != "get" && method != "post" {
-		return fmt.Errorf("unsupported HTTP method %q (use get or post)", method)
+	isWait := method == "wait"
+	if !isWait && method != "get" && method != "post" {
+		return fmt.Errorf("unsupported HTTP method %q (use get, post, or wait)", method)
 	}
 
 	seqMarker := ":seq="
 	urlMarker := ":url="
 	statusMarker := ":status="
 	containsMarker := ":contains="
+	bodyfileMarker := ":bodyfile="
+	timeoutMarker := ":timeout="
 
 	seqIdx := strings.Index(line, seqMarker)
 	urlIdx := strings.Index(line, urlMarker)
 	statusIdx := strings.Index(line, statusMarker)
 	containsIdx := strings.Index(line, containsMarker)
+	bodyfileIdx := strings.Index(line, bodyfileMarker)
+	timeoutIdx := strings.Index(line, timeoutMarker)
 
 	if seqIdx < 0 {
 		return fmt.Errorf("http= missing seq=")
@@ -543,9 +550,11 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 		return fmt.Errorf("http= missing status=")
 	}
 
+	allMarkers := []string{seqMarker, urlMarker, statusMarker, containsMarker, bodyfileMarker, timeoutMarker}
+
 	// Extract seq value: from after ":seq=" to next known marker or end.
 	seqStart := seqIdx + len(seqMarker)
-	seqEnd := nextMarker(line, seqStart, urlMarker, statusMarker, containsMarker)
+	seqEnd := nextMarker(line, seqStart, allMarkers...)
 	seqStr := line[seqStart:seqEnd]
 	seq, err := strconv.Atoi(seqStr)
 	if err != nil || seq < 1 {
@@ -554,12 +563,12 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 
 	// Extract url value: from after ":url=" to next known marker or end.
 	urlStart := urlIdx + len(urlMarker)
-	urlEnd := nextMarker(line, urlStart, seqMarker, statusMarker, containsMarker)
+	urlEnd := nextMarker(line, urlStart, allMarkers...)
 	url := line[urlStart:urlEnd]
 
 	// Extract status value: from after ":status=" to next known marker or end.
 	statusStart := statusIdx + len(statusMarker)
-	statusEnd := nextMarker(line, statusStart, seqMarker, urlMarker, containsMarker)
+	statusEnd := nextMarker(line, statusStart, allMarkers...)
 	statusStr := line[statusStart:statusEnd]
 	status, err := strconv.Atoi(statusStr)
 	if err != nil {
@@ -570,17 +579,44 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 	var contains string
 	if containsIdx >= 0 {
 		containsStart := containsIdx + len(containsMarker)
-		containsEnd := nextMarker(line, containsStart, seqMarker, urlMarker, statusMarker)
+		containsEnd := nextMarker(line, containsStart, allMarkers...)
 		contains = line[containsStart:containsEnd]
 	}
 
-	r.HTTPChecks = append(r.HTTPChecks, HTTPCheck{
+	// Extract optional bodyfile value (path to expected body content).
+	var bodyfile string
+	if bodyfileIdx >= 0 {
+		bodyfileStart := bodyfileIdx + len(bodyfileMarker)
+		bodyfileEnd := nextMarker(line, bodyfileStart, allMarkers...)
+		bodyfile = line[bodyfileStart:bodyfileEnd]
+	}
+
+	// Extract optional timeout value (wait only).
+	var timeout string
+	if timeoutIdx >= 0 {
+		timeoutStart := timeoutIdx + len(timeoutMarker)
+		timeoutEnd := nextMarker(line, timeoutStart, allMarkers...)
+		timeout = line[timeoutStart:timeoutEnd]
+		if _, parseErr := time.ParseDuration(timeout); parseErr != nil {
+			return fmt.Errorf("http= invalid timeout=%q", timeout)
+		}
+	}
+
+	chk := HTTPCheck{
 		Seq:      seq,
 		Method:   method,
 		URL:      url,
 		Status:   status,
 		Contains: contains,
-	})
+		BodyFile: bodyfile,
+		Timeout:  timeout,
+	}
+	if isWait {
+		chk.Method = "get" // wait polls with GET
+		r.HTTPWaits = append(r.HTTPWaits, chk)
+	} else {
+		r.HTTPChecks = append(r.HTTPChecks, chk)
+	}
 	return nil
 }
 

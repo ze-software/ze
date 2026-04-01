@@ -564,3 +564,75 @@ func TestParseHTTP(t *testing.T) {
 		})
 	}
 }
+
+func TestParseHTTPWait(t *testing.T) {
+	tests := []struct {
+		name     string
+		line     string
+		want     HTTPCheck
+		wantErr  string
+		wantWait bool // true = stored in HTTPWaits, false = HTTPChecks
+	}{
+		{
+			name:     "basic_wait",
+			line:     "http=wait:seq=1:url=http://127.0.0.1:8000/:status=200",
+			want:     HTTPCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:8000/", Status: 200},
+			wantWait: true,
+		},
+		{
+			name:     "wait_with_contains",
+			line:     "http=wait:seq=1:url=http://127.0.0.1:8000/graph:status=200:contains=AS2914",
+			want:     HTTPCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:8000/graph", Status: 200, Contains: "AS2914"},
+			wantWait: true,
+		},
+		{
+			name:     "wait_with_timeout",
+			line:     "http=wait:seq=1:url=http://127.0.0.1:8000/:status=200:timeout=10s",
+			want:     HTTPCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:8000/", Status: 200, Timeout: "10s"},
+			wantWait: true,
+		},
+		{
+			name:     "wait_with_contains_and_timeout",
+			line:     "http=wait:seq=1:url=http://127.0.0.1:$PORT2/lg/graph:status=200:contains=AS2914:timeout=15s",
+			want:     HTTPCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:$PORT2/lg/graph", Status: 200, Contains: "AS2914", Timeout: "15s"},
+			wantWait: true,
+		},
+		{
+			name:    "wait_invalid_timeout",
+			line:    "http=wait:seq=1:url=http://host/:status=200:timeout=bogus",
+			wantErr: "invalid timeout=",
+		},
+		{
+			name:    "wait_missing_seq",
+			line:    "http=wait:url=http://host/:status=200",
+			wantErr: "missing seq=",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			et := NewEncodingTests(t.TempDir())
+			rec := NewRecord("test")
+
+			parts := strings.SplitN(tt.line, ":", 2)
+			method := strings.TrimPrefix(parts[0], "http=")
+
+			err := et.parseHTTP(rec, method, tt.line)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			if tt.wantWait {
+				require.Len(t, rec.HTTPWaits, 1)
+				assert.Empty(t, rec.HTTPChecks)
+				assert.Equal(t, tt.want, rec.HTTPWaits[0])
+			} else {
+				require.Len(t, rec.HTTPChecks, 1)
+				assert.Empty(t, rec.HTTPWaits)
+				assert.Equal(t, tt.want, rec.HTTPChecks[0])
+			}
+		})
+	}
+}

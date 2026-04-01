@@ -621,6 +621,16 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 	}
 
+	// Execute HTTP waits (readiness polls) before assertion checks.
+	if len(rec.HTTPWaits) > 0 {
+		if waitErr := r.executeHTTPWaits(testCtx, rec); waitErr != nil {
+			rec.Error = waitErr
+			rec.FailureType = "http_check_failed"
+			rec.Duration = time.Since(rec.StartTime)
+			return false
+		}
+	}
+
 	// Execute HTTP checks (after background processes have started).
 	if len(rec.HTTPChecks) > 0 {
 		if httpErr := r.executeHTTPChecks(testCtx, rec); httpErr != nil {

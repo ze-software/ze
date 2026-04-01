@@ -145,6 +145,7 @@ type Record struct {
 
 	// HTTP checks for web endpoint assertions
 	HTTPChecks []HTTPCheck // http= assertions in seq order
+	HTTPWaits  []HTTPCheck // http=wait readiness polls (run before checks)
 }
 
 // RunCommand represents a process to run during test execution.
@@ -158,13 +159,18 @@ type RunCommand struct {
 
 // HTTPCheck represents an HTTP request assertion in a .ci test.
 // Format: http=get:seq=N:url=URL:status=CODE[:contains=TEXT]
+// Format: http=wait:seq=N:url=URL:status=CODE[:contains=TEXT][:timeout=DUR]
+// "get"/"post" checks are assertions; "wait" polls until the condition is met
+// (retrying on both connection errors and content mismatches).
 // Executed after all cmd= processes start, with retry+backoff for startup.
 type HTTPCheck struct {
 	Seq      int    // Execution order (lower first, among HTTP checks)
-	Method   string // HTTP method: "get" or "post"
+	Method   string // HTTP method: "get", "post", or "wait"
 	URL      string // Request URL (supports $PORT substitution)
 	Status   int    // Expected HTTP status code
 	Contains string // Expected body substring (optional, empty = skip body check)
+	BodyFile string // Path to file with expected body content (exact match)
+	Timeout  string // Poll timeout for wait checks (default "15s")
 }
 
 // NewRecord creates a new test record.

@@ -5,13 +5,16 @@
 package runner
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -268,9 +271,14 @@ func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
 
 	client := &http.Client{Timeout: 5 * time.Second}
 
+	ciDir := filepath.Dir(rec.CIFile)
 	for _, chk := range checks {
 		url := strings.ReplaceAll(chk.URL, "$PORT2", fmt.Sprintf("%d", rec.Port+1))
 		url = strings.ReplaceAll(url, "$PORT", fmt.Sprintf("%d", rec.Port))
+		// Resolve bodyfile path relative to .ci file directory.
+		if chk.BodyFile != "" && !filepath.IsAbs(chk.BodyFile) {
+			chk.BodyFile = filepath.Join(ciDir, chk.BodyFile)
+		}
 		if err := r.executeOneHTTPCheck(ctx, client, chk, url); err != nil {
 			return err
 		}
@@ -330,6 +338,19 @@ func (r *Runner) executeOneHTTPCheck(ctx context.Context, client *http.Client, c
 				chk.Method, url, chk.Contains, truncate(string(body), 200))
 		}
 
+		// Check body matches file (exact match).
+		// BodyFile path already resolved by caller (executeHTTPChecks).
+		if chk.BodyFile != "" {
+			expected, readFileErr := os.ReadFile(chk.BodyFile) //nolint:gosec // test runner, path from .ci file
+			if readFileErr != nil {
+				return fmt.Errorf("http %s %s: read bodyfile %q: %w", chk.Method, url, chk.BodyFile, readFileErr)
+			}
+			if !bytes.Equal(body, expected) {
+				return fmt.Errorf("http %s %s: body does not match %s\ngot:\n%s\nexpected:\n%s",
+					chk.Method, url, chk.BodyFile, truncate(string(body), 500), truncate(string(expected), 500))
+			}
+		}
+
 		return nil
 	}
 	return fmt.Errorf("http %s %s: %w (after %d retries)", chk.Method, url, lastErr, maxRetries)
@@ -343,6 +364,108 @@ func isTransientConnError(err error) bool {
 	return errors.Is(err, syscall.ECONNREFUSED) ||
 		errors.Is(err, syscall.ECONNRESET) ||
 		errors.Is(err, io.EOF)
+}
+
+// executeHTTPWaits polls HTTP endpoints until conditions are met.
+// Unlike assertion checks, waits retry on both connection errors AND content
+// mismatches, making them suitable for waiting until a server has populated data.
+func (r *Runner) executeHTTPWaits(ctx context.Context, rec *Record) error {
+	waits := make([]HTTPCheck, len(rec.HTTPWaits))
+	copy(waits, rec.HTTPWaits)
+	sort.Slice(waits, func(i, j int) bool {
+		return waits[i].Seq < waits[j].Seq
+	})
+
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	for _, w := range waits {
+		url := strings.ReplaceAll(w.URL, "$PORT2", fmt.Sprintf("%d", rec.Port+1))
+		url = strings.ReplaceAll(url, "$PORT", fmt.Sprintf("%d", rec.Port))
+		if err := r.executeOneHTTPWait(ctx, client, w, url); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// executeOneHTTPWait polls a single HTTP endpoint until the expected condition
+// is met. Retries on connection errors, wrong status codes, and content
+// mismatches. Default timeout is 15s, overridden by the check's Timeout field.
+func (r *Runner) executeOneHTTPWait(ctx context.Context, client *http.Client, chk HTTPCheck, url string) error {
+	const retryInterval = 500 * time.Millisecond
+
+	timeout := 15 * time.Second
+	if chk.Timeout != "" {
+		if d, err := time.ParseDuration(chk.Timeout); err == nil {
+			timeout = d
+		}
+	}
+
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	var lastErr error
+	for {
+		if waitCtx.Err() != nil {
+			if lastErr != nil {
+				return fmt.Errorf("http wait %s: %w (timeout %s)", url, lastErr, timeout)
+			}
+			return fmt.Errorf("http wait %s: timeout %s", url, timeout)
+		}
+
+		req, err := http.NewRequestWithContext(waitCtx, strings.ToUpper(chk.Method), url, http.NoBody)
+		if err != nil {
+			return fmt.Errorf("http wait %s: invalid request: %w", url, err)
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			select {
+			case <-time.After(retryInterval):
+				continue
+			case <-waitCtx.Done():
+				return fmt.Errorf("http wait %s: %w (timeout %s)", url, lastErr, timeout)
+			}
+		}
+
+		body, readErr := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		if readErr != nil {
+			lastErr = fmt.Errorf("reading body: %w", readErr)
+			select {
+			case <-time.After(retryInterval):
+				continue
+			case <-waitCtx.Done():
+				return fmt.Errorf("http wait %s: %w (timeout %s)", url, lastErr, timeout)
+			}
+		}
+
+		// Check status code.
+		if resp.StatusCode != chk.Status {
+			lastErr = fmt.Errorf("expected status %d, got %d", chk.Status, resp.StatusCode)
+			select {
+			case <-time.After(retryInterval):
+				continue
+			case <-waitCtx.Done():
+				return fmt.Errorf("http wait %s: %w (timeout %s)", url, lastErr, timeout)
+			}
+		}
+
+		// Check body contains.
+		if chk.Contains != "" && !strings.Contains(string(body), chk.Contains) {
+			lastErr = fmt.Errorf("body does not contain %q (body: %s)", chk.Contains, truncate(string(body), 200))
+			select {
+			case <-time.After(retryInterval):
+				continue
+			case <-waitCtx.Done():
+				return fmt.Errorf("http wait %s: %w (timeout %s)", url, lastErr, timeout)
+			}
+		}
+
+		// All conditions met.
+		return nil
+	}
 }
 
 // truncate shortens a string to maxLen, adding "..." if truncated.

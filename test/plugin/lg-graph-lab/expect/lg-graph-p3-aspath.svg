@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="441" height="180" viewBox="0 0 441 180">
+<style>
+.node rect { fill: var(--node-fill, #f0f4f8); stroke: var(--node-stroke, #4a90d9); stroke-width: 2; rx: 6; }
+.node rect:hover { fill: var(--node-fill-hover, #dce8f5); stroke: var(--node-stroke-hover, #2a6cb8); }
+.node text { font-family: monospace; font-size: 12px; fill: var(--node-text, #333); }
+.node .asn { font-weight: bold; }
+.edge line { stroke: var(--edge-stroke, #999); stroke-width: 1.5; }
+.edge polygon { fill: var(--edge-stroke, #999); }
+</style>
+<g class="edge"><line x1="220" y1="40" x2="340" y2="40"/><polygon points="340,40 332,36 332,44"/></g>
+<g class="edge"><line x1="220" y1="140" x2="340" y2="40"/><polygon points="340,40 332,36 332,44"/></g>
+<g class="node"><rect x="20" y="20" width="200" height="40"/><text x="36" y="44" class="asn">AS13335 Cloudflare, Inc.</text><title>AS13335 - Cloudflare, Inc.</title></g>
+<g class="node"><rect x="20" y="120" width="200" height="40"/><text x="36" y="144" class="asn">AS20940 AKAMAI-ASN1, NL</text><title>AS20940 - AKAMAI-ASN1, NL</title></g>
+<g class="node"><rect x="340" y="20" width="81" height="40"/><text x="356" y="44" class="asn">AS65300</text><title>AS65300</title></g>
+</svg>
