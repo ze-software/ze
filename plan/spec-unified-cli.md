@@ -297,7 +297,7 @@ N/A -- no protocol changes. Plugin protocol is internal, not RFC-governed.
 - `docs/guide/plugins.md` -- added Debugging Plugins section
 
 ### Deviations from Plan
-- `.ci` functional test not created -- requires full daemon infrastructure (SSH server + plugin server wired together). Unit tests prove the core via net.Pipe. A `.ci` test belongs in a follow-up when the daemon wiring for `SetPluginProtocolFunc` is committed.
+- ~~`.ci` functional test not created -- requires full daemon infrastructure (SSH server + plugin server wired together). Unit tests prove the core via net.Pipe. A `.ci` test belongs in a follow-up when the daemon wiring for `SetPluginProtocolFunc` is committed.~~ Resolved: `test/plugin/plugin-cli-debug.ci` created and passing (commit ca62e83d).
 
 ## Implementation Audit
 
@@ -312,9 +312,9 @@ N/A -- no protocol changes. Plugin protocol is internal, not RFC-governed.
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-9 | ✅ Done | `TestAdHocProcessHandshake` | 5-stage handshake completes over net.Pipe |
+| AC-9 | ✅ Done | `TestAdHocProcessHandshake` + `plugin-cli-debug.ci` | 5-stage handshake completes over net.Pipe and via SSH |
 | AC-10 | ✅ Done | `cmdPluginCLI` Q&A flow | Custom families parsed from Q&A |
-| AC-11 | ✅ Done | `TestAdHocProcessRuntime` | dispatch-command works after handshake |
+| AC-11 | ✅ Done | `TestAdHocProcessRuntime` + `plugin-cli-debug.ci` | dispatch-command works after handshake, .ci verifies via SSH |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -322,7 +322,7 @@ N/A -- no protocol changes. Plugin protocol is internal, not RFC-governed.
 | `TestAdHocProcessHandshake` | ✅ Pass | `server/adhoc_test.go` | |
 | `TestAdHocProcessRuntime` | ✅ Pass | `server/adhoc_test.go` | |
 | `TestNewWithIO` | ✅ Pass | `server/adhoc_test.go` | |
-| `plugin-cli-debug.ci` | ⚠️ Not created | | Requires daemon wiring |
+| `plugin-cli-debug.ci` | ✅ Pass | `test/plugin/plugin-cli-debug.ci` | 5-stage handshake + dispatch via SSH |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -333,12 +333,12 @@ N/A -- no protocol changes. Plugin protocol is internal, not RFC-governed.
 | `internal/component/plugin/server/server.go` | 🔄 Changed | `HandleAdHocPluginSession` placed in `adhoc.go` instead |
 | `pkg/plugin/sdk/sdk.go` | ✅ Modified | `NewWithIO` added |
 | `internal/component/plugin/server/adhoc.go` | ✅ Created | |
-| `test/plugin/plugin-cli-debug.ci` | ⚠️ Not created | Requires daemon wiring |
+| `test/plugin/plugin-cli-debug.ci` | ✅ Created | Passes: 5-stage handshake + dispatch via SSH |
 
 ### Audit Summary
 - **Total items:** 12
-- **Done:** 10
-- **Partial:** 1 (`.ci` test -- requires daemon wiring for `SetPluginProtocolFunc`)
+- **Done:** 11
+- **Partial:** 0
 - **Skipped:** 0
 - **Changed:** 1 (`HandleAdHocPluginSession` in `adhoc.go` instead of `server.go`)
 
@@ -349,6 +349,7 @@ N/A -- no protocol changes. Plugin protocol is internal, not RFC-governed.
 |------|--------|----------|
 | `internal/component/plugin/server/adhoc.go` | Yes | Created |
 | `internal/component/plugin/server/adhoc_test.go` | Yes | Created |
+| `test/plugin/plugin-cli-debug.ci` | Yes | Created, passes (5.0s) |
 | `plan/learned/484-unified-cli.md` | Yes | Created |
 
 ### AC Verified (grep/test)
@@ -361,7 +362,7 @@ N/A -- no protocol changes. Plugin protocol is internal, not RFC-governed.
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| `ze bgp plugin cli` | No `.ci` test | Unit tests prove handshake via net.Pipe; `.ci` requires daemon wiring |
+| `ze bgp plugin cli` | `test/plugin/plugin-cli-debug.ci` | Passes: 5-stage handshake + dispatch-command via SSH |
 
 ## Checklist
 

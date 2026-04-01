@@ -36,3 +36,4 @@ Developers debugging plugin issues had no way to manually interact with the engi
 - `docs/features.md` -- plugin debug shell entry
 - `docs/guide/command-reference.md` -- updated `ze bgp plugin` commands
 - `docs/guide/plugins.md` -- added Debugging Plugins section
+- `test/plugin/plugin-cli-debug.ci` -- functional test: 5-stage handshake + dispatch-command via SSH
