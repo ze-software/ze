@@ -65,11 +65,14 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	// Best-path commands (RFC 4271 §9.1.2)
 	assert.Contains(t, commandNames, "rib best")
 	assert.Contains(t, commandNames, "rib best status")
+	// Route injection (manual RIB manipulation)
+	assert.Contains(t, commandNames, "rib inject")
+	assert.Contains(t, commandNames, "rib withdraw")
 	// Meta-commands (introspection)
 	assert.Contains(t, commandNames, "rib help")
 	assert.Contains(t, commandNames, "rib command list")
 	assert.Contains(t, commandNames, "rib event list")
-	assert.Len(t, regInput.Commands, 14, "rib registers exactly 14 commands")
+	assert.Len(t, regInput.Commands, 16, "rib registers exactly 16 commands")
 
 	require.NoError(t, mux.SendOK(ctx, stage1.ID))
 

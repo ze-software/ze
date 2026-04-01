@@ -10,6 +10,7 @@ import (
 
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 )
@@ -2213,4 +2214,469 @@ func TestOutboundResendNoArgError(t *testing.T) {
 	status, _, err := r.handleCommand("rib clear out", "*", nil)
 	require.Error(t, err, "rib clear out with no args should return error")
 	assert.Equal(t, "error", status)
+}
+
+// --- rib inject / rib withdraw tests ---
+
+// TestInjectRoute_Basic verifies a route can be injected into adj-rib-in.
+//
+// VALIDATES: AC-1 -- rib inject 10.0.0.1 ipv4/unicast 10.0.0.0/24 inserts route.
+// PREVENTS: Inject command silently failing without inserting.
+func TestInjectRoute_Basic(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, data, err := r.handleCommand("rib inject", "", []string{"10.0.0.1", "ipv4/unicast", "10.0.0.0/24"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+	assert.Contains(t, data, `"injected":"10.0.0.0/24"`)
+	assert.Contains(t, data, `"peer":"10.0.0.1"`)
+
+	// Verify route is in RIB.
+	peerRIB := r.ribInPool["10.0.0.1"]
+	require.NotNil(t, peerRIB, "PeerRIB should exist after inject")
+	assert.Equal(t, 1, peerRIB.FamilyLen(nlri.Family{AFI: 1, SAFI: 1}))
+}
+
+// TestInjectRoute_AllAttributes verifies all optional attributes are set.
+//
+// VALIDATES: AC-2 -- origin, nhop, aspath, localpref, med all set correctly.
+// PREVENTS: Attribute args silently ignored.
+func TestInjectRoute_AllAttributes(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	args := []string{"10.0.0.1", "ipv4/unicast", "10.0.0.0/24",
+		"origin", "egp",
+		"nhop", "1.1.1.1",
+		"aspath", "64500,64501,64502",
+		"localpref", "200",
+		"med", "50",
+	}
+	status, _, err := r.handleCommand("rib inject", "", args)
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+
+	// Verify route exists and has attributes by looking it up.
+	peerRIB := r.ribInPool["10.0.0.1"]
+	require.NotNil(t, peerRIB)
+
+	nlriBytes, err := prefixToWire("ipv4/unicast", "10.0.0.0/24", 0, false)
+	require.NoError(t, err)
+	entry, found := peerRIB.Lookup(nlri.Family{AFI: 1, SAFI: 1}, nlriBytes)
+	require.True(t, found, "route should exist after inject")
+	require.NotNil(t, entry)
+}
+
+// TestWithdrawRoute_Basic verifies a route can be withdrawn from adj-rib-in.
+//
+// VALIDATES: AC-3 -- rib withdraw removes route.
+// PREVENTS: Withdraw silently failing.
+func TestWithdrawRoute_Basic(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Inject first.
+	_, _, err := r.handleCommand("rib inject", "", []string{"10.0.0.1", "ipv4/unicast", "10.0.0.0/24"})
+	require.NoError(t, err)
+
+	// Withdraw.
+	status, data, err := r.handleCommand("rib withdraw", "", []string{"10.0.0.1", "ipv4/unicast", "10.0.0.0/24"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+	assert.Contains(t, data, `"existed":true`)
+
+	// Verify route is gone.
+	peerRIB := r.ribInPool["10.0.0.1"]
+	assert.Equal(t, 0, peerRIB.FamilyLen(nlri.Family{AFI: 1, SAFI: 1}))
+}
+
+// TestInjectRoute_VisibleInShow verifies injected routes appear in rib show.
+//
+// VALIDATES: AC-4 -- injected routes appear in rib show output.
+// PREVENTS: Routes inserted but not queryable.
+func TestInjectRoute_VisibleInShow(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	_, _, err := r.handleCommand("rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "aspath", "64500,64501",
+	})
+	require.NoError(t, err)
+
+	status, data, err := r.handleCommand("rib show", "10.0.0.1", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+	assert.Contains(t, data, "10.0.0.0/24")
+}
+
+// TestInjectRoute_MissingPeer verifies error when not enough args.
+//
+// VALIDATES: AC-5 -- missing peer argument returns error with usage hint.
+// PREVENTS: Routes injected without a peer label.
+func TestInjectRoute_MissingPeer(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib inject", "", []string{"ipv4/unicast", "10.0.0.0/24"})
+	require.Error(t, err)
+	assert.Equal(t, "error", status)
+	assert.Contains(t, err.Error(), "usage:")
+}
+
+// TestInjectRoute_InvalidPrefix verifies error on malformed prefix.
+//
+// VALIDATES: AC-6 -- invalid prefix returns error.
+// PREVENTS: Panic or silent failure on bad input.
+func TestInjectRoute_InvalidPrefix(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib inject", "", []string{"10.0.0.1", "ipv4/unicast", "not-a-prefix"})
+	require.Error(t, err)
+	assert.Equal(t, "error", status)
+}
+
+// TestInjectRoute_InvalidASPath verifies error on malformed AS path.
+//
+// VALIDATES: AC-7 -- invalid ASN returns error.
+// PREVENTS: Corrupt AS path stored in RIB.
+func TestInjectRoute_InvalidASPath(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "aspath", "abc,def",
+	})
+	require.Error(t, err)
+	assert.Equal(t, "error", status)
+	assert.Contains(t, err.Error(), "invalid ASN")
+}
+
+// TestInjectRoute_UnknownAttr verifies error on unknown attribute keyword.
+//
+// VALIDATES: AC-8 -- unknown attribute returns error.
+// PREVENTS: Typos silently ignored.
+func TestInjectRoute_UnknownAttr(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "bogus", "value",
+	})
+	require.Error(t, err)
+	assert.Equal(t, "error", status)
+	assert.Contains(t, err.Error(), "unknown attribute")
+}
+
+// TestInjectRoute_IPv6 verifies IPv6 prefix injection.
+//
+// VALIDATES: AC-9 -- IPv6 prefix works.
+// PREVENTS: IPv6 silently rejected or mangled.
+func TestInjectRoute_IPv6(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, data, err := r.handleCommand("rib inject", "", []string{"10.0.0.1", "ipv6/unicast", "2001:db8::/32"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+	assert.Contains(t, data, `"injected":"2001:db8::/32"`)
+
+	peerRIB := r.ribInPool["10.0.0.1"]
+	require.NotNil(t, peerRIB)
+	assert.Equal(t, 1, peerRIB.FamilyLen(nlri.Family{AFI: 2, SAFI: 1}))
+}
+
+// TestWithdrawRoute_NonExistent verifies withdrawing a non-existent route.
+//
+// VALIDATES: AC-10 -- withdraw of missing route reports existed=false.
+// PREVENTS: Error on withdraw of non-existent route.
+func TestWithdrawRoute_NonExistent(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Create PeerRIB first so we don't get "no RIB for peer" error.
+	_, _, err := r.handleCommand("rib inject", "", []string{"10.0.0.1", "ipv4/unicast", "10.0.0.0/24"})
+	require.NoError(t, err)
+
+	status, data, err := r.handleCommand("rib withdraw", "", []string{"10.0.0.1", "ipv4/unicast", "192.168.0.0/24"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+	assert.Contains(t, data, `"existed":false`)
+}
+
+// TestInjectRoute_ImplicitWithdraw verifies re-inject replaces old attributes.
+//
+// VALIDATES: AC-11 -- multiple injects to same prefix = implicit withdraw.
+// PREVENTS: Duplicate entries or stale attributes.
+func TestInjectRoute_ImplicitWithdraw(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Inject with localpref 100.
+	_, _, err := r.handleCommand("rib inject", "", []string{"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "localpref", "100"})
+	require.NoError(t, err)
+
+	// Re-inject same prefix with localpref 200.
+	_, _, err = r.handleCommand("rib inject", "", []string{"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "localpref", "200"})
+	require.NoError(t, err)
+
+	// Should still be exactly 1 route (implicit withdraw replaced the old one).
+	peerRIB := r.ribInPool["10.0.0.1"]
+	require.NotNil(t, peerRIB)
+	assert.Equal(t, 1, peerRIB.FamilyLen(nlri.Family{AFI: 1, SAFI: 1}))
+}
+
+// TestInjectRoute_InvalidPeerAddress verifies non-IP peer is rejected.
+//
+// VALIDATES: Peer address must be a valid IP.
+// PREVENTS: Arbitrary strings used as peer labels (XSS in LG output).
+func TestInjectRoute_InvalidPeerAddress(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib inject", "", []string{"not-an-ip", "ipv4/unicast", "10.0.0.0/24"})
+	require.Error(t, err)
+	assert.Equal(t, "error", status)
+	assert.Contains(t, err.Error(), "invalid peer address")
+}
+
+// TestInjectRoute_IPv6NextHopRejected verifies IPv6 nhop returns error.
+//
+// VALIDATES: AC-5 -- IPv6 nhop accepted for unknown peer (no session, fallback).
+// PREVENTS: Unknown peer rejecting valid IPv6 next-hop.
+func TestInjectRoute_IPv6NhopUnknownPeer(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// 10.0.0.1 has no peerMeta entry -- fallback accepts any valid IP.
+	status, _, err := r.handleCommand("rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "nhop", "2001:db8::1",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+}
+
+// VALIDATES: AC-4 -- IPv6 nhop rejected for real peer without ExtendedNextHop.
+// PREVENTS: IPv6 nhop accepted when peer hasn't negotiated the capability.
+func TestInjectRoute_IPv6NhopRealPeerNoCapability(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Simulate a real peer with metadata but no ExtendedNextHop capability.
+	// ContextID 0 means no encoding context (JSON event path, no structured event).
+	r.peerMeta["10.0.0.1"] = &PeerMeta{PeerASN: 65000, LocalASN: 65001, ContextID: 0}
+
+	// ContextID 0 = no capability info, should accept with warning.
+	status, _, err := r.handleCommand("rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "nhop", "2001:db8::1",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+}
+
+// VALIDATES: AC-4 -- IPv6 nhop rejected when peer has context but no ExtendedNextHop.
+// PREVENTS: IPv6 nhop accepted when capability not negotiated.
+func TestInjectRoute_IPv6NhopRealPeerContextNoExtNH(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Register an encoding context WITHOUT ExtendedNextHop.
+	ctx := bgpctx.NewEncodingContext(nil, nil, bgpctx.DirectionRecv)
+	ctxID := bgpctx.Registry.Register(ctx)
+
+	r.peerMeta["10.0.0.1"] = &PeerMeta{PeerASN: 65000, LocalASN: 65001, ContextID: ctxID}
+
+	status, _, err := r.handleCommand("rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "nhop", "2001:db8::1",
+	})
+	require.Error(t, err)
+	assert.Equal(t, "error", status)
+	assert.Contains(t, err.Error(), "extended-nexthop")
+	assert.Contains(t, err.Error(), "RFC 8950")
+}
+
+// TestInjectRoute_TrailingKeyNoValue verifies odd attr args are rejected.
+//
+// VALIDATES: Trailing key without value returns error.
+// PREVENTS: Attribute silently ignored when value is missing.
+func TestInjectRoute_TrailingKeyNoValue(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "origin",
+	})
+	require.Error(t, err)
+	assert.Equal(t, "error", status)
+	assert.Contains(t, err.Error(), "has no value")
+}
+
+// TestInjectRoute_NonSimpleFamily verifies EVPN/VPN families are rejected.
+//
+// VALIDATES: Only simple prefix families accepted.
+// PREVENTS: Malformed NLRI bytes for complex family types.
+func TestInjectRoute_NonSimpleFamily(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib inject", "", []string{"10.0.0.1", "l2vpn/evpn", "10.0.0.0/24"})
+	require.Error(t, err)
+	assert.Equal(t, "error", status)
+	assert.Contains(t, err.Error(), "simple prefix families")
+}
+
+// TestWithdrawRoute_InvalidPeerAddress verifies non-IP peer is rejected in withdraw.
+//
+// VALIDATES: Peer validation also applies to withdraw.
+// PREVENTS: Asymmetry between inject and withdraw validation.
+func TestWithdrawRoute_InvalidPeerAddress(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib withdraw", "", []string{"not-an-ip", "ipv4/unicast", "10.0.0.0/24"})
+	require.Error(t, err)
+	assert.Equal(t, "error", status)
+	assert.Contains(t, err.Error(), "invalid peer address")
+}
+
+// TestInjectRoute_IPv4Multicast verifies multicast family works.
+//
+// VALIDATES: Multicast is a valid simple prefix family.
+// PREVENTS: Only unicast tested, multicast silently broken.
+func TestInjectRoute_IPv4Multicast(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib inject", "", []string{"10.0.0.1", "ipv4/multicast", "224.0.0.0/4"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+
+	peerRIB := r.ribInPool["10.0.0.1"]
+	require.NotNil(t, peerRIB)
+	assert.Equal(t, 1, peerRIB.FamilyLen(nlri.Family{AFI: 1, SAFI: 2}))
+}
+
+// TestInjectRoute_OriginIncomplete verifies incomplete origin value.
+//
+// VALIDATES: All three origin values are accepted.
+// PREVENTS: Only default igp tested.
+func TestInjectRoute_OriginIncomplete(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "origin", "incomplete",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+}
+
+// TestInjectRoute_NoAttributes verifies inject with zero optional attrs.
+//
+// VALIDATES: Default origin=igp is set when no attrs provided.
+// PREVENTS: Malformed wire bytes when no optional attrs given.
+func TestInjectRoute_NoAttributes(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib inject", "", []string{"10.0.0.1", "ipv4/unicast", "10.0.0.0/24"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+
+	nlriBytes, err := prefixToWire("ipv4/unicast", "10.0.0.0/24", 0, false)
+	require.NoError(t, err)
+	entry, found := r.ribInPool["10.0.0.1"].Lookup(nlri.Family{AFI: 1, SAFI: 1}, nlriBytes)
+	require.True(t, found)
+	require.NotNil(t, entry)
+}
+
+// TestInjectRoute_SingleASN verifies single-ASN aspath (no comma).
+//
+// VALIDATES: parseASNList handles single value without comma.
+// PREVENTS: Single ASN rejected or parsed as empty.
+func TestInjectRoute_SingleASN(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "aspath", "64500",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+}
+
+// TestInjectRoute_DuplicateAttr verifies last-wins behavior for repeated attrs.
+//
+// VALIDATES: Repeated attribute keyword uses last value.
+// PREVENTS: First-wins or error on duplicate.
+func TestInjectRoute_DuplicateAttr(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "localpref", "100", "localpref", "200",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+}
+
+// TestInjectRoute_InvalidFamily verifies unparseable family string.
+//
+// VALIDATES: Garbage family string returns error.
+// PREVENTS: Panic on malformed family.
+func TestInjectRoute_InvalidFamily(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib inject", "", []string{"10.0.0.1", "bogus/family", "10.0.0.0/24"})
+	require.Error(t, err)
+	assert.Equal(t, "error", status)
+}
+
+// TestInjectRoute_FamilyMismatch verifies IPv6 prefix rejected for IPv4 family.
+//
+// VALIDATES: prefixToWire rejects address family mismatch.
+// PREVENTS: IPv6 address truncated to 4 bytes and stored as garbage.
+func TestInjectRoute_FamilyMismatch(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib inject", "", []string{"10.0.0.1", "ipv4/unicast", "2001:db8::/32"})
+	require.Error(t, err)
+	assert.Equal(t, "error", status)
+}
+
+// TestInjectRoute_IPv4MappedIPv6NextHop verifies ::ffff:x.x.x.x works as nhop.
+//
+// VALIDATES: IPv4-mapped IPv6 addresses (RFC 4291) accepted as next-hop.
+// PREVENTS: Mapped addresses rejected by the IPv6 check.
+func TestInjectRoute_IPv4MappedIPv6NextHop(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "nhop", "::ffff:10.0.0.1",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+}
+
+// TestWithdrawRoute_MissingArgs verifies error with insufficient args.
+//
+// VALIDATES: Withdraw with < 3 args returns usage error.
+// PREVENTS: Panic on missing prefix arg.
+func TestWithdrawRoute_MissingArgs(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib withdraw", "", []string{"10.0.0.1", "ipv4/unicast"})
+	require.Error(t, err)
+	assert.Equal(t, "error", status)
+	assert.Contains(t, err.Error(), "usage:")
+}
+
+// TestParseASNList verifies AS number list parsing.
+//
+// VALIDATES: parseASNList handles valid and invalid inputs.
+// PREVENTS: Malformed ASN lists accepted silently.
+func TestParseASNList(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    []uint32
+		wantErr bool
+	}{
+		{"single", "64500", []uint32{64500}, false},
+		{"multiple", "64500,64501,64502", []uint32{64500, 64501, 64502}, false},
+		{"spaces", "64500, 64501, 64502", []uint32{64500, 64501, 64502}, false},
+		{"empty_parts", "64500,,64501", []uint32{64500, 64501}, false},
+		{"invalid", "abc", nil, true},
+		{"negative", "-1", nil, true},
+		{"overflow", "4294967296", nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseASNList(tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

@@ -1,0 +1,134 @@
+# Test: rib withdraw removes route from Adj-RIB-In
+# VALIDATES: rib inject + withdraw round-trip through engine to bgp-rib plugin
+# PREVENTS: rib withdraw proxy handler broken or route not actually removed
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: exercises dispatch-command for inject + withdraw + show
+tmpfs=rib-withdraw-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import sys
+import json
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(1.0)
+
+    try:
+        # Inject a route
+        result = dispatch(api, 'rib inject 10.0.0.99 ipv4/unicast 192.168.1.0/24 origin igp')
+        if result.get('status') != 'done':
+            print(f'FAIL: inject status={result.get("status")}', file=sys.stderr)
+            sys.exit(1)
+
+        # Withdraw the route
+        result = dispatch(api, 'rib withdraw 10.0.0.99 ipv4/unicast 192.168.1.0/24')
+        if result.get('status') != 'done':
+            print(f'FAIL: withdraw status={result.get("status")}', file=sys.stderr)
+            sys.exit(1)
+
+        data = result.get('data', '')
+        if '"existed":true' not in data:
+            print(f'FAIL: withdraw should report existed=true: {data}', file=sys.stderr)
+            sys.exit(1)
+
+        # Verify route is gone from rib show
+        result = dispatch(api, 'rib show received')
+        if result.get('status') != 'done':
+            print(f'FAIL: rib show status={result.get("status")}', file=sys.stderr)
+            sys.exit(1)
+
+        show_data = result.get('data', '')
+        if '192.168.1.0/24' in show_data:
+            print(f'FAIL: withdrawn route still in rib show: {show_data[:200]}', file=sys.stderr)
+            sys.exit(1)
+
+        print('OK: rib inject + withdraw + show verified', file=sys.stderr)
+    finally:
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rib-withdraw-test {
+		run ./rib-withdraw-test.run
+		encoder json
+	}
+	external rib {
+		run "ze plugin bgp-rib"
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process rib-withdraw-test {
+		}
+		process rib {
+			receive [ state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

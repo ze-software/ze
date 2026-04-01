@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
@@ -129,11 +130,12 @@ func poolNames() []poolNameEntry {
 // metricsUpdateInterval is how often RIB metrics gauges are refreshed.
 const metricsUpdateInterval = 10 * time.Second
 
-// PeerMeta stores per-peer metadata for best-path comparison.
-// Extracted from received UPDATE events (nested peer format).
+// PeerMeta stores per-peer metadata for best-path comparison and capability lookup.
+// Extracted from received UPDATE events (nested peer format) and structured events.
 type PeerMeta struct {
-	PeerASN  uint32 // peer's AS number
-	LocalASN uint32 // local AS number (for eBGP/iBGP detection)
+	PeerASN   uint32           // peer's AS number
+	LocalASN  uint32           // local AS number (for eBGP/iBGP detection)
+	ContextID bgpctx.ContextID // encoding context from last received event (0 = unknown)
 }
 
 // peerGRState holds per-peer Graceful Restart metadata in the RIB plugin.
@@ -350,6 +352,9 @@ func RunRIBPlugin(conn net.Conn) int {
 			// Best-path selection (RFC 4271 §9.1.2)
 			{Name: "rib best"},
 			{Name: "rib best status"},
+			// Route injection (manual RIB manipulation)
+			{Name: "rib inject"},
+			{Name: "rib withdraw"},
 			// Meta-commands (introspection)
 			{Name: "rib help"},
 			{Name: "rib command list"},

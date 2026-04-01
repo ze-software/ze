@@ -40,7 +40,11 @@ NLRI operations: `add`, `del`, `eor` per address family.
 | `rib routes sent [peer] [family]` | Show Adj-RIB-Out |
 | `rib clear-in [peer] [family]` | Clear Adj-RIB-In |
 | `rib clear-out [peer] [family]` | Clear Adj-RIB-Out |
+| `rib inject <peer> <family> <prefix> [attrs...]` | Insert route into Adj-RIB-In (no live session needed) |
+| `rib withdraw <peer> <family> <prefix>` | Remove route from Adj-RIB-In |
 
+Inject attributes: `origin <igp|egp|incomplete>`, `nhop <ip>`, `aspath <asn,asn,...>`, `localpref <n>`, `med <n>`. Peer address is a label (valid IP, no session required). Only simple prefix families (IPv4/IPv6 unicast/multicast).
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute, withdrawRoute -->
 <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB command handlers -->
 
 ### Cache Management

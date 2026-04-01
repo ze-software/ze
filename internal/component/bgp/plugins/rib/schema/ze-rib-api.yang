@@ -130,6 +130,44 @@ module ze-rib-api {
         }
     }
 
+    rpc inject {
+        description "Insert route into Adj-RIB-In as if received from a peer.
+                     The peer address is a label; no live BGP session required.
+                     Syntax: rib inject <peer> <family> <prefix> [origin <val>]
+                             [nhop <ip>] [aspath <asn,...>] [localpref <n>] [med <n>]";
+        input {
+            leaf peer { type zt:ip-address; mandatory true; description "Peer address label"; }
+            leaf family { type zt:address-family; mandatory true; description "Address family (e.g. ipv4/unicast)"; }
+            leaf prefix { type string; mandatory true; description "CIDR prefix (e.g. 10.0.0.0/24)"; }
+            leaf origin { type string; description "Origin: igp, egp, incomplete (default: igp)"; }
+            leaf nhop { type zt:ip-address; description "Next-hop IP address"; }
+            leaf aspath { type string; description "AS path as comma-separated ASNs (e.g. 64500,64501)"; }
+            leaf localpref { type uint32; description "LOCAL_PREF value"; }
+            leaf med { type uint32; description "MULTI_EXIT_DISC value"; }
+        }
+        output {
+            leaf injected { type string; description "Prefix that was injected"; }
+            leaf peer { type zt:ip-address; description "Peer the route was injected for"; }
+            leaf family { type zt:address-family; description "Address family"; }
+        }
+    }
+
+    rpc withdraw {
+        description "Remove route from Adj-RIB-In.
+                     Syntax: rib withdraw <peer> <family> <prefix>";
+        input {
+            leaf peer { type zt:ip-address; mandatory true; description "Peer address label"; }
+            leaf family { type zt:address-family; mandatory true; description "Address family"; }
+            leaf prefix { type string; mandatory true; description "CIDR prefix to withdraw"; }
+        }
+        output {
+            leaf withdrawn { type string; description "Prefix that was withdrawn"; }
+            leaf peer { type zt:ip-address; description "Peer the route was withdrawn from"; }
+            leaf family { type zt:address-family; description "Address family"; }
+            leaf existed { type boolean; description "Whether the route existed before withdrawal"; }
+        }
+    }
+
     // Notifications
 
     notification rib-change {

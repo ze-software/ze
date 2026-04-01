@@ -64,10 +64,11 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Track peer metadata for best-path comparison.
+	// Track peer metadata for best-path comparison and capability lookup.
 	r.peerMeta[peerAddr] = &PeerMeta{
-		PeerASN:  se.PeerAS,
-		LocalASN: se.LocalAS,
+		PeerASN:   se.PeerAS,
+		LocalASN:  se.LocalAS,
+		ContextID: wu.SourceCtxID(),
 	}
 
 	// Initialize PeerRIB if needed.

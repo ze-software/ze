@@ -49,5 +49,17 @@ module ze-rib-cmd {
                 description "Resend Adj-RIB-Out routes";
             }
         }
+
+        container inject {
+            config false;
+            ze:command "ze-rib-api:inject";
+            description "Insert route into Adj-RIB-In";
+        }
+
+        container withdraw {
+            config false;
+            ze:command "ze-rib-api:withdraw";
+            description "Remove route from Adj-RIB-In";
+        }
     }
 }

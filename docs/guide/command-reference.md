@@ -601,6 +601,8 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `rib best status` | read-only | Best-path computation status |
 | `rib clear in <selector>` | write | Clear Adj-RIB-In (`*` for all peers) |
 | `rib clear out <selector> [family]` | write | Regenerate and re-advertise Adj-RIB-Out (`*` for all peers, optional family filter) |
+| `rib inject <peer> <family> <prefix> [attrs...]` | write | Insert route into Adj-RIB-In as if received from peer |
+| `rib withdraw <peer> <family> <prefix>` | write | Remove route from Adj-RIB-In |
 <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin -->
 
 ### Commit (Atomic Updates)

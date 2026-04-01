@@ -11,12 +11,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
@@ -159,6 +162,14 @@ func doRegisterBuiltinCommands() {
 			func(_ *RIBManager, _ string, _ []string) (string, string, error) {
 				return statusDone, ribEventListJSON(), nil
 			}},
+		{[]string{"rib inject"}, "Inject route into adj-rib-in: <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]",
+			func(r *RIBManager, sel string, args []string) (string, string, error) {
+				return r.injectRoute(sel, args)
+			}},
+		{[]string{"rib withdraw"}, "Withdraw route from adj-rib-in: <peer> <family> <prefix>",
+			func(r *RIBManager, sel string, args []string) (string, string, error) {
+				return r.withdrawRoute(sel, args)
+			}},
 	}
 
 	for _, b := range builtins {
@@ -170,6 +181,208 @@ func doRegisterBuiltinCommands() {
 	// Generic community manipulation commands. Plugins compose these
 	// to implement protocol-specific behavior (e.g., GR/LLGR stale handling).
 	registerCommunityCommands()
+}
+
+// injectRoute inserts a route into adj-rib-in as if received from a peer.
+// Syntax: rib inject <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]
+// The peer address is a label; no live BGP session required.
+func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error) {
+	if len(args) < 3 {
+		return statusError, "", fmt.Errorf("usage: rib inject <peer> <family> <prefix> [origin <val>] [nhop <ip>] [aspath <asn,...>] [localpref <n>] [med <n>]")
+	}
+
+	peer := args[0]
+	familyStr := args[1]
+	prefix := args[2]
+
+	// Validate peer looks like an IP address.
+	if net.ParseIP(peer) == nil {
+		return statusError, "", fmt.Errorf("invalid peer address: %s", peer)
+	}
+
+	// Validate family is a simple prefix type (IPv4/IPv6 unicast/multicast).
+	family, ok := parseFamily(familyStr)
+	if !ok {
+		return statusError, "", fmt.Errorf("unknown family: %s", familyStr)
+	}
+	if !isSimplePrefixFamily(family) {
+		return statusError, "", fmt.Errorf("rib inject only supports simple prefix families (IPv4/IPv6 unicast/multicast), not %s", familyStr)
+	}
+
+	// Validate remaining args form complete key-value pairs.
+	attrArgs := args[3:]
+	if len(attrArgs)%2 != 0 {
+		return statusError, "", fmt.Errorf("attribute %q has no value", attrArgs[len(attrArgs)-1])
+	}
+
+	// Parse optional attributes from remaining args.
+	ab := attribute.NewBuilder()
+	ab.SetOrigin(uint8(attribute.OriginIGP)) // default
+
+	for i := 0; i < len(attrArgs); i += 2 {
+		key := attrArgs[i]
+		val := attrArgs[i+1]
+
+		if key == "origin" {
+			code, ok := injectOriginValues[val]
+			if !ok {
+				return statusError, "", fmt.Errorf("unknown origin: %s (use igp, egp, incomplete)", val)
+			}
+			ab.SetOrigin(code)
+			continue
+		}
+		if key == "nhop" {
+			ip := net.ParseIP(val)
+			if ip == nil {
+				return statusError, "", fmt.Errorf("invalid next-hop IP: %s", val)
+			}
+			if ip4 := ip.To4(); ip4 != nil {
+				ab.SetNextHop([4]byte(ip4))
+			} else if err := r.validateIPv6NextHop(peer, family); err != nil {
+				return statusError, "", err
+			}
+			// IPv6 nhop accepted but not stored in NEXT_HOP attr (type 3 is IPv4 only).
+			// Route is injected without wire next-hop; shows in rib show as-is.
+			continue
+		}
+		if key == "aspath" {
+			asns, err := parseASNList(val)
+			if err != nil {
+				return statusError, "", fmt.Errorf("invalid aspath: %w", err)
+			}
+			ab.SetASPath(asns)
+			continue
+		}
+		if key == "localpref" {
+			n, err := strconv.ParseUint(val, 10, 32)
+			if err != nil {
+				return statusError, "", fmt.Errorf("invalid localpref: %w", err)
+			}
+			ab.SetLocalPref(uint32(n))
+			continue
+		}
+		if key == "med" {
+			n, err := strconv.ParseUint(val, 10, 32)
+			if err != nil {
+				return statusError, "", fmt.Errorf("invalid med: %w", err)
+			}
+			ab.SetMED(uint32(n))
+			continue
+		}
+		return statusError, "", fmt.Errorf("unknown attribute: %s", key)
+	}
+
+	attrBytes := ab.Build()
+
+	nlriBytes, err := prefixToWire(familyStr, prefix, 0, false)
+	if err != nil {
+		return statusError, "", fmt.Errorf("invalid prefix: %w", err)
+	}
+
+	r.mu.Lock()
+	if r.ribInPool[peer] == nil {
+		r.ribInPool[peer] = storage.NewPeerRIB(peer)
+	}
+	r.ribInPool[peer].Insert(family, attrBytes, nlriBytes)
+	r.mu.Unlock()
+
+	data, _ := json.Marshal(map[string]any{"injected": prefix, "peer": peer, "family": familyStr})
+	return statusDone, string(data), nil
+}
+
+// validateIPv6NextHop checks whether an IPv6 next-hop is valid for this peer and family.
+// Real peers (seen in peerMeta): check ExtendedNextHop capability (RFC 8950).
+// Unknown peers (injected, no session): accept with a warning log.
+func (r *RIBManager) validateIPv6NextHop(peer string, family nlri.Family) error {
+	meta := r.peerMeta[peer]
+	if meta == nil {
+		// Unknown peer (injected, no prior session). Accept any valid IP.
+		logger().Warn("peer not known, accepting IPv6 next-hop without capability check", "peer", peer)
+		return nil
+	}
+
+	if meta.ContextID == 0 {
+		// Peer seen via JSON events (no structured event yet). Accept with warning.
+		logger().Warn("peer has no encoding context, accepting IPv6 next-hop without capability check", "peer", peer)
+		return nil
+	}
+
+	// RFC 8950 Section 4: check negotiated ExtendedNextHop for this family.
+	ctx := bgpctx.Registry.Get(meta.ContextID)
+	if ctx == nil {
+		logger().Warn("encoding context not found, accepting IPv6 next-hop", "peer", peer, "context-id", meta.ContextID)
+		return nil
+	}
+
+	if ctx.ExtendedNextHopFor(family) == 0 {
+		return fmt.Errorf("peer %s has not negotiated extended-nexthop (RFC 8950) for %s", peer, formatFamily(family))
+	}
+
+	return nil
+}
+
+// withdrawRoute removes a route from adj-rib-in.
+// Syntax: rib withdraw <peer> <family> <prefix>
+// The peer address is a label; no live BGP session required.
+func (r *RIBManager) withdrawRoute(_ string, args []string) (string, string, error) {
+	if len(args) < 3 {
+		return statusError, "", fmt.Errorf("usage: rib withdraw <peer> <family> <prefix>")
+	}
+
+	peer := args[0]
+	familyStr := args[1]
+	prefix := args[2]
+
+	if net.ParseIP(peer) == nil {
+		return statusError, "", fmt.Errorf("invalid peer address: %s", peer)
+	}
+
+	nlriBytes, err := prefixToWire(familyStr, prefix, 0, false)
+	if err != nil {
+		return statusError, "", fmt.Errorf("invalid prefix: %w", err)
+	}
+
+	family, ok := parseFamily(familyStr)
+	if !ok {
+		return statusError, "", fmt.Errorf("unknown family: %s", familyStr)
+	}
+
+	r.mu.RLock()
+	peerRIB := r.ribInPool[peer]
+	r.mu.RUnlock()
+
+	if peerRIB == nil {
+		return statusError, "", fmt.Errorf("no RIB for peer %s", peer)
+	}
+
+	removed := peerRIB.Remove(family, nlriBytes)
+	data, _ := json.Marshal(map[string]any{"withdrawn": prefix, "peer": peer, "family": familyStr, "existed": removed})
+	return statusDone, string(data), nil
+}
+
+// parseASNList parses a comma-separated list of ASNs into uint32 slice.
+func parseASNList(s string) ([]uint32, error) {
+	parts := strings.Split(s, ",")
+	asns := make([]uint32, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		n, err := strconv.ParseUint(p, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ASN %q: %w", p, err)
+		}
+		asns = append(asns, uint32(n))
+	}
+	return asns, nil
+}
+
+// injectOriginValues maps origin text to wire code for rib inject.
+var injectOriginValues = map[string]uint8{
+	"igp":        uint8(attribute.OriginIGP),
+	"egp":        uint8(attribute.OriginEGP),
+	"incomplete": uint8(attribute.OriginIncomplete),
 }
 
 // handleCommand processes command requests via SDK execute-command callback.

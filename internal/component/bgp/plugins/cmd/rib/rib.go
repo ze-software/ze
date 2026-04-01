@@ -24,6 +24,8 @@ const (
 	cmdRibBestStatus = "rib best status"
 	cmdRibClearIn    = "rib clear in"
 	cmdRibClearOut   = "rib clear out"
+	cmdRibInject     = "rib inject"
+	cmdRibWithdraw   = "rib withdraw"
 )
 
 func init() {
@@ -36,6 +38,8 @@ func init() {
 		// Write commands (exposed via "ze run" only)
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:clear-in", Handler: forwardRibClearIn, PluginCommand: cmdRibClearIn},
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:clear-out", Handler: forwardRibClearOut, PluginCommand: cmdRibClearOut},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:inject", Handler: forwardRibInject, PluginCommand: cmdRibInject},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:withdraw", Handler: forwardRibWithdraw, PluginCommand: cmdRibWithdraw},
 	)
 }
 
@@ -61,4 +65,12 @@ func forwardRibClearIn(ctx *pluginserver.CommandContext, args []string) (*plugin
 
 func forwardRibClearOut(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	return ctx.Dispatcher().ForwardToPlugin(cmdRibClearOut, args, ctx.PeerSelector())
+}
+
+func forwardRibInject(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	return ctx.Dispatcher().ForwardToPlugin(cmdRibInject, args, ctx.PeerSelector())
+}
+
+func forwardRibWithdraw(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	return ctx.Dispatcher().ForwardToPlugin(cmdRibWithdraw, args, ctx.PeerSelector())
 }

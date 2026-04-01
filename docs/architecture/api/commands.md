@@ -356,7 +356,12 @@ rib best [filters...] [terminal]            # Best-path per prefix (RFC 4271 §9
 rib status                                  # RIB status (peer/route counts)
 rib clear in <selector>                      # Clear Adj-RIB-In (* for all peers)
 rib clear out <selector> [family]           # Resend Adj-RIB-Out (* for all, optional family)
+rib inject <peer> <family> <prefix> [attrs] # Insert route into Adj-RIB-In (no session needed)
+rib withdraw <peer> <family> <prefix>       # Remove route from Adj-RIB-In
 ```
+
+Inject attributes: `origin <igp|egp|incomplete>`, `nhop <ip>`, `aspath <asn,asn,...>`, `localpref <n>`, `med <n>`. Peer address is a label (valid IP, no session required). Only simple prefix families (IPv4/IPv6 unicast/multicast). IPv4-mapped IPv6 next-hops accepted.
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute, withdrawRoute -->
 <!-- source: internal/component/bgp/plugins/rib/schema/ze-rib-api.yang -- RIB RPCs -->
 
 #### Inter-Plugin RIB Commands (GR/LLGR)
@@ -760,7 +765,9 @@ rib
 ├── routes [sent|received|sent-received] [filters...] [count|json]
 ├── best [filters...] [count|json]
 ├── status
-└── clear [in|out]
+├── clear [in|out]
+├── inject <peer> <family> <prefix> [attrs...]
+└── withdraw <peer> <family> <prefix>
 
 group
 ├── start
