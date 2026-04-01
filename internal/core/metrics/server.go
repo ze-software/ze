@@ -57,7 +57,8 @@ func (s *Server) Close() error {
 
 // ExtractTelemetryConfig extracts Prometheus telemetry settings from a config tree.
 // Returns address, port, path, and whether telemetry is enabled.
-// Implicitly enabled if any of address/port/path is explicitly set.
+// The service must be explicitly enabled via the enabled leaf (default false).
+// Listener settings come from the server list; defaults used when list is empty.
 func ExtractTelemetryConfig(tree map[string]any) (address string, port int, path string, enabled bool) {
 	if tree == nil {
 		return "", 0, "", false
@@ -71,34 +72,30 @@ func ExtractTelemetryConfig(tree map[string]any) (address string, port int, path
 		return "", 0, "", false
 	}
 
-	// Explicit enable/disable takes precedence over implicit.
+	// Service must be explicitly enabled (default false).
 	enabledStr, _ := prom["enabled"].(string)
-	if enabledStr == "false" {
-		return "", 0, "", false
-	}
-	explicitlyEnabled := enabledStr == "true"
-
-	// Implicit enable: any of address/port/path explicitly set
-	_, hasAddress := prom["address"]
-	_, hasPort := prom["port"]
-	_, hasPath := prom["path"]
-	implicitlyEnabled := hasAddress || hasPort || hasPath
-
-	if !explicitlyEnabled && !implicitlyEnabled {
+	if enabledStr != "true" {
 		return "", 0, "", false
 	}
 
-	// Extract address (default: 127.0.0.1 -- localhost only to avoid exposing metrics to network)
-	address, _ = prom["address"].(string)
-	if address == "" {
-		address = "127.0.0.1"
-	}
-
-	// Extract port (default: 9273, valid range: 1-65535)
+	// Defaults from YANG refine.
+	address = "0.0.0.0"
 	port = 9273
-	if portStr, ok := prom["port"].(string); ok {
-		if n, err := strconv.Atoi(portStr); err == nil && n >= 1 && n <= 65535 {
-			port = n
+
+	// Read first server list entry if present.
+	if serverMap, ok := prom["server"].(map[string]any); ok {
+		for _, entry := range serverMap {
+			if srv, ok := entry.(map[string]any); ok {
+				if v, ok := srv["ip"].(string); ok && v != "" {
+					address = v
+				}
+				if portStr, ok := srv["port"].(string); ok {
+					if n, err := strconv.Atoi(portStr); err == nil && n >= 1 && n <= 65535 {
+						port = n
+					}
+				}
+				break // Use first entry only.
+			}
 		}
 	}
 

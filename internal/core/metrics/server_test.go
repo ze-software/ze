@@ -140,7 +140,7 @@ func TestExtractTelemetryConfig(t *testing.T) {
 					},
 				},
 			},
-			addr:    "127.0.0.1",
+			addr:    "0.0.0.0",
 			port:    9273,
 			path:    "/metrics",
 			enabled: true,
@@ -151,57 +151,19 @@ func TestExtractTelemetryConfig(t *testing.T) {
 				"telemetry": map[string]any{
 					"prometheus": map[string]any{
 						"enabled": "true",
-						"address": "127.0.0.1",
-						"port":    "9999",
-						"path":    "/custom",
+						"server": map[string]any{
+							"main": map[string]any{
+								"ip":   "127.0.0.1",
+								"port": "9999",
+							},
+						},
+						"path": "/custom",
 					},
 				},
 			},
 			addr:    "127.0.0.1",
 			port:    9999,
 			path:    "/custom",
-			enabled: true,
-		},
-		{
-			name: "implicit enable via port",
-			tree: map[string]any{
-				"telemetry": map[string]any{
-					"prometheus": map[string]any{
-						"port": "9273",
-					},
-				},
-			},
-			addr:    "127.0.0.1",
-			port:    9273,
-			path:    "/metrics",
-			enabled: true,
-		},
-		{
-			name: "implicit enable via address",
-			tree: map[string]any{
-				"telemetry": map[string]any{
-					"prometheus": map[string]any{
-						"address": "127.0.0.1",
-					},
-				},
-			},
-			addr:    "127.0.0.1",
-			port:    9273,
-			path:    "/metrics",
-			enabled: true,
-		},
-		{
-			name: "implicit enable via path",
-			tree: map[string]any{
-				"telemetry": map[string]any{
-					"prometheus": map[string]any{
-						"path": "/prom",
-					},
-				},
-			},
-			addr:    "127.0.0.1",
-			port:    9273,
-			path:    "/prom",
 			enabled: true,
 		},
 		{
@@ -219,11 +181,15 @@ func TestExtractTelemetryConfig(t *testing.T) {
 				"telemetry": map[string]any{
 					"prometheus": map[string]any{
 						"enabled": "true",
-						"port":    "65535",
+						"server": map[string]any{
+							"main": map[string]any{
+								"port": "65535",
+							},
+						},
 					},
 				},
 			},
-			addr:    "127.0.0.1",
+			addr:    "0.0.0.0",
 			port:    65535,
 			path:    "/metrics",
 			enabled: true,
@@ -234,11 +200,15 @@ func TestExtractTelemetryConfig(t *testing.T) {
 				"telemetry": map[string]any{
 					"prometheus": map[string]any{
 						"enabled": "true",
-						"port":    "1",
+						"server": map[string]any{
+							"main": map[string]any{
+								"port": "1",
+							},
+						},
 					},
 				},
 			},
-			addr:    "127.0.0.1",
+			addr:    "0.0.0.0",
 			port:    1,
 			path:    "/metrics",
 			enabled: true,
@@ -249,11 +219,15 @@ func TestExtractTelemetryConfig(t *testing.T) {
 				"telemetry": map[string]any{
 					"prometheus": map[string]any{
 						"enabled": "true",
-						"port":    "0",
+						"server": map[string]any{
+							"main": map[string]any{
+								"port": "0",
+							},
+						},
 					},
 				},
 			},
-			addr:    "127.0.0.1",
+			addr:    "0.0.0.0",
 			port:    9273,
 			path:    "/metrics",
 			enabled: true,
@@ -264,11 +238,15 @@ func TestExtractTelemetryConfig(t *testing.T) {
 				"telemetry": map[string]any{
 					"prometheus": map[string]any{
 						"enabled": "true",
-						"port":    "65536",
+						"server": map[string]any{
+							"main": map[string]any{
+								"port": "65536",
+							},
+						},
 					},
 				},
 			},
-			addr:    "127.0.0.1",
+			addr:    "0.0.0.0",
 			port:    9273,
 			path:    "/metrics",
 			enabled: true,
@@ -279,34 +257,31 @@ func TestExtractTelemetryConfig(t *testing.T) {
 				"telemetry": map[string]any{
 					"prometheus": map[string]any{
 						"enabled": "true",
-						"port":    "-1",
+						"server": map[string]any{
+							"main": map[string]any{
+								"port": "-1",
+							},
+						},
 					},
 				},
 			},
-			addr:    "127.0.0.1",
+			addr:    "0.0.0.0",
 			port:    9273,
 			path:    "/metrics",
 			enabled: true,
 		},
 		{
-			name: "explicit disable overrides implicit port",
+			name: "explicit disable with server config",
 			tree: map[string]any{
 				"telemetry": map[string]any{
 					"prometheus": map[string]any{
 						"enabled": "false",
-						"port":    "9999",
-					},
-				},
-			},
-			enabled: false,
-		},
-		{
-			name: "explicit disable overrides implicit address",
-			tree: map[string]any{
-				"telemetry": map[string]any{
-					"prometheus": map[string]any{
-						"enabled": "false",
-						"address": "127.0.0.1",
+						"server": map[string]any{
+							"main": map[string]any{
+								"ip":   "127.0.0.1",
+								"port": "9999",
+							},
+						},
 					},
 				},
 			},
