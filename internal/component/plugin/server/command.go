@@ -67,7 +67,7 @@ func IsReadOnlyPath(path string) bool {
 	switch verb {
 	case "show", "validate", "monitor",
 		"summary", "help", "command", "event", "daemon",
-		"system", "plugin", "peer", "rib", "cache",
+		"system", "plugin", "peer", plugin.NamespaceRIB, "cache",
 		"metrics", "subscribe", "unsubscribe":
 		return true
 	}

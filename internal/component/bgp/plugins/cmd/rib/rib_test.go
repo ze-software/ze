@@ -24,7 +24,7 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 		}
 	}
 
-	assert.Len(t, found, 6, "expected 6 RIB proxy RPCs")
+	assert.Len(t, found, 8, "expected 8 RIB proxy RPCs")
 
 	// Build lookup for assertions
 	byWire := make(map[string]bool, len(found))
