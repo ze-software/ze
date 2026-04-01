@@ -1,6 +1,6 @@
-// Design: docs/architecture/web-interface.md -- Layered graph layout algorithm
-// Related: graph.go -- Graph data model and construction
-// Related: layout_nexthop.go -- Next-hop graph layout (parallel implementation)
+// Design: docs/architecture/web-interface.md -- Next-hop graph layout and SVG rendering
+// Related: graph_nexthop.go -- Next-hop graph data model
+// Related: layout.go -- AS path graph layout (parallel implementation)
 // Related: handler_graph.go -- Graph HTTP handler
 
 package lg
@@ -12,43 +12,22 @@ import (
 	"strings"
 )
 
-// Layout holds computed positions for graph nodes.
-type Layout struct {
-	Positions map[uint32]Position // ASN -> position
-	Width     int                 // Total SVG width
-	Height    int                 // Total SVG height
+// NextHopLayout holds computed positions for next-hop graph nodes.
+type NextHopLayout struct {
+	Positions map[string]Position // Address -> position.
+	Width     int
+	Height    int
 }
 
-// Position holds the x,y coordinates and dimensions for a graph node.
-type Position struct {
-	X      int
-	Y      int
-	Width  int
-	Height int
-}
-
-// Layout constants.
-const (
-	nodeHeight      = 40
-	nodeMinWidth    = 80
-	nodeMaxWidth    = 200
-	nodePadding     = 16
-	horizontalGap   = 120
-	verticalGap     = 60
-	graphPadding    = 20
-	fontSize        = 12
-	charWidthApprox = 7 // approximate monospace character width at 12px
-)
-
-// computeLayout assigns x,y positions to each graph node using a layered layout.
-// Layers are arranged left-to-right: source ASes at left, origin at right.
-func computeLayout(g *Graph) *Layout {
+// computeNextHopLayout assigns x,y positions using a layered layout.
+// Layers left-to-right: forwarding routers at left, egress at right.
+func computeNextHopLayout(g *NextHopGraph) *NextHopLayout {
 	if len(g.Nodes) == 0 {
-		return &Layout{Positions: make(map[uint32]Position)}
+		return &NextHopLayout{Positions: make(map[string]Position)}
 	}
 
 	// Group nodes by layer.
-	layers := make(map[int][]GraphNode)
+	layers := make(map[int][]NextHopNode)
 	maxLayer := 0
 	for _, n := range g.Nodes {
 		layers[n.Layer] = append(layers[n.Layer], n)
@@ -57,21 +36,21 @@ func computeLayout(g *Graph) *Layout {
 		}
 	}
 
-	// Sort nodes within each layer by ASN for deterministic layout.
+	// Sort within each layer by address for deterministic layout.
 	for layer := range layers {
 		sort.Slice(layers[layer], func(i, j int) bool {
-			return layers[layer][i].ASN < layers[layer][j].ASN
+			return layers[layer][i].Address < layers[layer][j].Address
 		})
 	}
 
-	positions := make(map[uint32]Position)
+	positions := make(map[string]Position)
 
 	// Compute column widths based on label text.
 	colWidths := make(map[int]int)
 	for layer, nodes := range layers {
 		maxW := nodeMinWidth
 		for _, n := range nodes {
-			label := formatNodeLabel(n)
+			label := formatNextHopNodeLabel(n)
 			w := min(len(label)*charWidthApprox+nodePadding*2, nodeMaxWidth)
 			if w > maxW {
 				maxW = w
@@ -80,7 +59,7 @@ func computeLayout(g *Graph) *Layout {
 		colWidths[layer] = maxW
 	}
 
-	// Compute x positions (left-to-right, highest layer first).
+	// X positions: highest layer (source) at left, layer 0 (egress) at right.
 	colX := make(map[int]int)
 	x := graphPadding
 	for layer := maxLayer; layer >= 0; layer-- {
@@ -91,59 +70,56 @@ func computeLayout(g *Graph) *Layout {
 		}
 		x += w + horizontalGap
 	}
-
 	totalWidth := x - horizontalGap + graphPadding
 
-	// Compute y positions within each layer.
+	// Y positions within each layer.
 	maxHeight := 0
 	for layer, nodes := range layers {
 		for i, n := range nodes {
 			y := graphPadding + i*(nodeHeight+verticalGap)
 			w := colWidths[layer]
-			positions[n.ASN] = Position{
+			positions[n.Address] = Position{
 				X:      colX[layer],
 				Y:      y,
 				Width:  w,
 				Height: nodeHeight,
 			}
-			bottom := y + nodeHeight
-			if bottom > maxHeight {
+			if bottom := y + nodeHeight; bottom > maxHeight {
 				maxHeight = bottom
 			}
 		}
 	}
 
-	totalHeight := maxHeight + graphPadding
-
-	return &Layout{
+	return &NextHopLayout{
 		Positions: positions,
 		Width:     totalWidth,
-		Height:    totalHeight,
+		Height:    maxHeight + graphPadding,
 	}
 }
 
-// formatNodeLabel returns the display label for a graph node.
-func formatNodeLabel(n GraphNode) string {
+// formatNextHopNodeLabel returns the display label for a next-hop graph node.
+func formatNextHopNodeLabel(n NextHopNode) string {
 	if n.Name != "" {
-		return fmt.Sprintf("AS%d %s", n.ASN, n.Name)
+		return n.Name + " " + n.Address
 	}
-	return fmt.Sprintf("AS%d", n.ASN)
+	return n.Address
 }
 
-// renderGraphSVG renders the graph as an SVG string.
-func renderGraphSVG(g *Graph, layout *Layout) string {
+// renderNextHopGraphSVG renders the next-hop graph as an SVG string.
+func renderNextHopGraphSVG(g *NextHopGraph, layout *NextHopLayout) string {
 	var sb strings.Builder
 
 	fmt.Fprintf(&sb, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`,
 		layout.Width, layout.Height, layout.Width, layout.Height)
 	sb.WriteString("\n")
 
-	// Style uses CSS variables from the page for dark mode support.
 	sb.WriteString(`<style>
 .node rect { fill: var(--node-fill, #f0f4f8); stroke: var(--node-stroke, #4a90d9); stroke-width: 2; rx: 6; }
 .node rect:hover { fill: var(--node-fill-hover, #dce8f5); stroke: var(--node-stroke-hover, #2a6cb8); }
 .node text { font-family: monospace; font-size: 12px; fill: var(--node-text, #333); }
-.node .asn { font-weight: bold; }
+.node .label { font-weight: bold; }
+.egress rect { fill: var(--egress-fill, #e8f5e9); stroke: var(--egress-stroke, #4caf50); }
+.egress rect:hover { fill: var(--egress-fill-hover, #c8e6c9); stroke: var(--egress-stroke-hover, #388e3c); }
 .edge line { stroke: var(--edge-stroke, #999); stroke-width: 1.5; }
 .edge polygon { fill: var(--edge-stroke, #999); }
 </style>`)
@@ -151,13 +127,12 @@ func renderGraphSVG(g *Graph, layout *Layout) string {
 
 	// Render edges first (behind nodes).
 	for _, e := range g.Edges {
-		fromPos, fromOK := layout.Positions[e.FromASN]
-		toPos, toOK := layout.Positions[e.ToASN]
+		fromPos, fromOK := layout.Positions[e.From]
+		toPos, toOK := layout.Positions[e.To]
 		if !fromOK || !toOK {
 			continue
 		}
 
-		// Edge from right side of source to left side of destination.
 		x1 := fromPos.X + fromPos.Width
 		y1 := fromPos.Y + fromPos.Height/2
 		x2 := toPos.X
@@ -165,7 +140,6 @@ func renderGraphSVG(g *Graph, layout *Layout) string {
 
 		fmt.Fprintf(&sb, `<g class="edge"><line x1="%d" y1="%d" x2="%d" y2="%d"/>`, x1, y1, x2, y2)
 
-		// Arrow head at destination.
 		arrowSize := 8
 		fmt.Fprintf(&sb, `<polygon points="%d,%d %d,%d %d,%d"/>`,
 			x2, y2,
@@ -176,26 +150,31 @@ func renderGraphSVG(g *Graph, layout *Layout) string {
 
 	// Render nodes.
 	for _, n := range g.Nodes {
-		pos, ok := layout.Positions[n.ASN]
+		pos, ok := layout.Positions[n.Address]
 		if !ok {
 			continue
 		}
 
-		label := formatNodeLabel(n)
-		// Truncate label if too long for node width.
+		class := "node"
+		if n.Egress {
+			class = "node egress"
+		}
+
+		label := formatNextHopNodeLabel(n)
 		maxChars := (pos.Width - nodePadding*2) / charWidthApprox
 		if maxChars > 0 && len(label) > maxChars {
 			label = label[:maxChars-1] + "\u2026"
 		}
 
-		sb.WriteString(`<g class="node">`)
+		fmt.Fprintf(&sb, `<g class="%s">`, class)
 		fmt.Fprintf(&sb, `<rect x="%d" y="%d" width="%d" height="%d"/>`,
 			pos.X, pos.Y, pos.Width, pos.Height)
-		fmt.Fprintf(&sb, `<text x="%d" y="%d" class="asn">%s</text>`,
+		fmt.Fprintf(&sb, `<text x="%d" y="%d" class="label">%s</text>`,
 			pos.X+nodePadding, pos.Y+nodeHeight/2+fontSize/3,
 			template.HTMLEscapeString(label))
-		fmt.Fprintf(&sb, `<title>%s</title>`,
-			template.HTMLEscapeString(fmt.Sprintf("AS%d%s", n.ASN, tooltipName(n.Name))))
+		fmt.Fprintf(&sb, `<title>%s%s</title>`,
+			template.HTMLEscapeString(n.Address),
+			template.HTMLEscapeString(nextHopTooltipName(n.Name)))
 		sb.WriteString("</g>\n")
 	}
 
@@ -203,8 +182,8 @@ func renderGraphSVG(g *Graph, layout *Layout) string {
 	return sb.String()
 }
 
-// tooltipName formats the name portion of a tooltip.
-func tooltipName(name string) string {
+// nextHopTooltipName formats the name portion of a next-hop tooltip.
+func nextHopTooltipName(name string) string {
 	if name == "" {
 		return ""
 	}

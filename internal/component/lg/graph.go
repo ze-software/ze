@@ -1,11 +1,14 @@
 // Design: docs/architecture/web-interface.md -- AS path topology graph data model
+// Related: graph_nexthop.go -- Next-hop forwarding topology graph (internal view)
 // Related: layout.go -- Layout algorithm and SVG rendering
 // Related: handler_graph.go -- Graph HTTP handler
 
 package lg
 
 import (
+	"fmt"
 	"sort"
+	"strings"
 )
 
 // Graph represents an AS path topology as nodes (ASes) and edges (peering links).
@@ -149,4 +152,21 @@ func deduplicateASPath(path []uint32) []uint32 {
 	}
 
 	return result
+}
+
+// renderGraphText returns a deterministic text representation for testing.
+func renderGraphText(g *Graph) string {
+	var sb strings.Builder
+	sb.WriteString("mode aspath\n")
+	for _, n := range g.Nodes {
+		label := fmt.Sprintf("AS%d", n.ASN)
+		if n.Name != "" {
+			label += " " + n.Name
+		}
+		fmt.Fprintf(&sb, "node %s layer=%d\n", label, n.Layer)
+	}
+	for _, e := range g.Edges {
+		fmt.Fprintf(&sb, "edge AS%d -> AS%d\n", e.FromASN, e.ToASN)
+	}
+	return sb.String()
 }

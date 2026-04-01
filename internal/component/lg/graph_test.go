@@ -257,3 +257,31 @@ func TestTooltipName(t *testing.T) {
 		t.Errorf("non-empty: got %q, want ' - Acme Corp'", got)
 	}
 }
+
+func TestRenderGraphText(t *testing.T) {
+	// VALIDATES: deterministic text output for AS-path graph.
+	g := &Graph{
+		Nodes: []GraphNode{
+			{ASN: 65001, Layer: 1},
+			{ASN: 65002, Layer: 0, Name: "Example"},
+		},
+		Edges: []GraphEdge{
+			{FromASN: 65001, ToASN: 65002},
+		},
+	}
+
+	text := renderGraphText(g)
+
+	if !strings.Contains(text, "mode aspath") {
+		t.Error("should contain mode aspath")
+	}
+	if !strings.Contains(text, "node AS65001 layer=1") {
+		t.Errorf("should contain AS65001 node, got:\n%s", text)
+	}
+	if !strings.Contains(text, "node AS65002 Example layer=0") {
+		t.Errorf("should contain AS65002 with name, got:\n%s", text)
+	}
+	if !strings.Contains(text, "edge AS65001 -> AS65002") {
+		t.Error("should contain edge")
+	}
+}

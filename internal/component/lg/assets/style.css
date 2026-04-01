@@ -33,6 +33,10 @@
   --node-fill-hover: #dce8f5;
   --node-text: #333;
   --edge-stroke: #999;
+  --egress-fill: #e8f5e9;
+  --egress-stroke: #4caf50;
+  --egress-fill-hover: #c8e6c9;
+  --egress-stroke-hover: #388e3c;
   --best-bg: #e6f4ea;
 }
 
@@ -72,6 +76,10 @@
     --node-fill-hover: #333842;
     --node-text: #d4d4d8;
     --edge-stroke: #6e7681;
+    --egress-fill: #1a3326;
+    --egress-stroke: #3fb950;
+    --egress-fill-hover: #1e3f2e;
+    --egress-stroke-hover: #56d364;
     --best-bg: #1a3326;
   }
 }
@@ -84,7 +92,8 @@
   --peer-info-bg: #fff; --shadow: rgba(0,0,0,0.1); --state-up: #22863a; --state-down: #cb2431; --state-unknown: #999;
   --error-bg: #fff3cd; --error-border: #ffc107; --error-text: #856404;
   --node-fill: #f0f4f8; --node-stroke: #4a90d9; --node-stroke-hover: #2a6cb8; --node-fill-hover: #dce8f5; --node-text: #333;
-  --edge-stroke: #999; --best-bg: #e6f4ea;
+  --edge-stroke: #999; --egress-fill: #e8f5e9; --egress-stroke: #4caf50; --egress-fill-hover: #c8e6c9; --egress-stroke-hover: #388e3c;
+  --best-bg: #e6f4ea;
 }
 
 [data-theme="dark"] {
@@ -95,7 +104,8 @@
   --peer-info-bg: #25272b; --shadow: rgba(0,0,0,0.3); --state-up: #3fb950; --state-down: #f85149; --state-unknown: #6e7681;
   --error-bg: #3b2e00; --error-border: #9e6a00; --error-text: #f0c000;
   --node-fill: #2a2d32; --node-stroke: #4a90d9; --node-stroke-hover: #5a9ee6; --node-fill-hover: #333842; --node-text: #d4d4d8;
-  --edge-stroke: #6e7681; --best-bg: #1a3326;
+  --edge-stroke: #6e7681; --egress-fill: #1a3326; --egress-stroke: #3fb950; --egress-fill-hover: #1e3f2e; --egress-stroke-hover: #56d364;
+  --best-bg: #1a3326;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -171,7 +181,11 @@ tbody tr.best-route { background: var(--best-bg); }
 .route-detail { background: var(--detail-bg); }
 
 /* Graph */
-#graph-container { margin: 1rem 0; overflow-x: auto; }
+.graph-controls { margin: 1rem 0 0.5rem; display: flex; gap: 0.5rem; }
+.graph-mode-btn { padding: 0.3rem 0.8rem; background: var(--table-bg); color: var(--text); border: 1px solid var(--table-border); border-radius: 4px; cursor: pointer; font-size: 0.8rem; font-family: monospace; }
+.graph-mode-btn:hover { background: var(--btn-hover); color: #fff; }
+.graph-mode-btn.active { background: var(--btn-bg); color: #fff; border-color: var(--btn-bg); }
+#graph-container { margin: 0.5rem 0 1rem; overflow-x: auto; }
 #graph-container svg { max-width: 100%; height: auto; }
 
 /* ASN name */
