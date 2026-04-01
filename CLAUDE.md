@@ -28,80 +28,60 @@
 
 # Ze - Claude Instructions
 
-## What Ze Is
+## Core Architecture
 
-Ze is a **BGP daemon** written in Go. "Ze" = "The" with a French accent (predecessor: ExaBGP).
+Ze is a **Network OS** in Go with its own BGP implementation and interface configuration. "Ze" = "The" with a French accent (predecessor: ExaBGP).
 
-**BGP Subsystem + Plugin architecture:** The BGP Subsystem handles protocol (TCP, FSM, OPEN/UPDATE/NOTIFICATION parsing, capabilities negotiation). Plugin Infrastructure manages plugin lifecycle and message routing. Plugins handle policy decisions (RIB storage, route reflection, graceful restart). Communication over Unix socket pairs using JSON events (engine→plugin) and text commands (plugin→engine).
+**Small core + registration pattern.** Components and plugins register at startup via `init()` in `register.go`. Core discovers them through registries -- never imports directly. Registration is the unifying pattern: families, capabilities, CLI commands, config validators, web routes all register the same way.
 
-```
-BGP Subsystem (internal/plugins/bgp/):
-  Peers (FSM) → Wire Layer → Reactor (event loop, BGP cache) → EventDispatcher
-   ║ formatted events (down) / commands (up)
-Plugin Infrastructure (internal/plugin/):
-  Registry · Process Manager · Hub · SDK · DirectBridge
-   ║ JSON events + base64 wire bytes (down) / text commands (up)
-Plugins: bgp-rib, bgp-rs, bgp-gr, bgp-role, bgp-nlri-*, ...
-```
+**Components** (`internal/component/`) are independent unless they explicitly depend on each other: bgp, cli, config, dns, iface, lg, managed, mcp, ssh, telemetry, web, bus, hub, authz, engine.
 
-**Key abstractions:**
-- `WireUpdate` — lazy-parsed BGP UPDATE (zero-copy iterators over wire bytes)
-- `PackContext` — negotiated capabilities (ASN4, ADD-PATH, ExtNH) that determine encoding
-- `ContextID` — if source and dest peers share ContextID, forward wire bytes unchanged
-- Pool-based dedup — per-attribute-type pools (ORIGIN, AS_PATH, etc.) with refcounted handles
-- Buffer-first encoding — all wire writing uses `WriteTo(buf, off) int` into pooled buffers
+**Plugins** (`internal/plugins/`) handle domain policy (RIB, route reflection, graceful restart, NLRI families). Communication: JSON events down, text commands up.
 
-**Config:** YANG-modeled (`ze-bgp-conf.yang`), parsed via `internal/component/config/`. File → Tree → ResolveBGPTree() → `map[string]any` → `reactor.PeersFromTree()`. ExaBGP configs auto-detected and migrated.
+**CLI** -- SSH-accessible network OS CLI: YANG-modeled config editor with modes, completion, diff, commit, history, dashboard, monitoring.
 
-**Plugin registry:** `internal/plugin/registry/` — plugins register via `init()` in `register.go`. Engine discovers them through registry, never imports plugin packages directly.
+**Web** -- HTMX-based UI: config editor, admin, SSE live updates, ASN decorators.
 
-## Key Paths
+**Looking Glass** -- peer/route viewer with birdwatcher-compatible API, topology graph, SSE streaming.
+
+**Config** -- YANG-modeled. File -> Tree -> `ResolveBGPTree()` -> `map[string]any` -> `reactor.PeersFromTree()`.
+
+**Key wire abstractions:** `WireUpdate` (lazy-parsed, zero-copy), `PackContext` (negotiated capabilities), `ContextID` (same = forward unchanged), pool dedup (per-attribute, refcounted), buffer-first (`WriteTo(buf, off) int`).
+
+## Programs
+
+| Binary | Purpose |
+|--------|---------|
+| `ze` | Network OS: bgp, cli, config, hub, iface, exabgp migrate, plugin, schema, signal, completion |
+| `ze-chaos` | Chaos testing orchestrator: fault injection, scheduling |
+| `ze-perf` | Performance benchmarking: UPDATE throughput tracking |
+| `ze-analyse` | MRT/RIB analysis: attributes, communities, density, dump |
+| `ze-test` | Functional test runner: bgp, editor, peer, mcp, web, rpki, managed |
+
+## Source Layout
 
 | Area | Location |
 |------|----------|
-| Engine core | `internal/plugins/bgp/` (reactor, FSM, wire, message, capability) |
-| Plugin impls | `internal/plugins/bgp-rib/`, `bgp-rs/`, `bgp-gr/`, `bgp-nlri-*/ ` |
+| Components | `internal/component/` (bgp, cli, config, dns, iface, web, lg, ssh, ...) |
+| BGP engine | `internal/plugins/bgp/` (reactor, FSM, wire, message, capability) |
+| Plugin impls | `internal/plugins/bgp-rib/`, `bgp-rs/`, `bgp-gr/`, `bgp-nlri-*/` |
 | Plugin infra | `internal/plugin/` (registry, process, hub, SDK) |
-| Config | `internal/component/config/`, YANG schemas in `internal/component/bgp/schema/` |
-| CLI | `cmd/ze/` (subcommands: bgp, validate, etc.) |
-| IPC/Hub | `internal/hub/`, `internal/ipc/` |
-| Tests | `test/` (.ci functional tests), `*_test.go` (unit) |
-| Architecture docs | `docs/architecture/` (→ see `.claude/INDEX.md` for navigation) |
-| Specs | `plan/spec-*.md` (active), `plan/learned/` (summaries) |
-| RFCs | `rfc/short/` (summaries), `rfc/full/` |
+| Programs | `cmd/ze/`, `cmd/ze-chaos/`, `cmd/ze-perf/`, `cmd/ze-analyse/`, `cmd/ze-test/` |
+| Tests | `test/` (.ci), `*_test.go` |
 
-## Navigation
+## Before You...
 
-Rules: `.claude/rules/` (auto-loaded). Rationale: `.claude/rationale/` (on-demand).
-Architecture + RFC navigation: `.claude/INDEX.md`.
-Spec template: `plan/TEMPLATE.md`.
-
-## Rules
-
-| Category | Rules |
-|----------|-------|
-| **Session** | `session-start.md`, `post-compaction.md`, `before-writing-code.md` |
-| **Code Quality** | `tdd.md`, `go-standards.md`, `quality.md`, `design-principles.md`, `anti-rationalization.md`, `goroutine-lifecycle.md`, `file-modularity.md`, `api-contracts.md` |
-| **BGP Protocol** | `rfc-compliance.md`, `buffer-first.md`, `json-format.md`, `architecture-summary.md` |
-| **Planning** | `planning.md`, `spec-no-code.md`, `spec-preservation.md`, `implementation-audit.md`, `integration-completeness.md`, `data-flow-tracing.md` |
-| **Infrastructure** | `plugin-design.md`, `cli-patterns.md`, `config-design.md`, `naming.md` |
-| **Process** | `git-safety.md`, `no-layering.md`, `compatibility.md`, `no-test-deletion.md`, `testing.md`, `documentation.md`, `design-doc-references.md`, `related-refs.md`, `hook-errors.md`, `memory.md`, `friction-reporting.md`, `deferral-tracking.md` |
-
-## Commands
-
-```bash
-make ze-unit-test          # Unit tests with race detector
-make ze-functional-test    # Functional tests
-make ze-lint               # 26 linters
-make ze-verify             # Ze tests except fuzz (development)
-make ze-test               # Ze tests: lint + unit + functional + exabgp + fuzz
-make ze-ci                 # lint + unit + build
-make ze-fuzz-test          # Fuzz tests (15s per target)
-make ze-exabgp-test        # ExaBGP compatibility
-make ze-chaos-test         # Chaos unit + functional + web
-make ze-all                # Everything: ze-verify + ze-chaos-verify
-make ze-all-test           # Everything + fuzz: ze-test + ze-chaos-verify
-make ze-inventory          # Project inventory: plugins, YANG, RPCs, families, tests, packages
-make ze-inventory-json     # Same as above, machine-readable JSON
-make ze-spec-status        # Spec progress table
-```
+| Action | Read first |
+|--------|-----------|
+| Start a session | `rules/session-start.md` |
+| Write any code | `rules/before-writing-code.md`, relevant `.claude/patterns/` |
+| Touch wire encoding | `rules/buffer-first.md` |
+| Touch registration | `.claude/patterns/registration.md` |
+| Add CLI/web/plugin/config | `.claude/patterns/{cli-command,web-endpoint,plugin,config-option}.md` |
+| Write tests | `rules/testing.md`, `rules/tdd.md` |
+| Implement an RFC | `rules/rfc-compliance.md`, `rfc/short/` |
+| Write a spec | `rules/planning.md`, `plan/TEMPLATE.md` |
+| Commit | `rules/git-safety.md` -- `make ze-verify` |
+| Look up anything | `.claude/INDEX.md` (keyword->doc, keyword->RFC) |
+| Understand architecture | `docs/architecture/core-design.md` |
+| Check past decisions | `.claude/LEARNED-INDEX.md` -> `plan/learned/` |
