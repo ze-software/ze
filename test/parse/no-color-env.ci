@@ -1,0 +1,30 @@
+# Test: NO_COLOR=1 suppresses ANSI codes in ze output
+# VALIDATES: AC-1: NO_COLOR env var disables color output
+# PREVENTS: ANSI escape codes appearing when NO_COLOR is set
+
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=NO_COLOR:value=1
+cmd=foreground:seq=1:exec=ze config validate test.conf
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+reject=stderr:pattern=\x1b\[

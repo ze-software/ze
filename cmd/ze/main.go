@@ -231,8 +231,8 @@ func main() {
 			_ = env.Set("ze.managed.token", args[1])
 			args = args[2:]
 		case "-d", "--debug":
-			_ = os.Setenv("ze.log", "debug")
-			_ = os.Setenv("ze.log.relay", "debug")
+			_ = env.Set("ze.log", "debug")
+			_ = env.Set("ze.log.relay", "debug")
 			args = args[1:]
 		case "--plugin":
 			if len(args) < 2 {
@@ -300,6 +300,12 @@ func main() {
 			args = args[2:]
 		case "--insecure-web":
 			insecureWeb = true
+			args = args[1:]
+		case "--color":
+			_ = env.Set("ze.log.color", "true")
+			args = args[1:]
+		case "--no-color":
+			_ = env.Set("ze.log.color", "false")
 			args = args[1:]
 		case "--plugins":
 			// Handle here to avoid breaking the loop — this is a standalone flag

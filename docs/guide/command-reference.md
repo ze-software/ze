@@ -33,6 +33,8 @@ ze start                         # Start daemon from database
 | `--server <host:port>` | Override hub address for managed mode |
 | `--name <name>` | Override client name for managed mode |
 | `--token <token>` | Override auth token for managed mode |
+| `--color` | Force colored output (even when not a TTY) |
+| `--no-color` | Disable colored output (also: `NO_COLOR` env var, `TERM=dumb`) |
 <!-- source: cmd/ze/main.go -- global flag parsing -->
 
 ### ze config validate

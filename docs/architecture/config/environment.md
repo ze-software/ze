@@ -61,6 +61,9 @@ They can also be set via the config file `environment { <section> { <option> <va
 
 Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (handled by `slogutil.ApplyLogConfig()`). Subsystem names follow `<domain>.<component>` convention (e.g. `bgp.reactor`, `plugin.server`). Run `ze env` for the full list.
 
+Color output can be forced on or off via `ze.log.color=true|false`, which overrides TTY detection. The `--color` and `--no-color` CLI flags set this variable. System conventions `NO_COLOR` (no-color.org) and `TERM=dumb` always take precedence.
+<!-- source: internal/core/slogutil/color.go -- UseColor -->
+
 ### tcp
 
 | Variable | Type | Default | Description |

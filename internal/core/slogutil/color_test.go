@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // TestColorizeLineLevelColors verifies each level gets the correct color.
@@ -148,7 +150,7 @@ func TestColorHandlerEnabled(t *testing.T) {
 // PREVENTS: Colors in test output or pipe destinations.
 func TestUseColorNonFile(t *testing.T) {
 	var buf bytes.Buffer
-	assert.False(t, useColor(&buf))
+	assert.False(t, UseColor(&buf))
 }
 
 // TestUseColorNoColorEnv verifies NO_COLOR env var disables colors.
@@ -157,7 +159,7 @@ func TestUseColorNonFile(t *testing.T) {
 // PREVENTS: Colors appearing when user explicitly disabled them.
 func TestUseColorNoColorEnv(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
-	assert.False(t, useColor(os.Stderr))
+	assert.False(t, UseColor(os.Stderr))
 }
 
 // TestLevelColor verifies color mapping for each severity level.
@@ -186,4 +188,86 @@ func TestColorHandlerWithGroup(t *testing.T) {
 	output := buf.String()
 	assert.Contains(t, output, "grp.key")
 	assert.Contains(t, output, "value")
+}
+
+// TestUseColorTermDumb verifies TERM=dumb disables colors even when ze.log.color=true.
+//
+// VALIDATES: AC-2: TERM=dumb disables color output, overriding ze.log.color.
+// PREVENTS: ANSI codes sent to terminals that cannot display them.
+func TestUseColorTermDumb(t *testing.T) {
+	t.Setenv("TERM", "dumb")
+	t.Setenv("ze.log.color", "true")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	var buf bytes.Buffer
+	assert.False(t, UseColor(&buf))
+}
+
+// TestUseColorZeLogColorFalse verifies ze.log.color=false disables colors.
+//
+// VALIDATES: AC-3: ze.log.color=false forces color off regardless of TTY.
+// PREVENTS: Color output when explicitly disabled via ze env var.
+func TestUseColorZeLogColorFalse(t *testing.T) {
+	t.Setenv("ze.log.color", "false")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	assert.False(t, UseColor(os.Stderr))
+}
+
+// TestUseColorZeLogColorTrue verifies ze.log.color=true enables colors on non-TTY.
+//
+// VALIDATES: AC-4: ze.log.color=true forces color on regardless of TTY.
+// PREVENTS: Color being suppressed when user explicitly requested it.
+func TestUseColorZeLogColorTrue(t *testing.T) {
+	t.Setenv("ze.log.color", "true")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	var buf bytes.Buffer
+	assert.True(t, UseColor(&buf))
+}
+
+// TestUseColorNoColorEnvBeatsZeLogColor verifies NO_COLOR wins over ze.log.color=true.
+//
+// VALIDATES: AC-7: NO_COLOR (system convention) takes precedence over ze.log.color.
+// PREVENTS: Ze env var overriding the system-standard NO_COLOR convention.
+func TestUseColorNoColorEnvBeatsZeLogColor(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("ze.log.color", "true")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	var buf bytes.Buffer
+	assert.False(t, UseColor(&buf))
+}
+
+// TestUseColorTermDumbAlone verifies TERM=dumb disables colors without ze.log.color set.
+//
+// VALIDATES: AC-2 in isolation: TERM=dumb alone is sufficient to disable color.
+// PREVENTS: TERM=dumb check being accidentally removed without test failure.
+func TestUseColorTermDumbAlone(t *testing.T) {
+	t.Setenv("TERM", "dumb")
+	assert.False(t, UseColor(os.Stderr))
+}
+
+// TestUseColorZeLogColorEmpty verifies empty ze.log.color falls through to TTY detection.
+//
+// VALIDATES: The v != "" guard in UseColor skips to TTY detection for empty values.
+// PREVENTS: Removing the empty-string guard silently breaking TTY fallback.
+func TestUseColorZeLogColorEmpty(t *testing.T) {
+	t.Setenv("ze.log.color", "")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	var buf bytes.Buffer
+	assert.False(t, UseColor(&buf)) // non-TTY buffer, falls through to TTY check
+}
+
+// TestUseColorZeLogColorInvalid verifies unrecognized ze.log.color values disable color.
+//
+// VALIDATES: Non-boolean values like "maybe" are treated as color-off by env.IsEnabled.
+// PREVENTS: Unrecognized values silently enabling color output.
+func TestUseColorZeLogColorInvalid(t *testing.T) {
+	t.Setenv("ze.log.color", "maybe")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	var buf bytes.Buffer
+	assert.False(t, UseColor(&buf))
 }

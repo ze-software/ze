@@ -1,0 +1,29 @@
+# Test: --no-color flag suppresses ANSI codes in ze output
+# VALIDATES: AC-5: --no-color CLI flag disables color output
+# PREVENTS: ANSI escape codes appearing when --no-color flag is passed
+
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze --no-color config validate test.conf
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+reject=stderr:pattern=\x1b\[

@@ -13,7 +13,12 @@ import (
 	"sync"
 
 	"golang.org/x/term"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
+
+// Env var registration for color control.
+var _ = env.MustRegister(env.EnvEntry{Key: "ze.log.color", Type: "bool", Description: "Force color output on (true) or off (false)"})
 
 // ANSI escape codes for terminal output.
 const (
@@ -174,11 +179,22 @@ func levelColor(level slog.Level) string {
 	return ansiCyan
 }
 
-// useColor reports whether color output should be used for the given writer.
-// Returns true when writing to a terminal and the NO_COLOR env var is not set.
-func useColor(w io.Writer) bool {
+// UseColor reports whether color output should be used for the given writer.
+//
+// Precedence (first match wins):
+//  1. NO_COLOR env var set -> disabled (no-color.org system standard)
+//  2. TERM=dumb -> disabled (system standard)
+//  3. ze.log.color set -> use its boolean value (set by --color/--no-color flags or env var)
+//  4. term.IsTerminal(fd) -> enabled/disabled based on TTY
+func UseColor(w io.Writer) bool {
 	if _, ok := os.LookupEnv("NO_COLOR"); ok {
 		return false
+	}
+	if os.Getenv("TERM") == "dumb" {
+		return false
+	}
+	if v := env.Get("ze.log.color"); v != "" {
+		return env.IsEnabled("ze.log.color")
 	}
 	f, ok := w.(*os.File)
 	if !ok {

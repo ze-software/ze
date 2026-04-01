@@ -6,7 +6,7 @@ package runner
 import (
 	"os"
 
-	"golang.org/x/term"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 // ANSI color codes.
@@ -24,10 +24,11 @@ type Colors struct {
 	enabled bool
 }
 
-// NewColors creates a Colors instance, detecting if stdout is a terminal.
+// NewColors creates a Colors instance using the shared color detection.
+// Respects NO_COLOR, TERM=dumb, and ze.log.color env vars.
 func NewColors() *Colors {
 	return &Colors{
-		enabled: term.IsTerminal(int(os.Stdout.Fd())),
+		enabled: slogutil.UseColor(os.Stdout),
 	}
 }
 

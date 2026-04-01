@@ -10,6 +10,7 @@
 //   - ze.log.backend=<backend> - log output (stderr/stdout/syslog)
 //   - ze.log.destination=<addr> - syslog address (when backend=syslog)
 //   - ze.log.relay=<level> - plugin stderr relay level
+//   - ze.log.color=<bool> - force color on/off (overrides TTY detection)
 //
 // Priority (highest to lowest):
 //  1. CLI flag --log-level (plugin processes only)
@@ -248,20 +249,20 @@ func createHandler(level slog.Leveler) slog.Handler {
 	backend := getSpecialEnv("backend")
 	switch strings.ToLower(backend) {
 	case backendStdout:
-		if useColor(os.Stdout) {
+		if UseColor(os.Stdout) {
 			return newColorHandler(os.Stdout, opts)
 		}
 		return slog.NewTextHandler(os.Stdout, opts)
 	case backendSyslog:
 		return newSyslogHandler(opts)
 	case backendStderr:
-		if useColor(os.Stderr) {
+		if UseColor(os.Stderr) {
 			return newColorHandler(os.Stderr, opts)
 		}
 		return slog.NewTextHandler(os.Stderr, opts)
 	}
 	// default: stderr
-	if useColor(os.Stderr) {
+	if UseColor(os.Stderr) {
 		return newColorHandler(os.Stderr, opts)
 	}
 	return slog.NewTextHandler(os.Stderr, opts)
