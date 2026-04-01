@@ -72,14 +72,14 @@ Requires **Go 1.25+**. See the [Quick Start guide](docs/guide/quickstart.md).
 |------|-----------|
 | Try Ze for the first time | [Quick Start](docs/guide/quickstart.md) |
 | Announce routes to my upstream | [Route Injection](docs/guide/route-injection.md) |
-| Build a route server at an IXP | [Route Reflection](docs/guide/route-reflection.md) (please don't, not yet) |
-| Monitor BGP sessions | [Monitoring](docs/guide/monitoring.md) |
-| Validate routes against RPKI | [RPKI](docs/guide/rpki.md) |
-| Restart without dropping routes | [Graceful Restart](docs/guide/graceful-restart.md) |
 | Migrate from ExaBGP | [ExaBGP Migration](docs/guide/exabgp-migration.md) |
-| Run Ze in production | [Operations](docs/guide/operations.md) |
+| Monitor BGP sessions | [Monitoring](docs/guide/monitoring.md) |
+| Restart without dropping routes | [Graceful Restart](docs/guide/graceful-restart.md) |
+| Validate routes against RPKI | [RPKI](docs/guide/rpki.md) |
 | Write a plugin (Go, Python, Rust) | [Plugin Development](docs/plugin-development/) |
 | Understand the internals | [Design Document](docs/DESIGN.md) |
+| Build a route server at an IXP | [Route Reflection](docs/guide/route-reflection.md) (please don't, not yet) |
+| Run Ze in production | [Operations](docs/guide/operations.md) |
 | Compare Ze with other daemons | [Comparison](docs/comparison.md) |
 
 ## Documentation
@@ -101,6 +101,14 @@ Ze exists because AI coding assistants (Claude Code) made a ground-up BGP rewrit
 
 [GNU Affero General Public License v3.0](LICENSE)
 
-Ze is not actively seeking contributions, but they are welcome under a [Contributor License Agreement](CLA.md).
+Contributions are welcome if they follow the [contribution process](CONTRIBUTING.md). A [Contributor License Agreement](CLA.md) applies.
 
-**Official repo:** [github.com/ze-software/ze](https://github.com/ze-software/ze) -- **Development:** [codeberg.org/thomas-mangin/ze](https://codeberg.org/thomas-mangin/ze) -- [Issues](https://github.com/ze-software/ze/issues) -- [Discord](https://discord.gg/ykJb8meS4) -- [ExaBGP](https://github.com/Exa-Networks/exabgp)
+## Links
+
+| | |
+|-|-|
+| **Official repo** | [github.com/ze-software/ze](https://github.com/ze-software/ze) |
+| **Development** | [codeberg.org/thomas-mangin/ze](https://codeberg.org/thomas-mangin/ze) |
+| **Issues** | [github.com/ze-software/ze/issues](https://github.com/ze-software/ze/issues) |
+| **Discord** | [discord.gg/ykJb8meS4](https://discord.gg/ykJb8meS4) |
+| **ExaBGP** | [github.com/Exa-Networks/exabgp](https://github.com/Exa-Networks/exabgp) |

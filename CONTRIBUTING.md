@@ -1,19 +1,30 @@
 # Contributing to Ze
 
-Contributions are welcome. By contributing, you agree to the terms of the
+Contributions are welcome if they follow the process below.
+
+By contributing, you agree to the terms of the
 [Contributor License Agreement](CLA.md).
 
-## Signing Your Work
+## Process
 
-All commits must include a `Signed-off-by` line, which you can add
-automatically with:
+1. **Open an issue** describing what you want to work on.
+2. **Wait for a spec.** The maintainer will create a spec from `plan/TEMPLATE.md`
+   so the work follows the project's structure and standards.
+3. **Implement the spec.** Follow the rules in `.claude/rules/` -- they apply to
+   all contributions, whether written by hand or with AI assistance.
+4. **Run `/deep-review` before submitting.** The maintainer reviews contributions
+   with Claude Code. Submitting pre-reviewed code makes that process smooth.
+5. **Sign your commits** with `git commit -s` (certifies you accept the [CLA](CLA.md)).
 
-```
-git commit -s
-```
+## Rules
 
-This certifies that you have read and accepted the [CLA](CLA.md). A commit
-without `Signed-off-by` will not be accepted.
+The `.claude/rules/` directory contains the project's coding standards, testing
+requirements, and workflow expectations. Key points:
+
+- **TDD:** tests written before implementation
+- **Specs drive work:** no code without a spec
+- **`make ze-verify` must pass** before any submission
+- **No partial deliveries:** code + tests + docs in one piece
 
 ## License
 
