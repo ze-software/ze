@@ -60,7 +60,7 @@ stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	hub {
 		server local {
-			host 127.0.0.1;
+			ip 127.0.0.1;
 			port 0;
 			secret rpki-test-secret-key-01234567890;
 		}

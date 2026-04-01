@@ -19,7 +19,11 @@ ze --mcp 9718 config.conf
 ```
 environment {
     mcp {
-        port 9718;
+        enabled true;
+        server main {
+            ip 127.0.0.1;
+            port 9718;
+        }
     }
 }
 ```

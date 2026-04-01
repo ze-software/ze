@@ -30,7 +30,7 @@ option=timeout:value=10s
 option=reload:mode=success
 
 # Make a change first so config is dirty, then commit to create rollback 1
-input=type:text=set bgp listen 0.0.0.0:179
+input=type:text=set bgp peer peer1 description "test router"
 input=enter
 expect=dirty:true
 

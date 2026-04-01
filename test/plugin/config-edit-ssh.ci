@@ -88,7 +88,11 @@ system {
 
 environment {
 	ssh {
-		listen 127.0.0.1:2222
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port 2222;
+		}
 	}
 	tcp {
 		attempts 3

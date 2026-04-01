@@ -30,7 +30,11 @@ system {
 
 environment {
 	ssh {
-		listen 0.0.0.0:2222
+		enabled true
+		server main {
+			ip 0.0.0.0
+			port 2222
+		}
 		host-key /etc/ze/ssh_host_ed25519_key
 		idle-timeout 600
 		max-sessions 8

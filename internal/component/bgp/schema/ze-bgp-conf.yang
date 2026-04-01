@@ -35,11 +35,6 @@ module ze-bgp-conf {
             }
         }
 
-        leaf listen {
-            type string;
-            description "Listen address and port";
-        }
-
         // Global redistribution filter chains (apply to all peers as base chain)
         container redistribution {
             description
@@ -183,9 +178,18 @@ module ze-bgp-conf {
 
             container local {
                 description "Local connection settings";
+                leaf ip {
+                    type union {
+                        type zt:ip-address;
+                        type enumeration {
+                            enum auto;
+                        }
+                    }
+                    description "Local address for connection (use IP address or 'auto')";
+                }
                 leaf port {
                     type zt:port;
-                    description "Local bind port (overrides global tcp.port for this peer)";
+                    description "Local bind port";
                 }
                 leaf connect {
                     type boolean;
@@ -196,6 +200,10 @@ module ze-bgp-conf {
 
             container remote {
                 description "Remote connection settings";
+                leaf ip {
+                    type zt:ip-address;
+                    description "Peer IP address";
+                }
                 leaf port {
                     type zt:port;
                     description "Remote connection port";
@@ -564,53 +572,10 @@ module ze-bgp-conf {
 
     }
 
-    // Peer-level IP addresses — augmented into peer connection > remote/local containers.
-    // Groups do NOT get these (remote > ip makes no sense at group level).
-
-    // Standalone peer: connection > remote > ip
-    augment "/bgp:bgp/bgp:peer/bgp:connection/bgp:remote" {
-        leaf ip {
-            type zt:ip-address;
-            description "Peer IP address (required at peer level)";
-        }
-    }
-    // Standalone peer: connection > local > ip
-    augment "/bgp:bgp/bgp:peer/bgp:connection/bgp:local" {
-        leaf ip {
-            type union {
-                type zt:ip-address;
-                type enumeration {
-                    enum auto;
-                }
-            }
-            description "Local address for connection (use IP address or 'auto')";
-        }
-    }
-    // Grouped peer: connection > remote > ip
-    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:connection/bgp:remote" {
-        leaf ip {
-            type zt:ip-address;
-            description "Peer IP address (required at peer level)";
-        }
-    }
-    // Grouped peer: connection > local > ip
-    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:connection/bgp:local" {
-        leaf ip {
-            type union {
-                type zt:ip-address;
-                type enumeration {
-                    enum auto;
-                }
-            }
-            description "Local address for connection (use IP address or 'auto')";
-        }
-    }
-
     // BGP-owned environment settings — augment hub's environment container
     augment "/hub:environment" {
         container tcp {
             description "TCP settings";
-            leaf port { type zt:port; default 179; description "BGP port (RFC 4271)"; }
             leaf attempts { type int32; description "TCP connection attempts before giving up"; }
             leaf delay { type int32; description "Delay between TCP connection attempts in seconds"; }
             leaf acl { type boolean; description "Enable TCP ACL filtering"; }
@@ -618,16 +583,6 @@ module ze-bgp-conf {
 
         container bgp {
             description "BGP protocol settings";
-            leaf connect {
-                type boolean;
-                default true;
-                description "Initiate outbound connections";
-            }
-            leaf accept {
-                type boolean;
-                default true;
-                description "Accept inbound connections";
-            }
             leaf openwait { type int32; default "120"; description "Seconds to wait for OPEN after TCP connect"; }
         }
 

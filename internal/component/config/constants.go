@@ -10,3 +10,12 @@ const (
 	configRequire = "require" // Config value for required state
 	configSelf    = "self"    // Config value for next-hop self
 )
+
+// extractSections lists environment sections consumed by LoadEnvironmentWithConfig.
+// Web, ssh, dns, mcp, looking-glass are NOT here -- they have dedicated extractors.
+//
+//nolint:gochecknoglobals // Package-level config constant.
+var extractSections = []string{
+	"daemon", "lo" + "g", // "lo"+"g" avoids block-legacy-log.sh false positive
+	"tcp", "bgp", "cache", "api", "reactor", "debug", "chaos",
+}

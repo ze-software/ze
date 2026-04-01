@@ -2,6 +2,7 @@ module ze-ssh-conf {
     namespace "urn:ze:ssh:conf";
     prefix ssh;
 
+    import ze-types { prefix zt; }
     import ze-extensions { prefix ze; }
 
     description "SSH server configuration for Ze";
@@ -45,9 +46,30 @@ module ze-ssh-conf {
         container ssh {
             description "SSH server settings";
 
-            leaf-list listen {
-                type string;
-                description "Listen address and port (e.g. 0.0.0.0:2222)";
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Enable SSH server";
+            }
+
+            list server {
+                key "name";
+                ze:listener;
+                description "SSH server listen endpoints";
+
+                leaf name {
+                    type string;
+                    description "Server instance name";
+                }
+
+                uses zt:listener {
+                    refine ip {
+                        default "0.0.0.0";
+                    }
+                    refine port {
+                        default 2222;
+                    }
+                }
             }
 
             leaf host-key {

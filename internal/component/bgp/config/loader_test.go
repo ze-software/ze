@@ -35,8 +35,6 @@ bgp {
     		local 65000
     	}
     }
-    listen 127.0.0.1:1179;
-
     peer transit1 {
         connection {
             remote {
@@ -664,8 +662,6 @@ bgp {
     		local 65000
     	}
     }
-    listen 127.0.0.1:1179;
-
     peer transit1 {
         connection {
             remote {

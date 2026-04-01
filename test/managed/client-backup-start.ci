@@ -44,7 +44,7 @@ bgp {
 plugin {
     hub {
         server local {
-            host 127.0.0.1;
+            ip 127.0.0.1;
             port 1790;
             secret "local-secret-that-is-at-least-32ch";
         }

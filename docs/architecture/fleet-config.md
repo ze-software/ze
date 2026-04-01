@@ -8,7 +8,7 @@
 
 ## Vision
 
-A managed client's config contains everything: BGP sessions, plugin settings, AND the hub connection info. The `plugin { hub { client <name> { host; port; secret } } }` block declares who the client is and where its hub lives. After the first boot (provisioned via `ze init`), the cached config is self-describing -- `ze start` reads it and knows everything.
+A managed client's config contains everything: BGP sessions, plugin settings, AND the hub connection info. The `plugin { hub { client <name> { host; port; secret } } }` block declares who the client is and where its hub lives (client blocks use `host` for the remote address). After the first boot (provisioned via `ze init`), the cached config is self-describing -- `ze start` reads it and knows everything.
 
 Every ze instance has at least one `server` block for local plugins and SSH. The hub infrastructure is universal -- managed config is just one more use of it.
 
@@ -20,11 +20,11 @@ Every ze instance has at least one `server` block for local plugins and SSH. The
 
 All hub configuration uses explicit `server` and `client` keywords under `plugin { hub { } }`:
 
-| Keyword | Direction | Has `host`+`port` | Purpose |
-|---------|-----------|-------------------|---------|
-| `server <name>` | Accepts connections | Listen address | Local plugins, SSH editor, remote managed clients |
+| Keyword | Direction | Has `ip`/`host`+`port` | Purpose |
+|---------|-----------|------------------------|---------|
+| `server <name>` | Accepts connections | `ip`+`port` (listen address) | Local plugins, SSH editor, remote managed clients |
 | `client <name>` (under `server`) | N/A | N/A | Declares an accepted remote client with its secret |
-| `client <name>` (at hub level) | Connects outbound | Remote address | Fetch config from a remote hub |
+| `client <name>` (at hub level) | Connects outbound | `host`+`port` (remote address) | Fetch config from a remote hub |
 
 ### Examples
 
@@ -34,7 +34,7 @@ All hub configuration uses explicit `server` and `client` keywords under `plugin
 plugin {
     hub {
         server local {
-            host 127.0.0.1;
+            ip 127.0.0.1;
             port 1790;
             secret "local-secret-...";
         }
@@ -48,12 +48,12 @@ plugin {
 plugin {
     hub {
         server local {
-            host 127.0.0.1;
+            ip 127.0.0.1;
             port 1790;
             secret "local-plugin-secret-...";
         }
         server central {
-            host 0.0.0.0;
+            ip 0.0.0.0;
             port 1791;
             secret "remote-plugin-secret-...";
             client edge-01 { secret "..."; }
@@ -69,7 +69,7 @@ plugin {
 plugin {
     hub {
         server local {
-            host 127.0.0.1;
+            ip 127.0.0.1;
             port 1790;
             secret "local-secret-...";
         }
@@ -88,7 +88,7 @@ plugin {
 - A `server` block listens; a hub-level `client` block connects outbound
 - `client` blocks nested under `server` declare accepted remote clients (with per-client secrets)
 - Hub-level `client` blocks declare outbound connections to remote hubs
-- A block has either `host`+`port` for listening or `host`+`port` for connecting -- the keyword (`server`/`client`) determines which
+- A `server` block uses `ip`+`port` for listening; a `client` block uses `host`+`port` for connecting
 - Multiple `server` blocks allowed (different secrets for different plugin groups)
 - The client name in `client edge-01 { }` IS the client's identity
 
@@ -257,7 +257,7 @@ After this, the blob has the cached config. On subsequent boots, the config itse
 |------|------|-------------|
 | `plugin/hub` | container | Hub configuration |
 | `plugin/hub/server` | list, keyed by name | Hub server instances |
-| `plugin/hub/server/<name>/host` | string | Listen address |
+| `plugin/hub/server/<name>/ip` | string | Listen address |
 | `plugin/hub/server/<name>/port` | uint16 | Listen port |
 | `plugin/hub/server/<name>/secret` | string (min 32 chars) | Shared secret for plugins connecting to this server |
 | `plugin/hub/server/<name>/client` | list, keyed by name | Accepted remote managed clients |

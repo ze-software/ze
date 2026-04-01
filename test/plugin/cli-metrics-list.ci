@@ -99,7 +99,11 @@ environment {
 
 telemetry {
 	prometheus {
-		port 19274
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port 19274;
+		}
 	}
 }
 

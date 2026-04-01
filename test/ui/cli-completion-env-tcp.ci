@@ -1,5 +1,6 @@
 # Test: ze config completion — environment tcp fields (bgp augment)
 # VALIDATES: TCP container from bgp-conf augment shows its fields
+# Note: port removed (ExaBGP legacy; Ze uses per-peer config)
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -14,6 +15,6 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config completion --context environment/tcp --input set+ test.conf
 expect=exit:code=0
-expect=stdout:contains=port
+expect=stdout:contains=attempts
 expect=stdout:contains=delay
 expect=stdout:contains=acl

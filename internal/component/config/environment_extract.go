@@ -14,8 +14,8 @@ func ExtractEnvironment(tree *Tree) map[string]map[string]string {
 
 	result := make(map[string]map[string]string)
 
-	// Extract each section.
-	sections := []string{"daemon", "log", "tcp", "bgp", "cache", "api", "reactor", "debug", "chaos"}
+	// Extract each section (includes web, ssh, dns, mcp added for listener-2-env).
+	sections := extractSections
 	for _, section := range sections {
 		sectionContainer := envContainer.GetContainer(section)
 		if sectionContainer == nil {

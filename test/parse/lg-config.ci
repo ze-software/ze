@@ -23,8 +23,11 @@ bgp {
 
 environment {
 	looking-glass {
-		host 0.0.0.0
-		port 8443
+		enabled true
+		server main {
+			ip 0.0.0.0
+			port 8443
+		}
 	}
 }
 EOF_CONF

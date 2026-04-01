@@ -50,12 +50,12 @@ The hub declares which clients can connect:
 plugin {
     hub {
         server local {
-            host 127.0.0.1;
+            ip 127.0.0.1;
             port 1790;
             secret "local-plugin-secret";
         }
         server central {
-            host 0.0.0.0;
+            ip 0.0.0.0;
             port 1791;
             secret "remote-plugin-secret";
             client edge-01 { secret "client-1-token"; }
@@ -75,7 +75,7 @@ A managed client specifies its hub connection:
 plugin {
     hub {
         server local {
-            host 127.0.0.1;
+            ip 127.0.0.1;
             port 1790;
             secret "local-secret";
         }

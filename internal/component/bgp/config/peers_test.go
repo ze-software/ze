@@ -8,7 +8,6 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // buildMinimalPeer creates a minimal peer tree with the new container structure.
@@ -145,31 +144,6 @@ func TestPeersFromConfigTreeGroupWithRoutes(t *testing.T) {
 	// Route should be extracted.
 	require.Len(t, ps.StaticRoutes, 1, "route should be extracted from peer tree")
 	assert.Equal(t, "192.168.0.0/16", ps.StaticRoutes[0].Prefix.String())
-}
-
-// TestPeersFromConfigTreePortOverride verifies env port override.
-//
-// VALIDATES: ze_bgp_tcp_port environment variable overrides peer port.
-// PREVENTS: Port override being lost when migrating to PeersFromConfigTree.
-func TestPeersFromConfigTreePortOverride(t *testing.T) {
-	env.ResetCache()
-	t.Cleanup(env.ResetCache)
-
-	t.Setenv("ze_bgp_tcp_port", "1790")
-	env.ResetCache()
-
-	tree := config.NewTree()
-	bgp := buildBGPBlock()
-
-	peerTree := buildMinimalPeer("10.0.0.1", "65001", "auto")
-	bgp.AddListEntry("peer", "peer1", peerTree)
-	tree.SetContainer("bgp", bgp)
-
-	peers, err := PeersFromConfigTree(tree)
-	require.NoError(t, err)
-	require.Len(t, peers, 1)
-
-	assert.Equal(t, uint16(1790), peers[0].Port)
 }
 
 // TestPeersFromConfigTreeNoPeers verifies no error when there are no peers.

@@ -43,6 +43,20 @@ module ze-types {
         container bgp-prefix-sid-srv6 { presence "SRv6 Prefix SID enabled"; description "SRv6 Prefix SID"; }
     }
 
+    // Grouping for network listener endpoints (ip + port).
+    // Used by all services that accept inbound connections.
+    grouping listener {
+        description "Common listener endpoint fields";
+        leaf ip {
+            type ip-address;
+            description "Listen IP address";
+        }
+        leaf port {
+            type port;
+            description "Listen TCP port";
+        }
+    }
+
     typedef ip-address {
         type union {
             type ipv4-address;

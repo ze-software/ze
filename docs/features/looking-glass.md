@@ -11,7 +11,7 @@ Ze includes a built-in looking glass that exposes BGP session state and route in
 | AS path topology graph | Server-side SVG visualization of AS path DAGs |
 | Birdwatcher REST API | Alice-LG compatible JSON endpoints under `/api/looking-glass/` |
 | HTMX web UI | Server-rendered HTML pages under `/lg/` with fragment updates |
-| YANG configuration | `environment/looking-glass` block with host, port, tls settings |
+| YANG configuration | `environment/looking-glass` block with enabled, server (ip, port), tls settings |
 
 <!-- source: internal/component/lg/server.go -- LGServer, HTTP lifecycle -->
 <!-- source: internal/component/lg/handler_api.go -- Birdwatcher REST API handlers -->

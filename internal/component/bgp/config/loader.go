@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/netip"
 	"os"
 	"path/filepath"
 	"sort"
@@ -44,19 +43,6 @@ const (
 	originIGP = "igp"
 	originEGP = "egp"
 )
-
-// normalizeListenAddr ensures listen address has ip:port format.
-// Accepts "ip:port", "[ipv6]:port", or bare "ip"/"[ipv6]" (port from environment/default).
-func normalizeListenAddr(addr string, defaultPort int) string {
-	if _, err := netip.ParseAddrPort(addr); err == nil {
-		return addr
-	}
-	ip, err := netip.ParseAddr(strings.Trim(addr, "[]"))
-	if err != nil {
-		return addr
-	}
-	return netip.AddrPortFrom(ip, uint16(defaultPort)).String()
-}
 
 // parseTreeWithYANG parses config with optional plugin YANG schemas.
 // Returns the parsed tree for further processing by callers.
@@ -651,7 +637,8 @@ type WebConfig struct {
 // Listen returns host:port.
 func (c WebConfig) Listen() string { return c.Host + ":" + c.Port }
 
-// ExtractWebConfig returns the environment.web config if present.
+// ExtractWebConfig returns the environment.web config if enabled.
+// With the named list pattern, reads the first server entry or uses defaults.
 func ExtractWebConfig(tree *config.Tree) (WebConfig, bool) {
 	envBlock := tree.GetContainer("environment")
 	if envBlock == nil {
@@ -662,14 +649,26 @@ func ExtractWebConfig(tree *config.Tree) (WebConfig, bool) {
 		return WebConfig{}, false
 	}
 
+	// Service must be explicitly enabled (default false).
+	enabled, _ := web.Get("enabled")
+	if enabled != configTrue {
+		return WebConfig{}, false
+	}
+
 	cfg := WebConfig{Host: "0.0.0.0", Port: "3443"}
-	if v, ok := web.Get("host"); ok {
-		cfg.Host = v
+
+	// Read first server list entry if present; otherwise use YANG defaults.
+	if servers := web.GetListOrdered("server"); len(servers) > 0 {
+		entry := servers[0].Value
+		if v, ok := entry.Get("ip"); ok {
+			cfg.Host = v
+		}
+		if v, ok := entry.Get("port"); ok {
+			cfg.Port = v
+		}
 	}
-	if v, ok := web.Get("port"); ok {
-		cfg.Port = v
-	}
-	if v, ok := web.Get("insecure"); ok && v == "true" {
+
+	if v, ok := web.Get("insecure"); ok && v == configTrue {
 		cfg.Insecure = true
 	}
 
@@ -682,7 +681,7 @@ func ExtractWebConfig(tree *config.Tree) (WebConfig, bool) {
 	return cfg, true
 }
 
-// HasWebConfig returns true if the parsed config tree has an environment.web block.
+// HasWebConfig returns true if the parsed config tree has an enabled environment.web block.
 func HasWebConfig(tree *config.Tree) bool {
 	_, ok := ExtractWebConfig(tree)
 	return ok
@@ -697,7 +696,7 @@ type MCPConfig struct {
 // Listen returns host:port.
 func (c MCPConfig) Listen() string { return c.Host + ":" + c.Port }
 
-// ExtractMCPConfig returns the environment.mcp config if present.
+// ExtractMCPConfig returns the environment.mcp config if enabled.
 func ExtractMCPConfig(tree *config.Tree) (MCPConfig, bool) {
 	envBlock := tree.GetContainer("environment")
 	if envBlock == nil {
@@ -708,12 +707,22 @@ func ExtractMCPConfig(tree *config.Tree) (MCPConfig, bool) {
 		return MCPConfig{}, false
 	}
 
-	cfg := MCPConfig{Host: loopbackIP}
-	if v, ok := mcp.Get("host"); ok {
-		cfg.Host = v
+	// Service must be explicitly enabled (default false).
+	enabled, _ := mcp.Get("enabled")
+	if enabled != configTrue {
+		return MCPConfig{}, false
 	}
-	if v, ok := mcp.Get("port"); ok {
-		cfg.Port = v
+
+	cfg := MCPConfig{Host: loopbackIP}
+
+	if servers := mcp.GetListOrdered("server"); len(servers) > 0 {
+		entry := servers[0].Value
+		if v, ok := entry.Get("ip"); ok {
+			cfg.Host = v
+		}
+		if v, ok := entry.Get("port"); ok {
+			cfg.Port = v
+		}
 	}
 
 	// Enforce loopbackIP binding.
@@ -723,7 +732,7 @@ func ExtractMCPConfig(tree *config.Tree) (MCPConfig, bool) {
 	}
 
 	if cfg.Port == "" {
-		return MCPConfig{}, false // No port = MCP not enabled
+		return MCPConfig{}, false
 	}
 
 	return cfg, true
@@ -739,7 +748,7 @@ type LGConfig struct {
 // Listen returns host:port.
 func (c LGConfig) Listen() string { return c.Host + ":" + c.Port }
 
-// ExtractLGConfig returns the environment.looking-glass config if present.
+// ExtractLGConfig returns the environment.looking-glass config if enabled.
 func ExtractLGConfig(tree *config.Tree) (LGConfig, bool) {
 	if tree == nil {
 		return LGConfig{}, false
@@ -753,13 +762,24 @@ func ExtractLGConfig(tree *config.Tree) (LGConfig, bool) {
 		return LGConfig{}, false
 	}
 
+	// Service must be explicitly enabled (default false).
+	enabled, _ := lg.Get("enabled")
+	if enabled != configTrue {
+		return LGConfig{}, false
+	}
+
 	cfg := LGConfig{Host: "0.0.0.0", Port: "8443"}
-	if v, ok := lg.Get("host"); ok {
-		cfg.Host = v
+
+	if servers := lg.GetListOrdered("server"); len(servers) > 0 {
+		entry := servers[0].Value
+		if v, ok := entry.Get("ip"); ok {
+			cfg.Host = v
+		}
+		if v, ok := entry.Get("port"); ok {
+			cfg.Port = v
+		}
 	}
-	if v, ok := lg.Get("port"); ok {
-		cfg.Port = v
-	}
+
 	if v, ok := lg.Get("tls"); ok && v == configTrue {
 		cfg.TLS = true
 	}

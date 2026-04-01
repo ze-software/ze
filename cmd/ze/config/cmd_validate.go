@@ -229,6 +229,16 @@ func runValidation(input, path string) *validationResult {
 		return result
 	}
 
+	// Listener port conflict detection.
+	listeners := config.CollectListeners(tree)
+	if err := config.ValidateListenerConflicts(listeners); err != nil {
+		result.Valid = false
+		result.Errors = append(result.Errors, validationError{
+			Message: err.Error(),
+		})
+		return result
+	}
+
 	return result
 }
 

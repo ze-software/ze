@@ -81,7 +81,11 @@ system {
 
 environment {
 	ssh {
-		listen 127.0.0.1:0
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port 0;
+		}
 	}
 }
 ZECONF

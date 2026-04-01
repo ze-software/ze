@@ -16,5 +16,5 @@ cmd=foreground:seq=1:exec=ze config completion --context bgp --input set+ test.c
 expect=exit:code=0
 expect=stdout:contains=router-id
 expect=stdout:contains=session
-expect=stdout:contains=listen
+expect=stdout:contains=group
 expect=stdout:contains=peer

@@ -111,7 +111,7 @@ See [environment-block.md](environment-block.md) for full documentation.
 ```
 environment {
     log { level DEBUG; }
-    tcp { port 1179; }
+    tcp { attempts 3; }
 }
 ```
 <!-- source: internal/component/config/environment.go -- Environment struct, envOptions -->

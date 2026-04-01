@@ -10,6 +10,16 @@ module ze-extensions {
         description "Initial revision";
     }
 
+    // Extension: listener
+    // Marks a list entry as a network listener endpoint.
+    // Used by port conflict detection (CollectListeners) to find all
+    // services that bind to ip:port pairs. Applied to list nodes inside
+    // service containers (e.g., web > server, ssh > server).
+    extension listener {
+        description "Marks a list entry as a network listener endpoint
+                     for port conflict detection at config parse time.";
+    }
+
     // Extension: syntax
     // Controls how the config parser handles this node.
     //

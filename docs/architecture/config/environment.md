@@ -54,23 +54,9 @@ They can also be set via the config file `environment { <section> { <option> <va
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `ze.bgp.log.enable` | bool | true | Enable logging |
 | `ze.bgp.log.level` | string | "INFO" | Syslog level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL |
 | `ze.bgp.log.destination` | string | "stdout" | stdout, stderr, syslog, or filename |
-| `ze.bgp.log.all` | bool | false | Debug all subsystems |
-| `ze.bgp.log.configuration` | bool | true | Log config parsing |
-| `ze.bgp.log.reactor` | bool | true | Log signals, reloads |
-| `ze.bgp.log.daemon` | bool | true | Log pid, forking |
-| `ze.bgp.log.processes` | bool | true | Log process handling |
-| `ze.bgp.log.network` | bool | true | Log TCP/IP, network state |
-| `ze.bgp.log.statistics` | bool | true | Log packet statistics |
-| `ze.bgp.log.packets` | bool | false | Log BGP packets |
-| `ze.bgp.log.rib` | bool | false | Log local route changes |
-| `ze.bgp.log.message` | bool | false | Log route announcements |
-| `ze.bgp.log.timers` | bool | false | Log keepalive timers |
-| `ze.bgp.log.routes` | bool | false | Log received routes |
-| `ze.bgp.log.parser` | bool | false | Log message parsing |
-| `ze.bgp.log.short` | bool | true | Short log format |
+| `ze.bgp.log.short` | bool | true | Short format |
 <!-- source: internal/component/config/environment.go -- LogEnv struct, loadDefaults -->
 
 Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (handled by `slogutil.ApplyLogConfig()`). Subsystem names follow `<domain>.<component>` convention (e.g. `bgp.reactor`, `plugin.server`). Run `ze env` for the full list.
@@ -79,7 +65,6 @@ Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (ha
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `ze.bgp.tcp.port` | int | 179 | Port to bind (179 or 1025-65535) |
 | `ze.bgp.tcp.attempts` | int | 0 | Exit after N sessions complete (0 = unlimited) |
 | `ze.bgp.tcp.delay` | int | 0 | Delay announcements by N minutes |
 | `ze.bgp.tcp.acl` | bool | false | Experimental ACL |
@@ -92,8 +77,6 @@ Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (ha
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `ze.bgp.bgp.connect` | bool | true | Initiate outbound connections |
-| `ze.bgp.bgp.accept` | bool | true | Accept inbound connections |
 | `ze.bgp.bgp.openwait` | int | 120 | Seconds to wait for OPEN (1-3600) |
 <!-- source: internal/component/config/environment.go -- BGPEnv struct, validateOpenWait -->
 
@@ -162,7 +145,7 @@ environment {
         level DEBUG
     }
     tcp {
-        port 1179
+        attempts 3
     }
     daemon {
         user zeuser

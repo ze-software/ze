@@ -3,6 +3,7 @@ module ze-web-conf {
     prefix web;
 
     import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
 
     description "Web interface configuration for Ze";
 
@@ -16,16 +17,30 @@ module ze-web-conf {
         container web {
             description "Web interface settings";
 
-            leaf host {
-                type zt:ip-address;
-                default "0.0.0.0";
-                description "Listen host address";
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Enable web interface";
             }
 
-            leaf port {
-                type uint16;
-                default 3443;
-                description "Listen port";
+            list server {
+                key "name";
+                ze:listener;
+                description "Web server listen endpoints";
+
+                leaf name {
+                    type string;
+                    description "Server instance name";
+                }
+
+                uses zt:listener {
+                    refine ip {
+                        default "0.0.0.0";
+                    }
+                    refine port {
+                        default 3443;
+                    }
+                }
             }
 
             leaf insecure {

@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/syntax.md — config parsing and loading
 // Detail: environment_extract.go — extraction of environment values from config tree
+// Detail: listener.go — listener conflict detection at config parse time
 //
 // Package config provides configuration parsing for ze.
 package config
@@ -30,34 +31,18 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.daemon.drop", Type: "bool", Default: "true", Description: "Drop privileges after startup"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.daemon.umask", Type: "string", Default: "0137", Description: "File creation mask (octal)"})
 
-	// Log section (ze-hub-conf.yang).
+	// Log section (ze-hub-conf.yang). Legacy ExaBGP boolean leaves removed.
+	// Ze uses ze.log.<subsystem>=<level> for per-subsystem control.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.level", Type: "string", Default: "INFO", Description: "Syslog level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.enable", Type: "bool", Default: "true", Description: "Enable logging"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.destination", Type: "string", Default: "stdout", Description: "Log destination: stdout, stderr, syslog, or filename"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.all", Type: "bool", Description: "Debug everything"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.configuration", Type: "bool", Default: "true", Description: "Log config parsing"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.reactor", Type: "bool", Default: "true", Description: "Log signals, reloads"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.daemon", Type: "bool", Default: "true", Description: "Log pid, forking"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.processes", Type: "bool", Default: "true", Description: "Log process handling"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.network", Type: "bool", Default: "true", Description: "Log TCP/IP, network state"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.statistics", Type: "bool", Default: "true", Description: "Log packet statistics"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.packets", Type: "bool", Description: "Log BGP packets"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.rib", Type: "bool", Description: "Log local route changes"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.message", Type: "bool", Description: "Log route announcements"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.timers", Type: "bool", Description: "Log keepalive timers"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.routes", Type: "bool", Description: "Log received routes"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.parser", Type: "bool", Description: "Log message parsing"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.short", Type: "bool", Default: "true", Description: "Short log format"})
 
-	// TCP section (ze-bgp-conf.yang).
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.tcp.port", Type: "int", Default: "179", Description: "BGP port (RFC 4271)"})
+	// TCP section (ze-bgp-conf.yang). Port removed (per-peer config, not global).
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.tcp.attempts", Type: "int", Description: "Max connection attempts (0 = unlimited)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.tcp.delay", Type: "int", Description: "Delay announcements by N minutes"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.tcp.acl", Type: "bool", Description: "Experimental ACL"})
 
-	// BGP section (ze-bgp-conf.yang).
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.bgp.connect", Type: "bool", Default: "true", Description: "Initiate outbound connections"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.bgp.accept", Type: "bool", Default: "true", Description: "Accept inbound connections"})
+	// BGP section (ze-bgp-conf.yang). Connect/accept removed (per-peer config, not global).
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.bgp.openwait", Type: "int", Default: "120", Description: "Seconds to wait for OPEN after TCP connect"})
 
 	// Cache section (ze-bgp-conf.yang).
@@ -92,6 +77,49 @@ var (
 	// Chaos section (ze-hub-conf.yang).
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.chaos.seed", Type: "int64", Description: "PRNG seed (0 = disabled)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.chaos.rate", Type: "string", Default: "0.1", Description: "Fault probability per operation (0.0-1.0)"})
+
+	// --- Centralized non-BGP env var registrations ---
+	// Moved from cmd/ze/hub/main.go, reactor.go, rs/server.go.
+
+	// Hub infrastructure.
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ready.file", Type: "string", Description: "Write signal file when hub is ready (test infrastructure)"})
+
+	// Web server.
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.host", Type: "string", Description: "Web server listen host"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.port", Type: "string", Description: "Web server listen port"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.insecure", Type: "bool", Description: "Disable web authentication"})
+
+	// MCP server.
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.host", Type: "string", Description: "MCP server listen host (127.0.0.1 only)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.port", Type: "string", Description: "MCP server listen port"})
+
+	// Looking glass.
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.host", Type: "string", Description: "Looking glass listen host"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.port", Type: "string", Description: "Looking glass listen port"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.tls", Type: "bool", Description: "Enable TLS for looking glass"})
+
+	// DNS resolver.
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.server", Type: "string", Default: "8.8.8.8:53", Description: "DNS server address (e.g., 8.8.8.8:53)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.timeout", Type: "int", Default: "5", Description: "DNS query timeout in seconds (1-60)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-size", Type: "int", Default: "10000", Description: "DNS cache max entries (0 = disabled)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-ttl", Type: "int", Default: "86400", Description: "DNS cache max TTL in seconds (0 = response TTL only)"})
+
+	// Reactor tuning (moved from internal/component/bgp/reactor/reactor.go).
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.chan.size", Type: "int", Default: "256", Description: "Per-destination forward worker channel capacity"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.write.deadline", Type: "duration", Default: "30s", Description: "TCP write deadline for forward pool batch writes"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: "int", Default: "100000", Description: "Global overflow pool capacity for forward workers (0 = unbounded)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.maxbytes", Type: "int64", Default: "0", Description: "Combined byte budget for 4K+64K buffer pools (0 = unlimited)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.batch.limit", Type: "int", Default: "1024", Description: "Max items per forward batch, bounds writeMu hold time (0 = unlimited)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.teardown.grace", Type: "duration", Default: "5s", Description: "Grace period at >95% pool + >2x weight before forced teardown"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.headroom", Type: "int64", Default: "0", Description: "Extra bytes beyond auto-sized pool baseline (0 = no extra)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.safety.valve", Type: "duration", Default: "5m", Description: "Safety valve duration for UPDATE cache gap-based eviction"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.read.size", Type: "int", Default: "65536", Description: "Per-session TCP read buffer size (bytes)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.write.size", Type: "int", Default: "16384", Description: "Per-session TCP write buffer size (bytes)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.metrics.interval", Type: "duration", Default: "10s", Description: "Periodic metrics refresh interval"})
+
+	// Route server (moved from internal/component/bgp/plugins/rs/server.go).
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.rs.chan.size", Type: "int", Default: "4096", Description: "Per-source-peer route server worker channel capacity"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.rs.fwd.senders", Type: "int", Default: "4", Description: "Number of concurrent forward sender goroutines"})
 )
 
 // Environment constants.
@@ -129,41 +157,25 @@ type DaemonEnv struct {
 }
 
 // LogEnv holds logging-related settings.
+// Legacy ExaBGP per-topic boolean fields removed. Ze uses ze.log.<subsystem>=<level>.
 type LogEnv struct {
-	Enable        bool   // Enable logging
-	Level         string // Syslog level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL
-	Destination   string // stdout, stderr, syslog, or filename
-	All           bool   // Debug everything
-	Configuration bool   // Log config parsing
-	Reactor       bool   // Log signals, reloads
-	Daemon        bool   // Log pid, forking
-	Processes     bool   // Log process handling
-	Network       bool   // Log TCP/IP, network state
-	Statistics    bool   // Log packet statistics
-	Packets       bool   // Log BGP packets
-	RIB           bool   // Log local route changes
-	Message       bool   // Log route announcements
-	Timers        bool   // Log keepalive timers
-	Routes        bool   // Log received routes
-	Parser        bool   // Log message parsing
-	Short         bool   // Short log format
+	Level       string // Syslog level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL
+	Destination string // stdout, stderr, syslog, or filename
+	Short       bool   // Short log format
 }
 
 // TCPEnv holds TCP-related settings.
+// Port removed -- Ze uses per-peer connection > local > port, not a global listen port.
 type TCPEnv struct {
 	Attempts int  // Max connection attempts (0 = unlimited)
 	Delay    int  // Delay announcements by N minutes
-	Port     int  // Port to bind
 	ACL      bool // Experimental ACL
-	// NOTE: Bind was removed - listeners are now derived from peer LocalAddress.
-	// See spec-listener-per-local-address.md for details.
 }
 
 // BGPEnv holds BGP-related settings.
+// Connect/Accept removed -- Ze uses per-peer connection > local > connect / remote > accept.
 type BGPEnv struct {
-	Connect  *bool // Initiate outbound connections (nil = not set, use default true)
-	Accept   *bool // Accept inbound connections (nil = not set, use default true)
-	OpenWait int   // Seconds to wait for OPEN
+	OpenWait int // Seconds to wait for OPEN
 }
 
 // CacheEnv holds caching-related settings.
@@ -238,39 +250,13 @@ func (e *Environment) loadDefaults() error {
 	}
 
 	// Log (ze-hub-conf.yang > environment > log)
-	if e.Log.Enable, err = SchemaDefaultBool(schema, "environment.log.enable"); err != nil {
-		return err
-	}
 	if e.Log.Level, err = SchemaDefaultString(schema, "environment.log.level"); err != nil {
 		return err
 	}
 	if e.Log.Destination, err = SchemaDefaultString(schema, "environment.log.destination"); err != nil {
 		return err
 	}
-	if e.Log.Configuration, err = SchemaDefaultBool(schema, "environment.log.configuration"); err != nil {
-		return err
-	}
-	if e.Log.Reactor, err = SchemaDefaultBool(schema, "environment.log.reactor"); err != nil {
-		return err
-	}
-	if e.Log.Daemon, err = SchemaDefaultBool(schema, "environment.log.daemon"); err != nil {
-		return err
-	}
-	if e.Log.Processes, err = SchemaDefaultBool(schema, "environment.log.processes"); err != nil {
-		return err
-	}
-	if e.Log.Network, err = SchemaDefaultBool(schema, "environment.log.network"); err != nil {
-		return err
-	}
-	if e.Log.Statistics, err = SchemaDefaultBool(schema, "environment.log.statistics"); err != nil {
-		return err
-	}
 	if e.Log.Short, err = SchemaDefaultBool(schema, "environment.log.short"); err != nil {
-		return err
-	}
-
-	// TCP (ze-bgp-conf.yang augment > environment > tcp)
-	if e.TCP.Port, err = SchemaDefaultInt(schema, "environment.tcp.port"); err != nil {
 		return err
 	}
 
@@ -609,18 +595,6 @@ func setBoolField(getter func(e *Environment) *bool) func(env *Environment, valu
 	}
 }
 
-// setBoolPtrField creates a setter for optional boolean fields (*bool).
-func setBoolPtrField(getter func(e *Environment) **bool) func(env *Environment, value string) error {
-	return func(env *Environment, value string) error {
-		b, err := ParseBoolStrict(value)
-		if err != nil {
-			return err
-		}
-		*getter(env) = &b
-		return nil
-	}
-}
-
 // setIntField creates a setter function for integer fields.
 func setIntField(getter func(e *Environment) *int) func(env *Environment, value string) error {
 	return func(env *Environment, value string) error {
@@ -652,26 +626,11 @@ var envOptions = map[string]map[string]envOption{
 		}},
 	},
 	"log": {
-		"level":         {setter: func(e *Environment, v string) error { e.Log.Level = strings.ToUpper(v); return nil }, validate: validateLogLevel},
-		"enable":        {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Enable })},
-		"destination":   {setter: func(e *Environment, v string) error { e.Log.Destination = v; return nil }},
-		"all":           {setter: setBoolField(func(e *Environment) *bool { return &e.Log.All })},
-		"configuration": {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Configuration })},
-		"reactor":       {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Reactor })},
-		"daemon":        {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Daemon })},
-		"processes":     {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Processes })},
-		"network":       {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Network })},
-		"statistics":    {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Statistics })},
-		"packets":       {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Packets })},
-		"rib":           {setter: setBoolField(func(e *Environment) *bool { return &e.Log.RIB })},
-		"message":       {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Message })},
-		"timers":        {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Timers })},
-		"routes":        {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Routes })},
-		"parser":        {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Parser })},
-		"short":         {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Short })},
+		"level":       {setter: func(e *Environment, v string) error { e.Log.Level = strings.ToUpper(v); return nil }, validate: validateLogLevel},
+		"destination": {setter: func(e *Environment, v string) error { e.Log.Destination = v; return nil }},
+		"short":       {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Short })},
 	},
 	"tcp": {
-		"port":     {setter: setIntField(func(e *Environment) *int { return &e.TCP.Port }), validate: validatePort},
 		"attempts": {setter: setIntField(func(e *Environment) *int { return &e.TCP.Attempts }), validate: validateAttempts},
 		"delay":    {setter: setIntField(func(e *Environment) *int { return &e.TCP.Delay })},
 		"acl":      {setter: setBoolField(func(e *Environment) *bool { return &e.TCP.ACL })},
@@ -689,8 +648,6 @@ var envOptions = map[string]map[string]envOption{
 		"connections": {setter: setIntField(func(e *Environment) *int { return &e.TCP.Attempts }), validate: validateAttempts},
 	},
 	"bgp": {
-		"connect":  {setter: setBoolPtrField(func(e *Environment) **bool { return &e.BGP.Connect })},
-		"accept":   {setter: setBoolPtrField(func(e *Environment) **bool { return &e.BGP.Accept })},
 		"openwait": {setter: setIntField(func(e *Environment) *int { return &e.BGP.OpenWait }), validate: validateOpenWait},
 	},
 	"cache": {

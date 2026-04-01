@@ -73,7 +73,7 @@ ze plugin validate binary ./my-plugin
 plugin {
     hub {
         server local {
-            host 127.0.0.1;
+            ip 127.0.0.1;
             port 12700;
             secret "shared-token";
         }

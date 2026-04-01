@@ -531,7 +531,7 @@ between SDK bridge activation and engine readiness.
 For external plugins (Python, Rust, etc.) -- runs as separate process:
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv -->
 
-1. Engine starts TLS listener from `plugin { hub { server <name> { host ...; port ...; secret ...; } } }` config
+1. Engine starts TLS listener from `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }` config
 2. Engine forks child with env vars: `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (per-plugin unique token), `ZE_PLUGIN_CERT_FP` (server cert SHA-256 fingerprint), `ZE_PLUGIN_NAME`
 3. Child verifies server cert fingerprint during TLS handshake, authenticates with `#0 auth {"token":"...","name":"..."}`
 4. Engine validates token matches the per-plugin token generated for that name (name binding prevents impersonation)
@@ -743,7 +743,7 @@ No network, no TLS, no auth. Fastest path.
 Transport: single TLS connection per plugin.
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv -->
 
-1. Engine reads `plugin { hub { server <name> { host ...; port ...; secret ...; } } }` from config
+1. Engine reads `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }` from config
 2. Engine starts TLS listener(s) (one per `server` entry), creates `PluginAcceptor` with cert fingerprint
 3. Engine generates per-plugin token, forks child with `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (unique per plugin), `ZE_PLUGIN_CERT_FP`, `ZE_PLUGIN_NAME` env vars
 4. Child verifies server cert fingerprint, connects via TLS, sends `#0 auth {"token":"...","name":"..."}`
@@ -758,7 +758,7 @@ Transport: single TLS connection per plugin.
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `plugin.hub.server` | named list | -- | TLS listener entries (keyed by name) |
-| `plugin.hub.server.<name>.host` | string | `127.0.0.1` | Bind address |
+| `plugin.hub.server.<name>.ip` | string | `127.0.0.1` | Bind address |
 | `plugin.hub.server.<name>.port` | uint16 | `12700` | Bind port |
 | `plugin.hub.server.<name>.secret` | string | (required, min 32 chars) | Auth token |
 

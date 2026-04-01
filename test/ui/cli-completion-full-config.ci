@@ -7,7 +7,7 @@ environment {
 		level info
 	}
 	tcp {
-		port 179
+		attempts 3
 	}
 }
 bgp {

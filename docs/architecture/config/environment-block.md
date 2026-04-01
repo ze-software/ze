@@ -7,7 +7,7 @@ Ze-specific feature to set environment variables from the config file:
 ```
 environment {
     log { level DEBUG; }
-    tcp { port 1179; }
+    tcp { attempts 3; }
     api { encoder text; }
 }
 ```
@@ -37,31 +37,14 @@ environment {
 | | drop | bool | - | true |
 | | umask | octal | - | 0o137 |
 | **log** | level | enum | DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL | INFO |
-| | enable | bool | - | true |
 | | destination | string | - | "stdout" |
-| | all | bool | - | false |
-| | configuration | bool | - | true |
-| | reactor | bool | - | true |
-| | daemon | bool | - | true |
-| | processes | bool | - | true |
-| | network | bool | - | true |
-| | statistics | bool | - | true |
-| | packets | bool | - | false |
-| | rib | bool | - | false |
-| | message | bool | - | false |
-| | timers | bool | - | false |
-| | routes | bool | - | false |
-| | parser | bool | - | false |
 | | short | bool | - | true |
-| **tcp** | port | int | 179 or 1025-65535 | 179 |
-| | attempts | int | 0-1000 | 0 |
+| **tcp** | attempts | int | 0-1000 | 0 |
 | | delay | int | - | 0 |
 | | acl | bool | - | false |
 | | once | bool | - | false (legacy alias) |
 | | connections | int | 0-1000 | (legacy alias for attempts) |
-| **bgp** | connect | bool | - | true |
-| | accept | bool | - | true |
-| | openwait | int | 1-3600 | 60 |
+| **bgp** | openwait | int | 1-3600 | 60 |
 | **cache** | attributes | bool | - | true |
 | **api** | ack | bool | - | true |
 | | chunk | int | - | 1 |
@@ -112,10 +95,10 @@ Ze uses **strict validation** - invalid values cause startup failure:
 
 ```bash
 # These will cause Ze to refuse to start:
-ze.bgp.tcp.port=abc          # Invalid: not a number
-ze.bgp.tcp.port=99999        # Invalid: out of range (1-65535)
-ze.bgp.log.level=BOGUS       # Invalid: unknown level
-ze.bgp.bgp.connect=maybe      # Invalid: must be a boolean (true/false)
+ze.bgp.tcp.attempts=abc       # Invalid: not a number
+ze.bgp.tcp.attempts=99999     # Invalid: out of range (0-1000)
+ze.bgp.log.level=BOGUS        # Invalid: unknown level
+ze.bgp.bgp.openwait=maybe     # Invalid: not a number
 ```
 <!-- source: internal/component/config/environment.go -- validatePort, validateLogLevel, validateEncoder -->
 
@@ -140,7 +123,7 @@ environment {
         short true;
     }
     tcp {
-        port 1179;
+        attempts 3;
     }
 }
 
@@ -167,11 +150,9 @@ environment {
         destination /var/log/ze.bgp.log;
     }
     tcp {
-        port 179;
         attempts 3;
     }
     bgp {
-        connect false;
         openwait 120;
     }
     api {
@@ -187,8 +168,8 @@ environment {
 ### OS Environment Override
 
 ```bash
-# Config file sets port 1179, but OS env overrides to 179
-export ze.bgp.tcp.port=179
+# Config file sets attempts=3, but OS env overrides to 1
+export ze.bgp.tcp.attempts=1
 ze bgp run config.conf
 ```
 
@@ -211,9 +192,9 @@ environment {
     log { level DEBUG; }
 }
 environment {
-    tcp { port 1179; }
+    tcp { attempts 3; }
 }
-# Result: log.level=DEBUG AND tcp.port=1179
+# Result: log.level=DEBUG AND tcp.attempts=3
 ```
 
 However, for clarity, use a single environment block.

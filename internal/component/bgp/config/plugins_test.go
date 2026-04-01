@@ -192,7 +192,7 @@ func TestExtractHubServers(t *testing.T) {
 	pluginContainer.SetContainer("hub", hubContainer)
 
 	serverTree := config.NewTree()
-	serverTree.Set("host", "127.0.0.1")
+	serverTree.Set("ip", "127.0.0.1")
 	serverTree.Set("port", "1790")
 	serverTree.Set("secret", "test-token-42-abcdefghijklmnopqrst")
 	hubContainer.AddListEntry("server", "local", serverTree)
@@ -248,7 +248,7 @@ func TestExtractHubConfig_ShortSecret(t *testing.T) {
 	pluginContainer.SetContainer("hub", hubContainer)
 
 	serverTree := config.NewTree()
-	serverTree.Set("host", "127.0.0.1")
+	serverTree.Set("ip", "127.0.0.1")
 	serverTree.Set("port", "1790")
 	serverTree.Set("secret", "too-short")
 	hubContainer.AddListEntry("server", "local", serverTree)
@@ -271,13 +271,13 @@ func TestExtractMultipleServers(t *testing.T) {
 	pluginContainer.SetContainer("hub", hubContainer)
 
 	local := config.NewTree()
-	local.Set("host", "127.0.0.1")
+	local.Set("ip", "127.0.0.1")
 	local.Set("port", "1790")
 	local.Set("secret", "local-secret-that-is-at-least-32c")
 	hubContainer.AddListEntry("server", "local", local)
 
 	central := config.NewTree()
-	central.Set("host", "0.0.0.0")
+	central.Set("ip", "0.0.0.0")
 	central.Set("port", "1791")
 	central.Set("secret", "central-secret-that-is-at-least32")
 	hubContainer.AddListEntry("server", "central", central)
@@ -334,7 +334,7 @@ func TestExtractHubClientMissing(t *testing.T) {
 	pluginContainer.SetContainer("hub", hubContainer)
 
 	serverTree := config.NewTree()
-	serverTree.Set("host", "127.0.0.1")
+	serverTree.Set("ip", "127.0.0.1")
 	serverTree.Set("port", "1790")
 	serverTree.Set("secret", "local-secret-that-is-at-least-32c")
 	hubContainer.AddListEntry("server", "local", serverTree)
@@ -358,7 +358,7 @@ func TestExtractHubServerClients(t *testing.T) {
 	pluginContainer.SetContainer("hub", hubContainer)
 
 	serverTree := config.NewTree()
-	serverTree.Set("host", "0.0.0.0")
+	serverTree.Set("ip", "0.0.0.0")
 	serverTree.Set("port", "1791")
 	serverTree.Set("secret", "central-secret-that-is-at-least32")
 	hubContainer.AddListEntry("server", "central", serverTree)
@@ -392,7 +392,7 @@ func TestExtractHubServerClientSecretTooShort(t *testing.T) {
 	pluginContainer.SetContainer("hub", hubContainer)
 
 	serverTree := config.NewTree()
-	serverTree.Set("host", "0.0.0.0")
+	serverTree.Set("ip", "0.0.0.0")
 	serverTree.Set("port", "1791")
 	serverTree.Set("secret", "central-secret-that-is-at-least32")
 	hubContainer.AddListEntry("server", "central", serverTree)

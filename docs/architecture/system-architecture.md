@@ -672,7 +672,7 @@ Implementation: `internal/core/privilege/` -- calls `setgid` then `setuid` after
 
 ### Plugin TLS Transport
 
-External plugins connect back to the engine via TLS. The engine binds TLS listeners (configured via `plugin { hub { server <name> { host ...; port ...; secret ...; } } }`), forks child processes with `ZE_PLUGIN_HUB_HOST`/`ZE_PLUGIN_HUB_PORT`/`ZE_PLUGIN_HUB_TOKEN` env vars, and waits for authenticated connect-back. Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.
+External plugins connect back to the engine via TLS. The engine binds TLS listeners (configured via `plugin { hub { server <name> { ip ...; port ...; secret ...; } } }`), forks child processes with `ZE_PLUGIN_HUB_HOST`/`ZE_PLUGIN_HUB_PORT`/`ZE_PLUGIN_HUB_TOKEN` env vars, and waits for authenticated connect-back. Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.
 <!-- source: internal/component/hub/ -- hub TLS listener -->
 <!-- source: pkg/plugin/rpc/ -- MuxConn for concurrent RPCs -->
 

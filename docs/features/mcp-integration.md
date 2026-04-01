@@ -38,13 +38,16 @@ Or via config:
 ```
 environment {
     mcp {
-        host 127.0.0.1
-        port 8080
+        enabled true
+        server main {
+            ip 127.0.0.1
+            port 8080
+        }
     }
 }
 ```
 
-Environment variable overrides: `ze.mcp.host`, `ze.mcp.port`. Binds to 127.0.0.1 only (security: no remote access without tunneling).
+Environment variable overrides: `ze.mcp.ip`, `ze.mcp.port`. Binds to 127.0.0.1 only (security: no remote access without tunneling).
 
 ## AI Command Reference
 

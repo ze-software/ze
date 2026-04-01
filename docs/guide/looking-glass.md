@@ -11,8 +11,11 @@ Add the `looking-glass` block under `environment` in your Ze config:
 ```
 environment {
     looking-glass {
-        host 0.0.0.0
-        port 8443
+        enabled true
+        server main {
+            ip 0.0.0.0
+            port 8443
+        }
     }
 }
 ```
@@ -21,11 +24,12 @@ environment {
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `host` | `0.0.0.0` | Listen address. Set to `127.0.0.1` to restrict to local access. |
-| `port` | `8443` | Listen port. Must differ from the web UI port. |
+| `enabled` | `false` | Enable the looking glass server. |
+| `server <name> { ip }` | `0.0.0.0` | Listen address. Set to `127.0.0.1` to restrict to local access. |
+| `server <name> { port }` | `8443` | Listen port. Must differ from the web UI port. |
 | `tls` | `false` | Enable TLS. Requires blob storage (`ze init`). |
 
-Environment variable overrides: `ze.looking-glass.host`, `ze.looking-glass.port`, `ze.looking-glass.tls`.
+Environment variable overrides: `ze.looking-glass.ip`, `ze.looking-glass.port`, `ze.looking-glass.tls`.
 
 When the `looking-glass` block is absent, no HTTP server is started and no resources are consumed.
 

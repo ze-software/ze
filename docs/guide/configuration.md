@@ -366,12 +366,12 @@ connections to a remote hub (managed mode).
 plugin {
     hub {
         server local {
-            host 127.0.0.1;
+            ip 127.0.0.1;
             port 1790;
             secret "local-secret-minimum-32-characters";
         }
         server central {
-            host 0.0.0.0;
+            ip 0.0.0.0;
             port 1791;
             secret "central-secret-min-32-characters!";
             client edge-01 { secret "per-client-token-min-32-chars!!!"; }

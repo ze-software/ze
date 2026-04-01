@@ -212,11 +212,10 @@ func TestYANGDefaultsMatchRFC(t *testing.T) {
 		{"environment.daemon.user", "zeuser", "ze-hub-conf.yang"},
 		{"environment.daemon.drop", "true", "ze-hub-conf.yang"},
 		{"environment.daemon.umask", "0137", "ze-hub-conf.yang"},
-		{"environment.log.enable", "true", "ze-hub-conf.yang"},
+		// environment.log.enable removed (ExaBGP legacy boolean)
 		{"environment.log.level", "INFO", "ze-hub-conf.yang"},
 		{"environment.log.destination", "stdout", "ze-hub-conf.yang"},
 		{"environment.log.short", "true", "ze-hub-conf.yang"},
-		{"environment.tcp.port", "179", "RFC 4271"},
 		{"environment.bgp.openwait", "120", "ze-bgp-conf.yang"},
 		{"environment.cache.attributes", "true", "ze-bgp-conf.yang"},
 		{"environment.api.ack", "true", "ze-bgp-conf.yang"},

@@ -1,0 +1,21 @@
+# Test: bgp listen leaf rejected (ExaBGP legacy removed)
+# VALIDATES: AC-6 -- config with bgp { listen "..."; } rejected
+# PREVENTS: regression allowing ExaBGP global listen syntax
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1;
+	listen 0.0.0.0:179;
+	session { asn { local 65533; } }
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip auto; }
+		}
+		session { asn { remote 65534; } }
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=unknown field

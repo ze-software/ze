@@ -10,7 +10,19 @@ bgp {
   		local 65000
   	}
   }
-  listen 0.0.0.0:179;
+  peer peer1 {
+    connection {
+      remote {
+        ip 1.1.1.1;
+      }
+    }
+    session {
+      asn {
+        remote 65001;
+      }
+    }
+    description "test router";
+  }
 }
 EOF_CONF
 
@@ -21,7 +33,7 @@ option=timeout:value=10s
 expect=dirty:false
 
 # Delete a value
-input=type:text=delete bgp listen
+input=type:text=delete bgp peer peer1 description
 input=enter
 expect=dirty:true
 expect=error:none

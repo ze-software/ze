@@ -1,0 +1,35 @@
+# Test: listener no conflict -- non-overlapping listeners accepted
+# VALIDATES: AC-3 (spec-listener-3) -- different ports pass validation
+# PREVENTS: False positive conflicts blocking valid configs
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1;
+	session { asn { local 65533; } }
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip auto; }
+		}
+		session { asn { remote 65534; } }
+	}
+}
+environment {
+	web {
+		enabled true;
+		server main {
+			ip 0.0.0.0;
+			port 3443;
+		}
+	}
+	looking-glass {
+		enabled true;
+		server main {
+			ip 0.0.0.0;
+			port 8443;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

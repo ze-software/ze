@@ -67,20 +67,30 @@ func GenerateConfig(params ConfigParams) string {
 		}
 		if params.SSHPort > 0 {
 			fmt.Fprintf(&b, "    ssh {\n")
-			fmt.Fprintf(&b, "        listen 127.0.0.1:%d;\n", params.SSHPort)
+			fmt.Fprintf(&b, "        enabled true;\n")
+			fmt.Fprintf(&b, "        server main {\n")
+			fmt.Fprintf(&b, "            ip 127.0.0.1;\n")
+			fmt.Fprintf(&b, "            port %d;\n", params.SSHPort)
+			fmt.Fprintf(&b, "        }\n")
 			fmt.Fprintf(&b, "    }\n")
 		}
 		if params.WebUIPort > 0 {
 			fmt.Fprintf(&b, "    web {\n")
-			fmt.Fprintf(&b, "        host 127.0.0.1;\n")
-			fmt.Fprintf(&b, "        port %d;\n", params.WebUIPort)
+			fmt.Fprintf(&b, "        enabled true;\n")
+			fmt.Fprintf(&b, "        server main {\n")
+			fmt.Fprintf(&b, "            ip 127.0.0.1;\n")
+			fmt.Fprintf(&b, "            port %d;\n", params.WebUIPort)
+			fmt.Fprintf(&b, "        }\n")
 			fmt.Fprintf(&b, "        insecure true;\n")
 			fmt.Fprintf(&b, "    }\n")
 		}
 		if params.LGPort > 0 {
 			fmt.Fprintf(&b, "    looking-glass {\n")
-			fmt.Fprintf(&b, "        host 127.0.0.1;\n")
-			fmt.Fprintf(&b, "        port %d;\n", params.LGPort)
+			fmt.Fprintf(&b, "        enabled true;\n")
+			fmt.Fprintf(&b, "        server main {\n")
+			fmt.Fprintf(&b, "            ip 127.0.0.1;\n")
+			fmt.Fprintf(&b, "            port %d;\n", params.LGPort)
+			fmt.Fprintf(&b, "        }\n")
 			fmt.Fprintf(&b, "    }\n")
 		}
 		fmt.Fprintf(&b, "}\n\n")

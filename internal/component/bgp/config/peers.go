@@ -10,9 +10,10 @@ import (
 	"strconv"
 	"strings"
 
+	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
+
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
@@ -166,14 +167,13 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 		ps.ExportFilters = concatFilters(bgpExport, peerExport)
 	}
 
-	// Step 4: Apply environment overrides.
+	// Step 4: Apply port override from ze.bgp.tcp.port env var (test infrastructure).
 	applyPortOverride(peers)
-	applyConnectionOverride(peers)
 
-	// Step 4b: Re-validate connection mode after env overrides.
+	// Step 5: Validate connection mode.
 	for _, ps := range peers {
 		if !ps.Connection.Connect && !ps.Connection.Accept {
-			return nil, fmt.Errorf("peer %s: connect and accept cannot both be false (after env override)", ps.Name)
+			return nil, fmt.Errorf("peer %s: connect and accept cannot both be false", ps.Name)
 		}
 	}
 
@@ -427,9 +427,11 @@ func ValidatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 	return nil
 }
 
-// applyPortOverride overrides peer port from ze.bgp.tcp.port (dot or underscore notation).
+// applyPortOverride overrides peer remote port from ze.bgp.tcp.port env var.
+// This is a runtime-only mechanism for the test infrastructure (not YANG config).
+// The ExaBGP config leaf "bgp > listen" and env vars bgp.connect/bgp.accept are removed.
 func applyPortOverride(peers []*reactor.PeerSettings) {
-	p := env.Get("ze.bgp.tcp.port")
+	p := coreenv.Get(envKeyTCPPort)
 	if p == "" {
 		return
 	}
@@ -440,30 +442,5 @@ func applyPortOverride(peers []*reactor.PeerSettings) {
 	port := uint16(v) //nolint:gosec // Validated above
 	for _, ps := range peers {
 		ps.Port = port
-	}
-}
-
-// applyConnectionOverride overrides peer connection mode from
-// ze.bgp.bgp.connect and ze.bgp.bgp.accept (dot or underscore notation).
-func applyConnectionOverride(peers []*reactor.PeerSettings) {
-	if v := env.Get("ze.bgp.bgp.connect"); v != "" {
-		connect, err := config.ParseBoolStrict(v)
-		if err != nil {
-			configLogger().Warn("invalid ze.bgp.bgp.connect value, ignoring", "value", v, "error", err)
-		} else {
-			for _, ps := range peers {
-				ps.Connection.Connect = connect
-			}
-		}
-	}
-	if v := env.Get("ze.bgp.bgp.accept"); v != "" {
-		accept, err := config.ParseBoolStrict(v)
-		if err != nil {
-			configLogger().Warn("invalid ze.bgp.bgp.accept value, ignoring", "value", v, "error", err)
-		} else {
-			for _, ps := range peers {
-				ps.Connection.Accept = accept
-			}
-		}
 	}
 }

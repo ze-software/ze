@@ -21,7 +21,7 @@ if ze config validate - <<'CONF' 2>&1; then
 plugin {
     hub {
         server central {
-            host 0.0.0.0;
+            ip 0.0.0.0;
             port 1791;
             secret "central-secret-that-is-at-least32";
             client edge-01 {

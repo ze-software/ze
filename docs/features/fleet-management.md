@@ -3,7 +3,7 @@
 Ze supports centralized configuration for multi-node deployments. A central hub
 serves configuration to remote ze instances over TLS.
 
-- Named hub blocks: `server <name> { host; port; secret; }` for listeners, `client <name> { host; port; secret; }` for outbound
+- Named hub blocks: `server <name> { ip; port; secret; }` for listeners, `client <name> { host; port; secret; }` for outbound
 - Per-client secrets: each managed client authenticates with its own token
 - Config fetch with version hashing: clients only download when config changes
 - Two-phase config change: hub notifies, client fetches when ready

@@ -29,7 +29,7 @@ import (
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
-// Env var registration for route server tuning.
+// Env var registrations (also in internal/component/config/environment.go for centralized docs).
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.rs.chan.size", Type: "int", Default: "4096", Description: "Per-source-peer route server worker channel capacity"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.rs.fwd.senders", Type: "int", Default: "4", Description: "Number of concurrent forward sender goroutines"})

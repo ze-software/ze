@@ -35,10 +35,8 @@ func TestLoadEnvironmentDefaults(t *testing.T) {
 		t.Errorf("Daemon.Umask = %o, want %o", env.Daemon.Umask, 0o137)
 	}
 
-	// Check log defaults
-	if !env.Log.Enable {
-		t.Error("Log.Enable should be true by default")
-	}
+	// Check log defaults (legacy ExaBGP boolean fields removed from LogEnv struct).
+	// Remaining fields: Level, Destination, Short.
 	if env.Log.Level != LogLevelInfo {
 		t.Errorf("Log.Level = %q, want %q", env.Log.Level, LogLevelInfo)
 	}
@@ -47,11 +45,6 @@ func TestLoadEnvironmentDefaults(t *testing.T) {
 	}
 	if !env.Log.Short {
 		t.Error("Log.Short should be true by default")
-	}
-
-	// Check TCP defaults
-	if env.TCP.Port != 179 {
-		t.Errorf("TCP.Port = %d, want %d", env.TCP.Port, 179)
 	}
 
 	// Check BGP defaults (openwait: YANG default 120, ze-bgp-conf.yang)
@@ -74,8 +67,6 @@ func TestLoadEnvironmentFromEnv(t *testing.T) {
 
 	// Use t.Setenv for test-scoped env vars
 	t.Setenv("ze.bgp.log.level", "DEBUG")
-	t.Setenv("ze.bgp.tcp.port", "1179")
-	t.Setenv("ze.bgp.bgp.connect", "false")
 	coreenv.ResetCache()
 
 	env, err := LoadEnvironment()
@@ -86,12 +77,6 @@ func TestLoadEnvironmentFromEnv(t *testing.T) {
 	if env.Log.Level != "DEBUG" {
 		t.Errorf("Log.Level = %q, want %q", env.Log.Level, "DEBUG")
 	}
-	if env.TCP.Port != 1179 {
-		t.Errorf("TCP.Port = %d, want %d", env.TCP.Port, 1179)
-	}
-	if env.BGP.Connect == nil || *env.BGP.Connect != false {
-		t.Errorf("BGP.Connect = %v, want false", env.BGP.Connect)
-	}
 }
 
 func TestLoadEnvironmentUnderscoreNotation(t *testing.T) {
@@ -100,7 +85,6 @@ func TestLoadEnvironmentUnderscoreNotation(t *testing.T) {
 
 	// Use t.Setenv for test-scoped env vars
 	t.Setenv("ze_bgp_log_level", "WARNING")
-	t.Setenv("ze_bgp_tcp_port", "2179")
 	coreenv.ResetCache()
 
 	env, err := LoadEnvironment()
@@ -110,9 +94,6 @@ func TestLoadEnvironmentUnderscoreNotation(t *testing.T) {
 
 	if env.Log.Level != "WARNING" {
 		t.Errorf("Log.Level = %q, want %q", env.Log.Level, "WARNING")
-	}
-	if env.TCP.Port != 2179 {
-		t.Errorf("TCP.Port = %d, want %d", env.TCP.Port, 2179)
 	}
 }
 
@@ -133,61 +114,6 @@ func TestLoadEnvironmentDotPriority(t *testing.T) {
 
 	if env.Log.Level != "DEBUG" {
 		t.Errorf("Log.Level = %q, want %q (dot notation)", env.Log.Level, "DEBUG")
-	}
-}
-
-func TestLoadEnvironmentConnectAcceptValues(t *testing.T) {
-	// Test valid connect/accept boolean values.
-	tests := []struct {
-		name       string
-		envKey     string
-		envValue   string
-		checkField string
-		want       bool
-	}{
-		{"connect_true", "ze.bgp.bgp.connect", "true", "connect", true},
-		{"connect_false", "ze.bgp.bgp.connect", "false", "connect", false},
-		{"accept_true", "ze.bgp.bgp.accept", "true", "accept", true},
-		{"accept_false", "ze.bgp.bgp.accept", "false", "accept", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			coreenv.ResetCache()
-			t.Cleanup(coreenv.ResetCache)
-
-			t.Setenv(tt.envKey, tt.envValue)
-			coreenv.ResetCache()
-
-			env, err := LoadEnvironment()
-			if err != nil {
-				t.Fatalf("LoadEnvironment() error = %v", err)
-			}
-
-			switch tt.checkField {
-			case "connect":
-				if env.BGP.Connect == nil || *env.BGP.Connect != tt.want {
-					t.Errorf("BGP.Connect with %q = %v, want %v", tt.envValue, env.BGP.Connect, tt.want)
-				}
-			case "accept":
-				if env.BGP.Accept == nil || *env.BGP.Accept != tt.want {
-					t.Errorf("BGP.Accept with %q = %v, want %v", tt.envValue, env.BGP.Accept, tt.want)
-				}
-			}
-		})
-	}
-}
-
-func TestLoadEnvironmentConnectInvalidValue(t *testing.T) {
-	coreenv.ResetCache()
-	t.Cleanup(coreenv.ResetCache)
-
-	t.Setenv("ze.bgp.bgp.connect", "random")
-	coreenv.ResetCache()
-
-	_, err := LoadEnvironment()
-	if err == nil {
-		t.Error("expected error for invalid connect value 'random'")
 	}
 }
 
@@ -579,9 +505,6 @@ func TestSetConfigValue(t *testing.T) {
 	}{
 		{"log", "level", "DEBUG", func(e *Environment) bool { return e.Log.Level == "DEBUG" }},
 		{"LOG", "LEVEL", "INFO", func(e *Environment) bool { return e.Log.Level == "INFO" }}, // case insensitive
-		{"tcp", "port", "1179", func(e *Environment) bool { return e.TCP.Port == 1179 }},
-		{"bgp", "connect", "false", func(e *Environment) bool { return e.BGP.Connect != nil && !*e.BGP.Connect }},
-		{"bgp", "accept", "false", func(e *Environment) bool { return e.BGP.Accept != nil && !*e.BGP.Accept }},
 		{"api", "encoder", "text", func(e *Environment) bool { return e.API.Encoder == "text" }},
 		{"reactor", "speed", "2.5", func(e *Environment) bool { return e.Reactor.Speed == 2.5 }},
 		{"daemon", "user", "zebgp", func(e *Environment) bool { return e.Daemon.User == "zebgp" }},
@@ -620,13 +543,8 @@ func TestSetConfigValueErrors(t *testing.T) {
 	}{
 		{"invalid", "foo", "bar", "unknown environment section"},
 		{"log", "invalid_option", "bar", "unknown option"},
-		{"tcp", "port", "abc", "invalid"},
-		{"tcp", "port", "99999", "invalid"},
-		{"tcp", "port", "0", "invalid"},
-		{"tcp", "port", "1024", "invalid"}, // privileged port (not 179)
 		{"log", "level", "BOGUS", "invalid log level"},
 		{"api", "encoder", "xml", "invalid encoder"},
-		{"bgp", "connect", "maybe", "invalid"},
 	}
 
 	for _, tt := range tests {
@@ -662,7 +580,6 @@ func TestLoadEnvironmentWithConfig(t *testing.T) {
 
 	cfg := map[string]map[string]string{
 		"log": {"level": "DEBUG"},
-		"tcp": {"port": "1179"},
 	}
 
 	env, err := LoadEnvironmentWithConfig(cfg)
@@ -672,9 +589,6 @@ func TestLoadEnvironmentWithConfig(t *testing.T) {
 
 	if env.Log.Level != "DEBUG" {
 		t.Errorf("Log.Level = %q, want DEBUG", env.Log.Level)
-	}
-	if env.TCP.Port != 1179 {
-		t.Errorf("TCP.Port = %d, want 1179", env.TCP.Port)
 	}
 }
 
@@ -737,8 +651,8 @@ func TestAllSectionsConfig(t *testing.T) {
 	cfg := map[string]map[string]string{
 		"daemon":  {"user": "zebgp", "daemonize": "true"},
 		"log":     {"level": "DEBUG", "short": "false"},
-		"tcp":     {"port": "1179", "attempts": "5"},
-		"bgp":     {"connect": "false", "openwait": "120"},
+		"tcp":     {"attempts": "5"},
+		"bgp":     {"openwait": "120"},
 		"cache":   {"attributes": "false"},
 		"api":     {"encoder": "text", "respawn": "false"},
 		"reactor": {"speed": "2.0"},
@@ -763,14 +677,8 @@ func TestAllSectionsConfig(t *testing.T) {
 	if env.Log.Short {
 		t.Error("Log.Short should be false")
 	}
-	if env.TCP.Port != 1179 {
-		t.Error("TCP.Port")
-	}
 	if env.TCP.Attempts != 5 {
 		t.Error("TCP.Attempts")
-	}
-	if env.BGP.Connect == nil || *env.BGP.Connect != false {
-		t.Errorf("BGP.Connect = %v, want false", env.BGP.Connect)
 	}
 	if env.BGP.OpenWait != 120 {
 		t.Error("BGP.OpenWait")
@@ -801,12 +709,12 @@ func TestLoadEnvironmentWithConfigError(t *testing.T) {
 	t.Cleanup(coreenv.ResetCache)
 
 	cfg := map[string]map[string]string{
-		"tcp": {"port": "invalid"},
+		"bgp": {"openwait": "invalid"},
 	}
 
 	_, err := LoadEnvironmentWithConfig(cfg)
 	if err == nil {
-		t.Error("expected error for invalid port")
+		t.Error("expected error for invalid openwait")
 	}
 }
 
@@ -824,8 +732,8 @@ func TestLoadEnvironmentWithConfigNil(t *testing.T) {
 	}
 
 	// Should have defaults
-	if env.TCP.Port != 179 {
-		t.Errorf("TCP.Port = %d, want 179 (default)", env.TCP.Port)
+	if env.BGP.OpenWait != 120 {
+		t.Errorf("BGP.OpenWait = %d, want 120 (default)", env.BGP.OpenWait)
 	}
 }
 
@@ -841,14 +749,14 @@ func TestLoadFromEnvStrictError(t *testing.T) {
 	coreenv.ResetCache()
 	t.Cleanup(coreenv.ResetCache)
 
-	t.Setenv("ze.bgp.tcp.port", "not_a_number")
+	t.Setenv("ze.bgp.bgp.openwait", "not_a_number")
 	coreenv.ResetCache()
 
 	_, err := LoadEnvironmentWithConfig(nil)
 	if err == nil {
 		t.Error("expected error for invalid env var")
 	}
-	if !strings.Contains(err.Error(), "ze.bgp.tcp.port") {
+	if !strings.Contains(err.Error(), "ze.bgp.bgp.openwait") {
 		t.Errorf("error should mention the env var, got: %v", err)
 	}
 }
@@ -954,7 +862,7 @@ environment {
         level DEBUG
     }
     tcp {
-        port 1179
+        attempts 5
     }
 }
 
@@ -1001,9 +909,9 @@ bgp {
 		t.Errorf("log.level = %q, want DEBUG", envValues["log"]["level"])
 	}
 
-	// Check tcp.port
-	if envValues["tcp"]["port"] != "1179" {
-		t.Errorf("tcp.port = %q, want 1179", envValues["tcp"]["port"])
+	// Check tcp.attempts
+	if envValues["tcp"]["attempts"] != "5" {
+		t.Errorf("tcp.attempts = %q, want 5", envValues["tcp"]["attempts"])
 	}
 }
 
@@ -1021,7 +929,7 @@ environment {
         level WARNING
     }
     tcp {
-        port 1179
+        attempts 5
     }
     api {
         encoder text
@@ -1068,8 +976,8 @@ bgp {
 	if env.Log.Level != "WARNING" {
 		t.Errorf("Log.Level = %q, want WARNING", env.Log.Level)
 	}
-	if env.TCP.Port != 1179 {
-		t.Errorf("TCP.Port = %d, want 1179", env.TCP.Port)
+	if env.TCP.Attempts != 5 {
+		t.Errorf("TCP.Attempts = %d, want 5", env.TCP.Attempts)
 	}
 	if env.API.Encoder != "text" {
 		t.Errorf("API.Encoder = %q, want text", env.API.Encoder)
@@ -1119,7 +1027,7 @@ func TestParseEmptySectionInEnvironmentBlock(t *testing.T) {
 environment {
     log { }
     tcp {
-        port 1179
+        attempts 5
     }
 }
 
@@ -1153,9 +1061,9 @@ bgp {
 		t.Error("Empty log section should not be in result")
 	}
 
-	// tcp.port should still be present
-	if envValues["tcp"]["port"] != "1179" {
-		t.Errorf("tcp.port = %q, want 1179", envValues["tcp"]["port"])
+	// tcp.attempts should still be present
+	if envValues["tcp"]["attempts"] != "5" {
+		t.Errorf("tcp.attempts = %q, want 5", envValues["tcp"]["attempts"])
 	}
 }
 
@@ -1172,7 +1080,7 @@ environment {
 }
 environment {
     tcp {
-        port 1179
+        attempts 5
     }
 }
 
@@ -1201,8 +1109,8 @@ bgp {
 	if envValues["log"]["level"] != "DEBUG" {
 		t.Errorf("log.level = %q, want DEBUG (from first block)", envValues["log"]["level"])
 	}
-	if envValues["tcp"]["port"] != "1179" {
-		t.Errorf("tcp.port = %q, want 1179 (from second block)", envValues["tcp"]["port"])
+	if envValues["tcp"]["attempts"] != "5" {
+		t.Errorf("tcp.attempts = %q, want 5 (from second block)", envValues["tcp"]["attempts"])
 	}
 }
 
@@ -1258,7 +1166,7 @@ bgp {
 	}
 
 	// Should have defaults
-	if env.TCP.Port != 179 {
-		t.Errorf("TCP.Port = %d, want 179 (default)", env.TCP.Port)
+	if env.BGP.OpenWait != 120 {
+		t.Errorf("BGP.OpenWait = %d, want 120 (default)", env.BGP.OpenWait)
 	}
 }

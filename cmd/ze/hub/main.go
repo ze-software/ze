@@ -42,7 +42,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
-// Env var registrations.
+// Env var registrations (also in internal/component/config/environment.go for centralized docs).
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.ready.file", Type: "string", Description: "Write signal file when hub is ready (test infrastructure)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.host", Type: "string", Description: "Web server listen host"})
@@ -53,7 +53,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.host", Type: "string", Description: "Looking glass listen host"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.port", Type: "string", Description: "Looking glass listen port"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.tls", Type: "bool", Description: "Enable TLS for looking glass"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.server", Type: "string", Default: defaultDNSServer(), Description: "DNS server address (e.g., 8.8.8.8:53)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.server", Type: "string", Default: "8.8.8.8:53", Description: "DNS server address (e.g., 8.8.8.8:53)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.timeout", Type: "int", Default: "5", Description: "DNS query timeout in seconds (1-60)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-size", Type: "int", Default: "10000", Description: "DNS cache max entries (0 = disabled)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-ttl", Type: "int", Default: "86400", Description: "DNS cache max TTL in seconds (0 = response TTL only)"})
@@ -762,22 +762,6 @@ func monitorStdinEOF(sigCh chan<- os.Signal) {
 	case sigCh <- syscall.SIGTERM:
 	default:
 	}
-}
-
-// defaultDNSServer reads /etc/resolv.conf and returns the first nameserver,
-// or "8.8.8.8:53" if unavailable. Used at init time for env var default display.
-func defaultDNSServer() string {
-	data, err := os.ReadFile("/etc/resolv.conf")
-	if err != nil {
-		return "8.8.8.8:53"
-	}
-	for line := range strings.SplitSeq(string(data), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) >= 2 && fields[0] == "nameserver" {
-			return fields[1] + ":53"
-		}
-	}
-	return "8.8.8.8:53"
 }
 
 // runOrchestratorWithData parses hub config and runs the orchestrator.

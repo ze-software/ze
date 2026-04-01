@@ -56,22 +56,8 @@ module ze-hub-conf {
                 description "Plugin stderr relay level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL (case-insensitive)";
             }
 
-            // Legacy ExaBGP-compatible settings
-            leaf enable { type boolean; default true; description "Enable logging (legacy)"; }
-            leaf all { type boolean; description "Log all subsystems (legacy)"; }
-            leaf configuration { type boolean; default true; description "Log configuration parsing (legacy)"; }
-            leaf reactor { type boolean; default true; description "Log reactor events (legacy)"; }
-            leaf daemon { type boolean; default true; description "Log daemon lifecycle (legacy)"; }
-            leaf processes { type boolean; default true; description "Log process management (legacy)"; }
-            leaf network { type boolean; default true; description "Log network events (legacy)"; }
-            leaf statistics { type boolean; default true; description "Log statistics (legacy)"; }
-            leaf packets { type boolean; description "Log packet details (legacy)"; }
-            leaf rib { type boolean; description "Log RIB operations (legacy)"; }
-            leaf message { type boolean; description "Log BGP messages (legacy)"; }
-            leaf timers { type boolean; description "Log timer events (legacy)"; }
-            leaf routes { type boolean; description "Log route changes (legacy)"; }
-            leaf parser { type boolean; description "Log parser details (legacy)"; }
-            leaf short { type boolean; default true; description "Use short log format (legacy)"; }
+            // Short log format (Ze-native, not ExaBGP legacy)
+            leaf short { type boolean; default true; description "Use short log format"; }
 
             // Subsystem-specific log levels (any key allowed)
             // Syntax: <subsystem-path> <level>;

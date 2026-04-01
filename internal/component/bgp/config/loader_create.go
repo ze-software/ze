@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
+	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
@@ -29,6 +31,19 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
+
+// ze.bgp.tcp.port is a runtime-only env var for the test infrastructure.
+// It creates a global listener so the ze-test peer can connect to ze.
+// This is NOT the ExaBGP "bgp > listen" config leaf (removed from YANG).
+const envKeyTCPPort = "ze.bgp.tcp.port"
+
+var _ = coreenv.MustRegister(coreenv.EnvEntry{
+	Key:         envKeyTCPPort,
+	Type:        "int",
+	Default:     "",
+	Description: "BGP listen port (test infrastructure)",
+	Private:     true,
+})
 
 // CreateReactorFromTree creates a Reactor directly from a parsed config tree.
 func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plugins []reactor.PluginConfig, store storage.Storage) (*reactor.Reactor, error) {
@@ -51,7 +66,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	// Extract global BGP settings directly from tree
 	var routerID uint32
 	var localAS uint32
-	var listen string
+
 	if bgpContainer := tree.GetContainer("bgp"); bgpContainer != nil {
 		if v, ok := bgpContainer.Get("router-id"); ok {
 			if ip, parseErr := netip.ParseAddr(v); parseErr == nil {
@@ -65,9 +80,6 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 				}
 			}
 		}
-		if v, ok := bgpContainer.Get("listen"); ok {
-			listen = normalizeListenAddr(v, env.TCP.Port)
-		}
 	}
 
 	// Build peers from tree (resolves templates, extracts routes)
@@ -79,6 +91,12 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	// Validate plugin references
 	if err := ValidatePluginReferences(tree, plugins); err != nil {
 		return nil, fmt.Errorf("validate plugin references: %w", err)
+	}
+
+	// Validate listener port conflicts across all services.
+	listeners := config.CollectListeners(tree)
+	if err := config.ValidateListenerConflicts(listeners); err != nil {
+		return nil, fmt.Errorf("config validation: %w", err)
 	}
 
 	// Derive ConfiguredFamilies from peer capabilities.
@@ -141,7 +159,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 
 	// Build reactor config
 	reactorCfg := &reactor.Config{
-		ListenAddr:                listen,
+		// No global ListenAddr -- Ze derives listeners from per-peer connection > local.
 		RouterID:                  routerID,
 		LocalAS:                   localAS,
 		ConfigDir:                 configDir,

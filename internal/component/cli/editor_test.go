@@ -2442,7 +2442,7 @@ func TestEditorConflictStaleNewValue(t *testing.T) {
 	ed.SetSession(session)
 
 	// Set a NEW value (not present in original config). Previous will be "".
-	err = ed.SetValue([]string{"bgp"}, "listen", "127.0.0.1:1179")
+	err = ed.SetValue([]string{"bgp", "peer", "peer1"}, "description", "my router")
 	require.NoError(t, err)
 
 	// Simulate another session committing the same path with a different value
@@ -2454,7 +2454,6 @@ func TestEditorConflictStaleNewValue(t *testing.T) {
 			local 65000
 		}
 	}
-	listen 0.0.0.0:179
 	peer peer1 {
 		connection {
 			remote {
@@ -2466,6 +2465,7 @@ func TestEditorConflictStaleNewValue(t *testing.T) {
 				remote 65001
 			}
 		}
+		description "other router"
 		timer { receive-hold-time 90; }
 	}
 }
@@ -2483,8 +2483,8 @@ func TestEditorConflictStaleNewValue(t *testing.T) {
 	for _, c := range result.Conflicts {
 		if c.Type == ConflictStale {
 			found = true
-			assert.Equal(t, "127.0.0.1:1179", c.MyValue)
-			assert.Equal(t, "0.0.0.0:179", c.OtherValue,
+			assert.Equal(t, "my router", c.MyValue)
+			assert.Equal(t, "other router", c.OtherValue,
 				"should show the other session's committed value")
 			assert.Equal(t, "", c.PreviousValue,
 				"previous should be empty since the value was new")
@@ -2971,36 +2971,36 @@ func TestDisconnectRestoresOtherSessionValue(t *testing.T) {
 // VALIDATES: Stale detection for Previous="" and committedValue!="" (line 622).
 // PREVENTS: Silently overwriting an externally committed new value.
 func TestStaleConflictNewValueBothAdded(t *testing.T) {
-	// Start with a config that has bgp but no "listen" field.
+	// Start with a config that has bgp peer but no "description" field.
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	// Session adds "listen 127.0.0.1" via write-through. Previous="" because
-	// committed config has no listen field at this point.
+	// Session adds "description my-router" via write-through. Previous="" because
+	// committed config has no description field at this point.
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
-	err = ed.SetValue([]string{"bgp"}, "listen", "127.0.0.1")
+	err = ed.SetValue([]string{"bgp", "peer", "peer1"}, "description", "my-router")
 	require.NoError(t, err)
 
-	// Simulate external commit: directly write config.conf with "listen 0.0.0.0".
+	// Simulate external commit: directly write config.conf with "description other-router".
 	// This bypasses write-through (another editor session committed externally).
-	externalConfig := "set bgp router-id 1.2.3.4\nset bgp session asn local 65000\nset bgp listen 0.0.0.0\nset bgp peer peer1 connection remote ip 1.1.1.1\nset bgp peer peer1 session asn remote 65001\nset bgp peer peer1 timer receive-hold-time 90\n"
+	externalConfig := "set bgp router-id 1.2.3.4\nset bgp session asn local 65000\nset bgp peer peer1 description other-router\nset bgp peer peer1 connection remote ip 1.1.1.1\nset bgp peer peer1 session asn remote 65001\nset bgp peer peer1 timer receive-hold-time 90\n"
 	err = os.WriteFile(configPath, []byte(externalConfig), 0o600)
 	require.NoError(t, err)
 
 	// Thomas tries to commit: Previous="" (it was new when he edited),
-	// but committedValue="0.0.0.0" (externally committed). This is a stale conflict.
+	// but committedValue="other-router" (externally committed). This is a stale conflict.
 	result, err := ed.CommitSession()
 	require.NoError(t, err)
 	require.NotEmpty(t, result.Conflicts, "should detect stale conflict for concurrently added value")
 
 	conflict := result.Conflicts[0]
 	assert.Equal(t, ConflictStale, conflict.Type)
-	assert.Equal(t, "127.0.0.1", conflict.MyValue)
-	assert.Equal(t, "0.0.0.0", conflict.OtherValue)
+	assert.Equal(t, "my-router", conflict.MyValue)
+	assert.Equal(t, "other-router", conflict.OtherValue)
 }
 
 // TestDiscardFullCleansUpDraft verifies that discard-all (nil path) removes the

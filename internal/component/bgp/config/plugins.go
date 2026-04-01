@@ -129,8 +129,8 @@ func ExtractHubConfig(tree *config.Tree) (plugin.HubConfig, error) {
 func extractServerConfig(name string, tree *config.Tree) (plugin.HubServerConfig, error) {
 	srv := plugin.HubServerConfig{Name: name}
 
-	if host, ok := tree.Get("host"); ok {
-		srv.Host = host
+	if ip, ok := tree.Get("ip"); ok {
+		srv.Host = ip
 	}
 
 	if portStr, ok := tree.Get("port"); ok {

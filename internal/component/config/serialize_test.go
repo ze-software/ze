@@ -213,12 +213,17 @@ func TestSerializeCapability(t *testing.T) {
 
 // TestSerializeLeafRoundtrip verifies single-value leaf serialization.
 //
-// VALIDATES: Leaf values like "listen 0.0.0.0:179" survive roundtrip.
+// VALIDATES: Leaf values like "router-id 1.2.3.4" survive roundtrip.
 //
 // PREVENTS: Lost leaf values.
 func TestSerializeLeafRoundtrip(t *testing.T) {
 	input := `bgp {
-    listen 0.0.0.0:179
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
 }
 `
 	schema, err := YANGSchema()

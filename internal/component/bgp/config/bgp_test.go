@@ -514,7 +514,6 @@ func TestBGPSchemaGlobal(t *testing.T) {
 bgp {
     router-id 1.2.3.4;
     session { asn { local 65000; } }
-    listen 0.0.0.0:179;
 }
 `
 	schema, err := config.YANGSchema()
@@ -539,8 +538,4 @@ bgp {
 	val, ok = asnContainer.Get("local")
 	require.True(t, ok)
 	require.Equal(t, "65000", val)
-
-	val, ok = bgpContainer.Get("listen")
-	require.True(t, ok)
-	require.Equal(t, "0.0.0.0:179", val)
 }

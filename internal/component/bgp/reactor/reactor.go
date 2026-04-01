@@ -64,7 +64,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
 )
 
-// Env var registrations for reactor tuning.
+// Env var registrations (also in internal/component/config/environment.go for centralized docs).
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.chan.size", Type: "int", Default: "256", Description: "Per-destination forward worker channel capacity"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.write.deadline", Type: "duration", Default: "30s", Description: "TCP write deadline for forward pool batch writes"})

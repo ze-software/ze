@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/syntax.md — config migration
+// Detail: listener.go — listener normalization transformations
 
 package migration
 
@@ -72,6 +73,37 @@ var transformations = []Transformation{
 		Description: "Convert old api syntax (processes, format flags) to named blocks",
 		Detect:      hasOldAPIBlocks,
 		Apply:       migrateAPIBlocks,
+	},
+	// Phase 2b: Listener normalization (remove ExaBGP legacy leaves)
+	{
+		Name:        "remove-bgp-listen",
+		Description: "Remove ExaBGP legacy bgp listen leaf",
+		Detect:      hasBGPListenLeaf,
+		Apply:       removeBGPListenLeaf,
+	},
+	{
+		Name:        "remove-tcp-port",
+		Description: "Remove environment tcp port (per-peer config)",
+		Detect:      hasTCPPortLeaf,
+		Apply:       removeTCPPortLeaf,
+	},
+	{
+		Name:        "remove-env-bgp-connect",
+		Description: "Remove environment bgp connect (per-peer config)",
+		Detect:      hasEnvBGPConnect,
+		Apply:       removeEnvBGPConnect,
+	},
+	{
+		Name:        "remove-env-bgp-accept",
+		Description: "Remove environment bgp accept (per-peer config)",
+		Detect:      hasEnvBGPAccept,
+		Apply:       removeEnvBGPAccept,
+	},
+	{
+		Name:        "hub-server-host-to-ip",
+		Description: "Rename plugin hub server host to ip",
+		Detect:      hasHubServerHost,
+		Apply:       renameHubServerHost,
 	},
 	// Phase 3: Structural wrapping (must run after renames)
 	{

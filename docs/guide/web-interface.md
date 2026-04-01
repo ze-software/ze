@@ -29,12 +29,15 @@ The web server listen address can also be set in the ze configuration file:
 ```
 environment {
     web {
-        host 0.0.0.0;
-        port 8443;
+        enabled true;
+        server main {
+            ip 0.0.0.0;
+            port 8443;
+        }
     }
 }
 ```
-<!-- source: internal/component/web/schema/ze-web-conf.yang -- web container, host/port leaves -->
+<!-- source: internal/component/web/schema/ze-web-conf.yang -- web container, server list -->
 
 ## Authentication
 

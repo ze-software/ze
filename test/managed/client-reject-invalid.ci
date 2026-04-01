@@ -21,7 +21,7 @@ if ze config validate - <<'CONF' 2>&1; then
 plugin {
     hub {
         server local {
-            host 127.0.0.1;
+            ip 127.0.0.1;
             port notanumber;
             secret "local-secret-that-is-at-least-32ch";
         }

@@ -553,8 +553,8 @@ ze-test bgp encode --timeout 60s --verbose 4
 # Terminal 1: Start peer
 ze-peer --port 1790 test/encode/ebgp.ci
 
-# Terminal 2: Run ze bgp
-env ze_bgp_tcp_port=1790 ze bgp server test/encode/ebgp.conf
+# Terminal 2: Run ze bgp (port is now per-peer config, not a global env var)
+ze bgp server test/encode/ebgp.conf
 ```
 
 ### Decode message bytes
