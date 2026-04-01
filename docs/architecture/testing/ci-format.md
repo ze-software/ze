@@ -19,6 +19,7 @@ action=type:key=value:key=value:...
 | `expect=` | Expectations to validate |
 | `reject=` | Negative expectations (fail if matched) |
 | `action=` | Actions (send notification, raw bytes) |
+| `http=` | HTTP endpoint checks and readiness polls |
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, CI file parsing -->
 <!-- source: internal/test/tmpfs/tmpfs.go -- Tmpfs, File, Parse -->
 
@@ -455,6 +456,66 @@ Sends SIGTERM to the daemon process. Reads PID from `daemon.pid` in the tmpfs di
 | `conn` | Connection number triggering the signal |
 | `seq` | Sequence number (after matching messages) |
 
+## HTTP Checks
+
+HTTP checks validate web endpoint responses after all `cmd=` processes have started.
+Executed in `seq` order with automatic retry on connection errors (server starting up).
+
+### Assertion Checks (get/post)
+
+```
+http=get:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH]
+http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH]
+```
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `seq` | Yes | Execution order (>= 1, lower first) |
+| `url` | Yes | Request URL (supports `$PORT` and `$PORT2` substitution) |
+| `status` | Yes | Expected HTTP status code |
+| `contains` | No | Expected body substring |
+| `bodyfile` | No | Path to file with expected body (exact match, resolved relative to `.ci` file) |
+<!-- source: internal/test/runner/runner_validate.go -- executeOneHTTPCheck -->
+
+Retries up to 20 times at 200ms intervals on transient connection errors (ECONNREFUSED, ECONNRESET, EOF).
+Non-connection errors (wrong status, missing content) fail immediately.
+
+### Readiness Polls (wait)
+
+```
+http=wait:seq=N:url=URL:status=CODE[:contains=TEXT][:timeout=DUR]
+```
+
+| Key | Required | Default | Description |
+|-----|----------|---------|-------------|
+| `seq` | Yes | - | Execution order (>= 1) |
+| `url` | Yes | - | Request URL |
+| `status` | Yes | - | Expected HTTP status code |
+| `contains` | No | - | Expected body substring |
+| `timeout` | No | `15s` | Poll timeout duration |
+<!-- source: internal/test/runner/runner_validate.go -- executeOneHTTPWait -->
+
+Unlike assertion checks, `wait` retries on **all** failures: connection errors, wrong status codes,
+and content mismatches. Polls at 500ms intervals until the condition is met or the timeout expires.
+Wait checks run **before** assertion checks, making them suitable for waiting until a server has
+populated data (e.g., routes injected by an async plugin).
+
+### Example
+
+```
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+
+# Wait until routes are available before checking graph output
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/lg/graph?prefix=10.10.1.0/24&mode=aspath&format=text:status=200:contains=AS2914:timeout=15s
+
+# Exact SVG match against reference file
+http=get:seq=1:url=http://127.0.0.1:$PORT2/lg/graph?prefix=10.10.1.0/24&mode=aspath:status=200:bodyfile=expect/graph.svg
+
+# Substring check
+http=get:seq=2:url=http://127.0.0.1:$PORT2/lg/graph?prefix=10.10.1.0/24&mode=nexthop&format=text:status=200:contains=egress
+```
+
 ## Complete Example
 
 ```
@@ -507,6 +568,8 @@ Different components consume different line types:
 | `cmd=foreground:`, `cmd=background:` | Test runner (process orchestration) |
 | `expect=exit:`, `stdout:`, `stderr:`, `json:`, `syslog:` | Test runner |
 | `reject=stderr:`, `reject=syslog:` | Test runner (negative expectations) |
+| `http=get:`, `http=post:` | Test runner (HTTP assertion checks) |
+| `http=wait:` | Test runner (HTTP readiness polls) |
 | `expect=bgp:` | ze-peer |
 | `action=notification:`, `action=send:` | ze-peer |
 | `action=rewrite:`, `action=sighup:`, `action=sigterm:` | ze-peer (reload/signal tests) |
