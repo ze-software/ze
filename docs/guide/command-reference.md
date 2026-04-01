@@ -113,6 +113,7 @@ Send commands to the running daemon via SSH.
 ze signal reload                 # Reload configuration
 ze signal stop                   # Graceful shutdown (no GR marker)
 ze signal restart                # Graceful restart (with GR marker)
+ze signal status                 # Dump daemon status
 ze signal quit                   # Immediate exit + goroutine dump
 ```
 
@@ -122,7 +123,7 @@ ze signal quit                   # Immediate exit + goroutine dump
 | `--port` | SSH port (default: 2222 or `ze_ssh_port`) |
 
 Exit codes: 0 = ok, 1 = not running, 4 = command failed.
-<!-- source: cmd/ze/signal/main.go -- Run, ExitSuccess/ExitNotRunning/ExitNoCredentials/ExitSignalFailed -->
+<!-- source: cmd/ze/signal/main.go -- Commands registry, ExitSuccess/ExitNotRunning/ExitNoCredentials/ExitSignalFailed -->
 
 ### ze status
 

@@ -170,6 +170,8 @@ _ze() {
                     signal_commands=(
                         'reload:Send SIGHUP - reload configuration'
                         'stop:Send SIGTERM - graceful shutdown'
+                        'restart:Graceful restart (writes GR marker, then shuts down)'
+                        'status:Send SIGUSR1 - dump daemon status'
                         'quit:Send SIGQUIT - goroutine dump + immediate exit'
                     )
                     if (( CURRENT == 2 )); then

@@ -31,6 +31,50 @@ const (
 	dialTimeout = 2 * time.Second
 )
 
+// Command describes a signal subcommand.
+type Command struct {
+	Name        string // CLI name (e.g., "reload")
+	ExecCommand string // SSH exec command sent to daemon (e.g., "daemon reload")
+	Description string // One-line help text
+	Signal      string // Equivalent OS signal (for documentation; empty if none)
+}
+
+// commands is the registered list of signal subcommands.
+// Help text, dispatch, suggestions, and shell completions are all derived from this list.
+var commands = []Command{
+	{"reload", "daemon reload", "Reload configuration", "SIGHUP"},
+	{"stop", "stop", "Graceful shutdown (no GR marker)", "SIGTERM"},
+	{"restart", "restart", "Graceful restart (writes GR marker, then shuts down)", ""},
+	{"status", "daemon status", "Dump daemon status", "SIGUSR1"},
+	{"quit", "daemon quit", "Goroutine dump + immediate exit", "SIGQUIT"},
+}
+
+// Commands returns a copy of the registered signal subcommands.
+func Commands() []Command {
+	out := make([]Command, len(commands))
+	copy(out, commands)
+	return out
+}
+
+// Names returns the CLI names of all registered commands.
+func Names() []string {
+	names := make([]string, len(commands))
+	for i, c := range commands {
+		names[i] = c.Name
+	}
+	return names
+}
+
+// lookup returns the Command for the given CLI name, or nil.
+func lookup(name string) *Command {
+	for i := range commands {
+		if commands[i].Name == name {
+			return &commands[i]
+		}
+	}
+	return nil
+}
+
 // Run executes the ze signal command with the given arguments.
 // Returns an exit code.
 func Run(args []string) int {
@@ -39,18 +83,13 @@ func Run(args []string) int {
 	port := fs.String("port", "", "SSH port (default from env or 2222)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze signal <command> [options]
-
-Send commands to a running Ze daemon via SSH.
-
-Commands:
-  reload    Reload configuration
-  stop      Graceful shutdown (no GR marker)
-  restart   Graceful restart (writes GR marker, then shuts down)
-  quit      Goroutine dump + immediate exit
-
-Options:
-`)
+		fmt.Fprintf(os.Stderr, "Usage: ze signal <command> [options]\n\n")
+		fmt.Fprintf(os.Stderr, "Send commands to a running Ze daemon via SSH.\n\n")
+		fmt.Fprintf(os.Stderr, "Commands:\n")
+		for _, cmd := range commands {
+			fmt.Fprintf(os.Stderr, "  %-10s %s\n", cmd.Name, cmd.Description)
+		}
+		fmt.Fprintf(os.Stderr, "\nOptions:\n")
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
 Environment:
@@ -75,24 +114,23 @@ Examples:
 		return ExitNotRunning
 	}
 
-	command := remaining[0]
+	name := remaining[0]
 
 	// Resolve SSH target
 	h := resolveHost(*host)
 	p := resolvePort(*port)
 	addr := net.JoinHostPort(h, p)
 
-	switch command {
-	case "reload", "stop", "restart", "quit":
-		return cmdSSHExec(addr, command)
-	default:
-		fmt.Fprintf(os.Stderr, "unknown signal command: %s\n", command)
-		if s := suggest.Command(command, []string{"reload", "stop", "restart", "quit"}); s != "" {
+	cmd := lookup(name)
+	if cmd == nil {
+		fmt.Fprintf(os.Stderr, "unknown signal command: %s\n", name)
+		if s := suggest.Command(name, Names()); s != "" {
 			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
 		}
 		fs.Usage()
 		return ExitNotRunning
 	}
+	return cmdSSHExec(addr, cmd.ExecCommand)
 }
 
 // RunStatus executes the ze status command with the given arguments.

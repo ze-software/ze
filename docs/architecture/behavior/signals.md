@@ -260,10 +260,12 @@ Usage: `ze signal <command>`
 
 | Command | Mechanism | Exit 0 | Exit 1 |
 |---------|-----------|--------|--------|
-| reload | SSH command | Reload sent | Not running / SSH error |
-| stop | SSH command | Stop sent | Not running / SSH error |
-| status | TCP dial to SSH port | Running | Not running |
-<!-- source: cmd/ze/signal/main.go -- Run, ExitSuccess, ExitNotRunning -->
+| reload | SSH exec `daemon reload` | Reload sent | Not running / SSH error |
+| stop | SSH exec `stop` | Stop sent | Not running / SSH error |
+| restart | SSH exec `restart` | Restart sent | Not running / SSH error |
+| status | SSH exec `daemon status` | Status returned | Not running / SSH error |
+| quit | SSH exec `daemon quit` | Quit sent | Not running / SSH error |
+<!-- source: cmd/ze/signal/main.go -- Commands registry, ExitSuccess, ExitNotRunning -->
 
 ### Startup Paths
 

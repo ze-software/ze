@@ -145,7 +145,7 @@ _ze() {
             ;;
         signal)
             if [[ ${depth} -eq 1 ]]; then
-                COMPREPLY=($(compgen -W "reload stop quit" -- "${cur}"))
+                COMPREPLY=($(compgen -W "reload stop restart status quit" -- "${cur}"))
             else
                 _ze_filedir conf
             fi

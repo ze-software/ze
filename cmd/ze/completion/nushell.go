@@ -148,6 +148,8 @@ def "nu-complete ze signal-subcmds" [] {
     [
         { value: "reload", description: "Send SIGHUP - reload configuration" }
         { value: "stop", description: "Send SIGTERM - graceful shutdown" }
+        { value: "restart", description: "Graceful restart (writes GR marker, then shuts down)" }
+        { value: "status", description: "Send SIGUSR1 - dump daemon status" }
         { value: "quit", description: "Send SIGQUIT - goroutine dump + immediate exit" }
     ]
 }
@@ -270,9 +272,11 @@ extern "ze signal" [
     ...args: string
 ]
 
-extern "ze signal reload" [config?: path]
-extern "ze signal stop" [config?: path]
-extern "ze signal quit" [config?: path]
+extern "ze signal reload" [--host: string, --port: string]
+extern "ze signal stop" [--host: string, --port: string]
+extern "ze signal restart" [--host: string, --port: string]
+extern "ze signal status" [--host: string, --port: string]
+extern "ze signal quit" [--host: string, --port: string]
 
 # --- completion ---
 

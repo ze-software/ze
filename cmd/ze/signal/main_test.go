@@ -3,6 +3,7 @@ package signal
 import (
 	"net"
 	"os"
+	"slices"
 	"testing"
 )
 
@@ -123,6 +124,68 @@ func TestSignalCommandUnknown(t *testing.T) {
 	code := Run([]string{"unknown"})
 	if code != ExitNotRunning {
 		t.Errorf("expected ExitNotRunning, got %d", code)
+	}
+}
+
+// VALIDATES: Commands registry contains all expected signal subcommands
+// PREVENTS: missing command after refactor
+
+func TestCommandsRegistryComplete(t *testing.T) {
+	expected := []string{"reload", "stop", "restart", "status", "quit"}
+	names := Names()
+	if len(names) != len(expected) {
+		t.Fatalf("Commands count: got %d, want %d", len(names), len(expected))
+	}
+	for _, want := range expected {
+		if !slices.Contains(names, want) {
+			t.Errorf("missing command %q in Commands registry", want)
+		}
+	}
+}
+
+// VALIDATES: lookup returns correct ExecCommand for each signal name
+// PREVENTS: wrong SSH exec string sent to daemon
+
+func TestCommandExecMapping(t *testing.T) {
+	tests := []struct {
+		name string
+		exec string
+	}{
+		{"reload", "daemon reload"},
+		{"stop", "stop"},
+		{"restart", "restart"},
+		{"status", "daemon status"},
+		{"quit", "daemon quit"},
+	}
+	for _, tt := range tests {
+		cmd := lookup(tt.name)
+		if cmd == nil {
+			t.Errorf("lookup(%q) returned nil", tt.name)
+			continue
+		}
+		if cmd.ExecCommand != tt.exec {
+			t.Errorf("lookup(%q).ExecCommand = %q, want %q", tt.name, cmd.ExecCommand, tt.exec)
+		}
+	}
+}
+
+// VALIDATES: Commands() returns a defensive copy
+// PREVENTS: callers mutating the internal registry
+
+func TestCommandsReturnsCopy(t *testing.T) {
+	cmds := Commands()
+	cmds[0].Name = "MUTATED"
+	if lookup("MUTATED") != nil {
+		t.Error("Commands() returned a reference to the internal slice, not a copy")
+	}
+}
+
+// VALIDATES: lookup returns nil for unknown command
+// PREVENTS: panic on invalid input
+
+func TestLookupUnknown(t *testing.T) {
+	if cmd := lookup("nonexistent"); cmd != nil {
+		t.Errorf("lookup(nonexistent) = %v, want nil", cmd)
 	}
 }
 

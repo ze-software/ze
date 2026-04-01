@@ -893,7 +893,7 @@ func (r *Reactor) startAPIServer() error {
 	return nil
 }
 
-// startSignalHandler creates and starts the signal handler for SIGHUP/SIGTERM.
+// startSignalHandler creates and starts the signal handler for SIGHUP/SIGTERM/SIGUSR1.
 // Caller MUST hold r.mu.
 func (r *Reactor) startSignalHandler() {
 	r.signals = NewSignalHandler()
@@ -915,6 +915,16 @@ func (r *Reactor) startSignalHandler() {
 				reactorLogger().Info("config reloaded")
 			}
 		}
+	})
+	r.signals.OnStatus(func() {
+		stats := r.Stats()
+		reactorLogger().Warn("status dump",
+			"uptime", stats.Uptime,
+			"peers", stats.PeerCount,
+			"router-id", stats.RouterID,
+			"local-as", stats.LocalAS,
+			"start-time", stats.StartTime,
+		)
 	})
 	r.signals.StartWithContext(r.ctx)
 }
