@@ -153,27 +153,6 @@ def wait_for_ssh(host: str, port: int, timeout: float = 15.0) -> bool:
     return False
 
 
-def send_ssh_command(host: str, port: int, command: str, debug: bool = False) -> str:
-    """Send a command to ze daemon via SSH exec."""
-    import paramiko
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    try:
-        client.connect(host, port=port, username=_SSH_USER, password=_SSH_PASS,
-                       timeout=5.0, look_for_keys=False, allow_agent=False)
-        _, stdout, stderr = client.exec_command(command)
-        out = stdout.read().decode('utf-8', errors='replace').strip()
-        err = stderr.read().decode('utf-8', errors='replace').strip()
-        if debug:
-            if out:
-                print(f"  SSH response: {out}", file=sys.stderr)
-            if err:
-                print(f"  SSH error: {err}", file=sys.stderr)
-        return out
-    finally:
-        client.close()
-
-
 def run_process_bridge(config_dir: str, run_cmd: str, ssh_host: str, ssh_port: int,
                        ze_process: subprocess.Popen, debug: bool = False):
     """Run an ExaBGP process and bridge its commands to Ze via SSH.
@@ -181,7 +160,13 @@ def run_process_bridge(config_dir: str, run_cmd: str, ssh_host: str, ssh_port: i
     Translates ExaBGP stdout commands to Ze CLI commands over SSH exec:
     - "announce watchdog <name>" -> "watchdog announce <name>"
     - "withdraw watchdog <name>" -> "watchdog withdraw <name>"
+
+    Uses a single persistent SSH connection for all commands to avoid
+    repeated handshake/auth overhead (which causes timing failures on
+    slower machines).
     """
+    import paramiko
+
     # Wait for SSH server to be ready
     if not wait_for_ssh(ssh_host, ssh_port):
         if debug:
@@ -191,7 +176,12 @@ def run_process_bridge(config_dir: str, run_cmd: str, ssh_host: str, ssh_port: i
     if debug:
         print(f"SSH bridge connected to {ssh_host}:{ssh_port}", file=sys.stderr)
 
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
+        client.connect(ssh_host, port=ssh_port, username=_SSH_USER, password=_SSH_PASS,
+                       timeout=5.0, look_for_keys=False, allow_agent=False)
+
         # Resolve the run command relative to config directory
         cmd_path = os.path.join(config_dir, run_cmd)
         cmd_dir = os.path.dirname(cmd_path)
@@ -221,15 +211,27 @@ def run_process_bridge(config_dir: str, run_cmd: str, ssh_host: str, ssh_port: i
                 if debug:
                     print(f"Process bridge: {line}", file=sys.stderr)
 
+                command = None
                 if line.startswith('announce watchdog '):
                     group = line.split(None, 2)[2]
-                    send_ssh_command(ssh_host, ssh_port,
-                                    'watchdog announce ' + group, debug)
+                    command = 'watchdog announce ' + group
                 elif line.startswith('withdraw watchdog '):
                     group = line.split(None, 2)[2]
-                    send_ssh_command(ssh_host, ssh_port,
-                                    'watchdog withdraw ' + group, debug)
-                # Other ExaBGP commands could be translated here in the future
+                    command = 'watchdog withdraw ' + group
+
+                if command:
+                    try:
+                        _, stdout, stderr = client.exec_command(command)
+                        out = stdout.read().decode('utf-8', errors='replace').strip()
+                        err = stderr.read().decode('utf-8', errors='replace').strip()
+                        if debug:
+                            if out:
+                                print(f"  SSH response: {out}", file=sys.stderr)
+                            if err:
+                                print(f"  SSH error: {err}", file=sys.stderr)
+                    except Exception as e:
+                        if debug:
+                            print(f"  SSH exec error: {e}", file=sys.stderr)
 
         finally:
             proc.terminate()
@@ -241,6 +243,8 @@ def run_process_bridge(config_dir: str, run_cmd: str, ssh_host: str, ssh_port: i
     except Exception as e:
         if debug:
             print(f"Process bridge error: {e}", file=sys.stderr)
+    finally:
+        client.close()
 
 
 def main():
