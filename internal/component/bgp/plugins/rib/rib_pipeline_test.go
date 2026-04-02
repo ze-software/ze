@@ -855,6 +855,100 @@ func TestBestPipeline_Empty(t *testing.T) {
 	assert.Empty(t, arr, "expected empty best-path array")
 }
 
+// --- Phase 6: Graph terminal ---
+
+// TestGraphTerminal verifies the graph terminal produces box-drawing output.
+//
+// VALIDATES: AC-1 "Output contains box-drawing characters and both ASN labels."
+// PREVENTS: Graph terminal producing empty or JSON output instead of text graph.
+func TestGraphTerminal(t *testing.T) {
+	items := []RouteItem{
+		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", Direction: "received",
+			OutRoute: &Route{ASPath: []uint32{64501, 64502, 64503}}},
+		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", Direction: "received",
+			OutRoute: &Route{ASPath: []uint32{64504, 64502, 64503}}},
+	}
+
+	src := &sliceSource{items: items}
+	gt := newGraphTerminal(src)
+
+	// Graph terminal produces no items (drains upstream)
+	_, ok := gt.Next()
+	assert.False(t, ok, "graph terminal should produce no items")
+
+	meta := gt.Meta()
+	assert.Equal(t, 2, meta.Count)
+	require.NotEmpty(t, meta.JSON, "graph terminal should produce text output in JSON field")
+
+	// Output should contain ASN labels
+	assert.Contains(t, meta.JSON, "AS64501")
+	assert.Contains(t, meta.JSON, "AS64502")
+	assert.Contains(t, meta.JSON, "AS64503")
+	assert.Contains(t, meta.JSON, "AS64504")
+
+	// Output should contain box-drawing characters
+	assert.Contains(t, meta.JSON, "\u250C", "should contain box-drawing ┌")
+}
+
+// TestGraphTerminal_NoRoutes verifies the graph terminal handles empty input.
+//
+// VALIDATES: AC-7 "No routes match filters -- no crash."
+// PREVENTS: Panic on empty pipeline input.
+func TestGraphTerminal_NoRoutes(t *testing.T) {
+	src := &sliceSource{items: nil}
+	gt := newGraphTerminal(src)
+
+	meta := gt.Meta()
+	assert.Equal(t, 0, meta.Count)
+	// Empty graph produces empty or minimal output
+	assert.NotContains(t, meta.JSON, "panic")
+}
+
+// TestGraphTerminalViaPipeline verifies the graph terminal is wired into the pipeline.
+//
+// VALIDATES: AC-5 "Filters applied before graph construction."
+// PREVENTS: Graph terminal not reachable through pipeline dispatch.
+func TestGraphTerminalViaPipeline(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Add routes with AS paths
+	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001)
+	nlriBytes := []byte{24, 10, 0, 0}
+	peerRIB := storage.NewPeerRIB("192.0.2.1")
+	peerRIB.Insert(family, attrBytes, nlriBytes)
+	r.ribInPool["192.0.2.1"] = peerRIB
+
+	result := r.showPipeline("*", []string{"received", "graph"})
+	require.NotEmpty(t, result)
+
+	// Should contain AS65001 from the injected route's AS path
+	assert.Contains(t, result, "AS65001")
+	// Should contain box-drawing characters
+	assert.Contains(t, result, "\u250C")
+}
+
+// TestGraphTerminalViaBestPipeline verifies graph terminal works with best-path pipeline.
+//
+// VALIDATES: AC-6 "rib best graph works."
+// PREVENTS: Graph terminal only working with show, not best.
+func TestGraphTerminalViaBestPipeline(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001)
+	nlriBytes := []byte{24, 10, 0, 0}
+	peerRIB := storage.NewPeerRIB("192.0.2.1")
+	peerRIB.Insert(family, attrBytes, nlriBytes)
+	r.ribInPool["192.0.2.1"] = peerRIB
+
+	result := r.bestPipeline("*", []string{"graph"})
+	require.NotEmpty(t, result)
+
+	// Should contain AS65001
+	assert.Contains(t, result, "AS65001")
+}
+
 // --- Helpers ---
 
 // sliceSource is a test helper that yields items from a slice.

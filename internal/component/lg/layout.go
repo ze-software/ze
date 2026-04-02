@@ -8,26 +8,18 @@ package lg
 import (
 	"fmt"
 	"html/template"
-	"sort"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/graph"
 )
 
-// Layout holds computed positions for graph nodes.
-type Layout struct {
-	Positions map[uint32]Position // ASN -> position
-	Width     int                 // Total SVG width
-	Height    int                 // Total SVG height
-}
+// Layout is a type alias for the shared layout type.
+type Layout = graph.Layout
 
-// Position holds the x,y coordinates and dimensions for a graph node.
-type Position struct {
-	X      int
-	Y      int
-	Width  int
-	Height int
-}
+// Position is a type alias for the shared position type.
+type Position = graph.Position
 
-// Layout constants.
+// Layout constants for SVG rendering (used by AS path and next-hop graph renderers).
 const (
 	nodeHeight      = 40
 	nodeMinWidth    = 80
@@ -43,91 +35,12 @@ const (
 // computeLayout assigns x,y positions to each graph node using a layered layout.
 // Layers are arranged left-to-right: source ASes at left, origin at right.
 func computeLayout(g *Graph) *Layout {
-	if len(g.Nodes) == 0 {
-		return &Layout{Positions: make(map[uint32]Position)}
-	}
-
-	// Group nodes by layer.
-	layers := make(map[int][]GraphNode)
-	maxLayer := 0
-	for _, n := range g.Nodes {
-		layers[n.Layer] = append(layers[n.Layer], n)
-		if n.Layer > maxLayer {
-			maxLayer = n.Layer
-		}
-	}
-
-	// Sort nodes within each layer by ASN for deterministic layout.
-	for layer := range layers {
-		sort.Slice(layers[layer], func(i, j int) bool {
-			return layers[layer][i].ASN < layers[layer][j].ASN
-		})
-	}
-
-	positions := make(map[uint32]Position)
-
-	// Compute column widths based on label text.
-	colWidths := make(map[int]int)
-	for layer, nodes := range layers {
-		maxW := nodeMinWidth
-		for _, n := range nodes {
-			label := formatNodeLabel(n)
-			w := min(len(label)*charWidthApprox+nodePadding*2, nodeMaxWidth)
-			if w > maxW {
-				maxW = w
-			}
-		}
-		colWidths[layer] = maxW
-	}
-
-	// Compute x positions (left-to-right, highest layer first).
-	colX := make(map[int]int)
-	x := graphPadding
-	for layer := maxLayer; layer >= 0; layer-- {
-		colX[layer] = x
-		w, ok := colWidths[layer]
-		if !ok {
-			w = nodeMinWidth
-		}
-		x += w + horizontalGap
-	}
-
-	totalWidth := x - horizontalGap + graphPadding
-
-	// Compute y positions within each layer.
-	maxHeight := 0
-	for layer, nodes := range layers {
-		for i, n := range nodes {
-			y := graphPadding + i*(nodeHeight+verticalGap)
-			w := colWidths[layer]
-			positions[n.ASN] = Position{
-				X:      colX[layer],
-				Y:      y,
-				Width:  w,
-				Height: nodeHeight,
-			}
-			bottom := y + nodeHeight
-			if bottom > maxHeight {
-				maxHeight = bottom
-			}
-		}
-	}
-
-	totalHeight := maxHeight + graphPadding
-
-	return &Layout{
-		Positions: positions,
-		Width:     totalWidth,
-		Height:    totalHeight,
-	}
+	return graph.ComputeLayout(g, graph.SVGConfig())
 }
 
 // formatNodeLabel returns the display label for a graph node.
 func formatNodeLabel(n GraphNode) string {
-	if n.Name != "" {
-		return fmt.Sprintf("AS%d %s", n.ASN, n.Name)
-	}
-	return fmt.Sprintf("AS%d", n.ASN)
+	return graph.FormatNodeLabel(n)
 }
 
 // renderGraphSVG renders the graph as an SVG string.

@@ -3,6 +3,8 @@ package lg
 import (
 	"strings"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/graph"
 )
 
 func TestBuildGraphSinglePath(t *testing.T) {
@@ -79,7 +81,7 @@ func TestBuildGraphEmpty(t *testing.T) {
 }
 
 func TestDeduplicateASPath(t *testing.T) {
-	// VALIDATES: AS prepending removal.
+	// VALIDATES: AS prepending removal via shared graph package.
 	tests := []struct {
 		name string
 		in   []uint32
@@ -93,7 +95,7 @@ func TestDeduplicateASPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := deduplicateASPath(tt.in)
+			got := graph.DeduplicateASPath(tt.in)
 			if len(got) != len(tt.want) {
 				t.Errorf("len = %d, want %d", len(got), len(tt.want))
 				return

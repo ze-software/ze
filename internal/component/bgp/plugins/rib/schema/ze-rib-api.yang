@@ -81,7 +81,9 @@ module ze-rib-api {
                      Scope: sent | received | sent-received (default)
                      Filters: path <pattern>, cidr <prefix>, community <value>,
                               family <afi/safi>, match <text>
-                     Terminals: count (metadata only), json (serialized output)";
+                     Terminals: count (metadata only), json (serialized output),
+                                prefix-summary (per-family prefix-length distribution),
+                                graph (AS-path topology as box-drawing text)";
         input {
             leaf peer { type zt:ip-address; description "Filter by peer"; }
             leaf-list args { type string; description "Pipeline args: scope, filters, terminal"; }
@@ -96,7 +98,9 @@ module ze-rib-api {
                      Syntax: rib best [filters...] [terminal]
                      Filters: path <pattern>, cidr <prefix>, community <value>,
                               family <afi/safi>, match <text>
-                     Terminals: count (metadata only), json (serialized output)";
+                     Terminals: count (metadata only), json (serialized output),
+                                prefix-summary (per-family prefix-length distribution),
+                                graph (AS-path topology as box-drawing text)";
         input {
             leaf peer { type zt:ip-address; description "Filter by peer"; }
             leaf-list args { type string; description "Pipeline args: filters, terminal"; }

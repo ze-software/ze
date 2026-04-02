@@ -1,6 +1,7 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — iterator pipeline for RIB show commands
 // Overview: rib.go — RIB plugin core types and event handlers
 // Related: rib_pipeline_best.go — best-path pipeline (bestSource, bestPipeline, bestJSONTerminal)
+// Related: rib_topology.go — graph terminal for AS path topology rendering
 // Related: rib_commands.go — command handling and JSON responses
 // Related: rib_attr_format.go — attribute formatting for show enrichment
 // Related: rib_nlri.go — NLRI wire format helpers
@@ -34,7 +35,7 @@ type RouteItem struct {
 // PipelineMeta holds pipeline result metadata.
 type PipelineMeta struct {
 	Count int
-	JSON  string // set by json terminal only
+	JSON  string // set by json, prefix-summary, and graph terminals
 }
 
 // PipelineIterator is the pull-based iterator interface for pipeline stages.
@@ -307,6 +308,13 @@ func (f *pathFilter) Next() (RouteItem, bool) {
 }
 
 func (f *pathFilter) getASPath(item RouteItem) []uint32 {
+	return extractASPathFromItem(item)
+}
+
+// extractASPathFromItem extracts the AS path from a RouteItem as []uint32.
+// For InEntry (adj-rib-in): reads from pool storage via formatASPath.
+// For OutRoute (adj-rib-out): reads the ASPath field directly.
+func extractASPathFromItem(item RouteItem) []uint32 {
 	if item.OutRoute != nil {
 		return item.OutRoute.ASPath
 	}
@@ -865,6 +873,8 @@ func (s pipelineStage) apply(upstream PipelineIterator) PipelineIterator {
 		return newJSONTerminal(upstream)
 	case "prefix-summary":
 		return newPrefixSummaryTerminal(upstream)
+	case "graph":
+		return newGraphTerminal(upstream)
 	}
 	// parsePipelineArgs validates all keywords before reaching here,
 	// so this is unreachable in normal operation.
@@ -887,6 +897,7 @@ var terminalKeywords = map[string]bool{
 	"count":          true,
 	"json":           true,
 	"prefix-summary": true,
+	"graph":          true,
 }
 
 // scopeKeywords are positional scope keywords (must appear first).
