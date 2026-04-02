@@ -3,6 +3,24 @@
 (function(){
   'use strict';
 
+  // Register a default Trusted Types policy to silence Chromium console warnings
+  // about innerHTML/outerHTML assignments in our code and HTMX. This is cosmetic --
+  // Trusted Types are not enforced by our CSP, so the pass-through adds no security
+  // but removes noise that could alarm users inspecting the console.
+  if (window.trustedTypes && window.trustedTypes.createPolicy) {
+    if (!window.trustedTypes.defaultPolicy) {
+      try {
+        window.trustedTypes.createPolicy('default', {
+          createHTML: function(s) { return s; },
+          createScript: function(s) { return s; },
+          createScriptURL: function(s) { return s; }
+        });
+      } catch (e) {
+        // Policy already created or blocked by CSP -- safe to ignore.
+      }
+    }
+  }
+
   var cachedItems = null;  // Last fetched completions for live filtering.
   var cachedPrefix = '';   // Prefix (up to last space) when completions were fetched.
   var history = [];        // Command history.
