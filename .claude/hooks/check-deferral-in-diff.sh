@@ -3,7 +3,8 @@
 # Catches: writing deferral intent in specs/code/docs without logging it.
 # Exit code 2 = BLOCK the commit.
 
-COMMAND="$CLAUDE_TOOL_INPUT_command"
+INPUT=$(cat)
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 # Only trigger on git commit commands
 if [[ "$COMMAND" != *"git commit"* ]]; then

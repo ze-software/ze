@@ -6,7 +6,8 @@
 # Then: grep failures from the log file
 # Exit code 2 = BLOCK the command
 
-COMMAND="$CLAUDE_TOOL_INPUT_command"
+INPUT=$(cat)
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 if [[ "$COMMAND" == *"| tail"* ]]; then
     echo "❌ Blocked: '| tail' — capture to file instead, or use Read tool" >&2

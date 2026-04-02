@@ -4,7 +4,8 @@
 # Copying from a worktree overwrites uncommitted changes by other sessions.
 # Exit code 2 = BLOCK the operation
 
-COMMAND="$CLAUDE_TOOL_INPUT_command"
+INPUT=$(cat)
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 WORKTREE_DIR=".claude/worktrees"
 
 block() {

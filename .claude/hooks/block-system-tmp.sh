@@ -3,8 +3,9 @@
 # Rule: testing.md — Use project tmp/ for scratch files, never /tmp
 # Exit code 2 = BLOCK the operation
 
-FILE_PATH="$CLAUDE_TOOL_INPUT_file_path"
-COMMAND="$CLAUDE_TOOL_INPUT_command"
+INPUT=$(cat)
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 # --- Write/Edit: check file_path ---
 if [[ -n "$FILE_PATH" ]]; then

@@ -3,7 +3,8 @@
 # This hook is called by Claude Code before any Bash command
 # Exit code 2 = BLOCK the command
 
-COMMAND="$CLAUDE_TOOL_INPUT_command"
+INPUT=$(cat)
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 # List of destructive git command patterns
 DESTRUCTIVE_PATTERNS=(
