@@ -26,6 +26,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -157,7 +158,11 @@ func (s *WebServer) Handle(pattern string, handler http.Handler) {
 // graceful termination of the running server.
 func (s *WebServer) ListenAndServe(ctx context.Context) error {
 	var lc net.ListenConfig
-	ln, err := lc.Listen(ctx, "tcp", s.addr)
+	network := "tcp4"
+	if strings.Contains(s.addr, "[") {
+		network = "tcp6"
+	}
+	ln, err := lc.Listen(ctx, network, s.addr)
 	if err != nil {
 		return fmt.Errorf("web server bind: %w", err)
 	}
