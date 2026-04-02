@@ -119,6 +119,7 @@ RFC-mandated checks run as default filters that can be selectively overridden.
 | Streaming route events | Yes | Yes | No | Yes | No | No | Yes | Yes | No | No | No |
 | JSON event protocol | Yes | No | No | No | No | No | No | Yes | No | No | No |
 | Built-in DNS resolver | Yes | No | No | No | No | No | No | No | No | No | No |
+| Built-in PeeringDB/IRR/Cymru | Yes | No | No | No | No | No | No | No | No | No | No |
 
 ## API & Programmability
 

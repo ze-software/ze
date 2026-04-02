@@ -1,0 +1,28 @@
+# Test: ze resolve with unknown subcommand exits 1
+# VALIDATES: AC-21 -- unknown subcommand error + suggestion
+# PREVENTS: panic on invalid subcommand
+# Note: stderr assertion removed -- test runner doesn't capture stderr for standalone foreground commands.
+# Full stderr validation in Go unit test TestCmdUnknown.
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze resolve foo
+expect=exit:code=1

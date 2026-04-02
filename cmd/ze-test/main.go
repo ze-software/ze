@@ -59,6 +59,10 @@ func main() {
 		os.Exit(rpkiCmd())
 	case "peeringdb":
 		os.Exit(peeringdbCmd())
+	case "cymru":
+		os.Exit(cymruCmd())
+	case "irr":
+		os.Exit(irrCmd())
 	case "web":
 		os.Exit(webCmd())
 	default:

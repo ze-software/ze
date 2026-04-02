@@ -33,6 +33,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	zeplugin "codeberg.org/thomas-mangin/ze/cmd/ze/plugin"
+	zeresolve "codeberg.org/thomas-mangin/ze/cmd/ze/resolve"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	zeyang "codeberg.org/thomas-mangin/ze/cmd/ze/yang"
@@ -406,6 +407,8 @@ dispatch:
 		os.Exit(zeyang.Run(args[1:]))
 	case "interface":
 		os.Exit(zeiface.Run(args[1:]))
+	case "resolve":
+		os.Exit(zeresolve.Run(args[1:]))
 	case "exabgp":
 		os.Exit(exabgp.Run(args[1:]))
 	case "signal":
@@ -950,6 +953,7 @@ func usage() {
 				{Name: "plugin", Desc: "Plugin system (rib, rr, gr, etc.)"},
 				{Name: "signal", Desc: "Send signals to running daemon (reload, stop, quit)"},
 				{Name: "interface", Desc: "Manage OS network interfaces"},
+				{Name: "resolve", Desc: "Query DNS, Cymru, PeeringDB, and IRR services"},
 				{Name: "exabgp", Desc: "ExaBGP bridge tools"},
 				{Name: "completion", Desc: "Generate shell completion scripts"},
 				{Name: "version", Desc: "Show version"},

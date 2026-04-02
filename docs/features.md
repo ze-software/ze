@@ -19,4 +19,5 @@ Ze is a BGP daemon written in Go.
 | [Interoperability Testing](features/interoperability-testing.md) | 32 Docker-based scenarios against FRR, BIRD, GoBGP |
 | [MCP Integration](features/mcp-integration.md) | AI-assisted BGP operations via Model Context Protocol |
 | [DNS Resolver](features/dns-resolver.md) | Built-in cached DNS resolver for all components |
+| Resolution CLI | Offline `ze resolve` tool for DNS, Team Cymru ASN names, PeeringDB prefix counts, and IRR AS-SET expansion |
 | [ExaBGP Compatibility](features/exabgp-compatibility.md) | Automatic config migration and plugin bridge |

@@ -1,0 +1,29 @@
+# Test: ze resolve dns --help prints DNS help
+# VALIDATES: AC-16 -- dns subcommand help dispatch works
+# PREVENTS: --help treated as unknown operation
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=NO_COLOR:value=1
+cmd=foreground:seq=1:exec=ze resolve dns --help
+expect=exit:code=0
+expect=stdout:contains=Operations:
+expect=stdout:contains=ptr

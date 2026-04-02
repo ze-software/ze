@@ -343,6 +343,29 @@ ze env get <key>                 # Show single env var details
 | `-v`, `--verbose` | Show current effective values (list) |
 <!-- source: cmd/ze/environ/main.go -- Run -->
 
+### ze resolve
+
+Query DNS, Team Cymru, PeeringDB, and IRR resolution services. Offline tool -- no running daemon required.
+
+```
+ze resolve dns a example.com                           # IPv4 address records
+ze resolve dns aaaa example.com                        # IPv6 address records
+ze resolve dns txt example.com                         # TXT records
+ze resolve dns ptr 8.8.8.8                             # Reverse DNS
+ze resolve cymru asn-name 13335                        # ASN to org name
+ze resolve peeringdb max-prefix 13335                  # IPv4/IPv6 prefix counts
+ze resolve peeringdb as-set 13335                      # Registered IRR AS-SETs
+ze resolve irr as-set AS-CLOUDFLARE                    # Expand AS-SET to member ASNs
+ze resolve irr prefix AS-CLOUDFLARE                    # Lookup announced prefixes
+```
+
+| Flag | Subcommand | Purpose |
+|------|------------|---------|
+| `--server <host>` | dns, irr | Override DNS/whois server |
+| `--dns-server <host>` | cymru | Override DNS server for TXT queries |
+| `--url <url>` | peeringdb | Override PeeringDB API base URL |
+<!-- source: cmd/ze/resolve/main.go -- Run -->
+
 ### ze-perf
 
 BGP propagation latency benchmark tool. Separate binary from `ze`.

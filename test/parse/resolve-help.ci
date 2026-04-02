@@ -1,0 +1,34 @@
+# Test: ze resolve --help prints structured help
+# VALIDATES: AC-15 -- resolve help dispatch works
+# PREVENTS: resolve command not registered in main dispatch
+# Note: test runner requires stdin config block even for offline commands
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=NO_COLOR:value=1
+cmd=foreground:seq=1:exec=ze resolve --help
+expect=exit:code=0
+expect=stdout:contains=Services:
+expect=stdout:contains=dns
+expect=stdout:contains=cymru
+expect=stdout:contains=peeringdb
+expect=stdout:contains=irr
+expect=stdout:contains=Examples:

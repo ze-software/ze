@@ -109,9 +109,20 @@ func handlePeeringDBNet(w http.ResponseWriter, r *http.Request) {
 	ipv4 := asn
 	ipv6 := asn / 5
 
+	// Deterministic AS-SET: odd ASN -> "AS-TEST", even ASN -> "AS-FOO AS-BAR", ASN%3==0 -> empty.
+	var irrASSet string
+	switch {
+	case asn%3 == 0:
+		irrASSet = "" // no AS-SET registered
+	case asn%2 == 1:
+		irrASSet = "AS-TEST"
+	default:
+		irrASSet = "AS-FOO AS-BAR"
+	}
+
 	if _, wErr := fmt.Fprintf(w,
-		`{"data":[{"asn":%d,"info_prefixes4":%d,"info_prefixes6":%d}]}`,
-		asn, ipv4, ipv6); wErr != nil {
+		`{"data":[{"asn":%d,"info_prefixes4":%d,"info_prefixes6":%d,"irr_as_set":"%s"}]}`,
+		asn, ipv4, ipv6, irrASSet); wErr != nil {
 		return
 	}
 }
