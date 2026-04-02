@@ -10,7 +10,7 @@
 | **Groups** | `group <name> { ... peer <ip> { } }` - named peer groups with shared defaults |
 | **Inheritance** | 3 levels: bgp globals, group defaults, peer overrides (deep-merge for containers) |
 | **Schema** | YANG-driven: parser dispatches by node type (leaf, container, list, leaf-list) |
-| **Migration** | `ze bgp config migrate` converts ExaBGP syntax to ze-native |
+| **Migration** | `ze config migrate` converts ExaBGP syntax to ze-native |
 
 **When to read full doc:** Config keywords, parsing bugs, new config sections.
 
@@ -81,9 +81,7 @@ plugin {
 
 bgp {
     router-id <ip>;                         # BGP-level global (inherited by all peers)
-    local {
-        as <asn>;                           # BGP-level local AS (inherited by all peers)
-    }
+    session { asn { local <asn>; } }        # BGP-level local AS (inherited by all peers)
 
     group <name> {
         <peer-fields>                       # Group-level defaults (shared by all peers in group)
@@ -168,7 +166,7 @@ bgp {
 
 | Priority | Source | Scope |
 |----------|--------|-------|
-| Lowest | `bgp` block globals | `local { as; }`, `router-id` -- inherited by all peers |
+| Lowest | `bgp` block globals | `session { asn { local; } }`, `router-id` -- inherited by all peers |
 | Middle | Group defaults | All `peer-fields` set on the group |
 | Highest | Peer overrides | All `peer-fields` set on the peer |
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree, deepMergeMaps -->
@@ -180,28 +178,37 @@ Containers (like `capability`, `timer`) deep-merge at key level -- both group an
 ```
 bgp {
     router-id 1.2.3.4
-    local { as 65000; }
+    session { asn { local 65000; } }
 
     group rr-clients {
-        timer { hold-time 180; }
-        capability { route-refresh enable; }
+        timer { receive-hold-time 180; }
+        session { capability { route-refresh enable; } }
 
         peer router-east {
-            remote { ip 10.0.0.1; as 65001; }
-            local { ip 10.0.0.1; }
+            connection {
+                remote { ip 10.0.0.1; }
+                local { ip 10.0.0.1; }
+            }
+            session { asn { remote 65001; } }
         }
         peer client-b {
-            remote { ip 10.0.0.2; as 65002; }
-            local { ip 10.0.0.2; }
-            timer { hold-time 90; }    # Overrides group's 180
+            connection {
+                remote { ip 10.0.0.2; }
+                local { ip 10.0.0.2; }
+            }
+            session { asn { remote 65002; } }
+            timer { receive-hold-time 90; }    # Overrides group's 180
         }
     }
 
     group edge-peers {
-        timer { hold-time 30; }
+        timer { receive-hold-time 30; }
         peer edge-gw {
-            remote { ip 192.168.1.1; as 64500; }
-            local { ip 192.168.1.254; }
+            connection {
+                remote { ip 192.168.1.1; }
+                local { ip 192.168.1.254; }
+            }
+            session { asn { remote 64500; } }
         }
     }
 }
@@ -221,7 +228,7 @@ bgp {
 
 #### Migration
 
-`ze bgp config migrate` converts old syntax:
+`ze config migrate` converts old syntax:
 - `template { bgp { peer <pattern> { inherit-name X; } } }` becomes `group X { }`
 - `inherit X` in peers moves the peer into `group X`
 - `neighbor` blocks become `peer` blocks inside groups
@@ -233,34 +240,47 @@ Container for all BGP-related configuration (peers, groups, global settings).
 ```
 bgp {
     router-id <ip>;           # Global router-id (inherited by all peers)
-    local { as <asn>; }       # Global local AS (inherited by all peers)
+    session { asn { local <asn>; } }  # Global local AS (inherited by all peers)
 
     group <name> {
         # Group-level defaults (inherited by all peers in group)
-        remote { as <asn>; }    # Default remote AS for group
-        timer { hold-time <seconds>; connect-retry <seconds>; }
-        capability { ... }
-        family { ... }
+        session { asn { remote <asn>; } }
+        timer { receive-hold-time <seconds>; connect-retry <seconds>; }
+        session { capability { ... } }
+        session { family { ... } }
 
         peer <name> {
-            # Peer identity
-            remote { ip <ip>; as <asn>; }
-            local { ip <ip>; as <asn>; }
+            # Connection (transport-level)
+            connection {
+                remote { ip <ip>; port <port>; accept <bool>; }
+                local { ip <ip>; port <port>; connect <bool>; }
+                md5 { password <string>; ip <ip>; }
+                ttl { max <0-255>; set <0-255>; min <0-255>; }
+                link-local <bool>;
+            }
 
-            # Peer-level overrides
-            router-id <ip>;
-            timer { hold-time <seconds>; }
+            # Session (BGP protocol)
+            session {
+                asn { local <asn>; remote <asn>; }
+                router-id <ip>;
+                link-local <ipv6>;
+                family { ... }
+                capability { ... }
+                add-path { ... }
+            }
 
-            # Capabilities
-            capability { ... }
+            # Behavior (operational knobs)
+            behavior {
+                group-updates <bool>;
+                manual-eor <bool>;
+                auto-flush <bool>;
+            }
 
-            # Address families
-            family { ... }
-
-            # Process bindings
+            # Other
+            description <string>;
+            timer { receive-hold-time <seconds>; send-hold-time <seconds>; connect-retry <seconds>; }
+            rib { adj { in <bool>; out <bool>; } out { ... } }
             process <plugin-name> { ... }
-
-            # Route announcements
             update { ... }
         }
     }
@@ -268,7 +288,7 @@ bgp {
 ```
 <!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container bgp structure -->
 
-**Migration:** `ze bgp config migrate` converts old syntax:
+**Migration:** `ze config migrate` converts old syntax:
 - `neighbor` to `bgp { group <name> { peer } }`
 - `template { inherit-name X }` to `group X { }`
 - `inherit X` in peers moves peer into `group X`
@@ -277,22 +297,48 @@ bgp {
 
 ## Peer Keywords
 
-### Session
+Peer configuration is organized into nested containers by concern.
 <!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- peer-fields grouping -->
+
+### connection (transport-level)
 
 | Keyword | Type | Description |
 |---------|------|-------------|
-| router-id | IP | BGP router ID |
-| remote { ip; as; } | container | Remote peer IP address and AS number |
-| local { ip; as; } | container | Local IP address and AS number overrides |
-| timer { } | container | Timer settings: `hold-time` (seconds, default 90), `connect-retry` (seconds, default 120) |
-| local { connect; } | bool | Initiate outbound connections (default: true) |
-| remote { accept; } | bool | Accept inbound connections (default: true) |
-| port | int | Per-peer listen port |
-| group-updates | bool | Group updates for efficiency (default true) |
-| description | string | Peer description |
-| link-local | IPv6 | IPv6 link-local address for next-hop (RFC 2545) |
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- grouping peer-fields, container timer, leaf connect, leaf accept -->
+| `connection { local { ip; port; connect; } }` | container | Local address (`auto` or IP), bind port, initiate connections (default: true) |
+| `connection { remote { ip; port; accept; } }` | container | Peer IP address, connection port, accept connections (default: true) |
+| `connection { md5 { password; ip; } }` | container | TCP MD5 authentication (RFC 2385) |
+| `connection { ttl { max; set; min; } }` | container | GTSM max (RFC 5082), outgoing TTL, minimum incoming TTL |
+| `connection { link-local; }` | bool | Auto-discover IPv6 link-local for TCP |
+
+### session (BGP protocol)
+
+| Keyword | Type | Description |
+|---------|------|-------------|
+| `session { asn { local; remote; } }` | container | Local and remote AS numbers |
+| `session { router-id; }` | IP | BGP router ID override |
+| `session { link-local; }` | IPv6 | IPv6 link-local address for MP_REACH_NLRI next-hop (RFC 2545) |
+| `session { family { ... } }` | list | Address families with per-family prefix enforcement |
+| `session { capability { ... } }` | container | BGP capabilities (see below) |
+| `session { add-path { ... } }` | list | Per-family ADD-PATH configuration |
+
+### behavior (operational knobs)
+
+| Keyword | Type | Description |
+|---------|------|-------------|
+| `behavior { group-updates; }` | bool | Group UPDATE messages for efficiency (default: true) |
+| `behavior { manual-eor; }` | bool | Manual End-of-RIB control |
+| `behavior { auto-flush; }` | bool | Auto-flush routes |
+
+### Other peer-level keywords
+
+| Keyword | Type | Description |
+|---------|------|-------------|
+| `description` | string | Peer description |
+| `timer { receive-hold-time; send-hold-time; connect-retry; }` | container | Timer settings (defaults: 90s, 0/auto, 120s) |
+| `rib { adj { in; out; } out { ... } }` | container | RIB configuration (adj-rib-in/out, outbound batching) |
+| `process <name> { ... }` | list | Plugin process bindings |
+| `update { ... }` | container | Route announcements |
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- grouping peer-fields, containers connection, session, behavior -->
 
 ### Capability Section
 
@@ -586,7 +632,7 @@ update {
 
 ### FlowSpec
 
-FlowSpec routes (RFC 8955) use the same `update { nlri { } }` syntax. The legacy `flow { route { match {} then {} } }` block is not supported -- use `ze bgp config migrate` to convert ExaBGP-format FlowSpec configs.
+FlowSpec routes (RFC 8955) use the same `update { nlri { } }` syntax. The legacy `flow { route { match {} then {} } }` block is not supported -- use `ze config migrate` to convert ExaBGP-format FlowSpec configs.
 
 FlowSpec actions are expressed as extended-community attributes. Match criteria are inline after the family and `add` keyword.
 
@@ -779,18 +825,21 @@ incomplete
 
 ```
 bgp {
-    router-id 1.2.3.4           # BGP-level global
-    local { as 65000; }          # BGP-level global
+    router-id 1.2.3.4                   # BGP-level global
+    session { asn { local 65000; } }     # BGP-level global
 
     group rr-clients {
-        timer { hold-time 90; }  # Group default
-        family {
-            ipv4/unicast
+        timer { receive-hold-time 90; }  # Group default
+        session {
+            family { ipv4/unicast { prefix { maximum 1000000; } } }
         }
 
         peer client-a {
-            remote { ip 192.168.1.2; as 65002; }
-            local { ip 192.168.1.1; }
+            connection {
+                remote { ip 192.168.1.2; }
+                local { ip 192.168.1.1; }
+            }
+            session { asn { remote 65002; } }
         }
     }
 }
@@ -800,11 +849,11 @@ bgp {
 
 | Concept | Description |
 |---------|-------------|
-| BGP globals | `local { as; }` and `router-id` at bgp level, inherited by all peers |
+| BGP globals | `session { asn { local; } }` and `router-id` at bgp level, inherited by all peers |
 | Group defaults | Any `peer-fields` set on the group, inherited by all peers in that group |
 | Peer overrides | Any `peer-fields` set on the peer, takes highest precedence |
-| Deep merge | Containers (e.g., `capability`, `timer`) merge keys from both group and peer |
-| Leaf override | Scalar values (e.g., `hold-time` inside `timer`) at peer level replace group values |
+| Deep merge | Containers (e.g., `session`, `timer`) merge keys from both group and peer |
+| Leaf override | Scalar values (e.g., `receive-hold-time` inside `timer`) at peer level replace group values |
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree, deepMergeMaps -->
 
 ### Standalone Peers
@@ -813,12 +862,15 @@ Peers directly under `bgp` (not inside a group) inherit only BGP-level globals:
 
 ```
 bgp {
-    local { as 65000; }
+    session { asn { local 65000; } }
 
     peer my-peer {
-        remote { ip 10.0.0.5; as 65001; }
-        local { ip 10.0.0.1; }
-        timer { hold-time 180; }
+        connection {
+            remote { ip 10.0.0.5; }
+            local { ip 10.0.0.1; }
+        }
+        session { asn { remote 65001; } }
+        timer { receive-hold-time 180; }
     }
 }
 ```
@@ -832,4 +884,4 @@ bgp {
 
 ---
 
-**Last Updated:** 2026-03-21
+**Last Updated:** 2026-04-02

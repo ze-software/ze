@@ -66,7 +66,6 @@
 |---------|-------------|
 | `ze cli` | Interactive CLI (with `-c <cmd>` for single command) |
 | `ze show <command>` | Read-only daemon commands |
-| `ze run <command>` | All daemon commands |
 
 **Live peer dashboard:** `monitor bgp` in the interactive CLI enters a live dashboard showing router identity, a sortable color-coded peer table with update rates, and drill-down detail view. Auto-refreshes every 2 seconds. Navigate with j/k, sort with s/S, Enter for detail, Esc to exit.
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->

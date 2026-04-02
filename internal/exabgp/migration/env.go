@@ -13,6 +13,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/exabgp/topics"
 )
 
 // sectionLog is the section name for ExaBGP logging config.
@@ -84,22 +86,8 @@ func ParseExaBGPEnv(input string) ([]ExaEnvEntry, error) {
 	return entries, nil
 }
 
-// envTopicToSubsystem maps ExaBGP boolean topic names to Ze subsystem paths.
-// Same mapping as config migration (listener.go topicToSubsystem).
-var envTopicToSubsystem = map[string]string{
-	"packets":       "bgp.wire",
-	"rib":           "plugin.rib",
-	"configuration": "config",
-	"reactor":       "bgp.reactor",
-	"daemon":        "daemon",
-	"processes":     "plugin",
-	"network":       "bgp.wire",
-	"statistics":    "bgp.metrics",
-	"message":       "bgp.wire",
-	"timers":        "bgp.reactor",
-	"routes":        "plugin.rib",
-	"parser":        "config",
-}
+// envTopicToSubsystem is the canonical ExaBGP topic-to-Ze-subsystem mapping.
+var envTopicToSubsystem = topics.TopicToSubsystem
 
 // MapEnvToZe converts parsed ExaBGP env entries to Ze configuration output.
 // Returns a string with Ze config lines and comments for unsupported keys.
@@ -144,7 +132,9 @@ func MapEnvToZe(entries []ExaEnvEntry) string {
 			continue
 		}
 
-		mapEnvKnownKey(fullKey, e.Value, &b, &configLines)
+		if !mapEnvKnownKey(fullKey, e.Value, &b, &configLines) {
+			fmt.Fprintf(&b, "# %s = %s -- unknown ExaBGP setting\n", fullKey, e.Value)
+		}
 	}
 
 	// Emit a single merged log block with subsystem levels, level, and destination.
@@ -172,72 +162,49 @@ func MapEnvToZe(entries []ExaEnvEntry) string {
 }
 
 // mapEnvKnownKey handles a single env key, writing output to b or appending to configLines.
-// Every key is explicitly handled: recognized keys map to Ze config or comments,
-// unrecognized keys are emitted as comments for user review.
-func mapEnvKnownKey(fullKey, value string, b *strings.Builder, configLines *[]string) {
+// Returns true if the key was recognized, false otherwise.
+// Adding a new case to the switch is sufficient -- no separate list to update.
+func mapEnvKnownKey(fullKey, value string, b *strings.Builder, configLines *[]string) bool {
 	logPrefix := sectionLog + "."
 
 	switch fullKey {
 	case "tcp.bind", "tcp.port":
 		fmt.Fprintf(b, "# %s = %s -- per-peer config in Ze, not global\n", fullKey, value)
+		return true
 
 	case "bgp.connect", "bgp.accept":
 		fmt.Fprintf(b, "# %s = %s -- per-peer config in Ze\n", fullKey, value)
+		return true
 
 	case "debug.pdb":
 		fmt.Fprintf(b, "# %s = %s -- Python-only, not applicable to Ze\n", fullKey, value)
+		return true
 
-	case logPrefix + "level":
+	case logPrefix + "level", logPrefix + "destination":
 		// Handled by merged log block in MapEnvToZe.
-
-	case logPrefix + "destination":
-		// Handled by merged log block in MapEnvToZe.
+		return true
 
 	case logPrefix + "enable", logPrefix + "all", logPrefix + "short":
 		fmt.Fprintf(b, "# %s = %s -- Ze uses per-subsystem levels\n", fullKey, value)
+		return true
 
 	case "daemon.user":
 		*configLines = append(*configLines, fmt.Sprintf("environment {\n    daemon {\n        user %s;\n    }\n}", value))
+		return true
 
 	case "api.encoder":
 		*configLines = append(*configLines, fmt.Sprintf("# api.encoder = %s -- Ze uses JSON format", value))
+		return true
 
 	case "api.respawn":
 		*configLines = append(*configLines, fmt.Sprintf("# api.respawn = %s -- Ze manages plugin lifecycle", value))
+		return true
 
 	case "daemon.drop", "daemon.daemonize", "daemon.pid", "cache.attributes", "cache.nexthops":
 		fmt.Fprintf(b, "# %s = %s -- not applicable to Ze\n", fullKey, value)
-	}
-
-	// Unrecognized keys: emit as comment for user review (no key is silently dropped).
-	if !isRecognizedEnvKey(fullKey) {
-		fmt.Fprintf(b, "# %s = %s -- unknown ExaBGP setting\n", fullKey, value)
-	}
-}
-
-// isRecognizedEnvKey returns true if the key is explicitly handled.
-func isRecognizedEnvKey(fullKey string) bool {
-	logPrefix := sectionLog + "."
-	recognized := []string{
-		"tcp.bind", "tcp.port",
-		"bgp.connect", "bgp.accept",
-		"debug.pdb",
-		logPrefix + "level", logPrefix + "destination",
-		logPrefix + "enable", logPrefix + "all", logPrefix + "short",
-		"daemon.user", "daemon.drop", "daemon.daemonize", "daemon.pid",
-		"api.encoder", "api.respawn",
-		"cache.attributes", "cache.nexthops",
-	}
-	if slices.Contains(recognized, fullKey) {
 		return true
 	}
-	// Also check if it's a known topic boolean.
-	if strings.HasPrefix(fullKey, logPrefix) {
-		topic := fullKey[len(logPrefix):]
-		if isEnvLogTopic(topic) {
-			return true
-		}
-	}
+
 	return false
 }
 

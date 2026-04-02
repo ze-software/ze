@@ -9,9 +9,9 @@ self-describing. AI assistants do not need documentation -- the binary describes
 
 ## Principle: The CLI Is the API
 
-Every command available through `ze cli` or `ze run` is exposed programmatically via the
-MCP `ze_execute` tool. There is no separate "API surface" -- the CLI and the API are the
-same thing. This means:
+Every command available through `ze cli` (interactive or `ze cli -c` for one-shot) is exposed
+programmatically via the MCP `ze_execute` tool. There is no separate "API surface" -- the CLI
+and the API are the same thing. This means:
 
 - No commands are CLI-only or API-only
 - No translation layer between human and machine interfaces

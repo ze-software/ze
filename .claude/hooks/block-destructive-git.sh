@@ -21,6 +21,7 @@ DESTRUCTIVE_PATTERNS=(
     "git clean"
     "git push --force"
     "git push -f"
+    "git merge"
 )
 
 # Allow git restore --staged (unstaging is safe)

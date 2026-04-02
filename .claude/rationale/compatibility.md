@@ -12,7 +12,7 @@ ExaBGP compatibility is provided via external tools, not in-engine code:
 | Tool | Purpose |
 |------|---------|
 | `ze exabgp plugin` | Run ExaBGP plugins with Ze (bidirectional JSON/command translation) |
-| `ze bgp config migrate` | Convert ExaBGP configs to Ze format |
+| `ze config migrate` | Convert ExaBGP configs to Ze format |
 
 ### File Layout
 - `internal/exabgp/bridge.go` -- Core translation: `ZebgpToExabgpJSON()`, `ExabgpToZebgpCommand()`, `Bridge`

@@ -5,6 +5,7 @@ package migration
 
 import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/exabgp/topics"
 )
 
 // hasBGPListenLeaf detects the ExaBGP legacy `bgp { listen "..." }` leaf.
@@ -148,22 +149,8 @@ func renameHubServerHost(tree *config.Tree) (*config.Tree, error) {
 	return tree, nil
 }
 
-// topicToSubsystem maps ExaBGP boolean topic names to Ze subsystem paths.
-// Used by hasLogBooleans and migrateLogBooleans.
-var topicToSubsystem = map[string]string{
-	"packets":       "bgp.wire",
-	"rib":           "plugin.rib",
-	"configuration": "config",
-	"reactor":       "bgp.reactor",
-	"daemon":        "daemon",
-	"processes":     "plugin",
-	"network":       "bgp.wire",
-	"statistics":    "bgp.metrics",
-	"message":       "bgp.wire",
-	"timers":        "bgp.reactor",
-	"routes":        "plugin.rib",
-	"parser":        "config",
-}
+// topicToSubsystem is the canonical ExaBGP topic-to-Ze-subsystem mapping.
+var topicToSubsystem = topics.TopicToSubsystem
 
 // hasLogBooleans detects boolean topics in `environment { log { <topic> true/false; } }`.
 func hasLogBooleans(tree *config.Tree) bool {

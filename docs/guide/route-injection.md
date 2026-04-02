@@ -8,13 +8,13 @@ Ze supports injecting routes at runtime through text, hex, or base64 encoded UPD
 Human-readable format with flat attribute declarations:
 
 ```bash
-ze run peer upstream1 update text \
+ze cli -c "peer upstream1 update text \
     origin igp \
     nhop 192.168.1.1 \
     local-preference 200 \
     as-path [ 65001 65002 ] \
     community [ 65000:100 no-export ] \
-    nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24
+    nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24"
 ```
 
 ### Attribute Keywords
@@ -64,10 +64,10 @@ nlri ipv6/unicast add 2001:db8::/32
 Wire-encoded bytes for debugging or replay:
 
 ```bash
-ze run peer upstream1 update hex \
+ze cli -c "peer upstream1 update hex \
     attr set 40010100400200400304c0a80101 \
     nhop set c0a80101 \
-    nlri ipv4/unicast add 180a0000
+    nlri ipv4/unicast add 180a0000"
 ```
 
 ## Base64 Format
@@ -75,9 +75,9 @@ ze run peer upstream1 update hex \
 Compact encoding for scripts:
 
 ```bash
-ze run peer upstream1 update b64 \
+ze cli -c "peer upstream1 update b64 \
     attr set QAEBAAQDAsCoBQE= \
-    nlri ipv4/unicast add GAoAAA==
+    nlri ipv4/unicast add GAoAAA=="
 ```
 
 ## Peer Selector
@@ -99,10 +99,10 @@ Routes are sent to peers matching the selector:
 For atomic multi-route updates:
 
 ```bash
-ze run commit start my-batch
-ze run peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
-ze run peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24
-ze run commit end my-batch         # All routes sent together
+ze cli -c "commit start my-batch"
+ze cli -c "peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"
+ze cli -c "peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24"
+ze cli -c "commit end my-batch"    # All routes sent together
 ```
 <!-- source: internal/component/cmd/commit/ -- commit command RPCs; internal/component/bgp/transaction/ -- commit manager -->
 

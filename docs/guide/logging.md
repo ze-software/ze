@@ -59,8 +59,8 @@ ze -d example.conf             # shorthand for ze.log=debug + ze.log.relay=debug
 Change log levels on a running daemon without restart:
 
 ```bash
-ze run bgp log set bgp.fsm debug
-ze run bgp log set bgp.reactor info
+ze cli -c "bgp log set bgp.fsm debug"
+ze cli -c "bgp log set bgp.reactor info"
 ze cli -c "bgp log levels"         # show current levels
 ```
 <!-- source: internal/component/cmd/log/ -- log show/set RPCs -->

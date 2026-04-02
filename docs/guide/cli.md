@@ -1,7 +1,7 @@
 # CLI Reference
 
 Ze provides an interactive CLI and single-command execution for runtime queries and control. All CLI access goes through the daemon's SSH server.
-<!-- source: cmd/ze/cli/main.go -- Run; cmd/ze/show/main.go -- Run; cmd/ze/run/main.go -- Run -->
+<!-- source: cmd/ze/cli/main.go -- Run; cmd/ze/show/main.go -- Run -->
 
 ## Usage
 
@@ -9,7 +9,7 @@ Ze provides an interactive CLI and single-command execution for runtime queries 
 ze cli                              # Interactive CLI with tab completion
 ze cli -c "peer list"            # Execute single command and exit
 ze show peer upstream1 detail         # Read-only query (safe for scripts)
-ze run peer upstream1 teardown 2     # Full access including destructive commands
+ze cli -c "peer upstream1 teardown 2" # One-shot command (full access)
 ```
 
 ### Modes
@@ -18,7 +18,7 @@ ze run peer upstream1 teardown 2     # Full access including destructive command
 |---------|--------|----------|
 | `ze cli` | Interactive, full | Exploring, monitoring, operating |
 | `ze show <cmd>` | Read-only | Scripting, monitoring dashboards |
-| `ze run <cmd>` | Full | Automation, route injection |
+| `ze cli -c <cmd>` | Full | Automation, route injection |
 
 ## Peer Commands
 

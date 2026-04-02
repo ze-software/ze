@@ -4,7 +4,7 @@ Running Ze in production: SSH access, signals, health checks, environment variab
 
 ## SSH Server
 
-Ze exposes its CLI over SSH. `ze cli`, `ze run`, and `ze signal` commands connect to this server. Most `ze show` subcommands do too, except local ones (version, bgp decode/encode, env, schema, yang, completion) which run in-process.
+Ze exposes its CLI over SSH. `ze cli`, `ze cli -c`, and `ze signal` commands connect to this server. Most `ze show` subcommands do too, except local ones (version, bgp decode/encode, env, schema, yang, completion) which run in-process.
 
 ### Setup
 
@@ -37,9 +37,9 @@ ze init --force                # prompts for confirmation interactively
 ze cli                         # interactive CLI
 ze cli -c "peer list"       # single command
 ze show peer list              # read-only shorthand
-ze run peer transit teardown 2 # read-write shorthand
+ze cli -c "peer transit teardown 2" # one-shot command
 ```
-<!-- source: cmd/ze/cli/main.go -- Run; cmd/ze/show/main.go -- Run; cmd/ze/run/main.go -- Run -->
+<!-- source: cmd/ze/cli/main.go -- Run; cmd/ze/show/main.go -- Run -->
 
 ### Override Host/Port
 
@@ -208,7 +208,7 @@ Symptom: peer stays in Connect/Active state
 
 3. **Enable debug logging:**
    ```bash
-   ze run bgp log set bgp.fsm debug
+   ze cli -c "bgp log set bgp.fsm debug"
    ze cli -c "bgp monitor event state"
    ```
 
@@ -239,7 +239,7 @@ Symptom: session establishes briefly then NOTIFICATION received
 
 3. **Capability issues:** Enable debug to see negotiated vs offered capabilities:
    ```bash
-   ze run bgp log set bgp.reactor debug
+   ze cli -c "bgp log set bgp.reactor debug"
    ```
 
 ### Daemon Won't Start

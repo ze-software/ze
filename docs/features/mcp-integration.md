@@ -17,7 +17,7 @@ The MCP server exposes typed tools with structured parameters, so AI assistants 
 | `ze_peer_control` | Teardown, pause, resume, flush peers |
 | `ze_execute` | Run **any** CLI command -- full daemon control |
 
-The `ze_execute` tool is the key to full control: anything you can do in `ze cli` or `ze run`, an AI can do via MCP. This includes:
+The `ze_execute` tool is the key to full control: anything you can do in `ze cli` (interactive or `ze cli -c` for one-shot commands), an AI can do via MCP. This includes:
 
 - **Route management:** `bgp peer * update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24`
 - **RIB queries:** `rib routes received`, `rib routes sent`, `rib clear-in`

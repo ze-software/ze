@@ -1,6 +1,6 @@
 # ExaBGP Legacy Configuration Syntax
 
-ExaBGP-compatible syntax that ze accepts for backward compatibility. Use `ze bgp config migrate` to convert to ze-native `update { attribute {} nlri {} }` format.
+ExaBGP-compatible syntax that ze accepts for backward compatibility. Use `ze config migrate` to convert to ze-native `update { attribute {} nlri {} }` format.
 
 The ExaBGP config parser uses its own YANG schema (`internal/exabgp/exabgp.yang`) with `ze:syntax` annotations. These annotations are not used in ze-native config.
 <!-- source: internal/exabgp/migration/exabgp.yang -- ExaBGP YANG schema -->
@@ -178,8 +178,8 @@ announce {
 
 ## Flow Block
 
-The `flow { route { match {} then {} } }` block is **rejected** by ze-native config. It is only accepted by the ExaBGP migration parser. Use `ze bgp config migrate` to convert to `update { nlri { ipv4/flow add ...; } }` format.
-<!-- source: cmd/ze/config/cmd_migrate.go -- ze bgp config migrate command -->
+The `flow { route { match {} then {} } }` block is **rejected** by ze-native config. It is only accepted by the ExaBGP migration parser. Use `ze config migrate` to convert to `update { nlri { ipv4/flow add ...; } }` format.
+<!-- source: cmd/ze/config/cmd_migrate.go -- ze config migrate command -->
 <!-- source: internal/exabgp/migration/migrate.go -- ExaBGP migration logic -->
 
 ```
