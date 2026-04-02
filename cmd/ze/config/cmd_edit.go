@@ -462,11 +462,11 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath string) int {
 		for _, sid := range orphaned {
 			// Same user, different session -- offer adoption.
 			entries := ed.SessionChanges(sid)
-			fmt.Fprintf(os.Stderr, "Found pending changes from previous session (%s, %d changes):\n", sid, len(entries)) //nolint:errcheck // terminal output
+			fmt.Fprintf(os.Stderr, "\nFound pending changes from previous session (%s, %d changes):\n", sid, len(entries)) //nolint:errcheck // terminal output
 			for _, e := range entries {
-				fmt.Fprintf(os.Stderr, "  %s\n", e.Path) //nolint:errcheck // terminal output
+				fmt.Fprintf(os.Stderr, "  set %s %s\n", e.Path, e.Entry.Value) //nolint:errcheck // terminal output
 			}
-			fmt.Fprintf(os.Stderr, "Adopt these changes? (yes/no) ") //nolint:errcheck // terminal output
+			fmt.Fprintf(os.Stderr, "\nAdopt these changes? (yes/no) ") //nolint:errcheck // terminal output
 
 			if !stdinScanner.Scan() {
 				break // stdin closed or error

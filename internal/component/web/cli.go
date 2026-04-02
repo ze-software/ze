@@ -241,7 +241,7 @@ func handleCLIEdit(w http.ResponseWriter, contextPath, args []string, schema *co
 // is the leaf name, and any preceding tokens extend the context path.
 // The full path (context + args) must resolve to a specific list entry, not an
 // anonymous list access (which would create a "default" entry).
-func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath, args []string, _ *config.Schema, mgr *EditorManager, username string) {
+func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath, args []string, schema *config.Schema, mgr *EditorManager, username string) {
 	if len(args) < 2 { //nolint:mnd // set requires key and value
 		writeCLINotification(w, "usage: set <leaf> <value>", "error")
 		return
@@ -256,6 +256,17 @@ func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath, args []st
 	value := args[len(args)-1]
 	key := args[len(args)-2]
 	setPath := append(append([]string{}, contextPath...), args[:len(args)-2]...)
+
+	// Validate that the target key is a leaf, not a container or list.
+	if schema != nil {
+		lookupPath := strings.Join(append(setPath, key), ".")
+		if node, err := schema.Lookup(lookupPath); err == nil {
+			if node.Kind() != config.NodeLeaf {
+				writeCLINotification(w, fmt.Sprintf("%s is not a leaf -- did you forget a value?", key), "error")
+				return
+			}
+		}
+	}
 
 	if err := mgr.SetValue(username, setPath, key, value); err != nil {
 		writeCLINotification(w, fmt.Sprintf("set error: %s", err), "error")

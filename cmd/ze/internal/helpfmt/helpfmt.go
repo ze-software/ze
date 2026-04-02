@@ -121,6 +121,8 @@ func (p *Page) WriteTo(w io.Writer, color bool) {
 			wr("  %s\n", styled(color, styleExample, sa))
 		}
 	}
+
+	wr("\n")
 }
 
 // WriteError writes a colored error message to w.

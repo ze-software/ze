@@ -466,9 +466,9 @@ func TestValidateRejectsNonLeafPath(t *testing.T) {
 		value   string
 		wantErr string
 	}{
-		{"container path", []string{"bgp", "peer"}, "value", "not a settable leaf"},
+		{"container path", []string{"bgp", "peer"}, "value", "not a leaf -- did you forget a value?"},
 		{"unknown leaf", []string{"bgp", "nonexistent"}, "value", "unknown path"},
-		{"root container", []string{"bgp"}, "value", "not a settable leaf"},
+		{"root container", []string{"bgp"}, "value", "not a leaf -- did you forget a value?"},
 	}
 
 	for _, tt := range tests {

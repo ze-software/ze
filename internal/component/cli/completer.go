@@ -996,7 +996,7 @@ func (c *Completer) ValidateValueAtPath(path []string, value string) error {
 		return fmt.Errorf("unknown path: %s", strings.Join(path, " "))
 	}
 	if entry.Kind != gyang.LeafEntry {
-		return fmt.Errorf("%s is not a settable leaf", path[len(path)-1])
+		return fmt.Errorf("%s is not a leaf -- did you forget a value?", path[len(path)-1])
 	}
 	// Reject config false paths — read-only state cannot be set.
 	// Check the leaf itself and all ancestors (config false is inherited per RFC 7950 §7.21.1).
