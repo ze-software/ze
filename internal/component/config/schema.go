@@ -156,6 +156,8 @@ type ListNode struct {
 	KeyName     string     // YANG key name (empty = keyless list like update)
 	DisplayKey  string     // ze:display-key leaf name for UI label (keyless lists)
 	Unique      [][]string // YANG unique constraints: each sub-slice is leaf paths for one constraint
+	Required    [][]string // ze:required fields: must have value after config inheritance resolution
+	Suggest     [][]string // ze:suggest fields: shown in creation dialog but not mandatory
 	Description string     // YANG description for tooltips
 	children    map[string]Node
 	order       []string

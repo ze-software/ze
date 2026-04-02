@@ -877,6 +877,31 @@ bgp {
 
 ---
 
+## Custom YANG Extensions
+
+Ze defines custom extensions in `ze-extensions.yang` that control config parsing, validation, and UI behavior:
+
+| Extension | Argument | Applied to | Purpose |
+|-----------|----------|------------|---------|
+| `ze:syntax` | mode | any node | Parser syntax mode (flex, freeform, inline-list, etc.) |
+| `ze:key-type` | type | inline-list | Key type for inline lists |
+| `ze:sensitive` | -- | leaf | Marks leaf as containing sensitive data |
+| `ze:validate` | name | leaf | References a custom validator function |
+| `ze:cumulative` | -- | leaf-list | Accumulate values across config inheritance levels |
+| `ze:decorate` | name | leaf | Attaches display-time decorator for web UI |
+| `ze:required` | path | list | Field must have value after config inheritance resolution |
+| `ze:suggest` | path | list | Field shown in creation form with inherited defaults |
+| `ze:listener` | -- | container/list | Marks a network listener for port conflict detection |
+| `ze:command` | handler | container | Marks a config-false container as executable CLI command |
+| `ze:edit-shortcut` | -- | command | Available in edit mode as shortcut |
+| `ze:display-key` | -- | leaf | Display label for keyless list entries in web UI |
+| `ze:allow-unknown-fields` | -- | container | Container accepts arbitrary key-value pairs |
+| `ze:route-attributes` | -- | inline-list | Node accepts standard BGP route attributes |
+
+<!-- source: internal/component/config/yang/modules/ze-extensions.yang -- all ze: extensions -->
+
+---
+
 ## Related
 
 - [ExaBGP Legacy Syntax](exabgp-syntax.md) -- `static`, `announce`, `flow` blocks accepted for migration

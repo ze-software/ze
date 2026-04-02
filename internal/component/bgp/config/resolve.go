@@ -5,6 +5,7 @@ package bgpconfig
 import (
 	"fmt"
 	"net/netip"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
@@ -137,6 +138,73 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 	}
 
 	return result, nil
+}
+
+// CheckRequiredFields validates that all ze:required fields on the peer list schema
+// have non-empty values in every resolved peer map. Called after ResolveBGPTree by
+// callers that need config validation (cmd_validate, PeersFromConfigTree).
+func CheckRequiredFields(schema *config.Schema, bgpTree map[string]any) error {
+	peerMap, ok := bgpTree["peer"].(map[string]any)
+	if !ok {
+		return nil // No peers to validate.
+	}
+
+	// Look up the peer list schema to get Required fields.
+	bgpNode := schema.Get("bgp")
+	if bgpNode == nil {
+		return nil
+	}
+	bgpContainer, ok := bgpNode.(*config.ContainerNode)
+	if !ok {
+		return nil
+	}
+	peerListNode, ok := bgpContainer.Get("peer").(*config.ListNode)
+	if !ok {
+		return nil
+	}
+	if len(peerListNode.Required) == 0 {
+		return nil
+	}
+
+	for peerName, v := range peerMap {
+		peer, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, reqPath := range peerListNode.Required {
+			if !hasNestedValue(peer, reqPath) {
+				return fmt.Errorf("peer %s: missing required field %q", peerName, joinFieldPath(reqPath))
+			}
+		}
+	}
+	return nil
+}
+
+// hasNestedValue checks if a map has a non-empty value at the given path.
+func hasNestedValue(m map[string]any, path []string) bool {
+	current := m
+	for i, key := range path {
+		val, exists := current[key]
+		if !exists {
+			return false
+		}
+		if i == len(path)-1 {
+			// Leaf: check non-empty.
+			s, ok := val.(string)
+			return !ok || s != ""
+		}
+		next, ok := val.(map[string]any)
+		if !ok {
+			return false
+		}
+		current = next
+	}
+	return false
+}
+
+// joinFieldPath joins path segments with "/".
+func joinFieldPath(parts []string) string {
+	return strings.Join(parts, "/")
 }
 
 // checkDuplicateRemoteIPs checks that no two peers share the same connection > remote > ip value.

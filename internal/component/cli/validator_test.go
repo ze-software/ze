@@ -912,3 +912,39 @@ func TestValidateSetFormat(t *testing.T) {
 		})
 	}
 }
+
+// TestValidatePeer_MissingRequiredField verifies that the generic ze:required check
+// produces warnings for missing required fields after group merge.
+// VALIDATES: AC-10 -- editor validation error with field name.
+// PREVENTS: Missing required fields not caught by editor validation.
+func TestValidatePeer_MissingRequiredField(t *testing.T) {
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
+
+	// Peer missing connection/remote/ip -- should warn.
+	content := `bgp {
+  router-id 1.1.1.1
+  session {
+    asn {
+      local 65000
+    }
+  }
+  peer test_peer {
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}`
+	result := v.Validate(content)
+
+	var found bool
+	for _, w := range result.Warnings {
+		if strings.Contains(w.Message, "connection/remote/ip") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected warning about missing connection/remote/ip, got warnings: %v", result.Warnings)
+}

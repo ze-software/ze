@@ -22,6 +22,22 @@ Peers are keyed by name (`peer <name> { }`) with IP and AS in nested containers:
 <!-- source: internal/component/bgp/config/peers.go -- peer config parsing -->
 <!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- BGP config YANG schema -->
 
+### Required Field Validation
+
+The `ze:required` and `ze:suggest` YANG extensions declare which fields must be present in a peer after config inheritance resolution (bgp -> group -> peer merge).
+
+| Extension | Behavior |
+|-----------|----------|
+| `ze:required` | Field must have a value after inheritance. Validated at `ze config validate`, editor commit, and daemon startup. |
+| `ze:suggest` | Field shown in the web creation form with inherited defaults but not mandatory. |
+
+Peer required fields: `connection/remote/ip`, `session/asn/local`, `session/asn/remote`. Suggested: `connection/local/ip`.
+
+Fields can be satisfied by inheritance: `session/asn/local` set at bgp level satisfies the requirement for all peers; `session/asn/remote` set at group level satisfies it for group members.
+
+<!-- source: internal/component/config/yang/modules/ze-extensions.yang -- ze:required, ze:suggest extensions -->
+<!-- source: internal/component/bgp/config/resolve.go -- CheckRequiredFields -->
+
 ### Prefix Limits (RFC 4486)
 
 Per-peer per-family prefix maximum enforcement. Mandatory for every negotiated family.

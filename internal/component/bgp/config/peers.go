@@ -48,6 +48,11 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 		return nil, err
 	}
 
+	// Step 1a: Validate required fields after inheritance resolution.
+	if err := CheckRequiredFields(schema, bgpTree); err != nil {
+		return nil, err
+	}
+
 	// Step 1b: Apply YANG schema defaults to each peer map.
 	// This makes YANG the single source of truth for RFC defaults
 	// (hold-time, connect-retry, port, etc.) instead of Go constants.

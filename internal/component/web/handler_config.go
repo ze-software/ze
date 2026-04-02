@@ -284,6 +284,21 @@ func HandleConfigAdd(mgr *EditorManager, schema *config.Schema, renderer *Render
 			return
 		}
 
+		// Enforce ze:required fields: reject if missing and no inherited value.
+		if ln, ok := listNode.(*config.ListNode); ok && len(ln.Required) > 0 {
+			parentTree := resolveParentDefaults(tree, schema, listPath)
+			for _, reqPath := range ln.Required {
+				fieldStr := strings.Join(reqPath, "/")
+				formVal := strings.TrimSpace(r.FormValue("field:" + fieldStr))
+				inherited := resolveInheritedValue(parentTree, fieldStr)
+				if formVal == "" && inherited == "" {
+					returnAddError(w, r, renderer, schema, mgr, username, listPath,
+						fmt.Sprintf("required field %q is missing", fieldStr))
+					return
+				}
+			}
+		}
+
 		// Collect and validate field values before any mutation.
 		type fieldSet struct {
 			fieldPath, leaf, parentSuffix, value string
@@ -385,7 +400,8 @@ func returnAddError(w http.ResponseWriter, r *http.Request, renderer *Renderer, 
 }
 
 // HandleConfigAddForm returns a GET handler for /config/add-form/<yang-path>/.
-// It renders an overlay form with inputs for the list key and unique fields.
+// It renders an overlay form with inputs for the list key, required, suggest, and unique fields.
+// Required and suggest fields are resolved from the config tree for inherited defaults.
 func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Renderer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		username := GetUsernameFromRequest(r)
@@ -421,6 +437,8 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 		type formField struct {
 			Path        string
 			Placeholder string
+			Category    string // "required", "suggest", or "unique"
+			Inherited   string // pre-filled inherited value (empty if none)
 		}
 
 		listName := strings.ToUpper(listPath[len(listPath)-1][:1]) + listPath[len(listPath)-1][1:]
@@ -442,10 +460,44 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 			DisplayKey: displayKey,
 		}
 
-		for _, field := range collectUniqueFields(listNode) {
+		// Resolve inherited defaults from parent context in the config tree.
+		tree := mgr.Tree(username)
+		parentTree := resolveParentDefaults(tree, schema, listPath)
+
+		// Track fields already added to avoid duplicates (required/suggest may overlap unique).
+		seen := make(map[string]bool)
+
+		for _, field := range collectRequiredFields(listNode) {
+			seen[field] = true
 			data.Fields = append(data.Fields, formField{
 				Path:        field,
 				Placeholder: resolveLeafDescription(listNode, field),
+				Category:    "required",
+				Inherited:   resolveInheritedValue(parentTree, field),
+			})
+		}
+
+		for _, field := range collectSuggestFields(listNode) {
+			if seen[field] {
+				continue
+			}
+			seen[field] = true
+			data.Fields = append(data.Fields, formField{
+				Path:        field,
+				Placeholder: resolveLeafDescription(listNode, field),
+				Category:    "suggest",
+				Inherited:   resolveInheritedValue(parentTree, field),
+			})
+		}
+
+		for _, field := range collectUniqueFields(listNode) {
+			if seen[field] {
+				continue
+			}
+			data.Fields = append(data.Fields, formField{
+				Path:        field,
+				Placeholder: resolveLeafDescription(listNode, field),
+				Category:    "unique",
 			})
 		}
 
@@ -455,6 +507,64 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 			return
 		}
 	}
+}
+
+// resolveParentDefaults walks the config tree to find the parent context for a list path.
+// For bgp/group/<name>/peer, it returns the group entry tree (inheritable defaults).
+// For bgp/peer, it returns the bgp container tree (bgp-level defaults).
+// Returns nil if no tree or path is too short.
+func resolveParentDefaults(tree *config.Tree, _ *config.Schema, listPath []string) *config.Tree {
+	if tree == nil || len(listPath) < 2 {
+		return nil
+	}
+	// Walk to the parent of the list. Segments alternate between container/list
+	// names and list entry keys.
+	parentPath := listPath[:len(listPath)-1]
+	current := tree
+	for i := 0; i < len(parentPath); i++ {
+		seg := parentPath[i]
+		// Try container first.
+		if child := current.GetContainer(seg); child != nil {
+			current = child
+			continue
+		}
+		// Try as a list name with the next segment as entry key.
+		if i+1 < len(parentPath) {
+			entries := current.GetList(seg)
+			if entry, ok := entries[parentPath[i+1]]; ok {
+				current = entry
+				i++ // Skip the key segment.
+				continue
+			}
+		}
+		return nil
+	}
+	return current
+}
+
+// resolveInheritedValue looks up a slash-separated field path in a config tree.
+// Returns the leaf value if found, empty string otherwise.
+func resolveInheritedValue(tree *config.Tree, field string) string {
+	if tree == nil {
+		return ""
+	}
+	parts := strings.Split(field, "/")
+	current := tree
+	for i, part := range parts {
+		if i == len(parts)-1 {
+			val, exists := current.Get(part)
+			if exists {
+				return val
+			}
+			return ""
+		}
+		child := current.GetContainer(part)
+		if child == nil {
+			return ""
+		}
+		current = child
+	}
+	return ""
 }
 
 // HandleConfigChanges returns a GET handler for /config/changes that returns

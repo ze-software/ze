@@ -723,6 +723,24 @@ func collectUniqueFields(listNode *config.ListNode) []string {
 	return fields
 }
 
+// collectRequiredFields returns all distinct leaf paths from a list's ze:required extensions.
+func collectRequiredFields(listNode *config.ListNode) []string {
+	fields := make([]string, 0, len(listNode.Required))
+	for _, path := range listNode.Required {
+		fields = append(fields, strings.Join(path, "/"))
+	}
+	return fields
+}
+
+// collectSuggestFields returns all distinct leaf paths from a list's ze:suggest extensions.
+func collectSuggestFields(listNode *config.ListNode) []string {
+	fields := make([]string, 0, len(listNode.Suggest))
+	for _, path := range listNode.Suggest {
+		fields = append(fields, strings.Join(path, "/"))
+	}
+	return fields
+}
+
 // buildListTable builds a ListTableView for a list with unique constraints.
 func buildListTable(tree *config.Tree, schema *config.Schema, prefix []string, listNode *config.ListNode, keys, uniqueFields []string, baseURL string) *ListTableView {
 	listName := prefix[len(prefix)-1]

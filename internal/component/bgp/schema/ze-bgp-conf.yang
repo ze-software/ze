@@ -70,6 +70,10 @@ module ze-bgp-conf {
             list peer {
                 key "name";
                 unique "connection/remote/ip";
+                ze:required "connection/remote/ip";
+                ze:required "session/asn/local";
+                ze:required "session/asn/remote";
+                ze:suggest "connection/local/ip";
                 description "BGP peer in this group";
 
                 leaf name {
@@ -87,6 +91,10 @@ module ze-bgp-conf {
         list peer {
             key "name";
             unique "connection/remote/ip";
+            ze:required "connection/remote/ip";
+            ze:required "session/asn/local";
+            ze:required "session/asn/remote";
+            ze:suggest "connection/local/ip";
             description "BGP peer configuration (standalone, no group)";
 
             leaf name {

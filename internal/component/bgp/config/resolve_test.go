@@ -1614,3 +1614,113 @@ func TestValidatePeerName(t *testing.T) {
 		})
 	}
 }
+
+// TestCheckRequiredFields_MissingRequiredField verifies that a peer missing a required field
+// after resolution produces an error naming the peer and missing field.
+// VALIDATES: AC-3 -- error on missing required field.
+// PREVENTS: Incomplete peers accepted at config validation time.
+func TestCheckRequiredFields_MissingRequiredField(t *testing.T) {
+	schema := testSchema(t)
+
+	// Peer has connection/remote/ip but no session/asn/remote.
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	bgpSession := config.NewTree()
+	bgpASN := config.NewTree()
+	bgpASN.Set("local", "65000")
+	bgpSession.SetContainer("asn", bgpASN)
+	bgp.SetContainer("session", bgpSession)
+
+	peer := config.NewTree()
+	conn := config.NewTree()
+	remote := config.NewTree()
+	remote.Set("ip", "10.0.0.1")
+	conn.SetContainer("remote", remote)
+	peer.SetContainer("connection", conn)
+	// No session/asn/remote set on the peer.
+
+	bgp.AddListEntry("peer", "test_peer", peer)
+	tree.SetContainer("bgp", bgp)
+
+	bgpTree, err := ResolveBGPTree(tree)
+	require.NoError(t, err)
+
+	err = CheckRequiredFields(schema, bgpTree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "test_peer")
+	assert.Contains(t, err.Error(), "session/asn/remote")
+}
+
+// TestCheckRequiredFields_RequiredFieldInherited verifies that an inherited required field
+// satisfies the check (no error).
+// VALIDATES: AC-4 -- inherited value satisfies required.
+// PREVENTS: False positive when required field comes from bgp-level inheritance.
+func TestCheckRequiredFields_RequiredFieldInherited(t *testing.T) {
+	schema := testSchema(t)
+
+	tree := config.NewTree()
+	bgp := config.NewTree()
+
+	// BGP-level provides session/asn/local.
+	bgpSession := config.NewTree()
+	bgpASN := config.NewTree()
+	bgpASN.Set("local", "65000")
+	bgpSession.SetContainer("asn", bgpASN)
+	bgp.SetContainer("session", bgpSession)
+
+	// Peer provides connection/remote/ip and session/asn/remote.
+	peer := newTestPeer("10.0.0.1", "65001")
+
+	bgp.AddListEntry("peer", "test_peer", peer)
+	tree.SetContainer("bgp", bgp)
+
+	bgpTree, err := ResolveBGPTree(tree)
+	require.NoError(t, err)
+
+	// session/asn/local is inherited from bgp level -- should pass.
+	err = CheckRequiredFields(schema, bgpTree)
+	assert.NoError(t, err)
+}
+
+// TestCheckRequiredFields_MissingRemoteIP verifies that a standalone peer missing
+// connection/remote/ip produces an error.
+// VALIDATES: AC-5 -- error on standalone peer missing remote IP.
+// PREVENTS: Peers without remote IP accepted at config time.
+func TestCheckRequiredFields_MissingRemoteIP(t *testing.T) {
+	schema := testSchema(t)
+
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	bgpSession := config.NewTree()
+	bgpASN := config.NewTree()
+	bgpASN.Set("local", "65000")
+	bgpSession.SetContainer("asn", bgpASN)
+	bgp.SetContainer("session", bgpSession)
+
+	// Peer has session/asn/remote but no connection/remote/ip.
+	peer := config.NewTree()
+	peerSession := config.NewTree()
+	peerASN := config.NewTree()
+	peerASN.Set("remote", "65001")
+	peerSession.SetContainer("asn", peerASN)
+	peer.SetContainer("session", peerSession)
+
+	bgp.AddListEntry("peer", "test_peer", peer)
+	tree.SetContainer("bgp", bgp)
+
+	bgpTree, err := ResolveBGPTree(tree)
+	require.NoError(t, err)
+
+	err = CheckRequiredFields(schema, bgpTree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "test_peer")
+	assert.Contains(t, err.Error(), "connection/remote/ip")
+}
+
+// testSchema loads the YANG schema for test use.
+func testSchema(t *testing.T) *config.Schema {
+	t.Helper()
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	return schema
+}

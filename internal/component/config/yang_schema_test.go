@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -1207,4 +1208,69 @@ func TestProcessReceiveAcceptsStrings(t *testing.T) {
 			require.NoError(t, err, "YANG should accept %s (runtime validates)", tt.field)
 		})
 	}
+}
+
+// TestListNodeRequiredParsing verifies that ze:required extensions on a list node
+// are parsed into ListNode.Required as split path segments.
+// VALIDATES: AC-1 -- ze:required parsed into ListNode.Required
+// PREVENTS: Required field paths silently dropped during YANG-to-schema conversion.
+func TestListNodeRequiredParsing(t *testing.T) {
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+
+	bgpNode := schema.Get("bgp")
+	require.NotNil(t, bgpNode)
+	bgp, ok := bgpNode.(*ContainerNode)
+	require.True(t, ok)
+
+	peerNode := bgp.Get("peer")
+	require.NotNil(t, peerNode)
+	peer, ok := peerNode.(*ListNode)
+	require.True(t, ok)
+
+	// Peer list should have ze:required fields parsed.
+	require.NotEmpty(t, peer.Required, "peer list should have Required fields from ze:required")
+
+	// Check specific required fields from ze-bgp-conf.yang.
+	found := map[string]bool{}
+	for _, req := range peer.Required {
+		found[joinSlashPath(req)] = true
+	}
+	assert.True(t, found["connection/remote/ip"], "connection/remote/ip should be required")
+	assert.True(t, found["session/asn/local"], "session/asn/local should be required")
+	assert.True(t, found["session/asn/remote"], "session/asn/remote should be required")
+}
+
+// TestListNodeSuggestParsing verifies that ze:suggest extensions on a list node
+// are parsed into ListNode.Suggest as split path segments.
+// VALIDATES: AC-2 -- ze:suggest parsed into ListNode.Suggest
+// PREVENTS: Suggest field paths silently dropped during YANG-to-schema conversion.
+func TestListNodeSuggestParsing(t *testing.T) {
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+
+	bgpNode := schema.Get("bgp")
+	require.NotNil(t, bgpNode)
+	bgp, ok := bgpNode.(*ContainerNode)
+	require.True(t, ok)
+
+	peerNode := bgp.Get("peer")
+	require.NotNil(t, peerNode)
+	peer, ok := peerNode.(*ListNode)
+	require.True(t, ok)
+
+	// Peer list should have ze:suggest fields parsed.
+	require.NotEmpty(t, peer.Suggest, "peer list should have Suggest fields from ze:suggest")
+
+	// Check specific suggest fields from ze-bgp-conf.yang.
+	found := map[string]bool{}
+	for _, sug := range peer.Suggest {
+		found[joinSlashPath(sug)] = true
+	}
+	assert.True(t, found["connection/local/ip"], "connection/local/ip should be suggested")
+}
+
+// joinSlashPath joins path segments with "/".
+func joinSlashPath(parts []string) string {
+	return strings.Join(parts, "/")
 }

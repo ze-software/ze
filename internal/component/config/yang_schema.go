@@ -517,6 +517,20 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 		}
 	}
 
+	// Extract ze:required and ze:suggest extensions from Entry.Exts.
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:required" || strings.HasSuffix(ext.Keyword, ":required") {
+			if fields := strings.Split(ext.Argument, "/"); len(fields) > 0 && fields[0] != "" {
+				l.Required = append(l.Required, fields)
+			}
+		}
+		if ext.Keyword == "ze:suggest" || strings.HasSuffix(ext.Keyword, ":suggest") {
+			if fields := strings.Split(ext.Argument, "/"); len(fields) > 0 && fields[0] != "" {
+				l.Suggest = append(l.Suggest, fields)
+			}
+		}
+	}
+
 	return l
 }
 

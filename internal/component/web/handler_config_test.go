@@ -692,3 +692,75 @@ func TestHandleConfigCommitPOST(t *testing.T) {
 	assert.Equal(t, "/", rec.Header().Get("Location"),
 		"commit must redirect to root")
 }
+
+// TestResolveInheritedDefaults_Group verifies that the form resolver picks up
+// group-level inherited values for required fields.
+// VALIDATES: AC-6 -- group-level values resolved for form.
+// PREVENTS: Required fields shown as empty when group provides defaults.
+func TestResolveInheritedDefaults_Group(t *testing.T) {
+	// Build a tree: bgp { group ibgp { session { asn { remote 65000 } } } }
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	groupEntry := config.NewTree()
+	session := config.NewTree()
+	asn := config.NewTree()
+	asn.Set("remote", "65000")
+	session.SetContainer("asn", asn)
+	groupEntry.SetContainer("session", session)
+	bgp.AddListEntry("group", "ibgp", groupEntry)
+	tree.SetContainer("bgp", bgp)
+
+	parentTree := resolveParentDefaults(tree, nil, []string{"bgp", "group", "ibgp", "peer"})
+	require.NotNil(t, parentTree, "should resolve to group entry tree")
+
+	val := resolveInheritedValue(parentTree, "session/asn/remote")
+	assert.Equal(t, "65000", val, "group-level session/asn/remote should be inherited")
+}
+
+// TestResolveInheritedDefaults_BGPLevel verifies that the form resolver picks up
+// bgp-level inherited values for required fields.
+// VALIDATES: AC-7 -- bgp-level values resolved for form.
+// PREVENTS: Required fields shown as empty when bgp-level provides defaults.
+func TestResolveInheritedDefaults_BGPLevel(t *testing.T) {
+	// Build a tree: bgp { session { asn { local 65000 } } }
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	session := config.NewTree()
+	asn := config.NewTree()
+	asn.Set("local", "65000")
+	session.SetContainer("asn", asn)
+	bgp.SetContainer("session", session)
+	tree.SetContainer("bgp", bgp)
+
+	parentTree := resolveParentDefaults(tree, nil, []string{"bgp", "peer"})
+	require.NotNil(t, parentTree, "should resolve to bgp container tree")
+
+	val := resolveInheritedValue(parentTree, "session/asn/local")
+	assert.Equal(t, "65000", val, "bgp-level session/asn/local should be inherited")
+}
+
+// TestAddFormRejectsIncompleteRequired verifies that POST to /config/add/ rejects
+// when a required field is missing and has no inherited value.
+// VALIDATES: AC-9 -- POST rejected when required field missing.
+// PREVENTS: Peers created without required fields through the web UI.
+func TestAddFormRejectsIncompleteRequired(t *testing.T) {
+	mgr, schema := newHandlerTestManager(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	handler := HandleConfigAdd(mgr, schema, renderer)
+
+	// POST a new peer without connection/remote/ip (required, no inheritance possible).
+	formData := url.Values{
+		"name":                     {"test_peer"},
+		"field:session/asn/remote": {"65001"},
+	}
+	req := postConfigRequest(t, "/config/add/bgp/peer/", formData, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	// Should return 200 with error fragment (not 4xx -- HTMX pattern returns table + error).
+	body := rec.Body.String()
+	assert.Contains(t, body, "connection/remote/ip", "response should mention the missing required field")
+}

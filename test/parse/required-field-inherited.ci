@@ -1,0 +1,33 @@
+# Test: ze config validate accepts peer with inherited required field
+# Group provides session/asn/remote, so the peer inherits it.
+stdin=config:terminator=EOF_CONF
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    group ibgp {
+        session {
+            asn {
+                remote 65000
+            }
+        }
+        peer test_peer {
+            connection {
+                remote {
+                    ip 10.0.0.1
+                }
+                local {
+                    ip auto
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

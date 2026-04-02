@@ -1447,6 +1447,12 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 .add-entry-submit:hover { background: var(--accent-hover); }
 
+.add-entry-required .add-entry-label { color: var(--accent); font-weight: 600; }
+.add-entry-required .add-entry-input { border-color: var(--accent); }
+.add-entry-req-mark { color: var(--accent); }
+.add-entry-suggest .add-entry-label { color: var(--text-muted); }
+.add-entry-suggest .add-entry-input { border-color: var(--border); }
+
 .sidebar-add-input {
   color: var(--text-primary);
   background: var(--input-bg);

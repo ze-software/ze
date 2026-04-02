@@ -1,0 +1,23 @@
+# Test: ze config validate rejects peer missing required field
+# A standalone peer without session/asn/remote should fail validation.
+stdin=config:terminator=EOF_CONF
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer test_peer {
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=session/asn/remote

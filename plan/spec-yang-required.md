@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-03-31 |
+| Phase | 1/5 |
+| Updated | 2026-04-02 |
 
 ## Post-Compaction Recovery
 
@@ -16,7 +16,7 @@
 4. `internal/component/config/schema.go` - ListNode type (lines 154-162)
 5. `internal/component/config/yang_schema.go` - extension parsing (lines 261-520)
 6. `internal/component/bgp/config/resolve.go` - 3-layer inheritance resolution
-7. `internal/component/web/handler_config.go` - HandleConfigAddForm (lines 387-458)
+7. `internal/component/web/handler_config.go` - HandleConfigAddForm (lines 389-458)
 8. `internal/component/web/templates/component/add_form_overlay.html` - creation form
 
 ## Task
@@ -46,22 +46,25 @@ N/A - this is config infrastructure, not protocol work.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `ze-extensions.yang` - 10 custom extensions defined (syntax, key-type, route-attributes, allow-unknown-fields, sensitive, validate, command, edit-shortcut, display-key, cumulative, decorate). No required/suggest extensions exist.
+- [ ] `ze-extensions.yang` - 12 custom extensions defined (listener, syntax, key-type, route-attributes, allow-unknown-fields, sensitive, validate, command, edit-shortcut, display-key, cumulative, decorate). No required/suggest extensions exist.
 - [ ] `schema.go:154-162` - `ListNode` has `Unique [][]string` for YANG unique constraints. No Required or Suggest fields.
-- [ ] `yang_schema.go:261-360` - Extension parsing helpers iterate `entry.Exts`, match keyword suffix. Pattern: `for _, ext := range entry.Exts { if strings.HasSuffix(ext.Keyword, ":suffix") { return ext.Argument } }`.
+- [ ] `yang_schema.go:261-360` - Extension parsing helpers iterate `entry.Exts`, match keyword suffix. Pattern: `for _, ext := range entry.Exts { if strings.HasSuffix(ext.Keyword, ":suffix") { return ext.Argument } }`. `yangToList` (line 461-521) builds `ListNode` including unique constraint extraction.
 - [ ] `yang_schema.go:508-517` - Unique parsed from `entry.Extra["unique"]` (standard YANG), not from `entry.Exts` (custom extensions).
-- [ ] `resolve.go:22-169` - `ResolveBGPTree()` resolves 3 layers per peer, then calls `checkDuplicateRemoteIPs()`. No required-field validation exists.
-- [ ] `validator.go:169-233` - `validateWithYANG()` calls `checkDuplicateRemoteIPs()` and validates individual peers. Warns on missing `session/asn/remote` but does not enforce required fields generically.
-- [ ] `handler_config.go:387-458` - `HandleConfigAddForm()` reads schema only. Collects `collectUniqueFields()` for form fields. Has no access to config tree or inheritance context.
-- [ ] `fragment.go:712-724` - `collectUniqueFields()` returns distinct leaf paths from `listNode.Unique`. Used by form and list table.
+- [ ] `resolve.go:22-169` - `ResolveBGPTree(tree *config.Tree)` resolves 3 layers per peer, then calls `checkDuplicateRemoteIPs()`. No required-field validation exists. Signature unchanged -- `CheckRequiredFields` is a separate exported function (see Decision below).
+- [ ] `validator.go:167-281` - `validateWithYANG()` (line 169) validates peers and BGP-level fields via YANG. `validatePeer()` (line 237) validates individual peers, includes ad-hoc `session/asn/remote` check at lines 266-280 (warns if missing). This is the check to replace with generic `ze:required`.
+- [ ] `reactor/config.go:45-55` - `PeersFromTree()` has a runtime guard for `session > asn > remote`. This is a runtime check, NOT config validation -- it remains unchanged by this spec.
+- [ ] `bgp/plugins/cmd/peer/peer.go:304-313` and `save.go:87-89` - CLI "peer with" and peer save operations also check `session/asn/remote`. These are command-level guards -- they remain unchanged.
+- [ ] `handler_config.go:389-458` - `HandleConfigAddForm()` receives `*EditorManager` (provides tree access via `mgr.Tree(username)`) and `*config.Schema`. Currently only uses schema: collects `collectUniqueFields()` for form fields, resolves YANG descriptions via `resolveLeafDescription()`. Does not use tree for inheritance resolution yet.
+- [ ] `fragment.go:712-724` - `collectUniqueFields()` returns distinct leaf paths from `listNode.Unique`. Used by form (`handler_config.go:445`) and list table (`buildListTable` at line 727). `resolveLeafDescription()` at line 786 resolves YANG descriptions for fields -- reusable for required/suggest fields.
 - [ ] `add_form_overlay.html` - Renders key field + unique fields. No visual distinction between field categories. No inheritance-aware defaults.
-- [ ] `ze-bgp-conf.yang:75-105` - Peer lists have `unique "connection/remote/ip"` but no required declarations. IP fields added via augment (peer-only, not group).
+- [ ] `ze-bgp-conf.yang:70-100` - Peer lists (group peer at line 70, standalone peer at line 87) have `unique "connection/remote/ip"` but no required declarations. `connection/remote/ip` is in the shared `peer-fields` grouping (line 172), NOT added via augment -- it is structurally inheritable from group level (though `unique` constraint makes group-level defaults impractical for multi-peer groups).
 
 **Behavior to preserve:**
 - Unique constraint enforcement (both web and resolve.go) unchanged
 - 3-layer inheritance resolution logic unchanged
 - Creation form still works for lists without required/suggest (backwards compatible)
 - Config editing never blocked by required/suggest (validation only at commit/validate time)
+- Runtime guards in `reactor/config.go` (PeersFromTree) and `bgp/plugins/cmd/peer/` (CLI commands) remain -- they serve as last-resort runtime checks, independent of config validation
 
 **Behavior to change:**
 - Creation form shows required and suggested fields (in addition to unique fields)
@@ -83,8 +86,8 @@ N/A - this is config infrastructure, not protocol work.
 2. Schema building: `yang_schema.go` extracts `ze:required`/`ze:suggest` from `Entry.Exts`, stores in `ListNode.Required`/`ListNode.Suggest`
 3. Form rendering: `HandleConfigAddForm()` collects required + suggest + unique fields, resolves inherited defaults from config tree, passes categorized fields to template
 4. Form display: template renders required fields (grouped, colored) and suggest fields (grouped, optional), submit button state tracks required field completion
-5. Config resolution: `ResolveBGPTree()` calls `checkRequiredFields()` after merge, returns error for missing required fields
-6. Editor validation: `validateWithYANG()` checks required fields with line-number context
+5. Config resolution: `CheckRequiredFields(schema, peerMap)` called after `ResolveBGPTree()` by callers that need validation (`cmd_validate.go`, `peers.go`)
+6. Editor validation: `validatePeer()` checks required fields using `v.schema` with line-number context
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -92,14 +95,14 @@ N/A - this is config infrastructure, not protocol work.
 | YANG -> Schema | Extension parsing in yang_schema.go | [ ] |
 | Schema -> Web | ListNode.Required/Suggest read by handler | [ ] |
 | Config Tree -> Form | Inherited values resolved from tree hierarchy | [ ] |
-| Resolved Map -> Validation | checkRequiredFields() on post-resolve peer map | [ ] |
+| Resolved Map -> Validation | CheckRequiredFields(schema, peerMap) called by cmd_validate and peers.go | [ ] |
 
 ### Integration Points
 - `ListNode` struct - add Required and Suggest fields (same type as Unique)
 - `collectUniqueFields()` - expand or complement with new collection function
-- `HandleConfigAddForm()` - add config tree parameter for inheritance resolution
-- `ResolveBGPTree()` - add checkRequiredFields() call after checkDuplicateRemoteIPs()
-- `validateWithYANG()` - add required field check in editor validation
+- `HandleConfigAddForm()` - use existing `mgr.Tree(username)` for inheritance resolution (no new parameter needed)
+- `CheckRequiredFields(schema, peerMap)` - separate post-resolve function in `resolve.go`; called by `cmd_validate.go` and `peers.go` (not by `plugins.go`, `cmd_dump.go`, `cmd_diff.go`)
+- `validatePeer()` - replace ad-hoc `session/asn/remote` check with generic required field check using `v.schema`
 
 ### Architectural Verification
 - [ ] No bypassed layers (validation in resolve.go, editor, and web - all three)
@@ -111,8 +114,8 @@ N/A - this is config infrastructure, not protocol work.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| Config with peer missing remote-as (no group inheritance) | -> | `checkRequiredFields()` in resolve.go | `test/parse/required-field-missing.ci` |
-| Config with peer inheriting local-as from bgp level | -> | `checkRequiredFields()` passes (inherited) | `test/parse/required-field-inherited.ci` |
+| `ze config validate -` with standalone peer missing remote-as | -> | `CheckRequiredFields()` in resolve.go via cmd_validate.go | `test/parse/required-field-missing.ci` |
+| `ze config validate -` with group providing local-as | -> | `CheckRequiredFields()` passes (inherited) via cmd_validate.go | `test/parse/required-field-inherited.ci` |
 | Web creation form for peer in group | -> | `HandleConfigAddForm()` shows inherited defaults | `TestAddFormShowsInheritedDefaults` |
 | Web creation form submit without required field | -> | `HandleConfigAdd()` rejects | `TestAddFormRejectsIncompleteRequired` |
 
@@ -124,7 +127,7 @@ N/A - this is config infrastructure, not protocol work.
 | AC-2 | YANG schema with `ze:suggest "connection/local/ip"` on peer list | `ListNode.Suggest` contains `["connection", "local", "ip"]` after schema build |
 | AC-3 | Config with peer missing `session/asn/remote`, no group provides it | `ResolveBGPTree()` returns error naming the peer and missing field |
 | AC-4 | Config with peer missing `session/asn/local`, but bgp-level provides it | `ResolveBGPTree()` succeeds (inherited value satisfies required) |
-| AC-5 | Config with peer missing `connection/remote/ip`, no inheritance possible | `ResolveBGPTree()` returns error (remote IP is peer-only, cannot inherit) |
+| AC-5 | Config with standalone peer missing `connection/remote/ip`, no group to inherit from | `ResolveBGPTree()` returns error naming the peer and missing field |
 | AC-6 | Web creation form for peer in group where group sets remote-as | Form shows `session/asn/remote` field pre-filled with group's value |
 | AC-7 | Web creation form for standalone peer (no group, bgp has local-as) | Form shows `session/asn/local` field pre-filled with bgp-level value |
 | AC-8 | Web creation form: required fields visually distinct from suggest fields | Required fields have different color/grouping than suggest fields |
@@ -141,7 +144,7 @@ N/A - this is config infrastructure, not protocol work.
 | `TestListNodeSuggestParsing` | `internal/component/config/yang_schema_test.go` | AC-2: ze:suggest parsed into ListNode.Suggest | |
 | `TestResolveBGPTree_MissingRequiredField` | `internal/component/bgp/config/resolve_test.go` | AC-3: error on missing required field | |
 | `TestResolveBGPTree_RequiredFieldInherited` | `internal/component/bgp/config/resolve_test.go` | AC-4: inherited field satisfies required | |
-| `TestResolveBGPTree_MissingRemoteIP` | `internal/component/bgp/config/resolve_test.go` | AC-5: error on missing remote IP | |
+| `TestResolveBGPTree_MissingRemoteIP` | `internal/component/bgp/config/resolve_test.go` | AC-5: error on standalone peer missing remote IP | |
 | `TestCollectFormFields_RequiredAndSuggest` | `internal/component/web/fragment_test.go` | Required + suggest + unique fields collected and categorized | |
 | `TestResolveInheritedDefaults_Group` | `internal/component/web/handler_config_test.go` | AC-6: group-level values resolved for form | |
 | `TestResolveInheritedDefaults_BGPLevel` | `internal/component/web/handler_config_test.go` | AC-7: bgp-level values resolved for form | |
@@ -154,9 +157,9 @@ N/A - no numeric inputs in this feature. Fields are string paths and string valu
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `required-field-missing` | `test/parse/required-field-missing.ci` | Config with peer missing remote-as fails validation | |
-| `required-field-inherited` | `test/parse/required-field-inherited.ci` | Config with inherited local-as passes validation | |
-| `required-field-all-present` | `test/parse/required-field-all-present.ci` | Config with all required fields passes | |
+| `required-field-missing` | `test/parse/required-field-missing.ci` | `ze config validate -` with peer missing remote-as, expect exit code 1 + error message naming peer and field | |
+| `required-field-inherited` | `test/parse/required-field-inherited.ci` | `ze config validate -` with group providing remote-as, expect exit code 0 | |
+| `required-field-all-present` | `test/parse/required-field-all-present.ci` | `ze config validate -` with all required fields present, expect exit code 0 | |
 
 ### Future (if deferring any tests)
 - Web UI visual tests (color/button state) are not automatable in .ci -- verified by manual inspection during implementation
@@ -166,12 +169,14 @@ N/A - no numeric inputs in this feature. Fields are string paths and string valu
 - `internal/component/bgp/schema/ze-bgp-conf.yang` - add ze:required/ze:suggest on both peer lists
 - `internal/component/config/schema.go` - add Required and Suggest fields to ListNode
 - `internal/component/config/yang_schema.go` - parse ze:required/ze:suggest from Entry.Exts
-- `internal/component/bgp/config/resolve.go` - add checkRequiredFields() after checkDuplicateRemoteIPs()
-- `internal/component/cli/validator.go` - add required field check in validateWithYANG()
+- `internal/component/bgp/config/resolve.go` - add exported `CheckRequiredFields(schema *config.Schema, peerMap map[string]any) error`
+- `internal/component/bgp/config/peers.go` - call `CheckRequiredFields(schema, bgpTree)` after `ResolveBGPTree` (line 46); schema already loaded at line 39
+- `cmd/ze/config/cmd_validate.go` - call `CheckRequiredFields(schema, bgpTree)` after `ResolveBGPTree` (line 206); schema already available
+- `internal/component/cli/validator.go` - replace ad-hoc `session/asn/remote` check (lines 266-280) in `validatePeer()` with generic required field check using `v.schema`
 - `internal/component/web/fragment.go` - expand or add field collection for required/suggest
-- `internal/component/web/handler_config.go` - HandleConfigAddForm: resolve inherited values, categorize fields; HandleConfigAdd: enforce required on POST
+- `internal/component/web/handler_config.go` - HandleConfigAddForm: use existing `mgr.Tree(username)` for inherited values, categorize fields; HandleConfigAdd (line 231): enforce required on POST
 - `internal/component/web/templates/component/add_form_overlay.html` - visual grouping, colors, button state
-- `internal/component/web/assets/ze.css` (or equivalent) - styles for required/suggest field groups
+- `internal/component/web/assets/style.css` - styles for required/suggest field groups
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -233,23 +238,25 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: tests fail -> implement -> tests pass
 
 2. **Phase: Post-resolve validation** -- Enforce required fields after inheritance
-   - Add `checkRequiredFields()` in `resolve.go`, called after `checkDuplicateRemoteIPs()`
-   - Function walks each resolved peer map, checks each Required path has a non-empty value
+   - Add exported `CheckRequiredFields(schema *config.Schema, peerMap map[string]any) error` in `resolve.go`
+   - Function looks up peer list's `ListNode.Required` from schema, walks each resolved peer map, checks each Required path has a non-empty value
+   - Wire into `peers.go:PeersFromConfigTree` (after line 46, schema already at line 39) and `cmd_validate.go` (after line 206, schema already available)
    - Tests: `TestResolveBGPTree_MissingRequiredField`, `TestResolveBGPTree_RequiredFieldInherited`, `TestResolveBGPTree_MissingRemoteIP`
    - Verify: tests fail -> implement -> tests pass
 
 3. **Phase: Editor validation** -- Required field check in CLI editor
-   - Add required field validation in `validateWithYANG()` in `validator.go`
+   - Add required field validation in `validatePeer()` in `validator.go`, replacing ad-hoc `session/asn/remote` check (lines 266-280)
+   - `ConfigValidator` already has `schema *config.Schema` (line 54) -- use it to look up `ListNode.Required`
    - Merge group defaults before checking (existing `mergeGroupDefaults()`)
    - Tests: `TestValidatePeer_MissingRequiredField`
    - Verify: tests fail -> implement -> tests pass
 
 4. **Phase: Web creation form** -- Inheritance-aware form with visual grouping
    - Expand field collection in `fragment.go` to return categorized fields (required/suggest/unique)
-   - Update `HandleConfigAddForm()` to accept config tree, resolve inherited defaults per field
+   - Update `HandleConfigAddForm()` to use existing `mgr.Tree(username)` for inherited defaults per field
    - Update `HandleConfigAdd()` to enforce required fields on POST (reject if missing and no inherited value)
    - Update `add_form_overlay.html` with visual grouping, colors, conditional submit button
-   - Add CSS for required (distinct color/border) vs suggest (separate group, optional appearance)
+   - Add CSS in `style.css` for required (distinct color/border) vs suggest (separate group, optional appearance)
    - Tests: `TestCollectFormFields_RequiredAndSuggest`, `TestResolveInheritedDefaults_Group`, `TestResolveInheritedDefaults_BGPLevel`, `TestAddFormRejectsIncompleteRequired`
    - Verify: tests fail -> implement -> tests pass
 
@@ -264,10 +271,10 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has implementation with file:line |
-| Correctness | Required validation fires post-resolve only (not pre-resolve). Inherited values satisfy required. |
+| Correctness | Required validation fires post-resolve only (not pre-resolve). Inherited values satisfy required. `CheckRequiredFields` wired into `peers.go` and `cmd_validate.go`. |
 | Naming | YANG extensions use `ze:required` and `ze:suggest` (kebab-case). Error messages name the peer and field path. |
 | Data flow | Schema -> ListNode -> form/validation. No validation in parser or tree builder. |
-| Rule: no-layering | No old validation code kept alongside new. Existing `session/asn/remote` warning in validator.go replaced by generic required check. |
+| Rule: no-layering | Ad-hoc `session/asn/remote` check in `validator.go:266-280` replaced by generic required check. Runtime guards in `reactor/config.go` and `bgp/plugins/cmd/peer/` remain (different purpose: last-resort runtime validation, not config validation). |
 | Backwards compat | Lists without ze:required/ze:suggest unchanged. No new mandatory YANG statements for existing lists. |
 
 ### Deliverables Checklist (/implement stage 9)
@@ -277,9 +284,12 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | `ze:suggest` extension in ze-extensions.yang | `grep "extension suggest" ze-extensions.yang` |
 | `ze:required` on both peer lists in ze-bgp-conf.yang | `grep "ze:required" ze-bgp-conf.yang` |
 | `ListNode.Required` field in schema.go | `grep "Required" schema.go` |
-| `checkRequiredFields` in resolve.go | `grep "checkRequiredFields" resolve.go` |
+| `CheckRequiredFields` in resolve.go | `grep "CheckRequiredFields" resolve.go` |
+| `CheckRequiredFields` called in peers.go | `grep "CheckRequiredFields" peers.go` |
+| `CheckRequiredFields` called in cmd_validate.go | `grep "CheckRequiredFields" cmd_validate.go` |
 | Required field check in validator.go | `grep -i "required" validator.go` |
 | Form categories in add_form_overlay.html | `grep "required\|suggest" add_form_overlay.html` |
+| CSS for required/suggest fields | `grep "required\|suggest" style.css` |
 | Functional test: missing field | `ls test/parse/required-field-missing.ci` |
 | Functional test: inherited field | `ls test/parse/required-field-inherited.ci` |
 
@@ -306,6 +316,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| `connection/remote/ip` is peer-only via augment | It is in shared `peer-fields` grouping, inheritable from group level | Read ze-bgp-conf.yang -- only augment is for environment at line 575 | AC-5 rewritten; Peer Field Assignments corrected |
+| `ResolveBGPTree` could call `checkRequiredFields` without schema access | `ResolveBGPTree(tree *config.Tree)` has no schema parameter; `YANGSchema()` is not cached | Read resolve.go signature + YANGSchema implementation | Resolved: option B (separate exported function), keeps ResolveBGPTree signature unchanged |
+| 10 custom YANG extensions | 12 extensions (missed listener and decorate in count) | Counted ze-extensions.yang definitions | Minor, corrected |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -319,15 +332,16 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 ### Design Decisions from Discussion
 - `ze:required` and `ze:suggest` are list-level (like `unique`), not leaf-level. Reason: the inheritance context belongs to the list, not the leaf. A leaf cannot know if it's being used at group level (optional) or peer level (required post-resolve).
-- Creation form is inheritance-aware: pre-fills from group/bgp defaults. This means `HandleConfigAddForm` needs config tree access, not just schema.
+- Creation form is inheritance-aware: pre-fills from group/bgp defaults. `HandleConfigAddForm` already receives `*EditorManager` which provides tree access via `mgr.Tree(username)` -- no signature change needed.
 - Submit button red/disabled until required fields satisfied (typed or inherited). Visual grouping separates required from suggest.
 - `ze:required` forces the field in the creation dialog (must be filled if no inherited value). `ze:suggest` shows the field but allows empty.
 - Validation is post-resolve only. Config editing is never blocked.
+- -> Decision: `CheckRequiredFields(schema, peerMap)` is a separate exported function in `resolve.go`, NOT inside `ResolveBGPTree`. Reason: `ResolveBGPTree` takes only `*config.Tree` (5 callers); `plugins.go` and `cmd_dump.go`/`cmd_diff.go` don't need field validation. `checkDuplicateRemoteIPs` stays inside (data integrity, no schema needed). Callers that validate: `cmd_validate.go` (has schema), `peers.go` (loads schema at line 39). `ConfigValidator` already has `v.schema` for editor-side validation.
 
 ### Peer Field Assignments
 | Field path | Extension | Rationale |
 |------------|-----------|-----------|
-| `connection/remote/ip` | `ze:required` | Unique and essential. Peer-only (augmented), cannot inherit. |
+| `connection/remote/ip` | `ze:required` | Unique and essential. In shared `peer-fields` grouping so structurally inheritable, but `unique` constraint makes group-level default impractical for multi-peer groups. |
 | `session/asn/local` | `ze:required` | Essential for BGP. Inheritable from bgp-level `session/asn/local`. |
 | `session/asn/remote` | `ze:required` | Essential for BGP. Inheritable from group level. |
 | `connection/local/ip` | `ze:suggest` | Useful but optional. Can be "auto" or omitted. |

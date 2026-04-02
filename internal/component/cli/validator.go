@@ -183,7 +183,7 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 	// Validate standalone peers (directly under bgp)
 	peers := bgp.GetList(keyPeer)
 	for peerAddr, peerTree := range peers {
-		v.validatePeer(peerAddr, peerTree, nil, lines, &errs, &warns)
+		v.validatePeer(peerAddr, peerTree, nil, bgp, lines, &errs, &warns)
 	}
 
 	// Validate group peers (bgp > group > peer) — merge group defaults with peer values
@@ -191,7 +191,7 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 	for _, groupTree := range groups {
 		groupPeers := groupTree.GetList(keyPeer)
 		for peerAddr, peerTree := range groupPeers {
-			v.validatePeer(peerAddr, peerTree, groupTree, lines, &errs, &warns)
+			v.validatePeer(peerAddr, peerTree, groupTree, bgp, lines, &errs, &warns)
 		}
 	}
 
@@ -234,7 +234,7 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 
 // validatePeer validates a single peer, optionally merging group defaults.
 // When groupTree is non-nil, group-level fields are applied first, then peer-level fields override.
-func (v *ConfigValidator) validatePeer(peerAddr string, peerTree, groupTree *config.Tree, lines []string, errs, warns *[]ConfigValidationError) {
+func (v *ConfigValidator) validatePeer(peerAddr string, peerTree, groupTree, bgpTree *config.Tree, lines []string, errs, warns *[]ConfigValidationError) {
 	resolved := peerTree
 	if groupTree != nil {
 		resolved = v.mergeGroupDefaults(peerTree, groupTree)
@@ -263,21 +263,57 @@ func (v *ConfigValidator) validatePeer(peerAddr string, peerTree, groupTree *con
 		}
 	}
 
-	// Custom check: session > asn > remote is required for peers (not mandatory in YANG because
-	// groups can set it at group level, but every peer must have it resolved).
-	hasRemoteAS := false
-	if sessionContainer := resolved.GetContainer("session"); sessionContainer != nil {
-		if asnContainer := sessionContainer.GetContainer("asn"); asnContainer != nil {
-			_, hasRemoteAS = asnContainer.Get("remote")
+	// Generic ze:required check: look up Required fields from the peer list schema
+	// and warn if any are missing after group merge. Also check bgp-level defaults
+	// (e.g., session/asn/local is typically set at bgp level, inherited by all peers).
+	if peerList := v.peerListNode(); peerList != nil {
+		for _, reqPath := range peerList.Required {
+			if !hasResolvedValue(resolved, reqPath) && !hasResolvedValue(bgpTree, reqPath) {
+				fieldStr := strings.Join(reqPath, "/")
+				setHint := "set bgp peer " + peerAddr + " " + strings.Join(reqPath, " ") + " <value>"
+				*warns = append(*warns, ConfigValidationError{
+					Line:     findPeerLine(lines, peerAddr),
+					Message:  fmt.Sprintf("peer %s: missing required field %q (%s)", peerAddr, fieldStr, setHint),
+					Severity: severityWarning,
+				})
+			}
 		}
 	}
-	if !hasRemoteAS {
-		*warns = append(*warns, ConfigValidationError{
-			Line:     findPeerLine(lines, peerAddr),
-			Message:  fmt.Sprintf("peer %s: missing required field \"session asn remote\" (set bgp peer %s session asn remote <value>)", peerAddr, peerAddr),
-			Severity: severityWarning,
-		})
+}
+
+// peerListNode returns the ListNode for bgp > peer from the config schema.
+func (v *ConfigValidator) peerListNode() *config.ListNode {
+	bgpNode := v.schema.Get("bgp")
+	if bgpNode == nil {
+		return nil
 	}
+	bgp, ok := bgpNode.(*config.ContainerNode)
+	if !ok {
+		return nil
+	}
+	peerNode := bgp.Get("peer")
+	if peerNode == nil {
+		return nil
+	}
+	list, _ := peerNode.(*config.ListNode)
+	return list
+}
+
+// hasResolvedValue checks if a config tree has a non-empty value at the given slash-separated path.
+func hasResolvedValue(tree *config.Tree, path []string) bool {
+	current := tree
+	for i, key := range path {
+		if i == len(path)-1 {
+			val, exists := current.Get(key)
+			return exists && val != ""
+		}
+		child := current.GetContainer(key)
+		if child == nil {
+			return false
+		}
+		current = child
+	}
+	return false
 }
 
 // mergeGroupDefaults creates a merged tree with group defaults applied first,

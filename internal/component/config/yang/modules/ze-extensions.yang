@@ -132,6 +132,30 @@ module ze-extensions {
                      (appended) instead of the most-specific level replacing others.";
     }
 
+    // Extension: required
+    // Declares a field path that must have a value in a list entry after
+    // config inheritance resolution (bgp -> group -> peer merge).
+    // Applied to list nodes. The argument is a slash-separated path
+    // (e.g., "session/asn/remote"). Multiple ze:required statements
+    // can appear on the same list.
+    extension required {
+        argument path;
+        description "Declares a field that must have a value after config
+                     inheritance resolution. Used for post-resolve validation
+                     and to mark required fields in creation forms.";
+    }
+
+    // Extension: suggest
+    // Declares a field path that should be shown in the creation dialog
+    // but is not mandatory. Applied to list nodes. The argument is a
+    // slash-separated path (e.g., "connection/local/ip").
+    extension suggest {
+        argument path;
+        description "Declares a field to show in creation dialogs with
+                     inherited defaults. Not mandatory -- the entry can
+                     be created without it.";
+    }
+
     // Extension: decorate
     // Attaches a display-time decorator to a leaf.
     // The argument names a registered decorator function (e.g., "asn-name").
