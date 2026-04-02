@@ -1828,6 +1828,9 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   color: var(--text-primary);
 }
 
+.cli-completion-item:hover,
+.cli-completion-item.selected { background: var(--bg-secondary); cursor: pointer; }
+
 .cli-completion-item b { color: var(--accent); }
 .cli-completion-item span { color: var(--text-muted); margin-left: 0.5rem; }
 

@@ -26,6 +26,7 @@
   var history = [];        // Command history.
   var historyPos = -1;     // Current position in history (-1 = not browsing).
   var historyDraft = '';   // Saved input before browsing history.
+  var selectedIndex = -1;  // Currently highlighted completion item (-1 = none).
 
   // Read CLI context path from the hidden element (updated via OOB swaps).
   function getContextPath() {
@@ -39,9 +40,19 @@
     if (!input || !box) return;
 
     input.addEventListener('keydown', function(e) {
-      // History navigation.
+      var dropdownVisible = box.style.display === 'block';
+
+      // Arrow keys: dropdown navigation when visible, history when hidden.
       if (e.key === 'ArrowUp') {
         e.preventDefault();
+        if (dropdownVisible) {
+          var items = box.querySelectorAll('.cli-completion-item');
+          if (items.length === 0) return;
+          if (selectedIndex > 0) selectedIndex--;
+          else selectedIndex = items.length - 1;
+          highlightItem(box, selectedIndex);
+          return;
+        }
         if (history.length === 0) return;
         if (historyPos < 0) historyDraft = input.value;
         if (historyPos < history.length - 1) {
@@ -52,6 +63,14 @@
       }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
+        if (dropdownVisible) {
+          var items = box.querySelectorAll('.cli-completion-item');
+          if (items.length === 0) return;
+          if (selectedIndex < items.length - 1) selectedIndex++;
+          else selectedIndex = 0;
+          highlightItem(box, selectedIndex);
+          return;
+        }
         if (historyPos < 0) return;
         historyPos--;
         if (historyPos < 0) {
@@ -64,8 +83,17 @@
 
       if (e.key === 'Enter') {
         e.preventDefault();
+        // If dropdown is visible and an item is selected, accept it.
+        if (dropdownVisible && selectedIndex >= 0) {
+          var items = box.querySelectorAll('.cli-completion-item');
+          if (selectedIndex < items.length) {
+            items[selectedIndex].click();
+            return;
+          }
+        }
         box.style.display = 'none';
         cachedItems = null;
+        selectedIndex = -1;
         var cmd = input.value.trim();
         if (!cmd) return;
         history.push(cmd);
@@ -137,6 +165,7 @@
       if (e.key === 'Escape') {
         box.style.display = 'none';
         cachedItems = null;
+        selectedIndex = -1;
         return;
       }
 
@@ -216,8 +245,19 @@
     showCompletions(input, box, filtered, cachedPrefix);
   }
 
+  function highlightItem(box, index) {
+    var items = box.querySelectorAll('.cli-completion-item');
+    for (var i = 0; i < items.length; i++) {
+      items[i].classList.toggle('selected', i === index);
+    }
+    if (index >= 0 && index < items.length) {
+      items[index].scrollIntoView({ block: 'nearest' });
+    }
+  }
+
   function showCompletions(input, box, items, prefix) {
     while (box.firstChild) box.removeChild(box.firstChild);
+    selectedIndex = 0;
     items.forEach(function(c) {
       var div = document.createElement('div');
       div.className = 'cli-completion-item';
@@ -233,11 +273,13 @@
         input.value = prefix + c.text + ' ';
         box.style.display = 'none';
         cachedItems = null;
+        selectedIndex = -1;
         input.focus();
       });
       box.appendChild(div);
     });
     box.style.display = 'block';
+    highlightItem(box, selectedIndex);
   }
 
   // Track terminal mode state for CLI Enter key routing.

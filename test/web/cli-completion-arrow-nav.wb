@@ -1,0 +1,24 @@
+# Test: CLI completion dropdown navigates with arrow keys
+# VALIDATES: ArrowDown/ArrowUp select completion items, Enter accepts selection
+# PREVENTS: Arrow keys always navigating history instead of dropdown items
+
+option=timeout:value=30s
+
+action=open:path=/show/
+expect=element:text=type a command
+
+# Type partial command and trigger completion with Tab.
+action=fill:text=type a command:value=sh
+action=press:key=Tab
+action=wait:ms=500
+expect=element:text=show
+
+# ArrowDown should highlight a completion item (adds .selected class).
+action=press:key=ArrowDown
+action=wait:ms=200
+expect=element:class=selected
+
+# Enter should accept the selected completion and close the dropdown.
+action=press:key=Enter
+action=wait:ms=200
+expect=element:not-class=cli-completion-item
