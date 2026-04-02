@@ -5,6 +5,7 @@
 package web
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -104,4 +105,34 @@ func NewASNNameDecoratorFromResolver(resolver interface {
 	ResolveTXT(string) ([]string, error)
 }) Decorator {
 	return newASNNameDecorator(resolver.ResolveTXT)
+}
+
+// NewASNNameDecoratorFromCymru creates an ASN name decorator using a Cymru resolver.
+// The cymruResolver parameter must have a LookupASNName method.
+func NewASNNameDecoratorFromCymru(cymruResolver interface {
+	LookupASNName(ctx context.Context, asn uint32) (string, error)
+}) Decorator {
+	return DecoratorFunc("asn-name", func(value string) (string, error) {
+		if value == "" {
+			return "", nil
+		}
+
+		// Validate ASN is numeric and in range 0-4294967295.
+		asn, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return "", nil //nolint:nilerr // graceful degradation
+		}
+
+		const maxASN = 4294967295
+		if asn > maxASN {
+			return "", nil
+		}
+
+		name, lookupErr := cymruResolver.LookupASNName(context.Background(), uint32(asn))
+		if lookupErr != nil {
+			return "", nil //nolint:nilerr // graceful degradation
+		}
+
+		return name, nil
+	})
 }

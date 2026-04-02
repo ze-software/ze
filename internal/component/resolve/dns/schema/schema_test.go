@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/dns/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns/schema"
 )
 
 // TestSchema_ZeDNSModule verifies ze-dns-conf.yang content.

@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/irr"
+	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
 )
 
 const defaultTimeout = 10 * time.Second

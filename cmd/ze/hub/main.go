@@ -25,12 +25,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	"codeberg.org/thomas-mangin/ze/internal/component/dns"
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/lg"
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
+	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
+	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"
+	resolveDNS "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
 	"codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
@@ -63,7 +65,10 @@ var (
 // Used when ze start --web is called without a config.
 // listenAddr overrides the default "0.0.0.0:3443" when non-empty.
 func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int {
-	webSrv := startWebServer(store, listenAddr, insecureWeb, nil)
+	resolvers := newResolvers()
+	defer resolvers.Close()
+
+	webSrv := startWebServer(store, listenAddr, insecureWeb, nil, resolvers)
 	if webSrv == nil {
 		return 1
 	}
@@ -327,9 +332,13 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 		return 1
 	}
 
+	// Create shared resolvers for web UI and looking glass (single DNS instance).
+	resolvers := newResolvers()
+	defer resolvers.Close()
+
 	// Start web server if --web flag was passed.
 	if webEnabled {
-		if webSrv := startWebServer(store, webListenAddr, insecureWeb, reactor.ExecuteCommand); webSrv != nil {
+		if webSrv := startWebServer(store, webListenAddr, insecureWeb, reactor.ExecuteCommand, resolvers); webSrv != nil {
 			defer func() {
 				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer shutdownCancel()
@@ -340,7 +349,7 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 
 	// Start looking glass server if config has environment.looking-glass.
 	if lgListenAddr != "" {
-		if lgSrv := startLGServer(store, lgListenAddr, lgTLS, reactor.ExecuteCommand); lgSrv != nil {
+		if lgSrv := startLGServer(store, lgListenAddr, lgTLS, reactor.ExecuteCommand, resolvers); lgSrv != nil {
 			defer func() {
 				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer shutdownCancel()
@@ -402,7 +411,7 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 // Returns the server on success, nil on failure (logged, non-fatal).
 // If the port is already in use, attempts to identify and kill the stale process.
 // Requires blob storage -- TLS keys and config must not leak to the filesystem.
-func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, dispatch zeweb.CommandDispatcher) *zeweb.WebServer {
+func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers) *zeweb.WebServer {
 	if !storage.IsBlobStorage(store) {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: requires blob storage (run ze init first)\n")
 		return nil
@@ -439,9 +448,10 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 	}
 
 	// Register display-time decorators (e.g., ASN -> org name via Team Cymru DNS).
-	dnsResolver := dns.NewResolver(dns.ResolverConfig{})
 	decorators := zeweb.NewDecoratorRegistry()
-	decorators.Register(zeweb.NewASNNameDecoratorFromResolver(dnsResolver))
+	if resolvers != nil && resolvers.Cymru != nil {
+		decorators.Register(zeweb.NewASNNameDecoratorFromCymru(resolvers.Cymru))
+	}
 	renderer.SetDecorators(decorators)
 
 	srv, err := zeweb.NewWebServer(zeweb.WebConfig{
@@ -661,22 +671,16 @@ func resolveConfigPath(store storage.Storage) string {
 
 // startLGServer creates and starts the looking glass HTTP server.
 // Returns the server on success, nil on failure (logged, non-fatal).
-func startLGServer(store storage.Storage, listenAddr string, useTLS bool, dispatch lg.CommandDispatcher) *lg.LGServer {
-	// Create ASN name decorator for the looking glass via Team Cymru DNS.
-	lgDNS := dns.NewResolver(dns.ResolverConfig{})
-	lgDecorators := zeweb.NewDecoratorRegistry()
-	lgDecorators.Register(zeweb.NewASNNameDecoratorFromResolver(lgDNS))
-	asnDecorator := lgDecorators.Get("asn-name")
-
+func startLGServer(store storage.Storage, listenAddr string, useTLS bool, dispatch lg.CommandDispatcher, resolvers *resolve.Resolvers) *lg.LGServer {
 	cfg := lg.LGConfig{
 		ListenAddr: listenAddr,
 		TLS:        useTLS,
 		Dispatch:   dispatch,
 		DecorateASN: func(asn string) string {
-			if asnDecorator == nil {
+			if resolvers == nil || resolvers.Cymru == nil {
 				return ""
 			}
-			name, _ := asnDecorator.Decorate(asn)
+			name, _ := resolvers.Cymru.LookupASNName(context.Background(), parseASNForDecorator(asn))
 			return name
 		},
 	}
@@ -830,4 +834,36 @@ func runOrchestratorWithData(store storage.Storage, configPath string, data []by
 	close(sigCh)
 	o.Stop()
 	return 0
+}
+
+// newResolvers creates a shared Resolvers struct with a single DNS instance
+// and a Cymru resolver wired to it. Called once at hub startup.
+func newResolvers() *resolve.Resolvers {
+	dnsResolver := resolveDNS.NewResolver(resolveDNS.ResolverConfig{})
+
+	// Wrap DNS ResolveTXT to match Cymru's TXTResolver signature (adds context).
+	txtResolver := func(_ context.Context, name string) ([]string, error) {
+		return dnsResolver.ResolveTXT(name)
+	}
+
+	return &resolve.Resolvers{
+		DNS:   dnsResolver,
+		Cymru: cymru.New(txtResolver, nil),
+	}
+}
+
+// parseASNForDecorator converts an ASN string to uint32 for the Cymru resolver.
+// Returns 0 on parse failure (Cymru handles ASN 0 gracefully).
+func parseASNForDecorator(asn string) uint32 {
+	var n uint64
+	for _, c := range asn {
+		if c < '0' || c > '9' {
+			return 0
+		}
+		n = n*10 + uint64(c-'0')
+		if n > 4294967295 {
+			return 0
+		}
+	}
+	return uint32(n)
 }

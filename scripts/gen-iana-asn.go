@@ -6,8 +6,9 @@
 // in the irr package, containing the ASN-to-RIR mapping with whois servers.
 // This is the seed data committed to the repo for zefs prepopulation.
 //
-// Usage: go generate ./internal/component/bgp/irr/...
-//    or: go run scripts/gen-iana-asn.go
+// Usage: go generate ./internal/component/resolve/irr/...
+//
+//	or: go run scripts/gen-iana-asn.go
 package main
 
 import (
@@ -23,7 +24,7 @@ import (
 	"time"
 )
 
-const outputFile = "internal/component/bgp/irr/rir_table.go"
+const outputFile = "internal/component/resolve/irr/rir_table.go"
 
 var delegationURLs = []string{
 	"https://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-extended-latest",

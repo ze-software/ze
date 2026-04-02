@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/peeringdb"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
 )
 
 const (
