@@ -1,0 +1,66 @@
+# Test: ze config migrate converts flat host+port to server list
+# VALIDATES: AC-3/AC-4 -- web { host 0.0.0.0; port 3443; } -> web { enabled true; server main { ... } }
+# PREVENTS: Old flat listener format surviving migration
+
+stdin=config:terminator=EOF_STDIN
+bgp {
+    router-id 10.0.0.1
+    session {
+        asn {
+            local 65533
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65534
+            }
+        }
+    }
+}
+EOF_STDIN
+
+tmpfs=test.conf:terminator=EOF_CONF
+environment {
+    web {
+        host 0.0.0.0
+        port 3443
+    }
+}
+bgp {
+    router-id 10.0.0.1
+    session {
+        asn {
+            local 65533
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65534
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config migrate test.conf
+expect=exit:code=0
+expect=stdout:contains=enabled true
+expect=stdout:contains=server main

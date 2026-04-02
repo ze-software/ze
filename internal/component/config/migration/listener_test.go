@@ -206,3 +206,215 @@ func TestHubServerHostToIP_Absent(t *testing.T) {
 
 	assert.False(t, hasHubServerHost(tree))
 }
+
+// TestLogBooleansToSubsystems verifies boolean log topics are converted to subsystem levels.
+// VALIDATES: AC-1/AC-2 -- `log { packets true; }` -> `log { bgp.wire debug; }`, false -> disabled
+// PREVENTS: ExaBGP boolean log leaves surviving migration without conversion to subsystem levels.
+func TestLogBooleansToSubsystems(t *testing.T) {
+	tests := []struct {
+		name    string
+		topic   string
+		value   string
+		wantKey string
+		wantVal string
+	}{
+		{"packets true", "packets", "true", "bgp.wire", "debug"},
+		{"packets false", "packets", "false", "bgp.wire", "disabled"},
+		{"rib true", "rib", "true", "plugin.rib", "debug"},
+		{"rib false", "rib", "false", "plugin.rib", "disabled"},
+		{"configuration true", "configuration", "true", "config", "debug"},
+		{"reactor true", "reactor", "true", "bgp.reactor", "debug"},
+		{"daemon true", "daemon", "true", "daemon", "debug"},
+		{"processes true", "processes", "true", "plugin", "debug"},
+		{"network true", "network", "true", "bgp.wire", "debug"},
+		{"statistics true", "statistics", "true", "bgp.metrics", "debug"},
+		{"message true", "message", "true", "bgp.wire", "debug"},
+		{"timers true", "timers", "true", "bgp.reactor", "debug"},
+		{"routes true", "routes", "true", "plugin.rib", "debug"},
+		{"parser true", "parser", "true", "config", "debug"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := config.NewTree()
+			env := config.NewTree()
+			logTree := config.NewTree()
+			logTree.Set(tt.topic, tt.value)
+			env.SetContainer("log", logTree)
+			tree.SetContainer("environment", env)
+
+			assert.True(t, hasLogBooleans(tree), "should detect boolean log topic %s", tt.topic)
+
+			result, err := migrateLogBooleans(tree)
+			require.NoError(t, err)
+
+			logResult := result.GetContainer("environment").GetContainer("log")
+			require.NotNil(t, logResult)
+			// When topic and subsystem have different names, old topic should be gone.
+			if tt.topic != tt.wantKey {
+				_, hasTopic := logResult.Get(tt.topic)
+				assert.False(t, hasTopic, "old topic %s should be removed", tt.topic)
+			}
+			v, hasNew := logResult.Get(tt.wantKey)
+			assert.True(t, hasNew, "subsystem %s should exist", tt.wantKey)
+			assert.Equal(t, tt.wantVal, v, "subsystem level")
+		})
+	}
+}
+
+// TestLogBooleansToSubsystems_PreservesOtherLeaves verifies non-boolean log leaves are preserved.
+func TestLogBooleansToSubsystems_PreservesOtherLeaves(t *testing.T) {
+	tree := config.NewTree()
+	env := config.NewTree()
+	logTree := config.NewTree()
+	logTree.Set("packets", "true")
+	logTree.Set("level", "warn")
+	env.SetContainer("log", logTree)
+	tree.SetContainer("environment", env)
+
+	assert.True(t, hasLogBooleans(tree))
+
+	result, err := migrateLogBooleans(tree)
+	require.NoError(t, err)
+
+	logResult := result.GetContainer("environment").GetContainer("log")
+	require.NotNil(t, logResult)
+	v, ok := logResult.Get("level")
+	assert.True(t, ok, "level should be preserved")
+	assert.Equal(t, "warn", v)
+}
+
+// TestLogBooleansToSubsystems_Absent verifies no-op when no boolean log topics exist.
+func TestLogBooleansToSubsystems_Absent(t *testing.T) {
+	tree := config.NewTree()
+	env := config.NewTree()
+	logTree := config.NewTree()
+	logTree.Set("level", "info")
+	env.SetContainer("log", logTree)
+	tree.SetContainer("environment", env)
+
+	assert.False(t, hasLogBooleans(tree))
+}
+
+// TestLogBooleansToSubsystems_NoEnv verifies no-op when environment is absent.
+func TestLogBooleansToSubsystems_NoEnv(t *testing.T) {
+	tree := config.NewTree()
+	assert.False(t, hasLogBooleans(tree))
+}
+
+// TestLogBooleansToSubsystems_MergesDuplicates verifies multiple topics mapping to same subsystem.
+// packets, network, and message all map to bgp.wire. Only one entry should remain.
+func TestLogBooleansToSubsystems_MergesDuplicates(t *testing.T) {
+	tree := config.NewTree()
+	env := config.NewTree()
+	logTree := config.NewTree()
+	logTree.Set("packets", "true")
+	logTree.Set("network", "false")
+	logTree.Set("message", "true")
+	env.SetContainer("log", logTree)
+	tree.SetContainer("environment", env)
+
+	result, err := migrateLogBooleans(tree)
+	require.NoError(t, err)
+
+	logResult := result.GetContainer("environment").GetContainer("log")
+	require.NotNil(t, logResult)
+	// When multiple topics map to the same subsystem, "true" (debug) wins over "false" (disabled).
+	v, ok := logResult.Get("bgp.wire")
+	assert.True(t, ok)
+	assert.Equal(t, "debug", v)
+}
+
+// TestListenerToList verifies flat host+port converted to server list.
+// VALIDATES: AC-3/AC-4 -- `web { host 0.0.0.0; port 3443; }` -> `web { enabled true; server main { ip 0.0.0.0; port 3443; } }`
+// PREVENTS: Old listener format surviving migration without conversion to named server list.
+func TestListenerToList(t *testing.T) {
+	containers := []struct {
+		name string
+		host string
+		port string
+	}{
+		{"web", "0.0.0.0", "3443"},
+		{"ssh", "127.0.0.1", "2222"},
+		{"mcp", "127.0.0.1", "3000"},
+		{"looking-glass", "0.0.0.0", "8080"},
+		{"telemetry", "0.0.0.0", "9090"},
+	}
+
+	for _, tt := range containers {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := config.NewTree()
+			env := config.NewTree()
+			svc := config.NewTree()
+			svc.Set("host", tt.host)
+			svc.Set("port", tt.port)
+			env.SetContainer(tt.name, svc)
+			tree.SetContainer("environment", env)
+
+			assert.True(t, hasListenerFlatFormat(tree), "should detect flat format in %s", tt.name)
+
+			result, err := migrateListenerToList(tree)
+			require.NoError(t, err)
+
+			svcResult := result.GetContainer("environment").GetContainer(tt.name)
+			require.NotNil(t, svcResult, "container %s should exist", tt.name)
+
+			// host should be removed
+			_, hasHost := svcResult.Get("host")
+			assert.False(t, hasHost, "host should be removed from %s", tt.name)
+
+			// enabled should be true
+			enabled, hasEnabled := svcResult.Get("enabled")
+			assert.True(t, hasEnabled, "enabled should exist in %s", tt.name)
+			assert.Equal(t, "true", enabled)
+
+			// server main should exist with ip and port
+			servers := svcResult.GetList("server")
+			require.Contains(t, servers, "main", "server main should exist in %s", tt.name)
+			srv := servers["main"]
+			ip, hasIP := srv.Get("ip")
+			assert.True(t, hasIP, "ip should exist in server main")
+			assert.Equal(t, tt.host, ip)
+			port, hasPort := srv.Get("port")
+			assert.True(t, hasPort, "port should exist in server main")
+			assert.Equal(t, tt.port, port)
+		})
+	}
+}
+
+// TestListenerToList_Absent verifies no-op when no flat listener format exists.
+func TestListenerToList_Absent(t *testing.T) {
+	tree := config.NewTree()
+	env := config.NewTree()
+	web := config.NewTree()
+	web.Set("enabled", "true")
+	srv := config.NewTree()
+	srv.Set("ip", "0.0.0.0")
+	srv.Set("port", "3443")
+	web.AddListEntry("server", "main", srv)
+	env.SetContainer("web", web)
+	tree.SetContainer("environment", env)
+
+	assert.False(t, hasListenerFlatFormat(tree))
+}
+
+// TestListenerToList_PreservesOtherLeaves verifies non-host/port leaves are preserved.
+func TestListenerToList_PreservesOtherLeaves(t *testing.T) {
+	tree := config.NewTree()
+	env := config.NewTree()
+	web := config.NewTree()
+	web.Set("host", "0.0.0.0")
+	web.Set("port", "3443")
+	web.Set("tls", "true")
+	env.SetContainer("web", web)
+	tree.SetContainer("environment", env)
+
+	result, err := migrateListenerToList(tree)
+	require.NoError(t, err)
+
+	webResult := result.GetContainer("environment").GetContainer("web")
+	require.NotNil(t, webResult)
+	v, ok := webResult.Get("tls")
+	assert.True(t, ok, "tls should be preserved")
+	assert.Equal(t, "true", v)
+}

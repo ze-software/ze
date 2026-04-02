@@ -1,0 +1,66 @@
+# Test: ze config migrate converts boolean log topics to subsystem levels
+# VALIDATES: AC-1/AC-2 -- packets true -> bgp.wire debug, false -> disabled
+# PREVENTS: ExaBGP boolean log leaves surviving migration
+
+stdin=config:terminator=EOF_STDIN
+bgp {
+    router-id 10.0.0.1
+    session {
+        asn {
+            local 65533
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65534
+            }
+        }
+    }
+}
+EOF_STDIN
+
+tmpfs=test.conf:terminator=EOF_CONF
+environment {
+    log {
+        packets true
+        rib false
+    }
+}
+bgp {
+    router-id 10.0.0.1
+    session {
+        asn {
+            local 65533
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65534
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config migrate test.conf
+expect=exit:code=0
+expect=stdout:contains=bgp.wire debug
+expect=stdout:contains=plugin.rib disabled

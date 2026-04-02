@@ -193,14 +193,19 @@ func cmdPlugin(args []string) int {
 func cmdMigrate(args []string) int {
 	fs := flag.NewFlagSet("exabgp migrate", flag.ExitOnError)
 	dryRun := fs.Bool("dry-run", false, "Show what would be done without making changes")
+	envFile := fs.String("env", "", "Migrate ExaBGP INI environment file instead of config")
 	fs.Usage = func() {
 		p := helpfmt.Page{
 			Command: "ze exabgp migrate",
 			Summary: "Convert an ExaBGP configuration file to ze format",
-			Usage:   []string{"ze exabgp migrate [options] <config-file>"},
+			Usage: []string{
+				"ze exabgp migrate [options] <config-file>",
+				"ze exabgp migrate --env <env-file>",
+			},
 			Sections: []helpfmt.HelpSection{
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
-					{Name: "-dry-run", Desc: "Show what would be done without output"},
+					{Name: "--dry-run", Desc: "Show what would be done without output"},
+					{Name: "--env <file>", Desc: "Migrate ExaBGP INI environment file"},
 				}},
 				{Title: "Transformations applied", Entries: []helpfmt.HelpEntry{
 					{Name: "neighbor -> peer", Desc: ""},
@@ -213,6 +218,7 @@ func cmdMigrate(args []string) int {
 			Examples: []string{
 				"ze exabgp migrate exabgp.conf > ze-bgp.conf",
 				"ze exabgp migrate /etc/exabgp/exabgp.conf > /etc/ze/bgp/ze-bgp.conf",
+				"ze exabgp migrate --env /etc/exabgp/exabgp.env",
 			},
 		}
 		p.Write()
@@ -220,6 +226,11 @@ func cmdMigrate(args []string) int {
 
 	if err := fs.Parse(args); err != nil {
 		return exitError
+	}
+
+	// Handle --env flag: migrate ExaBGP INI environment file.
+	if *envFile != "" {
+		return cmdMigrateEnv(*envFile)
 	}
 
 	if fs.NArg() < 1 {
@@ -272,6 +283,31 @@ func cmdMigrate(args []string) int {
 
 	// Serialize and output.
 	output := migration.SerializeTree(result.Tree)
+	fmt.Print(output)
+
+	return exitOK
+}
+
+// cmdMigrateEnv migrates an ExaBGP INI environment file to Ze config output.
+func cmdMigrateEnv(envPath string) int {
+	data, err := os.ReadFile(envPath) //nolint:gosec // User-specified env file.
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error reading env file: %v\n", err)
+		return exitError
+	}
+
+	entries, err := migration.ParseExaBGPEnv(string(data))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error parsing env file: %v\n", err)
+		return exitError
+	}
+
+	if err := migration.ValidateEnvEntries(entries); err != nil {
+		fmt.Fprintf(os.Stderr, "error validating env file: %v\n", err)
+		return exitError
+	}
+
+	output := migration.MapEnvToZe(entries)
 	fmt.Print(output)
 
 	return exitOK

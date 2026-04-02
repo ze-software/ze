@@ -189,6 +189,7 @@ ExaBGP compatibility tools.
 ```
 ze exabgp plugin <cmd> [args]    # Run ExaBGP plugin with ze
 ze exabgp migrate <file>         # Convert ExaBGP config to ze
+ze exabgp migrate --env <file>   # Convert ExaBGP env file to ze config
 ```
 
 **plugin flags:**

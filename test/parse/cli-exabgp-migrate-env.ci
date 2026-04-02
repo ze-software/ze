@@ -1,0 +1,54 @@
+# Test: ze exabgp migrate --env reads ExaBGP INI env file and outputs Ze config
+# VALIDATES: AC-5/AC-6/AC-7 -- env file parsed, log booleans mapped, unsupported keys commented
+# PREVENTS: ExaBGP env migration silently dropping settings
+
+stdin=config:terminator=EOF_STDIN
+bgp {
+    router-id 10.0.0.1
+    session {
+        asn {
+            local 65533
+        }
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65534
+            }
+        }
+    }
+}
+EOF_STDIN
+
+tmpfs=exabgp.env:terminator=EOF_ENV
+[exabgp.daemon]
+user = nobody
+
+[exabgp.log]
+packets = true
+rib = false
+
+[exabgp.tcp]
+bind = 0.0.0.0
+port = 179
+
+[exabgp.debug]
+pdb = true
+EOF_ENV
+
+cmd=foreground:seq=1:exec=ze exabgp migrate --env exabgp.env
+expect=exit:code=0
+expect=stdout:contains=bgp.wire debug
+expect=stdout:contains=plugin.rib disabled
+expect=stdout:contains=# tcp.bind
+expect=stdout:contains=# tcp.port
+expect=stdout:contains=Python-only
+expect=stdout:contains=user nobody

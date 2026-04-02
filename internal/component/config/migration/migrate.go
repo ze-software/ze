@@ -105,6 +105,18 @@ var transformations = []Transformation{
 		Detect:      hasHubServerHost,
 		Apply:       renameHubServerHost,
 	},
+	{
+		Name:        "log-booleans-to-subsystems",
+		Description: "Convert boolean log topics to subsystem levels",
+		Detect:      hasLogBooleans,
+		Apply:       migrateLogBooleans,
+	},
+	{
+		Name:        "listener-to-list",
+		Description: "Convert flat host+port to server list format",
+		Detect:      hasListenerFlatFormat,
+		Apply:       migrateListenerToList,
+	},
 	// Phase 3: Structural wrapping (must run after renames)
 	{
 		Name:        "wrap-bgp-block",

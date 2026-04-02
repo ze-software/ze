@@ -44,7 +44,19 @@ Available transformations (in order):
   template.neighbor->group  Rename template.neighbor to template.group
   static->announce          Convert 'static' route blocks to 'announce'
   api->new-format           Convert old api syntax (processes, format flags) to named blocks
+  remove-bgp-listen         Remove ExaBGP legacy bgp listen leaf
+  remove-tcp-port           Remove environment tcp port (per-peer config)
+  remove-env-bgp-connect    Remove environment bgp connect (per-peer config)
+  remove-env-bgp-accept     Remove environment bgp accept (per-peer config)
+  hub-server-host-to-ip     Rename plugin hub server host to ip
+  log-booleans-to-subsystems Convert boolean log topics to subsystem levels
+  listener-to-list          Convert flat host+port to server list format
+  wrap-bgp-block            Wrap BGP elements in bgp {} block
+  template->group           Convert template block to bgp peer-groups
 ```
+
+<!-- source: internal/component/config/migration/migrate.go -- transformation registry -->
+<!-- source: internal/component/config/migration/listener.go -- listener/log transformations -->
 
 ## Migration Detection
 
