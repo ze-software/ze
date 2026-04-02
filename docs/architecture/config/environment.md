@@ -46,7 +46,10 @@ They can also be set via the config file `environment { <section> { <option> <va
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
+| `ze.bgp.daemon.pid` | string | (none) | PID file location |
 | `ze.bgp.daemon.user` | string | "zeuser" | Legacy user field (prefer `ze.user`) |
+| `ze.bgp.daemon.daemonize` | bool | false | Run in background |
+| `ze.bgp.daemon.drop` | bool | true | Drop privileges after startup |
 | `ze.bgp.daemon.umask` | octal | 0137 | Umask for created files |
 <!-- source: internal/component/config/environment.go -- DaemonEnv struct, loadDefaults -->
 
@@ -111,6 +114,7 @@ Color output can be forced on or off via `ze.log.color=true|false`, which overri
 | `ze.bgp.reactor.speed` | float | 1.0 | Reactor loop time multiplier (0.1-10.0) |
 | `ze.bgp.reactor.cache-ttl` | int | 60 | UPDATE cache TTL in seconds (0-3600) |
 | `ze.bgp.reactor.cache-max` | int | 1000000 | UPDATE cache max entries (0 = unlimited) |
+| `ze.bgp.reactor.update-groups` | bool | true | Cross-peer UPDATE grouping (build once, send to all peers with same encoding context) |
 <!-- source: internal/component/config/environment.go -- ReactorEnv struct, loadDefaults, validateSpeed -->
 
 ### debug
@@ -135,6 +139,48 @@ Color output can be forced on or off via `ze.log.color=true|false`, which overri
 | `ze.bgp.chaos.seed` | int64 | 0 | PRNG seed (0 = disabled, -1 = time-based) |
 | `ze.bgp.chaos.rate` | float | 0.1 | Fault probability per operation (0.0-1.0) |
 <!-- source: internal/component/config/environment.go -- ChaosEnv struct, validateChaosRate -->
+
+---
+
+## Listener Service Variables
+
+Listener services (web, MCP, looking glass) use compound `ip:port` format instead of separate host/port variables. Multiple endpoints can be specified with comma separation.
+<!-- source: internal/component/config/environment.go -- ListenEndpoint, ParseCompoundListen -->
+
+### web
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `ze.web.listen` | string | (none) | Listen address: `ip:port[,ip:port]` (e.g., `0.0.0.0:3443`) |
+| `ze.web.enabled` | bool | false | Enable web server (uses default endpoint if listen not set) |
+| `ze.web.insecure` | bool | false | Disable web authentication |
+<!-- source: internal/component/config/environment.go -- web server env var registrations -->
+
+### mcp
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `ze.mcp.listen` | string | (none) | Listen address: `ip:port` (e.g., `127.0.0.1:8080`) |
+| `ze.mcp.enabled` | bool | false | Enable MCP server (defaults to `127.0.0.1:8080`) |
+<!-- source: internal/component/config/environment.go -- MCP server env var registrations -->
+
+### looking-glass
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `ze.looking-glass.listen` | string | (none) | Listen address: `ip:port` (e.g., `0.0.0.0:8443`) |
+| `ze.looking-glass.enabled` | bool | false | Enable looking glass server |
+| `ze.looking-glass.tls` | bool | false | Enable TLS for looking glass |
+<!-- source: internal/component/config/environment.go -- looking glass env var registrations -->
+
+### Compound Listen Format
+
+The compound listen format supports:
+- Single IPv4 endpoint: `0.0.0.0:3443`
+- Multiple endpoints: `0.0.0.0:3443,127.0.0.1:8080`
+- IPv6 bracket notation: `[::1]:3443`
+- Port range: 1-65535
+<!-- source: internal/component/config/environment.go -- ParseCompoundListen -->
 
 ---
 

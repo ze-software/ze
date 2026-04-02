@@ -44,22 +44,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
-// Env var registrations (also in internal/component/config/environment.go for centralized docs).
-var (
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.ready.file", Type: "string", Description: "Write signal file when hub is ready (test infrastructure)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.host", Type: "string", Description: "Web server listen host"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.port", Type: "string", Description: "Web server listen port"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.insecure", Type: "bool", Description: "Disable web authentication"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.host", Type: "string", Description: "MCP server listen host (127.0.0.1 only)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.port", Type: "string", Description: "MCP server listen port"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.host", Type: "string", Description: "Looking glass listen host"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.port", Type: "string", Description: "Looking glass listen port"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.tls", Type: "bool", Description: "Enable TLS for looking glass"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.server", Type: "string", Default: "8.8.8.8:53", Description: "DNS server address (e.g., 8.8.8.8:53)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.timeout", Type: "int", Default: "5", Description: "DNS query timeout in seconds (1-60)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-size", Type: "int", Default: "10000", Description: "DNS cache max entries (0 = disabled)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-ttl", Type: "int", Default: "86400", Description: "DNS cache max TTL in seconds (0 = response TTL only)"})
-)
+// Env var registrations are centralized in internal/component/config/environment.go.
+// No duplicate registrations here -- import that package to trigger init.
 
 // RunWebOnly starts only the web server (no BGP engine).
 // Used when ze start --web is called without a config.
@@ -204,35 +190,56 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 		lgTLS = lgCfg.TLS
 	}
 
-	// Layer 2: environment variables override config (but not CLI).
-	if h, p := env.Get("ze.looking-glass.host"), env.Get("ze.looking-glass.port"); p != "" && lgListenAddr == "" {
-		host := h
-		if host == "" {
-			host = "0.0.0.0"
+	// Layer 2: environment variables provide defaults when config is absent.
+	if listen := env.Get("ze.looking-glass.listen"); listen != "" && lgListenAddr == "" {
+		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
+		if parseErr != nil {
+			fmt.Fprintf(os.Stderr, "error: ze.looking-glass.listen: %v\n", parseErr)
+			return 1
 		}
-		lgListenAddr = host + ":" + p
+		lgListenAddr = endpoints[0].String()
+		if len(endpoints) > 1 {
+			fmt.Fprintf(os.Stderr, "warning: ze.looking-glass.listen: only first endpoint used, multi-bind not yet supported\n")
+		}
 	}
 	if env.IsEnabled("ze.looking-glass.tls") {
 		lgTLS = true
 	}
+	if env.IsEnabled("ze.looking-glass.enabled") && lgListenAddr == "" {
+		lgListenAddr = "0.0.0.0:8443"
+	}
 
-	if h, p := env.Get("ze.web.host"), env.Get("ze.web.port"); p != "" && webListenAddr == "" {
-		webEnabled = true
-		host := h
-		if host == "" {
-			host = "0.0.0.0"
+	if listen := env.Get("ze.web.listen"); listen != "" && webListenAddr == "" {
+		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
+		if parseErr != nil {
+			fmt.Fprintf(os.Stderr, "error: ze.web.listen: %v\n", parseErr)
+			return 1
 		}
-		webListenAddr = host + ":" + p
+		webEnabled = true
+		webListenAddr = endpoints[0].String()
+		if len(endpoints) > 1 {
+			fmt.Fprintf(os.Stderr, "warning: ze.web.listen: only first endpoint used, multi-bind not yet supported\n")
+		}
+	}
+	if env.IsEnabled("ze.web.enabled") && !webEnabled {
+		webEnabled = true
 	}
 	if env.IsEnabled("ze.web.insecure") && !insecureWeb {
 		insecureWeb = true
 	}
-	if h, p := env.Get("ze.mcp.host"), env.Get("ze.mcp.port"); p != "" && mcpAddr == "" {
-		host := h
-		if host == "" {
-			host = "127.0.0.1"
+	if listen := env.Get("ze.mcp.listen"); listen != "" && mcpAddr == "" {
+		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
+		if parseErr != nil {
+			fmt.Fprintf(os.Stderr, "error: ze.mcp.listen: %v\n", parseErr)
+			return 1
 		}
-		mcpAddr = host + ":" + p
+		mcpAddr = endpoints[0].String()
+		if len(endpoints) > 1 {
+			fmt.Fprintf(os.Stderr, "warning: ze.mcp.listen: only first endpoint used, multi-bind not yet supported\n")
+		}
+	}
+	if env.IsEnabled("ze.mcp.enabled") && mcpAddr == "" {
+		mcpAddr = "127.0.0.1:8080"
 	}
 	// Layer 3: CLI flags already applied (they were set before this point).
 

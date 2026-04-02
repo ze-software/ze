@@ -597,7 +597,7 @@ func extractServices() []serviceInfo {
 		return nil
 	}
 
-	// Build env var groups keyed by second segment: "ze.web.host" -> "web", "ze.looking-glass.host" -> "looking-glass".
+	// Build env var groups keyed by second segment: "ze.web.listen" -> "web", "ze.looking-glass.listen" -> "looking-glass".
 	envByPrefix := make(map[string][]string)
 	for _, e := range env.Entries() {
 		parts := strings.SplitN(e.Key, ".", 3) //nolint:mnd // ze.<group>.<leaf>

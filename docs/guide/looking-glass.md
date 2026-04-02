@@ -29,7 +29,7 @@ environment {
 | `server <name> { port }` | `8443` | Listen port. Must differ from the web UI port. |
 | `tls` | `false` | Enable TLS. Requires blob storage (`ze init`). |
 
-Environment variable overrides: `ze.looking-glass.ip`, `ze.looking-glass.port`, `ze.looking-glass.tls`.
+Environment variable overrides: `ze.looking-glass.listen=ip:port`, `ze.looking-glass.enabled=true`, `ze.looking-glass.tls=true`.
 
 When the `looking-glass` block is absent, no HTTP server is started and no resources are consumed.
 

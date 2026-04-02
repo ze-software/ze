@@ -8,6 +8,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -85,17 +86,17 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.ready.file", Type: "string", Description: "Write signal file when hub is ready (test infrastructure)"})
 
 	// Web server.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.host", Type: "string", Description: "Web server listen host"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.port", Type: "string", Description: "Web server listen port"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.listen", Type: "string", Description: "Web server listen address (ip:port[,ip:port])"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.enabled", Type: "bool", Description: "Enable web server"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.insecure", Type: "bool", Description: "Disable web authentication"})
 
 	// MCP server.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.host", Type: "string", Description: "MCP server listen host (127.0.0.1 only)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.port", Type: "string", Description: "MCP server listen port"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.listen", Type: "string", Description: "MCP server listen address (ip:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.enabled", Type: "bool", Description: "Enable MCP server"})
 
 	// Looking glass.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.host", Type: "string", Description: "Looking glass listen host"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.port", Type: "string", Description: "Looking glass listen port"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.listen", Type: "string", Description: "Looking glass listen address (ip:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.enabled", Type: "bool", Description: "Enable looking glass server"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.tls", Type: "bool", Description: "Enable TLS for looking glass"})
 
 	// DNS resolver.
@@ -121,6 +122,94 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.rs.chan.size", Type: "int", Default: "4096", Description: "Per-source-peer route server worker channel capacity"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.rs.fwd.senders", Type: "int", Default: "4", Description: "Number of concurrent forward sender goroutines"})
 )
+
+// ListenEndpoint represents a parsed ip:port pair from compound listen format.
+type ListenEndpoint struct {
+	IP   string
+	Port int
+}
+
+// String returns the endpoint as "ip:port", using bracket notation for IPv6.
+func (e ListenEndpoint) String() string {
+	if strings.Contains(e.IP, ":") {
+		return "[" + e.IP + "]:" + strconv.Itoa(e.Port)
+	}
+	return e.IP + ":" + strconv.Itoa(e.Port)
+}
+
+// ParseCompoundListen parses compound listen format "ip:port[,ip:port]..."
+// into a list of endpoints. Supports IPv6 bracket notation: [::1]:3443.
+// Port must be in range 1-65535.
+func ParseCompoundListen(s string) ([]ListenEndpoint, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, fmt.Errorf("empty listen address")
+	}
+
+	var endpoints []ListenEndpoint
+	for part := range strings.SplitSeq(s, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			return nil, fmt.Errorf("empty endpoint in listen address %q", s)
+		}
+
+		ep, err := parseOneEndpoint(part)
+		if err != nil {
+			return nil, err
+		}
+		endpoints = append(endpoints, ep)
+	}
+
+	return endpoints, nil
+}
+
+// parseOneEndpoint parses a single "ip:port" or "[ipv6]:port" endpoint.
+func parseOneEndpoint(s string) (ListenEndpoint, error) {
+	var ip, portStr string
+
+	if strings.HasPrefix(s, "[") {
+		// IPv6 bracket notation: [::1]:3443
+		closeBracket := strings.Index(s, "]")
+		if closeBracket < 0 {
+			return ListenEndpoint{}, fmt.Errorf("invalid IPv6 address %q: missing closing bracket", s)
+		}
+		ip = s[1:closeBracket]
+		if ip == "" {
+			return ListenEndpoint{}, fmt.Errorf("invalid IPv6 address %q: empty address in brackets", s)
+		}
+		rest := s[closeBracket+1:]
+		if !strings.HasPrefix(rest, ":") {
+			return ListenEndpoint{}, fmt.Errorf("invalid endpoint %q: expected ':port' after ']'", s)
+		}
+		portStr = rest[1:]
+	} else {
+		// IPv4 or hostname: last colon separates host from port
+		lastColon := strings.LastIndex(s, ":")
+		if lastColon < 0 {
+			return ListenEndpoint{}, fmt.Errorf("invalid endpoint %q: missing port (expected ip:port)", s)
+		}
+		ip = s[:lastColon]
+		portStr = s[lastColon+1:]
+	}
+
+	if ip != "" && net.ParseIP(ip) == nil {
+		return ListenEndpoint{}, fmt.Errorf("invalid IP address %q in endpoint %q", ip, s)
+	}
+
+	if portStr == "" {
+		return ListenEndpoint{}, fmt.Errorf("invalid endpoint %q: empty port", s)
+	}
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return ListenEndpoint{}, fmt.Errorf("invalid port in %q: %w", s, err)
+	}
+	if port < 1 || port > 65535 {
+		return ListenEndpoint{}, fmt.Errorf("port %d in %q out of range: must be 1-65535", port, s)
+	}
+
+	return ListenEndpoint{IP: ip, Port: port}, nil
+}
 
 // Environment constants.
 const (

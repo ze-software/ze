@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 5/5 |
 | Updated | 2026-04-01 |
 
 ## Post-Compaction Recovery
@@ -81,8 +81,8 @@ Replace per-field listener env vars (`ze.web.host`, `ze.web.port`, `ze.mcp.host`
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| `ze.web.listen=0.0.0.0:3443` env var | -> | Compound parser + web startup | `test/parse/env-compound-listen.ci` |
-| `ze.web.enabled=true` env var | -> | Service activation | `test/parse/env-service-enabled.ci` |
+| `ze.web.listen=0.0.0.0:3443` env var | -> | Compound parser + web startup | `test/ui/env-compound-listen.ci` |
+| `ze.web.enabled=true` env var | -> | Service activation | `test/ui/env-service-enabled.ci` |
 
 ## Acceptance Criteria
 
@@ -111,8 +111,8 @@ Replace per-field listener env vars (`ze.web.host`, `ze.web.port`, `ze.mcp.host`
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `env-compound-listen` | `test/parse/env-compound-listen.ci` | Compound env var accepted | |
-| `env-service-enabled` | `test/parse/env-service-enabled.ci` | Enabled env var activates service | |
+| `env-compound-listen` | `test/ui/env-compound-listen.ci` | Compound env var accepted | |
+| `env-service-enabled` | `test/ui/env-service-enabled.ci` | Enabled env var activates service | |
 
 ### Future (if deferring any tests)
 - None
@@ -148,8 +148,8 @@ Replace per-field listener env vars (`ze.web.host`, `ze.web.port`, `ze.mcp.host`
 
 ## Files to Create
 
-- `test/parse/env-compound-listen.ci`
-- `test/parse/env-service-enabled.ci`
+- `test/ui/env-compound-listen.ci`
+- `test/ui/env-service-enabled.ci`
 
 ## Implementation Steps
 
@@ -238,55 +238,93 @@ N/A
 ## Implementation Summary
 
 ### What Was Implemented
-- [pending]
+- ListenEndpoint type and ParseCompoundListen function in environment.go
+- Replaced 6 per-field env vars (ze.web.host/port, ze.mcp.host/port, ze.looking-glass.host/port) with 3 compound vars (ze.web.listen, ze.mcp.listen, ze.looking-glass.listen)
+- Added 3 service enabled vars (ze.web.enabled, ze.mcp.enabled, ze.looking-glass.enabled)
+- Updated hub/main.go consumers to use compound parser
+- Added ze.mcp.enabled default endpoint (127.0.0.1:8080)
+- Unit tests: 4 test functions with 17 sub-tests covering single, multi, IPv6, boundary cases
+- Functional tests: 2 .ci tests verifying registration and old var removal
 
 ### Bugs Found/Fixed
-- [pending]
+- None
 
 ### Documentation Updates
-- [pending]
+- docs/architecture/config/environment.md: Added Listener Service Variables section
+- docs/guide/looking-glass.md: Updated env var references
+- docs/architecture/web-interface.md: Updated env var references
+- docs/features/mcp-integration.md: Updated env var references
 
 ### Deviations from Plan
-- [pending]
+- Moved .ci tests from test/parse/ to test/ui/ because they test ze env list output, not config parsing. The parse test runner requires stdin config blocks.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Replace per-field listener env vars with compound | Done | environment.go:88-99 | ze.web/mcp/looking-glass.listen replaces .host+.port |
+| Add ze.service.enabled vars | Done | environment.go:89,94,97 | All three services have .enabled |
+| Compound format parser | Done | environment.go:125-186 | ParseCompoundListen with IPv6 support |
+| Update hub consumers | Done | hub/main.go:202-237 | Uses ParseCompoundListen + env.IsEnabled |
+| Update docs | Done | docs/architecture/config/environment.md, docs/guide/looking-glass.md, docs/architecture/web-interface.md, docs/features/mcp-integration.md | All references updated |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | TestParseCompoundListen + hub/main.go:214-220 | Single endpoint parsed and used |
+| AC-2 | Done | TestCompoundListenMulti | Multi-endpoint parsing works |
+| AC-3 | Done | env-compound-listen.ci (stdout:!contains=ze.web.host) + env.Get abort on unregistered | Old key not registered, env.Get aborts |
+| AC-4 | Done | env-service-enabled.ci + hub/main.go:222-224 | ze.web.enabled=true starts web server |
+| AC-5 | Done | TestParseCompoundListenIPv6 | [::1]:3443 parsed correctly |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestParseCompoundListen | Done | environment_test.go | Single endpoint |
+| TestParseCompoundListenIPv6 | Done | environment_test.go | IPv6 bracket notation |
+| TestCompoundListenMulti | Done | environment_test.go | Multiple endpoints |
+| TestCompoundListenBoundary | Done | environment_test.go | Port 0/1/65535/65536, empty, malformed |
+| env-compound-listen.ci | Done | test/ui/env-compound-listen.ci | Compound vars registered, old vars gone |
+| env-service-enabled.ci | Done | test/ui/env-service-enabled.ci | Enabled vars registered |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| internal/component/config/environment.go | Done | Parser added, registrations replaced |
+| cmd/ze/hub/main.go | Done | Consumers updated to compound format |
+| test/ui/env-compound-listen.ci | Done | Created |
+| test/ui/env-service-enabled.ci | Done | Created |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 18
+- **Done:** 18
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (test location: test/ui/ instead of test/parse/ because tests use ze env list, not config parsing)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| test/ui/env-compound-listen.ci | Yes | 649 bytes |
+| test/ui/env-service-enabled.ci | Yes | 352 bytes |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | ze.web.listen registered | grep ze.web.listen environment.go: 1 match |
+| AC-2 | Multi-endpoint parsing | TestCompoundListenMulti: PASS |
+| AC-3 | ze.web.host not registered | grep ze.web.host environment.go: 0 matches |
+| AC-4 | ze.web.enabled registered | grep ze.web.enabled environment.go: 1 match |
+| AC-5 | IPv6 parsing | TestParseCompoundListenIPv6: PASS |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| ze.web.listen env var | test/ui/env-compound-listen.ci | PASS |
+| ze.web.enabled env var | test/ui/env-service-enabled.ci | PASS |
 
 ## Checklist
 

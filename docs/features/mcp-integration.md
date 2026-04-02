@@ -47,7 +47,7 @@ environment {
 }
 ```
 
-Environment variable overrides: `ze.mcp.ip`, `ze.mcp.port`. Binds to 127.0.0.1 only (security: no remote access without tunneling).
+Environment variable overrides: `ze.mcp.listen=ip:port`, `ze.mcp.enabled=true`. Defaults to `127.0.0.1:8080` (security: local-only unless explicitly overridden via `ze.mcp.listen`).
 
 ## AI Command Reference
 

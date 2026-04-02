@@ -1,0 +1,15 @@
+# Test: compound listen env vars are registered and old per-field vars are not
+# VALIDATES: AC-1 ze.web.listen registered, AC-3 ze.web.host not registered
+# PREVENTS: Old per-field listener env vars remaining after compound migration
+
+cmd=foreground:seq=1:exec=ze env list
+expect=exit:code=0
+expect=stdout:contains=ze.web.listen
+expect=stdout:contains=ze.mcp.listen
+expect=stdout:contains=ze.looking-glass.listen
+expect=stdout:!contains=ze.web.host
+expect=stdout:!contains=ze.web.port
+expect=stdout:!contains=ze.mcp.host
+expect=stdout:!contains=ze.mcp.port
+expect=stdout:!contains=ze.looking-glass.host
+expect=stdout:!contains=ze.looking-glass.port

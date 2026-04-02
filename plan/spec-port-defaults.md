@@ -39,7 +39,7 @@ All port values displayed in help text and used as defaults across ze programs a
 **Key insights:**
 - YANG schemas define canonical defaults for ze service ports
 - env.MustRegister captures defaults at package init time
-- Several env registrations are missing their YANG defaults (e.g., ze.web.port has no Default but YANG says 3443)
+- Several env registrations are missing their YANG defaults (e.g., ze.web.listen has no Default but YANG says 0.0.0.0:3443)
 - Tool-specific ports (chaos, test, perf) have no env vars at all
 - Tool-specific ports need YANG leaves under appropriate containers
 
@@ -48,7 +48,7 @@ All port values displayed in help text and used as defaults across ze programs a
 **Source files read:**
 - [ ] `internal/core/env/registry.go` - EnvEntry struct with Key, Type, Default, Description fields
 - [ ] `internal/component/config/environment.go` - ze.bgp.* env registrations (ze.bgp.tcp.port default "179")
-- [ ] `cmd/ze/hub/main.go` - ze.web.port, ze.looking-glass.port, ze.mcp.port (all missing Default field)
+- [ ] `cmd/ze/hub/main.go` - ze.web.listen, ze.looking-glass.listen, ze.mcp.listen (compound ip:port format)
 - [ ] `cmd/ze-chaos/main.go` - port flags with hardcoded defaults (1850, 1950, 0, etc.)
 - [ ] `cmd/ze-test/bgp.go` - --port 1790 hardcoded
 - [ ] `cmd/ze-test/peer.go` - --port reads from env ze_bgp_tcp_port (legacy naming)
@@ -84,8 +84,8 @@ All port values displayed in help text and used as defaults across ze programs a
 1. YANG schema defines canonical default (e.g., `default 8443`)
 2. env.MustRegister captures it (e.g., `Default: "8443"`)
 3. At flag definition time, helper reads env.Get() (returns configured or default)
-4. Helper formats description: `"Looking glass port (default: 8443, env: ze.looking-glass.port)"`
-5. If env overrides: `"Looking glass port (default: 8443, configured: 9000 via ze.looking-glass.port)"`
+4. Helper formats description: `"Looking glass listen (default: 0.0.0.0:8443, env: ze.looking-glass.listen)"`
+5. If env overrides: `"Looking glass listen (default: 0.0.0.0:8443, configured: 0.0.0.0:9000 via ze.looking-glass.listen)"`
 6. Flag's Go default is set to the resolved value (env override or YANG default)
 
 ### Boundaries Crossed
@@ -168,14 +168,11 @@ error: port conflicts detected:
 | Service | YANG leaf | YANG default | Env var | Env Default | Gap |
 |---------|-----------|-------------|---------|-------------|-----|
 | BGP | `bgp.tcp.port` | 179 | `ze.bgp.tcp.port` | "179" | None |
-| Web UI | `environment.web.port` | 3443 | `ze.web.port` | (none) | Missing Default |
-| Web UI host | `environment.web.host` | 0.0.0.0 | `ze.web.host` | (none) | Missing Default |
-| Looking Glass | `environment.looking-glass.port` | 8443 | `ze.looking-glass.port` | (none) | Missing Default |
-| LG host | `environment.looking-glass.host` | 0.0.0.0 | `ze.looking-glass.host` | (none) | Missing Default |
+| Web UI | `environment.web` | 0.0.0.0:3443 | `ze.web.listen` | (none) | Compound ip:port format, `ze.web.enabled` for opt-in |
+| Looking Glass | `environment.looking-glass` | 0.0.0.0:8443 | `ze.looking-glass.listen` | (none) | Compound ip:port format, `ze.looking-glass.enabled` for opt-in |
 | Prometheus | `telemetry.prometheus.port` | 9273 | (none) | - | Missing env var |
 | Prometheus host | `telemetry.prometheus.address` | 0.0.0.0 | (none) | - | Missing env var |
-| MCP | `environment.mcp.port` | (none) | `ze.mcp.port` | (none) | No YANG default (required) |
-| MCP host | `environment.mcp.host` | 127.0.0.1 | `ze.mcp.host` | (none) | Missing Default |
+| MCP | `environment.mcp` | 127.0.0.1:8080 | `ze.mcp.listen` | (none) | Compound ip:port format, `ze.mcp.enabled` for opt-in |
 | SSH | `environment.ssh.listen` | (none) | `ze.ssh.port` | (none) | No YANG default (leaf-list) |
 | pprof | `environment.debug.pprof` | (none) | `ze.bgp.debug.pprof` | (none) | No default (opt-in) |
 
@@ -190,8 +187,8 @@ error: port conflicts detected:
 | ze-chaos | `--pprof` | (disabled) | `ze.chaos.pprof` | `environment.chaos.pprof` (ze-hub-conf.yang) |
 | ze-chaos | `--metrics` | (disabled) | `ze.chaos.metrics` | `environment.chaos.metrics` (ze-hub-conf.yang) |
 | ze-chaos | `--ze-pprof` | (disabled) | (reuse ze.bgp.debug.pprof) | (already in ze-hub-conf.yang) |
-| ze-chaos | `--web-ui` | 0 (disabled) | (reuse ze.web.port) | (already in ze-web-conf.yang) |
-| ze-chaos | `--lg` | 0 (disabled) | (reuse ze.looking-glass.port) | (already in ze-lg-conf.yang) |
+| ze-chaos | `--web-ui` | 0 (disabled) | (reuse ze.web.listen) | (already in ze-web-conf.yang) |
+| ze-chaos | `--lg` | 0 (disabled) | (reuse ze.looking-glass.listen) | (already in ze-lg-conf.yang) |
 | ze-test | `--port` | 1790 | `ze.test.bgp.port` | `environment.test.bgp-port` (ze-hub-conf.yang) |
 | ze-perf | `--dut-port` | 179 | (reuse ze.bgp.tcp.port) | (already in ze-bgp-conf.yang) |
 | ze signal | `--port` | 2222 | (reuse ze.ssh.port) | (already in ze-ssh-conf.yang) |
@@ -268,7 +265,7 @@ The SSH YANG uses a leaf-list for listen addresses (e.g., "0.0.0.0:2222"). There
 - `internal/core/env/registry.go` - add `PortDefault()` and `AddrPortDefault()` helpers
 
 ### Env registrations - add Default values
-- `cmd/ze/hub/main.go` - add Default to ze.web.port ("3443"), ze.web.host ("0.0.0.0"), ze.looking-glass.port ("8443"), ze.looking-glass.host ("0.0.0.0"), ze.mcp.host ("127.0.0.1")
+- `cmd/ze/hub/main.go` - registrations centralized in environment.go; ze.web.listen, ze.looking-glass.listen, ze.mcp.listen use compound ip:port format
 - `cmd/ze/internal/ssh/client/client.go` - add Default "2222" to ze.ssh.port
 
 ### New env registrations

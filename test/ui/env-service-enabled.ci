@@ -1,0 +1,9 @@
+# Test: service enabled env vars are registered
+# VALIDATES: AC-4 ze.web.enabled registered for service activation
+# PREVENTS: Enabled env vars missing from registration
+
+cmd=foreground:seq=1:exec=ze env list
+expect=exit:code=0
+expect=stdout:contains=ze.web.enabled
+expect=stdout:contains=ze.mcp.enabled
+expect=stdout:contains=ze.looking-glass.enabled

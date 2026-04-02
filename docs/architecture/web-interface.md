@@ -139,6 +139,7 @@ No `unsafe-eval`. All scripts are external files. No inline `<script>` blocks.
 |--------|---------|
 | CLI flag | `ze start --web <port>` |
 | Config | `environment { web { enabled true; server main { ip 0.0.0.0; port 3443; } } }` |
+| Env vars | `ze.web.listen=ip:port`, `ze.web.enabled=true`, `ze.web.insecure=true` |
 
 Both paths call `startWebServer()` in `cmd/ze/hub/main.go`. Web-only mode (no BGP config) starts the web server standalone for initial setup.
 
@@ -201,7 +202,7 @@ The birdwatcher API uses `snake_case` JSON keys (`router_id`, `neighbor_address`
 | Method | Config |
 |--------|--------|
 | Config | `environment { looking-glass { enabled true; server main { ip 0.0.0.0; port 8443; } } }` |
-| Env vars | `ze.looking-glass.ip`, `ze.looking-glass.port`, `ze.looking-glass.tls` |
+| Env vars | `ze.looking-glass.listen=ip:port`, `ze.looking-glass.enabled=true`, `ze.looking-glass.tls=true` |
 
 Started by `startLGServer()` in `cmd/ze/hub/main.go` alongside the web server, after engine startup.
 
