@@ -429,8 +429,33 @@ dispatch:
 		printVersion()
 		os.Exit(0)
 	case "start":
+		if len(args) > 1 && isHelpArg(args[1]) {
+			p := helpfmt.Page{
+				Command: "ze start",
+				Summary: "Start the Ze daemon from blob storage",
+				Usage:   []string{"ze start [options]"},
+				Sections: []helpfmt.HelpSection{
+					{Title: "Options", Entries: []helpfmt.HelpEntry{
+						{Name: "--web <port>", Desc: "Enable web UI on given port"},
+						{Name: "--insecure-web", Desc: "Disable web auth (binds to localhost only)"},
+						{Name: "--mcp <port>", Desc: "Enable MCP server on given port"},
+					}},
+					{Title: "Prerequisites", Entries: []helpfmt.HelpEntry{
+						{Name: "ze init", Desc: "Bootstrap database (required before first start)"},
+						{Name: "ze config edit", Desc: "Create or edit configuration"},
+					}},
+				},
+				Examples: []string{
+					"ze start                           Start daemon with default config",
+					"ze start --web 3443                Start with web UI on port 3443",
+					"ze start --web 3443 --insecure-web Start with web UI, no auth (localhost)",
+				},
+			}
+			p.Write()
+			os.Exit(0)
+		}
 		os.Exit(cmdStart(args[1:], plugins, chaosSeed, chaosRate, mcpAddr, webPort, insecureWeb))
-	case "help", "-h", "--help":
+	case "help", "-h", "--help": //nolint:goconst // case labels can't call functions
 		subArgs := args[1:]
 		switch {
 		case aiHelpRequested(subArgs):
@@ -526,6 +551,12 @@ func isYANGVerb(arg string) bool {
 //	["show", "bgp", "help"] -> ["show", "bgp"]
 //	["show", "bgp", "--help"] -> ["show", "bgp"]
 //	["show", "bgp", "decode", "hex"] -> nil (not a help request)
+//
+// isHelpArg returns true if the argument is a help flag.
+func isHelpArg(s string) bool {
+	return s == "help" || s == "-h" || s == "--help"
+}
+
 func extractHelpPath(args []string) []string {
 	if len(args) < 1 {
 		return nil
@@ -534,7 +565,7 @@ func extractHelpPath(args []string) []string {
 		return args
 	}
 	last := args[len(args)-1]
-	if last == "help" || last == "-h" || last == "--help" {
+	if isHelpArg(last) {
 		return args[:len(args)-1]
 	}
 	return nil
