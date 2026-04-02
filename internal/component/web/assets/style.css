@@ -1446,6 +1446,8 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 
 .add-entry-submit:hover { background: var(--accent-hover); }
+
+.sidebar-add-input {
   color: var(--text-primary);
   background: var(--input-bg);
   border: 1px solid var(--border);
@@ -1775,7 +1777,6 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  position: relative;
 }
 
 .cli-prompt {
