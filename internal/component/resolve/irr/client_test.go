@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -465,5 +466,79 @@ func TestResolveASSetDepthLimit(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "recursion depth exceeded") {
 		t.Errorf("error should mention recursion depth, got: %v", err)
+	}
+}
+
+// countingIRRServer wraps a handler and counts TCP connections.
+func countingIRRServer(t *testing.T, counter *atomic.Int32, handler func(conn net.Conn)) (string, func()) {
+	t.Helper()
+	return fakeIRRServer(t, func(conn net.Conn) {
+		counter.Add(1)
+		handler(conn)
+	})
+}
+
+// VALIDATES: AC-8 -- second ResolveASSet call returns cached result, no whois query.
+// PREVENTS: redundant whois queries for recently resolved AS-SETs.
+func TestResolveASSetCache(t *testing.T) {
+	var hits atomic.Int32
+	addr, cleanup := countingIRRServer(t, &hits, handleASSetQuery)
+	defer cleanup()
+
+	c := NewIRR(addr)
+
+	first, err := c.ResolveASSet(context.Background(), "AS-TEST")
+	if err != nil {
+		t.Fatalf("first resolve: %v", err)
+	}
+	if hits.Load() != 1 {
+		t.Fatalf("expected 1 TCP connection, got %d", hits.Load())
+	}
+
+	second, err := c.ResolveASSet(context.Background(), "AS-TEST")
+	if err != nil {
+		t.Fatalf("second resolve: %v", err)
+	}
+	if hits.Load() != 1 {
+		t.Errorf("expected cache hit (still 1 TCP connection), got %d", hits.Load())
+	}
+	if len(first) != len(second) {
+		t.Errorf("cached result differs: first=%v, second=%v", first, second)
+	}
+	for i := range first {
+		if first[i] != second[i] {
+			t.Errorf("cached result[%d]: got %d, want %d", i, second[i], first[i])
+		}
+	}
+}
+
+// VALIDATES: AC-8 -- second LookupPrefixes call returns cached result, no whois query.
+// PREVENTS: redundant whois queries for recently resolved prefix lists.
+func TestLookupPrefixesCache(t *testing.T) {
+	var hits atomic.Int32
+	addr, cleanup := countingIRRServer(t, &hits, handleASSetQuery)
+	defer cleanup()
+
+	c := NewIRR(addr)
+
+	first, err := c.LookupPrefixes(context.Background(), "AS-TEST")
+	if err != nil {
+		t.Fatalf("first lookup: %v", err)
+	}
+	// LookupPrefixes makes 2 TCP connections (one for !a4, one for !a6).
+	initialHits := hits.Load()
+	if initialHits < 1 {
+		t.Fatalf("expected at least 1 TCP connection, got %d", initialHits)
+	}
+
+	second, err := c.LookupPrefixes(context.Background(), "AS-TEST")
+	if err != nil {
+		t.Fatalf("second lookup: %v", err)
+	}
+	if hits.Load() != initialHits {
+		t.Errorf("expected cache hit (still %d TCP connections), got %d", initialHits, hits.Load())
+	}
+	if len(first.IPv4) != len(second.IPv4) || len(first.IPv6) != len(second.IPv6) {
+		t.Errorf("cached result differs: first=%+v, second=%+v", first, second)
 	}
 }

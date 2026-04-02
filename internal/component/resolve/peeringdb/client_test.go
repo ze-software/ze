@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 )
 
@@ -458,5 +459,111 @@ func TestSuspiciousPartialData(t *testing.T) {
 	p = PrefixCounts{IPv4: 0, IPv6: 500}
 	if p.Suspicious() {
 		t.Error("should not be suspicious when IPv6 > 0")
+	}
+}
+
+// VALIDATES: AC-8 -- second LookupASN call returns cached result, no HTTP request.
+// PREVENTS: redundant HTTP queries for recently resolved ASNs.
+func TestLookupASNCache(t *testing.T) {
+	var hits atomic.Int32
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		fakeHandler(w, r)
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(handler))
+	defer srv.Close()
+
+	c := NewPeeringDB(srv.URL)
+
+	first, err := c.LookupASN(context.Background(), 65001)
+	if err != nil {
+		t.Fatalf("first lookup: %v", err)
+	}
+	if hits.Load() != 1 {
+		t.Fatalf("expected 1 HTTP request, got %d", hits.Load())
+	}
+
+	second, err := c.LookupASN(context.Background(), 65001)
+	if err != nil {
+		t.Fatalf("second lookup: %v", err)
+	}
+	if hits.Load() != 1 {
+		t.Errorf("expected cache hit (still 1 HTTP request), got %d", hits.Load())
+	}
+	if first != second {
+		t.Errorf("cached result differs: first=%+v, second=%+v", first, second)
+	}
+}
+
+// VALIDATES: AC-8 -- second LookupASSet call returns cached result, no HTTP request.
+// PREVENTS: redundant HTTP queries for recently resolved AS-SETs.
+func TestLookupASSetCache(t *testing.T) {
+	var hits atomic.Int32
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		fakeHandler(w, r)
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(handler))
+	defer srv.Close()
+
+	c := NewPeeringDB(srv.URL)
+
+	first, err := c.LookupASSet(context.Background(), 65001)
+	if err != nil {
+		t.Fatalf("first lookup: %v", err)
+	}
+	if hits.Load() != 1 {
+		t.Fatalf("expected 1 HTTP request, got %d", hits.Load())
+	}
+
+	second, err := c.LookupASSet(context.Background(), 65001)
+	if err != nil {
+		t.Fatalf("second lookup: %v", err)
+	}
+	if hits.Load() != 1 {
+		t.Errorf("expected cache hit (still 1 HTTP request), got %d", hits.Load())
+	}
+	if len(first) != len(second) {
+		t.Errorf("cached result differs: first=%v, second=%v", first, second)
+	}
+}
+
+// VALIDATES: empty AS-SET result is cached (no repeated HTTP for ASNs with no AS-SET).
+// PREVENTS: cache miss on empty AS-SET causing repeated network calls.
+func TestLookupASSetEmptyCache(t *testing.T) {
+	var hits atomic.Int32
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		fakeHandler(w, r)
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(handler))
+	defer srv.Close()
+
+	c := NewPeeringDB(srv.URL)
+
+	// ASN 65003 has no AS-SET in fakeHandler.
+	sets1, err := c.LookupASSet(context.Background(), 65003)
+	if err != nil {
+		t.Fatalf("first lookup: %v", err)
+	}
+	if sets1 != nil {
+		t.Fatalf("expected nil for no AS-SET, got %v", sets1)
+	}
+	if hits.Load() != 1 {
+		t.Fatalf("expected 1 HTTP request, got %d", hits.Load())
+	}
+
+	sets2, err := c.LookupASSet(context.Background(), 65003)
+	if err != nil {
+		t.Fatalf("second lookup: %v", err)
+	}
+	if sets2 != nil {
+		t.Fatalf("expected nil from cache, got %v", sets2)
+	}
+	if hits.Load() != 1 {
+		t.Errorf("expected cache hit (still 1 HTTP request), got %d", hits.Load())
 	}
 }

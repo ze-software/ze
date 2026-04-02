@@ -12,7 +12,7 @@
 // query commands. Results are returned as parsed prefix lists ready for
 // filter configuration.
 //
-// No caching is provided; callers manage their own cache and staleness.
+// Results are cached for 1h via the shared resolve/cache package.
 //
 // Related: rir.go -- RIR delegation table (ASN-to-RIR lookup)
 package irr
@@ -28,12 +28,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cache"
 )
 
 const (
 	defaultPort    = "43"
 	defaultTimeout = 10 * time.Second
 	maxResponse    = 4 << 20 // 4 MB max response (large AS-SETs can be big)
+	cacheTTL       = time.Hour
 )
 
 // PrefixList holds the resolved prefixes for both address families.
@@ -48,9 +51,12 @@ func (p PrefixList) Empty() bool {
 }
 
 // IRR queries an IRR database via the RPSL whois protocol.
+// Results are cached for 1h to avoid redundant whois queries.
 type IRR struct {
-	server  string // host:port of the IRR whois server
-	timeout time.Duration
+	server      string // host:port of the IRR whois server
+	timeout     time.Duration
+	asSetCache  *cache.Cache[[]uint32]
+	prefixCache *cache.Cache[PrefixList]
 }
 
 // NewIRR creates an IRR client for the given whois server.
@@ -64,8 +70,10 @@ func NewIRR(server string) *IRR {
 		server = net.JoinHostPort(server, defaultPort)
 	}
 	return &IRR{
-		server:  server,
-		timeout: defaultTimeout,
+		server:      server,
+		timeout:     defaultTimeout,
+		asSetCache:  cache.New[[]uint32](cacheTTL),
+		prefixCache: cache.New[PrefixList](cacheTTL),
 	}
 }
 
@@ -77,10 +85,15 @@ const maxRecursionDepth = 32
 // ResolveASSet expands an AS-SET name into a set of origin ASNs.
 // Handles recursive AS-SET references (AS-SET containing other AS-SETs).
 // Uses the RPSL "!i" command for AS-SET member expansion.
+// Results are cached for 1h keyed by AS-SET name.
 // Returns an error if the AS-SET name contains control characters.
 func (c *IRR) ResolveASSet(ctx context.Context, asSet string) ([]uint32, error) {
 	if err := validateASSetName(asSet); err != nil {
 		return nil, err
+	}
+
+	if cached, ok := c.asSetCache.Get(asSet); ok {
+		return cached, nil
 	}
 
 	seen := make(map[string]bool)
@@ -94,6 +107,9 @@ func (c *IRR) ResolveASSet(ctx context.Context, asSet string) ([]uint32, error) 
 		asns = append(asns, asn)
 	}
 	slices.Sort(asns)
+
+	c.asSetCache.Set(asSet, asns)
+
 	return asns, nil
 }
 
@@ -148,10 +164,15 @@ func (c *IRR) resolveASSetRecursive(ctx context.Context, asSet string, seen map[
 // LookupPrefixes fetches the announced prefixes for an AS-SET from the IRR.
 // Uses the RPSL "!a4" and "!a6" commands for IPv4 and IPv6 prefix queries.
 // Prefixes are aggregated (collapsed) and sorted.
+// Results are cached for 1h keyed by AS-SET name.
 // Returns an error if the AS-SET name contains control characters.
 func (c *IRR) LookupPrefixes(ctx context.Context, asSet string) (PrefixList, error) {
 	if err := validateASSetName(asSet); err != nil {
 		return PrefixList{}, err
+	}
+
+	if cached, ok := c.prefixCache.Get(asSet); ok {
+		return cached, nil
 	}
 
 	ipv4, err := c.lookupFamilyPrefixes(ctx, asSet, 4)
@@ -164,10 +185,14 @@ func (c *IRR) LookupPrefixes(ctx context.Context, asSet string) (PrefixList, err
 		return PrefixList{}, err
 	}
 
-	return PrefixList{
+	result := PrefixList{
 		IPv4: aggregateAndSort(ipv4),
 		IPv6: aggregateAndSort(ipv6),
-	}, nil
+	}
+
+	c.prefixCache.Set(asSet, result)
+
+	return result, nil
 }
 
 // lookupFamilyPrefixes queries a single address family (4 or 6) for the given AS-SET.

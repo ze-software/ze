@@ -18,10 +18,14 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cache"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
 )
 
-const defaultTimeout = 10 * time.Second
+const (
+	defaultTimeout = 10 * time.Second
+	cacheTTL       = time.Hour
+)
 
 // PrefixCounts holds per-family prefix counts returned by PeeringDB.
 type PrefixCounts struct {
@@ -40,9 +44,12 @@ func (p PrefixCounts) Suspicious() bool {
 // not ze's own JSON format which uses kebab-case.
 
 // PeeringDB queries a PeeringDB-compatible API for prefix counts.
+// Results are cached for 1h to avoid redundant HTTP requests.
 type PeeringDB struct {
-	baseURL string
-	http    *http.Client
+	baseURL     string
+	http        *http.Client
+	prefixCache *cache.Cache[PrefixCounts]
+	asSetCache  *cache.Cache[[]string]
 }
 
 // NewPeeringDB creates a PeeringDB client for the given base URL.
@@ -74,28 +81,46 @@ func NewPeeringDB(baseURL string) *PeeringDB {
 			Timeout:   defaultTimeout,
 			Transport: transport,
 		},
+		prefixCache: cache.New[PrefixCounts](cacheTTL),
+		asSetCache:  cache.New[[]string](cacheTTL),
 	}
 }
 
 // LookupASN queries PeeringDB for prefix counts of the given ASN.
+// Results are cached for 1h keyed by ASN.
 // Returns an error if the ASN is not found in PeeringDB.
 func (c *PeeringDB) LookupASN(ctx context.Context, asn uint32) (PrefixCounts, error) {
+	key := fmt.Sprintf("prefix:%d", asn)
+	if cached, ok := c.prefixCache.Get(key); ok {
+		return cached, nil
+	}
+
 	fields, err := c.fetchNetFields(ctx, asn)
 	if err != nil {
 		return PrefixCounts{}, err
 	}
 
-	return PrefixCounts{
+	result := PrefixCounts{
 		IPv4: jsonUint32(fields, "info_prefixes4"),
 		IPv6: jsonUint32(fields, "info_prefixes6"),
-	}, nil
+	}
+
+	c.prefixCache.Set(key, result)
+
+	return result, nil
 }
 
 // LookupASSet queries PeeringDB for the IRR AS-SET(s) registered by the given ASN.
 // Returns a slice of AS-SET names (e.g., ["AS-EXAMPLE", "RIPE::AS-EXAMPLE"]).
+// Results are cached for 1h keyed by ASN.
 // Returns an empty slice (not error) if the ASN exists but has no AS-SET registered.
 // Returns an error if the ASN is not found in PeeringDB.
 func (c *PeeringDB) LookupASSet(ctx context.Context, asn uint32) ([]string, error) {
+	key := fmt.Sprintf("asset:%d", asn)
+	if cached, ok := c.asSetCache.Get(key); ok {
+		return cached, nil
+	}
+
 	fields, err := c.fetchNetFields(ctx, asn)
 	if err != nil {
 		return nil, err
@@ -103,10 +128,15 @@ func (c *PeeringDB) LookupASSet(ctx context.Context, asn uint32) ([]string, erro
 
 	raw, ok := fields["irr_as_set"].(string)
 	if !ok || raw == "" {
+		c.asSetCache.Set(key, nil)
 		return nil, nil
 	}
 
-	return parseASSetField(raw), nil
+	result := parseASSetField(raw)
+
+	c.asSetCache.Set(key, result)
+
+	return result, nil
 }
 
 // parseASSetField splits PeeringDB's irr_as_set field into individual AS-SET names.
