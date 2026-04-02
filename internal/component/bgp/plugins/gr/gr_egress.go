@@ -91,10 +91,13 @@ func LLGREgressFilter(src, dest registry.PeerFilterInfo, payload []byte, meta ma
 		return true
 	}
 
-	// EBGP non-LLGR peer: suppress the stale route.
+	// EBGP non-LLGR peer: convert announce to withdrawal.
 	// RFC 9494: "routes with LLGR_STALE SHOULD NOT be advertised to
 	// peers that have not advertised the LLGR capability."
-	return false
+	// The forward path converts the announce UPDATE to a withdrawal
+	// so the peer removes the now-stale route from its RIB.
+	mods.SetWithdraw()
+	return true
 }
 
 // staleFromMeta extracts the stale level from route metadata.

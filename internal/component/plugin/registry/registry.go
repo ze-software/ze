@@ -59,15 +59,20 @@ type EgressFilterFunc func(source, dest PeerFilterInfo, payload []byte, meta map
 // ModAccumulator collects per-peer route modifications from egress filters.
 // NOT safe for concurrent use. Each peer iteration gets a fresh instance.
 type ModAccumulator struct {
-	ops []AttrOp
+	ops      []AttrOp
+	withdraw bool // convert announce to withdrawal for this peer
 }
 
-// Len returns the number of accumulated modifications.
+// Len returns the number of accumulated modifications (excluding withdraw flag).
 func (a *ModAccumulator) Len() int { return len(a.ops) }
+
+// HasMods returns true if any modifications have been accumulated (ops or withdraw).
+func (a *ModAccumulator) HasMods() bool { return len(a.ops) > 0 || a.withdraw }
 
 // Reset clears all accumulated modifications for reuse.
 func (a *ModAccumulator) Reset() {
 	a.ops = a.ops[:0]
+	a.withdraw = false
 }
 
 // Op accumulates an attribute modification operation.
@@ -82,6 +87,15 @@ func (a *ModAccumulator) Op(code, action uint8, buf []byte) {
 // Ops returns the accumulated attribute modification operations.
 // Returns nil if no ops have been accumulated.
 func (a *ModAccumulator) Ops() []AttrOp { return a.ops }
+
+// SetWithdraw marks this route for withdrawal conversion.
+// The forward path will convert the announce UPDATE to a withdrawal
+// for this destination peer. Used by LLGR egress filter (RFC 9494)
+// to withdraw stale routes from EBGP non-LLGR peers.
+func (a *ModAccumulator) SetWithdraw() { a.withdraw = true }
+
+// IsWithdraw returns true if the route should be converted to a withdrawal.
+func (a *ModAccumulator) IsWithdraw() bool { return a.withdraw }
 
 // Attribute modification action constants.
 const (

@@ -220,6 +220,135 @@ func buildModifiedPayload(
 	return result
 }
 
+// buildWithdrawalPayload converts an announce UPDATE payload to a withdrawal.
+// RFC 9494: EBGP non-LLGR peers must receive a withdrawal for stale routes.
+//
+// For IPv4 unicast (legacy NLRI in payload tail):
+//
+//	Move NLRI bytes to Withdrawn Routes, set attr_len=0.
+//	Result: withdrawn_len(2) + nlri_bytes + attr_len(2)=0
+//
+// For other families (MP_REACH_NLRI attr 14):
+//
+//	Extract AFI/SAFI + NLRI from MP_REACH, build MP_UNREACH_NLRI (attr 15).
+//	Result: withdrawn_len(2)=0 + attr_len(2) + mp_unreach_attr
+//
+// Returns nil if the payload cannot be converted (malformed or unsupported).
+func buildWithdrawalPayload(payload []byte) []byte {
+	if len(payload) < 4 {
+		return nil
+	}
+	withdrawnLen := int(binary.BigEndian.Uint16(payload[0:2]))
+	attrOffset := 2 + withdrawnLen
+	if len(payload) < attrOffset+2 {
+		return nil
+	}
+	attrLen := int(binary.BigEndian.Uint16(payload[attrOffset : attrOffset+2]))
+	attrStart := attrOffset + 2
+	attrEnd := attrStart + attrLen
+	if len(payload) < attrEnd {
+		return nil
+	}
+
+	// Check for legacy IPv4 NLRI (bytes after attributes).
+	nlriBytes := payload[attrEnd:]
+	if len(nlriBytes) > 0 {
+		// IPv4 unicast: move NLRI to withdrawn routes, no attributes.
+		result := make([]byte, 2+len(nlriBytes)+2)
+		binary.BigEndian.PutUint16(result[0:2], uint16(len(nlriBytes)))
+		copy(result[2:], nlriBytes)
+		// attr_len = 0 (last 2 bytes are already zero)
+		return result
+	}
+
+	// No legacy NLRI: look for MP_REACH_NLRI (attr code 14) to convert.
+	return buildMPUnreachFromReach(payload[attrStart:attrEnd])
+}
+
+// buildMPUnreachFromReach extracts AFI/SAFI + NLRI from MP_REACH_NLRI (attr 14)
+// and builds an MP_UNREACH_NLRI (attr 15) withdrawal.
+//
+// MP_REACH_NLRI value: AFI(2) + SAFI(1) + NH_Len(1) + NH(var) + Reserved(1) + NLRI(var).
+// MP_UNREACH_NLRI value: AFI(2) + SAFI(1) + NLRI(var).
+func buildMPUnreachFromReach(attrs []byte) []byte {
+	off := 0
+	for off < len(attrs) {
+		if off+2 > len(attrs) {
+			return nil
+		}
+		flags := attrs[off]
+		code := attrs[off+1]
+		var hdrLen int
+		var aLen uint16
+		if flags&0x10 != 0 { // Extended length.
+			if off+4 > len(attrs) {
+				return nil
+			}
+			aLen = binary.BigEndian.Uint16(attrs[off+2 : off+4])
+			hdrLen = 4
+		} else {
+			if off+3 > len(attrs) {
+				return nil
+			}
+			aLen = uint16(attrs[off+2])
+			hdrLen = 3
+		}
+		valStart := off + hdrLen
+		valEnd := valStart + int(aLen)
+		if valEnd > len(attrs) {
+			return nil
+		}
+
+		if code == 14 { // MP_REACH_NLRI
+			val := attrs[valStart:valEnd]
+			if len(val) < 4 { // AFI(2) + SAFI(1) + NH_Len(1) minimum
+				return nil
+			}
+			afi := val[0:2]
+			safi := val[2]
+			nhLen := int(val[3])
+			nlriStart := 4 + nhLen + 1 // skip NH + reserved byte
+			if nlriStart > len(val) {
+				return nil
+			}
+			nlriData := val[nlriStart:]
+
+			// Build MP_UNREACH_NLRI: AFI(2) + SAFI(1) + NLRI
+			unreachVal := make([]byte, 3+len(nlriData))
+			copy(unreachVal[0:2], afi)
+			unreachVal[2] = safi
+			copy(unreachVal[3:], nlriData)
+
+			// Build attribute header for MP_UNREACH (code 15, optional transitive)
+			var unreachAttr []byte
+			if len(unreachVal) > 255 {
+				unreachAttr = make([]byte, 4+len(unreachVal))
+				unreachAttr[0] = 0x90 // Optional, Transitive, Extended Length
+				unreachAttr[1] = 15
+				binary.BigEndian.PutUint16(unreachAttr[2:4], uint16(len(unreachVal)))
+				copy(unreachAttr[4:], unreachVal)
+			} else {
+				unreachAttr = make([]byte, 3+len(unreachVal))
+				unreachAttr[0] = 0x80 // Optional, Transitive
+				unreachAttr[1] = 15
+				unreachAttr[2] = byte(len(unreachVal))
+				copy(unreachAttr[3:], unreachVal)
+			}
+
+			// Build payload: withdrawn_len=0, attr_len=unreachAttr, no NLRI
+			result := make([]byte, 2+2+len(unreachAttr))
+			// withdrawn_len = 0 (first 2 bytes already zero)
+			binary.BigEndian.PutUint16(result[2:4], uint16(len(unreachAttr)))
+			copy(result[4:], unreachAttr)
+			return result
+		}
+
+		off = valEnd
+	}
+
+	return nil // No MP_REACH_NLRI found.
+}
+
 // safeCopy copies src into buf at offset off, returning false if it would overflow.
 func safeCopy(buf []byte, off int, src []byte) bool {
 	if off+len(src) > len(buf) {

@@ -109,9 +109,9 @@ func TestLLGREgressFilter_LLGRPeer(t *testing.T) {
 	assert.Equal(t, 0, mods.Len(), "no mods for LLGR-capable peer (community already in wire)")
 }
 
-// TestLLGREgressFilter_EBGPNonLLGR verifies stale routes are suppressed for EBGP non-LLGR peers.
+// TestLLGREgressFilter_EBGPNonLLGR verifies stale routes trigger withdrawal for EBGP non-LLGR peers.
 //
-// VALIDATES: AC-2: LLGR_STALE route to EBGP peer without LLGR capability is suppressed.
+// VALIDATES: AC-2: LLGR_STALE route to EBGP peer without LLGR -> withdrawal via SetWithdraw.
 // PREVENTS: Stale routes being advertised to peers that cannot handle LLGR_STALE.
 func TestLLGREgressFilter_EBGPNonLLGR(t *testing.T) {
 	state := newTestEgressState(65000, map[string]*llgrPeerCap{
@@ -129,7 +129,9 @@ func TestLLGREgressFilter_EBGPNonLLGR(t *testing.T) {
 	accept := LLGREgressFilter(src, dest, nil, meta, &mods)
 
 	// RFC 9494: LLGR_STALE routes SHOULD NOT be advertised to non-LLGR peers.
-	assert.False(t, accept, "stale route suppressed for EBGP non-LLGR peer")
+	// Filter returns true (route processed) but marks for withdrawal conversion.
+	assert.True(t, accept, "filter accepts, forward path converts to withdrawal")
+	assert.True(t, mods.IsWithdraw(), "should set withdraw for EBGP non-LLGR peer")
 }
 
 // TestLLGREgressFilter_IBGPPartial verifies stale routes are modified for IBGP non-LLGR peers.

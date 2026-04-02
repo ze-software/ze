@@ -696,3 +696,85 @@ func insertOTCInPayloadForTest(payload []byte, otcASN uint32) []byte {
 	copy(result[attrEnd+7:], payload[attrEnd:])
 	return result
 }
+
+// TestBuildWithdrawalPayload_IPv4 verifies conversion of IPv4 unicast announce to withdrawal.
+//
+// VALIDATES: AC-2: EBGP non-LLGR peer receives withdrawal (IPv4 path).
+// PREVENTS: Stale routes staying in non-LLGR peer's RIB.
+func TestBuildWithdrawalPayload_IPv4(t *testing.T) {
+	// Build an announce: no withdrawn, some attrs, NLRI = 10.0.0.0/24.
+	nlri := []byte{24, 10, 0, 0} // /24, 10.0.0.0
+	attrs := makeAttr(0x40, 1, []byte{0})
+	payload := buildModTestPayload(attrs, nlri)
+
+	result := buildWithdrawalPayload(payload)
+	require.NotNil(t, result, "should produce withdrawal")
+
+	// Withdrawn length should be len(nlri).
+	wdLen := binary.BigEndian.Uint16(result[0:2])
+	assert.Equal(t, uint16(len(nlri)), wdLen, "withdrawn routes should contain the NLRI")
+
+	// Withdrawn bytes should match original NLRI.
+	assert.Equal(t, nlri, result[2:2+wdLen], "withdrawn routes should be the original NLRI")
+
+	// Attr len should be 0.
+	attrLen := binary.BigEndian.Uint16(result[2+wdLen : 4+wdLen])
+	assert.Equal(t, uint16(0), attrLen, "no attributes in withdrawal")
+}
+
+// TestBuildWithdrawalPayload_MPReach verifies conversion of MP_REACH announce to MP_UNREACH withdrawal.
+//
+// VALIDATES: AC-2: EBGP non-LLGR peer receives withdrawal (MP path, e.g., IPv6).
+// PREVENTS: Non-IPv4 stale routes staying in non-LLGR peer's RIB.
+func TestBuildWithdrawalPayload_MPReach(t *testing.T) {
+	// Build MP_REACH_NLRI: AFI=2(IPv6), SAFI=1(unicast), NH_Len=16, NH=::1, Reserved=0, NLRI.
+	nh := make([]byte, 16)
+	nh[15] = 1                                         // ::1
+	mpNLRI := []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0, 0} // /48, 2001:db8::
+	mpReachVal := make([]byte, 0, 3+1+len(nh)+1+len(mpNLRI))
+	mpReachVal = append(mpReachVal, 0, 2, 1, byte(len(nh))) // AFI=2, SAFI=1, NH_Len
+	mpReachVal = append(mpReachVal, nh...)
+	mpReachVal = append(mpReachVal, 0) // reserved
+	mpReachVal = append(mpReachVal, mpNLRI...)
+
+	mpReachAttr := makeAttr(0x80, 14, mpReachVal) // Optional, code 14
+	payload := buildModTestPayload(mpReachAttr, nil)
+
+	result := buildWithdrawalPayload(payload)
+	require.NotNil(t, result, "should produce MP withdrawal")
+
+	// Parse result: withdrawn_len=0, then attr section with MP_UNREACH.
+	wdLen := binary.BigEndian.Uint16(result[0:2])
+	assert.Equal(t, uint16(0), wdLen, "no legacy withdrawn routes for MP")
+
+	attrLen := binary.BigEndian.Uint16(result[2:4])
+	require.Greater(t, attrLen, uint16(0), "should have MP_UNREACH attribute")
+
+	// Parse the MP_UNREACH attribute.
+	attrData := result[4 : 4+attrLen]
+	require.GreaterOrEqual(t, len(attrData), 3, "attr header minimum")
+	assert.Equal(t, byte(15), attrData[1], "should be MP_UNREACH_NLRI (code 15)")
+
+	// Extract value: AFI(2) + SAFI(1) + NLRI.
+	var valStart int
+	if attrData[0]&0x10 != 0 {
+		valStart = 4
+	} else {
+		valStart = 3
+	}
+	val := attrData[valStart:]
+	require.GreaterOrEqual(t, len(val), 3, "AFI+SAFI minimum")
+	assert.Equal(t, []byte{0, 2}, val[0:2], "AFI should be IPv6")
+	assert.Equal(t, byte(1), val[2], "SAFI should be unicast")
+	assert.Equal(t, mpNLRI, val[3:], "NLRI should match original")
+}
+
+// TestBuildWithdrawalPayload_Nil verifies nil/malformed input handling.
+//
+// VALIDATES: Defensive: malformed payload returns nil.
+// PREVENTS: Panic on truncated or empty payloads.
+func TestBuildWithdrawalPayload_Nil(t *testing.T) {
+	assert.Nil(t, buildWithdrawalPayload(nil))
+	assert.Nil(t, buildWithdrawalPayload([]byte{0}))
+	assert.Nil(t, buildWithdrawalPayload([]byte{0, 0, 0})) // too short for attr_len
+}

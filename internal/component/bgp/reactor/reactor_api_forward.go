@@ -394,12 +394,22 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			}
 		}
 
-		// Apply accumulated modifications from egress filters.
-		// Runs AFTER wire selection so mods apply to the correct wire version
-		// (e.g., EBGP wire with AS-PATH prepended, not the original).
-		// Progressive build: single-pass through attributes into pooled buffer.
-		// Zero-cost when mods.Len() == 0 (common case: no role config or no stamping needed).
-		if mods.Len() > 0 {
+		// RFC 9494: Convert announce to withdrawal for this peer (LLGR egress filter).
+		// Checked before attribute mods since withdrawal replaces the entire payload.
+		if mods.IsWithdraw() {
+			if withdrawal := buildWithdrawalPayload(peerWire.Payload()); withdrawal != nil {
+				peerWire = wireu.NewWireUpdate(withdrawal, peerWire.SourceCtxID())
+			} else {
+				fwdLogger().Warn("withdrawal conversion failed, suppressing route",
+					"peer", peer.Settings().Address)
+				continue
+			}
+		} else if mods.Len() > 0 {
+			// Apply accumulated attribute modifications from egress filters.
+			// Runs AFTER wire selection so mods apply to the correct wire version
+			// (e.g., EBGP wire with AS-PATH prepended, not the original).
+			// Progressive build: single-pass through attributes into pooled buffer.
+			// Zero-cost when mods.Len() == 0 (common case).
 			if modified := buildModifiedPayload(peerWire.Payload(), &mods, a.r.attrModHandlers); modified != nil {
 				peerWire = wireu.NewWireUpdate(modified, peerWire.SourceCtxID())
 			}
