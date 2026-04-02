@@ -1,3 +1,31 @@
+# DANGER -- ABSOLUTE PROHIBITIONS
+
+**These rules override everything. No exceptions. No rationalization. No "the task requires it."**
+
+## git push is FORBIDDEN -- no exceptions
+- NEVER run `git push`. Not to main, not to any branch, not from any worktree.
+- There is no scenario where pushing is acceptable. The user pushes manually.
+
+## git commit is FORBIDDEN -- prepare message only
+- NEVER run `git commit`. Write the commit message to `/tmp/commit-msg-SESSION.txt` instead.
+- Run `git add` to stage files. Then tell the user "ready to commit."
+- The user runs `git commit -F /tmp/commit-msg-SESSION.txt` themselves.
+
+## Destructive git commands are FORBIDDEN
+- NEVER: `git reset`, `git checkout -- <file>`, `git restore`, `git clean`, `git revert`
+- NEVER: `git push --force`, `git push -f`
+- NEVER: `git stash drop`, `git stash clear`
+- To undo something: STOP and ASK the user.
+
+## Worktree agents must not touch main
+- Work on your own branch. Commit there. Done.
+- NEVER merge, cherry-pick, rebase, or copy into main.
+
+## On violation: STOP immediately
+"The task requires it" is not valid. Nothing overrides these prohibitions.
+
+---
+
 # Ze - Claude Instructions
 
 ## What Ze Is

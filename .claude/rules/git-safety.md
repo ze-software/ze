@@ -4,8 +4,17 @@ Rationale: `.claude/rationale/git-safety.md`
 
 ## Commit Rules
 
-Only commit when user says "commit". Only include task-related files.
-Post-commit: hash, file count, clean state confirmation.
+**NEVER run `git commit` or `git push`.** These commands are in the deny list and blocked by hooks.
+
+**Commit workflow:**
+1. Run `git add` to stage task-related files only.
+2. Write the commit message to `/tmp/commit-msg-SESSION.txt` where SESSION = 8-char unique ID
+   (e.g., `head -c4 /dev/urandom | xxd -p` at session start). File lives in /tmp to avoid
+   permission prompts. Unique name prevents parallel sessions from clobbering each other.
+3. Report what was done and what is left (including deferred).
+4. The user runs `git commit -F /tmp/commit-msg-XXXX.txt` themselves.
+
+**Unstaging files:** `git restore --staged <file>` is allowed. All other `git restore` variants are forbidden.
 
 **Never suggest, ask about, or hint at committing.** Complete ALL work first (testing, spec,
 docs, learned summary). Then report what was done and what is left (including deferred).

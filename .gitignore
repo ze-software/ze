@@ -43,5 +43,6 @@ __pycache__/
 .claude/session-state-*.md
 .claude/.session-*
 .claude/.compaction-detected
+
 test/perf/results/
 bin/ze-perf-linux

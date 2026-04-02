@@ -45,8 +45,7 @@
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
+      "Bash(git restore --staged:*)",
       "Bash(killall:*)",
       "Bash(timeout:*)",
       "Bash(sleep:*)",
@@ -118,11 +117,12 @@
       "Bash(zellij setup:*)"
     ],
     "deny": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
       "Bash(git reset:*)",
       "Bash(git checkout --:*)",
       "Bash(git checkout -f:*)",
       "Bash(git checkout HEAD:*)",
-      "Bash(git restore:*)",
       "Bash(git revert:*)",
       "Bash(git stash:*)",
       "Bash(git stash drop:*)",
