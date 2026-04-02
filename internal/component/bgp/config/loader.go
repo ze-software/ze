@@ -592,7 +592,22 @@ func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
 	// location via paths.DefaultConfigDir() (e.g., ./bin/ze -> etc/ze/).
 	var cfg zessh.Config
 
-	if addrs := sshContainer.GetSlice("listen"); len(addrs) > 0 {
+	// Read listen addresses from server list entries (YANG: list server { ip; port; }).
+	if servers := sshContainer.GetListOrdered("server"); len(servers) > 0 {
+		for _, s := range servers {
+			ip := "0.0.0.0"
+			port := "2222"
+			if v, ok := s.Value.Get("ip"); ok {
+				ip = v
+			}
+			if v, ok := s.Value.Get("port"); ok {
+				port = v
+			}
+			cfg.ListenAddrs = append(cfg.ListenAddrs, ip+":"+port)
+		}
+		cfg.Listen = cfg.ListenAddrs[0]
+	} else if addrs := sshContainer.GetSlice("listen"); len(addrs) > 0 {
+		// Fallback: compound listen format from env var override.
 		cfg.Listen = addrs[0]
 		cfg.ListenAddrs = addrs
 	}
