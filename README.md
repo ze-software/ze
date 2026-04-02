@@ -1,6 +1,6 @@
 # Ze -- A Modern BGP Daemon
 
-> **Early Development** -- Ze has not been released. The code has known bugs and is not ready for production. APIs and config syntax may change. But if you try it, it will replace ExaBGP.
+> **Pre-Alpha** -- Ze has not reached alpha. The core BGP engine works, but many advanced features are incomplete or untested, and there is significant work remaining before Ze is ready for end-users. APIs and config syntax will change without notice.
 
 Ze is a BGP daemon written in Go, by the creator of [ExaBGP](https://github.com/Exa-Networks/exabgp).
 
@@ -43,6 +43,8 @@ IPv4/IPv6 unicast and multicast are built into the engine. See [Feature Inventor
 ### ExaBGP
 
 Existing ExaBGP plugins work unchanged via a bridge. `ze config migrate` converts ExaBGP configs.
+
+If you are an ExaBGP user, we would love your feedback on the migration experience. Please try `ze config migrate` with your configs and let us know what works and what does not -- even at this early stage, that feedback shapes the project. File issues or reach out on [Discord](https://discord.gg/ykJb8meS4).
 
 ### Testing
 
