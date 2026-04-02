@@ -85,7 +85,7 @@ func TestGRStateManagerReconnectWithFBit(t *testing.T) {
 
 	// Peer reconnects with same families, F-bit set
 	newCap := testCap(120, famIPv4, famIPv6)
-	purged := mgr.onSessionReestablished(testPeer, newCap, nil)
+	purged, _ := mgr.onSessionReestablished(testPeer, newCap, nil)
 
 	assert.Empty(t, purged, "no families should be purged when F-bit set")
 	assert.True(t, mgr.peerActive(testPeer), "GR should still be active (waiting for EOR)")
@@ -101,7 +101,7 @@ func TestGRStateManagerReconnectNoGR(t *testing.T) {
 	cap := testCap(120, famIPv4)
 	mgr.onSessionDown(testPeer, cap, nil, false)
 
-	purged := mgr.onSessionReestablished(testPeer, nil, nil)
+	purged, _ := mgr.onSessionReestablished(testPeer, nil, nil)
 
 	assert.Contains(t, purged, "ipv4/unicast")
 	assert.False(t, mgr.peerActive(testPeer), "GR state should be cleared")
@@ -119,7 +119,7 @@ func TestGRStateManagerReconnectFBitZero(t *testing.T) {
 
 	// Reconnect: IPv4 F-bit=0, IPv6 F-bit=1
 	newCap := testCap(120, famIPv4NoF, famIPv6)
-	purged := mgr.onSessionReestablished(testPeer, newCap, nil)
+	purged, _ := mgr.onSessionReestablished(testPeer, newCap, nil)
 
 	assert.Contains(t, purged, "ipv4/unicast", "IPv4 should be purged (F-bit=0)")
 	assert.NotContains(t, purged, "ipv6/unicast", "IPv6 should be kept (F-bit=1)")
@@ -138,7 +138,7 @@ func TestGRStateManagerReconnectMissingFamily(t *testing.T) {
 
 	// Reconnect: only IPv4 (IPv6 missing)
 	newCap := testCap(120, famIPv4)
-	purged := mgr.onSessionReestablished(testPeer, newCap, nil)
+	purged, _ := mgr.onSessionReestablished(testPeer, newCap, nil)
 
 	assert.Contains(t, purged, "ipv6/unicast", "IPv6 should be purged (missing from new cap)")
 	assert.NotContains(t, purged, "ipv4/unicast", "IPv4 should be kept")
@@ -156,7 +156,8 @@ func TestGRStateManagerEORPurge(t *testing.T) {
 
 	// Peer reconnects with F-bit set
 	newCap := testCap(120, famIPv4, famIPv6)
-	mgr.onSessionReestablished(testPeer, newCap, nil)
+	reestablishPurged, _ := mgr.onSessionReestablished(testPeer, newCap, nil)
+	assert.Empty(t, reestablishPurged, "F-bit set: no families purged on reestablish")
 
 	// EOR for IPv4 — should purge IPv4 stale, keep IPv6
 	shouldPurge := mgr.onEORReceived(testPeer, "ipv4/unicast")
@@ -566,7 +567,7 @@ func TestOnSessionReestablished_DuringLLGR(t *testing.T) {
 
 	// Reconnect with both GR and LLGR caps, F-bit=1
 	newCap := testCap(120, famIPv4)
-	purged := mgr.onSessionReestablished(testPeer, newCap, llgrCapIPv4)
+	purged, _ := mgr.onSessionReestablished(testPeer, newCap, llgrCapIPv4)
 
 	assert.Empty(t, purged, "F-bit=1 in both caps, nothing to purge")
 }
@@ -587,7 +588,7 @@ func TestOnSessionReestablished_DuringLLGR_NoLLGRCap(t *testing.T) {
 
 	// Reconnect with GR only (no LLGR), F-bit=1
 	newCap := testCap(120, famIPv4)
-	purged := mgr.onSessionReestablished(testPeer, newCap, nil)
+	purged, _ := mgr.onSessionReestablished(testPeer, newCap, nil)
 
 	// GR F-bit=1 for ipv4, so stale routes are kept until EOR
 	assert.Empty(t, purged, "GR F-bit=1, stale kept until EOR")
@@ -608,7 +609,7 @@ func TestOnSessionReestablished_DuringLLGR_NoCaps(t *testing.T) {
 	mgr.onSessionDown(testPeer, cap, llgrCapIPv4, false)
 
 	// Reconnect with no GR cap
-	purged := mgr.onSessionReestablished(testPeer, nil, nil)
+	purged, _ := mgr.onSessionReestablished(testPeer, nil, nil)
 
 	assert.Len(t, purged, 1, "all stale should be purged")
 	assert.Contains(t, purged, "ipv4/unicast")

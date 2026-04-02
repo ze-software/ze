@@ -536,6 +536,7 @@ func (r *RIBManager) outboundResendJSON(selector, family string) string {
 
 // sendRoutes sends routes to a peer without the "plugin session ready" signal.
 // Used for manual resend operations. Includes full path attributes.
+// RFC 9494: stale routes carry meta["stale"] so egress filters can suppress or modify.
 func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 	// Sort by MsgID to send in original announcement order
 	sort.Slice(routes, func(i, j int) bool {
@@ -544,7 +545,11 @@ func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 
 	for _, route := range routes {
 		cmd := formatRouteCommand(route)
-		r.updateRoute(peerAddr, cmd)
+		if route.StaleLevel > 0 {
+			r.updateRouteWithMeta(peerAddr, cmd, map[string]any{"stale": route.StaleLevel})
+		} else {
+			r.updateRoute(peerAddr, cmd)
+		}
 	}
 }
 
@@ -679,6 +684,16 @@ func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
 	if peerRIB != nil {
 		peerRIB.MarkAllStale(staleLevel)
 		marked = peerRIB.StaleCount()
+	}
+
+	// RFC 9494: Propagate stale level to ribOut routes for all destination peers.
+	// During LLGR readvertisement, sendRoutes carries meta["stale"] to egress filters.
+	for _, peerFamilies := range r.ribOut {
+		for _, familyRoutes := range peerFamilies {
+			for _, route := range familyRoutes {
+				route.StaleLevel = staleLevel
+			}
+		}
 	}
 
 	// Cancel existing expiry timer if consecutive restart.

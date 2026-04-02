@@ -45,6 +45,12 @@ type Route struct {
 	// When the RIB replays routes through ForwardUpdate, egress filters read this.
 	Meta map[string]any `json:"meta,omitempty"`
 
+	// StaleLevel tracks LLGR stale status for ribOut routes.
+	// 0 = fresh, 1 = GR stale, 2 = LLGR stale (depreference threshold).
+	// Set by markStaleCommand when propagating stale to ribOut.
+	// Used by sendRoutes to carry meta["stale"] through ForwardUpdate to egress filters.
+	StaleLevel uint8 `json:"stale-level,omitempty"`
+
 	// VPN fields — used by watchdog and future VPN route replay.
 	RD     string   `json:"rd,omitempty"`     // Route Distinguisher ("ASN:NN" or "IP:NN")
 	Labels []uint32 `json:"labels,omitempty"` // MPLS label stack

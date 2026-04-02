@@ -379,6 +379,17 @@ func (r *RIBManager) updateRoute(peerSelector, command string) {
 	}
 }
 
+// updateRouteWithMeta sends a route update command with metadata to matching peers.
+// Used by sendRoutes to carry stale level through ForwardUpdate to egress filters.
+func (r *RIBManager) updateRouteWithMeta(peerSelector, command string, meta map[string]any) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, _, err := r.plugin.UpdateRouteWithMeta(ctx, peerSelector, command, meta)
+	if err != nil {
+		logger().Warn("update-route-with-meta failed", "peer", peerSelector, "error", err)
+	}
+}
+
 // dispatch routes an event to the appropriate handler.
 func (r *RIBManager) dispatch(event *Event) {
 	eventType := event.GetEventType()

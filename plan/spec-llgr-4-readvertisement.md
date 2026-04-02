@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-route-metadata, spec-rib-family-ribout |
-| Phase | - |
-| Updated | 2026-03-29 |
+| Phase | 1/6 |
+| Updated | 2026-04-02 |
 
 ## Post-Compaction Recovery
 

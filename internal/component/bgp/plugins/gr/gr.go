@@ -121,20 +121,33 @@ func RunGRPlugin(conn net.Conn) int {
 		// with restart-time=0 (no new timer needed, LLST timer handles expiry).
 		gp.dispatchCommand("rib mark-stale " + peerAddr + " 0 2")
 	}
-	gp.state.onLLGREntryDone = func(peerAddr string) {
-		gp.dispatchCommand("rib clear out !" + peerAddr)
+	gp.state.onLLGREntryDone = func(peerAddr string, families []string) {
+		// RFC 9494: readvertise per-family (not all-family) to avoid resending unrelated families.
+		for _, family := range families {
+			gp.dispatchCommand("rib clear out !" + peerAddr + " " + family)
+		}
+		// Increment LLGR active count for egress filter fast-path.
+		if s := egressState.Load(); s != nil {
+			s.llgrActiveCount.Add(1)
+		}
 	}
 	gp.state.onLLGRFamilyExpired = func(peerAddr, family string) {
 		gp.dispatchCommand("rib purge-stale " + peerAddr + " " + family)
 	}
 	gp.state.onLLGRComplete = func(peerAddr string) {
 		gp.dispatchCommand("rib release-routes " + peerAddr)
+		// Decrement LLGR active count for egress filter fast-path.
+		if s := egressState.Load(); s != nil {
+			s.llgrActiveCount.Add(-1)
+		}
 	}
 
 	// OnConfigure callback: parse bgp config, extract per-peer restart-time
 	// and long-lived-stale-time, then set capabilities for Stage 3.
+	// Also captures local-as for the LLGR egress filter (IBGP detection).
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		var caps []sdk.CapabilityDecl
+		var localAS uint32
 		for _, section := range sections {
 			if section.Root != "bgp" {
 				continue
@@ -142,8 +155,23 @@ func RunGRPlugin(conn net.Conn) int {
 			caps = append(caps, extractGRCapabilities(section.Data)...)
 			// RFC 9494: LLGR capability (code 71) declared alongside GR (code 64)
 			caps = append(caps, extractLLGRCapabilities(section.Data)...)
+			// Extract local-as for LLGR egress filter IBGP detection.
+			if localAS == 0 {
+				localAS = extractLocalASN(section.Data)
+			}
 		}
 		p.SetCapabilities(caps)
+
+		// Initialize LLGR egress filter state with peerLLGRCaps and localAS.
+		// The filter reads this atomically; no lock needed for the pointer swap.
+		gp.mu.Lock()
+		s := &egressFilterState{
+			localAS:      localAS,
+			peerLLGRCaps: gp.peerLLGRCaps,
+		}
+		gp.mu.Unlock()
+		setEgressState(s)
+
 		return nil
 	})
 
@@ -322,9 +350,14 @@ func (gp *grPlugin) handleStructuredState(peerAddr, state, reason string) {
 		newLLGRCap := gp.peerLLGRCaps[peerAddr]
 		gp.mu.Unlock()
 
-		purged := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
+		purged, wasInLLGR := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
 		for _, family := range purged {
 			gp.dispatchCommand("rib purge-stale " + peerAddr + " " + family)
+		}
+		if wasInLLGR {
+			if s := egressState.Load(); s != nil {
+				s.llgrActiveCount.Add(-1)
+			}
 		}
 	}
 }
@@ -477,10 +510,15 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 		newLLGRCap := gp.peerLLGRCaps[peerAddr]
 		gp.mu.Unlock()
 
-		purged := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
+		purged, wasInLLGR := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
 		for _, family := range purged {
 			// RFC 4724: purge stale routes for families with F-bit=0 or missing
 			gp.dispatchCommand("rib purge-stale " + peerAddr + " " + family)
+		}
+		if wasInLLGR {
+			if s := egressState.Load(); s != nil {
+				s.llgrActiveCount.Add(-1)
+			}
 		}
 	}
 }

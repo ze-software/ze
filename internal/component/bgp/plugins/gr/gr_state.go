@@ -75,8 +75,9 @@ type grStateManager struct {
 	onLLGRFamilyExpired func(peerAddr, family string)
 
 	// onLLGREntryDone is called once after all families have entered LLGR.
-	// Used to trigger readvertisement of updated routes.
-	onLLGREntryDone func(peerAddr string)
+	// Used to trigger per-family readvertisement of updated routes.
+	// families contains the address families that entered LLGR (e.g., "ipv4/unicast").
+	onLLGREntryDone func(peerAddr string, families []string)
 
 	// onLLGRComplete is called when all LLGR families have expired or completed.
 	onLLGRComplete func(peerAddr string)
@@ -158,7 +159,8 @@ func (m *grStateManager) onSessionDown(peerAddr string, cap *grPeerCap, llgrCap 
 }
 
 // onSessionReestablished is called when a GR/LLGR-active peer reconnects.
-// Returns the list of families whose stale routes should be purged immediately.
+// Returns the list of families whose stale routes should be purged immediately,
+// and whether the peer was in LLGR state before reestablishment (for counter decrement).
 //
 // RFC 4724 Section 4.2:
 //   - No GR capability in new OPEN -> purge all stale routes
@@ -169,14 +171,16 @@ func (m *grStateManager) onSessionDown(peerAddr string, cap *grPeerCap, llgrCap 
 // RFC 9494: During LLGR, also check new LLGR capability.
 //   - If both GR and LLGR caps missing -> delete all stale
 //   - If F-bit clear or family missing in new LLGR -> delete stale for that family
-func (m *grStateManager) onSessionReestablished(peerAddr string, newCap *grPeerCap, newLLGRCap *llgrPeerCap) []string {
+func (m *grStateManager) onSessionReestablished(peerAddr string, newCap *grPeerCap, newLLGRCap *llgrPeerCap) ([]string, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	state, ok := m.peers[peerAddr]
 	if !ok {
-		return nil // No GR/LLGR state -- nothing to do
+		return nil, false // No GR/LLGR state -- nothing to do
 	}
+
+	wasInLLGR := state.inLLGR
 
 	// Stop GR restart timer if still running
 	if state.restartTimer != nil {
@@ -191,7 +195,7 @@ func (m *grStateManager) onSessionReestablished(peerAddr string, newCap *grPeerC
 	if newCap == nil {
 		purged := m.allStaleFamiliesLocked(state)
 		m.deletePeerLocked(peerAddr)
-		return purged
+		return purged, wasInLLGR
 	}
 
 	// Build lookup: families with F-bit=1 in new GR capability
@@ -203,7 +207,7 @@ func (m *grStateManager) onSessionReestablished(peerAddr string, newCap *grPeerC
 	}
 
 	// RFC 9494: Also check LLGR capability F-bits during LLGR reconnect
-	if state.inLLGR && newLLGRCap != nil {
+	if wasInLLGR && newLLGRCap != nil {
 		for _, f := range newLLGRCap.Families {
 			if f.ForwardState {
 				newForwarding[f.Family] = true
@@ -229,7 +233,7 @@ func (m *grStateManager) onSessionReestablished(peerAddr string, newCap *grPeerC
 		m.deletePeerLocked(peerAddr)
 	}
 
-	return purged
+	return purged, wasInLLGR
 }
 
 // onEORReceived is called when End-of-RIB is received from a GR/LLGR-active peer.
@@ -304,7 +308,11 @@ func (p *llgrPendingActions) fire() {
 		p.mgr.onLLGRComplete(p.peerAddr)
 	}
 	if p.entryDone && p.mgr.onLLGREntryDone != nil {
-		p.mgr.onLLGREntryDone(p.peerAddr)
+		families := make([]string, len(p.entries))
+		for i, e := range p.entries {
+			families[i] = e.family
+		}
+		p.mgr.onLLGREntryDone(p.peerAddr, families)
 	}
 }
 

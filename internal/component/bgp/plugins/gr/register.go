@@ -37,6 +37,8 @@ func init() {
 		YANG:            grschema.ZeGracefulRestartYANG,
 		CapabilityCodes: []uint8{64, 71},
 		Dependencies:    []string{"bgp-rib"},
+		EgressFilter:    LLGREgressFilter,
+		FilterStage:     registry.FilterStageAnnotation,
 		RunEngine:       RunGRPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecodeMode(input, output)

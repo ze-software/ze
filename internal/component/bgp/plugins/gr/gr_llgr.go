@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"strings"
 
@@ -255,6 +256,29 @@ func extractFamilies(m map[string]any) []string {
 		return []string{v}
 	}
 	return nil
+}
+
+// extractLocalASN extracts the local-as value from the BGP config JSON.
+// Used by the LLGR egress filter for IBGP detection (dest.PeerAS == localAS).
+// Returns 0 if not found or not a valid number.
+func extractLocalASN(jsonStr string) uint32 {
+	bgpSubtree, ok := configjson.ParseBGPSubtree(jsonStr)
+	if !ok {
+		return 0
+	}
+	switch v := bgpSubtree["local-as"].(type) {
+	case float64:
+		if v < 0 || v > math.MaxUint32 {
+			return 0
+		}
+		return uint32(v)
+	case int:
+		if v < 0 || uint64(v) > math.MaxUint32 {
+			return 0
+		}
+		return uint32(v)
+	}
+	return 0
 }
 
 // decodeLLGRMode handles "decode capability 71 <hex>" in decode mode.
