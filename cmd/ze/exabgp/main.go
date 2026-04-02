@@ -230,6 +230,9 @@ func cmdMigrate(args []string) int {
 
 	// Handle --env flag: migrate ExaBGP INI environment file.
 	if *envFile != "" {
+		if *dryRun {
+			fmt.Fprintf(os.Stderr, "warning: --dry-run is not supported with --env\n")
+		}
 		return cmdMigrateEnv(*envFile)
 	}
 

@@ -7,7 +7,7 @@ and **runtime commands** sent to the running daemon via SSH.
 ## Shell Commands
 
 Run directly from the terminal. No daemon required (except `ze signal`, `ze status`,
-`ze run`, `ze cli`, and daemon-targeted `ze show` subcommands).
+`ze cli`, and daemon-targeted `ze show` subcommands).
 Some `ze show` subcommands run locally: `version`, `bgp decode`, `bgp encode`,
 `env`, `schema`, `yang`, `completion`.
 
@@ -106,6 +106,9 @@ ze config migrate <file>         # Convert old format to current
 |------|---------|
 | `-f` | Bypass database, use filesystem directly |
 | `-o <output>` | Output file (migrate) |
+| `--dry-run` | Show what would be migrated without changes (migrate) |
+| `--list` | List available transformations (migrate) |
+| `--format <fmt>` | Output format: `set` (default) or `hierarchical` (migrate) |
 
 ### ze signal
 
@@ -191,6 +194,13 @@ ze exabgp plugin <cmd> [args]    # Run ExaBGP plugin with ze
 ze exabgp migrate <file>         # Convert ExaBGP config to ze
 ze exabgp migrate --env <file>   # Convert ExaBGP env file to ze config
 ```
+
+**migrate flags:**
+
+| Flag | Purpose |
+|------|---------|
+| `--dry-run` | Show what would be done without output |
+| `--env <file>` | Migrate ExaBGP INI environment file |
 
 **plugin flags:**
 
@@ -505,7 +515,6 @@ Commands sent to the running daemon. Access through three entry points:
 |-------|--------|-------|
 | `ze cli` | Full (interactive) | Exploration, monitoring |
 | `ze show <cmd>` | Read-only | Scripting, dashboards |
-| `ze run <cmd>` | Full | Automation, route injection |
 
 **Note:** Some `ze show` subcommands run locally without a daemon (version,
 bgp decode/encode, env, schema, yang, completion). These are dispatched
@@ -513,7 +522,7 @@ via local handlers before attempting SSH connection.
 
 `ze cli` accepts `-c <command>` for single-shot execution and
 `--format <format>` (default: yaml).
-<!-- source: cmd/ze/cli/main.go -- Run; cmd/ze/show/main.go -- Run; cmd/ze/run/main.go -- Run -->
+<!-- source: cmd/ze/cli/main.go -- Run; cmd/ze/show/main.go -- Run -->
 
 ### Peer Selector
 

@@ -15,9 +15,6 @@ ze config validate myconfig.conf
 # Preview migration changes
 ze config migrate --dry-run myconfig.conf
 
-# Migrate in place (creates backup)
-ze config migrate --in-place myconfig.conf
-
 # Migrate to new file
 ze config migrate myconfig.conf -o myconfig-v3.conf
 
@@ -137,15 +134,13 @@ Shows if migration is needed:
 
 ```bash
 $ ze config migrate --dry-run old.conf
-⚠️  Config needs migration
+Transformation analysis:
+  [done] peer-glob->template.match
+  [done] template.neighbor->group
+  [pending] neighbor->peer
+  [pending] api->new-format
 
-Deprecated patterns found:
-  • neighbor 192.0.2.1 → peer upstream1 { remote { ip 192.0.2.1; } }
-  • template.neighbor defaults → template.group defaults
-
-To migrate, run:
-  ze config migrate <file> -o <output>
-  ze config migrate <file> --in-place
+Result: 2 transformation(s) would apply. All would succeed.
 ```
 
 ### ze config fmt
@@ -188,36 +183,35 @@ $ ze config migrate --list
 # Preview what would happen
 $ ze config migrate --dry-run old.conf
 Transformation analysis:
-  ⏳ neighbor->peer (pending)
-  ⏳ api->new-format (pending)
-  ✅ peer-glob->template.match (done)
-  ✅ template.neighbor->group (done)
-  ✅ static->announce (done)
+  [done] peer-glob->template.match
+  [done] template.neighbor->group
+  [pending] neighbor->peer
+  [pending] api->new-format
 
 Result: 2 transformation(s) would apply. All would succeed.
 
 # Migrate to stdout (config to stdout, progress to stderr)
 $ ze config migrate old.conf
 Transformations:
-  ✅ neighbor->peer
-  ⏭️  peer-glob->template.match (not needed)
+  + neighbor->peer
+  - peer-glob->template.match (not needed)
   ...
 2 applied, 3 skipped.
 
 # Write to new file
 $ ze config migrate old.conf -o new.conf
 
-# Modify in place (creates .bak backup)
-$ ze config migrate --in-place old.conf
+# Pipe from stdin
+cat old.conf | ze config migrate -
 ```
 
 **Flags:**
 - `--list` - Show available transformations
 - `--dry-run` - Show what would happen without applying
+- `--format <fmt>` - Output format: `set` (default) or `hierarchical`
 - `-o <file>` - Write to specified file
-- `--in-place` - Modify original file (creates backup)
 
-<!-- source: internal/exabgp/migration/migrate.go -- migration transformation logic -->
+<!-- source: internal/component/config/migration/migrate.go -- Migrate, transformations -->
 
 ## Unsupported Features
 
@@ -230,16 +224,6 @@ Some ExaBGP features are detected but not supported in ZeBGP:
 | `operational` block | `peer { }` | ExaBGP-specific messaging |
 
 These features generate warnings but don't block migration or loading.
-
-## Backup Strategy
-
-When using `--in-place`, a backup is created:
-
-```
-original.conf.bak
-```
-
-The backup contains the original file contents before migration.
 
 ## Error Handling
 

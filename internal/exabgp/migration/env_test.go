@@ -161,7 +161,53 @@ func TestEnvCommentOnly(t *testing.T) {
 	}
 }
 
+// TestEnvSwitchBranches verifies all explicitly handled env keys produce correct output.
+// VALIDATES: Each case in mapEnvKnownKey produces expected output.
+// PREVENTS: Switch branches silently producing wrong or missing output.
+func TestEnvSwitchBranches(t *testing.T) {
+	tests := []struct {
+		name    string
+		section string
+		key     string
+		value   string
+		want    string
+	}{
+		{"daemon.drop", "daemon", "drop", "true", "not applicable"},
+		{"daemon.daemonize", "daemon", "daemonize", "true", "not applicable"},
+		{"daemon.pid", "daemon", "pid", "/var/run/exabgp.pid", "not applicable"},
+		{"cache.attributes", "cache", "attributes", "true", "not applicable"},
+		{"cache.nexthops", "cache", "nexthops", "true", "not applicable"},
+		{"api.encoder", "api", "encoder", "json", "Ze uses JSON format"},
+		{"api.respawn", "api", "respawn", "true", "Ze manages plugin lifecycle"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entries := []ExaEnvEntry{
+				{Section: tt.section, Key: tt.key, Value: tt.value},
+			}
+			output := MapEnvToZe(entries)
+			assert.Contains(t, output, tt.want,
+				"output for %s.%s should contain %q", tt.section, tt.key, tt.want)
+		})
+	}
+}
+
+// TestEnvUnknownKey verifies unknown keys produce a comment for user review.
+// VALIDATES: Unrecognized env keys emit "unknown ExaBGP setting" comment.
+// PREVENTS: Unknown keys silently dropped without user notice.
+func TestEnvUnknownKey(t *testing.T) {
+	entries := []ExaEnvEntry{
+		{Section: "custom", Key: "thing", Value: "x"},
+	}
+	output := MapEnvToZe(entries)
+	assert.Contains(t, output, "unknown ExaBGP setting")
+	assert.Contains(t, output, "custom.thing")
+}
+
 // TestEnvDaemonUser verifies daemon.user maps to Ze config.
+// VALIDATES: daemon.user produces environment { daemon { user ... } } output.
+// PREVENTS: daemon.user entry lost or mapped to wrong config path.
 func TestEnvDaemonUser(t *testing.T) {
 	entries := []ExaEnvEntry{
 		{Section: "daemon", Key: "user", Value: "nobody"},
@@ -173,6 +219,8 @@ func TestEnvDaemonUser(t *testing.T) {
 }
 
 // TestEnvLogLevel verifies log.level maps to Ze log level.
+// VALIDATES: log.level produces level entry in merged log block.
+// PREVENTS: Log level silently dropped during env migration.
 func TestEnvLogLevel(t *testing.T) {
 	entries := []ExaEnvEntry{
 		{Section: "log", Key: "level", Value: "DEBUG"},
@@ -183,6 +231,8 @@ func TestEnvLogLevel(t *testing.T) {
 }
 
 // TestEnvLogDestination verifies log.destination maps to Ze config.
+// VALIDATES: log.destination produces destination entry in merged log block.
+// PREVENTS: Log destination silently dropped during env migration.
 func TestEnvLogDestination(t *testing.T) {
 	entries := []ExaEnvEntry{
 		{Section: "log", Key: "destination", Value: "syslog"},
@@ -193,6 +243,8 @@ func TestEnvLogDestination(t *testing.T) {
 }
 
 // TestEnvFullFile verifies a complete env file produces valid output.
+// VALIDATES: End-to-end env file migration with all key types.
+// PREVENTS: Key interactions causing missing or duplicated output.
 func TestEnvFullFile(t *testing.T) {
 	input := strings.Join([]string{
 		"[exabgp.daemon]",

@@ -29,7 +29,7 @@ peer upstream1 {
 }
 ```
 
-**Migration:** `ze bgp config migrate --in-place config.conf`
+**Migration:** `ze config migrate config.conf -o config-v3.conf`
 
 ---
 
@@ -133,10 +133,10 @@ ExaBGP operational messages (ASM, ADM, RPCQ, etc.) are not supported.
 ze config validate config.conf
 
 # Preview changes
-ze bgp config migrate --dry-run config.conf
+ze config migrate --dry-run config.conf
 
-# Apply migration
-ze bgp config migrate --in-place config.conf
+# Apply migration to new file
+ze config migrate config.conf -o config-v3.conf
 ```
 
 See [config-migration.md](config-migration.md) for full details.

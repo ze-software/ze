@@ -263,6 +263,8 @@ func TestLogBooleansToSubsystems(t *testing.T) {
 }
 
 // TestLogBooleansToSubsystems_PreservesOtherLeaves verifies non-boolean log leaves are preserved.
+// VALIDATES: Non-topic leaves (level, destination) survive boolean migration.
+// PREVENTS: Log migration clobbering unrelated leaves in the log container.
 func TestLogBooleansToSubsystems_PreservesOtherLeaves(t *testing.T) {
 	tree := config.NewTree()
 	env := config.NewTree()
@@ -285,6 +287,8 @@ func TestLogBooleansToSubsystems_PreservesOtherLeaves(t *testing.T) {
 }
 
 // TestLogBooleansToSubsystems_Absent verifies no-op when no boolean log topics exist.
+// VALIDATES: No transformation when no boolean topics are present.
+// PREVENTS: False positive detection triggering unnecessary migration.
 func TestLogBooleansToSubsystems_Absent(t *testing.T) {
 	tree := config.NewTree()
 	env := config.NewTree()
@@ -297,6 +301,8 @@ func TestLogBooleansToSubsystems_Absent(t *testing.T) {
 }
 
 // TestLogBooleansToSubsystems_NoEnv verifies no-op when environment is absent.
+// VALIDATES: No panic or error when environment container is missing.
+// PREVENTS: Nil pointer dereference on trees without environment block.
 func TestLogBooleansToSubsystems_NoEnv(t *testing.T) {
 	tree := config.NewTree()
 	assert.False(t, hasLogBooleans(tree))
@@ -304,6 +310,8 @@ func TestLogBooleansToSubsystems_NoEnv(t *testing.T) {
 
 // TestLogBooleansToSubsystems_MergesDuplicates verifies multiple topics mapping to same subsystem.
 // packets, network, and message all map to bgp.wire. Only one entry should remain.
+// VALIDATES: Duplicate subsystem mappings merge with debug-wins semantics.
+// PREVENTS: Multiple entries for the same subsystem in migrated output.
 func TestLogBooleansToSubsystems_MergesDuplicates(t *testing.T) {
 	tree := config.NewTree()
 	env := config.NewTree()
@@ -383,6 +391,8 @@ func TestListenerToList(t *testing.T) {
 }
 
 // TestListenerToList_Absent verifies no-op when no flat listener format exists.
+// VALIDATES: No transformation when services already use server list format.
+// PREVENTS: False positive detection triggering unnecessary listener migration.
 func TestListenerToList_Absent(t *testing.T) {
 	tree := config.NewTree()
 	env := config.NewTree()
@@ -398,7 +408,38 @@ func TestListenerToList_Absent(t *testing.T) {
 	assert.False(t, hasListenerFlatFormat(tree))
 }
 
+// TestListenerToList_HostWithoutPort verifies host-only migration creates server entry without port.
+// VALIDATES: migrateListenerToList handles host without port leaf.
+// PREVENTS: Missing port leaf causing panic or empty port in server entry.
+func TestListenerToList_HostWithoutPort(t *testing.T) {
+	tree := config.NewTree()
+	env := config.NewTree()
+	web := config.NewTree()
+	web.Set("host", "127.0.0.1")
+	env.SetContainer("web", web)
+	tree.SetContainer("environment", env)
+
+	assert.True(t, hasListenerFlatFormat(tree), "should detect flat format")
+
+	result, err := migrateListenerToList(tree)
+	require.NoError(t, err)
+
+	webResult := result.GetContainer("environment").GetContainer("web")
+	require.NotNil(t, webResult)
+
+	servers := webResult.GetList("server")
+	require.Contains(t, servers, "main")
+	srv := servers["main"]
+	ip, hasIP := srv.Get("ip")
+	assert.True(t, hasIP, "ip should exist")
+	assert.Equal(t, "127.0.0.1", ip)
+	_, hasPort := srv.Get("port")
+	assert.False(t, hasPort, "port should not exist when not in source")
+}
+
 // TestListenerToList_PreservesOtherLeaves verifies non-host/port leaves are preserved.
+// VALIDATES: migrateListenerToList preserves unrelated leaves during migration.
+// PREVENTS: Non-listener leaves lost during host+port to server list conversion.
 func TestListenerToList_PreservesOtherLeaves(t *testing.T) {
 	tree := config.NewTree()
 	env := config.NewTree()

@@ -103,11 +103,15 @@ var envTopicToSubsystem = map[string]string{
 
 // MapEnvToZe converts parsed ExaBGP env entries to Ze configuration output.
 // Returns a string with Ze config lines and comments for unsupported keys.
+// All log-related output (subsystem levels, level, destination) is merged into
+// a single `environment { log { ... } }` block.
 func MapEnvToZe(entries []ExaEnvEntry) string {
 	var b strings.Builder
 
 	// Collect subsystem levels (debug wins over disabled for duplicates).
 	subsystems := make(map[string]string)
+	// Collect log.level and log.destination for merged output.
+	var logLevel, logDestination string
 	var configLines []string
 
 	for _, e := range entries {
@@ -129,12 +133,30 @@ func MapEnvToZe(entries []ExaEnvEntry) string {
 			continue
 		}
 
+		// Collect log.level and log.destination for merged block.
+		logPrefix := sectionLog + "."
+		if fullKey == logPrefix+"level" {
+			logLevel = strings.ToLower(e.Value)
+			continue
+		}
+		if fullKey == logPrefix+"destination" {
+			logDestination = e.Value
+			continue
+		}
+
 		mapEnvKnownKey(fullKey, e.Value, &b, &configLines)
 	}
 
-	// Emit collected subsystem levels.
-	if len(subsystems) > 0 {
+	// Emit a single merged log block with subsystem levels, level, and destination.
+	hasLogContent := len(subsystems) > 0 || logLevel != "" || logDestination != ""
+	if hasLogContent {
 		b.WriteString("environment {\n    " + sectionLog + " {\n")
+		if logLevel != "" {
+			fmt.Fprintf(&b, "        level %s;\n", logLevel)
+		}
+		if logDestination != "" {
+			fmt.Fprintf(&b, "        destination %s;\n", logDestination)
+		}
 		for _, sub := range sortedMapKeys(subsystems) {
 			fmt.Fprintf(&b, "        %s %s;\n", sub, subsystems[sub])
 		}
@@ -166,10 +188,10 @@ func mapEnvKnownKey(fullKey, value string, b *strings.Builder, configLines *[]st
 		fmt.Fprintf(b, "# %s = %s -- Python-only, not applicable to Ze\n", fullKey, value)
 
 	case logPrefix + "level":
-		*configLines = append(*configLines, fmt.Sprintf("environment {\n    "+sectionLog+" {\n        level %s;\n    }\n}", strings.ToLower(value)))
+		// Handled by merged log block in MapEnvToZe.
 
 	case logPrefix + "destination":
-		*configLines = append(*configLines, fmt.Sprintf("environment {\n    "+sectionLog+" {\n        destination %s;\n    }\n}", value))
+		// Handled by merged log block in MapEnvToZe.
 
 	case logPrefix + "enable", logPrefix + "all", logPrefix + "short":
 		fmt.Fprintf(b, "# %s = %s -- Ze uses per-subsystem levels\n", fullKey, value)
@@ -248,10 +270,6 @@ func sortedMapKeys(m map[string]string) []string {
 	for k := range m {
 		keys = append(keys, k)
 	}
-	for i := 1; i < len(keys); i++ {
-		for j := i; j > 0 && keys[j] < keys[j-1]; j-- {
-			keys[j], keys[j-1] = keys[j-1], keys[j]
-		}
-	}
+	slices.Sort(keys)
 	return keys
 }

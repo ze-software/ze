@@ -108,6 +108,12 @@ func (t *Tree) Clone() *Tree {
 		clone.listOrder[k] = copied
 	}
 
+	// Clone valuesOrder
+	if len(t.valuesOrder) > 0 {
+		clone.valuesOrder = make([]string, len(t.valuesOrder))
+		copy(clone.valuesOrder, t.valuesOrder)
+	}
+
 	return clone
 }
 
