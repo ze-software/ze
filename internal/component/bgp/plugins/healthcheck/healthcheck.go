@@ -71,9 +71,10 @@ func RunHealthcheckPlugin(conn net.Conn) int {
 
 // probeManager manages the lifecycle of healthcheck probes.
 type probeManager struct {
-	plugin *sdk.Plugin
-	probes map[string]*runningProbe // name -> running probe
-	mu     sync.Mutex
+	plugin     *sdk.Plugin
+	probes     map[string]*runningProbe // name -> running probe
+	mu         sync.Mutex
+	dispatchFn func(ctx context.Context, command string) (string, string, error) // injectable for tests
 }
 
 // runningProbe tracks a running probe goroutine.
@@ -84,10 +85,14 @@ type runningProbe struct {
 }
 
 func newProbeManager(p *sdk.Plugin) *probeManager {
-	return &probeManager{
+	mgr := &probeManager{
 		plugin: p,
 		probes: make(map[string]*runningProbe),
 	}
+	mgr.dispatchFn = func(ctx context.Context, command string) (string, string, error) {
+		return p.DispatchCommand(ctx, command)
+	}
+	return mgr
 }
 
 // applyConfig starts/stops probes based on new configuration.
@@ -225,9 +230,9 @@ func (m *probeManager) handleExit(_ context.Context, cfg ProbeConfig) {
 	logger().Info("probe exited", "name", cfg.Name)
 }
 
-// dispatchCommand sends a command to the watchdog plugin via DispatchCommand.
+// dispatchCommand sends a command to the watchdog plugin via dispatchFn.
 func (m *probeManager) dispatchCommand(ctx context.Context, probeName, command string) {
-	status, _, err := m.plugin.DispatchCommand(ctx, command)
+	status, _, err := m.dispatchFn(ctx, command)
 	if err != nil {
 		logger().Warn("dispatch failed", "probe", probeName, "command", command, "error", err)
 		return

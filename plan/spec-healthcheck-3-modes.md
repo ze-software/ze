@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-healthcheck-2-core |
 | Phase | - |
 | Updated | 2026-04-03 |

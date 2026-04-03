@@ -1,0 +1,19 @@
+# Healthcheck: duplicate group across probes rejected at config validation.
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	healthcheck {
+		probe dns {
+			command "true"
+			group hc-shared
+		}
+		probe web {
+			command "true"
+			group hc-shared
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze schema validate -:stdin=ze-bgp
+expect=exit:code=1
