@@ -75,6 +75,7 @@ type probeManager struct {
 	probes     map[string]*runningProbe // name -> running probe
 	mu         sync.Mutex
 	dispatchFn func(ctx context.Context, command string) (string, string, error) // injectable for tests
+	ipMgr      ipManager                                                         // injectable for tests
 }
 
 // runningProbe tracks a running probe goroutine.
@@ -88,6 +89,7 @@ func newProbeManager(p *sdk.Plugin) *probeManager {
 	mgr := &probeManager{
 		plugin: p,
 		probes: make(map[string]*runningProbe),
+		ipMgr:  realIPManager{},
 	}
 	mgr.dispatchFn = func(ctx context.Context, command string) (string, string, error) {
 		return p.DispatchCommand(ctx, command)
@@ -108,7 +110,7 @@ func (m *probeManager) applyConfig(configs []ProbeConfig) {
 	// Stop probes that are no longer in config or changed.
 	for name, rp := range m.probes {
 		newCfg, exists := newConfigs[name]
-		if !exists || newCfg != rp.config {
+		if !exists || !newCfg.equal(rp.config) {
 			rp.cancel()
 			<-rp.done
 			delete(m.probes, name)
@@ -135,10 +137,20 @@ func (m *probeManager) runProbe(ctx context.Context, cfg ProbeConfig, done chan 
 
 	fsm := newFSM(cfg.Rise, cfg.Fall)
 
+	// IP management: add all IPs at startup (before first check).
+	var ipt *ipTracker
+	if len(cfg.IPs) > 0 && cfg.IPInterface != "" {
+		ipt = newIPTracker(m.ipMgr, cfg.IPInterface, cfg.IPs)
+		ipt.addAll()
+	}
+
 	// If disabled at startup, enter DISABLED directly.
 	if cfg.Disable {
 		fsm.state = StateDisabled
 		m.dispatchStateAction(ctx, cfg, fsm.state)
+		if ipt != nil && cfg.IPDynamic {
+			ipt.removeAll()
+		}
 		logger().Info("probe started disabled", "name", cfg.Name)
 	}
 
@@ -151,9 +163,10 @@ func (m *probeManager) runProbe(ctx context.Context, cfg ProbeConfig, done chan 
 		// Single-check mode: interval=0 means one check then dormant.
 		if cfg.Interval == 0 && fsm.state != StateInit {
 			fsm.state = StateEnd
+			// END: no hooks fire, routes/IPs left in place.
 			logger().Info("probe dormant (interval=0)", "name", cfg.Name)
 			<-ctx.Done()
-			m.handleExit(ctx, cfg)
+			m.handleExit(ctx, cfg, ipt)
 			return
 		}
 
@@ -161,7 +174,7 @@ func (m *probeManager) runProbe(ctx context.Context, cfg ProbeConfig, done chan 
 		if fsm.state != StateInit {
 			select {
 			case <-ctx.Done():
-				m.handleExit(ctx, cfg)
+				m.handleExit(ctx, cfg, ipt)
 				return
 			case <-time.After(interval):
 			}
@@ -171,7 +184,7 @@ func (m *probeManager) runProbe(ctx context.Context, cfg ProbeConfig, done chan 
 		if fsm.state == StateDisabled {
 			select {
 			case <-ctx.Done():
-				m.handleExit(ctx, cfg)
+				m.handleExit(ctx, cfg, ipt)
 				return
 			case <-time.After(interval):
 			}
@@ -184,11 +197,21 @@ func (m *probeManager) runProbe(ctx context.Context, cfg ProbeConfig, done chan 
 		// FSM transition.
 		prevState := fsm.state
 		fsm.step(success)
-
-		// Dispatch on state change (or always if debounce=false).
 		stateChanged := fsm.state != prevState
+
+		// Dispatch watchdog action on state change (or always if debounce=false).
 		if stateChanged || !cfg.Debounce {
 			m.dispatchStateAction(ctx, cfg, fsm.state)
+		}
+
+		// IP management on state change.
+		if stateChanged && ipt != nil {
+			m.handleIPTransition(ipt, cfg, fsm.state)
+		}
+
+		// Hooks on state change (not on count increments like RISING->RISING).
+		if stateChanged {
+			runHooks(cfg, fsm.state)
 		}
 
 		if cfg.Interval == 0 {
@@ -222,12 +245,31 @@ func (m *probeManager) dispatchStateAction(ctx context.Context, cfg ProbeConfig,
 	}
 }
 
-// handleExit handles probe shutdown: withdraw routes.
-func (m *probeManager) handleExit(_ context.Context, cfg ProbeConfig) {
+// handleExit handles probe shutdown: withdraw routes, remove all IPs.
+func (m *probeManager) handleExit(_ context.Context, cfg ProbeConfig, ipt *ipTracker) {
 	exitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	m.dispatchStateAction(exitCtx, cfg, StateExit)
+	if ipt != nil {
+		ipt.removeAll()
+	}
 	logger().Info("probe exited", "name", cfg.Name)
+}
+
+// handleIPTransition manages IP addresses on state changes.
+func (m *probeManager) handleIPTransition(ipt *ipTracker, cfg ProbeConfig, state State) {
+	switch state {
+	case StateUp:
+		if cfg.IPDynamic {
+			ipt.addAll()
+		}
+	case StateDown, StateDisabled:
+		if cfg.IPDynamic {
+			ipt.removeAll()
+		}
+	case StateInit, StateRising, StateFalling, StateExit, StateEnd:
+		// No IP action for these states (EXIT handled in handleExit).
+	}
 }
 
 // dispatchCommand sends a command to the watchdog plugin via dispatchFn.

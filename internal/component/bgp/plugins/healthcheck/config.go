@@ -4,10 +4,12 @@ package healthcheck
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
 // ProbeConfig holds parsed configuration for a single healthcheck probe.
-// Struct equality is used for config change detection.
+// Note: struct equality is used for config change detection. Slice fields
+// (IPs, hooks) compare by length+content, so reordering triggers reconfigure.
 type ProbeConfig struct {
 	Name           string
 	Command        string
@@ -23,6 +25,22 @@ type ProbeConfig struct {
 	UpMetric       uint32
 	DownMetric     uint32
 	DisabledMetric uint32
+
+	// IP management (internal mode only).
+	IPInterface string
+	IPDynamic   bool
+	IPs         []string // CIDRs
+
+	// Hooks (shell commands, 30s timeout each).
+	OnUp       []string
+	OnDown     []string
+	OnDisabled []string
+	OnChange   []string
+}
+
+// equal compares two ProbeConfigs including slice fields.
+func (c ProbeConfig) equal(other ProbeConfig) bool {
+	return reflect.DeepEqual(c, other)
 }
 
 // parseConfig extracts healthcheck probe definitions from a BGP config JSON tree.
@@ -69,6 +87,17 @@ func parseConfig(jsonData string) ([]ProbeConfig, error) {
 			UpMetric:       getUint32(m, "up-metric", 100),
 			DownMetric:     getUint32(m, "down-metric", 1000),
 			DisabledMetric: getUint32(m, "disabled-metric", 500),
+			OnUp:           getStringList(m, "on-up"),
+			OnDown:         getStringList(m, "on-down"),
+			OnDisabled:     getStringList(m, "on-disabled"),
+			OnChange:       getStringList(m, "on-change"),
+		}
+
+		// Parse ip-setup container.
+		if ipSetup, ok := getMap(m, "ip-setup"); ok {
+			cfg.IPInterface = getString(ipSetup, "interface")
+			cfg.IPDynamic = getBool(ipSetup, "dynamic")
+			cfg.IPs = getStringList(ipSetup, "ip")
 		}
 		if cfg.Command == "" {
 			return nil, fmt.Errorf("probe %q: command is required", name)
@@ -147,4 +176,27 @@ func getBool(m map[string]any, key string) bool {
 		return b == "true"
 	}
 	return false
+}
+
+func getStringList(m map[string]any, key string) []string {
+	v, ok := m[key]
+	if !ok {
+		return nil
+	}
+	switch list := v.(type) {
+	case []any:
+		result := make([]string, 0, len(list))
+		for _, item := range list {
+			if s, ok := item.(string); ok {
+				result = append(result, s)
+			}
+		}
+		return result
+	case string:
+		if list == "" {
+			return nil
+		}
+		return []string{list}
+	}
+	return nil
 }
