@@ -3,6 +3,7 @@ package healthcheck
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -13,7 +14,7 @@ func newTestManager() *probeManager {
 	return &probeManager{
 		probes: make(map[string]*runningProbe),
 		dispatchFn: func(_ context.Context, _ string) (string, string, error) {
-			return "done", "", nil
+			return statusDone, "", nil
 		},
 	}
 }
@@ -251,6 +252,112 @@ func TestDebounceFalse(t *testing.T) {
 
 	if !dispatched {
 		t.Error("debounce=false should dispatch even on unchanged state")
+	}
+}
+
+func TestShowAllProbes(t *testing.T) {
+	mgr := newTestManager()
+	mgr.applyConfig([]ProbeConfig{
+		{Name: "dns", Command: "true", Group: "hc-dns", Interval: 1, Rise: 3, Fall: 3, Timeout: 5},
+		{Name: "web", Command: "true", Group: "hc-web", Interval: 1, Rise: 3, Fall: 3, Timeout: 5},
+	})
+	defer mgr.applyConfig(nil)
+
+	status, data, err := mgr.handleCommand("healthcheck show", nil)
+	if err != nil {
+		t.Fatalf("show: %v", err)
+	}
+	if status != statusDone {
+		t.Errorf("status = %q, want done", status)
+	}
+	if data == "" {
+		t.Error("show returned empty data")
+	}
+}
+
+func TestShowSingleProbe(t *testing.T) {
+	mgr := newTestManager()
+	mgr.applyConfig([]ProbeConfig{
+		{Name: "dns", Command: "true", Group: "hc-dns", Interval: 1, Rise: 3, Fall: 3, Timeout: 5, UpMetric: 100},
+	})
+	defer mgr.applyConfig(nil)
+
+	status, data, err := mgr.handleCommand("healthcheck show", []string{"dns"})
+	if err != nil {
+		t.Fatalf("show dns: %v", err)
+	}
+	if status != statusDone {
+		t.Errorf("status = %q, want done", status)
+	}
+	if !strings.Contains(data, `"name":"dns"`) {
+		t.Errorf("data = %q, want probe name", data)
+	}
+}
+
+func TestShowNonexistentProbe(t *testing.T) {
+	mgr := newTestManager()
+
+	status, _, err := mgr.handleCommand("healthcheck show", []string{"missing"})
+	if err == nil {
+		t.Fatal("expected error for nonexistent probe")
+	}
+	if status != statusError {
+		t.Errorf("status = %q, want error", status)
+	}
+}
+
+func TestResetProbe(t *testing.T) {
+	mgr := newTestManager()
+	mgr.applyConfig([]ProbeConfig{
+		{Name: "dns", Command: "true", Group: "hc-dns", Interval: 1, Rise: 1, Fall: 1, Timeout: 5},
+	})
+	defer mgr.applyConfig(nil)
+
+	status, data, err := mgr.handleCommand("healthcheck reset", []string{"dns"})
+	if err != nil {
+		t.Fatalf("reset: %v", err)
+	}
+	if status != statusDone {
+		t.Errorf("status = %q, want done", status)
+	}
+	if !strings.Contains(data, `"action":"reset"`) {
+		t.Errorf("data = %q, want reset action", data)
+	}
+
+	// Probe should still be running after reset.
+	mgr.mu.Lock()
+	_, running := mgr.probes["dns"]
+	mgr.mu.Unlock()
+	if !running {
+		t.Error("probe should be running after reset")
+	}
+}
+
+func TestResetDisabledProbe(t *testing.T) {
+	mgr := newTestManager()
+	mgr.applyConfig([]ProbeConfig{
+		{Name: "dns", Command: "true", Group: "hc-dns", Interval: 1, Rise: 1, Fall: 1, Timeout: 5, Disable: true},
+	})
+	defer mgr.applyConfig(nil)
+
+	status, _, err := mgr.handleCommand("healthcheck reset", []string{"dns"})
+	if err == nil {
+		t.Fatal("expected error for DISABLED probe reset")
+	}
+	if status != statusError {
+		t.Errorf("status = %q, want error", status)
+	}
+}
+
+func TestResetMissingName(t *testing.T) {
+	mgr := newTestManager()
+
+	status, _, err := mgr.handleCommand("healthcheck reset", nil)
+	if err == nil {
+		t.Fatal("expected error for missing name")
+	}
+	if status != statusError {
+		t.Errorf("status = %q, want error", status)
 	}
 }
 

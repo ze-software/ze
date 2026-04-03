@@ -7,6 +7,7 @@ package healthcheck
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -16,6 +17,11 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+)
+
+const (
+	statusDone  = "done"
+	statusError = "error"
 )
 
 // loggerPtr is the package-level logger, disabled by default.
@@ -61,10 +67,18 @@ func RunHealthcheckPlugin(conn net.Conn) int {
 		return nil
 	})
 
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+		return mgr.handleCommand(command, args)
+	})
+
 	logger().Info("healthcheck plugin starting")
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{"bgp"},
+		Commands: []sdk.CommandDecl{
+			{Name: "healthcheck show", Description: "Show healthcheck probe status"},
+			{Name: "healthcheck reset", Description: "Reset healthcheck probe to INIT"},
+		},
 	})
 	if err != nil {
 		logger().Error("healthcheck plugin failed", "error", err)
@@ -291,6 +305,86 @@ func (m *probeManager) handleIPTransition(ipt *ipTracker, cfg ProbeConfig, state
 	}
 }
 
+// handleCommand dispatches healthcheck CLI commands.
+func (m *probeManager) handleCommand(command string, args []string) (string, string, error) {
+	switch command {
+	case "healthcheck show":
+		return m.handleShow(args)
+	case "healthcheck reset":
+		return m.handleReset(args)
+	}
+	return statusError, "", fmt.Errorf("unknown healthcheck command: %s", command)
+}
+
+// handleShow returns probe status as JSON.
+func (m *probeManager) handleShow(args []string) (string, string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if len(args) > 0 {
+		// Single probe detail.
+		name := args[0]
+		rp, exists := m.probes[name]
+		if !exists {
+			return statusError, "", fmt.Errorf("probe %q not found", name)
+		}
+		data := fmt.Sprintf(`{"name":%q,"group":%q,"state":%q,"command":%q,"interval":%d,"rise":%d,"fall":%d,"up-metric":%d,"down-metric":%d,"disabled-metric":%d}`,
+			rp.config.Name, rp.config.Group, "running",
+			rp.config.Command, rp.config.Interval, rp.config.Rise, rp.config.Fall,
+			rp.config.UpMetric, rp.config.DownMetric, rp.config.DisabledMetric)
+		return statusDone, data, nil
+	}
+
+	// All probes summary.
+	type probeInfo struct {
+		Name  string `json:"name"`
+		Group string `json:"group"`
+	}
+	var probes []probeInfo
+	for name, rp := range m.probes {
+		probes = append(probes, probeInfo{Name: name, Group: rp.config.Group})
+	}
+	data, err := json.Marshal(probes)
+	if err != nil {
+		return statusError, "", fmt.Errorf("marshal probes: %w", err)
+	}
+	return statusDone, string(data), nil
+}
+
+// handleReset withdraws the current route and resets the probe FSM to INIT.
+func (m *probeManager) handleReset(args []string) (string, string, error) {
+	if len(args) < 1 {
+		return statusError, "", fmt.Errorf("missing probe name")
+	}
+	name := args[0]
+
+	m.mu.Lock()
+	rp, exists := m.probes[name]
+	m.mu.Unlock()
+
+	if !exists {
+		return statusError, "", fmt.Errorf("probe %q not found", name)
+	}
+
+	if rp.config.Disable {
+		return statusError, "", fmt.Errorf("probe %q is DISABLED (use 'ze config set ... disable false' to re-enable)", name)
+	}
+
+	// Deconfigure and restart the probe from INIT.
+	rp.cancel()
+	<-rp.done
+
+	m.mu.Lock()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	m.probes[name] = &runningProbe{config: rp.config, cancel: cancel, done: done}
+	m.mu.Unlock()
+
+	go m.runProbe(ctx, rp.config, done)
+
+	return statusDone, fmt.Sprintf(`{"probe":%q,"action":"reset"}`, name), nil
+}
+
 // dispatchCommand sends a command to the watchdog plugin via dispatchFn.
 func (m *probeManager) dispatchCommand(ctx context.Context, probeName, command string) {
 	status, _, err := m.dispatchFn(ctx, command)
@@ -298,7 +392,7 @@ func (m *probeManager) dispatchCommand(ctx context.Context, probeName, command s
 		logger().Warn("dispatch failed", "probe", probeName, "command", command, "error", err)
 		return
 	}
-	if status != "done" {
+	if status != statusDone {
 		logger().Warn("dispatch unexpected status", "probe", probeName, "command", command, "status", status)
 	}
 }
