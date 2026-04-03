@@ -239,7 +239,7 @@ ExaBGP compat covers wire encoding for all supported address families.
 
 Not yet covered by interop tests:
 
-- Long-Lived Graceful Restart with live peers (LLGR not yet implemented)
+- Long-Lived Graceful Restart with live peers
 - BFD (no BFD protocol support in Ze)
 
 ## Known Vendor Limitations

@@ -47,9 +47,9 @@ This is an umbrella spec. Implementation is in four child specs executed in orde
 
 | Spec | Name | Depends | Status | Description |
 |------|------|---------|--------|-------------|
-| ~~`spec-llgr-1-capability.md`~~ | Capability Wire + Config | - | Done (`plan/learned/401-llgr-1-capability.md`) | LLGR capability code 71: wire decode/encode, YANG schema, config extraction, CLI decode |
-| ~~`spec-llgr-2-state-machine.md`~~ | State Machine | llgr-1 | Done (`plan/learned/402-llgr-2-state-machine.md`) | GR-to-LLGR transition, per-family LLST timers, reconnect during LLGR, timer interactions |
-| ~~`spec-llgr-3-rib-integration.md`~~ | RIB Integration | llgr-2 | Done (`plan/learned/403-llgr-3-rib-integration.md`) | LLGR_STALE attachment, NO_LLGR deletion, best-path depreference, generic RIB commands |
+| ~~`spec-llgr-1-capability.md`~~ | Capability Wire + Config | - | Done (`plan/learned/405-llgr-1-capability.md`) | LLGR capability code 71: wire decode/encode, YANG schema, config extraction, CLI decode |
+| ~~`spec-llgr-2-state-machine.md`~~ | State Machine | llgr-1 | Done (`plan/learned/406-llgr-2-state-machine.md`) | GR-to-LLGR transition, per-family LLST timers, reconnect during LLGR, timer interactions |
+| ~~`spec-llgr-3-rib-integration.md`~~ | RIB Integration | llgr-2 | Done (`plan/learned/407-llgr-3-rib-integration.md`) | LLGR_STALE attachment, NO_LLGR deletion, best-path depreference, generic RIB commands |
 | ~~`spec-llgr-4-readvertisement.md`~~ | Readvertisement | llgr-3, spec-route-metadata, spec-rib-family-ribout | Done (`plan/learned/509-llgr-4-readvertisement.md`) | LLGR egress filter, per-family readvertisement, stale metadata, IBGP partial deployment |
 
 ## Required Reading
@@ -279,18 +279,18 @@ Tests are defined in individual child specs. Each child spec has its own TDD pla
 <!-- See planning.md "Documentation Update Checklist" for the full table with examples. -->
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | [ ] | `docs/features.md` |
-| 2 | Config syntax changed? | [ ] | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
-| 3 | CLI command added/changed? | [ ] | `docs/guide/command-reference.md` |
-| 4 | API/RPC added/changed? | [ ] | `docs/architecture/api/commands.md` |
-| 5 | Plugin added/changed? | [ ] | `docs/guide/plugins.md` |
-| 6 | Has a user guide page? | [ ] | `docs/guide/<topic>.md` |
-| 7 | Wire format changed? | [ ] | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | [ ] | `.claude/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` |
-| 9 | RFC behavior implemented? | [ ] | `rfc/short/rfcNNNN.md` |
-| 10 | Test infrastructure changed? | [ ] | `docs/functional-tests.md` |
-| 11 | Affects daemon comparison? | [ ] | `docs/comparison.md` |
-| 12 | Internal architecture changed? | [ ] | `docs/architecture/core-design.md` or subsystem doc |
+| 1 | New user-facing feature? | Yes | `docs/features.md` -- already has LLGR |
+| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` -- already updated |
+| 3 | CLI command added/changed? | No | Existing `ze plugin bgp-gr --capa` extended |
+| 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` -- already updated |
+| 5 | Plugin added/changed? | No | bgp-gr extended, not new plugin |
+| 6 | Has a user guide page? | Yes | `docs/guide/graceful-restart.md` -- already has LLGR section |
+| 7 | Wire format changed? | No | Standard BGP capability |
+| 8 | Plugin SDK/protocol changed? | No | Uses existing inter-plugin command protocol |
+| 9 | RFC behavior implemented? | Yes | `rfc/short/rfc9494.md` exists |
+| 10 | Test infrastructure changed? | No | N/A |
+| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` -- already updated |
+| 12 | Internal architecture changed? | No | Extension of existing GR plugin architecture |
 
 ## Implementation Steps
 
@@ -427,13 +427,23 @@ MUST document: LLGR capability format, LLST timer constraints, community handlin
 ## Implementation Summary
 
 ### What Was Implemented
-- (to be filled after implementation)
+- LLGR capability (code 71) wire decode/encode per RFC 9494 in `gr_llgr.go`
+- YANG schema: `long-lived-stale-time` leaf under graceful-restart
+- LLGR state machine: GR-to-LLGR transition, per-family LLST timers, skip-GR (restart-time=0), consecutive restart guard
+- Generic composable RIB commands: `attach-community`, `delete-with-community`, `mark-stale [level]`
+- `StaleLevel uint8` on RouteEntry with `DepreferenceThreshold = 2` in best-path Step 0
+- LLGR_STALE (0xFFFF0006) and NO_LLGR (0xFFFF0007) well-known community constants
+- LLGR egress filter: static registration at FilterStageAnnotation, atomic fast-path, EBGP suppression, IBGP partial deployment (NO_EXPORT + LOCAL_PREF=0)
+- CLI decode: `ze plugin bgp-gr --capa` extended for cap 71, `ze bgp decode --open` extended
+- Route.StaleLevel field propagated to ribOut for egress filter decisions
+- 4 functional `.ci` tests + extensive unit test coverage
 
 ### Bugs Found/Fixed
-- (to be filled)
+- None specific to LLGR implementation
 
 ### Documentation Updates
-- (to be filled)
+- `docs/architecture/api/commands.md` updated with new RIB commands (attach-community, delete-with-community, mark-stale level)
+- `docs/architecture/testing/interop.md` removed stale "not yet implemented" note
 
 ### Deviations from Plan
 - AD-3 revised: spec designed `rib enter-llgr` and `rib depreference-stale` as dedicated commands. Implementation uses generic composable commands: `rib attach-community`, `rib delete-with-community`, `rib mark-stale [level]`. Better design -- RIB has no LLGR knowledge.
@@ -445,39 +455,97 @@ MUST document: LLGR capability format, LLST timer constraints, community handlin
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Capability negotiation (code 71) | ✅ Done | `gr_llgr.go`, `register.go` | Wire decode/encode, config extraction |
+| State machine (GR-to-LLGR) | ✅ Done | `gr_state.go` | Per-family LLST timers, skip-GR, consecutive restart guard |
+| RIB integration | ✅ Done | `rib_commands.go`, `bestpath.go`, `routeentry.go` | Generic composable commands, StaleLevel depreference |
+| Readvertisement | ✅ Done | `gr_egress.go`, `register.go` | Egress filter, EBGP suppress, IBGP partial deployment |
+| CLI decode | ✅ Done | `gr_llgr.go:runCLIDecodeLLGR` | `ze plugin bgp-gr --capa` for cap 71 |
+| YANG config | ✅ Done | `ze-graceful-restart.yang` | `long-lived-stale-time` leaf |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | ✅ Done | `test/parse/graceful-restart-llgr.ci` | Config with LLST parsed, cap 71 advertised |
+| AC-2 | ✅ Done | `test/decode/capability-llgr.ci`, `TestHandleEventOpenLLGR` | Cap 71 decoded with per-family LLST |
+| AC-3 | ✅ Done | `test/plugin/llgr-transition.ci`, `TestLLGRTransition` | Routes survive restart-time expiry |
+| AC-4 | ✅ Done | `test/plugin/llgr-rib-stale.ci`, `TestLLGREntry*` | LLGR_STALE attached, NO_LLGR deleted |
+| AC-5 | ✅ Done | `bestpath_test.go:TestComparePairStaleLevel*` | Step 0 depreference: fresh beats LLGR-stale |
+| AC-6 | ✅ Done | `test/plugin/llgr-rib-stale.ci`, `TestLLSTExpiry` | EOR after reconnect purges stale |
+| AC-7 | ✅ Done | `gr_state_test.go:TestSessionReestablishedDuringLLGR` | RFC 4724 procedures apply on reconnect |
+| AC-8 | ✅ Done | `gr_state_test.go:TestSkipGRToLLGR` | restart-time=0, LLST nonzero enters LLGR immediately |
+| AC-9 | ⚠️ Partial | `test/plugin/llgr-readvertise.ci`, `gr_egress_test.go` (8 tests) | LLGR-capable path tested. Non-LLGR suppression: unit tests only (multi-peer infra needed for .ci) |
+| AC-10 | ✅ Done | `test/plugin/plugin-gr-llgr-capa.ci` | CLI decode outputs LLST per family |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| Config parse LLGR | ✅ Done | `test/parse/graceful-restart-llgr.ci` | |
+| Capability decode | ✅ Done | `test/decode/capability-llgr.ci` | |
+| CLI capability decode | ✅ Done | `test/plugin/plugin-gr-llgr-capa.ci` | |
+| GR-to-LLGR transition | ✅ Done | `test/plugin/llgr-transition.ci` | |
+| RIB LLGR_STALE + purge | ✅ Done | `test/plugin/llgr-rib-stale.ci` | |
+| Readvertisement | ✅ Done | `test/plugin/llgr-readvertise.ci` | LLGR-capable peer path |
+| Best-path depreference | ✅ Done | `bestpath_test.go` | StaleLevel >= threshold |
+| Egress filter | ✅ Done | `gr_egress_test.go` (8 tests) | EBGP/IBGP/LLGR paths |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `gr/register.go` | ✅ Done | Cap codes [64, 71], EgressFilter, community names |
+| `gr/gr.go` | ✅ Done | LLGR callbacks, cap parsing, egress state wiring |
+| `gr/gr_state.go` | ✅ Done | LLGR state machine, per-family LLST timers |
+| `gr/gr_llgr.go` | ✅ Done | Created: LLGR decode, config, CLI, localAS extraction |
+| `gr/gr_egress.go` | ✅ Done | Created: LLGR egress filter |
+| `gr/schema/ze-graceful-restart.yang` | ✅ Done | long-lived-stale-time leaf |
+| `rib/rib_commands.go` | ✅ Done | attach-community, delete-with-community, mark-stale [level] |
+| `rib/rib.go` | ✅ Done | updateRouteWithMeta, sendRoutes with meta |
+| `rib/storage/routeentry.go` | ✅ Done | StaleLevel uint8, DepreferenceThreshold |
+| `rib/bestpath.go` | ✅ Done | Step 0 stale-level depreference |
+| `attribute/community.go` | ✅ Done | CommunityLLGRStale, CommunityNoLLGR |
+| `bgp/route.go` | ✅ Done | StaleLevel field on Route |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 36
+- **Done:** 35
+- **Partial:** 1 (AC-9: non-LLGR peer suppression needs multi-peer .ci)
+- **Skipped:** 0
+- **Changed:** 2 (AD-3 composable commands, AD-4 StaleLevel uint8)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `test/parse/graceful-restart-llgr.ci` | Yes | Listed by glob |
+| `test/decode/capability-llgr.ci` | Yes | Passes `ze-test bgp decode T` |
+| `test/plugin/llgr-transition.ci` | Yes | Passes `ze-test bgp plugin llgr-transition` |
+| `test/plugin/llgr-rib-stale.ci` | Yes | Passes `ze-test bgp plugin llgr-rib-stale` |
+| `test/plugin/llgr-readvertise.ci` | Yes | Passes `ze-test bgp plugin llgr-readvertise` |
+| `test/plugin/plugin-gr-llgr-capa.ci` | Yes | Passes `ze-test bgp plugin plugin-gr-llgr-capa` |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | LLGR cap advertised from config | `test/parse/graceful-restart-llgr.ci` exits 0 |
+| AC-2 | Cap 71 decoded from OPEN | `ze bgp decode --json --plugin bgp-gr --open` produces correct JSON |
+| AC-3 | LLGR transition on restart-time expiry | `llgr-transition.ci`: routes survive with restart-time=1, connect-retry=3 |
+| AC-4 | LLGR_STALE attached, NO_LLGR deleted | `llgr-rib-stale.ci`: routes retained through LLGR entry |
+| AC-5 | Depreference in best-path | `grep DepreferenceThreshold bestpath.go` finds Step 0 |
+| AC-6 | LLST expiry purges stale | `llgr-rib-stale.ci`: EOR triggers purge-stale after LLGR |
+| AC-7 | Reconnect during LLGR | `TestSessionReestablishedDuringLLGR` in gr_state_test.go |
+| AC-8 | Skip-GR (restart-time=0) | `TestSkipGRToLLGR` in gr_state_test.go |
+| AC-9 | Non-LLGR peer suppression | 8 unit tests in `gr_egress_test.go`; `.ci` covers LLGR-capable path |
+| AC-10 | CLI decode cap 71 | `plugin-gr-llgr-capa.ci` checks `contains=3600` |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| Config with long-lived-stale-time | `test/parse/graceful-restart-llgr.ci` | Yes |
+| OPEN with cap 71 hex | `test/decode/capability-llgr.ci` | Yes |
+| GR timer expiry with LLGR | `test/plugin/llgr-transition.ci` | Yes |
+| LLGR period entry | `test/plugin/llgr-rib-stale.ci` | Yes |
+| Best-path depreference | `bestpath_test.go` (unit) | Yes |
+| LLGR readvertisement | `test/plugin/llgr-readvertise.ci` | Yes |
 
 ## Checklist
 
