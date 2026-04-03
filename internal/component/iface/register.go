@@ -52,7 +52,7 @@ func init() {
 	loggerPtr.Store(d)
 
 	reg := registry.Registration{
-		Name:        "iface",
+		Name:        "interface",
 		Description: "OS network interface monitoring and management",
 		Features:    "yang",
 		YANG:        ifaceschema.ZeIfaceConfYANG,
@@ -66,7 +66,7 @@ func init() {
 		return 1
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "iface: registration failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "interface: registration failed: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -78,14 +78,14 @@ func setLogger(l *slog.Logger) {
 	}
 }
 
-// runEngine is the engine-mode entry point for the iface plugin.
+// runEngine is the engine-mode entry point for the interface plugin.
 // It uses the SDK 5-stage protocol to receive configuration, starts
 // the netlink interface monitor, and blocks until shutdown.
 func runEngine(conn net.Conn) int {
 	log := loggerPtr.Load()
-	log.Debug("iface plugin starting")
+	log.Debug("interface plugin starting")
 
-	p := sdk.NewWithConn("iface", conn)
+	p := sdk.NewWithConn("interface", conn)
 	defer func() { _ = p.Close() }()
 
 	var mon *Monitor
@@ -93,32 +93,32 @@ func runEngine(conn net.Conn) int {
 	p.OnConfigure(func(_ []sdk.ConfigSection) error {
 		bus := getBus()
 		if bus == nil {
-			log.Warn("iface plugin: no bus configured, monitor will not start")
+			log.Warn("interface plugin: no bus configured, monitor will not start")
 			return nil
 		}
 
 		var err error
 		mon, err = NewMonitor(bus)
 		if err != nil {
-			return fmt.Errorf("iface monitor create: %w", err)
+			return fmt.Errorf("interface monitor create: %w", err)
 		}
 		if err = mon.Start(); err != nil {
 			mon = nil
-			return fmt.Errorf("iface monitor start: %w", err)
+			return fmt.Errorf("interface monitor start: %w", err)
 		}
-		log.Info("iface monitor started")
+		log.Info("interface monitor started")
 		return nil
 	})
 
 	ctx := context.Background()
 	if err := p.Run(ctx, sdk.Registration{}); err != nil {
-		log.Error("iface plugin failed", "error", err)
+		log.Error("interface plugin failed", "error", err)
 		return 1
 	}
 
 	if mon != nil {
 		mon.Stop()
-		log.Info("iface monitor stopped")
+		log.Info("interface monitor stopped")
 	}
 
 	return 0

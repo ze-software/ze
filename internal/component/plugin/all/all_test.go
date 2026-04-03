@@ -39,7 +39,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"bgp-rs",
 		"bgp-softver",
 		"bgp-watchdog",
-		"iface",
+		"interface",
 		"loop",
 	}
 

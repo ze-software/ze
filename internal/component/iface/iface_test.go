@@ -10,12 +10,12 @@ import (
 func TestIfacePluginRegistered(t *testing.T) {
 	// VALIDATES: Plugin is registered in the registry via init().
 	// PREVENTS: Plugin not discoverable by engine.
-	reg := registry.Lookup("iface")
+	reg := registry.Lookup("interface")
 	if reg == nil {
-		t.Fatal("iface plugin not found in registry")
+		t.Fatal("interface plugin not found in registry")
 	}
-	if reg.Name != "iface" {
-		t.Errorf("expected name %q, got %q", "iface", reg.Name)
+	if reg.Name != "interface" {
+		t.Errorf("expected name %q, got %q", "interface", reg.Name)
 	}
 	if reg.Description == "" {
 		t.Error("description is empty")
