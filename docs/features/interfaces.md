@@ -52,7 +52,7 @@ JunOS-style two-layer model: physical interfaces with logical units.
 | | DHCP server | missing | lower |
 | **Monitoring** | Netlink multicast (link + addr) | have | |
 | | Virtual iface state detection | have | |
-| | 8 bus topics, JSON payloads | have | |
+| | 9 bus topics, JSON payloads | have | |
 | | Interface statistics/counters | have | |
 | | Persistent counter tracking | missing | medium |
 | **Per-Interface Tuning** | IPv4 forwarding | have | |
