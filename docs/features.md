@@ -6,6 +6,7 @@ Ze is a BGP daemon written in Go.
 |---------|-------------|
 | [BGP Protocol](features/bgp-protocol.md) | 21 address families, 13 capabilities, 17 path attributes |
 | [Configuration](features/configuration.md) | YANG-modeled config with prefix limits, update groups, session resilience |
+| [Interfaces](features/interfaces.md) | Linux interface management via netlink: 6 types, DHCP, monitoring, migration, mirroring |
 | [Plugins](features/plugins.md) | RIB, route server, graceful restart, RPKI, community filters, interface monitoring |
 | [CLI Commands](features/cli-commands.md) | Protocol tools, config management, schema discovery, daemon control, AS topology graph |
 | [API Commands](features/api-commands.md) | Peer management, route updates, RIB operations, event subscription |
