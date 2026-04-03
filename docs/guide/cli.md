@@ -114,7 +114,7 @@ Named update windows for atomic route changes:
 
 In `ze cli` interactive mode:
 
-- **Tab completion** for commands and peer names
+- **Tab completion** for commands, peer names, address families, and log levels
 - **Pipe operators:** `| json`, `| table`, `| match <regex>`, `| count`, `| no-more`
 - **History** persisted across sessions
 - **Ctrl-C** cancels current command, **Ctrl-D** exits

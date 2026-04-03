@@ -355,6 +355,9 @@ func wireValueHints(tree *Command) {
 }
 
 func wireLogSetHints(tree *Command) {
+	if tree == nil || tree.Children == nil {
+		return
+	}
 	// Navigate to the slog level set node.
 	verbName := "lo" + "g" // avoid hook false-positive on literal
 	node, ok := tree.Children[verbName]
@@ -439,6 +442,7 @@ func buildRuntimeTree(client *cliClient) *Command {
 	}
 
 	tree := cmd.BuildTree(filtered, false)
+	wireValueHints(tree)
 
 	// Attach dynamic peer selector completion to the "peer" node.
 	// This allows "peer <TAB>" to suggest peer names and IPs.

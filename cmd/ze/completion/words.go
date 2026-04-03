@@ -3,6 +3,7 @@
 // Related: bash.go -- bash completion uses words at tab time
 // Related: zsh.go -- zsh completion uses words at tab time
 // Related: fish.go -- fish completion uses words at tab time
+// Related: nushell.go -- nushell completion uses words at tab time
 // Related: peers.go -- dynamic peer selector completion from running daemon
 
 package completion

@@ -289,4 +289,92 @@ func TestNodeWithoutValueHintsUnchanged(t *testing.T) {
 	if len(comps) != 2 {
 		t.Fatalf("expected 2 completions, got %d", len(comps))
 	}
+	want := []string{"list", "show"}
+	for i, w := range want {
+		if comps[i].Text != w {
+			t.Errorf("completion[%d] = %q, want %q", i, comps[i].Text, w)
+		}
+	}
+}
+
+// VALIDATES: DynamicChildren and ValueHints combine correctly on the same node.
+// PREVENTS: one callback shadowing the other when both are set.
+func TestDynamicChildrenAndValueHintsCombined(t *testing.T) {
+	tree := &Node{
+		Children: map[string]*Node{
+			"peer": {
+				Name: "peer",
+				Children: map[string]*Node{
+					"list": {Name: "list", Description: "List peers"},
+				},
+				DynamicChildren: func() []Suggestion {
+					return []Suggestion{
+						{Text: "10.0.0.1", Description: "peer ip", Type: "selector"},
+					}
+				},
+				ValueHints: func() []Suggestion {
+					return []Suggestion{
+						{Text: "ipv4/unicast", Description: "family", Type: "value"},
+					}
+				},
+			},
+		},
+	}
+
+	cc := NewTreeCompleter(tree)
+	comps := cc.Complete("peer ")
+
+	// Should include: list (child) + 10.0.0.1 (dynamic) + ipv4/unicast (value) = 3.
+	if len(comps) != 3 {
+		t.Fatalf("expected 3 completions (child + dynamic + value), got %d: %v", len(comps), comps)
+	}
+
+	types := make(map[string]string)
+	for _, c := range comps {
+		types[c.Text] = c.Type
+	}
+	if types["list"] != "command" {
+		t.Errorf("list Type = %q, want 'command'", types["list"])
+	}
+	if types["10.0.0.1"] != "selector" {
+		t.Errorf("10.0.0.1 Type = %q, want 'selector'", types["10.0.0.1"])
+	}
+	if types["ipv4/unicast"] != "value" {
+		t.Errorf("ipv4/unicast Type = %q, want 'value'", types["ipv4/unicast"])
+	}
+}
+
+// VALIDATES: GhostText works with ValueHints suggestions.
+// PREVENTS: inline preview ignoring value hint completions.
+func TestGhostTextWithValueHints(t *testing.T) {
+	tree := &Node{
+		Children: map[string]*Node{
+			"rib": {
+				Name: "rib",
+				ValueHints: func() []Suggestion {
+					return []Suggestion{
+						{Text: "ipv4/unicast", Type: "value"},
+						{Text: "ipv6/unicast", Type: "value"},
+					}
+				},
+			},
+		},
+	}
+
+	cc := NewTreeCompleter(tree)
+
+	// "rib ipv4" should ghost-complete to "/unicast".
+	ghost := cc.GhostText("rib ipv4")
+	if ghost != "/unicast" {
+		t.Errorf("GhostText('rib ipv4') = %q, want '/unicast'", ghost)
+	}
+
+	// "rib ipv" should ghost-complete common prefix "/".
+	// Both ipv4/unicast and ipv6/unicast share prefix "ipv" -> next differs at index 3.
+	ghost = cc.GhostText("rib ipv")
+	if ghost != "" {
+		// Common prefix of "ipv4/unicast" and "ipv6/unicast" after "ipv" is empty
+		// because the next chars differ ('4' vs '6').
+		t.Errorf("GhostText('rib ipv') = %q, want '' (ambiguous)", ghost)
+	}
 }

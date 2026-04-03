@@ -13,7 +13,7 @@ import (
 type Suggestion struct {
 	Text        string
 	Description string
-	Type        string // "command" or "pipe"
+	Type        string // "command", "pipe", "value", or "selector"
 }
 
 // TreeCompleter provides completions for operational commands from a Node tree.

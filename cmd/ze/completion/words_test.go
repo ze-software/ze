@@ -94,3 +94,48 @@ func TestWordsUnknownContext(t *testing.T) {
 		t.Errorf("expected empty output for unknown context, got: %q", buf.String())
 	}
 }
+
+// VALIDATES: AC-2 — ValueHints (families) appear in words output for rib node.
+// PREVENTS: ValueHints not flowing through the TreeCompleter delegation.
+func TestWordsRunRibIncludesFamilyHints(t *testing.T) {
+	var buf bytes.Buffer
+	code := writeWords(&buf, []string{"run", "rib"})
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d", code)
+	}
+
+	output := buf.String()
+
+	// Static children should be present.
+	if !strings.Contains(output, "best\t") {
+		t.Error("rib output missing static child 'best'")
+	}
+
+	// ValueHints families should be present.
+	if !strings.Contains(output, "ipv4/vpn\t") {
+		t.Error("rib output missing family ValueHint 'ipv4/vpn'")
+	}
+	if !strings.Contains(output, "l2vpn/evpn\t") {
+		t.Error("rib output missing family ValueHint 'l2vpn/evpn'")
+	}
+}
+
+// VALIDATES: pipe operators are filtered from words output.
+// PREVENTS: shell completion showing pipe operators as command suggestions.
+func TestWordsPipeOperatorsFiltered(t *testing.T) {
+	var buf bytes.Buffer
+	// "show" with no further path lists top-level commands.
+	// TreeCompleter.Complete("") returns commands, not pipes.
+	// But to be thorough, verify no pipe operators appear in any output.
+	code := writeWords(&buf, []string{"show"})
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d", code)
+	}
+
+	output := buf.String()
+	for _, pipe := range []string{"match\t", "count\t", "table\t", "no-more\t"} {
+		if strings.Contains(output, pipe) {
+			t.Errorf("words output should not contain pipe operator %q", pipe)
+		}
+	}
+}

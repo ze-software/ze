@@ -319,7 +319,7 @@ ze plugin test                   # Test plugin schema/config
 
 ### ze completion
 
-Generate shell completion scripts for bash, zsh, fish, and nushell. The scripts provide tab completion for subcommands, flags, plugin names, YANG schema modules, and `show`/`run` command trees.
+Generate shell completion scripts for bash, zsh, fish, and nushell. The scripts provide tab completion for subcommands, flags, plugin names, YANG schema modules, `show`/`run` command trees, and argument values (address families, log levels).
 
 ```
 ze completion bash
@@ -633,8 +633,8 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 |---------|--------|---------|
 | `rib status` | read-only | RIB summary (peer count, routes, families) |
 | `rib routes [received\|sent] [peer] [family]` | read-only | Adj-RIB-In/Out inspection |
-| `rib best [<prefix>]` | read-only | Best-path per prefix |
-| `rib best status` | read-only | Best-path computation status |
+| `rib show best [<prefix>]` | read-only | Best-path per prefix |
+| `rib show best status` | read-only | Best-path computation status |
 | `rib clear in <selector>` | write | Clear Adj-RIB-In (`*` for all peers) |
 | `rib clear out <selector> [family]` | write | Regenerate and re-advertise Adj-RIB-Out (`*` for all peers, optional family filter) |
 | `rib inject <peer> <family> <prefix> [attrs...]` | write | Insert route into Adj-RIB-In as if received from peer |

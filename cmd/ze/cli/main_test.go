@@ -509,6 +509,9 @@ func TestBuildCommandTreeLogLevelValueHints(t *testing.T) {
 	found := make(map[string]bool)
 	for _, h := range hints {
 		found[h.Text] = true
+		if h.Type != "value" {
+			t.Errorf("level hint %q should have Type 'value', got %q", h.Text, h.Type)
+		}
 	}
 	for _, want := range []string{"debug", "info", "warn", "err", "disabled"} {
 		if !found[want] {

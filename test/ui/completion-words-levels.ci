@@ -1,0 +1,9 @@
+# Test: ze completion words -- ValueHints include log levels for log set node
+# VALIDATES: AC-3 -- log set node shows log levels via ValueHints
+
+cmd=foreground:seq=1:exec=ze completion words run log set
+expect=exit:code=0
+expect=stdout:contains=debug
+expect=stdout:contains=warn
+expect=stdout:contains=err
+expect=stdout:contains=disabled
