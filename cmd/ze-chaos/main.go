@@ -334,6 +334,12 @@ Control:
 		return 1
 	}
 
+	// Check for single-port listeners falling inside allocated port ranges.
+	if err := validateRangeConflicts(*port, *listenBase, *peers, *sshPort, *webUIPort, *lgPort, *webAddr, *pprofAddr, *metricsAddr, *debugAddr); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+
 	// Generate random seed if not provided.
 	if *seed == 0 {
 		var buf [8]byte

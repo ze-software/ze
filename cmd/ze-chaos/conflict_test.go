@@ -54,6 +54,84 @@ func TestChaosListenConflict_AddrVsInt(t *testing.T) {
 	}
 }
 
+// VALIDATES: single-port listener inside BGP port range detected
+// PREVENTS: --web-ui landing inside allocated BGP port range unnoticed
+
+func TestRangeConflict_InsideBGPRange(t *testing.T) {
+	// --port 1850, --peers 4 -> BGP range [1850, 1858)
+	// --web-ui 1852 falls inside
+	err := validateRangeConflicts(1850, 1950, 4, 0, 1852, 0, "", "", "", "")
+	if err == nil {
+		t.Fatal("expected range conflict, got nil")
+	}
+	if !strings.Contains(err.Error(), "web-ui") || !strings.Contains(err.Error(), "bgp port range") {
+		t.Errorf("error should name service and range, got: %v", err)
+	}
+}
+
+// VALIDATES: single-port listener inside listen-base range detected
+// PREVENTS: --ssh landing inside allocated listen range unnoticed
+
+func TestRangeConflict_InsideListenRange(t *testing.T) {
+	// --listen-base 1950, --peers 4 -> listen range [1950, 1958)
+	// --ssh 1952 falls inside
+	err := validateRangeConflicts(1850, 1950, 4, 1952, 0, 0, "", "", "", "")
+	if err == nil {
+		t.Fatal("expected range conflict, got nil")
+	}
+	if !strings.Contains(err.Error(), "ssh") || !strings.Contains(err.Error(), "listen-base range") {
+		t.Errorf("error should name service and range, got: %v", err)
+	}
+}
+
+// VALIDATES: no false positive when ports are outside ranges
+// PREVENTS: range check blocking valid configurations
+
+func TestRangeConflict_NoConflict(t *testing.T) {
+	// --port 1850, --listen-base 1950, --peers 4
+	// ranges: [1850,1858) and [1950,1958)
+	// --ssh 2222, --web-ui 3443, --lg 8443 all outside
+	err := validateRangeConflicts(1850, 1950, 4, 2222, 3443, 8443, ":8000", ":6060", ":9090", ":6061")
+	if err != nil {
+		t.Errorf("expected no range conflict, got: %v", err)
+	}
+}
+
+// VALIDATES: addr:port flag inside range detected
+// PREVENTS: string-format ports escaping range check
+
+func TestRangeConflict_AddrPortInsideRange(t *testing.T) {
+	// --port 1850, --peers 4 -> [1850, 1858)
+	// --web :1855 falls inside
+	err := validateRangeConflicts(1850, 1950, 4, 0, 0, 0, ":1855", "", "", "")
+	if err == nil {
+		t.Fatal("expected range conflict for addr:port, got nil")
+	}
+}
+
+// VALIDATES: range check works with non-default base ports
+// PREVENTS: hardcoded assumptions about port 1850
+
+func TestRangeConflict_CustomBase(t *testing.T) {
+	// --port 2000, --peers 2 -> BGP range [2000, 2004)
+	// --ssh 2002 falls inside
+	err := validateRangeConflicts(2000, 3000, 2, 2002, 0, 0, "", "", "", "")
+	if err == nil {
+		t.Fatal("expected range conflict with custom base, got nil")
+	}
+}
+
+// VALIDATES: disabled ports (0/"") skip range check
+// PREVENTS: false conflict from disabled services
+
+func TestRangeConflict_DisabledSkipped(t *testing.T) {
+	// All single-port flags disabled -- no range conflict possible
+	err := validateRangeConflicts(1850, 1950, 4, 0, 0, 0, "", "", "", "")
+	if err != nil {
+		t.Errorf("expected no conflict with disabled ports, got: %v", err)
+	}
+}
+
 // VALIDATES: parseAddrPort handles ":port" format
 // PREVENTS: bare :port format being rejected
 

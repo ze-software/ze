@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -63,6 +64,66 @@ func validateChaosListenerConflicts(sshPort, webUIPort, lgPort int, webAddr, ppr
 	}
 
 	return config.ValidateListenerConflicts(endpoints)
+}
+
+// validateRangeConflicts checks whether any single-port listener falls inside
+// the port ranges allocated by --port or --listen-base. Each range is
+// [base, base + peers*2) since each peer gets 2 ports (one for ze, one for the tool).
+func validateRangeConflicts(bgpBase, listenBase, peers, sshPort, webUIPort, lgPort int, webAddr, pprofAddr, metricsAddr, zePprofAddr string) error {
+	bgpEnd := bgpBase + peers*2
+	listenEnd := listenBase + peers*2
+
+	type entry struct {
+		name string
+		port int
+	}
+
+	var singles []entry
+
+	for _, ep := range []struct {
+		name string
+		port int
+	}{
+		{"ssh", sshPort},
+		{"web-ui", webUIPort},
+		{"looking-glass", lgPort},
+	} {
+		if ep.port != 0 {
+			singles = append(singles, entry{ep.name, ep.port})
+		}
+	}
+
+	for _, ep := range []struct {
+		name string
+		addr string
+	}{
+		{"chaos-web", webAddr},
+		{"chaos-pprof", pprofAddr},
+		{"chaos-metrics", metricsAddr},
+		{"ze-pprof", zePprofAddr},
+	} {
+		if ep.addr == "" {
+			continue
+		}
+		parsed := parseAddrPort(ep.addr)
+		if parsed == nil {
+			continue
+		}
+		singles = append(singles, entry{ep.name, int(parsed.port)})
+	}
+
+	for _, s := range singles {
+		if s.port >= bgpBase && s.port < bgpEnd {
+			return fmt.Errorf("%s port %d falls inside bgp port range %d-%d (--port %d, %d peers)",
+				s.name, s.port, bgpBase, bgpEnd-1, bgpBase, peers)
+		}
+		if s.port >= listenBase && s.port < listenEnd {
+			return fmt.Errorf("%s port %d falls inside listen-base range %d-%d (--listen-base %d, %d peers)",
+				s.name, s.port, listenBase, listenEnd-1, listenBase, peers)
+		}
+	}
+
+	return nil
 }
 
 type parsedEndpoint struct {
