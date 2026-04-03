@@ -135,9 +135,9 @@ func (m *probeManager) applyConfig(configs []ProbeConfig) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	newConfigs := make(map[string]ProbeConfig, len(configs))
-	for _, c := range configs {
-		newConfigs[c.Name] = c
+	newConfigs := make(map[string]*ProbeConfig, len(configs))
+	for i := range configs {
+		newConfigs[configs[i].Name] = &configs[i]
 	}
 
 	// Stop probes that are no longer in config or changed.
@@ -157,8 +157,8 @@ func (m *probeManager) applyConfig(configs []ProbeConfig) {
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		done := make(chan struct{})
-		m.probes[name] = &runningProbe{config: cfg, cancel: cancel, done: done}
-		go m.runProbe(ctx, cfg, done)
+		m.probes[name] = &runningProbe{config: *cfg, cancel: cancel, done: done}
+		go m.runProbe(ctx, *cfg, done)
 	}
 
 	logger().Info("healthcheck config applied", "probes", len(m.probes))

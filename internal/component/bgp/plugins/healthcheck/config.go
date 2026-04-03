@@ -113,11 +113,11 @@ func parseConfig(jsonData string) ([]ProbeConfig, error) {
 
 	// Check group uniqueness.
 	groups := make(map[string]string, len(probes))
-	for _, p := range probes {
-		if other, exists := groups[p.Group]; exists {
-			return nil, fmt.Errorf("duplicate group %q: probes %q and %q", p.Group, other, p.Name)
+	for i := range probes {
+		if other, exists := groups[probes[i].Group]; exists {
+			return nil, fmt.Errorf("duplicate group %q: probes %q and %q", probes[i].Group, other, probes[i].Name)
 		}
-		groups[p.Group] = p.Name
+		groups[probes[i].Group] = probes[i].Name
 	}
 
 	return probes, nil

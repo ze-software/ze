@@ -1,13 +1,16 @@
-# Healthcheck: probe success triggers watchdog announce with UP metric.
+# Healthcheck: probe success triggers watchdog announce with UP metric (MED 100).
 # Config: probe runs "true" (always succeeds), rise=1 for fast UP, withdraw-on-down true.
+# The watchdog route has withdraw=true, so not sent initially. After healthcheck
+# transitions to UP, it dispatches "watchdog announce hc-dns med 100".
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-# Initial config route (watchdog dnsr with withdraw=true, not sent initially)
+# EOR (no routes initially -- watchdog has withdraw=true)
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-# After probe succeeds (rise=1 -> immediate UP), watchdog announce with med 100
-cmd=api:conn=1:seq=1:text=healthcheck probe UP triggers watchdog announce
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":100,"med":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.0.0/24"],"next-hop":"1.2.3.4"}]}
+# After probe succeeds (rise=1), healthcheck dispatches watchdog announce med 100.
+# UPDATE: origin igp, as-path [], nhop 1.2.3.4, med 100, local-pref 100, nlri 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=healthcheck probe UP triggers announce med 100
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C40010100400200400304010203048004040000006440050400000064180A0000
 EOF_PEER
 
 # ze bgp configuration
