@@ -81,14 +81,24 @@ USE_BUILDX = subprocess.run(
 
 
 def docker(*args, check=True, timeout=60, capture=False, **kwargs):
-    """Run a docker command. Uses buildx on macOS, legacy builder on Linux."""
+    """Run a docker command. Uses buildx on macOS, legacy builder on Linux.
+
+    When check=False, both CalledProcessError and TimeoutExpired are suppressed
+    so cleanup calls never crash the script.
+    """
     args = list(args)
     if args[:2] == ["buildx", "build"] and not USE_BUILDX:
         args = ["build"] + [a for a in args[2:] if a != "--load"]
     cmd = ["docker"] + args
-    if capture:
-        return subprocess.run(cmd, check=check, timeout=timeout, capture_output=True, text=True, **kwargs)
-    return subprocess.run(cmd, check=check, timeout=timeout, **kwargs)
+    try:
+        if capture:
+            return subprocess.run(cmd, check=check, timeout=timeout, capture_output=True, text=True, **kwargs)
+        return subprocess.run(cmd, check=check, timeout=timeout, **kwargs)
+    except subprocess.TimeoutExpired:
+        if check:
+            raise
+        # Suppress timeout when check=False (cleanup calls).
+        return subprocess.CompletedProcess(cmd, 1)
 
 
 def build_linux_binary():
@@ -181,11 +191,16 @@ def container_name(dut_name):
     return f"ze-perf-{dut_name}-{SUFFIX}"
 
 
+def image_exists(image):
+    """Check if a Docker image exists locally."""
+    r = docker("image", "inspect", image, check=False, timeout=10, capture=True)
+    return r.returncode == 0
+
+
 def start_dut(dut):
     """Start a DUT container. Returns True on success."""
     name = dut["name"]
     cname = container_name(name)
-    ip = dut["image"]
 
     volume_map = {
         "ze":       ["-v", f"{CONFIGS_DIR}/ze.conf:/etc/ze/bgp.conf:ro"],
@@ -223,7 +238,7 @@ def start_dut(dut):
 
 
 def stop_dut(dut_name):
-    docker("rm", "-f", container_name(dut_name), check=False, timeout=10,
+    docker("rm", "-f", container_name(dut_name), check=False, timeout=30,
            capture=True)
 
 
@@ -315,7 +330,7 @@ def run_perf(dut):
         return False
 
     finally:
-        docker("rm", "-f", runner, check=False, timeout=10, capture=True)
+        docker("rm", "-f", runner, check=False, timeout=30, capture=True)
 
 
 def cleanup():
@@ -323,8 +338,8 @@ def cleanup():
     print("\nCleaning up...")
     for dut in DUTS:  # noqa: B007 -- need dut["name"] not index
         stop_dut(dut["name"])
-    docker("rm", "-f", f"ze-perf-runner-{SUFFIX}", check=False, timeout=10, capture=True)
-    docker("network", "rm", NETWORK, check=False, timeout=10, capture=True)
+    docker("rm", "-f", f"ze-perf-runner-{SUFFIX}", check=False, timeout=30, capture=True)
+    docker("network", "rm", NETWORK, check=False, timeout=30, capture=True)
 
 
 def parse_args():
@@ -396,12 +411,21 @@ def main():
 
     passed = 0
     failed = 0
+    skipped = 0
     failed_names = []
+    skipped_names = []
     result_files = []
 
     for dut in duts:
         name = dut["name"]
         print(f"-- {name} --")
+
+        if not image_exists(dut["image"]):
+            print(f"  SKIP: image {dut['image']} not found (build with --build)")
+            skipped += 1
+            skipped_names.append(name)
+            print()
+            continue
 
         if not start_dut(dut):
             failed += 1
@@ -454,10 +478,18 @@ def main():
         print(f"Performance doc: {perf_doc}")
 
     print()
+    parts = []
+    if passed:
+        parts.append(f"{passed} passed")
+    if failed:
+        parts.append(f"{failed} failed: {' '.join(failed_names)}")
+    if skipped:
+        parts.append(f"{skipped} skipped: {' '.join(skipped_names)}")
+    summary = ", ".join(parts) if parts else "no DUTs ran"
     if failed == 0:
-        print(f"PASS  {passed} DUT(s) benchmarked")
+        print(f"PASS  {summary}")
     else:
-        print(f"FAIL  {passed} passed, {failed} failed: {' '.join(failed_names)}")
+        print(f"FAIL  {summary}")
     print("--------------------------------------------")
 
     return 1 if failed > 0 else 0
