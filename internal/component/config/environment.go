@@ -86,16 +86,16 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.ready.file", Type: "string", Description: "Write signal file when hub is ready (test infrastructure)"})
 
 	// Web server.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.listen", Type: "string", Description: "Web server listen address (ip:port[,ip:port])"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.listen", Type: "string", Default: "0.0.0.0:3443", Description: "Web server listen address (ip:port[,ip:port])"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.enabled", Type: "bool", Description: "Enable web server"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.insecure", Type: "bool", Description: "Disable web authentication"})
 
 	// MCP server.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.listen", Type: "string", Description: "MCP server listen address (ip:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.listen", Type: "string", Default: "127.0.0.1:8080", Description: "MCP server listen address (ip:port)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.enabled", Type: "bool", Description: "Enable MCP server"})
 
 	// Looking glass.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.listen", Type: "string", Description: "Looking glass listen address (ip:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.listen", Type: "string", Default: "0.0.0.0:8443", Description: "Looking glass listen address (ip:port)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.enabled", Type: "bool", Description: "Enable looking glass server"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.tls", Type: "bool", Description: "Enable TLS for looking glass"})
 

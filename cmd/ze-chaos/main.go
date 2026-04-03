@@ -39,6 +39,19 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/web"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
+)
+
+// Env var registrations for ze-chaos port flags.
+var (
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.bgp.port", Type: "int", Default: "1850", Description: "Base BGP port for Ze to listen on"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.listen.base", Type: "int", Default: "1950", Description: "Base port for ze-chaos to listen on"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.ssh.port", Type: "int", Default: "0", Description: "Ze SSH server port (0 = disabled)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.web.ui.port", Type: "int", Default: "0", Description: "Ze web UI port (0 = disabled)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.lg.port", Type: "int", Default: "0", Description: "Ze looking glass port (0 = disabled)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.web", Type: "string", Default: "", Description: "ze-chaos live web dashboard (addr:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.metrics", Type: "string", Default: "", Description: "ze-chaos Prometheus metrics endpoint (addr:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.pprof", Type: "string", Default: "", Description: "ze-chaos pprof HTTP server (addr:port)"})
 )
 
 func main() {
@@ -75,24 +88,32 @@ func run(args []string) int {
 	routeRate := fs.Float64("route-rate", 0.0, "Per-peer probability of route action per interval (0.0-1.0, 0=disabled)")
 	routeInterval := fs.Duration("route-interval", 5*time.Second, "Time between route dynamics checks")
 
-	// Network flags
-	port := fs.Int("port", 1850, "Base BGP port for Ze to listen on")
-	listenBase := fs.Int("listen-base", 1950, "Base port for tool to listen on")
+	// Network flags (env-aware: override via ze.chaos.* env vars)
+	portDefault, portDesc := env.PortDefault("ze.chaos.bgp.port", 1850, "Base BGP port for Ze to listen on")
+	port := fs.Int("port", portDefault, portDesc)
+	listenDefault, listenDesc := env.PortDefault("ze.chaos.listen.base", 1950, "Base port for tool to listen on")
+	listenBase := fs.Int("listen-base", listenDefault, listenDesc)
 	localAddr := fs.String("local-addr", "127.0.0.1", "Local address")
 
-	// SSH flags
-	sshPort := fs.Int("ssh", 0, "Enable SSH server on port (user: test, password: test)")
+	// SSH flags (env-aware)
+	sshDefault, sshDesc := env.PortDefault("ze.chaos.ssh.port", 0, "Enable SSH server on port (user: test, password: test)")
+	sshPort := fs.Int("ssh", sshDefault, sshDesc)
 
-	// Ze service flags (injected into generated config)
-	webUIPort := fs.Int("web-ui", 0, "Enable Ze web UI on port (insecure, 127.0.0.1)")
-	lgPort := fs.Int("lg", 0, "Enable Ze looking glass on port (127.0.0.1)")
+	// Ze service flags (injected into generated config, env-aware)
+	webUIDefault, webUIDesc := env.PortDefault("ze.chaos.web.ui.port", 0, "Enable Ze web UI on port (insecure, 127.0.0.1)")
+	webUIPort := fs.Int("web-ui", webUIDefault, webUIDesc)
+	lgDefault, lgDesc := env.PortDefault("ze.chaos.lg.port", 0, "Enable Ze looking glass on port (127.0.0.1)")
+	lgPort := fs.Int("lg", lgDefault, lgDesc)
 
-	// Output flags
+	// Output flags (addr:port flags are env-aware)
 	configOut := fs.String("config-out", "", "Write Ze config to file instead of stdout")
 	eventLog := fs.String("event-log", "", "NDJSON event log file")
-	metricsAddr := fs.String("metrics", "", "Prometheus metrics endpoint (addr:port)")
-	webAddr := fs.String("web", "", "Live web dashboard (addr:port, e.g. :8000)")
-	pprofAddr := fs.String("pprof", "", "pprof HTTP server for ze-chaos (addr:port, e.g. :6060)")
+	metricsDefault, metricsDesc := env.AddrPortDefault("ze.chaos.metrics", "", "Prometheus metrics endpoint (addr:port)")
+	metricsAddr := fs.String("metrics", metricsDefault, metricsDesc)
+	webDefault, webDesc := env.AddrPortDefault("ze.chaos.web", "", "Live web dashboard (addr:port, e.g. :8000)")
+	webAddr := fs.String("web", webDefault, webDesc)
+	pprofDefault, pprofDesc := env.AddrPortDefault("ze.chaos.pprof", "", "pprof HTTP server for ze-chaos (addr:port, e.g. :6060)")
+	pprofAddr := fs.String("pprof", pprofDefault, pprofDesc)
 	debugAddr := fs.String("ze-pprof", "", "pprof HTTP server for ze (injected into generated config, e.g. :6061)")
 	quiet := fs.Bool("quiet", false, "Only errors and summary")
 	verbose := fs.Bool("verbose", false, "Extra debug output")
@@ -304,6 +325,12 @@ Control:
 	// Validate port.
 	if *port < 1024 || *port > 65535 {
 		fmt.Fprintf(os.Stderr, "error: --port must be 1024-65535, got %d\n", *port)
+		return 1
+	}
+
+	// Check for listener port conflicts among single-port flags.
+	if err := validateChaosListenerConflicts(*sshPort, *webUIPort, *lgPort, *webAddr, *pprofAddr, *metricsAddr, *debugAddr); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 

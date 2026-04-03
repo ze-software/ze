@@ -37,6 +37,9 @@ module ze-mcp-conf {
                     refine ip {
                         default "127.0.0.1";
                     }
+                    refine port {
+                        default 8080;
+                    }
                 }
             }
         }

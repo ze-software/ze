@@ -2,9 +2,10 @@ package signal
 
 import (
 	"net"
-	"os"
 	"slices"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // VALIDATES: resolveHost returns flag value when set
@@ -22,6 +23,8 @@ func TestResolveHostFlag(t *testing.T) {
 
 func TestResolveHostEnv(t *testing.T) {
 	t.Setenv("ze_ssh_host", "10.0.0.2")
+	env.ResetCache()
+
 	got := resolveHost("")
 	if got != "10.0.0.2" {
 		t.Errorf("resolveHost with env: got %q, want %q", got, "10.0.0.2")
@@ -34,6 +37,8 @@ func TestResolveHostEnv(t *testing.T) {
 func TestResolveHostDefault(t *testing.T) {
 	t.Setenv("ze_ssh_host", "")
 	t.Setenv("ze.ssh.host", "")
+	env.ResetCache()
+
 	got := resolveHost("")
 	if got != defaultHost {
 		t.Errorf("resolveHost default: got %q, want %q", got, defaultHost)
@@ -55,6 +60,8 @@ func TestResolvePortFlag(t *testing.T) {
 
 func TestResolvePortEnv(t *testing.T) {
 	t.Setenv("ze_ssh_port", "4444")
+	env.ResetCache()
+
 	got := resolvePort("")
 	if got != "4444" {
 		t.Errorf("resolvePort with env: got %q, want %q", got, "4444")
@@ -67,6 +74,8 @@ func TestResolvePortEnv(t *testing.T) {
 func TestResolvePortDefault(t *testing.T) {
 	t.Setenv("ze_ssh_port", "")
 	t.Setenv("ze.ssh.port", "")
+	env.ResetCache()
+
 	got := resolvePort("")
 	if got != defaultPort {
 		t.Errorf("resolvePort default: got %q, want %q", got, defaultPort)
@@ -121,6 +130,8 @@ func TestSignalCommandUnknown(t *testing.T) {
 	// Set env to avoid actual connections
 	t.Setenv("ze_ssh_host", "127.0.0.1")
 	t.Setenv("ze_ssh_port", "1")
+	env.ResetCache()
+
 	code := Run([]string{"unknown"})
 	if code != ExitNotRunning {
 		t.Errorf("expected ExitNotRunning, got %d", code)
@@ -189,19 +200,32 @@ func TestLookupUnknown(t *testing.T) {
 	}
 }
 
-// VALIDATES: env var with dot notation (ze.ssh.host) works
-// PREVENTS: only underscore variant being recognized
+// VALIDATES: AC-8 -- env var with uppercase ZE_SSH_HOST works via env.Get normalization
+// PREVENTS: only lowercase or dot notation being recognized
 
-func TestResolveHostDotEnv(t *testing.T) {
-	// Clear underscore variant, set dot variant
+func TestResolveHostUppercaseEnv(t *testing.T) {
 	t.Setenv("ze_ssh_host", "")
-	if err := os.Setenv("ze.ssh.host", "10.0.0.3"); err != nil {
-		t.Skip("cannot set env with dots on this platform")
-	}
-	defer os.Unsetenv("ze.ssh.host") //nolint:errcheck // test cleanup
+	t.Setenv("ze.ssh.host", "")
+	t.Setenv("ZE_SSH_HOST", "10.0.0.5")
+	env.ResetCache()
 
 	got := resolveHost("")
-	if got != "10.0.0.3" {
-		t.Errorf("resolveHost dot env: got %q, want %q", got, "10.0.0.3")
+	if got != "10.0.0.5" {
+		t.Errorf("resolveHost uppercase env: got %q, want %q", got, "10.0.0.5")
+	}
+}
+
+// VALIDATES: AC-8 -- env var with uppercase ZE_SSH_PORT works via env.Get normalization
+// PREVENTS: only lowercase or dot notation being recognized
+
+func TestResolvePortUppercaseEnv(t *testing.T) {
+	t.Setenv("ze_ssh_port", "")
+	t.Setenv("ze.ssh.port", "")
+	t.Setenv("ZE_SSH_PORT", "2223")
+	env.ResetCache()
+
+	got := resolvePort("")
+	if got != "2223" {
+		t.Errorf("resolvePort uppercase env: got %q, want %q", got, "2223")
 	}
 }

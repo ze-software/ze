@@ -23,8 +23,8 @@ import (
 // Env var registration for config directory and SSH overrides.
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.config.dir", Type: "string", Description: "Override default config directory"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.host", Type: "string", Description: "Override SSH host"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.port", Type: "string", Description: "Override SSH port"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.host", Type: "string", Default: "127.0.0.1", Description: "Override SSH host"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.port", Type: "string", Default: "2222", Description: "Override SSH port"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.password", Type: "string", Description: "SSH password (zefs stores bcrypt hash)"})
 )
 

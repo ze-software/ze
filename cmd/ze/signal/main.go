@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // Exit codes for signal command.
@@ -223,27 +224,27 @@ func cmdSSHExec(addr, command string) int {
 }
 
 // resolveHost returns the SSH host from flag, env var, or default.
+// env.Get normalizes dot/underscore and case automatically, so a single
+// call handles ze.ssh.host, ze_ssh_host, ZE_SSH_HOST, etc.
 func resolveHost(flagVal string) string {
 	if flagVal != "" {
 		return flagVal
 	}
-	for _, key := range []string{"ze.ssh.host", "ze_ssh_host"} {
-		if v := os.Getenv(key); v != "" {
-			return v
-		}
+	if v := env.Get("ze.ssh.host"); v != "" {
+		return v
 	}
 	return defaultHost
 }
 
 // resolvePort returns the SSH port from flag, env var, or default.
+// env.Get normalizes dot/underscore and case automatically, so a single
+// call handles ze.ssh.port, ze_ssh_port, ZE_SSH_PORT, etc.
 func resolvePort(flagVal string) string {
 	if flagVal != "" {
 		return flagVal
 	}
-	for _, key := range []string{"ze.ssh.port", "ze_ssh_port"} {
-		if v := os.Getenv(key); v != "" {
-			return v
-		}
+	if v := env.Get("ze.ssh.port"); v != "" {
+		return v
 	}
 	return defaultPort
 }

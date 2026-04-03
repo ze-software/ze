@@ -151,7 +151,7 @@ Listener services (web, MCP, looking glass) use compound `ip:port` format instea
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `ze.web.listen` | string | (none) | Listen address: `ip:port[,ip:port]` (e.g., `0.0.0.0:3443`) |
+| `ze.web.listen` | string | `0.0.0.0:3443` | Listen address: `ip:port[,ip:port]` (e.g., `0.0.0.0:3443`) |
 | `ze.web.enabled` | bool | false | Enable web server (uses default endpoint if listen not set) |
 | `ze.web.insecure` | bool | false | Disable web authentication |
 <!-- source: internal/component/config/environment.go -- web server env var registrations -->
@@ -160,7 +160,7 @@ Listener services (web, MCP, looking glass) use compound `ip:port` format instea
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `ze.mcp.listen` | string | (none) | Listen address: `ip:port` (e.g., `127.0.0.1:8080`) |
+| `ze.mcp.listen` | string | `127.0.0.1:8080` | Listen address: `ip:port` (e.g., `127.0.0.1:8080`) |
 | `ze.mcp.enabled` | bool | false | Enable MCP server (defaults to `127.0.0.1:8080`) |
 <!-- source: internal/component/config/environment.go -- MCP server env var registrations -->
 
@@ -168,7 +168,7 @@ Listener services (web, MCP, looking glass) use compound `ip:port` format instea
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `ze.looking-glass.listen` | string | (none) | Listen address: `ip:port` (e.g., `0.0.0.0:8443`) |
+| `ze.looking-glass.listen` | string | `0.0.0.0:8443` | Listen address: `ip:port` (e.g., `0.0.0.0:8443`) |
 | `ze.looking-glass.enabled` | bool | false | Enable looking glass server |
 | `ze.looking-glass.tls` | bool | false | Enable TLS for looking glass |
 <!-- source: internal/component/config/environment.go -- looking glass env var registrations -->
