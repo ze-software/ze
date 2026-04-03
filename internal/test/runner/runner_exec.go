@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,9 +34,12 @@ type syncWriter struct {
 	found   bool
 }
 
-// newSyncWriter creates a writer that can wait for a pattern.
-func newSyncWriter(pattern string) *syncWriter {
-	return &syncWriter{pattern: pattern}
+// peerListeningPattern is the string ze-peer prints to stdout when ready.
+const peerListeningPattern = "listening on"
+
+// newSyncWriter creates a writer that waits for ze-peer's "listening on" output.
+func newSyncWriter() *syncWriter {
+	return &syncWriter{pattern: peerListeningPattern}
 }
 
 // Write captures data and checks for the pattern.
@@ -81,6 +85,15 @@ func (sw *syncWriter) String() string {
 	sw.mu.Lock()
 	defer sw.mu.Unlock()
 	return sw.buf.String()
+}
+
+// peerOutput tracks stdout/stderr for a single ze-peer background process.
+// Multi-peer tests create one per ze-peer so each has independent WaitFor
+// synchronization and output capture.
+type peerOutput struct {
+	stdout *syncWriter
+	stderr *strings.Builder
+	proc   *exec.Cmd
 }
 
 // waitReady polls for a readiness file, returning when found or timeout expires.
@@ -176,7 +189,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	peerCmd.Env = peerEnv
 
 	// Use syncWriter to wait for "listening on" before starting client
-	peerStdout := newSyncWriter("listening on")
+	peerStdout := newSyncWriter()
 	peerStderr := &strings.Builder{}
 	peerCmd.Stdout = peerStdout
 	peerCmd.Stderr = peerStderr
@@ -363,9 +376,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 	}()
 
-	// Use syncWriter for peer to wait for "listening on" signal
-	peerStdout := newSyncWriter("listening on")
-	var peerStderr strings.Builder
+	// Per-process output tracking for ze-peer instances.
+	// Each ze-peer gets its own syncWriter/stderr so WaitFor works independently.
+	var peerOutputs []peerOutput
 	var clientStdout, clientStderr strings.Builder
 
 	// Track temp files for cleanup after loop (avoid defer in loop)
@@ -382,6 +395,25 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		if strings.Contains(cmd.Exec, "ze-peer") {
 			hasPeer = true
 			break
+		}
+	}
+
+	// Ensure loopback aliases exist for any ze-peer --bind addresses.
+	// On Linux this is a no-op (127.0.0.0/8 routes to lo automatically).
+	// On macOS/FreeBSD this adds aliases via SIOCAIFADDR ioctl on lo0.
+	for _, cmd := range cmds {
+		if !strings.Contains(cmd.Exec, "ze-peer") {
+			continue
+		}
+		parts := strings.Fields(cmd.Exec)
+		for i, p := range parts {
+			if p == "--bind" && i+1 < len(parts) {
+				if ip := net.ParseIP(parts[i+1]); ip != nil {
+					if err := ensureLoopbackAlias(ip); err != nil {
+						logger().Warn("loopback alias setup failed", "ip", ip, "error", err)
+					}
+				}
+			}
 		}
 	}
 
@@ -545,10 +577,16 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			proc.Stdin = strings.NewReader(string(stdinContent))
 		}
 
-		// Capture output
+		// Capture output: each ze-peer gets its own syncWriter/stderr
+		// so WaitFor works independently per process.
 		if strings.Contains(execStr, "ze-peer") {
-			proc.Stdout = peerStdout
-			proc.Stderr = &peerStderr
+			po := peerOutput{
+				stdout: newSyncWriter(),
+				stderr: &strings.Builder{},
+			}
+			peerOutputs = append(peerOutputs, po)
+			proc.Stdout = po.stdout
+			proc.Stderr = po.stderr
 		} else {
 			proc.Stdout = &clientStdout
 			proc.Stderr = &clientStderr
@@ -576,12 +614,12 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// Wait for ze-peer to be ready (listening) instead of fixed sleep
 			// Skip waiting for peer if this is an exit code test (peer may not start)
 			if strings.Contains(execStr, "ze-peer") && rec.ExpectExitCode == nil {
+				po := &peerOutputs[len(peerOutputs)-1]
+				po.proc = proc
 				waitCtx, waitCancel := context.WithTimeout(testCtx, 5*time.Second)
-				if !peerStdout.WaitFor(waitCtx) {
+				if !po.stdout.WaitFor(waitCtx) {
 					waitCancel()
-					stderr := peerStderr.String()
-					stdout := peerStdout.String()
-					rec.Error = fmt.Errorf("peer did not start listening within 5s (stderr=%q, stdout=%q)", stderr, stdout)
+					rec.Error = fmt.Errorf("peer did not start listening within 5s (stderr=%q, stdout=%q)", po.stderr.String(), po.stdout.String())
 					return false
 				}
 				waitCancel()
@@ -646,13 +684,19 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 	}
 
-	// Find peer and foreground (daemon) processes
-	var peerProc, fgProc *exec.Cmd
+	// Find foreground (daemon) process -- the last non-peer background process.
+	var fgProc *exec.Cmd
 	for _, p := range bgProcs {
-		if strings.Contains(p.Path, "ze-peer") || strings.Contains(p.String(), "ze-peer") {
-			peerProc = p
-		} else {
-			fgProc = p // Last non-peer process is foreground
+		if !strings.Contains(p.Path, "ze-peer") && !strings.Contains(p.String(), "ze-peer") {
+			fgProc = p
+		}
+	}
+
+	// Build set of peer processes for exclusion from graceful stop.
+	peerProcs := make(map[*exec.Cmd]bool, len(peerOutputs))
+	for i := range peerOutputs {
+		if peerOutputs[i].proc != nil {
+			peerProcs[peerOutputs[i].proc] = true
 		}
 	}
 
@@ -663,20 +707,32 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	if rec.ExpectExitCode != nil && fgProc != nil {
 		// Testing exit code: wait for foreground process
 		err = fgProc.Wait()
-	} else if peerProc != nil {
-		// Wait for peer (validates messages and exits when done).
+	} else {
+		// Wait for all peer processes (each validates its own messages).
 		// Daemons run until killed below.
-		err = peerProc.Wait()
+		for i := range peerOutputs {
+			if peerOutputs[i].proc != nil {
+				if waitErr := peerOutputs[i].proc.Wait(); waitErr != nil && err == nil {
+					err = waitErr
+				}
+			}
+		}
 	}
 
 	// Gracefully stop remaining processes (daemons)
 	for _, p := range bgProcs {
-		if p != peerProc && p.Process != nil {
+		if !peerProcs[p] && p.Process != nil {
 			terminateGracefully(p, 2*time.Second)
 		}
 	}
 
-	rec.PeerOutput = peerStdout.String() + peerStderr.String()
+	// Combine per-peer outputs (concatenated in process start order).
+	var allPeerStdout, allPeerStderr strings.Builder
+	for i := range peerOutputs {
+		allPeerStdout.WriteString(peerOutputs[i].stdout.String())
+		allPeerStderr.WriteString(peerOutputs[i].stderr.String())
+	}
+	rec.PeerOutput = allPeerStdout.String() + allPeerStderr.String()
 	rec.ClientOutput = clientStdout.String() + clientStderr.String()
 	rec.Duration = time.Since(rec.StartTime)
 	logger().Debug("collected output", "peerOutput", rec.PeerOutput, "clientOutput", rec.ClientOutput)
@@ -687,8 +743,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// Save outputs if requested
 	if opts.SaveDir != "" {
 		out := &testOutput{
-			peerStdout:   peerStdout.String(),
-			peerStderr:   peerStderr.String(),
+			peerStdout:   allPeerStdout.String(),
+			peerStderr:   allPeerStderr.String(),
 			clientStdout: clientStdout.String(),
 			clientStderr: clientStderr.String(),
 		}

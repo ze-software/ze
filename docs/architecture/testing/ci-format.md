@@ -312,6 +312,38 @@ cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s
 ```
 
+### Example (Multi-Peer)
+
+Tests needing two or more BGP peers use the same `$PORT` on different loopback
+addresses. The `ze_bgp_tcp_port` override sets all peer ports uniformly, which
+is correct because every peer listens on `$PORT`.
+
+```
+# Source peer on 127.0.0.1 (default)
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+action=send:conn=1:seq=1:hex=FFFF...
+EOF_SOURCE
+
+# Dest peer on 127.0.0.2 -- sink mode absorbs any UPDATE
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+EOF_DEST
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --mode sink --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
+```
+
+Each ze-peer gets independent output capture and `WaitFor` synchronization.
+The runner waits for each peer's "listening on" message before starting the
+next command.
+
+On Linux, 127.0.0.2 works automatically (127.0.0.0/8 routes to lo). On macOS
+and FreeBSD, the test runner adds loopback aliases via the `SIOCAIFADDR` ioctl.
+<!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux -->
+<!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
+
 ## Expectations
 
 ```
