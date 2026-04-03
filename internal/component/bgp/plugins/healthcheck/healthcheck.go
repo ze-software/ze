@@ -1,4 +1,9 @@
 // Design: plan/spec-healthcheck-0-umbrella.md -- healthcheck plugin design
+// Detail: config.go -- config parsing and validation
+// Detail: fsm.go -- 8-state FSM with trigger shortcuts
+// Detail: hooks.go -- async hook execution with timeout
+// Detail: ip.go -- VIP management via iface
+// Detail: probe.go -- shell command execution with process group kill
 //
 // Package healthcheck implements a service healthcheck plugin for Ze.
 // It monitors service availability by running shell commands periodically
@@ -99,9 +104,10 @@ type probeManager struct {
 
 // runningProbe tracks a running probe goroutine.
 type runningProbe struct {
-	config ProbeConfig
-	cancel context.CancelFunc
-	done   chan struct{}
+	config   ProbeConfig
+	cancel   context.CancelFunc
+	done     chan struct{}
+	fsmState atomic.Int32 // current FSM state, updated by probe goroutine
 }
 
 func newProbeManager(p *sdk.Plugin, internal bool) *probeManager {
@@ -141,6 +147,8 @@ func (m *probeManager) applyConfig(configs []ProbeConfig) {
 	}
 
 	// Stop probes that are no longer in config or changed.
+	// INVARIANT: runProbe never acquires m.mu, so blocking on <-rp.done
+	// while holding m.mu is safe (#4).
 	for name, rp := range m.probes {
 		newCfg, exists := newConfigs[name]
 		if !exists || !newCfg.equal(rp.config) {
@@ -157,64 +165,61 @@ func (m *probeManager) applyConfig(configs []ProbeConfig) {
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		done := make(chan struct{})
-		m.probes[name] = &runningProbe{config: *cfg, cancel: cancel, done: done}
-		go m.runProbe(ctx, *cfg, done)
+		rp := &runningProbe{config: *cfg, cancel: cancel, done: done}
+		m.probes[name] = rp
+		go m.runProbe(ctx, rp)
 	}
 
 	logger().Info("healthcheck config applied", "probes", len(m.probes))
 }
 
 // runProbe runs a single healthcheck probe loop.
-func (m *probeManager) runProbe(ctx context.Context, cfg ProbeConfig, done chan struct{}) {
-	defer close(done)
+// The runningProbe pointer is used to update the shared fsmState atomic.
+func (m *probeManager) runProbe(ctx context.Context, rp *runningProbe) {
+	defer close(rp.done)
+	cfg := rp.config
 
-	fsm := newFSM(cfg.Rise, cfg.Fall)
+	f := newFSM(cfg.Rise, cfg.Fall)
 
-	// IP management: add all IPs at startup (before first check).
+	updateState := func() { rp.fsmState.Store(int32(f.state)) }
+	updateState()
+
+	// IP management: add all IPs at startup (before first check),
+	// but skip if probe starts disabled (#12).
 	var ipt *ipTracker
 	if len(cfg.IPs) > 0 && cfg.IPInterface != "" {
 		ipt = newIPTracker(m.ipMgr, cfg.IPInterface, cfg.IPs)
-		ipt.addAll()
+		if !cfg.Disable {
+			ipt.addAll()
+		}
 	}
 
 	// If disabled at startup, enter DISABLED directly.
 	if cfg.Disable {
-		fsm.state = StateDisabled
-		m.dispatchStateAction(ctx, cfg, fsm.state)
-		if ipt != nil && cfg.IPDynamic {
-			ipt.removeAll()
-		}
+		f.state = StateDisabled
+		updateState()
+		m.dispatchStateAction(ctx, cfg, f.state)
 		logger().Info("probe started disabled", "name", cfg.Name)
 	}
 
 	for {
 		interval := time.Duration(cfg.Interval) * time.Second
-		if fsm.state == StateRising || fsm.state == StateFalling {
+		if f.state == StateRising || f.state == StateFalling {
 			interval = time.Duration(cfg.FastInterval) * time.Second
 		}
 
 		// Single-check mode: interval=0 means one check then dormant.
-		if cfg.Interval == 0 && fsm.state != StateInit {
-			fsm.state = StateEnd
-			// END: no hooks fire, routes/IPs left in place.
+		if cfg.Interval == 0 && f.state != StateInit {
+			f.state = StateEnd
+			updateState()
 			logger().Info("probe dormant (interval=0)", "name", cfg.Name)
 			<-ctx.Done()
 			m.handleExit(ctx, cfg, ipt)
 			return
 		}
 
-		// Wait for interval or shutdown (skip on first iteration).
-		if fsm.state != StateInit {
-			select {
-			case <-ctx.Done():
-				m.handleExit(ctx, cfg, ipt)
-				return
-			case <-time.After(interval):
-			}
-		}
-
-		// DISABLED: sleep on interval, don't execute check.
-		if fsm.state == StateDisabled {
+		// DISABLED: sleep on interval, don't execute check (#2: check before general sleep).
+		if f.state == StateDisabled {
 			select {
 			case <-ctx.Done():
 				m.handleExit(ctx, cfg, ipt)
@@ -224,27 +229,40 @@ func (m *probeManager) runProbe(ctx context.Context, cfg ProbeConfig, done chan 
 			continue
 		}
 
+		// Wait for interval or shutdown (skip on first iteration).
+		if f.state != StateInit {
+			select {
+			case <-ctx.Done():
+				m.handleExit(ctx, cfg, ipt)
+				return
+			case <-time.After(interval):
+			}
+		}
+
 		// Run check.
 		success := runProbeCommand(ctx, cfg.Command, cfg.Timeout)
 
 		// FSM transition.
-		prevState := fsm.state
-		fsm.step(success)
-		stateChanged := fsm.state != prevState
+		prevState := f.state
+		f.step(success)
+		stateChanged := f.state != prevState
+		if stateChanged {
+			updateState()
+		}
 
 		// Dispatch watchdog action on state change (or always if debounce=false).
 		if stateChanged || !cfg.Debounce {
-			m.dispatchStateAction(ctx, cfg, fsm.state)
+			m.dispatchStateAction(ctx, cfg, f.state)
 		}
 
 		// IP management on state change.
 		if stateChanged && ipt != nil {
-			m.handleIPTransition(ipt, cfg, fsm.state)
+			m.handleIPTransition(ipt, cfg, f.state)
 		}
 
 		// Hooks on state change (not on count increments like RISING->RISING).
 		if stateChanged {
-			runHooks(cfg, fsm.state)
+			runHooks(cfg, f.state)
 		}
 
 		if cfg.Interval == 0 {
@@ -322,27 +340,51 @@ func (m *probeManager) handleShow(args []string) (string, string, error) {
 	defer m.mu.Unlock()
 
 	if len(args) > 0 {
-		// Single probe detail.
+		// Single probe detail with actual FSM state (#3).
 		name := args[0]
 		rp, exists := m.probes[name]
 		if !exists {
 			return statusError, "", fmt.Errorf("probe %q not found", name)
 		}
-		data := fmt.Sprintf(`{"name":%q,"group":%q,"state":%q,"command":%q,"interval":%d,"rise":%d,"fall":%d,"up-metric":%d,"down-metric":%d,"disabled-metric":%d}`,
-			rp.config.Name, rp.config.Group, "running",
-			rp.config.Command, rp.config.Interval, rp.config.Rise, rp.config.Fall,
-			rp.config.UpMetric, rp.config.DownMetric, rp.config.DisabledMetric)
-		return statusDone, data, nil
+		detail := struct {
+			Name           string `json:"name"`
+			Group          string `json:"group"`
+			State          string `json:"state"`
+			Command        string `json:"command"`
+			Interval       uint32 `json:"interval"`
+			Rise           uint32 `json:"rise"`
+			Fall           uint32 `json:"fall"`
+			UpMetric       uint32 `json:"up-metric"`
+			DownMetric     uint32 `json:"down-metric"`
+			DisabledMetric uint32 `json:"disabled-metric"`
+		}{
+			Name:           rp.config.Name,
+			Group:          rp.config.Group,
+			State:          stateName(State(rp.fsmState.Load())),
+			Command:        rp.config.Command,
+			Interval:       rp.config.Interval,
+			Rise:           rp.config.Rise,
+			Fall:           rp.config.Fall,
+			UpMetric:       rp.config.UpMetric,
+			DownMetric:     rp.config.DownMetric,
+			DisabledMetric: rp.config.DisabledMetric,
+		}
+		data, err := json.Marshal(detail)
+		if err != nil {
+			return statusError, "", fmt.Errorf("marshal probe detail: %w", err)
+		}
+		return statusDone, string(data), nil
 	}
 
 	// All probes summary.
 	type probeInfo struct {
 		Name  string `json:"name"`
 		Group string `json:"group"`
+		State string `json:"state"`
 	}
-	var probes []probeInfo
+	probes := make([]probeInfo, 0, len(m.probes))
 	for name, rp := range m.probes {
-		probes = append(probes, probeInfo{Name: name, Group: rp.config.Group})
+		probes = append(probes, probeInfo{Name: name, Group: rp.config.Group, State: stateName(State(rp.fsmState.Load()))})
 	}
 	data, err := json.Marshal(probes)
 	if err != nil {
@@ -352,6 +394,7 @@ func (m *probeManager) handleShow(args []string) (string, string, error) {
 }
 
 // handleReset withdraws the current route and resets the probe FSM to INIT.
+// Holds the lock for the entire operation to prevent TOCTOU with concurrent applyConfig (#10).
 func (m *probeManager) handleReset(args []string) (string, string, error) {
 	if len(args) < 1 {
 		return statusError, "", fmt.Errorf("missing probe name")
@@ -359,9 +402,9 @@ func (m *probeManager) handleReset(args []string) (string, string, error) {
 	name := args[0]
 
 	m.mu.Lock()
-	rp, exists := m.probes[name]
-	m.mu.Unlock()
+	defer m.mu.Unlock()
 
+	rp, exists := m.probes[name]
 	if !exists {
 		return statusError, "", fmt.Errorf("probe %q not found", name)
 	}
@@ -370,19 +413,19 @@ func (m *probeManager) handleReset(args []string) (string, string, error) {
 		return statusError, "", fmt.Errorf("probe %q is DISABLED (use 'ze config set ... disable false' to re-enable)", name)
 	}
 
-	// Deconfigure and restart the probe from INIT.
+	// Cancel and wait for probe goroutine to exit.
+	// Safe to block here: runProbe never acquires m.mu (#4 invariant).
 	rp.cancel()
 	<-rp.done
 
-	m.mu.Lock()
+	// Restart from INIT.
 	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	m.probes[name] = &runningProbe{config: rp.config, cancel: cancel, done: done}
-	m.mu.Unlock()
+	newRP := &runningProbe{config: rp.config, cancel: cancel, done: make(chan struct{})}
+	m.probes[name] = newRP
+	go m.runProbe(ctx, newRP)
 
-	go m.runProbe(ctx, rp.config, done)
-
-	return statusDone, fmt.Sprintf(`{"probe":%q,"action":"reset"}`, name), nil
+	data, _ := json.Marshal(map[string]string{"probe": name, "action": "reset"})
+	return statusDone, string(data), nil
 }
 
 // dispatchCommand sends a command to the watchdog plugin via dispatchFn.

@@ -1,4 +1,5 @@
 // Design: plan/spec-healthcheck-0-umbrella.md -- FSM states and transitions
+// Overview: healthcheck.go -- plugin lifecycle and probe management
 package healthcheck
 
 // State represents the healthcheck FSM state.

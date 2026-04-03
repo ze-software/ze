@@ -24,6 +24,8 @@ bgp {
 }
 ```
 
+The `bgp-healthcheck` plugin depends on `bgp-watchdog` -- both are loaded automatically when healthcheck config is present.
+
 The probe runs `dig` every 5 seconds (default). After 3 consecutive successes, the route `10.0.0.1/32` is announced. After 3 consecutive failures, the route is withdrawn.
 
 ## Configuration Reference

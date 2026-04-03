@@ -1,10 +1,14 @@
 // Design: plan/spec-healthcheck-0-umbrella.md -- healthcheck config parsing
+// Overview: healthcheck.go -- plugin lifecycle and probe management
 package healthcheck
 
 import (
 	"encoding/json"
 	"fmt"
+	"math"
+	"net/netip"
 	"reflect"
+	"strings"
 )
 
 // ProbeConfig holds parsed configuration for a single healthcheck probe.
@@ -70,7 +74,7 @@ func parseConfig(jsonData string) ([]ProbeConfig, error) {
 	for name, data := range probeMap {
 		m, ok := data.(map[string]any)
 		if !ok {
-			continue
+			return nil, fmt.Errorf("probe %q: expected object, got %T", name, data)
 		}
 		cfg := ProbeConfig{
 			Name:           name,
@@ -108,6 +112,25 @@ func parseConfig(jsonData string) ([]ProbeConfig, error) {
 		if cfg.Group == "med" {
 			return nil, fmt.Errorf("probe %q: 'med' is not allowed as a group name (ambiguous with watchdog med argument)", name)
 		}
+		if strings.ContainsAny(cfg.Group, " \t\n\r") {
+			return nil, fmt.Errorf("probe %q: group name must not contain whitespace", name)
+		}
+
+		// Validate IP CIDRs at parse time (#8).
+		for _, cidr := range cfg.IPs {
+			if _, err := netip.ParsePrefix(cidr); err != nil {
+				return nil, fmt.Errorf("probe %q: invalid CIDR %q in ip-setup: %w", name, cidr, err)
+			}
+		}
+		if cfg.IPInterface != "" && (len(cfg.IPInterface) > 15 || strings.ContainsAny(cfg.IPInterface, " \t\n\r/")) {
+			return nil, fmt.Errorf("probe %q: invalid interface name %q", name, cfg.IPInterface)
+		}
+
+		// Reject unknown keys (#7: fail on unknown keys).
+		if err := checkUnknownKeys(name, m); err != nil {
+			return nil, err
+		}
+
 		probes = append(probes, cfg)
 	}
 
@@ -154,6 +177,9 @@ func getUint32(m map[string]any, key string, defaultVal uint32) uint32 {
 	}
 	switch n := v.(type) {
 	case float64:
+		if n < 0 || n > math.MaxUint32 || math.IsNaN(n) || math.IsInf(n, 0) {
+			return defaultVal
+		}
 		return uint32(n)
 	case string:
 		var val uint32
@@ -176,6 +202,24 @@ func getBool(m map[string]any, key string) bool {
 		return b == "true"
 	}
 	return false
+}
+
+// knownProbeKeys lists all valid keys in a probe config map.
+var knownProbeKeys = map[string]bool{
+	"command": true, "group": true, "interval": true, "fast-interval": true,
+	"timeout": true, "rise": true, "fall": true, "withdraw-on-down": true,
+	"disable": true, "debounce": true, "up-metric": true, "down-metric": true,
+	"disabled-metric": true, "ip-setup": true, "on-up": true, "on-down": true,
+	"on-disabled": true, "on-change": true,
+}
+
+func checkUnknownKeys(probeName string, m map[string]any) error {
+	for key := range m {
+		if !knownProbeKeys[key] {
+			return fmt.Errorf("probe %q: unknown key %q", probeName, key)
+		}
+	}
+	return nil
 }
 
 func getStringList(m map[string]any, key string) []string {

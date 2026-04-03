@@ -121,7 +121,9 @@ func (s *watchdogServer) handlePoolActionAll(name string, announce bool, medOver
 	for _, addr := range peers {
 		_, _, err := s.handlePoolActionSingle(name, addr, announce, medOverride)
 		if err != nil {
-			// Skip peers that don't have this pool (not an error for wildcard).
+			if !errors.Is(err, ErrWatchdogNotFound) {
+				logger().Warn("watchdog wildcard peer error", "peer", addr, "pool", name, "error", err)
+			}
 			continue
 		}
 		total++
@@ -193,28 +195,28 @@ func (s *watchdogServer) handlePoolActionSingle(name, peer string, announce bool
 // Bypasses the announced boolean dedup -- always dispatches when peer is up.
 // Sets announced[peer]=true so subsequent non-MED announces are deduped.
 func (s *watchdogServer) handleMEDOverride(pool *RoutePool, peer string, isUp bool, name string, med *uint32) (string, string, error) {
+	// Clone routes and build commands under lock (#17: Route read must be under lock).
 	pool.mu.Lock()
-	entries := make([]*PoolEntry, 0, len(pool.routes))
+	var cmds []string
 	for _, e := range pool.routes {
-		entries = append(entries, e)
-	}
-	// Mark all entries as announced for this peer (so non-MED announce is deduped).
-	for _, e := range entries {
 		e.announced[peer] = true
-	}
-	pool.mu.Unlock()
-
-	if isUp {
-		for _, entry := range entries {
-			clone := entry.Route
+		if isUp {
+			clone := e.Route
 			clone.MED = med
-			cmd := bgp.FormatAnnounceCommand(&clone)
-			s.sendRoute(peer, cmd)
+			cmds = append(cmds, bgp.FormatAnnounceCommand(&clone))
 		}
 	}
+	count := len(pool.routes)
+	pool.mu.Unlock()
 
-	logger().Debug("watchdog announced (med override)", "peer", peer, "pool", name, "med", *med, "count", len(entries), "up", isUp)
-	return statusDone, fmt.Sprintf(`{"peer":%q,"watchdog":%q,"count":%d}`, peer, name, len(entries)), nil
+	for _, cmd := range cmds {
+		s.sendRoute(peer, cmd)
+	}
+
+	if med != nil {
+		logger().Debug("watchdog announced (med override)", "peer", peer, "pool", name, "med", *med, "count", count, "up", isUp)
+	}
+	return statusDone, fmt.Sprintf(`{"peer":%q,"watchdog":%q,"count":%d}`, peer, name, count), nil
 }
 
 // handleStateUp handles a peer coming up (session established).

@@ -1,4 +1,5 @@
 // Design: plan/spec-healthcheck-0-umbrella.md -- IP management via iface
+// Overview: healthcheck.go -- plugin lifecycle and probe management
 package healthcheck
 
 import "codeberg.org/thomas-mangin/ze/internal/component/iface"

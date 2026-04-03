@@ -1,19 +1,24 @@
 // Design: plan/spec-healthcheck-0-umbrella.md -- hook execution
+// Overview: healthcheck.go -- plugin lifecycle and probe management
 package healthcheck
 
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"syscall"
 	"time"
 )
 
-const hookTimeout = 30 * time.Second
+const (
+	hookTimeout  = 30 * time.Second
+	maxConcHooks = 10 // max concurrent hook goroutines per runHooks call (#5)
+)
 
 // runHooks executes hook commands for a state transition.
 // State-specific hooks run first (in config order), then on-change hooks.
-// Each hook runs in its own goroutine with a 30s timeout + process group kill.
+// Concurrency is bounded by maxConcHooks to prevent goroutine accumulation (#5).
 // Hooks do NOT block the FSM. Failures are logged.
 func runHooks(cfg ProbeConfig, state State) {
 	var stateHooks []string
@@ -29,12 +34,21 @@ func runHooks(cfg ProbeConfig, state State) {
 	}
 
 	sName := stateName(state)
+	sem := make(chan struct{}, maxConcHooks)
 
 	for _, cmd := range stateHooks {
-		go runSingleHook(cfg.Name, cmd, sName)
+		sem <- struct{}{}
+		go func(c string) {
+			defer func() { <-sem }()
+			runSingleHook(cfg.Name, c, sName)
+		}(cmd)
 	}
 	for _, cmd := range cfg.OnChange {
-		go runSingleHook(cfg.Name, cmd, sName)
+		sem <- struct{}{}
+		go func(c string) {
+			defer func() { <-sem }()
+			runSingleHook(cfg.Name, c, sName)
+		}(cmd)
 	}
 }
 
@@ -46,9 +60,18 @@ func runSingleHook(probeName, command, sName string) {
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command) //nolint:gosec // admin-controlled config value
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
 		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}
-	cmd.Env = append(cmd.Environ(), fmt.Sprintf("STATE=%s", sName))
+	// Minimal environment for hooks (#16): only PATH, HOME, USER, STATE.
+	cmd.Env = []string{
+		"PATH=" + os.Getenv("PATH"),
+		"HOME=" + os.Getenv("HOME"),
+		"USER=" + os.Getenv("USER"),
+		fmt.Sprintf("STATE=%s", sName),
+	}
 
 	if err := cmd.Run(); err != nil {
 		if ctx.Err() != nil {

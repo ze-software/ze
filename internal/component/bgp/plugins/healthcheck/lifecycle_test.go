@@ -361,6 +361,64 @@ func TestResetMissingName(t *testing.T) {
 	}
 }
 
+// VALIDATES: dispatchStateAction generates correct watchdog commands for each state (#21).
+func TestDispatchStateAction(t *testing.T) {
+	var dispatched []string
+	mgr := &probeManager{
+		probes: make(map[string]*runningProbe),
+		dispatchFn: func(_ context.Context, cmd string) (string, string, error) {
+			dispatched = append(dispatched, cmd)
+			return statusDone, "", nil
+		},
+	}
+
+	cfg := ProbeConfig{
+		Name:           "dns",
+		Group:          "hc-dns",
+		UpMetric:       100,
+		DownMetric:     1000,
+		DisabledMetric: 500,
+	}
+
+	tests := []struct {
+		state          State
+		withdrawOnDown bool
+		want           string
+	}{
+		{StateUp, false, "watchdog announce hc-dns med 100"},
+		{StateUp, true, "watchdog announce hc-dns med 100"},
+		{StateDown, false, "watchdog announce hc-dns med 1000"},
+		{StateDown, true, "watchdog withdraw hc-dns"},
+		{StateDisabled, false, "watchdog announce hc-dns med 500"},
+		{StateDisabled, true, "watchdog withdraw hc-dns"},
+		{StateExit, false, "watchdog withdraw hc-dns"},
+		{StateExit, true, "watchdog withdraw hc-dns"},
+	}
+
+	ctx := context.Background()
+	for _, tt := range tests {
+		dispatched = nil
+		cfg.WithdrawOnDown = tt.withdrawOnDown
+		mgr.dispatchStateAction(ctx, cfg, tt.state)
+		if len(dispatched) == 0 {
+			t.Errorf("state=%d withdraw=%v: no dispatch", tt.state, tt.withdrawOnDown)
+			continue
+		}
+		if dispatched[0] != tt.want {
+			t.Errorf("state=%d withdraw=%v: got %q, want %q", tt.state, tt.withdrawOnDown, dispatched[0], tt.want)
+		}
+	}
+
+	// RISING/FALLING/INIT/END should dispatch nothing.
+	for _, state := range []State{StateInit, StateRising, StateFalling, StateEnd} {
+		dispatched = nil
+		mgr.dispatchStateAction(ctx, cfg, state)
+		if len(dispatched) != 0 {
+			t.Errorf("state=%d: expected no dispatch, got %q", state, dispatched[0])
+		}
+	}
+}
+
 func TestFastIntervalSelection(t *testing.T) {
 	cfg := ProbeConfig{
 		Interval:     5,
