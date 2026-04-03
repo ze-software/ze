@@ -257,6 +257,10 @@ var (
 	plugins = make(map[string]*Registration)
 	mu      sync.RWMutex
 
+	// builtinFamilies maps family names to source names for engine-builtin families
+	// (e.g., ipv4/unicast) that are not registered through the plugin system.
+	builtinFamilies = make(map[string]string)
+
 	// metricsRegistry stores the metrics registry (as any to avoid importing metrics).
 	// Set by the config loader after creating the Prometheus registry.
 	// Read by GetInternalPluginRunner to inject into plugins via ConfigureMetrics.
@@ -364,13 +368,43 @@ func Has(name string) bool {
 	return ok
 }
 
+// RegisterBuiltinFamilies records engine-builtin families (e.g., ipv4/unicast)
+// that are not part of a plugin but should appear in FamilyMap. Called from
+// init() in the engine's family package. The source identifies the origin
+// (e.g., "builtin").
+func RegisterBuiltinFamilies(source string, families []string) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	for _, f := range families {
+		builtinFamilies[f] = source
+	}
+}
+
 // FamilyMap returns a map from address family to plugin name.
-// Built from all registered plugins' Families fields.
+// Only includes plugin-registered families (used for decode routing).
 func FamilyMap() map[string]string {
 	mu.RLock()
 	defer mu.RUnlock()
 
 	m := make(map[string]string)
+	for _, reg := range plugins {
+		for _, f := range reg.Families {
+			m[f] = reg.Name
+		}
+	}
+	return m
+}
+
+// AllFamilies returns a map from address family to source name.
+// Includes both plugin-registered and engine-builtin families.
+// Used for completion and inventory where all known families should appear.
+func AllFamilies() map[string]string {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	m := make(map[string]string)
+	maps.Copy(m, builtinFamilies)
 	for _, reg := range plugins {
 		for _, f := range reg.Families {
 			m[f] = reg.Name

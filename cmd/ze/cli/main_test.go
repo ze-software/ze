@@ -471,7 +471,7 @@ func TestBuildCommandTreeFamilyValueHints(t *testing.T) {
 		t.Fatal("rib ValueHints returned no families")
 	}
 
-	// Check that plugin-registered families are present (unicast is builtin, not in registry).
+	// Check that both builtin and plugin-registered families are present.
 	found := make(map[string]bool)
 	for _, h := range hints {
 		found[h.Text] = true
@@ -479,7 +479,7 @@ func TestBuildCommandTreeFamilyValueHints(t *testing.T) {
 			t.Errorf("family hint %q should have Type 'value', got %q", h.Text, h.Type)
 		}
 	}
-	for _, want := range []string{"ipv4/vpn", "l2vpn/evpn"} {
+	for _, want := range []string{"ipv4/unicast", "ipv6/unicast", "ipv4/vpn", "l2vpn/evpn"} {
 		if !found[want] {
 			t.Errorf("rib ValueHints missing family %q, got %v", want, hints)
 		}

@@ -28,8 +28,9 @@ meant duplicating the logic in both paths.
 - Both CLI interactive and shell completion get the same value suggestions from one
   code path. Adding a new ValueHints category (e.g., metric names) requires only
   wiring in `wireValueHints()` in `cli/main.go`.
-- Builtin families (ipv4/unicast, ipv6/unicast, multicast) are NOT in ValueHints
-  because they are engine-registered, not plugin-registered via `registry.FamilyMap()`.
+- Builtin families (ipv4/unicast, ipv6/unicast, multicast) are registered via
+  `registry.RegisterBuiltinFamilies()` in `message/family.go` so they appear
+  alongside plugin families in `FamilyMap()` and completion.
 - Shell scripts (bash/zsh/fish/nushell) needed no changes; value hints flow through
   the existing `ze completion words show|run <path>` interface.
 
@@ -38,13 +39,18 @@ meant duplicating the logic in both paths.
 - The `block-legacy-log.sh` hook greps for literal `"log"` in edit content, causing
   false positives when accessing `tree.Children["log"]`. Worked around with string
   concatenation (`"lo" + "g"`). The hook should be refined to only match import lines.
-- `registry.FamilyMap()` only returns plugin-registered families. Builtin unicast and
-  multicast families are engine-level and not in the registry.
+- `registry.FamilyMap()` originally only returned plugin-registered families.
+  Fixed by adding `RegisterBuiltinFamilies()` to the registry and calling it
+  from `message/family.go`. The `block-init-register.sh` hook blocks `init()`
+  with Register calls, so used `var _ = registerBuiltinFamilies()` pattern instead.
 
 ## Files
 
 - `internal/component/command/node.go` -- added ValueHints field
 - `internal/component/command/completer.go` -- matchChildren includes ValueHints
+- `internal/component/command/valuehints.go` -- WireValueHints, FamilyValueHints, LevelValueHints
+- `internal/component/plugin/registry/registry.go` -- RegisterBuiltinFamilies, FamilyMap includes builtins
+- `internal/component/bgp/message/family.go` -- registers builtin families at init
 - `cmd/ze/completion/words.go` -- replaced manual walk with TreeCompleter delegation
 - `cmd/ze/cli/main.go` -- wireValueHints, familyValueHints, levelValueHints
 - `test/ui/completion-words-values.ci` -- functional test

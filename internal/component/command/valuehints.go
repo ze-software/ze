@@ -40,9 +40,10 @@ func wireLogSetHints(tree *Node) {
 	}
 }
 
-// FamilyValueHints returns address family suggestions from the plugin registry.
+// FamilyValueHints returns address family suggestions from the plugin registry
+// and engine builtins (ipv4/unicast, ipv6/unicast, multicast).
 func FamilyValueHints() []Suggestion {
-	families := registry.FamilyMap()
+	families := registry.AllFamilies()
 	hints := make([]Suggestion, 0, len(families))
 	for family, plugin := range families {
 		hints = append(hints, Suggestion{

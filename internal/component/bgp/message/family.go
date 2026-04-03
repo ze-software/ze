@@ -9,7 +9,22 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
+
+// registerBuiltinFamilies records engine-builtin families in the plugin registry
+// so they appear in completion and inventory alongside plugin-registered families.
+var _ = registerBuiltinFamilies()
+
+func registerBuiltinFamilies() bool {
+	registry.RegisterBuiltinFamilies("builtin", []string{
+		FamilyIPv4Unicast,
+		FamilyIPv6Unicast,
+		FamilyIPv4Multicast,
+		FamilyIPv6Multicast,
+	})
+	return true
+}
 
 // AFI represents Address Family Identifier (RFC 4760).
 type AFI uint16
