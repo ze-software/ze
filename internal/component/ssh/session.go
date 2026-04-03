@@ -14,7 +14,9 @@ import (
 // Used to wire command-mode tab completion in SSH sessions.
 func buildCommandTree() *command.Node {
 	loader, _ := yang.DefaultLoader()
-	return yang.BuildCommandTree(loader)
+	tree := yang.BuildCommandTree(loader)
+	command.WireValueHints(tree)
+	return tree
 }
 
 // createSessionModel builds a unified cli.Model for an SSH session.

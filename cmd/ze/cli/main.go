@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -35,7 +34,6 @@ import (
 	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all" // init() registers all YANG schemas
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 
@@ -342,55 +340,9 @@ func mergeDescriptions(dst, src *Command) {
 
 // wireValueHints attaches ValueHints callbacks to known nodes in the command tree.
 // Both CLI interactive and shell completion get them via shared TreeCompleter.
+// wireValueHints delegates to command.WireValueHints (shared with SSH sessions).
 func wireValueHints(tree *Command) {
-	if tree == nil || tree.Children == nil {
-		return
-	}
-
-	if rib, ok := tree.Children["rib"]; ok {
-		rib.ValueHints = familyValueHints
-	}
-
-	wireLogSetHints(tree)
-}
-
-func wireLogSetHints(tree *Command) {
-	if tree == nil || tree.Children == nil {
-		return
-	}
-	// Navigate to the slog level set node.
-	verbName := "lo" + "g" // avoid hook false-positive on literal
-	node, ok := tree.Children[verbName]
-	if !ok {
-		return
-	}
-	if setNode, ok := node.Children["set"]; ok {
-		setNode.ValueHints = levelValueHints
-	}
-}
-
-func familyValueHints() []cmd.Suggestion {
-	families := registry.FamilyMap()
-	hints := make([]cmd.Suggestion, 0, len(families))
-	for family, plugin := range families {
-		hints = append(hints, cmd.Suggestion{
-			Text:        family,
-			Description: plugin,
-			Type:        "value",
-		})
-	}
-	sort.Slice(hints, func(i, j int) bool { return hints[i].Text < hints[j].Text })
-	return hints
-}
-
-func levelValueHints() []cmd.Suggestion {
-	return []cmd.Suggestion{
-		{Text: "disabled", Description: "Disable", Type: "value"},
-		{Text: "debug", Description: "Debug level", Type: "value"},
-		{Text: "info", Description: "Info level", Type: "value"},
-		{Text: "warn", Description: "Warning level", Type: "value"},
-		{Text: "err", Description: "Error level", Type: "value"},
-	}
+	cmd.WireValueHints(tree)
 }
 
 // Command is an alias for command.Node. Use command.Node directly in new code.
