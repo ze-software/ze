@@ -112,10 +112,14 @@ func runBGP(args []string) int {
 	client := newCLIClient(creds)
 
 	// Verify daemon is reachable before entering interactive mode.
+	// An "unauthorized" error proves the daemon is running -- only treat
+	// connection-level failures as unreachable.
 	if _, err := client.SendCommand("show version"); err != nil {
-		fmt.Fprintf(os.Stderr, "error: cannot connect to daemon: %v\n", err)
-		fmt.Fprintf(os.Stderr, "hint: is the daemon running?\n")
-		return 1
+		if !strings.Contains(err.Error(), "unauthorized") {
+			fmt.Fprintf(os.Stderr, "error: cannot connect to daemon: %v\n", err)
+			fmt.Fprintf(os.Stderr, "hint: is the daemon running?\n")
+			return 1
+		}
 	}
 
 	// If -c specified, execute single command and exit.

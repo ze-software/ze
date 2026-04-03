@@ -128,7 +128,11 @@ system {{
 
 environment {{
 \tssh {{
-\t\tlisten 127.0.0.1:{ssh_port}
+\t\tenabled true
+\t\tserver main {{
+\t\t\tip 127.0.0.1
+\t\t\tport {ssh_port}
+\t\t}}
 \t}}
 }}
 """
@@ -275,6 +279,17 @@ def main():
         print(migrated_config)
         return 0
 
+    # For tests: only dial out, never bind/listen (Ze default is connect+accept).
+    # Inject "accept false" into every peer's connection > remote > ip line.
+    # The migrated config has "remote {\n\t\t\t\t\tip <addr>\n\t\t\t\t}"
+    # under "connection {". We add "accept false" after the ip line.
+    import re
+    migrated_config = re.sub(
+        r'(\bremote\s*\{\s*\n\s*ip\s+\S+\s*\n)',
+        r'\1\t\t\t\t\taccept false\n',
+        migrated_config,
+    )
+
     # If external processes need bridging, inject SSH config for command dispatch.
     # Derive SSH port from BGP port to avoid collisions between parallel tests.
     ssh_port = 0
@@ -312,9 +327,6 @@ def main():
         # For tests: exit after first session so test can complete
         # (Ze doesn't know it's in a test and would otherwise keep running)
         os.environ['ze_bgp_tcp_attempts'] = '1'
-
-        # For tests: only dial out, never bind/listen (Ze default is connect+accept)
-        os.environ['ze_bgp_bgp_accept'] = 'false'
 
         if args.debug:
             print(f"Running: {' '.join(cmd)}", file=sys.stderr)
