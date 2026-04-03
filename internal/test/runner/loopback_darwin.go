@@ -4,7 +4,7 @@
 // Multi-peer tests need additional addresses (127.0.0.2, etc.), so we add them
 // as aliases on lo0 using the SIOCAIFADDR ioctl.
 //
-// Reference: FreeBSD sbin/ifconfig/af_inet.c -- canonical SIOCAIFADDR usage.
+// Reference: https://cgit.freebsd.org/src/tree/sbin/ifconfig/af_inet.c -- canonical SIOCAIFADDR usage.
 
 //go:build darwin || freebsd
 
@@ -18,10 +18,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// SIOCAIFADDR adds an address alias to a network interface.
-// Not exported by golang.org/x/sys/unix on darwin -- defined manually.
-// Value is the same on both darwin and FreeBSD.
-const ioctlSIOCAIFADDR = 0x80266919
+// sockaddrInSize is the size of BSD sockaddr_in (used in struct layout comments).
+const sockaddrInSize = 16
 
 // sockaddrIn is the BSD sockaddr_in layout (16 bytes).
 type sockaddrIn struct {
@@ -49,6 +47,9 @@ func ensureLoopbackAlias(ip net.IP) error {
 	if ip4 == nil {
 		return fmt.Errorf("ensureLoopbackAlias: %v is not IPv4", ip)
 	}
+	if ip4[0] != 127 {
+		return fmt.Errorf("ensureLoopbackAlias: %v is not in 127.0.0.0/8", ip)
+	}
 
 	// Check if the address is already usable.
 	ln, err := net.Listen("tcp", net.JoinHostPort(ip.String(), "0"))
@@ -73,8 +74,9 @@ func ensureLoopbackAlias(ip net.IP) error {
 	req.Mask.Addr = [4]byte{255, 255, 255, 255}
 
 	// SIOCAIFADDR is idempotent -- adding an existing alias is not an error.
+	// unix.SIOCAIFADDR = 0x8040691a = _IOW('i', 26, 64) on darwin/freebsd.
 	if _, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd),
-		uintptr(ioctlSIOCAIFADDR), uintptr(unsafe.Pointer(&req))); errno != 0 {
+		uintptr(unix.SIOCAIFADDR), uintptr(unsafe.Pointer(&req))); errno != 0 {
 		return fmt.Errorf("ensureLoopbackAlias: ioctl SIOCAIFADDR %v on lo0: %w", ip, errno)
 	}
 

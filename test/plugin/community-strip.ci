@@ -62,6 +62,17 @@ def main():
         sys.exit(1)
 
     print(f'OK: {total} route(s) accepted, egress strip filter active', file=sys.stderr)
+
+    # Verify dest-peer session is established (proves ze connected to second peer).
+    dest_result = dispatch(api, 'peer dest-peer detail')
+    dest_data = dest_result.get('data', '')
+    if 'established' not in dest_data.lower():
+        print(f'FAIL: dest-peer session not established: {dest_data}', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    print('OK: dest-peer session established, community strip applied on egress', file=sys.stderr)
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()
 

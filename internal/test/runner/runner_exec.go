@@ -42,16 +42,26 @@ func newSyncWriter() *syncWriter {
 	return &syncWriter{pattern: peerListeningPattern}
 }
 
+// maxOutputBytes caps captured output to prevent OOM from runaway processes.
+const maxOutputBytes = 10 << 20 // 10 MB
+
 // Write captures data and checks for the pattern.
+// Output is capped at maxOutputBytes to prevent unbounded memory growth.
 func (sw *syncWriter) Write(p []byte) (int, error) {
 	sw.mu.Lock()
 	defer sw.mu.Unlock()
 
-	n, err := sw.buf.Write(p)
+	if sw.buf.Len() < maxOutputBytes {
+		remaining := maxOutputBytes - sw.buf.Len()
+		if len(p) > remaining {
+			p = p[:remaining]
+		}
+		sw.buf.Write(p) //nolint:errcheck // strings.Builder.Write never fails
+	}
 	if !sw.found && strings.Contains(sw.buf.String(), sw.pattern) {
 		sw.found = true
 	}
-	return n, err
+	return len(p), nil
 }
 
 // WaitFor waits until the pattern is found or context is canceled.
@@ -684,19 +694,21 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 	}
 
-	// Find foreground (daemon) process -- the last non-peer background process.
-	var fgProc *exec.Cmd
-	for _, p := range bgProcs {
-		if !strings.Contains(p.Path, "ze-peer") && !strings.Contains(p.String(), "ze-peer") {
-			fgProc = p
-		}
-	}
-
-	// Build set of peer processes for exclusion from graceful stop.
+	// Build set of peer processes for exclusion from graceful stop and fgProc detection.
 	peerProcs := make(map[*exec.Cmd]bool, len(peerOutputs))
 	for i := range peerOutputs {
 		if peerOutputs[i].proc != nil {
 			peerProcs[peerOutputs[i].proc] = true
+		}
+	}
+
+	// Find foreground (daemon) process -- the last non-peer background process.
+	// Uses peerProcs map for reliable detection since ze-peer is executed as
+	// "ze-test peer ..." and p.Path/p.String() won't contain "ze-peer".
+	var fgProc *exec.Cmd
+	for _, p := range bgProcs {
+		if !peerProcs[p] {
+			fgProc = p
 		}
 	}
 
@@ -709,14 +721,17 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		err = fgProc.Wait()
 	} else {
 		// Wait for all peer processes (each validates its own messages).
-		// Daemons run until killed below.
+		// Daemons run until killed below. Collect all errors so no peer
+		// failure is silently lost.
+		var peerErrs []error
 		for i := range peerOutputs {
 			if peerOutputs[i].proc != nil {
-				if waitErr := peerOutputs[i].proc.Wait(); waitErr != nil && err == nil {
-					err = waitErr
+				if waitErr := peerOutputs[i].proc.Wait(); waitErr != nil {
+					peerErrs = append(peerErrs, waitErr)
 				}
 			}
 		}
+		err = errors.Join(peerErrs...)
 	}
 
 	// Gracefully stop remaining processes (daemons)

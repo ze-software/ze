@@ -245,7 +245,7 @@ Fix the `.ci` functional test framework so multi-peer tests work correctly. Curr
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 1. **Phase: Loopback alias portability** -- ensure 127.0.0.2+ available on all platforms
-   - Files: `internal/test/runner/loopback_linux.go` (no-op), `internal/test/runner/loopback_bsd.go` (`SIOCAIFADDR` ioctl)
+   - Files: `internal/test/runner/loopback_linux.go` (no-op), `internal/test/runner/loopback_darwin.go` (`SIOCAIFADDR` ioctl)
    - Verify: build succeeds on Linux; on macOS, alias is added idempotently
 
 2. **Phase: Per-process output tracking** -- each ze-peer background process gets its own syncWriter and stderr builder
@@ -415,7 +415,7 @@ cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
 |------|--------|----------|-------|
 | `TestPerProcessSyncWriter` | Pass | `loopback_test.go:20` | Validates AC-1, AC-2 |
 | `TestSinglePeerUnchanged` | Pass | `loopback_test.go:64` | Validates AC-4 |
-| `TestEnsureLoopbackAlias` | Pass | `loopback_test.go:92` | Validates AC-5 basic case |
+| `TestEnsureLoopbackAlias` | Pass | `loopback_test.go:126` | Validates AC-5 |
 | `role-otc-egress-stamp` | Pass | `test/plugin/role-otc-egress-stamp.ci` | Validates AC-6 |
 | `community-strip` | Pass | `test/plugin/community-strip.ci` | Validates AC-7 |
 
