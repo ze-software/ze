@@ -1,0 +1,70 @@
+# Healthcheck: probe failure triggers watchdog withdraw.
+# Config: probe runs "false" (always fails), fall=1 for fast DOWN, withdraw-on-down true.
+# The route starts withdrawn (watchdog withdraw=true), probe fails -> DOWN -> withdraw dispatched.
+# Since route is already withdrawn, the withdraw is a no-op at the pool level.
+# To test withdraw visibly: first announce via a helper, then let healthcheck withdraw.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+# EOR only (watchdog route has withdraw=true, not sent initially)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# No further messages expected -- probe fails, DOWN, withdraw dispatched
+# but route was never announced so withdraw is a pool no-op.
+# This test validates the probe->FSM->dispatch chain completes without error.
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	healthcheck {
+		probe dns {
+			command "false"
+			group hc-dns
+			interval 1
+			rise 1
+			fall 1
+			withdraw-on-down true
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 10.0.0.10
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 1.2.3.4
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.0/24
+			}
+			watchdog {
+				name hc-dns
+				withdraw true
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-healthcheck --plugin ze.bgp-watchdog -:stdin=ze-bgp:timeout=10s

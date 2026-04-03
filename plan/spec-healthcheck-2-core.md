@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-healthcheck-1-watchdog-med |
 | Phase | - |
 | Updated | 2026-04-03 |

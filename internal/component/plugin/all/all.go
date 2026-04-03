@@ -37,6 +37,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/aigp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/healthcheck"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/hostname"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/llnh"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/evpn"
@@ -60,3 +61,4 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor/filter"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
+
