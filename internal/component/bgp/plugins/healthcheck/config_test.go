@@ -1,6 +1,10 @@
 package healthcheck
 
-import "testing"
+import (
+	"context"
+	"strings"
+	"testing"
+)
 
 func TestConfigParseBasic(t *testing.T) {
 	jsonData := `{"bgp":{"healthcheck":{"probe":{"dns":{"command":"true","group":"hc-dns"}}}}}`
@@ -157,5 +161,75 @@ func TestConfigCustomValues(t *testing.T) {
 	}
 	if p.DisabledMetric != 750 {
 		t.Errorf("DisabledMetric = %d, want 750", p.DisabledMetric)
+	}
+}
+
+func TestExternalModeRejectsIPSetup(t *testing.T) {
+	mgr := &probeManager{
+		probes:   make(map[string]*runningProbe),
+		internal: false,
+		dispatchFn: func(_ context.Context, _ string) (string, string, error) {
+			return "done", "", nil
+		},
+	}
+
+	configs := []ProbeConfig{{
+		Name:        "dns",
+		Command:     "true",
+		Group:       "hc-dns",
+		IPInterface: "lo",
+		IPs:         []string{"10.0.0.1/32"},
+	}}
+
+	err := mgr.validateConfig(configs)
+	if err == nil {
+		t.Fatal("expected error for ip-setup in external mode")
+	}
+	if !strings.Contains(err.Error(), "internal plugin mode") {
+		t.Errorf("error = %q, want mention of internal plugin mode", err)
+	}
+}
+
+func TestExternalModeAcceptsNoIPSetup(t *testing.T) {
+	mgr := &probeManager{
+		probes:   make(map[string]*runningProbe),
+		internal: false,
+		dispatchFn: func(_ context.Context, _ string) (string, string, error) {
+			return "done", "", nil
+		},
+	}
+
+	configs := []ProbeConfig{{
+		Name:    "dns",
+		Command: "true",
+		Group:   "hc-dns",
+	}}
+
+	err := mgr.validateConfig(configs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestInternalModeAcceptsIPSetup(t *testing.T) {
+	mgr := &probeManager{
+		probes:   make(map[string]*runningProbe),
+		internal: true,
+		dispatchFn: func(_ context.Context, _ string) (string, string, error) {
+			return "done", "", nil
+		},
+	}
+
+	configs := []ProbeConfig{{
+		Name:        "dns",
+		Command:     "true",
+		Group:       "hc-dns",
+		IPInterface: "lo",
+		IPs:         []string{"10.0.0.1/32"},
+	}}
+
+	err := mgr.validateConfig(configs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-healthcheck-4-ip-hooks-cli |
 | Phase | - |
 | Updated | 2026-04-03 |

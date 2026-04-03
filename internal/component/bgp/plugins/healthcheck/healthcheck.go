@@ -40,7 +40,7 @@ func RunHealthcheckPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-healthcheck", conn)
 	defer func() { _ = p.Close() }()
 
-	mgr := newProbeManager(p)
+	mgr := newProbeManager(p, true)
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
@@ -50,6 +50,10 @@ func RunHealthcheckPlugin(conn net.Conn) int {
 			probes, err := parseConfig(section.Data)
 			if err != nil {
 				logger().Error("config parse failed", "error", err)
+				return err
+			}
+			if err := mgr.validateConfig(probes); err != nil {
+				logger().Error("config validation failed", "error", err)
 				return err
 			}
 			mgr.applyConfig(probes)
@@ -74,6 +78,7 @@ type probeManager struct {
 	plugin     *sdk.Plugin
 	probes     map[string]*runningProbe // name -> running probe
 	mu         sync.Mutex
+	internal   bool                                                              // true = goroutine mode (ip-setup allowed)
 	dispatchFn func(ctx context.Context, command string) (string, string, error) // injectable for tests
 	ipMgr      ipManager                                                         // injectable for tests
 }
@@ -85,16 +90,30 @@ type runningProbe struct {
 	done   chan struct{}
 }
 
-func newProbeManager(p *sdk.Plugin) *probeManager {
+func newProbeManager(p *sdk.Plugin, internal bool) *probeManager {
 	mgr := &probeManager{
-		plugin: p,
-		probes: make(map[string]*runningProbe),
-		ipMgr:  realIPManager{},
+		plugin:   p,
+		probes:   make(map[string]*runningProbe),
+		internal: internal,
+		ipMgr:    realIPManager{},
 	}
 	mgr.dispatchFn = func(ctx context.Context, command string) (string, string, error) {
 		return p.DispatchCommand(ctx, command)
 	}
 	return mgr
+}
+
+// validateConfig checks that the configuration is valid for the current plugin mode.
+func (m *probeManager) validateConfig(configs []ProbeConfig) error {
+	if m.internal {
+		return nil
+	}
+	for i := range configs {
+		if len(configs[i].IPs) > 0 || configs[i].IPInterface != "" {
+			return fmt.Errorf("probe %q: ip-setup requires internal plugin mode (ip management needs in-process netlink access)", configs[i].Name)
+		}
+	}
+	return nil
 }
 
 // applyConfig starts/stops probes based on new configuration.
