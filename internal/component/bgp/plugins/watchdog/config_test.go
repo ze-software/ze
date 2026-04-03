@@ -473,6 +473,92 @@ func TestParseConfigGroupAndPeerBothHaveWatchdog(t *testing.T) {
 	}
 }
 
+// VALIDATES: PoolEntry stores the Route struct alongside pre-computed commands (AC-13, AC-14)
+// PREVENTS: MED override path has no Route to clone
+
+func TestPoolEntryStoresRoute(t *testing.T) {
+	// Config with MED attribute
+	jsonData := `{
+		"bgp": {
+			"peer": {
+			"peer1": {
+				"connection": {"remote": {"ip": "10.0.0.1"}},
+				"update": {
+					"default": {
+						"attribute": {
+							"origin": "igp",
+							"next-hop": "1.2.3.4",
+							"med": "100"
+						},
+						"nlri": {"ipv4/unicast": {"content": "add 10.0.0.0/24"}},
+						"watchdog": {"name": "dns"}
+					}
+				}
+			}
+			}
+		}
+	}`
+
+	peerPools, err := parseConfig(jsonData)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+
+	pool := peerPools["10.0.0.1"].GetPool("dns")
+	entry := pool.Routes()[0]
+
+	// Route must be stored
+	if entry.Route.Family != "ipv4/unicast" {
+		t.Errorf("Route.Family = %q, want ipv4/unicast", entry.Route.Family)
+	}
+	if entry.Route.Prefix != "10.0.0.0/24" {
+		t.Errorf("Route.Prefix = %q, want 10.0.0.0/24", entry.Route.Prefix)
+	}
+	if entry.Route.NextHop != "1.2.3.4" {
+		t.Errorf("Route.NextHop = %q, want 1.2.3.4", entry.Route.NextHop)
+	}
+	if entry.Route.MED == nil || *entry.Route.MED != 100 {
+		t.Errorf("Route.MED = %v, want 100", entry.Route.MED)
+	}
+}
+
+// VALIDATES: PoolEntry stores Route even when no MED in config
+// PREVENTS: Nil Route when config has no MED attribute
+
+func TestPoolEntryStoresRouteNoMED(t *testing.T) {
+	jsonData := `{
+		"bgp": {
+			"peer": {
+			"peer1": {
+				"connection": {"remote": {"ip": "10.0.0.1"}},
+				"update": {
+					"default": {
+						"attribute": {"origin": "igp", "next-hop": "1.2.3.4"},
+						"nlri": {"ipv4/unicast": {"content": "add 10.0.0.0/24"}},
+						"watchdog": {"name": "dns"}
+					}
+				}
+			}
+			}
+		}
+	}`
+
+	peerPools, err := parseConfig(jsonData)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+
+	pool := peerPools["10.0.0.1"].GetPool("dns")
+	entry := pool.Routes()[0]
+
+	if entry.Route.Family != "ipv4/unicast" {
+		t.Errorf("Route.Family = %q, want ipv4/unicast", entry.Route.Family)
+	}
+	if entry.Route.MED != nil {
+		t.Errorf("Route.MED = %v, want nil", entry.Route.MED)
+	}
+}
+
 // TestParseConfigGroupWatchdogPeerNoUpdate verifies group watchdog is inherited
 // when the peer has no update block at all.
 //

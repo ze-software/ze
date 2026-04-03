@@ -272,6 +272,7 @@ func parseNLRIEntries(nlriMap map[string]any, base *bgp.Route, initiallyWithdraw
 				bgp.FormatAnnounceCommand(&route),
 				bgp.FormatWithdrawCommand(&route),
 			)
+			entry.Route = route
 			entry.initiallyAnnounced = !initiallyWithdrawn
 
 			entries = append(entries, entry)

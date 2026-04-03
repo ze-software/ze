@@ -8,6 +8,8 @@ package watchdog
 import (
 	"errors"
 	"sync"
+
+	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 )
 
 // PoolSet manages named watchdog route pools.
@@ -268,11 +270,13 @@ func (p *RoutePool) announcedForPeer(peerAddr string) []*PoolEntry {
 
 // PoolEntry is a route in a watchdog pool with per-peer state.
 // Routes store pre-computed text commands for announce and withdraw.
+// The Route field enables MED override: clone Route, set MED, call FormatAnnounceCommand.
 // The announced map is protected by the parent RoutePool's mutex.
 type PoolEntry struct {
-	Key         string // Unique route identifier (prefix#pathid or rd:prefix#pathid)
-	AnnounceCmd string // "update text ..." command for announcing
-	WithdrawCmd string // "update text ..." command for withdrawing
+	Key         string    // Unique route identifier (prefix#pathid or rd:prefix#pathid)
+	AnnounceCmd string    // "update text ..." command for announcing
+	WithdrawCmd string    // "update text ..." command for withdrawing
+	Route       bgp.Route // Stored route for MED override path (clone + FormatAnnounceCommand)
 
 	// initiallyAnnounced indicates whether this route should be sent on
 	// first peer session establishment. Config routes without "withdraw true"

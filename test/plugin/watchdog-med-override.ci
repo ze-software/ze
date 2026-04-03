@@ -1,0 +1,133 @@
+# Watchdog MED override: announce with med <N> produces UPDATE with overridden MED.
+# Tests: MED override dispatch, dedup bypass, withdraw after override.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+# Initial config routes (dnsr has withdraw=true, so not sent initially)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001540010100400200400304010203044005040000006420424242422058585858
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0031020000001540010100400200400304C0A80164400504000000642064646464
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+cmd=api:conn=1:seq=1:text=watchdog announce dnsr med 500
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001C4001010040020040030401020304800404000001F440050400000064204D4D4D4D
+cmd=api:conn=1:seq=2:text=watchdog announce dnsr med 1000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001C4001010040020040030401020304800404000003E840050400000064204D4D4D4D
+cmd=api:conn=1:seq=3:text=watchdog withdraw dnsr
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C020005204D4D4D4D0000
+cmd=api:conn=1:seq=4:text=watchdog announce dnsr med 200
+expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001C4001010040020040030401020304800404000000C840050400000064204D4D4D4D
+EOF_PEER
+
+# Plugin script that sends watchdog commands with MED overrides
+tmpfs=watchdog-med.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+
+import os
+import time
+
+from ze_api import ready, send
+
+
+def main() -> None:
+    ready()
+
+    # Wait for BGP session to establish and config routes to be sent.
+    time.sleep(1)
+
+    while os.getppid() != 1:
+        # MED override to 500
+        send('watchdog announce dnsr med 500')
+        time.sleep(0.2)
+
+        # MED override to 1000 (dedup bypassed -- different MED)
+        send('watchdog announce dnsr med 1000')
+        time.sleep(0.2)
+
+        # Withdraw
+        send('watchdog withdraw dnsr')
+        time.sleep(0.2)
+
+        # Re-announce with MED 200
+        send('watchdog announce dnsr med 200')
+        time.sleep(0.2)
+
+    time.sleep(1)
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external service-watchdog {
+		run ./watchdog-med.run
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 10.0.0.10
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 192.168.1.100
+			}
+			nlri {
+				ipv4/unicast add 100.100.100.100/32
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 1.2.3.4
+			}
+			nlri {
+				ipv4/unicast add 66.66.66.66/32
+				ipv4/unicast add 88.88.88.88/32
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 1.2.3.4
+			}
+			nlri {
+				ipv4/unicast add 77.77.77.77/32
+			}
+			watchdog {
+				name dnsr
+				withdraw true
+			}
+		}
+		process service-watchdog {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-watchdog -:stdin=ze-bgp:timeout=10s

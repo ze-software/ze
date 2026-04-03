@@ -335,8 +335,8 @@ The following legacy commands have been removed:
 ### Watchdog Commands
 
 ```
-watchdog announce <name>   # Send all routes in pool to peers
-watchdog withdraw <name>   # Withdraw all routes in pool from peers
+watchdog announce <name> [med <N>] [peer]  # Send all routes in pool (optional MED override)
+watchdog withdraw <name> [peer]           # Withdraw all routes in pool from peers
 ```
 
 Routes are tagged with a pool when announced:

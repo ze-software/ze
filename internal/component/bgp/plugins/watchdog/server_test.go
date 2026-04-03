@@ -4,6 +4,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 )
 
 // VALIDATES: announce command sends update text for withdrawn routes
@@ -722,6 +724,496 @@ func TestWildcardNonexistentPool(t *testing.T) {
 	}
 	if !strings.Contains(data, `"peers":0`) {
 		t.Errorf("data = %q, want 0 peers affected", data)
+	}
+}
+
+// newTestEntryWithRoute creates a PoolEntry with a Route for MED override tests.
+func newTestEntryWithRoute(announceCmd, withdrawCmd string, med *uint32) *PoolEntry {
+	entry := NewPoolEntry("10.0.0.0/24#0", announceCmd, withdrawCmd)
+	entry.Route = bgp.Route{
+		Origin:  "igp",
+		NextHop: "1.2.3.4",
+		Family:  "ipv4/unicast",
+		Prefix:  "10.0.0.0/24",
+		MED:     med,
+	}
+	return entry
+}
+
+// VALIDATES: AC-1 — MED override clones route and formats with new MED
+// PREVENTS: MED override modifies stored Route or uses stored AnnounceCmd
+
+func TestMEDOverrideProducesOneOffCommand(t *testing.T) {
+	var sent []sentRoute
+	var mu sync.Mutex
+	mgr := newWatchdogServer(func(peer, cmd string) {
+		mu.Lock()
+		sent = append(sent, sentRoute{peer, cmd})
+		mu.Unlock()
+	})
+
+	configMED := uint32(100)
+	mgr.peerPools["10.0.0.1"] = NewPoolSet()
+	entry := newTestEntryWithRoute(
+		"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
+		"update text nlri ipv4/unicast del 10.0.0.0/24",
+		&configMED)
+	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns", entry); err != nil {
+		t.Fatal(err)
+	}
+	mgr.peerUp["10.0.0.1"] = true
+
+	// Announce with MED override to 500
+	status, _, err := mgr.handleCommand("watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
+	if err != nil {
+		t.Fatalf("handleCommand: %v", err)
+	}
+	if status != statusDone {
+		t.Errorf("status = %q, want done", status)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(sent) != 1 {
+		t.Fatalf("sent %d routes, want 1", len(sent))
+	}
+	// Must contain med 500, not med 100
+	if !strings.Contains(sent[0].cmd, "med 500") {
+		t.Errorf("cmd = %q, want med 500", sent[0].cmd)
+	}
+	if strings.Contains(sent[0].cmd, "med 100") {
+		t.Errorf("cmd = %q, must not contain config MED 100", sent[0].cmd)
+	}
+
+	// Verify stored Route unchanged
+	pool := mgr.peerPools["10.0.0.1"].GetPool("dns")
+	storedEntry := pool.Routes()[0]
+	if *storedEntry.Route.MED != 100 {
+		t.Errorf("stored Route.MED = %d, want 100 (unchanged)", *storedEntry.Route.MED)
+	}
+}
+
+// VALIDATES: AC-2 — Two consecutive MED overrides both produce sendRoute calls
+// PREVENTS: Second MED override deduped because route is "already announced"
+
+func TestMEDOverrideBypassesDedup(t *testing.T) {
+	var sent []sentRoute
+	var mu sync.Mutex
+	mgr := newWatchdogServer(func(peer, cmd string) {
+		mu.Lock()
+		sent = append(sent, sentRoute{peer, cmd})
+		mu.Unlock()
+	})
+
+	configMED := uint32(100)
+	mgr.peerPools["10.0.0.1"] = NewPoolSet()
+	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns",
+		newTestEntryWithRoute(
+			"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
+			"update text nlri ipv4/unicast del 10.0.0.0/24",
+			&configMED)); err != nil {
+		t.Fatal(err)
+	}
+	mgr.peerUp["10.0.0.1"] = true
+
+	// First MED override
+	_, _, err := mgr.handleCommand("watchdog announce", []string{"dns", "med", "100"}, "10.0.0.1")
+	if err != nil {
+		t.Fatalf("first announce: %v", err)
+	}
+	// Second MED override with different value
+	_, _, err = mgr.handleCommand("watchdog announce", []string{"dns", "med", "1000"}, "10.0.0.1")
+	if err != nil {
+		t.Fatalf("second announce: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(sent) != 2 {
+		t.Fatalf("sent %d routes, want 2 (both MED overrides)", len(sent))
+	}
+	if !strings.Contains(sent[0].cmd, "med 100") {
+		t.Errorf("sent[0].cmd = %q, want med 100", sent[0].cmd)
+	}
+	if !strings.Contains(sent[1].cmd, "med 1000") {
+		t.Errorf("sent[1].cmd = %q, want med 1000", sent[1].cmd)
+	}
+}
+
+// VALIDATES: AC-3 — Non-MED announce deduped when already announced
+// PREVENTS: Redundant sends on repeated non-MED announce
+
+func TestNoMEDPreservesDedup(t *testing.T) {
+	var sent []sentRoute
+	var mu sync.Mutex
+	mgr := newWatchdogServer(func(peer, cmd string) {
+		mu.Lock()
+		sent = append(sent, sentRoute{peer, cmd})
+		mu.Unlock()
+	})
+
+	mgr.peerPools["10.0.0.1"] = NewPoolSet()
+	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns",
+		NewPoolEntry("10.0.0.0/24#0", "announce-cmd", "withdraw-cmd")); err != nil {
+		t.Fatal(err)
+	}
+	mgr.peerUp["10.0.0.1"] = true
+
+	// First announce (no MED)
+	_, _, err := mgr.handleCommand("watchdog announce", []string{"dns"}, "10.0.0.1")
+	if err != nil {
+		t.Fatalf("first announce: %v", err)
+	}
+	// Second announce (no MED, already announced)
+	_, _, err = mgr.handleCommand("watchdog announce", []string{"dns"}, "10.0.0.1")
+	if err != nil {
+		t.Fatalf("second announce: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(sent) != 1 {
+		t.Fatalf("sent %d routes, want 1 (second deduped)", len(sent))
+	}
+}
+
+// VALIDATES: AC-4 — MED override on withdrawn route sends and sets announced
+// PREVENTS: MED override fails when route is in withdrawn state
+
+func TestMEDOverrideFromWithdrawn(t *testing.T) {
+	var sent []sentRoute
+	var mu sync.Mutex
+	mgr := newWatchdogServer(func(peer, cmd string) {
+		mu.Lock()
+		sent = append(sent, sentRoute{peer, cmd})
+		mu.Unlock()
+	})
+
+	configMED := uint32(100)
+	mgr.peerPools["10.0.0.1"] = NewPoolSet()
+	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns",
+		newTestEntryWithRoute(
+			"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
+			"update text nlri ipv4/unicast del 10.0.0.0/24",
+			&configMED)); err != nil {
+		t.Fatal(err)
+	}
+	mgr.peerUp["10.0.0.1"] = true
+	// Route starts withdrawn (not announced for this peer)
+
+	status, _, err := mgr.handleCommand("watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
+	if err != nil {
+		t.Fatalf("handleCommand: %v", err)
+	}
+	if status != statusDone {
+		t.Errorf("status = %q, want done", status)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(sent) != 1 {
+		t.Fatalf("sent %d routes, want 1", len(sent))
+	}
+	if !strings.Contains(sent[0].cmd, "med 500") {
+		t.Errorf("cmd = %q, want med 500", sent[0].cmd)
+	}
+}
+
+// VALIDATES: AC-5 — MED override with wildcard peer
+// PREVENTS: MED override not dispatched to all peers
+
+func TestMEDOverrideWildcard(t *testing.T) {
+	var sent []sentRoute
+	var mu sync.Mutex
+	mgr := newWatchdogServer(func(peer, cmd string) {
+		mu.Lock()
+		sent = append(sent, sentRoute{peer, cmd})
+		mu.Unlock()
+	})
+
+	configMED := uint32(100)
+	for _, peer := range []string{"10.0.0.1", "10.0.0.2"} {
+		mgr.peerPools[peer] = NewPoolSet()
+		if err := mgr.peerPools[peer].AddRoute("dns",
+			newTestEntryWithRoute(
+				"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
+				"update text nlri ipv4/unicast del 10.0.0.0/24",
+				&configMED)); err != nil {
+			t.Fatal(err)
+		}
+		mgr.peerUp[peer] = true
+	}
+
+	_, _, err := mgr.handleCommand("watchdog announce", []string{"dns", "med", "500"}, "*")
+	if err != nil {
+		t.Fatalf("handleCommand: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(sent) != 2 {
+		t.Fatalf("sent %d routes, want 2 (one per peer)", len(sent))
+	}
+	for _, s := range sent {
+		if !strings.Contains(s.cmd, "med 500") {
+			t.Errorf("cmd = %q, want med 500", s.cmd)
+		}
+	}
+}
+
+// VALIDATES: AC-9 — MED override with explicit peer arg
+// PREVENTS: Peer arg after med <N> ignored
+
+func TestMEDOverrideWithExplicitPeer(t *testing.T) {
+	var sent []sentRoute
+	var mu sync.Mutex
+	mgr := newWatchdogServer(func(peer, cmd string) {
+		mu.Lock()
+		sent = append(sent, sentRoute{peer, cmd})
+		mu.Unlock()
+	})
+
+	configMED := uint32(100)
+	for _, peer := range []string{"10.0.0.1", "10.0.0.2"} {
+		mgr.peerPools[peer] = NewPoolSet()
+		if err := mgr.peerPools[peer].AddRoute("dns",
+			newTestEntryWithRoute(
+				"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
+				"update text nlri ipv4/unicast del 10.0.0.0/24",
+				&configMED)); err != nil {
+			t.Fatal(err)
+		}
+		mgr.peerUp[peer] = true
+	}
+
+	// MED override with explicit peer -- should only go to 10.0.0.1
+	status, _, err := mgr.handleCommand("watchdog announce", []string{"dns", "med", "500", "10.0.0.1"}, "*")
+	if err != nil {
+		t.Fatalf("handleCommand: %v", err)
+	}
+	if status != statusDone {
+		t.Errorf("status = %q, want done", status)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(sent) != 1 {
+		t.Fatalf("sent %d routes, want 1 (explicit peer only)", len(sent))
+	}
+	if sent[0].peer != "10.0.0.1" {
+		t.Errorf("peer = %q, want 10.0.0.1", sent[0].peer)
+	}
+	if !strings.Contains(sent[0].cmd, "med 500") {
+		t.Errorf("cmd = %q, want med 500", sent[0].cmd)
+	}
+}
+
+// VALIDATES: AC-6 — "med" rejected as group name
+// PREVENTS: Ambiguity between group name "med" and med keyword
+
+func TestMEDGroupNameRejected(t *testing.T) {
+	mgr := newWatchdogServer(func(_, _ string) {})
+	mgr.peerPools["10.0.0.1"] = NewPoolSet()
+	mgr.peerUp["10.0.0.1"] = true
+
+	status, _, err := mgr.handleCommand("watchdog announce", []string{"med"}, "10.0.0.1")
+	if err == nil {
+		t.Fatal("expected error for group name 'med'")
+	}
+	if status != statusError {
+		t.Errorf("status = %q, want error", status)
+	}
+}
+
+// VALIDATES: AC-7, AC-8 — Invalid MED values
+// PREVENTS: Non-numeric or missing MED accepted
+
+func TestMEDInvalidValue(t *testing.T) {
+	mgr := newWatchdogServer(func(_, _ string) {})
+	mgr.peerPools["10.0.0.1"] = NewPoolSet()
+	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns",
+		NewPoolEntry("10.0.0.0/24#0", "a", "w")); err != nil {
+		t.Fatal(err)
+	}
+	mgr.peerUp["10.0.0.1"] = true
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"non-numeric", []string{"dns", "med", "abc"}},
+		{"missing value", []string{"dns", "med"}},
+		{"negative", []string{"dns", "med", "-1"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status, _, err := mgr.handleCommand("watchdog announce", tt.args, "10.0.0.1")
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if status != statusError {
+				t.Errorf("status = %q, want error", status)
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-10 — Non-MED announce deduped after MED override
+// PREVENTS: Non-MED announce re-sends after MED override set announced=true
+
+func TestNoMEDAfterMEDOverride(t *testing.T) {
+	var sent []sentRoute
+	var mu sync.Mutex
+	mgr := newWatchdogServer(func(peer, cmd string) {
+		mu.Lock()
+		sent = append(sent, sentRoute{peer, cmd})
+		mu.Unlock()
+	})
+
+	configMED := uint32(100)
+	mgr.peerPools["10.0.0.1"] = NewPoolSet()
+	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns",
+		newTestEntryWithRoute(
+			"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
+			"update text nlri ipv4/unicast del 10.0.0.0/24",
+			&configMED)); err != nil {
+		t.Fatal(err)
+	}
+	mgr.peerUp["10.0.0.1"] = true
+
+	// MED override
+	_, _, _ = mgr.handleCommand("watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
+	// Non-MED announce (should be deduped because announced=true after MED override)
+	_, _, _ = mgr.handleCommand("watchdog announce", []string{"dns"}, "10.0.0.1")
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(sent) != 1 {
+		t.Fatalf("sent %d routes, want 1 (non-MED deduped)", len(sent))
+	}
+}
+
+// VALIDATES: AC-11 — Withdraw after MED override uses stored WithdrawCmd
+// PREVENTS: Withdraw broken after MED override
+
+func TestWithdrawAfterMEDOverride(t *testing.T) {
+	var sent []sentRoute
+	var mu sync.Mutex
+	mgr := newWatchdogServer(func(peer, cmd string) {
+		mu.Lock()
+		sent = append(sent, sentRoute{peer, cmd})
+		mu.Unlock()
+	})
+
+	configMED := uint32(100)
+	mgr.peerPools["10.0.0.1"] = NewPoolSet()
+	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns",
+		newTestEntryWithRoute(
+			"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
+			"update text nlri ipv4/unicast del 10.0.0.0/24",
+			&configMED)); err != nil {
+		t.Fatal(err)
+	}
+	mgr.peerUp["10.0.0.1"] = true
+
+	// MED override announce
+	_, _, _ = mgr.handleCommand("watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
+	// Withdraw
+	_, _, err := mgr.handleCommand("watchdog withdraw", []string{"dns"}, "10.0.0.1")
+	if err != nil {
+		t.Fatalf("withdraw: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(sent) != 2 {
+		t.Fatalf("sent %d routes, want 2", len(sent))
+	}
+	if !strings.Contains(sent[1].cmd, "del 10.0.0.0/24") {
+		t.Errorf("withdraw cmd = %q, want del", sent[1].cmd)
+	}
+}
+
+// VALIDATES: AC-12 — Reconnect uses stored AnnounceCmd, not overridden MED
+// PREVENTS: Transient MED override persists across reconnect
+
+func TestReconnectUsesStoredNotOverride(t *testing.T) {
+	var sent []sentRoute
+	var mu sync.Mutex
+	mgr := newWatchdogServer(func(peer, cmd string) {
+		mu.Lock()
+		sent = append(sent, sentRoute{peer, cmd})
+		mu.Unlock()
+	})
+
+	configMED := uint32(100)
+	mgr.peerPools["10.0.0.1"] = NewPoolSet()
+	entry := newTestEntryWithRoute(
+		"update text origin igp med 100 nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
+		"update text nlri ipv4/unicast del 10.0.0.0/24",
+		&configMED)
+	entry.initiallyAnnounced = true
+	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns", entry); err != nil {
+		t.Fatal(err)
+	}
+
+	// First up
+	mgr.handleStateUp("10.0.0.1")
+	// MED override
+	_, _, _ = mgr.handleCommand("watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
+
+	mu.Lock()
+	sent = nil
+	mu.Unlock()
+
+	// Reconnect
+	mgr.handleStateDown("10.0.0.1")
+	mgr.handleStateUp("10.0.0.1")
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(sent) != 1 {
+		t.Fatalf("sent %d routes on reconnect, want 1", len(sent))
+	}
+	// Must use stored AnnounceCmd (med 100), not override (med 500)
+	if !strings.Contains(sent[0].cmd, "med 100") {
+		t.Errorf("reconnect cmd = %q, want stored med 100", sent[0].cmd)
+	}
+	if strings.Contains(sent[0].cmd, "med 500") {
+		t.Errorf("reconnect cmd = %q, must not contain override med 500", sent[0].cmd)
+	}
+}
+
+// VALIDATES: AC-15, AC-16 — MED boundary values
+// PREVENTS: Overflow or invalid large MED values accepted
+
+func TestMEDOverrideBoundary(t *testing.T) {
+	mgr := newWatchdogServer(func(_, _ string) {})
+	mgr.peerPools["10.0.0.1"] = NewPoolSet()
+	configMED := uint32(100)
+	if err := mgr.peerPools["10.0.0.1"].AddRoute("dns",
+		newTestEntryWithRoute("a", "w", &configMED)); err != nil {
+		t.Fatal(err)
+	}
+	mgr.peerUp["10.0.0.1"] = true
+
+	// Max uint32 should work
+	status, _, err := mgr.handleCommand("watchdog announce", []string{"dns", "med", "4294967295"}, "10.0.0.1")
+	if err != nil {
+		t.Fatalf("max uint32: %v", err)
+	}
+	if status != statusDone {
+		t.Errorf("max uint32 status = %q, want done", status)
+	}
+
+	// Overflow should fail
+	status, _, err = mgr.handleCommand("watchdog announce", []string{"dns", "med", "4294967296"}, "10.0.0.1")
+	if err == nil {
+		t.Fatal("expected error for overflow")
+	}
+	if status != statusError {
+		t.Errorf("overflow status = %q, want error", status)
 	}
 }
 
