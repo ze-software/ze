@@ -710,7 +710,7 @@ func TestResolveInheritedDefaults_Group(t *testing.T) {
 	bgp.AddListEntry("group", "ibgp", groupEntry)
 	tree.SetContainer("bgp", bgp)
 
-	parentTree := resolveParentDefaults(tree, nil, []string{"bgp", "group", "ibgp", "peer"})
+	parentTree := resolveParentDefaults(tree, []string{"bgp", "group", "ibgp", "peer"})
 	require.NotNil(t, parentTree, "should resolve to group entry tree")
 
 	val := resolveInheritedValue(parentTree, "session/asn/remote")
@@ -732,7 +732,7 @@ func TestResolveInheritedDefaults_BGPLevel(t *testing.T) {
 	bgp.SetContainer("session", session)
 	tree.SetContainer("bgp", bgp)
 
-	parentTree := resolveParentDefaults(tree, nil, []string{"bgp", "peer"})
+	parentTree := resolveParentDefaults(tree, []string{"bgp", "peer"})
 	require.NotNil(t, parentTree, "should resolve to bgp container tree")
 
 	val := resolveInheritedValue(parentTree, "session/asn/local")

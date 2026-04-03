@@ -212,15 +212,6 @@ func runValidation(input, path string) *validationResult {
 		return result
 	}
 
-	// Validate required fields after inheritance resolution.
-	if err := bgpconfig.CheckRequiredFields(schema, bgpTree); err != nil {
-		result.Valid = false
-		result.Errors = append(result.Errors, validationError{
-			Message: err.Error(),
-		})
-		return result
-	}
-
 	// Build summary from resolved tree.
 	result.Config = buildValidationSummary(bgpTree, tree)
 

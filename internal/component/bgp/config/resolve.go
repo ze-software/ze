@@ -158,7 +158,11 @@ func CheckRequiredFields(schema *config.Schema, bgpTree map[string]any) error {
 	if !ok {
 		return nil
 	}
-	peerListNode, ok := bgpContainer.Get("peer").(*config.ListNode)
+	peerNode := bgpContainer.Get("peer")
+	if peerNode == nil {
+		return nil
+	}
+	peerListNode, ok := peerNode.(*config.ListNode)
 	if !ok {
 		return nil
 	}
@@ -173,7 +177,7 @@ func CheckRequiredFields(schema *config.Schema, bgpTree map[string]any) error {
 		}
 		for _, reqPath := range peerListNode.Required {
 			if !hasNestedValue(peer, reqPath) {
-				return fmt.Errorf("peer %s: missing required field %q", peerName, joinFieldPath(reqPath))
+				return fmt.Errorf("peer %s: missing required field %q", peerName, strings.Join(reqPath, "/"))
 			}
 		}
 	}
@@ -189,7 +193,6 @@ func hasNestedValue(m map[string]any, path []string) bool {
 			return false
 		}
 		if i == len(path)-1 {
-			// Leaf: check non-empty.
 			s, ok := val.(string)
 			return !ok || s != ""
 		}
@@ -200,11 +203,6 @@ func hasNestedValue(m map[string]any, path []string) bool {
 		current = next
 	}
 	return false
-}
-
-// joinFieldPath joins path segments with "/".
-func joinFieldPath(parts []string) string {
-	return strings.Join(parts, "/")
 }
 
 // checkDuplicateRemoteIPs checks that no two peers share the same connection > remote > ip value.

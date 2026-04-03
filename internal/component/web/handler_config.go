@@ -276,7 +276,11 @@ func HandleConfigAdd(mgr *EditorManager, schema *config.Schema, renderer *Render
 		entryKey := path[len(path)-1]
 		listPath := path[:len(path)-1]
 		tree := mgr.Tree(username)
-		listNode, _ := walkSchema(schema, listPath)
+		listNode, walkErr := walkSchema(schema, listPath)
+		if walkErr != nil {
+			http.Error(w, "invalid list path", http.StatusBadRequest)
+			return
+		}
 
 		// Check duplicate key.
 		if tree != nil && slices.Contains(collectListKeys(tree, schema, listPath), entryKey) {
@@ -286,7 +290,7 @@ func HandleConfigAdd(mgr *EditorManager, schema *config.Schema, renderer *Render
 
 		// Enforce ze:required fields: reject if missing and no inherited value.
 		if ln, ok := listNode.(*config.ListNode); ok && len(ln.Required) > 0 {
-			parentTree := resolveParentDefaults(tree, schema, listPath)
+			parentTree := resolveParentDefaults(tree, listPath)
 			for _, reqPath := range ln.Required {
 				fieldStr := strings.Join(reqPath, "/")
 				formVal := strings.TrimSpace(r.FormValue("field:" + fieldStr))
@@ -462,7 +466,7 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 
 		// Resolve inherited defaults from parent context in the config tree.
 		tree := mgr.Tree(username)
-		parentTree := resolveParentDefaults(tree, schema, listPath)
+		parentTree := resolveParentDefaults(tree, listPath)
 
 		// Track fields already added to avoid duplicates (required/suggest may overlap unique).
 		seen := make(map[string]bool)
@@ -513,7 +517,7 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 // For bgp/group/<name>/peer, it returns the group entry tree (inheritable defaults).
 // For bgp/peer, it returns the bgp container tree (bgp-level defaults).
 // Returns nil if no tree or path is too short.
-func resolveParentDefaults(tree *config.Tree, _ *config.Schema, listPath []string) *config.Tree {
+func resolveParentDefaults(tree *config.Tree, listPath []string) *config.Tree {
 	if tree == nil || len(listPath) < 2 {
 		return nil
 	}

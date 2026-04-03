@@ -299,8 +299,11 @@ func (v *ConfigValidator) peerListNode() *config.ListNode {
 	return list
 }
 
-// hasResolvedValue checks if a config tree has a non-empty value at the given slash-separated path.
+// hasResolvedValue checks if a config tree has a non-empty value at the given path.
 func hasResolvedValue(tree *config.Tree, path []string) bool {
+	if tree == nil {
+		return false
+	}
 	current := tree
 	for i, key := range path {
 		if i == len(path)-1 {
