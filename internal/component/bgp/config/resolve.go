@@ -5,6 +5,7 @@ package bgpconfig
 import (
 	"fmt"
 	"net/netip"
+	"sort"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -170,8 +171,15 @@ func CheckRequiredFields(schema *config.Schema, bgpTree map[string]any) error {
 		return nil
 	}
 
-	for peerName, v := range peerMap {
-		peer, ok := v.(map[string]any)
+	// Sort peer names for deterministic error reporting.
+	peerNames := make([]string, 0, len(peerMap))
+	for name := range peerMap {
+		peerNames = append(peerNames, name)
+	}
+	sort.Strings(peerNames)
+
+	for _, peerName := range peerNames {
+		peer, ok := peerMap[peerName].(map[string]any)
 		if !ok {
 			continue
 		}

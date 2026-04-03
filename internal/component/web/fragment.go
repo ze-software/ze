@@ -1,5 +1,5 @@
 // Design: docs/architecture/web-components.md -- HTMX fragment handlers
-// Related: handler_config.go -- Config view data types
+// Related: handler_config.go -- Config view data types and form field resolution
 // Related: handler_config_walk.go -- Schema and tree walking
 // Related: render.go -- Template rendering
 

@@ -764,3 +764,30 @@ func TestAddFormRejectsIncompleteRequired(t *testing.T) {
 	body := rec.Body.String()
 	assert.Contains(t, body, "connection/remote/ip", "response should mention the missing required field")
 }
+
+// TestAddFormAcceptsRequiredFromForm verifies that providing a required field
+// via the form allows creation (no rejection).
+// VALIDATES: HandleConfigAdd accepts form-provided required values.
+// PREVENTS: Required check rejecting entries when all fields are filled.
+func TestAddFormAcceptsRequiredFromForm(t *testing.T) {
+	mgr, schema := newHandlerTestManager(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	handler := HandleConfigAdd(mgr, schema, renderer)
+
+	formData := url.Values{
+		"name":                       {"test_peer"},
+		"field:connection/remote/ip": {"10.0.0.1"},
+		"field:session/asn/local":    {"65000"},
+		"field:session/asn/remote":   {"65001"},
+		"field:connection/local/ip":  {"auto"},
+	}
+	req := postConfigRequest(t, "/config/add/bgp/peer/", formData, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	assert.NotContains(t, body, "required field", "should not reject when all required fields provided via form")
+}

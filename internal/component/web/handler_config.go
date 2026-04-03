@@ -1,6 +1,7 @@
 // Design: docs/architecture/web-interface.md -- Config tree view handlers
 // Detail: handler_config_walk.go -- Schema and config tree walking
 // Detail: handler_config_leaf.go -- Leaf input type and template helpers
+// Related: fragment.go -- HTMX fragment helpers (form field collection)
 // Related: handler.go -- URL routing and content negotiation
 // Related: render.go -- Template rendering
 // Related: editor.go -- Per-user editor management

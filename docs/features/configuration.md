@@ -6,8 +6,10 @@ Peers are keyed by name (`peer <name> { }`) with IP and AS in nested containers:
 
 | Setting | Description | Validation |
 |---------|-------------|------------|
-| `remote { ip; as; }` | Peer IP and AS number | Required |
-| `local { ip; as; }` | Local bind address and AS | Required (ip can be `auto`) |
+| `remote { ip; }` | Peer IP address | Required (`ze:required`) |
+| `remote { as; }` | Peer AS number | Required (`ze:required`) |
+| `local { as; }` | Local AS number | Required (`ze:required`, inheritable from bgp level) |
+| `local { ip; }` | Local bind address | Suggested (`ze:suggest`, can be `auto`) |
 | `router-id` | Per-peer router ID override | Optional (or inherited) |
 | `name` | Peer key (must start with letter) | Required |
 | `hold-time` | Hold timer (0 or 3-65535 seconds) | 1-2 rejected |

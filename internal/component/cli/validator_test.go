@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // TestValidateSyntaxMissingSemicolon verifies semicolon handling.
@@ -947,4 +949,76 @@ func TestValidatePeer_MissingRequiredField(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "expected warning about missing connection/remote/ip, got warnings: %v", result.Warnings)
+}
+
+// TestValidatePeer_RequiredFieldInheritedFromBGP verifies that a required field
+// present at bgp level suppresses the warning for standalone peers.
+// VALIDATES: bgp-level inheritance in generic ze:required loop.
+// PREVENTS: False warning when session/asn/local is set at bgp level.
+func TestValidatePeer_RequiredFieldInheritedFromBGP(t *testing.T) {
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
+
+	// session/asn/local set at bgp level, peer has remote ip + remote as.
+	content := `bgp {
+  router-id 1.1.1.1
+  session {
+    asn {
+      local 65000
+    }
+  }
+  peer test_peer {
+    connection {
+      remote {
+        ip 192.0.2.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}`
+	result := v.Validate(content)
+
+	for _, w := range result.Warnings {
+		assert.NotContains(t, w.Message, "session/asn/local",
+			"session/asn/local inherited from bgp level should not warn")
+	}
+}
+
+// TestHasResolvedValue verifies the config tree value checker directly.
+// VALIDATES: Edge cases for hasResolvedValue.
+// PREVENTS: Panic on nil tree or wrong result on edge cases.
+func TestHasResolvedValue(t *testing.T) {
+	tree := config.NewTree()
+	session := config.NewTree()
+	asn := config.NewTree()
+	asn.Set("remote", "65001")
+	asn.Set("empty", "")
+	session.SetContainer("asn", asn)
+	tree.SetContainer("session", session)
+	tree.Set("leaf", "value")
+
+	tests := []struct {
+		name string
+		tree *config.Tree
+		path []string
+		want bool
+	}{
+		{"nil_tree", nil, []string{"session", "asn", "remote"}, false},
+		{"present_deep", tree, []string{"session", "asn", "remote"}, true},
+		{"missing_leaf", tree, []string{"session", "asn", "local"}, false},
+		{"missing_intermediate", tree, []string{"connection", "remote", "ip"}, false},
+		{"empty_string", tree, []string{"session", "asn", "empty"}, false},
+		{"single_segment", tree, []string{"leaf"}, true},
+		{"empty_path", tree, []string{}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := hasResolvedValue(tt.tree, tt.path)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

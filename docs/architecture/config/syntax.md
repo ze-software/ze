@@ -886,7 +886,7 @@ Ze defines custom extensions in `ze-extensions.yang` that control config parsing
 | `ze:syntax` | mode | any node | Parser syntax mode (flex, freeform, inline-list, etc.) |
 | `ze:key-type` | type | inline-list | Key type for inline lists |
 | `ze:sensitive` | -- | leaf | Marks leaf as containing sensitive data |
-| `ze:validate` | name | leaf | References a custom validator function |
+| `ze:validate` | name | leaf, leaf-list | References a custom validator function |
 | `ze:cumulative` | -- | leaf-list | Accumulate values across config inheritance levels |
 | `ze:decorate` | name | leaf | Attaches display-time decorator for web UI |
 | `ze:required` | path | list | Field must have value after config inheritance resolution |

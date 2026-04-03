@@ -1717,6 +1717,68 @@ func TestCheckRequiredFields_MissingRemoteIP(t *testing.T) {
 	assert.Contains(t, err.Error(), "connection/remote/ip")
 }
 
+// TestCheckRequiredFields_NoPeers verifies graceful handling when there are no peers.
+// VALIDATES: CheckRequiredFields nil/empty bgpTree paths.
+// PREVENTS: Panic on nil or empty peer map.
+func TestCheckRequiredFields_NoPeers(t *testing.T) {
+	schema := testSchema(t)
+
+	tests := []struct {
+		name    string
+		bgpTree map[string]any
+	}{
+		{"nil_map", nil},
+		{"empty_map", map[string]any{}},
+		{"no_peer_key", map[string]any{"router-id": "1.2.3.4"}},
+		{"peer_not_map", map[string]any{"peer": "garbage"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := CheckRequiredFields(schema, tt.bgpTree)
+			assert.NoError(t, err)
+		})
+	}
+}
+
+// TestHasNestedValue verifies the nested map value checker directly.
+// VALIDATES: Edge cases for hasNestedValue.
+// PREVENTS: Panic or wrong result on empty path, non-string leaf, empty string leaf.
+func TestHasNestedValue(t *testing.T) {
+	m := map[string]any{
+		"connection": map[string]any{
+			"remote": map[string]any{
+				"ip": "10.0.0.1",
+			},
+		},
+		"empty":   "",
+		"numeric": 42,
+		"nested_bad": map[string]any{
+			"broken": "not-a-map",
+		},
+	}
+
+	tests := []struct {
+		name string
+		path []string
+		want bool
+	}{
+		{"present_deep", []string{"connection", "remote", "ip"}, true},
+		{"missing_leaf", []string{"connection", "remote", "port"}, false},
+		{"missing_intermediate", []string{"session", "asn", "remote"}, false},
+		{"empty_string_leaf", []string{"empty"}, false},
+		{"non_string_leaf", []string{"numeric"}, true},
+		{"intermediate_not_map", []string{"nested_bad", "broken", "deep"}, false},
+		{"empty_path", []string{}, false},
+		{"single_segment", []string{"connection"}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := hasNestedValue(m, tt.path)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 // testSchema loads the YANG schema for test use.
 func testSchema(t *testing.T) *config.Schema {
 	t.Helper()
