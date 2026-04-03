@@ -121,6 +121,19 @@ module ze-extensions {
                      leaf to show in navigation and prompt for on creation.";
     }
 
+    // Extension: os
+    // Restricts a node to a specific operating system.
+    // When the runtime OS does not match the argument, the node is excluded
+    // from the schema -- it will not appear in config, CLI, or web UI.
+    // The argument is a GOOS value. Valid values: linux, darwin, freebsd, openbsd, windows.
+    // A typo silently hides the node on all platforms -- test after adding.
+    extension os {
+        argument goos;
+        description "Restricts this node to the specified operating system.
+                     Nodes with ze:os are excluded from the schema when
+                     the runtime OS does not match.";
+    }
+
     // Extension: cumulative
     // Marks a leaf-list as cumulative during config resolution.
     // Normal leaf-lists are replaced by more-specific config levels (peer > group > bgp).

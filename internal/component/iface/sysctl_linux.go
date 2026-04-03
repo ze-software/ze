@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 // sysctlRoot is the base path for sysctl writes. Tests override this to
@@ -67,22 +68,71 @@ func SetIPv6Autoconf(ifaceName string, enabled bool) error {
 	return writeSysctl(path, boolToSysctl(enabled))
 }
 
-// SetIPv6AcceptRA configures RA acceptance on an interface.
-// When forwardingEnabled is true, accept_ra must be set to 2 (not 1) to
-// still accept Router Advertisements. The kernel ignores accept_ra=1 when
-// forwarding is active on the interface.
-func SetIPv6AcceptRA(ifaceName string, enabled, forwardingEnabled bool) error {
+// SetIPv6AcceptRA sets the accept_ra level on an interface.
+// Level 0: disable. Level 1: accept if not forwarding. Level 2: accept even
+// if forwarding (required when IPv6 forwarding is active).
+func SetIPv6AcceptRA(ifaceName string, level int) error {
 	if err := validateIfaceName(ifaceName); err != nil {
 		return err
 	}
+	if level < 0 || level > 2 {
+		return fmt.Errorf("iface: accept-ra level %d not in [0, 2]", level)
+	}
 	path := fmt.Sprintf("net/ipv6/conf/%s/accept_ra", ifaceName)
-	if !enabled {
-		return writeSysctl(path, "0")
+	return writeSysctl(path, strconv.Itoa(level))
+}
+
+// SetIPv4ProxyARP enables or disables proxy ARP on an interface.
+// When enabled, the interface responds to ARP requests for addresses on
+// other interfaces, acting as an ARP proxy.
+func SetIPv4ProxyARP(ifaceName string, enabled bool) error {
+	if err := validateIfaceName(ifaceName); err != nil {
+		return err
 	}
-	if forwardingEnabled {
-		return writeSysctl(path, "2")
+	path := fmt.Sprintf("net/ipv4/conf/%s/proxy_arp", ifaceName)
+	return writeSysctl(path, boolToSysctl(enabled))
+}
+
+// SetIPv4ArpAnnounce sets the ARP announce level on an interface.
+// Level 0: any local address. Level 1: prefer address matching target's subnet.
+// Level 2: use best local address for target's subnet only.
+func SetIPv4ArpAnnounce(ifaceName string, level int) error {
+	if err := validateIfaceName(ifaceName); err != nil {
+		return err
 	}
-	return writeSysctl(path, "1")
+	if level < 0 || level > 2 {
+		return fmt.Errorf("iface: arp-announce level %d not in [0, 2]", level)
+	}
+	path := fmt.Sprintf("net/ipv4/conf/%s/arp_announce", ifaceName)
+	return writeSysctl(path, strconv.Itoa(level))
+}
+
+// SetIPv4ArpIgnore sets the ARP ignore level on an interface.
+// Level 0: reply to any local address. Level 1: reply only if target is
+// configured on the incoming interface. Level 2: same as 1 plus check source.
+func SetIPv4ArpIgnore(ifaceName string, level int) error {
+	if err := validateIfaceName(ifaceName); err != nil {
+		return err
+	}
+	if level < 0 || level > 2 {
+		return fmt.Errorf("iface: arp-ignore level %d not in [0, 2]", level)
+	}
+	path := fmt.Sprintf("net/ipv4/conf/%s/arp_ignore", ifaceName)
+	return writeSysctl(path, strconv.Itoa(level))
+}
+
+// SetIPv4RPFilter sets reverse path filtering on an interface.
+// Level 0: disabled. Level 1: strict (source must be reachable via same iface).
+// Level 2: loose (source must be reachable via any iface).
+func SetIPv4RPFilter(ifaceName string, level int) error {
+	if err := validateIfaceName(ifaceName); err != nil {
+		return err
+	}
+	if level < 0 || level > 2 {
+		return fmt.Errorf("iface: rp_filter level %d not in [0, 2]", level)
+	}
+	path := fmt.Sprintf("net/ipv4/conf/%s/rp_filter", ifaceName)
+	return writeSysctl(path, strconv.Itoa(level))
 }
 
 // SetIPv6Forwarding enables or disables IPv6 forwarding on an interface.

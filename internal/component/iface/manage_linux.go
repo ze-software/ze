@@ -1,10 +1,12 @@
 // Design: plan/spec-iface-0-umbrella.md — Interface management via netlink
 // Overview: iface.go — shared types and topic constants
+// Related: bridge_linux.go — bridge-specific management (ports, STP)
 
 package iface
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/vishvananda/netlink"
@@ -15,6 +17,9 @@ const (
 	minIfaceNameLen = 1
 	maxIfaceNameLen = 15
 )
+
+// linkTypeBridge is the netlink link type string for bridge interfaces.
+const linkTypeBridge = "bridge"
 
 // VLAN ID range per IEEE 802.1Q.
 const (
@@ -251,4 +256,103 @@ func SetMTU(ifaceName string, mtu int) error {
 		return fmt.Errorf("iface: set mtu %d on %q: %w", mtu, ifaceName, err)
 	}
 	return nil
+}
+
+// SetAdminUp brings the named interface administratively up.
+func SetAdminUp(ifaceName string) error {
+	if err := validateIfaceName(ifaceName); err != nil {
+		return fmt.Errorf("iface: set up %q: %w", ifaceName, err)
+	}
+
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("iface: set up %q: not found: %w", ifaceName, err)
+	}
+	if err := netlink.LinkSetUp(link); err != nil {
+		return fmt.Errorf("iface: set up %q: %w", ifaceName, err)
+	}
+	return nil
+}
+
+// SetAdminDown brings the named interface administratively down.
+func SetAdminDown(ifaceName string) error {
+	if err := validateIfaceName(ifaceName); err != nil {
+		return fmt.Errorf("iface: set down %q: %w", ifaceName, err)
+	}
+
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("iface: set down %q: not found: %w", ifaceName, err)
+	}
+	if err := netlink.LinkSetDown(link); err != nil {
+		return fmt.Errorf("iface: set down %q: %w", ifaceName, err)
+	}
+	return nil
+}
+
+// SetMACAddress sets the hardware (MAC) address on the named interface.
+// The interface should be down before changing its MAC address on most drivers.
+func SetMACAddress(ifaceName, mac string) error {
+	if err := validateIfaceName(ifaceName); err != nil {
+		return fmt.Errorf("iface: set mac on %q: %w", ifaceName, err)
+	}
+
+	hw, err := net.ParseMAC(mac)
+	if err != nil {
+		return fmt.Errorf("iface: set mac %q on %q: %w", mac, ifaceName, err)
+	}
+
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("iface: set mac on %q: not found: %w", ifaceName, err)
+	}
+	if err := netlink.LinkSetHardwareAddr(link, hw); err != nil {
+		return fmt.Errorf("iface: set mac %q on %q: %w", mac, ifaceName, err)
+	}
+	return nil
+}
+
+// GetMACAddress returns the current hardware (MAC) address of the named interface.
+func GetMACAddress(ifaceName string) (string, error) {
+	if err := validateIfaceName(ifaceName); err != nil {
+		return "", fmt.Errorf("iface: get mac on %q: %w", ifaceName, err)
+	}
+
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return "", fmt.Errorf("iface: get mac on %q: not found: %w", ifaceName, err)
+	}
+	hw := link.Attrs().HardwareAddr
+	if len(hw) == 0 {
+		return "", nil
+	}
+	return hw.String(), nil
+}
+
+// GetStats returns the current traffic counters for the named interface.
+func GetStats(ifaceName string) (*InterfaceStats, error) {
+	if err := validateIfaceName(ifaceName); err != nil {
+		return nil, fmt.Errorf("iface: get stats on %q: %w", ifaceName, err)
+	}
+
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return nil, fmt.Errorf("iface: get stats on %q: not found: %w", ifaceName, err)
+	}
+
+	s := link.Attrs().Statistics
+	if s == nil {
+		return &InterfaceStats{}, nil
+	}
+
+	return &InterfaceStats{
+		RxBytes:   s.RxBytes,
+		RxPackets: s.RxPackets,
+		RxErrors:  s.RxErrors,
+		RxDropped: s.RxDropped,
+		TxBytes:   s.TxBytes,
+		TxPackets: s.TxPackets,
+		TxErrors:  s.TxErrors,
+		TxDropped: s.TxDropped,
+	}, nil
 }

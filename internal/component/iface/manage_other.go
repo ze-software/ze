@@ -49,3 +49,28 @@ func RemoveAddress(_, _ string) error {
 func SetMTU(_ string, _ int) error {
 	return fmt.Errorf("interface management not supported on %s", runtime.GOOS)
 }
+
+// SetAdminUp returns an error on non-Linux platforms.
+func SetAdminUp(_ string) error {
+	return fmt.Errorf("interface management not supported on %s", runtime.GOOS)
+}
+
+// SetAdminDown returns an error on non-Linux platforms.
+func SetAdminDown(_ string) error {
+	return fmt.Errorf("interface management not supported on %s", runtime.GOOS)
+}
+
+// SetMACAddress returns an error on non-Linux platforms.
+func SetMACAddress(_, _ string) error {
+	return fmt.Errorf("interface management not supported on %s", runtime.GOOS)
+}
+
+// GetMACAddress returns an error on non-Linux platforms.
+func GetMACAddress(_ string) (string, error) {
+	return "", fmt.Errorf("interface management not supported on %s", runtime.GOOS)
+}
+
+// GetStats returns an error on non-Linux platforms.
+func GetStats(_ string) (*InterfaceStats, error) {
+	return nil, fmt.Errorf("interface management not supported on %s", runtime.GOOS)
+}

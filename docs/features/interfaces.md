@@ -35,11 +35,11 @@ JunOS-style two-layer model: physical interfaces with logical units.
 | **Lifecycle** | Create (dummy, veth, bridge, VLAN) | have | |
 | | Delete | have | |
 | | Auto-up on create | have | |
-| | Admin state control (explicit up/down) | missing | high |
+| | Admin state control (explicit up/down) | have | |
 | | Interface rename | missing | lower |
 | **Address Management** | Add/remove IPv4/IPv6 CIDR | have | |
 | | DAD-aware monitoring | have | |
-| | MAC address set/get | missing | high |
+| | MAC address set/get | have | |
 | | Gratuitous ARP on add | missing | medium |
 | | Neighbor table (ARP/NDP) | missing | lower |
 | **DHCP** | DHCPv4 (RFC 2131, full DORA) | have | |
@@ -53,17 +53,16 @@ JunOS-style two-layer model: physical interfaces with logical units.
 | **Monitoring** | Netlink multicast (link + addr) | have | |
 | | Virtual iface state detection | have | |
 | | 8 bus topics, JSON payloads | have | |
-| | Interface statistics/counters | missing | high |
+| | Interface statistics/counters | have | |
 | | Persistent counter tracking | missing | medium |
 | **Per-Interface Tuning** | IPv4 forwarding | have | |
 | | ARP filter / ARP accept | have | |
 | | IPv6 autoconf (SLAAC) | have | |
-| | IPv6 accept-ra (boolean) | have | |
+| | IPv6 accept-ra (0/1/2) | have | |
 | | IPv6 forwarding | have | |
-| | Accept-RA levels (0/1/2/3) | missing | high |
-| | Proxy ARP | missing | medium |
-| | ARP announce / ARP ignore | missing | medium |
-| | RPF / source validation | missing | medium |
+| | Proxy ARP | have | |
+| | ARP announce / ARP ignore | have | |
+| | RPF / source validation | have | |
 | | TCP MSS clamping (v4+v6) | missing | medium |
 | | Directed broadcast | missing | lower |
 | **IPv6 Extended** | EUI-64 address generation | missing | medium |
@@ -82,9 +81,9 @@ JunOS-style two-layer model: physical interfaces with logical units.
 | | Listener start/stop on addr change | have | |
 | | bgp/listener/ready publish | have | |
 | **Bridge Features** | Create and bring up | have | |
-| | STP | missing | medium |
+| | STP | have | |
 | | VLAN filtering | missing | medium |
-| | Add/remove member ports | missing | medium |
+| | Add/remove member ports | have | |
 | | Multicast snooping | missing | lower |
 | | Port isolation | missing | lower |
 | | Ageing/forward delay/hello/max age | missing | lower |
@@ -125,8 +124,10 @@ JunOS-style two-layer model: physical interfaces with logical units.
 <!-- source: internal/component/iface/mirror_linux.go — traffic mirroring via tc -->
 <!-- source: internal/component/iface/sysctl_linux.go — per-interface sysctl writes -->
 <!-- source: internal/component/iface/slaac_linux.go — SLAAC control -->
+<!-- source: internal/component/iface/bridge_linux.go — bridge ports, STP via sysfs -->
+<!-- source: internal/component/iface/bridge_other.go — non-Linux bridge stubs -->
 <!-- source: internal/component/iface/manage_other.go — non-Linux stubs -->
-<!-- source: internal/component/iface/iface.go — bus topics, payload types -->
+<!-- source: internal/component/iface/iface.go — bus topics, payload types, InterfaceStats -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go — BGP integration -->
 
 ## Architecture

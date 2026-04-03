@@ -109,31 +109,31 @@ func TestSysctlIPv6ForwardingAcceptRA(t *testing.T) {
 		t.Errorf("forwarding=true: got %q, want %q", got, "1")
 	}
 
-	// accept_ra with forwarding enabled must be 2, not 1.
-	if err := SetIPv6AcceptRA("eth0", true, true); err != nil {
-		t.Fatalf("SetIPv6AcceptRA(enabled=true, fwd=true): %v", err)
+	// accept_ra=2: accept even when forwarding is enabled.
+	if err := SetIPv6AcceptRA("eth0", 2); err != nil {
+		t.Fatalf("SetIPv6AcceptRA(2): %v", err)
 	}
 	got = readSysctl(t, root, "net/ipv6/conf/eth0/accept_ra")
 	if got != "2" {
-		t.Errorf("accept_ra(enabled+fwd): got %q, want %q", got, "2")
+		t.Errorf("accept_ra(2): got %q, want %q", got, "2")
 	}
 
-	// accept_ra without forwarding must be 1.
-	if err := SetIPv6AcceptRA("eth0", true, false); err != nil {
-		t.Fatalf("SetIPv6AcceptRA(enabled=true, fwd=false): %v", err)
+	// accept_ra=1: accept only when not forwarding.
+	if err := SetIPv6AcceptRA("eth0", 1); err != nil {
+		t.Fatalf("SetIPv6AcceptRA(1): %v", err)
 	}
 	got = readSysctl(t, root, "net/ipv6/conf/eth0/accept_ra")
 	if got != "1" {
-		t.Errorf("accept_ra(enabled, no fwd): got %q, want %q", got, "1")
+		t.Errorf("accept_ra(1): got %q, want %q", got, "1")
 	}
 
-	// accept_ra disabled must be 0 regardless of forwarding.
-	if err := SetIPv6AcceptRA("eth0", false, true); err != nil {
-		t.Fatalf("SetIPv6AcceptRA(enabled=false, fwd=true): %v", err)
+	// accept_ra=0: disabled.
+	if err := SetIPv6AcceptRA("eth0", 0); err != nil {
+		t.Fatalf("SetIPv6AcceptRA(0): %v", err)
 	}
 	got = readSysctl(t, root, "net/ipv6/conf/eth0/accept_ra")
 	if got != "0" {
-		t.Errorf("accept_ra(disabled): got %q, want %q", got, "0")
+		t.Errorf("accept_ra(0): got %q, want %q", got, "0")
 	}
 }
 
@@ -159,6 +159,166 @@ func TestSysctlVlanUnit(t *testing.T) {
 	}
 }
 
+func TestSysctlIPv6AcceptRABoundary(t *testing.T) {
+	// VALIDATES: SetIPv6AcceptRA rejects levels outside [0, 2].
+	// PREVENTS: Invalid RA levels reaching the kernel.
+	root := testSysctlDir(t, "eth0")
+
+	tests := []struct {
+		name    string
+		level   int
+		want    string
+		wantErr bool
+	}{
+		{"level 0 disable", 0, "0", false},
+		{"level 1 normal", 1, "1", false},
+		{"level 2 even if forwarding", 2, "2", false},
+		{"negative invalid", -1, "", true},
+		{"too high invalid", 3, "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := SetIPv6AcceptRA("eth0", tt.level)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SetIPv6AcceptRA(%d) error = %v, wantErr %v", tt.level, err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				got := readSysctl(t, root, "net/ipv6/conf/eth0/accept_ra")
+				if got != tt.want {
+					t.Errorf("accept_ra level %d: got %q, want %q", tt.level, got, tt.want)
+				}
+			}
+		})
+	}
+}
+
+func TestSysctlIPv4ProxyARP(t *testing.T) {
+	// VALIDATES: SetIPv4ProxyARP writes to proxy_arp sysctl.
+	// PREVENTS: Proxy ARP configuration not reaching kernel.
+	root := testSysctlDir(t, "eth0")
+
+	if err := SetIPv4ProxyARP("eth0", true); err != nil {
+		t.Fatalf("SetIPv4ProxyARP(true): %v", err)
+	}
+	if got := readSysctl(t, root, "net/ipv4/conf/eth0/proxy_arp"); got != "1" {
+		t.Errorf("proxy_arp=true: got %q, want %q", got, "1")
+	}
+
+	if err := SetIPv4ProxyARP("eth0", false); err != nil {
+		t.Fatalf("SetIPv4ProxyARP(false): %v", err)
+	}
+	if got := readSysctl(t, root, "net/ipv4/conf/eth0/proxy_arp"); got != "0" {
+		t.Errorf("proxy_arp=false: got %q, want %q", got, "0")
+	}
+}
+
+func TestSysctlIPv4ArpAnnounce(t *testing.T) {
+	// VALIDATES: SetIPv4ArpAnnounce writes level values 0-2.
+	// PREVENTS: Invalid ARP announce levels reaching kernel.
+	root := testSysctlDir(t, "eth0")
+
+	tests := []struct {
+		name    string
+		level   int
+		want    string
+		wantErr bool
+	}{
+		{"level 0 any", 0, "0", false},
+		{"level 1 prefer subnet", 1, "1", false},
+		{"level 2 best only", 2, "2", false},
+		{"negative invalid", -1, "", true},
+		{"too high invalid", 3, "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := SetIPv4ArpAnnounce("eth0", tt.level)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SetIPv4ArpAnnounce(%d) error = %v, wantErr %v", tt.level, err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				got := readSysctl(t, root, "net/ipv4/conf/eth0/arp_announce")
+				if got != tt.want {
+					t.Errorf("arp_announce level %d: got %q, want %q", tt.level, got, tt.want)
+				}
+			}
+		})
+	}
+}
+
+func TestSysctlIPv4ArpIgnore(t *testing.T) {
+	// VALIDATES: SetIPv4ArpIgnore writes level values 0-2.
+	// PREVENTS: Invalid ARP ignore levels reaching kernel.
+	root := testSysctlDir(t, "eth0")
+
+	tests := []struct {
+		name    string
+		level   int
+		want    string
+		wantErr bool
+	}{
+		{"level 0 reply any", 0, "0", false},
+		{"level 1 reply incoming only", 1, "1", false},
+		{"level 2 reply incoming plus source", 2, "2", false},
+		{"negative invalid", -1, "", true},
+		{"too high invalid", 3, "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := SetIPv4ArpIgnore("eth0", tt.level)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SetIPv4ArpIgnore(%d) error = %v, wantErr %v", tt.level, err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				got := readSysctl(t, root, "net/ipv4/conf/eth0/arp_ignore")
+				if got != tt.want {
+					t.Errorf("arp_ignore level %d: got %q, want %q", tt.level, got, tt.want)
+				}
+			}
+		})
+	}
+}
+
+func TestSysctlIPv4RPFilter(t *testing.T) {
+	// VALIDATES: SetIPv4RPFilter writes level values 0-2.
+	// PREVENTS: Invalid RPF levels reaching kernel.
+	root := testSysctlDir(t, "eth0")
+
+	tests := []struct {
+		name    string
+		level   int
+		want    string
+		wantErr bool
+	}{
+		{"level 0 disabled", 0, "0", false},
+		{"level 1 strict", 1, "1", false},
+		{"level 2 loose", 2, "2", false},
+		{"negative invalid", -1, "", true},
+		{"too high invalid", 3, "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := SetIPv4RPFilter("eth0", tt.level)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SetIPv4RPFilter(%d) error = %v, wantErr %v", tt.level, err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				got := readSysctl(t, root, "net/ipv4/conf/eth0/rp_filter")
+				if got != tt.want {
+					t.Errorf("rp_filter level %d: got %q, want %q", tt.level, got, tt.want)
+				}
+			}
+		})
+	}
+}
+
 func TestSysctlInvalidName(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -176,7 +336,19 @@ func TestSysctlInvalidName(t *testing.T) {
 			if err := SetIPv6Forwarding(tt.iface, true); err == nil {
 				t.Error("expected error for invalid interface name, got nil")
 			}
-			if err := SetIPv6AcceptRA(tt.iface, true, false); err == nil {
+			if err := SetIPv6AcceptRA(tt.iface, 1); err == nil {
+				t.Error("expected error for invalid interface name, got nil")
+			}
+			if err := SetIPv4ProxyARP(tt.iface, true); err == nil {
+				t.Error("expected error for invalid interface name, got nil")
+			}
+			if err := SetIPv4ArpAnnounce(tt.iface, 1); err == nil {
+				t.Error("expected error for invalid interface name, got nil")
+			}
+			if err := SetIPv4ArpIgnore(tt.iface, 1); err == nil {
+				t.Error("expected error for invalid interface name, got nil")
+			}
+			if err := SetIPv4RPFilter(tt.iface, 1); err == nil {
 				t.Error("expected error for invalid interface name, got nil")
 			}
 		})

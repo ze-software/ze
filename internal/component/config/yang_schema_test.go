@@ -1,9 +1,11 @@
 package config
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
+	gyang "github.com/openconfig/goyang/pkg/yang"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -1273,4 +1275,54 @@ func TestListNodeSuggestParsing(t *testing.T) {
 // joinSlashPath joins path segments with "/".
 func joinSlashPath(parts []string) string {
 	return strings.Join(parts, "/")
+}
+
+func TestGetOSExtension(t *testing.T) {
+	// VALIDATES: getOSExtension reads ze:os argument from YANG extensions.
+	// PREVENTS: OS-restricted nodes appearing on wrong platforms.
+	tests := []struct {
+		name string
+		exts []*gyang.Statement
+		want string
+	}{
+		{"no extensions", nil, ""},
+		{"other extension", []*gyang.Statement{{Keyword: "ze:syntax", Argument: "bracket"}}, ""},
+		{"ze:os linux", []*gyang.Statement{{Keyword: "ze:os", Argument: "linux"}}, "linux"},
+		{"ze:os darwin", []*gyang.Statement{{Keyword: "ze:os", Argument: "darwin"}}, "darwin"},
+		{"suffix match", []*gyang.Statement{{Keyword: "iface:os", Argument: "freebsd"}}, "freebsd"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entry := &gyang.Entry{Exts: tt.exts}
+			got := getOSExtension(entry)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestYangToNodeSkipsWrongOS(t *testing.T) {
+	// VALIDATES: yangToNode returns nil for nodes with ze:os not matching runtime.
+	// PREVENTS: Platform-specific config appearing on unsupported OS.
+	entry := &gyang.Entry{
+		Kind: gyang.LeafEntry,
+		Name: "test-leaf",
+		Type: &gyang.YangType{Kind: gyang.Ystring},
+		Exts: []*gyang.Statement{{Keyword: "ze:os", Argument: "plan9"}},
+	}
+	node := yangToNode(entry, "test")
+	assert.Nil(t, node, "node with ze:os plan9 should be skipped on this platform")
+}
+
+func TestYangToNodeKeepsMatchingOS(t *testing.T) {
+	// VALIDATES: yangToNode keeps nodes with ze:os matching runtime.GOOS.
+	// PREVENTS: Nodes for the current platform being incorrectly filtered.
+	entry := &gyang.Entry{
+		Kind: gyang.LeafEntry,
+		Name: "test-leaf",
+		Type: &gyang.YangType{Kind: gyang.Ystring},
+		Exts: []*gyang.Statement{{Keyword: "ze:os", Argument: runtime.GOOS}},
+	}
+	node := yangToNode(entry, "test")
+	assert.NotNil(t, node, "node with ze:os matching runtime.GOOS should be kept")
 }

@@ -29,6 +29,13 @@ module ze-iface-conf {
             description "Maximum transmission unit";
         }
 
+        leaf mac-address {
+            type string {
+                pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}';
+            }
+            description "Hardware MAC address override";
+        }
+
         leaf disable {
             type empty;
             description "Administratively disable this interface";
@@ -82,6 +89,7 @@ module ze-iface-conf {
             }
 
             container ipv4 {
+                ze:os "linux";
                 description "IPv4 protocol settings";
 
                 leaf forwarding {
@@ -98,9 +106,38 @@ module ze-iface-conf {
                     type boolean;
                     description "Accept unsolicited ARP replies";
                 }
+
+                leaf proxy-arp {
+                    type boolean;
+                    description "Enable proxy ARP";
+                }
+
+                leaf arp-announce {
+                    type uint8 {
+                        range "0..2";
+                    }
+                    default 0;
+                    description "ARP announce level: 0=any, 1=prefer subnet, 2=best only";
+                }
+
+                leaf arp-ignore {
+                    type uint8 {
+                        range "0..2";
+                    }
+                    default 0;
+                    description "ARP ignore level: 0=reply any, 1=reply only if target on incoming iface, 2=plus sender subnet check";
+                }
+
+                leaf rp-filter {
+                    type uint8 {
+                        range "0..2";
+                    }
+                    description "Reverse path filtering: 0=disabled, 1=strict, 2=loose";
+                }
             }
 
             container ipv6 {
+                ze:os "linux";
                 description "IPv6 protocol settings";
 
                 leaf autoconf {
@@ -109,8 +146,11 @@ module ze-iface-conf {
                 }
 
                 leaf accept-ra {
-                    type boolean;
-                    description "Accept IPv6 router advertisements";
+                    type uint8 {
+                        range "0..2";
+                    }
+                    default 0;
+                    description "Accept RA level: 0=disable, 1=if not forwarding, 2=even if forwarding";
                 }
 
                 leaf forwarding {
@@ -120,6 +160,7 @@ module ze-iface-conf {
             }
 
             container dhcp {
+                ze:os "linux";
                 description "DHCPv4 client configuration";
 
                 leaf enabled {
@@ -140,6 +181,7 @@ module ze-iface-conf {
             }
 
             container dhcpv6 {
+                ze:os "linux";
                 description "DHCPv6 client configuration";
 
                 leaf enabled {
@@ -166,6 +208,7 @@ module ze-iface-conf {
             }
 
             container mirror {
+                ze:os "linux";
                 description "Traffic mirroring";
 
                 leaf ingress {
@@ -235,6 +278,20 @@ module ze-iface-conf {
             leaf name {
                 type string;
                 description "Interface name";
+            }
+
+            leaf stp {
+                ze:os "linux";
+                type boolean;
+                default false;
+                description "Enable Spanning Tree Protocol";
+            }
+
+            leaf-list member {
+                ze:os "linux";
+                type string;
+                ze:syntax "bracket";
+                description "Member port interface names";
             }
 
             uses interface-physical;

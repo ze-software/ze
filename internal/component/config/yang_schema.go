@@ -8,6 +8,7 @@ package config
 import (
 	"fmt"
 	"log/slog"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -264,6 +265,11 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 		return nil
 	}
 
+	// Skip nodes restricted to a different OS via ze:os extension.
+	if requiredOS := getOSExtension(entry); requiredOS != "" && requiredOS != runtime.GOOS {
+		return nil
+	}
+
 	// Check for ze:syntax extension in YANG entry
 	syntax := getSyntaxExtension(entry)
 
@@ -352,6 +358,17 @@ func hasDisplayKeyExtension(entry *gyang.Entry) bool {
 func getDecorateExtension(entry *gyang.Entry) string {
 	for _, ext := range entry.Exts {
 		if ext.Keyword == "ze:decorate" || strings.HasSuffix(ext.Keyword, ":decorate") {
+			return ext.Argument
+		}
+	}
+	return ""
+}
+
+// getOSExtension reads the ze:os extension from a YANG entry.
+// Returns the required GOOS value, or empty string if no OS restriction.
+func getOSExtension(entry *gyang.Entry) string {
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:os" || strings.HasSuffix(ext.Keyword, ":os") {
 			return ext.Argument
 		}
 	}

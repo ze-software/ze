@@ -1,6 +1,8 @@
 package iface
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -61,6 +63,133 @@ func TestValidateVLANID(t *testing.T) {
 				t.Errorf("validateVLANID(%d) error = %v, wantErr %v", tt.id, err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestSetAdminUpInvalidName(t *testing.T) {
+	// VALIDATES: SetAdminUp rejects invalid interface names.
+	// PREVENTS: Invalid names passed to netlink.
+	if err := SetAdminUp(""); err == nil {
+		t.Error("expected error for empty name, got nil")
+	}
+	if err := SetAdminUp("abcdefghijklmnop"); err == nil {
+		t.Error("expected error for too-long name, got nil")
+	}
+}
+
+func TestSetAdminDownInvalidName(t *testing.T) {
+	// VALIDATES: SetAdminDown rejects invalid interface names.
+	// PREVENTS: Invalid names passed to netlink.
+	if err := SetAdminDown(""); err == nil {
+		t.Error("expected error for empty name, got nil")
+	}
+	if err := SetAdminDown("abcdefghijklmnop"); err == nil {
+		t.Error("expected error for too-long name, got nil")
+	}
+}
+
+func TestSetMACAddressValidation(t *testing.T) {
+	// VALIDATES: SetMACAddress rejects invalid names and bad MAC formats.
+	// PREVENTS: Invalid MAC addresses reaching netlink.
+	tests := []struct {
+		name    string
+		iface   string
+		mac     string
+		wantErr bool
+	}{
+		{"empty iface", "", "00:11:22:33:44:55", true},
+		{"invalid mac", "eth0", "not-a-mac", true},
+		{"too short mac", "eth0", "00:11:22", true},
+		{"valid but iface not found", "eth0", "00:11:22:33:44:55", true}, // no such device
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := SetMACAddress(tt.iface, tt.mac)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SetMACAddress(%q, %q) error = %v, wantErr %v",
+					tt.iface, tt.mac, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestGetMACAddressInvalidName(t *testing.T) {
+	// VALIDATES: GetMACAddress rejects invalid interface names.
+	// PREVENTS: Invalid names passed to netlink.
+	if _, err := GetMACAddress(""); err == nil {
+		t.Error("expected error for empty name, got nil")
+	}
+}
+
+func TestGetStatsInvalidName(t *testing.T) {
+	// VALIDATES: GetStats rejects invalid interface names.
+	// PREVENTS: Invalid names passed to netlink.
+	if _, err := GetStats(""); err == nil {
+		t.Error("expected error for empty name, got nil")
+	}
+}
+
+func TestBridgeAddPortInvalidNames(t *testing.T) {
+	// VALIDATES: BridgeAddPort rejects invalid bridge and port names.
+	// PREVENTS: Invalid names reaching netlink.
+	if err := BridgeAddPort("", "eth0"); err == nil {
+		t.Error("expected error for empty bridge name, got nil")
+	}
+	if err := BridgeAddPort("br0", ""); err == nil {
+		t.Error("expected error for empty port name, got nil")
+	}
+}
+
+func TestBridgeDelPortInvalidName(t *testing.T) {
+	// VALIDATES: BridgeDelPort rejects invalid port names.
+	// PREVENTS: Invalid names reaching netlink.
+	if err := BridgeDelPort(""); err == nil {
+		t.Error("expected error for empty name, got nil")
+	}
+}
+
+func TestBridgeSetSTPInvalidName(t *testing.T) {
+	// VALIDATES: BridgeSetSTP rejects invalid bridge names.
+	// PREVENTS: Invalid names reaching sysfs writes.
+	if err := BridgeSetSTP("", true); err == nil {
+		t.Error("expected error for empty name, got nil")
+	}
+}
+
+func TestBridgeSetSTPSysfsWrite(t *testing.T) {
+	// VALIDATES: BridgeSetSTP writes correct values to sysfs.
+	// PREVENTS: STP enable/disable not reaching the kernel.
+	dir := t.TempDir()
+	stpDir := filepath.Join(dir, "br0", "bridge")
+	if err := os.MkdirAll(stpDir, 0o755); err != nil {
+		t.Fatalf("create stp dir: %v", err)
+	}
+
+	old := bridgeSysfsRoot
+	bridgeSysfsRoot = dir
+	t.Cleanup(func() { bridgeSysfsRoot = old })
+
+	if err := BridgeSetSTP("br0", true); err != nil {
+		t.Fatalf("BridgeSetSTP(true): %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(stpDir, "stp_state"))
+	if err != nil {
+		t.Fatalf("read stp_state: %v", err)
+	}
+	if string(data) != "1" {
+		t.Errorf("stp=true: got %q, want %q", string(data), "1")
+	}
+
+	if err := BridgeSetSTP("br0", false); err != nil {
+		t.Fatalf("BridgeSetSTP(false): %v", err)
+	}
+	data, err = os.ReadFile(filepath.Join(stpDir, "stp_state"))
+	if err != nil {
+		t.Fatalf("read stp_state: %v", err)
+	}
+	if string(data) != "0" {
+		t.Errorf("stp=false: got %q, want %q", string(data), "0")
 	}
 }
 

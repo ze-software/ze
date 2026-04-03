@@ -1,6 +1,7 @@
 // Design: plan/spec-iface-0-umbrella.md — Interface plugin shared types
 // Detail: register.go — plugin registration
 // Detail: manage_linux.go — interface management via netlink
+// Detail: bridge_linux.go — bridge-specific management (ports, STP)
 // Detail: monitor_linux.go — netlink interface monitor
 // Detail: sysctl_linux.go — per-interface sysctl management
 // Detail: mirror_linux.go — traffic mirroring via tc mirred
@@ -10,6 +11,7 @@
 // Detail: dhcp_v4_linux.go — DHCPv4 worker, renewal, lease handling
 // Detail: dhcp_v6_linux.go — DHCPv6 worker, renewal, lease handling
 // Detail: manage_other.go — non-Linux interface management stub
+// Detail: bridge_other.go — non-Linux bridge management stub
 // Detail: monitor_other.go — non-Linux monitor stub
 
 // Package iface implements the interface monitoring and management plugin.
@@ -71,6 +73,18 @@ type LinkPayload struct {
 type StatePayload struct {
 	Name  string `json:"name"`
 	Index int    `json:"index"`
+}
+
+// InterfaceStats holds interface traffic counters from the kernel.
+type InterfaceStats struct {
+	RxBytes   uint64 `json:"rx-bytes"`
+	RxPackets uint64 `json:"rx-packets"`
+	RxErrors  uint64 `json:"rx-errors"`
+	RxDropped uint64 `json:"rx-dropped"`
+	TxBytes   uint64 `json:"tx-bytes"`
+	TxPackets uint64 `json:"tx-packets"`
+	TxErrors  uint64 `json:"tx-errors"`
+	TxDropped uint64 `json:"tx-dropped"`
 }
 
 // DHCPPayload is the JSON payload for DHCP lease events.
