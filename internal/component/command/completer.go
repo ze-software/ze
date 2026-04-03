@@ -238,6 +238,15 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 		}
 	}
 
+	// Value hints (terminal argument values like families, log levels).
+	if node.ValueHints != nil {
+		for _, s := range node.ValueHints() {
+			if prefix == "" || strings.HasPrefix(s.Text, prefix) {
+				completions = append(completions, s)
+			}
+		}
+	}
+
 	return completions
 }
 

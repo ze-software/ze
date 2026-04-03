@@ -11,14 +11,16 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdutil"
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 )
 
 // words outputs tab-separated "word\tdescription" pairs for shell completion.
 // Called by shell completion scripts at tab time to get contextual completions.
+// Delegates to command.TreeCompleter so CLI interactive and shell completion
+// share the same walker and ValueHints.
 //
 // Usage:
 //
@@ -45,34 +47,22 @@ func writeWords(w io.Writer, args []string) int {
 	}
 
 	tree := cli.BuildCommandTree(readOnly)
+	tc := command.NewTreeCompleter(tree)
 
-	// Walk to the target node.
-	current := tree
-	for _, word := range args[1:] {
-		if current.Children == nil {
-			return 0
+	// Build input string from path args. Trailing space signals "list all
+	// children" (no prefix filter) -- the shell handles its own filtering.
+	input := strings.Join(args[1:], " ")
+	if len(args) > 1 {
+		input += " "
+	}
+
+	suggestions := tc.Complete(input)
+	for _, s := range suggestions {
+		// Skip pipe operators -- not relevant for shell completion.
+		if s.Type == "pipe" {
+			continue
 		}
-		child, ok := current.Children[word]
-		if !ok {
-			return 0
-		}
-		current = child
-	}
-
-	if current.Children == nil {
-		return 0
-	}
-
-	keys := make([]string, 0, len(current.Children))
-	for k := range current.Children {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for _, name := range keys {
-		child := current.Children[name]
-		desc := cmdutil.DescribeCommand(child)
-		if _, err := fmt.Fprintf(w, "%s\t%s\n", name, desc); err != nil {
+		if _, err := fmt.Fprintf(w, "%s\t%s\n", s.Text, s.Description); err != nil {
 			return 1
 		}
 	}

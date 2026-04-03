@@ -20,6 +20,12 @@ type Node struct {
 	// Called alongside static Children when completing. Used for runtime data
 	// like peer names/IPs that aren't known at tree build time.
 	DynamicChildren func() []Suggestion
+
+	// ValueHints returns terminal argument value suggestions at this node.
+	// Unlike DynamicChildren (navigation targets), value hints complete an
+	// argument and do not lead to further subcommands. Examples: address
+	// families ("ipv4/unicast"), log levels ("debug", "warn").
+	ValueHints func() []Suggestion
 }
 
 // RPCInfo holds the fields needed to build a command tree from RPC registrations.

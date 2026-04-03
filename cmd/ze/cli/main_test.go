@@ -452,6 +452,71 @@ func TestHistoryDedup(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-9 — BuildCommandTree wires family ValueHints to rib node.
+// PREVENTS: missing family completions in both CLI and shell.
+func TestBuildCommandTreeFamilyValueHints(t *testing.T) {
+	tree := BuildCommandTree(false)
+
+	rib := tree.Children["rib"]
+	if rib == nil {
+		t.Fatal("rib node missing from command tree")
+	}
+
+	if rib.ValueHints == nil {
+		t.Fatal("rib node should have ValueHints for address families")
+	}
+
+	hints := rib.ValueHints()
+	if len(hints) == 0 {
+		t.Fatal("rib ValueHints returned no families")
+	}
+
+	// Check that plugin-registered families are present (unicast is builtin, not in registry).
+	found := make(map[string]bool)
+	for _, h := range hints {
+		found[h.Text] = true
+		if h.Type != "value" {
+			t.Errorf("family hint %q should have Type 'value', got %q", h.Text, h.Type)
+		}
+	}
+	for _, want := range []string{"ipv4/vpn", "l2vpn/evpn"} {
+		if !found[want] {
+			t.Errorf("rib ValueHints missing family %q, got %v", want, hints)
+		}
+	}
+}
+
+// VALIDATES: AC-3 — BuildCommandTree wires log level ValueHints to log set node.
+// PREVENTS: missing log level completions.
+func TestBuildCommandTreeLogLevelValueHints(t *testing.T) {
+	tree := BuildCommandTree(false)
+
+	logNode := tree.Children["log"]
+	if logNode == nil {
+		t.Fatal("log node missing from command tree")
+	}
+
+	setNode := logNode.Children["set"]
+	if setNode == nil {
+		t.Fatal("log set node missing from command tree")
+	}
+
+	if setNode.ValueHints == nil {
+		t.Fatal("log set node should have ValueHints for log levels")
+	}
+
+	hints := setNode.ValueHints()
+	found := make(map[string]bool)
+	for _, h := range hints {
+		found[h.Text] = true
+	}
+	for _, want := range []string{"debug", "info", "warn", "err", "disabled"} {
+		if !found[want] {
+			t.Errorf("log set ValueHints missing level %q", want)
+		}
+	}
+}
+
 // Tab completion tests (TestTabCycleDoesNotAppend, TestTabSingleSuggestion)
 // were removed: they tested the old local model's suggestion cycling behavior.
 // The unified cli.Model uses a different completion system (dropdown overlay

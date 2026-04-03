@@ -204,3 +204,89 @@ func TestCommandModePipeJsonSubArgs(t *testing.T) {
 		t.Errorf("expected 0 completions after 'count ', got %d", len(comps))
 	}
 }
+
+// VALIDATES: AC-2,AC-3 — ValueHints returned by matchChildren alongside static children.
+// PREVENTS: value completions missing from nodes that have both children and value hints.
+func TestValueHintsIncludedInMatchChildren(t *testing.T) {
+	tree := &Node{
+		Children: map[string]*Node{
+			"rib": {
+				Name:        "rib",
+				Description: "RIB operations",
+				Children: map[string]*Node{
+					"show": {Name: "show", Description: "Show RIB entries"},
+				},
+				ValueHints: func() []Suggestion {
+					return []Suggestion{
+						{Text: "ipv4/unicast", Description: "IPv4 unicast family", Type: "value"},
+						{Text: "ipv6/unicast", Description: "IPv6 unicast family", Type: "value"},
+					}
+				},
+			},
+		},
+	}
+
+	cc := NewTreeCompleter(tree)
+	comps := cc.Complete("rib ")
+
+	// Should include static child "show" plus 2 value hints = 3 total.
+	if len(comps) != 3 {
+		t.Fatalf("expected 3 completions (1 child + 2 value hints), got %d: %v", len(comps), comps)
+	}
+
+	// Check types: "show" is command, families are value.
+	typeMap := make(map[string]string)
+	for _, c := range comps {
+		typeMap[c.Text] = c.Type
+	}
+	if typeMap["show"] != "command" {
+		t.Errorf("show should have type 'command', got %q", typeMap["show"])
+	}
+	if typeMap["ipv4/unicast"] != "value" {
+		t.Errorf("ipv4/unicast should have type 'value', got %q", typeMap["ipv4/unicast"])
+	}
+	if typeMap["ipv6/unicast"] != "value" {
+		t.Errorf("ipv6/unicast should have type 'value', got %q", typeMap["ipv6/unicast"])
+	}
+}
+
+// VALIDATES: AC-2,AC-3 — ValueHint prefix filtering works.
+// PREVENTS: value hints ignoring the partial word typed by the user.
+func TestValueHintsPrefixFiltered(t *testing.T) {
+	tree := &Node{
+		Children: map[string]*Node{
+			"rib": {
+				Name: "rib",
+				ValueHints: func() []Suggestion {
+					return []Suggestion{
+						{Text: "ipv4/unicast", Description: "IPv4 unicast", Type: "value"},
+						{Text: "ipv6/unicast", Description: "IPv6 unicast", Type: "value"},
+					}
+				},
+			},
+		},
+	}
+
+	cc := NewTreeCompleter(tree)
+
+	// "rib ipv4" should filter to ipv4/unicast only.
+	comps := cc.Complete("rib ipv4")
+	if len(comps) != 1 {
+		t.Fatalf("expected 1 completion for prefix 'ipv4', got %d: %v", len(comps), comps)
+	}
+	if comps[0].Text != "ipv4/unicast" {
+		t.Errorf("expected 'ipv4/unicast', got %q", comps[0].Text)
+	}
+}
+
+// VALIDATES: AC-10 — Node without ValueHints behaves exactly as before.
+// PREVENTS: regression in existing completion behavior.
+func TestNodeWithoutValueHintsUnchanged(t *testing.T) {
+	cc := NewTreeCompleter(testCommandTree())
+
+	// Existing behavior: "peer " shows list, show.
+	comps := cc.Complete("peer ")
+	if len(comps) != 2 {
+		t.Fatalf("expected 2 completions, got %d", len(comps))
+	}
+}

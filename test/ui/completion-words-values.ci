@@ -1,0 +1,17 @@
+# Test: ze completion words -- ValueHints include families and log levels
+# VALIDATES: AC-2 -- rib node shows address families via ValueHints
+# VALIDATES: AC-3 -- log set node shows log levels via ValueHints
+
+cmd=foreground:seq=1:exec=ze completion words run rib
+expect=exit:code=0
+expect=stdout:contains=ipv4/vpn
+expect=stdout:contains=l2vpn/evpn
+expect=stdout:contains=best
+expect=stdout:contains=routes
+
+cmd=foreground:seq=2:exec=ze completion words run log set
+expect=exit:code=0
+expect=stdout:contains=debug
+expect=stdout:contains=warn
+expect=stdout:contains=err
+expect=stdout:contains=disabled
