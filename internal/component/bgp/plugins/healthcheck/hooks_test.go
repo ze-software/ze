@@ -41,6 +41,23 @@ func TestHookOnDown(t *testing.T) {
 	}
 }
 
+func TestHookOnDisabled(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "disabled")
+
+	cfg := ProbeConfig{
+		Name:       "test",
+		OnDisabled: []string{"touch " + marker},
+	}
+
+	runHooks(cfg, StateDisabled)
+	time.Sleep(200 * time.Millisecond)
+
+	if _, err := os.Stat(marker); err != nil {
+		t.Errorf("on-disabled hook did not create marker: %v", err)
+	}
+}
+
 func TestHookOnChange(t *testing.T) {
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "change")
@@ -159,4 +176,48 @@ func TestHookFailureNoEffect(t *testing.T) {
 	runHooks(cfg, StateUp)
 	time.Sleep(200 * time.Millisecond)
 	// No crash = pass.
+}
+
+func TestStateNameAllStates(t *testing.T) {
+	tests := []struct {
+		state State
+		want  string
+	}{
+		{StateInit, "INIT"},
+		{StateRising, "RISING"},
+		{StateUp, "UP"},
+		{StateFalling, "FALLING"},
+		{StateDown, "DOWN"},
+		{StateDisabled, "DISABLED"},
+		{StateExit, "EXIT"},
+		{StateEnd, "END"},
+		{State(99), "UNKNOWN"},
+	}
+	for _, tt := range tests {
+		got := stateName(tt.state)
+		if got != tt.want {
+			t.Errorf("stateName(%d) = %q, want %q", tt.state, got, tt.want)
+		}
+	}
+}
+
+func TestHookStateEnvDown(t *testing.T) {
+	dir := t.TempDir()
+	outFile := filepath.Join(dir, "state.txt")
+
+	cfg := ProbeConfig{
+		Name:     "test",
+		OnChange: []string{"/bin/sh -c 'echo $STATE > " + outFile + "'"},
+	}
+
+	runHooks(cfg, StateDown)
+	time.Sleep(200 * time.Millisecond)
+
+	data, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("read state file: %v", err)
+	}
+	if string(data) != "DOWN\n" {
+		t.Errorf("STATE = %q, want DOWN", string(data))
+	}
 }

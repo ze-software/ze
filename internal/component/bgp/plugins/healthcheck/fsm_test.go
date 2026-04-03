@@ -154,3 +154,78 @@ func TestFSMDisabledNoTransition(t *testing.T) {
 		t.Errorf("state = %d, want DISABLED (no transition)", f.state)
 	}
 }
+
+func TestFSMExitNoTransition(t *testing.T) {
+	f := newFSM(3, 3)
+	f.state = StateExit
+	f.step(true)
+	if f.state != StateExit {
+		t.Errorf("state = %d, want EXIT (no transition)", f.state)
+	}
+}
+
+func TestFSMEndNoTransition(t *testing.T) {
+	f := newFSM(3, 3)
+	f.state = StateEnd
+	f.step(false)
+	if f.state != StateEnd {
+		t.Errorf("state = %d, want END (no transition)", f.state)
+	}
+}
+
+func TestFSMFullCycle(t *testing.T) {
+	f := newFSM(2, 2)
+
+	// INIT -> RISING (1 success)
+	f.step(true)
+	if f.state != StateRising {
+		t.Fatalf("after 1 success: state = %d, want RISING", f.state)
+	}
+
+	// RISING -> UP (2nd success)
+	f.step(true)
+	if f.state != StateUp {
+		t.Fatalf("after 2 successes: state = %d, want UP", f.state)
+	}
+
+	// UP -> FALLING (1 failure)
+	f.step(false)
+	if f.state != StateFalling {
+		t.Fatalf("after 1 failure from UP: state = %d, want FALLING", f.state)
+	}
+
+	// FALLING -> DOWN (2nd failure)
+	f.step(false)
+	if f.state != StateDown {
+		t.Fatalf("after 2 failures: state = %d, want DOWN", f.state)
+	}
+
+	// DOWN -> RISING (1 success)
+	f.step(true)
+	if f.state != StateRising {
+		t.Fatalf("after 1 success from DOWN: state = %d, want RISING", f.state)
+	}
+
+	// RISING -> UP (2nd success)
+	f.step(true)
+	if f.state != StateUp {
+		t.Fatalf("final UP: state = %d, want UP", f.state)
+	}
+}
+
+func TestFSMShortcutRise0(t *testing.T) {
+	// rise=0 should behave like rise=1 (trigger shortcut uses <= 1).
+	f := newFSM(0, 3)
+	f.step(true)
+	if f.state != StateUp {
+		t.Errorf("state = %d, want UP (rise=0 shortcut)", f.state)
+	}
+}
+
+func TestFSMShortcutFall0(t *testing.T) {
+	f := newFSM(3, 0)
+	f.step(false)
+	if f.state != StateDown {
+		t.Errorf("state = %d, want DOWN (fall=0 shortcut)", f.state)
+	}
+}

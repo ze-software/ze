@@ -202,56 +202,96 @@ func TestLifecycleMultipleProbes(t *testing.T) {
 	mgr.applyConfig(nil)
 }
 
-func TestDebounceTrue(t *testing.T) {
-	// Verify debounce=true skips dispatch when state unchanged.
-	// This is a behavioral test of the runProbe loop logic.
-	// We test indirectly: the FSM stays in INIT on first iteration,
-	// then transitions to RISING/UP. Only state changes should dispatch.
-
-	var dispatches []string
+// TestDebounce verifies debounce logic by running a real probe with a recording dispatch.
+func TestDebounce(t *testing.T) {
 	var mu sync.Mutex
+	var dispatches []string
 
-	// We can't easily test the full runProbe loop without a real SDK.
-	// Instead, verify the dispatch logic directly.
+	mgr := &probeManager{
+		probes: make(map[string]*runningProbe),
+		ipMgr:  realIPManager{},
+		dispatchFn: func(_ context.Context, cmd string) (string, string, error) {
+			mu.Lock()
+			dispatches = append(dispatches, cmd)
+			mu.Unlock()
+			return statusDone, "", nil
+		},
+	}
+
+	// Probe that succeeds immediately (rise=1), debounce=true, interval=1.
+	// After first UP dispatch, subsequent intervals should NOT dispatch again.
 	cfg := ProbeConfig{
-		Name:     "test",
+		Name:     "debounce-test",
+		Command:  "true",
 		Group:    "hc",
+		Interval: 1,
+		Timeout:  5,
+		Rise:     1,
+		Fall:     1,
 		Debounce: true,
 		UpMetric: 100,
 	}
 
-	prevState := StateUp
-	newState := StateUp
-	stateChanged := newState != prevState
+	ctx, cancel := context.WithCancel(context.Background())
+	rp := &runningProbe{config: cfg, cancel: cancel, done: make(chan struct{})}
+	go mgr.runProbe(ctx, rp)
 
-	// debounce=true, state unchanged -> should NOT dispatch.
-	if stateChanged || !cfg.Debounce {
-		mu.Lock()
-		dispatches = append(dispatches, "should-not-happen")
-		mu.Unlock()
+	// Wait for at least 2 probe intervals.
+	time.Sleep(2500 * time.Millisecond)
+	cancel()
+	<-rp.done
+
+	mu.Lock()
+	count := len(dispatches)
+	mu.Unlock()
+
+	// With debounce=true, should dispatch exactly once (INIT->UP transition),
+	// plus the exit withdraw. Not once per interval.
+	// The exit dispatch adds a "watchdog withdraw" at the end.
+	if count > 2 {
+		t.Errorf("debounce=true: dispatches = %d, want <= 2 (UP + exit withdraw)", count)
 	}
-
-	if len(dispatches) != 0 {
-		t.Error("debounce=true should skip dispatch on unchanged state")
+	if count == 0 {
+		t.Error("debounce=true: no dispatches at all")
 	}
 }
 
-func TestDebounceFalse(t *testing.T) {
-	cfg := ProbeConfig{
-		Name:     "test",
-		Group:    "hc",
-		Debounce: false,
-		UpMetric: 100,
+func TestShowEmptyProbes(t *testing.T) {
+	mgr := newTestManager()
+	status, data, err := mgr.handleCommand("healthcheck show", nil)
+	if err != nil {
+		t.Fatalf("show: %v", err)
 	}
+	if status != statusDone {
+		t.Errorf("status = %q, want done", status)
+	}
+	if data != "[]" {
+		t.Errorf("data = %q, want empty JSON array", data)
+	}
+}
 
-	prevState := StateUp
-	newState := StateUp
-	stateChanged := newState != prevState
+func TestHandleUnknownCommand(t *testing.T) {
+	mgr := newTestManager()
+	status, _, err := mgr.handleCommand("healthcheck foo", nil)
+	if err == nil {
+		t.Fatal("expected error for unknown command")
+	}
+	if status != statusError {
+		t.Errorf("status = %q, want error", status)
+	}
+}
 
-	dispatched := stateChanged || !cfg.Debounce
-
-	if !dispatched {
-		t.Error("debounce=false should dispatch even on unchanged state")
+func TestResetNonexistentProbe(t *testing.T) {
+	mgr := newTestManager()
+	status, _, err := mgr.handleCommand("healthcheck reset", []string{"missing"})
+	if err == nil {
+		t.Fatal("expected error for nonexistent probe")
+	}
+	if status != statusError {
+		t.Errorf("status = %q, want error", status)
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error = %q, want 'not found'", err)
 	}
 }
 
@@ -270,8 +310,12 @@ func TestShowAllProbes(t *testing.T) {
 	if status != statusDone {
 		t.Errorf("status = %q, want done", status)
 	}
-	if data == "" {
-		t.Error("show returned empty data")
+	// Verify JSON contains both probes with state fields.
+	if !strings.Contains(data, `"name":"dns"`) && !strings.Contains(data, `"name":"web"`) {
+		t.Errorf("data = %q, want both probe names", data)
+	}
+	if !strings.Contains(data, `"state":`) {
+		t.Errorf("data = %q, want state field", data)
 	}
 }
 

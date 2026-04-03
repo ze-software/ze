@@ -110,6 +110,61 @@ func TestIPDynamicRemoveOnDown(t *testing.T) {
 	}
 }
 
+func TestIPDynamicRemoveOnDisabled(t *testing.T) {
+	mock := &mockIPManager{}
+	mgr := &probeManager{
+		probes: make(map[string]*runningProbe),
+		ipMgr:  mock,
+		dispatchFn: func(_ context.Context, _ string) (string, string, error) {
+			return "done", "", nil
+		},
+	}
+	cfg := ProbeConfig{IPDynamic: true}
+	ipt := newIPTracker(mock, "lo", []string{"10.0.0.1/32"})
+	ipt.addAll()
+
+	mgr.handleIPTransition(ipt, cfg, StateDisabled)
+	if len(mock.removed) != 1 {
+		t.Fatalf("removed = %d, want 1 (dynamic, DISABLED)", len(mock.removed))
+	}
+}
+
+func TestIPDynamicRestoreOnUp(t *testing.T) {
+	mock := &mockIPManager{}
+	mgr := &probeManager{
+		probes: make(map[string]*runningProbe),
+		ipMgr:  mock,
+		dispatchFn: func(_ context.Context, _ string) (string, string, error) {
+			return "done", "", nil
+		},
+	}
+	cfg := ProbeConfig{IPDynamic: true}
+	ipt := newIPTracker(mock, "lo", []string{"10.0.0.1/32"})
+	ipt.addAll()
+
+	// Remove on DOWN.
+	mgr.handleIPTransition(ipt, cfg, StateDown)
+	// Restore on UP.
+	mgr.handleIPTransition(ipt, cfg, StateUp)
+	// Should have 2 adds total (initial + restore) and 1 remove.
+	if len(mock.added) != 2 {
+		t.Fatalf("added = %d, want 2 (initial + restore)", len(mock.added))
+	}
+	if len(mock.removed) != 1 {
+		t.Fatalf("removed = %d, want 1", len(mock.removed))
+	}
+}
+
+func TestIPTrackerEmptyIPs(t *testing.T) {
+	mock := &mockIPManager{}
+	ipt := newIPTracker(mock, "lo", nil)
+	ipt.addAll()
+	ipt.removeAll()
+	if len(mock.added) != 0 {
+		t.Error("should not add anything with empty IPs")
+	}
+}
+
 func TestIPStaticKeepOnDown(t *testing.T) {
 	mock := &mockIPManager{}
 	mgr := &probeManager{
