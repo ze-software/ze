@@ -156,6 +156,17 @@ module ze-extensions {
                      be created without it.";
     }
 
+    // Extension: hidden
+    // Marks a leaf as hidden from config display and the web editor.
+    // Hidden leaves are stored in the config tree but not shown in the UI
+    // or config output. Used for internal metadata fields (e.g., PeeringDB
+    // update timestamps).
+    extension hidden {
+        argument value;
+        description "Marks a leaf as hidden from config display and web editor.
+                     The argument is a boolean string (true/false).";
+    }
+
     // Extension: decorate
     // Attaches a display-time decorator to a leaf.
     // The argument names a registered decorator function (e.g., "asn-name").

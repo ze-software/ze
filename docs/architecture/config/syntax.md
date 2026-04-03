@@ -895,6 +895,7 @@ Ze defines custom extensions in `ze-extensions.yang` that control config parsing
 | `ze:command` | handler | container | Marks a config-false container as executable CLI command |
 | `ze:edit-shortcut` | -- | command | Available in edit mode as shortcut |
 | `ze:display-key` | -- | leaf | Display label for keyless list entries in web UI |
+| `ze:hidden` | value | leaf | Hidden from config display and web editor |
 | `ze:allow-unknown-fields` | -- | container | Container accepts arbitrary key-value pairs |
 | `ze:route-attributes` | -- | inline-list | Node accepts standard BGP route attributes |
 

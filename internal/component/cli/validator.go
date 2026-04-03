@@ -183,15 +183,15 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 	// Validate standalone peers (directly under bgp)
 	peers := bgp.GetList(keyPeer)
 	for peerAddr, peerTree := range peers {
-		v.validatePeer(peerAddr, peerTree, nil, bgp, lines, &errs, &warns)
+		v.validatePeer(peerAddr, "", peerTree, nil, bgp, lines, &errs, &warns)
 	}
 
 	// Validate group peers (bgp > group > peer) — merge group defaults with peer values
 	groups := bgp.GetList(keyGroup)
-	for _, groupTree := range groups {
+	for groupName, groupTree := range groups {
 		groupPeers := groupTree.GetList(keyPeer)
 		for peerAddr, peerTree := range groupPeers {
-			v.validatePeer(peerAddr, peerTree, groupTree, bgp, lines, &errs, &warns)
+			v.validatePeer(peerAddr, groupName, peerTree, groupTree, bgp, lines, &errs, &warns)
 		}
 	}
 
@@ -234,7 +234,7 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 
 // validatePeer validates a single peer, optionally merging group defaults.
 // When groupTree is non-nil, group-level fields are applied first, then peer-level fields override.
-func (v *ConfigValidator) validatePeer(peerAddr string, peerTree, groupTree, bgpTree *config.Tree, lines []string, errs, warns *[]ConfigValidationError) {
+func (v *ConfigValidator) validatePeer(peerAddr, groupName string, peerTree, groupTree, bgpTree *config.Tree, lines []string, errs, warns *[]ConfigValidationError) {
 	resolved := peerTree
 	if groupTree != nil {
 		resolved = v.mergeGroupDefaults(peerTree, groupTree)
@@ -270,7 +270,12 @@ func (v *ConfigValidator) validatePeer(peerAddr string, peerTree, groupTree, bgp
 		for _, reqPath := range peerList.Required {
 			if !hasResolvedValue(resolved, reqPath) && !hasResolvedValue(bgpTree, reqPath) {
 				fieldStr := strings.Join(reqPath, "/")
-				setHint := "set bgp peer " + peerAddr + " " + strings.Join(reqPath, " ") + " <value>"
+				var setHint string
+				if groupName != "" {
+					setHint = "set bgp group " + groupName + " peer " + peerAddr + " " + strings.Join(reqPath, " ") + " <value>"
+				} else {
+					setHint = "set bgp peer " + peerAddr + " " + strings.Join(reqPath, " ") + " <value>"
+				}
 				*warns = append(*warns, ConfigValidationError{
 					Line:     findPeerLine(lines, peerAddr),
 					Message:  fmt.Sprintf("peer %s: missing required field %q (%s)", peerAddr, fieldStr, setHint),
