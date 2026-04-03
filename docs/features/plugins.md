@@ -9,6 +9,7 @@
 | bgp-persist | Route persistence across restarts |
 | bgp-rs | Route server -- client-to-client route reflection (RFC 7947) |
 | bgp-watchdog | Deferred route announcement with named watchdog groups |
+| bgp-healthcheck | Service healthcheck with FSM-controlled route announcement/withdrawal via watchdog groups. [Guide](guide/healthcheck.md) |
 
 ### Redistribution Filters (planned)
 
@@ -33,6 +34,7 @@ Three filter categories:
 <!-- source: internal/component/bgp/plugins/persist/register.go -- bgp-persist -->
 <!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs -->
 <!-- source: internal/component/bgp/plugins/watchdog/register.go -- bgp-watchdog -->
+<!-- source: internal/component/bgp/plugins/healthcheck/register.go -- bgp-healthcheck -->
 
 ### Protocol
 

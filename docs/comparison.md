@@ -153,7 +153,7 @@ RFC-mandated checks run as default filters that can be selectively overridden.
 | Chaos testing framework | Yes | No | No | No | No | No | No | No | No | No | No |
 | Atomic commit workflow | Yes | No | No | No | No | No | No | No | No | No | No |
 | Schema discovery (CLI) | Yes | No | No | No | No | No | No | No | No | No | No |
-| Healthcheck tool | No | No | No | Partial | No | No | No | Yes | No | No | No |
+| Healthcheck tool | Yes | No | No | Partial | No | No | No | Yes | No | No | No |
 | PeeringDB prefix integration | Yes | No | No | No | No | No | No | No | No | No | No |
 | Propagation benchmark tool | Yes | No | No | No | No | No | No | No | No | No | No |
 | Update groups | Auto | No | No | No | No | Explicit | No | No | No | No | No |

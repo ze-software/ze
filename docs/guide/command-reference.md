@@ -641,6 +641,15 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `rib withdraw <peer> <family> <prefix>` | write | Remove route from Adj-RIB-In |
 <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin -->
 
+### Healthcheck Commands
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `healthcheck show` | read-only | JSON summary of all healthcheck probes |
+| `healthcheck show <name>` | read-only | Detailed status of a single probe |
+| `healthcheck reset <name>` | write | Withdraw route, reset FSM to INIT, immediate re-check. Error if DISABLED. |
+<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand -->
+
 ### Commit (Atomic Updates)
 
 | Command | Access | Purpose |

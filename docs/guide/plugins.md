@@ -12,6 +12,7 @@ Ze uses a plugin architecture for all features beyond core BGP session managemen
 | With RPKI validation | Add `bgp-rpki` + `bgp-adj-rib-in` | Validate origin AS against ROA cache |
 | With merged RPKI events | Add `bgp-rpki-decorator` (+ above) | Receive UPDATE events pre-merged with RPKI state |
 | With graceful restart | Add `bgp-gr` | Hold routes across restarts (RFC 4724) |
+| Service healthcheck | `bgp-healthcheck` + `bgp-watchdog` | Monitor services, control route announcement via MED or withdraw. [Guide](healthcheck.md) |
 | Monitor only (no RIB) | None | Ze runs without plugins -- peers connect, events fire, no routes stored |
 | Interface-aware BGP | `iface` + `bgp-rib` | React to OS interface changes -- start/stop BGP listeners when addresses appear/disappear |
 

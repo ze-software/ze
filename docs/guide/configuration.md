@@ -401,6 +401,30 @@ ze config validate myconfig.conf
 
 Unknown keys are rejected with a suggestion for the closest valid key.
 
+## Healthcheck
+
+Service healthcheck probes monitor availability and control BGP route announcement via watchdog groups:
+
+```
+bgp {
+    healthcheck {
+        probe dns {
+            command "dig @127.0.0.1 example.com +short"
+            group hc-dns
+            interval 5
+            rise 3
+            fall 3
+            withdraw-on-down false
+            up-metric 100
+            down-metric 1000
+        }
+    }
+}
+```
+
+Each probe runs a shell command periodically. When the service is UP, routes in the watchdog group are announced with `up-metric` as MED. When DOWN, routes are either withdrawn (`withdraw-on-down true`) or re-announced with `down-metric` as MED (default). See [Healthcheck Guide](healthcheck.md) for full configuration reference.
+<!-- source: internal/component/bgp/plugins/healthcheck/schema/ze-healthcheck-conf.yang -- YANG schema -->
+
 ## ExaBGP Migration
 
 Ze auto-detects and migrates ExaBGP configuration files:
