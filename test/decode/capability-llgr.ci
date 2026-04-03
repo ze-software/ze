@@ -1,0 +1,7 @@
+# bgp-open-llgr decoding test (Ze format)
+# RFC 9494: LLGR capability (code 71) with ipv4/unicast, F-bit=1, LLST=3600
+# Also includes GR capability (code 64) with restart-time=120 (LLGR requires GR)
+# Wire: cap 64 = 0078 00010180, cap 71 = 00010180000E10
+stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C0104FFFD00B40A0000021F021D01040001000141040000FFFD4006007800010180470700010180000E10
+cmd=foreground:seq=1:exec=ze-test decode --json --plugin bgp-gr --open -:stdin=payload
+expect=json:json={"bgp":{"message":{"direction":"received","id":0,"type":"open"},"open":{"asn":65533,"capabilities":[{"code":1,"name":"multiprotocol","value":"ipv4/unicast"},{"code":65,"name":"asn4","value":"65533"},{"code":64,"families":[{"afi":1,"forward-state":true,"safi":1}],"name":"graceful-restart","notification":false,"restart-flags":0,"restart-time":120,"restarting":false},{"code":71,"families":[{"afi":1,"forward-state":true,"long-lived-stale-time":3600,"safi":1}],"name":"long-lived-graceful-restart"}],"router-id":"10.0.0.2","timer":{"hold-time":180}},"peer":{"address":"127.0.0.1","remote":{"as":65533}}},"type":"bgp"}

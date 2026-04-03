@@ -1,0 +1,119 @@
+# Test: LLGR RIB stale — peer routes retained through LLGR with LLGR_STALE
+#
+# Flow:
+# 1. Connection 1: ze sends static route + EOR
+# 2. ze-peer sends route to ze (populates ribInPool)
+# 3. action=close → TCP drops → GR activates → retain-routes → mark-stale
+# 4. GR restart-time (1s) expires → LLGR begins:
+#    - LLGR_STALE community attached to stale ribIn routes (rib attach-community)
+#    - NO_LLGR routes deleted (rib delete-with-community)
+#    - Stale level raised to 2 (depreference threshold)
+# 5. Connection 2: ze reconnects → ribOut replay (static route × 2 + EOR)
+# 6. ze-peer sends fresh route + EOR
+# 7. EOR triggers purge-stale → LLGR stale routes purged for that family
+#
+# VALIDATES: AC-4 — LLGR period begins → LLGR_STALE attached, NO_LLGR deleted.
+# VALIDATES: AC-6 — EOR after reconnect during LLGR triggers stale route purge.
+# PREVENTS: Stale ribIn routes being lost during LLGR transition.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=15s
+
+# Connection 1: Static route + EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# Send a route to ze (populates ribInPool) then close TCP
+# Route: 10.0.0.0/24, origin=igp, as-path=[], nhop=10.0.0.2, local-pref=100
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000240050400000064180A0000
+action=close:conn=1:seq=2
+
+# Connection 2: ribOut replay — static route (config + RIB replay) + EOR
+# Routes survived GR restart-time expiry because LLGR retained them
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# Send fresh route + EOR (triggers purge-stale for LLGR stale routes)
+# Fresh route: 172.16.0.0/24, origin=igp, as-path=[], nhop=10.0.0.2, local-pref=100
+action=send:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000024005040000006418AC1000
+# EOR (empty UPDATE) → GR plugin receives eor event → dispatches purge-stale
+action=send:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external gr {
+		run "ze plugin bgp-gr"
+		encoder json
+	}
+	external rib {
+		run "ze plugin bgp-rib"
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					restart-time 1
+					long-lived-stale-time 60
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		timer { connect-retry 3; }
+
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+
+		process gr {
+			send [ update ]
+		}
+		process rib {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s

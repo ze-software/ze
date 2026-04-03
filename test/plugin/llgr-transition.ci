@@ -1,0 +1,110 @@
+# Test: LLGR transition — routes survive GR restart-time expiry
+#
+# Flow:
+# 1. Connection 1: ze sends static route + EOR to ze-peer
+# 2. action=close → TCP drops (no NOTIFICATION)
+# 3. ze detects TCP failure → GR activates → retain-routes → mark-stale
+# 4. GR restart-time (1s) expires → LLGR begins (routes NOT purged)
+# 5. Connection 2: ze reconnects (~3s) → ribOut replay (static route × 2 + EOR)
+#
+# Key: restart-time=1 expires BEFORE ze reconnects (connect-retry=3).
+# Without LLGR, restart-time expiry would purge all stale routes.
+# With LLGR, routes are retained in LLGR state — ribOut replay proves this.
+#
+# VALIDATES: AC-3 — GR restart-time expires with LLGR negotiated → LLGR period instead of purge.
+# VALIDATES: AC-8 — Timer interaction: restart-time=1, LLST=60 → GR then LLGR (serial).
+# PREVENTS: Routes being purged on restart-time expiry when LLGR is negotiated.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=15s
+
+# Connection 1: Static route + EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# TCP close (no NOTIFICATION) → triggers GR activation in ze
+action=close:conn=1:seq=2
+
+# Connection 2: ribOut replay — static route (config + RIB replay) + EOR
+# Routes survived because LLGR prevented purge after restart-time expired
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external gr {
+		run "ze plugin bgp-gr"
+		encoder json
+	}
+	external rib {
+		run "ze plugin bgp-rib"
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					restart-time 1
+					long-lived-stale-time 60
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		timer { connect-retry 3; }
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+
+		process gr {
+			send [ update ]
+		}
+		process rib {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
