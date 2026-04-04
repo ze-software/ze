@@ -36,3 +36,48 @@ must be recorded here with a destination (receiving spec or explicit cancellatio
 | 2026-03-29 | spec-redistribution-filter | Wire-level dirty tracking: re-encode only modified attributes into wire UPDATE bytes | Text-level delta merge works (applyFilterDelta). Wire-level re-encoding requires integrating text delta back into wire bytes via attribute Builder + ModAccumulator. Current path: text delta applied, but wire bytes not rebuilt from modified text. | spec-redistribution-filter-phase2 | open |
 | 2026-03-29 | spec-redistribution-filter | TestAttributeAccumulation, TestDirtyTracking, TestFilterModifyOnlyDeclared unit tests | Require reactor-level attribute parsing and wire re-encoding infrastructure | spec-redistribution-filter-phase2 | open |
 | 2026-03-29 | spec-redistribution-filter | redistribution-override.ci functional test | Override resolution tested in unit tests but no .ci test; requires default filter registry | spec-named-default-filters | open |
+| | | | | | |
+| **2026-04-04 audit of deleted specs -- significant** | | | | | |
+| 2026-04-04 | spec-rib-inject | Functional tests api-rib-inject.ci, api-rib-withdraw.ci | Spec deleted with TODO items unfinished; no .ci test proves feature reachable | spec-rib-inject-ci (to be created) | open |
+| 2026-04-04 | spec-rib-inject | docs/features.md + docs/architecture/api/commands.md updates for RIB inject | Listed as TODO in spec, never done | spec-rib-inject-ci (to be created) | open |
+| 2026-04-04 | spec-rib-inject | RFC 5549 extended next-hop for injected routes (PackContext.ExtendedNextHop check) | Noted as future work | spec-rib-inject-rfc5549 (to be created) | open |
+| 2026-04-04 | spec-apply-mods | v2 ACs (AC-11 through AC-18): progressive build pipeline, AttrOp struct, pooled buffer | Core purpose of spec; status was "v2" not "done" when deleted | spec-apply-mods-v2 (to be created) | open |
+| 2026-04-04 | spec-apply-mods | NLRI structural modification via ModAccumulator | Listed as future separate field | spec-apply-mods-v2 (to be created) | open |
+| 2026-04-04 | spec-exabgp-bridge-muxconn | Bridge internal plugin registration for .ci tests and production | Bridge uses stdin/stdout only; cannot run as external plugin through process manager | spec-exabgp-bridge-internal (to be created) | open |
+| 2026-04-04 | spec-exabgp-bridge-muxconn | SetWriteDeadline degradation on non-TCP transports (os.File, SSH) | Write deadline silently skipped; writes may block indefinitely | spec-exabgp-bridge-internal (to be created) | open |
+| 2026-04-04 | spec-fleet-config | Config rollback mechanism | Deferred to "config-archive spec" which now exists as spec-config-archive-v2 | spec-config-archive-v2 | open |
+| 2026-04-04 | spec-monitor-2-bgp-dashboard | All 17 ACs: entire BGP dashboard spec | Deleted as "complete" but nothing was implemented; audit was empty | spec-bgp-dashboard (to be created) | open |
+| 2026-04-04 | spec-command-inventory | Entire spec: make ze-command-list, StreamingPrefixes accessor | Skeleton status when deleted | spec-command-inventory (to be created) | open |
+| 2026-04-04 | spec-llgr-4-readvertisement | Route metadata infrastructure (meta map, ModAccumulator) | Dependency spec-route-metadata never created | spec-route-metadata (to be created) | open |
+| 2026-04-04 | spec-llgr-4-readvertisement | Per-family ribOut infrastructure | Dependency spec-rib-family-ribout never created | spec-rib-family-ribout (to be created) | open |
+| 2026-04-04 | spec-llgr-4-readvertisement | Multi-peer partial deployment .ci test for LLGR readvertisement | Requires multi-peer .ci infrastructure | spec-llgr-readvertisement (to be created) | open |
+| 2026-04-04 | spec-filter-community | bgp-filter-prefix plugin | Planned as separate spec, never written | spec-filter-prefix (to be created) | open |
+| 2026-04-04 | spec-filter-community | bgp-filter-irr plugin (library exists at internal/component/bgp/irr/) | Planned as separate spec, never written | spec-filter-irr (to be created) | open |
+| | | | | | |
+| **2026-04-04 audit of deleted specs -- medium** | | | | | |
+| 2026-04-04 | spec-iface-0-umbrella | macOS/BSD interface plugins (_darwin.go, _bsd.go) | Platform-specific; Linux-only for now | spec-iface-darwin-bsd (to be created) | open |
+| 2026-04-04 | spec-iface-0-umbrella | Phase 4: DHCP client, make-before-break, traffic mirroring, SLAAC | Later phase of iface umbrella | spec-iface-phase4 (to be created) | open |
+| 2026-04-04 | spec-iface-5-vm-tests | Packet-level mirror verification, DHCPv6 PD test, SLAAC test | Advanced VM-based testing | spec-iface-phase4 (to be created) | open |
+| 2026-04-04 | spec-looking-glass | Alice-LG e2e integration test, large RIB perf test, TLS, pagination | Advanced LG features | spec-looking-glass-v2 (to be created) | open |
+| 2026-04-04 | spec-web-0-umbrella | RBAC, i18n, mobile layout, config upload/download, plugin web extensions | Later phases of web umbrella | spec-web-phase2 (to be created) | open |
+| 2026-04-04 | spec-shell-completion-v2 | Flag-value completion (--family \<TAB\>), config section completion | Advanced completion features | spec-shell-completion-v3 (to be created) | open |
+| 2026-04-04 | spec-port-defaults | Range-vs-single port conflict detection, YANG-default lint check | Edge case detection and tooling | spec-port-defaults-v2 (to be created) | open |
+| 2026-04-04 | spec-multipeer-ci | LLGR egress suppress test, multi-peer route reflection test | Requires multi-peer .ci infrastructure | spec-multipeer-ci-v2 (to be created) | open |
+| 2026-04-04 | spec-gr-marker | F-bit per-family signaling, Selection Deferral Timer, supervisor crash recovery | Advanced GR features | spec-gr-advanced (to be created) | open |
+| 2026-04-04 | spec-prefix-limit | CLI warning count on login, ze bgp warnings command, staleness banner | Visibility features for prefix-limit | spec-prefix-limit-visibility (to be created) | open |
+| 2026-04-04 | spec-cli-dispatch | Functional tests for ze set interface create, ze update peeringdb, ze validate config | .ci tests for CLI dispatch commands | spec-cli-dispatch-ci (to be created) | open |
+| 2026-04-04 | spec-prometheus-deep | Process/runtime metrics (phase 6), bgp_as_path_loop_detected_total, RPKI/ASPA metrics | Later phases of prometheus work | spec-prometheus-phase6 (to be created) | open |
+| 2026-04-04 | spec-prometheus-deep | Max-prefix metrics (may now be unblocked since prefix-limit is implemented) | Was blocked on prefix-limit; may now be feasible | spec-prometheus-plugin-health | open |
+| 2026-04-04 | spec-llgr-0-umbrella | Restarting Speaker procedures (RFC 9494/4724), VPN ATTR_SET (RFC 6368), full hard-reset N-bit | Advanced LLGR/GR features | spec-gr-advanced (to be created) | open |
+| 2026-04-04 | spec-dns | DNS-over-TLS, DNS-over-HTTPS, DNSSEC validation | Secure DNS transport features | spec-dns-secure (to be created) | open |
+| 2026-04-04 | spec-role-otc | Private AS removal filter, AS Confederation OTC (RFC 9234 Section 5) | Advanced OTC features | spec-role-otc-v2 (to be created) | open |
+| 2026-04-04 | spec-decorator | Reverse DNS, community name, RPKI status decorators | Additional decorator types | spec-decorator-v2 (to be created) | open |
+| | | | | | |
+| **2026-04-04 audit of deleted specs -- low (property/chaos/perf tests)** | | | | | |
+| 2026-04-04 | spec-listener-0-umbrella | Property test: random listener conflict detection symmetric+transitive | Property testing | spec-property-tests (to be created) | open |
+| 2026-04-04 | spec-listener-7-migrate | Property test: round-trip migration | Property testing | spec-property-tests (to be created) | open |
+| 2026-04-04 | spec-forward-backpressure | Property tests for overflow ordering under concurrent access | Property testing | spec-property-tests (to be created) | open |
+| 2026-04-04 | multiple iface specs | Chaos tests: rapid flapping, DHCP server failure | Chaos testing | spec-chaos-iface (to be created) | open |
+| 2026-04-04 | spec-redistribution-filter | Property test: random UPDATEs through filter chains; perf benchmarks | Property testing and benchmarks | spec-property-tests (to be created) | open |
+| 2026-04-04 | spec-web-3-config-edit | Concurrent multi-user editing stress test | Stress testing | spec-web-stress (to be created) | open |
+| 2026-04-04 | spec-fleet-config | Performance test with >100 concurrent clients | Performance testing | spec-fleet-config-perf (to be created) | open |
