@@ -76,12 +76,10 @@ func (m *Model) cmdCommitConfirmed(seconds int) (commandResult, error) {
 	}
 	m.searchCache = "" // tree changed, invalidate cached set-view
 
-	// Notify daemon immediately so it runs the new config during the confirm window
+	// Notify daemon immediately so it runs the new config during the confirm window.
 	var reloadWarning string
 	if m.editor.HasReloadNotifier() {
-		if err := m.editor.NotifyReload(); err != nil {
-			reloadWarning = fmt.Sprintf(" (reload failed: %v)", err)
-		}
+		reloadWarning = m.tryReload()
 	}
 
 	// Get the most recent backup path for potential rollback
@@ -114,9 +112,7 @@ func (m *Model) cmdConfirm() (commandResult, error) {
 
 	msg := "Configuration confirmed and saved permanently."
 	if m.editor.HasReloadNotifier() {
-		if err := m.editor.NotifyReload(); err != nil {
-			msg = fmt.Sprintf("Configuration confirmed (reload failed: %v)", err)
-		}
+		msg += m.tryReload()
 	}
 
 	return commandResult{
@@ -157,9 +153,7 @@ func (m *Model) rollbackConfirmed() (commandResult, error) {
 
 	msg := "Changes rolled back to previous configuration."
 	if m.editor.HasReloadNotifier() {
-		if err := m.editor.NotifyReload(); err != nil {
-			msg = fmt.Sprintf("Changes rolled back (reload failed: %v)", err)
-		}
+		msg += m.tryReload()
 	}
 
 	return commandResult{

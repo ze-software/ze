@@ -974,7 +974,7 @@ func TestCommitConfirmReloadFailsGracefully(t *testing.T) {
 	require.NoError(t, err, "commit confirm should not fail on reload error")
 	model.ApplyResult(result)
 
-	assert.Contains(t, result.statusMessage, "reload failed", "status should warn about reload failure")
+	assert.Contains(t, result.statusMessage, "reload errors", "status should warn about reload failure")
 	assert.True(t, model.ConfirmTimerActive(), "timer should still be active")
 }
 

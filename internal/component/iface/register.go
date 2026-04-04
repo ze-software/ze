@@ -111,10 +111,7 @@ func runEngine(conn net.Conn) int {
 		b := GetBackend()
 
 		if errs := applyConfig(cfg, b); len(errs) > 0 {
-			for _, e := range errs {
-				log.Warn("interface config error", "err", e)
-			}
-			return fmt.Errorf("interface config: %d errors during apply", len(errs))
+			return joinApplyErrors("interface config", errs)
 		}
 		log.Info("interface config applied")
 
@@ -155,10 +152,7 @@ func runEngine(conn net.Conn) int {
 		}
 
 		if errs := applyConfig(cfg, b); len(errs) > 0 {
-			for _, e := range errs {
-				log.Warn("interface reload error", "err", e)
-			}
-			return fmt.Errorf("interface reload: %d errors during apply", len(errs))
+			return joinApplyErrors("interface reload", errs)
 		}
 		log.Info("interface config reloaded")
 		return nil
@@ -176,4 +170,17 @@ func runEngine(conn net.Conn) int {
 	log.Info("interface backend closed")
 
 	return 0
+}
+
+// joinApplyErrors logs each error at Warn level and returns a short summary
+// for the status line. Detailed errors are visible via log output.
+func joinApplyErrors(prefix string, errs []error) error {
+	log := loggerPtr.Load()
+	for _, e := range errs {
+		log.Warn(prefix, "err", e)
+	}
+	if len(errs) == 1 {
+		return fmt.Errorf("%s: %w", prefix, errs[0])
+	}
+	return fmt.Errorf("%s: %d errors (see log for details)", prefix, len(errs))
 }

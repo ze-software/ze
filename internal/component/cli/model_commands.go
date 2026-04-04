@@ -642,11 +642,19 @@ func (m *Model) cmdCommit() (commandResult, error) {
 	if !m.editor.HasReloadNotifier() {
 		return commandResult{statusMessage: "Configuration committed (daemon not running)" + archiveMsg, refreshConfig: true, revalidate: true}, nil
 	}
-	if err := m.editor.NotifyReload(); err != nil {
-		return commandResult{statusMessage: fmt.Sprintf("Configuration committed (reload failed: %v)", err) + archiveMsg, refreshConfig: true, revalidate: true}, nil
-	}
+	reloadMsg := m.tryReload()
+	return commandResult{statusMessage: "Configuration committed" + reloadMsg + archiveMsg, refreshConfig: true, revalidate: true}, nil
+}
 
-	return commandResult{statusMessage: "Configuration committed and reloaded" + archiveMsg, refreshConfig: true, revalidate: true}, nil
+// tryReload attempts a config reload and stores errors for the errors command.
+// Returns a suffix string for the status message.
+func (m *Model) tryReload() string {
+	m.reloadErrors = nil
+	if err := m.editor.NotifyReload(); err != nil {
+		m.reloadErrors = []string{err.Error()}
+		return " (reload errors, type 'errors' for details)"
+	}
+	return " and reloaded"
 }
 
 // cmdCommitSession commits only the current session's changes with conflict detection.
@@ -706,11 +714,7 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 
 	// Notify daemon of config change (best-effort).
 	if m.editor.HasReloadNotifier() {
-		if err := m.editor.NotifyReload(); err != nil {
-			msg += fmt.Sprintf(" (reload failed: %v)", err)
-		} else {
-			msg += " and reloaded"
-		}
+		msg += m.tryReload()
 	}
 
 	return commandResult{statusMessage: msg, refreshConfig: true, revalidate: true}, nil
@@ -903,10 +907,19 @@ func (m *Model) cmdErrors(args []string) (commandResult, error) {
 		issues := make([]ConfigValidationError, 0, len(m.validationErrors)+len(m.validationWarnings))
 		issues = append(issues, m.validationErrors...)
 		issues = append(issues, m.validationWarnings...)
-		if len(issues) == 0 {
-			return commandResult{output: "No validation issues"}, nil
+
+		var parts []string
+		if len(issues) > 0 {
+			parts = append(parts, formatIssueList(issues))
 		}
-		return commandResult{output: formatIssueList(issues)}, nil
+		if len(m.reloadErrors) > 0 {
+			parts = append(parts, "Reload errors:")
+			parts = append(parts, m.reloadErrors...)
+		}
+		if len(parts) == 0 {
+			return commandResult{output: "No issues"}, nil
+		}
+		return commandResult{output: strings.Join(parts, "\n")}, nil
 
 	case "hints":
 		m.showHints = !m.showHints

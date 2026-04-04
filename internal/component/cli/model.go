@@ -86,6 +86,9 @@ type Model struct {
 	validationWarnings []ConfigValidationError
 	validationID       int // Incremented on each text change for debounce
 
+	// Reload errors from the last commit attempt. Shown by the errors command.
+	reloadErrors []string
+
 	// Display state
 	viewportContent string // Content shown in viewport
 	showViewport    bool   // Whether viewport is active (for scrolling)

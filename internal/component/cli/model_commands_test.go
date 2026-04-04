@@ -66,7 +66,7 @@ func TestModelErrorsCommandNoIssues(t *testing.T) {
 	result, err := model.cmdErrors(nil)
 	require.NoError(t, err)
 
-	assert.Contains(t, result.output, "No validation issues")
+	assert.Contains(t, result.output, "No issues")
 }
 
 // TestModelCmdTop verifies top command returns to root context.
