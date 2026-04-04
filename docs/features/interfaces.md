@@ -151,8 +151,43 @@ Bus topics -- interface/{created,deleted,up,down,addr/added,addr/removed,dhcp/*}
 Subscribers -- BGP reactor (starts/stops listeners on address changes)
 ```
 
+## Interface Discovery
+
+During `ze init`, Ze discovers OS network interfaces and generates initial configuration
+entries. The `DiscoverInterfaces` function enumerates interfaces via `ListInterfaces`
+(netlink on Linux, stdlib on other platforms) and classifies each by Ze type: ethernet,
+bridge, veth, dummy, or loopback. On Linux, the netlink `device` type maps to ethernet
+(except `lo`, which maps to loopback). Results are sorted by type then name.
+
+<!-- source: internal/component/iface/discover.go -- DiscoverInterfaces, infoToZeType -->
+
+The generated config uses descriptive names as YANG list keys (the OS interface name at
+discovery time). The MAC address serves as the physical binding between configuration and
+hardware. For ethernet, veth, and bridge interfaces, `mac-address` is required
+(`ze:required`) and must be unique within each list. This means the user can freely rename
+the config entry to a descriptive name while the MAC address maintains the link to the
+physical device.
+
+<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- unique, ze:required on ethernet/veth/bridge lists -->
+
+Each discovered interface also records an `os-name` hidden leaf that preserves the original
+OS interface name. This field is auto-populated during discovery and remains available for
+debugging and internal binding after the user renames the config entry.
+
+<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- os-name hidden leaf in interface-physical grouping -->
+
+A MAC address validator (`ze:validate "mac-address"`) provides format checking (colon-separated
+hex octets) and live OS autocomplete. The `CompleteFn` calls `DiscoverInterfaces` on each
+tab press, returning MAC addresses from currently active OS interfaces.
+
+<!-- source: internal/component/config/validators.go -- MACAddressValidator, CompleteFn -->
+<!-- source: internal/component/config/validators_register.go -- mac-address registration -->
+
 ## Key Design Decisions
 
+- **Descriptive names as keys, MAC as binding.** Interface names in config are user-chosen
+  descriptive labels. The MAC address ties the config entry to physical hardware. This
+  separates the logical identity (name) from the physical identity (MAC).
 - **Pure netlink, no shell-outs.** All kernel interaction through `github.com/vishvananda/netlink`.
 - **Event-driven.** Monitor publishes to bus; consumers subscribe and react. No polling.
 - **DAD-aware.** IPv6 addresses with `IFA_F_TENTATIVE` flag are held until DAD completes.

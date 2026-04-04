@@ -262,6 +262,72 @@ peer transit-a {
 
 <!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- static route config, update/attribute/nlri blocks -->
 
+## Interface Configuration
+
+Ze manages network interfaces with a descriptive-name model. Each interface type is a
+YANG list keyed by a user-chosen name. The MAC address serves as the binding between the
+config entry and the physical (or virtual) hardware.
+
+<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- interface container, list definitions -->
+
+### Interface Types
+
+| Type | Description | MAC required |
+|------|-------------|--------------|
+| `ethernet` | Physical ethernet interface | Yes |
+| `veth` | Virtual ethernet pair | Yes |
+| `bridge` | Bridge interface | Yes |
+| `dummy` | Virtual dummy interface | No |
+| `loopback` | Loopback (container, no key) | No |
+
+<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- ethernet, veth, bridge, dummy, loopback definitions -->
+
+### MAC Address Binding
+
+For ethernet, veth, and bridge interfaces, `mac-address` is required and must be unique
+within each type. The MAC ties the named config entry to the actual hardware. Names are
+descriptive labels chosen by the operator; rename the config entry freely without losing
+the physical binding.
+
+<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- unique "mac-address", ze:required "mac-address" -->
+
+### Discovery During Init
+
+Running `ze init` discovers OS interfaces via netlink (Linux) or stdlib (other platforms)
+and writes initial config to `ze.conf`. Each discovered interface gets an entry named
+after its OS name, with `mac-address` populated and an `os-name` hidden field preserving
+the original OS name. Loopback appears as an empty `loopback { }` container.
+
+<!-- source: cmd/ze/init/main.go -- generateInterfaceConfig -->
+<!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
+
+### Example
+
+```
+interface {
+    ethernet uplink {
+        mac-address 00:1a:2b:3c:4d:5e;
+    }
+    ethernet mgmt {
+        mac-address 00:1a:2b:3c:4d:5f;
+        mtu 1500;
+    }
+    bridge fabric {
+        mac-address 00:1a:2b:3c:4d:60;
+        stp true;
+    }
+    dummy blackhole {
+    }
+    loopback {
+    }
+}
+```
+
+The MAC address validator provides format checking and live autocomplete from currently
+discovered OS interfaces when editing config interactively.
+
+<!-- source: internal/component/config/validators.go -- MACAddressValidator -->
+
 ## Environment Block
 
 Global settings outside BGP:
