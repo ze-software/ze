@@ -1,9 +1,12 @@
 // Design: docs/guide/mcp/overview.md -- MCP JSON-RPC HTTP handler
+// Detail: tools.go -- auto-generated MCP tools from command registry
 
 // Package mcp provides an HTTP handler that speaks MCP (Model Context Protocol)
 // JSON-RPC, wrapping Ze's command dispatcher to let AI assistants control BGP.
 //
-// Tools: ze_announce, ze_withdraw, ze_peers, ze_peer_control, ze_execute, ze_commands.
+// Handcrafted tools: ze_announce, ze_withdraw, ze_peers, ze_peer_control, ze_execute, ze_commands.
+// Additional tools are auto-generated from the command registry at tools/list time,
+// so new YANG commands are automatically exposed without modifying this package.
 //
 // Usage: mount Handler() on an HTTP endpoint when --mcp <port> is set.
 package mcp
@@ -26,8 +29,12 @@ type CommandDispatcher func(command string) (string, error)
 // Handler returns an HTTP handler that speaks MCP JSON-RPC.
 // Each POST carries a JSON-RPC request; the response is a JSON-RPC response.
 // Validates Content-Type to prevent CSRF from browser origins.
-func Handler(dispatch CommandDispatcher) http.Handler {
-	s := &server{dispatch: dispatch}
+//
+// If commands is non-nil, tools/list dynamically generates tools from registered
+// commands. New YANG commands appear as MCP tools without code changes.
+// If commands is nil, only the handcrafted tools are exposed.
+func Handler(dispatch CommandDispatcher, commands CommandLister) http.Handler {
+	s := &server{dispatch: dispatch, commands: commands}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -107,6 +114,7 @@ type callParams struct {
 // server handles MCP requests.
 type server struct {
 	dispatch CommandDispatcher
+	commands CommandLister // nil = handcrafted tools only
 }
 
 // methods maps MCP method names to their handlers.
@@ -123,7 +131,7 @@ var methods = map[string]func(s *server, req *request) *response{
 		return nil // notification -- no response
 	},
 	"tools/list": func(s *server, req *request) *response {
-		return s.ok(req.ID, map[string]any{"tools": tools})
+		return s.ok(req.ID, map[string]any{"tools": s.allTools()})
 	},
 	"tools/call": func(s *server, req *request) *response {
 		return s.callTool(req)
@@ -148,17 +156,72 @@ var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]a
 	"ze_commands":     (*server).toolCommands,
 }
 
+// handcraftedNames returns the set of tool names from handcrafted tools.
+// Used to filter auto-generated tools and prevent duplicate names.
+func handcraftedNames() map[string]bool {
+	names := make(map[string]bool, len(toolHandlers))
+	for name := range toolHandlers {
+		names[name] = true
+	}
+	return names
+}
+
+// allTools returns handcrafted tools plus auto-generated tools from the command registry.
+func (s *server) allTools() []map[string]any {
+	if s.commands == nil {
+		result := make([]map[string]any, len(handcraftedTools))
+		copy(result, handcraftedTools)
+		return result
+	}
+
+	groups := groupCommands(s.commands())
+	generated := generateTools(groups, handcraftedNames())
+
+	result := make([]map[string]any, len(handcraftedTools), len(handcraftedTools)+len(generated))
+	copy(result, handcraftedTools)
+	result = append(result, generated...)
+	return result
+}
+
 func (s *server) callTool(req *request) *response {
 	var params callParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		return s.fail(req.ID, -32602, "invalid params: "+err.Error())
 	}
 
-	handler, ok := toolHandlers[params.Name]
-	if !ok {
-		return s.fail(req.ID, -32602, fmt.Sprintf("unknown tool: %s", params.Name))
+	// Handcrafted tools take priority.
+	if handler, ok := toolHandlers[params.Name]; ok {
+		return s.ok(req.ID, handler(s, params.Arguments))
 	}
-	return s.ok(req.ID, handler(s, params.Arguments))
+
+	// Try auto-generated tools: look up the command prefix and valid actions.
+	if s.commands != nil {
+		if prefix, validActions, ok := s.findGeneratedTool(params.Name); ok {
+			return s.ok(req.ID, s.dispatchGenerated(prefix, validActions, params.Arguments))
+		}
+	}
+
+	return s.fail(req.ID, -32602, fmt.Sprintf("unknown tool: %s", params.Name))
+}
+
+// findGeneratedTool maps an auto-generated tool name back to its command prefix
+// and valid action names. Returns ("", nil, false) if not found.
+func (s *server) findGeneratedTool(name string) (string, map[string]bool, bool) {
+	skip := handcraftedNames()
+	groups := groupCommands(s.commands())
+	for _, g := range groups {
+		if skip[toolName(g.prefix)] {
+			continue
+		}
+		if toolName(g.prefix) == name {
+			valid := make(map[string]bool, len(g.actions))
+			for _, a := range g.actions {
+				valid[a.name] = true
+			}
+			return g.prefix, valid, true
+		}
+	}
+	return "", nil, false
 }
 
 // noSpaces rejects values containing whitespace or newlines.
@@ -213,6 +276,11 @@ func (s *server) toolAnnounce(args json.RawMessage) map[string]any {
 	}
 	for _, pfx := range p.Prefixes {
 		if err := noSpaces("prefix", pfx); err != nil {
+			return errResult(err.Error())
+		}
+	}
+	for _, c := range p.Community {
+		if err := noSpaces("community", c); err != nil {
 			return errResult(err.Error())
 		}
 	}
@@ -383,7 +451,7 @@ func errResult(msg string) map[string]any {
 // Tool definitions. MCP camelCase fields built as maps to avoid kebab-case hook conflicts.
 //
 //nolint:lll // JSON schemas are long by nature
-var tools = []map[string]any{
+var handcraftedTools = []map[string]any{
 	{
 		"name":        "ze_announce",
 		"description": "Announce BGP routes to peers. Builds and sends UPDATE messages with the specified attributes and prefixes.",

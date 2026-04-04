@@ -27,7 +27,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/lg"
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -317,7 +316,6 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 	// Plugin data delivery stays on the existing EventDispatcher direct path.
 	b := bus.NewBus()
 	reactor.SetBus(b)
-	iface.SetBus(b)
 	registry.SetBus(b)
 	pm := pluginmgr.NewManager()
 	reactor.SetProcessSpawner(pm)
@@ -372,7 +370,7 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 	// Start MCP server if --mcp flag was passed.
 	var mcpSrv *http.Server
 	if mcpAddr != "" {
-		mcpSrv = startMCPServer(mcpAddr, reactor.ExecuteCommand)
+		mcpSrv = startMCPServer(mcpAddr, reactor.ExecuteCommand, commandLister(reactor))
 	}
 
 	// Wait for either signal or reactor to stop itself
