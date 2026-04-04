@@ -143,10 +143,13 @@ func (r *RIBManager) checkBestPathChange(family nlri.Family, nlriBytes []byte, a
 }
 
 // adminDistance returns the admin distance for a candidate.
-// eBGP = 20, iBGP = 200. Falls back to 20 if ASN info is unavailable.
+// eBGP = 20, iBGP = 200. When LocalASN is 0 (unknown, e.g. before OPEN
+// negotiation completes), defaults to eBGP (20). This is intentional:
+// routes learned before ASN negotiation are assumed external, which is the
+// more common case and avoids deprioritizing valid eBGP routes during startup.
 func (r *RIBManager) adminDistance(c *Candidate) int {
 	if c.LocalASN == 0 {
-		return 20 // default to eBGP if unknown
+		return 20 // default to eBGP when ASN is unknown (see comment above)
 	}
 	if c.PeerASN != c.LocalASN {
 		return 20 // eBGP

@@ -187,7 +187,7 @@ via netlink (Linux). Uses a custom rtm_protocol ID (RTPROT_ZE=250) to identify
 ze-installed routes. Crash recovery marks existing ze routes as stale at startup
 and sweeps them after reconvergence. A kernel route monitor detects external
 changes and re-asserts ze routes when overwritten.
-<!-- source: internal/plugins/fibkernel/fibkernel.go -- FIBKernel, startupSweep, sweepStale -->
+<!-- source: internal/plugins/fibkernel/fibkernel.go -- fibKernel, startupSweep, sweepStale -->
 <!-- source: internal/plugins/fibkernel/monitor_linux.go -- kernel route monitor -->
 
 Bus topics in the FIB pipeline:

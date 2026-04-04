@@ -9,10 +9,12 @@ require (
 	charm.land/wish/v2 v2.0.0
 	github.com/charmbracelet/colorprofile v0.4.2
 	github.com/charmbracelet/ssh v0.0.0-20250826160808-ebfa259c7309
+	github.com/insomniacslk/dhcp v0.0.0-20260326115832-991c7910cf36
 	github.com/muesli/reflow v0.3.0
 	github.com/openconfig/goyang v1.6.3
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
+	github.com/vishvananda/netlink v1.3.1
 	golang.org/x/crypto v0.48.0
 	golang.org/x/sys v0.42.0
 	golang.org/x/term v0.40.0
@@ -38,7 +40,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/insomniacslk/dhcp v0.0.0-20260326115832-991c7910cf36 // indirect
 	github.com/josharian/native v1.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
@@ -55,7 +56,6 @@ require (
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/u-root/uio v0.0.0-20230220225925-ffce2a382923 // indirect
-	github.com/vishvananda/netlink v1.3.1 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect

@@ -16,11 +16,12 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:        "fib-p4",
-		Description: "FIB P4: programs P4 switch forwarding entries from system RIB via gRPC/P4Runtime",
-		Features:    "yang",
-		YANG:        fibp4schema.ZeFibP4ConfYANG,
-		RunEngine:   runFIBP4Plugin,
+		Name:         "fib-p4",
+		Description:  "FIB P4: programs P4 switch forwarding entries from system RIB via gRPC/P4Runtime",
+		Features:     "yang",
+		Dependencies: []string{"sysrib"},
+		YANG:         fibp4schema.ZeFibP4ConfYANG,
+		RunEngine:    runFIBP4Plugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

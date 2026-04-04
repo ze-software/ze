@@ -744,7 +744,7 @@ rib/best-change/bgp  ──>  System RIB (sysrib plugin)
 ```
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeTopic, best-path tracking -->
 <!-- source: internal/plugins/sysrib/sysrib.go -- sysribTopic, admin distance selection -->
-<!-- source: internal/plugins/fibkernel/fibkernel.go -- FIBKernel, netlink backend, stale sweep -->
+<!-- source: internal/plugins/fibkernel/fibkernel.go -- fibKernel, netlink backend, stale sweep -->
 <!-- source: internal/plugins/fibkernel/monitor_linux.go -- kernel route change monitor -->
 
 ### BGP RIB Best-Path Tracking

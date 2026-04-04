@@ -205,6 +205,9 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 
 	if prev.protocol == winner.protocol && prev.nextHop == winner.nextHop &&
 		prev.priority == winner.priority && prev.metric == winner.metric {
+		// Update the pointer so s.best[key] tracks the current route object
+		// even when the values are unchanged (the old struct may be stale).
+		s.best[key] = winner
 		return nil
 	}
 
