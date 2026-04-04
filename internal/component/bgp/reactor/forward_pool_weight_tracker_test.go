@@ -357,3 +357,42 @@ func TestOverflowPoolEnvOverride(t *testing.T) {
 		t.Fatalf("budget = %d, want override %d", mux.ByteBudget(), overrideBudget)
 	}
 }
+
+// --- Finding #5: UpdateExtMsg tests ---
+
+func TestWeightTracker_UpdateExtMsg(t *testing.T) {
+	var callCount int
+	var lastOB overflowBudgetResult
+	wt := newWeightTracker(func(_, _ int, ob overflowBudgetResult) {
+		callCount++
+		lastOB = ob
+	})
+
+	// Add a standard peer (extMsg defaults to false).
+	wt.AddPeer("10.0.0.1", 10000, 1)
+	initialCalls := callCount
+	initialBytes := lastOB.bytes
+
+	// Update to ExtMsg -- callback should fire with higher byte budget.
+	wt.UpdateExtMsg("10.0.0.1", true)
+	if callCount != initialCalls+1 {
+		t.Fatalf("UpdateExtMsg should fire callback, got %d calls (want %d)", callCount, initialCalls+1)
+	}
+	if lastOB.bytes <= initialBytes {
+		t.Fatalf("ExtMsg peer should increase byte budget: was %d, now %d", initialBytes, lastOB.bytes)
+	}
+
+	// Update same value again -- callback should NOT fire (no change).
+	prevCalls := callCount
+	wt.UpdateExtMsg("10.0.0.1", true)
+	if callCount != prevCalls {
+		t.Fatalf("UpdateExtMsg(same value) should not fire callback, got %d calls (want %d)", callCount, prevCalls)
+	}
+
+	// Update unknown peer -- should not fire callback.
+	prevCalls = callCount
+	wt.UpdateExtMsg("10.0.0.99", true)
+	if callCount != prevCalls {
+		t.Fatalf("UpdateExtMsg(unknown peer) should not fire callback, got %d (want %d)", callCount, prevCalls)
+	}
+}

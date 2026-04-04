@@ -383,8 +383,7 @@ func (fp *fwdPool) UnregisterPeerPool(key fwdKey) {
 // releaseItem returns all pool resources held by an fwdItem.
 // Handles per-peer pool slots and overflow MixedBufMux handles.
 // Called from safeBatchHandle and Stop cleanup.
-// key is retained for API stability (callers already pass it).
-func (fp *fwdPool) releaseItem(_ fwdKey, item *fwdItem) {
+func (fp *fwdPool) releaseItem(item *fwdItem) {
 	if item.peerPooled && item.peerPoolRef != nil {
 		item.peerPoolRef.release()
 		item.peerPooled = false
@@ -677,7 +676,7 @@ func (fp *fwdPool) Stop() {
 			if kw.w.overflow[i].done != nil {
 				kw.w.overflow[i].done()
 			}
-			fp.releaseItem(kw.key, &kw.w.overflow[i])
+			fp.releaseItem(&kw.w.overflow[i])
 		}
 		kw.w.overflow = nil
 		kw.w.overflowMu.Unlock()
@@ -790,7 +789,7 @@ func (fp *fwdPool) safeBatchHandle(key fwdKey, items []fwdItem) {
 			if items[i].done != nil {
 				items[i].done()
 			}
-			fp.releaseItem(key, &items[i])
+			fp.releaseItem(&items[i])
 		}
 	}()
 	defer func() {

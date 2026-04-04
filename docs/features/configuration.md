@@ -86,7 +86,7 @@ Default enabled. Configurable via `ze.bgp.reactor.update-groups` (boolean, defau
 | Send Hold Timer (RFC 9687) | Detects when local side cannot write to peer. Duration: max(8min, 2x hold-time). Sends NOTIFICATION code 8 on expiry. |
 | Hold timer congestion extension | If data was recently read when the hold timer fires, ze is CPU-congested, not the peer. Resets hold timer instead of tearing down. |
 | Write deadline | Forward pool batch writes use a 30s TCP write deadline (configurable via `ze.fwd.write.deadline`) to prevent stuck peers from blocking workers. |
-| Bounded overflow pool | Global token pool (default: 100,000, configurable via `ze.fwd.pool.size`) bounds overflow memory across all forward workers. Falls back to unbounded on exhaustion. |
+| Bounded overflow pool | Two-tier pool: per-peer pools (64 slots) absorb steady-state traffic, shared MixedBufMux overflow pool (auto-sized from peer prefix maximums, overridable via `ze.fwd.pool.size` byte budget) bounds overflow memory. |
 | Congestion backpressure | Two-threshold enforcement: pool > 80% denies buffers to the worst destination peer (natural TCP backpressure). Pool > 95% with peer > 2x weight share for 5s triggers forced teardown. |
 | GR-aware congestion teardown | Forced teardown is GR-aware: GR peers get TCP close (route retention), non-GR peers get Cease/OutOfResources NOTIFICATION. |
 | Pool headroom | `ze.fwd.pool.headroom` adds extra memory beyond auto-sized baseline, trading memory for delayed teardown decisions. |

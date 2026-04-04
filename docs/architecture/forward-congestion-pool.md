@@ -620,8 +620,8 @@ fails to trigger backpressure because each looks at itself in isolation.
 |-----------|---------|---------|
 | `ze.fwd.pool.maxbytes` | Combined byte budget for 4K+64K pools | Auto-sized from peer weights |
 | `ze.fwd.pool.headroom` | Extra memory beyond auto-sized baseline (e.g. "512MB", "2GB") | 0 (no extra) |
-| `ze.fwd.pool.size` | Overflow pool token count (items) | Auto-sized from peer weights |
-| `ze.fwd.chan.size` | Per-peer dispatch channel capacity | 64 |
+| `ze.fwd.pool.size` | Overflow MixedBufMux byte budget override (0 = auto-sized) | 0 (auto-sized) |
+| `ze.fwd.chan.size` | Per-peer dispatch channel capacity | 256 |
 | `ze.fwd.teardown.grace` | Seconds at >95% + >2x weight before forced teardown | 5s |
 | Per-peer `prefix maximum` | Max expected prefixes (drives weight) | Required (PeeringDB fallback) |
 

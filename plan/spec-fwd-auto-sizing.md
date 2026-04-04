@@ -249,7 +249,7 @@ rewriting) may be needed.
 |-------|-------|------------|---------------|---------------|
 | Prefix max per peer | 1 - MaxUint32 | MaxUint32 | 0 (skipped) | N/A |
 | Number of peers | 1 - 10000 | 10000 | 0 (empty budget) | N/A |
-| ze.fwd.pool.size | 0 - fwdOverflowPoolMaxSize | 10000000 | N/A (0 = auto) | 10000001 (capped) |
+| ze.fwd.pool.size | 0 - MaxInt64 (byte budget) | MaxInt64 | N/A (0 = auto) | N/A (no cap) |
 | Per-peer pool size | 64 | 64 | N/A | N/A |
 
 ### Functional Tests

@@ -1435,6 +1435,173 @@ func TestFwdPool_OverflowExhaustedRejectsDispatch(t *testing.T) {
 	assert.True(t, ok, "DispatchOverflow must not drop routes even when exhausted")
 }
 
+// --- Two-tier dispatch integration tests (deep-review findings 1-5, 10) ---
+
+func TestFwdPool_TryDispatchWithPeerPool(t *testing.T) {
+	// Finding #1: TryDispatch acquires/releases per-peer pool slot through full lifecycle.
+	var processed atomic.Int32
+	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		processed.Add(int32(len(items)))
+	}, fwdPoolConfig{chanSize: 256, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
+	pool.RegisterPeerPool(key, 4096)
+
+	pool.mu.Lock()
+	pp := pool.peerPools[key]
+	pool.mu.Unlock()
+
+	// Dispatch 10 items -- each should acquire a peer pool slot.
+	for range 10 {
+		ok := pool.TryDispatch(key, fwdItem{})
+		require.True(t, ok, "TryDispatch should succeed with available peer pool slots")
+	}
+
+	// Wait for processing.
+	require.Eventually(t, func() bool {
+		return processed.Load() >= 10
+	}, time.Second, time.Millisecond)
+
+	// All slots should be returned after processing.
+	require.Eventually(t, func() bool {
+		return pp.available() == 64
+	}, time.Second, time.Millisecond, "all peer pool slots should be returned after processing")
+}
+
+func TestFwdPool_TryDispatchPeerPoolFull(t *testing.T) {
+	// Finding #2: When per-peer pool is full (64 slots), TryDispatch returns false.
+	blocker := make(chan struct{})
+	handlerStarted := make(chan struct{}, 1)
+
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		select {
+		case handlerStarted <- struct{}{}:
+		default:
+		}
+		<-blocker
+	}, fwdPoolConfig{chanSize: 256, idleTimeout: time.Second})
+	defer func() {
+		close(blocker)
+		pool.Stop()
+	}()
+
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
+	pool.RegisterPeerPool(key, 4096)
+
+	var congestedCount atomic.Int32
+	pool.onCongested = func(_ netip.AddrPort) {
+		congestedCount.Add(1)
+	}
+
+	// Fill up the peer pool (64 slots). Items block in handler so slots are not released.
+	pool.TryDispatch(key, fwdItem{})
+	<-handlerStarted // worker is now blocked
+
+	// Fill remaining 63 slots via channel (handler is blocked, items queue up).
+	for i := range 63 {
+		ok := pool.TryDispatch(key, fwdItem{})
+		require.True(t, ok, "TryDispatch #%d should succeed (64 slots available)", i+2)
+	}
+
+	pool.mu.Lock()
+	pp := pool.peerPools[key]
+	pool.mu.Unlock()
+	assert.Equal(t, 0, pp.available(), "all 64 slots should be used")
+
+	// 65th dispatch should fail because peer pool is full.
+	ok := pool.TryDispatch(key, fwdItem{})
+	assert.False(t, ok, "TryDispatch should fail when peer pool is full")
+	assert.Equal(t, int32(1), congestedCount.Load(), "congested callback should fire once")
+}
+
+func TestFwdPool_DispatchOverflowGet64K(t *testing.T) {
+	// Finding #10: DispatchOverflow uses Get64K() for ExtMsg peers.
+	blocker := make(chan struct{})
+	handlerStarted := make(chan struct{}, 1)
+
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		select {
+		case handlerStarted <- struct{}{}:
+		default:
+		}
+		<-blocker
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
+	mux := newMixedBufMux()
+	mux.SetByteBudget(1024 * 1024)
+	pool.SetOverflowMux(mux)
+	defer func() {
+		close(blocker)
+		pool.Stop()
+	}()
+
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
+	pool.RegisterPeerPool(key, 65535) // ExtMsg buffer size
+
+	// Block the worker so overflow items stay queued.
+	pool.Dispatch(key, fwdItem{})
+	<-handlerStarted
+
+	dummyPeer := &Peer{}
+	pool.DispatchOverflow(key, fwdItem{peer: dummyPeer, done: func() {}})
+
+	// Check that the mux allocated a 64K buffer (not 4K).
+	_, usedBytes := mux.Stats()
+	assert.Equal(t, int64(65535), usedBytes, "should allocate 64K buffer for ExtMsg peer")
+}
+
+func TestFwdPool_SupersedeReleasesOverflowBuf(t *testing.T) {
+	// Finding #4: Superseding releases old item's overflowBuf.
+	blocker := make(chan struct{})
+	handlerStarted := make(chan struct{}, 1)
+
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		select {
+		case handlerStarted <- struct{}{}:
+		default:
+		}
+		<-blocker
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
+	mux := newMixedBufMux()
+	mux.SetByteBudget(1024 * 1024)
+	pool.SetOverflowMux(mux)
+	defer func() {
+		close(blocker)
+		pool.Stop()
+	}()
+
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
+	dummyPeer := &Peer{}
+
+	// Block the worker so overflow items accumulate.
+	pool.Dispatch(key, fwdItem{})
+	<-handlerStarted
+
+	// Dispatch two overflow items with same supersede key and body.
+	body := []byte{0x00, 0x00, 0x00, 0x15, 0x40, 0x01}
+	pool.DispatchOverflow(key, fwdItem{
+		peer:         dummyPeer,
+		rawBodies:    [][]byte{body},
+		supersedeKey: 12345,
+		done:         func() {},
+	})
+
+	_, used1 := mux.Stats()
+	assert.Greater(t, used1, int64(0), "first overflow item should hold a buffer")
+
+	// Second item with same key supersedes the first -- old buffer returned.
+	pool.DispatchOverflow(key, fwdItem{
+		peer:         dummyPeer,
+		rawBodies:    [][]byte{body},
+		supersedeKey: 12345,
+		done:         func() {},
+	})
+
+	// After supersede: should still have exactly 1 buffer in use (the new item's).
+	_, used2 := mux.Stats()
+	assert.Equal(t, used1, used2, "supersede should return old buffer and acquire new, net same")
+}
+
 func TestFwdPool_RegisterUnregisterPeerPool(t *testing.T) {
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})

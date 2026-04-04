@@ -69,7 +69,7 @@ Each destination peer has a dedicated forwarding worker (long-lived goroutine wi
 3. The worker fires a congestion event (visible in logs and Prometheus metrics)
 4. When the peer catches up and the channel drains below 25%, congestion clears
 
-Overflow is bounded by a global token pool (default: 100,000 items, configurable via `ze.fwd.pool.size`). When the pool is exhausted, items fall back to unbounded append and a warning is logged. Routes are never dropped -- missing a route update is worse than using extra memory. Prometheus metrics expose per-destination overflow depth (`ze_bgp_overflow_items`), per-source overflow ratio (`ze_bgp_overflow_ratio`), and global pool utilization (`ze_bgp_pool_used_ratio`).
+Overflow uses a two-tier pool: per-peer pools (64 slots) absorb steady-state traffic, and a shared MixedBufMux overflow pool (auto-sized from peer prefix maximums, overridable via `ze.fwd.pool.size` byte budget) bounds overflow memory. When the overflow pool is exhausted, items proceed without a pool handle and a warning is logged. Routes are never dropped -- missing a route update is worse than using extra memory. Prometheus metrics expose per-destination overflow depth (`ze_bgp_overflow_items`), per-source overflow ratio (`ze_bgp_overflow_ratio`), and global pool utilization (`ze_bgp_pool_used_ratio`).
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- per-destination forward workers, overflow pool -->
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- overflow Prometheus metrics -->
 
