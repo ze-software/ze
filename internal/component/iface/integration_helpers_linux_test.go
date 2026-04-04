@@ -82,7 +82,7 @@ func waitForEvent(t *testing.T, bus *collectingBus, topic string, timeout time.D
 	deadline := time.Now().Add(timeout)
 	seen := 0
 	for time.Now().Before(deadline) {
-		events := bus.events
+		events := bus.snapshot()
 		for i := seen; i < len(events); i++ {
 			if events[i].Topic == topic {
 				return events[i]
@@ -92,7 +92,7 @@ func waitForEvent(t *testing.T, bus *collectingBus, topic string, timeout time.D
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	t.Fatalf("timed out waiting for event on topic %q (saw %d events)", topic, len(bus.events))
+	t.Fatalf("timed out waiting for event on topic %q (saw %d events)", topic, seen)
 	return ze.Event{} // unreachable
 }
 
