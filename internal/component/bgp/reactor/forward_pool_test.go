@@ -1388,29 +1388,25 @@ func TestPeerPoolConcurrent(t *testing.T) {
 // --- Overflow MixedBufMux integration tests (fwd-auto-sizing Phase 4) ---
 
 func TestFwdPool_PoolUsedRatioMixedBufMux(t *testing.T) {
-	// PoolUsedRatio reads from MixedBufMux stats when overflowMux is set.
+	// PoolUsedRatio = totalBlocks / maxBlocks (memory pressure, not bytes handed out).
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	defer pool.Stop()
 
+	// Budget = 32 blocks. First Get4K grows a chunk of 16 blocks -> ratio = 16/32 = 0.5.
 	mux := newMixedBufMux()
-	mux.SetByteBudget(4096 * 16) // one block = 16 x 4K
+	mux.SetByteBudget(32 * overflowBlockSize)
 	pool.SetOverflowMux(mux)
 
 	// No allocations: ratio should be 0.
 	assert.Equal(t, 0.0, pool.PoolUsedRatio())
 
-	// Allocate half the budget.
-	handles := make([]BufHandle, 8)
-	for i := range handles {
-		handles[i] = mux.Get4K()
-	}
+	// Get4K grows one chunk (16 blocks) -> totalBlocks=16, maxBlocks=32 -> ratio=0.5.
+	h := mux.Get4K()
 	ratio := pool.PoolUsedRatio()
-	assert.InDelta(t, 0.5, ratio, 0.01, "half budget used")
+	assert.InDelta(t, 0.5, ratio, 0.01, "one chunk of two allocated")
 
-	for _, h := range handles {
-		mux.Return(h)
-	}
+	mux.Return(h)
 }
 
 func TestFwdPool_OverflowExhaustedRejectsDispatch(t *testing.T) {
@@ -1545,9 +1541,9 @@ func TestFwdPool_DispatchOverflowGet64K(t *testing.T) {
 	dummyPeer := &Peer{}
 	pool.DispatchOverflow(key, fwdItem{peer: dummyPeer, done: func() {}})
 
-	// Check that the mux allocated a 64K buffer (not 4K).
+	// Check that the mux allocated a whole block (64K) for the ExtMsg peer.
 	_, usedBytes := mux.Stats()
-	assert.Equal(t, int64(65535), usedBytes, "should allocate 64K buffer for ExtMsg peer")
+	assert.Equal(t, int64(overflowBlockSize), usedBytes, "should allocate one active block for ExtMsg peer")
 }
 
 func TestFwdPool_SupersedeReleasesOverflowBuf(t *testing.T) {

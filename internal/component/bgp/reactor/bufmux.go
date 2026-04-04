@@ -457,105 +457,324 @@ func combinedMuxUsedRatio(a, b *BufMux) float64 {
 	return min(float64(used)/float64(total), 1.0)
 }
 
-// MixedBufMux is a shared overflow pool that serves both 4K and 64K buffer
-// requests from a single byte budget. Internally it uses two BufMux instances:
-//   - mux4K: 4096-byte buffers, 16 per block (each block = 64K allocation)
-//   - mux64K: 65535-byte buffers, 1 per block (each block = 64K allocation)
+// MixedBufMux is a shared overflow pool backed by a single pool of 64K blocks.
 //
-// Both share a combinedBudget so total memory is bounded. Budget is tracked
-// in bytes: a 4K allocation costs 4K against the budget, a 64K allocation
-// costs 64K. Block collapse returns memory when overflow pressure subsides.
+// Three-level slicing from contiguous chunk allocations:
+//  1. Chunk level: make([]byte, N*64K) -- amortized allocation, one per growth event
+//  2. Block level: 64K slice into a chunk, tracked by overflowBlock
+//  3. Slice level: 16 x 4K slices within a subdivided block
+//
+// Each block can be used in one of two modes:
+//   - Whole: the entire 64K is handed out as one buffer (ExtMsg peers).
+//   - Subdivided: split into 16 x 4K slices, each handed out individually.
+//     When all 16 slices return, the block goes back to the free list.
+//
+// A block returned to the free list can be reused for either mode next time.
+// This avoids partitioning memory between 4K and 64K request paths.
+//
+// Budget bounds total allocated blocks (active + free). The congestion
+// controller polls UsedRatio() = totalBlocks / maxBlocks for graduated
+// backpressure (80% denial, 95% teardown). Get returns nil when at max
+// capacity with no free blocks.
 //
 // Thread-safe. All methods may be called from any goroutine.
 type MixedBufMux struct {
-	mux4K  *BufMux
-	mux64K *BufMux
-	budget *combinedBudget
+	mu        sync.Mutex
+	chunks    [][]byte         // backing arrays, each overflowChunkBlocks * 64K
+	blocks    []*overflowBlock // all blocks indexed by ID
+	active    map[uint32]bool  // block IDs with outstanding handles
+	free      []uint32         // block IDs available for reuse
+	maxBlocks int              // hard ceiling (0 = unlimited)
+	minBlocks int              // floor: never collapse below this
 }
 
-// mixedBufMux4KBlockSize is the number of 4K buffers per block.
-// 16 x 4096 = 65536 bytes per block (64K blocks are 65535 bytes; 1-byte difference is negligible).
-const mixedBufMux4KBlockSize = 16
+// overflowBlockSize is the backing size for each block (64K).
+const overflowBlockSize = 65536
 
-// newMixedBufMux creates a mixed-size overflow pool. Starts with zero blocks
-// and no byte budget (unlimited). Call SetByteBudget to impose a limit.
+// overflowSliceCount is the number of 4K slices per subdivided block.
+// 65536 / 4096 = 16.
+const overflowSliceCount = 16
+
+// overflowChunkBlocks is the number of blocks per chunk allocation.
+// Each chunk = 16 x 64K = 1MB. Amortizes make() calls.
+const overflowChunkBlocks = 16
+
+// overflowBlock tracks one 64K region within a chunk.
+type overflowBlock struct {
+	backing []byte // 64K slice into parent chunk
+	id      uint32
+
+	// Mode: whole = entire block handed out as one handle.
+	// When false and sliceOut > 0, block is subdivided with slices out.
+	// A free block has whole=false, sliceOut=0.
+	whole bool
+
+	// Subdivision tracking (bitmask for O(1) free-slot finding).
+	sliceFree uint16 // bit i set = slice i is free (0-15)
+	sliceOut  int    // count of slices currently handed out
+}
+
+// initSubdivided prepares the block for 4K slice mode. All 16 slices free.
+func (b *overflowBlock) initSubdivided() {
+	b.whole = false
+	b.sliceFree = 0xFFFF // all 16 bits set
+	b.sliceOut = 0
+}
+
+// getSlice takes a 4K slice. Returns slice index and buffer, or -1, nil if none free.
+func (b *overflowBlock) getSlice() (int, []byte) {
+	if b.sliceFree == 0 {
+		return -1, nil
+	}
+	// Find lowest set bit.
+	idx := 0
+	mask := b.sliceFree
+	for mask&1 == 0 {
+		idx++
+		mask >>= 1
+	}
+	b.sliceFree &^= 1 << uint(idx)
+	b.sliceOut++
+	off := idx * message.MaxMsgLen
+	return idx, b.backing[off : off+message.MaxMsgLen]
+}
+
+// putSlice returns a 4K slice. Returns true if all 16 slices are now back.
+func (b *overflowBlock) putSlice(idx int) bool {
+	if idx < 0 || idx >= overflowSliceCount {
+		fwdLogger().Error("overflowblock: invalid slice index", "idx", idx, "blockID", b.id)
+		return false
+	}
+	bit := uint16(1) << uint(idx)
+	if b.sliceFree&bit != 0 {
+		fwdLogger().Error("overflowblock: double return on slice", "idx", idx, "blockID", b.id)
+		return false
+	}
+	b.sliceFree |= bit
+	b.sliceOut--
+	return b.sliceOut == 0
+}
+
+// newMixedBufMux creates a mixed-size overflow pool. Starts with zero blocks.
+// Call SetByteBudget to set the max block count (maxBytes / 64K).
 func newMixedBufMux() *MixedBufMux {
-	cb := newCombinedBudget(0) // 0 = unlimited initially
-	m4 := newBufMux(message.MaxMsgLen, mixedBufMux4KBlockSize)
-	m4.SetBudget(cb)
-	m64 := newBufMux(message.ExtMsgLen, 1)
-	m64.SetBudget(cb)
 	return &MixedBufMux{
-		mux4K:  m4,
-		mux64K: m64,
-		budget: cb,
+		active: make(map[uint32]bool),
 	}
 }
 
-// SetByteBudget sets the total byte budget for the overflow pool.
-// 0 = unlimited. Safe for concurrent use (atomic store).
+// SetByteBudget sets the byte budget by converting to a max block count.
+// maxBlocks = maxBytes / 64K. 0 = unlimited.
 func (m *MixedBufMux) SetByteBudget(maxBytes int64) {
-	m.budget.maxBytes.Store(maxBytes)
+	m.mu.Lock()
+	if maxBytes <= 0 {
+		m.maxBlocks = 0
+	} else {
+		m.maxBlocks = max(int(maxBytes/overflowBlockSize), 1)
+	}
+	m.mu.Unlock()
 }
 
-// ByteBudget returns the current byte budget limit. 0 = unlimited.
+// ByteBudget returns the current byte budget (maxBlocks * 64K). 0 = unlimited.
 func (m *MixedBufMux) ByteBudget() int64 {
-	return m.budget.maxBytes.Load()
+	m.mu.Lock()
+	n := m.maxBlocks
+	m.mu.Unlock()
+	if n <= 0 {
+		return 0
+	}
+	return int64(n) * overflowBlockSize
 }
 
-// Get4K returns a 4096-byte buffer handle from a subdivided 64K block.
-// Returns zero-value BufHandle (Buf == nil) when the byte budget is exhausted.
+// Get4K returns a 4096-byte buffer from a subdivided 64K block.
+// Reuses an existing subdivided block with free slices, or takes a free block
+// and subdivides it, or grows the pool. Returns zero BufHandle when at capacity.
 func (m *MixedBufMux) Get4K() BufHandle {
-	return m.mux4K.Get()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// 1. Find an active subdivided block with free slices.
+	for id := range m.active {
+		b := m.blocks[id]
+		if b.whole || b.sliceFree == 0 {
+			continue
+		}
+		idx, buf := b.getSlice()
+		if idx >= 0 {
+			return BufHandle{ID: b.id, idx: idx, Buf: buf}
+		}
+	}
+
+	// 2. Take a free block or grow a new chunk.
+	b := m.acquireBlockLocked()
+	if b == nil {
+		return BufHandle{} // at capacity
+	}
+	b.initSubdivided()
+	m.active[b.id] = true
+	idx, buf := b.getSlice()
+	return BufHandle{ID: b.id, idx: idx, Buf: buf}
 }
 
-// Get64K returns a 65535-byte buffer handle (one full block).
-// Returns zero-value BufHandle (Buf == nil) when the byte budget is exhausted.
+// Get64K returns a 65535-byte buffer (one whole 64K block).
+// Takes a free block or grows the pool. Returns zero BufHandle when at capacity.
 func (m *MixedBufMux) Get64K() BufHandle {
-	return m.mux64K.Get()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	b := m.acquireBlockLocked()
+	if b == nil {
+		return BufHandle{} // at capacity
+	}
+	b.whole = true
+	m.active[b.id] = true
+	return BufHandle{ID: b.id, idx: 0, Buf: b.backing[:message.ExtMsgLen]}
 }
 
-// Return releases a buffer handle back to the correct internal mux.
-// Routes by buffer length: >= ExtMsgLen goes to mux64K, otherwise mux4K.
+// Return releases a buffer handle back to the pool. Routes by buffer length.
+// When all 16 slices of a subdivided block are back, the block goes to the free list.
+// Whole blocks go to the free list immediately.
 func (m *MixedBufMux) Return(h BufHandle) {
 	if h.Buf == nil {
 		return
 	}
-	if len(h.Buf) >= message.ExtMsgLen {
-		m.mux64K.Return(h)
-	} else {
-		m.mux4K.Return(h)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if int(h.ID) >= len(m.blocks) {
+		fwdLogger().Error("mixedbuf: return to unknown block", "blockID", h.ID)
+		return
+	}
+	b := m.blocks[h.ID]
+
+	if b.whole {
+		b.whole = false
+		delete(m.active, b.id)
+		m.free = append(m.free, b.id)
+		return
+	}
+
+	allBack := b.putSlice(h.idx)
+	if allBack {
+		delete(m.active, b.id)
+		m.free = append(m.free, b.id)
 	}
 }
 
-// Stats returns total allocated and in-use byte counts across both muxes.
+// Stats returns total allocated bytes and in-use bytes.
+// Total = all blocks (active + free) * 64K. Used = active blocks * 64K.
 func (m *MixedBufMux) Stats() (totalBytes, usedBytes int64) {
-	return combinedMuxStats(m.mux4K, m.mux64K)
+	m.mu.Lock()
+	total := int64(len(m.blocks)) * overflowBlockSize
+	used := int64(len(m.active)) * overflowBlockSize
+	m.mu.Unlock()
+	return total, used
 }
 
-// UsedRatio returns the fraction of byte budget currently in use (0.0 to 1.0).
-// Uses budget bytes (not allocated bytes) as the denominator so the ratio
-// reflects proximity to the configured limit, not just what has been allocated.
-// Falls back to used/allocated ratio when no budget is set (0.0 when nothing allocated).
+// UsedRatio returns totalBlocks / maxBlocks (0.0 to 1.0).
+// This reflects real memory pressure -- allocated blocks (active + free)
+// against the hard ceiling. The congestion controller uses this for
+// 80% denial and 95% teardown. Returns 0.0 when unlimited.
 func (m *MixedBufMux) UsedRatio() float64 {
-	budgetMax := m.budget.maxBytes.Load()
-	if budgetMax <= 0 {
-		// No budget limit -- use allocated bytes as denominator.
-		return combinedMuxUsedRatio(m.mux4K, m.mux64K)
+	m.mu.Lock()
+	maxB := m.maxBlocks
+	totalB := len(m.blocks)
+	m.mu.Unlock()
+	if maxB <= 0 {
+		return 0.0
 	}
-	_, used := m.Stats()
-	return min(float64(used)/float64(budgetMax), 1.0)
+	return min(float64(totalB)/float64(maxB), 1.0)
 }
 
-// tryCollapse triggers collapse checks on both internal muxes.
+// tryCollapse releases free blocks above minBlocks. Frees the backing
+// memory (chunk references become unreachable when all blocks in a chunk
+// are released). Called on a traffic-driven interval.
 func (m *MixedBufMux) tryCollapse() {
-	m.mux4K.tryCollapse()
-	m.mux64K.tryCollapse()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	// Release free blocks until we're at minBlocks or out of free blocks.
+	// Swap-delete from blocks slice to keep it dense.
+	for len(m.free) > 0 && len(m.blocks) > m.minBlocks {
+		freeID := m.free[len(m.free)-1]
+		m.free = m.free[:len(m.free)-1]
+
+		lastIdx := len(m.blocks) - 1
+		freeIdx := int(freeID)
+		if freeIdx != lastIdx {
+			// Move last block into the freed slot.
+			moved := m.blocks[lastIdx]
+			m.blocks[freeIdx] = moved
+			oldID := moved.id
+			moved.id = uint32(freeIdx)
+			// Update active/free references.
+			if m.active[oldID] {
+				delete(m.active, oldID)
+				m.active[moved.id] = true
+			} else {
+				for i, id := range m.free {
+					if id == oldID {
+						m.free[i] = moved.id
+						break
+					}
+				}
+			}
+		}
+		m.blocks[lastIdx] = nil
+		m.blocks = m.blocks[:lastIdx]
+	}
 }
 
-// blockCount returns the total number of active blocks across both muxes (for testing).
+// blockCount returns the number of active blocks (with outstanding handles).
 func (m *MixedBufMux) blockCount() int {
-	return m.mux4K.blockCount() + m.mux64K.blockCount()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.active)
+}
+
+// acquireBlockLocked returns a free block or grows the pool.
+// Returns nil if at max capacity. Caller must hold mu.
+func (m *MixedBufMux) acquireBlockLocked() *overflowBlock {
+	// Reuse a free block.
+	if len(m.free) > 0 {
+		id := m.free[len(m.free)-1]
+		m.free = m.free[:len(m.free)-1]
+		return m.blocks[id]
+	}
+
+	// Grow: check budget.
+	if m.maxBlocks > 0 && len(m.blocks) >= m.maxBlocks {
+		return nil
+	}
+
+	// Allocate a chunk of blocks to amortize make().
+	needed := overflowChunkBlocks
+	if m.maxBlocks > 0 {
+		remaining := m.maxBlocks - len(m.blocks)
+		if needed > remaining {
+			needed = remaining
+		}
+	}
+	if needed <= 0 {
+		return nil
+	}
+
+	chunk := make([]byte, needed*overflowBlockSize)
+	m.chunks = append(m.chunks, chunk)
+
+	firstID := uint32(len(m.blocks))
+	for i := range needed {
+		off := i * overflowBlockSize
+		b := &overflowBlock{
+			backing: chunk[off : off+overflowBlockSize],
+			id:      firstID + uint32(i),
+		}
+		m.blocks = append(m.blocks, b)
+		if i > 0 {
+			m.free = append(m.free, b.id)
+		}
+	}
+
+	return m.blocks[firstID]
 }
 
 // withCollapseProbe wires a traffic-driven collapse probe to a pool.

@@ -558,15 +558,20 @@ func TestMixedBufMux_Collapse(t *testing.T) {
 }
 
 func TestMixedBufMux_Stats(t *testing.T) {
-	// Stats returns correct byte counts.
+	// Stats returns block-level byte counts.
+	// Get4K subdivides one block, Get64K takes one whole block = 2 active blocks.
 	m := newMixedBufMux()
 	h4 := m.Get4K()
 	h64 := m.Get64K()
-	_, usedBytes := m.Stats()
-	// 1 x 4K + 1 x 65535
-	wantUsed := int64(4096 + 65535)
+	totalBytes, usedBytes := m.Stats()
+	// 2 active blocks * 64K = 128K used. Total includes free blocks from chunk growth.
+	wantUsed := int64(2 * overflowBlockSize)
 	if usedBytes != wantUsed {
 		t.Fatalf("usedBytes = %d, want %d", usedBytes, wantUsed)
+	}
+	// Total >= used (includes free blocks from chunk allocation).
+	if totalBytes < usedBytes {
+		t.Fatalf("totalBytes %d < usedBytes %d", totalBytes, usedBytes)
 	}
 	m.Return(h4)
 	m.Return(h64)

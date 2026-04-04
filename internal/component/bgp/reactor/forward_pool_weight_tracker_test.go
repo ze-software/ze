@@ -307,8 +307,14 @@ func TestOverflowPoolAutoResize(t *testing.T) {
 	if lastBudget <= 0 {
 		t.Fatalf("expected positive budget after AddPeer, got %d", lastBudget)
 	}
-	if mux.ByteBudget() != lastBudget {
-		t.Fatalf("MixedBufMux budget = %d, want %d", mux.ByteBudget(), lastBudget)
+	// ByteBudget() quantizes to 64K blocks, so it may be less than lastBudget.
+	// Verify it's positive and within one block of the requested value.
+	bb := mux.ByteBudget()
+	if bb <= 0 {
+		t.Fatalf("MixedBufMux budget should be positive, got %d", bb)
+	}
+	if lastBudget-bb >= overflowBlockSize {
+		t.Fatalf("MixedBufMux budget %d too far from requested %d", bb, lastBudget)
 	}
 
 	// Add second peer: budget should increase.
@@ -343,7 +349,8 @@ func TestOverflowPoolEORShrink(t *testing.T) {
 func TestOverflowPoolEnvOverride(t *testing.T) {
 	// When ze.fwd.pool.size > 0, auto-sizing should not change the budget.
 	mux := newMixedBufMux()
-	overrideBudget := int64(999999)
+	// Use a value that's a clean multiple of 64K so quantization doesn't change it.
+	overrideBudget := int64(16 * overflowBlockSize) // 1MB, exactly 16 blocks
 	mux.SetByteBudget(overrideBudget)
 
 	// Simulate: callback does NOT update mux because env override is active.
