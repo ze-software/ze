@@ -12,9 +12,18 @@ import (
 
 // CommandInfo describes a registered command for MCP tool generation.
 type CommandInfo struct {
-	Name     string // Dispatch path, e.g. "rib status", "show config dump"
-	Help     string // Description from YANG
-	ReadOnly bool   // True if read-only command
+	Name     string      // Dispatch path, e.g. "rib status", "show config dump"
+	Help     string      // Description from YANG
+	ReadOnly bool        // True if read-only command
+	Params   []ParamInfo // Input parameters from YANG RPC (nil = no typed params)
+}
+
+// ParamInfo describes a single input parameter from YANG RPC metadata.
+type ParamInfo struct {
+	Name        string // Parameter name (kebab-case from YANG)
+	Type        string // YANG type: "string", "uint32", "boolean", etc.
+	Description string // From YANG description
+	Required    bool   // Mandatory in YANG
 }
 
 // CommandLister returns all registered commands. Called at tools/list time
@@ -29,9 +38,10 @@ type toolGroup struct {
 
 // action is a single subcommand within a group.
 type action struct {
-	name string // action name (suffix after prefix), e.g. "status", "dump"
-	help string // description
-	full string // full command path for dispatch
+	name   string      // action name (suffix after prefix), e.g. "status", "dump"
+	help   string      // description
+	full   string      // full command path for dispatch
+	params []ParamInfo // typed parameters from YANG (nil = generic arguments only)
 }
 
 // groupCommands groups commands by their natural prefix.
@@ -43,8 +53,9 @@ type action struct {
 // Single commands with no siblings become their own group with no action param.
 func groupCommands(commands []CommandInfo) []toolGroup {
 	type entry struct {
-		full string
-		help string
+		full   string
+		help   string
+		params []ParamInfo
 	}
 
 	// Index commands by first-token and first-two-tokens.
@@ -56,11 +67,12 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 		if len(tokens) == 0 {
 			continue
 		}
+		e := entry{full: cmd.Name, help: cmd.Help, params: cmd.Params}
 		one := tokens[0]
-		byOne[one] = append(byOne[one], entry{full: cmd.Name, help: cmd.Help})
+		byOne[one] = append(byOne[one], e)
 		if len(tokens) >= 2 {
 			two := tokens[0] + " " + tokens[1]
-			byTwo[two] = append(byTwo[two], entry{full: cmd.Name, help: cmd.Help})
+			byTwo[two] = append(byTwo[two], e)
 		}
 	}
 
@@ -92,9 +104,10 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 					suffix = ""
 				}
 				g.actions = append(g.actions, action{
-					name: suffix,
-					help: e.help,
-					full: e.full,
+					name:   suffix,
+					help:   e.help,
+					full:   e.full,
+					params: e.params,
 				})
 				used[e.full] = true
 			}
@@ -109,7 +122,7 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 			tokens := strings.Fields(e.full)
 			if len(tokens) == 2 {
 				g := toolGroup{prefix: e.full}
-				g.actions = append(g.actions, action{name: "", help: e.help, full: e.full})
+				g.actions = append(g.actions, action{name: "", help: e.help, full: e.full, params: e.params})
 				used[e.full] = true
 				groups = append(groups, g)
 			}
@@ -135,9 +148,10 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 				suffix = ""
 			}
 			g.actions = append(g.actions, action{
-				name: suffix,
-				help: e.help,
-				full: e.full,
+				name:   suffix,
+				help:   e.help,
+				full:   e.full,
+				params: e.params,
 			})
 			used[e.full] = true
 		}
@@ -237,9 +251,17 @@ func buildToolDef(g toolGroup) map[string]any {
 		desc.WriteString(g.actions[0].help)
 	}
 
-	properties["arguments"] = map[string]any{
-		"type":        "string",
-		"description": "Additional arguments to append to the command",
+	// Add typed parameters from YANG RPC metadata.
+	// Parameters are collected across all actions; each becomes an optional
+	// property since it may only apply to specific actions.
+	addedParams := addYANGParams(g.actions, properties)
+
+	// Only add generic "arguments" if no typed params were found.
+	if !addedParams {
+		properties["arguments"] = map[string]any{
+			"type":        "string",
+			"description": "Additional arguments to append to the command",
+		}
 	}
 
 	properties["peer"] = map[string]any{
@@ -265,6 +287,54 @@ func buildToolDef(g toolGroup) map[string]any {
 		"description": desc.String(),
 		"inputSchema": json.RawMessage(schemaJSON),
 	}
+}
+
+// addYANGParams collects typed parameters from YANG RPC metadata across all
+// actions and adds them as named JSON Schema properties. Returns true if any
+// typed parameters were added.
+func addYANGParams(actions []action, properties map[string]any) bool {
+	// Collect unique params by name. If a param appears in multiple actions,
+	// use the first occurrence's metadata.
+	seen := make(map[string]bool)
+	var added bool
+	for _, a := range actions {
+		for _, p := range a.params {
+			if seen[p.Name] {
+				continue
+			}
+			seen[p.Name] = true
+			prop := map[string]any{
+				"type": yangTypeToJSON(p.Type),
+			}
+			if p.Description != "" {
+				prop["description"] = p.Description
+			}
+			properties[p.Name] = prop
+			added = true
+		}
+	}
+	return added
+}
+
+// yangTypeToJSON maps YANG type names to JSON Schema types.
+// Unknown types map to "string" which is the safest JSON Schema fallback.
+var yangTypeToJSONMap = map[string]string{
+	"uint8":   "integer",
+	"uint16":  "integer",
+	"uint32":  "integer",
+	"uint64":  "integer",
+	"int8":    "integer",
+	"int16":   "integer",
+	"int32":   "integer",
+	"int64":   "integer",
+	"boolean": "boolean",
+}
+
+func yangTypeToJSON(yangType string) string {
+	if jsonType, ok := yangTypeToJSONMap[yangType]; ok {
+		return jsonType
+	}
+	return "string"
 }
 
 // dispatchGenerated handles a tools/call for an auto-generated tool.

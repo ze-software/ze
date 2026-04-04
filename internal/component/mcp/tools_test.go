@@ -845,3 +845,108 @@ func TestToolCommands(t *testing.T) {
 		t.Errorf("dispatched %q, want %q", dispatched, "command-list --json")
 	}
 }
+
+func TestTypedParamsInToolSchema(t *testing.T) {
+	// Verify YANG RPC params flow through to tool JSON schema as typed properties.
+	s := &server{
+		dispatch: func(string) (string, error) { return "", nil },
+		commands: func() []CommandInfo {
+			return []CommandInfo{
+				{
+					Name: "rib routes",
+					Help: "Show routes",
+					Params: []ParamInfo{
+						{Name: "family", Type: "string", Description: "Address family", Required: false},
+						{Name: "count", Type: "uint32", Description: "Max results", Required: false},
+					},
+				},
+				{
+					Name: "rib status",
+					Help: "RIB summary",
+				},
+			}
+		},
+	}
+
+	tools := s.allTools()
+	// Find ze_rib in the tool list.
+	var ribTool map[string]any
+	for _, tool := range tools {
+		if tool["name"] == "ze_rib" {
+			ribTool = tool
+			break
+		}
+	}
+	if ribTool == nil {
+		t.Fatal("ze_rib tool not found")
+	}
+
+	schemaRaw, ok := ribTool["inputSchema"].(json.RawMessage)
+	if !ok {
+		t.Fatal("inputSchema not json.RawMessage")
+	}
+	var schema struct {
+		Properties map[string]struct {
+			Type        string `json:"type"`
+			Description string `json:"description"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(schemaRaw, &schema); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	// "family" should be string type.
+	if fam, ok := schema.Properties["family"]; !ok {
+		t.Error("missing 'family' property from YANG params")
+	} else {
+		if fam.Type != "string" {
+			t.Errorf("family type = %q, want string", fam.Type)
+		}
+		if fam.Description != "Address family" {
+			t.Errorf("family description = %q, want 'Address family'", fam.Description)
+		}
+	}
+
+	// "count" should be integer (mapped from uint32).
+	if cnt, ok := schema.Properties["count"]; !ok {
+		t.Error("missing 'count' property from YANG params")
+	} else if cnt.Type != "integer" {
+		t.Errorf("count type = %q, want integer", cnt.Type)
+	}
+
+	// "arguments" should NOT be present (typed params replace it).
+	if _, ok := schema.Properties["arguments"]; ok {
+		t.Error("'arguments' should not be present when typed params exist")
+	}
+
+	// "peer" should still be present.
+	if _, ok := schema.Properties["peer"]; !ok {
+		t.Error("missing 'peer' property")
+	}
+
+	// "action" should still have enum.
+	if _, ok := schema.Properties["action"]; !ok {
+		t.Error("missing 'action' property")
+	}
+}
+
+func TestYANGTypeToJSON(t *testing.T) {
+	tests := []struct {
+		yang string
+		want string
+	}{
+		{"string", "string"},
+		{"uint32", "integer"},
+		{"int64", "integer"},
+		{"boolean", "boolean"},
+		{"enumeration", "string"},
+		{"ip-address", "string"},
+		{"unknown-type", "string"},
+	}
+	for _, tt := range tests {
+		got := yangTypeToJSON(tt.yang)
+		if got != tt.want {
+			t.Errorf("yangTypeToJSON(%q) = %q, want %q", tt.yang, got, tt.want)
+		}
+	}
+}
