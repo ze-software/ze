@@ -7,12 +7,26 @@ Rationale: `.claude/rationale/git-safety.md`
 **NEVER run `git commit` or `git push`.** These commands are in the deny list and blocked by hooks.
 
 **Commit workflow:**
-1. Run `git add` to stage task-related files only.
-2. Write the commit message to `/tmp/commit-msg-SESSION.txt` where SESSION = 8-char unique ID
-   (e.g., `head -c4 /dev/urandom | xxd -p` at session start). File lives in /tmp to avoid
-   permission prompts. Unique name prevents parallel sessions from clobbering each other.
+1. **Do NOT run `git add`.** Multiple Claude sessions share the staging area; `git add`
+   from one session contaminates others.
+2. Write a commit script to `tmp/commit-SESSION.sh` where SESSION = 8-char unique ID
+   (e.g., `head -c4 /dev/urandom | xxd -p` at session start). The script contains
+   the `git add` commands, the commit message as a heredoc, and the `git commit` command.
 3. Report what was done and what is left (including deferred).
-4. The user runs `git commit -F /tmp/commit-msg-XXXX.txt` themselves.
+4. The user reviews and runs `bash tmp/commit-SESSION.sh` themselves.
+
+**Script format:**
+```bash
+#!/bin/bash
+set -e
+git add file1.go file2.go file3_test.go
+git commit -m "$(cat <<'EOF'
+type: subject line
+
+Body explaining why.
+EOF
+)"
+```
 
 **Unstaging files:** `git restore --staged <file>` is allowed. All other `git restore` variants are forbidden.
 
