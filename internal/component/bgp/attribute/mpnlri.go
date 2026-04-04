@@ -104,13 +104,19 @@ func (m *MPReachNLRI) Len() int {
 }
 
 // nextHopLen calculates the total next-hop length in bytes per RFC 4760 Section 3.
+// RFC 4364 Section 4.3.4: VPN (SAFI 128) next-hops include an 8-byte RD prefix
+// (set to zero) before each IP address: RD(8)+IPv4(4)=12 or RD(8)+IPv6(16)=24.
 func (m *MPReachNLRI) nextHopLen() int {
+	rdOverhead := 0
+	if m.SAFI == SAFIVPN {
+		rdOverhead = RDSize
+	}
 	total := 0
 	for _, nh := range m.NextHops {
 		if nh.Is4() {
-			total += 4
+			total += rdOverhead + 4
 		} else {
-			total += 16
+			total += rdOverhead + 16
 		}
 	}
 	return total
@@ -130,8 +136,16 @@ func (m *MPReachNLRI) WriteTo(buf []byte, off int) int {
 	buf[off+3] = byte(nhLen)
 
 	// RFC 4760 Section 3: Network Address of Next Hop (variable)
+	// RFC 4364 Section 4.3.4: VPN next-hops are prefixed with 8-byte RD (all zeros).
 	pos := off + 4
 	for _, nh := range m.NextHops {
+		if m.SAFI == SAFIVPN {
+			// Write 8-byte RD = 0 before each next-hop address.
+			for i := range RDSize {
+				buf[pos+i] = 0
+			}
+			pos += RDSize
+		}
 		n := copy(buf[pos:], nh.AsSlice())
 		pos += n
 	}

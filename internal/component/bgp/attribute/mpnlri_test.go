@@ -30,6 +30,8 @@ func TestMPReachNLRI_WriteTo(t *testing.T) {
 			},
 		},
 		{
+			// RFC 4364 Section 4.3.4: VPN next-hop is RD(8) + IPv4(4) = 12 bytes.
+			// The RD is set to all zeros per RFC 4364.
 			name: "IPv4 VPN",
 			attr: &MPReachNLRI{
 				AFI:      AFIIPv4,
@@ -39,11 +41,31 @@ func TestMPReachNLRI_WriteTo(t *testing.T) {
 			},
 			expected: []byte{
 				0x00, 0x01, // AFI IPv4
-				0x80,                   // SAFI VPN (128)
-				0x04,                   // NH len = 4
+				0x80,                                           // SAFI VPN (128)
+				0x0c,                                           // NH len = 12 (8 RD + 4 IPv4)
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // RD = 0 (per RFC 4364)
 				0x0a, 0x00, 0x00, 0x01, // next-hop 10.0.0.1
 				0x00,             // reserved
 				0x01, 0x02, 0x03, // NLRI
+			},
+		},
+		{
+			// RFC 4659: VPN-IPv6 next-hop is RD(8) + IPv6(16) = 24 bytes.
+			name: "IPv6 VPN",
+			attr: &MPReachNLRI{
+				AFI:      AFIIPv6,
+				SAFI:     SAFIVPN,
+				NextHops: []netip.Addr{netip.MustParseAddr("2001:db8::1")},
+				NLRI:     []byte{0x01, 0x02},
+			},
+			expected: []byte{
+				0x00, 0x02, // AFI IPv6
+				0x80,                                           // SAFI VPN (128)
+				0x18,                                           // NH len = 24 (8 RD + 16 IPv6)
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // RD = 0 (per RFC 4364)
+				0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, // next-hop
+				0x00,       // reserved
+				0x01, 0x02, // NLRI
 			},
 		},
 		{
@@ -551,6 +573,50 @@ func TestMPReachNLRI_RoundTrip(t *testing.T) {
 	}
 	if len(parsed.NextHops) != len(original.NextHops) {
 		t.Errorf("NextHops len = %d, want %d", len(parsed.NextHops), len(original.NextHops))
+	}
+	if len(parsed.NLRI) != len(original.NLRI) {
+		t.Errorf("NLRI len = %d, want %d", len(parsed.NLRI), len(original.NLRI))
+	}
+}
+
+// TestMPReachNLRI_RoundTrip_VPN verifies VPN next-hop round-trip: WriteTo adds
+// the 8-byte RD prefix per RFC 4364, ParseMPReachNLRI strips it back to the IP.
+//
+// VALIDATES: RFC 4364 Section 4.3.4 VPN next-hop encoding round-trips correctly.
+// PREVENTS: VPN routes rejected by GoBGP due to incorrect next-hop length.
+func TestMPReachNLRI_RoundTrip_VPN(t *testing.T) {
+	t.Parallel()
+	original := &MPReachNLRI{
+		AFI:      AFIIPv4,
+		SAFI:     SAFIVPN,
+		NextHops: []netip.Addr{netip.MustParseAddr("10.0.0.1")},
+		NLRI:     []byte{0x01, 0x02, 0x03},
+	}
+
+	buf := make([]byte, 256)
+	n := original.WriteTo(buf, 0)
+
+	// Wire bytes must have NH_Len=12 (RD prefix included)
+	if buf[3] != 12 {
+		t.Fatalf("wire NH_Len = %d, want 12 (8 RD + 4 IPv4)", buf[3])
+	}
+
+	parsed, err := ParseMPReachNLRI(buf[:n])
+	if err != nil {
+		t.Fatalf("ParseMPReachNLRI() error = %v", err)
+	}
+
+	if parsed.AFI != original.AFI {
+		t.Errorf("AFI = %d, want %d", parsed.AFI, original.AFI)
+	}
+	if parsed.SAFI != original.SAFI {
+		t.Errorf("SAFI = %d, want %d", parsed.SAFI, original.SAFI)
+	}
+	if len(parsed.NextHops) != 1 {
+		t.Fatalf("NextHops len = %d, want 1", len(parsed.NextHops))
+	}
+	if parsed.NextHops[0] != original.NextHops[0] {
+		t.Errorf("NextHops[0] = %v, want %v", parsed.NextHops[0], original.NextHops[0])
 	}
 	if len(parsed.NLRI) != len(original.NLRI) {
 		t.Errorf("NLRI len = %d, want %d", len(parsed.NLRI), len(original.NLRI))
