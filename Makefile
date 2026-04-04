@@ -4,7 +4,7 @@
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-all ze-all-test
 .PHONY: ze-interop-test ze-live-test ze-live-rpki-test
-.PHONY: ze-integration-test ze-integration-iface-test
+.PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift
 .PHONY: ze-sync-vendor-web ze-check-vendor-web
@@ -311,8 +311,14 @@ ze-integration-iface-test:
 	@echo "Running iface integration tests (requires CAP_NET_ADMIN)..."
 	$(GO) test -tags integration -count=1 -race -timeout 120s ./internal/component/iface/...
 
-# Run all integration tests.
-ze-integration-test: ze-integration-iface-test
+# Run FIB kernel integration tests (requires CAP_NET_ADMIN / root).
+# Tests actual netlink route programming in isolated network namespaces.
+ze-integration-fib-test:
+	@echo "Running FIB kernel integration tests (requires CAP_NET_ADMIN)..."
+	$(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/fibkernel/...
+
+# Run all integration tests (requires CAP_NET_ADMIN / root).
+ze-integration-test: ze-integration-iface-test ze-integration-fib-test
 
 # ─── Performance benchmarks ────────────────────────────────────────────────
 
@@ -469,6 +475,7 @@ help:
 	@echo "  Integration tests (CAP_NET_ADMIN / root):"
 	@echo "  ze-integration-test      - Run all integration tests (network namespaces)"
 	@echo "  ze-integration-iface-test - Run iface integration tests"
+	@echo "  ze-integration-fib-test  - Run FIB kernel netlink integration tests"
 	@echo ""
 	@echo "  Live tests (Docker + internet):"
 	@echo "  ze-live-test             - Run all live integration tests"
