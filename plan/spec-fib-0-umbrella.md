@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-03-27 |
+| Updated | 2026-04-04 |
 
 ## Post-Compaction Recovery
 
@@ -43,6 +43,11 @@ Protocol RIBs (per-protocol best path selection)
         +-----------+-----------+
    fib-kernel    fib-p4      fib-xxx
    (build-tag)  (cross-OS)   (future)
+        |
+   kernel route monitor
+   (netlink RTNLGRP_*_ROUTE)
+        |
+   Bus: fib/external-change (external route change detected)
 ```
 
 ### Design Decisions (agreed with user)
@@ -65,6 +70,8 @@ Protocol RIBs (per-protocol best path selection)
 | CLI naming | `ze show bgp rib` (BGP protocol RIB), `ze show rib` (system RIB). .ci tests verify via CLI output |
 | System RIB key | `(family, prefix)` -- each protocol publishes at most one route per (family, prefix) pair |
 | ADD-PATH is internal | BGP RIB runs SelectBest across all ADD-PATH candidates internally. Published event always contains the single best route per prefix. ADD-PATH path-IDs never leak to System RIB |
+| Kernel route monitoring | fib-kernel monitors kernel route table via netlink `RTNLGRP_IPV4_ROUTE` / `RTNLGRP_IPV6_ROUTE` (Linux) or route socket (Darwin). Detects external route changes. Filters by `rtm_protocol`: ignores ze's own changes (`RTPROT_ZE`), re-asserts ze routes when externally overwritten, publishes `fib/external-change` Bus events for observability |
+| Full-table replay on subscribe | When System RIB subscribes to `rib/best-change/` prefix, protocol RIBs replay their current best-path table as an initial batch event. Ensures System RIB is fully populated even if protocol RIB started first. Same batch format, metadata `"replay": "true"` |
 
 ### Scope
 
@@ -77,6 +84,8 @@ Protocol RIBs (per-protocol best path selection)
 | fib-kernel plugin | New plugin: subscribe to System RIB events, program OS kernel routing table (Linux netlink, Darwin route socket) |
 | Admin distance table | Default priorities per protocol, configurable via YANG |
 | Bus topic contract | Topic hierarchy, payload format, metadata schema for the full pipeline |
+| Kernel route monitoring | fib-kernel monitors OS routing table for external changes, re-asserts ze routes, publishes conflicts to Bus |
+| Full-table replay on subscribe | Protocol RIBs replay current best-path table when a new subscriber joins, ensuring late-starting components are fully populated |
 
 **Out of Scope:**
 
@@ -95,7 +104,7 @@ Protocol RIBs (per-protocol best path selection)
 |-------|------|-------|---------|
 | 1 | `spec-fib-1-rib-events.md` | Wire Bus into BGP RIB via ConfigureBus callback. Add real-time best-path tracking (previous best per family+prefix). Publish batch events to `rib/best-change/bgp` on changes. Collect under lock, publish after release. eBGP priority=20, iBGP priority=200 | - |
 | 2 | `spec-fib-2-sysrib.md` | System RIB plugin: subscribes to `rib/best-change/`, maintains per-prefix best across protocols by admin distance, publishes `sysrib/best-change` | fib-1 |
-| 3 | `spec-fib-3-kernel.md` | `fib-kernel` plugin: subscribes to `sysrib/best-change`, programs OS routes via netlink (Linux) or route socket (Darwin). Build-tag OS selection. Custom `rtm_protocol` ID. Startup stale-mark-then-sweep for crash recovery | fib-2 |
+| 3 | `spec-fib-3-kernel.md` | `fib-kernel` plugin: subscribes to `sysrib/best-change`, programs OS routes via netlink (Linux) or route socket (Darwin). Build-tag OS selection. Custom `rtm_protocol` ID. Startup stale-mark-then-sweep for crash recovery. Kernel route monitoring via netlink multicast groups -- detects external changes, re-asserts ze routes, publishes `fib/external-change` events | fib-2 |
 | 4 | `spec-fib-4-p4.md` | `fib-p4` plugin: subscribes to `sysrib/best-change`, programs P4 switch via gRPC/P4Runtime. Deferred until needed | fib-3 |
 
 Phases are strictly ordered. Each phase must be complete before the next begins.
@@ -167,6 +176,7 @@ Phases are strictly ordered. Each phase must be complete before the next begins.
 | BGP UPDATE | RIB `handleReceivedStructured()` | Structured event with WireUpdate |
 | Static route config | (future) Static plugin | Config tree |
 | OSPF SPF result | (future) OSPF plugin | Protocol-specific |
+| Kernel route change | fib-kernel netlink monitor (`RTNLGRP_IPV4_ROUTE`, `RTNLGRP_IPV6_ROUTE`) | `RTM_NEWROUTE` / `RTM_DELROUTE` with `rtm_protocol` field |
 
 ### Transformation Path
 
@@ -182,6 +192,10 @@ Phases are strictly ordered. Each phase must be complete before the next begins.
 10. **Publish to Bus** -- `bus.Publish("sysrib/best-change", payload, metadata)`
 11. **FIB receives** -- subscribed to `sysrib/best-change`, decodes payload
 12. **FIB programs kernel** -- netlink `RTM_NEWROUTE` / `RTM_DELROUTE` (Linux) or route socket (Darwin), using ze's custom `rtm_protocol` ID
+13. **Kernel route monitor receives change** -- netlink multicast delivers `RTM_NEWROUTE` / `RTM_DELROUTE` from any source
+14. **Filter by protocol ID** -- if `rtm_protocol == RTPROT_ZE`: ignore (own change). Otherwise: external change detected
+15. **Check against System RIB** -- if prefix matches a ze-managed route: re-assert ze's route (overwrite external change)
+16. **Publish conflict** -- `bus.Publish("fib/external-change", conflictPayload, metadata)` for observability
 
 ### Boundaries Crossed
 
@@ -193,6 +207,8 @@ Phases are strictly ordered. Each phase must be complete before the next begins.
 | Bus -> FIB | `consumer.Deliver([]Event)` via prefix subscription | [ ] |
 | FIB -> OS kernel | Netlink RTM_NEWROUTE/RTM_DELROUTE (Linux) | [ ] |
 | FIB -> P4 switch | gRPC/P4Runtime (future) | [ ] |
+| OS kernel -> FIB | Netlink multicast `RTNLGRP_IPV4_ROUTE` / `RTNLGRP_IPV6_ROUTE` (Linux) | [ ] |
+| FIB -> Bus (conflict) | `bus.Publish("fib/external-change", ...)` on external route change | [ ] |
 
 ### Integration Points
 - `internal/component/plugin/registry/registry.go` -- add `ConfigureBus func(ze.Bus)` callback to `Registration` struct (mirrors `ConfigureMetrics` pattern)
@@ -217,6 +233,7 @@ Phases are strictly ordered. Each phase must be complete before the next begins.
 | `rib/best-change/static` | Static plugin (future) | System RIB | Static route added/removed |
 | `rib/best-change/ospf` | OSPF plugin (future) | System RIB | OSPF best route changed |
 | `sysrib/best-change` | System RIB | FIB plugins | System-wide best route changed |
+| `fib/external-change` | fib-kernel | Monitoring / logging | External route change detected on a ze-managed prefix |
 
 System RIB subscribes to `rib/best-change/` prefix -- catches all protocols without enumeration.
 
@@ -226,6 +243,7 @@ System RIB subscribes to `rib/best-change/` prefix -- catches all protocols with
 |-----|-------|---------|
 | `protocol` | `"bgp"`, `"static"`, `"ospf"` | System RIB knows the source protocol |
 | `family` | `"ipv4/unicast"`, `"ipv6/unicast"` | Address family filter |
+| `replay` | `"true"` | Present only on full-table replay events (initial sync on subscribe) |
 
 ### Payload Format (JSON, kebab-case per `rules/json-format.md`)
 
@@ -255,6 +273,17 @@ System RIB -> FIB (`sysrib/best-change`):
 | `prefix` | string | CIDR prefix |
 | `next-hop` | string | Next-hop IP address |
 | `protocol` | string | Winning protocol name (e.g., `"bgp"`, `"static"`) |
+
+FIB conflict event (`fib/external-change`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `prefix` | string | CIDR prefix affected |
+| `action` | string | `"overwritten"` (external route replaced ze route), `"added"` (external route conflicts with ze prefix) |
+| `external-protocol` | integer | Kernel `rtm_protocol` value of the external route |
+| `external-next-hop` | string | Next-hop from the external route |
+| `ze-next-hop` | string | Next-hop ze had installed (before conflict) |
+| `resolved` | string | `"reasserted"` (ze re-installed its route) |
 
 ### Action Semantics
 
@@ -311,6 +340,33 @@ This preserves the forwarding plane during ze restart. Only genuinely stale rout
 
 For Darwin: no `rtm_protocol` equivalent. Route table ID or tag convention to be defined in `spec-fib-3-kernel.md`.
 
+### Kernel Route Monitoring (drift detection)
+
+fib-kernel opens a second netlink socket (or shares the route-programming socket) joined to `RTNLGRP_IPV4_ROUTE` and `RTNLGRP_IPV6_ROUTE` multicast groups. This provides asynchronous notification of all kernel routing table changes, regardless of source.
+
+| Event | `rtm_protocol` | Action |
+|-------|----------------|--------|
+| Route change with `RTPROT_ZE` | ze's own change | Ignore (expected) |
+| Route change on ze-managed prefix | Another daemon or admin | Re-assert ze's route, publish `fib/external-change` |
+| Route change on unmanaged prefix | Another daemon or admin | Ignore (not ze's concern) |
+
+Re-assertion is the standard behavior for routing daemons (BIRD, FRR). The `fib/external-change` Bus event provides observability -- operators can subscribe to detect misconfiguration or conflicting daemons.
+
+On Darwin, the route socket (`AF_ROUTE`) provides equivalent `RTM_ADD`/`RTM_DELETE`/`RTM_CHANGE` messages. Filtering uses route table ID or tag convention (defined in `spec-fib-3-kernel.md`).
+
+### Full-Table Replay on Subscribe
+
+When a downstream consumer subscribes to a topic prefix (e.g., System RIB subscribes to `rib/best-change/`), the Bus delivers a replay of the publisher's current state as an initial batch event. This solves startup ordering: if BGP RIB starts and computes best paths before System RIB subscribes, the System RIB still receives the full table.
+
+| Step | Action |
+|------|--------|
+| 1. Protocol RIB starts | Computes best paths, publishes changes as they occur |
+| 2. System RIB starts, subscribes | Bus triggers replay callback on the publisher |
+| 3. Protocol RIB replays | Publishes batch with all current best paths, metadata `"replay": "true"` |
+| 4. System RIB processes | Handles replay batch identically to normal events (idempotent insert) |
+
+Same mechanism applies at the System RIB -> FIB boundary. If fib-kernel subscribes late, System RIB replays its current best table.
+
 ### VRF Integration
 
 No FIB-specific VRF logic. Per `spec-vrf-0-umbrella`, each VRF gets its own hub instance. The VRF plugin instantiates FIB plugins per VRF. Each FIB instance receives events scoped to its VRF. The kernel backend accepts a VRF name parameter for route installation (`ip route add ... vrf <name>`). Default VRF uses the main routing table.
@@ -330,6 +386,8 @@ No FIB-specific VRF logic. Per `spec-vrf-0-umbrella`, each VRF gets its own hub 
 | BGP UPDATE changes best path | -> | RIB tracks best, `ze show bgp rib` shows it | `test/plugin/fib-rib-event.ci` | 1 |
 | Protocol RIB publishes change | -> | System RIB selects by priority, `ze show rib` shows winner | `test/plugin/fib-sysrib.ci` | 2 |
 | System RIB publishes best | -> | fib-kernel installs route in OS | `test/plugin/fib-kernel.ci` | 3 |
+| External route change on managed prefix | -> | fib-kernel re-asserts ze route, publishes `fib/external-change` | `test/plugin/fib-conflict.ci` | 3 |
+| System RIB subscribes after BGP RIB started | -> | Protocol RIB replays full table, System RIB populates | `test/plugin/fib-replay.ci` | 1 |
 
 ## Acceptance Criteria
 
@@ -353,6 +411,12 @@ No FIB-specific VRF logic. Per `spec-vrf-0-umbrella`, each VRF gets its own hub 
 | AC-16 | 3 | All ze routes use custom `rtm_protocol` ID | `ip route show proto ze` lists only ze-installed routes |
 | AC-17 | 1 | `ze show bgp rib` CLI command | Shows BGP RIB best routes per prefix with next-hop and attributes |
 | AC-18 | 2 | `ze show rib` CLI command | Shows system RIB best routes per prefix with winning protocol and priority |
+| AC-19 | 3 | External process adds route for ze-managed prefix (e.g., `ip route add 10.0.0.0/24 via 1.2.3.4`) | fib-kernel detects via netlink monitor, re-asserts ze's route, publishes `fib/external-change` event |
+| AC-20 | 3 | External process deletes ze route | fib-kernel detects, re-installs ze's route, publishes `fib/external-change` event |
+| AC-21 | 3 | External route change on prefix not managed by ze | fib-kernel ignores (no conflict, no event) |
+| AC-22 | 3 | fib-kernel's own route install triggers netlink notification | fib-kernel ignores (`rtm_protocol == RTPROT_ZE`) |
+| AC-23 | 1 | System RIB subscribes after BGP RIB has already computed best paths | Protocol RIB replays current best-path table as batch event with metadata `"replay": "true"`. System RIB receives full table |
+| AC-24 | 3 | fib-kernel subscribes after System RIB has selected best routes | System RIB replays current system best as batch event. fib-kernel installs all routes |
 
 ## 🧪 TDD Test Plan
 
@@ -376,6 +440,12 @@ No FIB-specific VRF logic. Per `spec-vrf-0-umbrella`, each VRF gets its own hub 
 | `TestFIBKernelStartupSweep` | `internal/plugins/fib-kernel/fib_test.go` | 3 | On startup, marks existing ze routes stale, refreshes matches, removes expired |
 | `TestFIBKernelProtocolID` | `internal/plugins/fib-kernel/fib_test.go` | 3 | All installed routes use ze custom rtm_protocol ID |
 | `TestFIBKernelFlushOnStop` | `internal/plugins/fib-kernel/fib_test.go` | 3 | Graceful stop with flush-on-stop=true removes routes |
+| `TestFIBKernelMonitorIgnoreOwn` | `internal/plugins/fib-kernel/fib_test.go` | 3 | Netlink notification with `RTPROT_ZE` is ignored |
+| `TestFIBKernelMonitorReassert` | `internal/plugins/fib-kernel/fib_test.go` | 3 | External route on managed prefix triggers re-assertion + conflict event |
+| `TestFIBKernelMonitorIgnoreUnmanaged` | `internal/plugins/fib-kernel/fib_test.go` | 3 | External route on unmanaged prefix is ignored |
+| `TestFIBKernelConflictEvent` | `internal/plugins/fib-kernel/fib_test.go` | 3 | Conflict event contains correct prefix, external next-hop, ze next-hop, resolution |
+| `TestRIBReplayOnSubscribe` | `internal/component/bgp/plugins/rib/rib_bestchange_test.go` | 1 | New subscriber receives full best-path table as replay batch |
+| `TestSysRIBReplayOnSubscribe` | `internal/plugins/sysrib/sysrib_test.go` | 2 | Late-subscribing FIB receives full system best table |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 
@@ -393,6 +463,8 @@ No FIB-specific VRF logic. Per `spec-vrf-0-umbrella`, each VRF gets its own hub 
 | `test-fib-sysrib` | `test/plugin/fib-sysrib.ci` | 2 | `ze show rib` shows system best route with winning protocol and priority |
 | `test-fib-kernel` | `test/plugin/fib-kernel.ci` | 3 | Route installed in OS routing table (requires CAP_NET_ADMIN or dry-run mode) |
 | `test-fib-startup` | `test/plugin/fib-startup.ci` | 3 | After restart, stale routes swept after timer |
+| `test-fib-conflict` | `test/plugin/fib-conflict.ci` | 3 | External route on ze-managed prefix triggers re-assertion and conflict event |
+| `test-fib-replay` | `test/plugin/fib-replay.ci` | 1 | System RIB subscribing late receives full BGP best-path table |
 
 ## Files to Modify
 
@@ -416,6 +488,8 @@ No FIB-specific VRF logic. Per `spec-vrf-0-umbrella`, each VRF gets its own hub 
 | `internal/plugins/fib-kernel/backend_linux.go` | 3 | Netlink route add/del/replace |
 | `internal/plugins/fib-kernel/backend_darwin.go` | 3 | Route socket add/del |
 | `internal/plugins/fib-kernel/schema/ze-fib-conf.yang` | 3 | YANG config (flush-on-stop, etc.) |
+| `internal/plugins/fib-kernel/monitor_linux.go` | 3 | Netlink route monitor (join multicast groups, dispatch events) |
+| `internal/plugins/fib-kernel/monitor_darwin.go` | 3 | Route socket monitor |
 
 ### Integration Checklist
 
@@ -463,6 +537,8 @@ Implementation follows child specs in order. Each phase must be complete before 
 | Batch correctness | Changes collected under lock, published after release |
 | Admin distance | eBGP=20, iBGP=200 correctly applied per route |
 | Crash recovery | Custom rtm_protocol ID used, startup sweep works |
+| Route monitoring | Netlink monitor detects external changes, re-asserts ze routes, publishes conflicts |
+| Replay on subscribe | Late subscribers receive full table replay |
 | CLI | `ze show rib` and `ze show bgp rib` return correct data |
 
 ### Deliverables Checklist (see child specs for phase-specific checks)
@@ -484,6 +560,7 @@ Implementation follows child specs in order. Each phase must be complete before 
 | Privilege escalation | fib-kernel netlink calls require CAP_NET_ADMIN. Validate ze runs with correct capabilities |
 | Resource exhaustion | Batch events with unbounded prefix count. Limit batch size or use streaming |
 | Route injection | Malicious plugin publishing fake `rib/best-change/*` events. Bus access control |
+| Conflict loop | External daemon and ze repeatedly overwriting each other's routes. Rate-limit re-assertions to prevent netlink storm |
 
 ### Failure Routing
 
@@ -594,7 +671,7 @@ The System RIB's only job is selecting between protocols by admin distance. With
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-18 all demonstrated
+- [ ] AC-1..AC-24 all demonstrated
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)

@@ -30,6 +30,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/lg"
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"
 	resolveDNS "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
@@ -317,6 +318,7 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 	b := bus.NewBus()
 	reactor.SetBus(b)
 	iface.SetBus(b)
+	registry.SetBus(b)
 	pm := pluginmgr.NewManager()
 	reactor.SetProcessSpawner(pm)
 	bgpSub := subsystem.NewBGPSubsystem(reactor)

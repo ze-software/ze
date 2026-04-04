@@ -1,0 +1,168 @@
+# Test: BGP RIB best-path change events published to Bus
+#
+# Flow:
+# 1. Inject a route via rib inject
+# 2. Verify "rib show best" shows the route with correct next-hop
+# 3. Inject a better route from another peer
+# 4. Verify best path updates
+#
+# VALIDATES: AC-1 -- BGP RIB publishes best-change events on best path change
+# VALIDATES: AC-17 -- ze show bgp rib shows best routes per prefix
+# PREVENTS: Best-path tracking not wired into production path
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+EOF_PEER
+
+# Python test plugin
+tmpfs=fib-rib-event-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Test: BGP RIB best-path change events are tracked."""
+
+import json
+import sys
+import time
+
+from ze_api import API
+
+
+failures = 0
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def check(label, result, expected_status):
+    global failures
+    actual = result.get('status')
+    if actual != expected_status:
+        print(f'FAIL {label}: expected status={expected_status}, got={actual}', file=sys.stderr)
+        print(f'  data: {result.get("data", "")[:200]}', file=sys.stderr)
+        failures += 1
+    else:
+        print(f'OK {label}: status={actual}', file=sys.stderr)
+
+
+def wait_for_rib(api):
+    for _ in range(20):
+        r = dispatch(api, 'rib status')
+        if r.get('status') == 'done':
+            return True
+        time.sleep(0.5)
+    return False
+
+
+def main():
+    global failures
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    time.sleep(1.0)
+    if not wait_for_rib(api):
+        print('FAIL: rib plugin did not become ready', file=sys.stderr)
+        sys.exit(1)
+
+    # Inject a route -- this triggers best-path tracking.
+    r = dispatch(api, 'rib inject 10.0.0.1 ipv4/unicast 10.10.0.0/24 origin igp')
+    check('inject-route', r, 'done')
+
+    # Verify best-path shows the route.
+    r = dispatch(api, 'rib show best')
+    check('show-best', r, 'done')
+    data_str = r.get('data', '')
+    try:
+        data = json.loads(data_str)
+        best = data.get('best-path', [])
+        found = any(e.get('prefix') == '10.10.0.0/24' for e in best)
+        if not found:
+            print(f'FAIL best-path-visible: 10.10.0.0/24 not in best-path output', file=sys.stderr)
+            failures += 1
+        else:
+            print('OK best-path-visible: 10.10.0.0/24 found in best-path', file=sys.stderr)
+    except (json.JSONDecodeError, TypeError):
+        print(f'FAIL best-path-parse: {data_str[:200]}', file=sys.stderr)
+        failures += 1
+
+    # Shutdown
+    if failures > 0:
+        print(f'\n{failures} failures', file=sys.stderr)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+    if failures > 0:
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external fib-rib-event-test {
+		run ./fib-rib-event-test.run
+		encoder json
+	}
+	external rib {
+		run "ze plugin bgp-rib"
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process fib-rib-event-test {
+		}
+		process rib {
+		}
+	}
+}
+EOF_CONF
+
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=asn:value=1

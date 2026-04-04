@@ -97,6 +97,7 @@ var pluginDirs = []string{
 	"internal/component/bgp/plugins",
 	"internal/component/bgp/reactor/filter",
 	"internal/component/iface",
+	"internal/plugins",
 }
 
 // discoverPlugins finds plugin packages by looking for register.go files

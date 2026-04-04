@@ -82,6 +82,11 @@ func GetInternalPluginRunner(name string) InternalPluginRunner {
 				reg.ConfigureMetrics(mr)
 			}
 		}
+		if reg.ConfigureBus != nil {
+			if b := registry.GetBus(); b != nil {
+				reg.ConfigureBus(b)
+			}
+		}
 		return reg.RunEngine(conn)
 	}
 }

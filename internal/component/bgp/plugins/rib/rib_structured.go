@@ -1,5 +1,6 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — RIB plugin structured delivery
 // Overview: rib.go — RIB plugin main entry and JSON dispatch
+// Related: rib_bestchange.go — best-path change tracking and Bus publishing
 //
 // Structured event handlers for DirectBridge delivery.
 // These handlers read from StructuredEvent metadata fields and RawMessage wire types
@@ -37,8 +38,17 @@ func (r *RIBManager) dispatchStructured(se *rpc.StructuredEvent) {
 	}
 }
 
+// affectedPrefix tracks a prefix that was inserted or removed for best-path checking.
+type affectedPrefix struct {
+	family    nlri.Family
+	nlriBytes []byte
+	addPath   bool
+}
+
 // handleReceivedStructured processes received UPDATE events from wire types.
-// Reads raw bytes directly from WireUpdate sections — no hex encode/decode round-trip.
+// Reads raw bytes directly from WireUpdate sections -- no hex encode/decode round-trip.
+// After all inserts/removes, checks best-path changes for affected prefixes and
+// publishes a batch event to the Bus (collected under lock, published after release).
 func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	peerAddr := se.PeerAddress
 	if peerAddr == "" {
@@ -61,8 +71,16 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// Get encoding context for add-path flags.
 	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
 
+	// Track affected prefixes for best-path change detection.
+	var affected []affectedPrefix
+
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	locked := true
+	defer func() {
+		if locked {
+			r.mu.Unlock()
+		}
+	}()
 
 	// Track peer metadata for best-path comparison and capability lookup.
 	r.peerMeta[peerAddr] = &PeerMeta{
@@ -86,6 +104,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			prefixes := splitNLRIs(nlriData, addPath)
 			for _, wirePrefix := range prefixes {
 				peerRIB.Insert(ipv4Family, attrBytes, wirePrefix)
+				affected = append(affected, affectedPrefix{family: ipv4Family, nlriBytes: wirePrefix, addPath: addPath})
 			}
 		}
 	}
@@ -98,6 +117,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			withdrawns := splitNLRIs(wdData, addPath)
 			for _, wd := range withdrawns {
 				peerRIB.Remove(ipv4Family, wd)
+				affected = append(affected, affectedPrefix{family: ipv4Family, nlriBytes: wd, addPath: addPath})
 			}
 		}
 	}
@@ -113,6 +133,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 				prefixes := splitNLRIs(nlriBytes, addPath)
 				for _, wirePrefix := range prefixes {
 					peerRIB.Insert(family, attrBytes, wirePrefix)
+					affected = append(affected, affectedPrefix{family: family, nlriBytes: wirePrefix, addPath: addPath})
 				}
 			}
 		}
@@ -129,9 +150,28 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 				withdrawns := splitNLRIs(wdBytes, addPath)
 				for _, wd := range withdrawns {
 					peerRIB.Remove(family, wd)
+					affected = append(affected, affectedPrefix{family: family, nlriBytes: wd, addPath: addPath})
 				}
 			}
 		}
+	}
+
+	// Check best-path changes for all affected prefixes (under lock).
+	// Group changes by family so each family gets its own batch with correct metadata.
+	changesByFamily := make(map[string][]bestChangeEntry)
+	for _, ap := range affected {
+		if change := r.checkBestPathChange(ap.family, ap.nlriBytes, ap.addPath); change != nil {
+			familyStr := ap.family.String()
+			changesByFamily[familyStr] = append(changesByFamily[familyStr], *change)
+		}
+	}
+
+	r.mu.Unlock()
+	locked = false
+
+	// Publish one batch per family after lock release.
+	for family, changes := range changesByFamily {
+		publishBestChanges(changes, family)
 	}
 }
 

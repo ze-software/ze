@@ -152,6 +152,13 @@ ze --plugins
 | Plugin | Description | Process Binding |
 |--------|-------------|-----------------|
 | `iface` | OS interface monitor and manager (Linux netlink) | -- (Bus events, no peer binding) |
+| `sysrib` | System RIB: selects best route across protocols by admin distance | -- (Bus events, no peer binding) |
+| `fib-kernel` | FIB kernel: programs OS routes from system RIB via netlink | -- (Bus events, no peer binding) |
+| `fib-p4` | FIB P4: programs P4 switch from system RIB via gRPC/P4Runtime (noop backend) | -- (Bus events, no peer binding) |
+<!-- source: internal/component/iface/register.go -- iface registration -->
+<!-- source: internal/plugins/sysrib/register.go -- sysrib registration -->
+<!-- source: internal/plugins/fibp4/register.go -- fib-p4 registration -->
+<!-- source: internal/plugins/fibkernel/register.go -- fib-kernel registration -->
 
 The `iface` plugin monitors OS network interface changes and publishes events
 to the Bus. BGP reacts to address events by starting/stopping listeners. Uses
@@ -169,6 +176,31 @@ Bus topics published:
 | `interface/addr/removed` | IP removed |
 
 <!-- source: internal/component/iface/iface.go -- topic constants and payload types -->
+
+The `sysrib` plugin aggregates best routes from all protocol RIBs and selects
+the system-wide best per prefix by administrative distance (lower wins).
+Subscribes to `rib/best-change/` Bus topic prefix, publishes `sysrib/best-change`.
+<!-- source: internal/plugins/sysrib/sysrib.go -- sysribTopic, protocolRoute, admin distance selection -->
+
+The `fib-kernel` plugin programs OS routes from the system RIB into the kernel
+via netlink (Linux). Uses a custom rtm_protocol ID (RTPROT_ZE=250) to identify
+ze-installed routes. Crash recovery marks existing ze routes as stale at startup
+and sweeps them after reconvergence. A kernel route monitor detects external
+changes and re-asserts ze routes when overwritten.
+<!-- source: internal/plugins/fibkernel/fibkernel.go -- FIBKernel, startupSweep, sweepStale -->
+<!-- source: internal/plugins/fibkernel/monitor_linux.go -- kernel route monitor -->
+
+Bus topics in the FIB pipeline:
+
+| Topic | Publisher | Subscriber | Payload |
+|-------|-----------|------------|---------|
+| `rib/best-change/bgp` | `bgp-rib` | `sysrib` | Batch of per-prefix best-path changes |
+| `sysrib/best-change` | `sysrib` | `fib-kernel`, `fib-p4` | Batch of system-wide best route changes |
+| `fib/external-change` | `fib-kernel` | monitoring | External route change on ze-managed prefix |
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeTopic -->
+<!-- source: internal/plugins/sysrib/sysrib.go -- sysribTopic -->
+<!-- source: internal/plugins/fibkernel/monitor.go -- externalChangeTopic -->
+<!-- source: internal/plugins/fibkernel/fibkernel.go -- sysrib/best-change subscription -->
 
 ### Redistribution Filters (planned)
 

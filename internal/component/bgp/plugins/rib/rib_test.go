@@ -35,6 +35,7 @@ func newTestRIBManager(t *testing.T) *RIBManager {
 		peerMeta:      make(map[string]*PeerMeta),
 		retainedPeers: make(map[string]bool),
 		grState:       make(map[string]*peerGRState),
+		bestPrev:      make(map[bestPathKey]*bestPathRecord),
 	}
 }
 

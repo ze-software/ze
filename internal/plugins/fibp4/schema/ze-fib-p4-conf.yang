@@ -1,0 +1,37 @@
+module ze-fib-p4-conf {
+    namespace "urn:ze:fib:p4:conf";
+    prefix fibp4;
+
+    description
+        "FIB P4 plugin configuration for Ze.
+         Programs P4 switch forwarding entries from the system RIB
+         via gRPC/P4Runtime. Cross-OS plugin (generic Go).";
+
+    revision 2026-04-04 {
+        description "Initial revision.";
+    }
+
+    container fib-p4 {
+        description "FIB P4 plugin configuration.";
+
+        leaf target {
+            type string;
+            description
+                "P4Runtime gRPC target address (host:port).
+                 Example: 127.0.0.1:9559";
+        }
+
+        leaf device-id {
+            type uint64;
+            default 1;
+            description "P4Runtime device ID.";
+        }
+
+        leaf flush-on-stop {
+            type boolean;
+            default false;
+            description
+                "Remove all forwarding entries when the plugin stops.";
+        }
+    }
+}

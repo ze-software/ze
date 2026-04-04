@@ -217,6 +217,10 @@ type Registration struct {
 	// The plugin should type-assert to metrics.Registry and register gauges/counters.
 	ConfigureMetrics func(reg any)
 
+	// ConfigureBus is called before RunEngine with the Bus instance (any).
+	// The plugin should type-assert to ze.Bus and store the reference for publishing events.
+	ConfigureBus func(bus any)
+
 	// In-process peer filters: called by the reactor for ingress/egress route filtering.
 	// Ingress: before caching/dispatching received UPDATEs. Egress: per destination peer.
 	// Filter closures capture plugin state (e.g., role configs) -- reactor passes only PeerFilterInfo.
@@ -265,6 +269,11 @@ var (
 	// Set by the config loader after creating the Prometheus registry.
 	// Read by GetInternalPluginRunner to inject into plugins via ConfigureMetrics.
 	metricsRegistry any
+
+	// busInstance stores the Bus instance (as any to avoid importing ze package).
+	// Set by the engine after creating the Bus.
+	// Read by GetInternalPluginRunner to inject into plugins via ConfigureBus.
+	busInstance any
 )
 
 // Register adds a plugin to the global registry.
@@ -320,6 +329,22 @@ func GetMetricsRegistry() any {
 	mu.RLock()
 	defer mu.RUnlock()
 	return metricsRegistry
+}
+
+// SetBus stores the Bus instance for plugin injection.
+// Called by the engine after creating the Bus.
+// The bus is passed as any to avoid importing the ze package.
+func SetBus(bus any) {
+	mu.Lock()
+	defer mu.Unlock()
+	busInstance = bus
+}
+
+// GetBus returns the stored Bus instance, or nil.
+func GetBus() any {
+	mu.RLock()
+	defer mu.RUnlock()
+	return busInstance
 }
 
 // Lookup returns the registration for a named plugin, or nil if not found.
@@ -711,12 +736,14 @@ func Reset() {
 	plugins = make(map[string]*Registration)
 	attrModHandlers = make(map[uint8]AttrModHandler)
 	metricsRegistry = nil
+	busInstance = nil
 }
 
 // RegistrySnapshot holds a complete copy of the registry state for test save/restore.
 type RegistrySnapshot struct {
 	plugins         map[string]*Registration
 	attrModHandlers map[uint8]AttrModHandler
+	busInstance     any
 }
 
 // Snapshot returns a copy of the current registry state. Only for use in tests.
@@ -729,7 +756,7 @@ func Snapshot() RegistrySnapshot {
 	maps.Copy(ps, plugins)
 	ah := make(map[uint8]AttrModHandler, len(attrModHandlers))
 	maps.Copy(ah, attrModHandlers)
-	return RegistrySnapshot{plugins: ps, attrModHandlers: ah}
+	return RegistrySnapshot{plugins: ps, attrModHandlers: ah, busInstance: busInstance}
 }
 
 // Restore replaces the registry with a previously saved snapshot. Only for use in tests.
@@ -738,6 +765,7 @@ func Restore(snap RegistrySnapshot) {
 	defer mu.Unlock()
 	plugins = snap.plugins
 	attrModHandlers = snap.attrModHandlers
+	busInstance = snap.busInstance
 }
 
 // ResolveDependencies expands a list of plugin names by iteratively adding

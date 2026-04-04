@@ -69,7 +69,7 @@ flowchart TB
 
 **Key principles:**
 - **Engine** supervises startup/shutdown order. No BGP knowledge. Starts PluginManager, then Subsystems.
-- **Bus** is a notification layer for cross-component signaling (peer state, updates). Not data transport. Payload is nil; information in metadata.
+- **Bus** is a content-agnostic pub/sub backbone for cross-component signaling. Carries opaque `[]byte` payloads (JSON for FIB pipeline, nil for simple notifications). Topics are hierarchical with `/` separators; subscriptions match on prefixes.
 - **ConfigProvider** is the config authority. Populated from YANG-parsed tree via `SetRoot()`. Subsystems and plugins read from it.
 - **PluginManager** owns process lifecycle (spawn/stop via `ProcessSpawner`). Server calls `SpawnMore()` for auto-loaded plugins.
 - **BGP Subsystem** wraps reactor via `BGPSubsystem` adapter implementing `ze.Subsystem`. Publishes Bus notifications alongside EventDispatcher data delivery.
@@ -718,7 +718,69 @@ imports the plugin -- all communication flows through the Bus.
 
 ---
 
-## 15. Implementation Priority
+## 15. FIB Pipeline
+
+The FIB pipeline carries best-path decisions from protocol RIBs through to kernel
+route installation. All communication flows through the Bus; no component imports
+another directly.
+
+```
+BGP RIB (bgp-rib plugin)
+  |  best-path change detected per prefix
+  |  publishes batch to Bus
+  v
+rib/best-change/bgp  ──>  System RIB (sysrib plugin)
+                             |  selects system-wide best per prefix
+                             |  by administrative distance (lower wins)
+                             |  publishes batch to Bus
+                             v
+                           sysrib/best-change  ──>  FIB Kernel (fib-kernel plugin)
+                                                      |  programs OS routes via netlink
+                                                      |  RTPROT_ZE=250 identifies ze routes
+                                                      |  crash recovery: stale-mark-then-sweep
+                                                      |  monitors kernel for external changes
+                                                      v
+                                                    Linux kernel routing table
+```
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeTopic, best-path tracking -->
+<!-- source: internal/plugins/sysrib/sysrib.go -- sysribTopic, admin distance selection -->
+<!-- source: internal/plugins/fibkernel/fibkernel.go -- FIBKernel, netlink backend, stale sweep -->
+<!-- source: internal/plugins/fibkernel/monitor_linux.go -- kernel route change monitor -->
+
+### BGP RIB Best-Path Tracking
+
+The `bgp-rib` plugin detects best-path changes in real time. After each INSERT or
+REMOVE, the affected prefix is checked for best-path changes. Changes are collected
+into a batch under the RIB lock, then published to `rib/best-change/bgp` after lock
+release. Each entry contains the prefix, action (add/update/withdraw), next-hop,
+priority (admin distance), and metric (MED).
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeEntry, publishBestChanges -->
+
+### System RIB
+
+The `sysrib` plugin subscribes to the `rib/best-change/` Bus topic prefix (matching
+all protocols). It maintains a per-prefix table of each protocol's best route and
+selects the system-wide best by administrative distance (lower wins). When the
+system best changes, it publishes a batch to `sysrib/best-change`.
+<!-- source: internal/plugins/sysrib/sysrib.go -- protocolRoute, admin distance, outgoingBatch -->
+<!-- source: internal/plugins/sysrib/register.go -- sysrib plugin registration -->
+
+### FIB Kernel
+
+The `fib-kernel` plugin subscribes to `sysrib/best-change` and programs OS routes
+via netlink on Linux. It uses a custom rtm_protocol ID (RTPROT_ZE=250) so ze-installed
+routes are distinguishable from other routing daemons. On startup, existing ze routes
+are marked stale; after reconvergence, stale routes are swept. A kernel route monitor
+detects external modifications (other daemons, manual changes) and re-asserts ze routes
+when overwritten.
+<!-- source: internal/plugins/fibkernel/fibkernel.go -- routeBackend, startupSweep, sweepStale -->
+<!-- source: internal/plugins/fibkernel/backend_linux.go -- netlink backend, RTPROT_ZE -->
+<!-- source: internal/plugins/fibkernel/monitor_linux.go -- kernel route change detection -->
+<!-- source: internal/plugins/fibkernel/register.go -- fib-kernel plugin registration -->
+
+---
+
+## 16. Implementation Priority
 
 1. **Implement RIB with pools** - Per-attribute-type deduplication
 2. **Unified parser** - Family-specific NLRI builders
@@ -735,4 +797,4 @@ imports the plugin -- all communication flows through the Bus.
 
 ---
 
-**Last Updated:** 2026-03-29 (Added DNS resolution component)
+**Last Updated:** 2026-04-04 (Added FIB pipeline: system RIB, fib-kernel, best-path tracking)

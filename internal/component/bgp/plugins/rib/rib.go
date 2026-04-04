@@ -6,6 +6,7 @@
 // Detail: compaction.go — pool compaction scheduler wiring
 // Detail: rib_pipeline.go — iterator pipeline for show commands (scope, filters, terminals)
 // Detail: rib_pipeline_best.go — best-path pipeline for rib show best commands
+// Detail: rib_bestchange.go — best-path change tracking and Bus publishing
 //
 // Package rib implements a RIB (Routing Information Base) plugin for ze.
 // It tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out).
@@ -34,6 +35,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 const (
@@ -60,6 +62,27 @@ func SetLogger(l *slog.Logger) {
 	if l != nil {
 		loggerPtr.Store(l)
 	}
+}
+
+// busPtr stores the Bus instance for best-path change event publishing.
+// Set by ConfigureBus callback before RunEngine.
+var busPtr atomic.Pointer[ze.Bus]
+
+// SetBus sets the package-level Bus instance.
+// Called via ConfigureBus callback before RunEngine.
+func SetBus(b ze.Bus) {
+	if b != nil {
+		busPtr.Store(&b)
+	}
+}
+
+// getBus returns the stored Bus, or nil if not configured.
+func getBus() ze.Bus {
+	p := busPtr.Load()
+	if p == nil {
+		return nil
+	}
+	return *p
 }
 
 // ribMetrics holds Prometheus gauges for RIB route counts and churn.
@@ -181,7 +204,11 @@ type RIBManager struct {
 	// RFC 4724 Section 4.2: Receiving Speaker route retention state.
 	grState map[string]*peerGRState
 
-	mu sync.RWMutex // protects ribInPool, ribOut, peerUp, peerMeta, retainedPeers, grState
+	// bestPrev tracks the previous best-path per (family, prefix) for change detection.
+	// Used by checkBestPathChange to detect when the best path changes after an insert/remove.
+	bestPrev map[bestPathKey]*bestPathRecord
+
+	mu sync.RWMutex // protects ribInPool, ribOut, peerUp, peerMeta, retainedPeers, grState, bestPrev
 
 	// lastMetricsInPeers / lastMetricsOutPeers track peer labels emitted in the
 	// previous updateMetrics cycle. Peers that disappear from ribInPool/ribOut
@@ -286,6 +313,7 @@ func RunRIBPlugin(conn net.Conn) int {
 		peerMeta:      make(map[string]*PeerMeta),
 		retainedPeers: make(map[string]bool),
 		grState:       make(map[string]*peerGRState),
+		bestPrev:      make(map[bestPathKey]*bestPathRecord),
 	}
 
 	// Structured event handler for DirectBridge delivery.
@@ -330,6 +358,13 @@ func RunRIBPlugin(conn net.Conn) int {
 		go runCompaction(ctx, pool.AllPools())
 		if metricsPtr.Load() != nil {
 			go r.runMetricsLoop(ctx)
+		}
+		// Subscribe to replay requests from downstream consumers (e.g., sysrib).
+		// When a subscriber sends rib/replay-request, replay the full best-path table.
+		if bus := getBus(); bus != nil {
+			if _, err := bus.Subscribe("rib/replay-request", nil, &replayConsumer{rib: r}); err != nil {
+				logger().Warn("replay request subscribe failed", "error", err)
+			}
 		}
 		return nil
 	})

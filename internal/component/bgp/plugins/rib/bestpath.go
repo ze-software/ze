@@ -3,6 +3,7 @@
 // Related: rib_attr_format.go — attribute formatting (asPathLength, firstASInPath shared concern)
 // Related: rib_commands.go — extractCandidate, gatherCandidates
 // Related: rib_pipeline_best.go — best-path pipeline for rib show best commands
+// Related: rib_bestchange.go — best-path change tracking and Bus publishing
 //
 // Best-path selection per RFC 4271 §9.1.2 Decision Process Phase 2.
 // Pure functions operating on extracted Candidate values — no pool dependency.

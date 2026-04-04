@@ -9,6 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 func init() {
@@ -25,6 +26,11 @@ func init() {
 		ConfigureMetrics: func(reg any) {
 			if r, ok := reg.(metrics.Registry); ok {
 				SetMetricsRegistry(r)
+			}
+		},
+		ConfigureBus: func(bus any) {
+			if b, ok := bus.(ze.Bus); ok {
+				SetBus(b)
 			}
 		},
 	}

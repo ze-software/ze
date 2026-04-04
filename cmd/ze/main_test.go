@@ -19,7 +19,7 @@ import (
 // PREVENTS: Missing plugin entries in discovery output.
 func TestAvailablePlugins(t *testing.T) {
 	// Expected plugins (sorted - AvailableInternalPlugins returns sorted list)
-	expected := []string{"bgp-adj-rib-in", "bgp-aigp", "bgp-filter-community", "bgp-gr", "bgp-healthcheck", "bgp-hostname", "bgp-llnh", "bgp-nlri-evpn", "bgp-nlri-flowspec", "bgp-nlri-labeled", "bgp-nlri-ls", "bgp-nlri-mup", "bgp-nlri-mvpn", "bgp-nlri-rtc", "bgp-nlri-vpls", "bgp-nlri-vpn", "bgp-persist", "bgp-rib", "bgp-role", "bgp-route-refresh", "bgp-rpki", "bgp-rpki-decorator", "bgp-rs", "bgp-softver", "bgp-watchdog", "interface", "loop"}
+	expected := []string{"bgp-adj-rib-in", "bgp-aigp", "bgp-filter-community", "bgp-gr", "bgp-healthcheck", "bgp-hostname", "bgp-llnh", "bgp-nlri-evpn", "bgp-nlri-flowspec", "bgp-nlri-labeled", "bgp-nlri-ls", "bgp-nlri-mup", "bgp-nlri-mvpn", "bgp-nlri-rtc", "bgp-nlri-vpls", "bgp-nlri-vpn", "bgp-persist", "bgp-rib", "bgp-role", "bgp-route-refresh", "bgp-rpki", "bgp-rpki-decorator", "bgp-rs", "bgp-softver", "bgp-watchdog", "fib-kernel", "fib-p4", "interface", "loop", "sysrib"}
 
 	got := plugin.AvailableInternalPlugins()
 	assert.Equal(t, expected, got)

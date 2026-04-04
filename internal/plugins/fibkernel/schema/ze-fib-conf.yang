@@ -1,0 +1,36 @@
+module ze-fib-conf {
+    namespace "urn:ze:fib:conf";
+    prefix fib;
+
+    description
+        "FIB kernel plugin configuration for Ze.
+         Programs OS routes from the system RIB via netlink (Linux)
+         or route socket (Darwin). Uses custom rtm_protocol ID
+         (RTPROT_ZE=250) for route identification.";
+
+    revision 2026-04-04 {
+        description "Initial revision.";
+    }
+
+    container fib-kernel {
+        description "FIB kernel plugin configuration.";
+
+        leaf flush-on-stop {
+            type boolean;
+            default false;
+            description
+                "Remove all ze-installed routes when the plugin stops.
+                 When false (default), routes persist in the kernel
+                 after shutdown for graceful restart support.";
+        }
+
+        leaf sweep-delay {
+            type uint16;
+            default 30;
+            units seconds;
+            description
+                "Time to wait after startup before sweeping stale routes.
+                 Allows BGP reconvergence to refresh matching routes.";
+        }
+    }
+}

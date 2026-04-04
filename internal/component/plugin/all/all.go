@@ -61,5 +61,12 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/watchdog"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor/filter"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface"
-)
 
+	// Non-BGP plugins — Bus-only plugins.
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibp4"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibp4/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/schema"
+)
