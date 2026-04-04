@@ -1,0 +1,81 @@
+module ze-resolve-cmd {
+    namespace "urn:ze:resolve:cmd";
+    prefix resolvecmd;
+    import ze-extensions { prefix ze; }
+    description "Resolution service command tree (DNS, Cymru, PeeringDB, IRR)";
+    revision 2026-04-04 { description "Initial revision"; }
+
+    container resolve {
+        config false;
+        description "Network resolution services";
+
+        container dns {
+            config false;
+            description "DNS resolution";
+
+            container a {
+                config false;
+                ze:command "ze-resolve:dns-a";
+                description "Resolve DNS A records (IPv4 addresses)";
+            }
+            container aaaa {
+                config false;
+                ze:command "ze-resolve:dns-aaaa";
+                description "Resolve DNS AAAA records (IPv6 addresses)";
+            }
+            container txt {
+                config false;
+                ze:command "ze-resolve:dns-txt";
+                description "Resolve DNS TXT records";
+            }
+            container ptr {
+                config false;
+                ze:command "ze-resolve:dns-ptr";
+                description "Reverse DNS lookup (PTR records)";
+            }
+        }
+
+        container cymru {
+            config false;
+            description "Team Cymru ASN resolution";
+
+            container asn-name {
+                config false;
+                ze:command "ze-resolve:cymru-asn-name";
+                description "Look up organization name for an ASN via Team Cymru DNS";
+            }
+        }
+
+        container peeringdb {
+            config false;
+            description "PeeringDB queries";
+
+            container max-prefix {
+                config false;
+                ze:command "ze-resolve:peeringdb-max-prefix";
+                description "Look up maximum prefix counts for an ASN from PeeringDB";
+            }
+            container as-set {
+                config false;
+                ze:command "ze-resolve:peeringdb-as-set";
+                description "Look up AS-SET names for an ASN from PeeringDB";
+            }
+        }
+
+        container irr {
+            config false;
+            description "Internet Routing Registry queries";
+
+            container expand {
+                config false;
+                ze:command "ze-resolve:irr-expand";
+                description "Recursively expand AS-SET to member ASNs";
+            }
+            container prefix {
+                config false;
+                ze:command "ze-resolve:irr-prefix";
+                description "Look up prefixes for an AS-SET from IRR";
+            }
+        }
+    }
+}

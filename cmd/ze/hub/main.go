@@ -31,6 +31,7 @@ import (
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
+	resolvecmd "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"
 	resolveDNS "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
 	"codeberg.org/thomas-mangin/ze/internal/component/ssh"
@@ -347,9 +348,10 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 		return 1
 	}
 
-	// Create shared resolvers for web UI and looking glass (single DNS instance).
+	// Create shared resolvers for web UI, looking glass, and MCP (single DNS instance).
 	resolvers := newResolvers()
 	defer resolvers.Close()
+	resolvecmd.SetResolvers(resolvers)
 
 	// Start web server if --web flag was passed.
 	if webEnabled {
