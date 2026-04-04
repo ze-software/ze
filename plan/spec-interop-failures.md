@@ -30,7 +30,7 @@ Investigate and fix Ze bugs discovered by interop scenarios 22-32. The test infr
 | 26-ipv6-ebgp-gobgp | IPv6 | GoBGP | PASS | |
 | 27-multihop-ebgp-frr | Multihop | FRR | PASS | |
 | 28-evpn-gobgp | EVPN | GoBGP | ~~FAIL~~ PASS | Fixed: AS_PATH ASN=0, GoBGP JSON dict/list |
-| 29-vpn-gobgp | VPN | GoBGP | FAIL | Ze does not advertise VPN capability to GoBGP |
+| 29-vpn-gobgp | VPN | GoBGP | ~~FAIL~~ PASS | Fixed: VPN next-hop missing RFC 4364 RD prefix (4 bytes instead of 12) |
 | 30-flowspec-gobgp | FlowSpec | GoBGP | ~~FAIL~~ PASS | Fixed: AS_PATH ASN=0, GoBGP JSON dict/list |
 | 31-multihop-ebgp-bird | Multihop | BIRD | PASS | |
 | 32-multihop-ebgp-gobgp | Multihop | GoBGP | PASS | |
@@ -42,7 +42,7 @@ Investigate and fix Ze bugs discovered by interop scenarios 22-32. The test infr
 | IPv4 unicast | PASS (27) | PASS (31) | PASS (32) | Works |
 | IPv6 unicast | existing-10 | ~~FAIL~~ PASS (25) | PASS (26) | Fixed (BIRD multihop) |
 | EVPN | ~~FAIL~~ PASS (22) | N/A | ~~FAIL~~ PASS (28) | Fixed |
-| VPN | ~~FAIL~~ PASS (23) | N/A | FAIL (29) | VPN cap not sent to GoBGP |
+| VPN | ~~FAIL~~ PASS (23) | N/A | ~~FAIL~~ PASS (29) | Fixed (VPN NH encoding) |
 | FlowSpec | ~~FAIL~~ PASS (24) | N/A | ~~FAIL~~ PASS (30) | Fixed |
 | Multihop | PASS (27) | PASS (31) | PASS (32) | Works |
 
@@ -59,8 +59,8 @@ Root causes:
 - Announce scripts used invalid `[origin:65001:100]` extended community (100 is not an IP).
 - Announce scripts used `time.sleep(0.1)` instead of `wait_for_ack(1)` barrier flush.
 
-**~~Category 3: Session fails (scenario 29)~~ PARTIALLY FIXED**
-GoBGP afi-safi name fixed (`ipv4-vpnv4unicast` -> `l3vpn-ipv4-unicast`). Session now establishes. OPEN encoding fixed (single type-2 optional parameter per RFC 5492). But GoBGP deduplicates Multiprotocol capabilities by AFI: when two families share AFI=1 (ipv4-unicast + l3vpn-ipv4-unicast), GoBGP keeps only one. Confirmed by comparing scenario 28 (different AFIs: 1+25, works) with scenario 29 (same AFI: 1+1, fails). This is a GoBGP limitation.
+**~~Category 3: Session fails (scenario 29)~~ FIXED**
+GoBGP afi-safi name fixed (`ipv4-vpnv4unicast` -> `l3vpn-ipv4-unicast`). Session now establishes. OPEN encoding fixed (single type-2 optional parameter per RFC 5492). ~~Original diagnosis: GoBGP deduplicates Multiprotocol capabilities by AFI.~~ Actual root cause: Ze's `MPReachNLRI.WriteTo()` sent a 4-byte next-hop for VPN (SAFI 128), but RFC 4364 Section 4.3.4 requires 12 bytes (8-byte RD prefix of zeros + 4-byte IPv4). GoBGP correctly rejected this with "mpreach nexthop length is incorrect". FRR was lenient and accepted the 4-byte form, which masked the bug (scenario 23 passed). Fix: `nextHopLen()` and `WriteTo()` now add the RD prefix for VPN SAFIs.
 
 **~~Remaining: scenario 25 (IPv6 BIRD)~~ FIXED**
 BIRD rejected IPv6 routes because the next-hop (2001:db8::2) was not directly reachable on the IPv4-only Docker network. BIRD enforces RFC 4271 next-hop reachability strictly. Fix: added `multihop;` to BIRD config, which disables the directly-connected check.
@@ -284,9 +284,9 @@ To be added during investigation.
 ## Implementation Summary
 
 ### What Was Implemented
-- Fixed 7 of 8 failing interop scenarios (22, 23, 24, 25, 28, 29-session, 30)
+- Fixed all 8 failing interop scenarios (22, 23, 24, 25, 28, 29, 30)
 - 0 regressions in 4 previously-passing scenarios (26, 27, 31, 32)
-- Scenario 29 (VPN GoBGP) remains: GoBGP limitation deduplicating same-AFI MP caps
+- All 11 scenarios (22-32) now pass
 
 ### Bugs Found/Fixed
 
@@ -304,9 +304,10 @@ To be added during investigation.
 
 | BIRD multihop for unreachable IPv6 NH | `25-ipv6-ebgp-bird/bird.conf` | BIRD rejects routes with unreachable NH |
 | OPEN one-param-per-cap broke GoBGP | `session_negotiate.go` | GoBGP only parses last type-2 param |
+| VPN next-hop missing RD prefix | `attribute/mpnlri.go` | GoBGP rejected UPDATE: "mpreach nexthop length is incorrect" |
 
 ### Not Done
-- Scenario 29 (VPN GoBGP): GoBGP deduplicates same-AFI MP capabilities -- not a Ze bug
+- None -- all 11 scenarios pass
 
 ### Documentation Updates
 - None required (bug fixes only)
