@@ -8,6 +8,7 @@ package sysrib
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -54,10 +55,12 @@ const sysribTopic = "sysrib/best-change"
 
 // protocolRoute is one protocol's best route for a prefix.
 type protocolRoute struct {
-	protocol string
-	nextHop  string
-	priority int // admin distance (lower wins)
-	metric   uint32
+	protocol         string
+	protocolType     string // "ebgp", "ibgp", "static", etc. for admin distance lookup
+	nextHop          string
+	priority         int // effective admin distance (lower wins)
+	incomingPriority int // original priority from protocol RIB (before override)
+	metric           uint32
 }
 
 // prefixKey identifies a unique prefix in the system RIB.
@@ -72,7 +75,11 @@ type sysRIB struct {
 	routes map[prefixKey]map[string]*protocolRoute
 	// best[prefixKey] = current system best route.
 	best map[prefixKey]*protocolRoute
-	mu   sync.RWMutex
+	// adminDist maps protocol type (e.g., "ebgp", "ibgp", "static") to
+	// configured admin distance. Empty when no sysrib config is present,
+	// in which case incoming priorities pass through unchanged.
+	adminDist map[string]int
+	mu        sync.RWMutex
 }
 
 func newSysRIB() *sysRIB {
@@ -82,17 +89,48 @@ func newSysRIB() *sysRIB {
 	}
 }
 
+// parseAdminDistanceConfig extracts the admin-distance map from the sysrib
+// config section JSON. Returns an empty map if no admin-distance block is present.
+func parseAdminDistanceConfig(jsonData string) (map[string]int, error) {
+	var tree map[string]any
+	if err := json.Unmarshal([]byte(jsonData), &tree); err != nil {
+		return nil, fmt.Errorf("unmarshal sysrib config: %w", err)
+	}
+
+	sysribTree, ok := tree["sysrib"].(map[string]any)
+	if !ok {
+		return make(map[string]int), nil
+	}
+
+	adTree, ok := sysribTree["admin-distance"].(map[string]any)
+	if !ok {
+		return make(map[string]int), nil
+	}
+
+	result := make(map[string]int, len(adTree))
+	for proto, v := range adTree {
+		num, ok := v.(float64)
+		if !ok {
+			return nil, fmt.Errorf("admin-distance %s: expected number, got %T", proto, v)
+		}
+		result[proto] = int(num)
+	}
+
+	return result, nil
+}
+
 // incomingBatch is the JSON payload from protocol RIBs.
 type incomingBatch struct {
 	Changes []incomingChange `json:"changes"`
 }
 
 type incomingChange struct {
-	Action   string `json:"action"`
-	Prefix   string `json:"prefix"`
-	NextHop  string `json:"next-hop"`
-	Priority int    `json:"priority"`
-	Metric   uint32 `json:"metric"`
+	Action       string `json:"action"`
+	Prefix       string `json:"prefix"`
+	NextHop      string `json:"next-hop"`
+	Priority     int    `json:"priority"`
+	Metric       uint32 `json:"metric"`
+	ProtocolType string `json:"protocol-type"` // "ebgp", "ibgp", etc.
 }
 
 // outgoingChange is one entry in the sysrib/best-change payload.
@@ -106,6 +144,18 @@ type outgoingChange struct {
 // outgoingBatch is the JSON payload published to sysrib/best-change.
 type outgoingBatch struct {
 	Changes []outgoingChange `json:"changes"`
+}
+
+// effectivePriority returns the configured admin distance for a protocol type
+// if one exists, otherwise returns the incoming priority unchanged.
+func (s *sysRIB) effectivePriority(protocolType string, incomingPriority int) int {
+	if len(s.adminDist) == 0 {
+		return incomingPriority
+	}
+	if d, ok := s.adminDist[protocolType]; ok {
+		return d
+	}
+	return incomingPriority
 }
 
 // processEvent handles a batch of protocol RIB changes from the Bus.
@@ -142,14 +192,24 @@ func (s *sysRIB) processEvent(event ze.Event) []outgoingChange {
 		key := prefixKey{family: family, prefix: c.Prefix}
 
 		if c.Action == "add" || c.Action == "update" {
+			// Use per-change protocol type for admin distance override.
+			// Falls back to batch-level protocol if per-change type is absent.
+			protoType := c.ProtocolType
+			if protoType == "" {
+				protoType = proto
+			}
+			priority := s.effectivePriority(protoType, c.Priority)
+
 			if s.routes[key] == nil {
 				s.routes[key] = make(map[string]*protocolRoute)
 			}
 			s.routes[key][proto] = &protocolRoute{
-				protocol: proto,
-				nextHop:  c.NextHop,
-				priority: c.Priority,
-				metric:   c.Metric,
+				protocol:         proto,
+				protocolType:     protoType,
+				nextHop:          c.NextHop,
+				priority:         priority,
+				incomingPriority: c.Priority,
+				metric:           c.Metric,
 			}
 		} else if c.Action == "withdraw" && s.routes[key] != nil {
 			delete(s.routes[key], proto)
@@ -164,6 +224,31 @@ func (s *sysRIB) processEvent(event ze.Event) []outgoingChange {
 	}
 
 	return outChanges
+}
+
+// reapplyAdminDistances recalculates effective priorities for all stored routes
+// using the current adminDist map, then recomputes best for each prefix.
+// Returns outgoing changes grouped by family. Caller MUST NOT hold s.mu.
+func (s *sysRIB) reapplyAdminDistances() map[string][]outgoingChange {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Recalculate effective priority for every stored route.
+	for _, protocols := range s.routes {
+		for _, route := range protocols {
+			route.priority = s.effectivePriority(route.protocolType, route.incomingPriority)
+		}
+	}
+
+	// Recompute best for all prefixes; collect changes by family.
+	changesByFamily := make(map[string][]outgoingChange)
+	for key := range s.routes {
+		if change := s.recomputeBest(key); change != nil {
+			changesByFamily[key.family] = append(changesByFamily[key.family], *change)
+		}
+	}
+
+	return changesByFamily
 }
 
 // recomputeBest selects the system-wide best route for a prefix.

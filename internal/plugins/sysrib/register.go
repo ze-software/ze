@@ -20,6 +20,7 @@ func init() {
 		Description: "System RIB: selects best route across protocols by admin distance",
 		Features:    "yang",
 		YANG:        sysribschema.ZeSysribConfYANG,
+		ConfigRoots: []string{"sysrib"},
 		RunEngine:   runSysRIBPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -51,6 +52,64 @@ func runSysRIBPlugin(conn net.Conn) int {
 
 	s := newSysRIB()
 
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		for _, section := range sections {
+			if section.Root != "sysrib" {
+				continue
+			}
+			dist, err := parseAdminDistanceConfig(section.Data)
+			if err != nil {
+				logger().Error("admin-distance config parse failed", "error", err)
+				return err
+			}
+			s.mu.Lock()
+			s.adminDist = dist
+			s.mu.Unlock()
+			logger().Info("admin-distance config loaded", "distances", dist)
+		}
+		return nil
+	})
+
+	// pendingDist holds the validated admin-distance map between verify and apply.
+	var pendingDist map[string]int
+
+	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		for _, section := range sections {
+			if section.Root != "sysrib" {
+				continue
+			}
+			dist, err := parseAdminDistanceConfig(section.Data)
+			if err != nil {
+				return err
+			}
+			pendingDist = dist
+		}
+		return nil
+	})
+
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		dist := pendingDist
+		pendingDist = nil
+		if dist == nil {
+			return nil
+		}
+
+		s.mu.Lock()
+		s.adminDist = dist
+		s.mu.Unlock()
+
+		// Re-evaluate existing routes with new distances.
+		changes := s.reapplyAdminDistances()
+		for family, ch := range changes {
+			if len(ch) > 0 {
+				publishChanges(ch, family)
+			}
+		}
+
+		logger().Info("admin-distance config reloaded", "distances", dist)
+		return nil
+	})
+
 	p.OnStarted(func(ctx context.Context) error {
 		go s.run(ctx)
 		return nil
@@ -69,6 +128,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
+		WantsConfig: []string{"sysrib"},
 		Commands: []sdk.CommandDecl{
 			{Name: "sysrib show"},
 		},

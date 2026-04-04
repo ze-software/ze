@@ -275,6 +275,61 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-6 -- eBGP route has protocol-type "ebgp" in best-change entry.
+// PREVENTS: sysrib unable to distinguish eBGP from iBGP for admin distance.
+func TestRIBBestChangeEBGPMetadata(t *testing.T) {
+	bus := newTestBus()
+	r := newTestRIBManagerWithBus(bus)
+
+	peerAddr := "192.0.2.1"
+	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+
+	family := nlri.Family{AFI: 1, SAFI: 1}
+	prefix := ipv4Prefix(24, 10, 0, 0)
+	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
+
+	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.ribInPool[peerAddr].Insert(family, attrs, prefix)
+
+	r.mu.Lock()
+	change := r.checkBestPathChange(family, prefix, false)
+	r.mu.Unlock()
+
+	require.NotNil(t, change)
+	assert.Equal(t, "ebgp", change.ProtocolType, "eBGP route must have protocol-type 'ebgp'")
+
+	// Verify it survives JSON round-trip (sysrib reads this from payload).
+	data, err := json.Marshal(change)
+	require.NoError(t, err)
+	var decoded bestChangeEntry
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	assert.Equal(t, "ebgp", decoded.ProtocolType)
+}
+
+// VALIDATES: AC-7 -- iBGP route has protocol-type "ibgp" in best-change entry.
+// PREVENTS: sysrib unable to distinguish iBGP from eBGP for admin distance.
+func TestRIBBestChangeIBGPMetadata(t *testing.T) {
+	bus := newTestBus()
+	r := newTestRIBManagerWithBus(bus)
+
+	peerAddr := "192.0.2.1"
+	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65000, LocalASN: 65000} // same AS = iBGP
+
+	family := nlri.Family{AFI: 1, SAFI: 1}
+	prefix := ipv4Prefix(24, 10, 0, 0)
+	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
+
+	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.ribInPool[peerAddr].Insert(family, attrs, prefix)
+
+	r.mu.Lock()
+	change := r.checkBestPathChange(family, prefix, false)
+	r.mu.Unlock()
+
+	require.NotNil(t, change)
+	assert.Equal(t, "ibgp", change.ProtocolType, "iBGP route must have protocol-type 'ibgp'")
+}
+
 // VALIDATES: AC-1 (eBGP priority) -- eBGP routes published with priority 20.
 // PREVENTS: Wrong admin distance for eBGP routes.
 func TestRIBBestChangeEBGPPriority(t *testing.T) {

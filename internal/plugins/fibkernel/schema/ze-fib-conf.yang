@@ -4,58 +4,15 @@ module ze-fib-conf {
 
     description
         "FIB configuration for Ze.
-         Contains admin-distance settings (shared across all FIB backends)
-         and the kernel backend configuration.";
+         Contains the kernel backend configuration for route programming.
+         Admin distance settings are in ze-sysrib-conf (RIB concept).";
 
     revision 2026-04-04 {
-        description "Initial revision.";
+        description "Move admin-distance to ze-sysrib-conf.";
     }
 
     container fib {
         description "Forwarding Information Base configuration.";
-
-        container admin-distance {
-            description
-                "Administrative distance per protocol.
-                 Lower value wins. Used by the system RIB to select
-                 the best route across protocols.";
-
-            leaf connected {
-                type uint8;
-                default 0;
-                description "Directly connected networks.";
-            }
-
-            leaf static {
-                type uint8;
-                default 10;
-                description "Static routes.";
-            }
-
-            leaf ebgp {
-                type uint8;
-                default 20;
-                description "External BGP routes.";
-            }
-
-            leaf ospf {
-                type uint8;
-                default 110;
-                description "OSPF routes.";
-            }
-
-            leaf isis {
-                type uint8;
-                default 115;
-                description "IS-IS routes.";
-            }
-
-            leaf ibgp {
-                type uint8;
-                default 200;
-                description "Internal BGP routes.";
-            }
-        }
 
         container kernel {
             description "OS kernel route programming via netlink (Linux).";

@@ -30,11 +30,12 @@ const bestChangeTopic = "rib/best-change/bgp"
 
 // bestChangeEntry records one prefix best-path change for batch publishing.
 type bestChangeEntry struct {
-	Action   string `json:"action"`
-	Prefix   string `json:"prefix"`
-	NextHop  string `json:"next-hop,omitempty"`
-	Priority int    `json:"priority"`
-	Metric   uint32 `json:"metric"`
+	Action       string `json:"action"`
+	Prefix       string `json:"prefix"`
+	NextHop      string `json:"next-hop,omitempty"`
+	Priority     int    `json:"priority"`
+	Metric       uint32 `json:"metric"`
+	ProtocolType string `json:"protocol-type,omitempty"` // "ebgp" or "ibgp"
 }
 
 // bestChangeBatch is the JSON payload published to the Bus.
@@ -50,11 +51,12 @@ type bestPathKey struct {
 
 // bestPathRecord stores the previous best-path state for change detection.
 type bestPathRecord struct {
-	PeerAddr string
-	Prefix   string // parsed prefix string, stored to avoid re-parsing during replay
-	NextHop  string
-	Priority int // admin distance: eBGP=20, iBGP=200
-	Metric   uint32
+	PeerAddr     string
+	Prefix       string // parsed prefix string, stored to avoid re-parsing during replay
+	NextHop      string
+	Priority     int // admin distance: eBGP=20, iBGP=200
+	Metric       uint32
+	ProtocolType string // "ebgp" or "ibgp"
 }
 
 // prefixBytesForDisplay returns the NLRI bytes suitable for wirePrefixToString.
@@ -97,26 +99,29 @@ func (r *RIBManager) checkBestPathChange(family nlri.Family, nlriBytes []byte, a
 		return nil
 	}
 
-	// Extract next-hop and priority from the new best.
+	// Extract next-hop, priority, and protocol type from the new best.
 	nextHop := r.bestCandidateNextHop(family, nlriBytes, newBest)
 	priority := r.adminDistance(newBest)
+	protoType := r.protocolType(newBest)
 	metric := newBest.MED
 
 	if prev == nil {
 		// New best path where none existed before.
 		r.bestPrev[key] = &bestPathRecord{
-			PeerAddr: newBest.PeerAddr,
-			Prefix:   prefix,
-			NextHop:  nextHop,
-			Priority: priority,
-			Metric:   metric,
+			PeerAddr:     newBest.PeerAddr,
+			Prefix:       prefix,
+			NextHop:      nextHop,
+			Priority:     priority,
+			Metric:       metric,
+			ProtocolType: protoType,
 		}
 		return &bestChangeEntry{
-			Action:   bestChangeAdd,
-			Prefix:   prefix,
-			NextHop:  nextHop,
-			Priority: priority,
-			Metric:   metric,
+			Action:       bestChangeAdd,
+			Prefix:       prefix,
+			NextHop:      nextHop,
+			Priority:     priority,
+			Metric:       metric,
+			ProtocolType: protoType,
 		}
 	}
 
@@ -128,31 +133,38 @@ func (r *RIBManager) checkBestPathChange(family nlri.Family, nlriBytes []byte, a
 
 	// Best path changed.
 	r.bestPrev[key] = &bestPathRecord{
-		PeerAddr: newBest.PeerAddr,
-		NextHop:  nextHop,
-		Priority: priority,
-		Metric:   metric,
+		PeerAddr:     newBest.PeerAddr,
+		NextHop:      nextHop,
+		Priority:     priority,
+		Metric:       metric,
+		ProtocolType: protoType,
 	}
 	return &bestChangeEntry{
-		Action:   bestChangeUpdate,
-		Prefix:   prefix,
-		NextHop:  nextHop,
-		Priority: priority,
-		Metric:   metric,
+		Action:       bestChangeUpdate,
+		Prefix:       prefix,
+		NextHop:      nextHop,
+		Priority:     priority,
+		Metric:       metric,
+		ProtocolType: protoType,
 	}
 }
 
-// adminDistance returns the admin distance for a candidate.
-// eBGP = 20, iBGP = 200. When LocalASN is 0 (unknown, e.g. before OPEN
-// negotiation completes), defaults to eBGP (20). This is intentional:
-// routes learned before ASN negotiation are assumed external, which is the
-// more common case and avoids deprioritizing valid eBGP routes during startup.
-func (r *RIBManager) adminDistance(c *Candidate) int {
-	if c.LocalASN == 0 {
-		return 20 // default to eBGP when ASN is unknown (see comment above)
+// protocolType returns "ebgp" or "ibgp" for a candidate based on ASN comparison.
+// When LocalASN is 0 (unknown, e.g. before OPEN negotiation completes),
+// defaults to "ebgp". This is intentional: routes learned before ASN
+// negotiation are assumed external, which is the more common case.
+func (r *RIBManager) protocolType(c *Candidate) string {
+	if c.LocalASN == 0 || c.PeerASN != c.LocalASN {
+		return "ebgp"
 	}
-	if c.PeerASN != c.LocalASN {
-		return 20 // eBGP
+	return "ibgp"
+}
+
+// adminDistance returns the admin distance for a candidate.
+// eBGP = 20, iBGP = 200. Uses protocolType to determine the session type.
+func (r *RIBManager) adminDistance(c *Candidate) int {
+	if r.protocolType(c) == "ebgp" {
+		return 20
 	}
 	return 200 // iBGP
 }
@@ -251,11 +263,12 @@ func (r *RIBManager) replayBestPaths() {
 			continue // Skip entries with unparseable prefixes.
 		}
 		changesByFamily[key.Family] = append(changesByFamily[key.Family], bestChangeEntry{
-			Action:   bestChangeAdd,
-			Prefix:   rec.Prefix,
-			NextHop:  rec.NextHop,
-			Priority: rec.Priority,
-			Metric:   rec.Metric,
+			Action:       bestChangeAdd,
+			Prefix:       rec.Prefix,
+			NextHop:      rec.NextHop,
+			Priority:     rec.Priority,
+			Metric:       rec.Metric,
+			ProtocolType: rec.ProtocolType,
 		})
 	}
 	r.mu.RUnlock()
