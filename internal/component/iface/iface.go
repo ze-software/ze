@@ -1,28 +1,19 @@
 // Design: docs/features/interfaces.md — Interface plugin shared types
-// Detail: register.go — plugin registration
-// Detail: manage_linux.go — interface management via netlink
-// Detail: bridge_linux.go — bridge-specific management (ports, STP)
-// Detail: monitor_linux.go — netlink interface monitor
-// Detail: sysctl_linux.go — per-interface sysctl management
-// Detail: mirror_linux.go — traffic mirroring via tc mirred
-// Detail: slaac_linux.go — IPv6 SLAAC control
-// Detail: migrate_linux.go — make-before-break interface migration
-// Detail: dhcp_linux.go — DHCP client types and lifecycle
-// Detail: dhcp_v4_linux.go — DHCPv4 worker, renewal, lease handling
-// Detail: dhcp_v6_linux.go — DHCPv6 worker, renewal, lease handling
-// Detail: manage_other.go — non-Linux interface management stub
-// Detail: bridge_other.go — non-Linux bridge management stub
-// Detail: show_linux.go — interface listing via netlink
-// Detail: show_other.go — non-Linux interface listing via stdlib
+// Detail: register.go — plugin registration and config application
+// Detail: backend.go — Backend interface and registry
+// Detail: dispatch.go — package-level functions delegating to backend
+// Detail: config.go — config parsing and declarative application
 // Detail: validate.go — interface name validation
-// Detail: monitor_other.go — non-Linux monitor stub
+// Detail: migrate_linux.go — make-before-break interface migration
 // Detail: discover.go — OS interface discovery and Ze type mapping
 
 // Package iface implements the interface monitoring and management plugin.
 //
-// It monitors OS network interfaces via netlink (Linux), publishes events
-// to the Bus, and manages Ze-created interfaces. All interface types use
-// a JunOS-style two-layer model: physical interface + logical units.
+// It manages OS network interfaces through a pluggable backend architecture.
+// The Backend interface defines all OS-specific operations. The netlink backend
+// (internal/plugins/ifacenetlink) handles Linux. DHCP is a separate plugin
+// (internal/plugins/ifacedhcp). All interface types use a JunOS-style
+// two-layer model: physical interface + logical units.
 package iface
 
 // Bus topic constants for interface events.

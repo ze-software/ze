@@ -110,6 +110,14 @@ func LoadBackend(name string) error {
 	backendsMu.Lock()
 	defer backendsMu.Unlock()
 
+	// Close previous backend to avoid leaking resources (e.g., monitor goroutines).
+	if activeBackend != nil {
+		if closeErr := activeBackend.Close(); closeErr != nil {
+			loggerPtr.Load().Warn("iface: close previous backend", "err", closeErr)
+		}
+		activeBackend = nil
+	}
+
 	factory, ok := backends[name]
 	if !ok {
 		registered := make([]string, 0, len(backends))

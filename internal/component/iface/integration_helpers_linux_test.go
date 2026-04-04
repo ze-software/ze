@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -37,6 +38,7 @@ func ensureBackendForIntegration(t *testing.T) {
 // unprivileged hosts.
 func withNetNS(t *testing.T, fn func()) {
 	t.Helper()
+	ensureBackendForIntegration(t)
 
 	runtime.LockOSThread()
 
@@ -85,6 +87,31 @@ func sanitizeNSName(testName string) string {
 		name = name[:15]
 	}
 	return name
+}
+
+// collectingBus is a minimal Bus that records published events.
+type collectingBus struct {
+	mu     sync.Mutex
+	events []ze.Event
+}
+
+func (b *collectingBus) CreateTopic(string) (ze.Topic, error) { return ze.Topic{}, nil }
+func (b *collectingBus) Publish(topic string, payload []byte, metadata map[string]string) {
+	b.mu.Lock()
+	b.events = append(b.events, ze.Event{Topic: topic, Payload: payload, Metadata: metadata})
+	b.mu.Unlock()
+}
+func (b *collectingBus) Subscribe(string, map[string]string, ze.Consumer) (ze.Subscription, error) {
+	return ze.Subscription{}, nil
+}
+func (b *collectingBus) Unsubscribe(ze.Subscription) {}
+
+func (b *collectingBus) snapshot() []ze.Event {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	cp := make([]ze.Event, len(b.events))
+	copy(cp, b.events)
+	return cp
 }
 
 // waitForEvent polls the collectingBus events list for an event matching
