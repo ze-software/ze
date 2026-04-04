@@ -704,8 +704,9 @@ func HasWebConfig(tree *config.Tree) bool {
 
 // MCPConfig holds parsed environment.mcp settings.
 type MCPConfig struct {
-	Host string // Listen host (127.0.0.1 enforced)
-	Port string // Listen port
+	Host  string // Listen host (127.0.0.1 enforced)
+	Port  string // Listen port
+	Token string // Bearer token (empty = no auth)
 }
 
 // Listen returns host:port.
@@ -729,6 +730,10 @@ func ExtractMCPConfig(tree *config.Tree) (MCPConfig, bool) {
 	}
 
 	cfg := MCPConfig{Host: loopbackIP}
+
+	if token, ok := mcp.Get("token"); ok {
+		cfg.Token = token
+	}
 
 	if servers := mcp.GetListOrdered("server"); len(servers) > 0 {
 		entry := servers[0].Value

@@ -23,6 +23,14 @@ module ze-mcp-conf {
                 description "Enable MCP server";
             }
 
+            leaf token {
+                type string;
+                ze:sensitive;
+                description "Bearer token for MCP authentication. When set, clients must send
+                             Authorization: Bearer <token> header. Leave empty to allow
+                             unauthenticated access (localhost-only).";
+            }
+
             list server {
                 key "name";
                 ze:listener;

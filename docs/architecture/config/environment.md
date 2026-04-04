@@ -162,6 +162,7 @@ Listener services (web, MCP, looking glass) use compound `ip:port` format instea
 |----------|------|---------|-------------|
 | `ze.mcp.listen` | string | `127.0.0.1:8080` | Listen address: `ip:port` (e.g., `127.0.0.1:8080`) |
 | `ze.mcp.enabled` | bool | false | Enable MCP server (defaults to `127.0.0.1:8080`) |
+| `ze.mcp.token` | string | (empty) | Bearer token for MCP authentication (secret: cleared from OS env after first read) |
 <!-- source: internal/component/config/environment.go -- MCP server env var registrations -->
 
 ### looking-glass

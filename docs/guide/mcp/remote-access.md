@@ -1,8 +1,10 @@
 # MCP Remote Access
 
 Ze's MCP server binds exclusively to `127.0.0.1`. It is not possible to bind it
-to a public interface -- this is a deliberate security decision. The MCP endpoint
-has no authentication: anyone who can reach the port can execute BGP commands.
+to a public interface -- this is a deliberate security decision. By default the
+MCP endpoint has no authentication. To require a bearer token, use `--mcp-token`,
+the `ze.mcp.token` env var, or the `token` leaf in the MCP config block (see
+[overview.md](overview.md#authentication)).
 
 To access the MCP server from another machine, use an encrypted tunnel. This page
 covers two approaches: SSH port forwarding (simple, per-session) and WireGuard
@@ -206,8 +208,10 @@ permanent infrastructure where you already run WireGuard between sites.
 
 - Never bind the MCP server to `0.0.0.0` or a public IP. The `--mcp` flag
   hardcodes `127.0.0.1` to prevent this.
-- The MCP endpoint has no authentication. Anyone who can connect can run BGP
-  commands (announce routes, tear down peers). The tunnel is your access control.
+- For additional security, configure a bearer token (`--mcp-token` or
+  `ze.mcp.token` env var). Without a token, anyone who can connect can run
+  BGP commands. The tunnel provides transport encryption; the token provides
+  authentication.
 - Use key-based SSH authentication for unattended tunnels. Disable password
   authentication on routers exposed to the internet.
 - With WireGuard + socat, only peers in `AllowedIPs` can reach the socat

@@ -38,6 +38,10 @@ The MCP (Model Context Protocol) server wraps the CLI command surface for AI con
 | `ze_peers` | Monitor peer state, ASN, uptime |
 | `ze_peer_control` | Teardown, pause, resume, flush peers |
 | `ze_execute` | Run **any** CLI command -- full daemon control |
+| `ze_commands` | List all available daemon commands |
+
+Additional tools are auto-generated from the command registry. Every YANG command
+and plugin command becomes a typed MCP tool automatically.
 
 The `ze_execute` tool is the key: anything a human can type, an AI can execute. Route
 management, RIB queries, peer lifecycle, configuration changes, event subscription,

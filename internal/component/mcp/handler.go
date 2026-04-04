@@ -12,6 +12,7 @@
 package mcp
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,15 +31,26 @@ type CommandDispatcher func(command string) (string, error)
 // Each POST carries a JSON-RPC request; the response is a JSON-RPC response.
 // Validates Content-Type to prevent CSRF from browser origins.
 //
+// If token is non-empty, requests must include "Authorization: Bearer <token>".
 // If commands is non-nil, tools/list dynamically generates tools from registered
 // commands. New YANG commands appear as MCP tools without code changes.
 // If commands is nil, only the handcrafted tools are exposed.
-func Handler(dispatch CommandDispatcher, commands CommandLister) http.Handler {
+func Handler(dispatch CommandDispatcher, commands CommandLister, token string) http.Handler {
 	s := &server{dispatch: dispatch, commands: commands}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
+		}
+
+		// Bearer token authentication (constant-time comparison).
+		if token != "" {
+			auth := r.Header.Get("Authorization")
+			expected := "Bearer " + token
+			if subtle.ConstantTimeCompare([]byte(auth), []byte(expected)) != 1 {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
 		}
 
 		// Reject non-JSON content types to prevent CSRF via text/plain forms.

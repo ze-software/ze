@@ -56,10 +56,10 @@ func commandLister(r *bgpreactor.Reactor) zemcp.CommandLister {
 // startMCPServer creates and starts an MCP HTTP server on the given address.
 // Returns the server on success, nil on failure (logged, non-fatal).
 // MUST call Shutdown on the returned server before stopping the reactor.
-func startMCPServer(addr string, dispatch zemcp.CommandDispatcher, commands zemcp.CommandLister) *http.Server {
+func startMCPServer(addr string, dispatch zemcp.CommandDispatcher, commands zemcp.CommandLister, token string) *http.Server {
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           zemcp.Handler(dispatch, commands),
+		Handler:           zemcp.Handler(dispatch, commands, token),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,

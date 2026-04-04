@@ -30,13 +30,52 @@ environment {
 
 **Environment variable:**
 ```bash
-export ze_mcp_port=9718
+export ze_mcp_listen=127.0.0.1:9718
+# or simply:
+export ze_mcp_enabled=true  # defaults to 127.0.0.1:8080
 ```
 
 Precedence: CLI > environment variable > config file.
 
 The MCP server binds to `127.0.0.1` only. See
 [remote-access.md](remote-access.md) for accessing it from other machines.
+
+## Authentication
+
+<!-- source: internal/component/mcp/handler.go -- bearer token auth -->
+
+By default, the MCP endpoint has no authentication (localhost-only access).
+To require a bearer token, use any of these (same precedence as above):
+
+**CLI flag:**
+```bash
+ze start --mcp 9718 --mcp-token my-secret-token
+```
+
+**Environment variable:**
+```bash
+export ze_mcp_token=my-secret-token
+```
+
+This env var is registered as `Secret` -- it is cleared from the OS
+environment after first read, preventing exposure via `/proc/<pid>/environ`.
+
+**Config file:**
+```
+environment {
+    mcp {
+        enabled true;
+        token my-secret-token;
+        server main { ip 127.0.0.1; port 9718; }
+    }
+}
+```
+
+The token leaf is marked `ze:sensitive` -- it is masked in `show config` output.
+
+When set, every MCP request must include the `Authorization: Bearer <token>`
+header. Requests without a valid token receive HTTP 401. The comparison uses
+constant-time comparison to prevent timing side-channel attacks.
 
 ## Protocol
 
@@ -49,7 +88,9 @@ a JSON-RPC body. The server implements the MCP tool-calling protocol:
 
 ## Tools
 
-<!-- source: internal/component/mcp/handler.go -- tools variable -->
+<!-- source: internal/component/mcp/handler.go -- handcraftedTools variable -->
+
+These tools have hand-tuned parameter schemas:
 
 | Tool | Purpose |
 |------|---------|
@@ -59,6 +100,15 @@ a JSON-RPC body. The server implements the MCP tool-calling protocol:
 | `ze_peer_control` | Teardown, pause, resume, or flush a peer |
 | `ze_execute` | Run any Ze command (escape hatch) |
 | `ze_commands` | List all available daemon commands |
+
+<!-- source: internal/component/mcp/tools.go -- auto-generated tools -->
+
+**Auto-generated tools:** In addition to the tools above, `tools/list`
+dynamically generates tools from all registered YANG commands and plugin
+commands. Each command group (e.g. `rib`, `show config`, `metrics`) becomes
+a tool with an `action` enum listing its subcommands. When a new YANG
+command is registered, it appears as an MCP tool automatically without
+code changes.
 
 ### ze_announce
 

@@ -199,8 +199,9 @@ func main() {
 	var pprofAddr string
 	var fileOverride string // -f flag: bypass blob, use filesystem directly
 	var mcpAddr string      // --mcp <port>: start MCP server on 127.0.0.1:<port>
+	var mcpToken string     // --mcp-token <token>: bearer token for MCP auth
 	var webPort string      // --web <port>: start web server
-	var insecureWeb bool    // --insecure-web: disable web auth
+	var insecureWeb bool
 	args := os.Args[1:]
 	for len(args) > 0 && (strings.HasPrefix(args[0], "--") || args[0] == "-d" || args[0] == "-V" || args[0] == "-f") {
 		switch args[0] {
@@ -289,6 +290,13 @@ func main() {
 			}
 			mcpAddr = "127.0.0.1:" + args[1]
 			args = args[2:]
+		case "--mcp-token":
+			if len(args) < 2 {
+				fmt.Fprintf(os.Stderr, "error: --mcp-token requires a value\n")
+				os.Exit(1)
+			}
+			mcpToken = args[1]
+			args = args[2:]
 		case "--web":
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: --web requires a port\n")
@@ -336,7 +344,7 @@ dispatch:
 		fileOverride = config.ResolveConfigPath(fileOverride)
 		switch detectConfigType(store, fileOverride) {
 		case config.ConfigTypeBGP, config.ConfigTypeHub:
-			os.Exit(hub.Run(store, fileOverride, plugins, chaosSeed, chaosRate, false, "", false, ""))
+			os.Exit(hub.Run(store, fileOverride, plugins, chaosSeed, chaosRate, false, "", false, "", ""))
 		case config.ConfigTypeUnknown:
 			fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
 			os.Exit(1)
@@ -439,6 +447,7 @@ dispatch:
 						{Name: "--web <port>", Desc: "Enable web UI on given port"},
 						{Name: "--insecure-web", Desc: "Disable web auth (binds to localhost only)"},
 						{Name: "--mcp <port>", Desc: "Enable MCP server on given port"},
+						{Name: "--mcp-token <token>", Desc: "Bearer token for MCP authentication"},
 					}},
 					{Title: "Prerequisites", Entries: []helpfmt.HelpEntry{
 						{Name: "ze init", Desc: "Bootstrap database (required before first start)"},
@@ -454,7 +463,7 @@ dispatch:
 			p.Write()
 			os.Exit(0)
 		}
-		os.Exit(cmdStart(args[1:], plugins, chaosSeed, chaosRate, mcpAddr, webPort, insecureWeb))
+		os.Exit(cmdStart(args[1:], plugins, chaosSeed, chaosRate, mcpAddr, mcpToken, webPort, insecureWeb))
 	case "help", "-h", "--help": //nolint:goconst // case labels can't call functions
 		subArgs := args[1:]
 		switch {
@@ -492,7 +501,7 @@ dispatch:
 		// For stdin, config data comes from stdin but we still need blob
 		// storage for TLS certs, SSH host keys, and other persistent state.
 		if arg == "-" {
-			os.Exit(hub.Run(resolveStorage(), arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr))
+			os.Exit(hub.Run(resolveStorage(), arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken))
 		}
 		store := resolveStorage()
 		// Search XDG config paths if not found locally
@@ -506,10 +515,10 @@ dispatch:
 		switch detectConfigType(store, arg) {
 		case config.ConfigTypeBGP:
 			// Start BGP daemon in-process via hub
-			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr))
+			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken))
 		case config.ConfigTypeHub:
 			// Start hub orchestrator (forks external plugins)
-			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr))
+			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken))
 		case config.ConfigTypeUnknown:
 			fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
 			os.Exit(1)
@@ -642,9 +651,10 @@ func validPort(s string) bool {
 	return err == nil && n >= 1 && n <= 65535
 }
 
-func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, globalMCPAddr, globalWebPort string, globalInsecureWeb bool) int {
+func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, globalMCPAddr, globalMCPToken, globalWebPort string, globalInsecureWeb bool) int {
 	// Start with global flag values, allow local flags to override.
 	mcpAddr := globalMCPAddr
+	mcpToken := globalMCPToken
 	webPort := globalWebPort
 	insecureWeb := globalInsecureWeb
 
@@ -674,6 +684,14 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 				mcpAddr = "127.0.0.1:" + args[i]
 			} else {
 				fmt.Fprintf(os.Stderr, "error: --mcp requires a port\n")
+				return 1
+			}
+		case "--mcp-token":
+			if i+1 < len(args) {
+				i++
+				mcpToken = args[i]
+			} else {
+				fmt.Fprintf(os.Stderr, "error: --mcp-token requires a value\n")
 				return 1
 			}
 		}
@@ -723,7 +741,7 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		return 1
 	}
 
-	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr)
+	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
 }
 
 // isManaged returns true if the blob has meta/instance/managed=true.
@@ -756,7 +774,7 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 			go managed.RunManagedClient(ctx, *clientCfg)
 		}
 
-		return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false, "")
+		return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false, "", "")
 	}
 
 	// No cached config: first boot after ze init --managed.
@@ -805,7 +823,7 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 		go managed.RunManagedClient(ctx, *clientCfg)
 	}
 
-	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false, "")
+	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false, "", "")
 }
 
 // extractManagedClientConfig reads config from blob and extracts the hub client block.

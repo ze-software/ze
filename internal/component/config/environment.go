@@ -93,6 +93,7 @@ var (
 	// MCP server.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.listen", Type: "string", Default: "127.0.0.1:8080", Description: "MCP server listen address (ip:port)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.enabled", Type: "bool", Description: "Enable MCP server"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.token", Type: "string", Description: "MCP bearer token (Authorization header)", Secret: true})
 
 	// Looking glass.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.listen", Type: "string", Default: "0.0.0.0:8443", Description: "Looking glass listen address (ip:port)"})

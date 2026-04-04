@@ -134,8 +134,16 @@ func printRow(w *tabwriter.Writer, cols ...string) {
 
 // currentValue returns the effective value for an env var key.
 // Skips pattern keys like "ze.log.<subsystem>" that contain angle brackets.
+// Masks secret vars to prevent accidental exposure.
 func currentValue(key string) string {
 	if strings.Contains(key, "<") {
+		return "-"
+	}
+	if env.IsSecret(key) {
+		v := env.Get(key)
+		if v != "" {
+			return "****"
+		}
 		return "-"
 	}
 	return valueOrDash(env.Get(key))
@@ -159,6 +167,9 @@ func showOne(key string) int {
 		fmt.Printf("Description: %s\n", e.Description)
 		if e.Private {
 			fmt.Printf("Private:     yes\n")
+		}
+		if e.Secret {
+			fmt.Printf("Secret:      yes\n")
 		}
 
 		// Show all notation forms

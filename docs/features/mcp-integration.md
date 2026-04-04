@@ -16,6 +16,12 @@ The MCP server exposes typed tools with structured parameters, so AI assistants 
 | `ze_peers` | Monitor peer state, ASN, uptime |
 | `ze_peer_control` | Teardown, pause, resume, flush peers |
 | `ze_execute` | Run **any** CLI command -- full daemon control |
+| `ze_commands` | List all available daemon commands |
+
+Additional tools are auto-generated from the command registry at runtime.
+Every registered YANG command and plugin command appears as a typed MCP tool
+with an `action` enum and optional `arguments` and `peer` parameters. New
+commands are exposed automatically without code changes.
 
 The `ze_execute` tool is the key to full control: anything you can do in `ze cli` (interactive or `ze cli -c` for one-shot commands), an AI can do via MCP. This includes:
 
@@ -47,7 +53,7 @@ environment {
 }
 ```
 
-Environment variable overrides: `ze.mcp.listen=ip:port`, `ze.mcp.enabled=true`. Defaults to `127.0.0.1:8080` (security: local-only unless explicitly overridden via `ze.mcp.listen`).
+Environment variable overrides: `ze.mcp.listen=ip:port`, `ze.mcp.enabled=true`, `ze.mcp.token=<secret>`. Defaults to `127.0.0.1:8080` (security: local-only unless explicitly overridden via `ze.mcp.listen`). Bearer token auth available via `--mcp-token` flag, `ze.mcp.token` env var, or the config `token` leaf.
 
 ## AI Command Reference
 

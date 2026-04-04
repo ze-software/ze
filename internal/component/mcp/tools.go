@@ -287,7 +287,9 @@ func (s *server) dispatchGenerated(prefix string, validActions map[string]bool, 
 		}
 	}
 	// Validate action against the server-defined enum to prevent injection.
-	if p.Action != "" && validActions != nil && !validActions[p.Action] {
+	// Nil map lookup returns false, so this correctly rejects all actions when
+	// validActions is nil (no valid actions for the tool).
+	if p.Action != "" && !validActions[p.Action] {
 		return errResult(fmt.Sprintf("invalid action %q", p.Action))
 	}
 	if strings.ContainsAny(p.Action, "\n\r") {

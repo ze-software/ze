@@ -89,7 +89,7 @@ func forceExitOnSignal(sigCh <-chan os.Signal) {
 // store provides the I/O backend (filesystem or blob); used for config reads and reload.
 // chaosSeed > 0 enables chaos self-test mode; chaosRate < 0 means "use default".
 // Returns exit code.
-func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr string) int {
+func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string) int {
 	// Read config content first (to probe type without parsing).
 	// When reading from stdin, we look for a NUL sentinel that signals
 	// "config complete but pipe stays open for liveness monitoring."
@@ -110,7 +110,7 @@ func Run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	switch zeconfig.ProbeConfigType(string(data)) {
 	case zeconfig.ConfigTypeBGP:
 		// Run BGP in-process using YANG parser
-		return runBGPInProcess(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr)
+		return runBGPInProcess(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
 	case zeconfig.ConfigTypeHub:
 		// Run hub orchestrator using hub parser
 		// TODO: pass plugins to orchestrator when hub mode supports them
@@ -158,7 +158,7 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 // runBGPInProcess loads BGP config using YANG parser and runs reactor in-process.
 // When stdinOpen is true, a background goroutine monitors stdin for EOF and
 // triggers shutdown when the upstream process exits (pipe mode).
-func runBGPInProcess(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr string) int {
+func runBGPInProcess(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string) int {
 	// Phase 1: Parse config and resolve plugins (no reactor created yet).
 	loadResult, err := bgpconfig.LoadConfig(string(data), configPath, plugins)
 	if err != nil {
@@ -167,32 +167,12 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 	}
 
 	// Precedence: CLI > env > config.
-	// Config provides defaults, env overrides config, CLI overrides everything.
+	// CLI flags are already set. Env vars fill unset values. Config fills remaining gaps.
 
-	// Layer 1: config file values.
-	if webCfg, ok := bgpconfig.ExtractWebConfig(loadResult.Tree); ok {
-		if !webEnabled {
-			webEnabled = true
-			webListenAddr = webCfg.Listen()
-			insecureWeb = webCfg.Insecure
-		}
-	}
-	if mcpCfg, ok := bgpconfig.ExtractMCPConfig(loadResult.Tree); ok {
-		if mcpAddr == "" {
-			mcpAddr = mcpCfg.Listen()
-		}
-	}
-
-	// Layer 1: looking glass config from file.
+	// Layer 1: environment variables override config (but not CLI flags).
 	var lgListenAddr string
 	var lgTLS bool
-	if lgCfg, ok := bgpconfig.ExtractLGConfig(loadResult.Tree); ok {
-		lgListenAddr = lgCfg.Listen()
-		lgTLS = lgCfg.TLS
-	}
-
-	// Layer 2: environment variables provide defaults when config is absent.
-	if listen := env.Get("ze.looking-glass.listen"); listen != "" && lgListenAddr == "" {
+	if listen := env.Get("ze.looking-glass.listen"); listen != "" {
 		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
 		if parseErr != nil {
 			fmt.Fprintf(os.Stderr, "error: ze.looking-glass.listen: %v\n", parseErr)
@@ -242,7 +222,34 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 	if env.IsEnabled("ze.mcp.enabled") && mcpAddr == "" {
 		mcpAddr = "127.0.0.1:8080"
 	}
-	// Layer 3: CLI flags already applied (they were set before this point).
+	if token := env.Get("ze.mcp.token"); token != "" && mcpToken == "" {
+		mcpToken = token
+	}
+
+	// Layer 2: config file fills remaining gaps.
+	if webCfg, ok := bgpconfig.ExtractWebConfig(loadResult.Tree); ok {
+		if !webEnabled {
+			webEnabled = true
+			webListenAddr = webCfg.Listen()
+			insecureWeb = webCfg.Insecure
+		}
+	}
+	if mcpCfg, ok := bgpconfig.ExtractMCPConfig(loadResult.Tree); ok {
+		if mcpAddr == "" {
+			mcpAddr = mcpCfg.Listen()
+		}
+		if mcpToken == "" && mcpCfg.Token != "" {
+			mcpToken = mcpCfg.Token
+		}
+	}
+	if lgCfg, ok := bgpconfig.ExtractLGConfig(loadResult.Tree); ok {
+		if lgListenAddr == "" {
+			lgListenAddr = lgCfg.Listen()
+		}
+		if !lgTLS {
+			lgTLS = lgCfg.TLS
+		}
+	}
 
 	// Phase 2: Populate ConfigProvider with parsed config tree.
 	configProvider := zeconfig.NewProvider()
@@ -370,7 +377,7 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 	// Start MCP server if --mcp flag was passed.
 	var mcpSrv *http.Server
 	if mcpAddr != "" {
-		mcpSrv = startMCPServer(mcpAddr, reactor.ExecuteCommand, commandLister(reactor))
+		mcpSrv = startMCPServer(mcpAddr, reactor.ExecuteCommand, commandLister(reactor), mcpToken)
 	}
 
 	// Wait for either signal or reactor to stop itself

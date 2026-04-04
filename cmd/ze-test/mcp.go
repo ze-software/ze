@@ -28,10 +28,11 @@ import (
 func mcpCmd() int {
 	fs := flag.NewFlagSet("ze-test mcp", flag.ContinueOnError)
 	port := fs.String("port", "", "MCP server port (required)")
+	token := fs.String("token", "", "Bearer token for MCP authentication")
 	timeout := fs.Duration("timeout", 10*time.Second, "Connection timeout")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze-test mcp --port <port> [--timeout <duration>]
+		fmt.Fprintf(os.Stderr, `Usage: ze-test mcp --port <port> [--token <token>] [--timeout <duration>]
 
 Send commands to a running Ze daemon via MCP.
 Reads commands from stdin, one per line.
@@ -51,7 +52,8 @@ Options:
 	}
 
 	client := &mcpClient{
-		addr: "127.0.0.1:" + *port,
+		addr:  "127.0.0.1:" + *port,
+		token: *token,
 	}
 
 	// Wait for MCP server to be ready.
@@ -130,8 +132,9 @@ Options:
 
 // mcpClient sends MCP JSON-RPC requests over HTTP.
 type mcpClient struct {
-	addr string
-	id   int
+	addr  string
+	token string // Bearer token (empty = no auth)
+	id    int
 }
 
 // waitReady retries connecting to the MCP endpoint until it responds.
@@ -140,9 +143,17 @@ func (c *mcpClient) waitReady(timeout time.Duration) error {
 	interval := 100 * time.Millisecond
 
 	for time.Now().Before(deadline) {
-		resp, err := http.Post("http://"+c.addr+"/", "application/json", //nolint:noctx // short-lived test tool
+		probeReq, err := http.NewRequest(http.MethodPost, "http://"+c.addr+"/", //nolint:noctx // short-lived test tool
 			bytes.NewReader([]byte(`{"jsonrpc":"2.0","id":0,"method":"initialize","params":{}}`)))
-		if err == nil {
+		if err != nil {
+			return fmt.Errorf("build probe: %w", err)
+		}
+		probeReq.Header.Set("Content-Type", "application/json")
+		if c.token != "" {
+			probeReq.Header.Set("Authorization", "Bearer "+c.token)
+		}
+		resp, doErr := http.DefaultClient.Do(probeReq)
+		if doErr == nil {
 			_ = resp.Body.Close() //nolint:errcheck // probe only
 			return nil
 		}
@@ -244,7 +255,15 @@ func (c *mcpClient) send(method string, params json.RawMessage) (json.RawMessage
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	resp, err := http.Post("http://"+c.addr+"/", "application/json", bytes.NewReader(reqBody)) //nolint:noctx // short-lived test tool
+	req, err := http.NewRequest(http.MethodPost, "http://"+c.addr+"/", bytes.NewReader(reqBody)) //nolint:noctx // short-lived test tool
+	if err != nil {
+		return nil, fmt.Errorf("build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request: %w", err)
 	}

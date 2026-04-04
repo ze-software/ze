@@ -172,10 +172,11 @@ func TestDispatchGenerated(t *testing.T) {
 			return "ok", nil
 		},
 	}
+	valid := map[string]bool{"status": true, "routes": true}
 
 	// Action only.
 	args, _ := json.Marshal(map[string]string{"action": "status"})
-	result := s.dispatchGenerated("rib", nil, args)
+	result := s.dispatchGenerated("rib", valid, args)
 	if dispatched != "rib status" {
 		t.Errorf("dispatched = %q, want %q", dispatched, "rib status")
 	}
@@ -186,30 +187,37 @@ func TestDispatchGenerated(t *testing.T) {
 
 	// Action + arguments.
 	args, _ = json.Marshal(map[string]string{"action": "routes", "arguments": "ipv4/unicast"})
-	s.dispatchGenerated("rib", nil, args)
+	s.dispatchGenerated("rib", valid, args)
 	if dispatched != "rib routes ipv4/unicast" {
 		t.Errorf("dispatched = %q, want %q", dispatched, "rib routes ipv4/unicast")
 	}
 
 	// With peer.
 	args, _ = json.Marshal(map[string]string{"action": "status", "peer": "10.0.0.1"})
-	s.dispatchGenerated("rib", nil, args)
+	s.dispatchGenerated("rib", valid, args)
 	if dispatched != "peer 10.0.0.1 rib status" {
 		t.Errorf("dispatched = %q, want %q", dispatched, "peer 10.0.0.1 rib status")
 	}
 
 	// Whitespace in peer rejected.
 	args, _ = json.Marshal(map[string]string{"action": "status", "peer": "10.0 0.1"})
-	result = s.dispatchGenerated("rib", nil, args)
+	result = s.dispatchGenerated("rib", valid, args)
 	if _, isErr := result["isError"]; !isErr {
 		t.Error("expected error for whitespace in peer")
 	}
 
 	// Newline in arguments rejected.
 	args, _ = json.Marshal(map[string]string{"action": "status", "arguments": "foo\nbar"})
-	result = s.dispatchGenerated("rib", nil, args)
+	result = s.dispatchGenerated("rib", valid, args)
 	if _, isErr := result["isError"]; !isErr {
 		t.Error("expected error for newline in arguments")
+	}
+
+	// Nil validActions rejects all actions.
+	args, _ = json.Marshal(map[string]string{"action": "status"})
+	result = s.dispatchGenerated("rib", nil, args)
+	if _, isErr := result["isError"]; !isErr {
+		t.Error("expected error when validActions is nil")
 	}
 }
 
@@ -274,6 +282,7 @@ func TestCallToolGeneratedViaHTTP(t *testing.T) {
 				{Name: "rib routes", Help: "Show routes"},
 			}
 		},
+		"",
 	)
 
 	// Call the auto-generated ze_rib tool with action "status".
@@ -315,6 +324,7 @@ func TestCallToolHandcraftedStillWorks(t *testing.T) {
 		func() []CommandInfo {
 			return []CommandInfo{{Name: "rib status", Help: "RIB summary"}}
 		},
+		"",
 	)
 
 	// Call handcrafted ze_execute tool.
@@ -537,8 +547,9 @@ func TestDispatchGeneratedDispatchError(t *testing.T) {
 			return "", fmt.Errorf("connection refused")
 		},
 	}
+	valid := map[string]bool{"status": true}
 	args, _ := json.Marshal(map[string]string{"action": "status"})
-	result := s.dispatchGenerated("rib", nil, args)
+	result := s.dispatchGenerated("rib", valid, args)
 	if _, isErr := result["isError"]; !isErr {
 		t.Error("expected error result when dispatch fails")
 	}
@@ -549,6 +560,7 @@ func TestCallToolUnknownViaHTTP(t *testing.T) {
 	handler := Handler(
 		func(string) (string, error) { return "", nil },
 		func() []CommandInfo { return nil },
+		"",
 	)
 	body := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ze_nonexistent","arguments":{}}}`
 	req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader(body))
@@ -600,5 +612,236 @@ func TestHandcraftedSkipPreventsDuplicates(t *testing.T) {
 	}
 	if count != 1 {
 		t.Errorf("ze_commands appears %d times, want exactly 1 (handcrafted only)", count)
+	}
+}
+
+func TestBearerTokenAuth(t *testing.T) {
+	handler := Handler(
+		func(string) (string, error) { return "ok", nil },
+		nil,
+		"secret-token-123",
+	)
+
+	// No token: rejected.
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`
+	req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("no token: status = %d, want 401", rr.Code)
+	}
+
+	// Wrong token: rejected.
+	req, _ = http.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer wrong-token")
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("wrong token: status = %d, want 401", rr.Code)
+	}
+
+	// Correct token: accepted.
+	req, _ = http.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer secret-token-123")
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Errorf("correct token: status = %d, want 200", rr.Code)
+	}
+}
+
+func TestBearerTokenEmptyAllowsAll(t *testing.T) {
+	handler := Handler(
+		func(string) (string, error) { return "ok", nil },
+		nil,
+		"",
+	)
+
+	// No token, empty config: accepted.
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`
+	req, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, "/mcp", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Errorf("empty token config: status = %d, want 200", rr.Code)
+	}
+}
+
+// --- Handcrafted tool tests ---
+
+func TestToolAnnounce(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    map[string]any
+		want    string // expected dispatch command prefix (empty = error expected)
+		wantErr bool
+	}{
+		{
+			name: "all fields",
+			args: map[string]any{
+				"peer": "10.0.0.1", "origin": "igp", "next-hop": "1.1.1.1",
+				"local-preference": 100, "as-path": []int{65000, 65001},
+				"community": []string{"65000:100", "65000:200"},
+				"family":    "ipv4/unicast", "prefixes": []string{"10.0.0.0/24"},
+			},
+			want: "peer 10.0.0.1 update text origin igp local-preference 100 as-path [65000 65001] next-hop 1.1.1.1 community [65000:100 65000:200] nlri ipv4/unicast add 10.0.0.0/24",
+		},
+		{
+			name: "minimal",
+			args: map[string]any{"family": "ipv4/unicast", "prefixes": []string{"10.0.0.0/24"}},
+			want: "peer * update text nlri ipv4/unicast add 10.0.0.0/24",
+		},
+		{
+			name:    "missing family",
+			args:    map[string]any{"prefixes": []string{"10.0.0.0/24"}},
+			wantErr: true,
+		},
+		{
+			name:    "missing prefixes",
+			args:    map[string]any{"family": "ipv4/unicast"},
+			wantErr: true,
+		},
+		{
+			name:    "whitespace in community",
+			args:    map[string]any{"family": "ipv4/unicast", "prefixes": []string{"10.0.0.0/24"}, "community": []string{"65000:100 evil"}},
+			wantErr: true,
+		},
+		{
+			name:    "whitespace in prefix",
+			args:    map[string]any{"family": "ipv4/unicast", "prefixes": []string{"10.0 .0.0/24"}},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var dispatched string
+			s := &server{dispatch: func(cmd string) (string, error) {
+				dispatched = cmd
+				return "ok", nil
+			}}
+			args, _ := json.Marshal(tt.args)
+			result := s.toolAnnounce(args)
+			if tt.wantErr {
+				if _, isErr := result["isError"]; !isErr {
+					t.Error("expected error result")
+				}
+				return
+			}
+			if _, isErr := result["isError"]; isErr {
+				t.Errorf("unexpected error: %v", result)
+				return
+			}
+			if dispatched != tt.want {
+				t.Errorf("dispatched:\n  got  %q\n  want %q", dispatched, tt.want)
+			}
+		})
+	}
+}
+
+func TestToolWithdraw(t *testing.T) {
+	var dispatched string
+	s := &server{dispatch: func(cmd string) (string, error) {
+		dispatched = cmd
+		return "ok", nil
+	}}
+
+	// Valid withdraw.
+	args, _ := json.Marshal(map[string]any{
+		"peer": "10.0.0.1", "family": "ipv4/unicast", "prefixes": []string{"10.0.0.0/24", "10.0.1.0/24"},
+	})
+	result := s.toolWithdraw(args)
+	if _, isErr := result["isError"]; isErr {
+		t.Fatalf("unexpected error: %v", result)
+	}
+	want := "peer 10.0.0.1 update text nlri ipv4/unicast del 10.0.0.0/24 del 10.0.1.0/24"
+	if dispatched != want {
+		t.Errorf("dispatched:\n  got  %q\n  want %q", dispatched, want)
+	}
+
+	// Missing family.
+	args, _ = json.Marshal(map[string]any{"prefixes": []string{"10.0.0.0/24"}})
+	result = s.toolWithdraw(args)
+	if _, isErr := result["isError"]; !isErr {
+		t.Error("expected error for missing family")
+	}
+}
+
+func TestToolPeers(t *testing.T) {
+	var dispatched string
+	s := &server{dispatch: func(cmd string) (string, error) {
+		dispatched = cmd
+		return "ok", nil
+	}}
+
+	// No peer: dispatches "peer list".
+	args, _ := json.Marshal(map[string]any{})
+	s.toolPeers(args)
+	if dispatched != "peer list" {
+		t.Errorf("no peer: dispatched %q, want %q", dispatched, "peer list")
+	}
+
+	// With peer: dispatches "peer X show bgp peer".
+	args, _ = json.Marshal(map[string]any{"peer": "10.0.0.1"})
+	s.toolPeers(args)
+	if dispatched != "peer 10.0.0.1 show bgp peer" {
+		t.Errorf("with peer: dispatched %q, want %q", dispatched, "peer 10.0.0.1 show bgp peer")
+	}
+
+	// Whitespace in peer rejected.
+	args, _ = json.Marshal(map[string]any{"peer": "10.0 0.1"})
+	result := s.toolPeers(args)
+	if _, isErr := result["isError"]; !isErr {
+		t.Error("expected error for whitespace in peer")
+	}
+}
+
+func TestToolPeerControl(t *testing.T) {
+	var dispatched string
+	s := &server{dispatch: func(cmd string) (string, error) {
+		dispatched = cmd
+		return "ok", nil
+	}}
+
+	for _, action := range []string{"teardown", "pause", "resume", "flush"} {
+		args, _ := json.Marshal(map[string]any{"peer": "10.0.0.1", "action": action})
+		result := s.toolPeerControl(args)
+		if _, isErr := result["isError"]; isErr {
+			t.Errorf("action %s: unexpected error: %v", action, result)
+			continue
+		}
+		want := "peer 10.0.0.1 " + action
+		if dispatched != want {
+			t.Errorf("action %s: dispatched %q, want %q", action, dispatched, want)
+		}
+	}
+
+	// Invalid action.
+	args, _ := json.Marshal(map[string]any{"peer": "10.0.0.1", "action": "destroy"})
+	result := s.toolPeerControl(args)
+	if _, isErr := result["isError"]; !isErr {
+		t.Error("expected error for invalid action")
+	}
+
+	// Missing peer.
+	args, _ = json.Marshal(map[string]any{"action": "teardown"})
+	result = s.toolPeerControl(args)
+	if _, isErr := result["isError"]; !isErr {
+		t.Error("expected error for missing peer")
+	}
+}
+
+func TestToolCommands(t *testing.T) {
+	var dispatched string
+	s := &server{dispatch: func(cmd string) (string, error) {
+		dispatched = cmd
+		return "[]", nil
+	}}
+	s.toolCommands(nil)
+	if dispatched != "command-list --json" {
+		t.Errorf("dispatched %q, want %q", dispatched, "command-list --json")
 	}
 }
