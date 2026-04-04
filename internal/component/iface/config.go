@@ -191,12 +191,121 @@ func parseStringList(m map[string]any, key string) []string {
 	return nil
 }
 
-// applyConfig applies the parsed interface config to the OS via the backend.
-// Creates interfaces that don't exist, sets properties, adds addresses.
-// Existing interfaces that are not in the config are left alone (no deletion).
+// desiredState builds a map of OS interface name -> desired addresses from config.
+// Also returns the set of Ze-managed interface names (dummy, veth, bridge, VLAN)
+// that should exist. Physical interfaces (ethernet) are never in the managed set.
+func (cfg *ifaceConfig) desiredState() (addrs map[string]map[string]bool, managed map[string]bool) {
+	addrs = make(map[string]map[string]bool)
+	managed = make(map[string]bool)
+
+	addIfaceAddrs := func(name string, units []unitEntry) {
+		for _, u := range units {
+			if u.Disable {
+				continue
+			}
+			osName := name
+			if u.VLANID > 0 {
+				osName = fmt.Sprintf("%s.%d", name, u.VLANID)
+				managed[osName] = true
+			}
+			if addrs[osName] == nil {
+				addrs[osName] = make(map[string]bool)
+			}
+			for _, a := range u.Addresses {
+				addrs[osName][a] = true
+			}
+		}
+	}
+
+	for _, e := range cfg.Dummy {
+		if e.Disable {
+			continue
+		}
+		managed[e.Name] = true
+		addIfaceAddrs(e.Name, e.Units)
+	}
+	for _, e := range cfg.Veth {
+		if e.Disable {
+			continue
+		}
+		managed[e.Name] = true
+		addIfaceAddrs(e.Name, e.Units)
+	}
+	for _, e := range cfg.Bridge {
+		if e.Disable {
+			continue
+		}
+		managed[e.Name] = true
+		addIfaceAddrs(e.Name, e.Units)
+	}
+	for _, e := range cfg.Ethernet {
+		if e.Disable {
+			continue
+		}
+		addIfaceAddrs(e.Name, e.Units)
+	}
+	if cfg.Loopback != nil {
+		for _, u := range cfg.Loopback.Units {
+			if u.Disable {
+				continue
+			}
+			if addrs["lo"] == nil {
+				addrs["lo"] = make(map[string]bool)
+			}
+			for _, a := range u.Addresses {
+				addrs["lo"][a] = true
+			}
+		}
+	}
+
+	return addrs, managed
+}
+
+// currentAddrSet builds a map of OS interface name -> set of current CIDR addresses.
+func currentAddrSet(infos []InterfaceInfo) map[string]map[string]bool {
+	result := make(map[string]map[string]bool)
+	for i := range infos {
+		if len(infos[i].Addresses) == 0 {
+			continue
+		}
+		m := make(map[string]bool, len(infos[i].Addresses))
+		for _, a := range infos[i].Addresses {
+			cidr := fmt.Sprintf("%s/%d", a.Address, a.PrefixLength)
+			m[cidr] = true
+		}
+		result[infos[i].Name] = m
+	}
+	return result
+}
+
+// currentIfaceSet builds a set of OS interface names by type.
+func currentIfaceSet(infos []InterfaceInfo) map[string]string {
+	result := make(map[string]string, len(infos))
+	for i := range infos {
+		result[infos[i].Name] = infos[i].Type
+	}
+	return result
+}
+
+// zeManageable returns true if the interface type is one Ze creates/deletes
+// (not physical ethernet or loopback).
+func zeManageable(linkType string) bool {
+	switch linkType {
+	case zeTypeDummy, zeTypeVeth, zeTypeBridge, "vlan":
+		return true
+	}
+	return false
+}
+
+// applyConfig applies the parsed interface config declaratively via the backend.
+// 1. Creates missing Ze-managed interfaces (dummy, veth, bridge, VLAN)
+// 2. Sets properties (MTU, MAC) on all configured interfaces
+// 3. Adds missing addresses, removes extra addresses on configured interfaces
+// 4. Deletes Ze-managed interfaces not in config.
 func applyConfig(cfg *ifaceConfig, b Backend) {
 	log := loggerPtr.Load()
 
+	// Phase 1: Create missing interfaces.
 	for _, e := range cfg.Dummy {
 		if e.Disable {
 			continue
@@ -204,9 +313,7 @@ func applyConfig(cfg *ifaceConfig, b Backend) {
 		if err := b.CreateDummy(e.Name); err != nil {
 			log.Debug("iface config: create dummy (may already exist)", "name", e.Name, "err", err)
 		}
-		applyIfaceProps(b, e, log)
 	}
-
 	for _, e := range cfg.Veth {
 		if e.Disable {
 			continue
@@ -218,9 +325,7 @@ func applyConfig(cfg *ifaceConfig, b Backend) {
 		if err := b.CreateVeth(e.Name, peer); err != nil {
 			log.Debug("iface config: create veth (may already exist)", "name", e.Name, "err", err)
 		}
-		applyIfaceProps(b, e.ifaceEntry, log)
 	}
-
 	for _, e := range cfg.Bridge {
 		if e.Disable {
 			continue
@@ -236,66 +341,106 @@ func applyConfig(cfg *ifaceConfig, b Backend) {
 				log.Warn("iface config: bridge add port", "bridge", e.Name, "port", member, "err", err)
 			}
 		}
-		applyIfaceProps(b, e.ifaceEntry, log)
 	}
 
-	// Ethernet interfaces are not created (they're physical), but properties
-	// and addresses are applied.
-	for _, e := range cfg.Ethernet {
+	// Phase 2: Set properties and create VLANs.
+	allEntries := make([]ifaceEntry, 0, len(cfg.Ethernet)+len(cfg.Dummy)+len(cfg.Veth)+len(cfg.Bridge))
+	allEntries = append(allEntries, cfg.Ethernet...)
+	allEntries = append(allEntries, cfg.Dummy...)
+	for _, e := range cfg.Veth {
+		allEntries = append(allEntries, e.ifaceEntry)
+	}
+	for _, e := range cfg.Bridge {
+		allEntries = append(allEntries, e.ifaceEntry)
+	}
+
+	for _, e := range allEntries {
 		if e.Disable {
 			continue
 		}
-		applyIfaceProps(b, e, log)
-	}
-
-	// Loopback: addresses only (no physical properties to set).
-	if cfg.Loopback != nil {
-		for _, u := range cfg.Loopback.Units {
+		if e.MTU > 0 {
+			if err := b.SetMTU(e.Name, e.MTU); err != nil {
+				log.Warn("iface config: set mtu", "name", e.Name, "mtu", e.MTU, "err", err)
+			}
+		}
+		if e.MACAddress != "" {
+			if err := b.SetMACAddress(e.Name, e.MACAddress); err != nil {
+				log.Warn("iface config: set mac", "name", e.Name, "err", err)
+			}
+		}
+		for _, u := range e.Units {
 			if u.Disable {
 				continue
 			}
-			for _, addr := range u.Addresses {
-				if err := b.AddAddress("lo", addr); err != nil {
-					log.Debug("iface config: loopback address (may already exist)", "addr", addr, "err", err)
+			if u.VLANID > 0 {
+				if err := b.CreateVLAN(e.Name, u.VLANID); err != nil {
+					log.Debug("iface config: create vlan (may already exist)",
+						"parent", e.Name, "vlan", u.VLANID, "err", err)
 				}
 			}
 		}
 	}
-}
 
-func applyIfaceProps(b Backend, e ifaceEntry, log interface{ Warn(string, ...any) }) {
-	if e.MTU > 0 {
-		if err := b.SetMTU(e.Name, e.MTU); err != nil {
-			log.Warn("iface config: set mtu", "name", e.Name, "mtu", e.MTU, "err", err)
-		}
-	}
-	if e.MACAddress != "" {
-		if err := b.SetMACAddress(e.Name, e.MACAddress); err != nil {
-			log.Warn("iface config: set mac", "name", e.Name, "err", err)
-		}
-	}
+	// Phase 3: Reconcile addresses (add missing, remove extra).
+	desiredAddrs, managedNames := cfg.desiredState()
 
-	for _, u := range e.Units {
-		if u.Disable {
-			continue
-		}
-		osName := e.Name
-		if u.VLANID > 0 {
-			if err := b.CreateVLAN(e.Name, u.VLANID); err != nil {
-				log.Warn("iface config: create vlan (may already exist)",
-					"parent", e.Name, "vlan", u.VLANID, "err", err)
+	currentInfos, err := b.ListInterfaces()
+	if err != nil {
+		log.Warn("iface config: list interfaces for reconciliation failed", "err", err)
+		// Fall back to additive-only: add all desired addresses.
+		for osName, addrs := range desiredAddrs {
+			for addr := range addrs {
+				if err := b.AddAddress(osName, addr); err != nil {
+					log.Debug("iface config: add address", "iface", osName, "addr", addr, "err", err)
+				}
 			}
-			osName = fmt.Sprintf("%s.%d", e.Name, u.VLANID)
-		} else if u.ID > 0 {
-			// Non-VLAN units > 0: addresses go on the parent interface.
-			osName = e.Name
 		}
+		return
+	}
 
-		for _, addr := range u.Addresses {
+	currentAddrs := currentAddrSet(currentInfos)
+
+	// Add missing addresses on configured interfaces.
+	for osName, desired := range desiredAddrs {
+		current := currentAddrs[osName]
+		for addr := range desired {
+			if current != nil && current[addr] {
+				continue // already present
+			}
 			if err := b.AddAddress(osName, addr); err != nil {
-				log.Warn("iface config: add address (may already exist)",
-					"iface", osName, "addr", addr, "err", err)
+				log.Warn("iface config: add address", "iface", osName, "addr", addr, "err", err)
 			}
+		}
+	}
+
+	// Remove extra addresses on configured interfaces (only interfaces in config).
+	for osName, desired := range desiredAddrs {
+		current := currentAddrs[osName]
+		for addr := range current {
+			if desired[addr] {
+				continue // should be there
+			}
+			if err := b.RemoveAddress(osName, addr); err != nil {
+				log.Warn("iface config: remove stale address", "iface", osName, "addr", addr, "err", err)
+			} else {
+				log.Info("iface config: removed stale address", "iface", osName, "addr", addr)
+			}
+		}
+	}
+
+	// Phase 4: Delete Ze-managed interfaces not in config.
+	currentIfaces := currentIfaceSet(currentInfos)
+	for name, linkType := range currentIfaces {
+		if !zeManageable(linkType) {
+			continue // never delete physical or loopback
+		}
+		if managedNames[name] {
+			continue // in config, keep
+		}
+		if err := b.DeleteInterface(name); err != nil {
+			log.Warn("iface config: delete unmanaged interface", "name", name, "type", linkType, "err", err)
+		} else {
+			log.Info("iface config: deleted interface not in config", "name", name, "type", linkType)
 		}
 	}
 }
