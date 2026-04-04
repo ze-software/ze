@@ -63,7 +63,7 @@ DUTS = [
     {"name": "frr",      "image": FRR_IMAGE,       "ip": "172.31.0.3", "port": 179, "sender_port": 0, "receiver_port": 0},
     {"name": "bird",     "image": "bird-interop",  "ip": "172.31.0.4", "port": 179, "sender_port": 0, "receiver_port": 0},
     {"name": "gobgp",    "image": "gobgp-interop", "ip": "172.31.0.5", "port": 179, "sender_port": 0, "receiver_port": 0},
-    {"name": "rustbgpd", "image": RUSTBGPD_IMAGE,  "ip": "172.31.0.6", "port": 179, "sender_port": 0, "receiver_port": 0},
+    {"name": "rustbgpd", "image": RUSTBGPD_IMAGE,  "ip": "172.31.0.6", "port": 179, "sender_port": 0, "receiver_port": 0, "passive": True},
     {"name": "rustybgp", "image": "rustybgp-interop", "ip": "172.31.0.7", "port": 179, "sender_port": 0, "receiver_port": 0},
     {"name": "freertr",  "image": "freertr-interop",  "ip": "172.31.0.8", "port": 179, "sender_port": 0, "receiver_port": 0},
 ]
@@ -365,6 +365,8 @@ def run_perf(dut):
             cmd += ["--sender-port", str(dut["sender_port"])]
         if dut["receiver_port"]:
             cmd += ["--receiver-port", str(dut["receiver_port"])]
+        if dut.get("passive"):
+            cmd += ["--passive-listen"]
 
         docker(*cmd, timeout=subprocess_timeout_s)
         return True
