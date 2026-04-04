@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — progressive build for egress attribute modification
+// Design: .claude/rules/design-principles.md — zero-copy, copy-on-modify (Outgoing Peer Pool is the copy point)
 // Overview: reactor_api_forward.go — UPDATE forwarding dispatch
 // Related: reactor_notify.go — panic recovery helpers
 
@@ -34,17 +35,25 @@ var modBufPool = sync.Pool{
 // with no matching source attribute) are appended after source attributes.
 // The attr_len field is backfilled after all attributes are written.
 //
-// Returns the modified payload, or nil if no modifications were needed
-// (caller should use the original payload). The returned slice is newly
-// allocated and safe to retain.
+// Copy-on-modify: when pp is non-nil and has a free buffer large enough for
+// the payload, the modified data is written directly into the per-peer pool
+// buffer. The caller stores the returned peerBufIdx in fwdItem so releaseItem
+// returns it after the worker writes to TCP. When no per-peer buffer is
+// available, falls back to sync.Pool + a result copy.
+//
+// Returns (modified payload, peerBufIdx). peerBufIdx > 0 means the returned
+// slice is backed by pp and MUST be returned via pp.Return(peerBufIdx).
+// peerBufIdx == 0 means the slice is independently allocated (safe to retain).
+// Returns (nil, 0) if no modifications were needed.
 func buildModifiedPayload(
 	payload []byte,
 	mods *registry.ModAccumulator,
 	handlers map[uint8]registry.AttrModHandler,
-) []byte {
+	pp *peerPool,
+) ([]byte, int) {
 	ops := mods.Ops()
 	if len(ops) == 0 {
-		return nil
+		return nil, 0
 	}
 
 	// Group ops by attribute code.
@@ -53,41 +62,77 @@ func buildModifiedPayload(
 	// Parse source payload structure.
 	if len(payload) < 4 {
 		fwdLogger().Warn("malformed payload in buildModifiedPayload, skipping mods", "payloadLen", len(payload))
-		return nil
+		return nil, 0
 	}
 	withdrawnLen := int(binary.BigEndian.Uint16(payload[0:2]))
 	attrOffset := 2 + withdrawnLen
 	if len(payload) < attrOffset+2 {
 		fwdLogger().Warn("malformed payload in buildModifiedPayload, skipping mods", "payloadLen", len(payload))
-		return nil
+		return nil, 0
 	}
 	attrLen := int(binary.BigEndian.Uint16(payload[attrOffset : attrOffset+2]))
 	attrStart := attrOffset + 2
 	attrEnd := attrStart + attrLen
 	if len(payload) < attrEnd {
 		fwdLogger().Warn("malformed payload in buildModifiedPayload, skipping mods", "payloadLen", len(payload))
-		return nil
+		return nil, 0
 	}
 
-	// Get pooled buffer. If payload is larger than standard, allocate directly.
-	bufSize := len(payload) + 256 // Slack for added attributes.
+	// Try per-peer pool first (copy-on-modify: zero extra allocation).
+	// The per-peer buffer is sized to the negotiated message max (4K or 64K),
+	// which is always >= the payload. Slack for added attributes is covered
+	// because modifications rarely exceed the original payload size.
+	needSize := len(payload) + 256 // slack for added attributes
 	var buf []byte
+	var peerBufIdx int
 	var poolBuf *[]byte
-	if bufSize <= 4096 {
-		poolBuf, _ = modBufPool.Get().(*[]byte)
-		if poolBuf != nil {
-			buf = *poolBuf
-		} else {
-			buf = make([]byte, 4096)
+
+	if pp != nil {
+		b, idx := pp.Get()
+		if idx > 0 && len(b) >= needSize {
+			buf = b
+			peerBufIdx = idx
+		} else if idx > 0 {
+			// Buffer too small (shouldn't happen: peer bufSize >= max message).
+			pp.Return(idx)
 		}
-	} else {
-		buf = make([]byte, bufSize)
 	}
 
-	// Ensure pool buffer is returned on all exit paths (including panic).
-	defer func() {
+	// Fallback: sync.Pool for when per-peer pool is exhausted or nil.
+	if buf == nil {
+		if needSize <= 4096 {
+			poolBuf, _ = modBufPool.Get().(*[]byte)
+			if poolBuf != nil {
+				buf = *poolBuf
+			} else {
+				buf = make([]byte, 4096)
+			}
+		} else {
+			buf = make([]byte, needSize)
+		}
+	}
+
+	// cleanupBuf returns the per-peer buffer on error and the sync.Pool
+	// buffer on all exit paths.
+	cleanupBuf := func() {
+		if peerBufIdx > 0 && pp != nil {
+			pp.Return(peerBufIdx)
+			peerBufIdx = 0
+		}
 		if poolBuf != nil {
 			modBufPool.Put(poolBuf)
+		}
+	}
+
+	// Ensure buffers are returned on panic.
+	defer func() {
+		if peerBufIdx > 0 && pp != nil {
+			pp.Return(peerBufIdx)
+			peerBufIdx = 0
+		}
+		if poolBuf != nil {
+			modBufPool.Put(poolBuf)
+			poolBuf = nil
 		}
 	}()
 
@@ -96,7 +141,8 @@ func buildModifiedPayload(
 	// Step 1: Copy withdrawn section verbatim.
 	wdSectionLen := 2 + withdrawnLen
 	if !safeCopy(buf, off, payload[:wdSectionLen]) {
-		return nil
+		cleanupBuf()
+		return nil, 0
 	}
 	off += wdSectionLen
 
@@ -175,7 +221,8 @@ func buildModifiedPayload(
 	}
 
 	if overflow {
-		return nil
+		cleanupBuf()
+		return nil, 0
 	}
 
 	// Step 6: Write unconsumed ops (new attributes).
@@ -200,7 +247,8 @@ func buildModifiedPayload(
 	newAttrLen := off - attrLenPos - 2
 	if newAttrLen < 0 || newAttrLen > 65535 {
 		fwdLogger().Warn("attr modification abandoned: attr_len out of range", "newAttrLen", newAttrLen)
-		return nil
+		cleanupBuf()
+		return nil, 0
 	}
 	binary.BigEndian.PutUint16(buf[attrLenPos:], uint16(newAttrLen)) //nolint:gosec // G115: bounded by check above
 
@@ -208,16 +256,30 @@ func buildModifiedPayload(
 	nlriLen := len(payload) - attrEnd
 	if nlriLen > 0 {
 		if !safeCopy(buf, off, payload[attrEnd:]) {
-			return nil // Buffer overflow: abandon modification.
+			cleanupBuf()
+			return nil, 0
 		}
 		off += nlriLen
 	}
 
-	// Make a result copy so we can return the pool buffer.
+	// Per-peer buffer path: return the slice directly. The caller stores
+	// peerBufIdx in fwdItem so releaseItem returns it after TCP write.
+	// No copy needed -- the buffer IS the result.
+	if peerBufIdx > 0 {
+		if poolBuf != nil {
+			modBufPool.Put(poolBuf)
+			poolBuf = nil
+		}
+		idx := peerBufIdx
+		peerBufIdx = 0 // prevent defer from double-returning
+		return buf[:off], idx
+	}
+
+	// Sync.Pool fallback: copy result so pool buffer can be returned.
 	result := make([]byte, off)
 	copy(result, buf[:off])
 
-	return result
+	return result, 0
 }
 
 // buildWithdrawalPayload converts an announce UPDATE payload to a withdrawal.

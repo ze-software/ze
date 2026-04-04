@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — immutable received UPDATE snapshot
+// Design: .claude/rules/design-principles.md — zero-copy, copy-on-modify (holds Incoming Peer Pool buffer read-only)
 // Related: recent_cache.go — RecentUpdateCache stores ReceivedUpdate entries
 // Related: reactor_notify.go — creates ReceivedUpdate on inbound UPDATE
 

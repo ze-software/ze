@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP session struct, constructor, accessors, run loop
+// Design: .claude/rules/design-principles.md — zero-copy, copy-on-modify (Incoming Peer Pool buffer allocated at receive)
 // Detail: session_connection.go — connect, accept, teardown
 // Detail: session_write.go — wire write primitives and Send* methods
 // Detail: session_handlers.go — per-message-type handlers

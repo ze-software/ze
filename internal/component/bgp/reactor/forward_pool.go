@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — per-peer forward worker pool
+// Design: .claude/rules/design-principles.md — zero-copy, copy-on-modify (Incoming/Outgoing Peer Pools, Global Shared Pool)
 // Overview: reactor.go — BGP reactor event loop and peer management
 // Detail: forward_pool_weight.go — burst fraction, buffer demand calculation
 // Detail: forward_pool_weight_tracker.go — per-peer weight tracking and pool budget
@@ -185,12 +186,13 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 // Matches the proven per-worker channel capacity for micro-burst absorption.
 const peerPoolSize = 64
 
-// peerPool is a bounded buffer pool for one destination peer's steady-state
-// forwarding traffic. Created at session establishment with the negotiated
-// message size (4K standard, 64K for RFC 8654 Extended Message).
+// peerPool is a pre-allocated buffer pool used as an Outgoing Peer Pool.
+// Created at session establishment with the negotiated message size
+// (4K standard, 64K for RFC 8654 Extended Message).
 //
-// The pool absorbs micro-bursts without touching the shared overflow pool.
-// When full, items spill into the shared overflow MixedBufMux.
+// Buffers are acquired by buildModifiedPayload when egress filters need
+// to modify the payload for this destination peer (copy-on-modify).
+// When exhausted, modification falls back to sync.Pool.
 //
 // Pre-allocates one contiguous backing array at init, sliced into
 // peerPoolSize buffers. Mutex-protected index stack for O(1) Get/Return.
@@ -336,10 +338,12 @@ type fwdPool struct {
 	// 64K blocks subdivisible to 16 x 4K slices, byte-budgeted.
 	overflowMux *MixedBufMux
 
-	// peerPools tracks per-peer buffer pools (64 slots each).
-	// Created when a peer is registered via RegisterPeerPool, destroyed
-	// on session teardown via UnregisterPeerPool. Protected by mu.
-	peerPools map[fwdKey]*peerPool
+	// outgoingPools tracks Outgoing Peer Pools for egress modification.
+	// Used by buildModifiedPayload when egress filters need to modify the
+	// payload for a destination peer (copy-on-modify). 64 pre-allocated
+	// buffers at the peer's negotiated message size. Created at peer
+	// registration, destroyed on session teardown. Protected by mu.
+	outgoingPools map[fwdKey]*peerPool
 
 	// congestion is the two-threshold enforcement controller (Phase 5).
 	// Nil when congestion control is not configured.
@@ -368,13 +372,13 @@ func newFwdPool(handler func(fwdKey, []fwdItem), cfg fwdPoolConfig) *fwdPool {
 		cfg.idleTimeout = 5 * time.Second
 	}
 	fp := &fwdPool{
-		workers:   make(map[fwdKey]*fwdWorker),
-		handler:   handler,
-		cfg:       cfg,
-		clock:     clock.RealClock{},
-		stopCh:    make(chan struct{}),
-		srcStats:  make(map[netip.Addr]*fwdSourceStats),
-		peerPools: make(map[fwdKey]*peerPool),
+		workers:       make(map[fwdKey]*fwdWorker),
+		handler:       handler,
+		cfg:           cfg,
+		clock:         clock.RealClock{},
+		stopCh:        make(chan struct{}),
+		srcStats:      make(map[netip.Addr]*fwdSourceStats),
+		outgoingPools: make(map[fwdKey]*peerPool),
 	}
 	return fp
 }
@@ -392,25 +396,34 @@ func (fp *fwdPool) SetOverflowMux(m *MixedBufMux) {
 	fp.overflowMux = m
 }
 
-// RegisterPeerPool creates a per-peer pool for the given destination peer.
+// RegisterOutgoingPool creates an Outgoing Peer Pool for the given destination peer.
 // bufSize is the negotiated message size (4K standard, 64K ExtMsg).
 // Called at session establishment. Safe for concurrent use.
-func (fp *fwdPool) RegisterPeerPool(key fwdKey, bufSize int) {
+func (fp *fwdPool) RegisterOutgoingPool(key fwdKey, bufSize int) {
 	fp.mu.Lock()
-	fp.peerPools[key] = newPeerPool(bufSize)
+	fp.outgoingPools[key] = newPeerPool(bufSize)
 	fp.mu.Unlock()
 }
 
-// UnregisterPeerPool removes the per-peer pool for the given destination peer.
+// UnregisterOutgoingPool removes the Outgoing Peer Pool for the given destination peer.
 // Called at session teardown. Safe for concurrent use.
-func (fp *fwdPool) UnregisterPeerPool(key fwdKey) {
+func (fp *fwdPool) UnregisterOutgoingPool(key fwdKey) {
 	fp.mu.Lock()
-	delete(fp.peerPools, key)
+	delete(fp.outgoingPools, key)
 	fp.mu.Unlock()
+}
+
+// OutgoingPool returns the Outgoing Peer Pool for the given key, or nil.
+// Used by ForwardUpdate to pass to buildModifiedPayload for copy-on-modify.
+func (fp *fwdPool) OutgoingPool(key fwdKey) *peerPool {
+	fp.mu.Lock()
+	pp := fp.outgoingPools[key]
+	fp.mu.Unlock()
+	return pp
 }
 
 // releaseItem returns all pool resources held by an fwdItem.
-// Handles per-peer pool slots and overflow MixedBufMux handles.
+// Handles Outgoing Peer Pool buffers and Global Shared Pool handles.
 // Called from safeBatchHandle and Stop cleanup.
 func (fp *fwdPool) releaseItem(item *fwdItem) {
 	if item.peerBufIdx > 0 && item.peerPoolRef != nil {
@@ -492,40 +505,16 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 		w = fp.newWorker(key)
 	}
 
-	// Acquire per-peer pool buffer (under fp.mu, which protects peerPools).
-	// If the peer pool is exhausted, mark congested and return false.
-	pp := fp.peerPools[key]
 	fp.mu.Unlock()
 
-	if pp != nil {
-		_, idx := pp.Get()
-		if idx == 0 {
-			// Per-peer pool exhausted -- mark congested and return false.
-			w.overflowMu.Lock()
-			wasCongested := w.congested
-			w.congested = true
-			w.overflowMu.Unlock()
-
-			if !wasCongested && fp.onCongested != nil {
-				fp.onCongested(key.peerAddr)
-			}
-			return false
-		}
-		item.peerBufIdx = idx
-		item.peerPoolRef = pp
-	}
-
-	// Non-blocking send.
+	// Non-blocking send. Per-peer pool buffers are not acquired here --
+	// they are taken by buildModifiedPayload only when egress filters
+	// need to modify the payload (copy-on-modify). The channel capacity
+	// provides the concurrency gate.
 	select {
 	case w.ch <- item:
 		return true
 	default: // channel full — non-blocking fallback
-		// Return per-peer pool buffer on failed send.
-		if item.peerBufIdx > 0 && item.peerPoolRef != nil {
-			item.peerPoolRef.Return(item.peerBufIdx)
-			item.peerBufIdx = 0
-			item.peerPoolRef = nil
-		}
 		// Mark congested and fire callback on transition.
 		w.overflowMu.Lock()
 		wasCongested := w.congested
@@ -581,11 +570,11 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 	// Skip for sentinel items (peer == nil) — they carry no route data
 	// and should not consume pool capacity meant for real updates.
 	if fp.overflowMux != nil && item.peer != nil && !denied {
-		// Determine buffer size from the destination peer's pool registration.
-		// Default to 4K (standard) if no peer pool is registered.
+		// Determine buffer size from the destination peer's Outgoing Peer Pool.
+		// Default to 4K (standard) if no pool is registered.
 		bufSize := message.MaxMsgLen
 		fp.mu.Lock()
-		if pp := fp.peerPools[key]; pp != nil {
+		if pp := fp.outgoingPools[key]; pp != nil {
 			bufSize = pp.bufSize
 		}
 		fp.mu.Unlock()

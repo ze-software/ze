@@ -1458,10 +1458,10 @@ func TestFwdPool_TryDispatchWithPeerPool(t *testing.T) {
 	defer pool.Stop()
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
-	pool.RegisterPeerPool(key, 4096)
+	pool.RegisterOutgoingPool(key, 4096)
 
 	pool.mu.Lock()
-	pp := pool.peerPools[key]
+	pp := pool.outgoingPools[key]
 	pool.mu.Unlock()
 
 	// Dispatch 10 items -- each should acquire a peer pool slot.
@@ -1481,49 +1481,44 @@ func TestFwdPool_TryDispatchWithPeerPool(t *testing.T) {
 	}, time.Second, time.Millisecond, "all peer pool slots should be returned after processing")
 }
 
-func TestFwdPool_TryDispatchPeerPoolFull(t *testing.T) {
-	// Finding #2: When per-peer pool is full (64 slots), TryDispatch returns false.
+func TestFwdPool_TryDispatchChannelFull(t *testing.T) {
+	// When the worker channel is full, TryDispatch returns false and fires congested callback.
 	blocker := make(chan struct{})
 	handlerStarted := make(chan struct{}, 1)
 
+	const chanSize = 8
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 		select {
 		case handlerStarted <- struct{}{}:
 		default:
 		}
 		<-blocker
-	}, fwdPoolConfig{chanSize: 256, idleTimeout: time.Second})
+	}, fwdPoolConfig{chanSize: chanSize, idleTimeout: time.Second})
 	defer func() {
 		close(blocker)
 		pool.Stop()
 	}()
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
-	pool.RegisterPeerPool(key, 4096)
 
 	var congestedCount atomic.Int32
 	pool.onCongested = func(_ netip.AddrPort) {
 		congestedCount.Add(1)
 	}
 
-	// Fill up the peer pool (64 slots). Items block in handler so slots are not released.
+	// First dispatch starts the worker, which blocks.
 	pool.TryDispatch(key, fwdItem{})
-	<-handlerStarted // worker is now blocked
+	<-handlerStarted
 
-	// Fill remaining 63 slots via channel (handler is blocked, items queue up).
-	for i := range 63 {
+	// Fill the channel (handler is blocked, items queue up).
+	for i := range chanSize {
 		ok := pool.TryDispatch(key, fwdItem{})
-		require.True(t, ok, "TryDispatch #%d should succeed (64 slots available)", i+2)
+		require.True(t, ok, "TryDispatch #%d should succeed (channel not full)", i+2)
 	}
 
-	pool.mu.Lock()
-	pp := pool.peerPools[key]
-	pool.mu.Unlock()
-	assert.Equal(t, 0, pp.available(), "all 64 slots should be used")
-
-	// 65th dispatch should fail because peer pool is full.
+	// Next dispatch should fail because channel is full.
 	ok := pool.TryDispatch(key, fwdItem{})
-	assert.False(t, ok, "TryDispatch should fail when peer pool is full")
+	assert.False(t, ok, "TryDispatch should fail when channel is full")
 	assert.Equal(t, int32(1), congestedCount.Load(), "congested callback should fire once")
 }
 
@@ -1548,7 +1543,7 @@ func TestFwdPool_DispatchOverflowGet64K(t *testing.T) {
 	}()
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
-	pool.RegisterPeerPool(key, 65535) // ExtMsg buffer size
+	pool.RegisterOutgoingPool(key, 65535) // ExtMsg buffer size
 
 	// Block the worker so overflow items stay queued.
 	pool.Dispatch(key, fwdItem{})
@@ -1614,24 +1609,24 @@ func TestFwdPool_SupersedeReleasesOverflowBuf(t *testing.T) {
 	assert.Equal(t, used1, used2, "supersede should return old buffer and acquire new, net same")
 }
 
-func TestFwdPool_RegisterUnregisterPeerPool(t *testing.T) {
+func TestFwdPool_RegisterUnregisterOutgoingPool(t *testing.T) {
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	defer pool.Stop()
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
 
-	pool.RegisterPeerPool(key, 4096)
+	pool.RegisterOutgoingPool(key, 4096)
 	pool.mu.Lock()
-	pp := pool.peerPools[key]
+	pp := pool.outgoingPools[key]
 	pool.mu.Unlock()
 	require.NotNil(t, pp)
 	assert.Equal(t, 64, pp.size())
 	assert.Equal(t, 4096, pp.bufSize)
 
-	pool.UnregisterPeerPool(key)
+	pool.UnregisterOutgoingPool(key)
 	pool.mu.Lock()
-	pp = pool.peerPools[key]
+	pp = pool.outgoingPools[key]
 	pool.mu.Unlock()
 	assert.Nil(t, pp)
 }

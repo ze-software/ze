@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — UPDATE forwarding, grouped sending, route refresh
+// Design: .claude/rules/design-principles.md — zero-copy, copy-on-modify (shares Incoming Peer Pool buffer across peers)
 // Overview: reactor_api.go — API command handling core
 // Related: reactor_api_batch.go — NLRI batch operations
 // Related: reactor_wire.go — zero-allocation wire UPDATE builders
@@ -394,6 +395,10 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			}
 		}
 
+		// Track per-peer pool buffer from copy-on-modify (set in mods.Len() > 0 branch).
+		var modBufIdx int
+		var modPoolRef *peerPool
+
 		// RFC 9494: Convert announce to withdrawal for this peer (LLGR egress filter).
 		// Checked before attribute mods since withdrawal replaces the entire payload.
 		if mods.IsWithdraw() {
@@ -408,15 +413,19 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			// Apply accumulated attribute modifications from egress filters.
 			// Runs AFTER wire selection so mods apply to the correct wire version
 			// (e.g., EBGP wire with AS-PATH prepended, not the original).
-			// Progressive build: single-pass through attributes into pooled buffer.
-			// Zero-cost when mods.Len() == 0 (common case).
-			if modified := buildModifiedPayload(peerWire.Payload(), &mods, a.r.attrModHandlers); modified != nil {
+			// Copy-on-modify: uses per-peer pool buffer when available, avoiding
+			// sync.Pool allocation. Zero-cost when mods.Len() == 0 (common case).
+			peerKey := fwdKey{peerAddr: peer.Settings().PeerKey()}
+			modPool := a.r.fwdPool.OutgoingPool(peerKey)
+			if modified, bufIdx := buildModifiedPayload(peerWire.Payload(), &mods, a.r.attrModHandlers, modPool); modified != nil {
 				peerWire = wireu.NewWireUpdate(modified, peerWire.SourceCtxID())
+				modBufIdx = bufIdx
+				modPoolRef = modPool
 			}
 		}
 
 		// Build the fwdItem with pre-computed send operations for this peer.
-		item := fwdItem{peer: peer, meta: update.Meta}
+		item := fwdItem{peer: peer, meta: update.Meta, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
 
 		// Get max message size for this peer (RFC 8654)
 		nc := peer.negotiated.Load()

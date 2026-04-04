@@ -33,3 +33,4 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - [feedback_no_git_reset.md](feedback_no_git_reset.md) - git reset is blocked; use git restore --staged or just commit what's staged
 - [feedback_no_git_add.md](feedback_no_git_add.md) - Never run git add; write a commit script instead (multiple sessions share staging area)
 - [feedback_aliased_imports.md](feedback_aliased_imports.md) - Use aliased imports when two packages share the same name (goimports drops ambiguous imports)
+- [feedback_understand_before_coding.md](feedback_understand_before_coding.md) - Understand what data a structure holds and when it's used before choosing the implementation

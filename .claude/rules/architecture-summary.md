@@ -60,8 +60,8 @@ UPDATE = Header (19B) + Withdrawn (IPv4) + Path Attributes
 ## Forward Pool
 
 Two-tier model with per-destination-peer workers:
-- **Per-peer pool** (64 slots): absorbs steady-state traffic per peer. Created at peer add.
-- **Shared overflow MixedBufMux**: byte-budgeted, mixed 4K/64K blocks. Auto-sized from peer prefix maximums via `overflowPoolBudget()`. Pool exhaustion is the backpressure signal.
+- **Peer Pools** (64 buffers per peer, negotiated size): each peer has an Incoming Peer Pool (inbound) and an Outgoing Peer Pool (outbound modification). Same Peer Pool type, size at init.
+- **Global Shared Pool**: byte-budgeted overflow, mixed 4K/64K blocks. Auto-sized from peer prefix maximums via `overflowPoolBudget()`. Pool exhaustion is the backpressure signal.
 
 ## Chaos Simulator
 

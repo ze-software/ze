@@ -125,7 +125,7 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	// Default to 4K (standard); re-registered with 64K in notifyPeerEstablished
 	// if Extended Message (RFC 8654) is negotiated.
 	if r.fwdPool != nil {
-		r.fwdPool.RegisterPeerPool(fwdKey{peerAddr: key}, message.MaxMsgLen)
+		r.fwdPool.RegisterOutgoingPool(fwdKey{peerAddr: key}, message.MaxMsgLen)
 	}
 
 	// Update Prometheus gauges if metrics are configured.
@@ -271,7 +271,7 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 
 	// Unregister per-peer pool on session teardown.
 	if r.fwdPool != nil {
-		r.fwdPool.UnregisterPeerPool(fwdKey{peerAddr: key})
+		r.fwdPool.UnregisterOutgoingPool(fwdKey{peerAddr: key})
 	}
 
 	// Check if any other peer uses this listener (same LocalAddress + port)

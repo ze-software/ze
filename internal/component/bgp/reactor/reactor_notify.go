@@ -66,7 +66,7 @@ func (r *Reactor) notifyPeerEstablished(peer *Peer) {
 			r.fwdWeights.UpdateExtMsg(peer.peerAddrLabel(), nc.ExtendedMessage)
 		}
 		if r.fwdPool != nil && nc.ExtendedMessage {
-			r.fwdPool.RegisterPeerPool(fwdKey{peerAddr: peer.Settings().PeerKey()}, message.ExtMsgLen)
+			r.fwdPool.RegisterOutgoingPool(fwdKey{peerAddr: peer.Settings().PeerKey()}, message.ExtMsgLen)
 		}
 	}
 
