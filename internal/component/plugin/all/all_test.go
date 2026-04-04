@@ -42,6 +42,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"bgp-watchdog",
 		"fib-kernel",
 		"fib-p4",
+		"iface-dhcp",
 		"interface",
 		"loop",
 		"sysrib",

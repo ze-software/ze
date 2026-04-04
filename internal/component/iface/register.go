@@ -61,6 +61,11 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
+		ConfigureBus: func(bus any) {
+			if b, ok := bus.(ze.Bus); ok {
+				SetBus(b)
+			}
+		},
 	}
 	reg.CLIHandler = func(_ []string) int {
 		return 1
@@ -88,22 +93,23 @@ func runEngine(conn net.Conn) int {
 	p := sdk.NewWithConn("interface", conn)
 	defer func() { _ = p.Close() }()
 
-	var mon *Monitor
-
 	p.OnConfigure(func(_ []sdk.ConfigSection) error {
+		// Load the backend. Default to "netlink"; the YANG backend leaf
+		// will make this configurable once config application is wired.
+		backendName := "netlink"
+		if err := LoadBackend(backendName); err != nil {
+			return fmt.Errorf("interface backend %q: %w", backendName, err)
+		}
+		log.Info("interface backend loaded", "backend", backendName)
+
 		bus := GetBus()
 		if bus == nil {
 			log.Warn("interface plugin: no bus configured, monitor will not start")
 			return nil
 		}
 
-		var err error
-		mon, err = NewMonitor(bus)
-		if err != nil {
-			return fmt.Errorf("interface monitor create: %w", err)
-		}
-		if err = mon.Start(); err != nil {
-			mon = nil
+		b := GetBackend()
+		if err := b.StartMonitor(bus); err != nil {
 			return fmt.Errorf("interface monitor start: %w", err)
 		}
 		log.Info("interface monitor started")
@@ -116,10 +122,10 @@ func runEngine(conn net.Conn) int {
 		return 1
 	}
 
-	if mon != nil {
-		mon.Stop()
-		log.Info("interface monitor stopped")
+	if err := CloseBackend(); err != nil {
+		log.Warn("interface backend close failed", "error", err)
 	}
+	log.Info("interface backend closed")
 
 	return 0
 }

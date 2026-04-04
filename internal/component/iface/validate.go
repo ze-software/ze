@@ -14,10 +14,38 @@ const (
 	maxIfaceNameLen = 15
 )
 
-// validateIfaceName checks that name is a valid Linux interface name.
+// VLAN ID range per IEEE 802.1Q.
+const (
+	minVLANID = 1
+	maxVLANID = 4094
+)
+
+// MTU limits. 68 is the minimum for IPv4 (RFC 791). 16000 is a practical
+// upper bound for common virtual/physical NICs (jumbo frames).
+const (
+	minMTU = 68
+	maxMTU = 16000
+)
+
+func validateVLANID(id int) error {
+	if id < minVLANID || id > maxVLANID {
+		return fmt.Errorf("iface: vlan id %d not in [%d, %d]", id, minVLANID, maxVLANID)
+	}
+	return nil
+}
+
+func validateMTU(mtu int) error {
+	if mtu < minMTU || mtu > maxMTU {
+		return fmt.Errorf("iface: mtu %d not in [%d, %d]", mtu, minMTU, maxMTU)
+	}
+	return nil
+}
+
+// ValidateIfaceName checks that name is a valid Linux interface name.
 // Linux kernel forbids '/' and NUL in interface names (IFNAMSIZ).
 // We also reject ".." sequences to prevent path traversal in sysctl writes.
-func validateIfaceName(name string) error {
+// Exported so backend implementations can use it.
+func ValidateIfaceName(name string) error {
 	n := len(name)
 	if n < minIfaceNameLen || n > maxIfaceNameLen {
 		return fmt.Errorf("iface: name %q length %d not in [%d, %d]",

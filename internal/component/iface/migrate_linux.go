@@ -35,10 +35,10 @@ type MigrateConfig struct {
 // validateMigrateConfig checks that all required fields are set and the
 // interface type (if specified) is one of the known types.
 func validateMigrateConfig(cfg MigrateConfig) error {
-	if err := validateIfaceName(cfg.OldIface); err != nil {
+	if err := ValidateIfaceName(cfg.OldIface); err != nil {
 		return fmt.Errorf("migrate: old interface: %w", err)
 	}
-	if err := validateIfaceName(cfg.NewIface); err != nil {
+	if err := ValidateIfaceName(cfg.NewIface); err != nil {
 		return fmt.Errorf("migrate: new interface: %w", err)
 	}
 	if cfg.Address == "" {
@@ -136,18 +136,23 @@ func MigrateInterface(cfg MigrateConfig, bus ze.Bus, timeout time.Duration) erro
 	oldOSName := resolveOSName(cfg.OldIface, cfg.OldUnit)
 	createdIface := false
 
+	b := GetBackend()
+	if b == nil {
+		return errors.New("migrate: no backend loaded")
+	}
+
 	// Phase 1: Create new interface (if type specified).
 	if cfg.NewIfaceType != "" {
-		if err := createByType(cfg.NewIface, cfg.NewIfaceType); err != nil {
+		if err := createByType(b, cfg.NewIface, cfg.NewIfaceType); err != nil {
 			return fmt.Errorf("migrate phase 1 (create): %w", err)
 		}
 		createdIface = true
 	}
 
 	// Phase 2: Add address to new interface.
-	if err := AddAddress(newOSName, cfg.Address); err != nil {
+	if err := b.AddAddress(newOSName, cfg.Address); err != nil {
 		if createdIface {
-			_ = DeleteInterface(cfg.NewIface) // rollback phase 1
+			_ = b.DeleteInterface(cfg.NewIface) // rollback phase 1
 		}
 		return fmt.Errorf("migrate phase 2 (add address): %w", err)
 	}
@@ -160,9 +165,9 @@ func MigrateInterface(cfg MigrateConfig, bus ze.Bus, timeout time.Duration) erro
 	sub, err := bus.Subscribe(topicBGPListenerReady, nil, consumer)
 	if err != nil {
 		// Rollback phase 2 and 1.
-		_ = RemoveAddress(newOSName, cfg.Address)
+		_ = b.RemoveAddress(newOSName, cfg.Address)
 		if createdIface {
-			_ = DeleteInterface(cfg.NewIface)
+			_ = b.DeleteInterface(cfg.NewIface)
 		}
 		return fmt.Errorf("migrate phase 3 (subscribe): %w", err)
 	}
@@ -175,16 +180,16 @@ func MigrateInterface(cfg MigrateConfig, bus ze.Bus, timeout time.Duration) erro
 	case <-consumer.ready: // BGP is ready on the new address.
 	case <-timer.C:
 		// Timeout: rollback phase 2 and 1.
-		_ = RemoveAddress(newOSName, cfg.Address)
+		_ = b.RemoveAddress(newOSName, cfg.Address)
 		if createdIface {
-			_ = DeleteInterface(cfg.NewIface)
+			_ = b.DeleteInterface(cfg.NewIface)
 		}
 		return fmt.Errorf("migrate phase 3: timed out waiting for BGP readiness on %s", cfg.Address)
 	}
 
 	// Phase 4: Remove address from old interface. The new address is live and BGP
 	// is running. Failure means the old address remains (dual-homed temporarily).
-	if err := RemoveAddress(oldOSName, cfg.Address); err != nil {
+	if err := b.RemoveAddress(oldOSName, cfg.Address); err != nil {
 		loggerPtr.Load().Warn("migrate phase 4: old address not removed (dual-homed)",
 			"interface", oldOSName, "address", cfg.Address, "err", err)
 		return fmt.Errorf("migrate phase 4: remove old address: %w", err)
@@ -197,16 +202,16 @@ func MigrateInterface(cfg MigrateConfig, bus ze.Bus, timeout time.Duration) erro
 	return nil
 }
 
-// createByType creates an interface of the given type.
-func createByType(name, ifaceType string) error {
+// createByType creates an interface of the given type via the backend.
+func createByType(b Backend, name, ifaceType string) error {
 	switch ifaceType {
 	case "dummy":
-		return CreateDummy(name)
+		return b.CreateDummy(name)
 	case "veth":
 		// Veth requires a peer name; use "<name>-peer" by convention.
-		return CreateVeth(name, name+"-peer")
+		return b.CreateVeth(name, name+"-peer")
 	case "bridge":
-		return CreateBridge(name)
+		return b.CreateBridge(name)
 	default: // unreachable after validateMigrateConfig, but defensive
 		return fmt.Errorf("migrate: unknown interface type %q", ifaceType)
 	}

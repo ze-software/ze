@@ -3,7 +3,10 @@
 
 package iface
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 // Ze interface type names matching the YANG schema list/container names.
 const (
@@ -22,7 +25,11 @@ const (
 // On other platforms, loopback is detected by flags; all other interfaces
 // with a MAC address are classified as ethernet.
 func DiscoverInterfaces() ([]DiscoveredInterface, error) {
-	infos, err := ListInterfaces()
+	b := GetBackend()
+	if b == nil {
+		return nil, fmt.Errorf("iface: no backend loaded")
+	}
+	infos, err := b.ListInterfaces()
 	if err != nil {
 		return nil, err
 	}

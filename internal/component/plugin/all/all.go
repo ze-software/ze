@@ -63,6 +63,9 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface"
 
 	// Non-BGP plugins — Bus-only plugins.
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacedhcp"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
+
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibp4"

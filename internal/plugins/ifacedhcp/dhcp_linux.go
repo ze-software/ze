@@ -1,9 +1,9 @@
-// Design: docs/features/interfaces.md — DHCP client for interface plugin
-// Overview: iface.go — shared types and topic constants
-// Detail: dhcp_v4_linux.go — DHCPv4 worker, renewal, lease handling
-// Detail: dhcp_v6_linux.go — DHCPv6 worker, renewal, lease handling
+// Design: docs/features/interfaces.md -- DHCP client lifecycle
+// Overview: ifacedhcp.go -- package hub
 
-package iface
+//go:build linux
+
+package ifacedhcp
 
 import (
 	"context"
@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -44,7 +45,7 @@ func NewDHCPClient(ifaceName string, unit int, bus ze.Bus, v4, v6 bool) (*DHCPCl
 	if !v4 && !v6 {
 		return nil, errors.New("iface dhcp: at least one of v4 or v6 must be enabled")
 	}
-	if err := validateIfaceName(ifaceName); err != nil {
+	if err := iface.ValidateIfaceName(ifaceName); err != nil {
 		return nil, fmt.Errorf("iface dhcp: %w", err)
 	}
 	return &DHCPClient{
@@ -58,9 +59,7 @@ func NewDHCPClient(ifaceName string, unit int, bus ze.Bus, v4, v6 bool) (*DHCPCl
 	}, nil
 }
 
-// Start begins DHCP negotiation in background goroutines (one per enabled
-// protocol version). Returns immediately. MUST call Stop to release resources.
-// Must not be called more than once.
+// Start begins DHCP negotiation in background goroutines.
 func (c *DHCPClient) Start() error {
 	if !c.started.CompareAndSwap(false, true) {
 		return errors.New("iface dhcp: already started")
@@ -90,7 +89,6 @@ func (c *DHCPClient) Start() error {
 		}()
 	}
 
-	// Close done when all workers exit.
 	go func() {
 		wg.Wait()
 		close(c.done)
@@ -100,7 +98,6 @@ func (c *DHCPClient) Start() error {
 }
 
 // Stop signals DHCP goroutines to exit and waits for completion.
-// Safe to call multiple times. Safe to call if Start was never called.
 func (c *DHCPClient) Stop() {
 	c.stopOnce.Do(func() { close(c.stop) })
 	if c.started.Load() {
@@ -108,17 +105,15 @@ func (c *DHCPClient) Stop() {
 	}
 }
 
-// stopped returns true if stop has been signaled.
 func (c *DHCPClient) stopped() bool {
 	select {
 	case <-c.stop:
 		return true
-	default: // non-blocking: not stopped yet
+	default: // non-blocking check, not a silent ignore
 		return false
 	}
 }
 
-// safeRunV4 wraps runV4 with panic recovery.
 func (c *DHCPClient) safeRunV4() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -129,7 +124,6 @@ func (c *DHCPClient) safeRunV4() {
 	c.runV4()
 }
 
-// safeRunV6 wraps runV6 with panic recovery.
 func (c *DHCPClient) safeRunV6() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -140,27 +134,21 @@ func (c *DHCPClient) safeRunV6() {
 	c.runV6()
 }
 
-// stoppableContext returns a context that is canceled when the DHCP client's
-// stop channel is closed. Callers MUST call the returned cancel function when
-// the operation completes to release the monitoring goroutine.
 func (c *DHCPClient) stoppableContext() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		select {
 		case <-c.stop:
 			cancel()
-		case <-ctx.Done():
+		case <-ctx.Done(): // context canceled normally
 		}
 	}()
 	return ctx, cancel
 }
 
-// sleepOrStop blocks for the given duration or until stop is signaled.
-// Returns true if the sleep completed, false if stop was signaled.
 func (c *DHCPClient) sleepOrStop(d time.Duration) bool {
 	timer := time.NewTimer(d)
 	defer timer.Stop()
-
 	select {
 	case <-timer.C:
 		return true
@@ -169,12 +157,10 @@ func (c *DHCPClient) sleepOrStop(d time.Duration) bool {
 	}
 }
 
-// publishDHCP marshals a DHCPPayload and publishes it to the bus.
-func (c *DHCPClient) publishDHCP(topic string, payload DHCPPayload) {
+func (c *DHCPClient) publishDHCP(topic string, payload iface.DHCPPayload) {
 	data, err := json.Marshal(payload)
 	if err != nil {
-		loggerPtr.Load().Debug("iface dhcp: marshal failed",
-			"topic", topic, "err", err)
+		loggerPtr.Load().Debug("iface dhcp: marshal failed", "topic", topic, "err", err)
 		return
 	}
 	c.bus.Publish(topic, data, map[string]string{

@@ -1,7 +1,9 @@
-// Design: docs/features/interfaces.md — DHCPv6 client lifecycle
-// Overview: dhcp_linux.go — DHCP client types and lifecycle
+// Design: docs/features/interfaces.md -- DHCPv6 client lifecycle
+// Overview: dhcp_linux.go -- DHCP client types and lifecycle
 
-package iface
+//go:build linux
+
+package ifacedhcp
 
 import (
 	"fmt"
@@ -11,6 +13,8 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv6"
 	"github.com/insomniacslk/dhcp/dhcpv6/nclient6"
 	"github.com/vishvananda/netlink"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
 
 // runV6 is the long-lived DHCPv6 worker. It performs SARR (Solicit-Advertise-
@@ -41,7 +45,6 @@ func (c *DHCPClient) runV6() {
 		}
 
 		ctx, ctxCancel := c.stoppableContext()
-		// RapidSolicit tries rapid commit first; falls back to full SARR.
 		msg, err := client.RapidSolicit(ctx)
 		ctxCancel()
 		if closeErr := client.Close(); closeErr != nil {
@@ -66,9 +69,8 @@ func (c *DHCPClient) runV6() {
 			continue
 		}
 
-		c.handleV6Reply(msg, TopicDHCPLeaseAcquired)
+		c.handleV6Reply(msg, iface.TopicDHCPLeaseAcquired)
 
-		// Renewal based on IA_NA T1/T2.
 		t1, t2, validLft := c.v6Timers(msg)
 
 		if !c.sleepOrStop(t1) {
@@ -76,7 +78,6 @@ func (c *DHCPClient) runV6() {
 			return
 		}
 
-		// T1 renewal.
 		newMsg, renewed := c.renewV6()
 		if renewed {
 			msg = newMsg
@@ -88,12 +89,10 @@ func (c *DHCPClient) runV6() {
 		}
 
 		if !renewed {
-			// Wait until T2 before rebind attempt, matching v4 behavior.
 			if !c.sleepOrStop(t2 - t1) {
 				c.removeV6Addrs(msg)
 				return
 			}
-			// T2 rebind attempt.
 			newMsg, renewed = c.renewV6()
 			if renewed {
 				msg = newMsg
@@ -101,7 +100,6 @@ func (c *DHCPClient) runV6() {
 			}
 		}
 
-		// Wait for remaining valid lifetime before expiry.
 		remaining := validLft - t2
 		if remaining < 0 {
 			remaining = time.Minute
@@ -113,19 +111,11 @@ func (c *DHCPClient) runV6() {
 			}
 		}
 
-		// Expired: remove addresses and publish events.
 		c.removeV6Addrs(msg)
 		c.publishV6Expired(msg)
 	}
 }
 
-// renewV6 attempts to renew the DHCPv6 lease. Returns the new message and
-// true on success, or nil and false on failure. Callers MUST update their
-// local msg/t1/t2/validLft from the returned message on success.
-//
-// Note: nclient6 does not expose Renew/Rebind methods. RapidSolicit performs
-// a full re-solicitation which may return different addresses. This is a known
-// limitation -- proper DHCPv6 Renew requires raw message construction.
 func (c *DHCPClient) renewV6() (*dhcpv6.Message, bool) {
 	logger := loggerPtr.Load()
 
@@ -155,12 +145,10 @@ func (c *DHCPClient) renewV6() (*dhcpv6.Message, bool) {
 		return nil, false
 	}
 
-	c.handleV6Reply(reply, TopicDHCPLeaseRenewed)
+	c.handleV6Reply(reply, iface.TopicDHCPLeaseRenewed)
 	return reply, true
 }
 
-// handleV6Reply installs leased addresses from IA_NA options and publishes events.
-// Also processes IA_PD (prefix delegation) for publishing.
 func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 	logger := loggerPtr.Load()
 
@@ -171,8 +159,6 @@ func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 		return
 	}
 
-	// Process IA_NA (non-temporary addresses). Cap iterations to prevent
-	// unbounded processing from a rogue DHCPv6 server.
 	const maxAddrs = 16
 	addrCount := 0
 	for _, iana := range msg.Options.IANA() {
@@ -210,7 +196,7 @@ func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 				dns = dnsServers[0].String()
 			}
 
-			payload := DHCPPayload{
+			payload := iface.DHCPPayload{
 				Name:         c.ifaceName,
 				Unit:         c.unit,
 				Address:      ip.String(),
@@ -226,7 +212,6 @@ func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 		}
 	}
 
-	// Process IA_PD (prefix delegation). Cap iterations like IA_NA above.
 	pdCount := 0
 	for _, iapd := range msg.Options.IAPD() {
 		for _, prefix := range iapd.Options.Prefixes() {
@@ -242,7 +227,7 @@ func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 			}
 
 			ones, _ := pfx.Mask.Size()
-			payload := DHCPPayload{
+			payload := iface.DHCPPayload{
 				Name:         c.ifaceName,
 				Unit:         c.unit,
 				Address:      pfx.IP.String(),
@@ -258,7 +243,6 @@ func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 	}
 }
 
-// removeV6Addrs removes all IA_NA addresses obtained from the DHCPv6 reply.
 func (c *DHCPClient) removeV6Addrs(msg *dhcpv6.Message) {
 	logger := loggerPtr.Load()
 
@@ -294,7 +278,6 @@ func (c *DHCPClient) removeV6Addrs(msg *dhcpv6.Message) {
 	}
 }
 
-// publishV6Expired publishes lease-expired events for all IA_NA addresses.
 func (c *DHCPClient) publishV6Expired(msg *dhcpv6.Message) {
 	const maxAddrs = 16
 	count := 0
@@ -308,20 +291,18 @@ func (c *DHCPClient) publishV6Expired(msg *dhcpv6.Message) {
 			if ip == nil {
 				continue
 			}
-			payload := DHCPPayload{
+			payload := iface.DHCPPayload{
 				Name:         c.ifaceName,
 				Unit:         c.unit,
 				Address:      ip.String(),
 				PrefixLength: 128,
 				LeaseTime:    0,
 			}
-			c.publishDHCP(TopicDHCPLeaseExpired, payload)
+			c.publishDHCP(iface.TopicDHCPLeaseExpired, payload)
 		}
 	}
 }
 
-// v6Timers extracts T1, T2, and valid lifetime from IA_NA options.
-// Falls back to reasonable defaults if not present.
 func (c *DHCPClient) v6Timers(msg *dhcpv6.Message) (t1, t2, validLft time.Duration) {
 	const (
 		defaultT1       = 30 * time.Minute
@@ -329,9 +310,7 @@ func (c *DHCPClient) v6Timers(msg *dhcpv6.Message) (t1, t2, validLft time.Durati
 		defaultValidLft = time.Hour
 	)
 
-	t1 = defaultT1
-	t2 = defaultT2
-	validLft = defaultValidLft
+	t1, t2, validLft = defaultT1, defaultT2, defaultValidLft
 
 	ianas := msg.Options.IANA()
 	if len(ianas) == 0 {

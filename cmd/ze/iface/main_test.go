@@ -1,6 +1,15 @@
 package iface
 
-import "testing"
+import (
+	"testing"
+
+	zeIface "codeberg.org/thomas-mangin/ze/internal/component/iface"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
+)
+
+func init() {
+	_ = zeIface.LoadBackend("netlink")
+}
 
 func TestRun(t *testing.T) {
 	t.Parallel()

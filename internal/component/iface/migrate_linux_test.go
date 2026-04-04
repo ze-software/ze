@@ -2,11 +2,94 @@ package iface
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+// mockMigrateBackend implements Backend for migration tests.
+// All management operations return errors (simulating no root/netlink).
+type mockMigrateBackend struct{}
+
+func (m *mockMigrateBackend) CreateDummy(_ string) error   { return fmt.Errorf("mock: not supported") }
+func (m *mockMigrateBackend) CreateVeth(_, _ string) error { return fmt.Errorf("mock: not supported") }
+func (m *mockMigrateBackend) CreateBridge(_ string) error  { return fmt.Errorf("mock: not supported") }
+func (m *mockMigrateBackend) CreateVLAN(_ string, _ int) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) DeleteInterface(_ string) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) AddAddress(_, _ string) error { return fmt.Errorf("mock: not supported") }
+func (m *mockMigrateBackend) RemoveAddress(_, _ string) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) SetAdminUp(_ string) error    { return fmt.Errorf("mock: not supported") }
+func (m *mockMigrateBackend) SetAdminDown(_ string) error  { return fmt.Errorf("mock: not supported") }
+func (m *mockMigrateBackend) SetMTU(_ string, _ int) error { return fmt.Errorf("mock: not supported") }
+func (m *mockMigrateBackend) SetMACAddress(_, _ string) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) GetMACAddress(_ string) (string, error) {
+	return "", fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) GetStats(_ string) (*InterfaceStats, error) {
+	return nil, fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) ListInterfaces() ([]InterfaceInfo, error) {
+	return nil, fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) GetInterface(_ string) (*InterfaceInfo, error) {
+	return nil, fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) BridgeAddPort(_, _ string) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) BridgeDelPort(_ string) error { return fmt.Errorf("mock: not supported") }
+func (m *mockMigrateBackend) BridgeSetSTP(_ string, _ bool) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) SetIPv4Forwarding(_ string, _ bool) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) SetIPv4ArpFilter(_ string, _ bool) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) SetIPv4ArpAccept(_ string, _ bool) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) SetIPv4ProxyARP(_ string, _ bool) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) SetIPv4ArpAnnounce(_ string, _ int) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) SetIPv4ArpIgnore(_ string, _ int) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) SetIPv4RPFilter(_ string, _ int) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) SetIPv6Autoconf(_ string, _ bool) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) SetIPv6AcceptRA(_ string, _ int) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) SetIPv6Forwarding(_ string, _ bool) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) SetupMirror(_, _ string, _, _ bool) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) RemoveMirror(_ string) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) StartMonitor(_ ze.Bus) error { return fmt.Errorf("mock: not supported") }
+func (m *mockMigrateBackend) StopMonitor()                {}
+func (m *mockMigrateBackend) Close() error                { return nil }
 
 // subscribableBus extends collectingBus with subscription support for migrate tests.
 // It delivers events to registered consumers when Publish is called.
@@ -150,11 +233,17 @@ func TestMigrateSubscribeFailureRollback(t *testing.T) {
 	// VALIDATES: Phase 3 subscribe failure triggers rollback of phases 2 and 1.
 	// PREVENTS: Leaked addresses and interfaces when bus subscription fails.
 	//
-	// Note: This tests the control flow logic. The actual AddAddress/RemoveAddress
-	// calls require netlink (root on Linux), so in unit tests we verify that the
-	// error path is reached and the error is properly wrapped. The rollback calls
-	// to RemoveAddress and DeleteInterface will fail (no real interface), but they
-	// are best-effort cleanup and their errors are intentionally ignored.
+	// Note: This tests the control flow logic. MigrateInterface requires a loaded
+	// backend. We register a mock that fails AddAddress (simulating no root/netlink),
+	// which triggers the error path. The rollback calls are best-effort.
+	_ = RegisterBackend("test-migrate", func() (Backend, error) {
+		return &mockMigrateBackend{}, nil
+	})
+	if err := LoadBackend("test-migrate"); err != nil {
+		t.Fatalf("load test backend: %v", err)
+	}
+	defer func() { _ = CloseBackend() }()
+
 	bus := &subscribableBus{
 		subErr: errors.New("bus: subscribe failed"),
 	}
@@ -167,10 +256,31 @@ func TestMigrateSubscribeFailureRollback(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	// The error may come from phase 2 (AddAddress fails without netlink/root)
-	// or phase 3 (subscribe fails). Either way, it should be a migrate error.
+	// The error may come from phase 2 (AddAddress fails) or phase 3 (subscribe fails).
 	if !strings.Contains(err.Error(), "migrate phase") {
 		t.Errorf("error = %q, want containing 'migrate phase'", err.Error())
+	}
+}
+
+func TestMigrateNoBackend(t *testing.T) {
+	// VALIDATES: MigrateInterface returns error when no backend is loaded.
+	// PREVENTS: Nil dereference when calling backend operations.
+
+	// Ensure no backend is loaded by closing any existing one.
+	_ = CloseBackend()
+
+	cfg := MigrateConfig{
+		OldIface: "lo0",
+		NewIface: "lo1",
+		Address:  "10.0.0.1/24",
+	}
+	bus := &subscribableBus{}
+	err := MigrateInterface(cfg, bus, 5)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "no backend loaded") {
+		t.Errorf("error = %q, want containing 'no backend loaded'", err.Error())
 	}
 }
 

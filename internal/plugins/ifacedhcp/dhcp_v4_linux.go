@@ -1,7 +1,9 @@
-// Design: docs/features/interfaces.md — DHCPv4 client lifecycle
-// Overview: dhcp_linux.go — DHCP client types and lifecycle
+// Design: docs/features/interfaces.md -- DHCPv4 client lifecycle
+// Overview: dhcp_linux.go -- DHCP client types and lifecycle
 
-package iface
+//go:build linux
+
+package ifacedhcp
 
 import (
 	"fmt"
@@ -11,6 +13,8 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv4/nclient4"
 	"github.com/vishvananda/netlink"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
 
 // runV4 is the long-lived DHCPv4 worker. It performs DORA (Discover-Offer-
@@ -66,9 +70,8 @@ func (c *DHCPClient) runV4() {
 		}
 
 		ack := lease.ACK
-		c.handleV4Lease(ack, TopicDHCPLeaseAcquired)
+		c.handleV4Lease(ack, iface.TopicDHCPLeaseAcquired)
 
-		// Renewal loop: renew at T1, rebind at T2, expire at lease time.
 		leaseTime := c.v4LeaseTime(ack)
 		t1 := leaseTime / 2
 		t2 := leaseTime * 7 / 8
@@ -78,7 +81,6 @@ func (c *DHCPClient) runV4() {
 			return
 		}
 
-		// T1 renewal attempt.
 		newLease, renewed := c.renewV4(lease)
 		if renewed {
 			lease = newLease
@@ -93,7 +95,6 @@ func (c *DHCPClient) runV4() {
 		}
 
 		if !renewed {
-			// Wait until T2 before rebind attempt (RFC 2131).
 			if !c.sleepOrStop(t2 - t1) {
 				c.removeV4Addr(ack)
 				return
@@ -107,7 +108,6 @@ func (c *DHCPClient) runV4() {
 			}
 		}
 
-		// Wait for remaining lease time before expiry.
 		remainingLease := leaseTime - t2
 		if remainingLease > 0 {
 			if !c.sleepOrStop(remainingLease) {
@@ -116,15 +116,11 @@ func (c *DHCPClient) runV4() {
 			}
 		}
 
-		// Lease expired: remove address and publish event.
 		c.removeV4Addr(ack)
-		c.publishDHCP(TopicDHCPLeaseExpired, c.v4Payload(ack))
+		c.publishDHCP(iface.TopicDHCPLeaseExpired, c.v4Payload(ack))
 	}
 }
 
-// renewV4 attempts to renew the DHCPv4 lease. Returns the renewed lease and
-// true on success, or nil and false on failure. Callers MUST update their
-// local ack/leaseTime/t1/t2 from the returned lease on success.
 func (c *DHCPClient) renewV4(lease *nclient4.Lease) (*nclient4.Lease, bool) {
 	logger := loggerPtr.Load()
 
@@ -154,11 +150,10 @@ func (c *DHCPClient) renewV4(lease *nclient4.Lease) (*nclient4.Lease, bool) {
 		return nil, false
 	}
 
-	c.handleV4Lease(renewed.ACK, TopicDHCPLeaseRenewed)
+	c.handleV4Lease(renewed.ACK, iface.TopicDHCPLeaseRenewed)
 	return renewed, true
 }
 
-// handleV4Lease installs the leased address on the interface and publishes an event.
 func (c *DHCPClient) handleV4Lease(ack *dhcpv4.DHCPv4, topic string) {
 	logger := loggerPtr.Load()
 
@@ -208,7 +203,6 @@ func (c *DHCPClient) handleV4Lease(ack *dhcpv4.DHCPv4, topic string) {
 		"iface", c.ifaceName, "addr", cidr, "lease", leaseTime)
 }
 
-// removeV4Addr removes the leased DHCPv4 address from the interface.
 func (c *DHCPClient) removeV4Addr(ack *dhcpv4.DHCPv4) {
 	logger := loggerPtr.Load()
 
@@ -241,7 +235,6 @@ func (c *DHCPClient) removeV4Addr(ack *dhcpv4.DHCPv4) {
 	}
 }
 
-// v4LeaseTime extracts the lease duration from a DHCPv4 ACK.
 func (c *DHCPClient) v4LeaseTime(ack *dhcpv4.DHCPv4) time.Duration {
 	leaseTime := ack.IPAddressLeaseTime(time.Hour)
 	if leaseTime <= 0 {
@@ -250,8 +243,7 @@ func (c *DHCPClient) v4LeaseTime(ack *dhcpv4.DHCPv4) time.Duration {
 	return leaseTime
 }
 
-// v4Payload builds a DHCPPayload from a DHCPv4 ACK.
-func (c *DHCPClient) v4Payload(ack *dhcpv4.DHCPv4) DHCPPayload {
+func (c *DHCPClient) v4Payload(ack *dhcpv4.DHCPv4) iface.DHCPPayload {
 	ip := ack.YourIPAddr
 	mask := ack.SubnetMask()
 	ones, _ := mask.Size()
@@ -271,7 +263,7 @@ func (c *DHCPClient) v4Payload(ack *dhcpv4.DHCPv4) DHCPPayload {
 		dns = dnsServers[0].String()
 	}
 
-	return DHCPPayload{
+	return iface.DHCPPayload{
 		Name:         c.ifaceName,
 		Unit:         c.unit,
 		Address:      ip.String(),

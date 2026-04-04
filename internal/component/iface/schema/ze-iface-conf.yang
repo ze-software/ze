@@ -234,6 +234,12 @@ module ze-iface-conf {
     container interface {
         description "Network interface configuration";
 
+        leaf backend {
+            type string;
+            default "netlink";
+            description "Interface management backend (e.g., netlink, networkd)";
+        }
+
         list ethernet {
             key "name";
             unique "mac-address";

@@ -1,8 +1,6 @@
 package iface
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -31,9 +29,9 @@ func TestValidateInterfaceName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateIfaceName(tt.input)
+			err := ValidateIfaceName(tt.input)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("validateIfaceName(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+				t.Errorf("ValidateIfaceName(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
 			}
 		})
 	}
@@ -154,42 +152,6 @@ func TestBridgeSetSTPInvalidName(t *testing.T) {
 	// PREVENTS: Invalid names reaching sysfs writes.
 	if err := BridgeSetSTP("", true); err == nil {
 		t.Error("expected error for empty name, got nil")
-	}
-}
-
-func TestBridgeSetSTPSysfsWrite(t *testing.T) {
-	// VALIDATES: BridgeSetSTP writes correct values to sysfs.
-	// PREVENTS: STP enable/disable not reaching the kernel.
-	dir := t.TempDir()
-	stpDir := filepath.Join(dir, "br0", "bridge")
-	if err := os.MkdirAll(stpDir, 0o755); err != nil {
-		t.Fatalf("create stp dir: %v", err)
-	}
-
-	old := bridgeSysfsRoot
-	bridgeSysfsRoot = dir
-	t.Cleanup(func() { bridgeSysfsRoot = old })
-
-	if err := BridgeSetSTP("br0", true); err != nil {
-		t.Fatalf("BridgeSetSTP(true): %v", err)
-	}
-	data, err := os.ReadFile(filepath.Join(stpDir, "stp_state"))
-	if err != nil {
-		t.Fatalf("read stp_state: %v", err)
-	}
-	if string(data) != "1" {
-		t.Errorf("stp=true: got %q, want %q", string(data), "1")
-	}
-
-	if err := BridgeSetSTP("br0", false); err != nil {
-		t.Fatalf("BridgeSetSTP(false): %v", err)
-	}
-	data, err = os.ReadFile(filepath.Join(stpDir, "stp_state"))
-	if err != nil {
-		t.Fatalf("read stp_state: %v", err)
-	}
-	if string(data) != "0" {
-		t.Errorf("stp=false: got %q, want %q", string(data), "0")
 	}
 }
 

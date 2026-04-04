@@ -1,7 +1,9 @@
-// Design: docs/features/interfaces.md — Traffic mirroring via tc mirred
-// Overview: iface.go — shared types and topic constants
+// Design: docs/features/interfaces.md -- Traffic mirroring via tc mirred
+// Overview: ifacenetlink.go -- package hub
 
-package iface
+//go:build linux
+
+package ifacenetlink
 
 import (
 	"fmt"
@@ -9,31 +11,19 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
 
-// isNotFound returns true if the error indicates a missing qdisc ("no such"
-// device or object), which is expected during idempotent cleanup.
 func isNotFound(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "no such")
 }
 
-// SetupMirror configures ingress and/or egress traffic mirroring from srcIface
-// to dstIface using tc qdiscs and matchall filters with mirred actions.
-//
-// For ingress mirroring, an ingress qdisc is added on srcIface with a matchall
-// filter that mirrors all incoming packets to dstIface.
-//
-// For egress mirroring, a clsact qdisc is used (preferred over ingress qdisc
-// for egress support). Not all kernels support egress mirred; if clsact setup
-// fails, egress mirroring returns an error.
-//
-// When both ingress and egress are requested, clsact is used for both directions
-// since it supports filters on both HANDLE_MIN_INGRESS and HANDLE_MIN_EGRESS.
-func SetupMirror(srcIface, dstIface string, ingress, egress bool) error {
-	if err := validateIfaceName(srcIface); err != nil {
+func (b *netlinkBackend) SetupMirror(srcIface, dstIface string, ingress, egress bool) error {
+	if err := iface.ValidateIfaceName(srcIface); err != nil {
 		return fmt.Errorf("iface: mirror: src: %w", err)
 	}
-	if err := validateIfaceName(dstIface); err != nil {
+	if err := iface.ValidateIfaceName(dstIface); err != nil {
 		return fmt.Errorf("iface: mirror: dst: %w", err)
 	}
 	if !ingress && !egress {
@@ -52,20 +42,12 @@ func SetupMirror(srcIface, dstIface string, ingress, egress bool) error {
 	dstIndex := dst.Attrs().Index
 	srcIndex := src.Attrs().Index
 
-	// When egress is requested (or both), use clsact qdisc which supports
-	// both ingress and egress filter attachment points.
 	if egress {
-		if err := setupClsactMirror(srcIndex, dstIndex, ingress, egress); err != nil {
-			return err
-		}
-		return nil
+		return setupClsactMirror(srcIndex, dstIndex, ingress, egress)
 	}
-
-	// Ingress only: use the dedicated ingress qdisc.
 	return setupIngressMirror(srcIndex, dstIndex)
 }
 
-// setupClsactMirror installs a clsact qdisc and attaches mirred filters.
 func setupClsactMirror(srcIndex, dstIndex int, ingress, egress bool) error {
 	qdisc := &netlink.Clsact{
 		QdiscAttrs: netlink.QdiscAttrs{
@@ -88,16 +70,14 @@ func setupClsactMirror(srcIndex, dstIndex int, ingress, egress bool) error {
 			},
 			Actions: []netlink.Action{
 				&netlink.MirredAction{
-					ActionAttrs: netlink.ActionAttrs{
-						Action: netlink.TC_ACT_PIPE,
-					},
+					ActionAttrs:  netlink.ActionAttrs{Action: netlink.TC_ACT_PIPE},
 					MirredAction: netlink.TCA_EGRESS_MIRROR,
 					Ifindex:      dstIndex,
 				},
 			},
 		}
 		if err := netlink.FilterAdd(filter); err != nil {
-			_ = netlink.QdiscDel(qdisc) // best-effort cleanup
+			_ = netlink.QdiscDel(qdisc)
 			return fmt.Errorf("iface: mirror: add ingress filter: %w", err)
 		}
 	}
@@ -112,16 +92,14 @@ func setupClsactMirror(srcIndex, dstIndex int, ingress, egress bool) error {
 			},
 			Actions: []netlink.Action{
 				&netlink.MirredAction{
-					ActionAttrs: netlink.ActionAttrs{
-						Action: netlink.TC_ACT_PIPE,
-					},
+					ActionAttrs:  netlink.ActionAttrs{Action: netlink.TC_ACT_PIPE},
 					MirredAction: netlink.TCA_EGRESS_MIRROR,
 					Ifindex:      dstIndex,
 				},
 			},
 		}
 		if err := netlink.FilterAdd(filter); err != nil {
-			_ = netlink.QdiscDel(qdisc) // best-effort cleanup
+			_ = netlink.QdiscDel(qdisc)
 			return fmt.Errorf("iface: mirror: add egress filter: %w", err)
 		}
 	}
@@ -129,7 +107,6 @@ func setupClsactMirror(srcIndex, dstIndex int, ingress, egress bool) error {
 	return nil
 }
 
-// setupIngressMirror installs an ingress qdisc and attaches a mirred filter.
 func setupIngressMirror(srcIndex, dstIndex int) error {
 	qdisc := &netlink.Ingress{
 		QdiscAttrs: netlink.QdiscAttrs{
@@ -151,27 +128,22 @@ func setupIngressMirror(srcIndex, dstIndex int) error {
 		},
 		Actions: []netlink.Action{
 			&netlink.MirredAction{
-				ActionAttrs: netlink.ActionAttrs{
-					Action: netlink.TC_ACT_PIPE,
-				},
+				ActionAttrs:  netlink.ActionAttrs{Action: netlink.TC_ACT_PIPE},
 				MirredAction: netlink.TCA_EGRESS_MIRROR,
 				Ifindex:      dstIndex,
 			},
 		},
 	}
 	if err := netlink.FilterAdd(filter); err != nil {
-		_ = netlink.QdiscDel(qdisc) // best-effort cleanup
+		_ = netlink.QdiscDel(qdisc)
 		return fmt.Errorf("iface: mirror: add ingress filter: %w", err)
 	}
 
 	return nil
 }
 
-// RemoveMirror removes all mirroring configuration from srcIface by deleting
-// both clsact and ingress qdiscs. It is safe to call even if no mirroring is
-// configured; missing qdiscs are silently ignored.
-func RemoveMirror(srcIface string) error {
-	if err := validateIfaceName(srcIface); err != nil {
+func (b *netlinkBackend) RemoveMirror(srcIface string) error {
+	if err := iface.ValidateIfaceName(srcIface); err != nil {
 		return fmt.Errorf("iface: mirror: %w", err)
 	}
 
@@ -182,7 +154,6 @@ func RemoveMirror(srcIface string) error {
 
 	linkIndex := link.Attrs().Index
 
-	// Try removing clsact qdisc (covers both ingress+egress and egress-only).
 	clsact := &netlink.Clsact{
 		QdiscAttrs: netlink.QdiscAttrs{
 			LinkIndex: linkIndex,
@@ -192,7 +163,6 @@ func RemoveMirror(srcIface string) error {
 	}
 	clsactErr := netlink.QdiscDel(clsact)
 
-	// Try removing ingress qdisc (covers ingress-only setup).
 	ingress := &netlink.Ingress{
 		QdiscAttrs: netlink.QdiscAttrs{
 			LinkIndex: linkIndex,
@@ -202,10 +172,6 @@ func RemoveMirror(srcIface string) error {
 	}
 	ingressErr := netlink.QdiscDel(ingress)
 
-	// Both clsact and ingress share the same parent handle (HANDLE_CLSACT ==
-	// HANDLE_INGRESS), so in practice only one will exist. If both deletions
-	// fail with "not found", neither qdisc was present, which is fine for
-	// idempotent cleanup. Real errors are returned.
 	if clsactErr != nil && !isNotFound(clsactErr) {
 		return fmt.Errorf("iface: mirror: remove clsact qdisc: %w", clsactErr)
 	}
