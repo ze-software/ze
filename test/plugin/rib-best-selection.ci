@@ -1,0 +1,248 @@
+# Test: RIB best-path selection across multiple peers
+#
+# Flow:
+# 1. Inject routes from multiple peers with different attributes
+# 2. Run "rib show best" and verify correct winner per prefix
+# 3. Test LOCAL_PREF tiebreak (higher wins)
+# 4. Test AS_PATH length tiebreak (shorter wins)
+# 5. Test peer address final tiebreak (lower wins)
+#
+# VALIDATES: RFC 4271 Section 9.1.2 best-path selection with multiple peers
+# PREVENTS: Best-path selection only tested in unit tests, never end-to-end
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+EOF_PEER
+
+# Python test plugin
+tmpfs=rib-best-selection-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Test: best-path selection across multiple peers with different attributes."""
+
+import json
+import sys
+import time
+
+from ze_api import API
+
+
+failures = 0
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def check(label, result, expected_status):
+    global failures
+    actual = result.get('status')
+    if actual != expected_status:
+        print(f'FAIL {label}: expected status={expected_status}, got={actual}', file=sys.stderr)
+        print(f'  data: {result.get("data", "")[:200]}', file=sys.stderr)
+        failures += 1
+    else:
+        print(f'OK {label}: status={actual}', file=sys.stderr)
+
+
+def parse_best(result):
+    """Parse best-path JSON from dispatch result data string."""
+    data_str = result.get('data', '')
+    try:
+        data = json.loads(data_str)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    return data.get('best-path', [])
+
+
+def find_best_for_prefix(best_paths, prefix):
+    """Find the best-path entry for a specific prefix."""
+    for entry in best_paths:
+        if entry.get('prefix') == prefix:
+            return entry
+    return None
+
+
+def wait_for_rib(api):
+    """Wait for rib plugin to be ready."""
+    for _ in range(20):
+        r = dispatch(api, 'rib status')
+        if r.get('status') == 'done':
+            return True
+        time.sleep(0.5)
+    return False
+
+
+def main():
+    global failures
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    time.sleep(1.0)
+    if not wait_for_rib(api):
+        print('FAIL: rib plugin did not become ready', file=sys.stderr)
+        sys.exit(1)
+
+    # --- Test 1: LOCAL_PREF tiebreak (higher wins) ---
+    # Inject 10.10.1.0/24 from two peers with different LOCAL_PREF
+    r = dispatch(api, 'rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 localpref 100')
+    check('inject-lp100', r, 'done')
+
+    r = dispatch(api, 'rib inject 10.0.0.2 ipv4/unicast 10.10.1.0/24 localpref 200')
+    check('inject-lp200', r, 'done')
+
+    r = dispatch(api, 'rib show best')
+    check('best-localpref', r, 'done')
+    best_paths = parse_best(r)
+    entry = find_best_for_prefix(best_paths, '10.10.1.0/24')
+    if entry is None:
+        print('FAIL localpref-winner: prefix 10.10.1.0/24 not in best-path', file=sys.stderr)
+        failures += 1
+    elif entry.get('best-peer') != '10.0.0.2':
+        print(f'FAIL localpref-winner: expected best-peer=10.0.0.2 (higher LOCAL_PREF), got={entry.get("best-peer")}', file=sys.stderr)
+        failures += 1
+    else:
+        print('OK localpref-winner: 10.0.0.2 selected (LOCAL_PREF 200 > 100)', file=sys.stderr)
+
+    # --- Test 2: AS_PATH length tiebreak (shorter wins) ---
+    # Inject 10.20.1.0/24 from two peers with different AS_PATH lengths
+    r = dispatch(api, 'rib inject 10.0.0.3 ipv4/unicast 10.20.1.0/24 aspath 64501')
+    check('inject-short-path', r, 'done')
+
+    r = dispatch(api, 'rib inject 10.0.0.4 ipv4/unicast 10.20.1.0/24 aspath 64501,64502,64503')
+    check('inject-long-path', r, 'done')
+
+    r = dispatch(api, 'rib show best')
+    check('best-aspath', r, 'done')
+    best_paths = parse_best(r)
+    entry = find_best_for_prefix(best_paths, '10.20.1.0/24')
+    if entry is None:
+        print('FAIL aspath-winner: prefix 10.20.1.0/24 not in best-path', file=sys.stderr)
+        failures += 1
+    elif entry.get('best-peer') != '10.0.0.3':
+        print(f'FAIL aspath-winner: expected best-peer=10.0.0.3 (shorter AS_PATH), got={entry.get("best-peer")}', file=sys.stderr)
+        failures += 1
+    else:
+        print('OK aspath-winner: 10.0.0.3 selected (AS_PATH len 1 < 3)', file=sys.stderr)
+
+    # --- Test 3: Peer address final tiebreak (lower wins) ---
+    # Inject 10.30.1.0/24 from two peers with identical attributes
+    r = dispatch(api, 'rib inject 10.0.0.6 ipv4/unicast 10.30.1.0/24 origin igp')
+    check('inject-peer6', r, 'done')
+
+    r = dispatch(api, 'rib inject 10.0.0.5 ipv4/unicast 10.30.1.0/24 origin igp')
+    check('inject-peer5', r, 'done')
+
+    r = dispatch(api, 'rib show best')
+    check('best-tiebreak', r, 'done')
+    best_paths = parse_best(r)
+    entry = find_best_for_prefix(best_paths, '10.30.1.0/24')
+    if entry is None:
+        print('FAIL tiebreak-winner: prefix 10.30.1.0/24 not in best-path', file=sys.stderr)
+        failures += 1
+    elif entry.get('best-peer') != '10.0.0.5':
+        print(f'FAIL tiebreak-winner: expected best-peer=10.0.0.5 (lower peer addr), got={entry.get("best-peer")}', file=sys.stderr)
+        failures += 1
+    else:
+        print('OK tiebreak-winner: 10.0.0.5 selected (lower peer address)', file=sys.stderr)
+
+    # --- Test 4: Verify total count ---
+    r = dispatch(api, 'rib show best count')
+    check('best-count', r, 'done')
+    data_str = r.get('data', '')
+    try:
+        count_data = json.loads(data_str)
+        count = count_data.get('count', -1)
+        if count != 3:
+            print(f'FAIL best-count-value: expected 3 best paths, got {count}', file=sys.stderr)
+            failures += 1
+        else:
+            print(f'OK best-count-value: 3 best paths', file=sys.stderr)
+    except (json.JSONDecodeError, TypeError):
+        print(f'FAIL best-count-parse: cannot parse count response: {data_str[:200]}', file=sys.stderr)
+        failures += 1
+
+    # Shutdown
+    if failures > 0:
+        print(f'\n{failures} failures', file=sys.stderr)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+    if failures > 0:
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external best-selection-test {
+		run ./rib-best-selection-test.run
+		encoder json
+	}
+	external rib {
+		run "ze plugin bgp-rib"
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process best-selection-test {
+		}
+		process rib {
+			receive [ update sent state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
