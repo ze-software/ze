@@ -93,23 +93,11 @@ func runEngine(conn net.Conn) int {
 	p := sdk.NewWithConn("interface", conn)
 	defer func() { _ = p.Close() }()
 
+	// pendingCfg holds the validated config between verify and apply phases.
+	var pendingCfg *ifaceConfig
+
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		// Parse config to extract backend name and interface definitions.
-		var cfg *ifaceConfig
-		for _, s := range sections {
-			if s.Root != "interface" {
-				continue
-			}
-			var err error
-			cfg, err = parseIfaceConfig(s.Data)
-			if err != nil {
-				return fmt.Errorf("interface config parse: %w", err)
-			}
-			break
-		}
-		if cfg == nil {
-			cfg = &ifaceConfig{Backend: defaultBackendName}
-		}
+		cfg := parseIfaceSections(sections)
 
 		if cfg.Backend == "" {
 			return fmt.Errorf("interface: no backend configured and no OS default available")
@@ -122,11 +110,9 @@ func runEngine(conn net.Conn) int {
 
 		b := GetBackend()
 
-		// Apply interface configuration (create, set properties, add addresses).
 		applyConfig(cfg, b)
 		log.Info("interface config applied")
 
-		// Start monitoring after config is applied.
 		bus := GetBus()
 		if bus == nil {
 			log.Warn("interface plugin: no bus configured, monitor will not start")
@@ -137,6 +123,34 @@ func runEngine(conn net.Conn) int {
 			return fmt.Errorf("interface monitor start: %w", err)
 		}
 		log.Info("interface monitor started")
+		return nil
+	})
+
+	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		cfg := parseIfaceSections(sections)
+		if cfg.Backend == "" {
+			return fmt.Errorf("interface: no backend configured and no OS default available")
+		}
+		pendingCfg = cfg
+		log.Debug("interface config verified", "backend", cfg.Backend)
+		return nil
+	})
+
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		cfg := pendingCfg
+		pendingCfg = nil
+		if cfg == nil {
+			log.Warn("interface config apply: no pending config (verify not called?)")
+			return nil
+		}
+
+		b := GetBackend()
+		if b == nil {
+			return fmt.Errorf("interface config apply: no backend loaded")
+		}
+
+		applyConfig(cfg, b)
+		log.Info("interface config reloaded")
 		return nil
 	})
 

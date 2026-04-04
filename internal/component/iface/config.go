@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 // ifaceConfig is the parsed representation of the interface config section.
@@ -54,6 +56,23 @@ type unitEntry struct {
 	VLANID    int
 	Addresses []string
 	Disable   bool
+}
+
+// parseIfaceSections finds the "interface" section and parses it.
+// Returns a default config if no interface section is present.
+func parseIfaceSections(sections []sdk.ConfigSection) *ifaceConfig {
+	for _, s := range sections {
+		if s.Root != "interface" {
+			continue
+		}
+		cfg, err := parseIfaceConfig(s.Data)
+		if err != nil {
+			loggerPtr.Load().Warn("iface config: parse failed, using defaults", "err", err)
+			return &ifaceConfig{Backend: defaultBackendName}
+		}
+		return cfg
+	}
+	return &ifaceConfig{Backend: defaultBackendName}
 }
 
 // parseIfaceConfig parses the interface config section JSON into ifaceConfig.
