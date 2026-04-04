@@ -7,6 +7,9 @@ package message
 import (
 	"encoding/binary"
 	"fmt"
+	"slices"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 )
 
 // RFC7606Action represents the error handling action per RFC 7606.
@@ -661,31 +664,13 @@ func validateASPath(data []byte, asn4 bool) *RFC7606ValidationResult {
 	return nil
 }
 
-// AFI constants (RFC 4760).
-const (
-	afiIPv4 uint16 = 1
-	afiIPv6 uint16 = 2
-)
-
-// SAFI constants (RFC 4760).
-const (
-	safiUnicast   uint8 = 1
-	safiMulticast uint8 = 2
-	safiMPLS      uint8 = 4   // RFC 3107
-	safiVPN       uint8 = 128 // RFC 4364
-)
-
 // validateMPReachNextHop validates MP_REACH_NLRI next-hop length per RFC 7606 Section 7.11.
 //
 // The next-hop length must be consistent with the AFI/SAFI. Invalid lengths make it
 // impossible to reliably locate the NLRI, so session-reset is required.
 //
-// Expected lengths:
-//   - IPv4 unicast/multicast: 4 bytes
-//   - IPv4 unicast/multicast with RFC 5549: 16 bytes (IPv6 next-hop)
-//   - IPv6 unicast/multicast: 16 bytes (global) or 32 bytes (global + link-local)
-//   - VPNv4: 12 bytes (8-byte RD + 4-byte IPv4)
-//   - VPNv6: 24 bytes (8-byte RD + 16-byte IPv6)
+// Valid lengths are defined by attribute.ValidNextHopLens -- the single source of truth
+// shared between encode (MPReachNLRI.WriteTo) and decode (this validator).
 func validateMPReachNextHop(data []byte) *RFC7606ValidationResult {
 	// Need at least AFI (2) + SAFI (1) + NH_LEN (1) = 4 bytes
 	if len(data) < 4 {
@@ -700,48 +685,9 @@ func validateMPReachNextHop(data []byte) *RFC7606ValidationResult {
 	safi := data[2]
 	nhLen := int(data[3])
 
-	// Validate next-hop length based on AFI/SAFI
-	var valid bool
-	switch afi {
-	case afiIPv4:
-		switch safi {
-		case safiUnicast, safiMulticast:
-			// RFC 4760: 4 bytes for IPv4
-			// RFC 5549: 16 bytes for IPv6 next-hop over IPv4 NLRI
-			valid = nhLen == 4 || nhLen == 16
-		case safiMPLS:
-			// RFC 3107: 4 bytes for IPv4
-			valid = nhLen == 4
-		case safiVPN:
-			// RFC 4364: 12 bytes (8-byte RD + 4-byte IPv4)
-			// Also allow 24 bytes for RFC 5549 (8-byte RD + 16-byte IPv6)
-			valid = nhLen == 12 || nhLen == 24
-		default:
-			// Unknown SAFI - accept any length to be permissive
-			valid = true
-		}
-	case afiIPv6:
-		switch safi {
-		case safiUnicast, safiMulticast:
-			// RFC 4760: 16 bytes (global) or 32 bytes (global + link-local)
-			valid = nhLen == 16 || nhLen == 32
-		case safiMPLS:
-			// RFC 3107: 16 bytes (global) or 32 bytes (global + link-local)
-			valid = nhLen == 16 || nhLen == 32
-		case safiVPN:
-			// RFC 4659: 24 bytes (8-byte RD + 16-byte IPv6)
-			// Also 48 bytes for dual next-hop
-			valid = nhLen == 24 || nhLen == 48
-		default:
-			// Unknown SAFI - accept any length to be permissive
-			valid = true
-		}
-	default:
-		// Unknown AFI - accept any length to be permissive
-		valid = true
-	}
-
-	if !valid {
+	// Use the shared valid-length table. nil means unknown AFI/SAFI -- be permissive.
+	validLens := attribute.ValidNextHopLens(attribute.AFI(afi), attribute.SAFI(safi))
+	if validLens != nil && !slices.Contains(validLens, nhLen) {
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionSessionReset,
 			AttrCode:    attrCodeMPReachNLRI,

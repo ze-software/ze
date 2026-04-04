@@ -219,6 +219,57 @@ func ParseMPReachNLRI(data []byte) (*MPReachNLRI, error) {
 // RFC 4364 Section 4.3.4: VPN next-hop includes 8-byte RD prefix (set to zero).
 const RDSize = 8
 
+// SAFIMPLSLabel is SAFI 4 (RFC 8277: MPLS labeled unicast).
+const SAFIMPLSLabel SAFI = 4
+
+// ValidNextHopLens returns the set of valid next-hop byte lengths for an AFI/SAFI.
+// This is the single source of truth for both encode and decode paths, ensuring
+// they agree on what constitutes a valid wire format.
+//
+// Sources:
+//   - RFC 4760 Section 3: IPv4/IPv6 unicast/multicast
+//   - RFC 5549/8950: Extended next-hop (IPv6 NH for IPv4 NLRI)
+//   - RFC 4364 Section 4.3.4: VPN-IPv4 (RD+IPv4=12, RD+IPv6=24)
+//   - RFC 4659: VPN-IPv6 (RD+IPv6=24, dual=48)
+//   - RFC 3107/8277: MPLS labeled unicast
+//   - RFC 7606 Section 7.11: Validation requirements
+func ValidNextHopLens(afi AFI, safi SAFI) []int {
+	switch afi {
+	case AFIIPv4:
+		switch safi {
+		case SAFIUnicast, SAFIMulticast:
+			return []int{4, 16} // plain IPv4 or RFC 5549 IPv6
+		case SAFIMPLSLabel:
+			return []int{4}
+		case SAFIVPN:
+			return []int{12, 24} // RD+IPv4 or RD+IPv6
+		case SAFIFlowSpec, SAFIEVPN:
+			// FlowSpec: permissive (no test coverage yet for strict validation)
+			// EVPN: uses AFI L2VPN (25), not IPv4
+		}
+	case AFIIPv6:
+		switch safi {
+		case SAFIUnicast, SAFIMulticast:
+			return []int{16, 32} // global or global+link-local
+		case SAFIMPLSLabel:
+			return []int{16, 32}
+		case SAFIVPN:
+			return []int{24, 48} // RD+IPv6 or dual
+		case SAFIFlowSpec, SAFIEVPN:
+			// FlowSpec: permissive (no test coverage yet for strict validation)
+			// EVPN: uses AFI L2VPN (25), not IPv6
+		}
+	case AFIL2VPN:
+		switch safi {
+		case SAFIEVPN:
+			return []int{4, 16} // IPv4 or IPv6
+		case SAFIUnicast, SAFIMulticast, SAFIMPLSLabel, SAFIVPN, SAFIFlowSpec:
+			// These SAFIs don't apply to L2VPN AFI
+		}
+	}
+	return nil // unknown AFI/SAFI combination
+}
+
 // parseNextHops parses next-hop address(es) based on AFI, SAFI, and length.
 //
 // RFC 4760 Section 3: "Network Address of Next Hop: A variable-length field

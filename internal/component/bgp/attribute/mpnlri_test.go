@@ -2,6 +2,7 @@ package attribute
 
 import (
 	"net/netip"
+	"slices"
 	"testing"
 )
 
@@ -620,6 +621,124 @@ func TestMPReachNLRI_RoundTrip_VPN(t *testing.T) {
 	}
 	if len(parsed.NLRI) != len(original.NLRI) {
 		t.Errorf("NLRI len = %d, want %d", len(parsed.NLRI), len(original.NLRI))
+	}
+}
+
+// TestMPReachNLRI_EncodeDecodeSymmetry verifies that WriteTo produces wire bytes
+// whose next-hop length matches ValidNextHopLens for every supported AFI/SAFI,
+// and that ParseMPReachNLRI round-trips them back to the original next-hop.
+//
+// VALIDATES: Encode/decode symmetry -- the encoder must produce formats the
+// decoder accepts, and the valid-length table must agree with both sides.
+// PREVENTS: Bugs like the VPN next-hop encoding (4 bytes instead of 12) where
+// the write side silently produced an invalid format the parse side would reject.
+func TestMPReachNLRI_EncodeDecodeSymmetry(t *testing.T) {
+	t.Parallel()
+
+	ipv4 := netip.MustParseAddr("10.0.0.1")
+	ipv6 := netip.MustParseAddr("2001:db8::1")
+	nlriData := []byte{0x18, 0x0a, 0x00, 0x01} // 10.0.1.0/24
+
+	tests := []struct {
+		name    string
+		afi     AFI
+		safi    SAFI
+		nextHop netip.Addr
+		wantNH  netip.Addr // expected after round-trip (same as nextHop)
+	}{
+		{"IPv4/unicast/v4nh", AFIIPv4, SAFIUnicast, ipv4, ipv4},
+		{"IPv6/unicast/v6nh", AFIIPv6, SAFIUnicast, ipv6, ipv6},
+		{"IPv4/VPN/v4nh", AFIIPv4, SAFIVPN, ipv4, ipv4},
+		{"IPv6/VPN/v6nh", AFIIPv6, SAFIVPN, ipv6, ipv6},
+		{"L2VPN/EVPN/v4nh", AFIL2VPN, SAFIEVPN, ipv4, ipv4},
+		{"L2VPN/EVPN/v6nh", AFIL2VPN, SAFIEVPN, ipv6, ipv6},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			original := &MPReachNLRI{
+				AFI:      tt.afi,
+				SAFI:     tt.safi,
+				NextHops: []netip.Addr{tt.nextHop},
+				NLRI:     nlriData,
+			}
+
+			// Encode
+			buf := make([]byte, 256)
+			n := original.WriteTo(buf, 0)
+
+			// Check wire next-hop length against ValidNextHopLens
+			wireNHLen := int(buf[3])
+			validLens := ValidNextHopLens(tt.afi, tt.safi)
+			if validLens != nil && !slices.Contains(validLens, wireNHLen) {
+				t.Errorf("wire NH_Len=%d not in ValidNextHopLens(%d,%d)=%v",
+					wireNHLen, tt.afi, tt.safi, validLens)
+			}
+
+			// Decode
+			parsed, err := ParseMPReachNLRI(buf[:n])
+			if err != nil {
+				t.Fatalf("ParseMPReachNLRI() error = %v", err)
+			}
+
+			// Verify round-trip
+			if parsed.AFI != tt.afi {
+				t.Errorf("AFI = %d, want %d", parsed.AFI, tt.afi)
+			}
+			if parsed.SAFI != tt.safi {
+				t.Errorf("SAFI = %d, want %d", parsed.SAFI, tt.safi)
+			}
+			if len(parsed.NextHops) != 1 {
+				t.Fatalf("NextHops len = %d, want 1", len(parsed.NextHops))
+			}
+			if parsed.NextHops[0] != tt.wantNH {
+				t.Errorf("NextHops[0] = %v, want %v", parsed.NextHops[0], tt.wantNH)
+			}
+		})
+	}
+}
+
+// TestValidNextHopLens_Coverage ensures ValidNextHopLens returns non-nil for
+// all AFI/SAFI combinations that Ze supports in encode/decode paths.
+//
+// VALIDATES: The valid-length table covers all families Ze handles.
+// PREVENTS: Adding a new SAFI to encode/decode without updating the table.
+func TestValidNextHopLens_Coverage(t *testing.T) {
+	t.Parallel()
+
+	expected := []struct {
+		afi  AFI
+		safi SAFI
+		desc string
+	}{
+		{AFIIPv4, SAFIUnicast, "IPv4 unicast"},
+		{AFIIPv4, SAFIMulticast, "IPv4 multicast"},
+		{AFIIPv4, SAFIVPN, "IPv4 VPN"},
+		{AFIIPv4, SAFIMPLSLabel, "IPv4 MPLS"},
+		{AFIIPv6, SAFIUnicast, "IPv6 unicast"},
+		{AFIIPv6, SAFIMulticast, "IPv6 multicast"},
+		{AFIIPv6, SAFIVPN, "IPv6 VPN"},
+		{AFIIPv6, SAFIMPLSLabel, "IPv6 MPLS"},
+		{AFIL2VPN, SAFIEVPN, "L2VPN EVPN"},
+	}
+
+	for _, e := range expected {
+		lens := ValidNextHopLens(e.afi, e.safi)
+		if lens == nil {
+			t.Errorf("ValidNextHopLens(%d, %d) [%s] = nil, want non-nil", e.afi, e.safi, e.desc)
+		}
+		if len(lens) == 0 {
+			t.Errorf("ValidNextHopLens(%d, %d) [%s] is empty", e.afi, e.safi, e.desc)
+		}
+	}
+
+	// Invalid combinations must return nil
+	if lens := ValidNextHopLens(AFIIPv4, SAFIEVPN); lens != nil {
+		t.Errorf("ValidNextHopLens(IPv4, EVPN) = %v, want nil (EVPN is L2VPN only)", lens)
+	}
+	if lens := ValidNextHopLens(AFIL2VPN, SAFIVPN); lens != nil {
+		t.Errorf("ValidNextHopLens(L2VPN, VPN) = %v, want nil", lens)
 	}
 }
 
