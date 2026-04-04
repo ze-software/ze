@@ -1,4 +1,4 @@
-# Ze -- A Modern BGP Daemon
+# Ze -- The Programmable Plugin-Based Network OS
 
 > **Pre-Alpha** -- Ze has not reached alpha. The core BGP engine works, but many advanced features are incomplete or untested, and there is significant work remaining before Ze is ready for end-users. APIs and config syntax will change without notice.
 
