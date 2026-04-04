@@ -253,6 +253,10 @@ type Reactor struct {
 	// budget when peers are added, removed, or complete EOR.
 	fwdWeights *weightTracker
 
+	// fwdOverflowMux is the shared mixed-size overflow pool for forward dispatch.
+	// When non-nil, replaces the legacy fwdOverflowPool (chan struct{}).
+	fwdOverflowMux *MixedBufMux
+
 	// updateGroups indexes established peers by encoding context for
 	// group-aware UPDATE building and forwarding. nil when disabled.
 	updateGroups *UpdateGroupIndex
@@ -365,6 +369,16 @@ func New(config *Config) *Reactor {
 		updateGroups: NewUpdateGroupIndexFromEnv(),
 	}
 
+	// Create shared overflow MixedBufMux for forward dispatch.
+	// Byte budget is auto-sized from peer prefix maximums, or overridden
+	// by ze.fwd.pool.size (interpreted as byte budget when > 0).
+	r.fwdOverflowMux = newMixedBufMux()
+	if fwdPoolSize > 0 {
+		// Operator override: ze.fwd.pool.size as byte budget.
+		r.fwdOverflowMux.SetByteBudget(int64(fwdPoolSize))
+	}
+	r.fwdPool.SetOverflowMux(r.fwdOverflowMux)
+
 	// Weight tracker: recalculates pool budget when peers change.
 	// When ze.fwd.pool.maxbytes is not explicitly set (0), auto-size the
 	// bufmux budget from peer prefix maximums. When explicitly set, the
@@ -380,10 +394,16 @@ func New(config *Config) *Reactor {
 	// reads, and the 64K pool serves post-negotiation reads when Extended
 	// Message (RFC 8654) is agreed. The floor must cover one block of each.
 	minPoolBudget := int64(bufMuxBlockSize) * (int64(message.MaxMsgLen) + int64(message.ExtMsgLen))
+	overflowMux := r.fwdOverflowMux // capture for closure
 	if explicitMaxBytes <= 0 {
 		r.fwdWeights = newWeightTracker(func(guaranteed, overflow int) {
 			total := max(int64(guaranteed+overflow)*int64(message.MaxMsgLen)+headroom, minPoolBudget)
 			updateBufMuxBudget(total)
+			// Auto-size the shared overflow pool byte budget when ze.fwd.pool.size
+			// is not explicitly set (fwdPoolSize == 0).
+			if fwdPoolSize <= 0 {
+				overflowMux.SetByteBudget(total)
+			}
 		})
 	} else {
 		r.fwdWeights = newWeightTracker(nil)

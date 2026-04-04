@@ -434,6 +434,144 @@ func TestBufMux_CollapseBoundary50Percent(t *testing.T) {
 	mux.Return(b0[3])
 }
 
+// --- Mixed-size BufMux tests (fwd-auto-sizing Phase 2) ---
+
+func TestMixedBufMux_Get4K(t *testing.T) {
+	// 4K slice allocated from a 64K block (subdivision).
+	m := newMixedBufMux()
+	h := m.Get4K()
+	if h.Buf == nil {
+		t.Fatal("Get4K() returned nil Buf")
+	}
+	if len(h.Buf) != 4096 {
+		t.Fatalf("Get4K() buf len = %d, want 4096", len(h.Buf))
+	}
+	m.Return(h)
+}
+
+func TestMixedBufMux_Get64K(t *testing.T) {
+	// Full 64K block allocated for ExtMsg peer.
+	m := newMixedBufMux()
+	h := m.Get64K()
+	if h.Buf == nil {
+		t.Fatal("Get64K() returned nil Buf")
+	}
+	if len(h.Buf) != 65535 {
+		t.Fatalf("Get64K() buf len = %d, want 65535", len(h.Buf))
+	}
+	m.Return(h)
+}
+
+func TestMixedBufMux_Mixed(t *testing.T) {
+	// 4K and 64K allocations coexist in the same pool.
+	m := newMixedBufMux()
+	h4 := m.Get4K()
+	h64 := m.Get64K()
+	if h4.Buf == nil || h64.Buf == nil {
+		t.Fatal("mixed allocation returned nil")
+	}
+	if len(h4.Buf) != 4096 {
+		t.Fatalf("4K buf len = %d", len(h4.Buf))
+	}
+	if len(h64.Buf) != 65535 {
+		t.Fatalf("64K buf len = %d", len(h64.Buf))
+	}
+	m.Return(h4)
+	m.Return(h64)
+}
+
+func TestMixedBufMux_Return(t *testing.T) {
+	// Return releases buffer, subsequent Get succeeds.
+	m := newMixedBufMux()
+	m.SetByteBudget(4096 * 16) // one block's worth of 4K slices
+	// Exhaust the pool.
+	handles := make([]BufHandle, 16)
+	for i := range handles {
+		handles[i] = m.Get4K()
+		if handles[i].Buf == nil {
+			t.Fatalf("Get4K() #%d returned nil before exhaustion", i)
+		}
+	}
+	// Pool should be exhausted now.
+	h := m.Get4K()
+	if h.Buf != nil {
+		t.Fatal("expected nil after exhaustion")
+	}
+	// Return one, should be able to get again.
+	m.Return(handles[0])
+	h = m.Get4K()
+	if h.Buf == nil {
+		t.Fatal("Get4K() after Return() returned nil")
+	}
+	m.Return(h)
+	for i := 1; i < len(handles); i++ {
+		m.Return(handles[i])
+	}
+}
+
+func TestMixedBufMux_Exhausted(t *testing.T) {
+	// Get returns nil when byte budget is reached.
+	m := newMixedBufMux()
+	m.SetByteBudget(4096 * 16) // exactly one 64K block (16 x 4K slices)
+	for range 16 {
+		h := m.Get4K()
+		if h.Buf == nil {
+			t.Fatal("should not exhaust before 16 allocations")
+		}
+	}
+	h := m.Get4K()
+	if h.Buf != nil {
+		t.Fatal("should be exhausted after 16 x 4K allocations on 64K budget")
+	}
+}
+
+func TestMixedBufMux_Collapse(t *testing.T) {
+	// Fully-returned block collapses, freeing memory.
+	m := newMixedBufMux()
+	// Allocate enough to grow 2 blocks.
+	handles1 := make([]BufHandle, 16)
+	for i := range handles1 {
+		handles1[i] = m.Get4K()
+	}
+	// This forces a second block.
+	handles2 := make([]BufHandle, 16)
+	for i := range handles2 {
+		handles2[i] = m.Get4K()
+	}
+	if m.blockCount() != 2 {
+		t.Fatalf("expected 2 blocks, got %d", m.blockCount())
+	}
+	// Return all of block 2 and most of block 1.
+	for _, h := range handles2 {
+		m.Return(h)
+	}
+	for i := range 12 { // 12 of 16 = 75% free
+		m.Return(handles1[i])
+	}
+	m.tryCollapse()
+	if m.blockCount() != 1 {
+		t.Fatalf("collapse should leave 1 block, got %d", m.blockCount())
+	}
+	for i := 12; i < 16; i++ {
+		m.Return(handles1[i])
+	}
+}
+
+func TestMixedBufMux_Stats(t *testing.T) {
+	// Stats returns correct byte counts.
+	m := newMixedBufMux()
+	h4 := m.Get4K()
+	h64 := m.Get64K()
+	_, usedBytes := m.Stats()
+	// 1 x 4K + 1 x 65535
+	wantUsed := int64(4096 + 65535)
+	if usedBytes != wantUsed {
+		t.Fatalf("usedBytes = %d, want %d", usedBytes, wantUsed)
+	}
+	m.Return(h4)
+	m.Return(h64)
+}
+
 func TestBufMux_ConcurrentGetReturn(t *testing.T) {
 	// VALIDATES: AC-26 -- concurrent access from multiple goroutines is safe.
 	// PREVENTS: Race conditions in Get/Return under contention.

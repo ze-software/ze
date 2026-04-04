@@ -268,6 +268,165 @@ func TestCalculatePoolBudget_MinFloorApplied(t *testing.T) {
 	}
 }
 
+func TestOverflowFanOut(t *testing.T) {
+	// fanOut = min(N-1, floor(2*sqrt(N))), floor 1
+	tests := []struct {
+		name  string
+		peers int
+		want  int
+	}{
+		{"zero", 0, 1},
+		{"one", 1, 1},
+		{"two", 2, 1},     // min(1, 2*1.41)=1
+		{"three", 3, 2},   // min(2, 2*1.73)=2
+		{"four", 4, 3},    // min(3, 2*2)=3 -- but 2*sqrt(4)=4, min(3,4)=3
+		{"five", 5, 4},    // min(4, 2*2.23)=4
+		{"ten", 10, 6},    // min(9, 2*3.16)=6
+		{"fifty", 50, 14}, // min(49, 2*7.07)=14
+		{"hundred", 100, 20},
+		{"two-hundred", 200, 28},
+		{"thousand", 1000, 63},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := overflowFanOut(tt.peers)
+			if got != tt.want {
+				t.Errorf("overflowFanOut(%d) = %d, want %d", tt.peers, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestOverflowPoolBudget(t *testing.T) {
+	// Pure function: largest peer restart burst * fan-out + 10% steady-state.
+	tests := []struct {
+		name      string
+		peers     []overflowPeerInput
+		wantSlots int
+	}{
+		{
+			name:      "empty",
+			peers:     nil,
+			wantSlots: 64, // floor
+		},
+		{
+			name: "single-peer-10K-pfx",
+			// peerBufferDemand(10000, true) = 10000/20 = 500
+			// fanOut(1) = 1, restartBurst = 500*1 = 500
+			// no other peers for steady contrib
+			// total = 500, floor 64 -> 500
+			peers:     []overflowPeerInput{{prefixMax: 10000, extMsg: false}},
+			wantSlots: 500,
+		},
+		{
+			name: "chaos-default-4-peers-10K",
+			// All 4 peers: prefixMax=10000
+			// largest demand (preEOR): peerBufferDemand(10000, true) = 500
+			// fanOut(4) = min(3, floor(2*2)) = 3
+			// restartBurst = 500 * 3 = 1500
+			// steady: 3 other peers * peerBufferDemand(10000, false) * 0.1
+			//   peerBufferDemand(10000, false) = buffersNeeded(burstWeight(10000))
+			//   burstWeight(10000) = 10000*0.3 = 3000
+			//   buffersNeeded(3000) = ceil(3000/20) = 150
+			//   steady = 3 * 150 * 0.1 = 45
+			// total = 1500 + 45 = 1545
+			peers: []overflowPeerInput{
+				{prefixMax: 10000, extMsg: false},
+				{prefixMax: 10000, extMsg: false},
+				{prefixMax: 10000, extMsg: false},
+				{prefixMax: 10000, extMsg: false},
+			},
+			wantSlots: 1545,
+		},
+		{
+			name: "two-peers-different-sizes",
+			// peer1: prefixMax=1000, peer2: prefixMax=100000
+			// largest preEOR demand: peerBufferDemand(100000, true) = 100000/20 = 5000
+			// fanOut(2) = min(1, floor(2*1.41)) = 1
+			// restartBurst = 5000 * 1 = 5000
+			// steady: 1 other peer (the 1000 one)
+			//   peerBufferDemand(1000, false) = buffersNeeded(burstWeight(1000))
+			//   burstWeight(1000) = 1000*0.5 = 500
+			//   buffersNeeded(500) = ceil(500/20) = 25
+			//   steady = 1 * 25 * 0.1 = 2 (truncated to int)
+			// total = 5000 + 2 = 5002
+			peers: []overflowPeerInput{
+				{prefixMax: 1000, extMsg: false},
+				{prefixMax: 100000, extMsg: false},
+			},
+			wantSlots: 5002,
+		},
+		{
+			name: "floor-applied",
+			// Single peer with very low prefix max
+			// peerBufferDemand(2, true) = ceil(2/20) = 1
+			// fanOut(1) = 1, restartBurst = 1
+			// total = 1, floor 64 -> 64
+			peers:     []overflowPeerInput{{prefixMax: 2, extMsg: false}},
+			wantSlots: 64,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := overflowPoolBudget(tt.peers)
+			if got.slots != tt.wantSlots {
+				t.Errorf("overflowPoolBudget() slots = %d, want %d", got.slots, tt.wantSlots)
+			}
+		})
+	}
+}
+
+func TestOverflowPoolBudgetBytes(t *testing.T) {
+	// Byte budget accounts for mixed sizes: 4K per standard slot, 64K per ExtMsg slot.
+	tests := []struct {
+		name      string
+		peers     []overflowPeerInput
+		wantBytes int64
+	}{
+		{
+			name: "all-standard",
+			// Single peer, 10K prefixes, standard (4K)
+			// slots = 500 (from TestOverflowPoolBudget)
+			// bytes = 500 * 4096
+			peers:     []overflowPeerInput{{prefixMax: 10000, extMsg: false}},
+			wantBytes: 500 * 4096,
+		},
+		{
+			name: "single-extmsg-peer",
+			// Single ExtMsg peer, 10K prefixes
+			// slots = 500, bytes = 500 * 65535
+			peers:     []overflowPeerInput{{prefixMax: 10000, extMsg: true}},
+			wantBytes: 500 * 65535,
+		},
+		{
+			name: "mixed-standard-and-extmsg",
+			// 2 standard (10K pfx) + 1 ExtMsg (100K pfx, largest)
+			// largest preEOR: peerBufferDemand(100000, true) = 100000/20 = 5000
+			// fanOut(3) = min(2, floor(2*1.73)) = 2
+			// restartBurst = 5000 * 2 = 10000
+			// steady: 2 standard peers, peerBufferDemand(10000, false) = 150
+			//   each: 150 * 0.1 = 15 slots * 4096 bytes
+			// totalSlots = 10000 + 30 = 10030
+			// restartBurst bytes: 10000 * 65535 (ExtMsg peer)
+			// steady bytes: 15*4096 + 15*4096
+			peers: []overflowPeerInput{
+				{prefixMax: 10000, extMsg: false},
+				{prefixMax: 10000, extMsg: false},
+				{prefixMax: 100000, extMsg: true},
+			},
+			wantBytes: 10000*65535 + 30*4096,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := overflowPoolBudget(tt.peers)
+			if got.bytes != tt.wantBytes {
+				t.Errorf("overflowPoolBudget() bytes = %d, want %d", got.bytes, tt.wantBytes)
+			}
+		})
+	}
+}
+
 func TestTotalPrefixMax(t *testing.T) {
 	tests := []struct {
 		name string

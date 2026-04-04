@@ -289,3 +289,71 @@ func TestWeightTracker_NilCallback(t *testing.T) {
 	wt.PeerEORComplete("10.0.0.1")
 	wt.RemovePeer("10.0.0.1")
 }
+
+// --- fwd-auto-sizing Phase 5 tests ---
+
+func TestOverflowPoolAutoResize(t *testing.T) {
+	// AddPeer triggers overflow byte budget recalculation.
+	mux := newMixedBufMux()
+	var lastBudget int64
+	wt := newWeightTracker(func(guaranteed, overflow int) {
+		budget := int64(guaranteed+overflow) * 4096
+		mux.SetByteBudget(budget)
+		lastBudget = budget
+	})
+
+	// Add a peer: should trigger budget update.
+	wt.AddPeer("10.0.0.1", 10000, 1)
+	if lastBudget <= 0 {
+		t.Fatalf("expected positive budget after AddPeer, got %d", lastBudget)
+	}
+	if mux.ByteBudget() != lastBudget {
+		t.Fatalf("MixedBufMux budget = %d, want %d", mux.ByteBudget(), lastBudget)
+	}
+
+	// Add second peer: budget should increase.
+	prevBudget := lastBudget
+	wt.AddPeer("10.0.0.2", 10000, 1)
+	if lastBudget <= prevBudget {
+		t.Fatalf("budget should increase with more peers: was %d, now %d", prevBudget, lastBudget)
+	}
+}
+
+func TestOverflowPoolEORShrink(t *testing.T) {
+	// EOR transitions shrink byte budget.
+	mux := newMixedBufMux()
+	var lastBudget int64
+	wt := newWeightTracker(func(guaranteed, overflow int) {
+		budget := int64(guaranteed+overflow) * 4096
+		mux.SetByteBudget(budget)
+		lastBudget = budget
+	})
+
+	wt.AddPeer("10.0.0.1", 10000, 1) // pre-EOR
+	preEORBudget := lastBudget
+
+	wt.PeerEORComplete("10.0.0.1") // post-EOR
+	postEORBudget := lastBudget
+
+	if postEORBudget >= preEORBudget {
+		t.Fatalf("post-EOR budget (%d) should be less than pre-EOR (%d)", postEORBudget, preEORBudget)
+	}
+}
+
+func TestOverflowPoolEnvOverride(t *testing.T) {
+	// When ze.fwd.pool.size > 0, auto-sizing should not change the budget.
+	mux := newMixedBufMux()
+	overrideBudget := int64(999999)
+	mux.SetByteBudget(overrideBudget)
+
+	// Simulate: callback does NOT update mux because env override is active.
+	wt := newWeightTracker(func(_, _ int) {
+		// No-op: operator override active.
+	})
+
+	wt.AddPeer("10.0.0.1", 10000, 1)
+	// Budget should remain at the override value.
+	if mux.ByteBudget() != overrideBudget {
+		t.Fatalf("budget = %d, want override %d", mux.ByteBudget(), overrideBudget)
+	}
+}

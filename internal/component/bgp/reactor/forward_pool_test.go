@@ -1356,3 +1356,137 @@ func TestFwdPool_SourceOverflowRatiosConcurrent(t *testing.T) {
 	assert.InDelta(t, 0.5, ratios["10.0.0.1"], 0.001,
 		"equal forwarded and overflowed should give 0.5 ratio")
 }
+
+// --- Per-peer pool tests (fwd-auto-sizing Phase 3) ---
+
+func TestPeerPool4K(t *testing.T) {
+	// Per-peer pool: 64 slots for standard (4K) peer.
+	pp := newPeerPool(4096)
+	assert.Equal(t, 64, pp.size())
+	assert.Equal(t, 64, pp.available())
+	assert.Equal(t, 4096, pp.bufSize)
+}
+
+func TestPeerPool64K(t *testing.T) {
+	// Per-peer pool: 64 slots for ExtMsg (64K) peer.
+	pp := newPeerPool(65535)
+	assert.Equal(t, 64, pp.size())
+	assert.Equal(t, 65535, pp.bufSize)
+}
+
+func TestPeerPoolExhausted(t *testing.T) {
+	// Pool full after 64 acquire() calls, next returns false.
+	pp := newPeerPool(4096)
+	for range 64 {
+		ok := pp.acquire()
+		require.True(t, ok, "acquire should succeed within capacity")
+	}
+	assert.Equal(t, 0, pp.available())
+	ok := pp.acquire()
+	assert.False(t, ok, "acquire should fail when pool is full")
+}
+
+func TestPeerPoolReturn(t *testing.T) {
+	// Release frees slot, subsequent acquire succeeds.
+	pp := newPeerPool(4096)
+	for range 64 {
+		pp.acquire()
+	}
+	assert.False(t, pp.acquire())
+	pp.release()
+	assert.Equal(t, 1, pp.available())
+	assert.True(t, pp.acquire())
+}
+
+func TestPeerPoolConcurrent(t *testing.T) {
+	// Concurrent acquire/release does not corrupt the counter.
+	pp := newPeerPool(4096)
+	var wg sync.WaitGroup
+	const goroutines = 10
+	const iterations = 100
+	wg.Add(goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			for range iterations {
+				if pp.acquire() {
+					pp.release()
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	assert.Equal(t, 64, pp.available(), "all slots should be returned")
+}
+
+// --- Overflow MixedBufMux integration tests (fwd-auto-sizing Phase 4) ---
+
+func TestFwdPool_PoolUsedRatioMixedBufMux(t *testing.T) {
+	// PoolUsedRatio reads from MixedBufMux stats when overflowMux is set.
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	mux := newMixedBufMux()
+	mux.SetByteBudget(4096 * 16) // one block = 16 x 4K
+	pool.SetOverflowMux(mux)
+
+	// No allocations: ratio should be 0.
+	assert.Equal(t, 0.0, pool.PoolUsedRatio())
+
+	// Allocate half the budget.
+	handles := make([]BufHandle, 8)
+	for i := range handles {
+		handles[i] = mux.Get4K()
+	}
+	ratio := pool.PoolUsedRatio()
+	assert.InDelta(t, 0.5, ratio, 0.01, "half budget used")
+
+	for _, h := range handles {
+		mux.Return(h)
+	}
+}
+
+func TestFwdPool_OverflowExhaustedRejectsDispatch(t *testing.T) {
+	// When overflow MixedBufMux is exhausted, DispatchOverflow still accepts
+	// (routes never dropped) but without a pooled buffer.
+	handled := make(chan struct{}, 100)
+	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		for range items {
+			handled <- struct{}{}
+		}
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	mux := newMixedBufMux()
+	mux.SetByteBudget(1) // Tiny budget -- will exhaust immediately.
+	pool.SetOverflowMux(mux)
+
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
+
+	// DispatchOverflow should still return true (routes never dropped).
+	ok := pool.DispatchOverflow(key, fwdItem{})
+	assert.True(t, ok, "DispatchOverflow must not drop routes even when exhausted")
+}
+
+func TestFwdPool_RegisterUnregisterPeerPool(t *testing.T) {
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
+
+	pool.RegisterPeerPool(key, 4096)
+	pool.mu.Lock()
+	pp := pool.peerPools[key]
+	pool.mu.Unlock()
+	require.NotNil(t, pp)
+	assert.Equal(t, 64, pp.size())
+	assert.Equal(t, 4096, pp.bufSize)
+
+	pool.UnregisterPeerPool(key)
+	pool.mu.Lock()
+	pp = pool.peerPools[key]
+	pool.mu.Unlock()
+	assert.Nil(t, pp)
+}

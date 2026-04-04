@@ -8,6 +8,8 @@ package reactor
 import (
 	"sync"
 	"sync/atomic"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
 
 // BufHandle is a buffer obtained from a BufMux. The ID and idx fields route
@@ -453,6 +455,107 @@ func combinedMuxUsedRatio(a, b *BufMux) float64 {
 		return 0.0
 	}
 	return min(float64(used)/float64(total), 1.0)
+}
+
+// MixedBufMux is a shared overflow pool that serves both 4K and 64K buffer
+// requests from a single byte budget. Internally it uses two BufMux instances:
+//   - mux4K: 4096-byte buffers, 16 per block (each block = 64K allocation)
+//   - mux64K: 65535-byte buffers, 1 per block (each block = 64K allocation)
+//
+// Both share a combinedBudget so total memory is bounded. Budget is tracked
+// in bytes: a 4K allocation costs 4K against the budget, a 64K allocation
+// costs 64K. Block collapse returns memory when overflow pressure subsides.
+//
+// Thread-safe. All methods may be called from any goroutine.
+type MixedBufMux struct {
+	mux4K  *BufMux
+	mux64K *BufMux
+	budget *combinedBudget
+}
+
+// mixedBufMux4KBlockSize is the number of 4K buffers per block.
+// 16 x 4096 = 65536, matching the 64K block allocation unit.
+const mixedBufMux4KBlockSize = 16
+
+// newMixedBufMux creates a mixed-size overflow pool. Starts with zero blocks
+// and no byte budget (unlimited). Call SetByteBudget to impose a limit.
+func newMixedBufMux() *MixedBufMux {
+	cb := newCombinedBudget(0) // 0 = unlimited initially
+	m4 := newBufMux(message.MaxMsgLen, mixedBufMux4KBlockSize)
+	m4.SetBudget(cb)
+	m64 := newBufMux(message.ExtMsgLen, 1)
+	m64.SetBudget(cb)
+	return &MixedBufMux{
+		mux4K:  m4,
+		mux64K: m64,
+		budget: cb,
+	}
+}
+
+// SetByteBudget sets the total byte budget for the overflow pool.
+// 0 = unlimited. Safe for concurrent use (atomic store).
+func (m *MixedBufMux) SetByteBudget(maxBytes int64) {
+	m.budget.maxBytes.Store(maxBytes)
+}
+
+// ByteBudget returns the current byte budget limit. 0 = unlimited.
+func (m *MixedBufMux) ByteBudget() int64 {
+	return m.budget.maxBytes.Load()
+}
+
+// Get4K returns a 4096-byte buffer handle from a subdivided 64K block.
+// Returns zero-value BufHandle (Buf == nil) when the byte budget is exhausted.
+func (m *MixedBufMux) Get4K() BufHandle {
+	return m.mux4K.Get()
+}
+
+// Get64K returns a 65535-byte buffer handle (one full block).
+// Returns zero-value BufHandle (Buf == nil) when the byte budget is exhausted.
+func (m *MixedBufMux) Get64K() BufHandle {
+	return m.mux64K.Get()
+}
+
+// Return releases a buffer handle back to the correct internal mux.
+// Routes by buffer length: >= ExtMsgLen goes to mux64K, otherwise mux4K.
+func (m *MixedBufMux) Return(h BufHandle) {
+	if h.Buf == nil {
+		return
+	}
+	if len(h.Buf) >= message.ExtMsgLen {
+		m.mux64K.Return(h)
+	} else {
+		m.mux4K.Return(h)
+	}
+}
+
+// Stats returns total allocated and in-use byte counts across both muxes.
+func (m *MixedBufMux) Stats() (totalBytes, usedBytes int64) {
+	return combinedMuxStats(m.mux4K, m.mux64K)
+}
+
+// UsedRatio returns the fraction of byte budget currently in use (0.0 to 1.0).
+// Uses budget bytes (not allocated bytes) as the denominator so the ratio
+// reflects proximity to the configured limit, not just what has been allocated.
+// Returns 0.0 if no budget is set.
+func (m *MixedBufMux) UsedRatio() float64 {
+	budgetMax := m.budget.maxBytes.Load()
+	if budgetMax <= 0 {
+		// No budget limit -- use allocated bytes as denominator.
+		return combinedMuxUsedRatio(m.mux4K, m.mux64K)
+	}
+	_, used := m.Stats()
+	return min(float64(used)/float64(budgetMax), 1.0)
+}
+
+// tryCollapse triggers collapse checks on both internal muxes.
+func (m *MixedBufMux) tryCollapse() {
+	m.mux4K.tryCollapse()
+	m.mux64K.tryCollapse()
+}
+
+// blockCount returns the total number of active blocks across both muxes (for testing).
+func (m *MixedBufMux) blockCount() int {
+	return m.mux4K.blockCount() + m.mux64K.blockCount()
 }
 
 // withCollapseProbe wires a traffic-driven collapse probe to a pool.

@@ -10,6 +10,8 @@ import (
 	"net/netip"
 	"strconv"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
 
 // parsePeerAddrToKey converts a peer address string (bare IP or "ip:port") to a
@@ -117,6 +119,12 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	// Track peer's prefix demand for pool auto-sizing (AC-28).
 	if r.fwdWeights != nil {
 		r.fwdWeights.AddPeer(peer.peerAddrLabel(), totalPrefixMax(settings.PrefixMaximum), len(settings.PrefixMaximum))
+	}
+
+	// Register per-peer pool for steady-state micro-burst absorption.
+	// Default to 4K (standard); re-registered with 64K if Extended Message negotiated.
+	if r.fwdPool != nil {
+		r.fwdPool.RegisterPeerPool(fwdKey{peerAddr: key}, message.MaxMsgLen)
 	}
 
 	// Update Prometheus gauges if metrics are configured.
@@ -258,6 +266,11 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 	// Remove peer's prefix demand from pool auto-sizing (AC-28).
 	if r.fwdWeights != nil {
 		r.fwdWeights.RemovePeer(peer.peerAddrLabel())
+	}
+
+	// Unregister per-peer pool on session teardown.
+	if r.fwdPool != nil {
+		r.fwdPool.UnregisterPeerPool(fwdKey{peerAddr: key})
 	}
 
 	// Check if any other peer uses this listener (same LocalAddress + port)

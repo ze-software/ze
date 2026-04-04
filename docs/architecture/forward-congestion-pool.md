@@ -4,7 +4,9 @@ How ze handles slow destination peers without dropping routes or consuming
 unbounded memory. This document records the design decisions for the overflow
 pool, buffer ownership, weighted access, and backpressure.
 
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdOverflowPool, fwdItem -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdPool, peerPool, fwdItem -->
+<!-- source: internal/component/bgp/reactor/bufmux.go -- MixedBufMux, BufMux, combinedBudget -->
+<!-- source: internal/component/bgp/reactor/forward_pool_weight.go -- overflowPoolBudget, overflowFanOut -->
 <!-- source: internal/component/bgp/reactor/session.go -- bufMux4K, bufMux64K (probedPool), getReadBuffer -->
 
 ## Invariant
@@ -13,14 +15,43 @@ pool, buffer ownership, weighted access, and backpressure.
 it must either buffer the route or tear down the session. Silent discard is
 never acceptable.
 
+## Two-Tier Pool Model
+
+Forward dispatch uses a two-tier pool:
+
+| Tier | Scope | Size | Buffer size | Lifecycle |
+|------|-------|------|-------------|-----------|
+| Per-peer pool | One peer | 64 slots | Negotiated (4K or 64K) | Peer add to peer remove |
+| Shared overflow | All peers | Auto-sized (byte budget) | Mixed: 64K blocks, subdivisible to 4K | Reactor lifetime |
+
+The per-peer pool (`peerPool`) absorbs steady-state traffic and micro-bursts.
+When full, items spill into the shared overflow `MixedBufMux`. When the overflow
+pool is exhausted (byte budget reached), dispatch proceeds without a pool token
+but congestion controller thresholds escalate (denial at 80%, teardown at 95%).
+
 ## Four-Layer Congestion Response
 
 | Layer | Mechanism | Trigger |
 |-------|-----------|---------|
-| 1 | Per-peer channel buffer (existing, 64 items) | Absorbs micro-bursts |
-| 2 | Global overflow pool with weighted access | Channel full |
+| 1 | Per-peer pool (64 slots at negotiated message size) | Absorbs micro-bursts |
+| 2 | Shared overflow MixedBufMux (auto-sized byte budget) | Per-peer pool full |
 | 3 | Buffer denial on culprit source peers (natural TCP backpressure) | Pool filling |
 | 4 | Session teardown (GR-aware, last resort) | Pool exhausted, backpressure insufficient |
+
+## Overflow Sizing Formula
+
+The shared overflow pool byte budget is auto-sized from peer prefix maximums
+using a restart-burst formula (`overflowPoolBudget()` in `forward_pool_weight.go`):
+
+1. `largest` = max peer's `peerBufferDemand(prefixMax, preEOR=true)`
+2. `fanOut` = min(N-1, 2*sqrt(N)), floor 1
+3. `restartBurst` = largest * fanOut
+4. `steadyContrib` = sum of other peers' `peerBufferDemand(prefixMax, false)` * 0.1
+5. `totalSlots` = restartBurst + steadyContrib, floor 64
+6. Convert to bytes using per-peer negotiated sizes (4K or 64K per slot)
+
+The formula is recalculated when peers are added, removed, or complete EOR.
+`ze.fwd.pool.size` overrides auto-sizing when set (operator escape hatch).
 
 ## Pool Capacity Tracks Peer Set
 
