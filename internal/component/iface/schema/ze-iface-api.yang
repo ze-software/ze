@@ -1,0 +1,55 @@
+module ze-iface-api {
+    namespace "urn:ze:iface:api";
+    prefix ifaceapi;
+    description "Interface management RPC definitions with typed parameters";
+    revision 2026-04-04 { description "Initial revision"; }
+
+    rpc interface-create-dummy {
+        description "Create a dummy (loopback-like) interface";
+        input { leaf name { type string; mandatory true; description "Interface name"; } }
+    }
+    rpc interface-create-veth {
+        description "Create a veth pair";
+        input {
+            leaf name { type string; mandatory true; description "Interface name"; }
+            leaf peer { type string; mandatory true; description "Peer interface name"; }
+        }
+    }
+    rpc interface-delete {
+        description "Delete an interface";
+        input { leaf name { type string; mandatory true; description "Interface name"; } }
+    }
+    rpc interface-addr-add {
+        description "Add an IP address to an interface";
+        input {
+            leaf name { type string; mandatory true; description "Interface name"; }
+            leaf address { type string; mandatory true; description "IP address in CIDR notation (e.g. 10.0.0.1/24)"; }
+        }
+    }
+    rpc interface-addr-del {
+        description "Remove an IP address from an interface";
+        input {
+            leaf name { type string; mandatory true; description "Interface name"; }
+            leaf address { type string; mandatory true; description "IP address in CIDR notation"; }
+        }
+    }
+    rpc interface-unit-add {
+        description "Add a VLAN logical unit to an interface";
+        input {
+            leaf name { type string; mandatory true; description "Parent interface name"; }
+            leaf vlan-id { type uint16; mandatory true; description "VLAN ID (1-4094)"; }
+        }
+    }
+    rpc interface-unit-del {
+        description "Delete a logical unit from an interface";
+        input { leaf name { type string; mandatory true; description "Interface name (e.g. eth0.100)"; } }
+    }
+    rpc interface-migrate {
+        description "Make-before-break IP migration between interfaces";
+        input {
+            leaf from { type string; mandatory true; description "Source interface.unit (e.g. eth0.0)"; }
+            leaf to { type string; mandatory true; description "Destination interface.unit (e.g. eth1.0)"; }
+            leaf address { type string; mandatory true; description "IP address to migrate (CIDR)"; }
+        }
+    }
+}

@@ -9,6 +9,48 @@ module ze-iface-cmd {
         config false;
         description "Interface operations";
 
+        container create-dummy {
+            config false;
+            ze:command "ze-iface:interface-create-dummy";
+            description "Create a dummy (loopback-like) interface";
+        }
+
+        container create-veth {
+            config false;
+            ze:command "ze-iface:interface-create-veth";
+            description "Create a veth pair";
+        }
+
+        container delete {
+            config false;
+            ze:command "ze-iface:interface-delete";
+            description "Delete an interface";
+        }
+
+        container addr-add {
+            config false;
+            ze:command "ze-iface:interface-addr-add";
+            description "Add an IP address to an interface";
+        }
+
+        container addr-del {
+            config false;
+            ze:command "ze-iface:interface-addr-del";
+            description "Remove an IP address from an interface";
+        }
+
+        container unit-add {
+            config false;
+            ze:command "ze-iface:interface-unit-add";
+            description "Add a VLAN logical unit to an interface";
+        }
+
+        container unit-del {
+            config false;
+            ze:command "ze-iface:interface-unit-del";
+            description "Delete a logical unit from an interface";
+        }
+
         container migrate {
             config false;
             ze:command "ze-iface:interface-migrate";

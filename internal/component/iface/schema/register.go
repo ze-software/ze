@@ -5,6 +5,7 @@ import (
 )
 
 func init() {
+	yang.RegisterModule("ze-iface-api.yang", ZeIfaceAPIYANG)
 	yang.RegisterModule("ze-iface-conf.yang", ZeIfaceConfYANG)
 	yang.RegisterModule("ze-iface-cmd.yang", ZeIfaceCmdYANG)
 }

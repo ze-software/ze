@@ -3,6 +3,9 @@ package schema
 
 import _ "embed"
 
+//go:embed ze-iface-api.yang
+var ZeIfaceAPIYANG string
+
 //go:embed ze-iface-conf.yang
 var ZeIfaceConfYANG string
 

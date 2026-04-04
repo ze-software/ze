@@ -21,6 +21,13 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:interface-create-dummy", Handler: handleCreateDummy},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:interface-create-veth", Handler: handleCreateVeth},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:interface-delete", Handler: handleDelete},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:interface-addr-add", Handler: handleAddrAdd},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:interface-addr-del", Handler: handleAddrDel},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:interface-unit-add", Handler: handleUnitAdd},
+		pluginserver.RPCRegistration{WireMethod: "ze-iface:interface-unit-del", Handler: handleUnitDel},
 		pluginserver.RPCRegistration{WireMethod: "ze-iface:interface-migrate", Handler: handleInterfaceMigrate},
 	)
 }
