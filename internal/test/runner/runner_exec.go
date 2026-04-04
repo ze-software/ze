@@ -606,12 +606,23 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// fork+exec in another test goroutine holds a write-open fd to the
 		// script between fork and execve (see https://go.dev/issue/22315).
 		var startErr error
-		for range 3 {
+		for attempt := range 3 {
+			if attempt > 0 {
+				time.Sleep(10 * time.Millisecond)
+				// Go 1.25+ marks Cmd as started even on failure (go.dev/issue/77075),
+				// so Start cannot be retried on the same Cmd. Create a fresh one.
+				old := proc
+				proc = exec.CommandContext(testCtx, binPath, args...) //nolint:gosec // test runner
+				proc.Env = old.Env
+				proc.Dir = old.Dir
+				proc.Stdin = old.Stdin
+				proc.Stdout = old.Stdout
+				proc.Stderr = old.Stderr
+			}
 			startErr = proc.Start()
 			if startErr == nil || !errors.Is(startErr, syscall.ETXTBSY) {
 				break
 			}
-			time.Sleep(10 * time.Millisecond)
 		}
 		if startErr != nil {
 			rec.Error = fmt.Errorf("start %s: %w", binName, startErr)

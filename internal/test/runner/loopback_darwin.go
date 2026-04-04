@@ -18,9 +18,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// sockaddrInSize is the size of BSD sockaddr_in (used in struct layout comments).
-const sockaddrInSize = 16
-
 // sockaddrIn is the BSD sockaddr_in layout (16 bytes).
 type sockaddrIn struct {
 	Len    uint8
@@ -52,9 +49,9 @@ func ensureLoopbackAlias(ip net.IP) error {
 	}
 
 	// Check if the address is already usable.
-	ln, err := net.Listen("tcp", net.JoinHostPort(ip.String(), "0"))
+	ln, err := net.Listen("tcp", net.JoinHostPort(ip.String(), "0")) //nolint:noctx // probe-only, no cancellation needed
 	if err == nil {
-		ln.Close()
+		ln.Close() //nolint:errcheck // probe listener, result irrelevant
 		return nil // Already available.
 	}
 
@@ -62,7 +59,7 @@ func ensureLoopbackAlias(ip net.IP) error {
 	if err != nil {
 		return fmt.Errorf("ensureLoopbackAlias: socket: %w", err)
 	}
-	defer unix.Close(fd)
+	defer unix.Close(fd) //nolint:errcheck // deferred close on best-effort ioctl fd
 
 	var req inIfaliasreq
 	copy(req.Name[:], "lo0")
@@ -75,7 +72,9 @@ func ensureLoopbackAlias(ip net.IP) error {
 
 	// SIOCAIFADDR is idempotent -- adding an existing alias is not an error.
 	// unix.SIOCAIFADDR = 0x8040691a = _IOW('i', 26, 64) on darwin/freebsd.
-	if _, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd),
+	// SYS_IOCTL is deprecated (SA1019) but x/sys/unix has no exported ioctlPtr
+	// for custom struct arguments -- only typed wrappers (Winsize, Termios, etc.).
+	if _, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), //nolint:staticcheck,gosec // no generic ioctl-with-pointer in x/sys/unix; unsafe required for ioctl struct
 		uintptr(unix.SIOCAIFADDR), uintptr(unsafe.Pointer(&req))); errno != 0 {
 		return fmt.Errorf("ensureLoopbackAlias: ioctl SIOCAIFADDR %v on lo0: %w", ip, errno)
 	}
