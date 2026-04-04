@@ -13,6 +13,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
+// yangTrue is the string representation of boolean true in YANG config JSON.
+const yangTrue = "true"
+
 // ifaceConfig is the parsed representation of the interface config section.
 type ifaceConfig struct {
 	Backend  string
@@ -56,6 +59,27 @@ type unitEntry struct {
 	VLANID    int
 	Addresses []string
 	Disable   bool
+	IPv4      *ipv4Sysctl
+	IPv6      *ipv6Sysctl
+}
+
+// ipv4Sysctl holds per-interface IPv4 sysctl settings.
+// Pointer fields: nil = not configured (leave OS default), non-nil = set.
+type ipv4Sysctl struct {
+	Forwarding  *bool
+	ArpFilter   *bool
+	ArpAccept   *bool
+	ProxyARP    *bool
+	ArpAnnounce *int
+	ArpIgnore   *int
+	RPFilter    *int
+}
+
+// ipv6Sysctl holds per-interface IPv6 sysctl settings.
+type ipv6Sysctl struct {
+	Autoconf   *bool
+	AcceptRA   *int
+	Forwarding *bool
 }
 
 // parseIfaceSections finds the "interface" section and parses it.
@@ -126,7 +150,7 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 			m, _ := v.(map[string]any)
 			entry := bridgeEntry{ifaceEntry: parseIfaceEntry(name, m)}
 			if stp, ok := m["stp"].(string); ok {
-				entry.STP = stp == "true"
+				entry.STP = stp == yangTrue
 			}
 			if members, ok := m["member"].([]any); ok {
 				for _, mem := range members {
@@ -184,10 +208,96 @@ func parseUnits(m map[string]any) []unitEntry {
 				u.Disable = true
 			}
 			u.Addresses = parseStringList(um, "address")
+			u.IPv4 = parseIPv4Sysctl(um)
+			u.IPv6 = parseIPv6Sysctl(um)
 		}
 		units = append(units, u)
 	}
 	return units
+}
+
+func parseIPv4Sysctl(um map[string]any) *ipv4Sysctl {
+	v4, ok := um["ipv4"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	s := &ipv4Sysctl{}
+	set := false
+	if v, ok := v4["forwarding"].(string); ok {
+		b := v == yangTrue
+		s.Forwarding = &b
+		set = true
+	}
+	if v, ok := v4["arp-filter"].(string); ok {
+		b := v == yangTrue
+		s.ArpFilter = &b
+		set = true
+	}
+	if v, ok := v4["arp-accept"].(string); ok {
+		b := v == yangTrue
+		s.ArpAccept = &b
+		set = true
+	}
+	if v, ok := v4["proxy-arp"].(string); ok {
+		b := v == yangTrue
+		s.ProxyARP = &b
+		set = true
+	}
+	if v, ok := v4["arp-announce"].(string); ok {
+		n, err := strconv.Atoi(v)
+		if err == nil {
+			s.ArpAnnounce = &n
+			set = true
+		}
+	}
+	if v, ok := v4["arp-ignore"].(string); ok {
+		n, err := strconv.Atoi(v)
+		if err == nil {
+			s.ArpIgnore = &n
+			set = true
+		}
+	}
+	if v, ok := v4["rp-filter"].(string); ok {
+		n, err := strconv.Atoi(v)
+		if err == nil {
+			s.RPFilter = &n
+			set = true
+		}
+	}
+	if !set {
+		return nil
+	}
+	return s
+}
+
+func parseIPv6Sysctl(um map[string]any) *ipv6Sysctl {
+	v6, ok := um["ipv6"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	s := &ipv6Sysctl{}
+	set := false
+	if v, ok := v6["autoconf"].(string); ok {
+		b := v == yangTrue
+		s.Autoconf = &b
+		set = true
+	}
+	if v, ok := v6["accept-ra"].(string); ok {
+		n, err := strconv.Atoi(v)
+		if err == nil {
+			s.AcceptRA = &n
+			set = true
+		}
+	}
+	if v, ok := v6["forwarding"].(string); ok {
+		b := v == yangTrue
+		s.Forwarding = &b
+		set = true
+	}
+	if !set {
+		return nil
+	}
+	return s
 }
 
 func parseStringList(m map[string]any, key string) []string {
@@ -391,12 +501,25 @@ func applyConfig(cfg *ifaceConfig, b Backend) {
 			if u.Disable {
 				continue
 			}
+			osName := e.Name
 			if u.VLANID > 0 {
 				if err := b.CreateVLAN(e.Name, u.VLANID); err != nil {
 					log.Debug("iface config: create vlan (may already exist)",
 						"parent", e.Name, "vlan", u.VLANID, "err", err)
 				}
+				osName = fmt.Sprintf("%s.%d", e.Name, u.VLANID)
 			}
+			applySysctl(b, osName, u, log)
+		}
+	}
+
+	// Phase 2b: Apply sysctl for loopback units.
+	if cfg.Loopback != nil {
+		for _, u := range cfg.Loopback.Units {
+			if u.Disable {
+				continue
+			}
+			applySysctl(b, "lo", u, log)
 		}
 	}
 
@@ -460,6 +583,65 @@ func applyConfig(cfg *ifaceConfig, b Backend) {
 			log.Warn("iface config: delete unmanaged interface", "name", name, "type", linkType, "err", err)
 		} else {
 			log.Info("iface config: deleted interface not in config", "name", name, "type", linkType)
+		}
+	}
+}
+
+// applySysctl applies per-interface IPv4/IPv6 sysctl settings from a unit config.
+// Only settings explicitly configured (non-nil) are applied; OS defaults are left alone.
+func applySysctl(b Backend, osName string, u unitEntry, log interface{ Warn(string, ...any) }) {
+	if s := u.IPv4; s != nil {
+		if s.Forwarding != nil {
+			if err := b.SetIPv4Forwarding(osName, *s.Forwarding); err != nil {
+				log.Warn("iface config: ipv4 forwarding", "iface", osName, "err", err)
+			}
+		}
+		if s.ArpFilter != nil {
+			if err := b.SetIPv4ArpFilter(osName, *s.ArpFilter); err != nil {
+				log.Warn("iface config: ipv4 arp-filter", "iface", osName, "err", err)
+			}
+		}
+		if s.ArpAccept != nil {
+			if err := b.SetIPv4ArpAccept(osName, *s.ArpAccept); err != nil {
+				log.Warn("iface config: ipv4 arp-accept", "iface", osName, "err", err)
+			}
+		}
+		if s.ProxyARP != nil {
+			if err := b.SetIPv4ProxyARP(osName, *s.ProxyARP); err != nil {
+				log.Warn("iface config: ipv4 proxy-arp", "iface", osName, "err", err)
+			}
+		}
+		if s.ArpAnnounce != nil {
+			if err := b.SetIPv4ArpAnnounce(osName, *s.ArpAnnounce); err != nil {
+				log.Warn("iface config: ipv4 arp-announce", "iface", osName, "err", err)
+			}
+		}
+		if s.ArpIgnore != nil {
+			if err := b.SetIPv4ArpIgnore(osName, *s.ArpIgnore); err != nil {
+				log.Warn("iface config: ipv4 arp-ignore", "iface", osName, "err", err)
+			}
+		}
+		if s.RPFilter != nil {
+			if err := b.SetIPv4RPFilter(osName, *s.RPFilter); err != nil {
+				log.Warn("iface config: ipv4 rp-filter", "iface", osName, "err", err)
+			}
+		}
+	}
+	if s := u.IPv6; s != nil {
+		if s.Autoconf != nil {
+			if err := b.SetIPv6Autoconf(osName, *s.Autoconf); err != nil {
+				log.Warn("iface config: ipv6 autoconf", "iface", osName, "err", err)
+			}
+		}
+		if s.AcceptRA != nil {
+			if err := b.SetIPv6AcceptRA(osName, *s.AcceptRA); err != nil {
+				log.Warn("iface config: ipv6 accept-ra", "iface", osName, "err", err)
+			}
+		}
+		if s.Forwarding != nil {
+			if err := b.SetIPv6Forwarding(osName, *s.Forwarding); err != nil {
+				log.Warn("iface config: ipv6 forwarding", "iface", osName, "err", err)
+			}
 		}
 	}
 }
