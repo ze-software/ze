@@ -577,6 +577,392 @@ func TestMixedBufMux_Stats(t *testing.T) {
 	m.Return(h64)
 }
 
+func TestMixedBufMux_CollapseTombstoneReuse(t *testing.T) {
+	// Collapse nils blocks, tombstones their slots. Next growth reuses the slots.
+	// Verifies block IDs remain stable through the cycle.
+	m := newMixedBufMux()
+	m.SetByteBudget(overflowChunkBlocks * overflowBlockSize) // exactly 1 chunk
+
+	// Allocate and return a 4K slice to create an active then free block.
+	h := m.Get4K()
+	if h.Buf == nil {
+		t.Fatal("Get4K should succeed")
+	}
+	blockID := h.ID
+	m.Return(h)
+
+	// Block is now free. liveBlocks = chunk size (16).
+	m.mu.Lock()
+	liveBefore := m.liveBlocks
+	freeBefore := len(m.free)
+	m.mu.Unlock()
+
+	// Collapse: should nil free blocks, creating tombstones.
+	m.tryCollapse()
+
+	m.mu.Lock()
+	liveAfter := m.liveBlocks
+	tombAfter := len(m.tombstones)
+	m.mu.Unlock()
+
+	if liveAfter >= liveBefore {
+		t.Fatalf("collapse should reduce liveBlocks: before=%d after=%d", liveBefore, liveAfter)
+	}
+	if tombAfter < freeBefore {
+		t.Fatalf("collapse should create tombstones: free=%d tombstones=%d", freeBefore, tombAfter)
+	}
+
+	// Now allocate again -- should reuse tombstoned slots, not grow beyond budget.
+	h2 := m.Get4K()
+	if h2.Buf == nil {
+		t.Fatal("Get4K after collapse should succeed (reuse tombstoned slots)")
+	}
+
+	// The new block should have a valid ID within the original slice range.
+	m.mu.Lock()
+	if int(h2.ID) >= len(m.blocks) || m.blocks[h2.ID] == nil {
+		t.Fatalf("new block ID %d should map to a valid slot", h2.ID)
+	}
+	m.mu.Unlock()
+
+	// Original blockID slot should have been reused or another tombstone was.
+	// Either way, the pool is functional.
+	_ = blockID
+	m.Return(h2)
+}
+
+func TestMixedBufMux_ReturnNonActive(t *testing.T) {
+	// Return to a free block (double return) should log error, not corrupt state.
+	m := newMixedBufMux()
+	h := m.Get64K()
+	m.Return(h)
+	// Block is now free. Second return should be caught.
+	m.Return(h) // should log "return to non-active block", not panic or corrupt
+	// Pool should still be functional.
+	h2 := m.Get4K()
+	if h2.Buf == nil {
+		t.Fatal("pool should be functional after double return")
+	}
+	m.Return(h2)
+}
+
+func TestMixedBufMux_SubdivTransition(t *testing.T) {
+	// Fill one subdivided block (16 slices), then next Get4K opens a new block.
+	m := newMixedBufMux()
+	handles := make([]BufHandle, 17)
+	for i := range 16 {
+		handles[i] = m.Get4K()
+		if handles[i].Buf == nil {
+			t.Fatalf("Get4K #%d returned nil", i)
+		}
+	}
+	// All 16 slices from block 0 are out. Next Get4K must subdivide a new block.
+	handles[16] = m.Get4K()
+	if handles[16].Buf == nil {
+		t.Fatal("Get4K #17 should subdivide a new block")
+	}
+	if handles[16].ID == handles[0].ID {
+		t.Fatal("17th slice should come from a different block than the first 16")
+	}
+	if m.blockCount() != 2 {
+		t.Fatalf("expected 2 active blocks, got %d", m.blockCount())
+	}
+	for _, h := range handles {
+		m.Return(h)
+	}
+}
+
+func TestMixedBufMux_WholeAndSubdivCoexist(t *testing.T) {
+	// Get64K and Get4K from the same pool -- whole and subdivided blocks coexist.
+	m := newMixedBufMux()
+	h64 := m.Get64K()
+	if h64.Buf == nil {
+		t.Fatal("Get64K returned nil")
+	}
+	if len(h64.Buf) != 65535 {
+		t.Fatalf("Get64K buf len = %d, want 65535", len(h64.Buf))
+	}
+	h4 := m.Get4K()
+	if h4.Buf == nil {
+		t.Fatal("Get4K returned nil")
+	}
+	if len(h4.Buf) != 4096 {
+		t.Fatalf("Get4K buf len = %d, want 4096", len(h4.Buf))
+	}
+	// Different blocks.
+	if h64.ID == h4.ID {
+		t.Fatal("whole and subdivided should use different blocks")
+	}
+	if m.blockCount() != 2 {
+		t.Fatalf("expected 2 active blocks, got %d", m.blockCount())
+	}
+	m.Return(h64)
+	m.Return(h4)
+}
+
+func TestMixedBufMux_NonSequentialSliceReturn(t *testing.T) {
+	// Return 16 slices in reverse order -- bitmask must handle any order.
+	m := newMixedBufMux()
+	handles := make([]BufHandle, 16)
+	for i := range handles {
+		handles[i] = m.Get4K()
+	}
+	if m.blockCount() != 1 {
+		t.Fatalf("expected 1 active block, got %d", m.blockCount())
+	}
+	// Return in reverse.
+	for i := 15; i >= 0; i-- {
+		m.Return(handles[i])
+	}
+	// Block should be fully returned and in free list.
+	if m.blockCount() != 0 {
+		t.Fatalf("expected 0 active blocks after full return, got %d", m.blockCount())
+	}
+	// Pool should still work.
+	h := m.Get4K()
+	if h.Buf == nil {
+		t.Fatal("Get4K after full return should succeed (reuses free block)")
+	}
+	m.Return(h)
+}
+
+func TestMixedBufMux_BlockReuseCrossMode(t *testing.T) {
+	// Key spec property: a block used as 64K, returned, then reused as 4K subdivided.
+	m := newMixedBufMux()
+	m.SetByteBudget(overflowBlockSize) // 1 block max
+
+	// Use as 64K whole.
+	h64 := m.Get64K()
+	if h64.Buf == nil {
+		t.Fatal("Get64K returned nil")
+	}
+	blockID := h64.ID
+	m.Return(h64)
+
+	// Same block should now be reusable as subdivided 4K.
+	h4 := m.Get4K()
+	if h4.Buf == nil {
+		t.Fatal("Get4K should reuse the freed block")
+	}
+	if h4.ID != blockID {
+		t.Fatalf("expected reuse of block %d, got block %d", blockID, h4.ID)
+	}
+	if len(h4.Buf) != 4096 {
+		t.Fatalf("reused block should give 4K slice, got len %d", len(h4.Buf))
+	}
+	m.Return(h4)
+
+	// And back to 64K.
+	h64b := m.Get64K()
+	if h64b.Buf == nil {
+		t.Fatal("Get64K should reuse the freed block again")
+	}
+	if h64b.ID != blockID {
+		t.Fatalf("expected reuse of block %d, got block %d", blockID, h64b.ID)
+	}
+	m.Return(h64b)
+}
+
+func TestMixedBufMux_ConcurrentMixed(t *testing.T) {
+	// Concurrent Get4K, Get64K, and Return from multiple goroutines.
+	m := newMixedBufMux()
+	m.SetByteBudget(64 * overflowBlockSize) // 64 blocks = 4MB
+
+	const goroutines = 8
+	const opsPerGoroutine = 200
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for g := range goroutines {
+		go func(id int) {
+			defer wg.Done()
+			for range opsPerGoroutine {
+				if id%2 == 0 {
+					h := m.Get4K()
+					if h.Buf != nil {
+						h.Buf[0] = byte(id)
+						runtime.Gosched()
+						if h.Buf[0] != byte(id) {
+							t.Errorf("goroutine %d: 4K buffer corrupted", id)
+						}
+						m.Return(h)
+					}
+				} else {
+					h := m.Get64K()
+					if h.Buf != nil {
+						h.Buf[0] = byte(id)
+						runtime.Gosched()
+						if h.Buf[0] != byte(id) {
+							t.Errorf("goroutine %d: 64K buffer corrupted", id)
+						}
+						m.Return(h)
+					}
+				}
+			}
+		}(g)
+	}
+	wg.Wait()
+}
+
+func TestMixedBufMux_GrowthAndCollapseCycle(t *testing.T) {
+	// Verify: pool grows under pressure, UsedRatio climbs, collapse returns memory,
+	// ratio drops, regrowth reuses tombstoned slots.
+	m := newMixedBufMux()
+	m.SetByteBudget(4 * overflowChunkBlocks * overflowBlockSize) // 4 chunks = 64 blocks
+
+	// Phase 1: empty pool, ratio = 0.
+	r := m.UsedRatio()
+	if r != 0.0 {
+		t.Fatalf("empty pool ratio = %f, want 0.0", r)
+	}
+
+	// Phase 2: allocate 32 x 4K slices -> 2 subdivided blocks -> triggers 1 chunk (16 blocks).
+	handles := make([]BufHandle, 32)
+	for i := range handles {
+		handles[i] = m.Get4K()
+		if handles[i].Buf == nil {
+			t.Fatalf("Get4K #%d returned nil", i)
+		}
+	}
+	// 1 chunk = 16 live blocks, max = 64 -> ratio = 0.25.
+	r = m.UsedRatio()
+	if r < 0.2 || r > 0.3 {
+		t.Fatalf("after 1 chunk: ratio = %f, want ~0.25", r)
+	}
+
+	// Phase 3: allocate 64K handles to exhaust the first chunk's free blocks (14)
+	// and force a second chunk growth.
+	big := make([]BufHandle, 16) // 14 free + need 2 more -> triggers second chunk
+	for i := range big {
+		big[i] = m.Get64K()
+		if big[i].Buf == nil {
+			t.Fatalf("Get64K #%d returned nil", i)
+		}
+	}
+	// 2 chunks = 32 live blocks, max = 64 -> ratio = 0.5.
+	r2 := m.UsedRatio()
+	if r2 <= r {
+		t.Fatalf("ratio should increase after second chunk growth: was %f, now %f", r, r2)
+	}
+
+	// Phase 4: return everything.
+	for _, h := range handles {
+		m.Return(h)
+	}
+	for _, h := range big {
+		m.Return(h)
+	}
+	// All blocks are free, but still live (memory held). Ratio unchanged.
+	rAfterReturn := m.UsedRatio()
+	if rAfterReturn != r2 {
+		t.Fatalf("return doesn't change ratio (memory still held): was %f, now %f", r2, rAfterReturn)
+	}
+	if m.blockCount() != 0 {
+		t.Fatalf("no active blocks after full return, got %d", m.blockCount())
+	}
+
+	// Phase 5: collapse. Should nil free blocks, drop liveBlocks, ratio drops.
+	m.tryCollapse()
+	rAfterCollapse := m.UsedRatio()
+	if rAfterCollapse >= rAfterReturn {
+		t.Fatalf("collapse should reduce ratio: was %f, now %f", rAfterReturn, rAfterCollapse)
+	}
+
+	// Phase 6: regrow. Should reuse tombstoned slots.
+	m.mu.Lock()
+	tombsBefore := len(m.tombstones)
+	m.mu.Unlock()
+	if tombsBefore == 0 {
+		t.Fatal("collapse should have created tombstones")
+	}
+
+	h := m.Get4K()
+	if h.Buf == nil {
+		t.Fatal("Get4K after collapse should succeed via tombstone reuse")
+	}
+
+	m.mu.Lock()
+	tombsAfter := len(m.tombstones)
+	m.mu.Unlock()
+	if tombsAfter >= tombsBefore {
+		t.Fatalf("growth should consume tombstones: before=%d after=%d", tombsBefore, tombsAfter)
+	}
+	m.Return(h)
+}
+
+func TestMixedBufMux_PartialDrainCollapse(t *testing.T) {
+	// 64K blocks return fast, subdivided blocks drain slowly.
+	// Collapse should free the whole-returned blocks but not touch
+	// the partially-drained subdivided block.
+	m := newMixedBufMux()
+
+	// Allocate: 16 x 4K (1 subdivided block) + 15 x 64K (whole blocks).
+	// All from the same initial chunk of 16 blocks.
+	slices := make([]BufHandle, 16)
+	for i := range slices {
+		slices[i] = m.Get4K()
+	}
+	wholes := make([]BufHandle, 15)
+	for i := range wholes {
+		wholes[i] = m.Get64K()
+	}
+	// 16 active blocks: 1 subdivided + 15 whole.
+	if m.blockCount() != 16 {
+		t.Fatalf("expected 16 active, got %d", m.blockCount())
+	}
+
+	// Return all 64K blocks. They go to free list immediately.
+	for _, h := range wholes {
+		m.Return(h)
+	}
+	// 1 active (subdivided, 16 slices still out), 15 free.
+	if m.blockCount() != 1 {
+		t.Fatalf("expected 1 active after whole returns, got %d", m.blockCount())
+	}
+
+	// Collapse: should nil the 15 free blocks, not the 1 active subdivided block.
+	m.tryCollapse()
+
+	m.mu.Lock()
+	live := m.liveBlocks
+	tombs := len(m.tombstones)
+	m.mu.Unlock()
+
+	if live != 1 {
+		t.Fatalf("after collapse: liveBlocks = %d, want 1 (the subdivided block)", live)
+	}
+	if tombs != 15 {
+		t.Fatalf("after collapse: tombstones = %d, want 15", tombs)
+	}
+	// The subdivided block is still functional.
+	if m.blockCount() != 1 {
+		t.Fatalf("subdivided block should still be active, got %d", m.blockCount())
+	}
+
+	// Return 8 of 16 slices. Block stays active (8 still out).
+	for i := range 8 {
+		m.Return(slices[i])
+	}
+	if m.blockCount() != 1 {
+		t.Fatalf("partially drained block should stay active, got %d", m.blockCount())
+	}
+
+	// Return remaining 8. Block goes to free list.
+	for i := 8; i < 16; i++ {
+		m.Return(slices[i])
+	}
+	if m.blockCount() != 0 {
+		t.Fatalf("fully drained block should be free, got %d active", m.blockCount())
+	}
+
+	// Pool still works: reuses the last free block.
+	h := m.Get4K()
+	if h.Buf == nil {
+		t.Fatal("pool should work after partial drain cycle")
+	}
+	m.Return(h)
+}
+
 func TestBufMux_ConcurrentGetReturn(t *testing.T) {
 	// VALIDATES: AC-26 -- concurrent access from multiple goroutines is safe.
 	// PREVENTS: Race conditions in Get/Return under contention.

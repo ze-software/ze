@@ -472,20 +472,30 @@ func combinedMuxUsedRatio(a, b *BufMux) float64 {
 // A block returned to the free list can be reused for either mode next time.
 // This avoids partitioning memory between 4K and 64K request paths.
 //
-// Budget bounds total allocated blocks (active + free). The congestion
-// controller polls UsedRatio() = totalBlocks / maxBlocks for graduated
-// backpressure (80% denial, 95% teardown). Get returns nil when at max
-// capacity with no free blocks.
+// Block ID = slot index in the blocks slice. Slots are never moved or swapped.
+// Collapsed blocks are nil'd (tombstoned) and their indices are reused on
+// growth. The slice only grows up to maxBlocks and never shrinks. At 50K
+// blocks the overhead is 400KB -- negligible next to GB of backing memory.
+//
+// Budget bounds total live blocks (non-nil entries). The congestion controller
+// polls UsedRatio() = liveBlocks / maxBlocks for graduated backpressure
+// (80% denial, 95% teardown). Get returns nil when at max capacity.
 //
 // Thread-safe. All methods may be called from any goroutine.
 type MixedBufMux struct {
-	mu        sync.Mutex
-	chunks    [][]byte         // backing arrays, each overflowChunkBlocks * 64K
-	blocks    []*overflowBlock // all blocks indexed by ID
-	active    map[uint32]bool  // block IDs with outstanding handles
-	free      []uint32         // block IDs available for reuse
-	maxBlocks int              // hard ceiling (0 = unlimited)
-	minBlocks int              // floor: never collapse below this
+	mu         sync.Mutex
+	blocks     []*overflowBlock // indexed by block ID; nil = collapsed slot
+	active     map[uint32]bool  // block IDs with outstanding handles
+	free       []uint32         // block IDs available for reuse (non-nil, no handles out)
+	tombstones []uint32         // nil'd slot indices, reusable on next chunk growth
+	liveBlocks int              // count of non-nil entries in blocks (active + free)
+	maxBlocks  int              // hard ceiling (0 = unlimited)
+	minBlocks  int              // floor: never collapse below this
+	subdiv     *overflowBlock   // current subdivided block with free slices (fast path)
+	// No chunks slice. Each overflowBlock.backing is a slice into its chunk's
+	// underlying array. Go GC keeps the array alive as long as any slice
+	// references it. When all blocks in a chunk are tombstoned (nil'd), no
+	// slices remain and the array is collected.
 }
 
 // overflowBlockSize is the backing size for each block (64K).
@@ -502,7 +512,7 @@ const overflowChunkBlocks = 16
 // overflowBlock tracks one 64K region within a chunk.
 type overflowBlock struct {
 	backing []byte // 64K slice into parent chunk
-	id      uint32
+	id      uint32 // stable: slot index in MixedBufMux.blocks, never changes
 
 	// Mode: whole = entire block handed out as one handle.
 	// When false and sliceOut > 0, block is subdivided with slices out.
@@ -587,31 +597,42 @@ func (m *MixedBufMux) ByteBudget() int64 {
 }
 
 // Get4K returns a 4096-byte buffer from a subdivided 64K block.
-// Reuses an existing subdivided block with free slices, or takes a free block
-// and subdivides it, or grows the pool. Returns zero BufHandle when at capacity.
+// Fast path: reuses the current subdivided block. Slow path: finds another
+// or acquires a new block. Returns zero BufHandle when at capacity.
 func (m *MixedBufMux) Get4K() BufHandle {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// 1. Find an active subdivided block with free slices.
+	// Fast path: current subdivided block has free slices.
+	if m.subdiv != nil && m.subdiv.sliceFree != 0 {
+		idx, buf := m.subdiv.getSlice()
+		if idx >= 0 {
+			return BufHandle{ID: m.subdiv.id, idx: idx, Buf: buf}
+		}
+	}
+	m.subdiv = nil
+
+	// Slow path: find another active subdivided block with free slices.
 	for id := range m.active {
 		b := m.blocks[id]
 		if b.whole || b.sliceFree == 0 {
 			continue
 		}
+		m.subdiv = b
 		idx, buf := b.getSlice()
 		if idx >= 0 {
 			return BufHandle{ID: b.id, idx: idx, Buf: buf}
 		}
 	}
 
-	// 2. Take a free block or grow a new chunk.
+	// Acquire a new block and subdivide.
 	b := m.acquireBlockLocked()
 	if b == nil {
 		return BufHandle{} // at capacity
 	}
 	b.initSubdivided()
 	m.active[b.id] = true
+	m.subdiv = b
 	idx, buf := b.getSlice()
 	return BufHandle{ID: b.id, idx: idx, Buf: buf}
 }
@@ -631,9 +652,9 @@ func (m *MixedBufMux) Get64K() BufHandle {
 	return BufHandle{ID: b.id, idx: 0, Buf: b.backing[:message.ExtMsgLen]}
 }
 
-// Return releases a buffer handle back to the pool. Routes by buffer length.
-// When all 16 slices of a subdivided block are back, the block goes to the free list.
-// Whole blocks go to the free list immediately.
+// Return releases a buffer handle back to the pool. Routes by block mode
+// (whole vs subdivided), not by buffer length. Whole blocks go to the free
+// list immediately. Subdivided blocks go to the free list when all 16 slices return.
 func (m *MixedBufMux) Return(h BufHandle) {
 	if h.Buf == nil {
 		return
@@ -641,8 +662,12 @@ func (m *MixedBufMux) Return(h BufHandle) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if int(h.ID) >= len(m.blocks) {
+	if int(h.ID) >= len(m.blocks) || m.blocks[h.ID] == nil {
 		fwdLogger().Error("mixedbuf: return to unknown block", "blockID", h.ID)
+		return
+	}
+	if !m.active[h.ID] {
+		fwdLogger().Error("mixedbuf: return to non-active block", "blockID", h.ID)
 		return
 	}
 	b := m.blocks[h.ID]
@@ -656,71 +681,54 @@ func (m *MixedBufMux) Return(h BufHandle) {
 
 	allBack := b.putSlice(h.idx)
 	if allBack {
+		if m.subdiv == b {
+			m.subdiv = nil
+		}
 		delete(m.active, b.id)
 		m.free = append(m.free, b.id)
 	}
 }
 
 // Stats returns total allocated bytes and in-use bytes.
-// Total = all blocks (active + free) * 64K. Used = active blocks * 64K.
+// Total = live blocks (active + free) * 64K. Used = active blocks * 64K.
 func (m *MixedBufMux) Stats() (totalBytes, usedBytes int64) {
 	m.mu.Lock()
-	total := int64(len(m.blocks)) * overflowBlockSize
+	total := int64(m.liveBlocks) * overflowBlockSize
 	used := int64(len(m.active)) * overflowBlockSize
 	m.mu.Unlock()
 	return total, used
 }
 
-// UsedRatio returns totalBlocks / maxBlocks (0.0 to 1.0).
-// This reflects real memory pressure -- allocated blocks (active + free)
-// against the hard ceiling. The congestion controller uses this for
-// 80% denial and 95% teardown. Returns 0.0 when unlimited.
+// UsedRatio returns liveBlocks / maxBlocks (0.0 to 1.0).
+// This reflects real memory pressure -- live blocks (active + free, all
+// holding backing memory) against the hard ceiling. The congestion
+// controller uses this for 80% denial and 95% teardown. Returns 0.0
+// when unlimited.
 func (m *MixedBufMux) UsedRatio() float64 {
 	m.mu.Lock()
 	maxB := m.maxBlocks
-	totalB := len(m.blocks)
+	live := m.liveBlocks
 	m.mu.Unlock()
 	if maxB <= 0 {
 		return 0.0
 	}
-	return min(float64(totalB)/float64(maxB), 1.0)
+	return min(float64(live)/float64(maxB), 1.0)
 }
 
-// tryCollapse releases free blocks above minBlocks. Frees the backing
-// memory (chunk references become unreachable when all blocks in a chunk
-// are released). Called on a traffic-driven interval.
+// tryCollapse nils free blocks above minBlocks, returning their slot indices
+// to the tombstone list for reuse on next growth. Nil'ing a block drops its
+// backing slice reference. When all blocks from a chunk are nil'd, no slices
+// pin the chunk's underlying array and GC collects it.
+// Called on a traffic-driven interval.
 func (m *MixedBufMux) tryCollapse() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	// Release free blocks until we're at minBlocks or out of free blocks.
-	// Swap-delete from blocks slice to keep it dense.
-	for len(m.free) > 0 && len(m.blocks) > m.minBlocks {
-		freeID := m.free[len(m.free)-1]
+	for len(m.free) > 0 && m.liveBlocks > m.minBlocks {
+		id := m.free[len(m.free)-1]
 		m.free = m.free[:len(m.free)-1]
-
-		lastIdx := len(m.blocks) - 1
-		freeIdx := int(freeID)
-		if freeIdx != lastIdx {
-			// Move last block into the freed slot.
-			moved := m.blocks[lastIdx]
-			m.blocks[freeIdx] = moved
-			oldID := moved.id
-			moved.id = uint32(freeIdx)
-			// Update active/free references.
-			if m.active[oldID] {
-				delete(m.active, oldID)
-				m.active[moved.id] = true
-			} else {
-				for i, id := range m.free {
-					if id == oldID {
-						m.free[i] = moved.id
-						break
-					}
-				}
-			}
-		}
-		m.blocks[lastIdx] = nil
-		m.blocks = m.blocks[:lastIdx]
+		m.blocks[id] = nil // tombstone: backing unreferenced
+		m.tombstones = append(m.tombstones, id)
+		m.liveBlocks--
 	}
 }
 
@@ -733,23 +741,30 @@ func (m *MixedBufMux) blockCount() int {
 
 // acquireBlockLocked returns a free block or grows the pool.
 // Returns nil if at max capacity. Caller must hold mu.
+//
+// Hot path (free list non-empty): zero allocations -- returns a pre-existing block.
+// Cold path (growth): two make() calls amortized over N blocks:
+//   - make([]byte, N*64K) for buffer backing memory
+//   - make([]overflowBlock, N) for block metadata
+//
+// All per-block work is slicing into these arrays, no per-block heap allocation.
 func (m *MixedBufMux) acquireBlockLocked() *overflowBlock {
-	// Reuse a free block.
+	// Hot path: reuse a free block. Zero allocations.
 	if len(m.free) > 0 {
 		id := m.free[len(m.free)-1]
 		m.free = m.free[:len(m.free)-1]
 		return m.blocks[id]
 	}
 
-	// Grow: check budget.
-	if m.maxBlocks > 0 && len(m.blocks) >= m.maxBlocks {
+	// Check budget before growing.
+	if m.maxBlocks > 0 && m.liveBlocks >= m.maxBlocks {
 		return nil
 	}
 
-	// Allocate a chunk of blocks to amortize make().
+	// Cold path: grow a chunk of N blocks with two allocations.
 	needed := overflowChunkBlocks
 	if m.maxBlocks > 0 {
-		remaining := m.maxBlocks - len(m.blocks)
+		remaining := m.maxBlocks - m.liveBlocks
 		if needed > remaining {
 			needed = remaining
 		}
@@ -758,23 +773,31 @@ func (m *MixedBufMux) acquireBlockLocked() *overflowBlock {
 		return nil
 	}
 
-	chunk := make([]byte, needed*overflowBlockSize)
-	m.chunks = append(m.chunks, chunk)
+	backing := make([]byte, needed*overflowBlockSize) // one allocation: buffer memory
+	meta := make([]overflowBlock, needed)             // one allocation: block metadata
 
-	firstID := uint32(len(m.blocks))
+	// Wire each block: slice into backing array, assign stable ID.
+	// No per-block heap allocation -- meta[i] is in the contiguous array.
 	for i := range needed {
-		off := i * overflowBlockSize
-		b := &overflowBlock{
-			backing: chunk[off : off+overflowBlockSize],
-			id:      firstID + uint32(i),
+		b := &meta[i]
+		b.backing = backing[i*overflowBlockSize : (i+1)*overflowBlockSize]
+
+		var id uint32
+		if len(m.tombstones) > 0 {
+			id = m.tombstones[len(m.tombstones)-1]
+			m.tombstones = m.tombstones[:len(m.tombstones)-1]
+		} else {
+			id = uint32(len(m.blocks))
+			m.blocks = append(m.blocks, nil)
 		}
-		m.blocks = append(m.blocks, b)
+		b.id = id
+		m.blocks[id] = b
+		m.liveBlocks++
 		if i > 0 {
-			m.free = append(m.free, b.id)
+			m.free = append(m.free, id)
 		}
 	}
-
-	return m.blocks[firstID]
+	return &meta[0]
 }
 
 // withCollapseProbe wires a traffic-driven collapse probe to a pool.
