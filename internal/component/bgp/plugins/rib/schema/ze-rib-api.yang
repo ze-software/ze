@@ -95,7 +95,7 @@ module ze-rib-api {
 
     rpc best {
         description "Show best-path per prefix (RFC 4271 §9.1.2).
-                     Syntax: rib best [filters...] [terminal]
+                     Syntax: rib show best [filters...] [terminal]
                      Filters: path <pattern>, cidr <prefix>, community <value>,
                               family <afi/safi>, match <text>
                      Terminals: count (metadata only), json (serialized output),

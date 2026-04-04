@@ -375,10 +375,10 @@ func TestFoldServerPipeline(t *testing.T) {
 			wantOpsLen: 0,
 		},
 		{
-			name:       "rib best with path filter",
-			command:    "rib best",
+			name:       "rib show best with path filter",
+			command:    "rib show best",
 			ops:        []pipeOp{{kind: pipeUnknown, arg: "path 65001"}},
-			wantCmd:    "rib best path 65001",
+			wantCmd:    "rib show best path 65001",
 			wantOpsLen: 0,
 		},
 	}

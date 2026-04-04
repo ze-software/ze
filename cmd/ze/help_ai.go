@@ -478,7 +478,7 @@ func printRIBPipeline() {
 	fmt.Println("## RIB Show Pipeline")
 	fmt.Println()
 	fmt.Println("  rib show [scope] [filters...] [terminal]")
-	fmt.Println("  rib best [filters...] [terminal]")
+	fmt.Println("  rib show best [filters...] [terminal]")
 	fmt.Println()
 	fmt.Println("  Scopes (positional, first argument):")
 	fmt.Println("    received         Adj-RIB-In only")
@@ -500,7 +500,7 @@ func printRIBPipeline() {
 	fmt.Println("    rib show received family ipv4/unicast")
 	fmt.Println("    rib show sent cidr 10.0 count")
 	fmt.Println("    rib show received community 65000:100 path ^64501")
-	fmt.Println("    rib best family ipv4/unicast json")
+	fmt.Println("    rib show best family ipv4/unicast json")
 	fmt.Println()
 }
 
@@ -730,7 +730,7 @@ func printRecipes() {
 	fmt.Println()
 	fmt.Println("  Show RIB:")
 	fmt.Println("    ze cli -c \"rib show received family ipv4/unicast\"")
-	fmt.Println("    ze cli -c \"rib best\"")
+	fmt.Println("    ze cli -c \"rib show best\"")
 	fmt.Println()
 	fmt.Println("  Monitor live events:")
 	fmt.Println("    ze cli -c \"bgp monitor\"")

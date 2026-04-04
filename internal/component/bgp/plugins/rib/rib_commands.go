@@ -142,11 +142,11 @@ func doRegisterBuiltinCommands() {
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				return r.purgeStaleCommand(args)
 			}},
-		{[]string{"rib best"}, "Show best-path per prefix",
+		{[]string{"rib show best"}, "Show best-path per prefix",
 			func(r *RIBManager, sel string, args []string) (string, string, error) {
 				return statusDone, r.bestPipeline(sel, args), nil
 			}},
-		{[]string{"rib best status"}, "Show best-path computation status",
+		{[]string{"rib show best status"}, "Show best-path computation status",
 			func(r *RIBManager, _ string, _ []string) (string, string, error) {
 				return statusDone, r.bestPathStatusJSON(), nil
 			}},

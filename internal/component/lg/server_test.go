@@ -22,7 +22,7 @@ func mockDispatch() CommandDispatcher {
 			return `{"count":100}`, nil
 		case strings.HasPrefix(cmd, "rib show"), strings.Contains(cmd, "rib show"):
 			return `{"routes":[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp","as-path":[65001,65002],"local-preference":100,"med":0,"peer-address":"10.0.0.1","community":["65000:100","65001:200"],"large-community":["65000:0:100"]}]}`, nil
-		case strings.HasPrefix(cmd, "rib best"):
+		case strings.HasPrefix(cmd, "rib show best"):
 			return `{"routes":[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp","as-path":[65001],"local-preference":100}]}`, nil
 		}
 		return `{"error":"unknown command"}`, nil

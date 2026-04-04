@@ -2,10 +2,10 @@
 #
 # Flow:
 # 1. Inject routes with AS paths via rib inject
-# 2. Run "rib best graph"
+# 2. Run "rib show best graph"
 # 3. Verify output contains box-drawing characters and ASN labels
 #
-# VALIDATES: AC-6 "rib best graph works with best-path pipeline"
+# VALIDATES: AC-6 "rib show best graph works with best-path pipeline"
 # PREVENTS: Graph terminal only working with show, not best.
 
 # ze-peer expectations
@@ -78,8 +78,8 @@ def main():
     r = dispatch(api, 'rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502')
     check('inject', r, 'done')
 
-    # rib best graph
-    r = dispatch(api, 'rib best graph')
+    # rib show best graph
+    r = dispatch(api, 'rib show best graph')
     check('best-graph', r, 'done')
 
     # Output should contain ASN labels

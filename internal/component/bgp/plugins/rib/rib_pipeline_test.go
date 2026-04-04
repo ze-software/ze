@@ -345,7 +345,7 @@ func TestBuildPipelineFilterKeywordNoValue(t *testing.T) {
 	}
 }
 
-// --- Phase 4: Unified rib show / rib best ---
+// --- Phase 4: Unified rib show / rib show best ---
 
 // TestShowPipelineBothDirections verifies default scope returns both directions.
 //
@@ -930,7 +930,7 @@ func TestGraphTerminalViaPipeline(t *testing.T) {
 
 // TestGraphTerminalViaBestPipeline verifies graph terminal works with best-path pipeline.
 //
-// VALIDATES: AC-6 "rib best graph works."
+// VALIDATES: AC-6 "rib show best graph works."
 // PREVENTS: Graph terminal only working with show, not best.
 func TestGraphTerminalViaBestPipeline(t *testing.T) {
 	r := newTestRIBManager(t)

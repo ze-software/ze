@@ -204,13 +204,13 @@ def main():
     check('combined-filter', r, 'done')
     check_count('combined-filter', r, exact=0)
 
-    # --- rib best with content verification ---
+    # --- rib show best with content verification ---
 
-    r = dispatch(api, 'rib best')
+    r = dispatch(api, 'rib show best')
     check('best-path', r, 'done')
     check_has_key('best-path-content', r, 'best-path')
 
-    r = dispatch(api, 'rib best cidr 0.0.0.0/0')
+    r = dispatch(api, 'rib show best cidr 0.0.0.0/0')
     check('best-cidr', r, 'done')
     check_has_key('best-cidr-content', r, 'best-path')
 

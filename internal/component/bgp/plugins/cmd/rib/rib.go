@@ -20,8 +20,8 @@ import (
 const (
 	cmdRibStatus     = "rib status"
 	cmdRibShow       = "rib show"
-	cmdRibBest       = "rib best"
-	cmdRibBestStatus = "rib best status"
+	cmdRibBest       = "rib show best"
+	cmdRibBestStatus = "rib show best status"
 	cmdRibClearIn    = "rib clear in"
 	cmdRibClearOut   = "rib clear out"
 	cmdRibInject     = "rib inject"

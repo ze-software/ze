@@ -136,7 +136,7 @@ func (s *LGServer) handleAPIRoutesTable(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result := s.query(fmt.Sprintf("rib best %s", family))
+	result := s.query(fmt.Sprintf("rib show best %s", family))
 
 	zeData := parseJSON(result)
 	if zeData == nil {

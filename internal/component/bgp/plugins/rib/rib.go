@@ -5,7 +5,7 @@
 // Detail: bestpath.go — best-path selection algorithm (RFC 4271 §9.1.2)
 // Detail: compaction.go — pool compaction scheduler wiring
 // Detail: rib_pipeline.go — iterator pipeline for show commands (scope, filters, terminals)
-// Detail: rib_pipeline_best.go — best-path pipeline for rib best commands
+// Detail: rib_pipeline_best.go — best-path pipeline for rib show best commands
 //
 // Package rib implements a RIB (Routing Information Base) plugin for ze.
 // It tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out).
@@ -350,8 +350,8 @@ func RunRIBPlugin(conn net.Conn) int {
 			{Name: "rib mark-stale"},
 			{Name: "rib purge-stale"},
 			// Best-path selection (RFC 4271 §9.1.2)
-			{Name: "rib best"},
-			{Name: "rib best status"},
+			{Name: "rib show best"},
+			{Name: "rib show best status"},
 			// Route injection (manual RIB manipulation)
 			{Name: "rib inject"},
 			{Name: "rib withdraw"},
