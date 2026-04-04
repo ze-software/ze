@@ -68,7 +68,7 @@ import (
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.chan.size", Type: "int", Default: "256", Description: "Per-destination forward worker channel capacity"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.write.deadline", Type: "duration", Default: "30s", Description: "TCP write deadline for forward pool batch writes"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: "int", Default: "100000", Description: "Global overflow pool capacity for forward workers (0 = unbounded)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: "int", Default: "0", Description: "Overflow MixedBufMux byte budget override (0 = auto-sized from peer prefix maximums)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.maxbytes", Type: "int64", Default: "0", Description: "Combined byte budget for 4K+64K buffer pools (0 = unlimited)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.batch.limit", Type: "int", Default: "1024", Description: "Max items per forward batch, bounds writeMu hold time (0 = unlimited)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.teardown.grace", Type: "duration", Default: "5s", Description: "Grace period at >95% pool + >2x weight before forced teardown"})
@@ -254,7 +254,7 @@ type Reactor struct {
 	fwdWeights *weightTracker
 
 	// fwdOverflowMux is the shared mixed-size overflow pool for forward dispatch.
-	// When non-nil, replaces the legacy fwdOverflowPool (chan struct{}).
+	// Provides byte-budgeted 4K and 64K buffer handles for overflow items.
 	fwdOverflowMux *MixedBufMux
 
 	// updateGroups indexes established peers by encoding context for
@@ -337,10 +337,10 @@ func New(config *Config) *Reactor {
 	// ze.fwd.chan.size overrides the per-destination forward pool channel capacity.
 	// Default: 64. Invalid/zero/negative values use default.
 	fwdChanSize := env.GetInt("ze.fwd.chan.size", 0)
-	// ze.fwd.pool.size bounds overflow items across all workers.
-	// Default: 100000 (~100K items). 0 = unbounded (legacy behavior).
-	// Negative values treated as 0.
-	fwdPoolSize := max(env.GetInt("ze.fwd.pool.size", 100000), 0)
+	// ze.fwd.pool.size overrides the overflow MixedBufMux byte budget.
+	// Default: 0 (auto-sized from peer prefix maximums). Positive values
+	// set an explicit byte budget. Negative values treated as 0.
+	fwdPoolSize := max(env.GetInt("ze.fwd.pool.size", 0), 0)
 	// ze.fwd.batch.limit caps items per drain-batch, bounding writeMu hold time (AC-24).
 	// Default: 1024. 0 = unlimited. Negative values treated as 0.
 	fwdBatchLimit := max(env.GetInt("ze.fwd.batch.limit", 1024), 0)
@@ -361,9 +361,8 @@ func New(config *Config) *Reactor {
 		listeners:       make(map[string]*Listener),
 		recentUpdates:   NewRecentUpdateCache(maxEntries),
 		fwdPool: newFwdPool(fwdBatchHandler, fwdPoolConfig{
-			chanSize:         fwdChanSize,
-			overflowPoolSize: fwdPoolSize,
-			batchLimit:       fwdBatchLimit,
+			chanSize:   fwdChanSize,
+			batchLimit: fwdBatchLimit,
 		}),
 		configTree:   config.ConfigTree,
 		updateGroups: NewUpdateGroupIndexFromEnv(),
@@ -396,13 +395,14 @@ func New(config *Config) *Reactor {
 	minPoolBudget := int64(bufMuxBlockSize) * (int64(message.MaxMsgLen) + int64(message.ExtMsgLen))
 	overflowMux := r.fwdOverflowMux // capture for closure
 	if explicitMaxBytes <= 0 {
-		r.fwdWeights = newWeightTracker(func(guaranteed, overflow int) {
+		r.fwdWeights = newWeightTracker(func(guaranteed, overflow int, ob overflowBudgetResult) {
 			total := max(int64(guaranteed+overflow)*int64(message.MaxMsgLen)+headroom, minPoolBudget)
 			updateBufMuxBudget(total)
-			// Auto-size the shared overflow pool byte budget when ze.fwd.pool.size
-			// is not explicitly set (fwdPoolSize == 0).
+			// Auto-size the shared overflow pool byte budget from per-peer
+			// prefix maximums and negotiated message sizes.
 			if fwdPoolSize <= 0 {
-				overflowMux.SetByteBudget(total)
+				overflowBytes := max(ob.bytes, minPoolBudget)
+				overflowMux.SetByteBudget(overflowBytes)
 			}
 		})
 	} else {

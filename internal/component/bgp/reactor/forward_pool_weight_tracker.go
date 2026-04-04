@@ -18,9 +18,10 @@ type weightTracker struct {
 	peers map[string]*peerWeight // key: peer address
 
 	// onBudgetChanged is called after every recalculation with the new
-	// guaranteed and overflow buffer counts. Called outside wt.mu to
-	// avoid holding the lock during external operations. May be nil.
-	onBudgetChanged func(guaranteed, overflow int)
+	// guaranteed and overflow buffer counts plus the overflow byte budget
+	// from overflowPoolBudget(). Called outside wt.mu to avoid holding
+	// the lock during external operations. May be nil.
+	onBudgetChanged func(guaranteed, overflow int, ob overflowBudgetResult)
 }
 
 // peerWeight holds the sizing inputs for one peer.
@@ -29,12 +30,13 @@ type peerWeight struct {
 	preEOR       bool // true until all family EORs received
 	familyCount  int  // number of families (from PrefixMaximum map)
 	eorsReceived int  // EORs received so far
+	extMsg       bool // true if Extended Message (RFC 8654) negotiated
 }
 
 // newWeightTracker creates a weight tracker. The callback fires on every
-// peer set change with the new (guaranteed, overflow) buffer counts.
-// Callback may be nil.
-func newWeightTracker(onBudgetChanged func(guaranteed, overflow int)) *weightTracker {
+// peer set change with the new (guaranteed, overflow) buffer counts and
+// overflow byte budget. Callback may be nil.
+func newWeightTracker(onBudgetChanged func(guaranteed, overflow int, ob overflowBudgetResult)) *weightTracker {
 	return &weightTracker{
 		peers:           make(map[string]*peerWeight),
 		onBudgetChanged: onBudgetChanged,
@@ -55,9 +57,9 @@ func (wt *weightTracker) AddPeer(peerAddr string, prefixMax uint32, familyCount 
 		preEOR:      true,
 		familyCount: familyCount,
 	}
-	g, o := wt.budgetLocked()
+	g, o, ob := wt.budgetLocked()
 	wt.mu.Unlock()
-	wt.fireCallback(g, o)
+	wt.fireCallback(g, o, ob)
 }
 
 // RemovePeer removes a peer from tracking. Recalculates pool budget.
@@ -69,9 +71,9 @@ func (wt *weightTracker) RemovePeer(peerAddr string) {
 		return
 	}
 	delete(wt.peers, peerAddr)
-	g, o := wt.budgetLocked()
+	g, o, ob := wt.budgetLocked()
 	wt.mu.Unlock()
-	wt.fireCallback(g, o)
+	wt.fireCallback(g, o, ob)
 }
 
 // PeerEORReceived records one EOR received for a peer. When the count
@@ -92,9 +94,9 @@ func (wt *weightTracker) PeerEORReceived(peerAddr string) {
 	}
 	// All family EORs received (or familyCount==0): transition to post-EOR.
 	pw.preEOR = false
-	g, o := wt.budgetLocked()
+	g, o, ob := wt.budgetLocked()
 	wt.mu.Unlock()
-	wt.fireCallback(g, o)
+	wt.fireCallback(g, o, ob)
 }
 
 // PeerEORComplete transitions a peer from pre-EOR to post-EOR demand
@@ -109,9 +111,9 @@ func (wt *weightTracker) PeerEORComplete(peerAddr string) {
 		return
 	}
 	pw.preEOR = false
-	g, o := wt.budgetLocked()
+	g, o, ob := wt.budgetLocked()
 	wt.mu.Unlock()
-	wt.fireCallback(g, o)
+	wt.fireCallback(g, o, ob)
 }
 
 // UpdateFamilyCount updates the expected EOR count for a peer based on
@@ -129,9 +131,9 @@ func (wt *weightTracker) UpdateFamilyCount(peerAddr string, negotiatedFamilies i
 	// If EORs already received >= new count, transition now.
 	if negotiatedFamilies > 0 && pw.eorsReceived >= negotiatedFamilies {
 		pw.preEOR = false
-		g, o := wt.budgetLocked()
+		g, o, ob := wt.budgetLocked()
 		wt.mu.Unlock()
-		wt.fireCallback(g, o)
+		wt.fireCallback(g, o, ob)
 		return
 	}
 	wt.mu.Unlock()
@@ -222,6 +224,27 @@ func (wt *weightTracker) WorstPeerRatio(overflowDepths map[string]int) (worstAdd
 	return worstAddr, worstRatio
 }
 
+// UpdateExtMsg updates the Extended Message flag for a peer after session
+// negotiation. When Extended Message (RFC 8654) is agreed, the peer's
+// overflow budget uses 64K buffers instead of 4K. Recalculates pool budget.
+// No-op if peer is unknown.
+func (wt *weightTracker) UpdateExtMsg(peerAddr string, extMsg bool) {
+	wt.mu.Lock()
+	pw, ok := wt.peers[peerAddr]
+	if !ok {
+		wt.mu.Unlock()
+		return
+	}
+	if pw.extMsg == extMsg {
+		wt.mu.Unlock()
+		return // no change
+	}
+	pw.extMsg = extMsg
+	g, o, ob := wt.budgetLocked()
+	wt.mu.Unlock()
+	wt.fireCallback(g, o, ob)
+}
+
 // demandsLocked returns the current buffer demand for each peer.
 // Caller must hold wt.mu.
 func (wt *weightTracker) demandsLocked() []int {
@@ -232,19 +255,36 @@ func (wt *weightTracker) demandsLocked() []int {
 	return demands
 }
 
+// overflowInputsLocked returns the overflow sizing inputs for all peers.
+// Caller must hold wt.mu.
+func (wt *weightTracker) overflowInputsLocked() []overflowPeerInput {
+	inputs := make([]overflowPeerInput, 0, len(wt.peers))
+	for _, pw := range wt.peers {
+		inputs = append(inputs, overflowPeerInput{
+			prefixMax: pw.prefixMax,
+			extMsg:    pw.extMsg,
+		})
+	}
+	return inputs
+}
+
 // budgetLocked computes the current pool budget under the lock.
-// Caller must hold wt.mu. Returns (-1, -1) if no callback is set.
-func (wt *weightTracker) budgetLocked() (guaranteed, overflow int) {
+// Returns guaranteed/overflow buffer counts and the overflow byte budget.
+// Caller must hold wt.mu. Returns (-1, -1, zero) if no callback is set.
+func (wt *weightTracker) budgetLocked() (guaranteed, overflow int, ob overflowBudgetResult) {
 	if wt.onBudgetChanged == nil {
-		return -1, -1
+		return -1, -1, overflowBudgetResult{}
 	}
 	demands := wt.demandsLocked()
-	return calculatePoolBudget(demands)
+	guaranteed, overflow = calculatePoolBudget(demands)
+	inputs := wt.overflowInputsLocked()
+	ob = overflowPoolBudget(inputs)
+	return guaranteed, overflow, ob
 }
 
 // fireCallback calls onBudgetChanged if set. Must be called outside wt.mu.
-func (wt *weightTracker) fireCallback(guaranteed, overflow int) {
+func (wt *weightTracker) fireCallback(guaranteed, overflow int, ob overflowBudgetResult) {
 	if wt.onBudgetChanged != nil && guaranteed >= 0 {
-		wt.onBudgetChanged(guaranteed, overflow)
+		wt.onBudgetChanged(guaranteed, overflow, ob)
 	}
 }

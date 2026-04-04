@@ -10,7 +10,7 @@ import (
 
 func TestWeightTracker_AddPeer(t *testing.T) {
 	var lastGuaranteed, lastOverflow int
-	wt := newWeightTracker(func(guaranteed, overflow int) {
+	wt := newWeightTracker(func(guaranteed, overflow int, _ overflowBudgetResult) {
 		lastGuaranteed = guaranteed
 		lastOverflow = overflow
 	})
@@ -32,7 +32,7 @@ func TestWeightTracker_AddPeer(t *testing.T) {
 
 func TestWeightTracker_RemovePeer(t *testing.T) {
 	var lastGuaranteed, lastOverflow int
-	wt := newWeightTracker(func(guaranteed, overflow int) {
+	wt := newWeightTracker(func(guaranteed, overflow int, _ overflowBudgetResult) {
 		lastGuaranteed = guaranteed
 		lastOverflow = overflow
 	})
@@ -56,7 +56,7 @@ func TestWeightTracker_RemovePeer(t *testing.T) {
 
 func TestWeightTracker_RemoveNonexistent(t *testing.T) {
 	var callCount int
-	wt := newWeightTracker(func(_, _ int) { callCount++ })
+	wt := newWeightTracker(func(_, _ int, _ overflowBudgetResult) { callCount++ })
 
 	wt.AddPeer("10.0.0.1", 1000, 1)
 	callCount = 0
@@ -72,7 +72,7 @@ func TestWeightTracker_RemoveNonexistent(t *testing.T) {
 
 func TestWeightTracker_EORTransition(t *testing.T) {
 	var lastGuaranteed int
-	wt := newWeightTracker(func(guaranteed, _ int) {
+	wt := newWeightTracker(func(guaranteed, _ int, _ overflowBudgetResult) {
 		lastGuaranteed = guaranteed
 	})
 
@@ -90,7 +90,7 @@ func TestWeightTracker_EORTransition(t *testing.T) {
 func TestWeightTracker_EORReceivedIncremental(t *testing.T) {
 	var callCount int
 	var lastGuaranteed int
-	wt := newWeightTracker(func(guaranteed, _ int) {
+	wt := newWeightTracker(func(guaranteed, _ int, _ overflowBudgetResult) {
 		callCount++
 		lastGuaranteed = guaranteed
 	})
@@ -118,7 +118,7 @@ func TestWeightTracker_EORReceivedIncremental(t *testing.T) {
 
 func TestWeightTracker_EORNonexistent(t *testing.T) {
 	var callCount int
-	wt := newWeightTracker(func(_, _ int) { callCount++ })
+	wt := newWeightTracker(func(_, _ int, _ overflowBudgetResult) { callCount++ })
 	callCount = 0
 
 	wt.PeerEORComplete("10.0.0.99") // does not exist
@@ -129,7 +129,7 @@ func TestWeightTracker_EORNonexistent(t *testing.T) {
 
 func TestWeightTracker_EORAlreadyPostEOR(t *testing.T) {
 	var callCount int
-	wt := newWeightTracker(func(_, _ int) { callCount++ })
+	wt := newWeightTracker(func(_, _ int, _ overflowBudgetResult) { callCount++ })
 
 	wt.AddPeer("10.0.0.1", 1000, 1)
 	wt.PeerEORComplete("10.0.0.1")
@@ -143,7 +143,7 @@ func TestWeightTracker_EORAlreadyPostEOR(t *testing.T) {
 
 func TestWeightTracker_MultiplePeers(t *testing.T) {
 	var lastGuaranteed, lastOverflow int
-	wt := newWeightTracker(func(guaranteed, overflow int) {
+	wt := newWeightTracker(func(guaranteed, overflow int, _ overflowBudgetResult) {
 		lastGuaranteed = guaranteed
 		lastOverflow = overflow
 	})
@@ -180,7 +180,7 @@ func TestWeightTracker_MultiplePeers(t *testing.T) {
 }
 
 func TestWeightTracker_PeerDemand(t *testing.T) {
-	wt := newWeightTracker(func(_, _ int) {})
+	wt := newWeightTracker(func(_, _ int, _ overflowBudgetResult) {})
 
 	wt.AddPeer("10.0.0.1", 100000, 1)
 	// Pre-EOR demand.
@@ -201,7 +201,7 @@ func TestWeightTracker_PeerDemand(t *testing.T) {
 }
 
 func TestWeightTracker_TotalBudget(t *testing.T) {
-	wt := newWeightTracker(func(_, _ int) {})
+	wt := newWeightTracker(func(_, _ int, _ overflowBudgetResult) {})
 
 	wt.AddPeer("10.0.0.1", 1000, 1)
 	wt.AddPeer("10.0.0.2", 10000, 1)
@@ -219,7 +219,7 @@ func TestWeightTracker_TotalBudget(t *testing.T) {
 }
 
 func TestWeightTracker_AddPeerReregistration(t *testing.T) {
-	wt := newWeightTracker(func(_, _ int) {})
+	wt := newWeightTracker(func(_, _ int, _ overflowBudgetResult) {})
 
 	wt.AddPeer("10.0.0.1", 100000, 2)
 	wt.PeerEORReceived("10.0.0.1")
@@ -238,7 +238,7 @@ func TestWeightTracker_AddPeerReregistration(t *testing.T) {
 
 func TestWeightTracker_EORReceivedFamilyCountZero(t *testing.T) {
 	var callCount int
-	wt := newWeightTracker(func(_, _ int) { callCount++ })
+	wt := newWeightTracker(func(_, _ int, _ overflowBudgetResult) { callCount++ })
 
 	wt.AddPeer("10.0.0.1", 1000, 0) // familyCount=0
 	callCount = 0
@@ -251,7 +251,7 @@ func TestWeightTracker_EORReceivedFamilyCountZero(t *testing.T) {
 }
 
 func TestWeightTracker_UsageToWeightRatios(t *testing.T) {
-	wt := newWeightTracker(func(_, _ int) {})
+	wt := newWeightTracker(func(_, _ int, _ overflowBudgetResult) {})
 
 	wt.AddPeer("10.0.0.1", 100000, 1) // preEOR demand = 5000
 	wt.AddPeer("10.0.0.2", 1000, 1)   // preEOR demand = 50
@@ -296,7 +296,7 @@ func TestOverflowPoolAutoResize(t *testing.T) {
 	// AddPeer triggers overflow byte budget recalculation.
 	mux := newMixedBufMux()
 	var lastBudget int64
-	wt := newWeightTracker(func(guaranteed, overflow int) {
+	wt := newWeightTracker(func(guaranteed, overflow int, _ overflowBudgetResult) {
 		budget := int64(guaranteed+overflow) * 4096
 		mux.SetByteBudget(budget)
 		lastBudget = budget
@@ -323,7 +323,7 @@ func TestOverflowPoolEORShrink(t *testing.T) {
 	// EOR transitions shrink byte budget.
 	mux := newMixedBufMux()
 	var lastBudget int64
-	wt := newWeightTracker(func(guaranteed, overflow int) {
+	wt := newWeightTracker(func(guaranteed, overflow int, _ overflowBudgetResult) {
 		budget := int64(guaranteed+overflow) * 4096
 		mux.SetByteBudget(budget)
 		lastBudget = budget
@@ -347,7 +347,7 @@ func TestOverflowPoolEnvOverride(t *testing.T) {
 	mux.SetByteBudget(overrideBudget)
 
 	// Simulate: callback does NOT update mux because env override is active.
-	wt := newWeightTracker(func(_, _ int) {
+	wt := newWeightTracker(func(_, _ int, _ overflowBudgetResult) {
 		// No-op: operator override active.
 	})
 

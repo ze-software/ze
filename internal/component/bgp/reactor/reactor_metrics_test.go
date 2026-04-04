@@ -199,7 +199,7 @@ func (r *spyRegistry) gaugeVec(name string) *spyGaugeVec {
 func TestUpdatePeriodicMetrics_SetsOverflowGauges(t *testing.T) {
 	reg := newSpyRegistry()
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
-	}, fwdPoolConfig{chanSize: 8, overflowPoolSize: 100})
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	defer pool.Stop()
 
 	// Pre-populate source stats: source A has 80% forwarded, 20% overflowed.
@@ -279,7 +279,7 @@ func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 		default:
 		}
 		<-blocker
-	}, fwdPoolConfig{chanSize: 4, overflowPoolSize: 100})
+	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second})
 	defer pool.Stop()
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("192.168.1.1:179")}

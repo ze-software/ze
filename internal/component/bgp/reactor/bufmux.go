@@ -474,7 +474,7 @@ type MixedBufMux struct {
 }
 
 // mixedBufMux4KBlockSize is the number of 4K buffers per block.
-// 16 x 4096 = 65536, matching the 64K block allocation unit.
+// 16 x 4096 = 65536 bytes per block (64K blocks are 65535 bytes; 1-byte difference is negligible).
 const mixedBufMux4KBlockSize = 16
 
 // newMixedBufMux creates a mixed-size overflow pool. Starts with zero blocks
@@ -536,7 +536,7 @@ func (m *MixedBufMux) Stats() (totalBytes, usedBytes int64) {
 // UsedRatio returns the fraction of byte budget currently in use (0.0 to 1.0).
 // Uses budget bytes (not allocated bytes) as the denominator so the ratio
 // reflects proximity to the configured limit, not just what has been allocated.
-// Returns 0.0 if no budget is set.
+// Falls back to used/allocated ratio when no budget is set (0.0 when nothing allocated).
 func (m *MixedBufMux) UsedRatio() float64 {
 	budgetMax := m.budget.maxBytes.Load()
 	if budgetMax <= 0 {

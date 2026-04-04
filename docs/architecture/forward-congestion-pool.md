@@ -64,7 +64,7 @@ The weight is derived from expected prefix count (in priority order):
 4. Compiled-in PeeringDB/routing table data
 5. PeeringDB API refresh (on-demand, for unknown ASNs)
 
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdOverflowPool -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- peerPool, MixedBufMux overflow -->
 
 Adding a peer increases the pool's maximum potential size. Removing a peer
 decreases it. The pool's maximum is the sum of all peer weights scaled by

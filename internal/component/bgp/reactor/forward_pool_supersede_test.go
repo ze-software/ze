@@ -55,7 +55,7 @@ func TestFwdPool_RouteSuperseding(t *testing.T) {
 	block := make(chan struct{})
 	fp := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 		<-block
-	}, fwdPoolConfig{chanSize: 1, overflowPoolSize: 100})
+	}, fwdPoolConfig{chanSize: 1, idleTimeout: time.Second})
 	defer func() { close(block); fp.Stop() }()
 
 	key := fwdKey{peerAddr: mustAddrPort("10.0.0.1:179")}
@@ -111,7 +111,7 @@ func TestFwdPool_RouteSuperseding(t *testing.T) {
 func TestFwdPool_SupersedingDifferentKeys(t *testing.T) {
 	t.Parallel()
 
-	fp := newFwdPool(func(_ fwdKey, _ []fwdItem) {}, fwdPoolConfig{chanSize: 1, overflowPoolSize: 100})
+	fp := newFwdPool(func(_ fwdKey, _ []fwdItem) {}, fwdPoolConfig{chanSize: 1, idleTimeout: time.Second})
 	defer fp.Stop()
 
 	key := fwdKey{peerAddr: mustAddrPort("10.0.0.1:179")}

@@ -59,9 +59,14 @@ func (r *Reactor) AddPeerObserver(obs PeerLifecycleObserver) {
 func (r *Reactor) notifyPeerEstablished(peer *Peer) {
 	// Update weight tracker with actual negotiated family count (AC-28).
 	// Config-declared familyCount may differ from negotiated families.
-	if r.fwdWeights != nil {
-		if nc := peer.negotiated.Load(); nc != nil {
+	// RFC 8654: update ExtMsg flag and per-peer pool buffer size.
+	if nc := peer.negotiated.Load(); nc != nil {
+		if r.fwdWeights != nil {
 			r.fwdWeights.UpdateFamilyCount(peer.peerAddrLabel(), len(nc.Families()))
+			r.fwdWeights.UpdateExtMsg(peer.peerAddrLabel(), nc.ExtendedMessage)
+		}
+		if r.fwdPool != nil && nc.ExtendedMessage {
+			r.fwdPool.RegisterPeerPool(fwdKey{peerAddr: peer.Settings().PeerKey()}, message.ExtMsgLen)
 		}
 	}
 

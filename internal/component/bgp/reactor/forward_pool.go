@@ -53,8 +53,8 @@ type fwdItem struct {
 	updates      []*message.Update // Re-encode path: SendUpdate per entry
 	peer         *Peer             // Target peer for all operations
 	done         func()            // Called after all ops complete (Release cache entry)
-	pooled       bool              // Holds overflow pool token (legacy); MUST release after processing
 	peerPooled   bool              // Holds per-peer pool slot; MUST release after processing
+	peerPoolRef  *peerPool         // Direct ref to peer pool for release (avoids map lookup + lock)
 	overflowBuf  BufHandle         // Holds overflow MixedBufMux handle; nil Buf = not from overflow
 	meta         map[string]any    // Route metadata from ReceivedUpdate; set on sent events
 	supersedeKey uint64            // FNV-1a hash of raw body for route superseding (AC-23); 0 = no superseding
@@ -181,58 +181,6 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 	session.resetSendHoldTimer()
 }
 
-// fwdOverflowPoolMaxSize caps the overflow pool to prevent unbounded
-// allocation from misconfigured ze.fwd.pool.size values.
-const fwdOverflowPoolMaxSize = 10_000_000
-
-// fwdOverflowPool bounds the number of overflow items across all workers.
-// Sized at startup via ze.fwd.pool.size. When exhausted, DispatchOverflow
-// falls back to unbounded append and logs a warning. Layer 3/4 handle
-// escalation (read throttling, teardown).
-type fwdOverflowPool struct {
-	tokens    chan struct{}
-	size      int
-	exhausted atomic.Int64 // count of failed acquire() calls (for rate-limited logging)
-}
-
-func newFwdOverflowPool(size int) *fwdOverflowPool {
-	p := &fwdOverflowPool{
-		tokens: make(chan struct{}, size),
-		size:   size,
-	}
-	for range size {
-		p.tokens <- struct{}{}
-	}
-	return p
-}
-
-// acquire attempts to take a pool token (non-blocking).
-// Returns true if a token was acquired, false if the pool is exhausted.
-// Caller MUST call release() exactly once after processing the item.
-func (p *fwdOverflowPool) acquire() bool {
-	select {
-	case <-p.tokens:
-		return true
-	default: // pool exhausted — non-blocking, caller handles fallback
-		return false
-	}
-}
-
-// release returns a pool token. MUST be called exactly once per successful acquire().
-// Logs an error on double-release (more releases than acquires), which indicates
-// a bug in token lifecycle management.
-func (p *fwdOverflowPool) release() {
-	select {
-	case p.tokens <- struct{}{}:
-	default: // bug: more releases than acquires — pool was never this large
-		fwdLogger().Error("overflow pool double-release")
-	}
-}
-
-// available returns the number of free tokens. This is a point-in-time snapshot
-// and may be stale by the time the caller acts on it. Use for diagnostics only.
-func (p *fwdOverflowPool) available() int { return len(p.tokens) }
-
 // peerPoolSize is the number of buffers in each per-peer pool.
 // Matches the proven per-worker channel capacity for micro-burst absorption.
 const peerPoolSize = 64
@@ -277,9 +225,12 @@ func (pp *peerPool) acquire() bool {
 }
 
 // release returns a slot to the per-peer pool.
+// Uses CAS to clamp to 0 on underflow, avoiding a TOCTOU race where
+// Store(0) could overwrite a concurrent acquire's increment.
 func (pp *peerPool) release() {
-	if n := pp.inUse.Add(-1); n < 0 {
-		pp.inUse.Store(0) // Defensive: clamp to 0.
+	n := pp.inUse.Add(-1)
+	if n < 0 {
+		pp.inUse.CompareAndSwap(n, 0)
 		fwdLogger().Error("peer pool release below zero")
 	}
 }
@@ -296,10 +247,9 @@ func (pp *peerPool) size() int {
 
 // fwdPoolConfig holds configuration for a fwdPool.
 type fwdPoolConfig struct {
-	chanSize         int
-	idleTimeout      time.Duration
-	overflowPoolSize int // 0 = unbounded (legacy); >0 = bounded overflow pool
-	batchLimit       int // 0 = unlimited; >0 = max items per drain-batch (AC-24)
+	chanSize    int
+	idleTimeout time.Duration
+	batchLimit  int // 0 = unlimited; >0 = max items per drain-batch (AC-24)
 }
 
 // fwdWorker is a single long-lived goroutine processing items for one destination peer.
@@ -353,12 +303,7 @@ type fwdPool struct {
 	onCongested func(peerAddr netip.AddrPort) // Called on false->true transition
 	onResumed   func(peerAddr netip.AddrPort) // Called on true->false transition
 
-	// overflowPool bounds overflow items across all workers (nil = unbounded).
-	// Legacy: replaced by overflowMux when overflowMux is non-nil.
-	overflowPool *fwdOverflowPool
-
 	// overflowMux is the shared mixed-size overflow pool (fwd-auto-sizing).
-	// When non-nil, replaces overflowPool for overflow dispatch.
 	// 64K blocks subdivisible to 16 x 4K slices, byte-budgeted.
 	overflowMux *MixedBufMux
 
@@ -402,17 +347,6 @@ func newFwdPool(handler func(fwdKey, []fwdItem), cfg fwdPoolConfig) *fwdPool {
 		srcStats:  make(map[netip.Addr]*fwdSourceStats),
 		peerPools: make(map[fwdKey]*peerPool),
 	}
-	if cfg.overflowPoolSize > 0 {
-		poolSize := cfg.overflowPoolSize
-		if poolSize > fwdOverflowPoolMaxSize {
-			fwdLogger().Warn("overflow pool size capped at maximum",
-				"configured", poolSize,
-				"max", fwdOverflowPoolMaxSize,
-			)
-			poolSize = fwdOverflowPoolMaxSize
-		}
-		fp.overflowPool = newFwdOverflowPool(poolSize)
-	}
 	return fp
 }
 
@@ -423,8 +357,8 @@ func (fp *fwdPool) SetClock(c clock.Clock) {
 }
 
 // SetOverflowMux sets the shared overflow MixedBufMux for the pool.
-// When set, overflow dispatch acquires from this mux instead of the
-// legacy fwdOverflowPool. Must be called before concurrent use.
+// When set, overflow dispatch acquires buffer handles from this mux.
+// Must be called before concurrent use.
 func (fp *fwdPool) SetOverflowMux(m *MixedBufMux) {
 	fp.overflowMux = m
 }
@@ -447,26 +381,18 @@ func (fp *fwdPool) UnregisterPeerPool(key fwdKey) {
 }
 
 // releaseItem returns all pool resources held by an fwdItem.
-// Handles per-peer pool slots, overflow MixedBufMux handles, and legacy
-// overflow pool tokens. Called from safeBatchHandle and Stop cleanup.
-// key identifies the destination peer for per-peer pool lookup.
-func (fp *fwdPool) releaseItem(key fwdKey, item *fwdItem) {
-	if item.peerPooled {
-		fp.mu.Lock()
-		pp := fp.peerPools[key]
-		fp.mu.Unlock()
-		if pp != nil {
-			pp.release()
-		}
+// Handles per-peer pool slots and overflow MixedBufMux handles.
+// Called from safeBatchHandle and Stop cleanup.
+// key is retained for API stability (callers already pass it).
+func (fp *fwdPool) releaseItem(_ fwdKey, item *fwdItem) {
+	if item.peerPooled && item.peerPoolRef != nil {
+		item.peerPoolRef.release()
 		item.peerPooled = false
+		item.peerPoolRef = nil
 	}
 	if item.overflowBuf.Buf != nil && fp.overflowMux != nil {
 		fp.overflowMux.Return(item.overflowBuf)
 		item.overflowBuf = BufHandle{}
-	}
-	if item.pooled && fp.overflowPool != nil {
-		fp.overflowPool.release()
-		item.pooled = false
 	}
 }
 
@@ -537,13 +463,40 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 	if !ok {
 		w = fp.newWorker(key)
 	}
+
+	// Acquire per-peer pool slot (under fp.mu, which protects peerPools).
+	// If the peer pool is full, mark congested and return false.
+	pp := fp.peerPools[key]
 	fp.mu.Unlock()
+
+	if pp != nil {
+		if !pp.acquire() {
+			// Per-peer pool full -- mark congested and return false.
+			w.overflowMu.Lock()
+			wasCongested := w.congested
+			w.congested = true
+			w.overflowMu.Unlock()
+
+			if !wasCongested && fp.onCongested != nil {
+				fp.onCongested(key.peerAddr)
+			}
+			return false
+		}
+		item.peerPooled = true
+		item.peerPoolRef = pp
+	}
 
 	// Non-blocking send.
 	select {
 	case w.ch <- item:
 		return true
 	default: // channel full — non-blocking fallback
+		// Release per-peer pool slot on failed send.
+		if item.peerPooled && item.peerPoolRef != nil {
+			item.peerPoolRef.release()
+			item.peerPooled = false
+			item.peerPoolRef = nil
+		}
 		// Mark congested and fire callback on transition.
 		w.overflowMu.Lock()
 		wasCongested := w.congested
@@ -595,24 +548,30 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 	// signal feeds into teardown decisions.
 	denied := fp.congestion.ShouldDeny(key.peerAddr.Addr().String())
 
-	// Acquire overflow pool token if pool exists and not denied.
+	// Acquire overflow MixedBufMux handle if available and not denied.
 	// Skip for sentinel items (peer == nil) — they carry no route data
 	// and should not consume pool capacity meant for real updates.
-	if fp.overflowPool != nil && item.peer != nil && !denied {
-		if fp.overflowPool.acquire() {
-			item.pooled = true
-		} else {
-			// Pool exhausted — fall back to unbounded append.
-			// Layer 3 (read throttling) and Layer 4 (teardown) handle escalation.
-			// Rate-limited: log at thresholds to avoid flooding under sustained pressure.
-			if n := fp.overflowPool.exhausted.Add(1); n == 1 || n == 100 || n == 10000 || n == 100000 {
-				fwdLogger().Warn("overflow pool exhausted, unbounded fallback",
-					"peer", key.peerAddr,
-					"pool_size", fp.overflowPool.size,
-					"exhausted_total", n,
-				)
-			}
+	if fp.overflowMux != nil && item.peer != nil && !denied {
+		// Determine buffer size from the destination peer's pool registration.
+		// Default to 4K (standard) if no peer pool is registered.
+		bufSize := message.MaxMsgLen
+		fp.mu.Lock()
+		if pp := fp.peerPools[key]; pp != nil {
+			bufSize = pp.bufSize
 		}
+		fp.mu.Unlock()
+
+		var h BufHandle
+		if bufSize >= message.ExtMsgLen {
+			h = fp.overflowMux.Get64K()
+		} else {
+			h = fp.overflowMux.Get4K()
+		}
+		if h.Buf != nil {
+			item.overflowBuf = h
+		}
+		// If h.Buf == nil, pool exhausted. Proceed without — routes never dropped.
+		// Layer 3 (read throttling) and Layer 4 (teardown) handle escalation.
 	}
 
 	w.overflowMu.Lock()
@@ -635,14 +594,11 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 			if old.done != nil {
 				old.done()
 			}
-			if old.pooled && fp.overflowPool != nil {
-				if item.pooled {
-					// Both pooled: release old token, new keeps its own.
-					fp.overflowPool.release()
-				} else {
-					// Old pooled, new not: transfer token to new item.
-					item.pooled = true
-				}
+			if old.peerPooled && old.peerPoolRef != nil {
+				old.peerPoolRef.release()
+			}
+			if old.overflowBuf.Buf != nil && fp.overflowMux != nil {
+				fp.overflowMux.Return(old.overflowBuf)
 			}
 			w.overflow[i] = item
 			w.overflowMu.Unlock()
@@ -758,22 +714,13 @@ func (fp *fwdPool) OverflowDepths() map[string]int {
 }
 
 // PoolUsedRatio returns the fraction of overflow pool capacity in use (0.0 to 1.0).
-// When overflowMux is set, reads from MixedBufMux stats (usedBytes/budgetBytes).
-// Falls back to legacy fwdOverflowPool token ratio.
-// Returns 0.0 if no pool is configured. Called by the metrics update loop.
+// Reads from MixedBufMux stats (usedBytes/budgetBytes).
+// Returns 0.0 if no overflow mux is configured. Called by the metrics update loop.
 func (fp *fwdPool) PoolUsedRatio() float64 {
 	if fp.overflowMux != nil {
 		return fp.overflowMux.UsedRatio()
 	}
-	if fp.overflowPool == nil {
-		return 0.0
-	}
-	avail := fp.overflowPool.available()
-	total := fp.overflowPool.size
-	if total == 0 {
-		return 0.0
-	}
-	return 1.0 - float64(avail)/float64(total)
+	return 0.0
 }
 
 // RecordForwarded increments the forwarded counter for a source peer.

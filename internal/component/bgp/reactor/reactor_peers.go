@@ -122,7 +122,8 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	}
 
 	// Register per-peer pool for steady-state micro-burst absorption.
-	// Default to 4K (standard); re-registered with 64K if Extended Message negotiated.
+	// Default to 4K (standard); re-registered with 64K in notifyPeerEstablished
+	// if Extended Message (RFC 8654) is negotiated.
 	if r.fwdPool != nil {
 		r.fwdPool.RegisterPeerPool(fwdKey{peerAddr: key}, message.MaxMsgLen)
 	}
