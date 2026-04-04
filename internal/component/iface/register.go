@@ -93,22 +93,46 @@ func runEngine(conn net.Conn) int {
 	p := sdk.NewWithConn("interface", conn)
 	defer func() { _ = p.Close() }()
 
-	p.OnConfigure(func(_ []sdk.ConfigSection) error {
-		// Load the backend. Default to "netlink"; the YANG backend leaf
-		// will make this configurable once config application is wired.
-		backendName := "netlink"
-		if err := LoadBackend(backendName); err != nil {
-			return fmt.Errorf("interface backend %q: %w", backendName, err)
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		// Parse config to extract backend name and interface definitions.
+		var cfg *ifaceConfig
+		for _, s := range sections {
+			if s.Root != "interface" {
+				continue
+			}
+			var err error
+			cfg, err = parseIfaceConfig(s.Data)
+			if err != nil {
+				return fmt.Errorf("interface config parse: %w", err)
+			}
+			break
 		}
-		log.Info("interface backend loaded", "backend", backendName)
+		if cfg == nil {
+			cfg = &ifaceConfig{Backend: defaultBackendName}
+		}
 
+		if cfg.Backend == "" {
+			return fmt.Errorf("interface: no backend configured and no OS default available")
+		}
+
+		if err := LoadBackend(cfg.Backend); err != nil {
+			return fmt.Errorf("interface backend %q: %w", cfg.Backend, err)
+		}
+		log.Info("interface backend loaded", "backend", cfg.Backend)
+
+		b := GetBackend()
+
+		// Apply interface configuration (create, set properties, add addresses).
+		applyConfig(cfg, b)
+		log.Info("interface config applied")
+
+		// Start monitoring after config is applied.
 		bus := GetBus()
 		if bus == nil {
 			log.Warn("interface plugin: no bus configured, monitor will not start")
 			return nil
 		}
 
-		b := GetBackend()
 		if err := b.StartMonitor(bus); err != nil {
 			return fmt.Errorf("interface monitor start: %w", err)
 		}
