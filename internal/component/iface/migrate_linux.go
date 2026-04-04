@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-0-umbrella.md — Make-before-break interface migration
+// Design: docs/features/interfaces.md — Make-before-break interface migration
 // Overview: iface.go — shared types and topic constants
 
 package iface

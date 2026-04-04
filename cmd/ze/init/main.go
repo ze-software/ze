@@ -21,6 +21,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -246,6 +247,20 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool) int {
 		}
 	}
 
+	// Discover OS interfaces and generate initial config.
+	if discovered, discErr := iface.DiscoverInterfaces(); discErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: interface discovery: %v\n", discErr)
+	} else if len(discovered) > 0 {
+		if config := generateInterfaceConfig(discovered); config != "" {
+			configKey := zefs.KeyFileActive.Key("ze.conf")
+			if wErr := store.WriteFile(configKey, []byte(config), 0); wErr != nil {
+				fmt.Fprintf(os.Stderr, "warning: write initial config: %v\n", wErr)
+			} else {
+				fmt.Printf("discovered %d interface(s), wrote initial config\n", len(discovered))
+			}
+		}
+	}
+
 	if err := store.Close(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: close database: %v\n", err)
 		return 1
@@ -353,6 +368,57 @@ func daemonRunning(dbPath string) bool {
 		return false
 	}
 	conn.Close() //nolint:errcheck // probe connection
+	return true
+}
+
+// generateInterfaceConfig produces Ze config syntax for discovered interfaces.
+func generateInterfaceConfig(discovered []iface.DiscoveredInterface) string {
+	if len(discovered) == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+	b.WriteString("interface {\n")
+
+	hasLoopback := false
+	for _, di := range discovered {
+		switch di.Type {
+		case "loopback":
+			hasLoopback = true
+		case "ethernet", "bridge", "veth", "dummy":
+			if !safeIfaceName(di.Name) {
+				continue
+			}
+			fmt.Fprintf(&b, "    %s %s {\n", di.Type, di.Name)
+			if di.MAC != "" {
+				fmt.Fprintf(&b, "        mac-address %s;\n", di.MAC)
+			}
+			fmt.Fprintf(&b, "        os-name %s;\n", di.Name)
+			b.WriteString("    }\n")
+		}
+	}
+
+	if hasLoopback {
+		b.WriteString("    loopback {\n")
+		b.WriteString("    }\n")
+	}
+
+	b.WriteString("}\n")
+	return b.String()
+}
+
+// safeIfaceName returns true if name is safe to interpolate into config syntax.
+// Rejects names containing characters that would break config parsing.
+func safeIfaceName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i := range len(name) {
+		switch name[i] {
+		case '{', '}', ';', '\n', '\r', '\t', ' ', 0:
+			return false
+		}
+	}
 	return true
 }
 

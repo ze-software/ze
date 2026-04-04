@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-0-umbrella.md — Interface RPC handlers for daemon dispatch
+// Design: docs/features/interfaces.md — Interface RPC handlers for daemon dispatch
 //
 // Package cmd registers interface RPCs (migrate) with the plugin server.
 // Separated from the iface package to avoid an import cycle:

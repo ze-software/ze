@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-0-umbrella.md -- Non-Linux bridge management stub
+// Design: docs/features/interfaces.md -- Non-Linux bridge management stub
 // Overview: iface.go -- shared types and topic constants
 
 //go:build !linux

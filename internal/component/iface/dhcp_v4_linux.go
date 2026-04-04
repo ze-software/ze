@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-0-umbrella.md — DHCPv4 client lifecycle
+// Design: docs/features/interfaces.md — DHCPv4 client lifecycle
 // Overview: dhcp_linux.go — DHCP client types and lifecycle
 
 package iface

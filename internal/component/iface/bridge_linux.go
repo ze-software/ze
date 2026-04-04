@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-0-umbrella.md — Bridge interface management
+// Design: docs/features/interfaces.md — Bridge interface management
 // Overview: iface.go — shared types and topic constants
 // Related: manage_linux.go — general interface management via netlink
 

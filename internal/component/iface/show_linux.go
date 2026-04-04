@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-0-umbrella.md — Interface listing via netlink
+// Design: docs/features/interfaces.md — Interface listing via netlink
 // Overview: iface.go — shared types and topic constants
 
 //go:build linux

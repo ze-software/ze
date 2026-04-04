@@ -14,4 +14,5 @@ func RegisterValidators(reg *yang.ValidatorRegistry) {
 	reg.Register("community-range", CommunityRangeValidator())
 	reg.Register("receive-event-type", ReceiveEventValidator())
 	reg.Register("send-message-type", SendMessageValidator())
+	reg.Register("mac-address", MACAddressValidator())
 }

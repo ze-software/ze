@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-0-umbrella.md -- Non-Linux monitor stub
+// Design: docs/features/interfaces.md -- Non-Linux monitor stub
 // Overview: iface.go -- shared types and topic constants
 
 //go:build !linux

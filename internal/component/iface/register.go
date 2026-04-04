@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-0-umbrella.md — Interface plugin registration
+// Design: docs/features/interfaces.md — Interface plugin registration
 // Overview: iface.go — shared types and topic constants
 
 package iface

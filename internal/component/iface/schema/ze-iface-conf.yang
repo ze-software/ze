@@ -33,7 +33,14 @@ module ze-iface-conf {
             type string {
                 pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}';
             }
-            description "Hardware MAC address override";
+            ze:validate "mac-address";
+            description "Hardware MAC address";
+        }
+
+        leaf os-name {
+            ze:hidden "true";
+            type string;
+            description "Original OS interface name at discovery time";
         }
 
         leaf disable {
@@ -229,6 +236,8 @@ module ze-iface-conf {
 
         list ethernet {
             key "name";
+            unique "mac-address";
+            ze:required "mac-address";
             description "Ethernet interface";
 
             leaf name {
@@ -255,6 +264,8 @@ module ze-iface-conf {
 
         list veth {
             key "name";
+            unique "mac-address";
+            ze:required "mac-address";
             description "Virtual ethernet pair interface";
 
             leaf name {
@@ -273,6 +284,8 @@ module ze-iface-conf {
 
         list bridge {
             key "name";
+            unique "mac-address";
+            ze:required "mac-address";
             description "Bridge interface";
 
             leaf name {

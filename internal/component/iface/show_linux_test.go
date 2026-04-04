@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-0-umbrella.md — Interface listing tests
+// Design: docs/features/interfaces.md — Interface listing tests
 
 //go:build linux
 

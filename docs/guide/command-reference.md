@@ -293,7 +293,11 @@ ze init -force                   # Replace existing database
 ```
 
 Prompts for: username, password, host (127.0.0.1), port (2222), name (hostname).
-<!-- source: cmd/ze/init/main.go -- Run, defaultHost, defaultPort -->
+After credentials are stored, ze init discovers OS network interfaces via netlink
+and writes initial interface configuration (ethernet, bridge, veth, dummy, loopback)
+to the database as `ze.conf`.
+<!-- source: cmd/ze/init/main.go -- Run, defaultHost, defaultPort, generateInterfaceConfig -->
+<!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
 
 ### ze start --web
 

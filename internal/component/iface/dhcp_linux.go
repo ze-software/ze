@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-0-umbrella.md — DHCP client for interface plugin
+// Design: docs/features/interfaces.md — DHCP client for interface plugin
 // Overview: iface.go — shared types and topic constants
 // Detail: dhcp_v4_linux.go — DHCPv4 worker, renewal, lease handling
 // Detail: dhcp_v6_linux.go — DHCPv6 worker, renewal, lease handling

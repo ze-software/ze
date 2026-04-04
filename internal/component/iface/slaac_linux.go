@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-0-umbrella.md — IPv6 SLAAC control
+// Design: docs/features/interfaces.md — IPv6 SLAAC control
 // Overview: iface.go — shared types and topic constants
 
 package iface

@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-0-umbrella.md — Per-interface sysctl management
+// Design: docs/features/interfaces.md — Per-interface sysctl management
 // Overview: iface.go — shared types and topic constants
 
 package iface

@@ -7,12 +7,14 @@ package config
 import (
 	"fmt"
 	"net"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	ifacepkg "codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
@@ -142,6 +144,9 @@ func NonzeroIPv4Validator() yang.CustomValidator {
 			if ip == nil {
 				return fmt.Errorf("%q is not a valid IPv4 address for %s", str, path)
 			}
+			if ip.To4() == nil {
+				return fmt.Errorf("%q is not a valid IPv4 address for %s", str, path)
+			}
 			if ip.Equal(net.IPv4zero) {
 				return fmt.Errorf("0.0.0.0 is not valid for %s", path)
 			}
@@ -162,6 +167,39 @@ func LiteralSelfValidator() yang.CustomValidator {
 				return nil
 			}
 			return fmt.Errorf("%q is not \"self\"", str)
+		},
+	}
+}
+
+// macPattern validates MAC address format (xx:xx:xx:xx:xx:xx).
+var macPattern = regexp.MustCompile(`^[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}$`)
+
+// MACAddressValidator returns a validator for MAC address fields.
+// CompleteFn discovers current OS interfaces and suggests their MAC addresses.
+func MACAddressValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(_ string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			if !macPattern.MatchString(str) {
+				return fmt.Errorf("%q is not a valid MAC address (expected xx:xx:xx:xx:xx:xx)", str)
+			}
+			return nil
+		},
+		CompleteFn: func() []string {
+			discovered, err := ifacepkg.DiscoverInterfaces()
+			if err != nil {
+				return nil
+			}
+			var macs []string
+			for _, di := range discovered {
+				if di.MAC != "" && di.MAC != "00:00:00:00:00:00" {
+					macs = append(macs, di.MAC)
+				}
+			}
+			return macs
 		},
 	}
 }

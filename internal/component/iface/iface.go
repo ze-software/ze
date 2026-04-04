@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-0-umbrella.md — Interface plugin shared types
+// Design: docs/features/interfaces.md — Interface plugin shared types
 // Detail: register.go — plugin registration
 // Detail: manage_linux.go — interface management via netlink
 // Detail: bridge_linux.go — bridge-specific management (ports, STP)
@@ -16,6 +16,7 @@
 // Detail: show_other.go — non-Linux interface listing via stdlib
 // Detail: validate.go — interface name validation
 // Detail: monitor_other.go — non-Linux monitor stub
+// Detail: discover.go — OS interface discovery and Ze type mapping
 
 // Package iface implements the interface monitoring and management plugin.
 //
@@ -121,4 +122,13 @@ type AddrInfo struct {
 	Address      string `json:"address"`
 	PrefixLength int    `json:"prefix-length"`
 	Family       string `json:"family"`
+}
+
+// DiscoveredInterface describes an OS network interface found during discovery.
+// Used by ze init to generate initial interface config and by the MAC address
+// validator for autocomplete suggestions.
+type DiscoveredInterface struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+	MAC  string `json:"mac-address,omitempty"`
 }

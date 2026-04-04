@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-0-umbrella.md — Netlink interface monitor
+// Design: docs/features/interfaces.md — Netlink interface monitor
 // Overview: iface.go — shared types and topic constants
 
 package iface

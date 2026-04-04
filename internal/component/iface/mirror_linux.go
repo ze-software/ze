@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-0-umbrella.md — Traffic mirroring via tc mirred
+// Design: docs/features/interfaces.md — Traffic mirroring via tc mirred
 // Overview: iface.go — shared types and topic constants
 
 package iface

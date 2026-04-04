@@ -802,6 +802,9 @@ func TestCheckAllValidatorsRegistered_AllPresent(t *testing.T) {
 	reg.Register("send-message-type", yang.CustomValidator{
 		ValidateFn: func(path string, value any) error { return nil },
 	})
+	reg.Register("mac-address", yang.CustomValidator{
+		ValidateFn: func(path string, value any) error { return nil },
+	})
 
 	err := yang.CheckAllValidatorsRegistered(loader, reg)
 	assert.NoError(t, err)

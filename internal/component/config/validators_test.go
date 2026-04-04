@@ -220,6 +220,62 @@ func TestAllSendTypeNames(t *testing.T) {
 	assert.Contains(t, result, "refresh")
 }
 
+// TestMACAddressValidator_Validate verifies MAC address format validation.
+//
+// VALIDATES: Valid MAC accepted, invalid formats rejected (AC-9).
+// PREVENTS: Invalid MAC addresses silently accepted in interface config.
+func TestMACAddressValidator_Validate(t *testing.T) {
+	v := MACAddressValidator()
+
+	// Valid MAC addresses.
+	assert.NoError(t, v.ValidateFn("interface.ethernet.mac-address", "aa:bb:cc:dd:ee:ff"))
+	assert.NoError(t, v.ValidateFn("interface.ethernet.mac-address", "AA:BB:CC:DD:EE:FF"))
+	assert.NoError(t, v.ValidateFn("interface.ethernet.mac-address", "00:11:22:33:44:55"))
+	assert.NoError(t, v.ValidateFn("interface.ethernet.mac-address", "01:23:45:67:89:aB"))
+
+	// Invalid: wrong separator.
+	err := v.ValidateFn("interface.ethernet.mac-address", "aa-bb-cc-dd-ee-ff")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not a valid MAC address")
+
+	// Invalid: too short.
+	err = v.ValidateFn("interface.ethernet.mac-address", "aa:bb:cc:dd:ee")
+	require.Error(t, err)
+
+	// Invalid: too long.
+	err = v.ValidateFn("interface.ethernet.mac-address", "aa:bb:cc:dd:ee:ff:00")
+	require.Error(t, err)
+
+	// Invalid: non-hex.
+	err = v.ValidateFn("interface.ethernet.mac-address", "gg:hh:ii:jj:kk:ll")
+	require.Error(t, err)
+
+	// Invalid: empty.
+	err = v.ValidateFn("interface.ethernet.mac-address", "")
+	require.Error(t, err)
+
+	// Non-string rejected.
+	assert.Error(t, v.ValidateFn("interface.ethernet.mac-address", 42))
+}
+
+// TestMACAddressValidator_Complete verifies completion returns OS MAC addresses.
+//
+// VALIDATES: CompleteFn returns non-nil (may be empty on systems without interfaces) (AC-8).
+// PREVENTS: Nil panic from discovery errors.
+func TestMACAddressValidator_Complete(t *testing.T) {
+	v := MACAddressValidator()
+	require.NotNil(t, v.CompleteFn)
+
+	// CompleteFn should not panic; result depends on OS interfaces.
+	values := v.CompleteFn()
+	// On a real system there should be at least one MAC (unless containerized).
+	// Just verify no panic and valid format if any returned.
+	for _, mac := range values {
+		assert.Regexp(t, `^[0-9a-f]{2}(:[0-9a-f]{2}){5}$`, mac,
+			"MAC suggestion should be lowercase colon-separated hex")
+	}
+}
+
 // TestAddressFamilyValidator_Complete verifies completion returns registered families.
 //
 // VALIDATES: Complete() returns all registered families for CLI completion (AC-18).
