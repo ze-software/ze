@@ -434,11 +434,20 @@ func zeManageable(linkType string) bool {
 
 // applyConfig applies the parsed interface config declaratively via the backend.
 // 1. Creates missing Ze-managed interfaces (dummy, veth, bridge, VLAN)
-// 2. Sets properties (MTU, MAC) on all configured interfaces
+// 2. Sets properties (MTU, MAC, sysctl, mirror) on all configured interfaces
 // 3. Adds missing addresses, removes extra addresses on configured interfaces
 // 4. Deletes Ze-managed interfaces not in config.
-func applyConfig(cfg *ifaceConfig, b Backend) {
+//
+// Returns collected errors. Application continues past individual failures
+// so that one bad interface doesn't block the rest.
+func applyConfig(cfg *ifaceConfig, b Backend) []error {
 	log := loggerPtr.Load()
+	var errs []error
+
+	record := func(msg string, err error) {
+		log.Warn(msg, "err", err)
+		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
+	}
 
 	// Phase 1: Create missing interfaces.
 	for _, e := range cfg.Dummy {
@@ -469,11 +478,11 @@ func applyConfig(cfg *ifaceConfig, b Backend) {
 			log.Debug("iface config: create bridge (may already exist)", "name", e.Name, "err", err)
 		}
 		if err := b.BridgeSetSTP(e.Name, e.STP); err != nil {
-			log.Warn("iface config: bridge stp", "name", e.Name, "err", err)
+			record(fmt.Sprintf("bridge %s stp", e.Name), err)
 		}
 		for _, member := range e.Members {
 			if err := b.BridgeAddPort(e.Name, member); err != nil {
-				log.Warn("iface config: bridge add port", "bridge", e.Name, "port", member, "err", err)
+				record(fmt.Sprintf("bridge %s add port %s", e.Name, member), err)
 			}
 		}
 	}
@@ -495,12 +504,12 @@ func applyConfig(cfg *ifaceConfig, b Backend) {
 		}
 		if e.MTU > 0 {
 			if err := b.SetMTU(e.Name, e.MTU); err != nil {
-				log.Warn("iface config: set mtu", "name", e.Name, "mtu", e.MTU, "err", err)
+				record(fmt.Sprintf("%s set mtu %d", e.Name, e.MTU), err)
 			}
 		}
 		if e.MACAddress != "" {
 			if err := b.SetMACAddress(e.Name, e.MACAddress); err != nil {
-				log.Warn("iface config: set mac", "name", e.Name, "err", err)
+				record(fmt.Sprintf("%s set mac", e.Name), err)
 			}
 		}
 		for _, u := range e.Units {
@@ -515,8 +524,8 @@ func applyConfig(cfg *ifaceConfig, b Backend) {
 				}
 				osName = fmt.Sprintf("%s.%d", e.Name, u.VLANID)
 			}
-			applySysctl(b, osName, u, log)
-			applyMirror(b, osName, u, log)
+			errs = append(errs, applySysctl(b, osName, u)...)
+			errs = append(errs, applyMirror(b, osName, u)...)
 		}
 	}
 
@@ -526,7 +535,7 @@ func applyConfig(cfg *ifaceConfig, b Backend) {
 			if u.Disable {
 				continue
 			}
-			applySysctl(b, "lo", u, log)
+			errs = append(errs, applySysctl(b, "lo", u)...)
 		}
 	}
 
@@ -535,7 +544,7 @@ func applyConfig(cfg *ifaceConfig, b Backend) {
 
 	currentInfos, err := b.ListInterfaces()
 	if err != nil {
-		log.Warn("iface config: list interfaces for reconciliation failed", "err", err)
+		record("list interfaces for reconciliation", err)
 		// Fall back to additive-only: add all desired addresses.
 		for osName, addrs := range desiredAddrs {
 			for addr := range addrs {
@@ -544,7 +553,7 @@ func applyConfig(cfg *ifaceConfig, b Backend) {
 				}
 			}
 		}
-		return
+		return errs
 	}
 
 	currentAddrs := currentAddrSet(currentInfos)
@@ -554,23 +563,23 @@ func applyConfig(cfg *ifaceConfig, b Backend) {
 		current := currentAddrs[osName]
 		for addr := range desired {
 			if current != nil && current[addr] {
-				continue // already present
+				continue
 			}
 			if err := b.AddAddress(osName, addr); err != nil {
-				log.Warn("iface config: add address", "iface", osName, "addr", addr, "err", err)
+				record(fmt.Sprintf("%s add address %s", osName, addr), err)
 			}
 		}
 	}
 
-	// Remove extra addresses on configured interfaces (only interfaces in config).
+	// Remove extra addresses on configured interfaces.
 	for osName, desired := range desiredAddrs {
 		current := currentAddrs[osName]
 		for addr := range current {
 			if desired[addr] {
-				continue // should be there
+				continue
 			}
 			if err := b.RemoveAddress(osName, addr); err != nil {
-				log.Warn("iface config: remove stale address", "iface", osName, "addr", addr, "err", err)
+				record(fmt.Sprintf("%s remove stale address %s", osName, addr), err)
 			} else {
 				log.Info("iface config: removed stale address", "iface", osName, "addr", addr)
 			}
@@ -581,103 +590,119 @@ func applyConfig(cfg *ifaceConfig, b Backend) {
 	currentIfaces := currentIfaceSet(currentInfos)
 	for name, linkType := range currentIfaces {
 		if !zeManageable(linkType) {
-			continue // never delete physical or loopback
+			continue
 		}
 		if managedNames[name] {
-			continue // in config, keep
+			continue
 		}
 		if err := b.DeleteInterface(name); err != nil {
-			log.Warn("iface config: delete unmanaged interface", "name", name, "type", linkType, "err", err)
+			record(fmt.Sprintf("delete %s (%s)", name, linkType), err)
 		} else {
 			log.Info("iface config: deleted interface not in config", "name", name, "type", linkType)
 		}
 	}
+
+	return errs
 }
 
 // applySysctl applies per-interface IPv4/IPv6 sysctl settings from a unit config.
 // Only settings explicitly configured (non-nil) are applied; OS defaults are left alone.
-func applySysctl(b Backend, osName string, u unitEntry, log interface{ Warn(string, ...any) }) {
+// Returns errors for settings that failed to apply.
+func applySysctl(b Backend, osName string, u unitEntry) []error {
+	var errs []error
+	fail := func(what string, err error) {
+		loggerPtr.Load().Warn("iface config: "+what, "iface", osName, "err", err)
+		errs = append(errs, fmt.Errorf("%s %s: %w", osName, what, err))
+	}
 	if s := u.IPv4; s != nil {
 		if s.Forwarding != nil {
 			if err := b.SetIPv4Forwarding(osName, *s.Forwarding); err != nil {
-				log.Warn("iface config: ipv4 forwarding", "iface", osName, "err", err)
+				fail("ipv4 forwarding", err)
 			}
 		}
 		if s.ArpFilter != nil {
 			if err := b.SetIPv4ArpFilter(osName, *s.ArpFilter); err != nil {
-				log.Warn("iface config: ipv4 arp-filter", "iface", osName, "err", err)
+				fail("ipv4 arp-filter", err)
 			}
 		}
 		if s.ArpAccept != nil {
 			if err := b.SetIPv4ArpAccept(osName, *s.ArpAccept); err != nil {
-				log.Warn("iface config: ipv4 arp-accept", "iface", osName, "err", err)
+				fail("ipv4 arp-accept", err)
 			}
 		}
 		if s.ProxyARP != nil {
 			if err := b.SetIPv4ProxyARP(osName, *s.ProxyARP); err != nil {
-				log.Warn("iface config: ipv4 proxy-arp", "iface", osName, "err", err)
+				fail("ipv4 proxy-arp", err)
 			}
 		}
 		if s.ArpAnnounce != nil {
 			if err := b.SetIPv4ArpAnnounce(osName, *s.ArpAnnounce); err != nil {
-				log.Warn("iface config: ipv4 arp-announce", "iface", osName, "err", err)
+				fail("ipv4 arp-announce", err)
 			}
 		}
 		if s.ArpIgnore != nil {
 			if err := b.SetIPv4ArpIgnore(osName, *s.ArpIgnore); err != nil {
-				log.Warn("iface config: ipv4 arp-ignore", "iface", osName, "err", err)
+				fail("ipv4 arp-ignore", err)
 			}
 		}
 		if s.RPFilter != nil {
 			if err := b.SetIPv4RPFilter(osName, *s.RPFilter); err != nil {
-				log.Warn("iface config: ipv4 rp-filter", "iface", osName, "err", err)
+				fail("ipv4 rp-filter", err)
 			}
 		}
 	}
 	if s := u.IPv6; s != nil {
 		if s.Autoconf != nil {
 			if err := b.SetIPv6Autoconf(osName, *s.Autoconf); err != nil {
-				log.Warn("iface config: ipv6 autoconf", "iface", osName, "err", err)
+				fail("ipv6 autoconf", err)
 			}
 		}
 		if s.AcceptRA != nil {
 			if err := b.SetIPv6AcceptRA(osName, *s.AcceptRA); err != nil {
-				log.Warn("iface config: ipv6 accept-ra", "iface", osName, "err", err)
+				fail("ipv6 accept-ra", err)
 			}
 		}
 		if s.Forwarding != nil {
 			if err := b.SetIPv6Forwarding(osName, *s.Forwarding); err != nil {
-				log.Warn("iface config: ipv6 forwarding", "iface", osName, "err", err)
+				fail("ipv6 forwarding", err)
 			}
 		}
 	}
+	return errs
 }
 
 // applyMirror configures traffic mirroring on an interface from unit config.
 // Only applied when at least one of ingress/egress destination is configured.
-func applyMirror(b Backend, osName string, u unitEntry, log interface{ Warn(string, ...any) }) {
+// Returns errors for mirror operations that failed.
+func applyMirror(b Backend, osName string, u unitEntry) []error {
 	if u.MirrorIngress == "" && u.MirrorEgress == "" {
-		return
+		return nil
 	}
+
+	var errs []error
+	fail := func(what string, err error) {
+		loggerPtr.Load().Warn("iface config: "+what, "iface", osName, "err", err)
+		errs = append(errs, fmt.Errorf("%s %s: %w", osName, what, err))
+	}
+
 	ingress := u.MirrorIngress != ""
 	egress := u.MirrorEgress != ""
 
-	// Both ingress and egress mirror to the same destination when using
-	// SetupMirror. If they differ, call separately.
 	if ingress && egress && u.MirrorIngress == u.MirrorEgress {
 		if err := b.SetupMirror(osName, u.MirrorIngress, true, true); err != nil {
-			log.Warn("iface config: mirror setup", "iface", osName, "dst", u.MirrorIngress, "err", err)
+			fail("mirror", err)
 		}
-		return
+		return errs
 	}
 	if ingress {
 		if err := b.SetupMirror(osName, u.MirrorIngress, true, false); err != nil {
-			log.Warn("iface config: mirror ingress", "iface", osName, "dst", u.MirrorIngress, "err", err)
+			fail("mirror ingress", err)
 		}
 	}
 	if egress {
 		if err := b.SetupMirror(osName, u.MirrorEgress, false, true); err != nil {
-			log.Warn("iface config: mirror egress", "iface", osName, "dst", u.MirrorEgress, "err", err)
+			fail("mirror egress", err)
 		}
 	}
+	return errs
 }

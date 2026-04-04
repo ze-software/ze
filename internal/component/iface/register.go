@@ -110,7 +110,12 @@ func runEngine(conn net.Conn) int {
 
 		b := GetBackend()
 
-		applyConfig(cfg, b)
+		if errs := applyConfig(cfg, b); len(errs) > 0 {
+			for _, e := range errs {
+				log.Warn("interface config error", "err", e)
+			}
+			return fmt.Errorf("interface config: %d errors during apply", len(errs))
+		}
 		log.Info("interface config applied")
 
 		bus := GetBus()
@@ -149,7 +154,12 @@ func runEngine(conn net.Conn) int {
 			return fmt.Errorf("interface config apply: no backend loaded")
 		}
 
-		applyConfig(cfg, b)
+		if errs := applyConfig(cfg, b); len(errs) > 0 {
+			for _, e := range errs {
+				log.Warn("interface reload error", "err", e)
+			}
+			return fmt.Errorf("interface reload: %d errors during apply", len(errs))
+		}
 		log.Info("interface config reloaded")
 		return nil
 	})
