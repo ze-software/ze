@@ -53,8 +53,8 @@ type fwdItem struct {
 	updates      []*message.Update // Re-encode path: SendUpdate per entry
 	peer         *Peer             // Target peer for all operations
 	done         func()            // Called after all ops complete (Release cache entry)
-	peerPooled   bool              // Holds per-peer pool slot; MUST release after processing
-	peerPoolRef  *peerPool         // Direct ref to peer pool for release (avoids map lookup + lock)
+	peerBufIdx   int               // 1-based index into per-peer pool; 0 = not from per-peer pool
+	peerPoolRef  *peerPool         // Pool to return buffer to (avoids map lookup + lock)
 	overflowBuf  BufHandle         // Holds overflow MixedBufMux handle; nil Buf = not from overflow
 	meta         map[string]any    // Route metadata from ReceivedUpdate; set on sent events
 	supersedeKey uint64            // FNV-1a hash of raw body for route superseding (AC-23); 0 = no superseding
@@ -192,57 +192,86 @@ const peerPoolSize = 64
 // The pool absorbs micro-bursts without touching the shared overflow pool.
 // When full, items spill into the shared overflow MixedBufMux.
 //
-// Thread-safe via atomic counter. No mutex needed because acquire/release
-// are simple increment/decrement operations.
+// Pre-allocates one contiguous backing array at init, sliced into
+// peerPoolSize buffers. Mutex-protected index stack for O(1) Get/Return.
+// GC scans one pointer (backing slice) instead of 64 (one per buffer).
+// Same type for all peers -- buffer size is set at initialization.
+//
+// Indices are stored as idx+1 (1-based) so that the zero value of
+// fwdItem.peerBufIdx means "no buffer" without requiring explicit -1
+// initialization.
 type peerPool struct {
-	inUse   atomic.Int32 // current number of acquired slots
-	maxSize int32        // capacity (peerPoolSize)
-	bufSize int          // negotiated buffer size (message.MaxMsgLen or message.ExtMsgLen)
+	mu      sync.Mutex
+	backing []byte              // single contiguous allocation
+	free    [peerPoolSize]uint8 // stack of free buffer indices (1-based); free[:top] are available
+	top     int                 // number of free buffers (0 = exhausted)
+	lent    [peerPoolSize]bool  // true = buffer is out on loan (double-return guard)
+	bufSize int                 // negotiated buffer size (message.MaxMsgLen or message.ExtMsgLen)
 }
 
 // newPeerPool creates a per-peer pool with the given buffer size.
+// Pre-allocates peerPoolSize buffers of bufSize bytes in one allocation.
 // RFC 8654: Extended Message peers use 64K buffers, standard peers use 4K.
 func newPeerPool(bufSize int) *peerPool {
-	return &peerPool{
-		maxSize: peerPoolSize,
+	pp := &peerPool{
+		backing: make([]byte, peerPoolSize*bufSize),
+		top:     peerPoolSize,
 		bufSize: bufSize,
 	}
-}
-
-// acquire attempts to take a slot from the per-peer pool (non-blocking).
-// Returns true if a slot was acquired, false if the pool is full.
-// Caller MUST call release() exactly once after processing.
-func (pp *peerPool) acquire() bool {
-	for {
-		cur := pp.inUse.Load()
-		if cur >= pp.maxSize {
-			return false
-		}
-		if pp.inUse.CompareAndSwap(cur, cur+1) {
-			return true
-		}
+	for i := range peerPoolSize {
+		pp.free[i] = uint8(i + 1) // 1-based
 	}
+	return pp
 }
 
-// release returns a slot to the per-peer pool.
-// Uses CAS to clamp to 0 on underflow, avoiding a TOCTOU race where
-// Store(0) could overwrite a concurrent acquire's increment.
-func (pp *peerPool) release() {
-	n := pp.inUse.Add(-1)
-	if n < 0 {
-		pp.inUse.CompareAndSwap(n, 0)
-		fwdLogger().Error("peer pool release below zero")
+// Get returns a buffer and its 1-based index from the pool (non-blocking).
+// Returns (nil, 0) if the pool is exhausted.
+// Caller MUST call Return(idx) exactly once after processing.
+func (pp *peerPool) Get() ([]byte, int) {
+	pp.mu.Lock()
+	if pp.top == 0 {
+		pp.mu.Unlock()
+		return nil, 0
 	}
+	pp.top--
+	idx := int(pp.free[pp.top]) // 1-based
+	pp.lent[idx-1] = true       // mark as out on loan
+	off := (idx - 1) * pp.bufSize
+	pp.mu.Unlock()
+	return pp.backing[off : off+pp.bufSize], idx
 }
 
-// available returns the number of free slots.
+// Return puts a buffer back into the pool by its 1-based index.
+// Caller MUST NOT use the buffer after returning it.
+func (pp *peerPool) Return(idx int) {
+	pp.mu.Lock()
+	if idx < 1 || idx > peerPoolSize {
+		pp.mu.Unlock()
+		fwdLogger().Error("peer pool return: index out of range", "idx", idx)
+		return
+	}
+	if !pp.lent[idx-1] {
+		pp.mu.Unlock()
+		fwdLogger().Error("peer pool double return", "idx", idx)
+		return
+	}
+	pp.lent[idx-1] = false
+	pp.free[pp.top] = uint8(idx)
+	pp.top++
+	pp.mu.Unlock()
+}
+
+// available returns the number of free buffers.
 func (pp *peerPool) available() int {
-	return int(pp.maxSize - pp.inUse.Load())
+	pp.mu.Lock()
+	n := pp.top
+	pp.mu.Unlock()
+	return n
 }
 
 // size returns the pool capacity.
 func (pp *peerPool) size() int {
-	return int(pp.maxSize)
+	return peerPoolSize
 }
 
 // fwdPoolConfig holds configuration for a fwdPool.
@@ -384,9 +413,9 @@ func (fp *fwdPool) UnregisterPeerPool(key fwdKey) {
 // Handles per-peer pool slots and overflow MixedBufMux handles.
 // Called from safeBatchHandle and Stop cleanup.
 func (fp *fwdPool) releaseItem(item *fwdItem) {
-	if item.peerPooled && item.peerPoolRef != nil {
-		item.peerPoolRef.release()
-		item.peerPooled = false
+	if item.peerBufIdx > 0 && item.peerPoolRef != nil {
+		item.peerPoolRef.Return(item.peerBufIdx)
+		item.peerBufIdx = 0
 		item.peerPoolRef = nil
 	}
 	if item.overflowBuf.Buf != nil && fp.overflowMux != nil {
@@ -463,14 +492,15 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 		w = fp.newWorker(key)
 	}
 
-	// Acquire per-peer pool slot (under fp.mu, which protects peerPools).
-	// If the peer pool is full, mark congested and return false.
+	// Acquire per-peer pool buffer (under fp.mu, which protects peerPools).
+	// If the peer pool is exhausted, mark congested and return false.
 	pp := fp.peerPools[key]
 	fp.mu.Unlock()
 
 	if pp != nil {
-		if !pp.acquire() {
-			// Per-peer pool full -- mark congested and return false.
+		_, idx := pp.Get()
+		if idx == 0 {
+			// Per-peer pool exhausted -- mark congested and return false.
 			w.overflowMu.Lock()
 			wasCongested := w.congested
 			w.congested = true
@@ -481,7 +511,7 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 			}
 			return false
 		}
-		item.peerPooled = true
+		item.peerBufIdx = idx
 		item.peerPoolRef = pp
 	}
 
@@ -490,10 +520,10 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 	case w.ch <- item:
 		return true
 	default: // channel full — non-blocking fallback
-		// Release per-peer pool slot on failed send.
-		if item.peerPooled && item.peerPoolRef != nil {
-			item.peerPoolRef.release()
-			item.peerPooled = false
+		// Return per-peer pool buffer on failed send.
+		if item.peerBufIdx > 0 && item.peerPoolRef != nil {
+			item.peerPoolRef.Return(item.peerBufIdx)
+			item.peerBufIdx = 0
 			item.peerPoolRef = nil
 		}
 		// Mark congested and fire callback on transition.
@@ -593,8 +623,8 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 			if old.done != nil {
 				old.done()
 			}
-			if old.peerPooled && old.peerPoolRef != nil {
-				old.peerPoolRef.release()
+			if old.peerBufIdx > 0 && old.peerPoolRef != nil {
+				old.peerPoolRef.Return(old.peerBufIdx)
 			}
 			if old.overflowBuf.Buf != nil && fp.overflowMux != nil {
 				fp.overflowMux.Return(old.overflowBuf)

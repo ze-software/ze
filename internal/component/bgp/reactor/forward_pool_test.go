@@ -1341,31 +1341,47 @@ func TestPeerPool64K(t *testing.T) {
 }
 
 func TestPeerPoolExhausted(t *testing.T) {
-	// Pool full after 64 acquire() calls, next returns false.
+	// Pool full after 64 Get() calls, next returns (nil, 0).
 	pp := newPeerPool(4096)
+	idxs := make([]int, 0, 64)
 	for range 64 {
-		ok := pp.acquire()
-		require.True(t, ok, "acquire should succeed within capacity")
+		buf, idx := pp.Get()
+		require.NotNil(t, buf, "Get should succeed within capacity")
+		require.Greater(t, idx, 0, "index should be 1-based")
+		assert.Len(t, buf, 4096, "buffer should be 4096 bytes")
+		idxs = append(idxs, idx)
 	}
 	assert.Equal(t, 0, pp.available())
-	ok := pp.acquire()
-	assert.False(t, ok, "acquire should fail when pool is full")
+	buf, idx := pp.Get()
+	assert.Nil(t, buf, "Get should return nil when pool is exhausted")
+	assert.Equal(t, 0, idx, "exhausted pool returns sentinel 0")
+
+	// Return all buffers.
+	for _, i := range idxs {
+		pp.Return(i)
+	}
 }
 
 func TestPeerPoolReturn(t *testing.T) {
-	// Release frees slot, subsequent acquire succeeds.
+	// Return frees buffer, subsequent Get succeeds.
 	pp := newPeerPool(4096)
+	idxs := make([]int, 0, 64)
 	for range 64 {
-		pp.acquire()
+		_, idx := pp.Get()
+		idxs = append(idxs, idx)
 	}
-	assert.False(t, pp.acquire())
-	pp.release()
+	_, idx := pp.Get()
+	assert.Equal(t, 0, idx)
+	pp.Return(idxs[0])
 	assert.Equal(t, 1, pp.available())
-	assert.True(t, pp.acquire())
+	buf, idx := pp.Get()
+	assert.NotNil(t, buf, "Get should succeed after Return")
+	assert.Greater(t, idx, 0)
+	assert.Len(t, buf, 4096)
 }
 
 func TestPeerPoolConcurrent(t *testing.T) {
-	// Concurrent acquire/release does not corrupt the counter.
+	// Concurrent Get/Return does not corrupt the pool.
 	pp := newPeerPool(4096)
 	var wg sync.WaitGroup
 	const goroutines = 10
@@ -1375,14 +1391,14 @@ func TestPeerPoolConcurrent(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range iterations {
-				if pp.acquire() {
-					pp.release()
+				if _, idx := pp.Get(); idx > 0 {
+					pp.Return(idx)
 				}
 			}
 		}()
 	}
 	wg.Wait()
-	assert.Equal(t, 64, pp.available(), "all slots should be returned")
+	assert.Equal(t, 64, pp.available(), "all buffers should be returned")
 }
 
 // --- Overflow MixedBufMux integration tests (fwd-auto-sizing Phase 4) ---
