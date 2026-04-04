@@ -55,12 +55,14 @@ type loopbackEntry struct {
 
 // unitEntry represents a logical unit on an interface.
 type unitEntry struct {
-	ID        int
-	VLANID    int
-	Addresses []string
-	Disable   bool
-	IPv4      *ipv4Sysctl
-	IPv6      *ipv6Sysctl
+	ID            int
+	VLANID        int
+	Addresses     []string
+	Disable       bool
+	IPv4          *ipv4Sysctl
+	IPv6          *ipv6Sysctl
+	MirrorIngress string // destination interface name, empty = not configured
+	MirrorEgress  string
 }
 
 // ipv4Sysctl holds per-interface IPv4 sysctl settings.
@@ -210,6 +212,10 @@ func parseUnits(m map[string]any) []unitEntry {
 			u.Addresses = parseStringList(um, "address")
 			u.IPv4 = parseIPv4Sysctl(um)
 			u.IPv6 = parseIPv6Sysctl(um)
+			if mirrorMap, ok := um["mirror"].(map[string]any); ok {
+				u.MirrorIngress, _ = mirrorMap["ingress"].(string)
+				u.MirrorEgress, _ = mirrorMap["egress"].(string)
+			}
 		}
 		units = append(units, u)
 	}
@@ -510,6 +516,7 @@ func applyConfig(cfg *ifaceConfig, b Backend) {
 				osName = fmt.Sprintf("%s.%d", e.Name, u.VLANID)
 			}
 			applySysctl(b, osName, u, log)
+			applyMirror(b, osName, u, log)
 		}
 	}
 
@@ -642,6 +649,35 @@ func applySysctl(b Backend, osName string, u unitEntry, log interface{ Warn(stri
 			if err := b.SetIPv6Forwarding(osName, *s.Forwarding); err != nil {
 				log.Warn("iface config: ipv6 forwarding", "iface", osName, "err", err)
 			}
+		}
+	}
+}
+
+// applyMirror configures traffic mirroring on an interface from unit config.
+// Only applied when at least one of ingress/egress destination is configured.
+func applyMirror(b Backend, osName string, u unitEntry, log interface{ Warn(string, ...any) }) {
+	if u.MirrorIngress == "" && u.MirrorEgress == "" {
+		return
+	}
+	ingress := u.MirrorIngress != ""
+	egress := u.MirrorEgress != ""
+
+	// Both ingress and egress mirror to the same destination when using
+	// SetupMirror. If they differ, call separately.
+	if ingress && egress && u.MirrorIngress == u.MirrorEgress {
+		if err := b.SetupMirror(osName, u.MirrorIngress, true, true); err != nil {
+			log.Warn("iface config: mirror setup", "iface", osName, "dst", u.MirrorIngress, "err", err)
+		}
+		return
+	}
+	if ingress {
+		if err := b.SetupMirror(osName, u.MirrorIngress, true, false); err != nil {
+			log.Warn("iface config: mirror ingress", "iface", osName, "dst", u.MirrorIngress, "err", err)
+		}
+	}
+	if egress {
+		if err := b.SetupMirror(osName, u.MirrorEgress, false, true); err != nil {
+			log.Warn("iface config: mirror egress", "iface", osName, "dst", u.MirrorEgress, "err", err)
 		}
 	}
 }
