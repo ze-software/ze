@@ -13,6 +13,7 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # Python test plugin
@@ -122,7 +123,9 @@ plugin {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
-	internal sysrib {
+	external sysrib {
+		run "ze plugin sysrib"
+		encoder json
 	}
 }
 
@@ -164,10 +167,12 @@ bgp {
 		}
 		process rib {
 		}
+		process sysrib {
+		}
 	}
 }
 EOF_CONF
 
-option=tcp_connections:value=1
-option=timeout:value=15s
-option=asn:value=1
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
