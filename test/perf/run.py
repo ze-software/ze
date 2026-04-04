@@ -30,6 +30,7 @@ import argparse
 import atexit
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -122,11 +123,53 @@ def build_linux_binary():
     )
 
 
+RUST_DUTS = {"rustbgpd", "rustybgp"}
+# Rust release builds with LTO need significant memory for the final link step.
+COLIMA_MEM_GIB = 10
+
+
+def ensure_colima_memory(needed_duts):
+    """On macOS, ensure Colima VM has enough memory for Rust release builds with LTO."""
+    needed = {d["name"] for d in needed_duts}
+    if not needed & RUST_DUTS:
+        return
+    if platform.system() != "Darwin":
+        return
+    if not shutil.which("colima"):
+        return
+    try:
+        r = subprocess.run(
+            ["docker", "info", "--format", "{{.MemTotal}}"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if r.returncode != 0:
+            return
+        mem_bytes = int(r.stdout.strip())
+        mem_gib = mem_bytes / (1 << 30)
+        if mem_gib >= COLIMA_MEM_GIB:
+            return
+        rust_names = sorted(needed & RUST_DUTS)
+        print(f"  Colima VM has {mem_gib:.1f} GiB, "
+              f"but {', '.join(rust_names)} release builds need {COLIMA_MEM_GIB} GiB (LTO)")
+        print(f"  Restarting Colima with --memory {COLIMA_MEM_GIB}...")
+        subprocess.run(["colima", "stop"], timeout=60)
+        subprocess.run(
+            ["colima", "start", "--memory", str(COLIMA_MEM_GIB)],
+            check=True, timeout=120,
+        )
+        print(f"  Colima restarted with {COLIMA_MEM_GIB} GiB")
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, ValueError, OSError) as e:
+        print(f"  WARNING: could not resize Colima: {e}")
+        print(f"  Fix manually: colima stop && colima start --memory {COLIMA_MEM_GIB}")
+
+
 def build_images(needed_duts):
     """Build/pull only the images needed for the requested DUTs."""
     if os.environ.get("NO_BUILD"):
         print("  skipping image builds (NO_BUILD=1)")
         return
+
+    ensure_colima_memory(needed_duts)
 
     needed = {d["name"] for d in needed_duts}
 
