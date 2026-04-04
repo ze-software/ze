@@ -1,0 +1,26 @@
+# Test: MAC address value completion in interface context
+# VALIDATES: Tab on mac-address field shows ze:validate CompleteFn results or type hint
+# PREVENTS: MAC address completion broken in ethernet interface context
+
+tmpfs=test.conf:terminator=EOF_CONF
+interface {
+  ethernet test {
+    mac-address aa:bb:cc:dd:ee:ff;
+    os-name test;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Navigate into ethernet interface context
+input=type:text=edit interface ethernet test
+input=enter
+expect=context:path=interface.ethernet.test
+
+# Type set mac-address and trigger completion
+input=type:text=set mac-address
+input=space
+input=tab
+expect=error:none

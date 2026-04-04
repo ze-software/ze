@@ -256,6 +256,18 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
 		}
 	}
 
+	// Load ze-iface-conf module (interface)
+	ifaceEntry := loader.GetEntry("ze-iface-conf")
+	if ifaceEntry != nil {
+		for _, name := range sortedKeys(ifaceEntry.Dir) {
+			child := ifaceEntry.Dir[name]
+			node := yangToNode(child, name)
+			if node != nil {
+				schema.Define(name, node)
+			}
+		}
+	}
+
 	return schema, nil
 }
 
