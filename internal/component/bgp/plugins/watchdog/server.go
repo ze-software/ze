@@ -199,8 +199,8 @@ func (s *watchdogServer) handleMEDOverride(pool *RoutePool, peer string, isUp bo
 	pool.mu.Lock()
 	var cmds []string
 	for _, e := range pool.routes {
-		e.announced[peer] = true
 		if isUp {
+			e.announced[peer] = true
 			clone := e.Route
 			clone.MED = med
 			cmds = append(cmds, bgp.FormatAnnounceCommand(&clone))
