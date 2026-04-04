@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-2-manage.md — Interface migration CLI
+// Design: plan/learned/491-iface-2-manage.md — Interface migration CLI
 
 package iface
 
@@ -6,12 +6,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/netip"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
+	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
 )
 
 // cmdMigrate handles: ze interface migrate --from <iface>.<unit> --to <iface>.<unit> --address <cidr> [--create <type>] [--timeout <duration>]
@@ -61,18 +63,49 @@ func cmdMigrate(args []string) int {
 		return 1
 	}
 
-	fmt.Printf("migrate: %s (unit %d) -> %s (unit %d), address %s",
+	// Validate address is a valid CIDR before sending to daemon.
+	if _, err := netip.ParsePrefix(address); err != nil {
+		fmt.Fprintf(os.Stderr, "error: invalid --address %q: %v\n", address, err)
+		return 1
+	}
+
+	// Validate --create type against known set.
+	if createTyp != "" {
+		switch createTyp {
+		case "dummy", "veth", "bridge": // valid
+		default:
+			fmt.Fprintf(os.Stderr, "error: invalid --create type %q (expected dummy, veth, or bridge)\n", createTyp)
+			return 1
+		}
+	}
+
+	// Build the command to dispatch via SSH to the running daemon.
+	cmd := fmt.Sprintf("interface migrate --from %s.%d --to %s.%d --address %s",
 		fromIface, fromUnit, toIface, toUnit, address)
 	if createTyp != "" {
-		fmt.Printf(", create %s", createTyp)
+		cmd += " --create " + createTyp
 	}
-	fmt.Printf(", timeout %s\n", timeout)
+	if timeout != 30*time.Second {
+		cmd += " --timeout " + timeout.String()
+	}
 
-	// MigrateInterface requires a Bus, which is only available when running
-	// inside the ze engine. The CLI command validates arguments and prints
-	// the plan; actual migration is dispatched via the engine's RPC interface.
-	fmt.Fprintf(os.Stderr, "error: migrate requires a running ze engine (use ze rpc or config)\n")
-	return 1
+	creds, err := sshclient.LoadCredentials()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "hint: run 'ze init' first, or start the daemon with 'ze start'\n")
+		return 1
+	}
+
+	result, err := sshclient.ExecCommand(creds, cmd)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+
+	if result != "" {
+		fmt.Println(result)
+	}
+	return 0
 }
 
 // parseIfaceUnit splits "<name>.<unit>" into name and unit number.

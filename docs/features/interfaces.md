@@ -74,7 +74,7 @@ JunOS-style two-layer model: physical interfaces with logical units.
 | **Traffic Control** | QoS / shaping | missing | lower |
 | | Policing | missing | lower |
 | | Queuing disciplines | missing | lower |
-| **Migration** | Make-before-break 4-phase | have | |
+| **Migration** | Make-before-break 5-phase | have | |
 | | BGP readiness signaling | have | |
 | | Per-phase rollback | have | |
 | **BGP Integration** | Reactor subscribes to addr events | have | |
@@ -120,7 +120,7 @@ JunOS-style two-layer model: physical interfaces with logical units.
 <!-- source: internal/component/iface/monitor_linux.go — Monitor, netlink multicast subscription -->
 <!-- source: internal/component/iface/dhcp_v4_linux.go — DHCPv4 worker -->
 <!-- source: internal/component/iface/dhcp_v6_linux.go — DHCPv6 worker -->
-<!-- source: internal/component/iface/migrate_linux.go — MigrateInterface 4-phase protocol -->
+<!-- source: internal/component/iface/migrate_linux.go — MigrateInterface 5-phase protocol -->
 <!-- source: internal/component/iface/mirror_linux.go — traffic mirroring via tc -->
 <!-- source: internal/component/iface/sysctl_linux.go — per-interface sysctl writes -->
 <!-- source: internal/component/iface/slaac_linux.go — SLAAC control -->

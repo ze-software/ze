@@ -334,13 +334,13 @@ Dependencies: `github.com/vishvananda/netlink` (3200+ stars), `github.com/insomn
 | `internal/component/iface/iface_linux.go` | 2 | Interface create/delete/addr management |
 | `internal/component/iface/sysctl_linux.go` | 2 | sysctl writes for IPv4/IPv6 options |
 | `internal/component/iface/schema/ze-iface-conf.yang` | 2 | YANG config schema |
-| `cmd/ze/interface/main.go` | 2 | CLI subcommand dispatch |
-| `cmd/ze/interface/show.go` | 2 | `ze interface show` |
-| `cmd/ze/interface/create.go` | 2 | `ze interface create` |
-| `cmd/ze/interface/addr.go` | 2 | `ze interface addr add/del` |
+| `cmd/ze/iface/main.go` | 2 | CLI subcommand dispatch |
+| `cmd/ze/iface/show.go` | 2 | `ze interface show` |
+| `cmd/ze/iface/create.go` | 2 | `ze interface create` |
+| `cmd/ze/iface/addr.go` | 2 | `ze interface addr add/del` |
 | `internal/component/iface/dhcp_linux.go` | 4 | DHCPv4/v6 client |
 | `internal/component/iface/mirror_linux.go` | 4 | tc mirred setup |
-| `cmd/ze/interface/migrate.go` | 4 | `ze interface migrate` |
+| `cmd/ze/iface/migrate.go` | 4 | `ze interface migrate` |
 
 ### Integration Checklist
 
@@ -348,7 +348,7 @@ Dependencies: `github.com/vishvananda/netlink` (3200+ stars), `github.com/insomn
 |-------------------|---------|------|-------|
 | YANG schema (new module) | [x] | `internal/component/iface/schema/ze-iface-conf.yang` | 2 |
 | YANG schema (BGP update) | [x] | `internal/component/bgp/schema/ze-bgp-conf.yang` | 3 |
-| CLI commands/flags | [x] | `cmd/ze/interface/main.go` | 2 |
+| CLI commands/flags | [x] | `cmd/ze/iface/main.go` | 2 |
 | API commands doc | [x] | `docs/architecture/api/commands.md` | 2 |
 | Functional tests | [x] | `test/plugin/iface-*.ci` | 1-4 |
 

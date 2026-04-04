@@ -49,6 +49,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"      // init() registers show verb RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe" // init() registers subscribe/unsubscribe RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update"    // init() registers update verb RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"     // init() registers interface show/migrate RPCs
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"

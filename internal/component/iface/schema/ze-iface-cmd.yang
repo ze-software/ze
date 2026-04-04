@@ -1,0 +1,24 @@
+module ze-iface-cmd {
+    namespace "urn:ze:iface:cmd";
+    prefix ifacecmd;
+    import ze-extensions { prefix ze; }
+    description "Interface command tree";
+    revision 2026-04-01 { description "Initial revision"; }
+
+    container interface {
+        config false;
+        description "Interface operations";
+
+        container show {
+            config false;
+            ze:command "ze-iface:interface-show";
+            description "Show interfaces or details for a specific interface";
+        }
+
+        container migrate {
+            config false;
+            ze:command "ze-iface:interface-migrate";
+            description "Make-before-break IP migration between interfaces";
+        }
+    }
+}

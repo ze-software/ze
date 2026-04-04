@@ -12,6 +12,9 @@
 // Detail: dhcp_v6_linux.go — DHCPv6 worker, renewal, lease handling
 // Detail: manage_other.go — non-Linux interface management stub
 // Detail: bridge_other.go — non-Linux bridge management stub
+// Detail: show_linux.go — interface listing via netlink
+// Detail: show_other.go — non-Linux interface listing via stdlib
+// Detail: validate.go — interface name validation
 // Detail: monitor_other.go — non-Linux monitor stub
 
 // Package iface implements the interface monitoring and management plugin.
@@ -97,4 +100,25 @@ type DHCPPayload struct {
 	Router       string `json:"router,omitempty"`
 	DNS          string `json:"dns,omitempty"`
 	LeaseTime    int    `json:"lease-time"`
+}
+
+// InterfaceInfo describes an OS network interface for display.
+type InterfaceInfo struct {
+	Name        string          `json:"name"`
+	Index       int             `json:"index"`
+	Type        string          `json:"type"`
+	State       string          `json:"state"`
+	MTU         int             `json:"mtu"`
+	MAC         string          `json:"mac-address,omitempty"`
+	Addresses   []AddrInfo      `json:"addresses,omitempty"`
+	Stats       *InterfaceStats `json:"stats,omitempty"`
+	ParentIndex int             `json:"parent-index,omitempty"`
+	VlanID      int             `json:"vlan-id,omitempty"`
+}
+
+// AddrInfo describes an IP address assigned to an interface.
+type AddrInfo struct {
+	Address      string `json:"address"`
+	PrefixLength int    `json:"prefix-length"`
+	Family       string `json:"family"`
 }

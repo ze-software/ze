@@ -29,5 +29,5 @@ Ze could monitor and manage interfaces (phases 1-2) and BGP could react to addre
 
 - `internal/component/iface/dhcp_linux.go` -- DHCPv4/v6 client with lease lifecycle
 - `internal/component/iface/mirror_linux.go` -- tc mirred setup/teardown via netlink
-- `cmd/ze/interface/migrate.go` -- `ze interface migrate` CLI handler
+- `cmd/ze/iface/migrate.go` -- `ze interface migrate` CLI handler
 - `internal/component/iface/schema/ze-iface-conf.yang` -- DHCP, mirror, SLAAC YANG sections

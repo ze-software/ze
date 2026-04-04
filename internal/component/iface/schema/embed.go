@@ -5,3 +5,6 @@ import _ "embed"
 
 //go:embed ze-iface-conf.yang
 var ZeIfaceConfYANG string
+
+//go:embed ze-iface-cmd.yang
+var ZeIfaceCmdYANG string

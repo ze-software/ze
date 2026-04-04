@@ -32,4 +32,4 @@ Ze had no interface lifecycle management. BGP assumed configured IPs always exis
 - `internal/component/iface/` -- plugin core (iface.go, register.go, monitor_linux.go, iface_linux.go, sysctl_linux.go, dhcp_linux.go, mirror_linux.go)
 - `internal/component/iface/schema/ze-iface-conf.yang` -- YANG config schema
 - `internal/component/bgp/reactor/reactor_iface.go` -- BGP interface event handler
-- `cmd/ze/interface/` -- CLI subcommands (show, create, addr, unit, migrate)
+- `cmd/ze/iface/` -- CLI subcommands (show, create, addr, unit, migrate)

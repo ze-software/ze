@@ -7,15 +7,8 @@ package iface
 import (
 	"fmt"
 	"net"
-	"strings"
 
 	"github.com/vishvananda/netlink"
-)
-
-// Interface name length limits (Linux kernel IFNAMSIZ = 16, including NUL).
-const (
-	minIfaceNameLen = 1
-	maxIfaceNameLen = 15
 )
 
 // linkTypeBridge is the netlink link type string for bridge interfaces.
@@ -33,27 +26,6 @@ const (
 	minMTU = 68
 	maxMTU = 16000
 )
-
-// validateIfaceName checks that name is a valid Linux interface name.
-// Linux kernel forbids '/' and NUL in interface names (IFNAMSIZ).
-// We also reject ".." sequences to prevent path traversal in sysctl writes.
-func validateIfaceName(name string) error {
-	n := len(name)
-	if n < minIfaceNameLen || n > maxIfaceNameLen {
-		return fmt.Errorf("iface: name %q length %d not in [%d, %d]",
-			name, n, minIfaceNameLen, maxIfaceNameLen)
-	}
-	for i := range n {
-		c := name[i]
-		if c == '/' || c == 0 || c == ' ' || c == '\t' || c == '\n' || c == '\r' {
-			return fmt.Errorf("iface: name %q contains forbidden character", name)
-		}
-	}
-	if strings.Contains(name, "..") {
-		return fmt.Errorf("iface: name %q contains path traversal sequence", name)
-	}
-	return nil
-}
 
 // validateVLANID checks that id is in the valid 802.1Q range [1, 4094].
 func validateVLANID(id int) error {

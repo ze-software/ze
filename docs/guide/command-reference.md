@@ -185,6 +185,35 @@ ze show bgp encode <route-command>
 | `--asn4` | 4-byte ASN (default: true) |
 <!-- source: cmd/ze/bgp/main.go -- Run; cmd/ze/bgp/decode.go -- cmdDecode; cmd/ze/bgp/encode.go -- cmdEncode -->
 
+### ze interface
+
+OS network interface management (standalone, no daemon needed for most commands).
+
+```
+ze interface show                  # List all interfaces
+ze interface show <name>           # Show details for one interface
+ze interface show --json           # JSON output
+ze interface create dummy <name>   # Create a dummy interface
+ze interface create veth <n> <p>   # Create a veth pair
+ze interface delete <name>         # Delete an interface
+ze interface unit add <name> <id> [vlan-id <vid>]  # Add a logical unit
+ze interface unit del <name> <id>  # Delete a logical unit
+ze interface addr add <name> unit <id> <cidr>      # Add IP address
+ze interface addr del <name> unit <id> <cidr>      # Remove IP address
+ze interface migrate ...           # Make-before-break migration (requires daemon)
+```
+
+**migrate flags (dispatched to running daemon via SSH):**
+
+| Flag | Purpose |
+|------|---------|
+| `--from <iface>.<unit>` | Source interface and unit (required) |
+| `--to <iface>.<unit>` | Destination interface and unit (required) |
+| `--address <cidr>` | IP address to migrate (required) |
+| `--create <type>` | Create new interface: dummy, veth, bridge |
+| `--timeout <duration>` | BGP readiness timeout (default: 30s) |
+<!-- source: cmd/ze/iface/main.go -- Run; cmd/ze/iface/show.go -- cmdShow; cmd/ze/iface/migrate.go -- cmdMigrate -->
+
 ### ze exabgp
 
 ExaBGP compatibility tools.

@@ -7,7 +7,7 @@ Ze could monitor OS interfaces (phase 1) but had no capability to create, delete
 ## Decisions
 
 - YANG schema with `interface-physical` + `interface-unit` groupings over flat config: two-layer model mirrors JunOS IFD/IFL. Physical properties (MTU, description, disable) live on the interface; logical properties (addresses, VLAN, VRF, sysctl) live on units.
-- CLI at `cmd/ze/interface/` with standard dispatch pattern over ad-hoc commands: `func Run(args []string) int` with `flag.NewFlagSet` per subcommand, matching existing `cmd/ze/bgp/` patterns.
+- CLI at `cmd/ze/iface/` with standard dispatch pattern over ad-hoc commands: `func Run(args []string) int` with `flag.NewFlagSet` per subcommand, matching existing `cmd/ze/bgp/` patterns.
 - sysctl with testable `sysctlRoot` override over direct `/proc/sys` writes: unit tests can redirect sysctl writes to a temp directory without requiring root or `/proc` access.
 - VyOS-aligned type-first grouping (ethernet, dummy, veth, bridge, loopback) over flat interface list: each type has its own YANG list, enabling type-specific constraints (e.g., veth requires peer name).
 
@@ -29,4 +29,4 @@ Ze could monitor OS interfaces (phase 1) but had no capability to create, delete
 - `internal/component/iface/iface_linux.go` -- interface + unit create/delete/addr management
 - `internal/component/iface/sysctl_linux.go` -- per-unit sysctl writes with testable root
 - `internal/component/iface/schema/ze-iface-conf.yang` -- YANG config schema
-- `cmd/ze/interface/` -- CLI: main.go, show.go, create.go, unit.go, addr.go
+- `cmd/ze/iface/` -- CLI: main.go, show.go, create.go, unit.go, addr.go

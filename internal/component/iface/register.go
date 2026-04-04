@@ -40,8 +40,8 @@ func SetBus(b ze.Bus) {
 	busRef = b
 }
 
-// getBus returns the package-level Bus reference, or nil if not set.
-func getBus() ze.Bus {
+// GetBus returns the package-level Bus reference, or nil if not set.
+func GetBus() ze.Bus {
 	busMu.Lock()
 	defer busMu.Unlock()
 	return busRef
@@ -91,7 +91,7 @@ func runEngine(conn net.Conn) int {
 	var mon *Monitor
 
 	p.OnConfigure(func(_ []sdk.ConfigSection) error {
-		bus := getBus()
+		bus := GetBus()
 		if bus == nil {
 			log.Warn("interface plugin: no bus configured, monitor will not start")
 			return nil
