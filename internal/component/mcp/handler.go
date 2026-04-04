@@ -4,9 +4,8 @@
 // Package mcp provides an HTTP handler that speaks MCP (Model Context Protocol)
 // JSON-RPC, wrapping Ze's command dispatcher to let AI assistants control BGP.
 //
-// Handcrafted tools: ze_announce, ze_withdraw, ze_peers, ze_peer_control, ze_execute, ze_commands.
-// Additional tools are auto-generated from the command registry at tools/list time,
-// so new YANG commands are automatically exposed without modifying this package.
+// All tools are auto-generated from the command registry at tools/list time.
+// New YANG commands are automatically exposed without modifying this package.
 //
 // Usage: mount Handler() on an HTTP endpoint when --mcp <port> is set.
 package mcp
@@ -158,15 +157,9 @@ func (s *server) handle(req *request) *response {
 	return handler(s, req)
 }
 
-// toolHandlers maps MCP tool names to their implementations.
-var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]any{
-	"ze_announce":     (*server).toolAnnounce,
-	"ze_withdraw":     (*server).toolWithdraw,
-	"ze_peers":        (*server).toolPeers,
-	"ze_peer_control": (*server).toolPeerControl,
-	"ze_execute":      (*server).toolExecute,
-	"ze_commands":     (*server).toolCommands,
-}
+// toolHandlers maps handcrafted MCP tool names to their implementations.
+// Empty: all tools are now auto-generated from the command registry.
+var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]any{}
 
 // handcraftedNames returns the set of tool names from handcrafted tools.
 // Used to filter auto-generated tools and prevent duplicate names.
@@ -247,189 +240,6 @@ func noSpaces(field, value string) error {
 	return nil
 }
 
-// toolAnnounce announces routes to peers.
-func (s *server) toolAnnounce(args json.RawMessage) map[string]any {
-	var p struct {
-		Peer      string   `json:"peer"`
-		Origin    string   `json:"origin"`
-		NextHop   string   `json:"next-hop"`
-		LocalPref *int     `json:"local-preference"`
-		ASPath    []int    `json:"as-path"`
-		Community []string `json:"community"`
-		Family    string   `json:"family"`
-		Prefixes  []string `json:"prefixes"`
-	}
-	if err := json.Unmarshal(args, &p); err != nil {
-		return errResult("invalid arguments: " + err.Error())
-	}
-	if p.Family == "" || len(p.Prefixes) == 0 {
-		return errResult("family and prefixes are required")
-	}
-	if p.Peer == "" {
-		p.Peer = "*"
-	}
-
-	// Validate inputs.
-	if err := noSpaces("peer", p.Peer); err != nil {
-		return errResult(err.Error())
-	}
-	if err := noSpaces("family", p.Family); err != nil {
-		return errResult(err.Error())
-	}
-	if p.Origin != "" {
-		if err := noSpaces("origin", p.Origin); err != nil {
-			return errResult(err.Error())
-		}
-	}
-	if p.NextHop != "" {
-		if err := noSpaces("next-hop", p.NextHop); err != nil {
-			return errResult(err.Error())
-		}
-	}
-	for _, pfx := range p.Prefixes {
-		if err := noSpaces("prefix", pfx); err != nil {
-			return errResult(err.Error())
-		}
-	}
-	for _, c := range p.Community {
-		if err := noSpaces("community", c); err != nil {
-			return errResult(err.Error())
-		}
-	}
-
-	// Build the text command.
-	var cmd strings.Builder
-	fmt.Fprintf(&cmd, "peer %s update text", p.Peer)
-	if p.Origin != "" {
-		fmt.Fprintf(&cmd, " origin %s", p.Origin)
-	}
-	if p.LocalPref != nil {
-		fmt.Fprintf(&cmd, " local-preference %d", *p.LocalPref)
-	}
-	if len(p.ASPath) > 0 {
-		cmd.WriteString(" as-path [")
-		for i, asn := range p.ASPath {
-			if i > 0 {
-				cmd.WriteString(" ")
-			}
-			fmt.Fprintf(&cmd, "%d", asn)
-		}
-		cmd.WriteString("]")
-	}
-	if p.NextHop != "" {
-		fmt.Fprintf(&cmd, " next-hop %s", p.NextHop)
-	}
-	// Use bracketed syntax for multiple communities to avoid parser replacement.
-	if len(p.Community) > 0 {
-		cmd.WriteString(" community [")
-		cmd.WriteString(strings.Join(p.Community, " "))
-		cmd.WriteString("]")
-	}
-	fmt.Fprintf(&cmd, " nlri %s", p.Family)
-	for _, pfx := range p.Prefixes {
-		fmt.Fprintf(&cmd, " add %s", pfx)
-	}
-
-	return s.run(cmd.String())
-}
-
-// toolWithdraw withdraws routes from peers.
-func (s *server) toolWithdraw(args json.RawMessage) map[string]any {
-	var p struct {
-		Peer     string   `json:"peer"`
-		Family   string   `json:"family"`
-		Prefixes []string `json:"prefixes"`
-	}
-	if err := json.Unmarshal(args, &p); err != nil {
-		return errResult("invalid arguments: " + err.Error())
-	}
-	if p.Family == "" || len(p.Prefixes) == 0 {
-		return errResult("family and prefixes are required")
-	}
-	if p.Peer == "" {
-		p.Peer = "*"
-	}
-	if err := noSpaces("peer", p.Peer); err != nil {
-		return errResult(err.Error())
-	}
-	if err := noSpaces("family", p.Family); err != nil {
-		return errResult(err.Error())
-	}
-	for _, pfx := range p.Prefixes {
-		if err := noSpaces("prefix", pfx); err != nil {
-			return errResult(err.Error())
-		}
-	}
-
-	var cmd strings.Builder
-	fmt.Fprintf(&cmd, "peer %s update text nlri %s", p.Peer, p.Family)
-	for _, pfx := range p.Prefixes {
-		fmt.Fprintf(&cmd, " del %s", pfx)
-	}
-
-	return s.run(cmd.String())
-}
-
-// toolPeers lists BGP peers and their status.
-func (s *server) toolPeers(args json.RawMessage) map[string]any {
-	var p struct {
-		Peer string `json:"peer"`
-	}
-	// Peer is optional -- malformed args just list all peers.
-	_ = json.Unmarshal(args, &p)
-
-	if p.Peer != "" {
-		if err := noSpaces("peer", p.Peer); err != nil {
-			return errResult(err.Error())
-		}
-		return s.run(fmt.Sprintf("peer %s show bgp peer", p.Peer))
-	}
-	return s.run("peer list")
-}
-
-// toolPeerControl manages peer lifecycle (teardown, pause, resume, flush).
-func (s *server) toolPeerControl(args json.RawMessage) map[string]any {
-	var p struct {
-		Peer   string `json:"peer"`
-		Action string `json:"action"`
-	}
-	if err := json.Unmarshal(args, &p); err != nil {
-		return errResult("invalid arguments: " + err.Error())
-	}
-	if p.Peer == "" || p.Action == "" {
-		return errResult("peer and action are required")
-	}
-	if err := noSpaces("peer", p.Peer); err != nil {
-		return errResult(err.Error())
-	}
-
-	validActions := map[string]bool{"teardown": true, "pause": true, "resume": true, "flush": true}
-	if !validActions[p.Action] {
-		return errResult(fmt.Sprintf("invalid action %q (use: teardown, pause, resume, flush)", p.Action))
-	}
-
-	return s.run(fmt.Sprintf("peer %s %s", p.Peer, p.Action))
-}
-
-// toolExecute runs a raw Ze command (escape hatch for anything not covered by specific tools).
-func (s *server) toolExecute(args json.RawMessage) map[string]any {
-	var p struct {
-		Command string `json:"command"`
-	}
-	if err := json.Unmarshal(args, &p); err != nil {
-		return errResult("invalid arguments: " + err.Error())
-	}
-	if p.Command == "" {
-		return errResult("command is required")
-	}
-	return s.run(p.Command)
-}
-
-// toolCommands lists available Ze commands.
-func (s *server) toolCommands(_ json.RawMessage) map[string]any {
-	return s.run("command-list --json")
-}
-
 // run dispatches a command and returns the result as MCP content.
 func (s *server) run(command string) map[string]any {
 	output, err := s.dispatch(command)
@@ -460,38 +270,6 @@ func errResult(msg string) map[string]any {
 	}
 }
 
-// Tool definitions. MCP camelCase fields built as maps to avoid kebab-case hook conflicts.
-//
-//nolint:lll // JSON schemas are long by nature
-var handcraftedTools = []map[string]any{
-	{
-		"name":        "ze_announce",
-		"description": "Announce BGP routes to peers. Builds and sends UPDATE messages with the specified attributes and prefixes.",
-		"inputSchema": json.RawMessage(`{"type":"object","properties":{"peer":{"type":"string","description":"Peer selector: address, name, or * for all (default: *)"},"origin":{"type":"string","enum":["igp","egp","incomplete"],"description":"ORIGIN attribute"},"next-hop":{"type":"string","description":"Next-hop IP address"},"local-preference":{"type":"integer","description":"LOCAL_PREF value"},"as-path":{"type":"array","items":{"type":"integer"},"description":"AS_PATH as list of ASNs"},"community":{"type":"array","items":{"type":"string"},"description":"Communities (e.g. 65000:100)"},"family":{"type":"string","description":"Address family (e.g. ipv4/unicast, ipv6/unicast)"},"prefixes":{"type":"array","items":{"type":"string"},"description":"Prefixes to announce (e.g. 10.0.0.0/24)"}},"required":["family","prefixes"]}`),
-	},
-	{
-		"name":        "ze_withdraw",
-		"description": "Withdraw BGP routes from peers. Sends UPDATE messages removing the specified prefixes.",
-		"inputSchema": json.RawMessage(`{"type":"object","properties":{"peer":{"type":"string","description":"Peer selector: address, name, or * for all (default: *)"},"family":{"type":"string","description":"Address family (e.g. ipv4/unicast)"},"prefixes":{"type":"array","items":{"type":"string"},"description":"Prefixes to withdraw (e.g. 10.0.0.0/24)"}},"required":["family","prefixes"]}`),
-	},
-	{
-		"name":        "ze_peers",
-		"description": "List BGP peers with their current state (Idle, Connect, OpenSent, Established, etc.), ASN, uptime, and counters.",
-		"inputSchema": json.RawMessage(`{"type":"object","properties":{"peer":{"type":"string","description":"Optional peer selector for detailed view (address or name). Omit for summary list."}}}`),
-	},
-	{
-		"name":        "ze_peer_control",
-		"description": "Control BGP peer lifecycle: tear down session, pause/resume updates, or flush routes.",
-		"inputSchema": json.RawMessage(`{"type":"object","properties":{"peer":{"type":"string","description":"Peer selector: address, name, or * for all"},"action":{"type":"string","enum":["teardown","pause","resume","flush"],"description":"Action to perform"}},"required":["peer","action"]}`),
-	},
-	{
-		"name":        "ze_execute",
-		"description": "Execute any Ze command (escape hatch). Use ze_commands to discover available commands. Prefer the specific tools (ze_announce, ze_withdraw, ze_peers, ze_peer_control) when possible.",
-		"inputSchema": json.RawMessage(`{"type":"object","properties":{"command":{"type":"string","description":"Ze command string"}},"required":["command"]}`),
-	},
-	{
-		"name":        "ze_commands",
-		"description": "List all available Ze commands with descriptions.",
-		"inputSchema": json.RawMessage(`{"type":"object","properties":{}}`),
-	},
-}
+// handcraftedTools is empty: all tools are auto-generated from the command registry.
+// Kept as a variable for the allTools() / handcraftedNames() interface.
+var handcraftedTools []map[string]any

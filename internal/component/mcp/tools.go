@@ -337,52 +337,76 @@ func yangTypeToJSON(yangType string) string {
 	return "string"
 }
 
+// reservedParams are the built-in dispatch parameters, not forwarded as typed args.
+var reservedParams = map[string]bool{"action": true, "arguments": true, "peer": true}
+
 // dispatchGenerated handles a tools/call for an auto-generated tool.
-// It builds the command string from the tool group prefix + action + arguments.
+// It builds the command string from the tool group prefix + action + typed params + arguments.
 // validActions contains the server-defined action names; if non-nil, the action
 // is validated against this set to prevent injection of arbitrary tokens.
+//
+// Typed YANG params (any JSON field not in reservedParams) are appended as
+// "key value" pairs after the action. This lets handlers receive structured
+// params through the standard text command interface.
 func (s *server) dispatchGenerated(prefix string, validActions map[string]bool, args json.RawMessage) map[string]any {
-	var p struct {
-		Action    string `json:"action"`
-		Arguments string `json:"arguments"`
-		Peer      string `json:"peer"`
-	}
-	if err := json.Unmarshal(args, &p); err != nil {
+	// Unmarshal into a generic map to capture typed params alongside standard ones.
+	var all map[string]any
+	if err := json.Unmarshal(args, &all); err != nil {
 		return errResult("invalid arguments: " + err.Error())
 	}
 
-	if p.Peer != "" {
-		if err := noSpaces("peer", p.Peer); err != nil {
+	action, _ := all["action"].(string)
+	arguments, _ := all["arguments"].(string)
+	peer, _ := all["peer"].(string)
+
+	if peer != "" {
+		if err := noSpaces("peer", peer); err != nil {
 			return errResult(err.Error())
 		}
 	}
-	// Validate action against the server-defined enum to prevent injection.
-	// Nil map lookup returns false, so this correctly rejects all actions when
-	// validActions is nil (no valid actions for the tool).
-	if p.Action != "" && !validActions[p.Action] {
-		return errResult(fmt.Sprintf("invalid action %q", p.Action))
+	if action != "" && !validActions[action] {
+		return errResult(fmt.Sprintf("invalid action %q", action))
 	}
-	if strings.ContainsAny(p.Action, "\n\r") {
+	if strings.ContainsAny(action, "\n\r") {
 		return errResult("action must not contain newlines")
 	}
-	if strings.ContainsAny(p.Arguments, "\n\r\t") {
+	if strings.ContainsAny(arguments, "\n\r\t") {
 		return errResult("arguments must not contain newlines or tabs")
 	}
 
 	var cmd strings.Builder
 
-	if p.Peer != "" {
-		fmt.Fprintf(&cmd, "peer %s ", p.Peer)
+	if peer != "" {
+		fmt.Fprintf(&cmd, "peer %s ", peer)
 	}
 
 	cmd.WriteString(prefix)
-	if p.Action != "" {
+	if action != "" {
 		cmd.WriteString(" ")
-		cmd.WriteString(p.Action)
+		cmd.WriteString(action)
 	}
-	if p.Arguments != "" {
+
+	// Append typed YANG params as "key value" pairs.
+	for key, val := range all {
+		if reservedParams[key] || val == nil {
+			continue
+		}
+		sval := fmt.Sprint(val)
+		if sval == "" {
+			continue
+		}
+		if strings.ContainsAny(sval, "\n\r\t") {
+			return errResult(fmt.Sprintf("parameter %q must not contain newlines or tabs", key))
+		}
 		cmd.WriteString(" ")
-		cmd.WriteString(p.Arguments)
+		cmd.WriteString(key)
+		cmd.WriteString(" ")
+		cmd.WriteString(sval)
+	}
+
+	if arguments != "" {
+		cmd.WriteString(" ")
+		cmd.WriteString(arguments)
 	}
 
 	return s.run(cmd.String())
