@@ -105,7 +105,7 @@ def docker(*args, check=True, timeout=60, capture=False, **kwargs):
 def build_linux_binary():
     """Cross-compile ze-perf for Linux if missing or wrong architecture."""
     import platform
-    go_arch = {"x86_64": "amd64", "aarch64": "arm64"}.get(platform.machine(), "amd64")
+    go_arch = {"x86_64": "amd64", "aarch64": "arm64", "arm64": "arm64"}.get(platform.machine(), "amd64")
     if os.path.exists(ZE_PERF_LINUX):
         # Verify existing binary matches current architecture.
         r = subprocess.run(["file", ZE_PERF_LINUX], capture_output=True, text=True, timeout=5)
