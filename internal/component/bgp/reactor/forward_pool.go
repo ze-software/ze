@@ -1127,13 +1127,23 @@ func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
 
 	// Try to enqueue overflow items into the channel.
 	// If channel is full or pool is stopping, process remaining directly.
-	// The stopCh check prevents send-on-closed-channel panic: Stop closes
-	// stopCh (step 1) well before closing w.ch (step 5), so if stopCh is
-	// closed, w.ch may be about to close — fall through to processDirect.
+	//
+	// Track with dispatchWG so Stop() waits for us before closing w.ch.
+	// Must check stopped under mu before Add(1) -- if Stop() already called
+	// Wait(), adding to a zero-counter WaitGroup is a race.
+	fp.mu.Lock()
+	if fp.stopped {
+		fp.mu.Unlock()
+		fp.safeBatchHandle(key, items)
+		return
+	}
+	fp.dispatchWG.Add(1)
+	fp.mu.Unlock()
+
 	var remaining []fwdItem
 	for i := range items {
 		select {
-		case <-fp.stopCh: // pool stopping — don't risk send on closing channel
+		case <-fp.stopCh: // pool stopping — Stop() will close w.ch after dispatchWG
 			remaining = items[i:]
 			goto processDirect
 		default: // not stopping — safe to attempt enqueue
@@ -1146,9 +1156,11 @@ func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
 			goto processDirect
 		}
 	}
+	fp.dispatchWG.Done()
 	return
 
 processDirect:
+	fp.dispatchWG.Done()
 	fp.safeBatchHandle(key, remaining)
 }
 
