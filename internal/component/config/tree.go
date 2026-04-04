@@ -149,6 +149,29 @@ func (t *Tree) ContainerNames() []string {
 	return names
 }
 
+// CollectContainerPaths returns all container paths present in the tree,
+// recursively walking nested containers. Paths use "." separator.
+// Example: tree with fib { kernel { } } returns ["fib", "fib.kernel"].
+func CollectContainerPaths(t *Tree) []string {
+	var paths []string
+	collectPaths(t, "", &paths)
+	return paths
+}
+
+func collectPaths(t *Tree, prefix string, paths *[]string) {
+	for _, name := range t.ContainerNames() {
+		path := name
+		if prefix != "" {
+			path = prefix + "." + name
+		}
+		*paths = append(*paths, path)
+		child := t.GetContainer(name)
+		if child != nil {
+			collectPaths(child, path, paths)
+		}
+	}
+}
+
 // RemoveContainer removes a nested container and returns it.
 // Returns nil if the container doesn't exist.
 func (t *Tree) RemoveContainer(name string) *Tree {

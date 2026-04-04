@@ -19,6 +19,7 @@ func init() {
 		Name:         "fib-p4",
 		Description:  "FIB P4: programs P4 switch forwarding entries from system RIB via gRPC/P4Runtime",
 		Features:     "yang",
+		ConfigRoots:  []string{"fib.p4"},
 		Dependencies: []string{"sysrib"},
 		YANG:         fibp4schema.ZeFibP4ConfYANG,
 		RunEngine:    runFIBP4Plugin,

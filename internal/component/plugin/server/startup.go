@@ -27,13 +27,16 @@ const (
 // stageTransition handles coordinator stage completion and waiting.
 // Returns true if transition succeeded, false if failed (caller should return true to stop processing).
 func (s *Server) stageTransition(proc *process.Process, pluginName string, completeStage, waitStage plugin.PluginStage) bool {
-	if s.coordinator == nil {
+	s.coordinatorMu.Lock()
+	coord := s.coordinator
+	s.coordinatorMu.Unlock()
+	if coord == nil {
 		return true
 	}
 
 	logger().Debug("server: stageTransition START", "plugin", pluginName, "complete", completeStage, "wait_for", waitStage)
 	logger().Debug("server: stageTransition calling StageComplete", "plugin", pluginName, "index", proc.Index())
-	s.coordinator.StageComplete(proc.Index(), completeStage)
+	coord.StageComplete(proc.Index(), completeStage)
 	logger().Debug("server: stageTransition StageComplete returned", "plugin", pluginName)
 
 	// Use per-plugin timeout if configured, else env var, else default.
@@ -47,14 +50,14 @@ func (s *Server) stageTransition(proc *process.Process, pluginName string, compl
 	// This prevents fast plugins from timing out while waiting for slow
 	// plugins at the barrier -- the timeout measures from when the stage
 	// began, not from when this plugin reached the barrier.
-	deadline := s.coordinator.StageStartTime().Add(timeout)
+	deadline := coord.StageStartTime().Add(timeout)
 	stageCtx, cancel := context.WithDeadline(s.ctx, deadline)
-	err := s.coordinator.WaitForStage(stageCtx, waitStage)
+	err := coord.WaitForStage(stageCtx, waitStage)
 	cancel()
 
 	if err != nil {
 		logger().Error("stage timeout", "plugin", pluginName, "waiting_for", waitStage, "error", err)
-		s.coordinator.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
+		coord.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
 		proc.Stop()
 		return false
 	}
@@ -105,11 +108,12 @@ func (s *Server) handlePluginConflict(proc *process.Process, name, msg string, e
 	proc.Stop()
 }
 
-// runPluginStartup handles four-phase plugin startup:
+// runPluginStartup handles five-phase plugin startup:
 // Phase 1: Start explicit plugins, wait for registration.
-// Phase 2: Auto-load plugins for unclaimed families.
-// Phase 3: Auto-load plugins for custom event types (e.g., update-rpki triggers bgp-rpki-decorator).
-// Phase 4: Auto-load plugins for custom send types (e.g., enhanced-refresh triggers bgp-route-refresh).
+// Phase 2: Auto-load plugins for config paths (e.g., fib { kernel {} } triggers fib-kernel).
+// Phase 3: Auto-load plugins for unclaimed families.
+// Phase 4: Auto-load plugins for custom event types (e.g., update-rpki triggers bgp-rpki-decorator).
+// Phase 5: Auto-load plugins for custom send types (e.g., enhanced-refresh triggers bgp-route-refresh).
 func (s *Server) runPluginStartup() {
 	defer s.wg.Done()
 
@@ -123,7 +127,25 @@ func (s *Server) runPluginStartup() {
 		}
 	}
 
-	// Phase 2: Auto-load plugins for unclaimed families
+	// Phase 2: Auto-load plugins for config paths
+	// Config has fib { kernel { } } but no explicit plugin declaration.
+	autoLoadConfigPaths := s.getConfigPathPlugins()
+	if len(autoLoadConfigPaths) > 0 {
+		logger().Debug("auto-loading plugins for config paths",
+			"count", len(autoLoadConfigPaths))
+
+		if s.reactor != nil {
+			s.reactor.AddAPIProcessCount(len(autoLoadConfigPaths))
+		}
+
+		if err := s.runPluginPhase(autoLoadConfigPaths); err != nil {
+			logger().Error("auto-load config path plugin startup failed", "error", err)
+			s.signalStartupComplete()
+			return
+		}
+	}
+
+	// Phase 3: Auto-load plugins for unclaimed families
 	// Now registry has families from explicit plugins - use family-based check
 	autoLoadFamilies := s.getUnclaimedFamilyPlugins()
 	if len(autoLoadFamilies) > 0 {
@@ -141,7 +163,7 @@ func (s *Server) runPluginStartup() {
 		}
 	}
 
-	// Phase 3: Auto-load plugins for custom event types
+	// Phase 4: Auto-load plugins for custom event types
 	// Config has receive [ update-rpki ] but no explicit decorator plugin configured.
 	autoLoadEvents := s.getUnclaimedEventTypePlugins()
 	if len(autoLoadEvents) > 0 {
@@ -159,7 +181,7 @@ func (s *Server) runPluginStartup() {
 		}
 	}
 
-	// Phase 4: Auto-load plugins for custom send types
+	// Phase 5: Auto-load plugins for custom send types
 	// Config has send [ enhanced-refresh ] but no explicit route-refresh plugin configured.
 	autoLoadSendTypes := s.getUnclaimedSendTypePlugins()
 	if len(autoLoadSendTypes) > 0 {
@@ -266,8 +288,11 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 		}
 
 		// Create coordinator for this tier.
-		s.coordinator = plugin.NewStartupCoordinator(len(tierProcs))
-		s.coordinator.SetStartTime(time.Now())
+		newCoord := plugin.NewStartupCoordinator(len(tierProcs))
+		newCoord.SetStartTime(time.Now())
+		s.coordinatorMu.Lock()
+		s.coordinator = newCoord
+		s.coordinatorMu.Unlock()
 
 		logger().Debug("starting tier handshake", "tier", tierIdx, "plugins", tierNames)
 
@@ -289,7 +314,9 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 
 	// Step (d): After ALL tiers complete, start async handlers for ALL processes.
 	// Tracked in wg so Server.Wait() blocks until all handlers exit.
+	s.coordinatorMu.Lock()
 	s.coordinator = nil
+	s.coordinatorMu.Unlock()
 	for _, proc := range allProcesses {
 		s.wg.Add(1)
 		go func(p *process.Process) {

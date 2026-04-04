@@ -16,11 +16,13 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:        "fib-kernel",
-		Description: "FIB kernel: programs OS routes from system RIB via netlink/route socket",
-		Features:    "yang",
-		YANG:        fibschema.ZeFibConfYANG,
-		RunEngine:   runFIBKernelPlugin,
+		Name:         "fib-kernel",
+		Description:  "FIB kernel: programs OS routes from system RIB via netlink/route socket",
+		Features:     "yang",
+		YANG:         fibschema.ZeFibConfYANG,
+		ConfigRoots:  []string{"fib.kernel"},
+		Dependencies: []string{"sysrib"},
+		RunEngine:    runFIBKernelPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

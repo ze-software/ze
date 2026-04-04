@@ -67,9 +67,10 @@ type Server struct {
 	monitors      *MonitorManager       // CLI monitor subscriptions
 
 	// Plugin registration protocol
-	coordinator *plugin.StartupCoordinator // Stage synchronization
-	registry    *plugin.PluginRegistry     // Command/capability registry
-	capInjector *plugin.CapabilityInjector // Capability injection for OPEN
+	coordinator   *plugin.StartupCoordinator // Stage synchronization
+	coordinatorMu sync.Mutex                 // Protects coordinator reads/writes
+	registry      *plugin.PluginRegistry     // Command/capability registry
+	capInjector   *plugin.CapabilityInjector // Capability injection for OPEN
 
 	running atomic.Bool
 

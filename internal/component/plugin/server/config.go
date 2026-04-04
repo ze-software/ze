@@ -18,6 +18,7 @@ type ServerConfig struct {
 	ConfiguredFamilies        []string                                        // Families configured on peers (for deferred auto-load)
 	ConfiguredCustomEvents    []string                                        // Custom event types in peer receive config (for auto-load)
 	ConfiguredCustomSendTypes []string                                        // Custom send types in peer send config (for auto-load)
+	ConfiguredPaths           []string                                        // Top-level config sections present (for config-driven auto-load)
 	Hub                       *plugin.HubConfig                               // TLS transport config (nil = no TLS listener)
 	RPCFallback               func(string) func(json.RawMessage) (any, error) // Resolves RPC methods not in core dispatch
 	CommitManager             any                                             // Commit manager instance (injected by reactor, type-asserted by handlers)

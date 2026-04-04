@@ -3,34 +3,80 @@ module ze-fib-conf {
     prefix fib;
 
     description
-        "FIB kernel plugin configuration for Ze.
-         Programs OS routes from the system RIB via netlink (Linux)
-         or route socket (Darwin). Uses custom rtm_protocol ID
-         (RTPROT_ZE=250) for route identification.";
+        "FIB configuration for Ze.
+         Contains admin-distance settings (shared across all FIB backends)
+         and the kernel backend configuration.";
 
     revision 2026-04-04 {
         description "Initial revision.";
     }
 
-    container fib-kernel {
-        description "FIB kernel plugin configuration.";
+    container fib {
+        description "Forwarding Information Base configuration.";
 
-        leaf flush-on-stop {
-            type boolean;
-            default false;
+        container admin-distance {
             description
-                "Remove all ze-installed routes when the plugin stops.
-                 When false (default), routes persist in the kernel
-                 after shutdown for graceful restart support.";
+                "Administrative distance per protocol.
+                 Lower value wins. Used by the system RIB to select
+                 the best route across protocols.";
+
+            leaf connected {
+                type uint8;
+                default 0;
+                description "Directly connected networks.";
+            }
+
+            leaf static {
+                type uint8;
+                default 10;
+                description "Static routes.";
+            }
+
+            leaf ebgp {
+                type uint8;
+                default 20;
+                description "External BGP routes.";
+            }
+
+            leaf ospf {
+                type uint8;
+                default 110;
+                description "OSPF routes.";
+            }
+
+            leaf isis {
+                type uint8;
+                default 115;
+                description "IS-IS routes.";
+            }
+
+            leaf ibgp {
+                type uint8;
+                default 200;
+                description "Internal BGP routes.";
+            }
         }
 
-        leaf sweep-delay {
-            type uint16;
-            default 30;
-            units seconds;
-            description
-                "Time to wait after startup before sweeping stale routes.
-                 Allows BGP reconvergence to refresh matching routes.";
+        container kernel {
+            description "OS kernel route programming via netlink (Linux).";
+
+            leaf flush-on-stop {
+                type boolean;
+                default false;
+                description
+                    "Remove all ze-installed routes when the plugin stops.
+                     When false (default), routes persist in the kernel
+                     after shutdown for graceful restart support.";
+            }
+
+            leaf sweep-delay {
+                type uint16;
+                default 30;
+                units seconds;
+                description
+                    "Time to wait after startup before sweeping stale routes.
+                     Allows BGP reconvergence to refresh matching routes.";
+            }
         }
     }
 }

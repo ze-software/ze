@@ -222,6 +222,14 @@ func (pm *ProcessManager) GetProcess(name string) *Process {
 	return pm.processes[name]
 }
 
+// RemoveProcess unregisters a stopped process by name.
+// Used during config reload to clean up auto-stopped plugins.
+func (pm *ProcessManager) RemoveProcess(name string) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+	delete(pm.processes, name)
+}
+
 // AddProcess registers a process by name. Used by tests to inject mock processes.
 // Wires metrics callbacks if a metrics registry is configured.
 func (pm *ProcessManager) AddProcess(name string, proc *Process) {

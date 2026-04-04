@@ -168,6 +168,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		ConfiguredFamilies:        configuredFamilies,
 		ConfiguredCustomEvents:    configuredCustomEvents,
 		ConfiguredCustomSendTypes: configuredCustomSendTypes,
+		ConfiguredPaths:           config.CollectContainerPaths(tree),
 		Plugins:                   plugins,
 		Hub:                       hubPtr,
 		RecentUpdateMax:           env.Reactor.CacheMax,

@@ -155,6 +155,10 @@ type Config struct {
 	// Used for auto-loading plugins that enable these send types (e.g., "enhanced-refresh" triggers bgp-route-refresh).
 	ConfiguredCustomSendTypes []string
 
+	// ConfiguredPaths lists top-level config sections present in the user's config.
+	// Used for config-driven auto-loading of plugins (e.g., "fib" triggers fib-kernel).
+	ConfiguredPaths []string
+
 	// Hub holds TLS transport config for external plugins (nil = no TLS listener).
 	Hub *plugin.HubConfig
 
@@ -871,6 +875,7 @@ func (r *Reactor) startAPIServer() error {
 		ConfiguredFamilies:        r.config.ConfiguredFamilies,
 		ConfiguredCustomEvents:    r.config.ConfiguredCustomEvents,
 		ConfiguredCustomSendTypes: r.config.ConfiguredCustomSendTypes,
+		ConfiguredPaths:           r.config.ConfiguredPaths,
 		Hub:                       r.config.Hub,
 		RPCFallback:               bgpserver.CodecRPCHandler,
 		CommitManager:             transaction.NewCommitManager(),

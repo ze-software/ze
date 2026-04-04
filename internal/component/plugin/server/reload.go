@@ -81,6 +81,29 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	logger().Debug("config reload diff",
 		"added", len(diff.added), "removed", len(diff.removed), "changed", len(diff.changed))
 
+	// Auto-stop plugins whose config sections were removed (stop before load).
+	// When a user removes fib { kernel { } }, stop the fib-kernel plugin.
+	// Must run before auto-load to avoid starting then immediately stopping
+	// the same plugin when a config section is replaced.
+	if len(diff.removed) > 0 {
+		removedKeys := make([]string, 0, len(diff.removed))
+		for k := range diff.removed {
+			removedKeys = append(removedKeys, k)
+		}
+		s.autoStopForRemovedConfigPaths(removedKeys)
+	}
+
+	// Auto-load plugins for newly added config sections.
+	// When a user adds fib { kernel { } } to their config, the fib-kernel plugin
+	// needs to start before we can send it config.
+	if len(diff.added) > 0 {
+		addedKeys := make([]string, 0, len(diff.added))
+		for k := range diff.added {
+			addedKeys = append(addedKeys, k)
+		}
+		s.autoLoadForNewConfigPaths(ctx, newTree, addedKeys)
+	}
+
 	// Find affected plugins: those with WantsConfigRoots matching changed roots.
 	type affectedPlugin struct {
 		proc     *process.Process
