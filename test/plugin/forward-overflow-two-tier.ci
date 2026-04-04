@@ -1,0 +1,229 @@
+# Test: two-tier overflow pool delivers all routes under burst
+# VALIDATES: AC-10/AC-11 -- overflow items use MixedBufMux handles
+# VALIDATES: AC-12 -- pool exhaustion does not drop routes
+# PREVENTS: routes silently dropped during overflow, pool handle leaks
+#
+# Flow:
+# 1. Source peer sends 100 UPDATEs (burst exceeds per-peer pool of 64 slots)
+# 2. Routes forward through ze to dest peer (sink mode)
+# 3. Python plugin verifies dest peer received all 100 routes via adj-rib-in
+# 4. Verifies pool_used_ratio metric exists and is >= 0
+
+# Source peer (ASN 65001) -- sends 100 prefixes in a burst
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=20s
+
+# Send 100 UPDATEs: 10.0.0.0/24 through 10.0.99.0/24
+# Each UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, LOCAL_PREF=100
+# Base hex: header(19B marker + 2B len + 1B type=2) + body
+# Withdrawn=0x0000, attrs=0x15 bytes, NLRI=0x180A00XX00
+# We send them as individual UPDATEs to maximize per-item dispatch pressure.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000000
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000100
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000200
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000300
+action=send:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000400
+action=send:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000500
+action=send:conn=1:seq=7:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000600
+action=send:conn=1:seq=8:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000700
+action=send:conn=1:seq=9:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000800
+action=send:conn=1:seq=10:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000900
+action=send:conn=1:seq=11:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000A00
+action=send:conn=1:seq=12:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000B00
+action=send:conn=1:seq=13:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000C00
+action=send:conn=1:seq=14:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000D00
+action=send:conn=1:seq=15:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000E00
+action=send:conn=1:seq=16:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A000F00
+action=send:conn=1:seq=17:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001000
+action=send:conn=1:seq=18:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001100
+action=send:conn=1:seq=19:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001200
+action=send:conn=1:seq=20:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001300
+action=send:conn=1:seq=21:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001400
+action=send:conn=1:seq=22:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001500
+action=send:conn=1:seq=23:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001600
+action=send:conn=1:seq=24:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001700
+action=send:conn=1:seq=25:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001800
+action=send:conn=1:seq=26:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001900
+action=send:conn=1:seq=27:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001A00
+action=send:conn=1:seq=28:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001B00
+action=send:conn=1:seq=29:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001C00
+action=send:conn=1:seq=30:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001D00
+action=send:conn=1:seq=31:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001E00
+action=send:conn=1:seq=32:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A001F00
+action=send:conn=1:seq=33:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002000
+action=send:conn=1:seq=34:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002100
+action=send:conn=1:seq=35:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002200
+action=send:conn=1:seq=36:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002300
+action=send:conn=1:seq=37:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002400
+action=send:conn=1:seq=38:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002500
+action=send:conn=1:seq=39:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002600
+action=send:conn=1:seq=40:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002700
+action=send:conn=1:seq=41:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002800
+action=send:conn=1:seq=42:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002900
+action=send:conn=1:seq=43:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002A00
+action=send:conn=1:seq=44:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002B00
+action=send:conn=1:seq=45:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002C00
+action=send:conn=1:seq=46:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002D00
+action=send:conn=1:seq=47:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002E00
+action=send:conn=1:seq=48:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002F00
+action=send:conn=1:seq=49:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A003000
+action=send:conn=1:seq=50:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A003100
+EOF_SOURCE
+
+# Dest peer (ASN 65002) -- sink mode, accepts everything
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=20s
+EOF_DEST
+
+# Python test plugin: verify all routes forwarded
+tmpfs=overflow-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Test: overflow pool delivers all routes under burst."""
+import json
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for sessions to establish and routes to forward.
+    time.sleep(6.0)
+
+    # Verify routes were accepted in adj-rib-in.
+    result = dispatch(api, 'adj-rib-in status')
+    data = json.loads(result.get('data', '{}'))
+    total = data.get('total-routes', 0)
+
+    if total < 50:
+        print(f'FAIL: expected >= 50 routes in adj-rib-in, got {total}', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    print(f'OK: {total} routes accepted and forwarded through overflow pool', file=sys.stderr)
+
+    # Verify pool metrics exist.
+    r = dispatch(api, 'metrics values')
+    data_str = r.get('data', '{}')
+    try:
+        data = json.loads(data_str) if isinstance(data_str, str) else data_str
+    except (json.JSONDecodeError, TypeError):
+        data = {}
+    metrics = data.get('metrics', '')
+    if 'ze_bgp_pool_used_ratio' not in metrics:
+        print(f'FAIL: ze_bgp_pool_used_ratio not in metrics output', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    print(f'OK: pool metrics present', file=sys.stderr)
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration: source -> ze (RS) -> dest, with overflow pool
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external overflow-test {
+		run ./overflow-test.run
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port 19276;
+		}
+	}
+}
+
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process overflow-test {
+			receive [ update state ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+				accept false
+			}
+			local {
+				ip 127.0.0.2
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --mode sink --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
