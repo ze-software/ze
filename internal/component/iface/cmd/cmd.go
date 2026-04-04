@@ -1,12 +1,14 @@
 // Design: plan/spec-iface-0-umbrella.md — Interface RPC handlers for daemon dispatch
 //
-// Package cmd registers interface RPCs (show, migrate) with the plugin server.
+// Package cmd registers interface RPCs (migrate) with the plugin server.
 // Separated from the iface package to avoid an import cycle:
 // plugin/all -> iface -> plugin/server -> plugin/all.
+//
+// The show handler lives in cmd/show (ze-show:interface) since "show" is a
+// top-level verb: "ze show interface", not "ze interface show".
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -19,7 +21,6 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-iface:interface-show", Handler: handleInterfaceShow},
 		pluginserver.RPCRegistration{WireMethod: "ze-iface:interface-migrate", Handler: handleInterfaceMigrate},
 	)
 }
@@ -28,33 +29,6 @@ func init() {
 // return is nil so the framework uses the Response (not the raw error).
 func errResp(msg string) (*plugin.Response, error) {
 	return &plugin.Response{Status: plugin.StatusError, Data: msg}, nil
-}
-
-// handleInterfaceShow lists all interfaces or shows one by name.
-// Args: optional interface name.
-func handleInterfaceShow(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	if len(args) > 0 {
-		name := args[0]
-		info, err := iface.GetInterface(name)
-		if err != nil {
-			return errResp(err.Error())
-		}
-		data, err := json.Marshal(info)
-		if err != nil {
-			return nil, fmt.Errorf("interface show: marshal: %w", err)
-		}
-		return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
-	}
-
-	ifaces, err := iface.ListInterfaces()
-	if err != nil {
-		return errResp(err.Error())
-	}
-	data, err := json.Marshal(ifaces)
-	if err != nil {
-		return nil, fmt.Errorf("interface show: marshal: %w", err)
-	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
 }
 
 // handleInterfaceMigrate performs a make-before-break IP migration.

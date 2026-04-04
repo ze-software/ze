@@ -9,12 +9,6 @@ module ze-iface-cmd {
         config false;
         description "Interface operations";
 
-        container show {
-            config false;
-            ze:command "ze-iface:interface-show";
-            description "Show interfaces or details for a specific interface";
-        }
-
         container migrate {
             config false;
             ze:command "ze-iface:interface-migrate";

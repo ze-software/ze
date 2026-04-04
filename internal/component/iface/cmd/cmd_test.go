@@ -127,27 +127,8 @@ func TestParseIfaceUnit(t *testing.T) {
 	}
 }
 
-func TestHandleInterfaceShow(t *testing.T) {
-	// List all interfaces -- should succeed on any platform.
-	resp, err := handleInterfaceShow(nil, nil)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.Equal(t, "done", resp.Status)
-	assert.Contains(t, resp.Data, "lo") // loopback always exists
-
-	// Show specific interface -- loopback always exists.
-	resp, err = handleInterfaceShow(nil, []string{"lo"})
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.Equal(t, "done", resp.Status)
-	assert.Contains(t, resp.Data, "lo")
-
-	// Show nonexistent interface -- should return error response.
-	resp, err = handleInterfaceShow(nil, []string{"nonexistent_iface99"})
-	require.NoError(t, err) // Go error nil, operational error in Response
-	require.NotNil(t, resp)
-	assert.Equal(t, "error", resp.Status)
-}
+// TestHandleShowInterface is in internal/component/cmd/show/show_test.go
+// because the handler moved to the show package (ze show interface verb syntax).
 
 func TestHandleInterfaceMigrateNoBus(t *testing.T) {
 	// With no bus set, should return error response.

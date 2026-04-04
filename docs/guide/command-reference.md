@@ -188,11 +188,12 @@ ze show bgp encode <route-command>
 ### ze interface
 
 OS network interface management (standalone, no daemon needed for most commands).
+Show uses the verb syntax: `ze show interface`.
 
 ```
-ze interface show                  # List all interfaces
-ze interface show <name>           # Show details for one interface
-ze interface show --json           # JSON output
+ze show interface                  # List all interfaces (also via daemon SSH)
+ze show interface <name>           # Show details for one interface
+ze show interface --json           # JSON output
 ze interface create dummy <name>   # Create a dummy interface
 ze interface create veth <n> <p>   # Create a veth pair
 ze interface delete <name>         # Delete an interface
