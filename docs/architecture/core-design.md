@@ -694,26 +694,29 @@ directly. NXDOMAIN returns empty results (not an error) and is not cached.
 
 ---
 
-## 14. Interface Monitoring
+## 14. Interface Management
 
-The `iface` plugin (`internal/component/iface/`) monitors OS network interfaces and
-publishes events to the Bus. It is cross-cutting infrastructure, not a BGP-specific plugin.
+The `iface` component (`internal/component/iface/`) manages OS network interfaces through
+a pluggable backend architecture. It is cross-cutting infrastructure, not BGP-specific.
 
 | Concept | Description |
 |---------|-------------|
-| **Library** | `github.com/vishvananda/netlink` (netlink socket abstraction) |
-| **Monitoring** | Netlink multicast groups: `RTMGRP_LINK`, `RTMGRP_IPV4_IFADDR`, `RTMGRP_IPV6_IFADDR` |
-| **Events** | `interface/created`, `interface/deleted`, `interface/up`, `interface/down`, `interface/addr/added`, `interface/addr/removed` |
+| **Backend interface** | `Backend` (33 methods) in `backend.go`: lifecycle, address, sysctl, mirror, monitor |
+| **Backend selection** | YANG `backend` leaf (default: `netlink`). `RegisterBackend`/`LoadBackend` in `backend.go` |
+| **Netlink backend** | `internal/plugins/ifacenetlink/`: all Linux operations via `github.com/vishvananda/netlink` |
+| **DHCP plugin** | `internal/plugins/ifacedhcp/`: DHCPv4/v6 client lifecycle, separate from backend |
+| **Dispatch layer** | `dispatch.go`: package-level functions delegating to active backend |
+| **Events** | `interface/created`, `interface/deleted`, `interface/up`, `interface/down`, `interface/addr/*`, `interface/dhcp/*` |
 | **Unit model** | JunOS-style two-layer: physical interface + logical units (VLANs) |
 | **VLAN mapping** | VLAN units create Linux VLAN subinterfaces (`eth0.100`); non-VLAN units share parent |
-| **Bus integration** | Publishes events with metadata for filtering (name, unit, address, family) |
 
 BGP subscribes to `interface/` events and reacts: starting listeners when addresses appear,
-draining sessions when addresses disappear. The plugin never imports BGP code and BGP never
-imports the plugin -- all communication flows through the Bus.
+draining sessions when addresses disappear. The component never imports BGP code and BGP never
+imports the component -- all communication flows through the Bus.
 
+<!-- source: internal/component/iface/backend.go -- Backend interface, RegisterBackend, LoadBackend -->
 <!-- source: internal/component/iface/iface.go -- topic constants and payload types -->
-<!-- source: internal/component/iface/monitor_linux.go -- netlink monitor -->
+<!-- source: internal/plugins/ifacenetlink/monitor_linux.go -- netlink monitor -->
 <!-- source: internal/component/iface/register.go -- plugin registration -->
 
 ---

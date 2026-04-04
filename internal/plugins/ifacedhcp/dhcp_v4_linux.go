@@ -12,7 +12,6 @@ import (
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv4/nclient4"
-	"github.com/vishvananda/netlink"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
@@ -173,25 +172,10 @@ func (c *DHCPClient) handleV4Lease(ack *dhcpv4.DHCPv4, topic string) {
 
 	cidr := fmt.Sprintf("%s/%d", ip.String(), ones)
 	leaseTime := c.v4LeaseTime(ack)
+	lftSec := int(leaseTime.Seconds())
 
-	link, err := netlink.LinkByName(c.ifaceName)
-	if err != nil {
-		logger.Warn("iface dhcp v4: link lookup failed",
-			"iface", c.ifaceName, "err", err)
-		return
-	}
-
-	addr, err := netlink.ParseAddr(cidr)
-	if err != nil {
-		logger.Warn("iface dhcp v4: parse addr failed",
-			"iface", c.ifaceName, "cidr", cidr, "err", err)
-		return
-	}
-	addr.ValidLft = int(leaseTime.Seconds())
-	addr.PreferedLft = int(leaseTime.Seconds())
-
-	if err := netlink.AddrReplace(link, addr); err != nil {
-		logger.Warn("iface dhcp v4: addr add failed",
+	if err := iface.ReplaceAddressWithLifetime(c.ifaceName, cidr, lftSec, lftSec); err != nil {
+		logger.Warn("iface dhcp v4: addr replace failed",
 			"iface", c.ifaceName, "cidr", cidr, "err", err)
 		return
 	}
@@ -204,8 +188,6 @@ func (c *DHCPClient) handleV4Lease(ack *dhcpv4.DHCPv4, topic string) {
 }
 
 func (c *DHCPClient) removeV4Addr(ack *dhcpv4.DHCPv4) {
-	logger := loggerPtr.Load()
-
 	ip := ack.YourIPAddr
 	mask := ack.SubnetMask()
 	ones, _ := mask.Size()
@@ -215,22 +197,8 @@ func (c *DHCPClient) removeV4Addr(ack *dhcpv4.DHCPv4) {
 
 	cidr := fmt.Sprintf("%s/%d", ip.String(), ones)
 
-	link, err := netlink.LinkByName(c.ifaceName)
-	if err != nil {
-		logger.Debug("iface dhcp v4: link lookup for removal",
-			"iface", c.ifaceName, "err", err)
-		return
-	}
-
-	addr, err := netlink.ParseAddr(cidr)
-	if err != nil {
-		logger.Debug("iface dhcp v4: parse addr for removal",
-			"iface", c.ifaceName, "cidr", cidr, "err", err)
-		return
-	}
-
-	if err := netlink.AddrDel(link, addr); err != nil {
-		logger.Debug("iface dhcp v4: addr removal failed",
+	if err := iface.RemoveAddress(c.ifaceName, cidr); err != nil {
+		loggerPtr.Load().Debug("iface dhcp v4: addr removal failed",
 			"iface", c.ifaceName, "cidr", cidr, "err", err)
 	}
 }

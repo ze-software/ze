@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+
 )
 
 // hasQdisc returns true if any qdisc on the link matches the given type string.

@@ -12,8 +12,21 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+// ensureBackendForIntegration loads the netlink backend if not already loaded.
+func ensureBackendForIntegration(t *testing.T) {
+	t.Helper()
+	if GetBackend() != nil {
+		return
+	}
+	if err := LoadBackend("netlink"); err != nil {
+		t.Fatalf("load netlink backend: %v", err)
+	}
+	t.Cleanup(func() { _ = CloseBackend() })
+}
 
 // withNetNS creates an ephemeral network namespace, switches into it,
 // runs fn, then restores the original namespace in t.Cleanup.

@@ -109,43 +109,50 @@ JunOS-style two-layer model: physical interfaces with logical units.
 | | Storm control | missing | lower |
 | **Configuration** | YANG model (all types + units) | have | |
 | | Input validation (name, VLAN, MTU) | have | |
-| **Platform** | Linux (pure netlink) | have | |
+| **Platform** | Pluggable backend interface | have | |
+| | Linux netlink backend (default) | have | |
+| | YANG `backend` leaf (config-driven selection) | have | |
 | | macOS / Darwin | missing | lower |
 | | FreeBSD / OpenBSD | missing | lower |
+| | systemd-networkd | missing | lower |
 | **Quality** | Context-wrapped errors | have | |
 | | Panic recovery | have | |
 | | 14 test files (unit + integration) | have | |
 
-<!-- source: internal/component/iface/manage_linux.go — CreateDummy, CreateVeth, CreateBridge, CreateVLAN, DeleteInterface, AddAddress, RemoveAddress, SetMTU -->
-<!-- source: internal/component/iface/monitor_linux.go — Monitor, netlink multicast subscription -->
-<!-- source: internal/component/iface/dhcp_v4_linux.go — DHCPv4 worker -->
-<!-- source: internal/component/iface/dhcp_v6_linux.go — DHCPv6 worker -->
-<!-- source: internal/component/iface/migrate_linux.go — MigrateInterface 5-phase protocol -->
-<!-- source: internal/component/iface/mirror_linux.go — traffic mirroring via tc -->
-<!-- source: internal/component/iface/sysctl_linux.go — per-interface sysctl writes -->
-<!-- source: internal/component/iface/slaac_linux.go — SLAAC control -->
-<!-- source: internal/component/iface/bridge_linux.go — bridge ports, STP via sysfs -->
-<!-- source: internal/component/iface/bridge_other.go — non-Linux bridge stubs -->
-<!-- source: internal/component/iface/manage_other.go — non-Linux stubs -->
+<!-- source: internal/component/iface/backend.go — Backend interface, RegisterBackend, LoadBackend -->
+<!-- source: internal/component/iface/dispatch.go — package-level functions delegating to backend -->
 <!-- source: internal/component/iface/iface.go — bus topics, payload types, InterfaceStats -->
+<!-- source: internal/component/iface/migrate_linux.go — MigrateInterface 5-phase protocol -->
+<!-- source: internal/plugins/ifacenetlink/manage_linux.go — CreateDummy, CreateVeth, CreateBridge, etc. -->
+<!-- source: internal/plugins/ifacenetlink/monitor_linux.go — netlink multicast subscription -->
+<!-- source: internal/plugins/ifacenetlink/bridge_linux.go — bridge ports, STP via sysfs -->
+<!-- source: internal/plugins/ifacenetlink/sysctl_linux.go — per-interface sysctl writes -->
+<!-- source: internal/plugins/ifacenetlink/mirror_linux.go — traffic mirroring via tc -->
+<!-- source: internal/plugins/ifacedhcp/dhcp_v4_linux.go — DHCPv4 worker -->
+<!-- source: internal/plugins/ifacedhcp/dhcp_v6_linux.go — DHCPv6 worker -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go — BGP integration -->
 
 ## Architecture
 
 ```
-Config (YANG)
+Config (YANG: ze-iface-conf.yang, "backend" leaf selects backend)
   |
   v
-Engine (register.go) -- OnConfigure() creates Monitor + applies config
+iface component (register.go) -- OnConfigure() loads backend, starts monitor
   |
   v
-Management (manage_linux.go) -- netlink: create, delete, address, MTU, sysctl
+Backend interface (backend.go) -- 33 methods: lifecycle, address, sysctl, mirror, monitor
   |
   v
-Monitor (monitor_linux.go) -- netlink multicast: link + address events
-  |
-  v
-Bus topics -- interface/{created,deleted,up,down,addr/added,addr/removed,dhcp/*}
++------------------+--------------------+
+|                  |                    |
+netlink backend    DHCP plugin          (future: networkd, FreeBSD)
+(ifacenetlink/)    (ifacedhcp/)
+|                  |
+netlink calls      lease negotiation
+|                  |
+v                  v
+Bus topics -- interface/{created,deleted,up,down,addr/*,dhcp/*}
   |
   v
 Subscribers -- BGP reactor (starts/stops listeners on address changes)
@@ -188,7 +195,11 @@ tab press, returning MAC addresses from currently active OS interfaces.
 - **Descriptive names as keys, MAC as binding.** Interface names in config are user-chosen
   descriptive labels. The MAC address ties the config entry to physical hardware. This
   separates the logical identity (name) from the physical identity (MAC).
-- **Pure netlink, no shell-outs.** All kernel interaction through `github.com/vishvananda/netlink`.
+- **Pluggable backends.** The iface component defines a `Backend` interface (33 methods).
+  OS-specific operations live in backend plugins (`ifacenetlink` for Linux). The YANG
+  `backend` leaf selects the backend (default: `netlink`). DHCP is a separate plugin
+  (`ifacedhcp`) that uses the backend for address operations.
+- **Pure netlink, no shell-outs.** The netlink backend uses `github.com/vishvananda/netlink`.
 - **Event-driven.** Monitor publishes to bus; consumers subscribe and react. No polling.
 - **DAD-aware.** IPv6 addresses with `IFA_F_TENTATIVE` flag are held until DAD completes.
 - **Make-before-break.** Migration adds new address, waits for BGP readiness, then removes old.

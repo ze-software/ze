@@ -186,6 +186,26 @@ func (b *netlinkBackend) RemoveAddress(ifaceName, cidr string) error {
 	return nil
 }
 
+func (b *netlinkBackend) ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft int) error {
+	if err := iface.ValidateIfaceName(ifaceName); err != nil {
+		return fmt.Errorf("iface: replace address on %q: %w", ifaceName, err)
+	}
+	addr, err := netlink.ParseAddr(cidr)
+	if err != nil {
+		return fmt.Errorf("iface: replace address %q on %q: %w", cidr, ifaceName, err)
+	}
+	addr.ValidLft = validLft
+	addr.PreferedLft = preferredLft
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("iface: replace address on %q: not found: %w", ifaceName, err)
+	}
+	if err := netlink.AddrReplace(link, addr); err != nil {
+		return fmt.Errorf("iface: replace address %q on %q: %w", cidr, ifaceName, err)
+	}
+	return nil
+}
+
 func (b *netlinkBackend) SetMTU(ifaceName string, mtu int) error {
 	if err := iface.ValidateIfaceName(ifaceName); err != nil {
 		return fmt.Errorf("iface: set mtu on %q: %w", ifaceName, err)

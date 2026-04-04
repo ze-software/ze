@@ -28,6 +28,10 @@ type Backend interface {
 	// Address management.
 	AddAddress(ifaceName, cidr string) error
 	RemoveAddress(ifaceName, cidr string) error
+	// ReplaceAddressWithLifetime adds or replaces an address with explicit
+	// valid and preferred lifetimes (seconds). Used by DHCP for lease-aware
+	// address installation. validLft=0 or preferredLft=0 means kernel default.
+	ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft int) error
 
 	// Link state.
 	SetAdminUp(ifaceName string) error

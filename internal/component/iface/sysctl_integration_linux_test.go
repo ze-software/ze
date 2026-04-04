@@ -5,18 +5,14 @@ package iface
 import (
 	"os"
 	"testing"
-)
 
+)
 func TestIntegrationSysctlIPv4Forwarding(t *testing.T) {
 	// VALIDATES: SetIPv4Forwarding writes to real /proc/sys in a namespace.
 	// PREVENTS: Sysctl writes only work with test-overridden sysctlRoot.
 	withNetNS(t, func() {
+		ensureBackendForIntegration(t)
 		createDummyForTest(t, "test0")
-
-		// Save and restore sysctlRoot: point at real /proc/sys for this test.
-		oldRoot := sysctlRoot
-		sysctlRoot = "/proc/sys"
-		t.Cleanup(func() { sysctlRoot = oldRoot })
 
 		if err := SetIPv4Forwarding("test0", true); err != nil {
 			t.Fatalf("SetIPv4Forwarding(true): %v", err)
@@ -27,7 +23,6 @@ func TestIntegrationSysctlIPv4Forwarding(t *testing.T) {
 			t.Fatalf("read forwarding: %v", err)
 		}
 		got := string(data)
-		// Kernel may write "1\n" or just "1".
 		if got != "1" && got != "1\n" {
 			t.Errorf("forwarding = %q, want %q", got, "1")
 		}
@@ -38,11 +33,8 @@ func TestIntegrationSysctlSLAAC(t *testing.T) {
 	// VALIDATES: EnableSLAAC writes to real /proc/sys/net/ipv6/conf/<iface>/autoconf.
 	// PREVENTS: SLAAC control only works in mocked sysctl environment.
 	withNetNS(t, func() {
+		ensureBackendForIntegration(t)
 		createDummyForTest(t, "test0")
-
-		oldRoot := sysctlRoot
-		sysctlRoot = "/proc/sys"
-		t.Cleanup(func() { sysctlRoot = oldRoot })
 
 		if err := EnableSLAAC("test0"); err != nil {
 			t.Fatalf("EnableSLAAC: %v", err)

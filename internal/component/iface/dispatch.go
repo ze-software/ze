@@ -70,6 +70,15 @@ func RemoveAddress(iface, cidr string) error {
 	}
 	return b.RemoveAddress(iface, cidr)
 }
+
+func ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft int) error {
+	b, err := backendOrErr()
+	if err != nil {
+		return err
+	}
+	return b.ReplaceAddressWithLifetime(ifaceName, cidr, validLft, preferredLft)
+}
+
 func SetAdminUp(iface string) error {
 	b, err := backendOrErr()
 	if err != nil {

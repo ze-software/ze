@@ -151,18 +151,24 @@ ze --plugins
 
 | Plugin | Description | Process Binding |
 |--------|-------------|-----------------|
-| `iface` | OS interface monitor and manager (Linux netlink) | -- (Bus events, no peer binding) |
+| `iface` | OS interface orchestration: loads backend, dispatches operations | -- (Bus events, no peer binding) |
+| `iface-netlink` | Netlink backend for iface: manage, monitor, bridge, sysctl, mirror | -- (registered as iface backend) |
+| `iface-dhcp` | DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal | -- (Bus events) |
 | `sysrib` | System RIB: selects best route across protocols by admin distance | -- (Bus events, no peer binding) |
 | `fib-kernel` | FIB kernel: programs OS routes from system RIB via netlink | -- (Bus events, no peer binding) |
 | `fib-p4` | FIB P4: programs P4 switch from system RIB via gRPC/P4Runtime (noop backend) | -- (Bus events, no peer binding) |
 <!-- source: internal/component/iface/register.go -- iface registration -->
+<!-- source: internal/plugins/ifacenetlink/register.go -- iface-netlink backend registration -->
+<!-- source: internal/plugins/ifacedhcp/register.go -- iface-dhcp registration -->
 <!-- source: internal/plugins/sysrib/register.go -- sysrib registration -->
 <!-- source: internal/plugins/fibp4/register.go -- fib-p4 registration -->
 <!-- source: internal/plugins/fibkernel/register.go -- fib-kernel registration -->
 
-The `iface` plugin monitors OS network interface changes and publishes events
-to the Bus. BGP reacts to address events by starting/stopping listeners. Uses
-a JunOS-style two-layer model: physical interfaces + logical units (VLANs).
+The `iface` plugin defines a `Backend` interface and loads a backend by name (YANG
+`backend` leaf, default `netlink`). The `iface-netlink` backend handles all Linux
+interface operations. `iface-dhcp` is a separate plugin for DHCP client lifecycle.
+BGP reacts to address events by starting/stopping listeners. Uses a JunOS-style
+two-layer model: physical interfaces + logical units (VLANs).
 
 Bus topics published:
 

@@ -12,7 +12,6 @@ import (
 
 	"github.com/insomniacslk/dhcp/dhcpv6"
 	"github.com/insomniacslk/dhcp/dhcpv6/nclient6"
-	"github.com/vishvananda/netlink"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
@@ -152,13 +151,6 @@ func (c *DHCPClient) renewV6() (*dhcpv6.Message, bool) {
 func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 	logger := loggerPtr.Load()
 
-	link, err := netlink.LinkByName(c.ifaceName)
-	if err != nil {
-		logger.Warn("iface dhcp v6: link lookup failed",
-			"iface", c.ifaceName, "err", err)
-		return
-	}
-
 	const maxAddrs = 16
 	addrCount := 0
 	for _, iana := range msg.Options.IANA() {
@@ -175,17 +167,11 @@ func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 			}
 
 			cidr := fmt.Sprintf("%s/128", ip.String())
-			addr, err := netlink.ParseAddr(cidr)
-			if err != nil {
-				logger.Warn("iface dhcp v6: parse addr failed",
-					"iface", c.ifaceName, "addr", cidr, "err", err)
-				continue
-			}
-			addr.ValidLft = int(iaAddr.ValidLifetime.Seconds())
-			addr.PreferedLft = int(iaAddr.PreferredLifetime.Seconds())
+			validLft := int(iaAddr.ValidLifetime.Seconds())
+			preferredLft := int(iaAddr.PreferredLifetime.Seconds())
 
-			if err := netlink.AddrReplace(link, addr); err != nil {
-				logger.Warn("iface dhcp v6: addr add failed",
+			if err := iface.ReplaceAddressWithLifetime(c.ifaceName, cidr, validLft, preferredLft); err != nil {
+				logger.Warn("iface dhcp v6: addr replace failed",
 					"iface", c.ifaceName, "addr", cidr, "err", err)
 				continue
 			}
@@ -244,15 +230,6 @@ func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 }
 
 func (c *DHCPClient) removeV6Addrs(msg *dhcpv6.Message) {
-	logger := loggerPtr.Load()
-
-	link, err := netlink.LinkByName(c.ifaceName)
-	if err != nil {
-		logger.Debug("iface dhcp v6: link lookup for removal",
-			"iface", c.ifaceName, "err", err)
-		return
-	}
-
 	const maxAddrs = 16
 	count := 0
 	for _, iana := range msg.Options.IANA() {
@@ -266,12 +243,8 @@ func (c *DHCPClient) removeV6Addrs(msg *dhcpv6.Message) {
 				continue
 			}
 			cidr := fmt.Sprintf("%s/128", ip.String())
-			addr, err := netlink.ParseAddr(cidr)
-			if err != nil {
-				continue
-			}
-			if err := netlink.AddrDel(link, addr); err != nil {
-				logger.Debug("iface dhcp v6: addr removal failed",
+			if err := iface.RemoveAddress(c.ifaceName, cidr); err != nil {
+				loggerPtr.Load().Debug("iface dhcp v6: addr removal failed",
 					"iface", c.ifaceName, "addr", cidr, "err", err)
 			}
 		}
