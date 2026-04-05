@@ -22,7 +22,7 @@ type DiffPair struct {
 }
 
 // DiffMaps computes a deep diff between two map[string]any.
-// Nested maps are compared recursively with dotted key paths.
+// Nested maps are compared recursively with slash-separated key paths.
 // Returns a ConfigDiff with Added, Removed, and Changed maps.
 func DiffMaps(old, new map[string]any) *ConfigDiff {
 	diff := &ConfigDiff{

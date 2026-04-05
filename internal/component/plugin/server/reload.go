@@ -303,7 +303,7 @@ type diffPair struct {
 }
 
 // diffMaps computes a deep diff between two map[string]any.
-// Nested maps are compared recursively with dotted key paths.
+// Nested maps are compared recursively with slash-separated key paths.
 // Equivalent to config.DiffMaps — duplicated here to avoid import cycle.
 func diffMaps(old, newMap map[string]any) *configDiff {
 	diff := &configDiff{
@@ -393,7 +393,7 @@ type diffRootData struct {
 }
 
 // buildDiffSections converts a configDiff into per-root ConfigDiffSections.
-// Groups flat dotted keys (e.g., "bgp.peer.foo") by their top-level root ("bgp").
+// Groups flat config keys (e.g., "bgp/peer/foo") by their top-level root ("bgp").
 func buildDiffSections(diff *configDiff) []rpc.ConfigDiffSection {
 	roots := make(map[string]*diffRootData)
 

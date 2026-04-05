@@ -401,9 +401,9 @@ func (v *ConfigValidator) mergeGroupDefaults(peerTree, groupTree *config.Tree) *
 	return merged
 }
 
-// yangLeafName extracts the leaf name from a YANG path (last dot-separated segment).
+// yangLeafName extracts the leaf name from a YANG path (last segment).
 func yangLeafName(path string) string {
-	if idx := strings.LastIndex(path, "."); idx >= 0 {
+	if idx := strings.LastIndex(path, config.PathSep); idx >= 0 {
 		return path[idx+1:]
 	}
 	return path

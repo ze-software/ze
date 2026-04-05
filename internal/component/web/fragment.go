@@ -93,7 +93,7 @@ type ColumnItem struct {
 
 // ListTableColumn describes one column in a list table view.
 type ListTableColumn struct {
-	Name string // Display name (leaf name or dotted path like "remote/ip")
+	Name string // Display name (leaf name or path like "remote/ip")
 	Key  bool   // True for the list key column (clickable, navigates)
 }
 

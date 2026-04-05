@@ -79,7 +79,7 @@ func applyContainerDefault(m map[string]any, name string, c *ContainerNode) {
 	}
 }
 
-// SchemaDefault returns the YANG default value for a dot-separated schema path.
+// SchemaDefault returns the YANG default value for a schema path (e.g., "bgp/peer/timer/hold-time").
 // Returns empty string if the path doesn't exist, is not a leaf, or has no default.
 func SchemaDefault(schema *Schema, path string) string {
 	if schema == nil {

@@ -139,11 +139,11 @@ func (s *Server) getConfigPathPlugins() []plugin.PluginConfig {
 
 // autoLoadForNewConfigPaths starts plugins for newly added config sections.
 // Called during config reload when the diff shows new top-level keys.
-// Navigates into the nested config tree using dotted paths from the diff,
+// Navigates into the nested config tree using paths from the diff,
 // matches against ConfigRoots, starts matching plugins via runPluginPhase.
 func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string]any, addedRoots []string) {
 	// Build the set of all new paths by navigating into the nested tree.
-	// diff keys are dotted (e.g., "fib.kernel"), so we split and descend.
+	// diff keys are slash-separated (e.g., "fib/kernel"), so we split and descend.
 	newPaths := make([]string, 0, len(addedRoots))
 	for _, root := range addedRoots {
 		newPaths = append(newPaths, root)
@@ -367,10 +367,10 @@ func (s *Server) stopOrphanedDependencies(pm *process.ProcessManager, stopped ma
 	}
 }
 
-// parentRemoved checks if any parent path of a dot-separated path was removed.
+// parentRemoved checks if any parent path of a config path was removed.
 func parentRemoved(path string, removed map[string]bool) bool {
 	for i, c := range path {
-		if c == '.' && removed[path[:i]] {
+		if c == '/' && removed[path[:i]] {
 			return true
 		}
 	}

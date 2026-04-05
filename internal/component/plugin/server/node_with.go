@@ -88,7 +88,7 @@ var (
 	schemaCacheNodes = map[string]config.Node{}
 )
 
-// GetSchemaNode returns a cached YANG schema node for the given dot-separated path.
+// GetSchemaNode returns a cached YANG schema node for the given config path.
 func GetSchemaNode(path string) config.Node {
 	schemaCacheMu.Lock()
 	defer schemaCacheMu.Unlock()
