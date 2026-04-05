@@ -5,6 +5,7 @@ import (
 
 	zeIface "codeberg.org/thomas-mangin/ze/internal/component/iface"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
+	"codeberg.org/thomas-mangin/ze/internal/test/testcond"
 )
 
 func init() {
@@ -37,6 +38,7 @@ func TestRun(t *testing.T) {
 }
 
 func TestCmdShow(t *testing.T) {
+	testcond.RequireOS(t, "linux")
 	t.Parallel()
 
 	tests := []struct {
