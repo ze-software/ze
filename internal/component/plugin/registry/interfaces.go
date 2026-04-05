@@ -24,6 +24,7 @@ type BGPReactorHandle interface {
 	ReactorLifecycleAdapter() any // Returns ReactorLifecycle (any to avoid importing plugin types)
 	StartWithContext(ctx context.Context) error
 	StartPeers() error
+	Stop()
 	Wait(ctx context.Context) error
 }
 

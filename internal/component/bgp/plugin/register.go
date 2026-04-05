@@ -155,8 +155,23 @@ func runBGPEngine(conn net.Conn) int {
 		return 1
 	}
 
+	// Clean up reactor on exit (AC-7: BGP removed at reload, or daemon shutdown).
 	if bgpReactor != nil {
+		bgpReactor.Stop()
 		_ = bgpReactor.Wait(context.Background())
+	}
+
+	// Clear coordinator state so BGP can be re-loaded at a future reload.
+	bgpMu.Lock()
+	server := bgpServer
+	bgpMu.Unlock()
+	if server != nil {
+		if coord, ok := server.ReactorAny().(registry.CoordinatorAccessor); ok {
+			_ = coord.SetReactor(nil)
+			if clearFn, ok := coord.GetExtra("bgp.clearReactor").(func()); ok {
+				clearFn()
+			}
+		}
 	}
 
 	return 0
