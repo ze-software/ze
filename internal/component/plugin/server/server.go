@@ -351,10 +351,11 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 
 	// Start plugin phases asynchronously (non-blocking)
 	// Phase 1: Explicit plugins
-	// Phase 2: Auto-load plugins for unclaimed families
-	// Phase 3: Auto-load plugins for custom event types (e.g., update-rpki)
-	// Phase 4: Auto-load plugins for custom send types (e.g., enhanced-refresh)
-	if len(s.config.Plugins) > 0 || len(s.config.ConfiguredFamilies) > 0 || len(s.config.ConfiguredCustomEvents) > 0 || len(s.config.ConfiguredCustomSendTypes) > 0 {
+	// Phase 2: Auto-load plugins for config paths (ConfigRoots matching)
+	// Phase 3: Auto-load plugins for unclaimed families
+	// Phase 4: Auto-load plugins for custom event types (e.g., update-rpki)
+	// Phase 5: Auto-load plugins for custom send types (e.g., enhanced-refresh)
+	if len(s.config.Plugins) > 0 || len(s.config.ConfiguredPaths) > 0 || len(s.config.ConfiguredFamilies) > 0 || len(s.config.ConfiguredCustomEvents) > 0 || len(s.config.ConfiguredCustomSendTypes) > 0 {
 		s.wg.Add(1)
 		go s.runPluginStartup()
 	} else {

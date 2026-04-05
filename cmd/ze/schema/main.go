@@ -584,6 +584,21 @@ func tryAutoLoadInternal(registry *pluginserver.SchemaRegistry, moduleName strin
 
 	// Try to get YANG content for this module
 	yangContent, handlers, pluginID := getInternalYANG(moduleName, pluginName)
+
+	// If plugin name lookup fails, search the YANG module registry.
+	// Module names don't always match plugin names (e.g., ze-fib-conf is
+	// registered by the fibkernel plugin, not a plugin named "fib-conf").
+	if yangContent == "" {
+		yangFileName := moduleName + ".yang"
+		for _, m := range yang.Modules() {
+			if m.Name == yangFileName {
+				yangContent = m.Content
+				pluginID = internalPluginPrefix + pluginName
+				break
+			}
+		}
+	}
+
 	if yangContent == "" {
 		return false
 	}
