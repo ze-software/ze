@@ -1,0 +1,9 @@
+# Valid config: environment-only (no bgp, no interface, no fib)
+# AC-5: Minimal config with no subsystem sections validates cleanly.
+stdin=config:terminator=EOF_CONF
+environment {
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

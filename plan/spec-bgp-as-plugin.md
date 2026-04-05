@@ -315,6 +315,8 @@ This is the most invasive architectural change in ze. The reactor is coupled to 
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| `strings.Contains(run, name)` matches only the intended plugin | `"ze plugin bgp-rib"` contains `"bgp"`, falsely excluding the BGP plugin from auto-loading | 63 test failures when switch enabled; all tests using `ze plugin bgp-*` failed | Root cause of all test failures |
+| Any internal plugin config failure should be fatal | Only BGP plugin failure is fatal; other plugins (community filter) fail gracefully | Community tests (m,n,o,p) started failing | Changed to check `proc.Name() == "bgp"` |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
@@ -323,52 +325,103 @@ This is the most invasive architectural change in ze. The reactor is coupled to 
 ## Implementation Summary
 
 ### What Was Implemented
-- [To be filled]
+- BGP plugin registration with ConfigRoots: ["bgp"] in `internal/component/bgp/plugin/register.go`
+- PluginCoordinator bridging reactor-optional operation in `internal/component/plugin/coordinator.go`
+- Tier-based plugin startup with dependency ordering in `startup.go`
+- Config-path auto-loading (Phase 1) before explicit plugins (Phase 2)
+- `hasConfiguredPlugin` word-level matching to prevent substring false positives
+- Config error propagation via `startupErr` for fatal BGP config failures
+- `runYANGConfig` as unified startup path; legacy `runBGPInProcess` removed
+- `serverDispatcher` replaces `reactor.ExecuteCommand` for web/LG/MCP dispatch
+- macOS build fix: `MigrateConfig` extracted to platform-independent file
+- Dead code removal: `subsystem.NewBGPSubsystem`, `commandLister(reactor)`
+- Linux-only lint fixes: `validate.go` -> `validate_linux.go`, `rtprotZE` moved
 
 ### Documentation Updates
-- [To be filled]
+- Spec audit tables filled (this section)
 
 ### Deviations from Plan
-- [To be filled]
+- Plugin registered at `internal/component/bgp/plugin/register.go` not `internal/component/bgp/register.go` (avoids import cycle with bgp/config)
+- AC-6/AC-7 (dynamic reload add/remove) deferred -- requires dynamic plugin lifecycle not yet built
+- `test/parse/no-bgp.ci` renamed to `test/parse/no-bgp-interface-only.ci` and `test/parse/no-bgp-empty.ci`
+- `test/reload/bgp-autoload.ci` not created (AC-6 deferred)
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Plugin server extraction | Done | `cmd/ze/hub/main.go:runYANGConfig` | Server created independently of reactor |
+| Config reload extraction | Done | `coordinator.go:Reload()` | Delegates to reactor when present |
+| BGP as plugin | Done | `bgp/plugin/register.go` | ConfigRoots: ["bgp"], RunEngine |
+| ConfigureBus for BGP | Done | `register.go:ConfigureBus` | Callback sets bus on reactor |
+| hub/main.go cleanup | Done | `main.go` | runBGPInProcess removed |
+| Engine without BGP | Done | `coordinator.go` | Returns ErrBGPNotLoaded |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | 218/218 plugin tests pass | All existing BGP+iface tests work |
+| AC-2 | Done | `test/parse/no-bgp-interface-only.ci` | Validates cleanly |
+| AC-3 | Done | `test/parse/no-bgp-fib-only.ci` | Rejects unknown keyword (correct) |
+| AC-4 | Done | 218/218 plugin tests (bgp-only configs) | Multiple tests have no interface section |
+| AC-5 | Done | `test/parse/no-bgp-empty.ci` | Environment-only validates cleanly |
+| AC-6 | Deferred | - | Requires dynamic plugin lifecycle |
+| AC-7 | Deferred | - | Requires dynamic plugin lifecycle |
+| AC-8 | Done | `bin/ze-test bgp plugin --all` 218/218 | All pass |
+| AC-9 | Done | `test/plugin/api-bgp-summary.ci` passes | Dispatch via serverDispatcher works |
+| AC-10 | Done | `coordinator.go:ErrBGPNotLoaded` | Returned by all BGP-specific methods |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestEngineStartsWithoutBGP | Done | `startup_autoload_test.go` | Verifies no BGP without bgp config path |
+| TestBGPPluginAutoLoads | Done | `startup_autoload_test.go` | Verifies ConfigRoots "bgp" triggers load |
+| TestBGPPluginAutoStops | Deferred | - | AC-7 deferred |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/bgp/register.go` | Changed | Actual: `bgp/plugin/register.go` (import cycle avoidance) |
+| `test/parse/no-bgp.ci` | Changed | Actual: `no-bgp-interface-only.ci` + `no-bgp-empty.ci` |
+| `cmd/ze/hub/main.go` | Done | runBGPInProcess removed, switch routes to runYANGConfig |
+| `internal/core/engine/engine.go` | Not modified | Engine unchanged; coordinator handles reactor-optional |
+| `internal/component/bgp/reactor/reactor.go` | Done | externalServer flag, StartPeers, SetPluginServerAny |
+| `internal/component/bgp/subsystem/subsystem.go` | Removed | Dead code (Phase 4 cleanup) |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 22
+- **Done:** 18
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (file paths differ from plan)
+- **Deferred:** 2 (AC-6, AC-7)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/bgp/plugin/register.go` | Yes | Glob confirmed |
+| `test/parse/no-bgp-interface-only.ci` | Yes | Passes (exit 0) |
+| `test/parse/no-bgp-empty.ci` | Yes | Passes (exit 0) |
+| `test/parse/no-bgp-fib-only.ci` | Yes | Passes (exit 1, expected) |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Both BGP and iface load | 218/218 plugin tests pass |
+| AC-2 | Interface only, no BGP | `no-bgp-interface-only.ci` passes |
+| AC-5 | Empty config, clean idle | `no-bgp-empty.ci` passes |
+| AC-8 | All BGP tests pass | `bin/ze-test bgp plugin --all` 218/218 |
+| AC-9 | show bgp summary works | `api-bgp-summary.ci` passes |
+| AC-10 | Clear error when no BGP | `ErrBGPNotLoaded` in coordinator.go:14 |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| Config with only interface | `test/parse/no-bgp-interface-only.ci` | Pass |
+| Config with bgp | 218/218 plugin tests | Pass |
 
 ## Checklist
 

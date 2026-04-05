@@ -82,3 +82,66 @@ func TestGetUnclaimedEventTypePlugins(t *testing.T) {
 		})
 	}
 }
+
+// TestBGPPluginAutoLoads verifies that ConfigRoots "bgp" triggers BGP plugin
+// auto-loading when the config contains a bgp { } section.
+//
+// VALIDATES: AC-1 -- Config with bgp { } auto-loads BGP plugin via ConfigRoots.
+// PREVENTS: BGP plugin not loaded when bgp section is present in config.
+func TestBGPPluginAutoLoads(t *testing.T) {
+	s := &Server{
+		config: &ServerConfig{
+			ConfiguredPaths: []string{"bgp"},
+		},
+		registry:      plugin.NewPluginRegistry(),
+		loadedPlugins: make(map[string]bool),
+	}
+
+	got := s.getConfigPathPlugins()
+	require.NotNil(t, got, "should auto-load plugins for bgp config path")
+
+	var names []string
+	for _, p := range got {
+		names = append(names, p.Name)
+	}
+	assert.Contains(t, names, "bgp", "bgp plugin should be in the auto-load list")
+
+	for _, p := range got {
+		assert.True(t, p.Internal, "plugin %s should be internal", p.Name)
+		assert.Equal(t, "json", p.Encoder, "plugin %s should use json encoder", p.Name)
+	}
+}
+
+// TestEngineStartsWithoutBGP verifies that no BGP plugins are auto-loaded when
+// the config has no bgp section.
+//
+// VALIDATES: AC-2/AC-5 -- Config without bgp section does not load BGP.
+// PREVENTS: BGP plugin loading unconditionally regardless of config.
+func TestEngineStartsWithoutBGP(t *testing.T) {
+	tests := []struct {
+		name  string
+		paths []string
+	}{
+		{name: "empty_paths", paths: nil},
+		{name: "interface_only", paths: []string{"interface"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Server{
+				config: &ServerConfig{
+					ConfiguredPaths: tt.paths,
+				},
+				registry:      plugin.NewPluginRegistry(),
+				loadedPlugins: make(map[string]bool),
+			}
+
+			got := s.getConfigPathPlugins()
+
+			for _, p := range got {
+				assert.NotEqual(t, "bgp", p.Name,
+					"bgp plugin should not auto-load without bgp config path")
+			}
+		})
+	}
+}
