@@ -1,10 +1,12 @@
-# Ze -- The Programmable Plugin-Based Network OS
+# Ze
 
 > **Pre-Alpha** -- Ze has not reached alpha. The core BGP engine works, but many advanced features are incomplete or untested, and there is significant work remaining before Ze is ready for end-users. APIs and config syntax will change without notice.
 
-Ze is a BGP daemon written in Go, by the creator of [ExaBGP](https://github.com/Exa-Networks/exabgp).
+Ze turns a Linux server into a networking device. It speaks BGP, manages network interfaces, programs the FIB, and serves a config editor over SSH and a web UI. Everything beyond the core is a plugin. Plugins can be Go modules or external processes in any language. An MCP server can let AI assistants discover all its features (including plugins) and operate them directly.
 
-The engine provides a message bus. Components and plugins connect to it. The engine handles TCP, FSM, OPEN/UPDATE parsing, and capability negotiation. Everything else is a plugin. Plugins can be written in any language.
+The engine is a supervisor that composes a message bus, a config provider, and a plugin manager. It has no knowledge of BGP or any specific protocol. BGP, interface management, and everything else register as subsystems and plugins. Plugins can be Go modules or external processes in any language. An MCP server can let AI assistants discover all its features (including plugins) and operate them directly.
+
+It is the successor to [ExaBGP](https://github.com/Exa-Networks/exabgp) to be a fully programmable network stack for device configuration and network automation.
 
 ### Components
 

@@ -81,3 +81,4 @@ must be recorded here with a destination (receiving spec or explicit cancellatio
 | 2026-04-04 | spec-redistribution-filter | Property test: random UPDATEs through filter chains; perf benchmarks | Property testing and benchmarks | spec-property-tests (to be created) | open |
 | 2026-04-04 | spec-web-3-config-edit | Concurrent multi-user editing stress test | Stress testing | spec-web-stress (to be created) | open |
 | 2026-04-04 | spec-fleet-config | Performance test with >100 concurrent clients | Performance testing | spec-fleet-config-perf (to be created) | open |
+| 2026-04-04 | spec-fib-admin-distance AC-5 | Config reload re-evaluates existing routes with new admin distance | Requires OnConfigure re-walk of stored routes in sysrib; config reload wiring not yet scoped | spec-fib-admin-distance-reload (to be created) | open |
