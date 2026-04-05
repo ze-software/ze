@@ -131,6 +131,9 @@ func (s *Server) runPluginStartup() {
 
 		if err := s.runPluginPhase(autoLoadConfigPaths); err != nil {
 			logger().Error("auto-load config path plugin startup failed", "error", err)
+			if s.reactor != nil {
+				s.reactor.AddAPIProcessCount(-len(autoLoadConfigPaths))
+			}
 			s.startupErr = fmt.Errorf("config-path plugin startup failed: %w", err)
 			s.signalStartupComplete()
 			return
@@ -161,6 +164,9 @@ func (s *Server) runPluginStartup() {
 
 		if err := s.runPluginPhase(autoLoadFamilies); err != nil {
 			logger().Error("auto-load family plugin startup failed", "error", err)
+			if s.reactor != nil {
+				s.reactor.AddAPIProcessCount(-len(autoLoadFamilies))
+			}
 			s.signalStartupComplete()
 			return
 		}
@@ -179,6 +185,9 @@ func (s *Server) runPluginStartup() {
 
 		if err := s.runPluginPhase(autoLoadEvents); err != nil {
 			logger().Error("auto-load event plugin startup failed", "error", err)
+			if s.reactor != nil {
+				s.reactor.AddAPIProcessCount(-len(autoLoadEvents))
+			}
 			s.signalStartupComplete()
 			return
 		}
@@ -197,6 +206,9 @@ func (s *Server) runPluginStartup() {
 
 		if err := s.runPluginPhase(autoLoadSendTypes); err != nil {
 			logger().Error("auto-load send type plugin startup failed", "error", err)
+			if s.reactor != nil {
+				s.reactor.AddAPIProcessCount(-len(autoLoadSendTypes))
+			}
 			s.signalStartupComplete()
 			return
 		}
@@ -358,8 +370,13 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 	// Signal coordinator on early exit if startup didn't complete.
 	// Without this, other plugins hang at WaitForStage until timeout.
 	defer func() {
-		if proc.Stage() < plugin.StageRunning && s.coordinator != nil {
-			s.coordinator.PluginFailed(proc.Index(), "startup incomplete")
+		if proc.Stage() < plugin.StageRunning {
+			s.coordinatorMu.Lock()
+			coord := s.coordinator
+			s.coordinatorMu.Unlock()
+			if coord != nil {
+				coord.PluginFailed(proc.Index(), "startup incomplete")
+			}
 		}
 	}()
 
