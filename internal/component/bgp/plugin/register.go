@@ -131,17 +131,15 @@ func runBGPEngine(conn net.Conn) int {
 			}
 		}
 
-		// Start reactor asynchronously. OnConfigure must return quickly
-		// so the plugin server's stage barriers don't block other plugins.
-		// The reactor runs in a goroutine; errors are logged, not returned.
-		go func() {
-			if startErr := bgpReactor.StartWithContext(context.Background()); startErr != nil {
-				log.Error("bgp reactor start failed", "error", startErr)
-				return
-			}
-			log.Info("bgp reactor started")
-		}()
+		// Start reactor synchronously. The externalServer flag on the reactor
+		// skips WaitForPluginStartupComplete/WaitForAPIReady (which would
+		// deadlock since BGP is itself a plugin). This ensures the reactor
+		// has bound its listeners and started peers before OnConfigure returns.
+		if err := bgpReactor.StartWithContext(context.Background()); err != nil {
+			return fmt.Errorf("bgp: start reactor: %w", err)
+		}
 
+		log.Info("bgp reactor started")
 		return nil
 	})
 
