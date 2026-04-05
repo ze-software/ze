@@ -181,7 +181,15 @@ else
     fi
 fi
 
-# === CHECK 8: Learned summary exists and is accurate ===
+# === CHECK 8: Spec has at least one .ci functional test ===
+# The most commonly deferred item across 500+ specs is functional tests.
+# This check catches specs with zero .ci test references anywhere.
+ALL_CI=$(grep -oE 'test/[a-zA-Z0-9_./-]+\.ci' "$SPEC_FILE" 2>/dev/null | sort -u)
+if [[ -z "$ALL_CI" ]]; then
+    ERRORS+=("Spec has ZERO .ci functional test references — features without end-to-end tests are dead code (see retrospective: deferred functional tests never land)")
+fi
+
+# === CHECK 9: Learned summary exists and is accurate ===
 SPEC_BASENAME=$(basename "$SPEC_FILE" .md | sed 's/^spec-//')
 LEARNED_FILE=$(ls plan/learned/*-${SPEC_BASENAME}*.md 2>/dev/null | head -1)
 

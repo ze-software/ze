@@ -38,11 +38,11 @@ ASK user: implement? skip? config option?
 
 | Feature | RFC | Location |
 |---------|-----|----------|
-| BGP-4 base | 4271 | `message/`, `fsm/` |
-| MP-BGP | 4760 | `nlri/`, `attribute/mpreach.go` |
-| 4-byte ASN | 6793 | `capability/asn4.go` |
-| Add-Path | 7911 | `capability/addpath.go` |
-| GR | 4724 | `capability/graceful.go` |
+| BGP-4 base | 4271 | `message/`, `reactor/` |
+| MP-BGP | 4760 | `reactor/received_update.go`, `attribute/` |
+| 4-byte ASN | 6793 | `capability/capability.go` |
+| Add-Path | 7911 | `capability/capability.go` |
+| GR | 4724 | `capability/capability.go` |
 | Error handling | 7606 | revised error handling |
 
 ExaBGP ref: `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`

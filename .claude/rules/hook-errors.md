@@ -15,5 +15,5 @@ Never ignore hook errors. Never claim "done" if hooks failed. Re-run after fixin
 |-------------|-----|
 | Missing required section | Add exact section header |
 | Missing checklist item | Add exact text |
-| RFC summary not found | Run `/rfc-summarisation` first |
+| RFC summary not found | Run `/ze-rfc` first |
 | Table format required | Use `\| Col \| Col \|` format |

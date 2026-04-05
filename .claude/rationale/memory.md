@@ -48,4 +48,4 @@ When ANY test fails then passes on retry:
 - `Pack() []byte` is fully DELETED -- no Pack methods exist on any wire type
 - Higher-level assembly functions (`PackTo`, `PackFor`, `PackAttributesFor`) still exist -- these orchestrate multiple `WriteTo` calls
 - `wire.SessionBuffer` exists for reusable per-session buffers -- use it in reactor/peer paths
-- `/find-alloc` audits violations, `/fix-alloc file:line` fixes them
+- `/ze-find-alloc` audits violations, `/ze-fix-alloc file:line` fixes them

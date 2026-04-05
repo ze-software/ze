@@ -54,4 +54,4 @@ Pool `New` func, session buffer creation, cached encoding, result copies to call
 4. `make([]byte)`? → Get from pool
 5. Type has `WriteTo`? → Use it
 
-Enforced by `block-encoding-alloc.sh` (exit 2). Audit: `/find-alloc`. Fix: `/fix-alloc file:line`.
+Enforced by `block-encoding-alloc.sh` (exit 2). Audit: `/ze-find-alloc`. Fix: `/ze-fix-alloc file:line`.

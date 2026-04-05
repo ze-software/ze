@@ -103,3 +103,8 @@ fi
 # Blocking reminders
 echo "Warning: BLOCKING: ToolSearch select:LSP -- load BEFORE any work"
 echo "Warning: RULE: Read spec + source files BEFORE writing any code"
+
+# Suggest /ze-status when no spec is selected
+if [ "$SELECTED_COUNT" -eq 0 ] && [ "$SPEC_COUNT" -gt 0 ]; then
+    echo "Tip: /ze-status for a cross-project attention view"
+fi

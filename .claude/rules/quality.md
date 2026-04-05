@@ -28,7 +28,7 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 
 | # | Question | If the answer is bad |
 |---|----------|---------------------|
-| 1 | If `/deep-review` ran right now, what would it find? | Fix those things first |
+| 1 | If `/ze-review-deep` ran right now, what would it find? | Fix those things first |
 | 2 | What test cases did I skip because they seemed unlikely? | Write them |
 | 3 | Is every new function reachable from a user entry point? Name the path. | Wire it or say "not yet wired" |
 | 4 | If I doubled the test count, which tests would I add? | Add them now, not after being challenged |

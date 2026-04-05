@@ -12,8 +12,9 @@ By contributing, you agree to the terms of the
    so the work follows the project's structure and standards.
 3. **Implement the spec.** Follow the rules in `.claude/rules/` -- they apply to
    all contributions, whether written by hand or with AI assistance.
-4. **Run `/deep-review` before submitting.** The maintainer reviews contributions
+4. **Run `/ze-review-deep` before submitting.** The maintainer reviews contributions
    with Claude Code. Submitting pre-reviewed code makes that process smooth.
+   See the [Claude Code cheat sheet](docs/claude-code-cheatsheet.md) for all available commands.
 5. **Sign your commits** with `git commit -s` (certifies you accept the [CLA](CLA.md)).
 
 ## Rules

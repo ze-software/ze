@@ -36,7 +36,7 @@ Name the file, name the section, describe the change. Never say "update document
 Every spec MUST have a **Documentation Update Checklist** (see `plan/TEMPLATE.md`).
 Each row answered Yes/No. Each Yes names the file and what to add.
 
-## In /implement
+## In /ze-implement
 
 Stage 12 (Documentation review) is BLOCKING. Doc updates are part of the commit, not follow-up work.
 

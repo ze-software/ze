@@ -101,6 +101,8 @@ Requires **Go 1.25+**. See the [Quick Start guide](docs/guide/quickstart.md).
 
 Ze exists because AI coding assistants (Claude Code) made a ground-up BGP rewrite feasible for a solo developer. The author focused on architecture and design decisions informed by a decade of ExaBGP; AI handled the volume of protocol encoding, boilerplate, and test generation.
 
+Contributors using Claude Code have access to 19 project-specific slash commands for specs, implementation, review, and testing. See the [Claude Code cheat sheet](docs/claude-code-cheatsheet.md).
+
 ## License and Contributions
 
 [GNU Affero General Public License v3.0](LICENSE)
