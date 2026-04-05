@@ -555,6 +555,19 @@
     ],
     "PostToolUse": [
       {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "agent",
+            "if": "Bash(make ze-verify*)",
+            "prompt": "You are a code reviewer for the Ze project (a Network OS in Go). Review ALL uncommitted Go changes for bugs, edge cases, and correctness issues.\n\nSteps:\n1. Run: git diff --name-only HEAD -- '*.go' to find changed files\n2. Run: git diff HEAD -- '*.go' to read the actual changes\n3. For each changed region, apply these checks:\n   - What happens with nil/zero/empty input?\n   - What happens with very large input (1MB string, 10M entries)?\n   - Are error returns checked? Can errors be silently swallowed?\n   - Does any make()/append() use an unbounded user-controlled size?\n   - Are there race conditions with concurrent access?\n   - Does the change remove a guard, workaround, or safety check that existed for a reason?\n   - For wire encoding: does it use WriteTo(buf, off) or does it allocate?\n   - For config parsing: does it fail on unknown keys?\n4. Discard false positives: pre-existing issues, linter-catchable issues, style-only concerns\n5. Report only BLOCKERs (will cause incorrect behavior/crash) and ISSUEs (missing edge case handling)\n\nIf you find BLOCKERs or ISSUEs, output them as a numbered list with file:line and explanation.\nIf the code looks correct, say 'No issues found.'",
+            "timeout": 120,
+            "model": "claude-sonnet-4-6",
+            "statusMessage": "Reviewing changes for bugs..."
+          }
+        ]
+      },
+      {
         "matcher": "Write|Edit",
         "hooks": [
           {
