@@ -8,10 +8,13 @@ import (
 )
 
 func TestHandleShowInterface(t *testing.T) {
-	// List all interfaces -- should succeed on any platform.
+	// List all interfaces -- requires iface backend.
 	resp, err := handleShowInterface(nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+	if resp.Status == "error" && resp.Data == "iface: no backend loaded" {
+		t.Skip("iface backend not available in test environment")
+	}
 	assert.Equal(t, "done", resp.Status)
 	assert.Contains(t, resp.Data, "lo") // loopback always exists
 
