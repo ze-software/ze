@@ -219,6 +219,18 @@ func (s *Server) signalStartupComplete() {
 	if s.reactor != nil {
 		s.reactor.SignalPluginStartupComplete()
 	}
+	s.startupDoneOnce.Do(func() { close(s.startupDone) })
+}
+
+// WaitForStartupComplete blocks until all plugin startup phases are done.
+// Returns immediately if no plugins were started.
+func (s *Server) WaitForStartupComplete(ctx context.Context) error {
+	select {
+	case <-s.startupDone:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // runPluginPhase starts a batch of plugins with tier-ordered handshake.

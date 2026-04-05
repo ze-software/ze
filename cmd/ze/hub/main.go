@@ -115,8 +115,6 @@ func Run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	// Probe config type using shared function
 	switch zeconfig.ProbeConfigType(string(data)) {
 	case zeconfig.ConfigTypeBGP:
-		// BGP config: legacy reactor path (proven, high-traffic).
-		// TODO(bgp-as-plugin): migrate to runYANGConfig once BGP RunEngine is validated.
 		return runBGPInProcess(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
 	case zeconfig.ConfigTypeUnknown:
 		// Non-BGP YANG config: auto-load plugins via ConfigRoots.
@@ -627,6 +625,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	fmt.Printf("Starting ze with config: %s\n", configPath)
+
+	// Wait for all plugins to complete startup (BGP reactor starts, peers connect, etc.)
+	// before signaling readiness. The test infrastructure polls ze.ready.file.
+	startupCtx, startupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	if err := apiServer.WaitForStartupComplete(startupCtx); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: plugin startup wait: %v\n", err)
+	}
+	startupCancel()
 
 	if readyFile := env.Get("ze.ready.file"); readyFile != "" {
 		if f, createErr := os.Create(readyFile); createErr == nil { //nolint:gosec // test infrastructure path from env

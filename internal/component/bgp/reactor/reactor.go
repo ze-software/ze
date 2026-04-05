@@ -311,6 +311,11 @@ type Reactor struct {
 	// postStartFunc is called after the API server starts.
 	// Used by config loader to wire deferred components (SSH executor, authz).
 	postStartFunc func()
+
+	// externalServer is true when the plugin server was set via SetPluginServer
+	// (hub-owned lifecycle). StartWithContext skips plugin startup waits to avoid
+	// deadlock when the reactor runs as a config-driven plugin.
+	externalServer bool
 }
 
 // SetPostStartFunc sets a function called after the API server starts.
@@ -795,23 +800,29 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// during their startup protocol. Holding the write lock here causes deadlock.
 	r.mu.Unlock()
 
-	// Wait for plugin startup to complete (Phase 1 + Phase 2) before validating.
-	// This ensures auto-loaded plugins have registered their families.
-	pluginWaitStart := r.clock.Now()
-	r.WaitForPluginStartupComplete()
-	pluginElapsed := r.clock.Now().Sub(pluginWaitStart)
-	reactorLogger().Debug("timing: WaitForPluginStartupComplete done", "elapsed", pluginElapsed)
-	if r.rmetrics != nil {
-		r.rmetrics.pluginStartupSeconds.Observe(pluginElapsed.Seconds())
-	}
+	// When using an external plugin server (BGP running as a config-driven plugin),
+	// skip plugin startup waits. The plugin server coordinates startup independently.
+	// Waiting here would deadlock: BGP is itself a plugin that hasn't completed its
+	// stage, so waiting for all plugins to complete waits for self.
+	if !r.externalServer {
+		// Wait for plugin startup to complete (Phase 1 + Phase 2) before validating.
+		// This ensures auto-loaded plugins have registered their families.
+		pluginWaitStart := r.clock.Now()
+		r.WaitForPluginStartupComplete()
+		pluginElapsed := r.clock.Now().Sub(pluginWaitStart)
+		reactorLogger().Debug("timing: WaitForPluginStartupComplete done", "elapsed", pluginElapsed)
+		if r.rmetrics != nil {
+			r.rmetrics.pluginStartupSeconds.Observe(pluginElapsed.Seconds())
+		}
 
-	// Also wait for individual plugins to signal ready (backwards compat).
-	apiWaitStart := r.clock.Now()
-	r.WaitForAPIReady()
-	apiElapsed := r.clock.Now().Sub(apiWaitStart)
-	reactorLogger().Debug("timing: WaitForAPIReady done", "elapsed", apiElapsed)
-	if r.rmetrics != nil {
-		r.rmetrics.apiReadySeconds.Observe(apiElapsed.Seconds())
+		// Also wait for individual plugins to signal ready (backwards compat).
+		apiWaitStart := r.clock.Now()
+		r.WaitForAPIReady()
+		apiElapsed := r.clock.Now().Sub(apiWaitStart)
+		reactorLogger().Debug("timing: WaitForAPIReady done", "elapsed", apiElapsed)
+		if r.rmetrics != nil {
+			r.rmetrics.apiReadySeconds.Observe(apiElapsed.Seconds())
+		}
 	}
 
 	// Validate peer families against available plugin decoders.
@@ -889,9 +900,9 @@ func (r *Reactor) startMultiListeners() error {
 // and startup -- the hub owns the server lifecycle. Only wires BGP-specific
 // handlers (EventDispatcher, filters, observers).
 func (r *Reactor) startAPIServer() error {
-	externalServer := r.api != nil
+	r.externalServer = r.api != nil
 
-	if !externalServer {
+	if !r.externalServer {
 		// Create and own the plugin server (legacy path).
 		apiConfig := &pluginserver.ServerConfig{
 			ConfigPath:                r.config.ConfigPath,
@@ -938,7 +949,7 @@ func (r *Reactor) startAPIServer() error {
 	r.AddPeerObserver(&apiStateObserver{dispatcher: r.eventDispatcher, reactor: r})
 	r.SetAPIProcessCount(len(r.config.Plugins))
 
-	if !externalServer {
+	if !r.externalServer {
 		if err := r.api.StartWithContext(r.ctx); err != nil {
 			r.abortStartup()
 			return err

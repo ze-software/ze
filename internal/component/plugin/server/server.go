@@ -74,6 +74,9 @@ type Server struct {
 
 	running atomic.Bool
 
+	startupDone     chan struct{} // closed when signalStartupComplete runs
+	startupDoneOnce sync.Once
+
 	configLoader ConfigLoader // Loads new config tree for ReloadFromDisk
 
 	ctx    context.Context
@@ -144,6 +147,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		monitors:      NewMonitorManager(),
 		registry:      plugin.NewPluginRegistry(),
 		capInjector:   plugin.NewCapabilityInjector(),
+		startupDone:   make(chan struct{}),
 	}
 
 	// Register plugin-declared event and send types before any subscriptions.
