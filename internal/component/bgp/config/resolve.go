@@ -73,10 +73,10 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 
 			// Validate peer name (the list key).
 			if err := validatePeerName(peerName); err != nil {
-				return nil, fmt.Errorf("bgp.group %s peer %s: %w", groupName, peerName, err)
+				return nil, fmt.Errorf("bgp/group %s peer %s: %w", groupName, peerName, err)
 			}
 			if existingAddr, exists := peerNames[peerName]; exists {
-				return nil, fmt.Errorf("bgp.group %s peer %s: duplicate peer name (already used by %s)", groupName, peerName, existingAddr)
+				return nil, fmt.Errorf("bgp/group %s peer %s: duplicate peer name (already used by %s)", groupName, peerName, existingAddr)
 			}
 			peerNames[peerName] = peerName
 
@@ -95,7 +95,7 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 			resolved["group-name"] = groupName
 
 			if _, exists := peerMap[peerName]; exists {
-				return nil, fmt.Errorf("bgp.group %s: duplicate peer name %s (already defined in another group or as standalone)", groupName, peerName)
+				return nil, fmt.Errorf("bgp/group %s: duplicate peer name %s (already defined in another group or as standalone)", groupName, peerName)
 			}
 			peerMap[peerName] = resolved
 		}
