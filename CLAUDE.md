@@ -15,7 +15,7 @@
 - NEVER: `git reset`, `git checkout -- <file>`, `git restore`, `git clean`, `git revert`
 - NEVER: `git push --force`, `git push -f`
 - NEVER: `git stash drop`, `git stash clear`
-- To undo something: STOP and ASK the user.
+- To undo something: write the command to `tmp/delete-SESSION.sh`, tell the user, and STOP.
 
 ## Worktree agents must not touch main
 - Work on your own branch. Commit there. Done.

@@ -69,7 +69,7 @@ Never commit with lint issues. Never commit without test evidence.
 
 ## Before Destructive Actions
 
-Save: `git diff > .claude/backups/work-$(date +%Y%m%d-%H%M%S).patch` — then ASK user.
+Save: `git diff > .claude/backups/work-$(date +%Y%m%d-%H%M%S).patch` — then write the destructive command(s) to `tmp/delete-SESSION.sh`, tell the user, and STOP. Same pattern as commit scripts so commands aren't lost in scrolling output.
 
 ## Branch Integration: Rebase Only
 
