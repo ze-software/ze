@@ -294,13 +294,14 @@ ze-interop-test:
 
 # ─── Stress tests (BNG Blaster) ────────────────────────────────────────────
 
-# Run BGP stress tests using BNG Blaster (requires Docker).
+# Run BGP stress tests using BNG Blaster (requires Linux, root, BNG Blaster installed).
+# Install BNG Blaster first: sudo python3 test/stress/setup.py
 # Run single scenario: make ze-stress-test STRESS_SCENARIO=01-bulk-ipv4
 STRESS_SCENARIO ?=
 
 ze-stress-test:
-	@echo "Running stress tests with BNG Blaster (requires Docker)..."
-	@python3 test/stress/run.py $(STRESS_SCENARIO)
+	@echo "Running stress tests with BNG Blaster (requires root + netns)..."
+	@sudo python3 test/stress/run.py $(STRESS_SCENARIO)
 
 # ─── Live tests ────────────────────────────────────────────────────────────
 
@@ -481,7 +482,7 @@ help:
 	@echo "  Interop tests (Docker):"
 	@echo "  ze-interop-test          - Run interop tests against FRR and BIRD"
 	@echo "                             INTEROP_SCENARIO=name to run one scenario"
-	@echo "  ze-stress-test           - Run BGP stress tests with BNG Blaster"
+	@echo "  ze-stress-test           - Run BGP stress tests with BNG Blaster (Linux, root)"
 	@echo "                             STRESS_SCENARIO=name to run one scenario"
 	@echo ""
 	@echo "  Integration tests (CAP_NET_ADMIN / root):"

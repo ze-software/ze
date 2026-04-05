@@ -9,7 +9,6 @@ Validates: Ze handles repeated BGP session disconnect/reconnect cycles
 
 import sys
 import os
-import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from bngblaster import (
@@ -32,7 +31,6 @@ def check():
 
     # Generate update file once.
     update_file = generate_updates(
-        scenario_dir=os.path.dirname(__file__),
         prefix_base="10.0.0.0/24",
         prefix_count=PREFIX_COUNT,
         nexthop=BB_IP,
@@ -63,6 +61,7 @@ def check():
         # Disconnect.
         log_info("disconnecting BGP session...")
         bb.bgp_disconnect()
+        import time
         time.sleep(2)
 
         # BNG Blaster reconnects automatically (reconnect: true).

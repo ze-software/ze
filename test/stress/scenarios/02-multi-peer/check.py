@@ -28,7 +28,6 @@ def check():
 
     # Generate IPv4 updates.
     ipv4_file = generate_updates(
-        scenario_dir=os.path.dirname(__file__),
         prefix_base="10.0.0.0/24",
         prefix_count=IPV4_COUNT,
         nexthop=BB_IP,
@@ -38,7 +37,6 @@ def check():
 
     # Generate IPv6 updates.
     ipv6_file = generate_updates(
-        scenario_dir=os.path.dirname(__file__),
         prefix_base="2001:db8::/48",
         prefix_count=IPV6_COUNT,
         nexthop="2001:db8::3",

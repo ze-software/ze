@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 """Ze BGP stress test runner using BNG Blaster.
 
+Uses network namespaces and veth pairs. Requires root (sudo) on Linux.
+BNG Blaster must be installed first (see setup.py).
+
 Usage:
-    python3 test/stress/run.py                     # run all scenarios
-    python3 test/stress/run.py 01-bulk-ipv4        # run specific scenario
-    VERBOSE=1 python3 test/stress/run.py            # verbose output
-    NO_BUILD=1 python3 test/stress/run.py           # skip image builds
+    sudo python3 test/stress/run.py                     # run all scenarios
+    sudo python3 test/stress/run.py 01-bulk-ipv4        # run specific scenario
+    sudo VERBOSE=1 python3 test/stress/run.py            # verbose output
 
 Environment:
     VERBOSE         - set to 1 for debug output
-    NO_BUILD        - set to 1 to skip image builds
     SESSION_TIMEOUT - BGP session timeout in seconds (default: 120)
+    ZE_BINARY       - path to ze binary (default: auto-build)
 """
 
 import os
+import shutil
 import subprocess
 import sys
 
@@ -23,52 +26,56 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 # Make bngblaster module importable from check.py scripts.
 sys.path.insert(0, SCRIPT_DIR)
 
-from bngblaster import Scenario, log_fail, log_pass
+from bngblaster import Scenario, log_fail, log_pass, log_info
 
 
-def build_images(no_build=False):
-    """Build ze-interop and ze-stress-bb images."""
-    if no_build:
-        print("  skipping image builds (NO_BUILD=1)")
-        return
+def check_prerequisites():
+    """Verify tools are available, run setup if needed."""
+    if os.geteuid() != 0:
+        print("error: must run as root (sudo) for network namespaces", file=sys.stderr)
+        sys.exit(1)
 
-    interop_dir = os.path.join(PROJECT_ROOT, "test", "interop")
+    missing = [t for t in ["bngblaster", "bngblaster-cli", "bgpupdate"]
+               if not shutil.which(t)]
+    if missing:
+        print("Installing BNG Blaster (first run)...")
+        setup = os.path.join(SCRIPT_DIR, "setup.py")
+        subprocess.run([sys.executable, setup], check=True, timeout=600)
+        # Verify after install.
+        still_missing = [t for t in missing if not shutil.which(t)]
+        if still_missing:
+            print("error: setup completed but still missing: %s" % ", ".join(still_missing),
+                  file=sys.stderr)
+            sys.exit(1)
 
-    print("Building Ze image...")
+
+def build_ze():
+    """Build Ze binary, return path."""
+    ze_binary = os.environ.get("ZE_BINARY", "")
+    if ze_binary and os.path.isfile(ze_binary):
+        log_info("using Ze binary: %s" % ze_binary)
+        return ze_binary
+
+    # Build from source.
+    ze_binary = os.path.join(PROJECT_ROOT, "bin", "ze")
+    print("Building Ze...")
     subprocess.run(
-        ["docker", "build", "-t", "ze-interop",
-         "-f", os.path.join(interop_dir, "Dockerfile.ze"),
-         PROJECT_ROOT, "-q"],
-        check=True, timeout=600,
+        ["go", "build", "-o", ze_binary, "./cmd/ze"],
+        cwd=PROJECT_ROOT, check=True, timeout=120,
     )
-
-    print("Building BNG Blaster image...")
-    subprocess.run(
-        ["docker", "build", "-t", "ze-stress-bb",
-         "-f", os.path.join(SCRIPT_DIR, "Dockerfile.bngblaster"),
-         SCRIPT_DIR, "-q"],
-        check=True, timeout=600,
-    )
+    log_pass("Ze built: %s" % ze_binary)
+    return ze_binary
 
 
 def main():
-    no_build = os.environ.get("NO_BUILD", "0") == "1"
+    check_prerequisites()
 
     # Accept a scenario filter as positional argument.
     scenario_filter = ""
     if len(sys.argv) > 1:
         scenario_filter = sys.argv[1]
 
-    # Check Docker is available.
-    result = subprocess.run(
-        ["docker", "info"],
-        capture_output=True, text=True, timeout=15,
-    )
-    if result.returncode != 0:
-        print("error: Docker is not running or not accessible", file=sys.stderr)
-        sys.exit(1)
-
-    build_images(no_build)
+    ze_binary = build_ze()
 
     print("")
     print("\u2501" * 40)
@@ -97,7 +104,7 @@ def main():
 
         print("\u2500\u2500 %s \u2500\u2500" % scenario_name)
 
-        scenario = Scenario(scenario_dir)
+        scenario = Scenario(scenario_dir, ze_binary)
         try:
             scenario.setup()
             scenario.run_check()

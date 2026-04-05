@@ -10,12 +10,11 @@ reports ingestion rates for each.
 
 import sys
 import os
-import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from bngblaster import (
     BNGBlaster, Ze, Timer,
-    generate_updates, BB_IP, ZE_IP,
+    generate_updates, BB_IP,
     log_info, log_pass, log_fail,
 )
 
@@ -39,9 +38,8 @@ def check():
         log_info("")
         log_info("=== Round: %d prefixes ===" % prefix_count)
 
-        # Generate update file inside the BNG Blaster container.
+        # Generate update file.
         update_file = generate_updates(
-            scenario_dir=os.path.dirname(__file__),
             prefix_base=prefix_base,
             prefix_count=prefix_count,
             nexthop=BB_IP,

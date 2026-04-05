@@ -1,13 +1,14 @@
 {
     "interfaces": {
         "network": {
-            "interface": "eth0",
+            "interface": "__BB_VETH__",
             "address": "172.31.0.3/24",
-            "gateway": "172.31.0.1"
+            "gateway": "172.31.0.2"
         }
     },
     "bgp": [
         {
+            "network-interface": "__BB_VETH__",
             "local-address": "172.31.0.3",
             "peer-address": "172.31.0.2",
             "local-as": 65100,
