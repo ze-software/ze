@@ -14,23 +14,31 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 ## User Profile
 
 - [user_trust_and_delegation.md](user_trust_and_delegation.md) - User trusts Claude with hard, long work and delegates the difficult parts. Honor that trust with thoroughness.
-
 - [feedback_autonomous_work.md](feedback_autonomous_work.md) - Work autonomously, do not ask questions or wait for confirmation
 
 ## User Preferences (cross-project, not in repo)
 
 - [feedback_no_em_dashes.md](feedback_no_em_dashes.md) - Never use em dashes in English text (AI writing tell)
-- [feedback_test_failures_always_report.md](feedback_test_failures_always_report.md) - Always report test failures. Investigate. Ask user how to proceed based on risk.
-- [feedback_multiple_commits.md](feedback_multiple_commits.md) - Same system = one commit. Disjoint systems = separate commits.
-- [feedback_consistency_predictability.md](feedback_consistency_predictability.md) - Follow the same process every time. Inconsistency forces the user to be vigilant about catching shortcuts.
 - [feedback_memory_is_in_repo.md](feedback_memory_is_in_repo.md) - ~/.claude/projects/.../memory/ is the repo's .claude/memory/. Always commit memory changes.
 - [feedback_no_deferral.md](feedback_no_deferral.md) - Do not defer hard work. Implement it. Deferring defeats the purpose of delegation.
-- [feedback_no_edit_without_approval.md](feedback_no_edit_without_approval.md) - During design discussions, present options and wait. Never edit files until explicitly approved.
-- [feedback_trust_learned_summaries.md](feedback_trust_learned_summaries.md) - Verify "deferred/impossible" claims in learned summaries against actual code before reporting
-- [feedback_confirm_before_switching.md](feedback_confirm_before_switching.md) - Do not switch line of work without explicit user confirmation
-- [feedback_never_disable_gpg.md](feedback_never_disable_gpg.md) - Never bypass GPG signing on commits. Investigate failures, ask user.
-- [feedback_gpg_signing_recovery.md](feedback_gpg_signing_recovery.md) - On GPG sign failure, ask user to run `! echo test | gpg --clearsign` then retry
-- [feedback_no_git_reset.md](feedback_no_git_reset.md) - git reset is blocked; use git restore --staged or just commit what's staged
-- [feedback_no_git_add.md](feedback_no_git_add.md) - Never run git add; write a commit script instead (multiple sessions share staging area)
-- [feedback_aliased_imports.md](feedback_aliased_imports.md) - Use aliased imports when two packages share the same name (goimports drops ambiguous imports)
-- [feedback_understand_before_coding.md](feedback_understand_before_coding.md) - Understand what data a structure holds and when it's used before choosing the implementation
+
+## Moved to .claude/rules/ (2026-04-05)
+
+The following memories were folded into project rules and deleted from memory:
+- feedback_aliased_imports -> rules/go-standards.md (Aliased Imports)
+- feedback_python_not_shell -> rules/go-standards.md (Scripts: Python Only)
+- feedback_rebase_not_merge -> rules/git-safety.md (Branch Integration)
+- feedback_gpg_signing_recovery -> rules/git-safety.md (GPG Signing Recovery)
+- feedback_verify_before_deferring -> rules/deferral-tracking.md (Verify Before Deferring)
+- feedback_understand_before_coding -> rules/before-writing-code.md (Memory Lifecycle Tracing)
+- feedback_no_edit_without_approval -> rules/planning.md (design discussion wait)
+- feedback_trust_learned_summaries -> rules/quality.md (Learned Summary Verification)
+- feedback_confirm_before_switching -> rules/session-start.md (Session Focus)
+
+Deleted as duplicates of existing rules:
+- feedback_no_git_add (rules/git-safety.md)
+- feedback_no_git_reset (rules/git-safety.md)
+- feedback_multiple_commits (rules/git-safety.md)
+- feedback_test_failures_always_report (rules/anti-rationalization.md)
+- feedback_never_disable_gpg (CLAUDE.md)
+- feedback_consistency_predictability (implicit in all BLOCKING rules)
