@@ -239,6 +239,17 @@ func runValidation(input, path string) *validationResult {
 		}
 	}
 
+	// Hub config validation (secret length, client blocks).
+	if tree.GetContainer("plugin") != nil {
+		if _, hubErr := bgpconfig.ExtractHubConfig(tree); hubErr != nil {
+			result.Valid = false
+			result.Errors = append(result.Errors, validationError{
+				Message: hubErr.Error(),
+			})
+			return result
+		}
+	}
+
 	// Listener port conflict detection.
 	listeners := config.CollectListeners(tree)
 	if err := config.ValidateListenerConflicts(listeners); err != nil {
