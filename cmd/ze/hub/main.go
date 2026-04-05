@@ -548,9 +548,25 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	pm := pluginmgr.NewManager()
 
+	// Convert explicit plugin configs from reactor format to plugin server format.
+	var explicitPlugins []zePlugin.PluginConfig
+	for _, pc := range loadResult.Plugins {
+		explicitPlugins = append(explicitPlugins, zePlugin.PluginConfig{
+			Name:          pc.Name,
+			Run:           pc.Run,
+			Encoder:       pc.Encoder,
+			Respawn:       pc.Respawn,
+			WorkDir:       loadResult.ConfigDir,
+			ReceiveUpdate: pc.ReceiveUpdate,
+			StageTimeout:  pc.StageTimeout,
+			Internal:      pc.Internal,
+		})
+	}
+
 	serverConfig := &pluginserver.ServerConfig{
 		ConfigPath:      configPath,
 		ConfiguredPaths: configPaths,
+		Plugins:         explicitPlugins,
 	}
 	apiServer, serverErr := pluginserver.NewServer(serverConfig, coordinator)
 	if serverErr != nil {
