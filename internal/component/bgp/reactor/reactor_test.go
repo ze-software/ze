@@ -854,7 +854,7 @@ func TestGetPeerProcessBindingsReceiveNegotiated(t *testing.T) {
 // PREVENTS: Duplicate listeners wasting resources and port conflicts.
 func TestMultiListenerSameLocalAddress(t *testing.T) {
 	cfg := &Config{
-		Port:    0, // Use ephemeral port
+		Port:    freePort(t),
 		LocalAS: 65000,
 	}
 	reactor := New(cfg)
@@ -898,7 +898,7 @@ func TestMultiListenerDifferentLocalAddresses(t *testing.T) {
 	_ = ln.Close()
 
 	cfg := &Config{
-		Port:    0, // Use ephemeral port
+		Port:    freePort(t),
 		LocalAS: 65000,
 	}
 	reactor := New(cfg)
@@ -934,7 +934,7 @@ func TestMultiListenerDifferentLocalAddresses(t *testing.T) {
 // PREVENTS: Startup failure when no peers are configured.
 func TestMultiListenerNoPeers(t *testing.T) {
 	cfg := &Config{
-		Port:    0, // Use ephemeral port
+		Port:    freePort(t),
 		LocalAS: 65000,
 	}
 	reactor := New(cfg)
@@ -959,7 +959,7 @@ func TestMultiListenerNoPeers(t *testing.T) {
 // PREVENTS: Connection from peer going to wrong listener.
 func TestMultiListenerConnectionToCorrectListener(t *testing.T) {
 	cfg := &Config{
-		Port:    0, // Use ephemeral port
+		Port:    freePort(t),
 		LocalAS: 65000,
 	}
 	reactor := New(cfg)
@@ -1119,7 +1119,7 @@ func TestAddPeerAddressFamilyMismatch(t *testing.T) {
 // PREVENTS: Dynamic peers failing to accept incoming connections.
 func TestDynamicListenerAddPeerNewLocalAddress(t *testing.T) {
 	cfg := &Config{
-		Port:    0, // Use ephemeral port
+		Port:    freePort(t),
 		LocalAS: 65000,
 	}
 	reactor := New(cfg)
@@ -1150,7 +1150,7 @@ func TestDynamicListenerAddPeerNewLocalAddress(t *testing.T) {
 // PREVENTS: Resource waste from duplicate listeners.
 func TestDynamicListenerAddPeerExistingLocalAddress(t *testing.T) {
 	cfg := &Config{
-		Port:    0,
+		Port:    freePort(t),
 		LocalAS: 65000,
 	}
 	reactor := New(cfg)
@@ -1187,7 +1187,7 @@ func TestDynamicListenerAddPeerExistingLocalAddress(t *testing.T) {
 // PREVENTS: Orphaned listeners consuming resources.
 func TestDynamicListenerRemoveLastPeer(t *testing.T) {
 	cfg := &Config{
-		Port:    0,
+		Port:    freePort(t),
 		LocalAS: 65000,
 	}
 	reactor := New(cfg)
@@ -1220,7 +1220,7 @@ func TestDynamicListenerRemoveLastPeer(t *testing.T) {
 // PREVENTS: Premature listener closure breaking other peers.
 func TestDynamicListenerRemoveOneOfMany(t *testing.T) {
 	cfg := &Config{
-		Port:    0,
+		Port:    freePort(t),
 		LocalAS: 65000,
 	}
 	reactor := New(cfg)
@@ -1265,7 +1265,7 @@ func TestDynamicListenerRemoveOneOfMany(t *testing.T) {
 // PREVENTS: Listener/connection mismatch due to different address formats.
 func TestAddPeerIPv4MappedNormalization(t *testing.T) {
 	cfg := &Config{
-		Port:    0,
+		Port:    freePort(t),
 		LocalAS: 65000,
 	}
 	reactor := New(cfg)

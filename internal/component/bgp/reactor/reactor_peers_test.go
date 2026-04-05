@@ -3,6 +3,8 @@ package reactor
 import (
 	"net/netip"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // TestParsePeerAddrToKey verifies address-to-map-key conversion for peer lookup.
@@ -30,6 +32,32 @@ func TestParsePeerAddrToKey(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("parsePeerAddrToKey(%q) = %v, want %v", tt.input, got, tt.want)
 			}
+		})
+	}
+}
+
+// TestPeerListenPort verifies the port fallback logic for peer listeners.
+//
+// VALIDATES: peerListenPort returns DefaultBGPPort when neither peer nor config set a port.
+// PREVENTS: Listener binding to port 0 (OS-assigned random port) instead of 179.
+func TestPeerListenPort(t *testing.T) {
+	tests := []struct {
+		name       string
+		peerPort   uint16
+		configPort int
+		want       int
+	}{
+		{"custom peer port", 1179, 0, 1179},
+		{"config port, no peer port", 0, 10179, 10179},
+		{"config port, peer has default", DefaultBGPPort, 10179, 10179},
+		{"no port set anywhere", 0, 0, DefaultBGPPort},
+		{"peer has default, config zero", DefaultBGPPort, 0, DefaultBGPPort},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &Reactor{config: &Config{Port: tt.configPort}}
+			s := &PeerSettings{Port: tt.peerPort}
+			assert.Equal(t, tt.want, r.peerListenPort(s))
 		})
 	}
 }

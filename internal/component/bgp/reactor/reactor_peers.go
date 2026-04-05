@@ -67,7 +67,10 @@ func (r *Reactor) peerListenPort(s *PeerSettings) int {
 	if s.Port != 0 && s.Port != DefaultBGPPort {
 		return int(s.Port)
 	}
-	return r.config.Port
+	if r.config.Port != 0 {
+		return r.config.Port
+	}
+	return DefaultBGPPort
 }
 
 // AddPeer adds a peer to the reactor.

@@ -24,6 +24,25 @@ func mustParseAddr(s string) netip.Addr {
 	return netip.MustParseAddr(s)
 }
 
+// freePort returns a port from the OS ephemeral range for tests that need to bind listeners.
+func freePort(t *testing.T) int {
+	t.Helper()
+	var lc net.ListenConfig
+	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("freePort: %v", err)
+	}
+	addr, ok := ln.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatal("freePort: unexpected address type")
+	}
+	port := addr.Port
+	if err := ln.Close(); err != nil {
+		t.Fatalf("freePort close: %v", err)
+	}
+	return port
+}
+
 // testRoute creates a valid route for testing.
 func testRoute(prefixStr string) *rib.Route {
 	prefix := netip.MustParsePrefix(prefixStr)
