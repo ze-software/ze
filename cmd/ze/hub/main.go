@@ -594,10 +594,17 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		})
 	}
 
+	// Extract hub TLS config for external plugin connect-back.
+	var hubConfig *zePlugin.HubConfig
+	if hubCfg, hubErr := bgpconfig.ExtractHubConfig(loadResult.Tree); hubErr == nil {
+		hubConfig = &hubCfg
+	}
+
 	serverConfig := &pluginserver.ServerConfig{
 		ConfigPath:      configPath,
 		ConfiguredPaths: configPaths,
 		Plugins:         explicitPlugins,
+		Hub:             hubConfig,
 	}
 	apiServer, serverErr := pluginserver.NewServer(serverConfig, coordinator)
 	if serverErr != nil {

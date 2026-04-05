@@ -556,6 +556,25 @@ func (r *Reactor) SetBusAny(b any) {
 	}
 }
 
+// StartPeers validates peer families and starts all configured peers.
+// Called after all plugin tiers complete when using external server mode.
+// MUST be called after StartWithContext.
+func (r *Reactor) StartPeers() error {
+	r.mu.RLock()
+	peersToStart := make(map[netip.AddrPort]*Peer, len(r.peers))
+	maps.Copy(peersToStart, r.peers)
+	r.mu.RUnlock()
+
+	if err := r.validatePeerFamilies(peersToStart); err != nil {
+		return err
+	}
+
+	for _, peer := range peersToStart {
+		peer.StartWithContext(r.ctx)
+	}
+	return nil
+}
+
 // ConfiguredAutoLoad returns the BGP-specific auto-load configuration
 // extracted from peer settings. Used by the hub to update the plugin server
 // so family/event/send auto-load phases have the data they need.
@@ -849,20 +868,22 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		}
 	}
 
-	// Validate peer families against available plugin decoders.
-	// If a peer has explicit family config, all families must have decoders.
-	// If no family config, plugin decode families will be used (validated in sendOpen).
-	if err := r.validatePeerFamilies(peersToStart); err != nil {
-		r.mu.Lock()
-		r.abortStartup()
-		return err
-	}
+	if !r.externalServer {
+		// Validate peer families against available plugin decoders.
+		if err := r.validatePeerFamilies(peersToStart); err != nil {
+			r.mu.Lock()
+			r.abortStartup()
+			return err
+		}
 
-	// Start all peers (passive peers wait for incoming connections).
-	// Uses captured slice - each peer has its own synchronization.
-	for _, peer := range peersToStart {
-		peer.StartWithContext(r.ctx)
+		// Start all peers (passive peers wait for incoming connections).
+		for _, peer := range peersToStart {
+			peer.StartWithContext(r.ctx)
+		}
 	}
+	// When externalServer: peers deferred to StartPeers() call after all
+	// plugin tiers complete. Otherwise validate-open callbacks arrive
+	// before tier 1+ plugins finish their 5-stage handshake.
 
 	// Re-acquire lock only to set running state
 	r.mu.Lock()

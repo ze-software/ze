@@ -229,6 +229,11 @@ func (s *Server) UpdateBGPConfig(families, customEvents, customSendTypes []strin
 	s.config.ConfiguredCustomSendTypes = customSendTypes
 }
 
+// ReactorAny returns the reactor as any, satisfying registry.PluginServerAccessor.
+func (s *Server) ReactorAny() any {
+	return s.reactor
+}
+
 func (s *Server) Reactor() plugin.ReactorLifecycle {
 	return s.reactor
 }

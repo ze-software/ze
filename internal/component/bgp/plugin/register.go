@@ -87,7 +87,7 @@ func runBGPEngine(conn net.Conn) int {
 			return fmt.Errorf("bgp: no plugin server available")
 		}
 
-		coord, ok := server.Reactor().(registry.CoordinatorAccessor)
+		coord, ok := server.ReactorAny().(registry.CoordinatorAccessor)
 		if !ok {
 			return fmt.Errorf("bgp: server reactor is not a Coordinator")
 		}
@@ -127,13 +127,25 @@ func runBGPEngine(conn net.Conn) int {
 			return fmt.Errorf("bgp: register reactor: %w", err)
 		}
 
-		// Start reactor synchronously. The externalServer flag skips
-		// WaitForPluginStartupComplete/WaitForAPIReady (avoids self-deadlock).
+		// Start reactor (listeners, wiring). Peers are deferred: the externalServer
+		// flag skips peer startup in StartWithContext to avoid validate-open
+		// callbacks arriving before tier 1+ plugins complete their handshake.
 		if err := bgpReactor.StartWithContext(context.Background()); err != nil {
 			return fmt.Errorf("bgp: start reactor: %w", err)
 		}
+		log.Info("bgp reactor started (peers deferred)")
 
-		log.Info("bgp reactor started")
+		// Register peer startup as post-startup callback. The coordinator
+		// calls this when SignalPluginStartupComplete fires (after all tiers
+		// and explicit plugins finish their 5-stage protocol).
+		coord.OnPostStartup(func() {
+			if peerErr := bgpReactor.StartPeers(); peerErr != nil {
+				log.Error("bgp: start peers failed", "error", peerErr)
+				return
+			}
+			log.Info("bgp peers started")
+		})
+
 		return nil
 	})
 

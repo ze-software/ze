@@ -20,10 +20,11 @@ var ErrBGPNotLoaded = errors.New("bgp not loaded")
 // Created by the hub at startup. The reactor registers itself via SetReactor
 // when BGP loads. Safe for concurrent use.
 type Coordinator struct {
-	mu         sync.RWMutex
-	configTree map[string]any
-	reactor    ReactorLifecycle // nil when BGP not loaded
-	extra      map[string]any   // generic key-value store for cross-plugin state
+	mu          sync.RWMutex
+	configTree  map[string]any
+	reactor     ReactorLifecycle // nil when BGP not loaded
+	extra       map[string]any   // generic key-value store for cross-plugin state
+	postStartup func()           // called by SignalPluginStartupComplete (e.g., start peers)
 }
 
 // NewCoordinator creates a Coordinator with the given config tree.
@@ -241,6 +242,21 @@ func (c *Coordinator) SignalPluginStartupComplete() {
 	if r := c.getReactor(); r != nil {
 		r.SignalPluginStartupComplete()
 	}
+	c.mu.RLock()
+	fn := c.postStartup
+	c.mu.RUnlock()
+	if fn != nil {
+		fn()
+	}
+}
+
+// OnPostStartup registers a callback invoked when all plugin startup phases
+// complete (after SignalPluginStartupComplete). Used by BGP to start peers
+// only after tier 1+ plugins finish their 5-stage handshake.
+func (c *Coordinator) OnPostStartup(fn func()) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.postStartup = fn
 }
 
 // SignalPeerAPIReady signals that a peer-specific API initialization is complete. No-op without reactor.
