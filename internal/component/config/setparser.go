@@ -144,9 +144,12 @@ func (p *SetParser) tokenizeLine(line string) []string {
 }
 
 // parseSet handles: set <path...> <value>.
+// Also tolerates structural-only commands (e.g., "set bgp peer foo") that create
+// containers or list entries without setting a leaf value. This allows incomplete
+// configs (work-in-progress editing) to load without failing.
 func (p *SetParser) parseSet(tree *Tree, tokens []string, lineNum int) error {
-	if len(tokens) < 2 {
-		return fmt.Errorf("line %d: set requires path and value", lineNum)
+	if len(tokens) < 1 {
+		return fmt.Errorf("line %d: set requires at least a path", lineNum)
 	}
 
 	// Walk the schema to find where to set the value
@@ -154,9 +157,11 @@ func (p *SetParser) parseSet(tree *Tree, tokens []string, lineNum int) error {
 }
 
 // walkAndSet walks the path and sets the value at the leaf.
+// Returns nil when tokens are exhausted at a non-leaf node, which means
+// the caller already created the container or list entry at this level.
 func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum int) error {
 	if len(tokens) == 0 {
-		return fmt.Errorf("line %d: incomplete path", lineNum)
+		return nil // structural-only: container/entry exists, no leaf to set
 	}
 
 	name := tokens[0]
@@ -204,11 +209,17 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 	}
 
 	if _, ok := node.(*BracketLeafListNode); ok {
+		if len(tokens) == 0 {
+			return nil // structural-only: no value to set
+		}
 		tree.Set(name, parseBracketValue(tokens))
 		return nil
 	}
 
 	if _, ok := node.(*ValueOrArrayNode); ok {
+		if len(tokens) == 0 {
+			return nil // structural-only: no value to set
+		}
 		tree.Set(name, parseBracketValue(tokens))
 		return nil
 	}
@@ -223,13 +234,25 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 	}
 
 	if list, ok := node.(*ListNode); ok {
-		if len(tokens) < 2 {
-			return fmt.Errorf("line %d: list %s requires key and field", lineNum, name)
+		if len(tokens) == 0 {
+			return nil // structural-only: list node declared, no entries
+		}
+		if len(tokens) == 1 {
+			// Key-only: create empty list entry (incomplete config tolerance).
+			key := tokens[0]
+			entries := tree.GetList(name)
+			if entries == nil || entries[key] == nil {
+				tree.AddListEntry(name, key, NewTree())
+			}
+			return nil
 		}
 		return p.walkAndSetListEntry(tree, list, name, tokens, lineNum)
 	}
 
 	if _, ok := node.(*FreeformNode); ok {
+		if len(tokens) == 0 {
+			return nil // structural-only: no key to set
+		}
 		return setFreeformValue(tree, name, tokens, lineNum)
 	}
 
@@ -238,8 +261,17 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 	}
 
 	if il, ok := node.(*InlineListNode); ok {
-		if len(tokens) < 2 {
-			return fmt.Errorf("line %d: inline-list %s requires key and field", lineNum, name)
+		if len(tokens) == 0 {
+			return nil // structural-only: inline-list declared, no entries
+		}
+		if len(tokens) == 1 {
+			// Key-only: create empty inline-list entry (incomplete config tolerance).
+			key := tokens[0]
+			entries := tree.GetList(name)
+			if entries == nil || entries[key] == nil {
+				tree.AddListEntry(name, key, NewTree())
+			}
+			return nil
 		}
 		return p.walkAndSetInlineListEntry(tree, il, name, tokens, lineNum)
 	}
@@ -631,9 +663,10 @@ func (p *SetParser) parseLineWithMeta(tree *Tree, meta *MetaTree, line string, e
 }
 
 // parseSetWithMeta handles: set <path...> <value> and records metadata along the path.
+// Tolerates structural-only commands (incomplete config) like parseSet.
 func (p *SetParser) parseSetWithMeta(tree *Tree, meta *MetaTree, entry MetaEntry, tokens []string, lineNum int) error {
-	if len(tokens) < 2 {
-		return fmt.Errorf("line %d: set requires path and value", lineNum)
+	if len(tokens) < 1 {
+		return fmt.Errorf("line %d: set requires at least a path", lineNum)
 	}
 
 	return p.walkAndSetWithMeta(tree, meta, p.schema.root, entry, tokens, lineNum)
@@ -644,7 +677,7 @@ func (p *SetParser) parseSetWithMeta(tree *Tree, meta *MetaTree, entry MetaEntry
 //nolint:cyclop // schema node dispatch mirrors walkAndSet
 func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, entry MetaEntry, tokens []string, lineNum int) error {
 	if len(tokens) == 0 {
-		return fmt.Errorf("line %d: incomplete path", lineNum)
+		return nil // structural-only: container/entry exists, no leaf to set
 	}
 
 	name := tokens[0]
@@ -687,11 +720,17 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 	}
 
 	if _, ok := node.(*BracketLeafListNode); ok {
+		if len(tokens) == 0 {
+			return nil // structural-only: no value to set
+		}
 		setLeafMeta(parseBracketValue(tokens))
 		return nil
 	}
 
 	if _, ok := node.(*ValueOrArrayNode); ok {
+		if len(tokens) == 0 {
+			return nil // structural-only: no value to set
+		}
 		setLeafMeta(parseBracketValue(tokens))
 		return nil
 	}
@@ -707,8 +746,17 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 	}
 
 	if list, ok := node.(*ListNode); ok {
-		if len(tokens) < 2 {
-			return fmt.Errorf("line %d: list %s requires key and field", lineNum, name)
+		if len(tokens) == 0 {
+			return nil // structural-only: list node declared, no entries
+		}
+		if len(tokens) == 1 {
+			// Key-only: create empty list entry (incomplete config tolerance).
+			key := tokens[0]
+			entries := tree.GetList(name)
+			if entries == nil || entries[key] == nil {
+				tree.AddListEntry(name, key, NewTree())
+			}
+			return nil
 		}
 		key := tokens[0]
 		tokens = tokens[1:]
@@ -727,6 +775,9 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 	}
 
 	if _, ok := node.(*FreeformNode); ok {
+		if len(tokens) == 0 {
+			return nil // structural-only: no key to set
+		}
 		if err := setFreeformValue(tree, name, tokens, lineNum); err != nil {
 			return err
 		}
@@ -755,8 +806,17 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 	}
 
 	if il, ok := node.(*InlineListNode); ok {
-		if len(tokens) < 2 {
-			return fmt.Errorf("line %d: inline-list %s requires key and field", lineNum, name)
+		if len(tokens) == 0 {
+			return nil // structural-only: inline-list declared, no entries
+		}
+		if len(tokens) == 1 {
+			// Key-only: create empty inline-list entry (incomplete config tolerance).
+			key := tokens[0]
+			entries := tree.GetList(name)
+			if entries == nil || entries[key] == nil {
+				tree.AddListEntry(name, key, NewTree())
+			}
+			return nil
 		}
 		key := tokens[0]
 		tokens = tokens[1:]

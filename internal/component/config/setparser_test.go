@@ -814,3 +814,132 @@ func TestExtractMetaLegacyFormat(t *testing.T) {
 		})
 	}
 }
+
+// TestSetParserIncompleteContainer verifies that a bare container path is tolerated.
+//
+// VALIDATES: "set neighbor 192.0.2.1" creates an empty list entry without error.
+// PREVENTS: Config load failure when zefs contains structural-only set commands.
+func TestSetParserIncompleteContainer(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		check func(t *testing.T, tree *Tree)
+	}{
+		{
+			name:  "bare_top_level_container",
+			input: "set neighbor",
+			check: func(t *testing.T, tree *Tree) {
+				// "neighbor" is a ListNode; with 0 tokens after name,
+				// walkAndSet returns nil without creating any entries.
+				neighbors := tree.GetList("neighbor")
+				assert.Empty(t, neighbors)
+			},
+		},
+		{
+			name:  "list_key_only",
+			input: "set neighbor 192.0.2.1",
+			check: func(t *testing.T, tree *Tree) {
+				neighbors := tree.GetList("neighbor")
+				require.Len(t, neighbors, 1)
+				entry := neighbors["192.0.2.1"]
+				require.NotNil(t, entry, "empty list entry should exist")
+			},
+		},
+		{
+			name:  "list_key_then_leaf",
+			input: "set neighbor 192.0.2.1\nset neighbor 192.0.2.1 peer-as 65001",
+			check: func(t *testing.T, tree *Tree) {
+				neighbors := tree.GetList("neighbor")
+				require.Len(t, neighbors, 1)
+				entry := neighbors["192.0.2.1"]
+				require.NotNil(t, entry)
+				val, ok := entry.Get("peer-as")
+				assert.True(t, ok)
+				assert.Equal(t, "65001", val)
+			},
+		},
+		{
+			name:  "list_key_with_nested_container",
+			input: "set neighbor 192.0.2.1 family",
+			check: func(t *testing.T, tree *Tree) {
+				neighbors := tree.GetList("neighbor")
+				require.Len(t, neighbors, 1)
+				entry := neighbors["192.0.2.1"]
+				require.NotNil(t, entry)
+				// family container should exist (empty)
+				family := entry.GetContainer("family")
+				require.NotNil(t, family)
+			},
+		},
+		{
+			name: "mixed_complete_and_incomplete",
+			input: "set router-id 1.2.3.4\n" +
+				"set neighbor 192.0.2.1\n" +
+				"set neighbor 192.0.2.1 peer-as 65001\n" +
+				"set neighbor 10.0.0.1 local-as 65000",
+			check: func(t *testing.T, tree *Tree) {
+				// Complete line parsed correctly.
+				rid, ok := tree.Get("router-id")
+				assert.True(t, ok)
+				assert.Equal(t, "1.2.3.4", rid)
+
+				// Incomplete + complete for same entry merged correctly.
+				neighbors := tree.GetList("neighbor")
+				require.Len(t, neighbors, 2)
+				n1 := neighbors["192.0.2.1"]
+				require.NotNil(t, n1)
+				val, ok := n1.Get("peer-as")
+				assert.True(t, ok)
+				assert.Equal(t, "65001", val)
+
+				// Second peer with only one leaf.
+				n2 := neighbors["10.0.0.1"]
+				require.NotNil(t, n2)
+				val2, ok := n2.Get("local-as")
+				assert.True(t, ok)
+				assert.Equal(t, "65000", val2)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewSetParser(testSchema())
+			tree, err := p.Parse(tt.input)
+			require.NoError(t, err, "incomplete set command should not error")
+			require.NotNil(t, tree)
+			tt.check(t, tree)
+		})
+	}
+}
+
+// TestSetParserIncompleteWithMeta verifies that set-meta format also tolerates
+// structural-only commands (the format stored in zefs blob storage).
+//
+// VALIDATES: ParseWithMeta accepts "set neighbor 192.0.2.1" with metadata prefix.
+// PREVENTS: zefs config load failure for work-in-progress configs.
+func TestSetParserIncompleteWithMeta(t *testing.T) {
+	input := "#alice @local %2026-01-01T00:00:00Z set neighbor 192.0.2.1"
+
+	p := NewSetParser(testSchema())
+	tree, _, err := p.ParseWithMeta(input)
+	require.NoError(t, err, "incomplete set-meta command should not error")
+	require.NotNil(t, tree)
+
+	neighbors := tree.GetList("neighbor")
+	require.Len(t, neighbors, 1)
+	entry := neighbors["192.0.2.1"]
+	require.NotNil(t, entry, "empty list entry should exist")
+}
+
+// TestSetParserIncompleteLeafStillErrors verifies that a leaf without a value
+// still returns an error (tolerance is for containers and lists, not leaves).
+//
+// VALIDATES: "set router-id" (leaf, no value) is still rejected.
+// PREVENTS: Silent acceptance of broken leaf assignments.
+func TestSetParserIncompleteLeafStillErrors(t *testing.T) {
+	p := NewSetParser(testSchema())
+	_, err := p.Parse("set router-id")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "expects exactly one value")
+}
