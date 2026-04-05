@@ -25,16 +25,18 @@ func TestCodecRPCHandlerRouting(t *testing.T) {
 		"ze-plugin-engine:decode-mp-unreach",
 		"ze-plugin-engine:decode-update",
 	}
+	handlers := CodecRPCHandlers()
 	for _, m := range methods {
 		t.Run(m, func(t *testing.T) {
-			h := CodecRPCHandler(m)
+			h, ok := handlers[m]
+			require.True(t, ok, "handler for %s must exist", m)
 			require.NotNil(t, h, "handler for %s must not be nil", m)
 		})
 	}
 
 	t.Run("unknown_method", func(t *testing.T) {
-		h := CodecRPCHandler("ze-plugin-engine:unknown")
-		require.Nil(t, h)
+		_, ok := handlers["ze-plugin-engine:unknown"]
+		require.False(t, ok)
 	})
 }
 

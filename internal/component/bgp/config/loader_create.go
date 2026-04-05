@@ -157,7 +157,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	}
 
 	// Extract hub config for TLS plugin transport.
-	hubConfig, hubErr := ExtractHubConfig(tree)
+	hubConfig, hubErr := config.ExtractHubConfig(tree)
 	if hubErr != nil {
 		return nil, fmt.Errorf("hub config: %w", hubErr)
 	}

@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -56,16 +57,17 @@ type RPCParams struct {
 
 // Server manages API connections and command dispatch.
 type Server struct {
-	config        *ServerConfig
-	reactor       plugin.ReactorLifecycle
-	dispatcher    *Dispatcher
-	rpcDispatcher *ipc.RPCDispatcher // Wire method dispatch for socket clients
-	rpcFallback   func(string) func(json.RawMessage) (any, error)
-	commitManager any
-	procManager   atomic.Pointer[process.ProcessManager]
-	spawner       plugin.ProcessSpawner // PluginManager for process lifecycle
-	subscriptions *SubscriptionManager  // API-driven event subscriptions
-	monitors      *MonitorManager       // CLI monitor subscriptions
+	config          *ServerConfig
+	reactor         plugin.ReactorLifecycle
+	dispatcher      *Dispatcher
+	rpcDispatcher   *ipc.RPCDispatcher                            // Wire method dispatch for socket clients
+	rpcHandlers     map[string]func(json.RawMessage) (any, error) // Lazily collected from registry
+	rpcHandlersOnce sync.Once
+	commitManager   any
+	procManager     atomic.Pointer[process.ProcessManager]
+	spawner         plugin.ProcessSpawner // PluginManager for process lifecycle
+	subscriptions   *SubscriptionManager  // API-driven event subscriptions
+	monitors        *MonitorManager       // CLI monitor subscriptions
 
 	// Plugin registration protocol
 	coordinator   *plugin.StartupCoordinator // Stage synchronization
@@ -146,8 +148,6 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		reactor:       reactor,
 		dispatcher:    NewDispatcher(),
 		rpcDispatcher: ipc.NewRPCDispatcher(),
-		rpcFallback:   config.RPCFallback,
-		commitManager: config.CommitManager,
 		subscriptions: NewSubscriptionManager(),
 		monitors:      NewMonitorManager(),
 		registry:      plugin.NewPluginRegistry(),
@@ -280,9 +280,29 @@ func (s *Server) Dispatcher() *Dispatcher {
 	return s.dispatcher
 }
 
+// getRPCHandlers returns the collected RPC handlers, lazily initializing on first call.
+// This allows handlers registered after server creation (e.g., from bgp/server init())
+// to be included.
+func (s *Server) getRPCHandlers() map[string]func(json.RawMessage) (any, error) {
+	s.rpcHandlersOnce.Do(func() {
+		if s.rpcHandlers == nil {
+			s.rpcHandlers = registry.CollectRPCHandlers()
+		}
+	})
+	return s.rpcHandlers
+}
+
 // CommitManager returns the commit manager.
 func (s *Server) CommitManager() any {
 	return s.commitManager
+}
+
+// SetCommitManager sets the commit manager. Called by the BGP plugin during
+// configuration to inject a CommitManager created with BGP-specific types.
+// MUST be called before any RPC dispatch (i.e., during init-time registration).
+// NOT safe for concurrent use with CommitManager().
+func (s *Server) SetCommitManager(cm any) {
+	s.commitManager = cm
 }
 
 // Subscriptions returns the subscription manager.

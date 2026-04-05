@@ -12,6 +12,7 @@ import (
 type PluginServerAccessor interface {
 	ReactorAny() any // Returns ReactorLifecycle (any to avoid importing plugin types)
 	UpdateBGPConfig(families, customEvents, customSendTypes []string)
+	SetCommitManager(cm any) // Set commit manager (type-asserted by handlers)
 }
 
 // BGPReactorHandle provides the methods the BGP plugin needs from the reactor

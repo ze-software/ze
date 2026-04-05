@@ -485,11 +485,8 @@ func TestDispatchDecodeMPReach_Malformed(t *testing.T) {
 
 	// Build a minimal CodecRPCHandler for decode-mp-reach that validates length.
 	// Cannot import bgpserver (import cycle), so provide inline handler.
-	s := &Server{ctx: ctx, rpcFallback: func(method string) func(json.RawMessage) (any, error) {
-		if method != "ze-plugin-engine:decode-mp-reach" {
-			return nil
-		}
-		return func(params json.RawMessage) (any, error) {
+	s := &Server{ctx: ctx, rpcHandlers: map[string]func(json.RawMessage) (any, error){
+		"ze-plugin-engine:decode-mp-reach": func(params json.RawMessage) (any, error) { //nolint:unparam // test stub returns nil result
 			var input rpc.DecodeMPReachInput
 			if err := json.Unmarshal(params, &input); err != nil {
 				return nil, fmt.Errorf("invalid params: %w", err)
@@ -501,8 +498,8 @@ func TestDispatchDecodeMPReach_Malformed(t *testing.T) {
 			if len(data) < 5 {
 				return nil, fmt.Errorf("MP_REACH_NLRI too short: %d bytes", len(data))
 			}
-			return nil, nil
-		}
+			return map[string]string{"status": "ok"}, nil //nolint:nilnil // test stub
+		},
 	}}
 
 	pluginEnd, engineEnd := net.Pipe()

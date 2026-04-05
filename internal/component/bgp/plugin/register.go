@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -35,12 +36,13 @@ var (
 
 func init() {
 	reg := registry.Registration{
-		Name:        "bgp",
-		Description: "BGP routing daemon",
-		Features:    "yang",
-		YANG:        bgpschema.ZeBGPConfYANG,
-		ConfigRoots: []string{"bgp"},
-		RunEngine:   runBGPEngine,
+		Name:               "bgp",
+		Description:        "BGP routing daemon",
+		Features:           "yang",
+		YANG:               bgpschema.ZeBGPConfYANG,
+		ConfigRoots:        []string{"bgp"},
+		FatalOnConfigError: true,
+		RunEngine:          runBGPEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			_ = loggerName // BGP uses its own lazy loggers
 		},
@@ -56,6 +58,7 @@ func init() {
 				bgpMu.Lock()
 				bgpServer = s
 				bgpMu.Unlock()
+				s.SetCommitManager(transaction.NewCommitManager())
 			}
 		},
 		CLIHandler: func(_ []string) int {

@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md — BGP event dispatch to plugins
 // Detail: events.go — event delivery functions (onMessageReceived, onPeerStateChange, etc.)
 // Detail: validate.go — OPEN validation via plugins (broadcastValidateOpen)
-// Detail: codec.go — codec RPC handler (CodecRPCHandler)
+// Detail: codec.go — codec RPC handlers (CodecRPCHandlers)
 
 package server
 

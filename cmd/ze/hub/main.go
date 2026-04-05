@@ -22,8 +22,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
-	bgpserver "codeberg.org/thomas-mangin/ze/internal/component/bgp/server"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/bus"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -230,14 +228,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		mcpToken = token
 	}
 
-	if webCfg, ok := bgpconfig.ExtractWebConfig(loadResult.Tree); ok {
+	if webCfg, ok := zeconfig.ExtractWebConfig(loadResult.Tree); ok {
 		if !webEnabled {
 			webEnabled = true
 			webListenAddr = webCfg.Listen()
 			insecureWeb = webCfg.Insecure
 		}
 	}
-	if mcpCfg, ok := bgpconfig.ExtractMCPConfig(loadResult.Tree); ok {
+	if mcpCfg, ok := zeconfig.ExtractMCPConfig(loadResult.Tree); ok {
 		if mcpAddr == "" {
 			mcpAddr = mcpCfg.Listen()
 		}
@@ -245,7 +243,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			mcpToken = mcpCfg.Token
 		}
 	}
-	if lgCfg, ok := bgpconfig.ExtractLGConfig(loadResult.Tree); ok {
+	if lgCfg, ok := zeconfig.ExtractLGConfig(loadResult.Tree); ok {
 		if lgListenAddr == "" {
 			lgListenAddr = lgCfg.Listen()
 		}
@@ -364,7 +362,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	// Extract hub TLS config for external plugin connect-back.
 	var hubConfig *zePlugin.HubConfig
-	if hubCfg, hubErr := bgpconfig.ExtractHubConfig(loadResult.Tree); hubErr == nil {
+	if hubCfg, hubErr := zeconfig.ExtractHubConfig(loadResult.Tree); hubErr == nil {
 		hubConfig = &hubCfg
 	}
 
@@ -373,8 +371,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		ConfiguredPaths: configPaths,
 		Plugins:         explicitPlugins,
 		Hub:             hubConfig,
-		RPCFallback:     bgpserver.CodecRPCHandler,
-		CommitManager:   transaction.NewCommitManager(),
 	}
 	apiServer, serverErr := pluginserver.NewServer(serverConfig, coordinator)
 	if serverErr != nil {

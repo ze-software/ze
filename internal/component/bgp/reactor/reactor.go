@@ -27,6 +27,7 @@ import (
 	"net"
 	"net/netip"
 	"runtime"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -37,7 +38,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"            // init() registers update parsing RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler" // init() registers route-refresh command RPCs
 	bgpserver "codeberg.org/thomas-mangin/ze/internal/component/bgp/server"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache"     // init() registers cache command RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/commit"    // init() registers commit command RPCs
@@ -169,16 +169,9 @@ type Config struct {
 	RestartUntil time.Time
 }
 
-// PluginConfig holds plugin configuration.
-type PluginConfig struct {
-	Name          string
-	Run           string // Command to run (empty for internal plugins)
-	Encoder       string
-	Respawn       bool
-	ReceiveUpdate bool          // Forward received UPDATEs to plugin stdin
-	StageTimeout  time.Duration // Per-stage timeout (0 = use default 5s)
-	Internal      bool          // If true, run in-process via goroutine (ze.X plugins)
-}
+// PluginConfig is an alias for plugin.PluginConfig. Kept as an alias so reactor
+// callers (bgp/config) can reference it without importing the plugin package directly.
+type PluginConfig = plugin.PluginConfig
 
 // ReloadFunc is called by Reload() to get the list of peers from config file.
 // The function should re-parse the config file and return full PeerSettings.
@@ -957,21 +950,14 @@ func (r *Reactor) startAPIServer() error {
 			ConfiguredCustomEvents:    r.config.ConfiguredCustomEvents,
 			ConfiguredCustomSendTypes: r.config.ConfiguredCustomSendTypes,
 			Hub:                       r.config.Hub,
-			RPCFallback:               bgpserver.CodecRPCHandler,
-			CommitManager:             transaction.NewCommitManager(),
 			MetricsRegistry:           r.metricsRegistry,
 		}
-		for _, pc := range r.config.Plugins {
-			apiConfig.Plugins = append(apiConfig.Plugins, plugin.PluginConfig{
-				Name:          pc.Name,
-				Run:           pc.Run,
-				Encoder:       pc.Encoder,
-				Respawn:       pc.Respawn,
-				WorkDir:       r.config.ConfigDir,
-				ReceiveUpdate: pc.ReceiveUpdate,
-				StageTimeout:  pc.StageTimeout,
-				Internal:      pc.Internal,
-			})
+		// Clone plugins so WorkDir mutation below does not modify r.config.Plugins.
+		apiConfig.Plugins = slices.Clone(r.config.Plugins)
+		for i := range apiConfig.Plugins {
+			if apiConfig.Plugins[i].WorkDir == "" {
+				apiConfig.Plugins[i].WorkDir = r.config.ConfigDir
+			}
 		}
 		var serverErr error
 		r.api, serverErr = pluginserver.NewServer(apiConfig, &reactorAPIAdapter{r})

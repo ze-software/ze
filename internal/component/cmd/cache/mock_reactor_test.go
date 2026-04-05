@@ -6,7 +6,6 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -115,8 +114,6 @@ func (m *mockReactor) ForwardUpdate(sel *selector.Selector, id uint64, _ string)
 
 // newTestContext creates a CommandContext backed by a mock reactor.
 func newTestContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandContext {
-	server, _ := pluginserver.NewServer(&pluginserver.ServerConfig{
-		CommitManager: transaction.NewCommitManager(),
-	}, reactor)
+	server, _ := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
 	return &pluginserver.CommandContext{Server: server}
 }

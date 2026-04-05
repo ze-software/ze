@@ -16,6 +16,7 @@ package registry
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -233,6 +234,18 @@ type Registration struct {
 	EgressFilter   EgressFilterFunc  // nil = no egress filtering
 	FilterStage    int               // Coarse ordering class (FilterStageProtocol/Policy/Annotation)
 	FilterPriority int               // Fine ordering within stage; equal priority sorted by name
+
+	// RPCHandlers maps RPC method names to handler functions. Registered at init()
+	// and collected by the plugin server for dispatch. Each handler unmarshals its
+	// own params and returns a result or error. Used by BGP for codec RPCs
+	// (decode-nlri, encode-nlri, etc.) without the server importing bgp packages.
+	RPCHandlers map[string]func(json.RawMessage) (any, error)
+
+	// FatalOnConfigError makes a config-path plugin's startup failure fatal to ze.
+	// When true and the plugin's configure callback fails, ze exits instead of
+	// continuing without the plugin. Set by BGP because an invalid BGP config
+	// should not silently produce a running ze with no BGP.
+	FatalOnConfigError bool
 
 	// CLI metadata (used by RunPlugin).
 	Features     string // Space-separated feature list (e.g., "nlri yang")
@@ -522,6 +535,48 @@ func ConfigRootsMap() map[string][]string {
 	return m
 }
 
+// rpcHandlers holds RPC method handlers registered by plugins via AddRPCHandlers.
+// Separate from Registration.RPCHandlers to allow registration from packages that
+// cannot be imported by the plugin's register.go without creating cycles.
+//
+//nolint:gochecknoglobals // Package-level registry, same pattern as plugins map.
+var rpcHandlers = make(map[string]func(json.RawMessage) (any, error))
+
+// AddRPCHandlers registers RPC method handlers. Called from init() in packages
+// that provide codec/decode handlers (e.g., bgp/server). Thread-safe: protected
+// by the package mutex.
+func AddRPCHandlers(handlers map[string]func(json.RawMessage) (any, error)) {
+	mu.Lock()
+	defer mu.Unlock()
+	maps.Copy(rpcHandlers, handlers)
+}
+
+// CollectRPCHandlers returns a merged map of all registered RPC method handlers.
+// Includes handlers from both Registration.RPCHandlers and AddRPCHandlers.
+func CollectRPCHandlers() map[string]func(json.RawMessage) (any, error) {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	handlers := make(map[string]func(json.RawMessage) (any, error))
+	// Handlers from Registration structs.
+	for _, reg := range plugins {
+		maps.Copy(handlers, reg.RPCHandlers)
+	}
+	// Handlers from AddRPCHandlers (e.g., bgp/server/codec.go).
+	maps.Copy(handlers, rpcHandlers)
+	return handlers
+}
+
+// IsFatalOnConfigError returns true if the named plugin has FatalOnConfigError set.
+func IsFatalOnConfigError(name string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	if reg, ok := plugins[name]; ok {
+		return reg.FatalOnConfigError
+	}
+	return false
+}
+
 // PluginForFamily returns the plugin name that handles a given address family.
 // Returns empty string if no plugin is registered for the family.
 func PluginForFamily(family string) string {
@@ -759,6 +814,7 @@ func Reset() {
 	defer mu.Unlock()
 	plugins = make(map[string]*Registration)
 	attrModHandlers = make(map[uint8]AttrModHandler)
+	rpcHandlers = make(map[string]func(json.RawMessage) (any, error))
 	metricsRegistry = nil
 	busInstance = nil
 }
@@ -767,6 +823,7 @@ func Reset() {
 type RegistrySnapshot struct {
 	plugins         map[string]*Registration
 	attrModHandlers map[uint8]AttrModHandler
+	rpcHandlers     map[string]func(json.RawMessage) (any, error)
 	busInstance     any
 }
 
@@ -780,7 +837,9 @@ func Snapshot() RegistrySnapshot {
 	maps.Copy(ps, plugins)
 	ah := make(map[uint8]AttrModHandler, len(attrModHandlers))
 	maps.Copy(ah, attrModHandlers)
-	return RegistrySnapshot{plugins: ps, attrModHandlers: ah, busInstance: busInstance}
+	rh := make(map[string]func(json.RawMessage) (any, error), len(rpcHandlers))
+	maps.Copy(rh, rpcHandlers)
+	return RegistrySnapshot{plugins: ps, attrModHandlers: ah, rpcHandlers: rh, busInstance: busInstance}
 }
 
 // Restore replaces the registry with a previously saved snapshot. Only for use in tests.
@@ -789,6 +848,7 @@ func Restore(snap RegistrySnapshot) {
 	defer mu.Unlock()
 	plugins = snap.plugins
 	attrModHandlers = snap.attrModHandlers
+	rpcHandlers = snap.rpcHandlers
 	busInstance = snap.busInstance
 }
 

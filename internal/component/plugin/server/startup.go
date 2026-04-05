@@ -623,11 +623,10 @@ func (s *Server) deliverConfigRPC(proc *process.Process) {
 
 	if err := conn.SendConfigure(s.ctx, sections); err != nil {
 		logger().Error("deliverConfigRPC failed", "plugin", proc.Name(), "error", err)
-		// The "bgp" plugin failing during config is fatal -- it means the
-		// reactor couldn't be created (e.g., invalid address family in config).
-		// Other plugin config failures are non-fatal; the plugin exits but
-		// the rest of ze continues operating.
-		if proc.Name() == "bgp" {
+		// Plugins with FatalOnConfigError cause ze to exit on config failure
+		// (e.g., BGP with invalid address family). Other plugin config failures
+		// are non-fatal; the plugin exits but ze continues operating.
+		if registry.IsFatalOnConfigError(proc.Name()) {
 			s.startupErr = fmt.Errorf("%s: %w", proc.Name(), err)
 		}
 	}

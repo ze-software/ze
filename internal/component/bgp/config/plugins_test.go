@@ -197,7 +197,7 @@ func TestExtractHubServers(t *testing.T) {
 	serverTree.Set("secret", "test-token-42-abcdefghijklmnopqrst")
 	hubContainer.AddListEntry("server", "local", serverTree)
 
-	hub, err := ExtractHubConfig(tree)
+	hub, err := config.ExtractHubConfig(tree)
 	require.NoError(t, err)
 	require.Len(t, hub.Servers, 1)
 	assert.Equal(t, "local", hub.Servers[0].Name)
@@ -213,7 +213,7 @@ func TestExtractHubServers(t *testing.T) {
 // PREVENTS: Panic or error when hub config is absent.
 func TestExtractHubConfig_NoHub(t *testing.T) {
 	tree := config.NewTree()
-	hub, err := ExtractHubConfig(tree)
+	hub, err := config.ExtractHubConfig(tree)
 	require.NoError(t, err)
 	assert.Empty(t, hub.Servers, "no hub block should return empty servers")
 	assert.Empty(t, hub.Clients, "no hub block should return empty clients")
@@ -230,7 +230,7 @@ func TestExtractHubConfig_NoServers(t *testing.T) {
 	hubContainer := config.NewTree()
 	pluginContainer.SetContainer("hub", hubContainer)
 
-	hub, err := ExtractHubConfig(tree)
+	hub, err := config.ExtractHubConfig(tree)
 	require.NoError(t, err)
 	assert.Empty(t, hub.Servers)
 }
@@ -253,7 +253,7 @@ func TestExtractHubConfig_ShortSecret(t *testing.T) {
 	serverTree.Set("secret", "too-short")
 	hubContainer.AddListEntry("server", "local", serverTree)
 
-	_, err := ExtractHubConfig(tree)
+	_, err := config.ExtractHubConfig(tree)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "too short")
 }
@@ -282,7 +282,7 @@ func TestExtractMultipleServers(t *testing.T) {
 	central.Set("secret", "central-secret-that-is-at-least32")
 	hubContainer.AddListEntry("server", "central", central)
 
-	hub, err := ExtractHubConfig(tree)
+	hub, err := config.ExtractHubConfig(tree)
 	require.NoError(t, err)
 	require.Len(t, hub.Servers, 2)
 
@@ -311,7 +311,7 @@ func TestExtractHubClients(t *testing.T) {
 	clientTree.Set("secret", "client-token-that-is-at-least-32c")
 	hubContainer.AddListEntry("client", "edge-01", clientTree)
 
-	hub, err := ExtractHubConfig(tree)
+	hub, err := config.ExtractHubConfig(tree)
 	require.NoError(t, err)
 	require.Len(t, hub.Clients, 1)
 	assert.Equal(t, "edge-01", hub.Clients[0].Name)
@@ -339,7 +339,7 @@ func TestExtractHubClientMissing(t *testing.T) {
 	serverTree.Set("secret", "local-secret-that-is-at-least-32c")
 	hubContainer.AddListEntry("server", "local", serverTree)
 
-	hub, err := ExtractHubConfig(tree)
+	hub, err := config.ExtractHubConfig(tree)
 	require.NoError(t, err)
 	assert.Empty(t, hub.Clients)
 	require.Len(t, hub.Servers, 1)
@@ -371,7 +371,7 @@ func TestExtractHubServerClients(t *testing.T) {
 	client2.Set("secret", "edge02-secret-that-is-at-least-32")
 	serverTree.AddListEntry("client", "edge-02", client2)
 
-	hub, err := ExtractHubConfig(tree)
+	hub, err := config.ExtractHubConfig(tree)
 	require.NoError(t, err)
 	require.Len(t, hub.Servers, 1)
 	require.Len(t, hub.Servers[0].Clients, 2)
@@ -401,7 +401,7 @@ func TestExtractHubServerClientSecretTooShort(t *testing.T) {
 	client.Set("secret", "short")
 	serverTree.AddListEntry("client", "edge-01", client)
 
-	_, err := ExtractHubConfig(tree)
+	_, err := config.ExtractHubConfig(tree)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "too short")
 	assert.Contains(t, err.Error(), "edge-01")

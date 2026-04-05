@@ -72,13 +72,10 @@ func (s *Server) dispatchPluginRPC(proc *process.Process, conn *plugipc.PluginCo
 		return
 	}
 
-	// Try RPC fallback for remaining methods (codec RPCs, etc.)
-	if s.rpcFallback != nil {
-		codec := s.rpcFallback(req.Method)
-		if codec != nil {
-			s.handleCodecRPC(proc, conn, req, codec)
-			return
-		}
+	// Try registered RPC handlers (codec RPCs, etc.)
+	if codec, ok := s.getRPCHandlers()[req.Method]; ok {
+		s.handleCodecRPC(proc, conn, req, codec)
+		return
 	}
 
 	if err := conn.SendError(s.ctx, req.ID, "unknown method: "+req.Method); err != nil {
@@ -389,12 +386,9 @@ func (s *Server) dispatchPluginRPCDirect(proc *process.Process, method string, p
 		return s.handleEmitEventDirect(proc, params)
 	}
 
-	// Try RPC fallback for remaining methods (codec RPCs, etc.)
-	if s.rpcFallback != nil {
-		codec := s.rpcFallback(method)
-		if codec != nil {
-			return handleCodecRPCDirect(codec, params)
-		}
+	// Try registered RPC handlers (codec RPCs, etc.)
+	if codec, ok := s.getRPCHandlers()[method]; ok {
+		return handleCodecRPCDirect(codec, params)
 	}
 
 	// Unknown methods get an explicit error per ze's fail-on-unknown rule

@@ -47,6 +47,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
+	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
 	"codeberg.org/thomas-mangin/ze/pkg/fleet"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
@@ -74,8 +75,12 @@ var (
 	buildDate = "unknown"
 )
 
-func printVersion() {
-	fmt.Printf("ze %s (built %s)\n", version, buildDate)
+func printVersion(extended bool) {
+	if extended {
+		fmt.Println(zeversion.Extended())
+	} else {
+		fmt.Println(zeversion.Short())
+	}
 }
 
 func registerLocalCommands() {
@@ -84,8 +89,8 @@ func registerLocalCommands() {
 		handler cmdutil.LocalHandler
 	}{
 		// Version.
-		{"show version", func(_ []string) int {
-			printVersion()
+		{"show version", func(args []string) int {
+			printVersion(slices.Contains(args, "--extended"))
 			return 0
 		}},
 		// BGP offline tools.
@@ -184,6 +189,7 @@ func registerLocalCommands() {
 }
 
 func main() {
+	zeversion.Stamp(version, buildDate)
 	pluginserver.SetVersion(version, buildDate)
 	registerLocalCommands()
 
@@ -322,7 +328,10 @@ func main() {
 			args = args[0:] // Keep it for dispatch below
 			goto dispatch
 		case "--version", "-V":
-			printVersion()
+			printVersion(false)
+			os.Exit(0)
+		case "--extended-version":
+			printVersion(true)
 			os.Exit(0)
 		case "--help", "-h": //nolint:goconst // consistent pattern across cmd files
 			args = args[0:]
@@ -431,7 +440,7 @@ dispatch:
 	case "completion":
 		os.Exit(zecompletion.Run(args[1:]))
 	case "version":
-		printVersion()
+		printVersion(slices.Contains(args[1:], "--extended"))
 		os.Exit(0)
 	case "start":
 		if len(args) > 1 && isHelpArg(args[1]) {
@@ -815,7 +824,7 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 		return nil
 	}
 
-	hubCfg, err := bgpconfig.ExtractHubConfig(loadResult.Tree)
+	hubCfg, err := config.ExtractHubConfig(loadResult.Tree)
 	if err != nil {
 		slog.Warn("managed: cannot extract hub config", "error", err)
 		return nil
@@ -979,7 +988,7 @@ func usage() {
 				{Name: "resolve", Desc: "Query DNS, Cymru, PeeringDB, and IRR services"},
 				{Name: "exabgp", Desc: "ExaBGP bridge tools"},
 				{Name: "completion", Desc: "Generate shell completion scripts"},
-				{Name: "version", Desc: "Show version"},
+				{Name: "version", Desc: "Show version (--extended for build details)"},
 				{Name: "help", Desc: "Show this help (--ai for machine-readable reference)"},
 			}},
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
@@ -991,6 +1000,7 @@ func usage() {
 				{Name: "--color", Desc: "Force colored output (even when not a TTY)"},
 				{Name: "--no-color", Desc: "Disable colored output (also: NO_COLOR env var, TERM=dumb)"},
 				{Name: "-V, --version", Desc: "Show version and exit"},
+				{Name: "--extended-version", Desc: "Show extended version (commit, go, os/arch)"},
 			}},
 		},
 		Examples: []string{

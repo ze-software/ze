@@ -51,15 +51,12 @@ func TestConcurrentPluginDispatch(t *testing.T) {
 	s := &Server{
 		subscriptions: NewSubscriptionManager(),
 		dispatcher:    NewDispatcher(),
-		rpcFallback: func(method string) func(json.RawMessage) (any, error) {
-			if method == "test:barrier" {
-				return func(_ json.RawMessage) (any, error) {
-					barrier.Done() // signal arrival
-					barrier.Wait() // wait for both to arrive
-					return map[string]string{"status": "ok"}, nil
-				}
-			}
-			return nil
+		rpcHandlers: map[string]func(json.RawMessage) (any, error){
+			"test:barrier": func(_ json.RawMessage) (any, error) { //nolint:unparam // test stub always succeeds
+				barrier.Done() // signal arrival
+				barrier.Wait() // wait for both to arrive
+				return map[string]string{"status": "ok"}, nil
+			},
 		},
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())

@@ -241,7 +241,7 @@ func runValidation(input, path string) *validationResult {
 
 	// Hub config validation (secret length, client blocks).
 	if tree.GetContainer("plugin") != nil {
-		if _, hubErr := bgpconfig.ExtractHubConfig(tree); hubErr != nil {
+		if _, hubErr := config.ExtractHubConfig(tree); hubErr != nil {
 			result.Valid = false
 			result.Errors = append(result.Errors, validationError{
 				Message: hubErr.Error(),

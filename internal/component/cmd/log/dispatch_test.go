@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -15,9 +14,7 @@ import (
 // newDispatchContext creates a CommandContext with all init()-registered RPCs,
 // simulating the production dispatch chain.
 func newDispatchContext() *pluginserver.CommandContext {
-	server, _ := pluginserver.NewServer(&pluginserver.ServerConfig{
-		CommitManager: transaction.NewCommitManager(),
-	}, nil)
+	server, _ := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
 	return &pluginserver.CommandContext{Server: server}
 }
 
