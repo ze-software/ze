@@ -14,11 +14,6 @@ import (
 	"time"
 )
 
-// rtprotZE is the custom rtm_protocol ID used for all ze-installed routes.
-// Linux: identifies routes in the kernel routing table as belonging to ze.
-// RFC 3549 Section 3.1.1: protocol field in rtmsg.
-const rtprotZE = 250
-
 // sweepDelay is the time to wait before sweeping stale routes after startup.
 // Allows BGP reconvergence to refresh matching routes.
 const sweepDelay = 30 * time.Second

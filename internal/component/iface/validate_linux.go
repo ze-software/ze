@@ -1,6 +1,8 @@
 // Design: docs/features/interfaces.md — Interface name validation
 // Overview: iface.go — shared types and topic constants
 
+//go:build linux
+
 package iface
 
 import (

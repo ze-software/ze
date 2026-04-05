@@ -18,6 +18,11 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+// rtprotZE is the custom rtm_protocol ID used for all ze-installed routes.
+// Linux: identifies routes in the kernel routing table as belonging to ze.
+// RFC 3549 Section 3.1.1: protocol field in rtmsg.
+const rtprotZE = 250
+
 // netlinkBackend programs routes via Linux netlink.
 type netlinkBackend struct {
 	handle *netlink.Handle
