@@ -86,17 +86,38 @@ if [ "$SPEC_COUNT" -gt 0 ]; then
     [ -n "$COUNTS" ] && echo "   ($COUNTS)"
 fi
 
-# Per-spec session state reminder
+# Per-session state reminder.
+# First check our own state file, then look for previous sessions on the same spec.
 STATE_FILE=$(_state_file)
+FOUND_STATE=""
 if [ -f "$STATE_FILE" ]; then
-    LAST_UPDATE=$(head -5 "$STATE_FILE" | grep -o '20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]' | head -1)
-    PHASE=$(grep '^Phase:' "$STATE_FILE" 2>/dev/null | head -1 | sed 's/^Phase:\s*//')
+    FOUND_STATE="$STATE_FILE"
+else
+    # Look for a previous session's state for the same spec
+    SID=$(_session_id)
+    MARKER=".claude/.session-${SID}"
+    CLAIMED_SPEC=""
+    if [ -f "$MARKER" ]; then
+        CLAIMED_SPEC=$(head -1 "$MARKER" 2>/dev/null)
+    fi
+    if [ -n "$CLAIMED_SPEC" ] && [ "$CLAIMED_SPEC" != "unassigned" ]; then
+        STEM=$(echo "$CLAIMED_SPEC" | sed 's/^spec-//; s/\.md$//')
+        PREV=$(_find_latest_state_for_spec "$STEM")
+        if [ -n "$PREV" ]; then
+            FOUND_STATE="$PREV"
+        fi
+    fi
+fi
+
+if [ -n "$FOUND_STATE" ]; then
+    LAST_UPDATE=$(head -5 "$FOUND_STATE" | grep -o '20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]' | head -1)
+    PHASE=$(grep '^Phase:' "$FOUND_STATE" 2>/dev/null | head -1 | sed 's/^Phase:\s*//')
     if [ -n "$PHASE" ]; then
-        echo "Session state: $STATE_FILE (phase: $PHASE)"
+        echo "Session state: $FOUND_STATE (phase: $PHASE)"
     elif [ -n "$LAST_UPDATE" ]; then
-        echo "Session state: $STATE_FILE (updated: $LAST_UPDATE)"
+        echo "Session state: $FOUND_STATE (updated: $LAST_UPDATE)"
     else
-        echo "Session state: $STATE_FILE"
+        echo "Session state: $FOUND_STATE"
     fi
 fi
 

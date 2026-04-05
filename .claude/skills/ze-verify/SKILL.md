@@ -6,9 +6,9 @@ See also: `/ze-debug` (investigate failures), `/ze-commit` (prepare commit after
 
 ## Steps
 
-1. **Run verification:** Execute `make ze-verify` with 180s timeout, capturing output to `tmp/ze-test.log`.
+1. **Run verification:** Execute `make ze-verify` with 180s timeout, capturing output to `tmp/ze-test-SESSION.log`.
 2. **Parse results:** Search the log for failures:
-   - `grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-test.log`
+   - `grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-test-SESSION.log`
    - Also check exit code
 3. **Report** using this format:
 

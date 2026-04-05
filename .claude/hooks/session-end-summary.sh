@@ -73,7 +73,8 @@ fi
     fi
 } > "$STATE_FILE"
 
-# Clean up session marker
+# Clean up session marker and per-session compaction marker
+rm -f ".claude/.compaction-detected-${SID}"
 _release_session
 
 exit 0

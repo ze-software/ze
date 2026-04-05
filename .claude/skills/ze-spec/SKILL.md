@@ -18,7 +18,7 @@ See also: `/ze-design` (stress-test a design), `/ze-explore` (research a topic),
 ### Step R: Resume Existing Spec
 
 1. Read the spec file from `plan/`
-2. Read per-spec session state (`.claude/session-state-<spec-stem>.md`) for digests
+2. Read per-session state (most recent `.claude/session-state-<spec-stem>-*.md`) for digests
 3. Determine current phase by checking spec completeness:
    - No `→ Decision:` / `→ Constraint:` annotations → still in RESEARCH
    - Data Flow section empty → still in RESEARCH

@@ -105,7 +105,7 @@ Create a subfolder per debugging task (e.g., `tmp/watchdog-debug/`) to keep arti
 **BLOCKING:** Capture output. Search the log — don't re-run the suite.
 
 ```bash
-make ze-verify > tmp/ze-test.log 2>&1 || grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-test.log
+make ze-verify > tmp/ze-test-SESSION.log 2>&1 || grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-test-SESSION.log
 ```
 
 On failure: search the log. On success: one line of exit status. Never `| tail`.

@@ -1,10 +1,11 @@
 #!/bin/bash
-# Resolves the per-spec session state file path.
+# Resolves the per-session state file path.
 # Usage: source this file (after session-id.sh), then call _state_file
 #
 # Reads the session marker (.claude/.session-<ID>) to find this session's spec.
-# Returns .claude/session-state-<spec-stem>.md when a spec is active,
-# or .claude/session-state.md as fallback.
+# Returns .claude/session-state-<spec-stem>-<SID>.md (session-scoped).
+# Multiple sessions on different specs each get their own state file.
+# Sessions on the same spec also get separate files (avoids write races).
 
 # Ensure session-id helper is loaded
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,9 +24,27 @@ _state_file() {
     if [ -n "$spec" ] && [ "$spec" != "unassigned" ]; then
         # Strip spec- prefix and .md suffix to form the stem
         stem=$(echo "$spec" | sed 's/^spec-//; s/\.md$//')
-        echo ".claude/session-state-${stem}.md"
+        echo ".claude/session-state-${stem}-${sid}.md"
     else
-        echo ".claude/session-state.md"
+        echo ".claude/session-state-${sid}.md"
+    fi
+}
+
+# Find the most recent session state file for a given spec stem.
+# Used at session start to recover state from a previous session.
+# Checks new per-session format first, then falls back to old per-spec format.
+_find_latest_state_for_spec() {
+    local stem="$1"
+    # New format: session-state-<stem>-<SID>.md (per-session)
+    local latest
+    latest=$(ls -t .claude/session-state-${stem}-*.md 2>/dev/null | head -1)
+    if [ -n "$latest" ]; then
+        echo "$latest"
+        return
+    fi
+    # Old format: session-state-<stem>.md (per-spec, no SID)
+    if [ -f ".claude/session-state-${stem}.md" ]; then
+        echo ".claude/session-state-${stem}.md"
     fi
 }
 
@@ -47,8 +66,22 @@ _release_session() {
     rm -f "$marker"
 }
 
-# Clean up stale markers (sessions that ended without cleanup).
-# Removes markers older than 24 hours.
+# Clean up stale markers and state files (sessions that ended without cleanup).
+# Removes markers and per-session state files older than 24 hours.
 _cleanup_stale_markers() {
     find .claude/ -maxdepth 1 -name '.session-*' -mmin +1440 -delete 2>/dev/null
+    find .claude/ -maxdepth 1 -name '.compaction-detected-*' -mmin +1440 -delete 2>/dev/null
+    # Clean up orphaned session state files (no matching session marker)
+    for state in .claude/session-state-*-*.md; do
+        [ -f "$state" ] || continue
+        # Extract SID from filename: session-state-<stem>-<SID>.md or session-state-<SID>.md
+        local fname sid marker
+        fname=$(basename "$state" .md)
+        sid="${fname##*-}"
+        marker=".claude/.session-${sid}"
+        # If marker doesn't exist and state file is older than 24h, remove
+        if [ ! -f "$marker" ]; then
+            find "$state" -mmin +1440 -delete 2>/dev/null
+        fi
+    done
 }

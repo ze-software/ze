@@ -11,7 +11,7 @@ See also: `/ze-status` (wider cross-project view), `/ze-handoff` (prepare for ne
    - Task section (what the work aims to achieve)
    - Acceptance Criteria summary (total count, how many have evidence)
    - Implementation Phases (which phases exist, any phase markers)
-2. **Session state:** Read per-spec session state (`.claude/session-state-<spec-stem>.md`) if it exists. Fall back to `.claude/session-state.md`. Extract the most recent session entry.
+2. **Session state:** Find the most recent `.claude/session-state-<spec-stem>-*.md` file for this spec (per-session files). Extract the most recent session entry.
 3. **Git state:** Run `git status`, `git diff --stat`, and `git log --oneline -10`. Summarize:
    - Current branch
    - Uncommitted changes (count, key files, and scale from diff stat)

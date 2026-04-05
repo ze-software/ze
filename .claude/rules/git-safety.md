@@ -48,7 +48,7 @@ unrelated package = separate commit.
 **BLOCKING:** Never ask to commit without reporting ALL test failures to the user first. If any test failed, list every failure explicitly before any commit discussion. Hiding, omitting, or glossing over failures is forbidden.
 
 ```
-[ ] 1. Run `make ze-verify` — capture to tmp/ze-test.log. ANY failure: STOP and report.
+[ ] 1. Run `make ze-verify` — capture to tmp/ze-test-SESSION.log (SESSION = your 8-char ID). ANY failure: STOP and report.
 [ ] 2. Report test result: pass/fail. If failures: list every one. No omissions.
       Ask user how to proceed — the right call depends on context and risk.
 [ ] 3. Spec completion gate — if work was driven by a spec in plan/:

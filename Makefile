@@ -1,5 +1,6 @@
 .PHONY: all build ze chaos test analyse clean fmt vet tidy generate help
 .PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-test ze-verify ze-ci
+.PHONY: ze-lint-changed ze-unit-test-changed ze-verify-changed
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test ze-managed-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-all ze-all-test
@@ -223,9 +224,31 @@ ze-exabgp-test: bin/ze
 ze-test: ze-lint ze-unit-test ze-functional-test ze-exabgp-test ze-fuzz-test
 	@echo "All ze tests passed"
 
-# All tests except fuzz (ze only — use during development)
+# All tests except fuzz (ze only -- use during development)
 ze-verify: ze-lint ze-unit-test ze-functional-test ze-exabgp-test
 	@echo "Ze verification passed"
+
+# --- Scoped targets (parallel-safe: only lint/test packages with changed .go files) ---
+
+# Lint only packages containing modified .go files (unstaged + staged + untracked)
+ze-lint-changed:
+	@pkgs=$$({ git diff --name-only -- '*.go'; git diff --cached --name-only -- '*.go'; git ls-files --others --exclude-standard -- '*.go'; } 2>/dev/null \
+		| sort -u | xargs -n1 dirname 2>/dev/null | sort -u | sed 's|^|./|'); \
+	if [ -z "$$pkgs" ]; then echo "No changed Go packages to lint"; exit 0; fi; \
+	echo "Linting changed packages: $$pkgs"; \
+	golangci-lint run $$pkgs
+
+# Unit-test only packages containing modified .go files
+ze-unit-test-changed:
+	@pkgs=$$({ git diff --name-only -- '*.go'; git diff --cached --name-only -- '*.go'; git ls-files --others --exclude-standard -- '*.go'; } 2>/dev/null \
+		| sort -u | xargs -n1 dirname 2>/dev/null | sort -u | sed 's|^|./|'); \
+	if [ -z "$$pkgs" ]; then echo "No changed Go packages to test"; exit 0; fi; \
+	echo "Testing changed packages: $$pkgs"; \
+	$(GO_TEST) -race $$pkgs
+
+# Scoped verify: lint + test changed packages, then full functional + exabgp
+ze-verify-changed: ze-lint-changed ze-unit-test-changed ze-functional-test ze-exabgp-test
+	@echo "Ze verification (changed) passed"
 
 # Everything: ze + chaos (no fuzz)
 ze-all: ze-verify ze-chaos-verify
@@ -467,6 +490,9 @@ help:
 	@echo "  ze-fuzz-one           - Run single fuzz target (FUZZ=name PKG=path TIME=30s)"
 	@echo "  ze-test               - Ze tests: lint + unit + functional + exabgp + fuzz"
 	@echo "  ze-verify             - Ze tests except fuzz (development)"
+	@echo "  ze-lint-changed       - Lint only packages with changed .go files (parallel-safe)"
+	@echo "  ze-unit-test-changed  - Unit test only packages with changed .go files"
+	@echo "  ze-verify-changed     - Scoped lint+test, then full functional+exabgp"
 	@echo "  ze-all                - Everything: ze-verify + ze-chaos-verify"
 	@echo "  ze-all-test           - Everything + fuzz: ze-test + ze-chaos-verify"
 	@echo "  ze-ci                 - ze-lint + ze-unit-test + build"

@@ -7,7 +7,7 @@ Rationale: `.claude/rationale/post-compaction.md`
 
 ```
 [ ] 1. Read .claude/selected-spec → read spec if set
-[ ] 2. Read per-spec session state (.claude/session-state-<spec-stem>.md) if exists
+[ ] 2. Read per-spec session state (.claude/session-state-<spec-stem>-<SID>.md) if exists
 [ ] 3. Check git status
 ```
 

@@ -6,7 +6,7 @@ See also: `/ze-verify` (must pass before committing)
 
 ## Steps
 
-1. **Verify tests passed:** Check if `make ze-verify` has been run and passed this session. If not, run it (timeout 180s). If it fails, stop and report all failures. Do not proceed to commit.
+1. **Verify tests passed (if Go code changed):** Check if any `.go` files are in the commit scope. If yes: run `make ze-verify-changed` (scoped to modified packages only, timeout 180s); if it fails, stop and report all failures. If no `.go` files changed (docs-only, `.claude/` config, specs, etc.): skip verification entirely.
 2. **Show scope:** Run `git status` and `git diff --stat` to identify all changed files.
 3. **Identify task scope:** Determine which files belong to the current task. If unclear, ask the user.
 4. **Exclude unrelated changes:** If files outside the task scope are modified, explicitly list them and confirm with the user: "These files are outside the current task scope: [list]. Exclude from commit?"
@@ -27,7 +27,32 @@ EOF
 )"
 ```
 
-9. **Present to user:** Show the staged files, commit message, and health check results. The user runs `bash tmp/commit-SESSION.sh` themselves.
+9. **Remaining work table (BLOCKING -- must appear before the commit script):**
+   Before showing the commit script, present a table of what is NOT included in this commit.
+   This lets the user decide whether to continue working before committing.
+
+   ```
+   ## Remaining After This Commit
+
+   | # | Item | Status | Where |
+   |---|------|--------|-------|
+   | 1 | AC-3: warn-only mode | deferred | plan/deferrals.md |
+   | 2 | setparser edge case for empty lists | todo | internal/component/config/setparser.go:142 |
+   | 3 | functional test for reload with new option | todo | test/reload/ |
+
+   Nothing remaining. [or table above]
+   ```
+
+   Sources to check:
+   - **Spec ACs:** if work was driven by a spec, list any AC-N not covered by this commit
+   - **Deferrals:** open items in `plan/deferrals.md` related to this work
+   - **TODOs in code:** any TODO/FIXME added or pre-existing in the changed files
+   - **Uncommitted files:** files modified but excluded from this commit scope
+   - **Known gaps:** anything mentioned during the session as "not yet done"
+
+   If nothing remains, say "Nothing remaining." Do not skip this table.
+
+10. **Present to user:** Show the remaining work table, then the staged files, commit message, and health check results. The user runs `bash tmp/commit-SESSION.sh` themselves.
 
 ## Health Check
 

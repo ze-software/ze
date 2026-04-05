@@ -29,7 +29,7 @@ if [ -f "$STATE_FILE" ] && [ -s "$STATE_FILE" ]; then
     # Check if it already has a compaction marker at the top
     if grep -q "^## Last Compaction" "$STATE_FILE"; then
         # Update the existing marker
-        sed -i "s/^## Last Compaction.*/## Last Compaction: $TIMESTAMP/" "$STATE_FILE"
+        sed -i '' "s/^## Last Compaction.*/## Last Compaction: $TIMESTAMP/" "$STATE_FILE"
     else
         # Insert compaction marker after the first heading
         {
@@ -64,8 +64,8 @@ else
     } > "$STATE_FILE"
 fi
 
-# Mark compaction detected (existing mechanism)
-echo "$TIMESTAMP" > .claude/.compaction-detected
+# Mark compaction detected (per-session to avoid cross-session contamination)
+echo "$TIMESTAMP" > ".claude/.compaction-detected-${SID}"
 
 # Output to stderr (not tokens) -- Claude sees this in hook output
 echo "Session state saved before compaction ($STATE_FILE)" >&2
