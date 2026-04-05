@@ -71,6 +71,17 @@ Never commit with lint issues. Never commit without test evidence.
 
 Save: `git diff > .claude/backups/work-$(date +%Y%m%d-%H%M%S).patch` — then ASK user.
 
+## Branch Integration: Rebase Only
+
+When worktree branches need to land on main, always instruct the user to use
+`git rebase <branch>`, not `git merge`. Linear history, no merge commits.
+
+## GPG Signing Recovery
+
+When `git commit` fails with "gpg failed to sign the data" / "cannot open /dev/tty",
+ask the user to run `! echo test | gpg --clearsign` to unlock the GPG agent, then retry.
+Never bypass signing with `--no-gpg-sign` or `-c commit.gpgsign=false`.
+
 ## Codeberg CLI
 
 Use `tea` for PRs/issues: `tea pr list`, `tea pr create`, `tea issue list`, `tea issue create`

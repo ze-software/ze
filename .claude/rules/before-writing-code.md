@@ -15,4 +15,15 @@ Rationale: `.claude/rationale/before-writing-code.md`
 
 Before any spec: READ source files, document current behavior, preserve by default.
 
+## Memory Lifecycle Tracing
+
+Before implementing any buffer, pool, or allocation: trace the complete memory lifecycle first.
+- Where is memory allocated? Who holds it? When is it copied? When released?
+- Ze lifecycle: allocate at receive (Incoming Peer Pool), share read-only through forwarding,
+  copy only when egress filters modify (Outgoing Peer Pool), release after TCP write.
+- The acquisition point defines the design: "every dispatch" vs "only on modification" are
+  fundamentally different. A pool that provides buffers is not a counter.
+- Look at filter code and `buildModifiedPayload` to understand WHERE modification happens
+  before deciding WHERE buffers come from.
+
 **Red flags:** new file without checking for similar existing ones; function that might duplicate existing; can't name 3 related files.

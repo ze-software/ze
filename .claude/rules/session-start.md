@@ -31,3 +31,10 @@ When the user provides a handoff document (structured state from a previous sess
 | Proposing action before the user confirms completeness | Commits to a direction before scope is agreed |
 
 **Mechanical check:** count the items in your enumeration. Count the items in the handoff. If they don't match, you missed something.
+
+## Session Focus
+
+Do not switch to a different line of work without confirming with the user first.
+When the original task is done (e.g., spec closed), stop and ask "What next?" instead
+of picking up other uncommitted work. "Continue what you were doing" means the stated
+goal, not "find more things to do."

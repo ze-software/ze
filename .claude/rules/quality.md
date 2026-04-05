@@ -46,6 +46,13 @@ Paste command output as evidence. "Should work" is not evidence.
 
 **BLOCKING:** `make ze-verify` (timeout 120s) is the ONLY acceptable verification before claiming done. See `rules/git-safety.md` for the full pre-commit workflow.
 
+## Learned Summary Verification
+
+Learned summaries can contain wrong claims about what is "deferred" or "requires X change."
+When a summary says something is "deferred because X is missing" or "requires Y change,"
+verify the claim against actual code before reporting it to the user. Read the function
+signature, check the types. Do not parrot deferred-item descriptions from summaries.
+
 ## Critical Reviews
 
 Validate understanding of existing architecture BEFORE proposing changes. Read code first. Check git history.

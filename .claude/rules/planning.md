@@ -60,7 +60,8 @@ Write plan files to project `.claude/plan/ze-plan-<name>`, NOT `~/.claude/plan`.
 
 Present BEFORE writing code. Must include: docs read + insights, current behavior (source files, behavior to preserve/change), TDD plan, implementation phases, files affected, data flow, design decisions, RFC references (protocol code).
 
-**WAIT FOR USER APPROVAL.**
+**WAIT FOR USER APPROVAL.** During design discussions (naming, alternatives, approach),
+present options and wait. Never edit files until explicitly approved.
 
 ## Spec Rules
 

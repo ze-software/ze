@@ -56,6 +56,13 @@ Rationale: Untracked deferrals are invisible scope reductions. They accumulate s
 | `warn-deferral-in-edit.sh` | PostToolUse/Write\|Edit | exit 1 | Deferral language in spec/doc edits (immediate reminder) |
 | `session-end-deferrals.sh` | Stop | advisory | Prints open deferrals at session close |
 
+## Verify Before Deferring (BLOCKING)
+
+Never claim "requires infrastructure that doesn't exist" without grepping for it first.
+Before writing "deferred -- requires X" in any spec or summary, grep for X. If it exists,
+implement it. If genuinely missing, name the specific thing that is missing and where it
+would need to be added.
+
 ## What Is NOT a Deferral
 
 - Completing work that was never in scope (no record needed)

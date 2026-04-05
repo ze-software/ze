@@ -61,6 +61,21 @@ Never add new third-party imports (not already in `go.mod`) without asking the u
 
 **`os.Getenv` IS OK for:** System env vars (`HOME`, `PATH`, `XDG_*`, `NO_COLOR`, `USER`, `SSH_*`).
 
+## Aliased Imports
+
+When two packages in the module share the same name (e.g., `cmd/ze/iface/` and
+`internal/component/iface/`), goimports cannot resolve which to use and silently removes
+the import. Always use an aliased import in this case:
+`ifacepkg "codeberg.org/thomas-mangin/ze/internal/component/iface"`.
+
+Also: add import + usage in the same Edit call to prevent goimports from removing an
+"unused" import between edits.
+
+## Scripts: Python Only
+
+Do not use shell/bash for scripts. Use Python. Shell scripts are fragile and hard to debug
+for complex orchestration. Precedent: `test/interop/run.py`, `test/interop/interop.py`.
+
 ## Forbidden
 
 - `panic()` for error handling
