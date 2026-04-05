@@ -75,6 +75,9 @@ type Server struct {
 
 	running atomic.Bool
 
+	loadedPlugins   map[string]bool // tracks all plugins loaded across startup phases
+	loadedPluginsMu sync.Mutex      // protects loadedPlugins
+
 	startupDone     chan struct{} // closed when signalStartupComplete runs
 	startupDoneOnce sync.Once
 	startupErr      error // non-nil when a config-path plugin fails during startup
@@ -150,6 +153,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		registry:      plugin.NewPluginRegistry(),
 		capInjector:   plugin.NewCapabilityInjector(),
 		startupDone:   make(chan struct{}),
+		loadedPlugins: make(map[string]bool),
 	}
 
 	// Register plugin-declared event and send types before any subscriptions.
@@ -214,6 +218,30 @@ func (s *Server) hasConfiguredPlugin(name string) bool {
 		}
 	}
 	return false
+}
+
+// markPluginLoaded records that a plugin was loaded in a startup phase.
+// Used to prevent re-loading across phases (each phase creates a new ProcessManager).
+func (s *Server) markPluginLoaded(name string) {
+	s.loadedPluginsMu.Lock()
+	s.loadedPlugins[name] = true
+	s.loadedPluginsMu.Unlock()
+}
+
+// isPluginLoaded returns true if a plugin was loaded in any previous startup phase.
+func (s *Server) isPluginLoaded(name string) bool {
+	s.loadedPluginsMu.Lock()
+	defer s.loadedPluginsMu.Unlock()
+	return s.loadedPlugins[name]
+}
+
+// HasProcesses returns true if any plugin processes were loaded during startup.
+// Used by the main loop to decide whether to listen for server-done (all processes
+// exited). Without this, configs with no plugins cause immediate daemon exit.
+func (s *Server) HasProcesses() bool {
+	s.loadedPluginsMu.Lock()
+	defer s.loadedPluginsMu.Unlock()
+	return len(s.loadedPlugins) > 0
 }
 
 // Context returns the server's context. Used by RPC handlers that need

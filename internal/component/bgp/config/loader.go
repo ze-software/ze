@@ -21,6 +21,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/migration"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -58,25 +59,75 @@ func parseTreeWithYANG(input string, pluginYANG map[string]string) (*config.Tree
 	if schemaErr != nil {
 		return nil, fmt.Errorf("YANG schema: %w", schemaErr)
 	}
-	p := config.NewParser(schema)
-	tree, err := p.Parse(input)
-	if err != nil {
-		// Check if this looks like old syntax and provide migration hint
-		if hint := detectLegacySyntaxHint(input, err); hint != "" {
-			return nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
-		}
-		return nil, fmt.Errorf("parse config: %w", err)
-	}
 
-	// Log parse warnings
-	if warnings := p.Warnings(); len(warnings) > 0 {
-		configLogger().Debug("config parsed", "warnings", warnings)
+	// Detect config format: hierarchical (brace), set commands, or set with metadata.
+	// Blob storage configs use set-meta format (annotated set commands with #user timestamps).
+	format := config.DetectFormat(input)
+
+	var tree *config.Tree
+	var err error
+	switch format {
+	case config.FormatSetMeta:
+		tree, err = parseSetWithMigration(schema, input, true)
+	case config.FormatSet:
+		tree, err = parseSetWithMigration(schema, input, false)
+	case config.FormatHierarchical:
+		p := config.NewParser(schema)
+		tree, err = p.Parse(input)
+		if err != nil {
+			if hint := detectLegacySyntaxHint(input, err); hint != "" {
+				return nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
+			}
+		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
 	// Extract environment block and apply log config early.
 	// Lazy loggers (LazyLogger) will pick up these settings on first use.
 	envValues := config.ExtractEnvironment(tree)
 	slogutil.ApplyLogConfig(envValues)
+
+	return tree, nil
+}
+
+// parseSetWithMigration parses set-format config, applying migrations for stale fields.
+// First attempts strict parsing. On failure, retries in pre-migration mode to build a
+// tree with unknown fields skipped, runs tree-level migrations to remove them, then
+// re-serializes and re-parses strictly to ensure the result is schema-valid.
+func parseSetWithMigration(schema *config.Schema, input string, hasMeta bool) (*config.Tree, error) {
+	sp := config.NewSetParser(schema)
+	if hasMeta {
+		tree, _, err := sp.ParseWithMeta(input)
+		if err == nil {
+			return tree, nil
+		}
+	} else {
+		tree, err := sp.Parse(input)
+		if err == nil {
+			return tree, nil
+		}
+	}
+
+	// Strict parse failed -- try pre-migration mode to skip unknown fields,
+	// then run tree-level migrations to clean them up.
+	sp2 := config.NewSetParser(schema)
+	sp2.SetPreMigration(true)
+	var tree *config.Tree
+	var err error
+	if hasMeta {
+		tree, _, err = sp2.ParseWithMeta(input)
+	} else {
+		tree, err = sp2.Parse(input)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if result, migrateErr := migration.Migrate(tree); migrateErr == nil && len(result.Applied) > 0 {
+		configLogger().Info("applied config migrations", "count", len(result.Applied), "migrations", result.Applied)
+	}
 
 	return tree, nil
 }

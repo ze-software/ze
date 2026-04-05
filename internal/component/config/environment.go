@@ -84,6 +84,7 @@ var (
 
 	// Hub infrastructure.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.ready.file", Type: "string", Description: "Write signal file when hub is ready (test infrastructure)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.ephemeral", Type: "string", Description: "Start SSH on port 0, write address to this file (config edit)"})
 
 	// Web server.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.listen", Type: "string", Default: "0.0.0.0:3443", Description: "Web server listen address (ip:port[,ip:port])"})

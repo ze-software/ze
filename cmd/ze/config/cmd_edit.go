@@ -60,45 +60,67 @@ const ephemeralPollTimeout = 10 * time.Second
 // startEphemeralDaemon starts a background ze daemon for the given config.
 // Waits for the SSH port to become reachable before returning.
 // Returns the process (caller must stop and wait) or an error.
-func startEphemeralDaemon(configPath, host, port string) (*os.Process, error) {
+func startEphemeralDaemon(configPath, host, port string) (*os.Process, string, error) {
 	exe, err := os.Executable()
 	if err != nil {
-		return nil, fmt.Errorf("find ze binary: %w", err)
+		return nil, "", fmt.Errorf("find ze binary: %w", err)
 	}
 
-	// Open devnull for the daemon's stdin so it doesn't compete with the editor's terminal.
 	devnull, err := os.Open(os.DevNull)
 	if err != nil {
-		return nil, fmt.Errorf("open devnull: %w", err)
+		return nil, "", fmt.Errorf("open devnull: %w", err)
 	}
 
-	// Start ze with the config file as a background daemon.
+	// Ephemeral SSH address file: the daemon starts SSH on port 0 (OS-assigned)
+	// and writes the actual address here so we can connect.
+	sshAddrFile := filepath.Join("tmp", fmt.Sprintf("ephemeral-ssh-%d.addr", os.Getpid()))
+
+	daemonEnv := append(os.Environ(), "ZE_SSH_EPHEMERAL="+sshAddrFile)
+
 	proc, err := os.StartProcess(exe, []string{exe, configPath}, &os.ProcAttr{
-		Env:   os.Environ(),
+		Env:   daemonEnv,
 		Files: []*os.File{devnull, os.Stderr, os.Stderr},
 	})
 	devnull.Close() //nolint:errcheck // devnull close is non-fatal
 	if err != nil {
-		return nil, fmt.Errorf("start ephemeral daemon: %w", err)
+		return nil, "", fmt.Errorf("start ephemeral daemon: %w", err)
 	}
 
-	// Wait for SSH port to become reachable (short timeout per probe for fast polling)
+	// Poll for SSH: try configured port and ephemeral addr file.
+	configuredAddr := net.JoinHostPort(host, port)
 	deadline := time.Now().Add(ephemeralPollTimeout)
 	for time.Now().Before(deadline) {
 		if probeSSHWithTimeout(host, port, 200*time.Millisecond) {
-			return proc, nil
+			return proc, configuredAddr, nil
+		}
+		if data, readErr := os.ReadFile(sshAddrFile); readErr == nil && len(data) > 0 { //nolint:gosec // path is constructed by us, not user input
+			addr := string(data)
+			if probeAddr(addr, 200*time.Millisecond) {
+				return proc, addr, nil
+			}
 		}
 		time.Sleep(ephemeralPollInterval)
 	}
 
-	// Timeout — kill the process and report failure
 	if killErr := proc.Kill(); killErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: kill ephemeral daemon: %v\n", killErr)
 	}
 	if _, waitErr := proc.Wait(); waitErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: wait ephemeral daemon: %v\n", waitErr)
 	}
-	return nil, fmt.Errorf("ephemeral daemon failed to start within %v", ephemeralPollTimeout)
+	os.Remove(sshAddrFile) //nolint:errcheck // best-effort cleanup of temp file
+	return nil, "", fmt.Errorf("ephemeral daemon failed to start within %v", ephemeralPollTimeout)
+}
+
+// probeAddr dials a host:port address to check reachability.
+func probeAddr(addr string, timeout time.Duration) bool {
+	d := net.Dialer{Timeout: timeout}
+	conn, dialErr := d.Dial("tcp", addr)
+	if dialErr != nil {
+		return false
+	}
+	conn.Close() //nolint:errcheck // probe connection
+	return true
 }
 
 // stopEphemeralDaemon sends a stop command via SSH and waits for the process to exit.
@@ -404,13 +426,18 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath string) int {
 		if probeDaemonSSH(creds.Host, creds.Port) {
 			daemonReachable = true
 		} else if config.ProbeConfigType(ed.OriginalContent()) != config.ConfigTypeUnknown {
-			// Only start ephemeral daemon when config has a recognized block
-			proc, ephErr := startEphemeralDaemon(configPath, creds.Host, creds.Port)
+			// Start ephemeral daemon; it starts SSH on a random port if config has none.
+			proc, sshAddr, ephErr := startEphemeralDaemon(configPath, creds.Host, creds.Port)
 			if ephErr != nil {
 				fmt.Fprintf(os.Stderr, "warning: ephemeral daemon: %v\n", ephErr)
 			} else {
 				ephemeralProc = proc
 				daemonReachable = true
+				// Update credentials to use the actual SSH address (may differ from config).
+				if sshHost, sshPort, splitErr := net.SplitHostPort(sshAddr); splitErr == nil {
+					creds.Host = sshHost
+					creds.Port = sshPort
+				}
 			}
 		}
 		if daemonReachable {

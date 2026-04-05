@@ -32,12 +32,26 @@ const (
 //	set neighbor 192.0.2.1 family ipv4/unicast true
 //	delete neighbor 192.0.2.1 peer-as
 type SetParser struct {
-	schema *Schema
+	schema       *Schema
+	preMigration bool     // collect unknown fields as warnings for migration (not final parse)
+	warnings     []string // unknown field warnings from pre-migration parse
 }
 
 // NewSetParser creates a new set-style parser with the given schema.
 func NewSetParser(schema *Schema) *SetParser {
 	return &SetParser{schema: schema}
+}
+
+// SetPreMigration enables pre-migration mode: unknown fields are collected
+// as warnings instead of causing parse errors. This allows parsing configs
+// with stale fields so that tree-level migrations can remove them.
+func (p *SetParser) SetPreMigration(v bool) {
+	p.preMigration = v
+}
+
+// Warnings returns warnings collected during pre-migration parsing.
+func (p *SetParser) Warnings() []string {
+	return p.warnings
 }
 
 // Parse parses the input string into a config tree.
@@ -164,6 +178,10 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 	}
 
 	if node == nil {
+		if p.preMigration {
+			p.warnings = append(p.warnings, fmt.Sprintf("line %d: unknown field: %s (needs migration)", lineNum, name))
+			return nil
+		}
 		return fmt.Errorf("line %d: unknown field: %s", lineNum, name)
 	}
 
@@ -251,6 +269,10 @@ func (p *SetParser) walkAndDelete(tree *Tree, parent Node, tokens []string, line
 
 	node := resolveSchemaNode(p.schema, parent, name)
 	if node == nil {
+		if p.preMigration {
+			p.warnings = append(p.warnings, fmt.Sprintf("line %d: unknown field: %s (needs migration)", lineNum, name))
+			return nil
+		}
 		return fmt.Errorf("line %d: unknown field: %s", lineNum, name)
 	}
 
@@ -630,6 +652,10 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 
 	node := resolveSchemaNode(p.schema, parent, name)
 	if node == nil {
+		if p.preMigration {
+			p.warnings = append(p.warnings, fmt.Sprintf("line %d: unknown field: %s (needs migration)", lineNum, name))
+			return nil
+		}
 		return fmt.Errorf("line %d: unknown field: %s", lineNum, name)
 	}
 

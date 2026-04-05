@@ -1616,9 +1616,10 @@ func TestValidatePeerName(t *testing.T) {
 }
 
 // TestCheckRequiredFields_MissingRequiredField verifies that a peer missing a required field
-// after resolution produces an error naming the peer and missing field.
-// VALIDATES: AC-3 -- error on missing required field.
-// PREVENTS: Incomplete peers accepted at config validation time.
+// after resolution is warned but does not produce an error (incomplete peers are tolerated
+// so the daemon can start for config editing).
+// VALIDATES: AC-3 -- incomplete peer logged as warning, not fatal.
+// PREVENTS: Daemon refusing to start when config has work-in-progress peers.
 func TestCheckRequiredFields_MissingRequiredField(t *testing.T) {
 	schema := testSchema(t)
 
@@ -1645,10 +1646,9 @@ func TestCheckRequiredFields_MissingRequiredField(t *testing.T) {
 	bgpTree, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
 
+	// Incomplete peers produce warnings, not errors.
 	err = CheckRequiredFields(schema, bgpTree)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "test_peer")
-	assert.Contains(t, err.Error(), "session/asn/remote")
+	require.NoError(t, err)
 }
 
 // TestCheckRequiredFields_RequiredFieldInherited verifies that an inherited required field
@@ -1711,10 +1711,9 @@ func TestCheckRequiredFields_MissingRemoteIP(t *testing.T) {
 	bgpTree, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
 
+	// Incomplete peers produce warnings, not errors.
 	err = CheckRequiredFields(schema, bgpTree)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "test_peer")
-	assert.Contains(t, err.Error(), "connection/remote/ip")
+	require.NoError(t, err)
 }
 
 // TestCheckRequiredFields_NoPeers verifies graceful handling when there are no peers.

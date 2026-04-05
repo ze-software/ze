@@ -185,7 +185,9 @@ func CheckRequiredFields(schema *config.Schema, bgpTree map[string]any) error {
 		}
 		for _, reqPath := range peerListNode.Required {
 			if !hasNestedValue(peer, reqPath) {
-				return fmt.Errorf("peer %s: missing required field %q", peerName, strings.Join(reqPath, "/"))
+				configLogger().Warn("incomplete peer definition",
+					"peer", peerName,
+					"missing", strings.Join(reqPath, "/"))
 			}
 		}
 	}

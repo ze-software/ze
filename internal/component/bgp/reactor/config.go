@@ -284,7 +284,10 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 		}
 		ps, err := parsePeerFromTree(peerName, peerTree, localAS, routerID)
 		if err != nil {
-			return nil, err
+			// Skip incomplete peers (missing required fields like remote IP/ASN).
+			// This allows the daemon to start for config editing with partial configs.
+			reactorLogger().Warn("skipping peer with invalid config", "peer", peerName, "error", err)
+			continue
 		}
 
 		// The peer name is the list key itself.

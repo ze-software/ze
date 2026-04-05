@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"os"
 	"strconv"
 	"time"
 
@@ -209,7 +210,16 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	// SSH binds the port immediately, but the command executor is wired later
 	// via SetExecutorFactory after the reactor's API server starts (post-start hook).
 	var sshSrv *zessh.Server
-	if sshCfg, ok := extractSSHConfig(tree); ok {
+	sshCfg, hasSSHConfig := extractSSHConfig(tree)
+	// Ephemeral mode: config edit starts the daemon with ze.ssh.ephemeral set.
+	// Start SSH on port 0 (OS-assigned) so the editor can connect even when
+	// the config has no SSH settings.
+	ephemeralFile := coreenv.Get("ze.ssh.ephemeral")
+	if !hasSSHConfig && ephemeralFile != "" {
+		sshCfg = zessh.Config{Listen: "127.0.0.1:0"}
+		hasSSHConfig = true
+	}
+	if hasSSHConfig {
 		// Merge users from zefs database (ze init) with config-based users.
 		// Zefs users prepended so hash-as-token auth finds them first when
 		// the same username appears in both config and zefs.
@@ -226,6 +236,12 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		} else {
 			configLogger().Info("SSH server listening", "address", srv.Address())
 			sshSrv = srv
+			// Write ephemeral SSH address so the parent (config edit) can connect.
+			if ephemeralFile != "" {
+				if writeErr := os.WriteFile(ephemeralFile, []byte(srv.Address()), 0o600); writeErr != nil {
+					configLogger().Warn("failed to write ephemeral SSH address", "error", writeErr)
+				}
+			}
 		}
 	}
 

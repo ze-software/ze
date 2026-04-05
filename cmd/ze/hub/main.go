@@ -271,40 +271,49 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	// Store reactor factory and storage for the BGP plugin's RunEngine.
 	// Uses coordinator.SetExtra to avoid bgp/config import cycles.
+	// sync.Once ensures the reactor is created exactly once even if the
+	// closure is called multiple times (e.g., config-apply during startup).
 	capturedResult := loadResult
 	capturedPath := configPath
 	capturedStore := store
 	capturedChaosSeed := chaosSeed
 	capturedChaosRate := chaosRate
+	var reactorOnce sync.Once
+	var reactorCached registry.BGPReactorHandle
+	var reactorErr error
 	coordinator.SetExtra("bgp.createReactor", func() (registry.BGPReactorHandle, error) {
-		r, createErr := bgpconfig.CreateReactor(capturedResult, capturedPath, capturedStore)
-		if createErr != nil {
-			return nil, createErr
-		}
-		// Inject chaos wrappers if enabled.
-		if capturedChaosSeed != 0 {
-			seed := chaos.ResolveSeed(capturedChaosSeed)
-			rate := capturedChaosRate
-			if rate < 0 {
-				rate = 0.1
+		reactorOnce.Do(func() {
+			r, createErr := bgpconfig.CreateReactor(capturedResult, capturedPath, capturedStore)
+			if createErr != nil {
+				reactorErr = createErr
+				return
 			}
-			chaosLogger := slogutil.Logger("chaos")
-			cfg := chaos.ChaosConfig{Seed: seed, Rate: rate, Logger: chaosLogger}
-			c, d, l := chaos.NewChaosWrappers(clock.RealClock{}, &network.RealDialer{}, network.RealListenerFactory{}, cfg)
-			r.SetClock(c)
-			r.SetDialer(d)
-			r.SetListenerFactory(l)
-			chaosLogger.Info("chaos self-test mode enabled", "seed", seed, "rate", rate)
-		}
-		// Read GR marker from storage (RFC 4724 Section 4.1).
-		if expiry, grOK := grmarker.Read(capturedStore); grOK {
-			r.SetRestartUntil(expiry)
-			slogutil.Logger("bgp.gr").Info("GR restart marker found", "expires", expiry)
-		}
-		if removeErr := grmarker.Remove(capturedStore); removeErr != nil {
-			slogutil.Logger("bgp.gr").Warn("failed to remove GR marker", "error", removeErr)
-		}
-		return r, nil
+			// Inject chaos wrappers if enabled.
+			if capturedChaosSeed != 0 {
+				seed := chaos.ResolveSeed(capturedChaosSeed)
+				rate := capturedChaosRate
+				if rate < 0 {
+					rate = 0.1
+				}
+				chaosLogger := slogutil.Logger("chaos")
+				cfg := chaos.ChaosConfig{Seed: seed, Rate: rate, Logger: chaosLogger}
+				c, d, l := chaos.NewChaosWrappers(clock.RealClock{}, &network.RealDialer{}, network.RealListenerFactory{}, cfg)
+				r.SetClock(c)
+				r.SetDialer(d)
+				r.SetListenerFactory(l)
+				chaosLogger.Info("chaos self-test mode enabled", "seed", seed, "rate", rate)
+			}
+			// Read GR marker from storage (RFC 4724 Section 4.1).
+			if expiry, grOK := grmarker.Read(capturedStore); grOK {
+				r.SetRestartUntil(expiry)
+				slogutil.Logger("bgp.gr").Info("GR restart marker found", "expires", expiry)
+			}
+			if removeErr := grmarker.Remove(capturedStore); removeErr != nil {
+				slogutil.Logger("bgp.gr").Warn("failed to remove GR marker", "error", removeErr)
+			}
+			reactorCached = r
+		})
+		return reactorCached, reactorErr
 	})
 
 	pm := pluginmgr.NewManager()
@@ -436,12 +445,19 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// Wait for either signal or server shutdown (e.g., "daemon shutdown" command).
 	// Server.Wait blocks until all plugin processes exit -- happens when a plugin
 	// dispatches "daemon shutdown" which calls reactor.Stop().
-	doneCh := make(chan struct{})
-	go waitForServerDone(apiServer, doneCh)
+	// Only listen for server-done when plugins actually started; otherwise the
+	// WaitGroup is zero from the start and Wait returns immediately -- causing
+	// the daemon to exit before SSH/web servers are ready (breaks "config edit").
+	if apiServer.HasProcesses() {
+		doneCh := make(chan struct{})
+		go waitForServerDone(apiServer, doneCh)
 
-	select {
-	case <-sigCh:
-	case <-doneCh:
+		select {
+		case <-sigCh:
+		case <-doneCh:
+		}
+	} else {
+		<-sigCh
 	}
 	fmt.Println("\nShutting down...")
 
