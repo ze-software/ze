@@ -948,9 +948,8 @@ func TestPeersFromTreeMissingLocalAS(t *testing.T) {
 			},
 		},
 	}
-	peers, err := PeersFromTree(bgpTree)
-	require.NoError(t, err)
-	assert.Empty(t, peers, "peer without local-as should be skipped")
+	_, err := PeersFromTree(bgpTree)
+	require.ErrorIs(t, err, ErrIncompleteConfig, "peer without local-as should return ErrIncompleteConfig")
 }
 
 // TestPeersFromTreePeerLocalASOverride verifies per-peer local-as override.
@@ -1019,9 +1018,8 @@ func TestPeersFromTreePeerError(t *testing.T) {
 		"session":   map[string]any{"asn": map[string]any{"local": "65000"}},
 		"peer":      map[string]any{"peer1": map[string]any{}},
 	}
-	peers, err := PeersFromTree(bgpTree)
-	require.NoError(t, err)
-	assert.Empty(t, peers, "peer with empty config should be skipped")
+	_, err := PeersFromTree(bgpTree)
+	require.ErrorIs(t, err, ErrIncompleteConfig, "peer with empty config should return ErrIncompleteConfig")
 }
 
 // TestFamilyModeParsing verifies all family mode string values.

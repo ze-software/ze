@@ -949,12 +949,13 @@ func (r *Reactor) startAPIServer() error {
 
 	if !r.externalServer {
 		// Create and own the plugin server (legacy path).
+		// ConfiguredPaths is deliberately empty: the reactor already owns BGP,
+		// so the plugin server must not auto-load it again via ConfigRoots.
 		apiConfig := &pluginserver.ServerConfig{
 			ConfigPath:                r.config.ConfigPath,
 			ConfiguredFamilies:        r.config.ConfiguredFamilies,
 			ConfiguredCustomEvents:    r.config.ConfiguredCustomEvents,
 			ConfiguredCustomSendTypes: r.config.ConfiguredCustomSendTypes,
-			ConfiguredPaths:           r.config.ConfiguredPaths,
 			Hub:                       r.config.Hub,
 			RPCFallback:               bgpserver.CodecRPCHandler,
 			CommitManager:             transaction.NewCommitManager(),

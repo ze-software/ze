@@ -12,6 +12,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/test/testcond"
 )
 
 // TestPerProcessSyncWriter verifies that multiple ze-peer processes get
@@ -133,6 +135,8 @@ func TestSinglePeerUnchanged(t *testing.T) {
 // VALIDATES: AC-5 (loopback alias)
 // PREVENTS: ensureLoopbackAlias failing for loopback addresses.
 func TestEnsureLoopbackAlias(t *testing.T) {
+	testcond.RequireOS(t, "linux")
+
 	// 127.0.0.1 is always available on all platforms.
 	err := ensureLoopbackAlias(net.ParseIP("127.0.0.1"))
 	assert.NoError(t, err)

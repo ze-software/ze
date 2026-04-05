@@ -5,6 +5,7 @@ package bgpconfig
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/netip"
@@ -83,10 +84,18 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		}
 	}
 
-	// Build peers from tree (resolves templates, extracts routes)
+	// Build peers from tree (resolves templates, extracts routes).
+	// Incomplete peers (missing required fields) are skipped so the daemon
+	// can start for config editing with partial configs. Hard validation
+	// errors (unknown family, invalid address) still fail.
 	peers, err := PeersFromConfigTree(tree)
 	if err != nil {
-		return nil, fmt.Errorf("build peers: %w", err)
+		if errors.Is(err, reactor.ErrIncompleteConfig) {
+			slogutil.Logger("bgp.reactor").Warn("skipping peer with incomplete config", "error", err)
+			peers = nil // continue with no peers
+		} else {
+			return nil, fmt.Errorf("build peers: %w", err)
+		}
 	}
 
 	// Validate plugin references

@@ -7,6 +7,7 @@ package reactor
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
@@ -19,6 +20,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 )
+
+// ErrIncompleteConfig indicates a peer is missing required fields (remote IP, ASN, etc.)
+// and should be skipped during partial-config editing. Distinguished from hard validation
+// errors (unknown family, invalid address) which should fail startup.
+var ErrIncompleteConfig = errors.New("incomplete config")
 
 // Config tree string constants (shared with reactor.go to satisfy goconst).
 const (
@@ -52,7 +58,7 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		}
 	}
 	if peerAS == 0 {
-		return nil, fmt.Errorf("peer %s: missing required session > asn > remote", name)
+		return nil, fmt.Errorf("peer %s: missing required session > asn > remote: %w", name, ErrIncompleteConfig)
 	}
 
 	// Remote IP from connection > remote > ip (required).
@@ -65,7 +71,7 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		}
 	}
 	if remoteIPStr == "" {
-		return nil, fmt.Errorf("peer %s: missing required connection > remote > ip", name)
+		return nil, fmt.Errorf("peer %s: missing required connection > remote > ip: %w", name, ErrIncompleteConfig)
 	}
 	ip, err := netip.ParseAddr(remoteIPStr)
 	if err != nil {
@@ -82,7 +88,7 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		}
 	}
 	if peerLocalAS == 0 {
-		return nil, fmt.Errorf("peer %s: missing required local as (neither global nor peer-level)", name)
+		return nil, fmt.Errorf("peer %s: missing required local as (neither global nor peer-level): %w", name, ErrIncompleteConfig)
 	}
 
 	// Router ID from session > router-id (peer-level overrides global).
@@ -284,10 +290,7 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 		}
 		ps, err := parsePeerFromTree(peerName, peerTree, localAS, routerID)
 		if err != nil {
-			// Skip incomplete peers (missing required fields like remote IP/ASN).
-			// This allows the daemon to start for config editing with partial configs.
-			reactorLogger().Warn("skipping peer with invalid config", "peer", peerName, "error", err)
-			continue
+			return nil, err
 		}
 
 		// The peer name is the list key itself.

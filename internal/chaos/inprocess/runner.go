@@ -156,9 +156,9 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	}
 
 	// Find the MockListener for our local address.
-	// The reactor's Listener calls listenerFactory.Listen("tcp", "127.0.0.1:0"),
-	// so the key in MockListenerFactory is "tcp:127.0.0.1:0".
-	listenAddr := cfg.LocalAddr + ":0"
+	// The reactor creates a passive-peer listener at the default BGP port (179)
+	// via peerListenPort(), so the MockListenerFactory key is "tcp:127.0.0.1:179".
+	listenAddr := cfg.LocalAddr + ":179"
 	ml := listenerFactory.GetListener("tcp", listenAddr)
 	if ml == nil {
 		reactorCancel()
