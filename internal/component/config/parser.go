@@ -187,6 +187,20 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 		if node.Presence {
 			return p.errorf(tok, "expected ';', value, or '{' after %s, got %s", name, tok.Type)
 		}
+		// Automatic brace insertion (ABI): if the next token is a known child name,
+		// parse it inline without braces -- same principle as the tokenizer's ASI.
+		if tok.Type == TokenWord {
+			if childNode := node.Get(tok.Value); childNode != nil {
+				childName := tok.Value
+				p.tok.Next() // consume child name
+				child := NewTree()
+				if err := p.parseNode(child, childName, childNode); err != nil {
+					return err
+				}
+				tree.MergeContainer(name, child)
+				return nil
+			}
+		}
 		return p.errorf(tok, "expected '{' after %s, got %s", name, tok.Type)
 	}
 	p.tok.Next()

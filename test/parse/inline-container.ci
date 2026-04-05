@@ -1,0 +1,22 @@
+# Test: ze config validate with inline container syntax
+# Verifies that the parser accepts inline container form (ABI)
+# and that config validate passes for both inline and block forms
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote ip 127.0.0.1
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

@@ -11,6 +11,118 @@ import (
 	"strings"
 )
 
+// maxInlineDepth controls the maximum container inlining depth in serialized output.
+// When set to 1, a container with exactly one leaf child is serialized inline
+// (e.g., "local ip 1.2.3.4" instead of "local {\n\tip 1.2.3.4\n}").
+// Only leaf children (values/multiValues) trigger inlining -- container and list
+// children do not, which naturally prevents cascading beyond one level.
+const maxInlineDepth = 1
+
+// canInlineContainer reports whether a container's tree data has exactly one
+// leaf-like child (value or multiValue), and no containers or lists.
+// The inactive leaf is excluded from the count.
+func canInlineContainer(tree *Tree) bool {
+	if maxInlineDepth < 1 {
+		return false
+	}
+	valueCount := len(tree.values)
+	if _, ok := tree.values[InactiveLeafName]; ok {
+		valueCount--
+	}
+	return (valueCount+len(tree.multiValues)) == 1 &&
+		len(tree.containers) == 0 && len(tree.lists) == 0
+}
+
+// serializeContainerInline writes a container with a single leaf child inline:
+// "containerName childName value\n" without braces.
+func serializeContainerInline(b *strings.Builder, child *Tree, name string, node *ContainerNode, indent int) {
+	prefix := strings.Repeat("\t", indent)
+	b.WriteString(prefix)
+	if isInactiveTree(child) {
+		b.WriteString("inactive: ")
+	}
+	b.WriteString(name)
+
+	// Find the single child in schema order and write it inline.
+	for _, childName := range node.Children() {
+		if childName == InactiveLeafName {
+			continue
+		}
+		childNode := node.Get(childName)
+		if writeInlineLeaf(b, child, childName, childNode) {
+			b.WriteString("\n")
+			return
+		}
+	}
+
+	// Fallback: extra values not in schema.
+	for k, v := range child.values {
+		if k == InactiveLeafName {
+			continue
+		}
+		b.WriteString(" ")
+		b.WriteString(k)
+		b.WriteString(" ")
+		b.WriteString(quoteIfNeeded(v))
+		b.WriteString("\n")
+		return
+	}
+
+	b.WriteString("\n")
+}
+
+// writeInlineLeaf writes a leaf value inline (without prefix or newline).
+// Returns true if the child had data and was written.
+func writeInlineLeaf(b *strings.Builder, tree *Tree, name string, node Node) bool {
+	switch node.(type) {
+	case *LeafNode:
+		if v, ok := tree.values[name]; ok {
+			b.WriteString(" ")
+			b.WriteString(name)
+			b.WriteString(" ")
+			b.WriteString(quoteIfNeeded(normalizeBool(v)))
+			return true
+		}
+	case *MultiLeafNode:
+		if v, ok := tree.values[name]; ok {
+			b.WriteString(" ")
+			b.WriteString(name)
+			b.WriteString(" ")
+			b.WriteString(v)
+			return true
+		}
+	case *BracketLeafListNode:
+		if v, ok := tree.values[name]; ok {
+			b.WriteString(" ")
+			b.WriteString(name)
+			b.WriteString(" [ ")
+			b.WriteString(v)
+			b.WriteString(" ]")
+			return true
+		}
+	case *ValueOrArrayNode:
+		if items := tree.GetSlice(name); len(items) > 0 {
+			b.WriteString(" ")
+			b.WriteString(name)
+			if len(items) == 1 {
+				b.WriteString(" ")
+				b.WriteString(quoteIfNeeded(items[0]))
+			} else {
+				b.WriteString(" [ ")
+				for i, item := range items {
+					if i > 0 {
+						b.WriteString(" ")
+					}
+					b.WriteString(quoteIfNeeded(item))
+				}
+				b.WriteString(" ]")
+			}
+			return true
+		}
+	}
+	return false
+}
+
 // StripListKeySuffix removes the #N suffix added by AddListEntry for duplicate keys.
 // For example, "10.0.0.10#1" becomes "10.0.0.10".
 func StripListKeySuffix(key string) string {
@@ -172,15 +284,19 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 		if n.Presence {
 			serializePresenceContainer(b, tree, name, n, indent)
 		} else if child := tree.containers[name]; child != nil {
-			b.WriteString(prefix)
-			if isInactiveTree(child) {
-				b.WriteString("inactive: ")
+			if canInlineContainer(child) {
+				serializeContainerInline(b, child, name, n, indent)
+			} else {
+				b.WriteString(prefix)
+				if isInactiveTree(child) {
+					b.WriteString("inactive: ")
+				}
+				b.WriteString(name)
+				b.WriteString(" {\n")
+				serializeTree(b, child, n, indent+1)
+				b.WriteString(prefix)
+				b.WriteString("}\n")
 			}
-			b.WriteString(name)
-			b.WriteString(" {\n")
-			serializeTree(b, child, n, indent+1)
-			b.WriteString(prefix)
-			b.WriteString("}\n")
 		}
 
 	case *ListNode:

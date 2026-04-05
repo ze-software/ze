@@ -289,17 +289,23 @@ func serializeAnnotatedContainer(b *strings.Builder, tree *Tree, meta *MetaTree,
 	}
 	if child := tree.containers[name]; child != nil {
 		childMeta := metaContainerChild(meta, name)
-		writeAnnotatedOpenBraceGutter(b, childMeta, columns)
-		b.WriteString(prefix)
-		if isInactiveTree(child) {
-			b.WriteString("inactive: ")
+		if canInlineContainer(child) {
+			// Inline form: write gutter + "containerName childName value"
+			writeAnnotatedOpenBraceGutter(b, childMeta, columns)
+			serializeContainerInline(b, child, name, node, indent)
+		} else {
+			writeAnnotatedOpenBraceGutter(b, childMeta, columns)
+			b.WriteString(prefix)
+			if isInactiveTree(child) {
+				b.WriteString("inactive: ")
+			}
+			b.WriteString(name)
+			b.WriteString(" {\n")
+			serializeAnnotatedTree(b, child, childMeta, node, columns, indent+1)
+			writeAnnotatedCloseBraceGutter(b, childMeta, columns)
+			b.WriteString(prefix)
+			b.WriteString("}\n")
 		}
-		b.WriteString(name)
-		b.WriteString(" {\n")
-		serializeAnnotatedTree(b, child, childMeta, node, columns, indent+1)
-		writeAnnotatedCloseBraceGutter(b, childMeta, columns)
-		b.WriteString(prefix)
-		b.WriteString("}\n")
 	}
 }
 

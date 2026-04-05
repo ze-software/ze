@@ -114,9 +114,8 @@ func TestSerializeAnnotatedTree(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := SerializeAnnotatedTree(tree, meta, schema, tt.columns)
 			assert.Contains(t, result, tt.want)
-			// All outputs should contain the tree structure
-			assert.Contains(t, result, "bgp {")
-			assert.Contains(t, result, "router-id 1.2.3.4")
+			// bgp has one leaf child -> inlined as "bgp router-id 1.2.3.4"
+			assert.Contains(t, result, "bgp router-id 1.2.3.4")
 			if tt.notWant != "" {
 				assert.NotContains(t, result, tt.notWant)
 			}
@@ -173,9 +172,8 @@ func TestSerializeAnnotatedTreeNoMeta(t *testing.T) {
 	meta := NewMetaTree()
 
 	result := SerializeAnnotatedTree(tree, meta, schema, ShowColumns{Author: true})
-	// Should have blank padding where author would go, then the tree content
-	assert.Contains(t, result, "bgp {")
-	assert.Contains(t, result, "router-id 1.2.3.4")
+	// bgp has one leaf child -> inlined as "bgp router-id 1.2.3.4"
+	assert.Contains(t, result, "bgp router-id 1.2.3.4")
 
 	// All lines should have the same gutter width (14 chars for author + 2 spaces padding)
 	for line := range strings.SplitSeq(strings.TrimRight(result, "\n"), "\n") {

@@ -385,6 +385,105 @@ func TestParserArraySingle(t *testing.T) {
 	require.Equal(t, "single", val)
 }
 
+// TestParserInlineContainer verifies the parser accepts inline container form.
+//
+// VALIDATES: AC-4 -- parser accepts "local ip 1.2.3.4" as inline container.
+//
+// PREVENTS: Parse errors on inline serializer output.
+func TestParserInlineContainer(t *testing.T) {
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+
+	// Inline form: "remote ip 192.0.2.1" without braces
+	input := `bgp {
+	peer peer1 {
+		connection {
+			remote ip 192.0.2.1
+		}
+		session {
+			asn local 65000
+		}
+	}
+}
+`
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	// Verify the tree structure is correct
+	bgp := tree.GetContainer("bgp")
+	require.NotNil(t, bgp)
+
+	peers := bgp.GetList("peer")
+	require.Contains(t, peers, "peer1")
+
+	peer := peers["peer1"]
+	conn := peer.GetContainer("connection")
+	require.NotNil(t, conn)
+
+	remote := conn.GetContainer("remote")
+	require.NotNil(t, remote)
+
+	ip, ok := remote.Get("ip")
+	require.True(t, ok)
+	require.Equal(t, "192.0.2.1", ip)
+
+	session := peer.GetContainer("session")
+	require.NotNil(t, session)
+
+	asn := session.GetContainer("asn")
+	require.NotNil(t, asn)
+
+	local, ok := asn.Get("local")
+	require.True(t, ok)
+	require.Equal(t, "65000", local)
+}
+
+// TestParserInlineBlockEquivalent verifies inline and block forms produce the same tree.
+//
+// VALIDATES: AC-5 -- inline and block produce identical Tree.
+//
+// PREVENTS: Semantic differences between forms.
+func TestParserInlineBlockEquivalent(t *testing.T) {
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+	p := NewParser(schema)
+
+	block := `bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+			}
+		}
+	}
+}
+`
+	inline := `bgp {
+	peer peer1 {
+		connection {
+			remote ip 192.0.2.1
+		}
+		session {
+			asn local 65000
+		}
+	}
+}
+`
+	treeBlock, err := p.Parse(block)
+	require.NoError(t, err)
+
+	treeInline, err := p.Parse(inline)
+	require.NoError(t, err)
+
+	require.True(t, TreeEqual(treeBlock, treeInline), "block and inline forms should produce identical trees")
+}
+
 // TestTreeClone verifies deep cloning of Tree.
 //
 // VALIDATES: Clone creates independent copy with all data.

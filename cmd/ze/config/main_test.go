@@ -18,9 +18,7 @@ func TestConfigFmtFormatsConfig(t *testing.T) {
 	expected := `bgp {
 	peer peer1 {
 		connection {
-			remote {
-				ip 127.0.0.1
-			}
+			remote ip 127.0.0.1
 		}
 		session {
 			asn {
@@ -55,9 +53,7 @@ func TestConfigFmtIdempotent(t *testing.T) {
 	input := `bgp {
 	peer peer1 {
 		connection {
-			remote {
-				ip 127.0.0.1
-			}
+			remote ip 127.0.0.1
 		}
 		session {
 			asn {

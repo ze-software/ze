@@ -461,3 +461,222 @@ func TestSerializeQuotedStrings(t *testing.T) {
 
 	require.True(t, TreeEqual(tree, tree2))
 }
+
+// TestSerializeInlineContainer verifies single-leaf containers serialize inline.
+//
+// VALIDATES: AC-1 -- container with one leaf child serializes inline.
+//
+// PREVENTS: Unnecessary braces around single-leaf containers.
+func TestSerializeInlineContainer(t *testing.T) {
+	input := `bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+			}
+		}
+	}
+}
+`
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	output := Serialize(tree, schema)
+
+	// remote has one leaf child (ip) -> inlined
+	require.Contains(t, output, "remote ip 192.0.2.1")
+	require.NotContains(t, output, "remote {\n")
+
+	// asn has one leaf child (local) -> inlined
+	require.Contains(t, output, "asn local 65000")
+	require.NotContains(t, output, "asn {\n")
+}
+
+// TestSerializeInlineNoCollapse verifies multi-child containers keep braces.
+//
+// VALIDATES: AC-2 -- container with 2+ children is NOT inlined.
+//
+// PREVENTS: Incorrectly inlining multi-child containers.
+func TestSerializeInlineNoCollapse(t *testing.T) {
+	input := `bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+		}
+	}
+}
+`
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	output := Serialize(tree, schema)
+
+	// asn has two children -> NOT inlined (braces kept)
+	require.Contains(t, output, "asn {")
+	require.Contains(t, output, "local 65000")
+	require.Contains(t, output, "remote 65001")
+}
+
+// TestSerializeInlineNoCascade verifies nested single-child containers don't cascade.
+//
+// VALIDATES: AC-3 -- only innermost container collapses.
+//
+// PREVENTS: "connection remote ip 192.0.2.1" (two levels of collapse).
+func TestSerializeInlineNoCascade(t *testing.T) {
+	input := `bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+			}
+		}
+	}
+}
+`
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	output := Serialize(tree, schema)
+
+	// remote is inlined (leaf child)
+	require.Contains(t, output, "remote ip 192.0.2.1")
+
+	// connection keeps braces (its child "remote" is a container, not a leaf)
+	require.Contains(t, output, "connection {")
+
+	// session keeps braces (its child "asn" is a container, not a leaf)
+	require.Contains(t, output, "session {")
+
+	// Verify no cascading: "connection remote" should NOT appear
+	require.NotContains(t, output, "connection remote")
+}
+
+// TestSerializeInlineContainerChild verifies single container child is NOT inlined.
+//
+// VALIDATES: AC-9 -- container child does not trigger inline.
+//
+// PREVENTS: Inlining when child is a container (not a leaf).
+func TestSerializeInlineContainerChild(t *testing.T) {
+	input := `bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 192.0.2.1
+				port 179
+			}
+		}
+		session {
+			asn {
+				local 65000
+			}
+		}
+	}
+}
+`
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	output := Serialize(tree, schema)
+
+	// connection has one child (remote) but remote is a container -> connection NOT inlined
+	require.Contains(t, output, "connection {")
+
+	// remote has 2 children (ip, port) -> NOT inlined
+	require.Contains(t, output, "remote {")
+}
+
+// TestInlineContainerRoundTrip verifies round-trip with inline serialization.
+//
+// VALIDATES: AC-6 -- Parse(Serialize(tree)) == tree.
+//
+// PREVENTS: Data loss from inline serialization.
+func TestInlineContainerRoundTrip(t *testing.T) {
+	input := `bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 192.0.2.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+			}
+		}
+	}
+}
+`
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+	p := NewParser(schema)
+
+	tree1, err := p.Parse(input)
+	require.NoError(t, err)
+
+	output := Serialize(tree1, schema)
+
+	// Output should contain inline form
+	require.Contains(t, output, "remote ip 192.0.2.1")
+
+	// Parse the inline output back
+	tree2, err := p.Parse(output)
+	require.NoError(t, err)
+
+	require.True(t, TreeEqual(tree1, tree2), "trees should be equal after inline roundtrip")
+
+	// Serialize again and check stability
+	output2 := Serialize(tree2, schema)
+	require.Equal(t, output, output2, "serialization should be stable")
+}
+
+// TestSerializeInlinePresenceSkipped verifies presence containers are NOT inlined.
+//
+// VALIDATES: AC-8 -- presence containers have special syntax, not inlined.
+//
+// PREVENTS: Breaking presence container flag/value forms.
+func TestSerializeInlinePresenceSkipped(t *testing.T) {
+	schema := NewSchema()
+	c := Container(Field("value", Leaf(TypeString)))
+	c.Presence = true
+	schema.Define("pres", c)
+
+	tree := NewTree()
+	child := NewTree()
+	child.Set("value", "test")
+	tree.SetContainer("pres", child)
+
+	output := Serialize(tree, schema)
+
+	// Presence container should use block form, not inline
+	require.Contains(t, output, "pres {")
+}

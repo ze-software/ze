@@ -494,6 +494,27 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 					inTarget = true
 					targetDepth = currentDepth + openBraces
 				}
+			} else if !contentInserted && strings.HasPrefix(trimmed, targetPattern+" ") {
+				// Inline container: "bgp router-id 1.2.3.4" -> expand to block form with merged content
+				inlineContent := strings.TrimPrefix(trimmed, targetPattern+" ")
+				leadingIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+				childIndent := leadingIndent + "\t"
+				result.WriteString(leadingIndent)
+				result.WriteString(targetPattern)
+				result.WriteString(" {\n")
+				result.WriteString(childIndent)
+				result.WriteString(inlineContent)
+				result.WriteString("\n")
+				for newLine := range strings.SplitSeq(strings.TrimSpace(newContent), "\n") {
+					result.WriteString(childIndent)
+					result.WriteString(newLine)
+					result.WriteString("\n")
+				}
+				result.WriteString(leadingIndent)
+				result.WriteString("}\n")
+				contentInserted = true
+				currentDepth += openBraces - closeBraces
+				continue
 			}
 			result.WriteString(line)
 			result.WriteString("\n")
