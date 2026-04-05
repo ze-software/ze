@@ -46,6 +46,26 @@ else
     _claim_spec "unassigned"
 fi
 
+# --- Auto-transition spec status to in-progress when claimed ---
+SID_CHECK=$(_session_id)
+MARKER_CHECK=".claude/.session-${SID_CHECK}"
+CLAIMED_SPEC_NAME=""
+if [ -f "$MARKER_CHECK" ]; then
+    CLAIMED_SPEC_NAME=$(head -1 "$MARKER_CHECK" 2>/dev/null)
+fi
+if [ -n "$CLAIMED_SPEC_NAME" ] && [ "$CLAIMED_SPEC_NAME" != "unassigned" ]; then
+    SPEC_FILE="plan/$CLAIMED_SPEC_NAME"
+    if [ -f "$SPEC_FILE" ]; then
+        SPEC_STATUS=$(sed -n 's/^| Status | *\([a-z-]*\).*/\1/p' "$SPEC_FILE" | head -1)
+        if [ "$SPEC_STATUS" = "ready" ]; then
+            TODAY=$(date +%Y-%m-%d)
+            sed -i '' "s/^| Status | *ready.*/| Status | in-progress |/" "$SPEC_FILE"
+            sed -i '' "s/^| Updated | *[0-9-]*.*/| Updated | $TODAY |/" "$SPEC_FILE"
+            echo "Status: $CLAIMED_SPEC_NAME: ready -> in-progress"
+        fi
+    fi
+fi
+
 # --- Display status ---
 
 # Git status summary (compact)
