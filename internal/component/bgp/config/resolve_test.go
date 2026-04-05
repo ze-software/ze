@@ -1368,7 +1368,7 @@ func TestDeepMergeMaps_NestedThreeLevels(t *testing.T) {
 // PREVENTS: Most-specific level replacing cumulative leaf-list values.
 func TestCumulativeLeafList(t *testing.T) {
 	cumulative := map[string]bool{
-		"filter.ingress.community.tag": true,
+		"filter/ingress/community/tag": true,
 	}
 
 	// BGP-level: tag = ["block-list"]
@@ -1416,7 +1416,7 @@ func TestCumulativeLeafList(t *testing.T) {
 // PREVENTS: All leaf-lists becoming cumulative by accident.
 func TestCumulativeLeafListNonCumulativeUnchanged(t *testing.T) {
 	cumulative := map[string]bool{
-		"filter.ingress.community.tag": true,
+		"filter/ingress/community/tag": true,
 	}
 
 	dst := map[string]any{
@@ -1442,7 +1442,7 @@ func TestCumulativeLeafListNonCumulativeUnchanged(t *testing.T) {
 // PREVENTS: Cumulative merge being dead code for real config data.
 func TestCumulativeLeafListStringSlice(t *testing.T) {
 	cumulative := map[string]bool{
-		"filter.ingress.community.tag": true,
+		"filter/ingress/community/tag": true,
 	}
 
 	// ToMap() produces []string for multi-values.
@@ -1487,7 +1487,7 @@ func TestCumulativeLeafListStringSlice(t *testing.T) {
 // PREVENTS: ToMap() bare string causing nil from toAnySlice.
 func TestCumulativeLeafListBareString(t *testing.T) {
 	cumulative := map[string]bool{
-		"filter.ingress.community.tag": true,
+		"filter/ingress/community/tag": true,
 	}
 
 	dst := map[string]any{

@@ -193,7 +193,7 @@ func (s *Server) ConfigPath() string {
 // Run command invokes the plugin (e.g., config name "adj-rib-in" with
 // Run "ze plugin bgp-adj-rib-in" matches registry name "bgp-adj-rib-in").
 func (s *Server) hasConfiguredPlugin(name string) bool {
-	if name == "" {
+	if name == "" || s.config == nil {
 		return false
 	}
 	for _, p := range s.config.Plugins {

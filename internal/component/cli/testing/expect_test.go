@@ -34,7 +34,7 @@ func TestExpectContextRoot(t *testing.T) {
 // VALIDATES: expect=context:path= matches exact path.
 // PREVENTS: Context navigation tests failing incorrectly.
 func TestExpectContextPath(t *testing.T) {
-	exp := Expectation{Type: "context", Values: map[string]string{"path": "bgp.peer.peer1"}}
+	exp := Expectation{Type: "context", Values: map[string]string{"path": "bgp/peer/peer1"}}
 
 	// Matching path should pass
 	err := CheckExpectation(exp, &MockState{contextPath: []string{"bgp", "peer", "peer1"}})

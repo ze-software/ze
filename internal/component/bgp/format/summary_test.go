@@ -128,7 +128,7 @@ func TestFormatSummaryPeerNameGroup(t *testing.T) {
 
 	bgp := parseSummaryJSON(t, got)
 	peerObj, ok := bgp["peer"].(map[string]any)
-	require.True(t, ok, "bgp.peer must be object")
+	require.True(t, ok, "bgp/peer must be object")
 	assert.Equal(t, "10.0.0.1", peerObj["address"])
 	remoteObj, ok := peerObj["remote"].(map[string]any)
 	require.True(t, ok, "peer.remote must be object")

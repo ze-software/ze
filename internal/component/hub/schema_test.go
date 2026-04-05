@@ -58,19 +58,19 @@ func TestHubRoutesConfigByHandler(t *testing.T) {
 
 	err = o.Registry().Register(&pluginserver.Schema{
 		Module:   "ze-gr",
-		Handlers: []string{"bgp.peer.capability.graceful-restart"},
+		Handlers: []string{"bgp/peer/capability/graceful-restart"},
 		Plugin:   "gr",
 	})
 	require.NoError(t, err)
 
-	// "bgp.peer.capability.graceful-restart.timers" → gr plugin
-	found, handlerPath := o.Registry().FindHandler("bgp.peer.capability.graceful-restart.timers")
+	// "bgp/peer/capability/graceful-restart/timers" → gr plugin
+	found, handlerPath := o.Registry().FindHandler("bgp/peer/capability/graceful-restart/timers")
 	require.NotNil(t, found)
-	assert.Equal(t, "bgp.peer.capability.graceful-restart", handlerPath)
+	assert.Equal(t, "bgp/peer/capability/graceful-restart", handlerPath)
 	assert.Equal(t, "ze-gr", found.Module)
 
-	// "bgp.peer.remote-as" → bgp plugin
-	found, handlerPath = o.Registry().FindHandler("bgp.peer.remote-as")
+	// "bgp/peer/remote-as" → bgp plugin
+	found, handlerPath = o.Registry().FindHandler("bgp/peer/remote-as")
 	require.NotNil(t, found)
 	assert.Equal(t, "bgp", handlerPath)
 	assert.Equal(t, "ze-bgp", found.Module)
@@ -134,17 +134,17 @@ func TestHubQueryConfigPath(t *testing.T) {
 	store.Apply()
 
 	// Query specific path
-	result, err := store.Query(ConfigLive, "bgp.router-id")
+	result, err := store.Query(ConfigLive, "bgp/router-id")
 	require.NoError(t, err)
 	assert.Equal(t, "1.2.3.4", result)
 
 	// Query nested path
-	result, err = store.Query(ConfigLive, "bgp.peer.peer1.remote-as")
+	result, err = store.Query(ConfigLive, "bgp/peer/peer1/remote-as")
 	require.NoError(t, err)
 	assert.Equal(t, "65001", result)
 
 	// Query non-existent path
-	_, err = store.Query(ConfigLive, "bgp.nonexistent")
+	_, err = store.Query(ConfigLive, "bgp/nonexistent")
 	require.Error(t, err)
 }
 
@@ -203,7 +203,7 @@ func TestHubSubRootHandler(t *testing.T) {
 	store.Apply()
 
 	// Query sub-root path
-	result, err := store.Query(ConfigLive, "bgp.peer.peer1.capability.graceful-restart")
+	result, err := store.Query(ConfigLive, "bgp/peer/peer1/capability/graceful-restart")
 	require.NoError(t, err)
 
 	// Should be just the graceful-restart subtree
@@ -258,7 +258,7 @@ func TestHubSchemasByPriority(t *testing.T) {
 
 	err = o.Registry().Register(&pluginserver.Schema{
 		Module:   "ze-gr",
-		Handlers: []string{"bgp.peer.capability.graceful-restart"},
+		Handlers: []string{"bgp/peer/capability/graceful-restart"},
 		Plugin:   "gr",
 		Priority: 300,
 	})

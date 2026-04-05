@@ -226,17 +226,17 @@ func findUnsupportedFeatures(tree *config.Tree) []string {
 
 	if tmpl := tree.GetContainer("template"); tmpl != nil {
 		for _, entry := range tmpl.GetListOrdered("group") {
-			warnings = append(warnings, checkUnsupportedInPeerTree("template.group."+entry.Key, entry.Value)...)
+			warnings = append(warnings, checkUnsupportedInPeerTree("template/group/"+entry.Key, entry.Value)...)
 		}
 		for _, entry := range tmpl.GetListOrdered("match") {
-			warnings = append(warnings, checkUnsupportedInPeerTree("template.match."+entry.Key, entry.Value)...)
+			warnings = append(warnings, checkUnsupportedInPeerTree("template/match/"+entry.Key, entry.Value)...)
 		}
 		for _, entry := range tmpl.GetListOrdered("neighbor") {
-			warnings = append(warnings, checkUnsupportedInPeerTree("template.neighbor."+entry.Key, entry.Value)...)
+			warnings = append(warnings, checkUnsupportedInPeerTree("template/neighbor/"+entry.Key, entry.Value)...)
 		}
 		if bgp := tmpl.GetContainer("bgp"); bgp != nil {
 			for _, entry := range bgp.GetListOrdered("peer") {
-				warnings = append(warnings, checkUnsupportedInPeerTree("template.bgp.peer."+entry.Key, entry.Value)...)
+				warnings = append(warnings, checkUnsupportedInPeerTree("template/bgp/peer/"+entry.Key, entry.Value)...)
 			}
 		}
 	}

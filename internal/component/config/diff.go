@@ -82,12 +82,9 @@ func diffMapsRecursive(old, new map[string]any, prefix string, diff *ConfigDiff)
 	}
 }
 
-// joinPath joins prefix and key with dot separator.
+// joinPath joins prefix and key with the config path separator.
 func joinPath(prefix, key string) string {
-	if prefix == "" {
-		return key
-	}
-	return prefix + "." + key
+	return AppendPath(prefix, key)
 }
 
 // deepEqual compares two values for equality.

@@ -329,67 +329,67 @@ func (e *Environment) loadDefaults() error {
 	}
 
 	// Daemon (ze-hub-conf.yang > environment > daemon)
-	if e.Daemon.User, err = SchemaDefaultString(schema, "environment.daemon.user"); err != nil {
+	if e.Daemon.User, err = SchemaDefaultString(schema, "environment/daemon/user"); err != nil {
 		return err
 	}
-	if e.Daemon.Drop, err = SchemaDefaultBool(schema, "environment.daemon.drop"); err != nil {
+	if e.Daemon.Drop, err = SchemaDefaultBool(schema, "environment/daemon/drop"); err != nil {
 		return err
 	}
-	if e.Daemon.Umask, err = SchemaDefaultOctal(schema, "environment.daemon.umask"); err != nil {
+	if e.Daemon.Umask, err = SchemaDefaultOctal(schema, "environment/daemon/umask"); err != nil {
 		return err
 	}
 
 	// Log (ze-hub-conf.yang > environment > log)
-	if e.Log.Level, err = SchemaDefaultString(schema, "environment.log.level"); err != nil {
+	if e.Log.Level, err = SchemaDefaultString(schema, "environment/log/level"); err != nil {
 		return err
 	}
-	if e.Log.Destination, err = SchemaDefaultString(schema, "environment.log.destination"); err != nil {
+	if e.Log.Destination, err = SchemaDefaultString(schema, "environment/log/destination"); err != nil {
 		return err
 	}
-	if e.Log.Short, err = SchemaDefaultBool(schema, "environment.log.short"); err != nil {
+	if e.Log.Short, err = SchemaDefaultBool(schema, "environment/log/short"); err != nil {
 		return err
 	}
 
 	// BGP (ze-bgp-conf.yang augment > environment > bgp)
-	if e.BGP.OpenWait, err = SchemaDefaultInt(schema, "environment.bgp.openwait"); err != nil {
+	if e.BGP.OpenWait, err = SchemaDefaultInt(schema, "environment/bgp/openwait"); err != nil {
 		return err
 	}
 
 	// Cache (ze-bgp-conf.yang augment > environment > cache)
-	if e.Cache.Attributes, err = SchemaDefaultBool(schema, "environment.cache.attributes"); err != nil {
+	if e.Cache.Attributes, err = SchemaDefaultBool(schema, "environment/cache/attributes"); err != nil {
 		return err
 	}
 
 	// API (ze-bgp-conf.yang augment > environment > api)
-	if e.API.ACK, err = SchemaDefaultBool(schema, "environment.api.ack"); err != nil {
+	if e.API.ACK, err = SchemaDefaultBool(schema, "environment/api/ack"); err != nil {
 		return err
 	}
-	if e.API.Chunk, err = SchemaDefaultInt(schema, "environment.api.chunk"); err != nil {
+	if e.API.Chunk, err = SchemaDefaultInt(schema, "environment/api/chunk"); err != nil {
 		return err
 	}
-	if e.API.Encoder, err = SchemaDefaultString(schema, "environment.api.encoder"); err != nil {
+	if e.API.Encoder, err = SchemaDefaultString(schema, "environment/api/encoder"); err != nil {
 		return err
 	}
-	if e.API.Respawn, err = SchemaDefaultBool(schema, "environment.api.respawn"); err != nil {
+	if e.API.Respawn, err = SchemaDefaultBool(schema, "environment/api/respawn"); err != nil {
 		return err
 	}
-	if e.API.CLI, err = SchemaDefaultBool(schema, "environment.api.cli"); err != nil {
+	if e.API.CLI, err = SchemaDefaultBool(schema, "environment/api/cli"); err != nil {
 		return err
 	}
 
 	// Reactor (ze-bgp-conf.yang augment > environment > reactor)
-	if e.Reactor.Speed, err = SchemaDefaultFloat64(schema, "environment.reactor.speed"); err != nil {
+	if e.Reactor.Speed, err = SchemaDefaultFloat64(schema, "environment/reactor/speed"); err != nil {
 		return err
 	}
-	if e.Reactor.CacheTTL, err = SchemaDefaultInt(schema, "environment.reactor.cache-ttl"); err != nil {
+	if e.Reactor.CacheTTL, err = SchemaDefaultInt(schema, "environment/reactor/cache-ttl"); err != nil {
 		return err
 	}
-	if e.Reactor.CacheMax, err = SchemaDefaultInt(schema, "environment.reactor.cache-max"); err != nil {
+	if e.Reactor.CacheMax, err = SchemaDefaultInt(schema, "environment/reactor/cache-max"); err != nil {
 		return err
 	}
 
 	// Chaos (ze-bgp-conf.yang augment > environment > chaos)
-	if e.Chaos.Rate, err = SchemaDefaultFloat64(schema, "environment.chaos.rate"); err != nil {
+	if e.Chaos.Rate, err = SchemaDefaultFloat64(schema, "environment/chaos/rate"); err != nil {
 		return err
 	}
 

@@ -115,7 +115,7 @@ func (v *Validator) ValidateContainer(path string, data map[string]any) error {
 // findSchemaNode finds the schema node for the given path.
 // It uses the processed entry tree (after Resolve) which has mandatory fields properly set.
 func (v *Validator) findSchemaNode(path string) (*yang.Entry, error) {
-	parts := strings.Split(path, ".")
+	parts := strings.Split(path, "/")
 	if len(parts) == 0 {
 		return nil, fmt.Errorf("empty path")
 	}
@@ -482,7 +482,7 @@ func (v *Validator) validateContainerEntry(path string, entry *yang.Entry, data 
 		if child.Mandatory == yang.TSTrue {
 			if _, ok := data[name]; !ok {
 				return &ValidationError{
-					Path:    path + "." + name,
+					Path:    path + "/" + name,
 					Type:    ErrTypeMissing,
 					Message: fmt.Sprintf("mandatory field %q is missing", name),
 				}
@@ -492,7 +492,7 @@ func (v *Validator) validateContainerEntry(path string, entry *yang.Entry, data 
 
 	// Validate provided values
 	for key, value := range data {
-		childPath := path + "." + key
+		childPath := path + "/" + key
 		if child, ok := entry.Dir[key]; ok {
 			if err := v.validateEntry(childPath, child, value); err != nil {
 				return err
@@ -527,7 +527,7 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 		if child.Mandatory == yang.TSTrue {
 			if _, ok := data[name]; !ok {
 				*errs = append(*errs, ValidationError{
-					Path:    path + "." + name,
+					Path:    path + "/" + name,
 					Type:    ErrTypeMissing,
 					Message: fmt.Sprintf("mandatory field %q is missing", name),
 				})
@@ -541,7 +541,7 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 		if !ok {
 			continue // unknown field — handled elsewhere by config reader
 		}
-		childPath := path + "." + key
+		childPath := path + "/" + key
 
 		// Map values are containers or list entries — recurse.
 		subMap, isMap := value.(map[string]any)

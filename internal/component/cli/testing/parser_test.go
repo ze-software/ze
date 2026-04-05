@@ -193,9 +193,9 @@ func TestParseExpectContext(t *testing.T) {
 	}{
 		{
 			name:      "context path",
-			line:      "expect=context:path=bgp.peer.peer1",
+			line:      "expect=context:path=bgp/peer/peer1",
 			wantType:  "context",
-			wantValue: "bgp.peer.peer1",
+			wantValue: "bgp/peer/peer1",
 		},
 		{
 			name:      "context root",

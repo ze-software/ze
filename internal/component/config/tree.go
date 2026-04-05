@@ -162,7 +162,7 @@ func collectPaths(t *Tree, prefix string, paths *[]string) {
 	for _, name := range t.ContainerNames() {
 		path := name
 		if prefix != "" {
-			path = prefix + "." + name
+			path = AppendPath(prefix, name)
 		}
 		*paths = append(*paths, path)
 		child := t.GetContainer(name)

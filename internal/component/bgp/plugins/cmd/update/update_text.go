@@ -43,9 +43,9 @@ import (
 
 // YANG schema paths for attribute validation.
 const (
-	yangPathOrigin    = "bgp.peer.update.attribute.origin"
-	yangPathMED       = "bgp.peer.update.attribute.med"
-	yangPathLocalPref = "bgp.peer.update.attribute.local-preference"
+	yangPathOrigin    = "bgp/peer/update/attribute/origin"
+	yangPathMED       = "bgp/peer/update/attribute/med"
+	yangPathLocalPref = "bgp/peer/update/attribute/local-preference"
 )
 
 // UpdateText command keywords.

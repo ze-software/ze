@@ -56,8 +56,8 @@ func TestValidatorRegistry_CustomValidation(t *testing.T) {
 
 	cv := reg.Get("check-value")
 	require.NotNil(t, cv)
-	assert.NoError(t, cv.ValidateFn("bgp.peer.family", "ipv4/unicast"))
-	assert.Equal(t, "bgp.peer.family", receivedPath)
+	assert.NoError(t, cv.ValidateFn("bgp/peer/family", "ipv4/unicast"))
+	assert.Equal(t, "bgp/peer/family", receivedPath)
 	assert.Equal(t, "ipv4/unicast", receivedValue)
 }
 
@@ -75,7 +75,7 @@ func TestValidatorRegistry_CustomError(t *testing.T) {
 
 	cv := reg.Get("reject-all")
 	require.NotNil(t, cv)
-	err := cv.ValidateFn("bgp.peer.family", "invalid/family")
+	err := cv.ValidateFn("bgp/peer/family", "invalid/family")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "rejected")
 	assert.Contains(t, err.Error(), "invalid/family")

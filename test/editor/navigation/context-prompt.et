@@ -34,4 +34,4 @@ expect=context:path=bgp
 # Enter deeper context
 input=type:text=edit peer peer1
 input=enter
-expect=context:path=bgp.peer.peer1
+expect=context:path=bgp/peer/peer1

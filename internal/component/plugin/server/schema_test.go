@@ -21,7 +21,7 @@ func TestSchemaRegistry_Register(t *testing.T) {
 		Module:    "ze-bgp",
 		Namespace: "urn:ze:bgp",
 		Yang:      "module ze-bgp { ... }",
-		Handlers:  []string{"bgp", "bgp.peer"},
+		Handlers:  []string{"bgp", "bgp/peer"},
 		Plugin:    "bgp-subsystem",
 	}
 
@@ -37,7 +37,7 @@ func TestSchemaRegistry_Register(t *testing.T) {
 	assert.Equal(t, schema, got)
 
 	// Verify handler lookup
-	got, err = reg.GetByHandler("bgp.peer")
+	got, err = reg.GetByHandler("bgp/peer")
 	require.NoError(t, err)
 	assert.Equal(t, schema, got)
 }
@@ -78,12 +78,12 @@ func TestSchemaRegistry_DuplicateHandler(t *testing.T) {
 
 	schema1 := &Schema{
 		Module:   "ze-bgp",
-		Handlers: []string{"bgp", "bgp.peer"},
+		Handlers: []string{"bgp", "bgp/peer"},
 		Plugin:   "plugin1",
 	}
 	schema2 := &Schema{
 		Module:   "ze-rib",
-		Handlers: []string{"bgp.peer"}, // Conflict with schema1
+		Handlers: []string{"bgp/peer"}, // Conflict with schema1
 		Plugin:   "plugin2",
 	}
 
@@ -93,7 +93,7 @@ func TestSchemaRegistry_DuplicateHandler(t *testing.T) {
 	err = reg.Register(schema2)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrSchemaHandlerDuplicate)
-	assert.Contains(t, err.Error(), "bgp.peer")
+	assert.Contains(t, err.Error(), "bgp/peer")
 	assert.Contains(t, err.Error(), "ze-bgp")
 }
 
@@ -112,7 +112,7 @@ func TestSchemaRegistry_FindHandler(t *testing.T) {
 	}
 	peerSchema := &Schema{
 		Module:   "ze-bgp-peer",
-		Handlers: []string{"bgp.peer"},
+		Handlers: []string{"bgp/peer"},
 		Plugin:   "peer-plugin",
 	}
 
@@ -126,12 +126,12 @@ func TestSchemaRegistry_FindHandler(t *testing.T) {
 	}{
 		// Exact matches
 		{"bgp", "ze-bgp", "bgp"},
-		{"bgp.peer", "ze-bgp-peer", "bgp.peer"},
+		{"bgp/peer", "ze-bgp-peer", "bgp/peer"},
 
 		// Prefix matches
-		{"bgp.peer.timers", "ze-bgp-peer", "bgp.peer"},
-		{"bgp.peer.capability.add-path", "ze-bgp-peer", "bgp.peer"},
-		{"bgp.local-as", "ze-bgp", "bgp"},
+		{"bgp/peer/timers", "ze-bgp-peer", "bgp/peer"},
+		{"bgp/peer/capability.add-path", "ze-bgp-peer", "bgp/peer"},
+		{"bgp/local-as", "ze-bgp", "bgp"},
 
 		// No match
 		{"rib", "", ""},
@@ -222,13 +222,13 @@ func TestSchemaRegistry_ListHandlers(t *testing.T) {
 
 	require.NoError(t, reg.Register(&Schema{
 		Module:   "ze-bgp",
-		Handlers: []string{"bgp", "bgp.peer"},
+		Handlers: []string{"bgp", "bgp/peer"},
 	}))
 
 	handlers := reg.ListHandlers()
 	assert.Len(t, handlers, 2)
 	assert.Equal(t, "ze-bgp", handlers["bgp"])
-	assert.Equal(t, "ze-bgp", handlers["bgp.peer"])
+	assert.Equal(t, "ze-bgp", handlers["bgp/peer"])
 }
 
 // TestSchemaRegistry_ModuleNameBoundary verifies module name length limits.
@@ -258,12 +258,12 @@ func TestSchemaRegistry_HandlerPathDepth(t *testing.T) {
 	reg := NewSchemaRegistry()
 
 	// 10 segments - valid
-	path10 := "a.b.c.d.e.f.g.h.i.j"
+	path10 := "a/b/c/d/e/f/g/h/i/j"
 	err := reg.Register(&Schema{Module: "deep", Handlers: []string{path10}})
 	assert.NoError(t, err, "10 segment path should be accepted")
 
 	// Verify lookup works
-	schema, match := reg.FindHandler(path10 + ".k.l")
+	schema, match := reg.FindHandler(path10 + "/k/l")
 	require.NotNil(t, schema)
 	assert.Equal(t, path10, match)
 }
@@ -304,7 +304,7 @@ func TestSchemaRegistry_Concurrent(t *testing.T) {
 		go func() {
 			modules := reg.ListModules()
 			handlers := reg.ListHandlers()
-			schema, match := reg.FindHandler("test.path")
+			schema, match := reg.FindHandler("test/path")
 			// Use values to satisfy both Go compiler and linter
 			if schema != nil && match != "" && len(modules) > 0 && len(handlers) > 0 {
 				t.Log("concurrent read found data")
@@ -520,16 +520,16 @@ func TestSchemaRegistry_RegisterNotifications_Duplicate(t *testing.T) {
 func TestSchemaRegistryFreeze(t *testing.T) {
 	reg := NewSchemaRegistry()
 
-	bgpSchema := &Schema{Module: "ze-bgp", Handlers: []string{"bgp", "bgp.peer"}, Plugin: "bgp-plugin"}
+	bgpSchema := &Schema{Module: "ze-bgp", Handlers: []string{"bgp", "bgp/peer"}, Plugin: "bgp-plugin"}
 	require.NoError(t, reg.Register(bgpSchema))
 
 	reg.Freeze()
 
 	// FindHandler must still work after freeze
-	schema, match := reg.FindHandler("bgp.peer.timers")
+	schema, match := reg.FindHandler("bgp/peer/timers")
 	require.NotNil(t, schema)
 	assert.Equal(t, "ze-bgp", schema.Module)
-	assert.Equal(t, "bgp.peer", match)
+	assert.Equal(t, "bgp/peer", match)
 
 	// Exact match
 	schema, match = reg.FindHandler("bgp")
@@ -550,7 +550,7 @@ func TestSchemaRegistryFreezeConsistency(t *testing.T) {
 	reg := NewSchemaRegistry()
 
 	schemas := []*Schema{
-		{Module: "ze-bgp", Handlers: []string{"bgp", "bgp.peer"}, Plugin: "bgp"},
+		{Module: "ze-bgp", Handlers: []string{"bgp", "bgp/peer"}, Plugin: "bgp"},
 		{Module: "ze-rib", Handlers: []string{"rib"}, Plugin: "rib"},
 	}
 	for _, s := range schemas {
@@ -558,13 +558,13 @@ func TestSchemaRegistryFreezeConsistency(t *testing.T) {
 	}
 
 	// Capture pre-freeze results
-	preBGP, preBGPMatch := reg.FindHandler("bgp.peer")
+	preBGP, preBGPMatch := reg.FindHandler("bgp/peer")
 	preRIB, preRIBMatch := reg.FindHandler("rib")
 
 	reg.Freeze()
 
 	// Post-freeze results must match
-	postBGP, postBGPMatch := reg.FindHandler("bgp.peer")
+	postBGP, postBGPMatch := reg.FindHandler("bgp/peer")
 	postRIB, postRIBMatch := reg.FindHandler("rib")
 
 	assert.Equal(t, preBGP, postBGP)
@@ -614,15 +614,15 @@ func TestSchemaRegistryFreezeIdempotent(t *testing.T) {
 func TestSchemaRegistryConcurrentFindHandler(t *testing.T) {
 	reg := NewSchemaRegistry()
 
-	require.NoError(t, reg.Register(&Schema{Module: "ze-bgp", Handlers: []string{"bgp", "bgp.peer"}, Plugin: "bgp"}))
+	require.NoError(t, reg.Register(&Schema{Module: "ze-bgp", Handlers: []string{"bgp", "bgp/peer"}, Plugin: "bgp"}))
 	reg.Freeze()
 
 	done := make(chan bool, 100)
 	for range 100 {
 		go func() {
-			schema, match := reg.FindHandler("bgp.peer.timers")
+			schema, match := reg.FindHandler("bgp/peer/timers")
 			assert.NotNil(t, schema)
-			assert.Equal(t, "bgp.peer", match)
+			assert.Equal(t, "bgp/peer", match)
 			done <- true
 		}()
 	}
@@ -638,10 +638,10 @@ func TestSchemaRegistryConcurrentFindHandler(t *testing.T) {
 func TestSchemaRegistryFindHandlerPredicatesAfterFreeze(t *testing.T) {
 	reg := NewSchemaRegistry()
 
-	require.NoError(t, reg.Register(&Schema{Module: "ze-bgp", Handlers: []string{"bgp", "bgp.peer"}, Plugin: "bgp"}))
+	require.NoError(t, reg.Register(&Schema{Module: "ze-bgp", Handlers: []string{"bgp", "bgp/peer"}, Plugin: "bgp"}))
 	reg.Freeze()
 
-	schema, match := reg.FindHandler("bgp.peer[address=192.0.2.1].timers")
+	schema, match := reg.FindHandler("bgp/peer[address=192.0.2.1]/timers")
 	require.NotNil(t, schema)
-	assert.Equal(t, "bgp.peer", match)
+	assert.Equal(t, "bgp/peer", match)
 }

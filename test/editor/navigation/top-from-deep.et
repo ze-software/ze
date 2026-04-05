@@ -26,7 +26,7 @@ option=timeout:value=10s
 # Navigate deep
 input=type:text=edit bgp peer peer1
 input=enter
-expect=context:path=bgp.peer.peer1
+expect=context:path=bgp/peer/peer1
 
 # Top returns to root
 input=type:text=top

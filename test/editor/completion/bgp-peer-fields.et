@@ -26,7 +26,7 @@ option=timeout:value=10s
 # Enter peer context
 input=type:text=edit bgp peer peer1
 input=enter
-expect=context:path=bgp.peer.peer1
+expect=context:path=bgp/peer/peer1
 
 # Check set completions - should show connection and session containers
 input=type:text=set c

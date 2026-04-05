@@ -460,22 +460,22 @@ func TestDiffMapsLocal(t *testing.T) {
 
 	diff := diffMaps(old, newMap)
 
-	assert.Contains(t, diff.changed, "bgp.router-id")
-	assert.Contains(t, diff.added, "bgp.peer.p2")
+	assert.Contains(t, diff.changed, "bgp/router-id")
+	assert.Contains(t, diff.added, "bgp/peer/p2")
 	assert.Contains(t, diff.removed, "environment")
 }
 
 // TestRootHasChanges verifies root matching for diff filtering.
 //
-// VALIDATES: rootHasChanges correctly matches dotted paths to roots.
+// VALIDATES: rootHasChanges correctly matches config paths to roots.
 // PREVENTS: Plugins getting RPCs for roots they didn't register.
 func TestRootHasChanges(t *testing.T) {
 	t.Parallel()
 
 	diff := &configDiff{
-		added:   map[string]any{"bgp.peer.p2": "added"},
+		added:   map[string]any{"bgp/peer/p2": "added"},
 		removed: map[string]any{"environment": "removed"},
-		changed: map[string]diffPair{"bgp.router-id": {Old: "old", New: "new"}},
+		changed: map[string]diffPair{"bgp/router-id": {Old: "old", New: "new"}},
 	}
 
 	assert.True(t, rootHasChanges(diff, "bgp"))
@@ -578,15 +578,15 @@ func TestDiffPairJSONKeys(t *testing.T) {
 
 // TestBuildDiffSections verifies per-root grouping of diff entries.
 //
-// VALIDATES: Flat dotted keys are grouped by top-level root into ConfigDiffSections.
+// VALIDATES: Flat config keys are grouped by top-level root into ConfigDiffSections.
 // PREVENTS: Diff data being sent to wrong root section.
 func TestBuildDiffSections(t *testing.T) {
 	t.Parallel()
 
 	diff := &configDiff{
-		added:   map[string]any{"bgp.peer.p2": "new-peer"},
-		removed: map[string]any{"environment.log": "info"},
-		changed: map[string]diffPair{"bgp.router-id": {Old: "1.2.3.4", New: "5.6.7.8"}},
+		added:   map[string]any{"bgp/peer/p2": "new-peer"},
+		removed: map[string]any{"environment/log": "info"},
+		changed: map[string]diffPair{"bgp/router-id": {Old: "1.2.3.4", New: "5.6.7.8"}},
 	}
 
 	sections := buildDiffSections(diff)
@@ -608,7 +608,7 @@ func TestBuildDiffSections(t *testing.T) {
 	// Verify JSON content.
 	var addedData map[string]any
 	require.NoError(t, json.Unmarshal([]byte(bgpSection.Added), &addedData))
-	assert.Equal(t, "new-peer", addedData["bgp.peer.p2"])
+	assert.Equal(t, "new-peer", addedData["bgp/peer/p2"])
 
 	envSection, ok := sectionMap["environment"]
 	require.True(t, ok, "should have environment section")

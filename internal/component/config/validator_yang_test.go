@@ -230,7 +230,7 @@ func TestValidateTree_MandatoryMissing(t *testing.T) {
 	require.NotEmpty(t, errs, "missing mandatory field should produce error")
 	found := false
 	for _, e := range errs {
-		if e.Type == yang.ErrTypeMissing && e.Path == "bgp.router-id" {
+		if e.Type == yang.ErrTypeMissing && e.Path == "bgp/router-id" {
 			found = true
 		}
 	}
@@ -481,8 +481,8 @@ func TestValidator_ValidateString(t *testing.T) {
 		wantErr bool
 	}{
 		// peer.address is type ip-address
-		{"valid_ip", "bgp.peer.remote.ip", "192.0.2.1", false},
-		{"empty_ip", "bgp.peer.remote.ip", "", false}, // Validation may fail but type is string
+		{"valid_ip", "bgp/peer/remote.ip", "192.0.2.1", false},
+		{"empty_ip", "bgp/peer/remote.ip", "", false}, // Validation may fail but type is string
 	}
 
 	for _, tt := range tests {
@@ -509,9 +509,9 @@ func TestValidator_ValidateUint32(t *testing.T) {
 		wantErr bool
 	}{
 		// local.as uses ze-types:asn which has range 1..4294967295
-		{"min_asn", "bgp.session.asn.local", uint32(1), false},
-		{"max_asn", "bgp.session.asn.local", uint32(4294967295), false},
-		{"mid_asn", "bgp.session.asn.local", uint32(65001), false},
+		{"min_asn", "bgp/session/asn/local", uint32(1), false},
+		{"max_asn", "bgp/session/asn/local", uint32(4294967295), false},
+		{"mid_asn", "bgp/session/asn/local", uint32(65001), false},
 	}
 
 	for _, tt := range tests {
@@ -540,9 +540,9 @@ func TestValidator_ValidateUint32Range(t *testing.T) {
 		wantErr bool
 	}{
 		// ASN boundary: range 1..4294967295
-		{"asn_last_valid", "bgp.session.asn.local", uint32(4294967295), false},
-		{"asn_first_valid", "bgp.session.asn.local", uint32(1), false},
-		{"asn_below_range", "bgp.session.asn.local", uint32(0), true},
+		{"asn_last_valid", "bgp/session/asn/local", uint32(4294967295), false},
+		{"asn_first_valid", "bgp/session/asn/local", uint32(1), false},
+		{"asn_below_range", "bgp/session/asn/local", uint32(0), true},
 	}
 
 	for _, tt := range tests {
@@ -588,7 +588,7 @@ func TestValidator_ValidateUint32_WrongType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := v.Validate("bgp.session.asn.local", tt.value)
+			err := v.Validate("bgp/session/asn/local", tt.value)
 			if tt.wantErr {
 				require.Error(t, err, "expected error for %T(%v)", tt.value, tt.value)
 				var valErr *yang.ValidationError
@@ -624,7 +624,7 @@ func TestValidator_ValidateString_WrongType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := v.Validate("bgp.router-id", tt.value)
+			err := v.Validate("bgp/router-id", tt.value)
 			if tt.wantErr {
 				require.Error(t, err, "expected error for %T(%v)", tt.value, tt.value)
 			} else {
@@ -648,8 +648,8 @@ func TestValidator_ValidatePattern(t *testing.T) {
 		wantErr bool
 	}{
 		// router-id uses ze-types:ipv4-address which has a pattern
-		{"valid_ipv4", "bgp.router-id", "192.0.2.1", false},
-		{"invalid_ipv4_format", "bgp.router-id", "not-an-ip", true},
+		{"valid_ipv4", "bgp/router-id", "192.0.2.1", false},
+		{"invalid_ipv4_format", "bgp/router-id", "not-an-ip", true},
 		// Note: The pattern may not catch all invalid IPs (256.0.0.1)
 		// Pattern validation depends on the regex being strict enough
 	}
@@ -674,7 +674,7 @@ func TestValidator_ErrorMessages(t *testing.T) {
 	v := newTestValidator(t)
 
 	// Test range error message
-	err := v.Validate("bgp.session.asn.local", uint32(0))
+	err := v.Validate("bgp/session/asn/local", uint32(0))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "range")
 	assert.Contains(t, err.Error(), "local")
@@ -702,7 +702,7 @@ func TestValidator_HoldTimeRange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := v.Validate("bgp.peer.timer.receive-hold-time", tt.value)
+			err := v.Validate("bgp/peer/timer/receive-hold-time", tt.value)
 			if tt.wantErr {
 				assert.Error(t, err, "expected error for value %v", tt.value)
 			} else {
@@ -739,7 +739,7 @@ func TestValidator_MandatoryField(t *testing.T) {
 		},
 		{
 			name: "missing_mandatory_as_in_local",
-			path: "bgp.local",
+			path: "bgp/local",
 			data: map[string]any{
 				// "as" is mandatory in local container but missing
 			},

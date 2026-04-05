@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -353,22 +354,19 @@ func diffMapsRecursive(old, newMap map[string]any, prefix string, diff *configDi
 	}
 }
 
-// diffJoinPath joins prefix and key with dot separator.
+// diffJoinPath joins prefix and key with the config path separator.
 func diffJoinPath(prefix, key string) string {
-	if prefix == "" {
-		return key
-	}
-	return prefix + "." + key
+	return config.AppendPath(prefix, key)
 }
 
 // rootHasChanges returns true if the diff contains changes under the given root.
-// Checks dotted key paths: "bgp" matches "bgp", "bgp.peer", "bgp.peer.foo", etc.
+// Checks config key paths: "bgp" matches "bgp", "bgp/peer", "bgp/peer/foo", etc.
 func rootHasChanges(diff *configDiff, root string) bool {
 	if root == "*" {
 		return len(diff.added) > 0 || len(diff.removed) > 0 || len(diff.changed) > 0
 	}
 
-	prefix := root + "."
+	prefix := root + config.PathSep
 	for k := range diff.added {
 		if k == root || strings.HasPrefix(k, prefix) {
 			return true
@@ -458,9 +456,9 @@ func buildDiffSections(diff *configDiff) []rpc.ConfigDiffSection {
 	return sections
 }
 
-// topLevelRoot extracts the first segment of a dotted key path.
-// "bgp.peer.foo" → "bgp", "environment" → "environment".
+// topLevelRoot extracts the first segment of a config key path.
+// "bgp/peer/foo" → "bgp", "environment" → "environment".
 func topLevelRoot(key string) string {
-	root, _, _ := strings.Cut(key, ".")
+	root, _, _ := strings.Cut(key, config.PathSep)
 	return root
 }

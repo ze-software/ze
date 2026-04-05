@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
@@ -27,9 +28,9 @@ func NewHub(registry *SchemaRegistry, subsystems *SubsystemManager) *Hub {
 
 // ConfigBlock represents a config command to send to a plugin.
 type ConfigBlock struct {
-	Handler string // Handler path (e.g., "bgp.peer")
+	Handler string // Handler path (e.g., "bgp/peer")
 	Action  string // create, modify, delete
-	Path    string // Full path (e.g., "bgp.peer[address=192.0.2.1]")
+	Path    string // Full path (e.g., "bgp/peer[address=192.0.2.1]")
 	Data    string // JSON data
 }
 
@@ -49,7 +50,7 @@ func (h *Hub) RouteCommand(ctx context.Context, block *ConfigBlock) error {
 	}
 
 	// Extract namespace and path from handler.
-	// Handler is like "bgp.peer" → namespace="bgp", path="peer".
+	// Handler is like "bgp/peer" → namespace="bgp", path="peer".
 	namespace, path := splitHandler(block.Handler)
 
 	// Format command: <namespace> <path> <action> {json}.
@@ -154,10 +155,10 @@ func (h *Hub) routeTransaction(ctx context.Context, namespace, action string) er
 }
 
 // splitHandler splits a handler path into namespace and path.
-// "bgp.peer" → "bgp", "peer".
+// "bgp/peer" → "bgp", "peer".
 // "bgp" → "bgp", "".
 func splitHandler(handler string) (namespace, path string) {
-	before, after, ok := strings.Cut(handler, ".")
+	before, after, ok := strings.Cut(handler, config.PathSep)
 	if !ok {
 		return handler, ""
 	}
@@ -210,9 +211,9 @@ func ParseCommand(line string) (*ConfigBlock, error) {
 		path := parts[1]
 		action := parts[2]
 		return &ConfigBlock{
-			Handler: namespace + "." + path,
+			Handler: config.AppendPath(namespace, path),
 			Action:  action,
-			Path:    namespace + "." + path,
+			Path:    config.AppendPath(namespace, path),
 			Data:    data,
 		}, nil
 

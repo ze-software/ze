@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // JSON envelope type constant.
@@ -222,7 +224,7 @@ func jsonFieldDiff(expected, actual map[string]any, prefix string) string {
 	for _, k := range keys {
 		path := k
 		if prefix != "" {
-			path = prefix + "." + k
+			path = config.AppendPath(prefix, k)
 		}
 
 		expVal, inExp := expected[k]

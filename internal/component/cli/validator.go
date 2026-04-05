@@ -244,7 +244,7 @@ func (v *ConfigValidator) validatePeer(peerAddr, groupName string, peerTree, gro
 	// ToMap() produces string leaf values; ValidateTree converts them via YANG types.
 	// Mandatory-missing -> warning (don't block editing). Value errors -> error.
 	peerMap := resolved.ToMap()
-	yangErrs := v.yangValidator.ValidateTree("bgp.peer", peerMap)
+	yangErrs := v.yangValidator.ValidateTree("bgp/peer", peerMap)
 	for i := range yangErrs {
 		field := yangLeafName(yangErrs[i].Path)
 		severity := severityError

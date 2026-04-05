@@ -50,7 +50,7 @@ expect=dirty:false
 # Enter specific peer by IP address (list key)
 input=type:text=edit bgp peer peer1
 input=enter
-expect=context:path=bgp.peer.peer1
+expect=context:path=bgp/peer/peer1
 expect=error:none
 
 # Should show the selected peer's content (65001, 90)

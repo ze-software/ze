@@ -31,7 +31,7 @@ option=timeout:value=10s
 # Enter peer context
 input=type:text=edit bgp peer peer1
 input=enter
-expect=context:path=bgp.peer.peer1
+expect=context:path=bgp/peer/peer1
 
 # Set relative path - should be prefixed with context
 input=type:text=set timer receive-hold-time 90

@@ -263,7 +263,7 @@ func (p *Parser) parseFlexValue(tree *Tree, name string, node *FlexNode, tok Tok
 			fieldNode := node.Get(fieldName)
 			if fieldNode == nil {
 				// Unknown field - store as value
-				p.warnings = append(p.warnings, fmt.Sprintf("unknown field in %s.%s: %s", name, key, fieldName))
+				p.warnings = append(p.warnings, fmt.Sprintf("unknown field in %s: %s", AppendPath(name, key), fieldName))
 				// Consume until semicolon
 				for p.tok.Peek().Type != TokenSemicolon && p.tok.Peek().Type != TokenEOF {
 					p.tok.Next()

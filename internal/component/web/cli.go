@@ -259,7 +259,7 @@ func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath, args []st
 
 	// Validate that the target key is a leaf, not a container or list.
 	if schema != nil {
-		lookupPath := strings.Join(append(setPath, key), ".")
+		lookupPath := config.JoinPath(append(setPath, key)...)
 		if node, err := schema.Lookup(lookupPath); err == nil {
 			if node.Kind() != config.NodeLeaf {
 				writeCLINotification(w, fmt.Sprintf("%s is not a leaf -- did you forget a value?", key), "error")

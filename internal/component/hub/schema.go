@@ -5,9 +5,9 @@ package hub
 import (
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
@@ -100,13 +100,13 @@ func queryPath(cfg map[string]any, path string) (any, error) {
 		return cfg, nil
 	}
 
-	parts := strings.Split(path, ".")
+	parts := config.SplitPath(path)
 	current := any(cfg)
 
 	for i, part := range parts {
 		m, ok := current.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("path not found: %s (at %s)", path, strings.Join(parts[:i], "."))
+			return nil, fmt.Errorf("path not found: %s (at %s)", path, config.JoinPath(parts[:i]...))
 		}
 
 		val, exists := m[part]

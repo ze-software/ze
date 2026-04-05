@@ -34,7 +34,7 @@ input=type:text=edit update
 input=enter
 input=type:text=edit attribute
 input=enter
-expect=context:path=bgp.peer.peer1.update.attribute
+expect=context:path=bgp/peer/peer1/update/attribute
 
 # Completions should show path attributes
 input=type:text=set

@@ -35,7 +35,7 @@ expect=context:root
 # Edit peer - should find it inside bgp
 input=type:text=edit bgp peer peer1
 input=enter
-expect=context:path=bgp.peer.peer1
+expect=context:path=bgp/peer/peer1
 expect=error:none
 
 # Viewport shows peer content

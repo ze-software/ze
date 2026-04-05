@@ -15,10 +15,10 @@ import (
 // config inheritance levels (bgp -> group -> peer) instead of the most-specific
 // level replacing less-specific ones. Derived from ze:cumulative YANG extension.
 var cumulativePaths = map[string]bool{
-	"filter.ingress.community.tag":   true,
-	"filter.ingress.community.strip": true,
-	"filter.egress.community.tag":    true,
-	"filter.egress.community.strip":  true,
+	"filter/ingress/community/tag":   true,
+	"filter/ingress/community/strip": true,
+	"filter/egress/community/tag":    true,
+	"filter/egress/community/strip":  true,
 }
 
 // ResolveBGPTree resolves peer-group inheritance and returns the bgp block as map[string]any.
@@ -116,15 +116,15 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 
 		// Validate peer name (the list key).
 		if err := validatePeerName(peerName); err != nil {
-			return nil, fmt.Errorf("bgp.peer %s: %w", peerName, err)
+			return nil, fmt.Errorf("bgp/peer %s: %w", peerName, err)
 		}
 		if existingAddr, exists := peerNames[peerName]; exists {
-			return nil, fmt.Errorf("bgp.peer %s: duplicate peer name (already used by %s)", peerName, existingAddr)
+			return nil, fmt.Errorf("bgp/peer %s: duplicate peer name (already used by %s)", peerName, existingAddr)
 		}
 		peerNames[peerName] = peerName
 
 		if _, exists := peerMap[peerName]; exists {
-			return nil, fmt.Errorf("bgp.peer %s: duplicate peer name (already defined in a group or as standalone)", peerName)
+			return nil, fmt.Errorf("bgp/peer %s: duplicate peer name (already defined in a group or as standalone)", peerName)
 		}
 		peerMap[peerName] = resolved
 	}
@@ -415,7 +415,7 @@ func deepMergeAt(dst, src map[string]any, cumulative map[string]bool, prefix str
 	for k, srcVal := range src {
 		path := k
 		if prefix != "" {
-			path = prefix + "." + k
+			path = config.AppendPath(prefix, k)
 		}
 
 		srcMap, srcIsMap := srcVal.(map[string]any)

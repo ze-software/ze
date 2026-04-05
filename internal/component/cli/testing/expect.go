@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // State interface defines what can be queried from the editor model for assertions.
@@ -74,7 +75,7 @@ func checkContext(exp Expectation, state State) error {
 	}
 
 	if expectedPath, hasPath := exp.Values["path"]; hasPath {
-		actualPath := strings.Join(state.ContextPath(), ".")
+		actualPath := config.JoinPath(state.ContextPath()...)
 		if actualPath != expectedPath {
 			return fmt.Errorf("expected context path %q, got %q", expectedPath, actualPath)
 		}

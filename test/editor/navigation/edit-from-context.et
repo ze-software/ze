@@ -38,7 +38,7 @@ expect=context:path=bgp
 # Now edit peer from within bgp context
 input=type:text=edit peer peer1
 input=enter
-expect=context:path=bgp.peer.peer1
+expect=context:path=bgp/peer/peer1
 expect=error:none
 
 # Should show peer content

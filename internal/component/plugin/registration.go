@@ -95,7 +95,7 @@ type FilterRegistration struct {
 type PluginSchemaDecl struct {
 	Module    string   // YANG module name
 	Namespace string   // YANG namespace URI
-	Handlers  []string // Handler paths (e.g., "bgp", "bgp.peer")
+	Handlers  []string // Handler paths (e.g., "bgp", "bgp/peer")
 	Yang      string   // Full YANG module text
 	Priority  int      // Config ordering (lower = processed first, default 1000)
 }

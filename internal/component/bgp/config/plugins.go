@@ -287,7 +287,7 @@ func ValidatePluginReferences(tree *config.Tree, plugins []reactor.PluginConfig)
 	for _, entry := range bgpContainer.GetListOrdered("peer") {
 		addr := entry.Key
 		peerTree := entry.Value
-		if err := validatePeerProcessRefs(peerTree, pluginNames, fmt.Sprintf("bgp.peer %s", addr)); err != nil {
+		if err := validatePeerProcessRefs(peerTree, pluginNames, fmt.Sprintf("bgp/peer %s", addr)); err != nil {
 			return err
 		}
 	}

@@ -199,7 +199,7 @@ func applyPeerSchemaDefaults(bgpTree map[string]any) {
 		return
 	}
 	// Navigate to the peer ListNode in the schema (bgp > peer).
-	peerSchema, err := schema.Lookup("bgp.peer")
+	peerSchema, err := schema.Lookup("bgp/peer")
 	if err != nil {
 		return
 	}

@@ -7,8 +7,8 @@ package server
 import (
 	"context"
 	"slices"
-	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -221,10 +221,10 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 	}
 }
 
-// navigateNestedMap descends into a nested map using a dot-separated path.
+// navigateNestedMap descends into a nested map using a config path (e.g., "bgp/peer").
 // Returns the map at the path, or nil if the path doesn't exist or isn't a map.
 func navigateNestedMap(m map[string]any, dottedPath string) map[string]any {
-	parts := strings.Split(dottedPath, ".")
+	parts := config.SplitPath(dottedPath)
 	current := m
 	for _, part := range parts {
 		v, ok := current[part]
@@ -240,7 +240,7 @@ func navigateNestedMap(m map[string]any, dottedPath string) map[string]any {
 	return current
 }
 
-// collectContainerMapPaths recursively collects dot-separated container paths from a map.
+// collectContainerMapPaths recursively collects config container paths from a map.
 // Only descends into map[string]any children (containers), skipping leaf values.
 func collectContainerMapPaths(m map[string]any, prefix string, paths *[]string) {
 	for k, v := range m {
@@ -248,7 +248,7 @@ func collectContainerMapPaths(m map[string]any, prefix string, paths *[]string) 
 		if !ok {
 			continue // Leaf value, not a container.
 		}
-		path := prefix + "." + k
+		path := config.AppendPath(prefix, k)
 		*paths = append(*paths, path)
 		collectContainerMapPaths(sub, path, paths)
 	}

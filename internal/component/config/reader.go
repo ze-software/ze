@@ -23,9 +23,9 @@ type SchemaInfo struct {
 
 // BlockEntry represents a parsed config block stored by the reader.
 type BlockEntry struct {
-	Handler string // Handler path (e.g., "bgp.peer")
+	Handler string // Handler path (e.g., "bgp/peer")
 	Key     string // List key (e.g., "192.0.2.1" for peer address)
-	Path    string // Full path with key (e.g., "bgp.peer[key=192.0.2.1]")
+	Path    string // Full path with key (e.g., "bgp/peer[key=192.0.2.1]")
 	Data    string // JSON data
 }
 
@@ -309,7 +309,7 @@ func (r *Reader) walkMap(data map[string]any, pathPrefix string, state *BlockSta
 		handler := blockName
 		if pathPrefix != "" {
 			basePrefix, _, _ := strings.Cut(pathPrefix, "[")
-			handler = basePrefix + "." + blockName
+			handler = AppendPath(basePrefix, blockName)
 		}
 
 		if r.findHandler(handler) != nil {
@@ -344,7 +344,7 @@ func (r *Reader) walkMap(data map[string]any, pathPrefix string, state *BlockSta
 					continue
 				}
 
-				subHandler := handler + "." + subName
+				subHandler := AppendPath(handler, subName)
 
 				if r.findHandler(subHandler) != nil {
 					// Check if all values are maps (list entries).
@@ -441,9 +441,9 @@ func (r *Reader) findHandler(path string) *SchemaInfo {
 	}
 
 	// Try progressively shorter prefixes.
-	parts := strings.Split(basePath, ".")
+	parts := SplitPath(basePath)
 	for i := len(parts) - 1; i > 0; i-- {
-		prefix := strings.Join(parts[:i], ".")
+		prefix := JoinPath(parts[:i]...)
 		if schema, ok := r.handlerMap[prefix]; ok {
 			return schema
 		}

@@ -29,11 +29,11 @@ func TestPlugin_SetSchema(t *testing.T) {
 	p := New("test-plugin")
 
 	yangSchema := `module test { namespace "urn:test"; prefix test; }`
-	err := p.SetSchema(yangSchema, "test", "test.sub")
+	err := p.SetSchema(yangSchema, "test", "test/sub")
 	require.NoError(t, err)
 
 	assert.Equal(t, yangSchema, p.Schema())
-	assert.Equal(t, []string{"test", "test.sub"}, p.Handlers())
+	assert.Equal(t, []string{"test", "test/sub"}, p.Handlers())
 }
 
 // TestPlugin_SetSchema_Empty verifies empty schema error.
@@ -66,7 +66,7 @@ func TestPlugin_OnVerify(t *testing.T) {
 	p := New("test")
 	called := false
 
-	p.OnVerify("test.item", func(ctx *VerifyContext) error {
+	p.OnVerify("test/item", func(ctx *VerifyContext) error {
 		called = true
 		return nil
 	})
@@ -74,7 +74,7 @@ func TestPlugin_OnVerify(t *testing.T) {
 	// Trigger verify internally.
 	err := p.triggerVerify(&VerifyContext{
 		Action: "create",
-		Path:   "test.item",
+		Path:   "test/item",
 		Data:   "{}",
 	})
 	require.NoError(t, err)
@@ -91,7 +91,7 @@ func TestPlugin_OnVerify_NoHandler(t *testing.T) {
 
 	err := p.triggerVerify(&VerifyContext{
 		Action: "create",
-		Path:   "test.item",
+		Path:   "test/item",
 		Data:   "{}",
 	})
 	require.NoError(t, err) // No handler = allow by default.
@@ -105,14 +105,14 @@ func TestPlugin_OnApply(t *testing.T) {
 	p := New("test")
 	called := false
 
-	p.OnApply("test.item", func(ctx *ApplyContext) error {
+	p.OnApply("test/item", func(ctx *ApplyContext) error {
 		called = true
 		return nil
 	})
 
 	err := p.triggerApply(&ApplyContext{
 		Action: "create",
-		Path:   "test.item",
+		Path:   "test/item",
 		Data:   "{}",
 	})
 	require.NoError(t, err)
@@ -218,7 +218,7 @@ func TestPlugin_Protocol_Command(t *testing.T) {
 // PREVENTS: Immediate application of changes.
 func TestPlugin_CandidateRunning(t *testing.T) {
 	p := New("bgp")
-	_ = p.SetSchema("module bgp {}", "bgp", "bgp.peer")
+	_ = p.SetSchema("module bgp {}", "bgp", "bgp/peer")
 
 	var out bytes.Buffer
 	p.SetOutput(&out)
@@ -237,8 +237,8 @@ registry done
 
 	// Verify running has the peer.
 	running := p.Running()
-	require.NotNil(t, running["bgp.peer"])
-	assert.Equal(t, `{"address":"192.0.2.1","peer-as":65002}`, running["bgp.peer"]["192.0.2.1"])
+	require.NotNil(t, running["bgp/peer"])
+	assert.Equal(t, `{"address":"192.0.2.1","peer-as":65002}`, running["bgp/peer"]["192.0.2.1"])
 }
 
 // TestPlugin_CandidateRollback verifies rollback discards candidate.
@@ -247,7 +247,7 @@ registry done
 // PREVENTS: Unwanted changes persisting.
 func TestPlugin_CandidateRollback(t *testing.T) {
 	p := New("bgp")
-	_ = p.SetSchema("module bgp {}", "bgp", "bgp.peer")
+	_ = p.SetSchema("module bgp {}", "bgp", "bgp/peer")
 
 	var out bytes.Buffer
 	p.SetOutput(&out)
@@ -270,7 +270,7 @@ registry done
 	candidate := p.Candidate()
 	running := p.Running()
 	assert.Equal(t, running, candidate)
-	assert.Len(t, running["bgp.peer"], 1)
+	assert.Len(t, running["bgp/peer"], 1)
 }
 
 // TestPlugin_CommitVerifyFail verifies commit fails on verify error.
@@ -279,10 +279,10 @@ registry done
 // PREVENTS: Invalid config applied.
 func TestPlugin_CommitVerifyFail(t *testing.T) {
 	p := New("bgp")
-	_ = p.SetSchema("module bgp {}", "bgp", "bgp.peer")
+	_ = p.SetSchema("module bgp {}", "bgp", "bgp/peer")
 
 	// Verify handler rejects all creates.
-	p.OnVerify("bgp.peer", func(ctx *VerifyContext) error {
+	p.OnVerify("bgp/peer", func(ctx *VerifyContext) error {
 		return assert.AnError
 	})
 
@@ -308,10 +308,10 @@ registry done
 // PREVENTS: Apply phase skipped.
 func TestPlugin_CommitApply(t *testing.T) {
 	p := New("bgp")
-	_ = p.SetSchema("module bgp {}", "bgp", "bgp.peer")
+	_ = p.SetSchema("module bgp {}", "bgp", "bgp/peer")
 
 	applied := false
-	p.OnApply("bgp.peer", func(ctx *ApplyContext) error {
+	p.OnApply("bgp/peer", func(ctx *ApplyContext) error {
 		applied = true
 		assert.Equal(t, ActionCreate, ctx.Action)
 		assert.Contains(t, ctx.Data, "192.0.2.30")
@@ -340,7 +340,7 @@ registry done
 // PREVENTS: Commands only during config phase.
 func TestPlugin_RuntimeCommand(t *testing.T) {
 	p := New("bgp")
-	_ = p.SetSchema("module bgp {}", "bgp", "bgp.peer")
+	_ = p.SetSchema("module bgp {}", "bgp", "bgp/peer")
 
 	var out bytes.Buffer
 	p.SetOutput(&out)
@@ -362,7 +362,7 @@ registry done
 
 	// Verify running has the peer.
 	running := p.Running()
-	assert.NotNil(t, running["bgp.peer"]["10.0.0.1"])
+	assert.NotNil(t, running["bgp/peer"]["10.0.0.1"])
 }
 
 // TestVerifyContext verifies VerifyContext fields.
@@ -372,12 +372,12 @@ registry done
 func TestVerifyContext(t *testing.T) {
 	ctx := &VerifyContext{
 		Action: "create",
-		Path:   "bgp.peer",
+		Path:   "bgp/peer",
 		Data:   `{"address":"192.0.2.1"}`,
 	}
 
 	assert.Equal(t, "create", ctx.Action)
-	assert.Equal(t, "bgp.peer", ctx.Path)
+	assert.Equal(t, "bgp/peer", ctx.Path)
 	assert.Equal(t, `{"address":"192.0.2.1"}`, ctx.Data)
 }
 
@@ -388,12 +388,12 @@ func TestVerifyContext(t *testing.T) {
 func TestApplyContext(t *testing.T) {
 	ctx := &ApplyContext{
 		Action: "modify",
-		Path:   "bgp.peer",
+		Path:   "bgp/peer",
 		Data:   `{"address":"192.0.2.1"}`,
 	}
 
 	assert.Equal(t, "modify", ctx.Action)
-	assert.Equal(t, "bgp.peer", ctx.Path)
+	assert.Equal(t, "bgp/peer", ctx.Path)
 	assert.Equal(t, `{"address":"192.0.2.1"}`, ctx.Data)
 }
 
@@ -475,7 +475,7 @@ func TestComputeDiff(t *testing.T) {
 
 	// Setup running state using thread-safe method.
 	p.SetRunning(map[string]map[string]string{
-		"bgp.peer": {
+		"bgp/peer": {
 			"192.0.2.1": `{"address":"192.0.2.1","peer-as":65002}`,
 			"192.0.2.2": `{"address":"192.0.2.2","peer-as":65003}`,
 		},
@@ -483,7 +483,7 @@ func TestComputeDiff(t *testing.T) {
 
 	// Setup candidate with changes using thread-safe method.
 	p.SetCandidate(map[string]map[string]string{
-		"bgp.peer": {
+		"bgp/peer": {
 			"192.0.2.1": `{"address":"192.0.2.1","peer-as":65002,"receive-hold-time":90}`, // Modified
 			// 192.0.2.2 deleted
 			"192.0.2.3": `{"address":"192.0.2.3","peer-as":65004}`, // Created
@@ -517,12 +517,12 @@ func TestOutputDiff(t *testing.T) {
 
 	// Setup running and candidate with a change.
 	p.SetRunning(map[string]map[string]string{
-		"bgp.peer": {
+		"bgp/peer": {
 			"10.0.0.1": `{"address":"10.0.0.1"}`,
 		},
 	})
 	p.SetCandidate(map[string]map[string]string{
-		"bgp.peer": {
+		"bgp/peer": {
 			"10.0.0.1": `{"address":"10.0.0.1","as":65001}`,
 		},
 	})
@@ -591,10 +591,10 @@ registry done
 // PREVENTS: Empty data in verify for deletes.
 func TestPlugin_VerifyDeleteGetsData(t *testing.T) {
 	p := New("bgp")
-	_ = p.SetSchema("module bgp {}", "bgp", "bgp.peer")
+	_ = p.SetSchema("module bgp {}", "bgp", "bgp/peer")
 
 	var verifyData string
-	p.OnVerify("bgp.peer", func(ctx *VerifyContext) error {
+	p.OnVerify("bgp/peer", func(ctx *VerifyContext) error {
 		if ctx.Action == ActionDelete {
 			verifyData = ctx.Data
 		}
@@ -655,7 +655,7 @@ func TestPlugin_HandlerPathBoundary(t *testing.T) {
 // PREVENTS: Storing corrupt data in candidate.
 func TestPlugin_InvalidJSON(t *testing.T) {
 	p := New("bgp")
-	_ = p.SetSchema("module bgp {}", "bgp", "bgp.peer")
+	_ = p.SetSchema("module bgp {}", "bgp", "bgp/peer")
 
 	var out bytes.Buffer
 	p.SetOutput(&out)
@@ -682,10 +682,10 @@ registry done
 // even though normal diff produces at most one change per key.
 func TestPlugin_SortChangesOrder(t *testing.T) {
 	changes := []ConfigChange{
-		{Action: ActionCreate, Handler: "bgp.peer", Key: "10.0.0.1"},
-		{Action: ActionDelete, Handler: "bgp.peer", Key: "10.0.0.1"},
-		{Action: ActionModify, Handler: "bgp.peer", Key: "10.0.0.1"},
-		{Action: ActionCreate, Handler: "bgp.peer", Key: "10.0.0.2"},
+		{Action: ActionCreate, Handler: "bgp/peer", Key: "10.0.0.1"},
+		{Action: ActionDelete, Handler: "bgp/peer", Key: "10.0.0.1"},
+		{Action: ActionModify, Handler: "bgp/peer", Key: "10.0.0.1"},
+		{Action: ActionCreate, Handler: "bgp/peer", Key: "10.0.0.2"},
 		{Action: ActionCreate, Handler: "rib", Key: "default"},
 	}
 
@@ -693,19 +693,19 @@ func TestPlugin_SortChangesOrder(t *testing.T) {
 
 	// Verify order: bgp.peer/10.0.0.1 (delete, create, modify), bgp.peer/10.0.0.2, rib/default.
 	require.Len(t, changes, 5)
-	assert.Equal(t, "bgp.peer", changes[0].Handler)
+	assert.Equal(t, "bgp/peer", changes[0].Handler)
 	assert.Equal(t, "10.0.0.1", changes[0].Key)
 	assert.Equal(t, ActionDelete, changes[0].Action)
 
-	assert.Equal(t, "bgp.peer", changes[1].Handler)
+	assert.Equal(t, "bgp/peer", changes[1].Handler)
 	assert.Equal(t, "10.0.0.1", changes[1].Key)
 	assert.Equal(t, ActionCreate, changes[1].Action)
 
-	assert.Equal(t, "bgp.peer", changes[2].Handler)
+	assert.Equal(t, "bgp/peer", changes[2].Handler)
 	assert.Equal(t, "10.0.0.1", changes[2].Key)
 	assert.Equal(t, ActionModify, changes[2].Action)
 
-	assert.Equal(t, "bgp.peer", changes[3].Handler)
+	assert.Equal(t, "bgp/peer", changes[3].Handler)
 	assert.Equal(t, "10.0.0.2", changes[3].Key)
 
 	assert.Equal(t, "rib", changes[4].Handler)
@@ -717,9 +717,9 @@ func TestPlugin_SortChangesOrder(t *testing.T) {
 // PREVENTS: Map lookup returning 0 for unknown action.
 func TestPlugin_SortChangesUnknownAction(t *testing.T) {
 	changes := []ConfigChange{
-		{Action: "unknown", Handler: "bgp.peer", Key: "10.0.0.1"},
-		{Action: ActionDelete, Handler: "bgp.peer", Key: "10.0.0.1"},
-		{Action: ActionCreate, Handler: "bgp.peer", Key: "10.0.0.1"},
+		{Action: "unknown", Handler: "bgp/peer", Key: "10.0.0.1"},
+		{Action: ActionDelete, Handler: "bgp/peer", Key: "10.0.0.1"},
+		{Action: ActionCreate, Handler: "bgp/peer", Key: "10.0.0.1"},
 	}
 
 	sortChanges(changes)
@@ -740,16 +740,16 @@ func TestPlugin_RollbackUnknownAction(t *testing.T) {
 
 	// Track apply calls.
 	var applyCalls []string
-	p.OnApply("bgp.peer", func(ctx *ApplyContext) error {
+	p.OnApply("bgp/peer", func(ctx *ApplyContext) error {
 		applyCalls = append(applyCalls, ctx.Action)
 		return nil
 	})
 
 	// Simulate rollback with unknown action in the middle.
 	applied := []ConfigChange{
-		{Action: ActionCreate, Handler: "bgp.peer", Key: "1", NewData: `{"id":"1"}`},
-		{Action: "unknown", Handler: "bgp.peer", Key: "2", NewData: `{"id":"2"}`},
-		{Action: ActionCreate, Handler: "bgp.peer", Key: "3", NewData: `{"id":"3"}`},
+		{Action: ActionCreate, Handler: "bgp/peer", Key: "1", NewData: `{"id":"1"}`},
+		{Action: "unknown", Handler: "bgp/peer", Key: "2", NewData: `{"id":"2"}`},
+		{Action: ActionCreate, Handler: "bgp/peer", Key: "3", NewData: `{"id":"3"}`},
 	}
 
 	errs := p.rollbackApplied(applied)
@@ -771,11 +771,11 @@ func TestPlugin_RollbackUnknownAction(t *testing.T) {
 // PREVENTS: Partial state on apply failure.
 func TestPlugin_RollbackApplied(t *testing.T) {
 	p := New("bgp")
-	_ = p.SetSchema("module bgp {}", "bgp", "bgp.peer")
+	_ = p.SetSchema("module bgp {}", "bgp", "bgp/peer")
 
 	var applyCalls []string
 
-	p.OnApply("bgp.peer", func(ctx *ApplyContext) error {
+	p.OnApply("bgp/peer", func(ctx *ApplyContext) error {
 		applyCalls = append(applyCalls, ctx.Action+":"+ctx.Data)
 		// Fail on second create (the one with 10.0.0.2).
 		if ctx.Action == ActionCreate && strings.Contains(ctx.Data, "10.0.0.2") {

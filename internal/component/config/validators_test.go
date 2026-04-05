@@ -30,11 +30,11 @@ func TestAddressFamilyValidator_Validate(t *testing.T) {
 	v := AddressFamilyValidator()
 
 	// Valid registered families.
-	assert.NoError(t, v.ValidateFn("bgp.peer.family", "ipv4/unicast"))
-	assert.NoError(t, v.ValidateFn("bgp.peer.family", "ipv6/unicast"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/family", "ipv4/unicast"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/family", "ipv6/unicast"))
 
 	// Invalid: not registered.
-	err := v.ValidateFn("bgp.peer.family", "invalid/family")
+	err := v.ValidateFn("bgp/peer/family", "invalid/family")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid/family")
 	assert.Contains(t, err.Error(), "not a registered")
@@ -48,21 +48,21 @@ func TestNonzeroIPv4Validator(t *testing.T) {
 	v := NonzeroIPv4Validator()
 
 	// Valid IPv4 addresses pass.
-	assert.NoError(t, v.ValidateFn("bgp.peer.route.next-hop", "1.2.3.4"))
-	assert.NoError(t, v.ValidateFn("bgp.peer.route.next-hop", "192.168.1.1"))
-	assert.NoError(t, v.ValidateFn("bgp.peer.route.next-hop", "255.255.255.255"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/route.next-hop", "1.2.3.4"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/route.next-hop", "192.168.1.1"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/route.next-hop", "255.255.255.255"))
 
 	// 0.0.0.0 rejected.
-	err := v.ValidateFn("bgp.peer.route.next-hop", "0.0.0.0")
+	err := v.ValidateFn("bgp/peer/route.next-hop", "0.0.0.0")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "0.0.0.0")
 
 	// Non-IPv4 rejected (use "literal-self" validator for "self").
-	assert.Error(t, v.ValidateFn("bgp.peer.route.next-hop", "self"))
-	assert.Error(t, v.ValidateFn("bgp.peer.route.next-hop", "notanip"))
+	assert.Error(t, v.ValidateFn("bgp/peer/route.next-hop", "self"))
+	assert.Error(t, v.ValidateFn("bgp/peer/route.next-hop", "notanip"))
 
 	// Non-string rejected.
-	assert.Error(t, v.ValidateFn("bgp.peer.route.next-hop", 42))
+	assert.Error(t, v.ValidateFn("bgp/peer/route.next-hop", 42))
 }
 
 // TestLiteralSelfValidator verifies the "self" literal validator.
@@ -72,10 +72,10 @@ func TestNonzeroIPv4Validator(t *testing.T) {
 func TestLiteralSelfValidator(t *testing.T) {
 	v := LiteralSelfValidator()
 
-	assert.NoError(t, v.ValidateFn("bgp.peer.route.next-hop", "self"))
-	assert.Error(t, v.ValidateFn("bgp.peer.route.next-hop", "1.2.3.4"))
-	assert.Error(t, v.ValidateFn("bgp.peer.route.next-hop", "other"))
-	assert.Error(t, v.ValidateFn("bgp.peer.route.next-hop", 42))
+	assert.NoError(t, v.ValidateFn("bgp/peer/route.next-hop", "self"))
+	assert.Error(t, v.ValidateFn("bgp/peer/route.next-hop", "1.2.3.4"))
+	assert.Error(t, v.ValidateFn("bgp/peer/route.next-hop", "other"))
+	assert.Error(t, v.ValidateFn("bgp/peer/route.next-hop", 42))
 }
 
 // TestCommunityRangeValidator verifies community ASN:value range checking.
@@ -86,27 +86,27 @@ func TestCommunityRangeValidator(t *testing.T) {
 	v := CommunityRangeValidator()
 
 	// Valid communities.
-	assert.NoError(t, v.ValidateFn("bgp.peer.route.community", "0:0"))
-	assert.NoError(t, v.ValidateFn("bgp.peer.route.community", "65535:65535"))
-	assert.NoError(t, v.ValidateFn("bgp.peer.route.community", "100:200"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/route.community", "0:0"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/route.community", "65535:65535"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/route.community", "100:200"))
 
 	// ASN part out of range.
-	err := v.ValidateFn("bgp.peer.route.community", "65536:0")
+	err := v.ValidateFn("bgp/peer/route.community", "65536:0")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "65536")
 
 	// Value part out of range.
-	err = v.ValidateFn("bgp.peer.route.community", "0:65536")
+	err = v.ValidateFn("bgp/peer/route.community", "0:65536")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "65536")
 
 	// Missing colon.
-	err = v.ValidateFn("bgp.peer.route.community", "nocolon")
+	err = v.ValidateFn("bgp/peer/route.community", "nocolon")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ASN:value")
 
 	// Non-string rejected.
-	assert.Error(t, v.ValidateFn("bgp.peer.route.community", 42))
+	assert.Error(t, v.ValidateFn("bgp/peer/route.community", 42))
 }
 
 // TestReceiveEventValidator_Validate verifies receive event type validation.
@@ -117,18 +117,18 @@ func TestReceiveEventValidator_Validate(t *testing.T) {
 	v := ReceiveEventValidator()
 
 	// Valid base event types.
-	assert.NoError(t, v.ValidateFn("bgp.peer.process.receive", "update"))
-	assert.NoError(t, v.ValidateFn("bgp.peer.process.receive", "state"))
-	assert.NoError(t, v.ValidateFn("bgp.peer.process.receive", "open"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/process.receive", "update"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/process.receive", "state"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/process.receive", "open"))
 
 	// Invalid event type.
-	err := v.ValidateFn("bgp.peer.process.receive", "nonexistent")
+	err := v.ValidateFn("bgp/peer/process.receive", "nonexistent")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nonexistent")
 	assert.Contains(t, err.Error(), "not a valid receive event type")
 
 	// Non-string rejected.
-	assert.Error(t, v.ValidateFn("bgp.peer.process.receive", 42))
+	assert.Error(t, v.ValidateFn("bgp/peer/process.receive", 42))
 }
 
 // TestReceiveEventValidator_Complete verifies completion returns event type names.
@@ -160,17 +160,17 @@ func TestSendMessageValidator_Validate(t *testing.T) {
 	v := SendMessageValidator()
 
 	// Valid base types.
-	assert.NoError(t, v.ValidateFn("bgp.peer.process.send", "update"))
-	assert.NoError(t, v.ValidateFn("bgp.peer.process.send", "refresh"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/process.send", "update"))
+	assert.NoError(t, v.ValidateFn("bgp/peer/process.send", "refresh"))
 
 	// Invalid type.
-	err := v.ValidateFn("bgp.peer.process.send", "nonexistent")
+	err := v.ValidateFn("bgp/peer/process.send", "nonexistent")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nonexistent")
 	assert.Contains(t, err.Error(), "not a valid send type")
 
 	// Non-string rejected.
-	assert.Error(t, v.ValidateFn("bgp.peer.process.send", 42))
+	assert.Error(t, v.ValidateFn("bgp/peer/process.send", 42))
 }
 
 // TestSendMessageValidator_Complete verifies completion returns send type names.

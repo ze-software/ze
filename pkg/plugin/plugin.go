@@ -15,9 +15,9 @@
 // Basic usage:
 //
 //	p := plugin.New("bgp")
-//	p.SetSchema(myYangSchema, "bgp", "bgp.peer")
-//	p.OnVerify("bgp.peer", myVerifyHandler)
-//	p.OnApply("bgp.peer", myApplyHandler)
+//	p.SetSchema(myYangSchema, "bgp", "bgp/peer")
+//	p.OnVerify("bgp/peer", myVerifyHandler)
+//	p.OnApply("bgp/peer", myApplyHandler)
 //	p.OnCommand("status", myStatusCommand)
 //	p.Run()
 package plugin
@@ -413,7 +413,7 @@ func (p *Plugin) handleConfigCommand(line string) error {
 		action = parts[0]
 	case 2:
 		// Format: <path> <action> {json}.
-		handler = p.namespace + "." + parts[0]
+		handler = p.namespace + "/" + parts[0]
 		action = parts[1]
 	default:
 		return fmt.Errorf("expected '<action>' or '<path> <action>'")

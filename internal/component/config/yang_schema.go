@@ -442,7 +442,7 @@ func yangToContainer(entry *gyang.Entry, path string) *ContainerNode {
 	names := sortedKeys(entry.Dir)
 	for _, name := range names {
 		child := entry.Dir[name]
-		childPath := path + "." + name
+		childPath := AppendPath(path, name)
 		node := yangToNode(child, childPath)
 		if node != nil {
 			fields = append(fields, Field(name, node))
@@ -506,7 +506,7 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 			continue // Key is not a child field
 		}
 		child := entry.Dir[name]
-		childPath := path + "." + name
+		childPath := AppendPath(path, name)
 		node := yangToNode(child, childPath)
 		if node != nil {
 			fields = append(fields, Field(name, node))
@@ -609,7 +609,7 @@ func yangToFlex(entry *gyang.Entry, path string) *FlexNode {
 	names := sortedKeys(entry.Dir)
 	for _, name := range names {
 		child := entry.Dir[name]
-		childPath := path + "." + name
+		childPath := AppendPath(path, name)
 		node := yangToNode(child, childPath)
 		if node != nil {
 			fields = append(fields, Field(name, node))
@@ -628,7 +628,7 @@ func yangToInlineListWithKey(entry *gyang.Entry, path string, keyType ValueType)
 			continue
 		}
 		child := entry.Dir[name]
-		childPath := path + "." + name
+		childPath := AppendPath(path, name)
 		node := yangToNode(child, childPath)
 		if node != nil {
 			fields = append(fields, Field(name, node))

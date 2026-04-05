@@ -143,7 +143,7 @@ func TestSchemaPath(t *testing.T) {
 	))
 
 	// Lookup by path
-	node, err := schema.Lookup("neighbor.family.ipv4.unicast")
+	node, err := schema.Lookup("neighbor/family/ipv4/unicast")
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	require.Equal(t, NodeLeaf, node.Kind())

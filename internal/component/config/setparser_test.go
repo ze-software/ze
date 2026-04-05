@@ -682,7 +682,7 @@ func TestParseInlineArgs(t *testing.T) {
 	schema, schemaErr := YANGSchema()
 	require.NoError(t, schemaErr)
 
-	peerNode, err := schema.Lookup("bgp.peer")
+	peerNode, err := schema.Lookup("bgp/peer")
 	require.NoError(t, err)
 
 	tree, err := ParseInlineArgs(peerNode, []string{
@@ -724,7 +724,7 @@ func TestParseInlineArgsListNode(t *testing.T) {
 	schema, schemaErr := YANGSchema()
 	require.NoError(t, schemaErr)
 
-	peerNode, err := schema.Lookup("bgp.peer")
+	peerNode, err := schema.Lookup("bgp/peer")
 	require.NoError(t, err)
 
 	tree, err := ParseInlineArgs(peerNode, []string{
@@ -753,7 +753,7 @@ func TestParseInlineArgsUnknownKey(t *testing.T) {
 	schema, schemaErr := YANGSchema()
 	require.NoError(t, schemaErr)
 
-	peerNode, err := schema.Lookup("bgp.peer")
+	peerNode, err := schema.Lookup("bgp/peer")
 	require.NoError(t, err)
 
 	_, err = ParseInlineArgs(peerNode, []string{"bogus-key", "value"})

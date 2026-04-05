@@ -307,7 +307,7 @@ func cmdProtocol() int {
 	fmt.Println()
 	fmt.Println("Handler Routing:")
 	fmt.Println("  Longest prefix match on handler path")
-	fmt.Println("  Example: bgp.peer.timers → matches bgp.peer handler")
+	fmt.Println("  Example: bgp/peer/timers → matches bgp/peer handler")
 	fmt.Println()
 	fmt.Println("Config Reader Protocol:")
 	fmt.Println("  config schema <module> <yang-content>")
@@ -484,7 +484,7 @@ func buildSchemaRegistry(extPlugins []string) (*pluginserver.SchemaRegistry, err
 	loaded := make(map[string]bool)
 
 	// Register ze-bgp schema first (base module) - it provides config, doesn't want it
-	if err := registerYANG(registry, bgpschema.ZeBGPConfYANG, internalPluginPrefix+"bgp", []string{"bgp", "bgp.peer"}, nil, loaded); err != nil {
+	if err := registerYANG(registry, bgpschema.ZeBGPConfYANG, internalPluginPrefix+"bgp", []string{"bgp", "bgp/peer"}, nil, loaded); err != nil {
 		return nil, fmt.Errorf("register ze-bgp: %w", err)
 	}
 
@@ -600,7 +600,7 @@ func tryAutoLoadInternal(registry *pluginserver.SchemaRegistry, moduleName strin
 func getInternalYANG(moduleName, pluginName string) (yangContent string, handlers []string, pluginID string) {
 	// Core BGP module
 	if moduleName == bgpConfModule {
-		return bgpschema.ZeBGPConfYANG, []string{"bgp", "bgp.peer"}, internalPluginPrefix + "bgp"
+		return bgpschema.ZeBGPConfYANG, []string{"bgp", "bgp/peer"}, internalPluginPrefix + "bgp"
 	}
 
 	// Internal plugins

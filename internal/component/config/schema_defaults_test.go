@@ -125,7 +125,7 @@ func TestApplyDefaults_NestedContainer(t *testing.T) {
 
 // TestSchemaDefault_Lookup verifies SchemaDefault reads from a real path.
 //
-// VALIDATES: SchemaDefault navigates dot-separated paths correctly.
+// VALIDATES: SchemaDefault navigates config paths correctly.
 // PREVENTS: Wrong path navigation returning empty defaults.
 func TestSchemaDefault_Lookup(t *testing.T) {
 	schema := NewSchema()
@@ -133,8 +133,8 @@ func TestSchemaDefault_Lookup(t *testing.T) {
 		Field("hold-time", LeafWithDefault(TypeUint16, "90")),
 	))
 
-	assert.Equal(t, "90", SchemaDefault(schema, "timer.hold-time"))
-	assert.Equal(t, "", SchemaDefault(schema, "timer.nonexistent"))
+	assert.Equal(t, "90", SchemaDefault(schema, "timer/hold-time"))
+	assert.Equal(t, "", SchemaDefault(schema, "timer/nonexistent"))
 	assert.Equal(t, "", SchemaDefault(schema, "nonexistent"))
 }
 
@@ -179,7 +179,7 @@ func TestEnvironmentSchemaChildren(t *testing.T) {
 	t.Logf("environment children: %v", children)
 
 	for _, name := range []string{"daemon", "log", "debug", "tcp", "bgp", "cache", "api", "reactor", "chaos"} {
-		assert.NotNil(t, c.Get(name), "environment.%s must exist in schema", name)
+		assert.NotNil(t, c.Get(name), "environment/%s must exist in schema", name)
 	}
 }
 
@@ -201,32 +201,32 @@ func TestYANGDefaultsMatchRFC(t *testing.T) {
 		rfc  string
 	}{
 		// Peer-level (ze-bgp-conf.yang peer-fields grouping)
-		{"bgp.peer.timer.receive-hold-time", "90", "RFC 4271 Section 10"},
-		{"bgp.peer.timer.connect-retry", "120", "RFC 4271 Section 10"},
-		{"bgp.peer.timer.send-hold-time", "0", "RFC 9687 (0 = auto)"},
-		{"bgp.peer.session.capability.asn4", "true", "RFC 6793"},
-		{"bgp.peer.connection.remote.accept", "true", "RFC 4271 Section 8.1.1"},
-		{"bgp.peer.connection.local.connect", "true", "RFC 4271 Section 8.1.1"},
-		{"bgp.peer.session.family.prefix.teardown", "true", "RFC 4486"},
+		{"bgp/peer/timer/receive-hold-time", "90", "RFC 4271 Section 10"},
+		{"bgp/peer/timer/connect-retry", "120", "RFC 4271 Section 10"},
+		{"bgp/peer/timer/send-hold-time", "0", "RFC 9687 (0 = auto)"},
+		{"bgp/peer/session/capability/asn4", "true", "RFC 6793"},
+		{"bgp/peer/connection/remote/accept", "true", "RFC 4271 Section 8.1.1"},
+		{"bgp/peer/connection/local/connect", "true", "RFC 4271 Section 8.1.1"},
+		{"bgp/peer/session/family/prefix/teardown", "true", "RFC 4486"},
 		// Environment (ze-hub-conf.yang + ze-bgp-conf.yang augment)
-		{"environment.daemon.user", "zeuser", "ze-hub-conf.yang"},
-		{"environment.daemon.drop", "true", "ze-hub-conf.yang"},
-		{"environment.daemon.umask", "0137", "ze-hub-conf.yang"},
-		// environment.log.enable removed (ExaBGP legacy boolean)
-		{"environment.log.level", "INFO", "ze-hub-conf.yang"},
-		{"environment.log.destination", "stdout", "ze-hub-conf.yang"},
-		{"environment.log.short", "true", "ze-hub-conf.yang"},
-		{"environment.bgp.openwait", "120", "ze-bgp-conf.yang"},
-		{"environment.cache.attributes", "true", "ze-bgp-conf.yang"},
-		{"environment.api.ack", "true", "ze-bgp-conf.yang"},
-		{"environment.api.chunk", "1", "ze-bgp-conf.yang"},
-		{"environment.api.encoder", "json", "ze-bgp-conf.yang"},
-		{"environment.api.respawn", "true", "ze-bgp-conf.yang"},
-		{"environment.api.cli", "true", "ze-bgp-conf.yang"},
-		{"environment.reactor.speed", "1.0", "ze-bgp-conf.yang"},
-		{"environment.reactor.cache-ttl", "60", "ze-bgp-conf.yang"},
-		{"environment.reactor.cache-max", "1000000", "ze-bgp-conf.yang"},
-		{"environment.chaos.rate", "0.1", "ze-bgp-conf.yang"},
+		{"environment/daemon/user", "zeuser", "ze-hub-conf.yang"},
+		{"environment/daemon/drop", "true", "ze-hub-conf.yang"},
+		{"environment/daemon/umask", "0137", "ze-hub-conf.yang"},
+		// environment/log/enable removed (ExaBGP legacy boolean)
+		{"environment/log/level", "INFO", "ze-hub-conf.yang"},
+		{"environment/log/destination", "stdout", "ze-hub-conf.yang"},
+		{"environment/log/short", "true", "ze-hub-conf.yang"},
+		{"environment/bgp/openwait", "120", "ze-bgp-conf.yang"},
+		{"environment/cache/attributes", "true", "ze-bgp-conf.yang"},
+		{"environment/api/ack", "true", "ze-bgp-conf.yang"},
+		{"environment/api/chunk", "1", "ze-bgp-conf.yang"},
+		{"environment/api/encoder", "json", "ze-bgp-conf.yang"},
+		{"environment/api/respawn", "true", "ze-bgp-conf.yang"},
+		{"environment/api/cli", "true", "ze-bgp-conf.yang"},
+		{"environment/reactor/speed", "1.0", "ze-bgp-conf.yang"},
+		{"environment/reactor/cache-ttl", "60", "ze-bgp-conf.yang"},
+		{"environment/reactor/cache-max", "1000000", "ze-bgp-conf.yang"},
+		{"environment/chaos/rate", "0.1", "ze-bgp-conf.yang"},
 	}
 
 	for _, tt := range tests {

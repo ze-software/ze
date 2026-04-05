@@ -22,7 +22,7 @@ import (
 // PREVENTS: Missing handler registrations breaking config block routing.
 func TestSchemaInfo_HandlerMap(t *testing.T) {
 	schemas := []SchemaInfo{
-		{Module: "ze-bgp", Handlers: []string{"bgp", "bgp.peer"}},
+		{Module: "ze-bgp", Handlers: []string{"bgp", "bgp/peer"}},
 		{Module: "ze-rib", Handlers: []string{"rib"}},
 	}
 
@@ -30,10 +30,10 @@ func TestSchemaInfo_HandlerMap(t *testing.T) {
 
 	// Each handler path should map to its schema.
 	assert.NotNil(t, r.findHandler("bgp"))
-	assert.NotNil(t, r.findHandler("bgp.peer"))
+	assert.NotNil(t, r.findHandler("bgp/peer"))
 	assert.NotNil(t, r.findHandler("rib"))
 	assert.Equal(t, "ze-bgp", r.findHandler("bgp").Module)
-	assert.Equal(t, "ze-bgp", r.findHandler("bgp.peer").Module)
+	assert.Equal(t, "ze-bgp", r.findHandler("bgp/peer").Module)
 	assert.Equal(t, "ze-rib", r.findHandler("rib").Module)
 }
 
@@ -44,7 +44,7 @@ func TestSchemaInfo_HandlerMap(t *testing.T) {
 func TestReader_FindHandler(t *testing.T) {
 	schemas := []SchemaInfo{
 		{Module: "ze-bgp", Handlers: []string{"bgp"}},
-		{Module: "ze-bgp-peer", Handlers: []string{"bgp.peer"}},
+		{Module: "ze-bgp-peer", Handlers: []string{"bgp/peer"}},
 		{Module: "ze-rib", Handlers: []string{"rib"}},
 	}
 
@@ -55,10 +55,10 @@ func TestReader_FindHandler(t *testing.T) {
 		wantModule string
 	}{
 		{"bgp", "ze-bgp"},
-		{"bgp.peer", "ze-bgp-peer"},
-		{"bgp.peer[key=192.0.2.1]", "ze-bgp-peer"},
-		{"bgp.peer.timers", "ze-bgp-peer"},
-		{"bgp.local", "ze-bgp"},
+		{"bgp/peer", "ze-bgp-peer"},
+		{"bgp/peer[key=192.0.2.1]", "ze-bgp-peer"},
+		{"bgp/peer/timers", "ze-bgp-peer"},
+		{"bgp/local", "ze-bgp"},
 		{"rib", "ze-rib"},
 	}
 
@@ -93,7 +93,7 @@ func TestReader_FindHandler_Unknown(t *testing.T) {
 // PREVENTS: Config blocks routed to wrong handler or lost.
 func TestReader_ParseBlocks(t *testing.T) {
 	schemas := []SchemaInfo{
-		{Module: "ze-bgp", Handlers: []string{"bgp", "bgp.peer"}},
+		{Module: "ze-bgp", Handlers: []string{"bgp", "bgp/peer"}},
 	}
 
 	configContent := `
@@ -130,9 +130,9 @@ bgp {
 	require.NotNil(t, bgpBlock, "bgp block should exist")
 	// walkMap stores only flat fields; "local" is a container processed separately.
 
-	// "bgp.peer" handler should have a block keyed by "upstream".
-	peerBlock := state.Get("bgp.peer", "upstream")
-	require.NotNil(t, peerBlock, "bgp.peer block should exist")
+	// "bgp/peer" handler should have a block keyed by "upstream".
+	peerBlock := state.Get("bgp/peer", "upstream")
+	require.NotNil(t, peerBlock, "bgp/peer block should exist")
 	// walkMap stores only flat fields; "remote" is a container processed separately.
 }
 
@@ -144,9 +144,9 @@ func TestReader_DiffConfig_Create(t *testing.T) {
 	oldState := NewBlockState()
 	newState := NewBlockState()
 	newState.Set(&BlockEntry{
-		Handler: "bgp.peer",
+		Handler: "bgp/peer",
 		Key:     "192.0.2.1",
-		Path:    "bgp.peer[key=192.0.2.1]",
+		Path:    "bgp/peer[key=192.0.2.1]",
 		Data:    `{"as":65001}`,
 	})
 
@@ -154,7 +154,7 @@ func TestReader_DiffConfig_Create(t *testing.T) {
 
 	require.Len(t, changes, 1)
 	assert.Equal(t, "create", changes[0].Action)
-	assert.Equal(t, "bgp.peer", changes[0].Handler)
+	assert.Equal(t, "bgp/peer", changes[0].Handler)
 }
 
 // TestReader_DiffConfig_Delete verifies removed blocks produce "delete" changes.
@@ -164,9 +164,9 @@ func TestReader_DiffConfig_Create(t *testing.T) {
 func TestReader_DiffConfig_Delete(t *testing.T) {
 	oldState := NewBlockState()
 	oldState.Set(&BlockEntry{
-		Handler: "bgp.peer",
+		Handler: "bgp/peer",
 		Key:     "192.0.2.1",
-		Path:    "bgp.peer[key=192.0.2.1]",
+		Path:    "bgp/peer[key=192.0.2.1]",
 		Data:    `{"as":65001}`,
 	})
 	newState := NewBlockState()
@@ -184,16 +184,16 @@ func TestReader_DiffConfig_Delete(t *testing.T) {
 func TestReader_DiffConfig_Modify(t *testing.T) {
 	oldState := NewBlockState()
 	oldState.Set(&BlockEntry{
-		Handler: "bgp.peer",
+		Handler: "bgp/peer",
 		Key:     "192.0.2.1",
-		Path:    "bgp.peer[key=192.0.2.1]",
+		Path:    "bgp/peer[key=192.0.2.1]",
 		Data:    `{"as":65001}`,
 	})
 	newState := NewBlockState()
 	newState.Set(&BlockEntry{
-		Handler: "bgp.peer",
+		Handler: "bgp/peer",
 		Key:     "192.0.2.1",
-		Path:    "bgp.peer[key=192.0.2.1]",
+		Path:    "bgp/peer[key=192.0.2.1]",
 		Data:    `{"as":65002}`,
 	})
 
@@ -212,16 +212,16 @@ func TestReader_DiffConfig_Modify(t *testing.T) {
 func TestReader_DiffConfig_NoChange(t *testing.T) {
 	oldState := NewBlockState()
 	oldState.Set(&BlockEntry{
-		Handler: "bgp.peer",
+		Handler: "bgp/peer",
 		Key:     "192.0.2.1",
-		Path:    "bgp.peer[key=192.0.2.1]",
+		Path:    "bgp/peer[key=192.0.2.1]",
 		Data:    `{"as":65001}`,
 	})
 	newState := NewBlockState()
 	newState.Set(&BlockEntry{
-		Handler: "bgp.peer",
+		Handler: "bgp/peer",
 		Key:     "192.0.2.1",
-		Path:    "bgp.peer[key=192.0.2.1]",
+		Path:    "bgp/peer[key=192.0.2.1]",
 		Data:    `{"as":65001}`,
 	})
 
@@ -240,8 +240,8 @@ func TestReader_DiffConfig_Deterministic(t *testing.T) {
 
 	// Add blocks in reverse alphabetical order to test sorting.
 	newState.Set(&BlockEntry{Handler: "rib", Key: "_default", Path: "rib", Data: `{}`})
-	newState.Set(&BlockEntry{Handler: "bgp.peer", Key: "10.0.0.2", Path: "bgp.peer[key=10.0.0.2]", Data: `{}`})
-	newState.Set(&BlockEntry{Handler: "bgp.peer", Key: "10.0.0.1", Path: "bgp.peer[key=10.0.0.1]", Data: `{}`})
+	newState.Set(&BlockEntry{Handler: "bgp/peer", Key: "10.0.0.2", Path: "bgp/peer[key=10.0.0.2]", Data: `{}`})
+	newState.Set(&BlockEntry{Handler: "bgp/peer", Key: "10.0.0.1", Path: "bgp/peer[key=10.0.0.1]", Data: `{}`})
 	newState.Set(&BlockEntry{Handler: "bgp", Key: "_default", Path: "bgp", Data: `{}`})
 
 	changes := DiffBlocks(oldState, newState)
@@ -249,9 +249,9 @@ func TestReader_DiffConfig_Deterministic(t *testing.T) {
 	require.Len(t, changes, 4)
 	// Should be sorted: bgp, bgp.peer/10.0.0.1, bgp.peer/10.0.0.2, rib
 	assert.Equal(t, "bgp", changes[0].Handler)
-	assert.Equal(t, "bgp.peer", changes[1].Handler)
+	assert.Equal(t, "bgp/peer", changes[1].Handler)
 	assert.Equal(t, "10.0.0.1", extractKeyFromPath(changes[1].Path))
-	assert.Equal(t, "bgp.peer", changes[2].Handler)
+	assert.Equal(t, "bgp/peer", changes[2].Handler)
 	assert.Equal(t, "10.0.0.2", extractKeyFromPath(changes[2].Path))
 	assert.Equal(t, "rib", changes[3].Handler)
 }
@@ -279,7 +279,7 @@ func TestReader_HandlerPathBoundary(t *testing.T) {
 // PREVENTS: Reload returning stale data or missing changes.
 func TestReader_Reload(t *testing.T) {
 	schemas := []SchemaInfo{
-		{Module: "ze-bgp", Handlers: []string{"bgp", "bgp.peer"}},
+		{Module: "ze-bgp", Handlers: []string{"bgp", "bgp/peer"}},
 	}
 
 	dir := t.TempDir()
@@ -419,7 +419,7 @@ func newTestValidator(t *testing.T) *yang.Validator {
 func TestReader_ValidateBlock_ValidTypes(t *testing.T) {
 	validator := newTestValidator(t)
 	schemas := []SchemaInfo{
-		{Module: "ze-bgp-conf", Handlers: []string{"bgp", "bgp.peer"}},
+		{Module: "ze-bgp-conf", Handlers: []string{"bgp", "bgp/peer"}},
 	}
 
 	configContent := `
@@ -469,7 +469,7 @@ bgp {
 func TestReader_ValidateBlock_InvalidRange(t *testing.T) {
 	validator := newTestValidator(t)
 	schemas := []SchemaInfo{
-		{Module: "ze-bgp-conf", Handlers: []string{"bgp", "bgp.peer", "bgp.peer.timer"}},
+		{Module: "ze-bgp-conf", Handlers: []string{"bgp", "bgp/peer", "bgp/peer/timer"}},
 	}
 
 	configContent := `
@@ -610,7 +610,7 @@ bgp {
 func TestReader_Reload_WithValidator(t *testing.T) {
 	validator := newTestValidator(t)
 	schemas := []SchemaInfo{
-		{Module: "ze-bgp-conf", Handlers: []string{"bgp", "bgp.peer", "bgp.peer.timer"}},
+		{Module: "ze-bgp-conf", Handlers: []string{"bgp", "bgp/peer", "bgp/peer/timer"}},
 	}
 
 	dir := t.TempDir()
@@ -681,7 +681,7 @@ bgp {
 	assert.Contains(t, err.Error(), "range")
 }
 
-// extractKeyFromPath extracts the key value from a path like "bgp.peer[key=10.0.0.1]".
+// extractKeyFromPath extracts the key value from a path like "bgp/peer[key=10.0.0.1]".
 func extractKeyFromPath(path string) string {
 	start := strings.Index(path, "key=")
 	if start < 0 {

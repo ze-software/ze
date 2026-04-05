@@ -26,7 +26,7 @@ option=timeout:value=10s
 # Verify IPv6 peer is navigable
 input=type:text=edit bgp peer peer-v6-1
 input=enter
-expect=context:path=bgp.peer.peer-v6-1
+expect=context:path=bgp/peer/peer-v6-1
 expect=error:none
 
 # Completions should work in IPv6 peer context

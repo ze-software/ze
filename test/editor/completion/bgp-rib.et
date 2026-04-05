@@ -34,7 +34,7 @@ input=type:text=edit rib
 input=enter
 input=type:text=edit out
 input=enter
-expect=context:path=bgp.peer.peer1.rib.out
+expect=context:path=bgp/peer/peer1/rib/out
 
 # Completions should show RIB out settings
 input=type:text=set

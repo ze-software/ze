@@ -282,7 +282,7 @@ func parseUint(s string) (uint64, error) {
 // HandleBgpPeerWith handles "set bgp peer <ip> with <config>" command.
 // Delegates to pluginserver.HandleNodeWith with peer-specific validation and apply.
 func HandleBgpPeerWith(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return pluginserver.HandleNodeWith(ctx, args, "bgp.peer", "peer", preparePeerTree,
+	return pluginserver.HandleNodeWith(ctx, args, "bgp/peer", "peer", preparePeerTree,
 		func(selector string, tree map[string]any) error {
 			addr, _ := netip.ParseAddr(selector) // already validated in preparePeerTree
 			return ctx.Reactor().AddDynamicPeer(addr, tree)

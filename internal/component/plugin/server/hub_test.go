@@ -24,21 +24,21 @@ func TestParseCommand(t *testing.T) {
 		{
 			name:        "basic_create",
 			input:       `bgp peer create {"remote":{"as":65002,"ip":"192.0.2.1"}}`,
-			wantHandler: "bgp.peer",
+			wantHandler: "bgp/peer",
 			wantAction:  "create",
 			wantData:    `{"remote":{"as":65002,"ip":"192.0.2.1"}}`,
 		},
 		{
 			name:        "modify_action",
 			input:       `bgp peer modify {"address":"192.0.2.1","receive-hold-time":90}`,
-			wantHandler: "bgp.peer",
+			wantHandler: "bgp/peer",
 			wantAction:  "modify",
 			wantData:    `{"address":"192.0.2.1","receive-hold-time":90}`,
 		},
 		{
 			name:        "delete_action",
 			input:       `bgp peer delete {"address":"192.0.2.1"}`,
-			wantHandler: "bgp.peer",
+			wantHandler: "bgp/peer",
 			wantAction:  "delete",
 			wantData:    `{"address":"192.0.2.1"}`,
 		},
@@ -100,7 +100,7 @@ func TestHub_RouteToHandler(t *testing.T) {
 	// Register schemas.
 	err := registry.Register(&Schema{
 		Module:   "ze-bgp",
-		Handlers: []string{"bgp", "bgp.peer"},
+		Handlers: []string{"bgp", "bgp/peer"},
 		Plugin:   "bgp",
 	})
 	require.NoError(t, err)
@@ -113,14 +113,14 @@ func TestHub_RouteToHandler(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test handler lookup.
-	schema, match := registry.FindHandler("bgp.peer")
+	schema, match := registry.FindHandler("bgp/peer")
 	require.NotNil(t, schema)
-	assert.Equal(t, "bgp.peer", match)
+	assert.Equal(t, "bgp/peer", match)
 	assert.Equal(t, "bgp", schema.Plugin)
 
-	schema, match = registry.FindHandler("bgp.peer[address=192.0.2.1]")
+	schema, match = registry.FindHandler("bgp/peer[address=192.0.2.1]")
 	require.NotNil(t, schema)
-	assert.Equal(t, "bgp.peer", match)
+	assert.Equal(t, "bgp/peer", match)
 
 	schema, match = registry.FindHandler("rib")
 	require.NotNil(t, schema)
@@ -139,9 +139,9 @@ func TestHub_UnknownHandler(t *testing.T) {
 	hub := NewHub(registry, subsystems)
 
 	block := &ConfigBlock{
-		Handler: "unknown.handler",
+		Handler: "unknown/handler",
 		Action:  "create",
-		Path:    "unknown.handler",
+		Path:    "unknown/handler",
 		Data:    "{}",
 	}
 
@@ -184,15 +184,15 @@ func TestHub_ProcessConfig(t *testing.T) {
 // PREVENTS: Missing configuration data.
 func TestConfigBlock(t *testing.T) {
 	block := ConfigBlock{
-		Handler: "bgp.peer",
+		Handler: "bgp/peer",
 		Action:  "create",
-		Path:    "bgp.peer[address=192.0.2.1]",
+		Path:    "bgp/peer[address=192.0.2.1]",
 		Data:    `{"remote":{"as":65002}}`,
 	}
 
-	assert.Equal(t, "bgp.peer", block.Handler)
+	assert.Equal(t, "bgp/peer", block.Handler)
 	assert.Equal(t, "create", block.Action)
-	assert.Equal(t, "bgp.peer[address=192.0.2.1]", block.Path)
+	assert.Equal(t, "bgp/peer[address=192.0.2.1]", block.Path)
 	assert.Contains(t, block.Data, "remote")
 }
 
@@ -206,11 +206,11 @@ func TestSplitHandler(t *testing.T) {
 		wantNamespace string
 		wantPath      string
 	}{
-		{"bgp.peer", "bgp", "peer"},
-		{"bgp.peer.timers", "bgp", "peer.timers"},
+		{"bgp/peer", "bgp", "peer"},
+		{"bgp/peer/timers", "bgp", "peer/timers"},
 		{"bgp", "bgp", ""},
-		{"rib.route", "rib", "route"},
-		{"acme-monitor.endpoint", "acme-monitor", "endpoint"},
+		{"rib/route", "rib", "route"},
+		{"acme-monitor/endpoint", "acme-monitor", "endpoint"},
 	}
 
 	for _, tt := range tests {

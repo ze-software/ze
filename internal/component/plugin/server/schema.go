@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 )
@@ -28,7 +29,7 @@ type Schema struct {
 	Namespace   string   // YANG namespace URI
 	Yang        string   // Full YANG module text
 	Imports     []string // Imported module names (from YANG import statements)
-	Handlers    []string // Handler paths (e.g., "bgp", "bgp.peer")
+	Handlers    []string // Handler paths (e.g., "bgp", "bgp/peer")
 	Plugin      string   // Plugin that registered this schema
 	Priority    int      // Config ordering (lower = processed first, default 1000)
 	WantsConfig []string // Config roots plugin wants (from "declare wants config <root>")
@@ -295,8 +296,8 @@ func (r *SchemaRegistry) Freeze() {
 }
 
 // FindHandler returns the schema for a handler path using longest prefix match.
-// For example, if "bgp" and "bgp.peer" are registered, FindHandler("bgp.peer.timers")
-// returns the schema for "bgp.peer".
+// For example, if "bgp" and "bgp/peer" are registered, FindHandler("bgp/peer/timers")
+// returns the schema for "bgp/peer".
 // Predicates like [address=192.0.2.1] are stripped before matching.
 // After Freeze(), uses lock-free atomic.Load on the frozen snapshot.
 func (r *SchemaRegistry) FindHandler(path string) (*Schema, string) {
@@ -324,9 +325,9 @@ func findHandlerIn(handlers map[string]string, modules map[string]*Schema, path 
 	}
 
 	// Try progressively shorter prefixes
-	parts := strings.Split(cleanPath, ".")
+	parts := config.SplitPath(cleanPath)
 	for i := len(parts) - 1; i > 0; i-- {
-		prefix := strings.Join(parts[:i], ".")
+		prefix := config.JoinPath(parts[:i]...)
 		if moduleName, exists := handlers[prefix]; exists {
 			return modules[moduleName], prefix
 		}
@@ -336,7 +337,7 @@ func findHandlerIn(handlers map[string]string, modules map[string]*Schema, path 
 }
 
 // stripPredicates removes YANG predicates like [key=value] from a path.
-// Example: "bgp.peer[address=192.0.2.1].timers" → "bgp.peer.timers".
+// Example: "bgp/peer[address=192.0.2.1]/timers" → "bgp/peer/timers".
 func stripPredicates(path string) string {
 	var result strings.Builder
 	depth := 0

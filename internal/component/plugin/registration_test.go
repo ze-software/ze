@@ -103,7 +103,7 @@ func TestPluginSchemaDecl(t *testing.T) {
 		PluginSchema: &PluginSchemaDecl{
 			Module:    "ze-bgp",
 			Namespace: "urn:ze:bgp",
-			Handlers:  []string{"bgp", "bgp.peer"},
+			Handlers:  []string{"bgp", "bgp/peer"},
 			Yang:      "module ze-bgp { namespace \"urn:ze:bgp\"; }",
 			Priority:  500,
 		},
@@ -114,7 +114,7 @@ func TestPluginSchemaDecl(t *testing.T) {
 	assert.Equal(t, "urn:ze:bgp", reg.PluginSchema.Namespace)
 	assert.Len(t, reg.PluginSchema.Handlers, 2)
 	assert.Contains(t, reg.PluginSchema.Handlers, "bgp")
-	assert.Contains(t, reg.PluginSchema.Handlers, "bgp.peer")
+	assert.Contains(t, reg.PluginSchema.Handlers, "bgp/peer")
 	assert.Equal(t, 500, reg.PluginSchema.Priority)
 }
 

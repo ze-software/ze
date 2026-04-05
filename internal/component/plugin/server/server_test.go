@@ -320,7 +320,7 @@ func TestRegistrationFromRPC(t *testing.T) {
 			Module:    "ze-test",
 			Namespace: "urn:ze:test",
 			YANGText:  "module ze-test { }",
-			Handlers:  []string{"test", "test.sub"},
+			Handlers:  []string{"test", "test/sub"},
 		},
 	}
 
@@ -344,7 +344,7 @@ func TestRegistrationFromRPC(t *testing.T) {
 	assert.Equal(t, "ze-test", reg.PluginSchema.Module)
 	assert.Equal(t, "urn:ze:test", reg.PluginSchema.Namespace)
 	assert.Equal(t, "module ze-test { }", reg.PluginSchema.Yang)
-	assert.Equal(t, []string{"test", "test.sub"}, reg.PluginSchema.Handlers)
+	assert.Equal(t, []string{"test", "test/sub"}, reg.PluginSchema.Handlers)
 }
 
 // TestCapabilitiesFromRPC verifies conversion of capability declarations.

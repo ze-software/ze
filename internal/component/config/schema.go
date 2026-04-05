@@ -237,9 +237,9 @@ func (s *Schema) Children() []string {
 	return s.root.Children()
 }
 
-// Lookup finds a node by dot-separated path.
+// Lookup finds a node by path (e.g., "bgp/peer/timer").
 func (s *Schema) Lookup(path string) (Node, error) {
-	parts := strings.Split(path, ".")
+	parts := SplitPath(path)
 	var current Node = s.root
 
 	for _, part := range parts {

@@ -36,7 +36,7 @@ input=type:text=edit capability
 input=enter
 input=type:text=edit add-path
 input=enter
-expect=context:path=bgp.peer.peer1.session.capability.add-path
+expect=context:path=bgp/peer/peer1/session/capability/add-path
 
 # Completions should show add-path settings
 input=type:text=set

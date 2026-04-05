@@ -17,7 +17,7 @@ option=timeout:value=10s
 # Navigate into ethernet interface context
 input=type:text=edit interface ethernet test
 input=enter
-expect=context:path=interface.ethernet.test
+expect=context:path=interface/ethernet/test
 
 # Type set mac-address and trigger completion
 input=type:text=set mac-address

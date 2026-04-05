@@ -115,9 +115,9 @@ func TestDiffMapsNested(t *testing.T) {
 	diff := DiffMaps(old, new)
 
 	// Nested changes use dotted path
-	assert.Contains(t, diff.Changed, "peer.192.168.1.1.asn")
-	assert.Equal(t, 65001, diff.Changed["peer.192.168.1.1.asn"].Old)
-	assert.Equal(t, 65002, diff.Changed["peer.192.168.1.1.asn"].New)
+	assert.Contains(t, diff.Changed, "peer/192.168.1.1/asn")
+	assert.Equal(t, 65001, diff.Changed["peer/192.168.1.1/asn"].Old)
+	assert.Equal(t, 65002, diff.Changed["peer/192.168.1.1/asn"].New)
 }
 
 // TestDiffMapsNestedAdd verifies detection of new nested keys.
@@ -146,7 +146,7 @@ func TestDiffMapsNestedAdd(t *testing.T) {
 	diff := DiffMaps(old, new)
 
 	// New peer subtree appears as added
-	assert.Contains(t, diff.Added, "peer.192.168.1.2")
+	assert.Contains(t, diff.Added, "peer/192.168.1.2")
 }
 
 // TestDiffMapsNestedRemove verifies detection of removed nested keys.
@@ -175,7 +175,7 @@ func TestDiffMapsNestedRemove(t *testing.T) {
 	diff := DiffMaps(old, new)
 
 	// Removed peer subtree appears as removed
-	assert.Contains(t, diff.Removed, "peer.192.168.1.2")
+	assert.Contains(t, diff.Removed, "peer/192.168.1.2")
 }
 
 // TestDiffMapsNilOld verifies diff with nil old map (initial config).

@@ -20,7 +20,7 @@ func TestHubCommandRouting(t *testing.T) {
 	// Register schemas
 	err := o.Registry().Register(&pluginserver.Schema{
 		Module:   "ze-bgp",
-		Handlers: []string{"bgp", "bgp.peer"},
+		Handlers: []string{"bgp", "bgp/peer"},
 		Plugin:   "bgp",
 		Priority: 100,
 	})
@@ -35,12 +35,12 @@ func TestHubCommandRouting(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test routing
-	schema, handler := o.Registry().FindHandler("bgp.peer.list")
+	schema, handler := o.Registry().FindHandler("bgp/peer/list")
 	require.NotNil(t, schema)
-	assert.Equal(t, "bgp.peer", handler)
+	assert.Equal(t, "bgp/peer", handler)
 	assert.Equal(t, "bgp", schema.Plugin)
 
-	schema, handler = o.Registry().FindHandler("rib.show")
+	schema, handler = o.Registry().FindHandler("rib/show")
 	require.NotNil(t, schema)
 	assert.Equal(t, "rib", handler)
 	assert.Equal(t, "rib", schema.Plugin)
@@ -57,10 +57,10 @@ func TestHubEventPattern(t *testing.T) {
 		event    string
 		expected bool
 	}{
-		{"exact_match", "bgp.peer.up", "bgp.peer.up", true},
-		{"wildcard_all", "bgp.*", "bgp.peer", true},
-		{"wildcard_prefix", "bgp.peer.*", "bgp.peer.up", true},
-		{"no_match", "rib.*", "bgp.peer.up", false},
+		{"exact_match", "bgp/peer/up", "bgp/peer/up", true},
+		{"wildcard_all", "bgp/*", "bgp/peer", true},
+		{"wildcard_prefix", "bgp/peer/*", "bgp/peer/up", true},
+		{"no_match", "rib/*", "bgp/peer/up", false},
 	}
 
 	for _, tt := range tests {
