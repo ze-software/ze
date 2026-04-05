@@ -46,6 +46,6 @@ expect=dirty:true
 input=type:text=commit
 input=enter
 expect=status:contains=committed
-expect=status:contains=reload failed
+expect=status:contains=reload errors
 expect=dirty:false
 expect=error:none

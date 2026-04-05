@@ -1735,7 +1735,7 @@ func TestCmdCommitSessionReloadFails(t *testing.T) {
 	result, err := model.cmdCommitSession()
 	require.NoError(t, err, "session commit should not fail on reload error")
 
-	assert.Contains(t, result.statusMessage, "reload failed", "status should warn about reload failure")
+	assert.Contains(t, result.statusMessage, "reload errors", "status should warn about reload failure")
 	assert.Contains(t, result.statusMessage, "change(s) applied", "status should show changes applied")
 }
 

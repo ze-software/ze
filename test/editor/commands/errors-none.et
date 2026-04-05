@@ -37,6 +37,6 @@ input=type:text=errors
 input=enter
 
 # Should show no issues
-expect=content:contains=No validation issues
+expect=content:contains=No issues
 expect=errors:count=0
 expect=error:none
