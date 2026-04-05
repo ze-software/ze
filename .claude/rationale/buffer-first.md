@@ -24,9 +24,9 @@ When encoding requires parsing before writing:
 
 | Tool | Location |
 |------|----------|
-| `wire.BufWriter` | `internal/plugins/bgp/wire/writer.go` |
+| `wire.BufWriter` | `internal/component/bgp/wire/writer.go` |
 | `wire.CheckedBufWriter` | Same |
 | `wire.SessionBuffer` | Same |
-| `attribute.WriteHeaderTo()` | `internal/plugins/bgp/attribute/attribute.go` |
+| `attribute.WriteHeaderTo()` | `internal/component/bgp/attribute/attribute.go` |
 | `attribute.WriteAttributeTo()` | Same |
 | `nlri.WriteTo()` | Various NLRI types |

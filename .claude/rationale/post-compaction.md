@@ -19,7 +19,7 @@ A `[x]` in a spec means you read it in a previous session. You don't remember th
 ## File Digest Format
 ```
 ## File Digests
-- `reactor/peer.go` (380L): Peer struct, FSM state transitions. Key: Run(), handleOpen(), handleUpdate(). Uses wire.SessionBuffer.
-- `reactor/session.go` (420L): Session struct, read/write loops. Key: handleRead(), handleWrite(), Close().
+- `internal/component/bgp/reactor/peer.go` (380L): Peer struct, FSM state transitions. Key: Run(), handleOpen(), handleUpdate(). Uses wire.SessionBuffer.
+- `internal/component/bgp/reactor/session.go` (420L): Session struct, read/write loops. Key: handleRead(), handleWrite(), Close().
 ```
 Each digest: file path, line count, key types/functions, 1-2 sentences of what it does.

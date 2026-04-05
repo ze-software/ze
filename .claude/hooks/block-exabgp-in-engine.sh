@@ -23,8 +23,8 @@ if [[ "$FILE_PATH" =~ /exabgp/ ]]; then
     exit 0
 fi
 
-# Skip cmd/ze/bgp/exabgp.go - CLI wrapper is allowed
-if [[ "$FILE_PATH" =~ cmd/ze/bgp/exabgp ]]; then
+# Skip cmd/ze/exabgp/ - CLI wrapper is allowed
+if [[ "$FILE_PATH" =~ cmd/ze/exabgp ]]; then
     exit 0
 fi
 

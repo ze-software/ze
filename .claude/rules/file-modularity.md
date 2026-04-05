@@ -37,4 +37,4 @@ Before creating a file: "one concern?" Before adding to one: "belongs to this fi
 
 ## Reference
 
-Active spec: `plan/spec-file-modularity.md`. Prior: `plan/learned/221-file-splitting.md`.
+Learned: `plan/learned/363-file-modularity.md`. Prior: `plan/learned/221-file-splitting.md`.

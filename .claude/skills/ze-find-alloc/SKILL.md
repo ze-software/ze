@@ -8,14 +8,14 @@ See also: `/ze-fix-alloc` (fix a specific allocation)
 
 1. Use ULTRATHINK for thorough analysis
 2. Accept an optional `$ARGUMENTS` parameter:
-   - If provided: scope search to that path (e.g., `internal/plugins/bgp/reactor/`)
+   - If provided: scope search to that path (e.g., `internal/component/bgp/reactor/`)
    - If empty: scan all production encoding paths under `internal/`
 3. Exclude `_test.go` files -- tests legitimately allocate for test data
 4. Exclude these legitimate uses:
-   - `pool/pool.go` -- pool infrastructure (manages buffers)
-   - `wire/writer.go` -- buffer infrastructure itself
+   - `internal/component/bgp/attrpool/pool.go` -- pool infrastructure (manages buffers)
+   - `internal/component/bgp/wire/writer.go` -- buffer infrastructure itself
    - `sync.Pool` factory functions -- session buffer pools
-   - `message/open.go` parsing paths -- decoding allocates for parsed data
+   - `internal/component/bgp/message/open.go` parsing paths -- decoding allocates for parsed data
    - JSON marshal paths (`MarshalJSON`) -- JSON encoding is separate
    - IPC framing (`ipc/`) -- not wire encoding
    - Config loading (`config/loader.go` line 1069) -- config processing

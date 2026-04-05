@@ -23,7 +23,7 @@ Re-read source files from Current Behavior + architecture docs. Write digests im
 ## Digest Format
 
 ```
-- `reactor/peer.go` (380L): Peer struct, FSM transitions. Key: Run(), handleOpen(). Uses wire.SessionBuffer.
+- `internal/component/bgp/reactor/peer.go` (380L): Peer struct, FSM transitions. Key: Run(), handleOpen(). Uses wire.SessionBuffer.
 ```
 
 Spec checkboxes are always `[ ]` -- never tick them. Use `-> Decision:` / `-> Constraint:` annotations and per-spec session state digests to recover knowledge after compaction. If a reading entry has no annotation, re-read the file.

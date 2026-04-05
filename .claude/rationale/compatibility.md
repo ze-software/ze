@@ -15,9 +15,9 @@ ExaBGP compatibility is provided via external tools, not in-engine code:
 | `ze config migrate` | Convert ExaBGP configs to Ze format |
 
 ### File Layout
-- `internal/exabgp/bridge.go` -- Core translation: `ZebgpToExabgpJSON()`, `ExabgpToZebgpCommand()`, `Bridge`
-- `internal/exabgp/bridge_test.go` -- Unit tests
-- `cmd/ze/bgp/exabgp.go` -- CLI wrapper: `ze exabgp plugin <cmd>`
+- `internal/exabgp/bridge/bridge.go` -- Core translation: `ZebgpToExabgpJSON()`, `ExabgpToZebgpCommand()`, `Bridge`
+- `internal/exabgp/bridge/bridge_test.go` -- Unit tests
+- `cmd/ze/exabgp/main.go` -- CLI wrapper: `ze exabgp plugin <cmd>`
 
 ### Design Rationale
 - Programmatic use of translation in other Go tools (library)

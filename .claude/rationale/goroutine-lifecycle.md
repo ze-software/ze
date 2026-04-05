@@ -16,5 +16,5 @@ Unbounded goroutine creation: no backpressure → memory exhaustion.
 
 | Component | Channel | Worker | Location |
 |-----------|---------|--------|----------|
-| Plugin process | `eventChan` | `deliveryLoop()` | `internal/plugin/process.go` |
-| Peer session | `deliverChan` | delivery goroutine | `internal/plugins/bgp/reactor/peer.go` |
+| Plugin process | `eventChan` | `deliveryLoop()` | `internal/component/plugin/process/process.go` |
+| Peer session | `deliverChan` | delivery goroutine | `internal/component/bgp/reactor/peer.go` |

@@ -21,7 +21,7 @@ Name the file, name the section, describe the change. Never say "update document
 | 2 | User guide | `docs/guide/<topic>.md` | Feature with usage instructions |
 | 3 | Config syntax | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` | Config format changes |
 | 4 | CLI reference | `docs/guide/command-reference.md` | New/changed CLI commands |
-| 5 | API/RPC docs | `docs/architecture/api/commands.md`, `api/architecture.md` | New/changed RPCs or event types |
+| 5 | API/RPC docs | `docs/architecture/api/commands.md`, `docs/architecture/api/architecture.md` | New/changed RPCs or event types |
 | 6 | Plugin guide | `docs/guide/plugins.md`, `docs/plugin-development/` | Plugin SDK or lifecycle changes |
 | 7 | Wire format | `docs/architecture/wire/*.md` | Encoding/decoding changes |
 | 8 | Plugin SDK rules | `.claude/rules/plugin-design.md` | Registration fields, protocol changes |

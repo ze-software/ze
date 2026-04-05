@@ -8,7 +8,7 @@ The registry has zero plugin dependencies. Plugin packages import the registry (
 
 ## Why Infrastructure Must Not Import Plugins
 
-Registry exists as an indirection layer. Direct imports create coupling and import cycles. Known violations still exist in: `cmd/ze/bgp/encode.go`, `reactor/reactor.go`, `message/update_build.go`, `config/loader.go` — to be fixed via `registry.EncodeNLRIByFamily(family, args)`.
+Registry exists as an indirection layer. Direct imports create coupling and import cycles. Known violations still exist in: `cmd/ze/bgp/encode.go`, `internal/component/bgp/reactor/reactor.go`, `internal/component/bgp/message/update_build.go`, `internal/component/bgp/config/loader.go` -- to be fixed via `registry.EncodeNLRIByFamily(family, args)`.
 
 ## SDK Callbacks Available
 

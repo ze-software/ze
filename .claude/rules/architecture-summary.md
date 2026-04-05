@@ -11,7 +11,7 @@ Full details: `docs/architecture/core-design.md`
 ## System
 
 ```
-BGP Subsystem (internal/plugins/bgp/):
+BGP Subsystem (internal/component/bgp/):
   Peers (FSM) → Wire Layer → Reactor (event loop, BGP cache) → EventDispatcher
    ║ formatted events (down) / commands (up)
 Plugin Infrastructure (internal/plugin/):

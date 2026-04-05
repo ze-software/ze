@@ -15,12 +15,12 @@ Structural template: `.claude/patterns/plugin.md`
 
 | Layer | Location | Purpose |
 |-------|----------|---------|
-| Registry | `internal/plugin/registry/` | Central registry (leaf package, no plugin deps) |
+| Registry | `internal/component/plugin/registry/` | Central registry (leaf package, no plugin deps) |
 | Public SDK | `pkg/plugin/sdk/` | Callback abstraction for external plugins |
 | RPC Types | `pkg/plugin/rpc/` | Shared YANG RPC types + `MuxConn` for concurrent RPCs |
-| Internal | `internal/plugins/<name>/` | Plugin implementations + `register.go` |
-| All imports | `internal/plugin/all/` | Blank imports triggering all `init()` |
-| CLI shared | `internal/plugin/cli/` | `PluginConfig` + `RunPlugin()` |
+| Internal | `internal/component/bgp/plugins/<name>/` | Plugin implementations + `register.go` |
+| All imports | `internal/component/plugin/all/` | Blank imports triggering all `init()` |
+| CLI shared | `internal/component/plugin/cli/` | `PluginConfig` + `RunPlugin()` |
 
 ## Proximity Principle (BLOCKING)
 
@@ -49,10 +49,10 @@ Structural template: `.claude/patterns/plugin.md`
 Infrastructure MUST NOT import plugin implementations directly -- use registry lookups.
 Plugins MUST NOT import sibling plugin packages -- use text commands via DispatchCommand.
 
-- `internal/plugin/`, `internal/plugins/bgp/`, `internal/component/config/`, `cmd/ze/` -> registry
+- `internal/component/plugin/`, `internal/component/bgp/`, `internal/component/config/`, `cmd/ze/` -> registry
 - NLRI decoding: `registry.NLRIDecoder(family)` -> `func(hex) (json, error)`
 - NLRI encoding: `registry.NLRIEncoder(family)` -> `func(args) (hex, error)`
-- Plugin `register.go` and `all/all.go` blank imports: allowed
+- Plugin `register.go` and `internal/component/plugin/all/all.go` blank imports: allowed
 - Schema imports (`<plugin>/schema/`): allowed (data, not logic)
 - Test imports: tolerated
 
@@ -114,7 +114,7 @@ This is runtime IPC, not compile-time registration. Filter fields are stored in
 | `filters[].on-error` | enum | reject (fail-closed) or accept (fail-open) |
 | `filters[].overrides` | []string | Default filters this filter replaces |
 
-See `plan/spec-redistribution-filter.md` for the full design.
+See `plan/learned/479-redistribution-filter.md` for the full design.
 
 ## New Plugin Checklist
 

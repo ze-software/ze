@@ -68,4 +68,4 @@ Same as `// Design:`: `*_test.go`, `*_gen.go`, `register.go`, `embed.go`, `doc.g
 
 ## Reference
 
-Spec: `plan/spec-file-modularity.md`. Enforcement hook: `require-related-refs.sh` (exit 2, blocking).
+Learned: `plan/learned/363-file-modularity.md`. Enforcement hook: `require-related-refs.sh` (exit 2, blocking).

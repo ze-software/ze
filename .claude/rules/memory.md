@@ -23,13 +23,13 @@ Validate format (contains "/", non-empty parts) — never enumerate all families
 
 ### Config Pipeline
 File → Tree → `ResolveBGPTree()` → `map[string]any` → `reactor.PeersFromTree()`.
-Key files: `internal/component/bgp/config/resolve.go`, `internal/component/bgp/config/peers.go`, `reactor/config.go`.
+Key files: `internal/component/bgp/config/resolve.go`, `internal/component/bgp/config/peers.go`, `internal/component/bgp/reactor/config.go`.
 
 ### Linter Hook
 `auto_linter.sh` runs goimports on Edit/Write. Add import + usage in same edit to avoid cascading removals.
 
 ### Architecture Restructuring (arch-0)
-Umbrella spec: `plan/spec-arch-0-system-boundaries.md`. Six phases.
+Umbrella spec: `plan/learned/425-arch-0-system-boundaries.md`. Six phases.
 Key decisions agreed with user:
 - **5 components:** Engine (supervisor), Bus (content-agnostic pub/sub), ConfigProvider, PluginManager, Subsystem
 - **Subsystem ≠ Plugin:** BGP daemon is a subsystem (owns TCP/FSM), bgp-rib/rs/gr are plugins
@@ -123,7 +123,7 @@ Do NOT flag these as "identity wrappers adding no value."
 - **Rule:** `rules/documentation.md` Source Anchors section. Read the source file BEFORE writing any factual claim. Add `<!-- source: path -- symbol -->` HTML comments. Never describe code from memory.
 
 ### Spec Deleted Without Committing (lg-overhaul, ZERO TOLERANCE)
-- Spec `plan/spec-lg-overhaul.md` was created as untracked file, never committed, then `git rm -f` deleted it. Content lost forever. Audit tables, verification evidence, design decisions -- all gone.
+- Spec `spec-lg-overhaul` (see `plan/learned/498-lg-overhaul.md`) was created as untracked file, never committed, then `git rm -f` deleted it. Content lost forever. Audit tables, verification evidence, design decisions -- all gone.
 - Root cause: treated spec deletion as a single step instead of two commits. Commit A should include the completed spec; Commit B should delete it and add the learned summary.
 - **Rule:** `rules/spec-preservation.md`. TWO commits: (A) code + completed spec, (B) `git rm` spec + add learned summary. Never delete a spec that has not been committed.
 
