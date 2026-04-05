@@ -680,7 +680,7 @@ func TestResolveDependencies_CircularDep(t *testing.T) {
 
 // TestResolveDependencies_MissingDep verifies unknown deps are detected.
 //
-// VALIDATES: A depends on unknown → returns ErrMissingDependency.
+// VALIDATES: A depends on unknown -> returns ErrMissingDependency.
 // PREVENTS: Silent skip of unregistered dependencies.
 func TestResolveDependencies_MissingDep(t *testing.T) {
 	t.Cleanup(func() { Reset() })

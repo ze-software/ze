@@ -17,6 +17,7 @@ func init() {
 		SupportsCapa:    true,
 		Features:        "capa yang",
 		ConfigRoots:     []string{"bgp"},
+		Dependencies:    []string{"bgp"},
 		YANG:            llnhschema.ZeLinkLocalNexthopYANG,
 		CapabilityCodes: []uint8{77},
 		RunEngine:       RunLLNHPlugin,

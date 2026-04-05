@@ -18,7 +18,7 @@ func init() {
 		Features:     "yang",
 		YANG:         rpkischema.ZeRPKIYANG,
 		ConfigRoots:  []string{"bgp"},
-		Dependencies: []string{"bgp-adj-rib-in"},
+		Dependencies: []string{"bgp", "bgp-adj-rib-in"},
 		RunEngine:    RunRPKIPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))

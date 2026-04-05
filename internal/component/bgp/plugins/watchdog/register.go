@@ -15,10 +15,11 @@ func init() {
 
 func pluginSetup() {
 	reg := registry.Registration{
-		Name:        "bgp-watchdog",
-		Description: "Watchdog route management plugin",
-		ConfigRoots: []string{"bgp"},
-		RunEngine:   RunWatchdogPlugin,
+		Name:         "bgp-watchdog",
+		Description:  "Watchdog route management plugin",
+		ConfigRoots:  []string{"bgp"},
+		Dependencies: []string{"bgp"},
+		RunEngine:    RunWatchdogPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return 0
 		},

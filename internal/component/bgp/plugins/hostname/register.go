@@ -19,6 +19,7 @@ func init() {
 		SupportsCapa:    true,
 		Features:        "capa yang",
 		ConfigRoots:     []string{"bgp"},
+		Dependencies:    []string{"bgp"},
 		YANG:            hostnameschema.ZeHostnameYANG,
 		CapabilityCodes: []uint8{73},
 		RunEngine:       RunHostnamePlugin,

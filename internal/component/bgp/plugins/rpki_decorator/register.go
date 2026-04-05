@@ -15,7 +15,7 @@ func init() {
 		Description:  "Correlates UPDATE + RPKI events into merged update-rpki events",
 		Features:     "yang",
 		YANG:         decschema.ZeRPKIDecoratorYANG,
-		Dependencies: []string{"bgp-rpki"},
+		Dependencies: []string{"bgp", "bgp-rpki"},
 		EventTypes:   []string{eventTypeUpdateRPKI},
 		RunEngine:    RunDecorator,
 		ConfigureEngineLogger: func(loggerName string) {

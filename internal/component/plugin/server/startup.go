@@ -117,18 +117,9 @@ func (s *Server) handlePluginConflict(proc *process.Process, name, msg string, e
 func (s *Server) runPluginStartup() {
 	defer s.wg.Done()
 
-	// Phase 1: Explicit plugins (from config plugin { external ... } section).
-	if len(s.config.Plugins) > 0 {
-		logger().Debug("starting explicit plugins", "count", len(s.config.Plugins))
-		if err := s.runPluginPhase(s.config.Plugins); err != nil {
-			logger().Error("explicit plugin startup failed", "error", err)
-			s.signalStartupComplete()
-			return
-		}
-	}
-
-	// Phase 2: Auto-load plugins for config paths
-	// Config has fib { kernel { } } but no explicit plugin declaration.
+	// Phase 1: Auto-load plugins for config paths (e.g., bgp, interface, fib).
+	// Config-path plugins run first because they establish infrastructure
+	// (like the BGP reactor) that explicit and family plugins depend on.
 	autoLoadConfigPaths := s.getConfigPathPlugins()
 	if len(autoLoadConfigPaths) > 0 {
 		logger().Debug("auto-loading plugins for config paths",
@@ -140,6 +131,17 @@ func (s *Server) runPluginStartup() {
 
 		if err := s.runPluginPhase(autoLoadConfigPaths); err != nil {
 			logger().Error("auto-load config path plugin startup failed", "error", err)
+			s.signalStartupComplete()
+			return
+		}
+	}
+
+	// Phase 2: Explicit plugins (from config plugin { external ... } section).
+	// These run after config-path plugins so infrastructure is available.
+	if len(s.config.Plugins) > 0 {
+		logger().Debug("starting explicit plugins", "count", len(s.config.Plugins))
+		if err := s.runPluginPhase(s.config.Plugins); err != nil {
+			logger().Error("explicit plugin startup failed", "error", err)
 			s.signalStartupComplete()
 			return
 		}

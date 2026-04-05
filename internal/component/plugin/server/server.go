@@ -220,6 +220,15 @@ func (s *Server) Context() context.Context {
 }
 
 // Reactor returns the reactor lifecycle interface.
+// UpdateBGPConfig sets BGP-specific auto-load configuration after the reactor
+// has parsed peer settings. Called by the BGP plugin's RunEngine after creating
+// the reactor, so that family/event/send auto-load phases have the data they need.
+func (s *Server) UpdateBGPConfig(families, customEvents, customSendTypes []string) {
+	s.config.ConfiguredFamilies = families
+	s.config.ConfiguredCustomEvents = customEvents
+	s.config.ConfiguredCustomSendTypes = customSendTypes
+}
+
 func (s *Server) Reactor() plugin.ReactorLifecycle {
 	return s.reactor
 }

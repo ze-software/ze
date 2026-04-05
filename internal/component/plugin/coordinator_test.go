@@ -63,7 +63,9 @@ func TestCoordinatorWithoutReactor(t *testing.T) {
 func TestCoordinatorWithReactor(t *testing.T) {
 	c := NewCoordinator(map[string]any{})
 	m := &mockReactor{}
-	c.SetReactor(m)
+	if err := c.SetReactor(m); err != nil {
+		t.Fatal(err)
+	}
 
 	c.Peers()
 	if !m.peersCalled {
@@ -92,7 +94,9 @@ func TestCoordinatorWithReactor(t *testing.T) {
 func TestCoordinatorUnsetReactor(t *testing.T) {
 	c := NewCoordinator(map[string]any{})
 	m := &mockReactor{}
-	c.SetReactor(m)
+	if err := c.SetReactor(m); err != nil {
+		t.Fatal(err)
+	}
 
 	// Delegates
 	c.Peers()
@@ -101,7 +105,9 @@ func TestCoordinatorUnsetReactor(t *testing.T) {
 	}
 
 	// Unset
-	c.SetReactor(nil)
+	if err := c.SetReactor(nil); err != nil {
+		t.Fatal(err)
+	}
 	addr := netip.MustParseAddr("10.0.0.1")
 	if err := c.TeardownPeer(addr, 2, ""); !errors.Is(err, ErrBGPNotLoaded) {
 		t.Errorf("expected ErrBGPNotLoaded after unset, got %v", err)

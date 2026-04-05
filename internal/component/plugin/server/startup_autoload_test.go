@@ -37,7 +37,7 @@ func TestGetUnclaimedEventTypePlugins(t *testing.T) {
 			// bgp-rpki-decorator produces update-rpki, depends on bgp-rpki,
 			// which depends on bgp-adj-rib-in. ResolveDependencies returns
 			// all transitive dependencies in dependency-first order.
-			wantPluginNames: []string{"bgp-rpki-decorator", "bgp-rpki", "bgp-adj-rib-in"},
+			wantPluginNames: []string{"bgp-rpki-decorator", "bgp", "bgp-rpki", "bgp-adj-rib-in"},
 		},
 		{
 			name:         "already_configured_plugin_skipped",

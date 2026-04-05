@@ -540,10 +540,34 @@ func (r *Reactor) SetPluginServer(s *pluginserver.Server) {
 	r.api = s
 }
 
+// SetPluginServerAny is like SetPluginServer but accepts any, type-asserting
+// to *pluginserver.Server. Used by bgp/plugin to avoid importing plugin/server.
+func (r *Reactor) SetPluginServerAny(s any) {
+	if srv, ok := s.(*pluginserver.Server); ok {
+		r.api = srv
+	}
+}
+
+// SetBusAny is like SetBus but accepts any, type-asserting to ze.Bus.
+// Used by bgp/plugin to avoid importing ze in the plugin package.
+func (r *Reactor) SetBusAny(b any) {
+	if bus, ok := b.(ze.Bus); ok {
+		r.SetBus(bus)
+	}
+}
+
+// ConfiguredAutoLoad returns the BGP-specific auto-load configuration
+// extracted from peer settings. Used by the hub to update the plugin server
+// so family/event/send auto-load phases have the data they need.
+func (r *Reactor) ConfiguredAutoLoad() (families, events, sendTypes []string) {
+	return r.config.ConfiguredFamilies, r.config.ConfiguredCustomEvents, r.config.ConfiguredCustomSendTypes
+}
+
 // ReactorLifecycleAdapter returns a ReactorLifecycle implementation that
 // delegates to this reactor. Used to register the reactor with the
 // PluginCoordinator when BGP loads as a config-driven plugin.
-func (r *Reactor) ReactorLifecycleAdapter() plugin.ReactorLifecycle {
+// Returns any to satisfy registry.BGPReactorHandle interface.
+func (r *Reactor) ReactorLifecycleAdapter() any {
 	return &reactorAPIAdapter{r}
 }
 

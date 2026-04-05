@@ -55,11 +55,6 @@ import (
 	// Must happen at the binary entry point (not in internal/plugin)
 	// to avoid import cycles: format → plugin → all → bgp-rs → format.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
-
-	// BGP component plugin (config-driven auto-loading via ConfigRoots).
-	// Imported here instead of plugin/all to avoid test cycle:
-	// bgp/config tests → plugin/all → bgp/plugin → bgp/config.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugin"
 )
 
 // Env var registrations for storage and config.

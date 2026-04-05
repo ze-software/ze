@@ -441,13 +441,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return 1
 	}
 
-	// Store load context for BGP plugin's RunEngine.
-	bgpconfig.StoreLoadContext(loadResult, configPath, store)
-	// Store chaos config for BGP plugin to inject into reactor.
-	if chaosSeed != 0 {
-		bgpconfig.StoreLoadChaos(chaosSeed, chaosRate)
-	}
-
 	configPaths := zeconfig.CollectContainerPaths(loadResult.Tree)
 
 	// Resolve web/LG/MCP config: env > config file > CLI defaults.
@@ -545,6 +538,44 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	configTree := loadResult.Tree.ToMap()
 	coordinator := zePlugin.NewCoordinator(configTree)
+
+	// Store reactor factory and storage for the BGP plugin's RunEngine.
+	// Uses coordinator.SetExtra to avoid bgp/config import cycles.
+	capturedResult := loadResult
+	capturedPath := configPath
+	capturedStore := store
+	capturedChaosSeed := chaosSeed
+	capturedChaosRate := chaosRate
+	coordinator.SetExtra("bgp.createReactor", func() (registry.BGPReactorHandle, error) {
+		r, createErr := bgpconfig.CreateReactor(capturedResult, capturedPath, capturedStore)
+		if createErr != nil {
+			return nil, createErr
+		}
+		// Inject chaos wrappers if enabled.
+		if capturedChaosSeed != 0 {
+			seed := chaos.ResolveSeed(capturedChaosSeed)
+			rate := capturedChaosRate
+			if rate < 0 {
+				rate = 0.1
+			}
+			chaosLogger := slogutil.Logger("chaos")
+			cfg := chaos.ChaosConfig{Seed: seed, Rate: rate, Logger: chaosLogger}
+			c, d, l := chaos.NewChaosWrappers(clock.RealClock{}, &network.RealDialer{}, network.RealListenerFactory{}, cfg)
+			r.SetClock(c)
+			r.SetDialer(d)
+			r.SetListenerFactory(l)
+			chaosLogger.Info("chaos self-test mode enabled", "seed", seed, "rate", rate)
+		}
+		// Read GR marker from storage (RFC 4724 Section 4.1).
+		if expiry, grOK := grmarker.Read(capturedStore); grOK {
+			r.SetRestartUntil(expiry)
+			slogutil.Logger("bgp.gr").Info("GR restart marker found", "expires", expiry)
+		}
+		if removeErr := grmarker.Remove(capturedStore); removeErr != nil {
+			slogutil.Logger("bgp.gr").Warn("failed to remove GR marker", "error", removeErr)
+		}
+		return r, nil
+	})
 
 	pm := pluginmgr.NewManager()
 

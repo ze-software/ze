@@ -16,6 +16,7 @@ func init() {
 		Name:           "bgp-filter-community",
 		Description:    "Community tag/strip filter (standard, large, extended)",
 		ConfigRoots:    []string{"bgp"},
+		Dependencies:   []string{"bgp"},
 		YANG:           fcschema.ZeFilterCommunityYANG,
 		RunEngine:      RunFilterCommunity,
 		CLIHandler:     func(_ []string) int { return 0 },

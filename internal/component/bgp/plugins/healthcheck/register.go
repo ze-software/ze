@@ -18,7 +18,7 @@ func pluginSetup() {
 		Name:         "bgp-healthcheck",
 		Description:  "Service healthcheck plugin with watchdog route control",
 		ConfigRoots:  []string{"bgp"},
-		Dependencies: []string{"bgp-watchdog"},
+		Dependencies: []string{"bgp", "bgp-watchdog"},
 		Features:     "yang",
 		YANG:         schema.ZeHealthcheckConfYANG,
 		RunEngine:    RunHealthcheckPlugin,

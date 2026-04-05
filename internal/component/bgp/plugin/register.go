@@ -1,8 +1,9 @@
 // Design: docs/architecture/core-design.md -- BGP plugin registration with ConfigRoots
 //
 // Package plugin provides the BGP plugin registration for config-driven loading.
-// Separated from the bgp parent package to avoid import cycles:
-// bgp/server (test) -> bgp -> bgp/config -> bgp/reactor -> bgp/server.
+// This package imports neither bgp/config, bgp/reactor, nor plugin/server,
+// avoiding all import cycles. It accesses the reactor and server through
+// interfaces and closures stored in the Coordinator.
 
 package plugin
 
@@ -13,23 +14,23 @@ import (
 	"os"
 	"sync"
 
-	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
+// Coordinator extra keys used by the hub to pass state to RunEngine.
+const (
+	// KeyCreateReactor holds a func() (BGPReactorHandle, error) closure.
+	KeyCreateReactor = "bgp.createReactor"
+)
+
 var (
 	bgpMu     sync.Mutex
 	bgpBus    ze.Bus
-	bgpServer *pluginserver.Server
+	bgpServer registry.PluginServerAccessor
 )
 
 func init() {
@@ -51,7 +52,7 @@ func init() {
 			}
 		},
 		ConfigurePluginServer: func(server any) {
-			if s, ok := server.(*pluginserver.Server); ok {
+			if s, ok := server.(registry.PluginServerAccessor); ok {
 				bgpMu.Lock()
 				bgpServer = s
 				bgpMu.Unlock()
@@ -68,9 +69,6 @@ func init() {
 }
 
 // runBGPEngine is the engine-mode entry point for the BGP plugin.
-// It retrieves the pre-parsed config from bgpconfig.GetLoadContext(),
-// creates the reactor, wires it to the hub-owned plugin server,
-// and blocks until shutdown.
 func runBGPEngine(conn net.Conn) int {
 	log := slogutil.Logger("bgp.plugin")
 	log.Debug("bgp plugin starting")
@@ -78,25 +76,30 @@ func runBGPEngine(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp", conn)
 	defer func() { _ = p.Close() }()
 
-	var bgpReactor *reactor.Reactor
+	var bgpReactor registry.BGPReactorHandle
 
 	p.OnConfigure(func(_ []sdk.ConfigSection) error {
-		// Config sections come through the SDK, but we use the pre-parsed
-		// Tree from the hub (stored via StoreLoadContext) because the reactor
-		// needs the full *config.Tree, not JSON fragments.
-		loadResult, configPath, storeAny := bgpconfig.GetLoadContext()
-		if loadResult == nil {
-			return fmt.Errorf("bgp: no config context available")
+		bgpMu.Lock()
+		server := bgpServer
+		bgpMu.Unlock()
+
+		if server == nil {
+			return fmt.Errorf("bgp: no plugin server available")
 		}
 
-		store, ok := storeAny.(storage.Storage)
+		coord, ok := server.Reactor().(registry.CoordinatorAccessor)
 		if !ok {
-			return fmt.Errorf("bgp: invalid storage type in load context")
+			return fmt.Errorf("bgp: server reactor is not a Coordinator")
 		}
 
-		// Create reactor from the pre-parsed config tree.
+		// Retrieve the reactor factory stored by the hub.
+		createFn, ok := coord.GetExtra(KeyCreateReactor).(func() (registry.BGPReactorHandle, error))
+		if !ok || createFn == nil {
+			return fmt.Errorf("bgp: no reactor factory in coordinator")
+		}
+
 		var err error
-		bgpReactor, err = bgpconfig.CreateReactor(loadResult, configPath, store)
+		bgpReactor, err = createFn()
 		if err != nil {
 			return fmt.Errorf("bgp: create reactor: %w", err)
 		}
@@ -104,37 +107,28 @@ func runBGPEngine(conn net.Conn) int {
 		// Wire reactor to hub-owned infrastructure.
 		bgpMu.Lock()
 		bus := bgpBus
-		server := bgpServer
 		bgpMu.Unlock()
 
 		if bus != nil {
-			bgpReactor.SetBus(bus)
-		}
-		if server != nil {
-			bgpReactor.SetPluginServer(server)
+			bgpReactor.SetBusAny(bus)
 		}
 
-		// Read GR marker from storage.
-		if expiry, grOK := grmarker.Read(store); grOK {
-			bgpReactor.SetRestartUntil(expiry)
-			log.Info("GR restart marker found", "expires", expiry)
-		}
-		if removeErr := grmarker.Remove(store); removeErr != nil {
-			log.Warn("failed to remove GR marker", "error", removeErr)
+		// Pass plugin server to reactor for EventDispatcher wiring.
+		if serverAny := registry.GetPluginServer(); serverAny != nil {
+			bgpReactor.SetPluginServerAny(serverAny)
 		}
 
-		// Register reactor with the coordinator so the plugin server's
-		// ReactorLifecycle calls delegate to the real reactor.
-		if server != nil {
-			if coord, coordOK := server.Reactor().(*zePlugin.Coordinator); coordOK {
-				coord.SetReactor(bgpReactor.ReactorLifecycleAdapter())
-			}
+		// Update server with BGP-specific auto-load config.
+		families, events, sendTypes := bgpReactor.ConfiguredAutoLoad()
+		server.UpdateBGPConfig(families, events, sendTypes)
+
+		// Register reactor with coordinator for ReactorLifecycle delegation.
+		if err := coord.SetReactor(bgpReactor.ReactorLifecycleAdapter()); err != nil {
+			return fmt.Errorf("bgp: register reactor: %w", err)
 		}
 
-		// Start reactor synchronously. The externalServer flag on the reactor
-		// skips WaitForPluginStartupComplete/WaitForAPIReady (which would
-		// deadlock since BGP is itself a plugin). This ensures the reactor
-		// has bound its listeners and started peers before OnConfigure returns.
+		// Start reactor synchronously. The externalServer flag skips
+		// WaitForPluginStartupComplete/WaitForAPIReady (avoids self-deadlock).
 		if err := bgpReactor.StartWithContext(context.Background()); err != nil {
 			return fmt.Errorf("bgp: start reactor: %w", err)
 		}
@@ -149,7 +143,6 @@ func runBGPEngine(conn net.Conn) int {
 		return 1
 	}
 
-	// Wait for reactor shutdown if it was started.
 	if bgpReactor != nil {
 		_ = bgpReactor.Wait(context.Background())
 	}

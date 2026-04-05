@@ -19,6 +19,7 @@ func init() {
 		SupportsCapa:    true,
 		Features:        "capa yang",
 		ConfigRoots:     []string{"bgp"},
+		Dependencies:    []string{"bgp"},
 		YANG:            softverschema.ZeSoftverYANG,
 		CapabilityCodes: []uint8{75},
 		RunEngine:       RunSoftverPlugin,

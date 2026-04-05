@@ -5,6 +5,7 @@ package plugin
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/netip"
 	"sync"
 )
@@ -22,18 +23,47 @@ type Coordinator struct {
 	mu         sync.RWMutex
 	configTree map[string]any
 	reactor    ReactorLifecycle // nil when BGP not loaded
+	extra      map[string]any   // generic key-value store for cross-plugin state
 }
 
 // NewCoordinator creates a Coordinator with the given config tree.
 func NewCoordinator(configTree map[string]any) *Coordinator {
-	return &Coordinator{configTree: configTree}
+	return &Coordinator{
+		configTree: configTree,
+		extra:      make(map[string]any),
+	}
 }
 
-// SetReactor registers a BGP reactor for delegation. Pass nil to unregister.
-func (c *Coordinator) SetReactor(r ReactorLifecycle) {
+// SetExtra stores a value by key. Used to pass state between the hub and
+// plugins without creating import cycles (e.g., LoadConfigResult, Storage).
+func (c *Coordinator) SetExtra(key string, value any) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.reactor = r
+	c.extra[key] = value
+}
+
+// GetExtra retrieves a value by key. Returns nil if not set.
+func (c *Coordinator) GetExtra(key string) any {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.extra[key]
+}
+
+// SetReactor registers a BGP reactor for delegation.
+// Pass nil to unregister. Returns error if r is non-nil but not ReactorLifecycle.
+func (c *Coordinator) SetReactor(r any) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if r == nil {
+		c.reactor = nil
+		return nil
+	}
+	rl, ok := r.(ReactorLifecycle)
+	if !ok {
+		return fmt.Errorf("coordinator: expected ReactorLifecycle, got %T", r)
+	}
+	c.reactor = rl
+	return nil
 }
 
 // getReactor returns the current reactor or nil.

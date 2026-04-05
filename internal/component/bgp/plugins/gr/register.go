@@ -36,7 +36,7 @@ func init() {
 		ConfigRoots:     []string{"bgp"},
 		YANG:            grschema.ZeGracefulRestartYANG,
 		CapabilityCodes: []uint8{64, 71},
-		Dependencies:    []string{"bgp-rib"},
+		Dependencies:    []string{"bgp", "bgp-rib"},
 		EgressFilter:    LLGREgressFilter,
 		FilterStage:     registry.FilterStageAnnotation,
 		RunEngine:       RunGRPlugin,
