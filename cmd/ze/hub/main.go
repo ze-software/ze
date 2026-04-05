@@ -700,7 +700,16 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	fmt.Println("Ze running. Press Ctrl+C to stop.")
 
-	<-sigCh
+	// Wait for either signal or server shutdown (e.g., "daemon shutdown" command).
+	// Server.Wait blocks until all plugin processes exit -- happens when a plugin
+	// dispatches "daemon shutdown" which calls reactor.Stop().
+	doneCh := make(chan struct{})
+	go waitForServerDone(apiServer, doneCh)
+
+	select {
+	case <-sigCh:
+	case <-doneCh:
+	}
 	fmt.Println("\nShutting down...")
 
 	if mcpSrv != nil {
@@ -720,6 +729,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	fmt.Println("Ze stopped.")
 	return 0
+}
+
+// waitForServerDone blocks until the plugin server's Wait returns, then closes doneCh.
+// Lifecycle goroutine (one-time, not hot path): bridges Server.Wait to a select channel.
+func waitForServerDone(s *pluginserver.Server, doneCh chan struct{}) {
+	_ = s.Wait(context.Background())
+	close(doneCh)
 }
 
 // serverDispatcher creates a CommandDispatcher from the plugin server's dispatcher.
