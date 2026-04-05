@@ -72,11 +72,10 @@ flowchart TB
 - **Bus** is a content-agnostic pub/sub backbone for cross-component signaling. Carries opaque `[]byte` payloads (JSON for FIB pipeline, nil for simple notifications). Topics are hierarchical with `/` separators; subscriptions match on prefixes.
 - **ConfigProvider** is the config authority. Populated from YANG-parsed tree via `SetRoot()`. Subsystems and plugins read from it.
 - **PluginManager** owns process lifecycle (spawn/stop via `ProcessSpawner`). Server calls `SpawnMore()` for auto-loaded plugins.
-- **BGP Subsystem** wraps reactor via `BGPSubsystem` adapter implementing `ze.Subsystem`. Publishes Bus notifications alongside EventDispatcher data delivery.
-- **EventDispatcher** handles plugin data delivery (format negotiation, DirectBridge with `StructuredEvent`, cache counts). Internal plugins receive `*rpc.StructuredEvent` via DirectBridge (no JSON round-trip); external plugins receive formatted JSON text. Called directly by reactor — not via Bus.
+- **BGP as config-driven plugin** -- BGP registers with `ConfigRoots: ["bgp"]`. If `bgp { }` is in config, the BGP plugin auto-loads, creates the reactor, and starts peers. If not, ze runs without BGP. BGP can be added or removed at runtime via config reload (SIGHUP). The PluginCoordinator provides reactor-optional operation, returning `ErrBGPNotLoaded` for BGP-specific queries when no reactor is present.
+- **EventDispatcher** handles plugin data delivery (format negotiation, DirectBridge with `StructuredEvent`, cache counts). Internal plugins receive `*rpc.StructuredEvent` via DirectBridge (no JSON round-trip); external plugins receive formatted JSON text. Called directly by reactor -- not via Bus.
 - **Plugin Server** handles 5-stage handshake, subscriptions, command dispatch. Uses PluginManager for process creation.
-- **Two-phase plugin startup** -- Phase 1 (PluginManager.StartAll): spawn processes. Phase 2 (Server.StartWithContext): 5-stage handshake with spawned processes.
-- **Four-phase auto-load** -- Phase 1: explicit plugins. Phase 2: unclaimed families. Phase 3: custom event types. Phase 4: custom send types. Auto-load calls `PluginManager.SpawnMore()`.
+- **Five-phase plugin startup** -- Phase 1: config-path plugins (BGP, iface, fib via ConfigRoots). Phase 2: explicit plugins (from config `plugin { }` block). Phase 3: unclaimed families. Phase 4: custom event types. Phase 5: custom send types. Each phase uses tier-ordered handshake based on Dependencies.
 - **Pipes** carry JSON events (with base64 wire bytes) and text commands.
 - **BGP cache** enables zero-copy forwarding (`bgp cache 123 forward <sel>`).
 - **Dynamic event types** -- plugins declare event types they produce via `Registration.EventTypes`. Engine registers them into `ValidEvents` at startup.
@@ -84,7 +83,8 @@ flowchart TB
 <!-- source: internal/component/plugin/registry/ -- plugin registry, Register -->
 <!-- source: internal/component/plugin/types.go -- Registration struct -->
 <!-- source: internal/component/engine/engine.go -- Engine supervisor -->
-<!-- source: internal/component/bgp/subsystem/subsystem.go -- BGPSubsystem adapter -->
+<!-- source: internal/component/bgp/plugin/register.go -- BGP plugin with ConfigRoots -->
+<!-- source: internal/component/plugin/coordinator.go -- PluginCoordinator, reactor-optional -->
 <!-- source: internal/component/plugin/manager/manager.go -- PluginManager with ProcessSpawner -->
 
 ---

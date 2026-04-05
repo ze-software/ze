@@ -150,6 +150,7 @@ RFC-mandated checks run as default filters that can be selectively overridden.
 | Dynamic neighbors | No | No | Yes | No | Yes | Yes | Yes | No | No | Yes | Yes |
 | Looking glass | Yes | Yes | Yes | Yes | No | No | No | No | Yes | Yes | Yes |
 | BFD integration | No | No | Yes | No | No | Yes | No | No | No | Yes | Yes |
+| Modular subsystem loading | Yes | No | Partial | No | No | No | No | No | No | Partial | No |
 | Chaos testing framework | Yes | No | No | No | No | No | No | No | No | No | No |
 | Atomic commit workflow | Yes | No | No | No | No | No | No | No | No | No | No |
 | Schema discovery (CLI) | Yes | No | No | No | No | No | No | No | No | No | No |

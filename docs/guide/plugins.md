@@ -19,6 +19,11 @@ Ze uses a plugin architecture for all features beyond core BGP session managemen
 NLRI family plugins (bgp-nlri-evpn, bgp-nlri-vpn, etc.) are loaded automatically when you configure the corresponding address family. You don't need to declare them.
 <!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin registrations with Families field -->
 
+## Config-Driven Loading
+
+BGP itself is a config-driven plugin. If your config has a `bgp { }` section, BGP loads automatically. If it doesn't, ze starts without BGP (useful for interface-only or FIB-only deployments). You can add or remove `bgp { }` at runtime via config reload (SIGHUP) and BGP will start or stop dynamically. The same mechanism works for `interface { }` and other top-level config sections.
+<!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins, autoLoadForNewConfigPaths -->
+
 ## Loading Plugins
 
 Plugins are declared in the `plugin { }` block:
