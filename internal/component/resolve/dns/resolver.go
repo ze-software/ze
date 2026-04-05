@@ -146,6 +146,10 @@ func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, error) {
 		return nil, 0, fmt.Errorf("dns query %s %s: nil response", name, mdns.TypeToString[qtype])
 	}
 
+	if resp.Truncated {
+		r.logger.Warn("truncated DNS response", "name", name, "type", mdns.TypeToString[qtype])
+	}
+
 	// NXDOMAIN and other non-error response codes return empty results, not errors.
 	if resp.Rcode != mdns.RcodeSuccess {
 		return nil, 0, nil
