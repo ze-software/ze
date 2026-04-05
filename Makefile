@@ -3,7 +3,7 @@
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test ze-managed-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-all ze-all-test
-.PHONY: ze-interop-test ze-live-test ze-live-rpki-test
+.PHONY: ze-interop-test ze-stress-test ze-live-test ze-live-rpki-test
 .PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift
@@ -292,6 +292,16 @@ ze-interop-test:
 	@echo "Running interop tests (requires Docker)..."
 	@python3 test/interop/run.py $(INTEROP_SCENARIO)
 
+# ─── Stress tests (BNG Blaster) ────────────────────────────────────────────
+
+# Run BGP stress tests using BNG Blaster (requires Docker).
+# Run single scenario: make ze-stress-test STRESS_SCENARIO=01-bulk-ipv4
+STRESS_SCENARIO ?=
+
+ze-stress-test:
+	@echo "Running stress tests with BNG Blaster (requires Docker)..."
+	@python3 test/stress/run.py $(STRESS_SCENARIO)
+
 # ─── Live tests ────────────────────────────────────────────────────────────
 
 # Run all live integration tests (requires Docker + internet).
@@ -471,6 +481,8 @@ help:
 	@echo "  Interop tests (Docker):"
 	@echo "  ze-interop-test          - Run interop tests against FRR and BIRD"
 	@echo "                             INTEROP_SCENARIO=name to run one scenario"
+	@echo "  ze-stress-test           - Run BGP stress tests with BNG Blaster"
+	@echo "                             STRESS_SCENARIO=name to run one scenario"
 	@echo ""
 	@echo "  Integration tests (CAP_NET_ADMIN / root):"
 	@echo "  ze-integration-test      - Run all integration tests (network namespaces)"

@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Ze interoperability test runner.
+"""Ze BGP stress test runner using BNG Blaster.
 
 Usage:
-    python3 test/interop/run.py                     # run all scenarios
-    python3 test/interop/run.py 01-ebgp-ipv4-frr    # run specific scenario
-    VERBOSE=1 python3 test/interop/run.py            # verbose output
+    python3 test/stress/run.py                     # run all scenarios
+    python3 test/stress/run.py 01-bulk-ipv4        # run specific scenario
+    VERBOSE=1 python3 test/stress/run.py            # verbose output
+    NO_BUILD=1 python3 test/stress/run.py           # skip image builds
 
 Environment:
-    FRR_IMAGE   - FRR Docker image (default: quay.io/frrouting/frr:10.3.1)
-    VERBOSE     - set to 1 for debug output
-    NO_BUILD    - set to 1 to skip image builds
+    VERBOSE         - set to 1 for debug output
+    NO_BUILD        - set to 1 to skip image builds
+    SESSION_TIMEOUT - BGP session timeout in seconds (default: 120)
 """
 
 import os
@@ -19,53 +20,38 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 
-# Make interop module importable from check.py scripts.
+# Make bngblaster module importable from check.py scripts.
 sys.path.insert(0, SCRIPT_DIR)
 
-from interop import Scenario, log_fail, log_pass
+from bngblaster import Scenario, log_fail, log_pass
 
 
-def build_images(frr_image, no_build=False):
-    """Build ze-interop, bird-interop images. Pull FRR."""
+def build_images(no_build=False):
+    """Build ze-interop and ze-stress-bb images."""
     if no_build:
         print("  skipping image builds (NO_BUILD=1)")
         return
 
+    interop_dir = os.path.join(PROJECT_ROOT, "test", "interop")
+
     print("Building Ze image...")
     subprocess.run(
         ["docker", "build", "-t", "ze-interop",
-         "-f", os.path.join(SCRIPT_DIR, "Dockerfile.ze"),
+         "-f", os.path.join(interop_dir, "Dockerfile.ze"),
          PROJECT_ROOT, "-q"],
         check=True, timeout=600,
     )
 
-    print("Building BIRD image...")
+    print("Building BNG Blaster image...")
     subprocess.run(
-        ["docker", "build", "-t", "bird-interop",
-         "-f", os.path.join(SCRIPT_DIR, "Dockerfile.bird"),
+        ["docker", "build", "-t", "ze-stress-bb",
+         "-f", os.path.join(SCRIPT_DIR, "Dockerfile.bngblaster"),
          SCRIPT_DIR, "-q"],
-        check=True, timeout=600,
-    )
-
-    print("Building GoBGP image...")
-    result = subprocess.run(
-        ["docker", "build", "-t", "gobgp-interop",
-         "-f", os.path.join(SCRIPT_DIR, "Dockerfile.gobgp"),
-         SCRIPT_DIR, "-q"],
-        capture_output=True, text=True, timeout=600,
-    )
-    if result.returncode != 0:
-        print("  warning: GoBGP image build failed (GoBGP scenarios will fail)")
-
-    print("Pulling FRR image...")
-    subprocess.run(
-        ["docker", "pull", "-q", frr_image],
         check=True, timeout=600,
     )
 
 
 def main():
-    frr_image = os.environ.get("FRR_IMAGE", "quay.io/frrouting/frr:10.3.1")
     no_build = os.environ.get("NO_BUILD", "0") == "1"
 
     # Accept a scenario filter as positional argument.
@@ -82,11 +68,11 @@ def main():
         print("error: Docker is not running or not accessible", file=sys.stderr)
         sys.exit(1)
 
-    build_images(frr_image, no_build)
+    build_images(no_build)
 
     print("")
     print("\u2501" * 40)
-    print(" Ze Interoperability Tests")
+    print(" Ze BGP Stress Tests (BNG Blaster)")
     print("\u2501" * 40)
     print("")
 
@@ -111,7 +97,7 @@ def main():
 
         print("\u2500\u2500 %s \u2500\u2500" % scenario_name)
 
-        scenario = Scenario(scenario_dir, frr_image)
+        scenario = Scenario(scenario_dir)
         try:
             scenario.setup()
             scenario.run_check()
