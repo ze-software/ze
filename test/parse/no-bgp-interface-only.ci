@@ -1,0 +1,9 @@
+# Valid config: interface-only (no bgp section)
+# AC-2: Config with only interface {} loads cleanly.
+stdin=config:terminator=EOF_CONF
+interface {
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

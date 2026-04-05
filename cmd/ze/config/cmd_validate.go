@@ -202,38 +202,41 @@ func runValidation(input, path string) *validationResult {
 	// reflects only active config (inactive peers are not started).
 	config.PruneInactive(tree, schema)
 
-	// Resolve templates and get BGP tree as map.
-	bgpTree, err := bgpconfig.ResolveBGPTree(tree)
-	if err != nil {
-		result.Valid = false
-		result.Errors = append(result.Errors, validationError{
-			Message: err.Error(),
-		})
-		return result
-	}
+	// BGP-specific validation only when bgp {} is present.
+	if tree.GetContainer("bgp") != nil {
+		// Resolve templates and get BGP tree as map.
+		bgpTree, resolveErr := bgpconfig.ResolveBGPTree(tree)
+		if resolveErr != nil {
+			result.Valid = false
+			result.Errors = append(result.Errors, validationError{
+				Message: resolveErr.Error(),
+			})
+			return result
+		}
 
-	// Build summary from resolved tree.
-	result.Config = buildValidationSummary(bgpTree, tree)
+		// Build summary from resolved tree.
+		result.Config = buildValidationSummary(bgpTree, tree)
 
-	// Semantic validation.
-	result.Warnings = semanticValidation(bgpTree)
+		// Semantic validation.
+		result.Warnings = semanticValidation(bgpTree)
 
-	// Authorization profile reference validation.
-	if err := bgpconfig.ValidateAuthzConfig(tree); err != nil {
-		result.Valid = false
-		result.Errors = append(result.Errors, validationError{
-			Message: err.Error(),
-		})
-		return result
-	}
+		// Authorization profile reference validation.
+		if authzErr := bgpconfig.ValidateAuthzConfig(tree); authzErr != nil {
+			result.Valid = false
+			result.Errors = append(result.Errors, validationError{
+				Message: authzErr.Error(),
+			})
+			return result
+		}
 
-	// Full validation: peer settings, route extraction, and capability constraints.
-	if _, err := bgpconfig.PeersFromConfigTree(tree); err != nil {
-		result.Valid = false
-		result.Errors = append(result.Errors, validationError{
-			Message: err.Error(),
-		})
-		return result
+		// Full validation: peer settings, route extraction, and capability constraints.
+		if _, peersErr := bgpconfig.PeersFromConfigTree(tree); peersErr != nil {
+			result.Valid = false
+			result.Errors = append(result.Errors, validationError{
+				Message: peersErr.Error(),
+			})
+			return result
+		}
 	}
 
 	// Listener port conflict detection.

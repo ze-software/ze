@@ -1,7 +1,7 @@
-# Test: ze config validate (new path) with invalid config
-# This tests error handling for the moved validate command
+# Test: ze config validate with environment-only config
+# Config with only environment {} and no functional sections is valid YANG.
+# BGP validation only runs when bgp {} is present.
 stdin=config:terminator=EOF_CONF
-# Invalid: missing bgp block
 environment {
 	log {
 		level info
@@ -10,5 +10,4 @@ environment {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
-expect=exit:code=1
-expect=stderr:contains=missing required bgp { } block
+expect=exit:code=0

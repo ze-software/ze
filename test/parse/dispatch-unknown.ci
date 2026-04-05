@@ -1,7 +1,7 @@
-# Parse test: config without bgp {} block fails validation
-# This verifies the validator rejects configs missing the required bgp block
+# Parse test: config without bgp {} block is valid
+# BGP validation only runs when bgp {} is present. An environment-only
+# config is valid YANG (supports interface-only, fib-only deployments).
 stdin=config:terminator=EOF_CONF
-# Config with only environment block - no bgp block
 environment {
 	log {
 		level info
@@ -10,5 +10,4 @@ environment {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
-expect=exit:code=1
-expect=stderr:contains=missing required bgp { } block
+expect=exit:code=0

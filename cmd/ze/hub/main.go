@@ -28,8 +28,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 	"codeberg.org/thomas-mangin/ze/internal/component/lg"
+	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
 	resolvecmd "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"
@@ -118,7 +120,9 @@ func Run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 		_ = plugins // Currently unused in hub mode
 		return runOrchestratorWithData(store, configPath, data)
 	case zeconfig.ConfigTypeUnknown:
-		fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
+		// Generic YANG config without bgp {} block. Parse and auto-load
+		// plugins based on ConfigRoots (e.g., interface-only, fib-only).
+		return runGenericConfig(store, configPath, data, plugins, stdinOpen)
 	}
 
 	return 1
@@ -422,6 +426,106 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 	b.Stop()
 
 	fmt.Println("Ze BGP stopped.")
+	return 0
+}
+
+// runGenericConfig handles YANG configs without a bgp {} block.
+// Plugins are auto-loaded via ConfigRoots matching (e.g., interface {}, fib {}).
+func runGenericConfig(_ storage.Storage, configPath string, data []byte, plugins []string, stdinOpen bool) int {
+	// Parse YANG config (same parser as BGP path, but no reactor created).
+	loadResult, err := bgpconfig.LoadConfig(string(data), configPath, plugins)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
+		return 1
+	}
+
+	// Check the config has at least one container (not empty/comments-only).
+	configPaths := zeconfig.CollectContainerPaths(loadResult.Tree)
+	if len(configPaths) == 0 {
+		fmt.Fprintf(os.Stderr, "error: config has no recognized sections\n")
+		return 1
+	}
+
+	// Populate ConfigProvider with parsed config tree.
+	configProvider := zeconfig.NewProvider()
+	for root, subtree := range loadResult.Tree.ToMap() {
+		if sub, ok := subtree.(map[string]any); ok {
+			configProvider.SetRoot(root, sub)
+		}
+	}
+
+	// Create Bus, PluginCoordinator, and plugin server.
+	b := bus.NewBus()
+	registry.SetBus(b)
+
+	configTree := loadResult.Tree.ToMap()
+	coordinator := zePlugin.NewCoordinator(configTree)
+
+	pm := pluginmgr.NewManager()
+
+	serverConfig := &pluginserver.ServerConfig{
+		ConfigPath:      configPath,
+		ConfiguredPaths: configPaths,
+	}
+	apiServer, serverErr := pluginserver.NewServer(serverConfig, coordinator)
+	if serverErr != nil {
+		fmt.Fprintf(os.Stderr, "error: create plugin server: %v\n", serverErr)
+		return 1
+	}
+	apiServer.SetProcessSpawner(pm)
+
+	eng := engine.NewEngine(b, configProvider, pm)
+
+	startCtx := context.Background()
+	if err := eng.Start(startCtx); err != nil {
+		fmt.Fprintf(os.Stderr, "error starting engine: %v\n", err)
+		return 1
+	}
+
+	// Start plugin server (auto-loads via ConfigRoots).
+	if err := apiServer.StartWithContext(startCtx); err != nil {
+		fmt.Fprintf(os.Stderr, "error starting plugin server: %v\n", err)
+		_ = eng.Stop(startCtx)
+		return 1
+	}
+
+	if err := dropPrivileges(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: drop privileges: %v\n", err)
+		apiServer.Stop()
+		_ = eng.Stop(startCtx)
+		return 1
+	}
+
+	// Setup signal handling
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	if stdinOpen {
+		go monitorStdinEOF(sigCh)
+	}
+
+	fmt.Printf("Starting ze with config: %s\n", configPath)
+
+	// Signal readiness to test infrastructure.
+	if readyFile := env.Get("ze.ready.file"); readyFile != "" {
+		if f, createErr := os.Create(readyFile); createErr == nil { //nolint:gosec // test infrastructure path from env
+			f.Close() //nolint:errcheck,gosec // best-effort readiness signal
+		}
+	}
+
+	<-sigCh
+	fmt.Println("\nShutting down...")
+
+	stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	apiServer.Stop()
+	if err := eng.Stop(stopCtx); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: shutdown timeout: %v\n", err)
+	}
+	b.Stop()
+
+	fmt.Println("Ze stopped.")
 	return 0
 }
 

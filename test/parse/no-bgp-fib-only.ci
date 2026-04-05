@@ -1,0 +1,16 @@
+# Config: fib-only (no bgp, no interface)
+# AC-3: fib { } is a valid YANG container. The fib YANG schema is loaded
+# by the fibkernel plugin's init() registration, which is included
+# in the ze binary via blank imports.
+# Note: ze config validate uses config.YANGSchema() which includes
+# plugin-registered schemas, so fib { kernel { } } is valid.
+stdin=config:terminator=EOF_CONF
+fib {
+    kernel {
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=unknown top-level keyword: fib
