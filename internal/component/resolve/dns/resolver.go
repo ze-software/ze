@@ -135,6 +135,7 @@ func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, error) {
 	m := new(mdns.Msg)
 	m.SetQuestion(fqdn, qtype)
 	m.RecursionDesired = true
+	m.SetEdns0(4096, false)
 
 	resp, _, err := r.client.Exchange(m, r.server)
 	if err != nil {
