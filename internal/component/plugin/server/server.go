@@ -235,6 +235,12 @@ func (s *Server) ReactorAny() any {
 }
 
 func (s *Server) Reactor() plugin.ReactorLifecycle {
+	// When the reactor is a Coordinator, return the underlying reactor adapter
+	// (which implements both ReactorLifecycle and BGPReactor) so that type
+	// assertions to BGPReactor succeed.
+	if c, ok := s.reactor.(*plugin.Coordinator); ok {
+		return c.FullReactor()
+	}
 	return s.reactor
 }
 

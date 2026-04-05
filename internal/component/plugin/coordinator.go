@@ -74,6 +74,19 @@ func (c *Coordinator) getReactor() ReactorLifecycle {
 	return c.reactor
 }
 
+// FullReactor returns the underlying reactor adapter when set (which implements
+// both ReactorLifecycle and BGPReactor), or the coordinator itself when no
+// reactor is registered. This allows type assertions to BGPReactor to succeed
+// when BGP is loaded.
+func (c *Coordinator) FullReactor() ReactorLifecycle {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.reactor != nil {
+		return c.reactor
+	}
+	return c
+}
+
 // --- ReactorConfigurator ---
 
 // GetConfigTree returns the full config as a map for plugin config delivery.

@@ -22,7 +22,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
+	bgpserver "codeberg.org/thomas-mangin/ze/internal/component/bgp/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/subsystem"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/bus"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -605,6 +607,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		ConfiguredPaths: configPaths,
 		Plugins:         explicitPlugins,
 		Hub:             hubConfig,
+		RPCFallback:     bgpserver.CodecRPCHandler,
+		CommitManager:   transaction.NewCommitManager(),
 	}
 	apiServer, serverErr := pluginserver.NewServer(serverConfig, coordinator)
 	if serverErr != nil {
