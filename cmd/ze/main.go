@@ -343,11 +343,8 @@ dispatch:
 		store := storage.NewFilesystem()
 		fileOverride = config.ResolveConfigPath(fileOverride)
 		switch detectConfigType(store, fileOverride) {
-		case config.ConfigTypeBGP, config.ConfigTypeHub:
+		case config.ConfigTypeBGP, config.ConfigTypeHub, config.ConfigTypeUnknown:
 			os.Exit(hub.Run(store, fileOverride, plugins, chaosSeed, chaosRate, false, "", false, "", ""))
-		case config.ConfigTypeUnknown:
-			fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
-			os.Exit(1)
 		}
 	}
 
@@ -513,15 +510,8 @@ dispatch:
 			store = storage.NewFilesystem()
 		}
 		switch detectConfigType(store, arg) {
-		case config.ConfigTypeBGP:
-			// Start BGP daemon in-process via hub
+		case config.ConfigTypeBGP, config.ConfigTypeHub, config.ConfigTypeUnknown:
 			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken))
-		case config.ConfigTypeHub:
-			// Start hub orchestrator (forks external plugins)
-			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken))
-		case config.ConfigTypeUnknown:
-			fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
-			os.Exit(1)
 		}
 	}
 
@@ -733,12 +723,8 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 	}
 
 	ct := detectConfigType(store, configName)
-	if ct == config.ConfigTypeUnknown {
-		if webEnabled {
-			return hub.RunWebOnly(store, webListenAddr, insecureWeb)
-		}
-		fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
-		return 1
+	if ct == config.ConfigTypeUnknown && webEnabled {
+		return hub.RunWebOnly(store, webListenAddr, insecureWeb)
 	}
 
 	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
@@ -760,12 +746,6 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 	configName := resolveDefaultConfig(store)
 
 	if store.Exists(configName) {
-		ct := detectConfigType(store, configName)
-		if ct == config.ConfigTypeUnknown {
-			fmt.Fprintf(os.Stderr, "error: cached config has no recognized block (bgp, plugin)\n")
-			return 1
-		}
-
 		// Start background hub connection if client block found.
 		clientCfg := extractManagedClientConfig(store, configName)
 		if clientCfg != nil {
@@ -806,12 +786,6 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 	// Cache fetched config in blob.
 	if writeErr := store.WriteFile(configName, configData, 0); writeErr != nil {
 		fmt.Fprintf(os.Stderr, "error: cache config: %v\n", writeErr)
-		return 1
-	}
-
-	ct := detectConfigType(store, configName)
-	if ct == config.ConfigTypeUnknown {
-		fmt.Fprintf(os.Stderr, "error: fetched config has no recognized block (bgp, plugin)\n")
 		return 1
 	}
 

@@ -218,6 +218,14 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 		if s.reactor != nil {
 			s.reactor.AddAPIProcessCount(-len(plugins))
 		}
+		return
+	}
+
+	// Signal post-startup to newly loaded plugins. This triggers OnPostStartup
+	// callbacks (e.g., BGP starts peers after all tier plugins complete).
+	// Safe to call multiple times: Freeze is idempotent, startupDone uses sync.Once.
+	if s.reactor != nil {
+		s.reactor.SignalPluginStartupComplete()
 	}
 }
 

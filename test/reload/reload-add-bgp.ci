@@ -1,0 +1,88 @@
+# Test: Config reload adds BGP section
+# AC-6: Initial config has no bgp block (environment only).
+# After delay: config rewritten to add bgp { peer ... }, SIGHUP sent.
+# autoLoadForNewConfigPaths detects "bgp", auto-loads BGP plugin,
+# reactor created, peer connects.
+# Expected: new BGP session connects and sends routes.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+
+# Connection 1: Static route (192.168.1.0/24) + EOR from newly loaded BGP
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Initial ze config (no bgp section -- BGP plugin does not load)
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3
+	}
+}
+EOF_CONF
+
+# Rewritten config (bgp section added -- triggers autoLoadForNewConfigPaths)
+tmpfs=config2.conf:terminator=EOF_CONF2
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF2
+
+# Trigger script: waits for daemon, then rewrites config and sends SIGHUP
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+cp config2.conf ze-bgp.conf
+kill -HUP $(cat daemon.pid)
+EOF_TRIGGER
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s

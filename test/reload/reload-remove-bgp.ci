@@ -1,0 +1,82 @@
+# Test: Config reload removes BGP section
+# AC-7: Initial config has bgp { peer ... }.
+# After initial UPDATE+EOR: config rewritten to remove bgp section, SIGHUP sent.
+# autoStopForRemovedConfigPaths detects "bgp" removed, stops BGP plugin,
+# reactor.Stop() tears down peers.
+# Expected: daemon survives after BGP removal (no crash).
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+
+# Connection 1: Static route (192.168.1.0/24) + EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# After initial messages: rewrite config (remove bgp section) and send SIGHUP
+action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+EOF_PEER
+
+# Initial ze bgp configuration (one peer)
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Rewritten config (bgp section removed -- triggers autoStopForRemovedConfigPaths)
+tmpfs=config2.conf:terminator=EOF_CONF2
+environment {
+	tcp {
+		attempts 3
+	}
+}
+EOF_CONF2
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s

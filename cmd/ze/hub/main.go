@@ -384,6 +384,21 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	apiServer.SetProcessSpawner(pm)
 	registry.SetPluginServer(apiServer)
 
+	// Set config loader for SIGHUP reload support.
+	if configPath != "" && configPath != "-" {
+		apiServer.SetConfigLoader(func() (map[string]any, error) {
+			reloadData, readErr := store.ReadFile(configPath)
+			if readErr != nil {
+				return nil, fmt.Errorf("read config: %w", readErr)
+			}
+			result, loadErr := bgpconfig.LoadConfig(string(reloadData), configPath, plugins)
+			if loadErr != nil {
+				return nil, loadErr
+			}
+			return result.Tree.ToMap(), nil
+		})
+	}
+
 	eng := engine.NewEngine(b, configProvider, pm)
 
 	startCtx := context.Background()
@@ -440,9 +455,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		mcpSrv = startMCPServer(mcpAddr, dispatch, serverCommandLister(apiServer), mcpToken)
 	}
 
-	// Signal handling
+	// Signal handling: SIGINT/SIGTERM for shutdown, SIGHUP for config reload.
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+
+	// SIGHUP reload worker: re-reads config from disk, auto-loads/stops plugins.
+	reloadCh := make(chan os.Signal, 1)
+	go handleSIGHUPReload(reloadCh, apiServer)
 
 	if stdinOpen {
 		go monitorStdinEOF(sigCh)
@@ -481,13 +500,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		doneCh := make(chan struct{})
 		go waitForServerDone(apiServer, doneCh)
 
-		select {
-		case <-sigCh:
-		case <-doneCh:
-		}
+		waitLoop(sigCh, reloadCh, doneCh)
 	} else {
-		<-sigCh
+		waitLoop(sigCh, reloadCh, nil)
 	}
+	close(reloadCh)
 	fmt.Println("\nShutting down...")
 
 	if mcpSrv != nil {
@@ -514,6 +531,46 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 func waitForServerDone(s *pluginserver.Server, doneCh chan struct{}) {
 	_ = s.Wait(context.Background())
 	close(doneCh)
+}
+
+// handleSIGHUPReload is the SIGHUP reload worker. Reads signals from reloadCh,
+// triggers config reload via the plugin server's ReloadFromDisk.
+// Lifecycle goroutine (one-time, runs for daemon lifetime).
+func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server) {
+	for range reloadCh {
+		fmt.Fprintf(os.Stderr, "received SIGHUP, reloading config...\n")
+		reloadCtx, reloadCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		if err := s.ReloadFromDisk(reloadCtx); err != nil {
+			fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
+		}
+		reloadCancel()
+	}
+}
+
+// waitLoop dispatches signals: SIGHUP to reloadCh, others trigger shutdown return.
+// If doneCh is non-nil, also returns when it closes (server exit).
+func waitLoop(sigCh <-chan os.Signal, reloadCh chan<- os.Signal, doneCh <-chan struct{}) {
+	for {
+		if doneCh != nil {
+			select {
+			case sig := <-sigCh:
+				if sig == syscall.SIGHUP {
+					reloadCh <- sig
+					continue
+				}
+				return
+			case <-doneCh:
+				return
+			}
+		} else {
+			sig := <-sigCh
+			if sig == syscall.SIGHUP {
+				reloadCh <- sig
+				continue
+			}
+			return
+		}
+	}
 }
 
 // serverDispatcher creates a CommandDispatcher from the plugin server's dispatcher.
