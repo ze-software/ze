@@ -568,6 +568,14 @@ func TestSecurityHeaders(t *testing.T) {
 	if csp == "" {
 		t.Error("missing Content-Security-Policy header")
 	}
+
+	zeVer := resp.Header.Get("X-Ze-Version")
+	if zeVer == "" {
+		t.Error("missing X-Ze-Version header")
+	}
+	if !strings.Contains(zeVer, "ze/") {
+		t.Errorf("X-Ze-Version must start with ze/ prefix, got %q", zeVer)
+	}
 }
 
 func TestRouteDetailValidation(t *testing.T) {

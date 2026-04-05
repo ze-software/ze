@@ -39,6 +39,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/version"
 )
 
 // lgLogger is the structured logger for the looking glass subsystem.
@@ -342,6 +343,7 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'")
 		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("X-Ze-Version", version.HTTPHeader())
 		next.ServeHTTP(w, r)
 	})
 }

@@ -394,6 +394,10 @@ func TestIntegration_SecurityHeaders(t *testing.T) {
 		actual := resp.Header.Get(header)
 		assert.Equal(t, expected, actual, "header %s must be set correctly", header)
 	}
+
+	zeVer := resp.Header.Get("X-Ze-Version")
+	assert.NotEmpty(t, zeVer, "X-Ze-Version header must be present")
+	assert.Contains(t, zeVer, "ze/", "X-Ze-Version must start with ze/ prefix")
 }
 
 // TestIntegration_PathTraversal verifies that path traversal attempts in

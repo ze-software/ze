@@ -237,6 +237,10 @@ func TestSecurityHeaders(t *testing.T) {
 		actual := rec.Header().Get(header)
 		assert.Equal(t, expected, actual, "header %s must be set correctly", header)
 	}
+
+	zeVer := rec.Header().Get("X-Ze-Version")
+	assert.NotEmpty(t, zeVer, "X-Ze-Version header must be present")
+	assert.Contains(t, zeVer, "ze/", "X-Ze-Version must start with ze/ prefix")
 }
 
 // TestLoginHandler verifies that the login endpoint creates sessions for valid

@@ -18,6 +18,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/version"
 )
 
 // contextKey is an unexported type used for context keys in this package,
@@ -261,6 +262,7 @@ func addSecurityHeaders(w http.ResponseWriter) {
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'")
 	w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Ze-Version", version.HTTPHeader())
 }
 
 // generateToken creates a cryptographically random 32-byte token, hex-encoded
