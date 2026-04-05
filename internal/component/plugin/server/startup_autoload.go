@@ -96,7 +96,7 @@ func (s *Server) getConfigPathPlugins() []plugin.PluginConfig {
 			}
 
 			pm := s.procManager.Load()
-			if s.hasConfiguredPlugin(pluginName) || (pm != nil && pm.GetProcess(pluginName) != nil) {
+			if s.isPluginLoaded(pluginName) || s.hasConfiguredPlugin(pluginName) || (pm != nil && pm.GetProcess(pluginName) != nil) {
 				continue
 			}
 
@@ -124,7 +124,7 @@ func (s *Server) getConfigPathPlugins() []plugin.PluginConfig {
 	var plugins []plugin.PluginConfig
 	pm2 := s.procManager.Load()
 	for _, name := range resolved {
-		if s.hasConfiguredPlugin(name) || (pm2 != nil && pm2.GetProcess(name) != nil) {
+		if s.isPluginLoaded(name) || s.hasConfiguredPlugin(name) || (pm2 != nil && pm2.GetProcess(name) != nil) {
 			continue
 		}
 		plugins = append(plugins, plugin.PluginConfig{
@@ -421,7 +421,7 @@ func (s *Server) getUnclaimedPluginsForTokens(tokens []string, lookupFn func(str
 	var plugins []plugin.PluginConfig
 	pm2 := s.procManager.Load()
 	for _, name := range resolved {
-		if s.hasConfiguredPlugin(name) || (pm2 != nil && pm2.GetProcess(name) != nil) {
+		if s.isPluginLoaded(name) || s.hasConfiguredPlugin(name) || (pm2 != nil && pm2.GetProcess(name) != nil) {
 			continue
 		}
 

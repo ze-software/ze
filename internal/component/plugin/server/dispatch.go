@@ -96,7 +96,6 @@ func (s *Server) handleUpdateRouteRPC(proc *process.Process, conn *plugipc.Plugi
 		}
 		return
 	}
-
 	cmdCtx := &CommandContext{
 		Server:  s,
 		Process: proc,

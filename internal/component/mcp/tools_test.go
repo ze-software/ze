@@ -244,17 +244,20 @@ func TestAllToolsWithCommandLister(t *testing.T) {
 	}
 
 	tools := s.allTools()
-	// All auto-generated: 2 groups (rib, metrics).
-	if len(tools) != 2 {
-		t.Errorf("got %d tools, want 2 (rib + metrics)", len(tools))
+	// Handcrafted (ze_execute) + auto-generated: 2 groups (rib, metrics) = 3 total.
+	if len(tools) != 3 {
+		t.Errorf("got %d tools, want 3 (ze_execute + rib + metrics)", len(tools))
 	}
 
-	// Verify auto-generated tool names appear.
+	// Verify tool names appear.
 	names := make(map[string]bool)
 	for _, tool := range tools {
 		if n, ok := tool["name"].(string); ok {
 			names[n] = true
 		}
+	}
+	if !names["ze_execute"] {
+		t.Error("missing handcrafted ze_execute tool")
 	}
 	if !names["ze_rib"] {
 		t.Error("missing auto-generated ze_rib tool")

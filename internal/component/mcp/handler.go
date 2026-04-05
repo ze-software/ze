@@ -158,8 +158,25 @@ func (s *server) handle(req *request) *response {
 }
 
 // toolHandlers maps handcrafted MCP tool names to their implementations.
-// Empty: all tools are now auto-generated from the command registry.
-var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]any{}
+// ze_execute is a raw command dispatch escape hatch (equivalent to ze_system dispatch).
+var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]any{
+	"ze_execute": func(s *server, args json.RawMessage) map[string]any {
+		var input struct {
+			Command string `json:"command"`
+		}
+		if err := json.Unmarshal(args, &input); err != nil {
+			return errResult("invalid arguments: " + err.Error())
+		}
+		if s.dispatch == nil {
+			return errResult("dispatcher not available")
+		}
+		result, err := s.dispatch(input.Command)
+		if err != nil {
+			return errResult(err.Error())
+		}
+		return textResult(result)
+	},
+}
 
 // handcraftedNames returns the set of tool names from handcrafted tools.
 // Used to filter auto-generated tools and prevent duplicate names.
@@ -270,6 +287,20 @@ func errResult(msg string) map[string]any {
 	}
 }
 
-// handcraftedTools is empty: all tools are auto-generated from the command registry.
-// Kept as a variable for the allTools() / handcraftedNames() interface.
-var handcraftedTools []map[string]any
+// handcraftedTools defines tool schemas for handcrafted tools.
+var handcraftedTools = []map[string]any{
+	{
+		"name":        "ze_execute",
+		"description": "Execute a ze CLI command and return the result",
+		"inputSchema": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"command": map[string]any{
+					"type":        "string",
+					"description": "The ze command to execute (e.g., 'peer list', 'show bgp summary')",
+				},
+			},
+			"required": []string{"command"},
+		},
+	},
+}

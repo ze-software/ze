@@ -264,6 +264,11 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 	}
 	s.procManager.Store(pm)
 
+	// Track loaded plugins so later phases don't re-load them.
+	for _, p := range plugins {
+		s.markPluginLoaded(p.Name)
+	}
+
 	// Step (b): Compute dependency tiers from plugin configs.
 	names := make([]string, len(plugins))
 	for i, p := range plugins {
