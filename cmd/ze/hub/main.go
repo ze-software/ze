@@ -23,7 +23,6 @@ import (
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	bgpserver "codeberg.org/thomas-mangin/ze/internal/component/bgp/server"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/subsystem"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/bus"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
@@ -116,9 +115,7 @@ func Run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 
 	// Probe config type using shared function
 	switch zeconfig.ProbeConfigType(string(data)) {
-	case zeconfig.ConfigTypeBGP:
-		return runBGPInProcess(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
-	case zeconfig.ConfigTypeUnknown:
+	case zeconfig.ConfigTypeBGP, zeconfig.ConfigTypeUnknown:
 		// Non-BGP YANG config: auto-load plugins via ConfigRoots.
 		return runYANGConfig(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
 	case zeconfig.ConfigTypeHub:
@@ -161,275 +158,6 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 			return nil, false, readErr
 		}
 	}
-}
-
-// runBGPInProcess loads BGP config using YANG parser and runs reactor in-process.
-// When stdinOpen is true, a background goroutine monitors stdin for EOF and
-// triggers shutdown when the upstream process exits (pipe mode).
-func runBGPInProcess(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string) int {
-	// Phase 1: Parse config and resolve plugins (no reactor created yet).
-	loadResult, err := bgpconfig.LoadConfig(string(data), configPath, plugins)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
-		return 1
-	}
-
-	// Precedence: CLI > env > config.
-	// CLI flags are already set. Env vars fill unset values. Config fills remaining gaps.
-
-	// Layer 1: environment variables override config (but not CLI flags).
-	var lgListenAddr string
-	var lgTLS bool
-	if listen := env.Get("ze.looking-glass.listen"); listen != "" {
-		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
-		if parseErr != nil {
-			fmt.Fprintf(os.Stderr, "error: ze.looking-glass.listen: %v\n", parseErr)
-			return 1
-		}
-		lgListenAddr = endpoints[0].String()
-		if len(endpoints) > 1 {
-			fmt.Fprintf(os.Stderr, "warning: ze.looking-glass.listen: only first endpoint used, multi-bind not yet supported\n")
-		}
-	}
-	if env.IsEnabled("ze.looking-glass.tls") {
-		lgTLS = true
-	}
-	if env.IsEnabled("ze.looking-glass.enabled") && lgListenAddr == "" {
-		lgListenAddr = "0.0.0.0:8443"
-	}
-
-	if listen := env.Get("ze.web.listen"); listen != "" && webListenAddr == "" {
-		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
-		if parseErr != nil {
-			fmt.Fprintf(os.Stderr, "error: ze.web.listen: %v\n", parseErr)
-			return 1
-		}
-		webEnabled = true
-		webListenAddr = endpoints[0].String()
-		if len(endpoints) > 1 {
-			fmt.Fprintf(os.Stderr, "warning: ze.web.listen: only first endpoint used, multi-bind not yet supported\n")
-		}
-	}
-	if env.IsEnabled("ze.web.enabled") && !webEnabled {
-		webEnabled = true
-	}
-	if env.IsEnabled("ze.web.insecure") && !insecureWeb {
-		insecureWeb = true
-	}
-	if listen := env.Get("ze.mcp.listen"); listen != "" && mcpAddr == "" {
-		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
-		if parseErr != nil {
-			fmt.Fprintf(os.Stderr, "error: ze.mcp.listen: %v\n", parseErr)
-			return 1
-		}
-		mcpAddr = endpoints[0].String()
-		if len(endpoints) > 1 {
-			fmt.Fprintf(os.Stderr, "warning: ze.mcp.listen: only first endpoint used, multi-bind not yet supported\n")
-		}
-	}
-	if env.IsEnabled("ze.mcp.enabled") && mcpAddr == "" {
-		mcpAddr = "127.0.0.1:8080"
-	}
-	if token := env.Get("ze.mcp.token"); token != "" && mcpToken == "" {
-		mcpToken = token
-	}
-
-	// Layer 2: config file fills remaining gaps.
-	if webCfg, ok := bgpconfig.ExtractWebConfig(loadResult.Tree); ok {
-		if !webEnabled {
-			webEnabled = true
-			webListenAddr = webCfg.Listen()
-			insecureWeb = webCfg.Insecure
-		}
-	}
-	if mcpCfg, ok := bgpconfig.ExtractMCPConfig(loadResult.Tree); ok {
-		if mcpAddr == "" {
-			mcpAddr = mcpCfg.Listen()
-		}
-		if mcpToken == "" && mcpCfg.Token != "" {
-			mcpToken = mcpCfg.Token
-		}
-	}
-	if lgCfg, ok := bgpconfig.ExtractLGConfig(loadResult.Tree); ok {
-		if lgListenAddr == "" {
-			lgListenAddr = lgCfg.Listen()
-		}
-		if !lgTLS {
-			lgTLS = lgCfg.TLS
-		}
-	}
-
-	// Phase 2: Populate ConfigProvider with parsed config tree.
-	configProvider := zeconfig.NewProvider()
-	for root, subtree := range loadResult.Tree.ToMap() {
-		if sub, ok := subtree.(map[string]any); ok {
-			configProvider.SetRoot(root, sub)
-		} else {
-			fmt.Fprintf(os.Stderr, "warning: config root %q has non-map value, skipping\n", root)
-		}
-	}
-
-	// Phase 3: Create reactor from parsed config.
-	reactor, err := bgpconfig.CreateReactor(loadResult, configPath, store)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: create reactor: %v\n", err)
-		return 1
-	}
-
-	// Inject chaos wrappers if chaos mode is enabled.
-	// CLI flags override env vars/config; seed=0 means disabled, -1 means time-based.
-	if chaosSeed != 0 {
-		chaosSeed = chaos.ResolveSeed(chaosSeed)
-		if chaosRate < 0 {
-			chaosRate = 0.1 // Default rate when not specified by CLI
-		}
-		logger := slogutil.Logger("chaos")
-		cfg := chaos.ChaosConfig{
-			Seed:   chaosSeed,
-			Rate:   chaosRate,
-			Logger: logger,
-		}
-		clock, dialer, listenerFactory := chaos.NewChaosWrappers(
-			clock.RealClock{}, &network.RealDialer{}, network.RealListenerFactory{}, cfg,
-		)
-		reactor.SetClock(clock)
-		reactor.SetDialer(dialer)
-		reactor.SetListenerFactory(listenerFactory)
-		logger.Info("chaos self-test mode enabled",
-			"seed", chaosSeed,
-			"rate", chaosRate,
-		)
-	}
-
-	// Setup signal handling
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
-	// Monitor stdin for EOF when running in pipe mode (ze-chaos | ze -).
-	// After reading config (delimited by NUL), stdin stays open. When the
-	// upstream process exits, the pipe closes and this goroutine triggers
-	// clean shutdown — no Ctrl-C needed.
-	if stdinOpen {
-		go monitorStdinEOF(sigCh)
-	}
-
-	// RFC 4724 Section 4.1: Read GR marker from storage. If valid (not expired),
-	// set RestartUntil so OPEN messages include R=1 during the restart window.
-	// Marker is consumed (removed) after reading to prevent stale restart on next cold start.
-	if expiry, ok := grmarker.Read(store); ok {
-		reactor.SetRestartUntil(expiry)
-		slogutil.Logger("bgp.gr").Info("GR restart marker found", "expires", expiry)
-	}
-	if removeErr := grmarker.Remove(store); removeErr != nil {
-		slogutil.Logger("bgp.gr").Warn("failed to remove GR marker", "error", removeErr)
-	}
-
-	fmt.Printf("Starting ze BGP with config: %s\n", configPath)
-
-	// Create Bus and Engine. Wire reactor as a Subsystem via adapter.
-	// The Bus is a notification layer for cross-component signaling.
-	// Plugin data delivery stays on the existing EventDispatcher direct path.
-	b := bus.NewBus()
-	reactor.SetBus(b)
-	registry.SetBus(b)
-	pm := pluginmgr.NewManager()
-	reactor.SetProcessSpawner(pm)
-	bgpSub := subsystem.NewBGPSubsystem(reactor)
-	eng := engine.NewEngine(b, configProvider, pm)
-	if err := eng.RegisterSubsystem(bgpSub); err != nil {
-		fmt.Fprintf(os.Stderr, "error: register subsystem: %v\n", err)
-		return 1
-	}
-
-	startCtx := context.Background()
-	if err := eng.Start(startCtx); err != nil {
-		fmt.Fprintf(os.Stderr, "error starting engine: %v\n", err)
-		return 1
-	}
-
-	// Drop privileges after port binding (while still root).
-	// All subsequent work (plugins, connections) runs as the configured user.
-	if err := dropPrivileges(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: drop privileges: %v\n", err)
-		_ = eng.Stop(startCtx)
-		return 1
-	}
-
-	// Create shared resolvers for web UI, looking glass, and MCP (single DNS instance).
-	resolvers := newResolvers()
-	defer resolvers.Close()
-	resolvecmd.SetResolvers(resolvers)
-
-	// Start web server if --web flag was passed.
-	if webEnabled {
-		if webSrv, broker := startWebServer(store, webListenAddr, insecureWeb, reactor.ExecuteCommand, resolvers); webSrv != nil {
-			defer func() {
-				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
-				defer shutdownCancel()
-				_ = webSrv.Shutdown(shutdownCtx)
-				broker.Close()
-			}()
-		}
-	}
-
-	// Start looking glass server if config has environment.looking-glass.
-	if lgListenAddr != "" {
-		if lgSrv := startLGServer(store, lgListenAddr, lgTLS, reactor.ExecuteCommand, resolvers); lgSrv != nil {
-			defer func() {
-				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
-				defer shutdownCancel()
-				_ = lgSrv.Shutdown(shutdownCtx)
-			}()
-		}
-	}
-
-	// Start MCP server if --mcp flag was passed.
-	var mcpSrv *http.Server
-	if mcpAddr != "" {
-		mcpSrv = startMCPServer(mcpAddr, reactor.ExecuteCommand, commandLister(reactor), mcpToken)
-	}
-
-	// Wait for either signal or reactor to stop itself
-	doneCh := make(chan struct{})
-	go func() {
-		_ = reactor.Wait(context.Background())
-		close(doneCh)
-	}()
-
-	fmt.Println("Ze BGP running. Press Ctrl+C to stop.")
-
-	// Signal readiness to test infrastructure. Written after signal.Notify
-	// and reactor.Start so the test runner knows the daemon is fully operational.
-	if readyFile := env.Get("ze.ready.file"); readyFile != "" {
-		if f, err := os.Create(readyFile); err == nil { //nolint:gosec // test infrastructure path from env
-			f.Close() //nolint:errcheck,gosec // best-effort readiness signal
-		}
-	}
-
-	select {
-	case <-sigCh:
-		fmt.Println("\nShutting down...")
-	case <-doneCh:
-		fmt.Println("\nShutting down...")
-	}
-
-	// Shut down MCP before reactor to prevent requests during teardown.
-	if mcpSrv != nil {
-		mcpCtx, mcpCancel := context.WithTimeout(context.Background(), 3*time.Second)
-		_ = mcpSrv.Shutdown(mcpCtx)
-		mcpCancel()
-	}
-
-	stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	if err := eng.Stop(stopCtx); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: shutdown timeout: %v\n", err)
-	}
-	b.Stop()
-
-	fmt.Println("Ze BGP stopped.")
-	return 0
 }
 
 // runYANGConfig handles all YANG-based configs. Plugins are auto-loaded
@@ -688,7 +416,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// before signaling readiness. The test infrastructure polls ze.ready.file.
 	startupCtx, startupCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	if err := apiServer.WaitForStartupComplete(startupCtx); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: plugin startup wait: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		startupCancel()
+		apiServer.Stop()
+		_ = eng.Stop(startCtx)
+		b.Stop()
+		return 1
 	}
 	startupCancel()
 

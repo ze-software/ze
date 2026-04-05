@@ -1,5 +1,5 @@
 // Design: docs/features/interfaces.md — Make-before-break interface migration
-// Overview: iface.go — shared types and topic constants
+// Overview: migrate.go — MigrateConfig type and shared docs
 
 package iface
 
@@ -18,19 +18,6 @@ import (
 // listener is active on a new address. MigrateInterface waits for this event
 // before removing the old address (phase 4).
 const topicBGPListenerReady = "bgp/listener/ready"
-
-// MigrateConfig describes a make-before-break IP migration.
-type MigrateConfig struct {
-	// Source: the old interface/unit to migrate FROM.
-	OldIface string
-	OldUnit  int
-	Address  string // CIDR to migrate (e.g., "10.0.0.1/24")
-
-	// Destination: the new interface/unit to migrate TO.
-	NewIface     string
-	NewUnit      int
-	NewIfaceType string // "dummy", "veth", "bridge" (empty = already exists)
-}
 
 // validateMigrateConfig checks that all required fields are set and the
 // interface type (if specified) is one of the known types.

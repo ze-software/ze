@@ -11,68 +11,11 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
-	bgpreactor "codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
 )
-
-// commandLister returns a CommandLister that queries the reactor's dispatcher
-// for all registered commands. Called at tools/list time so it always reflects
-// the current set of registered YANG commands and plugin commands.
-//
-// YANG RPC input parameters are extracted once (lazily) and cached. The
-// parameters appear as typed JSON Schema properties in auto-generated tools.
-func commandLister(r *bgpreactor.Reactor) zemcp.CommandLister {
-	// Lazy-init: build path->params map once from YANG RPC metadata.
-	var (
-		paramOnce    sync.Once
-		paramsByPath map[string][]zemcp.ParamInfo // CLI path -> params
-	)
-
-	initParams := func() {
-		paramOnce.Do(func() {
-			paramsByPath = buildParamMap()
-		})
-	}
-
-	return func() []zemcp.CommandInfo {
-		api := r.APIServer()
-		if api == nil {
-			return nil
-		}
-		d := api.Dispatcher()
-		if d == nil {
-			return nil
-		}
-
-		initParams()
-
-		var infos []zemcp.CommandInfo
-
-		// Builtin commands from YANG registrations.
-		for _, cmd := range d.Commands() {
-			infos = append(infos, zemcp.CommandInfo{
-				Name:     cmd.Name,
-				Help:     cmd.Help,
-				ReadOnly: cmd.ReadOnly,
-				Params:   paramsByPath[cmd.Name],
-			})
-		}
-
-		// Plugin commands from runtime registrations.
-		for _, cmd := range d.Registry().All() {
-			infos = append(infos, zemcp.CommandInfo{
-				Name: cmd.Name,
-				Help: cmd.Description,
-			})
-		}
-
-		return infos
-	}
-}
 
 // buildParamMap creates a YANG loader, extracts all RPC metadata, and builds
 // a map from CLI command path to input parameters.

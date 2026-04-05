@@ -131,6 +131,7 @@ func (s *Server) runPluginStartup() {
 
 		if err := s.runPluginPhase(autoLoadConfigPaths); err != nil {
 			logger().Error("auto-load config path plugin startup failed", "error", err)
+			s.startupErr = fmt.Errorf("config-path plugin startup failed: %w", err)
 			s.signalStartupComplete()
 			return
 		}
@@ -225,11 +226,12 @@ func (s *Server) signalStartupComplete() {
 }
 
 // WaitForStartupComplete blocks until all plugin startup phases are done.
-// Returns immediately if no plugins were started.
+// Returns a non-nil error if a config-path plugin failed during startup
+// (e.g., invalid BGP config) or if the context deadline is exceeded.
 func (s *Server) WaitForStartupComplete(ctx context.Context) error {
 	select {
 	case <-s.startupDone:
-		return nil
+		return s.startupErr
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -599,6 +601,13 @@ func (s *Server) deliverConfigRPC(proc *process.Process) {
 
 	if err := conn.SendConfigure(s.ctx, sections); err != nil {
 		logger().Error("deliverConfigRPC failed", "plugin", proc.Name(), "error", err)
+		// The "bgp" plugin failing during config is fatal -- it means the
+		// reactor couldn't be created (e.g., invalid address family in config).
+		// Other plugin config failures are non-fatal; the plugin exits but
+		// the rest of ze continues operating.
+		if proc.Name() == "bgp" {
+			s.startupErr = fmt.Errorf("%s: %w", proc.Name(), err)
+		}
 	}
 }
 

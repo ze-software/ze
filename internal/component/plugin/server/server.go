@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -76,6 +77,7 @@ type Server struct {
 
 	startupDone     chan struct{} // closed when signalStartupComplete runs
 	startupDoneOnce sync.Once
+	startupErr      error // non-nil when a config-path plugin fails during startup
 
 	configLoader ConfigLoader // Loads new config tree for ReloadFromDisk
 
@@ -205,8 +207,9 @@ func (s *Server) hasConfiguredPlugin(name string) bool {
 			return true
 		}
 		// External plugins: config name may differ from registry name.
-		// Check if the run command references the registry name.
-		if p.Run != "" && strings.Contains(p.Run, name) {
+		// Check if the run command invokes this exact plugin name.
+		// Use word-level matching to avoid "bgp-rib" falsely matching "bgp".
+		if p.Run != "" && slices.Contains(strings.Fields(p.Run), name) {
 			return true
 		}
 	}
