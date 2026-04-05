@@ -14,7 +14,12 @@ When the argument contains agent names (e.g., "security", "logic", "concurrency"
 
 ## Model Selection
 
-Use `model: haiku` when spawning review agents. The orchestrator (this skill) runs at the session's model. Review agents do focused, checklist-driven work that benefits from speed over depth.
+The orchestrator (this skill) runs at the session's model. Spawned agents use different models based on task complexity:
+
+| Model | Agents | Why |
+|-------|--------|-----|
+| **sonnet** | Security (#1), Concurrency (#2), Logic (#5), Data Flow (#6) | Reasoning-heavy: exploit paths, race analysis, subtle bugs, cross-boundary tracing |
+| **haiku** | Error Handling (#3), Test Coverage (#4), API Compat (#7), Project Rules (#8), Documentation (#9) | Mechanical: checklist matching, grep callers, compare docs to code |
 
 ## Steps
 
@@ -51,7 +56,7 @@ Enter numbers (e.g., 1,5), "all", or names (e.g., "security, logic"):
 
 ### 3. Launch selected agents
 
-Launch the selected agents simultaneously using the Agent tool with `model: haiku`. Each agent gets the file list, diff context, and the Agent Preamble above. Each agent MUST:
+Launch the selected agents simultaneously using the Agent tool. Use `model: sonnet` for agents 1, 2, 5, 6 and `model: haiku` for agents 3, 4, 7, 8, 9 (see Model Selection table). Each agent gets the file list, diff context, and the Agent Preamble above. Each agent MUST:
 - Read the actual changed files (not just the diff)
 - Apply its specific lens exhaustively
 - Return findings in the structured format below
