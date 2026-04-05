@@ -34,6 +34,9 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/core/ipc/schema"
 
 	// Plugin packages — plugin + schema registration.
+	// Note: bgp/plugin is NOT imported here to avoid a test cycle
+	// (bgp/config tests import plugin/all; bgp/plugin imports bgp/config).
+	// It is imported directly in cmd/ze/main.go instead.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/aigp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community"

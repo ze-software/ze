@@ -221,6 +221,11 @@ type Registration struct {
 	// The plugin should type-assert to ze.Bus and store the reference for publishing events.
 	ConfigureBus func(bus any)
 
+	// ConfigurePluginServer is called before RunEngine with the plugin server (any).
+	// The plugin should type-assert to *pluginserver.Server and store the reference.
+	// Used by BGP to wire EventDispatcher and command dispatch to the shared server.
+	ConfigurePluginServer func(server any)
+
 	// In-process peer filters: called by the reactor for ingress/egress route filtering.
 	// Ingress: before caching/dispatching received UPDATEs. Egress: per destination peer.
 	// Filter closures capture plugin state (e.g., role configs) -- reactor passes only PeerFilterInfo.
@@ -274,6 +279,11 @@ var (
 	// Set by the engine after creating the Bus.
 	// Read by GetInternalPluginRunner to inject into plugins via ConfigureBus.
 	busInstance any
+
+	// pluginServerInstance stores the plugin server (as any to avoid importing server package).
+	// Set by the hub after creating the plugin server.
+	// Read by GetInternalPluginRunner to inject into plugins via ConfigurePluginServer.
+	pluginServerInstance any
 )
 
 // Register adds a plugin to the global registry.
@@ -345,6 +355,20 @@ func GetBus() any {
 	mu.RLock()
 	defer mu.RUnlock()
 	return busInstance
+}
+
+// SetPluginServer stores the plugin server instance for injection into plugins.
+func SetPluginServer(server any) {
+	mu.Lock()
+	defer mu.Unlock()
+	pluginServerInstance = server
+}
+
+// GetPluginServer returns the stored plugin server instance, or nil.
+func GetPluginServer() any {
+	mu.RLock()
+	defer mu.RUnlock()
+	return pluginServerInstance
 }
 
 // Lookup returns the registration for a named plugin, or nil if not found.

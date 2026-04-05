@@ -6,6 +6,7 @@ package hub
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -28,6 +30,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 	"codeberg.org/thomas-mangin/ze/internal/component/lg"
+	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
 	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -112,17 +115,17 @@ func Run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	// Probe config type using shared function
 	switch zeconfig.ProbeConfigType(string(data)) {
 	case zeconfig.ConfigTypeBGP:
-		// Run BGP in-process using YANG parser
+		// BGP config: legacy reactor path (proven, high-traffic).
+		// TODO(bgp-as-plugin): migrate to runYANGConfig once BGP RunEngine is validated.
 		return runBGPInProcess(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
+	case zeconfig.ConfigTypeUnknown:
+		// Non-BGP YANG config: auto-load plugins via ConfigRoots.
+		return runYANGConfig(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
 	case zeconfig.ConfigTypeHub:
 		// Run hub orchestrator using hub parser
 		// TODO: pass plugins to orchestrator when hub mode supports them
 		_ = plugins // Currently unused in hub mode
 		return runOrchestratorWithData(store, configPath, data)
-	case zeconfig.ConfigTypeUnknown:
-		// Generic YANG config without bgp {} block. Parse and auto-load
-		// plugins based on ConfigRoots (e.g., interface-only, fib-only).
-		return runGenericConfig(store, configPath, data, plugins, stdinOpen)
 	}
 
 	return 1
@@ -429,24 +432,108 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 	return 0
 }
 
-// runGenericConfig handles YANG configs without a bgp {} block.
-// Plugins are auto-loaded via ConfigRoots matching (e.g., interface {}, fib {}).
-func runGenericConfig(_ storage.Storage, configPath string, data []byte, plugins []string, stdinOpen bool) int {
-	// Parse YANG config (same parser as BGP path, but no reactor created).
+// runYANGConfig handles all YANG-based configs. Plugins are auto-loaded
+// via ConfigRoots matching: bgp {} loads BGP, interface {} loads iface, etc.
+// This is the unified startup path for all ze configs (except hub orchestrator mode).
+func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string) int { //nolint:cyclop // startup orchestration
+	// Phase 1: Parse config and resolve plugins.
 	loadResult, err := bgpconfig.LoadConfig(string(data), configPath, plugins)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 		return 1
 	}
 
-	// Check the config has at least one container (not empty/comments-only).
-	configPaths := zeconfig.CollectContainerPaths(loadResult.Tree)
-	if len(configPaths) == 0 {
-		fmt.Fprintf(os.Stderr, "error: config has no recognized sections\n")
-		return 1
+	// Store load context for BGP plugin's RunEngine.
+	bgpconfig.StoreLoadContext(loadResult, configPath, store)
+	// Store chaos config for BGP plugin to inject into reactor.
+	if chaosSeed != 0 {
+		bgpconfig.StoreLoadChaos(chaosSeed, chaosRate)
 	}
 
-	// Populate ConfigProvider with parsed config tree.
+	configPaths := zeconfig.CollectContainerPaths(loadResult.Tree)
+
+	// Resolve web/LG/MCP config: env > config file > CLI defaults.
+	var lgListenAddr string
+	var lgTLS bool
+	if listen := env.Get("ze.looking-glass.listen"); listen != "" {
+		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
+		if parseErr != nil {
+			fmt.Fprintf(os.Stderr, "error: ze.looking-glass.listen: %v\n", parseErr)
+			return 1
+		}
+		lgListenAddr = endpoints[0].String()
+		if len(endpoints) > 1 {
+			fmt.Fprintf(os.Stderr, "warning: ze.looking-glass.listen: only first endpoint used, multi-bind not yet supported\n")
+		}
+	}
+	if env.IsEnabled("ze.looking-glass.tls") {
+		lgTLS = true
+	}
+	if env.IsEnabled("ze.looking-glass.enabled") && lgListenAddr == "" {
+		lgListenAddr = "0.0.0.0:8443"
+	}
+
+	if listen := env.Get("ze.web.listen"); listen != "" && webListenAddr == "" {
+		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
+		if parseErr != nil {
+			fmt.Fprintf(os.Stderr, "error: ze.web.listen: %v\n", parseErr)
+			return 1
+		}
+		webEnabled = true
+		webListenAddr = endpoints[0].String()
+		if len(endpoints) > 1 {
+			fmt.Fprintf(os.Stderr, "warning: ze.web.listen: only first endpoint used, multi-bind not yet supported\n")
+		}
+	}
+	if env.IsEnabled("ze.web.enabled") && !webEnabled {
+		webEnabled = true
+	}
+	if env.IsEnabled("ze.web.insecure") && !insecureWeb {
+		insecureWeb = true
+	}
+	if listen := env.Get("ze.mcp.listen"); listen != "" && mcpAddr == "" {
+		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
+		if parseErr != nil {
+			fmt.Fprintf(os.Stderr, "error: ze.mcp.listen: %v\n", parseErr)
+			return 1
+		}
+		mcpAddr = endpoints[0].String()
+		if len(endpoints) > 1 {
+			fmt.Fprintf(os.Stderr, "warning: ze.mcp.listen: only first endpoint used, multi-bind not yet supported\n")
+		}
+	}
+	if env.IsEnabled("ze.mcp.enabled") && mcpAddr == "" {
+		mcpAddr = "127.0.0.1:8080"
+	}
+	if token := env.Get("ze.mcp.token"); token != "" && mcpToken == "" {
+		mcpToken = token
+	}
+
+	if webCfg, ok := bgpconfig.ExtractWebConfig(loadResult.Tree); ok {
+		if !webEnabled {
+			webEnabled = true
+			webListenAddr = webCfg.Listen()
+			insecureWeb = webCfg.Insecure
+		}
+	}
+	if mcpCfg, ok := bgpconfig.ExtractMCPConfig(loadResult.Tree); ok {
+		if mcpAddr == "" {
+			mcpAddr = mcpCfg.Listen()
+		}
+		if mcpToken == "" && mcpCfg.Token != "" {
+			mcpToken = mcpCfg.Token
+		}
+	}
+	if lgCfg, ok := bgpconfig.ExtractLGConfig(loadResult.Tree); ok {
+		if lgListenAddr == "" {
+			lgListenAddr = lgCfg.Listen()
+		}
+		if !lgTLS {
+			lgTLS = lgCfg.TLS
+		}
+	}
+
+	// Phase 2: Populate ConfigProvider.
 	configProvider := zeconfig.NewProvider()
 	for root, subtree := range loadResult.Tree.ToMap() {
 		if sub, ok := subtree.(map[string]any); ok {
@@ -454,7 +541,7 @@ func runGenericConfig(_ storage.Storage, configPath string, data []byte, plugins
 		}
 	}
 
-	// Create Bus, PluginCoordinator, and plugin server.
+	// Phase 3: Create Bus, PluginCoordinator, plugin server.
 	b := bus.NewBus()
 	registry.SetBus(b)
 
@@ -473,6 +560,7 @@ func runGenericConfig(_ storage.Storage, configPath string, data []byte, plugins
 		return 1
 	}
 	apiServer.SetProcessSpawner(pm)
+	registry.SetPluginServer(apiServer)
 
 	eng := engine.NewEngine(b, configProvider, pm)
 
@@ -482,7 +570,7 @@ func runGenericConfig(_ storage.Storage, configPath string, data []byte, plugins
 		return 1
 	}
 
-	// Start plugin server (auto-loads via ConfigRoots).
+	// Start plugin server (auto-loads BGP, iface, fib, etc. via ConfigRoots).
 	if err := apiServer.StartWithContext(startCtx); err != nil {
 		fmt.Fprintf(os.Stderr, "error starting plugin server: %v\n", err)
 		_ = eng.Stop(startCtx)
@@ -496,7 +584,41 @@ func runGenericConfig(_ storage.Storage, configPath string, data []byte, plugins
 		return 1
 	}
 
-	// Setup signal handling
+	// Command dispatcher for web/LG/MCP (uses plugin server, not reactor directly).
+	dispatch := serverDispatcher(apiServer)
+
+	// Create shared resolvers for web UI, looking glass, and MCP.
+	resolvers := newResolvers()
+	defer resolvers.Close()
+	resolvecmd.SetResolvers(resolvers)
+
+	if webEnabled {
+		if webSrv, broker := startWebServer(store, webListenAddr, insecureWeb, dispatch, resolvers); webSrv != nil {
+			defer func() {
+				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+				defer shutdownCancel()
+				_ = webSrv.Shutdown(shutdownCtx)
+				broker.Close()
+			}()
+		}
+	}
+
+	if lgListenAddr != "" {
+		if lgSrv := startLGServer(store, lgListenAddr, lgTLS, dispatch, resolvers); lgSrv != nil {
+			defer func() {
+				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+				defer shutdownCancel()
+				_ = lgSrv.Shutdown(shutdownCtx)
+			}()
+		}
+	}
+
+	var mcpSrv *http.Server
+	if mcpAddr != "" {
+		mcpSrv = startMCPServer(mcpAddr, dispatch, serverCommandLister(apiServer), mcpToken)
+	}
+
+	// Signal handling
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
@@ -506,15 +628,22 @@ func runGenericConfig(_ storage.Storage, configPath string, data []byte, plugins
 
 	fmt.Printf("Starting ze with config: %s\n", configPath)
 
-	// Signal readiness to test infrastructure.
 	if readyFile := env.Get("ze.ready.file"); readyFile != "" {
 		if f, createErr := os.Create(readyFile); createErr == nil { //nolint:gosec // test infrastructure path from env
 			f.Close() //nolint:errcheck,gosec // best-effort readiness signal
 		}
 	}
 
+	fmt.Println("Ze running. Press Ctrl+C to stop.")
+
 	<-sigCh
 	fmt.Println("\nShutting down...")
+
+	if mcpSrv != nil {
+		mcpCtx, mcpCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		_ = mcpSrv.Shutdown(mcpCtx)
+		mcpCancel()
+	}
 
 	stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -527,6 +656,76 @@ func runGenericConfig(_ storage.Storage, configPath string, data []byte, plugins
 
 	fmt.Println("Ze stopped.")
 	return 0
+}
+
+// serverDispatcher creates a CommandDispatcher from the plugin server's dispatcher.
+func serverDispatcher(s *pluginserver.Server) func(string) (string, error) {
+	return func(input string) (string, error) {
+		d := s.Dispatcher()
+		if d == nil {
+			return "", fmt.Errorf("server not ready")
+		}
+		ctx := &pluginserver.CommandContext{Server: s}
+		resp, err := d.Dispatch(ctx, input)
+		if err != nil {
+			return "", err
+		}
+		if resp == nil {
+			return "", nil
+		}
+		data, ok := resp.Data.(string)
+		if !ok {
+			b, jsonErr := json.Marshal(resp.Data)
+			if jsonErr != nil {
+				return "", fmt.Errorf("marshal response: %w", jsonErr)
+			}
+			return string(b), nil
+		}
+		return data, nil
+	}
+}
+
+// serverCommandLister creates a CommandLister from the plugin server's dispatcher.
+func serverCommandLister(s *pluginserver.Server) zemcp.CommandLister {
+	var (
+		paramOnce    sync.Once
+		paramsByPath map[string][]zemcp.ParamInfo
+	)
+
+	initParams := func() {
+		paramOnce.Do(func() {
+			paramsByPath = buildParamMap()
+		})
+	}
+
+	return func() []zemcp.CommandInfo {
+		d := s.Dispatcher()
+		if d == nil {
+			return nil
+		}
+
+		initParams()
+
+		var infos []zemcp.CommandInfo
+		for _, cmd := range d.Commands() {
+			infos = append(infos, zemcp.CommandInfo{
+				Name:     cmd.Name,
+				Help:     cmd.Help,
+				ReadOnly: cmd.ReadOnly,
+				Params:   paramsByPath[cmd.Name],
+			})
+		}
+
+		// Plugin-registered commands.
+		for _, cmd := range d.Registry().All() {
+			infos = append(infos, zemcp.CommandInfo{
+				Name: cmd.Name,
+				Help: cmd.Description,
+			})
+		}
+
+		return infos
+	}
 }
 
 // startWebServer creates and starts the web server with zefs credentials.

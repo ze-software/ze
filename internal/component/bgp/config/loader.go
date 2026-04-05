@@ -106,6 +106,46 @@ type LoadConfigResult struct {
 	ConfigDir string
 }
 
+// loadContext stores the LoadConfigResult and Storage for in-process BGP plugin use.
+// Set by the hub after LoadConfig. Retrieved by BGP's RunEngine to create the reactor
+// without re-parsing the config.
+var loadContext struct {
+	result     *LoadConfigResult
+	configPath string
+	store      any // storage.Storage (any to avoid import cycle)
+}
+
+// StoreLoadContext saves the LoadConfigResult and storage for retrieval by
+// the BGP plugin's RunEngine. Must be called after LoadConfig.
+func StoreLoadContext(result *LoadConfigResult, configPath string, store any) {
+	loadContext.result = result
+	loadContext.configPath = configPath
+	loadContext.store = store
+}
+
+// GetLoadContext returns the stored LoadConfigResult, config path, and storage.
+// Returns nil result if StoreLoadContext was not called.
+func GetLoadContext() (*LoadConfigResult, string, any) {
+	return loadContext.result, loadContext.configPath, loadContext.store
+}
+
+// chaosConfig stores chaos testing parameters for BGP plugin injection.
+var chaosConfig struct {
+	seed int64
+	rate float64
+}
+
+// StoreLoadChaos saves chaos config for retrieval by the BGP plugin's RunEngine.
+func StoreLoadChaos(seed int64, rate float64) {
+	chaosConfig.seed = seed
+	chaosConfig.rate = rate
+}
+
+// GetLoadChaos returns the stored chaos config (seed, rate). Zero seed means disabled.
+func GetLoadChaos() (int64, float64) {
+	return chaosConfig.seed, chaosConfig.rate
+}
+
 // LoadConfig parses config with CLI plugin YANG schemas, extracts and resolves
 // the plugin list, and returns the parsed tree + plugins without creating a reactor.
 // This is the first half of the decomposed LoadReactorWithPlugins.

@@ -527,6 +527,21 @@ func (r *Reactor) SetProcessSpawner(sp plugin.ProcessSpawner) {
 	r.processSpawner = sp
 }
 
+// SetPluginServer sets an externally-created plugin server.
+// When set, startAPIServer wires BGP handlers to this server instead
+// of creating a new one. Used when the hub owns the plugin server lifecycle.
+// Must be called before StartWithContext.
+func (r *Reactor) SetPluginServer(s *pluginserver.Server) {
+	r.api = s
+}
+
+// ReactorLifecycleAdapter returns a ReactorLifecycle implementation that
+// delegates to this reactor. Used to register the reactor with the
+// PluginCoordinator when BGP loads as a config-driven plugin.
+func (r *Reactor) ReactorLifecycleAdapter() plugin.ReactorLifecycle {
+	return &reactorAPIAdapter{r}
+}
+
 // publishBusNotification publishes a lightweight notification to the Bus.
 // Payload is nil — notifications carry information in metadata only.
 // No-op if Bus is nil. Fire-and-forget — does not block the caller.
@@ -867,40 +882,51 @@ func (r *Reactor) startMultiListeners() error {
 	return nil
 }
 
-// startAPIServer creates and starts the plugin server, event dispatcher,
+// startAPIServer creates or wires the plugin server, event dispatcher,
 // and wires filters and observers. Caller MUST hold r.mu.
+//
+// When r.api is already set (via SetPluginServer), skips server creation
+// and startup -- the hub owns the server lifecycle. Only wires BGP-specific
+// handlers (EventDispatcher, filters, observers).
 func (r *Reactor) startAPIServer() error {
-	apiConfig := &pluginserver.ServerConfig{
-		ConfigPath:                r.config.ConfigPath,
-		ConfiguredFamilies:        r.config.ConfiguredFamilies,
-		ConfiguredCustomEvents:    r.config.ConfiguredCustomEvents,
-		ConfiguredCustomSendTypes: r.config.ConfiguredCustomSendTypes,
-		ConfiguredPaths:           r.config.ConfiguredPaths,
-		Hub:                       r.config.Hub,
-		RPCFallback:               bgpserver.CodecRPCHandler,
-		CommitManager:             transaction.NewCommitManager(),
-		MetricsRegistry:           r.metricsRegistry,
+	externalServer := r.api != nil
+
+	if !externalServer {
+		// Create and own the plugin server (legacy path).
+		apiConfig := &pluginserver.ServerConfig{
+			ConfigPath:                r.config.ConfigPath,
+			ConfiguredFamilies:        r.config.ConfiguredFamilies,
+			ConfiguredCustomEvents:    r.config.ConfiguredCustomEvents,
+			ConfiguredCustomSendTypes: r.config.ConfiguredCustomSendTypes,
+			ConfiguredPaths:           r.config.ConfiguredPaths,
+			Hub:                       r.config.Hub,
+			RPCFallback:               bgpserver.CodecRPCHandler,
+			CommitManager:             transaction.NewCommitManager(),
+			MetricsRegistry:           r.metricsRegistry,
+		}
+		for _, pc := range r.config.Plugins {
+			apiConfig.Plugins = append(apiConfig.Plugins, plugin.PluginConfig{
+				Name:          pc.Name,
+				Run:           pc.Run,
+				Encoder:       pc.Encoder,
+				Respawn:       pc.Respawn,
+				WorkDir:       r.config.ConfigDir,
+				ReceiveUpdate: pc.ReceiveUpdate,
+				StageTimeout:  pc.StageTimeout,
+				Internal:      pc.Internal,
+			})
+		}
+		var serverErr error
+		r.api, serverErr = pluginserver.NewServer(apiConfig, &reactorAPIAdapter{r})
+		if serverErr != nil {
+			return fmt.Errorf("create plugin server: %w", serverErr)
+		}
+		if r.processSpawner != nil {
+			r.api.SetProcessSpawner(r.processSpawner)
+		}
 	}
-	for _, pc := range r.config.Plugins {
-		apiConfig.Plugins = append(apiConfig.Plugins, plugin.PluginConfig{
-			Name:          pc.Name,
-			Run:           pc.Run,
-			Encoder:       pc.Encoder,
-			Respawn:       pc.Respawn,
-			WorkDir:       r.config.ConfigDir,
-			ReceiveUpdate: pc.ReceiveUpdate,
-			StageTimeout:  pc.StageTimeout,
-			Internal:      pc.Internal,
-		})
-	}
-	var serverErr error
-	r.api, serverErr = pluginserver.NewServer(apiConfig, &reactorAPIAdapter{r})
-	if serverErr != nil {
-		return fmt.Errorf("create plugin server: %w", serverErr)
-	}
-	if r.processSpawner != nil {
-		r.api.SetProcessSpawner(r.processSpawner)
-	}
+
+	// Wire BGP-specific handlers regardless of server origin.
 	r.eventDispatcher = bgpserver.NewEventDispatcher(r.api)
 	if r.bus != nil {
 		r.eventDispatcher.SetBus(r.bus)
@@ -912,9 +938,11 @@ func (r *Reactor) startAPIServer() error {
 	r.AddPeerObserver(&apiStateObserver{dispatcher: r.eventDispatcher, reactor: r})
 	r.SetAPIProcessCount(len(r.config.Plugins))
 
-	if err := r.api.StartWithContext(r.ctx); err != nil {
-		r.abortStartup()
-		return err
+	if !externalServer {
+		if err := r.api.StartWithContext(r.ctx); err != nil {
+			r.abortStartup()
+			return err
+		}
 	}
 	return nil
 }
