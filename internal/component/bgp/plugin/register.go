@@ -22,12 +22,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
-// Coordinator extra keys used by the hub to pass state to RunEngine.
-const (
-	// KeyCreateReactor holds a func() (BGPReactorHandle, error) closure.
-	KeyCreateReactor = "bgp.createReactor"
-)
-
 var (
 	bgpMu     sync.Mutex
 	bgpBus    ze.Bus
@@ -95,14 +89,14 @@ func runBGPEngine(conn net.Conn) int {
 			return fmt.Errorf("bgp: server reactor is not a Coordinator")
 		}
 
-		// Retrieve the reactor factory stored by the hub.
-		createFn, ok := coord.GetExtra(KeyCreateReactor).(func() (registry.BGPReactorHandle, error))
-		if !ok || createFn == nil {
-			return fmt.Errorf("bgp: no reactor factory in coordinator")
+		// Create reactor using the factory registered by bgp/config.
+		factoryFn := registry.GetReactorFactory()
+		if factoryFn == nil {
+			return fmt.Errorf("bgp: no reactor factory registered")
 		}
 
 		var err error
-		bgpReactor, err = createFn()
+		bgpReactor, err = factoryFn(coord)
 		if err != nil {
 			return fmt.Errorf("bgp: create reactor: %w", err)
 		}
@@ -171,9 +165,6 @@ func runBGPEngine(conn net.Conn) int {
 	if server != nil {
 		if coord, ok := server.ReactorAny().(registry.CoordinatorAccessor); ok {
 			_ = coord.SetReactor(nil)
-			if clearFn, ok := coord.GetExtra("bgp.clearReactor").(func()); ok {
-				clearFn()
-			}
 		}
 	}
 

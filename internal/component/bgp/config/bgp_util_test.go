@@ -146,7 +146,7 @@ plugin {
 	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
-	plugins, err := ExtractPluginsFromTree(tree)
+	plugins, err := config.ExtractPluginsFromTree(tree)
 	require.NoError(t, err)
 	require.Len(t, plugins, 1)
 	require.Equal(t, "myapp", plugins[0].Name)
@@ -172,7 +172,7 @@ plugin {
 	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
-	plugins, err := ExtractPluginsFromTree(tree)
+	plugins, err := config.ExtractPluginsFromTree(tree)
 	require.NoError(t, err)
 	require.Len(t, plugins, 1)
 	require.Equal(t, time.Duration(0), plugins[0].StageTimeout)
@@ -199,7 +199,7 @@ plugin {
 	tree, err := p.Parse(input)
 	require.NoError(t, err) // Parsing succeeds (schema accepts string)
 
-	_, err = ExtractPluginsFromTree(tree)
+	_, err = config.ExtractPluginsFromTree(tree)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid timeout")
 }
@@ -225,7 +225,7 @@ plugin {
 	tree, err := p.Parse(input)
 	require.NoError(t, err) // Parsing succeeds (schema accepts string)
 
-	_, err = ExtractPluginsFromTree(tree)
+	_, err = config.ExtractPluginsFromTree(tree)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "must be positive")
 }
@@ -263,7 +263,7 @@ plugin {
 			p := config.NewParser(schema)
 			tree, err := p.Parse(input)
 			require.NoError(t, err)
-			plugins, err := ExtractPluginsFromTree(tree)
+			plugins, err := config.ExtractPluginsFromTree(tree)
 			require.NoError(t, err)
 			require.Len(t, plugins, 1)
 			require.Equal(t, tt.expected, plugins[0].StageTimeout)

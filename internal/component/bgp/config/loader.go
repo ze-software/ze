@@ -17,16 +17,20 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/chaos"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/migration"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/config/migration" // init() registers migration function
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
+	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
@@ -43,130 +47,27 @@ const (
 	originEGP = "egp"
 )
 
-// parseTreeWithYANG parses config with optional plugin YANG schemas.
-// Returns the parsed tree for further processing by callers.
-func parseTreeWithYANG(input string, pluginYANG map[string]string) (*config.Tree, error) {
-	// Parse input using YANG-derived schema with plugin augmentations
-	var schema *config.Schema
-	var schemaErr error
-	if len(pluginYANG) > 0 {
-		schema, schemaErr = config.YANGSchemaWithPlugins(pluginYANG)
-	} else {
-		schema, schemaErr = config.YANGSchema()
-	}
-	if schemaErr != nil {
-		return nil, fmt.Errorf("YANG schema: %w", schemaErr)
-	}
-
-	// Detect config format: hierarchical (brace), set commands, or set with metadata.
-	// Blob storage configs use set-meta format (annotated set commands with #user timestamps).
-	format := config.DetectFormat(input)
-
-	var tree *config.Tree
-	var err error
-	switch format {
-	case config.FormatSetMeta:
-		tree, err = parseSetWithMigration(schema, input, true)
-	case config.FormatSet:
-		tree, err = parseSetWithMigration(schema, input, false)
-	case config.FormatHierarchical:
-		p := config.NewParser(schema)
-		tree, err = p.Parse(input)
-		if err != nil {
-			if hint := detectLegacySyntaxHint(input, err); hint != "" {
-				return nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
-			}
-		}
-	}
-	if err != nil {
-		return nil, fmt.Errorf("parse config: %w", err)
-	}
-
-	// Extract environment block and apply log config early.
-	// Lazy loggers (LazyLogger) will pick up these settings on first use.
-	envValues := config.ExtractEnvironment(tree)
-	slogutil.ApplyLogConfig(envValues)
-
-	return tree, nil
-}
-
-// parseSetWithMigration parses set-format config, applying migrations for stale fields.
-// First attempts strict parsing. On failure, retries in pre-migration mode to build a
-// tree with unknown fields skipped, runs tree-level migrations to remove them, then
-// re-serializes and re-parses strictly to ensure the result is schema-valid.
-func parseSetWithMigration(schema *config.Schema, input string, hasMeta bool) (*config.Tree, error) {
-	sp := config.NewSetParser(schema)
-	if hasMeta {
-		tree, _, err := sp.ParseWithMeta(input)
-		if err == nil {
-			return tree, nil
-		}
-	} else {
-		tree, err := sp.Parse(input)
-		if err == nil {
-			return tree, nil
-		}
-	}
-
-	// Strict parse failed -- try pre-migration mode to skip unknown fields,
-	// then run tree-level migrations to clean them up.
-	sp2 := config.NewSetParser(schema)
-	sp2.SetPreMigration(true)
-	var tree *config.Tree
-	var err error
-	if hasMeta {
-		tree, _, err = sp2.ParseWithMeta(input)
-	} else {
-		tree, err = sp2.Parse(input)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	if result, migrateErr := migration.Migrate(tree); migrateErr == nil && len(result.Applied) > 0 {
-		configLogger().Info("applied config migrations", "count", len(result.Applied), "migrations", result.Applied)
-	}
-
-	return tree, nil
-}
-
 // LoadReactor parses config and creates a configured Reactor.
 func LoadReactor(input string) (*reactor.Reactor, error) {
-	tree, err := parseTreeWithYANG(input, nil)
+	result, err := config.LoadConfig(input, "", nil)
 	if err != nil {
 		return nil, err
 	}
-	plugins, err := ExtractPluginsFromTree(tree)
-	if err != nil {
-		return nil, err
-	}
-	plugins, err = expandDependencies(plugins)
-	if err != nil {
-		return nil, err
-	}
-	return CreateReactorFromTree(tree, "", "", plugins, nil)
+	return CreateReactorFromTree(result.Tree, "", "", result.Plugins, nil)
 }
 
-// LoadConfigResult holds the output of LoadConfig: a parsed config tree,
-// resolved plugin list, and derived config directory.
-type LoadConfigResult struct {
-	Tree      *config.Tree
-	Plugins   []reactor.PluginConfig
-	ConfigDir string
-}
-
-// loadContext stores the LoadConfigResult and Storage for in-process BGP plugin use.
+// loadContext stores the config.LoadConfigResult and Storage for in-process BGP plugin use.
 // Set by the hub after LoadConfig. Retrieved by BGP's RunEngine to create the reactor
 // without re-parsing the config.
 var loadContext struct {
-	result     *LoadConfigResult
+	result     *config.LoadConfigResult
 	configPath string
 	store      any // storage.Storage (any to avoid import cycle)
 }
 
 // StoreLoadContext saves the LoadConfigResult and storage for retrieval by
 // the BGP plugin's RunEngine. Must be called after LoadConfig.
-func StoreLoadContext(result *LoadConfigResult, configPath string, store any) {
+func StoreLoadContext(result *config.LoadConfigResult, configPath string, store any) {
 	loadContext.result = result
 	loadContext.configPath = configPath
 	loadContext.store = store
@@ -174,7 +75,7 @@ func StoreLoadContext(result *LoadConfigResult, configPath string, store any) {
 
 // GetLoadContext returns the stored LoadConfigResult, config path, and storage.
 // Returns nil result if StoreLoadContext was not called.
-func GetLoadContext() (*LoadConfigResult, string, any) {
+func GetLoadContext() (*config.LoadConfigResult, string, any) {
 	return loadContext.result, loadContext.configPath, loadContext.store
 }
 
@@ -195,64 +96,13 @@ func GetLoadChaos() (int64, float64) {
 	return chaosConfig.seed, chaosConfig.rate
 }
 
-// LoadConfig parses config with CLI plugin YANG schemas, extracts and resolves
-// the plugin list, and returns the parsed tree + plugins without creating a reactor.
-// This is the first half of the decomposed LoadReactorWithPlugins.
-func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResult, error) {
-	// Internal plugin schemas loaded via init()-based registration (LoadRegistered).
-	// Only CLI-specified external plugins need explicit loading.
-	pluginYANG := plugin.CollectPluginYANG(cliPlugins)
-
-	tree, err := parseTreeWithYANG(input, pluginYANG)
-	if err != nil {
-		return nil, err
-	}
-
-	plugins, err := ExtractPluginsFromTree(tree)
-	if err != nil {
-		return nil, err
-	}
-
-	// Merge CLI plugins with config plugins
-	plugins, err = mergeCliPlugins(plugins, cliPlugins)
-	if err != nil {
-		return nil, fmt.Errorf("resolve plugins: %w", err)
-	}
-
-	// Expand dependencies before creating reactor
-	plugins, err = expandDependencies(plugins)
-	if err != nil {
-		return nil, err
-	}
-
-	// Set config directory for process execution
-	var configDir string
-	if configPath != "" && configPath != "-" {
-		configDir = filepath.Dir(configPath)
-	} else {
-		cwd, cwdErr := os.Getwd()
-		if cwdErr != nil {
-			return nil, fmt.Errorf("get working directory: %w", cwdErr)
-		}
-		configDir = cwd
-	}
-
-	return &LoadConfigResult{
-		Tree:      tree,
-		Plugins:   plugins,
-		ConfigDir: configDir,
-	}, nil
-}
-
-// CreateReactor creates a Reactor from a LoadConfigResult.
-// This is the second half of the decomposed LoadReactorWithPlugins.
-func CreateReactor(cfg *LoadConfigResult, configPath string, store storage.Storage) (*reactor.Reactor, error) {
+// CreateReactor creates a Reactor from a config.LoadConfigResult.
+func CreateReactor(cfg *config.LoadConfigResult, configPath string, store storage.Storage) (*reactor.Reactor, error) {
 	r, err := CreateReactorFromTree(cfg.Tree, cfg.ConfigDir, configPath, cfg.Plugins, store)
 	if err != nil {
 		return nil, err
 	}
 
-	// Set config path for SIGHUP reload support
 	if configPath != "" && configPath != "-" {
 		r.SetConfigPath(configPath)
 		r.SetReloadFunc(createReloadFunc(store))
@@ -262,12 +112,8 @@ func CreateReactor(cfg *LoadConfigResult, configPath string, store storage.Stora
 }
 
 // LoadReactorWithPlugins parses config with CLI plugins and creates Reactor.
-// configPath is the original file path (used for SIGHUP reload). May be empty or "-".
-// store is used by the reload function to re-read config on SIGHUP; may be nil when
-// configPath is "" or "-" (reload not supported).
-// This is a convenience wrapper around LoadConfig + CreateReactor.
 func LoadReactorWithPlugins(store storage.Storage, input, configPath string, cliPlugins []string) (*reactor.Reactor, error) {
-	cfg, err := LoadConfig(input, configPath, cliPlugins)
+	cfg, err := config.LoadConfig(input, configPath, cliPlugins)
 	if err != nil {
 		return nil, err
 	}
@@ -279,23 +125,11 @@ func LoadReactorFile(store storage.Storage, path string) (*reactor.Reactor, erro
 	return LoadReactorFileWithPlugins(store, path, nil)
 }
 
-// LoadReactorFileWithPlugins loads config from file and creates Reactor,
-// merging CLI-specified plugins with config-declared plugins.
-//
-// CLI plugins are resolved using plugin.ResolvePlugin():
-//   - "ze.X" -> internal plugin (run "ze plugin X")
-//   - "./path" -> fork local binary
-//   - "/path" -> fork absolute path binary
-//   - "cmd args..." -> fork command with args
-//   - "auto" -> auto-discover all plugins (not implemented yet)
-//
-// Plugin YANG schemas are loaded before config parsing to allow plugins
-// to augment the config schema (e.g., hostname plugin adds host-name/domain-name).
+// LoadReactorFileWithPlugins loads config from file and creates Reactor.
 func LoadReactorFileWithPlugins(store storage.Storage, path string, cliPlugins []string) (*reactor.Reactor, error) {
 	var data []byte
 	var err error
 
-	// Support stdin when path is "-"
 	if path == "-" {
 		data, err = io.ReadAll(os.Stdin)
 	} else {
@@ -305,188 +139,54 @@ func LoadReactorFileWithPlugins(store storage.Storage, path string, cliPlugins [
 		return nil, fmt.Errorf("read config: %w", err)
 	}
 
-	// Internal plugin schemas loaded via init()-based registration (LoadRegistered).
-	// Only CLI-specified external plugins need explicit loading.
 	pluginYANG := plugin.CollectPluginYANG(cliPlugins)
 
-	// Parse config into tree
-	tree, err := parseTreeWithYANG(string(data), pluginYANG)
-	if err != nil {
-		return nil, fmt.Errorf("parse config: %w", err)
-	}
-
-	// Determine config directory
-	var configDir string
-	var absPath string
-	if path == "-" {
-		absPath, err = os.Getwd()
-		if err != nil {
-			return nil, fmt.Errorf("get working directory: %w", err)
-		}
-		configDir = absPath
-	} else {
-		absPath, err = filepath.Abs(path)
-		if err != nil {
-			return nil, fmt.Errorf("resolve config path: %w", err)
-		}
-		configDir = filepath.Dir(absPath)
-	}
-
-	// Extract plugins from tree
-	plugins, err := ExtractPluginsFromTree(tree)
-	if err != nil {
-		return nil, fmt.Errorf("extract plugins: %w", err)
-	}
-
-	// Merge CLI plugins with config plugins
-	plugins, err = mergeCliPlugins(plugins, cliPlugins)
-	if err != nil {
-		return nil, fmt.Errorf("resolve plugins: %w", err)
-	}
-
-	// Expand dependencies before creating reactor
-	plugins, err = expandDependencies(plugins)
-	if err != nil {
-		return nil, fmt.Errorf("expand plugin dependencies: %w", err)
-	}
-
-	// Wire YANG validator for runtime attribute validation (origin enum, med/local-pref ranges)
 	if v, vErr := config.YANGValidatorWithPlugins(pluginYANG); vErr == nil && v != nil {
 		plugin.SetYANGValidator(v)
 	}
 
-	// Create reactor from tree
-	r, err := CreateReactorFromTree(tree, configDir, absPath, plugins, store)
+	cfg, err := config.LoadConfig(string(data), path, cliPlugins)
 	if err != nil {
 		return nil, err
 	}
 
-	// Set config path for SIGHUP reload support
-	if path != "-" {
-		r.SetConfigPath(absPath)
-		r.SetReloadFunc(createReloadFunc(store))
-	}
-
-	return r, nil
+	return CreateReactor(cfg, path, store)
 }
 
-// mergeCliPlugins resolves CLI plugin strings and merges them with extracted plugins.
-// CLI plugins are added first (higher priority), then config plugins.
-// Duplicate plugins (same name) are deduplicated.
-func mergeCliPlugins(plugins []reactor.PluginConfig, cliPlugins []string) ([]reactor.PluginConfig, error) {
-	if len(cliPlugins) == 0 {
-		return plugins, nil
+// injectChaos wraps the reactor's clock, dialer, and listener with chaos fault injection
+// when the coordinator has non-zero chaos seed stored by the hub.
+func injectChaos(r *reactor.Reactor, coord registry.CoordinatorAccessor) {
+	seed, _ := coord.GetExtra("bgp.chaosSeed").(int64)
+	if seed == 0 {
+		return
 	}
-
-	// Build set of existing plugin names for deduplication
-	existing := make(map[string]bool)
-	for _, p := range plugins {
-		existing[p.Name] = true
+	rate, _ := coord.GetExtra("bgp.chaosRate").(float64)
+	if rate < 0 {
+		rate = 0.1
 	}
-
-	// Resolve and prepend CLI plugins
-	var newPlugins []reactor.PluginConfig
-	for _, ps := range cliPlugins {
-		resolved, err := plugin.ResolvePlugin(ps)
-		if err != nil {
-			return nil, fmt.Errorf("plugin %q: %w", ps, err)
-		}
-
-		// Skip auto for now (would need discovery)
-		if resolved.Type == plugin.PluginTypeAuto {
-			return nil, fmt.Errorf("plugin 'auto' not yet implemented")
-		}
-
-		// Skip if already in config
-		if existing[resolved.Name] {
-			continue
-		}
-		existing[resolved.Name] = true
-
-		// Build plugin config based on type
-		pc := reactor.PluginConfig{
-			Name:    resolved.Name,
-			Encoder: "json", // Default encoder
-		}
-
-		if resolved.Type == plugin.PluginTypeInternal {
-			// Internal plugins run in-process via goroutine
-			pc.Internal = true
-			// Run is empty - process.go will use internal registry
-		} else {
-			// External plugins fork via exec
-			pc.Run = strings.Join(resolved.Command, " ")
-		}
-
-		newPlugins = append(newPlugins, pc)
-	}
-
-	// Prepend CLI plugins to config plugins (CLI takes priority)
-	return append(newPlugins, plugins...), nil
+	resolvedSeed := chaos.ResolveSeed(seed)
+	chaosLogger := slogutil.Logger("chaos")
+	cfg := chaos.ChaosConfig{Seed: resolvedSeed, Rate: rate, Logger: chaosLogger}
+	c, d, l := chaos.NewChaosWrappers(clock.RealClock{}, &network.RealDialer{}, network.RealListenerFactory{}, cfg)
+	r.SetClock(c)
+	r.SetDialer(d)
+	r.SetListenerFactory(l)
+	chaosLogger.Info("chaos self-test mode enabled", "seed", resolvedSeed, "rate", rate)
 }
 
-// expandDependencies resolves plugin dependencies from the registry and adds
-// missing dependency plugins to the list. Auto-added plugins are Internal=true
-// with Encoder="json" since they are Go plugins registered via init().
-func expandDependencies(plugins []reactor.PluginConfig) ([]reactor.PluginConfig, error) {
-	// Collect current plugin names.
-	names := make([]string, 0, len(plugins))
-	existing := make(map[string]bool, len(plugins))
-	for _, p := range plugins {
-		names = append(names, p.Name)
-		existing[p.Name] = true
+// readGRMarker reads and removes the Graceful Restart marker from storage.
+// RFC 4724 Section 4.1: reactor uses the expiry to set R bit in OPEN capabilities.
+func readGRMarker(r *reactor.Reactor, store storage.Storage) {
+	if store == nil {
+		return
 	}
-
-	// Resolve transitive dependencies via registry.
-	resolved, err := registry.ResolveDependencies(names)
-	if err != nil {
-		return nil, fmt.Errorf("expand dependencies: %w", err)
+	if expiry, ok := grmarker.Read(store); ok {
+		r.SetRestartUntil(expiry)
+		slogutil.Logger("bgp.gr").Info("GR restart marker found", "expires", expiry)
 	}
-
-	// Add any new names not already in the plugin list.
-	for _, name := range resolved {
-		if existing[name] {
-			continue
-		}
-		configLogger().Info("auto-adding dependency plugin", "name", name)
-		plugins = append(plugins, reactor.PluginConfig{
-			Name:     name,
-			Internal: true,
-			Encoder:  "json",
-		})
-		existing[name] = true
+	if err := grmarker.Remove(store); err != nil {
+		slogutil.Logger("bgp.gr").Warn("failed to remove GR marker", "error", err)
 	}
-
-	return plugins, nil
-}
-
-// detectLegacySyntaxHint checks if a parse error is likely due to old syntax
-// and returns a helpful hint for migration.
-func detectLegacySyntaxHint(input string, parseErr error) string {
-	errMsg := parseErr.Error()
-
-	// Check for common old syntax patterns
-	hasNeighborKeyword := strings.Contains(errMsg, "unknown top-level keyword: neighbor")
-	hasTemplateNeighbor := strings.Contains(errMsg, "unknown field in template: neighbor")
-	hasPeerGlobError := strings.Contains(errMsg, "invalid key for peer") && strings.Contains(errMsg, "invalid IP")
-
-	// Also check input for old syntax patterns
-	lines := strings.SplitSeq(input, "\n")
-	for line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "neighbor ") {
-			hasNeighborKeyword = true
-			break
-		}
-	}
-
-	if hasNeighborKeyword || hasTemplateNeighbor || hasPeerGlobError {
-		return "Hint: This config appears to use deprecated ExaBGP syntax.\n" +
-			"Run 'ze config validate <file>' to verify, then\n" +
-			"Run 'ze config migrate <file>' to upgrade."
-	}
-
-	return ""
 }
 
 // ValidateAuthzConfig validates authorization config in the parsed tree.

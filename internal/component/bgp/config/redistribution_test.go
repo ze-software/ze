@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // TestRedistributionConfigParse verifies parsing redistribution leaf-lists.
@@ -47,7 +49,7 @@ bgp {
     }
 }
 `
-	tree, err := parseTreeWithYANG(input, nil)
+	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
@@ -99,7 +101,7 @@ bgp {
     }
 }
 `
-	tree, err := parseTreeWithYANG(input, nil)
+	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
@@ -207,7 +209,7 @@ bgp {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tree, err := parseTreeWithYANG(tt.input, nil)
+			tree, err := config.ParseTreeWithYANG(tt.input, nil)
 			require.NoError(t, err)
 			_, err = PeersFromConfigTree(tree)
 			require.Error(t, err)
@@ -250,7 +252,7 @@ bgp {
     }
 }
 `
-	tree, err := parseTreeWithYANG(input, nil)
+	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
@@ -289,7 +291,7 @@ bgp {
     }
 }
 `
-	tree, err := parseTreeWithYANG(input, nil)
+	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)

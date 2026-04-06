@@ -5,84 +5,23 @@ package bgpconfig
 
 import (
 	"fmt"
-	"strings"
-	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
-// ExtractPluginsFromTree extracts plugin configurations from a parsed config tree.
-// Returns []reactor.PluginConfig ready for reactor consumption.
-//
-// Sources:
-//  1. Explicit plugins: plugin { external <name> { run; encoder; timeout; } }
-//  2. Inline plugins: peer process bindings with "run" defined (discovered after template resolution)
-func ExtractPluginsFromTree(tree *config.Tree) ([]reactor.PluginConfig, error) {
-	var plugins []reactor.PluginConfig
-
-	// Source 1: Explicit plugins from plugin { external <name> { ... } }
-	if pluginContainer := tree.GetContainer("plugin"); pluginContainer != nil {
-		for name, proc := range pluginContainer.GetList("external") {
-			// Reject reserved names (underscore prefix used internally)
-			if strings.HasPrefix(name, "_") {
-				return nil, fmt.Errorf("plugin name %q: names starting with underscore are reserved", name)
-			}
-			pc := reactor.PluginConfig{Name: name}
-			if v, ok := proc.Get("run"); ok {
-				pc.Run = v
-			}
-			if v, ok := proc.Get("encoder"); ok {
-				pc.Encoder = v
-			}
-			if v, ok := proc.Get("timeout"); ok {
-				d, err := time.ParseDuration(v)
-				if err != nil {
-					return nil, fmt.Errorf("plugin %q: invalid timeout %q: %w", name, v, err)
-				}
-				if d < 0 {
-					return nil, fmt.Errorf("plugin %q: timeout must be positive, got %q", name, v)
-				}
-				pc.StageTimeout = d
-			}
-			// Default: text encoder plugins receive updates
-			if pc.Encoder == config.EncoderText {
-				pc.ReceiveUpdate = true
-			}
-
-			markInternalPlugin(&pc)
-			plugins = append(plugins, pc)
-		}
+// extractBGPInlinePlugins extracts inline plugin configs from BGP peer process bindings.
+// Registered with config.RegisterPluginExtractor so config.LoadConfig discovers them.
+func extractBGPInlinePlugins(tree *config.Tree) ([]plugin.PluginConfig, error) {
+	if tree.GetContainer("bgp") == nil {
+		return nil, nil
 	}
-
-	// Source 2: Inline plugins from peer process bindings with "run" defined.
-	// Resolve templates first so inherited process bindings are visible.
-	// Skip if no bgp block (plugin-only configs are valid).
-	var inlinePlugins []reactor.PluginConfig
-	if tree.GetContainer("bgp") != nil {
-		bgpTree, err := ResolveBGPTree(tree)
-		if err != nil {
-			return nil, fmt.Errorf("resolve templates for plugin extraction: %w", err)
-		}
-		inlinePlugins = extractInlinePluginsFromMap(bgpTree)
+	bgpTree, err := ResolveBGPTree(tree)
+	if err != nil {
+		return nil, fmt.Errorf("resolve templates for plugin extraction: %w", err)
 	}
-
-	// Build set of explicit plugin names for dedup
-	explicit := make(map[string]bool, len(plugins))
-	for _, p := range plugins {
-		explicit[p.Name] = true
-	}
-
-	// Append inline plugins not already declared as explicit
-	for _, ip := range inlinePlugins {
-		if !explicit[ip.Name] {
-			plugins = append(plugins, ip)
-			explicit[ip.Name] = true
-		}
-	}
-
-	return plugins, nil
+	return extractInlinePluginsFromMap(bgpTree), nil
 }
 
 // extractInlinePluginsFromMap finds inline plugins in the resolved bgpTree map.
@@ -121,30 +60,15 @@ func extractInlinePluginsFromMap(bgpTree map[string]any) []reactor.PluginConfig 
 			pc := reactor.PluginConfig{
 				Name:          name,
 				Run:           run,
-				Encoder:       config.EncoderText, // Default to text encoder
-				ReceiveUpdate: true,               // Default: receive updates
+				Encoder:       config.EncoderText,
+				ReceiveUpdate: true,
 			}
-			markInternalPlugin(&pc)
+			config.MarkInternalPlugin(&pc)
 			plugins = append(plugins, pc)
 		}
 	}
 
 	return plugins
-}
-
-// markInternalPlugin sets Internal=true if Run resolves to an internal plugin.
-// Uses ResolvePlugin for validation — rejects unknown internal names (e.g., "ze.typo").
-func markInternalPlugin(pc *reactor.PluginConfig) {
-	if pc.Run == "" {
-		return
-	}
-	resolved, err := plugin.ResolvePlugin(pc.Run)
-	if err != nil {
-		return
-	}
-	if resolved.Type == plugin.PluginTypeInternal {
-		pc.Internal = true
-	}
 }
 
 // ValidatePluginReferences checks that all process binding plugin references

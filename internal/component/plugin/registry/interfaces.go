@@ -4,6 +4,7 @@ package registry
 
 import (
 	"context"
+	"sync"
 	"time"
 )
 
@@ -35,4 +36,27 @@ type CoordinatorAccessor interface {
 	SetReactor(r any) error
 	GetExtra(key string) any
 	OnPostStartup(fn func())
+}
+
+// ReactorFactoryFunc creates a BGP reactor from coordinator-stored config state.
+// Registered by bgp/config at init time, called by bgp/plugin during OnConfigure.
+type ReactorFactoryFunc func(coord CoordinatorAccessor) (BGPReactorHandle, error)
+
+var (
+	reactorFactoryMu sync.RWMutex
+	reactorFactory   ReactorFactoryFunc
+)
+
+// RegisterReactorFactory sets the BGP reactor factory function.
+func RegisterReactorFactory(fn ReactorFactoryFunc) {
+	reactorFactoryMu.Lock()
+	defer reactorFactoryMu.Unlock()
+	reactorFactory = fn
+}
+
+// GetReactorFactory returns the registered reactor factory, or nil.
+func GetReactorFactory() ReactorFactoryFunc {
+	reactorFactoryMu.RLock()
+	defer reactorFactoryMu.RUnlock()
+	return reactorFactory
 }

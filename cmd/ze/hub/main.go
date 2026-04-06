@@ -19,9 +19,6 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/chaos"
-	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	"codeberg.org/thomas-mangin/ze/internal/component/bus"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -40,9 +37,7 @@ import (
 	resolveDNS "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
 	"codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -163,7 +158,7 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 // This is the unified startup path for all ze configs (except hub orchestrator mode).
 func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string) int { //nolint:cyclop // startup orchestration
 	// Phase 1: Parse config and resolve plugins.
-	loadResult, err := bgpconfig.LoadConfig(string(data), configPath, plugins)
+	loadResult, err := zeconfig.LoadConfig(string(data), configPath, plugins)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 		return 1
@@ -267,81 +262,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	configTree := loadResult.Tree.ToMap()
 	coordinator := zePlugin.NewCoordinator(configTree)
 
-	// Store reactor factory and storage for the BGP plugin's RunEngine.
-	// Uses coordinator.SetExtra to avoid bgp/config import cycles.
-	// The factory re-reads config from disk when called, supporting both
-	// initial startup and reload-time BGP loading (AC-6).
-	capturedPlugins := plugins
-	capturedPath := configPath
-	capturedStore := store
-	capturedChaosSeed := chaosSeed
-	capturedChaosRate := chaosRate
-	var reactorMu sync.Mutex
-	var reactorCached registry.BGPReactorHandle
-	coordinator.SetExtra("bgp.createReactor", func() (registry.BGPReactorHandle, error) {
-		reactorMu.Lock()
-		defer reactorMu.Unlock()
-		if reactorCached != nil {
-			return reactorCached, nil
-		}
-
-		// Re-read config from disk (or use stored data for stdin configs).
-		// This ensures reload-time BGP loading gets the current config,
-		// not a stale capture from initial startup.
-		var configData []byte
-		if capturedPath != "" && capturedPath != "-" {
-			var readErr error
-			configData, readErr = store.ReadFile(capturedPath)
-			if readErr != nil {
-				return nil, fmt.Errorf("re-read config for reactor: %w", readErr)
-			}
-		} else {
-			// stdin config: use coordinator's current tree via original data.
-			// For stdin mode, the config doesn't change at reload.
-			configData = data
-		}
-
-		result, loadErr := bgpconfig.LoadConfig(string(configData), capturedPath, capturedPlugins)
-		if loadErr != nil {
-			return nil, fmt.Errorf("parse config for reactor: %w", loadErr)
-		}
-
-		r, createErr := bgpconfig.CreateReactor(result, capturedPath, capturedStore)
-		if createErr != nil {
-			return nil, createErr
-		}
-		// Inject chaos wrappers if enabled.
-		if capturedChaosSeed != 0 {
-			seed := chaos.ResolveSeed(capturedChaosSeed)
-			rate := capturedChaosRate
-			if rate < 0 {
-				rate = 0.1
-			}
-			chaosLogger := slogutil.Logger("chaos")
-			cfg := chaos.ChaosConfig{Seed: seed, Rate: rate, Logger: chaosLogger}
-			c, d, l := chaos.NewChaosWrappers(clock.RealClock{}, &network.RealDialer{}, network.RealListenerFactory{}, cfg)
-			r.SetClock(c)
-			r.SetDialer(d)
-			r.SetListenerFactory(l)
-			chaosLogger.Info("chaos self-test mode enabled", "seed", seed, "rate", rate)
-		}
-		// Read GR marker from storage (RFC 4724 Section 4.1).
-		if expiry, grOK := grmarker.Read(capturedStore); grOK {
-			r.SetRestartUntil(expiry)
-			slogutil.Logger("bgp.gr").Info("GR restart marker found", "expires", expiry)
-		}
-		if removeErr := grmarker.Remove(capturedStore); removeErr != nil {
-			slogutil.Logger("bgp.gr").Warn("failed to remove GR marker", "error", removeErr)
-		}
-		reactorCached = r
-		return reactorCached, nil
-	})
-	// Store a cleanup function for AC-7 (removing BGP at reload).
-	coordinator.SetExtra("bgp.clearReactor", func() {
-		reactorMu.Lock()
-		defer reactorMu.Unlock()
-		reactorCached = nil
-	})
+	// Store config state for the BGP plugin's reactor factory.
+	// The BGP plugin builds its own createReactor closure using these values.
+	coordinator.SetExtra("bgp.configPath", configPath)
+	coordinator.SetExtra("bgp.cliPlugins", plugins)
+	coordinator.SetExtra("bgp.store", store)
+	coordinator.SetExtra("bgp.configData", data)
+	coordinator.SetExtra("bgp.chaosSeed", chaosSeed)
+	coordinator.SetExtra("bgp.chaosRate", chaosRate)
 
 	pm := pluginmgr.NewManager()
 
@@ -387,7 +315,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			if readErr != nil {
 				return nil, fmt.Errorf("read config: %w", readErr)
 			}
-			result, loadErr := bgpconfig.LoadConfig(string(reloadData), configPath, plugins)
+			result, loadErr := zeconfig.LoadConfig(string(reloadData), configPath, plugins)
 			if loadErr != nil {
 				return nil, loadErr
 			}

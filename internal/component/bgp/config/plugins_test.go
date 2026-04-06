@@ -25,7 +25,7 @@ func TestExtractPluginsFromTree_InternalPlugin(t *testing.T) {
 	ext.Set("run", "ze.bgp-rs")
 	pluginContainer.AddListEntry("external", "rr", ext)
 
-	plugins, err := ExtractPluginsFromTree(tree)
+	plugins, err := config.ExtractPluginsFromTree(tree)
 	require.NoError(t, err)
 	require.Len(t, plugins, 1)
 
@@ -48,7 +48,7 @@ func TestExtractPluginsFromTree_ExternalPlugin(t *testing.T) {
 	ext.Set("run", "/usr/bin/custom-plugin")
 	pluginContainer.AddListEntry("external", "custom", ext)
 
-	plugins, err := ExtractPluginsFromTree(tree)
+	plugins, err := config.ExtractPluginsFromTree(tree)
 	require.NoError(t, err)
 	require.Len(t, plugins, 1)
 
@@ -70,7 +70,7 @@ func TestExtractPluginsFromTree_UnknownInternalPlugin(t *testing.T) {
 	ext.Set("run", "ze.nonexistent")
 	pluginContainer.AddListEntry("external", "bad", ext)
 
-	plugins, err := ExtractPluginsFromTree(tree)
+	plugins, err := config.ExtractPluginsFromTree(tree)
 	require.NoError(t, err)
 	require.Len(t, plugins, 1)
 

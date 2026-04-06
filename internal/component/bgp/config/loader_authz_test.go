@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 )
 
@@ -65,7 +66,7 @@ system {
     }
 }
 `
-	tree, err := parseTreeWithYANG(input, nil)
+	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
 	store := extractAuthzConfig(tree)
@@ -98,7 +99,7 @@ bgp {
     }
 }
 `
-	tree, err := parseTreeWithYANG(input, nil)
+	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
 	store := extractAuthzConfig(tree)
@@ -138,7 +139,7 @@ system {
     }
 }
 `
-	tree, err := parseTreeWithYANG(input, nil)
+	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
 	store := extractAuthzConfig(tree)
@@ -205,7 +206,7 @@ system {
     }
 }
 `
-	tree, err := parseTreeWithYANG(input, nil)
+	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
 	store := extractAuthzConfig(tree)
@@ -263,7 +264,7 @@ system {
     }
 }
 `
-	tree, err := parseTreeWithYANG(input, nil)
+	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
 	store := extractAuthzConfig(tree)
@@ -330,7 +331,7 @@ system {
     }
 }
 `
-	tree, err := parseTreeWithYANG(input, nil)
+	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
 	store := extractAuthzConfig(tree)
@@ -393,7 +394,7 @@ system {
     }
 }
 `
-	tree, err := parseTreeWithYANG(input, nil)
+	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
 	store := extractAuthzConfig(tree)
@@ -454,7 +455,7 @@ system {
     }
 }
 `
-	tree, err := parseTreeWithYANG(input, nil)
+	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
 	err = ValidateAuthzConfig(tree)
@@ -507,7 +508,7 @@ system {
     }
 }
 `
-	tree, err := parseTreeWithYANG(input, nil)
+	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
 	err = ValidateAuthzConfig(tree)
@@ -558,7 +559,7 @@ system {
     }
 }
 `
-	tree, err := parseTreeWithYANG(input, nil)
+	tree, err := config.ParseTreeWithYANG(input, nil)
 	require.NoError(t, err)
 
 	err = ValidateAuthzConfig(tree)

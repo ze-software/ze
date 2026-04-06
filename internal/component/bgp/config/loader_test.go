@@ -984,7 +984,7 @@ func TestMergeCliPlugins(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := mergeCliPlugins(tt.configPlugs, tt.cliPlugs)
+			result, err := config.MergeCliPlugins(tt.configPlugs, tt.cliPlugs)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -1005,14 +1005,14 @@ func TestMergeCliPlugins(t *testing.T) {
 // VALIDATES: Internal plugins have Internal=true, empty Run.
 // PREVENTS: Internal plugins being treated as external.
 func TestMergeCliPluginsInternal(t *testing.T) {
-	result, err := mergeCliPlugins(nil, []string{"ze.bgp-rib"})
+	result, err := config.MergeCliPlugins(nil, []string{"ze.bgp-rib"})
 	require.NoError(t, err)
 	require.Len(t, result, 1)
 	assert.True(t, result[0].Internal, "internal plugin should have Internal=true")
 	assert.Empty(t, result[0].Run, "internal plugin should have empty Run")
 	assert.Equal(t, "bgp-rib", result[0].Name)
 
-	result2, err := mergeCliPlugins(nil, []string{"./custom-plugin"})
+	result2, err := config.MergeCliPlugins(nil, []string{"./custom-plugin"})
 	require.NoError(t, err)
 	require.Len(t, result2, 1)
 	assert.False(t, result2[0].Internal, "external plugin should have Internal=false")
@@ -1201,7 +1201,7 @@ func TestExpandDependencies(t *testing.T) {
 		{Name: "plugin-a", Internal: true, Encoder: "json"},
 	}
 
-	result, err := expandDependencies(plugins)
+	result, err := config.ExpandDependencies(plugins)
 	require.NoError(t, err)
 	require.Len(t, result, 2)
 
@@ -1247,7 +1247,7 @@ func TestExpandDependencies_NoDuplicate(t *testing.T) {
 		{Name: "plugin-b", Internal: true, Encoder: "json"},
 	}
 
-	result, err := expandDependencies(plugins)
+	result, err := config.ExpandDependencies(plugins)
 	require.NoError(t, err)
 	require.Len(t, result, 2, "should not duplicate plugin-b")
 }

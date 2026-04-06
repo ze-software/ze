@@ -37,7 +37,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	zeyang "codeberg.org/thomas-mangin/ze/cmd/ze/yang"
-	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -818,7 +817,7 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 		return nil
 	}
 
-	loadResult, err := bgpconfig.LoadConfig(string(data), "", nil)
+	loadResult, err := config.LoadConfig(string(data), "", nil)
 	if err != nil {
 		slog.Warn("managed: cannot parse config for hub extraction", "config", configName, "error", err)
 		return nil
@@ -842,7 +841,7 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 		Version: fleet.VersionHash(data),
 		Handler: &managed.Handler{
 			Validate: func(cfgData []byte) error {
-				_, parseErr := bgpconfig.LoadConfig(string(cfgData), "", nil)
+				_, parseErr := config.LoadConfig(string(cfgData), "", nil)
 				return parseErr
 			},
 			Cache: func(cfgData []byte) error {
