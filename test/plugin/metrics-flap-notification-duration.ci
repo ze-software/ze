@@ -188,7 +188,7 @@ telemetry {
 		enabled true
 		server main {
 			ip 127.0.0.1;
-			port 19279;
+			port $PORT2;
 		}
 	}
 }
