@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// bufMuxGlobalMu serializes tests that mutate the global bufMux4K/bufMux64K
+// bufMuxGlobalMu serializes tests that mutate the global bufMuxStd/bufMuxExt
 // budget state. Without this, concurrent tests that call Get()/Return() on
 // the global pools race with tests that nil-out and restore the budget pointer.
 var bufMuxGlobalMu sync.Mutex
@@ -450,7 +450,7 @@ func TestBufMux_SetBudgetSeedsExistingBlocks(t *testing.T) {
 
 func TestCombinedBufMuxGlobalStats(t *testing.T) {
 	// VALIDATES: AC-27 — CombinedBufMuxStats and CombinedBufMuxUsedRatio
-	// read from the global bufMux4K/bufMux64K pools.
+	// read from the global bufMuxStd/bufMuxExt pools.
 	// PREVENTS: Global wiring disconnect.
 
 	// The global pools start empty or have steady-state traffic.
@@ -466,9 +466,9 @@ func TestCombinedBufMuxGlobalStats(t *testing.T) {
 	}
 
 	// Allocate from global 4K pool, verify stats change.
-	h := bufMux4K.Get()
+	h := bufMuxStd.Get()
 	if h.Buf == nil {
-		t.Fatal("global bufMux4K.Get() returned nil")
+		t.Fatal("global bufMuxStd.Get() returned nil")
 	}
 
 	totalAfter, usedAfter := CombinedBufMuxStats()
@@ -479,7 +479,7 @@ func TestCombinedBufMuxGlobalStats(t *testing.T) {
 		t.Fatalf("usedBytes should increase after Get: before=%d, after=%d", usedBytes, usedAfter)
 	}
 
-	bufMux4K.Return(h)
+	bufMuxStd.Return(h)
 }
 
 func TestInitBufMuxBudget_Zero(t *testing.T) {
@@ -490,28 +490,28 @@ func TestInitBufMuxBudget_Zero(t *testing.T) {
 	defer bufMuxGlobalMu.Unlock()
 
 	// Save current budget state.
-	old4K := bufMux4K.mux.budget
-	old64K := bufMux64K.mux.budget
+	oldStd := bufMuxStd.mux.budget
+	oldExt := bufMuxExt.mux.budget
 	defer func() {
-		bufMux4K.mux.budget = old4K
-		bufMux64K.mux.budget = old64K
+		bufMuxStd.mux.budget = oldStd
+		bufMuxExt.mux.budget = oldExt
 	}()
 
 	// Clear budgets.
-	bufMux4K.mux.budget = nil
-	bufMux64K.mux.budget = nil
+	bufMuxStd.mux.budget = nil
+	bufMuxExt.mux.budget = nil
 
 	initBufMuxBudget(0)
 
 	// Budget is always created (even with 0 = unlimited) so
 	// updateBufMuxBudget never hits the create-path concurrently.
-	if bufMux4K.mux.budget == nil {
+	if bufMuxStd.mux.budget == nil {
 		t.Fatal("initBufMuxBudget(0) should create a budget (unlimited)")
 	}
-	if bufMux4K.mux.budget.maxBytes.Load() != 0 {
+	if bufMuxStd.mux.budget.maxBytes.Load() != 0 {
 		t.Fatal("initBufMuxBudget(0) should set maxBytes=0 (unlimited)")
 	}
-	if bufMux4K.mux.budget != bufMux64K.mux.budget {
+	if bufMuxStd.mux.budget != bufMuxExt.mux.budget {
 		t.Fatal("both pools should share the same budget instance")
 	}
 }
@@ -523,25 +523,25 @@ func TestInitBufMuxBudget_Positive(t *testing.T) {
 	bufMuxGlobalMu.Lock()
 	defer bufMuxGlobalMu.Unlock()
 
-	old4K := bufMux4K.mux.budget
-	old64K := bufMux64K.mux.budget
+	oldStd := bufMuxStd.mux.budget
+	oldExt := bufMuxExt.mux.budget
 	defer func() {
-		bufMux4K.mux.budget = old4K
-		bufMux64K.mux.budget = old64K
+		bufMuxStd.mux.budget = oldStd
+		bufMuxExt.mux.budget = oldExt
 	}()
 
-	bufMux4K.mux.budget = nil
-	bufMux64K.mux.budget = nil
+	bufMuxStd.mux.budget = nil
+	bufMuxExt.mux.budget = nil
 
 	initBufMuxBudget(1_000_000_000) // 1GB — large enough to not interfere
 
-	if bufMux4K.mux.budget == nil {
-		t.Fatal("initBufMuxBudget should set budget on bufMux4K")
+	if bufMuxStd.mux.budget == nil {
+		t.Fatal("initBufMuxBudget should set budget on bufMuxStd")
 	}
-	if bufMux64K.mux.budget == nil {
-		t.Fatal("initBufMuxBudget should set budget on bufMux64K")
+	if bufMuxExt.mux.budget == nil {
+		t.Fatal("initBufMuxBudget should set budget on bufMuxExt")
 	}
-	if bufMux4K.mux.budget != bufMux64K.mux.budget {
+	if bufMuxStd.mux.budget != bufMuxExt.mux.budget {
 		t.Fatal("both pools should share the same budget instance")
 	}
 }
@@ -553,24 +553,24 @@ func TestUpdateBufMuxBudget_UpdatesExistingLimit(t *testing.T) {
 	bufMuxGlobalMu.Lock()
 	defer bufMuxGlobalMu.Unlock()
 
-	old4K := bufMux4K.mux.budget
-	old64K := bufMux64K.mux.budget
+	oldStd := bufMuxStd.mux.budget
+	oldExt := bufMuxExt.mux.budget
 	defer func() {
-		bufMux4K.mux.budget = old4K
-		bufMux64K.mux.budget = old64K
+		bufMuxStd.mux.budget = oldStd
+		bufMuxExt.mux.budget = oldExt
 	}()
 
 	initBufMuxBudget(1_000_000)
-	if bufMux4K.mux.budget.maxBytes.Load() != 1_000_000 {
+	if bufMuxStd.mux.budget.maxBytes.Load() != 1_000_000 {
 		t.Fatal("initial maxBytes should be 1000000")
 	}
 
 	updateBufMuxBudget(5_000_000)
-	if bufMux4K.mux.budget.maxBytes.Load() != 5_000_000 {
-		t.Errorf("maxBytes after update = %d, want 5000000", bufMux4K.mux.budget.maxBytes.Load())
+	if bufMuxStd.mux.budget.maxBytes.Load() != 5_000_000 {
+		t.Errorf("maxBytes after update = %d, want 5000000", bufMuxStd.mux.budget.maxBytes.Load())
 	}
-	if bufMux64K.mux.budget.maxBytes.Load() != 5_000_000 {
-		t.Errorf("64K maxBytes = %d, want 5000000 (should share budget)", bufMux64K.mux.budget.maxBytes.Load())
+	if bufMuxExt.mux.budget.maxBytes.Load() != 5_000_000 {
+		t.Errorf("64K maxBytes = %d, want 5000000 (should share budget)", bufMuxExt.mux.budget.maxBytes.Load())
 	}
 }
 
@@ -581,17 +581,17 @@ func TestUpdateBufMuxBudget_ZeroMeansUnlimited(t *testing.T) {
 	bufMuxGlobalMu.Lock()
 	defer bufMuxGlobalMu.Unlock()
 
-	old4K := bufMux4K.mux.budget
-	old64K := bufMux64K.mux.budget
+	oldStd := bufMuxStd.mux.budget
+	oldExt := bufMuxExt.mux.budget
 	defer func() {
-		bufMux4K.mux.budget = old4K
-		bufMux64K.mux.budget = old64K
+		bufMuxStd.mux.budget = oldStd
+		bufMuxExt.mux.budget = oldExt
 	}()
 
 	initBufMuxBudget(1_000_000)
 	updateBufMuxBudget(0)
 
-	if bufMux4K.mux.budget.maxBytes.Load() != 0 {
-		t.Errorf("maxBytes after zero update = %d, want 0 (unlimited)", bufMux4K.mux.budget.maxBytes.Load())
+	if bufMuxStd.mux.budget.maxBytes.Load() != 0 {
+		t.Errorf("maxBytes after zero update = %d, want 0 (unlimited)", bufMuxStd.mux.budget.maxBytes.Load())
 	}
 }

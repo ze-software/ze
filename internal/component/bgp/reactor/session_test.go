@@ -769,7 +769,7 @@ func TestSessionExtendedMessageAccepted(t *testing.T) {
 	// concurrent tests with small prefix maximums can auto-size the shared
 	// budget too low, causing getReadBuffer() to return nil.
 	bufMuxGlobalMu.Lock()
-	oldBudget := bufMux4K.mux.budget.maxBytes.Load()
+	oldBudget := bufMuxStd.mux.budget.maxBytes.Load()
 	updateBufMuxBudget(0) // 0 = unlimited
 	bufMuxGlobalMu.Unlock()
 	t.Cleanup(func() {

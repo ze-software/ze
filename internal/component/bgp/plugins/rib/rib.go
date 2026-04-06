@@ -601,9 +601,13 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 			continue
 		}
 
-		// Split concatenated NLRIs and insert each.
 		// RFC 7911: ADD-PATH per-family flag from negotiated capabilities (via format=full JSON).
 		addPath := event.AddPath[familyStr]
+		if addPath {
+			peerRIB.SetAddPath(family, true)
+		}
+
+		// Split concatenated NLRIs and insert each.
 		prefixes := splitNLRIs(nlriBytes, addPath)
 		for _, wirePrefix := range prefixes {
 			peerRIB.Insert(family, attrBytes, wirePrefix)

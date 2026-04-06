@@ -48,15 +48,15 @@ const bufMuxBlockSize = 128
 // and overflow probe callbacks. Normal network traffic drives the interval.
 const bufMuxProbeInterval = 100
 
-// bufMux4K is the block-backed multiplexer for 4K buffers.
+// bufMuxStd is the block-backed multiplexer for 4K buffers.
 // Serves both read (pre-Extended Message) and build (UPDATE attributes) paths.
 // Collapse probe wired via withCollapseProbe; overflow probe available via AddProbe.
-var bufMux4K = withCollapseProbe(newProbedPool(message.MaxMsgLen, bufMuxBlockSize), bufMuxProbeInterval)
+var bufMuxStd = withCollapseProbe(newProbedPool(message.MaxMsgLen, bufMuxBlockSize), bufMuxProbeInterval)
 
-// bufMux64K is the block-backed multiplexer for 64K buffers.
+// bufMuxExt is the block-backed multiplexer for 64K buffers.
 // Serves read path after Extended Message capability is negotiated (RFC 8654).
 // Collapse probe wired via withCollapseProbe; overflow probe available via AddProbe.
-var bufMux64K = withCollapseProbe(newProbedPool(message.ExtMsgLen, bufMuxBlockSize), bufMuxProbeInterval)
+var bufMuxExt = withCollapseProbe(newProbedPool(message.ExtMsgLen, bufMuxBlockSize), bufMuxProbeInterval)
 
 // initBufMuxBudget wires a shared byte budget into both multiplexers.
 // Called once from reactor startup, before any concurrent use.
@@ -64,8 +64,8 @@ var bufMux64K = withCollapseProbe(newProbedPool(message.ExtMsgLen, bufMuxBlockSi
 // created so updateBufMuxBudget never needs the create-path concurrently.
 func initBufMuxBudget(maxBytes int64) {
 	cb := newCombinedBudget(maxBytes) // 0 = unlimited
-	bufMux4K.SetBudget(cb)
-	bufMux64K.SetBudget(cb)
+	bufMuxStd.SetBudget(cb)
+	bufMuxExt.SetBudget(cb)
 }
 
 // updateBufMuxBudget updates the shared byte budget limit atomically.
@@ -73,9 +73,9 @@ func initBufMuxBudget(maxBytes int64) {
 // ze.fwd.pool.maxbytes is not explicitly set (auto-sizing, AC-28).
 // maxBytes <= 0 means unlimited (tryReserve treats it as no-limit).
 func updateBufMuxBudget(maxBytes int64) {
-	bufMux4K.mux.mu.Lock()
-	b := bufMux4K.mux.budget
-	bufMux4K.mux.mu.Unlock()
+	bufMuxStd.mux.mu.Lock()
+	b := bufMuxStd.mux.budget
+	bufMuxStd.mux.mu.Unlock()
 	if b != nil {
 		b.maxBytes.Store(maxBytes)
 	}
@@ -85,24 +85,24 @@ func updateBufMuxBudget(maxBytes int64) {
 // across both the 4K and 64K buffer multiplexers. Used by metrics and
 // backpressure decisions (AC-27: memory pressure is shared).
 func CombinedBufMuxStats() (totalBytes, usedBytes int64) {
-	return combinedMuxStats(bufMux4K.mux, bufMux64K.mux)
+	return combinedMuxStats(bufMuxStd.mux, bufMuxExt.mux)
 }
 
 // CombinedBufMuxUsedRatio returns the fraction of allocated bytes in use
 // across both multiplexers (0.0 to 1.0). Returns 0.0 if nothing is allocated.
 func CombinedBufMuxUsedRatio() float64 {
-	return combinedMuxUsedRatio(bufMux4K.mux, bufMux64K.mux)
+	return combinedMuxUsedRatio(bufMuxStd.mux, bufMuxExt.mux)
 }
 
 // getBuildBuf returns a reusable 4K buffer handle from the 4K multiplexer.
 // Caller MUST call putBuildBuf when done.
 func getBuildBuf() BufHandle {
-	return bufMux4K.Get()
+	return bufMuxStd.Get()
 }
 
 // putBuildBuf returns a build buffer handle to the 4K multiplexer.
 func putBuildBuf(h BufHandle) {
-	bufMux4K.Return(h)
+	bufMuxStd.Return(h)
 }
 
 // ReturnReadBuffer returns a buffer handle to the appropriate multiplexer.
@@ -115,9 +115,9 @@ func ReturnReadBuffer(h BufHandle) {
 	// cap = len(backing) - offset, which varies by position. But len()
 	// is always exactly bufSize since get() returns backing[off:off+bufSize].
 	if len(h.Buf) >= message.ExtMsgLen {
-		bufMux64K.Return(h)
+		bufMuxExt.Return(h)
 	} else {
-		bufMux4K.Return(h)
+		bufMuxStd.Return(h)
 	}
 }
 
@@ -453,9 +453,9 @@ func (s *Session) WriteBuf() *wire.SessionBuffer {
 // Uses 4K pool before Extended Message negotiation, 64K after.
 func (s *Session) getReadBuffer() BufHandle {
 	if s.extendedMessage {
-		return bufMux64K.Get()
+		return bufMuxExt.Get()
 	}
-	return bufMux4K.Get()
+	return bufMuxStd.Get()
 }
 
 // returnReadBuffer returns buffer to the appropriate multiplexer.

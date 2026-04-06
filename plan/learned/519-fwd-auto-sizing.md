@@ -1,7 +1,7 @@
 # Learned: fwd-auto-sizing
 
 Replaced the forward pool's three disconnected allocation systems (global
-bufMux4K, global bufMux64K, static chan struct{} overflow token pool) with
+bufMuxStd, global bufMuxExt, static chan struct{} overflow token pool) with
 a two-tier model: per-peer pools + single shared overflow MixedBufMux.
 
 ## What Worked
@@ -63,7 +63,7 @@ a two-tier model: per-peer pools + single shared overflow MixedBufMux.
 
 ## Deferred
 
-- Global bufMux4K/bufMux64K (read-path pools in session.go) NOT deleted. These
+- Global bufMuxStd/bufMuxExt (read-path pools in session.go) NOT deleted. These
   serve pre-OPEN reads and build buffers, not overflow dispatch. The spec
   conflated them with the overflow pool. They should remain as-is.
 

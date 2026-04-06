@@ -2,45 +2,39 @@
 
 ## Context
 
-The RIB storage layer allocated two heap objects per route: a `string(nlriBytes)` map key and a `*RouteEntry` pointer. With 1M routes, this meant 2M allocations that the GC had to track. BIRD avoids this with fixed-size trie nodes and slab allocators. Ze needed a Go-idiomatic equivalent.
+The RIB storage layer had two performance problems: (1) per-route heap allocations from `string(nlriBytes)` map key and `*RouteEntry` pointer, and (2) a catastrophic throughput cliff at 1M+ routes caused by Go map rehashing -- working set exceeds L3 cache during rehash, every lookup becomes a main-memory round trip. BIRD avoids this with Patricia tries (incremental growth, no rehash). Benchmarks showed ze matching BIRD at 500k (242k/s vs 245k/s) but collapsing to 22k/s at 1M vs BIRD's 631k/s.
 
 ## Decisions
 
-- Chose `NLRIKey` struct (`len uint8` + `data [24]byte`) over bare `[24]byte` array because iteration needs exact-length NLRI bytes for `wireToPrefix`/`formatNLRIAsPrefix` -- `Bytes()` returns `data[:len]` without trailing zeros.
-- Chose value-type `RouteEntry` in `map[NLRIKey]RouteEntry` over `sync.Pool` because RouteEntry is long-lived (stored until withdrawal), making `sync.Pool` ineffective. At 56 bytes with alignment, it fits under Go's 128-byte map-value inline threshold.
-- Chose get-modify-put pattern for StaleLevel mutation over keeping pointer types because eliminating pointer indirection on every lookup is worth the O(1) extra map write on the rare stale mutation path.
-- Added `ModifyEntry`/`ModifyAll`/`ModifyFamilyEntry`/`ModifyFamilyAll` methods for cases requiring entry mutation (attach-community, mark-stale), over changing `attachCommunity` to a standalone pattern, because the map owns the lifecycle and mutation should go through it.
-- Chose two-pass `splitNLRIs` (count then allocate) over single-pass with `append` because the counting pass is identical O(n) work and eliminates all slice growth allocations.
-- Did not change attrpool initial capacity -- pools are already pre-sized generously (AS_PATH at 256KB, Communities at 64KB).
+- Chose BART (gaissmai/bart, popcount-compressed multibit trie) over classic Patricia trie because BART branches 8 bits at a time (max depth 4 for IPv4 vs 32 for Patricia), uses cache-friendly bitmask operations, and has a production Go implementation with `netip.Prefix` API.
+- Chose BART for non-ADD-PATH only, map fallback for ADD-PATH. BART keys on `netip.Prefix` which has no path-ID concept. ADD-PATH families use `map[NLRIKey]RouteEntry` (the full table case that hits 1M routes is always non-ADD-PATH).
+- Chose value-type `RouteEntry` in both BART and map over pointer types. At 56 bytes with alignment, it fits under Go's 128-byte map-value inline threshold and BART stores values by copy.
+- Added `NLRIToPrefix`/`PrefixToNLRI` conversion functions over modifying the wire format. The conversion is a few nanoseconds per call and keeps the wire layer unchanged.
+- Added `SetAddPath` call in `handleReceivedPool` before first insert when event has ADD-PATH. Without this, the FamilyRIB was created in trie mode and two ADD-PATH NLRIs with different path-IDs but same prefix would collapse to one entry.
 
 ## Consequences
 
-- Per-route heap allocations eliminated: ~2M fewer allocs per 1M routes (NLRIKey + RouteEntry).
-- `FamilyRIB.LookupEntry` now returns `(RouteEntry, bool)` value copy instead of `(*RouteEntry, bool)`. All callers receive read-only copies. Mutation requires `ModifyEntry`/`ModifyAll`.
-- `PipelineRecord.InEntry` is now `storage.RouteEntry` (value) with a `HasInEntry bool` sentinel replacing `!= nil` checks.
-- `ParseAttributes` returns `RouteEntry` value. attrInterners closures still use `*RouteEntry` via pointer to local variable during parsing.
-- `splitNLRIs` result slice has exact capacity (no over-allocation), sub-slices are still zero-copy into the original data.
+- No rehash cliff: BART grows incrementally (one node per insert), no O(n) rehash at any table size. The 1M route round should match the 500k round.
+- New dependency: `github.com/gaissmai/bart` v0.26.1 (MIT, pure Go, requires Go 1.23+).
+- `PrefixToNLRI` allocates a small `[]byte` per iteration call (wire bytes for callers). This is in the show/display path, not the insert hot path.
+- `PurgeStale` on BART collects stale prefixes into a slice before deleting (can't delete during BART iteration). Small transient allocation proportional to stale count.
+- ADD-PATH families still use Go maps. If ADD-PATH + 1M routes becomes a real scenario, the map would need pre-sizing or a different structure.
 
 ## Gotchas
 
-- `attachCommunity` mutates entry.Communities handle -- needed `ModifyFamilyAll` wrapper to write back into value map. Iteration with mutation requires the modify helpers, not direct iterate.
-- `IterateEntry` callback signature changed from `func([]byte, *RouteEntry) bool` to `func([]byte, RouteEntry) bool` -- every callback across 8 files needed updating.
-- `item.InEntry != nil` checks (4 occurrences across pipeline files) had to become `item.HasInEntry` -- value types cannot be compared to nil.
-- The fuzz test `FuzzParseAttributes` had `entry == nil` check that became invalid with value return type.
-- Go's 128-byte map inline threshold is gc-compiler-specific, not a language guarantee.
+- BART `Get()` is exact-match (not LPM), which is what the RIB needs. `Lookup()` is LPM and takes `netip.Addr`, not `netip.Prefix` -- easy to confuse.
+- BART iteration via `All()` returns `iter.Seq2` (Go 1.23 range-over-func). Can't delete during iteration.
+- The `SetAddPath` bug was latent in the old code -- string keys accidentally included path-ID bytes, making it work by coincidence. BART exposed the real bug.
+- `go mod vendor` is required after `go get` -- the lint hook runs with `-mod=vendor`.
 
 ## Files
 
-- `internal/component/bgp/plugins/rib/storage/nlrikey.go` -- new NLRIKey type
-- `internal/component/bgp/plugins/rib/storage/nlrikey_test.go` -- NLRIKey tests
-- `internal/component/bgp/plugins/rib/storage/familyrib.go` -- map[NLRIKey]RouteEntry, ModifyEntry/ModifyAll
-- `internal/component/bgp/plugins/rib/storage/routeentry.go` -- NewRouteEntry returns value
-- `internal/component/bgp/plugins/rib/storage/attrparse.go` -- ParseAttributes returns value
+- `internal/component/bgp/plugins/rib/storage/nlrikey.go` -- NLRIKey, NLRIToPrefix, PrefixToNLRI
+- `internal/component/bgp/plugins/rib/storage/familyrib.go` -- BART trie + map dual-mode storage
+- `internal/component/bgp/plugins/rib/storage/routeentry.go` -- value-type NewRouteEntry
+- `internal/component/bgp/plugins/rib/storage/attrparse.go` -- value-type ParseAttributes
 - `internal/component/bgp/plugins/rib/storage/peerrib.go` -- value-type API, ModifyFamilyEntry/ModifyFamilyAll
+- `internal/component/bgp/plugins/rib/rib.go` -- SetAddPath before insert
 - `internal/component/bgp/plugins/rib/rib_nlri.go` -- splitNLRIs pre-count
-- `internal/component/bgp/plugins/rib/rib_pipeline.go` -- HasInEntry sentinel, value callbacks
-- `internal/component/bgp/plugins/rib/rib_pipeline_best.go` -- value callbacks
-- `internal/component/bgp/plugins/rib/rib_commands.go` -- value params, ModifyFamilyAll for attach
-- `internal/component/bgp/plugins/rib/rib_bestchange.go` -- value params
-- `internal/component/bgp/plugins/rib/rib_attr_format.go` -- value params
-- `docs/architecture/plugin/rib-storage-design.md` -- updated FamilyRIB description
+- `internal/component/bgp/plugins/rib/rib_pipeline.go` -- HasInEntry sentinel
+- 5 other rib files -- value-type callback/param adaptation

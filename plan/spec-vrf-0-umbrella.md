@@ -100,7 +100,7 @@ Phases are strictly ordered. Each phase must be complete before the next begins.
 
 **Source files read:**
 - [ ] `internal/component/bgp/reactor/reactor.go` -- Reactor struct, `New()` constructor, event loop
-- [ ] `internal/component/bgp/reactor/session.go` -- global `bufMux4K`, `bufMux64K` buffer pools
+- [ ] `internal/component/bgp/reactor/session.go` -- global `bufMuxStd`, `bufMuxExt` buffer pools
 - [ ] `internal/component/bgp/reactor/forward_pool.go` -- global `fwdWriteDeadlineNs` atomic
 - [ ] `internal/component/bgp/reactor/forward_build.go` -- global `modBufPool` sync.Pool
 - [ ] `internal/component/bgp/reactor/received_update.go` -- global `msgIDCounter` atomic
@@ -177,8 +177,8 @@ The following global state in `internal/component/bgp/reactor/` was analyzed for
 
 | Global | File | Type | Reason |
 |--------|------|------|--------|
-| `bufMux4K` | `session.go:53` | Pool + budget | Same process, same memory, global budget is correct |
-| `bufMux64K` | `session.go:58` | Pool + budget | Same as above |
+| `bufMuxStd` | `session.go:53` | Pool + budget | Same process, same memory, global budget is correct |
+| `bufMuxExt` | `session.go:58` | Pool + budget | Same as above |
 | `modBufPool` | `forward_build.go:18` | `sync.Pool` | Stateless buffer pool, no contention concern |
 | `fwdWriteDeadlineNs` | `forward_pool.go:53` | `atomic.Int64` | Global tuning knob, not per-VRF |
 | `msgIDCounter` | `received_update.go:20` | `atomic.Uint64` | Monotonic process-wide sequence number, non-contiguous IDs per VRF is fine |

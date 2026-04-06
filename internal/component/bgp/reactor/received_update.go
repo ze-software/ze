@@ -75,9 +75,9 @@ type ReceivedUpdate struct {
 // Uses the same multiplexers as session reads for uniform lifecycle management.
 func getReadBuf(extendedMessage bool) BufHandle {
 	if extendedMessage {
-		return bufMux64K.Get()
+		return bufMuxExt.Get()
 	}
-	return bufMux4K.Get()
+	return bufMuxStd.Get()
 }
 
 // EBGPWire returns a WireUpdate with the local ASN prepended to AS_PATH.

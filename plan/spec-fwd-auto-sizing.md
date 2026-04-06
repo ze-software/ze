@@ -15,14 +15,14 @@
 3. `docs/architecture/forward-congestion-pool.md` - pool design, burst fractions, two-tier sizing
 4. `internal/component/bgp/reactor/forward_pool.go` - fwdOverflowPool (to delete), TryDispatch, DispatchOverflow
 5. `internal/component/bgp/reactor/bufmux.go` - BufMux block-backed pattern (extend with mixed-size subdivision)
-6. `internal/component/bgp/reactor/session.go` - global bufMux4K/bufMux64K (to delete, replace with per-peer pools)
+6. `internal/component/bgp/reactor/session.go` - global bufMuxStd/bufMuxExt (to delete, replace with per-peer pools)
 7. `internal/component/bgp/reactor/forward_pool_weight.go` - peerBufferDemand, burstFraction
 8. `internal/component/bgp/reactor/forward_pool_weight_tracker.go` - weightTracker, onBudgetChanged
 
 ## Task
 
-Replace the forward pool's three disconnected allocation systems (global `bufMux4K`,
-global `bufMux64K`, static `chan struct{}` overflow token pool) with a two-tier model:
+Replace the forward pool's three disconnected allocation systems (global `bufMuxStd`,
+global `bufMuxExt`, static `chan struct{}` overflow token pool) with a two-tier model:
 
 1. **Per-peer pool:** 64 buffers at the peer's negotiated message size (4K standard,
    64K for Extended Message / RFC 8654). Created at session establishment, destroyed
@@ -102,7 +102,7 @@ rewriting) may be needed.
 **Key insights:**
 - Two tiers: per-peer pool (64 buffers, negotiated size) + one shared overflow pool (mixed-size, byte-budgeted).
 - Overflow pool uses 64K blocks subdivisible into 16 x 4K slices. One pool handles both standard and ExtMsg peers.
-- Replaces three separate systems: global bufMux4K, global bufMux64K, chan struct{} overflow tokens.
+- Replaces three separate systems: global bufMuxStd, global bufMuxExt, chan struct{} overflow tokens.
 - Pool exhaustion IS the backpressure signal. No unbounded fallback.
 - Sizing formula: largest peer restart burst * capped fan-out + 10% steady-state. Fan-out = min(N-1, 2*sqrt(N)).
 - The formula is a pure function, isolated for future YANG override.
@@ -124,8 +124,8 @@ rewriting) may be needed.
   → Constraint: `PoolUsedRatio()` must return meaningful values. With BufMux: ratio = inUse / maxCapacity.
 - [ ] `internal/component/bgp/reactor/reactor.go` - `newFwdPool()` creates pool with `overflowPoolSize` from env var. `weightTracker` callback at line 384 only updates bufmux budget. Congestion controller wired at line 394.
   → Constraint: Pool creation happens before peers are added. Initial maxBlocks must be a safe default (e.g., 64 slots). Adjusted when first peer is added.
-- [ ] `internal/component/bgp/reactor/session.go` - `bufMux4K` and `bufMux64K` are global `probedPool` instances. `getReadBuffer()` returns from 4K pre-OPEN, 64K post-Extended-Message negotiation. `ReturnReadBuffer()` routes by buffer size.
-  → Decision: Global `bufMux4K` and `bufMux64K` deleted. Replaced by per-peer pools (64 buffers at negotiated size) and one shared overflow BufMux (mixed-size, 64K blocks subdivisible to 4K).
+- [ ] `internal/component/bgp/reactor/session.go` - `bufMuxStd` and `bufMuxExt` are global `probedPool` instances. `getReadBuffer()` returns from 4K pre-OPEN, 64K post-Extended-Message negotiation. `ReturnReadBuffer()` routes by buffer size.
+  → Decision: Global `bufMuxStd` and `bufMuxExt` deleted. Replaced by per-peer pools (64 buffers at negotiated size) and one shared overflow BufMux (mixed-size, 64K blocks subdivisible to 4K).
 
 **Behavior to preserve:**
 - Zero-copy wire buffer ownership (buffers hold actual wire data, not copies)
@@ -135,7 +135,7 @@ rewriting) may be needed.
 - `ze.fwd.pool.size` env var as operator override (byte budget for overflow pool)
 
 **Behavior to change:**
-- Delete global `bufMux4K` and `bufMux64K` -- replaced by per-peer pools
+- Delete global `bufMuxStd` and `bufMuxExt` -- replaced by per-peer pools
 - Delete `fwdOverflowPool` (chan struct{}) -- replaced by shared overflow BufMux
 - Delete per-worker `chan fwdItem` (cap 64) -- replaced by per-peer pool (64 buffers at negotiated size)
 - Per-peer pool: 64 buffers at negotiated message size, created at session establishment
@@ -177,7 +177,7 @@ rewriting) may be needed.
 
 ### Integration Points
 - Per-peer pool: new type, 64 buffers at negotiated size, replaces per-worker `chan fwdItem`
-- Shared overflow BufMux: replaces `fwdOverflowPool` (chan struct{}), `bufMux4K`, `bufMux64K`
+- Shared overflow BufMux: replaces `fwdOverflowPool` (chan struct{}), `bufMuxStd`, `bufMuxExt`
 - Mixed-size overflow: 64K blocks subdivisible to 16 x 4K slices
 - `PoolUsedRatio()`: reads from overflow BufMux stats (usedBytes/budgetBytes)
 - `weightTracker.onBudgetChanged`: extended to set overflow byte budget
@@ -206,7 +206,7 @@ rewriting) may be needed.
 |-------|-------------------|-------------------|
 | AC-1 | Session established (standard peer) | Per-peer pool created: 64 x 4K buffers |
 | AC-2 | Session established (ExtMsg peer) | Per-peer pool created: 64 x 64K buffers |
-| AC-3 | Shared overflow pool created | Single mixed-size BufMux (64K blocks subdivisible to 4K), replaces chan struct{} and global bufMux4K/bufMux64K |
+| AC-3 | Shared overflow pool created | Single mixed-size BufMux (64K blocks subdivisible to 4K), replaces chan struct{} and global bufMuxStd/bufMuxExt |
 | AC-4 | Peers added with prefix maximums | Overflow byte budget auto-sized from restart-burst formula |
 | AC-5 | Sizing formula | Isolated as a pure function: largest peer restart burst * min(N-1, 2*sqrt(N)) fan-out + 10% steady-state contributions, floor 64 slots converted to bytes |
 | AC-6 | `ze.fwd.pool.size` > 0 | Overrides auto-sizing (operator escape hatch). Value is byte budget. |
@@ -265,8 +265,8 @@ rewriting) may be needed.
 - `internal/component/bgp/reactor/bufmux.go` - Add mixed-size support: 64K blocks subdivisible to 16 x 4K slices. Add byte-budget tracking alongside block-count limits.
 - `internal/component/bgp/reactor/forward_pool_weight.go` - Add `overflowPoolBudget()` pure sizing function returning byte budget
 - `internal/component/bgp/reactor/forward_pool_weight_tracker.go` - Extend `onBudgetChanged` or add second callback for overflow byte budget
-- `internal/component/bgp/reactor/reactor.go` - Wire shared overflow BufMux to weightTracker callback. Remove global bufMux4K/bufMux64K wiring.
-- `internal/component/bgp/reactor/session.go` - Delete global `bufMux4K`, `bufMux64K`, `combinedBudget`. Per-peer pool created at session establishment with negotiated size.
+- `internal/component/bgp/reactor/reactor.go` - Wire shared overflow BufMux to weightTracker callback. Remove global bufMuxStd/bufMuxExt wiring.
+- `internal/component/bgp/reactor/session.go` - Delete global `bufMuxStd`, `bufMuxExt`, `combinedBudget`. Per-peer pool created at session establishment with negotiated size.
 - `internal/component/bgp/reactor/forward_pool_congestion.go` - No changes expected (PoolUsedRatio interface unchanged)
 - `docs/architecture/forward-congestion-pool.md` - Update to describe two-tier model: per-peer pool + shared mixed-size overflow
 
@@ -355,7 +355,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | PoolUsedRatio returns correct values from overflow BufMux stats (usedBytes/budgetBytes) |
 | Naming | Per-peer pool and overflow pool types follow existing naming conventions |
 | Data flow | weightTracker callback correctly propagates to overflow byte budget |
-| Rule: no-layering | Old `fwdOverflowPool` chan struct{}, global `bufMux4K`, global `bufMux64K` fully deleted |
+| Rule: no-layering | Old `fwdOverflowPool` chan struct{}, global `bufMuxStd`, global `bufMuxExt` fully deleted |
 | Rule: buffer-first | Overflow BufMux uses 64K blocks subdivisible to 4K via existing block pattern |
 | Lifecycle | Per-peer pool destroyed on session teardown. Every overflow `Get()` paired with exactly one `Return()`. |
 | Backpressure | Overflow exhaustion rejects dispatch -- no unbounded fallback path exists |
@@ -365,7 +365,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 |-------------|---------------------|
 | `overflowPoolBudget()` function exists | `grep overflowPoolBudget forward_pool_weight.go` |
 | Old `fwdOverflowPool` chan struct{} removed | `grep "chan struct{}" forward_pool.go` returns no overflow pool hits |
-| Global `bufMux4K` and `bufMux64K` removed | `grep "bufMux4K\|bufMux64K" session.go` returns no global instances |
+| Global `bufMuxStd` and `bufMuxExt` removed | `grep "bufMuxStd\|bufMuxExt" session.go` returns no global instances |
 | Per-peer pool type exists | `grep "peerPool\|perPeer" forward_pool.go` shows per-peer pool |
 | Shared overflow BufMux created | `grep BufMux forward_pool.go` shows overflow instance |
 | Mixed-size overflow (64K blocks, 4K subdivision) | `grep "subdivid\|4096\|slice" bufmux.go` shows subdivision logic |
@@ -406,7 +406,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 ## Design Insights
 
-- Three disconnected pool systems (bufMux4K, bufMux64K, chan struct{} overflow) replaced by two clean tiers: per-peer pool (steady state) + shared overflow (burst absorption). Fewer moving parts, one budget to manage.
+- Three disconnected pool systems (bufMuxStd, bufMuxExt, chan struct{} overflow) replaced by two clean tiers: per-peer pool (steady state) + shared overflow (burst absorption). Fewer moving parts, one budget to manage.
 - Per-peer pool size of 64 matches the current per-worker channel capacity. Proven sufficient for micro-burst absorption in production and ze-chaos testing.
 - Mixed-size overflow pool: 64K blocks subdivisible to 16 x 4K slices. One pool handles both standard and ExtMsg peers without maintaining separate instances. The key insight: 65535 / 4096 = 16, clean subdivision.
 - Pool exhaustion is the backpressure mechanism, not a failure mode. When overflow is full, dispatch is rejected, the reader sees the rejection, and slows down. No unbounded fallback -- that was the bug, not the feature.

@@ -22,7 +22,7 @@ Phases 1-3 established the overflow pool, metrics, Send Hold Timer, and pool mul
 
 ## Gotchas
 
-- **Pre-existing race in `updateBufMuxBudget`:** Reading the `budget` pointer field of `bufMux4K.mux` without holding the mutex raced with `SetBudget` writes from concurrent reactor initialization in tests. Fixed by acquiring `mu` for the pointer read.
+- **Pre-existing race in `updateBufMuxBudget`:** Reading the `budget` pointer field of `bufMuxStd.mux` without holding the mutex raced with `SetBudget` writes from concurrent reactor initialization in tests. Fixed by acquiring `mu` for the pointer read.
 - **Supersede token accounting:** When both old and new items are pooled, releasing the old token and keeping the new is correct. An initial implementation released both (double-release), leaving the surviving item with no token.
 - **`fwdIsWithdrawal` raw body parsing:** The UPDATE wire format has Unfeasible Routes Length at offset 0. A withdrawal-only UPDATE has non-zero withdrawn length AND no NLRI section after attributes. Must check both conditions -- a combined announce+withdraw UPDATE is NOT a withdrawal for priority purposes.
 
