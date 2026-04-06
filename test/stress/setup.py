@@ -91,6 +91,15 @@ def build_bngblaster():
          "/usr/local/bin/bgpupdate"])
 
 
+def install_bird():
+    """Install BIRD 2.x for baseline comparison tests."""
+    if shutil.which("bird"):
+        print("bird already installed, skipping")
+        return
+    print("Installing BIRD 2.x...")
+    run(["apt-get", "install", "-y", "--no-install-recommends", "bird2"])
+
+
 def install_scapy():
     """Install scapy for bgpupdate."""
     print("Installing scapy...")
@@ -103,7 +112,7 @@ def verify():
     print("")
     print("Verification:")
     ok = True
-    for tool in ["bngblaster", "bngblaster-cli", "bgpupdate", "ip"]:
+    for tool in ["bngblaster", "bngblaster-cli", "bgpupdate", "ip", "bird", "birdc"]:
         path = shutil.which(tool)
         if path:
             print("  %s: %s" % (tool, path))
@@ -138,6 +147,7 @@ def main():
     install_build_deps()
     build_libdict()
     build_bngblaster()
+    install_bird()
     install_scapy()
     verify()
     print("\nSetup complete. Run stress tests with: make ze-stress-test")

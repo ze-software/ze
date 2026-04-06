@@ -4,7 +4,7 @@
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test ze-managed-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-all ze-all-test
-.PHONY: ze-interop-test ze-stress-test ze-live-test ze-live-rpki-test
+.PHONY: ze-interop-test ze-stress-test ze-stress-bird-test ze-live-test ze-live-rpki-test
 .PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift
@@ -322,9 +322,14 @@ ze-interop-test:
 # Run single scenario: make ze-stress-test STRESS_SCENARIO=01-bulk-ipv4
 STRESS_SCENARIO ?=
 
-ze-stress-test:
+ze-stress-test: bin/ze
 	@echo "Running stress tests with BNG Blaster (requires root + netns)..."
-	@sudo python3 test/stress/run.py $(STRESS_SCENARIO)
+	@sudo ZE_BINARY=$(CURDIR)/bin/ze python3 test/stress/run.py $(STRESS_SCENARIO)
+
+# Run BIRD baseline stress test (requires bird2 installed).
+ze-stress-bird-test:
+	@echo "Running BIRD baseline stress test (requires root + bird2 + netns)..."
+	@sudo python3 test/stress/run.py 04-bulk-ipv4-bird
 
 # ─── Live tests ────────────────────────────────────────────────────────────
 
@@ -510,6 +515,7 @@ help:
 	@echo "                             INTEROP_SCENARIO=name to run one scenario"
 	@echo "  ze-stress-test           - Run BGP stress tests with BNG Blaster (Linux, root)"
 	@echo "                             STRESS_SCENARIO=name to run one scenario"
+	@echo "  ze-stress-bird-test      - Run BIRD baseline stress test (Linux, root, bird2)"
 	@echo ""
 	@echo "  Integration tests (CAP_NET_ADMIN / root):"
 	@echo "  ze-integration-test      - Run all integration tests (network namespaces)"

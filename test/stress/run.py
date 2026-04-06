@@ -56,8 +56,18 @@ def build_ze():
         log_info("using Ze binary: %s" % ze_binary)
         return ze_binary
 
-    # Build from source.
+    # Check for pre-built binary (normal path: Makefile builds before sudo).
     ze_binary = os.path.join(PROJECT_ROOT, "bin", "ze")
+    if os.path.isfile(ze_binary):
+        log_info("using Ze binary: %s" % ze_binary)
+        return ze_binary
+
+    # Build from source (only works when go is in PATH).
+    if not shutil.which("go"):
+        print("error: bin/ze not found and 'go' not in PATH", file=sys.stderr)
+        print("hint: run 'make ze-stress-test' which builds Ze before sudo", file=sys.stderr)
+        sys.exit(1)
+
     print("Building Ze...")
     subprocess.run(
         ["go", "build", "-o", ze_binary, "./cmd/ze"],

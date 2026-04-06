@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Scenario 01: Bulk IPv4 route injection.
+"""Scenario 04: Bulk IPv4 route injection -- BIRD baseline.
 
-Validates: Ze can receive and process large numbers of IPv4 unicast routes
+Same test as 01-bulk-ipv4 but with BIRD 2.x as the DUT instead of Ze.
+Provides a performance baseline for comparison.
+
+Validates: BIRD can receive and process large numbers of IPv4 unicast routes
            from BNG Blaster without errors or session drops.
-
-Runs four rounds with increasing prefix counts (100k, 250k, 500k, 1M) and
-reports ingestion rates for each.
 """
 
 import sys
@@ -13,7 +13,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from bngblaster import (
-    BNGBlaster, Ze, Timer,
+    BNGBlaster, BIRD, Timer,
     generate_updates, BB_IP,
     log_info, log_pass, log_fail,
 )
@@ -29,7 +29,7 @@ ROUNDS = [
 
 def check():
     bb = BNGBlaster()
-    ze = Ze(bb)
+    bird = BIRD()
 
     # Wait for initial BGP session.
     bb.wait_session_established()
@@ -52,9 +52,9 @@ def check():
             bb.bgp_raw_update(update_file)
             bb.wait_raw_update_done(timeout=timeout)
 
-        # Wait for Ze to finish processing.
-        with Timer("ze processing") as t_process:
-            ze.wait_settled(timeout=min(timeout, 60))
+        # Wait for BIRD to finish processing routes.
+        with Timer("bird processing") as t_process:
+            bird.wait_route_count(prefix_count, timeout=min(timeout, 120))
 
         # Verify session is still established.
         sessions = bb.bgp_sessions()
@@ -64,7 +64,7 @@ def check():
                 raise AssertionError("session dropped")
 
         rate = prefix_count / t_inject.elapsed if t_inject.elapsed > 0 else 0
-        log_pass("%d prefixes: injection %.2fs, settled %.2fs (%.0f routes/s)"
+        log_pass("%d prefixes: injection %.2fs, processed %.2fs (%.0f routes/s)"
                  % (prefix_count, t_inject.elapsed, t_process.elapsed, rate))
 
-    log_pass("all bulk injection rounds completed")
+    log_pass("all bulk injection rounds completed (BIRD baseline)")
