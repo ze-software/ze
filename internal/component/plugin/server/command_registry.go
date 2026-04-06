@@ -69,6 +69,7 @@ type RegisterResult struct {
 // RegisteredCommand represents a plugin command in the registry.
 type RegisteredCommand struct {
 	Name         string
+	LowerName    string // Pre-lowercased at registration for dispatch matching (zero alloc per lookup)
 	Description  string
 	Args         string           // Usage hint (e.g., "<component>")
 	Completable  bool             // Process handles arg completion
@@ -148,6 +149,7 @@ func (r *CommandRegistry) Register(proc *process.Process, defs []CommandDef) []R
 		// Register
 		r.commands[key] = &RegisteredCommand{
 			Name:         def.Name,
+			LowerName:    key,
 			Description:  def.Description,
 			Args:         def.Args,
 			Completable:  def.Completable,

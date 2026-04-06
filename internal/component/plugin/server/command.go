@@ -211,7 +211,7 @@ func (d *Dispatcher) HasCommandPrefix(input string) bool {
 	// Check plugin registry commands.
 	if d.registry != nil {
 		for _, cmd := range d.registry.All() {
-			key := strings.ToLower(cmd.Name)
+			key := cmd.LowerName
 			if strings.HasPrefix(lower, key) && (len(lower) == len(key) || lower[len(key)] == ' ') {
 				return true
 			}
@@ -401,10 +401,12 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		// cross-domain commands ("peer 10.0.0.1 rib show"), the "peer" prefix
 		// is not part of the target command. Strip it and retry.
 		stripped := input
+		strippedLower := lowerInput
 		if hasExplicitSelector && strings.HasPrefix(lowerInput, "peer ") {
 			stripped = strings.TrimSpace(input[len("peer "):])
+			strippedLower = strings.TrimSpace(lowerInput[len("peer "):])
 		}
-		return d.dispatchPlugin(ctx, stripped, peerSelector)
+		return d.dispatchPlugin(ctx, stripped, strippedLower, peerSelector)
 	}
 
 	// Extract remaining args
@@ -440,15 +442,14 @@ func (d *Dispatcher) ForwardToPlugin(command string, args []string, peerSelector
 }
 
 // dispatchPlugin routes a command to a plugin process.
-func (d *Dispatcher) dispatchPlugin(_ *CommandContext, input, peerSelector string) (*plugin.Response, error) {
-	lowerInput := strings.ToLower(strings.TrimSpace(input))
-
+// lowerInput must already be lowercased by the caller (Dispatch).
+func (d *Dispatcher) dispatchPlugin(_ *CommandContext, input, lowerInput, peerSelector string) (*plugin.Response, error) {
 	// Find longest matching plugin command
 	var matchedPlugin *RegisteredCommand
 	var matchedLen int
 
 	for _, cmd := range d.registry.All() {
-		key := strings.ToLower(cmd.Name)
+		key := cmd.LowerName
 		if strings.HasPrefix(lowerInput, key) {
 			// Check it's a word boundary
 			if len(lowerInput) == len(key) || lowerInput[len(key)] == ' ' {
