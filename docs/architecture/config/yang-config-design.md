@@ -106,6 +106,11 @@ define RPC signatures. The `-cmd.yang` modules define the CLI navigation hierarc
 
 ---
 
+> **See also:** [Config Transaction Protocol](transaction-protocol.md) for the bus-based
+> verify/apply/rollback lifecycle that config changes go through after validation.
+
+---
+
 ## 3. Module Loading
 
 YANG modules are loaded in two phases at startup.

@@ -343,6 +343,9 @@ The BGP subsystem creates these topics at startup:
 | `bgp/eor` | End-of-RIB marker detected | JSON: peer, family |
 | `bgp/congestion` | Forward path congestion change | JSON: peer, event-type |
 
+> **See also:** [Config Transaction Protocol](config/transaction-protocol.md) for `config/`
+> bus topics used during verify/apply/rollback of config changes.
+
 ## Migration Path
 
 The migration preserves all existing behavior while adding Bus integration:
