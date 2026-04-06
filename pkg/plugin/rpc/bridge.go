@@ -30,6 +30,7 @@ type DirectBridge struct {
 	hasStructured     atomic.Bool // set atomically when deliverStructured is written
 	dispatchRPC       func(method string, params json.RawMessage) (json.RawMessage, error)
 	dispatchCommand   DispatchCommandHandler // Typed fast path (no JSON)
+	emitEvent         EmitEventHandler       // Typed fast path (no JSON)
 	ready             atomic.Bool
 }
 
@@ -127,6 +128,33 @@ func (b *DirectBridge) DispatchCommand(command string) (status, data string, err
 // HasDispatchCommand reports whether the typed dispatch-command handler is set.
 func (b *DirectBridge) HasDispatchCommand() bool {
 	return b.ready.Load() && b.dispatchCommand != nil
+}
+
+// EmitEventHandler is the typed handler for emit-event via DirectBridge.
+// Skips all JSON serialization -- takes Go strings, returns delivered count.
+type EmitEventHandler func(namespace, eventType, direction, peerAddress, event string) (int, error)
+
+// SetEmitEvent registers the engine-side typed emit-event handler.
+// Called by the engine after startup alongside SetDispatchRPC.
+func (b *DirectBridge) SetEmitEvent(fn EmitEventHandler) {
+	b.emitEvent = fn
+}
+
+// EmitEvent calls the engine's typed emit-event handler directly.
+// Returns error if the bridge is not ready or the handler is not set.
+func (b *DirectBridge) EmitEvent(namespace, eventType, direction, peerAddress, event string) (int, error) {
+	if !b.ready.Load() {
+		return 0, errors.New("bridge not ready")
+	}
+	if b.emitEvent == nil {
+		return 0, errors.New("emit-event handler not set")
+	}
+	return b.emitEvent(namespace, eventType, direction, peerAddress, event)
+}
+
+// HasEmitEvent reports whether the typed emit-event handler is set.
+func (b *DirectBridge) HasEmitEvent() bool {
+	return b.ready.Load() && b.emitEvent != nil
 }
 
 // DispatchRPC calls the engine's RPC handler directly. Returns error if

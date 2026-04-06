@@ -546,6 +546,30 @@ func (s *Server) wireBridgeDispatch(proc *process.Process) {
 		return s.dispatchPluginRPCDirect(proc, method, params)
 	})
 
+	// Typed fast path for emit-event: skips all JSON marshal/unmarshal.
+	proc.Bridge().SetEmitEvent(func(namespace, eventType, direction, peerAddress, event string) (int, error) {
+		if namespace == "" || eventType == "" || event == "" {
+			return 0, &rpc.RPCCallError{Message: "emit-event requires namespace, event-type, and event"}
+		}
+		if !plugin.IsValidEvent(namespace, eventType) {
+			return 0, &rpc.RPCCallError{Message: "unknown event: " + namespace + "/" + eventType}
+		}
+		if s.subscriptions == nil {
+			return 0, nil
+		}
+		procs := s.subscriptions.GetMatching(namespace, eventType, direction, peerAddress, "")
+		delivered := 0
+		for _, p := range procs {
+			if p == proc {
+				continue
+			}
+			if p.Deliver(process.EventDelivery{Output: event}) {
+				delivered++
+			}
+		}
+		return delivered, nil
+	})
+
 	// Typed fast path for dispatch-command: skips all JSON marshal/unmarshal.
 	proc.Bridge().SetDispatchCommand(func(command string) (status, data string, err error) {
 		cmdCtx := &CommandContext{

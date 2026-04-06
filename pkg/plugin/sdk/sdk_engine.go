@@ -64,6 +64,12 @@ func (p *Plugin) DispatchCommand(ctx context.Context, command string) (status, d
 // The engine finds subscribers matching the namespace, event type, direction, and peer,
 // then delivers the event string to each. Returns the number of subscribers reached.
 func (p *Plugin) EmitEvent(ctx context.Context, namespace, eventType, direction, peerAddress, event string) (int, error) {
+	// Fast path: typed DirectBridge emit (no JSON serialization).
+	if p.bridge != nil && p.bridge.HasEmitEvent() {
+		return p.bridge.EmitEvent(namespace, eventType, direction, peerAddress, event)
+	}
+
+	// Slow path: JSON-based RPC (external plugins or pre-startup).
 	input := &rpc.EmitEventInput{
 		Namespace:   namespace,
 		EventType:   eventType,
