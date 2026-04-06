@@ -184,8 +184,12 @@ def start_ze(ze_binary, config_path):
     ze_env = os.environ.copy()
     ze_env["ze.log.bgp.reactor"] = "info"
     ze_env["ze.log.plugin"] = "info"
+    cmd = ["ip", "netns", "exec", ZE_NS, ze_binary]
+    if os.environ.get("ZE_PPROF"):
+        cmd.extend(["--pprof", "127.0.0.1:6060"])
+    cmd.append(config_path)
     proc = subprocess.Popen(
-        ["ip", "netns", "exec", ZE_NS, ze_binary, config_path],
+        cmd,
         stdout=ze_logfile, stderr=subprocess.STDOUT,
         env=ze_env,
     )
