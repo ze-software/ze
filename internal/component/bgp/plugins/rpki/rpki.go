@@ -78,6 +78,10 @@ type RPKIPlugin struct {
 
 	// stopCh signals all background goroutines to stop.
 	stopCh chan struct{}
+
+	// active is true when at least one cache server is configured.
+	// When false, handleEvent/handleStructuredUpdate skip all per-prefix work.
+	active atomic.Bool
 }
 
 // RunRPKIPlugin runs the bgp-rpki plugin using the SDK RPC protocol.
@@ -189,6 +193,8 @@ func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
 		return
 	}
 
+	rp.active.Store(true)
+
 	rp.mu.Lock()
 	defer rp.mu.Unlock()
 
@@ -204,6 +210,10 @@ func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
 // Extracts AS_PATH from AttrsWire and NLRIs from WireUpdate, then validates
 // each prefix against the ROA cache. No JSON parsing needed.
 func (rp *RPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
+	if !rp.active.Load() {
+		return
+	}
+
 	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
 	if !ok || msg == nil || msg.WireUpdate == nil {
 		return
@@ -334,6 +344,10 @@ func (rp *RPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, m
 // Validates each prefix against the ROA cache, enqueues accept/reject decisions
 // to the async worker, and emits an rpki event with per-prefix validation states.
 func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
+	if !rp.active.Load() {
+		return
+	}
+
 	eventType := event.GetEventType()
 	if eventType != "update" {
 		return
