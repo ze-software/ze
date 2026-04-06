@@ -60,7 +60,7 @@ Every spec MUST have a `## Wiring Test` table (see `plan/TEMPLATE.md`). Every ro
 
 ## Production Path Verification (BLOCKING)
 
-Before modifying any handler, dispatcher, or protocol step: **grep for ALL implementations** of that function/protocol step in the codebase. Ze has multiple code paths for the same protocol (e.g., `subsystem.go` and `server_startup.go` both implement stage-1). Modifying one is not enough.
+Before modifying any handler, dispatcher, or protocol step: **grep for ALL implementations** of that function/protocol step in the codebase. Ze has multiple code paths for the same protocol (e.g., `subsystem.go` and `plugin/server/startup.go` both implement stage-1). Modifying one is not enough.
 
 | Step | Action |
 |------|--------|

@@ -77,7 +77,7 @@ Do NOT flag these as "identity wrappers adding no value."
 - **Rule:** `rules/integration-completeness.md`. A unit test is not a wiring test. Library code is dead code until wired.
 
 ### Wrong Production Path (rib-04)
-- Wrote spec pointing at `subsystem.go` stage-1 handler. Production path is `server_startup.go`.
+- Wrote spec pointing at `subsystem.go` stage-1 handler. Production path is `startup.go` (in `plugin/server/`).
 - Root cause: found *a* handler, assumed it was *the* handler. Never traced the actual call chain.
 - **Rule:** grep for ALL implementations of a protocol step, identify which one the consumer calls.
 

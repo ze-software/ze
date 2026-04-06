@@ -146,11 +146,11 @@ type ReactorConfigurator interface {
 	// Reload reloads the configuration from the config file via reloadFunc.
 	Reload() error
 
-	// VerifyConfig validates peer settings from a BGP config tree.
-	VerifyConfig(bgpTree map[string]any) error
+	// VerifyConfig validates protocol-specific settings from a config tree.
+	VerifyConfig(configTree map[string]any) error
 
-	// ApplyConfigDiff applies peer changes from a BGP config tree.
-	ApplyConfigDiff(bgpTree map[string]any) error
+	// ApplyConfigDiff applies incremental changes from a protocol config tree.
+	ApplyConfigDiff(configTree map[string]any) error
 
 	// GetConfigTree returns the full config as a map for plugin config delivery.
 	GetConfigTree() map[string]any
@@ -188,8 +188,42 @@ type ReactorCacheCoordinator interface {
 	UnregisterCacheConsumer(name string)
 }
 
-// ReactorLifecycle is the full reactor interface composed from focused sub-interfaces.
+// ProtocolReactor is the minimal interface any protocol reactor must implement.
+// It provides lifecycle management and configuration access that the engine
+// and plugin infrastructure use without knowledge of the specific protocol.
+//
+// Protocol-specific extensions (BGP peers, OSPF neighbors, IS-IS adjacencies)
+// are expressed as separate interfaces. Consumers type-assert when they need
+// protocol-specific operations.
+type ProtocolReactor interface {
+	// Stop signals the reactor to shut down.
+	Stop()
+
+	// Reload reloads the configuration.
+	Reload() error
+
+	// GetConfigTree returns the full config as a map for plugin config delivery.
+	GetConfigTree() map[string]any
+
+	// SetConfigTree replaces the running config tree after a successful reload.
+	SetConfigTree(tree map[string]any)
+
+	// VerifyConfig validates protocol-specific settings from a config tree.
+	VerifyConfig(configTree map[string]any) error
+
+	// ApplyConfigDiff applies incremental changes from a protocol config tree.
+	ApplyConfigDiff(configTree map[string]any) error
+
+	// SignalPluginStartupComplete signals that all plugin phases are done.
+	SignalPluginStartupComplete()
+}
+
+// ReactorLifecycle is the full BGP reactor interface composed from focused
+// sub-interfaces. It extends ProtocolReactor with BGP-specific peer management,
+// introspection, and cache coordination.
+//
 // Consumers should prefer the narrowest sub-interface that satisfies their needs.
+// Non-BGP code should use ProtocolReactor instead.
 type ReactorLifecycle interface {
 	ReactorIntrospector
 	ReactorPeerController

@@ -7,13 +7,55 @@ import (
 	"testing"
 )
 
-// VALIDATES: Coordinator implements ReactorLifecycle.
+// VALIDATES: Coordinator implements ReactorLifecycle and ProtocolReactor.
 // PREVENTS: Missing interface method causes compile failure.
 func TestCoordinatorImplementsReactorLifecycle(t *testing.T) {
 	var _ ReactorLifecycle = (*Coordinator)(nil)
+	var _ ProtocolReactor = (*Coordinator)(nil)
 }
 
-// VALIDATES: BGP methods return ErrBGPNotLoaded when no reactor is set.
+// VALIDATES: RegisterReactor stores and retrieves named protocol reactors.
+// PREVENTS: Multi-protocol reactor registration broken.
+func TestCoordinatorMultiReactor(t *testing.T) {
+	c := NewCoordinator(map[string]any{})
+
+	// No reactor registered
+	if r := c.Reactor("ospf"); r != nil {
+		t.Errorf("expected nil, got %v", r)
+	}
+
+	// Register a reactor
+	dummy := "ospf-reactor"
+	c.RegisterReactor("ospf", dummy)
+	if r := c.Reactor("ospf"); r != dummy {
+		t.Errorf("expected ospf-reactor, got %v", r)
+	}
+
+	// SetReactor also registers under "bgp"
+	m := &mockReactor{}
+	if err := c.SetReactor(m); err != nil {
+		t.Fatal(err)
+	}
+	if r := c.Reactor("bgp"); r == nil {
+		t.Error("expected bgp reactor in generic map")
+	}
+
+	// Unregister
+	c.RegisterReactor("ospf", nil)
+	if r := c.Reactor("ospf"); r != nil {
+		t.Errorf("expected nil after unregister, got %v", r)
+	}
+
+	// SetReactor(nil) clears both
+	if err := c.SetReactor(nil); err != nil {
+		t.Fatal(err)
+	}
+	if r := c.Reactor("bgp"); r != nil {
+		t.Errorf("expected nil after SetReactor(nil), got %v", r)
+	}
+}
+
+// VALIDATES: BGP methods return ErrNoReactor when no reactor is set.
 // PREVENTS: Nil dereference when BGP is not loaded.
 func TestCoordinatorWithoutReactor(t *testing.T) {
 	c := NewCoordinator(map[string]any{"interface": map[string]any{}})
@@ -26,16 +68,16 @@ func TestCoordinatorWithoutReactor(t *testing.T) {
 		t.Errorf("expected nil caps, got %v", caps)
 	}
 
-	// PeerController: returns ErrBGPNotLoaded
+	// PeerController: returns ErrNoReactor
 	addr := netip.MustParseAddr("10.0.0.1")
-	if err := c.TeardownPeer(addr, 2, ""); !errors.Is(err, ErrBGPNotLoaded) {
-		t.Errorf("expected ErrBGPNotLoaded, got %v", err)
+	if err := c.TeardownPeer(addr, 2, ""); !errors.Is(err, ErrNoReactor) {
+		t.Errorf("expected ErrNoReactor, got %v", err)
 	}
-	if err := c.PausePeer(addr); !errors.Is(err, ErrBGPNotLoaded) {
-		t.Errorf("expected ErrBGPNotLoaded, got %v", err)
+	if err := c.PausePeer(addr); !errors.Is(err, ErrNoReactor) {
+		t.Errorf("expected ErrNoReactor, got %v", err)
 	}
-	if err := c.RemovePeer(addr); !errors.Is(err, ErrBGPNotLoaded) {
-		t.Errorf("expected ErrBGPNotLoaded, got %v", err)
+	if err := c.RemovePeer(addr); !errors.Is(err, ErrNoReactor) {
+		t.Errorf("expected ErrNoReactor, got %v", err)
 	}
 
 	// Configurator: config tree works
@@ -109,8 +151,8 @@ func TestCoordinatorUnsetReactor(t *testing.T) {
 		t.Fatal(err)
 	}
 	addr := netip.MustParseAddr("10.0.0.1")
-	if err := c.TeardownPeer(addr, 2, ""); !errors.Is(err, ErrBGPNotLoaded) {
-		t.Errorf("expected ErrBGPNotLoaded after unset, got %v", err)
+	if err := c.TeardownPeer(addr, 2, ""); !errors.Is(err, ErrNoReactor) {
+		t.Errorf("expected ErrNoReactor after unset, got %v", err)
 	}
 }
 

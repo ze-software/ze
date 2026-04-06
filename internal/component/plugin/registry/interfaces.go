@@ -12,28 +12,37 @@ import (
 // without importing the server package (which would create import cycles).
 type PluginServerAccessor interface {
 	ReactorAny() any // Returns ReactorLifecycle (any to avoid importing plugin types)
-	UpdateBGPConfig(families, customEvents, customSendTypes []string)
+	UpdateProtocolConfig(families, customEvents, customSendTypes []string)
 	SetCommitManager(cm any) // Set commit manager (type-asserted by handlers)
 }
 
-// BGPReactorHandle provides the methods the BGP plugin needs from the reactor
-// without importing bgp/reactor (which would create import cycles via plugin/server).
-type BGPReactorHandle interface {
+// ProtocolReactorHandle provides lifecycle methods that any protocol reactor
+// exposes to the plugin infrastructure. Protocol-specific handles (like
+// BGPReactorHandle) embed this and add protocol-specific methods.
+type ProtocolReactorHandle interface {
 	SetBusAny(bus any)
 	SetPluginServerAny(server any)
+	StartWithContext(ctx context.Context) error
+	Stop()
+	Wait(ctx context.Context) error
+}
+
+// BGPReactorHandle extends ProtocolReactorHandle with BGP-specific methods.
+// Provides reactor access without importing bgp/reactor (cycle avoidance).
+type BGPReactorHandle interface {
+	ProtocolReactorHandle
 	ConfiguredAutoLoad() (families, events, sendTypes []string)
 	SetRestartUntil(t time.Time)
 	ReactorLifecycleAdapter() any // Returns ReactorLifecycle (any to avoid importing plugin types)
-	StartWithContext(ctx context.Context) error
 	StartPeers() error
-	Stop()
-	Wait(ctx context.Context) error
 }
 
 // CoordinatorAccessor provides the methods that plugins need from the Coordinator
 // without importing the plugin package.
 type CoordinatorAccessor interface {
 	SetReactor(r any) error
+	RegisterReactor(name string, r any)
+	Reactor(name string) any
 	GetExtra(key string) any
 	OnPostStartup(fn func())
 }

@@ -117,7 +117,7 @@ func runBGPEngine(conn net.Conn) int {
 
 		// Update server with BGP-specific auto-load config.
 		families, events, sendTypes := bgpReactor.ConfiguredAutoLoad()
-		server.UpdateBGPConfig(families, events, sendTypes)
+		server.UpdateProtocolConfig(families, events, sendTypes)
 
 		// Register reactor with coordinator for ReactorLifecycle delegation.
 		if err := coord.SetReactor(bgpReactor.ReactorLifecycleAdapter()); err != nil {

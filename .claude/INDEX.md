@@ -152,7 +152,7 @@ Full index: `.claude/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | ASN4, AS4 | `edge-cases/as4.md` |
 | ADD-PATH | `edge-cases/addpath.md` |
 | extended message | `edge-cases/extended-message.md` |
-| test, functional, .ci | `functional-tests.md`, `testing/ci-format.md` |
+| test, functional, .ci | `docs/functional-tests.md` (top-level, not architecture/), `testing/ci-format.md` |
 
 All architecture docs in `docs/architecture/` unless noted.
 
