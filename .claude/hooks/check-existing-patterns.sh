@@ -38,7 +38,8 @@ TYPES=$(echo "$CONTENT" | grep -oE 'type\s+[A-Z][a-zA-Z0-9]*\s+struct' | awk '{p
 
 # Check if types already exist (BLOCKING)
 for t in $TYPES; do
-    EXISTING=$(grep -rl "type[[:space:]]\+$t[[:space:]]\+struct" internal/ 2>/dev/null | grep -v "_test.go" | head -3)
+    # Exclude files with //go:build tags (build-tag pairs define the same type intentionally).
+    EXISTING=$(grep -rl "type[[:space:]]\+$t[[:space:]]\+struct" internal/ 2>/dev/null | grep -v "_test.go" | while read -r f; do head -3 "$f" | grep -q '//go:build' || echo "$f"; done | head -3)
     if [[ -n "$EXISTING" ]]; then
         ERRORS+=("Type '$t' ALREADY EXISTS:")
         while IFS= read -r f; do
@@ -53,7 +54,8 @@ FUNCS=$(echo "$CONTENT" | grep -oE '^func\s+[A-Z][a-zA-Z0-9]*\(' | sed 's/func\s
 
 # Check if functions already exist (BLOCKING)
 for fn in $FUNCS; do
-    EXISTING=$(grep -rl "^func[[:space:]]\+$fn[[:space:]]*(" internal/ 2>/dev/null | grep -v "_test.go" | head -3)
+    # Exclude files with //go:build tags (build-tag pairs define the same function intentionally).
+    EXISTING=$(grep -rl "^func[[:space:]]\+$fn[[:space:]]*(" internal/ 2>/dev/null | grep -v "_test.go" | while read -r f; do head -3 "$f" | grep -q '//go:build' || echo "$f"; done | head -3)
     if [[ -n "$EXISTING" ]]; then
         ERRORS+=("Function '$fn' ALREADY EXISTS:")
         while IFS= read -r file; do
