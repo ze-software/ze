@@ -278,6 +278,7 @@ type SubscribeEventsInput struct {
 // separate subscribe-events RPC that would arrive after routes are already sent.
 type ReadyInput struct {
 	Subscribe *SubscribeEventsInput `json:"subscribe,omitempty"`
+	Transport string                `json:"transport,omitempty"` // "bridge" for internal plugins; pipe closed after ack
 }
 
 // ConfigVerifyInput is the input for ze-plugin-callback:config-verify.

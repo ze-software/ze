@@ -5,9 +5,37 @@ package sdk
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+// initCallbackDefaults registers default handlers for callbacks that have
+// graceful no-handler behavior (accept/no-op). Called from constructors.
+func (p *Plugin) initCallbackDefaults() {
+	p.callbacks = map[string]callbackHandler{
+		// Events: no-op when no handler registered.
+		callbackDeliverEvent: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
+		callbackDeliverBatch: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
+		// Config: accept when no handler registered.
+		callbackConfigVerify: marshalStatusOK,
+		callbackConfigApply:  marshalStatusOK,
+		// Validate-open: accept when no handler registered.
+		callbackValidateOpen: func(json.RawMessage) (json.RawMessage, error) {
+			return json.Marshal(&rpc.ValidateOpenOutput{Accept: true})
+		},
+		// Bye: no-op when no handler registered.
+		callbackBye: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
+	}
+}
+
+// marshalStatusOK returns a JSON status OK response. Shared default for config callbacks.
+func marshalStatusOK(json.RawMessage) (json.RawMessage, error) {
+	return json.Marshal(struct {
+		Status string `json:"status"`
+	}{Status: rpc.StatusOK})
+}
 
 // OnConfigure sets the handler for Stage 2 config delivery.
 func (p *Plugin) OnConfigure(fn func([]ConfigSection) error) {
@@ -27,7 +55,32 @@ func (p *Plugin) OnShareRegistry(fn func([]RegistryCommand)) {
 func (p *Plugin) OnEvent(fn func(string) error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.onEvent = fn
+	p.onEvent = fn // Keep field for bridge direct delivery hot path.
+	p.callbacks[callbackDeliverEvent] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input struct {
+			Event string `json:"event"`
+		}
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("unmarshal deliver-event: %w", err)
+		}
+		return nil, fn(input.Event)
+	}
+	p.callbacks[callbackDeliverBatch] = func(params json.RawMessage) (json.RawMessage, error) {
+		events, err := rpc.ParseBatchEvents(params)
+		if err != nil {
+			return nil, err
+		}
+		for _, raw := range events {
+			var eventStr string
+			if err := json.Unmarshal(raw, &eventStr); err != nil {
+				return nil, fmt.Errorf("unmarshal batch event: %w", err)
+			}
+			if err := fn(eventStr); err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
+	}
 }
 
 // OnStructuredEvent sets the handler for structured event delivery via DirectBridge.
@@ -43,7 +96,16 @@ func (p *Plugin) OnStructuredEvent(fn func([]any) error) {
 func (p *Plugin) OnBye(fn func(string)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.onBye = fn
+	p.callbacks[callbackBye] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input struct {
+			Reason string `json:"reason,omitempty"`
+		}
+		if params != nil {
+			_ = json.Unmarshal(params, &input) //nolint:errcheck // best-effort
+		}
+		fn(input.Reason)
+		return nil, nil
+	}
 }
 
 // OnEncodeNLRI sets the handler for NLRI encoding requests.
@@ -51,7 +113,19 @@ func (p *Plugin) OnBye(fn func(string)) {
 func (p *Plugin) OnEncodeNLRI(fn func(family string, args []string) (string, error)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.onEncodeNLRI = fn
+	p.callbacks[callbackEncodeNLRI] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.EncodeNLRIInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("unmarshal encode-nlri: %w", err)
+		}
+		hex, err := fn(input.Family, input.Args)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(struct {
+			Hex string `json:"hex"`
+		}{Hex: hex})
+	}
 }
 
 // OnDecodeNLRI sets the handler for NLRI decoding requests.
@@ -59,7 +133,19 @@ func (p *Plugin) OnEncodeNLRI(fn func(family string, args []string) (string, err
 func (p *Plugin) OnDecodeNLRI(fn func(family string, hex string) (string, error)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.onDecodeNLRI = fn
+	p.callbacks[callbackDecodeNLRI] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.DecodeNLRIInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("unmarshal decode-nlri: %w", err)
+		}
+		jsonResult, err := fn(input.Family, input.Hex)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(struct {
+			JSON string `json:"json"`
+		}{JSON: jsonResult})
+	}
 }
 
 // OnDecodeCapability sets the handler for capability decoding requests.
@@ -67,7 +153,19 @@ func (p *Plugin) OnDecodeNLRI(fn func(family string, hex string) (string, error)
 func (p *Plugin) OnDecodeCapability(fn func(code uint8, hex string) (string, error)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.onDecodeCapability = fn
+	p.callbacks[callbackDecodeCapability] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.DecodeCapabilityInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("unmarshal decode-capability: %w", err)
+		}
+		jsonResult, err := fn(input.Code, input.Hex)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(struct {
+			JSON string `json:"json"`
+		}{JSON: jsonResult})
+	}
 }
 
 // OnExecuteCommand sets the handler for command execution requests.
@@ -75,7 +173,17 @@ func (p *Plugin) OnDecodeCapability(fn func(code uint8, hex string) (string, err
 func (p *Plugin) OnExecuteCommand(fn func(serial, command string, args []string, peer string) (string, string, error)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.onExecuteCommand = fn
+	p.callbacks[callbackExecuteCommand] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.ExecuteCommandInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("unmarshal execute-command: %w", err)
+		}
+		status, data, err := fn(input.Serial, input.Command, input.Args, input.Peer)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(&rpc.ExecuteCommandOutput{Status: status, Data: data})
+	}
 }
 
 // OnConfigVerify sets the handler for config verification requests (reload pipeline).
@@ -84,7 +192,16 @@ func (p *Plugin) OnExecuteCommand(fn func(serial, command string, args []string,
 func (p *Plugin) OnConfigVerify(fn func([]ConfigSection) error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.onConfigVerify = fn
+	p.callbacks[callbackConfigVerify] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.ConfigVerifyInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return marshalStatusError(fmt.Sprintf("unmarshal config-verify: %v", err))
+		}
+		if err := fn(input.Sections); err != nil {
+			return marshalStatusError(err.Error())
+		}
+		return marshalStatusOK(nil)
+	}
 }
 
 // OnConfigApply sets the handler for config apply requests (reload pipeline).
@@ -93,7 +210,16 @@ func (p *Plugin) OnConfigVerify(fn func([]ConfigSection) error) {
 func (p *Plugin) OnConfigApply(fn func([]ConfigDiffSection) error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.onConfigApply = fn
+	p.callbacks[callbackConfigApply] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.ConfigApplyInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return marshalStatusError(fmt.Sprintf("unmarshal config-apply: %v", err))
+		}
+		if err := fn(input.Sections); err != nil {
+			return marshalStatusError(err.Error())
+		}
+		return marshalStatusOK(nil)
+	}
 }
 
 // OnValidateOpen sets the handler for OPEN validation requests.
@@ -103,7 +229,15 @@ func (p *Plugin) OnConfigApply(fn func([]ConfigDiffSection) error) {
 func (p *Plugin) OnValidateOpen(fn func(*ValidateOpenInput) *ValidateOpenOutput) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.onValidateOpen = fn
+	p.callbacks[callbackValidateOpen] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.ValidateOpenInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return json.Marshal(&rpc.ValidateOpenOutput{
+				Accept: false, Reason: fmt.Sprintf("unmarshal validate-open: %v", err),
+			})
+		}
+		return json.Marshal(fn(&input))
+	}
 }
 
 // OnFilterUpdate sets the handler for route filter requests (redistribution).
@@ -112,7 +246,17 @@ func (p *Plugin) OnValidateOpen(fn func(*ValidateOpenInput) *ValidateOpenOutput)
 func (p *Plugin) OnFilterUpdate(fn func(*FilterUpdateInput) (*FilterUpdateOutput, error)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.onFilterUpdate = fn
+	p.callbacks[callbackFilterUpdate] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.FilterUpdateInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("unmarshal filter-update: %w", err)
+		}
+		out, err := fn(&input)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(out)
+	}
 }
 
 // OnStarted sets a callback that runs after the 5-stage startup completes
@@ -163,4 +307,12 @@ func (p *Plugin) SetCapabilities(caps []CapabilityDecl) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.capabilities = caps
+}
+
+// marshalStatusError returns a JSON status error response with the given message.
+func marshalStatusError(msg string) (json.RawMessage, error) {
+	return json.Marshal(struct {
+		Status string `json:"status"`
+		Error  string `json:"error,omitempty"`
+	}{Status: rpc.StatusError, Error: msg})
 }

@@ -585,9 +585,16 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 		s.reactor.SignalAPIReady()
 	}
 
-	// Send OK response
+	// Send OK response (last message on the pipe for bridge transport).
 	if err := conn.SendResult(s.ctx, req.ID, nil); err != nil {
 		return
+	}
+
+	// If plugin requested bridge transport, switch PluginConn to use bridge
+	// for all future engine->plugin callbacks. The pipe is no longer used.
+	if readyInput.Transport == "bridge" && proc.Bridge() != nil {
+		conn.SetBridge(proc.Bridge())
+		logger().Debug("rpc startup: switched to bridge transport", "plugin", proc.Name())
 	}
 }
 

@@ -166,16 +166,22 @@ Plugin sends `ze-plugin-engine:ready` with an optional `ReadyInput`:
 | Field | Type | Description |
 |-------|------|-------------|
 | `subscribe` | `SubscribeEventsInput` | Optional startup event subscription |
+| `transport` | `string` | `"bridge"` for internal plugins; pipe closed after ack |
 
 The `subscribe` field allows plugins to register event subscriptions atomically with
 startup completion. This avoids a race where `SignalAPIReady` triggers route sends before
 a separate `subscribe-events` RPC could be processed.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetStartupSubscriptions -->
 
+When `transport` is `"bridge"`, the engine activates bridge callbacks on the `PluginConn`
+and the SDK closes the pipe after receiving the OK response. All subsequent engine-to-plugin
+callbacks flow through `bridge.CallbackCh()` instead of the MuxConn.
+<!-- source: pkg/plugin/rpc/types.go -- ReadyInput.Transport -->
+
 **Wire example:**
 
 ```
-#3 ze-plugin-engine:ready {"subscribe":{"events":["update","state"],"peers":["*"],"format":"json"}}
+#3 ze-plugin-engine:ready {"subscribe":{"events":["update","state"],"peers":["*"],"format":"json"},"transport":"bridge"}
 #3 ok
 ```
 
@@ -184,8 +190,11 @@ the event loop.
 
 ## Runtime Callbacks (Engine to Plugin)
 
-After startup, the engine sends runtime RPCs to the plugin via the event loop:
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- dispatchCallback -->
+After startup, the engine sends runtime RPCs to the plugin. The SDK dispatches
+these through a generic callback registry (`map[string]callbackHandler`) -- both
+the pipe and bridge event loops use the same map-based lookup, with no
+transport-specific handler code.
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop, getCallback -->
 
 | Method | Input | Description |
 |--------|-------|-------------|
@@ -269,16 +278,16 @@ an error from `Run()` with context like `"stage 1 (declare-registration): ..."`.
 
 **Runtime errors:** Callback handlers return errors via `#<id> error {"code":"...","message":"..."}`.
 Unknown methods are rejected with `"unknown method: <method>"`.
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- dispatchCallback -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop -->
 
 **Connection errors:** EOF or closed connection during the event loop is treated as
 clean shutdown (engine closes socket to signal exit).
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, isConnectionClosed -->
 
 **Config reload errors:** `config-verify` and `config-apply` return structured results
 with `{"status":"ok"}` or `{"status":"error","error":"..."}`. If no handler is registered,
 the response is `{"status":"ok"}` (graceful no-op).
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- handleConfigRPC -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigVerify, OnConfigApply, initCallbackDefaults -->
 
 ## Batched Event Delivery
 
@@ -292,8 +301,12 @@ channel, JSON-quotes each one, and sends them in a single `deliver-batch` RPC.
 ```
 
 The SDK unpacks the batch and dispatches each event to the `OnEvent` handler individually.
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- handleDeliverBatch -->
+Both `deliver-event` and `deliver-batch` handlers are registered in the callback map
+when `OnEvent` is called.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEvent -->
 
-For internal plugins with an active `DirectBridge`, event delivery bypasses JSON-RPC
-framing entirely: `bridge.DeliverEvents(events)` calls the `onEvent` handler directly.
+For internal plugins with an active `DirectBridge`, event delivery bypasses the callback
+channel entirely: `bridge.DeliverEvents(events)` calls the `onEvent` handler directly
+(hot path). The callback channel is only used for non-event callbacks (execute-command,
+config-verify, etc.) and bye.
 <!-- source: pkg/plugin/sdk/sdk.go -- Run, bridge activation -->

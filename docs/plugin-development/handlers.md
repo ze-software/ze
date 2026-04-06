@@ -299,9 +299,10 @@ If no handler is registered, OPEN validation returns `{accept: true}` (no-op).
 
 ### OnBye
 
-Called when the engine sends a shutdown notification. The SDK responds OK before
-invoking this callback.
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- handleByeAndRespond -->
+Called when the engine sends a shutdown notification. On the pipe transport,
+the SDK responds OK before invoking this callback. On the bridge transport,
+the callback runs and then the result is sent back through the channel.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnBye -->
 
 ```go
 p.OnBye(func(reason string) {
@@ -475,7 +476,7 @@ return fmt.Errorf("validation failed")
 ```
 
 **Config verify/apply responses** use structured status:
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- handleConfigRPC -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigVerify, OnConfigApply, marshalStatusOK, marshalStatusError -->
 
 | Situation | Response |
 |-----------|----------|
@@ -484,7 +485,7 @@ return fmt.Errorf("validation failed")
 | No handler registered | `{"status":"ok"}` (graceful no-op) |
 
 **Unknown methods** are rejected with an error response:
-<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- dispatchCallback -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop -->
 
 ```
 #5 error {"code":"error","message":"unknown method: ze-plugin-callback:foo"}

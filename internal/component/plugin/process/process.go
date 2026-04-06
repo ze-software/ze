@@ -642,6 +642,13 @@ func (p *Process) Stop() {
 	// (which fail fast since context is canceled) then exits.
 	p.stopEventChan()
 
+	// Close bridge callback channel so the plugin's bridge event loop exits
+	// and any pending SendCallback calls unblock with a closed-channel panic
+	// guard (select on ctx.Done handles this gracefully).
+	if p.bridge != nil {
+		p.bridge.CloseCallbacks()
+	}
+
 	p.closeConns()
 }
 

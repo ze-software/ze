@@ -1800,11 +1800,10 @@ func TestCallEngineRawDirect(t *testing.T) {
 
 	completeStartup(t, ctx, engine)
 
-	// Synchronize: send a no-op event to confirm the event loop is running.
-	syncEvent := struct {
-		Event string `json:"event"`
-	}{Event: "{}"}
-	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:deliver-event", syncEvent))
+	// Wait for bridge event loop to start. With bridge transport, the pipe is
+	// closed after startup so we sync via bridge readiness instead.
+	require.Eventually(t, func() bool { return bridge.Ready() }, 2*time.Second, 10*time.Millisecond,
+		"bridge should be ready after startup")
 
 	// Call UpdateRoute — should go through bridge, not socket
 	routeDone := make(chan error, 1)
@@ -1821,11 +1820,12 @@ func TestCallEngineRawDirect(t *testing.T) {
 		t.Fatal("timeout waiting for UpdateRoute")
 	}
 
-	// Shutdown
-	byeInput := struct {
+	// Shutdown via bridge (pipe is closed).
+	byeParams, _ := json.Marshal(struct {
 		Reason string `json:"reason"`
-	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
+	}{Reason: "done"})
+	_, byeErr := bridge.SendCallback(ctx, "ze-plugin-callback:bye", byeParams)
+	require.NoError(t, byeErr)
 
 	select {
 	case err := <-errCh:
@@ -1858,11 +1858,9 @@ func TestCallEngineRawDirectError(t *testing.T) {
 
 	completeStartup(t, ctx, engine)
 
-	// Synchronize
-	syncEvent := struct {
-		Event string `json:"event"`
-	}{Event: "{}"}
-	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:deliver-event", syncEvent))
+	// Wait for bridge event loop to start.
+	require.Eventually(t, func() bool { return bridge.Ready() }, 2*time.Second, 10*time.Millisecond,
+		"bridge should be ready after startup")
 
 	// Call UpdateRoute — bridge returns error response
 	routeDone := make(chan error, 1)
@@ -1879,11 +1877,12 @@ func TestCallEngineRawDirectError(t *testing.T) {
 		t.Fatal("timeout waiting for UpdateRoute")
 	}
 
-	// Shutdown
-	byeInput := struct {
+	// Shutdown via bridge (pipe is closed).
+	byeParams, _ := json.Marshal(struct {
 		Reason string `json:"reason"`
-	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
+	}{Reason: "done"})
+	_, byeErr := bridge.SendCallback(ctx, "ze-plugin-callback:bye", byeParams)
+	require.NoError(t, byeErr)
 
 	select {
 	case err := <-errCh:

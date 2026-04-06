@@ -23,7 +23,8 @@ import (
 //     ReadRequest reads from MuxConn.Requests(), CallRPC/SendResult delegate to MuxConn.
 type PluginConn struct {
 	*rpc.Conn
-	mux *rpc.MuxConn // Non-nil for single-conn mode.
+	mux    *rpc.MuxConn      // Non-nil for single-conn mode.
+	bridge *rpc.DirectBridge // Non-nil after bridge transport negotiation.
 }
 
 // NewPluginConn creates a PluginConn that reads from readConn and writes to writeConn.
@@ -58,9 +59,23 @@ func (pc *PluginConn) ReadRequest(ctx context.Context) (*rpc.Request, error) {
 	}
 }
 
-// CallRPC sends an RPC and waits for the response. In single-conn mode,
-// routes through MuxConn. All typed methods (SendDeliverEvent, etc.) call this.
+// SetBridge activates bridge transport for engine->plugin callbacks.
+// After this, CallRPC routes through bridge.SendCallback instead of the pipe.
+func (pc *PluginConn) SetBridge(b *rpc.DirectBridge) {
+	pc.bridge = b
+}
+
+// CallRPC sends an RPC and waits for the response.
+// Routes through: bridge (if set) -> MuxConn (if set) -> direct Conn.
+// All typed methods (SendExecuteCommand, etc.) call this.
 func (pc *PluginConn) CallRPC(ctx context.Context, method string, params any) (json.RawMessage, error) {
+	if pc.bridge != nil {
+		paramsRaw, err := json.Marshal(params)
+		if err != nil {
+			return nil, fmt.Errorf("marshal params: %w", err)
+		}
+		return pc.bridge.SendCallback(ctx, method, paramsRaw)
+	}
 	if pc.mux != nil {
 		return pc.mux.CallRPC(ctx, method, params)
 	}

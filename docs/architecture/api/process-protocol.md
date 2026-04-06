@@ -501,30 +501,53 @@ For Go plugins (`ze.pluginname`) -- runs in same process:
 | Step | Side | Action |
 |------|------|--------|
 | 1 | Engine | `wireBridgeDispatch()` registers `DispatchRPC` handler on bridge |
-| 2 | Engine | Sends Stage 5 OK response over socket |
-| 3 | SDK | Receives OK, registers `DeliverEvents` handler on bridge |
-| 4 | SDK | Calls `bridge.SetReady()` -- bridge now active |
+| 2 | Engine | Sends Stage 5 OK response over pipe (last pipe message) |
+| 3 | Engine | If `ReadyInput.Transport == "bridge"`: calls `conn.SetBridge(bridge)` |
+| 4 | SDK | Receives OK, registers `DeliverEvents` handler on bridge |
+| 5 | SDK | Calls `bridge.SetReady()` -- bridge now active |
+| 6 | SDK | Closes pipe (`engineMux.Close()`), enters `bridgeEventLoop` |
 
 The engine wires its handler (step 1) before sending OK (step 2), ensuring no race
-between SDK bridge activation and engine readiness.
+between SDK bridge activation and engine readiness. After bridge activation, the pipe
+is fully shut down -- the MuxConn readLoop exits, and all engine-to-plugin callbacks
+flow through `bridge.CallbackCh()`.
+<!-- source: pkg/plugin/sdk/sdk.go -- Run, bridge activation -->
+<!-- source: internal/component/plugin/server/startup.go -- handleProcessStartupRPC, SetBridge -->
 
 **Runtime hot path (after bridge activates):**
 
 | Direction | Socket path (before) | Direct path (after) |
 |-----------|---------------------|---------------------|
 | Engine to Plugin events (text) | JSON-RPC envelope -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `onEvent` | `bridge.DeliverEvents(events)` -> `onEvent` directly |
-| Engine to Plugin events (structured) | — | `bridge.DeliverStructured([]any)` -> `onStructuredEvent` with `*StructuredEvent` (no text formatting, no JSON parsing) |
+| Engine to Plugin events (structured) | -- | `bridge.DeliverStructured([]any)` -> `onStructuredEvent` with `*StructuredEvent` (no text formatting, no JSON parsing) |
 | Plugin to Engine RPCs | `json.Marshal` -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `dispatcher.Dispatch` | `bridge.DispatchRPC(method, params)` -> `dispatcher.Dispatch` directly |
+| Engine to Plugin callbacks | JSON-RPC via MuxConn + 3-way select | `bridge.SendCallback()` -> callback channel -> `bridgeEventLoop` 2-way select |
+
+**Callback dispatch:** Both event loops (pipe and bridge) dispatch through a generic
+callback registry (`map[string]callbackHandler`). Each `On*` method registers a typed
+wrapper in the map. Adding a new callback requires only one `On*` method -- zero changes
+to the dispatch or event loop code. See `rules/plugin-design.md` "SDK Is Generic".
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop, getCallback -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- initCallbackDefaults, On* methods -->
+
+**Shutdown:** `Process.Stop()` cancels the context and calls `bridge.CloseCallbacks()`
+(guarded by `sync.Once`), closing the callback channel. The `bridgeEventLoop` exits
+on channel close. `SendCallback` recovers from send-on-closed-channel panics and
+returns `ErrBridgeClosed`.
+<!-- source: internal/component/plugin/process/process.go -- Stop -->
+<!-- source: pkg/plugin/rpc/bridge.go -- SendCallback, CloseCallbacks, ErrBridgeClosed -->
 
 **Files:**
 
 | File | Purpose |
 |------|---------|
-| `pkg/plugin/rpc/bridge.go` | `DirectBridge`, `BridgedConn`, `Bridger` interface |
-| `internal/component/plugin/process.go` | Bridge creation in `startInternal()`, bridge check in `deliverBatch()` |
-| `internal/component/plugin/server_dispatch.go` | `dispatchPluginRPCDirect()`, `wireBridgeDispatch()` |
-| `internal/component/plugin/server_startup.go` | `wireBridgeDispatch()` called before Stage 5 OK |
-| `pkg/plugin/sdk/sdk.go` | Bridge discovery, `callEngineRaw()` bridge path, `SetReady()` |
+| `pkg/plugin/rpc/bridge.go` | `DirectBridge`, `BridgedConn`, `Bridger`, `BridgeCallback`, `SendCallback`, `CloseCallbacks` |
+| `pkg/plugin/sdk/sdk_callbacks.go` | `initCallbackDefaults`, `On*` wrappers, `callbackHandler` registry |
+| `pkg/plugin/sdk/sdk_dispatch.go` | `eventLoop`, `bridgeEventLoop`, `getCallback` -- generic dispatch |
+| `internal/component/plugin/process/process.go` | Bridge creation in `startInternal()`, bridge check in `deliverBatch()`, `CloseCallbacks` in `Stop()` |
+| `internal/component/plugin/ipc/rpc.go` | `PluginConn.SetBridge()`, `CallRPC` bridge routing |
+| `internal/component/plugin/server/startup.go` | Bridge transport activation after Stage 5 OK |
+| `pkg/plugin/sdk/sdk.go` | Bridge discovery, `callEngineRaw()` bridge path, `SetReady()`, pipe close |
 
 ### Mode 2: Subprocess (TLS connect-back)
 

@@ -41,6 +41,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
+// callbackHandler is the uniform signature for all runtime callback handlers.
+// Returns result JSON (nil for status-only OK responses) and error.
+// Registered via On* methods, dispatched by both pipe and bridge event loops.
+type callbackHandler func(json.RawMessage) (json.RawMessage, error)
+
 // Plugin represents a ze plugin using the YANG RPC protocol.
 type Plugin struct {
 	name string
@@ -55,24 +60,22 @@ type Plugin struct {
 	// dispatches through bridge.DispatchRPC instead of engineMux.CallRPC.
 	bridge *rpc.DirectBridge
 
-	// Callbacks for engine-initiated RPCs.
-	onConfigure        func([]ConfigSection) error
-	onShareRegistry    func([]RegistryCommand)
-	onEvent            func(string) error
-	onStructuredEvent  func([]any) error
-	onEncodeNLRI       func(family string, args []string) (string, error)
-	onDecodeNLRI       func(family string, hex string) (string, error)
-	onDecodeCapability func(code uint8, hex string) (string, error)
-	onExecuteCommand   func(serial, command string, args []string, peer string) (status, data string, err error)
-	onConfigVerify     func([]ConfigSection) error
-	onConfigApply      func([]ConfigDiffSection) error
-	onValidateOpen     func(*ValidateOpenInput) *ValidateOpenOutput
-	onFilterUpdate     func(*FilterUpdateInput) (*FilterUpdateOutput, error)
-	onBye              func(string)
+	// Runtime callback registry: method name -> handler.
+	// On* methods register typed wrappers here. Both event loops dispatch
+	// through this map -- no switch statements, no transport-specific handlers.
+	// Adding a new callback = adding one On* method. Zero dispatch changes.
+	callbacks map[string]callbackHandler
 
-	// Post-startup callback (runs after Stage 5, before event loop).
-	// Safe to make engine calls here -- startup is complete.
-	onStarted func(context.Context) error
+	// Startup-only callbacks (stages 2, 4, post-startup). Not in the map
+	// because they run during the sequential startup protocol, not the event loop.
+	onConfigure     func([]ConfigSection) error
+	onShareRegistry func([]RegistryCommand)
+	onStarted       func(context.Context) error
+
+	// Direct delivery handlers for bridge hot path (bypasses callback channel).
+	// onEvent is also captured by the deliver-event/deliver-batch map entries.
+	onEvent           func(string) error
+	onStructuredEvent func([]any) error
 
 	// Startup subscriptions: included in the "ready" RPC so the engine
 	// registers them atomically before SignalAPIReady, avoiding the race
@@ -101,6 +104,7 @@ func NewWithConn(name string, conn net.Conn) *Plugin {
 		engineConn: rc,
 		engineMux:  rpc.NewMuxConn(rc),
 	}
+	p.initCallbackDefaults()
 	// Discover bridge via type assertion (internal plugins only).
 	if bridger, ok := conn.(rpc.Bridger); ok {
 		p.bridge = bridger.Bridge()
@@ -114,11 +118,13 @@ func NewWithConn(name string, conn net.Conn) *Plugin {
 // bidirectional RPC multiplexing.
 func NewWithIO(name string, reader io.ReadCloser, writer io.WriteCloser) *Plugin {
 	rc := rpc.NewConn(reader, writer)
-	return &Plugin{
+	p := &Plugin{
 		name:       name,
 		engineConn: rc,
 		engineMux:  rpc.NewMuxConn(rc),
 	}
+	p.initCallbackDefaults()
+	return p
 }
 
 // NewFromEnv creates a plugin by reading ZE_PLUGIN_HUB_HOST, ZE_PLUGIN_HUB_PORT, and
@@ -244,7 +250,7 @@ func (p *Plugin) Close() error {
 func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 	// Auto-set WantsValidateOpen if callback is registered.
 	p.mu.Lock()
-	if p.onValidateOpen != nil {
+	if p.callbacks[callbackValidateOpen] != nil {
 		reg.WantsValidateOpen = true
 	}
 	p.mu.Unlock()
@@ -273,11 +279,14 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 		return fmt.Errorf("stage 4 (share-registry): %w", err)
 	}
 
-	// Stage 5: ready (with optional startup subscriptions)
+	// Stage 5: ready (with optional startup subscriptions and transport negotiation)
 	p.mu.Lock()
-	var readyInput *rpc.ReadyInput
+	readyInput := &rpc.ReadyInput{}
 	if p.startupSubscription != nil {
-		readyInput = &rpc.ReadyInput{Subscribe: p.startupSubscription}
+		readyInput.Subscribe = p.startupSubscription
+	}
+	if p.bridge != nil {
+		readyInput.Transport = "bridge"
 	}
 	p.mu.Unlock()
 
@@ -331,9 +340,14 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 		}
 	}
 
-	// Enter event loop: still needed for non-event callbacks (bye, encode/decode,
-	// config-verify, config-apply, validate-open, execute-command).
-	// With direct bridge, deliver-batch events bypass the event loop entirely.
+	// Enter event loop.
+	if p.bridge != nil {
+		// Bridge mode: close the pipe (MuxConn readLoop exits), run bridge-only loop.
+		// All engine->plugin callbacks arrive via bridge.CallbackCh().
+		_ = p.engineMux.Close()
+		return p.bridgeEventLoop(ctx)
+	}
+	// Pipe mode (external plugins): callbacks arrive via MuxConn.Requests().
 	return p.eventLoop(ctx)
 }
 

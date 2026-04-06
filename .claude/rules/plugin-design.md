@@ -22,6 +22,21 @@ Structural template: `.claude/patterns/plugin.md`
 | All imports | `internal/component/plugin/all/` | Blank imports triggering all `init()` |
 | CLI shared | `internal/component/plugin/cli/` | `PluginConfig` + `RunPlugin()` |
 
+## SDK Is Generic (BLOCKING)
+
+**The SDK (`pkg/plugin/sdk/`) must never contain plugin-specific code.** Adding or removing
+a callback type requires only one `On*` method in `sdk_callbacks.go` that registers a
+handler in the callback map. The event loops, dispatch logic, and transport layers are
+callback-agnostic -- they dispatch through `map[string]callbackHandler` without knowing
+what callbacks exist.
+
+| Rule | Meaning |
+|------|---------|
+| No switch/case on method names in event loops | Dispatch is map lookup, not enumeration |
+| No transport-specific handler methods | One handler per callback, used by both pipe and bridge |
+| Bye is the only special case | It terminates the loop -- checked by method name, not by handler signature |
+| Adding a callback = one On* method | Zero changes to sdk_dispatch.go or event loop code |
+
 ## Proximity Principle (BLOCKING)
 
 **Related code belongs together.** The "delete the folder" test is a mechanical check for proximity.

@@ -4,6 +4,7 @@
 package rpc
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net"
@@ -24,6 +25,23 @@ var structuredEventPool = sync.Pool{
 // signal ready. Once ready, the engine calls DeliverEvents directly (bypassing
 // SendDeliverBatch) and the plugin calls DispatchRPC directly (bypassing
 // engineMux.CallRPC).
+// ErrBridgeClosed is returned by SendCallback when the callback channel is closed.
+var ErrBridgeClosed = errors.New("bridge closed")
+
+// BridgeCallback is an engine->plugin callback delivered through the bridge channel.
+// The engine pushes these; the plugin's bridge event loop drains them serially.
+type BridgeCallback struct {
+	Method string                      // Callback method name (e.g., "ze-plugin-callback:execute-command")
+	Params json.RawMessage             // Callback params (JSON -- reuses existing handler signatures)
+	Result chan<- BridgeCallbackResult // Engine blocks on this until plugin responds
+}
+
+// BridgeCallbackResult is the plugin's response to a bridge callback.
+type BridgeCallbackResult struct {
+	Data json.RawMessage
+	Err  error
+}
+
 type DirectBridge struct {
 	deliverEvents     func(events []string) error
 	deliverStructured func(events []any) error
@@ -31,13 +49,61 @@ type DirectBridge struct {
 	dispatchRPC       func(method string, params json.RawMessage) (json.RawMessage, error)
 	dispatchCommand   DispatchCommandHandler // Typed fast path (no JSON)
 	emitEvent         EmitEventHandler       // Typed fast path (no JSON)
+	callbackCh        chan BridgeCallback    // Engine->plugin callbacks (replaces pipe after startup)
+	closeOnce         sync.Once              // Guards callbackCh close (Stop may be called multiple times)
 	ready             atomic.Bool
 }
 
 // NewDirectBridge creates a bridge. Both sides must register handlers and call
 // SetReady before the bridge activates.
 func NewDirectBridge() *DirectBridge {
-	return &DirectBridge{}
+	return &DirectBridge{
+		callbackCh: make(chan BridgeCallback, 16),
+	}
+}
+
+// CallbackCh returns the channel for engine->plugin callbacks.
+// The plugin's bridge event loop reads from this after pipe shutdown.
+func (b *DirectBridge) CallbackCh() <-chan BridgeCallback {
+	return b.callbackCh
+}
+
+// SendCallback sends an engine->plugin callback through the bridge channel.
+// Blocks until the plugin processes it and returns a result, or ctx expires.
+// Used by PluginConn methods (SendExecuteCommand, etc.) when bridge is active.
+// Returns ErrBridgeClosed if the callback channel was closed during shutdown.
+func (b *DirectBridge) SendCallback(ctx context.Context, method string, params json.RawMessage) (result json.RawMessage, err error) {
+	// Sending on a closed channel panics. CloseCallbacks may race with this
+	// send during shutdown (context canceled but select picks the send arm).
+	defer func() {
+		if r := recover(); r != nil {
+			err = ErrBridgeClosed
+		}
+	}()
+	resultCh := make(chan BridgeCallbackResult, 1)
+	select {
+	case b.callbackCh <- BridgeCallback{
+		Method: method,
+		Params: params,
+		Result: resultCh,
+	}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	select {
+	case r := <-resultCh:
+		return r.Data, r.Err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// CloseCallbacks closes the callback channel, signaling the plugin's bridge
+// event loop to exit. Called during shutdown. Safe to call multiple times.
+func (b *DirectBridge) CloseCallbacks() {
+	b.closeOnce.Do(func() {
+		close(b.callbackCh)
+	})
 }
 
 // SetDeliverEvents registers the plugin-side event handler (engine→plugin direction).
