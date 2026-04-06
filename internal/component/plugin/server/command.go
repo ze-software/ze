@@ -97,12 +97,23 @@ type CommandContext struct {
 	Meta     map[string]any   // Route metadata from UpdateRoute RPC; nil if not set.
 }
 
-// Reactor returns the reactor lifecycle interface via Server. Nil-safe: returns nil if Server is nil.
+// Reactor returns the BGP reactor lifecycle interface via Server.
+// Nil-safe: returns nil if Server is nil.
 func (c *CommandContext) Reactor() plugin.ReactorLifecycle {
 	if c.Server == nil {
 		return nil
 	}
 	return c.Server.Reactor()
+}
+
+// ProtocolReactor returns a named protocol reactor from the Coordinator.
+// Callers type-assert to the protocol-specific interface they need.
+// Nil-safe: returns nil if Server is nil or protocol not registered.
+func (c *CommandContext) ProtocolReactor(name string) any {
+	if c.Server == nil {
+		return nil
+	}
+	return c.Server.ReactorFor(name)
 }
 
 // Dispatcher returns the command dispatcher via Server. Nil-safe: returns nil if Server is nil.

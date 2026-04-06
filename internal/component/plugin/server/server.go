@@ -264,6 +264,15 @@ func (s *Server) ReactorAny() any {
 	return s.reactor
 }
 
+// ReactorFor returns a named protocol reactor from the Coordinator, or nil.
+// This allows plugins to access non-BGP reactors (e.g., OSPF, IS-IS) by name.
+func (s *Server) ReactorFor(name string) any {
+	if c, ok := s.reactor.(*plugin.Coordinator); ok {
+		return c.Reactor(name)
+	}
+	return nil
+}
+
 func (s *Server) Reactor() plugin.ReactorLifecycle {
 	// When the reactor is a Coordinator, return the underlying reactor adapter
 	// (which implements both ReactorLifecycle and BGPReactor) so that type

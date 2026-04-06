@@ -11,7 +11,8 @@ import (
 // PluginServerAccessor provides the methods that plugins need from the Server
 // without importing the server package (which would create import cycles).
 type PluginServerAccessor interface {
-	ReactorAny() any // Returns ReactorLifecycle (any to avoid importing plugin types)
+	ReactorAny() any            // Returns ReactorLifecycle (any to avoid importing plugin types)
+	ReactorFor(name string) any // Returns named protocol reactor, or nil
 	UpdateProtocolConfig(families, customEvents, customSendTypes []string)
 	SetCommitManager(cm any) // Set commit manager (type-asserted by handlers)
 }

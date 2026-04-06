@@ -25,10 +25,9 @@ var ErrNoReactor = errors.New("no reactor loaded")
 type Coordinator struct {
 	mu          sync.RWMutex
 	configTree  map[string]any
-	reactor     ReactorLifecycle // BGP reactor (nil when BGP not loaded)
-	reactors    map[string]any   // named protocol reactors (e.g., "bgp", "ospf")
-	extra       map[string]any   // generic key-value store for cross-plugin state
-	postStartup func()           // called by SignalPluginStartupComplete (e.g., start peers)
+	reactors    map[string]any // named protocol reactors (e.g., "bgp", "ospf")
+	extra       map[string]any // generic key-value store for cross-plugin state
+	postStartup func()         // called by SignalPluginStartupComplete (e.g., start peers)
 }
 
 // NewCoordinator creates a Coordinator with the given config tree.
@@ -79,29 +78,29 @@ func (c *Coordinator) Reactor(name string) any {
 
 // SetReactor registers the BGP reactor for ReactorLifecycle delegation.
 // Pass nil to unregister. Returns error if r is non-nil but not ReactorLifecycle.
-// Also registers the reactor under the name "bgp" in the generic reactor map.
+// Stores the reactor under the name "bgp" in the named reactor map.
 func (c *Coordinator) SetReactor(r any) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if r == nil {
-		c.reactor = nil
 		delete(c.reactors, "bgp")
 		return nil
 	}
-	rl, ok := r.(ReactorLifecycle)
-	if !ok {
+	if _, ok := r.(ReactorLifecycle); !ok {
 		return fmt.Errorf("coordinator: expected ReactorLifecycle, got %T", r)
 	}
-	c.reactor = rl
 	c.reactors["bgp"] = r
 	return nil
 }
 
-// getReactor returns the current reactor or nil.
+// getReactor returns the BGP reactor from the named map, or nil.
 func (c *Coordinator) getReactor() ReactorLifecycle {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.reactor
+	if r, ok := c.reactors["bgp"].(ReactorLifecycle); ok {
+		return r
+	}
+	return nil
 }
 
 // FullReactor returns the underlying reactor adapter when set (which implements
@@ -109,10 +108,8 @@ func (c *Coordinator) getReactor() ReactorLifecycle {
 // reactor is registered. This allows type assertions to BGPReactor to succeed
 // when BGP is loaded.
 func (c *Coordinator) FullReactor() ReactorLifecycle {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	if c.reactor != nil {
-		return c.reactor
+	if r := c.getReactor(); r != nil {
+		return r
 	}
 	return c
 }
