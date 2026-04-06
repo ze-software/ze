@@ -105,11 +105,12 @@ Do NOT flag these as "identity wrappers adding no value."
 - **Rule:** `rules/tdd.md` AC-Linked Tests. Quote the AC. Assert the behavior. If a no-op passes the test, the test is wrong.
 - **BEFORE marking AC done:** Read the AC text aloud. Read the test assertion. Does the assertion verify THAT TEXT? Not a proxy, not an absence, the actual behavior.
 
-### Dismissing Test Failures as "Pre-existing" (RECURRING, ZERO TOLERANCE)
-- Said "pre-existing slogutil failures unrelated" and proposed committing with failing tests.
-- Has happened MANY times across multiple sessions. User explicitly said it causes distress.
-- Root cause: treating "I didn't cause it" as permission to ignore it. The rules are explicit: investigate and fix.
-- **Rule:** NEVER say "pre-existing" or "unrelated" to justify not fixing a test failure. Investigate every failure. Fix it. Then commit.
+### Dismissing Test Failures as "Pre-existing" (RECURRING -- NOW RESOLVED)
+- Original problem: said "pre-existing, skipping" and proposed committing with failing tests.
+- Old bad behavior: report failures, block current work, never actually fix them. Created an endless loop.
+- **Current rule:** Fix pre-existing failures in the same session, after primary task. Separate commit script.
+  If fix needs >10 min, log to `.claude/known-failures.md` for next session. Never block, never skip.
+- See `rules/anti-rationalization.md` Test Failures section.
 
 ### Plugin Placement Anchor Bias (jsonrpc gateway)
 - Placed cross-cutting JSON-RPC gateway under `bgp/plugins/` by pattern-matching recently-read files.

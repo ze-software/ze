@@ -45,12 +45,14 @@ unrelated package = separate commit.
 
 **`make ze-verify` (timeout 180s) — not `go test`, not any subset.**
 
-**BLOCKING:** Never ask to commit without reporting ALL test failures to the user first. If any test failed, list every failure explicitly before any commit discussion. Hiding, omitting, or glossing over failures is forbidden.
+**BLOCKING:** `make ze-verify` must pass before presenting commit script. Fix what fails.
 
 ```
-[ ] 1. Run `make ze-verify` — capture to tmp/ze-test-SESSION.log (SESSION = your 8-char ID). ANY failure: STOP and report.
-[ ] 2. Report test result: pass/fail. If failures: list every one. No omissions.
-      Ask user how to proceed — the right call depends on context and risk.
+[ ] 1. Run `make ze-verify` — capture to tmp/ze-test-SESSION.log (SESSION = your 8-char ID).
+[ ] 2. If failures caused by current work: fix them before proceeding. Re-run.
+      If pre-existing failures: do not block current work. Fix them after the primary task
+      completes, in a separate commit script. If fix needs >10 min, log to
+      `.claude/known-failures.md` so the next session picks it up.
 [ ] 3. Spec completion gate — if work was driven by a spec in plan/:
       [ ] Learned summary written to plan/learned/NNN-<name>.md
       [ ] Spec file staged for deletion (git rm)

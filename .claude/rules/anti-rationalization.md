@@ -17,12 +17,17 @@ Rationale: `.claude/rationale/anti-rationalization.md`
 | Excuse | Answer |
 |--------|--------|
 | "Transient" / "resource contention" | Investigate. A failure happened |
-| "Not related to our changes" | Always report visibly. Investigate and fix |
+| "Not related to our changes" | Fix it anyway. Include the fix in a separate commit script |
 | "Passed on retry" | Retry is not evidence. Investigate the failure |
 | "Timing-dependent" | Race condition. Fix it |
-| "Pre-existing issue" | Report it. Investigate the root cause. Ask the user how to proceed |
+| "Pre-existing issue" | Fix it. If it needs more than 10 minutes, log to `.claude/known-failures.md` and continue |
 
-**Every test failure matters.** Always report failures visibly. Investigate every failure regardless of origin. Then ask the user how to proceed -- the right call depends on context and risk level. Never assume a failure is safe to ignore.
+**Every test failure gets fixed, not reported.** Investigate, fix, move on. Pre-existing failures
+are fixed as a separate commit (not mixed with feature work). Do not block current work on a
+failure you didn't cause -- but DO fix it in the same session, after completing the primary task.
+If a pre-existing failure requires deep investigation beyond the session's scope, add it to
+`.claude/known-failures.md` with the failure output and root-cause hypothesis so the next session
+picks it up. Never skip a failure without either fixing it or logging it.
 
 ## Completion
 
