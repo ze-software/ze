@@ -422,3 +422,100 @@ func TestParseAdminDistanceConfig(t *testing.T) {
 		})
 	}
 }
+
+// TestSysribApplyJournal verifies that admin distance config applied via journal
+// can be rolled back to restore previous distances.
+//
+// VALIDATES: AC-8 - sysrib config change: admin distance updated via journal, rollback restores.
+// PREVENTS: Admin distance change without rollback capability.
+func TestSysribApplyJournal(t *testing.T) {
+	s := newSysRIB()
+	bus := newTestBus()
+	setBus(bus)
+	defer setBus(nil)
+
+	// Set initial admin distance.
+	s.mu.Lock()
+	s.adminDist = map[string]int{"ebgp": 20, "ibgp": 200}
+	s.mu.Unlock()
+
+	// Add a route so reapplyAdminDistances has something to work with.
+	s.mu.Lock()
+	key := prefixKey{family: "ipv4/unicast", prefix: "10.0.0.0/24"}
+	s.routes[key] = map[string]*protocolRoute{
+		"bgp": {
+			protocol:         "bgp",
+			protocolType:     "ebgp",
+			nextHop:          "192.0.2.1",
+			priority:         20,
+			incomingPriority: 20,
+		},
+	}
+	s.best[key] = s.routes[key]["bgp"]
+	s.mu.Unlock()
+
+	// Apply new admin distance via journal.
+	newDist := map[string]int{"ebgp": 30, "ibgp": 150}
+	oldDist := map[string]int{"ebgp": 20, "ibgp": 200}
+
+	j := &testJournal{}
+	err := j.Record(
+		func() error {
+			s.mu.Lock()
+			s.adminDist = newDist
+			s.mu.Unlock()
+			s.reapplyAdminDistances()
+			return nil
+		},
+		func() error {
+			s.mu.Lock()
+			s.adminDist = oldDist
+			s.mu.Unlock()
+			s.reapplyAdminDistances()
+			return nil
+		},
+	)
+	require.NoError(t, err)
+
+	// Verify new distance applied.
+	s.mu.RLock()
+	assert.Equal(t, 30, s.adminDist["ebgp"], "ebgp distance should be updated")
+	s.mu.RUnlock()
+
+	// Rollback: should restore old distances.
+	errs := j.Rollback()
+	assert.Empty(t, errs)
+
+	s.mu.RLock()
+	assert.Equal(t, 20, s.adminDist["ebgp"], "ebgp distance should be restored after rollback")
+	assert.Equal(t, 200, s.adminDist["ibgp"], "ibgp distance should be restored after rollback")
+	s.mu.RUnlock()
+}
+
+// testJournal is a minimal journal for testing.
+type testJournal struct {
+	entries []func() error
+}
+
+func (j *testJournal) Record(apply, undo func() error) error {
+	if err := apply(); err != nil {
+		return err
+	}
+	j.entries = append(j.entries, undo)
+	return nil
+}
+
+func (j *testJournal) Rollback() []error {
+	var errs []error
+	for i := len(j.entries) - 1; i >= 0; i-- {
+		if err := j.entries[i](); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	j.entries = nil
+	return errs
+}
+
+func (j *testJournal) Discard() {
+	j.entries = nil
+}

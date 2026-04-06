@@ -213,21 +213,8 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 		}
 	}
 
-	// Verify reactor (BGP peer settings) if bgp root has changes.
-	bgpChanged := rootHasChanges(diff, "bgp")
-	if bgpChanged {
-		bgpSubtree, _ := newTree["bgp"].(map[string]any)
-		if bgpSubtree == nil {
-			bgpSubtree = map[string]any{}
-		}
-		if err := s.reactor.VerifyConfig(bgpSubtree); err != nil {
-			logger().Warn("config reload: reactor verify failed", "error", err)
-			return fmt.Errorf("config verify failed: reactor: %w", err)
-		}
-	}
-
-	if len(affected) == 0 && !bgpChanged {
-		// No plugins care about these changes and no BGP changes — just update.
+	if len(affected) == 0 {
+		// No plugins care about these changes — just update.
 		logger().Info("config reload: no affected plugins, updating config")
 		s.reactor.SetConfigTree(newTree)
 		return nil
@@ -290,18 +277,18 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	}
 
 	// Apply phase: send diffs to plugins, then apply reactor peer changes.
-	// Errors are collected and returned to the caller, but SetConfigTree still happens
-	// because the reactor has already verified and some plugins may have applied.
+	// Apply phase: send diffs to plugins. BGP is applied last so other plugins
+	// (sysrib, interface) have their config updated before peer reconciliation.
 	var applyErrors []string
 	if len(affected) > 0 {
 		logger().Info("config reload: apply phase", "plugins", len(affected))
 		diffSections := buildDiffSections(diff)
 
-		for _, ap := range affected {
+		applyOne := func(ap affectedPlugin) {
 			conn := ap.proc.Conn()
 			if conn == nil {
 				applyErrors = append(applyErrors, fmt.Sprintf("%s: apply failed: plugin connection closed (crashed?)", ap.proc.Name()))
-				continue
+				return
 			}
 
 			// Filter diff sections to only roots this plugin cares about.
@@ -316,7 +303,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 			}
 
 			if len(pluginDiffSections) == 0 {
-				continue
+				return
 			}
 
 			out, err := conn.SendConfigApply(ctx, pluginDiffSections)
@@ -328,22 +315,22 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 				applyErrors = append(applyErrors, fmt.Sprintf("%s: %s", ap.proc.Name(), out.Error))
 			}
 		}
-	}
 
-	// Apply reactor peer changes after plugins have applied.
-	if bgpChanged {
-		bgpSubtree, _ := newTree["bgp"].(map[string]any)
-		if bgpSubtree == nil {
-			bgpSubtree = map[string]any{}
+		// Apply non-BGP plugins first, then BGP last.
+		var bgpPlugin *affectedPlugin
+		for i := range affected {
+			if slices.Contains(affected[i].proc.Registration().WantsConfigRoots, "bgp") {
+				bgpPlugin = &affected[i]
+				continue
+			}
+			applyOne(affected[i])
 		}
-		if err := s.reactor.ApplyConfigDiff(bgpSubtree); err != nil {
-			logger().Error("config reload: reactor apply failed", "error", err)
-			applyErrors = append(applyErrors, fmt.Sprintf("reactor: %v", err))
+		if bgpPlugin != nil {
+			applyOne(*bgpPlugin)
 		}
 	}
 
 	// Update running config even if some plugins had apply errors.
-	// The reactor has already applied; the config tree must reflect the new state.
 	s.reactor.SetConfigTree(newTree)
 	logger().Info("config reload completed")
 

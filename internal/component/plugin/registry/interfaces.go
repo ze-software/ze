@@ -28,6 +28,14 @@ type ProtocolReactorHandle interface {
 	Wait(ctx context.Context) error
 }
 
+// ConfigJournal records transactional apply/undo operations.
+// Implemented by pkg/plugin/sdk.Journal.
+type ConfigJournal interface {
+	Record(apply, undo func() error) error
+	Rollback() []error
+	Discard()
+}
+
 // BGPReactorHandle extends ProtocolReactorHandle with BGP-specific methods.
 // Provides reactor access without importing bgp/reactor (cycle avoidance).
 type BGPReactorHandle interface {
@@ -36,6 +44,10 @@ type BGPReactorHandle interface {
 	SetRestartUntil(t time.Time)
 	ReactorLifecycleAdapter() any // Returns ReactorLifecycle (any to avoid importing plugin types)
 	StartPeers() error
+	// Transaction protocol: verify config and return peer change count for budget estimation.
+	PeerDiffCount(bgpTree map[string]any) (int, error)
+	// Transaction protocol: apply config with journal wrapping for rollback support.
+	ReconcilePeersWithJournal(bgpTree map[string]any, j ConfigJournal) error
 }
 
 // CoordinatorAccessor provides the methods that plugins need from the Coordinator

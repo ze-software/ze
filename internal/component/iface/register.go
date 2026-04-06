@@ -96,6 +96,11 @@ func runEngine(conn net.Conn) int {
 	// pendingCfg holds the validated config between verify and apply phases.
 	var pendingCfg *ifaceConfig
 
+	// activeCfg tracks the last successfully applied config for rollback.
+	// Initialized from OnConfigure so the first reload rollback restores startup state.
+	var activeCfg *ifaceConfig
+	var activeJournal *sdk.Journal
+
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		cfg := parseIfaceSections(sections)
 
@@ -113,6 +118,7 @@ func runEngine(conn net.Conn) int {
 		if errs := applyConfig(cfg, b); len(errs) > 0 {
 			return joinApplyErrors("interface config", errs)
 		}
+		activeCfg = cfg
 		log.Info("interface config applied")
 
 		bus := GetBus()
@@ -151,15 +157,63 @@ func runEngine(conn net.Conn) int {
 			return fmt.Errorf("interface config apply: no backend loaded")
 		}
 
-		if errs := applyConfig(cfg, b); len(errs) > 0 {
-			return joinApplyErrors("interface reload", errs)
+		previousCfg := activeCfg
+		j := sdk.NewJournal()
+		err := j.Record(
+			func() error {
+				if errs := applyConfig(cfg, b); len(errs) > 0 {
+					return joinApplyErrors("interface reload", errs)
+				}
+				return nil
+			},
+			func() error {
+				// Rollback: re-apply previous config. If no previous config,
+				// apply an empty config to undo all interface changes.
+				rollbackCfg := previousCfg
+				if rollbackCfg == nil {
+					rollbackCfg = &ifaceConfig{Backend: defaultBackendName}
+				}
+				if errs := applyConfig(rollbackCfg, b); len(errs) > 0 {
+					return joinApplyErrors("interface rollback", errs)
+				}
+				// Publish undo events so downstream plugins react.
+				bus := GetBus()
+				if bus != nil {
+					bus.Publish("interface/rollback", nil, nil)
+				}
+				return nil
+			},
+		)
+		if err != nil {
+			j.Rollback()
+			return err
 		}
-		log.Info("interface config reloaded")
+
+		activeCfg = cfg
+		activeJournal = j
+		log.Info("interface config reloaded via transaction")
+		return nil
+	})
+
+	p.OnConfigRollback(func(_ string) error {
+		j := activeJournal
+		activeJournal = nil
+		if j == nil {
+			return nil
+		}
+		if errs := j.Rollback(); len(errs) > 0 {
+			return fmt.Errorf("interface rollback: %d errors", len(errs))
+		}
+		log.Info("interface config rolled back")
 		return nil
 	})
 
 	ctx := context.Background()
-	if err := p.Run(ctx, sdk.Registration{}); err != nil {
+	if err := p.Run(ctx, sdk.Registration{
+		WantsConfig:  []string{"interface"},
+		VerifyBudget: 2,
+		ApplyBudget:  10,
+	}); err != nil {
 		log.Error("interface plugin failed", "error", err)
 		return 1
 	}

@@ -52,24 +52,6 @@ func runSysRIBPlugin(conn net.Conn) int {
 
 	s := newSysRIB()
 
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		for _, section := range sections {
-			if section.Root != "sysrib" {
-				continue
-			}
-			dist, err := parseAdminDistanceConfig(section.Data)
-			if err != nil {
-				logger().Error("admin-distance config parse failed", "error", err)
-				return err
-			}
-			s.mu.Lock()
-			s.adminDist = dist
-			s.mu.Unlock()
-			logger().Info("admin-distance config loaded", "distances", dist)
-		}
-		return nil
-	})
-
 	// pendingDist holds the validated admin-distance map between verify and apply.
 	var pendingDist map[string]int
 
@@ -87,6 +69,30 @@ func runSysRIBPlugin(conn net.Conn) int {
 		return nil
 	})
 
+	// previousDist tracks the last applied admin distances for rollback.
+	// Initialized from OnConfigure so the first reload rollback restores startup state.
+	var previousDist map[string]int
+	var activeJournal *sdk.Journal
+
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		for _, section := range sections {
+			if section.Root != "sysrib" {
+				continue
+			}
+			dist, err := parseAdminDistanceConfig(section.Data)
+			if err != nil {
+				logger().Error("admin-distance config parse failed", "error", err)
+				return err
+			}
+			s.mu.Lock()
+			s.adminDist = dist
+			s.mu.Unlock()
+			previousDist = dist
+			logger().Info("admin-distance config loaded", "distances", dist)
+		}
+		return nil
+	})
+
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
 		dist := pendingDist
 		pendingDist = nil
@@ -94,19 +100,62 @@ func runSysRIBPlugin(conn net.Conn) int {
 			return nil
 		}
 
-		s.mu.Lock()
-		s.adminDist = dist
-		s.mu.Unlock()
+		oldDist := previousDist
+		j := sdk.NewJournal()
+		err := j.Record(
+			func() error {
+				s.mu.Lock()
+				s.adminDist = dist
+				s.mu.Unlock()
 
-		// Re-evaluate existing routes with new distances.
-		changes := s.reapplyAdminDistances()
-		for family, ch := range changes {
-			if len(ch) > 0 {
-				publishChanges(ch, family)
-			}
+				changes := s.reapplyAdminDistances()
+				for family, ch := range changes {
+					if len(ch) > 0 {
+						publishChanges(ch, family)
+					}
+				}
+				return nil
+			},
+			func() error {
+				// Rollback: restore previous admin distances.
+				rollbackDist := oldDist
+				if rollbackDist == nil {
+					rollbackDist = make(map[string]int)
+				}
+				s.mu.Lock()
+				s.adminDist = rollbackDist
+				s.mu.Unlock()
+
+				changes := s.reapplyAdminDistances()
+				for family, ch := range changes {
+					if len(ch) > 0 {
+						publishChanges(ch, family)
+					}
+				}
+				return nil
+			},
+		)
+		if err != nil {
+			j.Rollback()
+			return err
 		}
 
-		logger().Info("admin-distance config reloaded", "distances", dist)
+		previousDist = dist
+		activeJournal = j
+		logger().Info("admin-distance config reloaded via transaction", "distances", dist)
+		return nil
+	})
+
+	p.OnConfigRollback(func(_ string) error {
+		j := activeJournal
+		activeJournal = nil
+		if j == nil {
+			return nil
+		}
+		if errs := j.Rollback(); len(errs) > 0 {
+			return fmt.Errorf("sysrib rollback: %d errors", len(errs))
+		}
+		logger().Info("sysrib config rolled back")
 		return nil
 	})
 
@@ -128,7 +177,9 @@ func runSysRIBPlugin(conn net.Conn) int {
 
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"sysrib"},
+		WantsConfig:  []string{"sysrib"},
+		VerifyBudget: 1,
+		ApplyBudget:  2,
 		Commands: []sdk.CommandDecl{
 			{Name: "sysrib show"},
 		},

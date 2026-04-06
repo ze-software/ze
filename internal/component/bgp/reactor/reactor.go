@@ -50,12 +50,12 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe" // init() registers subscribe/unsubscribe RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update"    // init() registers update verb RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"     // init() registers interface show/migrate RPCs
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
@@ -581,6 +581,27 @@ func (r *Reactor) ConfiguredAutoLoad() (families, events, sendTypes []string) {
 // Returns any to satisfy registry.BGPReactorHandle interface.
 func (r *Reactor) ReactorLifecycleAdapter() any {
 	return &reactorAPIAdapter{r}
+}
+
+// PeerDiffCount returns the number of peer changes (adds + removes) between
+// the current reactor state and a candidate BGP config tree.
+// Used by the BGP plugin to compute a proportional budget estimate.
+func (r *Reactor) PeerDiffCount(bgpTree map[string]any) (int, error) {
+	a := &reactorAPIAdapter{r: r}
+	return a.peerDiffCount(bgpTree)
+}
+
+// ReconcilePeersWithJournal applies peer changes from a BGP config tree,
+// wrapping each operation in the provided journal for rollback support.
+// The caller is responsible for calling journal.Rollback() on failure
+// or journal.Discard() on success.
+func (r *Reactor) ReconcilePeersWithJournal(bgpTree map[string]any, j registry.ConfigJournal) error {
+	a := &reactorAPIAdapter{r: r}
+	newPeers, err := a.loadPeersFullOrTree(bgpTree)
+	if err != nil {
+		return fmt.Errorf("load peers: %w", err)
+	}
+	return a.reconcilePeersJournaled(newPeers, "apply config diff", j)
 }
 
 // publishBusNotification publishes a lightweight notification to the Bus.

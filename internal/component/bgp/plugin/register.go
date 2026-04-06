@@ -9,6 +9,7 @@ package plugin
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -146,8 +147,74 @@ func runBGPEngine(conn net.Conn) int {
 		return nil
 	})
 
+	// Transaction protocol: verify, apply with journal, rollback.
+	var pendingTree map[string]any
+	var activeJournal *sdk.Journal
+
+	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		for _, s := range sections {
+			if s.Root != "bgp" {
+				continue
+			}
+			var tree map[string]any
+			if err := json.Unmarshal([]byte(s.Data), &tree); err != nil {
+				return fmt.Errorf("bgp verify: unmarshal: %w", err)
+			}
+			bgpTree, _ := tree["bgp"].(map[string]any)
+			if bgpTree == nil {
+				bgpTree = map[string]any{}
+			}
+			// Validate via reactor (checks peer field constraints).
+			if bgpReactor != nil {
+				if _, err := bgpReactor.PeerDiffCount(bgpTree); err != nil {
+					return fmt.Errorf("bgp verify: %w", err)
+				}
+			}
+			pendingTree = bgpTree
+		}
+		return nil
+	})
+
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		tree := pendingTree
+		pendingTree = nil
+		if tree == nil {
+			return nil
+		}
+		if bgpReactor == nil {
+			return fmt.Errorf("bgp apply: no reactor available")
+		}
+		j := sdk.NewJournal()
+		if err := bgpReactor.ReconcilePeersWithJournal(tree, j); err != nil {
+			if rollbackErrs := j.Rollback(); len(rollbackErrs) > 0 {
+				log.Error("bgp apply: rollback errors", "count", len(rollbackErrs))
+			}
+			return fmt.Errorf("bgp apply: %w", err)
+		}
+		activeJournal = j
+		log.Info("bgp config applied via transaction")
+		return nil
+	})
+
+	p.OnConfigRollback(func(_ string) error {
+		j := activeJournal
+		activeJournal = nil
+		if j == nil {
+			return nil
+		}
+		if errs := j.Rollback(); len(errs) > 0 {
+			return fmt.Errorf("bgp rollback: %d errors", len(errs))
+		}
+		log.Info("bgp config rolled back")
+		return nil
+	})
+
 	ctx := context.Background()
-	if err := p.Run(ctx, sdk.Registration{}); err != nil {
+	if err := p.Run(ctx, sdk.Registration{
+		WantsConfig:  []string{"bgp"},
+		VerifyBudget: 5,
+		ApplyBudget:  30,
+	}); err != nil {
 		log.Error("bgp plugin failed", "error", err)
 		return 1
 	}

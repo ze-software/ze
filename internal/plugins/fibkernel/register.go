@@ -54,6 +54,38 @@ func runFIBKernelPlugin(conn net.Conn) int {
 	backend := newBackend()
 	f := newFIBKernel(backend)
 
+	var activeJournal *sdk.Journal
+
+	p.OnConfigVerify(func(_ []sdk.ConfigSection) error {
+		// fib-kernel has no config fields to validate yet;
+		// accept any config change that reaches us.
+		return nil
+	})
+
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		// fib-kernel config is minimal (route table settings).
+		// Journal records the apply for potential rollback.
+		j := sdk.NewJournal()
+		// No-op apply: fib-kernel reacts to sysrib bus events, not config directly.
+		// The journal is kept for protocol compliance (rollback = no-op).
+		activeJournal = j
+		logger().Info("fib-kernel config applied via transaction")
+		return nil
+	})
+
+	p.OnConfigRollback(func(_ string) error {
+		j := activeJournal
+		activeJournal = nil
+		if j == nil {
+			return nil
+		}
+		if errs := j.Rollback(); len(errs) > 0 {
+			return fmt.Errorf("fib-kernel rollback: %d errors", len(errs))
+		}
+		logger().Info("fib-kernel config rolled back")
+		return nil
+	})
+
 	p.OnStarted(func(ctx context.Context) error {
 		// Startup sweep for crash recovery.
 		stale := f.startupSweep()
@@ -85,6 +117,9 @@ func runFIBKernelPlugin(conn net.Conn) int {
 
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
+		WantsConfig:  []string{"fib.kernel"},
+		VerifyBudget: 1,
+		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
 			{Name: "fib-kernel show"},
 		},

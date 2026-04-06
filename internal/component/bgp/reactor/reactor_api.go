@@ -8,7 +8,6 @@ package reactor
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"maps"
 	"net/netip"
@@ -379,10 +378,35 @@ func (a *reactorAPIAdapter) loadPeersFullOrTree(bgpTree map[string]any) ([]*Peer
 	return parsePeersFromTree(bgpTree)
 }
 
+// configJournal records transactional apply/undo operations.
+// Matches registry.ConfigJournal and pkg/plugin/sdk.Journal.
+type configJournal interface {
+	Record(apply, undo func() error) error
+	Rollback() []error
+	Discard()
+}
+
 // reconcilePeers diffs newPeers against the reactor's current peers and
 // stops removed/changed peers, adds new/changed peers.
+// Uses an internal journal for automatic rollback on failure.
 // The label parameter is used for log messages (e.g., "reload", "apply config diff").
 func (a *reactorAPIAdapter) reconcilePeers(newPeers []*PeerSettings, label string) error {
+	j := &internalJournal{}
+	if err := a.reconcilePeersJournaled(newPeers, label, j); err != nil {
+		if rollbackErrs := j.Rollback(); len(rollbackErrs) > 0 {
+			reactorLogger().Error(label+": rollback errors", "count", len(rollbackErrs))
+		}
+		return err
+	}
+	j.Discard()
+	return nil
+}
+
+// reconcilePeersJournaled diffs newPeers against current peers, wrapping each
+// remove and add operation in journal.Record for rollback support.
+// Removes happen before adds (existing order preserved).
+// On failure, the caller is responsible for calling journal.Rollback().
+func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, label string, j configJournal) error {
 	r := a.r
 
 	// Build map of new peer settings for quick lookup.
@@ -420,32 +444,123 @@ func (a *reactorAPIAdapter) reconcilePeers(newPeers []*PeerSettings, label strin
 		}
 	}
 
-	// Remove peers.
+	// Remove peers with journal recording (undo = re-add with old settings).
 	for _, key := range toRemove {
-		r.mu.Lock()
-		if peer, ok := r.peers[key]; ok {
-			peer.Stop()
-			delete(r.peers, key)
-			reactorLogger().Debug(label+": removed peer", "peer", key)
+		peerKey := key
+		oldSettings := currentPeers[peerKey]
+		err := j.Record(
+			func() error {
+				r.mu.Lock()
+				defer r.mu.Unlock()
+				if peer, ok := r.peers[peerKey]; ok {
+					peer.Stop()
+					delete(r.peers, peerKey)
+					reactorLogger().Debug(label+": removed peer", "peer", peerKey)
+				}
+				return nil
+			},
+			func() error {
+				return r.AddPeer(oldSettings)
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("remove peer %s: %w", peerKey, err)
 		}
-		r.mu.Unlock()
 	}
 
-	// Add peers.
-	var addErrors []error
+	// Add peers with journal recording (undo = stop and remove).
 	for _, settings := range toAdd {
-		if err := r.AddPeer(settings); err != nil {
-			addErrors = append(addErrors, fmt.Errorf("add peer %s: %w", settings.Address, err))
-		} else {
-			reactorLogger().Debug(label+": added peer", "peer", settings.Address)
+		addSettings := settings
+		addKey := addSettings.PeerKey()
+		err := j.Record(
+			func() error {
+				if addErr := r.AddPeer(addSettings); addErr != nil {
+					return fmt.Errorf("add peer %s: %w", addSettings.Address, addErr)
+				}
+				reactorLogger().Debug(label+": added peer", "peer", addSettings.Address)
+				return nil
+			},
+			func() error {
+				r.mu.Lock()
+				defer r.mu.Unlock()
+				if peer, ok := r.peers[addKey]; ok {
+					peer.Stop()
+					delete(r.peers, addKey)
+				}
+				return nil
+			},
+		)
+		if err != nil {
+			return err
 		}
-	}
-
-	if len(addErrors) > 0 {
-		return errors.Join(addErrors...)
 	}
 
 	return nil
+}
+
+// peerDiffCount computes the number of peer changes (adds + removes) between
+// current peers and a new BGP config tree. Used for budget estimation.
+func (a *reactorAPIAdapter) peerDiffCount(bgpTree map[string]any) (int, error) {
+	newPeers, err := a.loadPeersFullOrTree(bgpTree)
+	if err != nil {
+		return 0, err
+	}
+
+	newPeerSettings := make(map[netip.AddrPort]*PeerSettings)
+	for _, p := range newPeers {
+		newPeerSettings[p.PeerKey()] = p
+	}
+
+	a.r.mu.RLock()
+	currentPeers := make(map[netip.AddrPort]*PeerSettings)
+	for key, peer := range a.r.peers {
+		currentPeers[key] = peer.Settings()
+	}
+	a.r.mu.RUnlock()
+
+	count := 0
+	for key := range currentPeers {
+		newSettings, exists := newPeerSettings[key]
+		if !exists {
+			count++ // remove
+		} else if !peerSettingsEqual(currentPeers[key], newSettings) {
+			count += 2 // remove + re-add
+		}
+	}
+	for key := range newPeerSettings {
+		if _, exists := currentPeers[key]; !exists {
+			count++ // add
+		}
+	}
+	return count, nil
+}
+
+// internalJournal is a minimal journal for the non-transaction reconcilePeers path.
+type internalJournal struct {
+	entries []func() error
+}
+
+func (j *internalJournal) Record(apply, undo func() error) error {
+	if err := apply(); err != nil {
+		return err
+	}
+	j.entries = append(j.entries, undo)
+	return nil
+}
+
+func (j *internalJournal) Rollback() []error {
+	var errs []error
+	for i := len(j.entries) - 1; i >= 0; i-- {
+		if err := j.entries[i](); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	j.entries = nil
+	return errs
+}
+
+func (j *internalJournal) Discard() {
+	j.entries = nil
 }
 
 // parsePeersFromTree extracts PeerSettings from a BGP config tree.

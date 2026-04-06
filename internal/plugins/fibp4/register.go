@@ -54,6 +54,32 @@ func runFIBP4Plugin(conn net.Conn) int {
 	backend := newBackend("", 0)
 	f := newFIBP4(backend)
 
+	var activeJournal *sdk.Journal
+
+	p.OnConfigVerify(func(_ []sdk.ConfigSection) error {
+		return nil
+	})
+
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		j := sdk.NewJournal()
+		activeJournal = j
+		logger().Info("fib-p4 config applied via transaction")
+		return nil
+	})
+
+	p.OnConfigRollback(func(_ string) error {
+		j := activeJournal
+		activeJournal = nil
+		if j == nil {
+			return nil
+		}
+		if errs := j.Rollback(); len(errs) > 0 {
+			return fmt.Errorf("fib-p4 rollback: %d errors", len(errs))
+		}
+		logger().Info("fib-p4 config rolled back")
+		return nil
+	})
+
 	p.OnStarted(func(ctx context.Context) error {
 		go f.run(ctx, false)
 		return nil
@@ -69,6 +95,9 @@ func runFIBP4Plugin(conn net.Conn) int {
 
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
+		WantsConfig:  []string{"fib.p4"},
+		VerifyBudget: 1,
+		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
 			{Name: "fib-p4 show"},
 		},
