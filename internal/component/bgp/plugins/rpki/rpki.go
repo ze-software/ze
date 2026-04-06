@@ -187,7 +187,10 @@ func RunRPKIPlugin(conn net.Conn) int {
 
 // startSessions creates and starts RTR sessions from parsed config.
 // Each cache server gets a long-lived goroutine running RTRSession.Run().
+// Sets active=true only when servers exist, so handleEvent/handleStructuredUpdate
+// skip per-prefix work when unconfigured.
 func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
+	rp.active.Store(false)
 	if cfg == nil || len(cfg.CacheServers) == 0 {
 		logger().Info("rpki: no cache servers configured")
 		return

@@ -312,40 +312,50 @@ func (s *Server) handleEmitEventRPC(proc *process.Process, conn *plugipc.PluginC
 	}
 }
 
-// emitEvent is the shared implementation for emit-event (RPC and Direct).
-// The emitting process is excluded from delivery to prevent self-delivery loops.
+// emitEvent is the JSON wrapper for emit-event (RPC and Direct).
+// Unmarshals params, delegates to deliverEvent, wraps result.
 func (s *Server) emitEvent(emitter *process.Process, params json.RawMessage) (*rpc.EmitEventOutput, error) {
 	var input rpc.EmitEventInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		return nil, &rpc.RPCCallError{Message: "invalid emit-event params: " + err.Error()}
 	}
+	delivered, err := s.deliverEvent(emitter, input.Namespace, input.EventType, input.Direction, input.PeerAddress, input.Event)
+	if err != nil {
+		return nil, err
+	}
+	return &rpc.EmitEventOutput{Delivered: delivered}, nil
+}
 
-	if input.Namespace == "" || input.EventType == "" || input.Event == "" {
-		return nil, &rpc.RPCCallError{Message: "emit-event requires namespace, event-type, and event"}
+// deliverEvent is the core emit-event logic shared by JSON and typed paths.
+// Validates inputs, finds matching subscribers, and delivers the event string.
+// The emitting process is excluded from delivery to prevent self-delivery loops.
+func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, direction, peerAddress, event string) (int, error) {
+	if namespace == "" || eventType == "" || event == "" {
+		return 0, &rpc.RPCCallError{Message: "emit-event requires namespace, event-type, and event"}
 	}
 
 	// Validate event type exists in the namespace (uses canonical registry).
-	if !plugin.IsValidEvent(input.Namespace, input.EventType) {
-		return nil, &rpc.RPCCallError{Message: "unknown event: " + input.Namespace + "/" + input.EventType}
+	if !plugin.IsValidEvent(namespace, eventType) {
+		return 0, &rpc.RPCCallError{Message: "unknown event: " + namespace + "/" + eventType}
 	}
 
 	if s.subscriptions == nil {
-		return &rpc.EmitEventOutput{Delivered: 0}, nil
+		return 0, nil
 	}
 
-	procs := s.subscriptions.GetMatching(input.Namespace, input.EventType, input.Direction, input.PeerAddress, "")
+	procs := s.subscriptions.GetMatching(namespace, eventType, direction, peerAddress, "")
 	delivered := 0
 	for _, p := range procs {
 		// Skip self-delivery to prevent loops.
 		if p == emitter {
 			continue
 		}
-		if p.Deliver(process.EventDelivery{Output: input.Event}) {
+		if p.Deliver(process.EventDelivery{Output: event}) {
 			delivered++
 		}
 	}
 
-	return &rpc.EmitEventOutput{Delivered: delivered}, nil
+	return delivered, nil
 }
 
 // handleCodecRPC is a shared helper for plugin->engine codec RPCs (decode-nlri, encode-nlri).
@@ -448,34 +458,44 @@ func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawM
 }
 
 // handleDispatchCommandDirect handles dispatch-command without socket I/O.
-// Returns marshaled result JSON on success, or *rpc.RPCCallError on failure.
+// Unmarshals params, delegates to dispatchCommand, wraps result as JSON.
 func (s *Server) handleDispatchCommandDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
 	var input rpc.DispatchCommandInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		return nil, &rpc.RPCCallError{Message: "invalid dispatch-command params: " + err.Error()}
 	}
+	status, data, err := s.dispatchCommand(proc, input.Command)
+	if err != nil {
+		return nil, &rpc.RPCCallError{Message: err.Error()}
+	}
+	return directResultResponse(&rpc.DispatchCommandOutput{Status: status, Data: data})
+}
 
-	// Set plugin name as username so authorization rules apply (see handleDispatchCommandRPC).
+// dispatchCommand is the core dispatch-command logic shared by JSON and typed paths.
+// Creates command context, dispatches through the command registry, and returns
+// the status/data result. Logs failures with shutdown awareness.
+func (s *Server) dispatchCommand(proc *process.Process, command string) (status, data string, err error) {
 	cmdCtx := &CommandContext{
 		Server:   s,
 		Process:  proc,
 		Username: "plugin:" + proc.Name(),
 	}
 
-	resp, err := s.dispatcher.Dispatch(cmdCtx, input.Command)
-	if err != nil {
-		if errors.Is(err, ErrSilent) {
-			return directResultResponse(&rpc.DispatchCommandOutput{Status: plugin.StatusDone})
+	resp, dispatchErr := s.dispatcher.Dispatch(cmdCtx, command)
+	if dispatchErr != nil {
+		if errors.Is(dispatchErr, ErrSilent) {
+			return plugin.StatusDone, "", nil
 		}
 		if s.ctx.Err() != nil {
-			logger().Debug("dispatch-command failed (shutting down)", "plugin", proc.Name(), "command", input.Command, "error", err)
+			logger().Debug("dispatch-command failed (shutting down)", "plugin", proc.Name(), "command", command, "error", dispatchErr)
 		} else {
-			logger().Error("dispatch-command failed", "plugin", proc.Name(), "command", input.Command, "error", err)
+			logger().Error("dispatch-command failed", "plugin", proc.Name(), "command", command, "error", dispatchErr)
 		}
-		return nil, &rpc.RPCCallError{Message: err.Error()}
+		return "", "", dispatchErr
 	}
 
-	return directResultResponse(responseToDispatchOutput(resp))
+	out := responseToDispatchOutput(resp)
+	return out.Status, out.Data, nil
 }
 
 // handleSubscribeEventsDirect handles subscribe-events without socket I/O.
@@ -546,46 +566,12 @@ func (s *Server) wireBridgeDispatch(proc *process.Process) {
 		return s.dispatchPluginRPCDirect(proc, method, params)
 	})
 
-	// Typed fast path for emit-event: skips all JSON marshal/unmarshal.
+	// Typed fast paths: skip JSON marshal/unmarshal, delegate to shared core methods.
 	proc.Bridge().SetEmitEvent(func(namespace, eventType, direction, peerAddress, event string) (int, error) {
-		if namespace == "" || eventType == "" || event == "" {
-			return 0, &rpc.RPCCallError{Message: "emit-event requires namespace, event-type, and event"}
-		}
-		if !plugin.IsValidEvent(namespace, eventType) {
-			return 0, &rpc.RPCCallError{Message: "unknown event: " + namespace + "/" + eventType}
-		}
-		if s.subscriptions == nil {
-			return 0, nil
-		}
-		procs := s.subscriptions.GetMatching(namespace, eventType, direction, peerAddress, "")
-		delivered := 0
-		for _, p := range procs {
-			if p == proc {
-				continue
-			}
-			if p.Deliver(process.EventDelivery{Output: event}) {
-				delivered++
-			}
-		}
-		return delivered, nil
+		return s.deliverEvent(proc, namespace, eventType, direction, peerAddress, event)
 	})
-
-	// Typed fast path for dispatch-command: skips all JSON marshal/unmarshal.
 	proc.Bridge().SetDispatchCommand(func(command string) (status, data string, err error) {
-		cmdCtx := &CommandContext{
-			Server:   s,
-			Process:  proc,
-			Username: "plugin:" + proc.Name(),
-		}
-		resp, dispatchErr := s.dispatcher.Dispatch(cmdCtx, command)
-		if dispatchErr != nil {
-			if errors.Is(dispatchErr, ErrSilent) {
-				return plugin.StatusDone, "", nil
-			}
-			return "", "", dispatchErr
-		}
-		out := responseToDispatchOutput(resp)
-		return out.Status, out.Data, nil
+		return s.dispatchCommand(proc, command)
 	})
 }
 

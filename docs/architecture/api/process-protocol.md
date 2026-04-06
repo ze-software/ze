@@ -520,7 +520,9 @@ flow through `bridge.CallbackCh()`.
 |-----------|---------------------|---------------------|
 | Engine to Plugin events (text) | JSON-RPC envelope -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `onEvent` | `bridge.DeliverEvents(events)` -> `onEvent` directly |
 | Engine to Plugin events (structured) | -- | `bridge.DeliverStructured([]any)` -> `onStructuredEvent` with `*StructuredEvent` (no text formatting, no JSON parsing) |
-| Plugin to Engine RPCs | `json.Marshal` -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `dispatcher.Dispatch` | `bridge.DispatchRPC(method, params)` -> `dispatcher.Dispatch` directly |
+| Plugin to Engine RPCs (generic) | `json.Marshal` -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `dispatcher.Dispatch` | `bridge.DispatchRPC(method, params)` -> `dispatcher.Dispatch` directly |
+| Plugin to Engine dispatch-command | JSON marshal `DispatchCommandInput` -> RPC -> unmarshal -> dispatch | `bridge.DispatchCommand(command)` -> `dispatchCommand()` directly (Go strings, no JSON) |
+| Plugin to Engine emit-event | JSON marshal `EmitEventInput` -> RPC -> unmarshal -> deliver | `bridge.EmitEvent(namespace, eventType, ...)` -> `deliverEvent()` directly (Go strings, no JSON) |
 | Engine to Plugin callbacks | JSON-RPC via MuxConn + 3-way select | `bridge.SendCallback()` -> callback channel -> `bridgeEventLoop` 2-way select |
 
 **Callback dispatch:** Both event loops (pipe and bridge) dispatch through a generic

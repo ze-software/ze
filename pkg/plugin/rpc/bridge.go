@@ -48,7 +48,9 @@ type DirectBridge struct {
 	hasStructured     atomic.Bool // set atomically when deliverStructured is written
 	dispatchRPC       func(method string, params json.RawMessage) (json.RawMessage, error)
 	dispatchCommand   DispatchCommandHandler // Typed fast path (no JSON)
+	hasDispatchCmd    atomic.Bool            // set atomically when dispatchCommand is written
 	emitEvent         EmitEventHandler       // Typed fast path (no JSON)
+	hasEmitEvent      atomic.Bool            // set atomically when emitEvent is written
 	callbackCh        chan BridgeCallback    // Engine->plugin callbacks (replaces pipe after startup)
 	closeOnce         sync.Once              // Guards callbackCh close (Stop may be called multiple times)
 	ready             atomic.Bool
@@ -174,18 +176,18 @@ type DispatchCommandHandler func(command string) (status, data string, err error
 
 // SetDispatchCommand registers the engine-side typed dispatch-command handler.
 // Called by the engine after startup alongside SetDispatchRPC.
+// The hasDispatchCmd atomic creates a happens-before edge so that readers
+// calling HasDispatchCommand or DispatchCommand see the function pointer.
 func (b *DirectBridge) SetDispatchCommand(fn DispatchCommandHandler) {
 	b.dispatchCommand = fn
+	b.hasDispatchCmd.Store(fn != nil)
 }
 
 // DispatchCommand calls the engine's typed dispatch-command handler directly.
-// Returns error if the bridge is not ready or the handler is not set.
-// Falls back to DispatchRPC with JSON if the typed handler is not registered.
+// Returns error if the handler is not set. The hasDispatchCmd atomic load
+// creates a happens-before from SetDispatchCommand's write.
 func (b *DirectBridge) DispatchCommand(command string) (status, data string, err error) {
-	if !b.ready.Load() {
-		return "", "", errors.New("bridge not ready")
-	}
-	if b.dispatchCommand == nil {
+	if !b.hasDispatchCmd.Load() {
 		return "", "", errors.New("dispatch-command handler not set")
 	}
 	return b.dispatchCommand(command)
@@ -193,7 +195,7 @@ func (b *DirectBridge) DispatchCommand(command string) (status, data string, err
 
 // HasDispatchCommand reports whether the typed dispatch-command handler is set.
 func (b *DirectBridge) HasDispatchCommand() bool {
-	return b.ready.Load() && b.dispatchCommand != nil
+	return b.ready.Load() && b.hasDispatchCmd.Load()
 }
 
 // EmitEventHandler is the typed handler for emit-event via DirectBridge.
@@ -202,17 +204,18 @@ type EmitEventHandler func(namespace, eventType, direction, peerAddress, event s
 
 // SetEmitEvent registers the engine-side typed emit-event handler.
 // Called by the engine after startup alongside SetDispatchRPC.
+// The hasEmitEvent atomic creates a happens-before edge so that readers
+// calling HasEmitEvent or EmitEvent see the function pointer.
 func (b *DirectBridge) SetEmitEvent(fn EmitEventHandler) {
 	b.emitEvent = fn
+	b.hasEmitEvent.Store(fn != nil)
 }
 
 // EmitEvent calls the engine's typed emit-event handler directly.
-// Returns error if the bridge is not ready or the handler is not set.
+// Returns error if the handler is not set. The hasEmitEvent atomic load
+// creates a happens-before from SetEmitEvent's write.
 func (b *DirectBridge) EmitEvent(namespace, eventType, direction, peerAddress, event string) (int, error) {
-	if !b.ready.Load() {
-		return 0, errors.New("bridge not ready")
-	}
-	if b.emitEvent == nil {
+	if !b.hasEmitEvent.Load() {
 		return 0, errors.New("emit-event handler not set")
 	}
 	return b.emitEvent(namespace, eventType, direction, peerAddress, event)
@@ -220,7 +223,7 @@ func (b *DirectBridge) EmitEvent(namespace, eventType, direction, peerAddress, e
 
 // HasEmitEvent reports whether the typed emit-event handler is set.
 func (b *DirectBridge) HasEmitEvent() bool {
-	return b.ready.Load() && b.emitEvent != nil
+	return b.ready.Load() && b.hasEmitEvent.Load()
 }
 
 // DispatchRPC calls the engine's RPC handler directly. Returns error if
