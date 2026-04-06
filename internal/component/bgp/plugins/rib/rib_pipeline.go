@@ -28,8 +28,9 @@ type RouteItem struct {
 	Direction string // "received" or "sent"
 
 	// Exactly one of these is set, depending on Direction.
-	InEntry  *storage.RouteEntry // pool-based entry for adj-rib-in
-	OutRoute *Route              // parsed route for adj-rib-out
+	HasInEntry bool               // true when InEntry is populated
+	InEntry    storage.RouteEntry // pool-based entry for adj-rib-in
+	OutRoute   *Route             // parsed route for adj-rib-out
 }
 
 // PipelineMeta holds pipeline result metadata.
@@ -93,15 +94,16 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 			continue
 		}
 
-		peerRIB.Iterate(func(family nlri.Family, nlriBytes []byte, entry *storage.RouteEntry) bool {
+		peerRIB.Iterate(func(family nlri.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
 			familyStr := formatFamily(family)
 			prefixStr := formatNLRIAsPrefix(family, nlriBytes)
 			s.items = append(s.items, RouteItem{
-				Peer:      peer,
-				Family:    familyStr,
-				Prefix:    prefixStr,
-				Direction: "received",
-				InEntry:   entry,
+				Peer:       peer,
+				Family:     familyStr,
+				Prefix:     prefixStr,
+				Direction:  "received",
+				HasInEntry: true,
+				InEntry:    entry,
 			})
 			return true
 		})
@@ -318,7 +320,7 @@ func extractASPathFromItem(item RouteItem) []uint32 {
 	if item.OutRoute != nil {
 		return item.OutRoute.ASPath
 	}
-	if item.InEntry != nil && item.InEntry.HasASPath() {
+	if item.HasInEntry && item.InEntry.HasASPath() {
 		if data, err := pool.ASPath.Get(item.InEntry.ASPath); err == nil {
 			return formatASPath(data)
 		}
@@ -414,7 +416,7 @@ func (f *communityFilter) hasCommunity(item RouteItem) bool {
 	if item.OutRoute != nil {
 		return slices.Contains(item.OutRoute.Communities, f.community)
 	}
-	if item.InEntry != nil && item.InEntry.HasCommunities() {
+	if item.HasInEntry && item.InEntry.HasCommunities() {
 		if data, err := pool.Communities.Get(item.InEntry.Communities); err == nil {
 			return slices.Contains(formatCommunities(data), f.community)
 		}
@@ -465,7 +467,7 @@ func (f *matchFilter) matches(item RouteItem) bool {
 	if item.OutRoute != nil {
 		return f.matchOutRoute(item.OutRoute)
 	}
-	if item.InEntry != nil {
+	if item.HasInEntry {
 		return f.matchInEntry(item.InEntry)
 	}
 	return false
@@ -507,7 +509,7 @@ func (f *matchFilter) matchOutRoute(rt *Route) bool {
 }
 
 // matchInEntry checks InEntry pool attributes: next-hop, origin, AS-path, communities, MED, local-pref.
-func (f *matchFilter) matchInEntry(entry *storage.RouteEntry) bool {
+func (f *matchFilter) matchInEntry(entry storage.RouteEntry) bool {
 	// Next-hop
 	if entry.HasNextHop() {
 		if data, err := pool.NextHop.Get(entry.NextHop); err == nil {
@@ -772,7 +774,7 @@ func serializeRouteItem(item RouteItem) map[string]any {
 		"prefix": item.Prefix,
 	}
 
-	if item.InEntry != nil {
+	if item.HasInEntry {
 		enrichRouteMapFromEntry(routeMap, item.InEntry)
 	} else if item.OutRoute != nil {
 		if item.OutRoute.NextHop != "" {

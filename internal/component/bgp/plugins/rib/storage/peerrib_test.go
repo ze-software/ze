@@ -122,9 +122,9 @@ func TestPeerRIB_Iterate(t *testing.T) {
 	rib.Insert(nlri.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
 
 	count := 0
-	rib.Iterate(func(family nlri.Family, nlriBytes []byte, entry *RouteEntry) bool {
+	rib.Iterate(func(family nlri.Family, nlriBytes []byte, entry RouteEntry) bool {
 		count++
-		assert.NotNil(t, entry)
+		assert.True(t, entry.HasOrigin())
 		return true
 	})
 
@@ -146,13 +146,13 @@ func TestPeerRIB_IterateFamily(t *testing.T) {
 	rib.Insert(nlri.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
 
 	v4count := 0
-	rib.IterateFamily(nlri.IPv4Unicast, func(nlriBytes []byte, entry *RouteEntry) bool {
+	rib.IterateFamily(nlri.IPv4Unicast, func(nlriBytes []byte, entry RouteEntry) bool {
 		v4count++
 		return true
 	})
 
 	v6count := 0
-	rib.IterateFamily(nlri.IPv6Unicast, func(nlriBytes []byte, entry *RouteEntry) bool {
+	rib.IterateFamily(nlri.IPv6Unicast, func(nlriBytes []byte, entry RouteEntry) bool {
 		v6count++
 		return true
 	})

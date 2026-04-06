@@ -58,8 +58,8 @@ type RouteEntry struct {
 }
 
 // NewRouteEntry creates a RouteEntry with all handles set to InvalidHandle.
-func NewRouteEntry() *RouteEntry {
-	return &RouteEntry{
+func NewRouteEntry() RouteEntry {
+	return RouteEntry{
 		Origin:           attrpool.InvalidHandle,
 		ASPath:           attrpool.InvalidHandle,
 		NextHop:          attrpool.InvalidHandle,

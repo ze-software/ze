@@ -149,7 +149,7 @@ func TestFamilyRIB_IterateEntry(t *testing.T) {
 	rib.Insert(attrs, nlri2)
 
 	var count int
-	rib.IterateEntry(func(nlriBytes []byte, entry *RouteEntry) bool {
+	rib.IterateEntry(func(nlriBytes []byte, entry RouteEntry) bool {
 		count++
 		assert.True(t, entry.HasOrigin())
 		assert.True(t, entry.HasLocalPref())

@@ -33,8 +33,9 @@ func FuzzParseAttributes(f *testing.F) {
 			return
 		}
 		// If successful, entry must be valid and releasable.
-		if entry == nil {
-			t.Fatal("ParseAttributes returned nil entry without error")
+		// ParseAttributes returns RouteEntry value type -- verify it is usable.
+		if entry == (RouteEntry{}) {
+			t.Fatal("ParseAttributes returned zero RouteEntry without error")
 			return
 		}
 		entry.Release()

@@ -1,4 +1,5 @@
-// Design: docs/architecture/plugin/rib-storage-design.md — RIB storage internals
+// Design: docs/architecture/plugin/rib-storage-design.md -- RIB storage internals
+// Related: nlrikey.go -- NLRIKey type used as map key
 
 package storage
 
@@ -19,8 +20,8 @@ type FamilyRIB struct {
 	family  nlri.Family
 	addPath bool
 
-	// Routes indexed by NLRI bytes.
-	routes map[string]*RouteEntry
+	// Routes indexed by fixed-size NLRI key (zero string allocation).
+	routes map[NLRIKey]RouteEntry
 }
 
 // NewFamilyRIB creates a FamilyRIB for the given address family.
@@ -28,7 +29,7 @@ func NewFamilyRIB(family nlri.Family, addPath bool) *FamilyRIB {
 	return &FamilyRIB{
 		family:  family,
 		addPath: addPath,
-		routes:  make(map[string]*RouteEntry),
+		routes:  make(map[NLRIKey]RouteEntry),
 	}
 }
 
@@ -36,7 +37,7 @@ func NewFamilyRIB(family nlri.Family, addPath bool) *FamilyRIB {
 // Parses attributes into per-type pools for fine-grained deduplication.
 // If the NLRI already exists, performs implicit withdraw (releases old entry).
 func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
-	nlriKey := string(nlriBytes)
+	nlriKey := NewNLRIKey(nlriBytes)
 
 	// Parse attributes into RouteEntry.
 	newEntry, err := ParseAttributes(attrBytes)
@@ -50,8 +51,9 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 		// Check if same attributes (no-op update).
 		if entriesEqual(oldEntry, newEntry) {
 			// Same attributes - release the new entry, keep old.
-			// RFC 4724: clear stale flag — re-announcement means route is still valid.
+			// RFC 4724: clear stale flag -- re-announcement means route is still valid.
 			oldEntry.StaleLevel = StaleLevelFresh
+			r.routes[nlriKey] = oldEntry
 			newEntry.Release()
 			return
 		}
@@ -65,7 +67,7 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 // Remove withdraws an NLRI from the RIB.
 // Returns true if the NLRI existed.
 func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
-	nlriKey := string(nlriBytes)
+	nlriKey := NewNLRIKey(nlriBytes)
 	entry, exists := r.routes[nlriKey]
 	if !exists {
 		return false
@@ -77,10 +79,10 @@ func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
 }
 
 // LookupEntry finds the RouteEntry for an NLRI.
-// Returns (entry, true) if found, (nil, false) otherwise.
-// The returned entry is owned by the RIB - do not call Release() on it.
-func (r *FamilyRIB) LookupEntry(nlriBytes []byte) (*RouteEntry, bool) {
-	entry, exists := r.routes[string(nlriBytes)]
+// Returns (entry, true) if found, (zero RouteEntry, false) otherwise.
+// The returned entry is a copy -- safe for read-only use.
+func (r *FamilyRIB) LookupEntry(nlriBytes []byte) (RouteEntry, bool) {
+	entry, exists := r.routes[NewNLRIKey(nlriBytes)]
 	return entry, exists
 }
 
@@ -91,9 +93,9 @@ func (r *FamilyRIB) Len() int {
 
 // IterateEntry calls fn for each route with its NLRI bytes and RouteEntry.
 // Stops if fn returns false.
-func (r *FamilyRIB) IterateEntry(fn func(nlriBytes []byte, entry *RouteEntry) bool) {
+func (r *FamilyRIB) IterateEntry(fn func(nlriBytes []byte, entry RouteEntry) bool) {
 	for nlriKey, entry := range r.routes {
-		if !fn([]byte(nlriKey), entry) {
+		if !fn(nlriKey.Bytes(), entry) {
 			return
 		}
 	}
@@ -104,7 +106,29 @@ func (r *FamilyRIB) Release() {
 	for _, entry := range r.routes {
 		entry.Release()
 	}
-	r.routes = make(map[string]*RouteEntry)
+	r.routes = make(map[NLRIKey]RouteEntry)
+}
+
+// ModifyEntry calls fn with a pointer to the entry for the given NLRI.
+// fn may mutate the entry (e.g., update StaleLevel or pool handles).
+// Returns false if the NLRI does not exist.
+func (r *FamilyRIB) ModifyEntry(nlriBytes []byte, fn func(entry *RouteEntry)) bool {
+	key := NewNLRIKey(nlriBytes)
+	entry, exists := r.routes[key]
+	if !exists {
+		return false
+	}
+	fn(&entry)
+	r.routes[key] = entry
+	return true
+}
+
+// ModifyAll calls fn with a pointer to each entry. fn may mutate the entry.
+func (r *FamilyRIB) ModifyAll(fn func(entry *RouteEntry)) {
+	for key, entry := range r.routes {
+		fn(&entry)
+		r.routes[key] = entry
+	}
 }
 
 // Family returns the address family of this RIB.
@@ -120,8 +144,9 @@ func (r *FamilyRIB) HasAddPath() bool {
 // MarkStale sets StaleLevel on all routes in this family.
 // The level is plugin-defined (e.g., 1 for GR, 2 for LLGR).
 func (r *FamilyRIB) MarkStale(level uint8) {
-	for _, entry := range r.routes {
+	for key, entry := range r.routes {
 		entry.StaleLevel = level
+		r.routes[key] = entry
 	}
 }
 
@@ -152,7 +177,7 @@ func (r *FamilyRIB) StaleCount() int {
 
 // entriesEqual checks if two RouteEntries have the same attribute handles.
 // Used for no-op detection (same NLRI + same attrs = skip).
-func entriesEqual(a, b *RouteEntry) bool {
+func entriesEqual(a, b RouteEntry) bool {
 	return a.Origin == b.Origin &&
 		a.ASPath == b.ASPath &&
 		a.NextHop == b.NextHop &&

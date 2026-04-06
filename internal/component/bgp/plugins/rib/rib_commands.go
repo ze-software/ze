@@ -792,7 +792,7 @@ func (r *RIBManager) gatherCandidates(family nlri.Family, nlriBytes []byte) []*C
 	var candidates []*Candidate
 	for peer, peerRIB := range r.ribInPool {
 		entry, ok := peerRIB.Lookup(family, nlriBytes)
-		if !ok || entry == nil {
+		if !ok {
 			continue
 		}
 		c := r.extractCandidate(peer, entry)
@@ -803,7 +803,7 @@ func (r *RIBManager) gatherCandidates(family nlri.Family, nlriBytes []byte) []*C
 
 // extractCandidate builds a Candidate from a RouteEntry by reading pool handles.
 // Extracts attribute values needed for RFC 4271 §9.1.2 comparison.
-func (r *RIBManager) extractCandidate(peerAddr string, entry *storage.RouteEntry) *Candidate {
+func (r *RIBManager) extractCandidate(peerAddr string, entry storage.RouteEntry) *Candidate {
 	c := &Candidate{
 		PeerAddr:  peerAddr,
 		LocalPref: 100, // RFC 4271 default
@@ -918,15 +918,14 @@ func (r *RIBManager) attachCommunityCommand(args []string) (string, string, erro
 	}
 
 	attached := 0
-	peerRIB.IterateFamily(family, func(_ []byte, entry *storage.RouteEntry) bool {
+	peerRIB.ModifyFamilyAll(family, func(entry *storage.RouteEntry) {
 		if entry.StaleLevel == storage.StaleLevelFresh {
-			return true
+			return
 		}
 		if r.attachCommunity(entry, commBytes) {
 			entry.StaleLevel = storage.DepreferenceThreshold
 			attached++
 		}
-		return true
 	})
 
 	logger().Debug("attach-community", "peer", peerAddr, "family", familyStr,
@@ -969,7 +968,7 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, string, 
 
 	// Collect NLRIs to delete (avoid modifying during iteration)
 	var toDelete [][]byte
-	peerRIB.IterateFamily(family, func(nlriBytes []byte, entry *storage.RouteEntry) bool {
+	peerRIB.IterateFamily(family, func(nlriBytes []byte, entry storage.RouteEntry) bool {
 		if entry.StaleLevel == storage.StaleLevelFresh {
 			return true
 		}

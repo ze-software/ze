@@ -547,18 +547,14 @@ type PeerRIB struct {
 }
 
 // FamilyRIB stores routes for one AFI/SAFI
+// NOTE: Current implementation uses per-attribute dedup (not whole-blob).
+// Key type is NLRIKey (struct with len + [24]byte, zero alloc).
+// Value type is RouteEntry (56 bytes, stored by value in map, zero alloc).
+// See internal/component/bgp/plugins/rib/storage/familyrib.go.
 type FamilyRIB struct {
-    afi      uint16
-    safi     uint8
-    poolNLRI bool  // true if NLRI stored as handles
-    addPath  bool  // true if ADD-PATH enabled for this family
-
-    // Forward index: attribute handle → NLRI set
-    entries map[pool.Handle]NLRISet
-
-    // Reverse index: prefix → attribute handle (for lookups/withdrawals)
-    // Key is NLRI bytes (includes path-id if ADD-PATH enabled)
-    prefixIndex map[string]pool.Handle
+    family  nlri.Family
+    addPath bool
+    routes  map[NLRIKey]RouteEntry  // fixed-size key, value-type entry
 }
 ```
 

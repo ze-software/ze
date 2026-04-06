@@ -179,7 +179,7 @@ func (r *RIBManager) bestCandidateNextHop(family nlri.Family, nlriBytes []byte, 
 		return ""
 	}
 	entry, ok := peerRIB.Lookup(family, nlriBytes)
-	if !ok || entry == nil {
+	if !ok {
 		return ""
 	}
 
@@ -206,7 +206,7 @@ func (r *RIBManager) bestCandidateNextHop(family nlri.Family, nlriBytes []byte, 
 // extractMPNextHop extracts the next-hop from MP_REACH_NLRI stored in OtherAttrs.
 // OtherAttrs format: [type(1)][flags(1)][length_16bit(2)][value(n)]...
 // MP_REACH value: AFI(2) + SAFI(1) + NH_len(1) + NH(variable) + ...
-func extractMPNextHop(entry *storage.RouteEntry) string {
+func extractMPNextHop(entry storage.RouteEntry) string {
 	data, err := pool.OtherAttrs.Get(entry.OtherAttrs)
 	if err != nil {
 		return ""

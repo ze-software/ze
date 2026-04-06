@@ -20,6 +20,7 @@ type attrInterner struct {
 
 // attrInterners maps attribute type codes to their pool+field bindings.
 // nil entries route to OtherAttrs accumulation.
+// Closures take *RouteEntry so ParseAttributes can pass a pointer to a local value.
 var attrInterners [256]*attrInterner
 
 func init() {
@@ -75,7 +76,7 @@ func init() {
 // Returns a RouteEntry with all handles set (InvalidHandle for missing attrs).
 //
 // Caller must call Release() on the returned RouteEntry when done.
-func ParseAttributes(raw []byte) (*RouteEntry, error) {
+func ParseAttributes(raw []byte) (RouteEntry, error) {
 	entry := NewRouteEntry()
 
 	if len(raw) == 0 {
@@ -88,15 +89,15 @@ func ParseAttributes(raw []byte) (*RouteEntry, error) {
 	for typeCode, flags, value, ok := iter.Next(); ok; typeCode, flags, value, ok = iter.Next() {
 		if h := attrInterners[typeCode]; h != nil {
 			// Release previous handle if duplicate attribute (malformed but handle it).
-			if cur := h.get(entry); cur.IsValid() {
+			if cur := h.get(&entry); cur.IsValid() {
 				_ = h.pool.Release(cur)
 			}
 			handle, err := h.pool.Intern(value)
 			if err != nil {
 				entry.Release()
-				return nil, fmt.Errorf("intern %s: %w", h.name, err)
+				return RouteEntry{}, fmt.Errorf("intern %s: %w", h.name, err)
 			}
-			h.set(entry, handle)
+			h.set(&entry, handle)
 		} else {
 			// Unknown or known-but-not-pooled — accumulate for OtherAttrs.
 			otherAttrs = appendOtherAttr(otherAttrs, flags, typeCode, value)
@@ -109,7 +110,7 @@ func ParseAttributes(raw []byte) (*RouteEntry, error) {
 		entry.OtherAttrs, err = pool.OtherAttrs.Intern(otherAttrs)
 		if err != nil {
 			entry.Release()
-			return nil, fmt.Errorf("intern %s: %w", "other-attrs", err)
+			return RouteEntry{}, fmt.Errorf("intern %s: %w", "other-attrs", err)
 		}
 	}
 

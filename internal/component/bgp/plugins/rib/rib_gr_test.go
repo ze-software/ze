@@ -699,17 +699,23 @@ func TestAttachCommunity_Idempotent(t *testing.T) {
 	peerRIB.Insert(ipv4Family, attrBytes, []byte{24, 10, 0, 0})
 	r.ribInPool["192.0.2.1"] = peerRIB
 
-	entry, found := peerRIB.Lookup(ipv4Family, []byte{24, 10, 0, 0})
-	require.True(t, found)
+	nlriBytes := []byte{24, 10, 0, 0}
 
-	// Attach same community twice
-	ok1 := r.attachCommunity(entry, testCommunityA)
+	// Attach same community twice via ModifyFamilyEntry (attachCommunity mutates entry).
+	var ok1, ok2 bool
+	peerRIB.ModifyFamilyEntry(ipv4Family, nlriBytes, func(entry *storage.RouteEntry) {
+		ok1 = r.attachCommunity(entry, testCommunityA)
+	})
 	assert.True(t, ok1, "first attach should succeed")
 
-	ok2 := r.attachCommunity(entry, testCommunityA)
+	peerRIB.ModifyFamilyEntry(ipv4Family, nlriBytes, func(entry *storage.RouteEntry) {
+		ok2 = r.attachCommunity(entry, testCommunityA)
+	})
 	assert.True(t, ok2, "second attach should succeed (already present)")
 
 	// Verify only one community (4 bytes, not 8)
+	entry, found := peerRIB.Lookup(ipv4Family, nlriBytes)
+	require.True(t, found)
 	commData, err := pool.Communities.Get(entry.Communities)
 	require.NoError(t, err)
 	assert.Equal(t, 4, len(commData), "community data should be exactly 4 bytes")

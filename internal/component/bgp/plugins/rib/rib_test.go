@@ -1735,12 +1735,14 @@ func TestExtractCandidate_PoolWiring(t *testing.T) {
 	peerRIB := r.ribInPool["10.0.0.1"]
 	require.NotNil(t, peerRIB)
 
-	var entry *storage.RouteEntry
-	peerRIB.Iterate(func(_ nlri.Family, _ []byte, e *storage.RouteEntry) bool {
+	var entry storage.RouteEntry
+	var found bool
+	peerRIB.Iterate(func(_ nlri.Family, _ []byte, e storage.RouteEntry) bool {
 		entry = e
+		found = true
 		return false // stop after first
 	})
-	require.NotNil(t, entry, "should have a route entry")
+	require.True(t, found, "should have a route entry")
 
 	c := r.extractCandidate("10.0.0.1", entry)
 

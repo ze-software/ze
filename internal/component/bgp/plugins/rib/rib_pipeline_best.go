@@ -40,7 +40,7 @@ func newBestSource(r *RIBManager, selector string) *bestSource {
 		if !matchesPeer(peer, selector) {
 			continue
 		}
-		peerRIB.Iterate(func(family nlri.Family, nlriBytes []byte, _ *storage.RouteEntry) bool {
+		peerRIB.Iterate(func(family nlri.Family, nlriBytes []byte, _ storage.RouteEntry) bool {
 			fStr := formatFamily(family)
 			pStr := formatNLRIAsPrefix(family, nlriBytes)
 			key := fStr + "|" + string(nlriBytes)
@@ -70,6 +70,7 @@ func newBestSource(r *RIBManager, selector string) *bestSource {
 		// Attach the pool entry from the winning peer for attribute access.
 		if peerRIB := r.ribInPool[best.PeerAddr]; peerRIB != nil {
 			if entry, ok := peerRIB.Lookup(rk.family, []byte(rk.nlriKey)); ok {
+				item.HasInEntry = true
 				item.InEntry = entry
 			}
 		}
@@ -227,7 +228,7 @@ func (bt *bestJSONTerminal) drain() {
 			Prefix:   item.Prefix,
 			BestPeer: item.Peer,
 		}
-		if item.InEntry != nil {
+		if item.HasInEntry {
 			attrs := make(map[string]any)
 			enrichRouteMapFromEntry(attrs, item.InEntry)
 			if len(attrs) > 0 {

@@ -167,7 +167,14 @@ func splitNLRIs(data []byte, addPath bool) [][]byte {
 	// RFC 4760: Maximum prefix length is 128 bits (IPv6).
 	const maxPrefixLen = 128
 
-	var result [][]byte
+	// First pass: count NLRIs to pre-allocate exact-size slice.
+	count := countNLRIs(data, addPath, maxPrefixLen)
+	if count == 0 {
+		return nil
+	}
+
+	// Second pass: split into sub-slices (zero-copy into original data).
+	result := make([][]byte, 0, count)
 	offset := 0
 
 	for offset < len(data) {
@@ -176,14 +183,12 @@ func splitNLRIs(data []byte, addPath bool) [][]byte {
 		var nlriLen int
 
 		if addPath {
-			// ADD-PATH: [path-id:4][prefix-len:1][prefix-bytes]
 			if offset+5 > len(data) {
 				break
 			}
 			prefixLen = int(data[offset+4])
 			nlriLen = 4 + 1 + (prefixLen+7)/8
 		} else {
-			// Standard: [prefix-len:1][prefix-bytes]
 			if offset >= len(data) {
 				break
 			}
@@ -191,7 +196,6 @@ func splitNLRIs(data []byte, addPath bool) [][]byte {
 			nlriLen = 1 + (prefixLen+7)/8
 		}
 
-		// Validate prefix length bounds
 		if prefixLen > maxPrefixLen {
 			logger().Warn("splitNLRIs: invalid prefix length", "prefixLen", prefixLen, "max", maxPrefixLen)
 			return nil
@@ -206,6 +210,45 @@ func splitNLRIs(data []byte, addPath bool) [][]byte {
 	}
 
 	return result
+}
+
+// countNLRIs counts the number of valid NLRIs in concatenated wire bytes.
+// Used by splitNLRIs to pre-allocate the result slice with exact capacity.
+func countNLRIs(data []byte, addPath bool, maxPrefixLen int) int {
+	count := 0
+	offset := 0
+
+	for offset < len(data) {
+		var prefixLen int
+		var nlriLen int
+
+		if addPath {
+			if offset+5 > len(data) {
+				break
+			}
+			prefixLen = int(data[offset+4])
+			nlriLen = 4 + 1 + (prefixLen+7)/8
+		} else {
+			if offset >= len(data) {
+				break
+			}
+			prefixLen = int(data[offset])
+			nlriLen = 1 + (prefixLen+7)/8
+		}
+
+		if prefixLen > maxPrefixLen {
+			return 0
+		}
+
+		if offset+nlriLen > len(data) {
+			break
+		}
+
+		count++
+		offset += nlriLen
+	}
+
+	return count
 }
 
 // formatNLRIAsPrefix converts wire NLRI bytes to human-readable prefix string.

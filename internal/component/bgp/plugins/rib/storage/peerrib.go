@@ -59,15 +59,15 @@ func (r *PeerRIB) Remove(family nlri.Family, nlriBytes []byte) bool {
 }
 
 // Lookup finds the RouteEntry for an NLRI.
-// Returns (entry, true) if found, (nil, false) otherwise.
-// The returned entry is owned by the RIB - do not call Release() on it.
-func (r *PeerRIB) Lookup(family nlri.Family, nlriBytes []byte) (*RouteEntry, bool) {
+// Returns (entry, true) if found, (zero RouteEntry, false) otherwise.
+// The returned entry is a copy -- safe for read-only use.
+func (r *PeerRIB) Lookup(family nlri.Family, nlriBytes []byte) (RouteEntry, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	rib, exists := r.families[family]
 	if !exists {
-		return nil, false
+		return RouteEntry{}, false
 	}
 	return rib.LookupEntry(nlriBytes)
 }
@@ -98,13 +98,13 @@ func (r *PeerRIB) FamilyLen(family nlri.Family) int {
 
 // Iterate calls fn for each NLRI with its family and RouteEntry.
 // Stops if fn returns false.
-func (r *PeerRIB) Iterate(fn func(family nlri.Family, nlriBytes []byte, entry *RouteEntry) bool) {
+func (r *PeerRIB) Iterate(fn func(family nlri.Family, nlriBytes []byte, entry RouteEntry) bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	for family, rib := range r.families {
 		shouldContinue := true
-		rib.IterateEntry(func(nlriBytes []byte, entry *RouteEntry) bool {
+		rib.IterateEntry(func(nlriBytes []byte, entry RouteEntry) bool {
 			shouldContinue = fn(family, nlriBytes, entry)
 			return shouldContinue
 		})
@@ -116,7 +116,7 @@ func (r *PeerRIB) Iterate(fn func(family nlri.Family, nlriBytes []byte, entry *R
 
 // IterateFamily calls fn for each NLRI in a specific family.
 // Stops if fn returns false.
-func (r *PeerRIB) IterateFamily(family nlri.Family, fn func(nlriBytes []byte, entry *RouteEntry) bool) {
+func (r *PeerRIB) IterateFamily(family nlri.Family, fn func(nlriBytes []byte, entry RouteEntry) bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -125,6 +125,30 @@ func (r *PeerRIB) IterateFamily(family nlri.Family, fn func(nlriBytes []byte, en
 		return
 	}
 	rib.IterateEntry(fn)
+}
+
+// ModifyFamilyEntry calls fn with a pointer to the entry for the given NLRI in the given family.
+// fn may mutate the entry. Returns false if the NLRI does not exist.
+func (r *PeerRIB) ModifyFamilyEntry(family nlri.Family, nlriBytes []byte, fn func(entry *RouteEntry)) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	rib, exists := r.families[family]
+	if !exists {
+		return false
+	}
+	return rib.ModifyEntry(nlriBytes, fn)
+}
+
+// ModifyFamilyAll calls fn with a pointer to each entry in the given family.
+// fn may mutate entries.
+func (r *PeerRIB) ModifyFamilyAll(family nlri.Family, fn func(entry *RouteEntry)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if rib, exists := r.families[family]; exists {
+		rib.ModifyAll(fn)
+	}
 }
 
 // Clear removes all routes from the RIB, releasing all pool handles.
