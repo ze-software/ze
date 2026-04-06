@@ -459,16 +459,35 @@ func waitForServerDone(s *pluginserver.Server, doneCh chan struct{}) {
 
 // handleSIGHUPReload is the SIGHUP reload worker. Reads signals from reloadCh,
 // triggers config reload via the plugin server's ReloadFromDisk.
+// If a transaction is in progress (lock held), the SIGHUP is queued and replayed
+// after the current reload completes.
 // Lifecycle goroutine (one-time, runs for daemon lifetime).
 func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server) {
 	for range reloadCh {
 		fmt.Fprintf(os.Stderr, "received SIGHUP, reloading config...\n")
-		reloadCtx, reloadCancel := context.WithTimeout(context.Background(), 30*time.Second)
-		if err := s.ReloadFromDisk(reloadCtx); err != nil {
+		if err := doReload(s); err != nil {
+			if errors.Is(err, pluginserver.ErrReloadInProgress) {
+				fmt.Fprintf(os.Stderr, "transaction in progress, queuing SIGHUP...\n")
+				s.QueueSIGHUP()
+				continue
+			}
 			fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
 		}
-		reloadCancel()
+		// After reload completes, drain any queued SIGHUP.
+		if s.DrainSIGHUP() {
+			fmt.Fprintf(os.Stderr, "replaying queued SIGHUP...\n")
+			if err := doReload(s); err != nil {
+				fmt.Fprintf(os.Stderr, "queued reload error: %v\n", err)
+			}
+		}
 	}
+}
+
+// doReload performs a single config reload with a 30-second timeout.
+func doReload(s *pluginserver.Server) error {
+	reloadCtx, reloadCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer reloadCancel()
+	return s.ReloadFromDisk(reloadCtx)
 }
 
 // waitLoop dispatches signals: SIGHUP to reloadCh, others trigger shutdown return.

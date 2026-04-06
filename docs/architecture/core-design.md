@@ -791,13 +791,37 @@ when overwritten.
 
 ---
 
+## 17. Config Transaction Protocol
+
+<!-- source: internal/component/config/transaction/orchestrator.go -- TxCoordinator -->
+
+Config changes (SIGHUP, CLI commit, API) use a bus-based transaction protocol
+with verify, apply, and rollback phases. The engine orchestrates; plugins participate
+via bus events.
+
+| Phase | Engine publishes | Plugin responds | On failure |
+|-------|-----------------|-----------------|------------|
+| Verify | `config/verify/<plugin>` (filtered diffs) | `config/ack/verify/ok` or `failed` | Abort (no apply) |
+| Apply | `config/apply/<plugin>` (diffs + deadline) | `config/ack/apply/ok` or `failed` | Rollback all |
+| Commit | `config/committed` | Discard journal | N/A |
+| Rollback | `config/rollback` | `config/ack/rollback/ok` | Restart if broken |
+
+Transaction exclusion: one transaction at a time. CLI/API rejected during active
+transaction. SIGHUP queued and replayed after completion.
+
+Plugin SDK provides a `Journal` for rollback: `Record(apply, undo)` during apply,
+`Rollback()` replays undos in reverse, `Discard()` on commit.
+
+Full protocol: `config/transaction-protocol.md`. Per-plugin wiring: `spec-config-tx-consumers`.
+
 ## Related Documents
 
 - `buffer-architecture.md` - Iterators and lazy parsing
 - `pool-architecture.md` - Deduplication pool design
 - `update-building.md` - Wire format construction
 - `api/architecture.md` - Pipe communication protocol
+- `config/transaction-protocol.md` - Config transaction protocol design
 
 ---
 
-**Last Updated:** 2026-04-04 (Added FIB pipeline: system RIB, fib-kernel, best-path tracking)
+**Last Updated:** 2026-04-06 (Added config transaction protocol section)

@@ -1988,3 +1988,159 @@ func readMuxRequest(t *testing.T, ctx context.Context, mux *rpc.MuxConn) *rpc.Re
 		return nil
 	}
 }
+
+// TestRegistrationWantsConfig verifies WantsConfig is included in Stage 1 registration.
+//
+// VALIDATES: AC-9 - WantsConfig declared in Stage 1.
+// PREVENTS: Read-only config interest lost during registration.
+func TestRegistrationWantsConfig(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	reg := Registration{
+		WantsConfig: []string{"bgp", "interface"},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, reg)
+	}()
+
+	// Stage 1: read declare-registration and verify WantsConfig
+	req := readEngineRequest(t, ctx, engine.mux)
+	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+
+	var regInput rpc.DeclareRegistrationInput
+	require.NoError(t, json.Unmarshal(req.Params, &regInput))
+	assert.Equal(t, []string{"bgp", "interface"}, regInput.WantsConfig)
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+
+	// Complete remaining stages and shutdown
+	completeStartupFromStage2(t, ctx, engine)
+	shutdownPlugin(t, ctx, engine, errCh)
+}
+
+// TestRegistrationBudgets verifies VerifyBudget and ApplyBudget in Stage 1 registration.
+//
+// VALIDATES: AC-10 - Plugin estimates apply budget at registration.
+// PREVENTS: Budget fields missing from wire protocol.
+func TestRegistrationBudgets(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	reg := Registration{
+		VerifyBudget: 5,
+		ApplyBudget:  30,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, reg)
+	}()
+
+	// Stage 1: read declare-registration and verify budgets
+	req := readEngineRequest(t, ctx, engine.mux)
+	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+
+	var regInput rpc.DeclareRegistrationInput
+	require.NoError(t, json.Unmarshal(req.Params, &regInput))
+	assert.Equal(t, 5, regInput.VerifyBudget)
+	assert.Equal(t, 30, regInput.ApplyBudget)
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+
+	// Complete remaining stages and shutdown
+	completeStartupFromStage2(t, ctx, engine)
+	shutdownPlugin(t, ctx, engine, errCh)
+}
+
+// TestOnConfigRollbackCallback verifies SDK dispatches rollback to registered handler.
+//
+// VALIDATES: AC-5 - OnConfigRollback callback invoked during rollback.
+// PREVENTS: Rollback events ignored by plugins that registered a handler.
+func TestOnConfigRollbackCallback(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	rollbackCalled := make(chan string, 1)
+	p.OnConfigRollback(func(txID string) error {
+		rollbackCalled <- txID
+		return nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Send config-rollback callback
+	rollbackInput := struct {
+		TransactionID string `json:"transaction-id"`
+	}{TransactionID: "tx-001"}
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:config-rollback", rollbackInput))
+
+	select {
+	case txID := <-rollbackCalled:
+		assert.Equal(t, "tx-001", txID)
+	case <-time.After(time.Second):
+		t.Fatal("rollback callback not called")
+	}
+
+	shutdownPlugin(t, ctx, engine, errCh)
+}
+
+// completeStartupFromStage2 completes stages 2-5 from the engine side.
+func completeStartupFromStage2(t *testing.T, ctx context.Context, engine *engineSide) {
+	t.Helper()
+
+	// Stage 2: send configure
+	configInput := struct {
+		Sections []ConfigSection `json:"sections"`
+	}{}
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:configure", configInput))
+
+	// Stage 3: read and respond to declare-capabilities
+	req := readEngineRequest(t, ctx, engine.mux)
+	assert.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+
+	// Stage 4: send share-registry
+	registryInput := struct {
+		Commands []RegistryCommand `json:"commands"`
+	}{}
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:share-registry", registryInput))
+
+	// Stage 5: read and respond to ready
+	req = readEngineRequest(t, ctx, engine.mux)
+	assert.Equal(t, "ze-plugin-engine:ready", req.Method)
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+}
+
+// shutdownPlugin sends bye and waits for clean exit.
+func shutdownPlugin(t *testing.T, ctx context.Context, engine *engineSide, errCh <-chan error) {
+	t.Helper()
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}

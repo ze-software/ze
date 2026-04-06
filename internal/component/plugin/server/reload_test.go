@@ -357,16 +357,61 @@ func TestReloadConfigConcurrentRejected(t *testing.T) {
 	// No plugins — just test the mutex.
 	s := newTestReloadServer(t, reactor, nil)
 
-	// Lock the reload mutex manually to simulate an in-progress reload.
-	s.reloadMu.Lock()
+	// Acquire the transaction lock to simulate an in-progress reload.
+	s.txLock.tryAcquire()
 
 	// Attempt second reload — should fail immediately.
 	err := s.ReloadConfig(context.Background(), newTree)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "already in progress")
 
-	// Unlock so cleanup works.
-	s.reloadMu.Unlock()
+	// Release so cleanup works.
+	s.txLock.release()
+}
+
+// TestTxLockSIGHUPQueuing verifies SIGHUP is queued when the lock is held and drained after release.
+//
+// VALIDATES: AC-8 - SIGHUP queued during active transaction, replayed after.
+// PREVENTS: SIGHUP lost when received during config reload.
+func TestTxLockSIGHUPQueuing(t *testing.T) {
+	t.Parallel()
+
+	s := newTestReloadServer(t, &mockReloadReactor{tree: map[string]any{}}, nil)
+
+	// Acquire lock.
+	if !s.txLock.tryAcquire() {
+		t.Fatal("first acquire failed")
+	}
+
+	// Second acquire should fail.
+	if s.txLock.tryAcquire() {
+		t.Fatal("second acquire should fail while locked")
+	}
+
+	// Queue a SIGHUP and verify it's queued.
+	s.QueueSIGHUP()
+	if !s.txLock.sighup {
+		t.Fatal("SIGHUP not queued")
+	}
+
+	// Release lock.
+	s.txLock.release()
+
+	// Drain should return true and clear the flag.
+	if !s.DrainSIGHUP() {
+		t.Fatal("DrainSIGHUP returned false, expected true")
+	}
+
+	// Second drain should return false.
+	if s.DrainSIGHUP() {
+		t.Fatal("DrainSIGHUP returned true after already drained")
+	}
+
+	// Lock should be available again.
+	if !s.txLock.tryAcquire() {
+		t.Fatal("acquire after release failed")
+	}
+	s.txLock.release()
 }
 
 // TestReloadFromDiskParseError verifies that config parse errors are propagated.

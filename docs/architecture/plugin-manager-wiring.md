@@ -145,3 +145,21 @@ sequenceDiagram
 | Command registration | Server | Server (unchanged) |
 | DirectBridge wiring | Server | Server (unchanged) |
 | Process stop/cleanup | Server.cleanup | PluginManager.StopAll |
+
+## Stage 1 Registration: Config Transaction Fields
+
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput -->
+
+Stage 1 (`declare-registration`) includes fields for the config transaction protocol:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `wants-config` | `[]string` | Config roots the plugin owns or watches (existing) |
+| `verify-budget` | `int` | Estimated verify time in seconds (0 = trivial) |
+| `apply-budget` | `int` | Estimated apply time in seconds (0 = trivial) |
+
+Budgets are capped at 600 seconds. The engine uses the maximum across all participants
+as the phase deadline. Plugins update their budgets in verify/apply ack events; the
+engine stores updated values for the next transaction.
+
+See `docs/architecture/config/transaction-protocol.md` for the full protocol.

@@ -26,6 +26,7 @@ const (
 	callbackDecodeCapability = "ze-plugin-callback:decode-capability"
 	callbackConfigVerify     = "ze-plugin-callback:config-verify"
 	callbackConfigApply      = "ze-plugin-callback:config-apply"
+	callbackConfigRollback   = "ze-plugin-callback:config-rollback"
 	callbackValidateOpen     = "ze-plugin-callback:validate-open"
 	callbackFilterUpdate     = "ze-plugin-callback:filter-update"
 )

@@ -5,16 +5,82 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+// txLock enforces one config transaction at a time.
+// CLI/API commits are rejected when locked. SIGHUP is queued.
+type txLock struct {
+	mu     sync.Mutex
+	locked bool
+	sighup bool
+}
+
+// tryAcquire attempts to acquire the transaction lock. Returns false if already held.
+func (l *txLock) tryAcquire() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.locked {
+		return false
+	}
+	l.locked = true
+	return true
+}
+
+// release releases the transaction lock.
+func (l *txLock) release() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.locked = false
+}
+
+// queueSIGHUP records that a SIGHUP was received during an active transaction.
+func (l *txLock) queueSIGHUP() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.sighup = true
+}
+
+// drainSIGHUP clears the queued SIGHUP flag and returns whether one was queued.
+func (l *txLock) drainSIGHUP() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	had := l.sighup
+	l.sighup = false
+	return had
+}
+
+// TxLocked reports whether a config transaction is in progress.
+func (s *Server) TxLocked() bool {
+	s.txLock.mu.Lock()
+	defer s.txLock.mu.Unlock()
+	return s.txLock.locked
+}
+
+// QueueSIGHUP queues a SIGHUP for later processing if a transaction is active.
+func (s *Server) QueueSIGHUP() {
+	s.txLock.queueSIGHUP()
+}
+
+// DrainSIGHUP returns true if a SIGHUP was queued and clears the flag.
+func (s *Server) DrainSIGHUP() bool {
+	return s.txLock.drainSIGHUP()
+}
+
+// ErrReloadInProgress is returned when a config reload is attempted while
+// another is already running. Callers can check this with errors.Is to
+// decide whether to queue the reload (SIGHUP) or reject it (CLI/API).
+var ErrReloadInProgress = errors.New("config reload already in progress")
 
 // ConfigLoader loads a new config tree from disk or other source.
 // Returns the parsed config tree or an error.
@@ -57,11 +123,11 @@ func (s *Server) ReloadConfig(ctx context.Context, newTree map[string]any) error
 
 // reloadConfig is the internal implementation of ReloadConfig.
 func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error {
-	// Prevent concurrent reloads.
-	if !s.reloadMu.TryLock() {
-		return fmt.Errorf("config reload already in progress")
+	// Prevent concurrent reloads via transaction lock.
+	if !s.txLock.tryAcquire() {
+		return ErrReloadInProgress
 	}
-	defer s.reloadMu.Unlock()
+	defer s.txLock.release()
 
 	if s.reactor == nil {
 		return fmt.Errorf("no reactor configured")

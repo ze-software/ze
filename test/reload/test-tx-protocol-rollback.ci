@@ -1,0 +1,99 @@
+# Test: Transaction protocol rollback on bad config
+# Verifies that a config verify failure aborts the transaction.
+# Sends SIGHUP with invalid config (bad ASN), verify rejects, no apply.
+# The daemon continues running with original config.
+#
+# Full bus-based rollback testing (apply fail -> undo) depends on spec-config-tx-consumers.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+
+# Connection 1: peer established from initial config, sends route + EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Initial config: one peer, working
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Bad config: invalid (missing required fields)
+tmpfs=bad-config.conf:terminator=EOF_BAD
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer broken {
+		session {
+		}
+	}
+}
+EOF_BAD
+
+# Trigger: wait for peer connection, then try bad config reload
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+# Wait for peer to establish
+sleep 2
+cp bad-config.conf ze-bgp.conf
+kill -HUP $(cat daemon.pid)
+# Daemon should log error but keep running with original config
+sleep 2
+# Clean shutdown
+kill -TERM $(cat daemon.pid)
+EOF_TRIGGER
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s

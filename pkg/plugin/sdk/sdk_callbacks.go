@@ -19,8 +19,9 @@ func (p *Plugin) initCallbackDefaults() {
 		callbackDeliverEvent: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
 		callbackDeliverBatch: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
 		// Config: accept when no handler registered.
-		callbackConfigVerify: marshalStatusOK,
-		callbackConfigApply:  marshalStatusOK,
+		callbackConfigVerify:   marshalStatusOK,
+		callbackConfigApply:    marshalStatusOK,
+		callbackConfigRollback: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
 		// Validate-open: accept when no handler registered.
 		callbackValidateOpen: func(json.RawMessage) (json.RawMessage, error) {
 			return json.Marshal(&rpc.ValidateOpenOutput{Accept: true})
@@ -219,6 +220,26 @@ func (p *Plugin) OnConfigApply(fn func([]ConfigDiffSection) error) {
 			return marshalStatusError(err.Error())
 		}
 		return marshalStatusOK(nil)
+	}
+}
+
+// OnConfigRollback sets the handler for config rollback requests (transaction protocol).
+// The handler receives the transaction ID and should undo changes applied during this
+// transaction (typically by calling journal.Rollback()). If no handler is registered,
+// rollback is a no-op.
+func (p *Plugin) OnConfigRollback(fn func(txID string) error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.callbacks[callbackConfigRollback] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input struct {
+			TransactionID string `json:"transaction-id"`
+		}
+		if params != nil {
+			if err := json.Unmarshal(params, &input); err != nil {
+				return nil, fmt.Errorf("unmarshal config-rollback: %w", err)
+			}
+		}
+		return nil, fn(input.TransactionID)
 	}
 }
 

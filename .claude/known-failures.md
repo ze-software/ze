@@ -5,6 +5,14 @@ Sessions should attempt to fix entries here before logging new ones.
 
 Remove entries once fixed.
 
+## TestSSEMultiLineData (timeout)
+
+**File:** `internal/chaos/web/sse_test.go:254`
+**Failure:** Test times out at 600s in `ServeHTTP` at `sse.go:130`.
+**Frequency:** Intermittent under race detector with full test suite.
+**Hypothesis:** SSE broker hangs waiting for client to read. Likely a test cleanup issue where the HTTP response writer is not closed, causing ServeHTTP to block indefinitely.
+**Not caused by:** config transaction protocol work (2026-04-06) -- no chaos/web files modified.
+
 ## TestBackpressureNoResumeAbove10Percent (flaky)
 
 **File:** `internal/component/bgp/plugins/rs/worker_test.go:1026`

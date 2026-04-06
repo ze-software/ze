@@ -90,7 +90,7 @@ type Server struct {
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
-	reloadMu sync.Mutex // Prevents concurrent config reloads
+	txLock txLock // Transaction exclusion (one config transaction at a time)
 }
 
 // wrapHandler adapts a Handler to an ipc.RPCHandler for the RPC dispatcher.

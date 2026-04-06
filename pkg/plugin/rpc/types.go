@@ -30,6 +30,8 @@ type DeclareRegistrationInput struct {
 	Commands               []CommandDecl           `json:"commands,omitempty"`
 	Dependencies           []string                `json:"dependencies,omitempty"`
 	WantsConfig            []string                `json:"wants-config,omitempty"`
+	VerifyBudget           int                     `json:"verify-budget,omitempty"` // Estimated verify time in seconds (0 = trivial).
+	ApplyBudget            int                     `json:"apply-budget,omitempty"`  // Estimated apply time in seconds (0 = trivial).
 	Schema                 *SchemaDecl             `json:"schema,omitempty"`
 	WantsValidateOpen      bool                    `json:"wants-validate-open,omitempty"`
 	CacheConsumer          bool                    `json:"cache-consumer,omitempty"`

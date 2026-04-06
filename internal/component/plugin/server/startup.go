@@ -718,6 +718,8 @@ func ExtractConfigSubtree(configTree map[string]any, path string) any {
 func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegistration {
 	reg := &plugin.PluginRegistration{
 		WantsConfigRoots:  input.WantsConfig,
+		VerifyBudget:      input.VerifyBudget,
+		ApplyBudget:       input.ApplyBudget,
 		WantsValidateOpen: input.WantsValidateOpen,
 		Done:              true,
 	}
