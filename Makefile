@@ -4,7 +4,7 @@
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test ze-managed-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-all ze-all-test
-.PHONY: ze-interop-test ze-stress-test ze-stress-bird-test ze-live-test ze-live-rpki-test
+.PHONY: ze-interop-test ze-stress-test ze-stress-bird-test ze-stress-profile ze-live-test ze-live-rpki-test
 .PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift
@@ -20,6 +20,13 @@ export GOLANGCI_LINT_CACHE := $(CURDIR)/tmp/golangci-lint-cache
 GO ?= go
 ifeq ($(GO),tinygo)
 export PATH := /opt/homebrew/opt/go@1.25/bin:$(PATH)
+endif
+
+# Build tags: optional compile-time features (e.g. ZE_TAGS=bart)
+#   bart    - Use BART trie for RIB storage (default: Go map)
+ZE_TAGS ?=
+ifneq ($(ZE_TAGS),)
+ZE_TAGFLAG := -tags $(ZE_TAGS)
 endif
 
 # Version: YY.MM.DD from current date, injected via ldflags.
@@ -54,7 +61,7 @@ docs/comparison.html: docs/comparison.md scripts/comparison-html.py
 
 ze:
 	@mkdir -p bin
-	$(GO) build -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+	$(GO) build $(ZE_TAGFLAG) -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
 
 chaos:
 	@mkdir -p bin
@@ -72,7 +79,7 @@ analyse:
 bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
 	@mkdir -p bin
-	$(GO) build -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+	$(GO) build $(ZE_TAGFLAG) -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
 
 bin/ze-test: $(shell find cmd/ze-test internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-test..."
@@ -324,12 +331,22 @@ STRESS_SCENARIO ?=
 
 ze-stress-test: bin/ze
 	@echo "Running stress tests with BNG Blaster (requires root + netns)..."
-	@sudo ZE_BINARY=$(CURDIR)/bin/ze python3 test/stress/run.py $(STRESS_SCENARIO)
+	@sudo ZE_BINARY=$(CURDIR)/bin/ze VERBOSE=$(VERBOSE) SESSION_TIMEOUT=$(SESSION_TIMEOUT) \
+		python3 test/stress/run.py $(STRESS_SCENARIO)
 
 # Run BIRD baseline stress test (requires bird2 installed).
 ze-stress-bird-test:
 	@echo "Running BIRD baseline stress test (requires root + bird2 + netns)..."
-	@sudo python3 test/stress/run.py 04-bulk-ipv4-bird
+	@sudo VERBOSE=$(VERBOSE) SESSION_TIMEOUT=$(SESSION_TIMEOUT) \
+		python3 test/stress/run.py 04-bulk-ipv4-bird
+
+# Run 1M route profiling stress test (captures CPU/heap/goroutine profiles).
+# Profiles saved to tmp/stress-profile-{cpu,heap,goroutine}.pb.gz
+# Analyze: go tool pprof -http=:8080 tmp/stress-profile-cpu.pb.gz
+ze-stress-profile: bin/ze
+	@echo "Running 1M profile stress test (requires root + netns)..."
+	@sudo ZE_BINARY=$(CURDIR)/bin/ze ZE_PPROF=1 VERBOSE=$(VERBOSE) \
+		python3 test/stress/run.py 05-profile-1m
 
 # ─── Live tests ────────────────────────────────────────────────────────────
 
@@ -476,7 +493,10 @@ help:
 	@echo "  test                  - Build bin/ze-test"
 	@echo "  analyse               - Build bin/ze-analyse (MRT analysis tools)"
 	@echo ""
-	@echo "  Use GO=tinygo to build with TinyGo (e.g. make ze GO=tinygo)"
+	@echo "  Build options:"
+	@echo "    GO=tinygo              - Build with TinyGo (does not work yet -- TinyGo limitations)"
+	@echo "    ZE_TAGS=bart           - Enable BART trie RIB (e.g. make ze ZE_TAGS=bart)"
+	@echo "    ZE_TAGS='bart,foo'     - Multiple build tags"
 	@echo ""
 	@echo "  Ze tests:"
 	@echo "  ze-lint               - Run linter on ze packages"
@@ -516,6 +536,19 @@ help:
 	@echo "  ze-stress-test           - Run BGP stress tests with BNG Blaster (Linux, root)"
 	@echo "                             STRESS_SCENARIO=name to run one scenario"
 	@echo "  ze-stress-bird-test      - Run BIRD baseline stress test (Linux, root, bird2)"
+	@echo "  ze-stress-profile        - Run 1M profile test, saves pprof to tmp/"
+	@echo ""
+	@echo "  Stress test options:"
+	@echo "    STRESS_SCENARIO=name   - Run single scenario (e.g. 01-bulk-ipv4)"
+	@echo "    ZE_TAGS=bart           - Build Ze with BART trie before stress test"
+	@echo "    VERBOSE=1              - Show debug output from test harness"
+	@echo "    SESSION_TIMEOUT=N      - BGP session timeout in seconds (default: 120)"
+	@echo ""
+	@echo "  Examples:"
+	@echo "    make ze-stress-test                          # all scenarios, default build"
+	@echo "    make ze-stress-test ZE_TAGS=bart             # all scenarios, BART trie"
+	@echo "    make ze-stress-test STRESS_SCENARIO=01-bulk-ipv4  # single scenario"
+	@echo "    make ze-stress-profile ZE_TAGS=bart          # profile with BART trie"
 	@echo ""
 	@echo "  Integration tests (CAP_NET_ADMIN / root):"
 	@echo "  ze-integration-test      - Run all integration tests (network namespaces)"
