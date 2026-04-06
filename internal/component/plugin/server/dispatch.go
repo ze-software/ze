@@ -545,6 +545,24 @@ func (s *Server) wireBridgeDispatch(proc *process.Process) {
 	proc.Bridge().SetDispatchRPC(func(method string, params json.RawMessage) (json.RawMessage, error) {
 		return s.dispatchPluginRPCDirect(proc, method, params)
 	})
+
+	// Typed fast path for dispatch-command: skips all JSON marshal/unmarshal.
+	proc.Bridge().SetDispatchCommand(func(command string) (status, data string, err error) {
+		cmdCtx := &CommandContext{
+			Server:   s,
+			Process:  proc,
+			Username: "plugin:" + proc.Name(),
+		}
+		resp, dispatchErr := s.dispatcher.Dispatch(cmdCtx, command)
+		if dispatchErr != nil {
+			if errors.Is(dispatchErr, ErrSilent) {
+				return plugin.StatusDone, "", nil
+			}
+			return "", "", dispatchErr
+		}
+		out := responseToDispatchOutput(resp)
+		return out.Status, out.Data, nil
+	})
 }
 
 // cleanupProcess handles cleanup when a process exits.

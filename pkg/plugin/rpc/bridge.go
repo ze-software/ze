@@ -29,6 +29,7 @@ type DirectBridge struct {
 	deliverStructured func(events []any) error
 	hasStructured     atomic.Bool // set atomically when deliverStructured is written
 	dispatchRPC       func(method string, params json.RawMessage) (json.RawMessage, error)
+	dispatchCommand   DispatchCommandHandler // Typed fast path (no JSON)
 	ready             atomic.Bool
 }
 
@@ -98,6 +99,34 @@ func (b *DirectBridge) DeliverEvents(events []string) error {
 		return errors.New("deliver handler not set")
 	}
 	return b.deliverEvents(events)
+}
+
+// DispatchCommandHandler is the typed handler for dispatch-command via DirectBridge.
+// Skips all JSON serialization -- takes Go strings, returns Go strings.
+type DispatchCommandHandler func(command string) (status, data string, err error)
+
+// SetDispatchCommand registers the engine-side typed dispatch-command handler.
+// Called by the engine after startup alongside SetDispatchRPC.
+func (b *DirectBridge) SetDispatchCommand(fn DispatchCommandHandler) {
+	b.dispatchCommand = fn
+}
+
+// DispatchCommand calls the engine's typed dispatch-command handler directly.
+// Returns error if the bridge is not ready or the handler is not set.
+// Falls back to DispatchRPC with JSON if the typed handler is not registered.
+func (b *DirectBridge) DispatchCommand(command string) (status, data string, err error) {
+	if !b.ready.Load() {
+		return "", "", errors.New("bridge not ready")
+	}
+	if b.dispatchCommand == nil {
+		return "", "", errors.New("dispatch-command handler not set")
+	}
+	return b.dispatchCommand(command)
+}
+
+// HasDispatchCommand reports whether the typed dispatch-command handler is set.
+func (b *DirectBridge) HasDispatchCommand() bool {
+	return b.ready.Load() && b.dispatchCommand != nil
 }
 
 // DispatchRPC calls the engine's RPC handler directly. Returns error if

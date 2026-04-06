@@ -42,6 +42,12 @@ func (p *Plugin) UpdateRouteWithMeta(ctx context.Context, peerSelector, command 
 // inter-plugin communication: the engine routes the command to the target plugin
 // via longest-match registry lookup and returns the full structured response.
 func (p *Plugin) DispatchCommand(ctx context.Context, command string) (status, data string, err error) {
+	// Fast path: typed DirectBridge dispatch (no JSON serialization).
+	if p.bridge != nil && p.bridge.HasDispatchCommand() {
+		return p.bridge.DispatchCommand(command)
+	}
+
+	// Slow path: JSON-based RPC (external plugins or pre-startup).
 	input := &rpc.DispatchCommandInput{Command: command}
 	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:dispatch-command", input)
 	if err != nil {
