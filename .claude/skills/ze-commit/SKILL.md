@@ -1,6 +1,6 @@
 # Scoped Commit
 
-Prepare a commit script with explicit scope verification and .claude health check. Does NOT run git commit or git add directly.
+Prepare a commit script with explicit scope verification. Does NOT run git commit or git add directly.
 
 See also: `/ze-verify` (must pass before committing)
 
@@ -10,7 +10,7 @@ See also: `/ze-verify` (must pass before committing)
 2. **Show scope:** Run `git status` and `git diff --stat` to identify all changed files.
 3. **Identify task scope:** Determine which files belong to the current task. If unclear, ask the user.
 4. **Exclude unrelated changes:** If files outside the task scope are modified, explicitly list them and confirm with the user: "These files are outside the current task scope: [list]. Exclude from commit?"
-5. **Health check:** Run the .claude health check (see below). Report any findings. Fix what can be fixed; flag the rest.
+5. **Health check (conditional):** Only if `.claude/` files are in the commit scope, run the .claude health check (see below). Skip entirely for pure code/docs commits.
 6. **Check recent commits:** Run `git log --oneline -5` to match commit message style.
 7. **Draft commit message:** Based on the actual changes (not the spec), write a concise commit message.
 8. **Generate commit script:** Write to `tmp/commit-SESSION.sh` where SESSION is the 8-char session ID:
@@ -56,7 +56,9 @@ EOF
 
 ## Health Check
 
-Run on every commit. Checks that the .claude system is consistent with the codebase. Reports findings as a table at the end of the commit preparation.
+**Only runs when `.claude/` files are in the commit scope.** Skip entirely for pure code/docs commits.
+
+Checks that the .claude system is consistent with the codebase. Reports findings as a table at the end of the commit preparation.
 
 ### 5a. Stale file references
 
