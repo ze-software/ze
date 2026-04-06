@@ -6,6 +6,7 @@ bgp {
 	peer peer1 {
 		connection {
 			remote ip 127.0.0.1
+			local ip 127.0.0.1
 		}
 		session {
 			asn {

@@ -111,8 +111,11 @@ func (r *Runner) Cleanup() {
 func (r *Runner) Build(ctx context.Context) error {
 	r.display.BuildStatus(true, nil)
 
-	// Build ze
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", r.zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
+	// Build ze (with version ldflags matching Makefile convention)
+	now := time.Now()
+	ldflags := fmt.Sprintf("-X main.version=%s -X main.buildDate=%s",
+		now.Format("06.01.02"), now.UTC().Format("2006-01-02T15:04:05Z"))
+	cmd := exec.CommandContext(ctx, "go", "build", "-ldflags", ldflags, "-o", r.zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = r.baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {

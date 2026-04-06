@@ -45,25 +45,28 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for BGP session to establish
-    time.sleep(1.0)
+    # Poll for metrics with retries -- under parallel load, BGP session
+    # establishment can take longer than a fixed sleep allows.
+    metrics_text = ''
+    for attempt in range(10):
+        time.sleep(0.5)
+        r = dispatch(api, 'metrics values')
+        status = r.get('status')
+        if status != 'done':
+            continue
 
-    # Test: metrics values should contain Phase 5 congestion metric names
-    r = dispatch(api, 'metrics values')
-    status = r.get('status')
-    if status != 'done':
-        print(f'FAIL: expected status=done, got={status}', file=sys.stderr)
-        sys.exit(1)
+        data_str = r.get('data', '{}')
+        try:
+            data = json.loads(data_str) if isinstance(data_str, str) else data_str
+        except (json.JSONDecodeError, TypeError):
+            data = {}
 
-    data_str = r.get('data', '{}')
-    try:
-        data = json.loads(data_str) if isinstance(data_str, str) else data_str
-    except (json.JSONDecodeError, TypeError):
-        data = {}
+        metrics_text = data.get('metrics', '')
+        if metrics_text:
+            break
 
-    metrics_text = data.get('metrics', '')
     if not metrics_text:
-        print(f'FAIL: empty metrics text, data={data}', file=sys.stderr)
+        print(f'FAIL: empty metrics after {attempt+1} attempts', file=sys.stderr)
         sys.exit(1)
 
     # Phase 5 scalar counters: always registered, value 0 at startup

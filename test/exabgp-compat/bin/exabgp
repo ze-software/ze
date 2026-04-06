@@ -251,6 +251,32 @@ def run_process_bridge(config_dir: str, run_cmd: str, ssh_host: str, ssh_port: i
         client.close()
 
 
+def _discover_ssh_port(ze_proc, debug=False, timeout=10.0):
+    """Read ze's stderr line-by-line until the SSH listen log appears.
+
+    Returns the port number, or 0 if not found within timeout.
+    """
+    import re
+    start = time.time()
+    pattern = re.compile(r'SSH server listening.*address=\S+:(\d+)')
+    while time.time() - start < timeout:
+        if ze_proc.poll() is not None:
+            break
+        line = ze_proc.stderr.readline()
+        if not line:
+            continue
+        text = line.decode('utf-8', errors='replace').strip()
+        if debug:
+            print(text, file=sys.stderr)
+        m = pattern.search(text)
+        if m:
+            port = int(m.group(1))
+            if debug:
+                print(f"Discovered SSH port: {port}", file=sys.stderr)
+            return port
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='ExaBGP compatibility wrapper for ZeBGP',
@@ -291,13 +317,11 @@ def main():
     )
 
     # If external processes need bridging, inject SSH config for command dispatch.
-    # Derive SSH port from BGP port to avoid collisions between parallel tests.
+    # Use port 0 (OS-assigned) to avoid collisions and port overflow (bgp_port + offset
+    # can exceed 65535 when the OS assigns high ephemeral ports).
     ssh_port = 0
     if external_processes:
-        env_vars = get_exabgp_env_vars()
-        bgp_port = int(env_vars.get('port', '0'))
-        ssh_port = bgp_port + 20000 if bgp_port > 0 else 22222
-        migrated_config = inject_ssh_config(migrated_config, ssh_port)
+        migrated_config = inject_ssh_config(migrated_config, 0)
 
     # Write migrated config to temp file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.conf', delete=False) as f:
@@ -333,7 +357,16 @@ def main():
 
         # Start ze (in background if we have processes to bridge)
         if external_processes:
-            ze_proc = subprocess.Popen(cmd)
+            ze_proc = subprocess.Popen(cmd, stderr=subprocess.PIPE)
+
+            # Discover the actual SSH port from ze's stderr.
+            # Ze logs "SSH server listening ... address=127.0.0.1:<port>".
+            ssh_port = _discover_ssh_port(ze_proc, args.debug)
+            if ssh_port == 0:
+                if args.debug:
+                    print("Warning: could not discover SSH port from ze output", file=sys.stderr)
+                ze_proc.wait()
+                return 1
 
             # Start process bridges in background threads using SSH
             config_dir = os.path.dirname(os.path.abspath(args.config))
@@ -348,6 +381,17 @@ def main():
                 )
                 t.start()
                 bridge_threads.append(t)
+
+            # Drain remaining stderr in background to avoid blocking ze
+            def _drain_stderr():
+                try:
+                    for line in ze_proc.stderr:
+                        if args.debug:
+                            sys.stderr.buffer.write(line)
+                            sys.stderr.buffer.flush()
+                except (IOError, OSError):
+                    pass
+            threading.Thread(target=_drain_stderr, daemon=True).start()
 
             # Wait for Ze to exit
             ze_proc.wait()

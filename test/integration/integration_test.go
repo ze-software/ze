@@ -6,7 +6,6 @@ package integration
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/netip"
 	"testing"
@@ -233,28 +232,40 @@ func TestSession4ByteAS(t *testing.T) {
 
 // TestSessionReconnect verifies reconnection after disconnect.
 //
-// VALIDATES: Peer reconnects and establishes after delayed peer startup.
+// VALIDATES: Peer reconnects and establishes after delayed peer configuration.
 // PREVENTS: Permanent connection failure after initial connect attempt fails.
 func TestSessionReconnect(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	port1 := findFreePort(t)
-	port2 := findFreePort(t)
-
+	// Start both reactors on port 0 (OS-assigned) to eliminate TOCTOU race.
 	r1 := reactor.New(&reactor.Config{
-		ListenAddr: fmt.Sprintf("127.0.0.1:%d", port1),
+		ListenAddr: "127.0.0.1:0",
 		RouterID:   0x01010101,
 		LocalAS:    65001,
 	})
 
 	r2 := reactor.New(&reactor.Config{
-		ListenAddr: fmt.Sprintf("127.0.0.1:%d", port2),
+		ListenAddr: "127.0.0.1:0",
 		RouterID:   0x02020202,
 		LocalAS:    65002,
 	})
 
-	neighbor1 := &reactor.PeerSettings{
+	if err := r1.StartWithContext(ctx); err != nil {
+		t.Fatalf("start r1: %v", err)
+	}
+	defer cleanupReactors(t, r1, r2)
+
+	if err := r2.StartWithContext(ctx); err != nil {
+		t.Fatalf("start r2: %v", err)
+	}
+
+	port1 := listenPort(t, r1)
+	port2 := listenPort(t, r2)
+
+	// Add peer to r1 only -- r1 will try to connect to r2, but r2
+	// doesn't know about r1 yet, so initial attempts will be rejected.
+	if err := r1.AddPeer(&reactor.PeerSettings{
 		Address:         netip.MustParseAddr("127.0.0.1"),
 		Port:            port2,
 		LocalAS:         65001,
@@ -262,9 +273,14 @@ func TestSessionReconnect(t *testing.T) {
 		RouterID:        0x01010101,
 		ReceiveHoldTime: 30 * time.Second,
 		Connection:      reactor.ConnectionBoth,
+	}); err != nil {
+		t.Fatalf("add peer to r1: %v", err)
 	}
 
-	neighbor2 := &reactor.PeerSettings{
+	// Wait, then add peer to r2 -- r1 should reconnect and establish.
+	time.Sleep(500 * time.Millisecond)
+
+	if err := r2.AddPeer(&reactor.PeerSettings{
 		Address:         netip.MustParseAddr("127.0.0.1"),
 		Port:            port1,
 		LocalAS:         65002,
@@ -272,26 +288,8 @@ func TestSessionReconnect(t *testing.T) {
 		RouterID:        0x02020202,
 		ReceiveHoldTime: 30 * time.Second,
 		Connection:      reactor.ConnectionPassive,
-	}
-
-	if err := r1.AddPeer(neighbor1); err != nil {
-		t.Fatalf("add peer to r1: %v", err)
-	}
-	if err := r2.AddPeer(neighbor2); err != nil {
+	}); err != nil {
 		t.Fatalf("add peer to r2: %v", err)
-	}
-
-	// Start r1 first.
-	if err := r1.StartWithContext(ctx); err != nil {
-		t.Fatalf("start r1: %v", err)
-	}
-	defer cleanupReactors(t, r1, r2)
-
-	// Wait a bit, then start r2 (r1 should reconnect).
-	time.Sleep(500 * time.Millisecond)
-
-	if err := r2.StartWithContext(ctx); err != nil {
-		t.Fatalf("start r2: %v", err)
 	}
 
 	// Should establish after reconnect.
