@@ -27,7 +27,7 @@ Family.String() and PluginForFamily showed up at 17% and 32% CPU in BGP UPDATE h
 - **No map duplication.** AFI/SAFI/familyByName maps exist in exactly one place: the current state snapshot. The previous design held them twice (mutable source-of-truth + read-only cache snapshot).
 - **Family registry can be imported by non-BGP code.** `internal/core/family/` sits alongside `clock`, `env`, `metrics` -- importable from anywhere without dragging in BGP. Components like `cli`, `web`, `lg` can use `family.LookupFamily` directly.
 - **External (Python) plugins can register at runtime** via the plugin protocol. `rpc.FamilyDecl` carries AFI/SAFI numbers and a canonical name. After `declare-registration`, the engine calls `family.RegisterFamily` for each declared family. State rebuilds atomically; old states survive via GC + unsafe.String references.
-- **Compatibility break:** Config files using old aliases (`ipv4/mpls-vpn`, `ipv4/nlri-mpls`, `ipv4/mpls`, `ipv4/mcast-vpn`) must use canonical names (`ipv4/vpn`, `ipv4/mpls-label`, `ipv4/mvpn`). Per `rules/compatibility.md` -- no users yet.
+- **Compatibility break:** Config files using old aliases (`ipv4/nlri-mpls`, `ipv4/mpls`, `ipv4/mcast-vpn`) must use canonical names (`ipv4/mpls-label`, `ipv4/mvpn`). Note: the canonical name for SAFI 128 is `ipv4/mpls-vpn` (not `ipv4/vpn`) -- this aligns the plugin registration with the YANG schema (`ze-types.yang:261`) and resolves the inconsistency tracked in `docs/guide/REVIEW-LOG.md`. Per `rules/compatibility.md` -- no users yet.
 - **The 4-AFI assumption (`afiSlot`) is hardcoded.** Adding a new AFI value requires editing the switch in registry.go. Acceptable -- IANA AFI registry changes very rarely (4 used: IPv4=1, IPv6=2, L2VPN=25, BGP-LS=16388).
 
 ## Gotchas

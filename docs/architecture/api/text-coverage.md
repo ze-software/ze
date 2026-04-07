@@ -48,8 +48,8 @@ Source of truth: `internal/component/bgp/format/text.go` (formatter), `internal/
 |--------|--------|----------|----------------------|-------------------|
 | ipv4/unicast | built-in | `nlri/inet.go:178` | `text.go:650` | `server_text.go` |
 | ipv6/unicast | built-in | `nlri/inet.go:178` | `text.go:650` | `server_text.go` |
-| ipv4/vpn | bgp-nlri-vpn | `types.go:266` | via NLRI.String() | prefix collected |
-| ipv6/vpn | bgp-nlri-vpn | `types.go:266` | via NLRI.String() | prefix collected |
+| ipv4/mpls-vpn | bgp-nlri-vpn | `types.go:266` | via NLRI.String() | prefix collected |
+| ipv6/mpls-vpn | bgp-nlri-vpn | `types.go:266` | via NLRI.String() | prefix collected |
 | l2vpn/evpn | bgp-nlri-evpn | `types.go:308,481,595,715,875` | via NLRI.String() | prefix collected |
 | ipv4/flowspec | bgp-nlri-flowspec | `types.go:336` | via NLRI.String() | prefix collected |
 | ipv6/flowspec | bgp-nlri-flowspec | `types.go:336` | via NLRI.String() | prefix collected |

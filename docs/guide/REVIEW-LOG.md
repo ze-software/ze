@@ -44,15 +44,18 @@ Original report was stale.
 
 configuration.md already uses `ze config migrate`. Original report was stale.
 
-## Medium: Address Families
+## ~~Medium: Address Families~~ RESOLVED
 
-### VPN family name inconsistency
+### ~~VPN family name inconsistency~~
 
-Plugin register.go: `ipv4/vpn`, `ipv6/vpn`
-YANG schema + guides: `ipv4/mpls-vpn`, `ipv6/mpls-vpn`
-features.md: "IPv4 VPN" (ambiguous)
+~~Plugin register.go: `ipv4/vpn`, `ipv6/vpn`~~
+~~YANG schema + guides: `ipv4/mpls-vpn`, `ipv6/mpls-vpn`~~
+~~features.md: "IPv4 VPN" (ambiguous)~~
 
-Need to determine canonical name and align everywhere.
+Resolved: vpn plugin's `types.go` now registers `mpls-vpn` as the canonical
+SAFI name to align with the YANG schema (`ze-types.yang:261`) and
+configuration/architecture docs. All `.go`, `.ci`, and `.md` references
+collapsed to `ipv4/mpls-vpn`/`ipv6/mpls-vpn` in the family-registry refactor.
 
 ## ~~Medium: Signal Descriptions~~ NOT AN ISSUE
 

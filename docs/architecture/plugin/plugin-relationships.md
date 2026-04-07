@@ -265,7 +265,7 @@ references their families. No config roots, no bus interaction.
 | Plugin | Location | Families | RFCs |
 |--------|----------|----------|------|
 | bgp-nlri-evpn | `bgp/plugins/nlri/evpn/` | l2vpn/evpn | 7432, 9136 |
-| bgp-nlri-vpn | `bgp/plugins/nlri/vpn/` | ipv4/vpn, ipv6/vpn | 4364, 4659 |
+| bgp-nlri-vpn | `bgp/plugins/nlri/vpn/` | ipv4/mpls-vpn, ipv6/mpls-vpn | 4364, 4659 |
 | bgp-nlri-labeled | `bgp/plugins/nlri/labeled/` | ipv4/mpls-label, ipv6/mpls-label | 8277 |
 | bgp-nlri-flowspec | `bgp/plugins/nlri/flowspec/` | ipv4/flow, ipv6/flow, ipv4/flow-vpn, ipv6/flow-vpn | 8955, 8956 |
 | bgp-nlri-vpls | `bgp/plugins/nlri/vpls/` | l2vpn/vpls | 4761, 4762 |

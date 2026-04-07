@@ -84,7 +84,7 @@ Distinguishes family strings from NLRI prefixes — both contain `/`:
 | Input | Result | Why |
 |-------|--------|-----|
 | `ipv4/unicast` | true | suffix `unicast` has non-digit characters |
-| `ipv6/vpn` | true | suffix `vpn` has non-digit characters |
+| `ipv6/mpls-vpn` | true | suffix `vpn` has non-digit characters |
 | `10.0.0.0/24` | false | suffix `24` is all digits |
 | `2001:db8::/32` | false | suffix `32` is all digits |
 

@@ -587,18 +587,21 @@ Family plugins provide NLRI encoding/decoding for address families that require 
 ### Family Registration (Stage 1)
 
 Plugins declare which families they handle via the `families` field in
-`DeclareRegistrationInput`:
+`DeclareRegistrationInput`. Each declaration carries both the canonical name
+AND the RFC 4760 wire-format AFI/SAFI numbers, so the engine can register the
+family in `internal/core/family/` (the cross-component family registry) at
+runtime alongside families registered by internal plugins at init.
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput, FamilyDecl -->
 
 ```json
 {
   "families": [
-    {"name": "ipv4/flow", "mode": "encode"},
-    {"name": "ipv4/flow", "mode": "decode"},
-    {"name": "ipv6/flow", "mode": "encode"},
-    {"name": "ipv6/flow", "mode": "decode"},
-    {"name": "ipv4/flow-vpn", "mode": "both"},
-    {"name": "ipv6/flow-vpn", "mode": "both"}
+    {"name": "ipv4/flow",     "mode": "encode", "afi": 1, "safi": 133},
+    {"name": "ipv4/flow",     "mode": "decode", "afi": 1, "safi": 133},
+    {"name": "ipv6/flow",     "mode": "encode", "afi": 2, "safi": 133},
+    {"name": "ipv6/flow",     "mode": "decode", "afi": 2, "safi": 133},
+    {"name": "ipv4/flow-vpn", "mode": "both",   "afi": 1, "safi": 134},
+    {"name": "ipv6/flow-vpn", "mode": "both",   "afi": 2, "safi": 134}
   ]
 }
 ```
@@ -607,8 +610,21 @@ Plugins declare which families they handle via the `families` field in
 
 | Field | Values | Description |
 |-------|--------|-------------|
-| `name` | `"ipv4/flow"`, `"l2vpn/evpn"`, etc. | Address family (`afi/safi` format) |
+| `name` | `"ipv4/flow"`, `"l2vpn/evpn"`, etc. | Address family (`afi/safi` canonical form) |
 | `mode` | `"encode"`, `"decode"`, `"both"` | Direction of conversion |
+| `afi` | RFC 4760 AFI number (e.g., `1` = IPv4, `2` = IPv6, `25` = L2VPN, `16388` = BGP-LS) | Required for runtime registration |
+| `safi` | RFC 4760 SAFI number (e.g., `1` = unicast, `133` = FlowSpec) | Required for runtime registration |
+
+**Runtime family registration:**
+<!-- source: internal/component/plugin/server/startup.go -- registerPluginFamilies -->
+
+After the plugin completes Stage 1, the engine calls `registerPluginFamilies`
+which forwards each `FamilyDecl` into `family.RegisterFamily(afi, safi, afiStr,
+safiStr)`. This is the same path internal plugins take at init via
+`family.MustRegister`. After registration, `Family.String()` and
+`family.LookupFamily()` return the plugin's family for the rest of the engine's
+lifetime. Re-registration with identical values is a no-op; conflicting AFI or
+SAFI names abort plugin startup.
 
 **Registry conflict detection:**
 - Only ONE plugin can register for a family+mode combination

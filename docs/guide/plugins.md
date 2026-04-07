@@ -236,11 +236,11 @@ Filters can declare `overrides` to remove default filters from the chain
 
 ### NLRI Encoders/Decoders
 
-NLRI plugins register address family support. They are loaded automatically when the corresponding family is configured.
+NLRI plugins register address family support at init time via `family.MustRegister(afi, safi, afiStr, safiStr)`. The four base families (`ipv4/unicast`, `ipv6/unicast`, `ipv4/multicast`, `ipv6/multicast`) live in `internal/core/family/registry.go` itself; everything else is owned by its plugin's `types.go`. Plugins are loaded automatically when the corresponding family is configured.
 
 | Plugin | Families |
 |--------|----------|
-| `bgp-nlri-vpn` | ipv4/vpn, ipv6/vpn |
+| `bgp-nlri-vpn` | ipv4/mpls-vpn, ipv6/mpls-vpn |
 | `bgp-nlri-evpn` | l2vpn/evpn |
 | `bgp-nlri-vpls` | l2vpn/vpls |
 | `bgp-nlri-flowspec` | ipv4/flow, ipv6/flow, ipv4/flow-vpn, ipv6/flow-vpn |
@@ -249,7 +249,7 @@ NLRI plugins register address family support. They are loaded automatically when
 | `bgp-nlri-mvpn` | ipv4/mvpn, ipv6/mvpn |
 | `bgp-nlri-rtc` | ipv4/rtc |
 | `bgp-nlri-ls` | bgp-ls/bgp-ls, bgp-ls/bgp-ls-vpn |
-<!-- source: internal/component/bgp/plugins/nlri/vpn/register.go; internal/component/bgp/plugins/nlri/evpn/register.go; internal/component/bgp/plugins/nlri/vpls/register.go; internal/component/bgp/plugins/nlri/flowspec/register.go; internal/component/bgp/plugins/nlri/labeled/register.go; internal/component/bgp/plugins/nlri/mup/register.go; internal/component/bgp/plugins/nlri/mvpn/register.go; internal/component/bgp/plugins/nlri/rtc/register.go; internal/component/bgp/plugins/nlri/ls/register.go -->
+<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go; internal/component/bgp/plugins/nlri/evpn/types.go; internal/component/bgp/plugins/nlri/vpls/types.go; internal/component/bgp/plugins/nlri/flowspec/types.go; internal/component/bgp/plugins/nlri/labeled/types.go; internal/component/bgp/plugins/nlri/mup/types.go; internal/component/bgp/plugins/nlri/mvpn/types.go; internal/component/bgp/plugins/nlri/rtc/types.go; internal/component/bgp/plugins/nlri/ls/types.go; internal/core/family/registry.go -->
 
 ## Hub Configuration
 

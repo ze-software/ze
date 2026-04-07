@@ -123,7 +123,7 @@ Configured under `family { }`. Each family requires a `prefix { maximum N; }` bl
 family {
     ipv4/unicast { prefix { maximum 1000000; } }
     ipv6/unicast { prefix { maximum 200000; } }
-    ipv4/vpn { prefix { maximum 500; } }
+    ipv4/mpls-vpn { prefix { maximum 500; } }
     l2vpn/evpn { prefix { maximum 10000; } }
 }
 ```

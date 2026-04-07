@@ -132,8 +132,8 @@ Format: `<afi>/<safi>` — always slash-separated, lowercase.
 |--------|--------|
 | IPv4 Unicast | `ipv4/unicast` |
 | IPv6 Unicast | `ipv6/unicast` |
-| IPv4 VPN | `ipv4/vpn` |
-| IPv6 VPN | `ipv6/vpn` |
+| IPv4 VPN | `ipv4/mpls-vpn` |
+| IPv6 VPN | `ipv6/mpls-vpn` |
 | IPv4 FlowSpec | `ipv4/flowspec` |
 | IPv6 FlowSpec | `ipv6/flowspec` |
 | L2VPN EVPN | `l2vpn/evpn` |
@@ -250,7 +250,7 @@ Three token patterns plus dict mode:
 | scalar | `key value` | `origin igp`, `med 100` |
 | list | `key value,value,value` | `path 65001,65002` |
 | action | `key family action type value[,value]` | `nlri ipv4/unicast add prefix 10.0.0.0/24,10.0.1.0/24` |
-| action+dict | `key family action subkey1 val1 subkey2 val2 ...` | `nlri ipv4/vpn add rd 65000:100 prefix 10.0.0.0/24` |
+| action+dict | `key family action subkey1 val1 subkey2 val2 ...` | `nlri ipv4/mpls-vpn add rd 65000:100 prefix 10.0.0.0/24` |
 
 **Comma tolerance:** The formatter always generates `value1,value2,value3` (no spaces after commas). The parser accepts `value1, value2, value3` by stripping whitespace after commas.
 

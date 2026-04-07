@@ -16,6 +16,7 @@ Structural template: `.claude/patterns/plugin.md`
 | Layer | Location | Purpose |
 |-------|----------|---------|
 | Registry | `internal/component/plugin/registry/` | Central registry (leaf package, no plugin deps) |
+| Family registry | `internal/core/family/` | Cross-component address-family registration (`Family`/`AFI`/`SAFI` types + `family.MustRegister`) |
 | Public SDK | `pkg/plugin/sdk/` | Callback abstraction for external plugins |
 | RPC Types | `pkg/plugin/rpc/` | Shared YANG RPC types + `MuxConn` for concurrent RPCs |
 | Internal | `internal/component/bgp/plugins/<name>/` | Plugin implementations + `register.go` |
@@ -114,6 +115,22 @@ After Stage 5: SDK wraps Socket A in `MuxConn` for concurrent RPCs. Engine dispa
 | `EventTypes` | []string | No | Event types this plugin produces (registered at startup) |
 | `SendTypes` | []string | No | Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup. |
 | `Features` | string | No | Space-separated flags ("nlri yang capa") |
+
+## Family Registration (BLOCKING)
+
+NLRI plugins MUST register the address families they handle via
+`family.MustRegister(afi, safi, afiStr, safiStr)` at package init time. The four
+RFC 4760 base families (`IPv4Unicast`, `IPv6Unicast`, `IPv4Multicast`,
+`IPv6Multicast`) live in `internal/core/family/registry.go` itself; everything
+else is owned by the plugin's `types.go`.
+
+| Rule | Detail |
+|------|--------|
+| One canonical name per family | No aliases. The `afiStr/safiStr` arguments form the canonical `<afi>/<safi>` string. |
+| Registration is fatal on conflict | `family.MustRegister` panics if AFI or SAFI numbers collide with a different name. Same name + same numbers is a no-op. |
+| Plugin owns the SAFI name | `vpn` plugin chose `mpls-vpn`; `flowspec` plugin chose `flow`. The plugin is the authority. |
+| External plugins use the protocol | Forked plugins declare families in `declare-registration` (Stage 1) with AFI/SAFI numbers; the engine forwards to `family.RegisterFamily` via `registerPluginFamilies` in `plugin/server/startup.go`. See `docs/architecture/api/process-protocol.md`. |
+| Test packages call `family.RegisterTestFamilies()` | If a test exercises a SAFI not registered by an internal plugin, register it via the helper in `internal/core/family/testfamilies.go`. |
 
 ## Runtime Filter Declaration (planned -- stage 1 wire protocol)
 

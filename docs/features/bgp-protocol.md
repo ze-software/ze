@@ -8,8 +8,8 @@
 | IPv6 Unicast | `ipv6/unicast` | 2/1 | Yes | Yes | Yes |
 | IPv4 Multicast | `ipv4/multicast` | 1/2 | Yes | Yes | Yes |
 | IPv6 Multicast | `ipv6/multicast` | 2/2 | Yes | Yes | Yes |
-| IPv4 VPN | `ipv4/vpn` | 1/128 | Yes | Yes | Yes |
-| IPv6 VPN | `ipv6/vpn` | 2/128 | Yes | Yes | Yes |
+| IPv4 VPN | `ipv4/mpls-vpn` | 1/128 | Yes | Yes | Yes |
+| IPv6 VPN | `ipv6/mpls-vpn` | 2/128 | Yes | Yes | Yes |
 | IPv4 FlowSpec | `ipv4/flow` | 1/133 | Yes | Yes | Yes |
 | IPv6 FlowSpec | `ipv6/flow` | 2/133 | Yes | Yes | Yes |
 | IPv4 FlowSpec VPN | `ipv4/flow-vpn` | 1/134 | Yes | Yes | Yes |
