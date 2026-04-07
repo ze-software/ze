@@ -1,4 +1,6 @@
 // Design: docs/architecture/config/transaction-protocol.md -- transaction event payloads
+// Related: orchestrator.go -- marshals/unmarshals these types via the gateway
+// Related: topics.go -- event type constants under which these payloads are delivered
 
 package transaction
 

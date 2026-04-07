@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/transaction-protocol.md -- transaction orchestrator
-// Related: topics.go -- bus topic constants
+// Related: gateway.go -- EventGateway interface this orchestrator depends on
+// Related: topics.go -- event type constants used in gateway calls
 // Related: types.go -- event payload types
 
 package transaction
@@ -15,7 +16,6 @@ import (
 	"log/slog"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 func logger() *slog.Logger { return slogutil.Logger("config.transaction") }
@@ -59,7 +59,7 @@ type RestartFunc func(pluginName string) error
 // TxCoordinator coordinates a single config transaction across participants.
 // One TxCoordinator instance per transaction. Not reusable.
 type TxCoordinator struct {
-	bus          ze.Bus
+	gateway      EventGateway
 	participants []Participant
 	restartFn    RestartFunc
 	configWriter ConfigWriter
@@ -85,18 +85,38 @@ type TxCoordinator struct {
 	applyFailedCh  chan ApplyAck
 	rollbackOKCh   chan RollbackAck
 
-	// Stored subscription handles for cleanup.
-	subs []ze.Subscription
+	// Stored unsubscribe functions for cleanup.
+	unsubs []func()
 
 	// Number of participants that received verify/apply events (have diffs).
 	activeCount int
 }
 
 // NewTxCoordinator creates a transaction coordinator.
+//
+// gateway is the orchestrator's view of the stream event system; the Server
+// in internal/component/plugin/server provides a ConfigEventGateway adapter
+// that satisfies it. gateway MUST NOT be nil.
+//
+// All participant names MUST satisfy ValidatePluginName: a participant whose
+// name is reserved (ok, failed, abort) would cause the per-plugin event types
+// produced by EventVerifyFor/EventApplyFor to collide with broadcast or ack
+// event types, silently breaking the transaction. The constructor rejects
+// such participants with an error. See topics.go ReservedPluginNames for
+// the reserved set.
+//
 // restartFn may be nil if broken-plugin recovery is not needed.
-func NewTxCoordinator(bus ze.Bus, participants []Participant, restartFn RestartFunc) *TxCoordinator {
+func NewTxCoordinator(gateway EventGateway, participants []Participant, restartFn RestartFunc) (*TxCoordinator, error) {
+	if gateway == nil {
+		return nil, errors.New("NewTxCoordinator: gateway must not be nil")
+	}
+	for _, p := range participants {
+		if err := ValidatePluginName(p.Name); err != nil {
+			return nil, fmt.Errorf("NewTxCoordinator: participant %q: %w", p.Name, err)
+		}
+	}
 	return &TxCoordinator{
-		bus:            bus,
+		gateway:        gateway,
 		participants:   participants,
 		restartFn:      restartFn,
 		txID:           fmt.Sprintf("tx-%d", time.Now().UnixNano()),
@@ -108,7 +128,7 @@ func NewTxCoordinator(bus ze.Bus, participants []Participant, restartFn RestartF
 		applyOKCh:      make(chan ApplyAck, len(participants)),
 		applyFailedCh:  make(chan ApplyAck, len(participants)),
 		rollbackOKCh:   make(chan RollbackAck, len(participants)),
-	}
+	}, nil
 }
 
 // TransactionID returns the unique ID for this transaction.
@@ -171,86 +191,103 @@ func (o *TxCoordinator) Execute(ctx context.Context, diffs map[string][]DiffSect
 	return &TxResult{State: StateCommitted, Saved: saved}
 }
 
-// subscribeAcks registers bus consumers for all ack topics.
+// subscribeAcks registers engine handlers for all config ack event types.
+// Handlers parse the payload, filter by transaction ID, and push the ack
+// onto the appropriate channel for the orchestrator's main loop.
+//
+// Channel sends are NON-BLOCKING (see trySendVerifyAck/Apply/Rollback).
+// Engine handlers run synchronously inside the publisher's goroutine
+// (see Server.dispatchEngineEvent), so a blocked send would block whoever
+// emitted the event. Each ack channel is sized for one ack per active
+// participant; if a plugin sends more acks than expected (duplicate, retry,
+// malicious) the excess is dropped with a warning log instead of stalling
+// the emitter.
 func (o *TxCoordinator) subscribeAcks() {
-	subscribe := func(topic string, handler func([]ze.Event) error) {
-		sub, err := o.bus.Subscribe(topic, nil, consumerFunc(handler))
-		if err != nil {
-			logger().Error("subscribe failed", "topic", topic, "error", err)
-			return
-		}
-		o.subs = append(o.subs, sub)
+	subscribeVerifyAck := func(eventType string, ch chan<- VerifyAck) {
+		unsub := o.gateway.SubscribeConfigEvent(eventType, func(payload []byte) {
+			var ack VerifyAck
+			if err := json.Unmarshal(payload, &ack); err != nil {
+				return
+			}
+			if ack.TransactionID != o.txID {
+				return
+			}
+			if !trySendVerifyAck(ch, ack) {
+				logger().Warn("ack channel full, dropping verify ack",
+					"tx", o.txID, "plugin", ack.Plugin, "event-type", eventType)
+			}
+		})
+		o.unsubs = append(o.unsubs, unsub)
 	}
 
-	subscribe(TopicAckVerifyOK, func(events []ze.Event) error {
-		for _, ev := range events {
-			var ack VerifyAck
-			if err := json.Unmarshal(ev.Payload, &ack); err != nil {
-				continue
-			}
-			if ack.TransactionID != o.txID {
-				continue
-			}
-			o.verifyOKCh <- ack
-		}
-		return nil
-	})
-
-	subscribe(TopicAckVerifyFailed, func(events []ze.Event) error {
-		for _, ev := range events {
-			var ack VerifyAck
-			if err := json.Unmarshal(ev.Payload, &ack); err != nil {
-				continue
-			}
-			if ack.TransactionID != o.txID {
-				continue
-			}
-			o.verifyFailedCh <- ack
-		}
-		return nil
-	})
-
-	subscribe(TopicAckApplyOK, func(events []ze.Event) error {
-		for _, ev := range events {
+	subscribeApplyAck := func(eventType string, ch chan<- ApplyAck) {
+		unsub := o.gateway.SubscribeConfigEvent(eventType, func(payload []byte) {
 			var ack ApplyAck
-			if err := json.Unmarshal(ev.Payload, &ack); err != nil {
-				continue
+			if err := json.Unmarshal(payload, &ack); err != nil {
+				return
 			}
 			if ack.TransactionID != o.txID {
-				continue
+				return
 			}
-			o.applyOKCh <- ack
-		}
-		return nil
-	})
+			if !trySendApplyAck(ch, ack) {
+				logger().Warn("ack channel full, dropping apply ack",
+					"tx", o.txID, "plugin", ack.Plugin, "event-type", eventType)
+			}
+		})
+		o.unsubs = append(o.unsubs, unsub)
+	}
 
-	subscribe(TopicAckApplyFailed, func(events []ze.Event) error {
-		for _, ev := range events {
-			var ack ApplyAck
-			if err := json.Unmarshal(ev.Payload, &ack); err != nil {
-				continue
-			}
-			if ack.TransactionID != o.txID {
-				continue
-			}
-			o.applyFailedCh <- ack
-		}
-		return nil
-	})
+	subscribeVerifyAck(EventVerifyOK, o.verifyOKCh)
+	subscribeVerifyAck(EventVerifyFailed, o.verifyFailedCh)
+	subscribeApplyAck(EventApplyOK, o.applyOKCh)
+	subscribeApplyAck(EventApplyFailed, o.applyFailedCh)
 
-	subscribe(TopicAckRollbackOK, func(events []ze.Event) error {
-		for _, ev := range events {
-			var ack RollbackAck
-			if err := json.Unmarshal(ev.Payload, &ack); err != nil {
-				continue
-			}
-			if ack.TransactionID != o.txID {
-				continue
-			}
-			o.rollbackOKCh <- ack
+	o.unsubs = append(o.unsubs, o.gateway.SubscribeConfigEvent(EventRollbackOK, func(payload []byte) {
+		var ack RollbackAck
+		if err := json.Unmarshal(payload, &ack); err != nil {
+			return
 		}
-		return nil
-	})
+		if ack.TransactionID != o.txID {
+			return
+		}
+		if !trySendRollbackAck(o.rollbackOKCh, ack) {
+			logger().Warn("ack channel full, dropping rollback ack",
+				"tx", o.txID, "plugin", ack.Plugin, "event-type", EventRollbackOK)
+		}
+	}))
+}
+
+// trySendVerifyAck attempts a non-blocking send onto a VerifyAck channel.
+// Returns false if the channel is full.
+func trySendVerifyAck(ch chan<- VerifyAck, ack VerifyAck) bool {
+	select {
+	case ch <- ack:
+		return true
+	default:
+		return false
+	}
+}
+
+// trySendApplyAck attempts a non-blocking send onto an ApplyAck channel.
+// Returns false if the channel is full.
+func trySendApplyAck(ch chan<- ApplyAck, ack ApplyAck) bool {
+	select {
+	case ch <- ack:
+		return true
+	default:
+		return false
+	}
+}
+
+// trySendRollbackAck attempts a non-blocking send onto a RollbackAck channel.
+// Returns false if the channel is full.
+func trySendRollbackAck(ch chan<- RollbackAck, ack RollbackAck) bool {
+	select {
+	case ch <- ack:
+		return true
+	default:
+		return false
+	}
 }
 
 // runVerify publishes verify events and collects acks.
@@ -272,7 +309,9 @@ func (o *TxCoordinator) runVerify(ctx context.Context, diffs map[string][]DiffSe
 		if err != nil {
 			return fmt.Errorf("marshal verify event for %s: %w", p.Name, err)
 		}
-		o.bus.Publish(TopicVerifyFor(p.Name), payload, map[string]string{"plugin": p.Name})
+		if _, err := o.gateway.EmitConfigEvent(EventVerifyFor(p.Name), payload); err != nil {
+			return fmt.Errorf("emit verify event for %s: %w", p.Name, err)
+		}
 	}
 
 	timer := time.NewTimer(deadline)
@@ -327,7 +366,9 @@ func (o *TxCoordinator) runApply(ctx context.Context, diffs map[string][]DiffSec
 		if err != nil {
 			return fmt.Errorf("marshal apply event for %s: %w", p.Name, err)
 		}
-		o.bus.Publish(TopicApplyFor(p.Name), payload, map[string]string{"plugin": p.Name})
+		if _, err := o.gateway.EmitConfigEvent(EventApplyFor(p.Name), payload); err != nil {
+			return fmt.Errorf("emit apply event for %s: %w", p.Name, err)
+		}
 	}
 
 	timer := time.NewTimer(deadline)
@@ -461,26 +502,50 @@ func (o *TxCoordinator) updateParticipantVerifyBudget(name string, secs int) {
 
 func (o *TxCoordinator) publishAbort(reason string) {
 	ev := AbortEvent{TransactionID: o.txID, Reason: reason}
-	payload, _ := json.Marshal(ev)
-	o.bus.Publish(TopicVerifyAbort, payload, nil)
+	payload, err := json.Marshal(ev)
+	if err != nil {
+		logger().Error("marshal abort event", "error", err)
+		return
+	}
+	if _, err := o.gateway.EmitConfigEvent(EventVerifyAbort, payload); err != nil {
+		logger().Error("emit verify-abort event", "error", err)
+	}
 }
 
 func (o *TxCoordinator) publishRollback(reason string) {
 	ev := RollbackEvent{TransactionID: o.txID, Reason: reason}
-	payload, _ := json.Marshal(ev)
-	o.bus.Publish(TopicRollback, payload, nil)
+	payload, err := json.Marshal(ev)
+	if err != nil {
+		logger().Error("marshal rollback event", "error", err)
+		return
+	}
+	if _, err := o.gateway.EmitConfigEvent(EventRollback, payload); err != nil {
+		logger().Error("emit rollback event", "error", err)
+	}
 }
 
 func (o *TxCoordinator) publishCommitted() {
 	ev := CommittedEvent{TransactionID: o.txID}
-	payload, _ := json.Marshal(ev)
-	o.bus.Publish(TopicCommitted, payload, nil)
+	payload, err := json.Marshal(ev)
+	if err != nil {
+		logger().Error("marshal committed event", "error", err)
+		return
+	}
+	if _, err := o.gateway.EmitConfigEvent(EventCommitted, payload); err != nil {
+		logger().Error("emit committed event", "error", err)
+	}
 }
 
 func (o *TxCoordinator) publishApplied(saved bool) {
 	ev := AppliedEvent{TransactionID: o.txID, Saved: saved}
-	payload, _ := json.Marshal(ev)
-	o.bus.Publish(TopicApplied, payload, nil)
+	payload, err := json.Marshal(ev)
+	if err != nil {
+		logger().Error("marshal applied event", "error", err)
+		return
+	}
+	if _, err := o.gateway.EmitConfigEvent(EventApplied, payload); err != nil {
+		logger().Error("emit applied event", "error", err)
+	}
 }
 
 func (o *TxCoordinator) collectRollbackAcks(ctx context.Context) {
@@ -532,15 +597,10 @@ func (o *TxCoordinator) writeConfigFile() bool {
 	return true
 }
 
-// unsubscribeAcks removes all bus subscriptions created by subscribeAcks.
+// unsubscribeAcks calls each unsubscribe function recorded by subscribeAcks.
 func (o *TxCoordinator) unsubscribeAcks() {
-	for _, sub := range o.subs {
-		o.bus.Unsubscribe(sub)
+	for _, unsub := range o.unsubs {
+		unsub()
 	}
-	o.subs = nil
+	o.unsubs = nil
 }
-
-// consumerFunc adapts a function to the ze.Consumer interface.
-type consumerFunc func([]ze.Event) error
-
-func (f consumerFunc) Deliver(events []ze.Event) error { return f(events) }

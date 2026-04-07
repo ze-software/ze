@@ -1,6 +1,7 @@
 // Design: docs/architecture/api/process-protocol.md -- engine-side stream pub/sub
 // Related: dispatch.go -- deliverEvent fans out to engine handlers as well as plugins
 // Related: subscribe.go -- parallel mechanism for plugin-process subscriptions
+// Related: engine_event_gateway.go -- ConfigEventGateway adapter for the transaction package
 
 package server
 

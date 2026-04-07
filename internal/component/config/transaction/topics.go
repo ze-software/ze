@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/transaction-protocol.md -- config transaction event types
+// Related: gateway.go -- EventGateway interface that consumes these event type constants
 // Related: orchestrator.go -- uses these event types for stream emit/subscribe
 // Related: types.go -- event payload types delivered with these event types
 
