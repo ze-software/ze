@@ -15,10 +15,20 @@ import (
 
 	"log/slog"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 func logger() *slog.Logger { return slogutil.Logger("config.transaction") }
+
+// Report bus source and codes for config transaction error events.
+// The bus is the operator-visible feed behind `ze show errors`.
+const (
+	reportSourceConfig       = "config"
+	reportCodeCommitAborted  = "commit-aborted"     // verify phase failed
+	reportCodeCommitRollback = "commit-rollback"    // apply phase failed, rollback initiated
+	reportCodeCommitSaveFail = "commit-save-failed" // apply succeeded but config file write failed
+)
 
 // Transaction states.
 const (
@@ -510,6 +520,16 @@ func (o *TxCoordinator) publishAbort(reason string) {
 	if _, err := o.gateway.EmitConfigEvent(EventVerifyAbort, payload); err != nil {
 		logger().Error("emit verify-abort event", "error", err)
 	}
+	// Surface the abort on the operational report bus so `ze show errors`
+	// reflects commit failures alongside BGP events. The bus is a separate
+	// concern from the transaction event stream; this call is additive.
+	report.RaiseError(
+		reportSourceConfig,
+		reportCodeCommitAborted,
+		o.txID,
+		fmt.Sprintf("config commit aborted during verify: %s", reason),
+		map[string]any{"reason": reason, "phase": "verify"},
+	)
 }
 
 func (o *TxCoordinator) publishRollback(reason string) {
@@ -522,6 +542,13 @@ func (o *TxCoordinator) publishRollback(reason string) {
 	if _, err := o.gateway.EmitConfigEvent(EventRollback, payload); err != nil {
 		logger().Error("emit rollback event", "error", err)
 	}
+	report.RaiseError(
+		reportSourceConfig,
+		reportCodeCommitRollback,
+		o.txID,
+		fmt.Sprintf("config commit rolled back during apply: %s", reason),
+		map[string]any{"reason": reason, "phase": "apply"},
+	)
 }
 
 func (o *TxCoordinator) publishCommitted() {
@@ -592,6 +619,16 @@ func (o *TxCoordinator) writeConfigFile() bool {
 	}
 	if err := o.configWriter(); err != nil {
 		logger().Warn("config file write failed (runtime is live)", "error", err)
+		// Raise a commit-save-failed error on the report bus so operators
+		// see it via `ze show errors`. Apply succeeded (runtime is live),
+		// but the config file on disk is out of sync with the running state.
+		report.RaiseError(
+			reportSourceConfig,
+			reportCodeCommitSaveFail,
+			o.txID,
+			fmt.Sprintf("config commit succeeded but file write failed: %s", err.Error()),
+			map[string]any{"error": err.Error(), "phase": "save"},
+		)
 		return false
 	}
 	return true
