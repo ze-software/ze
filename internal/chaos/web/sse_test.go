@@ -203,6 +203,10 @@ func TestSSEServeHTTP(t *testing.T) {
 		t.Fatalf("Content-Type = %q, want text/event-stream", ct)
 	}
 
+	// Wait for the server-side handler to call Subscribe before broadcasting,
+	// otherwise the event is sent to zero clients and resp.Body.Read() blocks.
+	waitForClient(t, broker)
+
 	// Send an event while connected.
 	broker.Broadcast(SSEEvent{Event: "peer-update", Data: "<div>test</div>"})
 
@@ -246,6 +250,11 @@ func TestSSEMultiLineData(t *testing.T) {
 		}
 	}()
 
+	// Wait for the server-side handler to call Subscribe before broadcasting,
+	// otherwise the event is sent to zero clients and resp.Body.Read() blocks
+	// indefinitely waiting for data that was never delivered.
+	waitForClient(t, broker)
+
 	// Send a multi-line HTML fragment (like convergence histogram output).
 	multiLine := "<div class=\"bar\">\n  <span>hello</span>\n</div>"
 	broker.Broadcast(SSEEvent{Event: "convergence", Data: multiLine})
@@ -273,4 +282,22 @@ func TestSSEMultiLineData(t *testing.T) {
 			t.Errorf("line %d is not a valid SSE field: %q", i, line)
 		}
 	}
+}
+
+// waitForClient blocks until the broker has at least one subscribed client,
+// or fails the test after a one-second timeout. Used by SSE tests to bridge
+// the race between issuing an HTTP GET (which returns when the response
+// headers are flushed) and the server-side ServeHTTP goroutine actually
+// calling broker.Subscribe. Without this barrier, a Broadcast can run
+// before any client is registered and the test reader blocks forever.
+func waitForClient(t *testing.T, b *SSEBroker) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if b.ClientCount() >= 1 {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("client never subscribed within 1s")
 }

@@ -5,29 +5,35 @@ Sessions should attempt to fix entries here before logging new ones.
 
 Remove entries once fixed.
 
-## TestSSEMultiLineData (timeout)
+## make ze-command-list (compilation failure)
 
-**File:** `internal/chaos/web/sse_test.go:254`
-**Failure:** Test times out at 600s in `ServeHTTP` at `sse.go:130`.
-**Frequency:** Intermittent under race detector with full test suite.
-**Hypothesis:** SSE broker hangs waiting for client to read. Likely a test cleanup issue where the HTTP response writer is not closed, causing ServeHTTP to block indefinitely.
-**Not caused by:** config transaction protocol work (2026-04-06) -- no chaos/web files modified.
+**File:** `scripts/inventory/commands.go:94-95` (formerly `scripts/command_inventory.go`)
+**Failure:** `go run` fails with `rpc.Help undefined (type server.RPCRegistration has no field or method Help)` and `rpc.ReadOnly undefined`.
+**Root cause:** The script was written when `internal/component/plugin/server/handler.go:RPCRegistration` had `Help string` and `ReadOnly bool` fields. Those fields were removed in a later commit (the current struct has only WireMethod, Handler, RequiresSelector, PluginCommand). The script's `commands.go:90-97` and `commands.go:111-117` still reference the removed fields.
+**Fix:** Delete the `Help` and `ReadOnly` references from both struct literal sites and from the `CommandInfo` output struct, OR re-add the fields to RPCRegistration if the help/readonly metadata is still wanted. Either is small (~10 lines).
+**Confirmed pre-existing:** broken before the scripts/command_inventory.go -> scripts/inventory/commands.go rename in commit 3 of the scripts rationalisation. The rename touched only the path, not the file content.
 
-## TestBackpressureNoResumeAbove10Percent (flaky)
+## TestSSEMultiLineData / TestSSEServeHTTP (timeout) -- FIXED 2026-04-07
 
-**File:** `internal/component/bgp/plugins/rs/worker_test.go:1026`
-**Failure:** `require.Eventually` at line 1065: "low-water callback never fired after draining below 10%" (2s timeout)
-**Frequency:** ~1 in 3 runs (confirmed with `-count=3`)
-**Hypothesis:** After `close(blockCh)` unblocks remaining items and `waitForCount` confirms all 11 processed, the `onLowWater` callback depends on the worker pool's backpressure check loop timing. Under race detector / CPU load, the check may not fire within the 2s `require.Eventually` window. The 2s timeout or the check interval may need increasing, or the test needs to synchronize on the actual low-water trigger rather than polling.
-**Not caused by:** protocol genericity refactor (2026-04-06) -- confirmed by running test in isolation.
+**File:** `internal/chaos/web/sse_test.go`
+**Symptom:** Test occasionally hung indefinitely in `resp.Body.Read(buf)` waiting for SSE data that was never delivered.
+**Root cause:** The test ordering was: issue HTTP GET, then `broker.Broadcast(...)`, then `resp.Body.Read(...)`. `http.DefaultClient.Do` returns as soon as the response headers are flushed (`flusher.Flush()` at `sse.go:123`), BEFORE the server-side `ServeHTTP` calls `b.Subscribe()` at `sse.go:125`. If the test's `Broadcast` ran in that gap, the event was sent to zero clients (Broadcast iterates `b.clients` which was still empty), and the test reader blocked forever waiting for data that was never queued.
+**Fix:** Added a `waitForClient(t, broker)` helper that polls `broker.ClientCount()` until at least one client is registered (1s timeout). Both `TestSSEMultiLineData` and `TestSSEServeHTTP` call it after `Do` and before `Broadcast`.
+**Verification:** `go test -race -count=20 ./internal/chaos/web/` -> all green.
 
-## TestInProcessSpeed (race)
+## TestBackpressureNoResumeAbove10Percent (flaky) -- FIXED 2026-04-07
+
+**File:** `internal/component/bgp/plugins/rs/worker_test.go`
+**Frequency before fix:** ~1 in 3 runs.
+**Root cause:** The test dispatched 11 items into a cap-10 channel and assumed items 2-11 would all queue before the worker dequeued any -- so `depth >= cap` would be observed by `checkBackpressure` and `inBackpressure` would be set. Then when items drained below 10%, the low-water `LoadAndDelete(key)` would find the flag and fire the callback. But the worker goroutine could dequeue items in flight: if it ran fast enough, the channel never reached capacity, `inBackpressure` was never set, and the final `LoadAndDelete` returned `wasBP=false` -- so `onLowWater` was never called even when depth reached 0. The test then failed at the `require.Eventually` polling for `lwCalls >= 1`.
+**Fix:** Added a `gate1` channel that parks the handler on item 1 until the dispatch loop has put all 11 items in queue. This guarantees the channel reaches capacity (item 11 spills to overflow), `checkBackpressure` fires, and `inBackpressure` is set. After `BackpressureDetected(key)` is asserted, `gate1` is closed and the original `gate6` flow continues. Two gates are independent so the deferred close handles both safely.
+**Verification:** `go test -race -count=20 -run TestBackpressureNoResumeAbove10Percent ./internal/component/bgp/plugins/rs/` -> 20/20 pass; `go test -race -count=3 ./internal/component/bgp/plugins/rs/` -> green.
+
+## TestInProcessSpeed (race) -- could not reproduce 2026-04-07
 
 **File:** `internal/chaos/inprocess/runner_test.go:218`
-**Failure:** DATA RACE between `bufio.(*Reader).Read` in `session_read.go:104` (goroutine running `readAndProcessMessage`) and `runtime.slicecopy` in another goroutine accessing the same `bufio.Reader` buffer.
-**Frequency:** Intermittent under race detector.
-**Hypothesis:** Two goroutines share a `bufio.Reader` on the same `net.Conn` without synchronization. The session read goroutine and the peer run goroutine both access the reader concurrently. Likely needs a mutex around session reader access or separate readers per goroutine.
-**Not caused by:** bridge/dispatch refactoring (2026-04-06) -- race is in reactor session read path, not plugin dispatch.
+**Failure (as logged previously):** DATA RACE between `bufio.(*Reader).Read` in `session_read.go:104` (goroutine running `readAndProcessMessage`) and `runtime.slicecopy` in another goroutine accessing the same `bufio.Reader` buffer.
+**Reproduction attempts (2026-04-07):** Could not reproduce in 40+ runs across `go test -race -count=20 -run TestInProcessSpeed`, `-count=5 -parallel=8` of the full inprocess package, and `-count=2` of the combined `inprocess` + `bgp/reactor` packages. Static review of `session_read.go:60`/`:104` shows only one production caller of `s.bufReader` (the `Run` loop at `session.go:620`) and the bufReader is replaced under `s.mu.Lock()` in `connectionEstablished`. Only suspicious access path is the unsynchronized read of `s.bufReader` at `session_read.go:60` racing the write at `session_connection.go:255` -- but that would be a pointer race, not a slice copy race. Leaving the entry in case the failure resurfaces under different load; if it does not appear in the next 2 weeks of CI, delete the entry as stale.
 
 ## Mass functional test failures: encode + plugin + reload (~200 tests) -- FIXED 2026-04-07
 

@@ -1025,11 +1025,22 @@ func TestBackpressureThresholdOscillation(t *testing.T) {
 // PREVENTS: Rapid pause/resume oscillation from premature low-water trigger.
 func TestBackpressureNoResumeAbove10Percent(t *testing.T) {
 	var count atomic.Int32
-	block := make(chan struct{})
-	blockCh := block // Handler captures this copy — immune to block reassignment.
+	// Two gates: gate1 holds item 1 so the dispatch loop fills the channel
+	// before any item is dequeued (otherwise the worker can drain in flight
+	// and depth never reaches cap, leaving inBackpressure unset). gate6 holds
+	// item 6 so depth stays above the 10% threshold during the require.Never
+	// window after gate1 is released.
+	gate1 := make(chan struct{})
+	gate6 := make(chan struct{})
+	gate1Ch := gate1
+	gate6Ch := gate6
 	handler := func(_ workerKey, _ workItem) {
-		if count.Add(1) >= 6 {
-			<-blockCh // Block from item 6 onwards.
+		n := count.Add(1)
+		if n == 1 {
+			<-gate1Ch
+		}
+		if n >= 6 {
+			<-gate6Ch
 		}
 	}
 
@@ -1039,27 +1050,46 @@ func TestBackpressureNoResumeAbove10Percent(t *testing.T) {
 
 	wp := newWorkerPool(handler, cfg)
 	wp.onLowWater = func(_ workerKey) { lwCalls.Add(1) }
-	defer func() { close(block); wp.Stop() }()
+	defer func() {
+		// Drain any goroutines parked on the gates.
+		select {
+		case <-gate1:
+		default:
+			close(gate1)
+		}
+		select {
+		case <-gate6:
+		default:
+			close(gate6)
+		}
+		wp.Stop()
+	}()
 
 	key := workerKey{sourcePeer: "10.0.0.1"}
 
-	// Dispatch 11 items: item 1 starts processing immediately,
-	// items 2-11 fill the channel (10 items). depth=10 >= cap=10 → triggers.
+	// Dispatch 11 items. Item 1 is parked in handler (stuck on gate1) so the
+	// remaining 10 dispatches fill the channel to capacity; the 11th item
+	// goes to overflow. depth = cap → checkBackpressure sets inBackpressure.
 	for i := uint64(1); i <= 11; i++ {
 		wp.Dispatch(key, workItem{msgID: i})
 	}
-	waitForCount(&count, 5, t)
+	require.True(t, wp.BackpressureDetected(key),
+		"channel must be at capacity after dispatching 11 items into a cap-10 channel")
 
-	// Items 1-5 processed. Item 6 is blocked in handler.
-	// Channel: items 7-11 (5 items). depth=5. 5*10=50, 50 > 10 -> NOT <10%.
-	// Depth is at 50%, well above 10% -- low-water must NOT fire.
+	// Release item 1 so the worker can advance through items 2-5. Item 6
+	// will park on gate6 once count reaches 6. Wait for that state.
+	close(gate1)
+	waitForCount(&count, 6, t)
+
+	// Items 1-5 processed, item 6 blocked. Channel: items 7-11 (5 items).
+	// depth=5. 5*10=50, NOT < cap (10). Low-water must NOT fire.
 	require.Never(t, func() bool {
 		return lwCalls.Load() > 0
 	}, 50*time.Millisecond, 5*time.Millisecond, "onLowWater should NOT fire when depth is above 10%")
 
-	// Unblock remaining items -> depth drains to 0 < 10% -> low-water fires.
-	close(blockCh)
-	block = make(chan struct{}) // Replace so defer close doesn't double-close.
+	// Unblock remaining items -> depth drains to 0 -> low-water fires.
+	close(gate6)
+	gate6 = make(chan struct{}) // Replace so the deferred close does not double-close.
 	waitForCount(&count, 11, t)
 
 	require.Eventually(t, func() bool {
