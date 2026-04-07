@@ -10,6 +10,23 @@ package all
 import (
 	// Infrastructure schema packages — YANG module registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/authz/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/healthcheck/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/hostname/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/llnh/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/role/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rpki/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rpki_decorator/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/commit/schema"
@@ -27,16 +44,18 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/lg/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/mcp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ssh/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/web/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/core/ipc/schema"
-
-	// BGP component — config-driven plugin registration.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugin"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibp4/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/schema"
 
 	// Plugin packages — plugin + schema registration.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugin"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/aigp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community"
@@ -64,15 +83,10 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/watchdog"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor/filter"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface"
-
-	// Non-BGP plugins — Bus-only plugins.
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibp4"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacedhcp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
-
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibp4"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibp4/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/schema"
 )
+

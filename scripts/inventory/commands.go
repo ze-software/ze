@@ -6,7 +6,7 @@
 // It imports the real plugin/RPC registrations and YANG command tree, so the
 // output is always accurate.
 //
-// Usage: go run scripts/command_inventory.go [--json]
+// Usage: go run scripts/inventory/commands.go [--json]
 // Called by: make ze-command-list
 //
 //go:build ignore
@@ -48,8 +48,6 @@ type CommandInfo struct {
 	Verb       string `json:"verb"`
 	Path       string `json:"path"`
 	WireMethod string `json:"wire-method"`
-	Help       string `json:"help"`
-	ReadOnly   bool   `json:"read-only"`
 	Source     string `json:"source"`
 }
 
@@ -91,8 +89,6 @@ func collect() []CommandInfo {
 			Verb:       classifyVerb(path),
 			Path:       path,
 			WireMethod: rpc.WireMethod,
-			Help:       rpc.Help,
-			ReadOnly:   rpc.ReadOnly,
 			Source:     "builtin",
 		})
 	}
@@ -109,11 +105,9 @@ func collect() []CommandInfo {
 		}
 		if !found {
 			commands = append(commands, CommandInfo{
-				Verb:     classifyVerb(prefix),
-				Path:     prefix,
-				Help:     "(streaming)",
-				ReadOnly: true,
-				Source:   "streaming",
+				Verb:   classifyVerb(prefix),
+				Path:   prefix,
+				Source: "streaming",
 			})
 		}
 	}
@@ -129,11 +123,9 @@ func collect() []CommandInfo {
 	}
 	if !hasDashboard {
 		commands = append(commands, CommandInfo{
-			Verb:     "monitor",
-			Path:     "monitor bgp",
-			Help:     "Live peer status dashboard (TUI)",
-			ReadOnly: true,
-			Source:   "cli",
+			Verb:   "monitor",
+			Path:   "monitor bgp",
+			Source: "cli",
 		})
 	}
 
@@ -153,15 +145,11 @@ func classifyVerb(path string) string {
 
 func printMarkdown(commands []CommandInfo) {
 	fmt.Printf("# Command Inventory\n\n")
-	fmt.Printf("| Verb | CLI Path | Wire Method | Help | RO | Source |\n")
-	fmt.Printf("|------|----------|-------------|------|----|--------|\n")
+	fmt.Printf("| Verb | CLI Path | Wire Method | Source |\n")
+	fmt.Printf("|------|----------|-------------|--------|\n")
 	for _, c := range commands {
-		ro := "no"
-		if c.ReadOnly {
-			ro = "yes"
-		}
-		fmt.Printf("| %s | %s | %s | %s | %s | %s |\n",
-			c.Verb, c.Path, c.WireMethod, c.Help, ro, c.Source)
+		fmt.Printf("| %s | %s | %s | %s |\n",
+			c.Verb, c.Path, c.WireMethod, c.Source)
 	}
 	fmt.Printf("\nTotal: %d commands\n", len(commands))
 }

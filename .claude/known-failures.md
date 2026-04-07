@@ -5,14 +5,6 @@ Sessions should attempt to fix entries here before logging new ones.
 
 Remove entries once fixed.
 
-## make ze-command-list (compilation failure)
-
-**File:** `scripts/inventory/commands.go:94-95` (formerly `scripts/command_inventory.go`)
-**Failure:** `go run` fails with `rpc.Help undefined (type server.RPCRegistration has no field or method Help)` and `rpc.ReadOnly undefined`.
-**Root cause:** The script was written when `internal/component/plugin/server/handler.go:RPCRegistration` had `Help string` and `ReadOnly bool` fields. Those fields were removed in a later commit (the current struct has only WireMethod, Handler, RequiresSelector, PluginCommand). The script's `commands.go:90-97` and `commands.go:111-117` still reference the removed fields.
-**Fix:** Delete the `Help` and `ReadOnly` references from both struct literal sites and from the `CommandInfo` output struct, OR re-add the fields to RPCRegistration if the help/readonly metadata is still wanted. Either is small (~10 lines).
-**Confirmed pre-existing:** broken before the scripts/command_inventory.go -> scripts/inventory/commands.go rename in commit 3 of the scripts rationalisation. The rename touched only the path, not the file content.
-
 ## TestSSEMultiLineData / TestSSEServeHTTP (timeout) -- FIXED 2026-04-07
 
 **File:** `internal/chaos/web/sse_test.go`

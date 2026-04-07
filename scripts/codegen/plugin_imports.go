@@ -94,6 +94,7 @@ func readModulePath(path string) (string, error) {
 
 // pluginDirs lists directories (relative to repo root) that contain plugin register.go files.
 var pluginDirs = []string{
+	"internal/component/bgp/plugin",
 	"internal/component/bgp/plugins",
 	"internal/component/bgp/reactor/filter",
 	"internal/component/iface",
@@ -101,7 +102,10 @@ var pluginDirs = []string{
 }
 
 // discoverPlugins finds plugin packages by looking for register.go files
-// across all known plugin directories.
+// across all known plugin directories. Any register.go that is NOT in a
+// schema/ subdirectory is treated as a plugin registration: this catches
+// plugins registering via plugin/registry as well as those registering via
+// component-local mechanisms (e.g. iface.RegisterBackend in ifacenetlink).
 func discoverPlugins(root, module string) ([]string, error) {
 	var plugins []string
 
@@ -114,9 +118,8 @@ func discoverPlugins(root, module string) ([]string, error) {
 			if d.IsDir() || d.Name() != "register.go" {
 				return nil
 			}
-			// Only include register.go files that import the plugin registry
-			// (skip schema/register.go which imports config/yang instead).
-			if !fileImports(path, "plugin/registry") {
+			// Skip schema/register.go (handled by discoverSchemaPackages).
+			if filepath.Base(filepath.Dir(path)) == "schema" {
 				return nil
 			}
 			// Convert to full import path relative to module root.
@@ -137,8 +140,9 @@ func discoverPlugins(root, module string) ([]string, error) {
 }
 
 // discoverSchemaPackages finds schema packages that register YANG modules.
-// Scans for schema/register.go files that import the yang package.
-// Excludes packages under internal/plugins/ (covered by plugin imports).
+// Scans for schema/register.go files that import the yang package, anywhere
+// under internal/. Schema packages under internal/plugins/ are included
+// because their plugin parent does not transitively import them.
 func discoverSchemaPackages(internalDir, module string) ([]string, error) {
 	var imports []string
 
@@ -151,11 +155,6 @@ func discoverSchemaPackages(internalDir, module string) ([]string, error) {
 		}
 		// Only look at schema/register.go files
 		if filepath.Base(path) != "register.go" || filepath.Base(filepath.Dir(path)) != "schema" {
-			return nil
-		}
-		// Skip plugins — already covered by plugin imports
-		rel, _ := filepath.Rel(internalDir, path)
-		if strings.HasPrefix(rel, "plugins/") || strings.Contains(rel, "/plugins/") {
 			return nil
 		}
 		// Verify it imports the yang package (for RegisterModule)
