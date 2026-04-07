@@ -65,6 +65,14 @@ func (pc *PluginConn) SetBridge(b *rpc.DirectBridge) {
 	pc.bridge = b
 }
 
+// HasBridge reports whether bridge transport has been activated.
+// When true, the SDK has closed its end of the mux (all plugin->engine
+// RPCs flow via DirectBridge), so server-side mux readers must NOT
+// treat mux close as a plugin-exited signal.
+func (pc *PluginConn) HasBridge() bool {
+	return pc.bridge != nil
+}
+
 // CallRPC sends an RPC and waits for the response.
 // Routes through: bridge (if set) -> MuxConn (if set) -> direct Conn.
 // All typed methods (SendExecuteCommand, etc.) call this.

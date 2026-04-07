@@ -19,12 +19,27 @@ import (
 // Reads plugin-initiated RPCs (update-route, subscribe, etc.) and dispatches them
 // concurrently. Each request is dispatched in its own goroutine so that slow handlers
 // (e.g., update-route) don't block the read loop and starve other requests.
+//
+// For bridge-mode plugins (internal plugins that negotiated Transport="bridge"
+// during Stage 5), the SDK closes its end of the mux after the bridge switch,
+// and all plugin->engine RPCs flow via DirectBridge (wired by wireBridgeDispatch).
+// The mux read loop is skipped in that case -- reading it would immediately
+// return ErrMuxConnClosed and incorrectly trigger cleanupProcess, causing
+// Server.Wait to unblock and the daemon to shut down during startup.
 func (s *Server) handleSingleProcessCommandsRPC(proc *process.Process) {
 	defer s.cleanupProcess(proc)
 
 	conn := proc.Conn()
 	if conn == nil {
 		logger().Debug("rpc runtime: no connection (startup failed?)", "plugin", proc.Name())
+		return
+	}
+
+	// Bridge-mode plugins: no mux to read. Hold the WaitGroup entry until the
+	// server is shutting down so Server.Wait() blocks until actual termination.
+	// Plugin->engine RPCs still flow via DirectBridge independently of this.
+	if conn.HasBridge() {
+		<-s.ctx.Done()
 		return
 	}
 
