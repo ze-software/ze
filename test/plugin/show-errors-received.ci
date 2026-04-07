@@ -1,0 +1,166 @@
+# Test: show errors returns notification-received entry after peer sends NOTIFICATION
+# AC: spec-report-bus AC-10 (notification-received producer)
+# Exercises: ze-peer sends NOTIFICATION (Cease/Admin Shutdown, code=6 subcode=2) ->
+# session_handlers.go onNotifRecv -> Peer.IncrNotificationReceived ->
+# raiseNotificationError -> report bus -> handleShowErrors via dispatch-command ->
+# JSON response with the entry pinned to peer 127.0.0.1.
+
+# ze-peer: send a NOTIFICATION immediately after the OPEN exchange.
+# action=notification always emits Cease (6) / Admin Shutdown (2) per
+# internal/test/peer/message.go::NotificationMsg.
+stdin=peer:terminator=EOF_PEER
+action=notification:conn=1:seq=1:text=peer-initiated shutdown
+EOF_PEER
+
+# Python test plugin: poll "show errors" until the entry appears, then assert
+# the exact field values (subject, code, subcode, direction) and exact count.
+tmpfs=show-errors-received-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def poll_for_match(api, match_fn, timeout=5.0):
+    """Poll `show errors` until at least one entry matches match_fn or timeout."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        result = dispatch(api, 'show errors')
+        if result.get('status') == 'done':
+            data = result.get('data', {})
+            if isinstance(data, str):
+                data = json.loads(data)
+            errors = data.get('errors', [])
+            if any(match_fn(e) for e in errors):
+                return data
+        time.sleep(0.1)
+    return None
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    try:
+        # Poll for the notification-received entry instead of a fixed sleep.
+        # The producer fires from the session read goroutine; timing varies.
+        data = poll_for_match(api, lambda e:
+            e.get('source') == 'bgp' and
+            e.get('code') == 'notification-received' and
+            e.get('subject') == '127.0.0.1')
+
+        if data is None:
+            print('FAIL: timed out waiting for bgp/notification-received entry', file=sys.stderr)
+            sys.exit(1)
+
+        errors = data.get('errors', [])
+
+        # Exactly one entry should match our specific producer signature.
+        # Other entries (e.g., session-dropped after the peer disconnects) may
+        # also be present; we only care that the producer fires once per event.
+        matches = [e for e in errors
+                   if e.get('source') == 'bgp'
+                   and e.get('code') == 'notification-received'
+                   and e.get('subject') == '127.0.0.1']
+        if len(matches) != 1:
+            print(f'FAIL: expected exactly 1 matching entry, got {len(matches)}: {matches}', file=sys.stderr)
+            sys.exit(1)
+
+        e = matches[0]
+        if e.get('severity') != 'error':
+            print(f'FAIL: severity != error: {e}', file=sys.stderr)
+            sys.exit(1)
+        detail = e.get('detail', {})
+        if detail.get('direction') != 'received':
+            print(f'FAIL: detail.direction != received: {e}', file=sys.stderr)
+            sys.exit(1)
+        # ze-peer's action=notification emits Cease (6) / Admin Shutdown (2).
+        # JSON numbers come back as int (or float in Python via json), so cast.
+        if int(detail.get('code', -1)) != 6:
+            print(f'FAIL: detail.code != 6: {e}', file=sys.stderr)
+            sys.exit(1)
+        if int(detail.get('subcode', -1)) != 2:
+            print(f'FAIL: detail.subcode != 2: {e}', file=sys.stderr)
+            sys.exit(1)
+
+        print(f'OK: show errors returned {len(errors)} entry(s); 1 matching notification-received', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+    except SystemExit:
+        raise
+    except Exception as e:
+        print(f'FAIL: unexpected error: {e}', file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration: peer1 connects to ze-peer, which sends NOTIFICATION.
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+plugin {
+	external show-errors-received-test {
+		run ./show-errors-received-test.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+
+		process show-errors-received-test {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
