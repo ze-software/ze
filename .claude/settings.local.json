@@ -98,7 +98,6 @@
       "Bash(pkill:*)",
       "Bash(python3:*)",
       "Bash(./migrate-ci:*)",
-      "Bash(./scripts/migrate-plugin-tests.sh:*)",
       "Bash(./.claude/hooks/session-start.sh)",
       "Bash(go run ./cmd/ze *)",
       "Bash(./bin/ze-test:*)",
@@ -112,7 +111,7 @@
       "Bash(mkdir:*)",
       "Bash(sed:*)",
       "Bash(gofmt:*)",
-      "Bash(./scripts/worktree-update.sh:*)",
+      "Bash(./scripts/dev/worktree_update.sh:*)",
       "Bash(gh issue:*)",
       "Bash(zellij setup:*)"
     ],
