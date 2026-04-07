@@ -168,7 +168,7 @@ func extractRoutesFromUpdateBlock(update *config.Tree) (*UpdateBlockRoutes, erro
 			result.VPLSRoutes = append(result.VPLSRoutes, vr)
 			continue
 
-		case "ipv4/mcast-vpn", "ipv6/mcast-vpn":
+		case "ipv4/mvpn", "ipv6/mvpn":
 			mr, err := parseMVPNNLRILine(line, attr)
 			if err != nil {
 				return nil, fmt.Errorf("mvpn nlri: %w", err)

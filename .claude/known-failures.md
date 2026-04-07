@@ -74,11 +74,17 @@ independent regressions, all introduced between commits `58564e0a` and
 **Root cause:** `internal/component/plugin/manager/manager.go:spawnProcesses` created a NEW `process.ProcessManager` for every `SpawnMore` call (one per startup phase: explicit plugins, auto-load config-paths, auto-load families, etc.) and stored them in a slice. `GetProcessManager()` returned only the LAST one. Tests with both an external `plugin {}` block AND auto-loaded BGP plugins ended up with the BGP plugins in an earlier procManager that was no longer reachable -- `pm.AllProcesses()` returned only the persist plugin from the last spawn batch.
 **Fix:** Use a single shared `process.ProcessManager` across all phases. Added `StartMore(configs)` to `internal/component/plugin/process/manager.go` that appends new configs and starts them under the existing context. `manager.spawnProcesses` calls `StartWithContext` on the first spawn and `StartMore` on subsequent ones, so `pm.processes` accumulates every plugin from every phase.
 
+### 7. MVPN config parser used legacy family name (1 encode test: `Q mvpn`)
+
+**Symptom:** `bin/ze-test bgp encode Q` failed with `bgp: create reactor: build peers: peer peer1 routes: update block: invalid prefix shared-join: netip.ParsePrefix("shared-join"): no '/'`. The parser fell through to the standard CIDR-prefix branch and tried to parse the MVPN route-type token as an IP prefix.
+**Root cause:** `internal/component/bgp/config/bgp_routes.go` had a switch on family name to dispatch MVPN/flowspec/VPLS/MUP NLRI lines to their specialized parsers. The MVPN case used the legacy names `"ipv4/mcast-vpn"` / `"ipv6/mcast-vpn"`, but the family registry (`internal/component/bgp/plugins/nlri/mvpn/register.go:Families`) registers the canonical names `"ipv4/mvpn"` / `"ipv6/mvpn"`. Configs that wrote `ipv4/mvpn add shared-join ...` never reached `parseMVPNNLRILine`.
+**Fix:** Update the case in `bgp_routes.go:171` to `"ipv4/mvpn"`, `"ipv6/mvpn"`. Also update the doc comment in `bgp_routes_mvpn.go:14-15` to use the canonical name in its example.
+
 ### Verification (2026-04-07)
 
 | Suite | Before | After |
 |-------|--------|-------|
-| `bin/ze-test bgp encode --all` | 0/96 | 47/48 (one unrelated `shared-join` mvpn parser failure) |
+| `bin/ze-test bgp encode --all` | 0/96 | **48/48** (mvpn case fixed in same session: see Fix 7 below) |
 | `bin/ze-test bgp plugin --all` | ~0/218 | 217/218 (one unrelated loopback alias permission failure) |
 | `bin/ze-test bgp reload --all` | 0/19 | **19/19** |
 

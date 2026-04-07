@@ -12,7 +12,7 @@ import (
 )
 
 // parseMVPNNLRILine parses an MVPN NLRI line like:
-// "ipv4/mcast-vpn shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000".
+// "ipv4/mvpn add shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000".
 func parseMVPNNLRILine(line string, attr *config.Tree) (MVPNRouteConfig, error) {
 	parts := strings.Fields(line)
 	if len(parts) < 2 {
