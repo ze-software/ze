@@ -68,7 +68,122 @@ produce continuously-updating output.
 | Group | start, end (batching) |
 | Monitor | monitor bgp (TUI dashboard), monitor event (live event streaming) |
 | Subscribe | subscribe, unsubscribe (event filtering) |
+| Reports | show warnings, show errors (cross-subsystem operational report bus) |
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
+
+---
+
+## Operational Report Bus (ze-show:warnings, ze-show:errors)
+
+The report bus is a single in-process place for Ze subsystems to push
+operator-visible issues. Any subsystem (BGP, config, interface, plugins)
+can call `report.RaiseWarning` / `report.RaiseError` / `report.ClearWarning`,
+and operators query the aggregate via two RPCs.
+
+<!-- source: internal/core/report/report.go -- package godoc -->
+
+### Severity contract
+
+| Severity | Lifecycle | Storage | Cleared by |
+|----------|-----------|---------|------------|
+| `warning` | State-based. Condition is currently problematic. | Deduped map on `(Source, Code, Subject)`. Bounded by `warningCap` (default 1024, max 10000). Oldest-by-Updated evicted at cap. | `ClearWarning(source, code, subject)`, `ClearSource(source)`, or implicit eviction. |
+| `error` | Event-based. Something already happened. | Ring buffer of `errorCap` events (default 256, max 10000). Oldest evicted on overflow. | Never; ring buffer aging only. |
+
+Producers MUST pick the right severity. The bus does not auto-promote.
+"Did anything actually fail or behave unexpectedly?" Yes -> error.
+No, but it might soon -> warning.
+
+<!-- source: internal/core/report/report.go -- Severity, RaiseWarning, RaiseError, ClearWarning, ClearSource -->
+
+### Push API (for subsystems)
+
+Subsystems import `internal/core/report` and call:
+
+| Function | Purpose |
+|----------|---------|
+| `RaiseWarning(source, code, subject, message string, detail ...map[string]any)` | Add or refresh an active warning. Deduplicated. |
+| `ClearWarning(source, code, subject string)` | Remove an active warning. No-op if missing. |
+| `ClearSource(source string)` | Remove all active warnings for one source (shutdown cleanup). |
+| `RaiseError(source, code, subject, message string, detail ...map[string]any)` | Append an error event to the ring buffer. No dedup. |
+| `Warnings() []Issue` | Snapshot of all active warnings, most-recently-updated first. Consumed by ze-show:warnings handler. |
+| `Errors(limit int) []Issue` | Recent N error events, newest first. limit 0 or negative returns all retained. Consumed by ze-show:errors handler. |
+
+Empty or oversized fields (Source/Code > 64 bytes, Subject > 256, Message > 1024,
+Detail > 16 keys) are rejected at the boundary with a debug log, protecting
+the bus from buggy or malicious producers.
+
+<!-- source: internal/core/report/report.go -- validFields, RaiseWarning, RaiseError, ClearWarning, ClearSource, Warnings, Errors -->
+
+### Query RPCs
+
+| WireMethod | Handler | Response shape |
+|------------|---------|----------------|
+| `ze-show:warnings` | `handleShowWarnings` in `internal/component/cmd/show/show.go` | `{"warnings": [Issue, ...], "count": N}` |
+| `ze-show:errors` | `handleShowErrors` in `internal/component/cmd/show/show.go` | `{"errors": [Issue, ...], "count": N}` |
+
+Both handlers return a non-nil empty slice when the bus is empty
+(for consistent JSON: `[]` rather than `null`).
+
+<!-- source: internal/component/cmd/show/show.go -- handleShowWarnings, handleShowErrors -->
+<!-- source: internal/component/cmd/show/schema/ze-cli-show-cmd.yang -- top-level warnings / errors containers -->
+
+### Issue JSON shape
+
+| Field | JSON type | Notes |
+|-------|-----------|-------|
+| `source` | string | Subsystem name (lowercase, short: `bgp`, `config`, `iface`, ...) |
+| `code` | string | Kebab-case identifier (`prefix-threshold`, `notification-sent`, ...) |
+| `severity` | string | `"warning"` or `"error"` (MarshalJSON converts the internal uint8 enum to the label) |
+| `subject` | string | What the issue is about (peer address, transaction id, file path) |
+| `message` | string | Human-readable one-liner |
+| `detail` | object | Optional. Omitted via `omitempty` when nil or empty. Keys and values are producer-defined. |
+| `raised` | RFC 3339 time | First appearance |
+| `updated` | RFC 3339 time | Most recent raise (warnings advance; errors equal raised) |
+
+<!-- source: internal/core/report/report.go -- Issue struct with json tags, Severity.MarshalJSON -->
+
+### Day-one BGP producers
+
+| Severity | Code | Subject | Detail keys | Source function |
+|----------|------|---------|-------------|-----------------|
+| warning | `prefix-threshold` | `<peerAddr>/<afi>/<safi>` | `family`, `count`, `warning`, `maximum` | `raisePrefixThreshold` in `reactor/session_prefix.go`, called from `applyPrefixCheck` |
+| warning | `prefix-stale` | peer address | `updated` | `RaisePrefixStale` in `reactor/session_prefix.go`, called from `reactor_peers.go` at peer add (and clear at remove) |
+| error | `notification-sent` | peer address | `code`, `subcode`, `direction=sent` | `raiseNotificationError("sent", ...)` in `reactor/session_prefix.go`, called from `Peer.IncrNotificationSent` |
+| error | `notification-received` | peer address | `code`, `subcode`, `direction=received` | `raiseNotificationError("received", ...)` in `reactor/session_prefix.go`, called from `Peer.IncrNotificationReceived` |
+| error | `session-dropped` | peer address | `reason` | `raiseSessionDropped` in `reactor/session_prefix.go`, called from `peer_run.go` FSM Established->Idle branch when no notification was exchanged |
+
+The `session-dropped` producer is suppressed when a NOTIFICATION was sent
+or received during the same session lifecycle: the operator already sees
+that event in `show errors` so a duplicate session-dropped would be noise.
+Tracking is via `Peer.notificationExchanged atomic.Bool`, reset at the
+start of each `runOnce` iteration.
+
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- reportCode* constants, raise* helpers -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.notificationExchanged -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- FSM Established->Idle branch + runOnce reset -->
+
+### Login banner integration
+
+The Ze CLI login banner reads from the same report bus (filtered by
+source `bgp`). One active warning displays the detail line; multiple
+warnings collapse to a count line pointing at `show warnings`. This
+is the single source of truth for "what's wrong right now" across
+the connect path and the show command.
+
+<!-- source: internal/component/bgp/config/loader.go -- collectPrefixWarnings -->
+
+### Capacity limits and env vars
+
+| Env var | Default | Maximum | Registered by |
+|---------|---------|---------|---------------|
+| `ze.report.warnings.max` | 1024 | 10000 | `env.MustRegister` in `internal/core/report/report.go` |
+| `ze.report.errors.max` | 256 | 10000 | same |
+
+Operator values exceeding the maximum are clamped and logged at warn level.
+Zero or negative values fall back to the default. This prevents an env-var
+typo from causing memory exhaustion.
+
+<!-- source: internal/core/report/report.go -- newStore, maxWarningCap, maxErrorCap -->
 
 ---
 

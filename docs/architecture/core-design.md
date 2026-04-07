@@ -721,7 +721,62 @@ imports the component -- all communication flows through the Bus.
 
 ---
 
-## 15. FIB Pipeline
+## 15. Operational Report Bus
+
+Ze's `internal/core/report/` package is the single cross-subsystem place where
+operator-visible warnings and errors live. It is a leaf package: it imports
+only `env` and `slogutil`, and no subsystem imports reverse-depend on it
+except via its public push API. Operators query the aggregate through
+`ze show warnings` and `ze show errors`; the login banner reads the same
+source filtered by subsystem.
+
+| Concept | Description |
+|---------|-------------|
+| **Severity contract** | Warnings are state-based (condition is currently problematic, may resolve). Errors are event-based (something already happened; no clear API). Producers pick deliberately; the bus does not auto-promote. |
+| **Warning storage** | `map[warningKey]*Issue` keyed by `(Source, Code, Subject)`. Bounded by `warningCap` (default 1024, max 10000). Oldest-by-Updated evicted at cap. |
+| **Error storage** | Fixed-size ring buffer of `*Issue`, `errorCap` default 256, max 10000. Oldest event evicted on overflow. |
+| **Concurrency** | Package store held in `atomic.Pointer[store]` so `reset()` is race-safe with concurrent readers. Inside the store, `sync.RWMutex` protects the warning map and error ring. Snapshots return copies with shallow-cloned detail maps. |
+| **Capacity env vars** | `ze.report.warnings.max`, `ze.report.errors.max`. Registered via `env.MustRegister`. Operator values above the max are clamped with a warn log. |
+| **Field bounds** | Source/Code up to 64 bytes, Subject up to 256, Message up to 1024, Detail up to 16 keys. Over-limit raises rejected at the boundary with a debug log. |
+| **Login banner** | The BGP config loader reads `report.Warnings()` filtered by source `bgp` to build the banner. One source of truth across `show warnings` and the login path. |
+
+The bus sits alongside the other cross-cutting core registries:
+
+| Package | Purpose |
+|---------|---------|
+| `internal/core/family/` | Address family registry |
+| `internal/core/metrics/` | Prometheus metrics registration |
+| `internal/core/env/` | Environment variable registry and typed getters |
+| `internal/core/clock/` | Injectable clock for test determinism |
+| `internal/core/report/` | Operator-visible warnings and errors |
+| `internal/core/slogutil/` | Structured logging helpers |
+
+Subsystem authors add new producers by calling the push API:
+
+| Function | When to use |
+|----------|-------------|
+| `report.RaiseWarning(source, code, subject, message, detail)` | A condition is currently problematic. Dedupes on `(Source, Code, Subject)`. Safe to call repeatedly. |
+| `report.ClearWarning(source, code, subject)` | The condition has resolved. |
+| `report.ClearSource(source)` | Subsystem shutdown: drop all warnings from this subsystem. |
+| `report.RaiseError(source, code, subject, message, detail)` | An event already happened. No dedup. Oldest ring entry is evicted if full. |
+
+BGP is the first producer and ships five codes (`bgp/prefix-threshold`,
+`bgp/prefix-stale`, `bgp/notification-sent`, `bgp/notification-received`,
+`bgp/session-dropped`). Future subsystems will add their own codes without
+any changes to the bus.
+
+<!-- source: internal/core/report/report.go -- package godoc, Severity, Issue, Raise/Clear/Warnings/Errors, newStore, validFields -->
+<!-- source: internal/component/cmd/show/show.go -- handleShowWarnings, handleShowErrors -->
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- BGP report code constants and raise helpers -->
+<!-- source: internal/component/bgp/config/loader.go -- collectPrefixWarnings reads from report bus for login banner -->
+
+See [`docs/guide/operational-reports.md`](../guide/operational-reports.md) for
+the operator workflow and [`docs/architecture/api/commands.md`](api/commands.md#operational-report-bus-ze-showwarnings-ze-showerrors)
+for the RPC contract and push API.
+
+---
+
+## 16. FIB Pipeline
 
 The FIB pipeline carries best-path decisions from protocol RIBs through to kernel
 route installation. All communication flows through the Bus; no component imports
@@ -783,7 +838,7 @@ when overwritten.
 
 ---
 
-## 16. Implementation Priority
+## 17. Implementation Priority
 
 1. **Implement RIB with pools** - Per-attribute-type deduplication
 2. **Unified parser** - Family-specific NLRI builders
@@ -791,7 +846,7 @@ when overwritten.
 
 ---
 
-## 17. Config Transaction Protocol
+## 18. Config Transaction Protocol
 
 <!-- source: internal/component/config/transaction/orchestrator.go -- TxCoordinator -->
 

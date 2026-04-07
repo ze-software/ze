@@ -23,6 +23,11 @@ Ze is a BGP daemon written in Go.
 | [Looking Glass](features/looking-glass.md) | Public BGP looking glass with birdwatcher API and AS path graphs |
 | [AI-First Design](features/ai-first.md) | Self-describing CLI-as-API with MCP transport for AI assistants |
 | [Self-Documenting System](features/introspection.md) | Runtime introspection of plugins, env vars, RPCs, schemas, commands |
+| Operational Report Bus | Cross-subsystem `ze show warnings` and `ze show errors` commands: single place to surface prefix-threshold crossings, stale route data, BGP NOTIFICATIONs sent/received, unexpected session drops. State-based warnings + event-based error ring, login banner reads the same source. |
+<!-- source: internal/core/report/report.go -- Issue, RaiseWarning, RaiseError, Warnings, Errors -->
+<!-- source: internal/component/cmd/show/show.go -- handleShowWarnings, handleShowErrors -->
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- raisePrefixThreshold, RaisePrefixStale, raiseNotificationError, raiseSessionDropped -->
+<!-- source: internal/component/bgp/config/loader.go -- collectPrefixWarnings reads from report bus for login banner -->
 | [Interoperability Testing](features/interoperability-testing.md) | 32 Docker-based scenarios against FRR, BIRD, GoBGP |
 | [MCP Integration](features/mcp-integration.md) | AI-assisted BGP operations via Model Context Protocol |
 | [DNS Resolver](features/dns-resolver.md) | Built-in cached DNS resolver for all components |

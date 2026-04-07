@@ -120,6 +120,19 @@ RFC-mandated checks run as default filters that can be selectively overridden.
 | JSON event protocol | Yes | No | No | No | No | No | No | Yes | No | No | No |
 | Built-in DNS resolver | Yes | No | No | No | No | No | No | No | No | No | No |
 | Built-in PeeringDB/IRR/Cymru | Yes | No | No | No | No | No | No | No | No | No | No |
+| Unified operational reports (`show warnings` / `show errors`) | Yes | No | Partial | No | No | Partial | No | No | Partial | Partial | Partial |
+
+<!-- source: internal/core/report/report.go -- cross-subsystem report bus -->
+<!-- source: internal/component/cmd/show/show.go -- handleShowWarnings, handleShowErrors -->
+
+Most BGP daemons expose operational issues through a mix of per-command
+output (`show protocols all` in BIRD, `show bgp summary` in FRR, counters
+in OpenBGPd) rather than a single aggregated view. Ze provides a cross-
+subsystem report bus: any subsystem can push warnings (state-based) or
+errors (event-based) onto a single place, and `ze show warnings` /
+`ze show errors` return the aggregate as structured JSON. The login
+banner reads the same source, so nothing is silently hidden. See
+[`docs/guide/operational-reports.md`](guide/operational-reports.md).
 
 ## API & Programmability
 

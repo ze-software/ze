@@ -185,6 +185,67 @@ ze show bgp encode <route-command>
 | `--asn4` | 4-byte ASN (default: true) |
 <!-- source: cmd/ze/bgp/main.go -- Run; cmd/ze/bgp/decode.go -- cmdDecode; cmd/ze/bgp/encode.go -- cmdEncode -->
 
+### ze show warnings / ze show errors
+
+Operational report bus. A single place for Ze subsystems to surface
+operator-visible issues. Warnings are state-based (a condition is currently
+problematic and may resolve). Errors are event-based (something already
+happened; no clear API). Both commands query the same in-process report
+bus and return newest-first JSON snapshots.
+
+```
+ze show warnings                  # JSON: {"warnings": [...], "count": N}
+ze show errors                    # JSON: {"errors":   [...], "count": N}
+```
+
+**Issue shape** (every entry in both responses):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `source` | string | Subsystem that raised the issue (`bgp`, `config`, `iface`, ...) |
+| `code` | string | Stable kebab-case identifier of the condition or event |
+| `severity` | string | `warning` or `error` |
+| `subject` | string | What the issue is about: peer address, transaction id, file path |
+| `message` | string | Human-readable one-liner |
+| `detail` | object | Optional structured context (family, code/subcode, reason, ...) |
+| `raised` | RFC 3339 time | When the issue first appeared on the bus |
+| `updated` | RFC 3339 time | Most recent raise time (warnings advance; errors equal raised) |
+
+<!-- source: internal/core/report/report.go -- Issue struct -->
+
+**Day-one BGP vocabulary** (raised by the BGP reactor):
+
+| Severity | Source/Code | When raised | When cleared |
+|----------|-------------|-------------|--------------|
+| warning | `bgp / prefix-threshold` | Per-family prefix count crosses the configured warning threshold upward | Per-family count drops below threshold |
+| warning | `bgp / prefix-stale` | `peer { prefix { updated ... } }` date is older than 180 days | Peer re-added with a fresher date, or peer removed |
+| error | `bgp / notification-sent` | This ze instance sends a NOTIFICATION to a peer (code/subcode in `detail`) | Never (errors are events) |
+| error | `bgp / notification-received` | A peer sends a NOTIFICATION to this ze instance | Never |
+| error | `bgp / session-dropped` | An Established session ends without a NOTIFICATION exchange (TCP loss, hold-timer with no notification, peer FIN) | Never |
+
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- report code constants and helper functions -->
+<!-- source: internal/component/bgp/reactor/peer_stats.go -- IncrNotificationSent, IncrNotificationReceived -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- raiseSessionDropped at FSM Established->Idle transition -->
+
+**Capacity limits** (configurable via env vars):
+
+| Env var | Default | Maximum | Purpose |
+|---------|---------|---------|---------|
+| `ze.report.warnings.max` | 1024 | 10000 | Cap on active warning set, oldest-by-Updated evicted at cap |
+| `ze.report.errors.max` | 256 | 10000 | Ring buffer size for recent error events |
+
+Over-limit raise calls are silently rejected and logged at debug level.
+Field length limits (Source 64, Code 64, Subject 256, Message 1024, Detail 16 keys)
+prevent any producer from pushing multi-megabyte entries.
+
+<!-- source: internal/core/report/report.go -- validFields, maxWarningCap, maxErrorCap -->
+
+**Login banner integration**: the Ze CLI login banner reads from the same bus,
+filtered by source `bgp`. One active warning shows the detail line; multiple
+warnings collapse to a count line pointing at `show warnings`.
+
+<!-- source: internal/component/bgp/config/loader.go -- collectPrefixWarnings -->
+
 ### ze interface
 
 OS network interface management (standalone, no daemon needed for most commands).
