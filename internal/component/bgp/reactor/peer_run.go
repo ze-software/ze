@@ -207,6 +207,13 @@ func (p *Peer) runOnce() error {
 		// Clear prefix-threshold warnings raised by this session from the report
 		// bus so they do not linger after the session ends. Must be called before
 		// p.session is set to nil below.
+		//
+		// The unlocked read of p.session here is safe because:
+		//   1. We are inside runOnce's deferred function, running in the SAME
+		//      goroutine that wrote p.session at line 201.
+		//   2. The session's read goroutine has already exited by the time the
+		//      defer runs (Session.Run has returned), so prefixCounts.warned is
+		//      no longer being mutated. See ClearReportedWarnings godoc.
 		if sess := p.session; sess != nil {
 			sess.ClearReportedWarnings()
 		}

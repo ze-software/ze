@@ -29,6 +29,7 @@
 package report
 
 import (
+	"fmt"
 	"log/slog"
 	"maps"
 	"sort"
@@ -59,6 +60,30 @@ func (s Severity) String() string {
 		return "error"
 	}
 	return "unknown"
+}
+
+// MarshalJSON encodes Severity as the lowercase label string ("warning" or
+// "error") so operator-facing JSON shows readable values rather than the
+// underlying uint8 enum integer.
+func (s Severity) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + s.String() + `"`), nil
+}
+
+// UnmarshalJSON decodes a Severity from its lowercase label form. Required
+// for round-trip safety even though the bus has no current consumer that
+// deserializes Issues; future ze-events streaming or external dashboards
+// would need this. Unknown labels are rejected with an error.
+func (s *Severity) UnmarshalJSON(data []byte) error {
+	str := string(data)
+	if str == `"warning"` {
+		*s = SeverityWarning
+		return nil
+	}
+	if str == `"error"` {
+		*s = SeverityError
+		return nil
+	}
+	return fmt.Errorf("report: unknown severity %s", data)
 }
 
 // Issue is a single operator-visible report on the bus.
@@ -316,8 +341,17 @@ func firstDetail(detail []map[string]any) map[string]any {
 // them after the call, otherwise the bus state and any returned snapshot
 // will observe the mutation.
 //
-// Returns nil for nil input.
+// Empty maps (zero entries) are normalized to nil so the Issue.Detail
+// `json:"detail,omitempty"` tag consistently omits the field rather than
+// emitting `"detail": {}`. Numeric values inside Detail (uint32, int, etc)
+// JSON-encode as numbers but Go's json package decodes them as float64 on
+// the round-trip side; tests asserting on detail values must account for this.
+//
+// Returns nil for nil or empty input.
 func copyDetail(d map[string]any) map[string]any {
+	if len(d) == 0 {
+		return nil
+	}
 	return maps.Clone(d)
 }
 

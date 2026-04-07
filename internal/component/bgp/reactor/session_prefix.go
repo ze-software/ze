@@ -317,6 +317,12 @@ func (s *Session) applyPrefixCheck(fk uint32, delta int64) (*message.Notificatio
 //
 // Walks prefixCounts.warned (the per-session dedup flag set) and clears the
 // matching bus entries by composite subject.
+//
+// MUST be called only after the session's read goroutine has exited (i.e.,
+// after Session.Run has returned). prefixCounts is documented as "only
+// accessed from the session read goroutine", so calling this concurrently
+// with that goroutine would race. The runOnce defer in peer_run.go is the
+// only safe call site today.
 func (s *Session) ClearReportedWarnings() {
 	if s.prefixCounts == nil {
 		return

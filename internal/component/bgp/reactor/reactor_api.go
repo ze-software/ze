@@ -453,6 +453,12 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 				defer r.mu.Unlock()
 				if peer, ok := r.peers[peerKey]; ok {
 					peer.Stop()
+					// Clear any prefix-stale warning for this peer from the
+					// report bus. Threshold warnings are cleared by the session
+					// teardown defer in peer_run.go via Session.ClearReportedWarnings.
+					// This mirrors the explicit RemovePeer path; without it,
+					// stale entries leak when peers are removed via config reload.
+					ClearPrefixStale(peerKey.Addr().String())
 					delete(r.peers, peerKey)
 					reactorLogger().Debug(label+": removed peer", "peer", peerKey)
 				}

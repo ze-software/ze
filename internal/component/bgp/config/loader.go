@@ -515,6 +515,11 @@ func formatResponseData(data any) string {
 //
 // If exactly one warning exists, the specific detail is shown.
 // If more than one, a count is shown with the command to investigate.
+//
+// Malformed prefix-threshold subjects (missing the composite "<addr>/<family>"
+// form) are skipped with a debug log rather than producing visually broken
+// banner lines. Producers in this codebase always use the composite form;
+// the skip handles future producers and protects the operator UI.
 func collectPrefixWarnings(rl plugin.ReactorIntrospector) []cli.LoginWarning {
 	peerNames := buildPeerNameLookup(rl)
 	issues := report.Warnings()
@@ -533,7 +538,12 @@ func collectPrefixWarnings(rl plugin.ReactorIntrospector) []cli.LoginWarning {
 				Command: "update bgp peer " + issue.Subject + " prefix",
 			})
 		case "prefix-threshold":
-			peerAddr, fam := splitThresholdSubject(issue.Subject)
+			peerAddr, fam, ok := splitThresholdSubject(issue.Subject)
+			if !ok {
+				configLogger().Debug("skipping malformed prefix-threshold subject in banner",
+					"subject", issue.Subject)
+				continue
+			}
 			label := peerLabelFromSubject(peerAddr, peerNames)
 			warnings = append(warnings, cli.LoginWarning{
 				Message: fmt.Sprintf("%s %s prefix count exceeds warning threshold", label, fam),
@@ -554,16 +564,18 @@ func collectPrefixWarnings(rl plugin.ReactorIntrospector) []cli.LoginWarning {
 }
 
 // buildPeerNameLookup walks the reactor peers once to build a peer-address-to-
-// name map, used to enrich bus warnings (which only carry the peer address) with
-// the human-readable peer name from config.
-func buildPeerNameLookup(rl plugin.ReactorIntrospector) map[string]*plugin.PeerInfo {
+// peer map, used to enrich bus warnings (which only carry the peer address)
+// with the human-readable peer name from config. Stores PeerInfo by value
+// (not pointer) so the map's lifetime does not depend on the lifetime of the
+// slice returned by rl.Peers().
+func buildPeerNameLookup(rl plugin.ReactorIntrospector) map[string]plugin.PeerInfo {
 	if rl == nil {
 		return nil
 	}
 	peers := rl.Peers()
-	out := make(map[string]*plugin.PeerInfo, len(peers))
+	out := make(map[string]plugin.PeerInfo, len(peers))
 	for i := range peers {
-		out[peers[i].Address.String()] = &peers[i]
+		out[peers[i].Address.String()] = peers[i]
 	}
 	return out
 }
@@ -571,22 +583,24 @@ func buildPeerNameLookup(rl plugin.ReactorIntrospector) map[string]*plugin.PeerI
 // peerLabelFromSubject returns a human-readable peer label given the peer
 // address from a bus subject and the name lookup map. Falls back to the
 // raw address when the peer is not found in the lookup (e.g., already removed).
-func peerLabelFromSubject(addr string, lookup map[string]*plugin.PeerInfo) string {
+func peerLabelFromSubject(addr string, lookup map[string]plugin.PeerInfo) string {
 	if p, ok := lookup[addr]; ok {
-		return peerLabel(p)
+		return peerLabel(&p)
 	}
 	return fmt.Sprintf("peer %s", addr)
 }
 
 // splitThresholdSubject parses the composite subject "<addr>/<afi>/<safi>"
-// into peer address and family string. Returns the original subject and
-// empty family if the format does not match.
-func splitThresholdSubject(subject string) (peerAddr, family string) {
+// into peer address and family string. Returns ok=false when the format
+// does not match (no "/", or "/" at start or end). Callers must check ok
+// before using the returned values; malformed subjects should be skipped
+// rather than producing broken UI text.
+func splitThresholdSubject(subject string) (peerAddr, family string, ok bool) {
 	idx := strings.Index(subject, "/")
 	if idx <= 0 || idx == len(subject)-1 {
-		return subject, ""
+		return subject, "", false
 	}
-	return subject[:idx], subject[idx+1:]
+	return subject[:idx], subject[idx+1:], true
 }
 
 // detailString returns the string value of detail[key], or "" if missing or

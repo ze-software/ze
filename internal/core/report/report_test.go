@@ -1,6 +1,7 @@
 package report
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 	"sync"
@@ -300,6 +301,112 @@ func TestEmptySnapshotsAreNonNil(t *testing.T) {
 	e := Errors(0)
 	if e == nil {
 		t.Error("Errors(0) returned nil; expected non-nil empty slice")
+	}
+}
+
+// VALIDATES: Severity marshals to a lowercase label string in JSON, not the
+// uint8 enum integer. Operator-facing JSON should show "warning" / "error".
+// PREVENTS: ze show warnings / ze show errors emitting "severity": 0/1.
+func TestSeverityMarshalJSON(t *testing.T) {
+	cases := []struct {
+		sev  Severity
+		want string
+	}{
+		{SeverityWarning, `"warning"`},
+		{SeverityError, `"error"`},
+	}
+	for _, tc := range cases {
+		got, err := json.Marshal(tc.sev)
+		if err != nil {
+			t.Fatalf("Marshal(%v): %v", tc.sev, err)
+		}
+		if string(got) != tc.want {
+			t.Errorf("Marshal(%v) = %s, want %s", tc.sev, got, tc.want)
+		}
+	}
+}
+
+// VALIDATES: Severity round-trips through JSON: marshal then unmarshal returns
+// the original value. Required for any future consumer that streams Issues.
+func TestSeverityUnmarshalJSON(t *testing.T) {
+	cases := []struct {
+		input string
+		want  Severity
+	}{
+		{`"warning"`, SeverityWarning},
+		{`"error"`, SeverityError},
+	}
+	for _, tc := range cases {
+		var got Severity
+		if err := json.Unmarshal([]byte(tc.input), &got); err != nil {
+			t.Fatalf("Unmarshal(%s): %v", tc.input, err)
+		}
+		if got != tc.want {
+			t.Errorf("Unmarshal(%s) = %v, want %v", tc.input, got, tc.want)
+		}
+	}
+}
+
+// VALIDATES: UnmarshalJSON rejects unknown labels with an error rather than
+// silently defaulting to a zero value.
+func TestSeverityUnmarshalJSONUnknown(t *testing.T) {
+	var s Severity
+	if err := json.Unmarshal([]byte(`"info"`), &s); err == nil {
+		t.Error("expected error for unknown severity, got nil")
+	}
+}
+
+// VALIDATES: full Issue JSON encoding uses kebab-case keys and the severity
+// label form. PREVENTS: any future regression that bypasses the MarshalJSON
+// hook (e.g., a wrapper struct that copies fields).
+func TestIssueJSONShape(t *testing.T) {
+	reset()
+	RaiseWarning("bgp", "prefix-threshold", "10.0.0.1", "ipv4/unicast over limit",
+		map[string]any{"family": "ipv4/unicast"})
+	got := Warnings()
+	if len(got) != 1 {
+		t.Fatalf("setup: want 1 entry")
+	}
+	out, err := json.Marshal(got[0])
+	if err != nil {
+		t.Fatalf("Marshal Issue: %v", err)
+	}
+	s := string(out)
+	if !strings.Contains(s, `"severity":"warning"`) {
+		t.Errorf("severity should be label form, got: %s", s)
+	}
+	if !strings.Contains(s, `"source":"bgp"`) {
+		t.Errorf("source missing or wrong: %s", s)
+	}
+	if !strings.Contains(s, `"code":"prefix-threshold"`) {
+		t.Errorf("code missing or wrong: %s", s)
+	}
+}
+
+// VALIDATES: Issue with no detail (nil-detail raise) marshals without a
+// "detail" field at all (omitempty + nil enforced by copyDetail).
+// PREVENTS: ze show warnings emitting "detail": null or "detail": {}.
+func TestIssueJSONOmitsEmptyDetail(t *testing.T) {
+	reset()
+	RaiseWarning("bgp", "prefix-stale", "10.0.0.1", "msg", nil)
+	got := Warnings()
+	out, err := json.Marshal(got[0])
+	if err != nil {
+		t.Fatalf("Marshal Issue: %v", err)
+	}
+	s := string(out)
+	if strings.Contains(s, `"detail"`) {
+		t.Errorf("detail field should be omitted for nil-detail raise, got: %s", s)
+	}
+}
+
+// VALIDATES: copyDetail normalizes empty (non-nil) maps to nil so the
+// omitempty rule fires consistently regardless of whether the producer
+// passed nil or an explicit empty map.
+func TestCopyDetailNormalizesEmpty(t *testing.T) {
+	got := copyDetail(map[string]any{})
+	if got != nil {
+		t.Errorf("copyDetail(empty map) = %v, want nil", got)
 	}
 }
 

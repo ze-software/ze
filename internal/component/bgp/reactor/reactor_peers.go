@@ -141,6 +141,11 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	// Raise / clear prefix-stale on the report bus based on PrefixUpdated.
 	// Mirrors the existing Prometheus stale gauge but is operator-visible via
 	// `ze show warnings` and the login banner.
+	//
+	// Lock ordering: this is called while r.mu is held by AddPeer's caller.
+	// The report bus acquires its own internal mutex; reactor.mu -> report.mu
+	// is the established ordering. The bus is a leaf component (no imports
+	// of reactor), so no inversion is possible.
 	RaisePrefixStale(settings.Address.String(), settings.PrefixUpdated, r.clock.Now())
 
 	// Log staleness warning if prefix data is outdated.
