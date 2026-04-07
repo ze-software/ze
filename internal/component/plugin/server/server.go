@@ -57,17 +57,18 @@ type RPCParams struct {
 
 // Server manages API connections and command dispatch.
 type Server struct {
-	config          *ServerConfig
-	reactor         plugin.ReactorLifecycle
-	dispatcher      *Dispatcher
-	rpcDispatcher   *ipc.RPCDispatcher                            // Wire method dispatch for socket clients
-	rpcHandlers     map[string]func(json.RawMessage) (any, error) // Lazily collected from registry
-	rpcHandlersOnce sync.Once
-	commitManager   any
-	procManager     atomic.Pointer[process.ProcessManager]
-	spawner         plugin.ProcessSpawner // PluginManager for process lifecycle
-	subscriptions   *SubscriptionManager  // API-driven event subscriptions
-	monitors        *MonitorManager       // CLI monitor subscriptions
+	config            *ServerConfig
+	reactor           plugin.ReactorLifecycle
+	dispatcher        *Dispatcher
+	rpcDispatcher     *ipc.RPCDispatcher                            // Wire method dispatch for socket clients
+	rpcHandlers       map[string]func(json.RawMessage) (any, error) // Lazily collected from registry
+	rpcHandlersOnce   sync.Once
+	commitManager     any
+	procManager       atomic.Pointer[process.ProcessManager]
+	spawner           plugin.ProcessSpawner   // PluginManager for process lifecycle
+	subscriptions     *SubscriptionManager    // API-driven event subscriptions (plugin processes)
+	engineSubscribers *engineEventSubscribers // Engine-side stream subscribers (orchestrator etc.)
+	monitors          *MonitorManager         // CLI monitor subscriptions
 
 	// Plugin registration protocol
 	coordinator   *plugin.StartupCoordinator // Stage synchronization
@@ -144,16 +145,17 @@ func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) 
 // NewServer creates a new API server.
 func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, error) {
 	s := &Server{
-		config:        config,
-		reactor:       reactor,
-		dispatcher:    NewDispatcher(),
-		rpcDispatcher: ipc.NewRPCDispatcher(),
-		subscriptions: NewSubscriptionManager(),
-		monitors:      NewMonitorManager(),
-		registry:      plugin.NewPluginRegistry(),
-		capInjector:   plugin.NewCapabilityInjector(),
-		startupDone:   make(chan struct{}),
-		loadedPlugins: make(map[string]bool),
+		config:            config,
+		reactor:           reactor,
+		dispatcher:        NewDispatcher(),
+		rpcDispatcher:     ipc.NewRPCDispatcher(),
+		subscriptions:     NewSubscriptionManager(),
+		engineSubscribers: newEngineEventSubscribers(),
+		monitors:          NewMonitorManager(),
+		registry:          plugin.NewPluginRegistry(),
+		capInjector:       plugin.NewCapabilityInjector(),
+		startupDone:       make(chan struct{}),
+		loadedPlugins:     make(map[string]bool),
 	}
 
 	// Register plugin-declared event and send types before any subscriptions.

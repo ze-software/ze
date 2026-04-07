@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
 // Overview: register.go — RPC registration hub
+// Related: engine_event.go — engine-side stream pub/sub, parallel registry to SubscriptionManager
 
 package server
 

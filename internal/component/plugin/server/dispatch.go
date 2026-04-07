@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — plugin RPC dispatch
 // Overview: server.go — Server struct and lifecycle
+// Related: engine_event.go — engine-side stream pub/sub fans out from deliverEvent
 
 package server
 
@@ -353,6 +354,12 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 	if !plugin.IsValidEvent(namespace, eventType) {
 		return 0, &rpc.RPCCallError{Message: "unknown event: " + namespace + "/" + eventType}
 	}
+
+	// Engine-side subscribers fire regardless of whether the plugin
+	// SubscriptionManager is initialized. They are a parallel registry.
+	// Deferred so engine handlers run AFTER plugin process delivery, and so
+	// they fire even if a plugin subscriber panics.
+	defer s.dispatchEngineEvent(namespace, eventType, event)
 
 	if s.subscriptions == nil {
 		return 0, nil
