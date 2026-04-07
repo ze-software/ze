@@ -232,6 +232,18 @@ func reset() {
 	pkg.Store(newStore(defaultWarningCap, defaultErrorCap))
 }
 
+// ResetForTest clears all bus state (warnings AND errors). Test-only helper
+// for cross-package integration tests that need a clean bus between test
+// cases.
+//
+// Production code MUST NOT call this function. Warnings have ClearWarning /
+// ClearSource for normal operation; errors are event-based and intentionally
+// have no clear API outside the ring buffer's natural eviction. The "ForTest"
+// suffix exists to make accidental production use obviously wrong.
+func ResetForTest() {
+	reset()
+}
+
 // resetWithCaps replaces the package store with one of the given caps. Tests only.
 // Safe to call concurrently with Raise / Clear / snapshot operations.
 func resetWithCaps(warningCap, errorCap int) {

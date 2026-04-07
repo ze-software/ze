@@ -182,6 +182,13 @@ func (p *Peer) safeRunOnce() (err error) {
 func (p *Peer) runOnce() error {
 	runOnceStart := p.clock.Now()
 
+	// Reset notification-exchanged flag for the new session lifecycle.
+	// IncrNotificationSent / IncrNotificationReceived will set it true if a
+	// NOTIFICATION is sent or received before the FSM leaves Established;
+	// the FSM transition handler reads it to decide whether to raise the
+	// session-dropped error.
+	p.notificationExchanged.Store(false)
+
 	// Create session
 	session := NewSession(p.settings)
 	session.SetClock(p.clock)
@@ -336,6 +343,14 @@ func (p *Peer) runOnce() error {
 			reason := "session closed"
 			if to == fsm.StateIdle {
 				reason = "connection lost"
+			}
+
+			// Raise session-dropped on the report bus only when no NOTIFICATION
+			// was exchanged during this session. If one was sent or received,
+			// the operator already sees that event in `ze show errors` and a
+			// duplicate session-dropped would be noise.
+			if !p.notificationExchanged.Load() {
+				raiseSessionDropped(p.peerAddrLabel(), reason)
 			}
 
 			// Notify reactor of peer closed

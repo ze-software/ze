@@ -138,8 +138,13 @@ func notificationCodeLabel(code uint8) string {
 	}
 }
 
-// IncrNotificationSent increments the sent NOTIFICATION counter with code/subcode labels.
+// IncrNotificationSent increments the sent NOTIFICATION counter with code/subcode
+// labels and pushes a notification-sent error event onto the report bus.
+// Sets p.notificationExchanged so the FSM Established->Idle transition handler
+// in peer_run.go can suppress the duplicate session-dropped error.
 func (p *Peer) IncrNotificationSent(code, subcode uint8) {
+	p.notificationExchanged.Store(true)
+	raiseNotificationError("sent", p.peerAddrLabel(), code, subcode)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.notifSent.With(
 			p.peerAddrLabel(),
@@ -150,8 +155,14 @@ func (p *Peer) IncrNotificationSent(code, subcode uint8) {
 	}
 }
 
-// IncrNotificationReceived increments the received NOTIFICATION counter with code/subcode labels.
+// IncrNotificationReceived increments the received NOTIFICATION counter with
+// code/subcode labels and pushes a notification-received error event onto the
+// report bus. Sets p.notificationExchanged so the FSM Established->Idle
+// transition handler in peer_run.go can suppress the duplicate session-dropped
+// error.
 func (p *Peer) IncrNotificationReceived(code, subcode uint8) {
+	p.notificationExchanged.Store(true)
+	raiseNotificationError("received", p.peerAddrLabel(), code, subcode)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.notifRecv.With(
 			p.peerAddrLabel(),

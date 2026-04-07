@@ -26,6 +26,50 @@ const reportCodePrefixThreshold = "prefix-threshold"
 // older than stalenessThreshold (180 days)".
 const reportCodePrefixStale = "prefix-stale"
 
+// reportCodeNotificationSent is the report bus code for "this ze instance
+// sent a BGP NOTIFICATION to a peer". The Subject is the peer address.
+const reportCodeNotificationSent = "notification-sent"
+
+// reportCodeNotificationReceived is the report bus code for "this ze instance
+// received a BGP NOTIFICATION from a peer". The Subject is the peer address.
+const reportCodeNotificationReceived = "notification-received"
+
+// reportCodeSessionDropped is the report bus code for "an Established BGP
+// session ended without a NOTIFICATION exchange (hold-timer expiry, TCP
+// loss, peer FIN)". The Subject is the peer address.
+const reportCodeSessionDropped = "session-dropped"
+
+// raiseNotificationError pushes a notification-sent or notification-received
+// error event onto the report bus. dir is "sent" or "received".
+func raiseNotificationError(dir, peerAddr string, code, subcode uint8) {
+	var reportCode string
+	if dir == "sent" {
+		reportCode = reportCodeNotificationSent
+	} else {
+		reportCode = reportCodeNotificationReceived
+	}
+	report.RaiseError(
+		reportSourceBGP,
+		reportCode,
+		peerAddr,
+		fmt.Sprintf("BGP NOTIFICATION %s (code %d subcode %d)", dir, code, subcode),
+		map[string]any{"code": code, "subcode": subcode, "direction": dir},
+	)
+}
+
+// raiseSessionDropped pushes a session-dropped error event onto the report
+// bus. Called when the FSM leaves Established without a NOTIFICATION exchange,
+// indicating an unexpected teardown (hold-timer expiry, TCP loss, peer FIN).
+func raiseSessionDropped(peerAddr, reason string) {
+	report.RaiseError(
+		reportSourceBGP,
+		reportCodeSessionDropped,
+		peerAddr,
+		fmt.Sprintf("BGP session dropped: %s", reason),
+		map[string]any{"reason": reason},
+	)
+}
+
 // prefixThresholdSubject builds the composite report bus Subject for a
 // per-(peer, family) prefix-threshold warning. The format is "<addr>/<family>"
 // so the bus dedups per family even though the bus key is (Source, Code, Subject).

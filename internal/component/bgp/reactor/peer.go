@@ -189,6 +189,13 @@ type Peer struct {
 	// (internal/core/report). Producer-side dedup uses Session.prefixCounts.warned;
 	// the bus is the single source of truth for queries and the login banner.
 
+	// notificationExchanged is set true by IncrNotificationSent / IncrNotificationReceived
+	// when a NOTIFICATION is sent or received during the current session lifecycle.
+	// Read by the FSM Established->Idle transition handler in peer_run.go to suppress
+	// the session-dropped error report when a notification has already been raised.
+	// Reset to false at the start of each runOnce iteration.
+	notificationExchanged atomic.Bool
+
 	// Ordered operation queue: Used when session is NOT established.
 	// Maintains strict ordering of announce/withdraw/teardown operations.
 	// Processed on session establishment; teardowns act as batch separators.

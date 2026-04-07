@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
 )
 
 // newPeerWithMetrics creates a Peer wired to a spy metrics registry.
@@ -288,4 +290,79 @@ func TestIncrNotificationReceived(t *testing.T) {
 	oc := notifVec.get(addr, "other", "7")
 	require.NotNil(t, oc, "unknown code should map to 'other'")
 	assert.Equal(t, 1.0, oc.Value())
+}
+
+// TestIncrNotificationSentRaisesReport verifies that IncrNotificationSent
+// pushes a notification-sent error event onto the report bus and sets the
+// notificationExchanged flag.
+//
+// VALIDATES: Phase 5 producer side. ze show errors will surface NOTIFICATIONs
+// sent by ze without operators having to scrape Prometheus.
+// PREVENTS: Notification events visible only as Prometheus counters.
+func TestIncrNotificationSentRaisesReport(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	peer, _ := newPeerWithMetrics()
+	require.False(t, peer.notificationExchanged.Load(), "flag should start false")
+
+	peer.IncrNotificationSent(6, 2) // Cease / Admin Shutdown
+
+	assert.True(t, peer.notificationExchanged.Load(), "flag should be set after sent")
+
+	errs := report.Errors(0)
+	require.Len(t, errs, 1, "exactly one error should be raised")
+	e := errs[0]
+	assert.Equal(t, "bgp", e.Source)
+	assert.Equal(t, "notification-sent", e.Code)
+	assert.Equal(t, peer.peerAddrLabel(), e.Subject)
+	assert.Equal(t, "sent", e.Detail["direction"])
+	// Note: Detail uint8 round-trips through Go's any type as uint8, but
+	// after JSON encode/decode it would become float64. We assert on the
+	// in-memory uint8 form here.
+	assert.Equal(t, uint8(6), e.Detail["code"])
+	assert.Equal(t, uint8(2), e.Detail["subcode"])
+}
+
+// TestIncrNotificationReceivedRaisesReport verifies the receive-side mirror
+// of TestIncrNotificationSentRaisesReport.
+func TestIncrNotificationReceivedRaisesReport(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	peer, _ := newPeerWithMetrics()
+
+	peer.IncrNotificationReceived(2, 4) // OPEN / Unsupported optional parameter
+
+	assert.True(t, peer.notificationExchanged.Load(), "flag should be set after received")
+
+	errs := report.Errors(0)
+	require.Len(t, errs, 1)
+	e := errs[0]
+	assert.Equal(t, "bgp", e.Source)
+	assert.Equal(t, "notification-received", e.Code)
+	assert.Equal(t, "received", e.Detail["direction"])
+	assert.Equal(t, uint8(2), e.Detail["code"])
+	assert.Equal(t, uint8(4), e.Detail["subcode"])
+}
+
+// TestRaiseSessionDropped verifies that raiseSessionDropped pushes a
+// session-dropped error event with the given reason.
+//
+// VALIDATES: Phase 6 helper. The bus reports unexpected session teardown
+// when no NOTIFICATION was exchanged (hold-timer, TCP loss, peer FIN).
+func TestRaiseSessionDropped(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	raiseSessionDropped("10.0.0.1", "connection lost")
+
+	errs := report.Errors(0)
+	require.Len(t, errs, 1)
+	e := errs[0]
+	assert.Equal(t, "bgp", e.Source)
+	assert.Equal(t, "session-dropped", e.Code)
+	assert.Equal(t, "10.0.0.1", e.Subject)
+	assert.Equal(t, "connection lost", e.Detail["reason"])
+	assert.Contains(t, e.Message, "connection lost")
 }
