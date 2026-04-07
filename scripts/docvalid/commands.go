@@ -22,6 +22,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 
 	// BGP cmd plugin schema packages (not in all.go -- triggered via reactor.go at runtime).
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib/schema"
@@ -29,6 +30,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/schema"
 
 	// BGP cmd handler packages (register RPCs via init()).
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib"
@@ -46,6 +48,12 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update"
+
+	// Interface RPC handler package (register RPCs via init()).
+	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
+
+	// Resolve RPC handler package (DNS, IRR, PeeringDB, Cymru lookups).
+	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd"
 
 	// Editor mode RPCs.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cli"
