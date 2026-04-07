@@ -33,6 +33,11 @@ if [[ "$FILE_PATH" =~ internal/test/ ]]; then
     exit 0
 fi
 
+# Skip scripts/ - //go:build ignore build tools may use switch/default freely
+if [[ "$FILE_PATH" =~ /scripts/ ]]; then
+    exit 0
+fi
+
 RED='\033[31m'
 YELLOW='\033[33m'
 BOLD='\033[1m'

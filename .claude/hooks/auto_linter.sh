@@ -26,6 +26,11 @@ if [[ ! -f "$FILE_PATH" ]]; then
     exit 0
 fi
 
+# Skip scripts/ - //go:build ignore tools have no buildable package for the linter
+if [[ "$FILE_PATH" =~ /scripts/ ]]; then
+    exit 0
+fi
+
 # Find project root (has go.mod)
 PROJECT_ROOT=$(dirname "$FILE_PATH")
 while [[ "$PROJECT_ROOT" != "/" ]]; do

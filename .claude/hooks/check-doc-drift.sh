@@ -26,7 +26,7 @@ if [[ -z "$STAGED" ]]; then
 fi
 
 # Run the checker. Timeout after 15s (it compiles + queries registry).
-OUTPUT=$(timeout 15 go run scripts/check-doc-drift.go 2>&1) || {
+OUTPUT=$(timeout 15 go run scripts/docvalid/doc_drift.go 2>&1) || {
     RC=$?
     if [[ $RC -eq 1 ]]; then
         # Drift detected -- advisory warning.

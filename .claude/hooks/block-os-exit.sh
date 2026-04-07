@@ -29,6 +29,11 @@ if [[ "$FILE_PATH" =~ /register\.go$ ]]; then
     exit 0
 fi
 
+# Skip scripts/ - //go:build ignore build tools call os.Exit on fatal errors
+if [[ "$FILE_PATH" =~ /scripts/ ]]; then
+    exit 0
+fi
+
 RED='\033[31m'
 YELLOW='\033[33m'
 BOLD='\033[1m'

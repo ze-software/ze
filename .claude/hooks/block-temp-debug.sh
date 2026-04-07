@@ -31,6 +31,11 @@ if [[ "$FILE_PATH" =~ cmd/ ]]; then
     exit 0
 fi
 
+# Skip scripts/ - //go:build ignore build tools that legitimately use fmt for output
+if [[ "$FILE_PATH" =~ /scripts/ ]]; then
+    exit 0
+fi
+
 # Skip register.go — plugin init() uses fmt.Fprintf(os.Stderr) for fatal errors
 if [[ "$FILE_PATH" =~ /register\.go$ ]]; then
     exit 0
