@@ -36,12 +36,9 @@ type PeerInfo struct {
 
 	// PrefixUpdated is the ISO date (YYYY-MM-DD) when prefix maximums were
 	// last updated from PeeringDB. Empty means manually configured.
+	// Active prefix-threshold and prefix-stale warnings live on the report
+	// bus (internal/core/report), not on this struct.
 	PrefixUpdated string
-
-	// PrefixWarnings lists families where the received prefix count exceeds
-	// the configured warning threshold. Updated in real-time by the session.
-	// Empty when no family is in warning state (or session not established).
-	PrefixWarnings []string
 
 	// Statistics (engine-level counters; NLRI-level counters live in the RIB plugin)
 	UpdatesReceived    uint32
