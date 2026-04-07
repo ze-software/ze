@@ -11,43 +11,57 @@ import (
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
-// collectingBus is a minimal Bus that records published events.
-type collectingBus struct {
+// emittedEvent records a single (namespace, eventType, payload) tuple as
+// seen by collectingEventBus.
+type emittedEvent struct {
+	Namespace string
+	EventType string
+	Payload   string
+}
+
+// collectingEventBus is a minimal ze.EventBus that records every emission.
+// Subscribe is a no-op because the tests drive the monitor's handlers
+// directly and inspect the recorded emissions instead of waiting for
+// cross-component delivery.
+type collectingEventBus struct {
 	mu     sync.Mutex
-	events []ze.Event
+	events []emittedEvent
 }
 
-func (b *collectingBus) CreateTopic(string) (ze.Topic, error) { return ze.Topic{}, nil }
-func (b *collectingBus) Publish(topic string, payload []byte, metadata map[string]string) {
+func (b *collectingEventBus) Emit(namespace, eventType, payload string) (int, error) {
 	b.mu.Lock()
-	b.events = append(b.events, ze.Event{Topic: topic, Payload: payload, Metadata: metadata})
+	b.events = append(b.events, emittedEvent{
+		Namespace: namespace,
+		EventType: eventType,
+		Payload:   payload,
+	})
 	b.mu.Unlock()
+	return 0, nil
 }
-func (b *collectingBus) Subscribe(string, map[string]string, ze.Consumer) (ze.Subscription, error) {
-	return ze.Subscription{}, nil
-}
-func (b *collectingBus) Unsubscribe(ze.Subscription) {}
 
-func (b *collectingBus) snapshot() []ze.Event {
+func (b *collectingEventBus) Subscribe(_, _ string, _ func(string)) func() {
+	return func() {}
+}
+
+func (b *collectingEventBus) snapshot() []emittedEvent {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	cp := make([]ze.Event, len(b.events))
+	cp := make([]emittedEvent, len(b.events))
 	copy(cp, b.events)
 	return cp
 }
 
-func newTestMonitor() (*monitor, *collectingBus) {
-	bus := &collectingBus{}
+func newTestMonitor() (*monitor, *collectingEventBus) {
+	bus := &collectingEventBus{}
 	m := newMonitor(bus)
 	return m, bus
 }
 
 func TestHandleLinkUpdate_Create(t *testing.T) {
-	// VALIDATES: First RTM_NEWLINK for an index publishes TopicCreated.
+	// VALIDATES: First RTM_NEWLINK for an index emits (interface, created).
 	// PREVENTS: New interfaces misclassified as state changes.
 	m, bus := newTestMonitor()
 
@@ -64,14 +78,17 @@ func TestHandleLinkUpdate_Create(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
-	if events[0].Topic != iface.TopicCreated {
-		t.Errorf("topic = %q, want %q", events[0].Topic, iface.TopicCreated)
+	if events[0].Namespace != plugin.NamespaceInterface {
+		t.Errorf("namespace = %q, want %q", events[0].Namespace, plugin.NamespaceInterface)
+	}
+	if events[0].EventType != plugin.EventInterfaceCreated {
+		t.Errorf("event type = %q, want %q", events[0].EventType, plugin.EventInterfaceCreated)
 	}
 }
 
 func TestHandleLinkUpdate_StateChange(t *testing.T) {
-	// VALIDATES: Second RTM_NEWLINK for same index publishes TopicUp/TopicDown.
-	// PREVENTS: State changes on existing interfaces misclassified as TopicCreated.
+	// VALIDATES: Second RTM_NEWLINK for same index emits (interface, up/down).
+	// PREVENTS: State changes on existing interfaces misclassified as created.
 	m, bus := newTestMonitor()
 
 	attrs := netlink.LinkAttrs{Name: "eth0", Index: 5, MTU: 1500, OperState: netlink.OperUp}
@@ -79,31 +96,34 @@ func TestHandleLinkUpdate_StateChange(t *testing.T) {
 	lu.Header = unix.NlMsghdr{Type: unix.RTM_NEWLINK}
 
 	m.handleLinkUpdate(lu)
-	if bus.events[0].Topic != iface.TopicCreated {
-		t.Fatalf("first event topic = %q, want %q", bus.events[0].Topic, iface.TopicCreated)
+	events := bus.snapshot()
+	if events[0].EventType != plugin.EventInterfaceCreated {
+		t.Fatalf("first event type = %q, want %q", events[0].EventType, plugin.EventInterfaceCreated)
 	}
 
 	m.handleLinkUpdate(lu)
-	if len(bus.events) != 2 {
-		t.Fatalf("expected 2 events, got %d", len(bus.events))
+	events = bus.snapshot()
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(events))
 	}
-	if bus.events[1].Topic != iface.TopicUp {
-		t.Errorf("second event topic = %q, want %q", bus.events[1].Topic, iface.TopicUp)
+	if events[1].EventType != plugin.EventInterfaceUp {
+		t.Errorf("second event type = %q, want %q", events[1].EventType, plugin.EventInterfaceUp)
 	}
 
 	attrs.OperState = netlink.OperDown
 	lu.Link = &netlink.Dummy{LinkAttrs: attrs}
 	m.handleLinkUpdate(lu)
-	if len(bus.events) != 3 {
-		t.Fatalf("expected 3 events, got %d", len(bus.events))
+	events = bus.snapshot()
+	if len(events) != 3 {
+		t.Fatalf("expected 3 events, got %d", len(events))
 	}
-	if bus.events[2].Topic != iface.TopicDown {
-		t.Errorf("third event topic = %q, want %q", bus.events[2].Topic, iface.TopicDown)
+	if events[2].EventType != plugin.EventInterfaceDown {
+		t.Errorf("third event type = %q, want %q", events[2].EventType, plugin.EventInterfaceDown)
 	}
 }
 
 func TestHandleLinkUpdate_Delete(t *testing.T) {
-	// VALIDATES: RTM_DELLINK publishes TopicDeleted and clears tracking.
+	// VALIDATES: RTM_DELLINK emits (interface, down) and clears tracking.
 	// PREVENTS: Stale index tracking after interface removal.
 	m, bus := newTestMonitor()
 
@@ -115,37 +135,39 @@ func TestHandleLinkUpdate_Delete(t *testing.T) {
 
 	lu.Header = unix.NlMsghdr{Type: unix.RTM_DELLINK}
 	m.handleLinkUpdate(lu)
-	if len(bus.events) != 2 {
-		t.Fatalf("expected 2 events, got %d", len(bus.events))
+	events := bus.snapshot()
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(events))
 	}
-	if bus.events[1].Topic != iface.TopicDeleted {
-		t.Errorf("delete topic = %q, want %q", bus.events[1].Topic, iface.TopicDeleted)
+	if events[1].EventType != plugin.EventInterfaceDown {
+		t.Errorf("delete event type = %q, want %q (down)", events[1].EventType, plugin.EventInterfaceDown)
 	}
 
 	lu.Header = unix.NlMsghdr{Type: unix.RTM_NEWLINK}
 	m.handleLinkUpdate(lu)
-	if len(bus.events) != 3 {
-		t.Fatalf("expected 3 events, got %d", len(bus.events))
+	events = bus.snapshot()
+	if len(events) != 3 {
+		t.Fatalf("expected 3 events, got %d", len(events))
 	}
-	if bus.events[2].Topic != iface.TopicCreated {
-		t.Errorf("re-create topic = %q, want %q", bus.events[2].Topic, iface.TopicCreated)
+	if events[2].EventType != plugin.EventInterfaceCreated {
+		t.Errorf("re-create event type = %q, want %q", events[2].EventType, plugin.EventInterfaceCreated)
 	}
 }
 
-func TestAddrUpdateToTopic(t *testing.T) {
-	// VALIDATES: Address update direction maps to correct topic.
+func TestAddrUpdateToEventType(t *testing.T) {
+	// VALIDATES: Address update direction maps to correct event type.
 	// PREVENTS: Addr added/removed events swapped.
 	tests := []struct {
 		name  string
 		isNew bool
 		want  string
 	}{
-		{"addr added", true, iface.TopicAddrAdded},
-		{"addr removed", false, iface.TopicAddrRemoved},
+		{"addr added", true, plugin.EventInterfaceAddrAdded},
+		{"addr removed", false, plugin.EventInterfaceAddrRemoved},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := addrUpdateToTopic(tt.isNew)
+			got := addrUpdateToEventType(tt.isNew)
 			if got != tt.want {
 				t.Errorf("got %q, want %q", got, tt.want)
 			}
@@ -155,7 +177,7 @@ func TestAddrUpdateToTopic(t *testing.T) {
 
 func TestResolveVLANUnit(t *testing.T) {
 	// VALIDATES: VLAN subinterface events resolve to parent name + unit.
-	// PREVENTS: VLAN events published without unit context.
+	// PREVENTS: VLAN events emitted without unit context.
 	tests := []struct {
 		name       string
 		ifaceName  string
@@ -222,7 +244,7 @@ func TestIsLinkUp(t *testing.T) {
 
 func TestAddrFamily(t *testing.T) {
 	// VALIDATES: Address family detection returns correct string.
-	// PREVENTS: Wrong family in Bus event payload.
+	// PREVENTS: Wrong family in event payload.
 	tests := []struct {
 		name   string
 		addr   string
@@ -258,8 +280,8 @@ func TestHandleLinkUpdate_NilAttrs(t *testing.T) {
 	lu.Header = unix.NlMsghdr{Type: unix.RTM_NEWLINK}
 
 	m.handleLinkUpdate(lu)
-	if len(bus.events) != 0 {
-		t.Errorf("expected 0 events for nil attrs, got %d", len(bus.events))
+	if len(bus.snapshot()) != 0 {
+		t.Errorf("expected 0 events for nil attrs, got %d", len(bus.snapshot()))
 	}
 }
 
@@ -268,9 +290,9 @@ type nilAttrsLink struct{}
 func (n *nilAttrsLink) Attrs() *netlink.LinkAttrs { return nil }
 func (n *nilAttrsLink) Type() string              { return "nil" }
 
-func TestPublishJSON_CreatedPayload(t *testing.T) {
+func TestEmitCreatedPayload(t *testing.T) {
 	// VALIDATES: Created event payload has correct JSON structure.
-	// PREVENTS: Malformed JSON published to Bus.
+	// PREVENTS: Malformed JSON emitted on the EventBus.
 	m, bus := newTestMonitor()
 
 	attrs := netlink.LinkAttrs{Name: "eth0", Index: 5, MTU: 9000}
@@ -279,12 +301,13 @@ func TestPublishJSON_CreatedPayload(t *testing.T) {
 
 	m.handleLinkUpdate(lu)
 
-	if len(bus.events) != 1 {
-		t.Fatalf("expected 1 event, got %d", len(bus.events))
+	events := bus.snapshot()
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
 	}
 
-	var payload iface.LinkPayload
-	if err := json.Unmarshal(bus.events[0].Payload, &payload); err != nil {
+	var payload linkEventPayload
+	if err := json.Unmarshal([]byte(events[0].Payload), &payload); err != nil {
 		t.Fatalf("unmarshal failed: %v", err)
 	}
 	if payload.Name != "eth0" {

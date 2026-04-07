@@ -12,12 +12,12 @@ import (
 )
 
 // Engine implements ze.Engine.
-// It composes Bus, ConfigProvider, and PluginManager, and manages
+// It composes EventBus, ConfigProvider, and PluginManager, and manages
 // subsystem registration and lifecycle in correct startup/shutdown order.
 // The engine has no knowledge of BGP or any specific protocol.
 type Engine struct {
 	mu         sync.RWMutex
-	bus        ze.Bus
+	eventBus   ze.EventBus
 	config     ze.ConfigProvider
 	plugins    ze.PluginManager
 	subsystems []ze.Subsystem
@@ -27,12 +27,12 @@ type Engine struct {
 }
 
 // NewEngine creates a new Engine with the given components.
-func NewEngine(bus ze.Bus, config ze.ConfigProvider, plugins ze.PluginManager) *Engine {
+func NewEngine(eventBus ze.EventBus, config ze.ConfigProvider, plugins ze.PluginManager) *Engine {
 	return &Engine{
-		bus:     bus,
-		config:  config,
-		plugins: plugins,
-		names:   make(map[string]struct{}),
+		eventBus: eventBus,
+		config:   config,
+		plugins:  plugins,
+		names:    make(map[string]struct{}),
 	}
 }
 
@@ -59,7 +59,7 @@ func (e *Engine) RegisterSubsystem(sub ze.Subsystem) error {
 
 // Start launches all components in order:
 // plugins start → subsystems start (in registration order).
-// Bus and config are provided at construction time.
+// EventBus and config are provided at construction time.
 func (e *Engine) Start(ctx context.Context) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -69,13 +69,13 @@ func (e *Engine) Start(ctx context.Context) error {
 	}
 
 	// Start plugins via PluginManager.
-	if err := e.plugins.StartAll(ctx, e.bus, e.config); err != nil {
+	if err := e.plugins.StartAll(ctx, e.eventBus, e.config); err != nil {
 		return fmt.Errorf("start plugins: %w", err)
 	}
 
 	// Start subsystems in registration order.
 	for i, sub := range e.subsystems {
-		if err := sub.Start(ctx, e.bus, e.config); err != nil {
+		if err := sub.Start(ctx, e.eventBus, e.config); err != nil {
 			// Stop already-started subsystems in reverse order.
 			for j := i - 1; j >= 0; j-- {
 				_ = e.subsystems[j].Stop(ctx)
@@ -131,9 +131,9 @@ func (e *Engine) Reload(ctx context.Context) error {
 	return nil
 }
 
-// Bus returns the message bus.
-func (e *Engine) Bus() ze.Bus {
-	return e.bus
+// EventBus returns the namespaced event bus.
+func (e *Engine) EventBus() ze.EventBus {
+	return e.eventBus
 }
 
 // Config returns the config provider.

@@ -270,6 +270,6 @@ func (b *fakeBackend) SetIPv6AcceptRA(_ string, _ int) error    { return nil }
 func (b *fakeBackend) SetIPv6Forwarding(_ string, _ bool) error { return nil }
 func (b *fakeBackend) SetupMirror(_, _ string, _, _ bool) error { return nil }
 func (b *fakeBackend) RemoveMirror(_ string) error              { return nil }
-func (b *fakeBackend) StartMonitor(_ ze.Bus) error              { return nil }
+func (b *fakeBackend) StartMonitor(_ ze.EventBus) error         { return nil }
 func (b *fakeBackend) StopMonitor()                             {}
 func (b *fakeBackend) Close() error                             { return nil }

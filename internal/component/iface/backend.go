@@ -69,9 +69,9 @@ type Backend interface {
 	RemoveMirror(srcIface string) error
 
 	// Monitoring. StartMonitor begins watching OS interface events and
-	// publishing them to the Bus. StopMonitor halts monitoring and waits
+	// emitting them on the EventBus. StopMonitor halts monitoring and waits
 	// for the monitor goroutine to exit.
-	StartMonitor(bus ze.Bus) error
+	StartMonitor(eb ze.EventBus) error
 	StopMonitor()
 
 	// Close releases any resources held by the backend.

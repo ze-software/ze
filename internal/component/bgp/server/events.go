@@ -7,6 +7,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"time"
@@ -26,10 +27,10 @@ import (
 // logger is the bgp.server subsystem logger.
 var logger = slogutil.LazyLogger("bgp.server")
 
-// eorBus holds the Bus reference for EOR notifications.
-// Set by EventDispatcher.SetBus(). Package-level to avoid threading
-// through onMessageReceived → onEORReceived call chain.
-var eorBus ze.Bus //nolint:gochecknoglobals // Bus reference set once at startup
+// eorEventBus holds the EventBus reference for EOR notifications.
+// Set by EventDispatcher.SetEventBus(). Package-level to avoid threading
+// through the onMessageReceived → onEORReceived call chain.
+var eorEventBus ze.EventBus //nolint:gochecknoglobals // EventBus reference set once at startup
 
 // monitorFormatKey is the format+encoding cache key for CLI monitors (always json+parsed).
 const monitorFormatKey = "parsed+json"
@@ -615,12 +616,17 @@ func onEORReceived(s *pluginserver.Server, peer plugin.PeerInfo, family string) 
 	}
 	monitorDeliver(s, plugin.EventEOR, plugin.DirectionReceived, peerAddr, peer.Name, jsonOutput)
 
-	// Bus notification for cross-component consumers.
-	if eorBus != nil {
-		eorBus.Publish("bgp/eor", nil, map[string]string{
+	// Cross-component consumers receive (bgp, eor) via the EventBus.
+	if eorEventBus != nil {
+		payload, err := json.Marshal(map[string]string{
 			"peer":   peerAddr,
 			"family": family,
 		})
+		if err == nil {
+			if _, err := eorEventBus.Emit(plugin.NamespaceBGP, plugin.EventEOR, string(payload)); err != nil {
+				logger().Debug("emit bgp eor failed", "peer", peerAddr, "family", family, "error", err)
+			}
+		}
 	}
 }
 

@@ -53,7 +53,7 @@ type Manager struct {
 	cancel context.CancelFunc
 
 	// Stored references.
-	bus             ze.Bus
+	eventBus        ze.EventBus
 	config          ze.ConfigProvider
 	metricsRegistry any // metrics.Registry, stored as any to avoid import
 }
@@ -107,7 +107,7 @@ func (m *Manager) Register(config ze.PluginConfig) error {
 // Stores context and references. Does NOT spawn processes — that happens
 // when Server calls SpawnMore during Phase 2 (after Server is created).
 // Plugins are discovered from reactor config by Server, not registered here.
-func (m *Manager) StartAll(ctx context.Context, bus ze.Bus, config ze.ConfigProvider) error {
+func (m *Manager) StartAll(ctx context.Context, eventBus ze.EventBus, config ze.ConfigProvider) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -116,7 +116,7 @@ func (m *Manager) StartAll(ctx context.Context, bus ze.Bus, config ze.ConfigProv
 	}
 
 	m.ctx, m.cancel = context.WithCancel(ctx)
-	m.bus = bus
+	m.eventBus = eventBus
 	m.config = config
 	m.started = true
 

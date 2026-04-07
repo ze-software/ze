@@ -42,7 +42,7 @@ func newStubSubsystem(name string, rec *recorder) *stubSubsystem {
 
 func (s *stubSubsystem) Name() string { return s.name }
 
-func (s *stubSubsystem) Start(_ context.Context, _ ze.Bus, _ ze.ConfigProvider) error {
+func (s *stubSubsystem) Start(_ context.Context, _ ze.EventBus, _ ze.ConfigProvider) error {
 	s.recorder.record("start:" + s.name)
 	return nil
 }
@@ -249,13 +249,13 @@ func TestReload(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-6 — Bus() returns non-nil after Start.
-// PREVENTS: Nil bus reference.
-func TestBusAccessor(t *testing.T) {
+// VALIDATES: AC-6 — EventBus() returns non-nil after Start.
+// PREVENTS: Nil event bus reference.
+func TestEventBusAccessor(t *testing.T) {
 	eng := engine.NewEngine(stubBus(), stubConfig(), stubPlugins())
 
-	if eng.Bus() == nil {
-		t.Fatal("Bus() returned nil")
+	if eng.EventBus() == nil {
+		t.Fatal("EventBus() returned nil")
 		return
 	}
 }
@@ -362,14 +362,12 @@ func TestEngineSatisfiesInterface(t *testing.T) {
 
 type testBus struct{}
 
-func (b *testBus) CreateTopic(string) (ze.Topic, error)      { return ze.Topic{}, nil }
-func (b *testBus) Publish(string, []byte, map[string]string) {}
-func (b *testBus) Subscribe(string, map[string]string, ze.Consumer) (ze.Subscription, error) {
-	return ze.Subscription{}, nil
+func (b *testBus) Emit(string, string, string) (int, error) { return 0, nil }
+func (b *testBus) Subscribe(_, _ string, _ func(string)) func() {
+	return func() {}
 }
-func (b *testBus) Unsubscribe(ze.Subscription) {}
 
-func stubBus() ze.Bus { return &testBus{} }
+func stubBus() ze.EventBus { return &testBus{} }
 
 type testConfig struct{}
 
@@ -385,11 +383,13 @@ func stubConfig() ze.ConfigProvider { return &testConfig{} }
 
 type testPlugins struct{}
 
-func (p *testPlugins) Register(ze.PluginConfig) error                            { return nil }
-func (p *testPlugins) StartAll(context.Context, ze.Bus, ze.ConfigProvider) error { return nil }
-func (p *testPlugins) StopAll(context.Context) error                             { return nil }
-func (p *testPlugins) Plugin(string) (ze.PluginProcess, bool)                    { return ze.PluginProcess{}, false }
-func (p *testPlugins) Plugins() []ze.PluginProcess                               { return nil }
-func (p *testPlugins) Capabilities() []ze.Capability                             { return nil }
+func (p *testPlugins) Register(ze.PluginConfig) error { return nil }
+func (p *testPlugins) StartAll(context.Context, ze.EventBus, ze.ConfigProvider) error {
+	return nil
+}
+func (p *testPlugins) StopAll(context.Context) error          { return nil }
+func (p *testPlugins) Plugin(string) (ze.PluginProcess, bool) { return ze.PluginProcess{}, false }
+func (p *testPlugins) Plugins() []ze.PluginProcess            { return nil }
+func (p *testPlugins) Capabilities() []ze.Capability          { return nil }
 
 func stubPlugins() ze.PluginManager { return &testPlugins{} }

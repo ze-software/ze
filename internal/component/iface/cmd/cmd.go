@@ -1,4 +1,5 @@
 // Design: docs/features/interfaces.md — Interface RPC handlers for daemon dispatch
+// Related: manage.go — command registration and server wiring for this package
 //
 // Package cmd registers interface RPCs (migrate) with the plugin server.
 // Separated from the iface package to avoid an import cycle:
@@ -41,9 +42,9 @@ func errResp(msg string) (*plugin.Response, error) {
 // handleInterfaceMigrate performs a make-before-break IP migration.
 // Accepts --from, --to, --address, --create, and --timeout flags.
 func handleInterfaceMigrate(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	bus := iface.GetBus()
-	if bus == nil {
-		return errResp("interface plugin bus not available")
+	eb := iface.GetEventBus()
+	if eb == nil {
+		return errResp("interface plugin event bus not available")
 	}
 
 	cfg, timeout, err := parseMigrateArgs(args)
@@ -51,7 +52,7 @@ func handleInterfaceMigrate(_ *pluginserver.CommandContext, args []string) (*plu
 		return errResp(err.Error())
 	}
 
-	if err := iface.MigrateInterface(cfg, bus, timeout); err != nil {
+	if err := iface.MigrateInterface(cfg, eb, timeout); err != nil {
 		return errResp(err.Error())
 	}
 

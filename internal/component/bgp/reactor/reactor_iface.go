@@ -1,6 +1,5 @@
 // Design: plan/spec-iface-3-bgp-react.md — BGP reactions to interface events
 // Overview: reactor.go — Reactor struct and lifecycle
-// Related: reactor_bus.go — Bus subscription infrastructure
 
 package reactor
 
@@ -10,46 +9,76 @@ import (
 	"net/netip"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
-// RegisterInterfaceHandler registers a Bus handler for interface events.
-// Must be called before StartWithContext.
+// interfaceAddrPayload is the JSON payload emitted by the interface monitor
+// for (interface, addr-added) and (interface, addr-removed). The reactor
+// parses it to discover the local address that needs a listener.
+type interfaceAddrPayload struct {
+	Name         string `json:"name"`
+	Unit         int    `json:"unit"`
+	Index        int    `json:"index"`
+	Address      string `json:"address"`
+	PrefixLength int    `json:"prefix-length"`
+	Family       string `json:"family"`
+}
+
+// bgpListenerReadyPayload is the JSON payload emitted by the reactor on
+// (bgp, listener-ready). Iface migration consumers wait for this signal
+// before tearing down the old address.
+type bgpListenerReadyPayload struct {
+	Address string `json:"address"`
+}
+
+// SubscribeInterfaceEvents registers EventBus handlers for the interface
+// events the reactor cares about. Replaces the legacy OnBusEvent prefix
+// subscription that lived in reactor_bus.go. Must be called after
+// SetEventBus and before StartWithContext.
 //
-// When an address is added, the reactor starts a listener on that address
-// if any peer has a matching LocalAddress. When an address is removed,
-// the reactor stops the listener for that address.
-func (r *Reactor) RegisterInterfaceHandler() error {
-	return r.OnBusEvent(iface.TopicPrefix, r.handleInterfaceEvent)
-}
-
-// handleInterfaceEvent dispatches interface Bus events to specific handlers.
-// Runs inside the Bus's per-consumer delivery goroutine.
-// MUST NOT hold reactor.mu (deadlock risk with publishBusNotification).
-func (r *Reactor) handleInterfaceEvent(ev ze.Event) {
-	switch ev.Topic {
-	case iface.TopicAddrAdded:
-		r.handleAddrAdded(ev)
-	case iface.TopicAddrRemoved:
-		r.handleAddrRemoved(ev)
-	}
-	// TopicCreated, TopicDeleted, TopicUp, TopicDown: no BGP action needed yet.
-	// Future: TopicDown could mark peers for reconnection.
-}
-
-// handleAddrAdded starts a listener when an address matching a peer's
-// LocalAddress appears.
-func (r *Reactor) handleAddrAdded(ev ze.Event) {
-	var payload iface.AddrPayload
-	if err := json.Unmarshal(ev.Payload, &payload); err != nil {
-		reactorLogger().Debug("iface: unmarshal addr event", "error", err)
+// The interface monitor publishes nine event types in the (interface, *)
+// namespace; the reactor only acts on addr-added and addr-removed today.
+// Other events (created, up, down, dhcp-*, rollback) have no BGP-side
+// reaction yet but the subscription points are documented for future
+// handlers.
+func (r *Reactor) SubscribeInterfaceEvents() {
+	if r.eventBus == nil {
 		return
 	}
+	unsubAdded := r.eventBus.Subscribe(plugin.NamespaceInterface, plugin.EventInterfaceAddrAdded, r.onInterfaceAddrAdded)
+	unsubRemoved := r.eventBus.Subscribe(plugin.NamespaceInterface, plugin.EventInterfaceAddrRemoved, r.onInterfaceAddrRemoved)
+	r.eventBusUnsubs = append(r.eventBusUnsubs, unsubAdded, unsubRemoved)
+}
 
-	addr, err := netip.ParseAddr(payload.Address)
+// onInterfaceAddrAdded is the EventBus handler for (interface, addr-added).
+// Runs synchronously inside the EventBus delivery path; MUST NOT hold
+// reactor.mu (deadlock risk with the listener startup path).
+func (r *Reactor) onInterfaceAddrAdded(payload string) {
+	var p interfaceAddrPayload
+	if err := json.Unmarshal([]byte(payload), &p); err != nil {
+		reactorLogger().Debug("iface: unmarshal addr-added", "error", err)
+		return
+	}
+	r.handleAddrAddedPayload(p)
+}
+
+// onInterfaceAddrRemoved is the EventBus handler for (interface, addr-removed).
+func (r *Reactor) onInterfaceAddrRemoved(payload string) {
+	var p interfaceAddrPayload
+	if err := json.Unmarshal([]byte(payload), &p); err != nil {
+		reactorLogger().Debug("iface: unmarshal addr-removed", "error", err)
+		return
+	}
+	r.handleAddrRemovedPayload(p)
+}
+
+// handleAddrAddedPayload starts a listener when an address matching a
+// peer's LocalAddress appears. On success it emits (bgp, listener-ready)
+// so iface migration consumers can complete their make-before-break.
+func (r *Reactor) handleAddrAddedPayload(p interfaceAddrPayload) {
+	addr, err := netip.ParseAddr(p.Address)
 	if err != nil {
-		reactorLogger().Debug("iface: parse address", "address", payload.Address, "error", err)
+		reactorLogger().Debug("iface: parse address", "address", p.Address, "error", err)
 		return
 	}
 	addr = addr.Unmap()
@@ -69,33 +98,31 @@ func (r *Reactor) handleAddrAdded(ev ze.Event) {
 	}
 
 	reactorLogger().Info("iface: address added, starting listener",
-		"address", payload.Address, "unit", payload.Unit, "peers", len(matchingPeers))
+		"address", p.Address, "unit", p.Unit, "peers", len(matchingPeers))
 
-	// Start listener for this address. startListenerForAddressPort is idempotent
-	// (returns nil if already listening).
+	// Start listener for this address. startListenerForAddressPort is
+	// idempotent (returns nil if already listening).
 	r.mu.Lock()
 	port := r.config.Port
-	if err := r.startListenerForAddressPort(addr, port, netip.AddrPort{}); err != nil {
-		reactorLogger().Error("iface: start listener failed",
-			"address", payload.Address, "port", port, "error", err)
-	} else if r.bus != nil {
-		readyPayload, _ := json.Marshal(map[string]string{"address": payload.Address})
-		r.bus.Publish("bgp/listener/ready", readyPayload, map[string]string{
-			"address": payload.Address,
-		})
-	}
+	startErr := r.startListenerForAddressPort(addr, port, netip.AddrPort{})
 	r.mu.Unlock()
-}
 
-// handleAddrRemoved stops the listener for an address that was removed.
-func (r *Reactor) handleAddrRemoved(ev ze.Event) {
-	var payload iface.AddrPayload
-	if err := json.Unmarshal(ev.Payload, &payload); err != nil {
-		reactorLogger().Debug("iface: unmarshal addr event", "error", err)
+	if startErr != nil {
+		reactorLogger().Error("iface: start listener failed",
+			"address", p.Address, "port", port, "error", startErr)
 		return
 	}
+	if r.eventBus != nil {
+		readyPayload, _ := json.Marshal(bgpListenerReadyPayload{Address: p.Address})
+		if _, emitErr := r.eventBus.Emit(plugin.NamespaceBGP, plugin.EventListenerReady, string(readyPayload)); emitErr != nil {
+			reactorLogger().Debug("iface: emit listener-ready", "address", p.Address, "error", emitErr)
+		}
+	}
+}
 
-	addr, err := netip.ParseAddr(payload.Address)
+// handleAddrRemovedPayload stops the listener for an address that was removed.
+func (r *Reactor) handleAddrRemovedPayload(p interfaceAddrPayload) {
+	addr, err := netip.ParseAddr(p.Address)
 	if err != nil {
 		return
 	}
@@ -103,14 +130,15 @@ func (r *Reactor) handleAddrRemoved(ev ze.Event) {
 
 	r.mu.Lock()
 	port := r.config.Port
-	// Use net.JoinHostPort for consistent key format with startListenerForAddressPort,
-	// which also uses net.JoinHostPort. This is critical for IPv6 addresses where
-	// JoinHostPort wraps the address in brackets: "[::1]:179".
+	// Use net.JoinHostPort for consistent key format with
+	// startListenerForAddressPort, which also uses net.JoinHostPort. This
+	// is critical for IPv6 addresses where JoinHostPort wraps the address
+	// in brackets: "[::1]:179".
 	lkey := net.JoinHostPort(addr.String(), strconv.Itoa(port))
 	listener, exists := r.listeners[lkey]
 	if exists {
 		reactorLogger().Info("iface: address removed, stopping listener",
-			"address", payload.Address, "unit", payload.Unit)
+			"address", p.Address, "unit", p.Unit)
 		listener.Stop()
 		delete(r.listeners, lkey)
 	}

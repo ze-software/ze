@@ -14,7 +14,6 @@ import (
 	"github.com/vishvananda/netns"
 
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 // ensureBackendForIntegration loads the netlink backend if not already loaded.
@@ -89,34 +88,47 @@ func sanitizeNSName(testName string) string {
 	return name
 }
 
-// collectingBus is a minimal Bus that records published events.
+// collectedEvent records a single EventBus emission for integration tests.
+type collectedEvent struct {
+	Namespace string
+	EventType string
+	Payload   string
+}
+
+// collectingBus is a minimal ze.EventBus that records every emission so
+// integration tests can assert on interface monitor output.
 type collectingBus struct {
 	mu     sync.Mutex
-	events []ze.Event
+	events []collectedEvent
 }
 
-func (b *collectingBus) CreateTopic(string) (ze.Topic, error) { return ze.Topic{}, nil }
-func (b *collectingBus) Publish(topic string, payload []byte, metadata map[string]string) {
+func (b *collectingBus) Emit(namespace, eventType, payload string) (int, error) {
 	b.mu.Lock()
-	b.events = append(b.events, ze.Event{Topic: topic, Payload: payload, Metadata: metadata})
+	b.events = append(b.events, collectedEvent{
+		Namespace: namespace,
+		EventType: eventType,
+		Payload:   payload,
+	})
 	b.mu.Unlock()
+	return 0, nil
 }
-func (b *collectingBus) Subscribe(string, map[string]string, ze.Consumer) (ze.Subscription, error) {
-	return ze.Subscription{}, nil
-}
-func (b *collectingBus) Unsubscribe(ze.Subscription) {}
 
-func (b *collectingBus) snapshot() []ze.Event {
+func (b *collectingBus) Subscribe(_, _ string, _ func(string)) func() {
+	return func() {}
+}
+
+func (b *collectingBus) snapshot() []collectedEvent {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	cp := make([]ze.Event, len(b.events))
+	cp := make([]collectedEvent, len(b.events))
 	copy(cp, b.events)
 	return cp
 }
 
 // waitForEvent polls the collectingBus events list for an event matching
-// the given topic, with timeout. Returns the matching event or fails.
-func waitForEvent(t *testing.T, bus *collectingBus, topic string, timeout time.Duration) ze.Event {
+// the given (namespace, eventType), with timeout. Returns the matching
+// event or fails.
+func waitForEvent(t *testing.T, bus *collectingBus, namespace, eventType string, timeout time.Duration) collectedEvent {
 	t.Helper()
 
 	deadline := time.Now().Add(timeout)
@@ -124,7 +136,7 @@ func waitForEvent(t *testing.T, bus *collectingBus, topic string, timeout time.D
 	for time.Now().Before(deadline) {
 		events := bus.snapshot()
 		for i := seen; i < len(events); i++ {
-			if events[i].Topic == topic {
+			if events[i].Namespace == namespace && events[i].EventType == eventType {
 				return events[i]
 			}
 		}
@@ -132,8 +144,8 @@ func waitForEvent(t *testing.T, bus *collectingBus, topic string, timeout time.D
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	t.Fatalf("timed out waiting for event on topic %q (saw %d events)", topic, seen)
-	return ze.Event{} // unreachable
+	t.Fatalf("timed out waiting for event (%q, %q) (saw %d events)", namespace, eventType, seen)
+	return collectedEvent{} // unreachable
 }
 
 // linkExists returns true if netlink.LinkByName succeeds for the given name.

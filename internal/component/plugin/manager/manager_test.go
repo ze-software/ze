@@ -9,15 +9,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
-// stubBus implements ze.Bus for testing (PluginManager stores but doesn't use it yet).
+// stubBus implements ze.EventBus for testing (PluginManager stores but
+// doesn't use it yet).
 type stubBus struct{}
 
-func (s *stubBus) CreateTopic(string) (ze.Topic, error)      { return ze.Topic{}, nil }
-func (s *stubBus) Publish(string, []byte, map[string]string) {}
-func (s *stubBus) Subscribe(string, map[string]string, ze.Consumer) (ze.Subscription, error) {
-	return ze.Subscription{}, nil
+func (s *stubBus) Emit(string, string, string) (int, error) { return 0, nil }
+func (s *stubBus) Subscribe(_, _ string, _ func(string)) func() {
+	return func() {}
 }
-func (s *stubBus) Unsubscribe(ze.Subscription) {}
 
 // stubConfig implements ze.ConfigProvider for testing.
 type stubConfig struct{}

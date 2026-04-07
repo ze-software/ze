@@ -83,11 +83,8 @@ func (r *Reactor) notifyPeerEstablished(peer *Peer) {
 		obs.OnPeerEstablished(peer)
 	}
 
-	// Bus notification for cross-component consumers.
-	r.publishBusNotification("bgp/state", map[string]string{
-		"peer":  peer.settings.Address.String(),
-		"state": "up",
-	})
+	// Cross-component consumers receive (bgp, state) via the EventBus.
+	r.emitPeerStateEvent(peer, "up", "")
 }
 
 // notifyPeerNegotiated sends negotiated capabilities to subscribed plugins.
@@ -109,10 +106,8 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 	decoded := format.NegotiatedToDecoded(neg)
 	r.eventDispatcher.OnPeerNegotiated(peerInfo, decoded)
 
-	// Bus notification for cross-component consumers.
-	r.publishBusNotification("bgp/negotiated", map[string]string{
-		"peer": peer.settings.Address.String(),
-	})
+	// Cross-component consumers receive (bgp, negotiated) via the EventBus.
+	r.emitPeerNegotiatedEvent(peer)
 }
 
 // notifyPeerClosed calls all observers when peer leaves Established.
@@ -131,12 +126,8 @@ func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
 		obs.OnPeerClosed(peer, reason)
 	}
 
-	// Bus notification for cross-component consumers.
-	r.publishBusNotification("bgp/state", map[string]string{
-		"peer":   peer.settings.Address.String(),
-		"state":  "down",
-		"reason": reason,
-	})
+	// Cross-component consumers receive (bgp, state) via the EventBus.
+	r.emitPeerStateEvent(peer, "down", reason)
 
 	// Track session count for MaxSessions feature (tcp.once/tcp.attempts)
 	if r.config.MaxSessions > 0 {
@@ -184,11 +175,9 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 	}
 	r.eventDispatcher.OnPeerCongestionChange(peerInfo, eventType)
 
-	// Bus notification for cross-component consumers.
-	r.publishBusNotification("bgp/congestion", map[string]string{
-		"peer":  peerAddr.String(),
-		"event": eventType,
-	})
+	// Cross-component consumers receive (bgp, congested) or (bgp, resumed) via the EventBus.
+	// eventType is plugin.EventCongested or plugin.EventResumed -- pass through directly.
+	r.emitCongestionEventBus(peerAddr.String(), eventType)
 }
 
 // notifyMessageReceiver notifies the message receiver of a raw BGP message.
@@ -403,16 +392,17 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 
 	// Bus notification for cross-component consumers.
 	// Skip map allocation entirely when no bus is configured.
-	if r.bus != nil {
+	// (bgp, update) lightweight notification on the EventBus. Cross-component
+	// consumers that just want to know an UPDATE arrived (without the wire
+	// payload) subscribe here. Plugins that need the full UPDATE go through
+	// the EventDispatcher delivery path instead.
+	if r.eventBus != nil {
 		// Use cached addrString when available to avoid per-message String() allocation.
 		addrStr := peerAddr.String()
 		if hasPeer {
 			addrStr = peer.addrString
 		}
-		r.publishBusNotification("bgp/update", map[string]string{
-			"peer":      addrStr,
-			"direction": direction,
-		})
+		r.emitUpdateNotificationEvent(addrStr, direction)
 	}
 
 	// Sent messages: synchronous delivery, no async channel.

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 func TestIntegrationMigrateFullCycle(t *testing.T) {
@@ -21,7 +23,7 @@ func TestIntegrationMigrateFullCycle(t *testing.T) {
 		}
 		requireAddress(t, "old0", "10.88.0.1/24")
 
-		bus := &subscribableBus{}
+		bus := newStubEventBus()
 
 		cfg := MigrateConfig{
 			OldIface:     "old0",
@@ -39,9 +41,11 @@ func TestIntegrationMigrateFullCycle(t *testing.T) {
 		// Give MigrateInterface time to reach phase 3 (subscribe and wait).
 		time.Sleep(1 * time.Second)
 
-		// Simulate BGP readiness by publishing a matching event.
+		// Simulate BGP readiness by emitting a matching (bgp, listener-ready) event.
 		payload, _ := json.Marshal(map[string]string{"address": "10.88.0.1"})
-		bus.Publish(topicBGPListenerReady, payload, map[string]string{"address": "10.88.0.1"})
+		if _, err := bus.Emit(plugin.NamespaceBGP, plugin.EventListenerReady, string(payload)); err != nil {
+			t.Fatalf("emit bgp listener-ready: %v", err)
+		}
 
 		// Wait for MigrateInterface to complete.
 		select {
@@ -76,7 +80,7 @@ func TestIntegrationMigrateTimeout(t *testing.T) {
 			t.Fatalf("AddAddress old0: %v", err)
 		}
 
-		bus := &subscribableBus{}
+		bus := newStubEventBus()
 
 		cfg := MigrateConfig{
 			OldIface:     "old0",
@@ -85,7 +89,7 @@ func TestIntegrationMigrateTimeout(t *testing.T) {
 			Address:      "10.88.0.1/24",
 		}
 
-		// Use a short timeout and do NOT publish BGP readiness.
+		// Use a short timeout and do NOT emit BGP readiness.
 		err := MigrateInterface(cfg, bus, 1*time.Second)
 		if err == nil {
 			t.Fatal("expected timeout error, got nil")

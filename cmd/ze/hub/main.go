@@ -19,7 +19,6 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bus"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -255,9 +254,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
-	// Phase 3: Create Bus, PluginCoordinator, plugin server.
-	b := bus.NewBus()
-	registry.SetBus(b)
+	// Phase 3: Create PluginCoordinator and plugin server.
+	// The plugin server implements ze.EventBus via its Emit/Subscribe
+	// methods, so there is no separate standalone bus any more; one
+	// namespaced pub/sub backbone serves everyone.
 
 	configTree := loadResult.Tree.ToMap()
 	coordinator := zePlugin.NewCoordinator(configTree)
@@ -328,7 +328,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		})
 	}
 
-	eng := engine.NewEngine(b, configProvider, pm)
+	// apiServer implements ze.EventBus via its Emit/Subscribe methods, so the
+	// engine, plugins, and subsystems all share one namespaced pub/sub
+	// backbone. The standalone bus in internal/component/bus/ is gone.
+	eng := engine.NewEngine(apiServer, configProvider, pm)
 
 	startCtx := context.Background()
 	if err := eng.Start(startCtx); err != nil {
@@ -406,7 +409,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		startupCancel()
 		apiServer.Stop()
 		_ = eng.Stop(startCtx)
-		b.Stop()
 		return 1
 	}
 	startupCancel()
@@ -449,7 +451,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if err := eng.Stop(stopCtx); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: shutdown timeout: %v\n", err)
 	}
-	b.Stop()
 
 	fmt.Println("Ze stopped.")
 	return 0

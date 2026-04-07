@@ -21,7 +21,7 @@ type PluginServerAccessor interface {
 // exposes to the plugin infrastructure. Protocol-specific handles (like
 // BGPReactorHandle) embed this and add protocol-specific methods.
 type ProtocolReactorHandle interface {
-	SetBusAny(bus any)
+	SetEventBusAny(eventBus any)
 	SetPluginServerAny(server any)
 	StartWithContext(ctx context.Context) error
 	Stop()

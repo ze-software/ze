@@ -7,20 +7,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
-// mockBus is a minimal Bus implementation for interface satisfaction tests.
-type mockBus struct{}
+// mockEventBus is a minimal EventBus implementation for interface
+// satisfaction tests.
+type mockEventBus struct{}
 
-func (m *mockBus) CreateTopic(name string) (ze.Topic, error)                        { return ze.Topic{}, nil }
-func (m *mockBus) Publish(topic string, payload []byte, metadata map[string]string) {}
-func (m *mockBus) Subscribe(prefix string, filter map[string]string, consumer ze.Consumer) (ze.Subscription, error) {
-	return ze.Subscription{}, nil
+func (m *mockEventBus) Emit(namespace, eventType, payload string) (int, error) { return 0, nil }
+func (m *mockEventBus) Subscribe(_, _ string, _ func(string)) func() {
+	return func() {}
 }
-func (m *mockBus) Unsubscribe(sub ze.Subscription) {}
-
-// mockConsumer is a minimal Consumer implementation.
-type mockConsumer struct{}
-
-func (m *mockConsumer) Deliver(events []ze.Event) error { return nil }
 
 // mockConfigProvider is a minimal ConfigProvider implementation.
 type mockConfigProvider struct{}
@@ -37,7 +31,7 @@ func (m *mockConfigProvider) RegisterSchema(name, yang string) error   { return 
 type mockPluginManager struct{}
 
 func (m *mockPluginManager) Register(config ze.PluginConfig) error { return nil }
-func (m *mockPluginManager) StartAll(ctx context.Context, bus ze.Bus, config ze.ConfigProvider) error {
+func (m *mockPluginManager) StartAll(ctx context.Context, eventBus ze.EventBus, config ze.ConfigProvider) error {
 	return nil
 }
 func (m *mockPluginManager) StopAll(ctx context.Context) error { return nil }
@@ -51,7 +45,7 @@ func (m *mockPluginManager) Capabilities() []ze.Capability { return nil }
 type mockSubsystem struct{}
 
 func (m *mockSubsystem) Name() string { return "mock" }
-func (m *mockSubsystem) Start(ctx context.Context, bus ze.Bus, config ze.ConfigProvider) error {
+func (m *mockSubsystem) Start(ctx context.Context, eventBus ze.EventBus, config ze.ConfigProvider) error {
 	return nil
 }
 func (m *mockSubsystem) Stop(ctx context.Context) error                             { return nil }
@@ -64,16 +58,12 @@ func (m *mockEngine) RegisterSubsystem(sub ze.Subsystem) error { return nil }
 func (m *mockEngine) Start(ctx context.Context) error          { return nil }
 func (m *mockEngine) Stop(ctx context.Context) error           { return nil }
 func (m *mockEngine) Reload(ctx context.Context) error         { return nil }
-func (m *mockEngine) Bus() ze.Bus                              { return &mockBus{} }
+func (m *mockEngine) EventBus() ze.EventBus                    { return &mockEventBus{} }
 func (m *mockEngine) Config() ze.ConfigProvider                { return &mockConfigProvider{} }
 func (m *mockEngine) Plugins() ze.PluginManager                { return &mockPluginManager{} }
 
-func TestMockBusSatisfiesInterface(t *testing.T) {
-	var _ ze.Bus = (*mockBus)(nil)
-}
-
-func TestMockConsumerSatisfiesInterface(t *testing.T) {
-	var _ ze.Consumer = (*mockConsumer)(nil)
+func TestMockEventBusSatisfiesInterface(t *testing.T) {
+	var _ ze.EventBus = (*mockEventBus)(nil)
 }
 
 func TestMockConfigProviderSatisfiesInterface(t *testing.T) {
@@ -94,9 +84,6 @@ func TestMockEngineSatisfiesInterface(t *testing.T) {
 
 func TestInterfacesCompile(t *testing.T) {
 	// Verify all types are usable
-	_ = ze.Event{}
-	_ = ze.Topic{}
-	_ = ze.Subscription{}
 	_ = ze.ConfigChange{}
 	_ = ze.SchemaTree{}
 	_ = ze.PluginConfig{}

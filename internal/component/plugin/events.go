@@ -21,18 +21,19 @@ const (
 
 // BGP event types.
 const (
-	EventUpdate        = "update"
-	EventOpen          = "open"
-	EventNotification  = "notification"
-	EventKeepalive     = "keepalive"
-	EventRefresh       = "refresh"
-	EventState         = "state"
-	EventNegotiated    = "negotiated"
-	EventEOR           = "eor"
-	EventCongested     = "congested"
-	EventResumed       = "resumed"
-	EventRPKI          = "rpki"
-	EventListenerReady = "listener-ready" // BGP reactor: TCP listener bound and accepting
+	EventUpdate             = "update"
+	EventOpen               = "open"
+	EventNotification       = "notification"
+	EventKeepalive          = "keepalive"
+	EventRefresh            = "refresh"
+	EventState              = "state"
+	EventNegotiated         = "negotiated"
+	EventEOR                = "eor"
+	EventCongested          = "congested"
+	EventResumed            = "resumed"
+	EventRPKI               = "rpki"
+	EventListenerReady      = "listener-ready"      // BGP reactor: TCP listener bound and accepting
+	EventUpdateNotification = "update-notification" // Lightweight observability notification for UPDATE arrivals
 )
 
 // RIB event types.
@@ -100,19 +101,20 @@ var eventsMu sync.RWMutex
 // ValidBgpEvents is the set of valid BGP event types.
 // Includes all types accepted in config receive flags (base + directions).
 var ValidBgpEvents = map[string]bool{
-	EventUpdate:        true,
-	EventOpen:          true,
-	EventNotification:  true,
-	EventKeepalive:     true,
-	EventRefresh:       true,
-	EventState:         true,
-	EventNegotiated:    true,
-	EventEOR:           true,
-	EventCongested:     true,
-	EventResumed:       true,
-	EventRPKI:          true,
-	EventListenerReady: true, // BGP TCP listener bound and accepting
-	DirectionSent:      true, // "sent" — config receive flag for sent UPDATE events
+	EventUpdate:             true,
+	EventOpen:               true,
+	EventNotification:       true,
+	EventKeepalive:          true,
+	EventRefresh:            true,
+	EventState:              true,
+	EventNegotiated:         true,
+	EventEOR:                true,
+	EventCongested:          true,
+	EventResumed:            true,
+	EventRPKI:               true,
+	EventListenerReady:      true, // BGP TCP listener bound and accepting
+	EventUpdateNotification: true, // Lightweight observability notification for UPDATE arrivals/sends
+	DirectionSent:           true, // "sent" — config receive flag for sent UPDATE events
 }
 
 // ValidRibEvents is the set of valid RIB event types.

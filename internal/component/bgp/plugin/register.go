@@ -24,9 +24,9 @@ import (
 )
 
 var (
-	bgpMu     sync.Mutex
-	bgpBus    ze.Bus
-	bgpServer registry.PluginServerAccessor
+	bgpMu       sync.Mutex
+	bgpEventBus ze.EventBus
+	bgpServer   registry.PluginServerAccessor
 )
 
 func init() {
@@ -41,10 +41,10 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			_ = loggerName // BGP uses its own lazy loggers
 		},
-		ConfigureBus: func(bus any) {
-			if b, ok := bus.(ze.Bus); ok {
+		ConfigureEventBus: func(eb any) {
+			if e, ok := eb.(ze.EventBus); ok {
 				bgpMu.Lock()
-				bgpBus = b
+				bgpEventBus = e
 				bgpMu.Unlock()
 			}
 		},
@@ -104,11 +104,11 @@ func runBGPEngine(conn net.Conn) int {
 
 		// Wire reactor to hub-owned infrastructure.
 		bgpMu.Lock()
-		bus := bgpBus
+		eb := bgpEventBus
 		bgpMu.Unlock()
 
-		if bus != nil {
-			bgpReactor.SetBusAny(bus)
+		if eb != nil {
+			bgpReactor.SetEventBusAny(eb)
 		}
 
 		// Pass plugin server to reactor for EventDispatcher wiring.

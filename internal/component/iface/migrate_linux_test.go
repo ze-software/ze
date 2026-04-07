@@ -1,9 +1,9 @@
 package iface
 
 import (
-	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -90,44 +90,56 @@ func (m *mockMigrateBackend) RemoveMirror(_ string) error {
 func (m *mockMigrateBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) error {
 	return fmt.Errorf("mock: not supported")
 }
-func (m *mockMigrateBackend) StartMonitor(_ ze.Bus) error { return fmt.Errorf("mock: not supported") }
-func (m *mockMigrateBackend) StopMonitor()                {}
-func (m *mockMigrateBackend) Close() error                { return nil }
+func (m *mockMigrateBackend) StartMonitor(_ ze.EventBus) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) StopMonitor() {}
+func (m *mockMigrateBackend) Close() error { return nil }
 
-// subscribableBus extends collectingBus with subscription support for migrate tests.
-// It delivers events to registered consumers when Publish is called.
-type subscribableBus struct {
-	events      []ze.Event
-	consumers   []ze.Consumer
-	subErr      error // if set, Subscribe returns this error
-	nextSubID   uint64
-	publishHook func(topic string, payload []byte) // optional hook for testing
+// stubEventBus is a minimal ze.EventBus used by migrate tests.
+// Subscribe records handlers; tests drive delivery explicitly via Emit.
+type stubEventBus struct {
+	mu       sync.Mutex
+	handlers map[string][]func(payload string)
+	subErr   error
 }
 
-func (b *subscribableBus) CreateTopic(string) (ze.Topic, error) { return ze.Topic{}, nil }
-
-func (b *subscribableBus) Publish(topic string, payload []byte, metadata map[string]string) {
-	ev := ze.Event{Topic: topic, Payload: payload, Metadata: metadata}
-	b.events = append(b.events, ev)
-	if b.publishHook != nil {
-		b.publishHook(topic, payload)
-	}
-	// Deliver to all registered consumers.
-	for _, c := range b.consumers {
-		_ = c.Deliver([]ze.Event{ev})
-	}
+func newStubEventBus() *stubEventBus {
+	return &stubEventBus{handlers: make(map[string][]func(string))}
 }
 
-func (b *subscribableBus) Subscribe(_ string, _ map[string]string, consumer ze.Consumer) (ze.Subscription, error) {
+func (b *stubEventBus) key(namespace, eventType string) string {
+	return namespace + ":" + eventType
+}
+
+func (b *stubEventBus) Emit(namespace, eventType, payload string) (int, error) {
+	b.mu.Lock()
+	handlers := append([]func(string){}, b.handlers[b.key(namespace, eventType)]...)
+	b.mu.Unlock()
+	for _, h := range handlers {
+		h(payload)
+	}
+	return len(handlers), nil
+}
+
+func (b *stubEventBus) Subscribe(namespace, eventType string, handler func(payload string)) func() {
 	if b.subErr != nil {
-		return ze.Subscription{}, b.subErr
+		return func() {}
 	}
-	b.nextSubID++
-	b.consumers = append(b.consumers, consumer)
-	return ze.Subscription{ID: b.nextSubID}, nil
+	k := b.key(namespace, eventType)
+	b.mu.Lock()
+	b.handlers[k] = append(b.handlers[k], handler)
+	idx := len(b.handlers[k]) - 1
+	b.mu.Unlock()
+	return func() {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		hs := b.handlers[k]
+		if idx < len(hs) {
+			b.handlers[k] = append(hs[:idx], hs[idx+1:]...)
+		}
+	}
 }
-
-func (b *subscribableBus) Unsubscribe(ze.Subscription) {}
 
 func TestMigrateConfigValidation(t *testing.T) {
 	// VALIDATES: MigrateConfig rejects empty required fields and unknown types.
@@ -197,8 +209,8 @@ func TestMigrateConfigValidation(t *testing.T) {
 	}
 }
 
-func TestMigrateNilBus(t *testing.T) {
-	// VALIDATES: MigrateInterface rejects nil bus.
+func TestMigrateNilEventBus(t *testing.T) {
+	// VALIDATES: MigrateInterface rejects nil event bus.
 	// PREVENTS: Nil dereference in phase 3 subscription.
 	cfg := MigrateConfig{
 		OldIface: "lo0",
@@ -207,10 +219,10 @@ func TestMigrateNilBus(t *testing.T) {
 	}
 	err := MigrateInterface(cfg, nil, 5)
 	if err == nil {
-		t.Fatal("expected error for nil bus, got nil")
+		t.Fatal("expected error for nil event bus, got nil")
 	}
-	if !strings.Contains(err.Error(), "bus is nil") {
-		t.Errorf("error = %q, want containing 'bus is nil'", err.Error())
+	if !strings.Contains(err.Error(), "event bus is nil") {
+		t.Errorf("error = %q, want containing 'event bus is nil'", err.Error())
 	}
 }
 
@@ -222,8 +234,7 @@ func TestMigrateZeroTimeout(t *testing.T) {
 		NewIface: "lo1",
 		Address:  "10.0.0.1/24",
 	}
-	bus := &subscribableBus{}
-	err := MigrateInterface(cfg, bus, 0)
+	err := MigrateInterface(cfg, newStubEventBus(), 0)
 	if err == nil {
 		t.Fatal("expected error for zero timeout, got nil")
 	}
@@ -232,13 +243,13 @@ func TestMigrateZeroTimeout(t *testing.T) {
 	}
 }
 
-func TestMigrateSubscribeFailureRollback(t *testing.T) {
-	// VALIDATES: Phase 3 subscribe failure triggers rollback of phases 2 and 1.
-	// PREVENTS: Leaked addresses and interfaces when bus subscription fails.
+func TestMigrateBackendFailureRollback(t *testing.T) {
+	// VALIDATES: Phase 2 backend failure triggers rollback cleanly.
+	// PREVENTS: Leaked interfaces when the first operation fails.
 	//
-	// Note: This tests the control flow logic. MigrateInterface requires a loaded
-	// backend. We register a mock that fails AddAddress (simulating no root/netlink),
-	// which triggers the error path. The rollback calls are best-effort.
+	// MigrateInterface requires a loaded backend. We register a mock that
+	// fails AddAddress (simulating no root/netlink), which triggers the
+	// error path. Rollback calls are best-effort.
 	_ = RegisterBackend("test-migrate", func() (Backend, error) {
 		return &mockMigrateBackend{}, nil
 	})
@@ -247,19 +258,15 @@ func TestMigrateSubscribeFailureRollback(t *testing.T) {
 	}
 	defer func() { _ = CloseBackend() }()
 
-	bus := &subscribableBus{
-		subErr: errors.New("bus: subscribe failed"),
-	}
 	cfg := MigrateConfig{
 		OldIface: "lo0",
 		NewIface: "lo1",
 		Address:  "10.0.0.1/24",
 	}
-	err := MigrateInterface(cfg, bus, 5)
+	err := MigrateInterface(cfg, newStubEventBus(), 5)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	// The error may come from phase 2 (AddAddress fails) or phase 3 (subscribe fails).
 	if !strings.Contains(err.Error(), "migrate phase") {
 		t.Errorf("error = %q, want containing 'migrate phase'", err.Error())
 	}
@@ -277,8 +284,7 @@ func TestMigrateNoBackend(t *testing.T) {
 		NewIface: "lo1",
 		Address:  "10.0.0.1/24",
 	}
-	bus := &subscribableBus{}
-	err := MigrateInterface(cfg, bus, 5)
+	err := MigrateInterface(cfg, newStubEventBus(), 5)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -333,75 +339,5 @@ func TestStripPrefix(t *testing.T) {
 				t.Errorf("stripPrefix(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
-	}
-}
-
-func TestBGPReadyConsumerDeliver(t *testing.T) {
-	// VALIDATES: bgpReadyConsumer signals readiness when address matches.
-	// PREVENTS: Phase 3 never completing because address matching is wrong.
-	consumer := &bgpReadyConsumer{
-		targetAddr: "10.0.0.1/24",
-		ready:      make(chan struct{}, 1),
-	}
-
-	// Non-matching event: should not signal.
-	_ = consumer.Deliver([]ze.Event{{
-		Topic:   topicBGPListenerReady,
-		Payload: []byte(`{"address":"192.168.1.1"}`),
-	}})
-	select {
-	case <-consumer.ready:
-		t.Fatal("signaled readiness for non-matching address")
-	default: // expected: not ready
-	}
-
-	// Matching event (IP without prefix): should signal.
-	_ = consumer.Deliver([]ze.Event{{
-		Topic:   topicBGPListenerReady,
-		Payload: []byte(`{"address":"10.0.0.1"}`),
-	}})
-	select {
-	case <-consumer.ready: // expected: ready
-	default:
-		t.Fatal("expected readiness signal for matching address")
-	}
-}
-
-func TestBGPReadyConsumerDeliverCIDR(t *testing.T) {
-	// VALIDATES: bgpReadyConsumer matches when payload contains full CIDR.
-	// PREVENTS: Mismatch when BGP reports address with prefix length.
-	consumer := &bgpReadyConsumer{
-		targetAddr: "10.0.0.1/24",
-		ready:      make(chan struct{}, 1),
-	}
-
-	_ = consumer.Deliver([]ze.Event{{
-		Topic:   topicBGPListenerReady,
-		Payload: []byte(`{"address":"10.0.0.1/24"}`),
-	}})
-	select {
-	case <-consumer.ready: // expected: ready
-	default:
-		t.Fatal("expected readiness signal for matching CIDR address")
-	}
-}
-
-func TestBGPReadyConsumerMetadataFallback(t *testing.T) {
-	// VALIDATES: bgpReadyConsumer falls back to metadata when payload address is empty.
-	// PREVENTS: Phase 3 timeout when BGP uses metadata instead of payload.
-	consumer := &bgpReadyConsumer{
-		targetAddr: "10.0.0.1/24",
-		ready:      make(chan struct{}, 1),
-	}
-
-	_ = consumer.Deliver([]ze.Event{{
-		Topic:    topicBGPListenerReady,
-		Payload:  []byte(`{"address":""}`),
-		Metadata: map[string]string{"address": "10.0.0.1"},
-	}})
-	select {
-	case <-consumer.ready: // expected: ready
-	default:
-		t.Fatal("expected readiness signal via metadata fallback")
 	}
 }

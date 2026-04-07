@@ -11,13 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
-
-// BGP listener readiness topic. The BGP subsystem publishes this when a
-// listener is active on a new address. MigrateInterface waits for this event
-// before removing the old address (phase 4).
-const topicBGPListenerReady = "bgp/listener/ready"
 
 // validateMigrateConfig checks that all required fields are set and the
 // interface type (if specified) is one of the known types.
@@ -50,42 +46,10 @@ func resolveOSName(iface string, unit int) string {
 	return fmt.Sprintf("%s.%d", iface, unit)
 }
 
-// bgpReadyConsumer receives events from the Bus and signals when a
-// bgp/listener/ready event matches the target address.
-type bgpReadyConsumer struct {
-	targetAddr string
-	ready      chan struct{}
-}
-
-// Deliver checks each event for a matching address and signals readiness.
-func (c *bgpReadyConsumer) Deliver(events []ze.Event) error {
-	for _, ev := range events {
-		var payload struct {
-			Address string `json:"address"`
-		}
-		if err := json.Unmarshal(ev.Payload, &payload); err != nil {
-			continue
-		}
-		// Match on the IP portion of the CIDR (BGP binds to the IP, not the prefix).
-		addr := payload.Address
-		if addr == "" {
-			if a, ok := ev.Metadata["address"]; ok {
-				addr = a
-			}
-		}
-		targetIP := stripPrefix(c.targetAddr)
-		addrIP := stripPrefix(addr)
-		targetParsed, targetErr := netip.ParseAddr(targetIP)
-		addrParsed, addrErr := netip.ParseAddr(addrIP)
-		if (targetErr == nil && addrErr == nil && targetParsed == addrParsed) || addr == c.targetAddr {
-			select {
-			case c.ready <- struct{}{}: // signal readiness
-			default: // already signaled
-			}
-			return nil
-		}
-	}
-	return nil
+// bgpListenerReadyPayload is the JSON payload emitted by the BGP reactor
+// on (bgp, listener-ready). We parse it to match on the address.
+type bgpListenerReadyPayload struct {
+	Address string `json:"address"`
 }
 
 // stripPrefix removes the prefix length from a CIDR string, returning just the IP.
@@ -102,18 +66,18 @@ func stripPrefix(cidr string) string {
 // Five phases with strict ordering:
 //  1. Create new interface (if NewIfaceType is set)
 //  2. Add IP to new interface unit
-//  3. Wait for BGP readiness (bus event "bgp/listener/ready" or timeout)
+//  3. Wait for BGP readiness ((bgp, listener-ready) event or timeout)
 //  4. Remove IP from old interface unit
 //  5. Remove old interface (optional, only if it was Ze-managed)
 //
 // Phase 4 MUST NOT start until Phase 3 confirms BGP has sessions on new address.
 // On failure at any phase, earlier phases are rolled back.
-func MigrateInterface(cfg MigrateConfig, bus ze.Bus, timeout time.Duration) error {
+func MigrateInterface(cfg MigrateConfig, eb ze.EventBus, timeout time.Duration) error {
 	if err := validateMigrateConfig(cfg); err != nil {
 		return err
 	}
-	if bus == nil {
-		return errors.New("migrate: bus is nil")
+	if eb == nil {
+		return errors.New("migrate: event bus is nil")
 	}
 	if timeout <= 0 {
 		return errors.New("migrate: timeout must be positive")
@@ -145,26 +109,35 @@ func MigrateInterface(cfg MigrateConfig, bus ze.Bus, timeout time.Duration) erro
 	}
 
 	// Phase 3: Wait for BGP readiness.
-	consumer := &bgpReadyConsumer{
-		targetAddr: cfg.Address,
-		ready:      make(chan struct{}, 1),
-	}
-	sub, err := bus.Subscribe(topicBGPListenerReady, nil, consumer)
-	if err != nil {
-		// Rollback phase 2 and 1.
-		_ = b.RemoveAddress(newOSName, cfg.Address)
-		if createdIface {
-			_ = b.DeleteInterface(cfg.NewIface)
+	targetIP := stripPrefix(cfg.Address)
+	targetParsed, targetErr := netip.ParseAddr(targetIP)
+	ready := make(chan struct{}, 1)
+
+	unsub := eb.Subscribe(plugin.NamespaceBGP, plugin.EventListenerReady, func(payload string) {
+		var p bgpListenerReadyPayload
+		if err := json.Unmarshal([]byte(payload), &p); err != nil {
+			return
 		}
-		return fmt.Errorf("migrate phase 3 (subscribe): %w", err)
-	}
-	defer bus.Unsubscribe(sub)
+		if p.Address == "" {
+			return
+		}
+		// Match on the IP portion of the CIDR (BGP binds to the IP, not the prefix).
+		addrIP := stripPrefix(p.Address)
+		addrParsed, addrErr := netip.ParseAddr(addrIP)
+		if (targetErr == nil && addrErr == nil && targetParsed == addrParsed) || p.Address == cfg.Address {
+			select {
+			case ready <- struct{}{}: // signal readiness
+			default: // already signaled
+			}
+		}
+	})
+	defer unsub()
 
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 
 	select {
-	case <-consumer.ready: // BGP is ready on the new address.
+	case <-ready: // BGP is ready on the new address.
 	case <-timer.C:
 		// Timeout: rollback phase 2 and 1.
 		_ = b.RemoveAddress(newOSName, cfg.Address)

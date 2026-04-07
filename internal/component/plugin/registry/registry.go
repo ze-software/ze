@@ -74,13 +74,6 @@ type Registration struct {
 	// The plugin should type-assert to metrics.Registry and register gauges/counters.
 	ConfigureMetrics func(reg any)
 
-	// ConfigureBus is called before RunEngine with the Bus instance (any).
-	// The plugin should type-assert to ze.Bus and store the reference for publishing events.
-	//
-	// Deprecated: prefer ConfigureEventBus with ze.EventBus. ConfigureBus is
-	// kept while consumers migrate; both fire if both are set.
-	ConfigureBus func(bus any)
-
 	// ConfigureEventBus is called before RunEngine with the EventBus instance (any).
 	// The plugin should type-assert to ze.EventBus and store the reference for
 	// emitting and subscribing to namespaced events.
@@ -157,11 +150,6 @@ var (
 	// Read by GetInternalPluginRunner to inject into plugins via ConfigureMetrics.
 	metricsRegistry any
 
-	// busInstance stores the Bus instance (as any to avoid importing ze package).
-	// Set by the engine after creating the Bus.
-	// Read by GetInternalPluginRunner to inject into plugins via ConfigureBus.
-	busInstance any
-
 	// eventBusInstance stores the EventBus instance (as any to avoid importing ze package).
 	// Set by the engine after creating the plugin server (which implements ze.EventBus).
 	// Read by GetInternalPluginRunner to inject into plugins via ConfigureEventBus.
@@ -227,22 +215,6 @@ func GetMetricsRegistry() any {
 	mu.RLock()
 	defer mu.RUnlock()
 	return metricsRegistry
-}
-
-// SetBus stores the Bus instance for plugin injection.
-// Called by the engine after creating the Bus.
-// The bus is passed as any to avoid importing the ze package.
-func SetBus(bus any) {
-	mu.Lock()
-	defer mu.Unlock()
-	busInstance = bus
-}
-
-// GetBus returns the stored Bus instance, or nil.
-func GetBus() any {
-	mu.RLock()
-	defer mu.RUnlock()
-	return busInstance
 }
 
 // SetEventBus stores the EventBus instance for plugin injection.
@@ -711,15 +683,15 @@ func Reset() {
 	attrModHandlers = make(map[uint8]AttrModHandler)
 	rpcHandlers = make(map[string]func(json.RawMessage) (any, error))
 	metricsRegistry = nil
-	busInstance = nil
+	eventBusInstance = nil
 }
 
 // RegistrySnapshot holds a complete copy of the registry state for test save/restore.
 type RegistrySnapshot struct {
-	plugins         map[string]*Registration
-	attrModHandlers map[uint8]AttrModHandler
-	rpcHandlers     map[string]func(json.RawMessage) (any, error)
-	busInstance     any
+	plugins          map[string]*Registration
+	attrModHandlers  map[uint8]AttrModHandler
+	rpcHandlers      map[string]func(json.RawMessage) (any, error)
+	eventBusInstance any
 }
 
 // Snapshot returns a copy of the current registry state. Only for use in tests.
@@ -734,7 +706,7 @@ func Snapshot() RegistrySnapshot {
 	maps.Copy(ah, attrModHandlers)
 	rh := make(map[string]func(json.RawMessage) (any, error), len(rpcHandlers))
 	maps.Copy(rh, rpcHandlers)
-	return RegistrySnapshot{plugins: ps, attrModHandlers: ah, rpcHandlers: rh, busInstance: busInstance}
+	return RegistrySnapshot{plugins: ps, attrModHandlers: ah, rpcHandlers: rh, eventBusInstance: eventBusInstance}
 }
 
 // Restore replaces the registry with a previously saved snapshot. Only for use in tests.
@@ -744,7 +716,7 @@ func Restore(snap RegistrySnapshot) {
 	plugins = snap.plugins
 	attrModHandlers = snap.attrModHandlers
 	rpcHandlers = snap.rpcHandlers
-	busInstance = snap.busInstance
+	eventBusInstance = snap.eventBusInstance
 	rebuildFamilyIndexLocked()
 }
 

@@ -257,22 +257,22 @@ func DisableSLAAC(iface string) error { return SetIPv6Autoconf(iface, false) }
 
 // Monitor wraps the backend's monitoring capability.
 type Monitor struct {
-	backend Backend
-	bus     ze.Bus
+	backend  Backend
+	eventBus ze.EventBus
 }
 
 // NewMonitor creates a monitor via the active backend.
-func NewMonitor(bus ze.Bus) (*Monitor, error) {
+func NewMonitor(eb ze.EventBus) (*Monitor, error) {
 	b, err := backendOrErr()
 	if err != nil {
 		return nil, err
 	}
-	return &Monitor{backend: b, bus: bus}, nil
+	return &Monitor{backend: b, eventBus: eb}, nil
 }
 
 // Start begins monitoring via the backend.
 func (m *Monitor) Start() error {
-	return m.backend.StartMonitor(m.bus)
+	return m.backend.StartMonitor(m.eventBus)
 }
 
 // Stop halts monitoring via the backend.

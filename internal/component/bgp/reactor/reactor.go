@@ -264,9 +264,8 @@ type Reactor struct {
 
 	connCallback    ConnectionCallback
 	messageReceiver MessageReceiver       // Receives raw BGP messages
-	bus             ze.Bus                // Bus for cross-component notifications (nil until SetBus)
-	busHandlers     []busHandler          // Bus event handlers registered via OnBusEvent (before Start)
-	busSubs         []ze.Subscription     // Active Bus subscriptions (created by subscribeBus)
+	eventBus        ze.EventBus           // Namespaced pub/sub for cross-component notifications (nil until SetEventBus)
+	eventBusUnsubs  []func()              // Active EventBus unsubscribe funcs (populated by SubscribeInterfaceEvents)
 	processSpawner  plugin.ProcessSpawner // PluginManager for process lifecycle (nil = Server self-manages)
 
 	// Peer filter chains: collected from plugin registry at startup.
@@ -507,17 +506,6 @@ func (r *Reactor) SetListenerFactory(f network.ListenerFactory) {
 	r.listenerFactory = f
 }
 
-// SetBus sets the Bus for cross-component notifications.
-// Must be called before StartWithContext. When set, the reactor publishes
-// lightweight notifications to Bus topics alongside the existing
-// EventDispatcher data delivery path.
-func (r *Reactor) SetBus(b ze.Bus) {
-	r.bus = b
-	if r.eventDispatcher != nil {
-		r.eventDispatcher.SetBus(b)
-	}
-}
-
 // SetProcessSpawner sets the PluginManager as the process spawner.
 // Must be called before StartWithContext. When set, the reactor passes
 // it to Server so process creation is delegated to PluginManager.
@@ -541,11 +529,20 @@ func (r *Reactor) SetPluginServerAny(s any) {
 	}
 }
 
-// SetBusAny is like SetBus but accepts any, type-asserting to ze.Bus.
-// Used by bgp/plugin to avoid importing ze in the plugin package.
-func (r *Reactor) SetBusAny(b any) {
-	if bus, ok := b.(ze.Bus); ok {
-		r.SetBus(bus)
+// SetEventBus sets the namespaced EventBus for cross-component notifications.
+// Must be called before StartWithContext.
+func (r *Reactor) SetEventBus(eb ze.EventBus) {
+	r.eventBus = eb
+	if r.eventDispatcher != nil {
+		r.eventDispatcher.SetEventBus(eb)
+	}
+}
+
+// SetEventBusAny is like SetEventBus but accepts any, type-asserting to
+// ze.EventBus. Used by bgp/plugin to avoid importing ze in the plugin package.
+func (r *Reactor) SetEventBusAny(eb any) {
+	if e, ok := eb.(ze.EventBus); ok {
+		r.SetEventBus(e)
 	}
 }
 
@@ -604,12 +601,78 @@ func (r *Reactor) ReconcilePeersWithJournal(bgpTree map[string]any, j registry.C
 	return a.reconcilePeersJournaled(newPeers, "apply config diff", j)
 }
 
-// publishBusNotification publishes a lightweight notification to the Bus.
-// Payload is nil — notifications carry information in metadata only.
-// No-op if Bus is nil. Fire-and-forget — does not block the caller.
-func (r *Reactor) publishBusNotification(topic string, metadata map[string]string) {
-	if r.bus != nil {
-		r.bus.Publish(topic, nil, metadata)
+// emitPeerStateEvent emits a (bgp, state) event with the peer address,
+// state ("up"/"down"), and optional close reason. No-op if no EventBus.
+func (r *Reactor) emitPeerStateEvent(peer *Peer, state, reason string) {
+	if r.eventBus == nil {
+		return
+	}
+	payload := map[string]string{
+		"peer":  peer.settings.Address.String(),
+		"state": state,
+	}
+	if reason != "" {
+		payload["reason"] = reason
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	if _, err := r.eventBus.Emit(plugin.NamespaceBGP, plugin.EventState, string(data)); err != nil {
+		reactorLogger().Debug("emit bgp state failed", "error", err)
+	}
+}
+
+// emitPeerNegotiatedEvent emits a (bgp, negotiated) event with the peer
+// address. No-op if no EventBus.
+func (r *Reactor) emitPeerNegotiatedEvent(peer *Peer) {
+	if r.eventBus == nil {
+		return
+	}
+	data, err := json.Marshal(map[string]string{
+		"peer": peer.settings.Address.String(),
+	})
+	if err != nil {
+		return
+	}
+	if _, err := r.eventBus.Emit(plugin.NamespaceBGP, plugin.EventNegotiated, string(data)); err != nil {
+		reactorLogger().Debug("emit bgp negotiated failed", "error", err)
+	}
+}
+
+// emitCongestionEventBus emits a (bgp, congested) or (bgp, resumed) event
+// depending on eventType. eventType MUST be plugin.EventCongested or
+// plugin.EventResumed. No-op if no EventBus.
+func (r *Reactor) emitCongestionEventBus(peerAddr, eventType string) {
+	if r.eventBus == nil {
+		return
+	}
+	data, err := json.Marshal(map[string]string{"peer": peerAddr})
+	if err != nil {
+		return
+	}
+	if _, err := r.eventBus.Emit(plugin.NamespaceBGP, eventType, string(data)); err != nil {
+		reactorLogger().Debug("emit bgp congestion failed", "event", eventType, "error", err)
+	}
+}
+
+// emitUpdateNotificationEvent emits a lightweight (bgp, update-notification)
+// event with the peer address and direction. This is observability-only --
+// the full UPDATE wire payload is delivered through the EventDispatcher.
+// No-op if no EventBus.
+func (r *Reactor) emitUpdateNotificationEvent(peerAddr, direction string) {
+	if r.eventBus == nil {
+		return
+	}
+	data, err := json.Marshal(map[string]string{
+		"peer":      peerAddr,
+		"direction": direction,
+	})
+	if err != nil {
+		return
+	}
+	if _, err := r.eventBus.Emit(plugin.NamespaceBGP, plugin.EventUpdateNotification, string(data)); err != nil {
+		reactorLogger().Debug("emit bgp update-notification failed", "error", err)
 	}
 }
 
@@ -810,9 +873,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// Start background gap scan goroutine for the recent update cache.
 	r.recentUpdates.Start()
 
-	// Subscribe to Bus topics for registered handlers (e.g., interface events).
-	// Must happen before listeners start so handlers are active when events arrive.
-	r.subscribeBus()
+	// Subscribe to EventBus events for cross-component reactions (interface
+	// addr changes, etc.). Must happen before listeners start so handlers are
+	// active when events arrive.
+	r.SubscribeInterfaceEvents()
 
 	// Start global listener if ListenAddr is configured.
 	if r.config.ListenAddr != "" {
@@ -1000,8 +1064,8 @@ func (r *Reactor) startAPIServer() error {
 
 	// Wire BGP-specific handlers regardless of server origin.
 	r.eventDispatcher = bgpserver.NewEventDispatcher(r.api)
-	if r.bus != nil {
-		r.eventDispatcher.SetBus(r.bus)
+	if r.eventBus != nil {
+		r.eventDispatcher.SetEventBus(r.eventBus)
 	}
 	r.messageReceiver = r.eventDispatcher
 	r.ingressFilters = registry.IngressFilters()
@@ -1254,11 +1318,14 @@ func (r *Reactor) monitor() {
 // under a single shared deadline. This prevents sequential timeouts from
 // compounding (e.g., api(1s) + listener(2s) + peers(N×2s) = unbounded).
 func (r *Reactor) cleanup() {
-	// Unsubscribe from Bus BEFORE acquiring r.mu. The Bus delivery worker
-	// may be processing events that acquire r.mu.RLock() (e.g., handleAddrAdded).
-	// Unsubscribing drains the worker, avoiding deadlock between cleanup's
-	// write lock and the worker's read lock.
-	r.unsubscribeBus()
+	// Unsubscribe from the EventBus BEFORE acquiring r.mu. EventBus handlers
+	// run synchronously inside the publisher's goroutine and may acquire
+	// r.mu.RLock() (e.g., onInterfaceAddrAdded). Unsubscribing first prevents
+	// any new dispatch from racing with the cleanup write lock.
+	for _, unsub := range r.eventBusUnsubs {
+		unsub()
+	}
+	r.eventBusUnsubs = nil
 
 	r.mu.Lock()
 	defer r.mu.Unlock()

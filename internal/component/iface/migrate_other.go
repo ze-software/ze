@@ -13,6 +13,6 @@ import (
 )
 
 // MigrateInterface is not supported on non-Linux platforms.
-func MigrateInterface(_ MigrateConfig, _ ze.Bus, _ time.Duration) error {
+func MigrateInterface(_ MigrateConfig, _ ze.EventBus, _ time.Duration) error {
 	return fmt.Errorf("interface migration is only supported on Linux")
 }

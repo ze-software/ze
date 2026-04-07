@@ -235,7 +235,7 @@ func (s *Server) SetLoginWarnings(f LoginWarningsFunc) {
 
 // Start launches the SSH server. It implements ze.Subsystem.
 // The listener is created synchronously so bind failures are reported immediately.
-func (s *Server) Start(ctx context.Context, _ ze.Bus, _ ze.ConfigProvider) error {
+func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

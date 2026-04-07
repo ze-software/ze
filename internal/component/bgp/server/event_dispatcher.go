@@ -25,9 +25,9 @@ import (
 // receiver instead of using *pluginserver.Server directly, providing type-safe
 // BGP event dispatch without any-typed indirection.
 type EventDispatcher struct {
-	server  *pluginserver.Server
-	encoder *format.JSONEncoder
-	bus     ze.Bus // Bus for cross-component notifications (nil until SetBus)
+	server   *pluginserver.Server
+	encoder  *format.JSONEncoder
+	eventBus ze.EventBus // EventBus for cross-component notifications (nil until SetEventBus)
 }
 
 // NewEventDispatcher creates a new EventDispatcher for the given plugin server.
@@ -39,12 +39,12 @@ func NewEventDispatcher(server *pluginserver.Server) *EventDispatcher {
 	}
 }
 
-// SetBus sets the Bus for cross-component notifications.
-// When set, the EventDispatcher publishes bgp/eor notifications
-// when End-of-RIB markers are detected during UPDATE delivery.
-func (d *EventDispatcher) SetBus(b ze.Bus) {
-	d.bus = b
-	eorBus = b // Package-level for onEORReceived access
+// SetEventBus sets the EventBus for cross-component notifications.
+// When set, the EventDispatcher emits (bgp, eor) events on the stream
+// system when End-of-RIB markers are detected during UPDATE delivery.
+func (d *EventDispatcher) SetEventBus(eb ze.EventBus) {
+	d.eventBus = eb
+	eorEventBus = eb // Package-level for onEORReceived access
 }
 
 // OnMessageReceived handles raw BGP messages from peers.

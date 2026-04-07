@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 
 	ifaceschema "codeberg.org/thomas-mangin/ze/internal/component/iface/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -24,27 +25,27 @@ import (
 // multiple in-process plugin instances concurrently.
 var loggerPtr atomic.Pointer[slog.Logger]
 
-// busMu guards busRef. An interface cannot be stored in atomic.Pointer
-// directly, so a mutex is used instead.
+// eventBusMu guards eventBusRef. An interface cannot be stored in
+// atomic.Pointer directly, so a mutex is used instead.
 var (
-	busMu  sync.Mutex
-	busRef ze.Bus
+	eventBusMu  sync.Mutex
+	eventBusRef ze.EventBus
 )
 
-// SetBus sets the package-level Bus reference used by the monitor.
-// MUST be called before RunEngine starts the monitor. The engine calls
-// this during plugin startup to inject the Bus dependency.
-func SetBus(b ze.Bus) {
-	busMu.Lock()
-	defer busMu.Unlock()
-	busRef = b
+// SetEventBus sets the package-level EventBus reference used by the monitor.
+// MUST be called before RunEngine starts the monitor. The engine calls this
+// during plugin startup to inject the EventBus dependency.
+func SetEventBus(eb ze.EventBus) {
+	eventBusMu.Lock()
+	defer eventBusMu.Unlock()
+	eventBusRef = eb
 }
 
-// GetBus returns the package-level Bus reference, or nil if not set.
-func GetBus() ze.Bus {
-	busMu.Lock()
-	defer busMu.Unlock()
-	return busRef
+// GetEventBus returns the package-level EventBus reference, or nil if not set.
+func GetEventBus() ze.EventBus {
+	eventBusMu.Lock()
+	defer eventBusMu.Unlock()
+	return eventBusRef
 }
 
 func init() {
@@ -61,9 +62,9 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
-		ConfigureBus: func(bus any) {
-			if b, ok := bus.(ze.Bus); ok {
-				SetBus(b)
+		ConfigureEventBus: func(eb any) {
+			if e, ok := eb.(ze.EventBus); ok {
+				SetEventBus(e)
 			}
 		},
 	}
@@ -121,13 +122,13 @@ func runEngine(conn net.Conn) int {
 		activeCfg = cfg
 		log.Info("interface config applied")
 
-		bus := GetBus()
-		if bus == nil {
-			log.Warn("interface plugin: no bus configured, monitor will not start")
+		eb := GetEventBus()
+		if eb == nil {
+			log.Warn("interface plugin: no event bus configured, monitor will not start")
 			return nil
 		}
 
-		if err := b.StartMonitor(bus); err != nil {
+		if err := b.StartMonitor(eb); err != nil {
 			return fmt.Errorf("interface monitor start: %w", err)
 		}
 		log.Info("interface monitor started")
@@ -176,10 +177,12 @@ func runEngine(conn net.Conn) int {
 				if errs := applyConfig(rollbackCfg, b); len(errs) > 0 {
 					return joinApplyErrors("interface rollback", errs)
 				}
-				// Publish undo events so downstream plugins react.
-				bus := GetBus()
-				if bus != nil {
-					bus.Publish("interface/rollback", nil, nil)
+				// Emit rollback event so downstream plugins react.
+				eb := GetEventBus()
+				if eb != nil {
+					if _, emitErr := eb.Emit(plugin.NamespaceInterface, plugin.EventInterfaceRollback, ""); emitErr != nil {
+						log.Debug("interface rollback emit failed", "error", emitErr)
+					}
 				}
 				return nil
 			},

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -27,7 +28,7 @@ import (
 type DHCPClient struct {
 	ifaceName string
 	unit      int
-	bus       ze.Bus
+	eventBus  ze.EventBus
 	stop      chan struct{}
 	done      chan struct{}
 	v4        bool
@@ -37,10 +38,10 @@ type DHCPClient struct {
 }
 
 // NewDHCPClient creates a DHCP client for the named interface.
-// Bus must not be nil. At least one of v4 or v6 must be true.
-func NewDHCPClient(ifaceName string, unit int, bus ze.Bus, v4, v6 bool) (*DHCPClient, error) {
-	if bus == nil {
-		return nil, errors.New("iface dhcp: bus is nil")
+// eventBus must not be nil. At least one of v4 or v6 must be true.
+func NewDHCPClient(ifaceName string, unit int, eventBus ze.EventBus, v4, v6 bool) (*DHCPClient, error) {
+	if eventBus == nil {
+		return nil, errors.New("iface dhcp: event bus is nil")
 	}
 	if !v4 && !v6 {
 		return nil, errors.New("iface dhcp: at least one of v4 or v6 must be enabled")
@@ -51,7 +52,7 @@ func NewDHCPClient(ifaceName string, unit int, bus ze.Bus, v4, v6 bool) (*DHCPCl
 	return &DHCPClient{
 		ifaceName: ifaceName,
 		unit:      unit,
-		bus:       bus,
+		eventBus:  eventBus,
 		stop:      make(chan struct{}),
 		done:      make(chan struct{}),
 		v4:        v4,
@@ -157,14 +158,48 @@ func (c *DHCPClient) sleepOrStop(d time.Duration) bool {
 	}
 }
 
+// publishDHCP emits a DHCP lease event on the EventBus under the
+// interface namespace. topic is one of the legacy iface.TopicDHCPLease*
+// constants, which are mapped to the corresponding stream event type.
 func (c *DHCPClient) publishDHCP(topic string, payload iface.DHCPPayload) {
-	data, err := json.Marshal(payload)
-	if err != nil {
-		loggerPtr.Load().Debug("iface dhcp: marshal failed", "topic", topic, "err", err)
+	eventType, ok := dhcpTopicToEventType(topic)
+	if !ok {
+		loggerPtr.Load().Debug("iface dhcp: unknown topic", "topic", topic)
 		return
 	}
-	c.bus.Publish(topic, data, map[string]string{
-		"name": c.ifaceName,
-		"unit": fmt.Sprintf("%d", c.unit),
-	})
+	// Attach name and unit to the payload struct via a wrapper that
+	// inlines DHCPPayload and adds the routing metadata that used to
+	// ride in the bus metadata map.
+	wrapper := struct {
+		iface.DHCPPayload
+		Unit int `json:"unit"`
+	}{
+		DHCPPayload: payload,
+		Unit:        c.unit,
+	}
+	if wrapper.Name == "" {
+		wrapper.Name = c.ifaceName
+	}
+	data, err := json.Marshal(wrapper)
+	if err != nil {
+		loggerPtr.Load().Debug("iface dhcp: marshal failed", "event", eventType, "err", err)
+		return
+	}
+	if _, err := c.eventBus.Emit(plugin.NamespaceInterface, eventType, string(data)); err != nil {
+		loggerPtr.Load().Debug("iface dhcp: emit failed", "event", eventType, "err", err)
+	}
+}
+
+// dhcpTopicToEventType maps the legacy bus topic strings for DHCP lease
+// events to the corresponding stream event types in the interface namespace.
+func dhcpTopicToEventType(topic string) (string, bool) {
+	switch topic {
+	case iface.TopicDHCPLeaseAcquired:
+		return plugin.EventInterfaceDHCPAcquired, true
+	case iface.TopicDHCPLeaseRenewed:
+		return plugin.EventInterfaceDHCPRenewed, true
+	case iface.TopicDHCPLeaseExpired:
+		return plugin.EventInterfaceDHCPExpired, true
+	}
+	return "", false
 }
