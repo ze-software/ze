@@ -89,13 +89,13 @@ func addrList(link netlink.Link) []iface.AddrInfo {
 	for _, a := range addrs {
 		fam := "ipv4"
 		if a.IP.To4() == nil {
-			family = "ipv6"
+			fam = "ipv6"
 		}
 		ones, _ := a.Mask.Size()
 		result = append(result, iface.AddrInfo{
 			Address:      a.IP.String(),
 			PrefixLength: ones,
-			Family:       family,
+			Family:       fam,
 		})
 	}
 	return result

@@ -179,14 +179,14 @@ func (m *monitor) handleAddrUpdate(au netlink.AddrUpdate) {
 		Index:        au.LinkIndex,
 		Address:      addr,
 		PrefixLength: ones,
-		Family:       family,
+		Family:       fam,
 	}
 
 	m.publishJSON(topic, payload, map[string]string{
 		"name":    parent,
 		"unit":    strconv.Itoa(unit),
 		"address": addr,
-		"family":  family,
+		"family":  fam,
 	})
 }
 
