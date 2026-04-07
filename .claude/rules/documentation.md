@@ -65,6 +65,12 @@ These are invisible in rendered markdown but let future sessions verify accuracy
 **Before writing any documentation:** read the actual source file. After writing: add the anchor.
 **Before editing existing documentation:** grep for `<!-- source:` anchors, verify each one.
 
+## Validation
+
+Run `make ze-doc-test` after editing any file under `docs/`, after adding or removing a plugin, or after touching a YANG `ze:command` declaration. The umbrella target runs `check-doc-drift` (validates doc counts/lists vs live registry) and `validate-commands` (validates YANG `ze:command` <-> RPC handler contract). Both fail the make target on drift; both report all issues found.
+
+Not part of `ze-verify` today because of a pre-existing drift backlog. Run on demand. See `docs/contributing/documentation-testing.md` for the full workflow and how to interpret output.
+
 ## NOT Documentation
 
 - Code comments (`// Design:`, `// Related:`) -- covered by `design-doc-references.md` and `related-refs.md`

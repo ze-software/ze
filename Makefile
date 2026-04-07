@@ -7,7 +7,7 @@
 .PHONY: ze-interop-test ze-stress-test ze-stress-bird-test ze-stress-profile ze-live-test ze-live-rpki-test
 .PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
-.PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift
+.PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test
 .PHONY: ze-sync-vendor-web ze-check-vendor-web
 .PHONY: check
 
@@ -445,6 +445,27 @@ ze-validate-commands:
 ze-validate-commands-json:
 	@go run scripts/validate-commands.go --json
 
+# Run all documentation tests: drift check + YANG/handler contract.
+# Each tool runs independently so the user sees ALL issues, not just the first
+# tool that fails. Returns non-zero if any tool reports drift.
+# See docs/contributing/documentation-testing.md for the workflow.
+ze-doc-test:
+	@echo "Running documentation tests..."
+	@FAIL=0; \
+	echo ""; \
+	echo "  -> Documentation drift (DESIGN.md, comparison.md vs registry)..."; \
+	go run scripts/check-doc-drift.go || FAIL=1; \
+	echo ""; \
+	echo "  -> YANG/handler contract (validate-commands)..."; \
+	go run scripts/validate-commands.go || FAIL=1; \
+	echo ""; \
+	if [ $$FAIL -ne 0 ]; then \
+		echo "Documentation tests FAILED -- see output above."; \
+		echo "See docs/contributing/documentation-testing.md for how to fix."; \
+		exit 1; \
+	fi; \
+	echo "Documentation tests PASSED"
+
 # Sync vendored web assets to consumer directories
 ze-sync-vendor-web:
 	@scripts/sync-vendor-web.sh
@@ -575,9 +596,15 @@ help:
 	@echo "  ze-inventory-json     - Generate project inventory as JSON"
 	@echo "  ze-command-list       - Generate command inventory (all commands by verb)"
 	@echo "  ze-command-list-json  - Generate command inventory as JSON"
-	@echo "  ze-validate-commands  - Cross-check YANG command tree vs registered handlers"
-	@echo "  ze-sync-vendor-web   - Sync vendored web assets to consumer directories"
-	@echo "  ze-check-vendor-web  - Check vendored web assets for newer versions"
+	@echo "  ze-sync-vendor-web    - Sync vendored web assets to consumer directories"
+	@echo "  ze-check-vendor-web   - Check vendored web assets for newer versions"
+	@echo ""
+	@echo "  Documentation testing:"
+	@echo "  ze-doc-test           - Run all doc tests (drift + YANG/handler contract)"
+	@echo "  ze-doc-drift          - Check DESIGN.md/comparison.md claims vs live registry"
+	@echo "  ze-validate-commands  - Cross-check YANG ze:command vs registered RPC handlers"
+	@echo "  ze-consistency        - Code/doc consistency: design refs, cross-refs, stale refs"
+	@echo "  See docs/contributing/documentation-testing.md for the workflow."
 	@echo ""
 	@echo "  Utilities:"
 	@echo "  fmt                   - Format code (gofmt + goimports)"
