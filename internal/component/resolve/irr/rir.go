@@ -2,7 +2,7 @@
 //
 // RIR lookup: maps an ASN to its Regional Internet Registry and whois server.
 // Two data sources:
-//   - Seed data: compiled-in from scripts/gen-iana-asn.go (committed to repo)
+//   - Seed data: compiled-in from scripts/codegen/iana_asn.go (committed to repo)
 //   - Runtime update: downloaded from RIR delegation files via LoadRIRTable
 //
 // The seed data provides offline operation. `ze update bgp irr` refreshes

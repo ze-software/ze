@@ -17,18 +17,18 @@ documentation files, after adding/removing plugins, or as part of review.
 
 | Tool | Make target | What it validates |
 |------|-------------|-------------------|
-| `scripts/check-doc-drift.go` | `ze-doc-drift` | `docs/DESIGN.md` plugin counts, family lists, `.ci` test totals, interop scenario count, fuzz target count, Go test count -- compared to the live plugin registry, family registry, and filesystem walk. Also `docs/comparison.md` family rows. |
-| `scripts/validate-commands.go` | `ze-validate-commands` | Every YANG `ze:command` declaration has a registered RPC handler, and every registered RPC handler has a matching YANG declaration. |
-| `scripts/consistency-check.go` | `ze-consistency` | Mixed code/doc consistency: `// Design:` references on `.go` files, cross-reference bidirectionality (`// Detail:` <-> `// Overview:`), stale package references in docs and scripts. |
+| `scripts/docvalid/doc_drift.go` | `ze-doc-drift` | `docs/DESIGN.md` plugin counts, family lists, `.ci` test totals, interop scenario count, fuzz target count, Go test count -- compared to the live plugin registry, family registry, and filesystem walk. Also `docs/comparison.md` family rows. |
+| `scripts/docvalid/commands.go` | `ze-validate-commands` | Every YANG `ze:command` declaration has a registered RPC handler, and every registered RPC handler has a matching YANG declaration. |
+| `scripts/lint/consistency.go` | `ze-consistency` | Mixed code/doc consistency: `// Design:` references on `.go` files, cross-reference bidirectionality (`// Detail:` <-> `// Overview:`), stale package references in docs and scripts. |
 
 `ze-doc-test` runs the first two unconditionally and reports a combined
 verdict. `ze-consistency` is left standalone because it covers both
 documentation and code-style concerns (file size limits, plugin structure
 completeness) and is run as part of code review, not doc review.
 
-<!-- source: scripts/check-doc-drift.go -- runChecks -->
-<!-- source: scripts/validate-commands.go -- main -->
-<!-- source: scripts/consistency-check.go -- package doc -->
+<!-- source: scripts/docvalid/doc_drift.go -- runChecks -->
+<!-- source: scripts/docvalid/commands.go -- main -->
+<!-- source: scripts/lint/consistency.go -- package doc -->
 
 ## When to run
 
@@ -92,25 +92,25 @@ Two-direction check. Both directions are contract bugs:
 
 ## How the tools find drift
 
-`check-doc-drift.go` imports `internal/component/plugin/all` so all plugins
-register themselves at init, then queries `registry.All()` and
+`scripts/docvalid/doc_drift.go` imports `internal/component/plugin/all` so all
+plugins register themselves at init, then queries `registry.All()` and
 `registry.FamilyMap()`, walks the filesystem for `.ci` files, and compares
 those live counts/lists against hardcoded patterns in `docs/DESIGN.md` and
 `docs/comparison.md`.
 
-`validate-commands.go` imports the same set plus the BGP cmd plugin schema/
-handler packages, loads the YANG modules, and walks the schema tree looking
-for `ze:command` extensions. For each extension it checks
+`scripts/docvalid/commands.go` imports the same set plus the BGP cmd plugin
+schema/handler packages, loads the YANG modules, and walks the schema tree
+looking for `ze:command` extensions. For each extension it checks
 `registry.CollectRPCHandlers()` for a matching method name.
 
-`consistency-check.go` walks `.go` files, parses `// Design:`, `// Detail:`,
-`// Overview:`, `// Related:` comments, checks for asymmetries, and scans
-`docs/`/`scripts/` for references to packages that no longer exist.
+`scripts/lint/consistency.go` walks `.go` files, parses `// Design:`,
+`// Detail:`, `// Overview:`, `// Related:` comments, checks for asymmetries,
+and scans `docs/`/`scripts/` for references to packages that no longer exist.
 
 ## Adding a new documentation check
 
-1. Write the check as a `//go:build ignore` Go program in `scripts/`,
-   following the patterns in `check-doc-drift.go`.
+1. Write the check as a `//go:build ignore` Go program in `scripts/docvalid/`,
+   following the patterns in `doc_drift.go`.
 2. Add a `make ze-foo-check` target to `Makefile`.
 3. Add the new target to `ze-doc-test` if failure should fail the umbrella.
 4. Add a row to the table in this file.

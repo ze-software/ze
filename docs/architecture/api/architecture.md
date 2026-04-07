@@ -256,7 +256,7 @@ internal/component/plugin/registry/registry.go
 **Registry is a leaf package:** `registry/` has zero dependencies on plugin implementations. Plugins import the registry to register; consumers import the registry to query. This one-directional flow prevents cycles.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration, Lookup, All -->
 
-**Code generation keeps `all.go` in sync:** `scripts/gen-plugin-imports.go` (invoked via `make generate`) walks `internal/component/bgp/plugins/` for `register.go` files that import `plugin/registry`, and separately discovers infrastructure `schema/register.go` files that import `config/yang`. It writes the sorted blank-import list to `all.go`.
+**Code generation keeps `all.go` in sync:** `scripts/codegen/plugin_imports.go` (invoked via `make generate`) walks `internal/component/bgp/plugins/` for `register.go` files that import `plugin/registry`, and separately discovers infrastructure `schema/register.go` files that import `config/yang`. It writes the sorted blank-import list to `all.go`.
 
 **Adding a new plugin:**
 

@@ -233,5 +233,5 @@ Consumers use `registry.PluginForEventType()` / `registry.PluginForSendType()`.
 | No circular plugin deps | Dependency resolver rejects cycles |
 | No missing plugin deps | Resolver checks all declared deps exist |
 | Plugins never import siblings | `rules/plugin-design.md` import rules + code review |
-| All blank imports auto-generated | `make generate` + `scripts/gen-plugin-imports.go` |
+| All blank imports auto-generated | `make generate` + `scripts/codegen/plugin_imports.go` |
 | YANG is source of truth for CLI tree | WireMethod -> YANG path mapping in dispatcher |

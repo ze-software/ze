@@ -1,7 +1,7 @@
 //go:build ignore
 
 // Script to check codebase consistency across multiple dimensions.
-// Run: go run scripts/consistency-check.go
+// Run: go run scripts/lint/consistency.go
 // Or: make ze-consistency
 //
 // Checks performed:

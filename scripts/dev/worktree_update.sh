@@ -3,9 +3,9 @@
 # SAFETY: Only runs inside a git worktree, never on the main working tree.
 #
 # Usage:
-#   scripts/worktree-update.sh                  # update current worktree
-#   scripts/worktree-update.sh <worktree-path>  # update specific worktree
-#   scripts/worktree-update.sh --all            # update all worktrees
+#   scripts/dev/worktree_update.sh                  # update current worktree
+#   scripts/dev/worktree_update.sh <worktree-path>  # update specific worktree
+#   scripts/dev/worktree_update.sh --all            # update all worktrees
 
 set -euo pipefail
 

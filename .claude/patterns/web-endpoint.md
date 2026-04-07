@@ -192,7 +192,7 @@ var assetsFS embed.FS
 ```
 
 Third-party assets synced from `third_party/web/` (htmx.min.js v2.0.4, sse.js, ze.svg)
-via `scripts/sync-vendor-web.sh`. Never write custom JS shims.
+via `scripts/vendor/sync_web.go` (run `make ze-sync-vendor-web`). Never write custom JS shims.
 
 ## Route Registration
 

@@ -55,7 +55,7 @@ findReferences, goToImplementation, incomingCalls, outgoingCalls. More precise t
 tracing call chains and finding interface implementations.
 
 ### Project Inventory Tool
-`make ze-inventory` (or `--json`) runs `scripts/inventory.go`, which imports `plugin/all` to trigger
+`make ze-inventory` (or `--json`) runs `scripts/inventory/inventory.go`, which imports `plugin/all` to trigger
 real registrations, then queries `registry.All()`, `yang.Modules()`, counts RPCs from .yang files,
 .ci tests from `test/`, and Go stats from `internal/`+`pkg/`+`cmd/`. Always accurate, no regex.
 Use when checking plugin counts, RPC totals, family coverage, or codebase size.
@@ -129,7 +129,7 @@ Do NOT flag these as "identity wrappers adding no value."
 - **Rule:** `rules/spec-preservation.md`. TWO commits: (A) code + completed spec, (B) `git rm` spec + add learned summary. Never delete a spec that has not been committed.
 
 ### Reinventing What Exists in the Repo (lg-overhaul)
-- Wrote a 40-line custom HTMX JS shim instead of using real htmx.min.js (v2.0.4) already vendored at `third_party/web/htmx/` and synced to the web UI via `scripts/sync-vendor-web.sh`.
+- Wrote a 40-line custom HTMX JS shim instead of using real htmx.min.js (v2.0.4) already vendored at `third_party/web/htmx/` and synced to the web UI via `scripts/vendor/sync_web.go`.
 - ASN decorator framework was production-ready in `internal/component/web/decorator_asn.go` with Team Cymru DNS, but was never wired into the LG. The learned summary even said "future decorator wiring requires populating GraphNode.Name" while claiming the work was done.
 - Root cause: did not read the existing codebase before writing new code. The web UI already solved both problems.
 - **Rule:** `rules/before-writing-code.md` step 1: "Search for existing implementations -- extend if found." Before writing ANY new infrastructure, grep the repo for existing solutions. If `third_party/` or another component already has it, use it.

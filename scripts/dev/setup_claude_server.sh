@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Setup script for ze development environment on Ubuntu
-# Run as root: sudo bash setup-claude-server.sh [username]
+# Run as root: sudo bash setup_claude_server.sh [username]
 
 set -euo pipefail
 

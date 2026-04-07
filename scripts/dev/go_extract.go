@@ -2,11 +2,11 @@
 
 // Design: (none — build tool)
 //
-// go-extract: Move Go symbols (functions, types, vars, consts) between files.
+// go_extract: Move Go symbols (functions, types, vars, consts) between files.
 // Preserves exact formatting by operating on source lines, not AST rewriting.
 // Runs goimports on both files after extraction.
 //
-// Usage: go run scripts/go-extract.go <source.go> <dest.go> <symbol1> [symbol2 ...]
+// Usage: go run scripts/dev/go_extract.go <source.go> <dest.go> <symbol1> [symbol2 ...]
 
 package main
 

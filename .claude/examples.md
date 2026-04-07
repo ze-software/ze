@@ -60,5 +60,5 @@ Reference implementations for common patterns. Copy these when creating new inst
 
 | Pattern | Reference | Notes |
 |---------|-----------|-------|
-| Inventory script | `scripts/inventory.go` | `//go:build ignore`, registry import, markdown+JSON |
-| Code generator | `scripts/gen-plugin-imports.go` | Walk dirs, generate Go source |
+| Inventory script | `scripts/inventory/inventory.go` | `//go:build ignore`, registry import, markdown+JSON |
+| Code generator | `scripts/codegen/plugin_imports.go` | Walk dirs, generate Go source |

@@ -3,10 +3,10 @@
 <!-- source: cmd/ze/yang/main.go -- ze schema subcommands -->
 <!-- source: cmd/ze/environ/main.go -- ze env subcommands -->
 <!-- source: cmd/ze/help_ai.go -- ze help --ai output -->
-<!-- source: scripts/inventory.go -- make ze-inventory -->
-<!-- source: scripts/command_inventory.go -- make ze-command-list -->
-<!-- source: scripts/validate-commands.go -- make ze-validate-commands -->
-<!-- source: scripts/check-doc-drift.go -- make ze-doc-drift -->
+<!-- source: scripts/inventory/inventory.go -- make ze-inventory -->
+<!-- source: scripts/inventory/commands.go -- make ze-command-list -->
+<!-- source: scripts/docvalid/commands.go -- make ze-validate-commands -->
+<!-- source: scripts/docvalid/doc_drift.go -- make ze-doc-drift -->
 
 Ze is self-documenting: every plugin, environment variable, RPC, event type, and CLI command
 is registered at startup and discoverable at runtime. Nothing exists unregistered -- the
