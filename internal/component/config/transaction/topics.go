@@ -1,4 +1,6 @@
 // Design: docs/architecture/config/transaction-protocol.md -- config transaction bus topics
+// Related: orchestrator.go -- uses these topics for publish/subscribe
+// Related: types.go -- event payload types published on these topics
 
 // Package transaction implements the bus-based config transaction protocol.
 // It defines topic constants, event payload types, and the transaction

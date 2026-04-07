@@ -31,10 +31,15 @@ Key files: `internal/component/bgp/config/resolve.go`, `internal/component/bgp/c
 ### Architecture Restructuring (arch-0)
 Umbrella spec: `plan/learned/425-arch-0-system-boundaries.md`. Six phases.
 Key decisions agreed with user:
-- **5 components:** Engine (supervisor), Bus (content-agnostic pub/sub), ConfigProvider, PluginManager, Subsystem
+- **4 components:** Engine (supervisor), ConfigProvider, PluginManager, Subsystem
+  (Bus removed 2026-04-07: stream system in PluginManager covers all concrete pub/sub
+  needs with DirectBridge zero-copy. See `plan/spec-config-tx-over-stream.md` rationale.)
 - **Subsystem ≠ Plugin:** BGP daemon is a subsystem (owns TCP/FSM), bgp-rib/rs/gr are plugins
-- **Bus is content-agnostic:** payload always `[]byte`, bus never type-asserts. Like RabbitMQ/Kafka.
-- **Topics:** hierarchical with `/` separator (`bgp/update`, `bgp/events/peer-up`). Prefix-based subscription matching.
+- **Stream system is the pub/sub backbone:** validated `(namespace, event-type)` events
+  with DirectBridge zero-copy hot path. Located in `internal/component/plugin/server/dispatch.go`
+  (`subscribeEvents`/`emitEvent`/`deliverEvent`). For plugin-to-plugin opaque messaging without
+  registration, the future answer is an `open` namespace exemption -- not a separate bus.
+  See `plan/deferrals.md` 2026-04-07 entry for `spec-stream-open-namespace`.
 - **Interfaces in `pkg/ze/`** — public so external plugins can depend on them
 - **ConfigManager is central authority** — editor (`ze config edit`), web UI, subsystems, plugins all use same interface
 - **Performance matters** — user explicitly asked for performance-conscious design
