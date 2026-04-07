@@ -10,10 +10,18 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sort"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+// bgpParticipantName is the plugin name whose apply must run last, matching
+// the legacy reload.go semantic where BGP peer reconciliation saw every other
+// plugin's committed state. Sorted to the tail of the participant list so the
+// orchestrator's publish loop emits verify/apply for "bgp" after every other
+// participant has acked.
+const bgpParticipantName = "bgp"
 
 // runTxCoordinator runs the transaction orchestrator for a reload once the
 // caller has computed the affected plugins and the raw diff. It builds
@@ -32,13 +40,13 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 		return nil
 	}
 
-	participants, diffs, err := buildTxInputs(affected, diff)
+	participants, diffs, verifySections, err := buildTxInputs(affected, diff)
 	if err != nil {
 		return fmt.Errorf("build transaction inputs: %w", err)
 	}
 
 	gateway := NewConfigEventGateway(s)
-	bridge := newConfigTxBridge(s, gateway, participantNames(participants))
+	bridge := newConfigTxBridge(s, gateway, participantNames(participants), verifySections)
 	if err := bridge.Subscribe(ctx); err != nil {
 		return fmt.Errorf("config tx bridge subscribe: %w", err)
 	}
@@ -54,19 +62,31 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 }
 
 // buildTxInputs turns the affected plugin list into the typed participant
-// slice and the diff map the orchestrator expects. Participants come from
-// the affected plugin registrations; the diff map is indexed by top-level
-// root so filterDiffs in the orchestrator can dispatch only the relevant
-// sections to each participant. Diff sections are taken straight from the
-// same buildDiffSections helper the legacy reload path used, so the shape
-// of Added/Removed/Changed is identical between the two paths.
+// slice, the diff map the orchestrator expects, and the per-plugin verify
+// sections the RPC bridge hands back to SendConfigVerify.
 //
-// Wildcard config roots (["*"]) are expanded to the concrete list of roots
-// present in the diff, because the orchestrator's filterDiffs does exact
-// match lookups and has no wildcard awareness. Expanding here keeps the
-// orchestrator simple and matches the legacy reload.go semantics where a
-// wildcard plugin received every changed root.
-func buildTxInputs(affected []affectedPlugin, diff *configDiff) ([]transaction.Participant, map[string][]transaction.DiffSection, error) {
+// Participants are derived from the affected plugin registrations and
+// sorted so the "bgp" participant (if present) comes last. The orchestrator
+// emits events in participant order, and the bridge's synchronous dispatch
+// loop then applies to plugins in that order -- matching the legacy
+// reload.go semantic where BGP's peer reconciliation ran after every other
+// plugin committed.
+//
+// The diff map is taken straight from the same buildDiffSections helper
+// the legacy reload path used, so the shape of Added/Removed/Changed is
+// identical between the two paths.
+//
+// verifySections carries the per-plugin candidate subtree sections (built
+// by reload.go via ExtractConfigSubtree + WantsConfigRoots) straight
+// through to the bridge. The orchestrator's VerifyEvent payload carries
+// only the neutral diff representation, which is not the candidate shape
+// the SDK's OnConfigVerify contract expects; forwarding the sections
+// out-of-band preserves the contract without changing the orchestrator.
+//
+// Wildcard config roots (["*"]) are expanded to the concrete (sorted)
+// list of roots present in the diff, because the orchestrator's
+// filterDiffs does exact match lookups and has no wildcard awareness.
+func buildTxInputs(affected []affectedPlugin, diff *configDiff) ([]transaction.Participant, map[string][]transaction.DiffSection, map[string][]rpc.ConfigSection, error) {
 	diffMap := make(map[string][]transaction.DiffSection)
 	for _, section := range buildDiffSections(diff) {
 		diffMap[section.Root] = append(diffMap[section.Root], transaction.DiffSection{
@@ -80,15 +100,17 @@ func buildTxInputs(affected []affectedPlugin, diff *configDiff) ([]transaction.P
 	for root := range diffMap {
 		allRoots = append(allRoots, root)
 	}
+	sort.Strings(allRoots)
 
 	participants := make([]transaction.Participant, 0, len(affected))
+	verifySections := make(map[string][]rpc.ConfigSection, len(affected))
 	for _, ap := range affected {
 		reg := ap.proc.Registration()
 		if reg == nil {
-			return nil, nil, fmt.Errorf("plugin %q has no registration", ap.proc.Name())
+			return nil, nil, nil, fmt.Errorf("plugin %q has no registration", ap.proc.Name())
 		}
 		if err := transaction.ValidatePluginName(ap.proc.Name()); err != nil {
-			return nil, nil, fmt.Errorf("plugin %q: %w", ap.proc.Name(), err)
+			return nil, nil, nil, fmt.Errorf("plugin %q: %w", ap.proc.Name(), err)
 		}
 		roots := expandWildcardRoots(reg.WantsConfigRoots, allRoots)
 		participants = append(participants, transaction.Participant{
@@ -97,15 +119,38 @@ func buildTxInputs(affected []affectedPlugin, diff *configDiff) ([]transaction.P
 			VerifyBudget: reg.VerifyBudget,
 			ApplyBudget:  reg.ApplyBudget,
 		})
+		copied := make([]rpc.ConfigSection, len(ap.sections))
+		copy(copied, ap.sections)
+		verifySections[ap.proc.Name()] = copied
 	}
 
-	return participants, diffMap, nil
+	sortParticipantsBGPLast(participants)
+
+	return participants, diffMap, verifySections, nil
+}
+
+// sortParticipantsBGPLast places the "bgp" participant at the tail of the
+// slice, preserving the relative order of every other participant. Used
+// by buildTxInputs so the orchestrator's serialized publish loop applies
+// bgp after sysrib/interface/gr/etc. have finished, matching the legacy
+// reload.go ordering.
+func sortParticipantsBGPLast(participants []transaction.Participant) {
+	sort.SliceStable(participants, func(i, j int) bool {
+		if participants[i].Name == bgpParticipantName {
+			return false
+		}
+		if participants[j].Name == bgpParticipantName {
+			return true
+		}
+		return false
+	})
 }
 
 // expandWildcardRoots replaces a "*" entry in the plugin's declared roots
 // with the concrete list of roots that actually changed this transaction.
 // Plugins with explicit roots are copied verbatim so the orchestrator sees
-// exactly the roots the plugin registered interest in.
+// exactly the roots the plugin registered interest in. The wildcard list
+// is sorted by the caller, so the resulting slice is deterministic.
 func expandWildcardRoots(declared, allRoots []string) []string {
 	if slices.Contains(declared, "*") {
 		out := make([]string, len(allRoots))
@@ -181,9 +226,3 @@ func (s *Server) restartPlugin(pluginName string) error {
 	}
 	return nil
 }
-
-// Silence the unused import for process when the package-level var block is
-// the only usage site. The bridge and buildTxInputs both inspect
-// *process.Process via methods, so the import is genuinely needed at build
-// time even though nothing here constructs one.
-var _ = (*process.Process)(nil)

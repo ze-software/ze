@@ -44,8 +44,14 @@ func (m *mockReloadReactor) SetConfigTree(tree map[string]any) {
 // TxCoordinator path drives the same RPCs through its engine-side RPC
 // bridge, so these mocks exercise both the legacy and the coordinator
 // path uniformly.
+//
+// The responder captures the Sections payload sent to config-verify and
+// the DiffSections payload sent to config-apply so tests can assert the
+// plugin receives the correct candidate data (not diff-shaped JSON as the
+// earlier bridge implementation accidentally sent).
 type mockPluginResponder struct {
 	pluginConn      *ipc.PluginConn
+	pluginName      string // label recorded by orderRecorder on apply
 	verifyResp      *rpc.ConfigVerifyOutput
 	applyResp       *rpc.ConfigApplyOutput
 	rollbackErr     error  // non-nil → SendError on rollback (CodeBroken path)
@@ -53,7 +59,32 @@ type mockPluginResponder struct {
 	verifyCalls     int
 	applyCalls      int
 	rollbackCalls   int
+	verifySections  []rpc.ConfigSection     // last verify payload
+	applySections   []rpc.ConfigDiffSection // last apply payload
+	order           *orderRecorder          // optional ordering trace
 	mu              sync.Mutex
+}
+
+// orderRecorder tracks the sequence in which plugins receive config-apply
+// RPCs. Multiple responders share one recorder via mockPluginResponder.order
+// so tests can assert cross-plugin apply ordering.
+type orderRecorder struct {
+	mu    sync.Mutex
+	calls []string
+}
+
+func (r *orderRecorder) record(label string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.calls = append(r.calls, label)
+}
+
+func (r *orderRecorder) snapshot() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]string, len(r.calls))
+	copy(out, r.calls)
+	return out
 }
 
 func (m *mockPluginResponder) start(ctx context.Context) {
@@ -68,6 +99,12 @@ func (m *mockPluginResponder) start(ctx context.Context) {
 			switch req.Method {
 			case "ze-plugin-callback:config-verify":
 				m.verifyCalls++
+				var in rpc.ConfigVerifyInput
+				if len(req.Params) > 0 {
+					if uerr := json.Unmarshal(req.Params, &in); uerr == nil {
+						m.verifySections = append([]rpc.ConfigSection(nil), in.Sections...)
+					}
+				}
 				resp := m.verifyResp
 				if resp == nil {
 					resp = &rpc.ConfigVerifyOutput{Status: rpc.StatusOK}
@@ -85,6 +122,15 @@ func (m *mockPluginResponder) start(ctx context.Context) {
 
 			case "ze-plugin-callback:config-apply":
 				m.applyCalls++
+				var in rpc.ConfigApplyInput
+				if len(req.Params) > 0 {
+					if uerr := json.Unmarshal(req.Params, &in); uerr == nil {
+						m.applySections = append([]rpc.ConfigDiffSection(nil), in.Sections...)
+					}
+				}
+				if m.order != nil {
+					m.order.record(m.pluginName)
+				}
 				resp := m.applyResp
 				if resp == nil {
 					resp = &rpc.ConfigApplyOutput{Status: rpc.StatusOK}
@@ -133,6 +179,7 @@ type pluginDef struct {
 	roots      []string
 	verifyResp *rpc.ConfigVerifyOutput
 	applyResp  *rpc.ConfigApplyOutput
+	order      *orderRecorder // optional: shared across plugins to capture cross-plugin apply order
 	responder  *mockPluginResponder
 }
 
@@ -178,8 +225,10 @@ func newTestReloadServer(t *testing.T, reactor *mockReloadReactor, plugins []plu
 		// Start mock plugin responder
 		resp := &mockPluginResponder{
 			pluginConn: pluginConn,
+			pluginName: pd.name,
 			verifyResp: pd.verifyResp,
 			applyResp:  pd.applyResp,
+			order:      pd.order,
 		}
 		resp.start(s.ctx)
 		pd.responder = resp
@@ -865,4 +914,87 @@ func TestReloadTxCoordinatorRollback(t *testing.T) {
 	reactor.mu.Lock()
 	assert.Nil(t, reactor.setTree, "reactor config tree should not be updated after rollback")
 	reactor.mu.Unlock()
+}
+
+// TestReloadTxVerifyReceivesFullSubtree verifies that plugins see the
+// post-change candidate subtree for their declared root when the
+// TxCoordinator drives verify, matching the legacy reload.go contract.
+//
+// VALIDATES: ConfigSection.Data handed to OnConfigVerify is the full
+// subtree JSON (e.g. {"router-id":"5.6.7.8"}) and not the diff shape
+// ({"bgp/router-id":{"old":...,"new":...}}).
+// PREVENTS: Plugins validating against a malformed diff payload instead
+// of the candidate config -- a subtle regression that mock tests
+// without payload inspection would miss.
+func TestReloadTxVerifyReceivesFullSubtree(t *testing.T) {
+	t.Parallel()
+
+	oldTree := map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}
+	newTree := map[string]any{"bgp": map[string]any{"router-id": "5.6.7.8"}}
+	reactor := &mockReloadReactor{tree: oldTree}
+
+	plugins := []pluginDef{
+		{name: "rib", roots: []string{"bgp"}},
+	}
+	s := newTestReloadServer(t, reactor, plugins)
+
+	err := s.ReloadConfig(context.Background(), newTree)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool { return plugins[0].responder.getVerifyCalls() == 1 }, 2*time.Second, 10*time.Millisecond)
+
+	plugins[0].responder.mu.Lock()
+	sections := append([]rpc.ConfigSection(nil), plugins[0].responder.verifySections...)
+	plugins[0].responder.mu.Unlock()
+
+	require.Len(t, sections, 1, "plugin should receive exactly one section for the bgp root")
+	assert.Equal(t, "bgp", sections[0].Root)
+
+	var data map[string]any
+	require.NoError(t, json.Unmarshal([]byte(sections[0].Data), &data))
+	bgp, ok := data["bgp"].(map[string]any)
+	require.True(t, ok, "ExtractConfigSubtree wraps the leaf in its path, so the Data JSON starts with the root key; got %v", data)
+	assert.Equal(t, "5.6.7.8", bgp["router-id"], "plugin should see the post-change candidate subtree")
+	// Diff-shaped encoding would surface keys like "bgp/router-id" at the
+	// top level (the mistake fixed here). Assert that neither shape leaks
+	// through so a future regression is caught immediately.
+	assert.NotContains(t, data, "bgp/router-id", "plugin must not see diff-shaped keys at top level")
+	assert.NotContains(t, bgp, "old", "plugin must not see diffPair fields")
+	assert.NotContains(t, bgp, "new", "plugin must not see diffPair fields")
+}
+
+// TestReloadTxApplyBGPLast verifies that the "bgp" participant receives
+// config-apply after every non-bgp participant when BGP and other plugins
+// share the bgp config root. This guards the legacy reload.go ordering
+// semantic where BGP peer reconciliation saw sysrib/interface/gr/etc.
+// committed state.
+//
+// VALIDATES: Participants with the "bgp" name are sorted to the tail of
+// the apply emit order so their RPC runs last in the bridge's serial
+// dispatch loop.
+// PREVENTS: A future change that introduces a plugin literally named
+// "bgp" silently reordering apply and breaking peer reconciliation.
+func TestReloadTxApplyBGPLast(t *testing.T) {
+	t.Parallel()
+
+	oldTree := map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}
+	newTree := map[string]any{"bgp": map[string]any{"router-id": "5.6.7.8"}}
+	reactor := &mockReloadReactor{tree: oldTree}
+
+	order := &orderRecorder{}
+	plugins := []pluginDef{
+		// Intentional registration order: "bgp" first, then a non-bgp
+		// plugin. The sort must still place bgp last in apply order.
+		{name: "bgp", roots: []string{"bgp"}, order: order},
+		{name: "sysrib", roots: []string{"bgp"}, order: order},
+		{name: "gr", roots: []string{"bgp"}, order: order},
+	}
+	s := newTestReloadServer(t, reactor, plugins)
+
+	err := s.ReloadConfig(context.Background(), newTree)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool { return len(order.snapshot()) == 3 }, 2*time.Second, 10*time.Millisecond)
+
+	calls := order.snapshot()
+	require.Len(t, calls, 3)
+	assert.Equal(t, "bgp", calls[len(calls)-1], "bgp participant must receive config-apply last; got order %v", calls)
 }

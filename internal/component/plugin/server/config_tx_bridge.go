@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -30,20 +31,39 @@ import (
 // unsubscribes and MUST be called when the transaction completes; callers
 // typically defer it immediately after construction.
 //
+// Concurrency model: engine event handlers fire synchronously inside the
+// orchestrator's publish goroutine (see Server.dispatchEngineEvent), so the
+// bridge's verify/apply handlers block that goroutine while the plugin RPC
+// is in flight. This intentionally serializes verify/apply across
+// participants in registration order -- reload_tx.go sorts the participant
+// list so the "bgp" subsystem applies last, matching the legacy reload.go
+// semantic that BGP peer reconciliation sees every other plugin's state
+// committed first. A per-RPC deadline derived from the event's DeadlineMS
+// field bounds each RPC so a hung plugin cannot stall the transaction past
+// the orchestrator's own deadline.
+//
 // The bridge holds no mutable state beyond the subscription handles and is
-// safe for concurrent event delivery because every handler only reads
-// immutable fields (server, gateway, participants) and each RPC call is
-// independent. Ack emission races are harmless: the orchestrator's ack
-// channels are sized per participant and duplicate/out-of-band acks are
-// dropped with a warning rather than blocking.
+// safe for concurrent Close calls from Subscribe/defer paths. Every handler
+// only reads immutable fields (server, gateway, verifySections,
+// participantNames) and each RPC call is independent.
 type configTxBridge struct {
 	server  *Server
 	gateway *ConfigEventGateway
 
-	// participantNames lists the plugins this bridge handles. The bridge
-	// subscribes to verify-<name> and apply-<name> for each; the rollback
-	// event is a single broadcast subscription with fan-out over the list.
+	// participantNames lists the plugins this bridge handles, in the
+	// order the orchestrator will emit verify/apply events. reload_tx.go
+	// sorts this list so the "bgp" participant comes last; the bridge
+	// treats the slice as opaque but preserves ordering when fanning out
+	// rollback.
 	participantNames []string
+
+	// verifySections maps plugin name -> full post-change config sections
+	// for the roots that plugin declared interest in. The bridge hands
+	// these verbatim to conn.SendConfigVerify, matching the legacy
+	// reload.go behavior where plugins received the candidate subtree
+	// (not the diff) during verify. reload.go computed this via
+	// ExtractConfigSubtree + WantsConfigRoots.
+	verifySections map[string][]rpc.ConfigSection
 
 	// mu guards unsubs so Close is idempotent even under concurrent calls.
 	mu     sync.Mutex
@@ -55,11 +75,17 @@ type configTxBridge struct {
 // up; the bridge performs no work until Subscribe runs. Participant names MUST
 // already satisfy transaction.ValidatePluginName; the orchestrator rejects
 // reserved names in its own constructor, so the bridge trusts that check.
-func newConfigTxBridge(s *Server, gw *ConfigEventGateway, participantNames []string) *configTxBridge {
+//
+// verifySections MUST contain one entry per participant, with the full
+// candidate subtree sections that plugin should receive during verify. Apply
+// data comes from the orchestrator's ApplyEvent payload (which is already
+// filtered per participant), so the bridge does not need a separate apply map.
+func newConfigTxBridge(s *Server, gw *ConfigEventGateway, participantNames []string, verifySections map[string][]rpc.ConfigSection) *configTxBridge {
 	return &configTxBridge{
 		server:           s,
 		gateway:          gw,
 		participantNames: participantNames,
+		verifySections:   verifySections,
 	}
 }
 
@@ -137,13 +163,14 @@ func (p phaseKind) eventType(name string) string {
 	return transaction.EventVerifyFor(name)
 }
 
-// runRPC drives the plugin-side RPC for this phase using the decoded diffs
-// from the stream event. It returns a plugin-reported status error (empty
-// on success) and a transport error separately so the caller can emit the
-// right ack kind without having to sniff error strings.
-func (p phaseKind) runRPC(ctx context.Context, conn *ipc.PluginConn, diffs []transaction.DiffSection) (statusErr string, err error) {
+// runRPC drives the plugin-side RPC for this phase. Verify consumes the
+// per-plugin candidate sections captured at bridge construction; apply uses
+// the diff payload decoded from the stream event (which the orchestrator has
+// already filtered per participant). A non-empty statusErr means the plugin
+// rejected the change; a non-nil err means transport or encoding failure.
+func (p phaseKind) runRPC(ctx context.Context, conn *ipc.PluginConn, verifySections []rpc.ConfigSection, applyDiffs []transaction.DiffSection) (statusErr string, err error) {
 	if p == phaseApply {
-		out, rpcErr := conn.SendConfigApply(ctx, diffSectionsToDiffRPCSections(diffs))
+		out, rpcErr := conn.SendConfigApply(ctx, diffSectionsToDiffRPCSections(applyDiffs))
 		if rpcErr != nil {
 			return "", rpcErr
 		}
@@ -152,7 +179,7 @@ func (p phaseKind) runRPC(ctx context.Context, conn *ipc.PluginConn, diffs []tra
 		}
 		return "", nil
 	}
-	out, rpcErr := conn.SendConfigVerify(ctx, diffSectionsToConfigSections(diffs))
+	out, rpcErr := conn.SendConfigVerify(ctx, verifySections)
 	if rpcErr != nil {
 		return "", rpcErr
 	}
@@ -187,28 +214,50 @@ func (p phaseKind) emitOK(b *configTxBridge, txID, name string, proc *process.Pr
 // The two payload types from transaction/types.go share their wire format
 // exactly (transaction id + diffs + deadline), so decoding once against a
 // neutral local type avoids duplicating the subscribe handler for the two
-// phases. The bridge never writes these back, only reads them, so a local
-// type is safe.
+// phases. Verify ignores Diffs and uses the bridge's cached sections; apply
+// consumes Diffs directly.
 type phaseEnvelope struct {
 	TransactionID string                    `json:"transaction-id"`
 	Diffs         []transaction.DiffSection `json:"diffs"`
+	DeadlineMS    int64                     `json:"deadline-ms"`
+}
+
+// txIDProbe is a minimal unmarshal target used to recover the transaction
+// ID from a partially-valid event payload. If the full envelope fails to
+// unmarshal but the txID field is present, the bridge can still publish a
+// failure ack the orchestrator will route correctly.
+type txIDProbe struct {
+	TransactionID string `json:"transaction-id"`
 }
 
 // subscribePhase registers a handler for the per-plugin event of the given
-// phase. Each dispatch path is: unmarshal envelope, look up the plugin
-// process, run the phase RPC, emit the matching ack. Errors are surfaced
-// as a <phase>-failed ack so the orchestrator can abort cleanly instead of
-// waiting for the deadline.
-func (b *configTxBridge) subscribePhase(ctx context.Context, name string, ph phaseKind) {
+// phase. Each dispatch path is: extract txID (so a failure ack routes back
+// even on partial parse), unmarshal the full envelope, look up the plugin
+// process, run the phase RPC under a deadline derived from the event, emit
+// the matching ack.
+func (b *configTxBridge) subscribePhase(parentCtx context.Context, name string, ph phaseKind) {
 	eventType := ph.eventType(name)
 	unsub := b.server.SubscribeEngineEvent(plugin.NamespaceConfig, eventType, func(event string) {
-		var env phaseEnvelope
-		if err := json.Unmarshal([]byte(event), &env); err != nil {
-			logger().Error("config tx bridge: unmarshal phase event",
+		raw := []byte(event)
+
+		// Extract txID first so a failure ack from a later step has
+		// the correct ack routing key even if the full envelope
+		// unmarshal below fails on the diffs field.
+		var probe txIDProbe
+		if err := json.Unmarshal(raw, &probe); err != nil {
+			logger().Error("config tx bridge: extract tx id",
 				"plugin", name, "event-type", eventType, "error", err)
-			ph.emitFailed(b, "", name, "unmarshal phase event: "+err.Error())
 			return
 		}
+
+		var env phaseEnvelope
+		if err := json.Unmarshal(raw, &env); err != nil {
+			logger().Error("config tx bridge: unmarshal phase event",
+				"plugin", name, "event-type", eventType, "error", err)
+			ph.emitFailed(b, probe.TransactionID, name, "unmarshal phase event: "+err.Error())
+			return
+		}
+
 		proc := b.lookupProcess(name)
 		if proc == nil {
 			ph.emitFailed(b, env.TransactionID, name, "plugin process not found (crashed?)")
@@ -219,7 +268,12 @@ func (b *configTxBridge) subscribePhase(ctx context.Context, name string, ph pha
 			ph.emitFailed(b, env.TransactionID, name, "plugin connection closed (crashed?)")
 			return
 		}
-		statusErr, err := ph.runRPC(ctx, conn, env.Diffs)
+
+		rpcCtx, cancel := deadlineCtx(parentCtx, env.DeadlineMS)
+		defer cancel()
+
+		verifySections := b.verifySections[name]
+		statusErr, err := ph.runRPC(rpcCtx, conn, verifySections, env.Diffs)
 		if err != nil {
 			ph.emitFailed(b, env.TransactionID, name, err.Error())
 			return
@@ -233,11 +287,22 @@ func (b *configTxBridge) subscribePhase(ctx context.Context, name string, ph pha
 	b.addUnsub(unsub)
 }
 
+// deadlineCtx derives a per-RPC context. When the event carries a non-zero
+// Unix-millis deadline the returned context honors it; otherwise the parent
+// is returned unchanged with a no-op cancel. Derived deadlines use the
+// parent so that Close or server shutdown still cancels the RPC.
+func deadlineCtx(parent context.Context, deadlineMS int64) (context.Context, context.CancelFunc) {
+	if deadlineMS <= 0 {
+		return parent, func() {}
+	}
+	return context.WithDeadline(parent, time.UnixMilli(deadlineMS))
+}
+
 // subscribeRollback wires a single handler for the broadcast rollback event.
 // When the orchestrator rolls back, the bridge fans out config-rollback RPCs
 // to every participant and emits rollback-ok acks. RPC errors translate to a
 // CodeBroken ack so the orchestrator restarts the plugin via its restartFn.
-func (b *configTxBridge) subscribeRollback(ctx context.Context) {
+func (b *configTxBridge) subscribeRollback(parentCtx context.Context) {
 	unsub := b.server.SubscribeEngineEvent(plugin.NamespaceConfig, transaction.EventRollback, func(event string) {
 		var ev transaction.RollbackEvent
 		if err := json.Unmarshal([]byte(event), &ev); err != nil {
@@ -248,7 +313,7 @@ func (b *configTxBridge) subscribeRollback(ctx context.Context) {
 		// calling goroutine; the orchestrator waits for rollback-ok acks
 		// with its own deadline so a slow plugin only delays its own tier.
 		for _, name := range b.participantNames {
-			b.dispatchRollback(ctx, ev.TransactionID, name)
+			b.dispatchRollback(parentCtx, ev.TransactionID, name)
 		}
 	})
 	b.addUnsub(unsub)
@@ -387,22 +452,6 @@ func registrationApplyBudget(proc *process.Process) int {
 	return reg.ApplyBudget
 }
 
-// diffSectionsToConfigSections converts the orchestrator's neutral diff
-// representation into the rpc.ConfigSection payload that SendConfigVerify
-// expects. The plugin treats Data as the authoritative candidate for its
-// root. When only Removed is present (root removed), the encoding is an
-// empty JSON object, matching the legacy reload.go branch. The Changed
-// field wins over Added when both are present because Changed describes
-// the most specific post-change state in the diff.
-func diffSectionsToConfigSections(diffs []transaction.DiffSection) []rpc.ConfigSection {
-	out := make([]rpc.ConfigSection, 0, len(diffs))
-	for _, d := range diffs {
-		data := candidateJSON(d)
-		out = append(out, rpc.ConfigSection{Root: d.Root, Data: data})
-	}
-	return out
-}
-
 // diffSectionsToDiffRPCSections converts to rpc.ConfigDiffSection, carrying
 // Added/Removed/Changed through verbatim. This is the format config-apply
 // already consumes.
@@ -418,23 +467,3 @@ func diffSectionsToDiffRPCSections(diffs []transaction.DiffSection) []rpc.Config
 	}
 	return out
 }
-
-// candidateJSON picks the most specific post-change view the diff carries.
-// Changed wins over Added (Changed is only set when the root already
-// existed), Added wins over a pure removal (no candidate to show), and a
-// pure removal resolves to an empty object so the plugin can still verify
-// the removal semantically.
-func candidateJSON(d transaction.DiffSection) string {
-	if d.Changed != "" {
-		return d.Changed
-	}
-	if d.Added != "" {
-		return d.Added
-	}
-	return "{}"
-}
-
-// Silence the unused import warning for ipc when only the Conn reference is
-// taken from process.Process. The package is genuinely needed because the
-// RPC helpers (SendConfigVerify/Apply/Rollback) live on *ipc.PluginConn.
-var _ = (*ipc.PluginConn)(nil)
