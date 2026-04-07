@@ -41,17 +41,25 @@ func convertFamilyToList(src, dst *config.Tree) {
 
 // convertFamilySyntax converts ExaBGP family format to ZeBGP.
 // Examples: "ipv4 unicast" → "ipv4/unicast", "ipv6 multicast" → "ipv6/multicast".
+//
+// Several ExaBGP SAFI names differ from Ze's canonical names registered via
+// family.MustRegister: ExaBGP "nlri-mpls" → Ze "mpls-label", ExaBGP
+// "mcast-vpn" → Ze "mvpn", ExaBGP "flowspec" → Ze "flow". The replacements
+// table here is the source of truth for ExaBGP→Ze family renames at the
+// migration layer.
 func convertFamilySyntax(family string) string {
 	// Common ExaBGP family formats.
 	replacements := map[string]string{
 		"ipv4 unicast":   "ipv4/unicast",
 		"ipv4 multicast": "ipv4/multicast",
-		"ipv4 nlri-mpls": "ipv4/nlri-mpls",
+		"ipv4 nlri-mpls": "ipv4/mpls-label",
 		"ipv4 flowspec":  "ipv4/flow",
+		"ipv4 mcast-vpn": "ipv4/mvpn",
 		"ipv6 unicast":   "ipv6/unicast",
 		"ipv6 multicast": "ipv6/multicast",
-		"ipv6 nlri-mpls": "ipv6/nlri-mpls",
+		"ipv6 nlri-mpls": "ipv6/mpls-label",
 		"ipv6 flowspec":  "ipv6/flow",
+		"ipv6 mcast-vpn": "ipv6/mvpn",
 		"l2vpn vpls":     "l2vpn/vpls",
 		"l2vpn evpn":     "l2vpn/evpn",
 	}
@@ -113,6 +121,24 @@ func normalizeSAFI(safi string) string {
 	case "nlri-mpls", "labeled-unicast":
 		return "mpls-label"
 	default: // pass through: unknown SAFIs are preserved as-is for the Ze parser to validate
+		return safi
+	}
+}
+
+// canonicalSAFI translates an ExaBGP SAFI string to the canonical Ze SAFI
+// expected by the family registry (`internal/core/family`). Used when
+// constructing Ze family names ("<afi>/<safi>") from ExaBGP source config.
+// Unknown SAFIs pass through unchanged so the Ze parser produces an
+// "unknown address family" error at config load time.
+func canonicalSAFI(safi string) string {
+	switch strings.ToLower(safi) {
+	case "mcast-vpn":
+		return "mvpn"
+	case "nlri-mpls", "labeled-unicast":
+		return "mpls-label"
+	case "flowspec":
+		return "flow"
+	default: // pass through: unknown SAFIs are preserved for the Ze parser to validate
 		return safi
 	}
 }

@@ -1185,11 +1185,15 @@ func TestConvertFlexToUpdate(t *testing.T) {
 		wantNLRI   string
 	}{
 		{
-			name:       "mvpn_ipv4",
-			afi:        "ipv4",
-			safi:       "mcast-vpn",
-			values:     []string{"shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000 next-hop 10.10.6.3 extended-community [target:192.168.94.12:5]"},
-			wantFamily: "ipv4/mcast-vpn",
+			name: "mvpn_ipv4",
+			afi:  "ipv4",
+			safi: "mcast-vpn",
+			values: []string{
+				"shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000 next-hop 10.10.6.3 extended-community [target:192.168.94.12:5]",
+			},
+			// Migration translates ExaBGP "mcast-vpn" SAFI to Ze canonical "mvpn"
+			// (registered by internal/component/bgp/plugins/nlri/mvpn).
+			wantFamily: "ipv4/mvpn",
 			wantNHop:   "10.10.6.3",
 			wantNLRI:   "add shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000",
 		},

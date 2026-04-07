@@ -80,6 +80,20 @@ independent regressions, all introduced between commits `58564e0a` and
 **Root cause:** `internal/component/bgp/config/bgp_routes.go` had a switch on family name to dispatch MVPN/flowspec/VPLS/MUP NLRI lines to their specialized parsers. The MVPN case used the legacy names `"ipv4/mcast-vpn"` / `"ipv6/mcast-vpn"`, but the family registry (`internal/component/bgp/plugins/nlri/mvpn/register.go:Families`) registers the canonical names `"ipv4/mvpn"` / `"ipv6/mvpn"`. Configs that wrote `ipv4/mvpn add shared-join ...` never reached `parseMVPNNLRILine`.
 **Fix:** Update the case in `bgp_routes.go:171` to `"ipv4/mvpn"`, `"ipv6/mvpn"`. Also update the doc comment in `bgp_routes_mvpn.go:14-15` to use the canonical name in its example.
 
+### 9. ExaBGP migration emitted stale family names (2 exabgp-compat tests: M, T)
+
+**Symptom:** `make ze-verify` reached `ze-exabgp-test` and timed out on `M conf-mvpn` and `T conf-prefix-sid`. The migrated configs failed to load with `unknown address family "ipv4/nlri-mpls"` (T) and `update block: invalid family: ipv4/mpls` (T after first fix), or `update block: invalid prefix shared-join` (M, after Fix 7 was applied to bgp_routes.go).
+**Root cause:** The migration tool (`internal/exabgp/migration/`) emits Ze config from ExaBGP source. Three places used pre-rename SAFI strings that no longer match Ze's family registry:
+- `migrate_family.go:convertFamilySyntax` mapped `ipv4 nlri-mpls` -> `ipv4/nlri-mpls` (should be `mpls-label`) and had no mapping for `ipv4 mcast-vpn` / `ipv6 mcast-vpn` so the fallback produced `ipv4/mcast-vpn` (should be `mvpn`).
+- `migrate_routes.go:convertFlexToUpdate` built the family name as `afi + "/" + safi` directly from the ExaBGP SAFI token (`mcast-vpn`), bypassing any rename.
+- `migrate_routes.go:detectRouteFamily` returned `ipv4/mpls` / `ipv6/mpls` for label-without-RD routes (should be `mpls-label`).
+**Fix:**
+- `convertFamilySyntax` table updated: `nlri-mpls` -> `mpls-label`, added `mcast-vpn` -> `mvpn` for both AFIs.
+- Added `canonicalSAFI(safi)` helper in `migrate_family.go` mapping ExaBGP SAFI tokens to Ze canonical SAFIs (`mcast-vpn` -> `mvpn`, `nlri-mpls`/`labeled-unicast` -> `mpls-label`, `flowspec` -> `flow`). `convertFlexToUpdate` now calls it before building `fam`.
+- `detectRouteFamily` returns `mpls-label` (not `mpls`) for both AFIs.
+- `TestConvertFlexToUpdate/mvpn_ipv4` updated to assert the new canonical family name.
+**Verification:** `bin/ze-test bgp encode --all` -> 48/48; `uv run ./test/exabgp-compat/bin/functional encoding` -> 37/37; `make ze-verify` -> 0; `go test -race ./internal/exabgp/...` -> green.
+
 ### 8. SDK NewFromTLSEnv missing initCallbackDefaults (1 plugin test: `70 exabgp-bridge-sdk`)
 
 **Symptom:** External TLS-connecting plugins (e.g., the ExaBGP bridge in SDK mode) panicked at startup with `panic: assignment to entry in nil map` in `sdk.(*Plugin).OnEvent` at `pkg/plugin/sdk/sdk_callbacks.go:60`. The engine logged `"rpc startup: read registration failed" error="mux conn closed"` because the plugin process died before sending Stage 1 registration.

@@ -410,7 +410,8 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 }
 
 // detectRouteFamily determines the BGP address family from route characteristics.
-// rd present → mpls-vpn, label present (no rd) → nlri-mpls, else → unicast.
+// rd present → mpls-vpn, label present (no rd) → mpls-label, else → unicast.
+// Family names match Ze's canonical SAFI strings registered via family.MustRegister.
 func detectRouteFamily(isIPv6, hasRD, hasLabel bool) string {
 	if hasRD && isIPv6 {
 		return "ipv6/mpls-vpn"
@@ -419,10 +420,10 @@ func detectRouteFamily(isIPv6, hasRD, hasLabel bool) string {
 		return "ipv4/mpls-vpn"
 	}
 	if hasLabel && isIPv6 {
-		return "ipv6/mpls"
+		return "ipv6/mpls-label"
 	}
 	if hasLabel {
-		return "ipv4/mpls"
+		return "ipv4/mpls-label"
 	}
 	if isIPv6 {
 		return familyIPv6Unicast
@@ -477,7 +478,10 @@ func flowCriterionWithValues(criterion, value string, isIPv6 bool) string {
 // Each string contains both NLRI fields and path attributes intermixed.
 // This function separates them into attribute { } and nlri { } blocks.
 func convertFlexToUpdate(afi, safi string, values []string, dst *config.Tree) {
-	fam := afi + "/" + safi
+	// Translate ExaBGP SAFI to Ze canonical SAFI for the family name in the
+	// emitted nlri block. The flex value tokens themselves stay as-is; only
+	// the family key needs to match what Ze's family registry registered.
+	fam := afi + "/" + canonicalSAFI(safi)
 
 	for _, value := range values {
 		attrs, nlriParts := splitFlexAttrs(value)
