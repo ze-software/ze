@@ -115,10 +115,8 @@ func (m *monitor) safeHandleAddrUpdate(au netlink.AddrUpdate) {
 }
 
 // linkEventPayload is the JSON payload emitted on (interface, created/down)
-// events. Includes name, type, index, mtu, and the name (redundant but
-// matches the old ze.Event metadata key so downstream consumers need no
-// extra lookup). The Unit field is always 0 for link events (these describe
-// the physical/parent interface; per-unit events use addrEventPayload).
+// events. The Unit field is always 0 for link events (these describe the
+// physical/parent interface; per-unit events use addrEventPayload).
 type linkEventPayload struct {
 	Name  string `json:"name"`
 	Unit  int    `json:"unit"`
