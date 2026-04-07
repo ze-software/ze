@@ -15,11 +15,17 @@ import (
 
 	"log/slog"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 func logger() *slog.Logger { return slogutil.Logger("config.transaction") }
+
+// tierFn computes dependency tiers for a set of plugin names. Used by deadline
+// computation and rollback ack collection. Package-level so tests can override
+// it without mutating the global plugin registry.
+var tierFn = registry.TopologicalTiers
 
 // Report bus source and codes for config transaction error events.
 // The bus is the operator-visible feed behind `ze show errors`.
@@ -448,34 +454,64 @@ func (o *TxCoordinator) computeVerifyDeadline() time.Duration {
 	if o.verifyDeadlineOverride > 0 {
 		return o.verifyDeadlineOverride
 	}
-	maxBudget := 0
-	for _, p := range o.participants {
-		b := capBudget(p.VerifyBudget)
-		if b > maxBudget {
-			maxBudget = b
-		}
-	}
-	if maxBudget == 0 {
-		return 30 * time.Second
-	}
-	return time.Duration(maxBudget) * time.Second
+	return o.computeTieredDeadline(func(p Participant) int { return p.VerifyBudget })
 }
 
 func (o *TxCoordinator) computeApplyDeadline() time.Duration {
 	if o.applyDeadlineOverride > 0 {
 		return o.applyDeadlineOverride
 	}
-	maxBudget := 0
+	return o.computeTieredDeadline(func(p Participant) int { return p.ApplyBudget })
+}
+
+// computeTieredDeadline sums the per-tier max budget across dependency tiers.
+// Plugins within a tier run concurrently so the tier cost is the max budget
+// in that tier; tiers are serialized (tier k+1 waits for tier k) so tier
+// costs are summed. This gives the critical-path duration through the
+// dependency graph: "sum chains, max independent".
+//
+// For unregistered plugins (or when tierFn returns an error), all participants
+// land in a single tier and the result is equivalent to a flat max across
+// participants. A zero result falls back to a 30-second default.
+func (o *TxCoordinator) computeTieredDeadline(budget func(Participant) int) time.Duration {
+	participantNames := make([]string, 0, len(o.participants))
+	budgetByName := make(map[string]int, len(o.participants))
 	for _, p := range o.participants {
-		b := capBudget(p.ApplyBudget)
-		if b > maxBudget {
-			maxBudget = b
-		}
+		participantNames = append(participantNames, p.Name)
+		budgetByName[p.Name] = capBudget(budget(p))
 	}
-	if maxBudget == 0 {
+
+	tiers, err := tierFn(participantNames)
+	if err != nil {
+		logger().Warn("tier computation failed, falling back to flat max budget",
+			"error", err)
+		maxBudget := 0
+		for _, b := range budgetByName {
+			if b > maxBudget {
+				maxBudget = b
+			}
+		}
+		if maxBudget == 0 {
+			return 30 * time.Second
+		}
+		return time.Duration(maxBudget) * time.Second
+	}
+
+	totalSecs := 0
+	for _, tier := range tiers {
+		tierMax := 0
+		for _, name := range tier {
+			if b, ok := budgetByName[name]; ok && b > tierMax {
+				tierMax = b
+			}
+		}
+		totalSecs += tierMax
+	}
+
+	if totalSecs == 0 {
 		return 30 * time.Second
 	}
-	return time.Duration(maxBudget) * time.Second
+	return time.Duration(totalSecs) * time.Second
 }
 
 // capBudget clamps a budget to MaxBudgetSeconds.
@@ -575,30 +611,90 @@ func (o *TxCoordinator) publishApplied(saved bool) {
 	}
 }
 
+// collectRollbackAcks drains rollback acks in reverse dependency-tier order.
+// Plugins that depend on others must complete rollback before their
+// dependencies, so the orchestrator processes ack buckets from the deepest
+// tier (dependents) back to the lowest tier (roots). A plugin reporting
+// CodeBroken is restarted before the next tier is drained, so tier k-1
+// never starts draining while tier k still has a plugin mid-restart.
+//
+// Acks that arrive from a tier not yet being drained are buffered in
+// `pending` and consumed when that tier's turn comes.
+//
+// When plugins are unregistered (as in most unit tests), tierFn returns a
+// single tier containing all participants; the loop degenerates to a single
+// drain equivalent to the pre-tier behavior.
 func (o *TxCoordinator) collectRollbackAcks(ctx context.Context) {
 	deadline := o.computeRollbackDeadline()
 	timer := time.NewTimer(deadline)
 	defer timer.Stop()
 
-	remaining := o.activeCount
-	for remaining > 0 {
-		select {
-		case ack := <-o.rollbackOKCh:
-			o.mu.Lock()
-			o.rollbackAcks[ack.Plugin] = ack
-			o.mu.Unlock()
-			if ack.Code == CodeBroken && o.restartFn != nil {
-				logger().Warn("plugin broken during rollback, restarting", "plugin", ack.Plugin)
-				if err := o.restartFn(ack.Plugin); err != nil {
-					logger().Error("failed to restart broken plugin", "plugin", ack.Plugin, "error", err)
-				}
+	participantNames := make([]string, 0, len(o.participants))
+	nameToIndex := make(map[string]int, len(o.participants))
+	for i, p := range o.participants {
+		participantNames = append(participantNames, p.Name)
+		nameToIndex[p.Name] = i
+	}
+
+	tiers, err := tierFn(participantNames)
+	if err != nil {
+		logger().Warn("tier computation failed, draining rollback acks in single tier",
+			"error", err)
+		tiers = [][]string{participantNames}
+	}
+
+	pending := make(map[string]RollbackAck)
+
+	for i := len(tiers) - 1; i >= 0; i-- {
+		expected := make(map[string]struct{})
+		for _, name := range tiers[i] {
+			if _, ok := nameToIndex[name]; ok {
+				expected[name] = struct{}{}
 			}
-			remaining--
-		case <-timer.C:
-			logger().Warn("rollback ack timeout", "remaining", remaining)
-			return
-		case <-ctx.Done():
-			return
+		}
+		if len(expected) == 0 {
+			continue
+		}
+
+		for name, ack := range pending {
+			if _, ok := expected[name]; ok {
+				o.handleRollbackAck(ack)
+				delete(pending, name)
+				delete(expected, name)
+			}
+		}
+
+		for len(expected) > 0 {
+			select {
+			case ack := <-o.rollbackOKCh:
+				if _, ok := expected[ack.Plugin]; ok {
+					o.handleRollbackAck(ack)
+					delete(expected, ack.Plugin)
+				} else {
+					pending[ack.Plugin] = ack
+				}
+			case <-timer.C:
+				logger().Warn("rollback ack timeout",
+					"tier", i, "remaining", len(expected))
+				return
+			case <-ctx.Done():
+				return
+			}
+		}
+	}
+}
+
+// handleRollbackAck records a single rollback ack and restarts the plugin
+// if the ack reports CodeBroken. Extracted from the tiered drain loop so
+// the loop stays readable.
+func (o *TxCoordinator) handleRollbackAck(ack RollbackAck) {
+	o.mu.Lock()
+	o.rollbackAcks[ack.Plugin] = ack
+	o.mu.Unlock()
+	if ack.Code == CodeBroken && o.restartFn != nil {
+		logger().Warn("plugin broken during rollback, restarting", "plugin", ack.Plugin)
+		if err := o.restartFn(ack.Plugin); err != nil {
+			logger().Error("failed to restart broken plugin", "plugin", ack.Plugin, "error", err)
 		}
 	}
 }
