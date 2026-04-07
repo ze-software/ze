@@ -6,11 +6,11 @@
 // Detail: monitor_linux.go -- Linux netlink route monitor
 // Detail: monitor_other.go -- noop monitor for non-Linux
 //
-// fib-kernel subscribes to sysrib/best-change Bus events and programs
-// OS routes via netlink (Linux) or route socket (Darwin). Uses a custom
-// rtm_protocol ID (RTPROT_ZE=250) to identify ze-installed routes.
+// fib-kernel subscribes to (sysrib, best-change) on the EventBus and
+// programs OS routes via netlink (Linux) or route socket (Darwin). Uses a
+// custom rtm_protocol ID (RTPROT_ZE=250) to identify ze-installed routes.
 // Monitors kernel route changes to detect external modifications and
-// re-assert ze routes when overwritten.
+// re-asserts ze routes when overwritten.
 package fibkernel
 
 import (
@@ -20,6 +20,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -40,17 +41,17 @@ func setLogger(l *slog.Logger) {
 	}
 }
 
-// busPtr stores the Bus instance.
-var busPtr atomic.Pointer[ze.Bus]
+// eventBusPtr stores the EventBus instance.
+var eventBusPtr atomic.Pointer[ze.EventBus]
 
-func setBus(b ze.Bus) {
-	if b != nil {
-		busPtr.Store(&b)
+func setEventBus(eb ze.EventBus) {
+	if eb != nil {
+		eventBusPtr.Store(&eb)
 	}
 }
 
-func getBus() ze.Bus {
-	p := busPtr.Load()
+func getEventBus() ze.EventBus {
+	p := eventBusPtr.Load()
 	if p == nil {
 		return nil
 	}
@@ -77,8 +78,12 @@ type installedRoute struct {
 	nextHop string
 }
 
-// incomingBatch is the JSON payload from sysrib/best-change.
+// incomingBatch is the JSON payload received from (sysrib, best-change).
+// The sysrib publisher carries the family in-band so the EventBus stays
+// metadata-free.
 type incomingBatch struct {
+	Family  string           `json:"family"`
+	Replay  bool             `json:"replay,omitempty"`
 	Changes []incomingChange `json:"changes"`
 }
 
@@ -104,10 +109,11 @@ func newFIBKernel(backend routeBackend) *fibKernel {
 	}
 }
 
-// processEvent handles a batch of sysrib/best-change events.
-func (f *fibKernel) processEvent(event ze.Event) {
+// processEvent handles a single (sysrib, best-change) payload received on
+// the EventBus. The sysrib publisher emits one event per family.
+func (f *fibKernel) processEvent(payload string) {
 	var batch incomingBatch
-	if err := json.Unmarshal(event.Payload, &batch); err != nil {
+	if err := json.Unmarshal([]byte(payload), &batch); err != nil {
 		logger().Warn("fib-kernel: failed to unmarshal batch", "error", err)
 		return
 	}
@@ -197,37 +203,25 @@ func (f *fibKernel) sweepStale(stale map[string]string) {
 	}
 }
 
-// busConsumer implements ze.Consumer for Bus subscription.
-type busConsumer struct {
-	fib *fibKernel
-}
-
-// Deliver processes a batch of Bus events.
-func (c *busConsumer) Deliver(events []ze.Event) error {
-	for _, event := range events {
-		c.fib.processEvent(event)
-	}
-	return nil
-}
-
-// run subscribes to sysrib/best-change and blocks until ctx is canceled.
+// run subscribes to (sysrib, best-change) on the EventBus and blocks until
+// ctx is canceled.
 func (f *fibKernel) run(ctx context.Context, flushOnStop bool) {
-	bus := getBus()
-	if bus == nil {
-		logger().Warn("fib-kernel: no bus configured")
+	eb := getEventBus()
+	if eb == nil {
+		logger().Warn("fib-kernel: no event bus configured")
 		return
 	}
 
-	sub, err := bus.Subscribe("sysrib/best-change", nil, &busConsumer{fib: f})
-	if err != nil {
-		logger().Error("fib-kernel: subscribe failed", "error", err)
-		return
-	}
-	defer bus.Unsubscribe(sub)
+	unsub := eb.Subscribe(plugin.NamespaceSysrib, plugin.EventSysribBestChange, func(payload string) {
+		f.processEvent(payload)
+	})
+	defer unsub()
 
-	// Request full-table replay from sysrib so we populate
-	// even if sysrib started before us.
-	bus.Publish("sysrib/replay-request", nil, nil)
+	// Request full-table replay from sysrib so we populate even if sysrib
+	// started before us. Empty payload by convention.
+	if _, err := eb.Emit(plugin.NamespaceSysrib, plugin.EventSysribReplayRequest, ""); err != nil {
+		logger().Warn("fib-kernel: replay-request emit failed", "error", err)
+	}
 
 	// Start kernel route monitor for external change detection.
 	var monitorDone sync.WaitGroup

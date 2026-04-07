@@ -1,4 +1,4 @@
-package plugin
+package plugin_test
 
 import (
 	// Trigger plugin init() registrations needed by inprocess tests.

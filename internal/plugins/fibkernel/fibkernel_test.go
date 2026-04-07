@@ -7,8 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 // mockBackend records route operations for testing.
@@ -56,33 +54,34 @@ func (m *mockBackend) listZeRoutes() ([]installedRoute, error) {
 
 func (m *mockBackend) close() error { return nil }
 
-func makeSysribEvent(changes []incomingChange) ze.Event {
-	batch := incomingBatch{Changes: changes}
-	payload, _ := json.Marshal(batch)
-	return ze.Event{
-		Topic:    "sysrib/best-change",
-		Payload:  payload,
-		Metadata: map[string]string{"family": "ipv4/unicast"},
+// makeSysribPayload builds a JSON payload matching the new
+// (sysrib, best-change) shape: family + replay + changes.
+func makeSysribPayload(changes []incomingChange) string {
+	batch := incomingBatch{
+		Family:  "ipv4/unicast",
+		Changes: changes,
 	}
+	data, _ := json.Marshal(batch)
+	return string(data)
 }
 
-// VALIDATES: AC-8 -- sysrib/best-change with action "add" for 10.0.0.0/24,
+// VALIDATES: AC-8 -- (sysrib, best-change) with action "add" for 10.0.0.0/24,
 // fib-kernel installs route via backend.
 // PREVENTS: Routes not being installed in OS.
 func TestFIBKernelInstall(t *testing.T) {
 	backend := newMockBackend()
 	f := newFIBKernel(backend)
 
-	event := makeSysribEvent([]incomingChange{
+	payload := makeSysribPayload([]incomingChange{
 		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	})
-	f.processEvent(event)
+	f.processEvent(payload)
 
 	assert.Equal(t, "192.168.1.1", backend.added["10.0.0.0/24"])
 	assert.Equal(t, "192.168.1.1", f.installed["10.0.0.0/24"])
 }
 
-// VALIDATES: AC-9 -- sysrib/best-change with action "withdraw",
+// VALIDATES: AC-9 -- (sysrib, best-change) with action "withdraw",
 // fib-kernel removes route from OS.
 // PREVENTS: Withdrawn routes remaining in kernel.
 func TestFIBKernelRemove(t *testing.T) {
@@ -90,12 +89,12 @@ func TestFIBKernelRemove(t *testing.T) {
 	f := newFIBKernel(backend)
 
 	// Install first.
-	f.processEvent(makeSysribEvent([]incomingChange{
+	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	}))
 
 	// Withdraw.
-	f.processEvent(makeSysribEvent([]incomingChange{
+	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: "withdraw", Prefix: "10.0.0.0/24"},
 	}))
 
@@ -103,7 +102,7 @@ func TestFIBKernelRemove(t *testing.T) {
 	assert.Empty(t, f.installed)
 }
 
-// VALIDATES: AC-10 -- sysrib/best-change with action "update",
+// VALIDATES: AC-10 -- (sysrib, best-change) with action "update",
 // fib-kernel replaces route.
 // PREVENTS: Route updates not being applied.
 func TestFIBKernelReplace(t *testing.T) {
@@ -111,12 +110,12 @@ func TestFIBKernelReplace(t *testing.T) {
 	f := newFIBKernel(backend)
 
 	// Install.
-	f.processEvent(makeSysribEvent([]incomingChange{
+	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	}))
 
 	// Update with new next-hop.
-	f.processEvent(makeSysribEvent([]incomingChange{
+	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: "update", Prefix: "10.0.0.0/24", NextHop: "192.168.2.1", Protocol: "static"},
 	}))
 
@@ -156,7 +155,7 @@ func TestFIBKernelSweepStale(t *testing.T) {
 	stale := f.startupSweep()
 
 	// Simulate sysrib refreshing one route.
-	f.processEvent(makeSysribEvent([]incomingChange{
+	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	}))
 
@@ -177,7 +176,7 @@ func TestFIBKernelFlushOnStop(t *testing.T) {
 	f := newFIBKernel(backend)
 
 	// Install routes.
-	f.processEvent(makeSysribEvent([]incomingChange{
+	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 		{Action: "add", Prefix: "172.16.0.0/16", NextHop: "192.168.1.2", Protocol: "static"},
 	}))
@@ -194,7 +193,7 @@ func TestFIBKernelShowInstalled(t *testing.T) {
 	backend := newMockBackend()
 	f := newFIBKernel(backend)
 
-	f.processEvent(makeSysribEvent([]incomingChange{
+	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	}))
 
@@ -211,7 +210,7 @@ func TestFIBKernelMonitorReassert(t *testing.T) {
 	f := newFIBKernel(backend)
 
 	// Install a route first.
-	f.processEvent(makeSysribEvent([]incomingChange{
+	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	}))
 
@@ -245,7 +244,7 @@ func TestFIBKernelMonitorReassertOnDelete(t *testing.T) {
 	f := newFIBKernel(backend)
 
 	// Install a route.
-	f.processEvent(makeSysribEvent([]incomingChange{
+	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	}))
 

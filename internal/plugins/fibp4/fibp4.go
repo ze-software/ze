@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- FIB P4 plugin
 // Detail: backend.go -- P4 backend interface and noop implementation
 //
-// fib-p4 subscribes to sysrib/best-change Bus events and programs
+// fib-p4 subscribes to (sysrib, best-change) on the EventBus and programs
 // a P4 switch via gRPC/P4Runtime. Cross-OS plugin (generic Go, no
 // build tags). The backend interface abstracts P4Runtime so the
 // plugin logic is testable without gRPC dependencies.
@@ -14,6 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -34,17 +35,17 @@ func setLogger(l *slog.Logger) {
 	}
 }
 
-// busPtr stores the Bus instance.
-var busPtr atomic.Pointer[ze.Bus]
+// eventBusPtr stores the EventBus instance.
+var eventBusPtr atomic.Pointer[ze.EventBus]
 
-func setBus(b ze.Bus) {
-	if b != nil {
-		busPtr.Store(&b)
+func setEventBus(eb ze.EventBus) {
+	if eb != nil {
+		eventBusPtr.Store(&eb)
 	}
 }
 
-func getBus() ze.Bus {
-	p := busPtr.Load()
+func getEventBus() ze.EventBus {
+	p := eventBusPtr.Load()
 	if p == nil {
 		return nil
 	}
@@ -63,8 +64,11 @@ type p4Backend interface {
 	close() error
 }
 
-// incomingBatch is the JSON payload from sysrib/best-change.
+// incomingBatch is the JSON payload received from (sysrib, best-change).
+// Family is carried in-band so the EventBus stays metadata-free.
 type incomingBatch struct {
+	Family  string           `json:"family"`
+	Replay  bool             `json:"replay,omitempty"`
 	Changes []incomingChange `json:"changes"`
 }
 
@@ -89,10 +93,11 @@ func newFIBP4(backend p4Backend) *fibP4 {
 	}
 }
 
-// processEvent handles a batch of sysrib/best-change events.
-func (f *fibP4) processEvent(event ze.Event) {
+// processEvent handles a single (sysrib, best-change) payload received on
+// the EventBus.
+func (f *fibP4) processEvent(payload string) {
 	var batch incomingBatch
-	if err := json.Unmarshal(event.Payload, &batch); err != nil {
+	if err := json.Unmarshal([]byte(payload), &batch); err != nil {
 		logger().Warn("fib-p4: failed to unmarshal batch", "error", err)
 		return
 	}
@@ -167,36 +172,24 @@ func (f *fibP4) showInstalled() string {
 	return string(data)
 }
 
-// busConsumer implements ze.Consumer for Bus subscription.
-type busConsumer struct {
-	fib *fibP4
-}
-
-// Deliver processes a batch of Bus events.
-func (c *busConsumer) Deliver(events []ze.Event) error {
-	for _, event := range events {
-		c.fib.processEvent(event)
-	}
-	return nil
-}
-
-// run subscribes to sysrib/best-change and blocks until ctx is canceled.
+// run subscribes to (sysrib, best-change) on the EventBus and blocks until
+// ctx is canceled.
 func (f *fibP4) run(ctx context.Context, flushOnStop bool) {
-	bus := getBus()
-	if bus == nil {
-		logger().Warn("fib-p4: no bus configured")
+	eb := getEventBus()
+	if eb == nil {
+		logger().Warn("fib-p4: no event bus configured")
 		return
 	}
 
-	sub, err := bus.Subscribe("sysrib/best-change", nil, &busConsumer{fib: f})
-	if err != nil {
-		logger().Error("fib-p4: subscribe failed", "error", err)
-		return
-	}
-	defer bus.Unsubscribe(sub)
+	unsub := eb.Subscribe(plugin.NamespaceSysrib, plugin.EventSysribBestChange, func(payload string) {
+		f.processEvent(payload)
+	})
+	defer unsub()
 
-	// Request full-table replay from sysrib.
-	bus.Publish("sysrib/replay-request", nil, nil)
+	// Request full-table replay from sysrib. Empty payload by convention.
+	if _, err := eb.Emit(plugin.NamespaceSysrib, plugin.EventSysribReplayRequest, ""); err != nil {
+		logger().Warn("fib-p4: replay-request emit failed", "error", err)
+	}
 
 	logger().Info("fib-p4: running")
 	<-ctx.Done()

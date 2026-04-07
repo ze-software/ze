@@ -9,51 +9,56 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
-// testBus is a minimal Bus implementation for testing.
-type testBus struct {
-	mu       sync.Mutex
-	events   []ze.Event
-	topics   map[string]struct{}
-	consumer ze.Consumer
+// testEvent records one event emitted on the in-memory test EventBus.
+type testEvent struct {
+	Namespace string
+	EventType string
+	Payload   string
 }
 
-func newTestBus() *testBus {
-	return &testBus{
-		topics: make(map[string]struct{}),
+// testEventBus is a minimal ze.EventBus implementation for unit tests.
+// It records every Emit so test assertions can inspect the namespace,
+// event-type, and payload. Subscribe stores handlers per-key and
+// dispatches them synchronously on Emit.
+type testEventBus struct {
+	mu       sync.Mutex
+	events   []testEvent
+	handlers map[string][]func(string)
+}
+
+func newTestEventBus() *testEventBus {
+	return &testEventBus{
+		handlers: make(map[string][]func(string)),
 	}
 }
 
-func (b *testBus) CreateTopic(name string) (ze.Topic, error) {
+func (b *testEventBus) Emit(namespace, eventType, payload string) (int, error) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.topics[name] = struct{}{}
-	return ze.Topic{Name: name}, nil
+	b.events = append(b.events, testEvent{Namespace: namespace, EventType: eventType, Payload: payload})
+	hs := append([]func(string){}, b.handlers[namespace+"/"+eventType]...)
+	b.mu.Unlock()
+	for _, h := range hs {
+		h(payload)
+	}
+	return 0, nil
 }
 
-func (b *testBus) Publish(topic string, payload []byte, metadata map[string]string) {
+func (b *testEventBus) Subscribe(namespace, eventType string, handler func(string)) func() {
+	if handler == nil {
+		return func() {}
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.events = append(b.events, ze.Event{
-		Topic:    topic,
-		Payload:  payload,
-		Metadata: metadata,
-	})
+	key := namespace + "/" + eventType
+	b.handlers[key] = append(b.handlers[key], handler)
+	return func() {}
 }
 
-func (b *testBus) Subscribe(_ string, _ map[string]string, c ze.Consumer) (ze.Subscription, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.consumer = c
-	return ze.Subscription{ID: 1}, nil
-}
-
-func (b *testBus) Unsubscribe(_ ze.Subscription) {}
-
-func (b *testBus) lastEvent() *ze.Event {
+func (b *testEventBus) lastEvent() *testEvent {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if len(b.events) == 0 {
@@ -62,15 +67,16 @@ func (b *testBus) lastEvent() *ze.Event {
 	return &b.events[len(b.events)-1]
 }
 
-func (b *testBus) eventCount() int {
+func (b *testEventBus) eventCount() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return len(b.events)
 }
 
-// newTestRIBManagerWithBus creates a RIBManager with test Bus wired in.
-func newTestRIBManagerWithBus(bus *testBus) *RIBManager {
-	SetBus(bus)
+// newTestRIBManagerWithBus creates a RIBManager with the test EventBus wired in.
+// Name is preserved from the original test for traceability.
+func newTestRIBManagerWithBus(eb *testEventBus) *RIBManager {
+	SetEventBus(eb)
 	return &RIBManager{
 		ribInPool:     make(map[string]*storage.PeerRIB),
 		ribOut:        make(map[string]map[string]map[string]*Route),
@@ -99,11 +105,11 @@ func ipv4Prefix(prefLen byte, octets ...byte) []byte {
 	return append(result, octets...)
 }
 
-// VALIDATES: AC-1 -- BGP UPDATE makes prefix best path change, RIB publishes
-// rib/best-change/bgp with action "add" and correct next-hop.
+// VALIDATES: AC-1 -- BGP UPDATE makes prefix best path change, RIB emits
+// (rib, best-change) with action "add" and correct next-hop.
 // PREVENTS: Best-path changes going undetected.
 func TestRIBBestChangePublish(t *testing.T) {
-	bus := newTestBus()
+	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
 	// Set up peer metadata for eBGP.
@@ -129,17 +135,18 @@ func TestRIBBestChangePublish(t *testing.T) {
 	assert.Equal(t, "192.168.1.1", change.NextHop)
 	assert.Equal(t, 20, change.Priority, "eBGP should have priority 20")
 
-	// Publish and verify Bus event.
+	// Publish and verify the EventBus event.
 	publishBestChanges([]bestChangeEntry{*change}, fam.String())
 
 	evt := bus.lastEvent()
 	require.NotNil(t, evt)
-	assert.Equal(t, bestChangeTopic, evt.Topic)
-	assert.Equal(t, "bgp", evt.Metadata["protocol"])
-	assert.Equal(t, "ipv4/unicast", evt.Metadata["family"])
+	assert.Equal(t, plugin.NamespaceRIB, evt.Namespace)
+	assert.Equal(t, plugin.EventBestChange, evt.EventType)
 
 	var batch bestChangeBatch
-	require.NoError(t, json.Unmarshal(evt.Payload, &batch))
+	require.NoError(t, json.Unmarshal([]byte(evt.Payload), &batch))
+	assert.Equal(t, "bgp", batch.Protocol)
+	assert.Equal(t, "ipv4/unicast", batch.Family)
 	require.Len(t, batch.Changes, 1)
 	assert.Equal(t, "add", batch.Changes[0].Action)
 	assert.Equal(t, "10.0.0.0/24", batch.Changes[0].Prefix)
@@ -147,9 +154,9 @@ func TestRIBBestChangePublish(t *testing.T) {
 }
 
 // VALIDATES: AC-3 -- BGP UPDATE does not change best path, no event published.
-// PREVENTS: Spurious Bus events when best path is unchanged.
+// PREVENTS: Spurious EventBus events when best path is unchanged.
 func TestRIBBestChangeNoPublishSameBest(t *testing.T) {
-	bus := newTestBus()
+	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
 	peerAddr := "192.0.2.1"
@@ -178,11 +185,11 @@ func TestRIBBestChangeNoPublishSameBest(t *testing.T) {
 	assert.Nil(t, change2, "no change when best path is unchanged")
 }
 
-// VALIDATES: AC-2 -- BGP withdraws last route for prefix, RIB publishes
-// rib/best-change/bgp with action "withdraw".
+// VALIDATES: AC-2 -- BGP withdraws last route for prefix, RIB emits
+// (rib, best-change) with action "withdraw".
 // PREVENTS: Withdraw events not being published.
 func TestRIBBestChangeWithdraw(t *testing.T) {
-	bus := newTestBus()
+	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
 	peerAddr := "192.0.2.1"
@@ -213,11 +220,11 @@ func TestRIBBestChangeWithdraw(t *testing.T) {
 	assert.Empty(t, change.NextHop, "withdraw should have no next-hop")
 }
 
-// VALIDATES: AC-11 -- Peer goes down, all its routes withdrawn. RIB publishes
+// VALIDATES: AC-11 -- Peer goes down, all its routes withdrawn. RIB emits
 // single batch event with withdraws for all affected prefixes.
 // PREVENTS: Peer-down producing individual events per prefix.
 func TestRIBBestChangeBatchPeerDown(t *testing.T) {
-	bus := newTestBus()
+	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
 	peerAddr := "192.0.2.1"
@@ -262,13 +269,13 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 	require.Len(t, changes, 3, "should have 3 withdraw changes")
 	publishBestChanges(changes, fam.String())
 
-	// Verify single Bus event with 3 withdrawals.
+	// Verify single event with 3 withdrawals.
 	assert.Equal(t, 1, bus.eventCount(), "should be a single batch event")
 	evt := bus.lastEvent()
 	require.NotNil(t, evt)
 
 	var batch bestChangeBatch
-	require.NoError(t, json.Unmarshal(evt.Payload, &batch))
+	require.NoError(t, json.Unmarshal([]byte(evt.Payload), &batch))
 	assert.Len(t, batch.Changes, 3)
 	for _, c := range batch.Changes {
 		assert.Equal(t, bestChangeWithdraw, c.Action)
@@ -278,7 +285,7 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 // VALIDATES: AC-6 -- eBGP route has protocol-type "ebgp" in best-change entry.
 // PREVENTS: sysrib unable to distinguish eBGP from iBGP for admin distance.
 func TestRIBBestChangeEBGPMetadata(t *testing.T) {
-	bus := newTestBus()
+	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
 	peerAddr := "192.0.2.1"
@@ -309,7 +316,7 @@ func TestRIBBestChangeEBGPMetadata(t *testing.T) {
 // VALIDATES: AC-7 -- iBGP route has protocol-type "ibgp" in best-change entry.
 // PREVENTS: sysrib unable to distinguish iBGP from eBGP for admin distance.
 func TestRIBBestChangeIBGPMetadata(t *testing.T) {
-	bus := newTestBus()
+	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
 	peerAddr := "192.0.2.1"
@@ -333,7 +340,7 @@ func TestRIBBestChangeIBGPMetadata(t *testing.T) {
 // VALIDATES: AC-1 (eBGP priority) -- eBGP routes published with priority 20.
 // PREVENTS: Wrong admin distance for eBGP routes.
 func TestRIBBestChangeEBGPPriority(t *testing.T) {
-	bus := newTestBus()
+	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
 	peerAddr := "192.0.2.1"
@@ -357,7 +364,7 @@ func TestRIBBestChangeEBGPPriority(t *testing.T) {
 // VALIDATES: AC-1 (iBGP priority) -- iBGP routes published with priority 200.
 // PREVENTS: Wrong admin distance for iBGP routes.
 func TestRIBBestChangeIBGPPriority(t *testing.T) {
-	bus := newTestBus()
+	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
 	peerAddr := "192.0.2.1"
@@ -381,7 +388,7 @@ func TestRIBBestChangeIBGPPriority(t *testing.T) {
 // VALIDATES: AC-1 -- Best path changes when a better route arrives from another peer.
 // PREVENTS: Best-path update events not being detected.
 func TestRIBBestChangeUpdate(t *testing.T) {
-	bus := newTestBus()
+	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
 	fam := family.Family{AFI: 1, SAFI: 1}
@@ -413,13 +420,14 @@ func TestRIBBestChangeUpdate(t *testing.T) {
 	assert.Equal(t, bestChangeUpdate, change2.Action)
 	assert.Equal(t, "10.0.0.2", change2.NextHop, "should switch to eBGP next-hop")
 	assert.Equal(t, 20, change2.Priority, "eBGP priority")
+	_ = bus
 }
 
 // VALIDATES: AC-23 -- System RIB subscribes after BGP RIB has computed best paths.
 // Protocol RIB replays current best-path table as batch event.
 // PREVENTS: Late-starting subscribers missing the initial state.
 func TestRIBReplayOnSubscribe(t *testing.T) {
-	bus := newTestBus()
+	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
 	// Set up a peer with a route and establish best path.
@@ -437,7 +445,7 @@ func TestRIBReplayOnSubscribe(t *testing.T) {
 	r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
-	// Clear Bus events from the initial insert.
+	// Clear emitted events from the initial insert.
 	bus.mu.Lock()
 	bus.events = nil
 	bus.mu.Unlock()
@@ -448,12 +456,13 @@ func TestRIBReplayOnSubscribe(t *testing.T) {
 	// Should have published a replay batch.
 	evt := bus.lastEvent()
 	require.NotNil(t, evt, "should publish replay batch")
-	assert.Equal(t, bestChangeTopic, evt.Topic)
-	assert.Equal(t, "true", evt.Metadata["replay"])
-	assert.Equal(t, "bgp", evt.Metadata["protocol"])
+	assert.Equal(t, plugin.NamespaceRIB, evt.Namespace)
+	assert.Equal(t, plugin.EventBestChange, evt.EventType)
 
 	var batch bestChangeBatch
-	require.NoError(t, json.Unmarshal(evt.Payload, &batch))
+	require.NoError(t, json.Unmarshal([]byte(evt.Payload), &batch))
+	assert.Equal(t, "bgp", batch.Protocol)
+	assert.True(t, batch.Replay, "replay batch must have Replay=true")
 	require.Len(t, batch.Changes, 1)
 	assert.Equal(t, "add", batch.Changes[0].Action)
 	assert.Equal(t, "192.168.1.1", batch.Changes[0].NextHop)

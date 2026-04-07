@@ -31,6 +31,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -64,21 +65,22 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
-// busPtr stores the Bus instance for best-path change event publishing.
-// Set by ConfigureBus callback before RunEngine.
-var busPtr atomic.Pointer[ze.Bus]
+// eventBusPtr stores the EventBus instance for best-path change emission and
+// replay-request subscription. Set by ConfigureEventBus callback before
+// RunEngine.
+var eventBusPtr atomic.Pointer[ze.EventBus]
 
-// SetBus sets the package-level Bus instance.
-// Called via ConfigureBus callback before RunEngine.
-func SetBus(b ze.Bus) {
-	if b != nil {
-		busPtr.Store(&b)
+// SetEventBus sets the package-level EventBus instance.
+// Called via ConfigureEventBus callback before RunEngine.
+func SetEventBus(eb ze.EventBus) {
+	if eb != nil {
+		eventBusPtr.Store(&eb)
 	}
 }
 
-// getBus returns the stored Bus, or nil if not configured.
-func getBus() ze.Bus {
-	p := busPtr.Load()
+// getEventBus returns the stored EventBus, or nil if not configured.
+func getEventBus() ze.EventBus {
+	p := eventBusPtr.Load()
 	if p == nil {
 		return nil
 	}
@@ -360,11 +362,12 @@ func RunRIBPlugin(conn net.Conn) int {
 			go r.runMetricsLoop(ctx)
 		}
 		// Subscribe to replay requests from downstream consumers (e.g., sysrib).
-		// When a subscriber sends rib/replay-request, replay the full best-path table.
-		if bus := getBus(); bus != nil {
-			if _, err := bus.Subscribe("rib/replay-request", nil, &replayConsumer{rib: r}); err != nil {
-				logger().Warn("replay request subscribe failed", "error", err)
-			}
+		// When a subscriber emits (rib, replay-request), replay the full
+		// best-path table. The handler ignores the payload (always empty).
+		if eb := getEventBus(); eb != nil {
+			eb.Subscribe(plugin.NamespaceRIB, plugin.EventReplayRequest, func(_ string) {
+				r.replayBestPaths()
+			})
 		}
 		return nil
 	})

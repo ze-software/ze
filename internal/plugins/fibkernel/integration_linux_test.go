@@ -12,8 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
-
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 // withNetNS creates an ephemeral network namespace, switches into it,
@@ -128,12 +126,12 @@ func TestNetlinkIntegration_RemoveRoute(t *testing.T) {
 		f := newFIBKernel(backend)
 
 		// Add then withdraw.
-		f.processEvent(makeTestEvent([]incomingChange{
+		f.processEvent(makeTestPayload([]incomingChange{
 			{Action: "add", Prefix: "10.99.1.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
 		}))
 		require.Len(t, zeRoutes(t, h), 1)
 
-		f.processEvent(makeTestEvent([]incomingChange{
+		f.processEvent(makeTestPayload([]incomingChange{
 			{Action: "withdraw", Prefix: "10.99.1.0/24"},
 		}))
 
@@ -155,12 +153,12 @@ func TestNetlinkIntegration_ReplaceRoute(t *testing.T) {
 		f := newFIBKernel(backend)
 
 		// Add initial route.
-		f.processEvent(makeTestEvent([]incomingChange{
+		f.processEvent(makeTestPayload([]incomingChange{
 			{Action: "add", Prefix: "10.99.2.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
 		}))
 
 		// Update next-hop (still loopback, but verifies replace works).
-		f.processEvent(makeTestEvent([]incomingChange{
+		f.processEvent(makeTestPayload([]incomingChange{
 			{Action: "update", Prefix: "10.99.2.0/24", NextHop: "127.0.0.1", Protocol: "static"},
 		}))
 
@@ -184,7 +182,7 @@ func TestNetlinkIntegration_ListZeRoutes(t *testing.T) {
 		f := newFIBKernel(backend)
 
 		// Install two routes.
-		f.processEvent(makeTestEvent([]incomingChange{
+		f.processEvent(makeTestPayload([]incomingChange{
 			{Action: "add", Prefix: "10.99.3.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
 			{Action: "add", Prefix: "10.99.4.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
 		}))
@@ -229,7 +227,7 @@ func TestNetlinkIntegration_StartupSweep(t *testing.T) {
 		// Simulate sysrib refreshing only one route.
 		// Use "update" (replaceRoute) because the route already exists in kernel
 		// from the previous run. "add" would fail with EEXIST.
-		f.processEvent(makeTestEvent([]incomingChange{
+		f.processEvent(makeTestPayload([]incomingChange{
 			{Action: "update", Prefix: "10.99.5.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
 		}))
 
@@ -256,7 +254,7 @@ func TestNetlinkIntegration_FlushRoutes(t *testing.T) {
 		backend := newTestBackend(h)
 		f := newFIBKernel(backend)
 
-		f.processEvent(makeTestEvent([]incomingChange{
+		f.processEvent(makeTestPayload([]incomingChange{
 			{Action: "add", Prefix: "10.99.7.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
 			{Action: "add", Prefix: "10.99.8.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
 		}))
@@ -268,13 +266,12 @@ func TestNetlinkIntegration_FlushRoutes(t *testing.T) {
 	})
 }
 
-// makeTestEvent builds a sysrib/best-change Bus event for testing.
-func makeTestEvent(changes []incomingChange) ze.Event {
-	batch := incomingBatch{Changes: changes}
-	payload, _ := json.Marshal(batch)
-	return ze.Event{
-		Topic:    "sysrib/best-change",
-		Payload:  payload,
-		Metadata: map[string]string{"family": "ipv4/unicast"},
+// makeTestPayload builds a (sysrib, best-change) JSON payload for testing.
+func makeTestPayload(changes []incomingChange) string {
+	batch := incomingBatch{
+		Family:  "ipv4/unicast",
+		Changes: changes,
 	}
+	data, _ := json.Marshal(batch)
+	return string(data)
 }

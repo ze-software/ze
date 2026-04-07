@@ -82,9 +82,14 @@ func GetInternalPluginRunner(name string) InternalPluginRunner {
 				reg.ConfigureMetrics(mr)
 			}
 		}
-		if reg.ConfigureBus != nil {
+		// ConfigureBus is the legacy bus injection callback. It is deprecated
+		// in favor of ConfigureEventBus, but stays alive until the bus
+		// migration finishes (the final commit deletes both the field and
+		// this dispatch). The staticcheck deprecation warning is silenced
+		// because the deprecation IS the migration plan.
+		if reg.ConfigureBus != nil { //nolint:staticcheck // SA1019: removed in bus migration final commit
 			if b := registry.GetBus(); b != nil {
-				reg.ConfigureBus(b)
+				reg.ConfigureBus(b) //nolint:staticcheck // SA1019: removed in bus migration final commit
 			}
 		}
 		if reg.ConfigureEventBus != nil {

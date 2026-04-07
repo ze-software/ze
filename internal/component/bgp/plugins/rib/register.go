@@ -28,9 +28,9 @@ func init() {
 				SetMetricsRegistry(r)
 			}
 		},
-		ConfigureBus: func(bus any) {
-			if b, ok := bus.(ze.Bus); ok {
-				SetBus(b)
+		ConfigureEventBus: func(eb any) {
+			if e, ok := eb.(ze.EventBus); ok {
+				SetEventBus(e)
 			}
 		},
 	}

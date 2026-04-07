@@ -2,7 +2,7 @@
 //
 // System RIB aggregates best routes from all protocol RIBs and selects
 // the system-wide best per prefix by administrative distance (lower wins).
-// Subscribes to rib/best-change/ prefix on the Bus, publishes sysrib/best-change.
+// Subscribes to (rib, best-change) on the EventBus, emits (sysrib, best-change).
 package sysrib
 
 import (
@@ -13,6 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -33,25 +34,28 @@ func setLogger(l *slog.Logger) {
 	}
 }
 
-// busPtr stores the Bus instance.
-var busPtr atomic.Pointer[ze.Bus]
+// eventBusPtr stores the EventBus instance.
+var eventBusPtr atomic.Pointer[ze.EventBus]
 
-func setBus(b ze.Bus) {
-	if b != nil {
-		busPtr.Store(&b)
+func setEventBus(eb ze.EventBus) {
+	if eb != nil {
+		eventBusPtr.Store(&eb)
 	}
 }
 
-func getBus() ze.Bus {
-	p := busPtr.Load()
+// clearEventBus removes any stored EventBus. Used by tests that share the
+// package-level pointer between cases.
+func clearEventBus() {
+	eventBusPtr.Store(nil)
+}
+
+func getEventBus() ze.EventBus {
+	p := eventBusPtr.Load()
 	if p == nil {
 		return nil
 	}
 	return *p
 }
-
-// sysribTopic is the Bus topic for system-wide best-path change events.
-const sysribTopic = "sysrib/best-change"
 
 // protocolRoute is one protocol's best route for a prefix.
 type protocolRoute struct {
@@ -119,9 +123,14 @@ func parseAdminDistanceConfig(jsonData string) (map[string]int, error) {
 	return result, nil
 }
 
-// incomingBatch is the JSON payload from protocol RIBs.
+// incomingBatch is the JSON payload received from protocol RIBs on
+// (rib, best-change). It carries protocol and family in-band so the
+// EventBus can stay metadata-free.
 type incomingBatch struct {
-	Changes []incomingChange `json:"changes"`
+	Protocol string           `json:"protocol"` // "bgp", "static", etc.
+	Family   string           `json:"family"`   // "ipv4/unicast" etc.
+	Replay   bool             `json:"replay,omitempty"`
+	Changes  []incomingChange `json:"changes"`
 }
 
 type incomingChange struct {
@@ -133,7 +142,7 @@ type incomingChange struct {
 	ProtocolType string `json:"protocol-type"` // "ebgp", "ibgp", etc.
 }
 
-// outgoingChange is one entry in the sysrib/best-change payload.
+// outgoingChange is one entry in the (sysrib, best-change) payload.
 type outgoingChange struct {
 	Action   string `json:"action"`
 	Prefix   string `json:"prefix"`
@@ -141,8 +150,11 @@ type outgoingChange struct {
 	Protocol string `json:"protocol"`
 }
 
-// outgoingBatch is the JSON payload published to sysrib/best-change.
+// outgoingBatch is the JSON payload emitted on (sysrib, best-change).
+// Family is part of the payload because the EventBus has no metadata map.
 type outgoingBatch struct {
+	Family  string           `json:"family"`
+	Replay  bool             `json:"replay,omitempty"`
 	Changes []outgoingChange `json:"changes"`
 }
 
@@ -158,20 +170,20 @@ func (s *sysRIB) effectivePriority(protocolType string, incomingPriority int) in
 	return incomingPriority
 }
 
-// processEvent handles a batch of protocol RIB changes from the Bus.
-// Returns outgoing changes to publish (caller publishes after processing).
-func (s *sysRIB) processEvent(event ze.Event) []outgoingChange {
-	proto := event.Metadata["protocol"]
-	fam := event.Metadata["family"]
-	if proto == "" || fam == "" {
-		logger().Warn("sysrib: event missing protocol or family metadata")
-		return nil
-	}
-
+// processEvent handles a batch of protocol RIB changes received from the
+// EventBus. Returns the outgoing changes the caller should publish on the
+// (sysrib, best-change) channel, plus the family the changes belong to.
+func (s *sysRIB) processEvent(payload string) (string, []outgoingChange) {
 	var batch incomingBatch
-	if err := json.Unmarshal(event.Payload, &batch); err != nil {
+	if err := json.Unmarshal([]byte(payload), &batch); err != nil {
 		logger().Warn("sysrib: failed to unmarshal batch", "error", err)
-		return nil
+		return "", nil
+	}
+	proto := batch.Protocol
+	fam := batch.Family
+	if proto == "" || fam == "" {
+		logger().Warn("sysrib: event missing protocol or family")
+		return "", nil
 	}
 
 	s.mu.Lock()
@@ -223,7 +235,7 @@ func (s *sysRIB) processEvent(event ze.Event) []outgoingChange {
 		}
 	}
 
-	return outChanges
+	return fam, outChanges
 }
 
 // reapplyAdminDistances recalculates effective priorities for all stored routes
@@ -305,31 +317,33 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 	}
 }
 
-// publishChanges marshals outgoing changes and publishes to the Bus.
+// publishChanges marshals outgoing changes and emits one event on the
+// EventBus under (sysrib, best-change).
 func publishChanges(changes []outgoingChange, family string) {
-	bus := getBus()
-	if bus == nil {
+	eb := getEventBus()
+	if eb == nil {
 		return
 	}
 
-	batch := outgoingBatch{Changes: changes}
+	batch := outgoingBatch{
+		Family:  family,
+		Changes: changes,
+	}
 	payload, err := json.Marshal(batch)
 	if err != nil {
 		logger().Warn("sysrib: marshal failed", "error", err)
 		return
 	}
-
-	metadata := map[string]string{
-		"family": family,
+	if _, err := eb.Emit(plugin.NamespaceSysrib, plugin.EventSysribBestChange, string(payload)); err != nil {
+		logger().Warn("sysrib: emit failed", "error", err)
 	}
-	bus.Publish(sysribTopic, payload, metadata)
 }
 
 // replayBest publishes the current system best table as batch events.
 // Used for full-table replay when a downstream subscriber requests it.
 func (s *sysRIB) replayBest() {
-	bus := getBus()
-	if bus == nil {
+	eb := getEventBus()
+	if eb == nil {
 		return
 	}
 
@@ -346,76 +360,55 @@ func (s *sysRIB) replayBest() {
 	s.mu.RUnlock()
 
 	for famName, changes := range changesByFamily {
-		batch := outgoingBatch{Changes: changes}
+		batch := outgoingBatch{
+			Family:  famName,
+			Replay:  true,
+			Changes: changes,
+		}
 		payload, err := json.Marshal(batch)
 		if err != nil {
 			logger().Warn("sysrib: replay marshal failed", "error", err)
 			continue
 		}
-		metadata := map[string]string{
-			"family": famName,
-			"replay": "true",
+		if _, err := eb.Emit(plugin.NamespaceSysrib, plugin.EventSysribBestChange, string(payload)); err != nil {
+			logger().Warn("sysrib: replay emit failed", "error", err)
 		}
-		bus.Publish(sysribTopic, payload, metadata)
 	}
 
 	logger().Info("sysrib: replay published", "families", len(changesByFamily))
 }
 
-// sysribReplayConsumer implements ze.Consumer for the sysrib/replay-request topic.
-type sysribReplayConsumer struct {
-	sysrib *sysRIB
-}
+// run subscribes to protocol RIB events and blocks until ctx is canceled.
+func (s *sysRIB) run(ctx context.Context) {
+	eb := getEventBus()
+	if eb == nil {
+		logger().Warn("sysrib: no event bus configured")
+		return
+	}
 
-// Deliver triggers a full system RIB replay.
-func (c *sysribReplayConsumer) Deliver(_ []ze.Event) error {
-	c.sysrib.replayBest()
-	return nil
-}
-
-// busConsumer implements ze.Consumer for Bus subscription.
-type busConsumer struct {
-	sysrib *sysRIB
-}
-
-// Deliver processes a batch of Bus events.
-func (c *busConsumer) Deliver(events []ze.Event) error {
-	for _, event := range events {
-		fam := event.Metadata["family"]
-		changes := c.sysrib.processEvent(event)
+	// Subscribe to (rib, best-change). The EventBus delivers one event at
+	// a time; we no longer need a Consumer batch wrapper because the engine
+	// fan-out is synchronous and per-event.
+	unsubBest := eb.Subscribe(plugin.NamespaceRIB, plugin.EventBestChange, func(payload string) {
+		fam, changes := s.processEvent(payload)
 		if len(changes) > 0 {
 			publishChanges(changes, fam)
 		}
-	}
-	return nil
-}
+	})
+	defer unsubBest()
 
-// run subscribes to protocol RIB events and blocks until ctx is canceled.
-func (s *sysRIB) run(ctx context.Context) {
-	bus := getBus()
-	if bus == nil {
-		logger().Warn("sysrib: no bus configured")
-		return
-	}
+	// Subscribe to (sysrib, replay-request) from downstream consumers
+	// (e.g., fib-kernel). On request, replay the entire system best table.
+	unsubReplay := eb.Subscribe(plugin.NamespaceSysrib, plugin.EventSysribReplayRequest, func(_ string) {
+		s.replayBest()
+	})
+	defer unsubReplay()
 
-	sub, err := bus.Subscribe("rib/best-change/", nil, &busConsumer{sysrib: s})
-	if err != nil {
-		logger().Error("sysrib: subscribe failed", "error", err)
-		return
+	// Request full-table replay from protocol RIBs so we populate even if
+	// they started before us. Empty payload by convention.
+	if _, err := eb.Emit(plugin.NamespaceRIB, plugin.EventReplayRequest, ""); err != nil {
+		logger().Warn("sysrib: replay-request emit failed", "error", err)
 	}
-	defer bus.Unsubscribe(sub)
-
-	// Subscribe to replay requests from downstream consumers (e.g., fib-kernel).
-	replaySub, err := bus.Subscribe("sysrib/replay-request", nil, &sysribReplayConsumer{sysrib: s})
-	if err != nil {
-		logger().Warn("sysrib: replay request subscribe failed", "error", err)
-	} else {
-		defer bus.Unsubscribe(replaySub)
-	}
-
-	// Request full-table replay from protocol RIBs so we populate
-	// even if they started before us.
-	bus.Publish("rib/replay-request", nil, nil)
 
 	logger().Info("sysrib: running")
 	<-ctx.Done()

@@ -26,9 +26,9 @@ func init() {
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
-		ConfigureBus: func(bus any) {
-			if b, ok := bus.(ze.Bus); ok {
-				setBus(b)
+		ConfigureEventBus: func(eb any) {
+			if e, ok := eb.(ze.EventBus); ok {
+				setEventBus(e)
 			}
 		},
 	}

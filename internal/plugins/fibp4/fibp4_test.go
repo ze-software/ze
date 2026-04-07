@@ -7,8 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 // mockBackend records P4 route operations for testing.
@@ -49,14 +47,14 @@ func (m *mockBackend) replaceRoute(prefix, nextHop string) error {
 
 func (m *mockBackend) close() error { return nil }
 
-func makeSysribEvent(changes []incomingChange) ze.Event {
-	batch := incomingBatch{Changes: changes}
-	payload, _ := json.Marshal(batch)
-	return ze.Event{
-		Topic:    "sysrib/best-change",
-		Payload:  payload,
-		Metadata: map[string]string{"family": "ipv4/unicast"},
+// makeSysribPayload builds a (sysrib, best-change) JSON payload for testing.
+func makeSysribPayload(changes []incomingChange) string {
+	batch := incomingBatch{
+		Family:  "ipv4/unicast",
+		Changes: changes,
 	}
+	data, _ := json.Marshal(batch)
+	return string(data)
 }
 
 // VALIDATES: fib-p4 installs forwarding entry on add event.
@@ -65,10 +63,10 @@ func TestFIBP4Install(t *testing.T) {
 	backend := newMockBackend()
 	f := newFIBP4(backend)
 
-	event := makeSysribEvent([]incomingChange{
+	payload := makeSysribPayload([]incomingChange{
 		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	})
-	f.processEvent(event)
+	f.processEvent(payload)
 
 	assert.Equal(t, "192.168.1.1", backend.added["10.0.0.0/24"])
 	assert.Equal(t, "192.168.1.1", f.installed["10.0.0.0/24"])
@@ -80,11 +78,11 @@ func TestFIBP4Remove(t *testing.T) {
 	backend := newMockBackend()
 	f := newFIBP4(backend)
 
-	f.processEvent(makeSysribEvent([]incomingChange{
+	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	}))
 
-	f.processEvent(makeSysribEvent([]incomingChange{
+	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: "withdraw", Prefix: "10.0.0.0/24"},
 	}))
 
@@ -98,11 +96,11 @@ func TestFIBP4Replace(t *testing.T) {
 	backend := newMockBackend()
 	f := newFIBP4(backend)
 
-	f.processEvent(makeSysribEvent([]incomingChange{
+	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	}))
 
-	f.processEvent(makeSysribEvent([]incomingChange{
+	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: "update", Prefix: "10.0.0.0/24", NextHop: "192.168.2.1", Protocol: "static"},
 	}))
 
@@ -116,7 +114,7 @@ func TestFIBP4FlushOnStop(t *testing.T) {
 	backend := newMockBackend()
 	f := newFIBP4(backend)
 
-	f.processEvent(makeSysribEvent([]incomingChange{
+	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 		{Action: "add", Prefix: "172.16.0.0/16", NextHop: "192.168.1.2", Protocol: "static"},
 	}))
@@ -133,7 +131,7 @@ func TestFIBP4ShowInstalled(t *testing.T) {
 	backend := newMockBackend()
 	f := newFIBP4(backend)
 
-	f.processEvent(makeSysribEvent([]incomingChange{
+	f.processEvent(makeSysribPayload([]incomingChange{
 		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	}))
 

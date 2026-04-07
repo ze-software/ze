@@ -6,18 +6,17 @@
 //
 // Platform-independent external route change handling.
 // When the kernel route monitor detects an external change on a ze-managed
-// prefix, handleExternalChange re-asserts ze's route and publishes
-// a fib/external-change Bus event for observability.
+// prefix, handleExternalChange re-asserts ze's route and emits
+// (fib, external-change) on the EventBus for observability.
 package fibkernel
 
 import (
 	"encoding/json"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
-// externalChangeTopic is the Bus topic for external route change events.
-const externalChangeTopic = "fib/external-change"
-
-// externalChangeEvent is the JSON payload for fib/external-change.
+// externalChangeEvent is the JSON payload for (fib, external-change).
 type externalChangeEvent struct {
 	Prefix           string `json:"prefix"`
 	Action           string `json:"action"`
@@ -61,10 +60,10 @@ func (f *fibKernel) handleExternalChange(prefix, externalNextHop string, externa
 	})
 }
 
-// publishExternalChange publishes a fib/external-change event to the Bus.
+// publishExternalChange emits a (fib, external-change) event on the EventBus.
 func publishExternalChange(change externalChangeEvent) {
-	bus := getBus()
-	if bus == nil {
+	eb := getEventBus()
+	if eb == nil {
 		return
 	}
 
@@ -73,6 +72,7 @@ func publishExternalChange(change externalChangeEvent) {
 		logger().Warn("fib-kernel: marshal external change failed", "error", err)
 		return
 	}
-
-	bus.Publish(externalChangeTopic, payload, nil)
+	if _, err := eb.Emit(plugin.NamespaceFib, plugin.EventFibExternalChange, string(payload)); err != nil {
+		logger().Warn("fib-kernel: external-change emit failed", "error", err)
+	}
 }
