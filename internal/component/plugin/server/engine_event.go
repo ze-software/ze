@@ -138,6 +138,24 @@ func (s *Server) EmitEngineEvent(namespace, eventType, event string) (int, error
 	return s.deliverEvent(nil, namespace, eventType, "", "", event)
 }
 
+// Emit satisfies the pkg/ze.EventBus interface. It is a thin alias for
+// EmitEngineEvent so engine components can depend on the public ze.EventBus
+// type without importing this package directly.
+func (s *Server) Emit(namespace, eventType, payload string) (int, error) {
+	return s.EmitEngineEvent(namespace, eventType, payload)
+}
+
+// Subscribe satisfies the pkg/ze.EventBus interface. It is a thin alias
+// for SubscribeEngineEvent that adapts the handler signature from
+// EngineEventHandler (a named type) to a plain func, which is what
+// ze.EventBus declares.
+func (s *Server) Subscribe(namespace, eventType string, handler func(payload string)) func() {
+	if handler == nil {
+		return func() {}
+	}
+	return s.SubscribeEngineEvent(namespace, eventType, EngineEventHandler(handler))
+}
+
 // SubscribeEngineEvent registers an engine-side handler for stream events
 // matching the given namespace and event type. The returned function
 // unregisters the handler when called; safe to call multiple times.

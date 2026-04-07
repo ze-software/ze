@@ -11,30 +11,60 @@ import (
 
 // Event namespaces.
 const (
-	NamespaceBGP    = "bgp"
-	NamespaceRIB    = "rib"
-	NamespaceConfig = "config"
+	NamespaceBGP       = "bgp"
+	NamespaceRIB       = "rib"
+	NamespaceConfig    = "config"
+	NamespaceSysrib    = "sysrib"
+	NamespaceFib       = "fib"
+	NamespaceInterface = "interface"
 )
 
 // BGP event types.
 const (
-	EventUpdate       = "update"
-	EventOpen         = "open"
-	EventNotification = "notification"
-	EventKeepalive    = "keepalive"
-	EventRefresh      = "refresh"
-	EventState        = "state"
-	EventNegotiated   = "negotiated"
-	EventEOR          = "eor"
-	EventCongested    = "congested"
-	EventResumed      = "resumed"
-	EventRPKI         = "rpki"
+	EventUpdate        = "update"
+	EventOpen          = "open"
+	EventNotification  = "notification"
+	EventKeepalive     = "keepalive"
+	EventRefresh       = "refresh"
+	EventState         = "state"
+	EventNegotiated    = "negotiated"
+	EventEOR           = "eor"
+	EventCongested     = "congested"
+	EventResumed       = "resumed"
+	EventRPKI          = "rpki"
+	EventListenerReady = "listener-ready" // BGP reactor: TCP listener bound and accepting
 )
 
 // RIB event types.
 const (
-	EventCache = "cache"
-	EventRoute = "route"
+	EventCache         = "cache"
+	EventRoute         = "route"
+	EventBestChange    = "best-change"    // protocol RIB published a best-path change
+	EventReplayRequest = "replay-request" // downstream consumer asking for full table replay
+)
+
+// Sysrib event types.
+const (
+	EventSysribBestChange    = "best-change"    // sysrib published a system-wide best change
+	EventSysribReplayRequest = "replay-request" // downstream consumer asking sysrib to replay
+)
+
+// Fib event types.
+const (
+	EventFibExternalChange = "external-change" // FIB observed a route installed by something other than ze
+)
+
+// Interface event types.
+const (
+	EventInterfaceCreated      = "created"
+	EventInterfaceUp           = "up"
+	EventInterfaceDown         = "down"
+	EventInterfaceAddrAdded    = "addr-added"
+	EventInterfaceAddrRemoved  = "addr-removed"
+	EventInterfaceDHCPAcquired = "dhcp-acquired"
+	EventInterfaceDHCPRenewed  = "dhcp-renewed"
+	EventInterfaceDHCPExpired  = "dhcp-expired"
+	EventInterfaceRollback     = "rollback"
 )
 
 // Config transaction event types.
@@ -70,24 +100,51 @@ var eventsMu sync.RWMutex
 // ValidBgpEvents is the set of valid BGP event types.
 // Includes all types accepted in config receive flags (base + directions).
 var ValidBgpEvents = map[string]bool{
-	EventUpdate:       true,
-	EventOpen:         true,
-	EventNotification: true,
-	EventKeepalive:    true,
-	EventRefresh:      true,
-	EventState:        true,
-	EventNegotiated:   true,
-	EventEOR:          true,
-	EventCongested:    true,
-	EventResumed:      true,
-	EventRPKI:         true,
-	DirectionSent:     true, // "sent" — config receive flag for sent UPDATE events
+	EventUpdate:        true,
+	EventOpen:          true,
+	EventNotification:  true,
+	EventKeepalive:     true,
+	EventRefresh:       true,
+	EventState:         true,
+	EventNegotiated:    true,
+	EventEOR:           true,
+	EventCongested:     true,
+	EventResumed:       true,
+	EventRPKI:          true,
+	EventListenerReady: true, // BGP TCP listener bound and accepting
+	DirectionSent:      true, // "sent" — config receive flag for sent UPDATE events
 }
 
 // ValidRibEvents is the set of valid RIB event types.
 var ValidRibEvents = map[string]bool{
-	EventCache: true,
-	EventRoute: true,
+	EventCache:         true,
+	EventRoute:         true,
+	EventBestChange:    true, // protocol RIB published a best-path change
+	EventReplayRequest: true, // downstream consumer asking for full table replay
+}
+
+// ValidSysribEvents is the set of valid sysrib event types.
+var ValidSysribEvents = map[string]bool{
+	EventSysribBestChange:    true,
+	EventSysribReplayRequest: true,
+}
+
+// ValidFibEvents is the set of valid FIB event types.
+var ValidFibEvents = map[string]bool{
+	EventFibExternalChange: true,
+}
+
+// ValidInterfaceEvents is the set of valid interface monitor event types.
+var ValidInterfaceEvents = map[string]bool{
+	EventInterfaceCreated:      true,
+	EventInterfaceUp:           true,
+	EventInterfaceDown:         true,
+	EventInterfaceAddrAdded:    true,
+	EventInterfaceAddrRemoved:  true,
+	EventInterfaceDHCPAcquired: true,
+	EventInterfaceDHCPRenewed:  true,
+	EventInterfaceDHCPExpired:  true,
+	EventInterfaceRollback:     true,
 }
 
 // ValidConfigEvents is the set of valid config transaction event types.
@@ -112,9 +169,12 @@ var ValidConfigEvents = map[string]bool{
 // This is the single source of truth for namespace/event validation.
 // Protected by eventsMu for concurrent access.
 var ValidEvents = map[string]map[string]bool{
-	NamespaceBGP:    ValidBgpEvents,
-	NamespaceRIB:    ValidRibEvents,
-	NamespaceConfig: ValidConfigEvents,
+	NamespaceBGP:       ValidBgpEvents,
+	NamespaceRIB:       ValidRibEvents,
+	NamespaceConfig:    ValidConfigEvents,
+	NamespaceSysrib:    ValidSysribEvents,
+	NamespaceFib:       ValidFibEvents,
+	NamespaceInterface: ValidInterfaceEvents,
 }
 
 // IsValidEvent returns true if the event type is valid in the given namespace.

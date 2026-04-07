@@ -76,7 +76,15 @@ type Registration struct {
 
 	// ConfigureBus is called before RunEngine with the Bus instance (any).
 	// The plugin should type-assert to ze.Bus and store the reference for publishing events.
+	//
+	// Deprecated: prefer ConfigureEventBus with ze.EventBus. ConfigureBus is
+	// kept while consumers migrate; both fire if both are set.
 	ConfigureBus func(bus any)
+
+	// ConfigureEventBus is called before RunEngine with the EventBus instance (any).
+	// The plugin should type-assert to ze.EventBus and store the reference for
+	// emitting and subscribing to namespaced events.
+	ConfigureEventBus func(eventBus any)
 
 	// ConfigurePluginServer is called before RunEngine with the plugin server (any).
 	// The plugin should type-assert to *pluginserver.Server and store the reference.
@@ -154,6 +162,11 @@ var (
 	// Read by GetInternalPluginRunner to inject into plugins via ConfigureBus.
 	busInstance any
 
+	// eventBusInstance stores the EventBus instance (as any to avoid importing ze package).
+	// Set by the engine after creating the plugin server (which implements ze.EventBus).
+	// Read by GetInternalPluginRunner to inject into plugins via ConfigureEventBus.
+	eventBusInstance any
+
 	// pluginServerInstance stores the plugin server (as any to avoid importing server package).
 	// Set by the hub after creating the plugin server.
 	// Read by GetInternalPluginRunner to inject into plugins via ConfigurePluginServer.
@@ -230,6 +243,23 @@ func GetBus() any {
 	mu.RLock()
 	defer mu.RUnlock()
 	return busInstance
+}
+
+// SetEventBus stores the EventBus instance for plugin injection.
+// Called by the engine after creating the plugin server (which implements
+// ze.EventBus). The instance is passed as any to avoid importing the ze
+// package from this leaf registry package.
+func SetEventBus(eventBus any) {
+	mu.Lock()
+	defer mu.Unlock()
+	eventBusInstance = eventBus
+}
+
+// GetEventBus returns the stored EventBus instance, or nil.
+func GetEventBus() any {
+	mu.RLock()
+	defer mu.RUnlock()
+	return eventBusInstance
 }
 
 // SetPluginServer stores the plugin server instance for injection into plugins.

@@ -307,6 +307,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 	apiServer.SetProcessSpawner(pm)
 	registry.SetPluginServer(apiServer)
+	// The plugin server implements ze.EventBus via its Emit/Subscribe
+	// methods, so internal plugins receive a single namespaced pub/sub
+	// handle that is backed by the same fan-out path as plugin-process
+	// stream events. This is the replacement for the standalone Bus.
+	registry.SetEventBus(apiServer)
 
 	// Set config loader for SIGHUP reload support.
 	if configPath != "" && configPath != "-" {
