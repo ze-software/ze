@@ -9,8 +9,9 @@ package storage
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"github.com/gaissmai/bart"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // FamilyRIB stores routes with per-attribute-type deduplication.
@@ -21,7 +22,7 @@ import (
 // eliminating the Go map rehash cliff at 1M+ routes. Falls back to map[NLRIKey]RouteEntry
 // for ADD-PATH families where the same prefix can have multiple path-IDs.
 type FamilyRIB struct {
-	fam  family.Family
+	fam     family.Family
 	addPath bool
 
 	// BART trie for non-ADD-PATH (no rehash, cache-friendly traversal).
@@ -34,7 +35,7 @@ type FamilyRIB struct {
 // NewFamilyRIB creates a FamilyRIB for the given address family.
 func NewFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
 	r := &FamilyRIB{
-		family:  family,
+		fam:     fam,
 		addPath: addPath,
 	}
 	if addPath {
@@ -64,7 +65,7 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 }
 
 func (r *FamilyRIB) insertTrie(nlriBytes []byte, newEntry RouteEntry) {
-	pfx, ok := NLRIToPrefix(r.family, nlriBytes)
+	pfx, ok := NLRIToPrefix(r.fam, nlriBytes)
 	if !ok {
 		newEntry.Release()
 		return
@@ -119,7 +120,7 @@ func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
 }
 
 func (r *FamilyRIB) removeTrie(nlriBytes []byte) bool {
-	pfx, ok := NLRIToPrefix(r.family, nlriBytes)
+	pfx, ok := NLRIToPrefix(r.fam, nlriBytes)
 	if !ok {
 		return false
 	}
@@ -155,7 +156,7 @@ func (r *FamilyRIB) LookupEntry(nlriBytes []byte) (RouteEntry, bool) {
 		return entry, exists
 	}
 
-	pfx, ok := NLRIToPrefix(r.family, nlriBytes)
+	pfx, ok := NLRIToPrefix(r.fam, nlriBytes)
 	if !ok {
 		return RouteEntry{}, false
 	}
@@ -221,7 +222,7 @@ func (r *FamilyRIB) ModifyEntry(nlriBytes []byte, fn func(entry *RouteEntry)) bo
 		return true
 	}
 
-	pfx, ok := NLRIToPrefix(r.family, nlriBytes)
+	pfx, ok := NLRIToPrefix(r.fam, nlriBytes)
 	if !ok {
 		return false
 	}
@@ -252,7 +253,7 @@ func (r *FamilyRIB) ModifyAll(fn func(entry *RouteEntry)) {
 
 // Family returns the address family of this RIB.
 func (r *FamilyRIB) Family() family.Family {
-	return r.family
+	return r.fam
 }
 
 // HasAddPath returns whether ADD-PATH is enabled.
