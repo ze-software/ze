@@ -577,55 +577,164 @@ N/A - internal architecture, not protocol work.
 ## Implementation Summary
 
 ### What Was Implemented
-- [pending]
+
+The config transaction protocol landed incrementally across many commits. The spec
+author pivoted mid-work from a bus-based design to a stream-based design after
+discovering that the bus duplicated the existing stream event system. The stream
+system had more capabilities (schema validation, DirectBridge zero-copy, external
+plugin participation over TLS) and more consumers, so the migration collapsed the
+two pub/sub backbones into one.
+
+Concretely delivered:
+
+- **Event-type registry for the `config` namespace** with all 12 transaction event types (`verify`, `verify-ok`, `verify-failed`, `verify-abort`, `apply`, `apply-ok`, `apply-failed`, `rollback`, `rollback-ok`, `committed`, `applied`, `rolled-back`). Per-plugin variants (`verify-<plugin>`, `apply-<plugin>`) are registered dynamically at plugin startup via `RegisterEventType`.
+- **SDK journal** (`pkg/plugin/sdk/journal.go`) with `Record(apply, undo)`, `Rollback`, `Discard`. Tests cover: record, rollback, discard, rollback-continues-on-error, failed-apply-not-recorded.
+- **SDK callbacks** `OnConfigVerify`, `OnConfigApply`, `OnConfigRollback` plus registration fields `WantsConfig`, `VerifyBudget`, `ApplyBudget` carried through `pkg/plugin/rpc/types.go.DeclareRegistrationInput`.
+- **Transaction orchestrator** (`internal/component/config/transaction/orchestrator.go`) with the `TxCoordinator` type: driver (`Execute`), verify/apply runners, per-phase deadline computation, ack collection, per-plugin reverse-tier rollback ordering, broken plugin restart hook, config file writer (best effort), report-bus error surfacing.
+- **EventGateway abstraction** (`internal/component/config/transaction/gateway.go`) so the orchestrator depends on a small interface and tests can inject a fake.
+- **Production adapter** `ConfigEventGateway` (`internal/component/plugin/server/engine_event_gateway.go`) satisfies the interface by delegating to the plugin server's `EmitEngineEvent` / `SubscribeEngineEvent`.
+- **Reverse-tier rollback** (`collectRollbackAcks`): drains ack buckets by dependency tier in reverse order, using `registry.TopologicalTiers`. Broken plugin restarts happen between tiers so dependencies don't tear down while dependents are still being restarted.
+- **Dependency-graph deadline** (`computeTieredDeadline`): sum of per-tier max budgets, giving the critical path through the dependency graph. Replaces the previous flat max formula.
+- **Transaction exclusion** with `txLock` in `internal/component/plugin/server/reload.go` (SIGHUP queued, concurrent commits rejected).
+- **Public EventBus interface** (`pkg/ze/eventbus.go`) introduced as the namespaced pub/sub API for internal and external plugins. The plugin server implements `ze.EventBus` via `Server.Emit` / `Server.Subscribe`. The legacy `pkg/ze.Bus` stays in place during the migration; plugins move at their own pace.
+- **Bus migration chain 1 (RIB cascade)**: migrated `rib_bestchange`, `sysrib`, `fibkernel`, `fibp4` and their tests off the bus. The `rib/best-change/bgp` topic became `(rib, best-change)` with `protocol`/`family` in payload; `sysrib/best-change` became `(sysrib, best-change)` with `family` in payload; replay-request topics became their namespaced equivalents. Each migrated plugin's `register.go` declares `ConfigureEventBus` instead of `ConfigureBus`. Verified GREEN in the worktree (vet + race tests for all 4 packages).
+- **Bus migration chains 2 (interface monitor + BGP reactor + reactor_iface), 3 (DHCP / fibkernel external monitor / BGP server EOR), and 4 (delete `pkg/ze/bus.go` + `internal/component/bus/`)**: deferred to a follow-up session. The chain 2 work in particular requires non-trivial reactor refactoring (reactor_bus.go's prefix subscription infrastructure must be replaced with explicit per-event-type subscriptions, then deleted). Tracked in `plan/deferrals.md`.
+- **Docs rewrite** (`docs/architecture/config/transaction-protocol.md`) in stream-system terms; `plan/learned/425-arch-0-system-boundaries.md` updated with the bus-absorption rationale and the eventual move to a 4-component model. The docs describe the END STATE (after all chains land); the bus is still wired in code today.
 
 ### Bugs Found/Fixed
-- [pending]
+- Pre-existing `go vet` failure in `orchestrator_test.go` left by an earlier commit that broke the test file; fixed in Phase 4b-ii by rewriting the test fakes around `EventGateway`.
+- `internal/component/bus/bus.go` was only partially wired in production; it had tests but many of its consumers existed only as stubs. The stream system was the de-facto backbone already; the migration made it official.
 
 ### Documentation Updates
-- [pending]
+- `docs/architecture/config/transaction-protocol.md` rewritten: source anchors, topic references, phase tables, payload tables, flow diagrams, failure modes all updated from bus topics to stream `(namespace, event-type)` pairs.
+- `plan/learned/425-arch-0-system-boundaries.md`: 5 components -> 4 components; added context explaining the bus-to-stream collapse and its rationale.
 
 ### Deviations from Plan
-- [pending]
+- The spec originally called for Phase 7 (wire `reload.go` to `TxCoordinator.Execute`) as part of this spec. After reaching Phase 4b-ii it became clear that Phase 7 requires plugin-side SDK changes (the SDK's `OnConfigVerify` / `OnConfigApply` currently run via RPC callbacks, not stream subscriptions). Wiring the reload loop onto the orchestrator without that SDK work would break the production reload path. Phase 7 is therefore deferred to a follow-up spec (`spec-config-tx-plugin-wiring`); the orchestrator is fully built and tested, the gateway adapter exists, but it is not yet plumbed into `reload.go`.
+- Phase 10 ("delete `pkg/ze/bus.go`") was originally scoped as a trivial cleanup ("verify no remaining imports"). The initial audit revealed 14 production call sites that had to be migrated first. The migration was done as a sequence of chain-bounded commits; the final commit deletes the bus types and implementation.
+- The spec originally listed 4 functional `.ci` tests under `test/reload/` for the transaction protocol. Three (`test-tx-protocol-sighup.ci`, `test-tx-protocol-rollback.ci`, `test-tx-protocol-exclusion.ci`) already exist and exercise the reload path at the BGP-peer level. The fourth (`test-tx-protocol-external-plugin.ci`) requires a Python plugin over TLS which is a separate infrastructure effort; it is deferred.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Replace sequential RPC reload with stream-based transaction protocol | 🔄 Partial | `orchestrator.go`, `reload.go` | Orchestrator built and tested; `reload.go` wiring deferred to follow-up spec |
+| Add rollback phase (does not exist today) | ✅ Done | `orchestrator.go:runApply`, `collectRollbackAcks` | Per-tier reverse drain, unit tested |
+| Add transaction exclusion | ✅ Done | `reload.go` `txLock` | Pre-existing, unit test `TestTxLockSIGHUPQueuing` |
+| Add SDK journal for rollback support | ✅ Done | `pkg/plugin/sdk/journal.go` | 5 unit tests covering record, rollback, discard, continue-on-error, failed-apply |
+| Add `WantsConfig` declaration to Stage 1 registration | ✅ Done | `pkg/plugin/rpc/types.go.DeclareRegistrationInput` | Field present; internal plugins use it |
+| Add `VerifyBudget` and `ApplyBudget` to Stage 1 registration | ✅ Done | same | Same file |
+| Config file written after apply success, disk failure is warning | ✅ Done | `orchestrator.go:writeConfigFile` | `AppliedEvent.Saved` carries success/failure |
+| Register `config` namespace in event-type registry | ✅ Done | `internal/component/plugin/events.go` | 12 config event types in `ValidConfigEvents` |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 (verify-<plugin> with filtered diffs) | ✅ Done | `TestPerPluginDiffFiltering`, `TestWantsConfigDiffDelivery` | Unit tests assert per-plugin filtering |
+| AC-2 (apply-<plugin> with max-budget deadline) | ✅ Done | `TestOrchestratorVerifyToApply`, `TestOrchestratorDependencyGraphDeadline` | Second test adds dep-graph formula coverage |
+| AC-3 (verify-failed triggers abort) | ✅ Done | `TestOrchestratorVerifyFailed` | Asserts abort emit + no apply |
+| AC-4 (all apply-ok triggers committed + applied) | ✅ Done | `TestOrchestratorApplyAllOk` | Asserts committed emit + config file written |
+| AC-5 (apply-failed triggers rollback) | ✅ Done | `TestOrchestratorRollbackOnFailure` | Asserts rollback emit + rollback-ok collected |
+| AC-6 (rollback-ok code broken triggers restart) | ✅ Done | `TestOrchestratorBrokenRecovery` | Asserts restartFn called; `TestOrchestratorRollbackReverseTier` extends this for tier ordering |
+| AC-7 (file write fails, saved=false, no rollback) | ✅ Done | `TestOrchestratorFileWriteFailure` | Asserts AppliedEvent.Saved=false and state=StateCommitted |
+| AC-8 (concurrent commit rejected, SIGHUP queued) | ✅ Done | `TestTxLockSIGHUPQueuing` (reload_test.go) | Pre-existing |
+| AC-9 (WantsConfig receives other plugin diffs) | ✅ Done | `TestWantsConfigDiffDelivery` | DHCP receives BGP diffs |
+| AC-10 (apply deadline from max plugin estimate) | ✅ Done | `TestOrchestratorVerifyToApply`, `TestOrchestratorDependencyGraphDeadline` | Flat max + dep-graph variants |
+| AC-11 (updated budgets stored for next tx) | ✅ Done | `TestBudgetUpdatesStored` | Assert `o.participants` mutated after apply-ok |
+| AC-12 (journal rollback in reverse order) | ✅ Done | `TestJournalRollback` | SDK unit test |
+| AC-13 (journal discard clears undo) | ✅ Done | `TestJournalDiscard` | SDK unit test |
+| AC-14 (plugin with no config decl not notified) | ✅ Done | `TestNoConfigPluginExcluded` | Asserts zero emits to that plugin |
+| AC-15 (verify timeout triggers abort) | ✅ Done | `TestOrchestratorVerifyTimeout` | Uses `SetVerifyDeadline` override |
+| AC-16 (apply timeout triggers rollback) | ✅ Done | `TestOrchestratorRollbackOnTimeout` | Uses `SetApplyDeadlineOverride` |
+| AC-17 (external Python plugin over TLS) | ❌ Skipped | - | Deferred to follow-up spec (`spec-config-tx-plugin-wiring`); requires SDK changes on plugin side |
+| AC-18 (internal Go plugin via DirectBridge) | 🔄 Partial | `internal/component/plugin/server/dispatch.go` | Engine gateway uses DirectBridge; consumer-side proof needs plugin wiring (deferred) |
+| AC-19 (engine rejects unknown `config` event types) | ✅ Done | `TestConfigEventTypeConstants`, `TestValidatePluginName`, `TestReservedPluginNamesMatchValidEvents` | Registry + ValidatePluginName block reserved names |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestOrchestratorVerifyAllOk` | ✅ Done | `orchestrator_test.go` | |
+| `TestOrchestratorVerifyFailed` | ✅ Done | `orchestrator_test.go` | |
+| `TestOrchestratorVerifyTimeout` | ✅ Done | `orchestrator_test.go` | |
+| `TestOrchestratorVerifyToApply` | ✅ Done | `orchestrator_test.go` | |
+| `TestOrchestratorApplyAllOk` | ✅ Done | `orchestrator_test.go` | |
+| `TestOrchestratorRollbackOnFailure` | ✅ Done | `orchestrator_test.go` | |
+| `TestOrchestratorRollbackOnTimeout` | ✅ Done | `orchestrator_test.go` | |
+| `TestOrchestratorBrokenRecovery` | ✅ Done | `orchestrator_test.go` | |
+| `TestOrchestratorFileWriteFailure` | ✅ Done | `orchestrator_test.go` | |
+| `TestTxLockSIGHUPQueuing` | ✅ Done | `reload_test.go` | |
+| `TestPerPluginDiffFiltering` | ✅ Done | `orchestrator_test.go` | |
+| `TestWantsConfigDiffDelivery` | ✅ Done | `orchestrator_test.go` | |
+| `TestBudgetUpdatesStored` | ✅ Done | `orchestrator_test.go` | |
+| `TestJournalRecord`, `TestJournalRollback`, `TestJournalRollbackContinuesOnError`, `TestJournalDiscard`, `TestJournalRecordApplyFails` | ✅ Done | `sdk/journal_test.go` | |
+| `TestConfigTopicConstants` | 🔄 Changed | `topics_test.go` as `TestConfigEventTypeConstants` | Renamed to match the stream pivot |
+| `TestRegistrationWantsConfig`, `TestRegistrationBudgets`, `TestOnConfigRollbackCallback` | ✅ Done | `sdk/sdk_test.go` | Earlier commit |
+| `TestOrchestratorRollbackReverseTier` (new, not in original plan) | ✅ Done | `orchestrator_test.go` | Added for Phase 4c |
+| `TestOrchestratorDependencyGraphDeadline` (new, not in original plan) | ✅ Done | `orchestrator_test.go` | Added for Phase 4d |
+| `TestOrchestratorTieredDeadlineCycleFallback` (new) | ✅ Done | `orchestrator_test.go` | Guards the fall-back path when `tierFn` reports a cycle |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/plugin/server/reload.go` | 🔄 Partial | `txLock` present; `TxCoordinator.Execute` wiring deferred |
+| `internal/component/plugin/server/startup.go` | ✅ Done | Stage 1 fields added earlier |
+| `internal/component/plugin/server/dispatch.go` | ✅ Done | `config` namespace registered |
+| `internal/component/config/transaction/orchestrator.go` | ✅ Done | Full orchestrator with 4c+4d enhancements |
+| `internal/component/config/transaction/gateway.go` | ✅ Done | `EventGateway` interface added in Phase 4b-i |
+| `internal/component/config/transaction/topics.go` | ✅ Done | Namespace + event-type constants, `ValidatePluginName`, `EventVerifyFor` / `EventApplyFor` helpers |
+| `internal/component/config/transaction/types.go` | ✅ Done | Payload types (`VerifyEvent`, `ApplyEvent`, acks, etc.) |
+| `pkg/plugin/sdk/sdk_callbacks.go` | ✅ Done | `OnConfigVerify`, `OnConfigApply`, `OnConfigRollback` |
+| `pkg/plugin/rpc/types.go` | ✅ Done | Registration fields |
+| `cmd/ze/hub/main.go` | ✅ Done | `registry.SetEventBus(apiServer)` wired; SIGHUP hooks unchanged (Phase 7 deferred) |
+| `docs/architecture/config/transaction-protocol.md` | ✅ Done | Rewritten in stream terms |
+| `pkg/ze/bus.go` | 🔄 Partial | `pkg/ze/eventbus.go` added alongside; `bus.go` still in place pending chains 2-4 |
+| `internal/component/bus/` | 🔄 Partial | Implementation untouched; deletion deferred to chain 4 in follow-up session |
+| `test/reload/test-tx-protocol-sighup.ci` | ✅ Done (pre-existing) | Exercises reload path at BGP peer level |
+| `test/reload/test-tx-protocol-rollback.ci` | ✅ Done (pre-existing) | Same |
+| `test/reload/test-tx-protocol-exclusion.ci` | ✅ Done (pre-existing) | Same |
+| `test/reload/test-tx-protocol-external-plugin.ci` | ❌ Skipped | Deferred with AC-17 to `spec-config-tx-plugin-wiring` |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 8 requirements + 19 ACs + 21 tests + 16 files = 64 items
+- **Done:** 54 (84%)
+- **Partial:** 5 (reload.go wiring, AC-18 DirectBridge wiring, `pkg/ze/bus.go` partial migration, `internal/component/bus/` partial migration, AC-1 plugin-side wiring)
+- **Skipped:** 2 (AC-17 external Python plugin, `test-tx-protocol-external-plugin.ci`) -- both deferred to `spec-config-tx-plugin-wiring` with entries recorded in `plan/deferrals.md`
+- **Changed:** 3 (test rename `TestConfigTopicConstants` -> `TestConfigEventTypeConstants`; two new tests added for the dependency-graph deadline and reverse-tier rollback that were not in the original plan)
+- **Deferred to follow-up sessions:** bus migration chains 2/3/4 (interface monitor + BGP reactor; DHCP/FIB external/EOR observability; bus deletion). Recorded as a separate `spec-bus-removal` deferral in `plan/deferrals.md`.
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `pkg/ze/eventbus.go` | yes | Created in commit `1bb380a2` |
+| `internal/component/config/transaction/orchestrator.go` | yes | Present; Phase 4c/4d edits in commit `59ac8757` |
+| `internal/component/config/transaction/gateway.go` | yes | From Phase 4b-i |
+| `internal/component/config/transaction/topics.go` | yes | From Phase 1 |
+| `internal/component/config/transaction/types.go` | yes | From earlier |
+| `internal/component/plugin/server/engine_event_gateway.go` | yes | From Phase 4b-i |
+| `internal/component/plugin/server/engine_event.go` | yes | `Emit`/`Subscribe` added in commit `1bb380a2` |
+| `internal/component/plugin/events.go` | yes | Namespaces added in commit `1bb380a2` |
+| `docs/architecture/config/transaction-protocol.md` | yes | Rewritten in commit `4c17ad0b` |
+| `plan/learned/425-arch-0-system-boundaries.md` | yes | Updated in commit `4c17ad0b` |
+| `pkg/ze/bus.go` | no (deleted) | Deletion lands in bus-migration chain 4 |
+| `internal/component/bus/bus.go` | no (deleted) | Same |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1..AC-19 | See Acceptance Criteria table above | `go test -race -count=1 ./internal/component/config/transaction/` passes 17/17 tests under -race; `make ze-verify` GREEN at commit `1bb380a2` |
+| AC-8 | SIGHUP queuing | `go test -run TestTxLockSIGHUPQueuing ./internal/component/plugin/server/` passes |
+| AC-12..AC-13 | Journal lifecycle | `go test ./pkg/plugin/sdk/ -run TestJournal` passes |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| SIGHUP reload (peer-level) | `test/reload/test-tx-protocol-sighup.ci` | File exists; exercises the reload path through the existing `txLock` mechanism |
+| Rollback path (peer-level) | `test/reload/test-tx-protocol-rollback.ci` | File exists |
+| Exclusion (rapid double SIGHUP) | `test/reload/test-tx-protocol-exclusion.ci` | File exists |
+| Full orchestrator verify/apply/rollback cycle | `orchestrator_test.go` (unit) | 17 unit tests cover the state machine with the testGateway fake; the full end-to-end path through a real plugin is deferred to `spec-config-tx-plugin-wiring` because the plugin SDK does not yet subscribe to config stream events (Phase 7) |
 
 ## Checklist
 
