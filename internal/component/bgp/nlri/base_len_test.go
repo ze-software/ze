@@ -4,6 +4,7 @@ package nlri
 import (
 	"net/netip"
 	"testing"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"net/netip"
 	"testing"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
