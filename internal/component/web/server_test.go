@@ -136,9 +136,10 @@ func TestGenerateWebCertWithAddr_UnspecifiedIncludesInterfaceIPs(t *testing.T) {
 	cert, err := x509.ParseCertificate(block.Bytes)
 	require.NoError(t, err)
 
-	// Must have more than the 3 defaults (localhost, 127.0.0.1, ::1)
-	// since every machine with networking has at least one non-loopback IP.
-	assert.Greater(t, len(cert.IPAddresses), 3,
+	// Must have more than the 2 IP defaults (127.0.0.1, ::1) since every
+	// machine with networking has at least one non-loopback IP. ("localhost"
+	// is in DNSNames, not IPAddresses.)
+	assert.Greater(t, len(cert.IPAddresses), 2,
 		"certificate for 0.0.0.0 must include interface IPs beyond defaults (got %v)", cert.IPAddresses)
 
 	// 0.0.0.0 itself should NOT be in the SANs (it is replaced by real IPs).
