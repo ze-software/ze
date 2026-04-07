@@ -18,9 +18,9 @@ import (
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -177,7 +177,7 @@ func (ps *PersistServer) handleSentUpdate(peerAddr string, msgID uint64, text st
 		ps.ribOut[peerAddr] = make(map[string]map[string]*StoredRoute)
 	}
 
-	for family, familyOps := range ops {
+	for fam, familyOps := range ops {
 		for _, op := range familyOps {
 			for _, nlri := range op.NLRIs {
 				prefix, ok := nlri.(string)
@@ -187,32 +187,32 @@ func (ps *PersistServer) handleSentUpdate(peerAddr string, msgID uint64, text st
 
 				switch op.Action {
 				case "add":
-					if ps.ribOut[peerAddr][family] == nil {
-						ps.ribOut[peerAddr][family] = make(map[string]*StoredRoute)
+					if ps.ribOut[peerAddr][fam] == nil {
+						ps.ribOut[peerAddr][fam] = make(map[string]*StoredRoute)
 					}
 					// Release old entry if replacing.
-					if old, exists := ps.ribOut[peerAddr][family][prefix]; exists && old.MsgID != msgID {
-						ps.updateRoute(peerAddr, fmt.Sprintf("bgp cache %d release", old.MsgID))
+					if old, exists := ps.ribOut[peerAddr][fam][prefix]; exists && old.MsgID != msgID {
+						ps.updateRoute(peerAddr, fmt.Sprintf("cache %d release", old.MsgID))
 					}
-					ps.ribOut[peerAddr][family][prefix] = &StoredRoute{
+					ps.ribOut[peerAddr][fam][prefix] = &StoredRoute{
 						MsgID:  msgID,
-						Family: family,
+						Family: fam,
 						Prefix: prefix,
 					}
-					ps.updateRoute(peerAddr, fmt.Sprintf("bgp cache %d retain", msgID))
+					ps.updateRoute(peerAddr, fmt.Sprintf("cache %d retain", msgID))
 
 				case "del":
-					familyRoutes := ps.ribOut[peerAddr][family]
+					familyRoutes := ps.ribOut[peerAddr][fam]
 					if familyRoutes == nil {
 						continue
 					}
 					if old, exists := familyRoutes[prefix]; exists {
-						ps.updateRoute(peerAddr, fmt.Sprintf("bgp cache %d release", old.MsgID))
+						ps.updateRoute(peerAddr, fmt.Sprintf("cache %d release", old.MsgID))
 						delete(familyRoutes, prefix)
 					}
 					// Clean up empty maps
 					if len(familyRoutes) == 0 {
-						delete(ps.ribOut[peerAddr], family)
+						delete(ps.ribOut[peerAddr], fam)
 					}
 					if len(ps.ribOut[peerAddr]) == 0 {
 						delete(ps.ribOut, peerAddr)
@@ -236,13 +236,13 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 	peerAddr := se.PeerAddress
 	msgID := se.MessageID
 
-	// Build family operations from wire sections.
+	// Build fam operations from wire sections.
 	ops := make(map[string][]persistFamilyOp)
 
 	// IPv4 unicast announces.
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
-		addPath := ctx != nil && ctx.AddPath(nlri.Family{AFI: 1, SAFI: 1})
+		addPath := ctx != nil && ctx.AddPath(family.Family{AFI: 1, SAFI: 1})
 		nlris := persistWireNLRIs(nlriData, addPath, false)
 		if len(nlris) > 0 {
 			ops["ipv4/unicast"] = append(ops["ipv4/unicast"], persistFamilyOp{Action: "add", NLRIs: nlris})
@@ -252,7 +252,7 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 	// IPv4 unicast withdrawals.
 	wdData, err := wu.Withdrawn()
 	if err == nil && len(wdData) > 0 {
-		addPath := ctx != nil && ctx.AddPath(nlri.Family{AFI: 1, SAFI: 1})
+		addPath := ctx != nil && ctx.AddPath(family.Family{AFI: 1, SAFI: 1})
 		nlris := persistWireNLRIs(wdData, addPath, false)
 		if len(nlris) > 0 {
 			ops["ipv4/unicast"] = append(ops["ipv4/unicast"], persistFamilyOp{Action: "del", NLRIs: nlris})
@@ -262,13 +262,13 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 	// MP_REACH_NLRI announces.
 	mpReach, err := wu.MPReach()
 	if err == nil && mpReach != nil {
-		family := mpReach.Family()
+		fam := mpReach.Family()
 		nlriBytes := mpReach.NLRIBytes()
 		if len(nlriBytes) > 0 {
-			addPath := ctx != nil && ctx.AddPath(family)
-			nlris := persistWireNLRIs(nlriBytes, addPath, family.AFI == 2)
+			addPath := ctx != nil && ctx.AddPath(fam)
+			nlris := persistWireNLRIs(nlriBytes, addPath, fam.AFI == 2)
 			if len(nlris) > 0 {
-				ops[family.String()] = append(ops[family.String()], persistFamilyOp{Action: "add", NLRIs: nlris})
+				ops[fam.String()] = append(ops[fam.String()], persistFamilyOp{Action: "add", NLRIs: nlris})
 			}
 		}
 	}
@@ -276,13 +276,13 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 	// MP_UNREACH_NLRI withdrawals.
 	mpUnreach, err := wu.MPUnreach()
 	if err == nil && mpUnreach != nil {
-		family := mpUnreach.Family()
+		fam := mpUnreach.Family()
 		wdBytes := mpUnreach.WithdrawnBytes()
 		if len(wdBytes) > 0 {
-			addPath := ctx != nil && ctx.AddPath(family)
-			nlris := persistWireNLRIs(wdBytes, addPath, family.AFI == 2)
+			addPath := ctx != nil && ctx.AddPath(fam)
+			nlris := persistWireNLRIs(wdBytes, addPath, fam.AFI == 2)
 			if len(nlris) > 0 {
-				ops[family.String()] = append(ops[family.String()], persistFamilyOp{Action: "del", NLRIs: nlris})
+				ops[fam.String()] = append(ops[fam.String()], persistFamilyOp{Action: "del", NLRIs: nlris})
 			}
 		}
 	}
@@ -295,7 +295,7 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 		ps.ribOut[peerAddr] = make(map[string]map[string]*StoredRoute)
 	}
 
-	for family, familyOps := range ops {
+	for fam, familyOps := range ops {
 		for _, op := range familyOps {
 			for _, n := range op.NLRIs {
 				prefix, ok := n.(string)
@@ -303,25 +303,25 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 					continue
 				}
 				if op.Action == "add" {
-					if ps.ribOut[peerAddr][family] == nil {
-						ps.ribOut[peerAddr][family] = make(map[string]*StoredRoute)
+					if ps.ribOut[peerAddr][fam] == nil {
+						ps.ribOut[peerAddr][fam] = make(map[string]*StoredRoute)
 					}
-					if old, exists := ps.ribOut[peerAddr][family][prefix]; exists && old.MsgID != msgID {
-						ps.updateRoute(peerAddr, fmt.Sprintf("bgp cache %d release", old.MsgID))
+					if old, exists := ps.ribOut[peerAddr][fam][prefix]; exists && old.MsgID != msgID {
+						ps.updateRoute(peerAddr, fmt.Sprintf("cache %d release", old.MsgID))
 					}
-					ps.ribOut[peerAddr][family][prefix] = &StoredRoute{MsgID: msgID, Family: family, Prefix: prefix}
-					ps.updateRoute(peerAddr, fmt.Sprintf("bgp cache %d retain", msgID))
+					ps.ribOut[peerAddr][fam][prefix] = &StoredRoute{MsgID: msgID, Family: fam, Prefix: prefix}
+					ps.updateRoute(peerAddr, fmt.Sprintf("cache %d retain", msgID))
 				} else if op.Action == "del" {
-					familyRoutes := ps.ribOut[peerAddr][family]
+					familyRoutes := ps.ribOut[peerAddr][fam]
 					if familyRoutes == nil {
 						continue
 					}
 					if old, exists := familyRoutes[prefix]; exists {
-						ps.updateRoute(peerAddr, fmt.Sprintf("bgp cache %d release", old.MsgID))
+						ps.updateRoute(peerAddr, fmt.Sprintf("cache %d release", old.MsgID))
 						delete(familyRoutes, prefix)
 					}
 					if len(familyRoutes) == 0 {
-						delete(ps.ribOut[peerAddr], family)
+						delete(ps.ribOut[peerAddr], fam)
 					}
 					if len(ps.ribOut[peerAddr]) == 0 {
 						delete(ps.ribOut, peerAddr)
@@ -382,9 +382,9 @@ func (ps *PersistServer) handleOpenStructured(se *rpc.StructuredEvent) {
 					break
 				}
 				if capCode == 1 && capLen == 4 { // Multiprotocol (code 1)
-					afi := nlri.AFI(uint16(paramData[capOffset])<<8 | uint16(paramData[capOffset+1]))
-					safi := nlri.SAFI(paramData[capOffset+3])
-					f := nlri.Family{AFI: afi, SAFI: safi}.String()
+					afi := family.AFI(uint16(paramData[capOffset])<<8 | uint16(paramData[capOffset+1]))
+					safi := family.SAFI(paramData[capOffset+3])
+					f := family.Family{AFI: afi, SAFI: safi}.String()
 					families[f] = true
 					hasMultiprotocol = true
 				} else if capCode == 65 && capLen == 4 { // ASN4 capability
@@ -575,7 +575,7 @@ func (ps *PersistServer) replayForPeer(peerAddr string, gen uint64) {
 		}
 		ps.mu.RUnlock()
 
-		ps.updateRoute(peerAddr, fmt.Sprintf("bgp cache %d forward %s", entry.msgID, peerAddr))
+		ps.updateRoute(peerAddr, fmt.Sprintf("cache %d forward %s", entry.msgID, peerAddr))
 	}
 
 	ps.sendEOR(peerAddr, families)
@@ -594,8 +594,8 @@ func (ps *PersistServer) peerFamilies(peerAddr string) map[string]bool {
 
 // sendEOR sends End-of-RIB markers for each negotiated family.
 func (ps *PersistServer) sendEOR(peerAddr string, families map[string]bool) {
-	for family := range families {
-		ps.updateRoute(peerAddr, fmt.Sprintf("update text nlri %s eor", family))
+	for fam := range families {
+		ps.updateRoute(peerAddr, fmt.Sprintf("update text nlri %s eor", fam))
 	}
 }
 
@@ -704,8 +704,8 @@ func parsePersistNLRIOps(text string) map[string][]persistFamilyOp {
 			s.Next() // consume the address
 
 		case textparse.KWNLRI:
-			family, ok := s.Next()
-			if !ok || !strings.Contains(family, "/") {
+			fam, ok := s.Next()
+			if !ok || !strings.Contains(fam, "/") {
 				continue
 			}
 
@@ -739,7 +739,7 @@ func parsePersistNLRIOps(text string) map[string][]persistFamilyOp {
 
 			nlris := buildPersistNLRIEntries(nlriTokens)
 			if len(nlris) > 0 {
-				result[family] = append(result[family], persistFamilyOp{Action: action, NLRIs: nlris})
+				result[fam] = append(result[fam], persistFamilyOp{Action: action, NLRIs: nlris})
 			}
 
 		// Skip attribute keywords.

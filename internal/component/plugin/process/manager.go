@@ -7,6 +7,7 @@ package process
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -125,10 +126,34 @@ func (pm *ProcessManager) Start() error {
 }
 
 // StartWithContext starts all configured processes with the given context.
+// On the first call it captures the context for use by later StartMore calls.
+// Subsequent calls re-spawn pm.configs (legacy single-shot behavior); use
+// StartMore to add additional configs while keeping the originals running.
 func (pm *ProcessManager) StartWithContext(ctx context.Context) error {
 	pm.ctx, pm.cancel = context.WithCancel(ctx)
+	return pm.startConfigs(pm.configs)
+}
 
-	for _, cfg := range pm.configs {
+// StartMore starts the additional configs under the existing context.
+// Must be called after StartWithContext (the context is captured then).
+// Returns an error if the manager has not been started yet.
+func (pm *ProcessManager) StartMore(configs []plugin.PluginConfig) error {
+	if pm.ctx == nil {
+		return fmt.Errorf("ProcessManager: StartMore called before StartWithContext")
+	}
+	if len(configs) == 0 {
+		return nil
+	}
+	pm.configs = append(pm.configs, configs...)
+	return pm.startConfigs(configs)
+}
+
+// startConfigs spawns the given configs under pm.ctx and registers them in
+// pm.processes. Used by both StartWithContext (initial spawn) and StartMore
+// (incremental spawn). The shared map lets AllProcesses return every process
+// regardless of which spawn phase created it.
+func (pm *ProcessManager) startConfigs(configs []plugin.PluginConfig) error {
+	for _, cfg := range configs {
 		proc := NewProcess(cfg)
 		pm.wireMetrics(proc)
 		// Pass TLS acceptor to external plugins for connect-back.

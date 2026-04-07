@@ -40,8 +40,10 @@ type Manager struct {
 	// Hub config for TLS acceptor (external plugins).
 	hubConfig *parent.HubConfig
 
-	// Process managers — one per spawn phase (explicit, auto-load families, etc.).
-	procManagers []*process.ProcessManager
+	// Single shared ProcessManager — every spawn phase appends to the same
+	// pm.processes map so AllProcesses returns every running plugin regardless
+	// of which phase started it. Created on the first spawnProcesses call.
+	procManager *process.ProcessManager
 
 	// TLS acceptor for external plugin connect-back (shared across phases).
 	acceptor *pluginipc.PluginAcceptor
@@ -142,18 +144,23 @@ func (m *Manager) SpawnMore(configs []parent.PluginConfig) error {
 	return m.spawnProcesses(configs)
 }
 
-// spawnProcesses creates a ProcessManager, sets up TLS if needed, and starts processes.
-// Must be called with m.mu held.
+// spawnProcesses appends configs to the shared ProcessManager and starts them.
+// On the first call it creates the pm; subsequent calls reuse it via StartMore
+// so AllProcesses returns every plugin from every phase. Must be called with
+// m.mu held.
 func (m *Manager) spawnProcesses(configs []parent.PluginConfig) error {
-	pm := process.NewProcessManager(configs)
+	first := m.procManager == nil
+	if first {
+		m.procManager = process.NewProcessManager(configs)
 
-	// Thread metrics registry to ProcessManager for plugin health metrics.
-	if m.metricsRegistry != nil {
-		if reg, ok := m.metricsRegistry.(metrics.Registry); ok {
-			pm.SetMetricsRegistry(reg)
-		} else {
-			logger().Warn("metrics registry type mismatch, plugin health metrics disabled",
-				"type", fmt.Sprintf("%T", m.metricsRegistry))
+		// Thread metrics registry to ProcessManager for plugin health metrics.
+		if m.metricsRegistry != nil {
+			if reg, ok := m.metricsRegistry.(metrics.Registry); ok {
+				m.procManager.SetMetricsRegistry(reg)
+			} else {
+				logger().Warn("metrics registry type mismatch, plugin health metrics disabled",
+					"type", fmt.Sprintf("%T", m.metricsRegistry))
+			}
 		}
 	}
 
@@ -162,14 +169,18 @@ func (m *Manager) spawnProcesses(configs []parent.PluginConfig) error {
 		return err
 	}
 	if m.acceptor != nil {
-		pm.SetAcceptor(m.acceptor)
+		m.procManager.SetAcceptor(m.acceptor)
 	}
 
-	if err := pm.StartWithContext(m.ctx); err != nil {
-		return fmt.Errorf("start processes: %w", err)
+	if first {
+		if err := m.procManager.StartWithContext(m.ctx); err != nil {
+			return fmt.Errorf("start processes: %w", err)
+		}
+	} else {
+		if err := m.procManager.StartMore(configs); err != nil {
+			return fmt.Errorf("start more processes: %w", err)
+		}
 	}
-
-	m.procManagers = append(m.procManagers, pm)
 
 	// Mark spawned plugins as running. Auto-loaded plugins may not have been
 	// pre-registered via Register() — add them to the map so Plugin()/Plugins()
@@ -258,18 +269,18 @@ func (m *Manager) ensureAcceptor(configs []parent.PluginConfig) error {
 	return nil
 }
 
-// GetProcessManager returns the most recent ProcessManager.
-// Used by Server to access spawned processes for handshake.
+// GetProcessManager returns the shared ProcessManager that holds every plugin
+// process from every spawn phase.
 // Returns nil if no processes have been spawned.
 // Returns any to satisfy plugin.ProcessSpawner interface (Server type-asserts).
 func (m *Manager) GetProcessManager() any {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	if len(m.procManagers) == 0 {
+	if m.procManager == nil {
 		return nil
 	}
-	return m.procManagers[len(m.procManagers)-1]
+	return m.procManager
 }
 
 // StopAll stops all spawned processes and cleans up.
@@ -277,10 +288,10 @@ func (m *Manager) StopAll(_ context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for _, pm := range m.procManagers {
-		pm.Stop()
+	if m.procManager != nil {
+		m.procManager.Stop()
+		m.procManager = nil
 	}
-	m.procManagers = nil
 
 	if m.acceptor != nil {
 		m.acceptor.Stop()

@@ -54,11 +54,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -846,7 +846,15 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		r.postStartFunc()
 	}
 
-	r.startSignalHandler()
+	// When running under an external plugin server (the hub), the hub owns
+	// all OS signal handling (SIGINT/SIGTERM shutdown, SIGHUP reload). A
+	// duplicate SIGHUP handler here would race the hub for the server's
+	// txLock -- after commit 559b3e9b the loser errors out with
+	// ErrReloadInProgress instead of blocking. Standalone reactor paths
+	// keep the legacy behavior via externalServer == false.
+	if !r.externalServer {
+		r.startSignalHandler()
+	}
 
 	// Copy peer map before releasing lock — map alias would race with
 	// concurrent AddDynamicPeer (concurrent map read+write panics in Go).
@@ -1183,8 +1191,8 @@ func (r *Reactor) validatePeerFamilies(peers map[netip.AddrPort]*Peer) error {
 	// Also include families from the static registry (init-time registrations).
 	// Runtime plugins may not have completed registration yet, but in-process
 	// decoders registered via init() are always available.
-	for family := range registry.FamilyMap() {
-		available[family] = true
+	for fam := range registry.FamilyMap() {
+		available[fam] = true
 	}
 
 	// Check each peer's configured families
@@ -1195,7 +1203,7 @@ func (r *Reactor) validatePeerFamilies(peers map[netip.AddrPort]*Peer) error {
 		// Extract Multiprotocol capabilities (these are the configured families)
 		for _, cap := range settings.Capabilities {
 			if mp, ok := cap.(*capability.Multiprotocol); ok {
-				fam := nlri.Family{AFI: mp.AFI, SAFI: mp.SAFI}
+				fam := family.Family{AFI: mp.AFI, SAFI: mp.SAFI}
 				configuredFamilies = append(configuredFamilies, fam.String())
 			}
 		}

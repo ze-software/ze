@@ -156,11 +156,13 @@ func runBGPEngine(conn net.Conn) int {
 			if s.Root != "bgp" {
 				continue
 			}
-			var tree map[string]any
-			if err := json.Unmarshal([]byte(s.Data), &tree); err != nil {
+			// s.Data is the bgp subtree (contents of "bgp { ... }" as
+			// produced by ExtractConfigSubtree on the server side) --
+			// NOT wrapped in another "bgp" key. Unmarshal directly.
+			var bgpTree map[string]any
+			if err := json.Unmarshal([]byte(s.Data), &bgpTree); err != nil {
 				return fmt.Errorf("bgp verify: unmarshal: %w", err)
 			}
-			bgpTree, _ := tree["bgp"].(map[string]any)
 			if bgpTree == nil {
 				bgpTree = map[string]any{}
 			}

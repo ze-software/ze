@@ -33,26 +33,53 @@ Remove entries once fixed.
 
 **Suites:** `make ze-encode-test`, `make ze-plugin-test`, `make ze-reload-test`
 **Files:** all of `test/encode/*.ci`, most of `test/plugin/*.ci`, all of `test/reload/*.ci`
-**Symptom:** All tests timed out with `received messages: 0`. ze daemon exited within ~70ms after `"bgp peers started"`, with every plugin logging `"rpc runtime: read failed" error="mux conn closed"`.
-**Root cause:** Regression introduced in commit `58564e0a` (refactor: generic callback registry). That commit added bridge transport negotiation: the SDK closes its end of the mux conn after switching to bridge mode (so engine->plugin callbacks flow via `DirectBridge` exclusively). However, the server-side dispatcher `handleSingleProcessCommandsRPC` in `internal/component/plugin/server/dispatch.go` was NOT updated to account for this. It kept reading from the mux conn, saw the planned close as `ErrMuxConnClosed`, logged `"rpc runtime: read failed"`, and returned, triggering `cleanupProcess` via defer and decrementing `s.wg`. When ALL internal plugins simultaneously transitioned to bridge mode during startup, they all decremented `s.wg` at once, `apiServer.Wait()` returned, `waitLoop` exited via `doneCh`, and the daemon shut down before peer connections could be established.
-**Fix:** Added `HasBridge()` accessor to `internal/component/plugin/ipc/rpc.go:PluginConn`. In `handleSingleProcessCommandsRPC`, when `conn.HasBridge()` is true, skip the mux read loop entirely and block on `s.ctx.Done()` instead. Plugin->engine RPCs continue to flow via `DirectBridge` (wired by `wireBridgeDispatch`), so no runtime traffic is lost. Cleanup still runs via the existing `defer s.cleanupProcess(proc)` when the server context is canceled during shutdown.
-**Verification (2026-04-07):**
-- `bin/ze-test bgp encode --all` -> 47/48 passing (the one remaining failure is an unrelated `shared-join` mvpn prefix parsing issue in test Q, not the startup regression).
-- `bin/ze-test bgp plugin --all` -> 217/218 passing (the one remaining failure is a loopback alias setup issue, not the startup regression).
-- `bin/ze-test bgp reload --all` -> 12/19 passing. The remaining 7 reload failures are SIGHUP/transaction-protocol specific (not the startup regression). Left for a separate follow-up investigation.
-- Before the fix, the same suites were at 0/96, 0/~218, 0/19 respectively.
-- Manual reproduction: `ZE_LOG=debug bin/ze tmp/test-config.conf` now runs until SIGTERM without any `mux conn closed` messages, dials the peer, and stays alive until shutdown.
-- Unit tests pass: `go test -race ./internal/component/plugin/server/... ./internal/component/plugin/ipc/...`.
 
-## Remaining reload failures: SIGHUP + tx-protocol (7 tests)
+The original mass-failure cluster (200+ timing-out tests) decomposed into five
+independent regressions, all introduced between commits `58564e0a` and
+`7c5f8d89`. Each is fixed below.
 
-**Tests:**
-- `1 persist-across-restart` -- expects 2 messages, receives 3 (extra unexpected message after SIGHUP reload)
-- `3 reload-add-peer`
-- `4 reload-add-route`
-- `7 reload-rapid-sighup`
-- `A reload-restart-peer`
-- `G test-tx-protocol-exclusion`
-- `I test-tx-protocol-sighup`
-**Pattern:** Tests involving SIGHUP reload or the config transaction protocol. After the startup-regression fix, the `bgp peers started` log appears, the peer connects, initial exchange works, but SIGHUP reload either fails to push the expected state or pushes too many state updates.
-**Hypothesis:** Related to the config-transaction-protocol commits (`559b3e9b`, `7c5f8d89`) changing the reload path. Deferred to a separate investigation session.
+### 1. Bridge-mode mux read loop (~200 tests, all suites)
+
+**Symptom:** ze daemon exited within ~70ms after `"bgp peers started"`, with every plugin logging `"rpc runtime: read failed" error="mux conn closed"`.
+**Root cause:** Commit `58564e0a` (refactor: generic callback registry) made the SDK close its end of the mux after bridge transport negotiation. The server-side dispatcher `handleSingleProcessCommandsRPC` in `internal/component/plugin/server/dispatch.go` was not updated -- it kept reading the mux, saw the planned close as `ErrMuxConnClosed`, returned via `defer cleanupProcess`, and decremented `s.wg`. ALL internal plugins switching to bridge simultaneously dropped `s.wg` to zero, `apiServer.Wait()` returned, `waitLoop` exited via `doneCh`, and the daemon shut down before peers could connect.
+**Fix:** Added `HasBridge()` accessor to `internal/component/plugin/ipc/rpc.go:PluginConn`. In `handleSingleProcessCommandsRPC`, when `conn.HasBridge()` is true, skip the mux read loop and block on `s.ctx.Done()` so the WaitGroup entry persists until shutdown. Plugin->engine RPCs continue to flow via `DirectBridge` (wired by `wireBridgeDispatch`).
+
+### 2. Duplicate SIGHUP signal handler (6 reload tests)
+
+**Symptom:** After Fix 1, six reload tests still failed: `3 reload-add-peer`, `4 reload-add-route`, `7 reload-rapid-sighup`, `A reload-restart-peer`, `G test-tx-protocol-exclusion`, `I test-tx-protocol-sighup`. ze stderr showed `"config reload failed: config reload already in progress"` or `"transaction in progress, queuing SIGHUP..."` repeating indefinitely.
+**Root cause:** Two `signal.Notify` calls registered for SIGHUP -- the hub (`cmd/ze/hub/main.go:384`) and the BGP reactor's own `SignalHandler` (`internal/component/bgp/reactor/signal.go:93`). Go's `signal.Notify` fans out to every channel. Both handlers raced for the new `txLock.tryAcquire` (introduced in commit `559b3e9b`). Before the txLock the handlers used `sync.Mutex` which serialized them; after, the loser returned `ErrReloadInProgress`. The reactor's duplicate handler is a legacy from before the hub owned signals.
+**Fix:** Wrap `r.startSignalHandler()` at `internal/component/bgp/reactor/reactor.go:849` in `if !r.externalServer`. When BGP runs as a config-driven plugin under the hub (`externalServer == true`), the hub owns all OS signal handling.
+
+### 3. BGP plugin only the last "bgp"-affected plugin gets apply (all 6 reload tests above)
+
+**Symptom:** Even after Fix 2, the reload completed without invoking the BGP plugin's `OnConfigApply` -- the daemon logged `"config reload: apply phase plugins=11"` but never `"bgp config applied via transaction"`.
+**Root cause:** The "apply BGP last" reorder in `internal/component/plugin/server/reload.go` identified the BGP plugin via `slices.Contains(WantsConfigRoots, "bgp")`. ALL eleven BGP-related plugins (`bgp`, `bgp-rib`, `bgp-watchdog`, `bgp-gr`, `bgp-rpki`, `bgp-hostname`, `bgp-route-refresh`, `bgp-filter-community`, `bgp-llnh`, `bgp-role`, `bgp-softver`, `bgp-healthcheck`) declare `WantsConfig=["bgp"]`, so all eleven were deferred and only the LAST one in iteration order was applied.
+**Fix:** Identify the BGP daemon by name (`ap.proc.Name() == "bgp"`) instead of by config root membership. The other ten still apply in the first pass.
+
+### 4. BGP plugin verify unwrap (all 6 reload tests above)
+
+**Symptom:** With Fix 3 in place, `OnConfigVerify` was called but `pendingTree` ended up empty, so `ReconcilePeersWithJournal` reconciled to zero peers and no peer was added/restarted on reload.
+**Root cause:** `internal/component/bgp/plugin/register.go:OnConfigVerify` did `tree["bgp"]` after unmarshaling `s.Data`, but `s.Data` is already the BGP subtree (produced by `ExtractConfigSubtree(configTree, "bgp")` in the server) -- not wrapped in another `"bgp"` key. The double unwrap returned nil, defaulted to an empty map, and persisted as `pendingTree`.
+**Fix:** Use the unmarshaled value directly as `bgpTree` (no `tree["bgp"]` extraction).
+
+### 5. Persist plugin "bgp cache" prefix (1 reload test: `1 persist-across-restart`)
+
+**Symptom:** The persist plugin logged `updateRoute failed ... "bgp cache N retain" ... rpc error: unknown command`.
+**Root cause:** Commit `c59b2ff5` (refactor: remove "bgp " prefix from dispatch chain) removed the `bgp` prefix from the dispatch chain, but the persist plugin's seven hardcoded `"bgp cache %d retain|release|forward"` strings in `internal/component/bgp/plugins/persist/server.go` were not updated.
+**Fix:** Drop the `bgp ` prefix from all seven `fmt.Sprintf` calls.
+
+### 6. Per-phase ProcessManager replacement (`1 persist-across-restart`)
+
+**Symptom:** With Fix 5, the persist plugin's cache calls dispatched correctly but the test still failed because the SIGHUP-triggered reload reported `"config reload: no affected plugins, updating config"` -- as if no plugins wanted the BGP root, despite eleven being loaded.
+**Root cause:** `internal/component/plugin/manager/manager.go:spawnProcesses` created a NEW `process.ProcessManager` for every `SpawnMore` call (one per startup phase: explicit plugins, auto-load config-paths, auto-load families, etc.) and stored them in a slice. `GetProcessManager()` returned only the LAST one. Tests with both an external `plugin {}` block AND auto-loaded BGP plugins ended up with the BGP plugins in an earlier procManager that was no longer reachable -- `pm.AllProcesses()` returned only the persist plugin from the last spawn batch.
+**Fix:** Use a single shared `process.ProcessManager` across all phases. Added `StartMore(configs)` to `internal/component/plugin/process/manager.go` that appends new configs and starts them under the existing context. `manager.spawnProcesses` calls `StartWithContext` on the first spawn and `StartMore` on subsequent ones, so `pm.processes` accumulates every plugin from every phase.
+
+### Verification (2026-04-07)
+
+| Suite | Before | After |
+|-------|--------|-------|
+| `bin/ze-test bgp encode --all` | 0/96 | 47/48 (one unrelated `shared-join` mvpn parser failure) |
+| `bin/ze-test bgp plugin --all` | ~0/218 | 217/218 (one unrelated loopback alias permission failure) |
+| `bin/ze-test bgp reload --all` | 0/19 | **19/19** |
+
+Plugin/process/server unit tests: `go test -race ./internal/component/plugin/...` -> all green.

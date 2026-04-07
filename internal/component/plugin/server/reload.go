@@ -316,10 +316,14 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 			}
 		}
 
-		// Apply non-BGP plugins first, then BGP last.
+		// Apply non-BGP plugins first, then the BGP daemon last so peer
+		// reconciliation sees the updated config from all of its dependents
+		// (sysrib, interface, watchdog, gr, etc.). Identify the BGP daemon
+		// by name -- ALL bgp-* plugins declare WantsConfigRoots=["bgp"], so
+		// matching on the root would defer all of them and only apply one.
 		var bgpPlugin *affectedPlugin
 		for i := range affected {
-			if slices.Contains(affected[i].proc.Registration().WantsConfigRoots, "bgp") {
+			if affected[i].proc.Name() == "bgp" {
 				bgpPlugin = &affected[i]
 				continue
 			}
