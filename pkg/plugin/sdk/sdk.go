@@ -211,11 +211,13 @@ func NewFromTLSEnv(name string) (*Plugin, error) {
 
 	// Pass the existing rpc.Conn to MuxConn (reuses reader, no new goroutine).
 	engineMux := rpc.NewMuxConn(engineConn)
-	return &Plugin{
+	p := &Plugin{
 		name:       name,
 		engineConn: engineConn,
 		engineMux:  engineMux,
-	}, nil
+	}
+	p.initCallbackDefaults()
+	return p, nil
 }
 
 // Listeners returns listen sockets received from the engine during startup.
