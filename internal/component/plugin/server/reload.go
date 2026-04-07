@@ -1,4 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
+// Related: reload_tx.go — transaction coordinator wiring
+// Related: config_tx_bridge.go — engine-side RPC bridge for per-plugin verify/apply events
 
 package server
 
@@ -8,15 +10,22 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"slices"
 	"strings"
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+// affectedPlugin pairs a plugin process with the config sections that changed
+// under its declared roots. Shared between reload.go (which builds the slice
+// by walking WantsConfigRoots over the diff) and reload_tx.go (which converts
+// it into transaction participants + diffs).
+type affectedPlugin struct {
+	proc     *process.Process
+	sections []rpc.ConfigSection
+}
 
 // txLock enforces one config transaction at a time.
 // CLI/API commits are rejected when locked. SIGHUP is queued.
@@ -172,11 +181,6 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	}
 
 	// Find affected plugins: those with WantsConfigRoots matching changed roots.
-	type affectedPlugin struct {
-		proc     *process.Process
-		sections []rpc.ConfigSection
-	}
-
 	var affected []affectedPlugin
 
 	if pm := s.procManager.Load(); pm != nil {
@@ -220,128 +224,29 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 		return nil
 	}
 
-	// Plugin crash handling during reload:
+	// Transaction path: drive the stream-based TxCoordinator via an RPC
+	// bridge that translates per-plugin verify/apply events into the
+	// existing SDK callback RPCs. The bridge collects acks back onto the
+	// stream so the orchestrator's state machine (tiered deadlines,
+	// reverse-tier rollback, broken plugin restart) can run unchanged.
 	//
-	// Three crash detection points protect the verify→apply protocol:
-	//
-	// 1. Verify phase (below): Conn()==nil means verify error. A crashed plugin that
-	//    registered WantsConfigRoots cannot validate the change, so we abort.
-	//
-	// 2. Pre-apply alive check: After all plugins pass verify, re-check Conn().
-	//    A plugin can die between verify and apply -- applying to a subset is unsafe.
-	//
-	// 3. Apply phase: Conn()==nil means apply error collected and returned.
-	//    At this point some plugins may have already applied, so we continue
-	//    and collect errors rather than aborting.
-
-	// Verify phase: ask all affected plugins to validate the new config.
-	if len(affected) > 0 {
-		logger().Info("config reload: verify phase", "plugins", len(affected))
-		var verifyErrors []string
-		for _, ap := range affected {
-			conn := ap.proc.Conn()
-			if conn == nil {
-				verifyErrors = append(verifyErrors, fmt.Sprintf("%s: verify failed: plugin connection closed (crashed?)", ap.proc.Name()))
-				continue
-			}
-
-			out, err := conn.SendConfigVerify(ctx, ap.sections)
-			if err != nil {
-				verifyErrors = append(verifyErrors, fmt.Sprintf("%s: %v", ap.proc.Name(), err))
-				continue
-			}
-			if out.Status == plugin.StatusError {
-				verifyErrors = append(verifyErrors, fmt.Sprintf("%s: %s", ap.proc.Name(), out.Error))
-			}
-		}
-
-		if len(verifyErrors) > 0 {
-			logger().Warn("config reload: verify failed", "errors", len(verifyErrors))
-			return fmt.Errorf("config verify failed: %s", strings.Join(verifyErrors, "; "))
-		}
+	// Crash handling moves from three hand-rolled checkpoints to the
+	// bridge's lookupProcess + Conn() checks, which translate missing or
+	// closed connections into verify-failed / apply-failed / rollback-ok
+	// (CodeBroken) acks; the orchestrator reacts to those acks via the
+	// same state machine it uses for real plugin-reported failures.
+	logger().Info("config reload: verify+apply phase", "plugins", len(affected))
+	if err := s.runTxCoordinator(ctx, affected, diff); err != nil {
+		logger().Warn("config reload: transaction failed", "error", err)
+		return err
 	}
 
-	// Pre-apply alive check: re-verify all affected plugins still have a connection.
-	// A plugin could die between verify and apply — sending apply to a subset is unsafe.
-	if len(affected) > 0 {
-		var deadPlugins []string
-		for _, ap := range affected {
-			if ap.proc.Conn() == nil {
-				deadPlugins = append(deadPlugins, ap.proc.Name())
-			}
-		}
-		if len(deadPlugins) > 0 {
-			logger().Warn("config reload: plugins died between verify and apply", "plugins", deadPlugins)
-			return fmt.Errorf("config apply aborted: plugins died after verify: %s", strings.Join(deadPlugins, ", "))
-		}
-	}
-
-	// Apply phase: send diffs to plugins, then apply reactor peer changes.
-	// Apply phase: send diffs to plugins. BGP is applied last so other plugins
-	// (sysrib, interface) have their config updated before peer reconciliation.
-	var applyErrors []string
-	if len(affected) > 0 {
-		logger().Info("config reload: apply phase", "plugins", len(affected))
-		diffSections := buildDiffSections(diff)
-
-		applyOne := func(ap affectedPlugin) {
-			conn := ap.proc.Conn()
-			if conn == nil {
-				applyErrors = append(applyErrors, fmt.Sprintf("%s: apply failed: plugin connection closed (crashed?)", ap.proc.Name()))
-				return
-			}
-
-			// Filter diff sections to only roots this plugin cares about.
-			// "*" means the plugin wants all roots.
-			roots := ap.proc.Registration().WantsConfigRoots
-			wantsAll := slices.Contains(roots, "*")
-			var pluginDiffSections []rpc.ConfigDiffSection
-			for _, ds := range diffSections {
-				if wantsAll || slices.Contains(roots, ds.Root) {
-					pluginDiffSections = append(pluginDiffSections, ds)
-				}
-			}
-
-			if len(pluginDiffSections) == 0 {
-				return
-			}
-
-			out, err := conn.SendConfigApply(ctx, pluginDiffSections)
-			if err != nil {
-				logger().Error("config apply RPC failed", "plugin", ap.proc.Name(), "error", err)
-				applyErrors = append(applyErrors, fmt.Sprintf("%s: %v", ap.proc.Name(), err))
-			} else if out.Status == plugin.StatusError {
-				logger().Error("config apply rejected", "plugin", ap.proc.Name(), "error", out.Error)
-				applyErrors = append(applyErrors, fmt.Sprintf("%s: %s", ap.proc.Name(), out.Error))
-			}
-		}
-
-		// Apply non-BGP plugins first, then the BGP daemon last so peer
-		// reconciliation sees the updated config from all of its dependents
-		// (sysrib, interface, watchdog, gr, etc.). Identify the BGP daemon
-		// by name -- ALL bgp-* plugins declare WantsConfigRoots=["bgp"], so
-		// matching on the root would defer all of them and only apply one.
-		var bgpPlugin *affectedPlugin
-		for i := range affected {
-			if affected[i].proc.Name() == "bgp" {
-				bgpPlugin = &affected[i]
-				continue
-			}
-			applyOne(affected[i])
-		}
-		if bgpPlugin != nil {
-			applyOne(*bgpPlugin)
-		}
-	}
-
-	// Update running config even if some plugins had apply errors.
+	// Update running config tree after the orchestrator commits. Plugins
+	// have already persisted their per-root state via apply; reconciling
+	// the reactor's config view happens last so the BGP peer reconcile
+	// step sees every other plugin's apply in place.
 	s.reactor.SetConfigTree(newTree)
 	logger().Info("config reload completed")
-
-	if len(applyErrors) > 0 {
-		return fmt.Errorf("config apply partial failure: %s", strings.Join(applyErrors, "; "))
-	}
-
 	return nil
 }
 

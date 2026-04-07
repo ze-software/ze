@@ -311,6 +311,19 @@ func (pc *PluginConn) SendConfigApply(ctx context.Context, sections []rpc.Config
 	return &out, nil
 }
 
+// SendConfigRollback sends a config rollback request to the plugin. The plugin
+// is expected to undo any changes applied under this transaction (typically
+// via its SDK journal) and return without error. A non-nil error implies the
+// plugin is broken and needs restart; the transaction orchestrator reports it
+// with CodeBroken in the rollback ack.
+func (pc *PluginConn) SendConfigRollback(ctx context.Context, txID string) error {
+	input := struct {
+		TransactionID string `json:"transaction-id"`
+	}{TransactionID: txID}
+	_, err := pc.CallRPC(ctx, "ze-plugin-callback:config-rollback", input)
+	return err
+}
+
 // SendValidateOpen sends a validate-open request to the plugin.
 // Returns the plugin's validation result (accept/reject with optional NOTIFICATION codes).
 func (pc *PluginConn) SendValidateOpen(ctx context.Context, input *rpc.ValidateOpenInput) (*rpc.ValidateOpenOutput, error) {

@@ -40,14 +40,19 @@ func (m *mockReloadReactor) SetConfigTree(tree map[string]any) {
 }
 
 // mockPluginResponder runs a goroutine that reads RPCs from a PluginConn
-// and responds with pre-configured verify/apply results.
+// and responds with pre-configured verify/apply/rollback results. The
+// TxCoordinator path drives the same RPCs through its engine-side RPC
+// bridge, so these mocks exercise both the legacy and the coordinator
+// path uniformly.
 type mockPluginResponder struct {
 	pluginConn      *ipc.PluginConn
 	verifyResp      *rpc.ConfigVerifyOutput
 	applyResp       *rpc.ConfigApplyOutput
+	rollbackErr     error  // non-nil → SendError on rollback (CodeBroken path)
 	beforeVerifyRsp func() // Called BEFORE verify response is sent (blocks coordinator)
 	verifyCalls     int
 	applyCalls      int
+	rollbackCalls   int
 	mu              sync.Mutex
 }
 
@@ -86,6 +91,14 @@ func (m *mockPluginResponder) start(ctx context.Context) {
 				}
 				_ = m.pluginConn.SendResult(ctx, req.ID, resp)
 
+			case "ze-plugin-callback:config-rollback":
+				m.rollbackCalls++
+				if m.rollbackErr != nil {
+					_ = m.pluginConn.SendError(ctx, req.ID, m.rollbackErr.Error())
+				} else {
+					_ = m.pluginConn.SendResult(ctx, req.ID, nil)
+				}
+
 			default:
 				_ = m.pluginConn.SendResult(ctx, req.ID, nil)
 			}
@@ -106,6 +119,12 @@ func (m *mockPluginResponder) getApplyCalls() int {
 	return m.applyCalls
 }
 
+func (m *mockPluginResponder) getRollbackCalls() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.rollbackCalls
+}
+
 // newTestReloadServer creates a Server with a mock reactor and mock processes
 // for testing the reload coordinator. Each pluginDef defines a mock plugin with
 // its name, WantsConfigRoots, and verify/apply responses.
@@ -121,7 +140,8 @@ func newTestReloadServer(t *testing.T, reactor *mockReloadReactor, plugins []plu
 	t.Helper()
 
 	s := &Server{
-		reactor: reactor,
+		reactor:           reactor,
+		engineSubscribers: newEngineEventSubscribers(),
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	t.Cleanup(func() { s.cancel() })
@@ -697,8 +717,8 @@ func TestReloadVerifyCrashedPlugin(t *testing.T) {
 // TestReloadApplyErrorReturned verifies that plugin apply rejection
 // is returned as an error to the caller (not swallowed).
 //
-// VALIDATES: Plugin apply rejection → error returned to caller.
-// PREVENTS: Apply errors being logged but silently returning nil.
+// VALIDATES: Plugin apply rejection → rollback fires, running config unchanged, error returned.
+// PREVENTS: Partial apply leaving the runtime in a mixed old/new state.
 func TestReloadApplyErrorReturned(t *testing.T) {
 	t.Parallel()
 
@@ -720,12 +740,13 @@ func TestReloadApplyErrorReturned(t *testing.T) {
 	assert.Contains(t, err.Error(), "apply rejected")
 	assert.Contains(t, err.Error(), "rib")
 
-	// SetConfigTree should still be called (apply errors are non-fatal for config update).
-	require.Eventually(t, func() bool {
-		reactor.mu.Lock()
-		defer reactor.mu.Unlock()
-		return reactor.setTree != nil
-	}, 2*time.Second, 10*time.Millisecond, "config should still be updated after apply error")
+	// With the TxCoordinator, an apply rejection triggers rollback, so the
+	// running config tree is NOT updated: the runtime goes back to the old
+	// state via the rollback callbacks. This differs from the legacy reload
+	// path that used to partial-apply and still call SetConfigTree.
+	reactor.mu.Lock()
+	assert.Nil(t, reactor.setTree, "reactor config tree should not be updated after rollback")
+	reactor.mu.Unlock()
 }
 
 // TestReloadVerifyCrashedPluginMultiple verifies that when one of several plugins
@@ -796,5 +817,52 @@ func TestReloadProcessDiedBetweenVerifyAndApply(t *testing.T) {
 	// Running config should NOT be updated when pre-apply check fails.
 	reactor.mu.Lock()
 	assert.Nil(t, reactor.setTree, "config should NOT be updated when process died between phases")
+	reactor.mu.Unlock()
+}
+
+// TestReloadTxCoordinatorRollback verifies that when one plugin fails apply
+// the TxCoordinator publishes rollback to every participant, the RPC bridge
+// dispatches config-rollback to each plugin process, and the reactor config
+// tree stays at the old state because rollback reverts the runtime.
+//
+// VALIDATES: Apply failure -> broadcast rollback -> every participant
+// receives config-rollback -> reactor.SetConfigTree NOT called.
+// PREVENTS: Apply error leaving half the plugins applied without rollback,
+// which would corrupt the runtime and regress the transaction protocol.
+func TestReloadTxCoordinatorRollback(t *testing.T) {
+	t.Parallel()
+
+	oldTree := map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}
+	newTree := map[string]any{"bgp": map[string]any{"router-id": "5.6.7.8"}}
+	reactor := &mockReloadReactor{tree: oldTree}
+
+	plugins := []pluginDef{
+		{name: "rib", roots: []string{"bgp"}},
+		{
+			name:      "gr",
+			roots:     []string{"bgp"},
+			applyResp: &rpc.ConfigApplyOutput{Status: plugin.StatusError, Error: "journal full"},
+		},
+	}
+	s := newTestReloadServer(t, reactor, plugins)
+
+	err := s.ReloadConfig(context.Background(), newTree)
+	require.Error(t, err, "apply rejection should surface as reload error")
+	assert.Contains(t, err.Error(), "journal full")
+	assert.Contains(t, err.Error(), "gr")
+
+	// Every participant gets a config-rollback RPC via the bridge because
+	// the orchestrator broadcasts rollback to all participants when any
+	// single apply fails. Even the plugin that never applied (gr failed
+	// before succeeding) is invited to rollback so its journal stays
+	// consistent.
+	require.Eventually(t, func() bool { return plugins[0].responder.getRollbackCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "rib should receive rollback RPC")
+	require.Eventually(t, func() bool { return plugins[1].responder.getRollbackCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "gr should receive rollback RPC")
+
+	// Config tree stays at the old state because the runtime was rolled
+	// back. The legacy reload path would have called SetConfigTree; the
+	// transaction protocol deliberately does not.
+	reactor.mu.Lock()
+	assert.Nil(t, reactor.setTree, "reactor config tree should not be updated after rollback")
 	reactor.mu.Unlock()
 }

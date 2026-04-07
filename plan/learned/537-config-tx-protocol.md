@@ -28,9 +28,13 @@ The goal was to replace the RPC loop with a transaction protocol that supports r
 
 - **Bus migration in chain-bounded commits** over a single atomic landing. Chain 1 = RIB cascade (rib_bestchange + sysrib + fibkernel + fibp4 + tests). Chain 2 = interface monitor + BGP reactor + reactor_iface + reactor_bus deletion. Chain 3 = DHCP + fibkernel external monitor + BGP server EOR. Chain 4 = delete `pkg/ze/bus.go`, `internal/component/bus/`, `Registration.ConfigureBus`, the `inprocess.go` dispatch, and the `bus.NewBus()` call in `cmd/ze/hub/main.go`. Each chain compiles and ze-verifies before the next; only chain 1 landed in this session.
 
-- **AC-17 (external Python plugin over TLS) and `test-tx-protocol-external-plugin.ci` deferred** over blocking the spec on a separate Python-over-TLS infrastructure effort. The plugin SDK currently dispatches `OnConfigVerify` / `OnConfigApply` via RPC callbacks, not stream subscriptions; wiring config events to plugins via the stream path requires SDK changes. Recorded in `plan/deferrals.md` with destination `spec-config-tx-plugin-wiring`.
+- **Phase 7 (`reload.go` wired to `TxCoordinator.Execute`) landed via an engine-side RPC bridge** over extending the plugin SDK with stream-based config subscription. The bridge (`internal/component/plugin/server/config_tx_bridge.go`) subscribes to the orchestrator's `verify-<plugin>` / `apply-<plugin>` / `rollback` engine events and translates each into the existing `conn.SendConfigVerify` / `SendConfigApply` / `SendConfigRollback` RPC calls, then emits `verify-ok` / `verify-failed` / `apply-ok` / `apply-failed` / `rollback-ok` acks back on the stream. This preserves the orchestrator's state machine (tiered deadlines, reverse-tier rollback, broken plugin restart) without requiring SDK changes: plugins keep their `OnConfigVerify` / `OnConfigApply` / `OnConfigRollback` callbacks exactly as they are. `reload.go` now calls `runTxCoordinator` via `reload_tx.go` which computes the participant list from affected plugins and the diff map from the existing `buildDiffSections` helper.
 
-- **Phase 7 (`reload.go` wired to `TxCoordinator.Execute`) deferred** for the same reason. The orchestrator is fully built, tested, and adapter-wired (`ConfigEventGateway` exists in `cmd/ze/hub/main.go`), but plumbing it into `reload.go` would break the production reload path until the SDK supports stream-based config delivery. Tracked in the same follow-up spec.
+- **AC-17 (external plugin over the hub transport) implemented through the same RPC bridge** over a separate Python-over-TLS harness. External plugins (e.g. `ze plugin bgp-watchdog`) connect back via MuxConn, and the bridge dispatches RPCs over that connection verbatim. `test/reload/test-tx-protocol-external-plugin.ci` launches bgp-watchdog as an external plugin, triggers a reload via SIGHUP, and proves the transaction reaches the external process through the plugin hub transport with no special-casing.
+
+- **Wildcard config root expansion lives in `buildTxInputs`** over teaching `TxCoordinator.filterDiffs` about `"*"`. The orchestrator does exact-match lookups on `ConfigRoots`, so the wiring layer expands a `["*"]` declaration into the concrete list of roots present in the current diff before the participant reaches the coordinator. Keeps the orchestrator simple and matches the legacy reload path's wildcard semantics.
+
+- **Apply-rollback-on-failure replaces the legacy partial-apply+SetConfigTree branch** over keeping the old `reactor.SetConfigTree(newTree)` call when apply errors. `TestReloadApplyErrorReturned` was updated to assert the new semantic: on any apply failure the orchestrator rolls back and the reactor config tree stays at the old state. This matches the spec's transactional guarantee and is the whole point of introducing the coordinator.
 
 ## Consequences
 
@@ -40,7 +44,8 @@ The goal was to replace the RPC loop with a transaction protocol that supports r
 - Reverse-tier rollback enables safe broken-plugin restart: a broken `fib-kernel` is restarted before `sysrib` starts tearing down its routes, so the kernel route table is consistent throughout the rollback.
 - Anyone adding a new internal component now has a single import (`pkg/ze.EventBus`) and one set of constants (`internal/component/plugin/events.go` namespaces) for cross-component events. There is no second pub/sub system to learn or maintain.
 - The `arch-0` learned summary moves from 5 components to 4: Engine, ConfigProvider, PluginManager, Subsystem.
-- Plugin SDK still uses RPC callbacks for `OnConfigVerify` / `OnConfigApply`. End-to-end transaction wiring (the orchestrator calling plugins through the stream system) is the next spec.
+- Plugin SDK keeps its RPC callbacks for `OnConfigVerify` / `OnConfigApply` / `OnConfigRollback`. The engine-side RPC bridge makes stream-based orchestration compatible with the existing SDK, so external plugin authors face no API change when upgrading to the transaction protocol.
+- `reload.go`'s crash-handling checkpoints (verify-phase conn==nil, pre-apply alive check, apply-phase conn==nil) are absorbed into the bridge: a missing process or closed connection surfaces as `verify-failed` / `apply-failed` / `rollback-ok CodeBroken` acks that the orchestrator reacts to through its normal state machine.
 
 ## Gotchas
 
@@ -62,6 +67,14 @@ The goal was to replace the RPC loop with a transaction protocol that supports r
 - `internal/component/plugin/registry/registry.go` -- `Registration.ConfigureEventBus`, `SetEventBus`, `GetEventBus`
 - `internal/component/plugin/inprocess.go` -- invokes `ConfigureEventBus` for in-process plugins
 - `cmd/ze/hub/main.go` -- registers the plugin server as the `EventBus` instance after `NewServer`
+
+### Phase 7 reload wiring
+- `internal/component/plugin/server/reload.go` -- calls `runTxCoordinator` instead of the hand-rolled verify/apply loop
+- `internal/component/plugin/server/reload_tx.go` -- `runTxCoordinator`, `buildTxInputs`, `expandWildcardRoots`, `restartPluginFn`, `txResultToError`
+- `internal/component/plugin/server/config_tx_bridge.go` -- engine-side RPC bridge translating `verify-<plugin>` / `apply-<plugin>` / `rollback` events into plugin RPCs
+- `internal/component/plugin/ipc/rpc.go` -- `SendConfigRollback` helper
+- `internal/component/plugin/server/reload_test.go` -- `TestReloadTxCoordinatorRollback` exercises the bridge + orchestrator rollback path; `TestReloadApplyErrorReturned` updated to the new "no partial commit" semantic
+- `test/reload/test-tx-protocol-external-plugin.ci` -- AC-17: external bgp-watchdog plugin participates in a reload transaction via the hub transport
 
 ### Transaction package
 - `internal/component/config/transaction/orchestrator.go` -- `TxCoordinator`, state machine, deadline computation, ack collection, reverse-tier rollback, broken plugin restart

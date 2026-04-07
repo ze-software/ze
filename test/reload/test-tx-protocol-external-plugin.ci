@@ -1,0 +1,184 @@
+# Test: External plugin participates in config transaction protocol
+# VALIDATES: AC-17 -- External plugin (ze plugin bgp-watchdog) launched via
+#            the plugin hub receives config-verify and config-apply RPCs
+#            through the engine-side RPC bridge when the transaction
+#            orchestrator publishes per-plugin verify/apply stream events.
+#            The plugin is connected over the plugin hub transport (the
+#            same MuxConn path used for TLS external plugins), so this
+#            exercise proves the Phase 7 wiring without requiring a
+#            separate TLS harness.
+# PREVENTS: The orchestrator emitting verify-<plugin>/apply-<plugin>
+#           events while external plugins stay untouched because the
+#           engine-side bridge only dispatched to in-process plugins.
+#
+# Scenario:
+# 1. Daemon starts with external bgp-watchdog plugin launched via
+#    `ze plugin bgp-watchdog`. watchdog declares WantsConfig=["bgp"] at
+#    Stage 1, so the engine adds it to the transaction participant list
+#    whenever the bgp root changes.
+# 2. Initial config has a BGP peer with router-id 1.2.3.4.
+# 3. The trigger script rewrites the config (router-id becomes 5.6.7.8)
+#    and sends SIGHUP. reloadConfig detects the diff on the "bgp" root,
+#    builds a single-participant transaction for watchdog, and calls
+#    TxCoordinator.Execute.
+# 4. The orchestrator publishes verify-bgp-watchdog and apply-bgp-watchdog
+#    on the stream. The RPC bridge in the plugin server translates each
+#    event into a config-verify / config-apply RPC over the external
+#    plugin's connection. The SDK replies OK via its default handler and
+#    the bridge emits verify-ok / apply-ok acks so the orchestrator
+#    commits cleanly.
+# 5. The daemon exits cleanly after the reload.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=30s
+
+# Connection 1: Peer from the initial config sends route + EOR.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Initial config: external bgp-watchdog plugin + BGP peer. The watchdog
+# plugin declares WantsConfig=["bgp"] at Stage 1, so it participates in
+# every bgp-root transaction.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external bgp-watchdog {
+		run "ze plugin bgp-watchdog"
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process bgp-watchdog {
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Updated config: BGP router-id changed so the bgp root diffs and the
+# transaction runs at least one participant (bgp-watchdog).
+tmpfs=updated.conf:terminator=EOF_UPDATED
+plugin {
+	external bgp-watchdog {
+		run "ze plugin bgp-watchdog"
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 5.6.7.8
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process bgp-watchdog {
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_UPDATED
+
+# Trigger: wait for peer + daemon readiness, rewrite config, SIGHUP, then
+# TERM so the daemon exits cleanly.
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+sleep 2
+cp updated.conf ze-bgp.conf
+kill -HUP $(cat daemon.pid)
+sleep 2
+kill -TERM $(cat daemon.pid)
+EOF_TRIGGER
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+reject=stderr:pattern=verify timeout
+reject=stderr:pattern=apply timeout
+reject=stderr:pattern=config verify failed
+reject=stderr:pattern=config apply partial failure
