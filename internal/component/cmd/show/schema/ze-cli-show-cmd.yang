@@ -15,6 +15,18 @@ module ze-cli-show-cmd {
             description "Show version and build date";
         }
 
+        container warnings {
+            config false;
+            ze:command "ze-show:warnings";
+            description "Show active operator-visible warnings from all subsystems (report bus snapshot)";
+        }
+
+        container errors {
+            config false;
+            ze:command "ze-show:errors";
+            description "Show recent operator-visible error events from all subsystems (report bus ring buffer)";
+        }
+
         container bgp {
             config false;
             description "BGP introspection";
@@ -23,12 +35,6 @@ module ze-cli-show-cmd {
                 config false;
                 ze:command "ze-show:bgp-peer";
                 description "Show peer(s) details";
-            }
-
-            container warnings {
-                config false;
-                ze:command "ze-show:bgp-warnings";
-                description "Show active prefix warnings (stale data, threshold exceeded)";
             }
 
             container decode {

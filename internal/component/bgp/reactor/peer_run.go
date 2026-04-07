@@ -190,7 +190,6 @@ func (p *Peer) runOnce() error {
 	if p.reactor != nil {
 		session.prefixMetrics = p.reactor.rmetrics
 	}
-	session.prefixWarningNotifier = p.SetPrefixWarned
 	session.onNotifSent = p.IncrNotificationSent
 	session.onNotifRecv = p.IncrNotificationReceived
 	session.SetSourceID(p.sourceID)
@@ -205,7 +204,12 @@ func (p *Peer) runOnce() error {
 	defer func() {
 		p.negotiated.Store(nil) // Clear negotiated capabilities
 		p.clearEncodingContexts()
-		p.clearPrefixWarned()
+		// Clear prefix-threshold warnings raised by this session from the report
+		// bus so they do not linger after the session ends. Must be called before
+		// p.session is set to nil below.
+		if sess := p.session; sess != nil {
+			sess.ClearReportedWarnings()
+		}
 		// Reset sendingInitialRoutes flag so next session can run sendInitialRoutes().
 		// This is needed because session.Teardown() may return before the old
 		// sendInitialRoutes() goroutine finishes its 500ms sleep.

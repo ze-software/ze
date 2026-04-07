@@ -15,7 +15,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
@@ -32,6 +31,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
@@ -508,26 +508,33 @@ func formatResponseData(data any) string {
 	return string(b)
 }
 
-// collectPrefixWarnings gathers prefix warnings for the login banner.
-// Two kinds: stale prefix data (config-level) and active threshold exceeded (runtime).
+// collectPrefixWarnings gathers BGP-sourced prefix warnings for the login banner.
+// Reads from the report bus instead of per-peer state. Two kinds: stale prefix
+// data (raised at peer add via report.RaiseWarning) and active threshold
+// exceeded (raised by Session.applyPrefixCheck on the upward edge).
+//
 // If exactly one warning exists, the specific detail is shown.
 // If more than one, a count is shown with the command to investigate.
 func collectPrefixWarnings(rl plugin.ReactorIntrospector) []cli.LoginWarning {
-	peers := rl.Peers()
-	now := time.Now()
+	peerNames := buildPeerNameLookup(rl)
+	issues := report.Warnings()
 
 	var warnings []cli.LoginWarning
-	for i := range peers {
-		p := &peers[i]
-		label := peerLabel(p)
-
-		if reactor.IsPrefixDataStale(p.PrefixUpdated, now) {
-			warnings = append(warnings, cli.LoginWarning{
-				Message: fmt.Sprintf("%s has stale prefix data (updated %s)", label, p.PrefixUpdated),
-				Command: "update bgp peer " + p.Address.String() + " prefix",
-			})
+	for i := range issues {
+		issue := &issues[i]
+		if issue.Source != "bgp" {
+			continue
 		}
-		for _, fam := range p.PrefixWarnings {
+		switch issue.Code {
+		case "prefix-stale":
+			label := peerLabelFromSubject(issue.Subject, peerNames)
+			warnings = append(warnings, cli.LoginWarning{
+				Message: fmt.Sprintf("%s has stale prefix data (updated %s)", label, detailString(issue.Detail, "updated")),
+				Command: "update bgp peer " + issue.Subject + " prefix",
+			})
+		case "prefix-threshold":
+			peerAddr, fam := splitThresholdSubject(issue.Subject)
+			label := peerLabelFromSubject(peerAddr, peerNames)
 			warnings = append(warnings, cli.LoginWarning{
 				Message: fmt.Sprintf("%s %s prefix count exceeds warning threshold", label, fam),
 			})
@@ -542,8 +549,60 @@ func collectPrefixWarnings(rl plugin.ReactorIntrospector) []cli.LoginWarning {
 	}
 	return []cli.LoginWarning{{
 		Message: fmt.Sprintf("%d warnings", len(warnings)),
-		Command: "show bgp warnings",
+		Command: "show warnings",
 	}}
+}
+
+// buildPeerNameLookup walks the reactor peers once to build a peer-address-to-
+// name map, used to enrich bus warnings (which only carry the peer address) with
+// the human-readable peer name from config.
+func buildPeerNameLookup(rl plugin.ReactorIntrospector) map[string]*plugin.PeerInfo {
+	if rl == nil {
+		return nil
+	}
+	peers := rl.Peers()
+	out := make(map[string]*plugin.PeerInfo, len(peers))
+	for i := range peers {
+		out[peers[i].Address.String()] = &peers[i]
+	}
+	return out
+}
+
+// peerLabelFromSubject returns a human-readable peer label given the peer
+// address from a bus subject and the name lookup map. Falls back to the
+// raw address when the peer is not found in the lookup (e.g., already removed).
+func peerLabelFromSubject(addr string, lookup map[string]*plugin.PeerInfo) string {
+	if p, ok := lookup[addr]; ok {
+		return peerLabel(p)
+	}
+	return fmt.Sprintf("peer %s", addr)
+}
+
+// splitThresholdSubject parses the composite subject "<addr>/<afi>/<safi>"
+// into peer address and family string. Returns the original subject and
+// empty family if the format does not match.
+func splitThresholdSubject(subject string) (peerAddr, family string) {
+	idx := strings.Index(subject, "/")
+	if idx <= 0 || idx == len(subject)-1 {
+		return subject, ""
+	}
+	return subject[:idx], subject[idx+1:]
+}
+
+// detailString returns the string value of detail[key], or "" if missing or
+// not a string. Used for safe extraction of bus-detail fields in user-facing text.
+func detailString(detail map[string]any, key string) string {
+	if detail == nil {
+		return ""
+	}
+	v, ok := detail[key]
+	if !ok {
+		return ""
+	}
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return ""
 }
 
 // peerLabel returns a human-readable label for a peer (name or IP + AS).

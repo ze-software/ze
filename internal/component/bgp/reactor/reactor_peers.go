@@ -138,6 +138,11 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 		setPrefixConfigMetrics(r.rmetrics, settings.Address.String(), settings, r.clock.Now())
 	}
 
+	// Raise / clear prefix-stale on the report bus based on PrefixUpdated.
+	// Mirrors the existing Prometheus stale gauge but is operator-visible via
+	// `ze show warnings` and the login banner.
+	RaisePrefixStale(settings.Address.String(), settings.PrefixUpdated, r.clock.Now())
+
 	// Log staleness warning if prefix data is outdated.
 	if IsPrefixDataStale(settings.PrefixUpdated, r.clock.Now()) {
 		reactorLogger().Warn("prefix data is stale",
@@ -203,6 +208,11 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 
 	// Stop peer if running
 	peer.Stop()
+
+	// Clear any prefix-stale warning for this peer from the report bus.
+	// Threshold warnings are cleared by Session.ClearReportedWarnings
+	// during the session teardown defer in peer_run.go.
+	ClearPrefixStale(addr.String())
 
 	delete(r.peers, key)
 

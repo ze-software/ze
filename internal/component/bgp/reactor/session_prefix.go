@@ -5,13 +5,85 @@
 package reactor
 
 import (
+	"fmt"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
 )
+
+// reportSourceBGP is the report bus source name for BGP-originated issues.
+const reportSourceBGP = "bgp"
+
+// reportCodePrefixThreshold is the report bus code for "per-family prefix
+// count is at or above the configured warning threshold".
+const reportCodePrefixThreshold = "prefix-threshold"
+
+// reportCodePrefixStale is the report bus code for "PrefixUpdated date is
+// older than stalenessThreshold (180 days)".
+const reportCodePrefixStale = "prefix-stale"
+
+// prefixThresholdSubject builds the composite report bus Subject for a
+// per-(peer, family) prefix-threshold warning. The format is "<addr>/<family>"
+// so the bus dedups per family even though the bus key is (Source, Code, Subject).
+func prefixThresholdSubject(peerAddr, family string) string {
+	return peerAddr + "/" + family
+}
+
+// raisePrefixThreshold pushes a prefix-threshold warning onto the report bus.
+// The producer is responsible for hot-path dedup (prefixCounts.warned), so
+// this is called only on the upward edge.
+func raisePrefixThreshold(peerAddr, fam string, count, warning, maximum uint32) {
+	report.RaiseWarning(
+		reportSourceBGP,
+		reportCodePrefixThreshold,
+		prefixThresholdSubject(peerAddr, fam),
+		fmt.Sprintf("%s prefix count %d at or above warning threshold %d (max %d)", fam, count, warning, maximum),
+		map[string]any{
+			"family":  fam,
+			"count":   count,
+			"warning": warning,
+			"maximum": maximum,
+		},
+	)
+}
+
+// clearPrefixThreshold removes a prefix-threshold warning from the report bus.
+// Called on the downward edge.
+func clearPrefixThreshold(peerAddr, fam string) {
+	report.ClearWarning(
+		reportSourceBGP,
+		reportCodePrefixThreshold,
+		prefixThresholdSubject(peerAddr, fam),
+	)
+}
+
+// RaisePrefixStale pushes a prefix-stale warning for a peer if its
+// PrefixUpdated date is older than stalenessThreshold. Otherwise it clears
+// any existing prefix-stale warning for the peer. Called at peer add and
+// peer config reload.
+func RaisePrefixStale(peerAddr, prefixUpdated string, now time.Time) {
+	if IsPrefixDataStale(prefixUpdated, now) {
+		report.RaiseWarning(
+			reportSourceBGP,
+			reportCodePrefixStale,
+			peerAddr,
+			fmt.Sprintf("prefix data updated %s (>180 days old)", prefixUpdated),
+			map[string]any{"updated": prefixUpdated},
+		)
+		return
+	}
+	report.ClearWarning(reportSourceBGP, reportCodePrefixStale, peerAddr)
+}
+
+// ClearPrefixStale removes any prefix-stale warning for a peer. Called on
+// peer remove so cleared peers do not linger on the report bus.
+func ClearPrefixStale(peerAddr string) {
+	report.ClearWarning(reportSourceBGP, reportCodePrefixStale, peerAddr)
+}
 
 // familyKey encodes an family.Family as a uint32 map key, avoiding fmt.Sprintf allocations
 // on the hot path. Layout: AFI in upper 16 bits, SAFI in bits 8-15, lower 8 bits zero.
@@ -181,9 +253,7 @@ func (s *Session) applyPrefixDelta(fk uint32, delta int64) {
 		if s.prefixCounts.warned[fk] {
 			s.prefixCounts.warned[fk] = false
 			s.setPrefixWarningExceededMetric(famName, 0)
-			if s.prefixWarningNotifier != nil {
-				s.prefixWarningNotifier(famName, false)
-			}
+			clearPrefixThreshold(s.peerLabel(), famName)
 		}
 	}
 }
@@ -207,9 +277,7 @@ func (s *Session) applyPrefixCheck(fk uint32, delta int64) (*message.Notificatio
 		if !s.prefixCounts.warned[fk] {
 			s.prefixCounts.warned[fk] = true
 			s.setPrefixWarningExceededMetric(famName, 1)
-			if s.prefixWarningNotifier != nil {
-				s.prefixWarningNotifier(famName, true)
-			}
+			raisePrefixThreshold(s.peerLabel(), famName, uint32(current), warning, maximum) //nolint:gosec // current bounded by maximum (uint32) before this branch
 			sessionLogger().Warn("prefix count reached warning threshold",
 				"peer", s.settings.Address,
 				"family", famName,
@@ -241,6 +309,25 @@ func (s *Session) applyPrefixCheck(fk uint32, delta int64) (*message.Notificatio
 	}
 
 	return nil, false
+}
+
+// ClearReportedWarnings emits report.ClearWarning for every prefix-threshold
+// warning this session has raised. Called by Peer.runOnce in its teardown
+// defer so warnings do not linger on the bus after the session ends.
+//
+// Walks prefixCounts.warned (the per-session dedup flag set) and clears the
+// matching bus entries by composite subject.
+func (s *Session) ClearReportedWarnings() {
+	if s.prefixCounts == nil {
+		return
+	}
+	peerAddr := s.peerLabel()
+	for fk, warned := range s.prefixCounts.warned {
+		if !warned {
+			continue
+		}
+		clearPrefixThreshold(peerAddr, familyString(fk))
+	}
 }
 
 // buildPrefixNotification builds a Cease/MaxPrefixes NOTIFICATION.

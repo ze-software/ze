@@ -10,6 +10,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
 )
 
 // ipv4UKey is the uint32 family key for ipv4/unicast used in test assertions.
@@ -383,76 +384,67 @@ func TestPrefixRatioGuard(t *testing.T) {
 	s2.setPrefixCountMetric("ipv4/unicast", 500)
 }
 
-// TestPrefixWarningNotifier verifies that applyPrefixCheck calls the warning notifier
-// when a family crosses the warning threshold, and applyPrefixDelta calls it when clearing.
+// TestSessionPrefixThresholdRaisesAndClearsReport verifies that crossing the
+// warning threshold raises a prefix-threshold entry on the report bus, that
+// re-crossing is deduped, and that dropping below the threshold clears the entry.
 //
-// VALIDATES: Prefix warning state propagated to Peer for API visibility.
-// PREVENTS: Login banner and ze bgp warnings showing stale or missing runtime warnings.
-func TestPrefixWarningNotifier(t *testing.T) {
+// VALIDATES: Bus producer-side semantics for the prefix-threshold migration.
+// PREVENTS: Login banner and ze show warnings missing runtime prefix warnings,
+// or showing stale ones after the count drops back down.
+func TestSessionPrefixThresholdRaisesAndClearsReport(t *testing.T) {
+	report.ClearSource(reportSourceBGP)
+	defer report.ClearSource(reportSourceBGP)
+
 	ps := newTestPeerSettingsWithPrefix(10, 8)
 	s := NewSession(ps)
 
-	var notifications []struct {
-		family string
-		warned bool
-	}
-	s.prefixWarningNotifier = func(family string, warned bool) {
-		notifications = append(notifications, struct {
-			family string
-			warned bool
-		}{family, warned})
-	}
-
 	// Push count to 8 (warning threshold).
 	notif, drop := s.applyPrefixCheck(ipv4UKey, 8)
-	assert.Nil(t, notif)
-	assert.False(t, drop)
-	require.Len(t, notifications, 1)
-	assert.Equal(t, "ipv4/unicast", notifications[0].family)
-	assert.True(t, notifications[0].warned)
+	require.Nil(t, notif)
+	require.False(t, drop)
 
-	// Push to 9 -- still in warning, no second notification.
+	warnings := report.Warnings()
+	require.Len(t, warnings, 1, "warning entry should be raised at threshold")
+	w := warnings[0]
+	assert.Equal(t, reportSourceBGP, w.Source)
+	assert.Equal(t, reportCodePrefixThreshold, w.Code)
+	assert.Equal(t, "10.0.0.1/ipv4/unicast", w.Subject)
+	assert.Equal(t, "ipv4/unicast", w.Detail["family"])
+
+	// Push to 9 -- still in warning, no second entry (per-session dedup
+	// via prefixCounts.warned plus bus-level dedup).
 	notif, drop = s.applyPrefixCheck(ipv4UKey, 1)
-	assert.Nil(t, notif)
-	assert.False(t, drop)
-	assert.Len(t, notifications, 1, "should not re-notify while in warning")
+	require.Nil(t, notif)
+	require.False(t, drop)
+	assert.Len(t, report.Warnings(), 1, "dedup: still one warning at count 9")
 
 	// Withdraw to 7 (below warning threshold).
 	s.applyPrefixDelta(ipv4UKey, -2)
-	require.Len(t, notifications, 2)
-	assert.Equal(t, "ipv4/unicast", notifications[1].family)
-	assert.False(t, notifications[1].warned)
+	assert.Empty(t, report.Warnings(), "warning should be cleared after dropping below threshold")
 }
 
-// TestPeerPrefixWarnedFamilies verifies the Peer tracks prefix warning state
-// from session notifications and clears on teardown.
+// TestSessionClearReportedWarningsOnTeardown verifies that ClearReportedWarnings
+// removes any prefix-threshold entries this session raised. Called from
+// Peer.runOnce on session teardown.
 //
-// VALIDATES: PrefixWarnings field in PeerInfo populated from live session state.
-// PREVENTS: PeerInfo.PrefixWarnings always empty even when families exceed threshold.
-func TestPeerPrefixWarnedFamilies(t *testing.T) {
-	ps := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0)
-	p := NewPeer(ps)
+// VALIDATES: Cleanup-on-teardown semantics replacing Peer.clearPrefixWarned.
+// PREVENTS: Stale per-peer warnings persisting on the report bus after a session ends.
+func TestSessionClearReportedWarningsOnTeardown(t *testing.T) {
+	report.ClearSource(reportSourceBGP)
+	defer report.ClearSource(reportSourceBGP)
 
-	// Initially no warnings.
-	assert.Nil(t, p.PrefixWarnedFamilies())
+	ps := newTestPeerSettingsWithPrefix(10, 8)
+	s := NewSession(ps)
 
-	// Simulate session notifying of warning.
-	p.SetPrefixWarned("ipv4/unicast", true)
-	families := p.PrefixWarnedFamilies()
-	assert.Equal(t, []string{"ipv4/unicast"}, families)
+	// Raise a threshold warning.
+	notif, drop := s.applyPrefixCheck(ipv4UKey, 8)
+	require.Nil(t, notif)
+	require.False(t, drop)
+	require.Len(t, report.Warnings(), 1)
 
-	// Add another family.
-	p.SetPrefixWarned("ipv6/unicast", true)
-	assert.Len(t, p.PrefixWarnedFamilies(), 2)
-
-	// Clear one.
-	p.SetPrefixWarned("ipv4/unicast", false)
-	assert.Equal(t, []string{"ipv6/unicast"}, p.PrefixWarnedFamilies())
-
-	// clearPrefixWarned resets all.
-	p.SetPrefixWarned("ipv4/unicast", true)
-	p.clearPrefixWarned()
-	assert.Nil(t, p.PrefixWarnedFamilies())
+	// Simulate session teardown.
+	s.ClearReportedWarnings()
+	assert.Empty(t, report.Warnings(), "ClearReportedWarnings should remove the entry")
 }
 
 // TestFamilyKeyRoundTrip verifies familyKey/familyString/familyKeyString round-trip for all

@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
 )
 
 func init() {
@@ -25,14 +26,45 @@ func init() {
 			RequiresSelector: true,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:bgp-warnings",
-			Handler:    peer.HandleBgpWarnings,
+			WireMethod: "ze-show:warnings",
+			Handler:    handleShowWarnings,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:errors",
+			Handler:    handleShowErrors,
 		},
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:interface",
 			Handler:    handleShowInterface,
 		},
 	)
+}
+
+// handleShowWarnings returns the snapshot of all active warnings on the report bus.
+// Used by `ze show warnings`. Output is a JSON object with a sorted list and count.
+func handleShowWarnings(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	issues := report.Warnings()
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"warnings": issues,
+			"count":    len(issues),
+		},
+	}, nil
+}
+
+// handleShowErrors returns the most-recent error events on the report bus,
+// newest first. Used by `ze show errors`. The bus retains up to errorCap
+// events; this handler returns all retained events.
+func handleShowErrors(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	issues := report.Errors(0)
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"errors": issues,
+			"count":  len(issues),
+		},
+	}, nil
 }
 
 // handleShowVersion returns the ze version and build date.

@@ -260,10 +260,6 @@ type Session struct {
 	// Set by Peer in runOnce(). Nil when metrics are not enabled.
 	prefixMetrics *reactorMetrics
 
-	// prefixWarningNotifier is called when a family's warning state changes.
-	// Set by Peer in runOnce() to propagate warning state for API visibility.
-	prefixWarningNotifier func(family string, warned bool)
-
 	// onNotifSent is called when a NOTIFICATION is sent to the peer.
 	// Set by Peer in runOnce() for Prometheus notification counter.
 	onNotifSent func(code, subcode uint8)

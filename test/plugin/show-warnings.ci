@@ -1,5 +1,6 @@
-# Test: show bgp warnings returns stale prefix data warning
-# Exercises the full CLI path: dispatch-command -> ze-show:bgp-warnings -> HandleBgpWarnings
+# Test: show warnings returns stale prefix data warning from the report bus
+# Exercises the full CLI path: dispatch-command -> ze-show:warnings -> handleShowWarnings -> report.Warnings()
+# The stale warning is raised at peer add time by reactor_peers.go calling RaisePrefixStale
 
 # ze-peer: accepts connection, receives EOR
 stdin=peer:terminator=EOF_PEER
@@ -34,7 +35,7 @@ def main():
     time.sleep(1.0)
 
     try:
-        result = dispatch(api, 'show bgp warnings')
+        result = dispatch(api, 'show warnings')
         status = result.get('status')
         if status != 'done':
             print(f'FAIL: status={status} data={result.get("data")}', file=sys.stderr)
@@ -52,17 +53,18 @@ def main():
         warnings = data.get('warnings', [])
         found_stale = False
         for w in warnings:
-            if w.get('type') == 'stale-data':
+            # Bus Issue shape: source, code, severity, subject, message, detail.
+            if w.get('source') == 'bgp' and w.get('code') == 'prefix-stale':
                 found_stale = True
                 if '2024-01-01' not in w.get('message', ''):
                     print(f'FAIL: stale warning missing date: {w}', file=sys.stderr)
                     sys.exit(1)
 
         if not found_stale:
-            print(f'FAIL: no stale-data warning in {warnings}', file=sys.stderr)
+            print(f'FAIL: no bgp/prefix-stale warning in {warnings}', file=sys.stderr)
             sys.exit(1)
 
-        print(f'OK: show bgp warnings returned {count} warning(s)', file=sys.stderr)
+        print(f'OK: show warnings returned {count} warning(s)', file=sys.stderr)
         dispatch(api, 'daemon shutdown')
         api.wait_for_shutdown()
     except SystemExit:

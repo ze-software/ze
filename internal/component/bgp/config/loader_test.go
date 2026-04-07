@@ -19,6 +19,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
 )
 
 // TestLoadReactor verifies loading config into a Reactor.
@@ -1533,15 +1534,22 @@ func (m *mockIntrospector) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerPro
 func (m *mockIntrospector) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig { return nil }
 
 // TestCollectPrefixWarningsOneStale verifies that a single stale peer shows the specific warning.
+// Bus seeded with one prefix-stale entry; banner reads from the bus.
 //
 // VALIDATES: Login banner shows detail when exactly 1 warning exists.
 // PREVENTS: Single-warning case still showing "1 warnings" count.
 func TestCollectPrefixWarningsOneStale(t *testing.T) {
-	staleDate := "2025-01-01" // > 6 months ago
+	report.ClearSource("bgp")
+	defer report.ClearSource("bgp")
+
+	report.RaiseWarning("bgp", "prefix-stale", "10.0.0.1",
+		"prefix data updated 2025-01-01 (>180 days old)",
+		map[string]any{"updated": "2025-01-01"})
+
 	ri := &mockIntrospector{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001, Name: "core-rtr", PrefixUpdated: staleDate},
-			{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002, PrefixUpdated: "2026-03-01"},
+			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001, Name: "core-rtr"},
+			{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002},
 		},
 	}
 
@@ -1557,18 +1565,25 @@ func TestCollectPrefixWarningsOneStale(t *testing.T) {
 // VALIDATES: Login banner shows "N warnings" when multiple warnings exist.
 // PREVENTS: Banner dumping all warnings when count is high.
 func TestCollectPrefixWarningsMultiple(t *testing.T) {
-	staleDate := "2025-01-01"
+	report.ClearSource("bgp")
+	defer report.ClearSource("bgp")
+
+	report.RaiseWarning("bgp", "prefix-stale", "10.0.0.1",
+		"stale", map[string]any{"updated": "2025-01-01"})
+	report.RaiseWarning("bgp", "prefix-stale", "10.0.0.2",
+		"stale", map[string]any{"updated": "2025-01-01"})
+
 	ri := &mockIntrospector{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001, PrefixUpdated: staleDate},
-			{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002, PrefixUpdated: staleDate},
+			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001},
+			{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002},
 		},
 	}
 
 	warnings := collectPrefixWarnings(ri)
 	require.Len(t, warnings, 1)
 	assert.Contains(t, warnings[0].Message, "2 warnings")
-	assert.Equal(t, "show bgp warnings", warnings[0].Command)
+	assert.Equal(t, "show warnings", warnings[0].Command)
 }
 
 // TestCollectPrefixWarningsNone verifies no warnings returned for healthy peers.
@@ -1576,9 +1591,12 @@ func TestCollectPrefixWarningsMultiple(t *testing.T) {
 // VALIDATES: Login banner is silent when no warnings exist.
 // PREVENTS: Spurious warnings on healthy system.
 func TestCollectPrefixWarningsNone(t *testing.T) {
+	report.ClearSource("bgp")
+	defer report.ClearSource("bgp")
+
 	ri := &mockIntrospector{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001, PrefixUpdated: "2026-03-01"},
+			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001},
 		},
 	}
 
@@ -1591,9 +1609,16 @@ func TestCollectPrefixWarningsNone(t *testing.T) {
 // VALIDATES: Login banner includes runtime prefix warnings, not just staleness.
 // PREVENTS: Runtime prefix warnings invisible at login.
 func TestCollectPrefixWarningsRuntime(t *testing.T) {
+	report.ClearSource("bgp")
+	defer report.ClearSource("bgp")
+
+	report.RaiseWarning("bgp", "prefix-threshold", "10.0.0.1/ipv4/unicast",
+		"ipv4/unicast prefix count exceeds warning threshold",
+		map[string]any{"family": "ipv4/unicast"})
+
 	ri := &mockIntrospector{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001, PrefixWarnings: []string{"ipv4/unicast"}},
+			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001},
 		},
 	}
 
