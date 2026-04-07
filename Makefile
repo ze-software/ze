@@ -49,15 +49,15 @@ all: ze-lint ze-unit-test build
 
 # Generate code (plugin imports, etc.)
 generate:
-	@go run scripts/gen-plugin-imports.go
+	@go run scripts/codegen/plugin_imports.go
 
 # Build all binaries
 build: generate bin/ze bin/ze-test bin/ze-chaos bin/ze-analyse docs/comparison.html
 	@echo "All binaries built"
 
 # Regenerate comparison HTML when markdown changes
-docs/comparison.html: docs/comparison.md scripts/comparison-html.py
-	@python3 scripts/comparison-html.py
+docs/comparison.html: docs/comparison.md scripts/codegen/comparison_html.go
+	@go run scripts/codegen/comparison_html.go
 
 ze:
 	@mkdir -p bin
@@ -268,7 +268,7 @@ ze-all-test: ze-test ze-chaos-verify
 # Codebase consistency checks (naming, structure, cross-refs, file sizes)
 ze-consistency:
 	@echo "Running consistency checks..."
-	@go run scripts/consistency-check.go .
+	@go run scripts/lint/consistency.go .
 
 # Ze CI check
 ze-ci: ze-lint ze-unit-test build
@@ -409,41 +409,41 @@ ze-perf-track:
 
 # Show spec inventory with progress status
 ze-spec-status:
-	@bash scripts/spec-status.sh
+	@go run scripts/status/spec_status.go
 
 # Show spec inventory as JSON
 ze-spec-status-json:
-	@bash scripts/spec-status.sh --json
+	@go run scripts/status/spec_status.go --json
 
 # ─── Inventory ──────────────────────────────────────────────────────────
 
 # Generate project inventory (plugins, YANG, RPCs, tests, packages)
 ze-inventory:
-	@go run scripts/inventory.go
+	@go run scripts/inventory/inventory.go
 
 # Generate project inventory as JSON
 ze-inventory-json:
-	@go run scripts/inventory.go --json
+	@go run scripts/inventory/inventory.go --json
 
 # Generate command inventory (all registered commands, classified by verb)
 ze-command-list:
-	@go run scripts/command_inventory.go
+	@go run scripts/inventory/commands.go
 
 # Generate command inventory as JSON
 ze-command-list-json:
-	@go run scripts/command_inventory.go --json
+	@go run scripts/inventory/commands.go --json
 
 # Check documentation drift against live registry and filesystem
 ze-doc-drift:
-	@go run scripts/check-doc-drift.go
+	@go run scripts/docvalid/doc_drift.go
 
 # Cross-check YANG command tree against registered handlers
 ze-validate-commands:
-	@go run scripts/validate-commands.go
+	@go run scripts/docvalid/commands.go
 
 # Cross-check YANG command tree (JSON output)
 ze-validate-commands-json:
-	@go run scripts/validate-commands.go --json
+	@go run scripts/docvalid/commands.go --json
 
 # Run all documentation tests: drift check + YANG/handler contract.
 # Each tool runs independently so the user sees ALL issues, not just the first
@@ -454,10 +454,10 @@ ze-doc-test:
 	@FAIL=0; \
 	echo ""; \
 	echo "  -> Documentation drift (DESIGN.md, comparison.md vs registry)..."; \
-	go run scripts/check-doc-drift.go || FAIL=1; \
+	go run scripts/docvalid/doc_drift.go || FAIL=1; \
 	echo ""; \
 	echo "  -> YANG/handler contract (validate-commands)..."; \
-	go run scripts/validate-commands.go || FAIL=1; \
+	go run scripts/docvalid/commands.go || FAIL=1; \
 	echo ""; \
 	if [ $$FAIL -ne 0 ]; then \
 		echo "Documentation tests FAILED -- see output above."; \
@@ -468,11 +468,11 @@ ze-doc-test:
 
 # Sync vendored web assets to consumer directories
 ze-sync-vendor-web:
-	@scripts/sync-vendor-web.sh
+	@go run scripts/vendor/sync_web.go
 
 # Check vendored web assets for newer versions
 ze-check-vendor-web:
-	@scripts/check-vendor-web.sh
+	@go run scripts/vendor/check_web.go
 
 # ─── Utilities ───────────────────────────────────────────────────────────────
 

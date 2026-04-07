@@ -1,7 +1,7 @@
 # Vendored Web Assets
 
 Third-party web assets used by Ze's web interfaces.
-Source of truth: files in this directory. Consumer copies are synced via `scripts/sync-vendor-web.sh`.
+Source of truth: files in this directory. Consumer copies are synced via `scripts/vendor/sync_web.go`.
 
 ## Assets
 
@@ -22,7 +22,7 @@ Source of truth: files in this directory. Consumer copies are synced via `script
 ## Sync
 
 ```bash
-scripts/sync-vendor-web.sh        # copy from third_party/web/ to all consumer directories
-scripts/check-vendor-web.sh       # check npm registry for newer versions
+scripts/vendor/sync_web.go         # copy from third_party/web/ to all consumer directories
+scripts/vendor/check_web.go        # check npm registry for newer versions
 make ze-sync-vendor-web            # make target for sync
 ```
