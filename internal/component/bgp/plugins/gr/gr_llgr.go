@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -93,10 +93,10 @@ func llgrResultToPeerCap(r *llgrResult) *llgrPeerCap {
 		Families: make([]llgrCapFamily, 0, len(r.Families)),
 	}
 	for _, f := range r.Families {
-		family := afiSAFIToFamily(f.AFI, f.SAFI)
-		if family != "" {
+		famStr := afiSAFIToFamily(f.AFI, f.SAFI)
+		if famStr != "" {
 			peerCap.Families = append(peerCap.Families, llgrCapFamily{
-				Family:       family,
+				Family:       famStr,
 				ForwardState: f.ForwardState,
 				LLST:         f.LLST,
 			})
@@ -161,7 +161,7 @@ func parseLLGRCapValue(capMap map[string]any, peerAddr string, families []string
 
 	var buf []byte
 	for _, fam := range families {
-		f, ok := nlri.ParseFamily(fam)
+		f, ok := family.LookupFamily(fam)
 		if !ok {
 			continue
 		}

@@ -86,8 +86,8 @@ var fragmentFlagNameToValue = map[string]uint8{
 //   - etc.
 //
 // This function is used by the engine to delegate FlowSpec text parsing to the plugin.
-func EncodeFlowSpecComponents(family Family, args []string) ([]byte, error) {
-	isVPN := family.SAFI == SAFIFlowSpecVPN
+func EncodeFlowSpecComponents(fam Family, args []string) ([]byte, error) {
+	isVPN := fam.SAFI == SAFIFlowSpecVPN
 
 	var fs *FlowSpec
 	var fsv *FlowSpecVPN
@@ -102,9 +102,9 @@ func EncodeFlowSpecComponents(family Family, args []string) ([]byte, error) {
 			return nil, err
 		}
 		args = args[consumed:]
-		fsv = NewFlowSpecVPN(family, rd)
+		fsv = NewFlowSpecVPN(fam, rd)
 	} else {
-		fs = NewFlowSpec(family)
+		fs = NewFlowSpec(fam)
 	}
 
 	addComponent := func(c FlowComponent) {
@@ -118,7 +118,7 @@ func EncodeFlowSpecComponents(family Family, args []string) ([]byte, error) {
 	// Parse components
 	i := 0
 	for i < len(args) {
-		comp, consumed, err := parseComponentText(args[i:], family)
+		comp, consumed, err := parseComponentText(args[i:], fam)
 		if err != nil {
 			return nil, err
 		}
@@ -155,7 +155,7 @@ func parseRDFromArgs(args []string) (RouteDistinguisher, int, error) {
 
 // parseComponentText parses a single FlowSpec component from args.
 // Named differently from parseFlowComponent in types.go (which parses wire format).
-func parseComponentText(args []string, family Family) (FlowComponent, int, error) {
+func parseComponentText(args []string, fam Family) (FlowComponent, int, error) {
 	if len(args) == 0 {
 		return nil, 0, fmt.Errorf("expected component")
 	}
@@ -164,9 +164,9 @@ func parseComponentText(args []string, family Family) (FlowComponent, int, error
 
 	switch keyword {
 	case kwDestination, kwDestinationIPv6:
-		return parsePrefixComponentText(args, FlowDestPrefix, family)
+		return parsePrefixComponentText(args, FlowDestPrefix, fam)
 	case kwSource, kwSourceIPv6:
-		return parsePrefixComponentText(args, FlowSourcePrefix, family)
+		return parsePrefixComponentText(args, FlowSourcePrefix, fam)
 	case kwProtocol, kwNextHeader:
 		return parseProtocolComponentText(args[1:])
 	case kwPort:
@@ -199,7 +199,7 @@ func parseComponentText(args []string, family Family) (FlowComponent, int, error
 }
 
 // parsePrefixComponentText parses destination or source prefix from text.
-func parsePrefixComponentText(args []string, compType FlowComponentType, family Family) (FlowComponent, int, error) {
+func parsePrefixComponentText(args []string, compType FlowComponentType, fam Family) (FlowComponent, int, error) {
 	if len(args) < 2 {
 		return nil, 0, fmt.Errorf("%s requires prefix", args[0])
 	}
@@ -210,10 +210,10 @@ func parsePrefixComponentText(args []string, compType FlowComponentType, family 
 	}
 
 	// Validate AFI match
-	if prefix.Addr().Is4() && family.AFI != AFIIPv4 {
+	if prefix.Addr().Is4() && fam.AFI != AFIIPv4 {
 		return nil, 0, fmt.Errorf("IPv4 prefix for IPv6 flowspec")
 	}
-	if prefix.Addr().Is6() && family.AFI != AFIIPv6 {
+	if prefix.Addr().Is6() && fam.AFI != AFIIPv6 {
 		return nil, 0, fmt.Errorf("IPv6 prefix for IPv4 flowspec")
 	}
 

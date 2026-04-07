@@ -11,6 +11,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // forceMPRawAttr wraps pre-encoded attribute bytes for the force-MP path.
@@ -136,18 +137,18 @@ func (s *Sender) buildInlineBatch(prefixes []netip.Prefix) []byte {
 	}
 
 	// Compute total NLRI size, allocate once.
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 
 	nlriTotal := 0
 	for _, p := range prefixes {
-		nlriTotal += nlri.LenWithContext(nlri.NewINET(family, p, 0), false)
+		nlriTotal += nlri.LenWithContext(nlri.NewINET(fam, p, 0), false)
 	}
 
 	nlriBytes := make([]byte, nlriTotal)
 	off := 0
 
 	for _, p := range prefixes {
-		inet := nlri.NewINET(family, p, 0)
+		inet := nlri.NewINET(fam, p, 0)
 		off += nlri.WriteNLRI(inet, nlriBytes, off, false)
 	}
 
@@ -190,7 +191,7 @@ func (s *Sender) buildMPBatch(prefixes []netip.Prefix) []byte {
 	}
 
 	// Determine family.
-	var family nlri.Family
+	var fam family.Family
 
 	var afi attribute.AFI
 
@@ -198,11 +199,11 @@ func (s *Sender) buildMPBatch(prefixes []netip.Prefix) []byte {
 
 	switch s.cfg.Family {
 	case FamilyIPv4Unicast:
-		family = nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+		fam = family.IPv4Unicast
 		afi = attribute.AFIIPv4
 		safi = attribute.SAFIUnicast
 	case FamilyIPv6Unicast:
-		family = nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}
+		fam = family.IPv6Unicast
 		afi = attribute.AFIIPv6
 		safi = attribute.SAFIUnicast
 	default: // Unsupported family -- caller handles nil return.
@@ -212,14 +213,14 @@ func (s *Sender) buildMPBatch(prefixes []netip.Prefix) []byte {
 	// Build concatenated NLRIs.
 	nlriTotal := 0
 	for _, p := range prefixes {
-		nlriTotal += nlri.LenWithContext(nlri.NewINET(family, p, 0), false)
+		nlriTotal += nlri.LenWithContext(nlri.NewINET(fam, p, 0), false)
 	}
 
 	nlriBytes := make([]byte, nlriTotal)
 	off := 0
 
 	for _, p := range prefixes {
-		inet := nlri.NewINET(family, p, 0)
+		inet := nlri.NewINET(fam, p, 0)
 		off += nlri.WriteNLRI(inet, nlriBytes, off, false)
 	}
 
@@ -284,7 +285,7 @@ func (s *Sender) buildForceMPRoute(prefix netip.Prefix) []byte {
 	}
 
 	// MP_REACH_NLRI (type 14) with AFI=1/SAFI=1.
-	inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nlriBytes := make([]byte, nlri.LenWithContext(inet, false))
 	nlri.WriteNLRI(inet, nlriBytes, 0, false)
 

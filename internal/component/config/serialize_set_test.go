@@ -53,11 +53,11 @@ func TestSerializeSetNeighborLeaf(t *testing.T) {
 func TestSerializeSetNestedContainer(t *testing.T) {
 	tree := NewTree()
 	entry := NewTree()
-	family := NewTree()
+	fam := NewTree()
 	ipv4 := NewTree()
 	ipv4.Set("unicast", "true")
-	family.SetContainer("ipv4", ipv4)
-	entry.SetContainer("family", family)
+	fam.SetContainer("ipv4", ipv4)
+	entry.SetContainer("family", fam)
 	entry.Set("local-as", "65000")
 	tree.AddListEntry("neighbor", "192.0.2.1", entry)
 
@@ -562,11 +562,11 @@ func TestSerializeBlameEmptyTree(t *testing.T) {
 func TestSerializeBlameNestedContainer(t *testing.T) {
 	tree := NewTree()
 	entry := NewTree()
-	family := NewTree()
+	fam := NewTree()
 	ipv4 := NewTree()
 	ipv4.Set("unicast", "true")
-	family.SetContainer("ipv4", ipv4)
-	entry.SetContainer("family", family)
+	fam.SetContainer("ipv4", ipv4)
+	entry.SetContainer("family", fam)
 	entry.Set("peer-as", "65001")
 	tree.AddListEntry("neighbor", "192.0.2.1", entry)
 

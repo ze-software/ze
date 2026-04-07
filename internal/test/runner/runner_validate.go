@@ -33,7 +33,7 @@ func (r *Runner) validateJSON(rec *Record) error {
 	type decodedMsg struct {
 		envelope map[string]any
 		actual   map[string]any
-		family   string
+		fam      string
 		nlris    []string // for content matching
 		action   string   // "add" or "del"
 		used     bool     // track if already matched
@@ -45,11 +45,11 @@ func (r *Runner) validateJSON(rec *Record) error {
 		if err != nil {
 			continue // Skip unparseable messages
 		}
-		family := extractFamily(envelope)
+		fam := extractFamily(envelope)
 		actual, _ := transformEnvelopeToPlugin(envelope)
 		nlris := extractNLRIs(actual)
 		action := extractAction(actual)
-		decoded = append(decoded, &decodedMsg{envelope, actual, family, nlris, action, false})
+		decoded = append(decoded, &decodedMsg{envelope, actual, fam, nlris, action, false})
 	}
 
 	// Find messages with JSON expectations
@@ -81,7 +81,7 @@ func (r *Runner) validateJSON(rec *Record) error {
 			if dm.used {
 				continue // Already matched to another expected
 			}
-			if dm.family != "" && !isSupportedFamily(dm.family) {
+			if dm.fam != "" && !isSupportedFamily(dm.fam) {
 				continue // Skip unsupported families
 			}
 			if nlrisMatch(expectedNLRIs, dm.nlris) && dm.action == expectedAction {

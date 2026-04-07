@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Wire attribute bytes for test data.
@@ -75,7 +75,7 @@ func TestInboundShowWithAttributes(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Insert a route with full attributes into pool storage
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	attrBytes := concatBytes(
 		testWireOriginIGP,
 		testWireASPath65001,
@@ -88,7 +88,7 @@ func TestInboundShowWithAttributes(t *testing.T) {
 	nlriBytes := []byte{24, 10, 0, 0}
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	route := requireFirstRoute(t, r.showPipeline("*", []string{"received"}), "adj-rib-in", "192.0.2.1")
@@ -120,12 +120,12 @@ func TestInboundShowWithAttributes(t *testing.T) {
 func TestInboundShowMinimalAttributes(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	route := requireFirstRoute(t, r.showPipeline("192.0.2.1", []string{"received"}), "adj-rib-in", "192.0.2.1")
@@ -201,12 +201,12 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Insert IPv4 route
-	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	ipv4Family := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriIPv4 := []byte{24, 10, 0, 0} // 10.0.0.0/24
 
 	// Insert IPv6 route
-	ipv6Family := nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}
+	ipv6Family := family.IPv6Unicast
 	nlriIPv6 := []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01, 0x00, 0x00} // 2001:db8:1::/64
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
@@ -233,14 +233,14 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 func TestInboundShowPrefixFilter(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlri1 := []byte{24, 10, 0, 0}   // 10.0.0.0/24
 	nlri2 := []byte{24, 172, 16, 0} // 172.16.0.0/24
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlri1)
-	peerRIB.Insert(family, attrBytes, nlri2)
+	peerRIB.Insert(fam, attrBytes, nlri1)
+	peerRIB.Insert(fam, attrBytes, nlri2)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	// Filter by prefix using cidr filter (exact prefix string match)

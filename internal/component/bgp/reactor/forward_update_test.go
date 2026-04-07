@@ -9,9 +9,9 @@ import (
 	"time"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 
 	"github.com/stretchr/testify/assert"
@@ -57,7 +57,7 @@ func TestForwardUpdate_DispatchesToPool(t *testing.T) {
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
 	peer.negotiated.Store(&NegotiatedCapabilities{
-		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: false,
 	})
 	// Set send context to match source context → zero-copy path
@@ -150,7 +150,7 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 	peer1 := NewPeer(peer1Settings)
 	peer1.state.Store(int32(PeerStateEstablished))
 	peer1.negotiated.Store(&NegotiatedCapabilities{
-		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: false,
 	})
 	peer1.sendCtx.Store(ctx)
@@ -166,7 +166,7 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 	peer2 := NewPeer(peer2Settings)
 	peer2.state.Store(int32(PeerStateEstablished))
 	peer2.negotiated.Store(&NegotiatedCapabilities{
-		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: false,
 	})
 	peer2.sendCtx.Store(ctx)
@@ -250,7 +250,7 @@ func TestForwardUpdate_DispatchToStoppedPool(t *testing.T) {
 	peer := NewPeer(peerSettings)
 	peer.state.Store(int32(PeerStateEstablished))
 	peer.negotiated.Store(&NegotiatedCapabilities{
-		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: false,
 	})
 	peer.sendCtx.Store(ctx)
@@ -321,7 +321,7 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
 	peer.negotiated.Store(&NegotiatedCapabilities{
-		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: false,
 	})
 	peer.sendCtx.Store(ctx)
@@ -434,7 +434,7 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
 	peer.negotiated.Store(&NegotiatedCapabilities{
-		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: false,
 	})
 	peer.sendCtx.Store(ctx)
@@ -531,7 +531,7 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
 	peer.negotiated.Store(&NegotiatedCapabilities{
-		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: false,
 	})
 	peer.sendCtx.Store(ctx)

@@ -162,8 +162,8 @@ func (s *sysRIB) effectivePriority(protocolType string, incomingPriority int) in
 // Returns outgoing changes to publish (caller publishes after processing).
 func (s *sysRIB) processEvent(event ze.Event) []outgoingChange {
 	proto := event.Metadata["protocol"]
-	family := event.Metadata["family"]
-	if proto == "" || family == "" {
+	fam := event.Metadata["family"]
+	if proto == "" || fam == "" {
 		logger().Warn("sysrib: event missing protocol or family metadata")
 		return nil
 	}
@@ -189,7 +189,7 @@ func (s *sysRIB) processEvent(event ze.Event) []outgoingChange {
 			continue
 		}
 
-		key := prefixKey{family: family, prefix: c.Prefix}
+		key := prefixKey{family: fam, prefix: c.Prefix}
 
 		if c.Action == "add" || c.Action == "update" {
 			// Use per-change protocol type for admin distance override.
@@ -345,7 +345,7 @@ func (s *sysRIB) replayBest() {
 	}
 	s.mu.RUnlock()
 
-	for family, changes := range changesByFamily {
+	for famName, changes := range changesByFamily {
 		batch := outgoingBatch{Changes: changes}
 		payload, err := json.Marshal(batch)
 		if err != nil {
@@ -353,7 +353,7 @@ func (s *sysRIB) replayBest() {
 			continue
 		}
 		metadata := map[string]string{
-			"family": family,
+			"family": famName,
 			"replay": "true",
 		}
 		bus.Publish(sysribTopic, payload, metadata)
@@ -381,10 +381,10 @@ type busConsumer struct {
 // Deliver processes a batch of Bus events.
 func (c *busConsumer) Deliver(events []ze.Event) error {
 	for _, event := range events {
-		family := event.Metadata["family"]
+		fam := event.Metadata["family"]
 		changes := c.sysrib.processEvent(event)
 		if len(changes) > 0 {
-			publishChanges(changes, family)
+			publishChanges(changes, fam)
 		}
 	}
 	return nil

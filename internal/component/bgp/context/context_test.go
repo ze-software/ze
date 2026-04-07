@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestEncodingContextDelegation verifies methods delegate to sub-components.
@@ -25,14 +25,14 @@ func TestEncodingContextDelegation(t *testing.T) {
 	encoding := &capability.EncodingCaps{
 		ASN4: true,
 		Families: []capability.Family{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
-			{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast},
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast},
+			{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast},
 		},
 		AddPathMode: map[capability.Family]capability.AddPathMode{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathBoth,
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: capability.AddPathBoth,
 		},
 		ExtendedNextHop: map[capability.Family]capability.AFI{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: nlri.AFIIPv6,
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: family.AFIIPv6,
 		},
 	}
 
@@ -46,7 +46,7 @@ func TestEncodingContextDelegation(t *testing.T) {
 	// Test delegation to Encoding
 	assert.True(t, ctx.ASN4())
 	assert.Len(t, ctx.Families(), 2)
-	assert.Equal(t, nlri.AFIIPv6, ctx.ExtendedNextHopFor(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}))
+	assert.Equal(t, family.AFIIPv6, ctx.ExtendedNextHopFor(family.IPv4Unicast))
 }
 
 // TestEncodingContextAddPath verifies ADD-PATH direction handling.
@@ -62,38 +62,38 @@ func TestEncodingContextAddPath(t *testing.T) {
 	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
 	encoding := &capability.EncodingCaps{
 		Families: []capability.Family{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
-			{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast},
-			{AFI: nlri.AFIL2VPN, SAFI: nlri.SAFIEVPN},
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast},
+			{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast},
+			{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN},
 		},
 		AddPathMode: map[capability.Family]capability.AddPathMode{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathReceive, // Recv only
-			{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}: capability.AddPathSend,    // Send only
-			{AFI: nlri.AFIL2VPN, SAFI: nlri.SAFIEVPN}:   capability.AddPathBoth,    // Both
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: capability.AddPathReceive, // Recv only
+			{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}: capability.AddPathSend,    // Send only
+			{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}:   capability.AddPathBoth,    // Both
 		},
 	}
 
 	tests := []struct {
 		name      string
 		direction Direction
-		expects   map[nlri.Family]bool
+		expects   map[family.Family]bool
 	}{
 		{
 			name:      "receive direction",
 			direction: DirectionRecv,
-			expects: map[nlri.Family]bool{
-				{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: true,  // Receive mode
-				{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}: false, // Send mode = no recv
-				{AFI: nlri.AFIL2VPN, SAFI: nlri.SAFIEVPN}:   true,  // Both mode
+			expects: map[family.Family]bool{
+				{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true,  // Receive mode
+				{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}: false, // Send mode = no recv
+				{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}:   true,  // Both mode
 			},
 		},
 		{
 			name:      "send direction",
 			direction: DirectionSend,
-			expects: map[nlri.Family]bool{
-				{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: false, // Receive mode = no send
-				{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}: true,  // Send mode
-				{AFI: nlri.AFIL2VPN, SAFI: nlri.SAFIEVPN}:   true,  // Both mode
+			expects: map[family.Family]bool{
+				{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: false, // Receive mode = no send
+				{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}: true,  // Send mode
+				{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}:   true,  // Both mode
 			},
 		},
 	}
@@ -118,10 +118,10 @@ func TestEncodingContextHash(t *testing.T) {
 	encoding := &capability.EncodingCaps{
 		ASN4: true,
 		Families: []capability.Family{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast},
 		},
 		AddPathMode: map[capability.Family]capability.AddPathMode{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathBoth,
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: capability.AddPathBoth,
 		},
 	}
 
@@ -142,10 +142,10 @@ func TestEncodingContextHashDiffersByDirection(t *testing.T) {
 	encoding := &capability.EncodingCaps{
 		ASN4: true,
 		Families: []capability.Family{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast},
 		},
 		AddPathMode: map[capability.Family]capability.AddPathMode{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathBoth,
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: capability.AddPathBoth,
 		},
 	}
 
@@ -167,16 +167,16 @@ func TestEncodingContextHashDiffersByAddPath(t *testing.T) {
 	encoding1 := &capability.EncodingCaps{
 		ASN4: true,
 		Families: []capability.Family{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast},
 		},
 		AddPathMode: map[capability.Family]capability.AddPathMode{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathBoth,
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: capability.AddPathBoth,
 		},
 	}
 	encoding2 := &capability.EncodingCaps{
 		ASN4: true,
 		Families: []capability.Family{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast},
 		},
 		AddPathMode: map[capability.Family]capability.AddPathMode{},
 	}
@@ -198,11 +198,11 @@ func TestEncodingContextAddPathAndASN4(t *testing.T) {
 	encoding := &capability.EncodingCaps{
 		ASN4: true,
 		Families: []capability.Family{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
-			{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast},
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast},
+			{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast},
 		},
 		AddPathMode: map[capability.Family]capability.AddPathMode{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathBoth,
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: capability.AddPathBoth,
 		},
 	}
 
@@ -212,10 +212,10 @@ func TestEncodingContextAddPathAndASN4(t *testing.T) {
 	assert.True(t, ctx.ASN4())
 
 	// IPv4 unicast with ADD-PATH
-	assert.True(t, ctx.AddPath(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}), "IPv4 unicast should have ADD-PATH enabled")
+	assert.True(t, ctx.AddPath(family.IPv4Unicast), "IPv4 unicast should have ADD-PATH enabled")
 
 	// IPv6 unicast without ADD-PATH
-	assert.False(t, ctx.AddPath(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}), "IPv6 unicast should NOT have ADD-PATH enabled")
+	assert.False(t, ctx.AddPath(family.IPv6Unicast), "IPv6 unicast should NOT have ADD-PATH enabled")
 }
 
 // TestEncodingContextForASN4 verifies the helper constructor.
@@ -242,12 +242,12 @@ func TestEncodingContextAddPathFor(t *testing.T) {
 	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
 	encoding := &capability.EncodingCaps{
 		AddPathMode: map[capability.Family]capability.AddPathMode{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathSend,
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: capability.AddPathSend,
 		},
 	}
 
 	ctx := NewEncodingContext(identity, encoding, DirectionSend)
-	f := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	f := family.IPv4Unicast
 
 	assert.Equal(t, ctx.AddPath(f), ctx.AddPathFor(f))
 }

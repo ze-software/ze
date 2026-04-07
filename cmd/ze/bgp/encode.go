@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // encodeStdout, encodeStderr, and encodeStdin allow tests to capture I/O.
@@ -40,7 +41,7 @@ func cmdEncode(args []string) int {
 	fs := flag.NewFlagSet("encode", flag.ContinueOnError)
 	fs.SetOutput(encodeStderr)
 
-	family := fs.String("f", "ipv4/unicast", "address family (e.g., 'ipv4/unicast', 'ipv6/unicast', 'l2vpn/evpn')")
+	fam := fs.String("f", "ipv4/unicast", "address family (e.g., 'ipv4/unicast', 'ipv6/unicast', 'l2vpn/evpn')")
 	localAS := fs.Uint("a", 65533, "local AS number")
 	peerAS := fs.Uint("z", 65533, "peer AS number")
 	pathInfo := fs.Bool("i", false, "enable ADD-PATH (include path-id)")
@@ -121,7 +122,7 @@ func cmdEncode(args []string) int {
 	}
 
 	// Parse family
-	afi, safi, err := parseEncodingFamily(*family)
+	afi, safi, err := parseEncodingFamily(*fam)
 	if err != nil {
 		_, _ = fmt.Fprintf(encodeStderr, "error: %v\n", err)
 		return 1
@@ -135,17 +136,17 @@ func cmdEncode(args []string) int {
 	var nlriBytes []byte
 
 	switch { //nolint:staticcheck // QF1002: untagged switch avoids exhaustive check; default handles all non-unicast via registry
-	case safi == nlri.SAFIUnicast:
+	case safi == family.SAFIUnicast:
 		// Unicast is handled locally (not a plugin family)
 		// #nosec G115 - localAS is from uint flag, bounded by flag validation
 		ub := message.NewUpdateBuilder(uint32(*localAS), isIBGP, *asn4, *pathInfo)
-		updateBytes, nlriBytes, err = encodeUnicastRoute(ub, routeCmd, afi == nlri.AFIIPv6, *asn4, *pathInfo)
+		updateBytes, nlriBytes, err = encodeUnicastRoute(ub, routeCmd, afi == family.AFIIPv6, *asn4, *pathInfo)
 	default:
 		// All other families dispatch via plugin registry
-		canonicalFamily := (nlri.Family{AFI: afi, SAFI: safi}).String()
+		canonicalFamily := (family.Family{AFI: afi, SAFI: safi}).String()
 		encoder := registry.RouteEncoderByFamily(canonicalFamily)
 		if encoder == nil {
-			err = fmt.Errorf("unsupported family: %s", *family)
+			err = fmt.Errorf("unsupported family: %s", *fam)
 		} else {
 			// #nosec G115 - localAS is from uint flag, bounded by flag validation
 			updateBytes, nlriBytes, err = encoder(routeCmd, canonicalFamily, uint32(*localAS), isIBGP, *asn4, *pathInfo)
@@ -182,10 +183,10 @@ func cmdEncode(args []string) int {
 
 // parseEncodingFamily parses family string to AFI/SAFI.
 // Requires "afi/safi" format (e.g., "ipv4/unicast").
-func parseEncodingFamily(family string) (nlri.AFI, nlri.SAFI, error) {
-	f, ok := nlri.ParseFamily(strings.ToLower(family))
+func parseEncodingFamily(famName string) (family.AFI, family.SAFI, error) {
+	f, ok := family.LookupFamily(strings.ToLower(famName))
 	if !ok {
-		return 0, 0, fmt.Errorf("unknown family: %s (expected afi/safi format)", family)
+		return 0, 0, fmt.Errorf("unknown family: %s (expected afi/safi format)", famName)
 	}
 	return f.AFI, f.SAFI, nil
 }
@@ -216,13 +217,13 @@ func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6, _, a
 	if isIPv6 {
 		// For IPv6, NLRI is in MP_REACH_NLRI - extract from path attributes
 		// For now, just pack the prefix directly
-		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, parsed.Route.Prefix, 0)
+		inet := nlri.NewINET(family.IPv6Unicast, parsed.Route.Prefix, 0)
 		nlriLen := nlri.LenWithContext(inet, addPath)
 		nlriBytes = make([]byte, nlriLen)
 		nlri.WriteNLRI(inet, nlriBytes, 0, addPath)
 	} else {
 		// For IPv4, NLRI is inline
-		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, parsed.Route.Prefix, 0)
+		inet := nlri.NewINET(family.IPv4Unicast, parsed.Route.Prefix, 0)
 		nlriLen := nlri.LenWithContext(inet, addPath)
 		nlriBytes = make([]byte, nlriLen)
 		nlri.WriteNLRI(inet, nlriBytes, 0, addPath)

@@ -286,8 +286,8 @@ func (s *Session) handleRouteRefresh(body []byte) error {
 	}
 
 	// RFC 2918 Section 4: Ignore ROUTE-REFRESH for AFI/SAFI not negotiated.
-	family := capability.Family{AFI: capability.AFI(rr.AFI), SAFI: capability.SAFI(rr.SAFI)}
-	if !s.negotiated.SupportsFamily(family) {
+	fam := capability.Family{AFI: rr.AFI, SAFI: rr.SAFI}
+	if !s.negotiated.SupportsFamily(fam) {
 		sessionLogger().Debug("ignoring route-refresh for non-negotiated family",
 			"peer", s.settings.Address, "afi", rr.AFI, "safi", rr.SAFI)
 		return nil
@@ -315,9 +315,9 @@ func (s *Session) handleRouteRefresh(body []byte) error {
 
 // shouldIgnoreFamily checks if UPDATE validation should be lenient for a family.
 // Returns true if the family was configured with "ignore" mode.
-func (s *Session) shouldIgnoreFamily(family capability.Family) bool {
+func (s *Session) shouldIgnoreFamily(fam capability.Family) bool {
 	for _, f := range s.settings.IgnoreFamilies {
-		if f.AFI == family.AFI && f.SAFI == family.SAFI {
+		if f.AFI == fam.AFI && f.SAFI == fam.SAFI {
 			return true
 		}
 	}

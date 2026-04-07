@@ -6,7 +6,7 @@ package message
 
 import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // BuildEOR creates an End-of-RIB marker UPDATE for the given address family.
@@ -19,9 +19,9 @@ import (
 //
 // For IPv4 unicast (AFI=1, SAFI=1): Empty UPDATE (no attributes, no NLRI).
 // For other families: UPDATE with MP_UNREACH_NLRI containing only AFI/SAFI.
-func BuildEOR(family nlri.Family) *Update {
+func BuildEOR(fam family.Family) *Update {
 	// RFC 4724: IPv4 unicast uses empty UPDATE as EOR
-	if family.AFI == 1 && family.SAFI == 1 {
+	if fam.AFI == 1 && fam.SAFI == 1 {
 		return &Update{}
 	}
 
@@ -34,9 +34,9 @@ func BuildEOR(family nlri.Family) *Update {
 		attribute.AttrMPUnreachNLRI,
 		3, // AFI(2) + SAFI(1)
 	)
-	attrBytes[4] = byte(family.AFI >> 8)
-	attrBytes[5] = byte(family.AFI)
-	attrBytes[6] = byte(family.SAFI)
+	attrBytes[4] = byte(fam.AFI >> 8)
+	attrBytes[5] = byte(fam.AFI)
+	attrBytes[6] = byte(fam.SAFI)
 
 	return &Update{
 		PathAttributes: attrBytes,

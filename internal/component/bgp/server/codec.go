@@ -12,9 +12,9 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	bgpfilter "codeberg.org/thomas-mangin/ze/internal/component/bgp/filter"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -180,13 +180,13 @@ func handleDecodeUpdate(params json.RawMessage) (any, error) {
 
 // decodeMPNLRIs decodes raw NLRI bytes for the given family, returning a JSON array.
 // Plugin families route through the compile-time registry; core families parse via nlri package.
-func decodeMPNLRIs(nlriBytes []byte, family nlri.Family, addPath bool) (json.RawMessage, error) {
+func decodeMPNLRIs(nlriBytes []byte, fam family.Family, addPath bool) (json.RawMessage, error) {
 	if len(nlriBytes) == 0 {
 		return json.RawMessage("[]"), nil
 	}
 
 	// Plugin families: decode via registry (VPN, EVPN, FlowSpec, BGP-LS)
-	familyStr := family.String()
+	familyStr := fam.String()
 	if registry.PluginForFamily(familyStr) != "" {
 		nlriHex := hex.EncodeToString(nlriBytes)
 		result, err := registry.DecodeNLRIByFamily(familyStr, nlriHex)
@@ -197,7 +197,7 @@ func decodeMPNLRIs(nlriBytes []byte, family nlri.Family, addPath bool) (json.Raw
 	}
 
 	// Core families: parse via nlri package (IPv4/IPv6 unicast/multicast)
-	nlris, err := wireu.ParseNLRIs(nlriBytes, family, addPath)
+	nlris, err := wireu.ParseNLRIs(nlriBytes, fam, addPath)
 	if err != nil {
 		return nil, err
 	}

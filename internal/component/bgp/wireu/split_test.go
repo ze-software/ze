@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // noAddPathCtx is an encoding context without ADD-PATH, for tests that don't need ADD-PATH.
@@ -197,8 +197,8 @@ func TestSplitWireUpdate_AddPath(t *testing.T) {
 	wu := NewWireUpdate(payload, 0)
 
 	// Context with ADD-PATH enabled for IPv4 unicast
-	ctx := bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
-		{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: true,
+	ctx := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{
+		{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true,
 	})
 
 	// maxBodySize = 50, overhead ~8, leaves ~42 for NLRI
@@ -327,9 +327,9 @@ func TestSplitWireUpdate_AddPathPerFamily(t *testing.T) {
 	wu := NewWireUpdate(payload, 0)
 
 	// Context with ADD-PATH enabled for IPv6 unicast ONLY (not IPv4)
-	ctx := bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
-		{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: false,
-		{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}: true,
+	ctx := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{
+		{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: false,
+		{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}: true,
 	})
 
 	// Should split successfully using IPv6 ADD-PATH state
@@ -778,8 +778,8 @@ func TestSplitIPv4NLRIs_AddPath(t *testing.T) {
 		0x00, 0x00, 0x00, 0x02, 0x18, 0xC0, 0xA8, 0x02, // path-id=2, /24
 	}
 
-	ctx := bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
-		{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: true,
+	ctx := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{
+		{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true,
 	})
 
 	fitting, remaining, err := splitIPv4NLRIs(nlriData, 10, ctx)

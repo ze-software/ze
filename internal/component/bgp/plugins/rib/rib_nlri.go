@@ -10,59 +10,59 @@ import (
 	"net"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
-// parseFamily converts a family string like "ipv4/unicast" to nlri.Family.
+// parseFamily converts a family string like "ipv4/unicast" to family.Family.
 // Returns false if the format is invalid.
-func parseFamily(familyStr string) (nlri.Family, bool) {
+func parseFamily(familyStr string) (family.Family, bool) {
 	parts := strings.Split(familyStr, "/")
 	if len(parts) != 2 {
-		return nlri.Family{}, false
+		return family.Family{}, false
 	}
 
-	var afi nlri.AFI
+	var afi family.AFI
 	switch parts[0] {
 	case "ipv4":
-		afi = nlri.AFIIPv4
+		afi = family.AFIIPv4
 	case "ipv6":
-		afi = nlri.AFIIPv6
+		afi = family.AFIIPv6
 	case "l2vpn":
-		afi = nlri.AFIL2VPN
+		afi = family.AFIL2VPN
 	default: // unknown AFI
-		return nlri.Family{}, false
+		return family.Family{}, false
 	}
 
-	var safi nlri.SAFI
+	var safi family.SAFI
 	switch parts[1] {
 	case "unicast":
-		safi = nlri.SAFIUnicast
+		safi = family.SAFIUnicast
 	case "multicast":
-		safi = nlri.SAFIMulticast
+		safi = family.SAFIMulticast
 	case "mpls-vpn":
-		safi = nlri.SAFIVPN
+		safi = family.SAFIVPN
 	case "mpls-label":
-		safi = nlri.SAFIMPLSLabel
+		safi = family.SAFIMPLSLabel
 	case "evpn":
-		safi = nlri.SAFIEVPN
+		safi = family.SAFIEVPN
 	case "flowspec":
-		safi = nlri.SAFIFlowSpec
+		safi = family.SAFIFlowSpec
 	default: // unknown SAFI
-		return nlri.Family{}, false
+		return family.Family{}, false
 	}
 
-	return nlri.Family{AFI: afi, SAFI: safi}, true
+	return family.Family{AFI: afi, SAFI: safi}, true
 }
 
 // isSimplePrefixFamily returns true for families with simple NLRI format.
 // Only IPv4/IPv6 unicast and multicast use the standard [prefix-len][prefix-bytes] format.
 // Other families (EVPN, VPN, FlowSpec, etc.) have complex NLRI structures.
-func isSimplePrefixFamily(family nlri.Family) bool {
+func isSimplePrefixFamily(fam family.Family) bool {
 	// Only unicast and multicast have simple [prefix-len][prefix-bytes] format
-	if family.SAFI != nlri.SAFIUnicast && family.SAFI != nlri.SAFIMulticast {
+	if fam.SAFI != family.SAFIUnicast && fam.SAFI != family.SAFIMulticast {
 		return false
 	}
-	return family.AFI == nlri.AFIIPv4 || family.AFI == nlri.AFIIPv6
+	return fam.AFI == family.AFIIPv4 || fam.AFI == family.AFIIPv6
 }
 
 // prefixToWire converts a text prefix to wire bytes.
@@ -71,7 +71,7 @@ func isSimplePrefixFamily(family nlri.Family) bool {
 //
 // LIMITATION: Only works for IPv4/IPv6 unicast. Other families have different formats.
 func prefixToWire(familyStr, prefix string, pathID uint32, addPath bool) ([]byte, error) {
-	family, ok := parseFamily(familyStr)
+	fam, ok := parseFamily(familyStr)
 	if !ok {
 		return nil, fmt.Errorf("unknown family: %s", familyStr)
 	}
@@ -86,7 +86,7 @@ func prefixToWire(familyStr, prefix string, pathID uint32, addPath bool) ([]byte
 
 	// Normalize IP based on AFI
 	var ip net.IP
-	if family.AFI == nlri.AFIIPv4 {
+	if fam.AFI == family.AFIIPv4 {
 		ip = ipnet.IP.To4()
 	} else {
 		ip = ipnet.IP.To16()
@@ -118,7 +118,7 @@ func prefixToWire(familyStr, prefix string, pathID uint32, addPath bool) ([]byte
 // RFC 7911: ADD-PATH prepends [path-id:4].
 //
 // LIMITATION: Only works for IPv4/IPv6 unicast. Other families have different formats.
-func wireToPrefix(family nlri.Family, wire []byte, addPath bool) (string, uint32, error) {
+func wireToPrefix(fam family.Family, wire []byte, addPath bool) (string, uint32, error) {
 	offset := 0
 	var pathID uint32
 
@@ -143,7 +143,7 @@ func wireToPrefix(family nlri.Family, wire []byte, addPath bool) (string, uint32
 
 	// Reconstruct IP
 	var ip net.IP
-	if family.AFI == nlri.AFIIPv4 {
+	if fam.AFI == family.AFIIPv4 {
 		ip = make(net.IP, 4)
 	} else {
 		ip = make(net.IP, 16)
@@ -259,7 +259,7 @@ func countNLRIs(data []byte, addPath bool, maxPrefixLen int) int {
 // NOTE: Only handles IPv4/IPv6 unicast without ADD-PATH.
 // TODO: ADD-PATH support requires path-id prefix handling.
 // TODO: VPN/EVPN/FlowSpec have different NLRI structures.
-func formatNLRIAsPrefix(family nlri.Family, nlriBytes []byte) string {
+func formatNLRIAsPrefix(fam family.Family, nlriBytes []byte) string {
 	if len(nlriBytes) == 0 {
 		return ""
 	}
@@ -267,14 +267,14 @@ func formatNLRIAsPrefix(family nlri.Family, nlriBytes []byte) string {
 	prefixLen := int(nlriBytes[0])
 	prefixBytes := nlriBytes[1:]
 
-	switch family.AFI { //nolint:exhaustive // Only IPv4/IPv6 have standard prefix format
-	case nlri.AFIIPv4:
+	switch fam.AFI { //nolint:exhaustive // Only IPv4/IPv6 have standard prefix format
+	case family.AFIIPv4:
 		// Pad to 4 bytes
 		ip := make([]byte, 4)
 		copy(ip, prefixBytes)
 		return fmt.Sprintf("%d.%d.%d.%d/%d", ip[0], ip[1], ip[2], ip[3], prefixLen)
 
-	case nlri.AFIIPv6:
+	case family.AFIIPv6:
 		// Pad to 16 bytes
 		ip := make([]byte, 16)
 		copy(ip, prefixBytes)
@@ -294,40 +294,40 @@ func formatNLRIAsPrefix(family nlri.Family, nlriBytes []byte) string {
 	}
 }
 
-// formatFamily converts nlri.Family to string like "ipv4/unicast".
-func formatFamily(family nlri.Family) string {
+// formatFamily converts family.Family to string like "ipv4/unicast".
+func formatFamily(fam family.Family) string {
 	var afi, safi string
 
-	switch family.AFI { //nolint:exhaustive // Common families only, default handles rest
-	case nlri.AFIIPv4:
+	switch fam.AFI { //nolint:exhaustive // Common families only, default handles rest
+	case family.AFIIPv4:
 		afi = "ipv4"
-	case nlri.AFIIPv6:
+	case family.AFIIPv6:
 		afi = "ipv6"
-	case nlri.AFIL2VPN:
+	case family.AFIL2VPN:
 		afi = "l2vpn"
-	case nlri.AFIBGPLS:
+	case family.AFIBGPLS:
 		afi = "bgp-ls"
 	default: // numeric fallback for unknown AFI
-		afi = fmt.Sprintf("afi-%d", family.AFI)
+		afi = fmt.Sprintf("afi-%d", fam.AFI)
 	}
 
-	switch family.SAFI { //nolint:exhaustive // Common families only, default handles rest
-	case nlri.SAFIUnicast:
+	switch fam.SAFI { //nolint:exhaustive // Common families only, default handles rest
+	case family.SAFIUnicast:
 		safi = "unicast"
-	case nlri.SAFIMulticast:
+	case family.SAFIMulticast:
 		safi = "multicast"
-	case nlri.SAFIVPN:
+	case family.SAFIVPN:
 		safi = "mpls-vpn"
-	case nlri.SAFIMPLSLabel:
+	case family.SAFIMPLSLabel:
 		safi = "mpls-label"
-	case nlri.SAFIEVPN:
+	case family.SAFIEVPN:
 		safi = "evpn"
-	case nlri.SAFIFlowSpec:
+	case family.SAFIFlowSpec:
 		safi = "flowspec"
-	case nlri.SAFIBGPLinkState:
+	case family.SAFIBGPLinkState:
 		safi = "bgp-ls"
 	default: // numeric fallback for unknown SAFI
-		safi = fmt.Sprintf("safi-%d", family.SAFI)
+		safi = fmt.Sprintf("safi-%d", fam.SAFI)
 	}
 
 	return afi + "/" + safi

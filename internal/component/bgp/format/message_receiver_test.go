@@ -12,10 +12,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestRawMessageType verifies RawMessage struct exists with expected fields.
@@ -372,7 +372,7 @@ func TestFormatFullAddPathFlags(t *testing.T) {
 
 	t.Run("add_path_peer_emits_flags", func(t *testing.T) {
 		// Create encoding context with ADD-PATH for IPv4 unicast only
-		addPathMap := map[nlri.Family]bool{nlri.IPv4Unicast: true}
+		addPathMap := map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true}
 		ctx := bgpctx.EncodingContextWithAddPath(true, addPathMap)
 		ctxID := bgpctx.Registry.Register(ctx)
 

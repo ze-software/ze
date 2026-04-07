@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 )
 
@@ -370,21 +370,21 @@ func parseFamiliesFromTree(tree map[string]any, ps *PeerSettings) error {
 		}
 
 		// Parse to capability types.
-		family, ok := nlri.ParseFamily(key)
+		fam, ok := family.LookupFamily(key)
 		if !ok {
 			return fmt.Errorf("unknown address family %q", key)
 		}
 
 		ps.Capabilities = append(ps.Capabilities, &capability.Multiprotocol{
-			AFI:  family.AFI,
-			SAFI: family.SAFI,
+			AFI:  fam.AFI,
+			SAFI: fam.SAFI,
 		})
 
 		if mode == familyModeRequire {
-			ps.RequiredFamilies = append(ps.RequiredFamilies, family)
+			ps.RequiredFamilies = append(ps.RequiredFamilies, fam)
 		}
 		if mode == familyModeIgnore {
-			ps.IgnoreFamilies = append(ps.IgnoreFamilies, family)
+			ps.IgnoreFamilies = append(ps.IgnoreFamilies, fam)
 		}
 
 		// RFC 4486: Extract per-family prefix limits.

@@ -199,8 +199,8 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	// EOR is delivered as a separate event so plugins can subscribe to "eor" independently.
 	isUpdate := msg.Type == message.TypeUPDATE
 	if isUpdate && msg.Direction == plugin.DirectionReceived && msg.WireUpdate != nil {
-		if family, ok := msg.WireUpdate.IsEOR(); ok {
-			onEORReceived(s, peer, family.String())
+		if fam, ok := msg.WireUpdate.IsEOR(); ok {
+			onEORReceived(s, peer, fam.String())
 		}
 	}
 
@@ -303,8 +303,8 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 
 		// RFC 4724 Section 2: detect EOR markers in received UPDATEs.
 		if isUpdate && msg.Direction == plugin.DirectionReceived && msg.WireUpdate != nil {
-			if family, ok := msg.WireUpdate.IsEOR(); ok {
-				onEORReceived(s, peer, family.String())
+			if fam, ok := msg.WireUpdate.IsEOR(); ok {
+				onEORReceived(s, peer, fam.String())
 			}
 		}
 

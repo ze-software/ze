@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/ls"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Shared test binary setup - built once, used by all tests that need it.
@@ -29,6 +30,7 @@ var (
 
 // TestMain handles cleanup of shared test resources.
 func TestMain(m *testing.M) {
+	family.RegisterTestFamilies()
 	code := m.Run()
 
 	// Cleanup temp directory after all tests complete

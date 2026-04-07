@@ -189,8 +189,8 @@ func (a *reactorAPIAdapter) SoftClearPeer(peerSelector string) ([]string, error)
 
 		for _, f := range neg.Families() {
 			rr := &message.RouteRefresh{
-				AFI:     message.AFI(f.AFI),
-				SAFI:    message.SAFI(f.SAFI),
+				AFI:     f.AFI,
+				SAFI:    f.SAFI,
 				Subtype: message.RouteRefreshNormal,
 			}
 			data := message.PackTo(rr, nil)

@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -111,16 +111,16 @@ func TestRIBBestChangePublish(t *testing.T) {
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
 	// Insert a route from peer.
-	family := nlri.Family{AFI: 1, SAFI: 1}
+	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.ribInPool[peerAddr].Insert(family, attrs, prefix)
+	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	// Check best-path change under lock.
 	r.mu.Lock()
-	change := r.checkBestPathChange(family, prefix, false)
+	change := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
 	require.NotNil(t, change, "should detect new best path")
@@ -130,7 +130,7 @@ func TestRIBBestChangePublish(t *testing.T) {
 	assert.Equal(t, 20, change.Priority, "eBGP should have priority 20")
 
 	// Publish and verify Bus event.
-	publishBestChanges([]bestChangeEntry{*change}, family.String())
+	publishBestChanges([]bestChangeEntry{*change}, fam.String())
 
 	evt := bus.lastEvent()
 	require.NotNil(t, evt)
@@ -155,25 +155,25 @@ func TestRIBBestChangeNoPublishSameBest(t *testing.T) {
 	peerAddr := "192.0.2.1"
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
-	family := nlri.Family{AFI: 1, SAFI: 1}
+	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.ribInPool[peerAddr].Insert(family, attrs, prefix)
+	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	// First check: detects new best.
 	r.mu.Lock()
-	change1 := r.checkBestPathChange(family, prefix, false)
+	change1 := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 	require.NotNil(t, change1)
 
 	// Re-insert same route (implicit withdraw + re-add with same attrs).
-	r.ribInPool[peerAddr].Insert(family, attrs, prefix)
+	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	// Second check: same best, no change.
 	r.mu.Lock()
-	change2 := r.checkBestPathChange(family, prefix, false)
+	change2 := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 	assert.Nil(t, change2, "no change when best path is unchanged")
 }
@@ -188,23 +188,23 @@ func TestRIBBestChangeWithdraw(t *testing.T) {
 	peerAddr := "192.0.2.1"
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
-	family := nlri.Family{AFI: 1, SAFI: 1}
+	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.ribInPool[peerAddr].Insert(family, attrs, prefix)
+	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	// Establish best path.
 	r.mu.Lock()
-	r.checkBestPathChange(family, prefix, false)
+	r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
 	// Withdraw the route.
-	r.ribInPool[peerAddr].Remove(family, prefix)
+	r.ribInPool[peerAddr].Remove(fam, prefix)
 
 	r.mu.Lock()
-	change := r.checkBestPathChange(family, prefix, false)
+	change := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
 	require.NotNil(t, change, "should detect withdraw")
@@ -223,7 +223,7 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 	peerAddr := "192.0.2.1"
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
-	family := nlri.Family{AFI: 1, SAFI: 1}
+	fam := family.Family{AFI: 1, SAFI: 1}
 	prefixes := [][]byte{
 		ipv4Prefix(24, 10, 0, 0),
 		ipv4Prefix(16, 172, 16),
@@ -233,26 +233,26 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 
 	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
 	for _, p := range prefixes {
-		r.ribInPool[peerAddr].Insert(family, attrs, p)
+		r.ribInPool[peerAddr].Insert(fam, attrs, p)
 	}
 
 	// Establish best paths for all prefixes.
 	r.mu.Lock()
 	for _, p := range prefixes {
-		r.checkBestPathChange(family, p, false)
+		r.checkBestPathChange(fam, p, false)
 	}
 	r.mu.Unlock()
 
 	// Simulate peer down: withdraw all routes.
 	for _, p := range prefixes {
-		r.ribInPool[peerAddr].Remove(family, p)
+		r.ribInPool[peerAddr].Remove(fam, p)
 	}
 
 	// Collect all changes in one batch (under lock).
 	r.mu.Lock()
 	var changes []bestChangeEntry
 	for _, p := range prefixes {
-		if change := r.checkBestPathChange(family, p, false); change != nil {
+		if change := r.checkBestPathChange(fam, p, false); change != nil {
 			changes = append(changes, *change)
 		}
 	}
@@ -260,7 +260,7 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 
 	// Publish as single batch.
 	require.Len(t, changes, 3, "should have 3 withdraw changes")
-	publishBestChanges(changes, family.String())
+	publishBestChanges(changes, fam.String())
 
 	// Verify single Bus event with 3 withdrawals.
 	assert.Equal(t, 1, bus.eventCount(), "should be a single batch event")
@@ -284,15 +284,15 @@ func TestRIBBestChangeEBGPMetadata(t *testing.T) {
 	peerAddr := "192.0.2.1"
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
-	family := nlri.Family{AFI: 1, SAFI: 1}
+	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.ribInPool[peerAddr].Insert(family, attrs, prefix)
+	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	r.mu.Lock()
-	change := r.checkBestPathChange(family, prefix, false)
+	change := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
 	require.NotNil(t, change)
@@ -315,15 +315,15 @@ func TestRIBBestChangeIBGPMetadata(t *testing.T) {
 	peerAddr := "192.0.2.1"
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65000, LocalASN: 65000} // same AS = iBGP
 
-	family := nlri.Family{AFI: 1, SAFI: 1}
+	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.ribInPool[peerAddr].Insert(family, attrs, prefix)
+	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	r.mu.Lock()
-	change := r.checkBestPathChange(family, prefix, false)
+	change := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
 	require.NotNil(t, change)
@@ -339,15 +339,15 @@ func TestRIBBestChangeEBGPPriority(t *testing.T) {
 	peerAddr := "192.0.2.1"
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
-	family := nlri.Family{AFI: 1, SAFI: 1}
+	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.ribInPool[peerAddr].Insert(family, attrs, prefix)
+	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	r.mu.Lock()
-	change := r.checkBestPathChange(family, prefix, false)
+	change := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
 	require.NotNil(t, change)
@@ -363,15 +363,15 @@ func TestRIBBestChangeIBGPPriority(t *testing.T) {
 	peerAddr := "192.0.2.1"
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65000, LocalASN: 65000} // same AS = iBGP
 
-	family := nlri.Family{AFI: 1, SAFI: 1}
+	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.ribInPool[peerAddr].Insert(family, attrs, prefix)
+	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	r.mu.Lock()
-	change := r.checkBestPathChange(family, prefix, false)
+	change := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
 	require.NotNil(t, change)
@@ -384,17 +384,17 @@ func TestRIBBestChangeUpdate(t *testing.T) {
 	bus := newTestBus()
 	r := newTestRIBManagerWithBus(bus)
 
-	family := nlri.Family{AFI: 1, SAFI: 1}
+	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 
 	// Peer 1: iBGP route.
 	peer1 := "192.0.2.1"
 	r.peerMeta[peer1] = &PeerMeta{PeerASN: 65000, LocalASN: 65000}
 	r.ribInPool[peer1] = storage.NewPeerRIB(peer1)
-	r.ribInPool[peer1].Insert(family, makeAttrBytes([4]byte{10, 0, 0, 1}), prefix)
+	r.ribInPool[peer1].Insert(fam, makeAttrBytes([4]byte{10, 0, 0, 1}), prefix)
 
 	r.mu.Lock()
-	change1 := r.checkBestPathChange(family, prefix, false)
+	change1 := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 	require.NotNil(t, change1)
 	assert.Equal(t, bestChangeAdd, change1.Action)
@@ -403,10 +403,10 @@ func TestRIBBestChangeUpdate(t *testing.T) {
 	peer2 := "192.0.2.2"
 	r.peerMeta[peer2] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 	r.ribInPool[peer2] = storage.NewPeerRIB(peer2)
-	r.ribInPool[peer2].Insert(family, makeAttrBytes([4]byte{10, 0, 0, 2}), prefix)
+	r.ribInPool[peer2].Insert(fam, makeAttrBytes([4]byte{10, 0, 0, 2}), prefix)
 
 	r.mu.Lock()
-	change2 := r.checkBestPathChange(family, prefix, false)
+	change2 := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
 	require.NotNil(t, change2, "should detect best-path update")
@@ -426,15 +426,15 @@ func TestRIBReplayOnSubscribe(t *testing.T) {
 	peerAddr := "192.0.2.1"
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
-	family := nlri.Family{AFI: 1, SAFI: 1}
+	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
 	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
-	r.ribInPool[peerAddr].Insert(family, attrs, prefix)
+	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	r.mu.Lock()
-	r.checkBestPathChange(family, prefix, false)
+	r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
 	// Clear Bus events from the initial insert.

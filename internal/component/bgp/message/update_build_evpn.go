@@ -9,7 +9,7 @@ import (
 	"slices"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // EVPNParams contains parameters for building EVPN route UPDATEs.
@@ -169,8 +169,8 @@ func (ub *UpdateBuilder) buildMPReachEVPN(p EVPNParams) *rawAttribute {
 	// AFI (2) + SAFI (1) + NH Len (1) + NH + Reserved (1) + NLRI
 	value := ub.alloc(2 + 1 + 1 + nhLen + 1 + len(p.NLRI))
 	value[0] = 0x00
-	value[1] = byte(nlri.AFIL2VPN) // AFI 25
-	value[2] = byte(nlri.SAFIEVPN) // SAFI 70
+	value[1] = byte(family.AFIL2VPN) // AFI 25
+	value[2] = byte(family.SAFIEVPN) // SAFI 70
 	value[3] = byte(nhLen)
 	copy(value[4:4+nhLen], nhBytes)
 	value[4+nhLen] = 0 // reserved

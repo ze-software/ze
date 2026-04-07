@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"sort"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // --- Best-path source ---
@@ -29,7 +29,7 @@ type bestSource struct {
 func newBestSource(r *RIBManager, selector string) *bestSource {
 	// Collect all unique (family, nlriKey) across matching peers.
 	type routeKey struct {
-		family  nlri.Family
+		fam     family.Family
 		nlriKey string
 		familyS string
 		prefixS string
@@ -40,12 +40,12 @@ func newBestSource(r *RIBManager, selector string) *bestSource {
 		if !matchesPeer(peer, selector) {
 			continue
 		}
-		peerRIB.Iterate(func(family nlri.Family, nlriBytes []byte, _ storage.RouteEntry) bool {
-			fStr := formatFamily(family)
-			pStr := formatNLRIAsPrefix(family, nlriBytes)
+		peerRIB.Iterate(func(fam family.Family, nlriBytes []byte, _ storage.RouteEntry) bool {
+			fStr := formatFamily(fam)
+			pStr := formatNLRIAsPrefix(fam, nlriBytes)
 			key := fStr + "|" + string(nlriBytes)
 			if _, ok := seen[key]; !ok {
-				seen[key] = routeKey{family: family, nlriKey: string(nlriBytes), familyS: fStr, prefixS: pStr}
+				seen[key] = routeKey{fam: fam, nlriKey: string(nlriBytes), familyS: fStr, prefixS: pStr}
 			}
 			return true
 		})
@@ -54,7 +54,7 @@ func newBestSource(r *RIBManager, selector string) *bestSource {
 	// For each unique prefix, gather candidates and select best.
 	var items []RouteItem
 	for _, rk := range seen {
-		candidates := r.gatherCandidates(rk.family, []byte(rk.nlriKey))
+		candidates := r.gatherCandidates(rk.fam, []byte(rk.nlriKey))
 		best := SelectBest(candidates)
 		if best == nil {
 			continue
@@ -69,7 +69,7 @@ func newBestSource(r *RIBManager, selector string) *bestSource {
 
 		// Attach the pool entry from the winning peer for attribute access.
 		if peerRIB := r.ribInPool[best.PeerAddr]; peerRIB != nil {
-			if entry, ok := peerRIB.Lookup(rk.family, []byte(rk.nlriKey)); ok {
+			if entry, ok := peerRIB.Lookup(rk.fam, []byte(rk.nlriKey)); ok {
 				item.HasInEntry = true
 				item.InEntry = entry
 			}

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // capMode represents the negotiation mode for a non-family capability.
@@ -345,7 +345,7 @@ func parseAddPathFromTree(capMap, peerTree map[string]any, ps *PeerSettings) {
 			if familyKey == "" || dirStr == "" {
 				continue
 			}
-			family, ok := nlri.ParseFamily(familyKey)
+			fam, ok := family.LookupFamily(familyKey)
 			if !ok {
 				continue
 			}
@@ -360,8 +360,8 @@ func parseAddPathFromTree(capMap, peerTree map[string]any, ps *PeerSettings) {
 			}
 			if mode != capability.AddPathNone {
 				perFamily = append(perFamily, capability.AddPathFamily{
-					AFI:  family.AFI,
-					SAFI: family.SAFI,
+					AFI:  fam.AFI,
+					SAFI: fam.SAFI,
 					Mode: mode,
 				})
 			}

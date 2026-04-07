@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // buildRIBRouteUpdate builds an UPDATE message from a RIB route.
@@ -58,11 +59,11 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 
 	// Determine NLRI handling based on address family
 	routeNLRI := route.NLRI()
-	family := routeNLRI.Family()
+	fam := routeNLRI.Family()
 	var nlriBytes []byte
 
 	switch {
-	case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast:
+	case fam.AFI == family.AFIIPv4 && fam.SAFI == family.SAFIUnicast:
 		// 3. NEXT_HOP for IPv4 unicast
 		nh := &attribute.NextHop{Addr: route.NextHop()}
 		off += attribute.WriteAttrTo(nh, attrBuf, off)
@@ -103,8 +104,8 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 		nlriData := attrBuf[nlriOff : nlriOff+nlriLen]
 
 		mpReach := &attribute.MPReachNLRI{
-			AFI:      attribute.AFI(family.AFI),
-			SAFI:     attribute.SAFI(family.SAFI),
+			AFI:      attribute.AFI(fam.AFI),
+			SAFI:     attribute.SAFI(fam.SAFI),
 			NextHops: []netip.Addr{route.NextHop()},
 			NLRI:     nlriData,
 		}
@@ -162,10 +163,10 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 // RFC 4760: IPv4 unicast uses WithdrawnRoutes, others use MP_UNREACH_NLRI.
 // RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
 func buildWithdrawNLRI(buf []byte, n nlri.NLRI, addPath bool) *message.Update {
-	family := n.Family()
+	fam := n.Family()
 	nlriLen := nlri.LenWithContext(n, addPath)
 
-	if family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast {
+	if fam.AFI == family.AFIIPv4 && fam.SAFI == family.SAFIUnicast {
 		// IPv4 unicast: write NLRI at start, use WithdrawnRoutes field
 		nlri.WriteNLRI(n, buf, 0, addPath)
 		return &message.Update{
@@ -180,8 +181,8 @@ func buildWithdrawNLRI(buf []byte, n nlri.NLRI, addPath bool) *message.Update {
 	nlriData := buf[nlriRegion : nlriRegion+nlriLen]
 
 	mpUnreach := &attribute.MPUnreachNLRI{
-		AFI:  attribute.AFI(family.AFI),
-		SAFI: attribute.SAFI(family.SAFI),
+		AFI:  attribute.AFI(fam.AFI),
+		SAFI: attribute.SAFI(fam.SAFI),
 		NLRI: nlriData,
 	}
 	attrLen := attribute.WriteAttrTo(mpUnreach, buf, 0)

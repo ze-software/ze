@@ -9,6 +9,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Transaction errors for named commits.
@@ -84,14 +85,14 @@ func (t *Transaction) QueueWithdraw(n nlri.NLRI) {
 
 // nlriIndex builds an index key for an NLRI.
 func (t *Transaction) nlriIndex(n nlri.NLRI) string {
-	family := n.Family()
+	fam := n.Family()
 	// Use WriteTo for consistent API - writes same bytes as Bytes()
 	nlriLen := n.Len()
 
 	buf := make([]byte, 3+nlriLen)
-	buf[0] = byte(family.AFI >> 8)
-	buf[1] = byte(family.AFI)
-	buf[2] = byte(family.SAFI)
+	buf[0] = byte(fam.AFI >> 8)
+	buf[1] = byte(fam.AFI)
+	buf[2] = byte(fam.SAFI)
 	n.WriteTo(buf, 3)
 
 	return string(buf)
@@ -143,11 +144,11 @@ func (t *Transaction) Withdrawals() []nlri.NLRI {
 }
 
 // Families returns unique address families with pending routes.
-func (t *Transaction) Families() []nlri.Family {
+func (t *Transaction) Families() []family.Family {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	seen := make(map[nlri.Family]bool)
+	seen := make(map[family.Family]bool)
 	for _, r := range t.announces {
 		seen[r.NLRI().Family()] = true
 	}
@@ -155,7 +156,7 @@ func (t *Transaction) Families() []nlri.Family {
 		seen[n.Family()] = true
 	}
 
-	families := make([]nlri.Family, 0, len(seen))
+	families := make([]family.Family, 0, len(seen))
 	for f := range seen {
 		families = append(families, f)
 	}

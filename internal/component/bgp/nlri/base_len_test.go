@@ -4,6 +4,7 @@ package nlri
 import (
 	"net/netip"
 	"testing"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestLen_INET verifies Len returns payload length without path ID.
@@ -53,12 +54,12 @@ func TestLen_INET(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			family := IPv4Unicast
+			fam := family.IPv4Unicast
 			if tt.prefix.Addr().Is6() {
-				family = IPv6Unicast
+				fam = family.IPv6Unicast
 			}
 
-			inet := NewINET(family, tt.prefix, tt.pathID)
+			inet := NewINET(fam, tt.prefix, tt.pathID)
 
 			got := inet.Len()
 			if got != tt.wantLen {
@@ -102,12 +103,12 @@ func TestWriteTo_INET(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			family := IPv4Unicast
+			fam := family.IPv4Unicast
 			if tt.prefix.Addr().Is6() {
-				family = IPv6Unicast
+				fam = family.IPv6Unicast
 			}
 
-			inet := NewINET(family, tt.prefix, tt.pathID)
+			inet := NewINET(fam, tt.prefix, tt.pathID)
 
 			// Write to buffer using WriteTo
 			buf := make([]byte, 100)
@@ -141,7 +142,7 @@ func TestWriteTo_INET(t *testing.T) {
 func TestWriteNLRI_AddPath(t *testing.T) {
 	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := NewINET(IPv4Unicast, prefix, 0) // No stored path ID
+	inet := NewINET(family.IPv4Unicast, prefix, 0) // No stored path ID
 
 	t.Run("AddPath enabled", func(t *testing.T) {
 		t.Parallel()
@@ -179,7 +180,7 @@ func TestWriteNLRI_AddPath(t *testing.T) {
 func TestWriteNLRI_WithStoredPathID(t *testing.T) {
 	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := NewINET(IPv4Unicast, prefix, 42) // Stored path ID = 42
+	inet := NewINET(family.IPv4Unicast, prefix, 42) // Stored path ID = 42
 
 	buf := make([]byte, 100)
 	n := WriteNLRI(inet, buf, 0, true)
@@ -203,10 +204,10 @@ func TestWriteNLRI_WithStoredPathID(t *testing.T) {
 func TestLenWithContext_MatchesWriteNLRI(t *testing.T) {
 	t.Parallel()
 	nlris := []NLRI{
-		NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
-		NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 1),
-		NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/64"), 0),
-		NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/64"), 100),
+		NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
+		NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 1),
+		NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/64"), 0),
+		NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/64"), 100),
 	}
 
 	addPathValues := []bool{false, true}

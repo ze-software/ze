@@ -15,7 +15,7 @@ Thread RFC 7911 ADD-PATH negotiation state from the format pipeline into the bgp
 
 - The format pipeline already had full `EncodingContext` at the point where JSON is built — the information existed, just wasn't emitted
 - `PeerRIB.Lookup(family, wireBytes)` is the right way to verify stored content — count-only assertions (`Len()==N`) can pass by coincidence when wrong parsing produces entries that dedup to the same count
-- Small helper functions at package boundaries (`ExtractMPFamily` in message, `addPathForUpdate` in reactor) compose cleanly through `nlri.Family`
+- Small helper functions at package boundaries (`ExtractMPFamily` in message, `addPathForUpdate` in reactor) compose cleanly through `family.Family`
 
 ## Gotchas
 

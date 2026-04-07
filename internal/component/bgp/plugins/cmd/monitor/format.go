@@ -32,8 +32,8 @@ func FormatMonitorLine(raw string) string {
 	case "keepalive":
 		return fmt.Sprintf("%s KALIVE %s %s", dir, peer, asn)
 	case "eor":
-		family := ev.BGP.EOR.Family
-		return fmt.Sprintf("---- EOR    %s %s %s", peer, asn, family)
+		fam := ev.BGP.EOR.Family
+		return fmt.Sprintf("---- EOR    %s %s %s", peer, asn, fam)
 	case "open":
 		return formatOpen(dir, peer, asn, ev)
 	case "notification":
@@ -117,7 +117,7 @@ func formatNotification(dir, peer, asn string, ev monitorEvent) string {
 // knownFamilies lists address families to scan in JSON events.
 var knownFamilies = []string{
 	"ipv4/unicast", "ipv6/unicast",
-	"ipv4/vpn", "ipv6/vpn",
+	"ipv4/mpls-vpn", "ipv6/mpls-vpn",
 	"ipv4/flow", "ipv6/flow",
 	"l2vpn/evpn", "bgp-ls/bgp-ls",
 }

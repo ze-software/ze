@@ -109,9 +109,9 @@ func runSysRIBPlugin(conn net.Conn) int {
 				s.mu.Unlock()
 
 				changes := s.reapplyAdminDistances()
-				for family, ch := range changes {
+				for famName, ch := range changes {
 					if len(ch) > 0 {
-						publishChanges(ch, family)
+						publishChanges(ch, famName)
 					}
 				}
 				return nil
@@ -127,9 +127,9 @@ func runSysRIBPlugin(conn net.Conn) int {
 				s.mu.Unlock()
 
 				changes := s.reapplyAdminDistances()
-				for family, ch := range changes {
+				for famName, ch := range changes {
 					if len(ch) > 0 {
-						publishChanges(ch, family)
+						publishChanges(ch, famName)
 					}
 				}
 				return nil

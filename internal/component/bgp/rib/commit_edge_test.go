@@ -6,6 +6,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestCommitService_DefaultOrigin verifies ORIGIN defaults to IGP when not provided.
@@ -422,5 +423,5 @@ func TestCommitService_IPv6_NLRIInMPReach(t *testing.T) {
 // newVPNv4NLRI creates a VPNv4 NLRI for testing.
 func newVPNv4NLRI(prefix string) nlri.NLRI {
 	p := netip.MustParsePrefix(prefix)
-	return nlri.NewINET(nlri.Family{AFI: 1, SAFI: 128}, p, 0)
+	return nlri.NewINET(family.Family{AFI: 1, SAFI: 128}, p, 0)
 }

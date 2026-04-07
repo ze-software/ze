@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Sentinel errors for commit handlers.
@@ -332,9 +333,9 @@ func handleNamedCommitWithdraw(ctx *pluginserver.CommandContext, name string, ar
 	// Build NLRI
 	var n nlri.NLRI
 	if prefix.Addr().Is4() {
-		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
+		n = nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	} else {
-		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, prefix, 0)
+		n = nlri.NewINET(family.IPv6Unicast, prefix, 0)
 	}
 
 	// Queue withdrawal

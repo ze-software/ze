@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestBuildGroupedUpdate_SingleRoute verifies UPDATE for single route.
@@ -182,7 +182,7 @@ func TestBuildGroupedUpdate_IncludesOrigin(t *testing.T) {
 // PREVENTS: Panic on empty input.
 func TestBuildGroupedUpdate_EmptyGroup(t *testing.T) {
 	group := &RouteGroup{
-		Family: nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
+		Family: family.IPv4Unicast,
 	}
 
 	// ctx=nil means no ADD-PATH encoding

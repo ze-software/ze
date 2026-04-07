@@ -14,6 +14,7 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // testEncCtx is an empty encoding context for tests (no ADD-PATH).
@@ -157,31 +158,31 @@ func TestFormatEOR(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		family   string
+		fam      string
 		encoding string
 		want     string
 	}{
 		{
 			name:     "ipv4/unicast text",
-			family:   "ipv4/unicast",
+			fam:      "ipv4/unicast",
 			encoding: plugin.EncodingText,
 			want:     "peer 10.0.0.1 remote as 65001 eor ipv4/unicast\n",
 		},
 		{
 			name:     "ipv6/unicast text",
-			family:   "ipv6/unicast",
+			fam:      "ipv6/unicast",
 			encoding: plugin.EncodingText,
 			want:     "peer 10.0.0.1 remote as 65001 eor ipv6/unicast\n",
 		},
 		{
 			name:     "ipv4/unicast json",
-			family:   "ipv4/unicast",
+			fam:      "ipv4/unicast",
 			encoding: plugin.EncodingJSON,
 			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"eor":{"family":"ipv4/unicast"}}}` + "\n",
 		},
 		{
 			name:     "ipv6/unicast json",
-			family:   "ipv6/unicast",
+			fam:      "ipv6/unicast",
 			encoding: plugin.EncodingJSON,
 			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"eor":{"family":"ipv6/unicast"}}}` + "\n",
 		},
@@ -189,9 +190,9 @@ func TestFormatEOR(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatEOR(peer, tt.family, tt.encoding)
+			got := FormatEOR(peer, tt.fam, tt.encoding)
 			if got != tt.want {
-				t.Errorf("FormatEOR(%q, %q)\n  got:  %q\n  want: %q", tt.family, tt.encoding, got, tt.want)
+				t.Errorf("FormatEOR(%q, %q)\n  got:  %q\n  want: %q", tt.fam, tt.encoding, got, tt.want)
 			}
 		})
 	}
@@ -1251,9 +1252,9 @@ func TestFormatTextUpdate_ShortAliases(t *testing.T) {
 
 // NewTestNLRI creates a test NLRI with prefix and optional path-id.
 func NewTestNLRI(prefix netip.Prefix, pathID uint32) nlri.NLRI {
-	family := nlri.IPv4Unicast
+	fam := family.IPv4Unicast
 	if prefix.Addr().Is6() {
-		family = nlri.IPv6Unicast
+		fam = family.IPv6Unicast
 	}
-	return nlri.NewINET(family, prefix, pathID)
+	return nlri.NewINET(fam, prefix, pathID)
 }

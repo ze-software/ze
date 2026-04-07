@@ -10,29 +10,30 @@ import (
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Type aliases for shared nlri types.
 type (
-	Family             = nlri.Family
-	AFI                = nlri.AFI
-	SAFI               = nlri.SAFI
+	Family             = family.Family
+	AFI                = family.AFI
+	SAFI               = family.SAFI
 	NLRI               = nlri.NLRI
 	RouteDistinguisher = nlri.RouteDistinguisher
 )
 
 // Re-export constants.
 const (
-	AFIL2VPN = nlri.AFIL2VPN
-	SAFIVPLS = nlri.SAFIVPLS
+	AFIL2VPN = family.AFIL2VPN
+	SAFIVPLS = family.SAFIVPLS
 	RDType0  = nlri.RDType0
 	RDType1  = nlri.RDType1
 )
 
-var (
-	L2VPNVPLS     = nlri.L2VPNVPLS
-	ParseRDString = nlri.ParseRDString
-)
+// Family registration for VPLS.
+var L2VPNVPLS = family.MustRegister(AFIL2VPN, SAFIVPLS, "l2vpn", "vpls")
+
+var ParseRDString = nlri.ParseRDString
 
 // Errors for VPLS parsing.
 var ErrVPLSTruncated = errors.New("vpls: truncated data")

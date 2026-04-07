@@ -8,7 +8,7 @@ Remove deprecated `Pack()` method from all BGP message types and the `message.Ne
 
 - `PackTo(msg, ctx)` convenience helper retained — allocates a buffer and calls `WriteTo`, useful for callers that don't pre-allocate (tests, one-off sends). Not in hot path.
 - `message.Negotiated` struct deleted — was an ephemeral conversion shim created at every `writeMessage()` call.
-- `message.Family` struct deleted — duplicate of `nlri.Family`.
+- `message.Family` struct deleted — duplicate of `family.Family`.
 - `rib/commit.go` migrated from `*message.Negotiated` to `*bgpctx.EncodingContext` — uses `ctx.AddPath(family)`, `ctx.IsIBGP()`, `ctx.LocalASN()` directly.
 
 ## Patterns

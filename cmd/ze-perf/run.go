@@ -34,7 +34,7 @@ func cmdRun(args []string) int {
 
 	// Benchmark flags.
 	routes := fs.Int("routes", 1000, "Number of routes to inject")
-	family := fs.String("family", "ipv4/unicast", "Address family (ipv4/unicast or ipv6/unicast)")
+	fam := fs.String("family", "ipv4/unicast", "Address family (ipv4/unicast or ipv6/unicast)")
 	forceMP := fs.Bool("force-mp", false, "Force MP_REACH_NLRI for IPv4 unicast")
 	seed := fs.Uint64("seed", 0, "Deterministic seed (0 = random)")
 	warmup := fs.Duration("warmup", 2*time.Second, "Warmup delay after session establishment")
@@ -89,13 +89,13 @@ Flags:
 	}
 
 	// Validate family.
-	if *family != "ipv4/unicast" && *family != "ipv6/unicast" {
-		fmt.Fprintf(os.Stderr, "error: --family must be ipv4/unicast or ipv6/unicast, got %q\n", *family)
+	if *fam != "ipv4/unicast" && *fam != "ipv6/unicast" {
+		fmt.Fprintf(os.Stderr, "error: --family must be ipv4/unicast or ipv6/unicast, got %q\n", *fam)
 		return 1
 	}
 
 	// --force-mp only valid with ipv4/unicast.
-	if *forceMP && *family != "ipv4/unicast" {
+	if *forceMP && *fam != "ipv4/unicast" {
 		fmt.Fprintf(os.Stderr, "error: --force-mp is only valid with ipv4/unicast\n")
 		return 1
 	}
@@ -120,7 +120,7 @@ Flags:
 	parts := []string{
 		fmt.Sprintf("dut=%s:%d (AS %d)", *dutAddr, *dutPort, *dutASN),
 		fmt.Sprintf("routes=%d", *routes),
-		fmt.Sprintf("family=%s", *family),
+		fmt.Sprintf("family=%s", *fam),
 		fmt.Sprintf("repeat=%d", *repeat),
 	}
 
@@ -144,7 +144,7 @@ Flags:
 		ReceiverASN:    *receiverASN,
 		ReceiverPort:   *receiverPort,
 		Routes:         *routes,
-		Family:         *family,
+		Family:         *fam,
 		ForceMP:        *forceMP,
 		Seed:           *seed,
 		Warmup:         *warmup,

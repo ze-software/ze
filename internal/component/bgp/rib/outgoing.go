@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Transaction errors.
@@ -25,21 +26,21 @@ type OutgoingRIB struct {
 	mu sync.RWMutex
 
 	// pending maps family -> route index -> route (announcements)
-	pending map[nlri.Family]map[string]*Route
+	pending map[family.Family]map[string]*Route
 
 	// withdrawals maps family -> NLRI index -> NLRI (withdrawals)
-	withdrawals map[nlri.Family]map[string]nlri.NLRI
+	withdrawals map[family.Family]map[string]nlri.NLRI
 
 	// sent tracks what was last sent (for resend on reconnect)
-	sent map[nlri.Family]map[string]*Route
+	sent map[family.Family]map[string]*Route
 
 	// Transaction state
 	inTransaction bool
 	transactionID string
 
 	// Transaction-scoped pending routes (separate from regular pending)
-	txPending     map[nlri.Family]map[string]*Route
-	txWithdrawals map[nlri.Family]map[string]nlri.NLRI
+	txPending     map[family.Family]map[string]*Route
+	txWithdrawals map[family.Family]map[string]nlri.NLRI
 }
 
 // CommitStats holds statistics from a transaction commit.
@@ -52,9 +53,9 @@ type CommitStats struct {
 // NewOutgoingRIB creates a new Adj-RIB-Out.
 func NewOutgoingRIB() *OutgoingRIB {
 	return &OutgoingRIB{
-		pending:     make(map[nlri.Family]map[string]*Route),
-		withdrawals: make(map[nlri.Family]map[string]nlri.NLRI),
-		sent:        make(map[nlri.Family]map[string]*Route),
+		pending:     make(map[family.Family]map[string]*Route),
+		withdrawals: make(map[family.Family]map[string]nlri.NLRI),
+		sent:        make(map[family.Family]map[string]*Route),
 	}
 }
 
@@ -65,12 +66,12 @@ func (r *OutgoingRIB) QueueAnnounce(route *Route) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	family := route.NLRI().Family()
+	fam := route.NLRI().Family()
 	idx := string(route.Index())
 
 	// Choose target maps based on transaction state
-	var targetPending map[nlri.Family]map[string]*Route
-	var targetWithdrawals map[nlri.Family]map[string]nlri.NLRI
+	var targetPending map[family.Family]map[string]*Route
+	var targetWithdrawals map[family.Family]map[string]nlri.NLRI
 
 	if r.inTransaction {
 		targetPending = r.txPending
@@ -81,14 +82,14 @@ func (r *OutgoingRIB) QueueAnnounce(route *Route) {
 	}
 
 	// Get or create family's pending map
-	familyPending, ok := targetPending[family]
+	familyPending, ok := targetPending[fam]
 	if !ok {
 		familyPending = make(map[string]*Route)
-		targetPending[family] = familyPending
+		targetPending[fam] = familyPending
 	}
 
 	// Cancel any pending withdrawal for this NLRI
-	if familyWithdrawals, ok := targetWithdrawals[family]; ok {
+	if familyWithdrawals, ok := targetWithdrawals[fam]; ok {
 		delete(familyWithdrawals, idx)
 	}
 
@@ -102,15 +103,15 @@ func (r *OutgoingRIB) QueueWithdraw(n nlri.NLRI) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	family := n.Family()
+	fam := n.Family()
 
 	// Build an index from the NLRI (without AS-PATH since withdrawals don't have attributes)
 	// For withdrawal matching, we use just Family + NLRI bytes
 	idx := string(buildNLRIIndex(n))
 
 	// Choose target maps based on transaction state
-	var targetPending map[nlri.Family]map[string]*Route
-	var targetWithdrawals map[nlri.Family]map[string]nlri.NLRI
+	var targetPending map[family.Family]map[string]*Route
+	var targetWithdrawals map[family.Family]map[string]nlri.NLRI
 
 	if r.inTransaction {
 		targetPending = r.txPending
@@ -121,7 +122,7 @@ func (r *OutgoingRIB) QueueWithdraw(n nlri.NLRI) {
 	}
 
 	// Cancel any pending announcement for this NLRI
-	if familyPending, ok := targetPending[family]; ok {
+	if familyPending, ok := targetPending[fam]; ok {
 		// Need to find and remove any matching announcement
 		for pendingIdx := range familyPending {
 			// Check if this pending route matches the NLRI being withdrawn
@@ -133,10 +134,10 @@ func (r *OutgoingRIB) QueueWithdraw(n nlri.NLRI) {
 	}
 
 	// Get or create family's withdrawal map
-	familyWithdrawals, ok := targetWithdrawals[family]
+	familyWithdrawals, ok := targetWithdrawals[fam]
 	if !ok {
 		familyWithdrawals = make(map[string]nlri.NLRI)
-		targetWithdrawals[family] = familyWithdrawals
+		targetWithdrawals[fam] = familyWithdrawals
 	}
 
 	familyWithdrawals[idx] = n
@@ -144,14 +145,14 @@ func (r *OutgoingRIB) QueueWithdraw(n nlri.NLRI) {
 
 // buildNLRIIndex builds an index for an NLRI (without AS-PATH).
 func buildNLRIIndex(n nlri.NLRI) []byte {
-	family := n.Family()
+	fam := n.Family()
 	// Use WriteTo for consistent API - writes same bytes as Bytes()
 	nlriLen := n.Len()
 
 	buf := make([]byte, 3+nlriLen)
-	buf[0] = byte(family.AFI >> 8)
-	buf[1] = byte(family.AFI)
-	buf[2] = byte(family.SAFI)
+	buf[0] = byte(fam.AFI >> 8)
+	buf[1] = byte(fam.AFI)
+	buf[2] = byte(fam.SAFI)
 	n.WriteTo(buf, 3)
 
 	return buf
@@ -166,11 +167,11 @@ func matchesNLRI(routeIdx, nlriIdx string) bool {
 }
 
 // GetPending returns pending routes for a family without clearing them.
-func (r *OutgoingRIB) GetPending(family nlri.Family) []*Route {
+func (r *OutgoingRIB) GetPending(fam family.Family) []*Route {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	familyPending, ok := r.pending[family]
+	familyPending, ok := r.pending[fam]
 	if !ok {
 		return nil
 	}
@@ -184,11 +185,11 @@ func (r *OutgoingRIB) GetPending(family nlri.Family) []*Route {
 }
 
 // FlushPending returns and clears pending routes for a family.
-func (r *OutgoingRIB) FlushPending(family nlri.Family) []*Route {
+func (r *OutgoingRIB) FlushPending(fam family.Family) []*Route {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	familyPending, ok := r.pending[family]
+	familyPending, ok := r.pending[fam]
 	if !ok {
 		return nil
 	}
@@ -199,23 +200,23 @@ func (r *OutgoingRIB) FlushPending(family nlri.Family) []*Route {
 	}
 
 	// Clear pending
-	delete(r.pending, family)
+	delete(r.pending, fam)
 
 	// Add to sent cache
-	if r.sent[family] == nil {
-		r.sent[family] = make(map[string]*Route)
+	if r.sent[fam] == nil {
+		r.sent[fam] = make(map[string]*Route)
 	}
-	maps.Copy(r.sent[family], familyPending)
+	maps.Copy(r.sent[fam], familyPending)
 
 	return routes
 }
 
 // GetWithdrawals returns pending withdrawals for a family.
-func (r *OutgoingRIB) GetWithdrawals(family nlri.Family) []nlri.NLRI {
+func (r *OutgoingRIB) GetWithdrawals(fam family.Family) []nlri.NLRI {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	familyWithdrawals, ok := r.withdrawals[family]
+	familyWithdrawals, ok := r.withdrawals[fam]
 	if !ok {
 		return nil
 	}
@@ -240,30 +241,30 @@ func (r *OutgoingRIB) FlushAllPending() []*Route {
 	}
 	routes := make([]*Route, 0, total)
 
-	for family, familyPending := range r.pending {
+	for fam, familyPending := range r.pending {
 		for idx, route := range familyPending {
 			routes = append(routes, route)
 
 			// Add to sent cache
-			if r.sent[family] == nil {
-				r.sent[family] = make(map[string]*Route)
+			if r.sent[fam] == nil {
+				r.sent[fam] = make(map[string]*Route)
 			}
-			r.sent[family][idx] = route
+			r.sent[fam][idx] = route
 		}
 	}
 
 	// Clear all pending
-	r.pending = make(map[nlri.Family]map[string]*Route)
+	r.pending = make(map[family.Family]map[string]*Route)
 
 	return routes
 }
 
 // FlushWithdrawals returns and clears pending withdrawals for a family.
-func (r *OutgoingRIB) FlushWithdrawals(family nlri.Family) []nlri.NLRI {
+func (r *OutgoingRIB) FlushWithdrawals(fam family.Family) []nlri.NLRI {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	familyWithdrawals, ok := r.withdrawals[family]
+	familyWithdrawals, ok := r.withdrawals[fam]
 	if !ok {
 		return nil
 	}
@@ -274,10 +275,10 @@ func (r *OutgoingRIB) FlushWithdrawals(family nlri.Family) []nlri.NLRI {
 	}
 
 	// Clear withdrawals
-	delete(r.withdrawals, family)
+	delete(r.withdrawals, fam)
 
 	// Remove from sent cache
-	if sentFamily, ok := r.sent[family]; ok {
+	if sentFamily, ok := r.sent[fam]; ok {
 		for idx := range familyWithdrawals {
 			for sentIdx := range sentFamily {
 				if matchesNLRI(sentIdx, idx) {
@@ -339,13 +340,13 @@ func (r *OutgoingRIB) MarkSent(route *Route) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	family := route.NLRI().Family()
+	fam := route.NLRI().Family()
 	idx := string(route.Index())
 
-	if r.sent[family] == nil {
-		r.sent[family] = make(map[string]*Route)
+	if r.sent[fam] == nil {
+		r.sent[fam] = make(map[string]*Route)
 	}
-	r.sent[family][idx] = route
+	r.sent[fam][idx] = route
 }
 
 // RemoveFromSent removes a route from the sent cache by NLRI.
@@ -354,10 +355,10 @@ func (r *OutgoingRIB) RemoveFromSent(n nlri.NLRI) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	family := n.Family()
+	fam := n.Family()
 	nlriIdx := string(buildNLRIIndex(n))
 
-	if sentFamily, ok := r.sent[family]; ok {
+	if sentFamily, ok := r.sent[fam]; ok {
 		// Find and remove any route matching this NLRI
 		for routeIdx := range sentFamily {
 			if matchesNLRI(routeIdx, nlriIdx) {
@@ -374,13 +375,13 @@ func (r *OutgoingRIB) ClearSent() int {
 	defer r.mu.Unlock()
 
 	count := 0
-	for family, sentFamily := range r.sent {
+	for fam, sentFamily := range r.sent {
 		for _, route := range sentFamily {
 			// Queue withdrawal for this route
-			familyWithdrawals, ok := r.withdrawals[family]
+			familyWithdrawals, ok := r.withdrawals[fam]
 			if !ok {
 				familyWithdrawals = make(map[string]nlri.NLRI)
-				r.withdrawals[family] = familyWithdrawals
+				r.withdrawals[fam] = familyWithdrawals
 			}
 			idx := string(buildNLRIIndex(route.NLRI()))
 			familyWithdrawals[idx] = route.NLRI()
@@ -389,7 +390,7 @@ func (r *OutgoingRIB) ClearSent() int {
 	}
 
 	// Clear the sent cache
-	r.sent = make(map[nlri.Family]map[string]*Route)
+	r.sent = make(map[family.Family]map[string]*Route)
 
 	return count
 }
@@ -401,13 +402,13 @@ func (r *OutgoingRIB) FlushSent() int {
 	defer r.mu.Unlock()
 
 	count := 0
-	for family, sentFamily := range r.sent {
+	for fam, sentFamily := range r.sent {
 		for _, route := range sentFamily {
 			// Queue for re-announcement
-			familyPending, ok := r.pending[family]
+			familyPending, ok := r.pending[fam]
 			if !ok {
 				familyPending = make(map[string]*Route)
-				r.pending[family] = familyPending
+				r.pending[fam] = familyPending
 			}
 			idx := string(route.Index())
 			familyPending[idx] = route
@@ -438,8 +439,8 @@ func (r *OutgoingRIB) BeginTransaction(label string) error {
 
 	r.inTransaction = true
 	r.transactionID = label
-	r.txPending = make(map[nlri.Family]map[string]*Route)
-	r.txWithdrawals = make(map[nlri.Family]map[string]nlri.NLRI)
+	r.txPending = make(map[family.Family]map[string]*Route)
+	r.txWithdrawals = make(map[family.Family]map[string]nlri.NLRI)
 
 	return nil
 }
@@ -493,23 +494,23 @@ func (r *OutgoingRIB) commitLocked() CommitStats {
 	var stats CommitStats
 
 	// Count and move announced routes to pending
-	for family, routes := range r.txPending {
-		if r.pending[family] == nil {
-			r.pending[family] = make(map[string]*Route)
+	for fam, routes := range r.txPending {
+		if r.pending[fam] == nil {
+			r.pending[fam] = make(map[string]*Route)
 		}
 		for idx, route := range routes {
-			r.pending[family][idx] = route
+			r.pending[fam][idx] = route
 			stats.RoutesAnnounced++
 		}
 	}
 
 	// Count and move withdrawals to withdrawals
-	for family, withdrawals := range r.txWithdrawals {
-		if r.withdrawals[family] == nil {
-			r.withdrawals[family] = make(map[string]nlri.NLRI)
+	for fam, withdrawals := range r.txWithdrawals {
+		if r.withdrawals[fam] == nil {
+			r.withdrawals[fam] = make(map[string]nlri.NLRI)
 		}
 		for idx, n := range withdrawals {
-			r.withdrawals[family][idx] = n
+			r.withdrawals[fam][idx] = n
 			stats.RoutesWithdrawn++
 		}
 	}
@@ -553,7 +554,7 @@ func (r *OutgoingRIB) RollbackTransaction() (CommitStats, error) {
 }
 
 // GetTransactionPending returns routes queued in the current transaction for a family.
-func (r *OutgoingRIB) GetTransactionPending(family nlri.Family) []*Route {
+func (r *OutgoingRIB) GetTransactionPending(fam family.Family) []*Route {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -561,7 +562,7 @@ func (r *OutgoingRIB) GetTransactionPending(family nlri.Family) []*Route {
 		return nil
 	}
 
-	familyPending, ok := r.txPending[family]
+	familyPending, ok := r.txPending[fam]
 	if !ok {
 		return nil
 	}

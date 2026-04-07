@@ -16,16 +16,23 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Type aliases for nlri types used by EVPN.
 type (
-	Family             = nlri.Family
+	Family             = family.Family
 	RouteDistinguisher = nlri.RouteDistinguisher
 )
 
 // Re-export constants from nlri for local use.
-var L2VPNEVPN = nlri.L2VPNEVPN
+const (
+	AFIL2VPN = family.AFIL2VPN
+	SAFIEVPN = family.SAFIEVPN
+)
+
+// Family registration for EVPN.
+var L2VPNEVPN = family.MustRegister(AFIL2VPN, SAFIEVPN, "l2vpn", "evpn")
 
 // Re-export parsing functions.
 var (

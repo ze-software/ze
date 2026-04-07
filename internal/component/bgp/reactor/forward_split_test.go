@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestForwardUpdateSplitting verifies UPDATE splitting on forward.
@@ -34,7 +35,7 @@ func TestForwardUpdateSplitting(t *testing.T) {
 
 	for i := range numPrefixes {
 		prefix := netip.MustParsePrefix(generatePrefix(i))
-		n := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+		n := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 		announceWire[i] = n.Bytes()
 	}
 
@@ -73,7 +74,7 @@ func TestForwardUpdateSplitting(t *testing.T) {
 
 	// Set negotiated capabilities WITHOUT ExtendedMessage
 	peer.negotiated.Store(&NegotiatedCapabilities{
-		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: false,
 	})
 
@@ -115,7 +116,7 @@ func TestForwardUpdateNoSplitWhenFits(t *testing.T) {
 
 	for i, p := range prefixes {
 		prefix := netip.MustParsePrefix(p)
-		n := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+		n := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 		announceWire[i] = n.Bytes()
 	}
 
@@ -135,7 +136,7 @@ func TestForwardUpdateNoSplitWhenFits(t *testing.T) {
 	}
 
 	nc := &NegotiatedCapabilities{
-		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: false,
 	}
 	maxMsgSize := message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage)
@@ -165,7 +166,7 @@ func TestForwardUpdateSplittingExtendedPeer(t *testing.T) {
 
 	for i := range numPrefixes {
 		prefix := netip.MustParsePrefix(generatePrefix(i))
-		n := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+		n := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 		announceWire[i] = n.Bytes()
 	}
 
@@ -181,7 +182,7 @@ func TestForwardUpdateSplittingExtendedPeer(t *testing.T) {
 
 	// Peer WITH ExtendedMessage
 	nc := &NegotiatedCapabilities{
-		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: true,
 	}
 	maxMsgSize := message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage)
@@ -209,7 +210,7 @@ func TestReplayUpdateSplitting(t *testing.T) {
 	peer := NewPeer(settings)
 
 	peer.negotiated.Store(&NegotiatedCapabilities{
-		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: false,
 	})
 
@@ -322,22 +323,22 @@ func TestSplitUpdateAddPathEndToEnd(t *testing.T) {
 // VALIDATES: Mixed family withdrawals grouped and sent separately.
 // PREVENTS: Incorrect Add-Path detection when families are mixed.
 func TestSplitUpdateMixedFamilyWithdrawals(t *testing.T) {
-	ipv4 := nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)
-	ipv6 := nlri.NewINET(nlri.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)
+	ipv4 := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)
+	ipv6 := nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)
 
 	withdrawals := []nlri.NLRI{ipv4, ipv6}
 
-	byFamily := make(map[nlri.Family][]byte)
+	byFamily := make(map[family.Family][]byte)
 	for _, n := range withdrawals {
-		family := n.Family()
-		byFamily[family] = append(byFamily[family], n.Bytes()...)
+		fam := n.Family()
+		byFamily[fam] = append(byFamily[fam], n.Bytes()...)
 	}
 
 	require.Equal(t, 2, len(byFamily), "should have 2 separate family groups")
-	require.Contains(t, byFamily, nlri.IPv4Unicast, "should have IPv4 group")
-	require.Contains(t, byFamily, nlri.IPv6Unicast, "should have IPv6 group")
-	require.Equal(t, ipv4.Bytes(), byFamily[nlri.IPv4Unicast], "IPv4 bytes should match")
-	require.Equal(t, ipv6.Bytes(), byFamily[nlri.IPv6Unicast], "IPv6 bytes should match")
+	require.Contains(t, byFamily, family.IPv4Unicast, "should have IPv4 group")
+	require.Contains(t, byFamily, family.IPv6Unicast, "should have IPv6 group")
+	require.Equal(t, ipv4.Bytes(), byFamily[family.IPv4Unicast], "IPv4 bytes should match")
+	require.Equal(t, ipv6.Bytes(), byFamily[family.IPv6Unicast], "IPv6 bytes should match")
 
 	t.Log("✅ Mixed family withdrawals correctly grouped by family")
 }

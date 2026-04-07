@@ -19,16 +19,16 @@ func parseFlowSpecNLRILine(line string, attr *config.Tree) (FlowSpecRouteConfig,
 		return FlowSpecRouteConfig{}, fmt.Errorf("flowspec nlri requires match criteria")
 	}
 
-	family := parts[0]
+	fam := parts[0]
 	fr := FlowSpecRouteConfig{
-		IsIPv6: strings.HasPrefix(family, "ipv6/"),
+		IsIPv6: strings.HasPrefix(fam, "ipv6/"),
 		NLRI:   make(map[string][]string),
 	}
 
 	// Parse inline rd for VPN variant: ipv4/flow-vpn rd 65000:100 add destination ...
 	// RD is part of NLRI (RFC 8955), not a path attribute
 	criteria := parts[1:]
-	if strings.HasSuffix(family, "-vpn") {
+	if strings.HasSuffix(fam, "-vpn") {
 		if len(criteria) >= 2 && criteria[0] == "rd" {
 			fr.RD = criteria[1]
 			criteria = criteria[2:] // consume rd <value>
@@ -37,11 +37,11 @@ func parseFlowSpecNLRILine(line string, attr *config.Tree) (FlowSpecRouteConfig,
 
 	// Operation keyword (add/del/eor) is mandatory
 	if len(criteria) == 0 {
-		return FlowSpecRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s", family)
+		return FlowSpecRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s", fam)
 	}
 	op := criteria[0]
 	if op != opAdd && op != opDel && op != opEor {
-		return FlowSpecRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s, got %q", family, op)
+		return FlowSpecRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s, got %q", fam, op)
 	}
 	criteria = criteria[1:]
 

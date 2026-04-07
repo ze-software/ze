@@ -10,6 +10,7 @@ import (
 	"time"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 
 	"github.com/stretchr/testify/require"
 
@@ -46,8 +47,8 @@ func freePort(t *testing.T) int {
 // testRoute creates a valid route for testing.
 func testRoute(prefixStr string) *rib.Route {
 	prefix := netip.MustParsePrefix(prefixStr)
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-	n := nlri.NewINET(family, prefix, 0)
+	fam := family.IPv4Unicast
+	n := nlri.NewINET(fam, prefix, 0)
 	return rib.NewRoute(n, netip.MustParseAddr("10.0.0.1"), nil)
 }
 
@@ -576,10 +577,10 @@ func TestRouteFamilyIPv4Unicast(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
 	}
 
-	family := routeFamily(&route)
+	fam := routeFamily(&route)
 
-	require.Equal(t, nlri.AFIIPv4, family.AFI, "AFI should be IPv4")
-	require.Equal(t, nlri.SAFIUnicast, family.SAFI, "SAFI should be unicast")
+	require.Equal(t, family.AFIIPv4, fam.AFI, "AFI should be IPv4")
+	require.Equal(t, family.SAFIUnicast, fam.SAFI, "SAFI should be unicast")
 }
 
 // TestRouteFamilyIPv6Unicast verifies IPv6 unicast routes return correct family.
@@ -593,10 +594,10 @@ func TestRouteFamilyIPv6Unicast(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
-	family := routeFamily(&route)
+	fam := routeFamily(&route)
 
-	require.Equal(t, nlri.AFIIPv6, family.AFI, "AFI should be IPv6")
-	require.Equal(t, nlri.SAFIUnicast, family.SAFI, "SAFI should be unicast")
+	require.Equal(t, family.AFIIPv6, fam.AFI, "AFI should be IPv6")
+	require.Equal(t, family.SAFIUnicast, fam.SAFI, "SAFI should be unicast")
 }
 
 // TestRouteFamilyVPNv4 verifies VPNv4 routes return correct family.
@@ -611,10 +612,10 @@ func TestRouteFamilyVPNv4(t *testing.T) {
 		RD:      "100:100", // Has RD = VPN
 	}
 
-	family := routeFamily(&route)
+	fam := routeFamily(&route)
 
-	require.Equal(t, nlri.AFIIPv4, family.AFI, "AFI should be IPv4")
-	require.Equal(t, nlri.SAFI(128), family.SAFI, "SAFI should be MPLS-VPN (128)")
+	require.Equal(t, family.AFIIPv4, fam.AFI, "AFI should be IPv4")
+	require.Equal(t, family.SAFI(128), fam.SAFI, "SAFI should be MPLS-VPN (128)")
 }
 
 // TestRouteFamilyVPNv6 verifies VPNv6 routes return correct family.
@@ -629,10 +630,10 @@ func TestRouteFamilyVPNv6(t *testing.T) {
 		RD:      "100:100", // Has RD = VPN
 	}
 
-	family := routeFamily(&route)
+	fam := routeFamily(&route)
 
-	require.Equal(t, nlri.AFIIPv6, family.AFI, "AFI should be IPv6")
-	require.Equal(t, nlri.SAFI(128), family.SAFI, "SAFI should be MPLS-VPN (128)")
+	require.Equal(t, family.AFIIPv6, fam.AFI, "AFI should be IPv6")
+	require.Equal(t, family.SAFI(128), fam.SAFI, "SAFI should be MPLS-VPN (128)")
 }
 
 // TestFamiliesSentTracking verifies that family tracking produces correct EOR set.
@@ -642,7 +643,7 @@ func TestRouteFamilyVPNv6(t *testing.T) {
 // PREVENTS: EOR being sent for families without routes, or missing for families with routes.
 func TestFamiliesSentTracking(t *testing.T) {
 	// Simulate the familiesSent tracking logic from sendInitialRoutes
-	familiesSent := make(map[nlri.Family]bool)
+	familiesSent := make(map[family.Family]bool)
 
 	// Routes of various types
 	routes := []StaticRoute{
@@ -658,13 +659,13 @@ func TestFamiliesSentTracking(t *testing.T) {
 	}
 
 	// Verify correct families are tracked
-	require.True(t, familiesSent[nlri.IPv4Unicast], "IPv4 Unicast should be tracked")
-	require.True(t, familiesSent[nlri.IPv6Unicast], "IPv6 Unicast should be tracked")
-	require.True(t, familiesSent[nlri.Family{AFI: nlri.AFIIPv4, SAFI: 128}], "VPNv4 should be tracked")
+	require.True(t, familiesSent[family.IPv4Unicast], "IPv4 Unicast should be tracked")
+	require.True(t, familiesSent[family.IPv6Unicast], "IPv6 Unicast should be tracked")
+	require.True(t, familiesSent[family.Family{AFI: family.AFIIPv4, SAFI: 128}], "VPNv4 should be tracked")
 
 	// Verify families without routes are NOT tracked
-	require.False(t, familiesSent[nlri.Family{AFI: nlri.AFIIPv6, SAFI: 128}], "VPNv6 should NOT be tracked")
-	require.False(t, familiesSent[nlri.Family{AFI: 1, SAFI: 5}], "MVPN should NOT be tracked")
+	require.False(t, familiesSent[family.Family{AFI: family.AFIIPv6, SAFI: 128}], "VPNv6 should NOT be tracked")
+	require.False(t, familiesSent[family.Family{AFI: 1, SAFI: 5}], "MVPN should NOT be tracked")
 
 	// Verify exactly 3 families (no duplicates from same-family routes)
 	require.Equal(t, 3, len(familiesSent), "Should track exactly 3 unique families")
@@ -676,7 +677,7 @@ func TestFamiliesSentTracking(t *testing.T) {
 //
 // PREVENTS: Spurious EOR messages when no routes are configured.
 func TestFamiliesSentEmpty(t *testing.T) {
-	familiesSent := make(map[nlri.Family]bool)
+	familiesSent := make(map[family.Family]bool)
 
 	// No routes sent - familiesSent should be empty
 	require.Empty(t, familiesSent, "No routes should mean no EOR families")
@@ -688,7 +689,7 @@ func TestFamiliesSentEmpty(t *testing.T) {
 //
 // PREVENTS: VPN routes triggering unicast EOR.
 func TestFamiliesSentOnlyVPN(t *testing.T) {
-	familiesSent := make(map[nlri.Family]bool)
+	familiesSent := make(map[family.Family]bool)
 
 	// Only VPN routes
 	routes := []StaticRoute{
@@ -702,8 +703,8 @@ func TestFamiliesSentOnlyVPN(t *testing.T) {
 
 	// Only VPNv4 should be tracked
 	require.Equal(t, 1, len(familiesSent), "Should track exactly 1 family")
-	require.True(t, familiesSent[nlri.Family{AFI: nlri.AFIIPv4, SAFI: 128}], "VPNv4 should be tracked")
-	require.False(t, familiesSent[nlri.IPv4Unicast], "IPv4 Unicast should NOT be tracked")
+	require.True(t, familiesSent[family.Family{AFI: family.AFIIPv4, SAFI: 128}], "VPNv4 should be tracked")
+	require.False(t, familiesSent[family.IPv4Unicast], "IPv4 Unicast should NOT be tracked")
 }
 
 // =============================================================================
@@ -739,12 +740,12 @@ func TestPeerAddPathIPv4Unicast(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Set sendCtx with ADD-PATH enabled for IPv4 unicast
-	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
-		nlri.IPv4Unicast: true,
-		nlri.IPv6Unicast: false,
+	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{
+		{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true,
+		{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}: false,
 	}))
 
-	addPath := peer.sendCtx.Load().AddPath(nlri.IPv4Unicast)
+	addPath := peer.sendCtx.Load().AddPath(family.IPv4Unicast)
 	require.True(t, addPath, "AddPath should be true for IPv4 unicast")
 }
 
@@ -761,12 +762,12 @@ func TestPeerAddPathIPv6Unicast(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Set sendCtx with ADD-PATH enabled for IPv6 unicast
-	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
-		nlri.IPv4Unicast: false,
-		nlri.IPv6Unicast: true,
+	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{
+		{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: false,
+		{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}: true,
 	}))
 
-	addPath := peer.sendCtx.Load().AddPath(nlri.IPv6Unicast)
+	addPath := peer.sendCtx.Load().AddPath(family.IPv6Unicast)
 	require.True(t, addPath, "AddPath should be true for IPv6 unicast")
 }
 
@@ -783,17 +784,17 @@ func TestPeerAddPathLabeledUnicast(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Set sendCtx with ADD-PATH enabled for labeled-unicast
-	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
-		nlri.IPv4LabeledUnicast: true,
-		nlri.IPv6LabeledUnicast: true,
+	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{
+		{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}: true,
+		{AFI: family.AFIIPv6, SAFI: family.SAFIMPLSLabel}: true,
 	}))
 
 	// IPv4 labeled-unicast (SAFI 4)
-	addPath4 := peer.sendCtx.Load().AddPath(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel})
+	addPath4 := peer.sendCtx.Load().AddPath(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel})
 	require.True(t, addPath4, "AddPath should be true for IPv4 labeled-unicast")
 
 	// IPv6 labeled-unicast (SAFI 4)
-	addPath6 := peer.sendCtx.Load().AddPath(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIMPLSLabel})
+	addPath6 := peer.sendCtx.Load().AddPath(family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIMPLSLabel})
 	require.True(t, addPath6, "AddPath should be true for IPv6 labeled-unicast")
 }
 
@@ -810,15 +811,15 @@ func TestPeerAddPathNoAddPath(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Set sendCtx WITHOUT ADD-PATH
-	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
-		nlri.IPv4Unicast: false,
-		nlri.IPv6Unicast: false,
+	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{
+		{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: false,
+		{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}: false,
 	}))
 
-	addPath4 := peer.sendCtx.Load().AddPath(nlri.IPv4Unicast)
+	addPath4 := peer.sendCtx.Load().AddPath(family.IPv4Unicast)
 	require.False(t, addPath4, "AddPath should be false for IPv4 unicast without ADD-PATH")
 
-	addPath6 := peer.sendCtx.Load().AddPath(nlri.IPv6Unicast)
+	addPath6 := peer.sendCtx.Load().AddPath(family.IPv6Unicast)
 	require.False(t, addPath6, "AddPath should be false for IPv6 unicast without ADD-PATH")
 }
 
@@ -834,13 +835,13 @@ func TestPeerAddPathOtherFamilies(t *testing.T) {
 	)
 	peer := NewPeer(settings)
 
-	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
-		nlri.IPv4Unicast: true,
+	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{
+		{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true,
 		// VPN not in map = AddPath false
 	}))
 
 	// VPN family - not in AddPath map so should be false
-	vpnFamily := nlri.Family{AFI: nlri.AFIIPv4, SAFI: 128}
+	vpnFamily := family.Family{AFI: family.AFIIPv4, SAFI: 128}
 	addPath := peer.sendCtx.Load().AddPath(vpnFamily)
 	require.False(t, addPath, "VPN family should have AddPath=false")
 	require.True(t, peer.sendCtx.Load().ASN4(), "ASN4 should still be accessible from sendCtx")
@@ -1277,7 +1278,7 @@ func TestResolveNextHop_Explicit(t *testing.T) {
 	addr := netip.MustParseAddr("10.0.0.1")
 	nh := bgptypes.NewNextHopExplicit(addr)
 
-	got, err := peer.resolveNextHop(nh, nlri.IPv4Unicast)
+	got, err := peer.resolveNextHop(nh, family.IPv4Unicast)
 	require.NoError(t, err)
 	require.Equal(t, addr, got)
 }
@@ -1293,7 +1294,7 @@ func TestResolveNextHop_Self(t *testing.T) {
 
 	nh := bgptypes.NewNextHopSelf()
 
-	got, err := peer.resolveNextHop(nh, nlri.IPv4Unicast)
+	got, err := peer.resolveNextHop(nh, family.IPv4Unicast)
 	require.NoError(t, err)
 	require.Equal(t, settings.LocalAddress, got)
 }
@@ -1309,7 +1310,7 @@ func TestResolveNextHop_SelfNoLocal(t *testing.T) {
 
 	nh := bgptypes.NewNextHopSelf()
 
-	_, err := peer.resolveNextHop(nh, nlri.IPv4Unicast)
+	_, err := peer.resolveNextHop(nh, family.IPv4Unicast)
 	require.ErrorIs(t, err, ErrNextHopSelfNoLocal)
 }
 
@@ -1323,7 +1324,7 @@ func TestResolveNextHop_Unset(t *testing.T) {
 
 	var nh bgptypes.RouteNextHop // zero value = NextHopUnset
 
-	_, err := peer.resolveNextHop(nh, nlri.IPv4Unicast)
+	_, err := peer.resolveNextHop(nh, family.IPv4Unicast)
 	require.ErrorIs(t, err, ErrNextHopUnset)
 }
 
@@ -1337,7 +1338,7 @@ func TestResolveNextHop_ExplicitInvalid(t *testing.T) {
 
 	nh := bgptypes.NewNextHopExplicit(netip.Addr{}) // invalid addr
 
-	got, err := peer.resolveNextHop(nh, nlri.IPv4Unicast)
+	got, err := peer.resolveNextHop(nh, family.IPv4Unicast)
 	require.NoError(t, err, "explicit bypasses validation")
 	require.False(t, got.IsValid(), "should return invalid addr as-is")
 }
@@ -1351,7 +1352,7 @@ func TestCanUseNextHopFor_IPv4Natural(t *testing.T) {
 	peer := NewPeer(settings)
 
 	addr := netip.MustParseAddr("10.0.0.1")
-	ok := peer.canUseNextHopFor(addr, nlri.IPv4Unicast)
+	ok := peer.canUseNextHopFor(addr, family.IPv4Unicast)
 	require.True(t, ok, "IPv4 addr should be valid for IPv4 family")
 }
 
@@ -1364,7 +1365,7 @@ func TestCanUseNextHopFor_IPv6Natural(t *testing.T) {
 	peer := NewPeer(settings)
 
 	addr := netip.MustParseAddr("2001:db8::1")
-	ok := peer.canUseNextHopFor(addr, nlri.IPv6Unicast)
+	ok := peer.canUseNextHopFor(addr, family.IPv6Unicast)
 	require.True(t, ok, "IPv6 addr should be valid for IPv6 family")
 }
 
@@ -1384,7 +1385,7 @@ func TestCanUseNextHopFor_ExtendedNH(t *testing.T) {
 	}, bgpctx.DirectionSend))
 
 	addr := netip.MustParseAddr("2001:db8::1") // IPv6 addr
-	ok := peer.canUseNextHopFor(addr, nlri.IPv4Unicast)
+	ok := peer.canUseNextHopFor(addr, family.IPv4Unicast)
 	require.True(t, ok, "IPv6 addr should be valid for IPv4 family with Extended NH")
 }
 
@@ -1398,7 +1399,7 @@ func TestCanUseNextHopFor_CrossFamilyNoCap(t *testing.T) {
 	// No sendCtx or ExtendedNextHop
 
 	addr := netip.MustParseAddr("2001:db8::1") // IPv6 addr
-	ok := peer.canUseNextHopFor(addr, nlri.IPv4Unicast)
+	ok := peer.canUseNextHopFor(addr, family.IPv4Unicast)
 	require.False(t, ok, "cross-family should fail without Extended NH")
 }
 
@@ -1412,7 +1413,7 @@ func TestCanUseNextHopFor_NilSendCtx(t *testing.T) {
 	peer.sendCtx.Store(nil)
 
 	addr := netip.MustParseAddr("2001:db8::1") // IPv6 addr
-	ok := peer.canUseNextHopFor(addr, nlri.IPv4Unicast)
+	ok := peer.canUseNextHopFor(addr, family.IPv4Unicast)
 	require.False(t, ok, "cross-family should fail with nil sendCtx")
 }
 

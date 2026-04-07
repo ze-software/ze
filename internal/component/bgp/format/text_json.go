@@ -5,8 +5,8 @@ package format
 
 import (
 	"encoding/hex"
-	"fmt"
 	"net/netip"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
@@ -42,6 +42,7 @@ import (
 //	}
 func formatFilterResultJSON(peer plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
 	var sb strings.Builder
+	var numBuf [20]byte
 
 	// ze-bgp JSON outer wrapper
 	sb.WriteString(`{"type":"bgp","bgp":{`)
@@ -49,7 +50,8 @@ func formatFilterResultJSON(peer plugin.PeerInfo, result bgpfilter.FilterResult,
 	// Message metadata with type inside
 	sb.WriteString(`"message":{"type":"update"`)
 	if msgID > 0 {
-		fmt.Fprintf(&sb, `,"id":%d`, msgID)
+		sb.WriteString(`,"id":`)
+		sb.Write(strconv.AppendUint(numBuf[:0], msgID, 10))
 	}
 	if direction != "" {
 		sb.WriteString(`,"direction":"`)
@@ -125,11 +127,10 @@ type familyOperation struct {
 // RFC 7432: EVPN NLRI includes route-type, ESI, etc.
 // RFC 8277: Labeled Unicast NLRI includes labels.
 // RFC 8955: FlowSpec NLRI includes match components.
-func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI) {
+func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI, familyStr string) {
 	// Try registry-based decode for plugin NLRI types (VPN, EVPN, FlowSpec, Labeled).
 	// The registry routes to the plugin's InProcessNLRIDecoder by family.
 	// Path-id is transport-level (ADD-PATH) and not included in decoder output.
-	familyStr := n.Family().String()
 	if registry.PluginForFamily(familyStr) != "" {
 		hexData := hex.EncodeToString(n.Bytes())
 		decoded, err := registry.DecodeNLRIByFamily(familyStr, hexData)
@@ -144,8 +145,9 @@ func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI) {
 	// Simple prefix without path-id: output as string
 	if pathID == 0 {
 		if p, ok := n.(prefixer); ok {
+			var pfxBuf [44]byte // max IPv6 prefix: 39 chars + /3 digits + NUL
 			sb.WriteString(`"`)
-			sb.WriteString(p.Prefix().String())
+			sb.Write(p.Prefix().AppendTo(pfxBuf[:0]))
 			sb.WriteString(`"`)
 			return
 		}
@@ -168,7 +170,8 @@ func formatNLRIJSON(sb *strings.Builder, n nlri.NLRI) {
 
 	// Use type assertion to get prefix cleanly
 	if p, ok := n.(prefixer); ok {
-		sb.WriteString(p.Prefix().String())
+		var pfxBuf [44]byte
+		sb.Write(p.Prefix().AppendTo(pfxBuf[:0]))
 	} else {
 		// Fallback for complex NLRI types (EVPN, FlowSpec, etc.)
 		// Escape for JSON safety (handles quotes, backslashes, control chars)
@@ -177,7 +180,9 @@ func formatNLRIJSON(sb *strings.Builder, n nlri.NLRI) {
 	sb.WriteString(`"`)
 
 	if pathID := n.PathID(); pathID != 0 {
-		fmt.Fprintf(sb, `,"path-id":%d`, pathID)
+		var numBuf [20]byte
+		sb.WriteString(`,"path-id":`)
+		sb.Write(strconv.AppendUint(numBuf[:0], uint64(pathID), 10))
 	}
 
 	sb.WriteString(`}`)
@@ -203,13 +208,13 @@ func formatAttributesJSON(sb *strings.Builder, result bgpfilter.FilterResult) {
 // Shared by formatFilterResultJSON and FormatDecodeUpdateJSON.
 func formatFamilyOpsJSON(sb *strings.Builder, familyOps map[string][]familyOperation) {
 	first := true
-	for family, ops := range familyOps {
+	for fam, ops := range familyOps {
 		if !first {
 			sb.WriteString(",")
 		}
 		first = false
 		sb.WriteString(`"`)
-		sb.WriteString(family)
+		sb.WriteString(fam)
 		sb.WriteString(`":[`)
 		for i, op := range ops {
 			if i > 0 {
@@ -228,7 +233,7 @@ func formatFamilyOpsJSON(sb *strings.Builder, familyOps map[string][]familyOpera
 				if j > 0 {
 					sb.WriteString(",")
 				}
-				formatNLRIJSONValue(sb, n)
+				formatNLRIJSONValue(sb, n, fam)
 			}
 			sb.WriteString(`]}`)
 		}
@@ -239,6 +244,8 @@ func formatFamilyOpsJSON(sb *strings.Builder, familyOps map[string][]familyOpera
 // formatAttributeJSON formats a single attribute for JSON.
 // Known attribute types are formatted with named keys; unknown types use "attr-N" with hex value.
 func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr attribute.Attribute) {
+	var numBuf [20]byte
+
 	switch code { //nolint:exhaustive // common attributes; unknown handled after switch
 	case attribute.AttrOrigin:
 		switch o := attr.(type) {
@@ -262,7 +269,7 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 						sb.WriteString(",")
 					}
 					first = false
-					fmt.Fprintf(sb, "%d", asn)
+					sb.Write(strconv.AppendUint(numBuf[:0], uint64(asn), 10))
 				}
 			}
 			sb.WriteString("]")
@@ -271,17 +278,21 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 	case attribute.AttrMED:
 		switch m := attr.(type) {
 		case *attribute.MED:
-			fmt.Fprintf(sb, `"med":%d`, uint32(*m))
+			sb.WriteString(`"med":`)
+			sb.Write(strconv.AppendUint(numBuf[:0], uint64(uint32(*m)), 10))
 		case attribute.MED:
-			fmt.Fprintf(sb, `"med":%d`, uint32(m))
+			sb.WriteString(`"med":`)
+			sb.Write(strconv.AppendUint(numBuf[:0], uint64(uint32(m)), 10))
 		}
 		return
 	case attribute.AttrLocalPref:
 		switch lp := attr.(type) {
 		case *attribute.LocalPref:
-			fmt.Fprintf(sb, `"local-preference":%d`, uint32(*lp))
+			sb.WriteString(`"local-preference":`)
+			sb.Write(strconv.AppendUint(numBuf[:0], uint64(uint32(*lp)), 10))
 		case attribute.LocalPref:
-			fmt.Fprintf(sb, `"local-preference":%d`, uint32(lp))
+			sb.WriteString(`"local-preference":`)
+			sb.Write(strconv.AppendUint(numBuf[:0], uint64(uint32(lp)), 10))
 		}
 		return
 	case attribute.AttrCommunity:
@@ -315,11 +326,14 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 	case attribute.AttrExtCommunity:
 		if ec, ok := attr.(*attribute.ExtendedCommunities); ok {
 			sb.WriteString(`"extended-communities":[`)
+			var hexBuf [16]byte // ext community is 8 bytes -> 16 hex chars
 			for i, comm := range *ec {
 				if i > 0 {
 					sb.WriteString(",")
 				}
-				fmt.Fprintf(sb, `"%x"`, comm[:])
+				sb.WriteString(`"`)
+				sb.Write(hex.AppendEncode(hexBuf[:0], comm[:]))
+				sb.WriteString(`"`)
 			}
 			sb.WriteString("]")
 		}
@@ -328,7 +342,11 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 	// Unknown attribute code — format as "attr-N": "hex"
 	attrBuf := make([]byte, attr.Len())
 	attr.WriteTo(attrBuf, 0)
-	fmt.Fprintf(sb, `"attr-%d":"%x"`, code, attrBuf)
+	sb.WriteString(`"attr-`)
+	sb.Write(strconv.AppendUint(numBuf[:0], uint64(code), 10))
+	sb.WriteString(`":"`)
+	sb.Write(hex.AppendEncode(nil, attrBuf))
+	sb.WriteString(`"`)
 }
 
 func formatStateChangeJSON(peer plugin.PeerInfo, state, reason string) string {

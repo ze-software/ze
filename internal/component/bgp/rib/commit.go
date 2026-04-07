@@ -14,6 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // EncodingContext is an alias for bgpctx.EncodingContext.
@@ -35,11 +36,11 @@ type CommitOptions struct {
 
 // CommitServiceStats holds statistics from a commit operation.
 type CommitServiceStats struct {
-	UpdatesSent      int           // Number of UPDATE messages sent
-	RoutesAnnounced  int           // Total routes announced
-	RoutesWithdrawn  int           // Total routes withdrawn (future use)
-	FamiliesAffected []nlri.Family // Address families that had routes
-	EORSent          []nlri.Family // Families for which EOR was sent
+	UpdatesSent      int             // Number of UPDATE messages sent
+	RoutesAnnounced  int             // Total routes announced
+	RoutesWithdrawn  int             // Total routes withdrawn (future use)
+	FamiliesAffected []family.Family // Address families that had routes
+	EORSent          []family.Family // Families for which EOR was sent
 }
 
 // CommitService handles batched route commits with grouping and EOR.
@@ -84,7 +85,7 @@ func (c *CommitService) Commit(routes []*Route, opts CommitOptions) (CommitServi
 	}
 
 	// Track which families have routes
-	familySeen := make(map[nlri.Family]bool)
+	familySeen := make(map[family.Family]bool)
 
 	if c.groupUpdates {
 		// Two-level grouping: first by attributes, then by AS_PATH
@@ -122,19 +123,19 @@ func (c *CommitService) Commit(routes []*Route, opts CommitOptions) (CommitServi
 	}
 
 	// Collect affected families (sorted for determinism)
-	for family := range familySeen {
-		stats.FamiliesAffected = append(stats.FamiliesAffected, family)
+	for fam := range familySeen {
+		stats.FamiliesAffected = append(stats.FamiliesAffected, fam)
 	}
 	sortFamilies(stats.FamiliesAffected)
 
 	// Send EOR for each affected family if requested
 	if opts.SendEOR {
-		for _, family := range stats.FamiliesAffected {
-			eor := message.BuildEOR(family)
+		for _, fam := range stats.FamiliesAffected {
+			eor := message.BuildEOR(fam)
 			if err := c.sender.SendUpdate(eor); err != nil {
 				return stats, err
 			}
-			stats.EORSent = append(stats.EORSent, family)
+			stats.EORSent = append(stats.EORSent, fam)
 		}
 	}
 
@@ -144,11 +145,11 @@ func (c *CommitService) Commit(routes []*Route, opts CommitOptions) (CommitServi
 // buildGroupedUpdateTwoLevel builds an UPDATE message for a two-level group.
 // Uses explicit AS_PATH from ASPathGroup instead of searching in attributes.
 func (c *CommitService) buildGroupedUpdateTwoLevel(attrGroup *AttributeGroup, aspGroup *ASPathGroup) (*message.Update, error) {
-	family := attrGroup.Family
+	fam := attrGroup.Family
 	nextHop := bytesToAddr(attrGroup.NextHop)
 
 	// Check if ADD-PATH is negotiated for capability-aware NLRI encoding (RFC 7911)
-	addPath := c.addPathFor(family)
+	addPath := c.addPathFor(fam)
 
 	// Collect all NLRIs from the ASPathGroup
 	// Calculate total size first
@@ -163,13 +164,13 @@ func (c *CommitService) buildGroupedUpdateTwoLevel(attrGroup *AttributeGroup, as
 	}
 
 	// Build path attributes with explicit AS_PATH
-	attrBytes, err := c.packAttributesWithASPath(attrGroup.Attributes, aspGroup.ASPath, nextHop, family, nlriBytes)
+	attrBytes, err := c.packAttributesWithASPath(attrGroup.Attributes, aspGroup.ASPath, nextHop, fam, nlriBytes)
 	if err != nil {
 		return nil, err
 	}
 
 	// Determine if NLRI goes in UPDATE.NLRI or MP_REACH_NLRI
-	if c.useTraditionalNLRI(family, nextHop) {
+	if c.useTraditionalNLRI(fam, nextHop) {
 		return &message.Update{
 			PathAttributes: attrBytes,
 			NLRI:           nlriBytes,
@@ -184,23 +185,23 @@ func (c *CommitService) buildGroupedUpdateTwoLevel(attrGroup *AttributeGroup, as
 
 // buildSingleUpdate builds an UPDATE message for a single route.
 func (c *CommitService) buildSingleUpdate(route *Route) (*message.Update, error) {
-	family := route.NLRI().Family()
+	fam := route.NLRI().Family()
 	nextHop := route.NextHop()
 
 	// Check if ADD-PATH is negotiated for capability-aware NLRI encoding (RFC 7911)
-	addPath := c.addPathFor(family)
+	addPath := c.addPathFor(fam)
 	nlriLen := nlri.LenWithContext(route.NLRI(), addPath)
 	nlriBytes := make([]byte, nlriLen)
 	nlri.WriteNLRI(route.NLRI(), nlriBytes, 0, addPath)
 
 	// Use getRouteASPath to get AS_PATH (explicit field or from attrs)
 	asPath := getRouteASPath(route)
-	attrBytes, err := c.packAttributesWithASPath(route.Attributes(), asPath, nextHop, family, nlriBytes)
+	attrBytes, err := c.packAttributesWithASPath(route.Attributes(), asPath, nextHop, fam, nlriBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	if c.useTraditionalNLRI(family, nextHop) {
+	if c.useTraditionalNLRI(fam, nextHop) {
 		return &message.Update{
 			PathAttributes: attrBytes,
 			NLRI:           nlriBytes,
@@ -215,25 +216,25 @@ func (c *CommitService) buildSingleUpdate(route *Route) (*message.Update, error)
 
 // useTraditionalNLRI returns true if NLRI should go in UPDATE.NLRI field.
 // Returns false if NLRI should be in MP_REACH_NLRI attribute.
-func (c *CommitService) useTraditionalNLRI(family nlri.Family, nextHop netip.Addr) bool {
+func (c *CommitService) useTraditionalNLRI(fam family.Family, nextHop netip.Addr) bool {
 	// Only IPv4 unicast with IPv4 next-hop uses traditional NLRI field
 	// IPv4 unicast with IPv6 next-hop (RFC 5549) must use MP_REACH_NLRI
-	return family.AFI == 1 && family.SAFI == 1 && nextHop.Is4()
+	return fam.AFI == 1 && fam.SAFI == 1 && nextHop.Is4()
 }
 
 // addPathFor returns whether ADD-PATH is negotiated for the given family.
 // RFC 7911: Checks if ADD-PATH is negotiated.
-func (c *CommitService) addPathFor(family nlri.Family) bool {
+func (c *CommitService) addPathFor(fam family.Family) bool {
 	if c.ctx == nil {
 		return false
 	}
-	return c.ctx.AddPath(family)
+	return c.ctx.AddPath(fam)
 }
 
 // packAttributesWithASPath packs path attributes with an explicit AS_PATH.
 // This is the preferred method for two-level grouping.
 // Zero-allocation: calculates size, pre-allocates, writes with copy.
-func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, asPath *attribute.ASPath, nextHop netip.Addr, family nlri.Family, nlriBytes []byte) ([]byte, error) {
+func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, asPath *attribute.ASPath, nextHop netip.Addr, fam family.Family, nlriBytes []byte) ([]byte, error) {
 	// Use the stored encoding context for ASN4-aware encoding
 	dstCtx := c.ctx
 
@@ -265,10 +266,10 @@ func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, as
 
 	// Build NEXT_HOP or MP_REACH_NLRI
 	var nhAttr attribute.Attribute
-	if c.useTraditionalNLRI(family, nextHop) {
+	if c.useTraditionalNLRI(fam, nextHop) {
 		nhAttr = &attribute.NextHop{Addr: nextHop}
 	} else {
-		nhAttr = c.buildMPReachNLRI(family, nextHop, nlriBytes)
+		nhAttr = c.buildMPReachNLRI(fam, nextHop, nlriBytes)
 	}
 
 	// For iBGP, ensure LOCAL_PREF
@@ -408,16 +409,16 @@ func (c *CommitService) buildASPathFromExplicit(asPath *attribute.ASPath) *attri
 
 // buildMPReachNLRI builds an MP_REACH_NLRI attribute.
 // Handles VPN next-hop encoding (RD prefix) per RFC 4364.
-func (c *CommitService) buildMPReachNLRI(family nlri.Family, nextHop netip.Addr, nlriBytes []byte) attribute.Attribute {
+func (c *CommitService) buildMPReachNLRI(fam family.Family, nextHop netip.Addr, nlriBytes []byte) attribute.Attribute {
 	// Check if this is a VPN SAFI that needs RD in next-hop
-	if isVPNSAFI(family.SAFI) {
-		return c.buildVPNMPReachNLRI(family, nextHop, nlriBytes)
+	if isVPNSAFI(fam.SAFI) {
+		return c.buildVPNMPReachNLRI(fam, nextHop, nlriBytes)
 	}
 
 	// Standard MP_REACH_NLRI
 	return &attribute.MPReachNLRI{
-		AFI:      attribute.AFI(family.AFI),
-		SAFI:     attribute.SAFI(family.SAFI),
+		AFI:      attribute.AFI(fam.AFI),
+		SAFI:     attribute.SAFI(fam.SAFI),
 		NextHops: []netip.Addr{nextHop},
 		NLRI:     nlriBytes,
 	}
@@ -425,7 +426,7 @@ func (c *CommitService) buildMPReachNLRI(family nlri.Family, nextHop netip.Addr,
 
 // buildVPNMPReachNLRI builds MP_REACH_NLRI for VPN routes with RD in next-hop.
 // RFC 4364 Section 4.3.4: VPN next-hop is RD(8 bytes, all zeros) + IP.
-func (c *CommitService) buildVPNMPReachNLRI(family nlri.Family, nextHop netip.Addr, nlriBytes []byte) attribute.Attribute {
+func (c *CommitService) buildVPNMPReachNLRI(fam family.Family, nextHop netip.Addr, nlriBytes []byte) attribute.Attribute {
 	// Build next-hop with RD prefix
 	var nhBytes []byte
 	if nextHop.Is4() {
@@ -445,10 +446,10 @@ func (c *CommitService) buildVPNMPReachNLRI(family nlri.Family, nextHop netip.Ad
 	value := make([]byte, valueLen)
 
 	// AFI
-	value[0] = byte(family.AFI >> 8)
-	value[1] = byte(family.AFI)
+	value[0] = byte(fam.AFI >> 8)
+	value[1] = byte(fam.AFI)
 	// SAFI
-	value[2] = byte(family.SAFI)
+	value[2] = byte(fam.SAFI)
 	// NH Length
 	value[3] = byte(len(nhBytes))
 	// Next-hop (with RD)
@@ -461,8 +462,8 @@ func (c *CommitService) buildVPNMPReachNLRI(family nlri.Family, nextHop netip.Ad
 	// Return a custom MPReachNLRI that will pack correctly
 	// We need to use the raw bytes approach since the standard WriteTo doesn't handle RD
 	return &vpnMPReachNLRI{
-		afi:   attribute.AFI(family.AFI),
-		safi:  attribute.SAFI(family.SAFI),
+		afi:   attribute.AFI(fam.AFI),
+		safi:  attribute.SAFI(fam.SAFI),
 		value: value,
 	}
 }
@@ -500,7 +501,7 @@ func (m *vpnMPReachNLRI) CheckedWriteTo(buf []byte, off int) (int, error) {
 }
 
 // isVPNSAFI returns true if the SAFI indicates a VPN family.
-func isVPNSAFI(safi nlri.SAFI) bool {
+func isVPNSAFI(safi family.SAFI) bool {
 	return safi == 128 // MPLS VPN (RFC 4364)
 }
 
@@ -524,7 +525,7 @@ func bytesToAddr(b []byte) netip.Addr {
 }
 
 // sortFamilies sorts families for deterministic ordering.
-func sortFamilies(families []nlri.Family) {
+func sortFamilies(families []family.Family) {
 	sort.Slice(families, func(i, j int) bool {
 		if families[i].AFI != families[j].AFI {
 			return families[i].AFI < families[j].AFI

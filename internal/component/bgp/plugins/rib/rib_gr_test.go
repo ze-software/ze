@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // setupGRTestRIB creates a RIBManager with routes for two peers, each with two families.
@@ -19,8 +19,8 @@ func setupGRTestRIB(t *testing.T) *RIBManager {
 	t.Helper()
 	r := newTestRIBManager(t)
 
-	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-	ipv6Family := nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}
+	ipv4Family := family.IPv4Unicast
+	ipv6Family := family.IPv6Unicast
 
 	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
 
@@ -138,7 +138,7 @@ func TestRIBMarkStaleCommandExplicitLevel(t *testing.T) {
 	assert.Equal(t, float64(2), result["marked"])
 
 	// Verify routes have StaleLevel=2, not the default 1.
-	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	ipv4Family := family.IPv4Unicast
 	entry, ok := r.ribInPool["192.0.2.1"].Lookup(ipv4Family, []byte{24, 10, 0, 0})
 	require.True(t, ok)
 	assert.Equal(t, uint8(2), entry.StaleLevel, "route should have StaleLevel=2")
@@ -200,7 +200,7 @@ func TestRIBPurgeStaleCommand(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
 
-	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	ipv4Family := family.IPv4Unicast
 
 	// Mark all peer 1 routes as stale.
 	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
@@ -266,7 +266,7 @@ func TestRIBPurgeStalePreservesFresh(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
 
-	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	ipv4Family := family.IPv4Unicast
 
 	// Mark all peer 1 routes as stale.
 	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
@@ -305,8 +305,8 @@ func TestGRFlowMarkAndPurge(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
 
-	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-	ipv6Family := nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}
+	ipv4Family := family.IPv4Unicast
+	ipv6Family := family.IPv6Unicast
 
 	// Step 1: Peer goes down → mark-stale (simulating bgp-gr 3-step sequence)
 	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
@@ -355,7 +355,7 @@ func TestGRConsecutiveRestart(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
 
-	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	ipv4Family := family.IPv4Unicast
 
 	// First disconnect: mark all routes as stale.
 	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
@@ -400,7 +400,7 @@ func TestRIBShowInStaleFlag(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
 
-	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	ipv4Family := family.IPv4Unicast
 
 	// Before marking stale, show received should not have "stale" field.
 	_, data, err := r.handleCommand("rib show", "192.0.2.1", []string{"received"})
@@ -627,7 +627,7 @@ func TestAttachCommunity(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
 
-	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	ipv4Family := family.IPv4Unicast
 
 	// Mark peer 1 stale
 	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
@@ -660,7 +660,7 @@ func TestDeleteWithCommunity(t *testing.T) {
 	t.Parallel()
 	r := newTestRIBManager(t)
 
-	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	ipv4Family := family.IPv4Unicast
 
 	// Insert route WITH testCommunityB
 	attrWithComm := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireCommunityB)
@@ -692,7 +692,7 @@ func TestAttachCommunity_Idempotent(t *testing.T) {
 	t.Parallel()
 	r := newTestRIBManager(t)
 
-	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	ipv4Family := family.IPv4Unicast
 
 	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
@@ -729,7 +729,7 @@ func TestAttachCommunity_NoCommunities(t *testing.T) {
 	t.Parallel()
 	r := newTestRIBManager(t)
 
-	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	ipv4Family := family.IPv4Unicast
 
 	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
 	peerRIB := storage.NewPeerRIB("192.0.2.1")

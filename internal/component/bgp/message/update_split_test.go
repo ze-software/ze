@@ -681,11 +681,11 @@ func TestExtractMPFamily(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			family, ok := ExtractMPFamily(tt.pathAttrs)
+			fam, ok := ExtractMPFamily(tt.pathAttrs)
 			assert.Equal(t, tt.wantOK, ok)
 			if tt.wantOK {
-				assert.Equal(t, tt.wantAFI, uint16(family.AFI))
-				assert.Equal(t, tt.wantSAFI, uint8(family.SAFI))
+				assert.Equal(t, tt.wantAFI, uint16(fam.AFI))
+				assert.Equal(t, tt.wantSAFI, uint8(fam.SAFI))
 			}
 		})
 	}

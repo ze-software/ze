@@ -111,16 +111,16 @@ set neighbor 192.0.2.1 family ipv6 unicast true
 	neighbors := tree.GetList("neighbor")
 	n := neighbors["192.0.2.1"]
 
-	family := n.GetContainer("family")
-	require.NotNil(t, family)
+	fam := n.GetContainer("family")
+	require.NotNil(t, fam)
 
-	ipv4 := family.GetContainer("ipv4")
+	ipv4 := fam.GetContainer("ipv4")
 	require.NotNil(t, ipv4)
 
 	val, _ := ipv4.Get("unicast")
 	require.Equal(t, "true", val)
 
-	ipv6 := family.GetContainer("ipv6")
+	ipv6 := fam.GetContainer("ipv6")
 	require.NotNil(t, ipv6)
 
 	val, _ = ipv6.Get("unicast")
@@ -867,8 +867,8 @@ func TestSetParserIncompleteContainer(t *testing.T) {
 				entry := neighbors["192.0.2.1"]
 				require.NotNil(t, entry)
 				// family container should exist (empty)
-				family := entry.GetContainer("family")
-				require.NotNil(t, family)
+				fam := entry.GetContainer("family")
+				require.NotNil(t, fam)
 			},
 		},
 		{

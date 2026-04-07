@@ -22,6 +22,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // UpdateBuilder provides context for building UPDATE messages.
@@ -285,7 +286,7 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
 		attrs = append(attrs, mpReach)
 	case p.Prefix.Addr().Is4():
 		// IPv4 unicast: inline NLRI
-		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, p.Prefix, p.PathID)
+		inet := nlri.NewINET(family.IPv4Unicast, p.Prefix, p.PathID)
 		inlineNLRI = make([]byte, nlri.LenWithContext(inet, ub.AddPath))
 		nlri.WriteNLRI(inet, inlineNLRI, 0, ub.AddPath)
 	}
@@ -414,23 +415,23 @@ func (ub *UpdateBuilder) packAggregator(asn uint32, ip [4]byte) []byte {
 // SAFI is determined by p.SAFI (defaults to SAFIUnicast when zero).
 func (ub *UpdateBuilder) buildMPReach(p *UnicastParams) *attribute.MPReachNLRI {
 	var afi attribute.AFI
-	var nlriAFI nlri.AFI
+	var nlriAFI family.AFI
 
 	if p.Prefix.Addr().Is6() {
 		afi = attribute.AFIIPv6
-		nlriAFI = nlri.AFIIPv6
+		nlriAFI = family.AFIIPv6
 	} else {
 		afi = attribute.AFIIPv4
-		nlriAFI = nlri.AFIIPv4
+		nlriAFI = family.AFIIPv4
 	}
 
 	safi := p.SAFI
 	if safi == 0 {
 		safi = attribute.SAFIUnicast
 	}
-	nlriSAFI := nlri.SAFI(safi)
+	nlriSAFI := family.SAFI(safi)
 
-	inet := nlri.NewINET(nlri.Family{AFI: nlriAFI, SAFI: nlriSAFI}, p.Prefix, p.PathID)
+	inet := nlri.NewINET(family.Family{AFI: nlriAFI, SAFI: nlriSAFI}, p.Prefix, p.PathID)
 	nlriBytes := ub.alloc(nlri.LenWithContext(inet, ub.AddPath))
 	nlri.WriteNLRI(inet, nlriBytes, 0, ub.AddPath)
 

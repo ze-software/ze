@@ -9,6 +9,8 @@ package nlri
 
 import (
 	"net/netip"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // PrefixNLRI provides common fields for prefix-based NLRI types.
@@ -20,14 +22,14 @@ import (
 //
 // Note: IPVPN has different field order (RD before prefix) so stays separate.
 type PrefixNLRI struct {
-	family Family
+	fam    family.Family
 	prefix netip.Prefix
 	pathID uint32 // RFC 7911: 0 means no path ID
 }
 
 // Family returns the AFI/SAFI for this NLRI.
-func (p *PrefixNLRI) Family() Family {
-	return p.family
+func (p *PrefixNLRI) Family() family.Family {
+	return p.fam
 }
 
 // Prefix returns the IP prefix.

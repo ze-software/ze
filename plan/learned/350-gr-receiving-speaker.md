@@ -7,8 +7,8 @@ Implement Graceful Restart Receiving Speaker procedures (RFC 4724 Section 4.2) a
 ## Decisions
 
 - GR logic lives in bgp-gr plugin, not the engine — user explicitly corrected initial approach
-- State machine uses string-based family names (not `nlri.Family`) since plugin operates on formatted JSON events
-- `afiSAFIToFamily` delegates to `nlri.Family.String()` — single source of truth eliminates impedance mismatch
+- State machine uses string-based family names (not `family.Family`) since plugin operates on formatted JSON events
+- `afiSAFIToFamily` delegates to `family.Family.String()` — single source of truth eliminates impedance mismatch
 - Inter-plugin coordination via `DispatchCommand("rib retain-routes <peer>")` / `release-routes`
 - `time.AfterFunc` for restart timers (simpler than clock interface for plugin context)
 - Nil SDK guard in `dispatchRIBCommand` for unit testability without full SDK wiring
@@ -24,10 +24,10 @@ Implement Graceful Restart Receiving Speaker procedures (RFC 4724 Section 4.2) a
 
 ## Gotchas
 
-- `afiSAFIToFamily` hand-maintained map had SAFI 4 as "mpls" but `nlri.SAFI.String()` returns "mpls-label" — caused silent EOR mismatch for MPLS-labeled families
+- `afiSAFIToFamily` hand-maintained map had SAFI 4 as "mpls" but `family.SAFI.String()` returns "mpls-label" — caused silent EOR mismatch for MPLS-labeled families
 - L2VPN VPLS is AFI=25/SAFI=65, NOT SAFI=72 (which is `SAFIBGPLinkStateVPN`) — easy to confuse in the IANA registry
-- `nlri.Family.String()` lacked a special case for `{AFIBGPLS, SAFIBGPLinkStateVPN}` → produced "bgp-ls/72" instead of "bgp-ls/bgp-ls-vpn", breaking round-trip with `ParseFamily`
-- Five SAFIs (mvpn, vpls, mup, rtc, flow-vpn) were missing from the hand-maintained map — all eliminated by delegating to `nlri.Family.String()`
+- `family.Family.String()` lacked a special case for `{AFIBGPLS, SAFIBGPLinkStateVPN}` → produced "bgp-ls/72" instead of "bgp-ls/bgp-ls-vpn", breaking round-trip with `ParseFamily`
+- Five SAFIs (mvpn, vpls, mup, rtc, flow-vpn) were missing from the hand-maintained map — all eliminated by delegating to `family.Family.String()`
 - Auto-linter hook blocks edits where types appear unused — must add type definitions AND their callers in the same edit
 
 ## Files

@@ -12,7 +12,7 @@ import (
 	"slices"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // isValidFlowSpecFamily checks if family is a FlowSpec family.
@@ -26,13 +26,13 @@ func isValidFlowSpecFamily(family string) bool {
 }
 
 // decodeFlowSpecNLRI decodes FlowSpec NLRI wire bytes to JSON map.
-func decodeFlowSpecNLRI(family string, data []byte) map[string]any {
-	isVPN := strings.HasSuffix(family, "-vpn")
+func decodeFlowSpecNLRI(famName string, data []byte) map[string]any {
+	isVPN := strings.HasSuffix(famName, "-vpn")
 
 	// Determine Family from family string
-	fam, ok := nlri.ParseFamily(family)
+	fam, ok := family.LookupFamily(famName)
 	if !ok {
-		flowLogger.Debug("unknown family", "family", family)
+		flowLogger.Debug("unknown family", "family", famName)
 		return nil
 	}
 
@@ -57,7 +57,7 @@ func decodeFlowSpecNLRI(family string, data []byte) map[string]any {
 		}
 	}
 
-	return flowSpecToJSON(fs, family, rd)
+	return flowSpecToJSON(fs, famName, rd)
 }
 
 // flowSpecToJSON converts FlowSpec to ze JSON representation.

@@ -10,6 +10,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // testContext creates an EncodingContext for tests.
@@ -27,7 +28,7 @@ func testContext(localAS, peerAS uint32, asn4 bool) *bgpctx.EncodingContext { //
 }
 
 // testContextWithAddPath creates an EncodingContext with ADD-PATH settings.
-func testContextWithAddPath(localAS, peerAS uint32, asn4 bool, addPath map[nlri.Family]bool) *bgpctx.EncodingContext {
+func testContextWithAddPath(localAS, peerAS uint32, asn4 bool, addPath map[family.Family]bool) *bgpctx.EncodingContext {
 	identity := &capability.PeerIdentity{
 		LocalASN: localAS,
 		PeerASN:  peerAS,
@@ -370,13 +371,13 @@ func TestCommitService_TwoLevel_ExplicitASPathTakesPrecedence(t *testing.T) {
 // newIPv4NLRI creates an IPv4 unicast NLRI for testing.
 func newIPv4NLRI(prefix string) nlri.NLRI {
 	p := netip.MustParsePrefix(prefix)
-	return nlri.NewINET(nlri.IPv4Unicast, p, 0)
+	return nlri.NewINET(family.IPv4Unicast, p, 0)
 }
 
 // newIPv6NLRI creates an IPv6 unicast NLRI for testing.
 func newIPv6NLRI(prefix string) nlri.NLRI {
 	p := netip.MustParsePrefix(prefix)
-	return nlri.NewINET(nlri.IPv6Unicast, p, 0)
+	return nlri.NewINET(family.IPv6Unicast, p, 0)
 }
 
 // ==============================================================
@@ -654,16 +655,16 @@ func TestCommitServiceAddPathFor(t *testing.T) {
 	sender := &mockUpdateSender{}
 
 	// Test with ADD-PATH enabled for IPv4 unicast
-	ctx := testContextWithAddPath(65000, 65001, true, map[nlri.Family]bool{
-		nlri.IPv4Unicast: true,  // IPv4 unicast with ADD-PATH
-		nlri.IPv6Unicast: false, // IPv6 unicast without ADD-PATH
+	ctx := testContextWithAddPath(65000, 65001, true, map[family.Family]bool{
+		{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true,  // IPv4 unicast with ADD-PATH
+		{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}: false, // IPv6 unicast without ADD-PATH
 	})
 	cs := NewCommitService(sender, ctx, false)
 
-	if !cs.addPathFor(nlri.IPv4Unicast) {
+	if !cs.addPathFor(family.IPv4Unicast) {
 		t.Error("addPathFor should be true for IPv4 unicast when negotiated")
 	}
-	if cs.addPathFor(nlri.IPv6Unicast) {
+	if cs.addPathFor(family.IPv6Unicast) {
 		t.Error("addPathFor should be false for IPv6 unicast when not negotiated")
 	}
 }

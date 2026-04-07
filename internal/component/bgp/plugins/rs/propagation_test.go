@@ -670,7 +670,7 @@ func TestSelectTargets_NilFamilies_AcceptsAll(t *testing.T) {
 	rs.mu.Unlock()
 
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.0", map[string]bool{"ipv6/vpn": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.0", map[string]bool{"ipv6/mpls-vpn": true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
@@ -971,10 +971,10 @@ func TestPropagation_FourPeers_SevenFamilies(t *testing.T) {
 
 	// Simulate chaos test: 4 peers, 7 families, not all peers support all families
 	peerFamilies := map[string][]string{
-		"10.0.0.1": {"ipv4/unicast", "ipv4/flow", "ipv6/unicast", "ipv6/flow", "ipv4/vpn", "ipv6/vpn", "l2vpn/evpn"},
-		"10.0.0.2": {"ipv4/unicast", "ipv6/unicast", "ipv4/vpn"},
+		"10.0.0.1": {"ipv4/unicast", "ipv4/flow", "ipv6/unicast", "ipv6/flow", "ipv4/mpls-vpn", "ipv6/mpls-vpn", "l2vpn/evpn"},
+		"10.0.0.2": {"ipv4/unicast", "ipv6/unicast", "ipv4/mpls-vpn"},
 		"10.0.0.3": {"ipv4/unicast", "ipv6/unicast", "ipv4/flow", "l2vpn/evpn"},
-		"10.0.0.4": {"ipv4/unicast", "ipv6/unicast", "ipv6/vpn", "ipv6/flow"},
+		"10.0.0.4": {"ipv4/unicast", "ipv6/unicast", "ipv6/mpls-vpn", "ipv6/flow"},
 	}
 
 	for addr, families := range peerFamilies {
@@ -1021,9 +1021,9 @@ func TestPropagation_FourPeers_SevenFamilies(t *testing.T) {
 			wantAddrs: []string{"10.0.0.3"},
 		},
 		{
-			name:      "ipv6/vpn from peer1 → only peer4",
+			name:      "ipv6/mpls-vpn from peer1 → only peer4",
 			source:    "10.0.0.1",
-			families:  map[string]bool{"ipv6/vpn": true},
+			families:  map[string]bool{"ipv6/mpls-vpn": true},
 			wantCount: 1,
 			wantAddrs: []string{"10.0.0.4"},
 		},
@@ -1035,9 +1035,9 @@ func TestPropagation_FourPeers_SevenFamilies(t *testing.T) {
 			wantAddrs: []string{"10.0.0.1", "10.0.0.3", "10.0.0.4"},
 		},
 		{
-			name:      "ipv4/vpn from peer2 → only peer1",
+			name:      "ipv4/mpls-vpn from peer2 → only peer1",
 			source:    "10.0.0.2",
-			families:  map[string]bool{"ipv4/vpn": true},
+			families:  map[string]bool{"ipv4/mpls-vpn": true},
 			wantCount: 1,
 			wantAddrs: []string{"10.0.0.1"},
 		},
@@ -1116,16 +1116,16 @@ func TestPropagation_VPNRoute(t *testing.T) {
 	rs.mu.Lock()
 	rs.peers["10.0.0.1"] = &PeerState{
 		Address: "10.0.0.1", Up: true,
-		Families: map[string]bool{"ipv4/vpn": true},
+		Families: map[string]bool{"ipv4/mpls-vpn": true},
 	}
 	rs.peers["10.0.0.2"] = &PeerState{
 		Address: "10.0.0.2", Up: true,
-		Families: map[string]bool{"ipv4/vpn": true},
+		Families: map[string]bool{"ipv4/mpls-vpn": true},
 	}
 	rs.mu.Unlock()
 
 	// VPN UPDATE with NLRI
-	input := "peer 10.0.0.1 remote as 65001 received update 200 origin igp next-hop 192.168.1.1 nlri ipv4/vpn add prefix 10.0.0.0/24"
+	input := "peer 10.0.0.1 remote as 65001 received update 200 origin igp next-hop 192.168.1.1 nlri ipv4/mpls-vpn add prefix 10.0.0.0/24"
 	rs.dispatchText(input)
 	flushWorkers(t, rs)
 
@@ -1135,17 +1135,17 @@ func TestPropagation_VPNRoute(t *testing.T) {
 	if len(peerWd) != 1 {
 		t.Fatalf("expected 1 VPN withdrawal entry, got %d", len(peerWd))
 	}
-	entry, ok := peerWd["ipv4/vpn|10.0.0.0/24"]
+	entry, ok := peerWd["ipv4/mpls-vpn|10.0.0.0/24"]
 	if !ok {
 		t.Fatal("missing withdrawal entry for VPN route")
 	}
-	if entry.Family != "ipv4/vpn" {
-		t.Errorf("expected family ipv4/vpn, got %s", entry.Family)
+	if entry.Family != "ipv4/mpls-vpn" {
+		t.Errorf("expected family ipv4/mpls-vpn, got %s", entry.Family)
 	}
 
 	// Verify forward target
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.1", map[string]bool{"ipv4/vpn": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.1", map[string]bool{"ipv4/mpls-vpn": true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 || targets[0] != "10.0.0.2" {

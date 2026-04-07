@@ -24,9 +24,9 @@ import (
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	adjschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in/schema"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -40,6 +40,10 @@ const (
 	stateDown         = "down"
 	familyIPv4Unicast = "ipv4/unicast"
 )
+
+// familyIPv4UnicastValue is the family.Family value for IPv4 unicast,
+// used by handleReceivedStructured for AddPath context lookups.
+var familyIPv4UnicastValue = family.Family{AFI: 1, SAFI: 1}
 
 // loggerPtr is the package-level logger, disabled by default.
 var loggerPtr atomic.Pointer[slog.Logger]
@@ -226,43 +230,43 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// IPv4 unicast announces.
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
-		family := familyIPv4Unicast
-		event.RawNLRI[family] = hex.EncodeToString(nlriData)
-		addPath := ctx != nil && ctx.AddPath(nlri.Family{AFI: 1, SAFI: 1})
-		event.AddPath[family] = addPath
-		event.FamilyOps[family] = append(event.FamilyOps[family], bgp.FamilyOperation{
+		fam := familyIPv4Unicast
+		event.RawNLRI[fam] = hex.EncodeToString(nlriData)
+		addPath := ctx != nil && ctx.AddPath(familyIPv4UnicastValue)
+		event.AddPath[fam] = addPath
+		event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
 			Action: "add",
-			NLRIs:  wireNLRIsToAny(nlriData, addPath, family),
+			NLRIs:  wireNLRIsToAny(nlriData, addPath, fam),
 		})
 	}
 
 	// IPv4 unicast withdrawals.
 	wdData, err := wu.Withdrawn()
 	if err == nil && len(wdData) > 0 {
-		family := familyIPv4Unicast
-		event.RawWithdrawn[family] = hex.EncodeToString(wdData)
-		addPath := ctx != nil && ctx.AddPath(nlri.Family{AFI: 1, SAFI: 1})
-		event.AddPath[family] = addPath
-		event.FamilyOps[family] = append(event.FamilyOps[family], bgp.FamilyOperation{
+		fam := familyIPv4Unicast
+		event.RawWithdrawn[fam] = hex.EncodeToString(wdData)
+		addPath := ctx != nil && ctx.AddPath(familyIPv4UnicastValue)
+		event.AddPath[fam] = addPath
+		event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
 			Action: "del",
-			NLRIs:  wireNLRIsToAny(wdData, addPath, family),
+			NLRIs:  wireNLRIsToAny(wdData, addPath, fam),
 		})
 	}
 
 	// MP_REACH_NLRI announces.
 	mpReach, err := wu.MPReach()
 	if err == nil && mpReach != nil {
-		family := mpReach.Family().String()
+		fam := mpReach.Family().String()
 		nlriBytes := mpReach.NLRIBytes()
 		if len(nlriBytes) > 0 {
-			event.RawNLRI[family] = hex.EncodeToString(nlriBytes)
+			event.RawNLRI[fam] = hex.EncodeToString(nlriBytes)
 			addPath := ctx != nil && ctx.AddPath(mpReach.Family())
-			event.AddPath[family] = addPath
+			event.AddPath[fam] = addPath
 			nhop := mpReach.NextHop().String()
-			event.FamilyOps[family] = append(event.FamilyOps[family], bgp.FamilyOperation{
+			event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
 				Action:  "add",
 				NextHop: nhop,
-				NLRIs:   wireNLRIsToAny(nlriBytes, addPath, family),
+				NLRIs:   wireNLRIsToAny(nlriBytes, addPath, fam),
 			})
 		}
 	}
@@ -270,15 +274,15 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// MP_UNREACH_NLRI withdrawals.
 	mpUnreach, err := wu.MPUnreach()
 	if err == nil && mpUnreach != nil {
-		family := mpUnreach.Family().String()
+		fam := mpUnreach.Family().String()
 		wdBytes := mpUnreach.WithdrawnBytes()
 		if len(wdBytes) > 0 {
-			event.RawWithdrawn[family] = hex.EncodeToString(wdBytes)
+			event.RawWithdrawn[fam] = hex.EncodeToString(wdBytes)
 			addPath := ctx != nil && ctx.AddPath(mpUnreach.Family())
-			event.AddPath[family] = addPath
-			event.FamilyOps[family] = append(event.FamilyOps[family], bgp.FamilyOperation{
+			event.AddPath[fam] = addPath
+			event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
 				Action: "del",
-				NLRIs:  wireNLRIsToAny(wdBytes, addPath, family),
+				NLRIs:  wireNLRIsToAny(wdBytes, addPath, fam),
 			})
 		}
 	}
@@ -394,14 +398,14 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	for family, ops := range event.FamilyOps {
+	for fam, ops := range event.FamilyOps {
 		// Split raw NLRI hex into individual prefixes for simple families.
 		// For complex families (VPN, EVPN), splitRawNLRIHex returns nil
 		// and the raw blob is used directly (see switch below).
-		rawNLRIHex := event.RawNLRI[family]
+		rawNLRIHex := event.RawNLRI[fam]
 		var splitHexEntries []string
 		if rawNLRIHex != "" {
-			splitHexEntries = splitRawNLRIHex(rawNLRIHex, family)
+			splitHexEntries = splitRawNLRIHex(rawNLRIHex, fam)
 		}
 
 		for _, op := range ops {
@@ -422,7 +426,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 					if prefix == "" {
 						continue
 					}
-					routeKey := bgp.RouteKey(family, prefix, pathID)
+					routeKey := bgp.RouteKey(fam, prefix, pathID)
 
 					// Get individual NLRI hex from the correct source:
 					// - Simple families: split raw bytes give per-prefix hex
@@ -434,7 +438,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 					switch {
 					case i < len(splitHexEntries):
 						nlriHex = splitHexEntries[i]
-					case rawNLRIHex != "" && !isSimplePrefixFamily(family):
+					case rawNLRIHex != "" && !isSimplePrefixFamily(fam):
 						// Complex family: use entire raw blob (correct wire format).
 						// Store only for the first parsed NLRI — the blob covers all.
 						if i > 0 {
@@ -442,11 +446,11 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 						}
 						nlriHex = rawNLRIHex
 					default: // simple family without raw bytes — compute from parsed prefix
-						nlriHex = prefixToWireHex(family, prefix, pathID)
+						nlriHex = prefixToWireHex(fam, prefix, pathID)
 					}
 
 					route := &RawRoute{
-						Family:  family,
+						Family:  fam,
 						AttrHex: event.RawAttributes,
 						NHopHex: nhopHex,
 						NLRIHex: nlriHex,
@@ -457,7 +461,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 						pKey := pendingKey(peerAddr, routeKey)
 						r.pending[pKey] = &PendingRoute{
 							peerAddr:   peerAddr,
-							family:     family,
+							family:     fam,
 							prefix:     prefix,
 							routeKey:   routeKey,
 							route:      route,
@@ -480,7 +484,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 					if prefix == "" {
 						continue
 					}
-					routeKey := bgp.RouteKey(family, prefix, pathID)
+					routeKey := bgp.RouteKey(fam, prefix, pathID)
 					// Remove from pending if present.
 					r.removePending(peerAddr, routeKey)
 					// Remove from installed if present.

@@ -11,6 +11,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/source"
 )
 
@@ -272,33 +273,33 @@ func (u *WireUpdate) AttrIterator() (attribute.AttrIterator, error) {
 // Returns the address family and true if this UPDATE is an EOR marker.
 // IPv4 unicast EOR: empty UPDATE (no withdrawn, no attrs, no NLRI).
 // Other families: UPDATE with only MP_UNREACH_NLRI containing AFI/SAFI, no withdrawn prefixes.
-func (u *WireUpdate) IsEOR() (nlri.Family, bool) {
+func (u *WireUpdate) IsEOR() (family.Family, bool) {
 	// Check IPv4 sections (cheap, no attribute parsing).
 	withdrawn, err := u.Withdrawn()
 	if err != nil || len(withdrawn) > 0 {
-		return nlri.Family{}, false
+		return family.Family{}, false
 	}
 	nlriBytes, err := u.NLRI()
 	if err != nil || len(nlriBytes) > 0 {
-		return nlri.Family{}, false
+		return family.Family{}, false
 	}
 
 	// Check for MP_REACH_NLRI — if present, not an EOR.
 	mpReach, err := u.MPReach()
 	if err != nil || mpReach != nil {
-		return nlri.Family{}, false
+		return family.Family{}, false
 	}
 
 	// Check for MP_UNREACH_NLRI.
 	mpUnreach, err := u.MPUnreach()
 	if err != nil {
-		return nlri.Family{}, false
+		return family.Family{}, false
 	}
 
 	if mpUnreach != nil {
 		// Multiprotocol EOR: MP_UNREACH with AFI/SAFI only, no withdrawn prefixes.
 		if len(mpUnreach.WithdrawnBytes()) > 0 {
-			return nlri.Family{}, false
+			return family.Family{}, false
 		}
 		return mpUnreach.Family(), true
 	}
@@ -306,7 +307,7 @@ func (u *WireUpdate) IsEOR() (nlri.Family, bool) {
 	// No MP attributes and no IPv4 content: IPv4 unicast EOR.
 	attrs, err := u.Attrs()
 	if err != nil || attrs != nil {
-		return nlri.Family{}, false
+		return family.Family{}, false
 	}
-	return nlri.Family{AFI: 1, SAFI: 1}, true
+	return family.Family{AFI: 1, SAFI: 1}, true
 }

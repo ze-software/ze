@@ -45,9 +45,9 @@ func wireLogSetHints(tree *Node) {
 func FamilyValueHints() []Suggestion {
 	families := registry.AllFamilies()
 	hints := make([]Suggestion, 0, len(families))
-	for family, plugin := range families {
+	for fam, plugin := range families {
 		hints = append(hints, Suggestion{
-			Text:        family,
+			Text:        fam,
 			Description: plugin,
 			Type:        "value",
 		})

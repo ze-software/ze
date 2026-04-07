@@ -7,9 +7,9 @@ package handler
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 func init() {
@@ -69,7 +69,7 @@ func handleRefreshMarker(
 	}
 
 	// Parse family (e.g., "ipv4/unicast")
-	family, ok := nlri.ParseFamily(args[0])
+	fam, ok := family.LookupFamily(args[0])
 	if !ok {
 		return &plugin.Response{
 			Status: plugin.StatusError,
@@ -79,7 +79,7 @@ func handleRefreshMarker(
 
 	peerSelector := ctx.PeerSelector()
 
-	if err := send(peerSelector, uint16(family.AFI), uint8(family.SAFI)); err != nil {
+	if err := send(peerSelector, uint16(fam.AFI), uint8(fam.SAFI)); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("%s failed: %v", cmd, err),
@@ -90,7 +90,7 @@ func handleRefreshMarker(
 		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"selector": peerSelector,
-			"family":   family.String(),
+			"family":   fam.String(),
 		},
 	}, nil
 }

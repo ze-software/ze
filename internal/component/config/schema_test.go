@@ -114,11 +114,11 @@ func TestSchemaNestedContainers(t *testing.T) {
 	require.True(t, ok, "expected ListNode")
 
 	familyNode := list.Get("family")
-	family, ok := familyNode.(*ContainerNode)
+	fam, ok := familyNode.(*ContainerNode)
 	require.True(t, ok, "expected ContainerNode")
-	require.NotNil(t, family)
+	require.NotNil(t, fam)
 
-	ipv4Node := family.Get("ipv4")
+	ipv4Node := fam.Get("ipv4")
 	ipv4, ok := ipv4Node.(*ContainerNode)
 	require.True(t, ok, "expected ContainerNode")
 	require.NotNil(t, ipv4)

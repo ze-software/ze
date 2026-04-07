@@ -13,7 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 func toVPLSParams(r VPLSRoute) message.VPLSParams {
@@ -68,9 +68,9 @@ func toStaticRouteUnicastParams(r *StaticRoute, nextHop, linkLocal netip.Addr, s
 	var useExtNH bool
 	if sendCtx != nil {
 		if r.Prefix.Addr().Is4() && nextHop.Is6() {
-			useExtNH = sendCtx.ExtendedNextHopFor(nlri.IPv4Unicast) != 0
+			useExtNH = sendCtx.ExtendedNextHopFor(family.IPv4Unicast) != 0
 		} else if r.Prefix.Addr().Is6() && nextHop.Is4() {
-			useExtNH = sendCtx.ExtendedNextHopFor(nlri.IPv6Unicast) != 0
+			useExtNH = sendCtx.ExtendedNextHopFor(family.IPv6Unicast) != 0
 		}
 	}
 
@@ -177,23 +177,23 @@ func buildStaticRouteUpdateNew(route *StaticRoute, nextHop, linkLocal netip.Addr
 
 // routeFamily returns the NLRI family for a StaticRoute.
 // Used to track which families had routes sent for EOR purposes.
-func routeFamily(route *StaticRoute) nlri.Family {
+func routeFamily(route *StaticRoute) family.Family {
 	if route.IsVPN() {
 		if route.Prefix.Addr().Is6() {
-			return nlri.Family{AFI: nlri.AFIIPv6, SAFI: 128} // VPNv6
+			return family.Family{AFI: family.AFIIPv6, SAFI: 128} // VPNv6
 		}
-		return nlri.Family{AFI: nlri.AFIIPv4, SAFI: 128} // VPNv4
+		return family.Family{AFI: family.AFIIPv4, SAFI: 128} // VPNv4
 	}
 	if route.IsLabeledUnicast() {
 		if route.Prefix.Addr().Is6() {
-			return nlri.Family{AFI: nlri.AFIIPv6, SAFI: 4} // IPv6 Labeled Unicast
+			return family.Family{AFI: family.AFIIPv6, SAFI: 4} // IPv6 Labeled Unicast
 		}
-		return nlri.Family{AFI: nlri.AFIIPv4, SAFI: 4} // IPv4 Labeled Unicast
+		return family.Family{AFI: family.AFIIPv4, SAFI: 4} // IPv4 Labeled Unicast
 	}
 	if route.Prefix.Addr().Is6() {
-		return nlri.IPv6Unicast
+		return family.IPv6Unicast
 	}
-	return nlri.IPv4Unicast
+	return family.IPv4Unicast
 }
 
 // writeRawAttribute writes a raw attribute into buf at off, returning bytes written.

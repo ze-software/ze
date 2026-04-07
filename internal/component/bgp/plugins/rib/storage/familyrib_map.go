@@ -6,9 +6,7 @@
 
 package storage
 
-import (
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-)
+import "codeberg.org/thomas-mangin/ze/internal/core/family"
 
 // FamilyRIB stores routes with per-attribute-type deduplication.
 // Each route has its own RouteEntry with handles to individual attribute pools.
@@ -17,7 +15,7 @@ import (
 // This improves memory efficiency when routes differ only in some attributes
 // (e.g., same ORIGIN/LOCAL_PREF but different MED).
 type FamilyRIB struct {
-	family  nlri.Family
+	fam     family.Family
 	addPath bool
 
 	// Routes indexed by fixed-size NLRI key (zero string allocation).
@@ -25,9 +23,9 @@ type FamilyRIB struct {
 }
 
 // NewFamilyRIB creates a FamilyRIB for the given address family.
-func NewFamilyRIB(family nlri.Family, addPath bool) *FamilyRIB {
+func NewFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
 	return &FamilyRIB{
-		family:  family,
+		fam:     fam,
 		addPath: addPath,
 		routes:  make(map[NLRIKey]RouteEntry),
 	}
@@ -132,8 +130,8 @@ func (r *FamilyRIB) ModifyAll(fn func(entry *RouteEntry)) {
 }
 
 // Family returns the address family of this RIB.
-func (r *FamilyRIB) Family() nlri.Family {
-	return r.family
+func (r *FamilyRIB) Family() family.Family {
+	return r.fam
 }
 
 // HasAddPath returns whether ADD-PATH is enabled.

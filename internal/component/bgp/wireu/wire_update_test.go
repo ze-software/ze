@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestWireUpdate_Derived verifies derived accessors return correct slices.
@@ -1334,16 +1334,16 @@ func TestWireUpdate_IsEOR(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wu := NewWireUpdate(tt.payload, 0)
-			family, isEOR := wu.IsEOR()
+			fam, isEOR := wu.IsEOR()
 			if isEOR != tt.wantEOR {
 				t.Errorf("IsEOR() = %v, want %v", isEOR, tt.wantEOR)
 			}
 			if tt.wantEOR {
-				if family.AFI != nlri.AFI(tt.wantAFI) {
-					t.Errorf("IsEOR() AFI = %d, want %d", family.AFI, tt.wantAFI)
+				if fam.AFI != family.AFI(tt.wantAFI) {
+					t.Errorf("IsEOR() AFI = %d, want %d", fam.AFI, tt.wantAFI)
 				}
-				if family.SAFI != nlri.SAFI(tt.wantSAFI) {
-					t.Errorf("IsEOR() SAFI = %d, want %d", family.SAFI, tt.wantSAFI)
+				if fam.SAFI != family.SAFI(tt.wantSAFI) {
+					t.Errorf("IsEOR() SAFI = %d, want %d", fam.SAFI, tt.wantSAFI)
 				}
 			}
 		})

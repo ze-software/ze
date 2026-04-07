@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // buildMPReachZe builds Ze format NLRI operations from MP_REACH_NLRI.
@@ -21,8 +21,8 @@ func buildMPReachZe(mpReach []byte) (string, []map[string]any) {
 		return "", nil
 	}
 
-	afi := nlri.AFI(binary.BigEndian.Uint16(mpReach[0:2]))
-	safi := nlri.SAFI(mpReach[2])
+	afi := family.AFI(binary.BigEndian.Uint16(mpReach[0:2]))
+	safi := family.SAFI(mpReach[2])
 	nhLen := int(mpReach[3])
 
 	if len(mpReach) < 4+nhLen+1 {
@@ -61,8 +61,8 @@ func buildMPUnreachZe(mpUnreach []byte) (string, []map[string]any) {
 		return "", nil
 	}
 
-	afi := nlri.AFI(binary.BigEndian.Uint16(mpUnreach[0:2]))
-	safi := nlri.SAFI(mpUnreach[2])
+	afi := family.AFI(binary.BigEndian.Uint16(mpUnreach[0:2]))
+	safi := family.SAFI(mpUnreach[2])
 
 	if len(mpUnreach) <= 3 {
 		return "", nil
@@ -117,7 +117,7 @@ func parseIPv4Prefixes(data []byte) []string {
 }
 
 // parseNextHop parses the next-hop from MP_REACH_NLRI.
-func parseNextHop(data []byte, _ nlri.AFI) string {
+func parseNextHop(data []byte, _ family.AFI) string {
 	switch {
 	case len(data) == 4:
 		return fmt.Sprintf("%d.%d.%d.%d", data[0], data[1], data[2], data[3])
@@ -135,21 +135,21 @@ func parseNextHop(data []byte, _ nlri.AFI) string {
 }
 
 // formatFamily returns the family string for JSON output.
-func formatFamily(afi nlri.AFI, safi nlri.SAFI) string {
+func formatFamily(afi family.AFI, safi family.SAFI) string {
 	// Use afi/safi format
-	return nlri.Family{AFI: afi, SAFI: safi}.String()
+	return family.Family{AFI: afi, SAFI: safi}.String()
 }
 
 // parseNLRIByFamily parses NLRI based on address family.
-func parseNLRIByFamily(data []byte, afi nlri.AFI, safi nlri.SAFI, _ bool) []any {
+func parseNLRIByFamily(data []byte, afi family.AFI, safi family.SAFI, _ bool) []any {
 	var routes []any
 
 	switch {
-	case afi == nlri.AFIL2VPN && safi == nlri.SAFIEVPN:
+	case afi == family.AFIL2VPN && safi == family.SAFIEVPN:
 		// EVPN decoding delegated to plugin
-		family := nlri.Family{AFI: afi, SAFI: safi}.String()
+		famStr := family.Family{AFI: afi, SAFI: safi}.String()
 		hexData := fmt.Sprintf("%X", data)
-		result := invokePluginNLRIDecode("bgp-nlri-evpn", family, hexData)
+		result := invokePluginNLRIDecode("bgp-nlri-evpn", famStr, hexData)
 		if result != nil {
 			// Result can be array (multiple NLRIs) or map (single NLRI)
 			if arr, ok := result.([]any); ok {
@@ -161,11 +161,11 @@ func parseNLRIByFamily(data []byte, afi nlri.AFI, safi nlri.SAFI, _ bool) []any 
 			// Plugin failed or unavailable - return raw bytes
 			routes = []any{map[string]any{"parsed": false, "raw": hexData}}
 		}
-	case safi == nlri.SAFIFlowSpec || safi == nlri.SAFIFlowSpecVPN:
+	case safi == family.SAFIFlowSpec || safi == family.SAFIFlowSpecVPN:
 		// FlowSpec decoding delegated to plugin
-		family := nlri.Family{AFI: afi, SAFI: safi}.String()
+		famStr := family.Family{AFI: afi, SAFI: safi}.String()
 		hexData := fmt.Sprintf("%X", data)
-		result := invokePluginNLRIDecode("bgp-nlri-flowspec", family, hexData)
+		result := invokePluginNLRIDecode("bgp-nlri-flowspec", famStr, hexData)
 		if result != nil {
 			// Result can be array (multiple NLRIs) or map (single NLRI)
 			if arr, ok := result.([]any); ok {
@@ -177,11 +177,11 @@ func parseNLRIByFamily(data []byte, afi nlri.AFI, safi nlri.SAFI, _ bool) []any 
 			// Plugin failed or unavailable - return raw bytes
 			routes = []any{map[string]any{"parsed": false, "raw": hexData}}
 		}
-	case afi == nlri.AFIBGPLS:
+	case afi == family.AFIBGPLS:
 		// BGP-LS decoding delegated to plugin
-		family := nlri.Family{AFI: afi, SAFI: safi}.String()
+		famStr := family.Family{AFI: afi, SAFI: safi}.String()
 		hexData := fmt.Sprintf("%X", data)
-		result := invokePluginNLRIDecode("bgp-nlri-ls", family, hexData)
+		result := invokePluginNLRIDecode("bgp-nlri-ls", famStr, hexData)
 		if result != nil {
 			if arr, ok := result.([]any); ok {
 				routes = arr
@@ -191,11 +191,11 @@ func parseNLRIByFamily(data []byte, afi nlri.AFI, safi nlri.SAFI, _ bool) []any 
 		} else {
 			routes = []any{map[string]any{"parsed": false, "raw": hexData}}
 		}
-	case safi == nlri.SAFIVPN:
+	case safi == family.SAFIVPN:
 		// VPN decoding delegated to plugin (RFC 4364, 4659)
-		family := nlri.Family{AFI: afi, SAFI: safi}.String()
+		famStr := family.Family{AFI: afi, SAFI: safi}.String()
 		hexData := fmt.Sprintf("%X", data)
-		result := invokePluginNLRIDecode("bgp-nlri-vpn", family, hexData)
+		result := invokePluginNLRIDecode("bgp-nlri-vpn", famStr, hexData)
 		if result != nil {
 			if arr, ok := result.([]any); ok {
 				routes = arr
@@ -214,7 +214,7 @@ func parseNLRIByFamily(data []byte, afi nlri.AFI, safi nlri.SAFI, _ bool) []any 
 
 // parseGenericNLRI parses generic NLRI (IPv4/IPv6 prefixes).
 // Returns a slice of prefix strings (e.g., ["10.0.0.0/24", "2001::1/128"]).
-func parseGenericNLRI(data []byte, afi nlri.AFI) []any {
+func parseGenericNLRI(data []byte, afi family.AFI) []any {
 	var routes []any
 	offset := 0
 
@@ -228,7 +228,7 @@ func parseGenericNLRI(data []byte, afi nlri.AFI) []any {
 		}
 
 		var prefix string
-		if afi == nlri.AFIIPv6 {
+		if afi == family.AFIIPv6 {
 			prefixBytes := make([]byte, 16)
 			copy(prefixBytes, data[offset:offset+byteLen])
 			addr := netip.AddrFrom16([16]byte(prefixBytes))

@@ -14,9 +14,9 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // RouteItem is a single route yielded by the pipeline iterator.
@@ -94,9 +94,9 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 			continue
 		}
 
-		peerRIB.Iterate(func(family nlri.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
-			familyStr := formatFamily(family)
-			prefixStr := formatNLRIAsPrefix(family, nlriBytes)
+		peerRIB.Iterate(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
+			familyStr := formatFamily(fam)
+			prefixStr := formatNLRIAsPrefix(fam, nlriBytes)
 			s.items = append(s.items, RouteItem{
 				Peer:       peer,
 				Family:     familyStr,

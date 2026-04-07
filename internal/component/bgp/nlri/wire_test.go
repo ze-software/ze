@@ -3,6 +3,8 @@ package nlri
 import (
 	"bytes"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestNewWireNLRI verifies constructor creates WireNLRI.
@@ -12,7 +14,7 @@ import (
 func TestNewWireNLRI(t *testing.T) {
 	t.Parallel()
 	data := []byte{24, 10, 0, 0} // 10.0.0.0/24
-	w, err := NewWireNLRI(IPv4Unicast, data, false)
+	w, err := NewWireNLRI(family.IPv4Unicast, data, false)
 	if err != nil {
 		t.Fatalf("NewWireNLRI: %v", err)
 	}
@@ -20,8 +22,8 @@ func TestNewWireNLRI(t *testing.T) {
 		t.Fatal("NewWireNLRI returned nil")
 		return
 	}
-	if w.Family() != IPv4Unicast {
-		t.Errorf("Family: want %s, got %s", IPv4Unicast, w.Family())
+	if w.Family() != family.IPv4Unicast {
+		t.Errorf("Family: want %s, got %s", family.IPv4Unicast, w.Family())
 	}
 }
 
@@ -32,16 +34,16 @@ func TestNewWireNLRI(t *testing.T) {
 func TestWireNLRI_Family(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		family Family
+		fam family.Family
 	}{
-		{IPv4Unicast},
-		{IPv6Unicast},
-		{IPv4VPN},
+		{family.IPv4Unicast},
+		{family.IPv6Unicast},
+		{family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}},
 	}
 	for _, tt := range tests {
-		w, _ := NewWireNLRI(tt.family, []byte{24, 10, 0, 0}, false)
-		if w.Family() != tt.family {
-			t.Errorf("Family: want %s, got %s", tt.family, w.Family())
+		w, _ := NewWireNLRI(tt.fam, []byte{24, 10, 0, 0}, false)
+		if w.Family() != tt.fam {
+			t.Errorf("Family: want %s, got %s", tt.fam, w.Family())
 		}
 	}
 }
@@ -53,7 +55,7 @@ func TestWireNLRI_Family(t *testing.T) {
 func TestWireNLRI_Bytes_NoAddPath(t *testing.T) {
 	t.Parallel()
 	data := []byte{24, 10, 0, 0} // 10.0.0.0/24
-	w, _ := NewWireNLRI(IPv4Unicast, data, false)
+	w, _ := NewWireNLRI(family.IPv4Unicast, data, false)
 	if !bytes.Equal(w.Bytes(), data) {
 		t.Errorf("Bytes: want %x, got %x", data, w.Bytes())
 	}
@@ -67,7 +69,7 @@ func TestWireNLRI_Bytes_WithAddPath(t *testing.T) {
 	t.Parallel()
 	// path-id=1 + 10.0.0.0/24
 	data := []byte{0, 0, 0, 1, 24, 10, 0, 0}
-	w, _ := NewWireNLRI(IPv4Unicast, data, true)
+	w, _ := NewWireNLRI(family.IPv4Unicast, data, true)
 	if !bytes.Equal(w.Bytes(), data) {
 		t.Errorf("Bytes: want %x, got %x", data, w.Bytes())
 	}
@@ -88,7 +90,7 @@ func TestWireNLRI_Len(t *testing.T) {
 		{[]byte{0, 0, 0, 1, 24, 10, 0, 0}, true, 4}, // With path-id: payload = 8 - 4 = 4
 	}
 	for _, tt := range tests {
-		w, _ := NewWireNLRI(IPv4Unicast, tt.data, tt.addp)
+		w, _ := NewWireNLRI(family.IPv4Unicast, tt.data, tt.addp)
 		if w.Len() != tt.expect {
 			t.Errorf("Len: want %d, got %d", tt.expect, w.Len())
 		}
@@ -102,7 +104,7 @@ func TestWireNLRI_Len(t *testing.T) {
 func TestWireNLRI_PathID_NoAddPath(t *testing.T) {
 	t.Parallel()
 	data := []byte{24, 10, 0, 0}
-	w, _ := NewWireNLRI(IPv4Unicast, data, false)
+	w, _ := NewWireNLRI(family.IPv4Unicast, data, false)
 	if w.PathID() != 0 {
 		t.Errorf("PathID: want 0, got %d", w.PathID())
 	}
@@ -116,7 +118,7 @@ func TestWireNLRI_PathID_WithAddPath(t *testing.T) {
 	t.Parallel()
 	// path-id=258 (0x00000102) + 10.0.0.0/24
 	data := []byte{0, 0, 1, 2, 24, 10, 0, 0}
-	w, _ := NewWireNLRI(IPv4Unicast, data, true)
+	w, _ := NewWireNLRI(family.IPv4Unicast, data, true)
 	if w.PathID() != 258 {
 		t.Errorf("PathID: want 258, got %d", w.PathID())
 	}
@@ -129,7 +131,7 @@ func TestWireNLRI_PathID_WithAddPath(t *testing.T) {
 func TestWireNLRI_WriteNLRI_NoMismatch(t *testing.T) {
 	t.Parallel()
 	data := []byte{24, 10, 0, 0}
-	w, _ := NewWireNLRI(IPv4Unicast, data, false)
+	w, _ := NewWireNLRI(family.IPv4Unicast, data, false)
 
 	// no ADD-PATH, matches source
 	buf := make([]byte, 100)
@@ -147,7 +149,7 @@ func TestWireNLRI_WriteNLRI_StripPathID(t *testing.T) {
 	t.Parallel()
 	// path-id=1 + 10.0.0.0/24
 	data := []byte{0, 0, 0, 1, 24, 10, 0, 0}
-	w, _ := NewWireNLRI(IPv4Unicast, data, true)
+	w, _ := NewWireNLRI(family.IPv4Unicast, data, true)
 
 	// Target has no ADD-PATH -> strip path-id
 	buf := make([]byte, 100)
@@ -165,7 +167,7 @@ func TestWireNLRI_WriteNLRI_StripPathID(t *testing.T) {
 func TestWireNLRI_WriteNLRI_PrependNOPATH(t *testing.T) {
 	t.Parallel()
 	data := []byte{24, 10, 0, 0}
-	w, _ := NewWireNLRI(IPv4Unicast, data, false)
+	w, _ := NewWireNLRI(family.IPv4Unicast, data, false)
 
 	// Target expects ADD-PATH -> prepend NOPATH (0x00000000)
 	buf := make([]byte, 100)
@@ -184,7 +186,7 @@ func TestNewWireNLRI_Malformed(t *testing.T) {
 	t.Parallel()
 	// Too short for ADD-PATH (need at least 4 bytes for path-id)
 	data := []byte{24, 10}
-	_, err := NewWireNLRI(IPv4Unicast, data, true)
+	_, err := NewWireNLRI(family.IPv4Unicast, data, true)
 	if err == nil {
 		t.Error("NewWireNLRI: expected error for short data with addpath")
 	}
@@ -197,7 +199,7 @@ func TestNewWireNLRI_Malformed(t *testing.T) {
 func TestWireNLRI_WriteTo(t *testing.T) {
 	t.Parallel()
 	data := []byte{24, 10, 0, 0}
-	w, _ := NewWireNLRI(IPv4Unicast, data, false)
+	w, _ := NewWireNLRI(family.IPv4Unicast, data, false)
 
 	buf := make([]byte, 10)
 	n := w.WriteTo(buf, 2)
@@ -216,7 +218,7 @@ func TestWireNLRI_WriteTo(t *testing.T) {
 func TestWireNLRI_String(t *testing.T) {
 	t.Parallel()
 	data := []byte{24, 10, 0, 0}
-	w, _ := NewWireNLRI(IPv4Unicast, data, false)
+	w, _ := NewWireNLRI(family.IPv4Unicast, data, false)
 	s := w.String()
 	if s == "" {
 		t.Error("String: returned empty")

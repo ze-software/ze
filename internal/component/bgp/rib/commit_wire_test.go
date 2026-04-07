@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestCommitService_IPv4_HasNextHop verifies IPv4 unicast UPDATE has NEXT_HOP attribute.
@@ -469,7 +469,9 @@ func newEVPNNLRI() *mockEVPNNLRI {
 // mockEVPNNLRI is a minimal EVPN NLRI for testing.
 type mockEVPNNLRI struct{}
 
-func (m *mockEVPNNLRI) Family() nlri.Family   { return nlri.L2VPNEVPN }
+func (m *mockEVPNNLRI) Family() family.Family {
+	return family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
+}
 func (m *mockEVPNNLRI) Bytes() []byte         { return []byte{0x02, 0x21} } // Type 2, length 33
 func (m *mockEVPNNLRI) Len() int              { return 2 }
 func (m *mockEVPNNLRI) String() string        { return "evpn-type2" }

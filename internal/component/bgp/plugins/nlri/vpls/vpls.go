@@ -42,7 +42,7 @@ func RunVPLSPlugin(conn net.Conn) int {
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: familyVPLS, Mode: "decode"},
+			{Name: familyVPLS, Mode: "decode", AFI: 25, SAFI: 65},
 		},
 	})
 	if err != nil {
@@ -141,9 +141,9 @@ func RunDecode(input io.Reader, output io.Writer) int {
 
 		parts := strings.Fields(line)
 		if len(parts) >= 4 && parts[0] == "decode" && parts[1] == "nlri" {
-			family := parts[2]
+			fam := parts[2]
 			hexData := parts[3]
-			jsonStr, err := DecodeNLRIHex(family, hexData)
+			jsonStr, err := DecodeNLRIHex(fam, hexData)
 			if err == nil {
 				write("decoded json " + jsonStr)
 				continue

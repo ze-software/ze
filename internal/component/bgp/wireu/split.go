@@ -9,7 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // updateLengthFieldsSize is the fixed overhead in UPDATE body:
@@ -171,8 +171,8 @@ func separateMPAttributes(attrs []byte) (base []byte, mpReaches, mpUnreaches [][
 
 // splitIPv4NLRIs splits IPv4 unicast NLRIs (legacy UPDATE fields).
 func splitIPv4NLRIs(data []byte, maxBytes int, ctx *bgpctx.EncodingContext) (fitting, remaining []byte, err error) {
-	addPath := ctx.AddPathFor(nlri.IPv4Unicast)
-	return message.SplitMPNLRI(data, nlri.AFIIPv4, nlri.SAFIUnicast, addPath, maxBytes)
+	addPath := ctx.AddPathFor(family.IPv4Unicast)
+	return message.SplitMPNLRI(data, family.AFIIPv4, family.SAFIUnicast, addPath, maxBytes)
 }
 
 // buildCombinedUpdates builds UPDATEs with mixed components, splitting if needed.
@@ -330,9 +330,9 @@ func splitMPReach(attr []byte, maxBytes int, srcCtx *bgpctx.EncodingContext) (fi
 	}
 
 	// Get ADD-PATH state for this specific AFI/SAFI
-	addPath := srcCtx.AddPathFor(nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)})
+	addPath := srcCtx.AddPathFor(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)})
 
-	fitNLRI, restNLRI, err := message.SplitMPNLRI(nlris, nlri.AFI(afi), nlri.SAFI(safi), addPath, availableForNLRI)
+	fitNLRI, restNLRI, err := message.SplitMPNLRI(nlris, family.AFI(afi), family.SAFI(safi), addPath, availableForNLRI)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -385,9 +385,9 @@ func splitMPUnreach(attr []byte, maxBytes int, srcCtx *bgpctx.EncodingContext) (
 	}
 
 	// Get ADD-PATH state for this specific AFI/SAFI
-	addPath := srcCtx.AddPathFor(nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)})
+	addPath := srcCtx.AddPathFor(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)})
 
-	fitNLRI, restNLRI, err := message.SplitMPNLRI(nlris, nlri.AFI(afi), nlri.SAFI(safi), addPath, availableForNLRI)
+	fitNLRI, restNLRI, err := message.SplitMPNLRI(nlris, family.AFI(afi), family.SAFI(safi), addPath, availableForNLRI)
 	if err != nil {
 		return nil, nil, err
 	}

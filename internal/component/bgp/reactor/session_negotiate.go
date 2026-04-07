@@ -10,7 +10,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // negotiateWith performs capability negotiation using pre-parsed capabilities.
@@ -86,9 +86,9 @@ func (s *Session) sendOpen(conn net.Conn) error {
 	// If config has NO family block, use ALL plugin decode families.
 	// This allows plugins to define what families are available.
 	if !configHasFamilies && s.pluginFamiliesGetter != nil {
-		seen := make(map[nlri.Family]bool)
+		seen := make(map[family.Family]bool)
 		for _, famStr := range s.pluginFamiliesGetter() {
-			fam, ok := nlri.ParseFamily(famStr)
+			fam, ok := family.LookupFamily(famStr)
 			if !ok {
 				continue // Invalid family string, skip
 			}

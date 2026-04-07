@@ -7,7 +7,7 @@
 ## Decisions
 
 - Chose three-level map (peer -> family -> prefixKey -> Route) over tagged-route flat map, because it enables O(1) family lookup for route refresh and future LLGR readvertisement.
-- Chose string keys for family (not `nlri.Family`) because ribOut operates on event data arriving as strings. No parsing overhead.
+- Chose string keys for family (not `family.Family`) because ribOut operates on event data arriving as strings. No parsing overhead.
 - Chose `outRouteKey` (prefix-only) over modifying shared `bgp.RouteKey`, because RouteKey is used by other code and persist has its own key format.
 - Chose to fix the selector bug by extracting from args in the RIB plugin handlers, over modifying the engine's `extractPeerSelector` dispatcher. The fix is local to the RIB plugin.
 - Made selector mandatory for all four affected commands (use `*` for all peers) rather than defaulting to `*` on empty args, because the silent-default was the root cause of the original bug.

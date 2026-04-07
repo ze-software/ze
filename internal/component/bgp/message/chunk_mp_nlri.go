@@ -8,7 +8,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/iter"
 )
 
@@ -37,7 +37,7 @@ func NewNLRIElements(nlriData []byte, sizeFunc NLRISizeFunc) iter.Elements {
 // RFC 7432 - EVPN: [route-type:1][length:1][payload].
 // RFC 5575 - FlowSpec: max 4095 bytes per NLRI (CAN split).
 // RFC 7752 - BGP-LS: 2-byte length, single NLRI can exceed 4096.
-func ChunkMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, maxSize int, dst [][]byte) ([][]byte, error) {
+func ChunkMPNLRI(nlriData []byte, afi family.AFI, safi family.SAFI, addPath bool, maxSize int, dst [][]byte) ([][]byte, error) {
 	if len(nlriData) == 0 {
 		return dst, nil
 	}
@@ -109,7 +109,7 @@ var ErrNLRIMalformed = fmt.Errorf("malformed NLRI")
 // RFC 8654 - Extended Message raises to 65535 bytes.
 // RFC 4760 - MP_REACH_NLRI / MP_UNREACH_NLRI wire format.
 // RFC 7911 - ADD-PATH: 4-byte path-id before each NLRI.
-func SplitMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, maxSize int) (fitting, remaining []byte, err error) {
+func SplitMPNLRI(nlriData []byte, afi family.AFI, safi family.SAFI, addPath bool, maxSize int) (fitting, remaining []byte, err error) {
 	if maxSize <= 0 {
 		return nil, nil, fmt.Errorf("invalid maxSize: %d", maxSize)
 	}
@@ -150,33 +150,33 @@ type NLRISizeFunc func(data []byte) (int, error)
 
 // GetNLRISizeFunc returns the appropriate size function for the family.
 // Exported for wire mode API input to split concatenated NLRIs.
-func GetNLRISizeFunc(afi nlri.AFI, safi nlri.SAFI, addPath bool) NLRISizeFunc {
+func GetNLRISizeFunc(afi family.AFI, safi family.SAFI, addPath bool) NLRISizeFunc {
 	switch {
-	case safi == nlri.SAFIEVPN: // EVPN
+	case safi == family.SAFIEVPN: // EVPN
 		if addPath {
 			return addPathEVPNNLRISize
 		}
 		return evpnNLRISize
 
-	case safi == nlri.SAFIFlowSpec || safi == 134: // FlowSpec (133=IPv4, 134=IPv6)
+	case safi == family.SAFIFlowSpec || safi == 134: // FlowSpec (133=IPv4, 134=IPv6)
 		if addPath {
 			return addPathFlowSpecNLRISize
 		}
 		return flowSpecNLRISize
 
-	case afi == nlri.AFIBGPLS && safi == 71: // BGP-LS
+	case afi == family.AFIBGPLS && safi == 71: // BGP-LS
 		if addPath {
 			return addPathBGPLSNLRISize
 		}
 		return bgpLSNLRISize
 
-	case safi == nlri.SAFIVPN: // VPN (MPLS VPN)
+	case safi == family.SAFIVPN: // VPN (MPLS VPN)
 		if addPath {
 			return addPathVPNNLRISize
 		}
 		return vpnNLRISize
 
-	case safi == nlri.SAFIMPLSLabel: // Labeled unicast
+	case safi == family.SAFIMPLSLabel: // Labeled unicast
 		if addPath {
 			return addPathLabeledNLRISize
 		}

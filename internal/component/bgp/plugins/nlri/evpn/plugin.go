@@ -47,7 +47,7 @@ func RunEVPNPlugin(conn net.Conn) int {
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: "l2vpn/evpn", Mode: "decode"},
+			{Name: "l2vpn/evpn", Mode: "decode", AFI: 25, SAFI: 70},
 		},
 	})
 	if err != nil {
@@ -369,10 +369,10 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		return
 	}
 
-	family := strings.ToLower(parts[2])
+	fam := strings.ToLower(parts[2])
 	hexData := parts[3]
 
-	if !isValidEVPNFamily(family) {
+	if !isValidEVPNFamily(fam) {
 		writeUnknown()
 		return
 	}

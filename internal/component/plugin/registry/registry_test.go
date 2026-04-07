@@ -371,13 +371,13 @@ func TestPluginForFamily(t *testing.T) {
 	t.Cleanup(func() { Reset() })
 
 	reg := validReg("vpn")
-	reg.Families = []string{"ipv4/vpn", "ipv6/vpn"}
+	reg.Families = []string{"ipv4/mpls-vpn", "ipv6/mpls-vpn"}
 	if err := Register(reg); err != nil {
 		t.Fatal(err)
 	}
 
-	if got := PluginForFamily("ipv4/vpn"); got != "vpn" {
-		t.Errorf("ipv4/vpn -> %q, want vpn", got)
+	if got := PluginForFamily("ipv4/mpls-vpn"); got != "vpn" {
+		t.Errorf("ipv4/mpls-vpn -> %q, want vpn", got)
 	}
 	if got := PluginForFamily("unknown/fam"); got != "" {
 		t.Errorf("unknown/fam -> %q, want empty", got)

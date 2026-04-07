@@ -15,6 +15,7 @@ import (
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -445,6 +446,16 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 		return
 	}
 
+	// Register declared families with the nlri registry so Family.String() and
+	// LookupFamily() work for families introduced by external plugins at runtime.
+	if err := registerPluginFamilies(regInput.Families); err != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, "family registration conflict: "+err.Error()); sendErr != nil {
+			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		s.handlePluginConflict(proc, reg.Name, "plugin family registration conflict", err)
+		return
+	}
+
 	// Send OK response
 	if err := conn.SendResult(s.ctx, req.ID, nil); err != nil {
 		return
@@ -712,6 +723,45 @@ func ExtractConfigSubtree(configTree map[string]any, path string) any {
 		result = map[string]any{parts[i]: result}
 	}
 	return result
+}
+
+// registerPluginFamilies registers each declared family with the nlri registry.
+// Called after a plugin completes its declare-registration RPC, so that
+// Family.String() and LookupFamily() work for families introduced by external
+// plugins at runtime.
+//
+// The plugin provides a canonical "afi/safi" name (e.g., "ipv4/flow"). When the
+// plugin also supplies AFI/SAFI numbers (RFC 4760 wire-format values), the family
+// is registered with the registry. When AFI/SAFI are unset (0), this means the
+// plugin uses the older protocol that doesn't carry numeric AFI/SAFI; in that
+// case, the family must already be registered (typically by an internal plugin's
+// init) and this call is a no-op.
+//
+// Re-registration with identical values is a no-op. Conflicting AFI or SAFI
+// names return an error, which propagates as a registration failure.
+func registerPluginFamilies(families []rpc.FamilyDecl) error {
+	for _, fam := range families {
+		if fam.Name == "" {
+			return fmt.Errorf("family declaration missing name")
+		}
+		parts := strings.SplitN(fam.Name, "/", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return fmt.Errorf("invalid family name %q (expected afi/safi)", fam.Name)
+		}
+		// Older plugins don't send AFI/SAFI numbers. If both are unset, the
+		// family must already be registered by an internal plugin's init -- skip.
+		if fam.AFI == 0 && fam.SAFI == 0 {
+			if _, ok := family.LookupFamily(fam.Name); ok {
+				continue
+			}
+			return fmt.Errorf("family %q: plugin sent AFI=0 SAFI=0 and family is not pre-registered", fam.Name)
+		}
+		afiStr, safiStr := parts[0], parts[1]
+		if _, err := family.RegisterFamily(family.AFI(fam.AFI), family.SAFI(fam.SAFI), afiStr, safiStr); err != nil {
+			return fmt.Errorf("family %q: %w", fam.Name, err)
+		}
+	}
+	return nil
 }
 
 // registrationFromRPC converts DeclareRegistrationInput (RPC types) to PluginRegistration (engine types).

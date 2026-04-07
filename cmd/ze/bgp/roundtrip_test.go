@@ -382,7 +382,7 @@ func TestRoundTrip_EVPN_Type2(t *testing.T) {
 
 // TestRoundTrip_L3VPN verifies L3VPN (mpls-vpn) round-trip.
 //
-// VALIDATES: L3VPN route encodes and decodes as ipv4/vpn family.
+// VALIDATES: L3VPN route encodes and decodes as ipv4/mpls-vpn family.
 // PREVENTS: VPN encoding/decoding bugs.
 // NOTE: VPN NLRI parsing has known limitations in the decoder.
 func TestRoundTrip_L3VPN(t *testing.T) {
@@ -414,9 +414,9 @@ func TestRoundTrip_L3VPN(t *testing.T) {
 	}
 
 	// Verify family (decoder uses "vpn" not "mpls-vpn")
-	_, ok := getAnnounceFamily(update, "ipv4/vpn")
+	_, ok := getAnnounceFamily(update, "ipv4/mpls-vpn")
 	if !ok {
-		t.Fatalf("missing ipv4/vpn in announce")
+		t.Fatalf("missing ipv4/mpls-vpn in announce")
 	}
 
 	// Verify attributes are decoded
@@ -632,7 +632,7 @@ func TestRoundTrip_LabeledUnicast_IPv6(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	encodeArgs := []string{
-		"-f", "ipv6/nlri-mpls",
+		"-f", "ipv6/mpls-label",
 		"2001:db8::/32 next-hop 2001:db8::1 label 100",
 	}
 	if code := cmdEncode(encodeArgs); code != 0 {
@@ -659,8 +659,8 @@ func TestRoundTrip_LabeledUnicast_IPv6(t *testing.T) {
 	// Ze format: family keys are directly under update, not under announce
 	// Check for ipv6/nlri-mpls (decoder may use different name)
 	found := false
-	for family := range update {
-		if strings.Contains(family, "ipv6") && (strings.Contains(family, "mpls") || strings.Contains(family, "label")) {
+	for fam := range update {
+		if strings.Contains(fam, "ipv6") && (strings.Contains(fam, "mpls") || strings.Contains(fam, "label")) {
 			found = true
 			break
 		}

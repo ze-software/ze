@@ -20,9 +20,9 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // grTimerMargin is the extra time added to restart-time for the RIB's safety-net timer.
@@ -201,11 +201,11 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error
 	}
 
 	// Validate family is a simple prefix type (IPv4/IPv6 unicast/multicast).
-	family, ok := parseFamily(familyStr)
+	fam, ok := parseFamily(familyStr)
 	if !ok {
 		return statusError, "", fmt.Errorf("unknown family: %s", familyStr)
 	}
-	if !isSimplePrefixFamily(family) {
+	if !isSimplePrefixFamily(fam) {
 		return statusError, "", fmt.Errorf("rib inject only supports simple prefix families (IPv4/IPv6 unicast/multicast), not %s", familyStr)
 	}
 
@@ -238,7 +238,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error
 			}
 			if ip4 := ip.To4(); ip4 != nil {
 				ab.SetNextHop([4]byte(ip4))
-			} else if err := r.validateIPv6NextHop(peer, family); err != nil {
+			} else if err := r.validateIPv6NextHop(peer, fam); err != nil {
 				return statusError, "", err
 			}
 			// IPv6 nhop accepted but not stored in NEXT_HOP attr (type 3 is IPv4 only).
@@ -283,7 +283,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error
 	if r.ribInPool[peer] == nil {
 		r.ribInPool[peer] = storage.NewPeerRIB(peer)
 	}
-	r.ribInPool[peer].Insert(family, attrBytes, nlriBytes)
+	r.ribInPool[peer].Insert(fam, attrBytes, nlriBytes)
 	r.mu.Unlock()
 
 	data, _ := json.Marshal(map[string]any{"injected": prefix, "peer": peer, "family": familyStr})
@@ -293,7 +293,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error
 // validateIPv6NextHop checks whether an IPv6 next-hop is valid for this peer and family.
 // Real peers (seen in peerMeta): check ExtendedNextHop capability (RFC 8950).
 // Unknown peers (injected, no session): accept with a warning log.
-func (r *RIBManager) validateIPv6NextHop(peer string, family nlri.Family) error {
+func (r *RIBManager) validateIPv6NextHop(peer string, fam family.Family) error {
 	meta := r.peerMeta[peer]
 	if meta == nil {
 		// Unknown peer (injected, no prior session). Accept any valid IP.
@@ -314,8 +314,8 @@ func (r *RIBManager) validateIPv6NextHop(peer string, family nlri.Family) error 
 		return nil
 	}
 
-	if ctx.ExtendedNextHopFor(family) == 0 {
-		return fmt.Errorf("peer %s has not negotiated extended-nexthop (RFC 8950) for %s", peer, formatFamily(family))
+	if ctx.ExtendedNextHopFor(fam) == 0 {
+		return fmt.Errorf("peer %s has not negotiated extended-nexthop (RFC 8950) for %s", peer, formatFamily(fam))
 	}
 
 	return nil
@@ -342,7 +342,7 @@ func (r *RIBManager) withdrawRoute(_ string, args []string) (string, string, err
 		return statusError, "", fmt.Errorf("invalid prefix: %w", err)
 	}
 
-	family, ok := parseFamily(familyStr)
+	fam, ok := parseFamily(familyStr)
 	if !ok {
 		return statusError, "", fmt.Errorf("unknown family: %s", familyStr)
 	}
@@ -355,7 +355,7 @@ func (r *RIBManager) withdrawRoute(_ string, args []string) (string, string, err
 		return statusError, "", fmt.Errorf("no RIB for peer %s", peer)
 	}
 
-	removed := peerRIB.Remove(family, nlriBytes)
+	removed := peerRIB.Remove(fam, nlriBytes)
 	data, _ := json.Marshal(map[string]any{"withdrawn": prefix, "peer": peer, "family": familyStr, "existed": removed})
 	return statusDone, string(data), nil
 }
@@ -743,9 +743,9 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, string, error) {
 	peerRIB := r.ribInPool[peerAddr]
 	if peerRIB != nil {
 		if familyFilter != "" {
-			family, ok := parseFamily(familyFilter)
+			fam, ok := parseFamily(familyFilter)
 			if ok {
-				purged = peerRIB.PurgeFamilyStale(family)
+				purged = peerRIB.PurgeFamilyStale(fam)
 			}
 		} else {
 			purged = peerRIB.PurgeAllStale()
@@ -788,10 +788,10 @@ func (r *RIBManager) bestPathStatusJSON() string {
 // gatherCandidates collects best-path candidates for a given (family, nlri) across all peers.
 // Returns extracted Candidate structs ready for SelectBest.
 // Caller must hold at least read lock.
-func (r *RIBManager) gatherCandidates(family nlri.Family, nlriBytes []byte) []*Candidate {
+func (r *RIBManager) gatherCandidates(fam family.Family, nlriBytes []byte) []*Candidate {
 	var candidates []*Candidate
 	for peer, peerRIB := range r.ribInPool {
-		entry, ok := peerRIB.Lookup(family, nlriBytes)
+		entry, ok := peerRIB.Lookup(fam, nlriBytes)
 		if !ok {
 			continue
 		}
@@ -898,7 +898,7 @@ func (r *RIBManager) attachCommunityCommand(args []string) (string, string, erro
 	familyStr := args[1]
 	commHex := args[2]
 
-	family, ok := parseFamily(familyStr)
+	fam, ok := parseFamily(familyStr)
 	if !ok {
 		return statusError, "", fmt.Errorf("invalid family %q", familyStr)
 	}
@@ -918,7 +918,7 @@ func (r *RIBManager) attachCommunityCommand(args []string) (string, string, erro
 	}
 
 	attached := 0
-	peerRIB.ModifyFamilyAll(family, func(entry *storage.RouteEntry) {
+	peerRIB.ModifyFamilyAll(fam, func(entry *storage.RouteEntry) {
 		if entry.StaleLevel == storage.StaleLevelFresh {
 			return
 		}
@@ -947,7 +947,7 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, string, 
 	familyStr := args[1]
 	commHex := args[2]
 
-	family, ok := parseFamily(familyStr)
+	fam, ok := parseFamily(familyStr)
 	if !ok {
 		return statusError, "", fmt.Errorf("invalid family %q", familyStr)
 	}
@@ -968,7 +968,7 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, string, 
 
 	// Collect NLRIs to delete (avoid modifying during iteration)
 	var toDelete [][]byte
-	peerRIB.IterateFamily(family, func(nlriBytes []byte, entry storage.RouteEntry) bool {
+	peerRIB.IterateFamily(fam, func(nlriBytes []byte, entry storage.RouteEntry) bool {
 		if entry.StaleLevel == storage.StaleLevelFresh {
 			return true
 		}
@@ -986,7 +986,7 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, string, 
 
 	deleted := 0
 	for _, nlriBytes := range toDelete {
-		if peerRIB.Remove(family, nlriBytes) {
+		if peerRIB.Remove(fam, nlriBytes) {
 			deleted++
 		}
 	}

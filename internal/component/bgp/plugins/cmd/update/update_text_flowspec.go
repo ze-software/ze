@@ -9,6 +9,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // isFlowSpecBoundary returns true if token ends FlowSpec section (next section starts).
@@ -23,7 +24,7 @@ func isFlowSpecBoundary(token string) bool {
 // parseFlowSpecSection parses nlri <flowspec-family> add [rd <value>] <components>+ | del <components>+
 // RFC 8955 Section 4: FlowSpec NLRI = ordered list of match components.
 // For flow-vpn families, rd is required after add/del. For flow families, rd is invalid.
-func parseFlowSpecSection(args []string, family nlri.Family) (nlriParseResult, error) {
+func parseFlowSpecSection(args []string, fam family.Family) (nlriParseResult, error) {
 	// args[0] = "nlri", args[1] = family string
 	consumed := 2
 	i := 2
@@ -63,7 +64,7 @@ func parseFlowSpecSection(args []string, family nlri.Family) (nlriParseResult, e
 		}
 
 		// Parse FlowSpec components for this rule
-		fs, extra, err := parseFlowSpecComponents(args[i:], family)
+		fs, extra, err := parseFlowSpecComponents(args[i:], fam)
 		if err != nil {
 			return nlriParseResult{}, err
 		}
@@ -77,7 +78,7 @@ func parseFlowSpecSection(args []string, family nlri.Family) (nlriParseResult, e
 		consumed += extra
 	}
 
-	return buildNLRIResult(family, announce, withdraw, consumed)
+	return buildNLRIResult(fam, announce, withdraw, consumed)
 }
 
 // parseFlowSpecComponents parses FlowSpec components until boundary or mode switch.
@@ -85,7 +86,7 @@ func parseFlowSpecSection(args []string, family nlri.Family) (nlriParseResult, e
 // For flow: rd is invalid.
 // Calls flowspec.EncodeFlowSpecComponents directly (in-process plugin).
 // RFC 8955: Components are ANDed together.
-func parseFlowSpecComponents(args []string, family nlri.Family) (nlri.NLRI, int, error) {
+func parseFlowSpecComponents(args []string, fam family.Family) (nlri.NLRI, int, error) {
 	consumed := 0
 	i := 0
 
@@ -107,12 +108,12 @@ func parseFlowSpecComponents(args []string, family nlri.Family) (nlri.NLRI, int,
 	}
 
 	// Validate rd presence based on family
-	isVPN := family.SAFI == nlri.SAFIFlowSpecVPN
+	isVPN := fam.SAFI == family.SAFIFlowSpecVPN
 	if isVPN && !hasRD {
-		return nil, 0, fmt.Errorf("%w: rd required for %s", route.ErrMissingRD, family)
+		return nil, 0, fmt.Errorf("%w: rd required for %s", route.ErrMissingRD, fam)
 	}
 	if !isVPN && hasRD {
-		return nil, 0, fmt.Errorf("rd not allowed for %s (use %s/flow-vpn)", family, family.AFI)
+		return nil, 0, fmt.Errorf("rd not allowed for %s (use %s/flow-vpn)", fam, fam.AFI)
 	}
 
 	// Collect component tokens until boundary or mode switch
@@ -139,7 +140,7 @@ func parseFlowSpecComponents(args []string, family nlri.Family) (nlri.NLRI, int,
 
 	// Call encoder via registry (in-process fast path).
 	// FlowSpec doesn't support ADD-PATH per RFC 8955.
-	wire, err := encodeViaRegistry(family, pluginArgs, false)
+	wire, err := encodeViaRegistry(fam, pluginArgs, false)
 	if err != nil {
 		return nil, 0, err
 	}

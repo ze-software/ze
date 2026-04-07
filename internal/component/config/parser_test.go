@@ -161,10 +161,10 @@ neighbor 192.0.2.1 {
 	neighbors := tree.GetList("neighbor")
 	n := neighbors["192.0.2.1"]
 
-	family := n.GetContainer("family")
-	require.NotNil(t, family)
+	fam := n.GetContainer("family")
+	require.NotNil(t, fam)
 
-	ipv4 := family.GetContainer("ipv4")
+	ipv4 := fam.GetContainer("ipv4")
 	require.NotNil(t, ipv4)
 
 	val, _ := ipv4.Get("unicast")

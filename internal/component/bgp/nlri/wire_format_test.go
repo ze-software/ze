@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"net/netip"
 	"testing"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestWireFormat_AddPath verifies actual wire bytes match expected format.
@@ -25,45 +26,45 @@ func TestWireFormat_AddPath(t *testing.T) {
 		// INET - IPv4
 		{
 			name:    "INET_10.0.0.0/24_noAddPath",
-			nlri:    NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
+			nlri:    NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
 			addPath: false,
 			wantHex: "180a0000", // [prefixLen=24][10.0.0]
 		},
 		{
 			name:    "INET_10.0.0.0/24_withAddPath_pathID0",
-			nlri:    NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
+			nlri:    NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
 			addPath: true,
 			wantHex: "00000000180a0000", // [pathID=0][prefixLen=24][10.0.0]
 		},
 		{
 			name:    "INET_10.0.0.0/24_withAddPath_pathID42",
-			nlri:    NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 42),
+			nlri:    NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 42),
 			addPath: true,
 			wantHex: "0000002a180a0000", // [pathID=42][prefixLen=24][10.0.0]
 		},
 		// INET - IPv6
 		{
 			name:    "INET_2001:db8::/32_noAddPath",
-			nlri:    NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0),
+			nlri:    NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0),
 			addPath: false,
 			wantHex: "2020010db8", // [prefixLen=32][2001:0db8]
 		},
 		{
 			name:    "INET_2001:db8::/32_withAddPath_pathID100",
-			nlri:    NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 100),
+			nlri:    NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 100),
 			addPath: true,
 			wantHex: "000000642020010db8", // [pathID=100][prefixLen=32][2001:0db8]
 		},
 		// INET edge cases
 		{
 			name:    "INET_0.0.0.0/0_noAddPath",
-			nlri:    NewINET(IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), 0),
+			nlri:    NewINET(family.IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), 0),
 			addPath: false,
 			wantHex: "00", // [prefixLen=0]
 		},
 		{
 			name:    "INET_192.168.1.128/32_withAddPath",
-			nlri:    NewINET(IPv4Unicast, netip.MustParsePrefix("192.168.1.128/32"), 1),
+			nlri:    NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.168.1.128/32"), 1),
 			addPath: true,
 			wantHex: "0000000120c0a80180", // [pathID=1][prefixLen=32][192.168.1.128]
 		},
@@ -97,19 +98,18 @@ func TestRoundTrip_INET(t *testing.T) {
 		nlri    *INET
 		addPath bool
 	}{
-		{"IPv4_noPath", NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0), false},
-		{"IPv4_withPath", NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 42), true},
-		{"IPv4/32_withPath", NewINET(IPv4Unicast, netip.MustParsePrefix("192.168.1.1/32"), 100), true},
-		{"IPv4/0_withPath", NewINET(IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), 1), true},
-		{"IPv6_noPath", NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0), false},
-		{"IPv6_withPath", NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::1/128"), 77), true},
+		{"IPv4_noPath", NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0), false},
+		{"IPv4_withPath", NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 42), true},
+		{"IPv4/32_withPath", NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.168.1.1/32"), 100), true},
+		{"IPv4/0_withPath", NewINET(family.IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), 1), true},
+		{"IPv6_noPath", NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0), false},
+		{"IPv6_withPath", NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::1/128"), 77), true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			// addPath is already a bool
-			family := tt.nlri.Family()
+			fam := tt.nlri.Family()
 
 			// Encode
 			buf := make([]byte, 100)
@@ -117,7 +117,7 @@ func TestRoundTrip_INET(t *testing.T) {
 			wire := buf[:n]
 
 			// Decode - ParseINET returns (NLRI, remaining, error)
-			parsed, remaining, err := ParseINET(family.AFI, family.SAFI, wire, tt.addPath)
+			parsed, remaining, err := ParseINET(fam.AFI, fam.SAFI, wire, tt.addPath)
 			if err != nil {
 				t.Fatalf("parse failed: %v", err)
 			}

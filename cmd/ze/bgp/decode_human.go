@@ -133,16 +133,16 @@ func formatUpdateHuman(result map[string]any) string {
 
 	// Announced routes
 	if announce, ok := update["announce"].(map[string]any); ok && len(announce) > 0 {
-		for family, data := range announce {
-			fmt.Fprintf(&sb, "  Announced (%s):\n", family)
+		for fam, data := range announce {
+			fmt.Fprintf(&sb, "  Announced (%s):\n", fam)
 			formatNLRIListHuman(&sb, data)
 		}
 	}
 
 	// Withdrawn routes
 	if withdraw, ok := update["withdraw"].(map[string]any); ok && len(withdraw) > 0 {
-		for family, data := range withdraw {
-			fmt.Fprintf(&sb, "  Withdrawn (%s):\n", family)
+		for fam, data := range withdraw {
+			fmt.Fprintf(&sb, "  Withdrawn (%s):\n", fam)
 			formatWithdrawnHuman(&sb, data)
 		}
 	}

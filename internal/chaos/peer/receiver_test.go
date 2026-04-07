@@ -380,7 +380,7 @@ func TestParseUpdatePrefixesMPReachVPN(t *testing.T) {
 	got := append([]Event{}, buf.items...)
 	require.Len(t, got, 1, "VPN MP_REACH should produce exactly 1 counted event")
 	assert.Equal(t, EventRouteReceived, got[0].Type)
-	assert.Equal(t, "ipv4/vpn", got[0].Family)
+	assert.Equal(t, "ipv4/mpls-vpn", got[0].Family)
 	assert.False(t, got[0].Prefix.IsValid(), "VPN event should not carry a parsed prefix")
 }
 
@@ -397,8 +397,8 @@ func TestAfiSafiFamily(t *testing.T) {
 	}{
 		{"ipv4_unicast", 1, 1, "ipv4/unicast"},
 		{"ipv6_unicast", 2, 1, "ipv6/unicast"},
-		{"ipv4_vpn", 1, 128, "ipv4/vpn"},
-		{"ipv6_vpn", 2, 128, "ipv6/vpn"},
+		{"ipv4_vpn", 1, 128, "ipv4/mpls-vpn"},
+		{"ipv6_vpn", 2, 128, "ipv6/mpls-vpn"},
 		{"l2vpn_evpn", 25, 70, "l2vpn/evpn"},
 		{"ipv4_flow", 1, 133, "ipv4/flow"},
 		{"ipv6_flow", 2, 133, "ipv6/flow"},

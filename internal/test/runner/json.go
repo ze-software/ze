@@ -68,15 +68,15 @@ func extractFamily(envelope map[string]any) string {
 
 	// Check announce section first
 	if announce, ok := update["announce"].(map[string]any); ok {
-		for family := range announce {
-			return family
+		for fam := range announce {
+			return fam
 		}
 	}
 
 	// Check withdraw section
 	if withdraw, ok := update["withdraw"].(map[string]any); ok {
-		for family := range withdraw {
-			return family
+		for fam := range withdraw {
+			return fam
 		}
 	}
 

@@ -10,23 +10,25 @@ import (
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Type aliases for shared nlri types.
 type (
-	Family = nlri.Family
-	AFI    = nlri.AFI
-	SAFI   = nlri.SAFI
+	Family = family.Family
+	AFI    = family.AFI
+	SAFI   = family.SAFI
 	NLRI   = nlri.NLRI
 )
 
 // Re-export constants.
 const (
-	AFIIPv4 = nlri.AFIIPv4
-	SAFIRTC = nlri.SAFIRTC
+	AFIIPv4 = family.AFIIPv4
+	SAFIRTC = family.SAFIRTC
 )
 
-var IPv4RTC = nlri.IPv4RTC
+// Family registration for RTC.
+var IPv4RTC = family.MustRegister(AFIIPv4, SAFIRTC, "ipv4", "rtc")
 
 // Errors for RTC parsing.
 var ErrRTCTruncated = errors.New("rtc: truncated data")

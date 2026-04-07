@@ -295,7 +295,7 @@ func TestAfiSAFIToFamily(t *testing.T) {
 		{"ipv4/unicast", 1, 1, "ipv4/unicast"},
 		{"ipv6/unicast", 2, 1, "ipv6/unicast"},
 		{"ipv4/multicast", 1, 2, "ipv4/multicast"},
-		{"ipv4/vpn", 1, 128, "ipv4/vpn"},
+		{"ipv4/mpls-vpn", 1, 128, "ipv4/mpls-vpn"},
 		{"ipv6/flow", 2, 133, "ipv6/flow"},
 		{"l2vpn/evpn", 25, 70, "l2vpn/evpn"},
 		{"l2vpn/vpls", 25, 65, "l2vpn/vpls"},

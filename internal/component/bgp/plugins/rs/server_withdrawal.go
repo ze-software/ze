@@ -11,6 +11,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // nlriKey extracts the compact routing key from an NLRI string.
@@ -135,34 +136,34 @@ func (rs *RouteServer) updateWithdrawalMapWire(sourcePeer string, msg *bgptypes.
 
 	// MP_REACH_NLRI — announced routes (add).
 	if mp, err := wu.MPReach(); err == nil && mp != nil {
-		family := mp.Family()
-		addPath := encCtx != nil && encCtx.AddPath(family)
-		if isUnicast(family) {
+		fam := mp.Family()
+		addPath := encCtx != nil && encCtx.AddPath(fam)
+		if isUnicast(fam) {
 			if iter := mp.NLRIIterator(addPath); iter != nil {
-				rs.walkUnicastNLRIs(sourcePeer, family.String(), iter, actionAdd)
+				rs.walkUnicastNLRIs(sourcePeer, fam.String(), iter, actionAdd)
 			}
 		} else {
 			nlris, nlriErr := mp.NLRIs(addPath)
-			rs.walkNLRIsAllocating(sourcePeer, family, nlris, nlriErr)
+			rs.walkNLRIsAllocating(sourcePeer, fam, nlris, nlriErr)
 		}
 	}
 
 	// MP_UNREACH_NLRI — withdrawn routes (del).
 	if mp, err := wu.MPUnreach(); err == nil && mp != nil {
-		family := mp.Family()
-		addPath := encCtx != nil && encCtx.AddPath(family)
-		if isUnicast(family) {
+		fam := mp.Family()
+		addPath := encCtx != nil && encCtx.AddPath(fam)
+		if isUnicast(fam) {
 			if iter := mp.NLRIIterator(addPath); iter != nil {
-				rs.walkUnicastNLRIs(sourcePeer, family.String(), iter, actionDel)
+				rs.walkUnicastNLRIs(sourcePeer, fam.String(), iter, actionDel)
 			}
 		} else {
 			nlris, nlriErr := mp.NLRIs(addPath)
-			rs.walkUnreachNLRIsAllocating(sourcePeer, family, nlris, nlriErr)
+			rs.walkUnreachNLRIsAllocating(sourcePeer, fam, nlris, nlriErr)
 		}
 	}
 
 	// IPv4 body NLRIs — announced routes (add).
-	addPathV4 := encCtx != nil && encCtx.AddPath(nlri.IPv4Unicast)
+	addPathV4 := encCtx != nil && encCtx.AddPath(family.IPv4Unicast)
 	if iter, err := wu.NLRIIterator(addPathV4); err == nil && iter != nil {
 		rs.walkUnicastNLRIs(sourcePeer, "ipv4/unicast", iter, actionAdd)
 	}
@@ -175,15 +176,15 @@ func (rs *RouteServer) updateWithdrawalMapWire(sourcePeer string, msg *bgptypes.
 
 // isUnicast returns true for IPv4/IPv6 unicast families where NLRIIterator
 // prefix bytes can be converted to netip.Prefix directly (zero-alloc path).
-func isUnicast(f nlri.Family) bool {
-	return f == nlri.IPv4Unicast || f == nlri.IPv6Unicast
+func isUnicast(f family.Family) bool {
+	return f == (family.IPv4Unicast) || f == (family.IPv6Unicast)
 }
 
 // walkUnicastNLRIs walks NLRIs via iterator and updates the withdrawal map.
 // Converts raw prefix bytes to netip.Prefix for route key — zero allocation per NLRI.
 // Only valid for IPv4/IPv6 unicast families.
-func (rs *RouteServer) walkUnicastNLRIs(sourcePeer, family string, iter *nlri.NLRIIterator, action string) {
-	isV6 := strings.HasPrefix(family, "ipv6/")
+func (rs *RouteServer) walkUnicastNLRIs(sourcePeer, famName string, iter *nlri.NLRIIterator, action string) {
+	isV6 := strings.HasPrefix(famName, "ipv6/")
 	for {
 		prefix, _, ok := iter.Next()
 		if !ok {
@@ -193,13 +194,13 @@ func (rs *RouteServer) walkUnicastNLRIs(sourcePeer, family string, iter *nlri.NL
 		if key == "" {
 			continue
 		}
-		routeKey := family + "|" + key
+		routeKey := famName + "|" + key
 		switch action {
 		case actionAdd:
 			if rs.withdrawals[sourcePeer] == nil {
 				rs.withdrawals[sourcePeer] = make(map[string]withdrawalInfo)
 			}
-			rs.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: family, Prefix: "prefix " + key}
+			rs.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: famName, Prefix: "prefix " + key}
 		case actionDel:
 			if rs.withdrawals[sourcePeer] != nil {
 				delete(rs.withdrawals[sourcePeer], routeKey)
@@ -232,11 +233,11 @@ func prefixBytesToKey(prefix []byte, isV6 bool) string {
 // walkNLRIsAllocating updates the withdrawal map using parsed NLRI objects (add action).
 // Used for non-unicast families where raw prefix bytes need family-specific decoding.
 // Allocates via NLRIs() — acceptable for rare non-unicast route server traffic.
-func (rs *RouteServer) walkNLRIsAllocating(sourcePeer string, family nlri.Family, nlris []nlri.NLRI, err error) {
+func (rs *RouteServer) walkNLRIsAllocating(sourcePeer string, fam family.Family, nlris []nlri.NLRI, err error) {
 	if err != nil || len(nlris) == 0 {
 		return
 	}
-	familyStr := family.String()
+	familyStr := fam.String()
 	if rs.withdrawals[sourcePeer] == nil {
 		rs.withdrawals[sourcePeer] = make(map[string]withdrawalInfo)
 	}
@@ -249,11 +250,11 @@ func (rs *RouteServer) walkNLRIsAllocating(sourcePeer string, family nlri.Family
 
 // walkUnreachNLRIsAllocating updates the withdrawal map using parsed NLRI objects (del action).
 // Used for non-unicast MP_UNREACH_NLRI families.
-func (rs *RouteServer) walkUnreachNLRIsAllocating(sourcePeer string, family nlri.Family, nlris []nlri.NLRI, err error) {
+func (rs *RouteServer) walkUnreachNLRIsAllocating(sourcePeer string, fam family.Family, nlris []nlri.NLRI, err error) {
 	if err != nil || len(nlris) == 0 {
 		return
 	}
-	familyStr := family.String()
+	familyStr := fam.String()
 	if rs.withdrawals[sourcePeer] != nil {
 		for _, n := range nlris {
 			delete(rs.withdrawals[sourcePeer], familyStr+"|"+nlriKey(n.String()))
@@ -264,7 +265,7 @@ func (rs *RouteServer) walkUnreachNLRIsAllocating(sourcePeer string, family nlri
 // updateWithdrawalMapText updates the withdrawal map from text-parsed NLRI operations.
 // Caller must hold rs.withdrawalMu.
 func (rs *RouteServer) updateWithdrawalMapText(sourcePeer string, ops map[string][]FamilyOperation) {
-	for family, familyOps := range ops {
+	for famName, familyOps := range ops {
 		for _, op := range familyOps {
 			switch op.Action {
 			case actionAdd:
@@ -273,15 +274,15 @@ func (rs *RouteServer) updateWithdrawalMapText(sourcePeer string, ops map[string
 				}
 				for _, n := range op.NLRIs {
 					if s, ok := n.(string); ok && s != "" {
-						routeKey := family + "|" + nlriKey(s)
-						rs.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: family, Prefix: s}
+						routeKey := famName + "|" + nlriKey(s)
+						rs.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: famName, Prefix: s}
 					}
 				}
 			case actionDel:
 				if rs.withdrawals[sourcePeer] != nil {
 					for _, n := range op.NLRIs {
 						if s, ok := n.(string); ok && s != "" {
-							delete(rs.withdrawals[sourcePeer], family+"|"+nlriKey(s))
+							delete(rs.withdrawals[sourcePeer], famName+"|"+nlriKey(s))
 						}
 					}
 				}

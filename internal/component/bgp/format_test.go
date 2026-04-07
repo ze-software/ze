@@ -105,7 +105,7 @@ func TestFormatAnnounceCommand_ExtendedCommunities(t *testing.T) {
 // PREVENTS: VPN watchdog routes missing route distinguisher or labels.
 func TestFormatAnnounceCommand_VPN(t *testing.T) {
 	route := &Route{
-		Family:  "ipv4/vpn",
+		Family:  "ipv4/mpls-vpn",
 		Prefix:  "10.0.0.0/24",
 		NextHop: "10.0.0.1",
 		Origin:  "igp",
@@ -114,7 +114,7 @@ func TestFormatAnnounceCommand_VPN(t *testing.T) {
 	}
 
 	cmd := FormatAnnounceCommand(route)
-	assert.Equal(t, "update text origin igp nhop 10.0.0.1 nlri ipv4/vpn rd 65000:100 label 1000 add 10.0.0.0/24", cmd)
+	assert.Equal(t, "update text origin igp nhop 10.0.0.1 nlri ipv4/mpls-vpn rd 65000:100 label 1000 add 10.0.0.0/24", cmd)
 }
 
 // TestFormatAnnounceCommand_NhopSelf verifies nhop self keyword.
@@ -160,8 +160,8 @@ func TestFormatWithdrawCommand(t *testing.T) {
 		},
 		{
 			name:  "vpn with rd and label",
-			route: &Route{Family: "ipv4/vpn", Prefix: "10.0.0.0/24", RD: "65000:100", Labels: []uint32{1000}},
-			want:  "update text nlri ipv4/vpn rd 65000:100 label 1000 del 10.0.0.0/24",
+			route: &Route{Family: "ipv4/mpls-vpn", Prefix: "10.0.0.0/24", RD: "65000:100", Labels: []uint32{1000}},
+			want:  "update text nlri ipv4/mpls-vpn rd 65000:100 label 1000 del 10.0.0.0/24",
 		},
 	}
 

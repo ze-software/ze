@@ -21,6 +21,7 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // getBGPPayload extracts the bgp payload from ze-bgp JSON format.
@@ -593,7 +594,7 @@ func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 
 // TestJSONEncoderIPv4UnicastNewFormat verifies ze-bgp JSON command-style JSON format.
 //
-// VALIDATES: IPv4 unicast uses bgp.nlri.family → operations list with action/next-hop/nlri.
+// VALIDATES: IPv4 unicast uses bgp.family.family → operations list with action/next-hop/nlri.
 // PREVENTS: Old format without type wrapper being emitted.
 func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 	ctxID := testEncodingContext()
@@ -639,12 +640,12 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 	nlriObj := getNLRI(t, payload)
 
 	// Family should be under nlri
-	family, ok := nlriObj["ipv4/unicast"].([]any)
+	fam, ok := nlriObj["ipv4/unicast"].([]any)
 	require.True(t, ok, "ipv4/unicast should be array under nlri: %s", output)
-	require.Len(t, family, 1, "should have one operation group")
+	require.Len(t, fam, 1, "should have one operation group")
 
 	// Check operation structure
-	op, ok := family[0].(map[string]any)
+	op, ok := fam[0].(map[string]any)
 	require.True(t, ok, "operation should be map")
 	assert.Equal(t, "add", op["action"], "action should be 'add'")
 	assert.Equal(t, "10.0.0.1", op["next-hop"], "next-hop should be present")
@@ -698,11 +699,11 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 	nlriObj := getNLRI(t, payload)
 
 	// Family under nlri with action: del
-	family, ok := nlriObj["ipv4/unicast"].([]any)
+	fam, ok := nlriObj["ipv4/unicast"].([]any)
 	require.True(t, ok, "ipv4/unicast should be array: %s", output)
-	require.Len(t, family, 1)
+	require.Len(t, fam, 1)
 
-	op, ok := family[0].(map[string]any)
+	op, ok := fam[0].(map[string]any)
 	require.True(t, ok, "operation should be map")
 	assert.Equal(t, "del", op["action"])
 	_, hasNextHop := op["next-hop"]
@@ -828,13 +829,13 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 	nlriObj := getNLRI(t, payload)
 
 	// Family should have both add and del operations
-	family, ok := nlriObj["ipv4/unicast"].([]any)
+	fam, ok := nlriObj["ipv4/unicast"].([]any)
 	require.True(t, ok, "ipv4/unicast should be array: %s", output)
-	require.Len(t, family, 2, "should have 2 operation groups (add + del)")
+	require.Len(t, fam, 2, "should have 2 operation groups (add + del)")
 
 	// Find add and del operations
 	var hasAdd, hasDel bool
-	for _, item := range family {
+	for _, item := range fam {
 		op, ok := item.(map[string]any)
 		require.True(t, ok, "operation should be map")
 		switch op["action"] {
@@ -899,11 +900,11 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 	nlriObj := getNLRI(t, payload)
 
 	// Family should be under nlri
-	family, ok := nlriObj["ipv4/unicast"].([]any)
+	fam, ok := nlriObj["ipv4/unicast"].([]any)
 	require.True(t, ok, "ipv4/unicast should be array: %s", output)
-	require.Len(t, family, 1)
+	require.Len(t, fam, 1)
 
-	op, ok := family[0].(map[string]any)
+	op, ok := fam[0].(map[string]any)
 	require.True(t, ok, "operation should be map")
 	nlri, ok := op["nlri"].([]any)
 	require.True(t, ok)
@@ -1020,8 +1021,8 @@ func buildTestUpdateBodyWithPathID(prefix netip.Prefix, nextHop netip.Addr, path
 
 // testEncodingContextWithAddPath creates an encoding context with ADD-PATH enabled.
 func testEncodingContextWithAddPath() bgpctx.ContextID {
-	addPath := map[nlri.Family]bool{
-		nlri.IPv4Unicast: true,
+	addPath := map[family.Family]bool{
+		{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true,
 	}
 	ctx := bgpctx.EncodingContextWithAddPath(true, addPath)
 	return bgpctx.Registry.Register(ctx)
@@ -1083,13 +1084,13 @@ func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 	nlriObj := getNLRI(t, payload)
 
 	// ipv4/unicast should have TWO operation groups (different next-hops)
-	family, ok := nlriObj["ipv4/unicast"].([]any)
+	fam, ok := nlriObj["ipv4/unicast"].([]any)
 	require.True(t, ok, "ipv4/unicast should be array: %s", output)
-	require.Len(t, family, 2, "should have 2 operation groups (two next-hops)")
+	require.Len(t, fam, 2, "should have 2 operation groups (two next-hops)")
 
 	// Collect next-hops and nlris
 	nextHops := make(map[string][]string)
-	for _, item := range family {
+	for _, item := range fam {
 		op, ok := item.(map[string]any)
 		require.True(t, ok, "operation should be map")
 		assert.Equal(t, "add", op["action"])
@@ -1159,7 +1160,7 @@ func TestJSONEncoderRDTypes(t *testing.T) {
 
 			// Create IPVPN NLRI and verify JSON output
 			vpnNLRI := vpn.NewVPN(
-				nlri.IPv4VPN,
+				family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN},
 				rd,
 				[]uint32{100}, // label
 				netip.MustParsePrefix("10.0.0.0/24"),
@@ -1168,7 +1169,7 @@ func TestJSONEncoderRDTypes(t *testing.T) {
 
 			// Format using formatNLRIJSONValue (registry-based decode)
 			var sb strings.Builder
-			formatNLRIJSONValue(&sb, vpnNLRI)
+			formatNLRIJSONValue(&sb, vpnNLRI, vpnNLRI.Family().String())
 			output := sb.String()
 
 			// Verify RD in JSON output
@@ -1208,7 +1209,7 @@ func TestJSONEncoderEVPN(t *testing.T) {
 
 	// Format using formatNLRIJSONValue (registry-based decode)
 	var sb strings.Builder
-	formatNLRIJSONValue(&sb, evpnNLRI)
+	formatNLRIJSONValue(&sb, evpnNLRI, evpnNLRI.Family().String())
 	output := sb.String()
 
 	// Verify all fields (plugin decode format: array with code/name/parsed/raw fields)
@@ -1306,7 +1307,7 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create LabeledUnicast NLRI
 			lu := labeled.NewLabeledUnicast(
-				nlri.IPv4LabeledUnicast,
+				family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel},
 				netip.MustParsePrefix(tt.prefix),
 				tt.labels,
 				tt.pathID,
@@ -1314,7 +1315,7 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 
 			// Format using formatNLRIJSONValue (routes through registry decoder)
 			var sb strings.Builder
-			formatNLRIJSONValue(&sb, lu)
+			formatNLRIJSONValue(&sb, lu, lu.Family().String())
 			output := sb.String()
 
 			// Verify prefix
@@ -1455,7 +1456,7 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 			// Create IPVPN NLRI
 			rd := nlri.RouteDistinguisher{Type: tt.rdType, Value: tt.rdValue}
 			vpnNLRI := vpn.NewVPN(
-				nlri.IPv4VPN,
+				family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN},
 				rd,
 				tt.labels,
 				netip.MustParsePrefix(tt.prefix),
@@ -1464,7 +1465,7 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 
 			// Format using formatNLRIJSONValue (registry-based decode)
 			var sb strings.Builder
-			formatNLRIJSONValue(&sb, vpnNLRI)
+			formatNLRIJSONValue(&sb, vpnNLRI, vpnNLRI.Family().String())
 			output := sb.String()
 
 			// Verify prefix
@@ -1548,14 +1549,14 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create FlowSpecVPN
 			rd := nlri.RouteDistinguisher{Type: tt.rdType, Value: tt.rdValue}
-			fsv := flowspec.NewFlowSpecVPN(nlri.IPv4FlowSpec, rd)
+			fsv := flowspec.NewFlowSpecVPN(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, rd)
 			for _, comp := range tt.components {
 				fsv.AddComponent(comp)
 			}
 
 			// Format using formatNLRIJSONValue (registry-based decode)
 			var sb strings.Builder
-			formatNLRIJSONValue(&sb, fsv)
+			formatNLRIJSONValue(&sb, fsv, fsv.Family().String())
 			output := sb.String()
 
 			// Verify RD with type prefix

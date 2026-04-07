@@ -13,6 +13,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // AFI name constants for API use.
@@ -157,7 +158,7 @@ type MUPRouteSpec struct {
 // NLRIGroup represents a group of NLRIs sharing the same attributes.
 // Used by ParseUpdateText to capture attribute snapshots per NLRI section.
 type NLRIGroup struct {
-	Family       nlri.Family               // Address family (AFI/SAFI)
+	Family       family.Family             // Address family (AFI/SAFI)
 	Announce     []nlri.NLRI               // NLRIs to announce
 	Withdraw     []nlri.NLRI               // NLRIs to withdraw
 	Wire         *attribute.AttributesWire // Path attributes in wire format
@@ -169,7 +170,7 @@ type NLRIGroup struct {
 type UpdateTextResult struct {
 	Groups       []NLRIGroup
 	WatchdogName string
-	EORFamilies  []nlri.Family // EOR markers to send (RFC 4724)
+	EORFamilies  []family.Family // EOR markers to send (RFC 4724)
 }
 
 // NLRIBatch represents a batch of NLRIs with shared attributes.
@@ -178,7 +179,7 @@ type UpdateTextResult struct {
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI/MP_UNREACH_NLRI for non-IPv4-unicast families.
 type NLRIBatch struct {
-	Family  nlri.Family               // AFI/SAFI for all NLRIs
+	Family  family.Family             // AFI/SAFI for all NLRIs
 	NLRIs   []nlri.NLRI               // NLRIs to announce or withdraw
 	NextHop RouteNextHop              // Next-hop policy (announce only)
 	Attrs   *attribute.Builder        // Attribute builder (for new routes)

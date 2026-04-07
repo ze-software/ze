@@ -5,6 +5,8 @@ package nlri
 import (
 	"encoding/binary"
 	"fmt"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // WireNLRI wraps raw wire-encoded NLRI bytes.
@@ -14,7 +16,7 @@ import (
 // IMPORTANT: Caller must not modify data after calling NewWireNLRI.
 // WireNLRI takes ownership of the slice (no copy for zero-allocation).
 type WireNLRI struct {
-	family     Family
+	fam        family.Family
 	data       []byte // Raw wire bytes (with or without path-id based on hasAddPath)
 	hasAddPath bool   // True if data starts with 4-byte path-id
 }
@@ -24,15 +26,15 @@ type WireNLRI struct {
 // hasAddPath indicates if data includes 4-byte path-id prefix.
 // Takes ownership of data slice - caller must not modify after this call.
 // Returns error if hasAddPath but len(data) < 4 (malformed).
-func NewWireNLRI(family Family, data []byte, hasAddPath bool) (*WireNLRI, error) {
+func NewWireNLRI(fam family.Family, data []byte, hasAddPath bool) (*WireNLRI, error) {
 	if hasAddPath && len(data) < 4 {
 		return nil, fmt.Errorf("malformed NLRI: addpath flag set but data < 4 bytes")
 	}
-	return &WireNLRI{family: family, data: data, hasAddPath: hasAddPath}, nil
+	return &WireNLRI{fam: fam, data: data, hasAddPath: hasAddPath}, nil
 }
 
 // Family returns the AFI/SAFI for this NLRI.
-func (w *WireNLRI) Family() Family { return w.family }
+func (w *WireNLRI) Family() family.Family { return w.fam }
 
 // Len returns the payload length in bytes (without path-id).
 func (w *WireNLRI) Len() int {
@@ -44,7 +46,7 @@ func (w *WireNLRI) Len() int {
 
 // String returns a human-readable representation.
 func (w *WireNLRI) String() string {
-	return fmt.Sprintf("wire[%s](%d bytes)", w.family, len(w.data))
+	return fmt.Sprintf("wire[%s](%d bytes)", w.fam, len(w.data))
 }
 
 // HasAddPath returns true if data includes path-id prefix.

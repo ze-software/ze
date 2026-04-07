@@ -7,6 +7,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // VALIDATES: Identical attributes return the same interned value; different attributes differ.
@@ -45,8 +46,8 @@ func TestRouteStore_InternNLRI(t *testing.T) {
 
 	// Create two identical NLRIs
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	n1 := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
-	n2 := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
+	n1 := nlri.NewINET(family.IPv4Unicast, prefix, 0)
+	n2 := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 
 	// Intern both
 	r1 := store.InternNLRI(n1)
@@ -67,7 +68,7 @@ func TestRouteStore_InternRoute(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
-	n := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
+	n := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	attrs := []attribute.Attribute{
 		attribute.LocalPref(100),
 	}
@@ -99,7 +100,7 @@ func TestRouteStore_ReleaseRoute(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
-	n := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
+	n := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	r := NewRoute(n, nextHop, nil)
 
 	// Intern twice
@@ -136,7 +137,7 @@ func TestRouteStore_Stats(t *testing.T) {
 	for i := range 5 {
 		prefix := netip.MustParsePrefix("10.0.0.0/24")
 		nextHop := netip.MustParseAddr("192.168.1.1")
-		n := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, uint32(i)) //nolint:gosec // Test data
+		n := nlri.NewINET(family.IPv4Unicast, prefix, uint32(i)) //nolint:gosec // Test data
 		attrs := []attribute.Attribute{
 			attribute.LocalPref(uint32(100 + i)), //nolint:gosec // Test data
 		}
@@ -174,7 +175,7 @@ func BenchmarkRouteStore_InternRoute(b *testing.B) {
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	nextHop := netip.MustParseAddr("192.168.1.1")
-	n := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
+	n := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	attrs := []attribute.Attribute{
 		attribute.LocalPref(100),
 	}

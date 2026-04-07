@@ -44,17 +44,17 @@ internal/component/bgp/reactor/
 
 ## Family Type
 
-All AFI/SAFI types are consolidated in `nlri.Family`. Other packages use type aliases:
+All AFI/SAFI types are consolidated in `family.Family`. Other packages use type aliases:
 
 ```go
 // internal/component/bgp/nlri/nlri.go - canonical definition
 type Family struct { AFI AFI; SAFI SAFI }
 
 // internal/component/bgp/capability/capability.go - alias for backward compat
-type Family = nlri.Family
+type Family = family.Family
 
 // internal/component/bgp/context/context.go - alias
-type Family = nlri.Family
+type Family = family.Family
 ```
 
 ## NegotiatedCapabilities
@@ -63,7 +63,7 @@ Tracks "what was negotiated" - which families are enabled. Lives in `internal/co
 
 ```go
 type NegotiatedCapabilities struct {
-    families             map[nlri.Family]bool  // private, O(1) lookup
+    families             map[family.Family]bool  // private, O(1) lookup
     ExtendedMessage      bool                  // RFC 8654
     EnhancedRouteRefresh bool                  // RFC 7313
 }
@@ -73,18 +73,18 @@ type NegotiatedCapabilities struct {
 
 ```go
 // Has returns whether the family was negotiated
-func (nc *NegotiatedCapabilities) Has(f nlri.Family) bool
+func (nc *NegotiatedCapabilities) Has(f family.Family) bool
 
 // Families returns all negotiated families in deterministic order (sorted by AFI, SAFI)
 // Used for EOR sending where order should be reproducible for testing
-func (nc *NegotiatedCapabilities) Families() []nlri.Family
+func (nc *NegotiatedCapabilities) Families() []family.Family
 ```
 
 ### Usage
 
 ```go
 nc := p.negotiated.Load()
-if nc.Has(nlri.IPv4Unicast) {
+if nc.Has(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}) {
     // family is negotiated, send routes
 }
 
@@ -107,7 +107,7 @@ type EncodingContext struct {
 
     // Direction-specific derived data
     direction Direction
-    addPath   map[nlri.Family]bool  // Derived from encoding.AddPathMode + direction
+    addPath   map[family.Family]bool  // Derived from encoding.AddPathMode + direction
 }
 
 // EncodingCaps in internal/component/bgp/capability/encoding.go
@@ -384,7 +384,7 @@ Created at session establishment:
 ```go
 // Check if family is negotiated
 nc := p.negotiated.Load()
-if !nc.Has(nlri.IPv4Unicast) {
+if !nc.Has(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}) {
     return // family not negotiated, skip
 }
 

@@ -11,6 +11,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // VPLS NLRI keywords for text parsing.
@@ -35,7 +36,7 @@ func isVPLSBoundary(token string) bool {
 // parseVPLSSection parses VPLS NLRI section.
 // RFC 4761 Section 3.2.2: VPLS BGP NLRI format.
 // Syntax: nlri l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>.
-func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlriParseResult, error) {
+func parseVPLSSection(args []string, fam family.Family, _ nlriAccum) (nlriParseResult, error) {
 	// args[0] = "nlri", args[1] = "l2vpn/vpls"
 	consumed := 2
 	i := 2
@@ -157,10 +158,10 @@ func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlriParse
 		"label-base", strconv.FormatUint(uint64(labelBase), 10),
 	}
 
-	vplsNLRI, err := encodeViaRegistry(family, encodeArgs, false)
+	vplsNLRI, err := encodeViaRegistry(fam, encodeArgs, false)
 	if err != nil {
 		return nlriParseResult{}, err
 	}
 
-	return buildSingleNLRIResult(family, mode, vplsNLRI, consumed)
+	return buildSingleNLRIResult(fam, mode, vplsNLRI, consumed)
 }

@@ -6,8 +6,8 @@ Eliminate data duplication between NegotiatedFamilies (25 bool fields) and Encod
 
 ## Decisions
 
-- `nlri.Family` is the canonical type; `capability.Family` becomes a type alias (`type Family = nlri.Family`) for backward compatibility
-- `NegotiatedCapabilities` (replaces NegotiatedFamilies) uses `map[nlri.Family]bool` — O(1) lookup, no field explosion when adding new families
+- `family.Family` is the canonical type; `capability.Family` becomes a type alias (`type Family = family.Family`) for backward compatibility
+- `NegotiatedCapabilities` (replaces NegotiatedFamilies) uses `map[family.Family]bool` — O(1) lookup, no field explosion when adding new families
 - `NegotiatedCapabilities` holds only: which families are enabled + ExtendedMessage bool; everything else (ASN4, AddPath, ExtNH) lives exclusively in EncodingContext
 - `ExtendedNextHop` changed from `map[Family]bool` to `map[Family]AFI` — stores the next-hop AFI (e.g., AFIIPv6 for IPv4 prefix with IPv6 NH), richer information
 - `Families()` returns sorted slice via `FamilyLess()` comparator — deterministic ordering for EOR sending and test reproducibility
@@ -25,5 +25,5 @@ Eliminate data duplication between NegotiatedFamilies (25 bool fields) and Encod
 
 - `internal/bgp/nlri/nlri.go` — canonical Family type, pre-computed constants, FamilyLess()
 - `internal/bgp/capability/capability.go` — Family alias
-- `internal/bgp/context/context.go` — EncodingContext with nlri.Family keys
+- `internal/bgp/context/context.go` — EncodingContext with family.Family keys
 - `internal/reactor/peer.go` — NegotiatedCapabilities replaces NegotiatedFamilies

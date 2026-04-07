@@ -139,6 +139,11 @@ var (
 	// (e.g., ipv4/unicast) that are not registered through the plugin system.
 	builtinFamilies = make(map[string]string)
 
+	// familyIndex maps family string to the Registration that handles it.
+	// Reverse index for O(1) PluginForFamily and *ByFamily lookups.
+	// Rebuilt by rebuildFamilyIndexLocked on Register(), Reset(), Restore().
+	familyIndex = make(map[string]*Registration)
+
 	// metricsRegistry stores the metrics registry (as any to avoid importing metrics).
 	// Set by the config loader after creating the Prometheus registry.
 	// Read by GetInternalPluginRunner to inject into plugins via ConfigureMetrics.
@@ -191,6 +196,7 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 
 	r := reg // copy
 	plugins[reg.Name] = &r
+	rebuildFamilyIndexLocked()
 	return nil
 }
 
@@ -433,16 +439,26 @@ func IsFatalOnConfigError(name string) bool {
 	return false
 }
 
+// rebuildFamilyIndexLocked rebuilds the family -> registration reverse index.
+// Caller MUST hold mu write lock.
+func rebuildFamilyIndexLocked() {
+	m := make(map[string]*Registration, len(familyIndex))
+	for _, reg := range plugins {
+		for _, f := range reg.Families {
+			m[f] = reg
+		}
+	}
+	familyIndex = m
+}
+
 // PluginForFamily returns the plugin name that handles a given address family.
 // Returns empty string if no plugin is registered for the family.
 func PluginForFamily(family string) string {
 	mu.RLock()
 	defer mu.RUnlock()
 
-	for _, reg := range plugins {
-		if slices.Contains(reg.Families, family) {
-			return reg.Name
-		}
+	if reg := familyIndex[family]; reg != nil {
+		return reg.Name
 	}
 	return ""
 }
@@ -496,10 +512,8 @@ func DecodeNLRIByFamily(family, hexData string) (string, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 
-	for _, reg := range plugins {
-		if reg.InProcessNLRIDecoder != nil && slices.Contains(reg.Families, family) {
-			return reg.InProcessNLRIDecoder(family, hexData)
-		}
+	if reg := familyIndex[family]; reg != nil && reg.InProcessNLRIDecoder != nil {
+		return reg.InProcessNLRIDecoder(family, hexData)
 	}
 	return "", fmt.Errorf("no NLRI decoder for family %s", family)
 }
@@ -512,10 +526,8 @@ func EncodeNLRIByFamily(family string, args []string) (string, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 
-	for _, reg := range plugins {
-		if reg.InProcessNLRIEncoder != nil && slices.Contains(reg.Families, family) {
-			return reg.InProcessNLRIEncoder(family, args)
-		}
+	if reg := familyIndex[family]; reg != nil && reg.InProcessNLRIEncoder != nil {
+		return reg.InProcessNLRIEncoder(family, args)
 	}
 	return "", fmt.Errorf("no NLRI encoder for family %s", family)
 }
@@ -526,10 +538,8 @@ func RouteEncoderByFamily(family string) func(routeCmd, family string, localAS u
 	mu.RLock()
 	defer mu.RUnlock()
 
-	for _, reg := range plugins {
-		if reg.InProcessRouteEncoder != nil && slices.Contains(reg.Families, family) {
-			return reg.InProcessRouteEncoder
-		}
+	if reg := familyIndex[family]; reg != nil && reg.InProcessRouteEncoder != nil {
+		return reg.InProcessRouteEncoder
 	}
 	return nil
 }
@@ -540,10 +550,8 @@ func ConfigNLRIBuilder(family string) func(map[string][]string, bool, bool) []by
 	mu.RLock()
 	defer mu.RUnlock()
 
-	for _, reg := range plugins {
-		if reg.InProcessConfigNLRIBuilder != nil && slices.Contains(reg.Families, family) {
-			return reg.InProcessConfigNLRIBuilder
-		}
+	if reg := familyIndex[family]; reg != nil && reg.InProcessConfigNLRIBuilder != nil {
+		return reg.InProcessConfigNLRIBuilder
 	}
 	return nil
 }
@@ -669,6 +677,7 @@ func Reset() {
 	mu.Lock()
 	defer mu.Unlock()
 	plugins = make(map[string]*Registration)
+	familyIndex = make(map[string]*Registration)
 	attrModHandlers = make(map[uint8]AttrModHandler)
 	rpcHandlers = make(map[string]func(json.RawMessage) (any, error))
 	metricsRegistry = nil
@@ -706,6 +715,7 @@ func Restore(snap RegistrySnapshot) {
 	attrModHandlers = snap.attrModHandlers
 	rpcHandlers = snap.rpcHandlers
 	busInstance = snap.busInstance
+	rebuildFamilyIndexLocked()
 }
 
 // ResolveDependencies expands a list of plugin names by iteratively adding

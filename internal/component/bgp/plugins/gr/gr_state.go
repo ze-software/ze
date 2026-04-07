@@ -217,10 +217,10 @@ func (m *grStateManager) onSessionReestablished(peerAddr string, newCap *grPeerC
 
 	// Check each stale family against new capabilities
 	var purged []string
-	for family := range state.staleFamilies {
-		if !newForwarding[family] {
-			purged = append(purged, family)
-			delete(state.staleFamilies, family)
+	for fam := range state.staleFamilies {
+		if !newForwarding[fam] {
+			purged = append(purged, fam)
+			delete(state.staleFamilies, fam)
 		}
 	}
 
@@ -299,9 +299,9 @@ func (p *llgrPendingActions) fire() {
 			p.mgr.onLLGREnter(p.peerAddr, e.family, e.llst)
 		}
 	}
-	for _, family := range p.purged {
+	for _, fam := range p.purged {
 		if p.mgr.onLLGRFamilyExpired != nil {
-			p.mgr.onLLGRFamilyExpired(p.peerAddr, family)
+			p.mgr.onLLGRFamilyExpired(p.peerAddr, fam)
 		}
 	}
 	if p.complete && p.mgr.onLLGRComplete != nil {
@@ -366,31 +366,31 @@ func (m *grStateManager) enterLLGRLocked(peerAddr string, state *grPeerState) *l
 	}
 
 	// Process each stale family
-	for family := range state.staleFamilies {
-		llst, hasLLGR := llstByFamily[family]
+	for fam := range state.staleFamilies {
+		llst, hasLLGR := llstByFamily[fam]
 		if !hasLLGR {
 			// Family not in LLGR cap or LLST=0 -> purge immediately
-			pending.purged = append(pending.purged, family)
+			pending.purged = append(pending.purged, fam)
 			continue
 		}
 
 		// Start per-family LLST timer with ownership guard.
 		// Capture state pointer so stale callbacks from a previous GR cycle
 		// can detect they no longer own the peer's state (consecutive restart).
-		fam := family // capture for closure
+		famCapture := fam // capture for closure
 		owner := state
 		timer := time.AfterFunc(time.Duration(llst)*time.Second, func() {
-			m.handleLLSTExpired(peerAddr, fam, owner)
+			m.handleLLSTExpired(peerAddr, famCapture, owner)
 		})
-		state.llgrFamilies[family] = timer
+		state.llgrFamilies[fam] = timer
 
 		// Collect callback action (fired after unlock)
-		pending.entries = append(pending.entries, llgrEntryAction{family: family, llst: llst})
+		pending.entries = append(pending.entries, llgrEntryAction{family: fam, llst: llst})
 	}
 
 	// Remove purged families from stale tracking
-	for _, family := range pending.purged {
-		delete(state.staleFamilies, family)
+	for _, fam := range pending.purged {
+		delete(state.staleFamilies, fam)
 	}
 
 	// If no families entered LLGR, complete immediately
@@ -474,8 +474,8 @@ func (m *grStateManager) stopLLSTTimersLocked(state *grPeerState) {
 // Must be called with m.mu held.
 func (m *grStateManager) allStaleFamiliesLocked(state *grPeerState) []string {
 	families := make([]string, 0, len(state.staleFamilies))
-	for family := range state.staleFamilies {
-		families = append(families, family)
+	for fam := range state.staleFamilies {
+		families = append(families, fam)
 	}
 	return families
 }

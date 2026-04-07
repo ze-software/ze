@@ -26,6 +26,7 @@ import (
 	vplspkg "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/vpls"
 	vpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/vpn"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 )
 
@@ -313,7 +314,7 @@ func TestParseUpdateText_FlatRD(t *testing.T) {
 		"nhop", "10.0.0.1",
 		"rd", "65000:100",
 		"label", "100",
-		"nlri", "ipv4/vpn", "add", "10.0.0.0/24",
+		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -328,7 +329,7 @@ func TestParseUpdateText_FlatLabel(t *testing.T) {
 		"nhop", "10.0.0.1",
 		"label", "100",
 		"rd", "65000:200",
-		"nlri", "ipv4/vpn", "add", "10.0.0.0/24",
+		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -638,7 +639,7 @@ func TestParseUpdateText_NLRISectionBasic(t *testing.T) {
 	require.Len(t, result.Groups, 1)
 
 	g := result.Groups[0]
-	assert.Equal(t, nlri.IPv4Unicast, g.Family)
+	assert.Equal(t, family.IPv4Unicast, g.Family)
 	require.Len(t, g.Announce, 1)
 	assert.Equal(t, "10.0.0.0/24", g.Announce[0].String())
 	assert.Empty(t, g.Withdraw)
@@ -824,7 +825,7 @@ func TestParseUpdateText_IPv6(t *testing.T) {
 	require.Len(t, result.Groups, 1)
 
 	g := result.Groups[0]
-	assert.Equal(t, nlri.IPv6Unicast, g.Family)
+	assert.Equal(t, family.IPv6Unicast, g.Family)
 	require.Len(t, g.Announce, 1)
 	assert.Equal(t, "2001:db8::/32", g.Announce[0].String())
 }
@@ -947,7 +948,7 @@ func TestParseUpdateText_SpecExample(t *testing.T) {
 
 	// First group: ipv4/unicast
 	g1 := result.Groups[0]
-	assert.Equal(t, nlri.IPv4Unicast, g1.Family)
+	assert.Equal(t, family.IPv4Unicast, g1.Family)
 	assert.True(t, g1.NextHop.IsExplicit())
 	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), g1.NextHop.Addr)
 	require.Len(t, testExtractCommunities(t, g1.Wire), 2) // 65000:100 + 65000:200
@@ -955,7 +956,7 @@ func TestParseUpdateText_SpecExample(t *testing.T) {
 
 	// Second group: ipv6/unicast (shared attrs)
 	g2 := result.Groups[1]
-	assert.Equal(t, nlri.IPv6Unicast, g2.Family)
+	assert.Equal(t, family.IPv6Unicast, g2.Family)
 	assert.True(t, g2.NextHop.IsExplicit())
 	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), g2.NextHop.Addr)
 	require.Len(t, testExtractCommunities(t, g2.Wire), 2) // same communities
@@ -1041,10 +1042,10 @@ func TestParseUpdateText_MulticastFamily(t *testing.T) {
 		name   string
 		family string
 		prefix string
-		want   nlri.Family
+		want   family.Family
 	}{
-		{"ipv4/multicast", "ipv4/multicast", "224.0.0.0/4", nlri.IPv4Multicast},
-		{"ipv6/multicast", "ipv6/multicast", "ff00::/8", nlri.IPv6Multicast},
+		{"ipv4/multicast", "ipv4/multicast", "224.0.0.0/4", family.IPv4Multicast},
+		{"ipv6/multicast", "ipv6/multicast", "ff00::/8", family.IPv6Multicast},
 	}
 
 	for _, tt := range tests {
@@ -1115,14 +1116,14 @@ type mockReactorBatch struct {
 	peerSelector       string
 	noPeersMatching    bool
 	noPeersAccepted    bool // Simulates family not negotiated
-	noPeersAcceptedFor nlri.Family
+	noPeersAcceptedFor family.Family
 }
 
 func (m *mockReactorBatch) AnnounceNLRIBatch(peerSelector string, batch bgptypes.NLRIBatch) error {
 	if m.noPeersMatching {
 		return route.ErrNoPeersMatch
 	}
-	if m.noPeersAccepted || (m.noPeersAcceptedFor != nlri.Family{} && m.noPeersAcceptedFor == batch.Family) {
+	if m.noPeersAccepted || (m.noPeersAcceptedFor != family.Family{} && m.noPeersAcceptedFor == batch.Family) {
 		return route.ErrNoPeersAcceptedFamily
 	}
 	m.peerSelector = peerSelector
@@ -1134,7 +1135,7 @@ func (m *mockReactorBatch) WithdrawNLRIBatch(peerSelector string, batch bgptypes
 	if m.noPeersMatching {
 		return route.ErrNoPeersMatch
 	}
-	if m.noPeersAccepted || (m.noPeersAcceptedFor != nlri.Family{} && m.noPeersAcceptedFor == batch.Family) {
+	if m.noPeersAccepted || (m.noPeersAcceptedFor != family.Family{} && m.noPeersAcceptedFor == batch.Family) {
 		return route.ErrNoPeersAcceptedFamily
 	}
 	m.peerSelector = peerSelector
@@ -1226,7 +1227,7 @@ func TestHandleUpdateText_SimpleAnnounce(t *testing.T) {
 	// Verify reactor was called
 	require.Len(t, reactor.announceCalls, 1)
 	assert.Equal(t, "192.0.2.1", reactor.peerSelector)
-	assert.Equal(t, nlri.IPv4Unicast, reactor.announceCalls[0].Family)
+	assert.Equal(t, family.IPv4Unicast, reactor.announceCalls[0].Family)
 	assert.Len(t, reactor.announceCalls[0].NLRIs, 1)
 }
 
@@ -1450,7 +1451,7 @@ func TestHandleUpdateText_IPv6Announce(t *testing.T) {
 	assert.Equal(t, "done", resp.Status)
 
 	require.Len(t, reactor.announceCalls, 1)
-	assert.Equal(t, nlri.IPv6Unicast, reactor.announceCalls[0].Family)
+	assert.Equal(t, family.IPv6Unicast, reactor.announceCalls[0].Family)
 }
 
 // TestHandleUpdateText_NextHopSelf verifies nhop set self flag passed to batch.
@@ -1505,7 +1506,7 @@ func TestHandleUpdateText_FamilyNotAccepted(t *testing.T) {
 // PREVENTS: All-or-nothing behavior.
 func TestHandleUpdateText_PartialFamilyAccepted(t *testing.T) {
 	// Only IPv6 is not accepted
-	reactor := &mockReactorBatch{noPeersAcceptedFor: nlri.IPv6Unicast}
+	reactor := &mockReactorBatch{noPeersAcceptedFor: family.IPv6Unicast}
 	ctx := &pluginserver.CommandContext{
 		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
@@ -1768,7 +1769,7 @@ func TestParseUpdateText_LabeledUnicast(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "192.0.2.1",
 		"label", "1000",
-		"nlri", "ipv4/nlri-mpls", "add", "10.0.0.0/24",
+		"nlri", "ipv4/mpls-label", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -1790,7 +1791,7 @@ func TestParseUpdateText_LabeledUnicastMissingLabel(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nhop", "192.0.2.1",
 		// no label
-		"nlri", "ipv4/nlri-mpls", "add", "10.0.0.0/24",
+		"nlri", "ipv4/mpls-label", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, route.ErrMissingLabel)
@@ -1823,7 +1824,7 @@ func TestParseUpdateText_IPv6LabeledUnicast(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "2001:db8::1",
 		"label", "1000",
-		"nlri", "ipv6/nlri-mpls", "add", "2001:db8:1::/48",
+		"nlri", "ipv6/mpls-label", "add", "2001:db8:1::/48",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -1931,7 +1932,7 @@ func TestParseUpdateText_InNLRIModifierIPv6VPN(t *testing.T) {
 func TestParseUpdateText_InNLRIModifierLabelOnly(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "192.0.2.1",
-		"nlri", "ipv4/nlri-mpls", "label", "1000", "add", "10.0.0.0/24",
+		"nlri", "ipv4/mpls-label", "label", "1000", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -1987,7 +1988,7 @@ func TestParseUpdateText_InNLRIModifierScopeIsSectionOnly(t *testing.T) {
 	assert.Equal(t, "0:65000:100", vpnData["rd"])
 
 	// Second group: unicast (no VPN requirements)
-	assert.Equal(t, nlri.IPv4Unicast, result.Groups[1].Family)
+	assert.Equal(t, family.IPv4Unicast, result.Groups[1].Family)
 }
 
 // ============================================================================
@@ -2167,7 +2168,7 @@ func TestParseUpdateText_FlowSpecIPv6(t *testing.T) {
 	require.Len(t, result.Groups, 1)
 
 	fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
-	assert.Equal(t, nlri.IPv6FlowSpec, fs.Family())
+	assert.Equal(t, family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec}, fs.Family())
 }
 
 // TestParseUpdateText_FlowSpecTCPFlags verifies TCP flags matching.
@@ -2915,7 +2916,7 @@ func TestParseUpdateText_FlowSpecIPv6Variants(t *testing.T) {
 			require.Len(t, result.Groups[0].Announce, 1)
 
 			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
-			assert.Equal(t, nlri.IPv6FlowSpec, fs.Family())
+			assert.Equal(t, family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec}, fs.Family())
 		})
 	}
 }
@@ -3183,7 +3184,7 @@ func TestParseUpdateText_EORIPv4Unicast(t *testing.T) {
 	result, err := ParseUpdateText([]string{"nlri", "ipv4/unicast", "eor"})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 1)
-	assert.Equal(t, nlri.IPv4Unicast, result.EORFamilies[0])
+	assert.Equal(t, family.IPv4Unicast, result.EORFamilies[0])
 	assert.Empty(t, result.Groups, "EOR should not produce NLRI groups")
 }
 
@@ -3196,7 +3197,7 @@ func TestParseUpdateText_EORIPv6Unicast(t *testing.T) {
 	result, err := ParseUpdateText([]string{"nlri", "ipv6/unicast", "eor"})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 1)
-	assert.Equal(t, nlri.IPv6Unicast, result.EORFamilies[0])
+	assert.Equal(t, family.IPv6Unicast, result.EORFamilies[0])
 }
 
 // TestParseUpdateText_EORL2VPNEVPN verifies EOR parsing for L2VPN/EVPN.
@@ -3208,7 +3209,7 @@ func TestParseUpdateText_EORL2VPNEVPN(t *testing.T) {
 	result, err := ParseUpdateText([]string{"nlri", "l2vpn/evpn", "eor"})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 1)
-	assert.Equal(t, nlri.L2VPNEVPN, result.EORFamilies[0])
+	assert.Equal(t, family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}, result.EORFamilies[0])
 }
 
 // TestParseUpdateText_EORL2VPNVPLS verifies EOR parsing for L2VPN/VPLS.
@@ -3220,7 +3221,7 @@ func TestParseUpdateText_EORL2VPNVPLS(t *testing.T) {
 	result, err := ParseUpdateText([]string{"nlri", "l2vpn/vpls", "eor"})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 1)
-	assert.Equal(t, nlri.L2VPNVPLS, result.EORFamilies[0])
+	assert.Equal(t, family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS}, result.EORFamilies[0])
 }
 
 // TestParseUpdateText_EORMultipleFamilies verifies multiple EOR families.
@@ -3234,8 +3235,8 @@ func TestParseUpdateText_EORMultipleFamilies(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 2)
-	assert.Equal(t, nlri.IPv4Unicast, result.EORFamilies[0])
-	assert.Equal(t, nlri.IPv6Unicast, result.EORFamilies[1])
+	assert.Equal(t, family.IPv4Unicast, result.EORFamilies[0])
+	assert.Equal(t, family.IPv6Unicast, result.EORFamilies[1])
 }
 
 // TestParseUpdateText_EORWithNLRI verifies EOR can coexist with NLRI.
@@ -3250,7 +3251,7 @@ func TestParseUpdateText_EORWithNLRI(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 1)
-	assert.Equal(t, nlri.IPv6Unicast, result.EORFamilies[0])
+	assert.Equal(t, family.IPv6Unicast, result.EORFamilies[0])
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 1)
 }
@@ -3272,7 +3273,7 @@ func TestParseUpdateText_VPLSBasic(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 1)
-	assert.Equal(t, nlri.L2VPNVPLS, result.Groups[0].Family)
+	assert.Equal(t, family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS}, result.Groups[0].Family)
 
 	wireNLRI, ok := result.Groups[0].Announce[0].(*nlri.WireNLRI)
 	require.True(t, ok, "expected WireNLRI, got %T", result.Groups[0].Announce[0])
@@ -3301,7 +3302,7 @@ func TestParseUpdateText_VPLSWithdraw(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Withdraw, 1)
-	assert.Equal(t, nlri.L2VPNVPLS, result.Groups[0].Family)
+	assert.Equal(t, family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS}, result.Groups[0].Family)
 }
 
 // TestParseUpdateText_VPLSMissingRD verifies VPLS requires RD.
@@ -3335,7 +3336,7 @@ func TestParseUpdateText_EVPNType2Basic(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 1)
-	assert.Equal(t, nlri.L2VPNEVPN, result.Groups[0].Family)
+	assert.Equal(t, family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}, result.Groups[0].Family)
 
 	evpnData := testDecodeEVPN(t, result.Groups[0].Announce[0])
 	assert.Equal(t, "00:11:22:33:44:55", evpnData["mac"])
@@ -3377,7 +3378,7 @@ func TestParseUpdateText_EVPNType5Basic(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 1)
-	assert.Equal(t, nlri.L2VPNEVPN, result.Groups[0].Family)
+	assert.Equal(t, family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}, result.Groups[0].Family)
 
 	evpnData := testDecodeEVPN(t, result.Groups[0].Announce[0])
 	assert.Equal(t, "10.0.0.0/24", evpnData["prefix"])
@@ -3408,7 +3409,7 @@ func TestParseUpdateText_EVPNType3Multicast(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 1)
-	assert.Equal(t, nlri.L2VPNEVPN, result.Groups[0].Family)
+	assert.Equal(t, family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}, result.Groups[0].Family)
 
 	evpnData := testDecodeEVPN(t, result.Groups[0].Announce[0])
 	assert.Equal(t, "192.168.1.1", evpnData["originator"])

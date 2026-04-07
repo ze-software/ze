@@ -9,13 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 )
 
 // ipv4Unicast is the family constant used for test route insertion.
-var ipv4Unicast = nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+var ipv4Unicast = family.IPv4Unicast
 
 // scrapeRIBMetrics returns the Prometheus text exposition from the given registry.
 func scrapeRIBMetrics(t *testing.T, reg *metrics.PrometheusRegistry) string {

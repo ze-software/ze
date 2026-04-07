@@ -13,7 +13,7 @@ import (
 	"io"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Protocol constants for request/response handling.
@@ -119,10 +119,10 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		return
 	}
 
-	family := strings.ToLower(parts[2])
+	famName := strings.ToLower(parts[2])
 	hexData := parts[3]
 
-	if !isValidFlowSpecFamily(family) {
+	if !isValidFlowSpecFamily(famName) {
 		writeUnknown()
 		return
 	}
@@ -133,7 +133,7 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		return
 	}
 
-	result := decodeFlowSpecNLRI(family, data)
+	result := decodeFlowSpecNLRI(famName, data)
 	if result == nil {
 		writeUnknown()
 		return
@@ -162,9 +162,9 @@ func handleEncodeNLRIFromJSON(parts []string, output io.Writer, writeError func(
 		return
 	}
 
-	family := strings.ToLower(parts[2])
-	if !isValidFlowSpecFamily(family) {
-		writeError("invalid family: " + family)
+	famName := strings.ToLower(parts[2])
+	if !isValidFlowSpecFamily(famName) {
+		writeError("invalid family: " + famName)
 		return
 	}
 
@@ -186,9 +186,9 @@ func handleEncodeNLRIFromJSON(parts []string, output io.Writer, writeError func(
 	}
 
 	// Parse family
-	fam, ok := nlri.ParseFamily(family)
+	fam, ok := family.LookupFamily(famName)
 	if !ok {
-		writeError("unknown family: " + family)
+		writeError("unknown family: " + famName)
 		return
 	}
 
@@ -210,16 +210,16 @@ func handleEncodeNLRI(parts []string, output io.Writer, writeError func(string))
 		return
 	}
 
-	family := strings.ToLower(parts[2])
-	if !isValidFlowSpecFamily(family) {
-		writeError("invalid family: " + family)
+	famName := strings.ToLower(parts[2])
+	if !isValidFlowSpecFamily(famName) {
+		writeError("invalid family: " + famName)
 		return
 	}
 
-	// Parse family using nlri.ParseFamily (still in nlri package)
-	fam, ok := nlri.ParseFamily(family)
+	// Parse family using family.LookupFamily
+	fam, ok := family.LookupFamily(famName)
 	if !ok {
-		writeError("unknown family: " + family)
+		writeError("unknown family: " + famName)
 		return
 	}
 

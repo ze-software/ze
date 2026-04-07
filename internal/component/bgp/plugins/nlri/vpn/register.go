@@ -23,7 +23,7 @@ func init() {
 		RFCs:         []string{"4364", "4659"},
 		SupportsNLRI: true,
 		Features:     "nlri",
-		Families:     []string{"ipv4/vpn", "ipv6/vpn"},
+		Families:     []string{"ipv4/mpls-vpn", "ipv6/mpls-vpn"},
 		RunEngine:    RunVPNPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetVPNLogger(slogutil.Logger(loggerName))
@@ -43,7 +43,7 @@ func init() {
 			SetVPNLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.ExtraFlags = func(fs *flag.FlagSet) {
-			family = fs.String("family", "ipv4/vpn", "Address family (ipv4/vpn, ipv6/vpn)")
+			family = fs.String("family", "ipv4/mpls-vpn", "Address family (ipv4/mpls-vpn, ipv6/mpls-vpn)")
 		}
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errOut io.Writer, fs *flag.FlagSet) int {
 			return RunCLIDecode(hex, *family, text, out, errOut)

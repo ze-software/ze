@@ -29,9 +29,9 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -111,28 +111,28 @@ func RunGRPlugin(conn net.Conn) int {
 	})
 	// RFC 9494: LLGR callbacks compose generic RIB commands.
 	// LLGR_STALE = 0xFFFF0006, NO_LLGR = 0xFFFF0007 (wire hex).
-	gp.state.onLLGREnter = func(peerAddr, family string, llst uint32) {
+	gp.state.onLLGREnter = func(peerAddr, fam string, llst uint32) {
 		// 1. Delete routes with NO_LLGR community
-		gp.dispatchCommand("rib delete-with-community " + peerAddr + " " + family + " ffff0007")
+		gp.dispatchCommand("rib delete-with-community " + peerAddr + " " + fam + " ffff0007")
 		// 2. Attach LLGR_STALE community to remaining stale routes
-		gp.dispatchCommand("rib attach-community " + peerAddr + " " + family + " ffff0006")
+		gp.dispatchCommand("rib attach-community " + peerAddr + " " + fam + " ffff0006")
 		// 3. Raise stale level to depreference threshold
 		// Raise stale level to 2 (depreference threshold) via mark-stale
 		// with restart-time=0 (no new timer needed, LLST timer handles expiry).
 		gp.dispatchCommand("rib mark-stale " + peerAddr + " 0 2")
 	}
 	gp.state.onLLGREntryDone = func(peerAddr string, families []string) {
-		// RFC 9494: readvertise per-family (not all-family) to avoid resending unrelated families.
-		for _, family := range families {
-			gp.dispatchCommand("rib clear out !" + peerAddr + " " + family)
+		// RFC 9494: readvertise per-fam (not all-fam) to avoid resending unrelated families.
+		for _, fam := range families {
+			gp.dispatchCommand("rib clear out !" + peerAddr + " " + fam)
 		}
 		// Increment LLGR active count for egress filter fast-path.
 		if s := egressState.Load(); s != nil {
 			s.llgrActiveCount.Add(1)
 		}
 	}
-	gp.state.onLLGRFamilyExpired = func(peerAddr, family string) {
-		gp.dispatchCommand("rib purge-stale " + peerAddr + " " + family)
+	gp.state.onLLGRFamilyExpired = func(peerAddr, fam string) {
+		gp.dispatchCommand("rib purge-stale " + peerAddr + " " + fam)
 	}
 	gp.state.onLLGRComplete = func(peerAddr string) {
 		gp.dispatchCommand("rib release-routes " + peerAddr)
@@ -178,7 +178,7 @@ func RunGRPlugin(conn net.Conn) int {
 	// Subscribe to events needed for Receiving Speaker procedures:
 	//   open direction received — capture peer's GR capability from OPEN
 	//   state — detect peer up/down (with reason for GR vs normal teardown)
-	//   eor — track End-of-RIB per family for stale route purge
+	//   eor — track End-of-RIB per fam for stale route purge
 	p.SetStartupSubscriptions(
 		[]string{"open direction received", "state", "eor"},
 		nil, "full",
@@ -351,8 +351,8 @@ func (gp *grPlugin) handleStructuredState(peerAddr, state, reason string) {
 		gp.mu.Unlock()
 
 		purged, wasInLLGR := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
-		for _, family := range purged {
-			gp.dispatchCommand("rib purge-stale " + peerAddr + " " + family)
+		for _, fam := range purged {
+			gp.dispatchCommand("rib purge-stale " + peerAddr + " " + fam)
 		}
 		if wasInLLGR {
 			if s := egressState.Load(); s != nil {
@@ -511,9 +511,9 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 		gp.mu.Unlock()
 
 		purged, wasInLLGR := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
-		for _, family := range purged {
+		for _, fam := range purged {
 			// RFC 4724: purge stale routes for families with F-bit=0 or missing
-			gp.dispatchCommand("rib purge-stale " + peerAddr + " " + family)
+			gp.dispatchCommand("rib purge-stale " + peerAddr + " " + fam)
 		}
 		if wasInLLGR {
 			if s := egressState.Load(); s != nil {
@@ -531,16 +531,16 @@ func (gp *grPlugin) handleEOREvent(peerAddr string, payload map[string]any) {
 		return
 	}
 
-	family, _ := eorObj["family"].(string)
-	if family == "" {
+	fam, _ := eorObj["family"].(string)
+	if fam == "" {
 		return
 	}
 
-	shouldPurge := gp.state.onEORReceived(peerAddr, family)
+	shouldPurge := gp.state.onEORReceived(peerAddr, fam)
 	if shouldPurge {
 		// RFC 4724: purge only stale routes for this family (selective, not nuclear)
-		gp.dispatchCommand("rib purge-stale " + peerAddr + " " + family)
-		logger().Debug("gr: EOR received, purging stale routes", "peer", peerAddr, "family", family)
+		gp.dispatchCommand("rib purge-stale " + peerAddr + " " + fam)
+		logger().Debug("gr: EOR received, purging stale routes", "peer", peerAddr, "family", fam)
 	}
 }
 
@@ -587,10 +587,10 @@ func grResultToPeerCap(r *grResult) *grPeerCap {
 		Families:    make([]grCapFamily, 0, len(r.Families)),
 	}
 	for _, f := range r.Families {
-		family := afiSAFIToFamily(f.AFI, f.SAFI)
-		if family != "" {
+		fam := afiSAFIToFamily(f.AFI, f.SAFI)
+		if fam != "" {
 			cap.Families = append(cap.Families, grCapFamily{
-				Family:       family,
+				Family:       fam,
 				ForwardState: f.ForwardState,
 			})
 		}
@@ -599,9 +599,9 @@ func grResultToPeerCap(r *grResult) *grPeerCap {
 }
 
 // afiSAFIToFamily converts AFI/SAFI numbers to ze family string format.
-// Delegates to nlri.Family.String() — single source of truth for family names.
+// Delegates to family.Family.String() — single source of truth for family names.
 func afiSAFIToFamily(afi uint16, safi uint8) string {
-	return nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)}.String()
+	return family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}.String()
 }
 
 // parseGRCapValue extracts a GR capability hex value from a capability map's

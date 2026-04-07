@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	evpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/evpn"
 	flowspec "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/flowspec"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // SenderConfig holds the parameters for building UPDATE messages.
@@ -202,19 +203,19 @@ func BuildEOR(family string) []byte {
 	return SerializeMessage(eor)
 }
 
-// familyToNLRI maps family strings to nlri.Family for EOR construction.
+// familyToNLRI maps family strings to family.Family for EOR construction.
 // SYNC: Must stay in sync with familyToAFISAFI in session.go — both maps
 // must cover the same set of family strings.
-var familyToNLRI = map[string]nlri.Family{
-	"ipv4/unicast":   nlri.IPv4Unicast,
-	"ipv6/unicast":   {AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast},
-	"ipv4/multicast": {AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMulticast},
-	"ipv6/multicast": {AFI: nlri.AFIIPv6, SAFI: nlri.SAFIMulticast},
-	"ipv4/vpn":       {AFI: nlri.AFIIPv4, SAFI: nlri.SAFIVPN},
-	"ipv6/vpn":       {AFI: nlri.AFIIPv6, SAFI: nlri.SAFIVPN},
-	"l2vpn/evpn":     {AFI: nlri.AFIL2VPN, SAFI: nlri.SAFIEVPN},
-	"ipv4/flow":      {AFI: nlri.AFIIPv4, SAFI: nlri.SAFIFlowSpec},
-	"ipv6/flow":      {AFI: nlri.AFIIPv6, SAFI: nlri.SAFIFlowSpec},
+var familyToNLRI = map[string]family.Family{
+	"ipv4/unicast":   {AFI: family.AFIIPv4, SAFI: family.SAFIUnicast},
+	"ipv6/unicast":   {AFI: family.AFIIPv6, SAFI: family.SAFIUnicast},
+	"ipv4/multicast": {AFI: family.AFIIPv4, SAFI: family.SAFIMulticast},
+	"ipv6/multicast": {AFI: family.AFIIPv6, SAFI: family.SAFIMulticast},
+	"ipv4/mpls-vpn":       {AFI: family.AFIIPv4, SAFI: family.SAFIVPN},
+	"ipv6/mpls-vpn":       {AFI: family.AFIIPv6, SAFI: family.SAFIVPN},
+	"l2vpn/evpn":     {AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN},
+	"ipv4/flow":      {AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec},
+	"ipv6/flow":      {AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec},
 }
 
 // BuildEORIPv4Unicast constructs a serialized End-of-RIB marker for ipv4/unicast.
@@ -222,6 +223,6 @@ var familyToNLRI = map[string]nlri.Family{
 //
 // Deprecated: Use BuildEOR("ipv4/unicast") instead.
 func BuildEORIPv4Unicast() []byte {
-	eor := message.BuildEOR(nlri.IPv4Unicast)
+	eor := message.BuildEOR(family.IPv4Unicast)
 	return SerializeMessage(eor)
 }

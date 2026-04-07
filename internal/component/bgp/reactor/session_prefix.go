@@ -9,20 +9,20 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
-// familyKey encodes an nlri.Family as a uint32 map key, avoiding fmt.Sprintf allocations
+// familyKey encodes an family.Family as a uint32 map key, avoiding fmt.Sprintf allocations
 // on the hot path. Layout: AFI in upper 16 bits, SAFI in bits 8-15, lower 8 bits zero.
-func familyKey(f nlri.Family) uint32 {
+func familyKey(f family.Family) uint32 {
 	return uint32(f.AFI)<<16 | uint32(f.SAFI)<<8
 }
 
 // familyKeyString converts a "afi/safi" config string to the uint32 key used by prefixCounts.
 // Returns 0, false if the string is not a recognized family.
 func familyKeyString(s string) (uint32, bool) {
-	f, ok := nlri.ParseFamily(s)
+	f, ok := family.LookupFamily(s)
 	if !ok {
 		return 0, false
 	}
@@ -80,7 +80,7 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 	// Process withdrawals BEFORE announces so that a single UPDATE replacing
 	// prefixes (withdraw old + announce new) doesn't falsely exceed the limit.
 
-	ipv4Key := familyKey(nlri.IPv4Unicast)
+	ipv4Key := familyKey(family.IPv4Unicast)
 
 	// Count IPv4 unicast body Withdrawn.
 	if withdrawn, err := countBodyWithdrawn(wu, addPath); err == nil && withdrawn > 0 {
@@ -89,15 +89,15 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 
 	// Count MP_UNREACH_NLRI (non-IPv4 families).
 	if mpUnreach, err := wu.MPUnreach(); err == nil && mpUnreach != nil {
-		family := nlri.Family{
-			AFI:  nlri.AFI(mpUnreach.AFI()),
-			SAFI: nlri.SAFI(mpUnreach.SAFI()),
+		fam := family.Family{
+			AFI:  family.AFI(mpUnreach.AFI()),
+			SAFI: family.SAFI(mpUnreach.SAFI()),
 		}
-		mpAddPath := s.mpAddPathReceive(family)
+		mpAddPath := s.mpAddPathReceive(fam)
 		if wdBytes := mpUnreach.WithdrawnBytes(); len(wdBytes) > 0 {
 			count := countPrefixEntries(wdBytes, mpAddPath)
 			if count > 0 {
-				s.applyPrefixDelta(familyKey(family), -int64(count))
+				s.applyPrefixDelta(familyKey(fam), -int64(count))
 			}
 		}
 	}
@@ -111,15 +111,15 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 
 	// Count MP_REACH_NLRI (non-IPv4 families).
 	if mpReach, err := wu.MPReach(); err == nil && mpReach != nil {
-		family := nlri.Family{
-			AFI:  nlri.AFI(mpReach.AFI()),
-			SAFI: nlri.SAFI(mpReach.SAFI()),
+		fam := family.Family{
+			AFI:  family.AFI(mpReach.AFI()),
+			SAFI: family.SAFI(mpReach.SAFI()),
 		}
-		mpAddPath := s.mpAddPathReceive(family)
+		mpAddPath := s.mpAddPathReceive(fam)
 		if nlriBytes := mpReach.NLRIBytes(); len(nlriBytes) > 0 {
 			count := countPrefixEntries(nlriBytes, mpAddPath)
 			if count > 0 {
-				if n, d := s.applyPrefixCheck(familyKey(family), int64(count)); n != nil || d {
+				if n, d := s.applyPrefixCheck(familyKey(fam), int64(count)); n != nil || d {
 					return n, d
 				}
 			}
@@ -130,11 +130,11 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 }
 
 // mpAddPathReceive returns whether ADD-PATH receive is negotiated for a given MP family.
-func (s *Session) mpAddPathReceive(family nlri.Family) bool {
+func (s *Session) mpAddPathReceive(fam family.Family) bool {
 	if s.negotiated == nil {
 		return false
 	}
-	mode := s.negotiated.AddPathMode(family)
+	mode := s.negotiated.AddPathMode(fam)
 	return mode == capability.AddPathReceive || mode == capability.AddPathBoth
 }
 
@@ -161,9 +161,9 @@ func (s *Session) prefixConfigLookup(fk uint32) (maximum, warning uint32, hasMax
 // familyString converts a uint32 family key back to "afi/safi" string for display/metrics.
 // Only called on cold paths (logging, metrics, notifications).
 func familyString(fk uint32) string {
-	afi := nlri.AFI(fk >> 16)
-	safi := nlri.SAFI((fk >> 8) & 0xFF)
-	return nlri.Family{AFI: afi, SAFI: safi}.String()
+	afi := family.AFI(fk >> 16)
+	safi := family.SAFI((fk >> 8) & 0xFF)
+	return family.Family{AFI: afi, SAFI: safi}.String()
 }
 
 // applyPrefixDelta adjusts a family's prefix count without checking thresholds.
@@ -172,17 +172,17 @@ func (s *Session) applyPrefixDelta(fk uint32, delta int64) {
 	current := s.prefixCounts.add(fk, delta)
 
 	// Update Prometheus gauge (cold path -- string conversion OK).
-	family := familyString(fk)
-	s.setPrefixCountMetric(family, current)
+	famName := familyString(fk)
+	s.setPrefixCountMetric(famName, current)
 
 	// Reset warning flag and metric when count drops below threshold.
 	_, warning, _ := s.prefixConfigLookup(fk)
 	if warning > 0 && current < int64(warning) {
 		if s.prefixCounts.warned[fk] {
 			s.prefixCounts.warned[fk] = false
-			s.setPrefixWarningExceededMetric(family, 0)
+			s.setPrefixWarningExceededMetric(famName, 0)
 			if s.prefixWarningNotifier != nil {
-				s.prefixWarningNotifier(family, false)
+				s.prefixWarningNotifier(famName, false)
 			}
 		}
 	}
@@ -194,8 +194,8 @@ func (s *Session) applyPrefixCheck(fk uint32, delta int64) (*message.Notificatio
 	current := s.prefixCounts.add(fk, delta)
 
 	// Update Prometheus gauge (cold path -- string conversion OK).
-	family := familyString(fk)
-	s.setPrefixCountMetric(family, current)
+	famName := familyString(fk)
+	s.setPrefixCountMetric(famName, current)
 
 	maximum, warning, hasMax := s.prefixConfigLookup(fk)
 	if !hasMax {
@@ -206,13 +206,13 @@ func (s *Session) applyPrefixCheck(fk uint32, delta int64) (*message.Notificatio
 	if warning > 0 && current >= int64(warning) && current < int64(maximum) {
 		if !s.prefixCounts.warned[fk] {
 			s.prefixCounts.warned[fk] = true
-			s.setPrefixWarningExceededMetric(family, 1)
+			s.setPrefixWarningExceededMetric(famName, 1)
 			if s.prefixWarningNotifier != nil {
-				s.prefixWarningNotifier(family, true)
+				s.prefixWarningNotifier(famName, true)
 			}
 			sessionLogger().Warn("prefix count reached warning threshold",
 				"peer", s.settings.Address,
-				"family", family,
+				"family", famName,
 				"count", current,
 				"warning", warning,
 				"maximum", maximum,
@@ -222,10 +222,10 @@ func (s *Session) applyPrefixCheck(fk uint32, delta int64) (*message.Notificatio
 
 	// Check maximum.
 	if current > int64(maximum) {
-		s.incrPrefixExceededMetric(family)
+		s.incrPrefixExceededMetric(famName)
 		sessionLogger().Error("prefix count exceeded maximum",
 			"peer", s.settings.Address,
-			"family", family,
+			"family", famName,
 			"count", current,
 			"maximum", maximum,
 			"teardown", s.settings.PrefixTeardown,
@@ -366,11 +366,11 @@ func setPrefixConfigMetrics(m *reactorMetrics, peerAddr string, settings *PeerSe
 	if m == nil {
 		return
 	}
-	for family, maximum := range settings.PrefixMaximum {
-		m.prefixMaximum.With(peerAddr, family).Set(float64(maximum))
+	for fam, maximum := range settings.PrefixMaximum {
+		m.prefixMaximum.With(peerAddr, fam).Set(float64(maximum))
 	}
-	for family, warning := range settings.PrefixWarning {
-		m.prefixWarning.With(peerAddr, family).Set(float64(warning))
+	for fam, warning := range settings.PrefixWarning {
+		m.prefixWarning.With(peerAddr, fam).Set(float64(warning))
 	}
 
 	// Staleness: set metric based on PrefixUpdated timestamp age.

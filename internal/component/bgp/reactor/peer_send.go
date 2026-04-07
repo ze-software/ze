@@ -8,9 +8,9 @@ import (
 	"net/netip"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 )
 
 // SendUpdate sends a BGP UPDATE message to this peer.
@@ -45,12 +45,12 @@ func (p *Peer) SendAnnounce(route bgptypes.RouteSpec, localAS uint32) error {
 	}
 
 	isIBGP := p.settings.IsIBGP()
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	if route.Prefix.Addr().Is6() {
-		family = nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}
+		fam = family.IPv6Unicast
 	}
 	asn4 := p.asn4()
-	addPath := p.addPathFor(family)
+	addPath := p.addPathFor(fam)
 
 	if err := session.SendAnnounce(route, localAS, isIBGP, asn4, addPath); err != nil {
 		return err
@@ -74,11 +74,11 @@ func (p *Peer) SendWithdraw(prefix netip.Prefix) error {
 		return ErrNotConnected
 	}
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	if prefix.Addr().Is6() {
-		family = nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}
+		fam = family.IPv6Unicast
 	}
-	addPath := p.addPathFor(family)
+	addPath := p.addPathFor(fam)
 
 	if err := session.SendWithdraw(prefix, addPath); err != nil {
 		return err

@@ -11,8 +11,8 @@ import (
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // newTestRIBManager creates a RIBManager with closed SDK connections for unit testing.
@@ -1418,9 +1418,9 @@ func TestWireToPrefix(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			family, ok := parseFamily(tt.family)
+			fam, ok := parseFamily(tt.family)
 			require.True(t, ok)
-			gotPrefix, gotPathID, err := wireToPrefix(family, tt.wire, tt.addPath)
+			gotPrefix, gotPathID, err := wireToPrefix(fam, tt.wire, tt.addPath)
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantPrefix, gotPrefix)
 			assert.Equal(t, tt.wantPathID, gotPathID)
@@ -1644,7 +1644,7 @@ func TestHandleReceived_AddPathNLRI(t *testing.T) {
 	// Verify actual stored wire bytes contain correct ADD-PATH NLRIs (not garbage from wrong parsing).
 	// With addPath=true: key is [path-id:4][prefix-len:1][prefix-bytes].
 	// With addPath=false: path-id bytes would be misread as prefix-lengths, producing different keys.
-	ipv4u := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	ipv4u := family.IPv4Unicast
 	_, found42 := r.ribInPool["10.0.0.1"].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2a, 0x18, 0x0a, 0x00, 0x00})
 	_, found43 := r.ribInPool["10.0.0.1"].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2b, 0x18, 0x0a, 0x00, 0x01})
 	assert.True(t, found42, "route with path-id 42 (10.0.0.0/24) must be stored with correct ADD-PATH wire key")
@@ -1675,7 +1675,7 @@ func TestHandleReceived_AddPathWithdraw(t *testing.T) {
 	r.handleReceived(announce)
 
 	// Verify announcement stored with correct ADD-PATH wire key
-	ipv4u := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	ipv4u := family.IPv4Unicast
 	_, found := r.ribInPool["10.0.0.1"].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2a, 0x18, 0x0a, 0x00, 0x00})
 	require.True(t, found, "route must be stored with ADD-PATH wire key before withdrawal")
 
@@ -1737,7 +1737,7 @@ func TestExtractCandidate_PoolWiring(t *testing.T) {
 
 	var entry storage.RouteEntry
 	var found bool
-	peerRIB.Iterate(func(_ nlri.Family, _ []byte, e storage.RouteEntry) bool {
+	peerRIB.Iterate(func(_ family.Family, _ []byte, e storage.RouteEntry) bool {
 		entry = e
 		found = true
 		return false // stop after first
@@ -2237,7 +2237,7 @@ func TestInjectRoute_Basic(t *testing.T) {
 	// Verify route is in RIB.
 	peerRIB := r.ribInPool["10.0.0.1"]
 	require.NotNil(t, peerRIB, "PeerRIB should exist after inject")
-	assert.Equal(t, 1, peerRIB.FamilyLen(nlri.Family{AFI: 1, SAFI: 1}))
+	assert.Equal(t, 1, peerRIB.FamilyLen(family.Family{AFI: 1, SAFI: 1}))
 }
 
 // TestInjectRoute_AllAttributes verifies all optional attributes are set.
@@ -2264,7 +2264,7 @@ func TestInjectRoute_AllAttributes(t *testing.T) {
 
 	nlriBytes, err := prefixToWire("ipv4/unicast", "10.0.0.0/24", 0, false)
 	require.NoError(t, err)
-	entry, found := peerRIB.Lookup(nlri.Family{AFI: 1, SAFI: 1}, nlriBytes)
+	entry, found := peerRIB.Lookup(family.Family{AFI: 1, SAFI: 1}, nlriBytes)
 	require.True(t, found, "route should exist after inject")
 	require.NotNil(t, entry)
 }
@@ -2288,7 +2288,7 @@ func TestWithdrawRoute_Basic(t *testing.T) {
 
 	// Verify route is gone.
 	peerRIB := r.ribInPool["10.0.0.1"]
-	assert.Equal(t, 0, peerRIB.FamilyLen(nlri.Family{AFI: 1, SAFI: 1}))
+	assert.Equal(t, 0, peerRIB.FamilyLen(family.Family{AFI: 1, SAFI: 1}))
 }
 
 // TestInjectRoute_VisibleInShow verifies injected routes appear in rib show.
@@ -2378,7 +2378,7 @@ func TestInjectRoute_IPv6(t *testing.T) {
 
 	peerRIB := r.ribInPool["10.0.0.1"]
 	require.NotNil(t, peerRIB)
-	assert.Equal(t, 1, peerRIB.FamilyLen(nlri.Family{AFI: 2, SAFI: 1}))
+	assert.Equal(t, 1, peerRIB.FamilyLen(family.Family{AFI: 2, SAFI: 1}))
 }
 
 // TestWithdrawRoute_NonExistent verifies withdrawing a non-existent route.
@@ -2416,7 +2416,7 @@ func TestInjectRoute_ImplicitWithdraw(t *testing.T) {
 	// Should still be exactly 1 route (implicit withdraw replaced the old one).
 	peerRIB := r.ribInPool["10.0.0.1"]
 	require.NotNil(t, peerRIB)
-	assert.Equal(t, 1, peerRIB.FamilyLen(nlri.Family{AFI: 1, SAFI: 1}))
+	assert.Equal(t, 1, peerRIB.FamilyLen(family.Family{AFI: 1, SAFI: 1}))
 }
 
 // TestInjectRoute_InvalidPeerAddress verifies non-IP peer is rejected.
@@ -2538,7 +2538,7 @@ func TestInjectRoute_IPv4Multicast(t *testing.T) {
 
 	peerRIB := r.ribInPool["10.0.0.1"]
 	require.NotNil(t, peerRIB)
-	assert.Equal(t, 1, peerRIB.FamilyLen(nlri.Family{AFI: 1, SAFI: 2}))
+	assert.Equal(t, 1, peerRIB.FamilyLen(family.Family{AFI: 1, SAFI: 2}))
 }
 
 // TestInjectRoute_OriginIncomplete verifies incomplete origin value.
@@ -2568,7 +2568,7 @@ func TestInjectRoute_NoAttributes(t *testing.T) {
 
 	nlriBytes, err := prefixToWire("ipv4/unicast", "10.0.0.0/24", 0, false)
 	require.NoError(t, err)
-	entry, found := r.ribInPool["10.0.0.1"].Lookup(nlri.Family{AFI: 1, SAFI: 1}, nlriBytes)
+	entry, found := r.ribInPool["10.0.0.1"].Lookup(family.Family{AFI: 1, SAFI: 1}, nlriBytes)
 	require.True(t, found)
 	require.NotNil(t, entry)
 }

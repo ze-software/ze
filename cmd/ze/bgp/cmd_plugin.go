@@ -15,6 +15,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -139,9 +140,20 @@ func cmdPluginCLI(args []string) int {
 	if families != "" {
 		for f := range strings.SplitSeq(families, ",") {
 			f = strings.TrimSpace(f)
-			if f != "" {
-				reg.Families = append(reg.Families, sdk.FamilyDecl{Name: f, Mode: "both"})
+			if f == "" {
+				continue
 			}
+			fam, ok := family.LookupFamily(f)
+			if !ok {
+				fmt.Fprintf(os.Stderr, "error: unknown family: %s\n", f)
+				return 1
+			}
+			reg.Families = append(reg.Families, sdk.FamilyDecl{
+				Name: f,
+				Mode: "both",
+				AFI:  uint16(fam.AFI),
+				SAFI: uint8(fam.SAFI),
+			})
 		}
 	}
 

@@ -71,8 +71,8 @@ func RunBGPLSPlugin(conn net.Conn) int {
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: "bgp-ls/bgp-ls", Mode: "decode"},
-			{Name: "bgp-ls/bgp-ls-vpn", Mode: "decode"},
+			{Name: "bgp-ls/bgp-ls", Mode: "decode", AFI: 16388, SAFI: 71},
+			{Name: "bgp-ls/bgp-ls-vpn", Mode: "decode", AFI: 16388, SAFI: 72},
 		},
 	})
 	if err != nil {
@@ -202,10 +202,10 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		return
 	}
 
-	family := strings.ToLower(parts[2])
+	fam := strings.ToLower(parts[2])
 	hexData := parts[3]
 
-	if !isValidBGPLSFamily(family) {
+	if !isValidBGPLSFamily(fam) {
 		writeUnknown()
 		return
 	}

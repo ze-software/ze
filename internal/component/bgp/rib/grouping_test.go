@@ -6,13 +6,14 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Helper to create test routes with attributes.
 func testRouteWithAttrs(prefix, nextHop string, attrs []attribute.Attribute) *Route {
 	p := netip.MustParsePrefix(prefix)
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-	n := nlri.NewINET(family, p, 0)
+	fam := family.IPv4Unicast
+	n := nlri.NewINET(fam, p, 0)
 	return NewRoute(n, netip.MustParseAddr(nextHop), attrs)
 }
 
@@ -172,7 +173,7 @@ func TestGroupByAttributes_PreservesFamily(t *testing.T) {
 		t.Fatalf("got %d groups, want 1", len(groups))
 	}
 
-	expectedFamily := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	expectedFamily := family.IPv4Unicast
 	if groups[0].Family != expectedFamily {
 		t.Errorf("family = %v, want %v", groups[0].Family, expectedFamily)
 	}
@@ -209,8 +210,8 @@ func TestRouteGroup_NLRIs(t *testing.T) {
 // Helper to create test routes with AS_PATH.
 func testRouteWithASPath(prefix, nextHop string, attrs []attribute.Attribute, asPath *attribute.ASPath) *Route {
 	p := netip.MustParsePrefix(prefix)
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-	n := nlri.NewINET(family, p, 0)
+	fam := family.IPv4Unicast
+	n := nlri.NewINET(fam, p, 0)
 	return NewRouteWithASPath(n, netip.MustParseAddr(nextHop), attrs, asPath)
 }
 

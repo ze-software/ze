@@ -159,10 +159,10 @@ func (r *PluginRegistry) Register(reg *PluginRegistration) error {
 	}
 
 	// Check family decode conflicts
-	for _, family := range reg.DecodeFamilies {
-		familyKey := strings.ToLower(family)
+	for _, fam := range reg.DecodeFamilies {
+		familyKey := strings.ToLower(fam)
 		if existing, ok := r.families[familyKey]; ok {
-			return fmt.Errorf("family conflict: %s already registered by %s", family, existing)
+			return fmt.Errorf("family conflict: %s already registered by %s", fam, existing)
 		}
 	}
 
@@ -173,8 +173,8 @@ func (r *PluginRegistry) Register(reg *PluginRegistration) error {
 	}
 
 	// Register family decode claims
-	for _, family := range reg.DecodeFamilies {
-		familyKey := strings.ToLower(family)
+	for _, fam := range reg.DecodeFamilies {
+		familyKey := strings.ToLower(fam)
 		r.families[familyKey] = reg.Name
 	}
 
@@ -199,8 +199,8 @@ func (r *PluginRegistry) GetDecodeFamilies() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	families := make([]string, 0, len(r.families))
-	for family := range r.families {
-		families = append(families, family)
+	for fam := range r.families {
+		families = append(families, fam)
 	}
 	sort.Strings(families)
 	return families

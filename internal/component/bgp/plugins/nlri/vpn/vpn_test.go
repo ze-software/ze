@@ -132,7 +132,7 @@ func TestVPNDecodeMode(t *testing.T) {
 	v := NewVPN(IPv4VPN, rd, []uint32{100}, netip.MustParsePrefix("10.0.0.0/24"), 0)
 	hexData := hex.EncodeToString(v.Bytes())
 
-	input := "decode nlri ipv4/vpn " + hexData + "\n"
+	input := "decode nlri ipv4/mpls-vpn " + hexData + "\n"
 	output := &bytes.Buffer{}
 
 	code := RunVPNDecode(strings.NewReader(input), output)
@@ -202,12 +202,12 @@ func TestVPNBoundaryPrefixLen(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			family := IPv4VPN
+			fam := IPv4VPN
 			if tt.afi == AFIIPv6 {
-				family = IPv6VPN
+				fam = IPv6VPN
 			}
 
-			original := NewVPN(family, rd, []uint32{100}, netip.MustParsePrefix(tt.prefix), 0)
+			original := NewVPN(fam, rd, []uint32{100}, netip.MustParsePrefix(tt.prefix), 0)
 			wireBytes := original.Bytes()
 
 			parsed, _, err := ParseVPN(tt.afi, SAFIVPN, wireBytes, false)
@@ -265,7 +265,7 @@ func TestRunCLIDecode(t *testing.T) {
 	output := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
 
-	code := RunCLIDecode(hexData, "ipv4/vpn", false, output, errOut)
+	code := RunCLIDecode(hexData, "ipv4/mpls-vpn", false, output, errOut)
 	assert.Equal(t, 0, code)
 	assert.Empty(t, errOut.String())
 	assert.Contains(t, output.String(), "10.0.0.0/24")
@@ -294,7 +294,7 @@ func TestRunCLIDecodeInvalidHex(t *testing.T) {
 	output := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
 
-	code := RunCLIDecode("not-hex", "ipv4/vpn", false, output, errOut)
+	code := RunCLIDecode("not-hex", "ipv4/mpls-vpn", false, output, errOut)
 	assert.Equal(t, 1, code)
 	assert.Contains(t, errOut.String(), "invalid hex")
 }
@@ -387,8 +387,8 @@ func TestGetVPNYANG(t *testing.T) {
 func TestVPNFamilies(t *testing.T) {
 	t.Parallel()
 	families := VPNFamilies()
-	assert.Contains(t, families, "ipv4/vpn")
-	assert.Contains(t, families, "ipv6/vpn")
+	assert.Contains(t, families, "ipv4/mpls-vpn")
+	assert.Contains(t, families, "ipv6/mpls-vpn")
 	assert.Len(t, families, 2)
 }
 
@@ -398,8 +398,8 @@ func TestVPNFamilies(t *testing.T) {
 // PREVENTS: Accepting non-VPN families.
 func TestIsValidVPNFamily(t *testing.T) {
 	t.Parallel()
-	assert.True(t, isValidVPNFamily("ipv4/vpn"))
-	assert.True(t, isValidVPNFamily("ipv6/vpn"))
+	assert.True(t, isValidVPNFamily("ipv4/mpls-vpn"))
+	assert.True(t, isValidVPNFamily("ipv6/mpls-vpn"))
 	assert.False(t, isValidVPNFamily("ipv4/unicast"))
 	assert.False(t, isValidVPNFamily("l2vpn/evpn"))
 	assert.False(t, isValidVPNFamily(""))

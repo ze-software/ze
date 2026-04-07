@@ -11,7 +11,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // SessionConfig holds the parameters needed to establish a BGP session.
@@ -32,23 +32,23 @@ type SessionConfig struct {
 
 // familyAFISAFI holds an AFI/SAFI pair for Multiprotocol capability construction.
 type familyAFISAFI struct {
-	afi  nlri.AFI
-	safi nlri.SAFI
+	afi  family.AFI
+	safi family.SAFI
 }
 
 // familyToAFISAFI maps family strings to (AFI, SAFI) pairs for Multiprotocol capabilities.
 // SYNC: Must stay in sync with familyToNLRI in sender.go — both maps
 // must cover the same set of family strings.
 var familyToAFISAFI = map[string]familyAFISAFI{
-	"ipv4/unicast":   {nlri.AFIIPv4, nlri.SAFIUnicast},
-	"ipv6/unicast":   {nlri.AFIIPv6, nlri.SAFIUnicast},
-	"ipv4/multicast": {nlri.AFIIPv4, nlri.SAFIMulticast},
-	"ipv6/multicast": {nlri.AFIIPv6, nlri.SAFIMulticast},
-	"ipv4/vpn":       {nlri.AFIIPv4, nlri.SAFIVPN},
-	"ipv6/vpn":       {nlri.AFIIPv6, nlri.SAFIVPN},
-	"l2vpn/evpn":     {nlri.AFIL2VPN, nlri.SAFIEVPN},
-	"ipv4/flow":      {nlri.AFIIPv4, nlri.SAFIFlowSpec},
-	"ipv6/flow":      {nlri.AFIIPv6, nlri.SAFIFlowSpec},
+	"ipv4/unicast":   {family.AFIIPv4, family.SAFIUnicast},
+	"ipv6/unicast":   {family.AFIIPv6, family.SAFIUnicast},
+	"ipv4/multicast": {family.AFIIPv4, family.SAFIMulticast},
+	"ipv6/multicast": {family.AFIIPv6, family.SAFIMulticast},
+	"ipv4/mpls-vpn":       {family.AFIIPv4, family.SAFIVPN},
+	"ipv6/mpls-vpn":       {family.AFIIPv6, family.SAFIVPN},
+	"l2vpn/evpn":     {family.AFIL2VPN, family.SAFIEVPN},
+	"ipv4/flow":      {family.AFIIPv4, family.SAFIFlowSpec},
+	"ipv6/flow":      {family.AFIIPv6, family.SAFIFlowSpec},
 }
 
 // BuildOpen constructs a BGP OPEN message from the session config.

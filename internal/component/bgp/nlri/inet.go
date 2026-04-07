@@ -25,6 +25,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"net/netip"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Errors for INET parsing.
@@ -50,10 +52,10 @@ type INET struct {
 // NewINET creates a new INET NLRI.
 // pathID=0 means no path identifier; pathID>0 stores the path ID.
 // Use WriteNLRI() with addPath=true to encode with path ID.
-func NewINET(family Family, prefix netip.Prefix, pathID uint32) *INET {
+func NewINET(fam family.Family, prefix netip.Prefix, pathID uint32) *INET {
 	return &INET{
 		PrefixNLRI: PrefixNLRI{
-			family: family,
+			fam:    fam,
 			prefix: prefix,
 			pathID: pathID,
 		},
@@ -74,7 +76,7 @@ func NewINET(family Family, prefix netip.Prefix, pathID uint32) *INET {
 // When addpath=true, a 4-octet Path Identifier precedes the <length, prefix>.
 //
 // Returns the parsed NLRI, remaining bytes, and any error.
-func ParseINET(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, error) {
+func ParseINET(afi family.AFI, safi family.SAFI, data []byte, addpath bool) (NLRI, []byte, error) {
 	if len(data) == 0 {
 		return nil, nil, ErrShortRead
 	}
@@ -102,7 +104,7 @@ func ParseINET(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, err
 	// RFC 4271 Section 4.3: IPv4 prefix length is 0-32 bits
 	// RFC 4760 Section 5: IPv6 prefix length is 0-128 bits
 	maxLen := 32
-	if afi == AFIIPv6 {
+	if afi == family.AFIIPv6 {
 		maxLen = 128
 	}
 	if prefixLen > maxLen {
@@ -120,7 +122,7 @@ func ParseINET(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, err
 
 	// Build address from prefix bytes
 	var addr netip.Addr
-	if afi == AFIIPv4 {
+	if afi == family.AFIIPv4 {
 		var ip [4]byte
 		copy(ip[:], data[offset:offset+prefixBytes])
 		addr = netip.AddrFrom4(ip)
@@ -137,7 +139,7 @@ func ParseINET(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, err
 
 	inet := &INET{
 		PrefixNLRI: PrefixNLRI{
-			family: Family{AFI: afi, SAFI: safi},
+			fam:    family.Family{AFI: afi, SAFI: safi},
 			prefix: prefix,
 			pathID: pathID,
 		},

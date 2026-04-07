@@ -17,25 +17,29 @@ import (
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Type aliases for nlri types used by BGP-LS.
 type (
-	Family = nlri.Family
-	AFI    = nlri.AFI
-	SAFI   = nlri.SAFI
+	Family = family.Family
+	AFI    = family.AFI
+	SAFI   = family.SAFI
 	NLRI   = nlri.NLRI
 )
 
 // Re-export constants from nlri for local use.
 const (
-	AFIBGPLS            = nlri.AFIBGPLS
-	SAFIBGPLinkState    = nlri.SAFIBGPLinkState
-	SAFIBGPLinkStateVPN = nlri.SAFIBGPLinkStateVPN
+	AFIBGPLS            = family.AFIBGPLS
+	SAFIBGPLinkState    = family.SAFIBGPLinkState
+	SAFIBGPLinkStateVPN = family.SAFIBGPLinkStateVPN
 )
 
-// BGPLSFamily is the address family for BGP-LS.
-var BGPLSFamily = nlri.Family{AFI: AFIBGPLS, SAFI: SAFIBGPLinkState}
+// Family registrations for BGP-LS.
+var (
+	BGPLSFamily    = family.MustRegister(AFIBGPLS, SAFIBGPLinkState, "bgp-ls", "bgp-ls")
+	BGPLSVPNFamily = family.MustRegister(AFIBGPLS, SAFIBGPLinkStateVPN, "bgp-ls", "bgp-ls-vpn")
+)
 
 // BGP-LS errors.
 var (

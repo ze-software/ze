@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestBuildEOR_IPv4Unicast verifies IPv4 unicast EOR is an empty UPDATE.
@@ -13,8 +13,8 @@ import (
 //
 // PREVENTS: Wrong EOR format for IPv4 unicast family.
 func TestBuildEOR_IPv4Unicast(t *testing.T) {
-	family := nlri.Family{AFI: 1, SAFI: 1}
-	update := BuildEOR(family)
+	fam := family.Family{AFI: 1, SAFI: 1}
+	update := BuildEOR(fam)
 
 	if update == nil {
 		t.Fatal("BuildEOR returned nil")
@@ -44,8 +44,8 @@ func TestBuildEOR_IPv4Unicast(t *testing.T) {
 //
 // PREVENTS: Wrong EOR format for non-IPv4-unicast families.
 func TestBuildEOR_IPv6Unicast(t *testing.T) {
-	family := nlri.Family{AFI: 2, SAFI: 1}
-	update := BuildEOR(family)
+	fam := family.Family{AFI: 2, SAFI: 1}
+	update := BuildEOR(fam)
 
 	if update == nil {
 		t.Fatal("BuildEOR returned nil")
@@ -126,8 +126,8 @@ func TestBuildEOR_IPv6Unicast(t *testing.T) {
 //
 // PREVENTS: Wrong family encoding in EOR for MPLS families.
 func TestBuildEOR_VPNv4(t *testing.T) {
-	family := nlri.Family{AFI: 1, SAFI: 128}
-	update := BuildEOR(family)
+	fam := family.Family{AFI: 1, SAFI: 128}
+	update := BuildEOR(fam)
 
 	if update == nil {
 		t.Fatal("BuildEOR returned nil")
@@ -164,8 +164,8 @@ func TestBuildEOR_VPNv4(t *testing.T) {
 //
 // PREVENTS: Encoding bugs that would cause interop failures.
 func TestBuildEOR_WireFormat(t *testing.T) {
-	family := nlri.Family{AFI: 2, SAFI: 1}
-	update := BuildEOR(family)
+	fam := family.Family{AFI: 2, SAFI: 1}
+	update := BuildEOR(fam)
 
 	packed := PackTo(update, nil)
 

@@ -9,6 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	labeled "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/labeled"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestLabeledUnicastWireConsistency verifies two code paths produce identical wire format.
@@ -91,11 +92,11 @@ func TestLabeledUnicastWireConsistency(t *testing.T) {
 			expected := ub.BuildLabeledUnicastNLRIBytes(&params)
 
 			// Path 2: Build via nlri.LabeledUnicast (queued replay path)
-			family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
+			fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}
 			if tt.prefix.Addr().Is6() {
-				family.AFI = nlri.AFIIPv6
+				fam.AFI = family.AFIIPv6
 			}
-			n := labeled.NewLabeledUnicast(family, tt.prefix, []uint32{tt.label}, tt.pathID)
+			n := labeled.NewLabeledUnicast(fam, tt.prefix, []uint32{tt.label}, tt.pathID)
 			actual := func() []byte {
 				b := make([]byte, nlri.LenWithContext(n, tt.addPath))
 				nlri.WriteNLRI(n, b, 0, tt.addPath)
@@ -126,8 +127,8 @@ func TestLabeledUnicastWireConsistency_AddPathZero(t *testing.T) {
 	}
 	builderBytes := ub.BuildLabeledUnicastNLRIBytes(&params)
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
-	n := labeled.NewLabeledUnicast(family, prefix, []uint32{label}, pathID)
+	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}
+	n := labeled.NewLabeledUnicast(fam, prefix, []uint32{label}, pathID)
 	nlriBytes := func() []byte {
 		b := make([]byte, nlri.LenWithContext(n, true))
 		nlri.WriteNLRI(n, b, 0, true)

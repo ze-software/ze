@@ -262,62 +262,62 @@ func formatFullFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content
 					hasContent = true
 				}
 
-				// nlri: per-family raw bytes
+				// nlri: per-fam raw bytes
 				if len(rawComps.NLRI) > 0 {
 					if hasContent {
 						rawObj.WriteString(",")
 					}
 					rawObj.WriteString(`"nlri":{`)
 					first := true
-					for family, nlriBytes := range rawComps.NLRI {
+					for fam, nlriBytes := range rawComps.NLRI {
 						if !first {
 							rawObj.WriteString(",")
 						}
 						first = false
-						fmt.Fprintf(&rawObj, `"%s":"%x"`, family.String(), nlriBytes)
+						fmt.Fprintf(&rawObj, `"%s":"%x"`, fam.String(), nlriBytes)
 					}
 					rawObj.WriteString(`}`)
 					hasContent = true
 				}
 
-				// withdrawn: per-family raw bytes
+				// withdrawn: per-fam raw bytes
 				if len(rawComps.Withdrawn) > 0 {
 					if hasContent {
 						rawObj.WriteString(",")
 					}
 					rawObj.WriteString(`"withdrawn":{`)
 					first := true
-					for family, wdBytes := range rawComps.Withdrawn {
+					for fam, wdBytes := range rawComps.Withdrawn {
 						if !first {
 							rawObj.WriteString(",")
 						}
 						first = false
-						fmt.Fprintf(&rawObj, `"%s":"%x"`, family.String(), wdBytes)
+						fmt.Fprintf(&rawObj, `"%s":"%x"`, fam.String(), wdBytes)
 					}
 					rawObj.WriteString(`}`)
 					hasContent = true
 				}
 
-				// RFC 7911 Section 3: ADD-PATH per-family flags from negotiated capabilities.
+				// RFC 7911 Section 3: ADD-PATH per-fam flags from negotiated capabilities.
 				// Consumers (e.g., bgp-rib) need this to parse NLRI wire bytes correctly —
 				// ADD-PATH prepends a 4-byte path-ID before each NLRI.
 				if ctx != nil {
 					var addPathBuf strings.Builder
 					addPathFirst := true
-					for family := range rawComps.NLRI {
-						if ctx.AddPathFor(family) {
+					for fam := range rawComps.NLRI {
+						if ctx.AddPathFor(fam) {
 							if addPathFirst {
 								addPathBuf.WriteString(`"add-path":{`)
 							} else {
 								addPathBuf.WriteString(",")
 							}
 							addPathFirst = false
-							fmt.Fprintf(&addPathBuf, `"%s":true`, family.String())
+							fmt.Fprintf(&addPathBuf, `"%s":true`, fam.String())
 						}
 					}
-					for family := range rawComps.Withdrawn {
-						if ctx.AddPathFor(family) {
-							if _, inNLRI := rawComps.NLRI[family]; inNLRI {
+					for fam := range rawComps.Withdrawn {
+						if ctx.AddPathFor(fam) {
+							if _, inNLRI := rawComps.NLRI[fam]; inNLRI {
 								continue // already emitted from NLRI loop
 							}
 							if addPathFirst {
@@ -326,7 +326,7 @@ func formatFullFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content
 								addPathBuf.WriteString(",")
 							}
 							addPathFirst = false
-							fmt.Fprintf(&addPathBuf, `"%s":true`, family.String())
+							fmt.Fprintf(&addPathBuf, `"%s":true`, fam.String())
 						}
 					}
 					if !addPathFirst {

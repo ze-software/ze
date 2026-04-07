@@ -35,8 +35,8 @@ bgp {
 			}
 			router-id 32.32.32.32
 			family {
-				ipv4/mcast-vpn { prefix { maximum 10000; } }
-				ipv6/mcast-vpn { prefix { maximum 10000; } }
+				ipv4/mvpn { prefix { maximum 10000; } }
+				ipv6/mvpn { prefix { maximum 10000; } }
 			}
 		}
 		behavior {
@@ -52,8 +52,8 @@ bgp {
 				extended-community [target:192.168.94.12:5]
 			}
 			nlri {
-				ipv4/mcast-vpn add shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000
-				ipv4/mcast-vpn add source-join source 10.99.12.2 group 239.251.255.228 rd 65000:99999 source-as 65000
+				ipv4/mvpn add shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000
+				ipv4/mvpn add source-join source 10.99.12.2 group 239.251.255.228 rd 65000:99999 source-as 65000
 			}
 		}
 
@@ -64,8 +64,8 @@ bgp {
 				extended-community [target:192.168.94.12:5]
 			}
 			nlri {
-				ipv6/mcast-vpn add shared-join rp fd00::1 group ff0e::1 rd 65000:99999 source-as 65000
-				ipv6/mcast-vpn add source-join source fd12::2 group ff0e::1 rd 65000:99999 source-as 65000
+				ipv6/mvpn add shared-join rp fd00::1 group ff0e::1 rd 65000:99999 source-as 65000
+				ipv6/mvpn add source-join source fd12::2 group ff0e::1 rd 65000:99999 source-as 65000
 			}
 		}
 
@@ -76,7 +76,7 @@ bgp {
 				extended-community [target:65000:99999]
 			}
 			nlri {
-				ipv4/mcast-vpn add source-ad source 10.99.12.4 group 239.251.255.228 rd 65000:99999
+				ipv4/mvpn add source-ad source 10.99.12.4 group 239.251.255.228 rd 65000:99999
 			}
 		}
 
@@ -87,7 +87,7 @@ bgp {
 				extended-community [target:65000:99999]
 			}
 			nlri {
-				ipv6/mcast-vpn add source-ad source fd12::4 group ff0e::1 rd 65000:99999
+				ipv6/mvpn add source-ad source fd12::4 group ff0e::1 rd 65000:99999
 			}
 		}
 	}

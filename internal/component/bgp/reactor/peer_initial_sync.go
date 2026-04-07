@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // sendInitialRoutes sends static routes configured for this peer.
@@ -182,8 +182,8 @@ func (p *Peer) sendInitialRoutes() {
 
 		case PeerOpAnnounce:
 			// Send route, splitting if needed.
-			family := op.Route.NLRI().Family()
-			addPath := p.addPathFor(family)
+			fam := op.Route.NLRI().Family()
+			addPath := p.addPathFor(fam)
 			attrHandle := getBuildBuf()
 			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
@@ -205,8 +205,8 @@ func (p *Peer) sendInitialRoutes() {
 
 		case PeerOpWithdraw:
 			// Send withdrawal using pooled buffer.
-			family := op.NLRI.Family()
-			addPath := p.addPathFor(family)
+			fam := op.NLRI.Family()
+			addPath := p.addPathFor(fam)
 			wdHandle := getBuildBuf()
 			update := buildWithdrawNLRI(wdHandle.Buf, op.NLRI, addPath)
 			p.mu.Unlock()
@@ -247,10 +247,10 @@ func (p *Peer) sendInitialRoutes() {
 	// EOR must be sent BEFORE NOTIFICATION per RFC 4724 Section 4.
 	if hasTeardown {
 		// Send EOR for ALL negotiated families before teardown
-		for _, family := range nc.Families() {
-			_ = p.SendUpdate(message.BuildEOR(family))
+		for _, fam := range nc.Families() {
+			_ = p.SendUpdate(message.BuildEOR(fam))
 			p.IncrEORSent()
-			routesLogger().Debug("sent EOR (before teardown)", "peer", addr, "family", family)
+			routesLogger().Debug("sent EOR (before teardown)", "peer", addr, "family", fam)
 		}
 
 		routesLogger().Debug("executing queued teardown", "peer", addr, "subcode", teardownSubcode)
@@ -290,10 +290,10 @@ func (p *Peer) sendInitialRoutes() {
 	// RFC 4724: "including the case when there is no update to send"
 	// IMPORTANT: EORs must be sent AFTER all routes for each family.
 	// Families() returns families in deterministic order (sorted by AFI, then SAFI).
-	for _, family := range nc.Families() {
-		_ = p.SendUpdate(message.BuildEOR(family))
+	for _, fam := range nc.Families() {
+		_ = p.SendUpdate(message.BuildEOR(fam))
 		p.IncrEORSent()
-		routesLogger().Debug("sent EOR", "peer", addr, "family", family)
+		routesLogger().Debug("sent EOR", "peer", addr, "family", fam)
 	}
 
 	// Drain any commands that were queued while EOR was being sent.
@@ -307,8 +307,8 @@ func (p *Peer) sendInitialRoutes() {
 		op := p.opQueue[finalProcessed]
 		switch op.Type {
 		case PeerOpAnnounce:
-			family := op.Route.NLRI().Family()
-			addPath := p.addPathFor(family)
+			fam := op.Route.NLRI().Family()
+			addPath := p.addPathFor(fam)
 			attrHandle := getBuildBuf()
 			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
@@ -327,8 +327,8 @@ func (p *Peer) sendInitialRoutes() {
 			finalProcessed++
 
 		case PeerOpWithdraw:
-			family := op.NLRI.Family()
-			addPath := p.addPathFor(family)
+			fam := op.NLRI.Family()
+			addPath := p.addPathFor(fam)
 			wdHandle := getBuildBuf()
 			update := buildWithdrawNLRI(wdHandle.Buf, op.NLRI, addPath)
 			p.mu.Unlock()
@@ -377,13 +377,13 @@ func (p *Peer) sendMVPNRoutes() {
 	for i := range p.settings.MVPNRoutes {
 		route := &p.settings.MVPNRoutes[i]
 		if route.IsIPv6 {
-			if nc.Has(nlri.IPv6MVPN) {
+			if nc.Has(family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIMVPN}) {
 				ipv6Routes = append(ipv6Routes, *route)
 			} else {
 				skippedIPv6++
 			}
 		} else {
-			if nc.Has(nlri.IPv4MVPN) {
+			if nc.Has(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMVPN}) {
 				ipv4Routes = append(ipv4Routes, *route)
 			} else {
 				skippedIPv4++
@@ -403,7 +403,7 @@ func (p *Peer) sendMVPNRoutes() {
 
 	// Send IPv4 MVPN routes grouped by attributes (sorted for deterministic order)
 	if len(ipv4Routes) > 0 {
-		ipv4MVPNFamily := nlri.Family{AFI: 1, SAFI: 5} // IPv4 MVPN
+		ipv4MVPNFamily := family.Family{AFI: 1, SAFI: 5} // IPv4 MVPN
 		addPath := p.addPathFor(ipv4MVPNFamily)
 		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		ipv4Groups := groupMVPNRoutesByKey(ipv4Routes)
@@ -427,7 +427,7 @@ func (p *Peer) sendMVPNRoutes() {
 
 	// Send IPv6 MVPN routes grouped by attributes (sorted for deterministic order)
 	if len(ipv6Routes) > 0 {
-		ipv6MVPNFamily := nlri.Family{AFI: 2, SAFI: 5} // IPv6 MVPN
+		ipv6MVPNFamily := family.Family{AFI: 2, SAFI: 5} // IPv6 MVPN
 		addPath := p.addPathFor(ipv6MVPNFamily)
 		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		ipv6Groups := groupMVPNRoutesByKey(ipv6Routes)
@@ -505,7 +505,7 @@ func sortedKeys[V any](m map[string]V) []string {
 // sendVPLSRoutes sends VPLS routes configured for this peer.
 func (p *Peer) sendVPLSRoutes() {
 	nc := p.negotiated.Load()
-	if nc == nil || !nc.Has(nlri.L2VPNVPLS) {
+	if nc == nil || !nc.Has(family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS}) {
 		if len(p.settings.VPLSRoutes) > 0 {
 			addr := p.settings.Address.String()
 			routesLogger().Debug("skipping VPLS routes (L2VPN VPLS not negotiated)", "peer", addr, "count", len(p.settings.VPLSRoutes))
@@ -519,7 +519,7 @@ func (p *Peer) sendVPLSRoutes() {
 		routesLogger().Debug("sending VPLS routes", "peer", addr, "count", len(p.settings.VPLSRoutes))
 		// VPLS family: AFI=25 (L2VPN), SAFI=65 (VPLS)
 		// Note: VPLS doesn't support ADD-PATH
-		vplsFamily := nlri.Family{AFI: 25, SAFI: 65}
+		vplsFamily := family.Family{AFI: 25, SAFI: 65}
 		addPath := p.addPathFor(vplsFamily)
 		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		for i := range p.settings.VPLSRoutes {
@@ -556,19 +556,19 @@ func (p *Peer) sendFlowSpecRoutes() {
 		isIPv6 := route.IsIPv6
 		isVPN := route.RD != [8]byte{}
 
-		var family nlri.Family
+		var fam family.Family
 		switch {
 		case !isIPv6 && !isVPN:
-			family = nlri.IPv4FlowSpec
+			fam = family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 		case !isIPv6 && isVPN:
-			family = nlri.IPv4FlowSpecVPN
+			fam = family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpecVPN}
 		case isIPv6 && !isVPN:
-			family = nlri.IPv6FlowSpec
+			fam = family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec}
 		case isIPv6 && isVPN:
-			family = nlri.IPv6FlowSpecVPN
+			fam = family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpecVPN}
 		}
 
-		if !nc.Has(family) {
+		if !nc.Has(fam) {
 			routesLogger().Debug("skipping FlowSpec route (family not negotiated)", "peer", addr)
 			continue
 		}
@@ -582,7 +582,7 @@ func (p *Peer) sendFlowSpecRoutes() {
 		if isVPN {
 			safi = 134
 		}
-		addPath := p.addPathFor(nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)})
+		addPath := p.addPathFor(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)})
 		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		// RFC 5575 Section 4: FlowSpec NLRI max 4095 bytes.
 		// Single FlowSpec rule is atomic - cannot be split across UPDATEs.
@@ -620,13 +620,13 @@ func (p *Peer) sendMUPRoutes() {
 
 	for _, route := range p.settings.MUPRoutes {
 		if route.IsIPv6 {
-			if nc.Has(nlri.IPv6MUP) {
+			if nc.Has(family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIMUP}) {
 				ipv6Routes = append(ipv6Routes, route)
 			} else {
 				skippedIPv6++
 			}
 		} else {
-			if nc.Has(nlri.IPv4MUP) {
+			if nc.Has(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMUP}) {
 				ipv4Routes = append(ipv4Routes, route)
 			} else {
 				skippedIPv4++
@@ -644,7 +644,7 @@ func (p *Peer) sendMUPRoutes() {
 	// Send IPv4 MUP routes
 	if len(ipv4Routes) > 0 {
 		routesLogger().Debug("sending IPv4 MUP routes", "peer", addr, "count", len(ipv4Routes))
-		ipv4MUPFamily := nlri.Family{AFI: 1, SAFI: 85}
+		ipv4MUPFamily := family.Family{AFI: 1, SAFI: 85}
 		addPath := p.addPathFor(ipv4MUPFamily)
 		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		for _, route := range ipv4Routes {
@@ -658,7 +658,7 @@ func (p *Peer) sendMUPRoutes() {
 	// Send IPv6 MUP routes
 	if len(ipv6Routes) > 0 {
 		routesLogger().Debug("sending IPv6 MUP routes", "peer", addr, "count", len(ipv6Routes))
-		ipv6MUPFamily := nlri.Family{AFI: 2, SAFI: 85}
+		ipv6MUPFamily := family.Family{AFI: 2, SAFI: 85}
 		addPath := p.addPathFor(ipv6MUPFamily)
 		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		for _, route := range ipv6Routes {

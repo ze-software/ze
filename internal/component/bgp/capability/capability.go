@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Errors.
@@ -107,9 +107,9 @@ type ConfigProvider interface {
 	ConfigValues() map[string]string
 }
 
-// AFI is an alias for nlri.AFI for backward compatibility.
+// AFI is an alias for family.AFI for backward compatibility.
 // RFC 4760 Section 3: Address Family Identifier (AFI) is a 16-bit value.
-type AFI = nlri.AFI
+type AFI = family.AFI
 
 // Address Family Identifiers per IANA Address Family Numbers registry.
 const (
@@ -119,9 +119,9 @@ const (
 	AFIBGPLS AFI = 16388 // RFC 7752
 )
 
-// SAFI is an alias for nlri.SAFI for backward compatibility.
+// SAFI is an alias for family.SAFI for backward compatibility.
 // RFC 4760 Section 6: SAFI is an 8-bit value.
-type SAFI = nlri.SAFI
+type SAFI = family.SAFI
 
 // Subsequent Address Family Identifiers per IANA SAFI registry.
 const (
@@ -139,9 +139,9 @@ const (
 	SAFIFlowSpecVPN SAFI = 134 // RFC 8955 (FlowSpec VPN)
 )
 
-// Family is an alias for nlri.Family for backward compatibility.
+// Family is an alias for family.Family for backward compatibility.
 // RFC 4760 Section 8: The <AFI, SAFI> tuple identifies the address family.
-type Family = nlri.Family
+type Family = family.Family
 
 // Parse parses capability TLVs from optional parameters.
 //

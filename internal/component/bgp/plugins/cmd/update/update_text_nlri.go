@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // parseNLRISection parses nlri <family> [path-information <id>] [rd <value>] [label <value>] <nlri-op>+
@@ -29,39 +30,39 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 		return nlriParseResult{}, route.ErrInvalidFamily
 	}
 
-	family, ok := nlri.ParseFamily(args[1])
+	fam, ok := family.LookupFamily(args[1])
 	if !ok {
 		return nlriParseResult{}, fmt.Errorf("%w: %s", route.ErrInvalidFamily, args[1])
 	}
 
 	// Check if family is supported (EOR is supported for all families)
 	isEOR := len(args) > 2 && args[2] == kwEOR
-	if !isEOR && !isSupportedFamily(family) {
+	if !isEOR && !isSupportedFamily(fam) {
 		return nlriParseResult{}, fmt.Errorf("%w: %s", route.ErrFamilyNotSupported, args[1])
 	}
 
 	// RFC 4724: End-of-RIB marker
 	// Syntax: nlri <family> eor
 	if isEOR {
-		return nlriParseResult{Family: family, Consumed: 3}, nil // Return empty lists with family set - signals EOR
+		return nlriParseResult{Family: fam, Consumed: 3}, nil // Return empty lists with family set - signals EOR
 	}
 
 	// FlowSpec families use different parsing (components instead of prefixes)
 	// RFC 8955 Section 4: FlowSpec NLRI = ordered list of match components
-	if family.SAFI == nlri.SAFIFlowSpec || family.SAFI == nlri.SAFIFlowSpecVPN {
-		return parseFlowSpecSection(args, family)
+	if fam.SAFI == family.SAFIFlowSpec || fam.SAFI == family.SAFIFlowSpecVPN {
+		return parseFlowSpecSection(args, fam)
 	}
 
 	// VPLS families use different parsing (multi-field NLRI)
 	// RFC 4761 Section 3.2.2: VPLS BGP NLRI format
-	if family.SAFI == nlri.SAFIVPLS {
-		return parseVPLSSection(args, family, accum)
+	if fam.SAFI == family.SAFIVPLS {
+		return parseVPLSSection(args, fam, accum)
 	}
 
 	// EVPN families use different parsing (route-type based)
 	// RFC 7432: EVPN route types
-	if family.SAFI == nlri.SAFIEVPN {
-		return parseEVPNSection(args, family, accum)
+	if fam.SAFI == family.SAFIEVPN {
+		return parseEVPNSection(args, fam, accum)
 	}
 
 	consumed := 2 // "nlri" + family
@@ -181,7 +182,7 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 		}
 
 		// Parse prefix based on family
-		n, extra, err := parseNLRI(token, family, accum)
+		n, extra, err := parseNLRI(token, fam, accum)
 		if err != nil {
 			return nlriParseResult{}, err
 		}
@@ -200,7 +201,7 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 		return nlriParseResult{}, route.ErrEmptyNLRISection
 	}
 
-	return nlriParseResult{Family: family, Announce: announce, Withdraw: withdraw, Watchdog: watchdog, Consumed: consumed}, nil
+	return nlriParseResult{Family: fam, Announce: announce, Withdraw: withdraw, Watchdog: watchdog, Consumed: consumed}, nil
 }
 
 // parseINETNLRI parses a single prefix for unicast/multicast families.
@@ -208,7 +209,7 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 // Returns the NLRI, extra args consumed (always 0 for INET), and any error.
 //
 //nolint:unparam // extra return used by other NLRI parsers with same signature
-func parseINETNLRI(token string, family nlri.Family, pathID uint32) (nlri.NLRI, int, error) {
+func parseINETNLRI(token string, fam family.Family, pathID uint32) (nlri.NLRI, int, error) {
 	prefix, err := netip.ParsePrefix(token)
 	if err != nil {
 		return nil, 0, fmt.Errorf("%w: %s", route.ErrInvalidPrefix, token)
@@ -216,37 +217,37 @@ func parseINETNLRI(token string, family nlri.Family, pathID uint32) (nlri.NLRI, 
 
 	// Validate prefix matches family AFI
 	isIPv4 := prefix.Addr().Is4()
-	if isIPv4 && family.AFI != nlri.AFIIPv4 {
-		return nil, 0, fmt.Errorf("%w: IPv4 prefix for %s", route.ErrFamilyMismatch, family)
+	if isIPv4 && fam.AFI != family.AFIIPv4 {
+		return nil, 0, fmt.Errorf("%w: IPv4 prefix for %s", route.ErrFamilyMismatch, fam)
 	}
-	if !isIPv4 && family.AFI != nlri.AFIIPv6 {
-		return nil, 0, fmt.Errorf("%w: IPv6 prefix for %s", route.ErrFamilyMismatch, family)
+	if !isIPv4 && fam.AFI != family.AFIIPv6 {
+		return nil, 0, fmt.Errorf("%w: IPv6 prefix for %s", route.ErrFamilyMismatch, fam)
 	}
 
-	return nlri.NewINET(family, prefix, pathID), 0, nil // 0 extra args consumed
+	return nlri.NewINET(fam, prefix, pathID), 0, nil // 0 extra args consumed
 }
 
 // parseNLRI dispatches to the appropriate NLRI parser based on family.
 // Returns NLRI, extra args consumed, and any error.
 // For FlowSpec families, this function is not used - see parseFlowSpecSection.
-func parseNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI, int, error) {
-	switch family.SAFI { //nolint:exhaustive // Other SAFIs use INET parser via default
-	case nlri.SAFIVPN: // SAFI 128 - MPLS VPN
-		return parseVPNNLRI(token, family, accum)
-	case nlri.SAFIMPLSLabel: // SAFI 4 - Labeled Unicast
-		return parseLabeledNLRI(token, family, accum)
-	case nlri.SAFIFlowSpec, nlri.SAFIFlowSpecVPN:
+func parseNLRI(token string, fam family.Family, accum nlriAccum) (nlri.NLRI, int, error) {
+	switch fam.SAFI { //nolint:exhaustive // Other SAFIs use INET parser via default
+	case family.SAFIVPN: // SAFI 128 - MPLS VPN
+		return parseVPNNLRI(token, fam, accum)
+	case family.SAFIMPLSLabel: // SAFI 4 - Labeled Unicast
+		return parseLabeledNLRI(token, fam, accum)
+	case family.SAFIFlowSpec, family.SAFIFlowSpecVPN:
 		// FlowSpec uses special parsing - should not reach here
 		return nil, 0, fmt.Errorf("flowspec parsing requires parseFlowSpecSection")
 	default: // INET unicast/multicast families
-		return parseINETNLRI(token, family, accum.PathID)
+		return parseINETNLRI(token, fam, accum.PathID)
 	}
 }
 
 // parseVPNNLRI parses a prefix for VPN families (SAFI 128).
 // Requires RD and labels from accum.
 // RFC 4364 Section 4.3.4: VPN NLRI = labels + RD + prefix.
-func parseVPNNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI, int, error) {
+func parseVPNNLRI(token string, fam family.Family, accum nlriAccum) (nlri.NLRI, int, error) {
 	prefix, err := netip.ParsePrefix(token)
 	if err != nil {
 		return nil, 0, fmt.Errorf("%w: %s", route.ErrInvalidPrefix, token)
@@ -254,21 +255,21 @@ func parseVPNNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI,
 
 	// Validate prefix matches family AFI
 	isIPv4 := prefix.Addr().Is4()
-	if isIPv4 && family.AFI != nlri.AFIIPv4 {
-		return nil, 0, fmt.Errorf("%w: IPv4 prefix for %s", route.ErrFamilyMismatch, family)
+	if isIPv4 && fam.AFI != family.AFIIPv4 {
+		return nil, 0, fmt.Errorf("%w: IPv4 prefix for %s", route.ErrFamilyMismatch, fam)
 	}
-	if !isIPv4 && family.AFI != nlri.AFIIPv6 {
-		return nil, 0, fmt.Errorf("%w: IPv6 prefix for %s", route.ErrFamilyMismatch, family)
+	if !isIPv4 && fam.AFI != family.AFIIPv6 {
+		return nil, 0, fmt.Errorf("%w: IPv6 prefix for %s", route.ErrFamilyMismatch, fam)
 	}
 
 	// Require RD for VPN families
 	if accum.RD.Type == 0 && accum.RD.Value == [6]byte{} {
-		return nil, 0, fmt.Errorf("%w: rd required for %s", route.ErrMissingRD, family)
+		return nil, 0, fmt.Errorf("%w: rd required for %s", route.ErrMissingRD, fam)
 	}
 
 	// Require at least one label for VPN families
 	if len(accum.Labels) == 0 {
-		return nil, 0, fmt.Errorf("%w: label required for %s", route.ErrMissingLabel, family)
+		return nil, 0, fmt.Errorf("%w: label required for %s", route.ErrMissingLabel, fam)
 	}
 
 	// Build args for registry encoder: "rd <val> label <val> ... prefix <val> [path-id <val>]"
@@ -281,7 +282,7 @@ func parseVPNNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI,
 		encodeArgs = append(encodeArgs, "path-id", strconv.FormatUint(uint64(accum.PathID), 10))
 	}
 
-	wire, err := encodeViaRegistry(family, encodeArgs, accum.PathID != 0)
+	wire, err := encodeViaRegistry(fam, encodeArgs, accum.PathID != 0)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -291,7 +292,7 @@ func parseVPNNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI,
 // parseLabeledNLRI parses a prefix for labeled unicast families (SAFI 4).
 // Requires labels from accum.
 // RFC 8277: Labeled Unicast NLRI = labels + prefix.
-func parseLabeledNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI, int, error) {
+func parseLabeledNLRI(token string, fam family.Family, accum nlriAccum) (nlri.NLRI, int, error) {
 	prefix, err := netip.ParsePrefix(token)
 	if err != nil {
 		return nil, 0, fmt.Errorf("%w: %s", route.ErrInvalidPrefix, token)
@@ -299,16 +300,16 @@ func parseLabeledNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.N
 
 	// Validate prefix matches family AFI
 	isIPv4 := prefix.Addr().Is4()
-	if isIPv4 && family.AFI != nlri.AFIIPv4 {
-		return nil, 0, fmt.Errorf("%w: IPv4 prefix for %s", route.ErrFamilyMismatch, family)
+	if isIPv4 && fam.AFI != family.AFIIPv4 {
+		return nil, 0, fmt.Errorf("%w: IPv4 prefix for %s", route.ErrFamilyMismatch, fam)
 	}
-	if !isIPv4 && family.AFI != nlri.AFIIPv6 {
-		return nil, 0, fmt.Errorf("%w: IPv6 prefix for %s", route.ErrFamilyMismatch, family)
+	if !isIPv4 && fam.AFI != family.AFIIPv6 {
+		return nil, 0, fmt.Errorf("%w: IPv6 prefix for %s", route.ErrFamilyMismatch, fam)
 	}
 
 	// Require at least one label for labeled unicast
 	if len(accum.Labels) == 0 {
-		return nil, 0, fmt.Errorf("%w: label required for %s", route.ErrMissingLabel, family)
+		return nil, 0, fmt.Errorf("%w: label required for %s", route.ErrMissingLabel, fam)
 	}
 
 	// Build args for registry encoder: "prefix" <val> "label" <val>... ["path-id" <val>]
@@ -320,7 +321,7 @@ func parseLabeledNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.N
 		encodeArgs = append(encodeArgs, "path-id", strconv.FormatUint(uint64(accum.PathID), 10))
 	}
 
-	wire, err := encodeViaRegistry(family, encodeArgs, accum.PathID != 0)
+	wire, err := encodeViaRegistry(fam, encodeArgs, accum.PathID != 0)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -329,55 +330,62 @@ func parseLabeledNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.N
 
 // encodeViaRegistry encodes NLRI args via the plugin registry and wraps as WireNLRI.
 // Common encode tail for all family-specific section parsers.
-func encodeViaRegistry(family nlri.Family, args []string, hasAddPath bool) (nlri.NLRI, error) {
-	hexStr, err := registry.EncodeNLRIByFamily(family.String(), args)
+func encodeViaRegistry(fam family.Family, args []string, hasAddPath bool) (nlri.NLRI, error) {
+	hexStr, err := registry.EncodeNLRIByFamily(fam.String(), args)
 	if err != nil {
-		return nil, fmt.Errorf("%s encode: %w", family, err)
+		return nil, fmt.Errorf("%s encode: %w", fam, err)
 	}
 	wireBytes, err := hex.DecodeString(strings.ToLower(hexStr))
 	if err != nil {
-		return nil, fmt.Errorf("%s hex decode: %w", family, err)
+		return nil, fmt.Errorf("%s hex decode: %w", fam, err)
 	}
-	return nlri.NewWireNLRI(family, wireBytes, hasAddPath)
+	return nlri.NewWireNLRI(fam, wireBytes, hasAddPath)
 }
 
 // buildNLRIResult constructs a section parse result with empty-check validation.
-func buildNLRIResult(family nlri.Family, announce, withdraw []nlri.NLRI, consumed int) (nlriParseResult, error) {
+func buildNLRIResult(fam family.Family, announce, withdraw []nlri.NLRI, consumed int) (nlriParseResult, error) {
 	if len(announce) == 0 && len(withdraw) == 0 {
 		return nlriParseResult{}, route.ErrEmptyNLRISection
 	}
-	return nlriParseResult{Family: family, Announce: announce, Withdraw: withdraw, Consumed: consumed}, nil
+	return nlriParseResult{Family: fam, Announce: announce, Withdraw: withdraw, Consumed: consumed}, nil
 }
 
 // buildSingleNLRIResult wraps one NLRI into announce or withdraw based on mode.
 // Used by section parsers (EVPN, VPLS) that produce exactly one NLRI.
-func buildSingleNLRIResult(family nlri.Family, mode string, n nlri.NLRI, consumed int) (nlriParseResult, error) {
+func buildSingleNLRIResult(fam family.Family, mode string, n nlri.NLRI, consumed int) (nlriParseResult, error) {
 	switch mode {
 	case kwAdd:
-		return buildNLRIResult(family, []nlri.NLRI{n}, nil, consumed)
+		return buildNLRIResult(fam, []nlri.NLRI{n}, nil, consumed)
 	case kwDel:
-		return buildNLRIResult(family, nil, []nlri.NLRI{n}, consumed)
+		return buildNLRIResult(fam, nil, []nlri.NLRI{n}, consumed)
 	default: // no mode set — neither add nor del was specified
 		return nlriParseResult{}, route.ErrEmptyNLRISection
 	}
 }
 
 // isSupportedFamily returns true if the family is supported in text mode.
-func isSupportedFamily(f nlri.Family) bool {
+func isSupportedFamily(f family.Family) bool {
 	switch f {
-	case nlri.IPv4Unicast, nlri.IPv6Unicast, nlri.IPv4Multicast, nlri.IPv6Multicast:
+	case family.IPv4Unicast,
+		family.IPv6Unicast,
+		family.IPv4Multicast,
+		family.IPv6Multicast:
 		return true
-	case nlri.IPv4VPN, nlri.IPv6VPN: // VPN families (SAFI 128)
+	case family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN},
+		family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}: // VPN families (SAFI 128)
 		return true
-	case nlri.IPv4LabeledUnicast, nlri.IPv6LabeledUnicast: // Labeled unicast (SAFI 4)
+	case family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel},
+		family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIMPLSLabel}: // Labeled unicast (SAFI 4)
 		return true
-	case nlri.IPv4FlowSpec, nlri.IPv6FlowSpec: // FlowSpec (SAFI 133) - RFC 8955
+	case family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec},
+		family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec}: // FlowSpec (SAFI 133) - RFC 8955
 		return true
-	case nlri.IPv4FlowSpecVPN, nlri.IPv6FlowSpecVPN: // FlowSpec VPN (SAFI 134) - RFC 8955
+	case family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpecVPN},
+		family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpecVPN}: // FlowSpec VPN (SAFI 134) - RFC 8955
 		return true
-	case nlri.L2VPNVPLS: // VPLS (SAFI 65) - RFC 4761
+	case family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS}: // VPLS (SAFI 65) - RFC 4761
 		return true
-	case nlri.L2VPNEVPN: // EVPN (SAFI 70) - RFC 7432
+	case family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: // EVPN (SAFI 70) - RFC 7432
 		return true
 	default: // unsupported family
 		return false

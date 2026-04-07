@@ -14,6 +14,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -234,18 +235,18 @@ func (r FilterResult) AnnouncedByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 
 	// MP-BGP path
 	for _, mp := range r.MPReach {
-		family := mp.Family()
-		hasAddPath := ctx.AddPathFor(family)
+		fam := mp.Family()
+		hasAddPath := ctx.AddPathFor(fam)
 		nlris, err := mp.NLRIs(hasAddPath)
 		if err != nil {
-			filterLogger().Debug("NLRI parse error", "family", family, "error", err)
+			filterLogger().Debug("NLRI parse error", "family", fam, "error", err)
 			continue
 		}
 		if len(nlris) == 0 {
 			continue
 		}
 		result = append(result, FamilyNLRI{
-			Family:  family.String(),
+			Family:  fam.String(),
 			NextHop: mp.NextHop(),
 			NLRIs:   nlris,
 		})
@@ -253,13 +254,13 @@ func (r FilterResult) AnnouncedByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 
 	// Legacy IPv4 path (body NLRI)
 	if r.IPv4Announced != nil {
-		hasAddPath := ctx.AddPathFor(nlri.IPv4Unicast)
+		hasAddPath := ctx.AddPathFor(family.IPv4Unicast)
 		nlris, err := r.IPv4Announced.NLRIs(hasAddPath)
 		if err != nil {
 			filterLogger().Debug("IPv4 NLRI parse error", "error", err)
 		} else if len(nlris) > 0 {
 			result = append(result, FamilyNLRI{
-				Family:  nlri.IPv4Unicast.String(),
+				Family:  (family.IPv4Unicast).String(),
 				NextHop: r.IPv4Announced.NextHop(),
 				NLRIs:   nlris,
 			})
@@ -282,31 +283,31 @@ func (r FilterResult) WithdrawnByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 
 	// MP-BGP path
 	for _, mp := range r.MPUnreach {
-		family := mp.Family()
-		hasAddPath := ctx.AddPathFor(family)
+		fam := mp.Family()
+		hasAddPath := ctx.AddPathFor(fam)
 		nlris, err := mp.NLRIs(hasAddPath)
 		if err != nil {
-			filterLogger().Debug("NLRI parse error", "family", family, "error", err)
+			filterLogger().Debug("NLRI parse error", "family", fam, "error", err)
 			continue
 		}
 		if len(nlris) == 0 {
 			continue
 		}
 		result = append(result, FamilyNLRI{
-			Family: family.String(),
+			Family: fam.String(),
 			NLRIs:  nlris,
 		})
 	}
 
 	// Legacy IPv4 path (body withdrawn)
 	if r.IPv4Withdrawn != nil {
-		hasAddPath := ctx.AddPathFor(nlri.IPv4Unicast)
+		hasAddPath := ctx.AddPathFor(family.IPv4Unicast)
 		nlris, err := r.IPv4Withdrawn.NLRIs(hasAddPath)
 		if err != nil {
 			filterLogger().Debug("IPv4 withdrawn parse error", "error", err)
 		} else if len(nlris) > 0 {
 			result = append(result, FamilyNLRI{
-				Family: nlri.IPv4Unicast.String(),
+				Family: (family.IPv4Unicast).String(),
 				NLRIs:  nlris,
 			})
 		}
@@ -464,8 +465,8 @@ func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []by
 		// Zero-copy wireu.MPReachWire
 		if mpRaw, err := wire.GetRaw(attribute.AttrMPReachNLRI); err == nil && mpRaw != nil {
 			mpw := wireu.MPReachWire(mpRaw)
-			family := mpw.Family().String()
-			if nlriFilter.IncludesFamily(family) {
+			famStr := mpw.Family().String()
+			if nlriFilter.IncludesFamily(famStr) {
 				result.MPReach = append(result.MPReach, mpw)
 			}
 		}
@@ -473,8 +474,8 @@ func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []by
 		// Zero-copy wireu.MPUnreachWire
 		if mpRaw, err := wire.GetRaw(attribute.AttrMPUnreachNLRI); err == nil && mpRaw != nil {
 			mpw := wireu.MPUnreachWire(mpRaw)
-			family := mpw.Family().String()
-			if nlriFilter.IncludesFamily(family) {
+			famStr := mpw.Family().String()
+			if nlriFilter.IncludesFamily(famStr) {
 				result.MPUnreach = append(result.MPUnreach, mpw)
 			}
 		}

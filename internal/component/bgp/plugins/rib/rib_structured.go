@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -40,7 +41,7 @@ func (r *RIBManager) dispatchStructured(se *rpc.StructuredEvent) {
 
 // affectedPrefix tracks a prefix that was inserted or removed for best-path checking.
 type affectedPrefix struct {
-	family    nlri.Family
+	fam       family.Family
 	nlriBytes []byte
 	addPath   bool
 }
@@ -96,7 +97,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	peerRIB := r.ribInPool[peerAddr]
 
 	// Process IPv4 unicast announces (legacy NLRI section).
-	ipv4Family := nlri.Family{AFI: 1, SAFI: 1}
+	ipv4Family := family.Family{AFI: 1, SAFI: 1}
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
@@ -104,7 +105,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			prefixes := splitNLRIs(nlriData, addPath)
 			for _, wirePrefix := range prefixes {
 				peerRIB.Insert(ipv4Family, attrBytes, wirePrefix)
-				affected = append(affected, affectedPrefix{family: ipv4Family, nlriBytes: wirePrefix, addPath: addPath})
+				affected = append(affected, affectedPrefix{fam: ipv4Family, nlriBytes: wirePrefix, addPath: addPath})
 			}
 		}
 	}
@@ -117,7 +118,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			withdrawns := splitNLRIs(wdData, addPath)
 			for _, wd := range withdrawns {
 				peerRIB.Remove(ipv4Family, wd)
-				affected = append(affected, affectedPrefix{family: ipv4Family, nlriBytes: wd, addPath: addPath})
+				affected = append(affected, affectedPrefix{fam: ipv4Family, nlriBytes: wd, addPath: addPath})
 			}
 		}
 	}
@@ -125,15 +126,15 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// Process MP_REACH_NLRI announces (multiprotocol families).
 	mpReach, err := wu.MPReach()
 	if err == nil && mpReach != nil {
-		family := mpReach.Family()
-		if isSimplePrefixFamilyNLRI(family) {
+		fam := mpReach.Family()
+		if isSimplePrefixFamilyNLRI(fam) {
 			nlriBytes := mpReach.NLRIBytes()
 			if len(nlriBytes) > 0 {
-				addPath := ctx != nil && ctx.AddPath(family)
+				addPath := ctx != nil && ctx.AddPath(fam)
 				prefixes := splitNLRIs(nlriBytes, addPath)
 				for _, wirePrefix := range prefixes {
-					peerRIB.Insert(family, attrBytes, wirePrefix)
-					affected = append(affected, affectedPrefix{family: family, nlriBytes: wirePrefix, addPath: addPath})
+					peerRIB.Insert(fam, attrBytes, wirePrefix)
+					affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wirePrefix, addPath: addPath})
 				}
 			}
 		}
@@ -142,15 +143,15 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// Process MP_UNREACH_NLRI withdrawals (multiprotocol families).
 	mpUnreach, err := wu.MPUnreach()
 	if err == nil && mpUnreach != nil {
-		family := mpUnreach.Family()
-		if isSimplePrefixFamilyNLRI(family) {
+		fam := mpUnreach.Family()
+		if isSimplePrefixFamilyNLRI(fam) {
 			wdBytes := mpUnreach.WithdrawnBytes()
 			if len(wdBytes) > 0 {
-				addPath := ctx != nil && ctx.AddPath(family)
+				addPath := ctx != nil && ctx.AddPath(fam)
 				withdrawns := splitNLRIs(wdBytes, addPath)
 				for _, wd := range withdrawns {
-					peerRIB.Remove(family, wd)
-					affected = append(affected, affectedPrefix{family: family, nlriBytes: wd, addPath: addPath})
+					peerRIB.Remove(fam, wd)
+					affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wd, addPath: addPath})
 				}
 			}
 		}
@@ -160,8 +161,8 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// Group changes by family so each family gets its own batch with correct metadata.
 	changesByFamily := make(map[string][]bestChangeEntry)
 	for _, ap := range affected {
-		if change := r.checkBestPathChange(ap.family, ap.nlriBytes, ap.addPath); change != nil {
-			familyStr := ap.family.String()
+		if change := r.checkBestPathChange(ap.fam, ap.nlriBytes, ap.addPath); change != nil {
+			familyStr := ap.fam.String()
 			changesByFamily[familyStr] = append(changesByFamily[familyStr], *change)
 		}
 	}
@@ -170,8 +171,8 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	locked = false
 
 	// Publish one batch per family after lock release.
-	for family, changes := range changesByFamily {
-		publishBestChanges(changes, family)
+	for famName, changes := range changesByFamily {
+		publishBestChanges(changes, famName)
 	}
 }
 
@@ -213,7 +214,7 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	}
 
 	// Process IPv4 unicast announces (legacy NLRI section).
-	ipv4Family := nlri.Family{AFI: 1, SAFI: 1}
+	ipv4Family := family.Family{AFI: 1, SAFI: 1}
 	nextHop := extractNextHop(msg.AttrsWire)
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
@@ -235,12 +236,12 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	// Process MP_REACH_NLRI announces.
 	mpReach, err := wu.MPReach()
 	if err == nil && mpReach != nil {
-		family := mpReach.Family()
-		familyStr := family.String()
+		fam := mpReach.Family()
+		familyStr := fam.String()
 		mpNextHop := mpReach.NextHop().String()
 		nlriBytes := mpReach.NLRIBytes()
 		if len(nlriBytes) > 0 {
-			addPath := ctx != nil && ctx.AddPath(family)
+			addPath := ctx != nil && ctx.AddPath(fam)
 			r.storeSentNLRIs(peerAddr, familyStr, nlriBytes, addPath, msgID, mpNextHop,
 				core.origin, core.asPath, core.med, core.localPref, comm.communities, comm.largeCommunities, comm.extCommunities,
 				rawAttrsHex, se.Meta)
@@ -250,11 +251,11 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	// Process MP_UNREACH_NLRI withdrawals.
 	mpUnreach, err := wu.MPUnreach()
 	if err == nil && mpUnreach != nil {
-		family := mpUnreach.Family()
-		familyStr := family.String()
+		fam := mpUnreach.Family()
+		familyStr := fam.String()
 		wdBytes := mpUnreach.WithdrawnBytes()
 		if len(wdBytes) > 0 {
-			addPath := ctx != nil && ctx.AddPath(family)
+			addPath := ctx != nil && ctx.AddPath(fam)
 			r.removeSentNLRIs(peerAddr, familyStr, wdBytes, addPath)
 		}
 	}
@@ -341,7 +342,7 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 	// Route refresh wire: AFI (2) + reserved (1) + SAFI (1) = 4 bytes.
 	afi := uint16(msg.RawBytes[0])<<8 | uint16(msg.RawBytes[1])
 	safi := msg.RawBytes[3]
-	family := nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)}.String()
+	famStr := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}.String()
 
 	peerAddr := se.PeerAddress
 	if peerAddr == "" {
@@ -355,7 +356,7 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 	}
 
 	var routesToSend []*Route
-	if familyRoutes := r.ribOut[peerAddr][family]; familyRoutes != nil {
+	if familyRoutes := r.ribOut[peerAddr][famStr]; familyRoutes != nil {
 		routesToSend = make([]*Route, 0, len(familyRoutes))
 		for _, rt := range familyRoutes {
 			routesToSend = append(routesToSend, rt)
@@ -363,9 +364,9 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 	}
 	r.mu.RUnlock()
 
-	r.updateRoute(peerAddr, "borr "+family)
+	r.updateRoute(peerAddr, "borr "+famStr)
 	r.sendRoutes(peerAddr, routesToSend)
-	r.updateRoute(peerAddr, "eorr "+family)
+	r.updateRoute(peerAddr, "eorr "+famStr)
 }
 
 // coreAttrs holds parsed core path attributes from AttrsWire.
@@ -484,8 +485,8 @@ func extractNextHop(attrs *attribute.AttributesWire) string {
 
 // isSimplePrefixFamilyNLRI returns true for families with simple [prefix-len][prefix-bytes] format.
 // Complex families (VPN, EVPN, FlowSpec) have different NLRI structures.
-func isSimplePrefixFamilyNLRI(family nlri.Family) bool {
-	s := family.String()
+func isSimplePrefixFamilyNLRI(fam family.Family) bool {
+	s := fam.String()
 	return s == "ipv4/unicast" || s == "ipv4/multicast" ||
 		s == "ipv6/unicast" || s == "ipv6/multicast"
 }

@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestRouteRefreshType verifies ROUTE_REFRESH message type.
@@ -20,8 +22,8 @@ func TestRouteRefreshType(t *testing.T) {
 // PREVENTS: Malformed request causing peer to send wrong routes.
 func TestRouteRefreshPack(t *testing.T) {
 	r := &RouteRefresh{
-		AFI:  AFIIPv6,
-		SAFI: SAFIUnicast,
+		AFI:  family.AFIIPv6,
+		SAFI: family.SAFIUnicast,
 	}
 
 	data := PackTo(r, nil)
@@ -53,8 +55,8 @@ func TestRouteRefreshUnpack(t *testing.T) {
 	msg, err := UnpackRouteRefresh(body)
 	require.NoError(t, err)
 
-	assert.Equal(t, AFIIPv4, msg.AFI)
-	assert.Equal(t, SAFIMulticast, msg.SAFI)
+	assert.Equal(t, family.AFIIPv4, msg.AFI)
+	assert.Equal(t, family.SAFIMulticast, msg.SAFI)
 }
 
 // TestRouteRefreshUnpackShort verifies short data handling.
@@ -66,8 +68,8 @@ func TestRouteRefreshUnpackShort(t *testing.T) {
 // TestRouteRefreshRoundTrip verifies pack/unpack symmetry.
 func TestRouteRefreshRoundTrip(t *testing.T) {
 	original := &RouteRefresh{
-		AFI:  AFIIPv4,
-		SAFI: SAFIFlowSpec,
+		AFI:  family.AFIIPv4,
+		SAFI: family.SAFIFlowSpec,
 	}
 
 	data := PackTo(original, nil)
@@ -84,14 +86,14 @@ func TestRouteRefreshRoundTrip(t *testing.T) {
 func TestRouteRefreshCommonFamilies(t *testing.T) {
 	tests := []struct {
 		name string
-		afi  AFI
-		safi SAFI
+		afi  family.AFI
+		safi family.SAFI
 	}{
-		{"IPv4 Unicast", AFIIPv4, SAFIUnicast},
-		{"IPv6 Unicast", AFIIPv6, SAFIUnicast},
-		{"IPv4 VPN", AFIIPv4, SAFIVPN},
-		{"IPv6 VPN", AFIIPv6, SAFIVPN},
-		{"L2VPN EVPN", AFIL2VPN, SAFIEVPN},
+		{"IPv4 Unicast", family.AFIIPv4, family.SAFIUnicast},
+		{"IPv6 Unicast", family.AFIIPv6, family.SAFIUnicast},
+		{"IPv4 VPN", family.AFIIPv4, family.SAFIVPN},
+		{"IPv6 VPN", family.AFIIPv6, family.SAFIVPN},
+		{"L2VPN EVPN", family.AFIL2VPN, family.SAFIEVPN},
 	}
 
 	for _, tt := range tests {
@@ -131,8 +133,8 @@ func TestRouteRefreshSubtypes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &RouteRefresh{
-				AFI:     AFIIPv4,
-				SAFI:    SAFIUnicast,
+				AFI:     family.AFIIPv4,
+				SAFI:    family.SAFIUnicast,
 				Subtype: tt.subtype,
 			}
 

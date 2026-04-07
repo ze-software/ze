@@ -21,8 +21,8 @@ import (
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -241,7 +241,7 @@ func (rp *RPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	// Validate IPv4 unicast NLRIs.
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
-		addPath := ctx != nil && ctx.AddPath(nlri.Family{AFI: 1, SAFI: 1})
+		addPath := ctx != nil && ctx.AddPath(family.Family{AFI: 1, SAFI: 1})
 		rp.validateNLRIs(peerAddr, peerName, peerASN, msgID, "ipv4/unicast",
 			nlriData, addPath, false, originAS, cacheEmpty)
 	}
@@ -249,12 +249,12 @@ func (rp *RPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	// Validate MP_REACH_NLRI announces.
 	mpReach, err := wu.MPReach()
 	if err == nil && mpReach != nil {
-		family := mpReach.Family()
+		fam := mpReach.Family()
 		nlriBytes := mpReach.NLRIBytes()
 		if len(nlriBytes) > 0 {
-			addPath := ctx != nil && ctx.AddPath(family)
-			rp.validateNLRIs(peerAddr, peerName, peerASN, msgID, family.String(),
-				nlriBytes, addPath, family.AFI == 2, originAS, cacheEmpty)
+			addPath := ctx != nil && ctx.AddPath(fam)
+			rp.validateNLRIs(peerAddr, peerName, peerASN, msgID, fam.String(),
+				nlriBytes, addPath, fam.AFI == 2, originAS, cacheEmpty)
 		}
 	}
 }
@@ -375,7 +375,7 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 
 	// Validate each NLRI prefix against the ROA cache.
 	// Collect per-family results for rpki event emission.
-	for family, ops := range event.FamilyOps {
+	for famName, ops := range event.FamilyOps {
 		familyResults := make(map[string]uint8)
 
 		for _, op := range ops {
@@ -396,7 +396,7 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 				select {
 				case rp.validateCh <- validationRequest{
 					peerAddr: peerAddr,
-					family:   family,
+					family:   famName,
 					prefix:   prefix,
 					state:    state,
 				}:
@@ -408,19 +408,19 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 
 		// Emit rpki event only if there were "add" operations (skip pure withdrawals).
 		if len(familyResults) > 0 || cacheEmpty {
-			rp.emitRPKIEvent(peerAddr, peerName, event.GetPeerASN(), event.GetMsgID(), family, familyResults, cacheEmpty)
+			rp.emitRPKIEvent(peerAddr, peerName, event.GetPeerASN(), event.GetMsgID(), famName, familyResults, cacheEmpty)
 		}
 	}
 }
 
 // emitRPKIEvent emits an rpki validation event via the SDK EmitEvent RPC.
 // Called after validating all prefixes in a family for a single UPDATE.
-func (rp *RPKIPlugin) emitRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, family string, results map[string]uint8, cacheEmpty bool) {
+func (rp *RPKIPlugin) emitRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, famName string, results map[string]uint8, cacheEmpty bool) {
 	var event string
 	if cacheEmpty {
 		event = buildRPKIEventUnavailable(peerAddr, peerName, peerASN, msgID)
 	} else {
-		event = buildRPKIEvent(peerAddr, peerName, peerASN, msgID, family, results)
+		event = buildRPKIEvent(peerAddr, peerName, peerASN, msgID, famName, results)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

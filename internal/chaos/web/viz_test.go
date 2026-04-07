@@ -1020,16 +1020,16 @@ func TestRouteMatrixNonUnicastCellPlacement(t *testing.T) {
 	// Only ONE sender to eliminate Go map iteration non-determinism.
 	// p0 sends 3 VPN routes.
 	for range 3 {
-		m.RecordNonUnicastSent(0, "ipv4/vpn")
+		m.RecordNonUnicastSent(0, "ipv4/mpls-vpn")
 	}
 
 	// p1 receives 2 VPN routes → should credit p0→p1.
 	for range 2 {
-		m.RecordNonUnicastReceived(1, "ipv4/vpn")
+		m.RecordNonUnicastReceived(1, "ipv4/mpls-vpn")
 	}
 
 	// p2 receives 1 VPN route → should credit p0→p2.
-	m.RecordNonUnicastReceived(2, "ipv4/vpn")
+	m.RecordNonUnicastReceived(2, "ipv4/mpls-vpn")
 
 	if got := m.Get(0, 1); got != 2 {
 		t.Errorf("Get(0,1) = %d, want 2 (p0→p1)", got)
@@ -1039,7 +1039,7 @@ func TestRouteMatrixNonUnicastCellPlacement(t *testing.T) {
 	}
 
 	// Self-credit prevention: p0 receiving should not credit p0→p0.
-	m.RecordNonUnicastReceived(0, "ipv4/vpn")
+	m.RecordNonUnicastReceived(0, "ipv4/mpls-vpn")
 	if got := m.Get(0, 0); got != 0 {
 		t.Errorf("Get(0,0) = %d, want 0 (self-credit prevented)", got)
 	}
@@ -1047,42 +1047,42 @@ func TestRouteMatrixNonUnicastCellPlacement(t *testing.T) {
 	// Credits are per (sender, receiver) pair: p0 sent 3, so each receiver
 	// can independently receive up to 3 from p0 (RR reflects to each peer).
 	// p3 receives should credit p0→p3 (p0 still has capacity for p3).
-	m.RecordNonUnicastReceived(3, "ipv4/vpn")
+	m.RecordNonUnicastReceived(3, "ipv4/mpls-vpn")
 	if got := m.Get(0, 3); got != 1 {
 		t.Errorf("Get(0,3) = %d, want 1 (p0→p3 credited)", got)
 	}
 
 	// Exhaust p0→p3: send 2 more receives for p3.
-	m.RecordNonUnicastReceived(3, "ipv4/vpn")
-	m.RecordNonUnicastReceived(3, "ipv4/vpn")
+	m.RecordNonUnicastReceived(3, "ipv4/mpls-vpn")
+	m.RecordNonUnicastReceived(3, "ipv4/mpls-vpn")
 	if got := m.Get(0, 3); got != 3 {
 		t.Errorf("Get(0,3) = %d, want 3 (all p0 credits used for p3)", got)
 	}
 
 	// Now p0→p3 is exhausted (3/3). One more receive should not credit.
-	m.RecordNonUnicastReceived(3, "ipv4/vpn")
+	m.RecordNonUnicastReceived(3, "ipv4/mpls-vpn")
 	if got := m.Get(0, 3); got != 3 {
 		t.Errorf("Get(0,3) = %d, want 3 (no more credits from p0)", got)
 	}
 
 	// Family tracking: non-unicast routes should appear in GetByFamily.
-	if got := m.GetByFamily(0, 1, "ipv4/vpn"); got != 2 {
-		t.Errorf("GetByFamily(0,1,ipv4/vpn) = %d, want 2", got)
+	if got := m.GetByFamily(0, 1, "ipv4/mpls-vpn"); got != 2 {
+		t.Errorf("GetByFamily(0,1,ipv4/mpls-vpn) = %d, want 2", got)
 	}
-	if got := m.GetByFamily(0, 2, "ipv4/vpn"); got != 1 {
-		t.Errorf("GetByFamily(0,2,ipv4/vpn) = %d, want 1", got)
+	if got := m.GetByFamily(0, 2, "ipv4/mpls-vpn"); got != 1 {
+		t.Errorf("GetByFamily(0,2,ipv4/mpls-vpn) = %d, want 1", got)
 	}
 
-	// Families list should include ipv4/vpn.
+	// Families list should include ipv4/mpls-vpn.
 	fams := m.Families()
 	found := false
 	for _, f := range fams {
-		if f == "ipv4/vpn" {
+		if f == "ipv4/mpls-vpn" {
 			found = true
 		}
 	}
 	if !found {
-		t.Error("Families() should include ipv4/vpn")
+		t.Error("Families() should include ipv4/mpls-vpn")
 	}
 }
 

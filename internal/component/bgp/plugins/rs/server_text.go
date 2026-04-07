@@ -217,8 +217,8 @@ func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 
 		case textparse.KWNLRI:
 			// Family: nlri <family> add|del
-			family, ok := s.Next()
-			if !ok || !strings.Contains(family, "/") {
+			fam, ok := s.Next()
+			if !ok || !strings.Contains(fam, "/") {
 				continue
 			}
 
@@ -256,7 +256,7 @@ func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 			nlris := buildNLRIEntries(nlriTokens)
 
 			if len(nlris) > 0 {
-				result[family] = append(result[family],
+				result[fam] = append(result[fam],
 					FamilyOperation{Action: action, NLRIs: nlris})
 			}
 
@@ -431,8 +431,8 @@ func parseTextRefresh(text string) *Event {
 			break
 		}
 		if tok == tokenFamily {
-			if family, ok := s.Next(); ok {
-				if parts := strings.SplitN(family, "/", 2); len(parts) == 2 {
+			if fam, ok := s.Next(); ok {
+				if parts := strings.SplitN(fam, "/", 2); len(parts) == 2 {
 					event.AFI = parts[0]
 					event.SAFI = parts[1]
 				}

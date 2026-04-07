@@ -18,7 +18,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -47,8 +47,8 @@ func RunVPNPlugin(conn net.Conn) int {
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: "ipv4/vpn", Mode: "decode"},
-			{Name: "ipv6/vpn", Mode: "decode"},
+			{Name: "ipv4/mpls-vpn", Mode: "decode", AFI: 1, SAFI: 128},
+			{Name: "ipv6/mpls-vpn", Mode: "decode", AFI: 2, SAFI: 128},
 		},
 	})
 	if err != nil {
@@ -93,13 +93,13 @@ func DecodeNLRIHex(family, hexStr string) (string, error) {
 // EncodeNLRIHex encodes VPN NLRI from text args, returning hex bytes.
 // Args format: "rd" <rd> "label" <label>... "prefix" <prefix> ["path-id" <id>]
 // This is the in-process fast path registered in the plugin registry.
-func EncodeNLRIHex(family string, args []string) (string, error) {
-	fam, ok := nlri.ParseFamily(family)
+func EncodeNLRIHex(famName string, args []string) (string, error) {
+	fam, ok := family.LookupFamily(famName)
 	if !ok {
-		return "", fmt.Errorf("unknown family: %s", family)
+		return "", fmt.Errorf("unknown family: %s", famName)
 	}
-	if !isValidVPNFamily(family) {
-		return "", fmt.Errorf("unsupported family: %s", family)
+	if !isValidVPNFamily(famName) {
+		return "", fmt.Errorf("unsupported family: %s", famName)
 	}
 
 	var rd RouteDistinguisher
@@ -211,7 +211,7 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 	}
 
 	if !isValidVPNFamily(family) {
-		writeErr("error: invalid family: %s (expected ipv4/vpn or ipv6/vpn)\n", family)
+		writeErr("error: invalid family: %s (expected ipv4/mpls-vpn or ipv6/mpls-vpn)\n", family)
 		return 1
 	}
 
@@ -296,10 +296,10 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		return
 	}
 
-	family := strings.ToLower(parts[2])
+	fam := strings.ToLower(parts[2])
 	hexData := parts[3]
 
-	if !isValidVPNFamily(family) {
+	if !isValidVPNFamily(fam) {
 		writeUnknown()
 		return
 	}
@@ -310,7 +310,7 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		return
 	}
 
-	results := decodeVPNNLRI(family, data)
+	results := decodeVPNNLRI(fam, data)
 	if len(results) == 0 {
 		writeUnknown()
 		return
@@ -347,7 +347,7 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 
 // isValidVPNFamily checks if family is a VPN family.
 func isValidVPNFamily(family string) bool {
-	return family == "ipv4/vpn" || family == "ipv6/vpn"
+	return family == "ipv4/mpls-vpn" || family == "ipv6/mpls-vpn"
 }
 
 // decodeVPNNLRI decodes VPN NLRI wire bytes to array of JSON maps.
@@ -408,12 +408,12 @@ func vpnToJSON(v *VPN) map[string]any {
 func formatVPNTextSingle(result map[string]any) string {
 	var parts []string
 
-	// Determine family from prefix
-	family := "VPNv4"
+	// Determine fam from prefix
+	fam := "VPNv4"
 	if prefix, ok := result["prefix"].(string); ok && strings.Contains(prefix, ":") {
-		family = "VPNv6"
+		fam = "VPNv6"
 	}
-	parts = append(parts, family)
+	parts = append(parts, fam)
 
 	if v, ok := result["rd"].(string); ok {
 		parts = append(parts, "rd="+v)
@@ -440,7 +440,7 @@ func formatVPNTextSingle(result map[string]any) string {
 	return strings.Join(parts, " ")
 }
 
-// ParseFamily wraps nlri.ParseFamily for use by this package.
-func ParseFamily(s string) (Family, bool) {
-	return nlri.ParseFamily(s)
+// LookupFamily wraps family.LookupFamily for use by this package.
+func LookupFamily(s string) (Family, bool) {
+	return family.LookupFamily(s)
 }

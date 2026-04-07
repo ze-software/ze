@@ -13,6 +13,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // EVPN route type keywords.
@@ -43,7 +44,7 @@ func isEVPNBoundary(token string) bool {
 // parseEVPNSection parses EVPN NLRI section.
 // RFC 7432: EVPN route types.
 // Syntax: nlri l2vpn/evpn add <route-type> rd <rd> ...
-func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlriParseResult, error) {
+func parseEVPNSection(args []string, fam family.Family, _ nlriAccum) (nlriParseResult, error) {
 	// args[0] = "nlri", args[1] = "l2vpn/evpn"
 	consumed := 2
 	i := 2
@@ -276,12 +277,12 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlriParse
 			"ip", originatorIP.String())
 	}
 
-	evpnNLRI, err := encodeViaRegistry(family, encodeArgs, false)
+	evpnNLRI, err := encodeViaRegistry(fam, encodeArgs, false)
 	if err != nil {
 		return nlriParseResult{}, err
 	}
 
-	return buildSingleNLRIResult(family, mode, evpnNLRI, consumed)
+	return buildSingleNLRIResult(fam, mode, evpnNLRI, consumed)
 }
 
 // parseMAC parses a MAC address string (e.g., "00:11:22:33:44:55").

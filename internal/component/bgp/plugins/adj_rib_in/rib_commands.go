@@ -144,7 +144,7 @@ func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, string, 
 	}
 
 	peerAddr := parts[0]
-	family := parts[1]
+	fam := parts[1]
 	prefix := parts[2]
 	valState, err := parseValidationState(parts[3])
 	if err != nil {
@@ -154,11 +154,11 @@ func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, string, 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	rKey := bgp.RouteKey(family, prefix, 0)
+	rKey := bgp.RouteKey(fam, prefix, 0)
 	key := pendingKey(peerAddr, rKey)
 	pr, ok := r.pending[key]
 	if !ok {
-		return statusError, "", fmt.Errorf("no pending route for %s %s %s", peerAddr, family, prefix)
+		return statusError, "", fmt.Errorf("no pending route for %s %s %s", peerAddr, fam, prefix)
 	}
 
 	r.promoteToInstalled(pr, valState)
@@ -176,20 +176,20 @@ func (r *AdjRIBInManager) rejectRoutesCommand(selector string) (string, string, 
 	}
 
 	peerAddr := parts[0]
-	family := parts[1]
+	fam := parts[1]
 	prefix := parts[2]
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	rKey := bgp.RouteKey(family, prefix, 0)
+	rKey := bgp.RouteKey(fam, prefix, 0)
 	key := pendingKey(peerAddr, rKey)
 	if _, ok := r.pending[key]; !ok {
-		return statusError, "", fmt.Errorf("no pending route for %s %s %s", peerAddr, family, prefix)
+		return statusError, "", fmt.Errorf("no pending route for %s %s %s", peerAddr, fam, prefix)
 	}
 
 	delete(r.pending, key)
-	logger().Debug("rejected pending route", "peer", peerAddr, "family", family, "prefix", prefix)
+	logger().Debug("rejected pending route", "peer", peerAddr, "family", fam, "prefix", prefix)
 
 	return statusDone, `{"status":"ok"}`, nil
 }
@@ -202,7 +202,7 @@ func (r *AdjRIBInManager) revalidateCommand(selector string) (string, string, er
 		return statusError, "", fmt.Errorf("revalidate requires: <family> <prefix>")
 	}
 
-	family := parts[0]
+	fam := parts[0]
 	prefix := parts[1]
 
 	r.mu.RLock()
@@ -212,12 +212,12 @@ func (r *AdjRIBInManager) revalidateCommand(selector string) (string, string, er
 	allPrefixes := prefix == "*"
 	for peer, peerRoutes := range r.ribIn {
 		peerRoutes.Range(func(key string, _ uint64, rt *RawRoute) bool {
-			if rt.Family != family {
+			if rt.Family != fam {
 				return true
 			}
 			// Match exact prefix via RouteKey, or all prefixes with "*".
-			if !allPrefixes && !strings.HasPrefix(key, family+":"+prefix+":") &&
-				key != family+":"+prefix {
+			if !allPrefixes && !strings.HasPrefix(key, fam+":"+prefix+":") &&
+				key != fam+":"+prefix {
 				return true
 			}
 			routes = append(routes, map[string]any{

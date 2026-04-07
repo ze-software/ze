@@ -215,7 +215,7 @@ func parseNLRIEntries(nlriMap map[string]any, base *bgp.Route, initiallyWithdraw
 
 	for familyKey, nlriData := range nlriMap {
 		// Strip #N suffix from duplicate family keys
-		family := stripKeySuffix(familyKey)
+		fam := stripKeySuffix(familyKey)
 
 		nlriTree, ok := nlriData.(map[string]any)
 		if !ok {
@@ -262,7 +262,7 @@ func parseNLRIEntries(nlriMap map[string]any, base *bgp.Route, initiallyWithdraw
 		// Remaining items are prefixes
 		for _, prefix := range remaining {
 			route := *base // Copy struct, don't alias pointer.
-			route.Family = family
+			route.Family = fam
 			route.Prefix = normalizePrefix(prefix)
 			route.RD = rd
 			route.Labels = labels

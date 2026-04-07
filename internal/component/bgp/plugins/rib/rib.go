@@ -477,26 +477,26 @@ func (r *RIBManager) handleSent(event *Event) {
 
 	// Process family operations
 	// Format: {"ipv4/unicast": [{"next-hop": "...", "action": "add", "nlri": [...]}]}
-	for family, ops := range event.FamilyOps {
+	for fam, ops := range event.FamilyOps {
 		for _, op := range ops {
 			switch op.Action {
 			case "add":
 				// Initialize family map if needed
-				if r.ribOut[peerAddr][family] == nil {
-					r.ribOut[peerAddr][family] = make(map[string]*Route)
+				if r.ribOut[peerAddr][fam] == nil {
+					r.ribOut[peerAddr][fam] = make(map[string]*Route)
 				}
 				// Store routes with their next-hop
 				for _, nlriVal := range op.NLRIs {
 					prefix, pathID := parseNLRIValue(nlriVal)
 					if prefix == "" {
 						logger().Warn("sent: invalid nlri value",
-							"peer", peerAddr, "family", family, "got", fmt.Sprintf("%T", nlriVal))
+							"peer", peerAddr, "family", fam, "got", fmt.Sprintf("%T", nlriVal))
 						continue
 					}
 					key := outRouteKey(prefix, pathID)
-					r.ribOut[peerAddr][family][key] = &Route{
+					r.ribOut[peerAddr][fam][key] = &Route{
 						MsgID:               msgID,
-						Family:              family,
+						Family:              fam,
 						Prefix:              prefix,
 						PathID:              pathID,
 						NextHop:             op.NextHop,
@@ -513,7 +513,7 @@ func (r *RIBManager) handleSent(event *Event) {
 				}
 			case "del":
 				// Remove routes from the family map
-				familyRoutes := r.ribOut[peerAddr][family]
+				familyRoutes := r.ribOut[peerAddr][fam]
 				if familyRoutes == nil {
 					continue
 				}
@@ -527,7 +527,7 @@ func (r *RIBManager) handleSent(event *Event) {
 				}
 				// Clean up empty family map
 				if len(familyRoutes) == 0 {
-					delete(r.ribOut[peerAddr], family)
+					delete(r.ribOut[peerAddr], fam)
 				}
 				// Clean up empty peer map
 				if len(r.ribOut[peerAddr]) == 0 {
@@ -583,7 +583,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 
 	// Process announcements (raw-nlri)
 	for familyStr, hexNLRI := range event.RawNLRI {
-		family, ok := parseFamily(familyStr)
+		fam, ok := parseFamily(familyStr)
 		if !ok {
 			logger().Warn("pool: unknown family", "peer", peerAddr, "family", familyStr)
 			continue
@@ -591,7 +591,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 
 		// LIMITATION: splitNLRIs() only works for simple prefix formats (IPv4/IPv6 unicast).
 		// EVPN, VPN, FlowSpec have different wire formats and would be corrupted.
-		if !isSimplePrefixFamily(family) {
+		if !isSimplePrefixFamily(fam) {
 			logger().Debug("pool: skipping non-unicast family", "peer", peerAddr, "family", familyStr)
 			continue
 		}
@@ -604,13 +604,13 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 		// RFC 7911: ADD-PATH per-family flag from negotiated capabilities (via format=full JSON).
 		addPath := event.AddPath[familyStr]
 		if addPath {
-			peerRIB.SetAddPath(family, true)
+			peerRIB.SetAddPath(fam, true)
 		}
 
 		// Split concatenated NLRIs and insert each.
 		prefixes := splitNLRIs(nlriBytes, addPath)
 		for _, wirePrefix := range prefixes {
-			peerRIB.Insert(family, attrBytes, wirePrefix)
+			peerRIB.Insert(fam, attrBytes, wirePrefix)
 		}
 
 		if m := metricsPtr.Load(); m != nil {
@@ -623,13 +623,13 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 
 	// Process withdrawals (raw-withdrawn)
 	for familyStr := range event.RawWithdrawn {
-		family, ok := parseFamily(familyStr)
+		fam, ok := parseFamily(familyStr)
 		if !ok {
 			continue
 		}
 
 		// Same limitation as announcements
-		if !isSimplePrefixFamily(family) {
+		if !isSimplePrefixFamily(fam) {
 			continue
 		}
 
@@ -643,7 +643,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 		addPath := event.AddPath[familyStr]
 		withdrawns := splitNLRIs(wdBytes, addPath)
 		for _, wd := range withdrawns {
-			peerRIB.Remove(family, wd)
+			peerRIB.Remove(fam, wd)
 		}
 
 		if m := metricsPtr.Load(); m != nil {
@@ -659,7 +659,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 // SHOULD send BoRR, re-advertise Adj-RIB-Out, then send EoRR.
 func (r *RIBManager) handleRefresh(event *Event) {
 	peerAddr := event.GetPeerAddress()
-	family := event.AFI + "/" + event.SAFI
+	fam := event.AFI + "/" + event.SAFI
 
 	if peerAddr == "" {
 		logger().Warn("refresh event: empty peer address")
@@ -673,9 +673,9 @@ func (r *RIBManager) handleRefresh(event *Event) {
 		return
 	}
 
-	// Direct family lookup -- no linear scan of all routes
+	// Direct fam lookup -- no linear scan of all routes
 	var routesToSend []*Route
-	if familyRoutes := r.ribOut[peerAddr][family]; familyRoutes != nil {
+	if familyRoutes := r.ribOut[peerAddr][fam]; familyRoutes != nil {
 		routesToSend = make([]*Route, 0, len(familyRoutes))
 		for _, rt := range familyRoutes {
 			routesToSend = append(routesToSend, rt)
@@ -684,11 +684,11 @@ func (r *RIBManager) handleRefresh(event *Event) {
 	r.mu.RUnlock()
 
 	// RFC 7313 Section 4: Send BoRR, routes, EoRR sequence
-	r.updateRoute(peerAddr, "borr "+family)
+	r.updateRoute(peerAddr, "borr "+fam)
 	r.sendRoutes(peerAddr, routesToSend)
-	r.updateRoute(peerAddr, "eorr "+family)
+	r.updateRoute(peerAddr, "eorr "+fam)
 
-	logger().Debug("completed route refresh", "peer", peerAddr, "family", family, "routes", len(routesToSend))
+	logger().Debug("completed route refresh", "peer", peerAddr, "family", fam, "routes", len(routesToSend))
 }
 
 // handleStructuredState processes a structured state event from DirectBridge.

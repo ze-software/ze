@@ -5,7 +5,7 @@ package storage
 import (
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // PeerRIB is the Adj-RIB-In for one peer.
@@ -14,44 +14,44 @@ import (
 type PeerRIB struct {
 	peerAddr string
 	mu       sync.RWMutex
-	families map[nlri.Family]*FamilyRIB
-	addPath  map[nlri.Family]bool // ADD-PATH negotiated per family
+	families map[family.Family]*FamilyRIB
+	addPath  map[family.Family]bool // ADD-PATH negotiated per family
 }
 
 // NewPeerRIB creates a new PeerRIB for the given peer.
 func NewPeerRIB(peerAddr string) *PeerRIB {
 	return &PeerRIB{
 		peerAddr: peerAddr,
-		families: make(map[nlri.Family]*FamilyRIB),
-		addPath:  make(map[nlri.Family]bool),
+		families: make(map[family.Family]*FamilyRIB),
+		addPath:  make(map[family.Family]bool),
 	}
 }
 
 // SetAddPath configures ADD-PATH for a family.
 // Must be called before inserting routes for that family.
-func (r *PeerRIB) SetAddPath(family nlri.Family, enabled bool) {
+func (r *PeerRIB) SetAddPath(fam family.Family, enabled bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.addPath[family] = enabled
+	r.addPath[fam] = enabled
 }
 
 // Insert adds an NLRI with its attributes to the RIB.
 // Creates the family RIB if it doesn't exist.
-func (r *PeerRIB) Insert(family nlri.Family, attrBytes, nlriBytes []byte) {
+func (r *PeerRIB) Insert(fam family.Family, attrBytes, nlriBytes []byte) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	rib := r.getOrCreateFamily(family)
+	rib := r.getOrCreateFamily(fam)
 	rib.Insert(attrBytes, nlriBytes)
 }
 
 // Remove withdraws an NLRI from the RIB.
 // Returns true if the NLRI existed.
-func (r *PeerRIB) Remove(family nlri.Family, nlriBytes []byte) bool {
+func (r *PeerRIB) Remove(fam family.Family, nlriBytes []byte) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	rib, exists := r.families[family]
+	rib, exists := r.families[fam]
 	if !exists {
 		return false
 	}
@@ -61,11 +61,11 @@ func (r *PeerRIB) Remove(family nlri.Family, nlriBytes []byte) bool {
 // Lookup finds the RouteEntry for an NLRI.
 // Returns (entry, true) if found, (zero RouteEntry, false) otherwise.
 // The returned entry is a copy -- safe for read-only use.
-func (r *PeerRIB) Lookup(family nlri.Family, nlriBytes []byte) (RouteEntry, bool) {
+func (r *PeerRIB) Lookup(fam family.Family, nlriBytes []byte) (RouteEntry, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	rib, exists := r.families[family]
+	rib, exists := r.families[fam]
 	if !exists {
 		return RouteEntry{}, false
 	}
@@ -85,11 +85,11 @@ func (r *PeerRIB) Len() int {
 }
 
 // FamilyLen returns the number of NLRIs for a specific family.
-func (r *PeerRIB) FamilyLen(family nlri.Family) int {
+func (r *PeerRIB) FamilyLen(fam family.Family) int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	rib, exists := r.families[family]
+	rib, exists := r.families[fam]
 	if !exists {
 		return 0
 	}
@@ -98,14 +98,14 @@ func (r *PeerRIB) FamilyLen(family nlri.Family) int {
 
 // Iterate calls fn for each NLRI with its family and RouteEntry.
 // Stops if fn returns false.
-func (r *PeerRIB) Iterate(fn func(family nlri.Family, nlriBytes []byte, entry RouteEntry) bool) {
+func (r *PeerRIB) Iterate(fn func(fam family.Family, nlriBytes []byte, entry RouteEntry) bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	for family, rib := range r.families {
+	for fam, rib := range r.families {
 		shouldContinue := true
 		rib.IterateEntry(func(nlriBytes []byte, entry RouteEntry) bool {
-			shouldContinue = fn(family, nlriBytes, entry)
+			shouldContinue = fn(fam, nlriBytes, entry)
 			return shouldContinue
 		})
 		if !shouldContinue {
@@ -116,11 +116,11 @@ func (r *PeerRIB) Iterate(fn func(family nlri.Family, nlriBytes []byte, entry Ro
 
 // IterateFamily calls fn for each NLRI in a specific family.
 // Stops if fn returns false.
-func (r *PeerRIB) IterateFamily(family nlri.Family, fn func(nlriBytes []byte, entry RouteEntry) bool) {
+func (r *PeerRIB) IterateFamily(fam family.Family, fn func(nlriBytes []byte, entry RouteEntry) bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	rib, exists := r.families[family]
+	rib, exists := r.families[fam]
 	if !exists {
 		return
 	}
@@ -129,11 +129,11 @@ func (r *PeerRIB) IterateFamily(family nlri.Family, fn func(nlriBytes []byte, en
 
 // ModifyFamilyEntry calls fn with a pointer to the entry for the given NLRI in the given family.
 // fn may mutate the entry. Returns false if the NLRI does not exist.
-func (r *PeerRIB) ModifyFamilyEntry(family nlri.Family, nlriBytes []byte, fn func(entry *RouteEntry)) bool {
+func (r *PeerRIB) ModifyFamilyEntry(fam family.Family, nlriBytes []byte, fn func(entry *RouteEntry)) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	rib, exists := r.families[family]
+	rib, exists := r.families[fam]
 	if !exists {
 		return false
 	}
@@ -142,11 +142,11 @@ func (r *PeerRIB) ModifyFamilyEntry(family nlri.Family, nlriBytes []byte, fn fun
 
 // ModifyFamilyAll calls fn with a pointer to each entry in the given family.
 // fn may mutate entries.
-func (r *PeerRIB) ModifyFamilyAll(family nlri.Family, fn func(entry *RouteEntry)) {
+func (r *PeerRIB) ModifyFamilyAll(fam family.Family, fn func(entry *RouteEntry)) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if rib, exists := r.families[family]; exists {
+	if rib, exists := r.families[fam]; exists {
 		rib.ModifyAll(fn)
 	}
 }
@@ -159,7 +159,7 @@ func (r *PeerRIB) Clear() {
 	for _, rib := range r.families {
 		rib.Release()
 	}
-	r.families = make(map[nlri.Family]*FamilyRIB)
+	r.families = make(map[family.Family]*FamilyRIB)
 }
 
 // Release frees all pool handles and clears the RIB.
@@ -173,24 +173,24 @@ func (r *PeerRIB) PeerAddr() string {
 }
 
 // Families returns the list of families with routes.
-func (r *PeerRIB) Families() []nlri.Family {
+func (r *PeerRIB) Families() []family.Family {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	result := make([]nlri.Family, 0, len(r.families))
-	for family := range r.families {
-		result = append(result, family)
+	result := make([]family.Family, 0, len(r.families))
+	for fam := range r.families {
+		result = append(result, fam)
 	}
 	return result
 }
 
 // MarkFamilyStale marks all routes in a specific family at the given stale level.
 // No-op if the family doesn't exist.
-func (r *PeerRIB) MarkFamilyStale(family nlri.Family, level uint8) {
+func (r *PeerRIB) MarkFamilyStale(fam family.Family, level uint8) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if rib, exists := r.families[family]; exists {
+	if rib, exists := r.families[fam]; exists {
 		rib.MarkStale(level)
 	}
 }
@@ -208,11 +208,11 @@ func (r *PeerRIB) MarkAllStale(level uint8) {
 // PurgeFamilyStale deletes stale routes for a specific family.
 // Returns the number of routes purged. No-op if family doesn't exist.
 // RFC 4724 Section 4.2: purge stale routes on EOR receipt per family.
-func (r *PeerRIB) PurgeFamilyStale(family nlri.Family) int {
+func (r *PeerRIB) PurgeFamilyStale(fam family.Family) int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	rib, exists := r.families[family]
+	rib, exists := r.families[fam]
 	if !exists {
 		return 0
 	}
@@ -246,12 +246,12 @@ func (r *PeerRIB) StaleCount() int {
 
 // getOrCreateFamily returns the FamilyRIB, creating if needed.
 // Caller must hold write lock.
-func (r *PeerRIB) getOrCreateFamily(family nlri.Family) *FamilyRIB {
-	rib, exists := r.families[family]
+func (r *PeerRIB) getOrCreateFamily(fam family.Family) *FamilyRIB {
+	rib, exists := r.families[fam]
 	if !exists {
-		addPath := r.addPath[family]
-		rib = NewFamilyRIB(family, addPath)
-		r.families[family] = rib
+		addPath := r.addPath[fam]
+		rib = NewFamilyRIB(fam, addPath)
+		r.families[fam] = rib
 	}
 	return rib
 }

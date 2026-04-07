@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // --- Phase 1: Path matching ---
@@ -52,12 +52,12 @@ func TestPathMatchContiguous(t *testing.T) {
 func TestRouteItemFromInbound(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireCommunity)
 	nlriBytes := []byte{24, 10, 0, 0}
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	// Use the source iterator
@@ -269,11 +269,11 @@ func TestBuildPipeline(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Insert a test route
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	tests := []struct {
@@ -355,11 +355,11 @@ func TestShowPipelineBothDirections(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Add inbound route
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	// Add outbound route
@@ -386,11 +386,11 @@ func TestShowPipelineBothDirections(t *testing.T) {
 func TestShowPipelineReceivedScope(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
@@ -415,11 +415,11 @@ func TestShowPipelineReceivedScope(t *testing.T) {
 func TestShowPipelineSentScope(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
@@ -477,11 +477,11 @@ func TestShowPipelineComposed(t *testing.T) {
 func TestHandleCommandRibShow(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	status, data, err := r.handleCommand("rib show", "*", nil)
@@ -500,11 +500,11 @@ func TestHandleCommandRibShow(t *testing.T) {
 func TestHandleCommandRibShowCount(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	status, data, err := r.handleCommand("rib show", "*", []string{"count"})
@@ -650,12 +650,12 @@ func TestParsePipelineInvalidASN(t *testing.T) {
 func TestFilterMatchCrossFieldInEntry(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireCommunity, testWireMED100, testWireLocalPref100)
 	nlriBytes := []byte{24, 10, 0, 0}
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	// Match on AS-path value "65001"
@@ -719,11 +719,11 @@ func TestTerminalCountZero(t *testing.T) {
 func TestShowPipelineCountZeroWithFilter(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	// Path filter for ASN 99999 — no routes have this ASN
@@ -743,11 +743,11 @@ func TestShowPipelineExplicitSentReceived(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Add inbound route
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	// Add outbound route
@@ -778,20 +778,20 @@ func TestBestPipeline_WithFilter(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Two peers with routes to same prefix, different communities
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	nlri1 := []byte{24, 10, 0, 0}   // 10.0.0.0/24
 	nlri2 := []byte{24, 172, 16, 0} // 172.16.0.0/24
 
 	// Peer 1: 10.0.0.0/24 with community 65000:100
 	attr1 := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireCommunity)
 	peerRIB1 := storage.NewPeerRIB("192.0.2.1")
-	peerRIB1.Insert(family, attr1, nlri1)
+	peerRIB1.Insert(fam, attr1, nlri1)
 	r.ribInPool["192.0.2.1"] = peerRIB1
 
 	// Peer 2: 172.16.0.0/24 with no community (just origin + nexthop)
 	attr2 := concatBytes(testWireOriginIGP, testWireNextHop)
 	peerRIB2 := storage.NewPeerRIB("192.0.2.2")
-	peerRIB2.Insert(family, attr2, nlri2)
+	peerRIB2.Insert(fam, attr2, nlri2)
 	r.ribInPool["192.0.2.2"] = peerRIB2
 
 	// Best pipeline with community filter: should only return the route with 65000:100
@@ -815,15 +815,15 @@ func TestBestPipeline_WithFilter(t *testing.T) {
 func TestBestPipeline_CountTerminal(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	nlri1 := []byte{24, 10, 0, 0}   // 10.0.0.0/24
 	nlri2 := []byte{24, 172, 16, 0} // 172.16.0.0/24
 
 	// Single peer with two prefixes
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlri1)
-	peerRIB.Insert(family, attrBytes, nlri2)
+	peerRIB.Insert(fam, attrBytes, nlri1)
+	peerRIB.Insert(fam, attrBytes, nlri2)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	result := r.bestPipeline("*", []string{"count"})
@@ -912,11 +912,11 @@ func TestGraphTerminalViaPipeline(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Add routes with AS paths
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	result := r.showPipeline("*", []string{"received", "graph"})
@@ -935,11 +935,11 @@ func TestGraphTerminalViaPipeline(t *testing.T) {
 func TestGraphTerminalViaBestPipeline(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001)
 	nlriBytes := []byte{24, 10, 0, 0}
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attrBytes, nlriBytes)
+	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	result := r.bestPipeline("*", []string{"graph"})

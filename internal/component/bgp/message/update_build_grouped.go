@@ -18,6 +18,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // BuildGroupedUnicastWithLimit builds multiple UPDATEs if needed to respect size limit.
@@ -56,7 +57,7 @@ func (ub *UpdateBuilder) BuildGroupedUnicastWithLimit(routes []UnicastParams, ma
 	for i := range routes {
 		r := &routes[i]
 		// Calculate NLRI size and pack
-		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, r.Prefix, r.PathID)
+		inet := nlri.NewINET(family.IPv4Unicast, r.Prefix, r.PathID)
 		nlriLen := nlri.LenWithContext(inet, ub.AddPath)
 		nlriBytes := ub.alloc(nlriLen)
 		nlri.WriteNLRI(inet, nlriBytes, 0, ub.AddPath)

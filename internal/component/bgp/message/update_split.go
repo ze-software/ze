@@ -10,7 +10,7 @@ import (
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Errors for UPDATE splitting and bounds checking.
@@ -98,17 +98,17 @@ func SplitUpdateWithAddPath(u *Update, maxSize int, addPath bool) ([]*Update, er
 // ExtractMPFamily returns the address family from MP_REACH_NLRI or MP_UNREACH_NLRI
 // in raw PathAttributes bytes. Returns false if no MP attribute is found.
 // RFC 4760: MP attribute value starts with AFI(2) + SAFI(1).
-func ExtractMPFamily(pathAttrs []byte) (nlri.Family, bool) {
+func ExtractMPFamily(pathAttrs []byte) (family.Family, bool) {
 	// Try MP_REACH_NLRI first (type 14), then MP_UNREACH_NLRI (type 15).
 	for _, code := range []attribute.AttributeCode{attribute.AttrMPReachNLRI, attribute.AttrMPUnreachNLRI} {
 		info := findMPAttribute(pathAttrs, code)
 		if info.found && len(info.value) >= 3 {
-			afi := nlri.AFI(uint16(info.value[0])<<8 | uint16(info.value[1]))
-			safi := nlri.SAFI(info.value[2])
-			return nlri.Family{AFI: afi, SAFI: safi}, true
+			afi := family.AFI(uint16(info.value[0])<<8 | uint16(info.value[1]))
+			safi := family.SAFI(info.value[2])
+			return family.Family{AFI: afi, SAFI: safi}, true
 		}
 	}
-	return nlri.Family{}, false
+	return family.Family{}, false
 }
 
 // mpAttrInfo holds information about an MP attribute in PathAttributes.
@@ -344,7 +344,7 @@ func chunkIPv4NLRI(nlriData []byte, maxSize int, addPath bool) ([][]byte, error)
 
 	// Use family-aware chunker for both cases (it handles Add-Path correctly)
 	// AFI=IPv4, SAFI=Unicast
-	return ChunkMPNLRI(nlriData, nlri.AFIIPv4, nlri.SAFIUnicast, addPath, maxSize, nil)
+	return ChunkMPNLRI(nlriData, family.AFIIPv4, family.SAFIUnicast, addPath, maxSize, nil)
 }
 
 // =============================================================================
@@ -394,7 +394,7 @@ func SplitMPReachNLRIWithAddPath(mp *attribute.MPReachNLRI, maxAttrSize int, add
 	nlriSpace := maxAttrSize - overhead
 
 	// Use family-aware chunking
-	nlriChunks, err := ChunkMPNLRI(mp.NLRI, nlri.AFI(mp.AFI), nlri.SAFI(mp.SAFI), addPath, nlriSpace, nil)
+	nlriChunks, err := ChunkMPNLRI(mp.NLRI, family.AFI(mp.AFI), family.SAFI(mp.SAFI), addPath, nlriSpace, nil)
 	if err != nil {
 		return nil, fmt.Errorf("chunking MP_REACH_NLRI: %w", err)
 	}
@@ -452,7 +452,7 @@ func SplitMPUnreachNLRIWithAddPath(mp *attribute.MPUnreachNLRI, maxAttrSize int,
 	nlriSpace := maxAttrSize - overhead
 
 	// Use family-aware chunking
-	nlriChunks, err := ChunkMPNLRI(mp.NLRI, nlri.AFI(mp.AFI), nlri.SAFI(mp.SAFI), addPath, nlriSpace, nil)
+	nlriChunks, err := ChunkMPNLRI(mp.NLRI, family.AFI(mp.AFI), family.SAFI(mp.SAFI), addPath, nlriSpace, nil)
 	if err != nil {
 		return nil, fmt.Errorf("chunking MP_UNREACH_NLRI: %w", err)
 	}

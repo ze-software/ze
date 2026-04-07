@@ -96,7 +96,7 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*DecodingTest, error) {
 
 	scanner := bufio.NewScanner(f)
 
-	// Line 1: type [family]
+	// Line 1: type [fam]
 	if !scanner.Scan() {
 		return nil, fmt.Errorf("missing type line")
 	}
@@ -115,7 +115,7 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*DecodingTest, error) {
 	expectedJSON := strings.TrimSpace(scanner.Text())
 
 	// Parse type line: "update l2vpn/evpn" or "open"
-	msgType, family := parseTypeLine(typeLine)
+	msgType, fam := parseTypeLine(typeLine)
 
 	name := strings.TrimSuffix(filepath.Base(filePath), ".test")
 	nick := GenerateNick(name)
@@ -127,7 +127,7 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*DecodingTest, error) {
 		},
 		File:         filePath,
 		Type:         msgType,
-		Family:       family,
+		Family:       fam,
 		HexPayload:   hexPayload,
 		ExpectedJSON: expectedJSON,
 	}, nil

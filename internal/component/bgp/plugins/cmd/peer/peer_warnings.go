@@ -49,14 +49,14 @@ func HandleBgpWarnings(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 				"message": fmt.Sprintf("prefix data updated %s (>6 months old)", p.PrefixUpdated),
 			})
 		}
-		for _, family := range p.PrefixWarnings {
+		for _, fam := range p.PrefixWarnings {
 			warnings = append(warnings, map[string]any{
 				"peer":    label,
 				"address": p.Address.String(),
 				"as":      p.PeerAS,
 				"type":    "threshold-exceeded",
-				"family":  family,
-				"message": fmt.Sprintf("%s prefix count exceeds warning threshold", family),
+				"family":  fam,
+				"message": fmt.Sprintf("%s prefix count exceeds warning threshold", fam),
 			})
 		}
 	}

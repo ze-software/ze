@@ -10,29 +10,31 @@ import (
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Type aliases for shared nlri types.
 type (
-	Family             = nlri.Family
-	AFI                = nlri.AFI
-	SAFI               = nlri.SAFI
+	Family             = family.Family
+	AFI                = family.AFI
+	SAFI               = family.SAFI
 	NLRI               = nlri.NLRI
 	RouteDistinguisher = nlri.RouteDistinguisher
 )
 
 // Re-export constants and variables.
 const (
-	AFIIPv4  = nlri.AFIIPv4
-	AFIIPv6  = nlri.AFIIPv6
-	SAFIMVPN = nlri.SAFIMVPN
+	AFIIPv4  = family.AFIIPv4
+	AFIIPv6  = family.AFIIPv6
+	SAFIMVPN = family.SAFIMVPN
 	RDType0  = nlri.RDType0
 	RDType1  = nlri.RDType1
 )
 
+// Family registrations for MVPN.
 var (
-	IPv4MVPN = nlri.IPv4MVPN
-	IPv6MVPN = nlri.IPv6MVPN
+	IPv4MVPN = family.MustRegister(AFIIPv4, SAFIMVPN, "ipv4", "mvpn")
+	IPv6MVPN = family.MustRegister(AFIIPv6, SAFIMVPN, "ipv6", "mvpn")
 )
 
 // Errors for MVPN parsing.

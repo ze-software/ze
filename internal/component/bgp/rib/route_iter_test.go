@@ -9,6 +9,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestRouteAttrIterator verifies Route exposes attribute iterator.
@@ -17,7 +18,7 @@ import (
 // PREVENTS: Inability to iterate attributes without parsed slice.
 func TestRouteAttrIterator(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Build wire bytes for ORIGIN + MED
@@ -53,7 +54,7 @@ func TestRouteAttrIterator(t *testing.T) {
 // PREVENTS: Panic on routes without wire cache.
 func TestRouteAttrIteratorNoWireBytes(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Route without wire cache
@@ -70,7 +71,7 @@ func TestRouteAttrIteratorNoWireBytes(t *testing.T) {
 // PREVENTS: Inability to iterate AS-PATH without parsed struct.
 func TestRouteASPathIterator(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Build wire bytes with AS_PATH attribute
@@ -116,7 +117,7 @@ func TestRouteASPathIterator(t *testing.T) {
 // PREVENTS: Panic on routes without AS-PATH.
 func TestRouteASPathIteratorNoASPath(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Wire bytes with only ORIGIN, no AS_PATH
@@ -136,7 +137,7 @@ func TestRouteASPathIteratorNoASPath(t *testing.T) {
 // PREVENTS: Hidden allocations defeating zero-copy goal.
 func TestRouteZeroCopy(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	wireBytes := []byte{

@@ -6,12 +6,12 @@ Fix End-of-RIB marker logic to send EOR only for address families where routes w
 
 ## Decisions
 
-- Chose to track families via a `map[nlri.Family]bool` (`familiesSent`) populated as routes are sent, then iterate the map at the end to send EORs. Simple and local to `sendInitialRoutes`.
+- Chose to track families via a `map[family.Family]bool` (`familiesSent`) populated as routes are sent, then iterate the map at the end to send EORs. Simple and local to `sendInitialRoutes`.
 - RFC 4724 says EOR MUST be sent even for families with no updates, but the implementation intentionally deviates to match ExaBGP encoding test expectations. This is a practical optimization.
 
 ## Patterns
 
-- `routeFamily(route StaticRoute) nlri.Family` helper function extracts the NLRI family from a route, needed for both family tracking and pack context selection.
+- `routeFamily(route StaticRoute) family.Family` helper function extracts the NLRI family from a route, needed for both family tracking and pack context selection.
 
 ## Gotchas
 

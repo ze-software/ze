@@ -20,10 +20,10 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -744,8 +744,8 @@ func parseStructuredRefresh(se *rpc.StructuredEvent, msg *bgptypes.RawMessage) *
 	}
 	afi := uint16(msg.RawBytes[0])<<8 | uint16(msg.RawBytes[1])
 	safi := msg.RawBytes[3]
-	family := nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)}.String()
-	afiStr, safiStr, ok := strings.Cut(family, "/")
+	famStr := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}.String()
+	afiStr, safiStr, ok := strings.Cut(famStr, "/")
 	if !ok {
 		return nil
 	}

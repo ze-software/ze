@@ -1,0 +1,41 @@
+# Test: family registration -- config uses canonical names registered by plugins
+# Validates that ipv4/unicast, ipv6/unicast, ipv4/mpls-vpn, ipv4/flow, l2vpn/evpn, ipv4/mpls-label
+# are all accepted by the parser via the nlri registry (no hardcoded family map).
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 10.0.200.1
+			}
+			local {
+				ip 3.3.3.3
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.1
+			}
+			nlri {
+				ipv4/unicast add 9.9.9.9/32
+				ipv6/unicast add 2001:db8::/32
+				ipv4/mpls-vpn add rd 65000:100 label 100 10.99.0.0/24
+				ipv4/flow add destination 10.0.0.0/24
+				ipv4/mpls-label add label 100 10.10.0.0/24
+				l2vpn/evpn eor
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

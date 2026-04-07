@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // NLRI operation keywords.
@@ -139,11 +139,11 @@ func extractRoutesFromUpdateBlock(update *config.Tree) (*UpdateBlockRoutes, erro
 	}
 
 	for _, nlriEntry := range nlriEntries {
-		family := config.StripListKeySuffix(nlriEntry.Key)
+		famName := config.StripListKeySuffix(nlriEntry.Key)
 		content, _ := nlriEntry.Value.Get("content")
-		line := family
+		line := famName
 		if content != "" {
-			line = family + " " + content
+			line = famName + " " + content
 		}
 		parts := strings.Fields(line)
 		if len(parts) == 0 {
@@ -151,7 +151,7 @@ func extractRoutesFromUpdateBlock(update *config.Tree) (*UpdateBlockRoutes, erro
 		}
 
 		// Handle complex NLRI families specially
-		switch family {
+		switch famName {
 		case "ipv4/flow", "ipv6/flow", "ipv4/flow-vpn", "ipv6/flow-vpn":
 			fr, err := parseFlowSpecNLRILine(line, attr)
 			if err != nil {
@@ -191,9 +191,9 @@ func extractRoutesFromUpdateBlock(update *config.Tree) (*UpdateBlockRoutes, erro
 		//   ipv4/mpls-vpn add rd 65000:100 label 100 10.0.0.0/24;
 		remaining := parts[1:]
 
-		// Validate family
-		if _, ok := message.FamilyConfigNames[family]; !ok {
-			return nil, fmt.Errorf("invalid family: %s", family)
+		// Validate family is registered
+		if _, ok := family.LookupFamily(famName); !ok {
+			return nil, fmt.Errorf("invalid family: %s", famName)
 		}
 
 		if len(remaining) == 0 {
@@ -203,7 +203,7 @@ func extractRoutesFromUpdateBlock(update *config.Tree) (*UpdateBlockRoutes, erro
 		// Operation keyword (add/del/eor) is mandatory
 		op := remaining[0]
 		if op != opAdd && op != opDel && op != opEor {
-			return nil, fmt.Errorf("missing operation keyword (add/del/eor) for family %s, got %q", family, op)
+			return nil, fmt.Errorf("missing operation keyword (add/del/eor) for family %s, got %q", famName, op)
 		}
 		remaining = remaining[1:]
 

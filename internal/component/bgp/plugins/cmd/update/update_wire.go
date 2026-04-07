@@ -17,6 +17,7 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
@@ -74,7 +75,7 @@ func ParseUpdateWire(args []string, encoding plugin.WireEncoding) (*bgptypes.Upd
 			return nil, ErrPathInfoWireMode
 
 		case kwNLRI:
-			family, announce, withdraw, consumed, err := parseWireNLRISection(args[i:], decode)
+			fam, announce, withdraw, consumed, err := parseWireNLRISection(args[i:], decode)
 			if err != nil {
 				return nil, err
 			}
@@ -91,7 +92,7 @@ func ParseUpdateWire(args []string, encoding plugin.WireEncoding) (*bgptypes.Upd
 			}
 
 			groups = append(groups, bgptypes.NLRIGroup{
-				Family:   family,
+				Family:   fam,
 				Announce: announce,
 				Withdraw: withdraw,
 				Wire:     wire,
@@ -253,15 +254,15 @@ func parseIPFromBytes(b []byte) (netip.Addr, error) {
 
 // parseWireNLRISection parses nlri <family> [addpath] add <data>... [del <data>...]...
 // Returns family, announce list, withdraw list, consumed count, error.
-func parseWireNLRISection(args []string, decode decodeFunc) (nlri.Family, []nlri.NLRI, []nlri.NLRI, int, error) {
+func parseWireNLRISection(args []string, decode decodeFunc) (family.Family, []nlri.NLRI, []nlri.NLRI, int, error) {
 	// args[0] = "nlri"
 	if len(args) < 2 {
-		return nlri.Family{}, nil, nil, 0, route.ErrInvalidFamily
+		return family.Family{}, nil, nil, 0, route.ErrInvalidFamily
 	}
 
-	family, ok := nlri.ParseFamily(args[1])
+	fam, ok := family.LookupFamily(args[1])
 	if !ok {
-		return nlri.Family{}, nil, nil, 0, fmt.Errorf("%w: %s", route.ErrInvalidFamily, args[1])
+		return family.Family{}, nil, nil, 0, fmt.Errorf("%w: %s", route.ErrInvalidFamily, args[1])
 	}
 
 	consumed := 2 // "nlri" + family
@@ -302,19 +303,19 @@ func parseWireNLRISection(args []string, decode decodeFunc) (nlri.Family, []nlri
 
 		// Must have a mode before data
 		if mode == "" {
-			return nlri.Family{}, nil, nil, 0, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
+			return family.Family{}, nil, nil, 0, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
 		}
 
 		// Decode wire data
 		bytes, err := decode(token)
 		if err != nil {
-			return nlri.Family{}, nil, nil, 0, fmt.Errorf("invalid nlri data: %w", err)
+			return family.Family{}, nil, nil, 0, fmt.Errorf("invalid nlri data: %w", err)
 		}
 
 		// Split into individual NLRIs
-		nlris, err := splitWireNLRIs(bytes, family, addPath)
+		nlris, err := splitWireNLRIs(bytes, fam, addPath)
 		if err != nil {
-			return nlri.Family{}, nil, nil, 0, fmt.Errorf("failed to split NLRIs for %s: %w", family, err)
+			return family.Family{}, nil, nil, 0, fmt.Errorf("failed to split NLRIs for %s: %w", fam, err)
 		}
 
 		if mode == kwAdd {
@@ -329,20 +330,20 @@ func parseWireNLRISection(args []string, decode decodeFunc) (nlri.Family, []nlri
 
 	// Must have at least one NLRI
 	if len(announce) == 0 && len(withdraw) == 0 {
-		return nlri.Family{}, nil, nil, 0, route.ErrEmptyNLRISection
+		return family.Family{}, nil, nil, 0, route.ErrEmptyNLRISection
 	}
 
-	return family, announce, withdraw, consumed, nil
+	return fam, announce, withdraw, consumed, nil
 }
 
 // splitWireNLRIs splits concatenated wire-encoded NLRIs into individual NLRI objects.
 // Uses GetNLRISizeFunc for family-specific boundary detection.
-func splitWireNLRIs(data []byte, family nlri.Family, addPath bool) ([]nlri.NLRI, error) {
+func splitWireNLRIs(data []byte, fam family.Family, addPath bool) ([]nlri.NLRI, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
 
-	sizeFunc := message.GetNLRISizeFunc(family.AFI, family.SAFI, addPath)
+	sizeFunc := message.GetNLRISizeFunc(fam.AFI, fam.SAFI, addPath)
 	var result []nlri.NLRI
 	offset := 0
 
@@ -359,7 +360,7 @@ func splitWireNLRIs(data []byte, family nlri.Family, addPath bool) ([]nlri.NLRI,
 		nlriBytes := data[offset : offset+size]
 
 		// Wrap in WireNLRI
-		wn, err := nlri.NewWireNLRI(family, nlriBytes, addPath)
+		wn, err := nlri.NewWireNLRI(fam, nlriBytes, addPath)
 		if err != nil {
 			return nil, err
 		}

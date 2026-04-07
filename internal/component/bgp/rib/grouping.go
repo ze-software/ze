@@ -8,13 +8,14 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // RouteGroup represents routes that share identical attributes.
 // Routes in the same group can be sent in a single UPDATE message.
 type RouteGroup struct {
 	Key        string                // Unique key for this attribute set
-	Family     nlri.Family           // Address family
+	Family     family.Family         // Address family
 	NextHop    []byte                // Next-hop address bytes
 	Attributes []attribute.Attribute // Shared path attributes
 	Routes     []*Route              // Routes in this group
@@ -27,7 +28,7 @@ type RouteGroup struct {
 // but may have different AS_PATHs and are thus split into separate ASPathGroups.
 type AttributeGroup struct {
 	Key        string                // Family + NextHop + Attributes hash (excludes AS_PATH)
-	Family     nlri.Family           // Address family
+	Family     family.Family         // Address family
 	NextHop    []byte                // Next-hop address bytes
 	Attributes []attribute.Attribute // Shared path attributes (memory efficient reference)
 	ByASPath   []ASPathGroup         // Level 2 sub-groups by AS_PATH
@@ -104,10 +105,10 @@ func buildGroupKey(route *Route) string {
 	var buf bytes.Buffer
 
 	// Family
-	family := route.NLRI().Family()
-	buf.WriteByte(byte(family.AFI >> 8))
-	buf.WriteByte(byte(family.AFI))
-	buf.WriteByte(byte(family.SAFI))
+	fam := route.NLRI().Family()
+	buf.WriteByte(byte(fam.AFI >> 8))
+	buf.WriteByte(byte(fam.AFI))
+	buf.WriteByte(byte(fam.SAFI))
 
 	// Next-hop
 	if nh := route.NextHop(); nh.IsValid() {

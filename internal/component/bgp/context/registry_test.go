@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestRegistryRegister_NewContext verifies that Register returns a new ID.
@@ -48,7 +48,7 @@ func TestRegistryRegister_Dedup(t *testing.T) {
 	encoding := &capability.EncodingCaps{
 		ASN4: true,
 		AddPathMode: map[capability.Family]capability.AddPathMode{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathBoth,
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: capability.AddPathBoth,
 		},
 	}
 

@@ -6,13 +6,13 @@ package storage
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // NLRIToPrefix converts NLRI wire bytes to a netip.Prefix for use as BART trie key.
 // Wire format: [prefix-len:1][prefix-bytes:0-16].
 // Returns ok=false if the bytes are malformed or the family is not IPv4/IPv6.
-func NLRIToPrefix(family nlri.Family, nlriBytes []byte) (netip.Prefix, bool) {
+func NLRIToPrefix(fam family.Family, nlriBytes []byte) (netip.Prefix, bool) {
 	if len(nlriBytes) == 0 {
 		return netip.Prefix{}, false
 	}
@@ -25,7 +25,7 @@ func NLRIToPrefix(family nlri.Family, nlriBytes []byte) (netip.Prefix, bool) {
 		return netip.Prefix{}, false
 	}
 
-	if family.AFI == nlri.AFIIPv4 {
+	if fam.AFI == family.AFIIPv4 {
 		if prefixLen > 32 {
 			return netip.Prefix{}, false
 		}
@@ -34,7 +34,7 @@ func NLRIToPrefix(family nlri.Family, nlriBytes []byte) (netip.Prefix, bool) {
 		return netip.PrefixFrom(netip.AddrFrom4(ip4), prefixLen), true
 	}
 
-	if family.AFI == nlri.AFIIPv6 {
+	if fam.AFI == family.AFIIPv6 {
 		if prefixLen > 128 {
 			return netip.Prefix{}, false
 		}

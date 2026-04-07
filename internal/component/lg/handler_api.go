@@ -125,18 +125,18 @@ func (s *LGServer) handleAPIRoutesPeer(w http.ResponseWriter, r *http.Request) {
 
 // handleAPIRoutesTable returns best routes by address family.
 func (s *LGServer) handleAPIRoutesTable(w http.ResponseWriter, r *http.Request) {
-	family := r.PathValue("family")
-	if family == "" {
+	fam := r.PathValue("family")
+	if fam == "" {
 		writeJSONError(w, http.StatusBadRequest, "family required")
 		return
 	}
 
-	if !isValidFamily(family) {
+	if !isValidFamily(fam) {
 		writeJSONError(w, http.StatusBadRequest, "invalid address family")
 		return
 	}
 
-	result := s.query(fmt.Sprintf("rib show best %s", family))
+	result := s.query(fmt.Sprintf("rib show best %s", fam))
 
 	zeData := parseJSON(result)
 	if zeData == nil {

@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestMPReachWireIPv6 verifies IPv6 unicast MP_REACH_NLRI parsing.
@@ -43,9 +43,9 @@ func TestMPReachWireIPv6(t *testing.T) {
 	}
 
 	// Test Family
-	wantFamily := nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}
-	if family := wire.Family(); family != wantFamily {
-		t.Errorf("Family() = %v, want %v", family, wantFamily)
+	wantFamily := family.IPv6Unicast
+	if fam := wire.Family(); fam != wantFamily {
+		t.Errorf("Family() = %v, want %v", fam, wantFamily)
 	}
 
 	// Test NextHop
@@ -191,9 +191,9 @@ func TestMPUnreachWireIPv6(t *testing.T) {
 		t.Errorf("SAFI() = %d, want 1", safi)
 	}
 
-	wantFamily := nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}
-	if family := wire.Family(); family != wantFamily {
-		t.Errorf("Family() = %v, want %v", family, wantFamily)
+	wantFamily := family.IPv6Unicast
+	if fam := wire.Family(); fam != wantFamily {
+		t.Errorf("Family() = %v, want %v", fam, wantFamily)
 	}
 
 	prefixes := wire.Prefixes()
@@ -340,7 +340,7 @@ func TestMPReachWireNLRIs(t *testing.T) {
 	}
 
 	// Verify family
-	wantFamily := nlri.IPv4Unicast
+	wantFamily := family.IPv4Unicast
 	if n.Family() != wantFamily {
 		t.Errorf("Family() = %v, want %v", n.Family(), wantFamily)
 	}
@@ -585,7 +585,7 @@ func TestMPReachWireNLRIs_IPv6AddPath(t *testing.T) {
 		t.Errorf("PathID() = %d, want 5", n.PathID())
 	}
 
-	wantFamily := nlri.IPv6Unicast
+	wantFamily := family.IPv6Unicast
 	if n.Family() != wantFamily {
 		t.Errorf("Family() = %v, want %v", n.Family(), wantFamily)
 	}
@@ -609,18 +609,25 @@ func FuzzParseNLRIs(f *testing.F) {
 	f.Add([]byte{0, 0, 0, 1}, true)                              // Truncated (only path-id)
 	f.Add([]byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}, false) // IPv6 prefix
 
-	f.Fuzz(func(t *testing.T, data []byte, hasAddPath bool) {
+	f.Fuzz(func(_ *testing.T, data []byte, hasAddPath bool) {
+		// Fuzz: only testing no-panic, errors are expected for random input
+		var err error
+
 		// Test IPv4 unicast - MUST NOT panic
-		_, _ = ParseNLRIs(data, nlri.IPv4Unicast, hasAddPath)
+		_, err = ParseNLRIs(data, family.IPv4Unicast, hasAddPath)
+		_ = err
 
 		// Test IPv6 unicast - MUST NOT panic
-		_, _ = ParseNLRIs(data, nlri.IPv6Unicast, hasAddPath)
+		_, err = ParseNLRIs(data, family.IPv6Unicast, hasAddPath)
+		_ = err
 
 		// Test IPv4 multicast - MUST NOT panic
-		_, _ = ParseNLRIs(data, nlri.IPv4Multicast, hasAddPath)
+		_, err = ParseNLRIs(data, family.IPv4Multicast, hasAddPath)
+		_ = err
 
 		// Test IPv6 multicast - MUST NOT panic
-		_, _ = ParseNLRIs(data, nlri.IPv6Multicast, hasAddPath)
+		_, err = ParseNLRIs(data, family.IPv6Multicast, hasAddPath)
+		_ = err
 	})
 }
 

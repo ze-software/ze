@@ -16,14 +16,15 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Type aliases for nlri types used by FlowSpec.
 // This allows the flowspec package to be self-contained while reusing nlri definitions.
 type (
-	Family             = nlri.Family
-	AFI                = nlri.AFI
-	SAFI               = nlri.SAFI
+	Family             = family.Family
+	AFI                = family.AFI
+	SAFI               = family.SAFI
 	RouteDistinguisher = nlri.RouteDistinguisher
 )
 
@@ -32,21 +33,21 @@ type RDType = nlri.RDType
 
 // Re-export constants from nlri for local use.
 const (
-	AFIIPv4         = nlri.AFIIPv4
-	AFIIPv6         = nlri.AFIIPv6
-	SAFIFlowSpec    = nlri.SAFIFlowSpec
-	SAFIFlowSpecVPN = nlri.SAFIFlowSpecVPN
+	AFIIPv4         = family.AFIIPv4
+	AFIIPv6         = family.AFIIPv6
+	SAFIFlowSpec    = family.SAFIFlowSpec
+	SAFIFlowSpecVPN = family.SAFIFlowSpecVPN
 	RDType0         = nlri.RDType0
 	RDType1         = nlri.RDType1
 	RDType2         = nlri.RDType2
 )
 
-// Re-export family constants from nlri.
+// Family registrations for FlowSpec.
 var (
-	IPv4FlowSpec    = nlri.IPv4FlowSpec
-	IPv6FlowSpec    = nlri.IPv6FlowSpec
-	IPv4FlowSpecVPN = nlri.IPv4FlowSpecVPN
-	IPv6FlowSpecVPN = nlri.IPv6FlowSpecVPN
+	IPv4FlowSpec    = family.MustRegister(AFIIPv4, SAFIFlowSpec, "ipv4", "flow")
+	IPv6FlowSpec    = family.MustRegister(AFIIPv6, SAFIFlowSpec, "ipv6", "flow")
+	IPv4FlowSpecVPN = family.MustRegister(AFIIPv4, SAFIFlowSpecVPN, "ipv4", "flow-vpn")
+	IPv6FlowSpecVPN = family.MustRegister(AFIIPv6, SAFIFlowSpecVPN, "ipv6", "flow-vpn")
 )
 
 // ParseRouteDistinguisher parses an 8-byte Route Distinguisher.
@@ -237,9 +238,9 @@ type FlowSpec struct {
 }
 
 // NewFlowSpec creates a new FlowSpec NLRI.
-func NewFlowSpec(family Family) *FlowSpec {
+func NewFlowSpec(fam Family) *FlowSpec {
 	return &FlowSpec{
-		family:     family,
+		family:     fam,
 		components: make([]FlowComponent, 0, 4),
 	}
 }
@@ -362,7 +363,7 @@ func (f *FlowSpec) ComponentString() string {
 // RFC 8955 Section 4.1 defines length encoding:
 // - Single octet if < 240.
 // - Two octets (0xfnnn format) if >= 240.
-func ParseFlowSpec(family Family, data []byte) (*FlowSpec, error) {
+func ParseFlowSpec(fam Family, data []byte) (*FlowSpec, error) {
 	if len(data) == 0 {
 		return nil, ErrFlowSpecTruncated
 	}
@@ -383,14 +384,14 @@ func ParseFlowSpec(family Family, data []byte) (*FlowSpec, error) {
 		return nil, ErrFlowSpecTruncated
 	}
 
-	fs := NewFlowSpec(family)
+	fs := NewFlowSpec(fam)
 	remaining := data[offset : offset+nlriLen]
 
 	// Parse components - RFC 8955 Section 4.2:
 	// "A specific packet is considered to match the Flow Specification when
 	// it matches the intersection (AND) of all the components present"
 	for len(remaining) > 0 {
-		comp, rest, err := parseFlowComponent(remaining, family)
+		comp, rest, err := parseFlowComponent(remaining, fam)
 		if err != nil {
 			return nil, err
 		}
@@ -404,7 +405,7 @@ func ParseFlowSpec(family Family, data []byte) (*FlowSpec, error) {
 // parseFlowComponent parses a single FlowSpec component.
 // RFC 8955 Section 4.2.2: "The encoding of each of the components begins
 // with a type field (1 octet) followed by a variable length parameter.".
-func parseFlowComponent(data []byte, family Family) (FlowComponent, []byte, error) {
+func parseFlowComponent(data []byte, fam Family) (FlowComponent, []byte, error) {
 	if len(data) == 0 {
 		return nil, nil, ErrFlowSpecTruncated
 	}
@@ -414,7 +415,7 @@ func parseFlowComponent(data []byte, family Family) (FlowComponent, []byte, erro
 	switch compType {
 	case FlowDestPrefix, FlowSourcePrefix:
 		// Type 1-2: Prefix components (RFC 8955 Section 4.2.2.1-2)
-		return parsePrefixComponent(compType, data[1:], family)
+		return parsePrefixComponent(compType, data[1:], fam)
 	case FlowIPProtocol, FlowPort, FlowDestPort, FlowSourcePort,
 		FlowICMPType, FlowICMPCode, FlowTCPFlags, FlowPacketLength,
 		FlowDSCP, FlowFragment, FlowFlowLabel:

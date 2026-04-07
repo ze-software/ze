@@ -207,19 +207,19 @@ func (s *Session) validateUpdateFamilies(body []byte) error {
 
 			afi := capability.AFI(binary.BigEndian.Uint16(attrData[0:2]))
 			safi := capability.SAFI(attrData[2])
-			family := capability.Family{AFI: afi, SAFI: safi}
+			fam := capability.Family{AFI: afi, SAFI: safi}
 
 			neg := s.Negotiated()
-			if neg != nil && !neg.SupportsFamily(family) {
+			if neg != nil && !neg.SupportsFamily(fam) {
 				// Family not negotiated - check if we should ignore
-				shouldIgnore := s.settings.IgnoreFamilyMismatch || s.shouldIgnoreFamily(family)
+				shouldIgnore := s.settings.IgnoreFamilyMismatch || s.shouldIgnoreFamily(fam)
 				if shouldIgnore {
 					// Lenient mode: log warning and skip
 					sessionLogger().Debug("UPDATE family mismatch ignored", "afi", afi, "safi", safi)
 				} else {
 					// Strict mode: return error
 					sessionLogger().Debug("UPDATE family mismatch rejected", "afi", afi, "safi", safi)
-					return fmt.Errorf("%w: %s", ErrFamilyNotNegotiated, family)
+					return fmt.Errorf("%w: %s", ErrFamilyNotNegotiated, fam)
 				}
 			}
 		}

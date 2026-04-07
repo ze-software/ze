@@ -35,6 +35,7 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
@@ -133,7 +134,7 @@ type nlriAccum struct {
 
 // nlriParseResult holds the return values from NLRI section parsing.
 type nlriParseResult struct {
-	Family   nlri.Family
+	Family   family.Family
 	Announce []nlri.NLRI
 	Withdraw []nlri.NLRI
 	Watchdog string
@@ -473,7 +474,7 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 
 	var attrs parsedAttrs
 	var groups []bgptypes.NLRIGroup
-	var eorFamilies []nlri.Family
+	var eorFamilies []family.Family
 	var watchdog string
 	seenNLRI := false
 	i := 0
@@ -691,8 +692,8 @@ func handleUpdateText(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	// Handle EOR markers (RFC 4724)
 	peerSelector := ctx.PeerSelector()
 	var eorSent int
-	for _, family := range result.EORFamilies {
-		if err := bgpReactor.AnnounceEOR(peerSelector, uint16(family.AFI), uint8(family.SAFI)); err != nil {
+	for _, fam := range result.EORFamilies {
+		if err := bgpReactor.AnnounceEOR(peerSelector, uint16(fam.AFI), uint8(fam.SAFI)); err != nil {
 			return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err
 		}
 		eorSent++

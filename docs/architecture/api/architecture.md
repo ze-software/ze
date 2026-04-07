@@ -587,7 +587,7 @@ type UpdateTextResult struct {
 }
 
 type NLRIGroup struct {
-    Family   nlri.Family    // ipv4/unicast, ipv6/unicast, etc.
+    Family   family.Family    // ipv4/unicast, ipv6/unicast, etc.
     Announce []nlri.NLRI    // Prefixes to announce
     Withdraw []nlri.NLRI    // Prefixes to withdraw
     Attrs    PathAttributes // Snapshot of attributes at this point

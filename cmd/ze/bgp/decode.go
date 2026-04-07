@@ -34,7 +34,7 @@ func cmdDecode(args []string) int {
 	openMsg := fs.Bool("open", false, "decode as OPEN message")
 	updateMsg := fs.Bool("update", false, "decode as UPDATE message")
 	nlriFamily := fs.String("nlri", "", "decode as NLRI with family (e.g., 'ipv4/flow')")
-	family := fs.String("f", "", "address family for UPDATE (e.g., 'ipv4/unicast', 'l2vpn/evpn')")
+	fam := fs.String("f", "", "address family for UPDATE (e.g., 'ipv4/unicast', 'l2vpn/evpn')")
 	outputJSON := fs.Bool("json", false, "output JSON instead of human-readable format")
 	var plugins pluginFlags
 	fs.Var(&plugins, "plugin", "plugin for capability/NLRI decoding (e.g., ze.hostname, flowspec)")
@@ -90,7 +90,7 @@ func cmdDecode(args []string) int {
 	}
 
 	// Use nlriFamily for NLRI mode, fall back to -f flag
-	familyStr := *family
+	familyStr := *fam
 	if *nlriFamily != "" {
 		familyStr = *nlriFamily
 	}

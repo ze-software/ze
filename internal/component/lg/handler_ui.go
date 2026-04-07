@@ -88,29 +88,29 @@ func (s *LGServer) handleUISearch(w http.ResponseWriter, r *http.Request) {
 	prefix := r.FormValue("prefix")
 	aspath := r.FormValue("aspath")
 	community := r.FormValue("community")
-	family := r.FormValue("family")
+	fam := r.FormValue("family")
 
 	if prefix == "" && aspath == "" && community == "" {
 		s.renderSearchError(w, r, "enter at least one filter (prefix, AS path, or community)",
-			prefix, aspath, community, family)
+			prefix, aspath, community, fam)
 		return
 	}
 
 	// Validate each provided filter.
 	if prefix != "" && !isValidPrefix(prefix) {
-		s.renderSearchError(w, r, "invalid prefix format", prefix, aspath, community, family)
+		s.renderSearchError(w, r, "invalid prefix format", prefix, aspath, community, fam)
 		return
 	}
 	if aspath != "" && !isValidASPathPattern(aspath) {
-		s.renderSearchError(w, r, "invalid AS path pattern", prefix, aspath, community, family)
+		s.renderSearchError(w, r, "invalid AS path pattern", prefix, aspath, community, fam)
 		return
 	}
 	if community != "" && !isValidCommunity(community) {
-		s.renderSearchError(w, r, "invalid community format (use ASN:value)", prefix, aspath, community, family)
+		s.renderSearchError(w, r, "invalid community format (use ASN:value)", prefix, aspath, community, fam)
 		return
 	}
-	if family != "" && !isValidFamily(family) {
-		s.renderSearchError(w, r, "invalid address family", prefix, aspath, community, family)
+	if fam != "" && !isValidFamily(fam) {
+		s.renderSearchError(w, r, "invalid address family", prefix, aspath, community, fam)
 		return
 	}
 
@@ -125,8 +125,8 @@ func (s *LGServer) handleUISearch(w http.ResponseWriter, r *http.Request) {
 	if community != "" {
 		cmd += " community " + community
 	}
-	if family != "" {
-		cmd += " family " + family
+	if fam != "" {
+		cmd += " family " + fam
 	}
 
 	result := s.query(cmd)
@@ -143,7 +143,7 @@ func (s *LGServer) handleUISearch(w http.ResponseWriter, r *http.Request) {
 		"Prefix":    prefix,
 		"ASPath":    aspath,
 		"Community": community,
-		"Family":    family,
+		"Family":    fam,
 		"Routes":    routes,
 		"Count":     len(routes),
 		"Error":     engineError(zeData),
@@ -317,14 +317,14 @@ func flattenPrefixSummary(ze map[string]any) []map[string]any {
 	}
 
 	var rows []map[string]any
-	for family, byLen := range summary {
+	for fam, byLen := range summary {
 		lenMap, ok := byLen.(map[string]any)
 		if !ok {
 			continue
 		}
 		for length, count := range lenMap {
 			rows = append(rows, map[string]any{
-				"Family": family,
+				"Family": fam,
 				"Length": length,
 				"Count":  count,
 			})

@@ -12,9 +12,9 @@ package rib
 import (
 	"encoding/json"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -72,12 +72,12 @@ func prefixBytesForDisplay(nlriBytes []byte, addPath bool) []byte {
 // Compares with the previous best and returns a change entry if the best path changed.
 // addPath indicates whether nlriBytes includes a 4-byte path-ID prefix.
 // Caller MUST hold r.mu (write lock).
-func (r *RIBManager) checkBestPathChange(family nlri.Family, nlriBytes []byte, addPath bool) *bestChangeEntry {
-	familyStr := family.String()
+func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, addPath bool) *bestChangeEntry {
+	familyStr := fam.String()
 	key := bestPathKey{Family: familyStr, NLRI: string(nlriBytes)}
 
 	// Gather candidates from all peers for this prefix.
-	candidates := r.gatherCandidates(family, nlriBytes)
+	candidates := r.gatherCandidates(fam, nlriBytes)
 	newBest := SelectBest(candidates)
 
 	prev := r.bestPrev[key]
@@ -100,7 +100,7 @@ func (r *RIBManager) checkBestPathChange(family nlri.Family, nlriBytes []byte, a
 	}
 
 	// Extract next-hop, priority, and protocol type from the new best.
-	nextHop := r.bestCandidateNextHop(family, nlriBytes, newBest)
+	nextHop := r.bestCandidateNextHop(fam, nlriBytes, newBest)
 	priority := r.adminDistance(newBest)
 	protoType := r.protocolType(newBest)
 	metric := newBest.MED
@@ -173,12 +173,12 @@ func (r *RIBManager) adminDistance(c *Candidate) int {
 // For IPv4, reads from the NEXT_HOP attribute (code 3).
 // For IPv6 and other MP families, extracts from MP_REACH_NLRI (code 14) in OtherAttrs.
 // Caller MUST hold r.mu (at least read lock).
-func (r *RIBManager) bestCandidateNextHop(family nlri.Family, nlriBytes []byte, best *Candidate) string {
+func (r *RIBManager) bestCandidateNextHop(fam family.Family, nlriBytes []byte, best *Candidate) string {
 	peerRIB := r.ribInPool[best.PeerAddr]
 	if peerRIB == nil {
 		return ""
 	}
-	entry, ok := peerRIB.Lookup(family, nlriBytes)
+	entry, ok := peerRIB.Lookup(fam, nlriBytes)
 	if !ok {
 		return ""
 	}
@@ -273,7 +273,7 @@ func (r *RIBManager) replayBestPaths() {
 	}
 	r.mu.RUnlock()
 
-	for family, changes := range changesByFamily {
+	for famName, changes := range changesByFamily {
 		batch := bestChangeBatch{Changes: changes}
 		payload, err := json.Marshal(batch)
 		if err != nil {
@@ -282,7 +282,7 @@ func (r *RIBManager) replayBestPaths() {
 		}
 		metadata := map[string]string{
 			"protocol": "bgp",
-			"family":   family,
+			"family":   famName,
 			"replay":   "true",
 		}
 		bus.Publish(bestChangeTopic, payload, metadata)

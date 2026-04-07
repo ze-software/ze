@@ -13,7 +13,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // SessionConfig holds the parameters needed to establish a BGP session
@@ -35,27 +35,27 @@ type SessionConfig struct {
 
 // familyPair holds an AFI/SAFI pair for multiprotocol capability construction.
 type familyPair struct {
-	afi  nlri.AFI
-	safi nlri.SAFI
+	afi  family.AFI
+	safi family.SAFI
 }
 
 // familyLookup maps family strings to (AFI, SAFI) pairs.
 var familyLookup = map[string]familyPair{
-	"ipv4/unicast": {nlri.AFIIPv4, nlri.SAFIUnicast},
-	"ipv6/unicast": {nlri.AFIIPv6, nlri.SAFIUnicast},
+	"ipv4/unicast": {family.AFIIPv4, family.SAFIUnicast},
+	"ipv6/unicast": {family.AFIIPv6, family.SAFIUnicast},
 }
 
 // BuildOpen constructs a serialized BGP OPEN message with capabilities:
 // ASN4, Multiprotocol (for the configured family), and RouteRefresh.
 func BuildOpen(cfg SessionConfig) []byte {
-	family := cfg.Family
-	if family == "" {
-		family = "ipv4/unicast"
+	fam := cfg.Family
+	if fam == "" {
+		fam = "ipv4/unicast"
 	}
 
 	var caps []capability.Capability
 
-	if pair, ok := familyLookup[family]; ok {
+	if pair, ok := familyLookup[fam]; ok {
 		caps = append(caps, &capability.Multiprotocol{
 			AFI:  pair.afi,
 			SAFI: pair.safi,

@@ -197,13 +197,13 @@ func TestNLRIStore_ConcurrentFamilies(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Concurrent access to multiple families
-	for family := uint32(1); family <= 10; family++ {
+	for fam := uint32(1); fam <= 10; fam++ {
 		for range 10 {
 			wg.Add(1)
 			go func(f uint32) {
 				defer wg.Done()
 				store.Intern(testNLRI{family: f, data: []byte{1, 2, 3, 4}})
-			}(family)
+			}(fam)
 		}
 	}
 	wg.Wait()

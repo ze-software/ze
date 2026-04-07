@@ -653,8 +653,8 @@ func copyContainers(src, dst *config.Tree) {
 	// Copy and convert family block.
 	// ExaBGP: "ipv4 unicast" -> ZeBGP list entries: key="ipv4/unicast".
 	// Families go into session > family.
-	if family := src.GetContainer("family"); family != nil {
-		convertFamilyToList(family, dst)
+	if fam := src.GetContainer("family"); fam != nil {
+		convertFamilyToList(fam, dst)
 	}
 
 	// Convert announce block to update blocks.

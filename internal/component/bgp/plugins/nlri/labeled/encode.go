@@ -14,6 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // DecodeNLRIHex decodes labeled unicast NLRI from hex and returns JSON.
@@ -21,13 +22,13 @@ import (
 //
 // Wire format (RFC 8277 Section 2.2): [length_byte][label_stack (3*N bytes)][prefix_bytes].
 // Output JSON: {"prefix":"10.0.0.0/24","labels":[100]}.
-func DecodeNLRIHex(family, hexStr string) (string, error) {
-	fam, ok := nlri.ParseFamily(family)
+func DecodeNLRIHex(famName, hexStr string) (string, error) {
+	fam, ok := family.LookupFamily(famName)
 	if !ok {
-		return "", fmt.Errorf("unknown family: %s", family)
+		return "", fmt.Errorf("unknown family: %s", famName)
 	}
 	if fam.SAFI != SAFIMPLSLabel {
-		return "", fmt.Errorf("unsupported family for labeled unicast: %s", family)
+		return "", fmt.Errorf("unsupported family for labeled unicast: %s", famName)
 	}
 
 	data, err := hex.DecodeString(hexStr)
@@ -101,13 +102,13 @@ func DecodeNLRIHex(family, hexStr string) (string, error) {
 // EncodeNLRIHex encodes labeled unicast NLRI from CLI-style args and returns uppercase hex.
 // Args format: ["prefix", "10.0.0.0/24", "label", "100", "path-id", "1"]
 // This implements the InProcessNLRIEncoder signature for the plugin registry.
-func EncodeNLRIHex(family string, args []string) (string, error) {
-	fam, ok := nlri.ParseFamily(family)
+func EncodeNLRIHex(famName string, args []string) (string, error) {
+	fam, ok := family.LookupFamily(famName)
 	if !ok {
-		return "", fmt.Errorf("unknown family: %s", family)
+		return "", fmt.Errorf("unknown family: %s", famName)
 	}
 	if fam.SAFI != SAFIMPLSLabel {
-		return "", fmt.Errorf("unsupported family for labeled unicast: %s", family)
+		return "", fmt.Errorf("unsupported family for labeled unicast: %s", famName)
 	}
 
 	var prefix netip.Prefix
@@ -166,8 +167,8 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 
 // EncodeRoute encodes a labeled unicast (nlri-mpls) route command into UPDATE body bytes and NLRI bytes.
 // This implements the InProcessRouteEncoder signature for the plugin registry.
-func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error) {
-	isIPv6 := strings.HasPrefix(family, "ipv6/")
+func EncodeRoute(routeCmd, famName string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error) {
+	isIPv6 := strings.HasPrefix(famName, "ipv6/")
 	ub := message.NewUpdateBuilder(localAS, isIBGP, asn4, addPath)
 
 	// Parse route command - expects "<prefix> next-hop <addr> label <label> [attributes...]"

@@ -9,6 +9,7 @@ import (
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // MPReachWire wraps MP_REACH_NLRI attribute bytes for zero-copy lazy parsing.
@@ -35,11 +36,11 @@ func (m MPReachWire) SAFI() uint8 {
 	return m[2]
 }
 
-// Family returns the combined AFI/SAFI as an nlri.Family.
-func (m MPReachWire) Family() nlri.Family {
-	return nlri.Family{
-		AFI:  nlri.AFI(m.AFI()),
-		SAFI: nlri.SAFI(m.SAFI()),
+// Family returns the combined AFI/SAFI as an family.Family.
+func (m MPReachWire) Family() family.Family {
+	return family.Family{
+		AFI:  family.AFI(m.AFI()),
+		SAFI: family.SAFI(m.SAFI()),
 	}
 }
 
@@ -122,9 +123,9 @@ func (m MPReachWire) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
 	}
 
 	nlriBytes := m[nlriOffset:]
-	family := m.Family()
+	fam := m.Family()
 
-	return ParseNLRIs(nlriBytes, family, hasAddPath)
+	return ParseNLRIs(nlriBytes, fam, hasAddPath)
 }
 
 // NLRIIterator returns a zero-allocation iterator over the NLRI section.
@@ -194,11 +195,11 @@ func (m MPUnreachWire) SAFI() uint8 {
 	return m[2]
 }
 
-// Family returns the combined AFI/SAFI as an nlri.Family.
-func (m MPUnreachWire) Family() nlri.Family {
-	return nlri.Family{
-		AFI:  nlri.AFI(m.AFI()),
-		SAFI: nlri.SAFI(m.SAFI()),
+// Family returns the combined AFI/SAFI as an family.Family.
+func (m MPUnreachWire) Family() family.Family {
+	return family.Family{
+		AFI:  family.AFI(m.AFI()),
+		SAFI: family.SAFI(m.SAFI()),
 	}
 }
 
@@ -236,9 +237,9 @@ func (m MPUnreachWire) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
 
 	// Withdrawn routes start after AFI(2) + SAFI(1)
 	withdrawnBytes := m[3:]
-	family := m.Family()
+	fam := m.Family()
 
-	return ParseNLRIs(withdrawnBytes, family, hasAddPath)
+	return ParseNLRIs(withdrawnBytes, fam, hasAddPath)
 }
 
 // NLRIIterator returns a zero-allocation iterator over the withdrawn NLRI section.
@@ -306,7 +307,7 @@ func (r IPv4Reach) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
 	if len(r.nlri) == 0 {
 		return nil, nil
 	}
-	return ParseNLRIs(r.nlri, nlri.IPv4Unicast, hasAddPath)
+	return ParseNLRIs(r.nlri, family.IPv4Unicast, hasAddPath)
 }
 
 // NLRIIterator returns a zero-allocation iterator over the NLRI section.
@@ -362,7 +363,7 @@ func (w IPv4Withdraw) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
 	if len(w.withdrawn) == 0 {
 		return nil, nil
 	}
-	return ParseNLRIs(w.withdrawn, nlri.IPv4Unicast, hasAddPath)
+	return ParseNLRIs(w.withdrawn, family.IPv4Unicast, hasAddPath)
 }
 
 // NLRIIterator returns a zero-allocation iterator over the withdrawn section.
@@ -377,7 +378,7 @@ func (w IPv4Withdraw) NLRIIterator(addPath bool) *nlri.NLRIIterator {
 // ParseNLRIs parses a sequence of NLRIs using the nlri package.
 // RFC 7911 Section 3: When hasAddPath is true, each NLRI is prefixed with 4-byte path-id.
 // Supports IPv4/IPv6 unicast/multicast. Other families return error.
-func ParseNLRIs(data []byte, family nlri.Family, hasAddPath bool) ([]nlri.NLRI, error) {
+func ParseNLRIs(data []byte, fam family.Family, hasAddPath bool) ([]nlri.NLRI, error) {
 	var result []nlri.NLRI
 	originalLen := len(data)
 
@@ -388,20 +389,20 @@ func ParseNLRIs(data []byte, family nlri.Family, hasAddPath bool) ([]nlri.NLRI, 
 		var err error
 
 		switch {
-		case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast:
-			n, rest, err = nlri.ParseINET(nlri.AFIIPv4, nlri.SAFIUnicast, data, hasAddPath)
-		case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIUnicast:
-			n, rest, err = nlri.ParseINET(nlri.AFIIPv6, nlri.SAFIUnicast, data, hasAddPath)
-		case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIMulticast:
-			n, rest, err = nlri.ParseINET(nlri.AFIIPv4, nlri.SAFIMulticast, data, hasAddPath)
-		case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIMulticast:
-			n, rest, err = nlri.ParseINET(nlri.AFIIPv6, nlri.SAFIMulticast, data, hasAddPath)
+		case fam.AFI == family.AFIIPv4 && fam.SAFI == family.SAFIUnicast:
+			n, rest, err = nlri.ParseINET(family.AFIIPv4, family.SAFIUnicast, data, hasAddPath)
+		case fam.AFI == family.AFIIPv6 && fam.SAFI == family.SAFIUnicast:
+			n, rest, err = nlri.ParseINET(family.AFIIPv6, family.SAFIUnicast, data, hasAddPath)
+		case fam.AFI == family.AFIIPv4 && fam.SAFI == family.SAFIMulticast:
+			n, rest, err = nlri.ParseINET(family.AFIIPv4, family.SAFIMulticast, data, hasAddPath)
+		case fam.AFI == family.AFIIPv6 && fam.SAFI == family.SAFIMulticast:
+			n, rest, err = nlri.ParseINET(family.AFIIPv6, family.SAFIMulticast, data, hasAddPath)
 		default: // VPN, EVPN, FlowSpec, etc. — no dedicated parser
 			// Wrap remaining NLRI bytes as opaque WireNLRI to preserve the family
 			// in JSON output. Detailed parsing delegated to plugin-registered decoders.
-			w, wErr := nlri.NewWireNLRI(family, data, hasAddPath)
+			w, wErr := nlri.NewWireNLRI(fam, data, hasAddPath)
 			if wErr != nil {
-				return result, fmt.Errorf("wrapping NLRI for %s: %w", family, wErr)
+				return result, fmt.Errorf("wrapping NLRI for %s: %w", fam, wErr)
 			}
 			return append(result, w), nil
 		}

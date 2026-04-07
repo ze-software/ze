@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestRouteEntry_StaleLevelDefault verifies new RouteEntry has StaleLevel=0 (fresh).
@@ -27,7 +27,7 @@ func TestRouteEntry_StaleLevelDefault(t *testing.T) {
 func TestFamilyRIB_MarkStale(t *testing.T) {
 	t.Parallel()
 
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -64,7 +64,7 @@ func TestFamilyRIB_MarkStale(t *testing.T) {
 func TestFamilyRIB_MarkStaleHigherLevel(t *testing.T) {
 	t.Parallel()
 
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -83,7 +83,7 @@ func TestFamilyRIB_MarkStaleHigherLevel(t *testing.T) {
 func TestFamilyRIB_PurgeStale(t *testing.T) {
 	t.Parallel()
 
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -127,7 +127,7 @@ func TestFamilyRIB_PurgeStale(t *testing.T) {
 func TestFamilyRIB_PurgeStaleEmpty(t *testing.T) {
 	t.Parallel()
 
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -146,7 +146,7 @@ func TestFamilyRIB_PurgeStaleEmpty(t *testing.T) {
 func TestFamilyRIB_InsertClearsStale(t *testing.T) {
 	t.Parallel()
 
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -174,7 +174,7 @@ func TestFamilyRIB_InsertClearsStale(t *testing.T) {
 func TestFamilyRIB_InsertNewDuringStale(t *testing.T) {
 	t.Parallel()
 
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -201,7 +201,7 @@ func TestFamilyRIB_InsertNewDuringStale(t *testing.T) {
 func TestFamilyRIB_StaleCount(t *testing.T) {
 	t.Parallel()
 
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -238,18 +238,18 @@ func TestPeerRIB_MarkFamilyStale(t *testing.T) {
 	v4prefix := []byte{24, 10, 0, 0}
 	v6prefix := []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}
 
-	rib.Insert(nlri.IPv4Unicast, attrs, v4prefix)
-	rib.Insert(nlri.IPv6Unicast, attrs, v6prefix)
+	rib.Insert(family.IPv4Unicast, attrs, v4prefix)
+	rib.Insert(family.IPv6Unicast, attrs, v6prefix)
 
-	rib.MarkFamilyStale(nlri.IPv4Unicast, 1)
+	rib.MarkFamilyStale(family.IPv4Unicast, 1)
 
 	// IPv4 should be stale
-	v4entry, ok := rib.Lookup(nlri.IPv4Unicast, v4prefix)
+	v4entry, ok := rib.Lookup(family.IPv4Unicast, v4prefix)
 	require.True(t, ok)
 	assert.Equal(t, uint8(1), v4entry.StaleLevel, "IPv4 route should be stale")
 
 	// IPv6 should be fresh
-	v6entry, ok := rib.Lookup(nlri.IPv6Unicast, v6prefix)
+	v6entry, ok := rib.Lookup(family.IPv6Unicast, v6prefix)
 	require.True(t, ok)
 	assert.Equal(t, StaleLevelFresh, v6entry.StaleLevel, "IPv6 route should be fresh")
 }
@@ -266,13 +266,13 @@ func TestPeerRIB_MarkAllStale(t *testing.T) {
 
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
 
-	rib.Insert(nlri.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
-	rib.Insert(nlri.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
+	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
 
 	rib.MarkAllStale(1)
 
-	v4entry, _ := rib.Lookup(nlri.IPv4Unicast, []byte{24, 10, 0, 0})
-	v6entry, _ := rib.Lookup(nlri.IPv6Unicast, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
+	v4entry, _ := rib.Lookup(family.IPv4Unicast, []byte{24, 10, 0, 0})
+	v6entry, _ := rib.Lookup(family.IPv6Unicast, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
 
 	assert.Equal(t, uint8(1), v4entry.StaleLevel, "IPv4 should be stale")
 	assert.Equal(t, uint8(1), v6entry.StaleLevel, "IPv6 should be stale")
@@ -290,24 +290,24 @@ func TestPeerRIB_PurgeFamilyStale(t *testing.T) {
 
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
 
-	rib.Insert(nlri.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
-	rib.Insert(nlri.IPv4Unicast, attrs, []byte{24, 10, 0, 1})
-	rib.Insert(nlri.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 1})
+	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
 
 	// Mark all stale, then refresh one IPv4 route
 	rib.MarkAllStale(1)
-	rib.Insert(nlri.IPv4Unicast, attrs, []byte{24, 10, 0, 0}) // refresh
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0}) // refresh
 
 	// Purge only IPv4 stale -- should remove 10.0.1.0/24 but keep 10.0.0.0/24
-	purged := rib.PurgeFamilyStale(nlri.IPv4Unicast)
+	purged := rib.PurgeFamilyStale(family.IPv4Unicast)
 	assert.Equal(t, 1, purged, "should purge 1 stale IPv4 route")
 
 	// IPv4: 1 route remains (refreshed one)
-	assert.Equal(t, 1, rib.FamilyLen(nlri.IPv4Unicast))
+	assert.Equal(t, 1, rib.FamilyLen(family.IPv4Unicast))
 
 	// IPv6: still stale, untouched
-	assert.Equal(t, 1, rib.FamilyLen(nlri.IPv6Unicast))
-	v6entry, _ := rib.Lookup(nlri.IPv6Unicast, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
+	assert.Equal(t, 1, rib.FamilyLen(family.IPv6Unicast))
+	v6entry, _ := rib.Lookup(family.IPv6Unicast, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
 	assert.Equal(t, uint8(1), v6entry.StaleLevel, "IPv6 should still be stale")
 }
 
@@ -323,21 +323,21 @@ func TestPeerRIB_PurgeAllStale(t *testing.T) {
 
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
 
-	rib.Insert(nlri.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
-	rib.Insert(nlri.IPv4Unicast, attrs, []byte{24, 10, 0, 1})
-	rib.Insert(nlri.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 1})
+	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
 
 	rib.MarkAllStale(1)
 
 	// Refresh one IPv4 route
-	rib.Insert(nlri.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
 
 	purged := rib.PurgeAllStale()
 	assert.Equal(t, 2, purged, "should purge 2 stale routes")
 	assert.Equal(t, 1, rib.Len(), "1 fresh route remains")
 
 	// The refreshed one survives
-	_, ok := rib.Lookup(nlri.IPv4Unicast, []byte{24, 10, 0, 0})
+	_, ok := rib.Lookup(family.IPv4Unicast, []byte{24, 10, 0, 0})
 	assert.True(t, ok, "refreshed route should remain")
 }
 
@@ -353,16 +353,16 @@ func TestPeerRIB_StaleCount(t *testing.T) {
 
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
 
-	rib.Insert(nlri.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
-	rib.Insert(nlri.IPv4Unicast, attrs, []byte{24, 10, 0, 1})
-	rib.Insert(nlri.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 1})
+	rib.Insert(family.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
 
 	assert.Equal(t, 0, rib.StaleCount())
 
 	rib.MarkAllStale(1)
 	assert.Equal(t, 3, rib.StaleCount())
 
-	rib.Insert(nlri.IPv4Unicast, attrs, []byte{24, 10, 0, 0}) // refresh
+	rib.Insert(family.IPv4Unicast, attrs, []byte{24, 10, 0, 0}) // refresh
 	assert.Equal(t, 2, rib.StaleCount())
 }
 
@@ -377,7 +377,7 @@ func TestPeerRIB_MarkFamilyStaleNonExistent(t *testing.T) {
 	defer rib.Release()
 
 	// Should not crash
-	rib.MarkFamilyStale(nlri.IPv4Unicast, 1)
+	rib.MarkFamilyStale(family.IPv4Unicast, 1)
 	assert.Equal(t, 0, rib.StaleCount())
 }
 
@@ -391,6 +391,6 @@ func TestPeerRIB_PurgeFamilyStaleNonExistent(t *testing.T) {
 	rib := NewPeerRIB("192.0.2.1")
 	defer rib.Release()
 
-	purged := rib.PurgeFamilyStale(nlri.IPv4Unicast)
+	purged := rib.PurgeFamilyStale(family.IPv4Unicast)
 	assert.Equal(t, 0, purged)
 }

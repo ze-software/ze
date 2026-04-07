@@ -192,9 +192,9 @@ func afiSafiFamily(afi uint16, safi uint8) string {
 	case afi == 2 && safi == 2:
 		return "ipv6/multicast"
 	case afi == 1 && safi == 128:
-		return "ipv4/vpn"
+		return "ipv4/mpls-vpn"
 	case afi == 2 && safi == 128:
-		return "ipv6/vpn"
+		return "ipv6/mpls-vpn"
 	case afi == 25 && safi == 70:
 		return "l2vpn/evpn"
 	case afi == 1 && safi == 133:
@@ -219,8 +219,8 @@ func parseMPReachNLRI(data []byte, peerIndex int, buf *EventBuffer) {
 	}
 	afi := binary.BigEndian.Uint16(data[0:2])
 	safi := data[2]
-	family := afiSafiFamily(afi, safi)
-	if family == "" {
+	fam := afiSafiFamily(afi, safi)
+	if fam == "" {
 		return
 	}
 	nhLen := int(data[3])
@@ -229,7 +229,7 @@ func parseMPReachNLRI(data []byte, peerIndex int, buf *EventBuffer) {
 		return
 	}
 
-	emitNLRIEvents(data[off:], family, EventRouteReceived, peerIndex, buf)
+	emitNLRIEvents(data[off:], fam, EventRouteReceived, peerIndex, buf)
 }
 
 // parseMPUnreachNLRI parses MP_UNREACH_NLRI (type 15) and emits EventRouteWithdrawn.
@@ -243,11 +243,11 @@ func parseMPUnreachNLRI(data []byte, peerIndex int, buf *EventBuffer) {
 	}
 	afi := binary.BigEndian.Uint16(data[0:2])
 	safi := data[2]
-	family := afiSafiFamily(afi, safi)
-	if family == "" {
+	fam := afiSafiFamily(afi, safi)
+	if fam == "" {
 		return
 	}
-	emitNLRIEvents(data[3:], family, EventRouteWithdrawn, peerIndex, buf)
+	emitNLRIEvents(data[3:], fam, EventRouteWithdrawn, peerIndex, buf)
 }
 
 // emitNLRIEvents dispatches NLRI parsing by family and sends events.

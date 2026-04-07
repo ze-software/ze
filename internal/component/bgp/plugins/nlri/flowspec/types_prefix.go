@@ -146,7 +146,7 @@ func (c *prefixComponent) CheckedWriteTo(buf []byte, off int) (int, error) {
 //	<type (1 octet), length (1 octet), offset (1 octet), prefix (variable)>
 //
 // The offset field in IPv6 allows matching on a portion of the prefix.
-func parsePrefixComponent(t FlowComponentType, data []byte, family Family) (FlowComponent, []byte, error) {
+func parsePrefixComponent(t FlowComponentType, data []byte, fam Family) (FlowComponent, []byte, error) {
 	if len(data) == 0 {
 		return nil, nil, ErrFlowSpecTruncated
 	}
@@ -157,7 +157,7 @@ func parsePrefixComponent(t FlowComponentType, data []byte, family Family) (Flow
 	// IPv6 FlowSpec includes an offset byte per RFC 8956 Section 3.1
 	var offset uint8
 	headerLen := 1 // Just prefix length for IPv4
-	if family.AFI == AFIIPv6 {
+	if fam.AFI == AFIIPv6 {
 		if len(data) < 2 {
 			return nil, nil, ErrFlowSpecTruncated
 		}
@@ -171,7 +171,7 @@ func parsePrefixComponent(t FlowComponentType, data []byte, family Family) (Flow
 
 	// Build prefix - encoding matches RFC 4271 prefix encoding
 	var addr netip.Addr
-	if family.AFI == AFIIPv4 {
+	if fam.AFI == AFIIPv4 {
 		var ip [4]byte
 		copy(ip[:], data[1:1+prefixBytes])
 		addr = netip.AddrFrom4(ip)

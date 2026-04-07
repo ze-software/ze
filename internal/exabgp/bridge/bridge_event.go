@@ -239,9 +239,9 @@ func convertUpdateIPC2(eventData map[string]any) map[string]any {
 	withdraw := make(map[string][]any)
 
 	if nlriObj, ok := eventData["nlri"].(map[string]any); ok {
-		for family, value := range nlriObj {
+		for fam, value := range nlriObj {
 			// Convert family: "ipv4/unicast" -> "ipv4 unicast"
-			exabgpFamily := strings.ReplaceAll(family, "/", " ")
+			exabgpFamily := strings.ReplaceAll(fam, "/", " ")
 
 			entries, ok := value.([]any)
 			if !ok {

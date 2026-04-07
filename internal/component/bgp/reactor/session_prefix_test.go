@@ -8,15 +8,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // ipv4UKey is the uint32 family key for ipv4/unicast used in test assertions.
-var ipv4UKey = familyKey(nlri.IPv4Unicast) //nolint:gochecknoglobals // test helper
+var ipv4UKey = familyKey(family.IPv4Unicast) //nolint:gochecknoglobals // test helper
 
 // ipv6UKey is the uint32 family key for ipv6/unicast used in test assertions.
-var ipv6UKey = familyKey(nlri.IPv6Unicast) //nolint:gochecknoglobals // test helper
+var ipv6UKey = familyKey(family.IPv6Unicast) //nolint:gochecknoglobals // test helper
 
 // testWireUpdate creates a WireUpdate from raw UPDATE body bytes for testing.
 func testWireUpdate(body []byte) *wireu.WireUpdate {
@@ -157,7 +157,7 @@ func TestPrefixExceedDropWithdrawStillCounted(t *testing.T) {
 
 // TestPrefixPerFamilyIsolation verifies exceeding one family does not affect others.
 //
-// VALIDATES: AC-17 "Only ipv6/vpn triggers enforcement; ipv4/unicast unaffected."
+// VALIDATES: AC-17 "Only ipv6/mpls-vpn triggers enforcement; ipv4/unicast unaffected."
 // PREVENTS: Global prefix counter shared across families.
 func TestPrefixPerFamilyIsolation(t *testing.T) {
 	ps := newTestPeerSettingsWithPrefix(3, 2)
@@ -461,11 +461,11 @@ func TestPeerPrefixWarnedFamilies(t *testing.T) {
 // VALIDATES: familyString(familyKey(f)) == f.String() and familyKeyString(f.String()) == familyKey(f).
 // PREVENTS: Silent key collisions or lossy encoding in prefix-count map keys.
 func TestFamilyKeyRoundTrip(t *testing.T) {
-	families := []nlri.Family{
-		nlri.IPv4Unicast, nlri.IPv6Unicast,
-		nlri.IPv4Multicast, nlri.IPv6Multicast,
-		nlri.IPv4VPN, nlri.IPv6VPN,
-		nlri.L2VPNEVPN,
+	families := []family.Family{
+		{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, {AFI: family.AFIIPv6, SAFI: family.SAFIUnicast},
+		{AFI: family.AFIIPv4, SAFI: family.SAFIMulticast}, {AFI: family.AFIIPv6, SAFI: family.SAFIMulticast},
+		{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}, {AFI: family.AFIIPv6, SAFI: family.SAFIVPN},
+		{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN},
 	}
 	for _, f := range families {
 		key := familyKey(f)

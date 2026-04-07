@@ -37,12 +37,12 @@ func TestMergeUpdateRPKI(t *testing.T) {
 	if !ok {
 		t.Fatal("missing rpki key in merged event")
 	}
-	family, ok := rpkiSection["ipv4/unicast"].(map[string]any)
+	fam, ok := rpkiSection["ipv4/unicast"].(map[string]any)
 	if !ok {
 		t.Fatal("missing ipv4/unicast in rpki section")
 	}
-	if family["10.0.0.0/24"] != "valid" {
-		t.Fatalf("expected valid, got %v", family["10.0.0.0/24"])
+	if fam["10.0.0.0/24"] != "valid" {
+		t.Fatalf("expected valid, got %v", fam["10.0.0.0/24"])
 	}
 
 	// Message type should be update-rpki.

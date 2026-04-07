@@ -552,7 +552,7 @@ type PeerRIB struct {
 // Value type is RouteEntry (56 bytes, stored by value in map, zero alloc).
 // See internal/component/bgp/plugins/rib/storage/familyrib.go.
 type FamilyRIB struct {
-    family  nlri.Family
+    family  family.Family
     addPath bool
     routes  map[NLRIKey]RouteEntry  // fixed-size key, value-type entry
 }
@@ -833,9 +833,9 @@ func (s *PooledNLRISet) Release() {
 // NewNLRISet creates appropriate implementation for family
 func NewNLRISet(family FamilyKey, addPath bool) NLRISet {
     if shouldPoolNLRI(family.AFI, family.SAFI) {
-        return &PooledNLRISet{family: family, addPath: addPath}
+        return &PooledNLRISet{fam: family, addPath: addPath}
     }
-    return &DirectNLRISet{family: family, addPath: addPath}
+    return &DirectNLRISet{fam: family, addPath: addPath}
 }
 ```
 

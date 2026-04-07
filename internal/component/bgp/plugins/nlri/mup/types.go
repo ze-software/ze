@@ -11,31 +11,34 @@ import (
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Type aliases for shared nlri types.
 type (
-	Family             = nlri.Family
-	AFI                = nlri.AFI
-	SAFI               = nlri.SAFI
+	Family             = family.Family
+	AFI                = family.AFI
+	SAFI               = family.SAFI
 	NLRI               = nlri.NLRI
 	RouteDistinguisher = nlri.RouteDistinguisher
 )
 
 // Re-export constants.
 const (
-	AFIIPv4 = nlri.AFIIPv4
-	AFIIPv6 = nlri.AFIIPv6
-	SAFIMUP = nlri.SAFIMUP
+	AFIIPv4 = family.AFIIPv4
+	AFIIPv6 = family.AFIIPv6
+	SAFIMUP = family.SAFIMUP
 	RDType0 = nlri.RDType0
 	RDType1 = nlri.RDType1
 )
 
+// Family registrations for MUP.
 var (
-	IPv4MUP       = nlri.IPv4MUP
-	IPv6MUP       = nlri.IPv6MUP
-	ParseRDString = nlri.ParseRDString
+	IPv4MUP = family.MustRegister(AFIIPv4, SAFIMUP, "ipv4", "mup")
+	IPv6MUP = family.MustRegister(AFIIPv6, SAFIMUP, "ipv6", "mup")
 )
+
+var ParseRDString = nlri.ParseRDString
 
 // Errors for MUP parsing.
 var (

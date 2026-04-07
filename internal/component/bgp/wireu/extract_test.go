@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestExtractRawAttributes verifies attribute extraction from UPDATE payload.
@@ -102,7 +102,7 @@ func TestExtractRawNLRIByFamily(t *testing.T) {
 
 		wu := NewWireUpdate(payload, 0)
 
-		got, err := ExtractRawNLRI(wu, nlri.IPv4Unicast, false)
+		got, err := ExtractRawNLRI(wu, family.IPv4Unicast, false)
 		require.NoError(t, err)
 
 		// Should get the body NLRI bytes
@@ -144,7 +144,7 @@ func TestExtractRawNLRIByFamily(t *testing.T) {
 
 		wu := NewWireUpdate(payload, 0)
 
-		got, err := ExtractRawNLRI(wu, nlri.IPv6Unicast, false)
+		got, err := ExtractRawNLRI(wu, family.IPv6Unicast, false)
 		require.NoError(t, err)
 
 		// Should get MP_REACH NLRI bytes only (after NH + reserved)
@@ -164,7 +164,7 @@ func TestExtractRawNLRIByFamily(t *testing.T) {
 
 		wu := NewWireUpdate(payload, 0)
 
-		got, err := ExtractRawNLRI(wu, nlri.IPv6Unicast, false)
+		got, err := ExtractRawNLRI(wu, family.IPv6Unicast, false)
 		require.NoError(t, err)
 		assert.Nil(t, got) // Not present = nil, no error
 	})
@@ -185,7 +185,7 @@ func TestExtractRawWithdrawn(t *testing.T) {
 
 		wu := NewWireUpdate(payload, 0)
 
-		got, err := ExtractRawWithdrawn(wu, nlri.IPv4Unicast, false)
+		got, err := ExtractRawWithdrawn(wu, family.IPv4Unicast, false)
 		require.NoError(t, err)
 
 		want, _ := hex.DecodeString("180a0000" + "180a0100")
@@ -219,7 +219,7 @@ func TestExtractRawWithdrawn(t *testing.T) {
 
 		wu := NewWireUpdate(payload, 0)
 
-		got, err := ExtractRawWithdrawn(wu, nlri.IPv6Unicast, false)
+		got, err := ExtractRawWithdrawn(wu, family.IPv6Unicast, false)
 		require.NoError(t, err)
 
 		// Should get the withdrawn NLRI bytes only (after AFI/SAFI)

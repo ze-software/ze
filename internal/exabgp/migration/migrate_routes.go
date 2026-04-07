@@ -51,8 +51,8 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 				continue
 			}
 
-			// Convert family name
-			family := afi + "/" + safi
+			// Convert fam name
+			fam := afi + "/" + safi
 
 			// Process each route entry
 			for _, routeEntry := range routeList {
@@ -86,7 +86,7 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 				// Build nlri list entry
 				nlriEntry := config.NewTree()
 				nlriEntry.Set("content", "add "+prefix)
-				update.AddListEntry("nlri", family, nlriEntry)
+				update.AddListEntry("nlri", fam, nlriEntry)
 
 				// Add update to dst as list entry
 				dst.AddListEntry("update", "", update)
@@ -212,15 +212,15 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 		}
 
 		// Determine family.
-		family := "ipv4/flow"
+		fam := "ipv4/flow"
 		if isIPv6 {
-			family = "ipv6/flow"
+			fam = "ipv6/flow"
 		}
 		if rd != "" {
 			if isIPv6 {
-				family = "ipv6/flow-vpn"
+				fam = "ipv6/flow-vpn"
 			} else {
-				family = "ipv4/flow-vpn"
+				fam = "ipv4/flow-vpn"
 			}
 		}
 
@@ -255,7 +255,7 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 
 		nlriEntry := config.NewTree()
 		nlriEntry.Set("content", nlriContent.String())
-		update.AddListEntry("nlri", family, nlriEntry)
+		update.AddListEntry("nlri", fam, nlriEntry)
 
 		dst.AddListEntry("update", "", update)
 	}
@@ -372,12 +372,12 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 
 	update.SetContainer("attribute", attrBlock)
 
-	// Detect family from prefix format and route attributes.
+	// Detect fam from prefix format and route attributes.
 	isIPv6 := strings.Contains(prefix, ":")
 	rdVal, hasRD := attrTree.Get("rd")
 	labelVal, hasLabel := attrTree.Get("label")
 
-	family := detectRouteFamily(isIPv6, hasRD, hasLabel)
+	fam := detectRouteFamily(isIPv6, hasRD, hasLabel)
 
 	// Build NLRI value with inline rd/label (config loader parses these from NLRI line).
 	// Format: add [rd VALUE] [label VALUE] prefix
@@ -392,7 +392,7 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 
 	nlriEntry := config.NewTree()
 	nlriEntry.Set("content", nlriValue)
-	update.AddListEntry("nlri", family, nlriEntry)
+	update.AddListEntry("nlri", fam, nlriEntry)
 
 	// Handle watchdog attribute.
 	// ExaBGP: "route PREFIX ... watchdog NAME withdraw;" stores watchdog=NAME, withdraw=true.
@@ -477,7 +477,7 @@ func flowCriterionWithValues(criterion, value string, isIPv6 bool) string {
 // Each string contains both NLRI fields and path attributes intermixed.
 // This function separates them into attribute { } and nlri { } blocks.
 func convertFlexToUpdate(afi, safi string, values []string, dst *config.Tree) {
-	family := afi + "/" + safi
+	fam := afi + "/" + safi
 
 	for _, value := range values {
 		attrs, nlriParts := splitFlexAttrs(value)
@@ -498,7 +498,7 @@ func convertFlexToUpdate(afi, safi string, values []string, dst *config.Tree) {
 		// VPLS parser expects rd before operation keyword; others expect add first.
 		nlriEntry := config.NewTree()
 		nlriEntry.Set("content", flexNLRIContent(safi, nlriParts))
-		update.AddListEntry("nlri", family, nlriEntry)
+		update.AddListEntry("nlri", fam, nlriEntry)
 
 		dst.AddListEntry("update", "", update)
 	}

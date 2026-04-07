@@ -9,6 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestRouteCreation verifies that routes can be created with NLRI and attributes.
@@ -19,7 +20,7 @@ import (
 func TestRouteCreation(t *testing.T) {
 	// Create an INET NLRI
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 
 	// Create attributes
 	origin := attribute.OriginIGP
@@ -45,7 +46,7 @@ func TestRouteCreation(t *testing.T) {
 // PREVENTS: Loss of AS-PATH data, inability to use AS-PATH for route indexing.
 func TestRouteWithASPath(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 
 	asPath := &attribute.ASPath{
 		Segments: []attribute.ASPathSegment{
@@ -71,8 +72,8 @@ func TestRouteWithASPath(t *testing.T) {
 func TestRouteIndex(t *testing.T) {
 	prefix1 := netip.MustParsePrefix("10.0.0.0/24")
 	prefix2 := netip.MustParsePrefix("10.0.1.0/24")
-	inet1 := nlri.NewINET(nlri.IPv4Unicast, prefix1, 0)
-	inet2 := nlri.NewINET(nlri.IPv4Unicast, prefix2, 0)
+	inet1 := nlri.NewINET(family.IPv4Unicast, prefix1, 0)
+	inet2 := nlri.NewINET(family.IPv4Unicast, prefix2, 0)
 
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
@@ -98,7 +99,7 @@ func TestRouteIndex(t *testing.T) {
 // This is critical for route diversity and BGP add-path scenarios.
 func TestRouteIndexWithASPath(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	asPath1 := &attribute.ASPath{
@@ -129,7 +130,7 @@ func TestRouteIndexWithASPath(t *testing.T) {
 // where routes are freed while still referenced.
 func TestRouteRefCount(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	route := NewRoute(inet, nextHop, nil)
@@ -153,7 +154,7 @@ func TestRouteRefCount(t *testing.T) {
 // PREVENTS: Lost optimization opportunity for zero-copy forwarding.
 func TestRouteWireCacheStored(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	wireBytes := []byte{0x40, 0x01, 0x01, 0x00} // Example: ORIGIN IGP
@@ -173,7 +174,7 @@ func TestRouteWireCacheStored(t *testing.T) {
 // PREVENTS: Unnecessary re-encoding when contexts are identical.
 func TestRouteCanForwardDirect_Match(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	wireBytes := []byte{0x40, 0x01, 0x01, 0x00}
@@ -192,7 +193,7 @@ func TestRouteCanForwardDirect_Match(t *testing.T) {
 // PREVENTS: Sending wrongly encoded data to peer with different capabilities.
 func TestRouteCanForwardDirect_Mismatch(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	wireBytes := []byte{0x40, 0x01, 0x01, 0x00}
@@ -212,7 +213,7 @@ func TestRouteCanForwardDirect_Mismatch(t *testing.T) {
 // PREVENTS: Nil dereference when trying to forward uncached route.
 func TestRouteCanForwardDirect_NoCache(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Route without wire cache
@@ -229,7 +230,7 @@ func TestRouteCanForwardDirect_NoCache(t *testing.T) {
 // PREVENTS: Sending empty data when wire cache was cleared or never set.
 func TestRouteCanForwardDirect_EmptyWireBytes(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Route with empty wire bytes
@@ -246,7 +247,7 @@ func TestRouteCanForwardDirect_EmptyWireBytes(t *testing.T) {
 // PREVENTS: Special-casing zero ID causing unexpected behavior.
 func TestRouteCanForwardDirect_ZeroContextID(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	wireBytes := []byte{0x40, 0x01, 0x01, 0x00}
@@ -270,7 +271,7 @@ func TestRouteCanForwardDirect_ZeroContextID(t *testing.T) {
 // PREVENTS: Unnecessary re-encoding wasting CPU cycles.
 func TestPackAttributesFor_ZeroCopy(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Create a context and register it
@@ -295,7 +296,7 @@ func TestPackAttributesFor_ZeroCopy(t *testing.T) {
 // PREVENTS: Sending wrongly-encoded data to peer with different capabilities.
 func TestPackAttributesFor_Reencode(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Source context (ASN4=true)
@@ -331,7 +332,7 @@ func TestPackAttributesFor_Reencode(t *testing.T) {
 // PREVENTS: Nil return when forwarding routes without cache.
 func TestPackAttributesFor_NoCache(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Create dest context
@@ -357,7 +358,7 @@ func TestPackAttributesFor_NoCache(t *testing.T) {
 // PREVENTS: Missing AS_PATH in forwarded routes.
 func TestPackAttributesFor_WithASPath(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Dest context with ASN4
@@ -389,11 +390,11 @@ func TestPackAttributesFor_WithASPath(t *testing.T) {
 // PREVENTS: Sending path IDs to peers that don't support ADD-PATH.
 func TestPackNLRIFor_NoAddPath(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 42) // Has path ID
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 42) // Has path ID
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Context without ADD-PATH
-	ctx := bgpctx.EncodingContextWithAddPath(true, make(map[nlri.Family]bool))
+	ctx := bgpctx.EncodingContextWithAddPath(true, make(map[family.Family]bool))
 	ctxID := bgpctx.Registry.Register(ctx)
 
 	route := NewRoute(inet, nextHop, nil)
@@ -410,11 +411,11 @@ func TestPackNLRIFor_NoAddPath(t *testing.T) {
 // PREVENTS: Missing path IDs for ADD-PATH capable peers.
 func TestPackNLRIFor_WithAddPath(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 42) // Path ID = 42
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 42) // Path ID = 42
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Context with ADD-PATH for IPv4 unicast
-	ctx := bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
+	ctx := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{
 		{AFI: 1, SAFI: 1}: true, // IPv4 unicast
 	})
 	ctxID := bgpctx.Registry.Register(ctx)
@@ -438,7 +439,7 @@ func TestPackNLRIFor_WithAddPath(t *testing.T) {
 // PREVENTS: Unnecessary re-encoding of NLRI.
 func TestPackNLRIFor_ZeroCopy(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 42)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 42)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	ctx := bgpctx.EncodingContextForASN4(true)
@@ -461,13 +462,13 @@ func TestPackNLRIFor_ZeroCopy(t *testing.T) {
 // PREVENTS: Sending wrongly-encoded NLRI to peer.
 func TestPackNLRIFor_ReencodeOnMismatch(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 42)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 42)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	srcCtx := bgpctx.EncodingContextForASN4(true)
 	srcCtxID := bgpctx.Registry.Register(srcCtx)
 
-	dstCtx := bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
+	dstCtx := bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{
 		{AFI: 1, SAFI: 1}: true,
 	})
 	dstCtxID := bgpctx.Registry.Register(dstCtx)
@@ -493,7 +494,7 @@ func TestPackNLRIFor_ReencodeOnMismatch(t *testing.T) {
 // PREVENTS: Incorrect zero-copy when contexts are actually different.
 func TestPackAttributesFor_ZeroContextID(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	origin := attribute.OriginIGP
@@ -524,7 +525,7 @@ func TestPackAttributesFor_ZeroContextID(t *testing.T) {
 // PREVENTS: Panic on empty attribute slice.
 func TestPackAttributesFor_EmptyAttributes(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	ctx := bgpctx.EncodingContextForASN4(true)
@@ -544,7 +545,7 @@ func TestPackAttributesFor_EmptyAttributes(t *testing.T) {
 // PREVENTS: Incorrect encoding for IPv6 routes.
 func TestPackNLRIFor_IPv6(t *testing.T) {
 	prefix := netip.MustParsePrefix("2001:db8::/32")
-	inet := nlri.NewINET(nlri.IPv6Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv6Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	ctx := bgpctx.EncodingContextForASN4(true)

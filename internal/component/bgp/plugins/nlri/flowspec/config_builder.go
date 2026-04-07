@@ -14,12 +14,12 @@ import (
 // This implements the InProcessConfigNLRIBuilder signature for the plugin registry.
 // matchCriteria keys use config syntax (e.g., "destination", "protocol", "port").
 func BuildFlowSpecNLRI(matchCriteria map[string][]string, isIPv6, forVPN bool) []byte {
-	family := IPv4FlowSpec
+	fam := IPv4FlowSpec
 	if isIPv6 {
-		family = IPv6FlowSpec
+		fam = IPv6FlowSpec
 	}
 
-	fs := NewFlowSpec(family)
+	fs := NewFlowSpec(fam)
 
 	// Add destination prefix (first value only - prefix is singular)
 	if vals, ok := matchCriteria["destination"]; ok && len(vals) > 0 {

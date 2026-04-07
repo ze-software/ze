@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 const testPeerID = "192.168.1.1"
@@ -20,7 +21,7 @@ func TestIncomingRIBInsert(t *testing.T) {
 	rib := NewIncomingRIB()
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 	route := NewRoute(inet, nextHop, nil)
 
@@ -43,7 +44,7 @@ func TestIncomingRIBReplace(t *testing.T) {
 	rib := NewIncomingRIB()
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop1 := netip.MustParseAddr("192.168.1.1")
 	nextHop2 := netip.MustParseAddr("192.168.1.2")
 
@@ -72,7 +73,7 @@ func TestIncomingRIBRemove(t *testing.T) {
 	rib := NewIncomingRIB()
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 	route := NewRoute(inet, nextHop, nil)
 
@@ -93,8 +94,8 @@ func TestIncomingRIBClearPeer(t *testing.T) {
 
 	prefix1 := netip.MustParsePrefix("10.0.0.0/24")
 	prefix2 := netip.MustParsePrefix("10.0.1.0/24")
-	inet1 := nlri.NewINET(nlri.IPv4Unicast, prefix1, 0)
-	inet2 := nlri.NewINET(nlri.IPv4Unicast, prefix2, 0)
+	inet1 := nlri.NewINET(family.IPv4Unicast, prefix1, 0)
+	inet2 := nlri.NewINET(family.IPv4Unicast, prefix2, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	route1 := NewRoute(inet1, nextHop, nil)
@@ -120,7 +121,7 @@ func TestIncomingRIBMultiplePeers(t *testing.T) {
 	rib := NewIncomingRIB()
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 
 	nextHop1 := netip.MustParseAddr("192.168.1.1")
 	nextHop2 := netip.MustParseAddr("192.168.1.2")
@@ -152,7 +153,7 @@ func TestOutgoingRIBQueue(t *testing.T) {
 	rib := NewOutgoingRIB()
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 	route := NewRoute(inet, nextHop, nil)
 
@@ -160,7 +161,7 @@ func TestOutgoingRIBQueue(t *testing.T) {
 	rib.QueueAnnounce(route)
 
 	// Get pending routes
-	pending := rib.GetPending(nlri.IPv4Unicast)
+	pending := rib.GetPending(family.IPv4Unicast)
 	require.Len(t, pending, 1, "must have 1 pending route")
 	require.Equal(t, route.NLRI(), pending[0].NLRI(), "pending route NLRI must match")
 }
@@ -174,7 +175,7 @@ func TestOutgoingRIBQueueWithdraw(t *testing.T) {
 	rib := NewOutgoingRIB()
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 	route := NewRoute(inet, nextHop, nil)
 
@@ -183,11 +184,11 @@ func TestOutgoingRIBQueueWithdraw(t *testing.T) {
 	rib.QueueWithdraw(inet)
 
 	// Pending announcements should be empty (withdraw cancels announce)
-	pending := rib.GetPending(nlri.IPv4Unicast)
+	pending := rib.GetPending(family.IPv4Unicast)
 	require.Len(t, pending, 0, "announce must be canceled by withdraw")
 
 	// Withdrawals should be queued
-	withdrawals := rib.GetWithdrawals(nlri.IPv4Unicast)
+	withdrawals := rib.GetWithdrawals(family.IPv4Unicast)
 	require.Len(t, withdrawals, 1, "must have 1 pending withdrawal")
 }
 
@@ -200,18 +201,18 @@ func TestOutgoingRIBFlush(t *testing.T) {
 	rib := NewOutgoingRIB()
 
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 	route := NewRoute(inet, nextHop, nil)
 
 	rib.QueueAnnounce(route)
 
 	// Get pending (returns and clears)
-	pending := rib.FlushPending(nlri.IPv4Unicast)
+	pending := rib.FlushPending(family.IPv4Unicast)
 	require.Len(t, pending, 1, "must return pending routes")
 
 	// Queue should be empty after flush
-	pending2 := rib.GetPending(nlri.IPv4Unicast)
+	pending2 := rib.GetPending(family.IPv4Unicast)
 	require.Len(t, pending2, 0, "pending must be empty after flush")
 }
 
@@ -225,8 +226,8 @@ func TestOutgoingRIBStats(t *testing.T) {
 
 	prefix1 := netip.MustParsePrefix("10.0.0.0/24")
 	prefix2 := netip.MustParsePrefix("10.0.1.0/24")
-	inet1 := nlri.NewINET(nlri.IPv4Unicast, prefix1, 0)
-	inet2 := nlri.NewINET(nlri.IPv4Unicast, prefix2, 0)
+	inet1 := nlri.NewINET(family.IPv4Unicast, prefix1, 0)
+	inet2 := nlri.NewINET(family.IPv4Unicast, prefix2, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	rib.QueueAnnounce(NewRoute(inet1, nextHop, nil))
@@ -246,8 +247,8 @@ func TestIncomingRIBClearAll(t *testing.T) {
 
 	prefix1 := netip.MustParsePrefix("10.0.0.0/24")
 	prefix2 := netip.MustParsePrefix("10.0.1.0/24")
-	inet1 := nlri.NewINET(nlri.IPv4Unicast, prefix1, 0)
-	inet2 := nlri.NewINET(nlri.IPv4Unicast, prefix2, 0)
+	inet1 := nlri.NewINET(family.IPv4Unicast, prefix1, 0)
+	inet2 := nlri.NewINET(family.IPv4Unicast, prefix2, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	route1 := NewRoute(inet1, nextHop, nil)
@@ -285,8 +286,8 @@ func TestOutgoingRIBClearSent(t *testing.T) {
 
 	prefix1 := netip.MustParsePrefix("10.0.0.0/24")
 	prefix2 := netip.MustParsePrefix("10.0.1.0/24")
-	inet1 := nlri.NewINET(nlri.IPv4Unicast, prefix1, 0)
-	inet2 := nlri.NewINET(nlri.IPv4Unicast, prefix2, 0)
+	inet1 := nlri.NewINET(family.IPv4Unicast, prefix1, 0)
+	inet2 := nlri.NewINET(family.IPv4Unicast, prefix2, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	route1 := NewRoute(inet1, nextHop, nil)
@@ -319,8 +320,8 @@ func TestOutgoingRIBFlushSent(t *testing.T) {
 
 	prefix1 := netip.MustParsePrefix("10.0.0.0/24")
 	prefix2 := netip.MustParsePrefix("10.0.1.0/24")
-	inet1 := nlri.NewINET(nlri.IPv4Unicast, prefix1, 0)
-	inet2 := nlri.NewINET(nlri.IPv4Unicast, prefix2, 0)
+	inet1 := nlri.NewINET(family.IPv4Unicast, prefix1, 0)
+	inet2 := nlri.NewINET(family.IPv4Unicast, prefix2, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	route1 := NewRoute(inet1, nextHop, nil)

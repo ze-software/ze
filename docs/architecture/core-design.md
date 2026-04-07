@@ -205,7 +205,7 @@ type RIB struct {
     routes map[NLRIKey]*RouteEntry
 
     // NLRI pools - one per family (different wire formats)
-    nlriPools map[nlri.Family]*Pool[nlri.NLRI]
+    nlriPools map[family.Family]*Pool[nlri.NLRI]
 
     // Attribute pools - per-type deduplication
     originPool         *Pool[Origin]
@@ -268,7 +268,7 @@ Route 1: 10.0.0.0/24          Route 2: 10.0.1.0/24
 Different families have different NLRI wire formats:
 
 ```go
-nlriPools map[nlri.Family]*Pool[nlri.NLRI]
+nlriPools map[family.Family]*Pool[nlri.NLRI]
 
 // Contents:
 //   ipv4/unicast  → Pool[*INETPrefix]

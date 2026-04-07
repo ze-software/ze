@@ -250,7 +250,7 @@ func (r *Route) Index() []byte {
 		return r.indexCache
 	}
 
-	family := r.nlri.Family()
+	fam := r.nlri.Family()
 	// Phase 3: WriteTo(nil) returns payload only, need to include path ID separately
 	nlriLen := r.nlri.Len()
 	pathID := r.nlri.PathID()
@@ -269,9 +269,9 @@ func (r *Route) Index() []byte {
 	offset := 0
 
 	// Family (AFI + SAFI)
-	binary.BigEndian.PutUint16(buf[offset:], uint16(family.AFI))
+	binary.BigEndian.PutUint16(buf[offset:], uint16(fam.AFI))
 	offset += 2
-	buf[offset] = byte(family.SAFI)
+	buf[offset] = byte(fam.SAFI)
 	offset++
 
 	// Path ID (if present)

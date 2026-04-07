@@ -8,7 +8,7 @@ Audit and migrate all remaining `nlri.Bytes()` call sites in wire-encoding paths
 
 - `Bytes()` is preserved for internal use (RIB indexing, dedup hashing) — only wire-encoding paths need `Pack(ctx)`.
 - Two `Negotiated` structs coexist: `message.Negotiated` (wire encoding) and `capability.Negotiated` (full session state). They were not unified here; `PackContext` acts as the bridge.
-- `Peer.packContext(family nlri.Family)` helper method converts `NegotiatedFamilies` to a `PackContext` for a specific family — only IPv4/IPv6 unicast ADD-PATH was initially supported; other families return nil.
+- `Peer.packContext(fam family.Family)` helper method converts `NegotiatedFamilies` to a `PackContext` for a specific family — only IPv4/IPv6 unicast ADD-PATH was initially supported; other families return nil.
 
 ## Patterns
 

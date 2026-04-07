@@ -527,9 +527,9 @@ func collectPrefixWarnings(rl plugin.ReactorIntrospector) []cli.LoginWarning {
 				Command: "update bgp peer " + p.Address.String() + " prefix",
 			})
 		}
-		for _, family := range p.PrefixWarnings {
+		for _, fam := range p.PrefixWarnings {
 			warnings = append(warnings, cli.LoginWarning{
-				Message: fmt.Sprintf("%s %s prefix count exceeds warning threshold", label, family),
+				Message: fmt.Sprintf("%s %s prefix count exceeds warning threshold", label, fam),
 			})
 		}
 	}

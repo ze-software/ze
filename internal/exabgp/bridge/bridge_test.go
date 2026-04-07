@@ -643,13 +643,13 @@ func TestCapabilityOutput(t *testing.T) {
 	t.Run("add_path_vpn", func(t *testing.T) {
 		var out strings.Builder
 		sp := NewStartupProtocol(nil, &out)
-		sp.Families = []string{"ipv4/vpn"}
+		sp.Families = []string{"ipv4/mpls-vpn"}
 		sp.AddPathMode = "send" //nolint:goconst // CLI test value.
 
 		sp.SendCapabilityDone()
 
 		output := out.String()
-		// ipv4/vpn: AFI 1, SAFI 128 (0x80), mode 2
+		// ipv4/mpls-vpn: AFI 1, SAFI 128 (0x80), mode 2
 		// Encoded: 00 01 80 02 = "00018002"
 		assert.Contains(t, output, "capability hex 69 00018002\n")
 	})
@@ -711,11 +711,11 @@ func TestValidateFamily(t *testing.T) {
 		"ipv4/unicast",
 		"ipv6/unicast",
 		"ipv4/multicast",
-		"ipv4/vpn",
+		"ipv4/mpls-vpn",
 		"ipv4/mpls-vpn",
 		"ipv4/flow",
 		"ipv4/flow-vpn",
-		"ipv6/vpn",
+		"ipv6/mpls-vpn",
 		"l2vpn/evpn",
 		"IPV4/UNICAST", // case insensitive
 	}

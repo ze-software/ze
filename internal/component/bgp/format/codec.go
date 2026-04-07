@@ -88,11 +88,15 @@ func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string 
 func FormatNLRIsAsJSON(nlris []nlri.NLRI) json.RawMessage {
 	var sb strings.Builder
 	sb.WriteString("[")
+	var familyStr string
+	if len(nlris) > 0 {
+		familyStr = nlris[0].Family().String()
+	}
 	for i, n := range nlris {
 		if i > 0 {
 			sb.WriteString(",")
 		}
-		formatNLRIJSONValue(&sb, n)
+		formatNLRIJSONValue(&sb, n, familyStr)
 	}
 	sb.WriteString("]")
 	return json.RawMessage(sb.String())

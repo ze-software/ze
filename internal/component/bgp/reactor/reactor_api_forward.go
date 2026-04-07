@@ -17,15 +17,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 )
 
 // AnnounceEOR sends an End-of-RIB marker for the given address family.
 // Inlined peer iteration (not sendToMatchingPeers) to count EOR sent per peer.
 func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi uint8) error {
-	update := message.BuildEOR(nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)})
+	update := message.BuildEOR(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)})
 
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
@@ -571,12 +571,12 @@ func addPathForUpdate(ctx *bgpctx.EncodingContext, u *message.Update) bool {
 
 	// Check for MP_REACH_NLRI (type 14) to determine family.
 	// Attribute format: [flags:1][type:1][len:1-2][AFI:2][SAFI:1]...
-	if family, ok := message.ExtractMPFamily(u.PathAttributes); ok {
-		return ctx.AddPathFor(family)
+	if fam, ok := message.ExtractMPFamily(u.PathAttributes); ok {
+		return ctx.AddPathFor(fam)
 	}
 
 	// No MP attributes — IPv4 unicast (legacy NLRI field).
-	return ctx.AddPathFor(nlri.IPv4Unicast)
+	return ctx.AddPathFor(family.IPv4Unicast)
 }
 
 // DeleteUpdate removes an update from the cache without forwarding.

@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestINETIPv4Basic verifies basic IPv4 prefix parsing.
@@ -45,14 +47,14 @@ func TestINETIPv4Basic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			nlri, remaining, err := ParseINET(AFIIPv4, SAFIUnicast, tt.data, false)
+			nlri, remaining, err := ParseINET(family.AFIIPv4, family.SAFIUnicast, tt.data, false)
 			require.NoError(t, err)
 			require.Empty(t, remaining)
 
 			inet, ok := nlri.(*INET)
 			require.True(t, ok, "expected INET")
 			assert.Equal(t, tt.expected, inet.Prefix())
-			assert.Equal(t, IPv4Unicast, inet.Family())
+			assert.Equal(t, family.IPv4Unicast, inet.Family())
 			assert.False(t, inet.PathID() != 0)
 		})
 	}
@@ -90,14 +92,14 @@ func TestINETIPv6Basic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			nlri, remaining, err := ParseINET(AFIIPv6, SAFIUnicast, tt.data, false)
+			nlri, remaining, err := ParseINET(family.AFIIPv6, family.SAFIUnicast, tt.data, false)
 			require.NoError(t, err)
 			require.Empty(t, remaining)
 
 			inet, ok := nlri.(*INET)
 			require.True(t, ok, "expected INET")
 			assert.Equal(t, tt.expected, inet.Prefix())
-			assert.Equal(t, IPv6Unicast, inet.Family())
+			assert.Equal(t, family.IPv6Unicast, inet.Family())
 		})
 	}
 }
@@ -113,7 +115,7 @@ func TestINETWithAddPath(t *testing.T) {
 	// Path ID = 0x00000001, prefix = 10.0.0.0/8
 	data := []byte{0x00, 0x00, 0x00, 0x01, 8, 10}
 
-	nlri, remaining, err := ParseINET(AFIIPv4, SAFIUnicast, data, true)
+	nlri, remaining, err := ParseINET(family.AFIIPv4, family.SAFIUnicast, data, true)
 	require.NoError(t, err)
 	require.Empty(t, remaining)
 
@@ -134,13 +136,13 @@ func TestINETMultiplePrefixes(t *testing.T) {
 	// 10.0.0.0/8 followed by 192.168.0.0/16
 	data := []byte{8, 10, 16, 192, 168}
 
-	nlri1, remaining, err := ParseINET(AFIIPv4, SAFIUnicast, data, false)
+	nlri1, remaining, err := ParseINET(family.AFIIPv4, family.SAFIUnicast, data, false)
 	require.NoError(t, err)
 	inet1, ok := nlri1.(*INET)
 	require.True(t, ok, "expected INET")
 	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/8"), inet1.Prefix())
 
-	nlri2, remaining, err := ParseINET(AFIIPv4, SAFIUnicast, remaining, false)
+	nlri2, remaining, err := ParseINET(family.AFIIPv4, family.SAFIUnicast, remaining, false)
 	require.NoError(t, err)
 	require.Empty(t, remaining)
 	inet2, ok := nlri2.(*INET)
@@ -156,7 +158,7 @@ func TestINETMultiplePrefixes(t *testing.T) {
 func TestINETBytes(t *testing.T) {
 	t.Parallel()
 	prefix := netip.MustParsePrefix("10.1.2.0/24")
-	inet := NewINET(IPv4Unicast, prefix, 0)
+	inet := NewINET(family.IPv4Unicast, prefix, 0)
 
 	// Should encode as: prefix_len(24) + 3 bytes (10, 1, 2)
 	expected := []byte{24, 10, 1, 2}
@@ -171,7 +173,7 @@ func TestINETBytes(t *testing.T) {
 func TestINETBytesWithPathID(t *testing.T) {
 	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
-	inet := NewINET(IPv4Unicast, prefix, 42)
+	inet := NewINET(family.IPv4Unicast, prefix, 42)
 
 	// Phase 3: Bytes() = payload only (no path ID)
 	expected := []byte{8, 10}
@@ -190,10 +192,10 @@ func TestINETBytesWithPathID(t *testing.T) {
 // TestINETString verifies string representation returns bare CIDR.
 func TestINETString(t *testing.T) {
 	t.Parallel()
-	inet := NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)
+	inet := NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)
 	assert.Equal(t, "10.0.0.0/8", inet.String())
 
-	inetWithPath := NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 5)
+	inetWithPath := NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 5)
 	assert.Equal(t, "10.0.0.0/8", inetWithPath.String())
 }
 
@@ -212,22 +214,22 @@ func TestINETStringCommandStyle(t *testing.T) {
 	}{
 		{
 			name:     "ipv4 prefix without path-id",
-			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0),
+			inet:     NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0),
 			expected: "10.0.0.0/8",
 		},
 		{
 			name:     "ipv4 prefix with path-id",
-			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 42),
+			inet:     NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 42),
 			expected: "192.168.1.0/24",
 		},
 		{
 			name:     "ipv6 prefix without path-id",
-			inet:     NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0),
+			inet:     NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0),
 			expected: "2001:db8::/32",
 		},
 		{
 			name:     "ipv6 prefix with path-id",
-			inet:     NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 100),
+			inet:     NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 100),
 			expected: "2001:db8::/32",
 		},
 	}
@@ -246,11 +248,11 @@ func TestINETStringCommandStyle(t *testing.T) {
 // PREVENTS: Key() and String() diverging.
 func TestINETKey(t *testing.T) {
 	t.Parallel()
-	inet := NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)
+	inet := NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)
 	assert.Equal(t, "10.0.0.0/8", inet.Key(), "Key() should return bare CIDR")
 	assert.Equal(t, "10.0.0.0/8", inet.String(), "String() should return bare CIDR")
 
-	inet6 := NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 42)
+	inet6 := NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 42)
 	assert.Equal(t, "2001:db8::/32", inet6.Key(), "Key() should return bare CIDR for IPv6")
 }
 
@@ -264,14 +266,14 @@ func TestINETAppendKey(t *testing.T) {
 		name string
 		inet *INET
 	}{
-		{"ipv4/8", NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)},
-		{"ipv4/24", NewINET(IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 0)},
-		{"ipv4/32", NewINET(IPv4Unicast, netip.MustParsePrefix("1.2.3.4/32"), 0)},
-		{"ipv4/0", NewINET(IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), 0)},
-		{"ipv6/32", NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
-		{"ipv6/128", NewINET(IPv6Unicast, netip.MustParsePrefix("::1/128"), 0)},
-		{"ipv6/0", NewINET(IPv6Unicast, netip.MustParsePrefix("::/0"), 0)},
-		{"with-pathid", NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 42)},
+		{"ipv4/8", NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)},
+		{"ipv4/24", NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 0)},
+		{"ipv4/32", NewINET(family.IPv4Unicast, netip.MustParsePrefix("1.2.3.4/32"), 0)},
+		{"ipv4/0", NewINET(family.IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), 0)},
+		{"ipv6/32", NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
+		{"ipv6/128", NewINET(family.IPv6Unicast, netip.MustParsePrefix("::1/128"), 0)},
+		{"ipv6/0", NewINET(family.IPv6Unicast, netip.MustParsePrefix("::/0"), 0)},
+		{"with-pathid", NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 42)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -293,11 +295,11 @@ func TestINETAppendString(t *testing.T) {
 		name string
 		inet *INET
 	}{
-		{"ipv4/8", NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)},
-		{"ipv4/24", NewINET(IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 0)},
-		{"ipv6/32", NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
-		{"ipv6/128", NewINET(IPv6Unicast, netip.MustParsePrefix("::1/128"), 0)},
-		{"with-pathid", NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 42)},
+		{"ipv4/8", NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)},
+		{"ipv4/24", NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 0)},
+		{"ipv6/32", NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
+		{"ipv6/128", NewINET(family.IPv6Unicast, netip.MustParsePrefix("::1/128"), 0)},
+		{"with-pathid", NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 42)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -324,7 +326,7 @@ func TestINETErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, _, err := ParseINET(AFIIPv4, SAFIUnicast, tt.data, false)
+			_, _, err := ParseINET(family.AFIIPv4, family.SAFIUnicast, tt.data, false)
 			require.Error(t, err)
 		})
 	}
@@ -342,33 +344,33 @@ func TestINETPrefixLengthBoundary(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name    string
-		afi     AFI
+		afi     family.AFI
 		data    []byte
 		wantErr bool
 	}{
 		// IPv4 boundaries
 		{
 			name:    "ipv4_max_valid_32",
-			afi:     AFIIPv4,
+			afi:     family.AFIIPv4,
 			data:    []byte{32, 10, 1, 2, 3}, // 10.1.2.3/32
 			wantErr: false,
 		},
 		{
 			name:    "ipv4_invalid_33",
-			afi:     AFIIPv4,
+			afi:     family.AFIIPv4,
 			data:    []byte{33, 10, 1, 2, 3, 0}, // 33 bits - invalid
 			wantErr: true,
 		},
 		// IPv6 boundaries
 		{
 			name:    "ipv6_max_valid_128",
-			afi:     AFIIPv6,
+			afi:     family.AFIIPv6,
 			data:    []byte{128, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, // 2001:db8::1/128
 			wantErr: false,
 		},
 		{
 			name:    "ipv6_invalid_129",
-			afi:     AFIIPv6,
+			afi:     family.AFIIPv6,
 			data:    []byte{129, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0}, // 129 bits - invalid
 			wantErr: true,
 		},
@@ -377,7 +379,7 @@ func TestINETPrefixLengthBoundary(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, _, err := ParseINET(tt.afi, SAFIUnicast, tt.data, false)
+			_, _, err := ParseINET(tt.afi, family.SAFIUnicast, tt.data, false)
 			if tt.wantErr {
 				require.Error(t, err)
 				require.ErrorIs(t, err, ErrInvalidPrefix)
@@ -399,7 +401,7 @@ func TestINETRoundTrip(t *testing.T) {
 	}
 
 	for _, orig := range originals {
-		nlri, _, err := ParseINET(AFIIPv4, SAFIUnicast, orig, false)
+		nlri, _, err := ParseINET(family.AFIIPv4, family.SAFIUnicast, orig, false)
 		require.NoError(t, err)
 
 		encoded := nlri.Bytes()
@@ -424,37 +426,37 @@ func TestINETWriteNLRI(t *testing.T) {
 	}{
 		{
 			name:     "no addpath, no path id - returns as-is",
-			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0),
+			inet:     NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0),
 			addPath:  false,
 			expected: []byte{8, 10}, // mask + prefix
 		},
 		{
 			name:     "addpath enabled, no path id - prepends NOPATH (4 zeros)",
-			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0),
+			inet:     NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0),
 			addPath:  true,
 			expected: []byte{0, 0, 0, 0, 8, 10}, // NOPATH + mask + prefix
 		},
 		{
 			name:     "addpath enabled, has path id - includes path id",
-			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 42),
+			inet:     NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 42),
 			addPath:  true,
 			expected: []byte{0, 0, 0, 42, 8, 10}, // path_id + mask + prefix
 		},
 		{
 			name:     "addpath disabled, has path id - strips path id",
-			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 42),
+			inet:     NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 42),
 			addPath:  false,
 			expected: []byte{8, 10}, // mask + prefix only, no path_id
 		},
 		{
 			name:     "addpath enabled, path id from IP format (0.0.0.1)",
-			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.10/32"), 1),
+			inet:     NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.10/32"), 1),
 			addPath:  true,
 			expected: []byte{0, 0, 0, 1, 32, 10, 0, 0, 10}, // path_id=1 + /32 prefix
 		},
 		{
 			name:     "addpath enabled, larger prefix",
-			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 100),
+			inet:     NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 100),
 			addPath:  true,
 			expected: []byte{0, 0, 0, 100, 24, 192, 168, 1},
 		},
@@ -486,13 +488,13 @@ func TestINETWriteNLRIIPv6(t *testing.T) {
 	}{
 		{
 			name:     "ipv6 no addpath",
-			inet:     NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0),
+			inet:     NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0),
 			addPath:  false,
 			expected: []byte{32, 0x20, 0x01, 0x0d, 0xb8},
 		},
 		{
 			name:     "ipv6 with addpath",
-			inet:     NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 5),
+			inet:     NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 5),
 			addPath:  true,
 			expected: []byte{0, 0, 0, 5, 32, 0x20, 0x01, 0x0d, 0xb8},
 		},

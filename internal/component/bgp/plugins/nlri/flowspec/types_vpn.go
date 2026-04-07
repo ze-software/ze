@@ -35,11 +35,11 @@ type FlowSpecVPN struct {
 // RFC 8955 Section 8: "This document defines an additional BGP NLRI type
 // (AFI=1, SAFI=134) value, which can be used to propagate Flow Specification
 // in a BGP/MPLS VPN environment.".
-func NewFlowSpecVPN(family Family, rd RouteDistinguisher) *FlowSpecVPN {
+func NewFlowSpecVPN(fam Family, rd RouteDistinguisher) *FlowSpecVPN {
 	// Convert SAFI to FlowSpecVPN if needed
-	fsFamily := family
-	if family.SAFI == SAFIFlowSpecVPN {
-		fsFamily = Family{AFI: family.AFI, SAFI: SAFIFlowSpec}
+	fsFamily := fam
+	if fam.SAFI == SAFIFlowSpecVPN {
+		fsFamily = Family{AFI: fam.AFI, SAFI: SAFIFlowSpec}
 	}
 	return &FlowSpecVPN{
 		rd:       rd,
@@ -138,7 +138,7 @@ func (f *FlowSpecVPN) String() string {
 
 // ParseFlowSpecVPN parses a FlowSpec VPN from wire format per RFC 8955 Section 8.
 // The NLRI consists of length + Route Distinguisher (8 octets) + FlowSpec components.
-func ParseFlowSpecVPN(family Family, data []byte) (*FlowSpecVPN, error) {
+func ParseFlowSpecVPN(fam Family, data []byte) (*FlowSpecVPN, error) {
 	if len(data) == 0 {
 		return nil, ErrFlowSpecTruncated
 	}
@@ -170,7 +170,7 @@ func ParseFlowSpecVPN(family Family, data []byte) (*FlowSpecVPN, error) {
 	}
 
 	// Parse FlowSpec components (remaining data after RD)
-	fsFamily := Family{AFI: family.AFI, SAFI: SAFIFlowSpec}
+	fsFamily := Family{AFI: fam.AFI, SAFI: SAFIFlowSpec}
 	fs := NewFlowSpec(fsFamily)
 
 	remaining := data[offset+8 : offset+nlriLen]

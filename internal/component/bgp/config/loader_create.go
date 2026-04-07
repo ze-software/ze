@@ -15,10 +15,10 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -116,8 +116,8 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	for _, ps := range peers {
 		for _, cap := range ps.Capabilities {
 			if mp, ok := cap.(*capability.Multiprotocol); ok {
-				family := nlri.Family{AFI: mp.AFI, SAFI: mp.SAFI}
-				fs := family.String()
+				fam := family.Family{AFI: mp.AFI, SAFI: mp.SAFI}
+				fs := fam.String()
 				if !familySeen[fs] {
 					familySeen[fs] = true
 					configuredFamilies = append(configuredFamilies, fs)

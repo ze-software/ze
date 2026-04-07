@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestMultipleIndependentTransactions verifies concurrent transactions don't interfere.
@@ -106,10 +107,10 @@ func TestTransactionIsolation_RouteQueuing(t *testing.T) {
 	rib2.QueueAnnounce(route2)
 
 	// Check pending routes are isolated
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	fam := family.IPv4Unicast
 
-	pending1 := rib1.GetTransactionPending(family)
-	pending2 := rib2.GetTransactionPending(family)
+	pending1 := rib1.GetTransactionPending(fam)
+	pending2 := rib2.GetTransactionPending(fam)
 
 	if len(pending1) != 1 {
 		t.Errorf("rib1 pending = %d, want 1", len(pending1))
@@ -170,8 +171,8 @@ func TestTransactionIsolation_CommitDoesNotAffectOther(t *testing.T) {
 		t.Error("rib2 transaction ID was changed")
 	}
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-	pending2 := rib2.GetTransactionPending(family)
+	fam := family.IPv4Unicast
+	pending2 := rib2.GetTransactionPending(fam)
 	if len(pending2) != 2 {
 		t.Errorf("rib2 lost routes after rib1 commit: got %d, want 2", len(pending2))
 	}
@@ -203,8 +204,8 @@ func TestTransactionIsolation_RollbackDoesNotAffectOther(t *testing.T) {
 		t.Error("rib2 transaction was affected by rib1 rollback")
 	}
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-	pending2 := rib2.GetTransactionPending(family)
+	fam := family.IPv4Unicast
+	pending2 := rib2.GetTransactionPending(fam)
 	if len(pending2) != 1 {
 		t.Errorf("rib2 lost routes after rib1 rollback: got %d, want 1", len(pending2))
 	}
@@ -263,8 +264,8 @@ func TestTransactionIsolation_WithdrawalsIsolated(t *testing.T) {
 	// Queue announcement in rib1, withdrawal in rib2
 	rib1.QueueAnnounce(testRoute("10.0.0.0/24"))
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-	withdrawNLRI := nlri.NewINET(family, netip.MustParsePrefix("20.0.0.0/24"), 0)
+	fam := family.IPv4Unicast
+	withdrawNLRI := nlri.NewINET(fam, netip.MustParsePrefix("20.0.0.0/24"), 0)
 	rib2.QueueWithdraw(withdrawNLRI)
 
 	// Commit both

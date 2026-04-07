@@ -143,11 +143,11 @@ func convertAnnounce(peerIP, routeStr string) string {
 	}
 
 	// Determine family from prefix
-	family := "ipv4/unicast"
+	fam := "ipv4/unicast"
 	if strings.Contains(prefix, ":") {
-		family = "ipv6/unicast"
+		fam = "ipv6/unicast"
 	}
-	cmdParts = append(cmdParts, fmt.Sprintf("nlri %s add %s", family, prefix))
+	cmdParts = append(cmdParts, fmt.Sprintf("nlri %s add %s", fam, prefix))
 
 	return strings.Join(cmdParts, " ")
 }
@@ -160,11 +160,11 @@ func convertWithdraw(peerIP, routeStr string) string {
 	}
 
 	prefix := parts[0]
-	family := "ipv4/unicast"
+	fam := "ipv4/unicast"
 	if strings.Contains(prefix, ":") {
-		family = "ipv6/unicast"
+		fam = "ipv6/unicast"
 	}
-	return fmt.Sprintf("peer %s update text nlri %s del %s", peerIP, family, prefix)
+	return fmt.Sprintf("peer %s update text nlri %s del %s", peerIP, fam, prefix)
 }
 
 func convertAnnounceFamily(peerIP, rest string) string {
@@ -175,8 +175,8 @@ func convertAnnounceFamily(peerIP, rest string) string {
 		afi := strings.ToLower(match[1])
 		safi := strings.ToLower(match[2])
 		routeStr := match[3]
-		family := fmt.Sprintf("%s/%s", afi, safi)
-		return convertAnnounceWithFamily(peerIP, family, routeStr)
+		fam := fmt.Sprintf("%s/%s", afi, safi)
+		return convertAnnounceWithFamily(peerIP, fam, routeStr)
 	}
 
 	// Fall back to basic conversion
@@ -191,8 +191,8 @@ func convertWithdrawFamily(peerIP, rest string) string {
 		afi := strings.ToLower(match[1])
 		safi := strings.ToLower(match[2])
 		prefix := strings.Fields(match[3])[0]
-		family := fmt.Sprintf("%s/%s", afi, safi)
-		return fmt.Sprintf("peer %s update text nlri %s del %s", peerIP, family, prefix)
+		fam := fmt.Sprintf("%s/%s", afi, safi)
+		return fmt.Sprintf("peer %s update text nlri %s del %s", peerIP, fam, prefix)
 	}
 
 	return fmt.Sprintf("peer %s withdraw %s", peerIP, rest)

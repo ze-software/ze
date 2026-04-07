@@ -262,7 +262,7 @@ func TestBuildFlowSpecRoute(t *testing.T) {
 func TestBuildEORGeneric(t *testing.T) {
 	families := []string{
 		"ipv4/unicast", "ipv6/unicast",
-		"ipv4/vpn", "ipv6/vpn",
+		"ipv4/mpls-vpn", "ipv6/mpls-vpn",
 		"l2vpn/evpn",
 		"ipv4/flow", "ipv6/flow",
 	}

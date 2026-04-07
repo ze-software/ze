@@ -98,9 +98,9 @@ func (sp *StartupProtocol) SendDeclarations() {
 	}
 
 	// Declare families (convert "/" to " " for ZeBGP protocol)
-	for _, family := range families {
+	for _, fam := range families {
 		// Convert "ipv4/unicast" → "ipv4 unicast"
-		zebgpFamily := strings.ReplaceAll(family, "/", " ")
+		zebgpFamily := strings.ReplaceAll(fam, "/", " ")
 		_, _ = fmt.Fprintf(sp.output, "declare family %s\n", zebgpFamily)
 	}
 
@@ -157,10 +157,10 @@ func (sp *StartupProtocol) encodeAddPath() string {
 	}
 
 	var result []byte
-	for _, family := range families {
-		afi, safi := parseFamilyToAFISAFI(family)
+	for _, fam := range families {
+		afi, safi := parseFamilyToAFISAFI(fam)
 		if afi == 0 {
-			slog.Warn("unknown family ignored for ADD-PATH", "family", family)
+			slog.Warn("unknown family ignored for ADD-PATH", "family", fam)
 			continue
 		}
 		// AFI (2 bytes big-endian) + SAFI (1 byte) + Mode (1 byte)
@@ -209,10 +209,10 @@ func EncodeAddPathHex(families []string, mode string) string {
 	}
 
 	var result []byte
-	for _, family := range families {
-		afi, safi := parseFamilyToAFISAFI(family)
+	for _, fam := range families {
+		afi, safi := parseFamilyToAFISAFI(fam)
 		if afi == 0 {
-			slog.Warn("unknown family ignored for ADD-PATH", "family", family)
+			slog.Warn("unknown family ignored for ADD-PATH", "family", fam)
 			continue
 		}
 		result = append(result, byte(afi>>8), byte(afi), byte(safi), m)

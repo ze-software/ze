@@ -167,7 +167,7 @@ func (m *monitor) handleAddrUpdate(au netlink.AddrUpdate) {
 	addr := au.LinkAddress.IP.String()
 	ones, _ := au.LinkAddress.Mask.Size()
 
-	family, ok := addrFamily(au.LinkAddress.String())
+	fam, ok := addrFamily(au.LinkAddress.String())
 	if !ok {
 		return
 	}

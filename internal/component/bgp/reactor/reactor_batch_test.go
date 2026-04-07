@@ -7,6 +7,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,8 +78,8 @@ func TestAnnounceNLRIBatch_NoMatchingPeers(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: r}
 
 	batch := bgptypes.NLRIBatch{
-		Family:  nlri.IPv4Unicast,
-		NLRIs:   []nlri.NLRI{nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
+		Family:  family.IPv4Unicast,
+		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 	}
 
@@ -98,8 +99,8 @@ func TestWithdrawNLRIBatch_NoMatchingPeers(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: r}
 
 	batch := bgptypes.NLRIBatch{
-		Family: nlri.IPv4Unicast,
-		NLRIs:  []nlri.NLRI{nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
+		Family: family.IPv4Unicast,
+		NLRIs:  []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
 	}
 
 	err := adapter.WithdrawNLRIBatch("192.168.1.1", batch)
@@ -123,7 +124,7 @@ func TestAnnounceNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 
 	// Negotiate ONLY IPv4 unicast, NOT IPv6
 	peer.negotiated.Store(&NegotiatedCapabilities{
-		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: false,
 	})
 
@@ -135,8 +136,8 @@ func TestAnnounceNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 
 	// Try to announce IPv6 - all peers skipped
 	batch := bgptypes.NLRIBatch{
-		Family:  nlri.IPv6Unicast,
-		NLRIs:   []nlri.NLRI{nlri.NewINET(nlri.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
+		Family:  family.IPv6Unicast,
+		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
@@ -162,7 +163,7 @@ func TestWithdrawNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 
 	// Negotiate ONLY IPv4 unicast, NOT IPv6
 	peer.negotiated.Store(&NegotiatedCapabilities{
-		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: false,
 	})
 
@@ -174,8 +175,8 @@ func TestWithdrawNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 
 	// Try to withdraw IPv6 - all peers skipped
 	batch := bgptypes.NLRIBatch{
-		Family: nlri.IPv6Unicast,
-		NLRIs:  []nlri.NLRI{nlri.NewINET(nlri.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
+		Family: family.IPv6Unicast,
+		NLRIs:  []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
 	}
 
 	// Should return warning error when all peers skipped
@@ -206,10 +207,10 @@ func TestAnnounceNLRIBatch_QueueForNonEstablished(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: r}
 
 	batch := bgptypes.NLRIBatch{
-		Family: nlri.IPv4Unicast,
+		Family: family.IPv4Unicast,
 		NLRIs: []nlri.NLRI{
-			nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
-			nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.1.0/24"), 0),
+			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
+			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.1.0/24"), 0),
 		},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 	}
@@ -248,10 +249,10 @@ func TestWithdrawNLRIBatch_QueueForNonEstablished(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: r}
 
 	batch := bgptypes.NLRIBatch{
-		Family: nlri.IPv4Unicast,
+		Family: family.IPv4Unicast,
 		NLRIs: []nlri.NLRI{
-			nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
-			nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.1.0/24"), 0),
+			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
+			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.1.0/24"), 0),
 		},
 	}
 
@@ -283,11 +284,11 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv4(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(wireAttrs, 0)
 
 	// Create wire NLRI (10.0.0.0/24)
-	wn, err := nlri.NewWireNLRI(nlri.IPv4Unicast, []byte{0x18, 0x0a, 0x00, 0x00}, false)
+	wn, err := nlri.NewWireNLRI(family.IPv4Unicast, []byte{0x18, 0x0a, 0x00, 0x00}, false)
 	require.NoError(t, err)
 
 	batch := bgptypes.NLRIBatch{
-		Family:  nlri.IPv4Unicast,
+		Family:  family.IPv4Unicast,
 		NLRIs:   []nlri.NLRI{wn},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 		Wire:    attrsWire,
@@ -319,11 +320,11 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv6(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(wireAttrs, 0)
 
 	// Create wire NLRI for IPv6 (2001:db8::/32)
-	wn, err := nlri.NewWireNLRI(nlri.IPv6Unicast, []byte{0x20, 0x20, 0x01, 0x0d, 0xb8}, false)
+	wn, err := nlri.NewWireNLRI(family.IPv6Unicast, []byte{0x20, 0x20, 0x01, 0x0d, 0xb8}, false)
 	require.NoError(t, err)
 
 	batch := bgptypes.NLRIBatch{
-		Family:  nlri.IPv6Unicast,
+		Family:  family.IPv6Unicast,
 		NLRIs:   []nlri.NLRI{wn},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 		Wire:    attrsWire,
@@ -350,11 +351,11 @@ func TestBuildBatchWithdrawUpdate_WireMode(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: r}
 
 	// Create wire NLRI (10.0.0.0/24)
-	wn, err := nlri.NewWireNLRI(nlri.IPv4Unicast, []byte{0x18, 0x0a, 0x00, 0x00}, false)
+	wn, err := nlri.NewWireNLRI(family.IPv4Unicast, []byte{0x18, 0x0a, 0x00, 0x00}, false)
 	require.NoError(t, err)
 
 	batch := bgptypes.NLRIBatch{
-		Family: nlri.IPv4Unicast,
+		Family: family.IPv4Unicast,
 		NLRIs:  []nlri.NLRI{wn},
 	}
 

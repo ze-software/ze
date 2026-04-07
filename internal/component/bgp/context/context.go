@@ -13,11 +13,11 @@ import (
 	"sort"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
-// Family is an alias for nlri.Family. Use nlri.Family directly in new code.
-type Family = nlri.Family
+// Family is an alias for family.Family. Use family.Family directly in new code.
+type Family = family.Family
 
 // WireWriter is the unified interface for types that write to wire format.
 // All BGP wire types (Messages, Attributes) implement this interface.
@@ -62,7 +62,7 @@ type EncodingContext struct {
 
 	// Direction-specific derived data
 	direction Direction
-	addPath   map[nlri.Family]bool // Derived from encoding.AddPathMode + direction
+	addPath   map[family.Family]bool // Derived from encoding.AddPathMode + direction
 
 	// Cached hash for registry deduplication
 	hash uint64
@@ -79,7 +79,7 @@ func NewEncodingContext(identity *capability.PeerIdentity, encoding *capability.
 		identity:  identity,
 		encoding:  encoding,
 		direction: dir,
-		addPath:   make(map[nlri.Family]bool),
+		addPath:   make(map[family.Family]bool),
 	}
 
 	// Derive addPath map based on direction
@@ -175,7 +175,7 @@ func (c *EncodingContext) IsIBGP() bool {
 
 // AddPath returns whether ADD-PATH is enabled for the given family in this direction.
 // RFC 7911: Returns true if we can receive/send path IDs for this family.
-func (c *EncodingContext) AddPath(f nlri.Family) bool {
+func (c *EncodingContext) AddPath(f family.Family) bool {
 	if c.addPath == nil {
 		return false
 	}
@@ -183,14 +183,14 @@ func (c *EncodingContext) AddPath(f nlri.Family) bool {
 }
 
 // AddPathFor is an alias for AddPath for API compatibility.
-func (c *EncodingContext) AddPathFor(f nlri.Family) bool {
+func (c *EncodingContext) AddPathFor(f family.Family) bool {
 	return c.AddPath(f)
 }
 
 // ExtendedNextHopFor returns the next-hop AFI for the given family.
 // RFC 8950: Returns the next-hop AFI if extended next-hop is negotiated.
 // Returns 0 if not negotiated.
-func (c *EncodingContext) ExtendedNextHopFor(f nlri.Family) nlri.AFI {
+func (c *EncodingContext) ExtendedNextHopFor(f family.Family) family.AFI {
 	if c.encoding == nil || c.encoding.ExtendedNextHop == nil {
 		return 0
 	}
@@ -252,18 +252,18 @@ func (c *EncodingContext) computeHash() uint64 {
 }
 
 // hashFamilyBoolMap writes map entries to hash in deterministic order.
-func hashFamilyBoolMap(h hash.Hash64, m map[nlri.Family]bool) {
+func hashFamilyBoolMap(h hash.Hash64, m map[family.Family]bool) {
 	if m == nil {
 		return
 	}
 
 	// Sort keys for determinism
-	keys := make([]nlri.Family, 0, len(m))
+	keys := make([]family.Family, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}
 	sort.Slice(keys, func(i, j int) bool {
-		return nlri.FamilyLess(keys[i], keys[j])
+		return family.FamilyLess(keys[i], keys[j])
 	})
 
 	// Write each entry
@@ -292,7 +292,7 @@ func hashFamilyAFIMap(h hash.Hash64, m map[capability.Family]capability.AFI) {
 		keys = append(keys, k)
 	}
 	sort.Slice(keys, func(i, j int) bool {
-		return nlri.FamilyLess(keys[i], keys[j])
+		return family.FamilyLess(keys[i], keys[j])
 	})
 
 	// Write each entry (family + next-hop AFI)
@@ -323,7 +323,7 @@ func EncodingContextForASN4(asn4 bool) *EncodingContext {
 
 // EncodingContextWithAddPath creates an EncodingContext with ASN4 and ADD-PATH settings.
 // Direction is set to DirectionSend since this is typically used for encoding.
-func EncodingContextWithAddPath(asn4 bool, addPath map[nlri.Family]bool) *EncodingContext {
+func EncodingContextWithAddPath(asn4 bool, addPath map[family.Family]bool) *EncodingContext {
 	addPathMode := make(map[capability.Family]capability.AddPathMode)
 	for f, enabled := range addPath {
 		if enabled {

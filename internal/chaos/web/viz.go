@@ -751,7 +751,7 @@ func (d *Dashboard) handleVizRouteMatrix(w http.ResponseWriter, r *http.Request)
 	}
 
 	mode := r.URL.Query().Get("mode") // "latency" or "" (count)
-	family := r.URL.Query().Get("family")
+	fam := r.URL.Query().Get("family")
 
 	// Custom peer selection: comma-separated indices override top-N.
 	var customPeers []int
@@ -768,7 +768,7 @@ func (d *Dashboard) handleVizRouteMatrix(w http.ResponseWriter, r *http.Request)
 	writeRouteMatrix(w, d.state.RouteMatrix, routeMatrixOpts{
 		topN:        topN,
 		mode:        mode,
-		family:      family,
+		family:      fam,
 		customPeers: customPeers,
 	})
 }

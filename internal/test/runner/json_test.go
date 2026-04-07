@@ -75,8 +75,8 @@ func TestTransformEnvelopeToPlugin_IPv4Announce(t *testing.T) {
 		},
 	}
 
-	result, family := transformEnvelopeToPlugin(envelope)
-	assert.Equal(t, "ipv4/unicast", family)
+	result, fam := transformEnvelopeToPlugin(envelope)
+	assert.Equal(t, "ipv4/unicast", fam)
 
 	// Check transformed structure
 	msg, ok := result["message"].(map[string]any)
@@ -116,8 +116,8 @@ func TestTransformEnvelopeToPlugin_IPv4Withdraw(t *testing.T) {
 		},
 	}
 
-	result, family := transformEnvelopeToPlugin(envelope)
-	assert.Equal(t, "ipv4/unicast", family)
+	result, fam := transformEnvelopeToPlugin(envelope)
+	assert.Equal(t, "ipv4/unicast", fam)
 
 	// NLRI passed through
 	nlriList, ok := result["ipv4/unicast"].([]any)
@@ -147,8 +147,8 @@ func TestTransformEnvelopeToPlugin_IPv6Withdraw(t *testing.T) {
 		},
 	}
 
-	result, family := transformEnvelopeToPlugin(envelope)
-	assert.Equal(t, "ipv6/unicast", family)
+	result, fam := transformEnvelopeToPlugin(envelope)
+	assert.Equal(t, "ipv6/unicast", fam)
 
 	// NLRI passed through
 	nlriList, ok := result["ipv6/unicast"].([]any)
@@ -186,8 +186,8 @@ func TestTransformEnvelopeToPlugin_IPv6Announce(t *testing.T) {
 		},
 	}
 
-	result, family := transformEnvelopeToPlugin(envelope)
-	assert.Equal(t, "ipv6/unicast", family)
+	result, fam := transformEnvelopeToPlugin(envelope)
+	assert.Equal(t, "ipv6/unicast", fam)
 
 	// NLRI passed through
 	nlriList, ok := result["ipv6/unicast"].([]any)
@@ -214,8 +214,8 @@ func TestTransformEnvelopeToPlugin_EOR(t *testing.T) {
 		},
 	}
 
-	result, family := transformEnvelopeToPlugin(envelope)
-	assert.Equal(t, "", family) // No family for EOR
+	result, fam := transformEnvelopeToPlugin(envelope)
+	assert.Equal(t, "", fam) // No family for EOR
 
 	// Should have message type
 	msg, ok := result["message"].(map[string]any)
@@ -388,8 +388,8 @@ func TestTransformEnvelopeToPlugin_FlowSpecAnnounce(t *testing.T) {
 		},
 	}
 
-	result, family := transformEnvelopeToPlugin(envelope)
-	assert.Equal(t, "ipv4/flow", family)
+	result, fam := transformEnvelopeToPlugin(envelope)
+	assert.Equal(t, "ipv4/flow", fam)
 
 	// Check transformed structure
 	msg, ok := result["message"].(map[string]any)
@@ -441,8 +441,8 @@ func TestTransformEnvelopeToPlugin_FlowSpecWithNextHop(t *testing.T) {
 		},
 	}
 
-	result, family := transformEnvelopeToPlugin(envelope)
-	assert.Equal(t, "ipv4/flow", family)
+	result, fam := transformEnvelopeToPlugin(envelope)
+	assert.Equal(t, "ipv4/flow", fam)
 
 	// FlowSpec NLRI passed through
 	nlriList, ok := result["ipv4/flow"].([]any)
@@ -488,8 +488,8 @@ func TestTransformEnvelopeToPlugin_IPv6FlowSpec(t *testing.T) {
 		},
 	}
 
-	result, family := transformEnvelopeToPlugin(envelope)
-	assert.Equal(t, "ipv6/flow", family)
+	result, fam := transformEnvelopeToPlugin(envelope)
+	assert.Equal(t, "ipv6/flow", fam)
 
 	// IPv6 FlowSpec NLRI passed through
 	nlriList, ok := result["ipv6/flow"].([]any)
@@ -530,8 +530,8 @@ func TestTransformEnvelopeToPlugin_FlowSpecWithdraw(t *testing.T) {
 		},
 	}
 
-	result, family := transformEnvelopeToPlugin(envelope)
-	assert.Equal(t, "ipv4/flow", family)
+	result, fam := transformEnvelopeToPlugin(envelope)
+	assert.Equal(t, "ipv4/flow", fam)
 
 	// FlowSpec withdraw with action:del
 	nlriList, ok := result["ipv4/flow"].([]any)

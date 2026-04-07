@@ -48,20 +48,20 @@ func decodeUpdateMessage(data []byte, _ string, hasHeader bool) (map[string]any,
 	// Ze format: family is direct key under update (no "nlri" wrapper)
 	// Handle MP_REACH_NLRI (announcements)
 	if mpReach != nil {
-		family, ops := buildMPReachZe(mpReach)
-		if family != "" && len(ops) > 0 {
-			updateContent[family] = ops
+		fam, ops := buildMPReachZe(mpReach)
+		if fam != "" && len(ops) > 0 {
+			updateContent[fam] = ops
 		}
 	}
 
 	// Handle MP_UNREACH_NLRI (withdrawals)
 	if mpUnreach != nil {
-		family, ops := buildMPUnreachZe(mpUnreach)
-		if family != "" && len(ops) > 0 {
-			if existing, ok := updateContent[family].([]map[string]any); ok {
-				updateContent[family] = append(existing, ops...)
+		fam, ops := buildMPUnreachZe(mpUnreach)
+		if fam != "" && len(ops) > 0 {
+			if existing, ok := updateContent[fam].([]map[string]any); ok {
+				updateContent[fam] = append(existing, ops...)
 			} else {
-				updateContent[family] = ops
+				updateContent[fam] = ops
 			}
 		}
 	}

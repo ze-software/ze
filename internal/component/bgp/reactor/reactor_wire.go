@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Skip-and-backfill encoding pattern:
@@ -330,12 +331,12 @@ func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, localAS 
 		buf[attrLenPos+1] = byte(attrLen)
 
 		// RFC 7911: WriteNLRI handles ADD-PATH encoding
-		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
+		inet := nlri.NewINET(family.IPv4Unicast, route.Prefix, 0)
 		off += nlri.WriteNLRI(inet, buf, off, addPath)
 	} else {
 		// RFC 4760 Section 3 - IPv6: Write MP_REACH_NLRI directly (zero-alloc)
 		// Wire format: AFI(2) + SAFI(1) + NH_Len(1) + NextHop(16) + Reserved(1) + NLRI(var)
-		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
+		inet := nlri.NewINET(family.IPv6Unicast, route.Prefix, 0)
 		nlriPayloadLen := nlri.LenWithContext(inet, addPath)
 		nhLen := 16 // IPv6 next-hop
 		mpValueLen := 2 + 1 + 1 + nhLen + 1 + nlriPayloadLen
@@ -415,7 +416,7 @@ func WriteWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, addPath bool)
 
 		// RFC 4271 Section 4.3 - Withdrawn Routes: list of IP address prefixes
 		// RFC 7911: WriteNLRI handles ADD-PATH encoding when negotiated
-		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
+		inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
 		off += nlri.WriteNLRI(inet, buf, off, addPath)
 
 		// RFC 4271 Section 4.3 - Backfill Withdrawn Routes Length
@@ -441,7 +442,7 @@ func WriteWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, addPath bool)
 
 		// RFC 4760 Section 4 - MP_UNREACH_NLRI wire format:
 		//   AFI(2) + SAFI(1) + Withdrawn_NLRI(var)
-		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, prefix, 0)
+		inet := nlri.NewINET(family.IPv6Unicast, prefix, 0)
 		nlriPayloadLen := nlri.LenWithContext(inet, addPath)
 		mpValueLen := 2 + 1 + nlriPayloadLen
 

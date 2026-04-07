@@ -112,8 +112,8 @@ func TestWordsRunRibIncludesFamilyHints(t *testing.T) {
 	}
 
 	// ValueHints families should be present.
-	if !strings.Contains(output, "ipv4/vpn\t") {
-		t.Error("rib output missing family ValueHint 'ipv4/vpn'")
+	if !strings.Contains(output, "ipv4/mpls-vpn\t") {
+		t.Error("rib output missing family ValueHint 'ipv4/mpls-vpn'")
 	}
 	if !strings.Contains(output, "l2vpn/evpn\t") {
 		t.Error("rib output missing family ValueHint 'l2vpn/evpn'")

@@ -469,7 +469,7 @@ func printFamilyAttributes() {
 	fmt.Println("  Some update text attributes only apply to specific address families:")
 	fmt.Println()
 	fmt.Println("  path-id <N>        ADD-PATH peers only (any family, requires ADD-PATH capability)")
-	fmt.Println("  rd <value>         VPN families: ipv4/vpn, ipv6/vpn, l2vpn/evpn, l2vpn/vpls")
+	fmt.Println("  rd <value>         VPN families: ipv4/mpls-vpn, ipv6/mpls-vpn, l2vpn/evpn, l2vpn/vpls")
 	fmt.Println("  label <N>          Labeled/VPN: ipv4/mpls-label, ipv6/mpls-label, */vpn")
 	fmt.Println()
 }

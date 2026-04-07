@@ -21,18 +21,18 @@ func (s *Server) getUnclaimedFamilyPlugins() []plugin.PluginConfig {
 	seen := make(map[string]bool)
 	var plugins []plugin.PluginConfig
 
-	for _, family := range s.config.ConfiguredFamilies {
+	for _, fam := range s.config.ConfiguredFamilies {
 		// Family-based check: skip if already claimed by explicit plugin
-		if s.registry.LookupFamily(family) != "" {
-			logger().Debug("family already claimed, skipping auto-load",
-				"family", family, "claimed_by", s.registry.LookupFamily(family))
+		if s.registry.LookupFamily(fam) != "" {
+			logger().Debug("fam already claimed, skipping auto-load",
+				"family", fam, "claimed_by", s.registry.LookupFamily(fam))
 			continue
 		}
 
-		// Get internal plugin for this family
-		pluginName := plugin.GetPluginForFamily(family)
+		// Get internal plugin for this fam
+		pluginName := plugin.GetPluginForFamily(fam)
 		if pluginName == "" {
-			continue // No internal plugin for this family
+			continue // No internal plugin for this fam
 		}
 
 		// Avoid duplicates
@@ -41,8 +41,8 @@ func (s *Server) getUnclaimedFamilyPlugins() []plugin.PluginConfig {
 		}
 		seen[pluginName] = true
 
-		logger().Debug("auto-loading plugin for unclaimed family",
-			"plugin", pluginName, "family", family)
+		logger().Debug("auto-loading plugin for unclaimed fam",
+			"plugin", pluginName, "family", fam)
 
 		plugins = append(plugins, plugin.PluginConfig{
 			Name:     pluginName,

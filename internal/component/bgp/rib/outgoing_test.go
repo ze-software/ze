@@ -6,13 +6,14 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Helper to create test routes.
 func testRoute(prefix string) *Route {
 	p := netip.MustParsePrefix(prefix)
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-	n := nlri.NewINET(family, p, 0)
+	fam := family.IPv4Unicast
+	n := nlri.NewINET(fam, p, 0)
 	return NewRoute(n, netip.MustParseAddr("1.2.3.4"), nil)
 }
 
@@ -98,8 +99,8 @@ func TestOutgoingRIB_Transaction_Rollback(t *testing.T) {
 	}
 
 	// Pending should be empty (routes were discarded, not transferred)
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-	if routes := rib.GetPending(family); len(routes) != 0 {
+	fam := family.IPv4Unicast
+	if routes := rib.GetPending(fam); len(routes) != 0 {
 		t.Errorf("GetPending returned %d routes, want 0 after rollback", len(routes))
 	}
 }
@@ -208,8 +209,8 @@ func TestOutgoingRIB_Transaction_WithdrawalsIncluded(t *testing.T) {
 	// Queue announcements and withdrawals
 	rib.QueueAnnounce(testRoute("10.0.0.0/24"))
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-	withdrawNLRI := nlri.NewINET(family, netip.MustParsePrefix("10.1.0.0/24"), 0)
+	fam := family.IPv4Unicast
+	withdrawNLRI := nlri.NewINET(fam, netip.MustParsePrefix("10.1.0.0/24"), 0)
 	rib.QueueWithdraw(withdrawNLRI)
 
 	stats, err := rib.CommitTransaction()
@@ -266,8 +267,8 @@ func TestOutgoingRIB_Transaction_GetPendingRoutes(t *testing.T) {
 	rib.QueueAnnounce(testRoute("10.0.0.0/24"))
 	rib.QueueAnnounce(testRoute("10.1.0.0/24"))
 
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-	routes := rib.GetTransactionPending(family)
+	fam := family.IPv4Unicast
+	routes := rib.GetTransactionPending(fam)
 
 	if len(routes) != 2 {
 		t.Errorf("GetTransactionPending returned %d routes, want 2", len(routes))

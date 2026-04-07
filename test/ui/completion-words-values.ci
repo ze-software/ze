@@ -5,7 +5,7 @@ cmd=foreground:seq=1:exec=ze completion words run rib
 expect=exit:code=0
 expect=stdout:contains=ipv4/unicast
 expect=stdout:contains=ipv6/unicast
-expect=stdout:contains=ipv4/vpn
+expect=stdout:contains=ipv4/mpls-vpn
 expect=stdout:contains=l2vpn/evpn
 expect=stdout:contains=best
 expect=stdout:contains=routes

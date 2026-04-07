@@ -11,6 +11,7 @@ import (
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
@@ -343,8 +344,8 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 // attrBuf[:attrOff] must contain mandatory attrs from writeMandatoryAttrs.
 // RFC 4271: NEXT_HOP (type 3) must come after AS_PATH (type 2) but before other attrs.
 // RFC 4271 §5.1.5: LOCAL_PREF is well-known mandatory for iBGP sessions.
-func (a *reactorAPIAdapter) buildWireModeUpdate(attrBuf []byte, attrOff int, nlriBytes []byte, family nlri.Family, nextHop netip.Addr, isIBGP bool) *message.Update {
-	isIPv4Unicast := family == nlri.IPv4Unicast
+func (a *reactorAPIAdapter) buildWireModeUpdate(attrBuf []byte, attrOff int, nlriBytes []byte, fam family.Family, nextHop netip.Addr, isIBGP bool) *message.Update {
+	isIPv4Unicast := fam == (family.IPv4Unicast)
 
 	if isIPv4Unicast {
 		// IPv4 unicast: insert NEXT_HOP after AS_PATH for correct type code order
@@ -382,8 +383,8 @@ func (a *reactorAPIAdapter) buildWireModeUpdate(attrBuf []byte, attrOff int, nlr
 	}
 
 	mpReach := &attribute.MPReachNLRI{
-		AFI:      attribute.AFI(family.AFI),
-		SAFI:     attribute.SAFI(family.SAFI),
+		AFI:      attribute.AFI(fam.AFI),
+		SAFI:     attribute.SAFI(fam.SAFI),
 		NextHops: []netip.Addr{nextHop},
 		NLRI:     nlriBytes,
 	}
@@ -563,7 +564,7 @@ func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, ba
 	}
 	nlriBytes := nlriBuf[:nlriOff]
 
-	if batch.Family == nlri.IPv4Unicast {
+	if batch.Family == (family.IPv4Unicast) {
 		// IPv4 unicast: Use WithdrawnRoutes field
 		return &message.Update{
 			WithdrawnRoutes: nlriBytes,
@@ -593,14 +594,14 @@ func (a *reactorAPIAdapter) SendRoutes(peerSelector string, routes []*rib.Route,
 	var totalResult bgptypes.TransactionResult
 
 	// Collect families for EOR (from both routes and withdrawals)
-	seen := make(map[nlri.Family]bool)
+	seen := make(map[family.Family]bool)
 	for _, r := range routes {
 		seen[r.NLRI().Family()] = true
 	}
 	for _, n := range withdrawals {
 		seen[n.Family()] = true
 	}
-	families := make([]nlri.Family, 0, len(seen))
+	families := make([]family.Family, 0, len(seen))
 	for f := range seen {
 		families = append(families, f)
 	}
@@ -665,18 +666,18 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 	}
 
 	// Group withdrawals by family
-	byFamily := make(map[nlri.Family][]nlri.NLRI)
+	byFamily := make(map[family.Family][]nlri.NLRI)
 	for _, n := range withdrawals {
 		f := n.Family()
 		byFamily[f] = append(byFamily[f], n)
 	}
 
 	updatesSent := 0
-	ipv4Unicast := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	ipv4Unicast := family.IPv4Unicast
 
-	for family, nlris := range byFamily {
+	for fam, nlris := range byFamily {
 		// RFC 7911: Get ADD-PATH encoding setting
-		addPath := peer.addPathFor(family)
+		addPath := peer.addPathFor(fam)
 		var update *message.Update
 
 		// Write NLRIs into pooled buffer
@@ -687,7 +688,7 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 		}
 		nlriBytes := nlriHandle.Buf[:off]
 
-		if family == ipv4Unicast {
+		if fam == ipv4Unicast {
 			// IPv4 unicast: use WithdrawnRoutes field
 			update = &message.Update{
 				WithdrawnRoutes: nlriBytes,
@@ -695,8 +696,8 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 		} else {
 			// Other families: use MP_UNREACH_NLRI attribute
 			mpUnreach := &attribute.MPUnreachNLRI{
-				AFI:  attribute.AFI(family.AFI),
-				SAFI: attribute.SAFI(family.SAFI),
+				AFI:  attribute.AFI(fam.AFI),
+				SAFI: attribute.SAFI(fam.SAFI),
 				NLRI: nlriBytes,
 			}
 			attrHandle := getBuildBuf()

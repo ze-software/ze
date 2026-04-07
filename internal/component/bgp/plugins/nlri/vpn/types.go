@@ -13,27 +13,28 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Type aliases for nlri types used by VPN.
 type (
-	Family             = nlri.Family
-	AFI                = nlri.AFI
-	SAFI               = nlri.SAFI
+	Family             = family.Family
+	AFI                = family.AFI
+	SAFI               = family.SAFI
 	RouteDistinguisher = nlri.RouteDistinguisher
 )
 
 // Re-export constants from nlri for local use.
 const (
-	AFIIPv4 = nlri.AFIIPv4
-	AFIIPv6 = nlri.AFIIPv6
-	SAFIVPN = nlri.SAFIVPN
+	AFIIPv4 = family.AFIIPv4
+	AFIIPv6 = family.AFIIPv6
+	SAFIVPN = family.SAFIVPN
 )
 
-// Re-export family constants from nlri.
+// Family registrations for VPN.
 var (
-	IPv4VPN = nlri.IPv4VPN
-	IPv6VPN = nlri.IPv6VPN
+	IPv4VPN = family.MustRegister(AFIIPv4, SAFIVPN, "ipv4", "mpls-vpn")
+	IPv6VPN = family.MustRegister(AFIIPv6, SAFIVPN, "ipv6", "mpls-vpn")
 )
 
 // Re-export parsing functions from nlri (shared types).
@@ -80,9 +81,9 @@ type VPN struct {
 // NewVPN creates a new VPN NLRI.
 // pathID=0 means no path identifier; pathID>0 stores the path ID.
 // Use WriteNLRI() with addPath=true to encode with path ID.
-func NewVPN(family Family, rd RouteDistinguisher, labels []uint32, prefix netip.Prefix, pathID uint32) *VPN {
+func NewVPN(fam Family, rd RouteDistinguisher, labels []uint32, prefix netip.Prefix, pathID uint32) *VPN {
 	return &VPN{
-		family: family,
+		family: fam,
 		rd:     rd,
 		labels: labels,
 		prefix: prefix,
@@ -323,5 +324,5 @@ func (v *VPN) WriteTo(buf []byte, off int) int {
 
 // VPNFamilies returns the address families this plugin can decode.
 func VPNFamilies() []string {
-	return []string{"ipv4/vpn", "ipv6/vpn"}
+	return []string{"ipv4/mpls-vpn", "ipv6/mpls-vpn"}
 }

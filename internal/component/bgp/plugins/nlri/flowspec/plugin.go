@@ -21,7 +21,7 @@ import (
 	"net"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -51,10 +51,10 @@ func RunFlowSpecPlugin(conn net.Conn) int {
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: "ipv4/flow", Mode: "both"},
-			{Name: "ipv6/flow", Mode: "both"},
-			{Name: "ipv4/flow-vpn", Mode: "both"},
-			{Name: "ipv6/flow-vpn", Mode: "both"},
+			{Name: "ipv4/flow", Mode: "both", AFI: 1, SAFI: 133},
+			{Name: "ipv6/flow", Mode: "both", AFI: 2, SAFI: 133},
+			{Name: "ipv4/flow-vpn", Mode: "both", AFI: 1, SAFI: 134},
+			{Name: "ipv6/flow-vpn", Mode: "both", AFI: 2, SAFI: 134},
 		},
 	})
 	if err != nil {
@@ -94,14 +94,14 @@ func DecodeNLRIHex(family, hexStr string) (string, error) {
 // EncodeNLRIHex encodes FlowSpec NLRI from text args, returning hex bytes.
 // This is the in-process fast path registered in the plugin registry.
 // Same logic as the OnEncodeNLRI SDK callback but callable without RPC.
-func EncodeNLRIHex(family string, args []string) (string, error) {
-	if !isValidFlowSpecFamily(family) {
-		return "", fmt.Errorf("invalid family: %s", family)
+func EncodeNLRIHex(famName string, args []string) (string, error) {
+	if !isValidFlowSpecFamily(famName) {
+		return "", fmt.Errorf("invalid family: %s", famName)
 	}
 
-	fam, ok := nlri.ParseFamily(family)
+	fam, ok := family.LookupFamily(famName)
 	if !ok {
-		return "", fmt.Errorf("unknown family: %s", family)
+		return "", fmt.Errorf("unknown family: %s", famName)
 	}
 
 	wireBytes, err := EncodeFlowSpecComponents(fam, args)

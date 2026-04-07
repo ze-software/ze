@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	attrpool "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestFamilyRIB_PerAttrDedup verifies per-attribute deduplication.
@@ -15,7 +15,7 @@ import (
 // VALIDATES: Routes with same ORIGIN/LOCAL_PREF but different MED share common attrs.
 // PREVENTS: Full blob duplication when only one attribute differs.
 func TestFamilyRIB_PerAttrDedup(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	// Two routes with same ORIGIN and LOCAL_PREF but different MED.
@@ -54,7 +54,7 @@ func TestFamilyRIB_PerAttrDedup(t *testing.T) {
 // VALIDATES: Insert parses attributes and stores RouteEntry.
 // PREVENTS: Insert failing or not using per-attr pools.
 func TestFamilyRIB_Insert(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)
@@ -76,7 +76,7 @@ func TestFamilyRIB_Insert(t *testing.T) {
 // VALIDATES: Same NLRI with new attrs releases old entry.
 // PREVENTS: Memory leak from unreleased old RouteEntry.
 func TestFamilyRIB_ImplicitWithdraw(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	nlriBytes := []byte{24, 10, 0, 0} // 10.0.0.0/24
@@ -116,7 +116,7 @@ func TestFamilyRIB_ImplicitWithdraw(t *testing.T) {
 // VALIDATES: Remove releases RouteEntry handles.
 // PREVENTS: Memory leak from unreleased handles on remove.
 func TestFamilyRIB_Remove(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -138,7 +138,7 @@ func TestFamilyRIB_Remove(t *testing.T) {
 // VALIDATES: IterateEntry visits all routes with their RouteEntry.
 // PREVENTS: Missing routes during iteration.
 func TestFamilyRIB_IterateEntry(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -164,7 +164,7 @@ func TestFamilyRIB_IterateEntry(t *testing.T) {
 // VALIDATES: Same NLRI+attrs = no-op (no extra pool refs).
 // PREVENTS: Pool ref leaks from redundant updates.
 func TestFamilyRIB_NoOpUpdate(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	attrs := concat(wireOriginIGP, wireLocalPref100)
@@ -188,7 +188,7 @@ func TestFamilyRIB_NoOpUpdate(t *testing.T) {
 // VALIDATES: RouteEntry can be reconstructed to valid wire format.
 // PREVENTS: Data loss during storage/reconstruction cycle.
 func TestFamilyRIB_ToWireBytes(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	rib := NewFamilyRIB(family.IPv4Unicast, false)
 	defer rib.Release()
 
 	// Insert with known attributes.

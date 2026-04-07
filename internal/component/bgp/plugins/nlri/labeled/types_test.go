@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestLabeledUnicastInterface verifies nlri.NLRI interface compliance.
@@ -17,12 +18,12 @@ import (
 func TestLabeledUnicastInterface(t *testing.T) {
 	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
-	lu := NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, []uint32{100}, 0)
+	lu := NewLabeledUnicast(Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, prefix, []uint32{100}, 0)
 
 	// Verify interface compliance
 	var _ nlri.NLRI = lu
 
-	assert.Equal(t, Family{AFI: nlri.AFIIPv4, SAFI: SAFIMPLSLabel}, lu.Family())
+	assert.Equal(t, Family{AFI: family.AFIIPv4, SAFI: SAFIMPLSLabel}, lu.Family())
 	assert.Equal(t, prefix, lu.Prefix())
 	assert.Equal(t, []uint32{100}, lu.Labels())
 	assert.Equal(t, uint32(0), lu.PathID())
@@ -75,7 +76,7 @@ func TestLabeledUnicastBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			lu := NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, tt.prefix, tt.labels, tt.pathID)
+			lu := NewLabeledUnicast(Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, tt.prefix, tt.labels, tt.pathID)
 			assert.Equal(t, tt.expected, lu.Bytes())
 			assert.Equal(t, len(tt.expected), lu.Len())
 		})
@@ -89,7 +90,7 @@ func TestLabeledUnicastBytes(t *testing.T) {
 func TestLabeledUnicastBytesWithPathID(t *testing.T) {
 	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
-	lu := NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, []uint32{100}, 42)
+	lu := NewLabeledUnicast(Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, prefix, []uint32{100}, 42)
 
 	// Bytes() = payload only (no path ID)
 	expected := []byte{32, 0x00, 0x06, 0x41, 10}
@@ -113,11 +114,11 @@ func TestLabeledUnicastBytesWithPathID(t *testing.T) {
 func TestLabeledUnicastIPv6(t *testing.T) {
 	t.Parallel()
 	prefix := netip.MustParsePrefix("2001:db8::/32")
-	lu := NewLabeledUnicast(Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, prefix, []uint32{100}, 0)
+	lu := NewLabeledUnicast(Family{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}, prefix, []uint32{100}, 0)
 
 	expected := []byte{56, 0x00, 0x06, 0x41, 0x20, 0x01, 0x0d, 0xb8}
 	assert.Equal(t, expected, lu.Bytes())
-	assert.Equal(t, Family{AFI: nlri.AFIIPv6, SAFI: SAFIMPLSLabel}, lu.Family())
+	assert.Equal(t, Family{AFI: family.AFIIPv6, SAFI: SAFIMPLSLabel}, lu.Family())
 }
 
 // TestLabeledUnicastWriteNLRI verifies ADD-PATH aware encoding.
@@ -136,25 +137,25 @@ func TestLabeledUnicastWriteNLRI(t *testing.T) {
 	}{
 		{
 			name:     "no addpath, no path id",
-			lu:       NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, []uint32{100}, 0),
+			lu:       NewLabeledUnicast(Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, prefix, []uint32{100}, 0),
 			addPath:  false,
 			expected: []byte{32, 0x00, 0x06, 0x41, 10},
 		},
 		{
 			name:     "addpath enabled, no path id - prepends NOPATH",
-			lu:       NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, []uint32{100}, 0),
+			lu:       NewLabeledUnicast(Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, prefix, []uint32{100}, 0),
 			addPath:  true,
 			expected: []byte{0, 0, 0, 0, 32, 0x00, 0x06, 0x41, 10},
 		},
 		{
 			name:     "addpath enabled, has path id",
-			lu:       NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, []uint32{100}, 42),
+			lu:       NewLabeledUnicast(Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, prefix, []uint32{100}, 42),
 			addPath:  true,
 			expected: []byte{0, 0, 0, 42, 32, 0x00, 0x06, 0x41, 10},
 		},
 		{
 			name:     "addpath disabled, has path id - strips path id",
-			lu:       NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, []uint32{100}, 42),
+			lu:       NewLabeledUnicast(Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, prefix, []uint32{100}, 42),
 			addPath:  false,
 			expected: []byte{32, 0x00, 0x06, 0x41, 10},
 		},
@@ -183,27 +184,27 @@ func TestLabeledUnicastStringCommandStyle(t *testing.T) {
 	}{
 		{
 			name:     "single label no path id",
-			lu:       NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, netip.MustParsePrefix("10.0.0.0/8"), []uint32{100}, 0),
+			lu:       NewLabeledUnicast(Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, netip.MustParsePrefix("10.0.0.0/8"), []uint32{100}, 0),
 			expected: "prefix 10.0.0.0/8 label 100",
 		},
 		{
 			name:     "single label with path id",
-			lu:       NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, netip.MustParsePrefix("10.0.0.0/8"), []uint32{100}, 5),
+			lu:       NewLabeledUnicast(Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, netip.MustParsePrefix("10.0.0.0/8"), []uint32{100}, 5),
 			expected: "prefix 10.0.0.0/8 label 100 path-id 5",
 		},
 		{
 			name:     "multiple labels",
-			lu:       NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, netip.MustParsePrefix("10.0.0.0/8"), []uint32{100, 200}, 0),
+			lu:       NewLabeledUnicast(Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, netip.MustParsePrefix("10.0.0.0/8"), []uint32{100, 200}, 0),
 			expected: "prefix 10.0.0.0/8 label 100,200",
 		},
 		{
 			name:     "ipv6 single label",
-			lu:       NewLabeledUnicast(Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, netip.MustParsePrefix("2001:db8::/32"), []uint32{500}, 0),
+			lu:       NewLabeledUnicast(Family{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}, netip.MustParsePrefix("2001:db8::/32"), []uint32{500}, 0),
 			expected: "prefix 2001:db8::/32 label 500",
 		},
 		{
 			name:     "no labels",
-			lu:       NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, netip.MustParsePrefix("10.0.0.0/8"), nil, 0),
+			lu:       NewLabeledUnicast(Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, netip.MustParsePrefix("10.0.0.0/8"), nil, 0),
 			expected: "prefix 10.0.0.0/8",
 		},
 	}
@@ -223,7 +224,7 @@ func TestLabeledUnicastStringCommandStyle(t *testing.T) {
 func TestLabeledUnicastLabelStack(t *testing.T) {
 	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
-	lu := NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, []uint32{100, 200}, 0)
+	lu := NewLabeledUnicast(Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, prefix, []uint32{100, 200}, 0)
 
 	// Length = 24 + 24 + 8 = 56 bits (2 labels + /8 prefix)
 	expected := []byte{56, 0x00, 0x06, 0x40, 0x00, 0x0C, 0x81, 10}
@@ -250,7 +251,7 @@ func TestLabeledUnicastWireConsistency(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			lu := NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, tt.prefix, []uint32{tt.label}, tt.pathID)
+			lu := NewLabeledUnicast(Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, tt.prefix, []uint32{tt.label}, tt.pathID)
 
 			bytesOut := lu.Bytes()
 
@@ -282,12 +283,12 @@ func TestLabeledUnicastFamilyOverride(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
 
 	// Even if we pass SAFIUnicast, the result should have SAFI=4
-	lu := NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, []uint32{100}, 0)
+	lu := NewLabeledUnicast(Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}, prefix, []uint32{100}, 0)
 	assert.Equal(t, SAFIMPLSLabel, lu.Family().SAFI)
-	assert.Equal(t, nlri.AFIIPv4, lu.Family().AFI)
+	assert.Equal(t, family.AFIIPv4, lu.Family().AFI)
 
 	// IPv6
-	lu6 := NewLabeledUnicast(Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, netip.MustParsePrefix("2001:db8::/32"), []uint32{100}, 0)
+	lu6 := NewLabeledUnicast(Family{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}, netip.MustParsePrefix("2001:db8::/32"), []uint32{100}, 0)
 	assert.Equal(t, SAFIMPLSLabel, lu6.Family().SAFI)
-	assert.Equal(t, nlri.AFIIPv6, lu6.Family().AFI)
+	assert.Equal(t, family.AFIIPv6, lu6.Family().AFI)
 }

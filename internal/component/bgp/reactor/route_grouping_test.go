@@ -9,6 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestGroupedSendReducesUpdateCount verifies grouping efficiency.
@@ -21,7 +22,7 @@ func TestGroupedSendReducesUpdateCount(t *testing.T) {
 	for i := range 100 {
 		prefix := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 0, byte(i / 256), byte(i % 256)}), 24)
 		routes[i] = rib.NewRouteWithASPath(
-			nlri.NewINET(nlri.IPv4Unicast, prefix, 0),
+			nlri.NewINET(family.IPv4Unicast, prefix, 0),
 			netip.MustParseAddr("192.168.1.1"),
 			[]attribute.Attribute{attribute.OriginIGP},
 			&attribute.ASPath{Segments: []attribute.ASPathSegment{
@@ -58,7 +59,7 @@ func TestGroupedSendSeparatesAttributeGroups(t *testing.T) {
 		prefix := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 0, byte(i / 256), byte(i % 256)}), 24)
 		nh := nextHops[i%3] //nolint:gosec // nextHops has exactly 3 elements, i%3 is always in bounds
 		routes[i] = rib.NewRouteWithASPath(
-			nlri.NewINET(nlri.IPv4Unicast, prefix, 0),
+			nlri.NewINET(family.IPv4Unicast, prefix, 0),
 			nh,
 			[]attribute.Attribute{attribute.OriginIGP},
 			nil,
@@ -98,7 +99,7 @@ func TestBuildGroupedMPReachWithLimit(t *testing.T) {
 			prefix = netip.PrefixFrom(netip.AddrFrom16(b), 48)
 		}
 		routes[i] = rib.NewRouteWithASPath(
-			nlri.NewINET(nlri.IPv6Unicast, prefix, 0),
+			nlri.NewINET(family.IPv6Unicast, prefix, 0),
 			netip.MustParseAddr("2001:db8::1"),
 			[]attribute.Attribute{attribute.OriginIGP},
 			nil,
@@ -112,7 +113,7 @@ func TestBuildGroupedMPReachWithLimit(t *testing.T) {
 	require.Equal(t, 1, len(groups), "all same-attr IPv6 routes should be in 1 group")
 
 	// Verify family is IPv6
-	require.Equal(t, nlri.AFIIPv6, groups[0].Family.AFI, "family should be IPv6")
+	require.Equal(t, family.AFIIPv6, groups[0].Family.AFI, "family should be IPv6")
 
 	t.Log("✅ 50 IPv6 routes grouped into 1 attribute group")
 }

@@ -297,15 +297,15 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		buf.WriteString(indent)
 		buf.WriteString("nlri {\n")
 		for _, entry := range nlriEntries {
-			family := entry.Key
+			fam := entry.Key
 			// Strip #N duplicate suffix for display
-			if idx := strings.LastIndex(family, "#"); idx > 0 {
-				family = family[:idx]
+			if idx := strings.LastIndex(fam, "#"); idx > 0 {
+				fam = fam[:idx]
 			}
 			content, _ := entry.Value.Get("content")
 			buf.WriteString(indent)
 			buf.WriteString("\t")
-			buf.WriteString(family)
+			buf.WriteString(fam)
 			if content != "" {
 				buf.WriteString(" ")
 				buf.WriteString(content)

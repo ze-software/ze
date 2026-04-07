@@ -20,20 +20,20 @@ func parseMUPNLRILine(line string, attr *config.Tree) (MUPRouteConfig, error) {
 		return MUPRouteConfig{}, fmt.Errorf("mup nlri requires route type and fields")
 	}
 
-	family := parts[0]
+	fam := parts[0]
 	mr := MUPRouteConfig{
-		IsIPv6: strings.HasPrefix(family, "ipv6/"),
+		IsIPv6: strings.HasPrefix(fam, "ipv6/"),
 	}
 
 	remaining := parts[1:]
 
 	// Operation keyword (add/del/eor) is mandatory
 	if len(remaining) == 0 {
-		return MUPRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s", family)
+		return MUPRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s", fam)
 	}
 	op := remaining[0]
 	if op != opAdd && op != opDel && op != opEor {
-		return MUPRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s, got %q", family, op)
+		return MUPRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s, got %q", fam, op)
 	}
 	remaining = remaining[1:]
 	if op == opEor {

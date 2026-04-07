@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/exabgp/bridge"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -37,7 +38,17 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 	// Build family declarations for registration.
 	var familyDecls []sdk.FamilyDecl
 	for _, f := range families {
-		familyDecls = append(familyDecls, sdk.FamilyDecl{Name: f, Mode: "both"})
+		fam, ok := family.LookupFamily(f)
+		if !ok {
+			fmt.Fprintf(os.Stderr, "error: unknown family: %s\n", f)
+			return exitError
+		}
+		familyDecls = append(familyDecls, sdk.FamilyDecl{
+			Name: f,
+			Mode: "both",
+			AFI:  uint16(fam.AFI),
+			SAFI: uint8(fam.SAFI),
+		})
 	}
 
 	// Build capability declarations.

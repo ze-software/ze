@@ -112,15 +112,15 @@ func TestFamilyMappings(t *testing.T) {
 		"ipv4/flow-vpn":     "bgp-nlri-flowspec",
 		"ipv6/flow-vpn":     "bgp-nlri-flowspec",
 		"l2vpn/evpn":        "bgp-nlri-evpn",
-		"ipv4/vpn":          "bgp-nlri-vpn",
-		"ipv6/vpn":          "bgp-nlri-vpn",
+		"ipv4/mpls-vpn":          "bgp-nlri-vpn",
+		"ipv6/mpls-vpn":          "bgp-nlri-vpn",
 		"bgp-ls/bgp-ls":     "bgp-nlri-ls",
 		"bgp-ls/bgp-ls-vpn": "bgp-nlri-ls",
 	}
 
-	for family, wantPlugin := range expected {
-		if got := fm[family]; got != wantPlugin {
-			t.Errorf("FamilyMap[%q] = %q, want %q", family, got, wantPlugin)
+	for fam, wantPlugin := range expected {
+		if got := fm[fam]; got != wantPlugin {
+			t.Errorf("FamilyMap[%q] = %q, want %q", fam, got, wantPlugin)
 		}
 	}
 }

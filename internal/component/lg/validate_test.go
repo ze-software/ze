@@ -51,7 +51,7 @@ func TestIsValidFamily(t *testing.T) {
 		want  bool
 	}{
 		{"valid ipv4 unicast", "ipv4/unicast", true},
-		{"valid ipv6 vpn", "ipv6/vpn", true},
+		{"valid ipv6 vpn", "ipv6/mpls-vpn", true},
 		{"valid l2vpn evpn", "l2vpn/evpn", true},
 		{"no slash", "ipv4unicast", false},
 		{"empty afi", "/unicast", false},

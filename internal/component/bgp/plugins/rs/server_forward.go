@@ -36,8 +36,8 @@ func (rs *RouteServer) selectForwardTargets(buf []string, sourcePeer string, fam
 		}
 		if peer.Families != nil {
 			hasAny := false
-			for family := range families {
-				if peer.SupportsFamily(family) {
+			for fam := range families {
+				if peer.SupportsFamily(fam) {
 					hasAny = true
 					break
 				}

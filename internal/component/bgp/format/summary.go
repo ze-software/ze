@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // formatSummary formats an UPDATE as lightweight NLRI metadata.
@@ -84,13 +84,13 @@ func scanMPFamilies(attrs []byte) (mpReach, mpUnreach string) {
 		// RFC 4760: MP_REACH and MP_UNREACH values start with AFI(2) + SAFI(1).
 		attrCode := attribute.AttributeCode(code)
 		if attrCode == attribute.AttrMPReachNLRI && valueLen >= 3 && mpReach == "" {
-			afi := nlri.AFI(binary.BigEndian.Uint16(attrs[valueOff : valueOff+2]))
-			safi := nlri.SAFI(attrs[valueOff+2])
-			mpReach = nlri.Family{AFI: afi, SAFI: safi}.String()
+			afi := family.AFI(binary.BigEndian.Uint16(attrs[valueOff : valueOff+2]))
+			safi := family.SAFI(attrs[valueOff+2])
+			mpReach = family.Family{AFI: afi, SAFI: safi}.String()
 		} else if attrCode == attribute.AttrMPUnreachNLRI && valueLen >= 3 && mpUnreach == "" {
-			afi := nlri.AFI(binary.BigEndian.Uint16(attrs[valueOff : valueOff+2]))
-			safi := nlri.SAFI(attrs[valueOff+2])
-			mpUnreach = nlri.Family{AFI: afi, SAFI: safi}.String()
+			afi := family.AFI(binary.BigEndian.Uint16(attrs[valueOff : valueOff+2]))
+			safi := family.SAFI(attrs[valueOff+2])
+			mpUnreach = family.Family{AFI: afi, SAFI: safi}.String()
 		}
 
 		// Advance to next attribute

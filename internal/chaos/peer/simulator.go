@@ -253,7 +253,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	// Route count per family: unicast families get the full RouteCount,
 	// non-unicast families (VPN, EVPN, FlowSpec) get RouteCount/4 to keep
 	// total route volume manageable while still exercising all code paths.
-	for _, family := range families {
+	for _, fam := range families {
 		if ctx.Err() != nil {
 			sendCease(ctx, conn, p.Index, cfg.Quiet)
 			emit(Event{Type: EventDisconnected})
@@ -261,7 +261,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 		}
 
 		var writeErr error
-		switch family {
+		switch fam {
 		case familyIPv4Unicast:
 			for _, prefix := range routes {
 				if ctx.Err() != nil {
@@ -271,7 +271,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: family, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data))})
 				totalSent++
 			}
 		case familyIPv6Unicast:
@@ -284,10 +284,10 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: family, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data))})
 				totalSent++
 			}
-		case "ipv4/vpn":
+		case "ipv4/mpls-vpn":
 			vpnRoutes := scenario.GenerateVPNRoutes(cfg.Seed, p.Index, p.RouteCount/4, p.TotalPeers, false)
 			for _, r := range vpnRoutes {
 				if ctx.Err() != nil {
@@ -300,10 +300,10 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: family, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data))})
 				totalSent++
 			}
-		case "ipv6/vpn":
+		case "ipv6/mpls-vpn":
 			vpnRoutes := scenario.GenerateVPNRoutes(cfg.Seed, p.Index, p.RouteCount/4, p.TotalPeers, true)
 			for _, r := range vpnRoutes {
 				if ctx.Err() != nil {
@@ -316,7 +316,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: family, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data))})
 				totalSent++
 			}
 		case "l2vpn/evpn":
@@ -332,7 +332,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: family, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data))})
 				totalSent++
 			}
 		case "ipv4/flow":
@@ -348,7 +348,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: family, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data))})
 				totalSent++
 			}
 		case "ipv6/flow":
@@ -364,7 +364,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: family, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data))})
 				totalSent++
 			}
 		case "ipv4/multicast":
@@ -377,7 +377,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: family, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data))})
 				totalSent++
 			}
 		case "ipv6/multicast":
@@ -390,26 +390,26 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: family, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data))})
 				totalSent++
 			}
 		}
 		if writeErr != nil {
-			emit(Event{Type: EventError, Err: fmt.Errorf("sending %s UPDATE: %w", family, writeErr)})
+			emit(Event{Type: EventError, Err: fmt.Errorf("sending %s UPDATE: %w", fam, writeErr)})
 			return
 		}
 	}
 
 	// Send End-of-RIB for each negotiated family.
 	var eorBytes int64
-	for _, family := range families {
-		eor := BuildEOR(family)
+	for _, fam := range families {
+		eor := BuildEOR(fam)
 		if eor == nil {
-			logger.Warn("skipping EOR for unknown family", "peer", p.Index, "family", family)
+			logger.Warn("skipping EOR for unknown family", "peer", p.Index, "family", fam)
 			continue
 		}
 		if _, writeErr := conn.Write(eor); writeErr != nil {
-			emit(Event{Type: EventError, Err: fmt.Errorf("sending %s EOR: %w", family, writeErr)})
+			emit(Event{Type: EventError, Err: fmt.Errorf("sending %s EOR: %w", fam, writeErr)})
 			return
 		}
 		eorBytes += int64(len(eor))

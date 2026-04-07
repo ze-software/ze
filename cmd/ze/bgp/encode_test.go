@@ -405,7 +405,7 @@ func TestCmdEncode_LabeledUnicast(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv4/nlri-mpls",
+		"-f", "ipv4/mpls-label",
 		"10.0.0.0/24 next-hop 192.168.1.1 label 100",
 	}
 	exitCode := cmdEncode(args)
@@ -829,7 +829,7 @@ func TestCmdEncode_LabeledUnicast_IPv6(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv6/nlri-mpls",
+		"-f", "ipv6/mpls-label",
 		"2001:db8::/32 next-hop 2001:db8::1 label 100",
 	}
 	exitCode := cmdEncode(args)

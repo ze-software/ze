@@ -10,21 +10,28 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Type aliases for shared nlri types.
 type (
-	Family = nlri.Family
-	AFI    = nlri.AFI
-	SAFI   = nlri.SAFI
+	Family = family.Family
+	AFI    = family.AFI
+	SAFI   = family.SAFI
 	NLRI   = nlri.NLRI
 )
 
 // Re-export constants.
 const (
-	AFIIPv4       = nlri.AFIIPv4
-	AFIIPv6       = nlri.AFIIPv6
-	SAFIMPLSLabel = nlri.SAFIMPLSLabel
+	AFIIPv4       = family.AFIIPv4
+	AFIIPv6       = family.AFIIPv6
+	SAFIMPLSLabel = family.SAFIMPLSLabel
+)
+
+// Local family vars for this plugin (registered at init).
+var (
+	IPv4LabeledUnicast = family.MustRegister(AFIIPv4, SAFIMPLSLabel, "ipv4", "mpls-label")
+	IPv6LabeledUnicast = family.MustRegister(AFIIPv6, SAFIMPLSLabel, "ipv6", "mpls-label")
 )
 
 // LabeledUnicast represents a labeled unicast NLRI (SAFI 4).
@@ -58,9 +65,9 @@ type LabeledUnicast struct {
 // pathID=0 means no path identifier; pathID>0 stores the path ID.
 // Use WriteNLRI() with addPath=true to encode with path ID.
 // The family's SAFI is overridden to SAFIMPLSLabel (4) regardless of input.
-func NewLabeledUnicast(family Family, prefix netip.Prefix, labels []uint32, pathID uint32) *LabeledUnicast {
+func NewLabeledUnicast(fam Family, prefix netip.Prefix, labels []uint32, pathID uint32) *LabeledUnicast {
 	return &LabeledUnicast{
-		family: Family{AFI: family.AFI, SAFI: SAFIMPLSLabel},
+		family: Family{AFI: fam.AFI, SAFI: SAFIMPLSLabel},
 		prefix: prefix,
 		pathID: pathID,
 		labels: labels,

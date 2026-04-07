@@ -6,13 +6,14 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // testRoute creates a test route for a given prefix string.
 func testRoute(prefix string) *rib.Route {
 	p := netip.MustParsePrefix(prefix)
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-	n := nlri.NewINET(family, p, 0)
+	fam := family.IPv4Unicast
+	n := nlri.NewINET(fam, p, 0)
 	nh := netip.MustParseAddr("1.2.3.4")
 	return rib.NewRoute(n, nh, nil)
 }
@@ -20,8 +21,8 @@ func testRoute(prefix string) *rib.Route {
 // testNLRI creates a test NLRI for a given prefix string.
 func testNLRI(prefix string) nlri.NLRI {
 	p := netip.MustParsePrefix(prefix)
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-	return nlri.NewINET(family, p, 0)
+	fam := family.IPv4Unicast
+	return nlri.NewINET(fam, p, 0)
 }
 
 // TestTransaction_QueueAnnounce verifies route queuing in transactions.

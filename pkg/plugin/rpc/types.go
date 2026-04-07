@@ -48,9 +48,15 @@ type ConnectionHandlerDecl struct {
 }
 
 // FamilyDecl declares an address family the plugin handles.
+//
+// AFI and SAFI are RFC 4760 wire-format numbers required to register the
+// family in the engine's nlri registry. The Name is "afi/safi" canonical form
+// (e.g., "ipv4/unicast"); the engine derives afiStr/safiStr by splitting on "/".
 type FamilyDecl struct {
 	Name string `json:"name"` // e.g., "ipv4/unicast"
 	Mode string `json:"mode"` // "encode", "decode", or "both"
+	AFI  uint16 `json:"afi"`  // RFC 4760 AFI number (e.g., 1 for IPv4)
+	SAFI uint8  `json:"safi"` // RFC 4760 SAFI number (e.g., 1 for unicast)
 }
 
 // CommandDecl declares a command the plugin provides.

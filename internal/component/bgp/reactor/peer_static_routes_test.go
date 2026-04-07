@@ -8,8 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // VALIDATES: Static route helpers (routeFamily, writeRawAttribute, packRawAttributes, routeGroupKey, groupRoutesByAttributes).
@@ -26,14 +25,14 @@ func staticRoute(prefix string) StaticRoute {
 func TestRouteFamily_IPv4Unicast(t *testing.T) {
 	r := staticRoute("10.0.0.0/24")
 	f := routeFamily(&r)
-	assert.Equal(t, nlri.IPv4Unicast, f)
+	assert.Equal(t, family.IPv4Unicast, f)
 }
 
 // TestRouteFamily_IPv6Unicast verifies plain IPv6 route returns IPv6 unicast family.
 func TestRouteFamily_IPv6Unicast(t *testing.T) {
 	r := staticRoute("2001:db8::/32")
 	f := routeFamily(&r)
-	assert.Equal(t, nlri.IPv6Unicast, f)
+	assert.Equal(t, family.IPv6Unicast, f)
 }
 
 // TestRouteFamily_VPNv4 verifies VPN IPv4 route returns correct family.
@@ -41,8 +40,8 @@ func TestRouteFamily_VPNv4(t *testing.T) {
 	r := staticRoute("10.0.0.0/24")
 	r.RD = "100:100"
 	f := routeFamily(&r)
-	assert.Equal(t, nlri.AFIIPv4, f.AFI)
-	assert.Equal(t, nlri.SAFI(128), f.SAFI)
+	assert.Equal(t, family.AFIIPv4, f.AFI)
+	assert.Equal(t, family.SAFI(128), f.SAFI)
 }
 
 // TestRouteFamily_VPNv6 verifies VPN IPv6 route returns correct family.
@@ -50,8 +49,8 @@ func TestRouteFamily_VPNv6(t *testing.T) {
 	r := staticRoute("2001:db8::/32")
 	r.RD = "100:100"
 	f := routeFamily(&r)
-	assert.Equal(t, nlri.AFIIPv6, f.AFI)
-	assert.Equal(t, nlri.SAFI(128), f.SAFI)
+	assert.Equal(t, family.AFIIPv6, f.AFI)
+	assert.Equal(t, family.SAFI(128), f.SAFI)
 }
 
 // TestRouteFamily_LabeledIPv4 verifies labeled IPv4 route returns SAFI 4.
@@ -59,8 +58,8 @@ func TestRouteFamily_LabeledIPv4(t *testing.T) {
 	r := staticRoute("10.0.0.0/24")
 	r.Labels = []uint32{100}
 	f := routeFamily(&r)
-	assert.Equal(t, nlri.AFIIPv4, f.AFI)
-	assert.Equal(t, nlri.SAFI(4), f.SAFI)
+	assert.Equal(t, family.AFIIPv4, f.AFI)
+	assert.Equal(t, family.SAFI(4), f.SAFI)
 }
 
 // TestWriteRawAttribute_StandardLength verifies standard (1-byte) length encoding.

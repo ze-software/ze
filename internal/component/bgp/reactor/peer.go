@@ -30,6 +30,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/source"
@@ -543,12 +544,12 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 // addPathFor returns whether ADD-PATH is negotiated for the given family.
 // RFC 7911: ADD-PATH requires 4-byte path identifier prefix on NLRI.
 // Returns false if session not established.
-func (p *Peer) addPathFor(family nlri.Family) bool {
+func (p *Peer) addPathFor(fam family.Family) bool {
 	ctx := p.sendCtx.Load()
 	if ctx == nil {
 		return false
 	}
-	return ctx.AddPath(family)
+	return ctx.AddPath(fam)
 }
 
 // asn4 returns whether 4-byte ASN is negotiated.
@@ -567,7 +568,7 @@ func (p *Peer) asn4() bool {
 //
 // RFC 4271 Section 5.1.3 - NEXT_HOP attribute.
 // RFC 5549/8950 - Extended Next Hop Encoding.
-func (p *Peer) resolveNextHop(nh bgptypes.RouteNextHop, family nlri.Family) (netip.Addr, error) {
+func (p *Peer) resolveNextHop(nh bgptypes.RouteNextHop, fam family.Family) (netip.Addr, error) {
 	switch nh.Policy {
 	case bgptypes.NextHopExplicit:
 		// Explicit addresses bypass validation - user is responsible.
@@ -580,7 +581,7 @@ func (p *Peer) resolveNextHop(nh bgptypes.RouteNextHop, family nlri.Family) (net
 			return netip.Addr{}, ErrNextHopSelfNoLocal
 		}
 		// Validate: can we use this address for this NLRI family?
-		if !p.canUseNextHopFor(local, family) {
+		if !p.canUseNextHopFor(local, fam) {
 			return netip.Addr{}, ErrNextHopIncompatible
 		}
 		return local, nil
@@ -598,24 +599,24 @@ func (p *Peer) resolveNextHop(nh bgptypes.RouteNextHop, family nlri.Family) (net
 // Cross-family allowed if Extended NH capability negotiated.
 //
 // RFC 5549/8950: Extended Next Hop Encoding for cross-family next-hops.
-func (p *Peer) canUseNextHopFor(addr netip.Addr, family nlri.Family) bool {
+func (p *Peer) canUseNextHopFor(addr netip.Addr, fam family.Family) bool {
 	// Natural match - always allowed
-	if addr.Is4() && family.AFI == nlri.AFIIPv4 {
+	if addr.Is4() && fam.AFI == family.AFIIPv4 {
 		return true
 	}
-	if addr.Is6() && family.AFI == nlri.AFIIPv6 {
+	if addr.Is6() && fam.AFI == family.AFIIPv6 {
 		return true
 	}
 
 	// Cross-family via Extended NH (RFC 5549/8950)
 	ctx := p.sendCtx.Load()
 	if ctx != nil {
-		nhAFI := ctx.ExtendedNextHopFor(family)
+		nhAFI := ctx.ExtendedNextHopFor(fam)
 		if nhAFI != 0 {
-			if addr.Is6() && nhAFI == nlri.AFIIPv6 {
+			if addr.Is6() && nhAFI == family.AFIIPv6 {
 				return true
 			}
-			if addr.Is4() && nhAFI == nlri.AFIIPv4 {
+			if addr.Is4() && nhAFI == family.AFIIPv4 {
 				return true
 			}
 		}

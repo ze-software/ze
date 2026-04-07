@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestNegotiatedCapabilitiesHas_True verifies Has returns true for negotiated families.
@@ -15,14 +15,14 @@ import (
 // PREVENTS: Missing family detection leading to routes not being sent.
 func TestNegotiatedCapabilitiesHas_True(t *testing.T) {
 	nc := &NegotiatedCapabilities{
-		families: map[nlri.Family]bool{
-			nlri.IPv4Unicast: true,
-			nlri.IPv6Unicast: true,
+		families: map[family.Family]bool{
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true,
+			{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}: true,
 		},
 	}
 
-	require.True(t, nc.Has(nlri.IPv4Unicast), "should have IPv4 unicast")
-	require.True(t, nc.Has(nlri.IPv6Unicast), "should have IPv6 unicast")
+	require.True(t, nc.Has(family.IPv4Unicast), "should have IPv4 unicast")
+	require.True(t, nc.Has(family.IPv6Unicast), "should have IPv6 unicast")
 }
 
 // TestNegotiatedCapabilitiesHas_False verifies Has returns false for non-negotiated families.
@@ -32,13 +32,13 @@ func TestNegotiatedCapabilitiesHas_True(t *testing.T) {
 // PREVENTS: Sending routes for families peer doesn't support.
 func TestNegotiatedCapabilitiesHas_False(t *testing.T) {
 	nc := &NegotiatedCapabilities{
-		families: map[nlri.Family]bool{
-			nlri.IPv4Unicast: true,
+		families: map[family.Family]bool{
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true,
 		},
 	}
 
-	require.False(t, nc.Has(nlri.IPv6Unicast), "should not have IPv6 unicast")
-	require.False(t, nc.Has(nlri.IPv4VPN), "should not have IPv4 VPN")
+	require.False(t, nc.Has(family.IPv6Unicast), "should not have IPv6 unicast")
+	require.False(t, nc.Has(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}), "should not have IPv4 VPN")
 }
 
 // TestNegotiatedCapabilitiesHas_Nil verifies Has handles nil receiver safely.
@@ -48,7 +48,7 @@ func TestNegotiatedCapabilitiesHas_False(t *testing.T) {
 // PREVENTS: Panic when checking families on uninitialized peer.
 func TestNegotiatedCapabilitiesHas_Nil(t *testing.T) {
 	var nc *NegotiatedCapabilities
-	require.False(t, nc.Has(nlri.IPv4Unicast), "nil receiver should return false")
+	require.False(t, nc.Has(family.IPv4Unicast), "nil receiver should return false")
 }
 
 // TestNegotiatedCapabilitiesFamilies_Order verifies Families returns sorted order.
@@ -58,11 +58,11 @@ func TestNegotiatedCapabilitiesHas_Nil(t *testing.T) {
 // PREVENTS: Non-deterministic EOR ordering breaking tests.
 func TestNegotiatedCapabilitiesFamilies_Order(t *testing.T) {
 	nc := &NegotiatedCapabilities{
-		families: map[nlri.Family]bool{
-			nlri.IPv6Unicast:        true, // AFI=2, SAFI=1
-			nlri.IPv4VPN:            true, // AFI=1, SAFI=128
-			nlri.IPv4Unicast:        true, // AFI=1, SAFI=1
-			nlri.IPv6LabeledUnicast: true, // AFI=2, SAFI=4
+		families: map[family.Family]bool{
+			{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}:   true, // AFI=2, SAFI=1
+			{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}:       true, // AFI=1, SAFI=128
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}:   true, // AFI=1, SAFI=1
+			{AFI: family.AFIIPv6, SAFI: family.SAFIMPLSLabel}: true, // AFI=2, SAFI=4
 		},
 	}
 
@@ -70,10 +70,10 @@ func TestNegotiatedCapabilitiesFamilies_Order(t *testing.T) {
 	require.Len(t, families, 4)
 
 	// Should be sorted: IPv4Unicast (1,1), IPv4VPN (1,128), IPv6Unicast (2,1), IPv6LabeledUnicast (2,4)
-	require.Equal(t, nlri.IPv4Unicast, families[0], "first should be IPv4 unicast")
-	require.Equal(t, nlri.IPv4VPN, families[1], "second should be IPv4 VPN")
-	require.Equal(t, nlri.IPv6Unicast, families[2], "third should be IPv6 unicast")
-	require.Equal(t, nlri.IPv6LabeledUnicast, families[3], "fourth should be IPv6 labeled unicast")
+	require.Equal(t, family.IPv4Unicast, families[0], "first should be IPv4 unicast")
+	require.Equal(t, family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}, families[1], "second should be IPv4 VPN")
+	require.Equal(t, family.IPv6Unicast, families[2], "third should be IPv6 unicast")
+	require.Equal(t, family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIMPLSLabel}, families[3], "fourth should be IPv6 labeled unicast")
 }
 
 // TestNegotiatedCapabilitiesFamilies_Nil verifies Families handles nil receiver safely.
@@ -93,14 +93,14 @@ func TestNegotiatedCapabilitiesFamilies_Nil(t *testing.T) {
 // PREVENTS: Wrong max message size calculation.
 func TestNegotiatedCapabilitiesExtendedMessage(t *testing.T) {
 	nc := &NegotiatedCapabilities{
-		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: true,
 	}
 
 	require.True(t, nc.ExtendedMessage, "should have extended message")
 
 	nc2 := &NegotiatedCapabilities{
-		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
 		ExtendedMessage: false,
 	}
 
@@ -120,12 +120,12 @@ func TestNegotiatedCapabilitiesFamilies_AllIncluded(t *testing.T) {
 	// Simulate a peer that negotiated multiple families but may have routes
 	// only for some of them. Per RFC 4724, EORs must be sent for ALL.
 	nc := &NegotiatedCapabilities{
-		families: map[nlri.Family]bool{
-			nlri.IPv4Unicast: true, // Has routes configured
-			nlri.IPv6Unicast: true, // Has routes configured
-			nlri.IPv4VPN:     true, // NO routes configured
-			nlri.IPv6VPN:     true, // NO routes configured
-			nlri.IPv4MVPN:    true, // NO routes configured
+		families: map[family.Family]bool{
+			{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true, // Has routes configured
+			{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}: true, // Has routes configured
+			{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}:     true, // NO routes configured
+			{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}:     true, // NO routes configured
+			{AFI: family.AFIIPv4, SAFI: family.SAFIMVPN}:    true, // NO routes configured
 		},
 	}
 
@@ -135,16 +135,16 @@ func TestNegotiatedCapabilitiesFamilies_AllIncluded(t *testing.T) {
 	require.Len(t, families, 5, "all negotiated families must be included for EOR")
 
 	// Verify each family is present
-	familySet := make(map[nlri.Family]bool)
+	familySet := make(map[family.Family]bool)
 	for _, f := range families {
 		familySet[f] = true
 	}
 
-	require.True(t, familySet[nlri.IPv4Unicast], "IPv4 unicast must be included")
-	require.True(t, familySet[nlri.IPv6Unicast], "IPv6 unicast must be included")
-	require.True(t, familySet[nlri.IPv4VPN], "IPv4 VPN must be included (even without routes)")
-	require.True(t, familySet[nlri.IPv6VPN], "IPv6 VPN must be included (even without routes)")
-	require.True(t, familySet[nlri.IPv4MVPN], "IPv4 MVPN must be included (even without routes)")
+	require.True(t, familySet[family.IPv4Unicast], "IPv4 unicast must be included")
+	require.True(t, familySet[family.IPv6Unicast], "IPv6 unicast must be included")
+	require.True(t, familySet[family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}], "IPv4 VPN must be included (even without routes)")
+	require.True(t, familySet[family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}], "IPv6 VPN must be included (even without routes)")
+	require.True(t, familySet[family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMVPN}], "IPv4 MVPN must be included (even without routes)")
 }
 
 // TestNegotiatedCapabilitiesFamilies_Empty verifies empty families returns empty slice.
@@ -154,7 +154,7 @@ func TestNegotiatedCapabilitiesFamilies_AllIncluded(t *testing.T) {
 // PREVENTS: Nil slice causing issues in for-range loops.
 func TestNegotiatedCapabilitiesFamilies_Empty(t *testing.T) {
 	nc := &NegotiatedCapabilities{
-		families: map[nlri.Family]bool{},
+		families: map[family.Family]bool{},
 	}
 
 	families := nc.Families()

@@ -7,5 +7,5 @@
 # 00 00 00 01 00 00 00 01 = RD type 0: ASN=1, value=1
 # 0a 00 00 = 10.0.0.0/24
 stdin=payload:hex=7000064100000001000000010a0000
-cmd=foreground:seq=1:exec=ze-test decode --json --nlri ipv4/vpn -:stdin=payload
+cmd=foreground:seq=1:exec=ze-test decode --json --nlri ipv4/mpls-vpn -:stdin=payload
 expect=json:json={ "labels": [[100]], "prefix": "10.0.0.0/24", "rd": "0:1:1" }

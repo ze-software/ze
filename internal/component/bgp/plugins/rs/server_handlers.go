@@ -173,8 +173,8 @@ func (rs *RouteServer) sendEOR(peerAddr string, gen uint64) {
 	// Sort for deterministic ordering in tests and logs.
 	sort.Strings(families)
 
-	for _, family := range families {
-		rs.updateRoute(peerAddr, fmt.Sprintf("update text nlri %s eor", family))
+	for _, fam := range families {
+		rs.updateRoute(peerAddr, fmt.Sprintf("update text nlri %s eor", fam))
 	}
 	logger().Info("sent EOR", "peer", peerAddr, "families", families)
 }
@@ -241,7 +241,7 @@ func (rs *RouteServer) handleOpen(event *Event) {
 // the lock during network I/O would block all state updates.
 func (rs *RouteServer) handleRefresh(event *Event) {
 	peerAddr := event.PeerAddr
-	family := event.AFI + "/" + event.SAFI
+	fam := event.AFI + "/" + event.SAFI
 
 	if peerAddr == "" {
 		return
@@ -259,7 +259,7 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 		if !peer.HasCapability("route-refresh") {
 			continue
 		}
-		if peer.Families != nil && !peer.SupportsFamily(family) {
+		if peer.Families != nil && !peer.SupportsFamily(fam) {
 			continue
 		}
 		targets = append(targets, addr)
@@ -269,7 +269,7 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 	// Send refreshes asynchronously — per-lifecycle goroutine (not hot path).
 	go func() {
 		for _, addr := range targets {
-			rs.updateRoute(addr, "refresh "+family)
+			rs.updateRoute(addr, "refresh "+fam)
 		}
 	}()
 }
