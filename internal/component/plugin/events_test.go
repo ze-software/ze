@@ -146,6 +146,54 @@ func TestAllValidEventNames(t *testing.T) {
 	}
 }
 
+// VALIDATES: every config namespace event type defined in ValidConfigEvents
+// is recognized by IsValidEvent, and unknown names are rejected.
+// PREVENTS: Regressions where a future edit silently drops one of the 12
+// config events from ValidConfigEvents without a test failing.
+func TestIsValidEventConfig(t *testing.T) {
+	want := map[string]string{
+		"EventConfigVerify":       EventConfigVerify,
+		"EventConfigApply":        EventConfigApply,
+		"EventConfigRollback":     EventConfigRollback,
+		"EventConfigCommitted":    EventConfigCommitted,
+		"EventConfigApplied":      EventConfigApplied,
+		"EventConfigRolledBack":   EventConfigRolledBack,
+		"EventConfigVerifyAbort":  EventConfigVerifyAbort,
+		"EventConfigVerifyOK":     EventConfigVerifyOK,
+		"EventConfigVerifyFailed": EventConfigVerifyFailed,
+		"EventConfigApplyOK":      EventConfigApplyOK,
+		"EventConfigApplyFailed":  EventConfigApplyFailed,
+		"EventConfigRollbackOK":   EventConfigRollbackOK,
+	}
+	if len(want) != len(ValidConfigEvents) {
+		t.Fatalf("ValidConfigEvents has %d entries, test covers %d", len(ValidConfigEvents), len(want))
+	}
+	for name, value := range want {
+		if !IsValidEvent(NamespaceConfig, value) {
+			t.Errorf("expected (config, %s = %q) to be valid", name, value)
+		}
+	}
+	if IsValidEvent(NamespaceConfig, "nonsense") {
+		t.Errorf("expected (config, nonsense) to be invalid")
+	}
+	if IsValidEvent(NamespaceConfig, "") {
+		t.Errorf("expected (config, empty) to be invalid")
+	}
+}
+
+// VALIDATES: per-plugin config event types can be registered dynamically.
+// PREVENTS: "verify-<plugin>" / "apply-<plugin>" rejected when engine emits them.
+func TestRegisterConfigPerPluginEvent(t *testing.T) {
+	if err := RegisterEventType(NamespaceConfig, "verify-test"); err != nil {
+		t.Fatalf("unexpected error registering verify-test: %v", err)
+	}
+	defer unregisterEventType(NamespaceConfig, "verify-test")
+
+	if !IsValidEvent(NamespaceConfig, "verify-test") {
+		t.Errorf("expected (config, verify-test) to be valid after registration")
+	}
+}
+
 // unregisterSendType removes a dynamically registered send type. Test helper only.
 func unregisterSendType(sendType string) {
 	sendTypesMu.Lock()

@@ -11,8 +11,9 @@ import (
 
 // Event namespaces.
 const (
-	NamespaceBGP = "bgp"
-	NamespaceRIB = "rib"
+	NamespaceBGP    = "bgp"
+	NamespaceRIB    = "rib"
+	NamespaceConfig = "config"
 )
 
 // BGP event types.
@@ -34,6 +35,24 @@ const (
 const (
 	EventCache = "cache"
 	EventRoute = "route"
+)
+
+// Config transaction event types.
+// Engine emits per-plugin verify/apply events. Plugins ack with broadcast events.
+// See plan/spec-config-tx-protocol.md and docs/architecture/config/transaction-protocol.md.
+const (
+	EventConfigVerify       = "verify"        // Engine -> plugin: validate candidate (per-plugin variant: "verify-<plugin>")
+	EventConfigApply        = "apply"         // Engine -> plugin: apply changes (per-plugin variant: "apply-<plugin>")
+	EventConfigRollback     = "rollback"      // Engine -> plugins: undo changes
+	EventConfigCommitted    = "committed"     // Engine -> plugins: discard journals
+	EventConfigApplied      = "applied"       // Engine -> observers: transaction committed
+	EventConfigRolledBack   = "rolled-back"   // Engine -> observers: transaction rolled back
+	EventConfigVerifyAbort  = "verify-abort"  // Engine -> plugins: verify phase aborted
+	EventConfigVerifyOK     = "verify-ok"     // Plugin -> engine: verification passed
+	EventConfigVerifyFailed = "verify-failed" // Plugin -> engine: verification rejected
+	EventConfigApplyOK      = "apply-ok"      // Plugin -> engine: apply succeeded
+	EventConfigApplyFailed  = "apply-failed"  // Plugin -> engine: apply failed, trigger rollback
+	EventConfigRollbackOK   = "rollback-ok"   // Plugin -> engine: rollback complete
 )
 
 // Direction constants for event filtering.
@@ -71,12 +90,31 @@ var ValidRibEvents = map[string]bool{
 	EventRoute: true,
 }
 
+// ValidConfigEvents is the set of valid config transaction event types.
+// Per-plugin variants ("verify-<plugin>", "apply-<plugin>") are registered
+// dynamically as plugins start, via RegisterEventType(NamespaceConfig, ...).
+var ValidConfigEvents = map[string]bool{
+	EventConfigVerify:       true,
+	EventConfigApply:        true,
+	EventConfigRollback:     true,
+	EventConfigCommitted:    true,
+	EventConfigApplied:      true,
+	EventConfigRolledBack:   true,
+	EventConfigVerifyAbort:  true,
+	EventConfigVerifyOK:     true,
+	EventConfigVerifyFailed: true,
+	EventConfigApplyOK:      true,
+	EventConfigApplyFailed:  true,
+	EventConfigRollbackOK:   true,
+}
+
 // ValidEvents maps namespace to its set of valid event types.
 // This is the single source of truth for namespace/event validation.
 // Protected by eventsMu for concurrent access.
 var ValidEvents = map[string]map[string]bool{
-	NamespaceBGP: ValidBgpEvents,
-	NamespaceRIB: ValidRibEvents,
+	NamespaceBGP:    ValidBgpEvents,
+	NamespaceRIB:    ValidRibEvents,
+	NamespaceConfig: ValidConfigEvents,
 }
 
 // IsValidEvent returns true if the event type is valid in the given namespace.
