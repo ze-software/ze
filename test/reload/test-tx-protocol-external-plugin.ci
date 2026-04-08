@@ -44,7 +44,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external bgp-watchdog {
-		run "ze plugin bgp-watchdog"
+		use bgp-watchdog
 		encoder json
 	}
 }
@@ -105,7 +105,7 @@ EOF_CONF
 tmpfs=updated.conf:terminator=EOF_UPDATED
 plugin {
 	external bgp-watchdog {
-		run "ze plugin bgp-watchdog"
+		use bgp-watchdog
 		encoder json
 	}
 }

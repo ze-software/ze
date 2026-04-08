@@ -54,7 +54,7 @@ plugin {
 		encoder json
 	}
 	external bgp-rib {
-		run "ze plugin bgp-rib"
+		use bgp-rib
 		encoder json
 	}
 }

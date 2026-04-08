@@ -494,11 +494,11 @@ func TestPluginOnlySchema(t *testing.T) {
 	input := `
 plugin {
     external gr {
-        run "ze plugin gr";
+        use gr;
         encoder json;
     }
     external rib {
-        run "ze plugin rib";
+        use rib;
     }
 }
 `
@@ -518,9 +518,9 @@ plugin {
 	// Verify GR plugin config
 	grPlugin := plugins["gr"]
 	require.NotNil(t, grPlugin)
-	run, ok := grPlugin.Get("run")
+	use, ok := grPlugin.Get("use")
 	require.True(t, ok)
-	require.Equal(t, "ze plugin gr", run)
+	require.Equal(t, "gr", use)
 
 	encoder, ok := grPlugin.Get("encoder")
 	require.True(t, ok)
@@ -529,9 +529,9 @@ plugin {
 	// Verify RIB plugin
 	ribPlugin := plugins["rib"]
 	require.NotNil(t, ribPlugin)
-	run, ok = ribPlugin.Get("run")
+	use, ok = ribPlugin.Get("use")
 	require.True(t, ok)
-	require.Equal(t, "ze plugin rib", run)
+	require.Equal(t, "rib", use)
 }
 
 // TestPluginOnlySchemaRejectsUnknown verifies unknown blocks are rejected.

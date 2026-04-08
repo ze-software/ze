@@ -31,15 +31,15 @@ Plugins are declared in the `plugin { }` block:
 ```
 plugin {
     external rib {
-        run "ze plugin bgp-rib"
+        use bgp-rib
         encoder json
     }
     external adj-rib-in {
-        run "ze plugin bgp-adj-rib-in"
+        use bgp-adj-rib-in
         encoder json
     }
     external gr {
-        run "ze plugin bgp-gr"
+        use bgp-gr
         encoder json
     }
 }
@@ -112,11 +112,10 @@ process my-plugin {
 
 | Mode | Config Syntax | Description |
 |------|--------------|-------------|
-| Fork | `run "ze plugin bgp-rib"` | Subprocess, TLS connect-back (default) |
-| Internal | `run "ze.bgp-rib"` | Goroutine + net.Pipe (best performance) |
-| Path | `run "/usr/local/bin/my-plugin"` | External binary |
+| Internal | `use bgp-rib` | Goroutine + net.Pipe (best performance) |
+| External | `run "/usr/local/bin/my-plugin"` | External binary or script |
 
-Internal mode (`ze.pluginname`) runs the plugin as a goroutine within the ze process, using direct function calls instead of IPC. This is the fastest mode but requires the plugin to be compiled into ze.
+Internal mode (`use pluginname`) runs the plugin as a goroutine within the ze process, using direct function calls instead of IPC. This is the fastest mode but requires the plugin to be compiled into ze.
 <!-- source: internal/component/plugin/server/ -- plugin invocation modes; internal/component/plugin/cli/cli.go -- RunPlugin -->
 
 ## Built-In Plugins

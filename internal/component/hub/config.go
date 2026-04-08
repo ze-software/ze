@@ -207,7 +207,10 @@ func parsePluginBlock(tok *config.Tokenizer, cfg *HubConfig) error {
 			}
 			tok.Next() // consume ;
 
-			if propName == "run" {
+			switch propName {
+			case "run":
+				plugin.Run = propValue
+			case "use":
 				plugin.Run = propValue
 			}
 		}

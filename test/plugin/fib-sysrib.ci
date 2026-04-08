@@ -120,11 +120,11 @@ plugin {
 		encoder json
 	}
 	external bgp-rib {
-		run "ze plugin bgp-rib"
+		use bgp-rib
 		encoder json
 	}
 	external rib {
-		run "ze plugin rib"
+		use rib
 		encoder json
 	}
 }

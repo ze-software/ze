@@ -25,7 +25,7 @@ EOF_PEER
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
 plugin {
 	external persist {
-		run "ze plugin bgp-persist"
+		use bgp-persist
 		encoder json
 	}
 }
@@ -86,7 +86,7 @@ EOF_CONF
 tmpfs=config2.conf:terminator=EOF_CONF2
 plugin {
 	external persist {
-		run "ze plugin bgp-persist"
+		use bgp-persist
 		encoder json
 	}
 }

@@ -12,7 +12,7 @@ import (
 )
 
 // TestExtractPluginsFromTree_InternalPlugin verifies that explicit plugins
-// with run "ze.X" are marked Internal=true.
+// with use X are marked Internal=true.
 //
 // VALIDATES: Config-file internal plugins detected via ResolvePlugin.
 // PREVENTS: Internal plugins being treated as external (fork instead of goroutine).
@@ -22,7 +22,7 @@ func TestExtractPluginsFromTree_InternalPlugin(t *testing.T) {
 	tree.SetContainer("plugin", pluginContainer)
 
 	ext := config.NewTree()
-	ext.Set("run", "ze.bgp-rs")
+	ext.Set("use", "bgp-rs")
 	pluginContainer.AddListEntry("external", "rr", ext)
 
 	plugins, err := config.ExtractPluginsFromTree(tree)
@@ -30,8 +30,8 @@ func TestExtractPluginsFromTree_InternalPlugin(t *testing.T) {
 	require.Len(t, plugins, 1)
 
 	assert.Equal(t, "rr", plugins[0].Name)
-	assert.Equal(t, "ze.bgp-rs", plugins[0].Run)
-	assert.True(t, plugins[0].Internal, "plugin with run ze.bgp-rs should be Internal")
+	assert.Equal(t, "bgp-rs", plugins[0].Run)
+	assert.True(t, plugins[0].Internal, "plugin with use bgp-rs should be Internal")
 }
 
 // TestExtractPluginsFromTree_ExternalPlugin verifies that external plugins
@@ -56,12 +56,57 @@ func TestExtractPluginsFromTree_ExternalPlugin(t *testing.T) {
 	assert.False(t, plugins[0].Internal, "external plugin should not be Internal")
 }
 
-// TestExtractPluginsFromTree_UnknownInternalPlugin verifies that an unknown
-// ze.X plugin is NOT marked internal (validation via ResolvePlugin).
+// TestExtractPluginsFromTree_RunDotBackwardCompat verifies that the old
+// run "ze.X" dot syntax still marks plugins as Internal via MarkInternalPlugin.
 //
-// VALIDATES: Unknown "ze.typo" is not blindly marked Internal.
+// VALIDATES: Old configs with run "ze.bgp-rs" still work after use keyword added.
+// PREVENTS: Breaking existing configs that haven't migrated to use.
+func TestExtractPluginsFromTree_RunDotBackwardCompat(t *testing.T) {
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
+	tree.SetContainer("plugin", pluginContainer)
+
+	ext := config.NewTree()
+	ext.Set("run", "ze.bgp-rs")
+	pluginContainer.AddListEntry("external", "rr", ext)
+
+	plugins, err := config.ExtractPluginsFromTree(tree)
+	require.NoError(t, err)
+	require.Len(t, plugins, 1)
+
+	assert.Equal(t, "rr", plugins[0].Name)
+	assert.Equal(t, "ze.bgp-rs", plugins[0].Run)
+	assert.True(t, plugins[0].Internal, "run 'ze.bgp-rs' should still be marked Internal via MarkInternalPlugin")
+}
+
+// TestExtractPluginsFromTree_RunZePluginIsExternal verifies that run "ze plugin X"
+// resolves as external (forked subprocess), not internal.
+//
+// VALIDATES: "ze plugin X" form forks a child process.
+// PREVENTS: Confusion between use (in-process) and run "ze plugin" (fork).
+func TestExtractPluginsFromTree_RunZePluginIsExternal(t *testing.T) {
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
+	tree.SetContainer("plugin", pluginContainer)
+
+	ext := config.NewTree()
+	ext.Set("run", "ze plugin bgp-rs")
+	pluginContainer.AddListEntry("external", "rr", ext)
+
+	plugins, err := config.ExtractPluginsFromTree(tree)
+	require.NoError(t, err)
+	require.Len(t, plugins, 1)
+
+	assert.Equal(t, "rr", plugins[0].Name)
+	assert.False(t, plugins[0].Internal, "run 'ze plugin bgp-rs' should be External (forked)")
+}
+
+// TestExtractPluginsFromTree_UnknownRunPlugin verifies that an unknown
+// run command is NOT marked internal (validation via ResolvePlugin).
+//
+// VALIDATES: Unknown "ze.typo" via run is not blindly marked Internal.
 // PREVENTS: Bug where strings.HasPrefix fast-path skipped validation.
-func TestExtractPluginsFromTree_UnknownInternalPlugin(t *testing.T) {
+func TestExtractPluginsFromTree_UnknownRunPlugin(t *testing.T) {
 	tree := config.NewTree()
 	pluginContainer := config.NewTree()
 	tree.SetContainer("plugin", pluginContainer)
@@ -74,7 +119,49 @@ func TestExtractPluginsFromTree_UnknownInternalPlugin(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, plugins, 1)
 
-	assert.False(t, plugins[0].Internal, "unknown ze.X should not be Internal")
+	assert.False(t, plugins[0].Internal, "unknown ze.X via run should not be Internal")
+}
+
+// TestExtractPluginsFromTree_UseAlwaysInternal verifies that the use keyword
+// always sets Internal=true regardless of whether the plugin name resolves.
+//
+// VALIDATES: use keyword means in-process, unconditionally.
+// PREVENTS: use plugins falling back to fork mode.
+func TestExtractPluginsFromTree_UseAlwaysInternal(t *testing.T) {
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
+	tree.SetContainer("plugin", pluginContainer)
+
+	ext := config.NewTree()
+	ext.Set("use", "unknown-plugin")
+	pluginContainer.AddListEntry("external", "test", ext)
+
+	plugins, err := config.ExtractPluginsFromTree(tree)
+	require.NoError(t, err)
+	require.Len(t, plugins, 1)
+
+	assert.True(t, plugins[0].Internal, "use keyword should always set Internal=true")
+	assert.Equal(t, "unknown-plugin", plugins[0].Run)
+}
+
+// TestExtractPluginsFromTree_RunAndUseMutuallyExclusive verifies that
+// setting both run and use on a plugin returns an error.
+//
+// VALIDATES: run and use are mutually exclusive.
+// PREVENTS: Ambiguous plugin configuration.
+func TestExtractPluginsFromTree_RunAndUseMutuallyExclusive(t *testing.T) {
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
+	tree.SetContainer("plugin", pluginContainer)
+
+	ext := config.NewTree()
+	ext.Set("run", "/usr/bin/plugin")
+	ext.Set("use", "bgp-rib")
+	pluginContainer.AddListEntry("external", "conflict", ext)
+
+	_, err := config.ExtractPluginsFromTree(tree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mutually exclusive")
 }
 
 // TestValidatePluginReferences_GroupPeerUndefinedPlugin verifies that undefined

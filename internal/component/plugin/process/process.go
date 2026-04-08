@@ -460,11 +460,14 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 // Creates a MuxPluginConn for bidirectional YANG RPC protocol.
 func (p *Process) startInternal() error {
 	name := p.config.Name
-	// If run specifies an internal plugin (ze.X or ze plugin X), use that name
-	// for runner lookup. This allows config name ("rr") to differ from
-	// internal name ("bgp-rs").
+	// Use the Run value as the runner lookup name. For "use" configs, Run is
+	// the bare plugin name (e.g., "bgp-rib"). For "run" configs, Run is a
+	// command string (e.g., "ze.bgp-rs" or "ze plugin bgp-rs") that needs
+	// resolution. Try direct registry lookup first, then ResolvePlugin.
 	if p.config.Run != "" {
-		if res, err := plugin.ResolvePlugin(p.config.Run); err == nil && res.Type == plugin.PluginTypeInternal {
+		if plugin.IsInternalPlugin(p.config.Run) {
+			name = p.config.Run
+		} else if res, err := plugin.ResolvePlugin(p.config.Run); err == nil && res.Type == plugin.PluginTypeInternal {
 			name = res.Name
 		}
 	}

@@ -185,8 +185,17 @@ func ExtractPluginsFromTree(tree *Tree) ([]plugin.PluginConfig, error) {
 				return nil, fmt.Errorf("plugin name %q: names starting with underscore are reserved", name)
 			}
 			pc := plugin.PluginConfig{Name: name}
-			if v, ok := proc.Get("run"); ok {
-				pc.Run = v
+			runVal, _ := proc.Get("run")
+			useVal, _ := proc.Get("use")
+			if runVal != "" && useVal != "" {
+				return nil, fmt.Errorf("plugin %q: run and use are mutually exclusive", name)
+			}
+			if runVal != "" {
+				pc.Run = runVal
+			}
+			if useVal != "" {
+				pc.Internal = true
+				pc.Run = useVal
 			}
 			if v, ok := proc.Get("encoder"); ok {
 				pc.Encoder = v
@@ -204,7 +213,9 @@ func ExtractPluginsFromTree(tree *Tree) ([]plugin.PluginConfig, error) {
 			if pc.Encoder == EncoderText {
 				pc.ReceiveUpdate = true
 			}
-			MarkInternalPlugin(&pc)
+			if !pc.Internal {
+				MarkInternalPlugin(&pc)
+			}
 			plugins = append(plugins, pc)
 		}
 	}

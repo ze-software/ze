@@ -92,7 +92,12 @@ module ze-plugin-conf {
 
             leaf run {
                 type string;
-                description "Command to execute plugin (with args)";
+                description "Command to execute plugin as external process (with args)";
+            }
+
+            leaf use {
+                type string;
+                description "Name of a built-in plugin to run in-process (mutually exclusive with run)";
             }
 
             leaf encoder {

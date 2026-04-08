@@ -56,11 +56,11 @@ plugin {
 		encoder json
 	}
 	external bgp-rib {
-		run "ze plugin bgp-rib"
+		use bgp-rib
 		encoder json
 	}
 	external adj-rib-in {
-		run "ze plugin bgp-adj-rib-in"
+		use bgp-adj-rib-in
 		encoder json
 	}
 }

@@ -104,11 +104,11 @@ plugin {
 		encoder json
 	}
 	external rpki-decorator {
-		run "ze plugin bgp-rpki-decorator"
+		use bgp-rpki-decorator
 		encoder json
 	}
 	external adj-rib-in {
-		run "ze plugin bgp-adj-rib-in"
+		use bgp-adj-rib-in
 		encoder json
 	}
 }

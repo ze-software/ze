@@ -49,9 +49,13 @@ func extractInlinePluginsFromMap(bgpTree map[string]any) []reactor.PluginConfig 
 			if !ok {
 				continue
 			}
-			run, ok := procMap["run"].(string)
-			if !ok || run == "" {
+			run, _ := procMap["run"].(string)
+			use, _ := procMap["use"].(string)
+			if run == "" && use == "" {
 				continue
+			}
+			if use != "" {
+				run = use
 			}
 			if seen[name] {
 				continue
@@ -119,8 +123,11 @@ func validatePeerProcessRefs(peerTree *config.Tree, pluginNames map[string]bool,
 		if name == config.KeyDefault {
 			continue
 		}
-		// Skip inline plugins (have run defined)
+		// Skip inline plugins (have run or use defined)
 		if run, ok := processTree.Get("run"); ok && run != "" {
+			continue
+		}
+		if use, ok := processTree.Get("use"); ok && use != "" {
 			continue
 		}
 		if !pluginNames[name] {

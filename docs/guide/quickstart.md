@@ -42,7 +42,7 @@ Save as `example.conf`:
 ```
 plugin {
     external rib {
-        run "ze.bgp-rib"
+        use bgp-rib
     }
 }
 

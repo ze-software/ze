@@ -40,11 +40,11 @@ reject=stderr:pattern=GR restart marker found
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external gr {
-		run "ze plugin bgp-gr"
+		use bgp-gr
 		encoder json
 	}
 	external bgp-rib {
-		run "ze plugin bgp-rib"
+		use bgp-rib
 		encoder json
 	}
 }

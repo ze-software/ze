@@ -75,11 +75,11 @@ plugin {
 		encoder json
 	}
 	external rpki {
-		run "ze plugin bgp-rpki"
+		use bgp-rpki
 		encoder json
 	}
 	external adj-rib-in {
-		run "ze plugin bgp-adj-rib-in"
+		use bgp-adj-rib-in
 		encoder json
 	}
 }
