@@ -12,17 +12,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ssh"
+	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 )
 
 // testUsers returns a slice of UserConfig with a known bcrypt hash for "testpass".
-func testUsers(t *testing.T) []ssh.UserConfig {
+func testUsers(t *testing.T) []authz.UserConfig {
 	t.Helper()
 
 	hash, err := bcrypt.GenerateFromPassword([]byte("testpass"), bcrypt.DefaultCost)
 	require.NoError(t, err)
 
-	return []ssh.UserConfig{
+	return []authz.UserConfig{
 		{Name: "alice", Hash: string(hash)},
 	}
 }

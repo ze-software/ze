@@ -170,3 +170,71 @@ func TestSplitValidatorNames(t *testing.T) {
 		})
 	}
 }
+
+// TestValidatorRegistry_MergeGlobalCompleteFns verifies that globally-registered
+// CompleteFns are merged into validators with nil CompleteFn.
+//
+// VALIDATES: Global CompleteFn fills nil slot after merge (AC-10).
+// PREVENTS: Domain packages unable to provide completion without direct import.
+func TestValidatorRegistry_MergeGlobalCompleteFns(t *testing.T) {
+	RegisterCompleteFn("test-merge", func() []string {
+		return []string{"aa:bb:cc:dd:ee:ff"}
+	})
+	defer delete(globalCompleteFns, "test-merge")
+
+	reg := NewValidatorRegistry()
+	reg.Register("test-merge", CustomValidator{
+		ValidateFn: func(_ string, _ any) error { return nil },
+	})
+
+	reg.MergeGlobalCompleteFns()
+
+	cv := reg.Get("test-merge")
+	require.NotNil(t, cv)
+	require.NotNil(t, cv.CompleteFn, "CompleteFn should be filled by merge")
+	assert.Equal(t, []string{"aa:bb:cc:dd:ee:ff"}, cv.CompleteFn())
+}
+
+// TestValidatorRegistry_MergeDoesNotOverwrite verifies that MergeGlobalCompleteFns
+// does not overwrite an existing CompleteFn.
+//
+// VALIDATES: Existing CompleteFn preserved during merge.
+// PREVENTS: Domain-registered CompleteFn clobbering explicit validator completion.
+func TestValidatorRegistry_MergeDoesNotOverwrite(t *testing.T) {
+	RegisterCompleteFn("test-no-overwrite", func() []string {
+		return []string{"global"}
+	})
+	defer delete(globalCompleteFns, "test-no-overwrite")
+
+	reg := NewValidatorRegistry()
+	reg.Register("test-no-overwrite", CustomValidator{
+		ValidateFn: func(_ string, _ any) error { return nil },
+		CompleteFn: func() []string { return []string{"original"} },
+	})
+
+	reg.MergeGlobalCompleteFns()
+
+	cv := reg.Get("test-no-overwrite")
+	require.NotNil(t, cv)
+	assert.Equal(t, []string{"original"}, cv.CompleteFn(), "existing CompleteFn should not be overwritten")
+}
+
+// TestValidatorRegistry_MergeSkipsUnregisteredValidator verifies that a global
+// CompleteFn for a name that has no validator is silently ignored.
+//
+// VALIDATES: No panic or error for orphaned global CompleteFn.
+// PREVENTS: Crash when a domain package registers CompleteFn but validator not loaded.
+func TestValidatorRegistry_MergeSkipsUnregisteredValidator(t *testing.T) {
+	RegisterCompleteFn("test-orphan", func() []string {
+		return []string{"orphan"}
+	})
+	defer delete(globalCompleteFns, "test-orphan")
+
+	reg := NewValidatorRegistry()
+	// Don't register "test-orphan" as a validator
+
+	reg.MergeGlobalCompleteFns() // should not panic
+
+	cv := reg.Get("test-orphan")
+	assert.Nil(t, cv, "orphaned global CompleteFn should not create a validator")
+}

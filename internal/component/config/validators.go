@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	ifacepkg "codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
@@ -175,7 +174,8 @@ func LiteralSelfValidator() yang.CustomValidator {
 var macPattern = regexp.MustCompile(`^[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}$`)
 
 // MACAddressValidator returns a validator for MAC address fields.
-// CompleteFn discovers current OS interfaces and suggests their MAC addresses.
+// CompleteFn is registered separately by the iface package via
+// yang.RegisterCompleteFn to avoid config importing iface.
 func MACAddressValidator() yang.CustomValidator {
 	return yang.CustomValidator{
 		ValidateFn: func(_ string, value any) error {
@@ -187,19 +187,6 @@ func MACAddressValidator() yang.CustomValidator {
 				return fmt.Errorf("%q is not a valid MAC address (expected xx:xx:xx:xx:xx:xx)", str)
 			}
 			return nil
-		},
-		CompleteFn: func() []string {
-			discovered, err := ifacepkg.DiscoverInterfaces()
-			if err != nil {
-				return nil
-			}
-			var macs []string
-			for _, di := range discovered {
-				if di.MAC != "" && di.MAC != "00:00:00:00:00:00" {
-					macs = append(macs, di.MAC)
-				}
-			}
-			return macs
 		},
 	}
 }

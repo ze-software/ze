@@ -1,7 +1,7 @@
-// Design: (none -- new SSH server component)
-// Overview: ssh.go -- SSH server lifecycle
+// Design: (none -- new authorization component)
+// Overview: authz.go -- profile-based command authorization
 
-package ssh
+package authz
 
 import (
 	"crypto/subtle"
@@ -14,7 +14,7 @@ import (
 // timing side-channel attacks that could enumerate valid usernames.
 var dummyHash = []byte("$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234") //nolint:gosec // not a credential
 
-// UserConfig holds a configured SSH user's credentials.
+// UserConfig holds a configured user's credentials.
 type UserConfig struct {
 	Name string
 	Hash string // bcrypt hash of the user's credential

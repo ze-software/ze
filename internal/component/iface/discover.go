@@ -1,5 +1,6 @@
 // Design: docs/features/interfaces.md — OS interface discovery
 // Overview: iface.go — shared types and topic constants
+// Related: validators.go -- MAC address CompleteFn for config validator registry
 
 package iface
 

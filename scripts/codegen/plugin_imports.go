@@ -43,12 +43,17 @@ func main() {
 		fatal(err)
 	}
 
-	output := filepath.Join(root, "internal", "component", "plugin", "all", "all.go")
-	if err := generateAllGo(output, plugins, schemas); err != nil {
+	rpcs, err := discoverRPCPackages(root, module)
+	if err != nil {
 		fatal(err)
 	}
 
-	fmt.Printf("Generated %s with %d plugins, %d schemas\n", output, len(plugins), len(schemas))
+	output := filepath.Join(root, "internal", "component", "plugin", "all", "all.go")
+	if err := generateAllGo(output, plugins, schemas, rpcs); err != nil {
+		fatal(err)
+	}
+
+	fmt.Printf("Generated %s with %d plugins, %d schemas, %d rpcs\n", output, len(plugins), len(schemas), len(rpcs))
 }
 
 func fatal(err error) {
@@ -99,6 +104,14 @@ var pluginDirs = []string{
 	"internal/component/bgp/reactor/filter",
 	"internal/component/iface",
 	"internal/plugins",
+}
+
+// rpcDirs lists directories that contain RPC command packages.
+// These packages have init() functions that call pluginserver.RegisterRPCs
+// but do not have a top-level register.go file.
+// Empty: all cmd/* packages create import cycles via all_import_test.go -> plugin/all.
+// Populate after Phase 5 breaks the bgp dependencies in cmd/*.
+var rpcDirs = []string{
 }
 
 // discoverPlugins finds plugin packages by looking for register.go files
@@ -191,8 +204,57 @@ func fileImports(path, substr string) bool {
 	return false
 }
 
+// discoverRPCPackages finds packages that register RPCs via pluginserver.RegisterRPCs.
+// These packages have init() functions but no register.go file.
+func discoverRPCPackages(root, module string) ([]string, error) {
+	var rpcs []string
+
+	for _, rel := range rpcDirs {
+		dir := filepath.Join(root, rel)
+		err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() || !strings.HasSuffix(d.Name(), ".go") {
+				return nil
+			}
+			// Skip test files and schema subdirectories.
+			if strings.HasSuffix(d.Name(), "_test.go") {
+				return nil
+			}
+			if filepath.Base(filepath.Dir(path)) == "schema" {
+				return nil
+			}
+			// Check if file contains RegisterRPCs.
+			if !fileImports(path, "RegisterRPCs") {
+				return nil
+			}
+			// Convert to full import path relative to module root.
+			pkgRel, err := filepath.Rel(root, filepath.Dir(path))
+			if err != nil {
+				return err
+			}
+			rpcs = append(rpcs, module+"/"+pkgRel)
+			return nil
+		})
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
+
+	// Deduplicate (multiple files in same package).
+	sort.Strings(rpcs)
+	deduped := rpcs[:0]
+	for i, p := range rpcs {
+		if i == 0 || p != rpcs[i-1] {
+			deduped = append(deduped, p)
+		}
+	}
+	return deduped, nil
+}
+
 // generateAllGo writes the all.go file with blank imports for plugins and schemas.
-func generateAllGo(path string, plugins, schemas []string) error {
+func generateAllGo(path string, plugins, schemas, rpcs []string) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
@@ -224,6 +286,15 @@ func generateAllGo(path string, plugins, schemas []string) error {
 
 	for _, imp := range plugins {
 		fmt.Fprintf(w, "\t_ \"%s\"\n", imp)
+	}
+
+	// RPC command packages -- init() registers RPCs via pluginserver.RegisterRPCs.
+	if len(rpcs) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "\t// RPC command packages -- pluginserver.RegisterRPCs registration.")
+		for _, imp := range rpcs {
+			fmt.Fprintf(w, "\t_ \"%s\"\n", imp)
+		}
 	}
 	fmt.Fprintln(w, ")")
 	fmt.Fprintln(w)

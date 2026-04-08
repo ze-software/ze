@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -26,7 +27,7 @@ func TestNewServer(t *testing.T) {
 		HostKeyPath: t.TempDir() + "/test_host_key",
 		IdleTimeout: 300,
 		MaxSessions: 4,
-		Users: []UserConfig{
+		Users: []authz.UserConfig{
 			{Name: "admin", Hash: "$2a$10$fake"},
 		},
 	}

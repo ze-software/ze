@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ssh"
+	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/version"
 )
@@ -81,7 +81,7 @@ type SessionStore struct {
 
 // AuthConfig holds configuration for authentication middleware.
 type AuthConfig struct {
-	Users         []ssh.UserConfig
+	Users         []authz.UserConfig
 	LoginRenderer func(w http.ResponseWriter, r *http.Request)
 }
 
@@ -168,7 +168,7 @@ func (s *SessionStore) InvalidateUser(username string) {
 //
 // HTMX requests (HX-Request header) with expired sessions receive a 401 with
 // a login overlay instead of a full page, enabling in-place session recovery.
-func AuthMiddleware(store *SessionStore, users []ssh.UserConfig, loginRenderer func(w http.ResponseWriter, r *http.Request), next http.Handler) http.Handler {
+func AuthMiddleware(store *SessionStore, users []authz.UserConfig, loginRenderer func(w http.ResponseWriter, r *http.Request), next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check session cookie first.
 		if cookie, err := r.Cookie("ze-session"); err == nil {
@@ -182,7 +182,7 @@ func AuthMiddleware(store *SessionStore, users []ssh.UserConfig, loginRenderer f
 
 		// Fall back to Basic Auth for JSON API requests.
 		if username, password, ok := parseBasicAuth(r); ok {
-			if ssh.AuthenticateUser(users, username, password) {
+			if authz.AuthenticateUser(users, username, password) {
 				logger.Debug("basic auth accepted", "username", username)
 				addSecurityHeaders(w)
 				next.ServeHTTP(w, r.WithContext(withUsername(r.Context(), username)))
@@ -202,7 +202,7 @@ func AuthMiddleware(store *SessionStore, users []ssh.UserConfig, loginRenderer f
 // LoginHandler returns an http.HandlerFunc that processes POST login requests.
 // On successful authentication, it creates a session, sets the ze-session cookie,
 // and redirects to "/". On failure, it returns 401 with the login page.
-func LoginHandler(store *SessionStore, users []ssh.UserConfig, loginRenderer func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
+func LoginHandler(store *SessionStore, users []authz.UserConfig, loginRenderer func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -215,7 +215,7 @@ func LoginHandler(store *SessionStore, users []ssh.UserConfig, loginRenderer fun
 		username := r.FormValue("username")
 		password := r.FormValue("password")
 
-		if !ssh.AuthenticateUser(users, username, password) {
+		if !authz.AuthenticateUser(users, username, password) {
 			logger.Warn("login failed", "username", username, "remote", r.RemoteAddr)
 			w.WriteHeader(http.StatusUnauthorized)
 			loginRenderer(w, r)

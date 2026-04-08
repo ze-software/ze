@@ -258,22 +258,15 @@ func TestMACAddressValidator_Validate(t *testing.T) {
 	assert.Error(t, v.ValidateFn("interface.ethernet.mac-address", 42))
 }
 
-// TestMACAddressValidator_Complete verifies completion returns OS MAC addresses.
+// TestMACAddressValidator_Complete verifies that MACAddressValidator has nil
+// CompleteFn by default. The CompleteFn is registered separately by the iface
+// package via yang.RegisterCompleteFn and merged at startup.
 //
-// VALIDATES: CompleteFn returns non-nil (may be empty on systems without interfaces) (AC-8).
-// PREVENTS: Nil panic from discovery errors.
+// VALIDATES: MACAddressValidator returns only ValidateFn (AC-10).
+// PREVENTS: Accidental re-coupling of config to iface.
 func TestMACAddressValidator_Complete(t *testing.T) {
 	v := MACAddressValidator()
-	require.NotNil(t, v.CompleteFn)
-
-	// CompleteFn should not panic; result depends on OS interfaces.
-	values := v.CompleteFn()
-	// On a real system there should be at least one MAC (unless containerized).
-	// Just verify no panic and valid format if any returned.
-	for _, mac := range values {
-		assert.Regexp(t, `^[0-9a-f]{2}(:[0-9a-f]{2}){5}$`, mac,
-			"MAC suggestion should be lowercase colon-separated hex")
-	}
+	assert.Nil(t, v.CompleteFn, "CompleteFn should be nil -- registered globally by iface")
 }
 
 // TestAddressFamilyValidator_Complete verifies completion returns registered families.

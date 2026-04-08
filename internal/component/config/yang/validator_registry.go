@@ -24,6 +24,21 @@ type ValidatorRegistry struct {
 	validators map[string]CustomValidator
 }
 
+// globalCompleteFns holds CompleteFn callbacks registered at init() time
+// by domain packages (e.g., iface registers MAC address completion).
+// This decouples config from domain packages: config defines the validator
+// with ValidateFn only, the domain package registers its CompleteFn here,
+// and the registry merges them at startup.
+// Written during init(), read during MergeGlobalCompleteFns -- no mutex needed.
+var globalCompleteFns = map[string]func() []string{}
+
+// RegisterCompleteFn registers a CompleteFn for a named validator.
+// Called during init() by domain packages to provide CLI completion
+// without requiring the config package to import them.
+func RegisterCompleteFn(name string, fn func() []string) {
+	globalCompleteFns[name] = fn
+}
+
 // NewValidatorRegistry creates an empty registry.
 func NewValidatorRegistry() *ValidatorRegistry {
 	return &ValidatorRegistry{
@@ -34,6 +49,18 @@ func NewValidatorRegistry() *ValidatorRegistry {
 // Register adds a custom validator by name.
 func (r *ValidatorRegistry) Register(name string, cv CustomValidator) {
 	r.validators[name] = cv
+}
+
+// MergeGlobalCompleteFns applies globally-registered CompleteFns to
+// validators in this registry that have nil CompleteFn. Called once
+// after all validators are registered during startup.
+func (r *ValidatorRegistry) MergeGlobalCompleteFns() {
+	for name, fn := range globalCompleteFns {
+		if cv, ok := r.validators[name]; ok && cv.CompleteFn == nil {
+			cv.CompleteFn = fn
+			r.validators[name] = cv
+		}
+	}
 }
 
 // Get returns the custom validator for name, or nil if not registered.

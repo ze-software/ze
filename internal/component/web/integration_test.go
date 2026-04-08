@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/ssh"
+	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 )
 
 // setupTestServer creates a running HTTPS server with auth middleware, login
@@ -39,7 +39,7 @@ func setupTestServer(t *testing.T) (baseURL string, client *http.Client, cleanup
 	hash, err := bcrypt.GenerateFromPassword([]byte("testpass"), bcrypt.MinCost)
 	require.NoError(t, err, "bcrypt hash generation must succeed")
 
-	users := []ssh.UserConfig{
+	users := []authz.UserConfig{
 		{Name: "testuser", Hash: string(hash)},
 	}
 

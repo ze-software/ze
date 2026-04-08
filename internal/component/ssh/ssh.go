@@ -1,5 +1,4 @@
 // Design: docs/architecture/system-architecture.md -- SSH server subsystem
-// Detail: auth.go -- password authentication
 // Detail: session.go -- per-session unified CLI model creation
 
 package ssh
@@ -27,6 +26,7 @@ import (
 	"charm.land/wish/v2/bubbletea"
 	"github.com/charmbracelet/ssh"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -80,7 +80,7 @@ type Config struct {
 	Storage     storage.Storage // when set, host key is read from/stored to blob
 	IdleTimeout uint32
 	MaxSessions int
-	Users       []UserConfig
+	Users       []authz.UserConfig
 	Executor    CommandExecutor // injected by daemon, not from config
 }
 
@@ -165,7 +165,7 @@ func (s *Server) MaxSessions() int {
 }
 
 // Users returns the configured user list.
-func (s *Server) Users() []UserConfig {
+func (s *Server) Users() []authz.UserConfig {
 	return s.config.Users
 }
 
@@ -267,7 +267,7 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 			s.maxSessionsMiddleware(),
 		),
 		wish.WithPasswordAuth(func(ctx ssh.Context, pass string) bool {
-			ok := AuthenticateUser(users, ctx.User(), pass)
+			ok := authz.AuthenticateUser(users, ctx.User(), pass)
 			if ok {
 				s.logger.Info("SSH auth success", "username", ctx.User(), "remote", ctx.RemoteAddr().String())
 			} else {

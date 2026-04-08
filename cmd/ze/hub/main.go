@@ -19,6 +19,7 @@ import (
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -34,7 +35,6 @@ import (
 	resolvecmd "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"
 	resolveDNS "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
-	"codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
@@ -607,7 +607,7 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 		listenAddr = "0.0.0.0:3443"
 	}
 
-	var users []ssh.UserConfig
+	var users []authz.UserConfig
 	if !insecureWeb {
 		var err error
 		users, err = loadZefsUsers()
@@ -799,7 +799,7 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 }
 
 // loadZefsUsers reads credentials from the zefs database (created by ze init).
-func loadZefsUsers() ([]ssh.UserConfig, error) {
+func loadZefsUsers() ([]authz.UserConfig, error) {
 	dir := paths.DefaultConfigDir()
 	if dir == "" {
 		return nil, fmt.Errorf("cannot resolve config directory")
@@ -822,7 +822,7 @@ func loadZefsUsers() ([]ssh.UserConfig, error) {
 	if name == "" {
 		return nil, fmt.Errorf("empty username in zefs")
 	}
-	return []ssh.UserConfig{{Name: name, Hash: string(hash)}}, nil
+	return []authz.UserConfig{{Name: name, Hash: string(hash)}}, nil
 }
 
 // blobCertStore implements web.CertStore backed by zefs blob storage.

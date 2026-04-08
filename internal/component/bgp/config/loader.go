@@ -418,7 +418,7 @@ func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
 	if sys := tree.GetContainer("system"); sys != nil {
 		if auth := sys.GetContainer("authentication"); auth != nil {
 			for name, entry := range auth.GetList("user") {
-				var uc zessh.UserConfig
+				var uc authz.UserConfig
 				uc.Name = name
 				if pw, ok := entry.Get("password"); ok {
 					uc.Hash = pw
@@ -465,7 +465,7 @@ func resolveSSHStorage(mainStore storage.Storage, configDir string) storage.Stor
 // The zefs stores a bcrypt hash (written by ze init). This function uses the
 // hash directly as UserConfig.Hash -- no re-hashing needed.
 // Returns nil if keys are missing.
-func loadZefsUsers() ([]zessh.UserConfig, error) {
+func loadZefsUsers() ([]authz.UserConfig, error) {
 	dir := paths.DefaultConfigDir()
 	if dir == "" {
 		return nil, fmt.Errorf("cannot resolve config dir")
@@ -489,7 +489,7 @@ func loadZefsUsers() ([]zessh.UserConfig, error) {
 	if name == "" {
 		return nil, fmt.Errorf("empty username in zefs")
 	}
-	return []zessh.UserConfig{{Name: name, Hash: string(hash)}}, nil
+	return []authz.UserConfig{{Name: name, Hash: string(hash)}}, nil
 }
 
 // formatResponseData converts a command response Data value to a human-readable string.
