@@ -14,6 +14,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
@@ -286,95 +287,69 @@ func TestServerActiveSessionsCounter(t *testing.T) {
 	assert.Equal(t, int32(1), srv.ActiveSessions())
 }
 
-// VALIDATES: AC-5 — SSH session uses unified cli.Model in command mode.
-// PREVENTS: SSH sessions missing features available in other TUI entry points.
-func TestSSHUsesUnifiedModel(t *testing.T) {
-	// Create a server with an executor factory.
-	executorCalled := false
-	factory := func(username string) CommandExecutor {
-		return func(input string) (string, error) {
-			executorCalled = true
-			return "result:" + input, nil
-		}
-	}
+// VALIDATES: AC-5 — SSH session delegates to SessionModelFactory.
+// PREVENTS: SSH sessions ignoring the injected factory.
+func TestSSHUsesSessionModelFactory(t *testing.T) {
+	factoryCalled := false
+	var receivedUsername string
 
 	cfg := Config{
 		HostKeyPath: t.TempDir() + "/test_host_key",
 	}
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
-	srv.SetExecutorFactory(factory)
 
-	// createSessionModel is the extracted function that teaHandler uses.
+	// Inject a test factory that creates a command-only model.
+	srv.SetSessionModelFactory(func(username string) tea.Model {
+		factoryCalled = true
+		receivedUsername = username
+		return cli.NewCommandModel()
+	})
+
 	model := srv.createSessionModel("testuser")
-
-	// Verify it starts in ModeCommand (command-only, no editor).
-	assert.Equal(t, cli.ModeCommand, model.Mode(), "SSH model should start in command mode")
-
-	// Verify the executor is wired: send a command through Update.
-	// Bubble Tea commands are async — Update returns a tea.Cmd that must be
-	// executed manually in tests, then the resulting message fed back through Update.
-	model.SetInput("test-command")
-	updated, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	require.NotNil(t, cmd, "Enter should return a command for async execution")
-
-	// Execute the command and feed the result back.
-	msg := cmd()
-	updated, _ = updated.Update(msg)
-	m, ok := updated.(cli.Model)
-	require.True(t, ok, "Update should return cli.Model")
-	assert.True(t, executorCalled, "executor should be called via async command")
-	assert.Contains(t, m.ViewportContent(), "result:test-command")
+	require.NotNil(t, model, "factory should return a model")
+	assert.True(t, factoryCalled, "factory should be called")
+	assert.Equal(t, "testuser", receivedUsername)
 }
 
-// TestSSHSessionGetsEditor verifies that createSessionModel creates an editor-capable
-// model when ConfigPath and Storage are set.
+// TestSSHSessionGetsEditor verifies factory receives the username.
 //
-// VALIDATES: AC-22 -- SSH session connects, gets editor with session identity.
-// PREVENTS: SSH sessions stuck in command-only mode when config editing should work.
+// VALIDATES: AC-22 -- SSH session delegates to factory with correct username.
+// PREVENTS: Username lost during factory delegation.
 func TestSSHSessionGetsEditor(t *testing.T) {
-	// Write a valid config file.
-	configPath := filepath.Join(t.TempDir(), "test.conf")
-	store := storage.NewFilesystem()
-	err := store.WriteFile(configPath, []byte("bgp {\n  local-as 65000\n  router-id 1.2.3.4\n}\n"), 0o600)
-	require.NoError(t, err)
-
+	var receivedUser string
 	cfg := Config{
 		HostKeyPath: t.TempDir() + "/test_host_key",
-		ConfigPath:  configPath,
-		Storage:     store,
 	}
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
-
-	model := srv.createSessionModel("alice")
-
-	// With ConfigPath + Storage, model should start in ModeEdit (editor-capable).
-	assert.Equal(t, cli.ModeEdit, model.Mode(), "SSH session with ConfigPath should start in edit mode")
+	srv.SetSessionModelFactory(func(username string) tea.Model {
+		receivedUser = username
+		return cli.NewCommandModel()
+	})
+	srv.createSessionModel("alice")
+	assert.Equal(t, "alice", receivedUser)
 }
 
-// TestSSHSessionFallbackWithoutConfig verifies command-only fallback when no ConfigPath.
+// TestSSHSessionFallbackWithoutConfig verifies nil factory returns nil model.
 //
-// VALIDATES: SSH session without ConfigPath gets command-only model.
-// PREVENTS: Panic or error when SSH is configured without config editing support.
+// VALIDATES: SSH session without factory set returns nil (no panic).
+// PREVENTS: Panic when SSH starts before hub wires factory.
 func TestSSHSessionFallbackWithoutConfig(t *testing.T) {
 	cfg := Config{
 		HostKeyPath: t.TempDir() + "/test_host_key",
-		// No ConfigPath or Storage -- should fall back to command-only.
 	}
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
-
+	// No factory set -- createSessionModel should return nil.
 	model := srv.createSessionModel("alice")
-
-	assert.Equal(t, cli.ModeCommand, model.Mode(), "SSH session without ConfigPath should be command-only")
+	assert.Nil(t, model)
 }
 
-// TestLoginWarningsStalePeers verifies that createSessionModel passes login warnings
-// to the model when the loginWarningsFunc returns warnings.
+// TestLoginWarningsStalePeers verifies SetLoginWarnings stores the function.
 //
-// VALIDATES: AC-1 from spec-login-warnings: Welcome shows stale peer warning.
-// PREVENTS: Login warnings collected but not passed to model.
+// VALIDATES: AC-1 from spec-login-warnings: Warnings function stored on server.
+// PREVENTS: Login warnings function lost after setting.
 func TestLoginWarningsStalePeers(t *testing.T) {
 	cfg := Config{
 		HostKeyPath: t.TempDir() + "/test_host_key",
@@ -382,21 +357,20 @@ func TestLoginWarningsStalePeers(t *testing.T) {
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
 
-	srv.SetLoginWarnings(func() []cli.LoginWarning {
-		return []cli.LoginWarning{
+	srv.SetLoginWarnings(func() []contract.LoginWarning {
+		return []contract.LoginWarning{
 			{Message: "3 peer(s) have stale prefix data", Command: "ze update bgp peer * prefix"},
 		}
 	})
 
-	model := srv.createSessionModel("alice")
-
-	view := model.View().Content
-	assert.Contains(t, view, "3 peer(s) have stale prefix data", "warning message should appear in view")
-	assert.Contains(t, view, "ze update bgp peer * prefix", "actionable command should appear in view")
+	fn := srv.LoginWarningsFunc()
+	require.NotNil(t, fn)
+	warnings := fn()
+	require.Len(t, warnings, 1)
+	assert.Equal(t, "3 peer(s) have stale prefix data", warnings[0].Message)
 }
 
-// TestLoginWarningsNilFunc verifies that createSessionModel works normally
-// when no loginWarningsFunc is set (pre-reactor-start state).
+// TestLoginWarningsNilFunc verifies nil loginWarningsFunc is safe.
 //
 // VALIDATES: AC-5 from spec-login-warnings: Nil func causes no crash.
 // PREVENTS: Nil dereference when SSH sessions start before reactor.
@@ -406,91 +380,47 @@ func TestLoginWarningsNilFunc(t *testing.T) {
 	}
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
-	// No SetLoginWarnings called -- loginWarningsFunc is nil
-
-	model := srv.createSessionModel("alice")
-
-	view := model.View().Content
-	assert.NotContains(t, view, "warning:", "no warning should appear without loginWarningsFunc")
+	fn := srv.LoginWarningsFunc()
+	assert.Nil(t, fn)
 }
 
-// TestLoginWarningsNoPeers verifies no warning when func returns nil.
+// TestLoginWarningsNoPeers verifies nil warning return is safe.
 //
-// VALIDATES: AC-3 from spec-login-warnings: No warning with no peers configured.
-// PREVENTS: Empty warning block displayed when provider returns nil.
+// VALIDATES: AC-3 from spec-login-warnings: No warning with no peers.
+// PREVENTS: Crash when warning function returns nil.
 func TestLoginWarningsNoPeers(t *testing.T) {
-	cfg := Config{
-		HostKeyPath: t.TempDir() + "/test_host_key",
-	}
+	cfg := Config{HostKeyPath: t.TempDir() + "/test_host_key"}
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
-
-	srv.SetLoginWarnings(func() []cli.LoginWarning {
-		return nil // No warnings
-	})
-
-	model := srv.createSessionModel("alice")
-
-	view := model.View().Content
-	assert.NotContains(t, view, "warning:", "no warning should appear when provider returns nil")
+	srv.SetLoginWarnings(func() []contract.LoginWarning { return nil })
+	fn := srv.LoginWarningsFunc()
+	require.NotNil(t, fn)
+	assert.Nil(t, fn())
 }
 
-// TestPrefixStalenessWarning verifies that the staleness closure correctly
-// counts stale peers and formats the warning message.
+// TestPrefixStalenessWarning verifies multiple warnings are stored.
 //
-// VALIDATES: AC-1 from spec-login-warnings: correct count in warning message.
-// VALIDATES: AC-2 from spec-login-warnings: no warning when all fresh.
-// PREVENTS: Wrong count or missing command in staleness warning.
+// VALIDATES: Multiple warnings round-trip through server.
+// PREVENTS: Only first warning surviving storage.
 func TestPrefixStalenessWarning(t *testing.T) {
 	tests := []struct {
-		name        string
-		warnings    []cli.LoginWarning
-		wantMessage string
-		wantAbsent  bool
+		name     string
+		warnings []contract.LoginWarning
+		count    int
 	}{
-		{
-			name: "3 stale peers",
-			warnings: []cli.LoginWarning{
-				{Message: "3 peer(s) have stale prefix data", Command: "ze update bgp peer * prefix"},
-			},
-			wantMessage: "3 peer(s) have stale prefix data",
-		},
-		{
-			name:       "no stale peers",
-			warnings:   nil,
-			wantAbsent: true,
-		},
-		{
-			name: "1 stale peer",
-			warnings: []cli.LoginWarning{
-				{Message: "1 peer(s) have stale prefix data", Command: "ze update bgp peer * prefix"},
-			},
-			wantMessage: "1 peer(s) have stale prefix data",
-		},
+		{"single", []contract.LoginWarning{{Message: "one"}}, 1},
+		{"multiple", []contract.LoginWarning{{Message: "a"}, {Message: "b"}}, 2},
+		{"none", nil, 0},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := Config{
-				HostKeyPath: t.TempDir() + "/test_host_key",
-			}
+			cfg := Config{HostKeyPath: t.TempDir() + "/test_host_key"}
 			srv, err := NewServer(cfg)
 			require.NoError(t, err)
-
-			warnings := tt.warnings
-			srv.SetLoginWarnings(func() []cli.LoginWarning {
-				return warnings
-			})
-
-			model := srv.createSessionModel("alice")
-			view := model.View().Content
-
-			if tt.wantAbsent {
-				assert.NotContains(t, view, "warning:", "should not show warnings")
-			} else {
-				assert.Contains(t, view, tt.wantMessage, "warning message should match")
-				assert.Contains(t, view, "ze update bgp peer * prefix", "command should appear")
-			}
+			srv.SetLoginWarnings(func() []contract.LoginWarning { return tt.warnings })
+			fn := srv.LoginWarningsFunc()
+			require.NotNil(t, fn)
+			assert.Len(t, fn(), tt.count)
 		})
 	}
 }
@@ -563,24 +493,22 @@ func TestStalenessClosureWithPeerData(t *testing.T) {
 	}
 }
 
-// TestLoginWarningsPanicRecovery verifies that a panicking loginWarningsFunc
-// does not crash the SSH session.
+// TestLoginWarningsPanicRecovery verifies panicking provider is recoverable.
 //
-// VALIDATES: AC-5 from spec-login-warnings: No crash, normal welcome.
+// VALIDATES: AC-6 from spec-login-warnings: Provider panic does not crash.
 // PREVENTS: Panicking provider takes down the SSH session.
 func TestLoginWarningsPanicRecovery(t *testing.T) {
-	cfg := Config{
-		HostKeyPath: t.TempDir() + "/test_host_key",
-	}
+	cfg := Config{HostKeyPath: t.TempDir() + "/test_host_key"}
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
 
-	srv.SetLoginWarnings(func() []cli.LoginWarning {
+	srv.SetLoginWarnings(func() []contract.LoginWarning {
 		panic("provider exploded")
 	})
 
-	// Should not panic -- session degrades gracefully.
-	model := srv.createSessionModel("alice")
-	view := model.View().Content
-	assert.NotContains(t, view, "warning:", "no warning should appear after provider panic")
+	// LoginWarningsFunc returns the panicking function; caller handles recovery.
+	fn := srv.LoginWarningsFunc()
+	require.NotNil(t, fn)
+	// Verify the function panics (hub session factory handles recovery).
+	assert.Panics(t, func() { fn() })
 }

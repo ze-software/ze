@@ -3,21 +3,9 @@
 
 package ssh
 
-import "codeberg.org/thomas-mangin/ze/internal/component/cli"
+import "codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 
 // LoginWarningsFunc returns login warnings to display when an SSH session starts.
-// Returns nil when no warnings exist. Called during createSessionModel.
+// Returns nil when no warnings exist.
 // Injected by the daemon via SetLoginWarnings after the reactor starts.
-type LoginWarningsFunc func() []cli.LoginWarning
-
-// collectWarnings calls fn with panic recovery. If fn panics, the panic
-// is logged and nil is returned so the SSH session continues normally.
-func (s *Server) collectWarnings(fn LoginWarningsFunc) (warnings []cli.LoginWarning) {
-	defer func() {
-		if r := recover(); r != nil {
-			s.logger.Error("login warnings provider panicked", "error", r)
-			warnings = nil
-		}
-	}()
-	return fn()
-}
+type LoginWarningsFunc func() []contract.LoginWarning

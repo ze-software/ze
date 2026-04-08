@@ -6,7 +6,10 @@ package cli
 
 import (
 	"context"
+
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -16,16 +19,16 @@ import (
 // MonitorSession represents an active monitor streaming session inside the TUI.
 // The model holds at most one active session. Events arrive on EventChan;
 // the model polls with a ticker and appends them to the viewport.
-type MonitorSession struct {
-	EventChan  <-chan string       // Buffered channel delivering raw JSON event lines.
-	Cancel     context.CancelFunc  // Stops the monitor and releases resources.
-	FormatFunc func(string) string // Optional formatter for display (e.g., compact one-liner). Nil = raw.
-}
+// MonitorSession represents an active monitor streaming session inside the TUI.
+// Type alias of contract.MonitorSession so ssh, web, and hub use the same type.
+type MonitorSession = contract.MonitorSession
 
 // MonitorFactory creates a monitor session for the given arguments.
 // The context controls the session lifetime; cancel stops delivery.
 // args are the parsed monitor keywords (e.g., ["peer", "10.0.0.1"]).
-type MonitorFactory func(ctx context.Context, args []string) (*MonitorSession, error)
+// MonitorFactory creates a monitor session.
+// Type alias of contract.MonitorFactory so ssh, web, and hub use the same type.
+type MonitorFactory = contract.MonitorFactory
 
 // monitorPollInterval is how often the model drains monitor events.
 const monitorPollInterval = 50 * time.Millisecond

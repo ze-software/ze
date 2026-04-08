@@ -12,6 +12,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 )
 
 // dashboardPollInterval is how often the dashboard refreshes data.
@@ -19,7 +21,9 @@ const dashboardPollInterval = 2 * time.Second
 
 // DashboardFactory creates a dashboard polling function.
 // The returned function calls commandExecutor("bgp summary") and returns the JSON.
-type DashboardFactory func() (func() (string, error), error)
+// DashboardFactory creates a dashboard poller.
+// Type alias of contract.DashboardFactory so ssh, web, and hub use the same type.
+type DashboardFactory = contract.DashboardFactory
 
 // dashboardTickMsg triggers a dashboard data poll.
 type dashboardTickMsg struct{}

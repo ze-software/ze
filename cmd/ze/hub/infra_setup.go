@@ -12,7 +12,7 @@ import (
 
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
@@ -76,6 +76,8 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 				if writeErr := os.WriteFile(ephemeralFile, []byte(srv.Address()), 0o600); writeErr != nil {
 					log.Warn("failed to write ephemeral SSH address", "error", writeErr)
 				}
+				// Wire session model factory (moved from ssh/session.go).
+				sshSrv.SetSessionModelFactory(buildSessionModelFactory(sshSrv, params))
 			}
 		}
 	}
@@ -125,7 +127,7 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 						return handler(ctx, apiServer, w, username, handlerArgs)
 					}
 				})
-				sshSrv.SetMonitorFactory(func(ctx context.Context, args []string) (*cli.MonitorSession, error) {
+				sshSrv.SetMonitorFactory(func(ctx context.Context, args []string) (*contract.MonitorSession, error) {
 					opts, err := pluginserver.ParseEventMonitorArgs(args)
 					if err != nil {
 						return nil, err
@@ -137,7 +139,7 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 					cancel := func() {
 						apiServer.Monitors().Remove(id)
 					}
-					return &cli.MonitorSession{
+					return &contract.MonitorSession{
 						EventChan:  client.EventChan,
 						Cancel:     cancel,
 						FormatFunc: pluginserver.MonitorEventFormatter(),
@@ -165,11 +167,11 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 				})
 				// Wire login warnings.
 				rl := apiServer.Reactor()
-				sshSrv.SetLoginWarnings(func() []cli.LoginWarning {
+				sshSrv.SetLoginWarnings(func() []contract.LoginWarning {
 					bw := params.CollectLoginWarnings(rl)
-					warnings := make([]cli.LoginWarning, len(bw))
+					warnings := make([]contract.LoginWarning, len(bw))
 					for i, w := range bw {
-						warnings[i] = cli.LoginWarning{Message: w.Message, Command: w.Command}
+						warnings[i] = contract.LoginWarning{Message: w.Message, Command: w.Command}
 					}
 					return warnings
 				})

@@ -27,7 +27,7 @@ import (
 	"github.com/charmbracelet/ssh"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
@@ -102,13 +102,14 @@ type Server struct {
 	extraListeners           []net.Listener // additional listeners for multi-address binding
 	logger                   *slog.Logger
 	activeSessions           atomic.Int32
-	executorFactory          CommandExecutorFactory   // set after reactor starts; creates per-session executors
-	streamingExecutorFactory StreamingExecutorFactory // set after reactor starts; for monitor commands
-	pluginProtocolFunc       PluginProtocolFunc       // set after reactor starts; for plugin debug shell
-	monitorFactory           cli.MonitorFactory       // set after reactor starts; for TUI monitor mode
-	shutdownFunc             ShutdownFunc             // set by daemon; called on "stop" exec command
-	restartFunc              RestartFunc              // set by daemon; called on "restart" exec command
-	loginWarningsFunc        LoginWarningsFunc        // set by daemon; returns login warnings for SSH sessions
+	executorFactory          CommandExecutorFactory       // set after reactor starts; creates per-session executors
+	streamingExecutorFactory StreamingExecutorFactory     // set after reactor starts; for monitor commands
+	pluginProtocolFunc       PluginProtocolFunc           // set after reactor starts; for plugin debug shell
+	monitorFactory           contract.MonitorFactory      // set after reactor starts; for TUI monitor mode
+	sessionModelFactory      contract.SessionModelFactory // set by hub; creates TUI model per session
+	shutdownFunc             ShutdownFunc                 // set by daemon; called on "stop" exec command
+	restartFunc              RestartFunc                  // set by daemon; called on "restart" exec command
+	loginWarningsFunc        LoginWarningsFunc            // set by daemon; returns login warnings for SSH sessions
 }
 
 // NewServer creates a new SSH server with the given configuration.
@@ -202,10 +203,18 @@ func (s *Server) SetPluginProtocolFunc(f PluginProtocolFunc) {
 
 // SetMonitorFactory sets the factory for TUI monitor sessions.
 // Called after the reactor starts to wire streaming monitor into interactive SSH sessions.
-func (s *Server) SetMonitorFactory(f cli.MonitorFactory) {
+func (s *Server) SetMonitorFactory(f contract.MonitorFactory) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.monitorFactory = f
+}
+
+// SetSessionModelFactory sets the factory that creates TUI models for SSH sessions.
+// Called by the hub before starting the SSH server.
+func (s *Server) SetSessionModelFactory(f contract.SessionModelFactory) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sessionModelFactory = f
 }
 
 // SetShutdownFunc sets the callback for "stop" exec commands.
@@ -231,6 +240,49 @@ func (s *Server) SetLoginWarnings(f LoginWarningsFunc) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.loginWarningsFunc = f
+}
+
+// ExecutorForUser returns a CommandExecutor for the given username.
+// Returns nil if no executor factory is set.
+func (s *Server) ExecutorForUser(username string) CommandExecutor {
+	s.mu.Lock()
+	factory := s.executorFactory
+	s.mu.Unlock()
+	if factory == nil {
+		if s.config.Executor != nil {
+			return s.config.Executor
+		}
+		return nil
+	}
+	return factory(username)
+}
+
+// MonitorFactoryFunc returns the monitor factory, or nil if not set.
+func (s *Server) MonitorFactoryFunc() contract.MonitorFactory {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.monitorFactory
+}
+
+// ShutdownFunc returns the shutdown callback, or nil if not set.
+func (s *Server) ShutdownFunc() ShutdownFunc {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.shutdownFunc
+}
+
+// RestartFunc returns the restart callback, or nil if not set.
+func (s *Server) RestartFunc() RestartFunc {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.restartFunc
+}
+
+// LoginWarningsFunc returns the login warnings function, or nil if not set.
+func (s *Server) LoginWarningsFunc() LoginWarningsFunc {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.loginWarningsFunc
 }
 
 // Start launches the SSH server. It implements ze.Subsystem.
@@ -517,7 +569,7 @@ func (s *Server) execMiddleware() wish.Middleware {
 // pluginserver.IsStreamingCommand() and pluginserver.GetStreamingHandlerForCommand().
 // These use a prefix-keyed registry instead of a hardcoded prefix constant.
 
-// teaHandler creates a per-session Bubble Tea model using the unified cli.Model.
+// teaHandler creates a per-session Bubble Tea model using the session model factory.
 // Each SSH session gets a command-mode model with an executor wired.
 // If an executor factory is set, it creates a per-session executor with the
 // authenticated username (for authorization context). Falls back to config.Executor.

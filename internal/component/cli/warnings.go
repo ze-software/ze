@@ -2,10 +2,8 @@
 
 package cli
 
+import "codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
+
 // LoginWarning is a single warning shown at CLI login.
-// Message is a human-readable description of the issue.
-// Command is the actionable command to resolve it (shown as "run: <command>").
-type LoginWarning struct {
-	Message string
-	Command string
-}
+// Type alias of contract.LoginWarning so ssh, web, and hub use the same type.
+type LoginWarning = contract.LoginWarning
