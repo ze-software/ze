@@ -1,0 +1,243 @@
+# Test: show errors returns commit-aborted entry after a verify-phase reject
+# AC: spec-report-bus AC-21 (config/commit-aborted producer)
+# Exercises: Python test plugin declares WantsConfig and rejects the
+# config-verify RPC -> transaction orchestrator aborts -> report bus
+# captures commit-aborted -> handleShowErrors via dispatch-command -> JSON
+# response with the entry pinned to the orchestrator's transaction id.
+
+# ze-peer expectations: rewrite the config and SIGHUP once the initial
+# session is established. The rewrite triggers a reload that the test
+# plugin will reject in verify, driving the commit-aborted path.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=asn:value=65001
+
+# Initial session sends EOR only.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Rewrite config and send SIGHUP. The test plugin rejects verify, so the
+# orchestrator aborts -- the existing session stays up.
+action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+EOF_PEER
+
+# Python test plugin: declares wants-config, rejects verify, polls the
+# report bus via `show errors` for the commit-aborted entry.
+tmpfs=show-errors-config-abort-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+import time
+from ze_api import API
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def poll_for_match(api, match_fn, timeout=10.0):
+    """Poll show errors until at least one entry matches or timeout."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        result = dispatch(api, 'show errors')
+        if result.get('status') == 'done':
+            data = result.get('data', {})
+            if isinstance(data, str):
+                data = json.loads(data)
+            errors = data.get('errors', [])
+            if any(match_fn(e) for e in errors):
+                return data
+        time.sleep(0.1)
+    return None
+
+
+def reject_verify(_params):
+    """Config-verify handler that always rejects the candidate.
+
+    Triggers the orchestrator's verify abort path for this test.
+    """
+    return {'status': 'error', 'error': 'test plugin rejects reload'}
+
+
+def main():
+    api = API()
+    # Register the verify rejector BEFORE stage 1 so the dispatcher is
+    # wired when the reload-time config-verify RPC arrives.
+    api.on_config_verify(reject_verify)
+    api.declare_config('bgp')
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    try:
+        # Poll for the commit-aborted entry instead of a fixed sleep.
+        # The test runner rewrites the config and sends SIGHUP in
+        # parallel; the orchestrator publishes verify-<plugin>, the RPC
+        # bridge dispatches via this plugin's config-verify handler
+        # (rejecting), and publishAbort pushes commit-aborted onto the
+        # report bus.
+        data = poll_for_match(api, lambda e:
+            e.get('source') == 'config' and
+            e.get('code') == 'commit-aborted',
+            timeout=15.0)
+
+        if data is None:
+            print('FAIL: timed out waiting for config/commit-aborted entry', file=sys.stderr)
+            sys.exit(1)
+
+        errors = data.get('errors', [])
+        matches = [e for e in errors
+                   if e.get('source') == 'config'
+                   and e.get('code') == 'commit-aborted']
+        if not matches:
+            print(f'FAIL: no commit-aborted entries after match; raw={errors}', file=sys.stderr)
+            sys.exit(1)
+
+        e = matches[0]
+        if e.get('severity') != 'error':
+            print(f'FAIL: severity != error: {e}', file=sys.stderr)
+            sys.exit(1)
+        if not e.get('subject'):
+            print(f'FAIL: empty subject: {e}', file=sys.stderr)
+            sys.exit(1)
+        detail = e.get('detail', {})
+        if detail.get('phase') != 'verify':
+            print(f'FAIL: detail.phase != verify: {e}', file=sys.stderr)
+            sys.exit(1)
+        if not detail.get('reason'):
+            print(f'FAIL: empty detail.reason: {e}', file=sys.stderr)
+            sys.exit(1)
+
+        print(f'OK: show errors returned {len(errors)} entries; commit-aborted present', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+    except SystemExit:
+        raise
+    except Exception as exc:
+        print(f'FAIL: unexpected error: {exc}', file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# Initial ze config: plugin + BGP peer. router-id 1.2.3.4.
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+plugin {
+	external show-errors-config-abort-test {
+		run ./show-errors-config-abort-test.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process show-errors-config-abort-test {
+		}
+	}
+}
+EOF_CONF
+
+# Reloaded config: router-id changed so the bgp diff is non-empty and
+# the plugin receives a config-verify RPC for the reload. Plugin block
+# unchanged so the transaction participant list matches the active set.
+tmpfs=config2.conf:terminator=EOF_CONF2
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+plugin {
+	external show-errors-config-abort-test {
+		run ./show-errors-config-abort-test.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 5.6.7.8
+			family {
+				ipv4/unicast {
+					prefix {
+						maximum 10000
+					}
+				}
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process show-errors-config-abort-test {
+		}
+	}
+}
+EOF_CONF2
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0

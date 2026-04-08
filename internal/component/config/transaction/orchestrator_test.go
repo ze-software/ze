@@ -7,7 +7,25 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
 )
+
+// findReportError returns the first active report.Issue matching the given
+// source and code. Tests use it to assert the orchestrator pushed a
+// report-bus entry alongside the stream event. The helper filters on the
+// subject as well so tests with multiple transactions (or overlapping
+// re-runs within the package's single process-wide report store) stay
+// deterministic.
+func findReportError(source, code, subject string) *report.Issue {
+	issues := report.Errors(0)
+	for i := range issues {
+		if issues[i].Source == source && issues[i].Code == code && issues[i].Subject == subject {
+			return &issues[i]
+		}
+	}
+	return nil
+}
 
 // testGateway is a minimal EventGateway implementation for orchestrator tests.
 // It records emitted events and dispatches synchronously to registered handlers,
@@ -1023,5 +1041,188 @@ func TestOrchestratorTieredDeadlineCycleFallback(t *testing.T) {
 	want := 7 * time.Second
 	if got != want {
 		t.Fatalf("apply deadline = %v, want %v (flat max fallback)", got, want)
+	}
+}
+
+// TestCommitAbortRaisesReportError verifies that a verify-phase failure
+// pushes a commit-aborted entry onto the operational report bus alongside
+// the stream abort event.
+//
+// VALIDATES: AC-21 -- config/commit-aborted raised when verify fails.
+// PREVENTS: Operators losing visibility of verify failures via ze show
+// errors; the stream abort event alone is engine-internal.
+func TestCommitAbortRaisesReportError(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	gw := newTestGateway()
+	p1 := testParticipant{name: "bgp", configRoots: []string{"bgp"}}
+	p2 := testParticipant{name: "iface", configRoots: []string{"interface"}, verifyErr: "bad config"}
+	orch := newTestOrchestrator(t, gw, []testParticipant{p1, p2})
+	txID := orch.TransactionID()
+
+	diffs := map[string][]DiffSection{
+		"bgp":       {{Root: "bgp"}},
+		"interface": {{Root: "interface"}},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resultCh := make(chan *TxResult, 1)
+	go func() {
+		resultCh <- orch.Execute(ctx, diffs)
+	}()
+
+	waitForEmit(t, gw, EventVerifyFor("bgp"))
+	p1.respondVerify(gw, txID)
+	p2.respondVerify(gw, txID)
+
+	result := <-resultCh
+	if result.State != StateAborted {
+		t.Fatalf("state = %s, want %s", result.State, StateAborted)
+	}
+
+	issue := findReportError(reportSourceConfig, reportCodeCommitAborted, txID)
+	if issue == nil {
+		t.Fatalf("report bus missing commit-aborted entry for tx %s; have %d errors", txID, len(report.Errors(0)))
+	}
+	if issue.Severity != report.SeverityError {
+		t.Errorf("severity = %s, want error", issue.Severity)
+	}
+	if issue.Detail["phase"] != "verify" {
+		t.Errorf("detail.phase = %v, want %q", issue.Detail["phase"], "verify")
+	}
+	if issue.Detail["reason"] == nil {
+		t.Error("detail.reason missing; should carry the verify failure reason")
+	}
+}
+
+// TestCommitRollbackRaisesReportError verifies that an apply-phase failure
+// pushes a commit-rollback entry onto the report bus when the orchestrator
+// publishes its rollback event.
+//
+// VALIDATES: AC-22 -- config/commit-rollback raised when apply fails
+// mid-transaction.
+// PREVENTS: Silent rollback -- operators need to see commit-rollback via
+// ze show errors to understand why runtime state reverted.
+func TestCommitRollbackRaisesReportError(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	gw := newTestGateway()
+	p1 := testParticipant{name: "bgp", configRoots: []string{"bgp"}}
+	p2 := testParticipant{name: "iface", configRoots: []string{"interface"}, applyErr: "iface broken"}
+	orch := newTestOrchestrator(t, gw, []testParticipant{p1, p2})
+	txID := orch.TransactionID()
+
+	diffs := map[string][]DiffSection{
+		"bgp":       {{Root: "bgp"}},
+		"interface": {{Root: "interface"}},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resultCh := make(chan *TxResult, 1)
+	go func() {
+		resultCh <- orch.Execute(ctx, diffs)
+	}()
+
+	waitForEmit(t, gw, EventVerifyFor("bgp"))
+	p1.respondVerify(gw, txID)
+	p2.respondVerify(gw, txID)
+
+	waitForEmit(t, gw, EventApplyFor("bgp"))
+	p1.respondApply(gw, txID)
+	p2.respondApply(gw, txID)
+
+	// Orchestrator publishes rollback on apply failure and waits for
+	// rollback acks from every participant. Respond so Execute returns.
+	waitForEmit(t, gw, EventRollback)
+	p1.respondRollback(gw, txID)
+	p2.respondRollback(gw, txID)
+
+	result := <-resultCh
+	if result.State != StateRolledBack {
+		t.Fatalf("state = %s, want %s", result.State, StateRolledBack)
+	}
+
+	issue := findReportError(reportSourceConfig, reportCodeCommitRollback, txID)
+	if issue == nil {
+		t.Fatalf("report bus missing commit-rollback entry for tx %s; have %d errors", txID, len(report.Errors(0)))
+	}
+	if issue.Severity != report.SeverityError {
+		t.Errorf("severity = %s, want error", issue.Severity)
+	}
+	if issue.Detail["phase"] != "apply" {
+		t.Errorf("detail.phase = %v, want %q", issue.Detail["phase"], "apply")
+	}
+	if issue.Detail["reason"] == nil {
+		t.Error("detail.reason missing; should carry the apply failure reason")
+	}
+}
+
+// TestCommitSaveFailedRaisesReportError verifies that a ConfigWriter
+// failure after a successful apply pushes a commit-save-failed entry onto
+// the report bus. The transaction still reports StateCommitted because
+// runtime state is live; only the persisted config file is out of sync.
+//
+// VALIDATES: AC-23 -- config/commit-save-failed raised when runtime
+// applied successfully but the config file write failed.
+// PREVENTS: Silent divergence between the running reactor and the
+// persisted config file on disk; without the report entry, operators
+// have no signal that ze show config is out of sync with the live state.
+func TestCommitSaveFailedRaisesReportError(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	gw := newTestGateway()
+	p1 := testParticipant{name: "bgp", configRoots: []string{"bgp"}}
+	orch := newTestOrchestrator(t, gw, []testParticipant{p1})
+	txID := orch.TransactionID()
+
+	orch.SetConfigWriter(func() error {
+		return errConfigWriteFailed
+	})
+
+	diffs := map[string][]DiffSection{
+		"bgp": {{Root: "bgp"}},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resultCh := make(chan *TxResult, 1)
+	go func() {
+		resultCh <- orch.Execute(ctx, diffs)
+	}()
+
+	waitForEmit(t, gw, EventVerifyFor("bgp"))
+	p1.respondVerify(gw, txID)
+
+	waitForEmit(t, gw, EventApplyFor("bgp"))
+	p1.respondApply(gw, txID)
+
+	result := <-resultCh
+	if result.State != StateCommitted {
+		t.Fatalf("state = %s, want %s (runtime should be live even on save failure)", result.State, StateCommitted)
+	}
+	if result.Saved {
+		t.Error("Saved = true, want false (writer returned an error)")
+	}
+
+	issue := findReportError(reportSourceConfig, reportCodeCommitSaveFail, txID)
+	if issue == nil {
+		t.Fatalf("report bus missing commit-save-failed entry for tx %s; have %d errors", txID, len(report.Errors(0)))
+	}
+	if issue.Severity != report.SeverityError {
+		t.Errorf("severity = %s, want error", issue.Severity)
+	}
+	if issue.Detail["phase"] != "save" {
+		t.Errorf("detail.phase = %v, want %q", issue.Detail["phase"], "save")
+	}
+	if issue.Detail["error"] == nil {
+		t.Error("detail.error missing; should carry the writer's error")
 	}
 }

@@ -132,6 +132,14 @@ class API:
         self._filters: list[dict[str, Any]] = []
         # Filter callback handler (runtime)
         self._filter_handler: Callable | None = None
+        # Config transaction callback handlers (runtime, driven by the
+        # engine-side RPC bridge on top of TxCoordinator). Each handler
+        # receives the unmarshalled params dict and returns a dict that
+        # is marshalled back as the RPC result. None means "accept" (the
+        # default matching the Go SDK's initCallbackDefaults).
+        self._config_verify_handler: Callable | None = None
+        self._config_apply_handler: Callable | None = None
+        self._config_rollback_handler: Callable | None = None
 
         # Accumulated capabilities for Stage 3
         self._capabilities: list[dict[str, Any]] = []
@@ -368,6 +376,24 @@ class API:
                 self._respond_result(req_id, result)
             else:
                 self._respond_result(req_id, {'action': 'accept'})
+        elif method == 'ze-plugin-callback:config-verify':
+            # Bridge dispatches config-verify during reload transactions.
+            # Plugin default is accept, matching the Go SDK contract.
+            if self._config_verify_handler:
+                result = self._config_verify_handler(params or {})
+                self._respond_result(req_id, result)
+            else:
+                self._respond_result(req_id, {'status': 'ok'})
+        elif method == 'ze-plugin-callback:config-apply':
+            if self._config_apply_handler:
+                result = self._config_apply_handler(params or {})
+                self._respond_result(req_id, result)
+            else:
+                self._respond_result(req_id, {'status': 'ok'})
+        elif method == 'ze-plugin-callback:config-rollback':
+            if self._config_rollback_handler:
+                self._config_rollback_handler(params or {})
+            self._respond_ok(req_id)
         else:
             self._respond_ok(req_id)
 
@@ -495,6 +521,45 @@ class API:
             handler: Callback function(input_dict) -> response_dict
         """
         self._filter_handler = handler
+
+    def on_config_verify(self, handler: Callable[[dict], dict]) -> None:
+        """Register a handler for config-verify RPCs (runtime, reload).
+
+        The engine-side RPC bridge (internal/component/plugin/server/
+        config_tx_bridge.go) dispatches ze-plugin-callback:config-verify
+        during reload transactions. The handler receives the full params
+        dict (with a 'sections' key carrying the candidate config) and
+        must return a dict with 'status' ('ok' or 'error') and optional
+        'error' string.
+
+        Args:
+            handler: Callback function(params_dict) -> response_dict
+        """
+        self._config_verify_handler = handler
+
+    def on_config_apply(self, handler: Callable[[dict], dict]) -> None:
+        """Register a handler for config-apply RPCs (runtime, reload).
+
+        Same contract as on_config_verify but invoked during the apply
+        phase. Return {'status': 'error', 'error': '...'} to trigger
+        rollback.
+
+        Args:
+            handler: Callback function(params_dict) -> response_dict
+        """
+        self._config_apply_handler = handler
+
+    def on_config_rollback(self, handler: Callable[[dict], None]) -> None:
+        """Register a handler for config-rollback RPCs (runtime, reload).
+
+        Invoked when the orchestrator broadcasts rollback after an apply
+        failure. The handler is fire-and-forget; the plugin always
+        responds with an empty ok ack (matching the Go SDK default).
+
+        Args:
+            handler: Callback function(params_dict) -> None
+        """
+        self._config_rollback_handler = handler
 
     def declare_done(self) -> None:
         """Signal Stage 1 declaration complete.
