@@ -190,12 +190,12 @@ func TestPluginMetricsDeletedOnDisable(t *testing.T) {
 	pm := NewProcessManager(configs)
 	pm.SetMetricsRegistry(reg)
 
-	// Simulate some restarts before disable to verify counters are preserved.
-	pm.pmetrics.restarts.With("crash-metrics").Inc()
-	pm.pmetrics.restarts.With("crash-metrics").Inc()
+	// Seed delivery counter before disable to verify it survives.
 	pm.pmetrics.delivered.With("crash-metrics").Inc()
 
 	// Exhaust respawn limit to trigger disable.
+	// Each successful Respawn() increments the restart counter (manager.go:412).
+	// RespawnLimit=5: first 5 calls succeed (counter=5), 6th hits limit and disables.
 	pm.ctx, pm.cancel = context.WithCancel(t.Context())
 	defer pm.cancel()
 	for range RespawnLimit + 1 {
@@ -213,7 +213,7 @@ func TestPluginMetricsDeletedOnDisable(t *testing.T) {
 
 	// Restart and delivery counters should be preserved for post-mortem monitoring.
 	// Counters must not be deleted mid-lifetime (breaks rate() queries).
-	assert.Contains(t, body, `ze_plugin_restarts_total{plugin="crash-metrics"} 2`,
+	assert.Contains(t, body, `ze_plugin_restarts_total{plugin="crash-metrics"} 5`,
 		"restart counter should be preserved after disable for post-mortem")
 	assert.Contains(t, body, `ze_plugin_events_delivered_total{plugin="crash-metrics"} 1`,
 		"delivery counter should be preserved after disable for post-mortem")
