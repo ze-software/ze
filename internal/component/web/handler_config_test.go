@@ -430,7 +430,7 @@ func newHandlerTestManager(t *testing.T) (*EditorManager, *config.Schema) {
 	schema, schemaErr := config.YANGSchema()
 	require.NoError(t, schemaErr, "YANG schema must load")
 
-	mgr := NewEditorManager(store, configPath, schema)
+	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
 
 	return mgr, schema
 }

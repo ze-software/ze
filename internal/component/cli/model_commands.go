@@ -683,7 +683,7 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 		var b strings.Builder
 		b.WriteString("Commit blocked by conflicts:\n")
 		for _, c := range commitResult.Conflicts {
-			switch c.Type {
+			switch c.Type { //nolint:exhaustive // only two conflict types exist
 			case ConflictLive:
 				fmt.Fprintf(&b, "  LIVE %s: you=%s, %s=%s\n", c.Path, c.MyValue, c.OtherUser, c.OtherValue)
 			case ConflictStale:

@@ -671,7 +671,7 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 	}
 
 	// Create editor manager for config editing via web.
-	editorMgr := zeweb.NewEditorManager(store, configPath, schema)
+	editorMgr := zeweb.NewEditorManager(store, configPath, schema, newEditorFactory(), newEditSessionFactory())
 
 	// Create CLI completer for Tab/? autocomplete.
 	completer := cli.NewCompleter()

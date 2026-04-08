@@ -9,7 +9,10 @@ import (
 	"fmt"
 	"maps"
 	"sort"
+
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
@@ -18,11 +21,8 @@ import (
 )
 
 // Completion represents a single completion suggestion.
-type Completion struct {
-	Text        string // The completion text
-	Description string // Help text
-	Type        string // "command", "keyword", "value", "list-key"
-}
+// Completion is a type alias of contract.Completion.
+type Completion = contract.Completion
 
 // Completer provides YANG-driven completions.
 type Completer struct {
@@ -49,7 +49,12 @@ func NewCompleter() *Completer {
 }
 
 // SetTree sets the config tree for data-aware completion.
-func (c *Completer) SetTree(tree *config.Tree) {
+func (c *Completer) SetTree(tree any) {
+	t, _ := tree.(*config.Tree)
+	c.setTreeInternal(t)
+}
+
+func (c *Completer) setTreeInternal(tree *config.Tree) {
 	c.tree = tree
 }
 

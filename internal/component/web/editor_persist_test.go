@@ -20,7 +20,7 @@ func TestEditorManagerListEntryPersistence(t *testing.T) {
 	require.NoError(t, err)
 
 	store := storage.NewFilesystem()
-	mgr := NewEditorManager(store, configPath, schema)
+	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
 
 	// Simulate CLI set from web handler
 	err = mgr.SetValue("insecure", []string{"bgp", "peer", "test-peer", "session", "asn"}, "remote", "65001")

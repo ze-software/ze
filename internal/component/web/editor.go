@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
@@ -20,7 +20,7 @@ import (
 // Each authenticated user gets an independent Editor instance with its own
 // working tree and change tracking.
 type userSession struct {
-	editor       *cli.Editor
+	editor       contract.Editor
 	mu           sync.Mutex // Serializes Editor method calls for this user.
 	lastActivity time.Time
 }
@@ -32,25 +32,29 @@ type userSession struct {
 //
 // NOT safe for use without initialization via NewEditorManager.
 type EditorManager struct {
-	mu          sync.RWMutex
-	sessions    map[string]*userSession // Keyed by username.
-	store       storage.Storage
-	configPath  string
-	schema      *config.Schema
-	maxSessions int
-	idleTimeout time.Duration
+	mu                 sync.RWMutex
+	sessions           map[string]*userSession // Keyed by username.
+	store              storage.Storage
+	configPath         string
+	editorFactory      contract.EditorFactory
+	editSessionFactory contract.EditSessionFactory
+	schema             *config.Schema
+	maxSessions        int
+	idleTimeout        time.Duration
 }
 
 // NewEditorManager creates an EditorManager for the given storage backend and config path.
 // Default limits: 50 concurrent sessions, 1 hour idle timeout.
-func NewEditorManager(store storage.Storage, configPath string, schema *config.Schema) *EditorManager {
+func NewEditorManager(store storage.Storage, configPath string, schema *config.Schema, editorFactory contract.EditorFactory, editSessionFactory contract.EditSessionFactory) *EditorManager {
 	return &EditorManager{
-		sessions:    make(map[string]*userSession),
-		store:       store,
-		configPath:  configPath,
-		schema:      schema,
-		maxSessions: 50,
-		idleTimeout: time.Hour,
+		sessions:           make(map[string]*userSession),
+		store:              store,
+		configPath:         configPath,
+		schema:             schema,
+		maxSessions:        50,
+		editorFactory:      editorFactory,
+		editSessionFactory: editSessionFactory,
+		idleTimeout:        time.Hour,
 	}
 }
 
@@ -80,12 +84,12 @@ func (m *EditorManager) GetOrCreate(username string) (*userSession, error) {
 		return nil, fmt.Errorf("maximum concurrent editor sessions reached (%d)", m.maxSessions)
 	}
 
-	ed, err := cli.NewEditorWithStorage(m.store, m.configPath)
+	ed, err := m.editorFactory(m.store, m.configPath)
 	if err != nil {
 		return nil, fmt.Errorf("editor create for %s: %w", username, err)
 	}
 
-	session := cli.NewEditSession(username, "web")
+	session := m.editSessionFactory(username, "web")
 	ed.SetSession(session)
 
 	us := &userSession{
@@ -138,7 +142,7 @@ func (m *EditorManager) DeleteValue(username string, path []string, key string) 
 
 // Commit applies the user's pending changes to the configuration file.
 // Returns a CommitResult describing conflicts or the number of applied changes.
-func (m *EditorManager) Commit(username string) (*cli.CommitResult, error) {
+func (m *EditorManager) Commit(username string) (*contract.CommitResult, error) {
 	us, err := m.GetOrCreate(username)
 	if err != nil {
 		return nil, err
@@ -211,10 +215,10 @@ func (m *EditorManager) Diff(username string) (string, error) {
 
 	var b strings.Builder
 	for _, e := range entries {
-		if e.Entry.Previous != "" {
-			fmt.Fprintf(&b, "- %s %s\n+ %s %s\n", e.Path, e.Entry.Previous, e.Path, e.Entry.Value)
+		if e.Previous != "" {
+			fmt.Fprintf(&b, "- %s %s\n+ %s %s\n", e.Path, e.Previous, e.Path, e.Value)
 		} else {
-			fmt.Fprintf(&b, "+ %s %s\n", e.Path, e.Entry.Value)
+			fmt.Fprintf(&b, "+ %s %s\n", e.Path, e.Value)
 		}
 	}
 	return b.String(), nil
@@ -256,7 +260,8 @@ func (m *EditorManager) Tree(username string) *config.Tree {
 	us.mu.Lock()
 	defer us.mu.Unlock()
 
-	return us.editor.Tree()
+	t, _ := us.editor.Tree().(*config.Tree)
+	return t
 }
 
 // ContentAtPath returns the serialized config content at the given context path

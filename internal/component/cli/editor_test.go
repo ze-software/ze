@@ -4093,7 +4093,7 @@ func TestCmdCommitSessionConflictFormatting(t *testing.T) {
 	// but we already have the result -- test the formatting logic).
 	var b strings.Builder
 	for _, c := range commitResult.Conflicts {
-		switch c.Type {
+		switch c.Type { //nolint:exhaustive // only two conflict types exist
 		case ConflictLive:
 			fmt.Fprintf(&b, "  LIVE %s: you=%s, %s=%s\n", c.Path, c.MyValue, c.OtherUser, c.OtherValue)
 		case ConflictStale:

@@ -8,9 +8,12 @@ package cli
 
 import (
 	"fmt"
+
 	"path/filepath"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -19,32 +22,22 @@ import (
 
 var draftLogger = slogutil.Logger("cli.editor.draft")
 
-// ConflictType identifies whether a conflict is a live disagreement or stale previous.
-type ConflictType int
+// ConflictType is a type alias of contract.ConflictType.
+type ConflictType = contract.ConflictType
 
-const (
-	// ConflictLive means another active session has a pending change at the same path with a different value.
-	ConflictLive ConflictType = iota
-	// ConflictStale means the committed value changed since this session's edit.
-	ConflictStale
+// Re-export contract conflict constants for backward compatibility.
+var (
+	ConflictLive  = contract.ConflictLive
+	ConflictStale = contract.ConflictStale
 )
 
 // Conflict describes a single conflict detected during commit.
-type Conflict struct {
-	Path          string       // YANG path (space-separated).
-	Type          ConflictType // Live disagreement or stale previous.
-	MyValue       string       // Value this session wants to set.
-	OtherValue    string       // Conflicting value (committed or other session).
-	OtherUser     string       // Who made the conflicting change.
-	PreviousValue string       // What config.conf had when this session edited.
-}
+// Conflict is a type alias of contract.Conflict.
+type Conflict = contract.Conflict
 
 // CommitResult holds the outcome of a CommitSession attempt.
-type CommitResult struct {
-	Conflicts        []Conflict // Non-empty if commit was blocked.
-	Applied          int        // Number of changes applied (0 if conflicts).
-	MigrationWarning string     // Non-empty if tree structure migration failed (format conversion still applied).
-}
+// CommitResult is a type alias of contract.CommitResult.
+type CommitResult = contract.CommitResult
 
 // writeThroughSet implements the write-through protocol for set commands.
 // Writes to the per-user change file (not shared draft). The change file

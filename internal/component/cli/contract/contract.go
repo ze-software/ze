@@ -35,17 +35,31 @@ type Completion struct {
 	Type        string
 }
 
+// ConflictType distinguishes live vs stale conflicts.
+type ConflictType int
+
+const (
+	// ConflictLive means another session has a pending change at the same path.
+	ConflictLive ConflictType = iota
+	// ConflictStale means the committed value changed since this session started.
+	ConflictStale
+)
+
 // Conflict represents a merge conflict in a config commit.
 type Conflict struct {
-	Path       string
-	MyValue    string
-	OtherUser  string
-	OtherValue string
+	Path          string
+	Type          ConflictType
+	MyValue       string
+	OtherUser     string
+	OtherValue    string
+	PreviousValue string
 }
 
 // CommitResult holds the outcome of a config commit.
 type CommitResult struct {
-	Conflicts []Conflict
+	Conflicts        []Conflict
+	Applied          int
+	MigrationWarning string
 }
 
 // MonitorSession represents an active streaming monitor.
@@ -67,3 +81,42 @@ type SessionModelFactory func(username string) tea.Model
 
 // LoginWarningsFunc returns login warnings for the SSH banner.
 type LoginWarningsFunc func() []LoginWarning
+
+// SessionChange represents a single tracked change in an editing session.
+type SessionChange struct {
+	Path     string
+	Previous string
+	Value    string
+}
+
+// Editor provides config editing operations for the web UI.
+// Implemented by cli.Editor; consumed by web's EditorManager.
+type Editor interface {
+	SetSession(s EditSession)
+	SessionID() string
+	CreateEntry(path []string) error
+	SetValue(path []string, key, value string) error
+	DeleteValue(path []string, key string) error
+	CommitSession() (*CommitResult, error)
+	Discard() error
+	Diff() string
+	// Tree returns the parsed config tree (concrete *config.Tree).
+	// Returned as any to avoid contract importing config.
+	Tree() any
+	ContentAtPath(path []string) string
+	SessionChanges(sessionID string) []SessionChange
+}
+
+// EditorFactory creates a new Editor backed by storage.
+// store and configPath are the backing storage and config file path.
+type EditorFactory func(store any, configPath string) (Editor, error)
+
+// EditSessionFactory creates a new EditSession for the given user and origin.
+type EditSessionFactory func(username, origin string) EditSession
+
+// Completer provides config path completion for the web CLI bar.
+type Completer interface {
+	// SetTree sets the config tree for data-aware completion (any = *config.Tree).
+	SetTree(tree any)
+	Complete(input string, contextPath []string) []Completion
+}

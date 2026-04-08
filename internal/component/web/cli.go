@@ -13,7 +13,7 @@ import (
 	"net/http"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
@@ -421,7 +421,7 @@ func adjustListContext(schema *config.Schema, path []string) []string {
 	return path
 }
 
-func HandleCLIComplete(completer *cli.Completer, mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
+func HandleCLIComplete(completer contract.Completer, mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

@@ -150,7 +150,7 @@ func setupCLITest(t *testing.T) (*EditorManager, *Renderer) {
 
 	schema, _ := buildTestSchemaAndTree()
 	store := storage.NewFilesystem()
-	mgr := NewEditorManager(store, configPath, schema)
+	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
 
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
