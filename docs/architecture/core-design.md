@@ -869,6 +869,39 @@ Plugin SDK provides a `Journal` for rollback: `Record(apply, undo)` during apply
 
 Full protocol: `config/transaction-protocol.md`. Per-plugin wiring: `spec-config-tx-consumers`.
 
+## 19. Component Boundaries
+
+Each component under `internal/component/` is independently removable.
+Cross-component coupling follows a strict hierarchy:
+
+| Component | Allowed imports (other components) |
+|-----------|-----------------------------------|
+| authz | config/yang (schema registration) |
+| bgp | config, plugin (no cli, ssh, web, iface) |
+| cli | command, config, plugin/server |
+| cmd (protocol-agnostic) | config/yang, plugin, plugin/server |
+| config | plugin, plugin/registry, command |
+| hub | everything (orchestrator) |
+| iface | config/yang, plugin, plugin/registry |
+| ssh | cli, authz, config, plugin/server |
+| web | cli, authz, config |
+
+**Authentication** lives in `authz` (not `ssh`). Both `ssh` and `web`
+import `authz` for `UserConfig`, `CheckPassword`, `AuthenticateUser`.
+The `authz` package also provides profile-based command authorization
+(allow/deny rules per user role).
+
+**Infrastructure wiring** (SSH server creation, command executor, monitor
+factory, login warnings) is handled by the hub via `bgpconfig.InfraHook`.
+The BGP config package extracts plain data; the hub creates servers.
+This avoids bgp importing ssh, cli, or web.
+
+<!-- source: internal/component/authz/auth.go -- UserConfig, AuthenticateUser -->
+<!-- source: internal/component/bgp/config/infra_hook.go -- InfraHook, SSHExtractedConfig -->
+<!-- source: cmd/ze/hub/infra_setup.go -- hub infrastructure setup hook -->
+
+---
+
 ## Related Documents
 
 - `buffer-architecture.md` - Iterators and lazy parsing
@@ -879,4 +912,4 @@ Full protocol: `config/transaction-protocol.md`. Per-plugin wiring: `spec-config
 
 ---
 
-**Last Updated:** 2026-04-06 (Added config transaction protocol section)
+**Last Updated:** 2026-04-08 (Added component boundaries section)
