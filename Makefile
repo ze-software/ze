@@ -22,8 +22,8 @@ ifeq ($(GO),tinygo)
 export PATH := /opt/homebrew/opt/go@1.25/bin:$(PATH)
 endif
 
-# Build tags: optional compile-time features (e.g. ZE_TAGS=bart)
-#   bart    - Use BART trie for RIB storage (default: Go map)
+# Build tags: optional compile-time features (e.g. ZE_TAGS=maprib)
+#   maprib  - Use Go map for RIB storage (default: BART trie)
 ZE_TAGS ?=
 ifneq ($(ZE_TAGS),)
 ZE_TAGFLAG := -tags $(ZE_TAGS)
@@ -516,8 +516,8 @@ help:
 	@echo ""
 	@echo "  Build options:"
 	@echo "    GO=tinygo              - Build with TinyGo (does not work yet -- TinyGo limitations)"
-	@echo "    ZE_TAGS=bart           - Enable BART trie RIB (e.g. make ze ZE_TAGS=bart)"
-	@echo "    ZE_TAGS='bart,foo'     - Multiple build tags"
+	@echo "    ZE_TAGS=maprib         - Use Go map RIB instead of BART trie (e.g. make ze ZE_TAGS=maprib)"
+	@echo "    ZE_TAGS='maprib,foo'   - Multiple build tags"
 	@echo ""
 	@echo "  Ze tests:"
 	@echo "  ze-lint               - Run linter on ze packages"
@@ -561,15 +561,15 @@ help:
 	@echo ""
 	@echo "  Stress test options:"
 	@echo "    STRESS_SCENARIO=name   - Run single scenario (e.g. 01-bulk-ipv4)"
-	@echo "    ZE_TAGS=bart           - Build Ze with BART trie before stress test"
+	@echo "    ZE_TAGS=maprib         - Build Ze with Go map RIB instead of BART trie"
 	@echo "    VERBOSE=1              - Show debug output from test harness"
 	@echo "    SESSION_TIMEOUT=N      - BGP session timeout in seconds (default: 120)"
 	@echo ""
 	@echo "  Examples:"
 	@echo "    make ze-stress-test                          # all scenarios, default build"
-	@echo "    make ze-stress-test ZE_TAGS=bart             # all scenarios, BART trie"
+	@echo "    make ze-stress-test ZE_TAGS=maprib           # all scenarios, Go map RIB"
 	@echo "    make ze-stress-test STRESS_SCENARIO=01-bulk-ipv4  # single scenario"
-	@echo "    make ze-stress-profile ZE_TAGS=bart          # profile with BART trie"
+	@echo "    make ze-stress-profile ZE_TAGS=maprib        # profile with Go map RIB"
 	@echo ""
 	@echo "  Integration tests (CAP_NET_ADMIN / root):"
 	@echo "  ze-integration-test      - Run all integration tests (network namespaces)"

@@ -1,6 +1,6 @@
 // Design: docs/architecture/plugin/rib-storage-design.md -- RIB storage internals
-// Detail: familyrib_map.go -- default map-based FamilyRIB (build tag: !bart)
-// Detail: familyrib_bart.go -- BART trie FamilyRIB (build tag: bart)
+// Detail: familyrib_map.go -- map-based FamilyRIB fallback (build tag: maprib)
+// Detail: familyrib_bart.go -- default BART trie FamilyRIB (build tag: !maprib)
 // Related: nlrikey.go -- NLRIKey type used as map key
 
 package storage

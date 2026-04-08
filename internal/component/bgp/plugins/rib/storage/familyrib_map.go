@@ -1,4 +1,4 @@
-//go:build !bart
+//go:build maprib
 
 // Design: docs/architecture/plugin/rib-storage-design.md -- RIB storage internals
 // Overview: familyrib.go -- shared helpers (entriesEqual, ToWireBytes, wire helpers)
