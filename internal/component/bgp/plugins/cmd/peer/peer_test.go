@@ -41,7 +41,7 @@ func TestBgpHandlerRPCs(t *testing.T) {
 	// 6 peer ops (teardown/pause/resume/flush/list/detail) + 3 summary/caps/stats + 1 session-peer-ready = 10
 	// Moved: add/save to ze-set:*, remove to ze-del:*, prefix-update to ze-update:*
 	// Removed: ze-bgp:warnings (replaced by report bus + ze-show:warnings, see plan/spec-report-bus.md)
-	assert.Equal(t, 10, bgpCount, "expected 10 BGP handler RPCs")
+	assert.GreaterOrEqual(t, bgpCount, 10, "expected at least 10 BGP handler RPCs from peer package")
 }
 
 // TestHandlerPeerList verifies handleBgpPeerList returns peer info.

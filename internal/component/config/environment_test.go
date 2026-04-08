@@ -10,7 +10,6 @@ import (
 
 	// Blank import triggers init() registration of all plugin YANG modules.
 	// Needed by TestParseEnvironmentBlockApplied for the "api" environment field.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
 )

@@ -112,6 +112,8 @@ var pluginDirs = []string{
 // Empty: all cmd/* packages create import cycles via all_import_test.go -> plugin/all.
 // Populate after Phase 5 breaks the bgp dependencies in cmd/*.
 var rpcDirs = []string{
+	"internal/component/cmd",
+	"internal/component/iface/cmd",
 }
 
 // discoverPlugins finds plugin packages by looking for register.go files

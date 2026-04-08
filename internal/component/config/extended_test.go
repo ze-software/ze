@@ -6,10 +6,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	grschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
-
 	// Blank import triggers init() registration of all plugin YANG modules.
 	// Needed by TestArraySyntax et al. for the "plugin" top-level keyword.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 )
 
 // extendedSchemaWithGR returns schema with GR plugin YANG for extended tests.

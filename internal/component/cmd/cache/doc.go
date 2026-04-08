@@ -1,12 +1,5 @@
-// Design: docs/architecture/api/commands.md — BGP cache command handlers
+// Design: docs/architecture/api/commands.md -- cache command YANG schema
 //
-// Package cache provides BGP message cache command handlers for the plugin server.
-//
-// Each handler file self-registers via init() + pluginserver.RegisterRPCs().
-//
-// Detail: cache.go — BGP cache operation handlers
+// Package cache provides YANG schema registration for BGP cache commands.
+// Handler code moved to bgp/plugins/cmd/cache/.
 package cache
-
-import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache/schema" // init() registers YANG module
-)
