@@ -20,20 +20,17 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/migration" // init() registers migration function
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 // configLogger is the config subsystem logger (lazy initialization).
@@ -364,24 +361,21 @@ func extractAuthzSection(container *config.Tree) authz.Section {
 }
 
 // extractSSHConfig extracts SSH server configuration from the parsed config tree.
-// Returns the SSH config and true if a system.ssh block is present.
-func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
-	// SSH server settings live under environment.ssh.
+// Returns plain data (no ssh package types). The caller converts to ssh.Config.
+func extractSSHConfig(tree *config.Tree) SSHExtractedConfig {
 	env := tree.GetContainer("environment")
 	if env == nil {
-		return zessh.Config{}, false
+		return SSHExtractedConfig{}
 	}
 
 	sshContainer := env.GetContainer("ssh")
 	if sshContainer == nil {
-		return zessh.Config{}, false
+		return SSHExtractedConfig{}
 	}
 
-	// ConfigDir intentionally left empty -- host key resolves from binary
-	// location via paths.DefaultConfigDir() (e.g., ./bin/ze -> etc/ze/).
-	var cfg zessh.Config
+	var cfg SSHExtractedConfig
+	cfg.HasConfig = true
 
-	// Read listen addresses from server list entries (YANG: list server { ip; port; }).
 	if servers := sshContainer.GetListOrdered("server"); len(servers) > 0 {
 		for _, s := range servers {
 			ip := "0.0.0.0"
@@ -396,7 +390,6 @@ func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
 		}
 		cfg.Listen = cfg.ListenAddrs[0]
 	} else if addrs := sshContainer.GetSlice("listen"); len(addrs) > 0 {
-		// Fallback: compound listen format from env var override.
 		cfg.Listen = addrs[0]
 		cfg.ListenAddrs = addrs
 	}
@@ -414,7 +407,6 @@ func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
 		}
 	}
 
-	// Users stay under system.authentication.
 	if sys := tree.GetContainer("system"); sys != nil {
 		if auth := sys.GetContainer("authentication"); auth != nil {
 			for name, entry := range auth.GetList("user") {
@@ -428,17 +420,17 @@ func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
 		}
 	}
 
-	return cfg, true
+	return cfg
 }
 
-// resolveSSHStorage returns blob storage for SSH host key persistence.
+// ResolveSSHStorage returns blob storage for SSH host key persistence.
 // When the main storage is already blob-backed, it is used directly.
 // Otherwise, opens the zefs database independently so SSH host keys
 // always go into the blob store rather than the filesystem.
 // Tries configDir first, then DefaultConfigDir (binary-relative), because
 // configDir may not contain database.zefs (e.g., stdin mode, temp dirs).
 // Falls back to the passed store if zefs is not available anywhere.
-func resolveSSHStorage(mainStore storage.Storage, configDir string) storage.Storage {
+func ResolveSSHStorage(mainStore storage.Storage, configDir string) storage.Storage {
 	if storage.IsBlobStorage(mainStore) {
 		return mainStore
 	}
@@ -457,39 +449,6 @@ func resolveSSHStorage(mainStore storage.Storage, configDir string) storage.Stor
 		}
 	}
 	return mainStore
-}
-
-// loadZefsUsers reads SSH credentials from the zefs database (written by ze init).
-// Opens database.zefs directly rather than using the storage abstraction,
-// because storage may be filesystem-based (stdin mode) which can't read zefs keys.
-// The zefs stores a bcrypt hash (written by ze init). This function uses the
-// hash directly as UserConfig.Hash -- no re-hashing needed.
-// Returns nil if keys are missing.
-func loadZefsUsers() ([]authz.UserConfig, error) {
-	dir := paths.DefaultConfigDir()
-	if dir == "" {
-		return nil, fmt.Errorf("cannot resolve config dir")
-	}
-	dbPath := filepath.Join(dir, "database.zefs")
-	db, err := zefs.Open(dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("open credential store %s: %w", dbPath, err)
-	}
-	defer db.Close() //nolint:errcheck // read-only access
-
-	username, err := db.ReadFile(zefs.KeySSHUsername.Pattern)
-	if err != nil {
-		return nil, fmt.Errorf("read ssh username: %w", err)
-	}
-	hash, err := db.ReadFile(zefs.KeySSHPassword.Pattern)
-	if err != nil {
-		return nil, fmt.Errorf("read ssh password hash: %w", err)
-	}
-	name := string(username)
-	if name == "" {
-		return nil, fmt.Errorf("empty username in zefs")
-	}
-	return []authz.UserConfig{{Name: name, Hash: string(hash)}}, nil
 }
 
 // formatResponseData converts a command response Data value to a human-readable string.
@@ -520,11 +479,11 @@ func formatResponseData(data any) string {
 // form) are skipped with a debug log rather than producing visually broken
 // banner lines. Producers in this codebase always use the composite form;
 // the skip handles future producers and protects the operator UI.
-func collectPrefixWarnings(rl plugin.ReactorIntrospector) []cli.LoginWarning {
+func collectPrefixWarnings(rl plugin.ReactorIntrospector) []LoginWarning {
 	peerNames := buildPeerNameLookup(rl)
 	issues := report.Warnings()
 
-	var warnings []cli.LoginWarning
+	var warnings []LoginWarning
 	for i := range issues {
 		issue := &issues[i]
 		if issue.Source != "bgp" {
@@ -533,7 +492,7 @@ func collectPrefixWarnings(rl plugin.ReactorIntrospector) []cli.LoginWarning {
 		switch issue.Code {
 		case "prefix-stale":
 			label := peerLabelFromSubject(issue.Subject, peerNames)
-			warnings = append(warnings, cli.LoginWarning{
+			warnings = append(warnings, LoginWarning{
 				Message: fmt.Sprintf("%s has stale prefix data (updated %s)", label, detailString(issue.Detail, "updated")),
 				Command: "update bgp peer " + issue.Subject + " prefix",
 			})
@@ -545,7 +504,7 @@ func collectPrefixWarnings(rl plugin.ReactorIntrospector) []cli.LoginWarning {
 				continue
 			}
 			label := peerLabelFromSubject(peerAddr, peerNames)
-			warnings = append(warnings, cli.LoginWarning{
+			warnings = append(warnings, LoginWarning{
 				Message: fmt.Sprintf("%s %s prefix count exceeds warning threshold", label, fam),
 			})
 		}
@@ -557,7 +516,7 @@ func collectPrefixWarnings(rl plugin.ReactorIntrospector) []cli.LoginWarning {
 	if len(warnings) == 1 {
 		return warnings
 	}
-	return []cli.LoginWarning{{
+	return []LoginWarning{{
 		Message: fmt.Sprintf("%d warnings", len(warnings)),
 		Command: "show warnings",
 	}}

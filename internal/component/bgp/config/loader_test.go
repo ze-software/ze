@@ -1467,7 +1467,7 @@ func TestResolveSSHStorage(t *testing.T) {
 		require.NoError(t, err)
 		defer blob.Close() //nolint:errcheck // test
 
-		got := resolveSSHStorage(blob, dir)
+		got := ResolveSSHStorage(blob, dir)
 		assert.True(t, storage.IsBlobStorage(got), "blob storage should pass through")
 		got.Close() //nolint:errcheck // test
 	})
@@ -1479,14 +1479,14 @@ func TestResolveSSHStorage(t *testing.T) {
 		blob.Close() //nolint:errcheck // just creating
 
 		fs := storage.NewFilesystem()
-		got := resolveSSHStorage(fs, dir)
+		got := ResolveSSHStorage(fs, dir)
 		assert.True(t, storage.IsBlobStorage(got), "filesystem should be upgraded to blob when zefs exists")
 		got.Close() //nolint:errcheck // test
 	})
 
 	t.Run("filesystem kept when no config dir", func(t *testing.T) {
 		fs := storage.NewFilesystem()
-		got := resolveSSHStorage(fs, "")
+		got := ResolveSSHStorage(fs, "")
 		assert.False(t, storage.IsBlobStorage(got), "should stay filesystem when no config dir")
 	})
 }

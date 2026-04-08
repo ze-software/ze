@@ -1,5 +1,6 @@
 // Design: docs/architecture/hub-architecture.md -- hub CLI entry point
 // Detail: mcp.go -- MCP server startup
+// Detail: infra_setup.go -- infrastructure server setup hook
 //
 // Package hub provides the ze hub subcommand.
 package hub
@@ -260,6 +261,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// namespaced pub/sub backbone serves everyone.
 
 	configTree := loadResult.Tree.ToMap()
+	// Register infrastructure hook before engine starts.
+	// The BGP plugin calls this when creating the reactor.
+	setupInfraHook()
 	coordinator := zePlugin.NewCoordinator(configTree)
 
 	// Store config state for the BGP plugin's reactor factory.
