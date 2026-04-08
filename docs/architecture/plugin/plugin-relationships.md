@@ -82,16 +82,16 @@ These are top-level plugins that own config roots and manage OS or routing resou
 
 ---
 
-### sysrib
+### rib
 
 | Field | Value |
 |-------|-------|
 | Location | `internal/plugins/sysrib/register.go` |
 | Description | System RIB: selects best route across protocols by admin distance |
-| ConfigRoots | `sysrib` |
-| WantsConfig | `sysrib` |
+| ConfigRoots | `rib` |
+| WantsConfig | `rib` |
 | Dependencies | - |
-| Commands | `sysrib show` |
+| Commands | `rib show` |
 | Transaction | Verify (parse admin distance), Apply (journal-wrapped distance update), Rollback (restore previous distances) |
 | VerifyBudget | 1s |
 | ApplyBudget | 2s |
@@ -100,7 +100,7 @@ These are top-level plugins that own config roots and manage OS or routing resou
 
 | Topic | When |
 |-------|------|
-| `sysrib/best-change` | Best route changed for a prefix (per-family) |
+| `system-rib/best-change` | Best route changed for a prefix (per-family) |
 | `rib/replay-request` | Requests replay from protocol RIBs |
 
 **Bus subscribes:** `rib/best-change/` prefix (receives Loc-RIB changes from bgp-rib).
@@ -115,7 +115,7 @@ These are top-level plugins that own config roots and manage OS or routing resou
 | Description | Programs OS routes from system RIB via netlink/route socket |
 | ConfigRoots | `fib.kernel` |
 | WantsConfig | `fib.kernel` |
-| Dependencies | `sysrib` |
+| Dependencies | `rib` |
 | Commands | `fib-kernel show` |
 | Transaction | Verify (accept), Apply (no-op journal, reacts to bus events), Rollback (no-op) |
 | VerifyBudget | 1s |
@@ -126,9 +126,9 @@ These are top-level plugins that own config roots and manage OS or routing resou
 | Topic | When |
 |-------|------|
 | `fib/external-change` | External kernel route modification detected |
-| `sysrib/replay-request` | Requests sysrib replay on startup |
+| `system-rib/replay-request` | Requests rib replay on startup |
 
-**Bus subscribes:** `sysrib/best-change` (programs OS routes from system best).
+**Bus subscribes:** `system-rib/best-change` (programs OS routes from system best).
 
 ---
 
@@ -140,7 +140,7 @@ These are top-level plugins that own config roots and manage OS or routing resou
 | Description | Programs P4 switch forwarding entries from system RIB |
 | ConfigRoots | `fib.p4` |
 | WantsConfig | `fib.p4` |
-| Dependencies | `sysrib` |
+| Dependencies | `rib` |
 | Commands | `fib-p4 show` |
 | Transaction | Verify (accept), Apply (no-op journal, reacts to bus events), Rollback (no-op) |
 | VerifyBudget | 1s |
@@ -150,9 +150,9 @@ These are top-level plugins that own config roots and manage OS or routing resou
 
 | Topic | When |
 |-------|------|
-| `sysrib/replay-request` | Requests sysrib replay on startup |
+| `system-rib/replay-request` | Requests rib replay on startup |
 
-**Bus subscribes:** `sysrib/best-change` (programs P4 entries from system best).
+**Bus subscribes:** `system-rib/best-change` (programs P4 entries from system best).
 
 ---
 
@@ -241,7 +241,7 @@ These implement ingress/egress route filters.
 | Plugin | Location | Description | Dependencies | Bus publishes |
 |--------|----------|-------------|-------------|---------------|
 | bgp-adj-rib-in | `bgp/plugins/adj_rib_in/` | Raw UPDATE storage for replay | - | - |
-| bgp-rib | `bgp/plugins/rib/` | Loc-RIB: best path selection | - | `rib/best-change/bgp` |
+| bgp-rib | `bgp/plugins/rib/` | Loc-RIB: best path selection | - | `bgp-rib/best-change/bgp` |
 | bgp-persist | `bgp/plugins/persist/` | Route persistence across restarts | - | - |
 
 ### Protocol Plugins
@@ -284,13 +284,13 @@ Plugins load in dependency order. Each tier completes before the next starts.
 
 ```
 Tier 0 (no dependencies):
-  bgp, interface, sysrib, bgp-adj-rib-in, bgp-rib,
+  bgp, interface, rib, bgp-adj-rib-in, bgp-rib,
   bgp-aigp, bgp-persist, all NLRI family plugins
 
 Tier 1 (depends on tier 0):
   iface-dhcp (-> interface)
-  fib-kernel (-> sysrib)
-  fib-p4 (-> sysrib)
+  fib-kernel (-> rib)
+  fib-p4 (-> rib)
   bgp-gr (-> bgp, bgp-rib)
   bgp-route-refresh (-> bgp)
   bgp-role (-> bgp)
@@ -312,10 +312,10 @@ Tier 2 (depends on tier 1):
 ```
 Wire -> BGP reactor -> bgp-rib (Loc-RIB)
   |                      |
-  |                      +-> rib/best-change/bgp -> sysrib
+  |                      +-> bgp-rib/best-change/bgp -> rib
   |                                                    |
-  |                                                    +-> sysrib/best-change -> fib-kernel (OS routes)
-  |                                                    +-> sysrib/best-change -> fib-p4 (P4 entries)
+  |                                                    +-> system-rib/best-change -> fib-kernel (OS routes)
+  |                                                    +-> system-rib/best-change -> fib-p4 (P4 entries)
   |
   +-> bgp-adj-rib-in (raw storage)
   |     |
@@ -342,7 +342,7 @@ OS kernel -> iface-netlink (monitor)
 |-------------|-------|-----------------------|-------|
 | `bgp` | bgp | - | BGP reactor mediates config for all sub-plugins via reconcilePeers |
 | `interface` | interface | - | BGP reads address changes via bus events, not WantsConfig |
-| `sysrib` | sysrib | - | |
+| `rib` | rib | - | |
 | `fib.kernel` | fib-kernel | - | |
 | `fib.p4` | fib-p4 | - | |
 
@@ -378,12 +378,12 @@ interface/
   dhcp/lease-expired       interface -> (informational)
 
 rib/
-  best-change/bgp          bgp-rib -> sysrib
-  replay-request           sysrib -> (protocol RIBs)
+  best-change/bgp          bgp-rib -> rib
+  replay-request           rib -> (protocol RIBs)
 
-sysrib/
-  best-change              sysrib -> fib-kernel, fib-p4
-  replay-request           fib-kernel, fib-p4 -> sysrib
+system-rib/
+  best-change              rib -> fib-kernel, fib-p4
+  replay-request           fib-kernel, fib-p4 -> rib
 
 fib/
   external-change          fib-kernel -> (monitoring)
@@ -411,9 +411,9 @@ startup dependencies in the `Dependencies` field.
 | Subscriber | Topic prefix | Publisher | Effect |
 |------------|-------------|-----------|--------|
 | BGP reactor | `interface/` | interface | Binds/unbinds listeners on address changes |
-| sysrib | `rib/best-change/` | bgp-rib | Selects system best routes from protocol RIBs |
-| fib-kernel | `sysrib/best-change` | sysrib | Programs OS routing table |
-| fib-p4 | `sysrib/best-change` | sysrib | Programs P4 switch entries |
+| rib | `rib/best-change/` | bgp-rib | Selects system best routes from protocol RIBs |
+| fib-kernel | `system-rib/best-change` | rib | Programs OS routing table |
+| fib-p4 | `system-rib/best-change` | rib | Programs P4 switch entries |
 
 ---
 
@@ -426,7 +426,7 @@ this is which plugins participate in config transactions and why.
 |--------|-------------|--------|
 | bgp | Yes (owner) | Owns `bgp` root, applies peer changes |
 | interface | Yes (owner) | Owns `interface` root, creates/removes interfaces |
-| sysrib | Yes (owner) | Owns `sysrib` root, applies admin distance config |
+| rib | Yes (owner) | Owns `rib` root, applies admin distance config |
 | fib-kernel | Yes (owner) | Owns `fib.kernel` root |
 | fib-p4 | Yes (owner) | Owns `fib.p4` root |
 | bgp-gr | No | Config mediated by BGP reactor via reconcilePeers |

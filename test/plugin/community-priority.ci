@@ -53,7 +53,7 @@ def main():
         sys.exit(1)
 
     # Verify community was tagged (community filter ran).
-    result = dispatch(api, 'rib show received community 65000:300')
+    result = dispatch(api, 'bgp rib show received community 65000:300')
     if result.get('status') != 'done':
         print(f'FAIL: community 65000:300 not found', file=sys.stderr)
         dispatch(api, 'daemon shutdown')
@@ -75,7 +75,7 @@ plugin {
 		run ./test-priority.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
@@ -127,7 +127,7 @@ bgp {
 		process test-priority {
 			receive [ update state ]
 		}
-		process rib {
+		process bgp-rib {
 			receive [ state ]
 			send [ update ]
 		}

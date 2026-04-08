@@ -403,7 +403,7 @@ func TestReloadConfigMultiplePlugins(t *testing.T) {
 	require.Never(t, func() bool {
 		return plugins[0].responder.getApplyCalls() > 0 || plugins[1].responder.getApplyCalls() > 0
 	}, 200*time.Millisecond, 10*time.Millisecond, "no apply RPCs should be sent when verify fails")
-	assert.Equal(t, 0, plugins[0].responder.getApplyCalls(), "rib should not get apply")
+	assert.Equal(t, 0, plugins[0].responder.getApplyCalls(), "bgp rib should not get apply")
 	assert.Equal(t, 0, plugins[1].responder.getApplyCalls(), "gr should not get apply")
 
 	// Running config should NOT be updated.
@@ -625,8 +625,8 @@ func TestReloadConfigRootRemoved(t *testing.T) {
 	require.NoError(t, err)
 
 	// Plugin MUST get both verify and apply even though root was removed.
-	require.Eventually(t, func() bool { return plugins[0].responder.getVerifyCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "rib should get verify for removed root")
-	require.Eventually(t, func() bool { return plugins[0].responder.getApplyCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "rib should get apply for removed root")
+	require.Eventually(t, func() bool { return plugins[0].responder.getVerifyCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "bgp rib should get verify for removed root")
+	require.Eventually(t, func() bool { return plugins[0].responder.getApplyCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "bgp rib should get apply for removed root")
 
 	// Running config should be updated.
 	reactor.mu.Lock()
@@ -905,7 +905,7 @@ func TestReloadTxCoordinatorRollback(t *testing.T) {
 	// single apply fails. Even the plugin that never applied (gr failed
 	// before succeeding) is invited to rollback so its journal stays
 	// consistent.
-	require.Eventually(t, func() bool { return plugins[0].responder.getRollbackCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "rib should receive rollback RPC")
+	require.Eventually(t, func() bool { return plugins[0].responder.getRollbackCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "bgp rib should receive rollback RPC")
 	require.Eventually(t, func() bool { return plugins[1].responder.getRollbackCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "gr should receive rollback RPC")
 
 	// Config tree stays at the old state because the runtime was rolled
@@ -985,7 +985,7 @@ func TestReloadTxApplyBGPLast(t *testing.T) {
 		// Intentional registration order: "bgp" first, then a non-bgp
 		// plugin. The sort must still place bgp last in apply order.
 		{name: "bgp", roots: []string{"bgp"}, order: order},
-		{name: "sysrib", roots: []string{"bgp"}, order: order},
+		{name: "rib", roots: []string{"bgp"}, order: order},
 		{name: "gr", roots: []string{"bgp"}, order: order},
 	}
 	s := newTestReloadServer(t, reactor, plugins)

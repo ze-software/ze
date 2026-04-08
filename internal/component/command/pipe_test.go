@@ -333,52 +333,52 @@ func TestFoldServerPipeline(t *testing.T) {
 			wantOpsLen: 1,
 		},
 		{
-			name:       "rib routes with path filter",
-			command:    "rib routes received",
+			name:       "bgp rib routes with path filter",
+			command:    "bgp rib routes received",
 			ops:        []pipeOp{{kind: pipeUnknown, arg: "path 65001"}},
-			wantCmd:    "rib routes received path 65001",
+			wantCmd:    "bgp rib routes received path 65001",
 			wantOpsLen: 0,
 		},
 		{
-			name:       "rib routes with count terminal",
-			command:    "rib routes",
+			name:       "bgp rib routes with count terminal",
+			command:    "bgp rib routes",
 			ops:        []pipeOp{{kind: pipeCount}},
-			wantCmd:    "rib routes count",
+			wantCmd:    "bgp rib routes count",
 			wantOpsLen: 0,
 		},
 		{
-			name:       "rib routes with match filter",
-			command:    "rib routes received",
+			name:       "bgp rib routes with match filter",
+			command:    "bgp rib routes received",
 			ops:        []pipeOp{{kind: pipeMatch, arg: "10.0.0.0"}},
-			wantCmd:    "rib routes received match 10.0.0.0",
+			wantCmd:    "bgp rib routes received match 10.0.0.0",
 			wantOpsLen: 0,
 		},
 		{
-			name:       "rib routes keeps no-more client-side",
-			command:    "rib routes",
+			name:       "bgp rib routes keeps no-more client-side",
+			command:    "bgp rib routes",
 			ops:        []pipeOp{{kind: pipeUnknown, arg: "path 65001"}, {kind: pipeNoMore}},
-			wantCmd:    "rib routes path 65001",
+			wantCmd:    "bgp rib routes path 65001",
 			wantOpsLen: 1,
 		},
 		{
-			name:       "rib routes keeps table client-side",
-			command:    "rib routes received",
+			name:       "bgp rib routes keeps table client-side",
+			command:    "bgp rib routes received",
 			ops:        []pipeOp{{kind: pipeCount}, {kind: pipeTable}},
-			wantCmd:    "rib routes received count",
+			wantCmd:    "bgp rib routes received count",
 			wantOpsLen: 1,
 		},
 		{
-			name:       "rib routes with json terminal",
-			command:    "rib routes",
+			name:       "bgp rib routes with json terminal",
+			command:    "bgp rib routes",
 			ops:        []pipeOp{{kind: pipeJSON, arg: jsonPretty}},
-			wantCmd:    "rib routes json",
+			wantCmd:    "bgp rib routes json",
 			wantOpsLen: 0,
 		},
 		{
-			name:       "rib show best with path filter",
-			command:    "rib show best",
+			name:       "bgp rib show best with path filter",
+			command:    "bgp rib show best",
 			ops:        []pipeOp{{kind: pipeUnknown, arg: "path 65001"}},
-			wantCmd:    "rib show best path 65001",
+			wantCmd:    "bgp rib show best path 65001",
 			wantOpsLen: 0,
 		},
 	}
@@ -399,7 +399,7 @@ func TestFoldServerPipeline(t *testing.T) {
 // VALIDATES: parsePipe preserves full segment text for unknown ops.
 // PREVENTS: loss of filter arguments (e.g., "path 65001" becomes just "path").
 func TestParsePipeUnknownPreservesArgs(t *testing.T) {
-	_, ops := ParsePipe("rib routes | path 65001")
+	_, ops := ParsePipe("bgp rib routes | path 65001")
 	if len(ops) != 1 {
 		t.Fatalf("got %d ops, want 1", len(ops))
 	}

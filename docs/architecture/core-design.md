@@ -787,12 +787,12 @@ BGP RIB (bgp-rib plugin)
   |  best-path change detected per prefix
   |  publishes batch to Bus
   v
-rib/best-change/bgp  ──>  System RIB (sysrib plugin)
+bgp-rib/best-change/bgp  ──>  System RIB (rib plugin)
                              |  selects system-wide best per prefix
                              |  by administrative distance (lower wins)
                              |  publishes batch to Bus
                              v
-                           sysrib/best-change  ──>  FIB Kernel (fib-kernel plugin)
+                           system-rib/best-change  ──>  FIB Kernel (fib-kernel plugin)
                                                       |  programs OS routes via netlink
                                                       |  RTPROT_ZE=250 identifies ze routes
                                                       |  crash recovery: stale-mark-then-sweep
@@ -801,7 +801,7 @@ rib/best-change/bgp  ──>  System RIB (sysrib plugin)
                                                     Linux kernel routing table
 ```
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeTopic, best-path tracking -->
-<!-- source: internal/plugins/sysrib/sysrib.go -- sysribTopic, admin distance selection -->
+<!-- source: internal/plugins/sysrib/sysrib.go -- system-rib topic, admin distance selection -->
 <!-- source: internal/plugins/fibkernel/fibkernel.go -- fibKernel, netlink backend, stale sweep -->
 <!-- source: internal/plugins/fibkernel/monitor_linux.go -- kernel route change monitor -->
 
@@ -809,23 +809,23 @@ rib/best-change/bgp  ──>  System RIB (sysrib plugin)
 
 The `bgp-rib` plugin detects best-path changes in real time. After each INSERT or
 REMOVE, the affected prefix is checked for best-path changes. Changes are collected
-into a batch under the RIB lock, then published to `rib/best-change/bgp` after lock
+into a batch under the RIB lock, then published to `bgp-rib/best-change/bgp` after lock
 release. Each entry contains the prefix, action (add/update/withdraw), next-hop,
 priority (admin distance), and metric (MED).
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeEntry, publishBestChanges -->
 
 ### System RIB
 
-The `sysrib` plugin subscribes to the `rib/best-change/` Bus topic prefix (matching
+The `rib` plugin subscribes to the `bgp-rib/best-change/` Bus topic prefix (matching
 all protocols). It maintains a per-prefix table of each protocol's best route and
 selects the system-wide best by administrative distance (lower wins). When the
-system best changes, it publishes a batch to `sysrib/best-change`.
+system best changes, it publishes a batch to `system-rib/best-change`.
 <!-- source: internal/plugins/sysrib/sysrib.go -- protocolRoute, admin distance, outgoingBatch -->
-<!-- source: internal/plugins/sysrib/register.go -- sysrib plugin registration -->
+<!-- source: internal/plugins/sysrib/register.go -- rib plugin registration -->
 
 ### FIB Kernel
 
-The `fib-kernel` plugin subscribes to `sysrib/best-change` and programs OS routes
+The `fib-kernel` plugin subscribes to `system-rib/best-change` and programs OS routes
 via netlink on Linux. It uses a custom rtm_protocol ID (RTPROT_ZE=250) so ze-installed
 routes are distinguishable from other routing daemons. On startup, existing ze routes
 are marked stale; after reconvergence, stale routes are swept. A kernel route monitor

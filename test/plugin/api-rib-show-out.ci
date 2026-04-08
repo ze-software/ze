@@ -33,7 +33,7 @@ def main():
     time.sleep(1.0)
 
     try:
-        result = dispatch(api, 'rib routes sent')
+        result = dispatch(api, 'bgp rib routes sent')
         if result.get('status') != 'done':
             print(f'FAIL: rib show-out status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
@@ -53,7 +53,7 @@ plugin {
 		run ./rib-show-out-test.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
@@ -95,7 +95,7 @@ bgp {
 
 		process rib-show-out-test {
 		}
-		process rib {
+		process bgp-rib {
 			receive [ state ]
 			send [ update ]
 		}

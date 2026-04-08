@@ -66,7 +66,7 @@ func BenchmarkDispatch(b *testing.B) {
 		{"system_version", "system version software"},
 		{"system_command_list", "system command list"},
 		{"peer_show_selector", "peer 10.0.0.1 show"},
-		{"rib_help", "rib help"},
+		{"rib_help", "bgp rib help"},
 	}
 
 	for _, tt := range commands {
@@ -90,7 +90,7 @@ func BenchmarkDispatchLookup(b *testing.B) {
 		"daemon status",
 		"system version software",
 		"system command list",
-		"rib help",
+		"bgp rib help",
 	}
 
 	b.ReportAllocs()

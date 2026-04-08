@@ -51,28 +51,28 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	for i, cmd := range regInput.Commands {
 		commandNames[i] = cmd.Name
 	}
-	assert.Contains(t, commandNames, "rib status")
-	assert.Contains(t, commandNames, "rib show")
-	assert.Contains(t, commandNames, "rib clear in")
-	assert.Contains(t, commandNames, "rib clear out")
+	assert.Contains(t, commandNames, "bgp rib status")
+	assert.Contains(t, commandNames, "bgp rib show")
+	assert.Contains(t, commandNames, "bgp rib clear in")
+	assert.Contains(t, commandNames, "bgp rib clear out")
 	// Legacy status alias
-	assert.Contains(t, commandNames, "rib adjacent status")
+	assert.Contains(t, commandNames, "bgp rib adjacent status")
 	// GR support commands (RFC 4724)
-	assert.Contains(t, commandNames, "rib retain-routes")
-	assert.Contains(t, commandNames, "rib release-routes")
-	assert.Contains(t, commandNames, "rib mark-stale")
-	assert.Contains(t, commandNames, "rib purge-stale")
+	assert.Contains(t, commandNames, "bgp rib retain-routes")
+	assert.Contains(t, commandNames, "bgp rib release-routes")
+	assert.Contains(t, commandNames, "bgp rib mark-stale")
+	assert.Contains(t, commandNames, "bgp rib purge-stale")
 	// Best-path commands (RFC 4271 §9.1.2)
-	assert.Contains(t, commandNames, "rib show best")
-	assert.Contains(t, commandNames, "rib show best status")
+	assert.Contains(t, commandNames, "bgp rib show best")
+	assert.Contains(t, commandNames, "bgp rib show best status")
 	// Route injection (manual RIB manipulation)
-	assert.Contains(t, commandNames, "rib inject")
-	assert.Contains(t, commandNames, "rib withdraw")
+	assert.Contains(t, commandNames, "bgp rib inject")
+	assert.Contains(t, commandNames, "bgp rib withdraw")
 	// Meta-commands (introspection)
-	assert.Contains(t, commandNames, "rib help")
-	assert.Contains(t, commandNames, "rib command list")
-	assert.Contains(t, commandNames, "rib event list")
-	assert.Len(t, regInput.Commands, 16, "rib registers exactly 16 commands")
+	assert.Contains(t, commandNames, "bgp rib help")
+	assert.Contains(t, commandNames, "bgp rib command list")
+	assert.Contains(t, commandNames, "bgp rib event list")
+	assert.Len(t, regInput.Commands, 16, "bgp rib registers exactly 16 commands")
 
 	require.NoError(t, mux.SendOK(ctx, stage1.ID))
 
@@ -89,7 +89,7 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 
 	var capsInput rpc.DeclareCapabilitiesInput
 	require.NoError(t, json.Unmarshal(stage3.Params, &capsInput))
-	assert.Empty(t, capsInput.Capabilities, "rib plugin declares no capabilities")
+	assert.Empty(t, capsInput.Capabilities, "bgp rib plugin declares no capabilities")
 
 	require.NoError(t, mux.SendOK(ctx, stage3.ID))
 
@@ -114,9 +114,9 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	assert.ElementsMatch(t,
 		[]string{"update direction sent", "update direction received", "state", "refresh"},
 		readyInput.Subscribe.Events,
-		"rib subscribes to sent/received updates, state changes, and route-refresh")
+		"bgp rib subscribes to sent/received updates, state changes, and route-refresh")
 	assert.Equal(t, "full", readyInput.Subscribe.Format,
-		"rib uses full format for events")
+		"bgp rib uses full format for events")
 
 	require.NoError(t, mux.SendOK(ctx, stage5.ID))
 

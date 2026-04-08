@@ -22,7 +22,7 @@ const (
 
 // Subscription represents an event subscription.
 type Subscription struct {
-	Namespace    string      // "bgp" or "rib"
+	Namespace    string      // "bgp" or "bgp-rib"
 	EventType    string      // "update", "state", etc.
 	Direction    string      // "received", "sent", "both" (empty = both)
 	PeerFilter   *PeerFilter // nil = all peers

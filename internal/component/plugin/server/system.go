@@ -273,7 +273,7 @@ func handleSystemCommandHelp(ctx *CommandContext, args []string) (*plugin.Respon
 }
 
 // LookupCommandHelp looks up a command by name in builtins then plugins.
-// The kind parameter is used in error messages (e.g., "command", "rib command").
+// The kind parameter is used in error messages (e.g., "command", "bgp rib command").
 func LookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response, error) {
 	if ctx.Dispatcher() != nil {
 		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {

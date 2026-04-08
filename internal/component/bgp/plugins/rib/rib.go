@@ -164,7 +164,7 @@ type PeerMeta struct {
 }
 
 // peerGRState holds per-peer Graceful Restart metadata in the RIB plugin.
-// Stored when "rib mark-stale" is received so that "rib status" can display
+// Stored when "bgp rib mark-stale" is received so that "bgp rib status" can display
 // absolute times (when routes went stale, when they expire).
 // RFC 4724 Section 4.2: Receiving Speaker route retention.
 type peerGRState struct {
@@ -197,12 +197,12 @@ type RIBManager struct {
 	// retainedPeers tracks peers whose Adj-RIB-In is retained during GR.
 	// RFC 4724: When a GR-capable peer goes down, routes are retained until
 	// the restart timer expires or the peer re-establishes and sends EOR.
-	// Set by "rib retain-routes <peer>" command from bgp-gr plugin.
-	// Cleared by "rib release-routes <peer>" or when the peer comes back up.
+	// Set by "bgp rib retain-routes <peer>" command from bgp-gr plugin.
+	// Cleared by "bgp rib release-routes <peer>" or when the peer comes back up.
 	retainedPeers map[string]bool
 
 	// grState tracks per-peer Graceful Restart metadata.
-	// Set by "rib mark-stale" command, cleared by "rib release-routes" or timer expiry.
+	// Set by "bgp rib mark-stale" command, cleared by "bgp rib release-routes" or timer expiry.
 	// RFC 4724 Section 4.2: Receiving Speaker route retention state.
 	grState map[string]*peerGRState
 
@@ -298,7 +298,7 @@ func (r *RIBManager) updateMetrics() {
 // RunRIBPlugin runs the RIB plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
 func RunRIBPlugin(conn net.Conn) int {
-	logger().Debug("rib plugin starting (RPC)")
+	logger().Debug("bgp rib plugin starting (RPC)")
 
 	p := sdk.NewWithConn("bgp-rib", conn)
 	defer func() { _ = p.Close() }()
@@ -343,7 +343,7 @@ func RunRIBPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	// Register command handler: responds to "rib adjacent ..." commands
+	// Register command handler: responds to "bgp rib adjacent ..." commands
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
 		return r.handleCommand(command, peer, args)
 	})
@@ -365,7 +365,7 @@ func RunRIBPlugin(conn net.Conn) int {
 		// When a subscriber emits (rib, replay-request), replay the full
 		// best-path table. The handler ignores the payload (always empty).
 		if eb := getEventBus(); eb != nil {
-			eb.Subscribe(plugin.NamespaceRIB, plugin.EventReplayRequest, func(_ string) {
+			eb.Subscribe(plugin.NamespaceBGPRIB, plugin.EventReplayRequest, func(_ string) {
 				r.replayBestPaths()
 			})
 		}
@@ -376,31 +376,31 @@ func RunRIBPlugin(conn net.Conn) int {
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
 			// Unified show with pipeline (scope + filters + terminals)
-			{Name: "rib status"},
-			{Name: "rib show"},
-			{Name: "rib clear in"},
-			{Name: "rib clear out"},
+			{Name: "bgp rib status"},
+			{Name: "bgp rib show"},
+			{Name: "bgp rib clear in"},
+			{Name: "bgp rib clear out"},
 			// Legacy status alias
-			{Name: "rib adjacent status"},
+			{Name: "bgp rib adjacent status"},
 			// GR support: route retention and stale tracking (RFC 4724)
-			{Name: "rib retain-routes"},
-			{Name: "rib release-routes"},
-			{Name: "rib mark-stale"},
-			{Name: "rib purge-stale"},
+			{Name: "bgp rib retain-routes"},
+			{Name: "bgp rib release-routes"},
+			{Name: "bgp rib mark-stale"},
+			{Name: "bgp rib purge-stale"},
 			// Best-path selection (RFC 4271 §9.1.2)
-			{Name: "rib show best"},
-			{Name: "rib show best status"},
+			{Name: "bgp rib show best"},
+			{Name: "bgp rib show best status"},
 			// Route injection (manual RIB manipulation)
-			{Name: "rib inject"},
-			{Name: "rib withdraw"},
+			{Name: "bgp rib inject"},
+			{Name: "bgp rib withdraw"},
 			// Meta-commands (introspection)
-			{Name: "rib help"},
-			{Name: "rib command list"},
-			{Name: "rib event list"},
+			{Name: "bgp rib help"},
+			{Name: "bgp rib command list"},
+			{Name: "bgp rib event list"},
 		},
 	})
 	if err != nil {
-		logger().Error("rib plugin failed", "error", err)
+		logger().Error("bgp rib plugin failed", "error", err)
 		return 1
 	}
 
@@ -735,7 +735,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 
 // handleState processes peer state changes.
 // Handles state transitions atomically to avoid races between up/down events.
-// RFC 4724: When retainedPeers[peer] is set (by bgp-gr via "rib retain-routes"),
+// RFC 4724: When retainedPeers[peer] is set (by bgp-gr via "bgp rib retain-routes"),
 // Adj-RIB-In is preserved on peer-down instead of being deleted.
 func (r *RIBManager) handleState(event *Event) {
 	peerAddr := event.GetPeerAddress()

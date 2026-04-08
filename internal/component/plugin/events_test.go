@@ -118,12 +118,12 @@ func TestAllEventTypes(t *testing.T) {
 		t.Fatal("bgp namespace should have event types")
 	}
 
-	rib, ok := all[NamespaceRIB]
+	rib, ok := all[NamespaceBGPRIB]
 	if !ok {
 		t.Fatal("AllEventTypes should include rib namespace")
 	}
 	if len(rib) == 0 {
-		t.Fatal("rib namespace should have event types")
+		t.Fatal("bgp-rib namespace should have event types")
 	}
 
 	// Verify it returns a copy (mutations don't affect global state).
@@ -275,8 +275,8 @@ func TestIsValidNamespace(t *testing.T) {
 	if !IsValidNamespace(NamespaceBGP) {
 		t.Fatal("bgp should be a valid namespace")
 	}
-	if !IsValidNamespace(NamespaceRIB) {
-		t.Fatal("rib should be a valid namespace")
+	if !IsValidNamespace(NamespaceBGPRIB) {
+		t.Fatal("bgp-rib should be a valid namespace")
 	}
 	if IsValidNamespace("nonexistent") {
 		t.Fatal("nonexistent should not be a valid namespace")

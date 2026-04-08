@@ -220,8 +220,8 @@ func TestLogBooleansToSubsystems(t *testing.T) {
 	}{
 		{"packets true", "packets", "true", "bgp.wire", "debug"},
 		{"packets false", "packets", "false", "bgp.wire", "disabled"},
-		{"rib true", "rib", "true", "plugin.rib", "debug"},
-		{"rib false", "rib", "false", "plugin.rib", "disabled"},
+		{"bgp rib true", "rib", "true", "plugin.bgp-rib", "debug"},
+		{"bgp rib false", "rib", "false", "plugin.bgp-rib", "disabled"},
 		{"configuration true", "configuration", "true", "config", "debug"},
 		{"reactor true", "reactor", "true", "bgp.reactor", "debug"},
 		{"daemon true", "daemon", "true", "daemon", "debug"},
@@ -230,7 +230,7 @@ func TestLogBooleansToSubsystems(t *testing.T) {
 		{"statistics true", "statistics", "true", "bgp.metrics", "debug"},
 		{"message true", "message", "true", "bgp.wire", "debug"},
 		{"timers true", "timers", "true", "bgp.reactor", "debug"},
-		{"routes true", "routes", "true", "plugin.rib", "debug"},
+		{"routes true", "routes", "true", "plugin.bgp-rib", "debug"},
 		{"parser true", "parser", "true", "config", "debug"},
 	}
 

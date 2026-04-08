@@ -53,7 +53,7 @@ def check(label, result, expected_status):
 
 def wait_for_rib(api):
     for _ in range(20):
-        r = dispatch(api, 'rib status')
+        r = dispatch(api, 'bgp rib status')
         if r.get('status') == 'done':
             return True
         time.sleep(0.5)
@@ -75,11 +75,11 @@ def main():
         sys.exit(1)
 
     # Inject a route -- this triggers best-path tracking.
-    r = dispatch(api, 'rib inject 10.0.0.1 ipv4/unicast 10.10.0.0/24 origin igp')
+    r = dispatch(api, 'bgp rib inject 10.0.0.1 ipv4/unicast 10.10.0.0/24 origin igp')
     check('inject-route', r, 'done')
 
     # Verify best-path shows the route.
-    r = dispatch(api, 'rib show best')
+    r = dispatch(api, 'bgp rib show best')
     check('show-best', r, 'done')
     data_str = r.get('data', '')
     try:
@@ -116,7 +116,7 @@ plugin {
 		run ./fib-rib-event-test.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
@@ -158,7 +158,7 @@ bgp {
 
 		process fib-rib-event-test {
 		}
-		process rib {
+		process bgp-rib {
 		}
 	}
 }

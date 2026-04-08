@@ -29,7 +29,7 @@ def main() -> None:
     api.declare_rfc(4271)
     api.declare_encoding('text')
     api.declare_family('ipv4', 'unicast')
-    api.declare_command('rib show')
+    api.declare_command('bgp rib show')
     api.declare_done()
 
     # Stage 2: Receive config (discard for this test)

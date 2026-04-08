@@ -38,7 +38,7 @@ func setupGRTestRIB(t *testing.T) *RIBManager {
 	return r
 }
 
-// TestRIBMarkStaleCommand verifies that "rib mark-stale" marks all routes for a specific peer as stale.
+// TestRIBMarkStaleCommand verifies that "bgp rib mark-stale" marks all routes for a specific peer as stale.
 //
 // VALIDATES: AC-1 — mark-stale marks all routes for peer, stores restart time.
 // PREVENTS: mark-stale affecting other peers' routes or missing routes in some families.
@@ -47,7 +47,7 @@ func TestRIBMarkStaleCommand(t *testing.T) {
 	r := setupGRTestRIB(t)
 
 	// Mark peer 1 stale with restart-time=120
-	status, data, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	status, data, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -73,7 +73,7 @@ func TestRIBMarkStaleCommandStoresGRState(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
 
-	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 
 	// Verify GR state is stored.
@@ -94,7 +94,7 @@ func TestRIBMarkStaleCommandNonExistentPeer(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
 
-	status, data, err := r.handleCommand("rib mark-stale", "*", []string{"10.10.10.10", "120"})
+	status, data, err := r.handleCommand("bgp rib mark-stale", "*", []string{"10.10.10.10", "120"})
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -112,11 +112,11 @@ func TestRIBMarkStaleCommandMissingArgs(t *testing.T) {
 	r := setupGRTestRIB(t)
 
 	// No args at all.
-	_, _, err := r.handleCommand("rib mark-stale", "*", nil)
+	_, _, err := r.handleCommand("bgp rib mark-stale", "*", nil)
 	assert.Error(t, err, "should error with no args")
 
 	// Only peer, no restart time.
-	_, _, err = r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1"})
+	_, _, err = r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1"})
 	assert.Error(t, err, "should error with no restart time")
 }
 
@@ -129,7 +129,7 @@ func TestRIBMarkStaleCommandExplicitLevel(t *testing.T) {
 	r := setupGRTestRIB(t)
 
 	// Mark with explicit level=2 (LLGR-stale / depreference threshold).
-	status, data, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120", "2"})
+	status, data, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120", "2"})
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -152,7 +152,7 @@ func TestRIBMarkStaleCommandRejectsLevelZero(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
 
-	status, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120", "0"})
+	status, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120", "0"})
 	assert.Error(t, err, "level=0 should be rejected")
 	assert.Equal(t, statusError, status)
 	assert.Contains(t, err.Error(), "stale level must be > 0")
@@ -166,7 +166,7 @@ func TestRIBMarkStaleCommandInvalidRestartTime(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
 
-	status, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "abc"})
+	status, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "abc"})
 	assert.Error(t, err, "non-numeric restart-time should be rejected")
 	assert.Equal(t, statusError, status)
 	assert.Contains(t, err.Error(), "invalid restart-time")
@@ -181,18 +181,18 @@ func TestRIBMarkStaleCommandInvalidLevel(t *testing.T) {
 	r := setupGRTestRIB(t)
 
 	// Non-numeric level.
-	status, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120", "abc"})
+	status, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120", "abc"})
 	assert.Error(t, err, "non-numeric level should be rejected")
 	assert.Equal(t, statusError, status)
 	assert.Contains(t, err.Error(), "invalid stale level")
 
 	// Level exceeding uint8 range.
-	status, _, err = r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120", "256"})
+	status, _, err = r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120", "256"})
 	assert.Error(t, err, "level > 255 should be rejected")
 	assert.Equal(t, statusError, status)
 }
 
-// TestRIBPurgeStaleCommand verifies that "rib purge-stale" deletes only stale routes.
+// TestRIBPurgeStaleCommand verifies that "bgp rib purge-stale" deletes only stale routes.
 //
 // VALIDATES: AC-2 — purge-stale deletes stale routes, keeps fresh ones.
 // PREVENTS: purge-stale deleting fresh routes or leaving stale routes.
@@ -203,7 +203,7 @@ func TestRIBPurgeStaleCommand(t *testing.T) {
 	ipv4Family := family.IPv4Unicast
 
 	// Mark all peer 1 routes as stale.
-	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 
 	// Insert a fresh route for peer 1 (new NLRI, should have Stale=false).
@@ -215,7 +215,7 @@ func TestRIBPurgeStaleCommand(t *testing.T) {
 	assert.Equal(t, 2, r.ribInPool["192.0.2.1"].StaleCount())
 
 	// Purge stale for peer 1.
-	status, data, err := r.handleCommand("rib purge-stale", "*", []string{"192.0.2.1"})
+	status, data, err := r.handleCommand("bgp rib purge-stale", "*", []string{"192.0.2.1"})
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -240,12 +240,12 @@ func TestRIBPurgeStaleFamilyCommand(t *testing.T) {
 	r := setupGRTestRIB(t)
 
 	// Mark all peer 1 routes as stale (ipv4 and ipv6).
-	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 	assert.Equal(t, 2, r.ribInPool["192.0.2.1"].StaleCount())
 
 	// Purge stale only for ipv4/unicast.
-	status, data, err := r.handleCommand("rib purge-stale", "*", []string{"192.0.2.1", "ipv4/unicast"})
+	status, data, err := r.handleCommand("bgp rib purge-stale", "*", []string{"192.0.2.1", "ipv4/unicast"})
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -269,7 +269,7 @@ func TestRIBPurgeStalePreservesFresh(t *testing.T) {
 	ipv4Family := family.IPv4Unicast
 
 	// Mark all peer 1 routes as stale.
-	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 	assert.Equal(t, 2, r.ribInPool["192.0.2.1"].StaleCount())
 
@@ -281,7 +281,7 @@ func TestRIBPurgeStalePreservesFresh(t *testing.T) {
 	assert.Equal(t, 1, r.ribInPool["192.0.2.1"].StaleCount(), "only ipv6 should be stale")
 
 	// Purge stale for peer 1.
-	status, data, err := r.handleCommand("rib purge-stale", "*", []string{"192.0.2.1"})
+	status, data, err := r.handleCommand("bgp rib purge-stale", "*", []string{"192.0.2.1"})
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -309,7 +309,7 @@ func TestGRFlowMarkAndPurge(t *testing.T) {
 	ipv6Family := family.IPv6Unicast
 
 	// Step 1: Peer goes down → mark-stale (simulating bgp-gr 3-step sequence)
-	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 	assert.Equal(t, 2, r.ribInPool["192.0.2.1"].StaleCount())
 
@@ -321,14 +321,14 @@ func TestGRFlowMarkAndPurge(t *testing.T) {
 	r.ribInPool["192.0.2.1"].Insert(ipv4Family, freshAttr, []byte{24, 10, 1, 0}) // new 10.1.0.0/24
 
 	// Step 3: EOR received for ipv4/unicast → purge stale for that family
-	_, data, err := r.handleCommand("rib purge-stale", "*", []string{"192.0.2.1", "ipv4/unicast"})
+	_, data, err := r.handleCommand("bgp rib purge-stale", "*", []string{"192.0.2.1", "ipv4/unicast"})
 	require.NoError(t, err)
 	var purge1 map[string]any
 	require.NoError(t, json.Unmarshal([]byte(data), &purge1))
 	assert.Equal(t, float64(0), purge1["purged"], "no stale ipv4 routes (10.0.0.0/24 was refreshed)")
 
 	// Step 4: EOR received for ipv6/unicast → purge stale for that family
-	_, data, err = r.handleCommand("rib purge-stale", "*", []string{"192.0.2.1", "ipv6/unicast"})
+	_, data, err = r.handleCommand("bgp rib purge-stale", "*", []string{"192.0.2.1", "ipv6/unicast"})
 	require.NoError(t, err)
 	var purge2 map[string]any
 	require.NoError(t, json.Unmarshal([]byte(data), &purge2))
@@ -358,7 +358,7 @@ func TestGRConsecutiveRestart(t *testing.T) {
 	ipv4Family := family.IPv4Unicast
 
 	// First disconnect: mark all routes as stale.
-	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 	assert.Equal(t, 2, r.ribInPool["192.0.2.1"].StaleCount())
 
@@ -369,7 +369,7 @@ func TestGRConsecutiveRestart(t *testing.T) {
 
 	// Second disconnect before EOR! Consecutive restart.
 	// Step 1: purge-stale (delete old stale routes from previous cycle)
-	_, data, err := r.handleCommand("rib purge-stale", "*", []string{"192.0.2.1"})
+	_, data, err := r.handleCommand("bgp rib purge-stale", "*", []string{"192.0.2.1"})
 	require.NoError(t, err)
 	var purgeResult map[string]any
 	require.NoError(t, json.Unmarshal([]byte(data), &purgeResult))
@@ -377,7 +377,7 @@ func TestGRConsecutiveRestart(t *testing.T) {
 
 	// Step 2: retain-routes (already tested elsewhere)
 	// Step 3: mark-stale again (marks the fresh IPv4 route as stale for new cycle)
-	_, _, err = r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "90"})
+	_, _, err = r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "90"})
 	require.NoError(t, err)
 
 	// Now: only the refreshed IPv4 route exists, and it's marked stale for the new cycle.
@@ -392,9 +392,9 @@ func TestGRConsecutiveRestart(t *testing.T) {
 	assert.Equal(t, uint16(90), state.RestartTime, "restart time should be updated to new value")
 }
 
-// TestRIBShowInStaleFlag verifies rib show in includes stale flag on stale routes.
+// TestRIBShowInStaleFlag verifies bgp rib show in includes stale flag on stale routes.
 //
-// VALIDATES: AC-9 — rib show in with stale routes shows stale flag per route.
+// VALIDATES: AC-9 — bgp rib show in with stale routes shows stale flag per route.
 // PREVENTS: Operators unable to identify stale routes in show output.
 func TestRIBShowInStaleFlag(t *testing.T) {
 	t.Parallel()
@@ -403,7 +403,7 @@ func TestRIBShowInStaleFlag(t *testing.T) {
 	ipv4Family := family.IPv4Unicast
 
 	// Before marking stale, show received should not have "stale" field.
-	_, data, err := r.handleCommand("rib show", "192.0.2.1", []string{"received"})
+	_, data, err := r.handleCommand("bgp rib show", "192.0.2.1", []string{"received"})
 	require.NoError(t, err)
 	var before map[string]any
 	require.NoError(t, json.Unmarshal([]byte(data), &before))
@@ -423,7 +423,7 @@ func TestRIBShowInStaleFlag(t *testing.T) {
 	}
 
 	// Mark all peer 1 routes as stale.
-	_, _, err = r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	_, _, err = r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 
 	// Insert a fresh route so we can verify mixed output.
@@ -431,7 +431,7 @@ func TestRIBShowInStaleFlag(t *testing.T) {
 	r.ribInPool["192.0.2.1"].Insert(ipv4Family, attrBytes, []byte{24, 192, 168, 0}) // fresh 192.168.0.0/24
 
 	// Show received should have "stale": true on stale routes, no "stale" on fresh.
-	_, data, err = r.handleCommand("rib show", "192.0.2.1", []string{"received"})
+	_, data, err = r.handleCommand("bgp rib show", "192.0.2.1", []string{"received"})
 	require.NoError(t, err)
 	var after map[string]any
 	require.NoError(t, json.Unmarshal([]byte(data), &after))
@@ -475,7 +475,7 @@ func TestRIBMarkStaleStartsExpiryTimer(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
 
-	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 
 	r.mu.RLock()
@@ -496,7 +496,7 @@ func TestRIBExpiryTimerAutoExpires(t *testing.T) {
 	// Use a very short restart time (1s) so the timer fires quickly.
 	// Timer margin is 5s, so total wait is ~6s. To avoid slow test,
 	// call autoExpireStale directly instead of waiting for timer.
-	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "1"})
+	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "1"})
 	require.NoError(t, err)
 	assert.Equal(t, 2, r.ribInPool["192.0.2.1"].StaleCount())
 
@@ -525,11 +525,11 @@ func TestRIBPurgeStaleStopsTimer(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
 
-	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 
 	// Purge all stale routes.
-	_, _, err = r.handleCommand("rib purge-stale", "*", []string{"192.0.2.1"})
+	_, _, err = r.handleCommand("bgp rib purge-stale", "*", []string{"192.0.2.1"})
 	require.NoError(t, err)
 
 	// GR state (and timer) should be cleaned up.
@@ -548,7 +548,7 @@ func TestRIBConsecutiveRestartResetsTimer(t *testing.T) {
 	r := setupGRTestRIB(t)
 
 	// First mark-stale with 120s.
-	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 
 	r.mu.RLock()
@@ -558,7 +558,7 @@ func TestRIBConsecutiveRestartResetsTimer(t *testing.T) {
 	require.NotNil(t, timer1)
 
 	// Second mark-stale with 90s (consecutive restart).
-	_, _, err = r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "90"})
+	_, _, err = r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "90"})
 	require.NoError(t, err)
 
 	r.mu.RLock()
@@ -569,20 +569,20 @@ func TestRIBConsecutiveRestartResetsTimer(t *testing.T) {
 	assert.Equal(t, uint16(90), state2.RestartTime, "restart time should be updated")
 }
 
-// TestRIBStatusWithStale verifies rib status includes stale route information.
+// TestRIBStatusWithStale verifies bgp rib status includes stale route information.
 //
-// VALIDATES: AC-10 — rib status shows stale count, stale-at, expires-at.
+// VALIDATES: AC-10 — bgp rib status shows stale count, stale-at, expires-at.
 // PREVENTS: Status output missing GR stale information.
 func TestRIBStatusWithStale(t *testing.T) {
 	t.Parallel()
 	r := setupGRTestRIB(t)
 
 	// Mark peer 1 stale.
-	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 
 	// Check status.
-	status, data, err := r.handleCommand("rib status", "*", nil)
+	status, data, err := r.handleCommand("bgp rib status", "*", nil)
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -630,11 +630,11 @@ func TestAttachCommunity(t *testing.T) {
 	ipv4Family := family.IPv4Unicast
 
 	// Mark peer 1 stale
-	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 
 	// Attach community ffff0006 to stale ipv4 routes
-	status, data, err := r.handleCommand("rib attach-community", "*", []string{"192.0.2.1", "ipv4/unicast", "ffff0006"})
+	status, data, err := r.handleCommand("bgp rib attach-community", "*", []string{"192.0.2.1", "ipv4/unicast", "ffff0006"})
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -669,11 +669,11 @@ func TestDeleteWithCommunity(t *testing.T) {
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	// Mark stale
-	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 
 	// Delete routes with community ffff0007
-	status, data, err := r.handleCommand("rib delete-with-community", "*", []string{"192.0.2.1", "ipv4/unicast", "ffff0007"})
+	status, data, err := r.handleCommand("bgp rib delete-with-community", "*", []string{"192.0.2.1", "ipv4/unicast", "ffff0007"})
 	require.NoError(t, err)
 	assert.Equal(t, statusDone, status)
 
@@ -737,10 +737,10 @@ func TestAttachCommunity_NoCommunities(t *testing.T) {
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	// Mark stale + attach community
-	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 
-	_, data, err := r.handleCommand("rib attach-community", "*", []string{"192.0.2.1", "ipv4/unicast", "ffff0006"})
+	_, data, err := r.handleCommand("bgp rib attach-community", "*", []string{"192.0.2.1", "ipv4/unicast", "ffff0006"})
 	require.NoError(t, err)
 
 	var result map[string]any
@@ -797,7 +797,7 @@ func TestAttachCommunity_MissingArgs(t *testing.T) {
 	t.Parallel()
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("rib attach-community", "*", nil)
+	status, _, err := r.handleCommand("bgp rib attach-community", "*", nil)
 	assert.Equal(t, statusError, status)
 	assert.Error(t, err)
 }
@@ -810,7 +810,7 @@ func TestDeleteWithCommunity_MissingArgs(t *testing.T) {
 	t.Parallel()
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("rib delete-with-community", "*", nil)
+	status, _, err := r.handleCommand("bgp rib delete-with-community", "*", nil)
 	assert.Equal(t, statusError, status)
 	assert.Error(t, err)
 }

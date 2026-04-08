@@ -5,10 +5,10 @@ module ze-fib-conf {
     description
         "FIB configuration for Ze.
          Contains the kernel backend configuration for route programming.
-         Admin distance settings are in ze-sysrib-conf (RIB concept).";
+         Admin distance settings are in ze-rib-conf (RIB concept).";
 
     revision 2026-04-04 {
-        description "Move admin-distance to ze-sysrib-conf.";
+        description "Move admin-distance to ze-rib-conf.";
     }
 
     container fib {

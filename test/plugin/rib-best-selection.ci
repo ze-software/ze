@@ -71,7 +71,7 @@ def find_best_for_prefix(best_paths, prefix):
 def wait_for_rib(api):
     """Wait for rib plugin to be ready."""
     for _ in range(20):
-        r = dispatch(api, 'rib status')
+        r = dispatch(api, 'bgp rib status')
         if r.get('status') == 'done':
             return True
         time.sleep(0.5)
@@ -94,13 +94,13 @@ def main():
 
     # --- Test 1: LOCAL_PREF tiebreak (higher wins) ---
     # Inject 10.10.1.0/24 from two peers with different LOCAL_PREF
-    r = dispatch(api, 'rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 localpref 100')
+    r = dispatch(api, 'bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 localpref 100')
     check('inject-lp100', r, 'done')
 
-    r = dispatch(api, 'rib inject 10.0.0.2 ipv4/unicast 10.10.1.0/24 localpref 200')
+    r = dispatch(api, 'bgp rib inject 10.0.0.2 ipv4/unicast 10.10.1.0/24 localpref 200')
     check('inject-lp200', r, 'done')
 
-    r = dispatch(api, 'rib show best')
+    r = dispatch(api, 'bgp rib show best')
     check('best-localpref', r, 'done')
     best_paths = parse_best(r)
     entry = find_best_for_prefix(best_paths, '10.10.1.0/24')
@@ -115,13 +115,13 @@ def main():
 
     # --- Test 2: AS_PATH length tiebreak (shorter wins) ---
     # Inject 10.20.1.0/24 from two peers with different AS_PATH lengths
-    r = dispatch(api, 'rib inject 10.0.0.3 ipv4/unicast 10.20.1.0/24 aspath 64501')
+    r = dispatch(api, 'bgp rib inject 10.0.0.3 ipv4/unicast 10.20.1.0/24 aspath 64501')
     check('inject-short-path', r, 'done')
 
-    r = dispatch(api, 'rib inject 10.0.0.4 ipv4/unicast 10.20.1.0/24 aspath 64501,64502,64503')
+    r = dispatch(api, 'bgp rib inject 10.0.0.4 ipv4/unicast 10.20.1.0/24 aspath 64501,64502,64503')
     check('inject-long-path', r, 'done')
 
-    r = dispatch(api, 'rib show best')
+    r = dispatch(api, 'bgp rib show best')
     check('best-aspath', r, 'done')
     best_paths = parse_best(r)
     entry = find_best_for_prefix(best_paths, '10.20.1.0/24')
@@ -136,13 +136,13 @@ def main():
 
     # --- Test 3: Peer address final tiebreak (lower wins) ---
     # Inject 10.30.1.0/24 from two peers with identical attributes
-    r = dispatch(api, 'rib inject 10.0.0.6 ipv4/unicast 10.30.1.0/24 origin igp')
+    r = dispatch(api, 'bgp rib inject 10.0.0.6 ipv4/unicast 10.30.1.0/24 origin igp')
     check('inject-peer6', r, 'done')
 
-    r = dispatch(api, 'rib inject 10.0.0.5 ipv4/unicast 10.30.1.0/24 origin igp')
+    r = dispatch(api, 'bgp rib inject 10.0.0.5 ipv4/unicast 10.30.1.0/24 origin igp')
     check('inject-peer5', r, 'done')
 
-    r = dispatch(api, 'rib show best')
+    r = dispatch(api, 'bgp rib show best')
     check('best-tiebreak', r, 'done')
     best_paths = parse_best(r)
     entry = find_best_for_prefix(best_paths, '10.30.1.0/24')
@@ -156,7 +156,7 @@ def main():
         print('OK tiebreak-winner: 10.0.0.5 selected (lower peer address)', file=sys.stderr)
 
     # --- Test 4: Verify total count ---
-    r = dispatch(api, 'rib show best count')
+    r = dispatch(api, 'bgp rib show best count')
     check('best-count', r, 'done')
     data_str = r.get('data', '')
     try:
@@ -192,7 +192,7 @@ plugin {
 		run ./rib-best-selection-test.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
@@ -234,7 +234,7 @@ bgp {
 
 		process best-selection-test {
 		}
-		process rib {
+		process bgp-rib {
 			receive [ update sent state ]
 			send [ update ]
 		}

@@ -50,7 +50,7 @@ def main():
             sys.exit(1)
 
         # Verify route was accepted (VRP covers 10.0.1.0/24 from AS 65001)
-        result = dispatch(api, 'rib routes received')
+        result = dispatch(api, 'bgp rib routes received')
         if result.get('status') != 'done':
             print(f'FAIL: rib routes received status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

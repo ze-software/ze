@@ -131,7 +131,7 @@ def main():
     # registered its commands (ForwardToPlugin fails if commands aren't registered).
     time.sleep(1.0)
     for _ in range(20):
-        r = dispatch(api, 'rib status')
+        r = dispatch(api, 'bgp rib status')
         if r.get('status') == 'done':
             break
         time.sleep(0.5)
@@ -142,91 +142,91 @@ def main():
     # --- Scope routing with content verification ---
 
     # rib show received: adj-rib-in data (default route from ze-peer)
-    r = dispatch(api, 'rib show received')
+    r = dispatch(api, 'bgp rib show received')
     check('scope-received', r, 'done')
     check_has_key('scope-received-content', r, 'adj-rib-in')
 
     # rib show sent: adj-rib-out data (static route from config)
-    r = dispatch(api, 'rib show sent')
+    r = dispatch(api, 'bgp rib show sent')
     check('scope-sent', r, 'done')
     check_has_key('scope-sent-content', r, 'adj-rib-out')
 
     # rib show sent-received: explicit default scope
-    r = dispatch(api, 'rib show sent-received')
+    r = dispatch(api, 'bgp rib show sent-received')
     check('scope-sent-received', r, 'done')
     check_has_key('scope-sent-received-in', r, 'adj-rib-in')
     check_has_key('scope-sent-received-out', r, 'adj-rib-out')
 
     # rib show (no scope): defaults to sent-received
-    r = dispatch(api, 'rib show')
+    r = dispatch(api, 'bgp rib show')
     check('scope-default', r, 'done')
     check_has_key('scope-default-in', r, 'adj-rib-in')
     check_has_key('scope-default-out', r, 'adj-rib-out')
 
     # --- Count terminal returns {"count": N} ---
 
-    r = dispatch(api, 'rib show count')
+    r = dispatch(api, 'bgp rib show count')
     check('count-total', r, 'done')
     check_count('count-total', r, exact=2)  # 1 received (default route) + 1 sent (static)
 
-    r = dispatch(api, 'rib show received count')
+    r = dispatch(api, 'bgp rib show received count')
     check('count-received', r, 'done')
     check_count('count-received', r, exact=1)  # 1 default route from ze-peer
 
-    r = dispatch(api, 'rib show sent count')
+    r = dispatch(api, 'bgp rib show sent count')
     check('count-sent', r, 'done')
     check_count('count-sent', r, exact=1)  # 1 static route from config
 
     # --- Filter keywords ---
 
     # Path filter — no routes have AS 64501, count should be 0
-    r = dispatch(api, 'rib show received path 64501 count')
+    r = dispatch(api, 'bgp rib show received path 64501 count')
     check('path-filter', r, 'done')
     check_count('path-filter', r, exact=0)
 
     # Community filter — no routes have this community
-    r = dispatch(api, 'rib show received community 65000:100 count')
+    r = dispatch(api, 'bgp rib show received community 65000:100 count')
     check('community-filter', r, 'done')
     check_count('community-filter', r, exact=0)
 
     # Family filter — ipv4/unicast should match
-    r = dispatch(api, 'rib show received family ipv4/unicast count')
+    r = dispatch(api, 'bgp rib show received family ipv4/unicast count')
     check('family-filter', r, 'done')
     check_count('family-filter', r, exact=1)
 
     # CIDR filter on specific sent prefix
-    r = dispatch(api, 'rib show sent cidr 192.168.1.0/24 count')
+    r = dispatch(api, 'bgp rib show sent cidr 192.168.1.0/24 count')
     check('cidr-filter', r, 'done')
     check_count('cidr-filter', r, exact=1)
 
     # Combined filters: family + community + count (no routes have community)
-    r = dispatch(api, 'rib show received family ipv4/unicast community 65000:100 count')
+    r = dispatch(api, 'bgp rib show received family ipv4/unicast community 65000:100 count')
     check('combined-filter', r, 'done')
     check_count('combined-filter', r, exact=0)
 
     # --- rib show best with content verification ---
 
-    r = dispatch(api, 'rib show best')
+    r = dispatch(api, 'bgp rib show best')
     check('best-path', r, 'done')
     check_has_key('best-path-content', r, 'best-path')
 
-    r = dispatch(api, 'rib show best cidr 0.0.0.0/0')
+    r = dispatch(api, 'bgp rib show best cidr 0.0.0.0/0')
     check('best-cidr', r, 'done')
     check_has_key('best-cidr-content', r, 'best-path')
 
     # --- Unknown keyword returns pipeline error in data ---
 
-    r = dispatch(api, 'rib show bogus')
+    r = dispatch(api, 'bgp rib show bogus')
     check('unknown-keyword', r, 'done')
     check_data_error('unknown-keyword', r)
 
     # --- Old commands produce pipeline error ---
 
-    r = dispatch(api, 'rib show in')
+    r = dispatch(api, 'bgp rib show in')
     check('old-show-in', r, 'done')
     check_data_error('old-show-in', r)
 
-    r = dispatch(api, 'rib show out')
+    r = dispatch(api, 'bgp rib show out')
     check('old-show-out', r, 'done')
     check_data_error('old-show-out', r)
 
@@ -251,7 +251,7 @@ plugin {
 		run ./rib-pipe-test.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
@@ -305,7 +305,7 @@ bgp {
 
 		process pipe-test {
 		}
-		process rib {
+		process bgp-rib {
 			receive [ update sent state ]
 			send [ update ]
 		}

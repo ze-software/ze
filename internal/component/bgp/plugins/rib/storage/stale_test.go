@@ -197,7 +197,7 @@ func TestFamilyRIB_InsertNewDuringStale(t *testing.T) {
 // TestFamilyRIB_StaleCount verifies stale route counting.
 //
 // VALIDATES: StaleCount returns correct count of routes with StaleLevel > 0.
-// PREVENTS: Incorrect count in rib status output.
+// PREVENTS: Incorrect count in bgp rib status output.
 func TestFamilyRIB_StaleCount(t *testing.T) {
 	t.Parallel()
 
@@ -344,7 +344,7 @@ func TestPeerRIB_PurgeAllStale(t *testing.T) {
 // TestPeerRIB_StaleCount verifies stale count across families.
 //
 // VALIDATES: Total stale count correct.
-// PREVENTS: Incorrect count in rib status.
+// PREVENTS: Incorrect count in bgp rib status.
 func TestPeerRIB_StaleCount(t *testing.T) {
 	t.Parallel()
 

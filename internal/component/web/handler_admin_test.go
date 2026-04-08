@@ -23,7 +23,7 @@ import (
 //	rib/clear -> leaf (no children)
 func testCommandTree() map[string][]string {
 	return map[string][]string{
-		"":     {"peer", "rib"},
+		"":     {"peer", "bgp rib"},
 		"peer": {"teardown", "refresh"},
 		"rib":  {"clear"},
 	}
@@ -220,7 +220,7 @@ func TestCommandResultCardStack(t *testing.T) {
 	body1 := rec1.Body.String()
 
 	// Second command.
-	req2 := httptest.NewRequest(http.MethodPost, "/admin/rib/clear", http.NoBody)
+	req2 := httptest.NewRequest(http.MethodPost, "/admin/bgp/rib/clear", http.NoBody)
 	rec2 := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec2, req2)
@@ -230,7 +230,7 @@ func TestCommandResultCardStack(t *testing.T) {
 
 	// Each response is an independent result card.
 	assert.Contains(t, body1, "peer 192.168.1.1 teardown")
-	assert.Contains(t, body2, "rib clear")
+	assert.Contains(t, body2, "bgp rib clear")
 
 	// They are different cards (different content).
 	assert.NotEqual(t, body1, body2, "each POST produces a distinct result card")
@@ -403,7 +403,7 @@ func TestAdminRootView(t *testing.T) {
 	}
 
 	assert.True(t, itemNames["peer"], "peer must be in root column")
-	assert.True(t, itemNames["rib"], "rib must be in root column")
+	assert.True(t, itemNames["bgp rib"], "bgp rib must be in root column")
 
 	// Verify URLs use /admin/ prefix.
 	for _, item := range fragData.Columns[0].UnnamedItems {

@@ -12,9 +12,9 @@ import (
 // Event namespaces.
 const (
 	NamespaceBGP       = "bgp"
-	NamespaceRIB       = "rib"
+	NamespaceBGPRIB    = "bgp-rib"
 	NamespaceConfig    = "config"
-	NamespaceSysrib    = "sysrib"
+	NamespaceSystemRIB = "system-rib"
 	NamespaceFib       = "fib"
 	NamespaceInterface = "interface"
 )
@@ -46,8 +46,8 @@ const (
 
 // Sysrib event types.
 const (
-	EventSysribBestChange    = "best-change"    // sysrib published a system-wide best change
-	EventSysribReplayRequest = "replay-request" // downstream consumer asking sysrib to replay
+	EventSystemRIBBestChange    = "best-change"    // sysrib published a system-wide best change
+	EventSystemRIBReplayRequest = "replay-request" // downstream consumer asking sysrib to replay
 )
 
 // Fib event types.
@@ -93,7 +93,7 @@ const (
 	DirectionBoth     = "both"
 )
 
-// eventsMu protects ValidEvents, ValidBgpEvents, and ValidRibEvents from
+// eventsMu protects ValidEvents, ValidBgpEvents, and ValidBGPRIBEvents from
 // concurrent read/write. Writes happen during RegisterEventType (startup).
 // Reads happen during subscribe-events and emit-event validation (runtime).
 var eventsMu sync.RWMutex
@@ -117,18 +117,18 @@ var ValidBgpEvents = map[string]bool{
 	DirectionSent:           true, // "sent" — config receive flag for sent UPDATE events
 }
 
-// ValidRibEvents is the set of valid RIB event types.
-var ValidRibEvents = map[string]bool{
+// ValidBGPRIBEvents is the set of valid RIB event types.
+var ValidBGPRIBEvents = map[string]bool{
 	EventCache:         true,
 	EventRoute:         true,
 	EventBestChange:    true, // protocol RIB published a best-path change
 	EventReplayRequest: true, // downstream consumer asking for full table replay
 }
 
-// ValidSysribEvents is the set of valid sysrib event types.
-var ValidSysribEvents = map[string]bool{
-	EventSysribBestChange:    true,
-	EventSysribReplayRequest: true,
+// ValidSystemRIBEvents is the set of valid sysrib event types.
+var ValidSystemRIBEvents = map[string]bool{
+	EventSystemRIBBestChange:    true,
+	EventSystemRIBReplayRequest: true,
 }
 
 // ValidFibEvents is the set of valid FIB event types.
@@ -172,9 +172,9 @@ var ValidConfigEvents = map[string]bool{
 // Protected by eventsMu for concurrent access.
 var ValidEvents = map[string]map[string]bool{
 	NamespaceBGP:       ValidBgpEvents,
-	NamespaceRIB:       ValidRibEvents,
+	NamespaceBGPRIB:    ValidBGPRIBEvents,
 	NamespaceConfig:    ValidConfigEvents,
-	NamespaceSysrib:    ValidSysribEvents,
+	NamespaceSystemRIB: ValidSystemRIBEvents,
 	NamespaceFib:       ValidFibEvents,
 	NamespaceInterface: ValidInterfaceEvents,
 }

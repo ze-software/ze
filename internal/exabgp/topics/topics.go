@@ -13,7 +13,7 @@ package topics
 // network, and message all map to bgp.wire).
 var TopicToSubsystem = map[string]string{
 	"packets":       "bgp.wire",
-	"rib":           "plugin.rib",
+	"rib":           "plugin.bgp-rib",
 	"configuration": "config",
 	"reactor":       "bgp.reactor",
 	"daemon":        "daemon",
@@ -22,6 +22,6 @@ var TopicToSubsystem = map[string]string{
 	"statistics":    "bgp.metrics",
 	"message":       "bgp.wire",
 	"timers":        "bgp.reactor",
-	"routes":        "plugin.rib",
+	"routes":        "plugin.bgp-rib",
 	"parser":        "config",
 }

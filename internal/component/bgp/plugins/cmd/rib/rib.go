@@ -18,14 +18,14 @@ import (
 // Plugin command names — used in both RPCRegistration.PluginCommand and ForwardToPlugin
 // to prevent divergence between the two.
 const (
-	cmdRibStatus     = "rib status"
-	cmdRibShow       = "rib show"
-	cmdRibBest       = "rib show best"
-	cmdRibBestStatus = "rib show best status"
-	cmdRibClearIn    = "rib clear in"
-	cmdRibClearOut   = "rib clear out"
-	cmdRibInject     = "rib inject"
-	cmdRibWithdraw   = "rib withdraw"
+	cmdRibStatus     = "bgp rib status"
+	cmdRibShow       = "bgp rib show"
+	cmdRibBest       = "bgp rib show best"
+	cmdRibBestStatus = "bgp rib show best status"
+	cmdRibClearIn    = "bgp rib clear in"
+	cmdRibClearOut   = "bgp rib clear out"
+	cmdRibInject     = "bgp rib inject"
+	cmdRibWithdraw   = "bgp rib withdraw"
 )
 
 func init() {

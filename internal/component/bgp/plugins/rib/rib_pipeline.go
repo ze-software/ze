@@ -802,7 +802,7 @@ const (
 const filterPath = "path"
 
 // showPipeline builds and executes a pipeline from command args.
-// Called by handleCommand for "rib show" with optional scope + filter stages.
+// Called by handleCommand for "bgp rib show" with optional scope + filter stages.
 // Returns JSON string result.
 func (r *RIBManager) showPipeline(selector string, args []string) string {
 	r.mu.RLock()

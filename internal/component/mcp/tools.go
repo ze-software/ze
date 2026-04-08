@@ -12,7 +12,7 @@ import (
 
 // CommandInfo describes a registered command for MCP tool generation.
 type CommandInfo struct {
-	Name     string      // Dispatch path, e.g. "rib status", "show config dump"
+	Name     string      // Dispatch path, e.g. "bgp rib status", "show config dump"
 	Help     string      // Description from YANG
 	ReadOnly bool        // True if read-only command
 	Params   []ParamInfo // Input parameters from YANG RPC (nil = no typed params)
@@ -32,7 +32,7 @@ type CommandLister func() []CommandInfo
 
 // toolGroup is a set of related commands sharing a prefix.
 type toolGroup struct {
-	prefix  string   // e.g. "rib", "show config"
+	prefix  string   // e.g. "bgp rib", "show config"
 	actions []action // subcommands within the group
 }
 
@@ -45,7 +45,7 @@ type action struct {
 }
 
 // groupCommands groups commands by their natural prefix.
-// Commands like "rib status", "rib routes" group under "rib".
+// Commands like "bgp rib status", "bgp rib routes" group under "bgp rib".
 // Commands like "show config dump", "show config diff" group under "show config".
 //
 // Grouping rule: find the longest shared prefix among at least 2 commands,
@@ -173,9 +173,10 @@ func sortActions(actions []action) {
 }
 
 // toolName converts a command prefix to an MCP tool name.
-// "rib" -> "ze_rib", "show config" -> "ze_show_config".
+// "bgp rib" -> "ze_bgp_rib", "show config" -> "ze_show_config".
 func toolName(prefix string) string {
-	return "ze_" + strings.ReplaceAll(prefix, " ", "_")
+	r := strings.NewReplacer(" ", "_", "-", "_")
+	return "ze_" + r.Replace(prefix)
 }
 
 // generateTools builds MCP tool definitions from command groups.

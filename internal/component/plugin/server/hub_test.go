@@ -209,7 +209,7 @@ func TestSplitHandler(t *testing.T) {
 		{"bgp/peer", "bgp", "peer"},
 		{"bgp/peer/timers", "bgp", "peer/timers"},
 		{"bgp", "bgp", ""},
-		{"rib/route", "rib", "route"},
+		{"bgp-rib/route", "bgp-rib", "route"},
 		{"acme-monitor/endpoint", "acme-monitor", "endpoint"},
 	}
 

@@ -140,7 +140,7 @@ func TestRIBBestChangePublish(t *testing.T) {
 
 	evt := bus.lastEvent()
 	require.NotNil(t, evt)
-	assert.Equal(t, plugin.NamespaceRIB, evt.Namespace)
+	assert.Equal(t, plugin.NamespaceBGPRIB, evt.Namespace)
 	assert.Equal(t, plugin.EventBestChange, evt.EventType)
 
 	var batch bestChangeBatch
@@ -456,7 +456,7 @@ func TestRIBReplayOnSubscribe(t *testing.T) {
 	// Should have published a replay batch.
 	evt := bus.lastEvent()
 	require.NotNil(t, evt, "should publish replay batch")
-	assert.Equal(t, plugin.NamespaceRIB, evt.Namespace)
+	assert.Equal(t, plugin.NamespaceBGPRIB, evt.Namespace)
 	assert.Equal(t, plugin.EventBestChange, evt.EventType)
 
 	var batch bestChangeBatch

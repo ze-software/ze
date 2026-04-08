@@ -86,8 +86,8 @@ func TestValidateEventTypeAnyNamespace(t *testing.T) {
 	}{
 		{"bgp update", "update", false},
 		{"bgp state", "state", false},
-		{"rib cache", "cache", false},
-		{"rib route", "route", false},
+		{"bgp rib cache", "cache", false},
+		{"bgp rib route", "route", false},
 		{"invalid", "nonexistent", true},
 		{"sent is direction not event", "sent", true},
 	}

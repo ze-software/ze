@@ -58,7 +58,7 @@ func (s *LGServer) handleGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := s.query(fmt.Sprintf("rib show prefix %s", prefix))
+	result := s.query(fmt.Sprintf("bgp rib show prefix %s", prefix))
 	zeData := parseJSON(result)
 	routes := extractRoutes(zeData)
 

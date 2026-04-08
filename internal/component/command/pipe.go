@@ -88,15 +88,15 @@ func ParsePipe(input string) (command string, ops []pipeOp) {
 }
 
 // FoldServerPipeline rewrites command and ops for commands that support server-side pipelines.
-// For "rib routes" commands, pipe segments containing server pipeline keywords are folded
+// For "bgp rib routes" commands, pipe segments containing server pipeline keywords are folded
 // back into the command string. Only client-side ops (no-more, table) remain as ops.
-// Example: "rib routes received | path 65001 | count" → command="rib routes received path 65001 count", ops=nil.
+// Example: "bgp rib routes received | path 65001 | count" → command="bgp rib routes received path 65001 count", ops=nil.
 func FoldServerPipeline(command string, ops []pipeOp) (string, []pipeOp) {
 	trimmed := strings.TrimSpace(command)
 	lower := strings.ToLower(trimmed)
 
 	// Only fold for rib routes and rib show best commands (server-side pipeline).
-	if !strings.HasPrefix(lower, "rib routes") && !strings.HasPrefix(lower, "rib show best") {
+	if !strings.HasPrefix(lower, "bgp rib routes") && !strings.HasPrefix(lower, "bgp rib show best") {
 		return command, ops
 	}
 

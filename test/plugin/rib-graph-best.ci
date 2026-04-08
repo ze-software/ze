@@ -66,7 +66,7 @@ def main():
 
     time.sleep(1.0)
     for _ in range(20):
-        r = dispatch(api, 'rib status')
+        r = dispatch(api, 'bgp rib status')
         if r.get('status') == 'done':
             break
         time.sleep(0.5)
@@ -75,11 +75,11 @@ def main():
         failures += 1
 
     # Inject a route with AS path
-    r = dispatch(api, 'rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502')
+    r = dispatch(api, 'bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502')
     check('inject', r, 'done')
 
     # rib show best graph
-    r = dispatch(api, 'rib show best graph')
+    r = dispatch(api, 'bgp rib show best graph')
     check('best-graph', r, 'done')
 
     # Output should contain ASN labels
@@ -110,7 +110,7 @@ plugin {
 		run ./rib-graph-best-test.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
@@ -152,7 +152,7 @@ bgp {
 
 		process graph-best-test {
 		}
-		process rib {
+		process bgp-rib {
 			receive [ update sent state ]
 			send [ update ]
 		}

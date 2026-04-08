@@ -1,18 +1,18 @@
-module ze-sysrib-conf {
-    namespace "urn:ze:sysrib:conf";
-    prefix sysrib;
+module ze-rib-conf {
+    namespace "urn:ze:rib:conf";
+    prefix rib;
 
     description
         "System RIB configuration for Ze.
          Admin distance settings control cross-protocol route selection.
-         Lower distance wins. Used by the sysrib plugin to override
+         Lower distance wins. Used by the rib plugin to override
          incoming priority values from protocol RIBs.";
 
     revision 2026-04-04 {
         description "Add admin-distance container.";
     }
 
-    container sysrib {
+    container rib {
         description "System RIB configuration.";
 
         container admin-distance {

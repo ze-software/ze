@@ -18,11 +18,11 @@ func mockDispatch() CommandDispatcher {
 			return `{"router-id":"1.2.3.4","version":"test","start-time":"2026-01-01T00:00:00Z"}`, nil
 		case cmd == "summary":
 			return `[{"name":"peer1","peer-address":"10.0.0.1","remote-as":"65001","state":"established","state-changed":"2026-01-15T10:00:00Z","routes-received":"100","routes-accepted":"95","routes-sent":"50","routes-filtered":"5"}]`, nil
-		case strings.Contains(cmd, "rib show") && strings.Contains(cmd, "count"):
+		case strings.Contains(cmd, "bgp rib show") && strings.Contains(cmd, "count"):
 			return `{"count":100}`, nil
-		case strings.HasPrefix(cmd, "rib show best"):
+		case strings.HasPrefix(cmd, "bgp rib show best"):
 			return `{"routes":[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp","as-path":[65001],"local-preference":100}]}`, nil
-		case strings.HasPrefix(cmd, "rib show"), strings.Contains(cmd, "rib show"):
+		case strings.HasPrefix(cmd, "bgp rib show"), strings.Contains(cmd, "bgp rib show"):
 			return `{"routes":[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp","as-path":[65001,65002],"local-preference":100,"med":0,"peer-address":"10.0.0.1","community":["65000:100","65001:200"],"large-community":["65000:0:100"]}]}`, nil
 		}
 		return `{"error":"unknown command"}`, nil

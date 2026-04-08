@@ -109,7 +109,7 @@ func TestProfileRegexMatch(t *testing.T) {
 		{"regex matches", "peer 10.0.0.1 show", Allow},
 		{"regex matches wildcard", "peer * show", Allow},
 		{"regex no match", "peer 10.0.0.1 list", Deny},
-		{"regex no match different", "rib show", Deny},
+		{"regex no match different", "bgp rib show", Deny},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -76,7 +76,7 @@ def main():
 
     time.sleep(1.0)
     for _ in range(20):
-        r = dispatch(api, 'rib status')
+        r = dispatch(api, 'bgp rib status')
         if r.get('status') == 'done':
             break
         time.sleep(0.5)
@@ -85,15 +85,15 @@ def main():
         failures += 1
 
     # Route 1: 10.10.1.0/24 via AS64501->AS64502
-    r = dispatch(api, 'rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502')
+    r = dispatch(api, 'bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502')
     check('inject-1', r, 'done')
 
     # Route 2: 10.20.1.0/24 via AS64601->AS64602 (different prefix space)
-    r = dispatch(api, 'rib inject 10.0.0.2 ipv4/unicast 10.20.1.0/24 aspath 64601,64602')
+    r = dispatch(api, 'bgp rib inject 10.0.0.2 ipv4/unicast 10.20.1.0/24 aspath 64601,64602')
     check('inject-2', r, 'done')
 
     # Filter to 10.10 prefix and graph
-    r = dispatch(api, 'rib show received cidr 10.10 graph')
+    r = dispatch(api, 'bgp rib show received cidr 10.10 graph')
     check('filtered-graph', r, 'done')
 
     # Should contain AS64501/64502 from the matching route
@@ -125,7 +125,7 @@ plugin {
 		run ./rib-graph-filtered-test.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
@@ -167,7 +167,7 @@ bgp {
 
 		process graph-filtered-test {
 		}
-		process rib {
+		process bgp-rib {
 			receive [ update sent state ]
 			send [ update ]
 		}

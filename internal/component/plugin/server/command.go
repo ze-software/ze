@@ -60,6 +60,9 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc map[string]string) {
 	}
 }
 
+// verbRIB is the CLI verb for system RIB commands (e.g., "rib show").
+const verbRIB = "rib"
+
 // IsReadOnlyPath returns true if the command path starts with a read-only verb
 // or a top-level query command not yet migrated under a verb.
 func IsReadOnlyPath(path string) bool {
@@ -67,7 +70,7 @@ func IsReadOnlyPath(path string) bool {
 	switch verb {
 	case "show", "validate", "monitor",
 		"summary", "help", "command", "event", "daemon",
-		"system", "plugin", "peer", plugin.NamespaceRIB, "cache",
+		"system", "plugin", "peer", verbRIB, "cache",
 		"metrics", "subscribe", "unsubscribe":
 		return true
 	}
@@ -398,7 +401,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		}
 		// When a peer selector was extracted, rebuildWithoutSelector keeps the
 		// "peer" keyword (needed for peer commands like "peer list"). But for
-		// cross-domain commands ("peer 10.0.0.1 rib show"), the "peer" prefix
+		// cross-domain commands ("peer 10.0.0.1 bgp rib show"), the "peer" prefix
 		// is not part of the target command. Strip it and retry.
 		stripped := input
 		strippedLower := lowerInput

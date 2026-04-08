@@ -94,25 +94,25 @@ func doRegisterBuiltinCommands() {
 		help    string
 		handler CommandHandler
 	}{
-		{[]string{"rib status", "rib adjacent status"}, "Show RIB status (peer count, route counts)",
+		{[]string{"bgp rib status", "bgp rib adjacent status"}, "Show RIB status (peer count, route counts)",
 			func(r *RIBManager, sel string, _ []string) (string, string, error) {
 				return statusDone, r.statusJSON(), nil
 			}},
-		{[]string{"rib show"}, "Show routes (scope: sent|received|sent-received, filters, terminals)",
+		{[]string{"bgp rib show"}, "Show routes (scope: sent|received|sent-received, filters, terminals)",
 			func(r *RIBManager, sel string, args []string) (string, string, error) {
 				return statusDone, r.showPipeline(sel, args), nil
 			}},
-		{[]string{"rib clear in", "rib adjacent inbound empty"}, "Clear Adj-RIB-In routes",
+		{[]string{"bgp rib clear in", "bgp rib adjacent inbound empty"}, "Clear Adj-RIB-In routes",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				if len(args) == 0 {
-					return statusError, "", fmt.Errorf("rib clear in requires a selector (* for all peers)")
+					return statusError, "", fmt.Errorf("bgp rib clear in requires a selector (* for all peers)")
 				}
 				return statusDone, r.inboundEmptyJSON(args[0]), nil
 			}},
-		{[]string{"rib clear out", "rib adjacent outbound resend"}, "Resend Adj-RIB-Out routes",
+		{[]string{"bgp rib clear out", "bgp rib adjacent outbound resend"}, "Resend Adj-RIB-Out routes",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				if len(args) == 0 {
-					return statusError, "", fmt.Errorf("rib clear out requires a selector (* for all peers)")
+					return statusError, "", fmt.Errorf("bgp rib clear out requires a selector (* for all peers)")
 				}
 				var family string
 				if len(args) >= 2 && strings.Contains(args[1], "/") {
@@ -120,53 +120,53 @@ func doRegisterBuiltinCommands() {
 				}
 				return statusDone, r.outboundResendJSON(args[0], family), nil
 			}},
-		{[]string{"rib retain-routes"}, "Mark peer RIB for retention",
+		{[]string{"bgp rib retain-routes"}, "Mark peer RIB for retention",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				if len(args) == 0 {
-					return statusError, "", fmt.Errorf("rib retain-routes requires a selector (* for all peers)")
+					return statusError, "", fmt.Errorf("bgp rib retain-routes requires a selector (* for all peers)")
 				}
 				return statusDone, r.retainRoutesJSON(args[0]), nil
 			}},
-		{[]string{"rib release-routes"}, "Release retained peer RIB",
+		{[]string{"bgp rib release-routes"}, "Release retained peer RIB",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				if len(args) == 0 {
-					return statusError, "", fmt.Errorf("rib release-routes requires a selector (* for all peers)")
+					return statusError, "", fmt.Errorf("bgp rib release-routes requires a selector (* for all peers)")
 				}
 				return statusDone, r.releaseRoutesJSON(args[0]), nil
 			}},
-		{[]string{"rib mark-stale"}, "Mark peer routes at stale level",
+		{[]string{"bgp rib mark-stale"}, "Mark peer routes at stale level",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				return r.markStaleCommand(args)
 			}},
-		{[]string{"rib purge-stale"}, "Purge stale routes for peer",
+		{[]string{"bgp rib purge-stale"}, "Purge stale routes for peer",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				return r.purgeStaleCommand(args)
 			}},
-		{[]string{"rib show best"}, "Show best-path per prefix",
+		{[]string{"bgp rib show best"}, "Show best-path per prefix",
 			func(r *RIBManager, sel string, args []string) (string, string, error) {
 				return statusDone, r.bestPipeline(sel, args), nil
 			}},
-		{[]string{"rib show best status"}, "Show best-path computation status",
+		{[]string{"bgp rib show best status"}, "Show best-path computation status",
 			func(r *RIBManager, _ string, _ []string) (string, string, error) {
 				return statusDone, r.bestPathStatusJSON(), nil
 			}},
-		{[]string{"rib help"}, "Show RIB subcommands",
+		{[]string{"bgp rib help"}, "Show RIB subcommands",
 			func(_ *RIBManager, _ string, _ []string) (string, string, error) {
 				return statusDone, ribHelpJSON(), nil
 			}},
-		{[]string{"rib command list"}, "List RIB commands",
+		{[]string{"bgp rib command list"}, "List RIB commands",
 			func(_ *RIBManager, _ string, _ []string) (string, string, error) {
 				return statusDone, ribCommandListJSON(), nil
 			}},
-		{[]string{"rib event list"}, "List RIB event types",
+		{[]string{"bgp rib event list"}, "List RIB event types",
 			func(_ *RIBManager, _ string, _ []string) (string, string, error) {
 				return statusDone, ribEventListJSON(), nil
 			}},
-		{[]string{"rib inject"}, "Inject route into adj-rib-in: <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]",
+		{[]string{"bgp rib inject"}, "Inject route into adj-rib-in: <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]",
 			func(r *RIBManager, sel string, args []string) (string, string, error) {
 				return r.injectRoute(sel, args)
 			}},
-		{[]string{"rib withdraw"}, "Withdraw route from adj-rib-in: <peer> <family> <prefix>",
+		{[]string{"bgp rib withdraw"}, "Withdraw route from adj-rib-in: <peer> <family> <prefix>",
 			func(r *RIBManager, sel string, args []string) (string, string, error) {
 				return r.withdrawRoute(sel, args)
 			}},
@@ -184,7 +184,7 @@ func doRegisterBuiltinCommands() {
 }
 
 // injectRoute inserts a route into adj-rib-in as if received from a peer.
-// Syntax: rib inject <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]
+// Syntax: bgp rib inject <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]
 // The peer address is a label; no live BGP session required.
 func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error) {
 	if len(args) < 3 {
@@ -206,7 +206,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error
 		return statusError, "", fmt.Errorf("unknown family: %s", familyStr)
 	}
 	if !isSimplePrefixFamily(fam) {
-		return statusError, "", fmt.Errorf("rib inject only supports simple prefix families (IPv4/IPv6 unicast/multicast), not %s", familyStr)
+		return statusError, "", fmt.Errorf("bgp rib inject only supports simple prefix families (IPv4/IPv6 unicast/multicast), not %s", familyStr)
 	}
 
 	// Validate remaining args form complete key-value pairs.
@@ -242,7 +242,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error
 				return statusError, "", err
 			}
 			// IPv6 nhop accepted but not stored in NEXT_HOP attr (type 3 is IPv4 only).
-			// Route is injected without wire next-hop; shows in rib show as-is.
+			// Route is injected without wire next-hop; shows in bgp rib show as-is.
 			continue
 		}
 		if key == "aspath" {
@@ -322,7 +322,7 @@ func (r *RIBManager) validateIPv6NextHop(peer string, fam family.Family) error {
 }
 
 // withdrawRoute removes a route from adj-rib-in.
-// Syntax: rib withdraw <peer> <family> <prefix>
+// Syntax: bgp rib withdraw <peer> <family> <prefix>
 // The peer address is a label; no live BGP session required.
 func (r *RIBManager) withdrawRoute(_ string, args []string) (string, string, error) {
 	if len(args) < 3 {
@@ -400,7 +400,7 @@ func ribHelpJSON() string {
 	seen := make(map[string]bool)
 	var subs []string
 	for name := range registeredCommands {
-		after, ok := strings.CutPrefix(name, "rib ")
+		after, ok := strings.CutPrefix(name, "bgp rib ")
 		if !ok {
 			continue
 		}
@@ -599,7 +599,7 @@ func (r *RIBManager) statusJSON() string {
 
 // retainRoutesJSON marks a peer's Adj-RIB-In for retention during GR.
 // RFC 4724: Receiving speaker retains routes from restarting peer.
-// Called by bgp-gr plugin via DispatchCommand("rib retain-routes <peer>").
+// Called by bgp-gr plugin via DispatchCommand("bgp rib retain-routes <peer>").
 func (r *RIBManager) retainRoutesJSON(selector string) string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -619,7 +619,7 @@ func (r *RIBManager) retainRoutesJSON(selector string) string {
 
 // releaseRoutesJSON clears the retain flag and deletes Adj-RIB-In for matching peers.
 // RFC 4724: Called when restart timer expires or GR completes.
-// Called by bgp-gr plugin via DispatchCommand("rib release-routes <peer>").
+// Called by bgp-gr plugin via DispatchCommand("bgp rib release-routes <peer>").
 func (r *RIBManager) releaseRoutesJSON(selector string) string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -647,7 +647,7 @@ func (r *RIBManager) releaseRoutesJSON(selector string) string {
 	return string(data)
 }
 
-// markStaleCommand handles "rib mark-stale <peer> <restart-time>".
+// markStaleCommand handles "bgp rib mark-stale <peer> <restart-time>".
 // Marks all routes for the peer as stale and stores GR metadata.
 // RFC 4724 Section 4.2: mark routes stale on GR-capable peer session drop.
 // Args: [0]=peer address, [1]=restart time in seconds, [2]=optional stale level (default 1).
@@ -721,7 +721,7 @@ func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
 	return statusDone, string(data), nil
 }
 
-// purgeStaleCommand handles "rib purge-stale <peer> [family]".
+// purgeStaleCommand handles "bgp rib purge-stale <peer> [family]".
 // Deletes only stale routes, optionally for a specific family.
 // RFC 4724 Section 4.2: purge stale routes on EOR receipt or timer expiry.
 // Args: [0]=peer address, [1]=optional family (e.g., "ipv4/unicast").
@@ -869,11 +869,11 @@ func registerCommunityCommands() {
 		help    string
 		handler CommandHandler
 	}{
-		{"rib attach-community", "Attach a community to stale routes for a peer family",
+		{"bgp rib attach-community", "Attach a community to stale routes for a peer family",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				return r.attachCommunityCommand(args)
 			}},
-		{"rib delete-with-community", "Delete stale routes that have a specific community",
+		{"bgp rib delete-with-community", "Delete stale routes that have a specific community",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				return r.deleteWithCommunityCommand(args)
 			}},
@@ -885,7 +885,7 @@ func registerCommunityCommands() {
 	}
 }
 
-// attachCommunityCommand handles "rib attach-community <peer> <family> <community-hex>".
+// attachCommunityCommand handles "bgp rib attach-community <peer> <family> <community-hex>".
 // Attaches a 4-byte community to all stale routes for the specified peer and family.
 // Also raises StaleLevel to DepreferenceThreshold for attached routes.
 // Args: [0]=peer, [1]=family, [2]=community as 8-char hex (e.g., "ffff0006").
@@ -935,7 +935,7 @@ func (r *RIBManager) attachCommunityCommand(args []string) (string, string, erro
 	return statusDone, string(data), nil
 }
 
-// deleteWithCommunityCommand handles "rib delete-with-community <peer> <family> <community-hex>".
+// deleteWithCommunityCommand handles "bgp rib delete-with-community <peer> <family> <community-hex>".
 // Deletes stale routes that contain the specified community.
 // Args: [0]=peer, [1]=family, [2]=community as 8-char hex.
 func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, string, error) {

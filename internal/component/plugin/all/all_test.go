@@ -46,7 +46,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"iface-dhcp",
 		"interface",
 		"loop",
-		"sysrib",
+		"rib",
 	}
 
 	names := registry.Names()

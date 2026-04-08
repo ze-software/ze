@@ -159,7 +159,7 @@ func NeedsRIBPlugin(tree *config.Tree) bool {
 func injectRIBPlugin(tree *config.Tree) {
 	ribPlugin := config.NewTree()
 	ribPlugin.Set("run", `"ze plugin bgp-rib"`)
-	tree.AddListEntry("plugin", "rib", ribPlugin)
+	tree.AddListEntry("plugin", "bgp-rib", ribPlugin)
 }
 
 // migrateProcesses collects ExaBGP process definitions for the wrapper to handle.
@@ -698,7 +698,7 @@ func bindRIBProcess(peer, src *config.Tree) {
 	// Receive flags.
 	ribProcess.Set("receive", "[ update ]")
 
-	peer.AddListEntry("process", "rib", ribProcess)
+	peer.AddListEntry("process", "bgp-rib", ribProcess)
 }
 
 // migrateProcessBindings converts ExaBGP api block and process blocks to ZeBGP named bindings.

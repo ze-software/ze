@@ -52,7 +52,7 @@ def check(label, result, expected_status):
 
 def wait_for_rib(api):
     for _ in range(20):
-        r = dispatch(api, 'rib status')
+        r = dispatch(api, 'bgp rib status')
         if r.get('status') == 'done':
             return True
         time.sleep(0.5)
@@ -74,15 +74,15 @@ def main():
         sys.exit(1)
 
     # Inject a route to trigger best-path tracking and Bus event.
-    r = dispatch(api, 'rib inject 10.0.0.1 ipv4/unicast 10.20.0.0/24 origin igp')
+    r = dispatch(api, 'bgp rib inject 10.0.0.1 ipv4/unicast 10.20.0.0/24 origin igp')
     check('inject-route', r, 'done')
 
     # Wait for Bus event propagation to sysrib.
     time.sleep(2.0)
 
     # Query sysrib.
-    r = dispatch(api, 'sysrib show')
-    check('sysrib-show', r, 'done')
+    r = dispatch(api, 'rib show')
+    check('rib-show', r, 'done')
     data_str = r.get('data', '')
     try:
         entries = json.loads(data_str)
@@ -119,12 +119,12 @@ plugin {
 		run ./fib-sysrib-test.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
-	external sysrib {
-		run "ze plugin sysrib"
+	external rib {
+		run "ze plugin rib"
 		encoder json
 	}
 }
@@ -165,9 +165,9 @@ bgp {
 
 		process fib-sysrib-test {
 		}
-		process rib {
+		process bgp-rib {
 		}
-		process sysrib {
+		process rib {
 		}
 	}
 }

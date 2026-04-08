@@ -21,7 +21,7 @@ func init() {
 		Features:     "yang",
 		YANG:         fibschema.ZeFibConfYANG,
 		ConfigRoots:  []string{"fib.kernel"},
-		Dependencies: []string{"sysrib"},
+		Dependencies: []string{"rib"},
 		RunEngine:    runFIBKernelPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))

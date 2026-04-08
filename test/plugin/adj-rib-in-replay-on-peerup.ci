@@ -79,7 +79,7 @@ plugin {
 		run ./replay-test.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
@@ -125,7 +125,7 @@ bgp {
 
 		process replay-test {
 		}
-		process rib {
+		process bgp-rib {
 			receive [ state ]
 			send [ update ]
 		}

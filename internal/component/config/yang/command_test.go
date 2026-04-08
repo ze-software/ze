@@ -603,7 +603,7 @@ func TestBuildCommandTreeCommandNodes(t *testing.T) {
 
 	rib := tree.Children["rib"]
 	require.NotNil(t, rib)
-	assert.Equal(t, "RIB operations", rib.Description, "rib grouping gets YANG description")
+	assert.Equal(t, "RIB operations", rib.Description, "bgp rib grouping gets YANG description")
 
 	status := rib.Children["status"]
 	require.NotNil(t, status)

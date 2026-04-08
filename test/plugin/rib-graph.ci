@@ -72,7 +72,7 @@ def main():
     # Wait for rib plugin
     time.sleep(1.0)
     for _ in range(20):
-        r = dispatch(api, 'rib status')
+        r = dispatch(api, 'bgp rib status')
         if r.get('status') == 'done':
             break
         time.sleep(0.5)
@@ -82,15 +82,15 @@ def main():
 
     # Inject routes with AS paths
     # Route 1: AS64501 -> AS64502 -> AS64503
-    r = dispatch(api, 'rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502,64503')
+    r = dispatch(api, 'bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502,64503')
     check('inject-1', r, 'done')
 
     # Route 2: AS64504 -> AS64502 -> AS64503 (diamond: shares AS64502 and AS64503)
-    r = dispatch(api, 'rib inject 10.0.0.2 ipv4/unicast 10.10.2.0/24 aspath 64504,64502,64503')
+    r = dispatch(api, 'bgp rib inject 10.0.0.2 ipv4/unicast 10.10.2.0/24 aspath 64504,64502,64503')
     check('inject-2', r, 'done')
 
     # --- graph terminal ---
-    r = dispatch(api, 'rib show received graph')
+    r = dispatch(api, 'bgp rib show received graph')
     check('graph', r, 'done')
 
     # Output should contain ASN labels
@@ -103,7 +103,7 @@ def main():
     check_contains('graph-box', r, '\u250c')  # ┌
 
     # --- empty graph (no matching routes) ---
-    r = dispatch(api, 'rib show received cidr 99.99.99.0/24 graph')
+    r = dispatch(api, 'bgp rib show received cidr 99.99.99.0/24 graph')
     check('empty-graph', r, 'done')
 
     # Shutdown
@@ -127,7 +127,7 @@ plugin {
 		run ./rib-graph-test.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
@@ -169,7 +169,7 @@ bgp {
 
 		process graph-test {
 		}
-		process rib {
+		process bgp-rib {
 			receive [ update sent state ]
 			send [ update ]
 		}

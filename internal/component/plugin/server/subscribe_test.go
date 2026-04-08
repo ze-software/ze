@@ -69,9 +69,9 @@ func TestParseSubscriptionWithPeerExclude(t *testing.T) {
 // VALIDATES: "plugin rib-cache rib event cache" extracts plugin filter.
 // PREVENTS: Plugin filter not parsed.
 func TestParseSubscriptionWithPlugin(t *testing.T) {
-	sub, err := ParseSubscription([]string{"plugin", "rib-cache", "rib", "event", "cache"})
+	sub, err := ParseSubscription([]string{"plugin", "rib-cache", "bgp-rib", "event", "cache"})
 	require.NoError(t, err)
-	assert.Equal(t, "rib", sub.Namespace)
+	assert.Equal(t, "bgp-rib", sub.Namespace)
 	assert.Equal(t, "cache", sub.EventType)
 	assert.Equal(t, "rib-cache", sub.PluginFilter)
 	assert.Nil(t, sub.PeerFilter)
@@ -175,10 +175,10 @@ func TestParseSubscriptionInvalidEventType(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"bgp_unknown", []string{"bgp", "event", "unknown"}}, // not a valid bgp event
-		{"bgp_empty", []string{"bgp", "event"}},              // missing event type
-		{"rib_update", []string{"rib", "event", "update"}},   // update is bgp, not rib
-		{"rib_unknown", []string{"rib", "event", "unknown"}}, // not a valid rib event
+		{"bgp_unknown", []string{"bgp", "event", "unknown"}},     // not a valid bgp event
+		{"bgp_empty", []string{"bgp", "event"}},                  // missing event type
+		{"rib_update", []string{"bgp-rib", "event", "update"}},   // update is bgp, not rib
+		{"rib_unknown", []string{"bgp-rib", "event", "unknown"}}, // not a valid rib event
 	}
 
 	for _, tt := range tests {
@@ -259,7 +259,7 @@ func TestSubscriptionMatches(t *testing.T) {
 		{
 			name:      "namespace_mismatch",
 			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both"},
-			namespace: "rib", eventType: "update", direction: "received", peer: "10.0.0.1",
+			namespace: "bgp-rib", eventType: "update", direction: "received", peer: "10.0.0.1",
 			want: false,
 		},
 		{
@@ -484,7 +484,7 @@ func TestValidRibEventTypes(t *testing.T) {
 
 	for _, eventType := range validTypes {
 		t.Run(eventType, func(t *testing.T) {
-			sub, err := ParseSubscription([]string{"rib", "event", eventType})
+			sub, err := ParseSubscription([]string{"bgp-rib", "event", eventType})
 			require.NoError(t, err)
 			assert.Equal(t, eventType, sub.EventType)
 		})

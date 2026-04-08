@@ -237,16 +237,16 @@ neighbor 10.0.0.1 {
 
 	// Check RIB plugin injected
 	plugins := result.Tree.GetList("plugin")
-	_, ok := plugins["rib"]
-	assert.True(t, ok, "expected plugin rib to be injected for GR")
+	_, ok := plugins["bgp-rib"]
+	assert.True(t, ok, "expected plugin bgp-rib to be injected for GR")
 
 	// Check peer has RIB process binding (peer is inside a group)
 	peerTree := findPeerByRemoteIP(t, result.Tree, "10.0.0.1")
 	require.NotNil(t, peerTree, "expected peer 10.0.0.1 in a group")
 
 	processes := peerTree.GetList("process")
-	_, ok = processes["rib"]
-	assert.True(t, ok, "expected process rib binding in peer")
+	_, ok = processes["bgp-rib"]
+	assert.True(t, ok, "expected process bgp-rib binding in peer")
 
 	// Check RIB injected should be in result.RIBInjected
 	assert.True(t, result.RIBInjected, "expected RIBInjected=true")
@@ -302,15 +302,15 @@ neighbor 10.0.0.1 {
 
 	// Check RIB plugin injected
 	plugins := result.Tree.GetList("plugin")
-	_, ok := plugins["rib"]
-	assert.True(t, ok, "expected plugin rib to be injected for route-refresh")
+	_, ok := plugins["bgp-rib"]
+	assert.True(t, ok, "expected plugin bgp-rib to be injected for route-refresh")
 
 	// Check process binding includes refresh (peer is inside a group)
 	peerTree := findPeerByRemoteIP(t, result.Tree, "10.0.0.1")
 	require.NotNil(t, peerTree, "expected peer 10.0.0.1 in a group")
 	processes := peerTree.GetList("process")
-	ribProcess := processes["rib"]
-	require.NotNil(t, ribProcess, "expected process rib binding")
+	ribProcess := processes["bgp-rib"]
+	require.NotNil(t, ribProcess, "expected process bgp-rib binding")
 
 	// Verify send leaf-list includes refresh
 	sendValue, ok := ribProcess.Get("send")

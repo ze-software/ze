@@ -56,7 +56,7 @@ def main():
         sys.exit(1)
 
     # Query rib with community filter to verify the tag was applied.
-    result = dispatch(api, 'rib show received community 65000:100')
+    result = dispatch(api, 'bgp rib show received community 65000:100')
     status = result.get('status')
     if status != 'done':
         print(f'FAIL: rib show community returned status={status}', file=sys.stderr)
@@ -79,7 +79,7 @@ plugin {
 		run ./test-tag.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
@@ -128,7 +128,7 @@ bgp {
 		process test-tag {
 			receive [ update state ]
 		}
-		process rib {
+		process bgp-rib {
 			receive [ state ]
 			send [ update ]
 		}

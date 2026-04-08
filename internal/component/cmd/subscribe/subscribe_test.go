@@ -118,8 +118,8 @@ func TestSubscribeSuccess(t *testing.T) {
 		},
 		{
 			name:      "rib_cache",
-			args:      []string{"rib", "event", "cache"},
-			namespace: "rib",
+			args:      []string{"bgp-rib", "event", "cache"},
+			namespace: "bgp-rib",
 			event:     "cache",
 			direction: "both",
 		},
@@ -164,7 +164,7 @@ func TestUnsubscribeInvalidArgs(t *testing.T) {
 		{"missing_event_keyword", []string{"bgp", "update"}},
 		{"invalid_namespace", []string{"bmp", "event", "update"}},
 		{"missing_event_type", []string{"bgp", "event"}},
-		{"invalid_event_type", []string{"rib", "event", "update"}},
+		{"invalid_event_type", []string{"bgp-rib", "event", "update"}},
 	}
 
 	for _, tt := range tests {

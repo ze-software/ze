@@ -206,12 +206,12 @@ func TestCommandTree(t *testing.T) {
 	// Check rib subcommands (proxy handlers forwarding to bgp-rib plugin)
 	rib := tree.Children["rib"]
 	if rib == nil {
-		t.Fatal("rib command missing")
+		t.Fatal("bgp rib command missing")
 		return
 	}
 	for _, sub := range []string{"status", "routes", "best", "clear"} {
 		if _, ok := rib.Children[sub]; !ok {
-			t.Errorf("rib missing subcommand: %s", sub)
+			t.Errorf("bgp rib missing subcommand: %s", sub)
 		}
 	}
 }
@@ -459,16 +459,16 @@ func TestBuildCommandTreeFamilyValueHints(t *testing.T) {
 
 	rib := tree.Children["rib"]
 	if rib == nil {
-		t.Fatal("rib node missing from command tree")
+		t.Fatal("bgp rib node missing from command tree")
 	}
 
 	if rib.ValueHints == nil {
-		t.Fatal("rib node should have ValueHints for address families")
+		t.Fatal("bgp rib node should have ValueHints for address families")
 	}
 
 	hints := rib.ValueHints()
 	if len(hints) == 0 {
-		t.Fatal("rib ValueHints returned no families")
+		t.Fatal("bgp rib ValueHints returned no families")
 	}
 
 	// Check that both builtin and plugin-registered families are present.
@@ -481,7 +481,7 @@ func TestBuildCommandTreeFamilyValueHints(t *testing.T) {
 	}
 	for _, want := range []string{"ipv4/unicast", "ipv6/unicast", "ipv4/mpls-vpn", "l2vpn/evpn"} {
 		if !found[want] {
-			t.Errorf("rib ValueHints missing family %q, got %v", want, hints)
+			t.Errorf("bgp rib ValueHints missing family %q, got %v", want, hints)
 		}
 	}
 }

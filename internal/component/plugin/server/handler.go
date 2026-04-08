@@ -159,5 +159,5 @@ type RPCRegistration struct {
 	WireMethod       string  // "module:rpc-name" format (e.g., "ze-bgp:peer-list")
 	Handler          Handler // Handler function
 	RequiresSelector bool    // True if peer commands must have explicit selector (not default "*")
-	PluginCommand    string  // If set, this builtin proxies to a runtime plugin command (e.g., "rib show")
+	PluginCommand    string  // If set, this builtin proxies to a runtime plugin command (e.g., "bgp rib show")
 }

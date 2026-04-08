@@ -191,8 +191,8 @@ func TestSysRIBPublishChange(t *testing.T) {
 
 	evt := bus.lastEvent()
 	require.NotNil(t, evt)
-	assert.Equal(t, plugin.NamespaceSysrib, evt.Namespace)
-	assert.Equal(t, plugin.EventSysribBestChange, evt.EventType)
+	assert.Equal(t, plugin.NamespaceSystemRIB, evt.Namespace)
+	assert.Equal(t, plugin.EventSystemRIBBestChange, evt.EventType)
 
 	var batch outgoingBatch
 	require.NoError(t, json.Unmarshal([]byte(evt.Payload), &batch))
@@ -408,12 +408,12 @@ func TestParseAdminDistanceConfig(t *testing.T) {
 	}{
 		{
 			name:     "full config",
-			json:     `{"sysrib":{"admin-distance":{"ebgp":30,"ibgp":150,"static":10}}}`,
+			json:     `{"rib":{"admin-distance":{"ebgp":30,"ibgp":150,"static":10}}}`,
 			expected: map[string]int{"ebgp": 30, "ibgp": 150, "static": 10},
 		},
 		{
 			name:     "no admin-distance block",
-			json:     `{"sysrib":{}}`,
+			json:     `{"rib":{}}`,
 			expected: map[string]int{},
 		},
 		{

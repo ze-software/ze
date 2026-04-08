@@ -181,13 +181,13 @@ func (f *fibP4) run(ctx context.Context, flushOnStop bool) {
 		return
 	}
 
-	unsub := eb.Subscribe(plugin.NamespaceSysrib, plugin.EventSysribBestChange, func(payload string) {
+	unsub := eb.Subscribe(plugin.NamespaceSystemRIB, plugin.EventSystemRIBBestChange, func(payload string) {
 		f.processEvent(payload)
 	})
 	defer unsub()
 
 	// Request full-table replay from sysrib. Empty payload by convention.
-	if _, err := eb.Emit(plugin.NamespaceSysrib, plugin.EventSysribReplayRequest, ""); err != nil {
+	if _, err := eb.Emit(plugin.NamespaceSystemRIB, plugin.EventSystemRIBReplayRequest, ""); err != nil {
 		logger().Warn("fib-p4: replay-request emit failed", "error", err)
 	}
 

@@ -16,11 +16,11 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:        "sysrib",
+		Name:        "rib",
 		Description: "System RIB: selects best route across protocols by admin distance",
 		Features:    "yang",
-		YANG:        sysribschema.ZeSysribConfYANG,
-		ConfigRoots: []string{"sysrib"},
+		YANG:        sysribschema.ZeRibConfYANG,
+		ConfigRoots: []string{"rib"},
 		RunEngine:   runSysRIBPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -47,7 +47,7 @@ func init() {
 func runSysRIBPlugin(conn net.Conn) int {
 	logger().Debug("sysrib plugin starting (RPC)")
 
-	p := sdk.NewWithConn("sysrib", conn)
+	p := sdk.NewWithConn("rib", conn)
 	defer func() { _ = p.Close() }()
 
 	s := newSysRIB()
@@ -57,7 +57,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "sysrib" {
+			if section.Root != "rib" {
 				continue
 			}
 			dist, err := parseAdminDistanceConfig(section.Data)
@@ -76,7 +76,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "sysrib" {
+			if section.Root != "rib" {
 				continue
 			}
 			dist, err := parseAdminDistanceConfig(section.Data)
@@ -165,7 +165,7 @@ func runSysRIBPlugin(conn net.Conn) int {
 	})
 
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, string, error) {
-		if command == "sysrib show" {
+		if command == "rib show" {
 			data, err := s.showRIB()
 			if err != nil {
 				return "error", "", err
@@ -177,11 +177,11 @@ func runSysRIBPlugin(conn net.Conn) int {
 
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"sysrib"},
+		WantsConfig:  []string{"rib"},
 		VerifyBudget: 1,
 		ApplyBudget:  2,
 		Commands: []sdk.CommandDecl{
-			{Name: "sysrib show"},
+			{Name: "rib show"},
 		},
 	})
 	if err != nil {

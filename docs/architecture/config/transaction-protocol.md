@@ -195,11 +195,11 @@ tier `k` plugins depend (transitively) on plugins in tiers `0..k-1`. Plugins
 within a tier run concurrently so their cost is the max; tiers are serialized
 because tier `k+1` can only start after tier `k` finishes.
 
-Example: bgp (tier 0, 10s) and sysrib (tier 0, 5s) run concurrently in tier 0;
-fib-kernel (tier 1, 3s) depends on sysrib. Tier 0 max = max(10, 5) = 10s.
+Example: bgp (tier 0, 10s) and rib (tier 0, 5s) run concurrently in tier 0;
+fib-kernel (tier 1, 3s) depends on rib. Tier 0 max = max(10, 5) = 10s.
 Tier 1 max = 3s. Total deadline = 10 + 3 = 13s. The pre-graph flat formula
 would have returned 10s, missing the 3 seconds the fib plugin needs after
-sysrib finishes.
+rib finishes.
 
 ### Self-Correcting Feedback
 
@@ -354,7 +354,7 @@ stopped. This happens outside the transaction, not inside it.
 
 | Change | When | Why |
 |--------|------|-----|
-| New config root added (e.g., `sysrib {}`) | Plugin loaded via 5-stage protocol **before** transaction starts | Plugin must be running to participate in verify |
+| New config root added (e.g., `rib {}`) | Plugin loaded via 5-stage protocol **before** transaction starts | Plugin must be running to participate in verify |
 | Config root removed (e.g., `bgp {}` deleted) | Plugin participates in transaction (cleans up during apply), stopped **after** `(config, committed)` | Plugin needs to shut down resources cleanly via journal |
 
 On rollback of a removal: the plugin rolled back its cleanup (resources restored).
@@ -541,16 +541,16 @@ Caller (Web UI / API / SIGHUP)
   v
 Engine ----(config, verify-iface)-----> [iface]
 Engine ----(config, verify-bgp)-------> [bgp]
-Engine ----(config, verify-sysrib)----> [sysrib]
+Engine ----(config, verify-rib)----> [rib]
 Engine ----(config, verify-dhcp)------> [dhcp]
   |   <---(config, verify-ok)---- [iface]
   |   <---(config, verify-ok)---- [bgp]
-  |   <---(config, verify-ok)---- [sysrib]
+  |   <---(config, verify-ok)---- [rib]
   |   <---(config, verify-ok)---- [dhcp]
   |
 Engine ----(config, apply-iface)------> [iface]
 Engine ----(config, apply-bgp)--------> [bgp]
-Engine ----(config, apply-sysrib)-----> [sysrib]
+Engine ----(config, apply-rib)-----> [rib]
 Engine ----(config, apply-dhcp)-------> [dhcp]
   |                              |
   |                              +--(interface, created)----> [dhcp]
@@ -559,10 +559,10 @@ Engine ----(config, apply-dhcp)-------> [dhcp]
   |   <---(config, apply-ok)---- [iface]
   |   <---(config, apply-ok)---- [dhcp]   (after interface/created)
   |   <---(config, apply-ok)---- [bgp]    (after interface/addr-added)
-  |   <---(config, apply-ok)---- [sysrib]
+  |   <---(config, apply-ok)---- [rib]
   |
   |
-Engine ----(config, committed)--> [iface] [bgp] [sysrib] [dhcp]   (discard journals)
+Engine ----(config, committed)--> [iface] [bgp] [rib] [dhcp]   (discard journals)
   |
   | write config file (best effort -- failure is warning, not rollback)
   |

@@ -93,7 +93,7 @@ plugin {
 		run ./refresh.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
@@ -128,7 +128,7 @@ bgp {
 	
 		process announce-routes {
 		}
-		process rib {
+		process bgp-rib {
 			send [ update refresh enhanced-refresh ]
 		}
 	}

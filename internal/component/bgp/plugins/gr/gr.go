@@ -113,18 +113,18 @@ func RunGRPlugin(conn net.Conn) int {
 	// LLGR_STALE = 0xFFFF0006, NO_LLGR = 0xFFFF0007 (wire hex).
 	gp.state.onLLGREnter = func(peerAddr, fam string, llst uint32) {
 		// 1. Delete routes with NO_LLGR community
-		gp.dispatchCommand("rib delete-with-community " + peerAddr + " " + fam + " ffff0007")
+		gp.dispatchCommand("bgp rib delete-with-community " + peerAddr + " " + fam + " ffff0007")
 		// 2. Attach LLGR_STALE community to remaining stale routes
-		gp.dispatchCommand("rib attach-community " + peerAddr + " " + fam + " ffff0006")
+		gp.dispatchCommand("bgp rib attach-community " + peerAddr + " " + fam + " ffff0006")
 		// 3. Raise stale level to depreference threshold
 		// Raise stale level to 2 (depreference threshold) via mark-stale
 		// with restart-time=0 (no new timer needed, LLST timer handles expiry).
-		gp.dispatchCommand("rib mark-stale " + peerAddr + " 0 2")
+		gp.dispatchCommand("bgp rib mark-stale " + peerAddr + " 0 2")
 	}
 	gp.state.onLLGREntryDone = func(peerAddr string, families []string) {
 		// RFC 9494: readvertise per-fam (not all-fam) to avoid resending unrelated families.
 		for _, fam := range families {
-			gp.dispatchCommand("rib clear out !" + peerAddr + " " + fam)
+			gp.dispatchCommand("bgp rib clear out !" + peerAddr + " " + fam)
 		}
 		// Increment LLGR active count for egress filter fast-path.
 		if s := egressState.Load(); s != nil {
@@ -132,10 +132,10 @@ func RunGRPlugin(conn net.Conn) int {
 		}
 	}
 	gp.state.onLLGRFamilyExpired = func(peerAddr, fam string) {
-		gp.dispatchCommand("rib purge-stale " + peerAddr + " " + fam)
+		gp.dispatchCommand("bgp rib purge-stale " + peerAddr + " " + fam)
 	}
 	gp.state.onLLGRComplete = func(peerAddr string) {
-		gp.dispatchCommand("rib release-routes " + peerAddr)
+		gp.dispatchCommand("bgp rib release-routes " + peerAddr)
 		// Decrement LLGR active count for egress filter fast-path.
 		if s := egressState.Load(); s != nil {
 			s.llgrActiveCount.Add(-1)
@@ -339,9 +339,9 @@ func (gp *grPlugin) handleStructuredState(peerAddr, state, reason string) {
 
 		activated := gp.state.onSessionDown(peerAddr, cap, llgrCap, wasNotification)
 		if activated {
-			gp.dispatchCommand("rib purge-stale " + peerAddr)
-			gp.dispatchCommand("rib retain-routes " + peerAddr)
-			gp.dispatchCommand("rib mark-stale " + peerAddr + " " + strconv.FormatUint(uint64(cap.RestartTime), 10))
+			gp.dispatchCommand("bgp rib purge-stale " + peerAddr)
+			gp.dispatchCommand("bgp rib retain-routes " + peerAddr)
+			gp.dispatchCommand("bgp rib mark-stale " + peerAddr + " " + strconv.FormatUint(uint64(cap.RestartTime), 10))
 		}
 
 	case "up":
@@ -352,7 +352,7 @@ func (gp *grPlugin) handleStructuredState(peerAddr, state, reason string) {
 
 		purged, wasInLLGR := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
 		for _, fam := range purged {
-			gp.dispatchCommand("rib purge-stale " + peerAddr + " " + fam)
+			gp.dispatchCommand("bgp rib purge-stale " + peerAddr + " " + fam)
 		}
 		if wasInLLGR {
 			if s := egressState.Load(); s != nil {
@@ -497,11 +497,11 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 		if activated {
 			// 3-step session-down sequence (RFC 4724 + consecutive restart handling):
 			// 1. Purge old stale routes from previous GR cycle (no-op on first disconnect)
-			gp.dispatchCommand("rib purge-stale " + peerAddr)
+			gp.dispatchCommand("bgp rib purge-stale " + peerAddr)
 			// 2. Retain routes — prevents bgp-rib from deleting on state=down
-			gp.dispatchCommand("rib retain-routes " + peerAddr)
+			gp.dispatchCommand("bgp rib retain-routes " + peerAddr)
 			// 3. Mark remaining routes as stale for new GR cycle
-			gp.dispatchCommand("rib mark-stale " + peerAddr + " " + strconv.FormatUint(uint64(cap.RestartTime), 10))
+			gp.dispatchCommand("bgp rib mark-stale " + peerAddr + " " + strconv.FormatUint(uint64(cap.RestartTime), 10))
 		}
 
 	case "up":
@@ -513,7 +513,7 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 		purged, wasInLLGR := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
 		for _, fam := range purged {
 			// RFC 4724: purge stale routes for families with F-bit=0 or missing
-			gp.dispatchCommand("rib purge-stale " + peerAddr + " " + fam)
+			gp.dispatchCommand("bgp rib purge-stale " + peerAddr + " " + fam)
 		}
 		if wasInLLGR {
 			if s := egressState.Load(); s != nil {
@@ -539,7 +539,7 @@ func (gp *grPlugin) handleEOREvent(peerAddr string, payload map[string]any) {
 	shouldPurge := gp.state.onEORReceived(peerAddr, fam)
 	if shouldPurge {
 		// RFC 4724: purge only stale routes for this family (selective, not nuclear)
-		gp.dispatchCommand("rib purge-stale " + peerAddr + " " + fam)
+		gp.dispatchCommand("bgp rib purge-stale " + peerAddr + " " + fam)
 		logger().Debug("gr: EOR received, purging stale routes", "peer", peerAddr, "family", fam)
 	}
 }
@@ -556,7 +556,7 @@ func (gp *grPlugin) onTimerExpired(peerAddr string) {
 // releaseRoutes tells bgp-rib to release (delete) retained routes for a peer.
 // Also prunes the cached peer capabilities since GR/LLGR is fully complete.
 func (gp *grPlugin) releaseRoutes(peerAddr string) {
-	gp.dispatchCommand("rib release-routes " + peerAddr)
+	gp.dispatchCommand("bgp rib release-routes " + peerAddr)
 
 	gp.mu.Lock()
 	delete(gp.peerCaps, peerAddr)

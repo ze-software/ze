@@ -170,7 +170,7 @@ func TestRPCRegistrationToRegistry(t *testing.T) {
 			{Name: "ipv6/unicast", Mode: "encode"},
 		},
 		Commands: []rpc.CommandDecl{
-			{Name: "rib adjacent in show", Description: "Show adjacent RIB"},
+			{Name: "bgp rib adjacent in show", Description: "Show adjacent RIB"},
 			{Name: "peer * refresh", Description: "Refresh peer"},
 		},
 		WantsConfig: []string{"bgp"},
@@ -187,7 +187,7 @@ func TestRPCRegistrationToRegistry(t *testing.T) {
 	require.NoError(t, registry.Register(reg))
 
 	// Verify multi-word commands are routable
-	assert.Equal(t, "rib", registry.LookupCommand("rib adjacent in show"))
+	assert.Equal(t, "rib", registry.LookupCommand("bgp rib adjacent in show"))
 	assert.Equal(t, "rib", registry.LookupCommand("peer * refresh"))
 	assert.Empty(t, registry.LookupCommand("unknown cmd"))
 
@@ -302,7 +302,7 @@ func TestRPCRegistrationConflictThroughConversion(t *testing.T) {
 
 	// First plugin registers via RPC
 	input1 := &rpc.DeclareRegistrationInput{
-		Commands: []rpc.CommandDecl{{Name: "rib show"}},
+		Commands: []rpc.CommandDecl{{Name: "bgp rib show"}},
 		Families: []rpc.FamilyDecl{{Name: "ipv4/flow", Mode: "decode"}},
 	}
 	reg1 := registrationFromRPC(input1)
@@ -311,7 +311,7 @@ func TestRPCRegistrationConflictThroughConversion(t *testing.T) {
 
 	// Second plugin tries same command
 	input2 := &rpc.DeclareRegistrationInput{
-		Commands: []rpc.CommandDecl{{Name: "rib show"}},
+		Commands: []rpc.CommandDecl{{Name: "bgp rib show"}},
 	}
 	reg2 := registrationFromRPC(input2)
 	reg2.Name = "rib2"

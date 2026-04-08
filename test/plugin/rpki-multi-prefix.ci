@@ -38,7 +38,7 @@ def main():
     time.sleep(5.0)
 
     try:
-        result = dispatch(api, 'rib routes received')
+        result = dispatch(api, 'bgp rib routes received')
         if result.get('status') != 'done':
             print(f'FAIL: rib routes received status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

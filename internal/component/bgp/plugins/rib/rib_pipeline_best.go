@@ -1,4 +1,4 @@
-// Design: docs/architecture/plugin/rib-storage-design.md — best-path pipeline for rib show best commands
+// Design: docs/architecture/plugin/rib-storage-design.md — best-path pipeline for bgp rib show best commands
 // Overview: rib.go — RIB plugin core types and event handlers
 // Related: rib_pipeline.go — iterator pipeline for show commands (scope, filters, terminals)
 // Related: rib_commands.go — command handling and JSON responses
@@ -106,7 +106,7 @@ func (s *bestSource) Meta() PipelineMeta {
 // --- Best-path pipeline builder ---
 
 // bestPipeline builds and executes a pipeline from best-path source.
-// Called by handleCommand for "rib show best" with optional filter/terminal stages.
+// Called by handleCommand for "bgp rib show best" with optional filter/terminal stages.
 // Returns JSON string result with "best-path" top-level key.
 func (r *RIBManager) bestPipeline(selector string, args []string) string {
 	r.mu.RLock()
@@ -144,7 +144,7 @@ func (r *RIBManager) bestPipeline(selector string, args []string) string {
 	return string(data)
 }
 
-// parseBestPipelineArgs parses args for rib show best (no scope keyword, filters + terminals only).
+// parseBestPipelineArgs parses args for bgp rib show best (no scope keyword, filters + terminals only).
 // Returns (stages, errorMessage).
 // Validates ordering: filters must precede terminals, and at most one terminal is allowed.
 func parseBestPipelineArgs(args []string) ([]pipelineStage, string) {

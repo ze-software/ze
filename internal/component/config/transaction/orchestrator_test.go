@@ -985,7 +985,7 @@ func TestOrchestratorDependencyGraphDeadline(t *testing.T) {
 		var tier0, tier1 []string
 		for _, n := range names {
 			switch n {
-			case "bgp", "sysrib":
+			case "bgp", "rib":
 				tier0 = append(tier0, n)
 			case "fib-kernel", "fib-p4":
 				tier1 = append(tier1, n)
@@ -997,7 +997,7 @@ func TestOrchestratorDependencyGraphDeadline(t *testing.T) {
 	gw := newTestGateway()
 	pp := []Participant{
 		{Name: "bgp", ApplyBudget: 10, VerifyBudget: 4},
-		{Name: "sysrib", ApplyBudget: 5, VerifyBudget: 2},
+		{Name: "rib", ApplyBudget: 5, VerifyBudget: 2},
 		{Name: "fib-kernel", ApplyBudget: 3, VerifyBudget: 1},
 		{Name: "fib-p4", ApplyBudget: 2, VerifyBudget: 1},
 	}

@@ -34,14 +34,14 @@ def main():
 
     try:
         # Test per-family clear out
-        result = dispatch(api, 'rib clear out * ipv4/unicast')
+        result = dispatch(api, 'bgp rib clear out * ipv4/unicast')
         if result.get('status') != 'done':
             print(f'FAIL: status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
         print('OK: rib clear out * ipv4/unicast dispatched', file=sys.stderr)
 
         # Test no-arg error
-        result = dispatch(api, 'rib clear out')
+        result = dispatch(api, 'bgp rib clear out')
         if result.get('status') != 'error':
             print(f'FAIL: expected error for no-arg, got status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
@@ -61,7 +61,7 @@ plugin {
 		run ./rib-clear-out-family-test.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
@@ -103,7 +103,7 @@ bgp {
 
 		process rib-clear-out-family-test {
 		}
-		process rib {
+		process bgp-rib {
 			receive [ state ]
 			send [ update ]
 		}

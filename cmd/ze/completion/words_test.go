@@ -108,15 +108,15 @@ func TestWordsRunRibIncludesFamilyHints(t *testing.T) {
 
 	// Static children should be present.
 	if !strings.Contains(output, "best\t") {
-		t.Error("rib output missing static child 'best'")
+		t.Error("bgp rib output missing static child 'best'")
 	}
 
 	// ValueHints families should be present.
 	if !strings.Contains(output, "ipv4/mpls-vpn\t") {
-		t.Error("rib output missing family ValueHint 'ipv4/mpls-vpn'")
+		t.Error("bgp rib output missing family ValueHint 'ipv4/mpls-vpn'")
 	}
 	if !strings.Contains(output, "l2vpn/evpn\t") {
-		t.Error("rib output missing family ValueHint 'l2vpn/evpn'")
+		t.Error("bgp rib output missing family ValueHint 'l2vpn/evpn'")
 	}
 }
 

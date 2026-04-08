@@ -115,7 +115,7 @@ func TestEnvLogMapping(t *testing.T) {
 	}{
 		{"packets true", "packets", "true", "bgp.wire", "debug"},
 		{"packets false", "packets", "false", "bgp.wire", "disabled"},
-		{"rib true", "rib", "true", "plugin.rib", "debug"},
+		{"bgp rib true", "rib", "true", "plugin.bgp-rib", "debug"},
 		{"configuration true", "configuration", "true", "config", "debug"},
 		{"daemon true", "daemon", "true", "daemon", "debug"},
 		{"processes true", "processes", "true", "plugin", "debug"},
@@ -276,7 +276,7 @@ func TestEnvFullFile(t *testing.T) {
 	assert.Contains(t, output, "Python-only")
 	// Should have config entries
 	assert.Contains(t, output, "bgp.wire debug")
-	assert.Contains(t, output, "plugin.rib disabled")
+	assert.Contains(t, output, "plugin.bgp-rib disabled")
 }
 
 // TestEnvPortBoundary verifies port values are validated.

@@ -35,7 +35,7 @@ def main():
 
     try:
         # Inject a route
-        result = dispatch(api, 'rib inject 10.0.0.99 ipv4/unicast 192.168.1.0/24 origin igp aspath 64500,64501')
+        result = dispatch(api, 'bgp rib inject 10.0.0.99 ipv4/unicast 192.168.1.0/24 origin igp aspath 64500,64501')
         if result.get('status') != 'done':
             print(f'FAIL: rib inject status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
@@ -46,7 +46,7 @@ def main():
             sys.exit(1)
 
         # Verify route appears in rib show
-        result = dispatch(api, 'rib show received')
+        result = dispatch(api, 'bgp rib show received')
         if result.get('status') != 'done':
             print(f'FAIL: rib show status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
@@ -72,7 +72,7 @@ plugin {
 		run ./rib-inject-test.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
@@ -114,7 +114,7 @@ bgp {
 
 		process rib-inject-test {
 		}
-		process rib {
+		process bgp-rib {
 			receive [ state ]
 			send [ update ]
 		}

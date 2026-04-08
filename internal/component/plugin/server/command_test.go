@@ -211,7 +211,7 @@ func TestDispatcherListCommands(t *testing.T) {
 
 	d.Register("daemon shutdown", nil, "Shutdown the daemon")
 	d.Register("peer show", nil, "Show peers")
-	d.Register("rib show in", nil, "Show Adj-RIB-In")
+	d.Register("bgp rib show in", nil, "Show Adj-RIB-In")
 
 	cmds := d.Commands()
 	assert.Len(t, cmds, 3)
@@ -223,7 +223,7 @@ func TestDispatcherListCommands(t *testing.T) {
 	}
 	assert.True(t, names["daemon shutdown"])
 	assert.True(t, names["peer show"])
-	assert.True(t, names["rib show in"])
+	assert.True(t, names["bgp rib show in"])
 }
 
 // TestCommandContextNilServer verifies accessor methods return nil safely when Server is nil.
@@ -417,12 +417,12 @@ func TestDispatchWildcardSelector(t *testing.T) {
 func TestForwardToPluginNotRegistered(t *testing.T) {
 	d := NewDispatcher()
 
-	resp, err := d.ForwardToPlugin("rib status", nil, "*")
+	resp, err := d.ForwardToPlugin("bgp rib status", nil, "*")
 	require.Error(t, err)
 	assert.Nil(t, resp)
 	assert.True(t, errors.Is(err, ErrUnknownCommand),
 		"expected ErrUnknownCommand, got: %v", err)
-	assert.Contains(t, err.Error(), "rib status")
+	assert.Contains(t, err.Error(), "bgp rib status")
 }
 
 // TestForwardToPluginRegistered verifies ForwardToPlugin finds registered commands.
@@ -436,11 +436,11 @@ func TestForwardToPluginRegistered(t *testing.T) {
 	// Register a plugin command (process not running)
 	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-rib"})
 	d.Registry().Register(proc, []CommandDef{
-		{Name: "rib status", Description: "RIB summary"},
+		{Name: "bgp rib status", Description: "RIB summary"},
 	})
 
 	// ForwardToPlugin should find the command but fail because process isn't running
-	resp, err := d.ForwardToPlugin("rib status", nil, "*")
+	resp, err := d.ForwardToPlugin("bgp rib status", nil, "*")
 	require.Error(t, err)
 	assert.False(t, errors.Is(err, ErrUnknownCommand),
 		"command should be found in registry, got: %v", err)
@@ -450,14 +450,14 @@ func TestForwardToPluginRegistered(t *testing.T) {
 	assert.Nil(t, resp)
 }
 
-// TestDispatchPeerScopedPluginCommand verifies that "peer <addr> rib show"
+// TestDispatchPeerScopedPluginCommand verifies that "peer <addr> bgp rib show"
 // reaches the plugin registry after stripping the "peer" keyword.
-// The builtin table has "peer list" etc., but "rib show" is only in the
+// The builtin table has "peer list" etc., but "bgp rib show" is only in the
 // plugin CommandRegistry. The dispatcher must strip "peer" before the
-// plugin fallback so "rib show" matches.
+// plugin fallback so "bgp rib show" matches.
 //
 // VALIDATES: Cross-domain peer-scoped commands reach plugin dispatch.
-// PREVENTS: "unknown command" for "peer 10.0.0.1 rib show".
+// PREVENTS: "unknown command" for "peer 10.0.0.1 bgp rib show".
 func TestDispatchPeerScopedPluginCommand(t *testing.T) {
 	d := NewDispatcher()
 
@@ -467,22 +467,22 @@ func TestDispatchPeerScopedPluginCommand(t *testing.T) {
 	}
 	d.Register("peer list", nop, "List peers")
 
-	// Register "rib show" as a plugin command (not a builtin).
+	// Register "bgp rib show" as a plugin command (not a builtin).
 	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-rib"})
 	d.Registry().Register(proc, []CommandDef{
-		{Name: "rib show", Description: "Show routes"},
+		{Name: "bgp rib show", Description: "Show routes"},
 	})
 
-	// Dispatch "peer 10.0.0.1 rib show" -- should find "rib show" in plugin registry.
+	// Dispatch "peer 10.0.0.1 bgp rib show" -- should find "bgp rib show" in plugin registry.
 	ctx := &CommandContext{}
-	_, err := d.Dispatch(ctx, "peer 10.0.0.1 rib show")
+	_, err := d.Dispatch(ctx, "peer 10.0.0.1 bgp rib show")
 
 	// routeToProcess fails because the process isn't running, but the LOOKUP
 	// must succeed (not ErrUnknownCommand). ErrPluginProcessNotRunning means
 	// the command WAS found in the registry.
 	require.Error(t, err)
 	assert.False(t, errors.Is(err, ErrUnknownCommand),
-		"'rib show' should be found after stripping 'peer' prefix, got: %v", err)
+		"'bgp rib show' should be found after stripping 'peer' prefix, got: %v", err)
 	assert.Equal(t, "10.0.0.1", ctx.PeerSelector())
 }
 
@@ -561,22 +561,22 @@ func TestHasCommandPrefixPluginRegistry(t *testing.T) {
 }
 
 // TestForwardToPluginBuiltinConflict verifies that registering a builtin
-// with "rib status" conflicts with a plugin command "rib status".
+// with "bgp rib status" conflicts with a plugin command "bgp rib status".
 //
-// VALIDATES: Builtin proxy "rib status" blocks plugin registration of same name.
+// VALIDATES: Builtin proxy "bgp rib status" blocks plugin registration of same name.
 // PREVENTS: Duplicate command name confusion in dispatch.
 func TestForwardToPluginBuiltinConflict(t *testing.T) {
 	d := NewDispatcher()
 
-	// Register builtin "rib status" (the proxy handler)
-	d.Register("rib status", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	// Register builtin "bgp rib status" (the proxy handler)
+	d.Register("bgp rib status", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "RIB summary")
 
 	// Plugin tries to register same name -- should be rejected
 	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-rib"})
 	results := d.Registry().Register(proc, []CommandDef{
-		{Name: "rib status", Description: "RIB summary"},
+		{Name: "bgp rib status", Description: "RIB summary"},
 	})
 	assert.False(t, results[0].OK, "plugin 'rib status' should conflict with builtin 'rib status'")
 	assert.Contains(t, results[0].Error, "conflicts with builtin")

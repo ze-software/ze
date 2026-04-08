@@ -250,7 +250,7 @@ func extractMPNextHop(entry storage.RouteEntry) string {
 }
 
 // replayBestPaths emits the entire current best-path table as one batch per
-// family. Used when a downstream consumer (e.g. sysrib) sends
+// family. Used when a downstream consumer (e.g. rib) sends
 // (rib, replay-request). The Replay flag in the payload distinguishes a
 // replay batch from a normal incremental change batch.
 // Caller MUST NOT hold r.mu.
@@ -289,7 +289,7 @@ func (r *RIBManager) replayBestPaths() {
 			logger().Warn("replay marshal failed", "error", err)
 			continue
 		}
-		if _, err := eb.Emit(plugin.NamespaceRIB, plugin.EventBestChange, string(payload)); err != nil {
+		if _, err := eb.Emit(plugin.NamespaceBGPRIB, plugin.EventBestChange, string(payload)); err != nil {
 			logger().Warn("replay emit failed", "error", err)
 		}
 	}
@@ -315,7 +315,7 @@ func publishBestChanges(changes []bestChangeEntry, family string) {
 		logger().Warn("best-change marshal failed", "error", err)
 		return
 	}
-	if _, err := eb.Emit(plugin.NamespaceRIB, plugin.EventBestChange, string(payload)); err != nil {
+	if _, err := eb.Emit(plugin.NamespaceBGPRIB, plugin.EventBestChange, string(payload)); err != nil {
 		logger().Warn("best-change emit failed", "error", err)
 	}
 }

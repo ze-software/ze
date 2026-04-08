@@ -5,5 +5,5 @@ import (
 )
 
 func init() {
-	yang.RegisterModule("ze-sysrib-conf.yang", ZeSysribConfYANG)
+	yang.RegisterModule("ze-rib-conf.yang", ZeRibConfYANG)
 }

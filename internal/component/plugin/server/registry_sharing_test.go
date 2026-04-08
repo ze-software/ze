@@ -18,7 +18,7 @@ func TestRegistryBuildFromPlugins(t *testing.T) {
 		reg := &plugin.PluginRegistration{
 			Name:      "rib-plugin",
 			Encodings: []string{"text"},
-			Commands:  []string{"rib show", "rib clear"},
+			Commands:  []string{"bgp rib show", "bgp rib clear"},
 			Done:      true,
 		}
 
@@ -68,7 +68,7 @@ func TestRegistryCommandConflict(t *testing.T) {
 
 	reg1 := &plugin.PluginRegistration{
 		Name:     "plugin1",
-		Commands: []string{"rib show"},
+		Commands: []string{"bgp rib show"},
 		Done:     true,
 	}
 	require.NoError(t, registry.Register(reg1))
@@ -76,14 +76,14 @@ func TestRegistryCommandConflict(t *testing.T) {
 	// Second plugin tries same command
 	reg2 := &plugin.PluginRegistration{
 		Name:     "plugin2",
-		Commands: []string{"rib show"},
+		Commands: []string{"bgp rib show"},
 		Done:     true,
 	}
 
 	err := registry.Register(reg2)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "conflict")
-	assert.Contains(t, err.Error(), "rib show")
+	assert.Contains(t, err.Error(), "bgp rib show")
 }
 
 // TestRegistryCommandLookup verifies commands can be looked up by name.
@@ -95,15 +95,15 @@ func TestRegistryCommandLookup(t *testing.T) {
 
 	reg := &plugin.PluginRegistration{
 		Name:     "rib-plugin",
-		Commands: []string{"rib show", "rib clear"},
+		Commands: []string{"bgp rib show", "bgp rib clear"},
 		Done:     true,
 	}
 	require.NoError(t, registry.Register(reg))
 
-	plugin := registry.LookupCommand("rib show")
+	plugin := registry.LookupCommand("bgp rib show")
 	assert.Equal(t, "rib-plugin", plugin)
 
-	plugin = registry.LookupCommand("RIB SHOW") // case insensitive
+	plugin = registry.LookupCommand("BGP RIB SHOW") // case insensitive
 	assert.Equal(t, "rib-plugin", plugin)
 
 	plugin = registry.LookupCommand("unknown cmd")

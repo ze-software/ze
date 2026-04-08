@@ -345,11 +345,11 @@ func TestBuildPipelineFilterKeywordNoValue(t *testing.T) {
 	}
 }
 
-// --- Phase 4: Unified rib show / rib show best ---
+// --- Phase 4: Unified bgp bgp rib show / bgp rib show best ---
 
 // TestShowPipelineBothDirections verifies default scope returns both directions.
 //
-// VALIDATES: rib show (no scope) returns both adj-rib-in and adj-rib-out routes.
+// VALIDATES: bgp rib show (no scope) returns both adj-rib-in and adj-rib-out routes.
 // PREVENTS: Default scope only returning one direction.
 func TestShowPipelineBothDirections(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -381,7 +381,7 @@ func TestShowPipelineBothDirections(t *testing.T) {
 
 // TestShowPipelineReceivedScope verifies received scope returns only inbound.
 //
-// VALIDATES: rib show received returns only adj-rib-in routes.
+// VALIDATES: bgp rib show received returns only adj-rib-in routes.
 // PREVENTS: Outbound routes leaking into received scope.
 func TestShowPipelineReceivedScope(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -410,7 +410,7 @@ func TestShowPipelineReceivedScope(t *testing.T) {
 
 // TestShowPipelineSentScope verifies sent scope returns only outbound.
 //
-// VALIDATES: rib show sent returns only adj-rib-out routes.
+// VALIDATES: bgp rib show sent returns only adj-rib-out routes.
 // PREVENTS: Inbound routes leaking into sent scope.
 func TestShowPipelineSentScope(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -470,10 +470,10 @@ func TestShowPipelineComposed(t *testing.T) {
 	assert.Equal(t, float64(1), count, "expected 1 route matching path 64501 AND community 65000:100")
 }
 
-// TestHandleCommandRibShow verifies unified rib show via handleCommand.
+// TestHandleCommandRibShow verifies unified bgp rib show via handleCommand.
 //
-// VALIDATES: "rib show" is dispatched through handleCommand.
-// PREVENTS: rib show not being wired into the command handler.
+// VALIDATES: "bgp rib show" is dispatched through handleCommand.
+// PREVENTS: bgp rib show not being wired into the command handler.
 func TestHandleCommandRibShow(t *testing.T) {
 	r := newTestRIBManager(t)
 
@@ -484,7 +484,7 @@ func TestHandleCommandRibShow(t *testing.T) {
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
-	status, data, err := r.handleCommand("rib show", "*", nil)
+	status, data, err := r.handleCommand("bgp rib show", "*", nil)
 	assert.Equal(t, statusDone, status)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, data)
@@ -493,9 +493,9 @@ func TestHandleCommandRibShow(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(data), &parsed))
 }
 
-// TestHandleCommandRibShowCount verifies rib show with count terminal.
+// TestHandleCommandRibShowCount verifies bgp rib show with count terminal.
 //
-// VALIDATES: "rib show" with count arg returns count without serializing routes.
+// VALIDATES: "bgp rib show" with count arg returns count without serializing routes.
 // PREVENTS: count terminal still building full JSON output.
 func TestHandleCommandRibShowCount(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -507,7 +507,7 @@ func TestHandleCommandRibShowCount(t *testing.T) {
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
-	status, data, err := r.handleCommand("rib show", "*", []string{"count"})
+	status, data, err := r.handleCommand("bgp rib show", "*", []string{"count"})
 	assert.Equal(t, statusDone, status)
 	assert.NoError(t, err)
 
@@ -520,16 +520,16 @@ func TestHandleCommandRibShowCount(t *testing.T) {
 
 // TestHandleCommandOldCommandsError verifies old commands return errors.
 //
-// VALIDATES: Old commands (rib show in, rib show out, rib show best) return pipeline errors;
+// VALIDATES: Old commands (bgp rib show in, bgp rib show out, bgp rib show best) return pipeline errors;
 // truly unknown commands return Go errors.
 // PREVENTS: Old commands silently working after migration.
 func TestHandleCommandOldCommandsError(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	// Pipeline-parsed old keywords: routed through "rib show" with args,
+	// Pipeline-parsed old keywords: routed through "bgp rib show" with args,
 	// parsePipelineArgs returns "unknown keyword" error in JSON data.
 	for _, keyword := range []string{"in", "out", "best"} {
-		status, data, err := r.handleCommand("rib show", "*", []string{keyword})
+		status, data, err := r.handleCommand("bgp rib show", "*", []string{keyword})
 		assert.NoError(t, err, "pipeline error for %q should not be a Go error", keyword)
 		assert.Equal(t, statusDone, status, "pipeline error status for %q", keyword)
 
@@ -540,7 +540,7 @@ func TestHandleCommandOldCommandsError(t *testing.T) {
 	}
 
 	// Truly unknown commands: fall through to default case in handleCommand.
-	for _, cmd := range []string{"rib adjacent inbound show", "rib adjacent outbound show"} {
+	for _, cmd := range []string{"bgp rib adjacent inbound show", "bgp rib adjacent outbound show"} {
 		_, _, err := r.handleCommand(cmd, "*", nil)
 		assert.Error(t, err, "expected error for old command %q", cmd)
 	}
@@ -930,7 +930,7 @@ func TestGraphTerminalViaPipeline(t *testing.T) {
 
 // TestGraphTerminalViaBestPipeline verifies graph terminal works with best-path pipeline.
 //
-// VALIDATES: AC-6 "rib show best graph works."
+// VALIDATES: AC-6 "bgp rib show best graph works."
 // PREVENTS: Graph terminal only working with show, not best.
 func TestGraphTerminalViaBestPipeline(t *testing.T) {
 	r := newTestRIBManager(t)

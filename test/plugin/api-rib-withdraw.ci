@@ -35,13 +35,13 @@ def main():
 
     try:
         # Inject a route
-        result = dispatch(api, 'rib inject 10.0.0.99 ipv4/unicast 192.168.1.0/24 origin igp')
+        result = dispatch(api, 'bgp rib inject 10.0.0.99 ipv4/unicast 192.168.1.0/24 origin igp')
         if result.get('status') != 'done':
             print(f'FAIL: inject status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
 
         # Withdraw the route
-        result = dispatch(api, 'rib withdraw 10.0.0.99 ipv4/unicast 192.168.1.0/24')
+        result = dispatch(api, 'bgp rib withdraw 10.0.0.99 ipv4/unicast 192.168.1.0/24')
         if result.get('status') != 'done':
             print(f'FAIL: withdraw status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
@@ -52,7 +52,7 @@ def main():
             sys.exit(1)
 
         # Verify route is gone from rib show
-        result = dispatch(api, 'rib show received')
+        result = dispatch(api, 'bgp rib show received')
         if result.get('status') != 'done':
             print(f'FAIL: rib show status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
@@ -78,7 +78,7 @@ plugin {
 		run ./rib-withdraw-test.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
@@ -120,7 +120,7 @@ bgp {
 
 		process rib-withdraw-test {
 		}
-		process rib {
+		process bgp-rib {
 			receive [ state ]
 			send [ update ]
 		}

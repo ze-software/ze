@@ -51,7 +51,7 @@ def dispatch(api, command):
 
 
 def inject(api, peer, prefix, nhop, aspath):
-    cmd = f'rib inject {peer} ipv4/unicast {prefix} origin igp nhop {nhop} aspath {aspath}'
+    cmd = f'bgp rib inject {peer} ipv4/unicast {prefix} origin igp nhop {nhop} aspath {aspath}'
     result = dispatch(api, cmd)
     if result.get('status') != 'done':
         print(f'FAIL: {cmd} -> {result}', file=sys.stderr)
@@ -133,7 +133,7 @@ plugin {
 		run ./lg-lab.run
 		encoder json
 	}
-	external rib {
+	external bgp-rib {
 		run "ze plugin bgp-rib"
 		encoder json
 	}
@@ -182,7 +182,7 @@ bgp {
 
 		process lg-lab {
 		}
-		process rib {
+		process bgp-rib {
 			receive [ state ]
 			send [ update ]
 		}
