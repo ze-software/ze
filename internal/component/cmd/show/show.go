@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -19,11 +18,6 @@ func init() {
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:version",
 			Handler:    handleShowVersion,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod:       "ze-show:bgp-peer",
-			Handler:          peer.HandleBgpPeerDetail,
-			RequiresSelector: true,
 		},
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:warnings",
