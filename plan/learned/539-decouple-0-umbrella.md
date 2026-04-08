@@ -10,22 +10,22 @@ Components under `internal/component/` had wrong-direction imports: web imported
 - Added global `CompleteFn` registry in config/yang (over modifying the ValidatorRegistry API to accept late-bound callbacks) because init()-time registration matches ze's existing pattern and needs zero API changes.
 - Used an `InfraHook` callback pattern to extract SSH/CLI wiring from bgp/config (over moving code to a shared package) because it preserves the existing startup flow while breaking the import.
 - Moved BGP-specific RPCs from cmd/* to bgp/plugins/cmd/ (over keeping them in cmd with an interface abstraction) because proximity principle -- handlers belong with the domain they serve.
-- Kept protocol-agnostic cmd blank imports in reactor (over moving to plugin/all) because `all_import_test.go` files create import cycles with any package that imports `plugin/server`.
+- Converted `all_import_test.go` files to external test packages (`package X_test`) so `plugin/all` can import cmd packages without cycles. Config tests use direct schema imports instead of `plugin/all`.
 
 ## Consequences
 
-- Components can now be removed independently: web has zero ssh imports, config has zero iface imports, bgp/config has zero cli/ssh/web imports, cmd has zero bgp imports.
+- Components can now be removed independently: web has zero ssh imports, config has zero iface imports, bgp/config has zero cli/ssh/web imports, cmd has zero bgp imports, reactor has zero cmd imports.
 - The `InfraHook` pattern introduces a global callback in bgpconfig -- if the hook is not set (e.g., tests calling `LoadReactor` directly), SSH/authz wiring is silently skipped.
-- AC-3 (zero cmd imports in reactor) remains blocked: `all_import_test.go -> plugin/all -> cmd -> plugin/server` cycles. Fixing this requires extracting `RegisterRPCs` from `plugin/server` into a separate registration package.
-- The codegen infrastructure (`discoverRPCPackages` in `scripts/codegen/plugin_imports.go`) is ready but produces zero imports due to the same cycle.
+- Codegen `discoverRPCPackages` now populates `plugin/all/all.go` with cmd and iface/cmd packages.
+- RPC count tests in plugin/server and peer use `GreaterOrEqual` assertions since external test packages load all RPCs via `plugin/all`.
 - Phase 2 spec (cli/contract for ssh->cli, web->cli coupling) is deferred as spec-decouple-1-cli-contract.
 
 ## Gotchas
 
-- `all_import_test.go` files are the primary cycle blocker. They import `plugin/all` for test setup, but `plugin/all` transitively imports every RPC package, which imports `plugin/server`. Any package that imports `plugin/server` cannot be in `plugin/all`.
+- `all_import_test.go` files created import cycles when `plugin/all` imported cmd packages. Fix: convert to `package X_test` (external tests). Config tests needed a different approach: direct schema imports instead of `plugin/all`, because config is in the cmd import chain.
 - The `webSrv` variable in the old `CreateReactorFromTree` was always nil (web server creation had already moved to hub). The web import and shutdown code were dead code.
 - `loadZefsUsers` existed in both bgpconfig and hub with nearly identical implementations. The bgpconfig version became dead code after the hook extraction.
-- `cmd/show` still needs a blank import in reactor because it registers non-BGP RPCs (version, warnings, errors, interface). Removing it from reactor would lose those RPCs.
+- RPC count test assertions broke when `plugin/all` started loading cmd packages via codegen. Fixed by using `GreaterOrEqual` since the test binary now sees all RPCs.
 
 ## Files
 
