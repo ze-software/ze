@@ -1,0 +1,22 @@
+module ze-redistribute {
+    namespace "urn:ze:redistribute";
+    prefix redist;
+
+    import ze-extensions { prefix ze; }
+
+    description "Route redistribution between protocols.
+                 Protocols augment this container with their source types.
+                 Hidden until redistribution is fully implemented.";
+
+    revision 2026-04-09 {
+        description "Initial revision";
+    }
+
+    container redistribute {
+        ze:hidden true;
+        description
+            "Route redistribution between protocols.
+             Each protocol adds its own section via augment.
+             Controls which route sources are imported and exported.";
+    }
+}

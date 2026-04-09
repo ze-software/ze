@@ -28,6 +28,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rpki_decorator/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor/filter/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/redistribute/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/commit/schema"
@@ -39,6 +40,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/system/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/schema"
@@ -98,4 +100,3 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 )
-

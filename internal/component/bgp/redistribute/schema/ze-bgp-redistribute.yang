@@ -1,0 +1,33 @@
+module ze-bgp-redistribute {
+    namespace "urn:ze:bgp:redistribute";
+    prefix bgpredist;
+
+    import ze-redistribute { prefix redist; }
+    import ze-extensions { prefix ze; }
+
+    description "BGP route redistribution sources.
+                 Augments the core redistribute container with BGP-specific
+                 source types (ibgp, ebgp).";
+
+    revision 2026-04-09 {
+        description "Initial revision";
+    }
+
+    augment "/redist:redistribute" {
+        container bgp {
+            description "BGP route redistribution sources";
+
+            leaf-list import-from {
+                type string;
+                ze:validate "redistribute-source";
+                description "BGP route sources to import (ibgp, ebgp)";
+            }
+
+            leaf-list export-to {
+                type string;
+                ze:validate "redistribute-source";
+                description "BGP route destinations to export to (ibgp, ebgp)";
+            }
+        }
+    }
+}

@@ -554,26 +554,6 @@ module ze-bgp-conf {
             }
         }
 
-        // Route redistribution - which route sources to import/export.
-        // Hidden until redistribution is fully implemented.
-        container redistribute {
-            ze:hidden true;
-            description
-                "Route source/destination selection.
-                 Controls which route sources (ibgp, ebgp, etc.) are
-                 imported and exported for this peer.";
-            leaf-list import {
-                type string;
-                ze:validate "redistribute-source";
-                description "Route sources to import";
-            }
-            leaf-list export {
-                type string;
-                ze:validate "redistribute-source";
-                description "Route destinations to export to";
-            }
-        }
-
         // RIB configuration
         container rib {
             description "RIB configuration";
