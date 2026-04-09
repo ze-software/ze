@@ -292,3 +292,102 @@ func TestPeersFromConfigTree_GroupRoutesIsolation(t *testing.T) {
 	require.Len(t, peerSettingsB.StaticRoutes, 1, "peer B should have 1 route")
 	assert.Equal(t, "20.0.0.0/24", peerSettingsB.StaticRoutes[0].Prefix.String())
 }
+
+// TestLoopDetectionConfigExtraction verifies loop-detection policy settings are applied to peers.
+//
+// VALIDATES: PeersFromConfigTree extracts allow-own-as from policy > loop-detection entries
+//
+//	and applies them to peers whose import filter chains reference the filter name.
+//
+// PREVENTS: Loop detection settings silently ignored, leaving peers with default (0) values.
+func TestLoopDetectionConfigExtraction(t *testing.T) {
+	tree := config.NewTree()
+	bgp := buildBGPBlock()
+
+	// Add a policy section with a loop-detection filter entry.
+	policy := config.NewTree()
+	ldEntry := config.NewTree()
+	ldEntry.Set("allow-own-as", "2")
+	policy.AddListEntry("loop-detection", "my-loop-filter", ldEntry)
+	bgp.SetContainer("policy", policy)
+
+	// Create a peer with an import filter chain referencing the loop-detection entry.
+	peerTree := buildMinimalPeer("10.0.0.1", "65001", "auto")
+	filterTree := config.NewTree()
+	filterTree.SetSlice("import", []string{"my-loop-filter"})
+	peerTree.SetContainer("filter", filterTree)
+
+	bgp.AddListEntry("peer", "peer1", peerTree)
+	tree.SetContainer("bgp", bgp)
+
+	peers, err := PeersFromConfigTree(tree)
+	require.NoError(t, err)
+	require.Len(t, peers, 1)
+
+	ps := peers[0]
+	assert.Equal(t, uint8(2), ps.LoopAllowOwnAS, "allow-own-as should be extracted from loop-detection policy")
+}
+
+// TestLoopDetectionClusterID verifies cluster-id extraction from loop-detection policy.
+//
+// VALIDATES: PeersFromConfigTree extracts cluster-id from policy > loop-detection and
+//
+//	applies it to peers whose import filter chains reference the filter name.
+//
+// PREVENTS: Cluster-id override silently ignored, using router-id instead.
+func TestLoopDetectionClusterID(t *testing.T) {
+	tree := config.NewTree()
+	bgp := buildBGPBlock()
+
+	// Policy with loop-detection entry including cluster-id.
+	policy := config.NewTree()
+	ldEntry := config.NewTree()
+	ldEntry.Set("cluster-id", "10.0.0.1")
+	policy.AddListEntry("loop-detection", "ld-with-cluster", ldEntry)
+	bgp.SetContainer("policy", policy)
+
+	// Peer referencing the filter.
+	peerTree := buildMinimalPeer("10.0.0.2", "65001", "auto")
+	filterTree := config.NewTree()
+	filterTree.SetSlice("import", []string{"ld-with-cluster"})
+	peerTree.SetContainer("filter", filterTree)
+
+	bgp.AddListEntry("peer", "peer1", peerTree)
+	tree.SetContainer("bgp", bgp)
+
+	peers, err := PeersFromConfigTree(tree)
+	require.NoError(t, err)
+	require.Len(t, peers, 1)
+
+	ps := peers[0]
+	// 10.0.0.1 = 0x0A000001
+	assert.Equal(t, uint32(0x0A000001), ps.LoopClusterID, "cluster-id should be extracted from loop-detection policy")
+}
+
+// TestLoopDetectionUnreferencedFilter verifies unreferenced loop-detection entries are not applied.
+//
+// VALIDATES: Loop detection settings are only applied to peers that reference the filter by name.
+// PREVENTS: Global application of loop-detection settings to all peers regardless of filter chain.
+func TestLoopDetectionUnreferencedFilter(t *testing.T) {
+	tree := config.NewTree()
+	bgp := buildBGPBlock()
+
+	// Policy with loop-detection entry.
+	policy := config.NewTree()
+	ldEntry := config.NewTree()
+	ldEntry.Set("allow-own-as", "3")
+	policy.AddListEntry("loop-detection", "unused-filter", ldEntry)
+	bgp.SetContainer("policy", policy)
+
+	// Peer without any filter chain referencing the loop-detection entry.
+	peerTree := buildMinimalPeer("10.0.0.1", "65001", "auto")
+	bgp.AddListEntry("peer", "peer1", peerTree)
+	tree.SetContainer("bgp", bgp)
+
+	peers, err := PeersFromConfigTree(tree)
+	require.NoError(t, err)
+	require.Len(t, peers, 1)
+
+	ps := peers[0]
+	assert.Equal(t, uint8(0), ps.LoopAllowOwnAS, "unreferenced filter should not affect peer settings")
+}

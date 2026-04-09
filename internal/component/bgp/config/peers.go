@@ -160,6 +160,11 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 		ps.ExportFilters = concatFilters(bgpExport, peerExport)
 	}
 
+	// Step 3c: Extract loop-detection policy settings into PeerSettings.
+	// For each peer, check if any import filter references a loop-detection entry
+	// in the policy section. If so, apply allow-own-as and cluster-id to the peer.
+	applyLoopDetectionConfig(bgpContainer, peerIndex)
+
 	// Step 4: Apply port override from ze.bgp.tcp.port env var (test infrastructure).
 	applyPortOverride(peers)
 
@@ -418,6 +423,53 @@ func ValidatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 			ps.Address, capName, strings.Join(names, ", "))
 	}
 	return nil
+}
+
+// applyLoopDetectionConfig extracts loop-detection policy settings and applies them
+// to peers whose import filter chains reference the filter instance by name.
+// Each loop-detection entry in bgp > policy > loop-detection has allow-own-as and cluster-id
+// leaves. When a peer's import filter chain contains the entry's name, its PeerSettings
+// receives the corresponding values.
+func applyLoopDetectionConfig(bgpContainer *config.Tree, peerIndex map[string]*reactor.PeerSettings) {
+	policyTree := bgpContainer.GetContainer("policy")
+	if policyTree == nil {
+		return
+	}
+
+	ldEntries := policyTree.GetList("loop-detection")
+	if len(ldEntries) == 0 {
+		return
+	}
+
+	for _, ps := range peerIndex {
+		for _, filterName := range ps.ImportFilters {
+			// Strip inactive: prefix for matching.
+			clean := strings.TrimPrefix(filterName, "inactive:")
+			entry, ok := ldEntries[clean]
+			if !ok {
+				continue
+			}
+
+			// Extract allow-own-as (uint8, default 0).
+			if v, ok := entry.Get("allow-own-as"); ok {
+				n, err := strconv.ParseUint(v, 10, 8)
+				if err == nil {
+					ps.LoopAllowOwnAS = uint8(n)
+				}
+			}
+
+			// Extract cluster-id (IPv4 address -> uint32).
+			if v, ok := entry.Get("cluster-id"); ok {
+				ip, err := netip.ParseAddr(v)
+				if err == nil {
+					ps.LoopClusterID = ipToUint32(ip)
+				}
+			}
+
+			// First matching loop-detection entry wins for this peer.
+			break
+		}
+	}
 }
 
 // applyPortOverride overrides peer remote port from ze.bgp.tcp.port env var.
