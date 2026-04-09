@@ -2031,3 +2031,202 @@ func TestRenameKeyNamedTo(t *testing.T) {
 	output := ed.WorkingContent()
 	assert.Contains(t, output, "peer newname")
 }
+
+// TestCopyListEntry verifies the copy command duplicates a peer.
+//
+// VALIDATES: copy <list> <src> to <dst> creates a clone with the new key.
+// PREVENTS: Copy losing source entry or failing to deep-copy subtree.
+func TestCopyListEntry(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.cmdCopy([]string{"bgp", "peer", "peer1", "to", "peer2"})
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "Copied peer peer1 to peer2")
+
+	// Both entries should exist with the same config
+	content := ed.WorkingContent()
+	assert.Contains(t, content, "peer peer1")
+	assert.Contains(t, content, "peer peer2")
+	assert.Contains(t, content, "1.1.1.1") // IP preserved in both
+	assert.True(t, ed.Dirty())
+}
+
+// TestCopyListEntryDeepCopy verifies the copy is independent of the source.
+//
+// VALIDATES: Modifying the copy does not affect the source.
+// PREVENTS: Shallow copy causing shared state between entries.
+func TestCopyListEntryDeepCopy(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Copy peer1 to peer2
+	result, err := model.cmdCopy([]string{"bgp", "peer", "peer1", "to", "peer2"})
+	require.NoError(t, err)
+	model.ApplyResult(result)
+
+	// Modify peer2's IP
+	editResult, err := model.cmdEdit([]string{"bgp", "peer", "peer2"})
+	require.NoError(t, err)
+	model.ApplyResult(editResult)
+
+	_, err = model.cmdSet([]string{"connection", "remote", "ip", "2.2.2.2"})
+	require.NoError(t, err)
+
+	// peer1 should still have original IP
+	content := ed.WorkingContent()
+	assert.Contains(t, content, "peer peer1")
+	assert.Contains(t, content, "peer peer2")
+	// Count occurrences of each IP
+	assert.Equal(t, 1, strings.Count(content, "1.1.1.1"), "peer1 should keep original IP")
+	assert.Equal(t, 1, strings.Count(content, "2.2.2.2"), "peer2 should have new IP")
+}
+
+// TestCopyListEntryWithContext verifies copy works relative to context.
+//
+// VALIDATES: Copy uses context path for relative navigation.
+// PREVENTS: Context-relative copy breaking path resolution.
+func TestCopyListEntryWithContext(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Enter bgp context
+	editResult, err := model.cmdEdit([]string{"bgp"})
+	require.NoError(t, err)
+	model.ApplyResult(editResult)
+
+	result, err := model.cmdCopy([]string{"peer", "peer1", "to", "london"})
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "Copied peer peer1 to london")
+
+	content := ed.WorkingContent()
+	assert.Contains(t, content, "peer peer1")
+	assert.Contains(t, content, "peer london")
+}
+
+// TestCopyListEntryTargetExists verifies copy fails when target already exists.
+//
+// VALIDATES: Copy rejects duplicate target key.
+// PREVENTS: Overwriting existing entry on copy.
+func TestCopyListEntryTargetExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	content := `bgp {
+  router-id 1.2.3.4
+  session { asn { local 65000; } }
+  peer alpha {
+    connection { remote { ip 1.1.1.1; } }
+    session { asn { remote 65001; } }
+  }
+  peer beta {
+    connection { remote { ip 2.2.2.2; } }
+    session { asn { remote 65002; } }
+  }
+}`
+	err := os.WriteFile(configPath, []byte(content), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	_, err = model.cmdCopy([]string{"bgp", "peer", "alpha", "to", "beta"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already exists")
+}
+
+// TestCopyListEntryBadSyntax verifies copy rejects bad syntax.
+//
+// VALIDATES: Missing "to" keyword produces usage error.
+// PREVENTS: Ambiguous copy commands silently misinterpreted.
+func TestCopyListEntryBadSyntax(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"no args", nil},
+		{"missing to", []string{"bgp", "peer", "peer1", "peer2"}},
+		{"too few args", []string{"peer1", "to", "peer2"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := model.cmdCopy(tt.args)
+			require.Error(t, err)
+		})
+	}
+}
+
+// TestCopyViaDispatch verifies copy works through the command dispatcher.
+//
+// VALIDATES: "copy bgp peer peer1 to peer2" dispatches correctly.
+// PREVENTS: Copy command not registered in dispatch table.
+func TestCopyViaDispatch(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.dispatchCommand("copy bgp peer peer1 to cloned-peer")
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "Copied peer peer1 to cloned-peer")
+
+	content := ed.WorkingContent()
+	assert.Contains(t, content, "peer peer1")
+	assert.Contains(t, content, "peer cloned-peer")
+}

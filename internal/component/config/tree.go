@@ -361,6 +361,39 @@ func (t *Tree) RenameListEntry(listName, oldKey, newKey string) error {
 	return nil
 }
 
+// CopyListEntry clones a list entry under a new key, appended after the source.
+// Returns an error if the source key does not exist or the target key already exists.
+func (t *Tree) CopyListEntry(listName, srcKey, dstKey string) error {
+	list := t.lists[listName]
+	if list == nil {
+		return fmt.Errorf("list %s not found", listName)
+	}
+	entry, exists := list[srcKey]
+	if !exists {
+		return fmt.Errorf("%s not found in %s", srcKey, listName)
+	}
+	if _, exists := list[dstKey]; exists {
+		return fmt.Errorf("%s already exists in %s", dstKey, listName)
+	}
+
+	// Deep-copy the subtree and insert after the source in order
+	list[dstKey] = entry.Clone()
+	order := t.listOrder[listName]
+	for i, k := range order {
+		if k == srcKey {
+			// Insert dstKey right after srcKey
+			newOrder := make([]string, 0, len(order)+1)
+			newOrder = append(newOrder, order[:i+1]...)
+			newOrder = append(newOrder, dstKey)
+			newOrder = append(newOrder, order[i+1:]...)
+			t.listOrder[listName] = newOrder
+			break
+		}
+	}
+
+	return nil
+}
+
 // ClearList removes all entries from a list.
 // Reserved for future migrations that need bulk list replacement.
 // Current migration uses RemoveListEntry for order preservation.

@@ -147,6 +147,8 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 		return m.cmdDisconnectSession(args)
 	case cmdRename:
 		return m.cmdRename(args)
+	case cmdCopy:
+		return m.cmdCopy(args)
 	}
 
 	return commandResult{}, fmt.Errorf("unknown command: %s", cmd)
@@ -1007,6 +1009,63 @@ func (m *Model) cmdRename(args []string) (commandResult, error) {
 	msg := fmt.Sprintf("Renamed %s %s to %s", listName, oldKey, newKey)
 
 	// Detect conflicts with other users' change files after each edit.
+	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+	}
+
+	return commandResult{
+		statusMessage: msg,
+		configView:    m.configViewAtPath(m.contextPath),
+		revalidate:    true,
+	}, nil
+}
+
+// cmdCopy clones a list entry under a new key, preserving the source.
+// JunOS syntax: copy <list> <old-key> to <new-key>
+// Works relative to current context.
+func (m *Model) cmdCopy(args []string) (commandResult, error) {
+	// "to" must be second-to-last: <path...> <src-key> to <dst-key>
+	if len(args) < 4 {
+		return commandResult{}, fmt.Errorf("usage: copy <path> <source> to <destination>")
+	}
+	toIdx := len(args) - 2
+	if args[toIdx] != "to" {
+		return commandResult{}, fmt.Errorf("usage: copy <path> <source> to <destination>")
+	}
+
+	dstKey := args[toIdx+1]
+	srcTokens := args[:toIdx]
+
+	// Build full path to source entry: context + args before "to"
+	fullPath := make([]string, 0, len(m.contextPath)+len(srcTokens))
+	fullPath = append(fullPath, m.contextPath...)
+	fullPath = append(fullPath, srcTokens...)
+
+	// Identify list name, source key, and parent path using schema
+	parentPath, listName, srcKey, err := m.editor.resolveListTarget(fullPath)
+	if err != nil {
+		return commandResult{}, err
+	}
+
+	// Validate destination key against YANG schema.
+	newPath := make([]string, 0, len(parentPath)+2)
+	newPath = append(newPath, parentPath...)
+	newPath = append(newPath, listName, dstKey)
+	if _, err := m.completer.validateTokenPath(newPath); err != nil {
+		return commandResult{}, fmt.Errorf("invalid destination name: %w", err)
+	}
+
+	// Perform the copy
+	if err := m.editor.CopyListEntry(parentPath, listName, srcKey, dstKey); err != nil {
+		return commandResult{}, fmt.Errorf("copy failed: %w", err)
+	}
+
+	// Update completer with mutated tree
+	m.completer.SetTree(m.editor.Tree())
+	m.searchCache = "" // tree changed, invalidate cached set-view
+
+	msg := fmt.Sprintf("Copied %s %s to %s", listName, srcKey, dstKey)
+
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
 		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
 	}

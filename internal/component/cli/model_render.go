@@ -664,6 +664,7 @@ func (m Model) renderHelpOverlay(base string) string {
   set <path> <value>   Set a configuration value
   delete <path>        Delete a configuration value
   rename <p> <old> to <new>  Rename a list entry
+  copy <p> <src> to <dst>    Copy a list entry
   edit <path>          Enter a subsection context
   edit <list> *        Edit template for all entries
   top                  Return to root context
