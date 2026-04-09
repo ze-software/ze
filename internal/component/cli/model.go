@@ -198,6 +198,7 @@ const (
 	cmdDeactivate = "deactivate"
 	cmdActive     = "active"
 	cmdInactive   = "inactive"
+	cmdRename     = "rename"
 )
 
 // Show column names used as DB keys under /meta/show/<column>.

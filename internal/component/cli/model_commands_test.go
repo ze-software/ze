@@ -1775,3 +1775,186 @@ func TestCmdCommitSessionValidatesSetFormat(t *testing.T) {
 	assert.Contains(t, result.statusMessage, "change(s) applied",
 		"session commit should succeed with set-format validation")
 }
+
+// TestRenameListEntry verifies the rename command renames a peer.
+//
+// VALIDATES: rename <list> <old-key> to <new-key> changes the list key.
+// PREVENTS: Peer rename losing configuration data.
+func TestRenameListEntry(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Rename peer1 to peer2
+	result, err := model.cmdRename([]string{"bgp", "peer", "peer1", "to", "peer2"})
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "Renamed peer peer1 to peer2")
+
+	// Verify content: old name gone, new name present with same config
+	content := ed.WorkingContent()
+	assert.NotContains(t, content, "peer peer1")
+	assert.Contains(t, content, "peer peer2")
+	assert.Contains(t, content, "1.1.1.1") // IP preserved
+	assert.Contains(t, content, "65001")   // ASN preserved
+	assert.True(t, ed.Dirty())
+}
+
+// TestRenameListEntryWithContext verifies rename works relative to context.
+//
+// VALIDATES: Rename uses context path for relative navigation.
+// PREVENTS: Context-relative rename breaking path resolution.
+func TestRenameListEntryWithContext(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Enter bgp context
+	editResult, err := model.cmdEdit([]string{"bgp"})
+	require.NoError(t, err)
+	model.ApplyResult(editResult)
+
+	// Rename relative to context
+	result, err := model.cmdRename([]string{"peer", "peer1", "to", "london"})
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "Renamed peer peer1 to london")
+
+	content := ed.WorkingContent()
+	assert.NotContains(t, content, "peer peer1")
+	assert.Contains(t, content, "peer london")
+}
+
+// TestRenameListEntryNotFound verifies rename fails for missing key.
+//
+// VALIDATES: Rename returns error for non-existent source key.
+// PREVENTS: Silent no-op on missing entry.
+func TestRenameListEntryNotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	_, err = model.cmdRename([]string{"bgp", "peer", "nonexistent", "to", "newname"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+// TestRenameListEntryTargetExists verifies rename fails when target already exists.
+//
+// VALIDATES: Rename rejects duplicate target key.
+// PREVENTS: Overwriting existing entry on rename.
+func TestRenameListEntryTargetExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	content := `bgp {
+  router-id 1.2.3.4
+  session { asn { local 65000; } }
+  peer alpha {
+    connection { remote { ip 1.1.1.1; } }
+    session { asn { remote 65001; } }
+  }
+  peer beta {
+    connection { remote { ip 2.2.2.2; } }
+    session { asn { remote 65002; } }
+  }
+}`
+	err := os.WriteFile(configPath, []byte(content), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	_, err = model.cmdRename([]string{"bgp", "peer", "alpha", "to", "beta"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already exists")
+}
+
+// TestRenameListEntryBadSyntax verifies rename rejects bad syntax.
+//
+// VALIDATES: Missing "to" keyword produces usage error.
+// PREVENTS: Ambiguous rename commands silently misinterpreted.
+func TestRenameListEntryBadSyntax(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"no args", nil},
+		{"missing to", []string{"bgp", "peer", "peer1", "peer2"}},
+		{"too few before to", []string{"peer1", "to", "peer2"}},
+		{"extra after new", []string{"bgp", "peer", "peer1", "to", "peer2", "extra"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := model.cmdRename(tt.args)
+			require.Error(t, err)
+		})
+	}
+}
+
+// TestRenameViaDispatch verifies rename works through the command dispatcher.
+//
+// VALIDATES: "rename peer peer1 to peer2" dispatches correctly.
+// PREVENTS: Rename command not registered in dispatch table.
+func TestRenameViaDispatch(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.dispatchCommand("rename bgp peer peer1 to renamed-peer")
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "Renamed peer peer1 to renamed-peer")
+	assert.Contains(t, ed.WorkingContent(), "peer renamed-peer")
+}

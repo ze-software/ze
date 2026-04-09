@@ -269,6 +269,90 @@ func (e *Editor) DeleteListEntry(path []string, listName, key string) error {
 	return nil
 }
 
+// RenameListEntry renames a list entry key at the given path.
+// The parentPath navigates to the tree containing the list.
+// MetaTree is not updated because rename is blocked in session mode (meta is session-only).
+// If session-mode rename is added later, meta must be updated here too.
+func (e *Editor) RenameListEntry(parentPath []string, listName, oldKey, newKey string) error {
+	if e.session != nil {
+		return fmt.Errorf("rename not supported in session mode")
+	}
+	var target *config.Tree
+	if len(parentPath) == 0 {
+		target = e.tree
+	} else {
+		target = e.WalkPath(parentPath)
+	}
+	if target == nil {
+		return fmt.Errorf("path not found")
+	}
+	if err := target.RenameListEntry(listName, oldKey, newKey); err != nil {
+		return err
+	}
+	e.dirty.Store(true)
+	return nil
+}
+
+// resolveListTarget walks the schema-aware path and identifies the terminal
+// list entry. Returns the tree-level parent path (for WalkPath), the list name,
+// and the entry key. Returns an error if the path does not end at a list entry.
+func (e *Editor) resolveListTarget(fullPath []string) (parentPath []string, listName, key string, err error) {
+	if e.schema == nil {
+		return nil, "", "", fmt.Errorf("schema not available")
+	}
+	if len(fullPath) < 2 {
+		return nil, "", "", fmt.Errorf("path too short for list entry")
+	}
+
+	var currentSchema schemaGetter = e.schema
+	lastListIdx := -1
+	var lastListName, lastKey string
+
+	i := 0
+	for i < len(fullPath) {
+		name := fullPath[i]
+		schemaNode := currentSchema.Get(name)
+		if schemaNode == nil {
+			return nil, "", "", fmt.Errorf("unknown path element: %s", name)
+		}
+
+		switch n := schemaNode.(type) {
+		case *config.ContainerNode:
+			currentSchema = n
+			i++
+		case *config.ListNode:
+			if i+1 >= len(fullPath) {
+				return nil, "", "", fmt.Errorf("list %s requires a key", name)
+			}
+			// Check if next element is a child (anonymous) or a key
+			if n.Get(fullPath[i+1]) != nil {
+				return nil, "", "", fmt.Errorf("cannot rename anonymous list entry")
+			}
+			lastListIdx = i
+			lastListName = name
+			lastKey = fullPath[i+1]
+			currentSchema = n
+			i += 2
+		case *config.FlexNode:
+			currentSchema = n
+			i++
+		default:
+			return nil, "", "", fmt.Errorf("cannot navigate into %s", name)
+		}
+	}
+
+	if lastListIdx == -1 {
+		return nil, "", "", fmt.Errorf("path does not end at a list entry")
+	}
+
+	// The last list entry must be at the end of the path
+	if lastListIdx+2 != len(fullPath) {
+		return nil, "", "", fmt.Errorf("rename target must be the last element in the path")
+	}
+
+	return fullPath[:lastListIdx], lastListName, lastKey, nil
+}
+
 // Save commits changes: creates backup of original, writes serialized tree.
 // Returns an error when a session is active -- use CommitSession() instead.
 func (e *Editor) Save() error {

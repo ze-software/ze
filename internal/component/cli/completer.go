@@ -81,6 +81,7 @@ var commands = []Completion{
 	{Text: cmdDisconnect, Description: "Remove another session", Type: "command"},
 	{Text: cmdDeactivate, Description: "Mark a config block inactive", Type: "command"},
 	{Text: cmdActivate, Description: "Reactivate an inactive config block", Type: "command"},
+	{Text: cmdRename, Description: "Rename a list entry", Type: "command"},
 }
 
 // Complete returns completions for the given input at cursor position.
@@ -130,7 +131,7 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 
 	// Dispatch based on command
 	switch cmd {
-	case cmdSet, cmdDelete, cmdDeactivate, cmdActivate:
+	case cmdSet, cmdDelete, cmdDeactivate, cmdActivate, cmdRename:
 		return c.completeSetPath(tokens[1:], contextPath, endsWithSpace)
 	case cmdEdit:
 		return c.completeEditPath(tokens[1:], contextPath, endsWithSpace)

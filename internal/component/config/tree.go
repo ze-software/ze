@@ -331,6 +331,36 @@ func (t *Tree) RemoveListEntry(listName, key string) *Tree {
 	return entry
 }
 
+// RenameListEntry changes the key of a list entry, preserving its subtree and position.
+// Returns an error if the old key does not exist or the new key already exists.
+func (t *Tree) RenameListEntry(listName, oldKey, newKey string) error {
+	list := t.lists[listName]
+	if list == nil {
+		return fmt.Errorf("list %s not found", listName)
+	}
+	entry, exists := list[oldKey]
+	if !exists {
+		return fmt.Errorf("%s not found in %s", oldKey, listName)
+	}
+	if _, exists := list[newKey]; exists {
+		return fmt.Errorf("%s already exists in %s", newKey, listName)
+	}
+
+	// Move entry to new key
+	list[newKey] = entry
+	delete(list, oldKey)
+
+	// Replace old key with new key at same position in order
+	for i, k := range t.listOrder[listName] {
+		if k == oldKey {
+			t.listOrder[listName][i] = newKey
+			break
+		}
+	}
+
+	return nil
+}
+
 // ClearList removes all entries from a list.
 // Reserved for future migrations that need bulk list replacement.
 // Current migration uses RemoveListEntry for order preservation.

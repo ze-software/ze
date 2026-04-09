@@ -145,6 +145,8 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 			return commandResult{}, fmt.Errorf("disconnect requires an active editing session")
 		}
 		return m.cmdDisconnectSession(args)
+	case cmdRename:
+		return m.cmdRename(args)
 	}
 
 	return commandResult{}, fmt.Errorf("unknown command: %s", cmd)
@@ -955,6 +957,64 @@ func formatIssueList(issues []ConfigValidationError) string {
 		}
 	}
 	return b.String()
+}
+// cmdRename renames a list entry key, preserving its subtree and position.
+// JunOS syntax: rename <list> <old-key> to <new-key>
+// Works relative to current context.
+func (m *Model) cmdRename(args []string) (commandResult, error) {
+	// "to" must be second-to-last: <path...> <old-key> to <new-key>
+	// Searching from a fixed position avoids ambiguity when a list key is literally "to".
+	if len(args) < 4 {
+		return commandResult{}, fmt.Errorf("usage: rename <path> <old-name> to <new-name>")
+	}
+	toIdx := len(args) - 2
+	if args[toIdx] != "to" {
+		return commandResult{}, fmt.Errorf("usage: rename <path> <old-name> to <new-name>")
+	}
+
+	newKey := args[toIdx+1]
+	oldTokens := args[:toIdx]
+
+	// Build full path to old entry: context + args before "to"
+	fullPath := make([]string, 0, len(m.contextPath)+len(oldTokens))
+	fullPath = append(fullPath, m.contextPath...)
+	fullPath = append(fullPath, oldTokens...)
+
+	// Identify list name, old key, and parent path using schema
+	parentPath, listName, oldKey, err := m.editor.resolveListTarget(fullPath)
+	if err != nil {
+		return commandResult{}, err
+	}
+
+	// Validate new key against YANG schema (same validation as set paths).
+	newPath := make([]string, 0, len(parentPath)+2)
+	newPath = append(newPath, parentPath...)
+	newPath = append(newPath, listName, newKey)
+	if _, err := m.completer.validateTokenPath(newPath); err != nil {
+		return commandResult{}, fmt.Errorf("invalid new name: %w", err)
+	}
+
+	// Perform the rename
+	if err := m.editor.RenameListEntry(parentPath, listName, oldKey, newKey); err != nil {
+		return commandResult{}, fmt.Errorf("rename failed: %w", err)
+	}
+
+	// Update completer with mutated tree
+	m.completer.SetTree(m.editor.Tree())
+	m.searchCache = "" // tree changed, invalidate cached set-view
+
+	msg := fmt.Sprintf("Renamed %s %s to %s", listName, oldKey, newKey)
+
+	// Detect conflicts with other users' change files after each edit.
+	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+	}
+
+	return commandResult{
+		statusMessage: msg,
+		configView:    m.configViewAtPath(m.contextPath),
+		revalidate:    true,
+	}, nil
 }
 
 // filterOutSessionCommands removes session-dependent commands and show subcommands
