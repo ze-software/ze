@@ -1958,3 +1958,76 @@ func TestRenameViaDispatch(t *testing.T) {
 	assert.Contains(t, result.statusMessage, "Renamed peer peer1 to renamed-peer")
 	assert.Contains(t, ed.WorkingContent(), "peer renamed-peer")
 }
+
+// TestRenameQuotedListKey verifies rename handles quoted keys with spaces.
+//
+// VALIDATES: Rename works with quoted list entry names.
+// PREVENTS: Quoted key parsing breaking rename path resolution.
+func TestRenameQuotedListKey(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	content := `bgp {
+  router-id 1.2.3.4
+  session { asn { local 65000; } }
+  peer "my peer" {
+    connection { remote { ip 1.1.1.1; } }
+    session { asn { remote 65001; } }
+  }
+}`
+	err := os.WriteFile(configPath, []byte(content), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Dispatch handles tokenization including quotes
+	result, err := model.dispatchCommand(`rename bgp peer "my peer" to "new peer"`)
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "Renamed peer my peer to new peer")
+
+	output := ed.WorkingContent()
+	assert.NotContains(t, output, `peer "my peer"`)
+	assert.Contains(t, output, `peer "new peer"`)
+	assert.Contains(t, output, "1.1.1.1") // IP preserved
+}
+
+// TestRenameKeyNamedTo verifies rename handles a key literally named "to".
+//
+// VALIDATES: "to" at second-to-last position is the separator, not a key.
+// PREVENTS: Ambiguity when list key value is "to".
+func TestRenameKeyNamedTo(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	content := `bgp {
+  router-id 1.2.3.4
+  session { asn { local 65000; } }
+  peer to {
+    connection { remote { ip 1.1.1.1; } }
+    session { asn { remote 65001; } }
+  }
+}`
+	err := os.WriteFile(configPath, []byte(content), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// "to" is at position len-2, so args = ["bgp", "peer", "to", "to", "newname"]
+	// The second "to" is the separator, "to" before it is the old key
+	result, err := model.cmdRename([]string{"bgp", "peer", "to", "to", "newname"})
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "Renamed peer to to newname")
+
+	output := ed.WorkingContent()
+	assert.Contains(t, output, "peer newname")
+}

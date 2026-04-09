@@ -958,6 +958,7 @@ func formatIssueList(issues []ConfigValidationError) string {
 	}
 	return b.String()
 }
+
 // cmdRename renames a list entry key, preserving its subtree and position.
 // JunOS syntax: rename <list> <old-key> to <new-key>
 // Works relative to current context.

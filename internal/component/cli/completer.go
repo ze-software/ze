@@ -8,6 +8,7 @@ package cli
 import (
 	"fmt"
 	"maps"
+	"slices"
 	"sort"
 
 	"strings"
@@ -131,8 +132,10 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 
 	// Dispatch based on command
 	switch cmd {
-	case cmdSet, cmdDelete, cmdDeactivate, cmdActivate, cmdRename:
+	case cmdSet, cmdDelete, cmdDeactivate, cmdActivate:
 		return c.completeSetPath(tokens[1:], contextPath, endsWithSpace)
+	case cmdRename:
+		return c.completeRenamePath(tokens[1:], contextPath, endsWithSpace)
 	case cmdEdit:
 		return c.completeEditPath(tokens[1:], contextPath, endsWithSpace)
 	case cmdShow:
@@ -192,6 +195,18 @@ func (c *Completer) GhostText(input string, contextPath []string) string {
 	}
 
 	return ""
+}
+
+// completeRenamePath completes paths for the rename command.
+// Before "to": delegates to completeSetPath for list entry navigation.
+// After "to": no completions (user types the new name).
+func (c *Completer) completeRenamePath(tokens, contextPath []string, endsWithSpace bool) []Completion {
+	// Check if "to" is already present
+	if slices.Contains(tokens, "to") {
+		return nil
+	}
+	// Before "to", complete the path to the list entry
+	return c.completeSetPath(tokens, contextPath, endsWithSpace)
 }
 
 // completeSetPath completes paths for set/delete commands.
