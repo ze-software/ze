@@ -293,6 +293,29 @@ func (e *Editor) RenameListEntry(parentPath []string, listName, oldKey, newKey s
 	return nil
 }
 
+// CopyListEntry clones a list entry under a new key at the given path.
+// The parentPath navigates to the tree containing the list.
+// MetaTree is not updated because copy is blocked in session mode (meta is session-only).
+func (e *Editor) CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error {
+	if e.session != nil {
+		return fmt.Errorf("copy not supported in session mode")
+	}
+	var target *config.Tree
+	if len(parentPath) == 0 {
+		target = e.tree
+	} else {
+		target = e.WalkPath(parentPath)
+	}
+	if target == nil {
+		return fmt.Errorf("path not found")
+	}
+	if err := target.CopyListEntry(listName, srcKey, dstKey); err != nil {
+		return err
+	}
+	e.dirty.Store(true)
+	return nil
+}
+
 // resolveListTarget walks the schema-aware path and identifies the terminal
 // list entry. Returns the tree-level parent path (for WalkPath), the list name,
 // and the entry key. Returns an error if the path does not end at a list entry.

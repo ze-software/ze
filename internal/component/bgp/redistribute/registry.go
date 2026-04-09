@@ -20,7 +20,7 @@ var (
 )
 
 // RegisterSource adds a route source to the registry.
-// Called from init() functions by protocol packages.
+// Safe to call multiple times with the same name (idempotent).
 func RegisterSource(src RouteSource) {
 	mu.Lock()
 	defer mu.Unlock()

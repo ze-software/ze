@@ -2,17 +2,34 @@
 
 package redistribute
 
-// RegisterBGPSources registers BGP-specific redistribute sources (ibgp, ebgp).
-// Called during startup after the redistribute registry is available.
+import (
+	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
+)
+
+var bgpSourcesOnce sync.Once
+
+// RegisterBGPSources registers BGP-specific redistribute sources (ibgp, ebgp)
+// and wires the validator callbacks. Safe to call multiple times (uses sync.Once).
 func RegisterBGPSources() {
-	RegisterSource(RouteSource{
-		Name:        "ibgp",
-		Protocol:    "bgp",
-		Description: "iBGP learned routes",
-	})
-	RegisterSource(RouteSource{
-		Name:        "ebgp",
-		Protocol:    "bgp",
-		Description: "eBGP learned routes",
+	bgpSourcesOnce.Do(func() {
+		RegisterSource(RouteSource{
+			Name:        "ibgp",
+			Protocol:    "bgp",
+			Description: "iBGP learned routes",
+		})
+		RegisterSource(RouteSource{
+			Name:        "ebgp",
+			Protocol:    "bgp",
+			Description: "eBGP learned routes",
+		})
+		config.SetRedistributeSourceCallbacks(
+			func(name string) bool {
+				_, ok := LookupSource(name)
+				return ok
+			},
+			SourceNames,
+		)
 	})
 }

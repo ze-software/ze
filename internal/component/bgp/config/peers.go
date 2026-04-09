@@ -12,6 +12,7 @@ import (
 
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/redistribute"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 
@@ -34,6 +35,9 @@ import (
 // Routes stay in the config package because they depend on config-internal
 // types (StaticRouteConfig, ParseRouteAttributes, etc.) that reactor cannot import.
 func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
+	// Ensure BGP redistribute sources and validator callbacks are registered.
+	redistribute.RegisterBGPSources()
+
 	// Step 0: Prune inactive containers and list entries.
 	// Inactive nodes are treated as if they were not in the config.
 	schema, err := config.YANGSchema()

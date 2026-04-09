@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -192,10 +191,24 @@ func MACAddressValidator() yang.CustomValidator {
 	}
 }
 
-// CommunityRangeValidator returns a validator that checks BGP community ASN:value ranges.
-// Both parts must be uint16 (0-65535).
+// redistributeSourceLookup checks if a name is a registered redistribute source.
+// Set by protocol packages during startup (e.g., bgp/redistribute).
+var redistributeSourceLookup func(string) bool
+
+// redistributeSourceNames returns registered redistribute source names.
+// Set by protocol packages during startup (e.g., bgp/redistribute).
+var redistributeSourceNames func() []string
+
+// SetRedistributeSourceCallbacks registers the lookup and completion callbacks
+// for the redistribute-source validator. Called by protocol packages during
+// startup to avoid a direct import from config -> bgp.
+func SetRedistributeSourceCallbacks(lookup func(string) bool, names func() []string) {
+	redistributeSourceLookup = lookup
+	redistributeSourceNames = names
+}
+
 // RedistributeSourceValidator returns a validator for redistribute source names.
-// Validates against the redistribute source registry (populated by protocol packages).
+// Validates against callbacks set via SetRedistributeSourceCallbacks.
 func RedistributeSourceValidator() yang.CustomValidator {
 	return yang.CustomValidator{
 		ValidateFn: func(path string, value any) error {
@@ -203,14 +216,25 @@ func RedistributeSourceValidator() yang.CustomValidator {
 			if !ok {
 				return fmt.Errorf("expected string, got %T", value)
 			}
-			if _, found := redistribute.LookupSource(str); !found {
+			if redistributeSourceLookup == nil {
+				return fmt.Errorf("redistribute sources not registered")
+			}
+			if !redistributeSourceLookup(str) {
 				return fmt.Errorf("%q is not a registered redistribute source", str)
 			}
 			return nil
 		},
-		CompleteFn: redistribute.SourceNames,
+		CompleteFn: func() []string {
+			if redistributeSourceNames == nil {
+				return nil
+			}
+			return redistributeSourceNames()
+		},
 	}
 }
+
+// CommunityRangeValidator returns a validator that checks BGP community ASN:value ranges.
+// Both parts must be uint16 (0-65535).
 
 func CommunityRangeValidator() yang.CustomValidator {
 	return yang.CustomValidator{
