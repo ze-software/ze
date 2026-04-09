@@ -455,10 +455,10 @@ func (r *Reader) findHandler(path string) *SchemaInfo {
 // parseConfigValue converts a string value to appropriate type.
 // Returns int64 for integers, float64 for floats, bool for true/false, string otherwise.
 func parseConfigValue(s string) any {
-	if s == "true" {
+	if s == configTrue {
 		return true
 	}
-	if s == "false" {
+	if s == configFalse {
 		return false
 	}
 
