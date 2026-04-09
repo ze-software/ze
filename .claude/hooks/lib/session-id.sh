@@ -5,6 +5,21 @@
 
 _session_id() {
     if [ -z "$CLAUDE_CODE_SESSION_ACCESS_TOKEN" ]; then
+        # Walk up the process tree to find the Claude CLI process.
+        # Its PID is stable for the entire session, unlike $PPID which
+        # varies across hook subprocesses.
+        local pid=$$
+        while [ "$pid" -gt 1 ] 2>/dev/null; do
+            # Check argv[0] from /proc/pid/cmdline (first NUL-delimited field)
+            local argv0
+            argv0=$(tr '\0' '\n' < "/proc/$pid/cmdline" 2>/dev/null | head -1)
+            if [ "$argv0" = "claude" ]; then
+                echo "$pid"
+                return
+            fi
+            pid=$(awk '/^PPid:/ {print $2}' "/proc/$pid/status" 2>/dev/null)
+            [ -z "$pid" ] && break
+        done
         echo "$PPID"
         return
     fi
