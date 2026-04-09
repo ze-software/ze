@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md -- loop detection filter YANG registration
+
 package schema
 
 import (

@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md -- loop detection filter YANG schema
+//
 // Package schema provides the YANG schema for the loop detection filter.
 package schema
 

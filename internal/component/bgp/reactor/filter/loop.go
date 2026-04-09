@@ -54,8 +54,9 @@ func LoopIngress(src registry.PeerFilterInfo, payload []byte, _ map[string]any) 
 	}
 
 	// Walk path attributes once, checking all three loop conditions.
-	// asnCount tracks local ASN occurrences across all AS_PATH segments.
-	var asnCount uint8
+	// asnCount tracks local ASN occurrences across all AS_PATH segments;
+	// uint16 avoids overflow on pathological AS_PATHs.
+	var asnCount uint16
 
 	pos := 0
 	for pos < len(pathAttrs) {
@@ -107,7 +108,7 @@ func LoopIngress(src registry.PeerFilterInfo, payload []byte, _ map[string]any) 
 					}
 					if asn == localASN {
 						asnCount++
-						if asnCount > src.AllowOwnAS {
+						if asnCount > uint16(src.AllowOwnAS) {
 							logger().Debug("AS loop detected", "peer", src.Address, "local-asn", localASN, "count", asnCount, "allow", src.AllowOwnAS)
 							return false, nil
 						}
