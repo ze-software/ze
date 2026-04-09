@@ -1,6 +1,6 @@
 # Ze
 
-> **Pre-Alpha** -- Ze has not reached alpha. The core BGP engine works, but many advanced features are incomplete or untested, and there is significant work remaining before Ze is ready for end-users. APIs and config syntax will change without notice.
+> **Pre-release** -- Ze is under active development and has not been released yet. The core BGP engine works and is extensively tested (8,000+ unit tests, 550+ functional tests, fuzz testing, chaos testing, interop tests against FRR, BIRD, and GoBGP), but some advanced features are still incomplete. APIs and config syntax may change.
 
 Ze turns a Linux server into a networking device. It speaks BGP, manages network interfaces, programs the FIB, and serves a config editor over SSH and a web UI. Everything beyond the core is a plugin. Plugins can be Go modules or external processes in any language. An MCP server can let AI assistants discover all its features (including plugins) and operate them directly.
 

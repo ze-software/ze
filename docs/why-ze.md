@@ -92,11 +92,11 @@ you need multi-protocol routing, FRR is the only open-source option with full co
 
 ### You need proven production stability
 
-Ze has never been released. It has extensive testing (6,000+ unit tests, 400+
+Ze has not been released yet. It has extensive testing (8,000+ unit tests, 550+
 functional tests, fuzz testing, chaos testing, interop tests against FRR, BIRD,
-and GoBGP), but it has zero production deployments. BIRD has been running IXP route
+and GoBGP), but it has no production deployments. BIRD has been running IXP route
 servers since 1998. FRR runs in commercial products. OpenBGPd operates at LINX and
-Netnod. Production stability comes from production use, and Ze has none yet.
+Netnod. Production confidence comes from production use, and Ze does not have that yet.
 
 ### You need features Ze does not have
 
