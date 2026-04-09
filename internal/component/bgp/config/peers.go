@@ -164,6 +164,10 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 		ps.ExportFilters = concatFilters(bgpExport, peerExport)
 	}
 
+	// Step 3b2: Prepend default filter names to each peer's import chain.
+	// Default filters (loop-detection) auto-populate unless already referenced.
+	prependDefaultFilters(bgpContainer, peerIndex)
+
 	// Step 3c: Extract loop-detection policy settings into PeerSettings.
 	// For each peer, check if any import filter references a loop-detection entry
 	// in the policy section. If so, apply allow-own-as and cluster-id to the peer.
@@ -474,6 +478,49 @@ func applyLoopDetectionConfig(bgpContainer *config.Tree, peerIndex map[string]*r
 			break
 		}
 	}
+}
+
+// prependDefaultFilters adds default filter names to each peer's import chain
+// if not already present (explicitly or as inactive:). Default filters come from
+// loop-detection entries in the policy section. Each entry's name is prepended
+// to ImportFilters so loop detection runs first in the chain.
+func prependDefaultFilters(bgpContainer *config.Tree, peerIndex map[string]*reactor.PeerSettings) {
+	policyTree := bgpContainer.GetContainer("policy")
+	if policyTree == nil {
+		return
+	}
+
+	ldEntries := policyTree.GetList("loop-detection")
+	if len(ldEntries) == 0 {
+		return
+	}
+
+	// Collect default filter names (all loop-detection entries).
+	var defaults []string
+	for name := range ldEntries {
+		defaults = append(defaults, name)
+	}
+
+	for _, ps := range peerIndex {
+		for _, dflt := range defaults {
+			if filterChainContains(ps.ImportFilters, dflt) {
+				continue
+			}
+			ps.ImportFilters = append([]string{dflt}, ps.ImportFilters...)
+		}
+	}
+}
+
+// filterChainContains checks if a filter chain contains a name,
+// accounting for the inactive: prefix.
+func filterChainContains(chain []string, name string) bool {
+	for _, entry := range chain {
+		clean := strings.TrimPrefix(entry, "inactive:")
+		if clean == name {
+			return true
+		}
+	}
+	return false
 }
 
 // applyPortOverride overrides peer remote port from ze.bgp.tcp.port env var.

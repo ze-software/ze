@@ -121,6 +121,20 @@ func TestPolicyFilterChainEmpty(t *testing.T) {
 	assert.Equal(t, "origin igp", result)
 }
 
+// TestPolicyFilterChainInactiveSkipped verifies inactive: entries are skipped.
+//
+// VALIDATES: Filters prefixed with "inactive:" are not called.
+// PREVENTS: Deactivated filters still running in the chain.
+func TestPolicyFilterChainInactiveSkipped(t *testing.T) {
+	var called []string
+	fn := func(plugin, filter, _, _ string, _ uint32, _ string) PolicyResponse {
+		called = append(called, plugin+":"+filter)
+		return PolicyResponse{Action: PolicyAccept}
+	}
+	PolicyFilterChain([]string{"inactive:rpki:validate", "community:scrub"}, "import", "10.0.0.1", 65001, "origin igp", fn)
+	assert.Equal(t, []string{"community:scrub"}, called, "inactive filter should not be called")
+}
+
 // TestPolicyFilterChainDispatch verifies plugin:filter name splitting.
 //
 // VALIDATES: AC-17 -- Filter name dispatched correctly to callback.

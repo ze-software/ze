@@ -58,6 +58,9 @@ func PolicyFilterChain(filterRefs []string, direction, peer string, peerAS uint3
 
 	current := updateText
 	for _, ref := range filterRefs {
+		if strings.HasPrefix(ref, "inactive:") {
+			continue
+		}
 		pluginName, filterName, _ := strings.Cut(ref, ":")
 		result := callFilter(pluginName, filterName, direction, peer, peerAS, current)
 

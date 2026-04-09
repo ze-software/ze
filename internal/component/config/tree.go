@@ -380,15 +380,16 @@ func (t *Tree) CopyListEntry(listName, srcKey, dstKey string) error {
 	list[dstKey] = entry.Clone()
 	order := t.listOrder[listName]
 	for i, k := range order {
-		if k == srcKey {
-			// Insert dstKey right after srcKey
-			newOrder := make([]string, 0, len(order)+1)
-			newOrder = append(newOrder, order[:i+1]...)
-			newOrder = append(newOrder, dstKey)
-			newOrder = append(newOrder, order[i+1:]...)
-			t.listOrder[listName] = newOrder
-			break
+		if k != srcKey {
+			continue
 		}
+		// Insert dstKey right after srcKey
+		newOrder := make([]string, 0, len(order)+1)
+		newOrder = append(newOrder, order[:i+1]...)
+		newOrder = append(newOrder, dstKey)
+		newOrder = append(newOrder, order[i+1:]...)
+		t.listOrder[listName] = newOrder
+		break
 	}
 
 	return nil
