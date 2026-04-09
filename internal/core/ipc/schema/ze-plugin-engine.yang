@@ -82,7 +82,7 @@ module ze-plugin-engine {
                 key "name";
                 description
                     "Named route filters this plugin offers.
-                     Config references as <plugin>:<name> in redistribution blocks.";
+                     Config references by name in filter { import/export } blocks.";
                 leaf name {
                     type string;
                     description "Filter name (the part after : in <plugin>:<filter>)";

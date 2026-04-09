@@ -77,13 +77,13 @@ type PluginRegistration struct {
 	// YANG schema declarations (Hub Architecture)
 	PluginSchema *PluginSchemaDecl // YANG schema declaration for this plugin
 
-	// Route filter declarations (redistribution filter protocol)
+	// Route filter declarations (filter chain protocol)
 	Filters []FilterRegistration // Named filters this plugin offers
 }
 
 // FilterRegistration holds a named filter declaration from stage 1.
 type FilterRegistration struct {
-	Name       string   // Filter name (config references as <plugin>:<name>)
+	Name       string   // Filter name (referenced in filter { import/export } blocks)
 	Direction  string   // "import", "export", or "both"
 	Attributes []string // Attribute names to receive
 	NLRI       bool     // Include NLRI list (default true)

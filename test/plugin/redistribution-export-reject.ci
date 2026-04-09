@@ -97,7 +97,7 @@ bgp {
                 remote 65001
             }
         }
-        redistribution {
+        filter {
             export [ filter-export-reject-test:block-export ];
         }
         process filter-export-reject-test {

@@ -80,7 +80,7 @@ bgp {
     		local 65000
     	}
     }
-    redistribution {
+    filter {
         import [ filter-chain-test:first filter-chain-test:second ];
     }
     peer peer1 {

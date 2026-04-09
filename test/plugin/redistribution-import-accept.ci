@@ -79,7 +79,7 @@ bgp {
     		local 65000
     	}
     }
-    redistribution {
+    filter {
         import [ filter-accept-test:accept-all ];
     }
     peer peer1 {

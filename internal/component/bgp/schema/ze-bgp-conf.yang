@@ -46,12 +46,12 @@ module ze-bgp-conf {
                  Filter instances are referenced by name in peer filter chains.";
         }
 
-        // Global redistribution filter chains (apply to all peers as base chain)
-        container redistribution {
+        // Global filter chains (apply to all peers as base chain)
+        container filter {
             description
                 "Global route filter chains for import and export.
                  Group and peer levels append to this base chain.
-                 Values are <plugin>:<filter> references.";
+                 Names reference filter instances defined in bgp/policy.";
             leaf-list import {
                 type string;
                 description "Global import filter chain";
@@ -539,19 +539,18 @@ module ze-bgp-conf {
             }
         }
 
-        // Redistribution filter chains
-        container redistribution {
+        // Filter chains
+        container filter {
             description
                 "Route filter chains for import and export.
-                 Values are <plugin>:<filter> references to named filters
-                 declared by plugins at stage 1.";
+                 Names reference filter instances defined in bgp/policy.";
             leaf-list import {
                 type string;
-                description "Import filter chain (<plugin>:<filter> references)";
+                description "Import filter chain (filter instance names)";
             }
             leaf-list export {
                 type string;
-                description "Export filter chain (<plugin>:<filter> references)";
+                description "Export filter chain (filter instance names)";
             }
         }
 

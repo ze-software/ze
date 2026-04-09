@@ -77,7 +77,7 @@ bgp {
     		local 65000
     	}
     }
-    redistribution {
+    filter {
         import [ filter-modify-test:set-localpref ];
     }
     peer peer1 {
