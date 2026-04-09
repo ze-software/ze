@@ -193,3 +193,94 @@ func TestDetectClusterListLoop_eBGP(t *testing.T) {
 	body := makeUpdateBody(buildClusterListAttr([]uint32{0x01020301}))
 	assert.True(t, accept(ebgpPeer(), body), "eBGP should skip CLUSTER_LIST check")
 }
+
+// --- allow-own-as Tests ---
+
+// TestLoopIngressAllowOwnAS1 verifies allow-own-as=1 accepts one occurrence.
+// VALIDATES: AC-7 -- allow-own-as N permits up to N occurrences of local ASN.
+func TestLoopIngressAllowOwnAS1(t *testing.T) {
+	// AS_PATH: 65002, 65001, 65003 -- local ASN 65001 appears once.
+	body := makeUpdateBody(buildASPathAttr([]uint32{65002, 65001, 65003}, false))
+	src := ebgpPeer()
+	src.LocalAS = 65001
+	src.AllowOwnAS = 1
+	assert.True(t, accept(src, body), "allow-own-as=1 should accept 1 occurrence of local ASN")
+}
+
+// TestLoopIngressAllowOwnAS0Rejects verifies default allow-own-as=0 rejects first occurrence.
+// VALIDATES: AC-6 -- allow-own-as 0 (default) rejects on first local ASN.
+func TestLoopIngressAllowOwnAS0Rejects(t *testing.T) {
+	// AS_PATH: 65002, 65001, 65003 -- local ASN 65001 appears once.
+	body := makeUpdateBody(buildASPathAttr([]uint32{65002, 65001, 65003}, false))
+	src := ebgpPeer()
+	src.LocalAS = 65001
+	src.AllowOwnAS = 0
+	assert.False(t, accept(src, body), "allow-own-as=0 should reject on first occurrence of local ASN")
+}
+
+// TestLoopIngressAllowOwnASExceeded verifies rejection when count exceeds allow-own-as.
+// VALIDATES: AC-7 -- allow-own-as 1 rejects when local ASN appears twice.
+func TestLoopIngressAllowOwnASExceeded(t *testing.T) {
+	// AS_PATH: 65001, 65002, 65001 -- local ASN 65001 appears twice.
+	body := makeUpdateBody(buildASPathAttr([]uint32{65001, 65002, 65001}, false))
+	src := ebgpPeer()
+	src.LocalAS = 65001
+	src.AllowOwnAS = 1
+	assert.False(t, accept(src, body), "allow-own-as=1 should reject when local ASN appears twice")
+}
+
+// TestLoopIngressAllowOwnASExactBoundary verifies allow-own-as=2 accepts exactly 2 occurrences.
+// VALIDATES: AC-7 -- boundary test: count == allow-own-as is accepted.
+func TestLoopIngressAllowOwnASExactBoundary(t *testing.T) {
+	// AS_PATH: 65001, 65002, 65001 -- local ASN 65001 appears twice.
+	body := makeUpdateBody(buildASPathAttr([]uint32{65001, 65002, 65001}, false))
+	src := ebgpPeer()
+	src.LocalAS = 65001
+	src.AllowOwnAS = 2
+	assert.True(t, accept(src, body), "allow-own-as=2 should accept exactly 2 occurrences")
+}
+
+// --- cluster-id override Tests ---
+
+// TestLoopIngressClusterIDOverride verifies explicit cluster-id is used for CLUSTER_LIST check.
+// VALIDATES: AC-9 -- cluster-id override replaces RouterID for CLUSTER_LIST loop detection.
+func TestLoopIngressClusterIDOverride(t *testing.T) {
+	// CLUSTER_LIST contains 0x0A000001 (10.0.0.1). RouterID is 0x01020301.
+	// With ClusterID set to 0x0A000001, the check should match and reject.
+	body := makeUpdateBody(buildClusterListAttr([]uint32{0x0A000001}))
+	src := ibgpPeer()
+	src.ClusterID = 0x0A000001
+	assert.False(t, accept(src, body), "explicit cluster-id should be used for CLUSTER_LIST check")
+}
+
+// TestLoopIngressClusterIDZeroUsesRouterID verifies ClusterID=0 falls back to RouterID.
+// VALIDATES: AC-8 -- no cluster-id configured uses router-id (existing behavior).
+func TestLoopIngressClusterIDZeroUsesRouterID(t *testing.T) {
+	// CLUSTER_LIST contains RouterID (0x01020301). ClusterID is 0 (not set).
+	body := makeUpdateBody(buildClusterListAttr([]uint32{0x01020301}))
+	src := ibgpPeer()
+	src.ClusterID = 0
+	assert.False(t, accept(src, body), "ClusterID=0 should use RouterID for CLUSTER_LIST check")
+}
+
+// TestLoopIngressClusterIDDoesNotAffectOriginatorID verifies ORIGINATOR_ID still uses RouterID.
+// VALIDATES: ORIGINATOR_ID check uses RouterID per RFC 4456, not ClusterID.
+func TestLoopIngressClusterIDDoesNotAffectOriginatorID(t *testing.T) {
+	// ORIGINATOR_ID matches RouterID (0x01020301). ClusterID is different.
+	body := makeUpdateBody(buildOriginatorIDAttr(0x01020301))
+	src := ibgpPeer()
+	src.ClusterID = 0x0A000001 // Different from RouterID
+	// Should still reject because ORIGINATOR_ID == RouterID.
+	assert.False(t, accept(src, body), "ORIGINATOR_ID check should use RouterID, not ClusterID")
+}
+
+// TestLoopIngressClusterIDMismatchAccepts verifies non-matching cluster-id passes.
+// VALIDATES: AC-9 -- CLUSTER_LIST not containing explicit cluster-id is accepted.
+func TestLoopIngressClusterIDMismatchAccepts(t *testing.T) {
+	// CLUSTER_LIST contains 0x0A000002. ClusterID is 0x0A000001. RouterID is 0x01020301.
+	// Neither ClusterID nor RouterID matches, so it should accept.
+	body := makeUpdateBody(buildClusterListAttr([]uint32{0x0A000002}))
+	src := ibgpPeer()
+	src.ClusterID = 0x0A000001
+	assert.True(t, accept(src, body), "CLUSTER_LIST without matching cluster-id should pass")
+}

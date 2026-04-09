@@ -321,6 +321,8 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		if hasPeer {
 			src.Name = peer.settings.Name
 			src.GroupName = peer.settings.GroupName
+			src.AllowOwnAS = peer.settings.LoopAllowOwnAS
+			src.ClusterID = peer.settings.LoopClusterID
 		}
 		// ASN4 from negotiated capabilities (peer may have disconnected).
 		if hasPeer && peer.session != nil {

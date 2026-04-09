@@ -46,7 +46,17 @@ func LoopIngress(src registry.PeerFilterInfo, payload []byte, _ map[string]any) 
 	localASN := src.LocalAS
 	routerID := src.RouterID
 
+	// Cluster-list loop check uses explicit ClusterID if configured, else RouterID.
+	// RFC 4456 Section 8: CLUSTER_ID defaults to the BGP Identifier (Router ID).
+	clusterCheck := routerID
+	if src.ClusterID != 0 {
+		clusterCheck = src.ClusterID
+	}
+
 	// Walk path attributes once, checking all three loop conditions.
+	// asnCount tracks local ASN occurrences across all AS_PATH segments.
+	var asnCount uint8
+
 	pos := 0
 	for pos < len(pathAttrs) {
 		if pos+2 > len(pathAttrs) {
@@ -82,6 +92,7 @@ func LoopIngress(src registry.PeerFilterInfo, payload []byte, _ map[string]any) 
 		case attribute.AttrASPath:
 			// RFC 4271 Section 9: "If the local AS appears in the AS_PATH attribute,
 			// the route MUST be excluded from the Phase 2 decision function."
+			// allow-own-as: tolerate up to AllowOwnAS occurrences before rejecting.
 			iter := attribute.NewASPathIterator(data, src.ASN4)
 			for {
 				_, asns, ok := iter.Next()
@@ -95,8 +106,11 @@ func LoopIngress(src registry.PeerFilterInfo, payload []byte, _ map[string]any) 
 						break
 					}
 					if asn == localASN {
-						logger().Debug("AS loop detected", "peer", src.Address, "local-asn", localASN)
-						return false, nil
+						asnCount++
+						if asnCount > src.AllowOwnAS {
+							logger().Debug("AS loop detected", "peer", src.Address, "local-asn", localASN, "count", asnCount, "allow", src.AllowOwnAS)
+							return false, nil
+						}
 					}
 				}
 			}
@@ -117,9 +131,9 @@ func LoopIngress(src registry.PeerFilterInfo, payload []byte, _ map[string]any) 
 			// the advertisement received SHOULD be ignored."
 			if isIBGP && dataLen%4 == 0 {
 				for i := 0; i < dataLen; i += 4 {
-					clusterID := binary.BigEndian.Uint32(data[i:])
-					if clusterID == routerID {
-						logger().Debug("CLUSTER_LIST loop detected", "peer", src.Address, "cluster-id", clusterID)
+					cid := binary.BigEndian.Uint32(data[i:])
+					if cid == clusterCheck {
+						logger().Debug("CLUSTER_LIST loop detected", "peer", src.Address, "cluster-id", cid)
 						return false, nil
 					}
 				}

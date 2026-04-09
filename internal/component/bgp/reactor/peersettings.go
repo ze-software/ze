@@ -335,6 +335,14 @@ type PeerSettings struct {
 	// Cumulative: bgp-level + group-level + peer-level, in order.
 	ExportFilters []string
 
+	// LoopAllowOwnAS is the number of own-AS occurrences to tolerate in AS_PATH.
+	// From loop-detection filter config. 0 = reject on first (RFC 4271 Section 9 default).
+	LoopAllowOwnAS uint8
+
+	// LoopClusterID is the explicit cluster-id for CLUSTER_LIST loop detection.
+	// From loop-detection filter config. 0 = use RouterID (RFC 4456 Section 8 default).
+	LoopClusterID uint32
+
 	// RawCapabilityConfig stores parsed capability config values for plugin delivery.
 	// Maps capability name → field name → value (e.g., "graceful-restart" → "restart-time" → "120").
 	// Populated from config blocks like: capability { graceful-restart { restart-time 120; } }
