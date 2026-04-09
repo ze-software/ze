@@ -964,6 +964,8 @@ func formatIssueList(issues []ConfigValidationError) string {
 // cmdRename renames a list entry key, preserving its subtree and position.
 // JunOS syntax: rename <list> <old-key> to <new-key>
 // Works relative to current context.
+//
+//nolint:dupl // shares structure with cmdCopy but different operations (rename vs copy)
 func (m *Model) cmdRename(args []string) (commandResult, error) {
 	// "to" must be second-to-last: <path...> <old-key> to <new-key>
 	// Searching from a fixed position avoids ambiguity when a list key is literally "to".
@@ -1023,6 +1025,8 @@ func (m *Model) cmdRename(args []string) (commandResult, error) {
 // cmdCopy clones a list entry under a new key, preserving the source.
 // JunOS syntax: copy <list> <old-key> to <new-key>
 // Works relative to current context.
+//
+//nolint:dupl // shares structure with cmdRename but different operations (copy vs rename)
 func (m *Model) cmdCopy(args []string) (commandResult, error) {
 	// "to" must be second-to-last: <path...> <src-key> to <dst-key>
 	if len(args) < 4 {
