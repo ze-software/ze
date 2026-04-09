@@ -231,6 +231,9 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 
 	switch n := node.(type) {
 	case *LeafNode:
+		if n.Hidden {
+			break
+		}
 		if name == InactiveLeafName {
 			break // Rendered as "inactive: " prefix on the parent, not as a leaf
 		}
@@ -281,6 +284,9 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 		}
 
 	case *ContainerNode:
+		if n.Hidden {
+			break
+		}
 		if n.Presence {
 			serializePresenceContainer(b, tree, name, n, indent)
 		} else if child := tree.containers[name]; child != nil {
@@ -300,6 +306,9 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 		}
 
 	case *ListNode:
+		if n.Hidden {
+			break
+		}
 		if entries := tree.lists[name]; entries != nil {
 			if n.KeyName != "" && len(n.Children()) <= 2 && allChildrenAreLeaves(n) {
 				// Multi-entry block: name { key1 val1; key2; ... }

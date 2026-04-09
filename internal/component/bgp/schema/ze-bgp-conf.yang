@@ -35,6 +35,17 @@ module ze-bgp-conf {
             }
         }
 
+        // Named filter policy definitions. Filter type plugins augment this
+        // container with their own lists marked ze:filter. Each list entry
+        // is a named filter instance referenced in peer filter { import/export }
+        // chains by its unique name.
+        container policy {
+            description
+                "Named filter definitions for the route policy framework.
+                 Each filter type is a list added by its plugin via augment.
+                 Filter instances are referenced by name in peer filter chains.";
+        }
+
         // Global redistribution filter chains (apply to all peers as base chain)
         container redistribution {
             description

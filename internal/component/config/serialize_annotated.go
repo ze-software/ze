@@ -201,6 +201,9 @@ func serializeAnnotatedTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, 
 
 	switch n := node.(type) {
 	case *LeafNode:
+		if n.Hidden {
+			break
+		}
 		if name == InactiveLeafName {
 			break // Rendered as "inactive: " prefix on the parent
 		}
@@ -255,9 +258,15 @@ func serializeAnnotatedTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, 
 		}
 
 	case *ContainerNode:
+		if n.Hidden {
+			break
+		}
 		serializeAnnotatedContainer(b, tree, meta, name, n, columns, indent)
 
 	case *ListNode:
+		if n.Hidden {
+			break
+		}
 		serializeAnnotatedList(b, tree, meta, name, n, columns, indent)
 
 	case *FreeformNode:
@@ -564,6 +573,9 @@ func serializeAnnotatedSetChild(b *strings.Builder, tree *Tree, meta *MetaTree, 
 
 	switch n := node.(type) {
 	case *LeafNode:
+		if n.Hidden {
+			break
+		}
 		if v, ok := tree.values[name]; ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
 			fmt.Fprintf(b, "set %s %s\n", path, quoteIfNeeded(normalizeBool(v)))
@@ -601,6 +613,9 @@ func serializeAnnotatedSetChild(b *strings.Builder, tree *Tree, meta *MetaTree, 
 		}
 
 	case *ContainerNode:
+		if n.Hidden {
+			break
+		}
 		if n.Presence {
 			if v, ok := tree.values[name]; ok {
 				writeAnnotatedLeafGutter(b, meta, name, columns)
@@ -617,6 +632,9 @@ func serializeAnnotatedSetChild(b *strings.Builder, tree *Tree, meta *MetaTree, 
 		}
 
 	case *ListNode:
+		if n.Hidden {
+			break
+		}
 		serializeAnnotatedSetList(b, tree, meta, name, n, columns, path)
 
 	case *FreeformNode:

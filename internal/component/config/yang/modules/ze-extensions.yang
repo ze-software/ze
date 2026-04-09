@@ -191,4 +191,29 @@ module ze-extensions {
                      The argument names a registered decorator function
                      that resolves supplementary display text for the value.";
     }
+
+    // Extension: filter
+    // Marks a list node as a named filter type for the policy framework.
+    // Lists with this extension are discovered mechanically by the filter
+    // name registry. Each entry in a ze:filter list is a named filter
+    // instance that can be referenced in peer filter { import/export }
+    // chains. Location-independent: works under bgp/policy, bgp/group,
+    // bgp/peer, or any future location.
+    extension filter {
+        description "Marks a list as a named filter type for the route
+                     policy framework. Entries are filter instances
+                     referenced by name in import/export chains.";
+    }
+
+    // Extension: ephemeral
+    // Marks a node as runtime-only. Ephemeral nodes are present in the
+    // schema (validation and autocomplete work) but their values are not
+    // persisted to the config file. Used for transient runtime state that
+    // should not survive a restart.
+    // Contrast with ze:hidden which hides from display but still saves.
+    extension ephemeral {
+        description "Marks a node as runtime-only. Values are validated
+                     and autocompleted but not written to the config file.
+                     Contrast with ze:hidden (hidden from display, saved).";
+    }
 }
