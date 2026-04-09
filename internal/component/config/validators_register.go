@@ -3,11 +3,15 @@
 
 package config
 
-import "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+import (
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/redistribute"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+)
 
 // RegisterValidators registers all custom validators into the given registry.
 // Called during startup after YANG modules are loaded.
 func RegisterValidators(reg *yang.ValidatorRegistry) {
+	redistribute.RegisterBGPSources()
 	reg.Register("registered-address-family", AddressFamilyValidator())
 	reg.Register("nonzero-ipv4", NonzeroIPv4Validator())
 	reg.Register("literal-self", LiteralSelfValidator())
@@ -15,4 +19,5 @@ func RegisterValidators(reg *yang.ValidatorRegistry) {
 	reg.Register("receive-event-type", ReceiveEventValidator())
 	reg.Register("send-message-type", SendMessageValidator())
 	reg.Register("mac-address", MACAddressValidator())
+	reg.Register("redistribute-source", RedistributeSourceValidator())
 }

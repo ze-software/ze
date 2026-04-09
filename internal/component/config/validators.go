@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -193,6 +194,24 @@ func MACAddressValidator() yang.CustomValidator {
 
 // CommunityRangeValidator returns a validator that checks BGP community ASN:value ranges.
 // Both parts must be uint16 (0-65535).
+// RedistributeSourceValidator returns a validator for redistribute source names.
+// Validates against the redistribute source registry (populated by protocol packages).
+func RedistributeSourceValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			if _, found := redistribute.LookupSource(str); !found {
+				return fmt.Errorf("%q is not a registered redistribute source", str)
+			}
+			return nil
+		},
+		CompleteFn: redistribute.SourceNames,
+	}
+}
+
 func CommunityRangeValidator() yang.CustomValidator {
 	return yang.CustomValidator{
 		ValidateFn: func(path string, value any) error {
