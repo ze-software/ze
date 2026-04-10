@@ -1,0 +1,63 @@
+{{ template "header.tmpl" . }}
+
+<div class="row">
+  <div class="col-md-12">
+    <table class="table">
+      <tr>
+        <th>Name</th>
+        <th>Started</th>
+        <th>Actions</th>
+      </tr>
+      <tr>
+        <td>{{ .Service.Name }}</td>
+        <td>{{ .Service.Started.Format "Mon Jan _2 15:04:05 MST 2006" }}</td>
+        <td style="display: flex; flex-wrap: wrap; gap: 1em">
+{{ if .Service.Stopped }}
+          <form method="POST" action="/restart">
+            <input type="hidden" name="xsrftoken" value="{{ .XsrfToken }}">
+            <input type="hidden" name="path" value="{{ .Service.Name }}">
+            <input type="hidden" name="supervise" value="once">
+            <input type="submit" value="▶ run once">
+          </form>
+
+          <form method="POST" action="/restart">
+            <input type="hidden" name="xsrftoken" value="{{ .XsrfToken }}">
+            <input type="hidden" name="path" value="{{ .Service.Name }}">
+            <input type="hidden" name="supervise" value="loop">
+            <input type="submit" value="🔁 supervise (run in a loop)">
+          </form>
+{{ else }}
+          <form method="POST" action="/stop">
+            <input type="hidden" name="xsrftoken" value="{{ .XsrfToken }}">
+            <input type="hidden" name="path" value="{{ .Service.Name }}">
+            <input type="submit" value="❌ stop">
+          </form>
+{{ end }}
+        </td>
+      </tr>
+    </table>
+
+    {{ if (ne .Service.Diverted "") }}
+    <p>
+      Diverted: <code>{{ .Service.Diverted }}</code>
+    </p>
+    {{ end }}
+
+    <h3>stdout <small><a href="/log?path={{ .Service.Name }}&stream=stdout">raw log</a></small></h3>
+    <pre id="stdout"></pre>
+
+    <h3>stderr <small><a href="/log?path={{ .Service.Name }}&stream=stderr">raw log</a></small></h3>
+    <pre id="stderr"></pre>
+
+    <h3>module info</h3>
+    <pre>{{ .Service.ModuleInfo }}</pre>
+
+  </div>
+</div>
+
+<script>
+const ServiceName = '{{ .Service.Name }}';
+</script>
+<script src="/assets/status.js" async></script>
+
+{{ template "footer.tmpl" . }}

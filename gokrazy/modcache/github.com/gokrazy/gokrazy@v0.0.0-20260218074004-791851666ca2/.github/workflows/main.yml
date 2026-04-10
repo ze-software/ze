@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  diskimage:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-go@v5
+      with:
+        # Latest stable version of Go, e.g. 1.20.2
+        go-version: 'stable'
+
+    - name: Ensure all files were formatted as per gofmt
+      run: |
+        [ "$(gofmt -l $(find . -name '*.go') 2>&1)" = "" ]
+
+    - name: install gok CLI
+      run: GOPROXY=direct go install github.com/gokrazy/tools/cmd/gok@main
+
+    - name: install qemu
+      run: sudo apt update && sudo apt-get install qemu-system-x86
+
+    - name: run tests
+      run: go test -v ./...
+
+    - name: generate gokrazy disk image
+      run: |
+        export PATH=$PATH:$(go env GOPATH)/bin
+        gok new
+        gok overwrite --full=full.img --target_storage_bytes=1610612736

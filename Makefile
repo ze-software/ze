@@ -10,6 +10,7 @@
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test
 .PHONY: ze-sync-vendor-web ze-check-vendor-web
 .PHONY: check ze-setup
+.PHONY: ze-gokrazy ze-gokrazy-deps ze-gokrazy-run
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
 export GOCACHE := $(CURDIR)/tmp/go-cache
@@ -492,6 +493,105 @@ tidy:
 	@echo "Tidying dependencies..."
 	go mod tidy
 
+# ─── Gokrazy VM appliance ────────────────────────────────────────────────────
+#
+# Builds a bootable x86_64 VM image with Ze baked in.
+# Everything is vendored: gok tool source in gokrazy/tools/vendor/,
+# dependency pins in gokrazy/ze/builddir/*/go.mod.
+# After cloning, run `make ze-gokrazy-deps` once to populate the Go module cache
+# for the gokrazy system packages (kernel, init). After that, builds work offline.
+#
+# Requires: e2fsprogs (brew install e2fsprogs)
+#           qemu (brew install qemu) -- for ze-gokrazy-run only
+#
+# The image contains:
+#   - Linux kernel + gokrazy init (process supervisor, DHCP, NTP, web UI)
+#   - Ze binary with all internal plugins compiled in
+#   - Seed config at /etc/ze/ze.conf (read-only root)
+#   - SSH credentials in /perm/ze/database.zefs (persistent partition)
+#
+# Gokrazy web UI: http://gokrazy:<password>@localhost:18080/
+# Ze web UI:      http://localhost:28080/
+# Ze SSH CLI:     ssh -p 2222 <user>@localhost
+#
+# Usage:
+#   make ze-gokrazy-deps                    -- one-time: download gokrazy system packages
+#   make ze-gokrazy USER=admin PASS=secret  -- build image with SSH credentials
+#   make ze-gokrazy-run                     -- boot image in QEMU
+
+GOKRAZY_INSTANCE   := ze
+GOKRAZY_DIR        := gokrazy
+GOKRAZY_IMG        := tmp/gokrazy/ze.img
+GOKRAZY_IMG_SIZE   := 2147483648
+GOKRAZY_PERM_OFF   := 1157627904
+GOKRAZY_PERM_BLK   := 966639
+GOKRAZY_PERM_4K    := 241660
+GOKRAZY_PERM_SKIP  := 282624
+E2FS               := /opt/homebrew/Cellar/e2fsprogs/1.47.4/sbin
+
+# Build ze-gok from vendored source (gokrazy/tools/).
+# ze-gok wraps gok with a repo-local GOMODCACHE so all module resolution
+# stays under gokrazy/modcache/ (committed Go source, .gitignored kernel).
+bin/gok:
+	@echo "Building ze-gok from vendored source..."
+	@mkdir -p bin
+	go build -C $(GOKRAZY_DIR)/tools -mod=vendor -o ../../bin/gok ./cmd/ze-gok
+
+# Download gokrazy system packages into the repo-local module cache.
+# Only fetches gokrazy's own packages (kernel, init, serial-busybox).
+# Ze's dependencies are already in the repo's vendor/ directory.
+GOMODCACHE_LOCAL := $(CURDIR)/$(GOKRAZY_DIR)/modcache
+
+ze-gokrazy-deps: bin/gok
+	@echo "Downloading gokrazy dependencies into $(GOKRAZY_DIR)/modcache/..."
+	@for d in $$(find $(GOKRAZY_DIR)/$(GOKRAZY_INSTANCE)/builddir -name go.mod -exec dirname {} \;); do \
+		echo "  $$d"; \
+		(cd "$$d" && GOMODCACHE=$(GOMODCACHE_LOCAL) go mod download all) || exit 1; \
+	done
+	@echo "Done. Builds now work offline."
+
+# Build a bootable VM image with SSH credentials baked in.
+ze-gokrazy: ze bin/gok
+	@test -n "$(USER)" || { echo "Usage: make ze-gokrazy USER=admin PASS=secret"; exit 1; }
+	@test -n "$(PASS)" || { echo "Usage: make ze-gokrazy USER=admin PASS=secret"; exit 1; }
+	@test -f $(E2FS)/mkfs.ext4 || { echo "error: e2fsprogs not found (brew install e2fsprogs)"; exit 1; }
+	@mkdir -p tmp/gokrazy/init
+	@echo "--- Creating SSH credentials ---"
+	@printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \
+		env ze.config.dir=tmp/gokrazy/init bin/ze init --force 2>&1
+	@echo "--- Building gokrazy image ---"
+	GOARCH=amd64 bin/gok --parent_dir $(GOKRAZY_DIR) -i $(GOKRAZY_INSTANCE) overwrite \
+		--full $(GOKRAZY_IMG) \
+		--target_storage_bytes $(GOKRAZY_IMG_SIZE)
+	@echo "--- Formatting /perm partition ---"
+	$(E2FS)/mkfs.ext4 -q -F -E offset=$(GOKRAZY_PERM_OFF) $(GOKRAZY_IMG) $(GOKRAZY_PERM_BLK)
+	@echo "--- Injecting credentials into /perm ---"
+	@dd if=$(GOKRAZY_IMG) of=tmp/gokrazy/perm.img bs=4096 skip=$(GOKRAZY_PERM_SKIP) count=$(GOKRAZY_PERM_4K) 2>/dev/null
+	@$(E2FS)/debugfs -w -R "mkdir ze" tmp/gokrazy/perm.img 2>/dev/null
+	@$(E2FS)/debugfs -w -R "write tmp/gokrazy/init/database.zefs ze/database.zefs" tmp/gokrazy/perm.img 2>/dev/null
+	@dd if=tmp/gokrazy/perm.img of=$(GOKRAZY_IMG) bs=4096 seek=$(GOKRAZY_PERM_SKIP) conv=notrunc 2>/dev/null
+	@rm -f tmp/gokrazy/perm.img
+	@echo ""
+	@echo "Image ready: $(GOKRAZY_IMG)"
+	@echo "Run: make ze-gokrazy-run"
+
+# Boot the VM image in QEMU with port forwarding.
+ze-gokrazy-run:
+	@test -f $(GOKRAZY_IMG) || { echo "error: $(GOKRAZY_IMG) not found (run: make ze-gokrazy USER=admin PASS=secret)"; exit 1; }
+	@command -v qemu-system-x86_64 >/dev/null || { echo "error: qemu not found (brew install qemu)"; exit 1; }
+	@echo "Booting Ze gokrazy appliance..."
+	@echo "  Gokrazy web: http://gokrazy:$$(python3 -c "import json; print(json.load(open('$(GOKRAZY_DIR)/$(GOKRAZY_INSTANCE)/config.json'))['Update']['HTTPPassword'])" 2>/dev/null || echo 'see config')@localhost:18080/"
+	@echo "  Ze web:      http://localhost:28080/"
+	@echo "  Ze SSH:      ssh -p 2222 <user>@localhost"
+	@echo "  Quit:        Ctrl-A X"
+	@echo ""
+	qemu-system-x86_64 \
+		-machine accel=tcg \
+		-smp 2 -m 512 \
+		-drive file=$(GOKRAZY_IMG),format=raw \
+		-nographic -serial mon:stdio \
+		-nic user,model=e1000,hostfwd=tcp::18080-:80,hostfwd=tcp::28080-:8080,hostfwd=tcp::2222-:22
+
 # Clean build artifacts
 clean:
 	@echo "Cleaning..."
@@ -630,6 +730,11 @@ help:
 	@echo "  ze-validate-commands  - Cross-check YANG ze:command vs registered RPC handlers"
 	@echo "  ze-consistency        - Code/doc consistency: design refs, cross-refs, stale refs"
 	@echo "  See docs/contributing/documentation-testing.md for the workflow."
+	@echo ""
+	@echo "  Gokrazy VM appliance (x86_64, see docs/guide/appliance.md):"
+	@echo "  ze-gokrazy-deps          - One-time: download gokrazy system packages into Go module cache"
+	@echo "  ze-gokrazy USER=x PASS=y - Build bootable VM image with Ze + SSH credentials"
+	@echo "  ze-gokrazy-run           - Boot the VM image in QEMU (Ctrl-A X to quit)"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "  ze-setup              - Install dev tools (goimports, golangci-lint, protoc plugins)"

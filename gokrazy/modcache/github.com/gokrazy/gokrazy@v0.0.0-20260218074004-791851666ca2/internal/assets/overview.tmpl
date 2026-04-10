@@ -1,0 +1,110 @@
+{{ template "header.tmpl" . }}
+
+<div class="row">
+<div class="col-md-12">
+
+<h1>services</h1>
+
+<table class="table">
+<tbody><tr>
+<th width="20%">path</th>
+<th width="8%">status</th>
+<th width="72%">last log line</th>
+</tr>
+
+{{ range $idx, $svc := .Services }}
+<tr>
+<td>
+<a href="/status?path={{ $svc.Name }}">{{ $svc.Name }}</a>
+</td>
+<td>
+{{ if restarting $svc.Started }}
+<span class="label label-danger">restarting</span>
+{{ end }}
+{{ if $svc.Stopped }}
+<span class="label label-default">stopped</span>
+{{ else if not (restarting $svc.Started) }}
+<span class="label label-success">running</span>
+{{ end }}
+</td>
+<td class="lastlog">
+{{ if $svc.Stdout.Lines }}
+<small>stdout: </small>{{last $svc.Stdout.Lines }}<br/>
+{{ end }}
+{{ if $svc.Stderr.Lines }}
+<small>stderr: </small>{{last $svc.Stderr.Lines }}<br/>
+{{ end }}
+</td>
+</tr>
+{{ end }}
+
+</table>
+</div>
+<div class="col-md-12">
+<h2>memory</h2>
+{{ megabytes (index .Meminfo "MemTotal") }} total, {{ megabytes (index .Meminfo "MemAvailable") }} available<br>
+<strong>resident set size (RSS) by service</strong>:
+<div class="progress">
+
+{{ with $rss := initRss }}
+<div class="progress-bar" style="width: {{ rssPercentage $.Meminfo $rss }}%" title="init uses {{ megabytes $rss }} RSS">
+<span class="sr-only"></span>
+init
+</div>
+{{ end }}
+
+{{ range $idx, $svc := .Services }}
+{{ with $rss := $svc.RSS }}
+<div class="progress-bar" style="width: {{ rssPercentage $.Meminfo $rss }}%" title="{{ $svc.Name }} uses {{ megabytes $rss }} RSS">
+<span class="sr-only"></span>
+{{ baseName $svc.Name }}
+</div>
+{{ end }}
+{{ end }}
+<div class="progress-bar" style="width: 100%; overflow:initial; float: none" title="memory usage outside of gokrazy services">
+<span class="sr-only"></span>
+unaccounted
+</div>
+</div>
+</div>
+
+<div class="col-md-12">
+
+
+<h2>storage</h2>
+
+{{ if eq .PermAvail 0 }}
+
+{{ if ne .PermUUID "" }}
+No permanent storage mounted. To create a filesystem for permanent storage, plug the SD card into a Linux computer and use <code>mkfs.ext4 /dev/disk/by-partuuid/{{ .PermUUID }}</code>.
+{{ else }}
+No permanent storage mounted. To create a filesystem for permanent storage, plug the SD card into a Linux computer and, if your SD card is <code>/dev/sdb</code>, use <code>mkfs.ext4 /dev/sdb4</code>.
+{{ end }}
+
+{{ else }}
+<strong>{{ .PermDev }}</strong>: {{ gigabytes .PermTotal }} total, {{ gigabytes .PermUsed }} used, {{ gigabytes .PermAvail }} avail<br>
+{{ end }}
+
+{{ range $idx, $dev := .MountDevices }}
+<strong>{{ $dev.Dev }}</strong>: {{ gigabytes $dev.Total }} total, {{ gigabytes $dev.Used }} used, {{ gigabytes $dev.Avail }} avail<br>
+{{ end }}
+
+<h2>private network addresses</h2>
+<ul>
+{{ range $idx, $addr := .PrivateAddrs }}
+<li>{{ $addr }}</li>
+{{ end }}
+</ul>
+
+<h2>public network addresses</h2>
+<ul>
+{{ range $idx, $addr := .PublicAddrs }}
+<li>{{ $addr }}</li>
+{{ end }}
+</ul>
+
+
+</div>
+</div>
+
+{{ template "footer.tmpl" . }}

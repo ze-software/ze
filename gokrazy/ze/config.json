@@ -1,0 +1,41 @@
+{
+    "Hostname": "ze",
+    "Update": {
+        "HTTPPassword": "eHB3bD2VWz0gWH2L8NxW"
+    },
+    "Environment": [
+        "GOOS=linux",
+        "GOARCH=amd64"
+    ],
+    "Packages": [
+        "github.com/gokrazy/serial-busybox",
+        "codeberg.org/thomas-mangin/ze/cmd/ze"
+    ],
+    "PackageConfig": {
+        "github.com/gokrazy/gokrazy/cmd/randomd": {
+            "ExtraFileContents": {
+                "/etc/machine-id": "8c41122ccef146da873e644db09cde89\n"
+            }
+        },
+        "codeberg.org/thomas-mangin/ze/cmd/ze": {
+            "CommandLineFlags": [
+                "/etc/ze/ze.conf"
+            ],
+            "Environment": [
+                "ze.config.dir=/perm/ze",
+                "ze.bgp.api.socketpath=/tmp/ze.socket",
+                "ze.bgp.daemon.drop=false",
+                "ze.log=info",
+                "ze.log.backend=stderr"
+            ],
+            "ExtraFileContents": {
+                "/etc/ze/ze.conf": "# Ze BGP configuration\n# Edit via ze config edit over SSH\n\nenvironment {\n    log {\n        level info\n    }\n}\n\nweb {\n    listen {\n        ip 0.0.0.0\n        port 8080\n    }\n}\n\nssh {\n    listen {\n        ip 0.0.0.0\n        port 22\n    }\n}\n"
+            },
+            "WaitForClock": true
+        }
+    },
+    "SerialConsole": "ttyS0,115200",
+    "KernelPackage": "github.com/rtr7/kernel",
+    "FirmwarePackage": "",
+    "EEPROMPackage": ""
+}

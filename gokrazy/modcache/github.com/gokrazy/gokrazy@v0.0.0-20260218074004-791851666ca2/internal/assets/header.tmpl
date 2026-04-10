@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<title>{{ .Hostname }} — gokrazy</title>
+<link rel="stylesheet" href="/assets/bootstrap-3.3.7.min.css" />
+<link rel="stylesheet" href="/assets/bootstrap-table-1.11.0.min.css" />
+<link rel="icon" href="/assets/favicon.ico" type="image/x-icon" />
+<style type="text/css">
+.progress-bar:nth-child(5n) {
+        background-color: #337ab7;
+}
+.progress-bar:nth-child(5n+1) {
+        background-color: #5cb85c;
+}
+.progress-bar:nth-child(5n+2) {
+        background-color: #5bc0de;
+}
+.progress-bar:nth-child(5n+3) {
+        background-color: #f0ad4e;
+}
+.progress-bar:nth-child(5n+4) {
+        background-color: #d9534f;
+}
+.lastlog {
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+}
+table {
+        table-layout: fixed;
+}
+</style>
+
+<nav class="navbar navbar-default">
+  <div class="container-fluid">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <div style="clear: left;">
+        <p style="float: left;"><img src = "assets/gokrazy-logo.svg" alt="the gokrazy logo: a mad gopher" width="70px"/></p>
+        <p style="width: 50ex; margin-top: 0.25em; font-size: 18px"><a href="/">gokrazy</a><br>
+        <small style="font-size: 11px" class="text-muted">built at {{ .BuildTimestamp }}</small></p>
+      </div>
+    </div>
+
+    <div class="collapse navbar-collapse" id="navbar-collapse-1">
+      <table class="navbar-text navbar-right" style="border-spacing: 10px 0; border-collapse: separate">
+        <tr>
+          <th>host</th>
+          <td>{{ .Hostname }}</td>
+        </tr>
+        <tr>
+          <th>kernel</th>
+          <td>{{ .Kernel }}</td>
+        </tr>
+        {{ if (ne .Model "") }}
+        <tr>
+          <th>model</th>
+          <td>{{ .Model }}</td>
+        </tr>
+        {{ end }}
+	{{ if (ne .SBOMHash "") }}
+        <tr>
+          <th>SBOM</th>
+          <td>{{ .SBOMHash | printSBOMHash }}</td>
+        </tr>
+	{{ end }}
+        {{ if .EEPROM }}
+        <tr>
+          <th>EEPROM</th>
+          <td style="vertical-align: top">
+	    {{ .EEPROM.FirmwareDate }}<br>
+	  </td>
+        </tr>
+        {{ end }}
+        <tr>
+          <td></td>
+          <td>
+            <details>
+              <summary style="display: revert;margin-left: -1.25rem;">Power Management</summary>
+              <form action="/reboot" method="post" style="display:inline">
+                <button type="submit">Reboot</button>
+              </form>
+              <form action="/poweroff" method="post" style="display:inline">
+                <button type="submit">Poweroff</button>
+              </form>
+            </details>
+          </td>
+      </table>
+
+    </div><!-- /.navbar-collapse -->
+  </div><!-- /.container-fluid -->
+</nav>
+
+<div class="container">

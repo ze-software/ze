@@ -1,0 +1,15 @@
+# Ignore everything in the module cache by default.
+*
+
+# Keep this file.
+!.gitignore
+
+# Whitelist the gokrazy init system source.
+!github.com/
+!github.com/gokrazy/
+!github.com/gokrazy/gokrazy@*/
+!github.com/gokrazy/gokrazy@*/**
+
+# Re-ignore non-source dirs within the gokrazy module (photos, fonts).
+github.com/gokrazy/gokrazy@*/docs/
+github.com/gokrazy/gokrazy@*/website/

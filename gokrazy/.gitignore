@@ -1,0 +1,5 @@
+# Built images
+*.img
+
+# Module cache is managed by make ze-gokrazy-deps.
+# Gokrazy init source is whitelisted in modcache/.gitignore.
