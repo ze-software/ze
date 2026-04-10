@@ -18,15 +18,16 @@ import (
 // PeerFilterInfo holds BGP peer metadata for filter decisions.
 // Passed by the reactor to registered filter functions.
 type PeerFilterInfo struct {
-	Address    netip.Addr // Peer IP address
-	PeerAS     uint32     // Remote AS number
-	LocalAS    uint32     // Local AS number (for iBGP detection)
-	RouterID   uint32     // Local Router ID (for ORIGINATOR_ID/CLUSTER_LIST loop detection)
-	ASN4       bool       // 4-byte ASN negotiated (affects AS_PATH parsing)
-	Name       string     // Peer name from config (for filter config lookup)
-	GroupName  string     // Group name (empty if standalone peer)
-	AllowOwnAS uint8      // Loop detection: number of own-AS occurrences to tolerate (0 = reject on first)
-	ClusterID  uint32     // Loop detection: explicit cluster-id (0 = use RouterID)
+	Address      netip.Addr // Peer IP address
+	PeerAS       uint32     // Remote AS number
+	LocalAS      uint32     // Local AS number (for iBGP detection)
+	RouterID     uint32     // Local Router ID (for ORIGINATOR_ID/CLUSTER_LIST loop detection)
+	ASN4         bool       // 4-byte ASN negotiated (affects AS_PATH parsing)
+	Name         string     // Peer name from config (for filter config lookup)
+	GroupName    string     // Group name (empty if standalone peer)
+	AllowOwnAS   uint8      // Loop detection: number of own-AS occurrences to tolerate (0 = reject on first)
+	ClusterID    uint32     // Loop detection: explicit cluster-id (0 = use RouterID)
+	LoopDisabled bool       // Loop detection deactivated for this peer (inactive: prefix)
 }
 
 // IngressFilterFunc is called for received UPDATEs before caching and dispatching.

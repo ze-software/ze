@@ -284,3 +284,29 @@ func TestLoopIngressClusterIDMismatchAccepts(t *testing.T) {
 	src.ClusterID = 0x0A000001
 	assert.True(t, accept(src, body), "CLUSTER_LIST without matching cluster-id should pass")
 }
+
+// --- LoopDisabled Tests ---
+
+// TestLoopIngressDisabledAcceptsLoop verifies LoopDisabled bypasses all checks.
+//
+// VALIDATES: inactive: on loop-detection filter suppresses the in-process filter.
+// PREVENTS: Deactivated loop detection still rejecting routes.
+func TestLoopIngressDisabledAcceptsLoop(t *testing.T) {
+	// AS_PATH contains local ASN -- normally rejected.
+	body := makeUpdateBody(buildASPathAttr([]uint32{65002, 65001, 65003}, false))
+	src := ebgpPeer()
+	src.LocalAS = 65001
+	src.LoopDisabled = true
+	assert.True(t, accept(src, body), "LoopDisabled should bypass AS loop check")
+}
+
+// TestLoopIngressDisabledAcceptsClusterLoop verifies LoopDisabled bypasses cluster check.
+//
+// VALIDATES: inactive: suppresses CLUSTER_LIST loop detection too.
+// PREVENTS: Partial suppression (AS check disabled but cluster check still active).
+func TestLoopIngressDisabledAcceptsClusterLoop(t *testing.T) {
+	body := makeUpdateBody(buildClusterListAttr([]uint32{0x01020301}))
+	src := ibgpPeer()
+	src.LoopDisabled = true
+	assert.True(t, accept(src, body), "LoopDisabled should bypass CLUSTER_LIST check")
+}

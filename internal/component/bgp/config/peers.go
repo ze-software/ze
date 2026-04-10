@@ -474,11 +474,18 @@ func applyLoopDetectionConfig(bgpContainer *config.Tree, peerIndex map[string]*r
 
 	for _, ps := range peerIndex {
 		for _, filterName := range ps.ImportFilters {
-			// Strip inactive: prefix for matching.
+			inactive := strings.HasPrefix(filterName, "inactive:")
 			clean := strings.TrimPrefix(filterName, "inactive:")
 			entry, ok := ldEntries[clean]
 			if !ok {
 				continue
+			}
+
+			// If the loop-detection filter is deactivated, suppress the
+			// in-process LoopIngress for this peer.
+			if inactive {
+				ps.LoopDisabled = true
+				break
 			}
 
 			// Extract allow-own-as (uint8, default 0).

@@ -392,3 +392,35 @@ func TestLoopDetectionDefaultAutoPopulation(t *testing.T) {
 	assert.Contains(t, ps.ImportFilters, "my-loop", "loop-detection should auto-populate in import chain")
 	assert.Equal(t, uint8(3), ps.LoopAllowOwnAS, "auto-populated filter settings should be applied")
 }
+
+// TestLoopDetectionInactiveDisables verifies inactive: suppresses loop detection.
+//
+// VALIDATES: inactive: on a loop-detection filter sets LoopDisabled on PeerSettings.
+// PREVENTS: Deactivated loop detection still enforced by the in-process filter.
+func TestLoopDetectionInactiveDisables(t *testing.T) {
+	tree := config.NewTree()
+	bgp := buildBGPBlock()
+
+	policy := config.NewTree()
+	ldEntry := config.NewTree()
+	ldEntry.Set("allow-own-as", "2")
+	policy.AddListEntry("loop-detection", "my-loop", ldEntry)
+	bgp.SetContainer("policy", policy)
+
+	// Peer with inactive: on the loop-detection filter.
+	peerTree := buildMinimalPeer("10.0.0.1", "65001", "auto")
+	filterTree := config.NewTree()
+	filterTree.SetSlice("import", []string{"inactive:my-loop"})
+	peerTree.SetContainer("filter", filterTree)
+
+	bgp.AddListEntry("peer", "peer1", peerTree)
+	tree.SetContainer("bgp", bgp)
+
+	peers, err := PeersFromConfigTree(tree)
+	require.NoError(t, err)
+	require.Len(t, peers, 1)
+
+	ps := peers[0]
+	assert.True(t, ps.LoopDisabled, "inactive: on loop-detection should set LoopDisabled")
+	assert.Equal(t, uint8(0), ps.LoopAllowOwnAS, "inactive filter settings should not be extracted")
+}

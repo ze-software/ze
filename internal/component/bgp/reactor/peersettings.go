@@ -343,6 +343,10 @@ type PeerSettings struct {
 	// From loop-detection filter config. 0 = use RouterID (RFC 4456 Section 8 default).
 	LoopClusterID uint32
 
+	// LoopDisabled disables loop detection for this peer.
+	// Set when the peer's import chain has inactive: on its loop-detection filter.
+	LoopDisabled bool
+
 	// RawCapabilityConfig stores parsed capability config values for plugin delivery.
 	// Maps capability name → field name → value (e.g., "graceful-restart" → "restart-time" → "120").
 	// Populated from config blocks like: capability { graceful-restart { restart-time 120; } }

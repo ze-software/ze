@@ -25,6 +25,9 @@ var logger = slogutil.LazyLogger("bgp.filter")
 //  2. Originator-ID loop: ORIGINATOR_ID == local Router ID (iBGP only, RFC 4456 Section 8)
 //  3. Cluster-list loop: local Router ID in CLUSTER_LIST (iBGP only, RFC 4456 Section 8)
 func LoopIngress(src registry.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
+	if src.LoopDisabled {
+		return true, nil
+	}
 	if len(payload) < 4 {
 		return true, nil
 	}
