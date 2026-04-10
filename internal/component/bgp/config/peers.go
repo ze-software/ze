@@ -164,7 +164,30 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 		ps.ExportFilters = concatFilters(bgpExport, peerExport)
 	}
 
-	// Step 3b2: Prepend default filter names to each peer's import chain.
+	// Step 3b2: Validate policy filter names in peer filter chains.
+	// Names without ":" must exist in the policy registry. Names with ":" are
+	// external plugin filters validated at runtime (plugins register at stage 1).
+	policyTree := bgpContainer.GetContainer("policy")
+	var policySchema *config.ContainerNode
+	if node, err := schema.Lookup("bgp/policy"); err == nil {
+		if cn, ok := node.(*config.ContainerNode); ok {
+			policySchema = cn
+		}
+	}
+	filterReg, err := BuildFilterRegistry(policyTree, policySchema)
+	if err != nil {
+		return nil, err
+	}
+	for _, ps := range peers {
+		if err := filterReg.ValidateFilterNames(ps.ImportFilters, fmt.Sprintf("peer %s import", ps.Name)); err != nil {
+			return nil, err
+		}
+		if err := filterReg.ValidateFilterNames(ps.ExportFilters, fmt.Sprintf("peer %s export", ps.Name)); err != nil {
+			return nil, err
+		}
+	}
+
+	// Step 3b3: Prepend default filter names to each peer's import chain.
 	// Default filters (loop-detection) auto-populate unless already referenced.
 	prependDefaultFilters(bgpContainer, peerIndex)
 

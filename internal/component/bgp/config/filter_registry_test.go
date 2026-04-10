@@ -191,3 +191,33 @@ func TestValidateFilterNamesInactiveUnknown(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "bar")
 }
+
+// TestValidateFilterNamesColonSkipped verifies external plugin names (with colon) are skipped.
+//
+// VALIDATES: Names containing ":" skip parse-time validation.
+// PREVENTS: External plugin filters rejected at config parse.
+func TestValidateFilterNamesColonSkipped(t *testing.T) {
+	policySchema := config.Container(
+		config.Field("loop-detection", config.List(config.TypeString)),
+	)
+
+	policyTree := config.NewTree()
+	policyTree.AddListEntry("loop-detection", "foo", config.NewTree())
+
+	reg, err := BuildFilterRegistry(policyTree, policySchema)
+	require.NoError(t, err)
+
+	err = reg.ValidateFilterNames([]string{"rpki:validate", "foo"}, "peer 10.0.0.1 import")
+	assert.NoError(t, err, "colon names should be skipped, plain names validated")
+}
+
+// TestValidateFilterNamesInactiveColonSkipped verifies inactive external names are skipped.
+//
+// VALIDATES: "inactive:plugin:filter" skips validation (strip inactive, still has colon).
+// PREVENTS: Deactivated external filters rejected at parse.
+func TestValidateFilterNamesInactiveColonSkipped(t *testing.T) {
+	reg := &FilterRegistry{entries: make(map[string]FilterEntry)}
+
+	err := reg.ValidateFilterNames([]string{"inactive:rpki:validate"}, "peer 10.0.0.1 import")
+	assert.NoError(t, err)
+}

@@ -77,13 +77,16 @@ func (r *FilterRegistry) Len() int {
 	return len(r.entries)
 }
 
-// ValidateFilterNames checks that every name in the list exists in the registry.
-// Returns an error naming the first unknown filter. Skips names with "inactive:" prefix
-// (deactivated filters are syntactically valid).
+// ValidateFilterNames checks that policy filter names in the list exist in the registry.
+// Skips names with "inactive:" prefix (deactivated filters are syntactically valid).
+// Skips names containing ":" after stripping inactive: (external plugin filters validated
+// at runtime, not parse time -- plugins register at stage 1, after config parsing).
 func (r *FilterRegistry) ValidateFilterNames(names []string, context string) error {
 	for _, name := range names {
-		// Strip inactive: prefix for validation
 		clean := strings.TrimPrefix(name, "inactive:")
+		if strings.Contains(clean, ":") {
+			continue // external plugin filter (plugin:filter), validated at runtime
+		}
 		if _, ok := r.entries[clean]; !ok {
 			return fmt.Errorf("%s: unknown filter %q", context, clean)
 		}
