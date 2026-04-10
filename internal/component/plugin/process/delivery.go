@@ -181,6 +181,11 @@ func (p *Process) deliverBatch(batch []EventDelivery, eventsBuf []string, timeou
 				Err:           batchErr,
 				CacheConsumer: batchErr == nil && isCacheConsumer,
 			}
+		} else if batchErr != nil {
+			// Fire-and-forget delivery (no Result channel): log errors here
+			// since no caller is waiting to collect them. This covers sent
+			// event delivery which uses nil Result to avoid re-entrant deadlock.
+			logger().Warn("event delivery failed (fire-and-forget)", "plugin", p.config.Name, "error", batchErr)
 		}
 	}
 

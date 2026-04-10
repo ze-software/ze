@@ -188,6 +188,15 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 		return
 	}
 
+	// Skip config-static routes: they are always re-sent from config on
+	// reconnection by sendInitialRoutes. Storing them in ribOut would cause
+	// duplicates (config re-send + RIB replay).
+	if se.Meta != nil {
+		if _, isConfigStatic := se.Meta["config-static"]; isConfigStatic {
+			return
+		}
+	}
+
 	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
 	if !ok || msg == nil || msg.WireUpdate == nil {
 		return

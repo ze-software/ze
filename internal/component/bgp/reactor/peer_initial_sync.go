@@ -7,10 +7,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/netip"
 	"runtime"
 	"sort"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
@@ -61,6 +63,12 @@ func (p *Peer) sendInitialRoutes() {
 	}
 
 	peerLogger().Debug("sendInitialRoutes sending static routes", "peer", addr, "count", len(p.settings.StaticRoutes))
+
+	// Mark static config routes so the RIB plugin skips ribOut storage.
+	// These routes are always re-sent from config on reconnection; storing
+	// them in ribOut would cause duplicates (config + replay).
+	// Uses atomic flag checked by notifyMessageReceiver to tag sent events.
+	p.sendingConfigStatic.Store(true)
 
 	// Calculate max message size for this peer
 	maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
@@ -138,6 +146,17 @@ func (p *Peer) sendInitialRoutes() {
 			routesLogger().Debug("route sent", "peer", addr, "prefix", route.Prefix.String(), "nextHop", route.NextHop.String())
 		}
 	}
+
+	// Send default routes for families with default-originate enabled.
+	// RFC 4271: default route is 0.0.0.0/0 (IPv4) or ::/0 (IPv6).
+	// Sent after static routes but still under config-static marker.
+	if len(p.settings.DefaultOriginate) > 0 {
+		p.sendDefaultOriginateRoutes(nc)
+	}
+
+	// Clear config-static marker before opQueue drain so plugin-injected routes
+	// (from RIB replay, Python plugins, etc.) are stored in ribOut normally.
+	p.sendingConfigStatic.Store(false)
 
 	// Wait for API processes to send initial routes before processing queue.
 	// Two-phase wait:
@@ -674,4 +693,79 @@ func (p *Peer) sendMUPRoutes() {
 	}
 	// Note: EORs are sent by the generic loop in sendInitialRoutes() for ALL
 	// negotiated families, so we don't send family-specific EORs here.
+}
+
+// defaultRouteForAFI returns the default prefix and a valid next-hop for the given AFI.
+// Returns ok=false if the AFI is not IPv4 or IPv6 unicast.
+func defaultRouteForAFI(afi family.AFI, hint netip.Addr) (prefix netip.Prefix, nextHop netip.Addr, ok bool) {
+	if afi == family.AFIIPv4 {
+		prefix = netip.MustParsePrefix("0.0.0.0/0")
+		nextHop = hint
+		if !nextHop.IsValid() {
+			nextHop = netip.MustParseAddr("0.0.0.0")
+		}
+		return prefix, nextHop, true
+	}
+	if afi == family.AFIIPv6 {
+		prefix = netip.MustParsePrefix("::/0")
+		nextHop = hint
+		if !nextHop.IsValid() || nextHop.Is4() {
+			nextHop = netip.IPv6Loopback()
+		}
+		return prefix, nextHop, true
+	}
+	return netip.Prefix{}, netip.Addr{}, false
+}
+
+// sendDefaultOriginateRoutes sends default routes (0.0.0.0/0 or ::/0) for families
+// that have default-originate enabled in config.
+// RFC 4271: default route originated as a normal UPDATE with ORIGIN IGP.
+func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
+	addr := p.settings.Address.String()
+
+	for familyKey, enabled := range p.settings.DefaultOriginate {
+		if !enabled {
+			continue
+		}
+
+		fam, ok := family.LookupFamily(familyKey)
+		if !ok {
+			routesLogger().Debug("default-originate: unknown family", "peer", addr, "family", familyKey)
+			continue
+		}
+
+		if !nc.Has(fam) {
+			routesLogger().Debug("default-originate: family not negotiated", "peer", addr, "family", familyKey)
+			continue
+		}
+
+		// Build a default route UPDATE: 0.0.0.0/0 for IPv4, ::/0 for IPv6.
+		addPath := p.addPathFor(fam)
+		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+
+		var nextHop netip.Addr
+		if p.settings.LocalAddress.IsValid() {
+			nextHop = p.settings.LocalAddress
+		}
+
+		defaultPrefix, nh, ok := defaultRouteForAFI(fam.AFI, nextHop)
+		if !ok {
+			routesLogger().Debug("default-originate: unsupported family AFI", "peer", addr, "family", familyKey)
+			continue
+		}
+		nextHop = nh
+
+		params := message.UnicastParams{
+			Prefix:  defaultPrefix,
+			NextHop: nextHop,
+			Origin:  attribute.OriginIGP,
+		}
+		update := ub.BuildUnicast(&params)
+
+		if err := p.SendUpdate(update); err != nil {
+			routesLogger().Debug("default-originate send error", "peer", addr, "family", familyKey, "error", err)
+			continue
+		}
+		routesLogger().Debug("sent default route", "peer", addr, "family", familyKey)
+	}
 }
