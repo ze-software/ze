@@ -1,0 +1,172 @@
+syntax = "proto3";
+
+package ze.api.v1;
+
+option go_package = "codeberg.org/thomas-mangin/ze/api/proto;zepb";
+
+// ZeService provides generic command execution and discovery.
+service ZeService {
+  // Execute runs a command and returns the result.
+  rpc Execute(CommandRequest) returns (CommandResponse);
+
+  // Stream runs a streaming command (e.g. monitor) and returns events.
+  rpc Stream(CommandRequest) returns (stream CommandResponse);
+
+  // ListCommands returns all available commands with metadata.
+  rpc ListCommands(ListCommandsRequest) returns (ListCommandsResponse);
+
+  // DescribeCommand returns metadata for a single command.
+  rpc DescribeCommand(DescribeCommandRequest) returns (CommandDescription);
+
+  // Complete returns tab-completion candidates for a partial command.
+  rpc Complete(CompleteRequest) returns (CompleteResponse);
+}
+
+// ZeConfigService provides typed config session management.
+service ZeConfigService {
+  // GetRunningConfig returns the current running configuration.
+  rpc GetRunningConfig(Empty) returns (ConfigResponse);
+
+  // EnterSession creates a new config editing session.
+  rpc EnterSession(Empty) returns (SessionResponse);
+
+  // SetConfig modifies a config path in the candidate.
+  rpc SetConfig(ConfigSetRequest) returns (ConfigSetResponse);
+
+  // DeleteConfig removes a config path from the candidate.
+  rpc DeleteConfig(ConfigDeleteRequest) returns (ConfigDeleteResponse);
+
+  // DiffSession returns the pending changes for a session.
+  rpc DiffSession(SessionRequest) returns (DiffResponse);
+
+  // CommitSession applies the pending changes.
+  rpc CommitSession(CommitRequest) returns (CommitResponse);
+
+  // DiscardSession throws away the candidate changes.
+  rpc DiscardSession(SessionRequest) returns (DiscardResponse);
+}
+
+// Empty is used for RPCs with no input.
+message Empty {}
+
+// CommandRequest carries a command to execute.
+message CommandRequest {
+  string command = 1;
+  map<string, string> params = 2;
+}
+
+// CommandResponse carries the result of a command execution.
+// Data is JSON-encoded bytes to ensure identical content with REST.
+message CommandResponse {
+  string status = 1;  // "done" or "error"
+  bytes data = 2;     // JSON-encoded payload
+  string error = 3;
+}
+
+// ListCommandsRequest optionally filters by prefix.
+message ListCommandsRequest {
+  string prefix = 1;
+}
+
+// ListCommandsResponse contains the list of available commands.
+message ListCommandsResponse {
+  repeated CommandInfo commands = 1;
+}
+
+// CommandInfo describes a single command.
+message CommandInfo {
+  string name = 1;
+  string description = 2;
+  bool read_only = 3;
+  repeated ParamInfo params = 4;
+}
+
+// ParamInfo describes a command parameter.
+message ParamInfo {
+  string name = 1;
+  string type = 2;
+  string description = 3;
+  bool required = 4;
+}
+
+// DescribeCommandRequest identifies a command by path.
+message DescribeCommandRequest {
+  string path = 1;
+}
+
+// CommandDescription wraps a single CommandInfo.
+message CommandDescription {
+  CommandInfo info = 1;
+}
+
+// CompleteRequest carries a partial command for completion.
+message CompleteRequest {
+  string partial = 1;
+}
+
+// CompleteResponse contains completion candidates.
+message CompleteResponse {
+  repeated string completions = 1;
+}
+
+// ConfigResponse carries the running configuration.
+message ConfigResponse {
+  string config = 1;
+}
+
+// SessionResponse carries a new session ID.
+message SessionResponse {
+  string session_id = 1;
+}
+
+// ConfigSetRequest modifies a config path.
+message ConfigSetRequest {
+  string session_id = 1;
+  string path = 2;
+  string value = 3;
+}
+
+// ConfigSetResponse indicates success or failure.
+message ConfigSetResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// ConfigDeleteRequest removes a config path.
+message ConfigDeleteRequest {
+  string session_id = 1;
+  string path = 2;
+}
+
+// ConfigDeleteResponse indicates success or failure.
+message ConfigDeleteResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// SessionRequest identifies a session.
+message SessionRequest {
+  string session_id = 1;
+}
+
+// DiffResponse contains pending changes.
+message DiffResponse {
+  string diff = 1;
+}
+
+// CommitRequest applies changes with an optional message.
+message CommitRequest {
+  string session_id = 1;
+  string commit_msg = 2;
+}
+
+// CommitResponse indicates success or failure.
+message CommitResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// DiscardResponse indicates success.
+message DiscardResponse {
+  bool success = 1;
+}

@@ -9,7 +9,7 @@
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test
 .PHONY: ze-sync-vendor-web ze-check-vendor-web
-.PHONY: check
+.PHONY: check ze-setup
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
 export GOCACHE := $(CURDIR)/tmp/go-cache
@@ -502,6 +502,31 @@ clean:
 check: fmt vet
 	@echo "Quick check passed"
 
+# ─── Setup ───────────────────────────────────────────────────────────────────
+
+# Install development tools. Run once after cloning.
+# Go tools (goimports, protoc plugins) are vendored via tools.go and
+# used with "go run" -- no "go install" needed.
+# golangci-lint is installed separately (large dependency tree).
+# System packages (protoc, jq) require the OS package manager.
+ze-setup:
+	@echo "Vendoring Go dependencies (includes tools from tools.go)..."
+	go mod tidy
+	go mod vendor
+	@echo ""
+	@echo "Installing golangci-lint..."
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@echo ""
+	@echo "Installing system packages..."
+ifeq ($(shell uname -s),Darwin)
+	brew install protobuf jq
+else
+	@echo "Run: sudo apt install -y protobuf-compiler jq"
+	@echo "(requires sudo -- not run automatically)"
+endif
+	@echo ""
+	@echo "Setup complete. Verify with: make check"
+
 # ─── Help ────────────────────────────────────────────────────────────────────
 
 help:
@@ -607,6 +632,7 @@ help:
 	@echo "  See docs/contributing/documentation-testing.md for the workflow."
 	@echo ""
 	@echo "  Utilities:"
+	@echo "  ze-setup              - Install dev tools (goimports, golangci-lint, protoc plugins)"
 	@echo "  fmt                   - Format code (gofmt + goimports)"
 	@echo "  vet                   - Run go vet"
 	@echo "  tidy                  - Tidy go.mod dependencies"
