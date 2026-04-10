@@ -1,8 +1,9 @@
 # Ignore everything in the module cache by default.
 *
 
-# Keep this file.
+# Keep this file and the go.mod barrier.
 !.gitignore
+!go.mod
 
 # Whitelist the gokrazy init system source.
 !github.com/
