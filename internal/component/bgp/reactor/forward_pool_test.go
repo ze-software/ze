@@ -1630,3 +1630,152 @@ func TestFwdPool_RegisterUnregisterOutgoingPool(t *testing.T) {
 	pool.mu.Unlock()
 	assert.Nil(t, pp)
 }
+
+// TestFwdPool_DenialThroughDispatchOverflow verifies that the congestion
+// controller's ShouldDeny integrates with DispatchOverflow: when the pool
+// is above the denial threshold and the peer is the worst offender, the
+// item is still accepted (routes never dropped) but no overflow buffer is
+// acquired. This is the actual backpressure signal -- not dispatch rejection.
+//
+// VALIDATES: AC-12 (backpressure on pool exhaustion via denial, not rejection)
+// PREVENTS: Confusion between "dispatch rejected" (spec wording) and actual
+// behavior (accepted without buffer, congestion controller escalates).
+func TestFwdPool_DenialThroughDispatchOverflow(t *testing.T) {
+	blocker := make(chan struct{})
+	handlerStarted := make(chan struct{}, 1)
+
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		select {
+		case handlerStarted <- struct{}{}:
+		default:
+		}
+		<-blocker
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
+	mux := newMixedBufMux()
+	mux.SetByteBudget(1024 * 1024) // Large budget -- not the exhaustion path.
+	pool.SetOverflowMux(mux)
+	defer func() {
+		close(blocker)
+		pool.Stop()
+	}()
+
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
+	pool.RegisterOutgoingPool(key, message.MaxMsgLen)
+
+	// Wire a congestion controller that always denies this peer.
+	wt := newWeightTracker(nil)
+	wt.AddPeer("10.0.0.1", 10000, 1)
+
+	var deniedCount atomic.Int64
+	pool.congestion = newCongestionController(congestionConfig{
+		gracePeriod:    5 * time.Second,
+		poolUsedRatio:  func() float64 { return 0.90 }, // Above 80% threshold
+		overflowDepths: func() map[string]int { return map[string]int{"10.0.0.1": 500} },
+		weights:        wt,
+		onDenied:       func() { deniedCount.Add(1) },
+	})
+
+	// Block the worker so overflow items stay queued.
+	pool.Dispatch(key, fwdItem{})
+	<-handlerStarted
+
+	dummyPeer := &Peer{}
+	ok := pool.DispatchOverflow(key, fwdItem{peer: dummyPeer, done: func() {}})
+	assert.True(t, ok, "DispatchOverflow must accept (routes never dropped)")
+	assert.Equal(t, int64(1), deniedCount.Load(), "denial callback should fire")
+
+	// The item was accepted but no overflow buffer acquired (denied).
+	// Verify mux has zero bytes in use -- denial skipped buffer acquisition.
+	_, usedBytes := mux.Stats()
+	assert.Equal(t, int64(0), usedBytes, "denied peer should not consume overflow buffer")
+}
+
+// TestFwdPool_UnregisterWithInFlightItems verifies that items dispatched
+// before UnregisterOutgoingPool still release their peerPoolRef correctly.
+// The orphaned peerPool (deleted from the map) must still accept Return()
+// calls via the direct peerPoolRef pointer on the fwdItem.
+//
+// VALIDATES: AC-13 (session teardown destroys pool without leaking in-flight items)
+// PREVENTS: Use-after-free or leak when peer disconnects while items are queued.
+func TestFwdPool_UnregisterWithInFlightItems(t *testing.T) {
+	var processed atomic.Int32
+	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		processed.Add(int32(len(items)))
+	}, fwdPoolConfig{chanSize: 256, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
+	pool.RegisterOutgoingPool(key, message.MaxMsgLen)
+
+	// Grab the pool reference before unregister.
+	pool.mu.Lock()
+	pp := pool.outgoingPools[key]
+	pool.mu.Unlock()
+	require.NotNil(t, pp)
+
+	// Acquire a buffer slot (simulating what TryDispatch does).
+	buf, idx := pp.Get()
+	require.NotNil(t, buf, "should get a buffer")
+	require.Greater(t, idx, 0, "index should be 1-based")
+	assert.Equal(t, 63, pp.available(), "one buffer should be out on loan")
+
+	// Unregister the pool (simulating session teardown).
+	pool.UnregisterOutgoingPool(key)
+
+	// The pool is removed from the map, but the peerPoolRef is still valid.
+	pool.mu.Lock()
+	gone := pool.outgoingPools[key]
+	pool.mu.Unlock()
+	assert.Nil(t, gone, "pool should be removed from map")
+
+	// Return the buffer via the direct reference -- must not panic.
+	pp.Return(idx)
+	assert.Equal(t, 64, pp.available(), "all buffers should be returned to orphaned pool")
+}
+
+// TestFwdPool_ReregisterExtMsg verifies that re-registering a peer with a
+// different buffer size (4K -> 64K for ExtMsg negotiation) replaces the pool.
+// Items in flight with the old pool's peerPoolRef release correctly via
+// the direct pointer (atomic counter on orphaned struct, GC'd after refs gone).
+//
+// VALIDATES: AC-2 (ExtMsg peers use 64K buffers after renegotiation)
+// PREVENTS: Buffer size mismatch after ExtMsg capability negotiation.
+func TestFwdPool_ReregisterExtMsg(t *testing.T) {
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
+
+	// Register with standard 4K.
+	pool.RegisterOutgoingPool(key, message.MaxMsgLen)
+	pool.mu.Lock()
+	pp4K := pool.outgoingPools[key]
+	pool.mu.Unlock()
+	require.Equal(t, message.MaxMsgLen, pp4K.bufSize)
+
+	// Acquire a buffer from the 4K pool (in-flight item).
+	buf4K, idx4K := pp4K.Get()
+	require.NotNil(t, buf4K)
+	assert.Equal(t, message.MaxMsgLen, len(buf4K))
+
+	// Re-register with ExtMsg 64K (simulating capability negotiation).
+	pool.RegisterOutgoingPool(key, message.ExtMsgLen)
+	pool.mu.Lock()
+	pp64K := pool.outgoingPools[key]
+	pool.mu.Unlock()
+	require.Equal(t, message.ExtMsgLen, pp64K.bufSize)
+
+	// Old pool is orphaned but the in-flight item's peerPoolRef still works.
+	pp4K.Return(idx4K)
+	assert.Equal(t, 64, pp4K.available(), "orphaned 4K pool should accept return")
+
+	// New pool is fully available.
+	assert.Equal(t, 64, pp64K.available(), "new 64K pool should be fully available")
+
+	// New pool returns 64K buffers.
+	buf64K, idx64K := pp64K.Get()
+	require.NotNil(t, buf64K)
+	assert.Equal(t, message.ExtMsgLen, len(buf64K))
+	pp64K.Return(idx64K)
+}
