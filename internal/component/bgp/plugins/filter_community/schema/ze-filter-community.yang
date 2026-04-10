@@ -45,70 +45,67 @@ module ze-filter-community {
         }
     }
 
-    // Filter config grouping — reused at bgp, group, and peer levels.
-    grouping community-filter-config {
-        container filter {
-            description "Route filter rules";
+    // Community filter config grouping — ingress/egress community tag/strip.
+    // Augmented into the existing filter container at bgp, group, and peer levels.
+    grouping community-filter-fields {
+        container ingress {
+            description "Ingress direction filters";
 
-            container ingress {
-                description "Ingress direction filters";
+            container community {
+                description "Community filter for ingress";
 
-                container community {
-                    description "Community filter for ingress";
+                leaf-list tag {
+                    type string;
+                    ze:cumulative;
+                    description "Named communities to add on ingress";
+                }
 
-                    leaf-list tag {
-                        type string;
-                        ze:cumulative;
-                        description "Named communities to add on ingress";
-                    }
-
-                    leaf-list strip {
-                        type string;
-                        ze:cumulative;
-                        description "Named communities to remove on ingress";
-                    }
+                leaf-list strip {
+                    type string;
+                    ze:cumulative;
+                    description "Named communities to remove on ingress";
                 }
             }
+        }
 
-            container egress {
-                description "Egress direction filters";
+        container egress {
+            description "Egress direction filters";
 
-                container community {
-                    description "Community filter for egress";
+            container community {
+                description "Community filter for egress";
 
-                    leaf-list tag {
-                        type string;
-                        ze:cumulative;
-                        description "Named communities to add on egress";
-                    }
+                leaf-list tag {
+                    type string;
+                    ze:cumulative;
+                    description "Named communities to add on egress";
+                }
 
-                    leaf-list strip {
-                        type string;
-                        ze:cumulative;
-                        description "Named communities to remove on egress";
-                    }
+                leaf-list strip {
+                    type string;
+                    ze:cumulative;
+                    description "Named communities to remove on egress";
                 }
             }
         }
     }
 
-    // Standalone peer
-    augment "/bgp:bgp/bgp:peer" {
-        uses community-filter-config;
+    // Standalone peer — augment existing filter container
+    augment "/bgp:bgp/bgp:peer/bgp:filter" {
+        uses community-filter-fields;
     }
 
-    // Peer inside group
-    augment "/bgp:bgp/bgp:group/bgp:peer" {
-        uses community-filter-config;
+    // Peer inside group — augment existing filter container
+    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:filter" {
+        uses community-filter-fields;
     }
 
-    // Group-level
-    augment "/bgp:bgp/bgp:group" {
-        uses community-filter-config;
+    // Group-level — augment existing filter container
+    augment "/bgp:bgp/bgp:group/bgp:filter" {
+        uses community-filter-fields;
     }
 
-    // BGP-level (global defaults)
-    augment "/bgp:bgp" {
-        uses community-filter-config;
+    // BGP-level (global defaults) — augment existing filter container
+    augment "/bgp:bgp/bgp:filter" {
+        uses community-filter-fields;
     }
 }
