@@ -14,7 +14,7 @@ module ze-api-conf {
     container environment {
         description "Environment settings for API transports";
 
-        container api {
+        container api-server {
             description "API engine settings";
 
             leaf token {

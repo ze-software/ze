@@ -96,6 +96,13 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.enabled", Type: "bool", Description: "Enable MCP server"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.token", Type: "string", Description: "MCP bearer token (Authorization header)", Secret: true})
 
+	// API (REST + gRPC).
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.rest.enabled", Type: "bool", Description: "Enable REST API server"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.rest.listen", Type: "string", Default: "0.0.0.0:8081", Description: "REST API listen address (ip:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.grpc.enabled", Type: "bool", Description: "Enable gRPC API server"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.grpc.listen", Type: "string", Default: "0.0.0.0:50051", Description: "gRPC API listen address (ip:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.token", Type: "string", Description: "API bearer token (shared by REST and gRPC)", Secret: true})
+
 	// Looking glass.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.listen", Type: "string", Default: "0.0.0.0:8443", Description: "Looking glass listen address (ip:port)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.enabled", Type: "bool", Description: "Enable looking glass server"})

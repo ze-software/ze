@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -392,9 +393,39 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		mcpSrv = startMCPServer(mcpAddr, dispatch, serverCommandLister(apiServer), mcpToken)
 	}
 
-	// Start REST/gRPC API servers if configured.
+	// Start REST/gRPC API servers if configured (env > config file).
 	var apiSrvs *apiServers
-	if apiCfg, ok := zeconfig.ExtractAPIConfig(loadResult.Tree); ok {
+	apiCfg, apiCfgOK := zeconfig.ExtractAPIConfig(loadResult.Tree)
+	if env.IsEnabled("ze.api-server.rest.enabled") && !apiCfg.RESTOn {
+		apiCfg.RESTOn = true
+		apiCfgOK = true
+	}
+	if listen := env.Get("ze.api-server.rest.listen"); listen != "" && apiCfg.RESTOn {
+		host, port, parseErr := net.SplitHostPort(listen)
+		if parseErr != nil {
+			fmt.Fprintf(os.Stderr, "error: ze.api.rest.listen: %v\n", parseErr)
+			return 1
+		}
+		apiCfg.REST.Host = host
+		apiCfg.REST.Port = port
+	}
+	if env.IsEnabled("ze.api-server.grpc.enabled") && !apiCfg.GRPCOn {
+		apiCfg.GRPCOn = true
+		apiCfgOK = true
+	}
+	if listen := env.Get("ze.api-server.grpc.listen"); listen != "" && apiCfg.GRPCOn {
+		host, port, parseErr := net.SplitHostPort(listen)
+		if parseErr != nil {
+			fmt.Fprintf(os.Stderr, "error: ze.api.grpc.listen: %v\n", parseErr)
+			return 1
+		}
+		apiCfg.GRPC.Host = host
+		apiCfg.GRPC.Port = port
+	}
+	if token := env.Get("ze.api-server.token"); token != "" && apiCfg.Token == "" {
+		apiCfg.Token = token
+	}
+	if apiCfgOK {
 		apiSrvs = startAPIServers(apiCfg, apiServer)
 	}
 

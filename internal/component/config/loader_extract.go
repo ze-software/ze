@@ -287,7 +287,7 @@ func ExtractAPIConfig(tree *Tree) (APIConfig, bool) {
 	if envBlock == nil {
 		return APIConfig{}, false
 	}
-	apiBlock := envBlock.GetContainer("api")
+	apiBlock := envBlock.GetContainer("api-server")
 	if apiBlock == nil {
 		return APIConfig{}, false
 	}

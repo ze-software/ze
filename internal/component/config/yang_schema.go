@@ -221,6 +221,18 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
 		}
 	}
 
+	// Load ze-api-conf module (environment > api-server)
+	apiEntry := loader.GetEntry("ze-api-conf")
+	if apiEntry != nil {
+		for _, name := range sortedKeys(apiEntry.Dir) {
+			child := apiEntry.Dir[name]
+			node := yangToNode(child, name)
+			if node != nil {
+				schema.Define(name, node)
+			}
+		}
+	}
+
 	// Load ze-dns-conf module (environment > dns)
 	dnsEntry := loader.GetEntry("ze-dns-conf")
 	if dnsEntry != nil {
