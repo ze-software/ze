@@ -61,6 +61,63 @@ func TestCmdShow(t *testing.T) {
 	}
 }
 
+func TestCmdShowSuccess(t *testing.T) {
+	// VALIDATES: cmdShow success path lists all interfaces and shows a
+	// single interface by name. Both are read-only netlink operations
+	// that do not require root.
+	// PREVENTS: regressions in the show subcommand's happy path that
+	// error-only tests would miss.
+	testcond.RequireOS(t, "linux")
+	t.Parallel()
+
+	t.Run("list all interfaces", func(t *testing.T) {
+		t.Parallel()
+		// cmdShow(nil) with the netlink backend loaded lists all interfaces.
+		// This is a read-only netlink RTM_GETLINK call, no privileges needed.
+		if got := cmdShow(nil); got != 0 {
+			t.Errorf("cmdShow(nil) = %d, want 0", got)
+		}
+	})
+
+	t.Run("show loopback", func(t *testing.T) {
+		t.Parallel()
+		// The loopback interface "lo" exists on every Linux system.
+		if got := cmdShow([]string{"lo"}); got != 0 {
+			t.Errorf("cmdShow([lo]) = %d, want 0", got)
+		}
+	})
+
+	t.Run("show loopback json", func(t *testing.T) {
+		t.Parallel()
+		if got := cmdShow([]string{"--json", "lo"}); got != 0 {
+			t.Errorf("cmdShow([--json lo]) = %d, want 0", got)
+		}
+	})
+
+	t.Run("list all json", func(t *testing.T) {
+		t.Parallel()
+		if got := cmdShow([]string{"--json"}); got != 0 {
+			t.Errorf("cmdShow([--json]) = %d, want 0", got)
+		}
+	})
+
+	t.Run("nonexistent interface", func(t *testing.T) {
+		t.Parallel()
+		// A nonexistent interface should return exit code 1.
+		// Name must be <= 15 chars (IFNAMSIZ) to reach the lookup path.
+		if got := cmdShow([]string{"zenoexist0"}); got != 1 {
+			t.Errorf("cmdShow([zenoexist0]) = %d, want 1", got)
+		}
+	})
+
+	t.Run("too many args", func(t *testing.T) {
+		t.Parallel()
+		if got := cmdShow([]string{"lo", "eth0"}); got != 1 {
+			t.Errorf("cmdShow([lo eth0]) = %d, want 1", got)
+		}
+	})
+}
+
 func TestCmdCreate(t *testing.T) {
 	t.Parallel()
 

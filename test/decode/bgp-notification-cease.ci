@@ -1,0 +1,5 @@
+# BGP NOTIFICATION decoding test -- Cease/Administrative Shutdown (6/2)
+# marker(16) + length(0015=21) + type(03) + error-code(06) + error-subcode(02)
+stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030602
+cmd=foreground:seq=1:exec=ze-test decode --json --notification -:stdin=payload
+expect=json:json={"bgp":{"message":{"direction":"received","id":0,"type":"notification"},"notification":{"error-code":6,"error-name":"Cease","error-subcode":2},"peer":{"address":"127.0.0.1","remote":{"as":65533}}},"type":"bgp"}

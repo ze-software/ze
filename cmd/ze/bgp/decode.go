@@ -21,9 +21,11 @@ import (
 
 // Message type constants.
 const (
-	msgTypeOpen   = "open"
-	msgTypeUpdate = "update"
-	msgTypeNLRI   = "nlri"
+	msgTypeOpen         = "open"
+	msgTypeUpdate       = "update"
+	msgTypeNLRI         = "nlri"
+	msgTypeNotification = "notification"
+	msgTypeKeepalive    = "keepalive"
 )
 
 // cmdDecode handles the 'decode' subcommand.
@@ -33,6 +35,8 @@ func cmdDecode(args []string) int {
 
 	openMsg := fs.Bool("open", false, "decode as OPEN message")
 	updateMsg := fs.Bool("update", false, "decode as UPDATE message")
+	notifMsg := fs.Bool("notification", false, "decode as NOTIFICATION message")
+	keepaliveMsg := fs.Bool("keepalive", false, "decode as KEEPALIVE message")
 	nlriFamily := fs.String("nlri", "", "decode as NLRI with family (e.g., 'ipv4/flow')")
 	fam := fs.String("f", "", "address family for UPDATE (e.g., 'ipv4/unicast', 'l2vpn/evpn')")
 	outputJSON := fs.Bool("json", false, "output JSON instead of human-readable format")
@@ -48,6 +52,8 @@ func cmdDecode(args []string) int {
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
 					{Name: "--open", Desc: "Decode as OPEN message"},
 					{Name: "--update", Desc: "Decode as UPDATE message"},
+					{Name: "--notification", Desc: "Decode as NOTIFICATION message"},
+					{Name: "--keepalive", Desc: "Decode as KEEPALIVE message"},
 					{Name: "--nlri <family>", Desc: "Decode as NLRI with family (e.g., 'ipv4/flow')"},
 					{Name: "-f <family>", Desc: "Address family for UPDATE (e.g., 'ipv4/unicast', 'l2vpn/evpn')"},
 					{Name: "--json", Desc: "Output JSON instead of human-readable format"},
@@ -85,6 +91,10 @@ func cmdDecode(args []string) int {
 		msgType = msgTypeOpen
 	case *updateMsg:
 		msgType = msgTypeUpdate
+	case *notifMsg:
+		msgType = msgTypeNotification
+	case *keepaliveMsg:
+		msgType = msgTypeKeepalive
 	case *nlriFamily != "":
 		msgType = msgTypeNLRI
 	}
@@ -153,7 +163,11 @@ func decodeHexPacket(hexStr, msgType, family string, outputJSON bool) (string, e
 		result, err = decodeOpenMessage(data, hasHeader)
 	case msgTypeUpdate:
 		result, err = decodeUpdateMessage(data, family, hasHeader)
-	default: // Unsupported message type
+	case msgTypeNotification:
+		result, err = decodeNotificationMessage(data, hasHeader)
+	case msgTypeKeepalive:
+		result, err = decodeKeepaliveMessage(data, hasHeader)
+	default:
 		return "", fmt.Errorf("unsupported message type: %s", msgType)
 	}
 
@@ -168,6 +182,10 @@ func decodeHexPacket(hexStr, msgType, family string, outputJSON bool) (string, e
 			return formatOpenHuman(result), nil
 		case msgTypeUpdate:
 			return formatUpdateHuman(result), nil
+		case msgTypeNotification:
+			return formatNotificationHuman(result), nil
+		case msgTypeKeepalive:
+			return "KEEPALIVE", nil
 		}
 	}
 
@@ -201,6 +219,10 @@ func detectMessageType(data []byte) string {
 		return msgTypeOpen
 	case 2:
 		return msgTypeUpdate
+	case 3:
+		return msgTypeNotification
+	case 4:
+		return msgTypeKeepalive
 	default:
 		return msgTypeUpdate
 	}

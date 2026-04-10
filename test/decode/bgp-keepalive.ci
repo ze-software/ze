@@ -1,0 +1,5 @@
+# BGP KEEPALIVE decoding test
+# KEEPALIVE is a 19-byte message: marker(16) + length(0013) + type(04)
+stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+cmd=foreground:seq=1:exec=ze-test decode --json --keepalive -:stdin=payload
+expect=json:json={"bgp":{"keepalive":{},"message":{"direction":"received","id":0,"type":"keepalive"},"peer":{"address":"127.0.0.1","remote":{"as":65533}}},"type":"bgp"}

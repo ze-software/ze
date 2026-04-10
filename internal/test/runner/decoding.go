@@ -17,9 +17,11 @@ import (
 
 // Message type constants.
 const (
-	msgTypeUpdate = "update"
-	msgTypeOpen   = "open"
-	msgTypeNLRI   = "nlri"
+	msgTypeUpdate       = "update"
+	msgTypeOpen         = "open"
+	msgTypeNLRI         = "nlri"
+	msgTypeNotification = "notification"
+	msgTypeKeepalive    = "keepalive"
 )
 
 // DecodingTest holds a single decoding test case.
@@ -315,6 +317,10 @@ func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) decodeCmd
 			result.msgType = msgTypeOpen
 		case "--update":
 			result.msgType = msgTypeUpdate
+		case "--notification":
+			result.msgType = msgTypeNotification
+		case "--keepalive":
+			result.msgType = msgTypeKeepalive
 		case "--nlri":
 			result.msgType = msgTypeNLRI
 			// --nlri takes family as its value
@@ -445,6 +451,10 @@ func (r *DecodingRunner) runTest(ctx context.Context, test *DecodingTest) bool {
 		if test.Family != "" {
 			args = append(args, "-f", test.Family)
 		}
+	case msgTypeNotification:
+		args = append(args, "--notification")
+	case msgTypeKeepalive:
+		args = append(args, "--keepalive")
 	default:
 		args = append(args, "--update") // Default to update.
 		if test.Family != "" {

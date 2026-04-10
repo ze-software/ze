@@ -1290,3 +1290,150 @@ func TestDecodeOutput_Unchanged(t *testing.T) {
 	// Should be a non-empty result
 	require.NotNil(t, result, "expected non-nil decode result")
 }
+
+// jsonMap safely extracts a nested map[string]any from a JSON decode result.
+func jsonMap(t *testing.T, m map[string]any, key string) map[string]any {
+	t.Helper()
+	v, ok := m[key].(map[string]any)
+	require.True(t, ok, "expected %q to be map[string]any, got %T", key, m[key])
+	return v
+}
+
+// TestDecodeNotification_JSON verifies NOTIFICATION decoding produces correct JSON.
+//
+// VALIDATES: decodeHexPacket handles NOTIFICATION messages with error code, subcode, and data.
+// PREVENTS: NOTIFICATION decode regression or missing fields.
+func TestDecodeNotification_JSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		hex     string
+		wantErr bool
+		checks  func(t *testing.T, decoded map[string]any)
+	}{
+		{
+			name: "cease admin shutdown",
+			// marker(16) + length(0015=21) + type(03) + code(06) + subcode(02)
+			hex: "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030602",
+			checks: func(t *testing.T, decoded map[string]any) {
+				t.Helper()
+				notif := jsonMap(t, jsonMap(t, decoded, "bgp"), "notification")
+				assert.Equal(t, float64(6), notif["error-code"])
+				assert.Equal(t, float64(2), notif["error-subcode"])
+				assert.Equal(t, "Cease", notif["error-name"])
+				assert.Nil(t, notif["data"], "no data field for minimal notification")
+			},
+		},
+		{
+			name: "update error with data",
+			// marker(16) + length(001A=26) + type(03) + code(03) + subcode(03) + data(DEADBEEF)
+			hex: "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001A030303DEADBEEF",
+			checks: func(t *testing.T, decoded map[string]any) {
+				t.Helper()
+				notif := jsonMap(t, jsonMap(t, decoded, "bgp"), "notification")
+				assert.Equal(t, float64(3), notif["error-code"])
+				assert.Equal(t, "UPDATE Message Error", notif["error-name"])
+				assert.Equal(t, "DEADBEEF", notif["data"])
+			},
+		},
+		{
+			name:    "body too short",
+			hex:     "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00140303", // length 20, only 1 byte body
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output, err := decodeHexPacket(tt.hex, msgTypeNotification, "", true)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			var decoded map[string]any
+			require.NoError(t, json.Unmarshal([]byte(output), &decoded))
+			tt.checks(t, decoded)
+		})
+	}
+}
+
+// TestDecodeKeepalive_JSON verifies KEEPALIVE decoding produces correct JSON.
+//
+// VALIDATES: decodeHexPacket handles KEEPALIVE messages (19-byte header only).
+// PREVENTS: KEEPALIVE decode regression.
+func TestDecodeKeepalive_JSON(t *testing.T) {
+	// marker(16) + length(0013=19) + type(04)
+	output, err := decodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", msgTypeKeepalive, "", true)
+	require.NoError(t, err)
+
+	var decoded map[string]any
+	require.NoError(t, json.Unmarshal([]byte(output), &decoded))
+
+	bgp := jsonMap(t, decoded, "bgp")
+	msg := jsonMap(t, bgp, "message")
+	assert.Equal(t, "keepalive", msg["type"])
+	assert.NotNil(t, bgp["keepalive"])
+}
+
+// TestDecodeKeepalive_WrongLength verifies KEEPALIVE rejects non-19 length.
+//
+// VALIDATES: KEEPALIVE with body bytes is rejected.
+// PREVENTS: Accepting malformed KEEPALIVE that has trailing data.
+func TestDecodeKeepalive_WrongLength(t *testing.T) {
+	// length(0015=21) instead of 19 -- invalid for KEEPALIVE
+	_, err := decodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001504DEAD", msgTypeKeepalive, "", true)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "KEEPALIVE length")
+}
+
+// TestDecodeAutoDetect_Notification verifies auto-detection of NOTIFICATION from header.
+//
+// VALIDATES: detectMessageType returns "notification" for type byte 3.
+// PREVENTS: NOTIFICATION falling through to UPDATE decoder.
+func TestDecodeAutoDetect_Notification(t *testing.T) {
+	output, err := decodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030602", "", "", true)
+	require.NoError(t, err)
+
+	var decoded map[string]any
+	require.NoError(t, json.Unmarshal([]byte(output), &decoded))
+
+	msg := jsonMap(t, jsonMap(t, decoded, "bgp"), "message")
+	assert.Equal(t, "notification", msg["type"])
+}
+
+// TestDecodeAutoDetect_Keepalive verifies auto-detection of KEEPALIVE from header.
+//
+// VALIDATES: detectMessageType returns "keepalive" for type byte 4.
+// PREVENTS: KEEPALIVE falling through to UPDATE decoder.
+func TestDecodeAutoDetect_Keepalive(t *testing.T) {
+	output, err := decodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", "", "", true)
+	require.NoError(t, err)
+
+	var decoded map[string]any
+	require.NoError(t, json.Unmarshal([]byte(output), &decoded))
+
+	msg := jsonMap(t, jsonMap(t, decoded, "bgp"), "message")
+	assert.Equal(t, "keepalive", msg["type"])
+}
+
+// TestDecodeNotification_Human verifies human-readable NOTIFICATION output.
+//
+// VALIDATES: Non-JSON NOTIFICATION output contains error details.
+// PREVENTS: Human output path crashing or returning empty.
+func TestDecodeNotification_Human(t *testing.T) {
+	output, err := decodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030602", msgTypeNotification, "", false)
+	require.NoError(t, err)
+	assert.Contains(t, output, "NOTIFICATION")
+	assert.Contains(t, output, "Cease")
+}
+
+// TestDecodeKeepalive_Human verifies human-readable KEEPALIVE output.
+//
+// VALIDATES: Non-JSON KEEPALIVE output returns "KEEPALIVE".
+// PREVENTS: Human output path returning empty or crashing.
+func TestDecodeKeepalive_Human(t *testing.T) {
+	output, err := decodeHexPacket("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", msgTypeKeepalive, "", false)
+	require.NoError(t, err)
+	assert.Equal(t, "KEEPALIVE", output)
+}

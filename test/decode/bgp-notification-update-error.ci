@@ -1,0 +1,5 @@
+# BGP NOTIFICATION decoding test -- UPDATE Message Error (3/3) with data
+# marker(16) + length(001A=26) + type(03) + error-code(03) + error-subcode(03) + data(DEADBEEF)
+stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001A030303DEADBEEF
+cmd=foreground:seq=1:exec=ze-test decode --json --notification -:stdin=payload
+expect=json:json={"bgp":{"message":{"direction":"received","id":0,"type":"notification"},"notification":{"data":"DEADBEEF","error-code":3,"error-name":"UPDATE Message Error","error-subcode":3},"peer":{"address":"127.0.0.1","remote":{"as":65533}}},"type":"bgp"}
