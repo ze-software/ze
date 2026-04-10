@@ -39,6 +39,6 @@ expect=stdout:contains=description
 expect=stdout:contains=update
 expect=stdout:contains=process
 expect=stdout:contains=rib
-expect=stdout:contains=redistribution
+expect=stdout:contains=filter
 # Plugin augments
 expect=stdout:contains=role
