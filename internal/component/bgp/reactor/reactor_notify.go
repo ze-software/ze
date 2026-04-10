@@ -7,6 +7,7 @@
 package reactor
 
 import (
+	"maps"
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
@@ -281,13 +282,28 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		bytes := make([]byte, len(rawBytes))
 		copy(bytes, rawBytes)
 
+		// Tag config-static routes so the RIB plugin skips ribOut storage.
+		// The sendingConfigStatic flag is set by sendInitialRoutes during
+		// static route sending and cleared before opQueue drain.
+		sentMeta := meta
+		if direction == plugin.DirectionSent && hasPeer && peer.sendingConfigStatic.Load() {
+			if sentMeta == nil {
+				sentMeta = map[string]any{"config-static": true}
+			} else {
+				merged := make(map[string]any, len(sentMeta)+1)
+				maps.Copy(merged, sentMeta)
+				merged["config-static"] = true
+				sentMeta = merged
+			}
+		}
+
 		msg = bgptypes.RawMessage{
 			Type:      msgType,
 			RawBytes:  bytes,
 			Timestamp: timestamp,
 			Direction: direction,
 			MessageID: messageID,
-			Meta:      meta, // Route metadata from ReceivedUpdate (sent events).
+			Meta:      sentMeta,
 		}
 
 		// For sent UPDATE messages, create WireUpdate + AttrsWire from body.
@@ -363,11 +379,28 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		if filters := peer.settings.ImportFilters; len(filters) > 0 && r.api != nil {
 			attrsWire, _ := wireUpdate.Attrs()
 			updateText := FormatAttrsForFilter(attrsWire, nil)
-			action, _ := PolicyFilterChain(filters, "import", peerAddr.String(), peerInfo.PeerAS,
+			action, modifiedText := PolicyFilterChain(filters, "import", peerAddr.String(), peerInfo.PeerAS,
 				updateText, r.policyFilterFunc(wireUpdate.Payload()),
 			)
 			if action == PolicyReject {
 				return false // Route rejected by policy filter; don't cache or dispatch.
+			}
+			// Wire-level dirty tracking: convert text delta to wire attribute modifications.
+			// Same pattern as in-process ingress filter modification above (lines 337-352).
+			if modifiedText != updateText {
+				var importMods registry.ModAccumulator
+				textDeltaToModOps(updateText, modifiedText, &importMods)
+				if importMods.Len() > 0 {
+					if modPayload, _ := buildModifiedPayload(wireUpdate.Payload(), &importMods, r.attrModHandlers, nil); modPayload != nil {
+						wireUpdate = wireu.NewWireUpdate(modPayload, wireUpdate.SourceCtxID())
+						wireUpdate.SetMessageID(messageID)
+						newAttrsWire, parseErr := wireUpdate.Attrs()
+						msg.RawBytes = modPayload
+						msg.WireUpdate = wireUpdate
+						msg.AttrsWire = newAttrsWire
+						msg.ParseError = parseErr
+					}
+				}
 			}
 		}
 	}

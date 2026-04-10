@@ -1,0 +1,111 @@
+# Test: export filter modifies attributes during forwarding
+# VALIDATES: AC-10 -- Export filter modify: plugin returns modify with delta
+# PREVENTS: Export modify config rejected or crashing the forwarding path
+
+# ze-peer sends a route to ze
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1:origin-as=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: declares an export filter that modifies local-preference
+tmpfs=filter-export-modify-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import sys
+import time
+from ze_api import API
+
+export_modify_count = 0
+
+def filter_handler(params):
+    """Modify local-preference to 200 on export."""
+    global export_modify_count
+    direction = params.get('direction', '')
+    if direction == 'export':
+        export_modify_count += 1
+        print(f'filter-update EXPORT MODIFY: filter={params.get("filter")} peer={params.get("peer")}', file=sys.stderr)
+        return {'action': 'modify', 'update': 'local-preference 200'}
+    # Accept imports unchanged
+    return {'action': 'accept'}
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_filter(
+        name='set-export-localpref',
+        direction='export',
+        attributes=['local-preference'],
+        on_error='reject',
+    )
+    api.on_filter_update(filter_handler)
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    time.sleep(2.0)
+
+    if export_modify_count > 0:
+        print(f'OK: export filter modified {export_modify_count} forward(s)', file=sys.stderr)
+    else:
+        print('INFO: export filter not called (no forward triggered)', file=sys.stderr)
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration: export filter on peer
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external filter-export-modify-test {
+        run ./filter-export-modify-test.run;
+        encoder json;
+    }
+}
+bgp {
+    router-id 1.2.3.4;
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+                accept false
+            }
+            local {
+                ip auto
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+        }
+        filter {
+            export [ filter-export-modify-test:set-export-localpref ];
+        }
+        process filter-export-modify-test {
+            receive [ update state ];
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

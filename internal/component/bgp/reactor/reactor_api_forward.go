@@ -172,13 +172,22 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	}
 
 	// Get matching peers. Stack array avoids heap allocation for <= 16 peers.
+	// Also determine source peer type for route reflection (RFC 4456).
 	a.r.mu.RLock()
 	var peersBuf [16]*Peer
 	matchingPeers := peersBuf[:0]
+	var srcIsRRClient, srcIsIBGP bool
+	var srcRemoteRouterID uint32 // Source peer's BGP Identifier (for ORIGINATOR_ID)
 	for _, peer := range a.r.peers {
 		addr := peer.Settings().Address
-		if sel.Matches(addr) && addr != update.SourcePeerIP {
-			// Don't forward back to source peer (implicit loop prevention)
+		if addr == update.SourcePeerIP {
+			// Record source peer type for RR forwarding decisions.
+			srcIsIBGP = peer.Settings().IsIBGP()
+			srcIsRRClient = peer.Settings().RouteReflectorClient
+			srcRemoteRouterID = peer.RemoteRouterID()
+			continue // Don't forward back to source peer (implicit loop prevention)
+		}
+		if sel.Matches(addr) {
 			matchingPeers = append(matchingPeers, peer)
 		}
 	}
@@ -343,6 +352,22 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			continue // Skip non-established peers
 		}
 
+		// RFC 4456: Route reflection forwarding rules.
+		// When source is iBGP, apply RR forwarding constraints:
+		//   - From client: forward to all clients + all non-clients (reflected)
+		//   - From non-client: forward to clients only (not to other non-clients)
+		// eBGP sources are forwarded to all peers (existing behavior, no RR filter).
+		if srcIsIBGP && !peer.Settings().IsEBGP() {
+			dstIsClient := peer.Settings().RouteReflectorClient
+			if srcIsRRClient {
+				// Client -> client and client -> non-client: always forward.
+			} else if !dstIsClient {
+				// Non-client -> non-client: suppress (standard iBGP split-horizon).
+				continue
+			}
+			// Non-client -> client: forward (this is the reflection).
+		}
+
 		// Egress peer filter chain: check if route should be sent to this peer.
 		// mods accumulates per-peer modifications; fresh for each peer.
 		var mods registry.ModAccumulator
@@ -380,6 +405,36 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				continue // Route suppressed by policy export filter for this peer.
 			}
 		}
+
+		// RFC 4456: Route reflection attribute injection.
+		// When reflecting to iBGP peers, add ORIGINATOR_ID (if absent) and
+		// prepend own cluster-id to CLUSTER_LIST.
+		if srcIsIBGP && peer.Settings().IsIBGP() {
+			clusterID := peer.Settings().EffectiveClusterID()
+			// ORIGINATOR_ID (type 9): set to source peer's BGP Identifier if not already present.
+			// RFC 4456 Section 8: "If the ORIGINATOR_ID is not present, it MUST be set
+			// to the BGP Identifier of the originator of the route to the local AS."
+			// The handler checks if the attribute already exists and skips if so.
+			var origBuf [4]byte
+			origBuf[0] = byte(srcRemoteRouterID >> 24)
+			origBuf[1] = byte(srcRemoteRouterID >> 16)
+			origBuf[2] = byte(srcRemoteRouterID >> 8)
+			origBuf[3] = byte(srcRemoteRouterID)
+			mods.Op(9, registry.AttrModSet, origBuf[:]) // ORIGINATOR_ID
+
+			// CLUSTER_LIST (type 10): prepend own cluster-id.
+			// RFC 4456 Section 8: "The local CLUSTER_ID MUST be prepended to the
+			// CLUSTER_LIST."
+			var clBuf [4]byte
+			clBuf[0] = byte(clusterID >> 24)
+			clBuf[1] = byte(clusterID >> 16)
+			clBuf[2] = byte(clusterID >> 8)
+			clBuf[3] = byte(clusterID)
+			mods.Op(10, registry.AttrModPrepend, clBuf[:]) // CLUSTER_LIST
+		}
+
+		// RFC 4271 Section 5.1.3: Next-hop rewriting per destination peer.
+		applyNextHopMod(peer.Settings(), &mods)
 
 		// Select wire version for this peer.
 		// RFC 4271 §9.1.2: EBGP peers get AS-PATH-prepended wire.
@@ -635,4 +690,33 @@ func (a *reactorAPIAdapter) RegisterCacheConsumer(name string, unordered bool) {
 // UnregisterCacheConsumer removes a cache-consumer plugin and adjusts pending counts.
 func (a *reactorAPIAdapter) UnregisterCacheConsumer(name string) {
 	a.r.recentUpdates.UnregisterConsumer(name)
+}
+
+// applyNextHopMod adds a NEXT_HOP (type 3) modification to the accumulator
+// based on the destination peer's NextHopMode setting.
+// RFC 4271 Section 5.1.3: next-hop handling for UPDATE messages.
+func applyNextHopMod(dest *PeerSettings, mods *registry.ModAccumulator) {
+	switch dest.NextHopMode {
+	case NextHopAuto:
+		// Default: rewrite for eBGP, preserve for iBGP. No mod needed --
+		// eBGP next-hop is handled by AS-PATH rewriting path which already
+		// sets next-hop, and iBGP preserves the original.
+		return
+	case NextHopSelf:
+		if !dest.LocalAddress.IsValid() || !dest.LocalAddress.Is4() {
+			return // No valid IPv4 local address; skip. IPv6 NH is in MP_REACH (type 14).
+		}
+		nhBytes := dest.LocalAddress.As4()
+		mods.Op(3, registry.AttrModSet, nhBytes[:]) // NEXT_HOP
+	case NextHopUnchanged:
+		// Explicitly preserve: no mod needed -- the original wire bytes
+		// already contain the source next-hop.
+		return
+	case NextHopExplicit:
+		if !dest.NextHopAddress.IsValid() || !dest.NextHopAddress.Is4() {
+			return // IPv6 explicit NH requires MP_REACH (type 14) handling.
+		}
+		nhBytes := dest.NextHopAddress.As4()
+		mods.Op(3, registry.AttrModSet, nhBytes[:]) // NEXT_HOP
+	}
 }

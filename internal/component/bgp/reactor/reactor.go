@@ -1061,7 +1061,7 @@ func (r *Reactor) startAPIServer() error {
 	r.messageReceiver = r.eventDispatcher
 	r.ingressFilters = registry.IngressFilters()
 	r.egressFilters = registry.EgressFilters()
-	r.attrModHandlers = registry.AttrModHandlers()
+	r.attrModHandlers = attrModHandlersWithDefaults()
 	r.AddPeerObserver(&apiStateObserver{dispatcher: r.eventDispatcher, reactor: r})
 	r.SetAPIProcessCount(len(r.config.Plugins))
 

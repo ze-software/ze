@@ -134,6 +134,11 @@ func TestReactorAddPeer(t *testing.T) {
 
 	peers := reactor.Peers()
 	require.Len(t, peers, 1)
+
+	s := peers[0].Settings()
+	assert.Equal(t, mustParseAddr("192.0.2.1"), s.Address)
+	assert.Equal(t, uint32(65000), s.LocalAS)
+	assert.Equal(t, uint32(65001), s.PeerAS)
 }
 
 // TestReactorRemovePeer verifies removing peers from reactor.
@@ -1504,10 +1509,10 @@ func TestNotifyMessageReceiverSentAttrsWire(t *testing.T) {
 	require.NotNil(t, origin, "ORIGIN attribute should exist")
 }
 
-// TestNotifyMessageReceiverSentNoCtxID verifies no AttrsWire when ctxID is 0.
+// TestNotifyMessageReceiverSentNoCtxID verifies sent UPDATE with ctxID=0 still produces AttrsWire.
 //
-// VALIDATES: AttrsWire is NOT created when ctxID is 0 (no capability context).
-// PREVENTS: Invalid AttrsWire with context 0 causing parsing issues.
+// VALIDATES: Sent UPDATEs always get AttrsWire (needed by structured handlers for ribOut).
+// PREVENTS: Missing AttrsWire blocking ribOut storage for sent routes.
 func TestNotifyMessageReceiverSentNoCtxID(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",
@@ -1538,8 +1543,10 @@ func TestNotifyMessageReceiverSentNoCtxID(t *testing.T) {
 	// Call with ctxID=0 (no context)
 	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, nil, 0, "sent", BufHandle{}, nil)
 
-	// AttrsWire should be nil when ctxID is 0
-	require.Nil(t, sentMsg.AttrsWire, "AttrsWire should be nil when ctxID is 0")
+	// Sent UPDATEs always get AttrsWire for ribOut storage, even with ctxID=0.
+	// Basic attribute parsing (ORIGIN, communities, etc.) works without encoding context.
+	require.NotNil(t, sentMsg.AttrsWire, "AttrsWire should be created for sent UPDATEs")
+	require.NotNil(t, sentMsg.WireUpdate, "WireUpdate should be created for sent UPDATEs")
 }
 
 // testMessageReceiver implements MessageReceiver for testing.
