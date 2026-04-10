@@ -201,7 +201,7 @@ func serializeAnnotatedTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, 
 
 	switch n := node.(type) {
 	case *LeafNode:
-		if n.Hidden {
+		if n.Hidden || n.Ephemeral {
 			break
 		}
 		if name == InactiveLeafName {
@@ -258,13 +258,13 @@ func serializeAnnotatedTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, 
 		}
 
 	case *ContainerNode:
-		if n.Hidden {
+		if n.Hidden || n.Ephemeral {
 			break
 		}
 		serializeAnnotatedContainer(b, tree, meta, name, n, columns, indent)
 
 	case *ListNode:
-		if n.Hidden {
+		if n.Hidden || n.Ephemeral {
 			break
 		}
 		serializeAnnotatedList(b, tree, meta, name, n, columns, indent)
@@ -573,7 +573,7 @@ func serializeAnnotatedSetChild(b *strings.Builder, tree *Tree, meta *MetaTree, 
 
 	switch n := node.(type) {
 	case *LeafNode:
-		if n.Hidden {
+		if n.Hidden || n.Ephemeral {
 			break
 		}
 		if v, ok := tree.values[name]; ok {
@@ -613,7 +613,7 @@ func serializeAnnotatedSetChild(b *strings.Builder, tree *Tree, meta *MetaTree, 
 		}
 
 	case *ContainerNode:
-		if n.Hidden {
+		if n.Hidden || n.Ephemeral {
 			break
 		}
 		if n.Presence {
@@ -632,7 +632,7 @@ func serializeAnnotatedSetChild(b *strings.Builder, tree *Tree, meta *MetaTree, 
 		}
 
 	case *ListNode:
-		if n.Hidden {
+		if n.Hidden || n.Ephemeral {
 			break
 		}
 		serializeAnnotatedSetList(b, tree, meta, name, n, columns, path)

@@ -2204,6 +2204,358 @@ func TestCopyListEntryBadSyntax(t *testing.T) {
 	}
 }
 
+// TestInsertLeafList verifies insert command places values at correct positions.
+//
+// VALIDATES: AC-10 -- insert first/last/before/after on leaf-list.
+// PREVENTS: Wrong insertion position in filter chains.
+func TestInsertLeafList(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	configWithFilter := `bgp {
+  router-id 1.2.3.4
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  filter {
+    import [ alpha bravo ];
+  }
+  peer peer1 {
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}`
+
+	err := os.WriteFile(configPath, []byte(configWithFilter), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Insert "charlie" after "alpha".
+	result, err := model.cmdInsert([]string{"bgp", "filter", "import", "charlie", "after", "alpha"})
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "Inserted charlie")
+
+	content := ed.WorkingContent()
+	assert.Contains(t, content, "import [ alpha charlie bravo ]")
+}
+
+// TestInsertLeafListFirst verifies insert first places value at beginning.
+//
+// VALIDATES: AC-10 -- insert first.
+// PREVENTS: First position not prepending.
+func TestInsertLeafListFirst(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	configWithFilter := `bgp {
+  router-id 1.2.3.4
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  filter {
+    import [ alpha bravo ];
+  }
+  peer peer1 {
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}`
+
+	err := os.WriteFile(configPath, []byte(configWithFilter), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.cmdInsert([]string{"bgp", "filter", "import", "zero", "first"})
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "Inserted zero")
+
+	content := ed.WorkingContent()
+	assert.Contains(t, content, "import [ zero alpha bravo ]")
+}
+
+// TestInsertBadSyntax verifies insert rejects bad syntax.
+//
+// VALIDATES: Insert command validates arguments.
+// PREVENTS: Cryptic errors from bad insert syntax.
+func TestInsertBadSyntax(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Too few args.
+	_, err = model.cmdInsert([]string{"filter", "import"})
+	require.Error(t, err)
+
+	// Missing position keyword.
+	_, err = model.cmdInsert([]string{"filter", "import", "foo", "bar"})
+	require.Error(t, err)
+}
+
+// TestDeactivateLeafListValue verifies deactivate adds inactive: prefix.
+//
+// VALIDATES: AC-5 -- deactivate on leaf-list value adds inactive: prefix.
+// PREVENTS: Deactivate only working on containers.
+func TestDeactivateLeafListValue(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	configWithFilter := `bgp {
+  router-id 1.2.3.4
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  filter {
+    import [ no-self-as reject-bogons ];
+  }
+  peer peer1 {
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}`
+
+	err := os.WriteFile(configPath, []byte(configWithFilter), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.cmdDeactivate([]string{"bgp", "filter", "import", "no-self-as"})
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "Deactivated no-self-as")
+
+	content := ed.WorkingContent()
+	assert.Contains(t, content, "inactive:no-self-as")
+	assert.Contains(t, content, "reject-bogons")
+}
+
+// TestActivateLeafListValue verifies activate removes inactive: prefix.
+//
+// VALIDATES: AC-6 -- activate on inactive leaf-list value removes prefix.
+// PREVENTS: Activate only working on containers.
+func TestActivateLeafListValue(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	configWithFilter := `bgp {
+  router-id 1.2.3.4
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  filter {
+    import [ inactive:no-self-as reject-bogons ];
+  }
+  peer peer1 {
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}`
+
+	err := os.WriteFile(configPath, []byte(configWithFilter), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.cmdActivate([]string{"bgp", "filter", "import", "no-self-as"})
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "Activated no-self-as")
+
+	content := ed.WorkingContent()
+	assert.Contains(t, content, "no-self-as")
+	assert.NotContains(t, content, "inactive:no-self-as")
+}
+
+// TestDeactivateLeafListPerPeer verifies deactivate works through list entry paths.
+//
+// VALIDATES: deactivate bgp peer X filter import Y works (list key in path).
+// PREVENTS: resolveLeafListValue failing on list keys in path.
+func TestDeactivateLeafListPerPeer(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	configWithPeerFilter := `bgp {
+  router-id 1.2.3.4
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  peer peer1 {
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+    filter {
+      import [ no-self-as reject-bogons ];
+    }
+  }
+}`
+
+	err := os.WriteFile(configPath, []byte(configWithPeerFilter), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.cmdDeactivate([]string{"bgp", "peer", "peer1", "filter", "import", "no-self-as"})
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "Deactivated no-self-as")
+
+	content := ed.WorkingContent()
+	assert.Contains(t, content, "inactive:no-self-as")
+}
+
+// TestInsertDuplicateRejected verifies insert rejects duplicate values.
+//
+// VALIDATES: InsertMultiValue prevents duplicates.
+// PREVENTS: Same filter running twice in a chain.
+func TestInsertDuplicateRejected(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	configWithFilter := `bgp {
+  router-id 1.2.3.4
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  filter {
+    import [ alpha bravo ];
+  }
+  peer peer1 {
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}`
+
+	err := os.WriteFile(configPath, []byte(configWithFilter), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Inserting "alpha" again should fail.
+	_, err = model.cmdInsert([]string{"bgp", "filter", "import", "alpha", "last"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already exists")
+}
+
+// TestInsertNonLeafListRejected verifies insert rejects non-leaf-list targets.
+//
+// VALIDATES: cmdInsert validates target is a leaf-list.
+// PREVENTS: Silent insert into non-leaf-list fields.
+func TestInsertNonLeafListRejected(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// "router-id" is a leaf, not a leaf-list.
+	_, err = model.cmdInsert([]string{"bgp", "router-id", "5.6.7.8", "last"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not a leaf-list")
+}
+
 // TestCopyViaDispatch verifies copy works through the command dispatcher.
 //
 // VALIDATES: "copy bgp peer peer1 to peer2" dispatches correctly.

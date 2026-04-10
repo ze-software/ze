@@ -149,6 +149,8 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 		return m.cmdRename(args)
 	case cmdCopy:
 		return m.cmdCopy(args)
+	case cmdInsert:
+		return m.cmdInsert(args)
 	}
 
 	return commandResult{}, fmt.Errorf("unknown command: %s", cmd)
@@ -493,7 +495,8 @@ func (m *Model) cmdDelete(args []string) (commandResult, error) {
 }
 
 // cmdDeactivate marks a config node as inactive.
-// Syntax: deactivate <path> — equivalent to "set <path> inactive true".
+// For containers/list entries: sets inactive leaf (existing behavior).
+// For leaf-list values: adds "inactive:" prefix to the value.
 func (m *Model) cmdDeactivate(args []string) (commandResult, error) {
 	if len(args) < 1 {
 		return commandResult{}, fmt.Errorf("usage: deactivate <path>")
@@ -502,6 +505,27 @@ func (m *Model) cmdDeactivate(args []string) (commandResult, error) {
 	fullPath := make([]string, 0, len(m.contextPath)+len(args))
 	fullPath = append(fullPath, m.contextPath...)
 	fullPath = append(fullPath, args...)
+
+	// Check if the path targets a leaf-list value.
+	if len(fullPath) >= 2 {
+		parentPath, leafListName, isLeafList := m.resolveLeafListValue(fullPath)
+		if isLeafList {
+			value := fullPath[len(fullPath)-1]
+			if err := m.editor.DeactivateLeafListValue(parentPath, leafListName, value); err != nil {
+				return commandResult{}, fmt.Errorf("deactivate failed: %w", err)
+			}
+			m.completer.SetTree(m.editor.Tree())
+			msg := fmt.Sprintf("Deactivated %s in %s", value, leafListName)
+			if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+				msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+			}
+			return commandResult{
+				statusMessage: msg,
+				configView:    m.configViewAtPath(m.contextPath),
+				revalidate:    true,
+			}, nil
+		}
+	}
 
 	// Validate path exists in schema and points to a container or list entry.
 	entry, err := m.completer.validateTokenPath(fullPath)
@@ -532,7 +556,8 @@ func (m *Model) cmdDeactivate(args []string) (commandResult, error) {
 }
 
 // cmdActivate removes the inactive flag from a config node.
-// Syntax: activate <path> — removes the inactive leaf, restoring default (active).
+// For containers/list entries: removes inactive leaf (existing behavior).
+// For leaf-list values: removes "inactive:" prefix from the value.
 func (m *Model) cmdActivate(args []string) (commandResult, error) {
 	if len(args) < 1 {
 		return commandResult{}, fmt.Errorf("usage: activate <path>")
@@ -541,6 +566,27 @@ func (m *Model) cmdActivate(args []string) (commandResult, error) {
 	fullPath := make([]string, 0, len(m.contextPath)+len(args))
 	fullPath = append(fullPath, m.contextPath...)
 	fullPath = append(fullPath, args...)
+
+	// Check if the path targets a leaf-list value.
+	if len(fullPath) >= 2 {
+		parentPath, leafListName, isLeafList := m.resolveLeafListValue(fullPath)
+		if isLeafList {
+			value := fullPath[len(fullPath)-1]
+			if err := m.editor.ActivateLeafListValue(parentPath, leafListName, value); err != nil {
+				return commandResult{}, fmt.Errorf("activate failed: %w", err)
+			}
+			m.completer.SetTree(m.editor.Tree())
+			msg := fmt.Sprintf("Activated %s in %s", value, leafListName)
+			if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+				msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+			}
+			return commandResult{
+				statusMessage: msg,
+				configView:    m.configViewAtPath(m.contextPath),
+				revalidate:    true,
+			}, nil
+		}
+	}
 
 	// Validate path exists in schema and points to a container or list entry.
 	entry, err := m.completer.validateTokenPath(fullPath)
@@ -558,6 +604,124 @@ func (m *Model) cmdActivate(args []string) (commandResult, error) {
 
 	m.completer.SetTree(m.editor.Tree())
 	msg := fmt.Sprintf("Activated %s", strings.Join(fullPath, " "))
+
+	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+	}
+
+	return commandResult{
+		statusMessage: msg,
+		configView:    m.configViewAtPath(m.contextPath),
+		revalidate:    true,
+	}, nil
+}
+
+// resolveLeafListValue checks if a path targets a value inside a leaf-list.
+// Returns the tree-level parent path (to the container holding the leaf-list),
+// the leaf-list field name, and true if the path ends at a leaf-list value.
+// Handles list keys in the path (e.g., bgp peer peer1 filter import value).
+func (m *Model) resolveLeafListValue(fullPath []string) (parentPath []string, leafListName string, ok bool) {
+	if m.editor == nil || m.editor.schema == nil || len(fullPath) < 2 {
+		return nil, "", false
+	}
+
+	// Walk the schema along fullPath, skipping list keys, to find
+	// whether the second-to-last schema element is a leaf-list.
+	var current schemaGetter = m.editor.schema
+	i := 0
+	for i < len(fullPath)-1 {
+		name := fullPath[i]
+		node := current.Get(name)
+		if node == nil {
+			return nil, "", false
+		}
+
+		// If this is the second-to-last path element (before the value),
+		// check if it's a leaf-list.
+		if i == len(fullPath)-2 {
+			switch node.(type) {
+			case *config.ValueOrArrayNode, *config.BracketLeafListNode:
+				return fullPath[:i], name, true
+			}
+			return nil, "", false
+		}
+
+		sg, canNavigate := node.(schemaGetter)
+		if !canNavigate {
+			return nil, "", false // leaf nodes: can't navigate further
+		}
+		current = sg
+		i++
+		if _, isList := node.(*config.ListNode); isList {
+			i++ // skip list key
+		}
+	}
+	return nil, "", false
+}
+
+// cmdInsert inserts a value into a leaf-list at a specified position.
+// Syntax: insert <path> <value> first|last|before <ref>|after <ref>.
+// Limitation: values named "first", "last", "before", or "after" are
+// ambiguous with position keywords. Quote them if needed.
+func (m *Model) cmdInsert(args []string) (commandResult, error) {
+	if len(args) < 3 {
+		return commandResult{}, fmt.Errorf("usage: insert <path> <value> first|last|before <ref>|after <ref>")
+	}
+
+	// Parse position from the end of args.
+	var position, ref string
+	var pathAndValue []string
+
+	lastArg := args[len(args)-1]
+	if lastArg == config.InsertFirst || lastArg == config.InsertLast {
+		position = lastArg
+		pathAndValue = args[:len(args)-1]
+	} else if len(args) >= 4 {
+		secondLast := args[len(args)-2]
+		if secondLast == config.InsertBefore || secondLast == config.InsertAfter {
+			position = secondLast
+			ref = lastArg
+			pathAndValue = args[:len(args)-2]
+		}
+	}
+
+	if position == "" {
+		return commandResult{}, fmt.Errorf("usage: insert <path> <value> first|last|before <ref>|after <ref>")
+	}
+
+	if len(pathAndValue) < 2 {
+		return commandResult{}, fmt.Errorf("usage: insert <path> <value> first|last|before <ref>|after <ref>")
+	}
+
+	value := pathAndValue[len(pathAndValue)-1]
+	pathTokens := pathAndValue[:len(pathAndValue)-1]
+
+	// Build full path to the leaf-list: context + path tokens
+	fullPath := make([]string, 0, len(m.contextPath)+len(pathTokens))
+	fullPath = append(fullPath, m.contextPath...)
+	fullPath = append(fullPath, pathTokens...)
+
+	// Validate the target is a leaf-list using schema-aware path walk.
+	// Append a dummy value so resolveLeafListValue sees the leaf-list as second-to-last.
+	probePath := make([]string, len(fullPath)+1)
+	copy(probePath, fullPath)
+	probePath[len(fullPath)] = "__probe__"
+	containerPath, leafListName, isLeafList := m.resolveLeafListValue(probePath)
+	if !isLeafList {
+		return commandResult{}, fmt.Errorf("insert failed: target is not a leaf-list")
+	}
+
+	if err := m.editor.InsertLeafListValue(containerPath, leafListName, value, position, ref); err != nil {
+		return commandResult{}, fmt.Errorf("insert failed: %w", err)
+	}
+
+	m.completer.SetTree(m.editor.Tree())
+	m.searchCache = ""
+
+	msg := fmt.Sprintf("Inserted %s into %s %s", value, leafListName, position)
+	if ref != "" {
+		msg += " " + ref
+	}
 
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
 		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)

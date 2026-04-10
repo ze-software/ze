@@ -316,6 +316,72 @@ func (e *Editor) CopyListEntry(parentPath []string, listName, srcKey, dstKey str
 	return nil
 }
 
+// InsertLeafListValue inserts a value into a leaf-list at the specified position.
+// path navigates to the container holding the leaf-list. leafListName is the
+// leaf-list field name. position is first/last/before/after, ref is the
+// reference value for before/after.
+func (e *Editor) InsertLeafListValue(path []string, leafListName, value, position, ref string) error {
+	if e.session != nil {
+		return fmt.Errorf("insert not supported in session mode")
+	}
+	var target *config.Tree
+	if len(path) == 0 {
+		target = e.tree
+	} else {
+		target = e.WalkPath(path)
+	}
+	if target == nil {
+		return fmt.Errorf("path not found")
+	}
+	if err := target.InsertMultiValue(leafListName, value, position, ref); err != nil {
+		return err
+	}
+	e.dirty.Store(true)
+	return nil
+}
+
+// DeactivateLeafListValue adds "inactive:" prefix to a value in a leaf-list.
+func (e *Editor) DeactivateLeafListValue(path []string, leafListName, value string) error {
+	if e.session != nil {
+		return fmt.Errorf("deactivate not supported in session mode")
+	}
+	var target *config.Tree
+	if len(path) == 0 {
+		target = e.tree
+	} else {
+		target = e.WalkPath(path)
+	}
+	if target == nil {
+		return fmt.Errorf("path not found")
+	}
+	if err := target.DeactivateMultiValue(leafListName, value); err != nil {
+		return err
+	}
+	e.dirty.Store(true)
+	return nil
+}
+
+// ActivateLeafListValue removes "inactive:" prefix from a value in a leaf-list.
+func (e *Editor) ActivateLeafListValue(path []string, leafListName, value string) error {
+	if e.session != nil {
+		return fmt.Errorf("activate not supported in session mode")
+	}
+	var target *config.Tree
+	if len(path) == 0 {
+		target = e.tree
+	} else {
+		target = e.WalkPath(path)
+	}
+	if target == nil {
+		return fmt.Errorf("path not found")
+	}
+	if err := target.ActivateMultiValue(leafListName, value); err != nil {
+		return err
+	}
+	e.dirty.Store(true)
+	return nil
+}
+
 // resolveListTarget walks the schema-aware path and identifies the terminal
 // list entry. Returns the tree-level parent path (for WalkPath), the list name,
 // and the entry key. Returns an error if the path does not end at a list entry.

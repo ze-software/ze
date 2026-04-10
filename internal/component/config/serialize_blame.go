@@ -185,7 +185,7 @@ func serializeBlameTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, name
 
 	switch n := node.(type) {
 	case *LeafNode:
-		if n.Hidden {
+		if n.Hidden || n.Ephemeral {
 			break
 		}
 		if name == InactiveLeafName {
@@ -242,13 +242,13 @@ func serializeBlameTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, name
 		}
 
 	case *ContainerNode:
-		if n.Hidden {
+		if n.Hidden || n.Ephemeral {
 			break
 		}
 		serializeBlameContainer(b, tree, meta, name, n, indent)
 
 	case *ListNode:
-		if n.Hidden {
+		if n.Hidden || n.Ephemeral {
 			break
 		}
 		serializeBlameList(b, tree, meta, name, n, indent)

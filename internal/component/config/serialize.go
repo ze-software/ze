@@ -231,7 +231,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 
 	switch n := node.(type) {
 	case *LeafNode:
-		if n.Hidden {
+		if n.Hidden || n.Ephemeral {
 			break
 		}
 		if name == InactiveLeafName {
@@ -284,7 +284,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 		}
 
 	case *ContainerNode:
-		if n.Hidden {
+		if n.Hidden || n.Ephemeral {
 			break
 		}
 		if n.Presence {
@@ -306,7 +306,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 		}
 
 	case *ListNode:
-		if n.Hidden {
+		if n.Hidden || n.Ephemeral {
 			break
 		}
 		if entries := tree.lists[name]; entries != nil {

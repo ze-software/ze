@@ -14,7 +14,10 @@ Ze had no configurable route filter framework. Filters existed only as in-proces
 - `redistribute` as a top-level core YANG module (`ze-redistribute.yang`), over nesting under bgp. Protocols augment the neutral root -- BGP adds ibgp/ebgp, future OSPF/ISIS add theirs. No cross-protocol YANG imports.
 - Callback pattern for redistribute validator (`SetRedistributeSourceCallbacks`), over direct import from config to bgp/redistribute. Keeps config layer protocol-agnostic.
 - `ze:hidden` enforced in all serializers (was declared but never checked). `ze:ephemeral` extension added for future runtime-only nodes.
-- Filter name validation deferred: external plugins register at stage 1 (after config parse), so parse-time validation cannot see them. Registry and ValidateFilterNames exist and are tested but not wired.
+- Filter name validation: plain names (no colon) validated against policy registry at parse time. Colon names (external plugin filters like `rpki:validate`) skipped -- validated at runtime since plugins register at stage 1, after config parse.
+- `insert` CLI command for ordered leaf-list manipulation: `insert <path> <value> first|last|before <ref>|after <ref>`.
+- `deactivate`/`activate` extended to work on leaf-list values (adds/removes `inactive:` prefix), not just containers.
+- `ze:ephemeral` extension parsed and enforced in serializer (skips ephemeral nodes during config file write). No YANG consumer yet.
 
 ## Consequences
 
@@ -31,6 +34,8 @@ Ze had no configurable route filter framework. Filters existed only as in-proces
 - The pre-write hook uses `$PPID` for session identity, which varies across hook subprocesses. Fixed by walking `/proc` to find the Claude CLI process (argv[0] == "claude"). Linux-only; macOS falls back to `$PPID`.
 - `asnCount` in LoopIngress was initially uint8 -- overflows on pathological AS_PATHs with 256+ local ASN occurrences. Changed to uint16.
 - `RegisterBGPSources()` needs `sync.Once` because `RegisterValidators` is called from multiple sites (YANG schema loading, CLI completer init).
+- Adding `copy` command broke `ghost-multiple-match.et` test: typing "co" now matches "commit", "compare", AND "copy", so the common prefix has no extension beyond "co". Test updated to use "com" prefix.
+- `PolicyFilterChain` still uses `strings.Cut(ref, ":")` for external plugin dispatch. The Migration table's "Name-based lookup" replacement is aspirational -- external plugins still use the `plugin:filter` colon format by design (Decision #7).
 
 ## Files
 
@@ -51,6 +56,7 @@ Ze had no configurable route filter framework. Filters existed only as in-proces
 - `internal/component/bgp/redistribute/schema/ze-bgp-redistribute.yang` -- BGP augment (ibgp/ebgp)
 - `internal/component/bgp/redistribute/registry.go` -- source registry
 - `internal/component/config/validators.go` -- RedistributeSourceValidator with callbacks
-- `internal/component/config/tree.go` -- RenameListEntry, CopyListEntry
-- `internal/component/cli/editor_commands.go` -- RenameListEntry, resolveListTarget
-- `internal/component/cli/model_commands.go` -- cmdRename, cmdCopy
+- `internal/component/config/tree.go` -- RenameListEntry, CopyListEntry, InsertMultiValue, DeactivateMultiValue, ActivateMultiValue
+- `internal/component/cli/editor_commands.go` -- RenameListEntry, InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue
+- `internal/component/cli/model_commands.go` -- cmdRename, cmdCopy, cmdInsert, leaf-list deactivate/activate
+- `docs/guide/redistribution.md` -- rewritten for filter chain format (was stale redistribution docs)

@@ -408,6 +408,16 @@ func hasHiddenExtension(entry *gyang.Entry) bool {
 	return false
 }
 
+// hasEphemeralExtension checks if a YANG entry has the ze:ephemeral extension.
+func hasEphemeralExtension(entry *gyang.Entry) bool {
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:ephemeral" || strings.HasSuffix(ext.Keyword, ":ephemeral") {
+			return true
+		}
+	}
+	return false
+}
+
 // yangToLeaf converts YANG leaf to LeafNode.
 func yangToLeaf(entry *gyang.Entry) *LeafNode {
 	typ := yangTypeToValueType(entry.Type)
@@ -417,6 +427,7 @@ func yangToLeaf(entry *gyang.Entry) *LeafNode {
 	}
 	node.Sensitive = hasSensitiveExtension(entry)
 	node.Hidden = hasHiddenExtension(entry)
+	node.Ephemeral = hasEphemeralExtension(entry)
 	node.Decorate = getDecorateExtension(entry)
 	node.Description = entry.Description
 	if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
@@ -471,8 +482,9 @@ func yangToContainer(entry *gyang.Entry, path string) *ContainerNode {
 	// Check for ze:allow-unknown-fields extension
 	container.AllowUnknown = hasAllowUnknownExtension(entry)
 
-	// Check for ze:hidden extension
+	// Check for ze:hidden and ze:ephemeral extensions
 	container.Hidden = hasHiddenExtension(entry)
+	container.Ephemeral = hasEphemeralExtension(entry)
 
 	// Check for YANG presence statement — enables flag/value/block modes
 	container.Presence = hasPresenceStatement(entry)
@@ -538,6 +550,7 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	}
 	l.KeyName = entry.Key
 	l.Hidden = hasHiddenExtension(entry)
+	l.Ephemeral = hasEphemeralExtension(entry)
 	l.Description = entry.Description
 
 	// Scan children for ze:display-key extension (keyless lists only).

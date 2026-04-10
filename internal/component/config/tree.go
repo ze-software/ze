@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"maps"
 	"sort"
+	"strings"
 )
 
 // Tree represents parsed configuration data.
@@ -401,6 +402,113 @@ func (t *Tree) CopyListEntry(listName, srcKey, dstKey string) error {
 func (t *Tree) ClearList(name string) {
 	delete(t.lists, name)
 	delete(t.listOrder, name)
+}
+
+// Insert position constants for InsertMultiValue.
+const (
+	InsertFirst  = "first"
+	InsertLast   = "last"
+	InsertBefore = "before"
+	InsertAfter  = "after"
+)
+
+// syncMultiValueToValue updates the values map to match multiValues for a key.
+// Keeps the space-separated string representation in sync with the slice.
+func (t *Tree) syncMultiValueToValue(name string) {
+	items := t.multiValues[name]
+	if len(items) == 0 {
+		delete(t.values, name)
+		return
+	}
+	t.Set(name, strings.Join(items, " "))
+}
+
+// InsertMultiValue inserts a value into a multi-value list at the specified position.
+// position must be "first", "last", "before", or "after".
+// ref is the reference value for before/after (ignored for first/last).
+func (t *Tree) InsertMultiValue(name, value, position, ref string) error {
+	if !isValidInsertPosition(position) {
+		return fmt.Errorf("invalid position %q (use first, last, before, after)", position)
+	}
+
+	items := t.multiValues[name]
+	if multiValueIndex(items, value) >= 0 {
+		return fmt.Errorf("%q already exists in %s", value, name)
+	}
+
+	switch position {
+	case InsertFirst:
+		t.multiValues[name] = append([]string{value}, items...)
+	case InsertLast:
+		t.multiValues[name] = append(items, value)
+	case InsertBefore, InsertAfter:
+		idx := multiValueIndex(items, ref)
+		if idx < 0 {
+			return fmt.Errorf("%q not found in %s", ref, name)
+		}
+		insertAt := idx
+		if position == InsertAfter {
+			insertAt = idx + 1
+		}
+		newItems := make([]string, 0, len(items)+1)
+		newItems = append(newItems, items[:insertAt]...)
+		newItems = append(newItems, value)
+		newItems = append(newItems, items[insertAt:]...)
+		t.multiValues[name] = newItems
+	}
+
+	t.syncMultiValueToValue(name)
+	return nil
+}
+
+// DeactivateMultiValue adds "inactive:" prefix to a value in a multi-value list.
+// Returns an error if the value is already deactivated or not found.
+func (t *Tree) DeactivateMultiValue(name, value string) error {
+	if strings.HasPrefix(value, "inactive:") {
+		return fmt.Errorf("%q is already deactivated", value)
+	}
+	items := t.multiValues[name]
+	// Check if already deactivated.
+	if multiValueIndex(items, "inactive:"+value) >= 0 {
+		return fmt.Errorf("%q is already deactivated in %s", value, name)
+	}
+	for i, item := range items {
+		if item == value {
+			items[i] = "inactive:" + value
+			t.syncMultiValueToValue(name)
+			return nil
+		}
+	}
+	return fmt.Errorf("%q not found in %s", value, name)
+}
+
+// ActivateMultiValue removes "inactive:" prefix from a value in a multi-value list.
+func (t *Tree) ActivateMultiValue(name, value string) error {
+	items := t.multiValues[name]
+	target := "inactive:" + value
+	for i, item := range items {
+		if item == target {
+			items[i] = value
+			t.syncMultiValueToValue(name)
+			return nil
+		}
+	}
+	return fmt.Errorf("inactive:%s not found in %s", value, name)
+}
+
+// multiValueIndex returns the index of value in items, or -1 if not found.
+func multiValueIndex(items []string, value string) int {
+	for i, item := range items {
+		if item == value {
+			return i
+		}
+	}
+	return -1
+}
+
+// isValidInsertPosition returns true if position is a valid insert position keyword.
+func isValidInsertPosition(position string) bool {
+	return position == InsertFirst || position == InsertLast || position == InsertBefore || position == InsertAfter
 }
 
 // ToMap converts the Tree to a nested map[string]any suitable for JSON serialization.

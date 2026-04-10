@@ -117,6 +117,7 @@ type LeafNode struct {
 	Default     string
 	Sensitive   bool     // ze:sensitive — value is a password/key, masked in display
 	Hidden      bool     // ze:hidden — excluded from config display output
+	Ephemeral   bool     // ze:ephemeral — present in schema, not persisted to config file
 	Decorate    string   // ze:decorate — decorator name for display-time enrichment
 	Description string   // YANG description for tooltips/help
 	Enums       []string // Valid enum values (nil for non-enum types)
@@ -130,6 +131,7 @@ type ContainerNode struct {
 	order        []string // preserve definition order
 	AllowUnknown bool     // accept arbitrary key-value pairs (ze:allow-unknown-fields)
 	Hidden       bool     // ze:hidden — excluded from config display output
+	Ephemeral    bool     // ze:ephemeral — present in schema, not persisted to config file
 	Presence     bool     // YANG presence container: accepts flag (;), value (word;), or block ({})
 	Description  string   // YANG description for tooltips
 }
@@ -161,6 +163,7 @@ type ListNode struct {
 	Required    [][]string // ze:required fields: must have value after config inheritance resolution
 	Suggest     [][]string // ze:suggest fields: shown in creation dialog but not mandatory
 	Hidden      bool       // ze:hidden -- excluded from config display output
+	Ephemeral   bool       // ze:ephemeral -- present in schema, not persisted to config file
 	Description string     // YANG description for tooltips
 	children    map[string]Node
 	order       []string

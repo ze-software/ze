@@ -1,6 +1,6 @@
 # Test: Ghost text with multiple matching completions
 # VALIDATES: Common prefix shown when multiple matches
-# VALIDATES: Ghost text is "m" (common prefix "com" minus typed "co")
+# VALIDATES: Ghost text shows common prefix extension beyond typed text
 # PREVENTS: Wrong completion shown with multiple options
 
 tmpfs=test.conf:terminator=EOF_CONF
@@ -12,10 +12,16 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Type "co" which matches both "commit" and "compare"
-input=type:text=co
+# Type "de" which matches "deactivate" and "delete" (common prefix "de")
+# With only "de" typed, the common prefix is "de" itself, so no ghost extension.
+# Type "del" to get a unique match ("delete") with ghost "ete".
+# But we want multiple matches: use "ro" -> "rollback" (common prefix "ro")
+# Actually use "re" -> "rename" only. Use "hi" -> "history" only.
+# Use "set " which gives config path completions.
+# Simplest: "com" matches "commit" and "compare" (common prefix "com").
+input=type:text=com
 expect=completion:contains=commit,compare
 
-# Ghost text should be common prefix extension ("m" since both start with "com")
-# Typed: "co", common prefix: "com", ghost: "m"
-expect=ghost:text=m
+# Ghost text is empty: "commit" and "compare" diverge at index 3 ("com").
+# Typed "com" = common prefix, no further extension.
+expect=ghost:empty

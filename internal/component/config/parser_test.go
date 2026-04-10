@@ -1,8 +1,10 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -577,4 +579,162 @@ func TestTreeDeleteNonexistent(t *testing.T) {
 	val, ok := tree.Get("a")
 	require.True(t, ok)
 	require.Equal(t, "1", val)
+}
+
+// VALIDATES: InsertMultiValue places values at the correct position.
+// PREVENTS: Wrong insertion order in leaf-list manipulation.
+func TestInsertMultiValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		initial  []string
+		value    string
+		position string
+		ref      string
+		expected []string
+		wantErr  bool
+	}{
+		{
+			name:     "first into empty",
+			initial:  nil,
+			value:    "a",
+			position: InsertFirst,
+			expected: []string{"a"},
+		},
+		{
+			name:     "last into empty",
+			initial:  nil,
+			value:    "a",
+			position: InsertLast,
+			expected: []string{"a"},
+		},
+		{
+			name:     "first into existing",
+			initial:  []string{"b", "c"},
+			value:    "a",
+			position: InsertFirst,
+			expected: []string{"a", "b", "c"},
+		},
+		{
+			name:     "last into existing",
+			initial:  []string{"a", "b"},
+			value:    "c",
+			position: InsertLast,
+			expected: []string{"a", "b", "c"},
+		},
+		{
+			name:     "before middle",
+			initial:  []string{"a", "c"},
+			value:    "b",
+			position: InsertBefore,
+			ref:      "c",
+			expected: []string{"a", "b", "c"},
+		},
+		{
+			name:     "after middle",
+			initial:  []string{"a", "c"},
+			value:    "b",
+			position: InsertAfter,
+			ref:      "a",
+			expected: []string{"a", "b", "c"},
+		},
+		{
+			name:     "before first",
+			initial:  []string{"b", "c"},
+			value:    "a",
+			position: InsertBefore,
+			ref:      "b",
+			expected: []string{"a", "b", "c"},
+		},
+		{
+			name:     "after last",
+			initial:  []string{"a", "b"},
+			value:    "c",
+			position: InsertAfter,
+			ref:      "b",
+			expected: []string{"a", "b", "c"},
+		},
+		{
+			name:     "before nonexistent ref",
+			initial:  []string{"a", "b"},
+			value:    "c",
+			position: InsertBefore,
+			ref:      "missing",
+			wantErr:  true,
+		},
+		{
+			name:     "invalid position",
+			initial:  []string{"a"},
+			value:    "b",
+			position: "middle",
+			wantErr:  true,
+		},
+		{
+			name:     "duplicate value rejected",
+			initial:  []string{"a", "b"},
+			value:    "a",
+			position: InsertLast,
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := NewTree()
+			if tt.initial != nil {
+				tree.SetSlice("items", tt.initial)
+			}
+
+			err := tree.InsertMultiValue("items", tt.value, tt.position, tt.ref)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, tree.GetSlice("items"))
+
+			// Verify values map stays in sync.
+			v, ok := tree.Get("items")
+			require.True(t, ok)
+			require.Equal(t, strings.Join(tt.expected, " "), v)
+		})
+	}
+}
+
+// VALIDATES: DeactivateMultiValue adds inactive: prefix to leaf-list value.
+// PREVENTS: Deactivation silently ignored for missing values.
+func TestDeactivateMultiValue(t *testing.T) {
+	tree := NewTree()
+	tree.SetSlice("import", []string{"no-self-as", "reject-bogons"})
+
+	err := tree.DeactivateMultiValue("import", "no-self-as")
+	require.NoError(t, err)
+	require.Equal(t, []string{"inactive:no-self-as", "reject-bogons"}, tree.GetSlice("import"))
+
+	// Verify values map in sync.
+	v, _ := tree.Get("import")
+	require.Equal(t, "inactive:no-self-as reject-bogons", v)
+
+	// Deactivating nonexistent value fails.
+	err = tree.DeactivateMultiValue("import", "missing")
+	require.Error(t, err)
+
+	// Double-deactivation fails.
+	err = tree.DeactivateMultiValue("import", "no-self-as")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already deactivated")
+}
+
+// VALIDATES: ActivateMultiValue removes inactive: prefix from leaf-list value.
+// PREVENTS: Activation silently ignored for values without prefix.
+func TestActivateMultiValue(t *testing.T) {
+	tree := NewTree()
+	tree.SetSlice("import", []string{"inactive:no-self-as", "reject-bogons"})
+
+	err := tree.ActivateMultiValue("import", "no-self-as")
+	require.NoError(t, err)
+	require.Equal(t, []string{"no-self-as", "reject-bogons"}, tree.GetSlice("import"))
+
+	// Activating value without inactive: prefix fails.
+	err = tree.ActivateMultiValue("import", "reject-bogons")
+	require.Error(t, err)
 }
