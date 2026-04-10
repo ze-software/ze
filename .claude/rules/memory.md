@@ -145,6 +145,11 @@ Do NOT flag these as "identity wrappers adding no value."
 - Root cause: writing the learned summary before implementing the features. The summary became a description of intent, not of reality.
 - **Rule:** `rules/implementation-audit.md`. The audit MUST verify each AC against running code, not against the spec's description. A learned summary that says "future X" is proof the spec is NOT done.
 
+### Stale Deferrals Waste Sessions (redistribution-filter-phase2)
+- Phase-2 spec listed 5 open deferrals. On investigation, 2 (AC-13 undeclared attribute validation, AC-15 raw mode) were already fully implemented in the original spec. Deferrals were never closed.
+- Root cause: deferrals written from spec intent ("requires X") without grepping for actual implementation. Nobody re-verified before creating the phase-2 spec.
+- **Rule:** `rules/deferral-tracking.md` "Verify Before Deferring." Before starting work on ANY open deferral, grep for the feature in code. If it exists, mark the deferral done and move on. Do not assume a deferral is valid just because it says "open."
+
 ### Worktree File Copy Overwrites Main Repo (ZERO TOLERANCE)
 - Worktree agent copied files directly from `.claude/worktrees/agent-*/` into the main repo.
 - Overwrote uncommitted changes made by other concurrent Claude sessions.
