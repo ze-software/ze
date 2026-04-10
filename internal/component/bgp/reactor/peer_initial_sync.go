@@ -139,17 +139,9 @@ func (p *Peer) sendInitialRoutes() {
 		}
 	}
 
-	// Wait for API processes to send initial routes before processing queue.
-	// Only delay if there are API processes that may send routes (SendUpdate permission).
-	// This prevents unnecessary delay for tests without persist/route-injection APIs.
-	p.mu.RLock()
-	needsAPIWait := p.apiSyncExpected > 0
-	p.mu.RUnlock()
-	if needsAPIWait {
-		routesLogger().Debug("sleeping for API routes", "peer", addr, "duration", "500ms")
-		p.clock.Sleep(500 * time.Millisecond)
-		routesLogger().Debug("woke from sleep, processing queue", "peer", addr)
-	}
+	// Wait for API processes to signal "plugin session ready" before draining queue.
+	// Uses channel-based sync with 2s timeout fallback.
+	p.waitForAPISync(2 * time.Second)
 
 	// Process operation queue in order (maintains announce/withdraw/teardown ordering).
 	// Stop at first teardown - remaining items stay for next session.

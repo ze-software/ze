@@ -18,10 +18,8 @@ import (
 // Otherwise uses "update text" with per-field attributes.
 // The peer selector is passed separately to updateRoute.
 func FormatAnnounceCommand(route *Route) string {
-	// Prefer hex format when raw attributes available -- preserves all transitive attrs.
-	if route.RawAttrs != "" {
-		return formatAnnounceHex(route)
-	}
+	// Text format is used for replay: prefix is stored as text ("192.168.1.0/24"),
+	// not hex wire bytes. The hex command requires hex NLRIs which we don't have.
 	return formatAnnounceText(route)
 }
 

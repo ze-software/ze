@@ -24,10 +24,12 @@ import (
 // dispatchStructured routes a StructuredEvent to the appropriate handler.
 func (r *RIBManager) dispatchStructured(se *rpc.StructuredEvent) {
 	switch se.EventType {
-	case "sent":
-		r.handleSentStructured(se)
 	case "update":
-		r.handleReceivedStructured(se)
+		if se.Direction == "sent" {
+			r.handleSentStructured(se)
+		} else {
+			r.handleReceivedStructured(se)
+		}
 	case "state":
 		r.handleStructuredState(se)
 	case "refresh":

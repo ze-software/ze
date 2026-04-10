@@ -321,8 +321,6 @@ func (p *Peer) SignalAPIReady() {
 
 // waitForAPISync blocks until all API processes signal ready or timeout.
 // Returns immediately if no API sync is expected.
-//
-//nolint:unused // Reserved for future API sync implementation
 func (p *Peer) waitForAPISync(timeout time.Duration) {
 	p.mu.RLock()
 	expected := p.apiSyncExpected

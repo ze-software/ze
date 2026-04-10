@@ -7,10 +7,8 @@
 package reactor
 
 import (
-	"encoding/binary"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
@@ -292,17 +290,16 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			Meta:      meta, // Route metadata from ReceivedUpdate (sent events).
 		}
 
-		// For sent UPDATE messages, create AttrsWire from body if we have a context ID
-		if msgType == message.TypeUPDATE && ctxID != 0 && len(bytes) >= 4 {
-			// Parse UPDATE body to extract attribute bytes
-			// RFC 4271: withdrawnLen(2) + withdrawn(...) + attrLen(2) + attrs(...) + nlri(...)
-			withdrawnLen := int(binary.BigEndian.Uint16(bytes[0:2]))
-			attrOffset := 2 + withdrawnLen
-			if len(bytes) >= attrOffset+2 {
-				attrLen := int(binary.BigEndian.Uint16(bytes[attrOffset : attrOffset+2]))
-				if len(bytes) >= attrOffset+2+attrLen {
-					attrBytes := bytes[attrOffset+2 : attrOffset+2+attrLen]
-					msg.AttrsWire = attribute.NewAttributesWire(attrBytes, ctxID)
+		// For sent UPDATE messages, create WireUpdate + AttrsWire from body.
+		// WireUpdate is needed by structured handlers (e.g., RIB plugin's
+		// handleSentStructured) to extract NLRIs via wu.NLRI()/MPReach().
+		if msgType == message.TypeUPDATE && len(bytes) >= 4 {
+			wu := wireu.NewWireUpdate(bytes, ctxID)
+			wu.SetMessageID(messageID)
+			msg.WireUpdate = wu
+			if ctxID != 0 {
+				if aw, parseErr := wu.Attrs(); parseErr == nil {
+					msg.AttrsWire = aw
 				}
 			}
 		}
