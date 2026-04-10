@@ -73,4 +73,22 @@ a two-tier model: per-peer pools + single shared overflow MixedBufMux.
 - ExtMsg re-registration at session establishment fires RegisterPeerPool again
   with 64K, which replaces the 4K pool created at AddPeer. Items in flight with
   the old pool's peerPoolRef release correctly (atomic counter on orphaned
-  struct, GC'd after all refs gone).
+  struct, GC'd after all refs gone). Verified by TestFwdPool_ReregisterExtMsg.
+
+## Post-Audit Corrections (2026-04-10)
+
+- AC-12 spec/impl mismatch: spec said "dispatch rejected on exhaustion" but
+  implementation accepts items without buffer (routes never dropped).
+  Backpressure via congestion controller: denial at 80% (ShouldDeny skips
+  buffer acquisition for worst peer), teardown at 95% (CheckTeardown tears
+  down worst peer after grace period). This is intentional -- routing
+  correctness requires no route loss. Spec corrected, test added
+  (TestFwdPool_DenialThroughDispatchOverflow).
+
+- AC-13 teardown: TestFwdPool_UnregisterWithInFlightItems confirms orphaned
+  peerPool accepts Return() after being removed from the map. Session teardown
+  is safe with in-flight items.
+
+- Spec audit tables were empty (template placeholders) despite status being
+  "complete". Filled with line-number evidence for all 14 ACs, 20 tests,
+  9 requirements, 8 files.
