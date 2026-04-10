@@ -236,6 +236,11 @@ func (s *RTRSession) handlePDU(hdr RTRHeader, buf []byte) (bool, error) {
 		s.pendingDels = nil
 		s.mu.Unlock()
 
+		if m := rpkiMetricsPtr.Load(); m != nil {
+			v4, v6 := s.cache.Count()
+			m.vrpsCached.Set(float64(v4 + v6))
+		}
+
 		logger().Info("rtr: sync complete",
 			"address", s.address,
 			"serial", params.SerialNumber,

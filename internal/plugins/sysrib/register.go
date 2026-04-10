@@ -8,6 +8,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysribschema "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/schema"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -24,6 +25,11 @@ func init() {
 		RunEngine:   runSysRIBPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureMetrics: func(reg any) {
+			if r, ok := reg.(metrics.Registry); ok {
+				SetMetricsRegistry(r)
+			}
 		},
 		ConfigureEventBus: func(eb any) {
 			if e, ok := eb.(ze.EventBus); ok {

@@ -21,9 +21,35 @@ import (
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+// fibMetrics holds Prometheus metrics for the fib-kernel plugin.
+type fibMetrics struct {
+	routesInstalled metrics.Gauge      // current installed route count
+	routeInstalls   metrics.Counter    // routes successfully added
+	routeUpdates    metrics.Counter    // routes successfully replaced
+	routeRemovals   metrics.Counter    // routes successfully withdrawn
+	errors          metrics.CounterVec // backend operation failures (labels: operation)
+}
+
+// fibMetricsPtr stores fib-kernel metrics, set by SetMetricsRegistry.
+var fibMetricsPtr atomic.Pointer[fibMetrics]
+
+// SetMetricsRegistry creates fib-kernel metrics from the given registry.
+// Called via ConfigureMetrics callback before RunEngine.
+func SetMetricsRegistry(reg metrics.Registry) {
+	m := &fibMetrics{
+		routesInstalled: reg.Gauge("ze_fibkernel_routes_installed", "Current number of ze-installed kernel routes."),
+		routeInstalls:   reg.Counter("ze_fibkernel_route_installs_total", "Routes successfully added to kernel."),
+		routeUpdates:    reg.Counter("ze_fibkernel_route_updates_total", "Routes successfully replaced in kernel."),
+		routeRemovals:   reg.Counter("ze_fibkernel_route_removals_total", "Routes successfully removed from kernel."),
+		errors:          reg.CounterVec("ze_fibkernel_errors_total", "Backend operation failures.", []string{"operation"}),
+	}
+	fibMetricsPtr.Store(m)
+}
 
 // loggerPtr is the package-level logger, disabled by default.
 var loggerPtr atomic.Pointer[slog.Logger]
@@ -134,21 +160,41 @@ func (f *fibKernel) processEvent(payload string) {
 		case "add":
 			if err := f.backend.addRoute(c.Prefix, c.NextHop); err != nil {
 				logger().Error("fib-kernel: add route failed", "prefix", c.Prefix, "error", err)
+				if m := fibMetricsPtr.Load(); m != nil {
+					m.errors.With("add").Inc()
+				}
 				continue
 			}
 			f.installed[c.Prefix] = c.NextHop
+			if m := fibMetricsPtr.Load(); m != nil {
+				m.routeInstalls.Inc()
+				m.routesInstalled.Set(float64(len(f.installed)))
+			}
 		case "update":
 			if err := f.backend.replaceRoute(c.Prefix, c.NextHop); err != nil {
 				logger().Error("fib-kernel: replace route failed", "prefix", c.Prefix, "error", err)
+				if m := fibMetricsPtr.Load(); m != nil {
+					m.errors.With("replace").Inc()
+				}
 				continue
 			}
 			f.installed[c.Prefix] = c.NextHop
+			if m := fibMetricsPtr.Load(); m != nil {
+				m.routeUpdates.Inc()
+			}
 		case "withdraw":
 			if err := f.backend.delRoute(c.Prefix); err != nil {
 				logger().Error("fib-kernel: del route failed", "prefix", c.Prefix, "error", err)
+				if m := fibMetricsPtr.Load(); m != nil {
+					m.errors.With("delete").Inc()
+				}
 				continue
 			}
 			delete(f.installed, c.Prefix)
+			if m := fibMetricsPtr.Load(); m != nil {
+				m.routeRemovals.Inc()
+				m.routesInstalled.Set(float64(len(f.installed)))
+			}
 		}
 	}
 }

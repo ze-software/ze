@@ -180,6 +180,13 @@ func (s *watchdogServer) handlePoolActionSingle(name, peer string, announce bool
 				s.sendRoute(peer, entry.WithdrawCmd)
 			}
 		}
+		if m := watchdogMetricsPtr.Load(); m != nil {
+			if announce {
+				m.routeAnnouncements.Add(float64(len(entries)))
+			} else {
+				m.routeWithdrawals.Add(float64(len(entries)))
+			}
+		}
 	}
 
 	action := "announced"
@@ -228,6 +235,10 @@ func (s *watchdogServer) handleStateUp(peerAddr string) {
 	pools := s.peerPools[peerAddr]
 	s.mu.Unlock()
 
+	if m := watchdogMetricsPtr.Load(); m != nil {
+		m.peersUp.Inc()
+	}
+
 	if pools == nil {
 		return
 	}
@@ -262,4 +273,8 @@ func (s *watchdogServer) handleStateDown(peerAddr string) {
 	s.mu.Lock()
 	s.peerUp[peerAddr] = false
 	s.mu.Unlock()
+
+	if m := watchdogMetricsPtr.Load(); m != nil {
+		m.peersUp.Dec()
+	}
 }

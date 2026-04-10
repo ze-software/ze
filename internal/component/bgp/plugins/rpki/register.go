@@ -7,6 +7,7 @@ import (
 	rpkischema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rpki/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -22,6 +23,11 @@ func init() {
 		RunEngine:    RunRPKIPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureMetrics: func(reg any) {
+			if r, ok := reg.(metrics.Registry); ok {
+				SetMetricsRegistry(r)
+			}
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

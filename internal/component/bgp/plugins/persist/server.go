@@ -21,10 +21,32 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+// persistMetrics holds Prometheus metrics for the persist plugin.
+type persistMetrics struct {
+	routesStored metrics.Gauge   // current stored routes for replay
+	peersTracked metrics.Gauge   // tracked peers
+	routeReplays metrics.Counter // replay events triggered
+}
+
+// persistMetricsPtr stores persist metrics, set by SetMetricsRegistry.
+var persistMetricsPtr atomic.Pointer[persistMetrics]
+
+// SetMetricsRegistry creates persist metrics from the given registry.
+// Called via ConfigureMetrics callback before RunEngine.
+func SetMetricsRegistry(reg metrics.Registry) {
+	m := &persistMetrics{
+		routesStored: reg.Gauge("ze_persist_routes_stored", "Routes stored for replay."),
+		peersTracked: reg.Gauge("ze_persist_peers_tracked", "Tracked peers."),
+		routeReplays: reg.Counter("ze_persist_route_replays_total", "Replay events triggered."),
+	}
+	persistMetricsPtr.Store(m)
+}
 
 // updateRouteTimeout is the context deadline for updateRoute RPC calls.
 const updateRouteTimeout = 30 * time.Second
@@ -114,6 +136,7 @@ func RunPersistServer(conn net.Conn) int {
 				ps.handleStructuredState(se)
 			case persistEventUpdate:
 				ps.handleSentStructured(se)
+				ps.updateStoredRoutesMetric()
 			case persistEventOpen:
 				ps.handleOpenStructured(se)
 			}
@@ -158,6 +181,7 @@ func (ps *PersistServer) dispatchText(text string) {
 	switch eventType {
 	case persistEventUpdate:
 		ps.handleSentUpdate(peerAddr, msgID, payload)
+		ps.updateStoredRoutesMetric()
 	case persistEventState:
 		ps.handleState(peerAddr, payload)
 	case persistEventOpen:
@@ -221,6 +245,23 @@ func (ps *PersistServer) handleSentUpdate(peerAddr string, msgID uint64, text st
 			}
 		}
 	}
+}
+
+// updateStoredRoutesMetric refreshes the routes_stored gauge from current ribOut state.
+func (ps *PersistServer) updateStoredRoutesMetric() {
+	m := persistMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	ps.mu.RLock()
+	total := 0
+	for _, families := range ps.ribOut {
+		for _, routes := range families {
+			total += len(routes)
+		}
+	}
+	ps.mu.RUnlock()
+	m.routesStored.Set(float64(total))
 }
 
 // handleSentStructured processes a sent UPDATE from StructuredEvent wire types.
@@ -501,6 +542,10 @@ func (ps *PersistServer) handleState(peerAddr, text string) {
 		peer.replayGen++
 		gen := peer.replayGen
 		ps.mu.Unlock()
+		if m := persistMetricsPtr.Load(); m != nil {
+			m.routeReplays.Inc()
+			m.peersTracked.Set(float64(len(ps.peers)))
+		}
 		go ps.replayForPeer(peerAddr, gen)
 		return
 	}

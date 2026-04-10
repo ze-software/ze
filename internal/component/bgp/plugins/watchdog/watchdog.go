@@ -15,10 +15,32 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+// watchdogMetrics holds Prometheus metrics for the watchdog plugin.
+type watchdogMetrics struct {
+	peersUp            metrics.Gauge   // currently up peers
+	routeAnnouncements metrics.Counter // routes announced to peers
+	routeWithdrawals   metrics.Counter // routes withdrawn from peers
+}
+
+// watchdogMetricsPtr stores watchdog metrics, set by SetMetricsRegistry.
+var watchdogMetricsPtr atomic.Pointer[watchdogMetrics]
+
+// SetMetricsRegistry creates watchdog metrics from the given registry.
+// Called via ConfigureMetrics callback before RunEngine.
+func SetMetricsRegistry(reg metrics.Registry) {
+	m := &watchdogMetrics{
+		peersUp:            reg.Gauge("ze_watchdog_peers_up", "Watchdog peers with established sessions."),
+		routeAnnouncements: reg.Counter("ze_watchdog_route_announcements_total", "Watchdog routes announced to peers."),
+		routeWithdrawals:   reg.Counter("ze_watchdog_route_withdrawals_total", "Watchdog routes withdrawn from peers."),
+	}
+	watchdogMetricsPtr.Store(m)
+}
 
 // loggerPtr is the package-level logger, disabled by default.
 var loggerPtr atomic.Pointer[slog.Logger]

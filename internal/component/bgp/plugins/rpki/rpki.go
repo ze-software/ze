@@ -23,10 +23,32 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+// rpkiMetrics holds Prometheus metrics for the RPKI plugin.
+type rpkiMetrics struct {
+	vrpsCached         metrics.Gauge      // VRPs currently in ROA cache
+	sessionsActive     metrics.Gauge      // active RTR sessions
+	validationOutcomes metrics.CounterVec // validation results (labels: result)
+}
+
+// rpkiMetricsPtr stores RPKI metrics, set by SetMetricsRegistry.
+var rpkiMetricsPtr atomic.Pointer[rpkiMetrics]
+
+// SetMetricsRegistry creates RPKI metrics from the given registry.
+// Called via ConfigureMetrics callback before RunEngine.
+func SetMetricsRegistry(reg metrics.Registry) {
+	m := &rpkiMetrics{
+		vrpsCached:         reg.Gauge("ze_rpki_vrps_cached", "VRPs currently in ROA cache."),
+		sessionsActive:     reg.Gauge("ze_rpki_sessions_active", "Active RTR cache sessions."),
+		validationOutcomes: reg.CounterVec("ze_rpki_validation_outcomes_total", "RPKI validation outcomes.", []string{"result"}),
+	}
+	rpkiMetricsPtr.Store(m)
+}
 
 // loggerPtr is the package-level logger, disabled by default.
 var loggerPtr atomic.Pointer[slog.Logger]
@@ -206,6 +228,10 @@ func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
 		rp.sessions = append(rp.sessions, session)
 		rp.sessionWg.Go(session.Run)
 		logger().Info("rpki: started RTR session", "address", cs.Address, "port", cs.Port)
+	}
+
+	if m := rpkiMetricsPtr.Load(); m != nil {
+		m.sessionsActive.Set(float64(len(rp.sessions)))
 	}
 }
 
@@ -453,6 +479,10 @@ func (rp *RPKIPlugin) dispatchValidation(req validationRequest) {
 	// Guard: NotValidated (0) should not reach here; skip silently.
 	if req.state == ValidationNotValidated {
 		return
+	}
+
+	if m := rpkiMetricsPtr.Load(); m != nil {
+		m.validationOutcomes.With(validationStateString(req.state)).Inc()
 	}
 
 	// Validate fields contain no whitespace (prevents command injection).

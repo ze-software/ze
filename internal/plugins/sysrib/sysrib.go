@@ -14,9 +14,31 @@ import (
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+// sysribMetrics holds Prometheus metrics for the system RIB plugin.
+type sysribMetrics struct {
+	routesBest     metrics.Gauge      // current system best route count
+	routeChanges   metrics.CounterVec // best-path changes emitted (labels: action)
+	eventsReceived metrics.Counter    // protocol RIB events received
+}
+
+// sysribMetricsPtr stores system RIB metrics, set by SetMetricsRegistry.
+var sysribMetricsPtr atomic.Pointer[sysribMetrics]
+
+// SetMetricsRegistry creates system RIB metrics from the given registry.
+// Called via ConfigureMetrics callback before RunEngine.
+func SetMetricsRegistry(reg metrics.Registry) {
+	m := &sysribMetrics{
+		routesBest:     reg.Gauge("ze_systemrib_routes_best", "Current system-wide best route count."),
+		routeChanges:   reg.CounterVec("ze_systemrib_route_changes_total", "Best-path changes emitted.", []string{"action"}),
+		eventsReceived: reg.Counter("ze_systemrib_events_received_total", "Protocol RIB events received."),
+	}
+	sysribMetricsPtr.Store(m)
+}
 
 // loggerPtr is the package-level logger, disabled by default.
 var loggerPtr atomic.Pointer[slog.Logger]
@@ -186,6 +208,10 @@ func (s *sysRIB) processEvent(payload string) (string, []outgoingChange) {
 		return "", nil
 	}
 
+	if m := sysribMetricsPtr.Load(); m != nil {
+		m.eventsReceived.Inc()
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -233,6 +259,13 @@ func (s *sysRIB) processEvent(payload string) (string, []outgoingChange) {
 		if change := s.recomputeBest(key); change != nil {
 			outChanges = append(outChanges, *change)
 		}
+	}
+
+	if m := sysribMetricsPtr.Load(); m != nil {
+		for _, c := range outChanges {
+			m.routeChanges.With(c.Action).Inc()
+		}
+		m.routesBest.Set(float64(len(s.best)))
 	}
 
 	return fam, outChanges
