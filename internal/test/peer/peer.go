@@ -22,6 +22,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -132,9 +133,12 @@ type Result struct {
 
 // Peer is a BGP test peer.
 type Peer struct {
-	config  *Config
-	checker *Checker
-	output  io.Writer
+	config    *Config
+	checker   *Checker
+	output    io.Writer
+	mu        sync.Mutex    // protects output writes from concurrent connection handlers
+	ready     chan struct{} // closed when listener is bound and accepting
+	readyOnce sync.Once     // ensures ready is closed exactly once
 }
 
 // New creates a new test peer.
@@ -152,7 +156,13 @@ func New(config *Config) (*Peer, error) {
 		config:  config,
 		checker: checker,
 		output:  output,
+		ready:   make(chan struct{}),
 	}, nil
+}
+
+// Ready returns a channel that is closed when the listener is bound and accepting.
+func (p *Peer) Ready() <-chan struct{} {
+	return p.ready
 }
 
 // Run starts the test peer and blocks until completion or context cancellation.
@@ -174,6 +184,7 @@ func (p *Peer) Run(ctx context.Context) Result {
 	defer func() { _ = ln.Close() }()
 
 	p.printf("listening on %s\n", addr)
+	p.readyOnce.Do(func() { close(p.ready) }) // signal that listener is bound
 
 	resultCh := make(chan Result, 1)
 
@@ -244,7 +255,11 @@ func (p *Peer) Run(ctx context.Context) Result {
 }
 
 func (p *Peer) printf(format string, args ...any) {
-	_, _ = fmt.Fprintf(p.output, format, args...)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if _, err := fmt.Fprintf(p.output, format, args...); err != nil {
+		return // best-effort test output
+	}
 }
 
 func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {

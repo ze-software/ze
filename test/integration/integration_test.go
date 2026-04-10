@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 )
 
@@ -277,8 +279,12 @@ func TestSessionReconnect(t *testing.T) {
 		t.Fatalf("add peer to r1: %v", err)
 	}
 
-	// Wait, then add peer to r2 -- r1 should reconnect and establish.
-	time.Sleep(500 * time.Millisecond)
+	// Wait for r1 to attempt connection (and fail because r2 doesn't know about it).
+	// This ensures the reconnect path is exercised, not just first-connect.
+	require.Eventually(t, func() bool {
+		peers := r1.Peers()
+		return len(peers) == 1 && peers[0].State() != reactor.PeerStateStopped
+	}, 5*time.Second, 50*time.Millisecond, "r1 peer should have started connecting")
 
 	if err := r2.AddPeer(&reactor.PeerSettings{
 		Address:         netip.MustParseAddr("127.0.0.1"),

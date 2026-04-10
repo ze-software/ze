@@ -202,6 +202,18 @@ func TestHandleReceived_StoresRoutes(t *testing.T) {
 
 	require.NotNil(t, r.ribInPool["10.0.0.1"], "PeerRIB should be created")
 	assert.Equal(t, 2, r.ribInPool["10.0.0.1"].Len(), "should have 2 routes in pool")
+
+	// Verify specific NLRIs are stored (not just the count)
+	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
+	nlri1, err := prefixToWire("ipv4/unicast", "10.0.0.0/24", 0, false)
+	require.NoError(t, err)
+	_, found1 := r.ribInPool["10.0.0.1"].Lookup(ipv4Uni, nlri1)
+	assert.True(t, found1, "10.0.0.0/24 should be in RIB")
+
+	nlri2, err := prefixToWire("ipv4/unicast", "10.0.1.0/24", 0, false)
+	require.NoError(t, err)
+	_, found2 := r.ribInPool["10.0.0.1"].Lookup(ipv4Uni, nlri2)
+	assert.True(t, found2, "10.0.1.0/24 should be in RIB")
 }
 
 // TestHandleReceived_Withdraw verifies routes are removed on withdrawal.

@@ -94,10 +94,38 @@ func TestCmdEncode_IPv6Unicast(t *testing.T) {
 
 	output := strings.TrimSpace(stdout.String())
 
-	// Output should be valid hex
-	_, err := hex.DecodeString(output)
+	decoded, err := hex.DecodeString(output)
 	if err != nil {
-		t.Fatalf("output is not valid hex: %v", err)
+		t.Fatalf("output is not valid hex: %v\noutput: %s", err, output)
+	}
+
+	if len(decoded) < 23 {
+		t.Fatalf("output too short: %d bytes", len(decoded))
+	}
+
+	// Check BGP marker
+	for i := range 16 {
+		if decoded[i] != 0xFF {
+			t.Errorf("byte %d: expected 0xFF, got 0x%02X", i, decoded[i])
+		}
+	}
+
+	// Check message type (UPDATE = 2)
+	if decoded[18] != 0x02 {
+		t.Errorf("message type: expected 0x02 (UPDATE), got 0x%02X", decoded[18])
+	}
+
+	// IPv6 unicast uses MP_REACH_NLRI attribute (type 14), not NLRI field.
+	// Check next-hop 2001:db8::1 is present in wire bytes.
+	nextHop := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01}
+	if !bytes.Contains(decoded, nextHop) {
+		t.Errorf("attributes should contain next-hop 2001:db8::1")
+	}
+
+	// Check NLRI prefix 2001:db8::/32 (prefix len 0x20 = 32, 4 bytes: 20 01 0d b8)
+	nlriPattern := []byte{0x20, 0x20, 0x01, 0x0d, 0xb8}
+	if !bytes.Contains(decoded, nlriPattern) {
+		t.Errorf("MP_REACH should contain 2001:db8::/32 (20 2001 0db8)")
 	}
 }
 
@@ -123,6 +151,21 @@ func TestCmdEncode_NoHeader(t *testing.T) {
 	// Should NOT start with BGP marker
 	if strings.HasPrefix(output, "FFFFFFFF") {
 		t.Error("output should not contain BGP marker when --no-header is used")
+	}
+
+	// Output should be non-empty valid hex containing actual UPDATE payload
+	if output == "" {
+		t.Fatal("output should not be empty")
+	}
+	decoded, err := hex.DecodeString(output)
+	if err != nil {
+		t.Fatalf("output is not valid hex: %v\noutput: %s", err, output)
+	}
+
+	// Should contain NLRI 10.0.0.0/24 and next-hop 192.168.1.1
+	nlriPattern := []byte{0x18, 0x0A, 0x00, 0x00}
+	if !bytes.Contains(decoded, nlriPattern) {
+		t.Error("stripped output should still contain NLRI 10.0.0.0/24")
 	}
 }
 

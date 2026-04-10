@@ -267,11 +267,19 @@ func TestRoundTrip_ASPath(t *testing.T) {
 		t.Fatalf("expected as-path in attributes, got: %v", attrs)
 	}
 
-	// Verify specific ASNs appear in decoded output
-	// (local-AS prepends, so we have [65001, 65001, 65002, 65003])
-	for _, asn := range []string{"65001", "65002", "65003"} {
-		if !strings.Contains(decodeOutput, asn) {
-			t.Errorf("expected ASN %s in decoded output", asn)
+	// Verify specific ASNs in the as-path attribute (not raw JSON string search).
+	asPath, ok := attrs["as-path"].([]any)
+	if !ok {
+		t.Fatalf("expected as-path to be an array, got %T: %v", attrs["as-path"], attrs["as-path"])
+	}
+	wantASNs := []float64{65001, 65002, 65003}
+	if len(asPath) != len(wantASNs) {
+		t.Fatalf("expected as-path length %d, got %d: %v", len(wantASNs), len(asPath), asPath)
+	}
+	for i, want := range wantASNs {
+		got, ok := asPath[i].(float64)
+		if !ok || got != want {
+			t.Errorf("as-path[%d]: expected %v, got %v", i, want, asPath[i])
 		}
 	}
 }
@@ -324,9 +332,9 @@ func TestRoundTrip_MED(t *testing.T) {
 // VALIDATES: EVPN MAC/IP route preserves MAC, RD, and label.
 // PREVENTS: EVPN encoding/decoding bugs.
 func TestRoundTrip_EVPN_Type2(t *testing.T) {
-	// TODO: EVPN decoding now uses plugin which requires subprocess spawning.
-	// Functional test test/decode/bgp-evpn-1.ci validates the full flow.
-	t.Skip("EVPN decoding delegated to plugin - unit test replaced by functional test")
+	// EVPN decoding requires plugin subprocess spawning, not available in unit tests.
+	// Covered by: test/decode/bgp-evpn-1.ci (functional test with full plugin stack).
+	t.Skip("EVPN decoding requires plugin subprocess -- covered by test/decode/bgp-evpn-1.ci")
 
 	var encodeOut bytes.Buffer
 	oldStdout := encodeStdout
@@ -439,9 +447,9 @@ func TestRoundTrip_L3VPN(t *testing.T) {
 // VALIDATES: FlowSpec routes preserve destination prefix and discard action.
 // PREVENTS: FlowSpec encoding/decoding bugs.
 func TestRoundTrip_FlowSpec(t *testing.T) {
-	// TODO: FlowSpec decoding now uses plugin which has different JSON format.
-	// Re-enable when plugin output format is aligned with expected format.
-	t.Skip("FlowSpec decoding delegated to plugin - format alignment pending")
+	// FlowSpec decoding requires plugin subprocess spawning, not available in unit tests.
+	// Covered by: test/decode/bgp-flow-1.ci through bgp-flow-4.ci (functional tests).
+	t.Skip("FlowSpec decoding requires plugin subprocess -- covered by test/decode/bgp-flow-*.ci")
 
 	var encodeOut bytes.Buffer
 	oldStdout := encodeStdout
@@ -720,9 +728,9 @@ func testRoundTripIPv6Family(t *testing.T, encodeArgs []string, announceKey, exp
 // VALIDATES: IPv6 FlowSpec routes round-trip correctly.
 // PREVENTS: IPv6 FlowSpec encoding/decoding bugs.
 func TestRoundTrip_FlowSpec_IPv6(t *testing.T) {
-	// TODO: FlowSpec decoding now uses plugin which has different JSON format.
-	// Re-enable when plugin output format is aligned with expected format.
-	t.Skip("FlowSpec decoding delegated to plugin - format alignment pending")
+	// FlowSpec decoding requires plugin subprocess spawning, not available in unit tests.
+	// Covered by: test/decode/bgp-flow-1.ci through bgp-flow-4.ci (functional tests).
+	t.Skip("FlowSpec IPv6 decoding requires plugin subprocess -- covered by test/decode/bgp-flow-*.ci")
 
 	testRoundTripIPv6Family(t,
 		[]string{"-f", "ipv6/flow", "match destination 2001:db8::/32 then discard"},

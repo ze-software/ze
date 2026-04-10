@@ -28,7 +28,12 @@ func runPeerTest(t *testing.T, peerConfig *peer.Config) peer.Result {
 		peerDone <- p.Run(ctx)
 	}()
 
-	time.Sleep(50 * time.Millisecond)
+	// Wait for test peer to start listening before connecting.
+	select {
+	case <-p.Ready():
+	case <-ctx.Done():
+		t.Fatal("context expired waiting for test peer to be ready")
+	}
 
 	settings := &reactor.PeerSettings{
 		Connection:      reactor.ConnectionBoth,

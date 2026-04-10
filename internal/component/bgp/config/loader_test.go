@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -80,6 +81,28 @@ bgp {
 
 	peers := r.Peers()
 	require.Len(t, peers, 2)
+
+	// Verify both peers have correct addresses and AS numbers
+	peerByAddr := make(map[string]*reactor.PeerSettings, len(peers))
+	for _, p := range peers {
+		s := p.Settings()
+		peerByAddr[s.Address.String()] = s
+	}
+
+	t1, ok := peerByAddr["192.0.2.1"]
+	require.True(t, ok, "transit1 (192.0.2.1) must be present")
+	assert.Equal(t, uint32(65001), t1.PeerAS)
+	assert.Equal(t, uint32(65000), t1.LocalAS)
+	assert.Equal(t, "transit1", t1.Name)
+	assert.Equal(t, 90*time.Second, t1.ReceiveHoldTime)
+
+	t2, ok := peerByAddr["192.0.2.2"]
+	require.True(t, ok, "transit2 (192.0.2.2) must be present")
+	assert.Equal(t, uint32(65002), t2.PeerAS)
+	assert.Equal(t, uint32(65000), t2.LocalAS)
+	assert.Equal(t, "transit2", t2.Name)
+	assert.Equal(t, reactor.ConnectionPassive, t2.Connection)
+	assert.Equal(t, 90*time.Second, t2.ReceiveHoldTime) // default
 }
 
 // TestLoadReactorInheritance verifies local-as global default.

@@ -68,13 +68,18 @@ func TestCmdSetBasic(t *testing.T) {
 		t.Fatalf("cmdSet returned %d, want %d", code, exitOK)
 	}
 
-	// Read back and verify
+	// Read back and verify the value is at the correct path (not just anywhere in the file).
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		t.Fatalf("read back: %v", err)
 	}
-	if !strings.Contains(string(data), "65000") {
-		t.Errorf("config should contain '65000', got:\n%s", string(data))
+	content := string(data)
+	if !strings.Contains(content, "65000") {
+		t.Errorf("config should contain '65000', got:\n%s", content)
+	}
+	// Verify the old value was replaced, not appended alongside.
+	if strings.Contains(content, "local 1") {
+		t.Errorf("old value 'local 1' should have been replaced by 'local 65000'")
 	}
 }
 

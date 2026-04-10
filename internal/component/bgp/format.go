@@ -5,7 +5,6 @@
 package bgp
 
 import (
-	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -21,25 +20,6 @@ func FormatAnnounceCommand(route *Route) string {
 	// Text format is used for replay: prefix is stored as text ("192.168.1.0/24"),
 	// not hex wire bytes. The hex command requires hex NLRIs which we don't have.
 	return formatAnnounceText(route)
-}
-
-// formatAnnounceHex builds an "update hex attr set <hex>" command.
-// Preserves all path attributes including OTC (RFC 9234) and any unknown transitive attributes.
-// Falls back to text format if RawAttrs is not valid hex.
-func formatAnnounceHex(route *Route) string {
-	// Defense-in-depth: validate hex before interpolating into command string.
-	if _, err := hex.DecodeString(route.RawAttrs); err != nil {
-		return formatAnnounceText(route)
-	}
-	var sb strings.Builder
-	sb.WriteString("update hex attr set ")
-	sb.WriteString(route.RawAttrs)
-	sb.WriteString(" nlri ")
-	sb.WriteString(route.Family)
-	writeNLRIModifiers(&sb, route)
-	sb.WriteString(" add ")
-	sb.WriteString(route.Prefix)
-	return sb.String()
 }
 
 // formatAnnounceText builds an "update text" command with per-field attributes.

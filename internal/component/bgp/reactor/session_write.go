@@ -276,7 +276,7 @@ func (s *Session) flushWrites() error {
 	return nil
 }
 
-// SendUpdate sends a BGP UPDATE message.
+// SendUpdate sends a pre-built BGP UPDATE message.
 // Returns ErrInvalidState if the session is not established.
 //
 // Uses zero-allocation path via Update.WriteTo and session write buffer.
