@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
@@ -653,7 +652,6 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plu
 	if len(procs) == 0 && !hasMonitors {
 		return
 	}
-	sentStart := time.Now()
 	logger().Debug("OnMessageSent", "peer", peerAddr, "type", eventType, "count", len(procs))
 
 	isUpdate := msg.Type == message.TypeUPDATE
@@ -676,47 +674,23 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plu
 		}
 	}
 
-	// Enqueue to long-lived per-process delivery goroutines and collect results.
-	results := make(chan process.EventResult, len(procs))
-	sent := 0
-
-	var pooled [4]*rpc.StructuredEvent
-	pooledN := 0
-
+	// Fire-and-forget delivery without result channels.
+	// Unlike received events, sent event delivery MUST NOT block on results.
+	// A plugin's event handler may send a route (e.g., RIB refresh replay),
+	// which triggers onMessageSent, which delivers the "sent" event back to
+	// the same plugin. Blocking here causes a deadlock: the delivery goroutine
+	// is processing the original event and can't handle the re-entrant delivery.
+	// No result channel = no pooled StructuredEvent return (GC handles cleanup).
 	for _, proc := range procs {
 		var delivery process.EventDelivery
 		if proc.HasStructuredHandler() {
 			se := getStructuredEvent(peer, &msg)
-			delivery = process.EventDelivery{Event: se, Result: results}
-			if pooledN < len(pooled) {
-				pooled[pooledN] = se
-				pooledN++
-			}
+			delivery = process.EventDelivery{Event: se}
 		} else {
 			output, _ := fmtCache.get(proc.FormatCacheKey())
-			delivery = process.EventDelivery{Output: output, Result: results}
+			delivery = process.EventDelivery{Output: output}
 		}
-		if !proc.Deliver(delivery) {
-			continue
-		}
-		sent++
-	}
-
-	for range sent {
-		r := <-results
-		if r.Err != nil && s.Context().Err() == nil {
-			logger().Warn("OnMessageSent write failed", "proc", r.ProcName, "err", r.Err,
-				"elapsed", time.Since(sentStart))
-		}
-	}
-	if elapsed := time.Since(sentStart); elapsed > 500*time.Millisecond {
-		logger().Warn("timing: OnMessageSent slow", "peer", peerAddr, "type", eventType,
-			"procs", len(procs), "elapsed", elapsed)
-	}
-
-	// Return pooled StructuredEvents after all consumers are done.
-	for i := range pooledN {
-		rpc.PutStructuredEvent(pooled[i])
+		proc.Deliver(delivery)
 	}
 
 	// Deliver to CLI monitors. Reuse json+parsed from format cache if available.

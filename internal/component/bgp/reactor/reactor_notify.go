@@ -293,14 +293,13 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		// For sent UPDATE messages, create WireUpdate + AttrsWire from body.
 		// WireUpdate is needed by structured handlers (e.g., RIB plugin's
 		// handleSentStructured) to extract NLRIs via wu.NLRI()/MPReach().
+		// AttrsWire is needed to extract path attributes for ribOut storage.
 		if msgType == message.TypeUPDATE && len(bytes) >= 4 {
 			wu := wireu.NewWireUpdate(bytes, ctxID)
 			wu.SetMessageID(messageID)
 			msg.WireUpdate = wu
-			if ctxID != 0 {
-				if aw, parseErr := wu.Attrs(); parseErr == nil {
-					msg.AttrsWire = aw
-				}
+			if aw, parseErr := wu.Attrs(); parseErr == nil {
+				msg.AttrsWire = aw
 			}
 		}
 	}

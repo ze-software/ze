@@ -139,9 +139,21 @@ func (p *Peer) sendInitialRoutes() {
 		}
 	}
 
-	// Wait for API processes to signal "plugin session ready" before draining queue.
-	// Uses channel-based sync with 2s timeout fallback.
-	p.waitForAPISync(2 * time.Second)
+	// Wait for API processes to send initial routes before processing queue.
+	// Two-phase wait:
+	// 1. Minimum 500ms delay for external plugins that send routes via IPC
+	//    (their state=up handling involves pipe round-trips not tracked by apiSync).
+	// 2. Channel-based sync for internal plugins like bgp-rib that signal
+	//    "plugin session ready" after replaying routes (may take longer than 500ms
+	//    under load).
+	p.mu.RLock()
+	needsAPIWait := p.apiSyncExpected > 0
+	p.mu.RUnlock()
+	if needsAPIWait {
+		routesLogger().Debug("sleeping for API routes", "peer", addr, "duration", "500ms")
+		p.clock.Sleep(500 * time.Millisecond)
+		p.waitForAPISync(2 * time.Second)
+	}
 
 	// Process operation queue in order (maintains announce/withdraw/teardown ordering).
 	// Stop at first teardown - remaining items stay for next session.
