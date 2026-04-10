@@ -11,6 +11,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - [project_cli_dispatch_discovery.md](project_cli_dispatch_discovery.md) - Three CLI gaps blocking debugging: no one-shot command, help shows RPC names not dispatch keys, no dispatch key listing
 - [project_no_filtered_routes.md](project_no_filtered_routes.md) - Ze does not track filtered/noexport routes; birdwatcher endpoints return empty
 
+
 ## User Profile
 
 - [user_trust_and_delegation.md](user_trust_and_delegation.md) - User trusts Claude with hard, long work and delegates the difficult parts. Honor that trust with thoroughness.
@@ -19,6 +20,11 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 ## Reference
 
 - [reference_discord_bot.md](reference_discord_bot.md) - Discord bot in ~/Unix/bin/discord.sh: --channel ze-news/ze-test, --text "msg"
+
+## Feedback (testing)
+
+- [feedback_sleep_hides_races.md](feedback_sleep_hides_races.md) - Replacing time.Sleep with proper sync exposes real data races; treat as bug-finding technique
+- [feedback_periodic_test_sweep.md](feedback_periodic_test_sweep.md) - Untested code falls into 3 predictable categories: pure functions with only integration coverage, platform code assumed untestable, missing test infra support
 
 ## User Preferences (cross-project, not in repo)
 
