@@ -1,0 +1,158 @@
+swagger: "2.0"
+info:
+  description: "OpenAPI for the gokrazy on-device API"
+  version: "1.4.0"
+  title: "gokrazy on-device API"
+  contact:
+    email: "michael+gokrazy@stapelberg.ch"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+host: "gokrazy"
+basePath: "/"
+schemes:
+- "http"
+tags:
+- name: "supervise"
+  description: "Process supervision"
+- name: "update"
+  description: "Updating/managing gokrazy devices remotely"
+parameters:
+  pathParam:
+    name: "path"
+    in: "query"
+    description: "path to the service"
+    type: "string"
+    required: true
+  kexecParam:
+    name: "kexec"
+    in: "query"
+    description: "Whether to use kexec (default) or not ('off')"
+    type: "string"
+    required: false
+  waitPerSignalParam:
+    name: "wait_per_signal"
+    in: "query"
+    description: "Go time.Duration to wait between SIGTERM and SIGKILL"
+    type: "string"
+    required: false
+paths:
+
+# TODO: add the remaining handlers that are okay for people to use:
+#
+# http.HandleFunc("/stop", stopstartHandler)
+# http.HandleFunc("/restart", stopstartHandler)
+# 
+# update.go
+# 286:2:  http.HandleFunc("/update/features", func(w http.ResponseWriter, r *http.Request) {
+# 312:2:  http.HandleFunc("/update/mbr", nonConcurrentUpdateHandler(rootdev.BlockDevice()))
+# 313:2:  http.HandleFunc("/update/root", nonConcurrentUpdateHandler(rootdev.Partition(inactiveRootPartition)))
+# 314:2:  http.HandleFunc("/update/switch", nonConcurrentSwitchHandler(inactiveRootPartition))
+# 315:2:  http.HandleFunc("/update/testboot", nonConcurrentTestbootHandler(inactiveRootPartition))
+# 318:3:    http.HandleFunc(fmt.Sprintf("/update/device-specific/%s", extraUpdateHandler.name), nonConcurrentLimitedUpdateHandler(extraUpdateHandler.device, extraUpdateHandler.offset, extraUpdateHandler.maxLength))
+# 324:2:  http.HandleFunc("/update/boot", updateHandler)
+# 325:2:  http.HandleFunc("/update/bootonly", func(w http.ResponseWriter, r *http.Request) {
+# 366:2:  http.HandleFunc("/poweroff", func(w http.ResponseWriter, r *http.Request) {
+# 399:2:  http.HandleFunc("/uploadtemp/", uploadTemp)
+# 400:2:  http.HandleFunc("/divert", divert)
+# 
+# File: status.go
+# 310:2:  http.HandleFunc("/log", func(w http.ResponseWriter, r *http.Request) {
+
+
+  /:
+    get:
+      tags:
+      - "supervise"
+      summary: "Index"
+      description: "TODO: description"
+      operationId: "index"
+      produces:
+      - "application/json"
+      responses:
+        "200":
+          description: "All search results"
+          schema:
+            $ref: "#/definitions/IndexResult"
+  /status:
+    get:
+      tags:
+      - "supervise"
+      summary: "Status"
+      description: "TODO: description"
+      operationId: "status"
+      produces:
+      - "application/json"
+      parameters:
+      - $ref: "#/parameters/pathParam"
+      responses:
+        "200":
+          description: "service status"
+          schema:
+            $ref: "#/definitions/Service"
+  /reboot:
+    post:
+      tags:
+      - "update"
+      summary: "Reboot the device"
+      description: "Reboot the device"
+      operationId: "reboot"
+      parameters:
+      - $ref: "#/parameters/waitPerSignalParam"
+      - $ref: "#/parameters/kexecParam"
+      responses:
+        "200":
+          description: "reboot in progress"
+definitions:
+  Service:
+    type: "object"
+    properties:
+      Path:
+        type: "string"
+        description: "Path to the service program"
+        example: "/user/tailscaled"
+      Args:
+        type: "array"
+        description: "Command-line arguments with which to start the service"
+        items:
+          type: "string"
+        example:
+          - "/user/tailscaled"
+          - "--statedir=/perm/tailscaled/"
+      Diverted:
+        type: "string"
+        description: "TODO"
+      Stopped:
+        type: "boolean"
+        description: "Whether the service is stopped (gokrazy will not attempt to start it) or supervised"
+        example: true
+      StartTime:
+        type: "string"
+        description: "TODO"
+        example: "2024-09-30T07:21:51.199410684+02:00"
+      Pid:
+        type: "integer"
+        example: 2342
+        description: "Linux process id (pid) of the service"
+  IndexResult:
+    type: "object"
+    description: "index of what is supervised"
+    properties:
+      Kernel:
+        type: "string"
+        description: "The Linux kernel version"
+        example: "Linux 6.6.28-v8 (aarch64)"
+      Model:
+        type: "string"
+        example: "Raspberry Pi 5 Model B Rev 1.0"
+        description: "Model name of the machine on which gokrazy is running"
+      BuildTimestamp:
+        type: "string"
+        example: "2025-02-21T07:15:04+01:00"
+        description: "Build timestamp of the running gokrazy instance"
+      Services:
+        type: "array"
+        items:
+          $ref: "#/definitions/Service"
+        description: "running services"
+    # TODO: add the remaining properties

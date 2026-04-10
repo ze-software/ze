@@ -1,5 +1,5 @@
-# Dependencies
-/vendor/
+# Dependencies are vendored and committed (go mod vendor).
+# No network needed after clone.
 
 # Build artifacts
 /bin/

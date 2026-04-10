@@ -1,0 +1,13 @@
+examples/bubbletea/bubbletea
+examples/bubbletea/.ssh
+examples/git/git
+examples/git/.ssh
+examples/git/.repos
+.repos
+.ssh
+coverage.txt
+id_ed25519
+id_ed25519.pub
+
+# MacOS specific
+.DS_Store
