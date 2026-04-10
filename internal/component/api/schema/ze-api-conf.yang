@@ -1,0 +1,85 @@
+module ze-api-conf {
+    namespace "urn:ze:api:conf";
+    prefix api;
+
+    import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
+
+    description "API engine configuration for Ze (REST and gRPC transports)";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    container environment {
+        description "Environment settings for API transports";
+
+        container api {
+            description "API engine settings";
+
+            container rest {
+                description "REST/HTTP API transport";
+
+                leaf enabled {
+                    type boolean;
+                    default false;
+                    description "Enable REST API server";
+                }
+
+                container server {
+                    ze:listener;
+                    description "REST API listen endpoint";
+
+                    uses zt:listener {
+                        refine ip {
+                            default "0.0.0.0";
+                        }
+                        refine port {
+                            default 8081;
+                        }
+                    }
+                }
+
+                leaf cors-origin {
+                    type string;
+                    description "CORS allowed origin (empty disables CORS headers)";
+                }
+            }
+
+            container grpc {
+                description "gRPC API transport";
+
+                leaf enabled {
+                    type boolean;
+                    default false;
+                    description "Enable gRPC API server";
+                }
+
+                container server {
+                    ze:listener;
+                    description "gRPC API listen endpoint";
+
+                    uses zt:listener {
+                        refine ip {
+                            default "0.0.0.0";
+                        }
+                        refine port {
+                            default 50051;
+                        }
+                    }
+                }
+
+                leaf tls-cert {
+                    type string;
+                    description "Path to TLS certificate file for gRPC";
+                }
+
+                leaf tls-key {
+                    type string;
+                    ze:sensitive;
+                    description "Path to TLS private key file for gRPC";
+                }
+            }
+        }
+    }
+}
