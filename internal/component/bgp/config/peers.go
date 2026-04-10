@@ -7,6 +7,7 @@ package bgpconfig
 import (
 	"fmt"
 	"net/netip"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -525,11 +526,12 @@ func prependDefaultFilters(bgpContainer *config.Tree, peerIndex map[string]*reac
 		return
 	}
 
-	// Collect default filter names (all loop-detection entries).
-	var defaults []string
+	// Collect default filter names (all loop-detection entries), sorted for deterministic order.
+	defaults := make([]string, 0, len(ldEntries))
 	for name := range ldEntries {
 		defaults = append(defaults, name)
 	}
+	sort.Strings(defaults)
 
 	for _, ps := range peerIndex {
 		for _, dflt := range defaults {
