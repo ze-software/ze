@@ -509,6 +509,10 @@ func (ps *PersistServer) handleStructuredState(se *rpc.StructuredEvent) {
 		peer.replayGen++
 		gen := peer.replayGen
 		ps.mu.Unlock()
+		if m := persistMetricsPtr.Load(); m != nil {
+			m.routeReplays.Inc()
+			m.peersTracked.Set(float64(len(ps.peers)))
+		}
 		go ps.replayForPeer(peerAddr, gen)
 		return
 	}
