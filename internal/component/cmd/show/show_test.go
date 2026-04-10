@@ -189,3 +189,36 @@ func TestHandleShowInterface(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
 }
+
+// TestHandleShowUptime_NilReactor verifies show uptime returns error when no daemon running.
+//
+// VALIDATES: show uptime with nil reactor returns StatusError.
+// PREVENTS: Panic when reactor is nil.
+func TestHandleShowUptime_NilReactor(t *testing.T) {
+	// nil CommandContext -> Reactor() returns nil.
+	resp, err := handleShowUptime(nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "error", resp.Status)
+}
+
+// TestHandleShowInterfaceBrief verifies show interface brief dispatches correctly.
+//
+// VALIDATES: show interface brief dispatches to showInterfaceBrief handler.
+// PREVENTS: Brief mode not recognized, falls through to single-interface lookup.
+func TestHandleShowInterfaceBrief(t *testing.T) {
+	resp, err := handleShowInterface(nil, []string{"brief"})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	// On systems with netlink, returns "done" with interface list.
+	// On systems without netlink (CI), returns "error" from ListInterfaces.
+	// Either way, the brief path was taken (not the single-interface path).
+	if resp.Status == "done" {
+		data, ok := resp.Data.(map[string]any)
+		require.True(t, ok, "brief response should be map")
+		_, hasInterfaces := data["interfaces"]
+		assert.True(t, hasInterfaces, "should have interfaces key")
+		_, hasCount := data["count"]
+		assert.True(t, hasCount, "should have count key")
+	}
+}

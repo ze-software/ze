@@ -8,8 +8,10 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -41,6 +43,8 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-resolve:peeringdb-as-set", Handler: handlePeeringDBASSet},
 		pluginserver.RPCRegistration{WireMethod: "ze-resolve:irr-expand", Handler: handleIRRExpand},
 		pluginserver.RPCRegistration{WireMethod: "ze-resolve:irr-prefix", Handler: handleIRRPrefix},
+		pluginserver.RPCRegistration{WireMethod: "ze-resolve:ping", Handler: handlePing},
+		pluginserver.RPCRegistration{WireMethod: "ze-resolve:traceroute", Handler: handleTraceroute},
 	)
 }
 
@@ -242,4 +246,103 @@ func handleIRRPrefix(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 		Status: plugin.StatusDone,
 		Data:   strings.Join(lines, "\n"),
 	}, nil
+}
+
+// handlePing runs an ICMP ping to the target address.
+// Syntax: resolve ping <target> [source <ip>] [count <n>] [size <bytes>].
+func handlePing(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	target, errResp := requireArg(args, "target")
+	if errResp != nil {
+		return errResp, nil
+	}
+
+	cmdArgs := []string{"-c", "4", "-W", "2"}
+
+	// Parse optional args.
+	for i := 1; i < len(args); i++ {
+		if i+1 >= len(args) {
+			break
+		}
+		switch args[i] {
+		case "source":
+			i++
+			cmdArgs = append(cmdArgs, "-I", args[i])
+		case "count":
+			i++
+			cmdArgs = append(cmdArgs, "-c", args[i])
+		case "size":
+			i++
+			cmdArgs = append(cmdArgs, "-s", args[i])
+		}
+	}
+	cmdArgs = append(cmdArgs, target)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	out, err := execCommand(ctx, "ping", cmdArgs...)
+	if err != nil {
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data: map[string]any{
+				"target": target,
+				"output": string(out),
+				"error":  err.Error(),
+			},
+		}, nil
+	}
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"target": target,
+			"output": string(out),
+		},
+	}, nil
+}
+
+// handleTraceroute runs a traceroute to the target address.
+// Syntax: resolve traceroute <target> [source <ip>].
+func handleTraceroute(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	target, errResp := requireArg(args, "target")
+	if errResp != nil {
+		return errResp, nil
+	}
+
+	cmdArgs := []string{"-n", "-w", "2", "-q", "1"}
+
+	// Parse optional source arg.
+	for i := 1; i < len(args); i++ {
+		if args[i] == "source" && i+1 < len(args) {
+			i++
+			cmdArgs = append(cmdArgs, "-s", args[i])
+		}
+	}
+	cmdArgs = append(cmdArgs, target)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	out, err := execCommand(ctx, "traceroute", cmdArgs...)
+	if err != nil {
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data: map[string]any{
+				"target": target,
+				"output": string(out),
+				"error":  err.Error(),
+			},
+		}, nil
+	}
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"target": target,
+			"output": string(out),
+		},
+	}, nil
+}
+
+// execCommand runs an OS command with context timeout and returns combined output.
+func execCommand(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return exec.CommandContext(ctx, name, args...).CombinedOutput()
 }

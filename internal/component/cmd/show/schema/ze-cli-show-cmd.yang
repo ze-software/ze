@@ -205,6 +205,12 @@ module ze-cli-show-cmd {
             config false;
             ze:command "ze-show:interface";
             description "List OS network interfaces";
+
+            container brief {
+                config false;
+                ze:command "ze-show:interface";
+                description "One-line-per-interface summary (name, state, IP, MTU)";
+            }
         }
     }
 }

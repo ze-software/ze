@@ -77,6 +77,12 @@ func handleShowVersion(_ *pluginserver.CommandContext, _ []string) (*plugin.Resp
 
 // handleShowUptime returns daemon start time and uptime duration.
 func handleShowUptime(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if ctx == nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   "daemon not running",
+		}, nil
+	}
 	r := ctx.Reactor()
 	if r == nil {
 		return &plugin.Response{
