@@ -424,3 +424,60 @@ func TestLoopDetectionInactiveDisables(t *testing.T) {
 	assert.True(t, ps.LoopDisabled, "inactive: on loop-detection should set LoopDisabled")
 	assert.Equal(t, uint8(0), ps.LoopAllowOwnAS, "inactive filter settings should not be extracted")
 }
+
+// TestClusterIDSync verifies session/cluster-id and loop-detection/cluster-id are synced.
+//
+// VALIDATES: RFC 4456 -- same cluster-id used for egress (CLUSTER_LIST prepend) and ingress (loop check).
+// PREVENTS: Operator sets one but not the other, causing loop detection to use wrong value.
+func TestClusterIDSync(t *testing.T) {
+	t.Run("session propagates to loop-detection", func(t *testing.T) {
+		tree := config.NewTree()
+		bgp := buildBGPBlock()
+
+		// Peer with session/cluster-id but no loop-detection/cluster-id.
+		peerTree := buildMinimalPeer("10.0.0.2", "65000", "auto")
+		sessionTree := peerTree.GetContainer("session")
+		sessionTree.Set("cluster-id", "2.2.2.2")
+		sessionTree.Set("route-reflector-client", "true")
+		bgp.AddListEntry("peer", "rr-client", peerTree)
+		tree.SetContainer("bgp", bgp)
+
+		peers, err := PeersFromConfigTree(tree)
+		require.NoError(t, err)
+		require.Len(t, peers, 1)
+
+		// 2.2.2.2 = 0x02020202
+		assert.Equal(t, uint32(0x02020202), peers[0].ClusterID)
+		assert.Equal(t, uint32(0x02020202), peers[0].LoopClusterID,
+			"session cluster-id should propagate to loop-detection cluster-id")
+	})
+
+	t.Run("loop-detection propagates to session", func(t *testing.T) {
+		tree := config.NewTree()
+		bgp := buildBGPBlock()
+
+		// Policy with loop-detection entry with cluster-id.
+		policy := config.NewTree()
+		ldEntry := config.NewTree()
+		ldEntry.Set("cluster-id", "3.3.3.3")
+		policy.AddListEntry("loop-detection", "ld-custom", ldEntry)
+		bgp.SetContainer("policy", policy)
+
+		// Peer with no session/cluster-id but referencing loop-detection.
+		peerTree := buildMinimalPeer("10.0.0.2", "65000", "auto")
+		filterTree := config.NewTree()
+		filterTree.SetSlice("import", []string{"ld-custom"})
+		peerTree.SetContainer("filter", filterTree)
+		bgp.AddListEntry("peer", "peer1", peerTree)
+		tree.SetContainer("bgp", bgp)
+
+		peers, err := PeersFromConfigTree(tree)
+		require.NoError(t, err)
+		require.Len(t, peers, 1)
+
+		// 3.3.3.3 = 0x03030303
+		assert.Equal(t, uint32(0x03030303), peers[0].LoopClusterID)
+		assert.Equal(t, uint32(0x03030303), peers[0].ClusterID,
+			"loop-detection cluster-id should propagate to session cluster-id")
+	})
+}

@@ -197,6 +197,17 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 	// in the policy section. If so, apply allow-own-as and cluster-id to the peer.
 	applyLoopDetectionConfig(bgpContainer, peerIndex)
 
+	// Step 3d: Sync session/cluster-id with loop-detection/cluster-id.
+	// RFC 4456: the same cluster-id must be used for both egress (CLUSTER_LIST prepend)
+	// and ingress (CLUSTER_LIST loop check). If only one is configured, propagate it.
+	for _, ps := range peers {
+		if ps.ClusterID != 0 && ps.LoopClusterID == 0 {
+			ps.LoopClusterID = ps.ClusterID
+		} else if ps.LoopClusterID != 0 && ps.ClusterID == 0 {
+			ps.ClusterID = ps.LoopClusterID
+		}
+	}
+
 	// Step 4: Apply port override from ze.bgp.tcp.port env var (test infrastructure).
 	applyPortOverride(peers)
 
