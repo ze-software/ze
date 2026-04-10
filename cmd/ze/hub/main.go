@@ -1,5 +1,6 @@
 // Design: docs/architecture/hub-architecture.md -- hub CLI entry point
 // Detail: mcp.go -- MCP server startup
+// Detail: api.go -- REST/gRPC API server startup
 // Detail: infra_setup.go -- infrastructure server setup hook
 //
 // Package hub provides the ze hub subcommand.
@@ -391,6 +392,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		mcpSrv = startMCPServer(mcpAddr, dispatch, serverCommandLister(apiServer), mcpToken)
 	}
 
+	// Start REST/gRPC API servers if configured.
+	var apiSrvs *apiServers
+	if apiCfg, ok := zeconfig.ExtractAPIConfig(loadResult.Tree); ok {
+		apiSrvs = startAPIServers(apiCfg, apiServer)
+	}
+
 	// Signal handling: SIGINT/SIGTERM for shutdown, SIGHUP for config reload.
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
@@ -446,6 +453,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		mcpCtx, mcpCancel := context.WithTimeout(context.Background(), 3*time.Second)
 		_ = mcpSrv.Shutdown(mcpCtx)
 		mcpCancel()
+	}
+
+	if apiSrvs != nil {
+		apiCtx, apiCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		apiSrvs.Shutdown(apiCtx)
+		apiCancel()
 	}
 
 	stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

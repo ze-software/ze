@@ -58,7 +58,7 @@ func testServer(t *testing.T) *RESTServer {
 		return &fakeEditor{values: make(map[string]string)}, nil
 	})
 
-	srv, err := NewRESTServer(RESTConfig{ListenAddr: "127.0.0.1:0"}, engine, sessions, openAPI)
+	srv, err := NewRESTServer(RESTConfig{ListenAddr: "127.0.0.1:0"}, engine, sessions, func() []byte { return openAPI })
 	require.NoError(t, err)
 	return srv
 }
@@ -169,7 +169,7 @@ func TestRESTExecute(t *testing.T) {
 func TestRESTExecuteUnauthorized(t *testing.T) {
 	engine := testEngine()
 	openAPI, _ := api.OpenAPISchema(nil)
-	srv, err := NewRESTServer(RESTConfig{ListenAddr: "127.0.0.1:0", Token: "secret"}, engine, nil, openAPI)
+	srv, err := NewRESTServer(RESTConfig{ListenAddr: "127.0.0.1:0", Token: "secret"}, engine, nil, func() []byte { return openAPI })
 	require.NoError(t, err)
 
 	// No Authorization header.
@@ -274,7 +274,7 @@ func TestRESTCORS(t *testing.T) {
 	srv, err := NewRESTServer(RESTConfig{
 		ListenAddr: "127.0.0.1:0",
 		CORSOrigin: "https://dashboard.example.com",
-	}, engine, nil, openAPI)
+	}, engine, nil, func() []byte { return openAPI })
 	require.NoError(t, err)
 
 	r := do(t, srv, "OPTIONS", "/api/v1/execute", "")

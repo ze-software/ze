@@ -257,6 +257,97 @@ func extractHubServerConfig(name string, tree *Tree) (plugin.HubServerConfig, er
 	return srv, nil
 }
 
+// APIListenConfig holds parsed environment.api settings for one transport.
+type APIListenConfig struct {
+	Host       string // Listen host (e.g. 0.0.0.0)
+	Port       string // Listen port
+	CORSOrigin string // REST only: allowed CORS origin
+	TLSCert    string // gRPC only: TLS certificate path
+	TLSKey     string // gRPC only: TLS key path
+}
+
+// Listen returns host:port.
+func (c APIListenConfig) Listen() string { return c.Host + ":" + c.Port }
+
+// APIConfig holds parsed environment.api settings.
+type APIConfig struct {
+	REST   APIListenConfig
+	RESTOn bool
+	GRPC   APIListenConfig
+	GRPCOn bool
+	Token  string // Shared bearer token for both transports
+}
+
+// ExtractAPIConfig returns the environment.api config if either REST or gRPC is enabled.
+func ExtractAPIConfig(tree *Tree) (APIConfig, bool) {
+	if tree == nil {
+		return APIConfig{}, false
+	}
+	envBlock := tree.GetContainer("environment")
+	if envBlock == nil {
+		return APIConfig{}, false
+	}
+	apiBlock := envBlock.GetContainer("api")
+	if apiBlock == nil {
+		return APIConfig{}, false
+	}
+
+	var cfg APIConfig
+
+	if token, ok := apiBlock.Get("token"); ok {
+		cfg.Token = token
+	}
+
+	// REST transport.
+	if rest := apiBlock.GetContainer("rest"); rest != nil {
+		enabled, _ := rest.Get("enabled")
+		if enabled == configTrue {
+			cfg.RESTOn = true
+			cfg.REST = APIListenConfig{Host: "0.0.0.0", Port: "8081"}
+			if srv := rest.GetContainer("server"); srv != nil {
+				if v, ok := srv.Get("ip"); ok {
+					cfg.REST.Host = v
+				}
+				if v, ok := srv.Get("port"); ok {
+					cfg.REST.Port = v
+				}
+			}
+			if v, ok := rest.Get("cors-origin"); ok {
+				cfg.REST.CORSOrigin = v
+			}
+		}
+	}
+
+	// gRPC transport.
+	if grpcBlock := apiBlock.GetContainer("grpc"); grpcBlock != nil {
+		enabled, _ := grpcBlock.Get("enabled")
+		if enabled == configTrue {
+			cfg.GRPCOn = true
+			cfg.GRPC = APIListenConfig{Host: "0.0.0.0", Port: "50051"}
+			if srv := grpcBlock.GetContainer("server"); srv != nil {
+				if v, ok := srv.Get("ip"); ok {
+					cfg.GRPC.Host = v
+				}
+				if v, ok := srv.Get("port"); ok {
+					cfg.GRPC.Port = v
+				}
+			}
+			if v, ok := grpcBlock.Get("tls-cert"); ok {
+				cfg.GRPC.TLSCert = v
+			}
+			if v, ok := grpcBlock.Get("tls-key"); ok {
+				cfg.GRPC.TLSKey = v
+			}
+		}
+	}
+
+	if !cfg.RESTOn && !cfg.GRPCOn {
+		return APIConfig{}, false
+	}
+
+	return cfg, true
+}
+
 func extractHubClientConfig(name string, tree *Tree) (plugin.HubClientConfig, error) {
 	cli := plugin.HubClientConfig{Name: name}
 

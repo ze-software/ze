@@ -17,6 +17,14 @@ module ze-api-conf {
         container api {
             description "API engine settings";
 
+            leaf token {
+                type string;
+                ze:sensitive;
+                description "Bearer token for API authentication. When set, clients must send
+                             Authorization: Bearer <token> header. Leave empty to allow
+                             unauthenticated access.";
+            }
+
             container rest {
                 description "REST/HTTP API transport";
 

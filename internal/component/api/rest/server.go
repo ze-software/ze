@@ -34,12 +34,16 @@ type RESTConfig struct {
 	CORSOrigin string // Allowed CORS origin (empty = no CORS headers)
 }
 
+// OpenAPIProvider returns the OpenAPI spec bytes.
+// Called lazily on the first /openapi.json request so it captures all commands.
+type OpenAPIProvider func() []byte
+
 // RESTServer is the REST API HTTP server.
 // Caller MUST call Shutdown when done.
 type RESTServer struct {
 	engine     *api.APIEngine
 	sessions   *api.ConfigSessionManager
-	openAPI    []byte // Cached OpenAPI spec (generated once at startup).
+	openAPI    OpenAPIProvider
 	token      string
 	corsOrigin string
 
@@ -49,8 +53,8 @@ type RESTServer struct {
 }
 
 // NewRESTServer creates a REST API server.
-// The openAPI spec should be pre-generated via api.OpenAPISchema.
-func NewRESTServer(cfg RESTConfig, engine *api.APIEngine, sessions *api.ConfigSessionManager, openAPISpec []byte) (*RESTServer, error) {
+// openAPI is called lazily to generate the OpenAPI spec.
+func NewRESTServer(cfg RESTConfig, engine *api.APIEngine, sessions *api.ConfigSessionManager, openAPI OpenAPIProvider) (*RESTServer, error) {
 	if engine == nil {
 		return nil, errors.New("engine is required")
 	}
@@ -58,7 +62,7 @@ func NewRESTServer(cfg RESTConfig, engine *api.APIEngine, sessions *api.ConfigSe
 	s := &RESTServer{
 		engine:     engine,
 		sessions:   sessions,
-		openAPI:    openAPISpec,
+		openAPI:    openAPI,
 		token:      cfg.Token,
 		corsOrigin: cfg.CORSOrigin,
 	}
@@ -494,7 +498,7 @@ func (s *RESTServer) handleOpenAPI(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", s.corsOrigin)
 	}
 	w.Header().Set("Content-Type", "application/json")
-	if _, err := w.Write(s.openAPI); err != nil {
+	if _, err := w.Write(s.openAPI()); err != nil {
 		return
 	}
 }
