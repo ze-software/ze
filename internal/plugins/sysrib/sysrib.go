@@ -293,6 +293,15 @@ func (s *sysRIB) reapplyAdminDistances() map[string][]outgoingChange {
 		}
 	}
 
+	if m := sysribMetricsPtr.Load(); m != nil {
+		for _, changes := range changesByFamily {
+			for _, c := range changes {
+				m.routeChanges.With(c.Action).Inc()
+			}
+		}
+		m.routesBest.Set(float64(len(s.best)))
+	}
+
 	return changesByFamily
 }
 

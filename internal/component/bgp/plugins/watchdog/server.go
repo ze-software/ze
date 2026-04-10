@@ -219,6 +219,11 @@ func (s *watchdogServer) handleMEDOverride(pool *RoutePool, peer string, isUp bo
 	for _, cmd := range cmds {
 		s.sendRoute(peer, cmd)
 	}
+	if len(cmds) > 0 {
+		if m := watchdogMetricsPtr.Load(); m != nil {
+			m.routeAnnouncements.Add(float64(len(cmds)))
+		}
+	}
 
 	if med != nil {
 		logger().Debug("watchdog announced (med override)", "peer", peer, "pool", name, "med", *med, "count", count, "up", isUp)
@@ -231,12 +236,15 @@ func (s *watchdogServer) handleMEDOverride(pool *RoutePool, peer string, isUp bo
 // initially-announced routes that haven't been seen before.
 func (s *watchdogServer) handleStateUp(peerAddr string) {
 	s.mu.Lock()
+	wasUp := s.peerUp[peerAddr]
 	s.peerUp[peerAddr] = true
 	pools := s.peerPools[peerAddr]
 	s.mu.Unlock()
 
-	if m := watchdogMetricsPtr.Load(); m != nil {
-		m.peersUp.Inc()
+	if !wasUp {
+		if m := watchdogMetricsPtr.Load(); m != nil {
+			m.peersUp.Inc()
+		}
 	}
 
 	if pools == nil {
@@ -263,6 +271,9 @@ func (s *watchdogServer) handleStateUp(peerAddr string) {
 		}
 
 		if len(announced) > 0 {
+			if m := watchdogMetricsPtr.Load(); m != nil {
+				m.routeAnnouncements.Add(float64(len(announced)))
+			}
 			logger().Debug("watchdog resent on reconnect", "peer", peerAddr, "pool", poolName, "count", len(announced))
 		}
 	}
@@ -271,10 +282,13 @@ func (s *watchdogServer) handleStateUp(peerAddr string) {
 // handleStateDown handles a peer going down.
 func (s *watchdogServer) handleStateDown(peerAddr string) {
 	s.mu.Lock()
+	wasUp := s.peerUp[peerAddr]
 	s.peerUp[peerAddr] = false
 	s.mu.Unlock()
 
-	if m := watchdogMetricsPtr.Load(); m != nil {
-		m.peersUp.Dec()
+	if wasUp {
+		if m := watchdogMetricsPtr.Load(); m != nil {
+			m.peersUp.Dec()
+		}
 	}
 }

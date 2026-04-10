@@ -32,7 +32,7 @@ ze_{scope}_{subject}_{detail}
 | Part | Rule | Examples |
 |------|------|---------|
 | `ze` | Always. Global prefix for all ze metrics. | |
-| scope | Plugin name, hyphens stripped, lowercase. Reactor uses functional area. | `rib`, `gr`, `fibkernel`, `sysrib`, `rpki`, `persist`, `watchdog` |
+| scope | Plugin name, hyphens stripped, lowercase. Reactor uses functional area. | `rib`, `gr`, `fibkernel`, `systemrib`, `rpki`, `persist`, `watchdog` |
 | subject | Singular noun: the type of thing being measured. | `route`, `peer`, `timer`, `session`, `vrp` |
 | detail | What aspect. Depends on metric type (see below). | `inserts`, `active`, `expired` |
 
@@ -98,12 +98,17 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 
 | Metric Name | Type | Labels | Owner |
 |-------------|------|--------|-------|
+| `ze_rib_routes_in_total` | Gauge | | bgp-rib |
+| `ze_rib_routes_out_total` | Gauge | | bgp-rib |
 | `ze_rib_routes_in` | GaugeVec | peer | bgp-rib |
 | `ze_rib_routes_out` | GaugeVec | peer | bgp-rib |
 | `ze_rib_route_inserts_total` | CounterVec | peer, family | bgp-rib |
 | `ze_rib_route_withdrawals_total` | CounterVec | peer, family | bgp-rib |
-| `ze_gr_peers_active` | Gauge | | bgp-gr |
-| `ze_gr_routes_stale` | GaugeVec | peer | bgp-gr |
+| `ze_attr_pool_intern_total` | GaugeVec | pool | bgp-rib |
+| `ze_attr_pool_dedup_hits_total` | GaugeVec | pool | bgp-rib |
+| `ze_attr_pool_slots_used` | GaugeVec | pool | bgp-rib |
+| `ze_gr_active_peers` | Gauge | | bgp-gr |
+| `ze_gr_stale_routes` | GaugeVec | peer | bgp-gr |
 | `ze_gr_timer_expired_total` | CounterVec | peer | bgp-gr |
 | `ze_fibkernel_routes_installed` | Gauge | | fib-kernel |
 | `ze_fibkernel_route_installs_total` | Counter | | fib-kernel |

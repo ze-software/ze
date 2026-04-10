@@ -210,6 +210,10 @@ func (f *fibKernel) flushRoutes() {
 		}
 	}
 	f.installed = make(map[string]string)
+
+	if m := fibMetricsPtr.Load(); m != nil {
+		m.routesInstalled.Set(0)
+	}
 }
 
 // startupSweep implements stale-mark-then-sweep for crash recovery.
@@ -246,6 +250,10 @@ func (f *fibKernel) sweepStale(stale map[string]string) {
 		}
 		// Ensure installed map stays consistent -- stale route is gone from kernel.
 		delete(f.installed, prefix)
+	}
+
+	if m := fibMetricsPtr.Load(); m != nil {
+		m.routesInstalled.Set(float64(len(f.installed)))
 	}
 }
 
