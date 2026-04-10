@@ -444,3 +444,124 @@ func TestClusterListHandler(t *testing.T) {
 		assert.Equal(t, src, buf[:7])
 	})
 }
+
+// TestGenericAttrSetHandler_Suppress verifies AttrModSuppress removes the attribute.
+//
+// VALIDATES: Send-community control (suppress community types from outbound UPDATEs).
+// PREVENTS: Suppressed attributes still present in wire output.
+func TestGenericAttrSetHandler_Suppress(t *testing.T) {
+	handler := genericAttrSetHandler(0xC0, 8) // COMMUNITIES
+	buf := make([]byte, 64)
+
+	t.Run("suppress removes attribute", func(t *testing.T) {
+		src := []byte{0xC0, 8, 4, 0xFF, 0xFE, 0x00, 0x64} // community 65534:100
+		ops := []registry.AttrOp{{
+			Code:   8,
+			Action: registry.AttrModSuppress,
+		}}
+		off := handler(src, ops, buf, 0)
+		assert.Equal(t, 0, off, "suppress should write nothing")
+	})
+
+	t.Run("suppress wins over set", func(t *testing.T) {
+		src := []byte{0xC0, 8, 4, 0xFF, 0xFE, 0x00, 0x64}
+		ops := []registry.AttrOp{
+			{Code: 8, Action: registry.AttrModSet, Buf: []byte{0x00, 0x01, 0x00, 0x02}},
+			{Code: 8, Action: registry.AttrModSuppress}, // last wins
+		}
+		off := handler(src, ops, buf, 0)
+		assert.Equal(t, 0, off, "suppress after set should suppress")
+	})
+
+	t.Run("set wins over suppress when last", func(t *testing.T) {
+		src := []byte{0xC0, 8, 4, 0xFF, 0xFE, 0x00, 0x64}
+		ops := []registry.AttrOp{
+			{Code: 8, Action: registry.AttrModSuppress},
+			{Code: 8, Action: registry.AttrModSet, Buf: []byte{0x00, 0x01, 0x00, 0x02}}, // last wins
+		}
+		off := handler(src, ops, buf, 0)
+		assert.Equal(t, 7, off, "set after suppress should write attribute")
+	})
+}
+
+// TestApplySendCommunityFilter verifies send-community control logic.
+//
+// VALIDATES: AC-1 (standard only), AC-2 (none), AC-3 (all default), AC-4 (standard+large).
+// PREVENTS: Wrong community types suppressed or kept.
+func TestApplySendCommunityFilter(t *testing.T) {
+	tests := []struct {
+		name           string
+		send           []string
+		wantSuppress8  bool // standard communities
+		wantSuppress16 bool // extended communities
+		wantSuppress32 bool // large communities
+	}{
+		{"nil (default all)", nil, false, false, false},
+		{"empty (default all)", []string{}, false, false, false},
+		{"all", []string{"all"}, false, false, false},
+		{"none", []string{"none"}, true, true, true},
+		{"standard only", []string{"standard"}, false, true, true},
+		{"large only", []string{"large"}, true, true, false},
+		{"standard+large", []string{"standard", "large"}, false, true, false},
+		{"standard+extended+large", []string{"standard", "extended", "large"}, false, false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var mods registry.ModAccumulator
+			ps := &PeerSettings{SendCommunity: tt.send}
+			applySendCommunityFilter(ps, &mods)
+
+			hasSuppressFor := func(code uint8) bool {
+				for _, op := range mods.Ops() {
+					if op.Code == code && op.Action == registry.AttrModSuppress {
+						return true
+					}
+				}
+				return false
+			}
+
+			assert.Equal(t, tt.wantSuppress8, hasSuppressFor(8), "standard community suppress")
+			assert.Equal(t, tt.wantSuppress16, hasSuppressFor(16), "extended community suppress")
+			assert.Equal(t, tt.wantSuppress32, hasSuppressFor(32), "large community suppress")
+		})
+	}
+}
+
+// TestRewriteASPathOverride verifies AS-override replaces peer ASN with local ASN.
+//
+// VALIDATES: AC-12 (as-override replaces peer ASN in AS_PATH).
+// PREVENTS: Wrong ASN replaced, or no replacement when needed.
+func TestRewriteASPathOverride(t *testing.T) {
+	t.Run("replaces peer ASN", func(t *testing.T) {
+		// AS_SEQUENCE: type=2, len=3, ASNs: 65001, 65002, 65001
+		data := []byte{
+			2, 3, // type=AS_SEQUENCE, length=3
+			0, 0, 0xFD, 0xE9, // 65001
+			0, 0, 0xFD, 0xEA, // 65002
+			0, 0, 0xFD, 0xE9, // 65001
+		}
+		result := rewriteASPathOverride(data, 65001, 65000, true)
+		require.NotNil(t, result)
+		// Both 65001 occurrences replaced with 65000.
+		assert.Equal(t, byte(0xFD), result[4])
+		assert.Equal(t, byte(0xE8), result[5]) // 65000
+		assert.Equal(t, byte(0xFD), result[8])
+		assert.Equal(t, byte(0xEA), result[9]) // 65002 unchanged
+		assert.Equal(t, byte(0xFD), result[12])
+		assert.Equal(t, byte(0xE8), result[13]) // 65000
+	})
+
+	t.Run("no match returns nil", func(t *testing.T) {
+		data := []byte{
+			2, 1,
+			0, 0, 0xFD, 0xEA, // 65002 only
+		}
+		result := rewriteASPathOverride(data, 65001, 65000, true)
+		assert.Nil(t, result, "no match should return nil")
+	})
+
+	t.Run("empty data", func(t *testing.T) {
+		result := rewriteASPathOverride(nil, 65001, 65000, true)
+		assert.Nil(t, result)
+	})
+}

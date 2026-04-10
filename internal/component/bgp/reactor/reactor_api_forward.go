@@ -9,9 +9,11 @@
 package reactor
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -436,6 +438,14 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		// RFC 4271 Section 5.1.3: Next-hop rewriting per destination peer.
 		applyNextHopMod(peer.Settings(), &mods)
 
+		// Send-community control: suppress community types not in the peer's send list.
+		applySendCommunityFilter(peer.Settings(), &mods)
+
+		// AS-override: replace peer's ASN with local ASN in outbound AS_PATH.
+		if peer.Settings().ASOverride && peer.Settings().IsEBGP() {
+			applyASOverride(peer.Settings(), update.WireUpdate, peer.asn4(), &mods)
+		}
+
 		// Select wire version for this peer.
 		// RFC 4271 §9.1.2: EBGP peers get AS-PATH-prepended wire.
 		// IBGP peers get original wire unchanged.
@@ -719,4 +729,143 @@ func applyNextHopMod(dest *PeerSettings, mods *registry.ModAccumulator) {
 		nhBytes := dest.NextHopAddress.As4()
 		mods.Op(3, registry.AttrModSet, nhBytes[:]) // NEXT_HOP
 	}
+}
+
+// applySendCommunityFilter suppresses community attributes not in the peer's send list.
+// nil/empty SendCommunity means send all (default). "none" suppresses all.
+// Individual types: "standard" (type 8), "large" (type 32), "extended" (type 16).
+func applySendCommunityFilter(dest *PeerSettings, mods *registry.ModAccumulator) {
+	if len(dest.SendCommunity) == 0 {
+		return // Default: send all community types.
+	}
+
+	// Build a set of allowed types.
+	sendStandard, sendLarge, sendExtended := false, false, false
+	for _, v := range dest.SendCommunity {
+		switch v {
+		case "all":
+			return // Explicit "all" means send everything.
+		case "none":
+			// Suppress all three community types.
+			mods.Op(8, registry.AttrModSuppress, nil)  // COMMUNITIES
+			mods.Op(16, registry.AttrModSuppress, nil) // EXTENDED_COMMUNITIES
+			mods.Op(32, registry.AttrModSuppress, nil) // LARGE_COMMUNITIES
+			return
+		case "standard":
+			sendStandard = true
+		case "large":
+			sendLarge = true
+		case "extended":
+			sendExtended = true
+		}
+	}
+
+	// Suppress types not in the allowed set.
+	if !sendStandard {
+		mods.Op(8, registry.AttrModSuppress, nil) // COMMUNITIES
+	}
+	if !sendExtended {
+		mods.Op(16, registry.AttrModSuppress, nil) // EXTENDED_COMMUNITIES
+	}
+	if !sendLarge {
+		mods.Op(32, registry.AttrModSuppress, nil) // LARGE_COMMUNITIES
+	}
+}
+
+// applyASOverride replaces occurrences of the peer's ASN with local ASN in AS_PATH.
+// RFC 4271: AS_PATH is type 2. The handler rewrites the AS_PATH segment data.
+func applyASOverride(dest *PeerSettings, wire *wireu.WireUpdate, asn4 bool, mods *registry.ModAccumulator) {
+	attrs, err := wire.Attrs()
+	if err != nil || attrs == nil {
+		return
+	}
+	raw, err := attrs.GetRaw(attribute.AttrASPath)
+	if err != nil || len(raw) == 0 {
+		return
+	}
+	// GetRaw returns header+value; extract value only (skip flags+code+len).
+	hdrLen := 3
+	if len(raw) > 0 && raw[0]&0x10 != 0 {
+		hdrLen = 4
+	}
+	if len(raw) <= hdrLen {
+		return
+	}
+	data := raw[hdrLen:]
+	rewritten := rewriteASPathOverride(data, dest.PeerAS, dest.LocalAS, asn4)
+	if rewritten != nil {
+		mods.Op(2, registry.AttrModSet, rewritten)
+	}
+}
+
+// rewriteASPathOverride replaces all occurrences of peerAS with localAS in AS_PATH segment data.
+// asn4 determines whether ASNs are 4-byte (true) or 2-byte (false).
+// Returns nil if no replacement was needed.
+func rewriteASPathOverride(data []byte, peerAS, localAS uint32, asn4 bool) []byte {
+	asnSize := 4
+	if !asn4 {
+		asnSize = 2
+	}
+
+	// Check if any replacement is needed first (avoid allocation in common case).
+	found := false
+	pos := 0
+	for pos < len(data) {
+		if pos+2 > len(data) {
+			break
+		}
+		segLen := int(data[pos+1])
+		pos += 2
+		for range segLen {
+			if pos+asnSize > len(data) {
+				return nil // malformed
+			}
+			var asn uint32
+			if asn4 {
+				asn = binary.BigEndian.Uint32(data[pos:])
+			} else {
+				asn = uint32(binary.BigEndian.Uint16(data[pos:]))
+			}
+			if asn == peerAS {
+				found = true
+			}
+			pos += asnSize
+		}
+	}
+
+	if !found {
+		return nil
+	}
+
+	// Make a copy and replace.
+	result := make([]byte, len(data))
+	copy(result, data)
+	pos = 0
+	for pos < len(result) {
+		if pos+2 > len(result) {
+			break
+		}
+		segLen := int(result[pos+1])
+		pos += 2
+		for range segLen {
+			if pos+asnSize > len(result) {
+				return result
+			}
+			var asn uint32
+			if asn4 {
+				asn = binary.BigEndian.Uint32(result[pos:])
+			} else {
+				asn = uint32(binary.BigEndian.Uint16(result[pos:]))
+			}
+			if asn == peerAS {
+				if asn4 {
+					binary.BigEndian.PutUint32(result[pos:], localAS)
+				} else {
+					binary.BigEndian.PutUint16(result[pos:], uint16(localAS)) //nolint:gosec // 2-byte ASN context
+				}
+			}
+			pos += asnSize
+		}
+	}
+	return result
 }

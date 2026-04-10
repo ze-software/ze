@@ -89,10 +89,11 @@ func (a *ModAccumulator) IsWithdraw() bool { return a.withdraw }
 
 // Attribute modification action constants.
 const (
-	AttrModSet     uint8 = iota // Replace entire attribute value (or create if absent)
-	AttrModAdd                  // Append value to attribute's list (e.g., COMMUNITY)
-	AttrModRemove               // Remove value from attribute's list (e.g., COMMUNITY)
-	AttrModPrepend              // Prepend value to attribute's sequence (e.g., AS_PATH)
+	AttrModSet      uint8 = iota // Replace entire attribute value (or create if absent)
+	AttrModAdd                   // Append value to attribute's list (e.g., COMMUNITY)
+	AttrModRemove                // Remove value from attribute's list (e.g., COMMUNITY)
+	AttrModPrepend               // Prepend value to attribute's sequence (e.g., AS_PATH)
+	AttrModSuppress              // Remove entire attribute from UPDATE (handler writes nothing)
 )
 
 // Filter stage constants define coarse ordering classes for the filter pipeline.

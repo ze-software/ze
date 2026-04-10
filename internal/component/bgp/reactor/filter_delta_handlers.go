@@ -19,12 +19,17 @@ import (
 // have specialized handlers (community types and OTC have their own).
 func genericAttrSetHandler(flags, code byte) registry.AttrModHandler {
 	return func(src []byte, ops []registry.AttrOp, buf []byte, off int) int {
-		// Find the last Set op (last wins).
+		// Find the last Set or Suppress op (last wins).
 		var setOp *registry.AttrOp
 		for i := range ops {
-			if ops[i].Action == registry.AttrModSet {
+			if ops[i].Action == registry.AttrModSet || ops[i].Action == registry.AttrModSuppress {
 				setOp = &ops[i]
 			}
+		}
+
+		// Suppress: write nothing, effectively removing the attribute.
+		if setOp != nil && setOp.Action == registry.AttrModSuppress {
+			return off
 		}
 
 		if setOp == nil {
