@@ -142,6 +142,11 @@ type Peer struct {
 	dialer   network.Dialer
 	session  *Session
 
+	// remoteRouterID is the peer's BGP Identifier from their OPEN message.
+	// Set in validateOpen when OPEN is received, cleared on teardown.
+	// Used by route reflection to set ORIGINATOR_ID (RFC 4456 Section 8).
+	remoteRouterID atomic.Uint32
+
 	// Negotiated capabilities: tracks which families are enabled.
 	// Set when session transitions to Established, cleared on teardown.
 	// Encoding details (AddPath, ExtNH, ASN4) live in sendCtx/recvCtx.
@@ -206,6 +211,12 @@ type Peer struct {
 	// Set to 1 by FSM callback BEFORE notifying plugins of state=up, ensuring
 	// routes from plugin commands are queued. Upgraded to 2 by sendInitialRoutes.
 	sendingInitialRoutes atomic.Int32
+
+	// sendingConfigStatic is true while sendInitialRoutes sends config-originated
+	// static routes. notifyMessageReceiver tags sent events with config-static meta
+	// so the RIB plugin skips ribOut storage (these routes are re-sent from config
+	// on every reconnection, storing them would cause duplicates).
+	sendingConfigStatic atomic.Bool
 
 	// API sync for EOR: wait for API processes to finish initial routes before EOR.
 	// Reset on each session establishment, signaled by "plugin session ready" commands.
@@ -402,6 +413,13 @@ func (p *Peer) setEncodingContexts(neg *capability.Negotiated) {
 	}
 }
 
+// RemoteRouterID returns the peer's BGP Identifier from their OPEN message.
+// Returns 0 if session has not been established or has been torn down.
+// Used by route reflection to set ORIGINATOR_ID (RFC 4456 Section 8).
+func (p *Peer) RemoteRouterID() uint32 {
+	return p.remoteRouterID.Load()
+}
+
 // clearEncodingContexts clears the encoding contexts.
 // Called when session is torn down.
 func (p *Peer) clearEncodingContexts() {
@@ -412,6 +430,7 @@ func (p *Peer) clearEncodingContexts() {
 	p.recvCtxID = 0
 	p.sendCtx.Store(nil)
 	p.sendCtxID = 0
+	p.remoteRouterID.Store(0)
 }
 
 // SetReactor sets the reactor reference.
@@ -486,6 +505,10 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 	if r == nil {
 		return nil
 	}
+
+	// Store the remote peer's BGP Identifier for route reflection (ORIGINATOR_ID).
+	// RFC 4456 Section 8: ORIGINATOR_ID carries the BGP Identifier of the originator.
+	p.remoteRouterID.Store(remote.BGPIdentifier)
 
 	// RFC 4271 Section 4.2: BGP Identifier MUST be unique within an AS.
 	// Reject if another ESTABLISHED peer in the same ASN has the same router-ID.

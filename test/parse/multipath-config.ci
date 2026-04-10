@@ -1,0 +1,35 @@
+# Test: BGP multipath config parsing
+# Validates YANG container: bgp/multipath with maximum-paths and relax-as-path
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 1.1.1.1
+	multipath {
+		maximum-paths 8
+		relax-as-path true
+	}
+	session {
+		asn {
+			local 65000
+		}
+	}
+	peer upstream1 {
+		connection {
+			remote {
+				ip 10.0.0.1
+			}
+			local {
+				ip 10.0.0.100
+			}
+		}
+		session {
+			asn {
+				remote 65001
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

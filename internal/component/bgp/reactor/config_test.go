@@ -1540,3 +1540,235 @@ func TestPrefixLimitBoundaryMaximum(t *testing.T) {
 		})
 	}
 }
+
+// TestParsePeerFromTree_RouteReflectorClient verifies route-reflector-client extraction.
+//
+// VALIDATES: AC-12 (no RR config = false), AC-1 (RR client flag set from config).
+// PREVENTS: RR client flag not extracted from session config.
+func TestParsePeerFromTree_RouteReflectorClient(t *testing.T) {
+	// Default: route-reflector-client absent -> false.
+	tree := map[string]any{
+		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.2"}, "local": map[string]any{"ip": "auto"}},
+		"session":    map[string]any{"asn": map[string]any{"remote": "65000"}},
+	}
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0x01010101)
+	require.NoError(t, err)
+	assert.False(t, ps.RouteReflectorClient)
+
+	// Explicit true.
+	tree["session"] = map[string]any{
+		"asn":                    map[string]any{"remote": "65000"},
+		"route-reflector-client": "true",
+	}
+	ps, err = parsePeerFromTree("peer1", tree, 65000, 0x01010101)
+	require.NoError(t, err)
+	assert.True(t, ps.RouteReflectorClient)
+}
+
+// TestParsePeerFromTree_ClusterID verifies cluster-id extraction and default.
+//
+// VALIDATES: AC-6 (cluster-id defaults to router-id).
+// PREVENTS: Cluster-id not parsed or default not applied.
+func TestParsePeerFromTree_ClusterID(t *testing.T) {
+	// No cluster-id -> EffectiveClusterID returns router-id.
+	tree := map[string]any{
+		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.2"}, "local": map[string]any{"ip": "auto"}},
+		"session":    map[string]any{"asn": map[string]any{"remote": "65000"}},
+	}
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0x01010101)
+	require.NoError(t, err)
+	assert.Equal(t, uint32(0), ps.ClusterID)
+	assert.Equal(t, uint32(0x01010101), ps.EffectiveClusterID())
+
+	// Explicit cluster-id.
+	tree["session"] = map[string]any{
+		"asn":        map[string]any{"remote": "65000"},
+		"cluster-id": "2.2.2.2",
+	}
+	ps, err = parsePeerFromTree("peer1", tree, 65000, 0x01010101)
+	require.NoError(t, err)
+	assert.Equal(t, ipToUint32(netip.MustParseAddr("2.2.2.2")), ps.ClusterID)
+	assert.Equal(t, ipToUint32(netip.MustParseAddr("2.2.2.2")), ps.EffectiveClusterID())
+
+	// Invalid cluster-id.
+	tree["session"] = map[string]any{
+		"asn":        map[string]any{"remote": "65000"},
+		"cluster-id": "not-an-ip",
+	}
+	_, err = parsePeerFromTree("peer1", tree, 65000, 0x01010101)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid cluster-id")
+}
+
+// TestParsePeerFromTree_NextHopMode verifies next-hop mode extraction.
+//
+// VALIDATES: AC-7 through AC-11 (next-hop modes).
+// PREVENTS: Next-hop mode not parsed or wrong mode assigned.
+func TestParsePeerFromTree_NextHopMode(t *testing.T) {
+	base := func(nhVal string) map[string]any {
+		session := map[string]any{"asn": map[string]any{"remote": "65001"}}
+		if nhVal != "" {
+			session["next-hop"] = nhVal
+		}
+		return map[string]any{
+			"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.2"}, "local": map[string]any{"ip": "auto"}},
+			"session":    session,
+		}
+	}
+
+	tests := []struct {
+		name    string
+		nhVal   string
+		mode    uint8
+		addr    netip.Addr
+		wantErr bool
+	}{
+		{"default (absent)", "", NextHopAuto, netip.Addr{}, false},
+		{"auto", "auto", NextHopAuto, netip.Addr{}, false},
+		{"self", "self", NextHopSelf, netip.Addr{}, false},
+		{"unchanged", "unchanged", NextHopUnchanged, netip.Addr{}, false},
+		{"explicit IPv4", "192.168.1.1", NextHopExplicit, netip.MustParseAddr("192.168.1.1"), false},
+		{"explicit IPv6", "2001:db8::1", NextHopExplicit, netip.MustParseAddr("2001:db8::1"), false},
+		{"invalid", "bogus", 0, netip.Addr{}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps, err := parsePeerFromTree("peer1", base(tt.nhVal), 65000, 0x01010101)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "invalid next-hop")
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.mode, ps.NextHopMode)
+			assert.Equal(t, tt.addr, ps.NextHopAddress)
+		})
+	}
+}
+
+// TestParsePeerFromTree_ASOverride verifies as-override extraction.
+//
+// VALIDATES: AC-12 (as-override from config), AC-13 (default false).
+// PREVENTS: AS-override not parsed from session config.
+func TestParsePeerFromTree_ASOverride(t *testing.T) {
+	base := func(asOverride string) map[string]any {
+		session := map[string]any{"asn": map[string]any{"remote": "65001"}}
+		if asOverride != "" {
+			session["as-override"] = asOverride
+		}
+		return map[string]any{
+			"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.2"}, "local": map[string]any{"ip": "auto"}},
+			"session":    session,
+		}
+	}
+
+	// Default: absent -> false.
+	ps, err := parsePeerFromTree("p1", base(""), 65000, 0x01010101)
+	require.NoError(t, err)
+	assert.False(t, ps.ASOverride)
+
+	// Explicit true.
+	ps, err = parsePeerFromTree("p1", base("true"), 65000, 0x01010101)
+	require.NoError(t, err)
+	assert.True(t, ps.ASOverride)
+}
+
+// TestParsePeerFromTree_LocalASOptions verifies local-as modifier extraction.
+//
+// VALIDATES: AC-9 (no-prepend), AC-10 (replace-as), AC-11 (both).
+// PREVENTS: Local-AS modifiers not parsed from session > asn > local-options.
+func TestParsePeerFromTree_LocalASOptions(t *testing.T) {
+	base := func(opts any) map[string]any {
+		asnMap := map[string]any{"remote": "65001", "local": "65100"}
+		if opts != nil {
+			asnMap["local-options"] = opts
+		}
+		return map[string]any{
+			"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.2"}, "local": map[string]any{"ip": "auto"}},
+			"session":    map[string]any{"asn": asnMap},
+		}
+	}
+
+	// No options -> both false.
+	ps, err := parsePeerFromTree("p1", base(nil), 65000, 0x01010101)
+	require.NoError(t, err)
+	assert.False(t, ps.LocalASNoPrepend)
+	assert.False(t, ps.LocalASReplaceAS)
+
+	// Single value (string).
+	ps, err = parsePeerFromTree("p1", base("no-prepend"), 65000, 0x01010101)
+	require.NoError(t, err)
+	assert.True(t, ps.LocalASNoPrepend)
+	assert.False(t, ps.LocalASReplaceAS)
+
+	// Both values (leaf-list).
+	ps, err = parsePeerFromTree("p1", base([]string{"no-prepend", "replace-as"}), 65000, 0x01010101)
+	require.NoError(t, err)
+	assert.True(t, ps.LocalASNoPrepend)
+	assert.True(t, ps.LocalASReplaceAS)
+}
+
+// TestParsePeerFromTree_SendCommunity verifies send-community extraction.
+//
+// VALIDATES: AC-1 through AC-4 (send-community control).
+// PREVENTS: Send-community not parsed from session > community > send.
+func TestParsePeerFromTree_SendCommunity(t *testing.T) {
+	base := func(send any) map[string]any {
+		session := map[string]any{"asn": map[string]any{"remote": "65001"}}
+		if send != nil {
+			session["community"] = map[string]any{"send": send}
+		}
+		return map[string]any{
+			"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.2"}, "local": map[string]any{"ip": "auto"}},
+			"session":    session,
+		}
+	}
+
+	// Default: absent -> nil (means all).
+	ps, err := parsePeerFromTree("p1", base(nil), 65000, 0x01010101)
+	require.NoError(t, err)
+	assert.Nil(t, ps.SendCommunity)
+
+	// Single value.
+	ps, err = parsePeerFromTree("p1", base("none"), 65000, 0x01010101)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"none"}, ps.SendCommunity)
+
+	// Multiple values (leaf-list).
+	ps, err = parsePeerFromTree("p1", base([]string{"standard", "large"}), 65000, 0x01010101)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"standard", "large"}, ps.SendCommunity)
+}
+
+// TestParsePeerFromTree_DefaultOriginate verifies per-family default-originate extraction.
+//
+// VALIDATES: AC-5 (default-originate per family), AC-7 (conditional filter).
+// PREVENTS: Default-originate not parsed from family config.
+func TestParsePeerFromTree_DefaultOriginate(t *testing.T) {
+	tree := map[string]any{
+		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.2"}, "local": map[string]any{"ip": "auto"}},
+		"session": map[string]any{
+			"asn": map[string]any{"remote": "65001"},
+			"family": map[string]any{
+				"ipv4/unicast": map[string]any{
+					"mode":                     "enable",
+					"prefix":                   map[string]any{"maximum": "1000"},
+					"default-originate":        "true",
+					"default-originate-filter": "only-if-route",
+				},
+				"ipv6/unicast": map[string]any{
+					"mode":              "enable",
+					"prefix":            map[string]any{"maximum": "500"},
+					"default-originate": "true",
+				},
+			},
+		},
+	}
+
+	ps, err := parsePeerFromTree("p1", tree, 65000, 0x01010101)
+	require.NoError(t, err)
+	assert.True(t, ps.DefaultOriginate["ipv4/unicast"])
+	assert.True(t, ps.DefaultOriginate["ipv6/unicast"])
+	assert.Equal(t, "only-if-route", ps.DefaultOriginateFilter["ipv4/unicast"])
+	assert.Empty(t, ps.DefaultOriginateFilter["ipv6/unicast"])
+}

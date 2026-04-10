@@ -15,6 +15,12 @@ module ze-cli-show-cmd {
             description "Show version and build date";
         }
 
+        container uptime {
+            config false;
+            ze:command "ze-show:uptime";
+            description "Show daemon start time and uptime duration";
+        }
+
         container warnings {
             config false;
             ze:command "ze-show:warnings";

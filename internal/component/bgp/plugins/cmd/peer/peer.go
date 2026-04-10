@@ -163,6 +163,20 @@ func HandleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 		if p.LocalAddress.IsValid() {
 			row["local-ip"] = p.LocalAddress.String()
 		}
+		if p.RouteReflectorClient {
+			row["route-reflector-client"] = true
+		}
+		if p.ClusterID != 0 {
+			cid := p.ClusterID
+			row["cluster-id"] = netip.AddrFrom4([4]byte{byte(cid >> 24), byte(cid >> 16), byte(cid >> 8), byte(cid)}).String()
+		}
+		nhModes := [4]string{"auto", "self", "unchanged", "explicit"}
+		if p.NextHopMode < 4 && p.NextHopMode != 0 {
+			row["next-hop"] = nhModes[p.NextHopMode]
+			if p.NextHopMode == 3 && p.NextHopAddress.IsValid() {
+				row["next-hop-address"] = p.NextHopAddress.String()
+			}
+		}
 		if p.PrefixUpdated != "" {
 			row["prefix-updated"] = p.PrefixUpdated
 			if t, err := time.Parse(time.DateOnly, p.PrefixUpdated); err == nil {

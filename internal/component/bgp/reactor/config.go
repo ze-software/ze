@@ -80,10 +80,29 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 
 	// Local AS from session > asn > local (optional per-peer override).
 	peerLocalAS := localAS
+	var localASNoPrepend, localASReplaceAS bool
 	if sessionMap != nil {
 		if asnMap, ok := mapMap(sessionMap, "asn"); ok {
 			if v, ok := mapUint32(asnMap, "local"); ok {
 				peerLocalAS = v
+			}
+			// Local-AS modifiers from session > asn > local-options (leaf-list).
+			if raw, ok := asnMap["local-options"]; ok {
+				var opts []string
+				switch v := raw.(type) {
+				case string:
+					opts = []string{v}
+				case []string:
+					opts = v
+				}
+				for _, opt := range opts {
+					switch opt {
+					case "no-prepend":
+						localASNoPrepend = true
+					case "replace-as":
+						localASReplaceAS = true
+					}
+				}
 			}
 		}
 	}
@@ -104,6 +123,8 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 	}
 
 	ps := NewPeerSettings(ip, peerLocalAS, peerAS, peerRouterID)
+	ps.LocalASNoPrepend = localASNoPrepend
+	ps.LocalASReplaceAS = localASReplaceAS
 
 	// Timer container (receive-hold-time, send-hold-time, connect-retry).
 	timerMap, _ := mapMap(tree, "timer")
@@ -201,7 +222,65 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		}
 	}
 
-	// Parse families from session > family (includes per-family prefix limits).
+	// RFC 4456: Route reflection from session > route-reflector-client and session > cluster-id.
+	if sessionMap != nil {
+		if v, ok := mapBool(sessionMap, "route-reflector-client"); ok {
+			ps.RouteReflectorClient = v
+		}
+		if v, ok := mapString(sessionMap, "cluster-id"); ok {
+			cid, err := netip.ParseAddr(v)
+			if err != nil {
+				return nil, fmt.Errorf("peer %s: invalid cluster-id: %w", name, err)
+			}
+			ps.ClusterID = ipToUint32(cid)
+		}
+	}
+
+	// RFC 4271 Section 5.1.3: Next-hop rewriting policy from session > next-hop.
+	if sessionMap != nil {
+		if nhVal, ok := mapString(sessionMap, "next-hop"); ok {
+			switch nhVal {
+			case "auto":
+				ps.NextHopMode = NextHopAuto
+			case "self":
+				ps.NextHopMode = NextHopSelf
+			case "unchanged":
+				ps.NextHopMode = NextHopUnchanged
+			case "": // empty treated as auto
+				ps.NextHopMode = NextHopAuto
+			default: // must be an IP address
+				nhAddr, err := netip.ParseAddr(nhVal)
+				if err != nil {
+					return nil, fmt.Errorf("peer %s: invalid next-hop %q: expected auto, self, unchanged, or IP address", name, nhVal)
+				}
+				ps.NextHopMode = NextHopExplicit
+				ps.NextHopAddress = nhAddr
+			}
+		}
+	}
+
+	// AS-override from session > as-override.
+	if sessionMap != nil {
+		if v, ok := mapBool(sessionMap, "as-override"); ok {
+			ps.ASOverride = v
+		}
+	}
+
+	// Send-community control from session > community > send (leaf-list).
+	if sessionMap != nil {
+		if commMap, ok := mapMap(sessionMap, "community"); ok {
+			if raw, ok := commMap["send"]; ok {
+				switch v := raw.(type) {
+				case string:
+					ps.SendCommunity = []string{v}
+				case []string:
+					ps.SendCommunity = v
+				}
+			}
+		}
+	}
+
+	// Parse families from session > family (includes per-family prefix limits + default-originate).
 	if sessionMap != nil {
 		if err := parseFamiliesFromTree(sessionMap, ps); err != nil {
 			return nil, fmt.Errorf("peer %s: %w", name, err)
@@ -390,6 +469,22 @@ func parseFamiliesFromTree(tree map[string]any, ps *PeerSettings) error {
 		// RFC 4486: Extract per-family prefix limits.
 		if err := parsePrefixLimitFromFamily(key, familyEntryMap, ps); err != nil {
 			return err
+		}
+
+		// Default-originate: per-family default route origination.
+		if familyEntryMap != nil {
+			if v, ok := mapBool(familyEntryMap, "default-originate"); ok && v {
+				if ps.DefaultOriginate == nil {
+					ps.DefaultOriginate = make(map[string]bool)
+				}
+				ps.DefaultOriginate[key] = true
+				if filterName, ok := mapString(familyEntryMap, "default-originate-filter"); ok {
+					if ps.DefaultOriginateFilter == nil {
+						ps.DefaultOriginateFilter = make(map[string]string)
+					}
+					ps.DefaultOriginateFilter[key] = filterName
+				}
+			}
 		}
 	}
 

@@ -34,6 +34,15 @@ type PeerInfo struct {
 	State           string
 	Uptime          time.Duration
 
+	// Route reflection (RFC 4456).
+	RouteReflectorClient bool   // Peer is an RR client
+	ClusterID            uint32 // Explicit cluster-id (0 = use router-id)
+
+	// Next-hop mode for forwarded UPDATEs (RFC 4271 Section 5.1.3).
+	// Values: 0=auto, 1=self, 2=unchanged, 3=explicit.
+	NextHopMode    uint8
+	NextHopAddress netip.Addr // Only when NextHopMode == 3 (explicit)
+
 	// PrefixUpdated is the ISO date (YYYY-MM-DD) when prefix maximums were
 	// last updated from PeeringDB. Empty means manually configured.
 	// Active prefix-threshold and prefix-stale warnings live on the report

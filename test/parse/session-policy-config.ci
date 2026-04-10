@@ -1,0 +1,72 @@
+# Test: BGP session policy config parsing
+# Validates YANG leaves: as-override, local-options, community send, default-originate
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 1.1.1.1
+	session {
+		asn {
+			local 65000
+		}
+	}
+	peer upstream {
+		connection {
+			remote {
+				ip 10.0.0.1
+			}
+			local {
+				ip 10.0.0.100
+			}
+		}
+		session {
+			asn {
+				remote 65001
+				local 65100
+				local-options no-prepend
+				local-options replace-as
+			}
+			as-override true
+			community {
+				send standard
+				send large
+			}
+			family ipv4/unicast {
+				mode enable
+				prefix {
+					maximum 100000
+				}
+				default-originate true
+			}
+		}
+	}
+	peer transit {
+		connection {
+			remote {
+				ip 10.0.0.2
+			}
+			local {
+				ip 10.0.0.100
+			}
+		}
+		session {
+			asn {
+				remote 65002
+			}
+			community {
+				send none
+			}
+			family ipv4/unicast {
+				mode enable
+				prefix {
+					maximum 500000
+				}
+				default-originate true
+				default-originate-filter only-if-route
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

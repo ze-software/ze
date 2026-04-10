@@ -6,6 +6,7 @@ package show
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -18,6 +19,10 @@ func init() {
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:version",
 			Handler:    handleShowVersion,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:uptime",
+			Handler:    handleShowUptime,
 		},
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:warnings",
@@ -70,13 +75,52 @@ func handleShowVersion(_ *pluginserver.CommandContext, _ []string) (*plugin.Resp
 	}, nil
 }
 
+// handleShowUptime returns daemon start time and uptime duration.
+func handleShowUptime(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	r := ctx.Reactor()
+	if r == nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   "daemon not running",
+		}, nil
+	}
+	stats := r.Stats()
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"start-time": stats.StartTime.Format(time.RFC3339),
+			"uptime":     stats.Uptime.Truncate(time.Second).String(),
+		},
+	}, nil
+}
+
 // handleShowInterface lists all interfaces or shows one by name.
-// Args: optional interface name.
+// Args: optional interface name, "brief" for one-line-per-interface summary,
+// or "<name> counters" for RX/TX statistics only.
 func handleShowInterface(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	// "show interface brief" -- compact one-line-per-interface.
+	if len(args) > 0 && args[0] == "brief" {
+		return showInterfaceBrief()
+	}
+
+	// "show interface <name> [counters]" -- single interface, optionally counters only.
 	if len(args) > 0 {
 		info, err := iface.GetInterface(args[0])
 		if err != nil {
 			return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		}
+		// "show interface <name> counters" -- just the stats.
+		if len(args) > 1 && args[1] == "counters" {
+			if info.Stats == nil {
+				return &plugin.Response{Status: plugin.StatusDone, Data: map[string]any{
+					"name":  info.Name,
+					"stats": "no counters available",
+				}}, nil
+			}
+			return &plugin.Response{Status: plugin.StatusDone, Data: map[string]any{
+				"name":  info.Name,
+				"stats": info.Stats,
+			}}, nil
 		}
 		data, jsonErr := json.Marshal(info)
 		if jsonErr != nil {
@@ -85,6 +129,7 @@ func handleShowInterface(_ *pluginserver.CommandContext, args []string) (*plugin
 		return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
 	}
 
+	// "show interface" -- full list.
 	ifaces, err := iface.ListInterfaces()
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
@@ -94,4 +139,31 @@ func handleShowInterface(_ *pluginserver.CommandContext, args []string) (*plugin
 		return nil, fmt.Errorf("show interface: marshal: %w", jsonErr)
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+}
+
+// showInterfaceBrief returns a compact one-line-per-interface summary.
+func showInterfaceBrief() (*plugin.Response, error) {
+	ifaces, err := iface.ListInterfaces()
+	if err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+	}
+	rows := make([]map[string]any, 0, len(ifaces))
+	for i := range ifaces {
+		row := map[string]any{
+			"name":  ifaces[i].Name,
+			"state": ifaces[i].State,
+			"mtu":   ifaces[i].MTU,
+		}
+		if len(ifaces[i].Addresses) > 0 {
+			row["address"] = ifaces[i].Addresses[0].Address + "/" + fmt.Sprintf("%d", ifaces[i].Addresses[0].PrefixLength)
+		}
+		rows = append(rows, row)
+	}
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"interfaces": rows,
+			"count":      len(rows),
+		},
+	}, nil
 }

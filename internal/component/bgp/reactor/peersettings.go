@@ -14,6 +14,18 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
 
+// NextHopMode values for PeerSettings.NextHopMode.
+const (
+	// NextHopAuto is the default: rewrite for eBGP, preserve for iBGP (RFC 4271 Section 5.1.3).
+	NextHopAuto uint8 = iota
+	// NextHopSelf always rewrites next-hop to local address.
+	NextHopSelf
+	// NextHopUnchanged never rewrites next-hop.
+	NextHopUnchanged
+	// NextHopExplicit sets next-hop to PeerSettings.NextHopAddress.
+	NextHopExplicit
+)
+
 // DefaultBGPPort is the standard BGP port per RFC 4271.
 // Source of truth: ze-bgp-conf.yang (environment > tcp > port, default 179).
 // Used as fallback when YANG schema defaults are not applied (tests, PeerKey).
@@ -347,6 +359,52 @@ type PeerSettings struct {
 	// Set when the peer's import chain has inactive: on its loop-detection filter.
 	LoopDisabled bool
 
+	// RouteReflectorClient marks this peer as a route reflector client (RFC 4456).
+	// When true, routes from this peer are forwarded to all other clients and non-clients.
+	// When false (non-client), routes from this peer are forwarded to clients only.
+	RouteReflectorClient bool
+
+	// ClusterID is the cluster identifier for route reflection (RFC 4456 Section 7).
+	// Prepended to CLUSTER_LIST on reflected routes.
+	// 0 means use RouterID (default per RFC 4456).
+	ClusterID uint32
+
+	// NextHopMode controls next-hop rewriting for forwarded UPDATEs.
+	// RFC 4271 Section 5.1.3.
+	//   NextHopAuto (0): rewrite for eBGP, preserve for iBGP (default)
+	//   NextHopSelf (1): always rewrite to local address
+	//   NextHopUnchanged (2): never rewrite
+	//   NextHopExplicit (3): set to NextHopAddress
+	NextHopMode uint8
+
+	// NextHopAddress is the explicit next-hop IP when NextHopMode == NextHopExplicit.
+	NextHopAddress netip.Addr
+
+	// ASOverride replaces the peer's ASN with local ASN in outbound AS_PATH.
+	// Used in VPN/multi-site scenarios.
+	ASOverride bool
+
+	// LocalASNoPrepend prevents prepending the real ASN before the local-as override.
+	// Only relevant when session/asn/local is set (local-as override).
+	LocalASNoPrepend bool
+
+	// LocalASReplaceAS replaces the real ASN entirely with the local-as override.
+	// Only relevant when session/asn/local is set.
+	LocalASReplaceAS bool
+
+	// SendCommunity controls which community types to include in outbound UPDATEs.
+	// nil/empty means send all (default). "none" means suppress all.
+	// Individual types: "standard", "large", "extended".
+	SendCommunity []string
+
+	// DefaultOriginate tracks per-family default route origination.
+	// Key is "afi/safi" string (e.g., "ipv4/unicast").
+	DefaultOriginate map[string]bool
+
+	// DefaultOriginateFilter tracks per-family conditional origination filters.
+	// Key is "afi/safi" string. Empty value means unconditional.
+	DefaultOriginateFilter map[string]string
+
 	// RawCapabilityConfig stores parsed capability config values for plugin delivery.
 	// Maps capability name → field name → value (e.g., "graceful-restart" → "restart-time" → "120").
 	// Populated from config blocks like: capability { graceful-restart { restart-time 120; } }
@@ -429,4 +487,13 @@ func (n *PeerSettings) IsIBGP() bool {
 // IsEBGP returns true if this is an external BGP session (different AS).
 func (n *PeerSettings) IsEBGP() bool {
 	return n.LocalAS != n.PeerAS
+}
+
+// EffectiveClusterID returns the cluster-id for route reflection.
+// RFC 4456 Section 7: defaults to router-id when not explicitly configured.
+func (n *PeerSettings) EffectiveClusterID() uint32 {
+	if n.ClusterID != 0 {
+		return n.ClusterID
+	}
+	return n.RouterID
 }

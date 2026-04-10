@@ -22,6 +22,29 @@ module ze-bgp-conf {
             description "BGP Router ID (required)";
         }
 
+        container multipath {
+            description "BGP multipath / ECMP configuration";
+
+            leaf maximum-paths {
+                type uint16 {
+                    range "1..256";
+                }
+                default 1;
+                description "Maximum number of equal-cost paths to install per prefix.
+                             1 means single best path (default, RFC 4271 Section 9.1.2).
+                             Values > 1 enable ECMP with N-way load balancing.";
+            }
+
+            leaf relax-as-path {
+                type boolean;
+                default false;
+                description "Allow paths with different AS-paths to be considered equal-cost.
+                             When false, multipath requires identical AS-path length and content.
+                             When true, only AS-path length must match (not content).
+                             Equivalent to 'bgp bestpath as-path multipath-relax' on other vendors.";
+            }
+        }
+
         container session {
             description "Global BGP session defaults";
             container asn {
@@ -285,11 +308,97 @@ module ze-bgp-conf {
                     ze:decorate "asn-name";
                     description "Peer Autonomous System Number";
                 }
+                leaf-list local-options {
+                    type enumeration {
+                        enum no-prepend {
+                            description "Do not prepend real ASN before local-as in AS_PATH";
+                        }
+                        enum replace-as {
+                            description "Replace real ASN entirely with local-as in AS_PATH";
+                        }
+                    }
+                    description "Modifiers for local-as behavior.
+                                 no-prepend: real ASN not prepended before local-as.
+                                 replace-as: local-as replaces real ASN entirely.
+                                 Both together: full replacement with no prepend.";
+                }
+            }
+
+            leaf as-override {
+                type boolean;
+                default false;
+                description "Replace peer's ASN with local ASN in outbound AS_PATH.
+                             Used in VPN/multi-site where the same customer ASN appears at multiple sites.";
+            }
+
+            container community {
+                description "Community attribute control for this session";
+                leaf-list send {
+                    type enumeration {
+                        enum standard {
+                            description "Send standard communities (type 8, RFC 1997)";
+                        }
+                        enum large {
+                            description "Send large communities (type 32, RFC 8092)";
+                        }
+                        enum extended {
+                            description "Send extended communities (type 16, RFC 4360)";
+                        }
+                        enum all {
+                            description "Send all community types (default)";
+                        }
+                        enum none {
+                            description "Suppress all community attributes";
+                        }
+                    }
+                    description "Community types to include in outbound UPDATEs.
+                                 Default is all (send every community type).
+                                 Specify individual types for granular control.
+                                 none suppresses all community attributes.";
+                }
             }
 
             leaf router-id {
                 type zt:ipv4-address;
                 description "Override router ID for this peer";
+            }
+
+            leaf route-reflector-client {
+                type boolean;
+                default false;
+                description "Mark this peer as a route reflector client (RFC 4456).
+                             Routes from clients are forwarded to all clients and non-clients.
+                             Routes from non-clients are forwarded to clients only.";
+            }
+
+            leaf cluster-id {
+                type zt:ipv4-address;
+                description "Override cluster ID for route reflection (RFC 4456 Section 7).
+                             Defaults to router-id when not set.
+                             Prepended to CLUSTER_LIST on reflected routes.";
+            }
+
+            leaf next-hop {
+                type union {
+                    type zt:ip-address;
+                    type enumeration {
+                        enum self {
+                            description "Rewrite next-hop to local address (common for iBGP)";
+                        }
+                        enum unchanged {
+                            description "Never rewrite next-hop (route-server, third-party NH)";
+                        }
+                        enum auto {
+                            description "RFC 4271 default: rewrite for eBGP, preserve for iBGP";
+                        }
+                    }
+                }
+                default "auto";
+                description "Next-hop rewriting policy for forwarded UPDATEs (RFC 4271 Section 5.1.3).
+                             auto: rewrite for eBGP peers, preserve for iBGP peers.
+                             self: always rewrite to local address.
+                             unchanged: never rewrite (preserves original next-hop).
+                             IP address: set next-hop to explicit address.";
             }
 
             leaf link-local {
@@ -344,6 +453,20 @@ module ze-bgp-conf {
                         ze:hidden true;
                         description "ISO date (YYYY-MM-DD) when prefix maximum was last updated from PeeringDB. Hidden leaf.";
                     }
+                }
+
+                leaf default-originate {
+                    type boolean;
+                    default false;
+                    description "Originate the default route (0.0.0.0/0 for IPv4, ::/0 for IPv6)
+                                 to this peer for this address family.";
+                }
+
+                leaf default-originate-filter {
+                    type string;
+                    description "Named filter that must accept for the default route to be originated.
+                                 If the filter rejects, the default route is not sent.
+                                 Empty or absent means always originate (unconditional).";
                 }
             }
 
