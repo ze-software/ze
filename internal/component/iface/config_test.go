@@ -440,6 +440,237 @@ func TestApplyTunnelsChangedTriggersRecreate(t *testing.T) {
 //
 // VALIDATES: VLAN-on-tunnel only allowed on bridgeable kinds.
 // PREVENTS: Silent failure when configuring VLAN on a gre/ipip/sit tunnel.
+// wireguardTestKey builds a deterministic 32-byte key for unit tests.
+// The byte value is repeated so a seed value acts as a human-readable
+// label in test fixtures.
+func wireguardTestKey(b byte) WireguardKey {
+	var k WireguardKey
+	for i := range k {
+		k[i] = b
+	}
+	return k
+}
+
+// TestApplyWireguardsCreate verifies that applyConfig invokes both
+// CreateWireguardDevice and ConfigureWireguardDevice on first apply
+// for a new wireguard interface.
+//
+// VALIDATES: AC-1 apply path -- new wireguard interface -> netdev is
+// created and configured in one reload.
+// PREVENTS: silent drop of ConfigureWireguardDevice from the apply loop.
+func TestApplyWireguardsCreate(t *testing.T) {
+	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+	cfg := &ifaceConfig{
+		Wireguard: []wireguardEntry{{
+			ifaceEntry: ifaceEntry{Name: "wg0"},
+			Spec: WireguardSpec{
+				Name:          "wg0",
+				PrivateKey:    wireguardTestKey(1),
+				ListenPort:    51820,
+				ListenPortSet: true,
+				Peers: []WireguardPeerSpec{{
+					Name:       "a",
+					PublicKey:  wireguardTestKey(2),
+					AllowedIPs: []string{"10.0.0.1/32"},
+				}},
+			},
+		}},
+	}
+
+	errs := applyConfig(cfg, nil, b)
+	assert.Empty(t, errs, "apply errors: %v", errs)
+	assert.True(t, b.created["wg0"], "wg0 not created")
+	assert.Equal(t, 1, b.wgConfigCt["wg0"], "configure called exactly once")
+	assert.Equal(t, uint16(51820), b.wgConfigs["wg0"].ListenPort)
+}
+
+// TestApplyWireguardsUnchangedSkipsConfigure verifies AC-2/3/4/5 no-op:
+// reloading the same spec does NOT call ConfigureWireguardDevice a second
+// time, so handshake state and kernel-level counters are preserved.
+//
+// VALIDATES: spec equality via wireguardSpecEqual skips the reconcile.
+// PREVENTS: spurious genetlink traffic on every SIGHUP.
+func TestApplyWireguardsUnchangedSkipsConfigure(t *testing.T) {
+	spec := WireguardSpec{
+		Name:          "wg0",
+		PrivateKey:    wireguardTestKey(1),
+		ListenPort:    51820,
+		ListenPortSet: true,
+		Peers: []WireguardPeerSpec{{
+			Name:                "a",
+			PublicKey:           wireguardTestKey(2),
+			AllowedIPs:          []string{"10.0.0.1/32"},
+			PersistentKeepalive: 25,
+		}},
+	}
+	previous := &ifaceConfig{
+		Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: spec}},
+	}
+	cfg := &ifaceConfig{
+		Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: spec}},
+	}
+
+	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+	errs := applyConfig(cfg, previous, b)
+	assert.Empty(t, errs)
+	assert.Equal(t, 0, b.wgConfigCt["wg0"], "configure should be skipped when spec unchanged")
+	assert.False(t, b.created["wg0"], "create should be skipped when previous had the interface")
+}
+
+// TestApplyWireguardsAddPeer verifies AC-2: adding a peer triggers a
+// reconfigure without recreating the netdev.
+//
+// VALIDATES: AC-2 -- new peer reaches ConfigureWireguardDevice with the
+// updated spec; netdev is not recreated.
+// PREVENTS: silently dropped peer additions on SIGHUP.
+func TestApplyWireguardsAddPeer(t *testing.T) {
+	base := WireguardSpec{
+		Name:       "wg0",
+		PrivateKey: wireguardTestKey(1),
+		Peers: []WireguardPeerSpec{{
+			Name:       "a",
+			PublicKey:  wireguardTestKey(2),
+			AllowedIPs: []string{"10.0.0.1/32"},
+		}},
+	}
+	withNew := base
+	withNew.Peers = append(withNew.Peers, WireguardPeerSpec{
+		Name:       "b",
+		PublicKey:  wireguardTestKey(3),
+		AllowedIPs: []string{"10.0.0.2/32"},
+	})
+
+	previous := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: base}}}
+	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: withNew}}}
+
+	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+	errs := applyConfig(cfg, previous, b)
+	assert.Empty(t, errs)
+	assert.Equal(t, 1, b.wgConfigCt["wg0"])
+	assert.Len(t, b.wgConfigs["wg0"].Peers, 2, "both peers should be in the applied spec")
+	assert.False(t, b.created["wg0"], "netdev should NOT be re-created")
+	assert.False(t, b.deleted["wg0"], "netdev should NOT be deleted before re-create")
+}
+
+// TestApplyWireguardsRemovePeer verifies AC-3: removing a peer triggers
+// a reconfigure without recreating the netdev. ConfigureWireguardDevice
+// uses ReplacePeers: true internally so the kernel drops the missing peer.
+//
+// VALIDATES: AC-3 -- peer removal is applied via a single reconfigure.
+// PREVENTS: leaking removed peers into the kernel peer set forever.
+func TestApplyWireguardsRemovePeer(t *testing.T) {
+	twoPeer := WireguardSpec{
+		Name:       "wg0",
+		PrivateKey: wireguardTestKey(1),
+		Peers: []WireguardPeerSpec{
+			{Name: "a", PublicKey: wireguardTestKey(2), AllowedIPs: []string{"10.0.0.1/32"}},
+			{Name: "b", PublicKey: wireguardTestKey(3), AllowedIPs: []string{"10.0.0.2/32"}},
+		},
+	}
+	onePeer := twoPeer
+	onePeer.Peers = []WireguardPeerSpec{twoPeer.Peers[0]}
+
+	previous := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: twoPeer}}}
+	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: onePeer}}}
+
+	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+	errs := applyConfig(cfg, previous, b)
+	assert.Empty(t, errs)
+	assert.Equal(t, 1, b.wgConfigCt["wg0"])
+	assert.Len(t, b.wgConfigs["wg0"].Peers, 1)
+	assert.Equal(t, wireguardTestKey(2), b.wgConfigs["wg0"].Peers[0].PublicKey)
+}
+
+// TestApplyWireguardsAllowedIPsChange verifies AC-4: changing a peer's
+// allowed-ips reaches ConfigureWireguardDevice.
+//
+// VALIDATES: AC-4 -- allowed-ips updates round-trip through applyConfig.
+// PREVENTS: stale CIDR routing after a config reload.
+func TestApplyWireguardsAllowedIPsChange(t *testing.T) {
+	beforeSpec := WireguardSpec{
+		Name:       "wg0",
+		PrivateKey: wireguardTestKey(1),
+		Peers: []WireguardPeerSpec{{
+			Name:       "a",
+			PublicKey:  wireguardTestKey(2),
+			AllowedIPs: []string{"10.0.0.1/32"},
+		}},
+	}
+	afterSpec := beforeSpec
+	afterSpec.Peers = []WireguardPeerSpec{{
+		Name:       "a",
+		PublicKey:  wireguardTestKey(2),
+		AllowedIPs: []string{"10.0.0.1/32", "192.168.10.0/24"},
+	}}
+
+	previous := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: beforeSpec}}}
+	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: afterSpec}}}
+
+	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+	errs := applyConfig(cfg, previous, b)
+	assert.Empty(t, errs)
+	assert.Equal(t, 1, b.wgConfigCt["wg0"])
+	assert.ElementsMatch(t,
+		[]string{"10.0.0.1/32", "192.168.10.0/24"},
+		b.wgConfigs["wg0"].Peers[0].AllowedIPs)
+}
+
+// TestApplyWireguardsEndpointChange verifies AC-5: changing a peer's
+// endpoint reaches ConfigureWireguardDevice.
+//
+// VALIDATES: AC-5 -- endpoint updates round-trip.
+// PREVENTS: stale endpoints after operator edits config.
+func TestApplyWireguardsEndpointChange(t *testing.T) {
+	beforeSpec := WireguardSpec{
+		Name:       "wg0",
+		PrivateKey: wireguardTestKey(1),
+		Peers: []WireguardPeerSpec{{
+			Name:         "a",
+			PublicKey:    wireguardTestKey(2),
+			EndpointIP:   "198.51.100.1",
+			EndpointPort: 51820,
+			AllowedIPs:   []string{"10.0.0.1/32"},
+		}},
+	}
+	afterSpec := beforeSpec
+	afterSpec.Peers = []WireguardPeerSpec{{
+		Name:         "a",
+		PublicKey:    wireguardTestKey(2),
+		EndpointIP:   "198.51.100.2",
+		EndpointPort: 51820,
+		AllowedIPs:   []string{"10.0.0.1/32"},
+	}}
+
+	previous := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: beforeSpec}}}
+	cfg := &ifaceConfig{Wireguard: []wireguardEntry{{ifaceEntry: ifaceEntry{Name: "wg0"}, Spec: afterSpec}}}
+
+	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+	errs := applyConfig(cfg, previous, b)
+	assert.Empty(t, errs)
+	assert.Equal(t, 1, b.wgConfigCt["wg0"])
+	assert.Equal(t, "198.51.100.2", b.wgConfigs["wg0"].Peers[0].EndpointIP)
+}
+
+// TestApplyWireguardsDisableIfaceSkips verifies AC-16: a wireguard entry
+// marked disable is skipped entirely -- no Create, no Configure.
+//
+// VALIDATES: AC-16 -- disabled wireguard is a no-op in the apply loop.
+// PREVENTS: disabled interfaces being created and then immediately deleted.
+func TestApplyWireguardsDisableIfaceSkips(t *testing.T) {
+	cfg := &ifaceConfig{
+		Wireguard: []wireguardEntry{{
+			ifaceEntry: ifaceEntry{Name: "wg0", Disable: true},
+			Spec:       WireguardSpec{Name: "wg0", PrivateKey: wireguardTestKey(1)},
+		}},
+	}
+
+	b := &fakeBackend{ifaces: map[string]fakeIface{}}
+	errs := applyConfig(cfg, nil, b)
+	assert.Empty(t, errs)
+	assert.False(t, b.created["wg0"])
+	assert.Equal(t, 0, b.wgConfigCt["wg0"])
+}
+
 func TestParseTunnelVLANRejectedOnL3(t *testing.T) {
 	_, err := parseIfaceConfig(`{
 		"interface": {
@@ -681,11 +912,13 @@ func TestIfaceVerifyEstimate(t *testing.T) {
 
 // fakeBackend implements Backend for testing config application.
 type fakeBackend struct {
-	ifaces  map[string]fakeIface
-	created map[string]bool
-	deleted map[string]bool
-	addrs   map[string][]string
-	tunnels map[string]TunnelSpec
+	ifaces     map[string]fakeIface
+	created    map[string]bool
+	deleted    map[string]bool
+	addrs      map[string][]string
+	tunnels    map[string]TunnelSpec
+	wgConfigs  map[string]WireguardSpec
+	wgConfigCt map[string]int
 }
 
 type fakeIface struct {
@@ -705,6 +938,12 @@ func (b *fakeBackend) ensureMaps() {
 	}
 	if b.tunnels == nil {
 		b.tunnels = make(map[string]TunnelSpec)
+	}
+	if b.wgConfigs == nil {
+		b.wgConfigs = make(map[string]WireguardSpec)
+	}
+	if b.wgConfigCt == nil {
+		b.wgConfigCt = make(map[string]int)
 	}
 }
 
@@ -746,7 +985,12 @@ func (b *fakeBackend) CreateWireguardDevice(name string) error {
 	return nil
 }
 
-func (b *fakeBackend) ConfigureWireguardDevice(_ WireguardSpec) error { return nil }
+func (b *fakeBackend) ConfigureWireguardDevice(spec WireguardSpec) error {
+	b.ensureMaps()
+	b.wgConfigs[spec.Name] = spec
+	b.wgConfigCt[spec.Name]++
+	return nil
+}
 
 func (b *fakeBackend) GetWireguardDevice(_ string) (WireguardSpec, error) {
 	return WireguardSpec{}, nil

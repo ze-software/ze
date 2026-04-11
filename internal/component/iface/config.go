@@ -675,6 +675,14 @@ func (cfg *ifaceConfig) desiredState() (addrs map[string]map[string]bool, manage
 		managed[e.Name] = true
 		addIfaceAddrs(e.Name, e.Units)
 	}
+	for i := range cfg.Wireguard {
+		e := &cfg.Wireguard[i]
+		if e.Disable {
+			continue
+		}
+		managed[e.Name] = true
+		addIfaceAddrs(e.Name, e.Units)
+	}
 	for _, e := range cfg.Ethernet {
 		if e.Disable {
 			continue
@@ -750,6 +758,96 @@ func indexTunnelSpecs(previous *ifaceConfig) map[string]TunnelSpec {
 	return specs
 }
 
+// indexWireguardSpecs returns a name -> Spec map for the previous config's
+// wireguard entries. Used by applyConfig to decide whether a reload needs
+// to touch the kernel at all: if the Spec is unchanged, the netdev and
+// peer set are already correct and ConfigureWireguardDevice can be skipped.
+func indexWireguardSpecs(previous *ifaceConfig) map[string]WireguardSpec {
+	if previous == nil {
+		return nil
+	}
+	specs := make(map[string]WireguardSpec, len(previous.Wireguard))
+	for i := range previous.Wireguard {
+		e := &previous.Wireguard[i]
+		specs[e.Name] = e.Spec
+	}
+	return specs
+}
+
+// wireguardSpecEqual reports whether two WireguardSpec values describe
+// the same desired kernel state. Slice fields (Peers, AllowedIPs) prevent
+// the direct == comparison that tunnelEntry uses, so the helper does a
+// field-by-field walk that treats the Peer list as an unordered set
+// keyed by public-key.
+func wireguardSpecEqual(a, b WireguardSpec) bool {
+	if a.Name != b.Name {
+		return false
+	}
+	if a.PrivateKey != b.PrivateKey {
+		return false
+	}
+	if a.ListenPortSet != b.ListenPortSet || a.ListenPort != b.ListenPort {
+		return false
+	}
+	if a.FirewallMark != b.FirewallMark {
+		return false
+	}
+	if len(a.Peers) != len(b.Peers) {
+		return false
+	}
+	byKeyA := make(map[WireguardKey]*WireguardPeerSpec, len(a.Peers))
+	for i := range a.Peers {
+		byKeyA[a.Peers[i].PublicKey] = &a.Peers[i]
+	}
+	for i := range b.Peers {
+		pa, ok := byKeyA[b.Peers[i].PublicKey]
+		if !ok {
+			return false
+		}
+		if !wireguardPeerEqual(*pa, b.Peers[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// wireguardPeerEqual reports whether two peer specs describe the same
+// kernel-visible peer configuration. Name is excluded because it is a
+// config-file label, not part of the kernel state.
+func wireguardPeerEqual(a, b WireguardPeerSpec) bool {
+	if a.PublicKey != b.PublicKey {
+		return false
+	}
+	if a.HasPresharedKey != b.HasPresharedKey {
+		return false
+	}
+	if a.HasPresharedKey && a.PresharedKey != b.PresharedKey {
+		return false
+	}
+	if a.EndpointIP != b.EndpointIP || a.EndpointPort != b.EndpointPort {
+		return false
+	}
+	if a.PersistentKeepalive != b.PersistentKeepalive {
+		return false
+	}
+	if a.Disable != b.Disable {
+		return false
+	}
+	if len(a.AllowedIPs) != len(b.AllowedIPs) {
+		return false
+	}
+	setA := make(map[string]struct{}, len(a.AllowedIPs))
+	for _, cidr := range a.AllowedIPs {
+		setA[cidr] = struct{}{}
+	}
+	for _, cidr := range b.AllowedIPs {
+		if _, ok := setA[cidr]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // applyConfig applies the parsed interface config declaratively via the backend.
 // 1. Creates missing Ze-managed interfaces (dummy, veth, tunnel, bridge, VLAN)
 // 2. Sets properties (MTU, MAC, sysctl, mirror) on all configured interfaces
@@ -822,6 +920,39 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		if err := b.CreateTunnel(e.Spec); err != nil {
 			log.Debug("iface config: create tunnel",
 				"name", e.Name, "kind", e.Spec.Kind, "err", err)
+		}
+	}
+	previousWireguardSpecs := indexWireguardSpecs(previous)
+	for i := range cfg.Wireguard {
+		e := &cfg.Wireguard[i]
+		if e.Disable {
+			continue
+		}
+		prev, hadPrev := previousWireguardSpecs[e.Name]
+		if hadPrev && wireguardSpecEqual(prev, e.Spec) {
+			// Spec unchanged: keep the existing netdev and peer set.
+			// Phase 2 still applies MTU and Phase 3 reconciles addresses,
+			// so any non-Spec change still takes effect.
+			continue
+		}
+		if !hadPrev {
+			// New wireguard interface: create the netdev first. The
+			// Create path is a no-op if the netdev already exists; for
+			// robustness against a stale previous-state tracker we log
+			// at debug rather than erroring.
+			if err := b.CreateWireguardDevice(e.Name); err != nil {
+				log.Debug("iface config: create wireguard (may already exist)",
+					"name", e.Name, "err", err)
+			}
+		}
+		// Whether newly created or spec-changed, push the full desired
+		// state. wgctrl handles key rotation, endpoint changes, peer
+		// add/remove, keepalive updates in a single genetlink message
+		// with ReplacePeers: true -- peers that are still in the spec
+		// preserve their handshake state because the kernel matches
+		// them by public key.
+		if err := b.ConfigureWireguardDevice(e.Spec); err != nil {
+			record(fmt.Sprintf("wireguard %s configure", e.Name), err)
 		}
 	}
 	for _, e := range cfg.Bridge {
