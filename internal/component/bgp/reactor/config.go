@@ -327,7 +327,56 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		}
 	}
 
+	// BFD opt-in from connection > bfd. The YANG container has
+	// `presence`, so the plain existence of the map means the
+	// operator wants BFD on this peer. Parse every leaf with a
+	// default for the unset case.
+	if connMap != nil {
+		if bfdMap, ok := mapMap(connMap, "bfd"); ok {
+			bs, bfdErr := parseBFDSettings(name, bfdMap)
+			if bfdErr != nil {
+				return nil, bfdErr
+			}
+			ps.BFD = bs
+		}
+	}
+
 	return ps, nil
+}
+
+// parseBFDSettings decodes one `bgp peer connection bfd { ... }` block
+// into a BFDSettings struct. Unknown mode values and illegal multi-hop
+// min-ttl=0 are rejected. Enabled defaults to true to match the YANG
+// default. See rules/config-design.md -- fail on unknown keys.
+func parseBFDSettings(peerName string, bfdMap map[string]any) (*BFDSettings, error) {
+	bs := &BFDSettings{Enabled: true}
+	if v, ok := mapBool(bfdMap, "enabled"); ok {
+		bs.Enabled = v
+	}
+	if mode, ok := mapString(bfdMap, "mode"); ok && mode != "" {
+		switch mode {
+		case "single-hop":
+			bs.MultiHop = false
+		case "multi-hop":
+			bs.MultiHop = true
+		}
+		if mode != "single-hop" && mode != "multi-hop" {
+			return nil, fmt.Errorf("peer %s: invalid bfd mode %q (expected single-hop or multi-hop)", peerName, mode)
+		}
+	}
+	if v, ok := mapString(bfdMap, "profile"); ok {
+		bs.Profile = v
+	}
+	if v, ok := mapUint8(bfdMap, "min-ttl"); ok {
+		if bs.MultiHop && v == 0 {
+			return nil, fmt.Errorf("peer %s: bfd min-ttl must be non-zero for multi-hop mode", peerName)
+		}
+		bs.MinTTL = v
+	}
+	if v, ok := mapString(bfdMap, "interface"); ok {
+		bs.Interface = v
+	}
+	return bs, nil
 }
 
 // PeersFromTree parses all peer settings from a bgp subtree (map[string]any).
@@ -740,6 +789,21 @@ func mapBool(m map[string]any, key string) (bool, bool) {
 		return false, false
 	}
 	return s == valTrue || s == "1", true
+}
+
+// mapUint8 extracts a uint8 value from a map (stored as string).
+// Returns (0, false) when the key is missing or the value does not
+// fit in a uint8. Used for YANG leaves like bfd.min-ttl.
+func mapUint8(m map[string]any, key string) (uint8, bool) {
+	s, ok := mapString(m, key)
+	if !ok {
+		return 0, false
+	}
+	n, err := strconv.ParseUint(s, 10, 8)
+	if err != nil {
+		return 0, false
+	}
+	return uint8(n), true
 }
 
 // mapMap extracts a nested map from a map.

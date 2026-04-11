@@ -1,16 +1,19 @@
 # BFD — Bidirectional Forwarding Detection
 
-**Status:** the plugin is live and its production transport is hardened
+**Status:** the plugin is live, the production transport is hardened
 (GTSM, IP_TTL=255 outbound, SO_BINDTODEVICE for single-hop and multi-VRF,
-RFC 5880 §6.8.7 TX jitter). The BGP opt-in (`bgp peer { bfd { ... } }`)
-is still being wired in `spec-bfd-3-bgp-client`; until that lands the
-only way to run a session is via a pinned `bfd { single-hop-session ... }`
-or `bfd { multi-hop-session ... }` block in the top-level `bfd`
-container.
-<!-- source: internal/plugins/bfd/bfd.go — runtimeState, loopFor, newUDPTransport -->
+RFC 5880 §6.8.7 TX jitter), and the BGP peer opt-in is wired through the
+reactor lifecycle. Adding `bfd { ... }` inside a `bgp peer connection`
+block opens a per-peer BFD session on Established and tears the BGP
+session down with RFC 9384 Cease subcode 10 ("BFD Down") when BFD
+reports the forwarding path lost. Operator UX (`show bfd sessions`,
+Prometheus metrics) is still being wired in `spec-bfd-4-operator-ux`.
+<!-- source: internal/plugins/bfd/bfd.go — runtimeState, loopFor, newUDPTransport, pluginService -->
+<!-- source: internal/plugins/bfd/api/registry.go — SetService, GetService -->
 <!-- source: internal/plugins/bfd/engine/loop.go — passesTTLGate, tick jitter -->
 <!-- source: internal/plugins/bfd/transport/udp.go — ListenConfig.Control, ReadMsgUDPAddrPort -->
 <!-- source: internal/plugins/bfd/transport/udp_linux.go — IP_RECVTTL, IP_TTL, SO_BINDTODEVICE -->
+<!-- source: internal/component/bgp/reactor/peer_bfd.go — startBFDClient, stopBFDClient, runBFDSubscriber -->
 
 BFD (RFC 5880) is a low-overhead liveness protocol that detects forwarding
 failures between a pair of systems in tens to hundreds of milliseconds,
@@ -74,30 +77,56 @@ every interval in microseconds. A future release may add `-ms` aliases.
 
 ### Enabling BFD on a BGP peer
 
-The common path. BGP calls the BFD plugin's session service with the peer's
-address when a `bfd { ... }` child exists on the peer block.
+The common path. Adding a `bfd { ... }` container inside a BGP peer's
+`connection { ... }` block opts that peer into BFD. On session
+Established, the reactor calls the BFD plugin's `api.Service.EnsureSession`
+with the peer's local / remote address and the configured mode; on
+session teardown the handle is released. When BFD reports the
+forwarding path Down, the reactor tears the BGP session with RFC 9384
+Cease NOTIFICATION (subcode 10, "BFD Down") without waiting for the
+hold timer.
+<!-- source: internal/component/bgp/reactor/peer_bfd.go — startBFDClient, runBFDSubscriber -->
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang — peer connection bfd container -->
 
 ```
 bgp {
-    peer 192.0.2.2 {
-        router-id       192.0.2.1;
-        local-address   192.0.2.1;
-        local-as        65001;
-        peer-as         65002;
-        family {
-            ipv4/unicast;
+    peer peer1 {
+        connection {
+            local {
+                ip 192.0.2.1
+            }
+            remote {
+                ip 192.0.2.2
+            }
+            bfd {
+                enabled true
+                mode single-hop
+                profile fast-link
+            }
         }
-        bfd {
-            profile fast-link;
+        session {
+            asn {
+                local 65001
+                remote 65002
+            }
+            router-id 192.0.2.1
+            family {
+                ipv4/unicast
+            }
         }
     }
 }
 ```
 
-With no `bfd` block, BGP behaves exactly as today. With `bfd { enabled; }`
-(and no profile), built-in defaults (300 ms / 300 ms / mult 3) are used.
-With `bfd { profile <name>; }`, the named profile drives timer selection.
-Inline overrides on the peer's `bfd` block win over profile values.
+With no `bfd` container, BGP behaves exactly as today. The container
+has YANG `presence`: its mere existence opts in, and `enabled false`
+suspends the opt-in without removing the config (useful during
+maintenance). The profile name references a profile defined under the
+top-level `bfd { profile ... }` block; the BFD plugin resolves it when
+it receives `EnsureSession`. If the BFD plugin is not loaded at all,
+the BGP peer starts without BFD and logs a warning -- BGP is not
+blocked by a missing BFD plugin.
+<!-- source: internal/plugins/bfd/api/registry.go — SetService / GetService -->
 
 ### Multi-hop
 
@@ -106,27 +135,41 @@ hop:
 
 ```
 bgp {
-    peer 10.255.255.4 {
-        router-id       10.255.255.1;
-        local-address   10.255.255.1;
-        local-as        65000;
-        peer-as         65000;
-        family {
-            ipv4/unicast;
+    peer loop4 {
+        connection {
+            local {
+                ip 10.255.255.1
+            }
+            remote {
+                ip 10.255.255.4
+            }
+            bfd {
+                enabled true
+                mode multi-hop
+                min-ttl 250
+                profile ibgp-loopback
+            }
         }
-        bfd {
-            profile      ibgp-loopback;
-            multi-hop;
-            min-ttl      250;
+        session {
+            asn {
+                local 65000
+                remote 65000
+            }
+            router-id 10.255.255.1
+            family {
+                ipv4/unicast
+            }
         }
     }
 }
 ```
 
-`multi-hop` tells the plugin to use UDP port 4784 and skip GTSM. `min-ttl`
-is a weaker replacement for GTSM — packets arriving with a TTL below the
-configured value are discarded. Choose `min-ttl` to be `256 - max-hops`;
-for example, `min-ttl 250` allows the packet to cross up to 5 hops.
+`mode multi-hop` tells the plugin to use UDP port 4784 and skip GTSM.
+`min-ttl` is a weaker replacement for GTSM — packets arriving with a
+TTL below the configured value are discarded. Choose `min-ttl` to be
+`256 - max-hops`; for example, `min-ttl 250` allows the packet to
+cross up to 5 hops. `min-ttl` must be non-zero for multi-hop; the
+parser rejects zero at config-validate time.
 
 ## Standalone sessions
 

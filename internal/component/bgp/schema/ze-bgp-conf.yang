@@ -290,6 +290,71 @@ module ze-bgp-conf {
                 type boolean;
                 description "Auto-discover IPv6 link-local address for TCP connection";
             }
+
+            container bfd {
+                presence "Enable BFD liveness detection for this peer";
+                description
+                    "Bidirectional Forwarding Detection (RFC 5880) options
+                     for this peer. When the container is present, the BGP
+                     reactor calls the BFD plugin's Service interface on
+                     session establishment and tears the BGP session down
+                     when BFD reports Down. The BFD plugin must be loaded
+                     (a top-level bfd { ... } block); if it is not, the
+                     BGP peer starts without BFD and logs a warning.";
+
+                leaf enabled {
+                    type boolean;
+                    default true;
+                    description
+                        "Master switch for this peer's BFD session. Set
+                         false to keep the config in place but suspend
+                         the BFD client (useful for maintenance).";
+                }
+
+                leaf mode {
+                    type enumeration {
+                        enum single-hop {
+                            description "RFC 5881 single-hop BFD on UDP 3784 with GTSM.";
+                        }
+                        enum multi-hop {
+                            description "RFC 5883 multi-hop BFD on UDP 4784 with min-TTL.";
+                        }
+                    }
+                    default single-hop;
+                    description
+                        "Hop mode. Single-hop is the common case for an
+                         eBGP peer on a direct link; multi-hop is for
+                         iBGP over an IGP or any peering that crosses
+                         more than one IP hop.";
+                }
+
+                leaf profile {
+                    type string;
+                    description
+                        "Name of a profile defined under the top-level
+                         bfd { profile ... } block. The referenced
+                         profile supplies detect-multiplier,
+                         desired-min-tx-us, and required-min-rx-us.
+                         Empty means use the BFD plugin defaults.";
+                }
+
+                leaf min-ttl {
+                    type uint8;
+                    description
+                        "Multi-hop minimum acceptable TTL (RFC 5883 §5).
+                         Ignored for single-hop. Zero means use the
+                         plugin default (254).";
+                }
+
+                leaf interface {
+                    type string;
+                    description
+                        "Single-hop egress interface. Optional: when
+                         omitted, the BFD plugin derives the interface
+                         from the peer's local address. Ignored for
+                         multi-hop.";
+                }
+            }
         }
 
         // Session container - BGP session settings

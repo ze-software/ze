@@ -212,6 +212,38 @@ type MUPRoute struct {
 	PrefixSID         []byte
 }
 
+// BFDSettings carries the per-peer BFD opt-in parsed from the YANG
+// `bgp peer connection bfd { ... }` block. A nil BFD field on
+// PeerSettings means the peer does not use BFD at all (the reactor
+// skips the BFD client wiring); a non-nil struct with Enabled=false
+// means the operator left the container in place but suspended it
+// (for maintenance) -- the reactor logs and skips the BFD client
+// until the next reload with Enabled=true.
+//
+// Field names mirror the YANG leaf names one-for-one so the parser
+// and the audit trail read identically.
+type BFDSettings struct {
+	// Enabled is the master switch. Default true (YANG default).
+	Enabled bool
+	// MultiHop is true when the YANG mode leaf is "multi-hop". Stored
+	// as a bool rather than an enum because the only two modes,
+	// single-hop and multi-hop, map cleanly to api.SingleHop /
+	// api.MultiHop at conversion time.
+	MultiHop bool
+	// Profile is the name of a profile defined under the top-level
+	// bfd { profile ... } block. The BFD plugin resolves it; the BGP
+	// parser does not validate it (cross-component lookup would pull
+	// the BGP tree into the BFD plugin's lifecycle).
+	Profile string
+	// MinTTL is the multi-hop minimum receive TTL. Zero means use the
+	// BFD plugin default (254).
+	MinTTL uint8
+	// Interface is the optional single-hop egress interface. Empty
+	// means let the BFD plugin derive it from the peer's local
+	// address.
+	Interface string
+}
+
 // PeerSettings contains configuration for a BGP peer.
 type PeerSettings struct {
 	// Name is an optional human-readable peer name for CLI selector.
@@ -277,6 +309,15 @@ type PeerSettings struct {
 	// Useful for multihop BGP where the MD5 key is bound to a different address.
 	// Defaults to Address when empty.
 	MD5IP netip.Addr
+
+	// BFD is the parsed BFD opt-in from YANG
+	// `bgp peer connection bfd { ... }`. nil means the peer does not
+	// opt into BFD; the reactor skips all BFD client wiring for this
+	// peer. Non-nil means the BGP peer lifecycle calls
+	// internal/plugins/bfd/api.GetService() when the session
+	// transitions to Established and tears the session down on a
+	// BFD Down event.
+	BFD *BFDSettings
 
 	// GroupUpdates indicates whether to group compatible routes in single UPDATE.
 	// Default: true (reduces UPDATE count from O(routes) to O(routes/capacity)).

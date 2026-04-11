@@ -330,7 +330,81 @@ func newUDPTransport(mode api.HopMode, vrf, device string) *transport.UDP {
 // the SDK delivers verify/configure/apply on different goroutines. The
 // SDK currently calls them sequentially but we keep the guard so a
 // future change cannot silently introduce a race.
+//
+// Stage 3 (BGP opt-in) also acquires this mutex from pluginService so a
+// BGP peer's EnsureSession cannot race a config reload that is creating
+// or tearing down the same loop.
 var runtimeStateGuard sync.Mutex
+
+// pluginService is the in-process implementation of api.Service that the
+// bfd plugin publishes via api.SetService. BGP (and any future client)
+// calls api.GetService().EnsureSession to obtain a SessionHandle; the
+// dispatch picks the (vrf, mode) loop on runtimeState, lazily creating
+// it if no pinned session had already triggered loopFor.
+//
+// Concurrency: every call takes runtimeStateGuard so that EnsureSession
+// / ReleaseSession do not race a config reload. The runtimeState itself
+// is not safe for concurrent use -- the lock is the contract.
+//
+// Device selection for a BGP-driven loop mirrors resolveLoopDevices's
+// per-request rules without the multi-session conflict detection:
+// non-default VRF wins (socket binds to VRF device), otherwise a
+// single-hop session's Interface leaf is used, otherwise the loop runs
+// without SO_BINDTODEVICE and the engine TTL gate is the only
+// protection. The FIRST caller to create a loop locks in the device --
+// later callers share the socket regardless of their own Interface
+// because one UDP socket can only bind to one device.
+type pluginService struct {
+	state *runtimeState
+}
+
+// EnsureSession dispatches the request to the correct engine.Loop,
+// creating the loop on demand. The returned SessionHandle is owned by
+// the caller; callers MUST call ReleaseSession when finished.
+func (s *pluginService) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) {
+	runtimeStateGuard.Lock()
+	defer runtimeStateGuard.Unlock()
+	vrf := req.VRF
+	if vrf == "" {
+		vrf = defaultVRFName
+	}
+	device := ""
+	if vrf != defaultVRFName {
+		device = vrf
+	} else if req.Mode == api.SingleHop {
+		device = req.Interface
+	}
+	lk := loopKey{vrf: vrf, mode: req.Mode}
+	loop, err := s.state.loopFor(lk, device)
+	if err != nil {
+		return nil, err
+	}
+	normalized := req
+	normalized.VRF = vrf
+	return loop.EnsureSession(normalized)
+}
+
+// ReleaseSession hands the handle back to the owning loop. If the loop
+// has already been torn down (config reload cleared it) the call is a
+// no-op: the handle was already invalidated by Loop.Stop closing every
+// subscriber channel.
+func (s *pluginService) ReleaseSession(h api.SessionHandle) error {
+	if h == nil {
+		return nil
+	}
+	runtimeStateGuard.Lock()
+	defer runtimeStateGuard.Unlock()
+	key := h.Key()
+	vrf := key.VRF
+	if vrf == "" {
+		vrf = defaultVRFName
+	}
+	loop, ok := s.state.loops[loopKey{vrf: vrf, mode: key.Mode}]
+	if !ok {
+		return nil
+	}
+	return loop.ReleaseSession(h)
+}
 
 // RunBFDPlugin is the engine entry point. It uses the SDK 5-stage protocol
 // to receive configuration, drives engine.Loop instances per (VRF, mode)
@@ -344,6 +418,10 @@ func RunBFDPlugin(conn net.Conn) int {
 
 	state := newRuntimeState()
 	defer func() {
+		// Clear the in-process Service publication FIRST so new
+		// clients see nil and skip BFD wiring instead of receiving a
+		// handle whose underlying loop is about to tear down.
+		api.SetService(nil)
 		runtimeStateGuard.Lock()
 		defer runtimeStateGuard.Unlock()
 		state.stopAll()
@@ -412,6 +490,12 @@ func RunBFDPlugin(conn net.Conn) int {
 	})
 
 	p.OnStarted(func(_ context.Context) error {
+		// Publish the in-process Service so BGP (and any future
+		// client) can reach the engine via api.GetService() without
+		// importing internal/plugins/bfd/engine. Published last,
+		// after all configured loops have started, so an early BGP
+		// EnsureSession does not race the loop creation.
+		api.SetService(&pluginService{state: state})
 		log.Info("bfd plugin running")
 		return nil
 	})

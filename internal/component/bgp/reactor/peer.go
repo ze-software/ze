@@ -256,6 +256,12 @@ type Peer struct {
 	// store it here so the next runOnce() can accept it immediately.
 	inboundConn   net.Conn
 	inboundNotify chan struct{}
+
+	// bfd is the per-peer BFD client state. Zero value means no BFD
+	// session is currently open; startBFDClient populates it after
+	// the FSM reaches Established and the peer opted in via config.
+	// stopBFDClient clears it on session teardown. See peer_bfd.go.
+	bfd bfdClient
 }
 
 // NewPeer creates a new peer for the given settings.

@@ -335,10 +335,24 @@ func (p *Peer) runOnce() error {
 				reactor.notifyPeerNegotiated(p, neg)
 			}
 
+			// Open a BFD session for this peer if the operator
+			// opted in via `bgp peer connection bfd { ... }` and
+			// the BFD plugin is loaded. No-op otherwise. Runs
+			// before sendInitialRoutes so the BFD subscriber is
+			// live before the first UPDATE leaves -- a BFD Down
+			// during initial flood should still tear the peer.
+			p.startBFDClient()
+
 			// Send static routes from config (one-time per-session lifecycle goroutine).
 			peerLogger().Debug("spawning sendInitialRoutes", "peer", addr)
 			go p.sendInitialRoutes() //nolint:goroutine-lifecycle // per-session lifecycle, not per-event
 		} else if from == fsm.StateEstablished {
+			// Release any BFD session opened on Established. Runs
+			// before clearEncodingContexts so the subscriber
+			// goroutine has observed the final StateChange
+			// (closed channel) before the handle is released.
+			p.stopBFDClient()
+
 			// Determine reason based on target state
 			reason := "session closed"
 			if to == fsm.StateIdle {
