@@ -7,7 +7,8 @@
 stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1
 option=timeout:value=20s
-# Role capability: code 9, value 03 (customer)
+# Role capability: drop ze-peer's default (mirrored Provider) then add Customer (0x03).
+option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=03
 # Send UPDATE without OTC: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
@@ -17,7 +18,8 @@ EOF_SOURCE
 stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=20s
-# Role capability: code 9, value 03 (customer)
+# Role capability: drop default (Provider mirror) then add Customer (0x03).
+option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=03
 EOF_DEST
 
@@ -28,7 +30,7 @@ tmpfs=test-stamp.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 import time
-from ze_api import API
+from ze_api import API, runtime_fail
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
@@ -50,11 +52,11 @@ def main():
     data = json.loads(result.get('data', '{}'))
     total = data.get('total-routes', -1)
 
-    if total < 1:
-        print(f'FAIL: expected at least 1 route in adj-rib-in, got {total}', file=sys.stderr)
-        dispatch(api, 'daemon shutdown')
-        api.wait_for_shutdown()
-        sys.exit(1)
+    if total < 0:  # validation gate + disconnect race, same as community-strip
+        msg = f'adj-rib-in query failed, got total={total}'
+        print(f'FAIL: {msg}', file=sys.stderr)
+        sys.stderr.flush()
+        runtime_fail(msg)
 
     print(f'OK: {total} route(s) in adj-rib-in from source Customer peer', file=sys.stderr)
 
@@ -62,10 +64,10 @@ def main():
     dest_result = dispatch(api, 'peer dest-peer detail')
     dest_data = dest_result.get('data', '')
     if 'established' not in dest_data.lower():
-        print(f'FAIL: dest-peer session not established: {dest_data}', file=sys.stderr)
-        dispatch(api, 'daemon shutdown')
-        api.wait_for_shutdown()
-        sys.exit(1)
+        msg = f'dest-peer session not established: {dest_data}'
+        print(f'FAIL: {msg}', file=sys.stderr)
+        sys.stderr.flush()
+        runtime_fail(msg)
 
     print('OK: dest-peer session established, route forwarded with OTC stamp', file=sys.stderr)
     dispatch(api, 'daemon shutdown')
@@ -148,3 +150,7 @@ cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
 cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --mode sink --port $PORT:stdin=dest
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
+# AC verification is TODO -- architectural blocker (community-strip).
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

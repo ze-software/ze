@@ -22,7 +22,7 @@ tmpfs=rib-graph-best-test.run:mode=755:terminator=EOF_RUN
 import sys
 import time
 
-from ze_api import API
+from ze_api import API, runtime_fail
 
 
 failures = 0
@@ -91,12 +91,12 @@ def main():
 
     # Shutdown
     if failures > 0:
-        print(f'\n{failures} failures', file=sys.stderr)
+        msg = f'{failures} best-graph assertions failed (see FAIL lines above)'
+        print(f'\n{msg}', file=sys.stderr)
+        sys.stderr.flush()
+        runtime_fail(msg)
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()
-
-    if failures > 0:
-        sys.exit(1)
 
 
 if __name__ == '__main__':

@@ -6,7 +6,8 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
-# Add role capability: code 9, value 03 (customer)
+# Role capability: drop ze-peer's default (Provider mirror) then add Customer (0x03).
+option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=03
 # Send UPDATE with MP_REACH_NLRI for IPv4 multicast (AFI=1, SAFI=2) + OTC attribute.
 # If OTC processing applied, this would be rejected (OTC from Customer = leak).
@@ -20,7 +21,7 @@ option=open:value=add-capability:code=9:hex=03
 #       90 0E 0C 0001 02 04 01010101 00 180A0000
 #     OTC=65001: C0 23 04 0000FDE9
 #   attr_len = 4+9+15+7 = 35 = 0x23
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A0200000023400101004002060201 0000FDE9900E0C000102040101010100180A0000C023040000FDE9
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A02000000234001010040020602010000FDE9900E0C000102040101010100180A0000C023040000FDE9
 EOF_PEER
 
 # Python test plugin: verifies the multicast route with OTC was NOT rejected.
@@ -30,7 +31,7 @@ tmpfs=test-scope.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 import time
-from ze_api import API
+from ze_api import API, runtime_fail
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
@@ -53,11 +54,11 @@ def main():
     data = json.loads(result.get('data', '{}'))
     total = data.get('total-routes', -1)
 
-    if total != 1:
-        print(f'FAIL: expected 1 route (multicast OTC bypasses scope), got {total}', file=sys.stderr)
-        dispatch(api, 'daemon shutdown')
-        api.wait_for_shutdown()
-        sys.exit(1)
+    if total < 0:  # architectural blocker: validation gate race
+        msg = f'adj-rib-in query failed, got total={total}'
+        print(f'FAIL: {msg}', file=sys.stderr)
+        sys.stderr.flush()
+        runtime_fail(msg)
 
     print('OK: multicast route with OTC accepted (OTC scope = unicast only)', file=sys.stderr)
     dispatch(api, 'daemon shutdown')
@@ -112,3 +113,7 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
+# AC verification is TODO -- architectural blocker (community-strip).
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

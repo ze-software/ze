@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 2/16 |
+| Phase | 16/16 |
 | Updated | 2026-04-11 |
 
 ## Post-Compaction Recovery
@@ -170,21 +170,21 @@ under test, and the converted assertion must fail when that path is broken.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `community-strip` | `test/plugin/community-strip.ci` | Egress strip removes COMMUNITY from forwarded UPDATE | partial: framework wired, hex fixed, AC-7 TODO |
-| `community-cumulative` | `test/plugin/community-cumulative.ci` | Cumulative bgp+group+peer filter merge | pending |
-| `community-priority` | `test/plugin/community-priority.ci` | Strip-before-tag ordering inside one peer | pending |
+| `community-cumulative` | `test/plugin/community-cumulative.ci` | Cumulative bgp+group+peer filter merge | DONE: runtime_fail wired; AC-8 verified via `tag="[global-mark peer-mark]"` in production log |
+| `community-priority` | `test/plugin/community-priority.ci` | Strip-before-tag ordering inside one peer | DONE: runtime_fail wired; AC-12 verified via `community ingress applied` log; duplicate-Role-capability bug surfaced and fixed |
 | `community-tag` | `test/plugin/community-tag.ci` | Ingress tag adds COMMUNITY to received UPDATE | DONE: framework wired, AC-6 verified via `community ingress applied` log |
-| `forward-overflow-two-tier` | `test/plugin/forward-overflow-two-tier.ci` | Forward pool overflow handling | pending |
-| `forward-two-tier-under-load` | `test/plugin/forward-two-tier-under-load.ci` | Two-tier forward under sustained load | pending |
-| `rib-best-selection` | `test/plugin/rib-best-selection.ci` | Best path selection across multiple peers | pending |
-| `rib-graph` | `test/plugin/rib-graph.ci` | Graph construction for received routes | pending |
-| `rib-graph-best` | `test/plugin/rib-graph-best.ci` | Graph + best path interaction | pending |
-| `rib-graph-filtered` | `test/plugin/rib-graph-filtered.ci` | Graph respects filter accept/reject | pending |
-| `role-otc-egress-filter` | `test/plugin/role-otc-egress-filter.ci` | RFC 9234 egress filter denial | pending |
-| `role-otc-egress-stamp` | `test/plugin/role-otc-egress-stamp.ci` | RFC 9234 OTC stamping | pending |
-| `role-otc-export-unknown` | `test/plugin/role-otc-export-unknown.ci` | RFC 9234 export to unconfigured role | pending |
-| `role-otc-ingress-reject` | `test/plugin/role-otc-ingress-reject.ci` | RFC 9234 ingress rejection | pending |
-| `role-otc-unicast-scope` | `test/plugin/role-otc-unicast-scope.ci` | RFC 9234 unicast scope enforcement | pending |
-| `show-errors-received` | `test/plugin/show-errors-received.ci` | NOTIFICATION error counter accounting | pending |
+| `forward-overflow-two-tier` | `test/plugin/forward-overflow-two-tier.ci` | Forward pool overflow handling | PARTIAL: framework wired, AC-10/11/12 blocked on architectural redesign (no forwarding plugin loaded) |
+| `forward-two-tier-under-load` | `test/plugin/forward-two-tier-under-load.ci` | Two-tier forward under sustained load | PARTIAL: framework wired; fixed AS_PATH 4-byte-AS encoding bug; AC blocked on architectural redesign |
+| `rib-best-selection` | `test/plugin/rib-best-selection.ci` | Best path selection across multiple peers | DONE: failures-counter swapped to runtime_fail; direct `bgp rib inject` bypasses validation gate |
+| `rib-graph` | `test/plugin/rib-graph.ci` | Graph construction for received routes | DONE: failures-counter swapped to runtime_fail |
+| `rib-graph-best` | `test/plugin/rib-graph-best.ci` | Graph + best path interaction | DONE: failures-counter swapped to runtime_fail |
+| `rib-graph-filtered` | `test/plugin/rib-graph-filtered.ci` | Graph respects filter accept/reject | DONE: failures-counter swapped to runtime_fail |
+| `role-otc-egress-filter` | `test/plugin/role-otc-egress-filter.ci` | RFC 9234 egress filter denial | PARTIAL: framework wired; architectural blocker |
+| `role-otc-egress-stamp` | `test/plugin/role-otc-egress-stamp.ci` | RFC 9234 OTC stamping | PARTIAL: framework wired; duplicate-Role-cap bug fixed; architectural blocker |
+| `role-otc-export-unknown` | `test/plugin/role-otc-export-unknown.ci` | RFC 9234 export to unconfigured role | PARTIAL: framework wired; architectural blocker |
+| `role-otc-ingress-reject` | `test/plugin/role-otc-ingress-reject.ci` | RFC 9234 ingress rejection | PARTIAL: framework wired; duplicate-Role-cap bug fixed; architectural blocker |
+| `role-otc-unicast-scope` | `test/plugin/role-otc-unicast-scope.ci` | RFC 9234 unicast scope enforcement | PARTIAL: framework wired; duplicate-cap + whitespace-in-hex bugs fixed; architectural blocker |
+| `show-errors-received` | `test/plugin/show-errors-received.ci` | NOTIFICATION error counter accounting | DONE: all 7 sys.exit(1) sites swapped to runtime_fail; test verifies report-bus entry fields |
 
 ## Files to Modify
 - `test/plugin/community-strip.ci` - swap sys.exit(1) for runtime_fail; tighten assertion if too weak
@@ -256,23 +256,22 @@ Each phase converts ONE .ci file. Phases run sequentially per the rules/before-w
 
 1. **Phase 1: community-strip.ci** — DONE (partial). Framework wired, hex bug fixed, AC-7 blocked on architectural redesign. See Design Insights.
 2. **Phase 2: community-tag.ci** — DONE. Framework wired, AC-6 verified via new `community ingress applied` info log in `filter_community.go`. Regression detection validated by deliberately breaking `ingressFilter` and confirming the test fails with `expect=stderr pattern not found: community ingress applied`.
-3. **Phase 3: community-cumulative.ci**
-4. **Phase 4: community-priority.ci**
-5. **Phase 5: forward-overflow-two-tier.ci**
-6. **Phase 6: forward-two-tier-under-load.ci**
-7. **Phase 7: rib-best-selection.ci**
-8. **Phase 8: rib-graph.ci**
-9. **Phase 9: rib-graph-best.ci**
-10. **Phase 10: rib-graph-filtered.ci**
-11. **Phase 11: role-otc-egress-filter.ci**
-12. **Phase 12: role-otc-egress-stamp.ci**
-13. **Phase 13: role-otc-export-unknown.ci**
-14. **Phase 14: role-otc-ingress-reject.ci**
-15. **Phase 15: role-otc-unicast-scope.ci**
-16. **Phase 16: show-errors-received.ci** (final phase, then close spec)
+3. **Phase 3: community-priority.ci** — DONE. Framework wired, AC-12 verified via the phase-2 production log. Uncovered a pre-existing bug: the test sent a duplicate Role capability (one from ze-peer's default mirror of ze's Provider role, one from the `add-capability code=9 hex=03` directive), which ze correctly rejected as "multiple different Role capabilities". Fixed by adding `drop-capability:code=9` before the add. Without the fix, the session was torn down at OPEN validation and no filter ever ran — another silent false-positive that the sys.exit(1) pattern was hiding.
+4. **Phase 4: community-cumulative.ci** — DONE. Framework wired, AC-8 verified via the phase-2 production log. Key gotcha: slog auto-quotes attr values that contain whitespace, so the two-element tag list renders as `tag="[global-mark peer-mark]"` -- the `expect=stderr:pattern=` must match the quoted form, not the unquoted single-element form (`tag=[name]`) used in phases 2-3.
+5. **Phase 5: forward-overflow-two-tier.ci** — DONE (partial). Same architectural blocker as phase 1: the test loads only `bgp-adj-rib-in` and no forwarding plugin, so the forward pool is never exercised. Framework wired, reject patterns added, AC verification deferred to Path A (load bgp-rs) or Path B (ze-peer check mode).
+6. **Phase 6: forward-two-tier-under-load.ci** — DONE (partial). Same blocker as phase 5. Also surfaced and fixed a pre-existing AS_PATH encoding bug: the test hex used 2-byte-AS format (`40 02 04 02 01 FD E9`) but ze and peer had negotiated the 4-byte-AS capability. ze correctly rejected all 80 UPDATEs with "AS_PATH segment overrun (need 4 bytes, have 2)" per RFC 7606 Section 7.2. Fixed via replace_all to 4-byte form (`40 02 06 02 01 00 00 FD E9`), updating attrLen 0x0019 to 0x001B and msgLen 0x0034 to 0x0036 in all 80 `action=send` lines.
+7. **Phase 7: rib-best-selection.ci** — DONE. Uses the `failures` counter + `runtime_fail` at the end pattern. Direct `bgp rib inject` commands bypass the rpki validation gate cleanly. All assertions verified end-to-end.
+8. **Phase 8: rib-graph.ci** — DONE. Same pattern as phase 7.
+9. **Phase 9: rib-graph-best.ci** — DONE. Same pattern.
+10. **Phase 10: rib-graph-filtered.ci** — DONE. Same pattern.
+11. **Phase 11: role-otc-egress-filter.ci** — DONE (partial). Architectural blocker; framework wired.
+12. **Phase 12: role-otc-egress-stamp.ci** — DONE (partial). Fixed duplicate-Role-capability bug (same root cause as phase 3); architectural blocker still applies.
+13. **Phase 13: role-otc-export-unknown.ci** — DONE (partial). Architectural blocker; framework wired.
+14. **Phase 14: role-otc-ingress-reject.ci** — DONE (partial). Fixed duplicate-Role-cap bug; architectural blocker.
+15. **Phase 15: role-otc-unicast-scope.ci** — DONE (partial). Fixed duplicate-Role-cap AND a literal whitespace in the AS_PATH hex that broke parsing; architectural blocker still applies.
+16. **Phase 16: show-errors-received.ci** — DONE. All 7 `sys.exit(1)` sites swapped to `runtime_fail`. Tests the report-bus notification-received path via direct `show errors` command, no wire-path dependency. Real assertions verified end-to-end.
 
-After phase 16: delete `.claude/known-failures.md` "Observer-exit antipattern" section,
-write learned summary, commit pair (code + spec, then learned + spec deletion).
+All 16 phases complete. 8 tests fully verify their ACs via the direct-command path (rib-* + community-tag + community-priority + community-cumulative + show-errors-received). The remaining 8 (community-strip + forward-* + role-otc-*) are in "framework wired, AC TODO" state pending the redesign documented in `.claude/known-failures.md` "Egress-filter tests need forwarding-plugin redesign".
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -347,6 +346,21 @@ write learned summary, commit pair (code + spec, then learned + spec deletion).
 |-------|--------|-----------------|-------|
 | AC-1 | partial | runtime_fail wired, hex bug fixed; AC-7 verification TODO | architectural blocker — see known-failures.md |
 | AC-4 | done | community-tag.ci expect=stderr:pattern=community ingress applied fires on real AC-6 behavior | regression validated by forced break |
+| AC-3 | done | community-priority.ci expect=stderr:pattern=community ingress applied verifies community (Policy) filter runs when role (Annotation) plugin is also loaded | reuses phase-2 log; role duplicate-cap bug fixed inline |
+| AC-2 | done | community-cumulative.ci expect=stderr:pattern=tag="[global-mark peer-mark]" verifies cumulative merge produces both tags in bgp->peer order | reuses phase-2 log; slog auto-quotes values containing spaces |
+| AC-5 | partial | forward-overflow-two-tier.ci framework wired; AC-10/11/12 (overflow pool) blocked on architectural redesign | same blocker as AC-1 |
+| AC-6 | partial | forward-two-tier-under-load.ci framework wired; AC-10/11/12 (two-tier dispatch) blocked on architectural redesign | also fixed pre-existing AS_PATH 4-byte-AS encoding bug in all 80 UPDATE lines |
+| AC-7 | done | rib-best-selection.ci failures-counter + runtime_fail; 4 sub-assertions (localpref, aspath, tiebreak, count) via direct `bgp rib inject` | bypasses validation gate cleanly |
+| AC-8 | done | rib-graph.ci failures-counter + runtime_fail; asserts box-drawing chars + AS labels | clean conversion |
+| AC-9 | done | rib-graph-best.ci failures-counter + runtime_fail | clean conversion |
+| AC-10 | done | rib-graph-filtered.ci failures-counter + runtime_fail; asserts `check_contains` for expected ASNs and `check_not_contains` for filtered-out ASNs | clean conversion |
+| AC-11 | partial | role-otc-egress-filter.ci framework wired; AC blocked on architectural redesign | same blocker as AC-1 |
+| AC-12 | partial | role-otc-egress-stamp.ci framework wired; fixed duplicate-Role-cap bug | same blocker as AC-1 |
+| AC-13 | partial | role-otc-export-unknown.ci framework wired | same blocker as AC-1 |
+| AC-14 | partial | role-otc-ingress-reject.ci framework wired; fixed duplicate-Role-cap bug | same blocker as AC-1 |
+| AC-15 | partial | role-otc-unicast-scope.ci framework wired; fixed duplicate-Role-cap AND AS_PATH whitespace bug | same blocker as AC-1 |
+| AC-16 | done | show-errors-received.ci all 7 sys.exit sites swapped to runtime_fail; verifies report-bus notification-received entry with exact subject/code/subcode/direction | report bus path, no wire dependency |
+| AC-17 | done | .claude/known-failures.md "Observer-exit antipattern" section deleted; replaced with concise "Egress-filter tests need forwarding-plugin redesign" entry + bug-history subsection | block-observer-sys-exit.sh no longer warns on any of the 16 files |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |

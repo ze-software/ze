@@ -19,7 +19,7 @@ tmpfs=show-errors-received-test.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 import time
-from ze_api import API
+from ze_api import API, runtime_fail
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -60,8 +60,10 @@ def main():
             e.get('subject') == '127.0.0.1')
 
         if data is None:
-            print('FAIL: timed out waiting for bgp/notification-received entry', file=sys.stderr)
-            sys.exit(1)
+            msg = 'timed out waiting for bgp/notification-received entry'
+            print(f'FAIL: {msg}', file=sys.stderr)
+            sys.stderr.flush()
+            runtime_fail(msg)
 
         errors = data.get('errors', [])
 
@@ -73,25 +75,35 @@ def main():
                    and e.get('code') == 'notification-received'
                    and e.get('subject') == '127.0.0.1']
         if len(matches) != 1:
-            print(f'FAIL: expected exactly 1 matching entry, got {len(matches)}: {matches}', file=sys.stderr)
-            sys.exit(1)
+            msg = f'expected exactly 1 matching entry, got {len(matches)}: {matches}'
+            print(f'FAIL: {msg}', file=sys.stderr)
+            sys.stderr.flush()
+            runtime_fail(msg)
 
         e = matches[0]
         if e.get('severity') != 'error':
-            print(f'FAIL: severity != error: {e}', file=sys.stderr)
-            sys.exit(1)
+            msg = f'severity != error: {e}'
+            print(f'FAIL: {msg}', file=sys.stderr)
+            sys.stderr.flush()
+            runtime_fail(msg)
         detail = e.get('detail', {})
         if detail.get('direction') != 'received':
-            print(f'FAIL: detail.direction != received: {e}', file=sys.stderr)
-            sys.exit(1)
+            msg = f'detail.direction != received: {e}'
+            print(f'FAIL: {msg}', file=sys.stderr)
+            sys.stderr.flush()
+            runtime_fail(msg)
         # ze-peer's action=notification emits Cease (6) / Admin Shutdown (2).
         # JSON numbers come back as int (or float in Python via json), so cast.
         if int(detail.get('code', -1)) != 6:
-            print(f'FAIL: detail.code != 6: {e}', file=sys.stderr)
-            sys.exit(1)
+            msg = f'detail.code != 6: {e}'
+            print(f'FAIL: {msg}', file=sys.stderr)
+            sys.stderr.flush()
+            runtime_fail(msg)
         if int(detail.get('subcode', -1)) != 2:
-            print(f'FAIL: detail.subcode != 2: {e}', file=sys.stderr)
-            sys.exit(1)
+            msg = f'detail.subcode != 2: {e}'
+            print(f'FAIL: {msg}', file=sys.stderr)
+            sys.stderr.flush()
+            runtime_fail(msg)
 
         print(f'OK: show errors returned {len(errors)} entry(s); 1 matching notification-received', file=sys.stderr)
         dispatch(api, 'daemon shutdown')
@@ -99,8 +111,10 @@ def main():
     except SystemExit:
         raise
     except Exception as e:
-        print(f'FAIL: unexpected error: {e}', file=sys.stderr)
-        sys.exit(1)
+        msg = f'unexpected error: {e}'
+        print(f'FAIL: {msg}', file=sys.stderr)
+        sys.stderr.flush()
+        runtime_fail(msg)
 
 if __name__ == '__main__':
     main()
