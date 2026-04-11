@@ -626,6 +626,127 @@ module ze-iface-conf {
             uses interface-unit;
         }
 
+        list wireguard {
+            key "name";
+            ze:listener;
+            description "WireGuard interface. Declarative config: interface-level
+                         listen-port, fwmark, private-key, and a nested peer list
+                         with public-key, endpoint, allowed-ips, preshared-key,
+                         and persistent-keepalive. L3 kind with no MAC address
+                         (uses interface-common rather than interface-l2).
+                         Reconciliation is in-place per peer via wgctrl
+                         ConfigureDevice; adding, removing, or rekeying a peer
+                         does not disturb the netdev or any other peer.";
+
+            leaf name {
+                type string;
+                description "Interface name (free-form, validated by iface naming rules)";
+            }
+
+            leaf listen-port {
+                type zt:port;
+                description "UDP port WireGuard binds on 0.0.0.0 and :: for
+                             peer handshake and data traffic. If unset the
+                             kernel chooses an ephemeral port on the first
+                             outbound handshake.";
+            }
+
+            leaf fwmark {
+                type uint32;
+                default 0;
+                description "Firewall mark applied to outgoing encapsulated
+                             packets for policy routing. 0 means unset.";
+            }
+
+            leaf private-key {
+                type string;
+                ze:sensitive;
+                description "Base64-encoded 32-byte Curve25519 private key.
+                             Stored $9$-encoded on disk via the standard ze
+                             sensitive-leaf pattern; decoded to plaintext
+                             base64 at parse time. ze config show / dump
+                             always emits the $9$ form, never the plaintext.
+                             Obfuscation only (not encryption) -- protect the
+                             config file at filesystem level (chmod 600) just
+                             like BGP MD5 passwords.";
+            }
+
+            list peer {
+                key "name";
+                description "WireGuard peer";
+
+                leaf name {
+                    type string;
+                    description "Peer name (free-form, used as list key)";
+                }
+
+                leaf public-key {
+                    type string;
+                    mandatory true;
+                    description "Base64-encoded 32-byte Curve25519 peer public key";
+                }
+
+                leaf preshared-key {
+                    type string;
+                    ze:sensitive;
+                    description "Optional base64-encoded 32-byte symmetric
+                                 preshared key mixed into the handshake for
+                                 post-quantum resistance. Stored $9$-encoded
+                                 on disk, same pattern as private-key.";
+                }
+
+                container endpoint {
+                    description "Remote UDP endpoint for this peer. Both leaves
+                                 are required together; the kernel uses this
+                                 address on the first outbound handshake and
+                                 updates it on every inbound handshake from
+                                 a new source address.";
+
+                    leaf ip {
+                        type zt:ip-address;
+                        description "Remote IPv4 or IPv6 address (numeric, not
+                                     a hostname -- DNS resolution is not performed)";
+                    }
+
+                    leaf port {
+                        type zt:port;
+                        description "Remote UDP port";
+                    }
+                }
+
+                leaf-list allowed-ips {
+                    type string {
+                        pattern '[0-9a-fA-F:./]+';
+                    }
+                    ze:syntax "bracket";
+                    description "CIDR prefixes routed into the tunnel for this
+                                 peer. Inbound packets from this peer must have
+                                 a source address inside one of these prefixes
+                                 (cryptokey routing).";
+                }
+
+                leaf persistent-keepalive {
+                    type uint16 {
+                        range "0..65535";
+                    }
+                    default 0;
+                    description "Seconds between unsolicited keepalive packets
+                                 to maintain NAT state. 0 disables keepalives.
+                                 Typical value is 25.";
+                }
+
+                leaf disable {
+                    type empty;
+                    description "Administratively disable this peer. The peer
+                                 is removed from the kernel peer set on reload
+                                 but stays in the config.";
+                }
+            }
+
+            uses interface-common;
+            uses interface-unit;
+        }
+
         container loopback {
             description "Loopback interface";
 
