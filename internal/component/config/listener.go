@@ -25,7 +25,7 @@ type listenerService struct {
 
 // knownListenerServices enumerates all services that use ze:listener server lists.
 // Derived from YANG modules: ze-web-conf, ze-ssh-conf, ze-mcp-conf, ze-lg-conf,
-// ze-telemetry-conf, ze-plugin-conf.
+// ze-telemetry-conf, ze-plugin-conf, ze-api-conf.
 var knownListenerServices = []listenerService{
 	{name: "web", containers: []string{"environment", "web"}},
 	{name: "ssh", containers: []string{"environment", "ssh"}},
@@ -33,6 +33,8 @@ var knownListenerServices = []listenerService{
 	{name: "looking-glass", containers: []string{"environment", "looking-glass"}},
 	{name: "prometheus", containers: []string{"telemetry", "prometheus"}},
 	{name: "plugin-hub", containers: []string{"plugin", "hub"}, alwaysEnabled: true},
+	{name: "api-server-rest", containers: []string{"environment", "api-server", "rest"}},
+	{name: "api-server-grpc", containers: []string{"environment", "api-server", "grpc"}},
 }
 
 // CollectListeners walks the config tree and collects all listener endpoints

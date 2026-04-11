@@ -200,6 +200,94 @@ func TestCollectListeners_EmptyTree(t *testing.T) {
 	assert.Nil(t, CollectListeners(tree))
 }
 
+// TestCollectListeners_APIServerRest verifies api-server.rest listeners are
+// picked up by CollectListeners after the chunk-2 container->list migration.
+//
+// VALIDATES: spec-named-service-listeners AC-16 (CollectListeners covers the
+// api-server transports so REST + gRPC mis-config is caught at parse time).
+// PREVENTS: Regression where api-server entries sit outside the conflict
+// inventory and collide silently.
+func TestCollectListeners_APIServerRest(t *testing.T) {
+	tree := NewTree()
+	env := NewTree()
+	apiServer := NewTree()
+	rest := NewTree()
+	rest.Set("enabled", "true")
+	restSrv := NewTree()
+	restSrv.Set("ip", "0.0.0.0")
+	restSrv.Set("port", "8081")
+	rest.AddListEntry("server", "main", restSrv)
+	apiServer.SetContainer("rest", rest)
+	env.SetContainer("api-server", apiServer)
+	tree.SetContainer("environment", env)
+
+	endpoints := CollectListeners(tree)
+	require.Len(t, endpoints, 1)
+	assert.Equal(t, "api-server-rest main", endpoints[0].Service)
+	assert.Equal(t, uint16(8081), endpoints[0].Port)
+}
+
+// TestCollectListeners_APIServerGrpc mirrors the REST case for the gRPC
+// transport.
+func TestCollectListeners_APIServerGrpc(t *testing.T) {
+	tree := NewTree()
+	env := NewTree()
+	apiServer := NewTree()
+	grpcC := NewTree()
+	grpcC.Set("enabled", "true")
+	grpcSrv := NewTree()
+	grpcSrv.Set("ip", "0.0.0.0")
+	grpcSrv.Set("port", "50051")
+	grpcC.AddListEntry("server", "main", grpcSrv)
+	apiServer.SetContainer("grpc", grpcC)
+	env.SetContainer("api-server", apiServer)
+	tree.SetContainer("environment", env)
+
+	endpoints := CollectListeners(tree)
+	require.Len(t, endpoints, 1)
+	assert.Equal(t, "api-server-grpc main", endpoints[0].Service)
+	assert.Equal(t, uint16(50051), endpoints[0].Port)
+}
+
+// TestValidateListenerConflicts_APIRestGrpc verifies that REST and gRPC
+// configured on the same ip:port are reported as a conflict.
+//
+// VALIDATES: spec-named-service-listeners AC-11 (overlapping api-server
+// transports rejected at parse time).
+func TestValidateListenerConflicts_APIRestGrpc(t *testing.T) {
+	tree := NewTree()
+	env := NewTree()
+	apiServer := NewTree()
+
+	rest := NewTree()
+	rest.Set("enabled", "true")
+	restSrv := NewTree()
+	restSrv.Set("ip", "127.0.0.1")
+	restSrv.Set("port", "9000")
+	rest.AddListEntry("server", "main", restSrv)
+	apiServer.SetContainer("rest", rest)
+
+	grpcC := NewTree()
+	grpcC.Set("enabled", "true")
+	grpcSrv := NewTree()
+	grpcSrv.Set("ip", "127.0.0.1")
+	grpcSrv.Set("port", "9000")
+	grpcC.AddListEntry("server", "main", grpcSrv)
+	apiServer.SetContainer("grpc", grpcC)
+
+	env.SetContainer("api-server", apiServer)
+	tree.SetContainer("environment", env)
+
+	endpoints := CollectListeners(tree)
+	require.Len(t, endpoints, 2, "both transports must appear in the inventory")
+
+	err := ValidateListenerConflicts(endpoints)
+	require.Error(t, err, "REST + gRPC on the same port must report a conflict")
+	assert.Contains(t, err.Error(), "listener conflict")
+	assert.Contains(t, err.Error(), "api-server-rest")
+	assert.Contains(t, err.Error(), "api-server-grpc")
+}
+
 // TestParseListenerEntry verifies edge cases in endpoint extraction.
 // VALIDATES: parseListenerEntry handles empty IP, port 0, malformed, boundary.
 // PREVENTS: Silent conflict bypass from bad input.

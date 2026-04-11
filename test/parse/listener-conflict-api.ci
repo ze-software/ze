@@ -1,0 +1,40 @@
+# Test: api-server REST and gRPC colliding on the same ip:port -> rejected
+# VALIDATES: spec-named-service-listeners AC-11 + AC-16 -- CollectListeners
+#            covers the api-server transports, and a same-port REST + gRPC
+#            configuration is caught at parse time.
+# PREVENTS: Silent simultaneous bind of two API transports on the same port.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1;
+	session { asn { local 65533; } }
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip auto; }
+		}
+		session { asn { remote 65534; } }
+	}
+}
+environment {
+	api-server {
+		rest {
+			enabled true;
+			server main {
+				ip 127.0.0.1;
+				port 9000;
+			}
+		}
+		grpc {
+			enabled true;
+			server main {
+				ip 127.0.0.1;
+				port 9000;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=listener conflict
