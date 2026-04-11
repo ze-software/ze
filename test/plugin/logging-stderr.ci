@@ -1,15 +1,17 @@
 # Migrated from test/data/plugin/logging-stderr.*
 
-# Enable server subsystem logging. Must live OUTSIDE the stdin=peer block —
-# option=env is consumed by the test runner, not ze-peer.
-option=env:var=ze.bgp.log.server:value=debug
+# Enable bgp.server subsystem logging at DEBUG.
+# Convention is ze.log.<subsystem> per slogutil.go.
+# Must live OUTSIDE the stdin=peer block: option=env is consumed by the
+# test runner, not ze-peer.
+option=env:var=ze.log.bgp.server:value=debug
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=timeout:value=10s
 
 # Test: Engine subsystem logging to stderr
-# Verifies ze.bgp.log.server=debug produces server logs in stderr
+# Verifies ze.log.bgp.server=debug produces server logs in stderr
 
 # Static route UPDATE
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801

@@ -1,16 +1,17 @@
 # Migrated from test/data/plugin/logging-level-filter.*
 
-# Set server logging to INFO level (should filter out DEBUG).
-# Must live OUTSIDE the stdin=peer block — option=env is consumed by the
+# Set bgp.server subsystem logging to INFO level (filters out DEBUG).
+# Convention is ze.log.<subsystem> per slogutil.go — see docs/functional-tests.md.
+# Must live OUTSIDE the stdin=peer block: option=env is consumed by the
 # test runner (seeds proc.Env), not ze-peer.
-option=env:var=ze.bgp.log.server:value=info
+option=env:var=ze.log.bgp.server:value=info
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=timeout:value=10s
 
 # Test: Level filtering
-# Verifies ze.bgp.log.server=info filters out DEBUG messages
+# Verifies ze.log.bgp.server=info filters out DEBUG messages
 
 # Static route UPDATE
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801

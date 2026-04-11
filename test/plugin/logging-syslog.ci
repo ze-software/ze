@@ -1,16 +1,17 @@
 # Migrated from test/data/plugin/logging-syslog.*
 
-# Enable server subsystem logging (syslog backend set automatically by runner).
-# Must live OUTSIDE the stdin=peer block — option=env is consumed by the
+# Enable bgp.server subsystem logging at DEBUG (syslog backend set automatically
+# by runner). Convention is ze.log.<subsystem> per slogutil.go.
+# Must live OUTSIDE the stdin=peer block: option=env is consumed by the
 # test runner, not ze-peer.
-option=env:var=ze.bgp.log.server:value=debug
+option=env:var=ze.log.bgp.server:value=debug
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=timeout:value=10s
 
 # Test: Syslog backend
-# Verifies ze.bgp.log.backend=syslog sends logs to test-syslog server
+# Verifies the syslog backend (set by the runner) sends logs to test-syslog
 
 # Static route UPDATE
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
