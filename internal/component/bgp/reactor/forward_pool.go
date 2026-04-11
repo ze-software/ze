@@ -1111,8 +1111,27 @@ func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 	}
 }
 
-// drainOverflow moves items from the overflow buffer into the channel or
-// processes them directly. Called by the worker goroutine after each batch.
+// drainOverflow moves items from the overflow buffer into the channel.
+// Called by the worker goroutine after each batch.
+//
+// FIFO invariant: items that cannot fit in the channel are pushed back to
+// the FRONT of w.overflow so the next drainOverflow cycle (after the worker
+// has drained a batch from the channel) picks them up in their original
+// order. Running leftover items directly via safeBatchHandle would violate
+// FIFO, because items already in the channel -- sitting behind the
+// Barrier sentinel, for example -- would still be unread when the "direct"
+// batch completes. That broke TestFwdPool_Barrier_WithOverflow: Barrier's
+// sentinel fell through to the direct path, its done() fired, and Barrier
+// returned while real items were still in the channel.
+//
+// Only the pool-stopped path still runs the remaining items directly:
+// Stop() is about to close w.ch, so no further worker iterations will run.
+// Preserving FIFO there is moot because the items are about to be drained
+// as part of shutdown anyway.
+//
+// Track with dispatchWG so Stop() waits for us before closing w.ch.
+// Must check stopped under mu before Add(1) -- if Stop() already called
+// Wait(), adding to a zero-counter WaitGroup is a race.
 func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
 	w.overflowMu.Lock()
 	if len(w.overflow) == 0 {
@@ -1125,43 +1144,57 @@ func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
 	w.overflow = nil
 	w.overflowMu.Unlock()
 
-	// Try to enqueue overflow items into the channel.
-	// If channel is full or pool is stopping, process remaining directly.
-	//
-	// Track with dispatchWG so Stop() waits for us before closing w.ch.
-	// Must check stopped under mu before Add(1) -- if Stop() already called
-	// Wait(), adding to a zero-counter WaitGroup is a race.
 	fp.mu.Lock()
 	if fp.stopped {
 		fp.mu.Unlock()
+		// Shutdown: FIFO no longer matters; Stop() is about to close w.ch.
+		// Process all items directly so their done/release callbacks run.
 		fp.safeBatchHandle(key, items)
 		return
 	}
 	fp.dispatchWG.Add(1)
 	fp.mu.Unlock()
+	defer fp.dispatchWG.Done()
 
-	var remaining []fwdItem
 	for i := range items {
+		// Honor a pending Stop without enqueueing further items. Remaining
+		// items are pushed back to the overflow queue so Stop() picks them
+		// up in its final drain loop.
 		select {
-		case <-fp.stopCh: // pool stopping — Stop() will close w.ch after dispatchWG
-			remaining = items[i:]
-			goto processDirect
-		default: // not stopping — safe to attempt enqueue
+		case <-fp.stopCh:
+			fp.requeueOverflow(w, items[i:])
+			return
+		default: // not stopping -- fall through to the enqueue attempt below
 		}
 		select {
 		case w.ch <- items[i]:
-			// Enqueued successfully — worker loop will process it.
-		default: // channel full — process rest directly
-			remaining = items[i:]
-			goto processDirect
+			// Enqueued successfully -- worker loop will process it in FIFO order.
+		default: // channel full -- push remaining back to overflow to preserve FIFO
+			// Running them directly here would break FIFO relative to the
+			// items already in the channel. The next drainOverflow cycle
+			// (after the worker drains a batch) picks them up in order.
+			fp.requeueOverflow(w, items[i:])
+			return
 		}
 	}
-	fp.dispatchWG.Done()
-	return
+}
 
-processDirect:
-	fp.dispatchWG.Done()
-	fp.safeBatchHandle(key, remaining)
+// requeueOverflow prepends items to the front of w.overflow so they are
+// picked up in their original FIFO order on the next drainOverflow cycle.
+// Any items concurrently appended to w.overflow by DispatchOverflow (after
+// this drain cycle took its snapshot) are kept in their relative order
+// after the re-queued items.
+func (fp *fwdPool) requeueOverflow(w *fwdWorker, leftover []fwdItem) {
+	w.overflowMu.Lock()
+	if len(w.overflow) == 0 {
+		w.overflow = leftover
+	} else {
+		merged := make([]fwdItem, 0, len(leftover)+len(w.overflow))
+		merged = append(merged, leftover...)
+		merged = append(merged, w.overflow...)
+		w.overflow = merged
+	}
+	w.overflowMu.Unlock()
 }
 
 // fwdDrainTimer drains a stopped timer's channel to prevent stale fires.

@@ -21,7 +21,7 @@ Remove entries once fixed.
 **Fix:** Added a `gate1` channel that parks the handler on item 1 until the dispatch loop has put all 11 items in queue. This guarantees the channel reaches capacity (item 11 spills to overflow), `checkBackpressure` fires, and `inBackpressure` is set. After `BackpressureDetected(key)` is asserted, `gate1` is closed and the original `gate6` flow continues. Two gates are independent so the deferred close handles both safely.
 **Verification:** `go test -race -count=20 -run TestBackpressureNoResumeAbove10Percent ./internal/component/bgp/plugins/rs/` -> 20/20 pass; `go test -race -count=3 ./internal/component/bgp/plugins/rs/` -> green.
 
-## TestFwdPool_Barrier_WithOverflow (flake under parallel load) -- logged 2026-04-11
+## TestFwdPool_Barrier_WithOverflow (flake under parallel load) -- FIXED 2026-04-11
 
 **File:** `internal/component/bgp/reactor/forward_pool_barrier_test.go:170`
 **Symptom:** Test fails with `"bufmux: double return detected"` error log and `--- FAIL: TestFwdPool_Barrier_WithOverflow (0.05s)`. A buffer in the `bgp.reactor.forward` BufMux pool is being released twice by the forward-pool worker path.
@@ -79,37 +79,107 @@ test-code bugs rather than production races:
 Verification: `go test -race -count=50` on the 7 affected tests ->
 0 failures, 0 bufmux errors, 0 mixedbuf errors. `make ze-verify`: green.
 
-**STILL OPEN (same investigation cluster, different tests):** three
-forward-pool tests continue to flake under parallel `-count=20` load
-but pass in isolation and when run as a `TestFwdPool_` subset alone:
+**FIXED (2026-04-11, continued investigation):** after shipping the
+test-fake BufHandle sentinel fix above, `make ze-race-reactor` still
+showed `TestFwdPool_Barrier_WithOverflow` failing ~40% of runs
+(2/5 in the first sample). Deeper investigation found the actual
+root cause, which is a production bug in the forward pool, not a
+test bug:
 
-| Test | Symptom | Notes |
-|------|---------|-------|
-| `TestFwdPool_Barrier_WithOverflow` | original entry above | ~1/20 fails under full-package `-count=20` |
-| `TestFwdPool_StopUnblocksDispatch` | "Stop should have unblocked blocked dispatch" `Eventually` times out | Passes alone at `-count=20`; flakes only under full-package load |
-| `TestFwdPool_DenialThroughDispatchOverflow` | Emits 1 `bufmux: double return idx=1 blockID=0` + 1 `mixedbuf: return to non-active block blockID=0` per iteration under full-package load | Isolating the test eliminates both errors -- confirmed by skip-matrix bisection on 2026-04-11 |
+**Root cause:** `Barrier`'s sentinel bypassed FIFO ordering relative
+to items already in the worker's overflow queue. `Barrier` dispatched
+its sentinel via `TryDispatch` first, with a `DispatchOverflow`
+fallback only if the channel was full. When:
 
-All three are in `forward_pool` worker-drain / congestion territory.
-`TestFwdPool_DenialThroughDispatchOverflow` is the most interesting of
-the three: the errors are deterministic (1 + 1 per iteration, matching
-`-count=N`), not a timing race. They come from this test's LOCAL
-`newMixedBufMux()` -- not the shared one -- so the test is doing
-something in its denial path or cleanup that double-returns a handle
-to its own mux. Skip-matrix bisection on 2026-04-11 proved isolation
-but did not pinpoint the exact operation. Reading
-`forward_pool_test.go:1643-1691` shows the test wires a congestion
-controller that denies the peer, then calls `DispatchOverflow` with a
-zero-value `fwdItem` (no overflowBuf). The denial path should skip the
-overflow mux entirely, so I could not identify where the local mux
-picks up a block-0 tenant that then gets returned twice. Likely needs
-tracing through `releaseItem` / `drainOverflow` / `Stop` with printf
-instrumentation on each Get/Return pair.
+1. The test filled the channel (`TryDispatch(item1)`, `TryDispatch(item2)`).
+2. Populated overflow (`DispatchOverflow(item3)`, `DispatchOverflow(item4)`).
+3. Called `Barrier` -- at that exact moment the channel might be
+   1/2 used (worker had drained item1 into the handler), so Barrier's
+   `TryDispatch(sentinel)` succeeded and placed the sentinel in the
+   channel ahead of items 3 and 4 that were still sitting in overflow.
 
-**Action (remaining):** investigate the three open tests as one
-cluster. Likely shared root cause in the forward-pool worker drain /
-release path. Start with `TestFwdPool_DenialThroughDispatchOverflow`
-since its errors are deterministic (`idx=1 blockID=0` is consistent),
-not a scheduling race.
+Then when the worker processed its batches, the sentinel was reached
+BEFORE items 3 and 4. The sentinel's `done()` callback fired, `Barrier`
+returned, and the test's `assert.GreaterOrEqual(processed, 4)` read 3
+because items 3 and 4 were still in the overflow queue waiting to be
+drained.
+
+A SECONDARY bug amplified this: `drainOverflow`'s `processDirect` path
+ran leftover items (ones that didn't fit in the channel) out-of-order
+via `safeBatchHandle` IN PLACE, even when those leftover items were
+the Barrier sentinel -- so under the alternate race where Barrier's
+sentinel went into overflow at the tail, `drainOverflow` could lift it
+out and fire it directly, completely bypassing the items still in the
+channel.
+
+**Fix (two parts, both in this commit):**
+
+1. `forward_pool_barrier.go:barrier()` -- check `w.overflow` emptiness
+   before each sentinel dispatch. If the worker already has overflow
+   items, the sentinel MUST go through `DispatchOverflow` to preserve
+   FIFO. Only when overflow is empty may the sentinel use `TryDispatch`.
+
+2. `forward_pool.go:drainOverflow()` -- delete the `processDirect` path.
+   When the channel cannot accept all overflow items, push the leftover
+   items BACK to the front of `w.overflow` (new `requeueOverflow`
+   helper) so the next `drainOverflow` cycle, after the worker has
+   drained a batch from the channel, picks them up in the correct order.
+   The shutdown path (`fp.stopped == true`) still processes items
+   directly because the channel is about to be closed anyway.
+
+**Verification:**
+- `go test -race -count=200 -run TestFwdPool_Barrier_WithOverflow` → 0 failures
+- `go test -race -count=20 -run TestFwdPool_` (all FwdPool tests) → 0 failures
+- `make ze-race-reactor` 10 consecutive runs → 9 clean + 1 residual
+  StopUnblocksDispatch flake (separate issue, see below)
+- `make ze-verify` → green (all 8 suites pass)
+
+### Still open: TestFwdPool_StopUnblocksDispatch (pre-existing, unrelated)
+
+`TestFwdPool_StopUnblocksDispatch` remains flaky at ~0.6% (3 failures
+in 500 iterations) under `-race -count=500`. The previous
+`assert.False(t, stopOk)` was overly strict and additionally flaky
+at ~20%; loosening that assertion (Go's `select` picks randomly between
+two ready cases, and both outcomes are valid for AC-7) reduced the
+flake rate to the residual scheduling issue.
+
+The residual symptom is `require.Eventually` on the `result` channel
+timing out after 5 seconds despite `pool.Stop()` having returned.
+That SHOULD be impossible: `Stop` only returns after `dispatchWG.Wait()`
+confirms the blocked goroutine has exited `Dispatch`, and the
+subsequent `result <- ok` write to a buffered channel should be a
+sub-microsecond operation. Something about the goroutine scheduling
+under `-race -count=500` occasionally leaves the result channel empty,
+possibly because the goroutine's deferred `dispatchWG.Done()` is
+observed by `Wait()` BEFORE the goroutine has been scheduled onto
+its post-defer code (the `result <- ok` line).
+
+I could not pinpoint the exact mechanism. Next session should try:
+- Add `t.Cleanup` + goroutine stack dump when the Eventually fails,
+  to see where the goroutine is actually parked
+- Replace `result` with `sync.WaitGroup` waiting on the GOROUTINE
+  (not just Dispatch) to complete -- I tried this and it failed
+  DIFFERENTLY ("wg.Done but result empty"), which suggests the
+  goroutine IS exiting but without running `result <- ok`. That's
+  only possible if Dispatch panics.
+- Add `defer func() { if r := recover(); ... }` in the test
+  goroutine to catch silent panics.
+
+Flake rate of 0.6% is tolerable for day-to-day work but should be
+closed before release.
+
+### Still open: TestFwdPool_DenialThroughDispatchOverflow
+
+The earlier note that `TestFwdPool_DenialThroughDispatchOverflow`
+emitted 1 bufmux + 1 mixedbuf error per iteration was **incorrect**
+-- that attribution was a bisection artifact from counting deliberate
+test output that `go test` only reveals when a test fails. With
+`Barrier_WithOverflow` now passing consistently, the Denial test runs
+clean. No open issue here. (The original skip-matrix bisection was
+correct in identifying the test as the source of "extra" log output
+on failing runs, but the output was captured deliberate-defensive-path
+logs from sibling tests like `TestBufMux_DoubleReturnCorruption`, not
+new errors from Denial itself.)
 
 ## TestInProcessSpeed (race) -- FIXED 2026-04-11
 

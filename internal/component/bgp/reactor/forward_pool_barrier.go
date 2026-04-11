@@ -59,21 +59,42 @@ func (fp *fwdPool) barrier(ctx context.Context, filter func(fwdKey) bool) error 
 	// Dispatch a sentinel to each targeted worker.
 	// The sentinel has no data (nil peer, no rawBodies/updates).
 	// Its done callback signals completion.
-	// We use TryDispatch first (non-blocking), falling back to DispatchOverflow.
-	// Both paths ensure the sentinel is queued behind existing items.
+	//
+	// FIFO invariant: if the worker already has items in its overflow
+	// buffer, the sentinel MUST go through overflow too. Using TryDispatch
+	// would queue the sentinel in the channel ahead of overflow items the
+	// worker hasn't drained yet, so the sentinel's done() would fire before
+	// those items were processed and Barrier would return early. This was
+	// the failure mode of TestFwdPool_Barrier_WithOverflow under
+	// -race -count=20: batch1 = [item1], chan = [item2], overflow =
+	// [item3, item4], Barrier.TryDispatch put sentinel at chan[1] ->
+	// handler processes [item2, sentinel], sentinel.done() fires, item3
+	// and item4 still in overflow.
+	//
+	// Only use TryDispatch when the worker's overflow is empty, which
+	// guarantees the sentinel is queued behind every prior dispatch.
 	for i := range targets {
 		done := targets[i].done
 		sentinel := fwdItem{
 			done: func() { close(done) },
 		}
 
-		if !fp.TryDispatch(targets[i].key, sentinel) {
-			// Channel full or pool stopped — use overflow.
-			// If DispatchOverflow returns false (pool stopped), it calls
-			// sentinel.done() which closes the done channel. The wait
-			// loop below will see it immediately.
-			fp.DispatchOverflow(targets[i].key, sentinel)
+		w := targets[i].worker
+		w.overflowMu.Lock()
+		overflowEmpty := len(w.overflow) == 0
+		w.overflowMu.Unlock()
+
+		if overflowEmpty {
+			if fp.TryDispatch(targets[i].key, sentinel) {
+				continue
+			}
+			// Channel was full; fall through to overflow path.
 		}
+		// Overflow had items (or channel was full): queue sentinel in
+		// overflow so it is processed strictly after every dispatch that
+		// preceded Barrier. If DispatchOverflow returns false (pool
+		// stopped), it calls sentinel.done() itself.
+		fp.DispatchOverflow(targets[i].key, sentinel)
 	}
 
 	// Wait for all sentinels to be processed.

@@ -279,6 +279,16 @@ func TestFwdPool_HandlerError(t *testing.T) {
 //
 // VALIDATES: AC-7 (stop unblocks blocked dispatch via stopCh)
 // PREVENTS: Deadlock during reactor shutdown when workers are backed up.
+//
+// The invariant is "the blocked Dispatch returns after Stop is called" --
+// NOT "Dispatch returns false specifically." When Stop closes stopCh, the
+// blocked Dispatch's select has TWO ready cases: (a) stopCh closed, return
+// false, or (b) the worker has drained item2 and w.ch now has a free slot,
+// send item3, return true. Go's select picks a ready case at random. Both
+// outcomes are valid for AC-7; which one wins is scheduling-dependent.
+// The previous `assert.False(t, stopOk)` asserted case (a) specifically,
+// which made the test flake under parallel -race load whenever the worker
+// drained item2 just before Stop closed stopCh.
 func TestFwdPool_StopUnblocksDispatch(t *testing.T) {
 	blocker := make(chan struct{})
 	handlerStarted := make(chan struct{}, 1)
@@ -295,7 +305,7 @@ func TestFwdPool_StopUnblocksDispatch(t *testing.T) {
 	<-handlerStarted
 	pool.Dispatch(key, fwdItem{}) // In channel
 
-	// This dispatch should block
+	// This dispatch should block.
 	result := make(chan bool, 1)
 	go func() {
 		ok := pool.Dispatch(key, fwdItem{})
@@ -311,20 +321,22 @@ func TestFwdPool_StopUnblocksDispatch(t *testing.T) {
 		}
 	}, 50*time.Millisecond, 5*time.Millisecond, "dispatch should be blocked on full channel")
 
-	// Stop should unblock the blocked dispatch
+	// Stop should unblock the blocked dispatch. Whether Dispatch returns
+	// true (worker drained, channel accepted item) or false (stopCh
+	// unblocked first) is scheduling-dependent and both are valid
+	// outcomes for AC-7. The key invariant is that the Dispatch does
+	// return (no deadlock).
 	close(blocker)
 	pool.Stop()
 
-	var stopOk bool
 	require.Eventually(t, func() bool {
 		select {
-		case stopOk = <-result:
+		case <-result:
 			return true
 		default:
 			return false
 		}
-	}, 2*time.Second, time.Millisecond, "Stop should have unblocked blocked dispatch")
-	assert.False(t, stopOk)
+	}, 5*time.Second, time.Millisecond, "Stop should have unblocked blocked dispatch")
 }
 
 // TestFwdPool_DoneCalledOnSuccess verifies the done callback is called
