@@ -153,6 +153,116 @@ func TestValidateLoggingRejectStderr(t *testing.T) {
 	}
 }
 
+// TestValidateLoggingObserverFailSentinel verifies the implicit
+// ZE-OBSERVER-FAIL sentinel check forces the test to fail regardless of
+// explicit expect/reject directives.
+//
+// VALIDATES: ze_api.runtime_fail() output in ze's relayed stderr fails the
+//
+//	test, closing the silent-false-positive hole where a Python
+//	observer's sys.exit(1) never reached the runner.
+//
+// PREVENTS: regression to the "observer exit code ignored" state documented
+//
+//	in the dest-1 handover.
+func TestValidateLoggingObserverFailSentinel(t *testing.T) {
+	tests := []struct {
+		name      string
+		stderr    string
+		wantError bool
+		errSubstr string
+	}{
+		{
+			name:      "sentinel_on_dedicated_line",
+			stderr:    "level=INFO subsystem=server msg=ok\ntime=runtime level=ERROR msg=\"ZE-OBSERVER-FAIL: route not found\" subsystem=test.observer\n",
+			wantError: true,
+			errSubstr: "ZE-OBSERVER-FAIL: route not found",
+		},
+		{
+			name:      "sentinel_alone",
+			stderr:    "ZE-OBSERVER-FAIL: any reason\n",
+			wantError: true,
+			errSubstr: "ZE-OBSERVER-FAIL: any reason",
+		},
+		{
+			name:      "no_sentinel",
+			stderr:    "level=INFO subsystem=server msg=ok\nlevel=WARN subsystem=observer msg=benign\n",
+			wantError: false,
+		},
+		{
+			name:      "empty_stderr",
+			stderr:    "",
+			wantError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &Runner{}
+			rec := &Record{}
+
+			err := r.validateLogging(rec, tt.stderr, nil)
+
+			if tt.wantError {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errSubstr)
+				assert.Contains(t, err.Error(), "observer reported runtime failure")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestExtractObserverFailLine verifies the helper isolates the sentinel line
+// from multi-line stderr output so the failure message points at the exact
+// failing line instead of dumping the whole buffer.
+func TestExtractObserverFailLine(t *testing.T) {
+	tests := []struct {
+		name   string
+		stderr string
+		want   string
+	}{
+		{
+			name:   "sentinel_mid_buffer",
+			stderr: "level=INFO msg=a\ntime=x level=ERROR msg=\"ZE-OBSERVER-FAIL: bad\" subsystem=test.observer\nlevel=INFO msg=b\n",
+			want:   `time=x level=ERROR msg="ZE-OBSERVER-FAIL: bad" subsystem=test.observer`,
+		},
+		{
+			name:   "sentinel_first_line",
+			stderr: "ZE-OBSERVER-FAIL: first\nsecond\n",
+			want:   "ZE-OBSERVER-FAIL: first",
+		},
+		{
+			name:   "sentinel_last_line_no_newline",
+			stderr: "level=INFO msg=a\nZE-OBSERVER-FAIL: last",
+			want:   "ZE-OBSERVER-FAIL: last",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			idx := indexSentinel(tt.stderr)
+			require.GreaterOrEqual(t, idx, 0)
+			got := extractObserverFailLine(tt.stderr, idx)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// indexSentinel is a tiny test helper that mirrors the strings.Index call
+// used by validateLogging. Defined locally to avoid exposing yet another
+// runner symbol for testing.
+func indexSentinel(stderr string) int {
+	const sentinel = "ZE-OBSERVER-FAIL"
+	for i := 0; i+len(sentinel) <= len(stderr); i++ {
+		if stderr[i:i+len(sentinel)] == sentinel {
+			return i
+		}
+	}
+	return -1
+}
+
 // TestValidateLoggingExpectSyslog verifies expect=syslog pattern matching.
 //
 // VALIDATES: Expected patterns are found in syslog messages.

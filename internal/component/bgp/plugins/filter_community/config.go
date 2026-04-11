@@ -67,16 +67,16 @@ func parseCommunityDefinitions(bgpCfg map[string]any) (communityDefs, error) {
 			if !ok {
 				continue
 			}
-			values, ok := namedBlock["value"].([]any)
-			if !ok || len(values) == 0 {
+			// `value` is a leaf-list in YANG but the config loader may pass
+			// either []any (JSON round-trip), []string (ToMap() multi-value),
+			// or a bare string (ToMap() single-value). Normalise via the
+			// same helper used for leaf-list fields elsewhere in this file.
+			valueStrs := anySliceToStrings(namedBlock["value"])
+			if len(valueStrs) == 0 {
 				return nil, fmt.Errorf("community %s %q: no values defined", entry.key, name)
 			}
 			def := &communityDef{typ: entry.typ}
-			for _, val := range values {
-				s, ok := val.(string)
-				if !ok {
-					return nil, fmt.Errorf("community %s %q: value is not a string", entry.key, name)
-				}
+			for _, s := range valueStrs {
 				wire, err := entry.parseFn(s)
 				if err != nil {
 					return nil, fmt.Errorf("community %s %q value %q: %w", entry.key, name, s, err)

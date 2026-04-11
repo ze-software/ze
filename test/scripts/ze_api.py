@@ -1184,3 +1184,59 @@ def subscribe(events: list[str], peers: list[str] | None = None, fmt: str = '') 
 def fail(message: str, encoding: str = 'text') -> None:
     """Signal startup failure to ZeBGP."""
     _get_api().fail(message, encoding)
+
+
+# Sentinel string recognised by the .ci test runner. When this prefix appears
+# on ze's relayed stderr, the runner forces the test to FAIL regardless of
+# ze's own exit code. See internal/test/runner/runner_validate.go and
+# .claude/known-failures.md (section 8) for background. Keeping the literal
+# in code and in the runner makes this a two-point coupling; change both.
+_OBSERVER_FAIL_SENTINEL = 'ZE-OBSERVER-FAIL'
+
+
+def runtime_fail(message: str) -> None:
+    """Signal a runtime assertion failure from a Python observer plugin.
+
+    The ``dispatch daemon shutdown ; sys.exit(1)`` pattern used by many older
+    tests is a silent no-op: ze handles ``daemon shutdown`` cleanly and exits
+    with code 0, the observer's ``sys.exit(1)`` never propagates to the test
+    runner, and the runner reports success. This helper replaces that pattern:
+
+    1. Emit a slog-formatted ERROR line on the observer's stderr with the
+       ``ZE-OBSERVER-FAIL`` sentinel in ``msg=``. The engine relays plugin
+       stderr; ERROR-level lines always pass classifyStderrLine regardless of
+       ``ze.log.relay`` so the line reaches the runner.
+    2. Request a clean ``daemon shutdown`` so ze stops and the runner unblocks.
+    3. ``sys.exit(1)`` defensively (unreachable after the sentinel has been
+       flushed, but kept so a reader understands intent).
+
+    The runner's ``validateLogging`` applies an implicit reject check for the
+    sentinel, so ANY test using this helper automatically fails when the
+    observer signals failure -- no per-test ``reject=stderr:pattern=`` needed.
+
+    Args:
+        message: Short human-readable reason. Interpolated into the slog
+            ``msg=`` field between the sentinel and any trailing context.
+    """
+    # slog format is `time=... level=... msg="..." key=value ...`. Level must
+    # be present for classifyStderrLine to treat it as "valid slog" and pass
+    # the relay filter. The subsystem attr identifies the source in telemetry.
+    line = (
+        f'time=runtime level=ERROR '
+        f'msg="{_OBSERVER_FAIL_SENTINEL}: {message}" '
+        f'subsystem=test.observer\n'
+    )
+    sys.stderr.write(line)
+    sys.stderr.flush()
+    try:
+        _get_api()._call_engine(
+            'ze-plugin-engine:dispatch-command',
+            {'command': 'daemon shutdown'},
+        )
+    except Exception:  # noqa: BLE001  # best-effort shutdown after fatal signal
+        pass
+    try:
+        _get_api().wait_for_shutdown(timeout=5.0)
+    except Exception:  # noqa: BLE001  # best-effort wait after fatal signal
+        pass
+    sys.exit(1)

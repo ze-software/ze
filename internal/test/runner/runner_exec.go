@@ -312,6 +312,18 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		}
 	}
 
+	// Observer sentinel takes precedence over every other outcome: if an
+	// observer plugin called ze_api.runtime_fail(), the sentinel in stderr is
+	// the authoritative failure reason regardless of whether ze itself
+	// timed out, exited cleanly, or reported peer mismatches. Without this
+	// check, a slow daemon shutdown after runtime_fail would be reported as a
+	// generic "timeout" and lose the actual cause.
+	if sentinelErr := checkObserverSentinel(clientStderr.String()); sentinelErr != nil {
+		rec.Error = sentinelErr
+		rec.FailureType = FailTypeLoggingMismatch
+		return false
+	}
+
 	// Check if we timed out
 	if testCtx.Err() != nil {
 		rec.State = StateTimeout
@@ -803,6 +815,16 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		if saveErr := r.saveTestOutput(rec, out, opts.SaveDir); saveErr != nil {
 			logger().Warn("save test output failed", "nick", rec.Nick, "error", saveErr)
 		}
+	}
+
+	// Observer sentinel takes precedence in the orchestrated path too --
+	// see the non-orchestrated branch above for rationale. Keep both paths
+	// in sync: a runtime_fail from a python observer must surface as the
+	// authoritative failure even when the daemon subsequently times out.
+	if sentinelErr := checkObserverSentinel(clientStderr.String()); sentinelErr != nil {
+		rec.Error = sentinelErr
+		rec.FailureType = FailTypeLoggingMismatch
+		return false
 	}
 
 	// Check for timeout
