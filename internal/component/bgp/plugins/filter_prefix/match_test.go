@@ -198,6 +198,114 @@ func TestEvaluateUpdateStrict(t *testing.T) {
 	}
 }
 
+// TestPartitionUpdate covers the per-prefix partition path that powers the
+// cmd-4 phase 2 modify action. Each case ships a prefix-list plus an input
+// nlri field and asserts which prefixes land in the accepted vs rejected
+// sets, the preserved family/op tokens, and the parse-error flag.
+//
+// VALIDATES: cmd-4 phase 2 -- per-prefix partition is stable, order-preserving,
+//
+//	and fail-closed on malformed tokens.
+//
+// PREVENTS:  regression where the modify path silently reorders prefixes or
+//
+//	drops the family/op header needed to rebuild the nlri block.
+func TestPartitionUpdate(t *testing.T) {
+	// Shared list: accept 10.0.0.0/8 in /16..24; default-reject everything else.
+	list := &prefixList{
+		name: "CUSTOMERS",
+		entries: []prefixEntry{
+			{prefix: netip.MustParsePrefix("10.0.0.0/8"), ge: 16, le: 24, action: actionAccept},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		nlri     string
+		accepted []string
+		rejected []string
+		family   string
+		op       string
+		parseErr bool
+	}{
+		{
+			name:     "all_accepted",
+			nlri:     "ipv4/unicast add 10.0.0.0/24 10.0.1.0/24",
+			accepted: []string{"10.0.0.0/24", "10.0.1.0/24"},
+			family:   "ipv4/unicast",
+			op:       "add",
+		},
+		{
+			name:     "all_rejected",
+			nlri:     "ipv4/unicast add 192.168.1.0/24 172.16.0.0/24",
+			rejected: []string{"192.168.1.0/24", "172.16.0.0/24"},
+			family:   "ipv4/unicast",
+			op:       "add",
+		},
+		{
+			name:     "mixed_preserves_order",
+			nlri:     "ipv4/unicast add 10.0.0.0/24 192.168.1.0/24 10.0.5.0/24",
+			accepted: []string{"10.0.0.0/24", "10.0.5.0/24"},
+			rejected: []string{"192.168.1.0/24"},
+			family:   "ipv4/unicast",
+			op:       "add",
+		},
+		{
+			name:   "empty_nlri_is_empty_partition",
+			nlri:   "",
+			family: "",
+			op:     "",
+		},
+		{
+			name:   "header_only_no_prefixes",
+			nlri:   "ipv4/unicast add",
+			family: "ipv4/unicast",
+			op:     "add",
+		},
+		{
+			name:     "malformed_prefix_sets_parse_error",
+			nlri:     "ipv4/unicast add 10.0.0.0/24 not-a-prefix 10.0.1.0/24",
+			accepted: []string{"10.0.0.0/24", "10.0.1.0/24"},
+			family:   "ipv4/unicast",
+			op:       "add",
+			parseErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := list.partitionUpdate(tt.nlri)
+			if got.family != tt.family {
+				t.Errorf("family = %q, want %q", got.family, tt.family)
+			}
+			if got.op != tt.op {
+				t.Errorf("op = %q, want %q", got.op, tt.op)
+			}
+			if got.hadParseError != tt.parseErr {
+				t.Errorf("hadParseError = %v, want %v", got.hadParseError, tt.parseErr)
+			}
+			if !equalStrings(got.accepted, tt.accepted) {
+				t.Errorf("accepted = %v, want %v", got.accepted, tt.accepted)
+			}
+			if !equalStrings(got.rejected, tt.rejected) {
+				t.Errorf("rejected = %v, want %v", got.rejected, tt.rejected)
+			}
+		})
+	}
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // VALIDATES: extractNLRIField correctly pulls the nlri value out of update text.
 // PREVENTS: nlri parsing breaking when the field is missing or appears with surrounding attributes.
 func TestExtractNLRIField(t *testing.T) {

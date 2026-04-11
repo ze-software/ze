@@ -33,6 +33,7 @@ import (
 const (
 	filterActionAccept = "accept"
 	filterActionReject = "reject"
+	filterActionModify = "modify"
 )
 
 var logger = slogutil.LazyLogger("bgp.filter.prefix")
@@ -83,9 +84,18 @@ func RunFilterPrefix(conn net.Conn) int {
 
 // handleFilterUpdate dispatches a single filter-update RPC.
 // Looks up the named list by in.Filter, extracts the nlri field from the
-// update text, and runs the strict whole-update evaluator. Unknown filter
-// names fail closed (reject). The plugin never modifies the update -- it
-// only returns accept or reject.
+// update text, and runs the per-prefix partition evaluator. Outcomes:
+//
+//   - no prefixes: accept (nothing to evaluate -- preserves legacy behavior)
+//   - all prefixes accepted: accept
+//   - all prefixes rejected: reject
+//   - some accepted, some rejected (mixed): modify with a delta whose nlri
+//     block contains only the accepted subset. The engine rewrites the
+//     IPv4-unicast legacy NLRI section to match.
+//
+// Malformed prefixes in the text protocol trip hadParseError and fall back
+// to reject (fail-closed, same as the original strict evaluator). Unknown
+// filter names also fail closed.
 func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	listsP := listsByName.Load()
 	if listsP == nil {
@@ -100,10 +110,76 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	}
 
 	nlriField := extractNLRIField(in.Update)
-	if list.evaluateUpdate(nlriField) {
+	partition := list.partitionUpdate(nlriField)
+
+	// No prefixes (empty nlri or attrs-only update): accept. Preserves the
+	// semantic that routes with no matchable reachability pass through.
+	if len(partition.accepted) == 0 && len(partition.rejected) == 0 && !partition.hadParseError {
 		logger().Info("prefix-list accept", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
 		return &sdk.FilterUpdateOutput{Action: filterActionAccept}
 	}
-	logger().Info("prefix-list reject", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
-	return &sdk.FilterUpdateOutput{Action: filterActionReject}
+
+	// Malformed prefix in the text protocol -> fail-closed. Same contract
+	// as evaluateUpdate had before the partition refactor.
+	if partition.hadParseError {
+		logger().Info("prefix-list reject", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField, "reason", "parse-error")
+		return &sdk.FilterUpdateOutput{Action: filterActionReject}
+	}
+
+	// All denied: reject the whole update.
+	if len(partition.accepted) == 0 {
+		logger().Info("prefix-list reject", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
+		return &sdk.FilterUpdateOutput{Action: filterActionReject}
+	}
+
+	// All accepted: accept without modification.
+	if len(partition.rejected) == 0 {
+		logger().Info("prefix-list accept", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
+		return &sdk.FilterUpdateOutput{Action: filterActionAccept}
+	}
+
+	// Mixed: modify. Emit a delta whose nlri block contains only the
+	// accepted subset. The engine picks this up in applyFilterDelta (which
+	// replaces the nlri key verbatim) and in extractNLRIOverride (which
+	// reencodes the accepted prefixes into wire bytes for the IPv4 legacy
+	// NLRI section).
+	delta := buildModifyDelta(partition)
+	logger().Info(
+		"prefix-list modify",
+		"filter", in.Filter, "peer", in.Peer,
+		"accepted", len(partition.accepted), "rejected", len(partition.rejected),
+		"nlri", nlriField,
+	)
+	return &sdk.FilterUpdateOutput{Action: filterActionModify, Update: delta}
+}
+
+// buildModifyDelta renders the modify delta returned to the engine when some
+// prefixes pass and some don't. The delta is intentionally minimal -- it
+// only carries the new nlri block so applyFilterDelta in the engine leaves
+// every other attribute untouched.
+func buildModifyDelta(partition partitionResult) string {
+	parts := make([]string, 0, 3+len(partition.accepted))
+	parts = append(parts, "nlri", partition.family, partition.op)
+	parts = append(parts, partition.accepted...)
+	return joinWords(parts)
+}
+
+// joinWords is a local strings.Join with a single space separator. Kept as a
+// helper so the modify-delta emission can grow (e.g., quoting) without
+// touching every call site.
+func joinWords(parts []string) string {
+	if len(parts) == 0 {
+		return ""
+	}
+	n := len(parts) - 1
+	for _, p := range parts {
+		n += len(p)
+	}
+	b := make([]byte, 0, n)
+	b = append(b, parts[0]...)
+	for _, p := range parts[1:] {
+		b = append(b, ' ')
+		b = append(b, p...)
+	}
+	return string(b)
 }

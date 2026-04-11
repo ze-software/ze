@@ -385,13 +385,19 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			if action == PolicyReject {
 				return false // Route rejected by policy filter; don't cache or dispatch.
 			}
-			// Wire-level dirty tracking: convert text delta to wire attribute modifications.
-			// Same pattern as in-process ingress filter modification above (lines 337-352).
+			// Wire-level dirty tracking: convert text delta to wire attribute
+			// modifications. Same pattern as in-process ingress filter
+			// modification above (lines 337-352). Additionally, when the
+			// filter chain produced a per-prefix modify (subset of the
+			// legacy IPv4 NLRI section), pass the re-encoded prefix bytes
+			// to buildModifiedPayload so step 8 of the progressive build
+			// writes the filtered NLRI tail instead of copying the original.
 			if modifiedText != updateText {
 				var importMods registry.ModAccumulator
 				textDeltaToModOps(updateText, modifiedText, &importMods)
-				if importMods.Len() > 0 {
-					if modPayload, _ := buildModifiedPayload(wireUpdate.Payload(), &importMods, r.attrModHandlers, nil); modPayload != nil {
+				nlriOverride := extractLegacyNLRIOverride(updateText, modifiedText)
+				if importMods.Len() > 0 || nlriOverride != nil {
+					if modPayload, _ := buildModifiedPayload(wireUpdate.Payload(), &importMods, r.attrModHandlers, nil, nlriOverride); modPayload != nil {
 						wireUpdate = wireu.NewWireUpdate(modPayload, wireUpdate.SourceCtxID())
 						wireUpdate.SetMessageID(messageID)
 						newAttrsWire, parseErr := wireUpdate.Attrs()

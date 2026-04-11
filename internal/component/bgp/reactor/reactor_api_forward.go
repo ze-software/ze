@@ -511,7 +511,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			// sync.Pool allocation. Zero-cost when mods.Len() == 0 (common case).
 			peerKey := fwdKey{peerAddr: peer.Settings().PeerKey()}
 			modPool := a.r.fwdPool.OutgoingPool(peerKey)
-			if modified, bufIdx := buildModifiedPayload(peerWire.Payload(), &mods, a.r.attrModHandlers, modPool); modified != nil {
+			if modified, bufIdx := buildModifiedPayload(peerWire.Payload(), &mods, a.r.attrModHandlers, modPool, nil); modified != nil {
 				peerWire = wireu.NewWireUpdate(modified, peerWire.SourceCtxID())
 				modBufIdx = bufIdx
 				modPoolRef = modPool

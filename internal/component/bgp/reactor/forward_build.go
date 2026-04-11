@@ -41,6 +41,16 @@ var modBufPool = sync.Pool{
 // returns it after the worker writes to TCP. When no per-peer buffer is
 // available, falls back to sync.Pool + a result copy.
 //
+// nlriOverride: when non-nil, the function replaces the legacy NLRI section
+// (payload[attrEnd:]) with the provided bytes. A zero-length (but non-nil)
+// slice means "drop every legacy NLRI prefix"; callers use this for the
+// per-prefix filter modify path when every prefix in the UPDATE was denied
+// but attributes remained intact. A nil slice preserves the original NLRI
+// copy. nlriOverride affects ONLY the legacy IPv4 NLRI section; MP_REACH /
+// MP_UNREACH rewriting is out of scope for this function (filter plugins
+// that need per-NLRI decisions on non-CIDR families must declare raw=true
+// and return a full payload rewrite themselves).
+//
 // Returns (modified payload, peerBufIdx). peerBufIdx > 0 means the returned
 // slice is backed by pp and MUST be returned via pp.Return(peerBufIdx).
 // peerBufIdx == 0 means the slice is independently allocated (safe to retain).
@@ -50,9 +60,10 @@ func buildModifiedPayload(
 	mods *registry.ModAccumulator,
 	handlers map[uint8]registry.AttrModHandler,
 	pp *peerPool,
+	nlriOverride []byte,
 ) ([]byte, int) {
 	ops := mods.Ops()
-	if len(ops) == 0 {
+	if len(ops) == 0 && nlriOverride == nil {
 		return nil, 0
 	}
 
@@ -252,14 +263,27 @@ func buildModifiedPayload(
 	}
 	binary.BigEndian.PutUint16(buf[attrLenPos:], uint16(newAttrLen)) //nolint:gosec // G115: bounded by check above
 
-	// Step 8: Copy NLRI section verbatim.
-	nlriLen := len(payload) - attrEnd
-	if nlriLen > 0 {
-		if !safeCopy(buf, off, payload[attrEnd:]) {
-			cleanupBuf()
-			return nil, 0
+	// Step 8: Write NLRI section. When nlriOverride is non-nil the filter
+	// chain has rewritten the legacy IPv4 NLRI (per-prefix modify path);
+	// copy the override bytes instead of the original NLRI tail. An
+	// override of length zero explicitly drops every legacy NLRI prefix.
+	if nlriOverride != nil {
+		if len(nlriOverride) > 0 {
+			if !safeCopy(buf, off, nlriOverride) {
+				cleanupBuf()
+				return nil, 0
+			}
+			off += len(nlriOverride)
 		}
-		off += nlriLen
+	} else {
+		nlriLen := len(payload) - attrEnd
+		if nlriLen > 0 {
+			if !safeCopy(buf, off, payload[attrEnd:]) {
+				cleanupBuf()
+				return nil, 0
+			}
+			off += nlriLen
+		}
 	}
 
 	// Per-peer buffer path: return the slice directly. The caller stores

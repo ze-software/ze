@@ -1,4 +1,6 @@
 // Design: docs/architecture/core-design.md -- prefix-list filter matching
+// Related: config.go -- prefix-list config parsing
+// Related: filter_prefix.go -- SDK entry point and handleFilterUpdate
 //
 // Package filter_prefix implements bgp-filter-prefix.
 //
@@ -7,10 +9,15 @@
 // AND whose ge/le range contains the route's prefix length is selected;
 // its action is applied. No-match yields actionReject (implicit deny).
 //
-// Whole-update strict mode: an UPDATE is accepted only if every prefix in
-// its NLRI list is accepted by the prefix-list. Any denied prefix rejects
-// the entire UPDATE. This v1 semantics avoids text-protocol NLRI rewrites;
-// per-prefix filtering can be added later via the modify action.
+// Two evaluation modes are exposed:
+//   - evaluateUpdate: strict whole-update decision. Returns accept only if
+//     every prefix in the NLRI passes; any denied prefix rejects the whole
+//     UPDATE. Used by the accept/reject branches.
+//   - partitionUpdate: per-prefix partition. Walks every prefix in the NLRI
+//     and separates accepted from rejected, preserving order. The modify
+//     path uses this to emit the accepted subset as a new NLRI block so
+//     multi-prefix UPDATEs can have part of their NLRI denied without
+//     rejecting the whole message.
 package filter_prefix
 
 import (
@@ -86,7 +93,9 @@ func evaluatePrefix(entries []prefixEntry, route netip.Prefix) action {
 // text format, e.g. "ipv4/unicast add 10.0.0.0/24 10.0.1.0/24".
 //
 // Strict mode: any denied prefix rejects the whole UPDATE. An empty nlri
-// field is accepted (no prefixes to evaluate).
+// field is accepted (no prefixes to evaluate). Retained for callers that
+// only need the whole-update accept/reject decision; partitionUpdate below
+// is used by the modify path.
 func (l *prefixList) evaluateUpdate(nlriField string) bool {
 	if nlriField == "" {
 		return true
@@ -107,6 +116,62 @@ func (l *prefixList) evaluateUpdate(nlriField string) bool {
 		}
 	}
 	return true
+}
+
+// partitionResult carries the outcome of the per-prefix partition walk used
+// by the modify path. accepted holds the prefix text tokens that passed the
+// prefix-list evaluation; rejected holds the ones that did not; family and op
+// echo the NLRI block header so callers can rebuild "nlri <family> <op>
+// <accepted>...". hadParseError is set when any prefix token failed
+// ParsePrefix; the strict evaluator is fail-closed, so callers should reject
+// the whole update in that case.
+type partitionResult struct {
+	family        string
+	op            string
+	accepted      []string
+	rejected      []string
+	hadParseError bool
+}
+
+// partitionUpdate walks every prefix in an nlri text field, classifies it as
+// accepted or rejected by the prefix-list, and returns the partition. Unlike
+// evaluateUpdate which short-circuits on the first rejection, partitionUpdate
+// always consumes the whole list so the modify path can emit the accepted
+// subset. An empty nlri or a nlri without prefix tokens produces an empty
+// partition with family/op still populated when present.
+//
+// The family and op parsed here are purely echoed back -- the classifier does
+// not gate on them. cmd-4 rewrites only the IPv4 unicast legacy NLRI section;
+// that family filter happens at the engine boundary, not inside the match
+// algorithm.
+func (l *prefixList) partitionUpdate(nlriField string) partitionResult {
+	var out partitionResult
+	if nlriField == "" {
+		return out
+	}
+	tokens := strings.Fields(nlriField)
+	if len(tokens) < 2 {
+		return out
+	}
+	out.family = tokens[0]
+	out.op = tokens[1]
+	for _, tok := range tokens[2:] {
+		route, err := netip.ParsePrefix(tok)
+		if err != nil {
+			out.hadParseError = true
+			// Keep walking: the caller decides whether to reject the whole
+			// update on parse failure; we still want a complete picture for
+			// telemetry and for callers that choose to treat parse errors as
+			// non-fatal in non-strict mode.
+			continue
+		}
+		if evaluatePrefix(l.entries, route) == actionAccept {
+			out.accepted = append(out.accepted, tok)
+		} else {
+			out.rejected = append(out.rejected, tok)
+		}
+	}
+	return out
 }
 
 // extractNLRIField pulls the text after "nlri " out of an update text string.

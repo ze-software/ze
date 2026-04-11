@@ -18,6 +18,160 @@ import (
 
 const policyAttrASPath = "as-path"
 
+// extractLegacyNLRIOverride compares the nlri field in the original and
+// modified filter text. When the modified text changes the `nlri
+// ipv4/unicast add ...` block (the only NLRI block that maps to the legacy
+// NLRI section in IPv4 BGP UPDATEs), it returns the wire-encoded prefix
+// bytes corresponding to the new (modified) prefix list. Callers pass the
+// returned slice to buildModifiedPayload as its nlriOverride argument so
+// step 8 of the progressive build writes the filtered prefix list instead
+// of copying the original NLRI section verbatim.
+//
+// Returns nil when:
+//   - the nlri field is unchanged,
+//   - the nlri block is a non-IPv4-unicast family (MP_REACH rewriting is
+//     intentionally not supported in v1 -- filter plugins that need per-
+//     NLRI decisions on non-CIDR families must declare raw=true and
+//     rewrite the MP_REACH themselves),
+//   - the op token is not "add" (withdrawals are handled elsewhere),
+//   - a prefix token fails to parse (fail-closed: buildModifiedPayload will
+//     fall through to the original copy path and the caller treats the
+//     modify result as a no-op).
+//
+// The returned slice is a fresh allocation; buildModifiedPayload may write
+// it into a pool buffer.
+func extractLegacyNLRIOverride(original, modified string) []byte {
+	if original == modified {
+		return nil
+	}
+
+	origBlock := extractIPv4UnicastAddBlock(original)
+	modBlock := extractIPv4UnicastAddBlock(modified)
+	if modBlock == origBlock {
+		return nil
+	}
+	// No ipv4/unicast add block in the modified text: this means the filter
+	// dropped every prefix. Return an empty but non-nil slice so the caller
+	// knows to replace (not skip) the NLRI section.
+	if modBlock == "" {
+		return []byte{}
+	}
+
+	tokens := strings.Fields(modBlock)
+	// Expected shape: "ipv4/unicast add <prefix>...". Anything shorter has no
+	// prefixes and is equivalent to the empty case above.
+	if len(tokens) < 3 {
+		return []byte{}
+	}
+	// Verify the head matches what we expect.
+	if tokens[0] != "ipv4/unicast" || tokens[1] != "add" {
+		return nil
+	}
+
+	// Upper-bound: every prefix needs 1 length byte + up to 4 address bytes.
+	buf := make([]byte, 0, len(tokens[2:])*5)
+	for _, tok := range tokens[2:] {
+		p, err := netip.ParsePrefix(tok)
+		if err != nil {
+			return nil // fail-closed per the godoc contract
+		}
+		if !p.Addr().Is4() {
+			return nil
+		}
+		bits := p.Bits()
+		if bits < 0 || bits > 32 {
+			return nil
+		}
+		buf = append(buf, byte(bits))
+		if bits == 0 {
+			continue
+		}
+		addr := p.Addr().As4()
+		byteLen := (bits + 7) / 8
+		buf = append(buf, addr[:byteLen]...)
+	}
+	return buf
+}
+
+// extractIPv4UnicastAddBlock pulls the space-delimited "ipv4/unicast add ..."
+// block out of a filter text string. The nlri field can contain multiple
+// blocks separated by spaces (e.g., MP_REACH for ipv6/unicast alongside
+// legacy ipv4/unicast); this helper walks the tokens and returns only the
+// ipv4/unicast add block when present. Returns "" if no such block exists.
+func extractIPv4UnicastAddBlock(filterText string) string {
+	nlriField := extractNLRIField(filterText)
+	if nlriField == "" {
+		return ""
+	}
+	return findNLRIBlock(nlriField, "ipv4/unicast", "add")
+}
+
+// extractNLRIField returns the content after "nlri " in filter text, or ""
+// if the text has no nlri field. Mirrors the extractNLRIField helper in the
+// filter_prefix plugin -- the two packages cannot import each other, so the
+// lookup is duplicated locally.
+func extractNLRIField(filterText string) string {
+	_, after, ok := strings.Cut(filterText, "nlri ")
+	if !ok {
+		return ""
+	}
+	return after
+}
+
+// findNLRIBlock walks the nlri field text (the content after "nlri ") and
+// returns the portion belonging to the given family and op, with the family
+// and op tokens restored as the head. The NLRI field may contain multiple
+// blocks concatenated like:
+//
+//	"ipv4/unicast add 10.0.0.0/24 nlri ipv6/unicast add 2001:db8::/32"
+//
+// where each new block is introduced by another "nlri" keyword. findNLRIBlock
+// returns "" if no block with the requested family and op is present.
+func findNLRIBlock(nlriField, family, op string) string {
+	// Split on the "nlri" keyword boundary. parseFilterAttrs already knows
+	// how to capture the nlri field as one glob; here we need to split the
+	// glob into per-block substrings.
+	// The first token pair is already the family/op; subsequent blocks are
+	// introduced by "nlri family op".
+	blocks := splitNLRIBlocks(nlriField)
+	for _, blk := range blocks {
+		tokens := strings.Fields(blk)
+		if len(tokens) < 2 {
+			continue
+		}
+		if tokens[0] == family && tokens[1] == op {
+			return blk
+		}
+	}
+	return ""
+}
+
+// splitNLRIBlocks splits a concatenated nlri field into its per-block
+// substrings. The caller must have already stripped the leading "nlri "
+// keyword; the input is `<family1> <op1> <prefixes1...> nlri <family2>
+// <op2> <prefixes2...>` and the output is one string per block without the
+// leading "nlri" keyword.
+func splitNLRIBlocks(nlriField string) []string {
+	var blocks []string
+	remaining := nlriField
+	for {
+		// The next block, if any, starts after a " nlri " delimiter.
+		idx := strings.Index(remaining, " nlri ")
+		if idx < 0 {
+			remaining = strings.TrimSpace(remaining)
+			if remaining != "" {
+				blocks = append(blocks, remaining)
+			}
+			return blocks
+		}
+		blk := strings.TrimSpace(remaining[:idx])
+		if blk != "" {
+			blocks = append(blocks, blk)
+		}
+		remaining = remaining[idx+len(" nlri "):]
+	}
+}
+
 // textDeltaToModOps compares original and modified filter text, encoding changed
 // attributes to wire VALUE bytes as AttrModSet operations on the ModAccumulator.
 //
