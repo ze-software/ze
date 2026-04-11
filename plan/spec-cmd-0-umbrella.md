@@ -369,15 +369,15 @@ Each child spec is one phase. Phases 1-3 and 9 are independent. Phases 4-8 have 
 - Ze's `show policy test` dry-run is unique -- no vendor has built-in hypothetical route testing
 - Route reflection and next-hop rewriting interact: RR clients often need next-hop-unchanged
 
-## Implementation Summary (2026-04-10 session)
+## Implementation Summary (2026-04-10 + 2026-04-11 sessions)
 
 ### Child Spec Status
 
 | Spec | Phase | Done | Remaining |
 |------|-------|------|-----------|
-| cmd-1 RR + Next-Hop | 3/4 | YANG, config, RR forwarding, ORIGINATOR_ID/CLUSTER_LIST handlers, IPv4 next-hop, cluster-id sync, peer detail | IPv6 next-hop (MP_REACH type 14) |
-| cmd-2 Session Policy | 3/4 | YANG, config, send-community stripping, AS-override, default-originate (unconditional) | Local-AS OPEN modifiers, default-originate-filter conditional |
-| cmd-3 Multipath | 1/3 | YANG schema + parse test | Config delivery to RIB, N-way best-path algorithm (needs design) |
+| cmd-1 RR + Next-Hop | 4/4 | YANG, config, RR forwarding, ORIGINATOR_ID/CLUSTER_LIST handlers, IPv4 next-hop, cluster-id sync, peer detail, IPv6 MP_REACH next-hop rewriting (16 and 32 byte forms) | - |
+| cmd-2 Session Policy | 4/4 | YANG, config, send-community stripping, AS-override, default-originate (uncond + conditional filter), Local-AS dual-prepend with no-prepend/replace-as modifiers | - |
+| cmd-3 Multipath | 2/3 | YANG schema + parse test, Stage 2 config delivery to RIB plugin (`maximumPaths`/`relaxASPath` fields populated) | N-way best-path algorithm (needs design) |
 | cmd-4 Prefix Filter | 0/- | Skeleton spec | Full implementation (depends on policy framework) |
 | cmd-5 AS-Path Filter | 0/- | Skeleton spec | Full implementation (depends on policy framework) |
 | cmd-6 Community Match | 0/- | Skeleton spec | Full implementation (depends on policy framework) |
@@ -395,28 +395,70 @@ Each child spec is one phase. Phases 1-3 and 9 are independent. Phases 4-8 have 
 
 | Item | Spec | Design question |
 |------|------|----------------|
-| RIB N-way best-path | cmd-3 | Storage model for N paths per prefix, consumer API for FIB ECMP, relax-as-path comparison semantics |
-| IPv6 next-hop rewriting | cmd-1 | Type-14 MP_REACH handler vs separate rewrite path |
+| RIB N-way best-path | cmd-3 | Storage model for N paths per prefix, consumer API for FIB ECMP, relax-as-path comparison semantics (config is now delivered, algorithm extension pending) |
 | rib best reason terminal | cmd-9 | Instrumentation approach: re-run with trace vs callback |
 
-### What Can Be Implemented Directly
+### IPv6 next-hop rewriting (cmd-1) -- LANDED 2026-04-11
 
-| Item | Spec | Key file | Effort |
-|------|------|----------|--------|
-| Local-AS OPEN modifiers | cmd-2 | `session_open.go` | Medium |
-| Default-originate-filter | cmd-2 | `peer_initial_sync.go` | Small |
-| Multipath config delivery | cmd-3 | RIB plugin Stage 2 | Medium |
+Approach chosen: a specialized `mpReachNextHopHandler` registered in the
+`attrModHandlersWithDefaults` map for attribute code 14. The handler
+parses the MP_REACH_NLRI value to locate the existing next-hop field and
+rewrites only that region, preserving AFI, SAFI, the reserved byte, and
+the NLRI portion. Output attribute length is adjusted when the new
+next-hop length differs (16 -> 32 bytes for RFC 2545 dual-address mode).
+
+`applyNextHopMod` now emits op 14 with a 16-byte (global-only) or 32-byte
+(global + link-local) next-hop when the peer's `LocalAddress` is IPv6,
+and op 3 (legacy NEXT_HOP) when the peer is IPv4. Mixed-family sessions
+are a known limitation: only the session's own address family is
+rewritten, because the peer config does not currently expose a paired
+IPv4/IPv6 local address.
+
+### 2026-04-11 session changes
+
+| Change | Files | Notes |
+|--------|-------|-------|
+| `PeerSettings.GlobalLocalAS` preserves router's real AS when peer overrides local-as | `peersettings.go`, `config.go` | Config parser now stores both global and per-peer local-as so forwarding knows the "real" AS |
+| `wireu.RewriteASPathDual` prepends two ASNs in one pass | `wireu/aspath_rewrite.go` | Refactored to a shared `rewriteASPathPrepend([]uint32)` helper; single-prepend `RewriteASPath` unchanged |
+| EBGP forward cache extended to key on `(localAS, secondaryAS, asn4)` | `reactor_api_forward.go` | Dual-prepend activated automatically when a peer has a local-as override and no `no-prepend`/`replace-as` modifier |
+| Default-originate conditional filter dry-run | `peer_initial_sync.go` | Fail-closed on missing reactor/API or malformed filter ref |
+| RIB plugin Stage 2 config delivery for multipath | `rib/rib.go`, `rib/register.go`, `rib/rib_multipath_config.go` | `ConfigRoots: ["bgp"]`, `WantsConfig: ["bgp"]`, `OnConfigure` populates atomic `maximumPaths`/`relaxASPath` fields; consumer (bestpath) remains in phase 3 of cmd-3 |
+| Pre-existing bug fix: BGP reactor factory could not re-read the config from the filesystem when the blob store had no entry for the given path | `bgp/config/register.go` | Added the same blob-store-then-os-ReadFile fallback the hub's initial load uses; unblocked all encode/plugin `.ci` tests that pass `ze <tmpfile>` |
+| Pre-existing lint fixes (unrelated) | `cmd/ze/init/main.go`, `resolve/cmd/resolve.go` | Extracted `ifaceTypeLoopback` constant, added `//nolint:gosec` with rationale on `execCommand` (allowlisted binaries + validated args) |
+| cmd-1 IPv6 next-hop rewriting (MP_REACH type 14) | `bgp/reactor/filter_delta_handlers.go`, `reactor_api_forward.go` | New `mpReachNextHopHandler` rewrites the next-hop field in place and preserves AFI/SAFI/Reserved/NLRI; `applyNextHopMod` emits op 14 with 16 or 32 byte next-hop depending on whether the peer has a link-local address |
+
+### New tests (2026-04-11)
+
+| Test | Location | What it validates |
+|------|----------|-------------------|
+| `TestRewriteASPathDual_ExistingSequence` | `wireu/aspath_rewrite_test.go` | Primary (override) closest to peer, secondary (real) behind it, correct byte-shift |
+| `TestRewriteASPathDual_NoASPath` | `wireu/aspath_rewrite_test.go` | Insert-path ordering matches prepend-path ordering |
+| `TestRewriteASPathDual_ASN2` | `wireu/aspath_rewrite_test.go` | ASN4->ASN2 transcoding preserves dual order |
+| `TestPeersFromTreePeerLocalASNoOverride` | `reactor/config_test.go` | Without override, `GlobalLocalAS == LocalAS` so dual-prepend is inert |
+| `TestPeersFromTreePeerLocalASModifiers` | `reactor/config_test.go` | `no-prepend` and `replace-as` flow from `session/asn/local-options` into `PeerSettings` |
+| `TestDefaultOriginateFilterFailsClosedWithoutReactor` | `reactor/peer_initial_sync_test.go` | Missing reactor -> default route suppressed |
+| `TestDefaultOriginateFilterFailsClosedOnMalformedRef` | `reactor/peer_initial_sync_test.go` | Malformed filter ref -> default route suppressed |
+| `TestExtractMultipathConfigPresent/Missing/Default/Boundary/StringNumber` | `plugins/rib/rib_multipath_config_test.go` | Multipath config JSON extraction, defaults, boundary (256), string-encoded ints |
+| `test/encode/default-originate.ci` | `test/encode/` | End-to-end: `default-originate true` produces an UPDATE containing 0.0.0.0/0 with AS_PATH = [local-as] then EOR |
+| `TestMPReachNextHopHandler_{Rewrite16Bytes,Rewrite32Bytes,CopyWhenNoOps,InvalidOpLength,IPv4NextHopThroughMPReach}` | `reactor/filter_delta_handlers_test.go` | cmd-1 IPv6 next-hop rewriting: 16 and 32 byte global/link-local, no-op pass-through, invalid op length rejection, IPv4-in-MP_REACH for labeled unicast |
+| `TestBuildModifiedPayload_MPReachNextHopSelf` | `reactor/filter_delta_handlers_test.go` | cmd-1 end-to-end: `applyNextHopMod` -> `buildModifiedPayload` -> `mpReachNextHopHandler` with MP_REACH rewritten and NLRI preserved |
 
 ### Bugs Found/Fixed
-- ORIGINATOR_ID used source IP instead of BGP Identifier (fixed)
-- show uptime nil CommandContext panic (fixed)
+- ORIGINATOR_ID used source IP instead of BGP Identifier (fixed 2026-04-10)
+- show uptime nil CommandContext panic (fixed 2026-04-10)
+- BGP reactor factory failed to re-read config via `store.ReadFile` when the
+  blob store had no entry for the given path; all `.ci` tests using
+  `ze <tmpfile>` were broken since 2026-04-06 commit 78075ff2 (fixed 2026-04-11)
 
 ### Documentation Updates
 - `docs/guide/command-reference.md` not yet updated for any new commands
 
 ### Deviations from Plan
 - Filter plugins (cmd-4 through cmd-8) not started -- depend on policy framework
-- IPv6 next-hop and multipath algorithm require design work not in original skeleton specs
+- IPv6 next-hop requires design work not in original skeleton spec
+- cmd-3 multipath algorithm (N-way best-path) still deferred; only config
+  delivery is now wired. The RIB plugin has the configured values in
+  `maximumPaths`/`relaxASPath` but `bestpath.go` does not yet consume them.
 
 ## Implementation Audit
 

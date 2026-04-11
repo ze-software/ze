@@ -5,6 +5,47 @@ Sessions should attempt to fix entries here before logging new ones.
 
 Remove entries once fixed.
 
+## Plugin suite: authz + gr-marker-restart + plugin-cli-debug (5 tests) -- OPEN 2026-04-11
+
+**Suite:** `make ze-plugin-test`
+**Failing IDs:** R `authz-allow`, S `authz-default`, T `authz-deny`, 89 `gr-marker-restart`, 129 `plugin-cli-debug`.
+**Observed on:** commit between 2026-04-07 (after the mass-failure mega-fix below) and 2026-04-11 (current HEAD). The 2026-04-07 fix verified "218/218" plugin tests passing, so these five broke in intervening commits.
+
+### R/S/T authz-allow / authz-default / authz-deny
+
+**Symptom:** Tests run `ze <config>` in the background, parse the SSH port from daemon.log, wait 0.5s, and run `ze cli -c "peer list"` over SSH. The CLI returns stderr `error: cannot connect to daemon: error: command executor not ready` and exit 1.
+
+**Error origin:** `internal/component/ssh/ssh.go:548` emits "command executor not ready" when the session-level `factory` in `Server.executorFactory` is still nil at the time the SSH connection's command handler runs. The factory is wired by `cmd/ze/hub/infra_setup.go:92` inside the reactor's `SetPostStartFunc` callback, which runs only after `reactor.Start()` has reached the `postStartFunc` call at `internal/component/bgp/reactor/reactor.go:900`.
+
+**Hypothesis:** The SSH listener starts earlier than the reactor's post-start hook. Previously the 0.5s sleep was sufficient; something in recent commits increased the gap between SSH listening and post-start (maybe one of the 5-stage handshake changes, SDK callback registry refactor, or explicit plugin ordering). The daemon never emits the `"authorization profiles loaded"` log either when run manually, suggesting `postStartFunc` is not being reached (or runs far later than expected). Needs investigation of the plugin-startup/post-start ordering.
+
+**Not caused by cmd-0 work:** These failures reproduce on every run including one where the new WantsConfig on the RIB plugin was temporarily removed. The cmd-0 changes touch only BGP forwarding (`wireu/aspath_rewrite.go`, `reactor_api_forward.go`, `config.go`, `peer_initial_sync.go`) and RIB plugin config delivery, not SSH or plugin startup ordering.
+
+### 89 gr-marker-restart
+
+**Symptom:** `failed: OPEN mismatch` -- one byte differs in the BGP Identifier field of the sent OPEN.
+- expected (first-run): `040001005A01020304 12021001040001000141040000000140020078` (Identifier `01020304`)
+- sent after restart:   `040001005A01020305 12021001040001000141040000000140020078` (Identifier `01020305`)
+
+The test expects the post-restart daemon to reuse the pre-restart BGP Identifier (probably via the GR marker file on disk). Getting `01020305` instead means the daemon incremented or otherwise regenerated the identifier instead of reading the marker.
+
+**Not caused by cmd-0 work:** GR marker persistence is in `internal/component/bgp/grmarker/`, untouched by this session.
+
+### 129 plugin-cli-debug
+
+**Symptom:** `ze bgp plugin cli` tool fails stage 1 of the plugin handshake: `error: stage 1 (declare-registration): send request: write frame: EOF`.
+
+**Hypothesis:** The engine closed the mux transport before the debug CLI plugin could send its registration, likely because the test's `cli-debug` plugin is registered but not yet accepting. Related to the SDK callback-map initialization plumbing touched in prior sessions (see 2026-04-07 fix 8 for NewFromTLSEnv), but the specific regression needs fresh tracing.
+
+**Not caused by cmd-0 work:** Same reasoning -- this is SDK/transport, not BGP data plane.
+
+### Investigation plan (next session)
+
+1. Reproduce each failure in isolation with `ze_log_level=debug` and confirm the timing between SSH listen, plugin registration Stage 5, and `postStartFunc` execution.
+2. Bisect the commits between 2026-04-07 and 2026-04-11 on just the plugin suite (`ze-test bgp plugin R S T 89 129`).
+3. For authz specifically, consider moving the SSH listener start into `postStartFunc` so "SSH port logged" implies "command executor wired".
+
+
 ## TestSSEMultiLineData / TestSSEServeHTTP (timeout) -- FIXED 2026-04-07
 
 **File:** `internal/chaos/web/sse_test.go`
