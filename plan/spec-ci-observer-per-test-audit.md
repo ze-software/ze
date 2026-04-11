@@ -203,7 +203,7 @@ under test, and the converted assertion must fail when that path is broken.
 - `test/plugin/role-otc-ingress-reject.ci` - same pattern
 - `test/plugin/role-otc-unicast-scope.ci` - same pattern
 - `test/plugin/show-errors-received.ci` - same pattern
-- `internal/component/bgp/plugins/filter_community/egress.go` - PROBABLY: add Info-level "egress strip applied dest=X count=N" log so community tests can `expect=stderr:pattern=` against it. Decision deferred to per-file conversion phase.
+- `internal/component/bgp/plugins/filter_community/egress.go` - Phase 1 outcome: no production log added. Phase 1 discovered that adding an info log alone does not help because the egress filter is never invoked for community-strip (no forwarding plugin loaded). Closing this requires picking a redesign direction first: Path A (load `--plugin ze.bgp-rs` so forwarding happens, then add info log for `expect=stderr:pattern=`) or Path B (switch dest peer to ze-peer check mode with byte-exact `expect=bgp:hex=`). See `.claude/known-failures.md` "community-strip architectural blocker" and the Design Insights section of this spec.
 - `.claude/known-failures.md` - delete the "Observer-exit antipattern" section once all 16 conversions land
 
 ### Integration Checklist
