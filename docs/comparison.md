@@ -74,10 +74,16 @@ Ze takes a programmable approach to policy: external plugin filters manipulate r
 via the `redistribution {}` config block using `<plugin>:<filter>` references.
 Filters chain as piped transforms (accept/reject/modify) with delta-only output.
 RFC-mandated checks run as default filters that can be selectively overridden.
+Built-in filter plugins (shipped with ze) include `bgp-filter-prefix` for
+prefix-list matching with ge/le bounds and first-match-wins semantics,
+`bgp-filter-community` for standard / large / extended community tag/strip,
+and `bgp-role` for RFC 9234 BGP roles enforcement. Each is a regular plugin
+-- their source is a full reference for writing custom filter plugins.
+<!-- source: internal/component/bgp/plugins/filter_prefix/ -- bgp-filter-prefix cmd-4 -->
 
 | Feature | Ze | rustbgpd | BIRD 3 | bio-rd | RustyBGP | FRR | GoBGP | ExaBGP | OpenBGPd | BIRD 2 | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Prefix matching (ge/le) | No | Yes | Yes | Yes | Partial | Yes | Yes | No | Yes | Yes | Yes |
+| Prefix matching (ge/le) | Yes | Yes | Yes | Yes | Partial | Yes | Yes | No | Yes | Yes | Yes |
 | AS-path regex | No | Yes | Yes | No | No | Yes | Yes | No | Yes | Yes | Yes |
 | Standard communities | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Extended communities | Yes | Yes | Yes | No | No | Yes | Yes | Yes | Yes | Yes | Yes |

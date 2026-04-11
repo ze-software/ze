@@ -238,6 +238,70 @@ a filter that declares `overrides`.
 See [Redistribution Guide](redistribution.md) for details.
 <!-- source: plan/spec-redistribution-filter.md -- redistribution filter config design -->
 
+### Prefix-List Filter
+
+Named prefix-list filters live under `bgp { policy { prefix-list NAME { ... } } }`
+and are invoked via peer filter chains. Each list is an ordered sequence
+of match entries, first-match-wins, with an implicit deny on no match.
+
+```
+bgp {
+    policy {
+        prefix-list CUSTOMERS {
+            entry 10.0.0.0/8 {
+                ge 16
+                le 24
+                action accept
+            }
+            entry 192.168.0.0/16 {
+                ge 24
+                le 24
+                action reject
+            }
+        }
+    }
+
+    peer customer-a {
+        connection { remote { ip 10.0.0.1; as 65001; } }
+        filter {
+            import [ bgp-filter-prefix:CUSTOMERS ]
+        }
+    }
+}
+```
+
+Each `entry` has:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `ge` | uint | Minimum prefix length (inclusive). Defaults to the entry's own CIDR length. |
+| `le` | uint | Maximum prefix length (inclusive). Defaults to 32 (IPv4) / 128 (IPv6). |
+| `action` | enum | `accept` or `reject`. |
+
+A route matches an entry when its address is contained in the entry's CIDR
+AND its prefix length satisfies `ge <= length <= le`. Entries are evaluated
+in the order they appear; the first match determines the action. A route
+that matches no entry is implicitly rejected.
+
+**Multi-prefix UPDATEs.** When an UPDATE carries several prefixes and the
+prefix-list accepts some but rejects others, the filter returns `modify`:
+the UPDATE is rewritten to carry only the accepted prefixes. The rejected
+ones are silently removed. In v1 this applies to the legacy IPv4 unicast
+NLRI only; IPv6 and labeled families still use whole-update accept/reject
+semantics.
+
+Chain reference forms accepted by the engine:
+
+| Form | Example |
+|------|---------|
+| `<plugin>:<filter>` | `bgp-filter-prefix:CUSTOMERS` |
+| `<filter-type>:<filter>` | `prefix-list:CUSTOMERS` |
+| Plain filter name | `CUSTOMERS` (when no other plugin claims a filter by that name) |
+
+<!-- source: internal/component/bgp/plugins/filter_prefix/schema/ze-filter-prefix.yang -- prefix-list YANG container -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/config.go -- parsePrefixLists -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, per-prefix partition modify path -->
+
 ## Static Routes
 
 Routes can be configured directly per peer:

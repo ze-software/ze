@@ -233,6 +233,37 @@ Filters can declare `overrides` to remove default filters from the chain
 
 <!-- source: plan/spec-redistribution-filter.md -- redistribution filter design -->
 
+### Prefix-List Filter (`bgp-filter-prefix`)
+
+`bgp-filter-prefix` is a built-in filter plugin that matches IPv4 and IPv6
+routes against ordered prefix lists defined in `bgp { policy { prefix-list
+NAME { ... } } }`. Each list is a sequence of `entry <CIDR>` blocks with
+optional `ge` / `le` bounds and an `action` of `accept` or `reject`; the
+first matching entry wins and no match is an implicit deny.
+
+Filter chain references use the standard `<plugin>:<filter>` form:
+`bgp-filter-prefix:CUSTOMERS`. The shorter form `prefix-list:CUSTOMERS` also
+resolves to the same plugin via the filter-type registration, and a bare
+`CUSTOMERS` resolves if no other filter plugin claims a filter of that name.
+
+| UPDATE content | Filter action |
+|----------------|---------------|
+| Single prefix, accepted | `accept` (passes through) |
+| Single prefix, denied | `reject` (update dropped) |
+| Multi-prefix, all accepted | `accept` (passes through) |
+| Multi-prefix, all denied | `reject` (update dropped) |
+| Multi-prefix, mixed | `modify` -- rewrites the UPDATE NLRI section to carry only the accepted prefixes, denied prefixes are silently removed. cmd-4 phase 2. |
+
+The mixed case supports only IPv4 unicast legacy NLRI in v1. For
+multiprotocol families (MP_REACH_NLRI), the plugin falls back to whole-
+update accept when any prefix passes -- implementing per-NLRI rewriting for
+MP_REACH requires declaring `raw=true` on the filter registration and
+rewriting the attribute value directly.
+
+<!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, cmd-4 phase 1 & 2 -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/match.go -- partitionUpdate -->
+<!-- source: internal/component/bgp/reactor/filter_delta.go -- extractLegacyNLRIOverride -->
+
 ### NLRI Encoders/Decoders
 
 NLRI plugins register address family support at init time via `family.MustRegister(afi, safi, afiStr, safiStr)`. The four base families (`ipv4/unicast`, `ipv6/unicast`, `ipv4/multicast`, `ipv6/multicast`) live in `internal/core/family/registry.go` itself; everything else is owned by its plugin's `types.go`. Plugins are loaded automatically when the corresponding family is configured.
