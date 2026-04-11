@@ -739,6 +739,13 @@ func (b *fakeBackend) CreateTunnel(spec TunnelSpec) error {
 	return nil
 }
 
+func (b *fakeBackend) CreateWireguardDevice(name string) error {
+	b.ensureMaps()
+	b.created[name] = true
+	b.ifaces[name] = fakeIface{name: name, linkType: "wireguard"}
+	return nil
+}
+
 func (b *fakeBackend) SetAdminUp(_ string) error              { return nil }
 func (b *fakeBackend) SetAdminDown(_ string) error            { return nil }
 func (b *fakeBackend) SetMTU(_ string, _ int) error           { return nil }

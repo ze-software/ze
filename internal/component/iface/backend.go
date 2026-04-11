@@ -28,6 +28,12 @@ type Backend interface {
 	// TunnelKind. The TunnelSpec carries kind-specific parameters; fields not
 	// applicable to a kind are ignored. See tunnel.go for the spec shape.
 	CreateTunnel(spec TunnelSpec) error
+	// CreateWireguardDevice creates a WireGuard netdev with the given name.
+	// Only the netdev is created here; the private key, listen port, fwmark,
+	// and peer set are configured separately via wgctrl in a later phase
+	// because rtnetlink does not expose those fields. On kernels without
+	// the wireguard module the netlink layer returns an error.
+	CreateWireguardDevice(name string) error
 	DeleteInterface(name string) error
 
 	// Address management.
