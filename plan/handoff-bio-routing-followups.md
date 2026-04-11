@@ -94,93 +94,71 @@ in one script, or rm-them-all.
 
 ### B. Pattern #7: gRPC domain-type + toProto conversion at the API boundary
 
-User's original prompt, reproduced verbatim for resume:
+**Status: closed by skeleton spec (2026-04-11).** `plan/spec-grpc-domain-types.md`.
 
-> Read @<FILE>, specifically the pattern #7 section ("Domain struct +
-> toProtoRequest conversion"). Ze recently added a gRPC API — see
-> `api/proto/ze.proto` and `internal/component/api/grpc/`. I want every
-> boundary between the gRPC transport and the API engine to go through
-> a domain-type conversion layer, so proto types never leak into the
-> engine. Do an audit: grep for `ze.api.v1.*Request` and
-> `ze.api.v1.*Response` usage outside `internal/component/api/grpc/`.
-> Anywhere else? Write a short plan to add the conversion layer. Don't
-> code yet.
+Audit result (baked into the spec): **no proto leaks.** `zepb` only
+appears in `internal/component/api/grpc/server.go` and `server_test.go`.
+The physical boundary is already clean. The actual gap is that the
+conversion target — domain request types in `internal/component/api/` —
+**does not exist at all**. Each transport handler extracts fields inline
+and calls the engine with positional primitives (`string command`,
+`session ID + path + value`, etc.). REST and gRPC maintain parallel
+extraction logic for the same engine methods.
 
-Reference for `<FILE>`: `docs/research/comparison/bio-routing/code-review.md`,
-pattern #7 section.
+The spec proposes adding typed request structs in
+`internal/component/api/requests.go`, moving ad-hoc extraction into
+`<transport>/convert.go` helpers, and (optionally — open question 1 in
+the spec) changing the engine signatures to take the domain request type
+instead of positional primitives. Five open design questions remain for
+the `/ze-spec` pass:
 
-**Concrete first steps:**
-1. `Grep "ze.api.v1" internal/` excluding `internal/component/api/grpc/`
-2. `Grep "ze.api.v1" cmd/` and `pkg/`
-3. `Grep "ze.api.v1" plugins/` (if external plugin code path exists)
-4. Tabulate every leak: file, symbol, what proto type appears.
-5. Write `plan/spec-grpc-domain-types.md` proposing the conversion
-   layer location and the mapping pattern (mirror bio-rd's `Request`
-   struct + `toProtoRequest()` shape).
-6. Stop. Do not code.
+1. Engine signature change or optional middle layer?
+2. Domain struct name collisions with `zepb.*Request`.
+3. Keep `Execute(command string)` or type the params?
+4. Does the REST side need the same convert helpers as gRPC?
+5. Where does `AuthContext` get constructed — transport or domain?
 
 ### C. Pattern #8: pull-model metrics Collector decision doc
 
-User's original prompt, verbatim:
+**Status: closed by decision doc (2026-04-11).** `plan/decision-pull-model-metrics.md`.
 
-> Read @<FILE>, specifically pattern #8 (pull-model metrics Collector).
-> Ze just landed ConfigureMetrics-based plugin metrics on six plugins.
-> bio-rd does it differently: plugins expose a Snapshot() method
-> returning a plain Go struct, and a separate adapter package converts
-> to Prometheus on scrape. This is a real refactor — not a spot fix.
-> Before starting, answer: (1) is this worth doing now or should I wait
-> until the metrics surface is larger? (2) what would the cost be?
-> (3) how does external-plugin metrics work in the pull model (since
-> external plugins run over RPC)? Write a one-page decision doc with a
-> recommendation. Don't start the refactor.
+Recommendation: **defer.** Reasons in the doc:
 
-Reference for `<FILE>`: `docs/research/comparison/bio-routing/code-review.md`,
-pattern #8 section.
+- Ze already has the abstract `metrics.Registry` interface in
+  `internal/core/metrics/metrics.go`. The "Prometheus types everywhere"
+  urgency framing does not apply — verified by grep for
+  `github.com/prometheus/` (only matches outside vendor are
+  `internal/core/metrics/prometheus.go` and
+  `internal/chaos/report/metrics.go`).
+- Six internal plugins use the push model (`ConfigureMetrics` callback).
+  Small enough that a later refactor is mechanical.
+- **External plugins have zero metrics hook today** — no `Snapshot` RPC,
+  no metrics namespace, nothing. The pull model would force a protocol
+  decision (sync `Snapshot` RPC vs streaming snapshot vs in-process only)
+  that the current push model sidesteps by also not handling the external
+  case. This is the forcing function the refactor is waiting on.
 
-**Important pre-check that has already been done:** `internal/component/bgp/`
-contains **zero direct `github.com/prometheus/` imports**. Only
-`internal/core/metrics/prometheus.go` and `internal/chaos/report/metrics.go`
-touch Prometheus types. So the BGP plugins are already decoupled at the
-import level. The decision doc should incorporate this finding because
-the urgency framing in bio-rd's analysis ("there are still plugins that
-take a Prometheus-typed registry directly") is no longer accurate.
-
-The decision doc lives at `plan/decision-pull-model-metrics.md`. Format:
-one page, three answered questions, recommendation, no spec.
+Revisit triggers recorded in the doc: plugin count doubling, a second
+export format request (OpenTelemetry / JSON / CLI dump), a hot-path
+UPDATE profile showing gauge `Inc`/`Add` significance, or the external
+plugin metrics gap becoming user-visible.
 
 ### D. Free patterns #2, #3, #4, #9, #10
 
-User's original prompt, verbatim:
+**Status: closed by edit to `.claude/rules/go-standards.md` (2026-04-11).**
 
-> Read @<FILE>, specifically the numbered patterns 2 (stopTimer
-> helper), 3 (slice-type with methods), 4 (narrow constructor families),
-> 9 (table-driven tests with t.Run), 10 (honest TODO comments). These
-> are "free" — adopt them the next time I'm in the relevant code. Don't
-> do a sweep now; just note them as coding-standard additions. If this
-> repo has a `coding-standards.md` or equivalent, propose a small PR to
-> add a one-line mention of each with a link to the bio-rd analysis
-> file. Otherwise skip it.
+Added a new "Style patterns to prefer" section with five one-line bullets:
+drain `time.NewTimer` on Stop, slice-type-with-methods over wrapping struct,
+family of narrow constructors, table-driven `t.Run` tests, honest TODO
+comments over silent gaps. Each bullet is advisory (adopt opportunistically,
+not a sweep).
 
-Reference: `docs/research/comparison/bio-routing/code-review.md`,
-patterns #2, #3, #4, #9, #10.
-
-**Important note on #2 (stopTimer):** the FSM package does not need
-the helper. `internal/component/bgp/fsm/timer.go` uses `clock.Timer`
-with `AfterFunc` exclusively, which is callback-based and has no
-channel to drain. The only place in the BGP tree that uses
-`time.NewTimer` directly is `internal/component/bgp/plugins/rs/worker.go`
-which already has its own `drainTimer` helper at line 379. So
-"#2" is already correctly handled in the codebase. The coding-standards
-mention should reflect "use `drainTimer` from rs/worker.go (or promote
-it) when introducing a new `time.NewTimer` site, prefer `AfterFunc`
-where possible".
-
-**Concrete first steps:**
-1. `Glob "**/coding-standards.md"`, `Glob "**/STYLE.md"`,
-   `Glob "**/contributing*.md"`, `Glob ".claude/rules/go-standards.md"`
-2. If a suitable file exists: propose a 5-bullet edit linking each
-   pattern to `docs/research/comparison/bio-routing/code-review.md`.
-3. If nothing exists: per the original prompt, skip.
+Pattern #2 (stopTimer) was reframed in the rule because ze does not need
+the bio-rd helper verbatim: the FSM uses `clock.Timer` with `AfterFunc`
+(no channel to drain), and the only `time.NewTimer` site in the BGP tree
+(`internal/component/bgp/plugins/rs/worker.go:379`) already has its own
+`drainTimer` helper. The rule captures "promote or copy `drainTimer` when
+adding a new `time.NewTimer` site, prefer `AfterFunc` where possible."
 
 ### E. Decision: move the HoldTimer restart into the FSM
 
