@@ -1,5 +1,6 @@
 // Design: docs/features/interfaces.md -- Netlink backend Linux implementation
 // Overview: ifacenetlink.go -- package hub
+// Related: tunnel_linux.go -- CreateTunnel implementation for all 8 tunnel kinds
 
 //go:build linux
 

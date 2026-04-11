@@ -33,7 +33,7 @@ Umbrella spec: `plan/learned/425-arch-0-system-boundaries.md`. Six phases.
 Key decisions agreed with user:
 - **4 components:** Engine (supervisor), ConfigProvider, PluginManager, Subsystem
   (Bus removed 2026-04-07: stream system in PluginManager covers all concrete pub/sub
-  needs with DirectBridge zero-copy. See `plan/spec-config-tx-over-stream.md` rationale.)
+  needs with DirectBridge zero-copy. See `plan/learned/537-config-tx-protocol.md` rationale.)
 - **Subsystem ≠ Plugin:** BGP daemon is a subsystem (owns TCP/FSM), bgp-rib/rs/gr are plugins
 - **Stream system is the pub/sub backbone:** validated `(namespace, event-type)` events
   with DirectBridge zero-copy hot path. Located in `internal/component/plugin/server/dispatch.go`
@@ -45,6 +45,18 @@ Key decisions agreed with user:
 - **Performance matters** — user explicitly asked for performance-conscious design
 - **`make ze-verify`** before closing spec/committing
 - **Cross-check child specs against umbrella** after each phase
+
+### YANG Choice/Case Validation Gaps
+ze's YANG-to-Schema walker (`internal/component/config/yang_schema.go`) handles
+ChoiceEntry/CaseEntry via `flattenChildren` -- but `mandatory true` on choice
+statements is NOT enforced, and inner-choice mutual exclusivity (e.g. `local
+{ ip ... }` vs `local { interface ... }`) is also NOT enforced. The flattener
+only makes the data nodes visible to the parser; it does not implement
+choice semantics. Plugin authors who use `choice` MUST add Go-side validation
+in their config parser (e.g. `parseTunnelEntry` in `internal/component/iface/config.go` checks
+both-locals and missing-local). Also: `ze config validate` does not invoke
+plugin `OnConfigVerify` callbacks, so any Go-side validation only fires at
+daemon reload time.
 
 ### Constants for Command/Status Names
 String literals used as command names or status values must be constants -- compiler catches typos that `case "sett":` would silently miss. Editor commands live in `internal/component/cli/model.go`. Plugin status uses `plugin.StatusDone`/`plugin.StatusError`.

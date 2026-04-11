@@ -1,0 +1,206 @@
+# Test: Tunnel interfaces created via SIGHUP-applied transaction
+# Verifies that all 8 supported tunnel encapsulation kinds reach the
+# iface backend through the OnConfigVerify -> OnConfigApply pipeline.
+# The daemon must survive applying a config that creates one of each
+# kind. The BGP peer connection confirms the daemon is still live
+# after the reload.
+#
+# Like the existing test-tx-iface-apply.ci, this validates the wiring
+# (parser, dispatch, backend method invocation). The actual netlink
+# create call may succeed or fail depending on test runner privileges
+# (CAP_NET_ADMIN); failures are logged at Debug level and do not
+# crash the daemon.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+
+# Connection 1: peer from initial config sends route + EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Initial config: one BGP peer, no interfaces
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Updated config: same BGP peer + one tunnel of each kind
+tmpfs=config2.conf:terminator=EOF_CONF2
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+interface {
+	tunnel tgre {
+		encapsulation {
+			gre {
+				local { ip 192.0.2.1; }
+				remote { ip 198.51.100.1; }
+				key 42
+			}
+		}
+	}
+	tunnel tgretap {
+		encapsulation {
+			gretap {
+				local { ip 192.0.2.2; }
+				remote { ip 198.51.100.2; }
+			}
+		}
+	}
+	tunnel tip6gre {
+		encapsulation {
+			ip6gre {
+				local { ip 2001:db8::1; }
+				remote { ip 2001:db8::2; }
+				hoplimit 64
+			}
+		}
+	}
+	tunnel tip6gretap {
+		encapsulation {
+			ip6gretap {
+				local { ip 2001:db8::3; }
+				remote { ip 2001:db8::4; }
+			}
+		}
+	}
+	tunnel tipip {
+		encapsulation {
+			ipip {
+				local { ip 192.0.2.5; }
+				remote { ip 198.51.100.5; }
+			}
+		}
+	}
+	tunnel tsit {
+		encapsulation {
+			sit {
+				local { ip 192.0.2.6; }
+				remote { ip 198.51.100.6; }
+			}
+		}
+	}
+	tunnel tip6tnl {
+		encapsulation {
+			ip6tnl {
+				local { ip 2001:db8::5; }
+				remote { ip 2001:db8::6; }
+				encaplimit 4
+			}
+		}
+	}
+	tunnel tipip6 {
+		encapsulation {
+			ipip6 {
+				local { ip 2001:db8::7; }
+				remote { ip 2001:db8::8; }
+			}
+		}
+	}
+}
+EOF_CONF2
+
+# Trigger: wait for peer, reload with tunnel config
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+sleep 2
+cp config2.conf ze-bgp.conf
+kill -HUP $(cat daemon.pid)
+sleep 2
+kill -TERM $(cat daemon.pid)
+EOF_TRIGGER
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s

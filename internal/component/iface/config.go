@@ -23,7 +23,16 @@ type ifaceConfig struct {
 	Dummy    []ifaceEntry
 	Veth     []vethEntry
 	Bridge   []bridgeEntry
+	Tunnel   []tunnelEntry
 	Loopback *loopbackEntry
+}
+
+// tunnelEntry represents a configured tunnel interface. The Spec carries
+// the encapsulation kind plus per-kind parameters; the embedded ifaceEntry
+// carries the shared physical and unit fields (mtu, mac, addresses).
+type tunnelEntry struct {
+	ifaceEntry
+	Spec TunnelSpec
 }
 
 // ifaceEntry represents a configured interface (ethernet or dummy).
@@ -84,21 +93,22 @@ type ipv6Sysctl struct {
 	Forwarding *bool
 }
 
-// parseIfaceSections finds the "interface" section and parses it.
-// Returns a default config if no interface section is present.
-func parseIfaceSections(sections []sdk.ConfigSection) *ifaceConfig {
+// parseIfaceSections finds the "interface" section and parses it. Returns a
+// default config if no interface section is present. Parse errors propagate
+// to the caller so OnConfigVerify can reject malformed input rather than
+// silently apply a default.
+func parseIfaceSections(sections []sdk.ConfigSection) (*ifaceConfig, error) {
 	for _, s := range sections {
 		if s.Root != "interface" {
 			continue
 		}
 		cfg, err := parseIfaceConfig(s.Data)
 		if err != nil {
-			loggerPtr.Load().Warn("iface config: parse failed, using defaults", "err", err)
-			return &ifaceConfig{Backend: defaultBackendName}
+			return nil, err
 		}
-		return cfg
+		return cfg, nil
 	}
-	return &ifaceConfig{Backend: defaultBackendName}
+	return &ifaceConfig{Backend: defaultBackendName}, nil
 }
 
 // parseIfaceConfig parses the interface config section JSON into ifaceConfig.
@@ -165,6 +175,17 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 		}
 	}
 
+	if tunMap, ok := ifaceMap["tunnel"].(map[string]any); ok {
+		for name, v := range tunMap {
+			m, _ := v.(map[string]any)
+			entry, err := parseTunnelEntry(name, m)
+			if err != nil {
+				return nil, fmt.Errorf("tunnel %q: %w", name, err)
+			}
+			cfg.Tunnel = append(cfg.Tunnel, entry)
+		}
+	}
+
 	if loMap, ok := ifaceMap["loopback"].(map[string]any); ok {
 		lo := &loopbackEntry{}
 		lo.Units = parseUnits(loMap)
@@ -172,6 +193,141 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+// parseTunnelEntry walks the JSON tree for one tunnel list entry and produces
+// a tunnelEntry whose Spec is the resolved encapsulation case. The YANG
+// schema enforces that exactly one case key is present under encapsulation;
+// the parser still verifies and reports a clear error if zero or two are seen.
+//
+// VLAN units are rejected on L3 tunnel kinds because the Linux kernel does
+// not allow VLAN tagging on netdevs that do not carry Ethernet frames; only
+// gretap/ip6gretap (the L2/bridgeable kinds) accept VLAN sub-interfaces.
+func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
+	entry := tunnelEntry{ifaceEntry: parseIfaceEntry(name, m)}
+	entry.Spec.Name = name
+
+	encMap, ok := m["encapsulation"].(map[string]any)
+	if !ok {
+		return entry, fmt.Errorf("missing encapsulation block")
+	}
+
+	var matchedKind TunnelKind
+	var matchedCase map[string]any
+	for caseName, raw := range encMap {
+		k, ok := ParseTunnelKind(caseName)
+		if !ok {
+			return entry, fmt.Errorf("unknown encapsulation kind %q", caseName)
+		}
+		caseMap, _ := raw.(map[string]any)
+		if matchedKind != TunnelKindUnknown {
+			return entry, fmt.Errorf("multiple encapsulation cases set: %s and %s", matchedKind, k)
+		}
+		matchedKind = k
+		matchedCase = caseMap
+	}
+	if matchedKind == TunnelKindUnknown {
+		return entry, fmt.Errorf("encapsulation block has no kind selected")
+	}
+	entry.Spec.Kind = matchedKind
+	if err := parseTunnelLeaves(&entry.Spec, matchedCase); err != nil {
+		return entry, err
+	}
+	if entry.Spec.LocalAddress != "" && entry.Spec.LocalInterface != "" {
+		return entry, fmt.Errorf("local ip and local interface are mutually exclusive")
+	}
+	if entry.Spec.LocalAddress == "" && entry.Spec.LocalInterface == "" {
+		return entry, fmt.Errorf("local ip or local interface required")
+	}
+	if !matchedKind.IsBridgeable() {
+		for _, u := range entry.Units {
+			if u.VLANID > 0 {
+				return entry, fmt.Errorf("vlan-id units are not supported on %s tunnels (only gretap and ip6gretap carry Ethernet frames)", matchedKind)
+			}
+		}
+	}
+	return entry, nil
+}
+
+// parseTunnelLeaves extracts the per-case leaves into the spec. Leaves that
+// are not applicable to the kind are simply absent from the YANG and the
+// JSON map (the schema rejects them at parse time), so we read them
+// unconditionally and rely on the YANG-side filtering.
+//
+// The local and remote endpoints live in nested containers to match the
+// existing ze convention used by `bgp peer connection { local { ip ... }
+// remote { ip ... } }`. Numeric leaves report parse errors so an out-of-range
+// value reaches the caller instead of being silently dropped (the YANG
+// validator catches the same conditions earlier; this is defense in depth).
+func parseTunnelLeaves(spec *TunnelSpec, caseMap map[string]any) error {
+	if caseMap == nil {
+		return nil
+	}
+	if local, ok := caseMap["local"].(map[string]any); ok {
+		if v, ok := local["ip"].(string); ok && v != "" {
+			spec.LocalAddress = v
+		}
+		if v, ok := local["interface"].(string); ok && v != "" {
+			spec.LocalInterface = v
+		}
+	}
+	if remote, ok := caseMap["remote"].(map[string]any); ok {
+		if v, ok := remote["ip"].(string); ok && v != "" {
+			spec.RemoteAddress = v
+		}
+	}
+	if v, ok := caseMap["key"].(string); ok && v != "" {
+		n, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return fmt.Errorf("key %q: %w", v, err)
+		}
+		spec.Key = uint32(n)
+		spec.KeySet = true
+	}
+	if v, ok := caseMap["ttl"].(string); ok && v != "" {
+		n, err := strconv.ParseUint(v, 10, 8)
+		if err != nil {
+			return fmt.Errorf("ttl %q: %w", v, err)
+		}
+		spec.TTL = uint8(n)
+		spec.TTLSet = true
+	}
+	if v, ok := caseMap["tos"].(string); ok && v != "" {
+		n, err := strconv.ParseUint(v, 10, 8)
+		if err != nil {
+			return fmt.Errorf("tos %q: %w", v, err)
+		}
+		spec.Tos = uint8(n)
+		spec.TosSet = true
+	}
+	if _, ok := caseMap["no-pmtu-discovery"]; ok {
+		spec.NoPMTUDiscovery = true
+	}
+	if v, ok := caseMap["hoplimit"].(string); ok && v != "" {
+		n, err := strconv.ParseUint(v, 10, 8)
+		if err != nil {
+			return fmt.Errorf("hoplimit %q: %w", v, err)
+		}
+		spec.HopLimit = uint8(n)
+		spec.HopLimitSet = true
+	}
+	if v, ok := caseMap["tclass"].(string); ok && v != "" {
+		n, err := strconv.ParseUint(v, 10, 8)
+		if err != nil {
+			return fmt.Errorf("tclass %q: %w", v, err)
+		}
+		spec.TClass = uint8(n)
+		spec.TClassSet = true
+	}
+	if v, ok := caseMap["encaplimit"].(string); ok && v != "" {
+		n, err := strconv.ParseUint(v, 10, 8)
+		if err != nil {
+			return fmt.Errorf("encaplimit %q: %w", v, err)
+		}
+		spec.EncapLimit = uint8(n)
+		spec.EncapLimitSet = true
+	}
+	return nil
 }
 
 func parseIfaceEntry(name string, m map[string]any) ifaceEntry {
@@ -373,6 +529,14 @@ func (cfg *ifaceConfig) desiredState() (addrs map[string]map[string]bool, manage
 		managed[e.Name] = true
 		addIfaceAddrs(e.Name, e.Units)
 	}
+	for i := range cfg.Tunnel {
+		e := &cfg.Tunnel[i]
+		if e.Disable {
+			continue
+		}
+		managed[e.Name] = true
+		addIfaceAddrs(e.Name, e.Units)
+	}
 	for _, e := range cfg.Ethernet {
 		if e.Disable {
 			continue
@@ -429,18 +593,39 @@ func zeManageable(linkType string) bool {
 	case zeTypeDummy, zeTypeVeth, zeTypeBridge, "vlan":
 		return true
 	}
-	return false
+	return kernelTunnelKinds[linkType]
+}
+
+// indexTunnelSpecs returns a name -> Spec map for the previous config's
+// tunnel entries. Used by applyConfig to detect Spec changes across reloads
+// so that only changed tunnels are recreated. Returns an empty map if
+// previous is nil (first apply).
+func indexTunnelSpecs(previous *ifaceConfig) map[string]TunnelSpec {
+	if previous == nil {
+		return nil
+	}
+	specs := make(map[string]TunnelSpec, len(previous.Tunnel))
+	for i := range previous.Tunnel {
+		e := &previous.Tunnel[i]
+		specs[e.Name] = e.Spec
+	}
+	return specs
 }
 
 // applyConfig applies the parsed interface config declaratively via the backend.
-// 1. Creates missing Ze-managed interfaces (dummy, veth, bridge, VLAN)
+// 1. Creates missing Ze-managed interfaces (dummy, veth, tunnel, bridge, VLAN)
 // 2. Sets properties (MTU, MAC, sysctl, mirror) on all configured interfaces
 // 3. Adds missing addresses, removes extra addresses on configured interfaces
 // 4. Deletes Ze-managed interfaces not in config.
 //
+// previous is the last successfully applied config, or nil on first apply.
+// It is used to detect tunnels whose Spec changed across the reload, so that
+// only those tunnels are deleted-and-recreated; tunnels with unchanged Spec
+// stay up across SIGHUP, preserving any traffic flowing through them.
+//
 // Returns collected errors. Application continues past individual failures
 // so that one bad interface doesn't block the rest.
-func applyConfig(cfg *ifaceConfig, b Backend) []error {
+func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	log := loggerPtr.Load()
 	var errs []error
 
@@ -450,6 +635,10 @@ func applyConfig(cfg *ifaceConfig, b Backend) []error {
 	}
 
 	// Phase 1: Create missing interfaces.
+	//
+	// Order matters: tunnels are created BEFORE bridges so a bridge can
+	// list a gretap tunnel in its `member` block on a fresh start. Bridges
+	// are still created AFTER veths and dummies for the same reason.
 	for _, e := range cfg.Dummy {
 		if e.Disable {
 			continue
@@ -470,6 +659,33 @@ func applyConfig(cfg *ifaceConfig, b Backend) []error {
 			log.Debug("iface config: create veth (may already exist)", "name", e.Name, "err", err)
 		}
 	}
+	previousTunnelSpecs := indexTunnelSpecs(previous)
+	for i := range cfg.Tunnel {
+		e := &cfg.Tunnel[i]
+		if e.Disable {
+			continue
+		}
+		prev, hadPrev := previousTunnelSpecs[e.Name]
+		if hadPrev && prev == e.Spec {
+			// Spec unchanged: keep the existing netdev. Phase 2 still
+			// applies MTU/MAC and Phase 3 reconciles addresses, so any
+			// non-Spec change still takes effect.
+			continue
+		}
+		if hadPrev {
+			// Spec changed: delete-then-create. Linux does not support
+			// modifying most tunnel kinds in place; this matches VyOS's
+			// behavior for gretap/ip6gretap.
+			if err := b.DeleteInterface(e.Name); err != nil {
+				log.Debug("iface config: delete tunnel before recreate",
+					"name", e.Name, "err", err)
+			}
+		}
+		if err := b.CreateTunnel(e.Spec); err != nil {
+			log.Debug("iface config: create tunnel",
+				"name", e.Name, "kind", e.Spec.Kind, "err", err)
+		}
+	}
 	for _, e := range cfg.Bridge {
 		if e.Disable {
 			continue
@@ -488,7 +704,7 @@ func applyConfig(cfg *ifaceConfig, b Backend) []error {
 	}
 
 	// Phase 2: Set properties and create VLANs.
-	allEntries := make([]ifaceEntry, 0, len(cfg.Ethernet)+len(cfg.Dummy)+len(cfg.Veth)+len(cfg.Bridge))
+	allEntries := make([]ifaceEntry, 0, len(cfg.Ethernet)+len(cfg.Dummy)+len(cfg.Veth)+len(cfg.Bridge)+len(cfg.Tunnel))
 	allEntries = append(allEntries, cfg.Ethernet...)
 	allEntries = append(allEntries, cfg.Dummy...)
 	for _, e := range cfg.Veth {
@@ -496,6 +712,9 @@ func applyConfig(cfg *ifaceConfig, b Backend) []error {
 	}
 	for _, e := range cfg.Bridge {
 		allEntries = append(allEntries, e.ifaceEntry)
+	}
+	for i := range cfg.Tunnel {
+		allEntries = append(allEntries, cfg.Tunnel[i].ifaceEntry)
 	}
 
 	for _, e := range allEntries {

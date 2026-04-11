@@ -231,6 +231,62 @@ module ze-iface-conf {
         }
     }
 
+    grouping tunnel-v4-endpoints {
+        description "IPv4 underlay endpoints for a tunnel.";
+
+        container local {
+            description "Local IPv4 endpoint or source interface (one of ip or interface)";
+
+            leaf ip {
+                type zt:ipv4-address;
+                description "Local IPv4 endpoint";
+            }
+
+            leaf interface {
+                type string;
+                description "Local interface to take the source address from";
+            }
+        }
+
+        container remote {
+            description "Remote IPv4 endpoint";
+
+            leaf ip {
+                type zt:ipv4-address;
+                mandatory true;
+                description "Remote IPv4 endpoint";
+            }
+        }
+    }
+
+    grouping tunnel-v6-endpoints {
+        description "IPv6 underlay endpoints for a tunnel.";
+
+        container local {
+            description "Local IPv6 endpoint or source interface (one of ip or interface)";
+
+            leaf ip {
+                type zt:ipv6-address;
+                description "Local IPv6 endpoint";
+            }
+
+            leaf interface {
+                type string;
+                description "Local interface to take the source address from";
+            }
+        }
+
+        container remote {
+            description "Remote IPv6 endpoint";
+
+            leaf ip {
+                type zt:ipv6-address;
+                mandatory true;
+                description "Remote IPv6 endpoint";
+            }
+        }
+    }
+
     container interface {
         description "Network interface configuration";
 
@@ -311,6 +367,247 @@ module ze-iface-conf {
                 type string;
                 ze:syntax "bracket";
                 description "Member port interface names";
+            }
+
+            uses interface-physical;
+            uses interface-unit;
+        }
+
+        list tunnel {
+            key "name";
+            description "Tunnel interface (GRE/GRETAP/IPIP/SIT/IP6TNL families).
+                         Encapsulation kind is selected by the choice below; each
+                         case carries only the leaves valid for that kind.
+                         The local/remote endpoint pattern matches bgp peer
+                         connection { local { ip ... } remote { ip ... } }.";
+
+            leaf name {
+                type string;
+                description "Interface name (free-form, validated by iface naming rules)";
+            }
+
+            container encapsulation {
+                description "Tunnel encapsulation kind and per-kind parameters";
+
+                choice kind {
+                    mandatory true;
+                    description "Encapsulation discriminator. Invalid combinations
+                                 (e.g. key on ipip) are unrepresentable in the schema.";
+
+                    case gre {
+                        description "GRE over IPv4 (RFC 2784, key extension RFC 2890). L3.";
+                        container gre {
+                            description "GRE-over-IPv4 parameters";
+                            uses tunnel-v4-endpoints;
+
+                            leaf key {
+                                type uint32;
+                                description "32-bit GRE key (RFC 2890). Symmetric: same
+                                             value used for input and output";
+                            }
+
+                            leaf ttl {
+                                type uint8;
+                                default 0;
+                                description "Outer-header TTL. 0 = inherit from inner";
+                            }
+
+                            leaf tos {
+                                type uint8;
+                                default 0;
+                                description "Outer-header Type of Service. 0 = inherit";
+                            }
+
+                            leaf no-pmtu-discovery {
+                                type empty;
+                                description "Disable Path MTU Discovery on the outer header";
+                            }
+                        }
+                    }
+
+                    case gretap {
+                        description "GRE over IPv4, L2 (Ethernet over GRE, bridgeable). RFC 2784.";
+                        container gretap {
+                            description "GRETAP-over-IPv4 parameters";
+                            uses tunnel-v4-endpoints;
+
+                            leaf key {
+                                type uint32;
+                                description "32-bit GRE key (RFC 2890)";
+                            }
+
+                            leaf ttl {
+                                type uint8;
+                                default 0;
+                                description "Outer-header TTL. 0 = inherit";
+                            }
+
+                            leaf tos {
+                                type uint8;
+                                default 0;
+                                description "Outer-header Type of Service. 0 = inherit";
+                            }
+
+                            leaf no-pmtu-discovery {
+                                type empty;
+                                description "Disable Path MTU Discovery on the outer header";
+                            }
+                        }
+                    }
+
+                    case ip6gre {
+                        description "GRE over IPv6 (RFC 2784, key extension RFC 2890). L3.";
+                        container ip6gre {
+                            description "GRE-over-IPv6 parameters";
+                            uses tunnel-v6-endpoints;
+
+                            leaf key {
+                                type uint32;
+                                description "32-bit GRE key (RFC 2890)";
+                            }
+
+                            leaf hoplimit {
+                                type uint8;
+                                default 64;
+                                description "Outer IPv6 hop limit (RFC 2473 Section 6.3)";
+                            }
+
+                            leaf tclass {
+                                type uint8;
+                                default 0;
+                                description "Outer IPv6 traffic class (RFC 2473 Section 6.4)";
+                            }
+                        }
+                    }
+
+                    case ip6gretap {
+                        description "GRE over IPv6, L2 (Ethernet over GRE bridgeable). RFC 2784.";
+                        container ip6gretap {
+                            description "GRETAP-over-IPv6 parameters";
+                            uses tunnel-v6-endpoints;
+
+                            leaf key {
+                                type uint32;
+                                description "32-bit GRE key (RFC 2890)";
+                            }
+
+                            leaf hoplimit {
+                                type uint8;
+                                default 64;
+                                description "Outer IPv6 hop limit";
+                            }
+
+                            leaf tclass {
+                                type uint8;
+                                default 0;
+                                description "Outer IPv6 traffic class";
+                            }
+                        }
+                    }
+
+                    case ipip {
+                        description "IPv4 in IPv4 (RFC 2003). No GRE header, no key. L3.";
+                        container ipip {
+                            description "IPIP parameters";
+                            uses tunnel-v4-endpoints;
+
+                            leaf ttl {
+                                type uint8;
+                                default 0;
+                                description "Outer-header TTL. 0 = inherit";
+                            }
+
+                            leaf tos {
+                                type uint8;
+                                default 0;
+                                description "Outer-header Type of Service. 0 = inherit";
+                            }
+
+                            leaf no-pmtu-discovery {
+                                type empty;
+                                description "Disable Path MTU Discovery on the outer header";
+                            }
+                        }
+                    }
+
+                    case sit {
+                        description "IPv6 in IPv4 (6in4, RFC 4213 Section 3). L3.";
+                        container sit {
+                            description "SIT (6in4) parameters";
+                            uses tunnel-v4-endpoints;
+
+                            leaf ttl {
+                                type uint8;
+                                default 0;
+                                description "Outer-header TTL. 0 = inherit";
+                            }
+
+                            leaf tos {
+                                type uint8;
+                                default 0;
+                                description "Outer-header Type of Service. 0 = inherit";
+                            }
+
+                            leaf no-pmtu-discovery {
+                                type empty;
+                                description "Disable Path MTU Discovery on the outer header";
+                            }
+                        }
+                    }
+
+                    case ip6tnl {
+                        description "IPv6 in IPv6 (RFC 2473). Also covers ip6ip6. L3.";
+                        container ip6tnl {
+                            description "IP6TNL parameters";
+                            uses tunnel-v6-endpoints;
+
+                            leaf hoplimit {
+                                type uint8;
+                                default 64;
+                                description "Outer IPv6 hop limit (RFC 2473 Section 6.3)";
+                            }
+
+                            leaf tclass {
+                                type uint8;
+                                default 0;
+                                description "Outer IPv6 traffic class (RFC 2473 Section 6.4)";
+                            }
+
+                            leaf encaplimit {
+                                type uint8;
+                                default 4;
+                                description "Tunnel encapsulation limit (RFC 2473 Section 4.1.1)";
+                            }
+                        }
+                    }
+
+                    case ipip6 {
+                        description "IPv4 in IPv6 (RFC 2473 with Next Header = 4). L3.
+                                     Implemented via the ip6tnl Linux kind with Proto=IPPROTO_IPIP.";
+                        container ipip6 {
+                            description "IPIP6 parameters";
+                            uses tunnel-v6-endpoints;
+
+                            leaf hoplimit {
+                                type uint8;
+                                default 64;
+                                description "Outer IPv6 hop limit";
+                            }
+
+                            leaf tclass {
+                                type uint8;
+                                default 0;
+                                description "Outer IPv6 traffic class";
+                            }
+
+                            leaf encaplimit {
+                                type uint8;
+                                default 4;
+                                description "Tunnel encapsulation limit";
+                            }
+                        }
+                    }
+                }
             }
 
             uses interface-physical;

@@ -27,6 +27,69 @@ func sortedKeys(m map[string]*gyang.Entry) []string {
 	return keys
 }
 
+// namedChild pairs a child entry with its effective name as it should appear
+// under the parent container. Used by flattenChildren to expand choice/case
+// subtrees into their data nodes.
+type namedChild struct {
+	name  string
+	entry *gyang.Entry
+}
+
+// flattenChildren returns the effective children of a YANG entry, descending
+// through ChoiceEntry/CaseEntry layers. The YANG choice/case construct is
+// "transparent" at the data layer: the inner data nodes (leaves, containers,
+// lists) appear as if they were direct children of the parent. The base
+// yang_schema.go walker only handles LeafEntry and DirectoryEntry, so without
+// this helper any choice subtree would be silently dropped from the schema.
+//
+// The case wrapper layer is bypassed entirely: the inner data node's name
+// is used directly, matching the YANG source. Recursion handles nested
+// choices (e.g. a `choice local` inside a per-encap case container).
+func flattenChildren(entry *gyang.Entry) []namedChild {
+	out := make([]namedChild, 0, len(entry.Dir))
+	for _, name := range sortedKeys(entry.Dir) {
+		child := entry.Dir[name]
+		if child == nil {
+			continue
+		}
+		if child.IsChoice() {
+			out = append(out, flattenChoiceCases(child)...)
+			continue
+		}
+		out = append(out, namedChild{name: name, entry: child})
+	}
+	return out
+}
+
+// flattenChoiceCases walks a ChoiceEntry's case branches and yields the data
+// nodes contained within. Direct children of a case are yielded as-is.
+// Nested choices inside a case are recursively flattened.
+func flattenChoiceCases(choice *gyang.Entry) []namedChild {
+	out := make([]namedChild, 0, len(choice.Dir))
+	for _, caseName := range sortedKeys(choice.Dir) {
+		caseEntry := choice.Dir[caseName]
+		if caseEntry == nil {
+			continue
+		}
+		if !caseEntry.IsCase() {
+			out = append(out, namedChild{name: caseName, entry: caseEntry})
+			continue
+		}
+		for _, name := range sortedKeys(caseEntry.Dir) {
+			inner := caseEntry.Dir[name]
+			if inner == nil {
+				continue
+			}
+			if inner.IsChoice() {
+				out = append(out, flattenChoiceCases(inner)...)
+				continue
+			}
+			out = append(out, namedChild{name: name, entry: inner})
+		}
+	}
+	return out
+}
+
 // PluginOnlySchema returns a schema that only accepts plugin blocks.
 // Used for two-phase config parsing: first extract plugins, then parse full config.
 // This loads only the ze-plugin-conf.yang module.
@@ -281,6 +344,18 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
 		}
 	}
 
+	// Load ze-bfd-conf module (bfd)
+	bfdEntry := loader.GetEntry("ze-bfd-conf")
+	if bfdEntry != nil {
+		for _, name := range sortedKeys(bfdEntry.Dir) {
+			child := bfdEntry.Dir[name]
+			node := yangToNode(child, name)
+			if node != nil {
+				schema.Define(name, node)
+			}
+		}
+	}
+
 	return schema, nil
 }
 
@@ -472,15 +547,13 @@ func hasStructuralChildren(l *ListNode) bool {
 
 // yangToContainer converts YANG container to ContainerNode.
 func yangToContainer(entry *gyang.Entry, path string) *ContainerNode {
-	fields := make([]FieldDef, 0, len(entry.Dir)+1)
-	// Sort keys for deterministic field order
-	names := sortedKeys(entry.Dir)
-	for _, name := range names {
-		child := entry.Dir[name]
-		childPath := AppendPath(path, name)
-		node := yangToNode(child, childPath)
+	children := flattenChildren(entry)
+	fields := make([]FieldDef, 0, len(children)+1)
+	for _, c := range children {
+		childPath := AppendPath(path, c.name)
+		node := yangToNode(c.entry, childPath)
 		if node != nil {
-			fields = append(fields, Field(name, node))
+			fields = append(fields, Field(c.name, node))
 		}
 	}
 	container := Container(fields...)

@@ -1,0 +1,21 @@
+# Test: hoplimit leaf is not valid under the gre case
+# hoplimit is a v6-underlay parameter (RFC 2473 Section 6.3) and only appears
+# inside the ip6gre/ip6gretap/ip6tnl/ipip6 cases. The YANG choice/case schema
+# enforces this: gre is an IPv4-underlay case and has no hoplimit leaf.
+stdin=config:terminator=EOF_CONF
+interface {
+	tunnel gre0 {
+		encapsulation {
+			gre {
+				local { ip 192.0.2.1; }
+				remote { ip 198.51.100.1; }
+				hoplimit 64
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=unknown field in gre: hoplimit

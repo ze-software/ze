@@ -1,0 +1,22 @@
+# Test: encaplimit leaf is not valid under the sit case
+# encaplimit (RFC 2473 Section 4.1.1) only applies to ip6tnl and ipip6 cases
+# in v1 (the vendored vishvananda/netlink lib does not expose IFLA_GRE_ENCAP_LIMIT
+# for the GRE family, see plan/deferrals.md). sit is IPv4-underlay and never
+# carries an encaplimit, so the YANG choice/case schema rejects this leaf.
+stdin=config:terminator=EOF_CONF
+interface {
+	tunnel sit0 {
+		encapsulation {
+			sit {
+				local { ip 192.0.2.1; }
+				remote { ip 198.51.100.1; }
+				encaplimit 4
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=unknown field in sit: encaplimit

@@ -103,7 +103,10 @@ func runEngine(conn net.Conn) int {
 	var activeJournal *sdk.Journal
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
-		cfg := parseIfaceSections(sections)
+		cfg, err := parseIfaceSections(sections)
+		if err != nil {
+			return fmt.Errorf("interface config: %w", err)
+		}
 
 		if cfg.Backend == "" {
 			return fmt.Errorf("interface: no backend configured and no OS default available")
@@ -116,7 +119,7 @@ func runEngine(conn net.Conn) int {
 
 		b := GetBackend()
 
-		if errs := applyConfig(cfg, b); len(errs) > 0 {
+		if errs := applyConfig(cfg, nil, b); len(errs) > 0 {
 			return joinApplyErrors("interface config", errs)
 		}
 		activeCfg = cfg
@@ -136,7 +139,10 @@ func runEngine(conn net.Conn) int {
 	})
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		cfg := parseIfaceSections(sections)
+		cfg, err := parseIfaceSections(sections)
+		if err != nil {
+			return fmt.Errorf("interface config: %w", err)
+		}
 		if cfg.Backend == "" {
 			return fmt.Errorf("interface: no backend configured and no OS default available")
 		}
@@ -162,19 +168,22 @@ func runEngine(conn net.Conn) int {
 		j := sdk.NewJournal()
 		err := j.Record(
 			func() error {
-				if errs := applyConfig(cfg, b); len(errs) > 0 {
+				if errs := applyConfig(cfg, previousCfg, b); len(errs) > 0 {
 					return joinApplyErrors("interface reload", errs)
 				}
 				return nil
 			},
 			func() error {
 				// Rollback: re-apply previous config. If no previous config,
-				// apply an empty config to undo all interface changes.
+				// apply an empty config to undo all interface changes. The
+				// "previous" passed to applyConfig here is cfg (the failed
+				// reload's state) so any tunnels we created get rebuilt
+				// with the previous spec, not skipped as unchanged.
 				rollbackCfg := previousCfg
 				if rollbackCfg == nil {
 					rollbackCfg = &ifaceConfig{Backend: defaultBackendName}
 				}
-				if errs := applyConfig(rollbackCfg, b); len(errs) > 0 {
+				if errs := applyConfig(rollbackCfg, cfg, b); len(errs) > 0 {
 					return joinApplyErrors("interface rollback", errs)
 				}
 				// Emit rollback event so downstream plugins react.

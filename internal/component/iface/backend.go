@@ -1,5 +1,6 @@
 // Design: docs/features/interfaces.md -- Interface backend abstraction
 // Overview: iface.go -- shared types and topic constants
+// Related: tunnel.go -- TunnelSpec and tunnel kind enum
 
 package iface
 
@@ -23,6 +24,10 @@ type Backend interface {
 	CreateVeth(name, peerName string) error
 	CreateBridge(name string) error
 	CreateVLAN(parentName string, vlanID int) error
+	// CreateTunnel creates an L3 or L2 tunnel netdev for one of the kinds in
+	// TunnelKind. The TunnelSpec carries kind-specific parameters; fields not
+	// applicable to a kind are ignored. See tunnel.go for the spec shape.
+	CreateTunnel(spec TunnelSpec) error
 	DeleteInterface(name string) error
 
 	// Address management.

@@ -16,7 +16,22 @@ const (
 	zeTypeVeth     = "veth"
 	zeTypeDummy    = "dummy"
 	zeTypeLoopback = "loopback"
+	zeTypeTunnel   = "tunnel"
 )
+
+// kernelTunnelKinds is the set of Linux netlink link types reported by the
+// kernel for the tunnel encapsulation kinds Ze supports. Used to map kernel
+// types into the single "tunnel" zeType (the YANG list is one tunnel list
+// regardless of encapsulation).
+var kernelTunnelKinds = map[string]bool{
+	"gre":       true,
+	"gretap":    true,
+	"ip6gre":    true,
+	"ip6gretap": true,
+	"ipip":      true,
+	"sit":       true,
+	"ip6tnl":    true,
+}
 
 // DiscoverInterfaces enumerates OS network interfaces and classifies them
 // by Ze interface type. Returns only types supported by Ze's YANG schema
@@ -68,6 +83,9 @@ func infoToZeType(info *InterfaceInfo) string {
 	// Linux: loopback is netlink type "device" with name "lo".
 	if info.Type == "device" && info.Name == "lo" {
 		return zeTypeLoopback
+	}
+	if kernelTunnelKinds[info.Type] {
+		return zeTypeTunnel
 	}
 	switch info.Type {
 	case "device":

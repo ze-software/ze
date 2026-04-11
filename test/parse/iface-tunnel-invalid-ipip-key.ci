@@ -1,0 +1,20 @@
+# Test: key leaf is not valid under the ipip case
+# The YANG choice/case ensures `key` exists only inside gre/gretap/ip6gre/ip6gretap,
+# never under ipip. Goyang must reject `key` at parse time when nested in ipip.
+stdin=config:terminator=EOF_CONF
+interface {
+	tunnel ipip0 {
+		encapsulation {
+			ipip {
+				local { ip 192.0.2.1; }
+				remote { ip 198.51.100.1; }
+				key 42
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=unknown field in ipip: key

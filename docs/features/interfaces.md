@@ -18,8 +18,9 @@ JunOS-style two-layer model: physical interfaces with logical units.
 | | Loopback | have | |
 | | Bonding / LACP | missing | high |
 | | VXLAN | missing | medium |
-| | GRE / IPIP / SIT tunnels | missing | medium |
-| | IP6GRE / ERSPAN / GRETAP | missing | lower |
+| | GRE / GRETAP / IPIP / SIT tunnels | have | |
+| | IP6GRE / IP6GRETAP / IP6TNL / IPIP6 tunnels | have | |
+| | ERSPAN | missing | lower |
 | | WireGuard | missing | lower |
 | | MACsec | missing | lower |
 | | MACVLAN | missing | lower |
@@ -32,7 +33,7 @@ JunOS-style two-layer model: physical interfaces with logical units.
 | **Logical Model** | Two-layer physical + unit | have | |
 | | Unit 0 implicit | have | |
 | | VLAN units create subinterfaces | have | |
-| **Lifecycle** | Create (dummy, veth, bridge, VLAN) | have | |
+| **Lifecycle** | Create (dummy, veth, bridge, VLAN, tunnel) | have | |
 | | Delete | have | |
 | | Auto-up on create | have | |
 | | Admin state control (explicit up/down) | have | |
@@ -124,6 +125,7 @@ JunOS-style two-layer model: physical interfaces with logical units.
 <!-- source: internal/component/iface/iface.go — bus topics, payload types, InterfaceStats -->
 <!-- source: internal/component/iface/migrate_linux.go — MigrateInterface 5-phase protocol -->
 <!-- source: internal/plugins/ifacenetlink/manage_linux.go — CreateDummy, CreateVeth, CreateBridge, etc. -->
+<!-- source: internal/plugins/ifacenetlink/tunnel_linux.go — CreateTunnel for 8 tunnel kinds via Gretun/Gretap/Iptun/Sittun/Ip6tnl -->
 <!-- source: internal/plugins/ifacenetlink/monitor_linux.go — netlink multicast subscription -->
 <!-- source: internal/plugins/ifacenetlink/bridge_linux.go — bridge ports, STP via sysfs -->
 <!-- source: internal/plugins/ifacenetlink/sysctl_linux.go — per-interface sysctl writes -->
@@ -206,6 +208,79 @@ tab press, returning MAC addresses from currently active OS interfaces.
   Prevents session loss during address moves.
 - **Virtual interface state.** Dummy/bridge/veth report `OperUnknown` not `OperUp`;
   monitor checks `IFF_UP` flag as fallback.
+- **Tunnel encapsulation as YANG choice/case.** The `tunnel` list at the iface level
+  is one container with an `encapsulation` choice that branches into one case per
+  Linux netlink kind (gre, gretap, ip6gre, ip6gretap, ipip, sit, ip6tnl, ipip6).
+  Per-case leaf sets are constrained by the schema: `key` only appears in GRE-family
+  cases, `hoplimit`/`tclass`/`encaplimit` only in v6-underlay cases. Local and
+  remote endpoints use the same `local { ip ... } remote { ip ... }` shape as the
+  BGP peer connection block, with `local { interface ... }` as an alternative when
+  the source should be taken from another interface.
+
+## Tunnel Configuration
+
+```
+interface {
+    tunnel gre0 {
+        encapsulation {
+            gre {
+                local  { ip 192.0.2.1; }
+                remote { ip 198.51.100.1; }
+                key 42
+            }
+        }
+        unit 0 {
+            address 10.0.0.1/30
+        }
+    }
+
+    tunnel sixin4 {
+        encapsulation {
+            sit {
+                local  { ip 192.0.2.1; }
+                remote { ip 198.51.100.1; }
+            }
+        }
+        unit 0 {
+            address 2001:db8::1/64
+        }
+    }
+
+    tunnel v6ov6 {
+        encapsulation {
+            ip6tnl {
+                local  { ip 2001:db8::1; }
+                remote { ip 2001:db8::2; }
+                hoplimit 64
+                encaplimit 4
+            }
+        }
+    }
+}
+```
+
+The eight supported encapsulation kinds map to Linux netlink kinds:
+
+| Kind | Linux netlink | Underlay | Layer | Notes |
+|------|--------------|----------|-------|-------|
+| `gre` | gre | IPv4 | L3 | RFC 2784, RFC 2890 key |
+| `gretap` | gretap | IPv4 | L2 (bridgeable) | Ethernet over GRE |
+| `ip6gre` | ip6gre | IPv6 | L3 | hoplimit/tclass per RFC 2473 |
+| `ip6gretap` | ip6gretap | IPv6 | L2 (bridgeable) | |
+| `ipip` | ipip | IPv4 | L3 | RFC 2003, no key |
+| `sit` | sit | IPv4 | L3 | 6in4 per RFC 4213 |
+| `ip6tnl` | ip6tnl | IPv6 | L3 | RFC 2473 with Proto=IPV6 |
+| `ipip6` | ip6tnl | IPv6 | L3 | RFC 2473 with Proto=IPIP |
+
+`ipip6` shares the kernel `ip6tnl` netdev with a different inner protocol byte (4 vs 41).
+Both surface as distinct YANG cases so the schema and config are unambiguous.
+
+ERSPAN, GRE keepalives, VRF underlay/overlay leaves, and `ignore-df` on gretap are
+out of scope for v1; see `plan/deferrals.md`.
+
+<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- list tunnel, choice kind, tunnel-v4-endpoints / tunnel-v6-endpoints groupings -->
+<!-- source: internal/component/iface/tunnel.go -- TunnelKind enum, TunnelSpec struct -->
+<!-- source: internal/plugins/ifacenetlink/tunnel_linux.go -- CreateTunnel switch and per-kind builders -->
 - **Idempotent cleanup.** Delete and mirror removal succeed even if already gone.
 
 ## Bus Topics
