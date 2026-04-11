@@ -1,14 +1,3 @@
-// IMPORTANT: this plugin is INTENTIONALLY not blank-imported by
-// `internal/component/plugin/all/all.go`. Running `make generate` will
-// pick it up and regenerate all.go to include it -- DO NOT do that until
-// the wiring spec lands. RunBFDPlugin is a no-op stub today; if a
-// generated all.go references it, the engine will spawn the plugin and
-// see it exit immediately, which presents as a startup failure.
-//
-// To wire BFD into the engine: replace RunBFDPlugin with the real entry
-// (parse YANG, open transport.UDP per VRF, expose api.Service over RPC),
-// then run `make generate`.
-
 package bfd
 
 import (
@@ -30,6 +19,9 @@ func init() {
 		ConfigRoots: []string{"bfd"},
 		YANG:        bfdschema.ZeBFDConfYANG,
 		RunEngine:   RunBFDPlugin,
+		ConfigureEngineLogger: func(loggerName string) {
+			UseLogger(slogutil.Logger(loggerName))
+		},
 	}
 	reg.CLIHandler = func(args []string) int {
 		cfg := cli.BaseConfig(&reg)

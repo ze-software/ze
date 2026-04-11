@@ -57,6 +57,10 @@ var ErrForeignHandle = errors.New("bfd: foreign SessionHandle")
 // zero gives 4 294 967 295 slots; this error means every one is taken.
 var ErrDiscriminatorSpaceExhausted = errors.New("bfd: local discriminator space exhausted")
 
+// ErrUnknownSession is returned when a SessionHandle method is called
+// after the session has been torn down (refcount dropped to zero).
+var ErrUnknownSession = errors.New("bfd: session no longer exists")
+
 // Loop is the BFD express-loop runtime. Caller MUST call Start exactly
 // once and Stop exactly once. EnsureSession and ReleaseSession may be
 // called from any goroutine after Start.

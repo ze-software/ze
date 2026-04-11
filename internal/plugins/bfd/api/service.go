@@ -47,4 +47,14 @@ type SessionHandle interface {
 	// Subscribe. It is safe to call Unsubscribe on a channel that has
 	// already been closed.
 	Unsubscribe(<-chan StateChange)
+
+	// Shutdown forces the session into AdminDown. RFC 5880 §6.8.16: an
+	// administratively-disabled session ceases to transmit and discards
+	// received packets except to update RemoteDiscr. Idempotent.
+	Shutdown() error
+
+	// Enable transitions the session out of AdminDown back to Down so
+	// the handshake can resume. Idempotent: a no-op if the session is
+	// not currently AdminDown.
+	Enable() error
 }

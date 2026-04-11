@@ -1,0 +1,10 @@
+# Test: ze plugin bfd --features lists supported features
+#
+# VALIDATES: spec-bfd-1-wiring -- BFD plugin is registered with the
+#            CLI dispatcher (its register.go init() ran on startup).
+# PREVENTS:  Forgetting to blank-import internal/plugins/bfd from the
+#            generated all.go (which would silently drop the plugin).
+
+cmd=foreground:seq=1:exec=ze plugin bfd --features
+expect=exit:code=0
+expect=stdout:contains=yang

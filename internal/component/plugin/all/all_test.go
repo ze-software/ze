@@ -15,6 +15,7 @@ import (
 // PREVENTS: Missing plugin registration when a register.go is forgotten.
 func TestAllPluginsRegistered(t *testing.T) {
 	expected := []string{
+		"bfd",
 		"bgp",
 		"bgp-adj-rib-in",
 		"bgp-aigp",

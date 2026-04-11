@@ -174,3 +174,30 @@ func (h *handle) Unsubscribe(ch <-chan api.StateChange) {
 		}
 	}
 }
+
+// Shutdown forces the session into AdminDown via session.Machine.AdminDown
+// (RFC 5880 §6.8.16). Returns an error only when the session has been torn
+// down between handle creation and the call. Safe for concurrent use.
+func (h *handle) Shutdown() error {
+	h.loop.mu.Lock()
+	defer h.loop.mu.Unlock()
+	entry, ok := h.loop.sessions[h.key]
+	if !ok {
+		return ErrUnknownSession
+	}
+	entry.machine.AdminDown(packet.DiagAdminDown)
+	return nil
+}
+
+// Enable transitions the session out of AdminDown back to Down so the
+// handshake can resume. No-op if the session is not currently AdminDown.
+func (h *handle) Enable() error {
+	h.loop.mu.Lock()
+	defer h.loop.mu.Unlock()
+	entry, ok := h.loop.sessions[h.key]
+	if !ok {
+		return ErrUnknownSession
+	}
+	entry.machine.AdminEnable()
+	return nil
+}

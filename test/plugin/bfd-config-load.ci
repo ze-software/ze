@@ -1,0 +1,128 @@
+# Test: BFD plugin auto-loads from a bfd { ... } config block
+#
+# VALIDATES: spec-bfd-1-wiring -- BFD plugin reachable from running ze.
+# PREVENTS:  BFD library code remains unwired (the original Stage 0
+#            dead-code state where RunBFDPlugin returned 0 immediately).
+#
+# Method: a Python orchestrator launches the ze binary as a subprocess
+# with a profile-only bfd config and ze.log.bfd=debug, captures stderr,
+# polls for the plugin lifecycle log lines, then SIGTERMs the daemon
+# and exits 0/1 depending on whether all required patterns appeared.
+#
+# The orchestrator is required because the .ci runner does not provide
+# a "wait for daemon stderr pattern then shut down" primitive, and a
+# pure timeout-kill leaves no clean exit code for the gating expect=exit
+# row that the spec-audit hooks require.
+#
+# A profile-only config (no pinned sessions) means no UDP socket bind,
+# so the test runs as an unprivileged user. Pinned-session coverage
+# lands with spec-bfd-3-bgp-client (FRR interop, two-process handshake).
+
+tmpfs=test-bfd-load.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Drive ze with a bfd config and assert plugin lifecycle log lines."""
+
+import os
+import signal
+import subprocess
+import sys
+import time
+
+REQUIRED = [
+    "bfd plugin starting",
+    "bfd plugin configured",
+    "bfd plugin running",
+    "subsystem=bfd",
+]
+
+CONFIG = """environment {
+}
+
+bfd {
+\tenabled true;
+\tprofile fast {
+\t\tdetect-multiplier 3
+\t\tdesired-min-tx-us 50000
+\t\trequired-min-rx-us 50000
+\t}
+}
+"""
+
+
+def main() -> int:
+    env = os.environ.copy()
+    env["ze.log.bfd"] = "debug"
+
+    proc = subprocess.Popen(
+        ["ze", "-"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+    )
+    assert proc.stdin is not None
+    proc.stdin.write(CONFIG)
+    proc.stdin.close()
+
+    deadline = time.time() + 10.0
+    captured = ""
+    matched: set[str] = set()
+    while time.time() < deadline:
+        if proc.stderr is None:
+            break
+        line = proc.stderr.readline()
+        if not line:
+            if proc.poll() is not None:
+                break
+            time.sleep(0.05)
+            continue
+        captured += line
+        sys.stderr.write(line)
+        sys.stderr.flush()
+        for needle in REQUIRED:
+            if needle in line:
+                matched.add(needle)
+        if len(matched) == len(REQUIRED):
+            break
+
+    if proc.poll() is None:
+        proc.send_signal(signal.SIGTERM)
+        try:
+            proc.wait(timeout=3.0)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=2.0)
+
+    # Drain any remaining stderr so the runner sees it.
+    if proc.stderr is not None:
+        try:
+            tail = proc.stderr.read()
+        except (ValueError, OSError):
+            tail = ""
+        if tail:
+            captured += tail
+            sys.stderr.write(tail)
+            sys.stderr.flush()
+
+    missing = [needle for needle in REQUIRED if needle not in captured]
+    if missing:
+        sys.stderr.write(f"FAIL: missing required patterns: {missing}\n")
+        return 1
+
+    sys.stderr.write("OK: all bfd lifecycle patterns observed\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF_PY
+
+# Plugin lifecycle assertions: each pattern fails the test if the
+# corresponding production code path is broken.
+cmd=foreground:seq=1:exec=python3 ./test-bfd-load.py:timeout=15s
+expect=exit:code=0
+expect=stderr:pattern=bfd plugin starting
+expect=stderr:pattern=bfd plugin configured
+expect=stderr:pattern=bfd plugin running
+expect=stderr:pattern=subsystem=bfd
