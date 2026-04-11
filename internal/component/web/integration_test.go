@@ -84,9 +84,9 @@ func setupTestServer(t *testing.T) (baseURL string, client *http.Client, cleanup
 
 	// Build the server with routes.
 	srv, err := NewWebServer(WebConfig{
-		ListenAddr: "127.0.0.1:0",
-		CertPEM:    certPEM,
-		KeyPEM:     keyPEM,
+		ListenAddrs: []string{"127.0.0.1:0"},
+		CertPEM:     certPEM,
+		KeyPEM:      keyPEM,
 	})
 	require.NoError(t, err, "NewWebServer must succeed")
 

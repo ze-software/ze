@@ -1,17 +1,158 @@
 package web
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
+	"io"
+	"net"
+	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// httpsGet fetches a URL with a TLS-InsecureSkipVerify client and returns the
+// body. Used by the multi-listener test to prove both endpoints serve.
+func httpsGet(t *testing.T, url string) (int, string) {
+	t.Helper()
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, //nolint:gosec // test client against self-signed cert
+			},
+		},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
+	require.NoError(t, err)
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			t.Logf("body close: %v", closeErr)
+		}
+	}()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	return resp.StatusCode, string(body)
+}
+
+// TestWebServer_MultiListener verifies that every address in WebConfig.ListenAddrs
+// is bound, Addresses() reports every bound ip:port, and both endpoints serve
+// the same mux concurrently.
+//
+// VALIDATES: AC-1 (web config with two server entries binds both endpoints).
+// VALIDATES: AC-14 (graceful Shutdown closes every listener).
+// PREVENTS: Regression where a multi-listener binder silently serves only the
+// first endpoint.
+func TestWebServer_MultiListener(t *testing.T) {
+	certPEM, keyPEM, err := GenerateWebCert()
+	require.NoError(t, err)
+
+	srv, err := NewWebServer(WebConfig{
+		ListenAddrs: []string{"127.0.0.1:0", "127.0.0.1:0"},
+		CertPEM:     certPEM,
+		KeyPEM:      keyPEM,
+	})
+	require.NoError(t, err)
+
+	srv.HandleFunc("/ping", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, writeErr := w.Write([]byte("pong")); writeErr != nil {
+			t.Logf("write: %v", writeErr)
+		}
+	})
+
+	serveErrCh := make(chan error, 1)
+	go func() {
+		serveErr := srv.ListenAndServe(context.Background())
+		if serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			serveErrCh <- serveErr
+			return
+		}
+		close(serveErrCh)
+	}()
+
+	readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer readyCancel()
+	require.NoError(t, srv.WaitReady(readyCtx))
+
+	addrs := srv.Addresses()
+	require.Len(t, addrs, 2, "expected 2 bound addresses")
+	assert.NotEqual(t, addrs[0], addrs[1], "two listeners must bind distinct ports")
+	assert.Contains(t, addrs[0], "127.0.0.1:")
+	assert.Contains(t, addrs[1], "127.0.0.1:")
+
+	// Address() should return the first bound address for backward compat.
+	assert.Equal(t, addrs[0], srv.Address())
+
+	// Fetch from each listener independently.
+	for i, addr := range addrs {
+		status, body := httpsGet(t, fmt.Sprintf("https://%s/ping", addr))
+		assert.Equal(t, http.StatusOK, status, "listener %d (%s)", i, addr)
+		assert.Equal(t, "pong", body, "listener %d (%s)", i, addr)
+	}
+
+	// Graceful shutdown should close both listeners.
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer shutdownCancel()
+	require.NoError(t, srv.Shutdown(shutdownCtx))
+
+	select {
+	case err := <-serveErrCh:
+		if err != nil {
+			t.Fatalf("ListenAndServe returned unexpected error: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("ListenAndServe did not return after Shutdown")
+	}
+}
+
+// TestWebServer_BindFailureClosesPartialListeners verifies that when the
+// second listen address fails to bind (because it is already in use), the
+// first successfully-bound listener is closed and ListenAndServe returns
+// the bind error instead of leaking a half-bound server.
+//
+// VALIDATES: AC-15 (fail-fast on partial bind).
+// PREVENTS: Silently ending up with N-1 listeners live after a bind failure.
+func TestWebServer_BindFailureClosesPartialListeners(t *testing.T) {
+	certPEM, keyPEM, err := GenerateWebCert()
+	require.NoError(t, err)
+
+	// Grab a port that is guaranteed to be in use by binding it ourselves.
+	squatter, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp4", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer func() {
+		if closeErr := squatter.Close(); closeErr != nil {
+			t.Logf("squatter close: %v", closeErr)
+		}
+	}()
+	squattedAddr := squatter.Addr().String()
+
+	srv, err := NewWebServer(WebConfig{
+		// First entry should succeed; second entry should fail because the
+		// port is held by the squatter above.
+		ListenAddrs: []string{"127.0.0.1:0", squattedAddr},
+		CertPEM:     certPEM,
+		KeyPEM:      keyPEM,
+	})
+	require.NoError(t, err)
+
+	err = srv.ListenAndServe(context.Background())
+	require.Error(t, err, "ListenAndServe must fail when any bind fails")
+	assert.Contains(t, err.Error(), "bind")
+	assert.Contains(t, err.Error(), squattedAddr)
+}
 
 // TestGenerateWebCert verifies that GenerateWebCert produces valid PEM-encoded
 // ECDSA P-256 certificate and key material suitable for TLS.
@@ -215,18 +356,23 @@ func TestNewWebServerRequiresFields(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "missing listen address",
+			name:    "missing listen addresses",
 			cfg:     WebConfig{CertPEM: certPEM, KeyPEM: keyPEM},
-			wantErr: "listen address is required",
+			wantErr: "at least one listen address is required",
+		},
+		{
+			name:    "empty string in listen addresses",
+			cfg:     WebConfig{ListenAddrs: []string{""}, CertPEM: certPEM, KeyPEM: keyPEM},
+			wantErr: "listen address must not be empty",
 		},
 		{
 			name:    "missing cert and key",
-			cfg:     WebConfig{ListenAddr: "127.0.0.1:0"},
+			cfg:     WebConfig{ListenAddrs: []string{"127.0.0.1:0"}},
 			wantErr: "certificate and key PEM data are required",
 		},
 		{
 			name:    "missing key only",
-			cfg:     WebConfig{ListenAddr: "127.0.0.1:0", CertPEM: certPEM},
+			cfg:     WebConfig{ListenAddrs: []string{"127.0.0.1:0"}, CertPEM: certPEM},
 			wantErr: "certificate and key PEM data are required",
 		},
 	}

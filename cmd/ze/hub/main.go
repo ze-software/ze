@@ -784,9 +784,9 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 	renderer.SetDecorators(decorators)
 
 	srv, err := zeweb.NewWebServer(zeweb.WebConfig{
-		ListenAddr: listenAddr,
-		CertPEM:    certPEM,
-		KeyPEM:     keyPEM,
+		ListenAddrs: []string{listenAddr},
+		CertPEM:     certPEM,
+		KeyPEM:      keyPEM,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: %v\n", err)

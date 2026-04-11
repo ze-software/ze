@@ -19,6 +19,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	stdlog "log"
@@ -26,6 +27,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -68,8 +70,10 @@ type CertStore interface {
 
 // WebConfig holds the configuration for creating a WebServer.
 type WebConfig struct {
-	// ListenAddr is the address to bind (e.g., "127.0.0.1:8443").
-	ListenAddr string
+	// ListenAddrs is the list of addresses to bind (e.g., []string{"127.0.0.1:8443"}).
+	// At least one entry is required. Every entry becomes a separate listener
+	// on the same *http.Server; Shutdown closes all of them.
+	ListenAddrs []string
 
 	// CertPEM is optional PEM-encoded certificate data.
 	// When set together with KeyPEM, certificate generation is skipped.
@@ -87,23 +91,35 @@ type WebConfig struct {
 // WebServer is the HTTPS web server.
 // Routes are registered via HandleFunc before calling ListenAndServe.
 // Callers MUST call Shutdown to release resources when the server is no longer needed.
+// ListenAndServe binds every address in WebConfig.ListenAddrs before any
+// serve goroutine starts; if ANY bind fails the already-bound listeners are
+// closed and ListenAndServe returns the error.
 type WebServer struct {
 	mux       *http.ServeMux
 	tlsConfig *tls.Config
-	addr      string
-	mu        sync.RWMutex  // protects addr after ListenAndServe updates it
-	ready     chan struct{} // closed when the listener is bound
-	logger    *slog.Logger
-	server    *http.Server
+	// configured holds the addresses passed in by the caller, in the original
+	// order. Used at bind time.
+	configured []string
+	// bound holds the actual listen addresses once ListenAndServe has bound
+	// them. For port 0 this differs from configured. Populated under mu.
+	bound  []string
+	mu     sync.RWMutex  // protects bound after ListenAndServe updates it
+	ready  chan struct{} // closed once every listener is bound
+	logger *slog.Logger
+	server *http.Server
 }
 
 // NewWebServer creates a new WebServer from the given configuration.
-// It requires TLS material (CertPEM and KeyPEM) to be present in cfg.
+// It requires TLS material (CertPEM and KeyPEM) to be present in cfg, and
+// at least one entry in cfg.ListenAddrs.
 // Use LoadOrGenerateCert to obtain PEM data from a CertStore before
 // calling NewWebServer.
 func NewWebServer(cfg WebConfig) (*WebServer, error) {
-	if cfg.ListenAddr == "" {
-		return nil, fmt.Errorf("web server: listen address is required")
+	if len(cfg.ListenAddrs) == 0 {
+		return nil, fmt.Errorf("web server: at least one listen address is required")
+	}
+	if slices.Contains(cfg.ListenAddrs, "") {
+		return nil, fmt.Errorf("web server: listen address must not be empty")
 	}
 
 	log := cfg.Logger
@@ -121,15 +137,18 @@ func NewWebServer(cfg WebConfig) (*WebServer, error) {
 	}
 
 	mux := http.NewServeMux()
+	configured := append([]string(nil), cfg.ListenAddrs...)
 
 	return &WebServer{
-		mux:       mux,
-		tlsConfig: tlsCfg,
-		addr:      cfg.ListenAddr,
-		ready:     make(chan struct{}),
-		logger:    log,
+		mux:        mux,
+		tlsConfig:  tlsCfg,
+		configured: configured,
+		ready:      make(chan struct{}),
+		logger:     log,
 		server: &http.Server{
-			Addr:      cfg.ListenAddr,
+			// Addr is informational; a multi-listener server binds via Serve(ln)
+			// and does not use Server.Addr for ListenAndServe.
+			Addr:      configured[0],
 			Handler:   mux,
 			TLSConfig: tlsCfg,
 			// Timeouts prevent slow clients from holding connections indefinitely.
@@ -152,47 +171,107 @@ func (s *WebServer) Handle(pattern string, handler http.Handler) {
 	s.mux.Handle(pattern, handler)
 }
 
-// ListenAndServe starts the HTTPS server on the configured address.
+// ListenAndServe binds every configured listen address and starts serving.
 // It blocks until the server is shut down or encounters a fatal error.
 // The context is used for the initial listener bind; use Shutdown for
 // graceful termination of the running server.
+//
+// Bind is all-or-nothing: if ANY listener fails to bind, the already-bound
+// listeners are closed and the bind error is returned without entering the
+// serve loop. Partial binding is never accepted.
 func (s *WebServer) ListenAndServe(ctx context.Context) error {
 	var lc net.ListenConfig
-	network := "tcp4"
-	if strings.Contains(s.addr, "[") {
-		network = "tcp6"
-	}
-	ln, err := lc.Listen(ctx, network, s.addr)
-	if err != nil {
-		return fmt.Errorf("web server bind: %w", err)
+
+	listeners := make([]net.Listener, 0, len(s.configured))
+	bound := make([]string, 0, len(s.configured))
+	for _, addr := range s.configured {
+		network := "tcp4"
+		if strings.Contains(addr, "[") {
+			network = "tcp6"
+		}
+		ln, err := lc.Listen(ctx, network, addr)
+		if err != nil {
+			closeAllListeners(listeners, s.logger)
+			return fmt.Errorf("web server bind %s: %w", addr, err)
+		}
+		listeners = append(listeners, ln)
+		bound = append(bound, ln.Addr().String())
 	}
 
-	// Update address to reflect the actual bound address (e.g., when port is 0).
 	s.mu.Lock()
-	s.addr = ln.Addr().String()
+	s.bound = bound
 	s.mu.Unlock()
 
 	close(s.ready)
 
-	s.logger.Info("web server listening", "address", s.addr)
+	for _, addr := range bound {
+		s.logger.Info("web server listening", "address", addr)
+	}
 
-	tlsLn := tls.NewListener(ln, s.tlsConfig)
-
-	// Serve is used instead of ServeTLS because the listener is already TLS-wrapped.
-	return s.server.Serve(tlsLn)
+	// Serve every listener on the same *http.Server. The Server tracks each
+	// listener internally so Shutdown closes all of them.
+	errCh := make(chan error, len(listeners))
+	var wg sync.WaitGroup
+	for _, ln := range listeners {
+		tlsLn := tls.NewListener(ln, s.tlsConfig)
+		wg.Add(1)
+		go func(tlsLn net.Listener) {
+			defer wg.Done()
+			if serveErr := s.server.Serve(tlsLn); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+				errCh <- serveErr
+			}
+		}(tlsLn)
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// Address returns the configured listen address.
-// After ListenAndServe is called, this reflects the actual bound address
-// (which may differ if the configured port was 0).
-func (s *WebServer) Address() string {
+// closeAllListeners closes every listener in the slice, logging any errors.
+// Used on the bind-failure path to release the partially-acquired set.
+func closeAllListeners(listeners []net.Listener, log *slog.Logger) {
+	for _, ln := range listeners {
+		if closeErr := ln.Close(); closeErr != nil {
+			log.Warn("web server: close partial listener", "error", closeErr)
+		}
+	}
+}
+
+// Addresses returns every bound listen address, in the order they were
+// configured. After ListenAndServe binds, entries reflect the resolved
+// ip:port (differing from the configured form when port was 0). Before
+// ListenAndServe binds, Addresses returns the configured addresses.
+func (s *WebServer) Addresses() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.addr
+	if len(s.bound) > 0 {
+		out := make([]string, len(s.bound))
+		copy(out, s.bound)
+		return out
+	}
+	out := make([]string, len(s.configured))
+	copy(out, s.configured)
+	return out
 }
 
-// WaitReady blocks until the server has bound its listener and is ready
+// Address returns the first bound listen address. Retained for callers that
+// only care about the primary endpoint; multi-listener callers should use
+// Addresses() instead.
+func (s *WebServer) Address() string {
+	addrs := s.Addresses()
+	if len(addrs) == 0 {
+		return ""
+	}
+	return addrs[0]
+}
+
+// WaitReady blocks until every listener has bound and the server is ready
 // to accept connections, or until ctx is canceled.
 func (s *WebServer) WaitReady(ctx context.Context) error {
 	select {
@@ -205,6 +284,7 @@ func (s *WebServer) WaitReady(ctx context.Context) error {
 
 // Shutdown gracefully shuts down the server without interrupting active connections.
 // It waits for active requests to complete or until the context deadline is reached.
+// Shutdown closes every listener that ListenAndServe bound.
 func (s *WebServer) Shutdown(ctx context.Context) error {
 	s.logger.Info("web server shutting down")
 	return s.server.Shutdown(ctx)
