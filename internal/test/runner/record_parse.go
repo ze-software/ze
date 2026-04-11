@@ -105,18 +105,19 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 		// Reject it with a hard error naming the directive so the author can
 		// move it outside the block.
 		if peerBlock, ok := v.StdinBlocks["peer"]; ok {
-			lines := strings.SplitSeq(string(peerBlock), "\n")
-			for line := range lines {
+			blockLine := 0
+			for line := range strings.SplitSeq(string(peerBlock), "\n") {
+				blockLine++
 				trimmed := strings.TrimSpace(line)
 				if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 					continue
 				}
 				if strings.HasPrefix(trimmed, "option=env:") {
-					return fmt.Errorf("%q is consumed by the test runner, not ze-peer, "+
+					return fmt.Errorf("stdin=peer block line %d: %q is consumed by the test runner, not ze-peer, "+
 						"so placing it inside a stdin=peer block silently drops it. "+
 						"Move it outside (above) the stdin=peer:terminator=... header. "+
 						"See plan/learned/545-debug-plugin-test-cluster.md",
-						trimmed)
+						blockLine, trimmed)
 				}
 				// Parse expect= and action= lines for reporting purposes
 				if strings.HasPrefix(trimmed, "expect=") || strings.HasPrefix(trimmed, "action=") {

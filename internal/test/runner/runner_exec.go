@@ -260,11 +260,14 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	// Add test-specific environment variables
 	clientEnv = append(clientEnv, rec.EnvVars...)
 
-	// Add syslog destination if syslog server is running
+	// Add syslog destination if syslog server is running.
+	// These use the ze.log.backend / ze.log.destination convention from
+	// internal/core/slogutil/slogutil.go. Older code used ze.log.bgp.*
+	// which is not registered and was silently ignored.
 	if syslogSrv != nil {
 		clientEnv = append(clientEnv,
-			"ze.log.bgp.backend=syslog",
-			fmt.Sprintf("ze.log.bgp.destination=127.0.0.1:%d", syslogSrv.Port()),
+			"ze.log.backend=syslog",
+			fmt.Sprintf("ze.log.destination=127.0.0.1:%d", syslogSrv.Port()),
 		)
 	}
 
@@ -375,6 +378,20 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	defer cancel()
 
 	rec.State = StateRunning
+
+	// Start test-syslog server if syslog patterns are expected.
+	// Mirrors the setup in the non-orchestrated path: bound ze process env
+	// gets ze.log.backend=syslog and ze.log.destination=<host:port>.
+	var syslogSrv *syslog.Server
+	if len(rec.ExpectSyslog) > 0 {
+		syslogSrv = syslog.New(0)
+		if err := syslogSrv.Start(testCtx); err != nil {
+			rec.Error = fmt.Errorf("start syslog server: %w", err)
+			return false
+		}
+		rec.SyslogPort = syslogSrv.Port()
+		defer func() { _ = syslogSrv.Close() }()
+	}
 
 	// Track background processes for cleanup
 	var bgProcs []*exec.Cmd
@@ -566,6 +583,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// the override breaks their mock network setup.
 		if binName == "ze" || binName == binNameZePeer {
 			proc.Env = append(proc.Env, fmt.Sprintf("ze_bgp_tcp_port=%d", rec.Port))
+		}
+		// Point ze at the test syslog server when one was started. Uses the
+		// ze.log.backend / ze.log.destination convention from slogutil.go.
+		// Only applied to ze: ze-peer and helper scripts do not need it.
+		if binName == "ze" && syslogSrv != nil {
+			proc.Env = append(proc.Env,
+				"ze.log.backend=syslog",
+				fmt.Sprintf("ze.log.destination=127.0.0.1:%d", syslogSrv.Port()),
+			)
 		}
 		// Add test-specific environment variables (option=env:var=KEY:value=VALUE)
 		proc.Env = append(proc.Env, rec.EnvVars...)
@@ -819,6 +845,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			}
 		}
 
+		// Validate logging expectations (expect/reject stderr patterns, expect syslog)
+		if logErr := r.validateLogging(rec, clientStderr.String(), syslogSrv); logErr != nil {
+			rec.Error = logErr
+			rec.FailureType = FailTypeLoggingMismatch
+			return false
+		}
+
 		return true
 	}
 
@@ -828,6 +861,12 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		if jsonErr := r.validateJSON(rec); jsonErr != nil {
 			rec.Error = jsonErr
 			rec.FailureType = FailTypeJSONMismatch
+			return false
+		}
+		// Validate logging expectations (expect/reject stderr patterns, expect syslog)
+		if logErr := r.validateLogging(rec, clientStderr.String(), syslogSrv); logErr != nil {
+			rec.Error = logErr
+			rec.FailureType = FailTypeLoggingMismatch
 			return false
 		}
 		return true

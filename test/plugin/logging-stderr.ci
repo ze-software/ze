@@ -18,9 +18,13 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 # EOR
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# Verify server subsystem logs appear in stderr
-expect=stderr:pattern=subsystem=server
-expect=stderr:pattern=stageTransition|deliverConfig|handleRegistrationLine
+# Verify bgp.server subsystem DEBUG logs appear in stderr.
+# The subsystem tag in slog output is the literal "bgp.server" so the
+# regex escapes the dot.
+expect=stderr:pattern=subsystem=bgp\.server
+# At least one DEBUG-level callback fired by the server lifecycle -- these
+# only appear when ze.log.bgp.server=debug actually takes effect.
+expect=stderr:pattern=OnMessageReceived|OnPeerStateChange|OnMessageSent
 EOF_PEER
 
 # ze bgp configuration

@@ -3,7 +3,6 @@ package runner
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -75,8 +74,11 @@ EOF_PEER
 	assert.Contains(t, msg, "option=env:var=ze.log.bgp.server:value=debug",
 		"error should name the directive")
 	// Error must explain the remedy: move OUTSIDE the peer block.
-	assert.True(t, strings.Contains(msg, "outside"),
-		"error should tell the author to place the directive outside the peer block: %s", msg)
+	assert.Contains(t, msg, "outside",
+		"error should tell the author to place the directive outside the peer block")
+	// Error must identify the position inside the block so the author can jump to it.
+	assert.Contains(t, msg, "stdin=peer block line",
+		"error should name the stdin=peer block and line offset")
 }
 
 // TestParseAndAdd_OptionTimeoutInsidePeerBlockPasses verifies that

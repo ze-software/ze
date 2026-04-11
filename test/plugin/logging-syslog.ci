@@ -18,8 +18,10 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 # EOR
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# Verify server subsystem logs arrive at syslog server
-expect=syslog:pattern=subsystem=server
+# Verify bgp.server subsystem logs arrive at syslog server.
+# The subsystem tag in slog output is the literal "bgp.server" so the
+# regex escapes the dot.
+expect=syslog:pattern=subsystem=bgp\.server
 EOF_PEER
 
 # ze bgp configuration

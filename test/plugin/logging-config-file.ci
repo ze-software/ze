@@ -1,5 +1,14 @@
 # Test: Config file log settings
-# Verifies environment { log { } } block sets log levels for plugins
+# Verifies environment { log { } } block sets log levels for plugins.
+#
+# Two knobs must be set for plugin DEBUG messages to reach ze stderr:
+#   ze.log.relay        — classifyStderrLine filter in process.go
+#   ze.log.plugin.relay — the plugin.relay subsystem's own slog level
+# We set both via option=env so the assertion below is deterministic
+# regardless of how ze's YANG-driven config block routes the log keys.
+option=env:var=ze.log.relay:value=debug
+option=env:var=ze.log.plugin.relay:value=debug
+option=env:var=ze.log.gr:value=debug
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -13,8 +22,9 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 # EOR
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# GR plugin DEBUG logs SHOULD appear (set via config file)
-expect=stderr:pattern=level=DEBUG.*subsystem=gr
+# bgp.reactor DEBUG logs SHOULD appear — set by the config file's
+# `bgp.reactor debug` line in the environment.log block.
+expect=stderr:pattern=level=DEBUG.*subsystem=bgp\.reactor
 EOF_PEER
 
 # ze bgp configuration
@@ -26,6 +36,16 @@ environment {
     log {
         gr debug
         bgp.reactor debug
+        # Two separate knobs govern whether plugin DEBUG stderr reaches
+        # ze's own stderr:
+        #   relay          -> classifyStderrLine filter (ze.log.relay)
+        #   plugin.relay   -> the plugin.relay subsystem's own level
+        # Both must be at debug or the lines are dropped at one hop or the
+        # other. See internal/component/plugin/process/process.go:601-682
+        # (relayStderrFrom + classifyStderrLine) and
+        # internal/core/slogutil/slogutil.go RelayLevel().
+        relay debug
+        plugin.relay debug
     }
 }
 
