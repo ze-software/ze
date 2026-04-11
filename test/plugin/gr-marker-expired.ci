@@ -19,12 +19,21 @@ mkdir -p meta/bgp
 printf '\000\000\000\000\073\232\312\000' > meta/bgp/gr-marker
 EOF_MARKER
 
-# ze-peer expectations
-stdin=peer:terminator=EOF_PEER
-option=timeout:value=15s
+# Use filesystem storage so the on-disk marker file is actually read by ze.
+# With default blob storage, ze looks inside database.zefs (binary-relative),
+# not the tmpfs, so the marker file would be invisible and the test would
+# pass vacuously (reject= would match nothing because no GR code ran).
+# option=env must live OUTSIDE the stdin=peer block: the test runner only
+# parses expect= / action= lines from that block, so option=env inside it
+# is silently ignored.
+option=env:var=ze.storage.blob:value=false
 
 # Enable GR subsystem logging to confirm marker is NOT detected as valid
 option=env:var=ze.log.bgp.gr:value=info
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=15s
 
 # Session establishes normally (cold start behavior): UPDATE + EOR
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801

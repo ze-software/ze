@@ -394,11 +394,16 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
-	// Start SSH server directly when config has ssh {} block.
-	// The infra hook only fires when BGP creates a reactor; without bgp {},
-	// SSH must start here (e.g., gokrazy appliance with only environment {}).
+	// Start SSH server directly when config has ssh {} block AND no bgp {} block.
+	// When bgp {} is present, the BGP plugin's infra hook owns SSH startup so it
+	// can wire the command executor factory in the reactor's post-start callback.
+	// Starting SSH here in that case produces a second listener with no executor
+	// factory -- clients connecting to it see "command executor not ready".
+	// Without bgp {}, SSH must start here (e.g., gokrazy appliance with only
+	// environment {}).
+	_, hasBGPBlock := configTree["bgp"]
 	sshCfg := bgpconfig.ExtractSSHConfig(loadResult.Tree)
-	if sshCfg.HasConfig {
+	if sshCfg.HasConfig && !hasBGPBlock {
 		cfg := zessh.Config{
 			Listen:      sshCfg.Listen,
 			ListenAddrs: sshCfg.ListenAddrs,

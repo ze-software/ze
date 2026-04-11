@@ -24,13 +24,20 @@ mkdir -p meta/bgp
 printf '\000\000\000\000\362\245\054\000' > meta/bgp/gr-marker
 EOF_MARKER
 
+# Use filesystem storage: the shell script creates the marker as a file on disk.
+# With default blob storage the marker would live inside database.zefs (binary-relative
+# configDir), not the tmpfs, so the pre-seeded marker would never be visible to ze.
+# Must live OUTSIDE the stdin=peer block: the test runner only parses expect= / action=
+# lines from that block, so option=env inside it is silently ignored.
+option=env:var=ze.storage.blob:value=false
+
+# Enable GR subsystem logging so marker detection is visible (also outside peer block).
+option=env:var=ze.log.bgp.gr:value=info
+
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=timeout:value=15s
 option=open:value=inspect-open-message
-
-# Enable GR subsystem logging so marker detection is visible
-option=env:var=ze.log.bgp.gr:value=info
 
 # Verify R=1 in the OPEN message wire bytes.
 # OPEN structure: marker(16) + len=0x002F(47) + type=01(OPEN) + ver=04 + AS=0001
