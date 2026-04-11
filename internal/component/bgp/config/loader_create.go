@@ -187,14 +187,17 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 
 	// Start Prometheus metrics HTTP server from telemetry config block.
 	// Creates a shared registry that the reactor (and future components) register metrics into.
-	if addr, port, path, ok := metrics.ExtractTelemetryConfig(tree.ToMap()); ok {
+	// Every entry in cfg.Endpoints becomes a bound listener on the shared http.Server.
+	if telemetryCfg := metrics.ExtractTelemetryConfig(tree.ToMap()); telemetryCfg.Enabled {
 		reg := metrics.NewPrometheusRegistry()
 		var srv metrics.Server
-		if err := srv.Start(reg, addr, port, path); err != nil {
+		if err := srv.Start(reg, telemetryCfg); err != nil {
 			configLogger().Warn("metrics server failed to start", "error", err)
 		} else {
-			configLogger().Info("prometheus metrics enabled",
-				"address", addr, "port", port, "path", path)
+			for _, ep := range telemetryCfg.Endpoints {
+				configLogger().Info("prometheus metrics enabled",
+					"address", ep.Host, "port", ep.Port, "path", telemetryCfg.Path)
+			}
 			r.SetMetricsRegistry(reg)
 			registry.SetMetricsRegistry(reg)
 		}

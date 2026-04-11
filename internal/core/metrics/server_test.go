@@ -1,7 +1,10 @@
 package metrics_test
 
 import (
+	"context"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"testing"
 
@@ -21,7 +24,11 @@ func TestServer_StartAndScrape(t *testing.T) {
 	c.Add(7)
 
 	var srv metrics.Server
-	err := srv.Start(reg, "127.0.0.1", 19274, "/metrics")
+	err := srv.Start(reg, metrics.TelemetryConfig{
+		Enabled:   true,
+		Endpoints: []metrics.Endpoint{{Host: "127.0.0.1", Port: 19274}},
+		Path:      "/metrics",
+	})
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, srv.Close())
@@ -56,7 +63,11 @@ func TestServer_CloseIdempotent(t *testing.T) {
 func TestServer_CloseAfterStartIdempotent(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
 	var srv metrics.Server
-	require.NoError(t, srv.Start(reg, "127.0.0.1", 19277, "/metrics"))
+	require.NoError(t, srv.Start(reg, metrics.TelemetryConfig{
+		Enabled:   true,
+		Endpoints: []metrics.Endpoint{{Host: "127.0.0.1", Port: 19277}},
+		Path:      "/metrics",
+	}))
 	require.NoError(t, srv.Close())
 	require.NoError(t, srv.Close())
 }
@@ -68,7 +79,11 @@ func TestServer_CloseAfterStartIdempotent(t *testing.T) {
 func TestServer_InvalidAddress(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
 	var srv metrics.Server
-	err := srv.Start(reg, "999.999.999.999", 19275, "/metrics")
+	err := srv.Start(reg, metrics.TelemetryConfig{
+		Enabled:   true,
+		Endpoints: []metrics.Endpoint{{Host: "999.999.999.999", Port: 19275}},
+		Path:      "/metrics",
+	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "metrics server listen")
 }
@@ -82,7 +97,11 @@ func TestServer_CustomPath(t *testing.T) {
 	reg.Counter("custom_path_total", "Test counter.").Inc()
 
 	var srv metrics.Server
-	err := srv.Start(reg, "127.0.0.1", 19276, "/custom")
+	err := srv.Start(reg, metrics.TelemetryConfig{
+		Enabled:   true,
+		Endpoints: []metrics.Endpoint{{Host: "127.0.0.1", Port: 19276}},
+		Path:      "/custom",
+	})
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, srv.Close()) })
 
@@ -291,13 +310,123 @@ func TestExtractTelemetryConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			addr, port, path, enabled := metrics.ExtractTelemetryConfig(tt.tree)
-			assert.Equal(t, tt.enabled, enabled)
-			if enabled {
-				assert.Equal(t, tt.addr, addr)
-				assert.Equal(t, tt.port, port)
-				assert.Equal(t, tt.path, path)
+			cfg := metrics.ExtractTelemetryConfig(tt.tree)
+			assert.Equal(t, tt.enabled, cfg.Enabled)
+			if cfg.Enabled {
+				require.NotEmpty(t, cfg.Endpoints, "enabled config must yield at least one endpoint")
+				assert.Equal(t, tt.addr, cfg.Endpoints[0].Host)
+				assert.Equal(t, tt.port, cfg.Endpoints[0].Port)
+				assert.Equal(t, tt.path, cfg.Path)
 			}
 		})
+	}
+}
+
+// TestExtractTelemetryConfig_MultipleServers verifies every YANG list entry
+// becomes an Endpoint in the returned slice, sorted alphabetically by key.
+//
+// VALIDATES: AC-4 (telemetry config with two server entries yields two
+// endpoints). The original "first entry only" behavior (the `break` on
+// line 97 of the old server.go) is gone.
+// PREVENTS: Silent drop of extra telemetry listeners.
+func TestExtractTelemetryConfig_MultipleServers(t *testing.T) {
+	tree := map[string]any{
+		"telemetry": map[string]any{
+			"prometheus": map[string]any{
+				"enabled": "true",
+				"server": map[string]any{
+					// Alphabetical order: "a" first, "b" second.
+					"a": map[string]any{"ip": "0.0.0.0", "port": "9273"},
+					"b": map[string]any{"ip": "127.0.0.1", "port": "19273"},
+				},
+				"path": "/metrics",
+			},
+		},
+	}
+
+	cfg := metrics.ExtractTelemetryConfig(tree)
+	require.True(t, cfg.Enabled)
+	require.Len(t, cfg.Endpoints, 2)
+	assert.Equal(t, "0.0.0.0", cfg.Endpoints[0].Host)
+	assert.Equal(t, 9273, cfg.Endpoints[0].Port)
+	assert.Equal(t, "127.0.0.1", cfg.Endpoints[1].Host)
+	assert.Equal(t, 19273, cfg.Endpoints[1].Port)
+}
+
+// TestServer_MultiListener verifies Server.Start binds every endpoint and
+// both listeners serve the same metrics handler.
+//
+// VALIDATES: AC-4 (multi-listener binding end-to-end).
+// VALIDATES: AC-14 (Close shuts every listener down).
+// PREVENTS: Regression where only the first telemetry listener is bound.
+func TestServer_MultiListener(t *testing.T) {
+	reg := metrics.NewPrometheusRegistry()
+	reg.Counter("multi_listener_total", "Test counter.").Add(42)
+
+	var srv metrics.Server
+	err := srv.Start(reg, metrics.TelemetryConfig{
+		Enabled: true,
+		Endpoints: []metrics.Endpoint{
+			{Host: "127.0.0.1", Port: 19401},
+			{Host: "127.0.0.1", Port: 19402},
+		},
+		Path: "/metrics",
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, srv.Close())
+	})
+
+	for _, addr := range []string{"127.0.0.1:19401", "127.0.0.1:19402"} {
+		resp, getErr := http.Get("http://" + addr + "/metrics") //nolint:noctx // test code, no context needed
+		require.NoError(t, getErr, "GET %s", addr)
+		body, readErr := io.ReadAll(resp.Body)
+		require.NoError(t, resp.Body.Close())
+		require.NoError(t, readErr)
+		assert.Equal(t, http.StatusOK, resp.StatusCode, "listener %s", addr)
+		assert.Contains(t, string(body), "multi_listener_total 42", "listener %s", addr)
+	}
+}
+
+// TestServer_BindFailureRollsBack verifies that when the second endpoint
+// fails to bind, the first listener is closed and Start returns the error.
+//
+// VALIDATES: AC-15 (fail-fast on partial bind).
+func TestServer_BindFailureRollsBack(t *testing.T) {
+	// Squat on a port so the second bind fails.
+	squatter, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp4", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if closeErr := squatter.Close(); closeErr != nil {
+			t.Logf("close squatter: %v", closeErr)
+		}
+	})
+	_, squattedPortStr, err := net.SplitHostPort(squatter.Addr().String())
+	require.NoError(t, err)
+	var squattedPort int
+	_, err = fmt.Sscanf(squattedPortStr, "%d", &squattedPort)
+	require.NoError(t, err)
+
+	reg := metrics.NewPrometheusRegistry()
+	var srv metrics.Server
+	err = srv.Start(reg, metrics.TelemetryConfig{
+		Enabled: true,
+		Endpoints: []metrics.Endpoint{
+			{Host: "127.0.0.1", Port: 19403},
+			{Host: "127.0.0.1", Port: squattedPort},
+		},
+		Path: "/metrics",
+	})
+	require.Error(t, err, "Start must fail when any bind fails")
+	assert.Contains(t, err.Error(), "metrics server listen")
+
+	// The first port must be free again (partial rollback).
+	probe, probeErr := (&net.ListenConfig{}).Listen(context.Background(), "tcp4", "127.0.0.1:19403")
+	if probeErr != nil {
+		t.Errorf("first port should be free after bind failure rollback: %v", probeErr)
+	} else {
+		if closeErr := probe.Close(); closeErr != nil {
+			t.Logf("close probe: %v", closeErr)
+		}
 	}
 }
