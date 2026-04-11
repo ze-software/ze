@@ -180,6 +180,17 @@ func (r *Report) printMismatchReport(rec *Record) {
 		r.writeln("")
 	}
 
+	// Client output: ze's stderr/log is often where the real cause shows up
+	// (parser errors, config warnings, plugin failures) even when the failure
+	// surfaces as a wire mismatch.
+	if rec.ClientOutput != "" {
+		r.writeln(c.LineSeparator())
+		r.writeln(c.Yellow("CLIENT OUTPUT:"))
+		r.writeln(c.LineSeparator())
+		r.writeln(truncateOutput(rec.ClientOutput, 30))
+		r.writeln("")
+	}
+
 	msgIdx := rec.LastExpectedIdx
 	if msgIdx == 0 {
 		msgIdx = 1
