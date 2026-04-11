@@ -179,3 +179,28 @@ Do NOT flag these as "identity wrappers adding no value."
   - For .ci tests with Python observers: deliberately broke the production code path to confirm the test FAILS. A test that passes after the production logic is broken is invalid (`rules/testing.md` "Observer-Exit Antipattern").
   - The adversarial review questions in `rules/quality.md` were each answered with a specific finding or "checked, none."
 - **Posture:** treat a same-day or next-day blocker fix on your own feature as a process incident, not normal churn. The fix is fine; the gap is that the original commit shipped without those checks. Note in the fix commit message which check would have caught the bug, and update the relevant rule if a NEW check is needed.
+
+### Substring Collision in Bulk YANG Edit (spec-iface-tunnel)
+- Replaced `gre-local-address` -> `local-address` with `replace_all` then ran the same on `gretap-`, `ip6gre-`, `ip6gretap-`. The `gre-local-address -> local-address` substitution mangled `ip6gre-local-address` into `ip6local-address` because `gre-local-address` is a substring of the longer name. Took ~10 minutes to unwind.
+- Root cause: the `Edit` tool does literal substring matching, no word boundaries. Bulk-stripping prefixes from a family of related names is unsafe when the prefixes nest.
+- **Rule:** when bulk-stripping a prefix from leaf names, do the *longest* prefix first (e.g. `ip6gre-` before `gre-`), or include surrounding non-name context in the `old_string` so substring overlap cannot fire. After every batch, grep the file for the suffix you stripped to verify no mangled names appeared.
+
+### Vendored Library != Upstream (spec-iface-tunnel)
+- Research subagent reported `vishvananda/netlink` exposes `IgnoreDf` on `Gretap` and `EncapLimit` on `Gretun`. The vendored v1.3.1 in `vendor/` does not. Two YANG leaves had to be dropped after I'd already wired them through the parser, struct, and YANG schema. Recorded as deferrals.
+- Root cause: the research agent fetched upstream master from github; the vendor copy is older. I built on the assumption that "upstream supports it" implies "ze can use it."
+- **Rule:** when designing on top of a vendored third-party library, always verify field names and method signatures against `vendor/<lib>/`, not against upstream documentation. Spec sections that name external types should cite the file path under `vendor/` so the verification is mechanical.
+
+### Naive Reconciliation Recreates Live State on Every Reload (spec-iface-tunnel)
+- First implementation of `applyTunnels` did unconditional `DeleteInterface` then `CreateTunnel` on every reload. Tunnels carrying live BGP traffic would briefly drop on every SIGHUP, even when the SIGHUP only changed an unrelated knob. Caught only by `/ze-review`, not by my own adversarial review or the .ci tests.
+- Root cause: I optimised for correctness on the modify case (key change must take effect) and ignored the unchanged case (most common). The .ci modify-key test passed without verifying the daemon had any traffic to drop, so the operational impact was invisible.
+- **Rule:** any reconciliation step that touches *running* state (netdevs, sessions, sockets, listeners) MUST diff against the previously applied state and only act on the delta. Pass the previous config explicitly. The fix here was to add `previous *ifaceConfig` to `applyConfig` and an `indexTunnelSpecs` helper that compares specs by value. Add this question to the adversarial review checklist: "Does this reload disturb anything that wasn't actually changed?"
+
+### Mirror Existing Config Shape Before Inventing One (spec-iface-tunnel)
+- Built tunnel YANG with flat `local-address`, `local-interface`, `remote-address` leaves. User pointed at `bgp peer connection { local { ip ... } remote { ip ... } }` and asked why I had not used the same shape. Restructured the YANG, parser, tests, and `.ci` files mid-stream. ~15 minutes of mechanical edits, all avoidable.
+- Root cause: I copied the discriminator shape from VyOS/Junos research and did not grep ze for an existing analog before defining the leaf names.
+- **Rule:** before defining new YANG endpoint shapes (local/remote, source/destination, listener, peer), grep the existing `*-conf.yang` files for the closest analog and copy its grammar verbatim. Cross-component consistency in config syntax is more valuable than matching the upstream protocol's terminology.
+
+### Scratch .go Files in tmp/ Break go test ./... (spec-iface-tunnel)
+- `make ze-verify` failed with build errors in `tmp/netlink-research/link.go` and `tmp/vendor-pull/origin-frame.go` -- snippets of vendored third-party code dropped there by research agents in earlier sessions. `go test ./...` walks the whole module root including `tmp/`, so any `.go` file there must compile.
+- Root cause: research subagents that download library source for inspection put it in `tmp/<topic>/` with the original `.go` extension. The Go toolchain treats those as packages.
+- **Rule:** research agents that fetch third-party Go source for inspection must save it with a `.txt` extension or under a build-tagged directory. The `tmp/` tree is for scratch artefacts, not buildable Go code. If you find `.go` files in `tmp/` that you did not put there, they are safe to delete (verified by `git status` -- they are untracked).
