@@ -459,7 +459,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	var mcpSrv *http.Server
 	if mcpAddr != "" {
-		mcpSrv = startMCPServer(mcpAddr, dispatch, serverCommandLister(apiServer), mcpToken)
+		mcpSrv = startMCPServer([]string{mcpAddr}, dispatch, serverCommandLister(apiServer), mcpToken)
 	}
 
 	// Start REST/gRPC API servers if configured (env > config file).

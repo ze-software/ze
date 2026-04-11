@@ -89,12 +89,22 @@ func wireRPC(wire string) string {
 	return rpc
 }
 
-// startMCPServer creates and starts an MCP HTTP server on the given address.
-// Returns the server on success, nil on failure (logged, non-fatal).
-// MUST call Shutdown on the returned server before stopping the reactor.
-func startMCPServer(addr string, dispatch zemcp.CommandDispatcher, commands zemcp.CommandLister, token string) *http.Server {
+// startMCPServer creates and starts an MCP HTTP server bound to every entry
+// in addrs. Returns the single *http.Server on success, nil on failure
+// (logged, non-fatal). Shutdown on the returned server closes every listener.
+// MUST call Shutdown before stopping the reactor.
+//
+// Bind is all-or-nothing: if ANY listener fails to bind, the already-bound
+// listeners are closed and the function returns nil.
+func startMCPServer(addrs []string, dispatch zemcp.CommandDispatcher, commands zemcp.CommandLister, token string) *http.Server {
+	if len(addrs) == 0 {
+		fmt.Fprintln(os.Stderr, "warning: MCP server disabled: no listen addresses")
+		return nil
+	}
+
 	srv := &http.Server{
-		Addr:              addr,
+		// Addr is informational; multi-listener serving uses Serve(ln).
+		Addr:              addrs[0],
 		Handler:           zemcp.Handler(dispatch, commands, token),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
@@ -103,20 +113,34 @@ func startMCPServer(addr string, dispatch zemcp.CommandDispatcher, commands zemc
 	}
 
 	var lc net.ListenConfig
-	ln, err := lc.Listen(context.Background(), "tcp", addr)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: MCP server disabled: %v\n", err)
-		return nil
+	listeners := make([]net.Listener, 0, len(addrs))
+	for _, addr := range addrs {
+		ln, err := lc.Listen(context.Background(), "tcp", addr)
+		if err != nil {
+			for _, prev := range listeners {
+				if closeErr := prev.Close(); closeErr != nil {
+					fmt.Fprintf(os.Stderr, "warning: MCP server: close partial listener: %v\n", closeErr)
+				}
+			}
+			fmt.Fprintf(os.Stderr, "warning: MCP server disabled: bind %s: %v\n", addr, err)
+			return nil
+		}
+		listeners = append(listeners, ln)
 	}
 
-	// Lifecycle goroutine: started once at component startup, runs for daemon lifetime.
-	go serveMCP(srv, ln)
+	// Lifecycle goroutine per listener: started once at component startup,
+	// runs for daemon lifetime. Shutdown closes every listener because all
+	// were passed to the same http.Server.
+	for _, ln := range listeners {
+		go serveMCP(srv, ln)
+		fmt.Fprintf(os.Stderr, "MCP server listening on http://%s/\n", ln.Addr().String())
+	}
 
-	fmt.Fprintf(os.Stderr, "MCP server listening on http://%s/\n", addr)
 	return srv
 }
 
-// serveMCP runs the MCP HTTP server. Started once as a lifecycle goroutine.
+// serveMCP runs the MCP HTTP server on one listener. Started once as a
+// lifecycle goroutine per configured address.
 func serveMCP(srv *http.Server, ln net.Listener) {
 	if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		fmt.Fprintf(os.Stderr, "warning: MCP server: %v\n", err)
