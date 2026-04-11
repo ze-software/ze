@@ -28,6 +28,9 @@ func (p *Plugin) initCallbackDefaults() {
 		},
 		// Bye: no-op when no handler registered.
 		callbackBye: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
+		// Post-startup: no-op when no handler registered. Plugins that need
+		// to dispatch to other plugins at startup register via OnAllPluginsReady.
+		callbackPostStartup: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
 	}
 }
 
@@ -286,10 +289,46 @@ func (p *Plugin) OnFilterUpdate(fn func(*FilterUpdateInput) (*FilterUpdateOutput
 // by the startup coordinator. Do NOT make engine calls inside OnShareRegistry
 // or OnConfigure -- those run while the engine is waiting for the response,
 // causing a deadlock.
+//
+// IMPORTANT: OnStarted fires after THIS plugin's 5-stage handshake completes
+// but potentially BEFORE other plugins in later startup phases are loaded. Do
+// NOT call DispatchCommand from OnStarted targeting a plugin that lives in a
+// different startup phase: the dispatcher command registry may not yet contain
+// the target command. Use OnAllPluginsReady for cross-plugin dispatches.
 func (p *Plugin) OnStarted(fn func(ctx context.Context) error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.onStarted = fn
+}
+
+// OnAllPluginsReady sets a callback that runs via the event loop after the
+// engine has finished loading ALL plugins across ALL startup phases (config-
+// path auto-load, explicit, family, event-type, send-type) and has frozen the
+// dispatcher and plugin registries. This is the only place in startup where a
+// plugin can safely DispatchCommand targeting another plugin, because only at
+// this point is every other plugin's command guaranteed to be registered.
+//
+// The handler is dispatched via the normal event loop, so it runs AFTER
+// OnStarted has returned. It is delivered best-effort by the engine -- a
+// plugin that has died before this point does not receive the callback.
+//
+// The fn parameter takes no context: runtime calls should use
+// context.Background() with an explicit timeout. Errors returned from fn are
+// propagated as an RPC error response to the engine and logged there; the
+// plugin continues running.
+func (p *Plugin) OnAllPluginsReady(fn func() error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.onAllPluginsReady = fn
+	p.callbacks[callbackPostStartup] = func(json.RawMessage) (json.RawMessage, error) {
+		p.mu.Lock()
+		handler := p.onAllPluginsReady
+		p.mu.Unlock()
+		if handler == nil {
+			return nil, nil
+		}
+		return nil, handler()
+	}
 }
 
 // SetStartupSubscriptions sets event subscriptions to include in the "ready" RPC.

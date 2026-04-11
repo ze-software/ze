@@ -121,9 +121,23 @@ Tier-Ordered Startup below).
 | 3. Capability | Plugin to Engine | `ze-plugin-engine:declare-capabilities` | `DeclareCapabilitiesInput` |
 | 4. Registry | Engine to Plugin | `ze-plugin-callback:share-registry` | `ShareRegistryInput` |
 | 5. Ready | Plugin to Engine | `ze-plugin-engine:ready` | `ReadyInput` |
+| Post | Engine to Plugin | `ze-plugin-callback:post-startup` | (empty) |
 
 **Timeout:** Each stage has a 5-second timeout (configurable via `stage-timeout` in plugin config).
 If any plugin fails to complete a stage, startup aborts for all plugins.
+
+**Post-Startup Callback.** Stages 1-5 run per-phase. Plugins load across up to
+five phases (config-path auto-load, explicit, family, event-type, send-type) in
+serial order, so the dispatcher command registry only contains every plugin's
+commands after the last phase completes. The engine sends the `post-startup`
+callback to every running plugin after `signalStartupComplete` has frozen both
+the plugin registry and the dispatcher command registry; at that point cross-
+plugin `DispatchCommand` is guaranteed to resolve. Plugins register a handler
+via the SDK `OnAllPluginsReady` method. Delivery is best-effort (fire-and-
+forget, bounded timeout, per-plugin goroutine) so a single slow or broken
+plugin cannot delay notification to the rest.
+<!-- source: internal/component/plugin/server/startup.go — sendPostStartupToAll -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go — OnAllPluginsReady -->
 
 **Why Barriers:**
 - Ensures all plugins register commands before any receive config
@@ -336,6 +350,46 @@ Plugins subscribe to events using either:
 2. **Runtime subscription**: via `subscribe-events` RPC in `OnStarted` callback.
    Safe but has a small window where events could be missed.
    <!-- source: pkg/plugin/sdk/sdk_engine.go -- SubscribeEvents -->
+
+**Cross-Plugin DispatchCommand from Startup.** A plugin whose startup logic
+must call `DispatchCommand` on a sibling plugin's command (e.g., `bgp-rpki`
+enabling the `adj-rib-in enable-validation` gate) MUST register the call via
+`OnAllPluginsReady`, not `OnStarted`. `OnStarted` fires after the plugin's own
+5-stage handshake but potentially BEFORE other plugins in later startup phases
+are loaded, so the dispatcher may not yet know about the target command.
+`OnAllPluginsReady` fires via the event loop once the engine has frozen every
+registry after every phase completes, so the dispatch is guaranteed to resolve.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go — OnStarted vs OnAllPluginsReady -->
+
+### Non-CIDR Families in the Filter Text Protocol
+
+The engine's filter text protocol (`FilterUpdateInput.Update`) inlines NLRI
+prefixes only for address families whose wire encoding is a plain CIDR
+prefix. These are the "CIDR-family" set: IPv4 and IPv6 for the SAFIs
+`unicast`, `multicast`, and `mpls-label`. Every other family -- EVPN,
+Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, and any future family with a
+specialised NLRI encoding -- is classified non-CIDR.
+
+For non-CIDR families the engine emits a marker block of the form
+`nlri <family> <op>` (for example `nlri l2vpn/evpn add`) with NO prefixes.
+The marker tells a text-mode filter plugin that the family is present in
+the update without forcing the engine to generate a family-specific text
+format.
+<!-- source: internal/component/bgp/reactor/filter_format.go — FormatUpdateForFilter -->
+<!-- source: internal/component/bgp/reactor/filter_format.go — isCIDRFamily -->
+
+A filter plugin that needs per-NLRI decisions on a non-CIDR family MUST
+declare `raw=true` in its `FilterRegistration` and parse the wire payload
+itself from `FilterUpdateInput.Raw`. A `raw=false` filter attached to a
+session carrying non-CIDR families sees only the marker block and is
+advisory for those families -- it cannot distinguish individual
+destinations within the family.
+<!-- source: internal/component/plugin/registration.go — FilterRegistration.Raw -->
+
+| Family set | Filter text protocol emits | Filter requirement |
+|------------|----------------------------|---------------------|
+| CIDR (ipv4/ipv6 unicast / multicast / mpls-label) | `nlri <family> <op> <prefix>...` (prefixes inline) | `raw=false` works for text-mode per-prefix decisions |
+| Non-CIDR (EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, ...) | `nlri <family> <op>` (marker only) | `raw=true` required for per-NLRI decisions; text-only is advisory |
 
 **Subscription fields:**
 <!-- source: pkg/plugin/rpc/types.go -- SubscribeEventsInput -->

@@ -29,6 +29,13 @@ const (
 	callbackConfigRollback   = "ze-plugin-callback:config-rollback"
 	callbackValidateOpen     = "ze-plugin-callback:validate-open"
 	callbackFilterUpdate     = "ze-plugin-callback:filter-update"
+	// callbackPostStartup is sent by the engine after all startup phases
+	// complete and both the plugin registry and dispatcher command registry
+	// have been frozen. It is the only guaranteed-safe point for a plugin to
+	// issue DispatchCommand calls targeting another plugin across the
+	// multi-phase load order (config-path auto-load, explicit, family,
+	// event-type, send-type). Handled via OnAllPluginsReady.
+	callbackPostStartup = "ze-plugin-callback:post-startup"
 )
 
 // serveOne reads one request from the MuxConn, dispatches it, and sends the response.

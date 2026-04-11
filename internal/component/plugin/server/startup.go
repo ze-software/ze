@@ -13,6 +13,7 @@ import (
 	"time"
 
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	plugipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -232,11 +233,54 @@ func (s *Server) signalStartupComplete() {
 		}
 	}
 
+	// Fan out the post-startup callback to every running plugin so that
+	// OnAllPluginsReady handlers (e.g., bgp-rpki enabling the adj-rib-in
+	// validation gate) can safely dispatch cross-plugin commands -- at this
+	// point the dispatcher command registry is frozen and guaranteed to hold
+	// every registered command from every startup phase. Best-effort.
+	s.sendPostStartupToAll()
+
 	if s.reactor != nil {
 		s.reactor.SignalPluginStartupComplete()
 	}
 	s.startupDoneOnce.Do(func() { close(s.startupDone) })
 }
+
+// sendPostStartupToAll delivers the post-startup callback to every running
+// plugin. Each delivery runs in its own goroutine with a bounded timeout, so
+// one slow or broken plugin cannot delay notification to the rest. Errors are
+// logged at Debug level because they are expected during shutdown races
+// (connection closed before callback arrives).
+func (s *Server) sendPostStartupToAll() {
+	pm := s.procManager.Load()
+	if pm == nil {
+		return
+	}
+	for _, proc := range pm.AllProcesses() {
+		if proc == nil || !proc.Running() {
+			continue
+		}
+		conn := proc.Conn()
+		if conn == nil {
+			continue
+		}
+		name := proc.Name()
+		go func(c *plugipc.PluginConn, pluginName string) {
+			ctx, cancel := context.WithTimeout(s.ctx, postStartupTimeout)
+			defer cancel()
+			if err := c.SendPostStartup(ctx); err != nil {
+				logger().Debug("post-startup callback failed", "plugin", pluginName, "error", err)
+			}
+		}(conn, name)
+	}
+}
+
+// postStartupTimeout bounds the wait for a plugin to process the post-startup
+// callback. Plugins with expensive OnAllPluginsReady handlers (e.g., those
+// that issue a DispatchCommand to another plugin) must complete within this
+// window or the callback is abandoned; this prevents one slow handler from
+// blocking engine bookkeeping.
+const postStartupTimeout = 10 * time.Second
 
 // WaitForStartupComplete blocks until all plugin startup phases are done.
 // Returns a non-nil error if a config-path plugin failed during startup

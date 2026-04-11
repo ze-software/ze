@@ -180,6 +180,17 @@ func (pc *PluginConn) SendReady(ctx context.Context) error {
 	return err
 }
 
+// SendPostStartup notifies the plugin that every startup phase has completed
+// and both the plugin registry and the dispatcher command registry have been
+// frozen. Plugins that registered a handler via OnAllPluginsReady run it on
+// receipt; others silently no-op. Delivered best-effort: callers are expected
+// to swallow transient errors (closed connection, timeout) rather than treat
+// them as fatal.
+func (pc *PluginConn) SendPostStartup(ctx context.Context) error {
+	_, err := pc.CallRPC(ctx, "ze-plugin-callback:post-startup", nil)
+	return err
+}
+
 // --- Runtime RPCs ---
 
 // SendDeliverEvent sends a BGP event to the plugin via callback.

@@ -2144,3 +2144,152 @@ func shutdownPlugin(t *testing.T, ctx context.Context, engine *engineSide, errCh
 		t.Fatal("plugin did not exit")
 	}
 }
+
+// TestSDKOnAllPluginsReadyFires verifies the OnAllPluginsReady handler runs
+// when the engine sends the post-startup callback via the event loop.
+//
+// VALIDATES: AC-1 -- OnAllPluginsReady handler fires after post-startup
+//
+//	AC-6 -- external pipe plugins dispatch the callback via the
+//	normal event loop, so the handler runs AFTER OnStarted returns.
+//
+// PREVENTS: bgp-rpki-style races where an OnStarted dispatch hits a
+//
+//	dispatcher registry that does not yet contain cross-phase
+//	plugin commands.
+func TestSDKOnAllPluginsReadyFires(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	onStartedFired := make(chan struct{}, 1)
+	onAllReadyFired := make(chan struct{}, 1)
+
+	p.OnStarted(func(context.Context) error {
+		onStartedFired <- struct{}{}
+		return nil
+	})
+	p.OnAllPluginsReady(func() error {
+		onAllReadyFired <- struct{}{}
+		return nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	// Stage 1: declare-registration
+	req := readEngineRequest(t, ctx, engine.mux)
+	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+
+	// Complete stages 2-5.
+	completeStartupFromStage2(t, ctx, engine)
+
+	// OnStarted must fire synchronously after stage 5 and BEFORE the event
+	// loop starts processing callbacks. Drain it first.
+	select {
+	case <-onStartedFired:
+	case <-time.After(2 * time.Second):
+		t.Fatal("OnStarted did not fire after stage 5")
+	}
+
+	// OnAllPluginsReady must NOT have fired yet -- post-startup hasn't been
+	// sent by the engine. Sanity check with a short poll.
+	select {
+	case <-onAllReadyFired:
+		t.Fatal("OnAllPluginsReady fired before engine sent post-startup")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	// Engine sends post-startup callback via the event loop path.
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:post-startup", nil))
+
+	// Handler should fire now.
+	select {
+	case <-onAllReadyFired:
+	case <-time.After(2 * time.Second):
+		t.Fatal("OnAllPluginsReady did not fire after post-startup callback")
+	}
+
+	shutdownPlugin(t, ctx, engine, errCh)
+}
+
+// TestSDKOnAllPluginsReadyPropagatesError verifies that an error returned from
+// the OnAllPluginsReady handler surfaces as an RPC error response to the
+// engine, without crashing the plugin. The plugin continues running and
+// receives subsequent callbacks (like bye) normally.
+//
+// VALIDATES: AC-3 -- errors from the handler do not kill the plugin.
+// PREVENTS: regression where a DispatchCommand failure tears down bgp-rpki.
+func TestSDKOnAllPluginsReadyPropagatesError(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	p.OnAllPluginsReady(func() error {
+		return fmt.Errorf("synthetic handler failure")
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	req := readEngineRequest(t, ctx, engine.mux)
+	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+
+	completeStartupFromStage2(t, ctx, engine)
+
+	// Post-startup arrives; the handler returns an error; the engine sees
+	// an RPC error response, not a transport failure.
+	_, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:post-startup", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "synthetic handler failure")
+
+	// Plugin is still alive: bye works.
+	shutdownPlugin(t, ctx, engine, errCh)
+}
+
+// TestSDKOnAllPluginsReadyNoHandlerIsNoop verifies that plugins that never
+// register a handler accept the post-startup callback silently. This lets the
+// engine fan-out the callback to every plugin without first asking which ones
+// care.
+//
+// VALIDATES: default initCallbackDefaults entry for callbackPostStartup.
+// PREVENTS: engine SendPostStartup returning "unknown method" for plugins
+//
+//	that do not need cross-plugin coordination.
+func TestSDKOnAllPluginsReadyNoHandlerIsNoop(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+	// Intentionally do NOT register OnAllPluginsReady.
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	req := readEngineRequest(t, ctx, engine.mux)
+	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+
+	completeStartupFromStage2(t, ctx, engine)
+
+	// Post-startup MUST succeed against a plugin with no registered handler.
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:post-startup", nil))
+
+	shutdownPlugin(t, ctx, engine, errCh)
+}

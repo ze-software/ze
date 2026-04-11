@@ -94,8 +94,23 @@ in function names, variable names, or type names.
 | 3. Capability | Plugin→Engine (A) | `ze-plugin-engine:declare-capabilities` |
 | 4. Registry | Engine→Plugin (B) | `ze-plugin-callback:share-registry` |
 | 5. Ready | Plugin→Engine (A) | `ze-plugin-engine:ready`, enter event loop |
+| Post | Engine→Plugin (B) | `ze-plugin-callback:post-startup` — sent once after every startup phase completes and both the plugin registry and dispatcher command registry are frozen |
 
 After Stage 5: SDK wraps Socket A in `MuxConn` for concurrent RPCs. Engine dispatches Socket A requests in goroutines. Wire format: `#<id> <verb> [<json>]\n` (see `docs/architecture/api/wire-format.md`).
+
+## OnStarted vs OnAllPluginsReady (BLOCKING)
+
+Stages 1-5 run per-phase. The engine loads plugins across up to five phases
+(config-path auto-load → explicit → family → event-type → send-type) serially,
+so a plugin's `OnStarted` fires after its own handshake but potentially before
+plugins in later phases are loaded.
+
+| Where to put it | Rule |
+|-----------------|------|
+| `OnStarted(fn)` | Local setup only: start long-lived goroutines, register subscriptions, initialise per-plugin state. |
+| `OnAllPluginsReady(fn)` | Any `DispatchCommand` targeting another plugin's command at startup. The callback fires via the event loop once the dispatcher command registry is frozen, so cross-plugin dispatch is guaranteed to resolve. |
+
+`bgp-rpki` is the reference example: the `adj-rib-in enable-validation` dispatch lives in `OnAllPluginsReady` (`internal/component/bgp/plugins/rpki/rpki.go`). Putting it in `OnStarted` used to fail with "unknown command" whenever `bgp-adj-rib-in` loaded in Phase 2 while bgp-rpki auto-loaded in Phase 1.
 
 ## Registration Fields
 
@@ -143,10 +158,79 @@ This is runtime IPC, not compile-time registration. Filter fields are stored in
 | `filters[].name` | string | Filter name (config references as `<plugin>:<name>`) |
 | `filters[].direction` | enum | import, export, both |
 | `filters[].attributes` | []string | Attribute names to receive |
+| `filters[].raw` | bool | Include raw wire bytes; REQUIRED for non-CIDR families |
 | `filters[].on-error` | enum | reject (fail-closed) or accept (fail-open) |
 | `filters[].overrides` | []string | Default filters this filter replaces |
 
 See `plan/learned/479-redistribution-filter.md` for the full design.
+
+### Non-CIDR Families (BLOCKING for filter plugin authors)
+
+The engine's text-mode filter protocol inlines NLRI prefixes only for the
+"CIDR-family" set: IPv4/IPv6 unicast, multicast, and mpls-label. For every
+other family -- EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, and any
+future non-CIDR family -- the text protocol emits a marker-only block of
+the form `nlri <family> <op>` with no prefixes. A filter plugin that
+needs per-NLRI decisions on a non-CIDR family MUST declare `raw=true`
+and parse `FilterUpdateInput.Raw` itself.
+
+| Family set | Text protocol emits | Filter plugin requirement |
+|------------|---------------------|--------------------------|
+| CIDR (ipv4/ipv6 unicast, multicast, mpls-label) | `nlri <family> <op> <prefix>...` | `raw=false` is sufficient |
+| Non-CIDR (EVPN, Flowspec, VPN, BGP-LS, MVPN, MUP, RTC, ...) | `nlri <family> <op>` (marker only) | `raw=true` REQUIRED for per-NLRI decisions |
+
+See `docs/architecture/api/process-protocol.md` "Non-CIDR Families in the
+Filter Text Protocol" for the full contract and
+`internal/component/bgp/reactor/filter_format.go` (`isCIDRFamily`,
+`formatMPBlock`) for the implementation.
+
+## Renaming a Registered Name (BLOCKING)
+
+A plugin or subsystem name is not a single string. It appears in many places
+that all have to agree, and most of them are loose strings (config keys, log
+keys, dispatch keys, env vars) that no compiler will catch.
+
+The `938df51d` fix exists because BGP-as-plugin Phase 2 registered subsystems
+as `bgp-gr` / `bgp-rib` etc., but config and `ze.log.*` env vars expected
+`bgp.gr` / `bgp.rib`. Log levels were silently never applied. Six days passed
+before review caught it.
+
+**Before changing any registered name (plugin name, subsystem name, log
+subsystem, dispatch key, command prefix, family canonical name), grep for
+EVERY consumer in the table below.** A diff that updates only one of these
+locations is incomplete by definition.
+
+| Consumer | Where to grep | Looks like |
+|----------|--------------|-----------|
+| Plugin registration | `internal/component/bgp/plugins/*/register.go`, `internal/component/plugin/all/all.go` | `Name: "bgp-gr"` |
+| Subsystem logger | `internal/core/slogutil/`, `slogutil.Logger("...")` calls | `slogutil.Logger("bgp.gr")` |
+| Env var registration | `env.MustRegister("ze.log.bgp.gr", ...)` | `ze.log.<name>` |
+| YANG config keys | `internal/component/*/schema/*.yang`, `grouping`/`container` names | `container gr { ... }` |
+| Config consumer | `internal/component/bgp/config/`, anything that does string-keyed lookups in the parsed tree | `tree["bgp"]["gr"]` |
+| Dispatch keys | `dispatchCommand("bgp gr ...")`, command prefix matching | `"bgp gr"` |
+| Test fixtures | `test/**/*.ci`, `test/**/*.conf`, env vars in tests | `option=env:var=ze.log.bgp.gr` |
+| Documentation | `docs/`, `<!-- source: -->` anchors | text references |
+| Learned summaries | `plan/learned/*.md` | text references |
+
+**Mechanical check before committing the rename:**
+
+```
+old_name="bgp-gr"  # what you are renaming away from
+new_name="bgp.gr"  # what you are renaming to
+# Show every place that still mentions the old name
+grep -rn "$old_name" internal/ pkg/ cmd/ test/ docs/ plan/ .claude/ 2>/dev/null
+```
+
+Every match is either a deliberate keep (vendored code, history, learned
+summary) or a bug. Do not commit until each match is resolved.
+
+**Naming convention:** subsystem and log keys use dots (`bgp.gr`, `bgp.rib`).
+Plugin names registered with `registry.Register()` use hyphens (`bgp-gr`,
+`bgp-rib`). The two are NOT the same string. The hub canonicalizes hyphen ->
+dot for in-process subsystem names (`938df51d`). When you add a new plugin,
+register it with the hyphen form AND make sure every config / log / env
+consumer uses the dot form (or the canonicalized form, depending on which
+side of the hub it lives on).
 
 ## New Plugin Checklist
 

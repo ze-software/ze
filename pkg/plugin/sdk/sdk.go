@@ -72,6 +72,14 @@ type Plugin struct {
 	onShareRegistry func([]RegistryCommand)
 	onStarted       func(context.Context) error
 
+	// onAllPluginsReady fires via the event loop after the engine sends the
+	// post-startup callback. Unlike onStarted (which runs synchronously before
+	// the event loop and therefore before other phases may have loaded their
+	// plugins), onAllPluginsReady runs only after every plugin across every
+	// startup phase is running and both registries are frozen. This is the
+	// only safe place to dispatch commands to other plugins during startup.
+	onAllPluginsReady func() error
+
 	// Direct delivery handlers for bridge hot path (bypasses callback channel).
 	// onEvent is also captured by the deliver-event/deliver-batch map entries.
 	onEvent           func(string) error

@@ -174,17 +174,22 @@ func RunRPKIPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	// Enable validation gate in adj-rib-in after plugin startup completes.
-	// If adj-rib-in is not loaded (or its command is not yet registered), skip
-	// gracefully: bgp-rpki still provides RTR cache + validation but routes pass
-	// through unconditionally until an adj-rib-in instance comes up.
-	p.OnStarted(func(startCtx context.Context) error {
-		enableCtx, cancel := context.WithTimeout(startCtx, 10*time.Second)
+	// Enable validation gate in adj-rib-in after the engine has finished
+	// loading every plugin across every startup phase. Using OnAllPluginsReady
+	// instead of OnStarted is critical here: bgp-rpki auto-loads in Phase 1
+	// via ConfigRoots: ["bgp"], but bgp-adj-rib-in commonly lands in Phase 2
+	// (explicit --plugin ze.bgp-adj-rib-in). Dispatching from OnStarted would
+	// hit a dispatcher that has not yet registered adj-rib-in's commands.
+	// OnAllPluginsReady fires via the event loop after the engine's
+	// signalStartupComplete has frozen the dispatcher command registry, so
+	// the cross-plugin dispatch is guaranteed to find the target command.
+	p.OnAllPluginsReady(func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		status, _, err := p.DispatchCommand(enableCtx, "adj-rib-in enable-validation")
+		status, _, err := p.DispatchCommand(ctx, "adj-rib-in enable-validation")
 		if err != nil {
-			logger().Warn("rpki: validation gate not enabled (adj-rib-in unavailable)", "error", err)
-			return nil
+			logger().Error("rpki: failed to enable validation gate", "error", err)
+			return fmt.Errorf("enable validation gate: %w", err)
 		}
 		logger().Info("rpki: validation gate enabled", "status", status)
 		return nil
