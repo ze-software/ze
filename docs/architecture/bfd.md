@@ -187,28 +187,33 @@ as follow-ups when wiring begins:
 | `test/plugin/bfd/*.ci` functional tests | Integration completeness per `rules/integration-completeness.md` | Required before claiming "wired" |
 | Interop with FRR `bfdd` | Wire-compat verification | Highest-value test |
 
-## Next session: start here
+## Stage 2 complete (production transport hardening)
 
-The skeleton is committed as `e5a4add9`. The next working unit is
-**Stage 1: make the plugin reachable from a running ze**. The commit is
-deliberately not self-wiring (`internal/plugins/bfd/register.go` carries
-a top-of-file warning; the plugin is not in
-`internal/component/plugin/all/all.go`). Before touching anything else,
-pick up the following in order:
+Stage 0 (skeleton, commit `e5a4add9`), Stage 1 (lifecycle wiring,
+`plan/learned/556-bfd-1-wiring.md`), and Stage 2 (transport hardening,
+tracked in the latest `plan/learned/NNN-bfd-2-transport-hardening.md`)
+are all merged. The production path is now:
 
-| Step | File | Change |
-|------|------|--------|
-| 1 | `internal/plugins/bfd/bfd.go` | Replace `RunBFDPlugin` stub with a real SDK-driven entry. Pattern: copy the shape of `internal/plugins/sysrib/sysrib.go` (`OnConfigVerify`, `OnConfigure`, `OnConfigApply`, `OnStarted`). Construct `engine.NewLoop(transport.UDP, clock.RealClock{})` per VRF; keep a `map[vrf]*engine.Loop` on the plugin state. Drive `Service.EnsureSession` / `ReleaseSession` from the parsed YANG `bfd.single-hop-session` and `bfd.multi-hop-session` lists. |
-| 2 | `internal/plugins/bfd/register.go` | Delete the top-of-file "IMPORTANT: not blank-imported" warning comment. Add `ConfigureEngineLogger: func(name string) { UseLogger(slogutil.Logger(name)) }` to the `Registration` struct. |
-| 3 | `internal/core/env/` (or the package where `env.MustRegister` for plugins lives) | Register `ze.log.bfd` so `ze.log.bfd=debug` tags through per `rules/go-standards.md`. |
-| 4 | Run `make generate` | Regenerates `internal/component/plugin/all/all.go` to blank-import `internal/plugins/bfd` + `internal/plugins/bfd/schema`. |
-| 5 | `internal/component/plugin/all/all_test.go` | Bump the expected plugin count in `TestAllPluginsRegistered`. |
-| 6 | `test/plugin/bfd/01-standalone-session.ci` | Minimum `.ci` test: two ze processes with a pinned single-hop session, assert both reach `Up`. Required by `rules/integration-completeness.md`. |
-| 7 | `make ze-verify` | Gate before marking Stage 1 done. |
+| Layer | File | Responsibility |
+|-------|------|----------------|
+| Transport open | `internal/plugins/bfd/transport/udp.go` | `net.ListenConfig.ListenPacket` with a Control callback that invokes `applySocketOptions`. |
+| Socket options | `internal/plugins/bfd/transport/udp_linux.go` | `IP_RECVTTL`, `IP_TTL=255`, `SO_BINDTODEVICE` (Linux only). |
+| Packet recv | `internal/plugins/bfd/transport/udp.go` -- `readLoop` | `ReadMsgUDPAddrPort` + `parseReceivedTTL` populate `Inbound.TTL`. |
+| TTL gate | `internal/plugins/bfd/engine/loop.go` -- `passesTTLGate` | RFC 5881 §5 single-hop TTL=255 and RFC 5883 §5 multi-hop min-TTL. |
+| Jitter | `internal/plugins/bfd/engine/engine.go` -- `applyJitter` | RFC 5880 §6.8.7 [0, 25%) reduction, clamped [10%, 25%) when `detect-multiplier=1`. |
+| Device choice | `internal/plugins/bfd/bfd.go` -- `resolveLoopDevices` | Per-loop `SO_BINDTODEVICE` target derived from pinned sessions. |
 
-Stage 2 (BGP opt-in) depends on Stage 1. Stage 3 (GTSM, `SO_BINDTODEVICE`,
-jitter) depends on Stage 1 but can run in parallel with Stage 2. See
-"What is not done" above for the full roadmap.
+### Next sessions: pick from these specs
+
+| Spec | Scope |
+|------|-------|
+| `plan/spec-bfd-3-bgp-client.md` | YANG augment `bgp peer { bfd { ... } }`, BGP reactor calls `Service.EnsureSession`, FRR `bfdd` interop. |
+| `plan/spec-bfd-4-operator-ux.md` | `show bfd sessions`, Prometheus metrics. |
+| `plan/spec-bfd-5-authentication.md` | Keyed SHA1/MD5 verifier, sequence-number persistence. |
+| `plan/spec-bfd-6-echo-mode.md` | RFC 5881 §5 echo mode on UDP 3785. |
+
+IPv6 dual-bind is deferred separately as `spec-bfd-2b-ipv6-transport` in
+`plan/deferrals.md`. The current transport binds IPv4 only.
 
 ### Things that are intentionally done the way they are
 

@@ -79,6 +79,19 @@ func (l *Loop) handleInbound(in transport.Inbound) {
 		return
 	}
 
+	// RFC 5881 Section 5 / RFC 5883 Section 5: discard packets that
+	// fail the per-mode TTL gate BEFORE feeding them to the FSM. The
+	// check runs after the session lookup because multi-hop MinTTL is
+	// per-session.
+	if !passesTTLGate(in, entry.machine.MinTTL()) {
+		engineLog().Debug("ttl gate drop",
+			"mode", in.Mode.String(),
+			"ttl", in.TTL,
+			"peer", in.From,
+			"min-ttl", entry.machine.MinTTL())
+		return
+	}
+
 	if err := entry.machine.Receive(c); err != nil {
 		return
 	}
@@ -89,9 +102,41 @@ func (l *Loop) handleInbound(in transport.Inbound) {
 	}
 }
 
+// passesTTLGate enforces the RFC 5881 Section 5 single-hop GTSM rule and
+// the RFC 5883 Section 5 multi-hop minimum-TTL rule.
+//
+// Single-hop BFD requires the received IP TTL / IPv6 Hop Limit to be
+// exactly 255. Any other value means the packet traversed at least one
+// router and therefore cannot be a legitimate single-hop Control packet.
+// A transport that cannot extract the real TTL leaves in.TTL = 0, which
+// fails this check -- fail-closed is the intended behavior when the
+// kernel does not expose the cmsg.
+//
+// Multi-hop BFD (RFC 5883) has no GTSM equivalent. Operators express a
+// weak approximation via the session's MinTTL (default 254) and packets
+// with TTL below that floor are discarded.
+func passesTTLGate(in transport.Inbound, minTTL uint8) bool {
+	switch in.Mode {
+	case api.SingleHop:
+		// RFC 5881 Section 5: "The TTL or Hop Limit of the received
+		// packet MUST be 255."
+		return in.TTL == 255
+	case api.MultiHop:
+		// RFC 5883 Section 5: MinTTL is inclusive, so TTL == MinTTL
+		// passes.
+		return in.TTL >= minTTL
+	}
+	return false
+}
+
 // tick runs the timer-driven half of the express loop. For every active
 // session it: (1) checks the detection-time deadline; (2) decides whether
 // the periodic-TX timer is due and sends a packet if so.
+//
+// RFC 5880 Section 6.8.7: the next transmission deadline is set with a
+// per-packet jitter reduction via applyJitter. The reduction is drawn
+// once per TX and applied through Machine.AdvanceTxWithJitter so the
+// session's nextTxAt moves forward by TransmitInterval - jitter.
 func (l *Loop) tick() {
 	now := l.clk.Now()
 
@@ -110,7 +155,9 @@ func (l *Loop) tick() {
 		}
 		if !now.Before(next) {
 			l.sendLocked(entry, entry.machine.Build())
-			entry.machine.AdvanceTx(now)
+			base := entry.machine.TransmitInterval()
+			reduction := l.applyJitter(base, entry.machine.DetectMult())
+			entry.machine.AdvanceTxWithJitter(now, reduction)
 		}
 	}
 }

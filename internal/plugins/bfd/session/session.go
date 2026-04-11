@@ -1,4 +1,6 @@
 // Design: rfc/short/rfc5880.md -- BFD session state variables (Section 6.8.1)
+// Detail: fsm.go -- reception procedure and transitions
+// Detail: timers.go -- detection-time and transmit-deadline arithmetic
 //
 // Package session implements the per-BFD-session state machine, timer
 // arithmetic, and Poll/Final negotiation. It contains no I/O: callers
@@ -204,3 +206,23 @@ func (m *Machine) Release() int {
 // PeerAddr returns the configured peer address (used by the transport
 // layer to construct the destination of outgoing packets).
 func (m *Machine) PeerAddr() netip.Addr { return m.configReq.Peer }
+
+// MinTTL returns the minimum acceptable receive TTL for the session.
+//
+// For multi-hop sessions this is the RFC 5883 Section 5 weak-GTSM floor;
+// zero in the configuration request defaults to 254 (one hop allowed
+// beyond the peer's first hop), matching the ze-bfd-conf.yang default.
+// For single-hop sessions RFC 5881 Section 5 mandates TTL == 255 and this
+// value is not consulted by the engine TTL gate.
+func (m *Machine) MinTTL() uint8 {
+	if m.configReq.MinTTL == 0 {
+		return 254
+	}
+	return m.configReq.MinTTL
+}
+
+// DetectMult returns the local bfd.DetectMult used in outgoing packets.
+// Exposed for the engine's RFC 5880 Section 6.8.7 jitter calculation:
+// when DetectMult == 1 the reduction has a 10% floor so the receiver
+// never detects before the next packet arrives.
+func (m *Machine) DetectMult() uint8 { return m.vars.DetectMult }

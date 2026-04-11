@@ -169,10 +169,17 @@ func parseProfile(name string, fields map[string]any) (profileConfig, error) {
 }
 
 // parseSingleHopSession decodes one entry under `single-hop-session`. The
-// YANG list key is "peer vrf interface", but the engine treats the parsed
-// fields independently so the YANG key tuple is not stored as a string.
-func parseSingleHopSession(_ string, fields map[string]any, profiles map[string]profileConfig) (sessionConfig, error) {
+// YANG list key is "peer vrf interface", but ze's config file parser only
+// carries the first positional value as the list key, so operators write
+// `single-hop-session 203.0.113.9 { interface eth0; vrf default }` and
+// the peer address comes from listKey. Fall back to fields["peer"] when
+// the config is delivered via an API writer that populated the leaves
+// directly.
+func parseSingleHopSession(listKey string, fields map[string]any, profiles map[string]profileConfig) (sessionConfig, error) {
 	peerStr, _ := fields["peer"].(string)
+	if peerStr == "" {
+		peerStr = listKey
+	}
 	if peerStr == "" {
 		return sessionConfig{}, fmt.Errorf("bfd: single-hop-session: missing peer")
 	}
@@ -207,11 +214,15 @@ func parseSingleHopSession(_ string, fields map[string]any, profiles map[string]
 	return s, nil
 }
 
-// parseMultiHopSession decodes one entry under `multi-hop-session`. RFC
-// 5883 §5 requires a local source address; the parser enforces it so the
-// engine can rely on netip.Addr.IsValid() at session creation time.
-func parseMultiHopSession(_ string, fields map[string]any, profiles map[string]profileConfig) (sessionConfig, error) {
+// parseMultiHopSession decodes one entry under `multi-hop-session`. Same
+// listKey/peer fallback as parseSingleHopSession; the YANG key is
+// "peer local vrf" but the config file writer carries only the first
+// positional value.
+func parseMultiHopSession(listKey string, fields map[string]any, profiles map[string]profileConfig) (sessionConfig, error) {
 	peerStr, _ := fields["peer"].(string)
+	if peerStr == "" {
+		peerStr = listKey
+	}
 	if peerStr == "" {
 		return sessionConfig{}, fmt.Errorf("bfd: multi-hop-session: missing peer")
 	}
@@ -275,11 +286,18 @@ func parseBool(v string, def bool) bool {
 	return def
 }
 
-// defaultVRF normalises an unset VRF to "default" so the rest of the
-// plugin compares VRF names without special-casing the empty string.
+// defaultVRFName is the canonical string used throughout the plugin for
+// "no VRF configured / global routing table". Kept as a constant so the
+// loop dispatcher and the device-resolution helper share one source of
+// truth instead of scattering the literal across comparisons.
+const defaultVRFName = "default"
+
+// defaultVRF normalises an unset VRF to defaultVRFName so the rest of
+// the plugin compares VRF names without special-casing the empty
+// string.
 func defaultVRF(v string) string {
 	if v == "" {
-		return "default"
+		return defaultVRFName
 	}
 	return v
 }

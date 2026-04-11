@@ -1,9 +1,16 @@
 # BFD — Bidirectional Forwarding Detection
 
-**Status:** planned UX. The plugin code is merged but not yet wired into
-the engine startup path. This guide describes the configuration shape that
-will be exposed once wiring lands so operators and downstream config
-generators can plan against it.
+**Status:** the plugin is live and its production transport is hardened
+(GTSM, IP_TTL=255 outbound, SO_BINDTODEVICE for single-hop and multi-VRF,
+RFC 5880 §6.8.7 TX jitter). The BGP opt-in (`bgp peer { bfd { ... } }`)
+is still being wired in `spec-bfd-3-bgp-client`; until that lands the
+only way to run a session is via a pinned `bfd { single-hop-session ... }`
+or `bfd { multi-hop-session ... }` block in the top-level `bfd`
+container.
+<!-- source: internal/plugins/bfd/bfd.go — runtimeState, loopFor, newUDPTransport -->
+<!-- source: internal/plugins/bfd/engine/loop.go — passesTTLGate, tick jitter -->
+<!-- source: internal/plugins/bfd/transport/udp.go — ListenConfig.Control, ReadMsgUDPAddrPort -->
+<!-- source: internal/plugins/bfd/transport/udp_linux.go — IP_RECVTTL, IP_TTL, SO_BINDTODEVICE -->
 
 BFD (RFC 5880) is a low-overhead liveness protocol that detects forwarding
 failures between a pair of systems in tens to hundreds of milliseconds,
@@ -269,9 +276,54 @@ damping it.
 ### TTL security on single-hop
 
 Single-hop BFD enforces GTSM (RFC 5082): packets are sent with `TTL=255`
-and received packets with any other TTL are discarded. This makes
-single-hop BFD non-trivially spoofable from anywhere off-link. There is
-nothing for the operator to configure — ze sets the TTL automatically.
+(`IP_TTL` socket option applied at `Start`) and received packets with any
+other TTL are silently discarded by the engine. There is nothing for the
+operator to configure -- ze sets the TTL automatically and the engine's
+TTL gate fails closed when the kernel cannot extract the received TTL
+(for example, when running on a platform without `IP_RECVTTL`).
+
+Multi-hop sessions have no GTSM equivalent; instead each `multi-hop-session`
+carries a `min-ttl` leaf (default 254). Packets arriving with a TTL below
+that floor are discarded before reaching the FSM. Pick `min-ttl` to be
+`256 - max-hops`.
+<!-- source: internal/plugins/bfd/engine/loop.go — passesTTLGate -->
+
+### Multi-VRF and interface binding
+
+Single-hop pinned sessions may specify an `interface` leaf. When every
+pinned session in the same `(vrf, single-hop)` pair names the same
+interface, the plugin binds the socket to that interface via
+`SO_BINDTODEVICE` so egress and ingress are guaranteed to traverse the
+named device. If a pinned set mixes interfaces in the same VRF, the
+bind-to-device fallback is disabled (a warning is logged) and the
+engine-side TTL gate remains the sole protection.
+
+Non-default VRFs bind the socket to the VRF device name (Linux's
+`SO_BINDTODEVICE` accepts VRF masters as device names). Both paths
+require `CAP_NET_RAW` at daemon startup on Linux.
+
+`SO_BINDTODEVICE` can only name one device per socket, so under a
+non-default VRF the session `interface` leaf is ignored -- the socket
+binds to the VRF master and receives packets from every slave device
+in that VRF. Ze logs an `Info` line naming the dropped interface leaves
+whenever this override fires so the operator can correlate a reload
+with the behaviour change. If you need per-interface pinning in a
+non-default VRF, stand up separate sessions per slave device outside
+the shared VRF, or wait for the Stage 3 BGP peer opt-in which can
+drive one session per peer.
+<!-- source: internal/plugins/bfd/bfd.go — resolveLoopDevices, newUDPTransport -->
+<!-- source: internal/plugins/bfd/transport/udp_linux.go — applySocketOptions -->
+
+### Transmit jitter
+
+RFC 5880 §6.8.7 requires the TX interval to be reduced by 0-25% on each
+packet, and the reduction must be at least 10% when `detect-multiplier`
+is 1 so the receiver cannot detect before the next packet arrives. Ze
+implements both bands via `engine.Loop.applyJitter`; operators do not
+configure it.
+<!-- source: internal/plugins/bfd/engine/engine.go — applyJitter -->
+<!-- source: internal/plugins/bfd/engine/loop.go — tick -->
+
 
 ### GC pause sensitivity
 

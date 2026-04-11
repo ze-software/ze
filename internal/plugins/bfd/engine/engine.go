@@ -23,6 +23,7 @@ package engine
 
 import (
 	"errors"
+	"math/rand/v2"
 	"net/netip"
 	"sync"
 	"sync/atomic"
@@ -44,6 +45,19 @@ const PollInterval = 5 * time.Millisecond
 // dropped if a subscriber falls behind; the engine never blocks on a
 // slow consumer.
 const SubscribeBuffer = 8
+
+// JitterMaxFraction is the upper bound on per-packet TX interval reduction
+// from RFC 5880 Section 6.8.7 ("jittered on a per-packet basis by up to
+// 25%"). Exclusive upper bound so the reduction never reaches exactly 25%.
+const JitterMaxFraction = 0.25
+
+// JitterMinFractionDetectMultOne is the lower bound on the reduction when
+// bfd.DetectMult == 1. RFC 5880 Section 6.8.7: "If bfd.DetectMult is equal
+// to 1, the interval ... MUST be no more than 90% of the negotiated
+// transmission interval, and MUST be no less than 75%..." -- a reduction
+// of at least 10% is required so the receiver cannot time out before the
+// next packet arrives.
+const JitterMinFractionDetectMultOne = 0.10
 
 // ErrAlreadyStarted is returned by Start when the loop is already running.
 var ErrAlreadyStarted = errors.New("bfd: engine already started")
@@ -138,13 +152,49 @@ func NewLoop(t transport.Transport, clk clock.Clock) *Loop {
 	}
 }
 
+// applyJitter returns an RFC 5880 Section 6.8.7 TX interval reduction for
+// the given base interval and detect multiplier. The reduction is always
+// non-negative and strictly less than base so the next-TX deadline never
+// moves backwards.
+//
+// For DetectMult >= 2 the reduction is drawn from [0%, 25%) of base. For
+// DetectMult == 1 the reduction is drawn from [10%, 25%) of base so the
+// transmitted interval sits in the RFC's [75%, 90%] window.
+//
+// Uses the package-level math/rand/v2 source (auto-seeded ChaCha8, safe
+// for concurrent use). The engine does not need a per-Loop RNG because
+// jitter is purely statistical; operators do not reason about individual
+// draws, only about the aggregate distribution across a session's packet
+// train.
+func (l *Loop) applyJitter(base time.Duration, detectMult uint8) time.Duration {
+	if base <= 0 {
+		return 0
+	}
+	var f float64
+	if detectMult == 1 {
+		// [JitterMinFractionDetectMultOne, JitterMaxFraction)
+		span := JitterMaxFraction - JitterMinFractionDetectMultOne
+		f = JitterMinFractionDetectMultOne + rand.Float64()*span //nolint:gosec // BFD TX jitter is not a security decision
+	} else {
+		// [0, JitterMaxFraction)
+		f = rand.Float64() * JitterMaxFraction //nolint:gosec // BFD TX jitter is not a security decision
+	}
+	return time.Duration(float64(base) * f)
+}
+
 // Start launches the express loop and the underlying transport. Start is
 // NOT idempotent; calling it twice returns ErrAlreadyStarted.
+//
+// If the transport fails to start, Start reverts the `started` flag so
+// a subsequent Stop() does not block on a doneCh that will never close.
+// Without the revert the partial-failure path would leave the Loop in a
+// half-started state where Stop deadlocks on `<-l.doneCh`.
 func (l *Loop) Start() error {
 	if !l.started.CompareAndSwap(false, true) {
 		return ErrAlreadyStarted
 	}
 	if err := l.transport.Start(); err != nil {
+		l.started.Store(false)
 		return err
 	}
 	go l.run()

@@ -23,6 +23,8 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -79,27 +81,30 @@ func newRuntimeState() *runtimeState {
 }
 
 // loopFor returns the Loop for the given VRF/mode, creating and starting
-// it if necessary. Stage 1 binds a real UDP transport for VRF "default";
-// non-default VRFs are not yet supported because they require netns or
-// SO_BINDTODEVICE plumbing which lands in spec-bfd-2-transport-hardening.
-func (r *runtimeState) loopFor(key loopKey) (*engine.Loop, error) {
+// it if necessary. Stage 2 extends the transport with SO_BINDTODEVICE
+// support, so non-default VRFs bind the socket to the VRF device name.
+// Single-hop loops also bind to a session interface when every pinned
+// session in that (vrf, single-hop) pair names the same interface; a
+// mismatch between pinned interfaces falls back to "no bind-to-device"
+// and logs a warning so the operator notices the reduced GTSM depth.
+func (r *runtimeState) loopFor(key loopKey, device string) (*engine.Loop, error) {
 	if l, ok := r.loops[key]; ok {
 		return l, nil
 	}
-	if key.vrf != "default" {
-		return nil, fmt.Errorf("bfd: VRF %q not yet supported (Stage 1 binds VRF default only)", key.vrf)
-	}
 
-	udp := newUDPTransport(key.mode)
+	udp := newUDPTransport(key.mode, key.vrf, device)
 	loop := engine.NewLoop(udp, clock.RealClock{})
 	if startErr := loop.Start(); startErr != nil {
 		if stopErr := udp.Stop(); stopErr != nil {
 			logger().Debug("bfd udp stop after failed start", "err", stopErr)
 		}
-		return nil, fmt.Errorf("bfd: start engine loop for %s: %w", key.mode, startErr)
+		return nil, fmt.Errorf("bfd: start engine loop for %s (vrf=%s device=%s): %w", key.mode, key.vrf, device, startErr)
 	}
 	r.loops[key] = loop
-	logger().Info("bfd loop started", "vrf", key.vrf, "mode", key.mode.String())
+	logger().Info("bfd loop started",
+		"vrf", key.vrf,
+		"mode", key.mode.String(),
+		"device", device)
 	return loop, nil
 }
 
@@ -142,9 +147,17 @@ func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
 		logger().Info("bfd pinned session removed", "peer", key.Peer.String(), "mode", key.Mode.String())
 	}
 
+	// Compute a per-loop device name from all wanted sessions sharing
+	// the (vrf, mode) pair. If every single-hop pinned session in the
+	// same VRF names the same interface, the loop binds to it;
+	// otherwise Device stays empty and the engine-side TTL gate is the
+	// only protection.
+	deviceForLoop := resolveLoopDevices(wanted)
+
 	// Create or refresh sessions present in the new config.
 	for key, s := range wanted {
-		loop, err := r.loopFor(loopKey{vrf: key.VRF, mode: key.Mode})
+		lk := loopKey{vrf: key.VRF, mode: key.Mode}
+		loop, err := r.loopFor(lk, deviceForLoop[lk])
 		if err != nil {
 			return err
 		}
@@ -174,20 +187,143 @@ func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
 	return nil
 }
 
+// resolveLoopDevices computes the SO_BINDTODEVICE name for each loop key
+// based on the pinned sessions mapped to that key.
+//
+//   - Non-default VRF: the device is the VRF name (Linux binds the socket
+//     to the VRF master device). On Linux SO_BINDTODEVICE can only name
+//     one device, so any session `interface` leaf under a non-default
+//     VRF is dropped and the override is logged once per affected loop.
+//   - Default VRF single-hop with one or more pinned sessions all naming
+//     the same interface: the device is that interface name.
+//   - Default VRF single-hop with a mix of interfaces (or no interface
+//     specified): empty device; the engine TTL gate still enforces GTSM
+//     but no kernel-level pinning applies. The full set of conflicting
+//     interfaces is logged once per loop.
+//   - Default VRF multi-hop: empty device (multi-hop does not bind to a
+//     specific interface).
+//
+// The function iterates a Go map and therefore observes sessions in
+// nondeterministic order. To keep log output deterministic and readable,
+// all state-building runs first, then warnings are emitted once per loop
+// with a sorted list of the conflicting interfaces.
+func resolveLoopDevices(wanted map[api.Key]sessionConfig) map[loopKey]string {
+	type loopState struct {
+		ifaces          map[string]struct{} // distinct single-hop interface names in default VRF
+		sawEmptyIface   bool                // at least one session omitted its interface
+		overriddenByVRF []string            // interface leaves dropped because non-default VRF wins
+		vrfBind         string              // non-empty when VRF overrides
+	}
+	states := make(map[loopKey]*loopState)
+	getState := func(lk loopKey) *loopState {
+		st, ok := states[lk]
+		if !ok {
+			st = &loopState{ifaces: make(map[string]struct{})}
+			states[lk] = st
+		}
+		return st
+	}
+
+	for key, s := range wanted {
+		lk := loopKey{vrf: key.VRF, mode: key.Mode}
+		st := getState(lk)
+		if key.VRF != defaultVRFName {
+			st.vrfBind = key.VRF
+			if s.iface != "" {
+				st.overriddenByVRF = append(st.overriddenByVRF, s.iface)
+			}
+			continue
+		}
+		if s.mode != api.SingleHop {
+			continue
+		}
+		if s.iface == "" {
+			st.sawEmptyIface = true
+			continue
+		}
+		st.ifaces[s.iface] = struct{}{}
+	}
+
+	out := make(map[loopKey]string, len(states))
+	for lk, st := range states {
+		if st.vrfBind != "" {
+			out[lk] = st.vrfBind
+			if len(st.overriddenByVRF) > 0 {
+				sort.Strings(st.overriddenByVRF)
+				logger().Info("bfd non-default VRF binds to VRF device; session interface leaves ignored",
+					"vrf", lk.vrf,
+					"mode", lk.mode.String(),
+					"device", st.vrfBind,
+					"dropped-interfaces", strings.Join(dedupSorted(st.overriddenByVRF), ","))
+			}
+			continue
+		}
+		// Default VRF single-hop: bind only when every session agrees
+		// on one interface name AND no session omitted it.
+		if st.sawEmptyIface || len(st.ifaces) != 1 {
+			if len(st.ifaces) > 1 || (len(st.ifaces) >= 1 && st.sawEmptyIface) {
+				logger().Warn("bfd single-hop loop interface mismatch, skipping SO_BINDTODEVICE",
+					"vrf", lk.vrf,
+					"interfaces", strings.Join(sortedKeys(st.ifaces), ","),
+					"sessions-without-interface", st.sawEmptyIface)
+			}
+			out[lk] = ""
+			continue
+		}
+		for only := range st.ifaces {
+			out[lk] = only
+		}
+	}
+	return out
+}
+
+// sortedKeys returns the keys of a set as a sorted slice so log output
+// is deterministic across Go map iteration orders.
+func sortedKeys(set map[string]struct{}) []string {
+	keys := make([]string, 0, len(set))
+	for k := range set {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// dedupSorted removes consecutive duplicates from an already-sorted
+// string slice. Used to collapse repeated interface names in the
+// "dropped under VRF" log line.
+func dedupSorted(s []string) []string {
+	if len(s) <= 1 {
+		return s
+	}
+	out := s[:1]
+	for _, v := range s[1:] {
+		if v != out[len(out)-1] {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
 // newUDPTransport allocates a transport.UDP for the given hop mode on
-// the canonical RFC port. Stage 1 binds the unspecified IPv4 address; the
-// transport accepts IPv4 packets only. Stage 2 will dual-bind v4 and v6.
+// the canonical RFC port. Stage 2 passes through the VRF label and the
+// Linux network device for SO_BINDTODEVICE. IPv6 dual-bind is explicitly
+// deferred (see plan/deferrals.md spec-bfd-2b-ipv6-transport).
 //
 // This function does not start the transport: the caller passes the
 // returned UDP to engine.NewLoop, then calls Loop.Start which is
 // responsible for binding the socket. Bind failures surface there.
-func newUDPTransport(mode api.HopMode) *transport.UDP {
+func newUDPTransport(mode api.HopMode, vrf, device string) *transport.UDP {
 	port := transport.UDPPortSingleHopControl
 	if mode == api.MultiHop {
 		port = transport.UDPPortMultiHopControl
 	}
 	bind := netip.AddrPortFrom(netip.IPv4Unspecified(), port)
-	return &transport.UDP{Bind: bind, Mode: mode, VRF: "default"}
+	return &transport.UDP{
+		Bind:   bind,
+		Mode:   mode,
+		VRF:    vrf,
+		Device: device,
+	}
 }
 
 // runtimeStateGuard serializes access to the package-level runtime when

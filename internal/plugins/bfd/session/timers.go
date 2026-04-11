@@ -106,6 +106,23 @@ func (m *Machine) AdvanceTx(now time.Time) {
 	m.nextTxAt = now.Add(m.TransmitInterval())
 }
 
+// AdvanceTxWithJitter records a periodic TX and sets the next-TX deadline
+// with an RFC 5880 Section 6.8.7 jitter reduction applied. The engine
+// computes the reduction via Loop.applyJitter and passes it in.
+//
+// The function defensively clamps the reduction into [0, TransmitInterval)
+// so a caller bug cannot drive nextTxAt backwards -- a backwards deadline
+// would spin the express loop firing TX on every tick until something
+// else advanced the clock. The only live caller is jitter-bounded to
+// 25% of base and is safe, but the clamp makes the contract mechanical.
+func (m *Machine) AdvanceTxWithJitter(now time.Time, reduction time.Duration) {
+	interval := m.TransmitInterval()
+	if reduction < 0 || reduction >= interval {
+		reduction = 0
+	}
+	m.nextTxAt = now.Add(interval - reduction)
+}
+
 // LastReceived returns the timestamp of the most recently accepted Control
 // packet, or zero if none has been received.
 func (m *Machine) LastReceived() time.Time { return m.lastRxTime }
