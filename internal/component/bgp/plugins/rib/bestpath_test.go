@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 )
 
 // TestSelectBestExplain_Empty verifies nil candidates yields nil explanation.
@@ -831,4 +833,232 @@ func TestComparePair_BothDeprefDifferentLevels(t *testing.T) {
 	if best.PeerAddr != "10.0.0.1" {
 		t.Errorf("lower stale level should win among deprioritized, got %s", best.PeerAddr)
 	}
+}
+
+// --- SelectMultipath tests (cmd-3 phase 3) ---------------------------------
+
+// twoEqualCostCandidates builds two candidates that tie through every
+// non-tiebreaker step (LOCAL_PREF, AS_PATH len+handle, Origin, MED, eBGP/iBGP)
+// and differ only by PeerAddr, so the primary-vs-sibling choice is decided by
+// the final address tiebreak. Both share the same AS_PATH pool handle so the
+// default (relaxASPath=false) content check passes.
+func twoEqualCostCandidates(handle attrpool.Handle) (*Candidate, *Candidate) {
+	a := &Candidate{
+		PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000,
+		LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, MED: 50,
+		ASPathHandle: handle,
+	}
+	b := &Candidate{
+		PeerAddr: "10.0.0.2", PeerASN: 65001, LocalASN: 65000,
+		LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, MED: 50,
+		ASPathHandle: handle,
+	}
+	return a, b
+}
+
+// TestSelectMultipath_DisabledByDefault verifies that maxPaths <= 1 never
+// produces siblings, preserving single-best behavior when multipath is off.
+//
+// VALIDATES: cmd-3 AC-1 -- maximum-paths=1 is RFC 4271 single best-path.
+// PREVENTS: Accidental ECMP when bgp/multipath is absent or maximum-paths=1.
+func TestSelectMultipath_DisabledByDefault(t *testing.T) {
+	t.Parallel()
+	a, b := twoEqualCostCandidates(attrpool.Handle(42))
+
+	// maxPaths = 0 and maxPaths = 1 must behave identically: single best, no siblings.
+	for _, mp := range []uint32{0, 1} {
+		primary, siblings := SelectMultipath([]*Candidate{a, b}, mp, false)
+		assert.Same(t, a, primary, "primary must equal SelectBest winner (lower peer address)")
+		assert.Nil(t, siblings, "maxPaths=%d must produce no siblings", mp)
+	}
+}
+
+// TestSelectMultipath_TwoEqualCost verifies that two byte-equal paths land
+// in the multipath set when maximum-paths >= 2.
+//
+// VALIDATES: cmd-3 AC-2 -- maximum-paths=N selects up to N equal-cost paths.
+// PREVENTS: Multipath silently dropping equal-cost candidates.
+func TestSelectMultipath_TwoEqualCost(t *testing.T) {
+	t.Parallel()
+	a, b := twoEqualCostCandidates(attrpool.Handle(42))
+
+	primary, siblings := SelectMultipath([]*Candidate{a, b}, 4, false)
+	require.NotNil(t, primary)
+	assert.Same(t, a, primary, "lower peer address remains primary")
+	require.Len(t, siblings, 1)
+	assert.Same(t, b, siblings[0])
+}
+
+// TestSelectMultipath_FewerAvailable verifies that the siblings slice is
+// capped at "available candidates" even when maximum-paths is larger.
+//
+// VALIDATES: cmd-3 AC-3 -- maximum-paths=4 with only 2 equal-cost available.
+// PREVENTS: Out-of-bounds allocation when maxPaths exceeds candidate count.
+func TestSelectMultipath_FewerAvailable(t *testing.T) {
+	t.Parallel()
+	a, b := twoEqualCostCandidates(attrpool.Handle(42))
+
+	primary, siblings := SelectMultipath([]*Candidate{a, b}, 16, false)
+	require.NotNil(t, primary)
+	assert.Len(t, siblings, 1, "multipath set capped at available candidates")
+}
+
+// TestSelectMultipath_CappedAtMaxPaths verifies that siblings are truncated
+// to maxPaths-1 when more equal-cost candidates exist.
+//
+// VALIDATES: cmd-3 AC-2 -- N paths selected when N > 1 are available, but
+// never more than maximum-paths-1 siblings.
+// PREVENTS: Multipath set exceeding the configured ECMP budget.
+func TestSelectMultipath_CappedAtMaxPaths(t *testing.T) {
+	t.Parallel()
+	h := attrpool.Handle(42)
+	cands := []*Candidate{
+		{PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, ASPathHandle: h},
+		{PeerAddr: "10.0.0.2", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, ASPathHandle: h},
+		{PeerAddr: "10.0.0.3", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, ASPathHandle: h},
+		{PeerAddr: "10.0.0.4", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, ASPathHandle: h},
+	}
+
+	primary, siblings := SelectMultipath(cands, 3, false)
+	require.NotNil(t, primary)
+	assert.Len(t, siblings, 2, "3 total paths = 1 primary + 2 siblings")
+}
+
+// TestSelectMultipath_DifferentASPathContent verifies that two candidates
+// with the same AS_PATH LENGTH but different CONTENT are NOT treated as
+// equal-cost when relaxASPath is false.
+//
+// VALIDATES: cmd-3 AC-4 -- default behavior requires identical AS_PATH.
+// PREVENTS: Incorrect multipath when routes traverse different upstream ASes.
+func TestSelectMultipath_DifferentASPathContent(t *testing.T) {
+	t.Parallel()
+	// Same length, same FirstAS, different pool handles (= different bytes).
+	a := &Candidate{
+		PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000,
+		LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP,
+		ASPathHandle: attrpool.Handle(42),
+	}
+	b := &Candidate{
+		PeerAddr: "10.0.0.2", PeerASN: 65001, LocalASN: 65000,
+		LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP,
+		ASPathHandle: attrpool.Handle(99),
+	}
+
+	primary, siblings := SelectMultipath([]*Candidate{a, b}, 4, false)
+	require.NotNil(t, primary)
+	assert.Empty(t, siblings, "different AS_PATH content must not multipath with relaxASPath=false")
+}
+
+// TestSelectMultipath_RelaxASPath verifies that relaxASPath=true allows
+// candidates with different AS_PATH content (but same length) to share the
+// multipath set.
+//
+// VALIDATES: cmd-3 AC-5 -- relax-as-path relaxes content match to length-only.
+// PREVENTS: Cisco-style "bgp bestpath as-path multipath-relax" silently
+// falling back to strict content match.
+func TestSelectMultipath_RelaxASPath(t *testing.T) {
+	t.Parallel()
+	a := &Candidate{
+		PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000,
+		LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP,
+		ASPathHandle: attrpool.Handle(42),
+	}
+	b := &Candidate{
+		PeerAddr: "10.0.0.2", PeerASN: 65002, LocalASN: 65000,
+		LocalPref: 100, ASPathLen: 3, FirstAS: 65002, Origin: OriginIGP,
+		ASPathHandle: attrpool.Handle(99),
+	}
+
+	primary, siblings := SelectMultipath([]*Candidate{a, b}, 4, true)
+	require.NotNil(t, primary)
+	require.Len(t, siblings, 1, "relaxASPath allows different AS_PATH content")
+	assert.Same(t, b, siblings[0])
+}
+
+// TestSelectMultipath_LocalPrefMismatch verifies that candidates with
+// different LOCAL_PREF never enter the multipath set.
+//
+// VALIDATES: cmd-3 AC-2 guard -- LOCAL_PREF is gate zero for multipath.
+// PREVENTS: Low-LP routes being promoted to ECMP alongside high-LP winners.
+func TestSelectMultipath_LocalPrefMismatch(t *testing.T) {
+	t.Parallel()
+	a := &Candidate{PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000, LocalPref: 200, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP}
+	b := &Candidate{PeerAddr: "10.0.0.2", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP}
+
+	primary, siblings := SelectMultipath([]*Candidate{a, b}, 4, true)
+	assert.Same(t, a, primary)
+	assert.Empty(t, siblings, "LOCAL_PREF mismatch must block multipath")
+}
+
+// TestSelectMultipath_EBGPvsIBGP verifies the eBGP-over-iBGP gate excludes
+// iBGP siblings from an eBGP primary (and vice versa).
+//
+// VALIDATES: cmd-3 step-5 gate -- eBGP/iBGP protocol type must match for
+// multipath membership.
+// PREVENTS: Mixed eBGP+iBGP multipath, which violates vendor convention and
+// causes non-deterministic FIB behavior.
+func TestSelectMultipath_EBGPvsIBGP(t *testing.T) {
+	t.Parallel()
+	ebgp := &Candidate{PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP}
+	ibgp := &Candidate{PeerAddr: "10.0.0.2", PeerASN: 65000, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP}
+
+	primary, siblings := SelectMultipath([]*Candidate{ebgp, ibgp}, 4, true)
+	require.NotNil(t, primary)
+	assert.Same(t, ebgp, primary, "eBGP wins over iBGP")
+	assert.Empty(t, siblings, "iBGP must not enter an eBGP multipath set")
+}
+
+// TestSelectMultipath_MEDMismatchSameNeighbor verifies that MED differences
+// block multipath membership when both candidates come from the same
+// neighbor AS (step 4 gate).
+//
+// VALIDATES: cmd-3 step-4 gate -- MED matters only when FirstAS is shared.
+// PREVENTS: Routes with same neighbor but different MED being multipathed.
+func TestSelectMultipath_MEDMismatchSameNeighbor(t *testing.T) {
+	t.Parallel()
+	h := attrpool.Handle(42)
+	a := &Candidate{PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, MED: 100, ASPathHandle: h}
+	b := &Candidate{PeerAddr: "10.0.0.2", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, MED: 200, ASPathHandle: h}
+
+	primary, siblings := SelectMultipath([]*Candidate{a, b}, 4, false)
+	require.NotNil(t, primary)
+	assert.Same(t, a, primary, "lower MED wins as primary")
+	assert.Empty(t, siblings, "different MED blocks multipath when FirstAS shared")
+}
+
+// TestSelectMultipath_DifferentNeighborIgnoresMED verifies that MED is NOT
+// compared when the two candidates are from different neighbor ASes --
+// multipath can still form if all other steps agree.
+//
+// VALIDATES: cmd-3 RFC 4271 §9.1.2.2(c) -- "comparison is only performed
+// between routes learned from the same neighboring AS".
+// PREVENTS: Multipath refusing to form across different upstreams because
+// of unrelated MEDs they happen to carry.
+func TestSelectMultipath_DifferentNeighborIgnoresMED(t *testing.T) {
+	t.Parallel()
+	h := attrpool.Handle(42)
+	a := &Candidate{PeerAddr: "10.0.0.1", PeerASN: 65001, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65001, Origin: OriginIGP, MED: 100, ASPathHandle: h}
+	b := &Candidate{PeerAddr: "10.0.0.2", PeerASN: 65002, LocalASN: 65000, LocalPref: 100, ASPathLen: 3, FirstAS: 65002, Origin: OriginIGP, MED: 999, ASPathHandle: h}
+
+	primary, siblings := SelectMultipath([]*Candidate{a, b}, 4, false)
+	require.NotNil(t, primary)
+	require.Len(t, siblings, 1, "different neighbor AS -> MED ignored -> multipath forms")
+}
+
+// TestSelectMultipath_EmptyAndSingle verifies edge cases: no candidates or
+// a single candidate.
+//
+// VALIDATES: cmd-3 degenerate cases -- nil primary for empty, single primary
+// for len-1.
+// PREVENTS: Nil-dereference or out-of-bounds when the candidate set is trivial.
+func TestSelectMultipath_EmptyAndSingle(t *testing.T) {
+	t.Parallel()
+	primary, siblings := SelectMultipath(nil, 4, false)
+	assert.Nil(t, primary)
+	assert.Nil(t, siblings)
+
+	solo := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100}
+	primary, siblings = SelectMultipath([]*Candidate{solo}, 4, false)
+	assert.Same(t, solo, primary)
+	assert.Nil(t, siblings, "single candidate has no siblings")
 }

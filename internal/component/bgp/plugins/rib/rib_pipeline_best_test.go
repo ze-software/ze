@@ -159,3 +159,84 @@ func TestBestPipelineReason_UnknownKeyword(t *testing.T) {
 	assert.Contains(t, errStr, "unknown keyword")
 	assert.Contains(t, errStr, "reasons")
 }
+
+// TestBestPipeline_MultipathPeersInOutput verifies that the best-path JSON
+// terminal includes MultipathPeers in its output when two peers advertise
+// the same prefix with byte-identical AS_PATH and bgp/multipath/maximum-paths
+// is > 1.
+//
+// VALIDATES: cmd-3 phase 3 wiring -- SelectMultipath is invoked by the
+// bestSource and the sibling peer lands in the JSON "multipath-peers" field.
+// PREVENTS: The ECMP set being silently dropped on the CLI query path even
+// when the algorithm is correct.
+func TestBestPipeline_MultipathPeersInOutput(t *testing.T) {
+	r := newTestRIBManager(t)
+	r.maximumPaths.Store(4)
+
+	// Same prefix advertised by two peers with identical attribute bytes.
+	// Because the attribute pool deduplicates, both peers' AS_PATH handles
+	// will compare equal and the strict-content multipath path fires.
+	fam := family.IPv4Unicast
+	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
+	nlriBytes := []byte{24, 10, 0, 0} // 10.0.0.0/24
+
+	peerA := storage.NewPeerRIB("192.0.2.1")
+	peerA.Insert(fam, attrBytes, nlriBytes)
+	r.ribInPool["192.0.2.1"] = peerA
+
+	peerB := storage.NewPeerRIB("192.0.2.2")
+	peerB.Insert(fam, attrBytes, nlriBytes)
+	r.ribInPool["192.0.2.2"] = peerB
+
+	result := r.bestPipeline("*", nil)
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	entries, ok := parsed["best-path"].([]any)
+	require.True(t, ok, "expected best-path array")
+	require.Len(t, entries, 1)
+
+	entry, ok := entries[0].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "192.0.2.1", entry["best-peer"], "lower peer address is primary")
+	mp, ok := entry["multipath-peers"].([]any)
+	require.True(t, ok, "multipath-peers must be present when maximumPaths>1 and siblings exist")
+	require.Len(t, mp, 1)
+	assert.Equal(t, "192.0.2.2", mp[0])
+}
+
+// TestBestPipeline_MultipathDisabledDefaults verifies that with the default
+// maximumPaths=1 the JSON output does not include a multipath-peers field
+// even when several candidates would tie.
+//
+// VALIDATES: cmd-3 phase 3 default behavior -- zero ECMP when multipath is
+// off. Guards against accidental ECMP activation on existing deployments.
+// PREVENTS: multipath-peers field leaking into the output when the config
+// has no bgp/multipath block.
+func TestBestPipeline_MultipathDisabledDefaults(t *testing.T) {
+	r := newTestRIBManager(t)
+	// maximumPaths defaults to 1 via the RIBManager constructor, but set
+	// explicitly here to document the assumption.
+	r.maximumPaths.Store(1)
+
+	fam := family.IPv4Unicast
+	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
+	nlriBytes := []byte{24, 10, 0, 0}
+
+	peerA := storage.NewPeerRIB("192.0.2.1")
+	peerA.Insert(fam, attrBytes, nlriBytes)
+	r.ribInPool["192.0.2.1"] = peerA
+	peerB := storage.NewPeerRIB("192.0.2.2")
+	peerB.Insert(fam, attrBytes, nlriBytes)
+	r.ribInPool["192.0.2.2"] = peerB
+
+	result := r.bestPipeline("*", nil)
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	entries, _ := parsed["best-path"].([]any)
+	require.Len(t, entries, 1)
+	entry, _ := entries[0].(map[string]any)
+	_, has := entry["multipath-peers"]
+	assert.False(t, has, "multipath-peers must be absent when maximumPaths=1")
+}

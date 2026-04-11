@@ -377,7 +377,7 @@ Each child spec is one phase. Phases 1-3 and 9 are independent. Phases 4-8 have 
 |------|-------|------|-----------|
 | cmd-1 RR + Next-Hop | 4/4 | YANG, config, RR forwarding, ORIGINATOR_ID/CLUSTER_LIST handlers, IPv4 next-hop, cluster-id sync, peer detail, IPv6 MP_REACH next-hop rewriting (16 and 32 byte forms) | - |
 | cmd-2 Session Policy | 4/4 | YANG, config, send-community stripping, AS-override, default-originate (uncond + conditional filter), Local-AS dual-prepend with no-prepend/replace-as modifiers | - |
-| cmd-3 Multipath | 2/3 | YANG schema + parse test, Stage 2 config delivery to RIB plugin (`maximumPaths`/`relaxASPath` fields populated) | N-way best-path algorithm (needs design) |
+| cmd-3 Multipath | 3/3 | YANG schema + parse test, Stage 2 config delivery, N-way best-path algorithm via `SelectMultipath` wired into `rib show best` pipeline (per-prefix `multipath-peers` in JSON output) | FIB/best-change event wiring (separate spec -- consumer API not yet designed) |
 | cmd-4 Prefix Filter | 0/- | Skeleton spec | Full implementation (depends on policy framework) |
 | cmd-5 AS-Path Filter | 0/- | Skeleton spec | Full implementation (depends on policy framework) |
 | cmd-6 Community Match | 0/- | Skeleton spec | Full implementation (depends on policy framework) |
@@ -395,7 +395,42 @@ Each child spec is one phase. Phases 1-3 and 9 are independent. Phases 4-8 have 
 
 | Item | Spec | Design question |
 |------|------|----------------|
-| RIB N-way best-path | cmd-3 | Storage model for N paths per prefix, consumer API for FIB ECMP, relax-as-path comparison semantics (config is now delivered, algorithm extension pending) |
+| RIB N-way best-path FIB consumer wiring | spec-fib-ecmp (future) | `rib show best` now surfaces multipath peers; the realtime `(rib, best-change)` event path still emits single-best entries. FIB/kernel programming plugins need a consumer API spec before multipath changes can be streamed atomically. |
+
+### cmd-3 phase 3 N-way best-path algorithm -- LANDED 2026-04-11
+
+Design chosen: **algorithm-first, event-path-deferred.**
+
+`SelectMultipath(candidates, maxPaths, relaxASPath) (primary, siblings)`
+extends `SelectBest` with equal-cost multipath selection. The primary is
+the exact same `Candidate` that `SelectBest` returns; siblings are the
+other candidates that tie through RFC 4271 §9.1.2 steps 1-5
+(LOCAL_PREF, AS_PATH length + content unless relaxed, Origin, MED when
+same neighbor AS, eBGP/iBGP). Tiebreaker steps 6-8 (IGP cost, Router ID,
+peer address) are excluded from the equal-cost predicate because they
+are what separate the primary from siblings in the first place.
+
+`Candidate` gains an `ASPathHandle attrpool.Handle` field populated in
+`extractCandidate`. Because the attribute pool deduplicates identical
+byte sequences to the same handle, two candidates with byte-equal
+AS_PATHs compare in O(1) via `a.ASPathHandle == b.ASPathHandle` -- no
+need for a dedicated hash of the path bytes. When `relaxASPath` is
+true the handle comparison is skipped and length-only match suffices
+(Cisco's "bgp bestpath as-path multipath-relax" semantics).
+
+`RouteItem` gains an optional `MultipathPeers []string` slice listing
+the sibling peer addresses, populated only by `newBestSource` when
+`maximumPaths > 1` and siblings exist. The `bestJSONTerminal` surfaces
+it as `"multipath-peers": [...]` in the `bgp rib show best` JSON
+output, omitting the field entirely in the single-best case so
+existing consumers stay backward-compatible.
+
+FIB / realtime best-change event wiring is deferred: the current
+`checkBestPathChange` emits single-best entries on the
+`(rib, best-change)` bus topic, and atomic multipath change delivery
+needs a consumer-side spec (which FIB plugin owns kernel programming,
+how to express "N nexthops for prefix P atomically," how replay works
+across restarts). Tracked as `spec-fib-ecmp` follow-up.
 
 ### rib best reason terminal (cmd-9) -- LANDED 2026-04-11
 
@@ -446,6 +481,7 @@ IPv4/IPv6 local address.
 | Pre-existing lint fixes (unrelated) | `cmd/ze/init/main.go`, `resolve/cmd/resolve.go` | Extracted `ifaceTypeLoopback` constant, added `//nolint:gosec` with rationale on `execCommand` (allowlisted binaries + validated args) |
 | cmd-1 IPv6 next-hop rewriting (MP_REACH type 14) | `bgp/reactor/filter_delta_handlers.go`, `reactor_api_forward.go` | New `mpReachNextHopHandler` rewrites the next-hop field in place and preserves AFI/SAFI/Reserved/NLRI; `applyNextHopMod` emits op 14 with 16 or 32 byte next-hop depending on whether the peer has a link-local address |
 | cmd-9 rib best reason terminal | `plugins/rib/bestpath.go`, `rib_pipeline_best.go`, `rib_commands.go` | New `SelectBestExplain` reports the RFC 4271 §9.1.2 deciding step for each pairwise comparison; `bgp rib show best reason` terminal drains the filter chain and emits a `best-path-reason` JSON narration. `ComparePair` refactored to wrap a shared `comparePairWithReason` so the hot path stays unchanged. |
+| cmd-3 phase 3 N-way best-path algorithm | `plugins/rib/bestpath.go`, `rib_pipeline.go`, `rib_pipeline_best.go`, `rib_commands.go` | New `SelectMultipath(candidates, maxPaths, relaxASPath) (primary, siblings)` picks up to N equal-cost paths through RFC 4271 §9.1.2 steps 1-5. `Candidate.ASPathHandle attrpool.Handle` carries the pool handle so byte-equal AS_PATHs compare in O(1) (the pool already deduplicates identical payloads). `RouteItem` gains an optional `MultipathPeers []string`; `bestJSONTerminal` renders it as `multipath-peers` in the `bgp rib show best` JSON output (omitted when empty for backward compatibility). FIB / best-change event wiring deferred to spec-fib-ecmp. |
 
 ### New tests (2026-04-11)
 
@@ -464,6 +500,8 @@ IPv4/IPv6 local address.
 | `TestBuildModifiedPayload_MPReachNextHopSelf` | `reactor/filter_delta_handlers_test.go` | cmd-1 end-to-end: `applyNextHopMod` -> `buildModifiedPayload` -> `mpReachNextHopHandler` with MP_REACH rewritten and NLRI preserved |
 | `TestSelectBestExplain_{Empty,Single,LocalPref,ASPathLen,Origin,PeerAddrTiebreak,ThreeCandidates}` + `TestBestStep_String` | `plugins/rib/bestpath_test.go` | cmd-9 decision-step narrator: empty/single edge cases, each resolving step, three-candidate reduction with N-1 pairwise records, step string mapping |
 | `TestBestPipelineReason_{LocalPrefWinner,SingleCandidate,WithPrefixFilter,UnknownKeyword}` | `plugins/rib/rib_pipeline_best_test.go` | cmd-9 end-to-end pipeline: reason terminal emits narration JSON, single-candidate degeneracy, composes with `cidr` filter, typo rejection |
+| `TestSelectMultipath_{DisabledByDefault,TwoEqualCost,FewerAvailable,CappedAtMaxPaths,DifferentASPathContent,RelaxASPath,LocalPrefMismatch,EBGPvsIBGP,MEDMismatchSameNeighbor,DifferentNeighborIgnoresMED,EmptyAndSingle}` | `plugins/rib/bestpath_test.go` | cmd-3 phase 3 equal-cost multipath algorithm: every gate (local-pref, as-path length+content, origin, med+neighbor, eBGP/iBGP), both relax-as-path modes, cap/available bounds, degenerate cases |
+| `TestBestPipeline_{MultipathPeersInOutput,MultipathDisabledDefaults}` | `plugins/rib/rib_pipeline_best_test.go` | cmd-3 phase 3 end-to-end: `bgp rib show best` surfaces the multipath peer set as `multipath-peers` when `maximumPaths > 1` and siblings exist; field is omitted (not empty-array) when multipath is off |
 
 ### Bugs Found/Fixed
 - ORIGINATOR_ID used source IP instead of BGP Identifier (fixed 2026-04-10)

@@ -31,6 +31,14 @@ type RouteItem struct {
 	HasInEntry bool               // true when InEntry is populated
 	InEntry    storage.RouteEntry // pool-based entry for adj-rib-in
 	OutRoute   *Route             // parsed route for adj-rib-out
+
+	// MultipathPeers lists the peer addresses of additional equal-cost
+	// paths that share the multipath set with Peer (the primary best).
+	// Populated only by the best-path source when bgp/multipath/maximum-paths
+	// is > 1 and more than one candidate ties through RFC 4271 §9.1.2
+	// steps 1-5. nil when multipath is disabled or no siblings exist.
+	// Consumers that don't care about ECMP can ignore this field.
+	MultipathPeers []string
 }
 
 // PipelineMeta holds pipeline result metadata.

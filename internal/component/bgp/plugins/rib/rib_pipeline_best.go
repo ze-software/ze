@@ -63,11 +63,18 @@ func newBestSource(r *RIBManager, selector string, stashCandidates map[string][]
 		})
 	}
 
-	// For each unique prefix, gather candidates and select best.
+	// Snapshot the multipath config once per call. The atomic fields are
+	// written only at Stage 2 OnConfigure and rarely after, so a single
+	// load is race-free and cheap.
+	multipathMax := r.maximumPaths.Load()
+	relaxASPath := r.relaxASPath.Load()
+
+	// For each unique prefix, gather candidates and select best (plus any
+	// multipath siblings when bgp/multipath/maximum-paths > 1).
 	var items []RouteItem
 	for _, rk := range seen {
 		candidates := r.gatherCandidates(rk.fam, []byte(rk.nlriKey))
-		best := SelectBest(candidates)
+		best, siblings := SelectMultipath(candidates, multipathMax, relaxASPath)
 		if best == nil {
 			continue
 		}
@@ -85,6 +92,16 @@ func newBestSource(r *RIBManager, selector string, stashCandidates map[string][]
 				item.HasInEntry = true
 				item.InEntry = entry
 			}
+		}
+
+		// Populate MultipathPeers with sibling peer addresses so the output
+		// terminal can render the full ECMP set. nil when multipath is off.
+		if len(siblings) > 0 {
+			peers := make([]string, len(siblings))
+			for i, s := range siblings {
+				peers[i] = s.PeerAddr
+			}
+			item.MultipathPeers = peers
 		}
 
 		// Stash candidates for the reason terminal if requested. The map is
@@ -369,10 +386,11 @@ func (bt *bestJSONTerminal) drain() {
 	bt.drained = true
 
 	type bestResult struct {
-		Family   string         `json:"family"`
-		Prefix   string         `json:"prefix"`
-		BestPeer string         `json:"best-peer"`
-		Attrs    map[string]any `json:"attributes,omitempty"`
+		Family         string         `json:"family"`
+		Prefix         string         `json:"prefix"`
+		BestPeer       string         `json:"best-peer"`
+		MultipathPeers []string       `json:"multipath-peers,omitempty"` // cmd-3: ECMP siblings (primary excluded)
+		Attrs          map[string]any `json:"attributes,omitempty"`
 	}
 
 	results := make([]bestResult, 0)
@@ -382,9 +400,10 @@ func (bt *bestJSONTerminal) drain() {
 			break
 		}
 		br := bestResult{
-			Family:   item.Family,
-			Prefix:   item.Prefix,
-			BestPeer: item.Peer,
+			Family:         item.Family,
+			Prefix:         item.Prefix,
+			BestPeer:       item.Peer,
+			MultipathPeers: item.MultipathPeers,
 		}
 		if item.HasInEntry {
 			attrs := make(map[string]any)

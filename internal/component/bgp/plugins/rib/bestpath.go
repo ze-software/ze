@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"net"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 )
 
@@ -75,16 +76,17 @@ const (
 // Candidate holds extracted attribute values for best-path comparison.
 // Built from pool handles by the caller -- this struct has no pool dependency.
 type Candidate struct {
-	PeerAddr     string // peer IP address (tiebreak step 8)
-	PeerASN      uint32 // peer's AS number
-	LocalASN     uint32 // local AS number (0 = unknown)
-	LocalPref    uint32 // LOCAL_PREF value (default 100 if absent)
-	ASPathLen    int    // AS_PATH length (AS_SET counts as 1)
-	FirstAS      uint32 // first AS in path (for MED neighbor comparison)
-	Origin       byte   // ORIGIN: 0=IGP, 1=EGP, 2=INCOMPLETE
-	MED          uint32 // MED value (default 0 if absent)
-	OriginatorID string // ORIGINATOR_ID as IP string (RFC 4456, Router ID tiebreak)
-	StaleLevel   uint8  // Route staleness level (0=fresh; plugin-defined higher levels)
+	PeerAddr     string          // peer IP address (tiebreak step 8)
+	PeerASN      uint32          // peer's AS number
+	LocalASN     uint32          // local AS number (0 = unknown)
+	LocalPref    uint32          // LOCAL_PREF value (default 100 if absent)
+	ASPathLen    int             // AS_PATH length (AS_SET counts as 1)
+	FirstAS      uint32          // first AS in path (for MED neighbor comparison)
+	Origin       byte            // ORIGIN: 0=IGP, 1=EGP, 2=INCOMPLETE
+	MED          uint32          // MED value (default 0 if absent)
+	OriginatorID string          // ORIGINATOR_ID as IP string (RFC 4456, Router ID tiebreak)
+	StaleLevel   uint8           // Route staleness level (0=fresh; plugin-defined higher levels)
+	ASPathHandle attrpool.Handle // AS_PATH pool handle (for content-equal multipath comparison)
 }
 
 // SelectBest selects the best route from a list of candidates.
@@ -101,6 +103,104 @@ func SelectBest(candidates []*Candidate) *Candidate {
 		}
 	}
 	return best
+}
+
+// SelectMultipath extends SelectBest with post-selection equal-cost multipath
+// (RFC 4271 §9.1.2 Decision Process Phase 2 extension): after the primary
+// best path is chosen, any other candidate that ties with the primary through
+// the "non-tiebreaker" steps (LOCAL_PREF, AS_PATH length, Origin, MED when
+// same neighbor AS, eBGP vs iBGP) is added to the multipath set up to the
+// configured maximum.
+//
+// The returned primary is the exact same Candidate that SelectBest would
+// return -- multipath siblings are the OTHER equal-cost paths. FIB/ECMP
+// consumers should program `append([]*Candidate{primary}, siblings...)` as
+// the full path set.
+//
+// Parameters:
+//   - candidates:   full candidate set (as produced by gatherCandidates).
+//   - maxPaths:     configured maximum-paths (from bgp/multipath); 0 and 1
+//     both mean "single best, no multipath" and the siblings slice is nil.
+//   - relaxASPath:  when false, a sibling must have byte-identical AS_PATH
+//     to the primary (checked via the attrpool handle). When true, matching
+//     AS_PATH length is sufficient -- the Cisco "as-path multipath-relax"
+//     behavior.
+//
+// Returns nil primary if candidates is empty.
+func SelectMultipath(candidates []*Candidate, maxPaths uint32, relaxASPath bool) (primary *Candidate, siblings []*Candidate) {
+	primary = SelectBest(candidates)
+	if primary == nil || maxPaths <= 1 {
+		return primary, nil
+	}
+	// Siblings slice capped at maxPaths-1 since the primary counts as slot 0.
+	// Cast down from uint32: multipath maximum-paths is YANG-bounded to 256.
+	capacity := min(int(maxPaths)-1, len(candidates)-1)
+	if capacity <= 0 {
+		return primary, nil
+	}
+	siblings = make([]*Candidate, 0, capacity)
+	for _, c := range candidates {
+		if c == primary {
+			continue
+		}
+		if multipathEqual(primary, c, relaxASPath) {
+			siblings = append(siblings, c)
+			if len(siblings) == capacity {
+				break
+			}
+		}
+	}
+	if len(siblings) == 0 {
+		return primary, nil
+	}
+	return primary, siblings
+}
+
+// multipathEqual reports whether a and b tie through all "non-tiebreaker"
+// best-path steps: LOCAL_PREF, AS_PATH length (and content unless relaxed),
+// Origin, MED when from the same neighbor AS, and eBGP/iBGP status.
+//
+// Steps 0 (stale), 6 (IGP cost), 7 (Router ID), and 8 (peer address) are
+// excluded: step 0 is a hard gate already handled by SelectBest choosing a
+// non-stale primary, steps 7-8 are final tiebreakers that always differ
+// between distinct paths, and step 6 is deferred pending IGP integration.
+//
+// relaxASPath == false requires byte-identical AS_PATH. Because the attrpool
+// deduplicates identical byte sequences to the same handle, two candidates
+// with byte-equal paths have ASPathHandle == ASPathHandle and the check is
+// O(1). When either handle is invalid (AS_PATH attribute absent from the
+// route entry) the comparison falls back to length-only.
+func multipathEqual(a, b *Candidate, relaxASPath bool) bool {
+	// Step 1: LOCAL_PREF.
+	if a.LocalPref != b.LocalPref {
+		return false
+	}
+	// Step 2: AS_PATH length (always) and content (unless relaxed).
+	if a.ASPathLen != b.ASPathLen {
+		return false
+	}
+	if !relaxASPath && a.ASPathHandle.IsValid() && b.ASPathHandle.IsValid() {
+		if a.ASPathHandle != b.ASPathHandle {
+			return false
+		}
+	}
+	// Step 3: Origin.
+	if a.Origin != b.Origin {
+		return false
+	}
+	// Step 4: MED, only when both routes share a neighbor AS.
+	if a.FirstAS != 0 && b.FirstAS != 0 && a.FirstAS == b.FirstAS && a.MED != b.MED {
+		return false
+	}
+	// Step 5: eBGP vs iBGP.
+	if a.LocalASN != 0 && b.LocalASN != 0 {
+		aEBGP := a.PeerASN != a.LocalASN
+		bEBGP := b.PeerASN != b.LocalASN
+		if aEBGP != bEBGP {
+			return false
+		}
+	}
+	return true
 }
 
 // BestPathExplanation captures the step-by-step decision trail of a

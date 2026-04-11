@@ -825,7 +825,12 @@ func (r *RIBManager) extractCandidate(peerAddr string, entry storage.RouteEntry)
 	}
 
 	// AS_PATH (type 2): wire bytes, count length and extract first AS.
+	// ASPathHandle is also stashed: because the attribute pool deduplicates
+	// identical byte sequences to the same handle, two candidates with
+	// byte-equal AS_PATHs share a handle and SelectMultipath can compare
+	// them in O(1) without re-reading the underlying bytes.
 	if entry.HasASPath() {
+		c.ASPathHandle = entry.ASPath
 		if data, err := pool.ASPath.Get(entry.ASPath); err == nil {
 			c.ASPathLen = asPathLength(data)
 			c.FirstAS = firstASInPath(data)
