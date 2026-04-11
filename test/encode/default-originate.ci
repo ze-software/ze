@@ -1,0 +1,54 @@
+# Test: default-originate generates 0.0.0.0/0 on session establishment
+# Validates cmd-2 AC-5: default-originate on ipv4/unicast => 0.0.0.0/0 originated.
+# Wire layout of the expected default-route UPDATE:
+#   Header: 16 marker | 002C len | 02 type(UPDATE)
+#   Body:   0000 wdLen | 0014 attrLen | 40010100 origin(IGP)
+#           4002060201 0000FFFD AS_PATH [65533]
+#           4003047F000001        NEXT_HOP 127.0.0.1
+#           00                    NLRI 0.0.0.0/0
+# Followed by an EOR marker for ipv4/unicast (0017 len, empty UPDATE).
+
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002C02000000144001010040020602010000FFFD4003047F00000100
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration -- default-originate on peer's ipv4/unicast family
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	group default {
+		peer peer1 {
+			connection {
+				remote {
+					ip 127.0.0.1
+					accept false
+				}
+				local {
+					ip 127.0.0.1
+				}
+			}
+			session {
+				asn {
+					local 65533
+					remote 65000
+				}
+				router-id 10.0.0.2
+				family {
+					ipv4/unicast {
+						prefix { maximum 10000; }
+						default-originate true
+					}
+				}
+			}
+			timer {
+				receive-hold-time 180
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

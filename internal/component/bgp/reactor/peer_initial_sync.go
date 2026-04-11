@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"runtime"
 	"sort"
+	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
@@ -720,6 +721,9 @@ func defaultRouteForAFI(afi family.AFI, hint netip.Addr) (prefix netip.Prefix, n
 // sendDefaultOriginateRoutes sends default routes (0.0.0.0/0 or ::/0) for families
 // that have default-originate enabled in config.
 // RFC 4271: default route originated as a normal UPDATE with ORIGIN IGP.
+// When a per-family default-originate-filter is configured, the synthetic default
+// route is run through that single named filter as a dry-run; if the filter
+// rejects, the default route is not originated (AC-7/AC-8 of cmd-2).
 func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 	addr := p.settings.Address.String()
 
@@ -755,6 +759,16 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 		}
 		nextHop = nh
 
+		// Per-family conditional filter check (dry-run).
+		// An empty filter name means unconditional origination.
+		if filterName := p.settings.DefaultOriginateFilter[familyKey]; filterName != "" {
+			if !p.defaultOriginateFilterAccepts(filterName, fam, defaultPrefix, nextHop) {
+				routesLogger().Debug("default-originate: filter rejected",
+					"peer", addr, "family", familyKey, "filter", filterName)
+				continue
+			}
+		}
+
 		params := message.UnicastParams{
 			Prefix:  defaultPrefix,
 			NextHop: nextHop,
@@ -768,4 +782,40 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 		}
 		routesLogger().Debug("sent default route", "peer", addr, "family", familyKey)
 	}
+}
+
+// defaultOriginateFilterAccepts runs the named filter as a dry-run against a
+// synthetic default-route update and returns true if the filter accepts.
+// Fail-closed: missing reactor, missing API server, or a malformed filter
+// reference all return false. This matches the existing policy filter chain
+// behavior (filter_chain.go policyFilterFunc) and the principle that an
+// unreachable filter must not silently emit unfiltered routes.
+func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Family, prefix netip.Prefix, nextHop netip.Addr) bool {
+	// Reject malformed filter ref -- expect "<plugin>:<filter>".
+	// Checked first so operators learn about typos before any transport lookup.
+	if !strings.Contains(filterName, ":") {
+		routesLogger().Warn("default-originate: invalid filter ref (expected plugin:filter) -- fail-closed",
+			"peer", p.settings.Address.String(), "filter", filterName)
+		return false
+	}
+	if p.reactor == nil || p.reactor.api == nil {
+		routesLogger().Warn("default-originate: no reactor API -- fail-closed",
+			"peer", p.settings.Address.String(), "filter", filterName)
+		return false
+	}
+	// Synthesize the update text the filter would see for this default route.
+	// Format matches the ingress/egress policy text contract:
+	//   "origin igp next-hop <ip> nlri <family> add <prefix>"
+	updateText := fmt.Sprintf("origin igp next-hop %s nlri %s add %s",
+		nextHop.String(), fam.String(), prefix.String())
+
+	action, _ := PolicyFilterChain(
+		[]string{filterName},
+		"export",
+		p.settings.Address.String(),
+		p.settings.PeerAS,
+		updateText,
+		p.reactor.policyFilterFunc(nil), // nil payload -- synthetic update
+	)
+	return action != PolicyReject
 }
