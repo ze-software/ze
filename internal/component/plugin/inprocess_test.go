@@ -34,6 +34,44 @@ func TestInternalPluginRunnerRegistry(t *testing.T) {
 	})
 }
 
+// TestCanonicalSubsystemName verifies the hyphen-to-dot transform used
+// by GetInternalPluginRunner when it calls a plugin's
+// ConfigureEngineLogger callback.
+//
+// VALIDATES: Plugin registry names (hyphen-separated) map to the
+// dot-separated slog subsystem names the rest of the engine uses, so
+// a config file key like `environment.log { bgp.gr debug; }` routes
+// via ApplyLogConfig -> ze.log.bgp.gr -> getLogEnv("bgp.gr") to the
+// gr plugin's engine logger.
+// PREVENTS: Regressing to the pre-fix state where the plugin's logger
+// was registered under the raw registry name "bgp-gr" and the
+// config file key had to be the unintuitive `bgp-gr debug`.
+func TestCanonicalSubsystemName(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{"bgp-gr", "bgp.gr"},
+		{"bgp-filter-community", "bgp.filter.community"},
+		{"bgp-filter-prefix", "bgp.filter.prefix"},
+		{"bgp-nlri-mup", "bgp.nlri.mup"},
+		{"bgp-rib", "bgp.rib"},
+		{"iface-dhcp", "iface.dhcp"},
+		{"fib-kernel", "fib.kernel"},
+		// Idempotent: already-canonical names are unchanged.
+		{"rib", "rib"},
+		{"interface", "interface"},
+		{"bgp.reactor", "bgp.reactor"},
+		{"", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.in, func(t *testing.T) {
+			got := CanonicalSubsystemName(tc.in)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 // TestGetInternalPluginRunner verifies runner lookup.
 //
 // VALIDATES: All known plugins return non-nil runners.

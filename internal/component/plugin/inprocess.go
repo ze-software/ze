@@ -4,9 +4,28 @@ package plugin
 
 import (
 	"net"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
+
+// CanonicalSubsystemName converts a plugin registry name (hyphen-separated,
+// e.g. "bgp-gr", "bgp-filter-community", "iface-dhcp") to the canonical
+// dot-separated slog subsystem name the engine uses everywhere else
+// (e.g. "bgp.gr", "bgp.filter.community", "iface.dhcp").
+//
+// This keeps plugin registration names, env var keys, config file keys,
+// and stderr output tags aligned so a user writing
+// `environment.log { bgp.gr debug; }` in the config actually routes
+// to the bgp.gr plugin logger. Without this transform the engine logger
+// would be registered under the raw registry name "bgp-gr" and require
+// the unintuitive `environment.log { bgp-gr debug; }` form.
+//
+// Idempotent for names that already contain no hyphens (e.g. "rib",
+// "interface", "bgp.reactor").
+func CanonicalSubsystemName(registryName string) string {
+	return strings.ReplaceAll(registryName, "-", ".")
+}
 
 // InternalPluginRunner is a function that runs a plugin in-process using SDK RPC.
 // conn is the single bidirectional connection for all RPCs.
@@ -75,7 +94,12 @@ func GetInternalPluginRunner(name string) InternalPluginRunner {
 	}
 	return func(conn net.Conn) int {
 		if reg.ConfigureEngineLogger != nil {
-			reg.ConfigureEngineLogger(name)
+			// Pass the canonical dot-separated subsystem name so the
+			// plugin's engine logger matches the rest of the slogutil
+			// hierarchy (bgp.gr, bgp.filter.community, etc.) and the
+			// config file key `bgp.gr debug` routes here via
+			// ApplyLogConfig -> ze.log.bgp.gr -> getLogEnv("bgp.gr").
+			reg.ConfigureEngineLogger(CanonicalSubsystemName(name))
 		}
 		if reg.ConfigureMetrics != nil {
 			if mr := registry.GetMetricsRegistry(); mr != nil {
