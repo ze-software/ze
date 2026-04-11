@@ -281,6 +281,32 @@ out of scope for v1; see `plan/deferrals.md`.
 <!-- source: internal/component/iface/schema/ze-iface-conf.yang -- list tunnel, choice kind, tunnel-v4-endpoints / tunnel-v6-endpoints groupings -->
 <!-- source: internal/component/iface/tunnel.go -- TunnelKind enum, TunnelSpec struct -->
 <!-- source: internal/plugins/ifacenetlink/tunnel_linux.go -- CreateTunnel switch and per-kind builders -->
+
+## Tunnel Reload Behaviour
+
+On config reload (SIGHUP or transaction commit), `applyTunnels` compares each
+tunnel's spec against the previously applied config, indexed by name. Tunnels
+whose spec is unchanged are left alone; MTU, MAC, and addresses still reconcile
+through later phases, so non-spec changes still take effect. Tunnels whose spec
+changed (encapsulation kind, `local`, `remote`, `key`, `ttl`, `hoplimit`, and
+the rest of the per-case leaves) are deleted and recreated, because Linux does
+not support in-place modification of most tunnel kinds. The recreate briefly
+drops traffic on the changed tunnel only; unrelated tunnels are not disturbed.
+
+<!-- source: internal/component/iface/config.go -- applyTunnels, indexTunnelSpecs -->
+
+## Tunnel Validation Scope
+
+`ze config validate` runs YANG schema validation plus BGP- and hub-specific
+checks. It does not invoke plugin `OnConfigVerify` callbacks, so iface
+parser-level rejections (missing `encapsulation` case, both `local { ip }` and
+`local { interface }` set in the same block, `key` on kinds that do not
+support it) only fire when the daemon loads or reloads the config. A config
+file that passes `ze config validate` can still be rejected by the running
+daemon at reload time.
+
+<!-- source: cmd/ze/config/cmd_validate.go -- runValidation (YANG + BGP + hub only, no plugin OnConfigVerify) -->
+<!-- source: internal/component/iface/config.go -- parseTunnelEntry (iface tunnel validation runs at OnConfigVerify) -->
 - **Idempotent cleanup.** Delete and mirror removal succeed even if already gone.
 
 ## Bus Topics
