@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -23,6 +24,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
+	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -38,6 +40,7 @@ import (
 	resolvecmd "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"
 	resolveDNS "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
+	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
@@ -102,6 +105,11 @@ func Run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 		data, stdinOpen, err = readStdinConfig()
 	} else {
 		data, err = store.ReadFile(configPath)
+		if err != nil && storage.IsBlobStorage(store) {
+			// Config may live on the filesystem (e.g., gokrazy read-only root)
+			// while blob handles TLS certs, SSH keys, and persistent state.
+			data, err = os.ReadFile(configPath) //nolint:gosec // user-provided config path
+		}
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read config: %v\n", err)
@@ -375,6 +383,51 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				_ = webSrv.Shutdown(shutdownCtx)
 				broker.Close()
 			}()
+		}
+	}
+
+	// Start SSH server directly when config has ssh {} block.
+	// The infra hook only fires when BGP creates a reactor; without bgp {},
+	// SSH must start here (e.g., gokrazy appliance with only environment {}).
+	sshCfg := bgpconfig.ExtractSSHConfig(loadResult.Tree)
+	if sshCfg.HasConfig {
+		cfg := zessh.Config{
+			Listen:      sshCfg.Listen,
+			ListenAddrs: sshCfg.ListenAddrs,
+			HostKeyPath: sshCfg.HostKeyPath,
+			IdleTimeout: sshCfg.IdleTimeout,
+			MaxSessions: sshCfg.MaxSessions,
+			Users:       sshCfg.Users,
+		}
+		if zefsUsers, err := loadZefsUsers(); err == nil {
+			cfg.Users = append(zefsUsers, cfg.Users...)
+		}
+		cfg.ConfigDir = loadResult.ConfigDir
+		if cfg.ConfigDir == "" {
+			cfg.ConfigDir = env.Get("ze.config.dir")
+		}
+		cfg.Storage = bgpconfig.ResolveSSHStorage(store, cfg.ConfigDir)
+		cfg.ConfigPath = configPath
+
+		sshSrv, sshErr := zessh.NewServer(cfg)
+		if sshErr != nil {
+			slog.Warn("SSH server config error", "error", sshErr)
+		} else {
+			// Wire session model factory so interactive SSH sessions work.
+			sshSrv.SetSessionModelFactory(buildSessionModelFactory(sshSrv, bgpconfig.InfraHookParams{
+				ConfigPath: configPath,
+				Store:      cfg.Storage,
+			}))
+			if startErr := sshSrv.Start(context.Background(), nil, nil); startErr != nil {
+				slog.Warn("SSH server failed to start", "error", startErr)
+			} else {
+				slog.Info("SSH server listening", "address", sshSrv.Address())
+				defer func() {
+					shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+					defer shutdownCancel()
+					_ = sshSrv.Stop(shutdownCtx)
+				}()
+			}
 		}
 	}
 
@@ -872,7 +925,10 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 
 // loadZefsUsers reads credentials from the zefs database (created by ze init).
 func loadZefsUsers() ([]authz.UserConfig, error) {
-	dir := paths.DefaultConfigDir()
+	dir := env.Get("ze.config.dir")
+	if dir == "" {
+		dir = paths.DefaultConfigDir()
+	}
 	if dir == "" {
 		return nil, fmt.Errorf("cannot resolve config directory")
 	}

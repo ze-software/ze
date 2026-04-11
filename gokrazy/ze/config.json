@@ -29,7 +29,7 @@
                 "ze.log.backend=stderr"
             ],
             "ExtraFileContents": {
-                "/etc/ze/ze.conf": "# Ze BGP configuration\n# Edit via ze config edit over SSH\n\nenvironment {\n    log {\n        level info\n    }\n}\n\nweb {\n    listen {\n        ip 0.0.0.0\n        port 8080\n    }\n}\n\nssh {\n    listen {\n        ip 0.0.0.0\n        port 22\n    }\n}\n"
+                "/etc/ze/ze.conf": "# Ze BGP configuration\n# Edit via ze config edit over SSH\n\nenvironment {\n    log {\n        level info\n    }\n\n    web {\n        enabled true\n        server default {\n            ip 0.0.0.0\n            port 8080\n        }\n    }\n\n    ssh {\n        enabled true\n        server default {\n            ip 0.0.0.0\n            port 22\n        }\n    }\n}\n"
             },
             "WaitForClock": true
         }

@@ -558,13 +558,13 @@ ze-gokrazy: ze bin/gok
 	@mkdir -p tmp/gokrazy/init
 	@echo "--- Creating SSH credentials ---"
 	@printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \
-		env ze.config.dir=tmp/gokrazy/init bin/ze init --force 2>&1
+		env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes 2>&1
 	@echo "--- Building gokrazy image ---"
 	GOARCH=amd64 bin/gok --parent_dir $(GOKRAZY_DIR) -i $(GOKRAZY_INSTANCE) overwrite \
 		--full $(GOKRAZY_IMG) \
 		--target_storage_bytes $(GOKRAZY_IMG_SIZE)
 	@echo "--- Formatting /perm partition ---"
-	$(E2FS)/mkfs.ext4 -q -F -E offset=$(GOKRAZY_PERM_OFF) $(GOKRAZY_IMG) $(GOKRAZY_PERM_BLK)
+	$(E2FS)/mkfs.ext4 -q -F -O ^metadata_csum -E offset=$(GOKRAZY_PERM_OFF) $(GOKRAZY_IMG) $(GOKRAZY_PERM_BLK)
 	@echo "--- Injecting credentials into /perm ---"
 	@dd if=$(GOKRAZY_IMG) of=tmp/gokrazy/perm.img bs=4096 skip=$(GOKRAZY_PERM_SKIP) count=$(GOKRAZY_PERM_4K) 2>/dev/null
 	@$(E2FS)/debugfs -w -R "mkdir ze" tmp/gokrazy/perm.img 2>/dev/null

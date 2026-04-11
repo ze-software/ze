@@ -362,7 +362,9 @@ func extractAuthzSection(container *config.Tree) authz.Section {
 
 // extractSSHConfig extracts SSH server configuration from the parsed config tree.
 // Returns plain data (no ssh package types). The caller converts to ssh.Config.
-func extractSSHConfig(tree *config.Tree) SSHExtractedConfig {
+// ExtractSSHConfig extracts SSH server configuration from the parsed config tree.
+// Returns plain data (no ssh package types). The caller converts to ssh.Config.
+func ExtractSSHConfig(tree *config.Tree) SSHExtractedConfig {
 	env := tree.GetContainer("environment")
 	if env == nil {
 		return SSHExtractedConfig{}

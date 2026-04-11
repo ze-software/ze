@@ -61,6 +61,10 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 		if zefsUsers, err := loadZefsUsers(); err == nil {
 			cfg.Users = append(zefsUsers, cfg.Users...)
 		}
+		cfg.ConfigDir = params.ConfigDir
+		if cfg.ConfigDir == "" {
+			cfg.ConfigDir = coreenv.Get("ze.config.dir")
+		}
 		cfg.Storage = bgpconfig.ResolveSSHStorage(params.Store, params.ConfigDir)
 		cfg.ConfigPath = params.ConfigPath
 

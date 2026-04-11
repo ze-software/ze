@@ -46,6 +46,7 @@ func Run(args []string) int {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	managedFlag := fs.Bool("managed", false, "Enable managed (fleet) mode")
 	forceFlag := fs.Bool("force", false, "Replace existing database (moves old to .replaced-<date>)")
+	yesFlag := fs.Bool("yes", false, "Skip confirmation prompt (use with --force)")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -63,12 +64,14 @@ func Run(args []string) int {
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
 					{Name: "--managed", Desc: "Enable managed (fleet) mode"},
 					{Name: "--force", Desc: "Replace existing database (moves old to .replaced-<date>)"},
+					{Name: "--yes", Desc: "Skip confirmation prompt (use with --force)"},
 				}},
 			},
 			Examples: []string{
 				`echo -e "admin\nsecret\n127.0.0.1\n2222\nmy-router" | ze init`,
 				"ze init --managed  (interactive prompts, managed mode)",
-				"ze init --force    (replace existing database)",
+				"ze init --force         (replace existing database)",
+				"ze init --force --yes   (replace without confirmation)",
 			},
 		}
 		p.Write()
@@ -106,7 +109,7 @@ func Run(args []string) int {
 				fmt.Fprintf(os.Stderr, "error: daemon is running -- stop it before replacing the database\n")
 				return 1
 			}
-			if !confirmForceReplace(dbPath) {
+			if !*yesFlag && !confirmForceReplace(dbPath) {
 				fmt.Fprintf(os.Stderr, "aborted\n")
 				return 1
 			}

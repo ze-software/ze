@@ -210,7 +210,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	// Infrastructure setup: SSH server, authz, CLI wiring.
 	// Delegated to the hub-provided hook to avoid bgpconfig importing
 	// ssh, cli, and web packages.
-	sshCfg := extractSSHConfig(tree)
+	sshCfg := ExtractSSHConfig(tree)
 	if infraHook != nil {
 		infraHook(InfraHookParams{
 			Reactor:              r,

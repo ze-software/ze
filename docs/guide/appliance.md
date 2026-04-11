@@ -107,19 +107,21 @@ environment {
     log {
         level info
     }
-}
 
-web {
-    listen {
-        ip 0.0.0.0
-        port 8080
+    web {
+        enabled true
+        server default {
+            ip 0.0.0.0
+            port 8080
+        }
     }
-}
 
-ssh {
-    listen {
-        ip 0.0.0.0
-        port 22
+    ssh {
+        enabled true
+        server default {
+            ip 0.0.0.0
+            port 22
+        }
     }
 }
 ```

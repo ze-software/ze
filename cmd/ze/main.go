@@ -511,11 +511,16 @@ dispatch:
 		store := resolveStorage()
 		// Search XDG config paths if not found locally
 		arg = config.ResolveConfigPath(arg)
-		// If blob storage doesn't have the file, fall back to filesystem
-		// (config may not be imported into blob yet)
+		// When the config file lives on the filesystem (e.g., gokrazy's
+		// read-only /etc/ze/ze.conf) but blob storage is available for
+		// TLS certs, SSH keys, and other persistent state, keep the blob
+		// store and let hub.Run read the config from the filesystem.
+		// Only fall back to filesystem storage when blob is unavailable.
 		if storage.IsBlobStorage(store) && !store.Exists(arg) {
-			store.Close() //nolint:errcheck // closing blob before filesystem fallback
-			store = storage.NewFilesystem()
+			if _, statErr := os.Stat(arg); statErr != nil {
+				store.Close() //nolint:errcheck // closing blob before filesystem fallback
+				store = storage.NewFilesystem()
+			}
 		}
 		switch detectConfigType(store, arg) {
 		case config.ConfigTypeBGP, config.ConfigTypeHub, config.ConfigTypeUnknown:
