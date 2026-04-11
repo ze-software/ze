@@ -1,0 +1,144 @@
+module ze-bfd-conf {
+    namespace "urn:ze:bfd:conf";
+    prefix bfd;
+
+    description
+        "Bidirectional Forwarding Detection (BFD) configuration for Ze.
+
+         Implements RFC 5880 (base), RFC 5881 (single-hop), and
+         RFC 5883 (multi-hop). Profiles hold reusable timer and feature
+         bundles. Sessions explicitly pinned in configuration exist even
+         without a protocol client; protocol-driven sessions (from BGP,
+         OSPF, static routes) are created at runtime via the plugin
+         Service interface and do not appear here.";
+
+    revision 2026-04-11 {
+        description "Initial BFD config skeleton.";
+    }
+
+    container bfd {
+        description "BFD control configuration for Ze.";
+
+        leaf enabled {
+            type boolean;
+            default true;
+            description "Master switch for the BFD plugin.";
+        }
+
+        list profile {
+            key "name";
+            description
+                "Reusable timer and feature profile. Sessions reference
+                 a profile by name and inherit every field below.";
+
+            leaf name {
+                type string;
+                description "Profile name used as the reference key.";
+            }
+
+            leaf detect-multiplier {
+                type uint8 {
+                    range "1..255";
+                }
+                default 3;
+                description
+                    "Number of consecutive missed Control packets that
+                     trigger a Down transition. RFC 5880 Section 6.8.4.";
+            }
+
+            leaf desired-min-tx-us {
+                type uint32;
+                default 300000;
+                description
+                    "Local target transmit rate in microseconds. The
+                     slow-start floor of 1 000 000 us applies while the
+                     session is not Up, per RFC 5880 Section 6.8.3.";
+            }
+
+            leaf required-min-rx-us {
+                type uint32;
+                default 300000;
+                description
+                    "Minimum inter-packet gap the local end can handle,
+                     in microseconds.";
+            }
+
+            leaf passive {
+                type boolean;
+                default false;
+                description
+                    "Active (default) transmits from session creation.
+                     Passive transmits nothing until a Control packet
+                     arrives from the peer. RFC 5883 Section 4.3.";
+            }
+        }
+
+        list single-hop-session {
+            key "peer vrf interface";
+            description
+                "Per-link BFD session (RFC 5881). Port 3784, TTL=255.
+                 Protocol clients should NOT use this list; they call
+                 the plugin Service interface at runtime.";
+
+            leaf peer {
+                type string;
+                description "Peer IPv4 or IPv6 address.";
+            }
+            leaf local {
+                type string;
+                description "Local source address (optional).";
+            }
+            leaf interface {
+                type string;
+                description "Egress interface name.";
+            }
+            leaf vrf {
+                type string;
+                default "default";
+            }
+            leaf profile {
+                type string;
+                description "Named profile to inherit timer parameters from.";
+            }
+            leaf shutdown {
+                type boolean;
+                default false;
+                description
+                    "When true, the session stays in AdminDown state.
+                     RFC 5880 Section 6.8.16.";
+            }
+        }
+
+        list multi-hop-session {
+            key "peer local vrf";
+            description
+                "Multi-hop BFD session (RFC 5883). Port 4784, no GTSM.";
+
+            leaf peer {
+                type string;
+            }
+            leaf local {
+                type string;
+                description "Local source address. Required for multi-hop.";
+            }
+            leaf vrf {
+                type string;
+                default "default";
+            }
+            leaf min-ttl {
+                type uint8;
+                default 254;
+                description
+                    "Minimum acceptable TTL on receive. Weak replacement
+                     for GTSM on multi-hop paths.";
+            }
+            leaf profile {
+                type string;
+            }
+            leaf shutdown {
+                type boolean;
+                default false;
+            }
+        }
+    }
+}
