@@ -11,8 +11,8 @@ module ze-iface-conf {
         description "Initial revision";
     }
 
-    grouping interface-physical {
-        description "Physical interface properties";
+    grouping interface-common {
+        description "Interface properties common to all kinds (L2 and L3)";
 
         leaf description {
             type string {
@@ -29,14 +29,6 @@ module ze-iface-conf {
             description "Maximum transmission unit";
         }
 
-        leaf mac-address {
-            type string {
-                pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}';
-            }
-            ze:validate "mac-address";
-            description "Hardware MAC address";
-        }
-
         leaf os-name {
             ze:hidden "true";
             type string;
@@ -46,6 +38,24 @@ module ze-iface-conf {
         leaf disable {
             type empty;
             description "Administratively disable this interface";
+        }
+    }
+
+    grouping interface-l2 {
+        description "L2 interface properties (common + MAC address).
+                     Used by interface kinds that carry Ethernet frames:
+                     ethernet, dummy, veth, bridge, tunnel (gretap/ip6gretap
+                     cases). L3-only kinds (wireguard, gre/ipip/sit/ip6tnl)
+                     use interface-common directly since they have no MAC.";
+
+        uses interface-common;
+
+        leaf mac-address {
+            type string {
+                pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}';
+            }
+            ze:validate "mac-address";
+            description "Hardware MAC address";
         }
     }
 
@@ -307,7 +317,7 @@ module ze-iface-conf {
                 description "Interface name";
             }
 
-            uses interface-physical;
+            uses interface-l2;
             uses interface-unit;
         }
 
@@ -320,7 +330,7 @@ module ze-iface-conf {
                 description "Interface name";
             }
 
-            uses interface-physical;
+            uses interface-l2;
             uses interface-unit;
         }
 
@@ -340,7 +350,7 @@ module ze-iface-conf {
                 description "Veth peer name";
             }
 
-            uses interface-physical;
+            uses interface-l2;
             uses interface-unit;
         }
 
@@ -369,7 +379,7 @@ module ze-iface-conf {
                 description "Member port interface names";
             }
 
-            uses interface-physical;
+            uses interface-l2;
             uses interface-unit;
         }
 
@@ -610,7 +620,7 @@ module ze-iface-conf {
                 }
             }
 
-            uses interface-physical;
+            uses interface-l2;
             uses interface-unit;
         }
 
