@@ -1,0 +1,34 @@
+# Test: looking-glass config with two named server entries parses
+# VALIDATES: spec-named-service-listeners AC-2 -- LG accepts multiple list
+#            server entries, CollectListeners recognises them without conflict
+# PREVENTS: Regression where a second LG server entry is silently dropped.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1;
+	session { asn { local 65533; } }
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip auto; }
+		}
+		session { asn { remote 65534; } }
+	}
+}
+environment {
+	looking-glass {
+		enabled true;
+		server public {
+			ip 0.0.0.0;
+			port 8443;
+		}
+		server admin {
+			ip 127.0.0.1;
+			port 18443;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

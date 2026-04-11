@@ -1,0 +1,35 @@
+# Test: mcp config with two named server entries parses
+# VALIDATES: spec-named-service-listeners AC-3 -- MCP accepts multiple list
+#            server entries. Both entries must bind 127.0.0.1 (MCP is
+#            localhost-only); the extractor rewrites any non-loopback entry.
+# PREVENTS: Regression where a second MCP server entry is silently dropped.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1;
+	session { asn { local 65533; } }
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip auto; }
+		}
+		session { asn { remote 65534; } }
+	}
+}
+environment {
+	mcp {
+		enabled true;
+		server primary {
+			ip 127.0.0.1;
+			port 8080;
+		}
+		server alt {
+			ip 127.0.0.1;
+			port 18080;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

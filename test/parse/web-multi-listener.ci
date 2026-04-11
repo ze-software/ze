@@ -1,0 +1,35 @@
+# Test: web config with two named server entries parses
+# VALIDATES: spec-named-service-listeners AC-1 -- web accepts multiple list
+#            server entries, CollectListeners recognises them without conflict
+# PREVENTS: Regression where a second web server entry is silently dropped
+#           or causes a false-positive port conflict.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1;
+	session { asn { local 65533; } }
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip auto; }
+		}
+		session { asn { remote 65534; } }
+	}
+}
+environment {
+	web {
+		enabled true;
+		server primary {
+			ip 0.0.0.0;
+			port 3443;
+		}
+		server admin {
+			ip 127.0.0.1;
+			port 13443;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

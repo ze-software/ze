@@ -1,0 +1,36 @@
+# Test: telemetry.prometheus config with two named server entries parses
+# VALIDATES: spec-named-service-listeners AC-4 -- telemetry accepts multiple
+#            list server entries and CollectListeners recognises them.
+# PREVENTS: Regression of the pre-existing "break after first entry" bug
+#           in ExtractTelemetryConfig that silently dropped extra listeners.
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1;
+	session { asn { local 65533; } }
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; }
+			local { ip auto; }
+		}
+		session { asn { remote 65534; } }
+	}
+}
+telemetry {
+	prometheus {
+		enabled true;
+		server primary {
+			ip 0.0.0.0;
+			port 9273;
+		}
+		server admin {
+			ip 127.0.0.1;
+			port 19273;
+		}
+		path /metrics;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

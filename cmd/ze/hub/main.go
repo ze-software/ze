@@ -59,7 +59,11 @@ func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	resolvers := newResolvers()
 	defer resolvers.Close()
 
-	webSrv, broker := startWebServer(store, listenAddr, insecureWeb, nil, resolvers)
+	var listenAddrs []string
+	if listenAddr != "" {
+		listenAddrs = []string{listenAddr}
+	}
+	webSrv, broker := startWebServer(store, listenAddrs, insecureWeb, nil, resolvers)
 	if webSrv == nil {
 		return 1
 	}
@@ -176,38 +180,50 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	configPaths := zeconfig.CollectContainerPaths(loadResult.Tree)
 
-	// Resolve web/LG/MCP config: env > config file > CLI defaults.
-	var lgListenAddr string
-	var lgTLS bool
+	// Resolve web/LG/MCP listen addresses. Precedence per service:
+	//   env var (compound ip:port[,ip:port]) > CLI flag > config file > off
+	// Each service collects a []string of addresses; every binder is
+	// multi-listener and binds the full slice.
+	var (
+		webAddrs []string
+		lgAddrs  []string
+		lgTLS    bool
+		mcpAddrs []string
+	)
+	if webListenAddr != "" {
+		webAddrs = []string{webListenAddr}
+		webEnabled = true
+	}
+
 	if listen := env.Get("ze.looking-glass.listen"); listen != "" {
 		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
 		if parseErr != nil {
 			fmt.Fprintf(os.Stderr, "error: ze.looking-glass.listen: %v\n", parseErr)
 			return 1
 		}
-		lgListenAddr = endpoints[0].String()
-		if len(endpoints) > 1 {
-			fmt.Fprintf(os.Stderr, "warning: ze.looking-glass.listen: only first endpoint used, multi-bind not yet supported\n")
+		lgAddrs = make([]string, 0, len(endpoints))
+		for _, ep := range endpoints {
+			lgAddrs = append(lgAddrs, ep.String())
 		}
 	}
 	if env.IsEnabled("ze.looking-glass.tls") {
 		lgTLS = true
 	}
-	if env.IsEnabled("ze.looking-glass.enabled") && lgListenAddr == "" {
-		lgListenAddr = "0.0.0.0:8443"
+	if env.IsEnabled("ze.looking-glass.enabled") && len(lgAddrs) == 0 {
+		lgAddrs = []string{"0.0.0.0:8443"}
 	}
 
-	if listen := env.Get("ze.web.listen"); listen != "" && webListenAddr == "" {
+	if listen := env.Get("ze.web.listen"); listen != "" && len(webAddrs) == 0 {
 		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
 		if parseErr != nil {
 			fmt.Fprintf(os.Stderr, "error: ze.web.listen: %v\n", parseErr)
 			return 1
 		}
-		webEnabled = true
-		webListenAddr = endpoints[0].String()
-		if len(endpoints) > 1 {
-			fmt.Fprintf(os.Stderr, "warning: ze.web.listen: only first endpoint used, multi-bind not yet supported\n")
+		webAddrs = make([]string, 0, len(endpoints))
+		for _, ep := range endpoints {
+			webAddrs = append(webAddrs, ep.String())
 		}
+		webEnabled = true
 	}
 	if env.IsEnabled("ze.web.enabled") && !webEnabled {
 		webEnabled = true
@@ -215,45 +231,48 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if env.IsEnabled("ze.web.insecure") && !insecureWeb {
 		insecureWeb = true
 	}
-	if listen := env.Get("ze.mcp.listen"); listen != "" && mcpAddr == "" {
+	if mcpAddr != "" {
+		mcpAddrs = []string{mcpAddr}
+	}
+	if listen := env.Get("ze.mcp.listen"); listen != "" && len(mcpAddrs) == 0 {
 		endpoints, parseErr := zeconfig.ParseCompoundListen(listen)
 		if parseErr != nil {
 			fmt.Fprintf(os.Stderr, "error: ze.mcp.listen: %v\n", parseErr)
 			return 1
 		}
-		mcpAddr = endpoints[0].String()
-		if len(endpoints) > 1 {
-			fmt.Fprintf(os.Stderr, "warning: ze.mcp.listen: only first endpoint used, multi-bind not yet supported\n")
+		mcpAddrs = make([]string, 0, len(endpoints))
+		for _, ep := range endpoints {
+			mcpAddrs = append(mcpAddrs, ep.String())
 		}
 	}
-	if env.IsEnabled("ze.mcp.enabled") && mcpAddr == "" {
-		mcpAddr = "127.0.0.1:8080"
+	if env.IsEnabled("ze.mcp.enabled") && len(mcpAddrs) == 0 {
+		mcpAddrs = []string{"127.0.0.1:8080"}
 	}
 	if token := env.Get("ze.mcp.token"); token != "" && mcpToken == "" {
 		mcpToken = token
 	}
 
-	// Chunk 3 uses the first endpoint only; per-binder multi-listener wiring
-	// lands in Chunks 4 (web), 5 (lg), and 6 (mcp). cfg.Servers is guaranteed
-	// non-empty when ExtractXxx returns ok=true.
+	// Config file fills in whatever the env vars and CLI flags left blank.
+	// ExtractXxx returns cfg.Servers with at least one entry when the block
+	// is enabled in YANG; every entry flows through to the binder below.
 	if webCfg, ok := zeconfig.ExtractWebConfig(loadResult.Tree); ok {
-		if !webEnabled {
-			webEnabled = true
-			webListenAddr = webCfg.Servers[0].Listen()
+		if len(webAddrs) == 0 {
+			webAddrs = endpointsToAddrs(webCfg.Servers)
 			insecureWeb = webCfg.Insecure
 		}
+		webEnabled = true
 	}
 	if mcpCfg, ok := zeconfig.ExtractMCPConfig(loadResult.Tree); ok {
-		if mcpAddr == "" {
-			mcpAddr = mcpCfg.Servers[0].Listen()
+		if len(mcpAddrs) == 0 {
+			mcpAddrs = endpointsToAddrs(mcpCfg.Servers)
 		}
 		if mcpToken == "" && mcpCfg.Token != "" {
 			mcpToken = mcpCfg.Token
 		}
 	}
 	if lgCfg, ok := zeconfig.ExtractLGConfig(loadResult.Tree); ok {
-		if lgListenAddr == "" {
-			lgListenAddr = lgCfg.Servers[0].Listen()
+		if len(lgAddrs) == 0 {
+			lgAddrs = endpointsToAddrs(lgCfg.Servers)
 		}
 		if !lgTLS {
 			lgTLS = lgCfg.TLS
@@ -387,7 +406,10 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	resolvecmd.SetResolvers(resolvers)
 
 	if webEnabled {
-		if webSrv, broker := startWebServer(store, webListenAddr, insecureWeb, dispatch, resolvers); webSrv != nil {
+		if len(webAddrs) == 0 {
+			webAddrs = []string{"0.0.0.0:3443"}
+		}
+		if webSrv, broker := startWebServer(store, webAddrs, insecureWeb, dispatch, resolvers); webSrv != nil {
 			defer func() {
 				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer shutdownCancel()
@@ -447,8 +469,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
-	if lgListenAddr != "" {
-		if lgSrv := startLGServer(store, lgListenAddr, lgTLS, dispatch, resolvers); lgSrv != nil {
+	if len(lgAddrs) > 0 {
+		if lgSrv := startLGServer(store, lgAddrs, lgTLS, dispatch, resolvers); lgSrv != nil {
 			defer func() {
 				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer shutdownCancel()
@@ -458,8 +480,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	var mcpSrv *http.Server
-	if mcpAddr != "" {
-		mcpSrv = startMCPServer([]string{mcpAddr}, dispatch, serverCommandLister(apiServer), mcpToken)
+	if len(mcpAddrs) > 0 {
+		mcpSrv = startMCPServer(mcpAddrs, dispatch, serverCommandLister(apiServer), mcpToken)
 	}
 
 	// Start REST/gRPC API servers if configured (env > config file).
@@ -735,19 +757,30 @@ func serverCommandLister(s *pluginserver.Server) zemcp.CommandLister {
 	}
 }
 
+// endpointsToAddrs converts a slice of config.ServerEndpoint into the
+// "host:port" string slice that every multi-listener binder accepts.
+func endpointsToAddrs(servers []zeconfig.ServerEndpoint) []string {
+	out := make([]string, 0, len(servers))
+	for _, ep := range servers {
+		out = append(out, ep.Listen())
+	}
+	return out
+}
+
 // startWebServer creates and starts the web server with zefs credentials.
 // Returns the server and SSE event broker on success, nil on failure (logged, non-fatal).
 // Caller MUST call broker.Close() during shutdown to release SSE clients.
-// If the port is already in use, attempts to identify and kill the stale process.
+// Every entry in listenAddrs becomes a bound listener on the same
+// *http.Server; Shutdown closes all of them.
 // Requires blob storage -- TLS keys and config must not leak to the filesystem.
-func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers) (*zeweb.WebServer, *zeweb.EventBroker) {
+func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb bool, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers) (*zeweb.WebServer, *zeweb.EventBroker) {
 	if !storage.IsBlobStorage(store) {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: requires blob storage (run ze init first)\n")
 		return nil, nil
 	}
 
-	if listenAddr == "" {
-		listenAddr = "0.0.0.0:3443"
+	if len(listenAddrs) == 0 {
+		listenAddrs = []string{"0.0.0.0:3443"}
 	}
 
 	var users []authz.UserConfig
@@ -763,8 +796,10 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 	}
 
 	// Persist TLS cert in zefs so browsers don't have to re-accept on every restart.
+	// The SAN hint is derived from the first endpoint; GenerateWebCertWithAddr
+	// already fans out to all interface IPs when the host is 0.0.0.0.
 	certStore := &blobCertStore{store: store}
-	certPEM, keyPEM, err := zeweb.LoadOrGenerateCert(certStore, listenAddr)
+	certPEM, keyPEM, err := zeweb.LoadOrGenerateCert(certStore, listenAddrs[0])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: TLS cert: %v\n", err)
 		return nil, nil
@@ -784,7 +819,7 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 	renderer.SetDecorators(decorators)
 
 	srv, err := zeweb.NewWebServer(zeweb.WebConfig{
-		ListenAddrs: []string{listenAddr},
+		ListenAddrs: listenAddrs,
 		CertPEM:     certPEM,
 		KeyPEM:      keyPEM,
 	})
@@ -1002,9 +1037,14 @@ func resolveConfigPath(store storage.Storage) string {
 
 // startLGServer creates and starts the looking glass HTTP server.
 // Returns the server on success, nil on failure (logged, non-fatal).
-func startLGServer(store storage.Storage, listenAddr string, useTLS bool, dispatch lg.CommandDispatcher, resolvers *resolve.Resolvers) *lg.LGServer {
+// Every entry in listenAddrs becomes a bound listener on the same
+// *http.Server; Shutdown closes all of them.
+func startLGServer(store storage.Storage, listenAddrs []string, useTLS bool, dispatch lg.CommandDispatcher, resolvers *resolve.Resolvers) *lg.LGServer {
+	if len(listenAddrs) == 0 {
+		return nil
+	}
 	cfg := lg.LGConfig{
-		ListenAddrs: []string{listenAddr},
+		ListenAddrs: listenAddrs,
 		TLS:         useTLS,
 		Dispatch:    dispatch,
 		DecorateASN: func(asn string) string {
@@ -1016,14 +1056,16 @@ func startLGServer(store storage.Storage, listenAddr string, useTLS bool, dispat
 		},
 	}
 
-	// When TLS is enabled, load or generate cert from blob storage.
+	// When TLS is enabled, load or generate cert from blob storage. The SAN
+	// hint is derived from the first endpoint; GenerateWebCertWithAddr
+	// already fans out to all interface IPs when the host is 0.0.0.0.
 	if useTLS {
 		if !storage.IsBlobStorage(store) {
 			fmt.Fprintf(os.Stderr, "error: looking glass TLS requires blob storage (run ze init first)\n")
 			return nil
 		}
 		certStore := &blobCertStore{store: store}
-		certPEM, keyPEM, err := zeweb.LoadOrGenerateCert(certStore, listenAddr)
+		certPEM, keyPEM, err := zeweb.LoadOrGenerateCert(certStore, listenAddrs[0])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: looking glass TLS cert: %v\n", err)
 			return nil
@@ -1053,7 +1095,9 @@ func startLGServer(store storage.Storage, listenAddr string, useTLS bool, dispat
 	if cfg.TLS {
 		scheme = "https"
 	}
-	fmt.Fprintf(os.Stderr, "looking glass listening on %s://%s/\n", scheme, srv.Address())
+	for _, addr := range srv.Addresses() {
+		fmt.Fprintf(os.Stderr, "looking glass listening on %s://%s/\n", scheme, addr)
+	}
 	return srv
 }
 
