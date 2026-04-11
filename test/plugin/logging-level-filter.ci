@@ -1,11 +1,13 @@
 # Migrated from test/data/plugin/logging-level-filter.*
 
+# Set server logging to INFO level (should filter out DEBUG).
+# Must live OUTSIDE the stdin=peer block — option=env is consumed by the
+# test runner (seeds proc.Env), not ze-peer.
+option=env:var=ze.bgp.log.server:value=info
+
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=timeout:value=10s
-
-# Set server logging to INFO level (should filter out DEBUG)
-option=env:var=ze.bgp.log.server:value=info
 
 # Test: Level filtering
 # Verifies ze.bgp.log.server=info filters out DEBUG messages

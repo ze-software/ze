@@ -93,12 +93,30 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 		// Also parse "peer" stdin block for expectations (for reporting purposes).
 		// The peer block content is passed to ze-peer which parses it, but the
 		// test runner also needs to know about expectations for progress/failure reporting.
+		//
+		// The block also contains ze-peer-consumed directives like
+		// option=timeout, option=open, option=update, option=tcp_connections —
+		// those are pass-through and must NOT be rejected here.
+		//
+		// option=env, however, is consumed by the test runner (it seeds proc.Env
+		// when spawning ze/ze-peer/helpers), NOT by ze-peer. Placing it inside
+		// the peer block means it is silently dropped and the target process
+		// never sees it. See plan/learned/545-debug-plugin-test-cluster.md.
+		// Reject it with a hard error naming the directive so the author can
+		// move it outside the block.
 		if peerBlock, ok := v.StdinBlocks["peer"]; ok {
 			lines := strings.SplitSeq(string(peerBlock), "\n")
 			for line := range lines {
 				trimmed := strings.TrimSpace(line)
 				if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 					continue
+				}
+				if strings.HasPrefix(trimmed, "option=env:") {
+					return fmt.Errorf("%q is consumed by the test runner, not ze-peer, "+
+						"so placing it inside a stdin=peer block silently drops it. "+
+						"Move it outside (above) the stdin=peer:terminator=... header. "+
+						"See plan/learned/545-debug-plugin-test-cluster.md",
+						trimmed)
 				}
 				// Parse expect= and action= lines for reporting purposes
 				if strings.HasPrefix(trimmed, "expect=") || strings.HasPrefix(trimmed, "action=") {

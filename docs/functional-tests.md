@@ -275,6 +275,44 @@ option=file:path=peer.conf
 
 At runtime, Tmpfs files are written to a temp directory. This enables self-contained tests without separate `.conf` files.
 
+### Directive Placement
+
+Test directives belong to one of two scopes:
+
+| Scope | Consumer | Placement |
+|-------|----------|-----------|
+| Test runner | The `ze-test` process itself (seeds `proc.Env`, drives orchestration) | File level, outside any `stdin=...` block |
+| `ze-peer` stdin | The `ze-peer` subprocess reading its stdin at runtime | Inside the `stdin=peer:terminator=X` block |
+
+Only `expect=bgp:...`, `expect=json:...`, `expect=exit:...`, `action=...`, `option=timeout:...`, `option=open:...`, `option=update:...`, and `option=tcp_connections:...` are valid inside `stdin=peer:` blocks. The `option=timeout`, `option=open`, `option=update`, and `option=tcp_connections` forms are consumed by `ze-peer` from its stdin and must stay in-block so the subprocess receives them.
+
+**`option=env:var=K:value=V` is consumed by the test runner (it appends to `proc.Env` when spawning `ze`/`ze-peer`/helper processes) and therefore MUST live at file level, outside any `stdin=peer:` block.** Placing it inside the block used to be silently dropped — the directive would be handed to `ze-peer`, which ignores it, and the target process would never see the variable. The parser now rejects this at `bin/ze-test <suite> -list` time with an error naming the exact directive and pointing at this section.
+
+<!-- source: internal/test/runner/record_parse.go — parseAndAdd peer-block loop -->
+
+**Correct placement:**
+
+```
+# option=env belongs ABOVE the stdin=peer block.
+option=env:var=ze.log.bgp.server:value=debug
+
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=15s
+option=open:value=inspect-open-message
+expect=bgp:conn=1:seq=1:hex=FFFF...
+EOF_PEER
+```
+
+**Rejected at parse time:**
+
+```
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=15s
+option=env:var=ze.log.bgp.server:value=debug   # <-- PARSE ERROR
+expect=bgp:conn=1:seq=1:hex=FFFF...
+EOF_PEER
+```
+
 ### Logging Tests
 
 Tests can verify logging behavior using `option=env:`, `expect=stderr:`, `reject=stderr:`, and `expect=syslog:`.

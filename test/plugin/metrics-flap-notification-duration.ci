@@ -15,11 +15,15 @@
 # VALIDATES: ze_peer_session_duration_seconds populated by metrics loop.
 # PREVENTS: Session lifecycle metrics not wired into FSM teardown path.
 
+# Fast metrics interval so the metrics loop ticks well within the test's
+# sleep windows. Must live OUTSIDE the stdin=peer block — option=env is
+# consumed by the test runner, not ze-peer.
+option=env:var=ze.metrics.interval:value=1s
+
 # ze-peer expectations: session up, then expect NOTIFICATION (cease/admin-reset)
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=20s
-option=env:var=ze.metrics.interval:value=1s
 
 # EOR from ze
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
