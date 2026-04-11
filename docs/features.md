@@ -29,6 +29,10 @@ Ze is a BGP daemon written in Go.
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- raisePrefixThreshold, RaisePrefixStale, raiseNotificationError, raiseSessionDropped -->
 <!-- source: internal/component/bgp/config/loader.go -- collectPrefixWarnings reads from report bus for login banner -->
 | [Interoperability Testing](features/interoperability-testing.md) | 32 Docker-based scenarios against FRR, BIRD, GoBGP |
+| REST/gRPC API | Programmatic API with OpenAPI 3.1 spec, SSE streaming, config sessions. REST on port 8081, gRPC on port 50051. Bearer token auth, CORS support. Both transports share one engine -- identical command output. |
+<!-- source: internal/component/api/engine.go -- APIEngine, Execute, Stream, ListCommands -->
+<!-- source: internal/component/api/rest/server.go -- RESTServer, all HTTP handlers -->
+<!-- source: internal/component/api/grpc/server.go -- GRPCServer, ZeService, ZeConfigService -->
 | [MCP Integration](features/mcp-integration.md) | AI-assisted BGP operations via Model Context Protocol |
 | [DNS Resolver](features/dns-resolver.md) | Built-in cached DNS resolver for all components |
 | Resolution CLI | Offline `ze resolve` tool for DNS, Team Cymru ASN names, PeeringDB prefix counts, and IRR AS-SET expansion |

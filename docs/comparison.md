@@ -17,7 +17,7 @@ Last updated: 2026-03-25
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Language | Go | Rust | C | Go | Rust | C | Go | Python | C | C | Java |
 | License | AGPL-3.0 | MIT | GPL-2.0+ | Apache-2.0 | Apache-2.0 | GPL-2.0 | Apache-2.0 | BSD-3-Clause | ISC | GPL-2.0+ | Free |
-| Primary interface | CLI (ze) + SSH | gRPC | CLI (birdc) | gRPC | gRPC | CLI (vtysh) | gRPC | CLI + API | CLI (bgpctl) | CLI (birdc) | CLI (telnet/SSH) |
+| Primary interface | CLI + SSH + REST/gRPC | gRPC | CLI (birdc) | gRPC | gRPC | CLI (vtysh) | gRPC | CLI + API | CLI (bgpctl) | CLI (birdc) | CLI (telnet/SSH) |
 | First release | 2026 | 2026 | 2024 | 2018 | 2019 | 2017 | 2014 | 2010 | 2004 | 1998 | 2012 |
 | Maturity | Pre-release | Pre-release | Production | Niche | Experimental | Production | Production | Production | Production | Production | Production |
 | Multithreaded | Yes (goroutines) | Yes (tokio) | Yes | Yes (goroutines) | Yes (multi-core) | No | Yes (goroutines) | No | Yes (3-process) | No | Yes (per-peer) |
@@ -138,8 +138,8 @@ banner reads the same source, so nothing is silently hidden. See
 
 | Feature | Ze | rustbgpd | BIRD 3 | bio-rd | RustyBGP | FRR | GoBGP | ExaBGP | OpenBGPd | BIRD 2 | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| gRPC API | No | Yes | No | Yes | Yes | Partial | Yes | No | No | No | No |
-| REST API | No | Partial | No | No | No | Partial | No | No | No | No | No |
+| gRPC API | Yes | Yes | No | Yes | Yes | Partial | Yes | No | No | No | No |
+| REST API | Yes | Partial | No | No | No | Partial | No | No | No | No | No |
 | YANG model | Yes | No | No | No | No | Partial | No | No | No | No | No |
 | CLI tool | Yes | Yes | Yes | Partial | No | Yes | Yes | Yes | Yes | Yes | Yes |
 | CLI JSON output | Yes | Yes | No | No | No | Yes | Yes | Yes | Yes | No | No |
