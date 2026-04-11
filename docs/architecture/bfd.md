@@ -187,6 +187,43 @@ as follow-ups when wiring begins:
 | `test/plugin/bfd/*.ci` functional tests | Integration completeness per `rules/integration-completeness.md` | Required before claiming "wired" |
 | Interop with FRR `bfdd` | Wire-compat verification | Highest-value test |
 
+## Next session: start here
+
+The skeleton is committed as `e5a4add9`. The next working unit is
+**Stage 1: make the plugin reachable from a running ze**. The commit is
+deliberately not self-wiring (`internal/plugins/bfd/register.go` carries
+a top-of-file warning; the plugin is not in
+`internal/component/plugin/all/all.go`). Before touching anything else,
+pick up the following in order:
+
+| Step | File | Change |
+|------|------|--------|
+| 1 | `internal/plugins/bfd/bfd.go` | Replace `RunBFDPlugin` stub with a real SDK-driven entry. Pattern: copy the shape of `internal/plugins/sysrib/sysrib.go` (`OnConfigVerify`, `OnConfigure`, `OnConfigApply`, `OnStarted`). Construct `engine.NewLoop(transport.UDP, clock.RealClock{})` per VRF; keep a `map[vrf]*engine.Loop` on the plugin state. Drive `Service.EnsureSession` / `ReleaseSession` from the parsed YANG `bfd.single-hop-session` and `bfd.multi-hop-session` lists. |
+| 2 | `internal/plugins/bfd/register.go` | Delete the top-of-file "IMPORTANT: not blank-imported" warning comment. Add `ConfigureEngineLogger: func(name string) { UseLogger(slogutil.Logger(name)) }` to the `Registration` struct. |
+| 3 | `internal/core/env/` (or the package where `env.MustRegister` for plugins lives) | Register `ze.log.bfd` so `ze.log.bfd=debug` tags through per `rules/go-standards.md`. |
+| 4 | Run `make generate` | Regenerates `internal/component/plugin/all/all.go` to blank-import `internal/plugins/bfd` + `internal/plugins/bfd/schema`. |
+| 5 | `internal/component/plugin/all/all_test.go` | Bump the expected plugin count in `TestAllPluginsRegistered`. |
+| 6 | `test/plugin/bfd/01-standalone-session.ci` | Minimum `.ci` test: two ze processes with a pinned single-hop session, assert both reach `Up`. Required by `rules/integration-completeness.md`. |
+| 7 | `make ze-verify` | Gate before marking Stage 1 done. |
+
+Stage 2 (BGP opt-in) depends on Stage 1. Stage 3 (GTSM, `SO_BINDTODEVICE`,
+jitter) depends on Stage 1 but can run in parallel with Stage 2. See
+"What is not done" above for the full roadmap.
+
+### Things that are intentionally done the way they are
+
+A future session may be tempted to "clean up" any of these. They are
+deliberate:
+
+| Looks like | Actual reason |
+|-----------|---------------|
+| `type Machine struct` instead of `type Session struct` in `session/` | The project-wide hook rejects duplicate type names; `session.Session` would have collided with `internal/component/bgp/reactor/session.go`. |
+| `type Loop struct` instead of `type Engine struct` in `engine/` | Same reason: `internal/component/engine/engine.go` owns `Engine`. `engine.Loop` reads fine because the package name is `engine`. |
+| `trySendStateChange` uses a `len/cap` precheck instead of `select { case ch <- ...: default: }` | The `block-silent-ignore.sh` hook refuses bare `default:` in `select`. The precheck is race-free because the express loop is the only writer — the invariant is documented on `Loop`. If a future refactor adds a second writer, switch to an explicit `select`/`default` and accept the hook re-work. |
+| `packet.Buf` wraps `*[]byte` in a struct instead of using raw `[]byte` | `sync.Pool.Put(&buf)` escapes a fresh 24-byte slice header per call if you pass `[]byte`. Wrapping in a struct carried as a value lets the same `*[]byte` round-trip through the pool. The benchmark `BenchmarkRoundTrip` measures 0 B/op; any refactor that returns to raw `[]byte` will regress it. |
+| `firstPacketKey` excludes `Local` from the tuple | Per RFC 5880 §6.8.6, the receiver cannot reliably observe the peer's chosen source address; it learns it from the packet. The first-packet index key MUST match what the transport actually surfaces on `Inbound`, which is `(peer=src_addr, vrf, iface, mode)`. |
+| `allocateDiscriminatorLocked` walks the counter instead of using a random value | Deterministic for tests and trivially debuggable. Swap to CSPRNG seeding only if a deployment asks for it. |
+
 ## Testing
 
 ```

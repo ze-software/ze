@@ -51,6 +51,11 @@ func UseLogger(l *slog.Logger) {
 // follow-up commit so this skeleton stays merge-conflict-free for the
 // other concurrent work in flight.
 //
+// Next session: see docs/architecture/bfd.md "Next session: start here"
+// for the exact file-by-file edit sequence for Stage 1 (wiring). The
+// pattern to copy is internal/plugins/sysrib/sysrib.go's lifecycle
+// hooks (OnConfigVerify / OnConfigure / OnConfigApply / OnStarted).
+//
 // When wiring lands, RunBFDPlugin will:
 //
 //  1. Parse the YANG ze-bfd-conf section from sdk.OnConfigure.
@@ -60,6 +65,6 @@ func UseLogger(l *slog.Logger) {
 //     clients can call EnsureSession.
 //  5. Subscribe to iface events for interface up/down handling.
 func RunBFDPlugin(_ net.Conn) int {
-	logger().Info("bfd plugin stub: not yet wired into engine startup")
+	logger().Info("bfd plugin stub: not yet wired into engine startup; see docs/architecture/bfd.md")
 	return 0
 }
