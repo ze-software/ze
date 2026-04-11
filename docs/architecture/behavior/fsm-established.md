@@ -97,7 +97,7 @@ runbook).
 
 <!-- source: internal/component/bgp/fsm/timer.go — StartHoldTimer, StartKeepaliveTimer, ResetHoldTimer -->
 <!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires, OnKeepaliveTimerExpires -->
-<!-- source: internal/component/bgp/reactor/session.go — startSendHoldTimer, stopSendHoldTimer -->
+<!-- source: internal/component/bgp/reactor/session_write.go — startSendHoldTimer, stopSendHoldTimer -->
 
 ### Hold timer congestion extension
 
@@ -240,7 +240,7 @@ receipt events to plugins.
   reuse story (forwarding a received UPDATE's raw bytes to matching
   peers without reparsing) lives in the reactor's forwarding pool, not
   in the FSM. The FSM is only aware that an UPDATE happened.
-  <!-- source: internal/component/bgp/reactor/forward_pool.go — ForwardPool -->
+  <!-- source: internal/component/bgp/reactor/forward_pool.go — fwdPool, peerPool, TryDispatch -->
 - **RFC 9234 role enforcement runs once on entry via the OPEN
   validator**, not continuously in Established. Policy enforcement on
   incoming routes is handled by filter plugins, not by the FSM.

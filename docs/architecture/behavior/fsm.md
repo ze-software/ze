@@ -30,6 +30,11 @@ effects, RFC deviations, and tests.
 | OpenConfirm | [fsm-open-confirm.md](fsm-open-confirm.md) |
 | Established | [fsm-established.md](fsm-established.md) |
 
+For the outer peer run loop that sits around the FSM (reconnect
+backoff, panic recovery, collision resolution, inbound connection
+buffering, and the replacement for RFC 4271's `ConnectRetryTimer`), see
+[peer-lifecycle.md](peer-lifecycle.md).
+
 ---
 
 **Source:** ExaBGP `bgp/fsm.py`, `reactor/peer/`
