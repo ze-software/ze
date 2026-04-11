@@ -210,6 +210,18 @@ type RIBManager struct {
 	// Used by checkBestPathChange to detect when the best path changes after an insert/remove.
 	bestPrev map[bestPathKey]*bestPathRecord
 
+	// maximumPaths is the configured N for multipath/ECMP selection.
+	// Populated from bgp/multipath/maximum-paths in the Stage 2 configure callback.
+	// Default 1 = single best-path behavior (RFC 4271 §9.1.2, no ECMP).
+	// Read-only after configure; no lock needed for atomic load.
+	maximumPaths atomic.Uint32
+
+	// relaxASPath enables the "as-path-relax" multipath semantic.
+	// When true, paths with the same AS-path length but different content are
+	// considered equal-cost. When false (default), AS-path content must match.
+	// Populated from bgp/multipath/relax-as-path in the Stage 2 configure callback.
+	relaxASPath atomic.Bool
+
 	mu sync.RWMutex // protects ribInPool, ribOut, peerUp, peerMeta, retainedPeers, grState, bestPrev
 
 	// lastMetricsInPeers / lastMetricsOutPeers track peer labels emitted in the
@@ -317,6 +329,11 @@ func RunRIBPlugin(conn net.Conn) int {
 		grState:       make(map[string]*peerGRState),
 		bestPrev:      make(map[bestPathKey]*bestPathRecord),
 	}
+	// Initialize multipath to the RFC 4271 single best-path default BEFORE
+	// OnConfigure runs. Any consumer that reads maximumPaths during plugin
+	// startup (before Stage 2 config delivery) sees 1, not the atomic zero
+	// value -- no "ECMP disabled" race at boot.
+	r.maximumPaths.Store(1)
 
 	// Structured event handler for DirectBridge delivery.
 	// Eliminates JSON round-trip: reads peer metadata from StructuredEvent fields,
@@ -348,6 +365,32 @@ func RunRIBPlugin(conn net.Conn) int {
 		return r.handleCommand(command, peer, args)
 	})
 
+	// Stage 2: Configure callback -- extract bgp/multipath from config tree.
+	// RFC 4271 §9.1.2 extension: maximum-paths>1 enables ECMP/multipath best-path
+	// selection with up to N equal-cost paths per prefix.
+	//
+	// maximumPaths is already initialized to 1 (RFC 4271 single best-path) at
+	// RIBManager construction. If the config omits bgp/multipath entirely, or
+	// provides an out-of-range value, the extractor returns 0 and we leave the
+	// default in place.
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		for _, section := range sections {
+			if section.Root != "bgp" {
+				continue
+			}
+			maxP, relax := extractMultipathConfig(section.Data)
+			if maxP > 0 {
+				r.maximumPaths.Store(uint32(maxP))
+			}
+			r.relaxASPath.Store(relax)
+		}
+		logger().Debug("rib multipath configured",
+			"maximum-paths", r.maximumPaths.Load(),
+			"relax-as-path", r.relaxASPath.Load(),
+		)
+		return nil
+	})
+
 	// Register event subscriptions atomically with startup completion.
 	// Included in the "ready" RPC so the engine registers them before SignalAPIReady,
 	// ensuring the rib sees every "sent" event from the very first route.
@@ -374,6 +417,9 @@ func RunRIBPlugin(conn net.Conn) int {
 
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
+		// WantsConfig: receive the bgp subtree in Stage 2 so OnConfigure can
+		// read multipath config (maximum-paths, relax-as-path).
+		WantsConfig: []string{"bgp"},
 		Commands: []sdk.CommandDecl{
 			// Unified show with pipeline (scope + filters + terminals)
 			{Name: "bgp rib status"},

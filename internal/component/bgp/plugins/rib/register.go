@@ -18,6 +18,7 @@ func init() {
 		Description: "Route Information Base storage",
 		RFCs:        []string{"4271"},
 		Features:    "yang",
+		ConfigRoots: []string{"bgp"},
 		YANG:        ribschema.ZeRibYANG,
 		RunEngine:   RunRIBPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
