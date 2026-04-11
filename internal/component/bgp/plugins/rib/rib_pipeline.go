@@ -368,18 +368,18 @@ func (f *familyFilter) Meta() PipelineMeta {
 	return PipelineMeta{Count: f.count}
 }
 
-// cidrFilter filters routes by prefix string match.
-type cidrFilter struct {
+// prefixFilter filters routes by prefix string match.
+type prefixFilter struct {
 	upstream PipelineIterator
 	pattern  string
 	count    int
 }
 
-func newCIDRFilter(upstream PipelineIterator, pattern string) *cidrFilter {
-	return &cidrFilter{upstream: upstream, pattern: pattern}
+func newPrefixFilter(upstream PipelineIterator, pattern string) *prefixFilter {
+	return &prefixFilter{upstream: upstream, pattern: pattern}
 }
 
-func (f *cidrFilter) Next() (RouteItem, bool) {
+func (f *prefixFilter) Next() (RouteItem, bool) {
 	for {
 		item, ok := f.upstream.Next()
 		if !ok {
@@ -392,7 +392,7 @@ func (f *cidrFilter) Next() (RouteItem, bool) {
 	}
 }
 
-func (f *cidrFilter) Meta() PipelineMeta {
+func (f *prefixFilter) Meta() PipelineMeta {
 	return PipelineMeta{Count: f.count}
 }
 
@@ -869,8 +869,8 @@ func (s pipelineStage) apply(upstream PipelineIterator) PipelineIterator {
 	switch s.kind {
 	case filterPath, "aspath":
 		return newPathFilter(upstream, s.arg)
-	case "cidr", "prefix":
-		return newCIDRFilter(upstream, s.arg)
+	case "prefix":
+		return newPrefixFilter(upstream, s.arg)
 	case "community":
 		return newCommunityFilter(upstream, s.arg)
 	case "family":
@@ -895,7 +895,6 @@ func (s pipelineStage) apply(upstream PipelineIterator) PipelineIterator {
 var filterKeywords = map[string]bool{
 	filterPath:  true,
 	"aspath":    true,
-	"cidr":      true,
 	"prefix":    true,
 	"community": true,
 	"family":    true,

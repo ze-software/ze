@@ -130,13 +130,13 @@ func TestBestPipelineReason_WithPrefixFilter(t *testing.T) {
 	peer.Insert(fam, attr, nlri2)
 	r.ribInPool["192.0.2.1"] = peer
 
-	result := r.bestPipeline("*", []string{"cidr", "10.0.0.0/24", "reason"})
+	result := r.bestPipeline("*", []string{"prefix", "10.0.0.0/24", "reason"})
 
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
 	entries, ok := parsed["best-path-reason"].([]any)
 	require.True(t, ok)
-	require.Len(t, entries, 1, "cidr filter should leave exactly one prefix")
+	require.Len(t, entries, 1, "prefix filter should leave exactly one prefix")
 
 	entry, ok := entries[0].(map[string]any)
 	require.True(t, ok)

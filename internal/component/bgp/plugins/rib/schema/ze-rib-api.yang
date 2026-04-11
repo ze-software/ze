@@ -79,7 +79,7 @@ module ze-rib-api {
         description "Show routes with pipeline filters.
                      Syntax: bgp rib show [scope] [filters...] [terminal]
                      Scope: sent | received | sent-received (default)
-                     Filters: path <pattern>, cidr <prefix>, community <value>,
+                     Filters: path <pattern>, prefix <pattern>, community <value>,
                               family <afi/safi>, match <text>
                      Terminals: count (metadata only), json (serialized output),
                                 prefix-summary (per-family prefix-length distribution),
@@ -96,7 +96,7 @@ module ze-rib-api {
     rpc best {
         description "Show best-path per prefix (RFC 4271 §9.1.2).
                      Syntax: bgp rib show best [filters...] [terminal]
-                     Filters: path <pattern>, cidr <prefix>, community <value>,
+                     Filters: path <pattern>, prefix <pattern>, community <value>,
                               family <afi/safi>, match <text>
                      Terminals: count (metadata only), json (serialized output),
                                 prefix-summary (per-family prefix-length distribution),

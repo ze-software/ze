@@ -103,7 +103,7 @@ def main():
     check_contains('graph-box', r, '\u250c')  # ┌
 
     # --- empty graph (no matching routes) ---
-    r = dispatch(api, 'bgp rib show received cidr 99.99.99.0/24 graph')
+    r = dispatch(api, 'bgp rib show received prefix 99.99.99.0/24 graph')
     check('empty-graph', r, 'done')
 
     # Shutdown

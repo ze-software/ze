@@ -228,7 +228,7 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 
 // TestInboundShowPrefixFilter verifies prefix filter restricts results.
 //
-// VALIDATES: AC-7 — bgp rib show received with cidr filter returns only matching prefix.
+// VALIDATES: AC-7 — bgp rib show received with prefix filter returns only matching prefix.
 // PREVENTS: Prefix filter being ignored, all prefixes returned.
 func TestInboundShowPrefixFilter(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -243,8 +243,8 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 	peerRIB.Insert(fam, attrBytes, nlri2)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
-	// Filter by prefix using cidr filter (exact prefix string match)
-	routes := requirePeerRoutes(t, r.showPipeline("*", []string{"received", "cidr", "10.0.0.0/24"}), "adj-rib-in", "192.0.2.1")
+	// Filter by prefix (exact prefix string match)
+	routes := requirePeerRoutes(t, r.showPipeline("*", []string{"received", "prefix", "10.0.0.0/24"}), "adj-rib-in", "192.0.2.1")
 	require.Len(t, routes, 1, "expected only matching prefix")
 	first, ok := routes[0].(map[string]any)
 	require.True(t, ok)

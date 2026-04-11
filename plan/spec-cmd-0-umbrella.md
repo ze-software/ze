@@ -52,7 +52,7 @@ These were initially flagged as gaps but already exist:
 |---------|-----------|
 | Per-neighbor received routes | `rib routes received peer <sel>` |
 | Per-neighbor advertised routes | `rib routes sent peer <sel>` |
-| Filter by prefix | `rib routes cidr <prefix>` |
+| Filter by prefix | `rib routes prefix <pattern>` |
 | Filter by community | `rib routes community <value>` |
 | Filter by AS-path pattern | `rib routes path <pattern>` |
 | Filter by family | `rib routes family <afi/safi>` |
@@ -499,7 +499,7 @@ IPv4/IPv6 local address.
 | `TestMPReachNextHopHandler_{Rewrite16Bytes,Rewrite32Bytes,CopyWhenNoOps,InvalidOpLength,IPv4NextHopThroughMPReach,RejectsOverflow}` | `reactor/filter_delta_handlers_test.go` | cmd-1 IPv6 next-hop rewriting: 16 and 32 byte global/link-local, no-op pass-through, invalid op length rejection, IPv4-in-MP_REACH for labeled unicast, 65535-overflow refusal |
 | `TestBuildModifiedPayload_MPReachNextHopSelf` | `reactor/filter_delta_handlers_test.go` | cmd-1 end-to-end: `applyNextHopMod` -> `buildModifiedPayload` -> `mpReachNextHopHandler` with MP_REACH rewritten and NLRI preserved |
 | `TestSelectBestExplain_{Empty,Single,LocalPref,ASPathLen,Origin,PeerAddrTiebreak,ThreeCandidates}` + `TestBestStep_String` | `plugins/rib/bestpath_test.go` | cmd-9 decision-step narrator: empty/single edge cases, each resolving step, three-candidate reduction with N-1 pairwise records, step string mapping |
-| `TestBestPipelineReason_{LocalPrefWinner,SingleCandidate,WithPrefixFilter,UnknownKeyword}` | `plugins/rib/rib_pipeline_best_test.go` | cmd-9 end-to-end pipeline: reason terminal emits narration JSON, single-candidate degeneracy, composes with `cidr` filter, typo rejection |
+| `TestBestPipelineReason_{LocalPrefWinner,SingleCandidate,WithPrefixFilter,UnknownKeyword}` | `plugins/rib/rib_pipeline_best_test.go` | cmd-9 end-to-end pipeline: reason terminal emits narration JSON, single-candidate degeneracy, composes with `prefix` filter, typo rejection |
 | `TestSelectMultipath_{DisabledByDefault,TwoEqualCost,FewerAvailable,CappedAtMaxPaths,DifferentASPathContent,RelaxASPath,LocalPrefMismatch,EBGPvsIBGP,MEDMismatchSameNeighbor,DifferentNeighborIgnoresMED,EmptyAndSingle}` | `plugins/rib/bestpath_test.go` | cmd-3 phase 3 equal-cost multipath algorithm: every gate (local-pref, as-path length+content, origin, med+neighbor, eBGP/iBGP), both relax-as-path modes, cap/available bounds, degenerate cases |
 | `TestBestPipeline_{MultipathPeersInOutput,MultipathDisabledDefaults}` | `plugins/rib/rib_pipeline_best_test.go` | cmd-3 phase 3 end-to-end: `bgp rib show best` surfaces the multipath peer set as `multipath-peers` when `maximumPaths > 1` and siblings exist; field is omitted (not empty-array) when multipath is off |
 

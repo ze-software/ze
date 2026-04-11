@@ -120,7 +120,7 @@ func FoldServerPipeline(command string, ops []pipeOp) (string, []pipeOp) {
 		case pipeJSON:
 			serverArgs = append(serverArgs, "json")
 		case pipeUnknown:
-			// Pipeline keywords like "path", "cidr", "community", "family"
+			// Pipeline keywords like "path", "prefix", "community", "family"
 			// are parsed as pipeUnknown by ParsePipe. Fold them back.
 			serverArgs = append(serverArgs, op.arg)
 		}

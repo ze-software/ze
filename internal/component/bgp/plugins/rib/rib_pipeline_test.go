@@ -129,11 +129,11 @@ func TestFilterFamily(t *testing.T) {
 	assert.Equal(t, "10.0.1.0/24", results[1].Prefix)
 }
 
-// TestFilterCIDR verifies the CIDR/prefix filter stage.
+// TestFilterPrefix verifies the prefix filter stage.
 //
-// VALIDATES: cidr filter matches routes whose prefix starts with the given string.
+// VALIDATES: prefix filter matches routes whose prefix starts with the given string.
 // PREVENTS: Prefix filter matching unrelated prefixes.
-func TestFilterCIDR(t *testing.T) {
+func TestFilterPrefix(t *testing.T) {
 	items := []RouteItem{
 		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
 		{Peer: "p1", Family: "ipv4/unicast", Prefix: "172.16.0.0/24"},
@@ -141,7 +141,7 @@ func TestFilterCIDR(t *testing.T) {
 	}
 
 	src := &sliceSource{items: items}
-	f := newCIDRFilter(src, "10.0")
+	f := newPrefixFilter(src, "10.0")
 
 	var results []RouteItem
 	for {
@@ -330,7 +330,7 @@ func TestBuildPipelineFilterKeywordNoValue(t *testing.T) {
 		{"path no value", []string{"path"}},
 		{"community no value", []string{"community"}},
 		{"family no value", []string{"family"}},
-		{"cidr no value", []string{"cidr"}},
+		{"prefix no value", []string{"prefix"}},
 		{"match no value", []string{"match"}},
 	}
 

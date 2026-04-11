@@ -32,7 +32,7 @@ Test: RIB pipeline filter wiring with actual routes
 
 Verifies dispatch-command with pipeline keywords on a RIB containing real routes:
 - Scope keywords (received, sent, sent-received) route to correct RIB tables
-- Filter keywords (path, community, cidr, family) apply correctly
+- Filter keywords (path, community, prefix, family) apply correctly
 - Count terminal returns {"count": N} format
 - Old commands (rib show in, rib show out) return pipeline error
 """
@@ -194,10 +194,10 @@ def main():
     check('family-filter', r, 'done')
     check_count('family-filter', r, exact=1)
 
-    # CIDR filter on specific sent prefix
-    r = dispatch(api, 'bgp rib show sent cidr 192.168.1.0/24 count')
-    check('cidr-filter', r, 'done')
-    check_count('cidr-filter', r, exact=1)
+    # Prefix filter on specific sent prefix
+    r = dispatch(api, 'bgp rib show sent prefix 192.168.1.0/24 count')
+    check('prefix-filter', r, 'done')
+    check_count('prefix-filter', r, exact=1)
 
     # Combined filters: family + community + count (no routes have community)
     r = dispatch(api, 'bgp rib show received family ipv4/unicast community 65000:100 count')
@@ -210,9 +210,9 @@ def main():
     check('best-path', r, 'done')
     check_has_key('best-path-content', r, 'best-path')
 
-    r = dispatch(api, 'bgp rib show best cidr 0.0.0.0/0')
-    check('best-cidr', r, 'done')
-    check_has_key('best-cidr-content', r, 'best-path')
+    r = dispatch(api, 'bgp rib show best prefix 0.0.0.0/0')
+    check('best-prefix', r, 'done')
+    check_has_key('best-prefix-content', r, 'best-path')
 
     # --- Unknown keyword returns pipeline error in data ---
 

@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. Inject two routes with different prefixes and AS paths
-# 2. Run graph with cidr filter to select only one
+# 2. Run graph with prefix filter to select only one
 # 3. Verify filtered graph contains only the matching route's ASNs
 #
 # VALIDATES: AC-5 "Filters applied before graph construction"
@@ -93,7 +93,7 @@ def main():
     check('inject-2', r, 'done')
 
     # Filter to 10.10 prefix and graph
-    r = dispatch(api, 'bgp rib show received cidr 10.10 graph')
+    r = dispatch(api, 'bgp rib show received prefix 10.10 graph')
     check('filtered-graph', r, 'done')
 
     # Should contain AS64501/64502 from the matching route

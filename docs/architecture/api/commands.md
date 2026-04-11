@@ -464,7 +464,7 @@ update text next 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog set m
 ```
 rib routes [scope] [filters...] [terminal]  # Unified route display with pipeline
     scope: sent | received | sent-received (default)
-    filters: path <pattern>, cidr <prefix>, community <value>,
+    filters: path <pattern>, prefix <pattern>, community <value>,
              family <afi/safi>, match <text>
     terminals: count, json, prefix-summary, graph (AS topology box-drawing)
 rib show best [filters...] [terminal]       # Best-path per prefix (RFC 4271 §9.1.2)
