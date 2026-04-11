@@ -14,6 +14,7 @@
 | Restart without dropping routes | [Graceful Restart](graceful-restart.md) |
 | Back up config on commit or a schedule | [Config Archive](config-archive.md) |
 | Manage config through a browser | [Web Interface](web-interface.md) |
+| Automate ze from scripts or tools | [REST and gRPC API](api.md) |
 | Migrate from ExaBGP | [ExaBGP Migration](exabgp-migration.md) |
 | Run Ze in production | [Operations](operations.md) |
 | Debug a peer that won't come up | [Operations](operations.md#troubleshooting) |
@@ -49,6 +50,7 @@
 | Guide | Description |
 |-------|-------------|
 | [Operations](operations.md) | SSH setup, signals, health checks, systemd, troubleshooting |
+| [REST and gRPC API](api.md) | Programmatic API: OpenAPI, Swagger UI, SSE streaming, config sessions, TLS, per-user auth |
 | [MCP Remote Access](mcp/remote-access.md) | SSH tunnels and WireGuard for remote MCP access |
 | [Logging](logging.md) | Log levels, backends, per-subsystem tuning, runtime changes |
 | [ExaBGP Migration](exabgp-migration.md) | Config conversion and plugin compatibility bridge |
