@@ -67,6 +67,7 @@ type FSM struct {
 	state    State
 	passive  bool          // Passive mode (listen only, no outgoing connection)
 	callback StateCallback // Called on state change
+	timers   *Timers       // RFC 4271 §8.2.2 HoldTimer owned by FSM; nil in tests
 }
 
 // New creates a new FSM in the IDLE state.
@@ -97,6 +98,18 @@ func (f *FSM) SetCallback(cb StateCallback) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.callback = cb
+}
+
+// SetTimers wires the session's timer manager into the FSM so that
+// RFC 4271 §8.2.2 Events 26 (KeepAliveMsg) and 27 (UpdateMsg) can
+// restart the HoldTimer inside the FSM handler, per the RFC wording:
+// "restarts its HoldTimer, if the negotiated HoldTime value is non-zero".
+// Callers must set this before the session leaves Idle. Passing nil
+// leaves the FSM without a timer reference (acceptable in pure-FSM tests).
+func (f *FSM) SetTimers(t *Timers) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.timers = t
 }
 
 // SetPassive sets passive mode (listen only).
@@ -354,6 +367,9 @@ func (f *FSM) handleOpenConfirm(event Event) {
 	case EventKeepaliveMsg:
 		// RFC 4271 Section 8.2.2: Event 26 (KeepAliveMsg)
 		// "restarts the HoldTimer and changes its state to Established."
+		if f.timers != nil {
+			f.timers.ResetHoldTimer()
+		}
 		f.change(StateEstablished)
 
 	case EventHoldTimerExpires:
@@ -412,7 +428,9 @@ func (f *FSM) handleEstablished(event Event) {
 		// RFC 4271 Section 8.2.2: Event 26 (KeepAliveMsg)
 		// "restarts its HoldTimer, if the negotiated HoldTime value is
 		// non-zero, and remains in the Established state."
-		// (hold timer reset handled externally)
+		if f.timers != nil {
+			f.timers.ResetHoldTimer()
+		}
 
 	case EventKeepaliveTimerExpires:
 		// RFC 4271 Section 8.2.2: Event 11 (KeepaliveTimer_Expires)
@@ -424,7 +442,12 @@ func (f *FSM) handleEstablished(event Event) {
 		// RFC 4271 Section 8.2.2: Event 27 (UpdateMsg)
 		// "processes the message, restarts its HoldTimer, if the negotiated
 		// HoldTime value is non-zero, and remains in the Established state."
-		// (update processing and hold timer reset handled externally)
+		// Update body processing (validation, RIB insert, plugin delivery)
+		// is driven by the reactor before firing this event; the FSM is
+		// responsible for the RFC-mandated HoldTimer restart.
+		if f.timers != nil {
+			f.timers.ResetHoldTimer()
+		}
 
 	case EventHoldTimerExpires:
 		// RFC 4271 Section 8.2.2: Event 10 (HoldTimer_Expires)

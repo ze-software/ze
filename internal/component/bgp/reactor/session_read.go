@@ -147,9 +147,9 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 			// RFC 7606 Section 2: "MUST be handled as though all of the routes
 			// contained in an UPDATE message ... had been withdrawn"
 			// Do not dispatch to plugins — the routes are treated as withdrawn.
-			s.timers.ResetHoldTimer()
 			// RFC 4271 Section 8.2.2: FSM must process Event 27 (UpdateMsg)
 			// for any received UPDATE, even if treated as withdrawal.
+			// The FSM handler restarts the HoldTimer per §8.2.2 Event 27.
 			s.logFSMEvent(fsm.EventUpdateMsg)
 			return nil, false
 		}
@@ -180,7 +180,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		if prefixDrop {
 			// AC-27: teardown=false, exceeded. Skip plugin delivery but keep session.
 			// Withdrawals were already counted. The UPDATE is consumed but not forwarded.
-			s.timers.ResetHoldTimer()
+			// The FSM handler for EventUpdateMsg restarts the HoldTimer per §8.2.2 Event 27.
 			s.logFSMEvent(fsm.EventUpdateMsg)
 			return nil, false
 		}

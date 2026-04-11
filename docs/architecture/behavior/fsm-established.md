@@ -59,38 +59,45 @@ The state-change callback in `peer_run.go`:
 <!-- source: internal/component/bgp/reactor/session_read.go — readAndProcessMessage, processMessage, handleConnectionClose -->
 <!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires, OnKeepaliveTimerExpires callbacks -->
 
-### `handleUpdate` is a no-op at the FSM level
+### `handleUpdate` restarts the HoldTimer via the FSM
 
-`handleUpdate` resets the hold timer, validates address families, then
-fires `fsm.Event(EventUpdateMsg)` and returns. The `handleEstablished`
-arm for `EventUpdateMsg` is just a documentation comment; the FSM does
-nothing. All the real work (WireUpdate construction, RFC 7606
-enforcement, prefix limits, forwarding to plugins) happens in
-`processMessage` **before** the FSM event is fired.
+`handleUpdate` validates address families and fires
+`fsm.Event(EventUpdateMsg)`. All the real UPDATE work (WireUpdate
+construction, RFC 7606 enforcement, prefix limits, forwarding to
+plugins) already happened in `processMessage` **before** `handleUpdate`
+runs. The one remaining responsibility the RFC assigns to
+`EventUpdateMsg` is "restart the HoldTimer, if the negotiated HoldTime
+value is non-zero" — and that now happens inside the FSM handler for
+`EventUpdateMsg`, via the `*Timers` reference wired at
+`reactor.NewSession`. This gives the FSM event a real job and keeps the
+liveness rule in one place: the FSM package.
 
-This means the FSM is still hit on every UPDATE even though the state
-does not change. The per-event cost is a locked switch plus a function
-call dispatch, which is cheap but not free at very high UPDATE rates.
+The per-event cost is a locked switch, a function-call dispatch, and a
+brief `Timers.mu` acquisition for the timer reset. Measured cost is in
+the tens of nanoseconds per UPDATE.
 
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleUpdate -->
 <!-- source: internal/component/bgp/reactor/session_read.go — processMessage RFC 7606 and prefix-limit paths -->
-<!-- source: internal/component/bgp/fsm/fsm.go — handleEstablished case EventUpdateMsg -->
+<!-- source: internal/component/bgp/fsm/fsm.go — handleEstablished case EventUpdateMsg calls f.timers.ResetHoldTimer -->
+<!-- source: internal/component/bgp/reactor/session.go — fsm.SetTimers wiring -->
 
 ### `handleKeepalive` in Established
 
-When a KEEPALIVE arrives in Established, `handleKeepalive` only resets
-the hold timer and fires `EventKeepaliveMsg`. The keepalive timer and
+When a KEEPALIVE arrives in Established, `handleKeepalive` just fires
+`EventKeepaliveMsg`. The FSM handler for that event performs the
+RFC 4271 §8.2.2 Event 26 HoldTimer restart. The keepalive timer and
 send-hold timer are **not** started here because they were already
 started in the OpenConfirm -> Established transition (see OpenConfirm
 runbook).
 
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleKeepalive state check -->
+<!-- source: internal/component/bgp/fsm/fsm.go — handleEstablished case EventKeepaliveMsg calls f.timers.ResetHoldTimer -->
 
 ## Timers running in this state
 
 | Timer | Status | Reset/fired by |
 |-------|--------|-----------------|
-| HoldTimer | **running** (negotiated value) | reset on any received message (`handleKeepalive`, `handleUpdate`); fires `EventHoldTimerExpires` on expiry (subject to congestion extension) |
+| HoldTimer | **running** (negotiated value) | reset inside the FSM when `EventKeepaliveMsg` or `EventUpdateMsg` fires (RFC 4271 §8.2.2 Events 26, 27); fires `EventHoldTimerExpires` on expiry (subject to congestion extension) |
 | KeepaliveTimer | **running** (hold/3) | periodic refire; callback sends KEEPALIVE and fires `EventKeepaliveTimerExpires` |
 | SendHoldTimer (RFC 9687) | **running** | reset on every successful write to the peer; fires teardown if we cannot send for too long |
 | ConnectRetryTimer | not running | not used in production |
@@ -155,13 +162,6 @@ dropping healthy sessions.
 
 ## RFC deviations
 
-- **`EventUpdateMsg` is an FSM no-op but still fires.** RFC 4271 says to
-  "process the UPDATE and restart the HoldTimer". Ze does both, just in
-  the session layer: UPDATE processing happens in `processMessage` and
-  `handleUpdate`, and the hold timer is reset by `handleUpdate` before
-  the FSM event is fired. The FSM itself does nothing. This is not a
-  behavioral deviation, just a placement of responsibilities.
-  <!-- source: internal/component/bgp/reactor/session_handlers.go — handleUpdate ResetHoldTimer then fsm.Event -->
 - **`EventKeepaliveTimerExpires` in the FSM is a no-op.** The RFC says
   to send a KEEPALIVE and restart the keepalive timer. Ze does both in
   the session's `OnKeepaliveTimerExpires` callback body; the FSM handler

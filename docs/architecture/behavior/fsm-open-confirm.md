@@ -69,24 +69,29 @@ running).
 
 Specifically, `handleKeepalive`:
 
-1. Calls `timers.ResetHoldTimer()` unconditionally.
-2. If the current FSM state is `StateOpenConfirm`, starts the keepalive
+1. If the current FSM state is `StateOpenConfirm`, starts the keepalive
    timer and starts the RFC 9687 send-hold timer.
-3. Fires `fsm.Event(EventKeepaliveMsg)`, which moves the FSM to
-   Established.
+2. Fires `fsm.Event(EventKeepaliveMsg)`. The FSM handler
+   (`handleOpenConfirm` case `EventKeepaliveMsg`) calls
+   `timers.ResetHoldTimer()` per RFC 4271 §8.2.2 Event 26, then
+   transitions the FSM to Established.
 
-Because the check is `state == StateOpenConfirm` **before** the event
-fires, the timers are started while the FSM still reports OpenConfirm.
-A reader expecting "timers for Established are started in
-handleEstablished" will not find them; they are started here.
+Because the `state == StateOpenConfirm` check is evaluated **before**
+the event fires, the keepalive and send-hold timers are started while
+the FSM still reports OpenConfirm. A reader expecting "timers for
+Established are started in handleEstablished" will not find them; they
+are started here. The HoldTimer restart lives in the FSM handler, not
+here, because §8.2.2 attaches it to the event rather than to a state
+transition.
 
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleKeepalive -->
+<!-- source: internal/component/bgp/fsm/fsm.go — handleOpenConfirm case EventKeepaliveMsg calls f.timers.ResetHoldTimer -->
 
 ## Timers running in this state
 
 | Timer | Status | Managed by |
 |-------|--------|------------|
-| HoldTimer | **running** (negotiated value, reset on `handleKeepalive` / `handleUpdate`) | started/reset in OpenSent exit; reset on every message |
+| HoldTimer | **running** (negotiated value, restart on `EventKeepaliveMsg` inside the FSM) | started/reset in OpenSent exit; restart driven by RFC §8.2.2 Event 26 in `handleOpenConfirm` |
 | KeepaliveTimer | **starts during OpenConfirm** via `handleKeepalive` just before the transition to Established | `StartKeepaliveTimer` |
 | SendHoldTimer (RFC 9687) | **starts during OpenConfirm** via `handleKeepalive` | `startSendHoldTimer` |
 | ConnectRetryTimer | not running | not used in production |

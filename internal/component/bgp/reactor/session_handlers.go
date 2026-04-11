@@ -168,10 +168,12 @@ func (s *Session) handleOpen(body []byte) error {
 }
 
 // handleKeepalive processes a received KEEPALIVE message.
+// RFC 4271 §8.2.2 Event 26: the HoldTimer restart is done by the FSM
+// inside handleOpenConfirm / handleEstablished when EventKeepaliveMsg
+// fires. This function only drives the OpenConfirm -> Established
+// side-effects (start keepalive + send hold timers) that the FSM
+// layer deliberately does not own.
 func (s *Session) handleKeepalive() error {
-	// Reset hold timer.
-	s.timers.ResetHoldTimer()
-
 	state := s.fsm.State()
 	if state == fsm.StateOpenConfirm {
 		// Start keepalive timer for sending our keepalives.
@@ -188,10 +190,12 @@ func (s *Session) handleKeepalive() error {
 // RFC 4760 Section 6: validates AFI/SAFI in MP_REACH/MP_UNREACH against negotiated.
 // RFC 7606 validation is done earlier in processMessage() via enforceRFC7606().
 // Accepts WireUpdate for zero-copy processing.
+//
+// RFC 4271 §8.2.2 Event 27: the HoldTimer restart ("restarts its HoldTimer,
+// if the negotiated HoldTime value is non-zero") is performed inside the
+// FSM handler when EventUpdateMsg fires, not here. This gives the FSM
+// event a real job and keeps the liveness rule in one place.
 func (s *Session) handleUpdate(wu *wireu.WireUpdate) error {
-	// Reset hold timer.
-	s.timers.ResetHoldTimer()
-
 	// Get raw payload for validation (zero-copy slice)
 	body := wu.Payload()
 

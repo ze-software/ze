@@ -313,6 +313,10 @@ func NewSession(settings *PeerSettings) *Session {
 	// Configure FSM connection mode: passive if active bit is NOT set.
 	s.fsm.SetPassive(!settings.Connection.IsActive())
 
+	// Wire FSM to the session timers so the FSM handler for RFC 4271
+	// Events 26/27 can restart the HoldTimer directly, per §8.2.2.
+	s.fsm.SetTimers(s.timers)
+
 	// Configure timers.
 	s.timers.SetHoldTime(settings.ReceiveHoldTime)
 
