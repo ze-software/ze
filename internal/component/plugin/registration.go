@@ -82,12 +82,27 @@ type PluginRegistration struct {
 }
 
 // FilterRegistration holds a named filter declaration from stage 1.
+//
+// Non-unicast address family support: the engine's text-mode filter
+// protocol (`FilterUpdateInput.Update`) inlines prefixes only for families
+// whose NLRI wire format is a plain CIDR prefix (IPv4/IPv6 unicast,
+// multicast, mpls-label). For non-CIDR families (EVPN, Flowspec, VPN,
+// BGP-LS, MVPN, MUP, RTC) the engine emits a marker-only block
+// `nlri <family> <op>` with no prefixes. A filter plugin that needs
+// per-NLRI decisions on a non-CIDR family MUST declare Raw=true and parse
+// the wire payload itself from `FilterUpdateInput.Raw`. A Raw=false filter
+// attached to such a session is advisory for those families -- it cannot
+// distinguish individual destinations within the family. See
+// `docs/architecture/api/process-protocol.md` "Non-CIDR Families in the
+// Filter Text Protocol" and
+// `internal/component/bgp/reactor/filter_format.go` (`isCIDRFamily`) for
+// the full contract.
 type FilterRegistration struct {
 	Name       string   // Filter name (referenced in filter { import/export } blocks)
 	Direction  string   // "import", "export", or "both"
 	Attributes []string // Attribute names to receive
 	NLRI       bool     // Include NLRI list (default true)
-	Raw        bool     // Include raw wire bytes
+	Raw        bool     // Include raw wire bytes; REQUIRED for non-CIDR families
 	OnError    string   // "reject" (fail-closed) or "accept" (fail-open)
 	Overrides  []string // Default filters this filter replaces
 }

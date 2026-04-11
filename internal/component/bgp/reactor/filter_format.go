@@ -10,25 +10,33 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // FormatUpdateForFilter formats both attributes AND NLRI from a wire UPDATE
 // into the text protocol consumed by filter plugins. The format is:
 //
-//	"<attr> <val> ... nlri <family> <op> <prefix>..."
+//	"<attr> <val> ... nlri <family> <op> [<prefix>...]"
 //
 // Legacy IPv4-unicast NLRI (from the UPDATE's NLRI and Withdrawn-Routes
 // sections) is emitted as "nlri ipv4/unicast add|del <prefix>...". MP_REACH_NLRI
 // and MP_UNREACH_NLRI attributes (RFC 4760) are emitted with their own family
 // tokens. Each family is a separate "nlri <family> <op> ..." block.
 //
-// Non-unicast families whose NLRI format is not a plain CIDR prefix (EVPN,
-// Flowspec, VPN, BGP-LS, MVPN, etc.) are not emitted here -- filter plugins
-// that care about those families should declare raw=true and parse the hex
-// payload themselves.
+// For families whose NLRI is a plain CIDR prefix (unicast, multicast,
+// mpls-label in AFI IPv4/IPv6), the prefix list is emitted inline so text-
+// mode filters can match directly. For non-CIDR families (EVPN, Flowspec,
+// VPN, BGP-LS, MVPN, etc.) a MARKER block `nlri <family> <op>` is emitted
+// WITHOUT prefixes, so a text-mode filter plugin attached to a session
+// carrying those families can still tell that an update exists for a given
+// family. A filter plugin that needs to inspect non-CIDR NLRI bytes MUST
+// declare `raw=true` in its `FilterRegistration` and parse the wire payload
+// from `FilterUpdateInput.Raw`. The text marker alone is insufficient for
+// per-prefix decisions on non-CIDR families and is intentionally advisory.
 //
-// Returns "" if attrs is nil and wireUpdate has no prefixes. Attrs-only output
-// (no nlri tokens) is valid when wireUpdate is nil or carries no prefixes.
+// Returns "" if attrs is nil and wireUpdate has no NLRI sections. Attrs-only
+// output (no nlri tokens) is valid when wireUpdate is nil or carries no
+// reachability / withdrawal information.
 func FormatUpdateForFilter(attrs *attribute.AttributesWire, wireUpdate *wireu.WireUpdate, declared []string) string {
 	attrText := FormatAttrsForFilter(attrs, declared)
 	if wireUpdate == nil {
@@ -50,16 +58,15 @@ func FormatUpdateForFilter(attrs *attribute.AttributesWire, wireUpdate *wireu.Wi
 		}
 	}
 
-	// MP_REACH_NLRI for IPv6 and labeled families (RFC 4760).
+	// MP_REACH_NLRI and MP_UNREACH_NLRI (RFC 4760).
 	if mp, err := wireUpdate.MPReach(); err == nil && mp != nil {
-		if prefixes := mp.Prefixes(); len(prefixes) > 0 {
-			blocks = append(blocks, formatNLRIBlock(mp.Family().String(), "add", prefixes))
+		if block := formatMPBlock(mp.Family(), "add", mp.Prefixes()); block != "" {
+			blocks = append(blocks, block)
 		}
 	}
-	// MP_UNREACH_NLRI withdrawals (RFC 4760).
 	if mpu, err := wireUpdate.MPUnreach(); err == nil && mpu != nil {
-		if prefixes := mpu.Prefixes(); len(prefixes) > 0 {
-			blocks = append(blocks, formatNLRIBlock(mpu.Family().String(), "del", prefixes))
+		if block := formatMPBlock(mpu.Family(), "del", mpu.Prefixes()); block != "" {
+			blocks = append(blocks, block)
 		}
 	}
 
@@ -70,6 +77,46 @@ func FormatUpdateForFilter(attrs *attribute.AttributesWire, wireUpdate *wireu.Wi
 		return strings.Join(blocks, " ")
 	}
 	return attrText + " " + strings.Join(blocks, " ")
+}
+
+// formatMPBlock formats one MP_REACH / MP_UNREACH NLRI section for a filter
+// text block. For CIDR-prefix families (unicast/multicast/mpls-label in
+// IPv4/IPv6) the prefixes are included inline. For non-CIDR families a
+// marker block with no prefixes is emitted so text-mode filters still learn
+// that the family is present in the update; filters needing per-NLRI
+// decisions must declare raw=true.
+func formatMPBlock(fam family.Family, op string, prefixes []netip.Prefix) string {
+	if isCIDRFamily(fam) {
+		if len(prefixes) == 0 {
+			return ""
+		}
+		return formatNLRIBlock(fam.String(), op, prefixes)
+	}
+	// Non-CIDR: marker block, prefixes intentionally omitted. See
+	// FormatUpdateForFilter godoc.
+	return "nlri " + fam.String() + " " + op
+}
+
+// cidrSAFIs is the set of SAFIs whose NLRI wire format is a plain CIDR
+// prefix parseable by `wireu.ParsePrefixes`. Declared as a map so the
+// exhaustive linter does not flag the bounded check in isCIDRFamily.
+var cidrSAFIs = map[family.SAFI]struct{}{
+	family.SAFIUnicast:   {},
+	family.SAFIMulticast: {},
+	family.SAFIMPLSLabel: {},
+}
+
+// isCIDRFamily reports whether `fam` is an address family whose NLRI wire
+// format is a plain CIDR prefix. Covers IPv4/IPv6 unicast, multicast, and
+// mpls-label (RFC 8277). Everything else (EVPN, Flowspec, VPN, BGP-LS,
+// MVPN, MUP, RTC, ...) has a family-specific NLRI encoding and is therefore
+// marker-only in the filter text protocol.
+func isCIDRFamily(fam family.Family) bool {
+	if fam.AFI != family.AFIIPv4 && fam.AFI != family.AFIIPv6 {
+		return false
+	}
+	_, ok := cidrSAFIs[fam.SAFI]
+	return ok
 }
 
 // formatNLRIBlock formats one "nlri <family> <op> <prefix>..." block.
