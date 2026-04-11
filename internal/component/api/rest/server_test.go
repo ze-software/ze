@@ -3,11 +3,14 @@ package rest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -58,7 +61,7 @@ func testServer(t *testing.T) *RESTServer {
 		return &fakeEditor{values: make(map[string]string)}, nil
 	})
 
-	srv, err := NewRESTServer(RESTConfig{ListenAddr: "127.0.0.1:0"}, engine, sessions, func() []byte { return openAPI })
+	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}}, engine, sessions, func() []byte { return openAPI })
 	require.NoError(t, err)
 	return srv
 }
@@ -169,7 +172,7 @@ func TestRESTExecute(t *testing.T) {
 func TestRESTExecuteUnauthorized(t *testing.T) {
 	engine := testEngine()
 	openAPI, _ := api.OpenAPISchema(nil)
-	srv, err := NewRESTServer(RESTConfig{ListenAddr: "127.0.0.1:0", Token: "secret"}, engine, nil, func() []byte { return openAPI })
+	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Token: "secret"}, engine, nil, func() []byte { return openAPI })
 	require.NoError(t, err)
 
 	// No Authorization header.
@@ -296,8 +299,8 @@ func TestRESTCORS(t *testing.T) {
 	engine := testEngine()
 	openAPI, _ := api.OpenAPISchema(nil)
 	srv, err := NewRESTServer(RESTConfig{
-		ListenAddr: "127.0.0.1:0",
-		CORSOrigin: "https://dashboard.example.com",
+		ListenAddrs: []string{"127.0.0.1:0"},
+		CORSOrigin:  "https://dashboard.example.com",
 	}, engine, nil, func() []byte { return openAPI })
 	require.NoError(t, err)
 
@@ -415,7 +418,7 @@ func TestRESTAuthenticator(t *testing.T) {
 
 	openAPI, _ := api.OpenAPISchema(nil)
 	srv, err := NewRESTServer(RESTConfig{
-		ListenAddr:    "127.0.0.1:0",
+		ListenAddrs:   []string{"127.0.0.1:0"},
 		Authenticator: authenticator,
 	}, engine, nil, func() []byte { return openAPI })
 	require.NoError(t, err)
@@ -439,4 +442,102 @@ func TestRESTAuthenticator(t *testing.T) {
 	})
 	assert.Equal(t, http.StatusOK, r.Status)
 	assert.Equal(t, "bob", seenUser)
+}
+
+// TestNewRESTServer_RequiresListenAddrs verifies empty-slice / empty-entry
+// rejection.
+func TestNewRESTServer_RequiresListenAddrs(t *testing.T) {
+	engine := testEngine()
+	openAPI, _ := api.OpenAPISchema(nil)
+
+	_, err := NewRESTServer(RESTConfig{}, engine, nil, func() []byte { return openAPI })
+	assert.Error(t, err, "empty ListenAddrs must be rejected")
+	assert.Contains(t, err.Error(), "at least one listen address")
+
+	_, err = NewRESTServer(RESTConfig{ListenAddrs: []string{""}}, engine, nil, func() []byte { return openAPI })
+	assert.Error(t, err, "empty string entry must be rejected")
+	assert.Contains(t, err.Error(), "must not be empty")
+}
+
+// TestRESTServer_MultiListener verifies ListenAndServe binds every entry in
+// RESTConfig.ListenAddrs and that both endpoints serve the same engine.
+//
+// VALIDATES: AC-5 (REST config with two server entries binds both endpoints).
+// VALIDATES: AC-14 (Shutdown closes every listener).
+// PREVENTS: Regression where only the first REST listener is bound.
+func TestRESTServer_MultiListener(t *testing.T) {
+	engine := testEngine()
+	openAPI, _ := api.OpenAPISchema(nil)
+
+	srv, err := NewRESTServer(RESTConfig{
+		ListenAddrs: []string{"127.0.0.1:0", "127.0.0.1:0"},
+	}, engine, nil, func() []byte { return openAPI })
+	require.NoError(t, err)
+
+	serveErrCh := make(chan error, 1)
+	go func() {
+		serveErrCh <- srv.ListenAndServe(context.Background())
+	}()
+
+	// Wait for both listeners to be bound.
+	deadline := time.Now().Add(3 * time.Second)
+	for !srv.Ready() && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	require.True(t, srv.Ready(), "server must become ready within 3s")
+
+	addrs := srv.Addresses()
+	require.Len(t, addrs, 2)
+	assert.NotEqual(t, addrs[0], addrs[1], "two listeners must bind distinct ports")
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	for i, addr := range addrs {
+		req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+addr+"/api/v1/commands", http.NoBody)
+		require.NoError(t, reqErr, "listener %d", i)
+		resp, doErr := client.Do(req)
+		require.NoError(t, doErr, "listener %d (%s)", i, addr)
+		body, readErr := io.ReadAll(resp.Body)
+		require.NoError(t, resp.Body.Close())
+		require.NoError(t, readErr)
+		assert.Equal(t, http.StatusOK, resp.StatusCode, "listener %d (%s)", i, addr)
+		assert.Contains(t, string(body), "bgp summary", "listener %d (%s)", i, addr)
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	require.NoError(t, srv.Shutdown(shutdownCtx))
+
+	select {
+	case err := <-serveErrCh:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			t.Fatalf("ListenAndServe returned unexpected error: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("ListenAndServe did not return after Shutdown")
+	}
+}
+
+// TestRESTServer_BindFailureClosesPartialListeners verifies that when the
+// second entry fails to bind, the first listener is closed and
+// ListenAndServe returns the bind error.
+//
+// VALIDATES: AC-15 (fail-fast on partial bind).
+func TestRESTServer_BindFailureClosesPartialListeners(t *testing.T) {
+	// Squat on a port to force the second bind to fail.
+	squatter, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp4", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer squatter.Close() //nolint:errcheck // test cleanup
+	squattedAddr := squatter.Addr().String()
+
+	engine := testEngine()
+	openAPI, _ := api.OpenAPISchema(nil)
+
+	srv, err := NewRESTServer(RESTConfig{
+		ListenAddrs: []string{"127.0.0.1:0", squattedAddr},
+	}, engine, nil, func() []byte { return openAPI })
+	require.NoError(t, err)
+
+	err = srv.ListenAndServe(context.Background())
+	require.Error(t, err, "ListenAndServe must fail when any bind fails")
+	assert.Contains(t, err.Error(), squattedAddr)
 }

@@ -62,13 +62,17 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store 
 
 	var servers apiServers
 
-	// Chunk 2 uses the first endpoint only; per-binder multi-listener wiring
-	// lands in Chunks 8 and 9 (REST + gRPC). The slice is guaranteed non-empty
-	// when RESTOn/GRPCOn is true (ExtractAPIConfig synthesizes a default entry
-	// when no YANG list entry is present).
+	// REST now accepts a slice of listen addresses; every YANG list entry
+	// becomes a bound listener on the same *http.Server. The slice is
+	// guaranteed non-empty when RESTOn is true (ExtractAPIConfig synthesizes
+	// a default entry when no YANG list entry is present).
 	if cfg.RESTOn && len(cfg.REST) > 0 {
+		addrs := make([]string, 0, len(cfg.REST))
+		for _, ep := range cfg.REST {
+			addrs = append(addrs, ep.Listen())
+		}
 		srv, restErr := rest.NewRESTServer(rest.RESTConfig{
-			ListenAddr:    cfg.REST[0].Listen(),
+			ListenAddrs:   addrs,
 			Token:         cfg.Token,
 			Authenticator: authenticator,
 			CORSOrigin:    cfg.RESTCORSOrigin,
@@ -78,7 +82,9 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store 
 		} else {
 			go serveREST(srv)
 			servers.rest = srv
-			fmt.Fprintf(os.Stderr, "REST API server starting on http://%s/\n", cfg.REST[0].Listen())
+			for _, addr := range addrs {
+				fmt.Fprintf(os.Stderr, "REST API server starting on http://%s/\n", addr)
+			}
 		}
 	}
 

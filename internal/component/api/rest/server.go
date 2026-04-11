@@ -14,7 +14,9 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -33,8 +35,10 @@ const maxRequestBody = 1 << 20
 type Authenticator func(authHeader string) (username string, ok bool)
 
 // RESTConfig holds REST server configuration.
+// ListenAddrs must contain at least one entry; every entry becomes a
+// separate listener on the same *http.Server. Shutdown closes all of them.
 type RESTConfig struct {
-	ListenAddr    string        // e.g. "0.0.0.0:8081"
+	ListenAddrs   []string      // e.g. []string{"0.0.0.0:8081", "127.0.0.1:18081"}
 	Token         string        // Single bearer token (empty = no auth). Ignored when Authenticator is set.
 	Authenticator Authenticator // Per-user auth callback. When set, Token is not checked.
 	CORSOrigin    string        // Allowed CORS origin (empty = no CORS headers)
@@ -45,6 +49,9 @@ type RESTConfig struct {
 type OpenAPIProvider func() []byte
 
 // RESTServer is the REST API HTTP server.
+// ListenAndServe binds every address in RESTConfig.ListenAddrs before any
+// serve goroutine starts; if ANY bind fails the already-bound listeners are
+// closed and ListenAndServe returns the error.
 // Caller MUST call Shutdown when done.
 type RESTServer struct {
 	engine        *api.APIEngine
@@ -54,16 +61,28 @@ type RESTServer struct {
 	authenticator Authenticator
 	corsOrigin    string
 
-	srv     *http.Server
-	ready   atomic.Bool
-	address string
+	srv *http.Server
+	// configured holds the addresses passed in by the caller, in original order.
+	configured []string
+	// bound holds the actual listen addresses once ListenAndServe has bound
+	// them. Populated under mu.
+	bound []string
+	mu    sync.RWMutex
+	ready atomic.Bool
 }
 
 // NewRESTServer creates a REST API server.
 // openAPI is called lazily to generate the OpenAPI spec.
+// Requires at least one entry in cfg.ListenAddrs.
 func NewRESTServer(cfg RESTConfig, engine *api.APIEngine, sessions *api.ConfigSessionManager, openAPI OpenAPIProvider) (*RESTServer, error) {
 	if engine == nil {
 		return nil, errors.New("engine is required")
+	}
+	if len(cfg.ListenAddrs) == 0 {
+		return nil, errors.New("at least one listen address is required")
+	}
+	if slices.Contains(cfg.ListenAddrs, "") {
+		return nil, errors.New("listen address must not be empty")
 	}
 
 	s := &RESTServer{
@@ -73,13 +92,15 @@ func NewRESTServer(cfg RESTConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		token:         cfg.Token,
 		authenticator: cfg.Authenticator,
 		corsOrigin:    cfg.CORSOrigin,
+		configured:    append([]string(nil), cfg.ListenAddrs...),
 	}
 
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
 
 	s.srv = &http.Server{
-		Addr:              cfg.ListenAddr,
+		// Addr is informational; multi-listener serving uses Serve(ln).
+		Addr:              cfg.ListenAddrs[0],
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
@@ -90,30 +111,88 @@ func NewRESTServer(cfg RESTConfig, engine *api.APIEngine, sessions *api.ConfigSe
 	return s, nil
 }
 
-// ListenAndServe starts the server. Blocks until the server stops.
+// ListenAndServe binds every configured address and starts serving.
+// Bind is all-or-nothing: any bind failure rolls back the already-bound
+// listeners and returns the error without entering the serve loop.
 func (s *RESTServer) ListenAndServe(ctx context.Context) error {
 	var lc net.ListenConfig
-	ln, err := lc.Listen(ctx, "tcp", s.srv.Addr)
-	if err != nil {
-		return fmt.Errorf("listen %s: %w", s.srv.Addr, err)
-	}
-	s.address = ln.Addr().String()
-	s.ready.Store(true)
-	logger.Info("REST API server listening", "addr", s.address)
 
-	if srvErr := s.srv.Serve(ln); srvErr != nil && !errors.Is(srvErr, http.ErrServerClosed) {
-		return srvErr
+	listeners := make([]net.Listener, 0, len(s.configured))
+	bound := make([]string, 0, len(s.configured))
+	for _, addr := range s.configured {
+		ln, err := lc.Listen(ctx, "tcp", addr)
+		if err != nil {
+			for _, prev := range listeners {
+				if closeErr := prev.Close(); closeErr != nil {
+					logger.Warn("REST API: close partial listener", "error", closeErr)
+				}
+			}
+			return fmt.Errorf("listen %s: %w", addr, err)
+		}
+		listeners = append(listeners, ln)
+		bound = append(bound, ln.Addr().String())
+	}
+
+	s.mu.Lock()
+	s.bound = bound
+	s.mu.Unlock()
+	s.ready.Store(true)
+
+	for _, addr := range bound {
+		logger.Info("REST API server listening", "addr", addr)
+	}
+
+	errCh := make(chan error, len(listeners))
+	var wg sync.WaitGroup
+	for _, ln := range listeners {
+		wg.Add(1)
+		go func(ln net.Listener) {
+			defer wg.Done()
+			if serveErr := s.srv.Serve(ln); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+				errCh <- serveErr
+			}
+		}(ln)
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-// Shutdown gracefully shuts down the server.
+// Shutdown gracefully shuts down the server, closing every listener.
 func (s *RESTServer) Shutdown(ctx context.Context) error {
 	return s.srv.Shutdown(ctx)
 }
 
-// Address returns the listen address (available after ListenAndServe starts).
-func (s *RESTServer) Address() string { return s.address }
+// Addresses returns every bound listen address in configured order.
+// Before ListenAndServe binds, Addresses returns the configured addresses.
+func (s *RESTServer) Addresses() []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if len(s.bound) > 0 {
+		out := make([]string, len(s.bound))
+		copy(out, s.bound)
+		return out
+	}
+	out := make([]string, len(s.configured))
+	copy(out, s.configured)
+	return out
+}
+
+// Address returns the first bound listen address. Retained for callers that
+// only want the primary endpoint.
+func (s *RESTServer) Address() string {
+	addrs := s.Addresses()
+	if len(addrs) == 0 {
+		return ""
+	}
+	return addrs[0]
+}
 
 // Ready returns true when the server is listening.
 func (s *RESTServer) Ready() bool { return s.ready.Load() }
