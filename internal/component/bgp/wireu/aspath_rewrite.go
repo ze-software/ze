@@ -28,6 +28,33 @@ import (
 //
 // Returns the number of bytes written to dst, or an error.
 func RewriteASPath(dst, payload []byte, localASN uint32, srcASN4, dstASN4 bool) (int, error) {
+	return rewriteASPathPrepend(dst, payload, []uint32{localASN}, srcASN4, dstASN4)
+}
+
+// RewriteASPathDual prepends two ASNs to AS_PATH: primaryASN ends up closest
+// to the peer (outermost), secondaryASN sits behind it.
+//
+// Used for the local-as override "dual-AS" mode: primaryASN is the override
+// the peer expects to see, secondaryASN is the router's real AS. With no
+// local-as modifiers set, downstream peers see AS_PATH = [override, real, ...].
+// When no-prepend or replace-as is set, the caller uses RewriteASPath with
+// only the override and skips this dual variant.
+//
+// RFC 7705 references the "local-as" feature and its dual-AS semantics.
+func RewriteASPathDual(dst, payload []byte, primaryASN, secondaryASN uint32, srcASN4, dstASN4 bool) (int, error) {
+	// asns[0] is inserted first (innermost), asns[len-1] last (outermost closest to peer).
+	// Prepend order below iterates the slice and calls Prepend one by one, so the
+	// last element prepended ends up in front. Final order: [primaryASN, secondaryASN, ...].
+	return rewriteASPathPrepend(dst, payload, []uint32{secondaryASN, primaryASN}, srcASN4, dstASN4)
+}
+
+// rewriteASPathPrepend parses AS_PATH from payload, prepends asns (in order,
+// so asns[len-1] ends up outermost), re-encodes, and writes the patched
+// UPDATE body to dst.
+func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 bool) (int, error) {
+	if len(asns) == 0 {
+		return 0, fmt.Errorf("rewrite AS_PATH: no ASNs to prepend")
+	}
 	// Parse UPDATE body layout: wdLen(2) + withdrawn(wdLen) + attrLen(2) + attrs(attrLen) + nlri
 	if len(payload) < 4 {
 		return 0, fmt.Errorf("rewrite AS_PATH: %w", ErrUpdateTruncated)
@@ -91,22 +118,29 @@ func RewriteASPath(dst, payload []byte, localASN uint32, srcASN4, dstASN4 bool) 
 
 	if aspAttrOff == -1 {
 		// No AS_PATH found — insert one
-		return rewriteInsertASPath(dst, payload, localASN, dstASN4, attrLen, attrLenOff, nlriStart)
+		return rewriteInsertASPath(dst, payload, asns, dstASN4, attrLen, attrLenOff, nlriStart)
 	}
 
-	return rewritePrependASPath(dst, payload, localASN, srcASN4, dstASN4,
+	return rewritePrependASPath(dst, payload, asns, srcASN4, dstASN4,
 		aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen)
 }
 
 // rewriteInsertASPath handles the case where no AS_PATH exists in the payload.
 // Inserts a complete AS_PATH attribute at the end of the attributes section.
-func rewriteInsertASPath(dst, payload []byte, localASN uint32, dstASN4 bool,
+// asns are placed in the new AS_SEQUENCE with asns[len-1] at the outermost
+// position (matches the prepend order convention of rewriteASPathPrepend).
+func rewriteInsertASPath(dst, payload []byte, asns []uint32, dstASN4 bool,
 	attrLen, attrLenOff, nlriStart int) (int, error) {
 
-	// Build the new AS_PATH: AS_SEQUENCE with just localASN
+	// Build the new AS_PATH: single AS_SEQUENCE segment with the prepended ASNs
+	// in "outermost last" order. Reverse asns so asns[len-1] becomes segment[0].
+	segASNs := make([]uint32, len(asns))
+	for i, a := range asns {
+		segASNs[len(asns)-1-i] = a
+	}
 	newPath := &attribute.ASPath{
 		Segments: []attribute.ASPathSegment{
-			{Type: attribute.ASSequence, ASNs: []uint32{localASN}},
+			{Type: attribute.ASSequence, ASNs: segASNs},
 		},
 	}
 
@@ -136,8 +170,9 @@ func rewriteInsertASPath(dst, payload []byte, localASN uint32, dstASN4 bool,
 }
 
 // rewritePrependASPath handles the case where an AS_PATH exists.
-// Parses it, prepends localASN, re-encodes, and adjusts lengths.
-func rewritePrependASPath(dst, payload []byte, localASN uint32, srcASN4, dstASN4 bool,
+// Parses it, prepends each asn in order (asns[len-1] ends up outermost),
+// re-encodes, and adjusts lengths.
+func rewritePrependASPath(dst, payload []byte, asns []uint32, srcASN4, dstASN4 bool,
 	aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen int) (int, error) {
 
 	// Parse existing AS_PATH value
@@ -149,8 +184,11 @@ func rewritePrependASPath(dst, payload []byte, localASN uint32, srcASN4, dstASN4
 		return 0, fmt.Errorf("rewrite AS_PATH: parse existing: %w", err)
 	}
 
-	// Prepend localASN (handles segment overflow at 255, AS_SET cases)
-	existingPath.Prepend(localASN)
+	// Prepend each ASN in order: asns[0] first (innermost), asns[len-1] last (outermost).
+	// Each Prepend call handles segment overflow at 255 and AS_SET cases.
+	for _, asn := range asns {
+		existingPath.Prepend(asn)
+	}
 
 	// Compute new sizes
 	oldAttrWireSize := aspHdrLen + aspValueLen

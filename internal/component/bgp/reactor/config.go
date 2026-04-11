@@ -123,6 +123,14 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 	}
 
 	ps := NewPeerSettings(ip, peerLocalAS, peerAS, peerRouterID)
+	// Preserve the router's global local-as separately from any per-peer override.
+	// When localAS (global) differs from peerLocalAS (override), local-as modifiers
+	// control whether the outbound AS_PATH dual-prepends the real AS.
+	if localAS != 0 {
+		ps.GlobalLocalAS = localAS
+	} else {
+		ps.GlobalLocalAS = peerLocalAS
+	}
 	ps.LocalASNoPrepend = localASNoPrepend
 	ps.LocalASReplaceAS = localASReplaceAS
 

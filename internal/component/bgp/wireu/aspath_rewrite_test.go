@@ -372,6 +372,83 @@ func TestRewriteASPath_WithWithdrawn(t *testing.T) {
 	assert.Equal(t, []uint32{65000, 64512}, path.Segments[0].ASNs)
 }
 
+// TestRewriteASPathDual_ExistingSequence verifies dual-AS prepend to an
+// existing AS_SEQUENCE. The primary ASN must end up closest to the peer
+// (outermost) and the secondary ASN must sit between primary and existing.
+//
+// VALIDATES: cmd-2 local-as dual-AS mode AC-9/AC-13 baseline -- the default
+// (no modifiers) prepends [override, real, ...existing].
+// PREVENTS: Wrong prepend order that would mis-report the AS path topology
+// to downstream peers when local-as override is set.
+func TestRewriteASPathDual_ExistingSequence(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{64512, 64513}},
+	}, true)
+	attrs := concatAttrs(origin, aspath)
+	payload := buildPayload(nil, attrs, nil)
+
+	dst := make([]byte, len(payload)+64)
+	// primary = 65100 (override, closest to peer), secondary = 65000 (real behind)
+	n, err := RewriteASPathDual(dst, payload, 65100, 65000, true, true)
+	require.NoError(t, err)
+	result := dst[:n]
+
+	path := parseASPathFromPayload(t, result, true)
+	require.Len(t, path.Segments, 1)
+	assert.Equal(t, attribute.ASSequence, path.Segments[0].Type)
+	assert.Equal(t, []uint32{65100, 65000, 64512, 64513}, path.Segments[0].ASNs,
+		"primary must be outermost, secondary behind it")
+
+	// Verify shift = +8 (two 4-byte ASNs added)
+	assert.Equal(t, len(payload)+8, n, "result should be 8 bytes longer than original")
+}
+
+// TestRewriteASPathDual_NoASPath verifies dual-AS insert when no AS_PATH exists.
+// The inserted segment must be [primary, secondary] in order.
+//
+// VALIDATES: Insert path for dual-AS prepend produces the same ordering as
+// prepend path.
+// PREVENTS: Inconsistent ASN ordering between insert and prepend branches.
+func TestRewriteASPathDual_NoASPath(t *testing.T) {
+	origin := buildOriginAttr()
+	payload := buildPayload(nil, origin, nil)
+
+	dst := make([]byte, len(payload)+64)
+	n, err := RewriteASPathDual(dst, payload, 65100, 65000, true, true)
+	require.NoError(t, err)
+	result := dst[:n]
+
+	path := parseASPathFromPayload(t, result, true)
+	require.Len(t, path.Segments, 1)
+	assert.Equal(t, attribute.ASSequence, path.Segments[0].Type)
+	assert.Equal(t, []uint32{65100, 65000}, path.Segments[0].ASNs,
+		"inserted segment must have primary at index 0 and secondary at index 1")
+}
+
+// TestRewriteASPathDual_ASN2 verifies dual-AS prepend in ASN2 encoding.
+//
+// VALIDATES: ASN4 to ASN2 transcoding still produces correct ordering
+// for dual-prepend.
+// PREVENTS: ASN2 peer seeing swapped primary/secondary order.
+func TestRewriteASPathDual_ASN2(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{64512}},
+	}, true)
+	attrs := concatAttrs(origin, aspath)
+	payload := buildPayload(nil, attrs, nil)
+
+	dst := make([]byte, len(payload)+64)
+	n, err := RewriteASPathDual(dst, payload, 65100, 65000, true, false) // dst=ASN2
+	require.NoError(t, err)
+	result := dst[:n]
+
+	path := parseASPathFromPayload(t, result, false)
+	require.Len(t, path.Segments, 1)
+	assert.Equal(t, []uint32{65100, 65000, 64512}, path.Segments[0].ASNs)
+}
+
 // FuzzRewriteASPath verifies RewriteASPath does not panic on arbitrary input.
 // Fuzzes both srcASN4/dstASN4 combinations.
 //

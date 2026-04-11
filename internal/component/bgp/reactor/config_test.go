@@ -954,8 +954,10 @@ func TestPeersFromTreeMissingLocalAS(t *testing.T) {
 
 // TestPeersFromTreePeerLocalASOverride verifies per-peer local-as override.
 //
-// VALIDATES: A peer can override the global local-as.
-// PREVENTS: Global override clobbering peer-level config.
+// VALIDATES: A peer can override the global local-as. GlobalLocalAS preserves
+// the router's real AS for dual-AS outbound AS_PATH semantics.
+// PREVENTS: Global override clobbering peer-level config; loss of real AS
+// when local-as override is active.
 func TestPeersFromTreePeerLocalASOverride(t *testing.T) {
 	bgpTree := map[string]any{
 		"router-id": "10.0.0.1",
@@ -970,7 +972,65 @@ func TestPeersFromTreePeerLocalASOverride(t *testing.T) {
 	peers, err := PeersFromTree(bgpTree)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
+	assert.Equal(t, uint32(65100), peers[0].LocalAS, "LocalAS is the override")
+	assert.Equal(t, uint32(65000), peers[0].GlobalLocalAS, "GlobalLocalAS preserves real AS")
+}
+
+// TestPeersFromTreePeerLocalASNoOverride verifies that GlobalLocalAS equals
+// LocalAS when no per-peer override is set.
+//
+// VALIDATES: In the common case (no override), GlobalLocalAS == LocalAS so
+// the forwarding path does not accidentally dual-prepend.
+// PREVENTS: Behavior change for existing deployments without local-as override.
+func TestPeersFromTreePeerLocalASNoOverride(t *testing.T) {
+	bgpTree := map[string]any{
+		"router-id": "10.0.0.1",
+		"session":   map[string]any{"asn": map[string]any{"local": "65000"}},
+		"peer": map[string]any{
+			"peer1": map[string]any{
+				"connection": map[string]any{"remote": map[string]any{"ip": "192.0.2.1"}, "local": map[string]any{"ip": "auto"}},
+				"session":    map[string]any{"asn": map[string]any{"remote": "65001"}},
+			},
+		},
+	}
+	peers, err := PeersFromTree(bgpTree)
+	require.NoError(t, err)
+	require.Len(t, peers, 1)
+	assert.Equal(t, uint32(65000), peers[0].LocalAS)
+	assert.Equal(t, uint32(65000), peers[0].GlobalLocalAS,
+		"no override: GlobalLocalAS must equal LocalAS so forwarding uses single prepend")
+	assert.False(t, peers[0].LocalASNoPrepend)
+	assert.False(t, peers[0].LocalASReplaceAS)
+}
+
+// TestPeersFromTreePeerLocalASModifiers verifies that the no-prepend and
+// replace-as flags are parsed from session/asn/local-options.
+//
+// VALIDATES: AC-9 / AC-10 config parsing -- modifiers are extracted into
+// PeerSettings so the forwarding path can consult them.
+// PREVENTS: Modifiers silently ignored if parser drops local-options.
+func TestPeersFromTreePeerLocalASModifiers(t *testing.T) {
+	bgpTree := map[string]any{
+		"router-id": "10.0.0.1",
+		"session":   map[string]any{"asn": map[string]any{"local": "65000"}},
+		"peer": map[string]any{
+			"peer1": map[string]any{
+				"connection": map[string]any{"remote": map[string]any{"ip": "192.0.2.1"}, "local": map[string]any{"ip": "auto"}},
+				"session": map[string]any{"asn": map[string]any{
+					"remote":        "65001",
+					"local":         "65100",
+					"local-options": []string{"no-prepend", "replace-as"},
+				}},
+			},
+		},
+	}
+	peers, err := PeersFromTree(bgpTree)
+	require.NoError(t, err)
+	require.Len(t, peers, 1)
 	assert.Equal(t, uint32(65100), peers[0].LocalAS)
+	assert.Equal(t, uint32(65000), peers[0].GlobalLocalAS)
+	assert.True(t, peers[0].LocalASNoPrepend)
+	assert.True(t, peers[0].LocalASReplaceAS)
 }
 
 // TestPeersFromTreeConfiguredFamilies verifies family collection.

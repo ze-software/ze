@@ -233,8 +233,15 @@ type PeerSettings struct {
 	// Port is the peer's BGP port (default 179).
 	Port uint16
 
-	// LocalAS is our AS number.
+	// LocalAS is our effective AS number for this session.
+	// Equals the per-peer local-as override when set, otherwise the global local-as.
 	LocalAS uint32
+
+	// GlobalLocalAS is the router's global local-as (bgp/session/asn/local),
+	// preserved even when LocalAS is overridden per-peer. Used by local-as
+	// modifiers to know the "real" AS for dual-prepend semantics.
+	// Equals LocalAS when no override is active.
+	GlobalLocalAS uint32
 
 	// PeerAS is the peer's AS number.
 	PeerAS uint32
@@ -452,6 +459,7 @@ func NewPeerSettings(address netip.Addr, localAS, peerAS, routerID uint32) *Peer
 		Address:         address,
 		Port:            DefaultBGPPort,
 		LocalAS:         localAS,
+		GlobalLocalAS:   localAS, // default: no override, global == effective
 		PeerAS:          peerAS,
 		RouterID:        routerID,
 		ReceiveHoldTime: DefaultReceiveHoldTime,

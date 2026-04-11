@@ -199,21 +199,28 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		return fmt.Errorf("no peers match selector %s", sel)
 	}
 
-	// EBGP preparation: lazily generate patched wires keyed by (localAS, asn4).
+	// EBGP preparation: lazily generate patched wires keyed by (localAS, secondaryAS, asn4).
 	// RFC 4271 §9.1.2: EBGP speakers MUST prepend their own AS to AS_PATH.
 	// RFC 6793 §4: ASN4->ASN2 transcoding uses AS_TRANS=23456.
 	//
 	// LocalAS can differ per peer (RFC 7705 local-as override), so wire variants
-	// are cached per (localAS, dstASN4) combination rather than assuming a single
-	// LocalAS for all EBGP peers.
+	// are cached per (localAS, secondaryAS, dstASN4) combination rather than assuming
+	// a single LocalAS for all EBGP peers.
 	//
-	// The first LocalAS per dstASN4 uses ReceivedUpdate.EBGPWire (which caches
-	// in the ReceivedUpdate for reuse across ForwardUpdate calls). Additional
-	// LocalAS values for the same dstASN4 are generated directly via
-	// wireu.RewriteASPath, since ReceivedUpdate's cache is keyed by dstASN4 only.
+	// secondaryAS != 0 enables dual-AS prepend: the peer sees AS_PATH starting
+	// with localAS (the override it expects) followed by secondaryAS (the router's
+	// real global AS). This is the default behavior when a peer has a local-as
+	// override and neither no-prepend nor replace-as modifier is set.
+	//
+	// The first (localAS, 0) per dstASN4 variant uses ReceivedUpdate.EBGPWire
+	// (which caches in the ReceivedUpdate for reuse across ForwardUpdate calls).
+	// Additional keys are generated directly via wireu.RewriteASPath /
+	// RewriteASPathDual, since ReceivedUpdate's cache is keyed by dstASN4 only
+	// and cannot hold dual-prepended variants.
 	type ebgpWireKey struct {
-		localAS uint32
-		asn4    bool
+		localAS     uint32
+		secondaryAS uint32 // 0 = single prepend; non-zero = dual prepend behind localAS
+		asn4        bool
 	}
 	type ebgpWireEntry struct {
 		wire   *wireu.WireUpdate
@@ -223,13 +230,16 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	var srcASN4 bool // computed once if any EBGP peer exists
 	var srcASN4Set bool
 	// Track the first localAS used per dstASN4 variant for ReceivedUpdate cache.
+	// Only single-prepend keys (secondaryAS == 0) are eligible.
 	var cachedLocalASN4, cachedLocalASN2 uint32
 	var cachedLocalASN4Set, cachedLocalASN2Set bool
 
-	// getEBGPWire returns the cached EBGP wire for the given (localAS, asn4)
-	// combination, generating it lazily on first access.
-	getEBGPWire := func(localAS uint32, asn4 bool) (*wireu.WireUpdate, bool) {
-		ek := ebgpWireKey{localAS: localAS, asn4: asn4}
+	// getEBGPWire returns the cached EBGP wire for the given
+	// (localAS, secondaryAS, asn4) combination, generating it lazily on first access.
+	// secondaryAS == 0 means single prepend; non-zero enables dual-AS prepend where
+	// localAS ends up closest to the peer and secondaryAS sits behind it.
+	getEBGPWire := func(localAS, secondaryAS uint32, asn4 bool) (*wireu.WireUpdate, bool) {
+		ek := ebgpWireKey{localAS: localAS, secondaryAS: secondaryAS, asn4: asn4}
 		if ebgpWireCache == nil {
 			ebgpWireCache = make(map[ebgpWireKey]*ebgpWireEntry)
 		}
@@ -244,25 +254,26 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			srcASN4Set = true
 		}
 
-		// Use ReceivedUpdate cache for the first localAS per dstASN4 variant.
-		// For subsequent different localAS values, generate directly to avoid
-		// ReceivedUpdate returning a stale cached result (keyed by dstASN4 only).
+		// Use ReceivedUpdate cache only for the first single-prepend localAS per dstASN4.
+		// Dual-prepend variants cannot use it because its cache is keyed only by dstASN4.
 		canUseUpdateCache := false
-		if asn4 {
-			if !cachedLocalASN4Set {
-				cachedLocalASN4 = localAS
-				cachedLocalASN4Set = true
-				canUseUpdateCache = true
-			} else if cachedLocalASN4 == localAS {
-				canUseUpdateCache = true
-			}
-		} else {
-			if !cachedLocalASN2Set {
-				cachedLocalASN2 = localAS
-				cachedLocalASN2Set = true
-				canUseUpdateCache = true
-			} else if cachedLocalASN2 == localAS {
-				canUseUpdateCache = true
+		if secondaryAS == 0 {
+			if asn4 {
+				if !cachedLocalASN4Set {
+					cachedLocalASN4 = localAS
+					cachedLocalASN4Set = true
+					canUseUpdateCache = true
+				} else if cachedLocalASN4 == localAS {
+					canUseUpdateCache = true
+				}
+			} else {
+				if !cachedLocalASN2Set {
+					cachedLocalASN2 = localAS
+					cachedLocalASN2Set = true
+					canUseUpdateCache = true
+				} else if cachedLocalASN2 == localAS {
+					canUseUpdateCache = true
+				}
 			}
 		}
 
@@ -278,7 +289,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			return wire, true
 		}
 
-		// Different localAS for same dstASN4: generate directly.
+		// Direct generation: either a secondary localAS (multi-override) or a dual-prepend variant.
 		payload := update.WireUpdate.Payload()
 		extendedMessage := len(payload) > message.MaxMsgLen-message.HeaderLen
 		dst := getReadBuf(extendedMessage)
@@ -286,11 +297,17 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			ebgpWireCache[ek] = &ebgpWireEntry{failed: true}
 			return nil, false
 		}
-		n, err := wireu.RewriteASPath(dst.Buf, payload, localAS, srcASN4, asn4)
+		var n int
+		var err error
+		if secondaryAS != 0 {
+			n, err = wireu.RewriteASPathDual(dst.Buf, payload, localAS, secondaryAS, srcASN4, asn4)
+		} else {
+			n, err = wireu.RewriteASPath(dst.Buf, payload, localAS, srcASN4, asn4)
+		}
 		if err != nil {
 			ReturnReadBuffer(dst)
 			fwdLogger().Warn("EBGP wire rewrite failed",
-				"id", updateID, "localAS", localAS, "asn4", asn4, "err", err)
+				"id", updateID, "localAS", localAS, "secondaryAS", secondaryAS, "asn4", asn4, "err", err)
 			ebgpWireCache[ek] = &ebgpWireEntry{failed: true}
 			return nil, false
 		}
@@ -300,7 +317,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		// Note: dst (pool buffer) is intentionally not returned here.
 		// It backs wire for the duration of this ForwardUpdate call.
 		// The buffer will be GC'd when the WireUpdate is no longer referenced.
-		// This is acceptable for the rare multi-LocalAS case.
+		// This is acceptable for the rare multi-LocalAS or dual-prepend case.
 		ebgpWireCache[ek] = &ebgpWireEntry{wire: wire}
 		return wire, true
 	}
@@ -451,7 +468,19 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		// IBGP peers get original wire unchanged.
 		peerWire := update.WireUpdate
 		if peer.Settings().IsEBGP() {
-			wire, ok := getEBGPWire(peer.Settings().LocalAS, peer.asn4())
+			// Local-AS dual-AS mode: when the peer has a local-as override
+			// (LocalAS != GlobalLocalAS) and neither no-prepend nor replace-as
+			// is set, outbound AS_PATH dual-prepends both the override (closest
+			// to peer) and the real global AS behind it. Either modifier falls
+			// back to single prepend of the override.
+			var secondaryAS uint32
+			if peer.Settings().GlobalLocalAS != 0 &&
+				peer.Settings().GlobalLocalAS != peer.Settings().LocalAS &&
+				!peer.Settings().LocalASNoPrepend &&
+				!peer.Settings().LocalASReplaceAS {
+				secondaryAS = peer.Settings().GlobalLocalAS
+			}
+			wire, ok := getEBGPWire(peer.Settings().LocalAS, secondaryAS, peer.asn4())
 			if !ok {
 				continue // Skip: cannot forward without AS_PATH prepend (RFC 4271 §9.1.2)
 			}
@@ -702,9 +731,26 @@ func (a *reactorAPIAdapter) UnregisterCacheConsumer(name string) {
 	a.r.recentUpdates.UnregisterConsumer(name)
 }
 
-// applyNextHopMod adds a NEXT_HOP (type 3) modification to the accumulator
-// based on the destination peer's NextHopMode setting.
+// applyNextHopMod adds a NEXT_HOP (type 3) or MP_REACH_NLRI (type 14)
+// modification to the accumulator based on the destination peer's NextHopMode.
 // RFC 4271 Section 5.1.3: next-hop handling for UPDATE messages.
+// RFC 4760 Section 3 / RFC 2545 Section 3: IPv6 next-hop lives inside MP_REACH.
+//
+// For IPv4 destinations the legacy NEXT_HOP attribute (code 3) is rewritten.
+// For IPv6 destinations the MP_REACH_NLRI attribute (code 14) is rewritten
+// via the mpReachNextHopHandler which patches the next-hop field in place
+// while preserving AFI/SAFI/Reserved/NLRI. When the handler sees a source
+// attribute that does not match the op's target code it leaves it unchanged,
+// so emitting only one of the two ops per peer is sufficient.
+//
+// TODO(cmd-1-phase5): Mixed-family sessions. A BGP session between IPv6
+// endpoints can carry IPv4 routes (and vice versa). Today this function
+// emits exactly one op -- matching the session's own address family -- so
+// the OTHER family's next-hop on the same UPDATE is left at the source's
+// value, which is wrong for "next-hop self" on mixed-family peers. Fixing
+// this requires the peer config to expose a paired IPv4/IPv6 local
+// address so we can construct BOTH ops and let the handlers ignore
+// whichever attribute is absent from the source wire bytes.
 func applyNextHopMod(dest *PeerSettings, mods *registry.ModAccumulator) {
 	switch dest.NextHopMode {
 	case NextHopAuto:
@@ -713,21 +759,54 @@ func applyNextHopMod(dest *PeerSettings, mods *registry.ModAccumulator) {
 		// sets next-hop, and iBGP preserves the original.
 		return
 	case NextHopSelf:
-		if !dest.LocalAddress.IsValid() || !dest.LocalAddress.Is4() {
-			return // No valid IPv4 local address; skip. IPv6 NH is in MP_REACH (type 14).
+		if !dest.LocalAddress.IsValid() {
+			return
 		}
-		nhBytes := dest.LocalAddress.As4()
-		mods.Op(3, registry.AttrModSet, nhBytes[:]) // NEXT_HOP
+		// Unmap IPv4-mapped IPv6 addresses (::ffff:a.b.c.d) to their native
+		// 4-byte form so Is4() takes the legacy path. Without this, a
+		// mis-configured LocalAddress in mapped form would fall into the
+		// IPv6 branch below and produce a 16-byte next-hop whose global
+		// prefix is the IPv4-mapped sentinel, which some peers reject.
+		local := dest.LocalAddress.Unmap()
+		if local.Is4() {
+			nhBytes := local.As4()
+			mods.Op(3, registry.AttrModSet, nhBytes[:]) // NEXT_HOP (legacy IPv4)
+			return
+		}
+		// IPv6: rewrite MP_REACH_NLRI next-hop. When the peer config carries
+		// a link-local address (RFC 2545 §3) include it as the second 16-byte
+		// half of the next-hop so downstream peers on the same link can still
+		// reach us.
+		if dest.LinkLocal.IsValid() && dest.LinkLocal.Is6() {
+			nh := make([]byte, 32)
+			global := local.As16()
+			ll := dest.LinkLocal.As16()
+			copy(nh[:16], global[:])
+			copy(nh[16:], ll[:])
+			mods.Op(14, registry.AttrModSet, nh)
+			return
+		}
+		nh := local.As16()
+		mods.Op(14, registry.AttrModSet, nh[:])
 	case NextHopUnchanged:
 		// Explicitly preserve: no mod needed -- the original wire bytes
 		// already contain the source next-hop.
 		return
 	case NextHopExplicit:
-		if !dest.NextHopAddress.IsValid() || !dest.NextHopAddress.Is4() {
-			return // IPv6 explicit NH requires MP_REACH (type 14) handling.
+		if !dest.NextHopAddress.IsValid() {
+			return
 		}
-		nhBytes := dest.NextHopAddress.As4()
-		mods.Op(3, registry.AttrModSet, nhBytes[:]) // NEXT_HOP
+		explicit := dest.NextHopAddress.Unmap()
+		if explicit.Is4() {
+			nhBytes := explicit.As4()
+			mods.Op(3, registry.AttrModSet, nhBytes[:]) // NEXT_HOP (legacy IPv4)
+			return
+		}
+		// Explicit IPv6 next-hop: always global-only (16-byte NH). The
+		// dual-address 32-byte variant is only meaningful for "self" where
+		// the router knows both its global and its link-local address.
+		nh := explicit.As16()
+		mods.Op(14, registry.AttrModSet, nh[:])
 	}
 }
 

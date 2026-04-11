@@ -218,6 +218,153 @@ func clusterListHandler() registry.AttrModHandler {
 	}
 }
 
+// mpReachNextHopHandler handles next-hop rewriting inside MP_REACH_NLRI
+// (type 14, RFC 4760 Section 3).
+//
+// The op Buf carries the new next-hop bytes (16 bytes for an IPv6 global
+// address, or 32 bytes for a global + link-local pair per RFC 2545). The
+// handler parses the source attribute to locate the existing next-hop field,
+// replaces it in place, and copies the surrounding bytes (AFI/SAFI header,
+// reserved byte, NLRI) unchanged. The attribute length is adjusted only when
+// the new next-hop length differs from the existing one.
+//
+// If the source attribute is absent or malformed, the handler leaves the
+// output untouched: MP_REACH_NLRI carries the route's NLRI itself, so the
+// rewrite only makes sense when a source attribute already exists.
+//
+// Only AttrModSet ops are honored (last-wins). AttrModSuppress on a
+// MP_REACH_NLRI would strip the entire route, which is a withdraw -- that is
+// expressed via ModAccumulator.SetWithdraw(), not via this handler.
+func mpReachNextHopHandler() registry.AttrModHandler {
+	return func(src []byte, ops []registry.AttrOp, buf []byte, off int) int {
+		// Pick the last Set op.
+		var setBuf []byte
+		for i := range ops {
+			if ops[i].Action == registry.AttrModSet && len(ops[i].Buf) > 0 {
+				setBuf = ops[i].Buf
+			}
+		}
+
+		// No rewrite requested: copy source unchanged.
+		if setBuf == nil {
+			if len(src) > 0 && off+len(src) <= len(buf) {
+				copy(buf[off:], src)
+				return off + len(src)
+			}
+			return off
+		}
+
+		// Cannot construct MP_REACH_NLRI from nothing -- the NLRI portion
+		// lives in the source attribute value. Drop the rewrite request when
+		// the source is absent or too short to parse.
+		if len(src) < 3 {
+			return off
+		}
+
+		// Parse source header to find the value region.
+		flags := src[0]
+		code := src[1]
+		if code != byte(attribute.AttrMPReachNLRI) {
+			// Belt-and-braces: src was routed to this handler, code should match.
+			if len(src) > 0 && off+len(src) <= len(buf) {
+				copy(buf[off:], src)
+				return off + len(src)
+			}
+			return off
+		}
+		hdrLen := 3
+		srcValLen := int(src[2])
+		if flags&0x10 != 0 { // extended length
+			if len(src) < 4 {
+				return off
+			}
+			hdrLen = 4
+			srcValLen = int(binary.BigEndian.Uint16(src[2:4]))
+		}
+		if hdrLen+srcValLen > len(src) {
+			return off // truncated source, bail
+		}
+		val := src[hdrLen : hdrLen+srcValLen]
+
+		// Value layout: AFI(2) + SAFI(1) + NHLen(1) + NH(NHLen) + Reserved(1) + NLRI.
+		if len(val) < 5 {
+			return off
+		}
+		nhLen := int(val[3])
+		nhStart := 4
+		nhEnd := nhStart + nhLen
+		if nhEnd+1 > len(val) { // +1 for the reserved byte
+			return off
+		}
+
+		// The new next-hop must be exactly one of the allowed lengths:
+		//   - 4  bytes: IPv4 next-hop (used by labeled unicast / VPN families).
+		//   - 16 bytes: IPv6 global-only next-hop.
+		//   - 32 bytes: IPv6 global + link-local per RFC 2545 Section 3.
+		// A mismatched op length is a caller bug; the route is left unchanged
+		// (the caller should have produced a valid op).
+		newNHLen := len(setBuf)
+		if newNHLen != 4 && newNHLen != 16 && newNHLen != 32 {
+			if len(src) > 0 && off+len(src) <= len(buf) {
+				copy(buf[off:], src)
+				return off + len(src)
+			}
+			return off
+		}
+		newValLen := srcValLen - nhLen + newNHLen
+
+		// BGP attribute value length is capped at 65535 (RFC 4271 §4.3).
+		// A near-full source MP_REACH combined with NH growth (e.g. 0 -> 32)
+		// could push the new value past that cap. Refuse the rewrite and
+		// preserve the source: the alternative (uint16 truncation) corrupts
+		// the wire output by claiming fewer bytes than we actually wrote.
+		if newValLen < 0 || newValLen > 65535 {
+			if len(src) > 0 && off+len(src) <= len(buf) {
+				copy(buf[off:], src)
+				return off + len(src)
+			}
+			return off
+		}
+
+		// Decide output header width based on the new value length.
+		outFlags := flags
+		outHdrLen := 3
+		if newValLen > 255 {
+			outFlags |= 0x10
+			outHdrLen = 4
+		} else {
+			outFlags &^= 0x10
+		}
+
+		needed := outHdrLen + newValLen
+		if off+needed > len(buf) {
+			return off
+		}
+
+		// Write new header.
+		buf[off] = outFlags
+		buf[off+1] = code
+		if outHdrLen == 4 {
+			binary.BigEndian.PutUint16(buf[off+2:], uint16(newValLen)) //nolint:gosec // capped by BGP
+		} else {
+			buf[off+2] = byte(newValLen)
+		}
+
+		// Write value: AFI(2) + SAFI(1) + new NHLen + new NH + Reserved(1) + NLRI
+		w := off + outHdrLen
+		copy(buf[w:], val[:3]) // AFI + SAFI
+		w += 3
+		buf[w] = byte(newNHLen)
+		w++
+		copy(buf[w:], setBuf)
+		w += newNHLen
+		// Reserved byte + NLRI come after the old next-hop in the source.
+		copy(buf[w:], val[nhEnd:])
+		w += len(val) - nhEnd
+		return w
+	}
+}
+
 // attrModHandlersWithDefaults returns the registered AttrModHandler map with
 // generic set handlers filled in for attribute codes that lack specialized handlers.
 // Called by the reactor at startup instead of registry.AttrModHandlers() directly.
@@ -233,5 +380,7 @@ func attrModHandlersWithDefaults() map[uint8]registry.AttrModHandler {
 	// that support set-if-absent and prepend semantics (RFC 4456).
 	handlers[byte(attribute.AttrOriginatorID)] = originatorIDHandler()
 	handlers[byte(attribute.AttrClusterList)] = clusterListHandler()
+	// MP_REACH_NLRI next-hop rewriting (RFC 4760 §3, RFC 2545 §3).
+	handlers[byte(attribute.AttrMPReachNLRI)] = mpReachNextHopHandler()
 	return handlers
 }
