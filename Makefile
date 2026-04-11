@@ -1,5 +1,5 @@
 .PHONY: all build ze chaos test analyse clean fmt vet tidy generate help
-.PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-test ze-verify ze-ci
+.PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-race-reactor ze-test ze-verify ze-ci
 .PHONY: ze-lint-changed ze-unit-test-changed ze-verify-changed
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test ze-managed-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
@@ -221,6 +221,17 @@ TIME ?= 30s
 
 ze-fuzz-one:
 	$(GO_TEST) -fuzz=$(FUZZ) -fuzztime=$(TIME) $(PKG)
+
+# Stress race-test the BGP reactor (session, forward pool, FSM).
+# REQUIRED when touching internal/component/bgp/reactor/session*.go,
+# forward_pool*.go, or other reactor concurrency code. -count=20 amplifies
+# rare scheduling windows; -race enforces the Go memory model. The bufReader/
+# bufWriter races (8dffd422, d5843235) lived 47 days because the standard
+# -race -count=1 unit test never triggered the schedule. See
+# .claude/known-failures.md "TestInProcessSpeed (race) -- FIXED 2026-04-11".
+ze-race-reactor:
+	@echo "Stress race-test reactor (count=20)..."
+	$(GO_TEST) -race -count=20 ./internal/component/bgp/reactor/...
 
 # Run ExaBGP compatibility tests (Ze encoding matches ExaBGP)
 # Uses uv to auto-install psutil dependency

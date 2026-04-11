@@ -41,6 +41,7 @@ Structural template: `.claude/patterns/functional-test.md`
 | `make ze-test` | All tests including fuzz (use when specifically needed) |
 | `make ze-editor-test` | Editor `.et` tests (headless TUI) |
 | `make ze-chaos-test` | Chaos unit + functional + web |
+| `make ze-race-reactor` | Stress race-test reactor (`-race -count=20`) -- REQUIRED when touching reactor concurrency code |
 
 ## Iteration Workflow (BLOCKING)
 
@@ -186,6 +187,61 @@ Tests organized by concern in `test/editor/`: `commands/`, `completion/`, `lifec
 | Port reuse race in reactor tests | `Stop()` not waiting for cleanup | Ensure cleanup goroutines complete before returning |
 | Completion test fails intermittently | Real bug, not flaky | Check `completeShowPath` includes YANG schema children |
 | Inter-message timing in plugin tests | Sleep too tight under load | Increase inter-message delay or use synchronization |
+
+## Reactor Concurrency Code (BLOCKING)
+
+When touching `internal/component/bgp/reactor/session*.go`, `forward_pool*.go`,
+`peer.go`, or any other reactor file that holds locks or shares state across
+goroutines, the standard `-race -count=1` unit run is **not enough**. The
+bufReader/bufWriter races (`d5843235`, `8dffd422`) lived 47 days because the
+schedule that triggered them was rare. Run `make ze-race-reactor` (`-race
+-count=20`) before claiming the change done.
+
+| Touched | Required verification |
+|---------|----------------------|
+| `session*.go` lock acquire/release, field assign | `make ze-race-reactor` |
+| `forward_pool*.go` worker drain or buffer release | `make ze-race-reactor` |
+| New goroutine in reactor package | `make ze-race-reactor` |
+| Any reactor field shared between Run loop and other goroutines | `make ze-race-reactor` |
+| Reactor doc-only edits, log message changes | Not required |
+
+A passing `ze-unit-test` is NOT proof that a reactor concurrency change is
+race-free. Paste the `ze-race-reactor` output as evidence.
+
+## Observer-Exit Antipattern in `.ci` Tests (BLOCKING)
+
+Python observer plugins inside `tmpfs=*.run` blocks MUST NOT use the
+`dispatch(api, 'daemon shutdown') ; sys.exit(1)` pattern to signal failure.
+The runner only watches ze's exit code, and ze has already exited 0 from the
+clean shutdown by the time the observer's `sys.exit(1)` runs. The test passes
+silently. The cmd-4 fix (`1fc98747`) removed three such false-positives.
+
+**Use `runtime_fail` instead.** `test/scripts/ze_api.py` provides
+`runtime_fail(message)` which emits the `ZE-OBSERVER-FAIL` sentinel that the
+runner detects via `validateLogging` (`internal/test/runner/runner_validate.go`).
+
+| Bad | Good |
+|-----|------|
+| `print('FAIL: ...', file=sys.stderr); sys.exit(1)` | `from ze_api import runtime_fail; runtime_fail('reason')` |
+| Relying on `expect=exit:code=0` to catch observer failures | Adding explicit `expect=stderr:pattern=` on production logs the plugin emits |
+| `time.sleep(N)` then "INFO: filter not called" with no failure path | `runtime_fail` if the expected event did not arrive |
+
+**Equivalent positive assertions also work.** The cmd-4 fix took the second
+route: it asserted `expect=stderr:pattern=prefix-list accept` plus
+`reject=stderr:pattern=prefix-list reject` on production log lines emitted by
+`bgp-filter-prefix`. That is the strongest pattern because it verifies the
+production code path, not the observer.
+
+| Pattern | When to use |
+|---------|------------|
+| `expect=stderr:pattern=<production log line>` + `reject=stderr:pattern=<wrong outcome>` | Plugin emits a decision log on every iteration. **Preferred.** |
+| `runtime_fail(...)` from observer when assertion fails | Observer must compute something the engine cannot log directly |
+| Rely on `expect=exit:code=0` alone with a Python observer | Forbidden -- silent false positive |
+
+Detection hook: `block-observer-sys-exit.sh` (warns on Write/Edit of `.ci`
+files containing `tmpfs=*.run` Python with `sys.exit(1)` and no
+`runtime_fail`). Known violations are tracked in `.claude/known-failures.md`
+and must be migrated.
 
 ## Pre-Commit
 

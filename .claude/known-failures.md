@@ -35,6 +35,29 @@ Remove entries once fixed.
 **Needs:** Read `internal/component/bgp/reactor/forward_pool.go` worker drain loop and trace where each `fwdItem`'s BufHandle is released. Likely a 30-60 min investigation. Parking here until someone picks it up.
 **Suggested first check:** `grep -n "returnBlock\|ReleaseBlock\|buf\.Release" internal/component/bgp/reactor/forward_pool*.go` — every release site needs a "released-once" invariant under the worker drain.
 
+**UPDATE 2026-04-11 (sibling failure surfaced by `make ze-race-reactor`):**
+The new `ze-race-reactor` Makefile target (`go test -race -count=20
+./internal/component/bgp/reactor/...`) immediately surfaced a second
+forward-pool failure on its first run:
+
+```
+--- FAIL: TestFwdPool_SupersedingDifferentKeys (0.00s)
+    forward_pool_supersede_test.go:135:
+        Error: Not equal: expected 2, actual 1
+ERROR msg="bufmux: double return detected" subsystem=bgp.reactor.forward idx=0 blockID=0
+```
+
+Same root error class (`bufmux: double return detected` from
+`forward_pool.go`), different test, fires on a single-package run rather
+than only under multi-package contention. Strongly suggests the worker
+drain / release path has a second double-release window beyond the one
+hypothesised above. Adding to this entry rather than creating a new one
+because the symptom and likely root cause overlap.
+
+**Action:** when someone picks this up, fix both
+`TestFwdPool_Barrier_WithOverflow` and `TestFwdPool_SupersedingDifferentKeys`
+in the same investigation. They almost certainly share root cause.
+
 ## TestInProcessSpeed (race) -- FIXED 2026-04-11
 
 **File:** `internal/chaos/inprocess/runner_test.go:218`
@@ -129,3 +152,101 @@ independent regressions, all introduced between commits `58564e0a` and
 | `bin/ze-test bgp reload --all` | 0/19 | **19/19** |
 
 Plugin/process/server/SDK unit tests: `go test -race ./internal/component/plugin/... ./pkg/plugin/sdk/...` -> all green.
+
+## Full-suite flaky plugin+encode tests (test isolation) -- logged 2026-04-11
+
+**Files / test IDs observed:**
+- `test/encode/ebgp.ci` (Test 9, encode category)
+- `test/plugin/attributes.ci` (Test Q, plugin category) -- timeout, 0/5 messages received
+- `test/plugin/mup4.ci` (Test 121) and `test/plugin/mup6.ci` (Test 122) -- message mismatch
+- `test/plugin/rpki-decorator-autoload.ci` (Test 196) -- timeout waiting for second message
+- `test/plugin/check.ci` (Test V) -- message mismatch, received UPDATE with default-route payload when the test expected an empty body
+
+**Symptom:** Each test passes in isolation (`bin/ze-test bgp plugin <id> -v` or `bin/ze-test bgp encode ebgp -v` -> exit 0). Each also passes when the plugin suite is re-run right after a failure (`bin/ze-test bgp plugin --all` -> 230/230). They fail only when the whole sequence `make ze-verify` runs all categories back-to-back, and the failing set changes run to run.
+
+**Reproduction conditions:**
+- FAILS: `make ze-verify` clean run (encode + plugin + reload + exabgp + editor + etc., all sequential). Flake hits 1-5 tests each time.
+- PASSES: `bin/ze-test bgp plugin --all` alone (47s, 230/230).
+- PASSES: `bin/ze-test bgp encode --all` alone.
+- PASSES: individual test reruns.
+
+**Not caused by dest-0 (plugin-startup-dispatcher-barrier).** dest-0 only touches
+`OnAllPluginsReady` dispatch for `bgp-rpki`. None of these failing tests load
+bgp-rpki. The specific tests that fail change between runs, and the plugin
+suite re-run immediately after a failure hits 230/230 with no code changes.
+
+**Root-cause hypothesis:** resource contention across test binaries when
+`make ze-functional-test` runs its child categories sequentially without
+sufficient isolation. Candidates:
+- Ephemeral port reuse race between `encode` and `plugin` suites.
+- Loopback alias `127.0.0.2` setup failing (seen in WARN logs:
+  `ensureLoopbackAlias: ioctl SIOCAIFADDR 127.0.0.2 on lo0: operation not permitted`).
+  On macOS dev machines this is expected -- tests fall back to ephemeral
+  ports, but that may expose ordering assumptions.
+- Prior test's BGP peer still holding the listening socket when the next test
+  binds. The ebgp/check failures (UPDATE arrives with unexpected default-route
+  body) look like a prior peer session bleeding into the new session.
+
+**Proposed next step:** investigate `ze-test` runner for cross-category port
+reservation or a barrier between categories.
+
+**Interim workaround:** re-run `make ze-verify` or the specific category.
+Single-category runs (`bin/ze-test bgp plugin --all`) are stable and safe as
+a gate when the full suite flakes.
+
+## Observer-exit antipattern in plugin .ci tests -- logged 2026-04-11
+
+**Files (16):** `test/plugin/community-cumulative.ci`,
+`community-priority.ci`, `community-strip.ci`, `community-tag.ci`,
+`forward-overflow-two-tier.ci`, `forward-two-tier-under-load.ci`,
+`rib-best-selection.ci`, `rib-graph.ci`, `rib-graph-best.ci`,
+`rib-graph-filtered.ci`, `role-otc-egress-filter.ci`,
+`role-otc-egress-stamp.ci`, `role-otc-export-unknown.ci`,
+`role-otc-ingress-reject.ci`, `role-otc-unicast-scope.ci`,
+`show-errors-received.ci`.
+
+**Symptom:** Each test embeds a Python observer plugin that calls
+`dispatch(api, 'daemon shutdown') ; api.wait_for_shutdown() ; sys.exit(1)`
+on assertion failure. The runner only checks ze's exit code, and ze has
+already exited 0 from the clean shutdown by the time `sys.exit(1)` runs.
+The tests pass even when the assertion fails. None of these tests use
+`expect=stderr:pattern=`, `reject=stderr:pattern=`, or `runtime_fail()`,
+so there is no other failure path.
+
+**How they were found:** the cmd-4 fix (`1fc98747`) flagged the same
+pattern in three earlier `prefix-filter-*.ci` tests it had just shipped,
+fixed those, and noted the antipattern was likely repeated elsewhere.
+Sweep on 2026-04-11 found the 16 files above using `grep` for
+`tmpfs=*.run` python blocks with `sys.exit(1)` and no
+`runtime_fail`/`expect=stderr`/`reject=stderr`.
+
+**Why it matters:** these are not flakes -- they are silent
+false-positives. A test that says it covers AC-N may be running zero
+assertions. The community-strip test, for example, claims to verify
+egress community stripping but only ever asserts ze exited cleanly.
+
+**Migration recipe (per file):**
+1. Identify the production code path that should fire (engine log line,
+   not observer log line). Run the test once with `ze.log.<subsystem>=info`
+   and check the actual stderr to find the line.
+2. Replace `sys.exit(1)` paths in the Python observer with
+   `from ze_api import runtime_fail; runtime_fail('reason')`. This is the
+   safe minimum -- the runner will see the `ZE-OBSERVER-FAIL` sentinel.
+3. **Better:** drop the assertion logic from the observer entirely and add
+   `expect=stderr:pattern=<production log line>` plus
+   `reject=stderr:pattern=<wrong outcome>` at the bottom of the `.ci` file.
+   This is what `prefix-filter-accept.ci` does (lines 132-134) and what
+   the cmd-4 fix recommended. It tests the production code path, not the
+   observer.
+4. Verify by deliberately breaking the production code path and confirming
+   the test FAILS. A test that still passes after the production logic is
+   broken is still wrong.
+
+**Hook:** `block-observer-sys-exit.sh` is wired in `settings.json`
+(Write|Edit|MultiEdit on `.ci` files) and will warn (exit 1) on any new
+file with this pattern. The 16 files above will trigger the hook on Edit
+until migrated.
+
+**Rule:** `.claude/rules/testing.md` "Observer-Exit Antipattern".
+**Reference fix:** `1fc98747` (cmd-4 prefix filter), three test files
+migrated from observer-exit to `expect=stderr:pattern=` assertions.

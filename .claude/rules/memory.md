@@ -155,3 +155,15 @@ Do NOT flag these as "identity wrappers adding no value."
 - Overwrote uncommitted changes made by other concurrent Claude sessions.
 - Root cause: worktree code was not committed, so the agent tried to preserve it by copying files.
 - **Rule:** NEVER copy files from a worktree into the main repo. Worktree agents must commit their work. Use `git merge` or `git cherry-pick` to bring changes into main. Hook `block-worktree-copy.sh` (exit 2) enforces this.
+
+### Same-Day Fix After Feature (cmd-4, RECURRING)
+- Feature `cmd-4` (bgp-filter-prefix, `6af9820a`) committed at 12:31 with a closed spec and learned summary. By 13:44 the same day, fix `1fc98747` had to land THREE BLOCKERs and SIX ISSUEs caught in post-ship `/ze-review`: filter never fired (rpki crashed before dispatch), filter input had no NLRI (encoder incomplete), and the .ci tests were silent false-positives (observer-exit antipattern).
+- Same shape: structured events (`089dc7a5` + `f2cf4b5f`, 16-17 days after `26f8da00`), BGP-as-plugin Phase 2 (`938df51d` + `d029a94d`, 6 days after `440b160a`), bufio races (`d5843235` + `8dffd422`, 47 days after `4ad73c47`).
+- Root cause: marking spec done after unit tests pass and a single happy-path .ci run. Skipping the "deliberately break it and watch the test fail" step. Skipping the "grep every consumer of the renamed string" step. Skipping the "race -count=20 on touched concurrency code" step.
+- **Rule:** before marking ANY spec done, the adversarial review (`rules/quality.md`) must be run for real, not as a checklist tick. Specifically:
+  - Ran `make ze-race-reactor` if any reactor concurrency code changed (`rules/testing.md`).
+  - Grepped every consumer of any renamed plugin/subsystem/log/dispatch name (`rules/plugin-design.md` "Renaming a Registered Name").
+  - Grepped every sibling call site of any function that got a new guard/fallback (`rules/before-writing-code.md` "Sibling Call-Site Audit").
+  - For .ci tests with Python observers: deliberately broke the production code path to confirm the test FAILS. A test that passes after the production logic is broken is invalid (`rules/testing.md` "Observer-Exit Antipattern").
+  - The adversarial review questions in `rules/quality.md` were each answered with a specific finding or "checked, none."
+- **Posture:** treat a same-day or next-day blocker fix on your own feature as a process incident, not normal churn. The fix is fine; the gap is that the original commit shipped without those checks. Note in the fix commit message which check would have caught the bug, and update the relevant rule if a NEW check is needed.
