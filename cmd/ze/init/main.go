@@ -22,6 +22,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -47,6 +48,7 @@ func Run(args []string) int {
 	managedFlag := fs.Bool("managed", false, "Enable managed (fleet) mode")
 	forceFlag := fs.Bool("force", false, "Replace existing database (moves old to .replaced-<date>)")
 	yesFlag := fs.Bool("yes", false, "Skip confirmation prompt (use with --force)")
+	webCertFlag := fs.String("web-cert", "", "Generate TLS certificate for web server (listen address, e.g. 0.0.0.0:8080)")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -65,6 +67,7 @@ func Run(args []string) int {
 					{Name: "--managed", Desc: "Enable managed (fleet) mode"},
 					{Name: "--force", Desc: "Replace existing database (moves old to .replaced-<date>)"},
 					{Name: "--yes", Desc: "Skip confirmation prompt (use with --force)"},
+					{Name: "--web-cert <addr>", Desc: "Generate TLS certificate for web server (e.g. 0.0.0.0:8080)"},
 				}},
 			},
 			Examples: []string{
@@ -120,14 +123,14 @@ func Run(args []string) int {
 		}
 	}
 
-	return runInit(inputReader, promptWriter, dbPath, *managedFlag)
+	return runInit(inputReader, promptWriter, dbPath, *managedFlag, *webCertFlag)
 }
 
 // RunWithReader creates a zefs database with SSH credentials read from r.
 // Format: one line each for username, password, host, port, name.
 // Empty host defaults to 127.0.0.1, empty port defaults to 2222.
 func RunWithReader(r io.Reader, dbPath string, managed bool) int {
-	return runInit(r, nil, dbPath, managed)
+	return runInit(r, nil, dbPath, managed, "")
 }
 
 // RunWithReaderForce is like RunWithReader but moves an existing database aside first.
@@ -138,16 +141,16 @@ func RunWithReaderForce(r io.Reader, dbPath string, managed bool) (int, error) {
 			return 1, err
 		}
 	}
-	return runInit(r, nil, dbPath, managed), nil
+	return runInit(r, nil, dbPath, managed, ""), nil
 }
 
 // RunInteractive creates a zefs database with interactive prompts.
 // Prompts are written to w (typically os.Stderr).
 func RunInteractive(r io.Reader, w io.Writer, dbPath string) int {
-	return runInit(r, w, dbPath, false)
+	return runInit(r, w, dbPath, false, "")
 }
 
-func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool) int {
+func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCertAddr string) int {
 	// Check if database already exists
 	if _, err := os.Stat(dbPath); err == nil {
 		fmt.Fprintf(os.Stderr, "error: database already exists: %s\n", dbPath)
@@ -262,6 +265,30 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool) int {
 				fmt.Printf("discovered %d interface(s), wrote initial config\n", len(discovered))
 			}
 		}
+	}
+
+	// Generate and store TLS certificate if requested.
+	if webCertAddr != "" {
+		certPEM, keyPEM, certErr := zeweb.GenerateWebCertWithAddr(webCertAddr)
+		if certErr != nil {
+			fmt.Fprintf(os.Stderr, "error: generate TLS certificate: %v\n", certErr)
+			store.Close()     //nolint:errcheck // best-effort cleanup
+			os.Remove(dbPath) //nolint:errcheck // best-effort cleanup
+			return 1
+		}
+		if err := store.WriteFile(zefs.KeyWebCert.Pattern, certPEM, 0); err != nil {
+			fmt.Fprintf(os.Stderr, "error: write TLS cert: %v\n", err)
+			store.Close()     //nolint:errcheck // best-effort cleanup
+			os.Remove(dbPath) //nolint:errcheck // best-effort cleanup
+			return 1
+		}
+		if err := store.WriteFile(zefs.KeyWebKey.Pattern, keyPEM, 0); err != nil {
+			fmt.Fprintf(os.Stderr, "error: write TLS key: %v\n", err)
+			store.Close()     //nolint:errcheck // best-effort cleanup
+			os.Remove(dbPath) //nolint:errcheck // best-effort cleanup
+			return 1
+		}
+		fmt.Printf("generated TLS certificate for %s\n", webCertAddr)
 	}
 
 	if err := store.Close(); err != nil {

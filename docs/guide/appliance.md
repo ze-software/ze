@@ -42,17 +42,33 @@ After this, builds work offline.
 
 ## Build an image
 
+First build (creates SSH credentials and a TLS certificate):
+
 ```bash
 make ze-gokrazy USER=admin PASS=secret
 ```
 
-This:
+Subsequent rebuilds reuse the existing database (same credentials, same TLS cert):
 
-1. Builds `bin/ze` for the host (to create SSH credentials)
-2. Runs `ze init` with the given username and password
+```bash
+make ze-gokrazy
+```
+
+To use a database from a running instance or another machine:
+
+```bash
+make ze-gokrazy ZEFS=/path/to/database.zefs
+```
+
+The first build:
+
+1. Builds `bin/ze` for the host
+2. Runs `ze init` with credentials and generates a self-signed TLS certificate
 3. Cross-compiles Ze for linux/amd64 and builds a 2GB disk image
 4. Formats the persistent `/perm` partition
-5. Injects `database.zefs` (SSH credentials) into `/perm/ze/`
+5. Injects `database.zefs` (credentials + TLS cert) into `/perm/ze/`
+
+The database is kept at `tmp/gokrazy/init/database.zefs` between builds. Browsers that trust the certificate on first use will not prompt again after image rebuilds.
 
 The image lands at `tmp/gokrazy/ze.img`.
 <!-- source: Makefile -- ze-gokrazy target -->

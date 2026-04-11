@@ -516,7 +516,9 @@ tidy:
 #
 # Usage:
 #   make ze-gokrazy-deps                    -- one-time: download gokrazy system packages
-#   make ze-gokrazy USER=admin PASS=secret  -- build image with SSH credentials
+#   make ze-gokrazy USER=admin PASS=secret  -- first build: create credentials + TLS cert
+#   make ze-gokrazy                         -- rebuild: reuse existing credentials
+#   make ze-gokrazy ZEFS=/path/to/db.zefs   -- rebuild: use external database
 #   make ze-gokrazy-run                     -- boot image in QEMU
 
 GOKRAZY_INSTANCE   := ze
@@ -550,15 +552,29 @@ ze-gokrazy-deps: bin/gok
 	done
 	@echo "Done. Builds now work offline."
 
-# Build a bootable VM image with SSH credentials baked in.
+# Build a bootable VM image.
+# First build: make ze-gokrazy USER=admin PASS=secret
+# Rebuild:     make ze-gokrazy (reuses tmp/gokrazy/init/database.zefs)
+# External:    make ze-gokrazy ZEFS=/path/to/database.zefs
+GOKRAZY_ZEFS := tmp/gokrazy/init/database.zefs
+
 ze-gokrazy: ze bin/gok
-	@test -n "$(USER)" || { echo "Usage: make ze-gokrazy USER=admin PASS=secret"; exit 1; }
-	@test -n "$(PASS)" || { echo "Usage: make ze-gokrazy USER=admin PASS=secret"; exit 1; }
 	@test -f $(E2FS)/mkfs.ext4 || { echo "error: e2fsprogs not found (brew install e2fsprogs)"; exit 1; }
 	@mkdir -p tmp/gokrazy/init
-	@echo "--- Creating SSH credentials ---"
-	@printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \
-		env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes 2>&1
+	@if [ -n "$(ZEFS)" ]; then \
+		echo "--- Using external database: $(ZEFS) ---"; \
+		cp "$(ZEFS)" $(GOKRAZY_ZEFS); \
+	elif [ -n "$(USER)" ] && [ -n "$(PASS)" ]; then \
+		echo "--- Creating SSH credentials + TLS certificate ---"; \
+		printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \
+			env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes --web-cert 0.0.0.0:8080 2>&1; \
+	elif [ ! -f $(GOKRAZY_ZEFS) ]; then \
+		echo "error: no database found. First build requires credentials:"; \
+		echo "  make ze-gokrazy USER=admin PASS=secret"; \
+		exit 1; \
+	else \
+		echo "--- Reusing existing database ---"; \
+	fi
 	@echo "--- Building gokrazy image ---"
 	GOARCH=amd64 bin/gok --parent_dir $(GOKRAZY_DIR) -i $(GOKRAZY_INSTANCE) overwrite \
 		--full $(GOKRAZY_IMG) \
