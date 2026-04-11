@@ -26,7 +26,19 @@ type bestSource struct {
 	count int
 }
 
-func newBestSource(r *RIBManager, selector string) *bestSource {
+// bestRouteKey builds the lookup key used by the reason terminal's
+// candidates-by-prefix map. Must match the key format used by newBestSource
+// when populating that map.
+func bestRouteKey(familyS, prefixS string) string {
+	return familyS + "|" + prefixS
+}
+
+// newBestSource builds the per-prefix best-path item list. When
+// stashCandidates is non-nil, the full candidate slice for every yielded
+// item is written into it keyed by bestRouteKey(family, prefix). This lets
+// the "reason" terminal re-run the decision process with narration without
+// re-querying gatherCandidates under a second lock acquisition.
+func newBestSource(r *RIBManager, selector string, stashCandidates map[string][]*Candidate) *bestSource {
 	// Collect all unique (family, nlriKey) across matching peers.
 	type routeKey struct {
 		fam     family.Family
@@ -75,6 +87,13 @@ func newBestSource(r *RIBManager, selector string) *bestSource {
 			}
 		}
 
+		// Stash candidates for the reason terminal if requested. The map is
+		// keyed by the same (familyS, prefixS) pair that the terminal can
+		// reconstruct from RouteItem at drain time.
+		if stashCandidates != nil {
+			stashCandidates[bestRouteKey(rk.familyS, rk.prefixS)] = candidates
+		}
+
 		items = append(items, item)
 	}
 
@@ -118,12 +137,33 @@ func (r *RIBManager) bestPipeline(selector string, args []string) string {
 		return string(data)
 	}
 
-	source := newBestSource(r, selector)
+	// The reason terminal needs access to every candidate (not just the
+	// winner) for every surviving prefix. Pre-allocate a stash map that
+	// bestSource populates at construction; the reason terminal reads it at
+	// drain time, keyed by the human-readable (family, prefix) pair.
+	// For other terminals the map stays nil so bestSource skips the extra
+	// bookkeeping.
+	var candidatesByKey map[string][]*Candidate
+	if hasReasonTerminal(stages) {
+		candidatesByKey = make(map[string][]*Candidate)
+	}
 
-	// Apply filter stages
+	source := newBestSource(r, selector, candidatesByKey)
+
+	// Apply non-reason filter/terminal stages. The reason terminal is handled
+	// explicitly after this loop because it needs the stashed candidates.
 	var current PipelineIterator = source
 	for _, stage := range stages {
+		if stage.kind == bestTerminalReason {
+			continue
+		}
 		current = stage.apply(current)
+	}
+
+	// Reason terminal: drive a specialized drain that consults the stash.
+	if hasReasonTerminal(stages) {
+		rt := newBestReasonTerminal(current, candidatesByKey)
+		return rt.Meta().JSON
 	}
 
 	// If no terminal was specified, default to best-path json
@@ -144,9 +184,30 @@ func (r *RIBManager) bestPipeline(selector string, args []string) string {
 	return string(data)
 }
 
+// bestTerminalReason is the keyword that activates the cmd-9 "reason"
+// terminal. It lives local to rib_pipeline_best.go because "reason" only
+// makes sense in the best-path pipeline -- the generic scoped pipeline
+// does not compute per-prefix candidates.
+const bestTerminalReason = "reason"
+
+// hasReasonTerminal reports whether any stage is the reason terminal.
+func hasReasonTerminal(stages []pipelineStage) bool {
+	for _, s := range stages {
+		if s.terminal && s.kind == bestTerminalReason {
+			return true
+		}
+	}
+	return false
+}
+
 // parseBestPipelineArgs parses args for bgp rib show best (no scope keyword, filters + terminals only).
 // Returns (stages, errorMessage).
 // Validates ordering: filters must precede terminals, and at most one terminal is allowed.
+//
+// In addition to the generic terminalKeywords accepted across all pipelines,
+// this parser also accepts bestTerminalReason ("reason") which is specific to
+// the best-path pipeline -- it reports WHY a particular path won the per-
+// prefix decision process.
 func parseBestPipelineArgs(args []string) ([]pipelineStage, string) {
 	var stages []pipelineStage
 	i := 0
@@ -172,7 +233,7 @@ func parseBestPipelineArgs(args []string) ([]pipelineStage, string) {
 			continue
 		}
 
-		if terminalKeywords[keyword] {
+		if terminalKeywords[keyword] || keyword == bestTerminalReason {
 			if sawTerminal {
 				return nil, "multiple terminals not allowed"
 			}
@@ -185,6 +246,103 @@ func parseBestPipelineArgs(args []string) ([]pipelineStage, string) {
 		return nil, fmt.Sprintf("unknown keyword: %s", keyword)
 	}
 	return stages, ""
+}
+
+// --- Best-path reason terminal ---
+
+// bestReasonTerminal drains the filtered best-path items and, for each
+// surviving prefix, re-runs the decision process with narration via
+// SelectBestExplain. The stashed candidate slices come from newBestSource.
+// Output JSON shape:
+//
+//	{"best-path-reason": [{"family","prefix","winner-peer","steps":[{"step","winner","reason"}]}]}
+type bestReasonTerminal struct {
+	upstream        PipelineIterator
+	candidatesByKey map[string][]*Candidate
+	meta            PipelineMeta
+	drained         bool
+}
+
+func newBestReasonTerminal(upstream PipelineIterator, candidatesByKey map[string][]*Candidate) *bestReasonTerminal {
+	return &bestReasonTerminal{upstream: upstream, candidatesByKey: candidatesByKey}
+}
+
+// Next is present so bestReasonTerminal satisfies PipelineIterator, but the
+// terminal materializes the entire explanation at drain time -- Next always
+// reports end-of-stream after drain.
+func (rt *bestReasonTerminal) Next() (RouteItem, bool) {
+	if !rt.drained {
+		rt.drain()
+	}
+	return RouteItem{}, false
+}
+
+func (rt *bestReasonTerminal) Meta() PipelineMeta {
+	if !rt.drained {
+		rt.drain()
+	}
+	return rt.meta
+}
+
+// reasonStep is the JSON shape for a single pairwise comparison inside an
+// explanation entry.
+type reasonStep struct {
+	Step       string `json:"step"`
+	Incumbent  string `json:"incumbent"`
+	Challenger string `json:"challenger"`
+	Winner     string `json:"winner"`
+	Reason     string `json:"reason"`
+}
+
+// reasonEntry is the JSON shape for a per-prefix explanation.
+type reasonEntry struct {
+	Family     string       `json:"family"`
+	Prefix     string       `json:"prefix"`
+	WinnerPeer string       `json:"winner-peer"`
+	Candidates []string     `json:"candidates"` // peer addresses in original order
+	Steps      []reasonStep `json:"steps"`
+}
+
+func (rt *bestReasonTerminal) drain() {
+	rt.drained = true
+
+	entries := make([]reasonEntry, 0)
+	for {
+		item, ok := rt.upstream.Next()
+		if !ok {
+			break
+		}
+		candidates := rt.candidatesByKey[bestRouteKey(item.Family, item.Prefix)]
+		exp := SelectBestExplain(candidates)
+		if exp == nil {
+			continue // defensive: prefix reached the terminal but has no candidates
+		}
+
+		entry := reasonEntry{
+			Family:     item.Family,
+			Prefix:     item.Prefix,
+			WinnerPeer: exp.Winner.PeerAddr,
+			Candidates: make([]string, len(exp.Candidates)),
+			Steps:      make([]reasonStep, len(exp.Steps)),
+		}
+		for i, c := range exp.Candidates {
+			entry.Candidates[i] = c.PeerAddr
+		}
+		for i, s := range exp.Steps {
+			entry.Steps[i] = reasonStep{
+				Step:       s.Step.String(),
+				Incumbent:  exp.Candidates[s.IncumbentIdx].PeerAddr,
+				Challenger: exp.Candidates[s.ChallengerIdx].PeerAddr,
+				Winner:     exp.Candidates[s.WinnerIdx].PeerAddr,
+				Reason:     s.Reason,
+			}
+		}
+		entries = append(entries, entry)
+	}
+
+	rt.meta.Count = len(entries)
+	data, _ := json.Marshal(map[string]any{"best-path-reason": entries})
+	rt.meta.JSON = string(data)
 }
 
 // --- Best-path JSON terminal ---

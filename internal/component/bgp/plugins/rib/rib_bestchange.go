@@ -152,21 +152,21 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	}
 }
 
-// protocolType returns "ebgp" or "ibgp" for a candidate based on ASN comparison.
-// When LocalASN is 0 (unknown, e.g. before OPEN negotiation completes),
-// defaults to "ebgp". This is intentional: routes learned before ASN
-// negotiation are assumed external, which is the more common case.
+// protocolType returns the protocol-type label for a candidate based on
+// ASN comparison. When LocalASN is 0 (unknown, e.g. before OPEN negotiation
+// completes), defaults to ebgp. This is intentional: routes learned before
+// ASN negotiation are assumed external, which is the more common case.
 func (r *RIBManager) protocolType(c *Candidate) string {
 	if c.LocalASN == 0 || c.PeerASN != c.LocalASN {
-		return "ebgp"
+		return protocolTypeEBGP
 	}
-	return "ibgp"
+	return protocolTypeIBGP
 }
 
 // adminDistance returns the admin distance for a candidate.
 // eBGP = 20, iBGP = 200. Uses protocolType to determine the session type.
 func (r *RIBManager) adminDistance(c *Candidate) int {
-	if r.protocolType(c) == "ebgp" {
+	if r.protocolType(c) == protocolTypeEBGP {
 		return 20
 	}
 	return 200 // iBGP

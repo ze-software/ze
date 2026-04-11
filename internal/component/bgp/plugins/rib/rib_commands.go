@@ -142,7 +142,7 @@ func doRegisterBuiltinCommands() {
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
 				return r.purgeStaleCommand(args)
 			}},
-		{[]string{"bgp rib show best"}, "Show best-path per prefix",
+		{[]string{"bgp rib show best"}, "Show best-path per prefix (add 'reason' terminal to narrate the RFC 4271 §9.1.2 decision process)",
 			func(r *RIBManager, sel string, args []string) (string, string, error) {
 				return statusDone, r.bestPipeline(sel, args), nil
 			}},

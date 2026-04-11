@@ -383,7 +383,7 @@ Each child spec is one phase. Phases 1-3 and 9 are independent. Phases 4-8 have 
 | cmd-6 Community Match | 0/- | Skeleton spec | Full implementation (depends on policy framework) |
 | cmd-7 Route Modify | 0/- | Skeleton spec | Full implementation (depends on policy framework + spec-apply-mods) |
 | cmd-8 Policy Show | 0/- | Skeleton spec | Full implementation (depends on filters existing) |
-| cmd-9 Ops | 2/3 | show uptime, show interface brief/counters, resolve ping/traceroute | rib best reason terminal (needs design) |
+| cmd-9 Ops | 3/3 | show uptime, show interface brief/counters, resolve ping/traceroute, rib best reason terminal (RFC 4271 §9.1.2 narration) | - |
 
 ### Commits (4 total, 2026-04-10)
 1. `feat(bgp): add route reflection, next-hop control, session policy, multipath, and operational commands` -- YANG + config + RR forwarding + next-hop + show uptime/interface (16 files)
@@ -396,7 +396,26 @@ Each child spec is one phase. Phases 1-3 and 9 are independent. Phases 4-8 have 
 | Item | Spec | Design question |
 |------|------|----------------|
 | RIB N-way best-path | cmd-3 | Storage model for N paths per prefix, consumer API for FIB ECMP, relax-as-path comparison semantics (config is now delivered, algorithm extension pending) |
-| rib best reason terminal | cmd-9 | Instrumentation approach: re-run with trace vs callback |
+
+### rib best reason terminal (cmd-9) -- LANDED 2026-04-11
+
+Design chosen: **re-run with narration, not callback on the hot path**.
+
+The hot-path `SelectBest` is unchanged. A sibling `SelectBestExplain`
+runs the same RFC 4271 §9.1.2 pairwise reduction but records a
+`BestPathExplanation` containing every comparison's deciding step.
+`ComparePair` is now a wrapper around `comparePairWithReason` which
+returns `(result int, step BestStep, reason string)` so ExplainBest
+gets its narrative without a second implementation.
+
+The best-path pipeline gains a `reason` terminal keyword local to
+`rib_pipeline_best.go` (not in the shared `terminalKeywords` map --
+reason only makes sense against the per-prefix candidate set).
+`bestSource` optionally stashes per-prefix candidate slices when a
+reason terminal is present; `bestReasonTerminal` drains the filter
+chain, looks up the stashed candidates by `(family, prefix)`, and
+emits a `"best-path-reason"` JSON array with `{step, incumbent,
+challenger, winner, reason}` per pairwise comparison.
 
 ### IPv6 next-hop rewriting (cmd-1) -- LANDED 2026-04-11
 
@@ -426,6 +445,7 @@ IPv4/IPv6 local address.
 | Pre-existing bug fix: BGP reactor factory could not re-read the config from the filesystem when the blob store had no entry for the given path | `bgp/config/register.go` | Added the same blob-store-then-os-ReadFile fallback the hub's initial load uses; unblocked all encode/plugin `.ci` tests that pass `ze <tmpfile>` |
 | Pre-existing lint fixes (unrelated) | `cmd/ze/init/main.go`, `resolve/cmd/resolve.go` | Extracted `ifaceTypeLoopback` constant, added `//nolint:gosec` with rationale on `execCommand` (allowlisted binaries + validated args) |
 | cmd-1 IPv6 next-hop rewriting (MP_REACH type 14) | `bgp/reactor/filter_delta_handlers.go`, `reactor_api_forward.go` | New `mpReachNextHopHandler` rewrites the next-hop field in place and preserves AFI/SAFI/Reserved/NLRI; `applyNextHopMod` emits op 14 with 16 or 32 byte next-hop depending on whether the peer has a link-local address |
+| cmd-9 rib best reason terminal | `plugins/rib/bestpath.go`, `rib_pipeline_best.go`, `rib_commands.go` | New `SelectBestExplain` reports the RFC 4271 §9.1.2 deciding step for each pairwise comparison; `bgp rib show best reason` terminal drains the filter chain and emits a `best-path-reason` JSON narration. `ComparePair` refactored to wrap a shared `comparePairWithReason` so the hot path stays unchanged. |
 
 ### New tests (2026-04-11)
 
@@ -440,8 +460,10 @@ IPv4/IPv6 local address.
 | `TestDefaultOriginateFilterFailsClosedOnMalformedRef` | `reactor/peer_initial_sync_test.go` | Malformed filter ref -> default route suppressed |
 | `TestExtractMultipathConfigPresent/Missing/Default/Boundary/StringNumber` | `plugins/rib/rib_multipath_config_test.go` | Multipath config JSON extraction, defaults, boundary (256), string-encoded ints |
 | `test/encode/default-originate.ci` | `test/encode/` | End-to-end: `default-originate true` produces an UPDATE containing 0.0.0.0/0 with AS_PATH = [local-as] then EOR |
-| `TestMPReachNextHopHandler_{Rewrite16Bytes,Rewrite32Bytes,CopyWhenNoOps,InvalidOpLength,IPv4NextHopThroughMPReach}` | `reactor/filter_delta_handlers_test.go` | cmd-1 IPv6 next-hop rewriting: 16 and 32 byte global/link-local, no-op pass-through, invalid op length rejection, IPv4-in-MP_REACH for labeled unicast |
+| `TestMPReachNextHopHandler_{Rewrite16Bytes,Rewrite32Bytes,CopyWhenNoOps,InvalidOpLength,IPv4NextHopThroughMPReach,RejectsOverflow}` | `reactor/filter_delta_handlers_test.go` | cmd-1 IPv6 next-hop rewriting: 16 and 32 byte global/link-local, no-op pass-through, invalid op length rejection, IPv4-in-MP_REACH for labeled unicast, 65535-overflow refusal |
 | `TestBuildModifiedPayload_MPReachNextHopSelf` | `reactor/filter_delta_handlers_test.go` | cmd-1 end-to-end: `applyNextHopMod` -> `buildModifiedPayload` -> `mpReachNextHopHandler` with MP_REACH rewritten and NLRI preserved |
+| `TestSelectBestExplain_{Empty,Single,LocalPref,ASPathLen,Origin,PeerAddrTiebreak,ThreeCandidates}` + `TestBestStep_String` | `plugins/rib/bestpath_test.go` | cmd-9 decision-step narrator: empty/single edge cases, each resolving step, three-candidate reduction with N-1 pairwise records, step string mapping |
+| `TestBestPipelineReason_{LocalPrefWinner,SingleCandidate,WithPrefixFilter,UnknownKeyword}` | `plugins/rib/rib_pipeline_best_test.go` | cmd-9 end-to-end pipeline: reason terminal emits narration JSON, single-candidate degeneracy, composes with `cidr` filter, typo rejection |
 
 ### Bugs Found/Fixed
 - ORIGINATOR_ID used source IP instead of BGP Identifier (fixed 2026-04-10)

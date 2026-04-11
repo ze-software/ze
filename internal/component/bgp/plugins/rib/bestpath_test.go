@@ -2,7 +2,158 @@ package rib
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// TestSelectBestExplain_Empty verifies nil candidates yields nil explanation.
+//
+// VALIDATES: cmd-9 reason terminal -- the CLI must cope with "no candidates".
+// PREVENTS: Nil-dereference in the reason pipeline when a prefix has no peer.
+func TestSelectBestExplain_Empty(t *testing.T) {
+	assert.Nil(t, SelectBestExplain(nil))
+	assert.Nil(t, SelectBestExplain([]*Candidate{}))
+}
+
+// TestSelectBestExplain_Single verifies a single candidate is trivially winner
+// with no comparison steps.
+//
+// VALIDATES: cmd-9 reason terminal for degenerate "only one path" prefixes.
+// PREVENTS: Off-by-one panic when len(candidates) == 1.
+func TestSelectBestExplain_Single(t *testing.T) {
+	c := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100}
+	exp := SelectBestExplain([]*Candidate{c})
+	require.NotNil(t, exp)
+	assert.Same(t, c, exp.Winner)
+	assert.Len(t, exp.Candidates, 1)
+	assert.Empty(t, exp.Steps, "no comparisons required for a single candidate")
+}
+
+// TestSelectBestExplain_LocalPref verifies the reason narrative for a
+// LOCAL_PREF-decided comparison.
+//
+// VALIDATES: cmd-9 AC -- reason terminal names the deciding step and values.
+// PREVENTS: Silent wins -- the user needs to see WHY a path beat another.
+func TestSelectBestExplain_LocalPref(t *testing.T) {
+	lo := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 3}
+	hi := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 200, ASPathLen: 5}
+
+	exp := SelectBestExplain([]*Candidate{lo, hi})
+	require.NotNil(t, exp)
+	assert.Same(t, hi, exp.Winner, "higher local-pref wins despite longer as-path")
+	require.Len(t, exp.Steps, 1)
+
+	step := exp.Steps[0]
+	assert.Equal(t, BestStepLocalPref, step.Step)
+	assert.Equal(t, 1, step.WinnerIdx, "candidates[1] (hi) wins")
+	assert.Contains(t, step.Reason, "200")
+	assert.Contains(t, step.Reason, "100")
+}
+
+// TestSelectBestExplain_ASPathLen verifies AS_PATH length tiebreak after
+// equal LOCAL_PREF.
+//
+// VALIDATES: cmd-9 AC -- step progression through the decision process.
+// PREVENTS: Misattributing the winner to a later step when an earlier one
+// resolved the tie.
+func TestSelectBestExplain_ASPathLen(t *testing.T) {
+	short := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 2}
+	long := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, ASPathLen: 5}
+
+	exp := SelectBestExplain([]*Candidate{long, short})
+	require.NotNil(t, exp)
+	assert.Same(t, short, exp.Winner)
+	require.Len(t, exp.Steps, 1)
+	assert.Equal(t, BestStepASPathLen, exp.Steps[0].Step)
+}
+
+// TestSelectBestExplain_Origin verifies ORIGIN-based decision when LOCAL_PREF
+// and AS_PATH length both tie.
+//
+// VALIDATES: cmd-9 AC -- ORIGIN step (IGP < EGP < INCOMPLETE) is reported.
+// PREVENTS: Step reported as ASPathLen when only Origin differs.
+func TestSelectBestExplain_Origin(t *testing.T) {
+	igp := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 3, Origin: OriginIGP}
+	inc := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, ASPathLen: 3, Origin: OriginIncomplete}
+
+	exp := SelectBestExplain([]*Candidate{inc, igp})
+	require.NotNil(t, exp)
+	assert.Same(t, igp, exp.Winner)
+	require.Len(t, exp.Steps, 1)
+	assert.Equal(t, BestStepOrigin, exp.Steps[0].Step)
+}
+
+// TestSelectBestExplain_PeerAddrTiebreak verifies the final peer-address
+// tiebreak when all earlier steps are identical.
+//
+// VALIDATES: cmd-9 AC -- falls through to the peer-address tiebreak.
+// PREVENTS: Reason terminal reporting "equal" for a valid tiebreak.
+func TestSelectBestExplain_PeerAddrTiebreak(t *testing.T) {
+	a := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 3, Origin: OriginIGP}
+	b := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, ASPathLen: 3, Origin: OriginIGP}
+
+	exp := SelectBestExplain([]*Candidate{b, a})
+	require.NotNil(t, exp)
+	assert.Same(t, a, exp.Winner, "lower peer address wins")
+	require.Len(t, exp.Steps, 1)
+	assert.Equal(t, BestStepPeerAddr, exp.Steps[0].Step)
+	assert.Contains(t, exp.Steps[0].Reason, "10.0.0.1")
+	assert.Contains(t, exp.Steps[0].Reason, "10.0.0.2")
+}
+
+// TestSelectBestExplain_ThreeCandidates verifies the narrative for a
+// non-trivial reduction with three candidates and two comparison steps.
+//
+// VALIDATES: cmd-9 AC -- linear reduction records N-1 pairwise steps and
+// each step names the running incumbent + challenger.
+// PREVENTS: Mis-indexing the incumbent after a challenger wins mid-reduction.
+func TestSelectBestExplain_ThreeCandidates(t *testing.T) {
+	// c0 has local-pref 100, c1 has 200 (beats c0), c2 has 150 (loses to c1).
+	c0 := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100}
+	c1 := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 200}
+	c2 := &Candidate{PeerAddr: "10.0.0.3", LocalPref: 150}
+
+	exp := SelectBestExplain([]*Candidate{c0, c1, c2})
+	require.NotNil(t, exp)
+	assert.Same(t, c1, exp.Winner)
+	require.Len(t, exp.Steps, 2)
+
+	// Step 0: c1 (challenger, idx 1) vs c0 (incumbent, idx 0); c1 wins by local-pref.
+	assert.Equal(t, 0, exp.Steps[0].IncumbentIdx)
+	assert.Equal(t, 1, exp.Steps[0].ChallengerIdx)
+	assert.Equal(t, 1, exp.Steps[0].WinnerIdx)
+	assert.Equal(t, BestStepLocalPref, exp.Steps[0].Step)
+
+	// Step 1: c2 (challenger, idx 2) vs c1 (incumbent, idx 1); c1 still wins.
+	assert.Equal(t, 1, exp.Steps[1].IncumbentIdx)
+	assert.Equal(t, 2, exp.Steps[1].ChallengerIdx)
+	assert.Equal(t, 1, exp.Steps[1].WinnerIdx)
+	assert.Equal(t, BestStepLocalPref, exp.Steps[1].Step)
+}
+
+// TestBestStep_String verifies every defined step has a stable name.
+//
+// VALIDATES: cmd-9 JSON output uses the String() form directly.
+// PREVENTS: A new BestStep constant added later without a name, leaving
+// "unknown-step" in the reason JSON.
+func TestBestStep_String(t *testing.T) {
+	for step, want := range map[BestStep]string{
+		BestStepStale:        "stale-level",
+		BestStepLocalPref:    "local-preference",
+		BestStepASPathLen:    "as-path-length",
+		BestStepOrigin:       "origin",
+		BestStepMED:          "med",
+		BestStepEBGPOverIBGP: "ebgp-over-ibgp",
+		BestStepIGPCost:      "igp-cost",
+		BestStepRouterID:     "router-id",
+		BestStepPeerAddr:     "peer-address",
+		BestStepEqual:        "equal",
+	} {
+		assert.Equal(t, want, step.String())
+	}
+	assert.Equal(t, "unknown-step", BestStep(99).String())
+}
 
 // TestBestPath_SingleCandidate verifies a single candidate always wins.
 //
