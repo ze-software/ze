@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -602,6 +603,13 @@ func (p *Process) startExternal() error {
 // When ze.log.relay=<level>, relays messages at or above that level.
 // When disabled (empty/disabled), discards plugin stderr silently.
 // Takes an explicit io.Reader to avoid racing with monitor() on p.stderr.
+//
+// Go runtime panic blocks (lines beginning with "panic:" or "fatal error:",
+// plus the goroutine stack that follows) are always relayed at ERROR level,
+// regardless of the configured relay filter. Without this, a process-killing
+// panic parses as LevelInfo (no level= tag) and gets silently dropped at the
+// default WARN filter -- see known-failures entry "SDK NewFromTLSEnv missing
+// initCallbackDefaults" for the bug this masked.
 func (p *Process) relayStderrFrom(stderr io.Reader) {
 	// Get configured relay level
 	relayLevel, enabled := slogutil.RelayLevel()
@@ -614,13 +622,18 @@ func (p *Process) relayStderrFrom(stderr io.Reader) {
 		return
 	}
 
+	var inPanic bool
 	scanner := bufio.NewScanner(stderr)
 	for scanner.Scan() {
 		line := scanner.Text()
-		// Parse the slog line and relay with subsystem=plugin.relay
-		level, msg, attrs := slogutil.ParseLogLine(line)
-		// Filter by configured relay level
-		if level < relayLevel {
+		var (
+			level slog.Level
+			msg   string
+			attrs []any
+			skip  bool
+		)
+		level, msg, attrs, inPanic, skip = classifyStderrLine(line, inPanic, relayLevel)
+		if skip {
 			continue
 		}
 		// Build args: plugin name + original attrs
@@ -630,6 +643,52 @@ func (p *Process) relayStderrFrom(stderr io.Reader) {
 		}
 		stderrLogger().Log(context.Background(), level, msg, args...)
 	}
+}
+
+// classifyStderrLine inspects a single plugin stderr line and returns how it
+// should be relayed. It parses slog format via slogutil.ParseLogLine, then
+// applies two overrides:
+//
+//  1. Once a Go runtime panic prefix ("panic:" or "fatal error:") has been
+//     seen, the returned level is forced to ERROR for that line and every
+//     line after it until a valid slog-formatted line arrives. A valid slog
+//     line resets inPanic to false, since it clearly belongs to the plugin's
+//     normal logging again.
+//  2. Lines whose computed level is below the configured relayLevel are
+//     reported via skip=true so the caller can drop them.
+//
+// The panic-block forcing runs BEFORE the level filter, so a panic block is
+// always relayed regardless of ze.log.relay. Extracted from relayStderrFrom
+// so the classifier can be unit-tested without a live process.
+func classifyStderrLine(line string, inPanic bool, relayLevel slog.Level) (level slog.Level, msg string, attrs []any, nowInPanic, skip bool) {
+	level, msg, attrs = slogutil.ParseLogLine(line)
+	// A parseable slog line (has level= and msg=) ends any ongoing panic block.
+	// ParseLogLine returns non-Info levels only when level= was actually
+	// extracted; the "malformed text" path returns LevelInfo with attrs == nil.
+	validSlog := strings.Contains(line, "level=") && strings.Contains(line, "msg=")
+	if validSlog {
+		inPanic = false
+	}
+	if !inPanic && isPanicStart(line) {
+		inPanic = true
+	}
+	if inPanic {
+		level = slog.LevelError
+	}
+	if level < relayLevel {
+		return level, msg, attrs, inPanic, true
+	}
+	return level, msg, attrs, inPanic, false
+}
+
+// isPanicStart reports whether line marks the beginning of a Go runtime
+// panic or fatal-error block. Matches the exact prefixes the runtime emits
+// (see runtime/panic.go); plugin-emitted log messages containing the word
+// "panic" in their msg= payload are not matched because the prefixes
+// require the line to START with the sentinel.
+func isPanicStart(line string) bool {
+	return strings.HasPrefix(line, "panic:") ||
+		strings.HasPrefix(line, "fatal error:")
 }
 
 // Stop signals the process to terminate. Does not block.

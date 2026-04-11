@@ -93,18 +93,27 @@ type Plugin struct {
 	mu sync.Mutex
 }
 
-// NewWithConn creates a plugin with a single bidirectional connection.
-// MuxConn is created immediately for bidirectional RPC multiplexing.
-// For internal plugins, conn may be a BridgedConn carrying a DirectBridge
-// reference for post-startup direct transport.
-func NewWithConn(name string, conn net.Conn) *Plugin {
-	rc := rpc.NewConn(conn, conn)
+// newPlugin allocates a Plugin around an already-constructed rpc.Conn and
+// installs default callback handlers. All public constructors route through
+// this helper so that adding a new constructor cannot forget to initialize
+// the callbacks map (a nil map panics the first On* call). See known-failures
+// entry "SDK NewFromTLSEnv missing initCallbackDefaults" for the original bug.
+func newPlugin(name string, rc *rpc.Conn) *Plugin {
 	p := &Plugin{
 		name:       name,
 		engineConn: rc,
 		engineMux:  rpc.NewMuxConn(rc),
 	}
 	p.initCallbackDefaults()
+	return p
+}
+
+// NewWithConn creates a plugin with a single bidirectional connection.
+// MuxConn is created immediately for bidirectional RPC multiplexing.
+// For internal plugins, conn may be a BridgedConn carrying a DirectBridge
+// reference for post-startup direct transport.
+func NewWithConn(name string, conn net.Conn) *Plugin {
+	p := newPlugin(name, rpc.NewConn(conn, conn))
 	// Discover bridge via type assertion (internal plugins only).
 	if bridger, ok := conn.(rpc.Bridger); ok {
 		p.bridge = bridger.Bridge()
@@ -117,14 +126,7 @@ func NewWithConn(name string, conn net.Conn) *Plugin {
 // a net.Conn is not available. MuxConn is created immediately for
 // bidirectional RPC multiplexing.
 func NewWithIO(name string, reader io.ReadCloser, writer io.WriteCloser) *Plugin {
-	rc := rpc.NewConn(reader, writer)
-	p := &Plugin{
-		name:       name,
-		engineConn: rc,
-		engineMux:  rpc.NewMuxConn(rc),
-	}
-	p.initCallbackDefaults()
-	return p
+	return newPlugin(name, rpc.NewConn(reader, writer))
 }
 
 // NewFromEnv creates a plugin by reading ZE_PLUGIN_HUB_HOST, ZE_PLUGIN_HUB_PORT, and
@@ -209,15 +211,7 @@ func NewFromTLSEnv(name string) (*Plugin, error) {
 		return nil, fmt.Errorf("auth rejected: %s", string(resp.Params))
 	}
 
-	// Pass the existing rpc.Conn to MuxConn (reuses reader, no new goroutine).
-	engineMux := rpc.NewMuxConn(engineConn)
-	p := &Plugin{
-		name:       name,
-		engineConn: engineConn,
-		engineMux:  engineMux,
-	}
-	p.initCallbackDefaults()
-	return p, nil
+	return newPlugin(name, engineConn), nil
 }
 
 // Listeners returns listen sockets received from the engine during startup.

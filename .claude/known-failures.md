@@ -97,9 +97,9 @@ independent regressions, all introduced between commits `58564e0a` and
 **Symptom:** External TLS-connecting plugins (e.g., the ExaBGP bridge in SDK mode) panicked at startup with `panic: assignment to entry in nil map` in `sdk.(*Plugin).OnEvent` at `pkg/plugin/sdk/sdk_callbacks.go:60`. The engine logged `"rpc startup: read registration failed" error="mux conn closed"` because the plugin process died before sending Stage 1 registration.
 **Root cause:** Commit `58564e0a` (refactor: generic callback registry) introduced `Plugin.callbacks map[string]callbackHandler` and added `p.initCallbackDefaults()` to `NewWithConn` and `NewWithIO` to allocate it. `NewFromTLSEnv` was missed -- it returned `&Plugin{name, engineConn, engineMux}` literally with `callbacks == nil`. The first `OnEvent`/`OnConfigVerify`/`OnConfigApply`/etc. call panicked. Internal plugins worked because they go through `NewWithConn`. External plugins via `NewFromTLSEnv` didn't.
 **Fix:** Call `p.initCallbackDefaults()` in `NewFromTLSEnv` before returning. The bug was masked by the test runner discarding plugin stderr at the default `ze.log.relay=warn` level (panic stack traces parse as `LevelInfo`, below the WARN floor).
-**Friction notes for follow-up:**
-- The `slogutil.RelayLevel` default of WARN silently swallowed a process-killing panic. Plain text lines parse as `LevelInfo`. Plugin panic stack traces should always reach the engine logs regardless of relay level. Suggest: detect a "panic:" prefix in `relayStderrFrom` and force ERROR level for the panic block.
-- Three SDK constructors (`NewWithConn`, `NewWithIO`, `NewFromTLSEnv`) duplicate the `initCallbackDefaults` call. Suggest: a single private constructor that all three delegate to.
+**Friction notes (resolved 2026-04-11):**
+- ~~The `slogutil.RelayLevel` default of WARN silently swallowed a process-killing panic.~~ Fixed by extracting `classifyStderrLine` in `internal/component/plugin/process/process.go`, which forces ERROR level for lines starting with `panic:` or `fatal error:` and for the goroutine stack that follows. Covered by `TestClassifyStderrLine*` in `stderr_relay_test.go`.
+- ~~Three SDK constructors duplicate the `initCallbackDefaults` call.~~ Fixed by adding an unexported `newPlugin(name, rc)` helper in `pkg/plugin/sdk/sdk.go` that all three public constructors delegate to. A new constructor cannot forget to initialize the callbacks map.
 
 ### Verification (2026-04-07)
 
