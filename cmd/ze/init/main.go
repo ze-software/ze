@@ -402,6 +402,8 @@ func daemonRunning(dbPath string) bool {
 }
 
 // generateInterfaceConfig produces Ze config syntax for discovered interfaces.
+const ifaceTypeLoopback = "loopback"
+
 func generateInterfaceConfig(discovered []iface.DiscoveredInterface) string {
 	if len(discovered) == 0 {
 		return ""
@@ -413,7 +415,7 @@ func generateInterfaceConfig(discovered []iface.DiscoveredInterface) string {
 	hasLoopback := false
 	for _, di := range discovered {
 		switch di.Type {
-		case "loopback":
+		case ifaceTypeLoopback:
 			hasLoopback = true
 		case "ethernet", "bridge", "veth", "dummy":
 			if !safeIfaceName(di.Name) {
@@ -429,7 +431,7 @@ func generateInterfaceConfig(discovered []iface.DiscoveredInterface) string {
 	}
 
 	if hasLoopback {
-		b.WriteString("    loopback {\n")
+		fmt.Fprintf(&b, "    %s {\n", ifaceTypeLoopback)
 		b.WriteString("    }\n")
 	}
 

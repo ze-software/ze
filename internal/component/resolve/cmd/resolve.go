@@ -343,6 +343,18 @@ func handleTraceroute(_ *pluginserver.CommandContext, args []string) (*plugin.Re
 }
 
 // execCommand runs an OS command with context timeout and returns combined output.
+//
+// Security note: `name` is a fixed allowlist (`ping`, `traceroute`) picked by
+// the caller -- never user-controlled. `args` may contain operator-supplied
+// values (target, source, count, size) that are NOT validated today, but
+// `exec.CommandContext` does not invoke a shell so there is no injection
+// channel: every element of `args` is passed as a discrete argv[N] to the
+// child process. The worst an operator can do is make ping/traceroute reject
+// a malformed argument with its own error.
+//
+// TODO: validate `args` format (IP/hostname for target, digit strings for
+// count/size) so operator mistakes surface as ze errors rather than opaque
+// ping output.
 func execCommand(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).CombinedOutput()
+	return exec.CommandContext(ctx, name, args...).CombinedOutput() //nolint:gosec // fixed-allowlist `name`, exec.CommandContext bypasses the shell so args are argv literals
 }
