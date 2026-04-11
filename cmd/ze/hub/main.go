@@ -1004,9 +1004,9 @@ func resolveConfigPath(store storage.Storage) string {
 // Returns the server on success, nil on failure (logged, non-fatal).
 func startLGServer(store storage.Storage, listenAddr string, useTLS bool, dispatch lg.CommandDispatcher, resolvers *resolve.Resolvers) *lg.LGServer {
 	cfg := lg.LGConfig{
-		ListenAddr: listenAddr,
-		TLS:        useTLS,
-		Dispatch:   dispatch,
+		ListenAddrs: []string{listenAddr},
+		TLS:         useTLS,
+		Dispatch:    dispatch,
 		DecorateASN: func(asn string) string {
 			if resolvers == nil || resolvers.Cymru == nil {
 				return ""

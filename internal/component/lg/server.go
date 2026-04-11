@@ -26,6 +26,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -34,6 +35,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -59,8 +61,10 @@ type ASNDecorator func(asn string) string
 
 // LGConfig holds the configuration for creating an LG server.
 type LGConfig struct {
-	// ListenAddr is the address to bind (e.g., "0.0.0.0:8444").
-	ListenAddr string
+	// ListenAddrs is the list of addresses to bind (e.g., []string{"0.0.0.0:8443"}).
+	// At least one entry is required. Every entry becomes a separate listener
+	// on the same *http.Server; Shutdown closes all of them.
+	ListenAddrs []string
 
 	// TLS enables HTTPS. When false, the server uses plain HTTP.
 	TLS bool
@@ -87,11 +91,18 @@ type LGConfig struct {
 // LGServer is the looking glass HTTP server.
 // Routes are registered internally during construction.
 // Caller MUST call Shutdown to release resources when the server is no longer needed.
+// ListenAndServe binds every address in LGConfig.ListenAddrs before any
+// serve goroutine starts; if ANY bind fails the already-bound listeners are
+// closed and ListenAndServe returns the error.
 type LGServer struct {
-	mux         *http.ServeMux
-	addr        string
-	mu          sync.RWMutex  // protects addr after ListenAndServe updates it
-	ready       chan struct{} // closed when the listener is bound
+	mux *http.ServeMux
+	// configured holds the addresses passed in by the caller, in original order.
+	configured []string
+	// bound holds the actual listen addresses once ListenAndServe has bound
+	// them. Populated under mu.
+	bound       []string
+	mu          sync.RWMutex  // protects bound after ListenAndServe updates it
+	ready       chan struct{} // closed once every listener is bound
 	readyOnce   sync.Once     // prevents double-close panic on ready channel
 	logger      *slog.Logger
 	server      *http.Server
@@ -105,9 +116,13 @@ type LGServer struct {
 
 // NewLGServer creates a new looking glass HTTP server from the given configuration.
 // When TLS is enabled, CertPEM and KeyPEM must be provided.
+// Requires at least one entry in cfg.ListenAddrs.
 func NewLGServer(cfg LGConfig) (*LGServer, error) {
-	if cfg.ListenAddr == "" {
-		return nil, fmt.Errorf("lg server: listen address is required")
+	if len(cfg.ListenAddrs) == 0 {
+		return nil, fmt.Errorf("lg server: at least one listen address is required")
+	}
+	if slices.Contains(cfg.ListenAddrs, "") {
+		return nil, fmt.Errorf("lg server: listen address must not be empty")
 	}
 
 	if cfg.Dispatch == nil {
@@ -142,10 +157,11 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 	}
 
 	mux := http.NewServeMux()
+	configured := append([]string(nil), cfg.ListenAddrs...)
 
 	s := &LGServer{
 		mux:         mux,
-		addr:        cfg.ListenAddr,
+		configured:  configured,
 		ready:       make(chan struct{}),
 		logger:      log,
 		useTLS:      cfg.TLS,
@@ -154,7 +170,8 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 		decorateASN: cfg.DecorateASN,
 		templates:   tpl,
 		server: &http.Server{
-			Addr:    cfg.ListenAddr,
+			// Addr is informational; multi-listener serving uses Serve(ln).
+			Addr:    configured[0],
 			Handler: securityHeaders(mux),
 			// Timeouts prevent slow clients from holding connections indefinitely.
 			ReadHeaderTimeout: 10 * time.Second,
@@ -256,43 +273,107 @@ func (s *LGServer) resolveASN(asn string) string {
 	return s.decorateASN(asn)
 }
 
-// ListenAndServe starts the HTTP(S) server on the configured address.
+// ListenAndServe binds every configured listen address and starts serving.
 // It blocks until the server is shut down or encounters a fatal error.
+//
+// Bind is all-or-nothing: if ANY listener fails to bind, the already-bound
+// listeners are closed and the bind error is returned without entering the
+// serve loop. Partial binding is never accepted.
 func (s *LGServer) ListenAndServe(ctx context.Context) error {
 	// Ensure ready channel is closed on any exit path so WaitReady never blocks
-	// indefinitely (e.g., when bind fails).
+	// indefinitely (e.g., when every bind fails).
 	defer s.readyOnce.Do(func() { close(s.ready) })
 
 	var lc net.ListenConfig
-	ln, err := lc.Listen(ctx, "tcp", s.addr)
-	if err != nil {
-		return fmt.Errorf("lg server bind: %w", err)
+
+	listeners := make([]net.Listener, 0, len(s.configured))
+	bound := make([]string, 0, len(s.configured))
+	for _, addr := range s.configured {
+		ln, err := lc.Listen(ctx, "tcp", addr)
+		if err != nil {
+			closeAllLGListeners(listeners, s.logger)
+			return fmt.Errorf("lg server bind %s: %w", addr, err)
+		}
+		listeners = append(listeners, ln)
+		bound = append(bound, ln.Addr().String())
 	}
 
-	// Update address to reflect the actual bound address (e.g., when port is 0).
 	s.mu.Lock()
-	s.addr = ln.Addr().String()
+	s.bound = bound
 	s.mu.Unlock()
 
 	s.readyOnce.Do(func() { close(s.ready) })
 
-	if s.useTLS {
-		s.logger.Info("lg server listening (TLS)", "address", s.addr)
-		tlsLn := tls.NewListener(ln, s.tlsCfg)
-		return s.server.Serve(tlsLn)
+	for _, addr := range bound {
+		if s.useTLS {
+			s.logger.Info("lg server listening (TLS)", "address", addr)
+		} else {
+			s.logger.Info("lg server listening", "address", addr)
+		}
 	}
 
-	s.logger.Info("lg server listening", "address", s.addr)
-	return s.server.Serve(ln)
+	errCh := make(chan error, len(listeners))
+	var wg sync.WaitGroup
+	for _, ln := range listeners {
+		serveLn := ln
+		if s.useTLS {
+			serveLn = tls.NewListener(ln, s.tlsCfg)
+		}
+		wg.Add(1)
+		go func(serveLn net.Listener) {
+			defer wg.Done()
+			if serveErr := s.server.Serve(serveLn); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+				errCh <- serveErr
+			}
+		}(serveLn)
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// Address returns the configured listen address.
-// After ListenAndServe, this reflects the actual bound address.
-func (s *LGServer) Address() string {
+// closeAllLGListeners closes every listener in the slice, logging any errors.
+// Used on the bind-failure path to release the partially-acquired set.
+func closeAllLGListeners(listeners []net.Listener, log *slog.Logger) {
+	for _, ln := range listeners {
+		if closeErr := ln.Close(); closeErr != nil {
+			log.Warn("lg server: close partial listener", "error", closeErr)
+		}
+	}
+}
+
+// Addresses returns every bound listen address, in the order they were
+// configured. After ListenAndServe binds, entries reflect the resolved
+// ip:port. Before ListenAndServe binds, Addresses returns the configured
+// addresses.
+func (s *LGServer) Addresses() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.addr
+	if len(s.bound) > 0 {
+		out := make([]string, len(s.bound))
+		copy(out, s.bound)
+		return out
+	}
+	out := make([]string, len(s.configured))
+	copy(out, s.configured)
+	return out
+}
+
+// Address returns the first bound listen address. Retained for callers that
+// only care about the primary endpoint; multi-listener callers should use
+// Addresses() instead.
+func (s *LGServer) Address() string {
+	addrs := s.Addresses()
+	if len(addrs) == 0 {
+		return ""
+	}
+	return addrs[0]
 }
 
 // WaitReady blocks until the server has bound its listener and is ready

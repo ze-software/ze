@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"testing"
@@ -62,8 +63,8 @@ func startTestServer(t *testing.T) (*LGServer, string, *http.Client) {
 	t.Helper()
 
 	srv, err := NewLGServer(LGConfig{
-		ListenAddr: "127.0.0.1:0",
-		Dispatch:   mockDispatch(),
+		ListenAddrs: []string{"127.0.0.1:0"},
+		Dispatch:    mockDispatch(),
 	})
 	if err != nil {
 		t.Fatalf("NewLGServer: %v", err)
@@ -88,8 +89,8 @@ func TestNewLGServer(t *testing.T) {
 	// VALIDATES: AC-1 -- server created with config.
 	// PREVENTS: nil dispatcher or empty address accepted.
 	srv, err := NewLGServer(LGConfig{
-		ListenAddr: "127.0.0.1:0",
-		Dispatch:   mockDispatch(),
+		ListenAddrs: []string{"127.0.0.1:0"},
+		Dispatch:    mockDispatch(),
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -112,7 +113,7 @@ func TestNewLGServerRequiresAddr(t *testing.T) {
 func TestNewLGServerRequiresDispatch(t *testing.T) {
 	// VALIDATES: validation rejects nil dispatcher.
 	_, err := NewLGServer(LGConfig{
-		ListenAddr: "127.0.0.1:0",
+		ListenAddrs: []string{"127.0.0.1:0"},
 	})
 	if err == nil {
 		t.Fatal("expected error for nil dispatcher")
@@ -144,9 +145,9 @@ func TestLGServerPlainHTTP(t *testing.T) {
 func TestLGServerTLSRequiresCert(t *testing.T) {
 	// VALIDATES: AC-3 -- TLS enabled without cert fails.
 	_, err := NewLGServer(LGConfig{
-		ListenAddr: "127.0.0.1:0",
-		TLS:        true,
-		Dispatch:   mockDispatch(),
+		ListenAddrs: []string{"127.0.0.1:0"},
+		TLS:         true,
+		Dispatch:    mockDispatch(),
 	})
 	if err == nil {
 		t.Fatal("expected error for TLS without cert/key")
@@ -595,5 +596,91 @@ func TestRouteDetailValidation(t *testing.T) {
 	resp.Body.Close() //nolint:errcheck // test cleanup
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("injection attempt: status = %d, want 400", resp.StatusCode)
+	}
+}
+
+// TestLGServer_MultiListener verifies that every address in LGConfig.ListenAddrs
+// is bound, Addresses() reports every bound ip:port, and both endpoints serve
+// the same mux concurrently.
+//
+// VALIDATES: AC-2 (LG config with two server entries binds both endpoints).
+// VALIDATES: AC-14 (Shutdown closes every listener).
+// PREVENTS: Regression where a multi-listener binder silently serves only the
+// first endpoint.
+func TestLGServer_MultiListener(t *testing.T) {
+	srv, err := NewLGServer(LGConfig{
+		ListenAddrs: []string{"127.0.0.1:0", "127.0.0.1:0"},
+		Dispatch:    mockDispatch(),
+	})
+	if err != nil {
+		t.Fatalf("NewLGServer: %v", err)
+	}
+
+	go func() {
+		_ = srv.ListenAndServe(context.Background())
+	}()
+
+	readyCtx, readyCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer readyCancel()
+	if err := srv.WaitReady(readyCtx); err != nil {
+		t.Fatalf("WaitReady: %v", err)
+	}
+
+	addrs := srv.Addresses()
+	if len(addrs) != 2 {
+		t.Fatalf("Addresses() returned %d entries, want 2", len(addrs))
+	}
+	if addrs[0] == addrs[1] {
+		t.Fatalf("two listeners must bind distinct ports, got %q twice", addrs[0])
+	}
+
+	// Both endpoints should serve the status endpoint successfully.
+	client := &http.Client{Timeout: 5 * time.Second}
+	for i, addr := range addrs {
+		resp := doGet(t, client, "http://"+addr+"/api/looking-glass/status")
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("listener %d (%s): status = %d, want 200", i, addr, resp.StatusCode)
+		}
+		resp.Body.Close() //nolint:errcheck // test cleanup
+	}
+
+	// Graceful shutdown should close both listeners.
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer shutdownCancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		t.Fatalf("Shutdown: %v", err)
+	}
+}
+
+// TestLGServer_BindFailureClosesPartialListeners verifies that when the
+// second listen address fails to bind, the first successfully-bound listener
+// is closed and ListenAndServe returns the bind error.
+//
+// VALIDATES: AC-15 (fail-fast on partial bind).
+// PREVENTS: N-1 listeners live after a bind failure.
+func TestLGServer_BindFailureClosesPartialListeners(t *testing.T) {
+	// Squat on a port so the second bind fails.
+	var lc net.ListenConfig
+	squatter, err := lc.Listen(context.Background(), "tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("squatter bind: %v", err)
+	}
+	defer squatter.Close() //nolint:errcheck // test cleanup
+	squattedAddr := squatter.Addr().String()
+
+	srv, err := NewLGServer(LGConfig{
+		ListenAddrs: []string{"127.0.0.1:0", squattedAddr},
+		Dispatch:    mockDispatch(),
+	})
+	if err != nil {
+		t.Fatalf("NewLGServer: %v", err)
+	}
+
+	err = srv.ListenAndServe(context.Background())
+	if err == nil {
+		t.Fatal("ListenAndServe must fail when any bind fails")
+	}
+	if !strings.Contains(err.Error(), "bind") || !strings.Contains(err.Error(), squattedAddr) {
+		t.Errorf("error must name the failing address; got: %v", err)
 	}
 }
