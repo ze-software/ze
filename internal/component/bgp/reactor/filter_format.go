@@ -5,10 +5,82 @@ package reactor
 
 import (
 	"fmt"
+	"net/netip"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 )
+
+// FormatUpdateForFilter formats both attributes AND NLRI from a wire UPDATE
+// into the text protocol consumed by filter plugins. The format is:
+//
+//	"<attr> <val> ... nlri <family> <op> <prefix>..."
+//
+// Legacy IPv4-unicast NLRI (from the UPDATE's NLRI and Withdrawn-Routes
+// sections) is emitted as "nlri ipv4/unicast add|del <prefix>...". MP_REACH_NLRI
+// and MP_UNREACH_NLRI attributes (RFC 4760) are emitted with their own family
+// tokens. Each family is a separate "nlri <family> <op> ..." block.
+//
+// Non-unicast families whose NLRI format is not a plain CIDR prefix (EVPN,
+// Flowspec, VPN, BGP-LS, MVPN, etc.) are not emitted here -- filter plugins
+// that care about those families should declare raw=true and parse the hex
+// payload themselves.
+//
+// Returns "" if attrs is nil and wireUpdate has no prefixes. Attrs-only output
+// (no nlri tokens) is valid when wireUpdate is nil or carries no prefixes.
+func FormatUpdateForFilter(attrs *attribute.AttributesWire, wireUpdate *wireu.WireUpdate, declared []string) string {
+	attrText := FormatAttrsForFilter(attrs, declared)
+	if wireUpdate == nil {
+		return attrText
+	}
+
+	var blocks []string
+
+	// Legacy IPv4 unicast NLRI (RFC 4271 Section 4.3).
+	if raw, err := wireUpdate.NLRI(); err == nil && len(raw) > 0 {
+		if prefixes := wireu.ParseIPv4Prefixes(raw); len(prefixes) > 0 {
+			blocks = append(blocks, formatNLRIBlock("ipv4/unicast", "add", prefixes))
+		}
+	}
+	// Legacy IPv4 unicast withdrawn (RFC 4271 Section 4.3 Withdrawn Routes).
+	if raw, err := wireUpdate.Withdrawn(); err == nil && len(raw) > 0 {
+		if prefixes := wireu.ParseIPv4Prefixes(raw); len(prefixes) > 0 {
+			blocks = append(blocks, formatNLRIBlock("ipv4/unicast", "del", prefixes))
+		}
+	}
+
+	// MP_REACH_NLRI for IPv6 and labeled families (RFC 4760).
+	if mp, err := wireUpdate.MPReach(); err == nil && mp != nil {
+		if prefixes := mp.Prefixes(); len(prefixes) > 0 {
+			blocks = append(blocks, formatNLRIBlock(mp.Family().String(), "add", prefixes))
+		}
+	}
+	// MP_UNREACH_NLRI withdrawals (RFC 4760).
+	if mpu, err := wireUpdate.MPUnreach(); err == nil && mpu != nil {
+		if prefixes := mpu.Prefixes(); len(prefixes) > 0 {
+			blocks = append(blocks, formatNLRIBlock(mpu.Family().String(), "del", prefixes))
+		}
+	}
+
+	if len(blocks) == 0 {
+		return attrText
+	}
+	if attrText == "" {
+		return strings.Join(blocks, " ")
+	}
+	return attrText + " " + strings.Join(blocks, " ")
+}
+
+// formatNLRIBlock formats one "nlri <family> <op> <prefix>..." block.
+func formatNLRIBlock(family, op string, prefixes []netip.Prefix) string {
+	parts := make([]string, 0, 3+len(prefixes))
+	parts = append(parts, "nlri", family, op)
+	for _, p := range prefixes {
+		parts = append(parts, p.String())
+	}
+	return strings.Join(parts, " ")
+}
 
 // attrNameToCode maps filter text attribute names to wire codes.
 var attrNameToCode = map[string]attribute.AttributeCode{

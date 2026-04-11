@@ -188,6 +188,18 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 		}
 	}
 
+	// Step 3b2a: Canonicalize chain refs to the full `<plugin-process>:<filter>`
+	// form. Users can write any of:
+	//   - `filter import [ bgp-filter-prefix:CUSTOMERS ]`  (explicit plugin)
+	//   - `filter import [ prefix-list:CUSTOMERS ]`        (filter-type prefix)
+	//   - `filter import [ CUSTOMERS ]`                    (plain name)
+	// All three resolve to the same dispatch target at runtime; this step
+	// rewrites them into the canonical form before peer settings are frozen.
+	for _, ps := range peers {
+		ps.ImportFilters = canonicalizeFilterRefs(ps.ImportFilters, filterReg)
+		ps.ExportFilters = canonicalizeFilterRefs(ps.ExportFilters, filterReg)
+	}
+
 	// Step 3b3: Prepend default filter names to each peer's import chain.
 	// Default filters (loop-detection) auto-populate unless already referenced.
 	prependDefaultFilters(bgpContainer, peerIndex)

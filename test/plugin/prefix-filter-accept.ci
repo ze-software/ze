@@ -8,7 +8,13 @@
 # 1. ze-peer sends UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
 # 2. Filter chain calls bgp-filter-prefix:CUSTOMERS
 # 3. prefix-list CUSTOMERS allows 10.0.0.0/8 with ge=16 le=24 -> 10.0.0.0/24 matches -> accept
-# 4. Route reaches adj-rib-in; observer plugin verifies count >= 1
+# 4. Plugin emits Info log "prefix-list accept ... filter=CUSTOMERS"; observer verifies
+#    route reached adj-rib-in (count >= 1).
+
+# Enable the bgp.filter.prefix subsystem at Info level so the "prefix-list
+# accept" / "prefix-list reject" decision logs are visible in stderr (default
+# level is warn).
+option=env:var=ze.log.bgp.filter.prefix:value=info
 
 # Source peer sends one matching route
 stdin=peer:terminator=EOF_PEER
@@ -119,3 +125,10 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-prefix --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
+# The filter must have been invoked and must have accepted the matching prefix.
+# Asserts both the decision path (not just "filter was called") and the specific
+# list name used. A bug that skipped dispatch, rejected instead of accepted, or
+# dispatched to the wrong filter would all break one of these.
+expect=stderr:pattern=prefix-list accept
+expect=stderr:pattern=filter=CUSTOMERS
+reject=stderr:pattern=prefix-list reject

@@ -416,7 +416,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				fwdLogger().Debug("attrs extraction for export filter",
 					"peer", peer.Settings().Address, "error", attrErr)
 			}
-			updateText := FormatAttrsForFilter(attrsWire, nil)
+			updateText := FormatUpdateForFilter(attrsWire, update.WireUpdate, nil)
 			action, _ := PolicyFilterChain(exportFilters, "export", peer.Settings().Address.String(), peer.Settings().PeerAS,
 				updateText, a.r.policyFilterFunc(update.WireUpdate.Payload()),
 			)

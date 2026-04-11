@@ -2,6 +2,7 @@ package filter_prefix
 
 import (
 	"net/netip"
+	"strings"
 	"testing"
 )
 
@@ -61,10 +62,36 @@ func TestParseOneEntry(t *testing.T) {
 			errSubstr: "ge 24 > le 16",
 		},
 		{
-			name:      "ge_out_of_range",
-			in:        map[string]any{"prefix": "10.0.0.0/8", "ge": float64(200)},
+			name:      "ge_exceeds_ipv4_max",
+			in:        map[string]any{"prefix": "10.0.0.0/8", "ge": float64(33)},
 			wantErr:   true,
-			errSubstr: "out of range",
+			errSubstr: "exceeds family max 32",
+		},
+		{
+			name:      "le_exceeds_ipv4_max",
+			in:        map[string]any{"prefix": "10.0.0.0/8", "le": float64(40)},
+			wantErr:   true,
+			errSubstr: "exceeds family max 32",
+		},
+		{
+			name:      "ge_exceeds_ipv6_max",
+			in:        map[string]any{"prefix": "2001:db8::/32", "ge": float64(129)},
+			wantErr:   true,
+			errSubstr: "exceeds family max 128",
+		},
+		{
+			name:    "ge_max_boundary_ipv4",
+			in:      map[string]any{"prefix": "10.0.0.0/8", "ge": float64(32), "le": float64(32)},
+			wantGE:  32,
+			wantLE:  32,
+			wantAct: actionAccept,
+		},
+		{
+			name:    "le_max_boundary_ipv6",
+			in:      map[string]any{"prefix": "2001:db8::/32", "ge": float64(32), "le": float64(128)},
+			wantGE:  32,
+			wantLE:  128,
+			wantAct: actionAccept,
 		},
 		{
 			name:      "invalid_action",
@@ -87,7 +114,7 @@ func TestParseOneEntry(t *testing.T) {
 				if err == nil {
 					t.Fatalf("expected error containing %q, got nil", tt.errSubstr)
 				}
-				if tt.errSubstr != "" && !contains(err.Error(), tt.errSubstr) {
+				if tt.errSubstr != "" && !strings.Contains(err.Error(), tt.errSubstr) {
 					t.Errorf("error %q does not contain %q", err.Error(), tt.errSubstr)
 				}
 				return
@@ -179,11 +206,30 @@ func TestParsePrefixLists_ListForm_OrderPreserved(t *testing.T) {
 	}
 }
 
-func contains(s, sub string) bool {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
+// VALIDATES: ISSUE 2 fix -- map form with more than one entry is rejected
+// because first-match-wins requires deterministic order.
+// PREVENTS: Silently non-deterministic filter decisions when the config layer
+// delivers an ordered-by-user YANG list as a Go map.
+func TestParsePrefixLists_MultiEntryMapFormRejected(t *testing.T) {
+	bgpCfg := map[string]any{
+		"policy": map[string]any{
+			"prefix-list": map[string]any{
+				"MULTI": map[string]any{
+					"name": "MULTI",
+					"entry": map[string]any{
+						"10.0.0.0/8":     map[string]any{"action": "accept"},
+						"192.168.0.0/16": map[string]any{"action": "reject"},
+					},
+				},
+			},
+		},
 	}
-	return false
+
+	_, err := parsePrefixLists(bgpCfg)
+	if err == nil {
+		t.Fatal("expected error for multi-entry map form, got nil")
+	}
+	if !strings.Contains(err.Error(), "would lose order") {
+		t.Errorf("error %q does not mention order loss", err.Error())
+	}
 }

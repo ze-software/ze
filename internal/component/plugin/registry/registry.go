@@ -47,6 +47,15 @@ type Registration struct {
 	SendTypes       []string // Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup.
 	YANG            string   // YANG schema content (empty if none)
 
+	// FilterTypes lists the YANG filter list names this plugin owns (e.g.,
+	// ["prefix-list"]). Used by the policy filter chain to resolve short chain
+	// refs like "prefix-list:CUSTOMERS" or plain "CUSTOMERS" to this plugin's
+	// process name at config-parse time. Without FilterTypes, users would have
+	// to spell the full plugin process name (e.g., "bgp-filter-prefix:CUSTOMERS")
+	// in every chain ref. Filter type names must be globally unique across
+	// plugins; duplicate registration aborts startup.
+	FilterTypes []string
+
 	// Optional handlers.
 	ConfigureEngineLogger func(loggerName string)               // Configure logger for in-process engine mode
 	InProcessDecoder      func(input, output *bytes.Buffer) int // Decode function for CLI fallback
@@ -145,6 +154,13 @@ var (
 	// Rebuilt by rebuildFamilyIndexLocked on Register(), Reset(), Restore().
 	familyIndex = make(map[string]*Registration)
 
+	// filterTypes maps YANG filter list type names (e.g., "prefix-list") to
+	// the plugin process name that owns them (e.g., "bgp-filter-prefix").
+	// Populated at Register() time from Registration.FilterTypes. Used by the
+	// config layer to canonicalize short chain refs to the full plugin:filter
+	// form expected by runtime dispatch.
+	filterTypes = make(map[string]string)
+
 	// metricsRegistry stores the metrics registry (as any to avoid importing metrics).
 	// Set by the config loader after creating the Prometheus registry.
 	// Read by GetInternalPluginRunner to inject into plugins via ConfigureMetrics.
@@ -194,11 +210,49 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 			return fmt.Errorf("%w: plugin %q", ErrSelfDependency, reg.Name)
 		}
 	}
+	// Filter types must be globally unique across plugins so chain refs
+	// like "prefix-list:CUSTOMERS" or plain "CUSTOMERS" can be resolved
+	// unambiguously to exactly one plugin.
+	for _, ft := range reg.FilterTypes {
+		if ft == "" {
+			return fmt.Errorf("registry: plugin %q has empty filter type", reg.Name)
+		}
+		if existing, dup := filterTypes[ft]; dup {
+			return fmt.Errorf("registry: filter type %q already registered by %q", ft, existing)
+		}
+	}
 
 	r := reg // copy
 	plugins[reg.Name] = &r
+	for _, ft := range reg.FilterTypes {
+		filterTypes[ft] = reg.Name
+	}
 	rebuildFamilyIndexLocked()
 	return nil
+}
+
+// PluginForFilterType returns the plugin process name that owns the given
+// YANG filter list type (e.g., "prefix-list" -> "bgp-filter-prefix").
+// Returns "" if no plugin has registered that filter type.
+//
+// Used by the config layer to canonicalize short chain refs. A user can
+// write `filter import [ CUSTOMERS ]` or `[ prefix-list:CUSTOMERS ]` and
+// the config layer looks up the filter type via this function and rewrites
+// the ref to the full `<plugin>:<filter>` form consumed by runtime dispatch.
+func PluginForFilterType(filterType string) string {
+	mu.RLock()
+	defer mu.RUnlock()
+	return filterTypes[filterType]
+}
+
+// FilterTypesMap returns a copy of the (filter-type -> plugin-name) map.
+// Used by config validation to enumerate known filter types.
+func FilterTypesMap() map[string]string {
+	mu.RLock()
+	defer mu.RUnlock()
+	out := make(map[string]string, len(filterTypes))
+	maps.Copy(out, filterTypes)
+	return out
 }
 
 // SetMetricsRegistry stores the metrics registry for plugin injection.
@@ -680,6 +734,7 @@ func Reset() {
 	defer mu.Unlock()
 	plugins = make(map[string]*Registration)
 	familyIndex = make(map[string]*Registration)
+	filterTypes = make(map[string]string)
 	attrModHandlers = make(map[uint8]AttrModHandler)
 	rpcHandlers = make(map[string]func(json.RawMessage) (any, error))
 	metricsRegistry = nil
@@ -717,6 +772,13 @@ func Restore(snap RegistrySnapshot) {
 	attrModHandlers = snap.attrModHandlers
 	rpcHandlers = snap.rpcHandlers
 	eventBusInstance = snap.eventBusInstance
+	// Rebuild filterTypes from the restored plugins slice.
+	filterTypes = make(map[string]string)
+	for name, reg := range plugins {
+		for _, ft := range reg.FilterTypes {
+			filterTypes[ft] = name
+		}
+	}
 	rebuildFamilyIndexLocked()
 }
 

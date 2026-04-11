@@ -12,6 +12,7 @@ func init() {
 		ConfigRoots:  []string{"bgp"},
 		Dependencies: []string{"bgp"},
 		YANG:         fpschema.ZeFilterPrefixYANG,
+		FilterTypes:  []string{"prefix-list"},
 		RunEngine:    RunFilterPrefix,
 		CLIHandler:   func(_ []string) int { return 0 },
 	})

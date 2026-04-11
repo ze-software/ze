@@ -17,21 +17,11 @@ import (
 // VALIDATES: AC-13 — le boundary 128 (IPv6).
 // PREVENTS: Wrong subnet inclusion logic, off-by-one ge/le, IPv4/IPv6 confusion.
 func TestEvaluatePrefix(t *testing.T) {
-	// Helper to build an entry from inline literals.
+	// Helper to build an entry from inline literals. Callers pass explicit
+	// ge/le values: zero is a legitimate value (AC-12 default route) so the
+	// helper does not substitute defaults.
 	mk := func(p string, ge, le uint8, action action) prefixEntry {
 		pfx := netip.MustParsePrefix(p)
-		// ge=0 means caller wants the default (= prefix bits)
-		if ge == 0 {
-			ge = uint8(pfx.Bits())
-		}
-		// le=0 means caller wants the address-family max
-		if le == 0 {
-			if pfx.Addr().Is4() {
-				le = 32
-			} else {
-				le = 128
-			}
-		}
 		return prefixEntry{prefix: pfx, ge: ge, le: le, action: action}
 	}
 

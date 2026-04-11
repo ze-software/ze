@@ -101,8 +101,9 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 
 	nlriField := extractNLRIField(in.Update)
 	if list.evaluateUpdate(nlriField) {
+		logger().Info("prefix-list accept", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
 		return &sdk.FilterUpdateOutput{Action: filterActionAccept}
 	}
-	logger().Debug("update rejected by prefix-list", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
+	logger().Info("prefix-list reject", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
 	return &sdk.FilterUpdateOutput{Action: filterActionReject}
 }

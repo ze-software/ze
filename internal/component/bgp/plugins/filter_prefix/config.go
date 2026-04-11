@@ -76,8 +76,13 @@ func parsePrefixListEntries(listName string, listMap map[string]any) ([]prefixEn
 
 	if entriesMap, ok := rawEntries.(map[string]any); ok {
 		// Keyed-by-prefix map. Order from a Go map is non-deterministic, so
-		// callers that depend on order MUST present the list form. We still
-		// support the map form for tests and round-trip configs.
+		// first-match-wins semantics are broken if there are multiple entries.
+		// Reject the map form for multi-entry lists; single-entry lists are
+		// fine because order does not matter. Callers that need multiple
+		// ordered entries MUST present the list (slice) form.
+		if len(entriesMap) > 1 {
+			return nil, fmt.Errorf("prefix-list %q: %d entries in map form would lose order (first-match-wins requires slice form)", listName, len(entriesMap))
+		}
 		out := make([]prefixEntry, 0, len(entriesMap))
 		for keyPrefix, item := range entriesMap {
 			entryMap, ok := item.(map[string]any)
@@ -112,23 +117,29 @@ func parseOneEntry(listName string, m map[string]any) (prefixEntry, error) {
 		return prefixEntry{}, fmt.Errorf("prefix-list %q: invalid prefix %q: %w", listName, prefixStr, err)
 	}
 
+	// Per-family maximum prefix length: 32 for IPv4, 128 for IPv6.
+	// ge/le must fall within this range; an IPv4 entry with ge 48 is
+	// nonsensical and silently matches nothing at runtime, so reject it
+	// at parse time.
+	var familyMax uint8
+	if pfx.Addr().Is4() {
+		familyMax = 32
+	} else {
+		familyMax = 128
+	}
+
 	ge := uint8(pfx.Bits())
 	if v, ok := readUint(m["ge"]); ok {
-		if v > 128 {
-			return prefixEntry{}, fmt.Errorf("prefix-list %q entry %s: ge %d out of range", listName, prefixStr, v)
+		if v > uint64(familyMax) {
+			return prefixEntry{}, fmt.Errorf("prefix-list %q entry %s: ge %d exceeds family max %d", listName, prefixStr, v, familyMax)
 		}
 		ge = uint8(v)
 	}
 
-	var le uint8
-	if pfx.Addr().Is4() {
-		le = 32
-	} else {
-		le = 128
-	}
+	le := familyMax
 	if v, ok := readUint(m["le"]); ok {
-		if v > 128 {
-			return prefixEntry{}, fmt.Errorf("prefix-list %q entry %s: le %d out of range", listName, prefixStr, v)
+		if v > uint64(familyMax) {
+			return prefixEntry{}, fmt.Errorf("prefix-list %q entry %s: le %d exceeds family max %d", listName, prefixStr, v, familyMax)
 		}
 		le = uint8(v)
 	}

@@ -378,7 +378,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	if direction == plugin.DirectionReceived && wireUpdate != nil && hasPeer {
 		if filters := peer.settings.ImportFilters; len(filters) > 0 && r.api != nil {
 			attrsWire, _ := wireUpdate.Attrs()
-			updateText := FormatAttrsForFilter(attrsWire, nil)
+			updateText := FormatUpdateForFilter(attrsWire, wireUpdate, nil)
 			action, modifiedText := PolicyFilterChain(filters, "import", peerAddr.String(), peerInfo.PeerAS,
 				updateText, r.policyFilterFunc(wireUpdate.Payload()),
 			)

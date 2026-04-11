@@ -7,7 +7,11 @@
 # 1. ze-peer sends UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
 # 2. Filter chain calls bgp-filter-prefix:ONLY_V6
 # 3. prefix-list ONLY_V6 only allows 2001:db8::/32 entries -> IPv4 route does not match -> implicit deny
-# 4. Route does NOT reach adj-rib-in; observer verifies count == 0
+# 4. Plugin emits Info log "prefix-list reject ... filter=ONLY_V6"; observer verifies
+#    no route reached adj-rib-in (count == 0).
+
+# Enable bgp.filter.prefix subsystem at Info level so decision logs are visible.
+option=env:var=ze.log.bgp.filter.prefix:value=info
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -111,3 +115,10 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-prefix --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
+# The filter must have rejected: asserts the decision path (not just "filter
+# was called") and the specific list name. A bug that accepted instead of
+# rejected would break the reject assertion; a bug that dispatched to the wrong
+# list would break the filter-name assertion.
+expect=stderr:pattern=prefix-list reject
+expect=stderr:pattern=filter=ONLY_V6
+reject=stderr:pattern=prefix-list accept

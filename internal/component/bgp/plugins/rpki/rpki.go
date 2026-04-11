@@ -175,13 +175,16 @@ func RunRPKIPlugin(conn net.Conn) int {
 	})
 
 	// Enable validation gate in adj-rib-in after plugin startup completes.
+	// If adj-rib-in is not loaded (or its command is not yet registered), skip
+	// gracefully: bgp-rpki still provides RTR cache + validation but routes pass
+	// through unconditionally until an adj-rib-in instance comes up.
 	p.OnStarted(func(startCtx context.Context) error {
 		enableCtx, cancel := context.WithTimeout(startCtx, 10*time.Second)
 		defer cancel()
 		status, _, err := p.DispatchCommand(enableCtx, "adj-rib-in enable-validation")
 		if err != nil {
-			logger().Error("rpki: failed to enable validation gate", "error", err)
-			return err
+			logger().Warn("rpki: validation gate not enabled (adj-rib-in unavailable)", "error", err)
+			return nil
 		}
 		logger().Info("rpki: validation gate enabled", "status", status)
 		return nil

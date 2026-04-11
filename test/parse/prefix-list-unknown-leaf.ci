@@ -1,0 +1,38 @@
+# Test: ze config validate rejects unknown leaves inside prefix-list entries
+# VALIDATES: ISSUE 5 fix -- YANG strict mode catches typos in entry leaves
+#   so they do not silently become no-ops at runtime.
+# PREVENTS: User writes `ge-er 16` (typo) and wonders why the filter does nothing.
+stdin=config:terminator=EOF_CONF
+bgp {
+	policy {
+		prefix-list CUSTOMERS {
+			entry 10.0.0.0/8 {
+				ge 16
+				le 24
+				typo-leaf value
+			}
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=typo-leaf
