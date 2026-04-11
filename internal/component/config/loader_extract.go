@@ -257,28 +257,40 @@ func extractHubServerConfig(name string, tree *Tree) (plugin.HubServerConfig, er
 	return srv, nil
 }
 
-// APIListenConfig holds parsed environment.api settings for one transport.
+// APIListenConfig holds one parsed api-server listen endpoint.
+// Transport-level fields (cors-origin, tls-cert, tls-key) live on APIConfig
+// because they apply to every listener of the same transport.
 type APIListenConfig struct {
-	Host       string // Listen host (e.g. 0.0.0.0)
-	Port       string // Listen port
-	CORSOrigin string // REST only: allowed CORS origin
-	TLSCert    string // gRPC only: TLS certificate path
-	TLSKey     string // gRPC only: TLS key path
+	Host string // Listen host (e.g. 0.0.0.0)
+	Port string // Listen port
 }
 
 // Listen returns host:port.
 func (c APIListenConfig) Listen() string { return c.Host + ":" + c.Port }
 
 // APIConfig holds parsed environment.api settings.
+// REST and GRPC each carry a slice of listen endpoints (one entry per
+// YANG `list server {}` block). When the transport is enabled but no
+// server entries are present, extraction synthesizes a single default
+// entry from the YANG refine defaults so downstream binders always see
+// at least one endpoint.
 type APIConfig struct {
-	REST   APIListenConfig
-	RESTOn bool
-	GRPC   APIListenConfig
-	GRPCOn bool
-	Token  string // Shared bearer token for both transports
+	Token string // Shared bearer token for both transports
+
+	RESTOn         bool
+	REST           []APIListenConfig
+	RESTCORSOrigin string // REST-only: allowed CORS origin
+
+	GRPCOn      bool
+	GRPC        []APIListenConfig
+	GRPCTLSCert string // gRPC-only: TLS certificate path
+	GRPCTLSKey  string // gRPC-only: TLS key path
 }
 
 // ExtractAPIConfig returns the environment.api config if either REST or gRPC is enabled.
+// Each transport returns every YANG list entry; if the list is empty the
+// YANG refine defaults are used to synthesize one entry so the transport
+// always has at least one listener to bind.
 func ExtractAPIConfig(tree *Tree) (APIConfig, bool) {
 	if tree == nil {
 		return APIConfig{}, false
@@ -303,17 +315,9 @@ func ExtractAPIConfig(tree *Tree) (APIConfig, bool) {
 		enabled, _ := rest.Get("enabled")
 		if enabled == configTrue {
 			cfg.RESTOn = true
-			cfg.REST = APIListenConfig{Host: "0.0.0.0", Port: "8081"}
-			if srv := rest.GetContainer("server"); srv != nil {
-				if v, ok := srv.Get("ip"); ok {
-					cfg.REST.Host = v
-				}
-				if v, ok := srv.Get("port"); ok {
-					cfg.REST.Port = v
-				}
-			}
+			cfg.REST = extractAPIServerList(rest, "0.0.0.0", "8081")
 			if v, ok := rest.Get("cors-origin"); ok {
-				cfg.REST.CORSOrigin = v
+				cfg.RESTCORSOrigin = v
 			}
 		}
 	}
@@ -323,20 +327,12 @@ func ExtractAPIConfig(tree *Tree) (APIConfig, bool) {
 		enabled, _ := grpcBlock.Get("enabled")
 		if enabled == configTrue {
 			cfg.GRPCOn = true
-			cfg.GRPC = APIListenConfig{Host: "0.0.0.0", Port: "50051"}
-			if srv := grpcBlock.GetContainer("server"); srv != nil {
-				if v, ok := srv.Get("ip"); ok {
-					cfg.GRPC.Host = v
-				}
-				if v, ok := srv.Get("port"); ok {
-					cfg.GRPC.Port = v
-				}
-			}
+			cfg.GRPC = extractAPIServerList(grpcBlock, "0.0.0.0", "50051")
 			if v, ok := grpcBlock.Get("tls-cert"); ok {
-				cfg.GRPC.TLSCert = v
+				cfg.GRPCTLSCert = v
 			}
 			if v, ok := grpcBlock.Get("tls-key"); ok {
-				cfg.GRPC.TLSKey = v
+				cfg.GRPCTLSKey = v
 			}
 		}
 	}
@@ -346,6 +342,29 @@ func ExtractAPIConfig(tree *Tree) (APIConfig, bool) {
 	}
 
 	return cfg, true
+}
+
+// extractAPIServerList reads the `server` list under a transport container
+// (rest or grpc) and returns every entry as an APIListenConfig. When the
+// list is empty, a single entry using the given YANG refine defaults is
+// synthesized so callers always see at least one endpoint.
+func extractAPIServerList(transport *Tree, defaultHost, defaultPort string) []APIListenConfig {
+	entries := transport.GetListOrdered("server")
+	if len(entries) == 0 {
+		return []APIListenConfig{{Host: defaultHost, Port: defaultPort}}
+	}
+	out := make([]APIListenConfig, 0, len(entries))
+	for _, entry := range entries {
+		ep := APIListenConfig{Host: defaultHost, Port: defaultPort}
+		if v, ok := entry.Value.Get("ip"); ok && v != "" {
+			ep.Host = v
+		}
+		if v, ok := entry.Value.Get("port"); ok && v != "" {
+			ep.Port = v
+		}
+		out = append(out, ep)
+	}
+	return out
 }
 
 func extractHubClientConfig(name string, tree *Tree) (plugin.HubClientConfig, error) {

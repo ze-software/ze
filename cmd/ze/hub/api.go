@@ -62,36 +62,40 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store 
 
 	var servers apiServers
 
-	if cfg.RESTOn {
+	// Chunk 2 uses the first endpoint only; per-binder multi-listener wiring
+	// lands in Chunks 8 and 9 (REST + gRPC). The slice is guaranteed non-empty
+	// when RESTOn/GRPCOn is true (ExtractAPIConfig synthesizes a default entry
+	// when no YANG list entry is present).
+	if cfg.RESTOn && len(cfg.REST) > 0 {
 		srv, restErr := rest.NewRESTServer(rest.RESTConfig{
-			ListenAddr:    cfg.REST.Listen(),
+			ListenAddr:    cfg.REST[0].Listen(),
 			Token:         cfg.Token,
 			Authenticator: authenticator,
-			CORSOrigin:    cfg.REST.CORSOrigin,
+			CORSOrigin:    cfg.RESTCORSOrigin,
 		}, engine, sessions, lazySpec)
 		if restErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: REST API disabled: %v\n", restErr)
 		} else {
 			go serveREST(srv)
 			servers.rest = srv
-			fmt.Fprintf(os.Stderr, "REST API server starting on http://%s/\n", cfg.REST.Listen())
+			fmt.Fprintf(os.Stderr, "REST API server starting on http://%s/\n", cfg.REST[0].Listen())
 		}
 	}
 
-	if cfg.GRPCOn {
+	if cfg.GRPCOn && len(cfg.GRPC) > 0 {
 		srv, grpcErr := apigrpc.NewGRPCServer(apigrpc.GRPCConfig{
-			ListenAddr:    cfg.GRPC.Listen(),
+			ListenAddr:    cfg.GRPC[0].Listen(),
 			Token:         cfg.Token,
 			Authenticator: authenticator,
-			TLSCert:       cfg.GRPC.TLSCert,
-			TLSKey:        cfg.GRPC.TLSKey,
+			TLSCert:       cfg.GRPCTLSCert,
+			TLSKey:        cfg.GRPCTLSKey,
 		}, engine, sessions)
 		if grpcErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: gRPC API disabled: %v\n", grpcErr)
 		} else {
-			go serveGRPC(srv, cfg.GRPC.Listen())
+			go serveGRPC(srv, cfg.GRPC[0].Listen())
 			servers.grpc = srv
-			fmt.Fprintf(os.Stderr, "gRPC API server starting on %s\n", cfg.GRPC.Listen())
+			fmt.Fprintf(os.Stderr, "gRPC API server starting on %s\n", cfg.GRPC[0].Listen())
 		}
 	}
 

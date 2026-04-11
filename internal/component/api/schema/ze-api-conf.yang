@@ -34,9 +34,15 @@ module ze-api-conf {
                     description "Enable REST API server";
                 }
 
-                container server {
+                list server {
+                    key "name";
                     ze:listener;
-                    description "REST API listen endpoint";
+                    description "REST API listen endpoints";
+
+                    leaf name {
+                        type string;
+                        description "Server instance name";
+                    }
 
                     uses zt:listener {
                         refine ip {
@@ -63,9 +69,15 @@ module ze-api-conf {
                     description "Enable gRPC API server";
                 }
 
-                container server {
+                list server {
+                    key "name";
                     ze:listener;
-                    description "gRPC API listen endpoint";
+                    description "gRPC API listen endpoints";
+
+                    leaf name {
+                        type string;
+                        description "Server instance name";
+                    }
 
                     uses zt:listener {
                         refine ip {

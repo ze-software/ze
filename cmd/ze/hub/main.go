@@ -464,6 +464,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	apiCfg, apiCfgOK := zeconfig.ExtractAPIConfig(loadResult.Tree)
 	if env.IsEnabled("ze.api-server.rest.enabled") && !apiCfg.RESTOn {
 		apiCfg.RESTOn = true
+		apiCfg.REST = []zeconfig.APIListenConfig{{Host: "0.0.0.0", Port: "8081"}}
 		apiCfgOK = true
 	}
 	if listen := env.Get("ze.api-server.rest.listen"); listen != "" && apiCfg.RESTOn {
@@ -472,11 +473,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			fmt.Fprintf(os.Stderr, "error: ze.api.rest.listen: %v\n", parseErr)
 			return 1
 		}
-		apiCfg.REST.Host = host
-		apiCfg.REST.Port = port
+		// Env-var override replaces the config-provided list with one entry.
+		// Compound multi-listener env support lands in a later chunk.
+		apiCfg.REST = []zeconfig.APIListenConfig{{Host: host, Port: port}}
 	}
 	if env.IsEnabled("ze.api-server.grpc.enabled") && !apiCfg.GRPCOn {
 		apiCfg.GRPCOn = true
+		apiCfg.GRPC = []zeconfig.APIListenConfig{{Host: "0.0.0.0", Port: "50051"}}
 		apiCfgOK = true
 	}
 	if listen := env.Get("ze.api-server.grpc.listen"); listen != "" && apiCfg.GRPCOn {
@@ -485,8 +488,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			fmt.Fprintf(os.Stderr, "error: ze.api.grpc.listen: %v\n", parseErr)
 			return 1
 		}
-		apiCfg.GRPC.Host = host
-		apiCfg.GRPC.Port = port
+		apiCfg.GRPC = []zeconfig.APIListenConfig{{Host: host, Port: port}}
 	}
 	if token := env.Get("ze.api-server.token"); token != "" && apiCfg.Token == "" {
 		apiCfg.Token = token

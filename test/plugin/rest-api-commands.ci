@@ -106,7 +106,7 @@ environment {
 	api-server {
 		rest {
 			enabled true;
-			server {
+			server main {
 				ip 127.0.0.1;
 				port 18081;
 			}
