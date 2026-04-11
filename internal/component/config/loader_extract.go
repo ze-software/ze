@@ -16,18 +16,52 @@ var loaderLogger = slogutil.LazyLogger("config.loader")
 
 const loopbackIP = "127.0.0.1"
 
-// WebListenConfig holds parsed environment.web settings.
-type WebListenConfig struct {
-	Host     string // Listen host (e.g. 0.0.0.0)
-	Port     string // Listen port (e.g. 3443)
-	Insecure bool   // Disable authentication
+// ServerEndpoint is one parsed "ip:port" pair from a YANG `list server {}`
+// under any environment.<service> block. Shared by web, mcp, and looking-glass
+// extraction helpers. Transport-level flags (auth, tls, cors) live on the
+// surrounding config struct, not on the endpoint, because they apply to every
+// listener of the same service.
+type ServerEndpoint struct {
+	Host string // Listen host (e.g. 0.0.0.0)
+	Port string // Listen port
 }
 
 // Listen returns host:port.
-func (c WebListenConfig) Listen() string { return c.Host + ":" + c.Port }
+func (e ServerEndpoint) Listen() string { return e.Host + ":" + e.Port }
+
+// extractServerList reads the `server` list under a service container and
+// returns every entry as a ServerEndpoint. When the list is empty, a single
+// entry using the given YANG refine defaults is synthesized so callers always
+// see at least one endpoint.
+func extractServerList(svc *Tree, defaultHost, defaultPort string) []ServerEndpoint {
+	entries := svc.GetListOrdered("server")
+	if len(entries) == 0 {
+		return []ServerEndpoint{{Host: defaultHost, Port: defaultPort}}
+	}
+	out := make([]ServerEndpoint, 0, len(entries))
+	for _, entry := range entries {
+		ep := ServerEndpoint{Host: defaultHost, Port: defaultPort}
+		if v, ok := entry.Value.Get("ip"); ok && v != "" {
+			ep.Host = v
+		}
+		if v, ok := entry.Value.Get("port"); ok && v != "" {
+			ep.Port = v
+		}
+		out = append(out, ep)
+	}
+	return out
+}
+
+// WebListenConfig holds parsed environment.web settings.
+// Servers is guaranteed non-empty when ExtractWebConfig returns ok=true.
+type WebListenConfig struct {
+	Servers  []ServerEndpoint // One entry per YANG `server <name> {}` block (defaults synthesized if empty)
+	Insecure bool             // Disable authentication (forces every entry to 127.0.0.1)
+}
 
 // ExtractWebConfig returns the environment.web config if enabled.
-// With the named list pattern, reads the first server entry or uses defaults.
+// Every YANG list entry is returned in insertion order; callers that only
+// want the first endpoint take `cfg.Servers[0]`.
 func ExtractWebConfig(tree *Tree) (WebListenConfig, bool) {
 	envBlock := tree.GetContainer("environment")
 	if envBlock == nil {
@@ -44,27 +78,20 @@ func ExtractWebConfig(tree *Tree) (WebListenConfig, bool) {
 		return WebListenConfig{}, false
 	}
 
-	cfg := WebListenConfig{Host: "0.0.0.0", Port: "3443"}
-
-	// Read first server list entry if present; otherwise use YANG defaults.
-	if servers := web.GetListOrdered("server"); len(servers) > 0 {
-		entry := servers[0].Value
-		if v, ok := entry.Get("ip"); ok {
-			cfg.Host = v
-		}
-		if v, ok := entry.Get("port"); ok {
-			cfg.Port = v
-		}
-	}
+	cfg := WebListenConfig{Servers: extractServerList(web, "0.0.0.0", "3443")}
 
 	if v, ok := web.Get("insecure"); ok && v == configTrue {
 		cfg.Insecure = true
 	}
 
-	// Validate: insecure requires 127.0.0.1 binding.
-	if cfg.Insecure && cfg.Host != loopbackIP {
-		loaderLogger().Error("environment.web: insecure forces host to 127.0.0.1", "host", cfg.Host)
-		cfg.Host = loopbackIP
+	// Insecure forces every entry to 127.0.0.1 binding.
+	if cfg.Insecure {
+		for i := range cfg.Servers {
+			if cfg.Servers[i].Host != loopbackIP {
+				loaderLogger().Error("environment.web: insecure forces host to 127.0.0.1", "host", cfg.Servers[i].Host)
+				cfg.Servers[i].Host = loopbackIP
+			}
+		}
 	}
 
 	return cfg, true
@@ -77,14 +104,12 @@ func HasWebConfig(tree *Tree) bool {
 }
 
 // MCPListenConfig holds parsed environment.mcp settings.
+// Servers is guaranteed non-empty when ExtractMCPConfig returns ok=true.
+// Every entry is forced to 127.0.0.1 because MCP only accepts local clients.
 type MCPListenConfig struct {
-	Host  string // Listen host (127.0.0.1 enforced)
-	Port  string // Listen port
-	Token string // Bearer token (empty = no auth)
+	Servers []ServerEndpoint
+	Token   string // Bearer token (empty = no auth)
 }
-
-// Listen returns host:port.
-func (c MCPListenConfig) Listen() string { return c.Host + ":" + c.Port }
 
 // ExtractMCPConfig returns the environment.mcp config if enabled.
 func ExtractMCPConfig(tree *Tree) (MCPListenConfig, bool) {
@@ -103,29 +128,23 @@ func ExtractMCPConfig(tree *Tree) (MCPListenConfig, bool) {
 		return MCPListenConfig{}, false
 	}
 
-	cfg := MCPListenConfig{Host: loopbackIP}
+	cfg := MCPListenConfig{Servers: extractServerList(mcp, loopbackIP, "")}
 
 	if token, ok := mcp.Get("token"); ok {
 		cfg.Token = token
 	}
 
-	if servers := mcp.GetListOrdered("server"); len(servers) > 0 {
-		entry := servers[0].Value
-		if v, ok := entry.Get("ip"); ok {
-			cfg.Host = v
-		}
-		if v, ok := entry.Get("port"); ok {
-			cfg.Port = v
+	// Enforce loopbackIP binding on every entry.
+	for i := range cfg.Servers {
+		if cfg.Servers[i].Host != loopbackIP {
+			loaderLogger().Error("environment.mcp: host must be 127.0.0.1", "host", cfg.Servers[i].Host)
+			cfg.Servers[i].Host = loopbackIP
 		}
 	}
 
-	// Enforce loopbackIP binding.
-	if cfg.Host != loopbackIP {
-		loaderLogger().Error("environment.mcp: host must be 127.0.0.1", "host", cfg.Host)
-		cfg.Host = loopbackIP
-	}
-
-	if cfg.Port == "" {
+	// A port leaf is mandatory; if the user left it blank and the YANG default
+	// is also empty, the block is effectively unusable.
+	if len(cfg.Servers) == 0 || cfg.Servers[0].Port == "" {
 		return MCPListenConfig{}, false
 	}
 
@@ -133,14 +152,11 @@ func ExtractMCPConfig(tree *Tree) (MCPListenConfig, bool) {
 }
 
 // LGListenConfig holds parsed environment.looking-glass settings.
+// Servers is guaranteed non-empty when ExtractLGConfig returns ok=true.
 type LGListenConfig struct {
-	Host string // Listen host (e.g., 0.0.0.0).
-	Port string // Listen port (e.g., 8444).
-	TLS  bool   // Enable TLS.
+	Servers []ServerEndpoint
+	TLS     bool // Enable TLS on every listener
 }
-
-// Listen returns host:port.
-func (c LGListenConfig) Listen() string { return c.Host + ":" + c.Port }
 
 // ExtractLGConfig returns the environment.looking-glass config if enabled.
 func ExtractLGConfig(tree *Tree) (LGListenConfig, bool) {
@@ -162,17 +178,7 @@ func ExtractLGConfig(tree *Tree) (LGListenConfig, bool) {
 		return LGListenConfig{}, false
 	}
 
-	cfg := LGListenConfig{Host: "0.0.0.0", Port: "8443"}
-
-	if servers := lg.GetListOrdered("server"); len(servers) > 0 {
-		entry := servers[0].Value
-		if v, ok := entry.Get("ip"); ok {
-			cfg.Host = v
-		}
-		if v, ok := entry.Get("port"); ok {
-			cfg.Port = v
-		}
-	}
+	cfg := LGListenConfig{Servers: extractServerList(lg, "0.0.0.0", "8443")}
 
 	if v, ok := lg.Get("tls"); ok && v == configTrue {
 		cfg.TLS = true

@@ -233,16 +233,19 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		mcpToken = token
 	}
 
+	// Chunk 3 uses the first endpoint only; per-binder multi-listener wiring
+	// lands in Chunks 4 (web), 5 (lg), and 6 (mcp). cfg.Servers is guaranteed
+	// non-empty when ExtractXxx returns ok=true.
 	if webCfg, ok := zeconfig.ExtractWebConfig(loadResult.Tree); ok {
 		if !webEnabled {
 			webEnabled = true
-			webListenAddr = webCfg.Listen()
+			webListenAddr = webCfg.Servers[0].Listen()
 			insecureWeb = webCfg.Insecure
 		}
 	}
 	if mcpCfg, ok := zeconfig.ExtractMCPConfig(loadResult.Tree); ok {
 		if mcpAddr == "" {
-			mcpAddr = mcpCfg.Listen()
+			mcpAddr = mcpCfg.Servers[0].Listen()
 		}
 		if mcpToken == "" && mcpCfg.Token != "" {
 			mcpToken = mcpCfg.Token
@@ -250,7 +253,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 	if lgCfg, ok := zeconfig.ExtractLGConfig(loadResult.Tree); ok {
 		if lgListenAddr == "" {
-			lgListenAddr = lgCfg.Listen()
+			lgListenAddr = lgCfg.Servers[0].Listen()
 		}
 		if !lgTLS {
 			lgTLS = lgCfg.TLS
