@@ -96,7 +96,13 @@ func TestSessionReadDeadlineWithBufio(t *testing.T) {
 
 	// Call readAndProcessMessage directly (ReadAndProcess overwrites deadline to 5s).
 	// Don't send any data — should timeout through the bufio.Reader layer.
-	err := session.readAndProcessMessage(server, session.bufReader)
+	// Capture bufReader under RLock to match the production discipline (the
+	// Run loop and ReadAndProcess both capture conn + bufReader under s.mu.RLock
+	// so they pass a consistent pair to readAndProcessMessage).
+	session.mu.RLock()
+	bufReader := session.bufReader
+	session.mu.RUnlock()
+	err := session.readAndProcessMessage(server, bufReader)
 	require.Error(t, err)
 	var netErr net.Error
 	require.ErrorAs(t, err, &netErr, "deadline must propagate as net.Error through bufio.Reader")

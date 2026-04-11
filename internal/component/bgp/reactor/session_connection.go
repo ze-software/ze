@@ -248,12 +248,28 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 		}
 	}
 
+	// INVARIANT: s.conn, s.bufReader and s.bufWriter are assigned in the same
+	// critical section so that readers capturing them under s.mu.RLock() (see
+	// Run loop in session.go and ReadAndProcess in session_read.go) always see
+	// a consistent triple. Do not split these assignments across lock
+	// acquisitions -- doing so would let a reader see "conn != nil but
+	// bufReader == nil" or similar and crash on io.ReadFull.
+	//
+	// s.writeMu is nested inside s.mu (lock ordering s.mu → s.writeMu, see
+	// closeConn below) to serialize the s.bufWriter assignment with concurrent
+	// senders that read s.bufWriter while holding s.writeMu. Without this
+	// nesting, a sender inside writeMu racing a connectionEstablished would
+	// race on the s.bufWriter field (writer-reader mismatch on two separate
+	// locks). writeMu is released before sendOpen below because sendOpen
+	// re-acquires writeMu.
 	s.mu.Lock()
+	s.writeMu.Lock()
 	s.conn = conn
 	readBufSize := max(env.GetInt("ze.buf.read.size", 65536), 4096)
 	writeBufSize := max(env.GetInt("ze.buf.write.size", 16384), 4096)
 	s.bufReader = bufio.NewReaderSize(conn, readBufSize)
 	s.bufWriter = bufio.NewWriterSize(conn, writeBufSize)
+	s.writeMu.Unlock()
 	s.mu.Unlock()
 
 	// Signal FSM.
