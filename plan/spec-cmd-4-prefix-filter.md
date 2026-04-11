@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
-| Depends | policy framework |
-| Phase | - |
-| Updated | 2026-04-10 |
+| Status | in-progress |
+| Depends | - |
+| Phase | 1/1 |
+| Updated | 2026-04-11 |
 
 ## Post-Compaction Recovery
 
@@ -289,51 +289,139 @@ extension. Each entry has `prefix` (CIDR), `ge` (uint8), `le` (uint8), `action`
 
 ## Design Insights
 
+- Two filter dispatch models exist in ze: in-process IngressFilter callbacks (filter_community style, per-peer accumulated config) and named filter chain (PolicyFilterChain via OnFilterUpdate RPC). cmd-4 had to use the named-chain pattern to compose with future cmd-5/6/7 in `filter import [ X Y Z ]`. cmd-4 is the FIRST production plugin in-tree to use the named-chain pattern; existing redistribution-*.ci tests use a Python mock plugin.
+- Filter names come from config (Stage 2), not from compile-time registration (Stage 1). The plugin declares ZERO filters at Stage 1; CallFilterUpdate does not gate on declared filters; FilterInfo lookup miss returns nil/false defaults; FilterOnError defaults to fail-closed. This means a plugin can dynamically handle any filter name passed in `input.Filter`, looking it up in its config-loaded map.
+- The chain ref is the actual plugin name `bgp-filter-prefix` plus filter name, e.g. `bgp-filter-prefix:CUSTOMERS`. The umbrella spec used `prefix-list:CUSTOMERS` as shorthand; the real syntax matches `<plugin-name>:<filter-name>` per `strings.Cut(ref, ":")` in filter_chain.go.
+- Strict whole-update mode (any denied prefix rejects whole UPDATE) is the v1 semantics. Per-prefix filtering (rewrite the nlri to drop denied prefixes only) requires `action=modify` with a new nlri text and is deferred to a future spec. Spec ACs are written for single-prefix UPDATEs so this restriction does not affect AC coverage.
+- ze-types.yang has `prefix-ipv4` and `prefix-ipv6` typedefs but no unified `ip-prefix`. The YANG schema uses `union { type zt:prefix-ipv4; type zt:prefix-ipv6; }` instead of importing `ietf-inet-types` (which is not loaded by ze).
+
 ## Implementation Summary
 
 ### What Was Implemented
+
+| Item | Files | Notes |
+|------|-------|-------|
+| YANG schema | `schema/ze-filter-prefix.yang` | Augments `bgp:bgp/bgp:policy` with `list prefix-list { ze:filter; key name; list entry { key prefix; ordered-by user; ... } }`. Uses union of `zt:prefix-ipv4`/`zt:prefix-ipv6`. |
+| Schema registration | `schema/embed.go`, `schema/register.go` | Standard embed + RegisterModule pattern |
+| Plugin entry point | `filter_prefix.go` | RunFilterPrefix uses sdk.NewWithConn, OnConfigure parses bgp/policy/prefix-list, OnFilterUpdate dispatches by `input.Filter` name |
+| Plugin registration | `register.go` | Registers as `bgp-filter-prefix` with ConfigRoots=["bgp"] |
+| Matching algorithm | `match.go` | `evaluatePrefix(entries, route)` walks entries; first match wins; cross-family entries skipped; explicit subnet check (Contains + bits >= entry bits). `evaluateUpdate(nlriField)` strict mode: any denied prefix rejects. `extractNLRIField` pulls text after `nlri ` keyword. |
+| Config parser | `config.go` | `parsePrefixLists` walks bgp/policy/prefix-list; `parseOneEntry` applies YANG defaults (ge=prefix bits, le=32/128, action=accept) and validates ge<=le, ge<=128, action in {accept,reject} |
+| Unit tests | `match_test.go` | 16 cases covering ACs 1-13 (in/out range, exact, first-match-wins, implicit deny, IPv4/IPv6, ge=0 default route, le=128 host, cross-family) + update strict mode + nlri extraction |
+| Config tests | `config_test.go` | 13 cases covering YANG defaults, ge/le boundaries, ge>le, ge>128, invalid action, malformed prefix, map-form parse, list-form parse with order preservation |
+| Plugin registration tests | `internal/component/plugin/all/all_test.go`, `cmd/ze/main_test.go` | Both expected lists updated to include `bgp-filter-prefix` |
+| Functional .ci tests | `test/parse/prefix-list-config.ci`, `test/plugin/prefix-filter-accept.ci`, `test/plugin/prefix-filter-reject.ci` | Parse: YANG schema accepts the config + chain ref. Accept: matching prefix lands in adj-rib-in. Reject: non-matching prefix absent from adj-rib-in. |
+
 ### Bugs Found/Fixed
+
+- YANG `import ietf-inet-types` not loaded in ze; switched to `union { zt:prefix-ipv4 ; zt:prefix-ipv6 }`. Discovered during first `ze config validate` run.
+
 ### Documentation Updates
+
+- `docs/guide/configuration.md`, `docs/guide/plugins.md`, `docs/comparison.md`, `docs/features.md`: NOT updated this commit; deferred to a separate doc commit per the umbrella's deliverables checklist (cmd-0-umbrella will sweep all child specs together once cmd-5..cmd-7 land).
+
 ### Deviations from Plan
+
+- **Strict whole-update mode** instead of per-prefix nlri rewriting. The spec is silent on multi-prefix UPDATEs and the ACs are written for single-prefix scenarios. Strict mode is the safest default. Per-prefix splitting deferred to a future spec; tracked in `plan/deferrals.md`.
+- **Chain ref name is `bgp-filter-prefix:NAME`**, not the spec example `prefix-list:NAME`. The real chain dispatch uses the actual plugin name from `<plugin>:<filter>` cut. The umbrella spec example was shorthand; the spec table line is updated below.
+- **Filter Stage 1 declarations are empty.** The spec did not require Stage 1 filter declarations; this was a design decision verified against `CallFilterUpdate` (which does not gate on declared filters) and `FilterInfo` (which returns safe defaults on miss).
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Create `bgp-filter-prefix` plugin | Done | `internal/component/bgp/plugins/filter_prefix/` | All files present |
+| Named prefix-lists under `bgp/policy` | Done | `schema/ze-filter-prefix.yang:18` | `list prefix-list { ze:filter; key name; }` |
+| Each entry has prefix/ge/le/action | Done | `schema/ze-filter-prefix.yang:36-65` | All four leaves with defaults |
+| `ze:filter` extension | Done | `schema/ze-filter-prefix.yang:19` | Marker for policy framework |
+| Referenced as `bgp-filter-prefix:NAME` | Done | `test/plugin/prefix-filter-accept.ci:84` | Chain ref tested end-to-end |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestEvaluatePrefix/AC1_in_range_accept` (match_test.go:50) | 10.1.0.0/20 matches 10.0.0.0/8 ge16 le24 |
+| AC-2 | Done | `TestEvaluatePrefix/AC2_too_specific` (match_test.go:57) | 10.1.0.0/26 fails le=24 -> implicit deny |
+| AC-3 | Done | `TestEvaluatePrefix/AC3_too_general` (match_test.go:64) | 10.0.0.0/12 fails ge=16 -> implicit deny |
+| AC-4 | Done | `TestEvaluatePrefix/AC4_exact_accept` (match_test.go:71) | ge=le=8 with /8 route accepted |
+| AC-5 | Done | `TestEvaluatePrefix/AC5_exact_reject` (match_test.go:78) | Same as AC-4 with action=reject |
+| AC-6 | Done | `TestParseOneEntry/ipv4_defaults` (config_test.go:25) | Default action accept when omitted |
+| AC-7 | Done | `TestEvaluatePrefix/AC7_first_match_wins_*` (match_test.go:85, 95) | Both reject-then-accept and accept-then-reject orderings |
+| AC-8 | Done | `TestEvaluatePrefix/AC8_no_match_implicit_deny` (match_test.go:106) | 192.168.0.0/24 vs 10.0.0.0/8 list returns reject |
+| AC-9 | Done | `TestEvaluatePrefix/AC9_ipv4` + `prefix-filter-accept.ci` | IPv4 unit + functional |
+| AC-10 | Done | `TestEvaluatePrefix/AC10_ipv6` (match_test.go:120) | 2001:db8:1::/48 in 2001:db8::/32 ge32 le48 |
+| AC-11 | Done | `prefix-list-config.ci` + `prefix-filter-accept.ci` | Chain syntax `filter import [ bgp-filter-prefix:CUSTOMERS ]` parses and dispatches |
+| AC-12 | Done | `TestEvaluatePrefix/AC12_ge_zero_default_route` (match_test.go:127) | ge=0 with 0.0.0.0/0 route |
+| AC-13 | Done | `TestEvaluatePrefix/AC13_le_128_ipv6_host` (match_test.go:134) | le=128 with /128 IPv6 host |
+| AC-14 | Done | `TestParseOneEntry/ge_gt_le_invalid` (config_test.go:54) | Returns error "ge 24 > le 16" |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestPrefixMatchInRange | Done (renamed) | `match_test.go` TestEvaluatePrefix/AC1_in_range_accept | Table-driven |
+| TestPrefixMatchOutOfRange | Done (renamed) | TestEvaluatePrefix/AC2_too_specific, AC3_too_general | |
+| TestPrefixMatchExact | Done (renamed) | TestEvaluatePrefix/AC4_exact_accept | |
+| TestPrefixMatchReject | Done (renamed) | TestEvaluatePrefix/AC5_exact_reject | |
+| TestPrefixMatchFirstWins | Done (renamed) | TestEvaluatePrefix/AC7_* | |
+| TestPrefixMatchImplicitDeny | Done (renamed) | TestEvaluatePrefix/AC8_no_match_implicit_deny | |
+| TestPrefixMatchIPv4 | Done (renamed) | TestEvaluatePrefix/AC9_ipv4 | |
+| TestPrefixMatchIPv6 | Done (renamed) | TestEvaluatePrefix/AC10_ipv6 | |
+| TestPrefixListGeLeBoundary | Done (renamed) | TestEvaluatePrefix/AC12_ge_zero_default_route, AC13_le_128_ipv6_host | |
+| Boundary: ge 0 / le 128 / ge 129 | Done | match_test.go AC12, AC13; config_test.go ge_out_of_range | All boundary corners |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/bgp/plugins/filter_prefix/` (dir) | Done | Created |
+| `filter_prefix/register.go` | Done | Plugin registration |
+| `filter_prefix/filter.go` | Renamed | Split into `filter_prefix.go` (entry+dispatch) + `match.go` (algorithm) |
+| `filter_prefix/filter_test.go` | Renamed | Split into `match_test.go` and `config_test.go` |
+| `test/plugin/prefix-filter.ci` | Renamed | Split into `prefix-filter-accept.ci` and `prefix-filter-reject.ci` |
+| `test/parse/prefix-list-config.ci` | Done | YANG parse test |
+| `internal/component/bgp/schema/ze-bgp-conf.yang` | Not modified | Augment lives in plugin's own schema file (matches loop-detection pattern) |
+| `internal/component/bgp/config/resolve.go` | Not modified | Plugin parses its own config via OnConfigure callback (not via core resolver) |
+| `internal/component/bgp/reactor/filter_chain.go` | Not modified | Existing PolicyFilterChain dispatch reused unchanged |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 33 (5 task + 14 AC + 10 TDD + 9 files)
+- **Done:** 33
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 5 (file renames within scope; behavior unchanged)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/bgp/plugins/filter_prefix/schema/ze-filter-prefix.yang` | Yes | `ls` in tmp/cmd4-files.log |
+| `internal/component/bgp/plugins/filter_prefix/schema/embed.go` | Yes | `ls` |
+| `internal/component/bgp/plugins/filter_prefix/schema/register.go` | Yes | `ls` |
+| `internal/component/bgp/plugins/filter_prefix/filter_prefix.go` | Yes | `ls` |
+| `internal/component/bgp/plugins/filter_prefix/match.go` | Yes | `ls` |
+| `internal/component/bgp/plugins/filter_prefix/config.go` | Yes | `ls` |
+| `internal/component/bgp/plugins/filter_prefix/register.go` | Yes | `ls` |
+| `internal/component/bgp/plugins/filter_prefix/match_test.go` | Yes | `ls` |
+| `internal/component/bgp/plugins/filter_prefix/config_test.go` | Yes | `ls` |
+| `test/parse/prefix-list-config.ci` | Yes | `ls` |
+| `test/plugin/prefix-filter-accept.ci` | Yes | `ls` |
+| `test/plugin/prefix-filter-reject.ci` | Yes | `ls` |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 to AC-14 | Unit tests cover behavior | `go test -race ./internal/component/bgp/plugins/filter_prefix/...` -> `ok` (tmp/cmd4-test2.log) |
+| AC-9 | IPv4 wired end-to-end | `ze-test bgp plugin prefix-filter-accept -v` -> pass 1/1 (tmp/cmd4-pfa.log) |
+| AC-8 | Implicit deny wired end-to-end | `ze-test bgp plugin prefix-filter-reject -v` -> pass 1/1 (tmp/cmd4-pfr.log) |
+| AC-11 | Chain ref wired | `ze-test bgp parse prefix-list-config -v` -> pass 1/1 (tmp/cmd4-parse-final.log) |
+| All | Plugin registered | `make ze-verify` -> `Ze verification passed`, exit=0 (tmp/ze-test-cmd4.log tail) |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| Config with `policy prefix-list` + `filter import [ bgp-filter-prefix:NAME ]` (matching) | `test/plugin/prefix-filter-accept.ci` | Yes -- ze-test reports pass; observer plugin asserts `total-routes >= 1` |
+| Config with `policy prefix-list` + `filter import [ bgp-filter-prefix:NAME ]` (non-matching) | `test/plugin/prefix-filter-reject.ci` | Yes -- ze-test reports pass; observer plugin asserts `total-routes == 0` |
+| Config parse with prefix-list entries | `test/parse/prefix-list-config.ci` | Yes -- `ze config validate` returns `configuration valid` |
 
 ## Checklist
 

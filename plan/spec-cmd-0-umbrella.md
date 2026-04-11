@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 4/9 |
-| Updated | 2026-04-10 |
+| Phase | 5/9 |
+| Updated | 2026-04-11 |
 
 ## Post-Compaction Recovery
 
@@ -82,24 +82,23 @@ These were initially flagged as gaps but already exist:
 | 1 | `spec-cmd-1-rr-nexthop.md` | BGP session config | Route-reflector-client, cluster-id, next-hop control (self/unchanged/auto/IP) | - |
 | 2 | `spec-cmd-2-session-policy.md` | BGP session config | Send-community control, default-originate, local-as modifiers, as-override | - |
 | 3 | `spec-cmd-3-multipath.md` | BGP config + RIB plugin | maximum-paths, relax-as-path for ECMP | - |
-| 4 | `spec-cmd-4-prefix-filter.md` | Filter plugin | `bgp-filter-prefix`: named prefix-lists under bgp/policy | policy framework |
-| 5 | `spec-cmd-5-aspath-filter.md` | Filter plugin | `bgp-filter-aspath`: named AS-path regex lists under bgp/policy | policy framework |
-| 6 | `spec-cmd-6-community-match.md` | Filter plugin | Extend `bgp-filter-community` with match-and-act | policy framework |
-| 7 | `spec-cmd-7-route-modify.md` | Filter plugin | `bgp-filter-modify`: set local-preference, MED, origin, next-hop, AS-prepend | policy framework, spec-apply-mods |
+| 4 | `spec-cmd-4-prefix-filter.md` | Filter plugin | `bgp-filter-prefix`: named prefix-lists under bgp/policy | - |
+| 5 | `spec-cmd-5-aspath-filter.md` | Filter plugin | `bgp-filter-aspath`: named AS-path regex lists under bgp/policy | - |
+| 6 | `spec-cmd-6-community-match.md` | Filter plugin | Extend `bgp-filter-community` with match-and-act | - |
+| 7 | `spec-cmd-7-route-modify.md` | Filter plugin | `bgp-filter-modify`: set local-preference, MED, origin, next-hop, AS-prepend | - |
 | 8 | `spec-cmd-8-policy-show.md` | Operational commands | `show policy list/detail/chain/test` -- introspection and dry-run | filters exist |
 | 9 | `spec-cmd-9-ops.md` | Operational commands | Best-path reason, ping/traceroute, interface counters/brief, show uptime | - |
 
 ### Execution Order
 
-Phases 1-3 have no dependencies and can be implemented in any order or in parallel.
-
-Phases 4-7 depend on the policy framework (filter plugin infrastructure). The framework
-already exists (loop-detection and community filters use it), but these add new filter types.
-Phase 7 also depends on spec-apply-mods for wire-level attribute rewriting.
+Phases 1-7 and 9 have no dependencies and can be implemented in any order or in parallel.
+The policy framework (`plan/learned/541-policy-framework.md`, landed 2026-04-10) provides
+the `bgp/policy` container, `ze:filter` augment pattern, filter chain dispatch, and
+`PolicyFilterChain` plugin filter dispatch that phases 4-7 build on. The apply-mods
+framework (`plan/learned/434-apply-mods.md`) provides `AttrOp`/`AttrModHandler`/
+`buildModifiedPayload` that phase 7 uses for wire-level attribute rewriting.
 
 Phase 8 depends on at least one filter type existing (phases 4-6).
-
-Phase 9 has no dependencies and can be implemented at any time.
 
 ### Vendor Parity After Completion
 
@@ -378,10 +377,10 @@ Each child spec is one phase. Phases 1-3 and 9 are independent. Phases 4-8 have 
 | cmd-1 RR + Next-Hop | 4/4 | YANG, config, RR forwarding, ORIGINATOR_ID/CLUSTER_LIST handlers, IPv4 next-hop, cluster-id sync, peer detail, IPv6 MP_REACH next-hop rewriting (16 and 32 byte forms) | - |
 | cmd-2 Session Policy | 4/4 | YANG, config, send-community stripping, AS-override, default-originate (uncond + conditional filter), Local-AS dual-prepend with no-prepend/replace-as modifiers | - |
 | cmd-3 Multipath | 3/3 | YANG schema + parse test, Stage 2 config delivery, N-way best-path algorithm via `SelectMultipath` wired into `rib show best` pipeline (per-prefix `multipath-peers` in JSON output) | FIB/best-change event wiring (separate spec -- consumer API not yet designed) |
-| cmd-4 Prefix Filter | 0/- | Skeleton spec | Full implementation (depends on policy framework) |
-| cmd-5 AS-Path Filter | 0/- | Skeleton spec | Full implementation (depends on policy framework) |
-| cmd-6 Community Match | 0/- | Skeleton spec | Full implementation (depends on policy framework) |
-| cmd-7 Route Modify | 0/- | Skeleton spec | Full implementation (depends on policy framework + spec-apply-mods) |
+| cmd-4 Prefix Filter | 1/1 | Plugin + YANG + matching + 29 unit tests + 3 .ci tests; first production user of named-filter-chain dispatch | Per-prefix nlri rewriting (strict whole-update mode used in v1) |
+| cmd-5 AS-Path Filter | 0/- | Skeleton spec | Full implementation (unblocked: framework landed in 541-policy-framework) |
+| cmd-6 Community Match | 0/- | Skeleton spec | Full implementation (unblocked: framework landed in 541-policy-framework) |
+| cmd-7 Route Modify | 0/- | Skeleton spec | Full implementation (unblocked: 541-policy-framework + 434-apply-mods both landed) |
 | cmd-8 Policy Show | 0/- | Skeleton spec | Full implementation (depends on filters existing) |
 | cmd-9 Ops | 3/3 | show uptime, show interface brief/counters, resolve ping/traceroute, rib best reason terminal (RFC 4271 §9.1.2 narration) | - |
 
@@ -514,7 +513,7 @@ IPv4/IPv6 local address.
 - `docs/guide/command-reference.md` not yet updated for any new commands
 
 ### Deviations from Plan
-- Filter plugins (cmd-4 through cmd-8) not started -- depend on policy framework
+- Filter plugins (cmd-4 through cmd-8) not yet started -- now unblocked (policy framework landed as 541, apply-mods as 434)
 - IPv6 next-hop requires design work not in original skeleton spec
 - cmd-3 multipath algorithm (N-way best-path) still deferred; only config
   delivery is now wired. The RIB plugin has the configured values in

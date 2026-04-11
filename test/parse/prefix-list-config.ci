@@ -1,0 +1,52 @@
+# Test: ze config validate accepts prefix-list config
+# VALIDATES: AC-9 -- IPv4 prefix-list config parses
+# VALIDATES: AC-10 -- IPv6 prefix-list config parses
+# VALIDATES: Composable in chain (filter import [bgp-filter-prefix:NAME])
+# PREVENTS: YANG schema or augment regression breaking prefix-list parsing
+stdin=config:terminator=EOF_CONF
+bgp {
+	policy {
+		prefix-list CUSTOMERS {
+			entry 10.0.0.0/8 {
+				ge 16
+				le 24
+				action accept
+			}
+			entry 192.168.0.0/16 {
+				action reject
+			}
+		}
+		prefix-list V6 {
+			entry 2001:db8::/32 {
+				ge 32
+				le 48
+				action accept
+			}
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+		filter {
+			import [ bgp-filter-prefix:CUSTOMERS ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

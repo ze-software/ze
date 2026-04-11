@@ -3,9 +3,9 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Depends | policy framework |
+| Depends | - |
 | Phase | - |
-| Updated | 2026-04-10 |
+| Updated | 2026-04-11 |
 
 ## Post-Compaction Recovery
 

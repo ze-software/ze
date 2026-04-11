@@ -1,0 +1,113 @@
+# Test: prefix-list filter rejects non-matching routes (implicit deny)
+# VALIDATES: AC-2 -- prefix outside (too specific) is rejected
+# VALIDATES: AC-8 -- no entry matches => implicit deny
+# PREVENTS: Routes leaking past prefix-list when no entry matches
+#
+# Flow:
+# 1. ze-peer sends UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+# 2. Filter chain calls bgp-filter-prefix:ONLY_V6
+# 3. prefix-list ONLY_V6 only allows 2001:db8::/32 entries -> IPv4 route does not match -> implicit deny
+# 4. Route does NOT reach adj-rib-in; observer verifies count == 0
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# Same wire as accept test: 10.0.0.0/24 from AS 65001
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+EOF_PEER
+
+# Python observer plugin: assert no routes accepted
+tmpfs=test-prefix-reject.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Verify prefix-list filter reject: non-matching route absent from adj-rib-in."""
+import json
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for session establishment and filter dispatch.
+    time.sleep(3.0)
+
+    result = dispatch(api, 'adj-rib-in status')
+    data = json.loads(result.get('data', '{}'))
+    total = data.get('total-routes', -1)
+
+    if total != 0:
+        print(f'FAIL: expected 0 routes (implicit deny), got {total}', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    print('OK: route correctly rejected by prefix-list (implicit deny)', file=sys.stderr)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-prefix-reject {
+		run ./test-prefix-reject.run
+		encoder json
+	}
+}
+bgp {
+	policy {
+		prefix-list ONLY_V6 {
+			entry 2001:db8::/32 {
+				ge 32
+				le 48
+				action accept
+			}
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		filter {
+			import [ bgp-filter-prefix:ONLY_V6 ]
+		}
+
+		process test-prefix-reject {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-prefix --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

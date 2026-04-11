@@ -1,0 +1,78 @@
+module ze-filter-prefix {
+    namespace "urn:ze:filter-prefix";
+    prefix fp;
+
+    import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
+    import ze-types { prefix zt; }
+
+    description "Prefix-list filter type for the BGP policy framework.
+                 Named prefix-lists with ordered match entries (first match wins),
+                 ge/le length ranges, and accept/reject actions.
+                 Referenced from peer filter chains as bgp-filter-prefix:NAME.";
+
+    revision 2026-04-11 {
+        description "Initial revision";
+    }
+
+    augment "/bgp:bgp/bgp:policy" {
+        list prefix-list {
+            ze:filter;
+            key "name";
+            description "Named prefix-list filter instance.
+                         Each list contains an ordered set of match entries.
+                         Entries are evaluated in order; first match wins.
+                         No match = implicit deny.";
+
+            leaf name {
+                type string;
+                description "Filter instance name (referenced in peer filter chains
+                             as bgp-filter-prefix:NAME).";
+            }
+
+            list entry {
+                key "prefix";
+                ordered-by user;
+                description "Ordered match entry. First match wins per route prefix.";
+
+                leaf prefix {
+                    type union {
+                        type zt:prefix-ipv4;
+                        type zt:prefix-ipv6;
+                    }
+                    description "IPv4 or IPv6 CIDR prefix to match.
+                                 Match requires the route prefix be a subnet of this prefix.";
+                }
+
+                leaf ge {
+                    type uint8 {
+                        range "0..128";
+                    }
+                    description "Minimum match length (greater-than-or-equal).
+                                 Defaults to the prefix length of this entry.";
+                }
+
+                leaf le {
+                    type uint8 {
+                        range "0..128";
+                    }
+                    description "Maximum match length (less-than-or-equal).
+                                 Defaults to 32 for IPv4 or 128 for IPv6.";
+                }
+
+                leaf action {
+                    type enumeration {
+                        enum accept {
+                            description "Accept route prefixes matching this entry";
+                        }
+                        enum reject {
+                            description "Reject route prefixes matching this entry";
+                        }
+                    }
+                    default accept;
+                    description "Action applied when this entry matches a route prefix.";
+                }
+            }
+        }
+    }
+}
