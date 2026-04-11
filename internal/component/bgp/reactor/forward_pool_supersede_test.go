@@ -108,16 +108,30 @@ func TestFwdPool_RouteSuperseding(t *testing.T) {
 //
 // VALIDATES: AC-23 only supersedes matching content.
 // PREVENTS: False superseding of unrelated updates.
+//
+// The handler is gated with a blocking channel so the worker cannot drain
+// overflow into the channel before the assertion reads OverflowDepths.
+// Without the gate, a no-op handler races the test: worker picks up the
+// first item, returns immediately, enters drainOverflow, moves item1 into
+// the channel (now unblocked), and the assertion sees depth=1 instead of 2.
+// This mirrors the gating pattern in TestFwdPool_RouteSuperseding.
 func TestFwdPool_SupersedingDifferentKeys(t *testing.T) {
 	t.Parallel()
 
-	fp := newFwdPool(func(_ fwdKey, _ []fwdItem) {}, fwdPoolConfig{chanSize: 1, idleTimeout: time.Second})
-	defer fp.Stop()
+	block := make(chan struct{})
+	fp := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		<-block
+	}, fwdPoolConfig{chanSize: 1, idleTimeout: time.Second})
+	defer func() { close(block); fp.Stop() }()
 
 	key := fwdKey{peerAddr: mustAddrPort("10.0.0.1:179")}
 
-	// Fill channel.
+	// Fill the channel so the worker is stuck in the handler, guaranteeing
+	// subsequent DispatchOverflow calls land in the overflow queue.
 	fp.TryDispatch(key, fwdItem{peer: &Peer{}})
+	require.Eventually(t, func() bool {
+		return fp.WorkerCount() == 1
+	}, 2*time.Second, time.Millisecond)
 
 	body1 := []byte{0x01}
 	body2 := []byte{0x02}

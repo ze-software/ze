@@ -24,6 +24,19 @@ type BufHandle struct {
 	Buf []byte // the buffer slice (into block's backing array)
 }
 
+// noPoolBufID is a sentinel BufHandle.ID that marks a handle as "not from a
+// pool". ReturnReadBuffer checks for it and skips the pool return. Real
+// pools never assign this ID: BufMux.growLocked allocates block IDs via
+// m.nextID starting at 0 and incrementing; it would take 2^32 grows to
+// collide with the sentinel, and the budget would exhaust long before.
+// MixedBufMux uses block IDs as slot indices into m.blocks, capped by
+// m.maxBlocks which is far below 2^32.
+//
+// Used by tests that need to pass a non-nil Buf to notifyMessageReceiver
+// without consuming a real session-pool slot. See testPoolBuf in
+// reactor_test.go.
+const noPoolBufID uint32 = ^uint32(0)
+
 // bufBlock is one contiguous backing array divided into equal-sized buffers.
 // Each block tracks how many of its buffers are free for deterministic
 // lifetime management: when freeCount == total, every buffer is home and

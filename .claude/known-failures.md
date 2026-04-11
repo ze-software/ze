@@ -47,16 +47,69 @@ forward-pool failure on its first run:
 ERROR msg="bufmux: double return detected" subsystem=bgp.reactor.forward idx=0 blockID=0
 ```
 
-Same root error class (`bufmux: double return detected` from
-`forward_pool.go`), different test, fires on a single-package run rather
-than only under multi-package contention. Strongly suggests the worker
-drain / release path has a second double-release window beyond the one
-hypothesised above. Adding to this entry rather than creating a new one
-because the symptom and likely root cause overlap.
+**RESOLVED for the supersede test and the bufmux double-return spam
+(2026-04-11):** investigation showed the two issues were unrelated to
+the `TestFwdPool_Barrier_WithOverflow` race above, and were actually
+test-code bugs rather than production races:
 
-**Action:** when someone picks this up, fix both
-`TestFwdPool_Barrier_WithOverflow` and `TestFwdPool_SupersedingDifferentKeys`
-in the same investigation. They almost certainly share root cause.
+1. `TestFwdPool_SupersedingDifferentKeys` was a test-design race. The
+   test used a no-op handler, so the worker raced to `drainOverflow`
+   and could move `item1` into the channel before the test read
+   `OverflowDepths()` (depth observed as 1 instead of 2). Sibling test
+   `TestFwdPool_RouteSuperseding` already had the correct pattern: gate
+   the handler with a blocking channel. Fixed by applying the same gate
+   to supersede. See `forward_pool_supersede_test.go:111`.
+
+2. The 280+ `bufmux: double return detected idx=0 blockID=0` log
+   entries per full-package run came from 10 tests in `reactor_test.go`
+   that constructed fake handles via `BufHandle{Buf: make([]byte, 4096)}`
+   and passed them to `notifyMessageReceiver`. The fake's zero-value
+   `ID`/`idx` collided with the first real slot of
+   `bufMuxStd.block[0]`: when the cache later evicted the entry and
+   called `ReturnReadBuffer`, the real bufmux either logged "double
+   return detected" or silently marked a real-owned slot as free
+   (memory corruption waiting to happen if a concurrent production
+   Get() picked it up). Fixed by introducing a sentinel
+   `noPoolBufID = ^uint32(0)` on `BufHandle.ID` and teaching
+   `ReturnReadBuffer` to skip handles carrying it. Tests now use a
+   `testPoolBuf(t)` helper that returns `BufHandle{ID: noPoolBufID,
+   Buf: make(...)}`. See `bufmux.go:27` (sentinel),
+   `session.go:ReturnReadBuffer`, `reactor_test.go:testPoolBuf`.
+
+Verification: `go test -race -count=50` on the 7 affected tests ->
+0 failures, 0 bufmux errors, 0 mixedbuf errors. `make ze-verify`: green.
+
+**STILL OPEN (same investigation cluster, different tests):** three
+forward-pool tests continue to flake under parallel `-count=20` load
+but pass in isolation and when run as a `TestFwdPool_` subset alone:
+
+| Test | Symptom | Notes |
+|------|---------|-------|
+| `TestFwdPool_Barrier_WithOverflow` | original entry above | ~1/20 fails under full-package `-count=20` |
+| `TestFwdPool_StopUnblocksDispatch` | "Stop should have unblocked blocked dispatch" `Eventually` times out | Passes alone at `-count=20`; flakes only under full-package load |
+| `TestFwdPool_DenialThroughDispatchOverflow` | Emits 1 `bufmux: double return idx=1 blockID=0` + 1 `mixedbuf: return to non-active block blockID=0` per iteration under full-package load | Isolating the test eliminates both errors -- confirmed by skip-matrix bisection on 2026-04-11 |
+
+All three are in `forward_pool` worker-drain / congestion territory.
+`TestFwdPool_DenialThroughDispatchOverflow` is the most interesting of
+the three: the errors are deterministic (1 + 1 per iteration, matching
+`-count=N`), not a timing race. They come from this test's LOCAL
+`newMixedBufMux()` -- not the shared one -- so the test is doing
+something in its denial path or cleanup that double-returns a handle
+to its own mux. Skip-matrix bisection on 2026-04-11 proved isolation
+but did not pinpoint the exact operation. Reading
+`forward_pool_test.go:1643-1691` shows the test wires a congestion
+controller that denies the peer, then calls `DispatchOverflow` with a
+zero-value `fwdItem` (no overflowBuf). The denial path should skip the
+overflow mux entirely, so I could not identify where the local mux
+picks up a block-0 tenant that then gets returned twice. Likely needs
+tracing through `releaseItem` / `drainOverflow` / `Stop` with printf
+instrumentation on each Get/Return pair.
+
+**Action (remaining):** investigate the three open tests as one
+cluster. Likely shared root cause in the forward-pool worker drain /
+release path. Start with `TestFwdPool_DenialThroughDispatchOverflow`
+since its errors are deterministic (`idx=1 blockID=0` is consistent),
+not a scheduling race.
 
 ## TestInProcessSpeed (race) -- FIXED 2026-04-11
 

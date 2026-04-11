@@ -1618,6 +1618,27 @@ func testUpdatePayload() []byte {
 	return payload
 }
 
+// testPoolBuf returns a fake BufHandle carrying a standalone 4K byte slice
+// and the noPoolBufID sentinel. ReturnReadBuffer recognizes the sentinel
+// and skips the pool return, so the fake handle never collides with a real
+// slot in bufMuxStd/bufMuxExt. Use this whenever a test needs
+// notifyMessageReceiver to treat the path as "received with a pool buffer"
+// without actually owning a session-pool slot.
+//
+// Previous implementations used BufHandle{Buf: make([]byte, 4096)} directly.
+// That handle's zero-value ID=0/idx=0 collided with the first real slot of
+// bufMuxStd.block[0], so when the cache later evicted the entry and called
+// ReturnReadBuffer, the real bufmux either logged "double return detected"
+// or silently marked an in-use slot as free (memory corruption). The
+// ze-race-reactor run on 2026-04-11 surfaced ~300 of these errors across
+// parallel tests. The sentinel makes the fake explicit instead.
+func testPoolBuf(t *testing.T) BufHandle {
+	t.Helper()
+	h := BufHandle{ID: noPoolBufID, Buf: make([]byte, 4096)}
+	require.Equal(t, noPoolBufID, h.ID)
+	return h
+}
+
 // startTestDelivery sets up a per-peer delivery channel and goroutine for testing.
 // Mimics what Peer.runOnce() will do in production.
 // Returns a stop function that closes the channel and waits for the goroutine to drain.
@@ -1698,7 +1719,7 @@ func TestDeliveryChannelDecouplesRead(t *testing.T) {
 
 	payload := testUpdatePayload()
 	wireUpdate := wireu.NewWireUpdate(payload, 0)
-	buf := BufHandle{Buf: make([]byte, 4096)}
+	buf := testPoolBuf(t)
 
 	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, "received", buf, nil)
 
@@ -1762,7 +1783,7 @@ func TestCacheInsertionBeforeDelivery(t *testing.T) {
 
 	payload := testUpdatePayload()
 	wireUpdate := wireu.NewWireUpdate(payload, 0)
-	buf := BufHandle{Buf: make([]byte, 4096)}
+	buf := testPoolBuf(t)
 
 	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, "received", buf, nil)
 
@@ -1800,7 +1821,7 @@ func TestActivateAfterAllDeliveries(t *testing.T) {
 
 	payload := testUpdatePayload()
 	wireUpdate := wireu.NewWireUpdate(payload, 0)
-	buf := BufHandle{Buf: make([]byte, 4096)}
+	buf := testPoolBuf(t)
 
 	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, "received", buf, nil)
 
@@ -1861,14 +1882,14 @@ func TestDeliveryBackpressure(t *testing.T) {
 	// First 2 UPDATEs fill the channel buffer
 	for range 2 {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", testPoolBuf(t), nil)
 	}
 
 	// 3rd send in goroutine — should block (channel full, no reader)
 	thirdDone := make(chan struct{})
 	go func() {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", testPoolBuf(t), nil)
 		close(thirdDone)
 	}()
 
@@ -1966,7 +1987,7 @@ func TestCrossPeerIsolation(t *testing.T) {
 		// Send 2 UPDATEs to peer A (1 in delivery + 1 in channel buffer)
 		for range 2 {
 			w := wireu.NewWireUpdate(payload, 0)
-			_ = reactor.notifyMessageReceiver(peerAddrA, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
+			_ = reactor.notifyMessageReceiver(peerAddrA, message.TypeUPDATE, payload, w, 0, "received", testPoolBuf(t), nil)
 		}
 		close(aSent) // Both sends completed; peer A's channel is full
 	}()
@@ -1982,7 +2003,7 @@ func TestCrossPeerIsolation(t *testing.T) {
 	// The meaningful assertion: peer B's delivery completes while peer A is
 	// still blocked (unblockA has not been closed yet).
 	wB := wireu.NewWireUpdate(payload, 0)
-	_ = reactor.notifyMessageReceiver(peerAddrB, message.TypeUPDATE, payload, wB, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
+	_ = reactor.notifyMessageReceiver(peerAddrB, message.TypeUPDATE, payload, wB, 0, "received", testPoolBuf(t), nil)
 
 	select {
 	case <-peerBDelivered:
@@ -2027,7 +2048,7 @@ func TestDeliveryDrainOnTeardown(t *testing.T) {
 	payload := testUpdatePayload()
 	for range itemCount {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", testPoolBuf(t), nil)
 	}
 
 	// Close channel (teardown) — delivery goroutine drains remaining items
@@ -2075,7 +2096,7 @@ func TestPeerDeliveryDrainBatch(t *testing.T) {
 	payload := testUpdatePayload()
 	for range itemCount {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", testPoolBuf(t), nil)
 	}
 
 	// Now start delivery — all 5 items are already buffered
@@ -2145,7 +2166,7 @@ func TestPeerDeliveryActivatePerMessage(t *testing.T) {
 	payload := testUpdatePayload()
 	for range 3 {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", testPoolBuf(t), nil)
 	}
 
 	// After sends, cache has 3 pending entries (Add is synchronous).
