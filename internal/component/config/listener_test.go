@@ -318,14 +318,104 @@ func TestParseListenerEntry(t *testing.T) {
 			if tt.port != "" {
 				entry.Set("port", tt.port)
 			}
-			ep := parseListenerEntry("test", "main", entry)
+			ep := parseListenerEntry("test", ProtocolTCP, "main", entry)
 			if tt.wantNil {
 				assert.Nil(t, ep)
 			} else {
 				require.NotNil(t, ep)
 				assert.Equal(t, tt.wantIP, ep.IP.String())
 				assert.Equal(t, "test main", ep.Service)
+				assert.Equal(t, ProtocolTCP, ep.Protocol)
 			}
 		})
 	}
+}
+
+// TestListenerProtocolDistinction verifies that a TCP and a UDP listener on
+// the same port do not clash. This is the minimum behavior change introduced
+// by Phase 5 of spec-iface-wireguard and is the reason ListenerEndpoint
+// gained a Protocol field.
+//
+// VALIDATES: AC-19 -- wireguard UDP + web TCP on the same port are both
+// accepted because the kernel keeps TCP and UDP in separate namespaces.
+// PREVENTS: false-positive conflict when ze adds UDP services alongside
+// existing TCP services.
+func TestListenerProtocolDistinction(t *testing.T) {
+	endpoints := []ListenerEndpoint{
+		{Service: "web", Protocol: ProtocolTCP, IP: net.IPv4zero, Port: 443},
+		{Service: "wireguard wg0", Protocol: ProtocolUDP, IP: net.IPv4zero, Port: 443},
+	}
+	err := ValidateListenerConflicts(endpoints)
+	assert.NoError(t, err, "TCP:443 and UDP:443 on the same IP must not clash")
+}
+
+// TestCollectWireguardListeners verifies that collectWireguardListeners
+// walks interface.wireguard entries with a listen-port and emits one UDP
+// endpoint per entry with IP=0.0.0.0.
+//
+// VALIDATES: per-wireguard listener endpoints are collected with the right
+// service name, protocol, and wildcard IP.
+// PREVENTS: silent drop of wireguard listen-port in conflict detection.
+func TestCollectWireguardListeners(t *testing.T) {
+	tree := NewTree()
+	ifaceC := NewTree()
+	wg0 := NewTree()
+	wg0.Set("listen-port", "51820")
+	ifaceC.AddListEntry("wireguard", "wg0", wg0)
+	wg1 := NewTree()
+	wg1.Set("listen-port", "51821")
+	ifaceC.AddListEntry("wireguard", "wg1", wg1)
+	tree.SetContainer("interface", ifaceC)
+
+	endpoints := collectWireguardListeners(tree)
+	require.Len(t, endpoints, 2)
+
+	byName := map[string]ListenerEndpoint{}
+	for _, ep := range endpoints {
+		byName[ep.Service] = ep
+	}
+	require.Contains(t, byName, "wireguard wg0")
+	require.Contains(t, byName, "wireguard wg1")
+	assert.Equal(t, ProtocolUDP, byName["wireguard wg0"].Protocol)
+	assert.Equal(t, uint16(51820), byName["wireguard wg0"].Port)
+	assert.True(t, byName["wireguard wg0"].IP.Equal(net.IPv4zero))
+	assert.Equal(t, uint16(51821), byName["wireguard wg1"].Port)
+}
+
+// TestCollectWireguardListenersNoPort verifies that a wireguard entry
+// without a listen-port is skipped (kernel picks an ephemeral port, nothing
+// to conflict with).
+//
+// VALIDATES: wireguards with auto-assigned ports do not produce spurious
+// endpoints or errors in the conflict detector.
+// PREVENTS: accidental conflict on port 0 or false positive "missing port".
+func TestCollectWireguardListenersNoPort(t *testing.T) {
+	tree := NewTree()
+	ifaceC := NewTree()
+	wg0 := NewTree()
+	// no listen-port set
+	ifaceC.AddListEntry("wireguard", "wg0", wg0)
+	tree.SetContainer("interface", ifaceC)
+
+	endpoints := collectWireguardListeners(tree)
+	assert.Empty(t, endpoints)
+}
+
+// TestValidateListenerConflicts_WireguardDuplicatePort verifies AC-18: two
+// wireguard interfaces with the same listen-port are rejected.
+//
+// VALIDATES: AC-18 -- duplicate wireguard listen-port across interfaces is
+// caught by ValidateListenerConflicts.
+// PREVENTS: two wireguards silently binding the same UDP port (one would
+// fail at kernel bind time with a confusing error).
+func TestValidateListenerConflicts_WireguardDuplicatePort(t *testing.T) {
+	endpoints := []ListenerEndpoint{
+		{Service: "wireguard wg0", Protocol: ProtocolUDP, IP: net.IPv4zero, Port: 51820},
+		{Service: "wireguard wg1", Protocol: ProtocolUDP, IP: net.IPv4zero, Port: 51820},
+	}
+	err := ValidateListenerConflicts(endpoints)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "wg0")
+	assert.Contains(t, err.Error(), "wg1")
+	assert.Contains(t, err.Error(), "udp")
 }
