@@ -14,6 +14,22 @@
 <!-- source: internal/component/bgp/fsm/state.go -- State, StateIdle..StateEstablished -->
 <!-- source: internal/component/bgp/fsm/fsm.go -- FSM, Event() -->
 
+## Per-state runbooks
+
+For "what happens in state X" questions, go straight to the per-state
+runbook. Each page indexes every file that participates when the FSM is in
+that state: entry wiring, events handled, timers running, wire side
+effects, RFC deviations, and tests.
+
+| State | Runbook |
+|-------|---------|
+| Idle | [fsm-idle.md](fsm-idle.md) |
+| Connect | [fsm-connect.md](fsm-connect.md) |
+| Active | [fsm-active.md](fsm-active.md) |
+| OpenSent | [fsm-open-sent.md](fsm-open-sent.md) |
+| OpenConfirm | [fsm-open-confirm.md](fsm-open-confirm.md) |
+| Established | [fsm-established.md](fsm-established.md) |
+
 ---
 
 **Source:** ExaBGP `bgp/fsm.py`, `reactor/peer/`
