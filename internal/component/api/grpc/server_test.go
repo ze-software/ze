@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -95,7 +96,13 @@ func startTestServer(t *testing.T, token string) (zepb.ZeServiceClient, zepb.ZeC
 		return &fakeEditor{values: make(map[string]string)}, nil
 	})
 
-	srv, err := NewGRPCServer(GRPCConfig{Token: token}, engine, sessions)
+	// ListenAddrs is required by NewGRPCServer validation, but the tests
+	// bypass Serve() and bind their own listener via serveBackground below,
+	// so the value here is a placeholder that never gets bound.
+	srv, err := NewGRPCServer(GRPCConfig{
+		ListenAddrs: []string{"127.0.0.1:0"},
+		Token:       token,
+	}, engine, sessions)
 	require.NoError(t, err)
 
 	var lc net.ListenConfig
@@ -254,7 +261,8 @@ func TestGRPCExecutePermissionDenied(t *testing.T) {
 	auth := func(_, _ string) bool { return false }
 	engine := api.NewAPIEngine(exec, cmds, auth, nil)
 
-	srv, err := NewGRPCServer(GRPCConfig{}, engine, nil)
+	// ListenAddrs placeholder; serveBackground binds its own listener below.
+	srv, err := NewGRPCServer(GRPCConfig{ListenAddrs: []string{"127.0.0.1:0"}}, engine, nil)
 	require.NoError(t, err)
 
 	var lc net.ListenConfig
@@ -278,11 +286,17 @@ func TestGRPCExecutePermissionDenied(t *testing.T) {
 func TestGRPCTLSRequiresBoth(t *testing.T) {
 	engine := testEngine()
 
-	_, err := NewGRPCServer(GRPCConfig{TLSCert: "cert.pem"}, engine, nil)
+	_, err := NewGRPCServer(GRPCConfig{
+		ListenAddrs: []string{"127.0.0.1:0"},
+		TLSCert:     "cert.pem",
+	}, engine, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "both TLSCert and TLSKey")
 
-	_, err = NewGRPCServer(GRPCConfig{TLSKey: "key.pem"}, engine, nil)
+	_, err = NewGRPCServer(GRPCConfig{
+		ListenAddrs: []string{"127.0.0.1:0"},
+		TLSKey:      "key.pem",
+	}, engine, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "both TLSCert and TLSKey")
 }
@@ -293,8 +307,9 @@ func TestGRPCTLSInvalidCert(t *testing.T) {
 	engine := testEngine()
 
 	_, err := NewGRPCServer(GRPCConfig{
-		TLSCert: "/nonexistent/cert.pem",
-		TLSKey:  "/nonexistent/key.pem",
+		ListenAddrs: []string{"127.0.0.1:0"},
+		TLSCert:     "/nonexistent/cert.pem",
+		TLSKey:      "/nonexistent/key.pem",
 	}, engine, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "load TLS")
@@ -319,7 +334,10 @@ func TestGRPCAuthenticator(t *testing.T) {
 		return "", false
 	}
 
-	srv, err := NewGRPCServer(GRPCConfig{Authenticator: authenticator}, engine, nil)
+	srv, err := NewGRPCServer(GRPCConfig{
+		ListenAddrs:   []string{"127.0.0.1:0"},
+		Authenticator: authenticator,
+	}, engine, nil)
 	require.NoError(t, err)
 
 	var lc net.ListenConfig
@@ -345,4 +363,109 @@ func TestGRPCAuthenticator(t *testing.T) {
 	_, err = ze.Execute(ctx, &zepb.CommandRequest{Command: "test"})
 	require.NoError(t, err)
 	assert.Equal(t, "alice", seenUser)
+}
+
+// TestNewGRPCServer_RequiresListenAddrs verifies empty-slice / empty-entry
+// rejection.
+func TestNewGRPCServer_RequiresListenAddrs(t *testing.T) {
+	engine := testEngine()
+
+	_, err := NewGRPCServer(GRPCConfig{}, engine, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one listen address")
+
+	_, err = NewGRPCServer(GRPCConfig{ListenAddrs: []string{""}}, engine, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must not be empty")
+}
+
+// TestGRPCServer_MultiListener verifies Serve binds every entry in
+// GRPCConfig.ListenAddrs and both listeners accept gRPC calls.
+//
+// VALIDATES: AC-6 (gRPC config with two server entries binds both).
+// VALIDATES: AC-14 (Stop closes every listener).
+// PREVENTS: Regression where only the first gRPC listener is bound.
+func TestGRPCServer_MultiListener(t *testing.T) {
+	// Pre-allocate two ports via bind-then-close; we hand them back to
+	// GRPCServer.Serve which will re-bind them under the grpc.Server.
+	var lc net.ListenConfig
+	probe1, err := lc.Listen(t.Context(), "tcp4", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr1 := probe1.Addr().String()
+	require.NoError(t, probe1.Close())
+	probe2, err := lc.Listen(t.Context(), "tcp4", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr2 := probe2.Addr().String()
+	require.NoError(t, probe2.Close())
+
+	engine := testEngine()
+	srv, err := NewGRPCServer(GRPCConfig{
+		ListenAddrs: []string{addr1, addr2},
+	}, engine, nil)
+	require.NoError(t, err)
+	t.Cleanup(srv.Stop)
+
+	serveErrCh := make(chan error, 1)
+	go func() {
+		serveErrCh <- srv.Serve(t.Context())
+	}()
+
+	// Give Serve a moment to bind both listeners.
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if len(srv.Addresses()) == 2 && srv.Addresses()[0] != "" {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	bound := srv.Addresses()
+	require.Len(t, bound, 2, "expected 2 bound addresses")
+
+	// Dial each listener and confirm it accepts an Execute RPC.
+	for i, addr := range bound {
+		conn, dialErr := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		require.NoError(t, dialErr, "listener %d (%s)", i, addr)
+		client := zepb.NewZeServiceClient(conn)
+		resp, execErr := client.Execute(t.Context(), &zepb.CommandRequest{Command: "bgp summary"})
+		require.NoError(t, execErr, "listener %d (%s)", i, addr)
+		assert.NotNil(t, resp)
+		if closeErr := conn.Close(); closeErr != nil {
+			t.Logf("close conn: %v", closeErr)
+		}
+	}
+
+	// Stop releases every listener.
+	srv.Stop()
+	select {
+	case serveErr := <-serveErrCh:
+		if serveErr != nil && !errors.Is(serveErr, grpc.ErrServerStopped) {
+			t.Fatalf("Serve returned unexpected error: %v", serveErr)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("Serve did not return after Stop")
+	}
+}
+
+// TestGRPCServer_BindFailureClosesPartialListeners verifies that when the
+// second entry fails to bind, the first listener is closed and Serve
+// returns the bind error.
+//
+// VALIDATES: AC-15 (fail-fast on partial bind).
+func TestGRPCServer_BindFailureClosesPartialListeners(t *testing.T) {
+	// Squat on a port so the second bind fails.
+	var lc net.ListenConfig
+	squatter, err := lc.Listen(t.Context(), "tcp4", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer squatter.Close() //nolint:errcheck // test cleanup
+	squattedAddr := squatter.Addr().String()
+
+	engine := testEngine()
+	srv, err := NewGRPCServer(GRPCConfig{
+		ListenAddrs: []string{"127.0.0.1:0", squattedAddr},
+	}, engine, nil)
+	require.NoError(t, err)
+
+	err = srv.Serve(t.Context())
+	require.Error(t, err, "Serve must fail when any bind fails")
+	assert.Contains(t, err.Error(), squattedAddr)
 }

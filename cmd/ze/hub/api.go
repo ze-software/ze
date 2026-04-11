@@ -89,8 +89,12 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store 
 	}
 
 	if cfg.GRPCOn && len(cfg.GRPC) > 0 {
+		addrs := make([]string, 0, len(cfg.GRPC))
+		for _, ep := range cfg.GRPC {
+			addrs = append(addrs, ep.Listen())
+		}
 		srv, grpcErr := apigrpc.NewGRPCServer(apigrpc.GRPCConfig{
-			ListenAddr:    cfg.GRPC[0].Listen(),
+			ListenAddrs:   addrs,
 			Token:         cfg.Token,
 			Authenticator: authenticator,
 			TLSCert:       cfg.GRPCTLSCert,
@@ -99,9 +103,11 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store 
 		if grpcErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: gRPC API disabled: %v\n", grpcErr)
 		} else {
-			go serveGRPC(srv, cfg.GRPC[0].Listen())
+			go serveGRPC(srv)
 			servers.grpc = srv
-			fmt.Fprintf(os.Stderr, "gRPC API server starting on %s\n", cfg.GRPC[0].Listen())
+			for _, addr := range addrs {
+				fmt.Fprintf(os.Stderr, "gRPC API server starting on %s\n", addr)
+			}
 		}
 	}
 
@@ -222,8 +228,10 @@ func serveREST(srv *rest.RESTServer) {
 }
 
 // serveGRPC runs the gRPC API server. Started once as a lifecycle goroutine.
-func serveGRPC(srv *apigrpc.GRPCServer, addr string) {
-	if err := srv.Serve(context.Background(), addr); err != nil {
+// GRPCServer.Serve binds every address configured on the server and blocks
+// until Stop is called.
+func serveGRPC(srv *apigrpc.GRPCServer) {
+	if err := srv.Serve(context.Background()); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: gRPC API server: %v\n", err)
 	}
 }

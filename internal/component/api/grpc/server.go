@@ -13,7 +13,9 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strings"
+	"sync"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -39,8 +41,10 @@ const defaultUsername = "api"
 type Authenticator func(authHeader string) (username string, ok bool)
 
 // GRPCConfig holds gRPC server configuration.
+// ListenAddrs must contain at least one entry; every entry becomes a
+// separate listener on the same *grpc.Server. Stop closes all of them.
 type GRPCConfig struct {
-	ListenAddr    string        // e.g. "0.0.0.0:50051"
+	ListenAddrs   []string      // e.g. []string{"0.0.0.0:50051", "127.0.0.1:51051"}
 	Token         string        // Single bearer token (empty = no auth). Ignored when Authenticator is set.
 	Authenticator Authenticator // Per-user auth callback. When set, Token is not checked.
 	TLSCert       string        // Path to TLS certificate file (empty = plaintext)
@@ -49,19 +53,33 @@ type GRPCConfig struct {
 
 // GRPCServer is the gRPC API server.
 // Caller MUST call Stop when done.
+// Serve binds every address in GRPCConfig.ListenAddrs before starting any
+// serve goroutine; if ANY bind fails the already-bound listeners are closed
+// and Serve returns the error.
 type GRPCServer struct {
 	engine        *api.APIEngine
 	sessions      *api.ConfigSessionManager
 	token         string
 	authenticator Authenticator
 	srv           *grpc.Server
-	address       string
+	// configured holds the addresses passed in by the caller, in original order.
+	configured []string
+	// bound holds the actual listen addresses once Serve has bound them.
+	bound []string
+	mu    sync.RWMutex
 }
 
 // NewGRPCServer creates a gRPC API server with auth interceptor and reflection.
+// Requires at least one entry in cfg.ListenAddrs.
 func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSessionManager) (*GRPCServer, error) {
 	if engine == nil {
 		return nil, errors.New("engine is required")
+	}
+	if len(cfg.ListenAddrs) == 0 {
+		return nil, errors.New("at least one listen address is required")
+	}
+	if slices.Contains(cfg.ListenAddrs, "") {
+		return nil, errors.New("listen address must not be empty")
 	}
 
 	s := &GRPCServer{
@@ -69,6 +87,7 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		sessions:      sessions,
 		token:         cfg.Token,
 		authenticator: cfg.Authenticator,
+		configured:    append([]string(nil), cfg.ListenAddrs...),
 	}
 
 	opts := []grpc.ServerOption{
@@ -99,26 +118,91 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 	return s, nil
 }
 
-// Serve starts the gRPC server on the given address. Blocks until stopped.
-func (s *GRPCServer) Serve(ctx context.Context, addr string) error {
+// Serve binds every configured listen address and starts serving. Blocks
+// until the server is stopped or an unrecoverable serve error occurs on
+// any listener. Bind is all-or-nothing: any bind failure rolls back the
+// already-bound listeners and returns the error without entering the
+// serve loop.
+func (s *GRPCServer) Serve(ctx context.Context) error {
 	var lc net.ListenConfig
-	ln, err := lc.Listen(ctx, "tcp", addr)
-	if err != nil {
-		return fmt.Errorf("listen %s: %w", addr, err)
-	}
-	s.address = ln.Addr().String()
-	logger.Info("gRPC API server listening", "addr", s.address)
 
-	return s.srv.Serve(ln)
+	listeners := make([]net.Listener, 0, len(s.configured))
+	bound := make([]string, 0, len(s.configured))
+	for _, addr := range s.configured {
+		ln, err := lc.Listen(ctx, "tcp", addr)
+		if err != nil {
+			for _, prev := range listeners {
+				if closeErr := prev.Close(); closeErr != nil {
+					logger.Warn("gRPC API: close partial listener", "error", closeErr)
+				}
+			}
+			return fmt.Errorf("listen %s: %w", addr, err)
+		}
+		listeners = append(listeners, ln)
+		bound = append(bound, ln.Addr().String())
+	}
+
+	s.mu.Lock()
+	s.bound = bound
+	s.mu.Unlock()
+
+	for _, addr := range bound {
+		logger.Info("gRPC API server listening", "addr", addr)
+	}
+
+	// grpc.Server tracks every listener internally, so GracefulStop closes
+	// all of them. Serve is called once per listener in its own goroutine.
+	errCh := make(chan error, len(listeners))
+	var wg sync.WaitGroup
+	for _, ln := range listeners {
+		wg.Add(1)
+		go func(ln net.Listener) {
+			defer wg.Done()
+			if serveErr := s.srv.Serve(ln); serveErr != nil && !errors.Is(serveErr, grpc.ErrServerStopped) {
+				errCh <- serveErr
+			}
+		}(ln)
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// Stop gracefully stops the server.
+// Stop gracefully stops the server, closing every bound listener.
 func (s *GRPCServer) Stop() {
 	s.srv.GracefulStop()
 }
 
-// Address returns the listen address (available after Serve starts).
-func (s *GRPCServer) Address() string { return s.address }
+// Addresses returns every bound listen address in configured order.
+// Before Serve binds, Addresses returns the configured addresses.
+func (s *GRPCServer) Addresses() []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if len(s.bound) > 0 {
+		out := make([]string, len(s.bound))
+		copy(out, s.bound)
+		return out
+	}
+	out := make([]string, len(s.configured))
+	copy(out, s.configured)
+	return out
+}
+
+// Address returns the first bound listen address. Retained for callers that
+// only want the primary endpoint.
+func (s *GRPCServer) Address() string {
+	addrs := s.Addresses()
+	if len(addrs) == 0 {
+		return ""
+	}
+	return addrs[0]
+}
 
 // --- Auth interceptors ---
 
