@@ -602,9 +602,15 @@ func (s *Session) Run(ctx context.Context) error {
 			}
 		}
 
-		// Check if we have a connection.
+		// Capture conn + bufReader atomically. connectionEstablished writes
+		// both under s.mu.Lock(); we MUST read both under s.mu.RLock() to get
+		// a consistent pair. Passing bufReader through readAndProcessMessage
+		// as a parameter (rather than reading s.bufReader inside it) closes
+		// the data race between this reader and the locked write in
+		// connectionEstablished.
 		s.mu.RLock()
 		conn := s.conn
+		bufReader := s.bufReader
 		s.mu.RUnlock()
 
 		if conn == nil {
@@ -617,7 +623,7 @@ func (s *Session) Run(ctx context.Context) error {
 		}
 
 		// ReadFull blocks until data arrives or conn is closed by cancel goroutine.
-		err := s.readAndProcessMessage(conn)
+		err := s.readAndProcessMessage(conn, bufReader)
 		if err != nil {
 			// Connection was closed — check if a specific reason was set.
 			if errors.Is(err, ErrConnectionClosed) {

@@ -96,7 +96,7 @@ func TestSessionReadDeadlineWithBufio(t *testing.T) {
 
 	// Call readAndProcessMessage directly (ReadAndProcess overwrites deadline to 5s).
 	// Don't send any data — should timeout through the bufio.Reader layer.
-	err := session.readAndProcessMessage(server)
+	err := session.readAndProcessMessage(server, session.bufReader)
 	require.Error(t, err)
 	var netErr net.Error
 	require.ErrorAs(t, err, &netErr, "deadline must propagate as net.Error through bufio.Reader")

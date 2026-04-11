@@ -7,6 +7,7 @@
 package reactor
 
 import (
+	"bufio"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -24,8 +25,14 @@ import (
 // ReadAndProcess reads and processes a single message.
 // Exposed for testing.
 func (s *Session) ReadAndProcess() error {
+	// Capture conn + bufReader atomically. connectionEstablished writes
+	// both under s.mu.Lock(); readers MUST take s.mu.RLock() to get a
+	// consistent view. Without capturing bufReader here, the direct field
+	// read inside readAndProcessMessage would race the locked write in
+	// connectionEstablished.
 	s.mu.RLock()
 	conn := s.conn
+	bufReader := s.bufReader
 	s.mu.RUnlock()
 
 	if conn == nil {
@@ -35,12 +42,18 @@ func (s *Session) ReadAndProcess() error {
 	// Set read deadline.
 	_ = conn.SetReadDeadline(s.clock.Now().Add(5 * time.Second))
 
-	return s.readAndProcessMessage(conn)
+	return s.readAndProcessMessage(conn, bufReader)
 }
 
 // readAndProcessMessage reads a message from the connection and processes it.
 // Uses clean get/return pool pattern for buffer lifecycle.
-func (s *Session) readAndProcessMessage(conn net.Conn) error {
+//
+// bufReader is passed as a parameter rather than read from s.bufReader so
+// that the caller captures conn + bufReader together under a single RLock,
+// making them a consistent pair relative to connectionEstablished's locked
+// write. Reading s.bufReader directly here would be a data race with the
+// locked write in session_connection.go.
+func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) error {
 	// Get buffer from multiplexer.
 	buf := s.getReadBuffer()
 	if buf.Buf == nil {
@@ -57,7 +70,7 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 	}()
 
 	// Read header -- through bufio.Reader to batch kernel read syscalls.
-	_, err := io.ReadFull(s.bufReader, buf.Buf[:message.HeaderLen])
+	_, err := io.ReadFull(bufReader, buf.Buf[:message.HeaderLen])
 	if err != nil {
 		// Handle connection close: EOF or connection reset by peer.
 		// Clean close does not increment wireReadErrors (not an error).
@@ -101,7 +114,7 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 	// Read body
 	bodyLen := int(hdr.Length) - message.HeaderLen
 	if bodyLen > 0 {
-		_, err = io.ReadFull(s.bufReader, buf.Buf[message.HeaderLen:hdr.Length])
+		_, err = io.ReadFull(bufReader, buf.Buf[message.HeaderLen:hdr.Length])
 		if err != nil {
 			return fmt.Errorf("read body: %w", err)
 		}
