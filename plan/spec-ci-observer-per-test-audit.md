@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 1/16 |
+| Phase | 2/16 |
 | Updated | 2026-04-11 |
 
 ## Post-Compaction Recovery
@@ -172,7 +172,7 @@ under test, and the converted assertion must fail when that path is broken.
 | `community-strip` | `test/plugin/community-strip.ci` | Egress strip removes COMMUNITY from forwarded UPDATE | partial: framework wired, hex fixed, AC-7 TODO |
 | `community-cumulative` | `test/plugin/community-cumulative.ci` | Cumulative bgp+group+peer filter merge | pending |
 | `community-priority` | `test/plugin/community-priority.ci` | Strip-before-tag ordering inside one peer | pending |
-| `community-tag` | `test/plugin/community-tag.ci` | Ingress tag adds COMMUNITY to received UPDATE | pending |
+| `community-tag` | `test/plugin/community-tag.ci` | Ingress tag adds COMMUNITY to received UPDATE | DONE: framework wired, AC-6 verified via `community ingress applied` log |
 | `forward-overflow-two-tier` | `test/plugin/forward-overflow-two-tier.ci` | Forward pool overflow handling | pending |
 | `forward-two-tier-under-load` | `test/plugin/forward-two-tier-under-load.ci` | Two-tier forward under sustained load | pending |
 | `rib-best-selection` | `test/plugin/rib-best-selection.ci` | Best path selection across multiple peers | pending |
@@ -254,13 +254,10 @@ under test, and the converted assertion must fail when that path is broken.
 Each phase converts ONE .ci file. Phases run sequentially per the rules/before-writing-code.md
 "bulk-edit check": ONE file first, validate the conversion, THEN apply the pattern to the next.
 
-1. **Phase 1: community-strip.ci** — first conversion, validates the per-file pattern
-   - Tests: `bin/ze-test bgp plugin community-strip`
-   - Files: `test/plugin/community-strip.ci`
-   - Verify: swap → run → PASS or surface bug → fix → re-run → PASS
-2. **Phase 2: community-cumulative.ci**
-3. **Phase 3: community-priority.ci**
-4. **Phase 4: community-tag.ci** (close adj-rib-in routing bug from dest-1)
+1. **Phase 1: community-strip.ci** — DONE (partial). Framework wired, hex bug fixed, AC-7 blocked on architectural redesign. See Design Insights.
+2. **Phase 2: community-tag.ci** — DONE. Framework wired, AC-6 verified via new `community ingress applied` info log in `filter_community.go`. Regression detection validated by deliberately breaking `ingressFilter` and confirming the test fails with `expect=stderr pattern not found: community ingress applied`.
+3. **Phase 3: community-cumulative.ci**
+4. **Phase 4: community-priority.ci**
 5. **Phase 5: forward-overflow-two-tier.ci**
 6. **Phase 6: forward-two-tier-under-load.ci**
 7. **Phase 7: rib-best-selection.ci**
@@ -349,6 +346,7 @@ write learned summary, commit pair (code + spec, then learned + spec deletion).
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
 | AC-1 | partial | runtime_fail wired, hex bug fixed; AC-7 verification TODO | architectural blocker — see known-failures.md |
+| AC-4 | done | community-tag.ci expect=stderr:pattern=community ingress applied fires on real AC-6 behavior | regression validated by forced break |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |

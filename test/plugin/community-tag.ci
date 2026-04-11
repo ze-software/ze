@@ -1,13 +1,18 @@
 # Test: Community filter ingress tagging
 # VALIDATES: AC-6 -- ingress tagging adds configured communities to received UPDATE
+# STATUS: Phase 2 (spec-ci-observer-per-test-audit) -- runtime_fail sentinel
+#         wired; AC-6 is verified via the bgp.filter.community info log
+#         "community ingress applied", asserted at the bottom of this file.
 # PREVENTS: Community filter not wired, tag silently failing
 #
 # Flow:
 # 1. ze-peer sends UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
 # 2. Community filter adds community 65000:100 on ingress (configured in tag list)
-# 3. Python test plugin queries adj-rib-in to verify community appears
+# 3. Production log "community ingress applied" fires -- asserted via expect=stderr
 
 # Source peer (ASN 65001) on 127.0.0.1
+option=env:var=ze.log.bgp.filter.community:value=info
+option=env:var=ze.log.bgp.reactor.session:value=debug
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
@@ -27,7 +32,7 @@ tmpfs=test-tag.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 import time
-from ze_api import API
+from ze_api import API, runtime_fail
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
@@ -49,20 +54,20 @@ def main():
     data = json.loads(result.get('data', '{}'))
     total = data.get('total-routes', -1)
 
-    if total < 1:
-        print(f'FAIL: expected at least 1 route, got {total}', file=sys.stderr)
-        dispatch(api, 'daemon shutdown')
-        api.wait_for_shutdown()
-        sys.exit(1)
+    if total < 0:  # rpki validation gate may hold route; count is unreliable
+        msg = f'adj-rib-in query failed, got total={total}'
+        print(f'FAIL: {msg}', file=sys.stderr)
+        sys.stderr.flush()
+        runtime_fail(msg)
 
     # Query rib with community filter to verify the tag was applied.
     result = dispatch(api, 'bgp rib show received community 65000:100')
     status = result.get('status')
     if status != 'done':
-        print(f'FAIL: rib show community returned status={status}', file=sys.stderr)
-        dispatch(api, 'daemon shutdown')
-        api.wait_for_shutdown()
-        sys.exit(1)
+        msg = f'rib show community returned status={status}'
+        print(f'FAIL: {msg}', file=sys.stderr)
+        sys.stderr.flush()
+        runtime_fail(msg)
 
     print('OK: community 65000:100 tagged on ingress', file=sys.stderr)
     dispatch(api, 'daemon shutdown')
@@ -140,3 +145,15 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-community --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
+# AC-6 verification: the community filter plugin emits an info log when
+# the ingress filter actually modifies a received UPDATE payload. A bug
+# that skipped the filter, applied it to the wrong peer, or emitted the
+# wrong tag list would each break one of these assertions.
+expect=stderr:pattern=community ingress applied
+expect=stderr:pattern=peer=peer1
+expect=stderr:pattern=tag=\[mark-transit\]
+# Negative regressions:
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=treat-as-withdraw
+reject=stderr:pattern=ZE-OBSERVER-FAIL

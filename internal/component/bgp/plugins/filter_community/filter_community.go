@@ -137,6 +137,13 @@ func ingressFilter(src registry.PeerFilterInfo, payload []byte, _ map[string]any
 	}
 
 	modified := applyIngressFilter(payload, defs, fc)
+	if modified != nil {
+		logger().Info("community ingress applied",
+			"peer", src.Name,
+			"tag", fc.ingressTag,
+			"strip", fc.ingressStrip,
+		)
+	}
 	return true, modified
 }
 
