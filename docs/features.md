@@ -30,10 +30,14 @@ Ze is a BGP daemon written in Go.
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- raisePrefixThreshold, RaisePrefixStale, raiseNotificationError, raiseSessionDropped -->
 <!-- source: internal/component/bgp/config/loader.go -- collectPrefixWarnings reads from report bus for login banner -->
 | [Interoperability Testing](features/interoperability-testing.md) | 32 Docker-based scenarios against FRR, BIRD, GoBGP |
-| REST/gRPC API | Programmatic API with OpenAPI 3.1 spec, SSE streaming, config sessions. REST on port 8081, gRPC on port 50051. Bearer token auth, CORS support. Both transports share one engine -- identical command output. |
+| REST/gRPC API | Programmatic API with OpenAPI 3.1 spec, SSE streaming, config sessions. Both transports accept multiple named listen endpoints via `environment.api-server.rest.server <name>` / `.grpc.server <name>`. Bearer token auth, CORS support. Both transports share one engine -- identical command output. |
 <!-- source: internal/component/api/engine.go -- APIEngine, Execute, Stream, ListCommands -->
-<!-- source: internal/component/api/rest/server.go -- RESTServer, all HTTP handlers -->
-<!-- source: internal/component/api/grpc/server.go -- GRPCServer, ZeService, ZeConfigService -->
+<!-- source: internal/component/api/rest/server.go -- RESTServer, all HTTP handlers, multi-listener Serve -->
+<!-- source: internal/component/api/grpc/server.go -- GRPCServer, ZeService, ZeConfigService, multi-listener Serve -->
+| Named Service Listeners | Every service that accepts inbound connections (web, ssh, mcp, looking-glass, telemetry, REST, gRPC, plugin hub) models its listen endpoints as a named YANG list. Each entry binds its own listener on the same subsystem; bind is all-or-nothing with rollback on failure. `CollectListeners` detects overlapping `ip:port` pairs at config parse time across every service. |
+<!-- source: internal/component/config/yang/modules/ze-types.yang -- grouping listener -->
+<!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension listener -->
+<!-- source: internal/component/config/listener.go -- CollectListeners, ValidateListenerConflicts -->
 | [MCP Integration](features/mcp-integration.md) | AI-assisted BGP operations via Model Context Protocol |
 | [DNS Resolver](features/dns-resolver.md) | Built-in cached DNS resolver for all components |
 | Resolution CLI | Offline `ze resolve` tool for DNS, Team Cymru ASN names, PeeringDB prefix counts, and IRR AS-SET expansion |

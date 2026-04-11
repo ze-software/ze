@@ -891,7 +891,7 @@ Ze defines custom extensions in `ze-extensions.yang` that control config parsing
 | `ze:decorate` | name | leaf | Attaches display-time decorator for web UI |
 | `ze:required` | path | list | Field must have value after config inheritance resolution |
 | `ze:suggest` | path | list | Field shown in creation form with inherited defaults |
-| `ze:listener` | -- | container/list | Marks a network listener for port conflict detection |
+| `ze:listener` | -- | list | Marks a named `list server { key "name"; }` as a network listener. `CollectListeners` walks every enabled service with this extension at parse time and feeds `ValidateListenerConflicts`, which rejects overlapping `ip:port` pairs with a message naming both services. Covers web, ssh, mcp, looking-glass, prometheus, plugin hub, and api-server rest/grpc. |
 | `ze:command` | handler | container | Marks a config-false container as executable CLI command |
 | `ze:edit-shortcut` | -- | command | Available in edit mode as shortcut |
 | `ze:display-key` | -- | leaf | Display label for keyless list entries in web UI |

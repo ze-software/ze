@@ -410,6 +410,85 @@ environment {
 
 <!-- source: internal/component/config/environment.go -- environment block parsing; internal/core/slogutil/slogutil.go -- log level config -->
 
+### Named Listeners
+
+Every service that accepts inbound connections models its listen endpoints
+as a named YANG list:
+
+```
+environment {
+    web {
+        enabled true;
+        server primary {
+            ip 0.0.0.0;
+            port 3443;
+        }
+        server admin {
+            ip 127.0.0.1;
+            port 13443;
+        }
+    }
+}
+```
+
+Each `server <name> { ... }` block becomes a bound TCP listener on the same
+service. The same pattern applies to `environment.ssh`, `environment.mcp`,
+`environment.looking-glass`, `telemetry.prometheus`, `environment.api-server.rest`,
+`environment.api-server.grpc`, and `plugin.hub`.
+
+<!-- source: internal/component/config/yang/modules/ze-types.yang — grouping listener -->
+<!-- source: internal/component/config/yang/modules/ze-extensions.yang — extension listener -->
+<!-- source: internal/component/config/loader_extract.go — ExtractWebConfig, ExtractLGConfig, ExtractMCPConfig, ExtractAPIConfig -->
+
+Binder lifetime rules are uniform across every service:
+
+| Rule | Detail |
+|------|--------|
+| Minimum | At least one entry is required when a service is enabled. An enabled block with no `server {}` uses the YANG `refine` default (e.g. `0.0.0.0:3443` for web). |
+| Bind order | Entries are bound in config declaration order for live trees; in `map[string]any` roundtrips (after `ToMap()`) the ordering falls back to alphabetical key order. |
+| Failure mode | Bind is all-or-nothing: if any listener fails to bind, the already-bound listeners are closed and the service fails to start. Partial binding is never accepted. |
+| Shutdown | Every listener closes when the service is stopped; there is no "primary plus extras" asymmetry. |
+| Insecure web | `insecure true` forces every entry's ip to `127.0.0.1` with a warning logged per rewrite. |
+| MCP | MCP is localhost-only. Non-loopback entries are rewritten to `127.0.0.1` with a warning. |
+
+<!-- source: internal/component/web/server.go — WebServer.ListenAndServe multi-listener bind-and-rollback -->
+<!-- source: internal/component/lg/server.go — LGServer.ListenAndServe multi-listener bind-and-rollback -->
+<!-- source: internal/core/metrics/server.go — metrics.Server.Start multi-listener bind-and-rollback -->
+<!-- source: internal/component/api/rest/server.go — RESTServer.ListenAndServe multi-listener bind-and-rollback -->
+<!-- source: internal/component/api/grpc/server.go — GRPCServer.Serve multi-listener bind-and-rollback -->
+<!-- source: cmd/ze/hub/mcp.go — startMCPServer multi-listener bind-and-rollback -->
+
+#### Port Conflict Detection
+
+`ze config validate` runs `CollectListeners` over every enabled service and
+rejects the config if two listeners would bind overlapping `ip:port` pairs.
+Wildcard addresses (`0.0.0.0`, `::`) conflict with any address in the same
+family; cross-family entries (`0.0.0.0` vs `::1`) never conflict. The check
+covers `web`, `ssh`, `mcp`, `looking-glass`, `prometheus`, `plugin.hub`,
+`api-server.rest`, and `api-server.grpc`.
+
+<!-- source: internal/component/config/listener.go — knownListenerServices, CollectListeners, ValidateListenerConflicts -->
+
+#### Environment Variable Override
+
+Each service exposes a `ze.<svc>.listen` variable that accepts one or more
+comma-separated `ip:port` pairs. IPv6 entries use bracket notation:
+
+| Variable | Example | Notes |
+|----------|---------|-------|
+| `ze.web.listen` | `0.0.0.0:3443,[::1]:3443` | Overrides web `server` list entirely |
+| `ze.looking-glass.listen` | `0.0.0.0:8443` | Overrides LG `server` list |
+| `ze.mcp.listen` | `127.0.0.1:8080,127.0.0.1:18080` | MCP enforces 127.0.0.1 on every entry |
+| `ze.api-server.rest.listen` | `0.0.0.0:8081` | Overrides REST `server` list |
+| `ze.api-server.grpc.listen` | `0.0.0.0:50051` | Overrides gRPC `server` list |
+
+Env vars replace the config-file list when set; partial merging is not
+supported so the precedence is predictable. Precedence per service is:
+env var > CLI flag > config file > YANG default.
+
+<!-- source: internal/component/config/environment.go — ParseCompoundListen -->
+<!-- source: cmd/ze/hub/main.go — runYANGConfig env/CLI/config resolution for webAddrs, lgAddrs, mcpAddrs -->
+
 ### DNS Resolver
 
 Configure a shared DNS resolver for all Ze components:
