@@ -5,8 +5,10 @@ package hub
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"syscall"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
@@ -64,8 +66,16 @@ func (o *Orchestrator) Reload(configPath string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	// Read and parse new config via storage (filesystem or blob).
+	// Read and parse new config via storage (filesystem or blob). When the
+	// store is blob-backed (e.g., gokrazy read-only root, ze-test tmpfs)
+	// fall back to a direct filesystem read. Without this fallback, SIGHUP
+	// reload fails with "read file/active/<name>: file does not exist" on
+	// any daemon started with a filesystem path that is not a blob key.
+	// Mirrors the initial-load fallback in cmd/ze/hub/main.go:107-113.
 	data, err := o.store.ReadFile(configPath)
+	if err != nil && storage.IsBlobStorage(o.store) {
+		data, err = os.ReadFile(configPath) //nolint:gosec // operator-supplied path
+	}
 	if err != nil {
 		return fmt.Errorf("reload: read config: %w", err)
 	}
