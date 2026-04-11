@@ -42,11 +42,13 @@ module ze-iface-conf {
     }
 
     grouping interface-l2 {
-        description "L2 interface properties (common + MAC address).
-                     Used by interface kinds that carry Ethernet frames:
-                     ethernet, dummy, veth, bridge, tunnel (gretap/ip6gretap
-                     cases). L3-only kinds (wireguard, gre/ipip/sit/ip6tnl)
-                     use interface-common directly since they have no MAC.";
+        description "Interface properties for kinds that expose a MAC
+                     address at the list level: ethernet, dummy, veth,
+                     bridge, tunnel (all encapsulation cases today, though
+                     L3 cases like gre/ipip/sit/ip6tnl do not actually use
+                     the leaf — per-case handling is deferred). L3-only
+                     kinds with no MAC (e.g. wireguard) use interface-common
+                     directly.";
 
         uses interface-common;
 

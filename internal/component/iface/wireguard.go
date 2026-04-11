@@ -1,10 +1,4 @@
 // Design: docs/features/interfaces.md -- WireGuard interface types
-//
-// Phase 1 scaffold for spec-iface-wireguard: anchors the
-// golang.zx2c4.com/wireguard/wgctrl vendor drop so `go mod tidy` does not
-// prune the dep before later phases add real usage. Later phases add
-// WireguardSpec, WireguardPeerSpec, wireguardEntry, and parseWireguardEntry
-// to this file.
 
 package iface
 
