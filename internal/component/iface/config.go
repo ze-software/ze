@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -18,13 +20,14 @@ const yangTrue = "true"
 
 // ifaceConfig is the parsed representation of the interface config section.
 type ifaceConfig struct {
-	Backend  string
-	Ethernet []ifaceEntry
-	Dummy    []ifaceEntry
-	Veth     []vethEntry
-	Bridge   []bridgeEntry
-	Tunnel   []tunnelEntry
-	Loopback *loopbackEntry
+	Backend   string
+	Ethernet  []ifaceEntry
+	Dummy     []ifaceEntry
+	Veth      []vethEntry
+	Bridge    []bridgeEntry
+	Tunnel    []tunnelEntry
+	Wireguard []wireguardEntry
+	Loopback  *loopbackEntry
 }
 
 // tunnelEntry represents a configured tunnel interface. The Spec carries
@@ -33,6 +36,15 @@ type ifaceConfig struct {
 type tunnelEntry struct {
 	ifaceEntry
 	Spec TunnelSpec
+}
+
+// wireguardEntry represents a configured wireguard interface. The Spec
+// carries the wireguard-specific parameters and peer list; the embedded
+// ifaceEntry carries the shared common and unit fields inherited via the
+// interface-common and interface-unit YANG groupings.
+type wireguardEntry struct {
+	ifaceEntry
+	Spec WireguardSpec
 }
 
 // ifaceEntry represents a configured interface (ethernet or dummy).
@@ -186,6 +198,17 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 		}
 	}
 
+	if wgMap, ok := ifaceMap["wireguard"].(map[string]any); ok {
+		for name, v := range wgMap {
+			m, _ := v.(map[string]any)
+			entry, err := parseWireguardEntry(name, m)
+			if err != nil {
+				return nil, fmt.Errorf("wireguard %q: %w", name, err)
+			}
+			cfg.Wireguard = append(cfg.Wireguard, entry)
+		}
+	}
+
 	if loMap, ok := ifaceMap["loopback"].(map[string]any); ok {
 		lo := &loopbackEntry{}
 		lo.Units = parseUnits(loMap)
@@ -328,6 +351,121 @@ func parseTunnelLeaves(spec *TunnelSpec, caseMap map[string]any) error {
 		spec.EncapLimitSet = true
 	}
 	return nil
+}
+
+// parseWireguardEntry walks the JSON tree for one wireguard list entry and
+// produces a wireguardEntry. private-key is mandatory and must decode to a
+// valid 32-byte Curve25519 key via wgtypes.ParseKey; public-key on each peer
+// is likewise mandatory. Sensitive leaves (private-key, preshared-key) are
+// already plaintext at this layer -- the config parser's parseLeaf has
+// decoded any $9$ prefix before the tree reaches us.
+func parseWireguardEntry(name string, m map[string]any) (wireguardEntry, error) {
+	entry := wireguardEntry{ifaceEntry: parseIfaceEntry(name, m)}
+	entry.Spec.Name = name
+
+	if m == nil {
+		return entry, fmt.Errorf("empty wireguard entry")
+	}
+
+	privStr, ok := m["private-key"].(string)
+	if !ok || privStr == "" {
+		return entry, fmt.Errorf("private-key is required")
+	}
+	priv, err := wgtypes.ParseKey(privStr)
+	if err != nil {
+		return entry, fmt.Errorf("private-key: %w", err)
+	}
+	entry.Spec.PrivateKey = priv
+
+	if portStr, ok := m["listen-port"].(string); ok && portStr != "" {
+		p, err := strconv.ParseUint(portStr, 10, 16)
+		if err != nil {
+			return entry, fmt.Errorf("listen-port %q: %w", portStr, err)
+		}
+		entry.Spec.ListenPort = uint16(p) //nolint:gosec // ParseUint bitSize=16 bounds value
+		entry.Spec.ListenPortSet = true
+	}
+
+	if markStr, ok := m["fwmark"].(string); ok && markStr != "" {
+		fw, err := strconv.ParseUint(markStr, 10, 32)
+		if err != nil {
+			return entry, fmt.Errorf("fwmark %q: %w", markStr, err)
+		}
+		entry.Spec.FirewallMark = uint32(fw) //nolint:gosec // ParseUint bitSize=32 bounds value
+	}
+
+	if peerMap, ok := m["peer"].(map[string]any); ok {
+		for pname, pv := range peerMap {
+			pm, _ := pv.(map[string]any)
+			peer, err := parseWireguardPeer(pname, pm)
+			if err != nil {
+				return entry, fmt.Errorf("peer %q: %w", pname, err)
+			}
+			entry.Spec.Peers = append(entry.Spec.Peers, peer)
+		}
+	}
+
+	return entry, nil
+}
+
+// parseWireguardPeer walks the JSON tree for one peer list entry.
+// public-key is mandatory; preshared-key, endpoint, allowed-ips, and
+// persistent-keepalive are optional. The disable leaf makes the peer
+// absent from the kernel peer set on reload while remaining in config.
+func parseWireguardPeer(name string, m map[string]any) (WireguardPeerSpec, error) {
+	peer := WireguardPeerSpec{Name: name}
+
+	if m == nil {
+		return peer, fmt.Errorf("empty peer entry")
+	}
+
+	if _, ok := m["disable"]; ok {
+		peer.Disable = true
+	}
+
+	pubStr, ok := m["public-key"].(string)
+	if !ok || pubStr == "" {
+		return peer, fmt.Errorf("public-key is required")
+	}
+	pub, err := wgtypes.ParseKey(pubStr)
+	if err != nil {
+		return peer, fmt.Errorf("public-key: %w", err)
+	}
+	peer.PublicKey = pub
+
+	if psStr, ok := m["preshared-key"].(string); ok && psStr != "" {
+		ps, err := wgtypes.ParseKey(psStr)
+		if err != nil {
+			return peer, fmt.Errorf("preshared-key: %w", err)
+		}
+		peer.PresharedKey = ps
+		peer.HasPresharedKey = true
+	}
+
+	if ep, ok := m["endpoint"].(map[string]any); ok {
+		if ipStr, ok := ep["ip"].(string); ok {
+			peer.EndpointIP = ipStr
+		}
+		if portStr, ok := ep["port"].(string); ok && portStr != "" {
+			p, err := strconv.ParseUint(portStr, 10, 16)
+			if err != nil {
+				return peer, fmt.Errorf("endpoint port %q: %w", portStr, err)
+			}
+			peer.EndpointPort = uint16(p) //nolint:gosec // ParseUint bitSize=16 bounds value
+		}
+	}
+
+	peer.AllowedIPs = parseStringList(m, "allowed-ips")
+
+	if kaStr, ok := m["persistent-keepalive"].(string); ok && kaStr != "" {
+		ka, err := strconv.ParseUint(kaStr, 10, 16)
+		if err != nil {
+			return peer, fmt.Errorf("persistent-keepalive %q: %w", kaStr, err)
+		}
+		peer.PersistentKeepalive = uint16(ka) //nolint:gosec // ParseUint bitSize=16 bounds value
+	}
+
+	return peer, nil
 }
 
 func parseIfaceEntry(name string, m map[string]any) ifaceEntry {
