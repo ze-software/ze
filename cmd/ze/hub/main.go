@@ -328,9 +328,17 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	registry.SetEventBus(apiServer)
 
 	// Set config loader for SIGHUP reload support.
+	// Mirrors the initial-load fallback above: try the blob store first, and
+	// if the store is blob-only (e.g., gokrazy read-only root, ze-test tmpfs)
+	// fall back to a direct filesystem read. Without this fallback, SIGHUP
+	// reload fails with "read file/active/...: file does not exist" on any
+	// daemon started with a filesystem path that is not a blob key.
 	if configPath != "" && configPath != "-" {
 		apiServer.SetConfigLoader(func() (map[string]any, error) {
 			reloadData, readErr := store.ReadFile(configPath)
+			if readErr != nil && storage.IsBlobStorage(store) {
+				reloadData, readErr = os.ReadFile(configPath) //nolint:gosec // daemon operator supplied path
+			}
 			if readErr != nil {
 				return nil, fmt.Errorf("read config: %w", readErr)
 			}

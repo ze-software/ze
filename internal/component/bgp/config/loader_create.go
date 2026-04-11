@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"os"
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
@@ -251,9 +252,18 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 // createReloadFunc creates a ReloadFunc that parses config files.
 // It returns full PeerSettings to ensure reloaded peers are identical to initial load.
 // Uses PeersFromConfigTree which resolves templates and extracts routes directly.
+//
+// Config-read fallback: mirrors the hub's initial-load path. Try the blob store
+// first; if the store is blob-only (gokrazy read-only root, ze-test tmpfs)
+// fall back to a direct filesystem read. Without this, SIGHUP-driven reloads
+// fail with "read file/active/...: file does not exist" whenever the daemon
+// was started with a filesystem path that is not a blob key.
 func createReloadFunc(store storage.Storage) reactor.ReloadFunc {
 	return func(configPath string) ([]*reactor.PeerSettings, error) {
 		data, err := store.ReadFile(configPath)
+		if err != nil && storage.IsBlobStorage(store) {
+			data, err = os.ReadFile(configPath) //nolint:gosec // daemon operator supplied path
+		}
 		if err != nil {
 			return nil, fmt.Errorf("read config %s: %w", configPath, err)
 		}

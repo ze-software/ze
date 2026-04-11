@@ -4,6 +4,7 @@ package bgpconfig
 
 import (
 	"fmt"
+	"os"
 
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -33,10 +34,19 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 	}
 
 	// Re-read config from disk for reload support. Stdin uses captured data.
+	// Mirrors the hub's initial-load fallback (cmd/ze/hub/main.go Run): try the
+	// blob store first, and if the store is blob-only (e.g., gokrazy read-only
+	// root) fall back to a direct filesystem read. Without this fallback, all
+	// encode/plugin .ci tests that pass a /tmp/... config path via `ze <file>`
+	// fail with "read file/active/...: file does not exist" because the
+	// filesystem path is not a valid blob key.
 	var data []byte
 	if configPath != "" && configPath != "-" && store != nil {
 		var err error
 		data, err = store.ReadFile(configPath)
+		if err != nil && storage.IsBlobStorage(store) {
+			data, err = os.ReadFile(configPath) //nolint:gosec // path supplied by the daemon operator
+		}
 		if err != nil {
 			return nil, fmt.Errorf("re-read config for reactor: %w", err)
 		}
