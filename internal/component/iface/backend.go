@@ -30,10 +30,23 @@ type Backend interface {
 	CreateTunnel(spec TunnelSpec) error
 	// CreateWireguardDevice creates a WireGuard netdev with the given name.
 	// Only the netdev is created here; the private key, listen port, fwmark,
-	// and peer set are configured separately via wgctrl in a later phase
+	// and peer set are configured by ConfigureWireguardDevice via wgctrl
 	// because rtnetlink does not expose those fields. On kernels without
 	// the wireguard module the netlink layer returns an error.
 	CreateWireguardDevice(name string) error
+	// ConfigureWireguardDevice applies the given spec as the complete
+	// desired state of the named wireguard netdev: private key, listen
+	// port, firewall mark, and full peer set. The current implementation
+	// uses ReplacePeers: true under the hood, so any peers present in the
+	// kernel but absent from the spec are removed. Requires an already-
+	// existing netdev created via CreateWireguardDevice.
+	ConfigureWireguardDevice(spec WireguardSpec) error
+	// GetWireguardDevice reads the kernel's current state for the named
+	// wireguard netdev and returns it as a WireguardSpec. Used by
+	// reconciliation and by `ze init` discovery of pre-existing netdevs.
+	// Keys are copied verbatim; callers must not log the returned Spec
+	// unless they have already redacted sensitive fields.
+	GetWireguardDevice(name string) (WireguardSpec, error)
 	DeleteInterface(name string) error
 
 	// Address management.

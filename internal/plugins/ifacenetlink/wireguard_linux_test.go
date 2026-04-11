@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/vishvananda/netlink"
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
@@ -108,6 +109,115 @@ func TestCreateAndDeleteWireguardDevice(t *testing.T) {
 		}
 		if _, err := netlink.LinkByName("wg1"); err == nil {
 			t.Errorf("wg1 still present after DeleteInterface")
+		}
+	})
+}
+
+// TestConfigureWireguardDevice verifies the round-trip of listen-port,
+// firewall mark, and persistent keepalive through
+// ConfigureWireguardDevice -> kernel state -> GetWireguardDevice.
+//
+// VALIDATES: AC-13 (keepalive), AC-14 (listen-port), AC-15 (fwmark).
+// PREVENTS: silent field drop in buildWireguardConfig or deviceToSpec.
+func TestConfigureWireguardDevice(t *testing.T) {
+	if !wireguardModuleAvailable() {
+		t.Skip("requires wireguard kernel module")
+	}
+
+	withTunnelNetNS(t, func(b iface.Backend) {
+		if err := b.CreateWireguardDevice("wg0"); err != nil {
+			t.Fatalf("CreateWireguardDevice: %v", err)
+		}
+
+		priv, err := wgtypes.GeneratePrivateKey()
+		if err != nil {
+			t.Fatalf("GeneratePrivateKey: %v", err)
+		}
+		pub, err := wgtypes.GenerateKey()
+		if err != nil {
+			t.Fatalf("GenerateKey peer: %v", err)
+		}
+
+		spec := iface.WireguardSpec{
+			Name:          "wg0",
+			PrivateKey:    priv,
+			ListenPort:    51820,
+			ListenPortSet: true,
+			FirewallMark:  0x1234,
+			Peers: []iface.WireguardPeerSpec{{
+				Name:                "site2",
+				PublicKey:           pub,
+				AllowedIPs:          []string{"10.0.0.2/32"},
+				PersistentKeepalive: 25,
+			}},
+		}
+		if err := b.ConfigureWireguardDevice(spec); err != nil {
+			t.Fatalf("ConfigureWireguardDevice: %v", err)
+		}
+
+		got, err := b.GetWireguardDevice("wg0")
+		if err != nil {
+			t.Fatalf("GetWireguardDevice: %v", err)
+		}
+
+		if got.ListenPort != 51820 {
+			t.Errorf("listen-port = %d, want 51820", got.ListenPort)
+		}
+		if got.FirewallMark != 0x1234 {
+			t.Errorf("fwmark = %#x, want 0x1234", got.FirewallMark)
+		}
+		if got.PrivateKey != priv {
+			t.Errorf("private-key not round-tripped")
+		}
+		if len(got.Peers) != 1 {
+			t.Fatalf("peers = %d, want 1", len(got.Peers))
+		}
+		if got.Peers[0].PublicKey != pub {
+			t.Errorf("peer public-key not round-tripped")
+		}
+		if got.Peers[0].PersistentKeepalive != 25 {
+			t.Errorf("keepalive = %d, want 25", got.Peers[0].PersistentKeepalive)
+		}
+		if len(got.Peers[0].AllowedIPs) != 1 || got.Peers[0].AllowedIPs[0] != "10.0.0.2/32" {
+			t.Errorf("allowed-ips = %v, want [10.0.0.2/32]", got.Peers[0].AllowedIPs)
+		}
+	})
+}
+
+// TestConfigureWireguardDeviceBadAllowedIP verifies that a malformed
+// allowed-ips CIDR is rejected by buildWireguardConfig before the call
+// reaches wgctrl, so the kernel never sees a partially-applied peer.
+//
+// VALIDATES: allowed-ips is parsed defensively.
+// PREVENTS: half-applied peer config leaking into the kernel.
+func TestConfigureWireguardDeviceBadAllowedIP(t *testing.T) {
+	if !wireguardModuleAvailable() {
+		t.Skip("requires wireguard kernel module")
+	}
+
+	withTunnelNetNS(t, func(b iface.Backend) {
+		if err := b.CreateWireguardDevice("wg0"); err != nil {
+			t.Fatalf("CreateWireguardDevice: %v", err)
+		}
+
+		priv, _ := wgtypes.GeneratePrivateKey()
+		pub, _ := wgtypes.GenerateKey()
+
+		spec := iface.WireguardSpec{
+			Name:       "wg0",
+			PrivateKey: priv,
+			Peers: []iface.WireguardPeerSpec{{
+				Name:       "bad",
+				PublicKey:  pub,
+				AllowedIPs: []string{"not-a-cidr"},
+			}},
+		}
+		err := b.ConfigureWireguardDevice(spec)
+		if err == nil {
+			t.Fatal("expected error for malformed allowed-ips")
+		}
+		if !strings.Contains(err.Error(), "not-a-cidr") {
+			t.Errorf("error should name the offending cidr: %v", err)
 		}
 	})
 }

@@ -746,6 +746,12 @@ func (b *fakeBackend) CreateWireguardDevice(name string) error {
 	return nil
 }
 
+func (b *fakeBackend) ConfigureWireguardDevice(_ WireguardSpec) error { return nil }
+
+func (b *fakeBackend) GetWireguardDevice(_ string) (WireguardSpec, error) {
+	return WireguardSpec{}, nil
+}
+
 func (b *fakeBackend) SetAdminUp(_ string) error              { return nil }
 func (b *fakeBackend) SetAdminDown(_ string) error            { return nil }
 func (b *fakeBackend) SetMTU(_ string, _ int) error           { return nil }

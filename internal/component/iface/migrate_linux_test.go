@@ -25,6 +25,12 @@ func (m *mockMigrateBackend) CreateTunnel(_ TunnelSpec) error {
 func (m *mockMigrateBackend) CreateWireguardDevice(_ string) error {
 	return fmt.Errorf("mock: not supported")
 }
+func (m *mockMigrateBackend) ConfigureWireguardDevice(_ WireguardSpec) error {
+	return fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) GetWireguardDevice(_ string) (WireguardSpec, error) {
+	return WireguardSpec{}, fmt.Errorf("mock: not supported")
+}
 func (m *mockMigrateBackend) DeleteInterface(_ string) error {
 	return fmt.Errorf("mock: not supported")
 }

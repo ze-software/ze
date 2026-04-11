@@ -25,12 +25,16 @@ func unsupported() error {
 	return fmt.Errorf("interface management not supported on %s", runtime.GOOS)
 }
 
-func (s *stubBackend) CreateDummy(_ string) error                             { return unsupported() }
-func (s *stubBackend) CreateVeth(_, _ string) error                           { return unsupported() }
-func (s *stubBackend) CreateBridge(_ string) error                            { return unsupported() }
-func (s *stubBackend) CreateVLAN(_ string, _ int) error                       { return unsupported() }
-func (s *stubBackend) CreateTunnel(_ iface.TunnelSpec) error                  { return unsupported() }
-func (s *stubBackend) CreateWireguardDevice(_ string) error                   { return unsupported() }
+func (s *stubBackend) CreateDummy(_ string) error                           { return unsupported() }
+func (s *stubBackend) CreateVeth(_, _ string) error                         { return unsupported() }
+func (s *stubBackend) CreateBridge(_ string) error                          { return unsupported() }
+func (s *stubBackend) CreateVLAN(_ string, _ int) error                     { return unsupported() }
+func (s *stubBackend) CreateTunnel(_ iface.TunnelSpec) error                { return unsupported() }
+func (s *stubBackend) CreateWireguardDevice(_ string) error                 { return unsupported() }
+func (s *stubBackend) ConfigureWireguardDevice(_ iface.WireguardSpec) error { return unsupported() }
+func (s *stubBackend) GetWireguardDevice(_ string) (iface.WireguardSpec, error) {
+	return iface.WireguardSpec{}, unsupported()
+}
 func (s *stubBackend) DeleteInterface(_ string) error                         { return unsupported() }
 func (s *stubBackend) AddAddress(_, _ string) error                           { return unsupported() }
 func (s *stubBackend) RemoveAddress(_, _ string) error                        { return unsupported() }
