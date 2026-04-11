@@ -73,20 +73,20 @@ func TestEngineConfigSession(t *testing.T) {
 	assert.NotEmpty(t, id)
 
 	// Set a value.
-	err = mgr.Set(id, "bgp.router-id", "10.0.0.1")
+	err = mgr.Set("admin", id, "bgp.router-id", "10.0.0.1")
 	require.NoError(t, err)
 
 	// Diff shows changes.
-	diff, err := mgr.Diff(id)
+	diff, err := mgr.Diff("admin", id)
 	require.NoError(t, err)
 	assert.NotEmpty(t, diff)
 
 	// Commit applies changes.
-	err = mgr.Commit(id)
+	err = mgr.Commit("admin", id)
 	require.NoError(t, err)
 
 	// Session is gone after commit.
-	_, err = mgr.Diff(id)
+	_, err = mgr.Diff("admin", id)
 	assert.Error(t, err)
 }
 
@@ -98,14 +98,14 @@ func TestEngineConfigDiscard(t *testing.T) {
 	id, err := mgr.Enter("admin")
 	require.NoError(t, err)
 
-	err = mgr.Set(id, "bgp.router-id", "10.0.0.1")
+	err = mgr.Set("admin", id, "bgp.router-id", "10.0.0.1")
 	require.NoError(t, err)
 
-	err = mgr.Discard(id)
+	err = mgr.Discard("admin", id)
 	require.NoError(t, err)
 
 	// Session is gone after discard.
-	_, err = mgr.Diff(id)
+	_, err = mgr.Diff("admin", id)
 	assert.Error(t, err)
 }
 
@@ -114,7 +114,7 @@ func TestEngineConfigDiscard(t *testing.T) {
 func TestConfigSessionNotFound(t *testing.T) {
 	mgr := NewConfigSessionManager(fakeEditorFactory())
 
-	err := mgr.Set("nonexistent", "bgp.router-id", "10.0.0.1")
+	err := mgr.Set("admin", "nonexistent", "bgp.router-id", "10.0.0.1")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -132,16 +132,41 @@ func TestConfigSessionIndependence(t *testing.T) {
 
 	assert.NotEqual(t, id1, id2)
 
-	// Set different values in each.
-	require.NoError(t, mgr.Set(id1, "bgp.router-id", "1.1.1.1"))
-	require.NoError(t, mgr.Set(id2, "bgp.router-id", "2.2.2.2"))
+	// Set different values in each (using correct owner).
+	require.NoError(t, mgr.Set("alice", id1, "bgp.router-id", "1.1.1.1"))
+	require.NoError(t, mgr.Set("bob", id2, "bgp.router-id", "2.2.2.2"))
 
 	// Commit one, other still exists.
-	require.NoError(t, mgr.Commit(id1))
+	require.NoError(t, mgr.Commit("alice", id1))
 
-	diff, err := mgr.Diff(id2)
+	diff, err := mgr.Diff("bob", id2)
 	require.NoError(t, err)
 	assert.NotEmpty(t, diff)
+}
+
+// VALIDATES: session owned by one user cannot be accessed by another.
+// PREVENTS: session hijacking.
+func TestConfigSessionOwnership(t *testing.T) {
+	mgr := NewConfigSessionManager(fakeEditorFactory())
+
+	id, err := mgr.Enter("alice")
+	require.NoError(t, err)
+
+	// Bob tries to hijack alice's session.
+	err = mgr.Set("bob", id, "bgp.router-id", "9.9.9.9")
+	assert.ErrorIs(t, err, ErrSessionForbidden)
+
+	_, err = mgr.Diff("bob", id)
+	assert.ErrorIs(t, err, ErrSessionForbidden)
+
+	err = mgr.Commit("bob", id)
+	assert.ErrorIs(t, err, ErrSessionForbidden)
+
+	err = mgr.Discard("bob", id)
+	assert.ErrorIs(t, err, ErrSessionForbidden)
+
+	// Alice can still use her session.
+	require.NoError(t, mgr.Set("alice", id, "bgp.router-id", "1.1.1.1"))
 }
 
 // VALIDATES: path too short returns error.
@@ -152,7 +177,7 @@ func TestConfigSessionSetShortPath(t *testing.T) {
 	id, err := mgr.Enter("admin")
 	require.NoError(t, err)
 
-	err = mgr.Set(id, "single", "value")
+	err = mgr.Set("admin", id, "single", "value")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "path too short")
 }
@@ -202,12 +227,12 @@ func TestConfigSessionCleanExpired(t *testing.T) {
 
 	id, err := mgr.Enter("admin")
 	require.NoError(t, err)
-	require.NoError(t, mgr.Set(id, "bgp.router-id", "10.0.0.1"))
+	require.NoError(t, mgr.Set("admin", id, "bgp.router-id", "10.0.0.1"))
 
 	cleaned := mgr.CleanExpired()
 	assert.Equal(t, 1, cleaned)
 
 	// Session is gone.
-	_, err = mgr.Diff(id)
+	_, err = mgr.Diff("admin", id)
 	assert.Error(t, err)
 }

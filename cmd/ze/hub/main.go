@@ -426,7 +426,31 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		apiCfg.Token = token
 	}
 	if apiCfgOK {
-		apiSrvs = startAPIServers(apiCfg, apiServer)
+		// Load zefs users for per-user auth; if unavailable, falls back to Token.
+		var apiUsers []authz.UserConfig
+		if storage.IsBlobStorage(store) {
+			u, uErr := loadZefsUsers()
+			switch {
+			case uErr != nil:
+				fmt.Fprintf(os.Stderr, "warning: API per-user auth disabled: load zefs users: %v\n", uErr)
+			default:
+				apiUsers = u
+			}
+		} else {
+			fmt.Fprintln(os.Stderr, "warning: API per-user auth disabled: requires blob storage (run ze init first)")
+		}
+
+		// Report active auth mode to make silent degradation visible.
+		switch {
+		case len(apiUsers) > 0:
+			fmt.Fprintf(os.Stderr, "API auth mode: per-user (%d users from zefs)\n", len(apiUsers))
+		case apiCfg.Token != "":
+			fmt.Fprintln(os.Stderr, "API auth mode: single-token (shared bearer)")
+		default:
+			fmt.Fprintln(os.Stderr, "warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or initialize zefs")
+		}
+
+		apiSrvs = startAPIServers(apiCfg, apiServer, store, configPath, apiUsers)
 	}
 
 	// Signal handling: SIGINT/SIGTERM for shutdown, SIGHUP for config reload.

@@ -7,10 +7,14 @@ package api
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 )
+
+// ErrSessionForbidden is returned when a user tries to access another user's session.
+var ErrSessionForbidden = errors.New("session access forbidden")
 
 // ConfigEditor abstracts the config editing operations the engine needs.
 // Implemented by the composition root using the real Editor.
@@ -100,8 +104,9 @@ func (m *ConfigSessionManager) Enter(username string) (string, error) {
 }
 
 // Set modifies a config path in the session's candidate.
-func (m *ConfigSessionManager) Set(sessionID, path, value string) error {
-	session, err := m.get(sessionID)
+// username must match the session owner.
+func (m *ConfigSessionManager) Set(username, sessionID, path, value string) error {
+	session, err := m.get(username, sessionID)
 	if err != nil {
 		return err
 	}
@@ -113,8 +118,9 @@ func (m *ConfigSessionManager) Set(sessionID, path, value string) error {
 }
 
 // Delete removes a config path from the session's candidate.
-func (m *ConfigSessionManager) Delete(sessionID, path string) error {
-	session, err := m.get(sessionID)
+// username must match the session owner.
+func (m *ConfigSessionManager) Delete(username, sessionID, path string) error {
+	session, err := m.get(username, sessionID)
 	if err != nil {
 		return err
 	}
@@ -122,8 +128,9 @@ func (m *ConfigSessionManager) Delete(sessionID, path string) error {
 }
 
 // Diff returns the pending changes for a session.
-func (m *ConfigSessionManager) Diff(sessionID string) (string, error) {
-	session, err := m.get(sessionID)
+// username must match the session owner.
+func (m *ConfigSessionManager) Diff(username, sessionID string) (string, error) {
+	session, err := m.get(username, sessionID)
 	if err != nil {
 		return "", err
 	}
@@ -131,8 +138,9 @@ func (m *ConfigSessionManager) Diff(sessionID string) (string, error) {
 }
 
 // Commit applies the pending changes.
-func (m *ConfigSessionManager) Commit(sessionID string) error {
-	session, err := m.get(sessionID)
+// username must match the session owner.
+func (m *ConfigSessionManager) Commit(username, sessionID string) error {
+	session, err := m.get(username, sessionID)
 	if err != nil {
 		return err
 	}
@@ -146,8 +154,9 @@ func (m *ConfigSessionManager) Commit(sessionID string) error {
 }
 
 // Discard throws away the session's candidate changes.
-func (m *ConfigSessionManager) Discard(sessionID string) error {
-	session, err := m.get(sessionID)
+// username must match the session owner.
+func (m *ConfigSessionManager) Discard(username, sessionID string) error {
+	session, err := m.get(username, sessionID)
 	if err != nil {
 		return err
 	}
@@ -160,13 +169,16 @@ func (m *ConfigSessionManager) Discard(sessionID string) error {
 	return nil
 }
 
-// get retrieves a session by ID.
-func (m *ConfigSessionManager) get(id string) (*ConfigSession, error) {
+// get retrieves a session by ID, verifying the username owns it.
+func (m *ConfigSessionManager) get(username, id string) (*ConfigSession, error) {
 	m.mu.RLock()
 	session, ok := m.sessions[id]
 	m.mu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("session %q not found", id)
+	}
+	if session.Username != username {
+		return nil, ErrSessionForbidden
 	}
 	return session, nil
 }

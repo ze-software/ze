@@ -27,11 +27,17 @@ var logger = slogutil.Logger("api.rest")
 // maxRequestBody limits the size of request bodies (1 MB).
 const maxRequestBody = 1 << 20
 
+// Authenticator validates an Authorization header value and returns the
+// authenticated username. Returns ("", false) on invalid credentials.
+// When nil, the server accepts all requests with no authentication.
+type Authenticator func(authHeader string) (username string, ok bool)
+
 // RESTConfig holds REST server configuration.
 type RESTConfig struct {
-	ListenAddr string // e.g. "0.0.0.0:8081"
-	Token      string // Bearer token for auth (empty = no auth)
-	CORSOrigin string // Allowed CORS origin (empty = no CORS headers)
+	ListenAddr    string        // e.g. "0.0.0.0:8081"
+	Token         string        // Single bearer token (empty = no auth). Ignored when Authenticator is set.
+	Authenticator Authenticator // Per-user auth callback. When set, Token is not checked.
+	CORSOrigin    string        // Allowed CORS origin (empty = no CORS headers)
 }
 
 // OpenAPIProvider returns the OpenAPI spec bytes.
@@ -41,11 +47,12 @@ type OpenAPIProvider func() []byte
 // RESTServer is the REST API HTTP server.
 // Caller MUST call Shutdown when done.
 type RESTServer struct {
-	engine     *api.APIEngine
-	sessions   *api.ConfigSessionManager
-	openAPI    OpenAPIProvider
-	token      string
-	corsOrigin string
+	engine        *api.APIEngine
+	sessions      *api.ConfigSessionManager
+	openAPI       OpenAPIProvider
+	token         string
+	authenticator Authenticator
+	corsOrigin    string
 
 	srv     *http.Server
 	ready   atomic.Bool
@@ -60,11 +67,12 @@ func NewRESTServer(cfg RESTConfig, engine *api.APIEngine, sessions *api.ConfigSe
 	}
 
 	s := &RESTServer{
-		engine:     engine,
-		sessions:   sessions,
-		openAPI:    openAPI,
-		token:      cfg.Token,
-		corsOrigin: cfg.CORSOrigin,
+		engine:        engine,
+		sessions:      sessions,
+		openAPI:       openAPI,
+		token:         cfg.Token,
+		authenticator: cfg.Authenticator,
+		corsOrigin:    cfg.CORSOrigin,
 	}
 
 	mux := http.NewServeMux()
@@ -139,18 +147,38 @@ func (s *RESTServer) registerRoutes(mux *http.ServeMux) {
 	// Documentation (no auth required).
 	mux.HandleFunc("GET /api/v1/openapi.json", s.handleOpenAPI)
 	mux.HandleFunc("GET /api/v1/docs", s.handleDocs)
+	mux.HandleFunc("GET /api/v1/docs/swagger-ui.css", s.handleSwaggerCSS)
+	mux.HandleFunc("GET /api/v1/docs/swagger-ui-bundle.js", s.handleSwaggerJS)
 
 	// CORS preflight (no auth required).
 	mux.HandleFunc("OPTIONS /api/", s.handlePreflight)
 }
 
+// usernameKey is the request-context key for the authenticated username.
+type usernameKeyType struct{}
+
+var usernameKey = usernameKeyType{}
+
 // withAuth wraps a handler with Bearer token authentication and CORS.
+// On success, stores the authenticated username in the request context.
 func (s *RESTServer) withAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.corsOrigin != "" {
 			w.Header().Set("Access-Control-Allow-Origin", s.corsOrigin)
 		}
-		if s.token != "" {
+
+		username := "api" // default for no-auth mode
+
+		// Per-user authenticator takes precedence over single token.
+		if s.authenticator != nil {
+			auth := r.Header.Get("Authorization")
+			user, ok := s.authenticator(auth)
+			if !ok {
+				writeError(w, http.StatusUnauthorized, "unauthorized")
+				return
+			}
+			username = user
+		} else if s.token != "" {
 			auth := r.Header.Get("Authorization")
 			expected := "Bearer " + s.token
 			if subtle.ConstantTimeCompare([]byte(auth), []byte(expected)) != 1 {
@@ -158,12 +186,17 @@ func (s *RESTServer) withAuth(next http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 		}
-		next(w, r)
+
+		ctx := context.WithValue(r.Context(), usernameKey, username)
+		next(w, r.WithContext(ctx))
 	}
 }
 
-// authContext extracts auth info from the request.
-func (s *RESTServer) authContext(_ *http.Request) api.AuthContext {
+// authContext extracts the authenticated username from the request context.
+func (s *RESTServer) authContext(r *http.Request) api.AuthContext {
+	if user, ok := r.Context().Value(usernameKey).(string); ok {
+		return api.AuthContext{Username: user}
+	}
 	return api.AuthContext{Username: "api"}
 }
 
@@ -341,7 +374,7 @@ func (s *RESTServer) handleConfigEnter(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "config sessions not available")
 		return
 	}
-	id, err := s.sessions.Enter("api")
+	id, err := s.sessions.Enter(s.authContext(r).Username)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -367,8 +400,9 @@ func (s *RESTServer) handleConfigSet(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := s.sessions.Set(id, req.Path, req.Value); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+	username := s.authContext(r).Username
+	if err := s.sessions.Set(username, id, req.Path, req.Value); err != nil {
+		writeSessionError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -386,17 +420,18 @@ func (s *RESTServer) handleConfigDeleteOrDiscard(w http.ResponseWriter, r *http.
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	username := s.authContext(r).Username
 	if len(parts) == 1 {
-		if err := s.sessions.Discard(id); err != nil {
-			writeError(w, http.StatusBadRequest, err.Error())
+		if err := s.sessions.Discard(username, id); err != nil {
+			writeSessionError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "discarded"})
 		return
 	}
 	configPath := strings.ReplaceAll(parts[1], "/", ".")
-	if err := s.sessions.Delete(id, configPath); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+	if err := s.sessions.Delete(username, id, configPath); err != nil {
+		writeSessionError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -417,9 +452,9 @@ func (s *RESTServer) handleConfigDiff(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	diff, err := s.sessions.Diff(id)
+	diff, err := s.sessions.Diff(s.authContext(r).Username, id)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeSessionError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"diff": diff})
@@ -440,11 +475,21 @@ func (s *RESTServer) handleConfigCommit(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := s.sessions.Commit(id); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+	if err := s.sessions.Commit(s.authContext(r).Username, id); err != nil {
+		writeSessionError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "committed"})
+}
+
+// writeSessionError writes an HTTP error for config session errors.
+// ErrSessionForbidden becomes 403, other errors become 400.
+func writeSessionError(w http.ResponseWriter, err error) {
+	if errors.Is(err, api.ErrSessionForbidden) {
+		writeError(w, http.StatusForbidden, err.Error())
+		return
+	}
+	writeError(w, http.StatusBadRequest, err.Error())
 }
 
 func (s *RESTServer) handleStream(w http.ResponseWriter, r *http.Request) {
@@ -506,6 +551,22 @@ func (s *RESTServer) handleOpenAPI(w http.ResponseWriter, _ *http.Request) {
 func (s *RESTServer) handleDocs(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if _, err := fmt.Fprint(w, docsHTML); err != nil {
+		return
+	}
+}
+
+func (s *RESTServer) handleSwaggerCSS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	if _, err := w.Write(swaggerUICSS); err != nil {
+		return
+	}
+}
+
+func (s *RESTServer) handleSwaggerJS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	if _, err := w.Write(swaggerUIBundle); err != nil {
 		return
 	}
 }
@@ -577,16 +638,18 @@ func readJSON(r *http.Request, v any) error {
 	return json.Unmarshal(data, v)
 }
 
-// docsHTML is a minimal Swagger UI page that loads the OpenAPI spec.
+// docsHTML is a Swagger UI page that loads vendored assets and the OpenAPI spec.
+// Assets served from /api/v1/docs/{swagger-ui.css,swagger-ui-bundle.js} to keep
+// the daemon self-contained (no external CDN).
 const docsHTML = `<!DOCTYPE html>
 <html>
 <head>
   <title>Ze API</title>
-  <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <link rel="stylesheet" type="text/css" href="/api/v1/docs/swagger-ui.css" />
 </head>
 <body>
   <div id="swagger-ui"></div>
-  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script src="/api/v1/docs/swagger-ui-bundle.js"></script>
   <script>
     SwaggerUIBundle({url: "/api/v1/openapi.json", dom_id: "#swagger-ui"});
   </script>

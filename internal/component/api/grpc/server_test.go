@@ -272,3 +272,77 @@ func TestGRPCExecutePermissionDenied(t *testing.T) {
 	execErr := execWithErr(t, ze, t.Context(), "bgp summary")
 	assert.Equal(t, codes.PermissionDenied, status.Code(execErr))
 }
+
+// VALIDATES: TLS cert/key mismatch rejected at construction.
+// PREVENTS: gRPC server starting plaintext when TLS was intended.
+func TestGRPCTLSRequiresBoth(t *testing.T) {
+	engine := testEngine()
+
+	_, err := NewGRPCServer(GRPCConfig{TLSCert: "cert.pem"}, engine, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "both TLSCert and TLSKey")
+
+	_, err = NewGRPCServer(GRPCConfig{TLSKey: "key.pem"}, engine, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "both TLSCert and TLSKey")
+}
+
+// VALIDATES: Invalid TLS cert path returns error.
+// PREVENTS: silent failure on missing TLS files.
+func TestGRPCTLSInvalidCert(t *testing.T) {
+	engine := testEngine()
+
+	_, err := NewGRPCServer(GRPCConfig{
+		TLSCert: "/nonexistent/cert.pem",
+		TLSKey:  "/nonexistent/key.pem",
+	}, engine, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "load TLS")
+}
+
+// VALIDATES: per-user authenticator passes username to engine.
+// PREVENTS: all gRPC requests authenticated as "api" default.
+func TestGRPCAuthenticator(t *testing.T) {
+	var seenUser string
+	exec := func(username, _ string) (string, error) {
+		seenUser = username
+		return `"ok"`, nil
+	}
+	cmds := func() []api.CommandMeta { return nil }
+	auth := func(_, _ string) bool { return true }
+	engine := api.NewAPIEngine(exec, cmds, auth, nil)
+
+	authenticator := func(header string) (string, bool) {
+		if header == "Bearer alice-token" {
+			return "alice", true
+		}
+		return "", false
+	}
+
+	srv, err := NewGRPCServer(GRPCConfig{Authenticator: authenticator}, engine, nil)
+	require.NoError(t, err)
+
+	var lc net.ListenConfig
+	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	serveBackground(srv.srv, ln)
+	t.Cleanup(srv.Stop)
+
+	conn, err := grpc.NewClient(ln.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, conn.Close()) })
+
+	ze := zepb.NewZeServiceClient(conn)
+
+	// No credentials -- rejected.
+	_, execErr := ze.Execute(t.Context(), &zepb.CommandRequest{Command: "test"})
+	require.Error(t, execErr)
+	assert.Equal(t, codes.Unauthenticated, status.Code(execErr))
+
+	// Valid credentials -- username flows through.
+	md := metadata.Pairs("authorization", "Bearer alice-token")
+	ctx := metadata.NewOutgoingContext(t.Context(), md)
+	_, err = ze.Execute(ctx, &zepb.CommandRequest{Command: "test"})
+	require.NoError(t, err)
+	assert.Equal(t, "alice", seenUser)
+}

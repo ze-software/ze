@@ -8,6 +8,7 @@ package grpc
 import (
 	"context"
 	"crypto/subtle"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
@@ -27,20 +29,33 @@ import (
 
 var logger = slogutil.Logger("api.grpc")
 
+// defaultUsername is used when no authenticator is configured (unauthenticated mode)
+// or when the single-token path authenticates without identifying a specific user.
+const defaultUsername = "api"
+
+// Authenticator validates an Authorization header value and returns the
+// authenticated username. Returns ("", false) on invalid credentials.
+// When nil, the server accepts all requests with no authentication.
+type Authenticator func(authHeader string) (username string, ok bool)
+
 // GRPCConfig holds gRPC server configuration.
 type GRPCConfig struct {
-	ListenAddr string // e.g. "0.0.0.0:50051"
-	Token      string // Bearer token for auth (empty = no auth)
+	ListenAddr    string        // e.g. "0.0.0.0:50051"
+	Token         string        // Single bearer token (empty = no auth). Ignored when Authenticator is set.
+	Authenticator Authenticator // Per-user auth callback. When set, Token is not checked.
+	TLSCert       string        // Path to TLS certificate file (empty = plaintext)
+	TLSKey        string        // Path to TLS key file (empty = plaintext)
 }
 
 // GRPCServer is the gRPC API server.
 // Caller MUST call Stop when done.
 type GRPCServer struct {
-	engine   *api.APIEngine
-	sessions *api.ConfigSessionManager
-	token    string
-	srv      *grpc.Server
-	address  string
+	engine        *api.APIEngine
+	sessions      *api.ConfigSessionManager
+	token         string
+	authenticator Authenticator
+	srv           *grpc.Server
+	address       string
 }
 
 // NewGRPCServer creates a gRPC API server with auth interceptor and reflection.
@@ -50,14 +65,30 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 	}
 
 	s := &GRPCServer{
-		engine:   engine,
-		sessions: sessions,
-		token:    cfg.Token,
+		engine:        engine,
+		sessions:      sessions,
+		token:         cfg.Token,
+		authenticator: cfg.Authenticator,
 	}
 
 	opts := []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(s.authUnaryInterceptor),
 		grpc.ChainStreamInterceptor(s.authStreamInterceptor),
+	}
+
+	// Load TLS credentials if both cert and key are configured.
+	if cfg.TLSCert != "" && cfg.TLSKey != "" {
+		cert, err := tls.LoadX509KeyPair(cfg.TLSCert, cfg.TLSKey)
+		if err != nil {
+			return nil, fmt.Errorf("load TLS cert/key: %w", err)
+		}
+		creds := credentials.NewTLS(&tls.Config{
+			Certificates: []tls.Certificate{cert},
+			MinVersion:   tls.VersionTLS12,
+		})
+		opts = append(opts, grpc.Creds(creds))
+	} else if cfg.TLSCert != "" || cfg.TLSKey != "" {
+		return nil, errors.New("both TLSCert and TLSKey must be set together")
 	}
 
 	s.srv = grpc.NewServer(opts...)
@@ -91,37 +122,72 @@ func (s *GRPCServer) Address() string { return s.address }
 
 // --- Auth interceptors ---
 
+// usernameKeyType is the context key for the authenticated username.
+type usernameKeyType struct{}
+
+var usernameKey = usernameKeyType{}
+
+// usernameFromContext extracts the authenticated username, defaulting to defaultUsername.
+func usernameFromContext(ctx context.Context) string {
+	if user, ok := ctx.Value(usernameKey).(string); ok {
+		return user
+	}
+	return defaultUsername
+}
+
+// wrappedStream overrides ServerStream.Context to inject the authenticated username.
+type wrappedStream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (w *wrappedStream) Context() context.Context { return w.ctx }
+
 func (s *GRPCServer) authUnaryInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-	if err := s.checkAuth(ctx); err != nil {
+	user, err := s.checkAuth(ctx)
+	if err != nil {
 		return nil, err
 	}
-	return handler(ctx, req)
+	return handler(context.WithValue(ctx, usernameKey, user), req)
 }
 
 func (s *GRPCServer) authStreamInterceptor(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	if err := s.checkAuth(ss.Context()); err != nil {
+	user, err := s.checkAuth(ss.Context())
+	if err != nil {
 		return err
 	}
-	return handler(srv, ss)
+	wrapped := &wrappedStream{ServerStream: ss, ctx: context.WithValue(ss.Context(), usernameKey, user)}
+	return handler(srv, wrapped)
 }
 
-func (s *GRPCServer) checkAuth(ctx context.Context) error {
-	if s.token == "" {
-		return nil
+// checkAuth validates the Authorization metadata and returns the authenticated username.
+func (s *GRPCServer) checkAuth(ctx context.Context) (string, error) {
+	if s.authenticator == nil && s.token == "" {
+		return defaultUsername, nil
 	}
+
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return status.Error(codes.Unauthenticated, "missing metadata")
+		return "", status.Error(codes.Unauthenticated, "missing metadata")
 	}
 	tokens := md.Get("authorization")
 	if len(tokens) == 0 {
-		return status.Error(codes.Unauthenticated, "missing authorization")
+		return "", status.Error(codes.Unauthenticated, "missing authorization")
 	}
+
+	if s.authenticator != nil {
+		user, ok := s.authenticator(tokens[0])
+		if !ok {
+			return "", status.Error(codes.Unauthenticated, "invalid credentials")
+		}
+		return user, nil
+	}
+
 	expected := "Bearer " + s.token
 	if subtle.ConstantTimeCompare([]byte(tokens[0]), []byte(expected)) != 1 {
-		return status.Error(codes.Unauthenticated, "invalid token")
+		return "", status.Error(codes.Unauthenticated, "invalid token")
 	}
-	return nil
+	return defaultUsername, nil
 }
 
 // --- ZeService implementation ---
@@ -131,7 +197,7 @@ type zeServiceImpl struct {
 	engine *api.APIEngine
 }
 
-func (s *zeServiceImpl) Execute(_ context.Context, req *zepb.CommandRequest) (*zepb.CommandResponse, error) {
+func (s *zeServiceImpl) Execute(ctx context.Context, req *zepb.CommandRequest) (*zepb.CommandResponse, error) {
 	if req.GetCommand() == "" {
 		return nil, status.Error(codes.InvalidArgument, "command is required")
 	}
@@ -139,7 +205,7 @@ func (s *zeServiceImpl) Execute(_ context.Context, req *zepb.CommandRequest) (*z
 	// Append params as "key value" pairs, same as REST transport.
 	command := buildCommand(req.GetCommand(), req.GetParams())
 
-	result, err := s.engine.Execute(api.AuthContext{Username: "api"}, command)
+	result, err := s.engine.Execute(api.AuthContext{Username: usernameFromContext(ctx)}, command)
 	if errors.Is(err, api.ErrUnauthorized) {
 		return nil, status.Error(codes.PermissionDenied, result.Error)
 	}
@@ -150,7 +216,7 @@ func (s *zeServiceImpl) Stream(req *zepb.CommandRequest, stream zepb.ZeService_S
 	if req.GetCommand() == "" {
 		return status.Error(codes.InvalidArgument, "command is required")
 	}
-	ch, cancel, err := s.engine.Stream(stream.Context(), api.AuthContext{Username: "api"}, req.GetCommand())
+	ch, cancel, err := s.engine.Stream(stream.Context(), api.AuthContext{Username: usernameFromContext(stream.Context())}, req.GetCommand())
 	if errors.Is(err, api.ErrUnauthorized) {
 		return status.Error(codes.PermissionDenied, "unauthorized")
 	}
@@ -210,8 +276,8 @@ type zeConfigServiceImpl struct {
 	sessions *api.ConfigSessionManager
 }
 
-func (s *zeConfigServiceImpl) GetRunningConfig(_ context.Context, _ *zepb.Empty) (*zepb.ConfigResponse, error) {
-	result, err := s.engine.Execute(api.AuthContext{Username: "api"}, "show config dump")
+func (s *zeConfigServiceImpl) GetRunningConfig(ctx context.Context, _ *zepb.Empty) (*zepb.ConfigResponse, error) {
+	result, err := s.engine.Execute(api.AuthContext{Username: usernameFromContext(ctx)}, "show config dump")
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -226,66 +292,75 @@ func (s *zeConfigServiceImpl) GetRunningConfig(_ context.Context, _ *zepb.Empty)
 	return &zepb.ConfigResponse{Config: string(b)}, nil
 }
 
-func (s *zeConfigServiceImpl) EnterSession(_ context.Context, _ *zepb.Empty) (*zepb.SessionResponse, error) {
+func (s *zeConfigServiceImpl) EnterSession(ctx context.Context, _ *zepb.Empty) (*zepb.SessionResponse, error) {
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	id, err := s.sessions.Enter("api")
+	id, err := s.sessions.Enter(usernameFromContext(ctx))
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &zepb.SessionResponse{SessionId: id}, nil
 }
 
-func (s *zeConfigServiceImpl) SetConfig(_ context.Context, req *zepb.ConfigSetRequest) (*zepb.ConfigSetResponse, error) {
+func (s *zeConfigServiceImpl) SetConfig(ctx context.Context, req *zepb.ConfigSetRequest) (*zepb.ConfigSetResponse, error) {
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := s.sessions.Set(req.GetSessionId(), req.GetPath(), req.GetValue()); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+	if err := s.sessions.Set(usernameFromContext(ctx), req.GetSessionId(), req.GetPath(), req.GetValue()); err != nil {
+		return nil, sessionStatusError(err)
 	}
 	return &zepb.ConfigSetResponse{Success: true}, nil
 }
 
-func (s *zeConfigServiceImpl) DeleteConfig(_ context.Context, req *zepb.ConfigDeleteRequest) (*zepb.ConfigDeleteResponse, error) {
+func (s *zeConfigServiceImpl) DeleteConfig(ctx context.Context, req *zepb.ConfigDeleteRequest) (*zepb.ConfigDeleteResponse, error) {
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := s.sessions.Delete(req.GetSessionId(), req.GetPath()); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+	if err := s.sessions.Delete(usernameFromContext(ctx), req.GetSessionId(), req.GetPath()); err != nil {
+		return nil, sessionStatusError(err)
 	}
 	return &zepb.ConfigDeleteResponse{Success: true}, nil
 }
 
-func (s *zeConfigServiceImpl) DiffSession(_ context.Context, req *zepb.SessionRequest) (*zepb.DiffResponse, error) {
+func (s *zeConfigServiceImpl) DiffSession(ctx context.Context, req *zepb.SessionRequest) (*zepb.DiffResponse, error) {
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	diff, err := s.sessions.Diff(req.GetSessionId())
+	diff, err := s.sessions.Diff(usernameFromContext(ctx), req.GetSessionId())
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		return nil, sessionStatusError(err)
 	}
 	return &zepb.DiffResponse{Diff: diff}, nil
 }
 
-func (s *zeConfigServiceImpl) CommitSession(_ context.Context, req *zepb.CommitRequest) (*zepb.CommitResponse, error) {
+func (s *zeConfigServiceImpl) CommitSession(ctx context.Context, req *zepb.CommitRequest) (*zepb.CommitResponse, error) {
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := s.sessions.Commit(req.GetSessionId()); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+	if err := s.sessions.Commit(usernameFromContext(ctx), req.GetSessionId()); err != nil {
+		return nil, sessionStatusError(err)
 	}
 	return &zepb.CommitResponse{Success: true}, nil
 }
 
-func (s *zeConfigServiceImpl) DiscardSession(_ context.Context, req *zepb.SessionRequest) (*zepb.DiscardResponse, error) {
+func (s *zeConfigServiceImpl) DiscardSession(ctx context.Context, req *zepb.SessionRequest) (*zepb.DiscardResponse, error) {
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := s.sessions.Discard(req.GetSessionId()); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+	if err := s.sessions.Discard(usernameFromContext(ctx), req.GetSessionId()); err != nil {
+		return nil, sessionStatusError(err)
 	}
 	return &zepb.DiscardResponse{Success: true}, nil
+}
+
+// sessionStatusError maps config session errors to gRPC status codes.
+// ErrSessionForbidden becomes PermissionDenied, other errors become InvalidArgument.
+func sessionStatusError(err error) error {
+	if errors.Is(err, api.ErrSessionForbidden) {
+		return status.Error(codes.PermissionDenied, err.Error())
+	}
+	return status.Error(codes.InvalidArgument, err.Error())
 }
 
 // --- Helpers ---

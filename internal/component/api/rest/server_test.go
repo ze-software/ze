@@ -91,7 +91,7 @@ func do(t *testing.T, srv *RESTServer, method, path, body string) doResult {
 }
 
 // doWithHeader sends an HTTP request with custom headers.
-func doWithHeader(t *testing.T, srv *RESTServer, method, path, body string, headers map[string]string) doResult {
+func doWithHeader(t *testing.T, srv *RESTServer, method, path, body string, headers map[string]string) doResult { //nolint:unparam // method is parameterized even if tests use POST today
 	t.Helper()
 	var bodyReader io.Reader
 	if body != "" {
@@ -245,14 +245,38 @@ func TestRESTOpenAPISchema(t *testing.T) {
 	assert.Equal(t, "3.1.0", spec["openapi"])
 }
 
-// VALIDATES: AC-7 -- GET /api/v1/docs returns HTML page.
-// PREVENTS: docs endpoint broken.
+// VALIDATES: AC-7 -- GET /api/v1/docs returns HTML page referencing vendored assets.
+// PREVENTS: docs endpoint broken or still using external CDN.
 func TestRESTDocs(t *testing.T) {
 	srv := testServer(t)
 	r := do(t, srv, "GET", "/api/v1/docs", "")
 	assert.Equal(t, http.StatusOK, r.Status)
 	assert.Contains(t, r.Header.Get("Content-Type"), "text/html")
 	assert.Contains(t, r.Body, "swagger-ui")
+	// Verify no CDN references remain.
+	assert.NotContains(t, r.Body, "unpkg.com")
+	assert.Contains(t, r.Body, "/api/v1/docs/swagger-ui.css")
+	assert.Contains(t, r.Body, "/api/v1/docs/swagger-ui-bundle.js")
+}
+
+// VALIDATES: vendored Swagger CSS served locally.
+// PREVENTS: docs page broken when CDN unreachable.
+func TestRESTSwaggerCSS(t *testing.T) {
+	srv := testServer(t)
+	r := do(t, srv, "GET", "/api/v1/docs/swagger-ui.css", "")
+	assert.Equal(t, http.StatusOK, r.Status)
+	assert.Contains(t, r.Header.Get("Content-Type"), "text/css")
+	assert.NotEmpty(t, r.Body)
+}
+
+// VALIDATES: vendored Swagger JS served locally.
+// PREVENTS: docs page broken when CDN unreachable.
+func TestRESTSwaggerJS(t *testing.T) {
+	srv := testServer(t)
+	r := do(t, srv, "GET", "/api/v1/docs/swagger-ui-bundle.js", "")
+	assert.Equal(t, http.StatusOK, r.Status)
+	assert.Contains(t, r.Header.Get("Content-Type"), "javascript")
+	assert.NotEmpty(t, r.Body)
 }
 
 // VALIDATES: AC-8 -- SSE stream delivers events.
@@ -364,4 +388,55 @@ func TestRESTRIBFamilyWhitespace(t *testing.T) {
 	r := do(t, srv, "GET", "/api/v1/rib/ipv4%20unicast", "")
 	assert.Equal(t, http.StatusBadRequest, r.Status)
 	assert.Contains(t, r.Body, "whitespace")
+}
+
+// VALIDATES: per-user authenticator passes username to engine.
+// PREVENTS: all requests authenticated as "api" default.
+func TestRESTAuthenticator(t *testing.T) {
+	var seenUser string
+	exec := func(username, _ string) (string, error) {
+		seenUser = username
+		return `"ok"`, nil
+	}
+	cmds := func() []api.CommandMeta { return nil }
+	auth := func(_, _ string) bool { return true }
+	engine := api.NewAPIEngine(exec, cmds, auth, nil)
+
+	authenticator := func(header string) (string, bool) {
+		switch header {
+		case "Bearer alice-token":
+			return "alice", true
+		case "Bearer bob-token":
+			return "bob", true
+		default:
+			return "", false
+		}
+	}
+
+	openAPI, _ := api.OpenAPISchema(nil)
+	srv, err := NewRESTServer(RESTConfig{
+		ListenAddr:    "127.0.0.1:0",
+		Authenticator: authenticator,
+	}, engine, nil, func() []byte { return openAPI })
+	require.NoError(t, err)
+
+	// Missing header rejected.
+	r := do(t, srv, "POST", "/api/v1/execute", `{"command":"test"}`)
+	assert.Equal(t, http.StatusUnauthorized, r.Status)
+
+	// Alice.
+	r = doWithHeader(t, srv, "POST", "/api/v1/execute", `{"command":"test"}`, map[string]string{
+		"Authorization": "Bearer alice-token",
+		"Content-Type":  "application/json",
+	})
+	assert.Equal(t, http.StatusOK, r.Status)
+	assert.Equal(t, "alice", seenUser)
+
+	// Bob.
+	r = doWithHeader(t, srv, "POST", "/api/v1/execute", `{"command":"test"}`, map[string]string{
+		"Authorization": "Bearer bob-token",
+		"Content-Type":  "application/json",
+	})
+	assert.Equal(t, http.StatusOK, r.Status)
+	assert.Equal(t, "bob", seenUser)
 }

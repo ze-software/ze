@@ -8,12 +8,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
 	apigrpc "codeberg.org/thomas-mangin/ze/internal/component/api/grpc"
 	"codeberg.org/thomas-mangin/ze/internal/component/api/rest"
+	"codeberg.org/thomas-mangin/ze/internal/component/authz"
+	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
@@ -25,11 +29,17 @@ type apiServers struct {
 
 // startAPIServers creates the shared API engine and starts REST and/or gRPC
 // servers based on the config. Returns nil if neither transport is enabled.
-func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server) *apiServers {
+func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store storage.Storage, configPath string, users []authz.UserConfig) *apiServers {
 	engine := buildAPIEngine(server)
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
-		return nil, fmt.Errorf("config editing not available via API")
+		ed, err := cli.NewEditorWithStorage(store, configPath)
+		if err != nil {
+			return nil, fmt.Errorf("create editor: %w", err)
+		}
+		return ed, nil
 	})
+
+	authenticator := buildUserAuthenticator(users)
 
 	// Generate OpenAPI spec lazily so it captures all plugin commands
 	// (plugins may still be registering during startup).
@@ -54,9 +64,10 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server) *apiSe
 
 	if cfg.RESTOn {
 		srv, restErr := rest.NewRESTServer(rest.RESTConfig{
-			ListenAddr: cfg.REST.Listen(),
-			Token:      cfg.Token,
-			CORSOrigin: cfg.REST.CORSOrigin,
+			ListenAddr:    cfg.REST.Listen(),
+			Token:         cfg.Token,
+			Authenticator: authenticator,
+			CORSOrigin:    cfg.REST.CORSOrigin,
 		}, engine, sessions, lazySpec)
 		if restErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: REST API disabled: %v\n", restErr)
@@ -69,8 +80,11 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server) *apiSe
 
 	if cfg.GRPCOn {
 		srv, grpcErr := apigrpc.NewGRPCServer(apigrpc.GRPCConfig{
-			ListenAddr: cfg.GRPC.Listen(),
-			Token:      cfg.Token,
+			ListenAddr:    cfg.GRPC.Listen(),
+			Token:         cfg.Token,
+			Authenticator: authenticator,
+			TLSCert:       cfg.GRPC.TLSCert,
+			TLSKey:        cfg.GRPC.TLSKey,
 		}, engine, sessions)
 		if grpcErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: gRPC API disabled: %v\n", grpcErr)
@@ -96,6 +110,29 @@ func (s *apiServers) Shutdown(ctx context.Context) {
 	}
 	if s.grpc != nil {
 		s.grpc.Stop()
+	}
+}
+
+// buildUserAuthenticator returns an Authenticator that parses
+// "Bearer <username>:<password>" and validates against the user list.
+// Returns nil if no users are configured (caller falls back to Token or no-auth).
+func buildUserAuthenticator(users []authz.UserConfig) func(string) (string, bool) {
+	if len(users) == 0 {
+		return nil
+	}
+	return func(header string) (string, bool) {
+		raw, ok := strings.CutPrefix(header, "Bearer ")
+		if !ok {
+			return "", false
+		}
+		username, password, ok := strings.Cut(raw, ":")
+		if !ok || username == "" {
+			return "", false
+		}
+		if !authz.AuthenticateUser(users, username, password) {
+			return "", false
+		}
+		return username, true
 	}
 }
 
