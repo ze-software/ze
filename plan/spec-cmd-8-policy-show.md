@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | filter plugins exist |
-| Phase | - |
-| Updated | 2026-04-10 |
+| Phase | 1/1 |
+| Updated | 2026-04-12 |
 
 ## Post-Compaction Recovery
 

@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 8/9 |
+| Phase | 9/9 |
 | Updated | 2026-04-12 |
 
 ## Post-Compaction Recovery
@@ -381,7 +381,7 @@ Each child spec is one phase. Phases 1-3 and 9 are independent. Phases 4-8 have 
 | cmd-5 AS-Path Filter | 1/1 | YANG schema, config parsing, regex matching with RE2 ReDoS protection, plugin registration, SDK entry point, 36 unit tests, 5 .ci functional tests (accept/reject/shortform/chain/config-parse) | - |
 | cmd-6 Community Match | 1/1 | New `bgp-filter-community-match` plugin (separate from tag/strip), YANG schema, config parsing, string-based community matching for standard/large/extended types, 31 unit tests, 3 .ci functional tests (accept/reject/config-parse) | - |
 | cmd-7 Route Modify | 1/1 | New `bgp-filter-modify` plugin, YANG `modify` list under `bgp/policy` with `set` container, pre-built text delta (local-preference, med, origin, next-hop), 21 unit tests, 2 .ci tests | AS-path prepend deferred (textDeltaToModOps skips as-path); export modify deferred (delta discarded on egress path) |
-| cmd-8 Policy Show | 0/- | Skeleton spec | Full implementation (depends on filters existing) |
+| cmd-8 Policy Show | 1/1 | YANG `show policy` tree, `show policy list` handler (returns filter types from registry), `show policy chain` handler (returns peer import/export chains), `PeerInfo.ImportFilters/ExportFilters` exposed, 1 .ci test + 1 parse test | `show policy test` dry-run and `show policy detail` deferred (require synthetic route construction and per-filter config query) |
 | cmd-9 Ops | 3/3 | show uptime, show interface brief/counters, resolve ping/traceroute, rib best reason terminal (RFC 4271 §9.1.2 narration) | - |
 
 ### Commits (4 total, 2026-04-10)

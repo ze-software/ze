@@ -114,6 +114,8 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			ClusterID:            s.ClusterID,
 			NextHopMode:          s.NextHopMode,
 			NextHopAddress:       s.NextHopAddress,
+			ImportFilters:        s.ImportFilters,
+			ExportFilters:        s.ExportFilters,
 		}
 		if estAt := p.EstablishedAt(); !estAt.IsZero() {
 			info.Uptime = a.r.clock.Now().Sub(estAt)

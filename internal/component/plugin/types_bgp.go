@@ -49,6 +49,10 @@ type PeerInfo struct {
 	// bus (internal/core/report), not on this struct.
 	PrefixUpdated string
 
+	// Policy filter chains (after group inheritance + canonicalization).
+	ImportFilters []string
+	ExportFilters []string
+
 	// Statistics (engine-level counters; NLRI-level counters live in the RIB plugin)
 	UpdatesReceived    uint32
 	UpdatesSent        uint32

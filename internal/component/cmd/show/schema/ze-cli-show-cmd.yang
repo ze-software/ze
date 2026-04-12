@@ -201,6 +201,23 @@ module ze-cli-show-cmd {
             }
         }
 
+        container policy {
+            config false;
+            description "Policy filter introspection";
+
+            container list {
+                config false;
+                ze:command "ze-show:policy-list";
+                description "List all registered filter types and named instances";
+            }
+
+            container chain {
+                config false;
+                ze:command "ze-show:policy-chain";
+                description "Show effective filter chain for a peer (import/export)";
+            }
+        }
+
         container interface {
             config false;
             ze:command "ze-show:interface";
