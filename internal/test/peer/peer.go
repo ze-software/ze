@@ -397,6 +397,13 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 		return Result{Success: true}
 	}
 
+	// If the current connection's sequence is exhausted after sends
+	// (e.g., conn=1 had only send actions, conn=2 has the expects),
+	// return so the next connection can start reading.
+	if p.checker.SequenceEnded() {
+		return Result{Success: true}
+	}
+
 	// Main message loop.
 	counter := 0
 	for {

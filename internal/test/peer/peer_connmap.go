@@ -129,9 +129,8 @@ func (p *Peer) runConnMapRouterID(ctx context.Context) Result {
 	// loop returns after its send actions complete. Conn=2's loop then starts
 	// and reads the forwarded message. All TCP connections stay alive (deferred
 	// close) so ze can forward between them.
-	for i, c := range conns {
-		ok := p.checker.Init()
-		p.printf("\nphase3: conn=%d router-id=%08X init=%v\n", i+1, c.routerID, ok)
+	for _, c := range conns {
+		p.checker.Init()
 		result := p.runMessageLoop(ctx, c.conn)
 		if !result.Success {
 			return result
