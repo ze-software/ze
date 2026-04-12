@@ -285,6 +285,30 @@ class FRR:
         output = self._vtysh_quiet("show bgp neighbor %s" % neighbor)
         return "BGP state = Established" in output
 
+    def wait_bfd_up(self, peer, timeout=None):
+        """Poll until FRR's bfdd reports the session to peer is Up.
+
+        Used by the spec-bfd-3b-frr-interop scenario to verify that
+        ze's engine + FRR's bfdd completed the three-way BFD
+        handshake. `peer` is the neighbor address ze is running on.
+        """
+        if timeout is None:
+            timeout = SESSION_TIMEOUT
+        log_info("waiting for FRR BFD session with %s (timeout %ds)..." % (peer, timeout))
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            output = self._vtysh_quiet("show bfd peers")
+            if peer in output and "Status: up" in output:
+                log_pass("FRR BFD peer %s is Up" % peer)
+                return
+            time.sleep(2)
+        log_fail("FRR BFD peer %s did not reach Up within %ds" % (peer, timeout))
+        output = self._vtysh_quiet("show bfd peers")
+        for line in output.splitlines()[:20]:
+            print("  %s" % line)
+        print(docker_logs(ZE_CONTAINER, 20))
+        raise AssertionError("FRR BFD peer %s not Up" % peer)
+
 
 # --- BIRD helpers ------------------------------------------------------------
 

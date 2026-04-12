@@ -1,5 +1,8 @@
 # FRR daemons file — shared across all interop scenarios.
-# Only zebra (routing table) and bgpd (BGP) are needed.
+# zebra (routing table), bgpd (BGP), and bfdd (BFD for scenario
+# 33-bfd-frr). bfdd is lightweight and idle when no scenario
+# configures BFD, so enabling it globally keeps the scenario
+# runner simple.
 zebra=yes
 bgpd=yes
 ospfd=no
@@ -15,7 +18,7 @@ eigrpd=no
 babeld=no
 sharpd=no
 pbrd=no
-bfdd=no
+bfdd=yes
 fabricd=no
 vrrpd=no
 pathd=no
