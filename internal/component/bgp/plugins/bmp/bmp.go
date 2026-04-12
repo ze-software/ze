@@ -108,7 +108,8 @@ type BMPPlugin struct {
 	sessions  sync.WaitGroup
 
 	// Sender state.
-	senders []*senderSession
+	senders            []*senderSession
+	routeMonitorPolicy string // "pre-policy", "post-policy", "all"
 
 	// stopCh signals all background goroutines to stop.
 	stopCh chan struct{}
@@ -151,8 +152,9 @@ func RunBMPPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	// Subscribe to peer state (up/down) and received updates for BMP sender.
-	p.SetStartupSubscriptions([]string{"state", "update direction received"}, nil, "full")
+	// Subscribe to peer state (up/down), received updates (Adj-RIB-In, pre-policy),
+	// and sent updates (Adj-RIB-Out, post-policy, RFC 8671) for BMP sender.
+	p.SetStartupSubscriptions([]string{"state", "update direction received", "update direction sent"}, nil, "full")
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
@@ -171,6 +173,9 @@ func RunBMPPlugin(conn net.Conn) int {
 				if err != nil {
 					logger().Error("bmp: sender config parse failed", "error", err)
 					return err
+				}
+				if snd.RouteMonitoringPolicy != "" {
+					bp.routeMonitorPolicy = snd.RouteMonitoringPolicy
 				}
 				if len(snd.Collectors) > 0 {
 					bp.startSender(snd)
@@ -510,7 +515,18 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 	case "state":
 		bp.handleSenderState(se, senders)
 	case "update":
-		if se.Direction == "received" {
+		// Filter by route-monitoring-policy:
+		// "pre-policy" = received only, "post-policy" = sent only, "all" = both.
+		policy := bp.routeMonitorPolicy
+		if policy == "" {
+			policy = "all"
+		}
+		switch {
+		case policy == "all":
+			bp.handleSenderUpdate(se, senders)
+		case policy == "pre-policy" && se.Direction == "received":
+			bp.handleSenderUpdate(se, senders)
+		case policy == "post-policy" && se.Direction == "sent":
 			bp.handleSenderUpdate(se, senders)
 		}
 	}
@@ -547,9 +563,9 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 }
 
 // handleSenderUpdate sends Route Monitoring to all collectors.
-// Per-NLRI ribout dedup is not implemented: it requires parsing NLRIs from
-// the raw UPDATE, which is a follow-up task. All received UPDATEs are
-// forwarded as-is.
+// Handles both received (pre-policy, Adj-RIB-In) and sent (post-policy,
+// Adj-RIB-Out per RFC 8671) updates. The O flag in the Per-Peer Header
+// distinguishes the two directions.
 func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*senderSession) {
 	rawBytes := rawUpdateBytes(se)
 	if rawBytes == nil {
@@ -565,6 +581,10 @@ func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*send
 }
 
 // peerHeaderFromEvent builds a BMP PeerHeader from a StructuredEvent.
+// Sets flags based on event metadata:
+//   - V flag: IPv6 peer address
+//   - L flag: post-policy (sent direction)
+//   - O flag: Adj-RIB-Out (sent direction, RFC 8671)
 func peerHeaderFromEvent(se *rpc.StructuredEvent) PeerHeader {
 	ph := PeerHeader{
 		PeerType:     PeerTypeGlobal,
@@ -580,6 +600,12 @@ func peerHeaderFromEvent(se *rpc.StructuredEvent) PeerHeader {
 			ph.Flags |= PeerFlagV
 			break
 		}
+	}
+
+	// RFC 8671: set O flag for Adj-RIB-Out (sent direction).
+	// Also set L flag (post-policy) since sent updates have passed export policy.
+	if se.Direction == "sent" {
+		ph.Flags |= PeerFlagO | PeerFlagL
 	}
 
 	return ph

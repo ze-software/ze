@@ -32,8 +32,10 @@ The comparison matrix showed "No" for BMP. Both GoBGP (sender) and bio-routing
 - BMP comparison row changed from "No" to "Yes"
 - Plugins wanting `environment` config can now use `WantsConfig: ["bgp", "environment"]`
   with the correct JSON wrapping pattern
-- Follow-up needed: Adj-RIB-Out (RFC 8671), Loc-RIB (RFC 9069), Route Mirroring
-  sender, per-NLRI ribout dedup, raw OPEN PDU access from event system
+- Adj-RIB-Out (RFC 8671) supported: sender subscribes to "update direction sent",
+  sets O+L flags in Per-Peer Header, route-monitoring-policy controls direction filter
+- Follow-up needed: Loc-RIB (RFC 9069), Route Mirroring sender, per-NLRI ribout
+  dedup, raw OPEN PDU access from event system
 
 ## Gotchas
 

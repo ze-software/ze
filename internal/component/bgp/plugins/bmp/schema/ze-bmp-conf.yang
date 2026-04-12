@@ -93,10 +93,11 @@ module ze-bmp-conf {
                 leaf route-monitoring-policy {
                     type enumeration {
                         enum pre-policy;
+                        enum post-policy;
                         enum all;
                     }
-                    default "pre-policy";
-                    description "Which routes to stream: pre-policy (Adj-RIB-In) or all";
+                    default "all";
+                    description "Which routes to stream: pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out, RFC 8671), or all";
                 }
 
                 leaf statistics-timeout {

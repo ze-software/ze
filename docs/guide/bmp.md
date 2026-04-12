@@ -87,7 +87,7 @@ bgp {
 | `collector` | - | Named collector endpoints (key: name) |
 | `address` | (required) | Collector IP address |
 | `port` | 11019 | Collector TCP port |
-| `route-monitoring-policy` | pre-policy | `pre-policy` or `all` |
+| `route-monitoring-policy` | all | `pre-policy` (Adj-RIB-In), `post-policy` (Adj-RIB-Out, RFC 8671), or `all` |
 | `statistics-timeout` | 0 | Seconds between statistics reports (0 = disabled) |
 
 The sender reconnects automatically with exponential backoff (30s to 720s)
@@ -130,7 +130,9 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 - Sends Initiation with sysName="ze" on each connection
 - Sends Peer Up for each BGP peer reaching Established state
 - Sends Peer Down with mapped reason code on session close
-- Wraps received BGP UPDATEs as Route Monitoring messages
+- Wraps received BGP UPDATEs as Route Monitoring (pre-policy, Adj-RIB-In)
+- Wraps sent BGP UPDATEs as Route Monitoring with O+L flags (post-policy, Adj-RIB-Out, RFC 8671)
+- Route-monitoring-policy controls which direction(s) are streamed
 - Sends Termination before graceful disconnect
 
 ## Limitations
@@ -139,9 +141,9 @@ Ze handles all 7 BMP message types defined in RFC 7854:
   carry raw BGP OPEN PDUs. Peer Up messages contain minimal OPENs built from
   AS metadata. Capabilities are not reflected. This can be improved when the
   event schema is extended.
-- **No per-NLRI ribout dedup:** all received UPDATEs are forwarded to
-  collectors as-is. Per-NLRI dedup requires parsing NLRIs from the raw
-  UPDATE, which is a follow-up task.
-- **Adj-RIB-Out** (RFC 8671) and **Loc-RIB** (RFC 9069) monitoring are not
-  yet implemented.
+- **No per-NLRI ribout dedup:** all UPDATEs are forwarded to collectors
+  as-is. Per-NLRI dedup requires parsing NLRIs from the raw UPDATE,
+  which is a follow-up task.
+- **Loc-RIB** (RFC 9069) monitoring is not yet implemented (best-path events
+  exist in the RIB plugin but are not yet wired to BMP).
 - **Route Mirroring** encoding on the sender side is not implemented.

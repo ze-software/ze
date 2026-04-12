@@ -49,6 +49,40 @@ func TestPeerHeaderFromEventIPv6(t *testing.T) {
 	}
 }
 
+func TestPeerHeaderFromEventAdjRIBOut(t *testing.T) {
+	// VALIDATES: RFC 8671 -- sent direction sets O flag (Adj-RIB-Out) and L flag (post-policy)
+	se := &rpc.StructuredEvent{
+		PeerAddress: "10.0.0.1",
+		PeerAS:      65001,
+		Direction:   "sent",
+	}
+
+	ph := peerHeaderFromEvent(se)
+	if ph.Flags&PeerFlagO == 0 {
+		t.Error("sent direction should set O flag (Adj-RIB-Out)")
+	}
+	if ph.Flags&PeerFlagL == 0 {
+		t.Error("sent direction should set L flag (post-policy)")
+	}
+}
+
+func TestPeerHeaderFromEventAdjRIBIn(t *testing.T) {
+	// VALIDATES: received direction does NOT set O or L flags (pre-policy Adj-RIB-In)
+	se := &rpc.StructuredEvent{
+		PeerAddress: "10.0.0.1",
+		PeerAS:      65001,
+		Direction:   "received",
+	}
+
+	ph := peerHeaderFromEvent(se)
+	if ph.Flags&PeerFlagO != 0 {
+		t.Error("received direction should NOT set O flag")
+	}
+	if ph.Flags&PeerFlagL != 0 {
+		t.Error("received direction should NOT set L flag")
+	}
+}
+
 func TestPeerDownReasonMapping(t *testing.T) {
 	tests := []struct {
 		reason string
