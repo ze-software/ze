@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 7/9 |
+| Phase | 8/9 |
 | Updated | 2026-04-12 |
 
 ## Post-Compaction Recovery
@@ -380,7 +380,7 @@ Each child spec is one phase. Phases 1-3 and 9 are independent. Phases 4-8 have 
 | cmd-4 Prefix Filter | 1/1 | Plugin + YANG + matching + unit tests + 5 .ci tests (accept/reject/chain-order/shortform/plain); first production user of named-filter-chain dispatch; `FormatUpdateForFilter` emits NLRI; `FilterTypes` resolver makes the chain prefix optional (`prefix-list:NAME` and plain `NAME` both resolve). Review resolved BLOCKERs: bgp-rpki crash workaround, NLRI inclusion in filter text, real stderr-based test assertions. | Per-prefix nlri rewriting (strict whole-update mode used in v1); non-unicast families not emitted in text form (EVPN/flowspec filters should declare raw=true) |
 | cmd-5 AS-Path Filter | 1/1 | YANG schema, config parsing, regex matching with RE2 ReDoS protection, plugin registration, SDK entry point, 36 unit tests, 5 .ci functional tests (accept/reject/shortform/chain/config-parse) | - |
 | cmd-6 Community Match | 1/1 | New `bgp-filter-community-match` plugin (separate from tag/strip), YANG schema, config parsing, string-based community matching for standard/large/extended types, 31 unit tests, 3 .ci functional tests (accept/reject/config-parse) | - |
-| cmd-7 Route Modify | 0/- | Skeleton spec | Full implementation (unblocked: 541-policy-framework + 434-apply-mods both landed) |
+| cmd-7 Route Modify | 1/1 | New `bgp-filter-modify` plugin, YANG `modify` list under `bgp/policy` with `set` container, pre-built text delta (local-preference, med, origin, next-hop), 21 unit tests, 2 .ci tests | AS-path prepend deferred (textDeltaToModOps skips as-path); export modify deferred (delta discarded on egress path) |
 | cmd-8 Policy Show | 0/- | Skeleton spec | Full implementation (depends on filters existing) |
 | cmd-9 Ops | 3/3 | show uptime, show interface brief/counters, resolve ping/traceroute, rib best reason terminal (RFC 4271 §9.1.2 narration) | - |
 

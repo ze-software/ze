@@ -1,0 +1,57 @@
+# Test: ze config validate accepts modify filter config
+# VALIDATES: YANG modify schema parses correctly
+# VALIDATES: Filter chain reference modify:NAME resolves
+# PREVENTS: YANG schema or augment regression breaking modify parsing
+stdin=config:terminator=EOF_CONF
+bgp {
+	policy {
+		modify PREFER-LOCAL {
+			set {
+				local-preference 200
+			}
+		}
+		modify LOWER-MED {
+			set {
+				med 50
+			}
+		}
+		modify SET-ORIGIN {
+			set {
+				origin igp
+			}
+		}
+		modify MULTI {
+			set {
+				local-preference 300
+				med 100
+				origin incomplete
+				next-hop 10.0.0.1
+			}
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+		filter {
+			import [ modify:PREFER-LOCAL ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

@@ -1,0 +1,73 @@
+module ze-filter-modify {
+    namespace "urn:ze:filter-modify";
+    prefix fm;
+
+    import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
+    import ze-types { prefix zt; }
+
+    description "Route attribute modifier for the BGP policy framework.
+                 Named modifier definitions with attribute setters.
+                 Each modifier unconditionally sets the declared attributes
+                 on routes that reach it in the filter chain. For conditional
+                 modification, compose with match filters (prefix-list,
+                 as-path-list, community-match) earlier in the chain.
+                 Referenced from peer filter chains as modify:NAME.";
+
+    revision 2026-04-12 {
+        description "Initial revision";
+    }
+
+    augment "/bgp:bgp/bgp:policy" {
+        list modify {
+            ze:filter;
+            key "name";
+            description "Named route attribute modifier instance.
+                         Only declared leaves are modified; undeclared
+                         attributes are preserved unchanged. Multiple
+                         attributes can be set in a single modifier.";
+
+            leaf name {
+                type string;
+                description "Modifier instance name (referenced in peer filter
+                             chains as modify:NAME).";
+            }
+
+            container set {
+                description "Attributes to set on matching routes.
+                             Only present leaves are applied.";
+
+                leaf local-preference {
+                    type uint32;
+                    description "Set LOCAL_PREF attribute (RFC 4271 type 5).";
+                }
+
+                leaf med {
+                    type uint32;
+                    description "Set MULTI_EXIT_DISC attribute (RFC 4271 type 4).";
+                }
+
+                leaf origin {
+                    type enumeration {
+                        enum igp {
+                            description "IGP origin";
+                        }
+                        enum egp {
+                            description "EGP origin";
+                        }
+                        enum incomplete {
+                            description "Incomplete origin";
+                        }
+                    }
+                    description "Set ORIGIN attribute (RFC 4271 type 1).";
+                }
+
+                leaf next-hop {
+                    type zt:ip-address;
+                    description "Set NEXT_HOP attribute (RFC 4271 type 3).
+                                 IPv4 address only (IPv6 next-hop is in MP_REACH).";
+                }
+            }
+        }
+    }
+}

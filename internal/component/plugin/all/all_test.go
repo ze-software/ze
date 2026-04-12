@@ -23,6 +23,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"bgp-filter-aspath",
 		"bgp-filter-community",
 		"bgp-filter-community-match",
+		"bgp-filter-modify",
 		"bgp-filter-prefix",
 		"bgp-gr",
 		"bgp-healthcheck",
