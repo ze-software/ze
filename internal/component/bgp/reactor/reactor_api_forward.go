@@ -417,11 +417,23 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 					"peer", peer.Settings().Address, "error", attrErr)
 			}
 			updateText := FormatUpdateForFilter(attrsWire, update.WireUpdate, nil)
-			action, _ := PolicyFilterChain(exportFilters, "export", peer.Settings().Address.String(), peer.Settings().PeerAS,
+			action, modifiedText := PolicyFilterChain(exportFilters, "export", peer.Settings().Address.String(), peer.Settings().PeerAS,
 				updateText, a.r.policyFilterFunc(update.WireUpdate.Payload()),
 			)
 			if action == PolicyReject {
 				continue // Route suppressed by policy export filter for this peer.
+			}
+			// Apply export modify delta (same pattern as import in reactor_notify.go).
+			if modifiedText != updateText {
+				var exportMods registry.ModAccumulator
+				textDeltaToModOps(updateText, modifiedText, &exportMods)
+				ExtractASPathPrependOps(modifiedText, peer.Settings().LocalAS, &exportMods)
+				nlriOverride := extractLegacyNLRIOverride(updateText, modifiedText)
+				if exportMods.Len() > 0 || nlriOverride != nil {
+					if modPayload, _ := buildModifiedPayload(update.WireUpdate.Payload(), &exportMods, a.r.attrModHandlers, nil, nlriOverride); modPayload != nil {
+						update.WireUpdate = wireu.NewWireUpdate(modPayload, update.WireUpdate.SourceCtxID())
+					}
+				}
 			}
 		}
 

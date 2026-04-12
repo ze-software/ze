@@ -67,6 +67,16 @@ module ze-filter-modify {
                     description "Set NEXT_HOP attribute (RFC 4271 type 3).
                                  IPv4 address only (IPv6 next-hop is in MP_REACH).";
                 }
+
+                leaf as-path-prepend {
+                    type uint8 {
+                        range "1..32";
+                    }
+                    description "Prepend local AS to AS_PATH this many times.
+                                 The actual ASN prepended is the peer's local-as
+                                 (from session config). Range 1-32 prevents
+                                 excessive path inflation.";
+                }
             }
         }
     }

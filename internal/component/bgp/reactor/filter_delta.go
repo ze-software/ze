@@ -16,7 +16,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
-const policyAttrASPath = "as-path"
+const (
+	policyAttrASPath        = "as-path"
+	policyAttrASPathPrepend = "as-path-prepend"
+)
 
 // extractLegacyNLRIOverride compares the nlri field in the original and
 // modified filter text. When the modified text changes the `nlri
@@ -195,7 +198,7 @@ func textDeltaToModOps(original, modified string, mods *registry.ModAccumulator)
 
 	// Changed or added attributes.
 	for name, modVal := range modAttrs {
-		if name == policyAttrNLRI || name == policyAttrASPath {
+		if name == policyAttrNLRI || name == policyAttrASPath || name == policyAttrASPathPrepend {
 			continue
 		}
 		origVal, existed := origAttrs[name]
@@ -220,7 +223,7 @@ func textDeltaToModOps(original, modified string, mods *registry.ModAccumulator)
 
 	// Removed attributes: present in original, absent in modified.
 	for name := range origAttrs {
-		if name == policyAttrNLRI || name == policyAttrASPath {
+		if name == policyAttrNLRI || name == policyAttrASPath || name == policyAttrASPathPrepend {
 			continue
 		}
 		if _, still := modAttrs[name]; still {
@@ -470,4 +473,36 @@ func stripAttrHeader(wire []byte) []byte {
 		return wire[4:]
 	}
 	return wire[3:]
+}
+
+// ExtractASPathPrependOps checks the modified filter text for an
+// "as-path-prepend N" directive and emits an AttrModPrepend op with N
+// copies of localAS as wire bytes. Called separately from textDeltaToModOps
+// because the local AS is only known at the call site (reactor_notify.go
+// for import, reactor_api_forward.go for export).
+//
+// Does nothing if the modified text does not contain as-path-prepend.
+func ExtractASPathPrependOps(modified string, localAS uint32, mods *registry.ModAccumulator) {
+	attrs := parseFilterAttrs(modified)
+	countStr, ok := attrs[policyAttrASPathPrepend]
+	if !ok || countStr == "" {
+		return
+	}
+	count, err := strconv.ParseUint(countStr, 10, 8)
+	if err != nil || count == 0 || count > 32 {
+		fwdLogger().Warn("as-path-prepend: invalid count", "value", countStr)
+		return
+	}
+
+	// Build wire value: AS_SEQUENCE segment with N copies of localAS.
+	// Format: type(1) + count(1) + ASNs(4 each).
+	n := int(count)
+	wireLen := 2 + n*4
+	buf := make([]byte, wireLen)
+	buf[0] = byte(attribute.ASSequence)
+	buf[1] = byte(n)
+	for i := range n {
+		binary.BigEndian.PutUint32(buf[2+i*4:], localAS)
+	}
+	mods.Op(byte(attribute.AttrASPath), registry.AttrModPrepend, buf)
 }

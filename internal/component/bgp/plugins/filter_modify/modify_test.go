@@ -84,6 +84,26 @@ func TestBuildDelta(t *testing.T) {
 			setBlock: map[string]any{"med": float64(4294967295)},
 			want:     "med 4294967295",
 		},
+		{
+			name:     "as_path_prepend",
+			setBlock: map[string]any{"as-path-prepend": float64(3)},
+			want:     "as-path-prepend 3",
+		},
+		{
+			name:     "multiple_with_prepend",
+			setBlock: map[string]any{"local-preference": float64(200), "as-path-prepend": float64(2)},
+			want:     "local-preference 200 as-path-prepend 2",
+		},
+		{
+			name:     "prepend_zero_ignored",
+			setBlock: map[string]any{"as-path-prepend": float64(0)},
+			want:     "",
+		},
+		{
+			name:     "prepend_over_32_ignored",
+			setBlock: map[string]any{"as-path-prepend": float64(33)},
+			want:     "",
+		},
 	}
 
 	for _, tt := range tests {

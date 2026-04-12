@@ -621,6 +621,116 @@ func TestApplySendCommunityFilter(t *testing.T) {
 	}
 }
 
+// TestExtractASPathPrependOps verifies AS-path prepend extraction from modified text.
+//
+// VALIDATES: AC-5 -- as-path-prepend N produces AttrModPrepend op with N copies of localAS.
+// PREVENTS: Wrong ASN prepended, wrong count, or no op when expected.
+func TestExtractASPathPrependOps(t *testing.T) {
+	t.Run("prepend_3", func(t *testing.T) {
+		var mods registry.ModAccumulator
+		ExtractASPathPrependOps("origin igp as-path-prepend 3 nlri ipv4/unicast add 10.0.0.0/24", 65000, &mods)
+		require.Equal(t, 1, mods.Len())
+		op := mods.Ops()[0]
+		assert.Equal(t, byte(attribute.AttrASPath), op.Code)
+		assert.Equal(t, registry.AttrModPrepend, op.Action)
+		// Wire: type(1) + count(1) + 3*ASN(4) = 14 bytes
+		require.Len(t, op.Buf, 14)
+		assert.Equal(t, byte(attribute.ASSequence), op.Buf[0])
+		assert.Equal(t, byte(3), op.Buf[1])
+		for i := range 3 {
+			asn := binary.BigEndian.Uint32(op.Buf[2+i*4:])
+			assert.Equal(t, uint32(65000), asn, "ASN at position %d", i)
+		}
+	})
+
+	t.Run("no_prepend", func(t *testing.T) {
+		var mods registry.ModAccumulator
+		ExtractASPathPrependOps("origin igp local-preference 200", 65000, &mods)
+		assert.Equal(t, 0, mods.Len())
+	})
+
+	t.Run("prepend_1", func(t *testing.T) {
+		var mods registry.ModAccumulator
+		ExtractASPathPrependOps("as-path-prepend 1", 65001, &mods)
+		require.Equal(t, 1, mods.Len())
+		op := mods.Ops()[0]
+		require.Len(t, op.Buf, 6) // type(1) + count(1) + 1*ASN(4)
+		assert.Equal(t, uint32(65001), binary.BigEndian.Uint32(op.Buf[2:6]))
+	})
+
+	t.Run("invalid_count_zero", func(t *testing.T) {
+		var mods registry.ModAccumulator
+		ExtractASPathPrependOps("as-path-prepend 0", 65000, &mods)
+		assert.Equal(t, 0, mods.Len())
+	})
+
+	t.Run("invalid_count_over_32", func(t *testing.T) {
+		var mods registry.ModAccumulator
+		ExtractASPathPrependOps("as-path-prepend 33", 65000, &mods)
+		assert.Equal(t, 0, mods.Len())
+	})
+}
+
+// TestAspathHandler verifies AS_PATH handler supports both Set and Prepend.
+//
+// VALIDATES: Prepend inserts new segment before existing AS_PATH.
+// PREVENTS: Prepend clobbering existing path or wrong segment format.
+func TestAspathHandler(t *testing.T) {
+	handler := aspathHandler()
+	buf := make([]byte, 128)
+
+	t.Run("prepend_to_existing", func(t *testing.T) {
+		// Source: AS_PATH = AS_SEQUENCE [65002]
+		srcVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xEA} // 65002
+		src := makeAttr(0x40, byte(attribute.AttrASPath), srcVal)
+
+		// Prepend: AS_SEQUENCE [65000]
+		prependVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xE8} // 65000
+		ops := []registry.AttrOp{{
+			Code:   byte(attribute.AttrASPath),
+			Action: registry.AttrModPrepend,
+			Buf:    prependVal,
+		}}
+
+		off := handler(src, ops, buf, 0)
+		// Header(3) + prepend(6) + existing(6) = 15
+		require.Equal(t, 15, off)
+		assert.Equal(t, byte(0x40), buf[0])
+		assert.Equal(t, byte(attribute.AttrASPath), buf[1])
+		assert.Equal(t, byte(12), buf[2]) // value length
+		// Prepended segment first, then existing.
+		assert.Equal(t, prependVal, buf[3:9])
+		assert.Equal(t, srcVal, buf[9:15])
+	})
+
+	t.Run("prepend_to_empty", func(t *testing.T) {
+		prependVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xE8}
+		ops := []registry.AttrOp{{
+			Code:   byte(attribute.AttrASPath),
+			Action: registry.AttrModPrepend,
+			Buf:    prependVal,
+		}}
+
+		off := handler(nil, ops, buf, 0)
+		require.Equal(t, 9, off) // Header(3) + prepend(6)
+		assert.Equal(t, byte(6), buf[2])
+		assert.Equal(t, prependVal, buf[3:9])
+	})
+
+	t.Run("set_delegates_to_generic", func(t *testing.T) {
+		newVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xE9}
+		ops := []registry.AttrOp{{
+			Code:   byte(attribute.AttrASPath),
+			Action: registry.AttrModSet,
+			Buf:    newVal,
+		}}
+
+		off := handler(nil, ops, buf, 0)
+		require.Equal(t, 9, off)
+		assert.Equal(t, newVal, buf[3:9])
+	})
+}
+
 // TestRewriteASPathOverride verifies AS-override replaces peer ASN with local ASN.
 //
 // VALIDATES: AC-12 (as-override replaces peer ASN in AS_PATH).

@@ -41,6 +41,9 @@ func buildDelta(setBlock map[string]any) string {
 	if s, ok := setBlock["next-hop"].(string); ok && s != "" {
 		parts = append(parts, fmt.Sprintf("next-hop %s", s))
 	}
+	if v, ok := readOptionalUint32(setBlock["as-path-prepend"]); ok && v >= 1 && v <= 32 {
+		parts = append(parts, fmt.Sprintf("as-path-prepend %d", v))
+	}
 
 	return strings.Join(parts, " ")
 }

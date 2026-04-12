@@ -365,6 +365,89 @@ func mpReachNextHopHandler() registry.AttrModHandler {
 	}
 }
 
+// aspathHandler handles AS_PATH (type 2) with support for AttrModPrepend.
+// Prepend inserts a new AS_SEQUENCE segment before the existing AS_PATH value.
+// Set replaces the entire attribute (via genericAttrSetHandler fallback).
+func aspathHandler() registry.AttrModHandler {
+	setHandler := genericAttrSetHandler(0x40, byte(attribute.AttrASPath))
+
+	return func(src []byte, ops []registry.AttrOp, buf []byte, off int) int {
+		// Check for prepend ops.
+		var prependBufs [][]byte
+		hasPrepend := false
+		for i := range ops {
+			if ops[i].Action == registry.AttrModPrepend && len(ops[i].Buf) > 0 {
+				prependBufs = append(prependBufs, ops[i].Buf)
+				hasPrepend = true
+			}
+		}
+
+		if !hasPrepend {
+			// No prepend: delegate to generic set handler.
+			return setHandler(src, ops, buf, off)
+		}
+
+		// Prepend: extract existing value from source, prepend new segment(s).
+		var existingVal []byte
+		if len(src) > 2 {
+			hdrLen := 3
+			if src[0]&0x10 != 0 {
+				hdrLen = 4
+			}
+			if len(src) > hdrLen {
+				existingVal = src[hdrLen:]
+			}
+		}
+
+		prependLen := 0
+		for _, pb := range prependBufs {
+			prependLen += len(pb)
+		}
+		valLen := prependLen + len(existingVal)
+
+		if valLen > 65535 {
+			// Cannot exceed BGP attribute value limit; copy source unchanged.
+			if len(src) > 0 && off+len(src) <= len(buf) {
+				copy(buf[off:], src)
+				return off + len(src)
+			}
+			return off
+		}
+
+		if valLen > 255 {
+			needed := 4 + valLen
+			if off+needed > len(buf) {
+				return off
+			}
+			buf[off] = 0x40 | 0x10 // Well-known, Transitive, Extended
+			buf[off+1] = byte(attribute.AttrASPath)
+			binary.BigEndian.PutUint16(buf[off+2:], uint16(valLen)) //nolint:gosec // capped at 65535
+			w := off + 4
+			for _, pb := range prependBufs {
+				copy(buf[w:], pb)
+				w += len(pb)
+			}
+			copy(buf[w:], existingVal)
+			return off + needed
+		}
+
+		needed := 3 + valLen
+		if off+needed > len(buf) {
+			return off
+		}
+		buf[off] = 0x40 // Well-known, Transitive
+		buf[off+1] = byte(attribute.AttrASPath)
+		buf[off+2] = byte(valLen)
+		w := off + 3
+		for _, pb := range prependBufs {
+			copy(buf[w:], pb)
+			w += len(pb)
+		}
+		copy(buf[w:], existingVal)
+		return off + needed
+	}
+}
+
 // attrModHandlersWithDefaults returns the registered AttrModHandler map with
 // generic set handlers filled in for attribute codes that lack specialized handlers.
 // Called by the reactor at startup instead of registry.AttrModHandlers() directly.
@@ -376,6 +459,8 @@ func attrModHandlersWithDefaults() map[uint8]registry.AttrModHandler {
 			handlers[code] = genericAttrSetHandler(entry.flags, code)
 		}
 	}
+	// Override AS_PATH with handler supporting prepend (policy as-path-prepend).
+	handlers[byte(attribute.AttrASPath)] = aspathHandler()
 	// Override ORIGINATOR_ID and CLUSTER_LIST with specialized handlers
 	// that support set-if-absent and prepend semantics (RFC 4456).
 	handlers[byte(attribute.AttrOriginatorID)] = originatorIDHandler()
