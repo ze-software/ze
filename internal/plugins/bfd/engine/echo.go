@@ -54,11 +54,10 @@ func (l *Loop) echoTickLocked(now time.Time) {
 			engineLog().Info("bfd echo detection expired",
 				"peer", m.PeerAddr().String(),
 				"detect", m.EchoDetectInterval())
+			// EchoFail calls onStateChange which fires the notify
+			// callback and the metrics hook. No additional hook
+			// call here; that would double-count the transition.
 			m.EchoFail()
-			if hook := l.metricsHook.Load(); hook != nil {
-				(*hook).OnStateChange(packet.StateUp, packet.StateDown,
-					packet.DiagEchoFailed, m.Key().Mode.String(), m.Key().VRF)
-			}
 			continue
 		}
 		m.ApplyEchoSlowdown()

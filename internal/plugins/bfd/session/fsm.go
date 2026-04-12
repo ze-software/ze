@@ -153,10 +153,18 @@ func (m *Machine) onStateChange(prev packet.State) {
 		// every Down transition. A peer-signaled Down still leaves
 		// the peer reachable, and clearing its discriminator would
 		// force the handshake to re-learn it when a quick recovery
-		// could otherwise reuse it.
-		if m.vars.LocalDiag == packet.DiagControlDetectExpired {
+		// could otherwise reuse it. Both Control-path and Echo-path
+		// detection are detection-time events.
+		if m.vars.LocalDiag == packet.DiagControlDetectExpired ||
+			m.vars.LocalDiag == packet.DiagEchoFailed {
 			m.vars.RemoteDiscr = 0
 		}
+		// Clear the echo slow-down flag so a session that recovers
+		// to Up does not carry a stale flag from the previous echo
+		// activation. ClearEchoSchedule also clears this, but the
+		// engine's echoTickLocked may not run between onStateChange
+		// and the next Up tick.
+		m.echoSlowdownApplied = false
 	}
 
 	// Send the next packet immediately to communicate the new state.
