@@ -11,12 +11,13 @@ import (
 
 // Ze interface type names matching the YANG schema list/container names.
 const (
-	zeTypeEthernet = "ethernet"
-	zeTypeBridge   = "bridge"
-	zeTypeVeth     = "veth"
-	zeTypeDummy    = "dummy"
-	zeTypeLoopback = "loopback"
-	zeTypeTunnel   = "tunnel"
+	zeTypeEthernet  = "ethernet"
+	zeTypeBridge    = "bridge"
+	zeTypeVeth      = "veth"
+	zeTypeDummy     = "dummy"
+	zeTypeLoopback  = "loopback"
+	zeTypeTunnel    = "tunnel"
+	zeTypeWireguard = "wireguard"
 )
 
 // kernelTunnelKinds is the set of Linux netlink link types reported by the
@@ -56,11 +57,24 @@ func DiscoverInterfaces() ([]DiscoveredInterface, error) {
 		if zeType == "" {
 			continue
 		}
-		result = append(result, DiscoveredInterface{
+		di := DiscoveredInterface{
 			Name: infos[i].Name,
 			Type: zeType,
 			MAC:  infos[i].MAC,
-		})
+		}
+		if zeType == zeTypeWireguard {
+			// Read per-device state via wgctrl so ze init can emit a
+			// complete wireguard config block for a manually-created
+			// netdev. Errors (missing wireguard module, insufficient
+			// perms) are non-fatal: the entry is still discovered, the
+			// emitter simply falls back to a skeleton with just the
+			// interface name.
+			if spec, specErr := b.GetWireguardDevice(infos[i].Name); specErr == nil {
+				s := spec
+				di.Wireguard = &s
+			}
+		}
+		result = append(result, di)
 	}
 
 	sort.Slice(result, func(i, j int) bool {
@@ -86,6 +100,9 @@ func infoToZeType(info *InterfaceInfo) string {
 	}
 	if kernelTunnelKinds[info.Type] {
 		return zeTypeTunnel
+	}
+	if info.Type == zeTypeWireguard {
+		return zeTypeWireguard
 	}
 	switch info.Type {
 	case "device":

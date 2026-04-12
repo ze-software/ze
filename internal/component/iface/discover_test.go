@@ -56,9 +56,9 @@ func TestInfoToZeType(t *testing.T) {
 			want: "",
 		},
 		{
-			name: "unsupported type wireguard",
+			name: "wireguard",
 			info: InterfaceInfo{Type: "wireguard", Name: "wg0"},
-			want: "",
+			want: "wireguard",
 		},
 		{
 			name: "no type no mac skipped",

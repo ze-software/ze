@@ -3,7 +3,7 @@
 // Detail: backend.go — Backend interface and registry
 // Detail: dispatch.go — package-level functions delegating to backend
 // Detail: config.go — config parsing and declarative application
-// Detail: validate.go — interface name validation
+// Detail: validators.go — interface name validation and autocomplete
 // Detail: migrate_linux.go — make-before-break interface migration
 // Detail: discover.go — OS interface discovery and Ze type mapping
 
@@ -118,8 +118,16 @@ type AddrInfo struct {
 // DiscoveredInterface describes an OS network interface found during discovery.
 // Used by ze init to generate initial interface config and by the MAC address
 // validator for autocomplete suggestions.
+//
+// Wireguard is set only for Type == "wireguard" entries; it carries the
+// kernel-reported private key, listen port, firewall mark, and peer list so
+// ze init can emit a complete wireguard config block from a manually-created
+// netdev. Sensitive fields (PrivateKey, peer PresharedKey) are plaintext at
+// this layer -- the emitter is responsible for passing them through
+// secret.Encode before writing them to the config file.
 type DiscoveredInterface struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-	MAC  string `json:"mac-address,omitempty"`
+	Name      string         `json:"name"`
+	Type      string         `json:"type"`
+	MAC       string         `json:"mac-address,omitempty"`
+	Wireguard *WireguardSpec `json:"-"`
 }

@@ -158,6 +158,104 @@ func TestGenerateInterfaceConfig(t *testing.T) {
 	}
 }
 
+// TestGenerateInterfaceConfigWireguardSkeleton verifies that a wireguard
+// entry with no backend-populated spec still emits a valid config block
+// containing the interface name and os-name leaf. Operators fill in the
+// rest by hand.
+//
+// VALIDATES: ze init emits a skeleton wireguard block even when
+// GetWireguardDevice fails.
+// PREVENTS: discovery silently dropping wireguard interfaces because of
+// a backend error.
+func TestGenerateInterfaceConfigWireguardSkeleton(t *testing.T) {
+	discovered := []iface.DiscoveredInterface{
+		{Name: "wg0", Type: "wireguard"},
+	}
+	out := generateInterfaceConfig(discovered)
+	if !strings.Contains(out, "wireguard wg0 {") {
+		t.Errorf("missing wireguard block: %q", out)
+	}
+	if !strings.Contains(out, "os-name wg0;") {
+		t.Errorf("missing os-name leaf: %q", out)
+	}
+	// Skeleton must NOT contain keys, ports, or peers.
+	for _, leaf := range []string{"private-key", "listen-port", "fwmark", "peer "} {
+		if strings.Contains(out, leaf) {
+			t.Errorf("skeleton should omit %q leaf: %q", leaf, out)
+		}
+	}
+}
+
+// TestGenerateInterfaceConfigWireguardFullSpec verifies that when the
+// backend returned a full WireguardSpec, every field is emitted and the
+// sensitive leaves (private-key, preshared-key) are $9$-encoded.
+//
+// VALIDATES: ze init captures a running wireguard netdev into config with
+// correctly encoded secrets. Public-keys stay plaintext; private and
+// preshared keys pass through secret.Encode.
+// PREVENTS: plaintext private keys leaking into ze.conf at init time.
+func TestGenerateInterfaceConfigWireguardFullSpec(t *testing.T) {
+	var priv, pub, psk iface.WireguardKey
+	for i := range priv {
+		priv[i] = 0x11
+		pub[i] = 0x22
+		psk[i] = 0x33
+	}
+
+	spec := &iface.WireguardSpec{
+		Name:          "wg0",
+		PrivateKey:    priv,
+		ListenPort:    51820,
+		ListenPortSet: true,
+		FirewallMark:  0x1234,
+		Peers: []iface.WireguardPeerSpec{{
+			Name:                "site2",
+			PublicKey:           pub,
+			PresharedKey:        psk,
+			HasPresharedKey:     true,
+			EndpointIP:          "198.51.100.2",
+			EndpointPort:        51820,
+			AllowedIPs:          []string{"10.0.0.2/32", "192.168.10.0/24"},
+			PersistentKeepalive: 25,
+		}},
+	}
+
+	discovered := []iface.DiscoveredInterface{
+		{Name: "wg0", Type: "wireguard", Wireguard: spec},
+	}
+	out := generateInterfaceConfig(discovered)
+
+	mustContain := []string{
+		"wireguard wg0 {",
+		"listen-port 51820;",
+		"fwmark 4660;",
+		`private-key "$9$`, // encoded, never plaintext
+		"peer peer0 {",
+		`public-key "`, // public-key is NOT $9$-encoded
+		`preshared-key "$9$`,
+		"endpoint {",
+		"ip 198.51.100.2;",
+		"port 51820;",
+		"allowed-ips [ 10.0.0.2/32 192.168.10.0/24 ];",
+		"persistent-keepalive 25;",
+	}
+	for _, s := range mustContain {
+		if !strings.Contains(out, s) {
+			t.Errorf("output missing %q:\n%s", s, out)
+		}
+	}
+
+	// Plaintext private-key must never appear (the base64 form of priv).
+	plaintextPriv := priv.String()
+	if strings.Contains(out, plaintextPriv) {
+		t.Errorf("plaintext private-key leaked into config:\n%s", out)
+	}
+	plaintextPSK := psk.String()
+	if strings.Contains(out, plaintextPSK) {
+		t.Errorf("plaintext preshared-key leaked into config:\n%s", out)
+	}
+}
+
 // VALIDATES: generateInterfaceConfig output is structurally valid config syntax
 // PREVENTS: generated config breaking the config parser due to unbalanced braces,
 // missing terminators, or malformed block structure
