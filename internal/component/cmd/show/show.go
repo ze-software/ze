@@ -36,6 +36,10 @@ func init() {
 			WireMethod: "ze-show:interface",
 			Handler:    handleShowInterface,
 		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:interface-scan",
+			Handler:    handleShowInterfaceScan,
+		},
 	)
 }
 
@@ -143,6 +147,21 @@ func handleShowInterface(_ *pluginserver.CommandContext, args []string) (*plugin
 	data, jsonErr := json.Marshal(ifaces)
 	if jsonErr != nil {
 		return nil, fmt.Errorf("show interface: marshal: %w", jsonErr)
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
+}
+
+// handleShowInterfaceScan discovers OS interfaces, classifies them by Ze
+// type, and returns a JSON array of DiscoveredInterface. The interactive
+// CLI pipe framework handles table/yaml/json rendering on the client side.
+func handleShowInterfaceScan(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	discovered, err := iface.DiscoverInterfaces()
+	if err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+	}
+	data, jsonErr := json.Marshal(discovered)
+	if jsonErr != nil {
+		return nil, fmt.Errorf("show interface scan: marshal: %w", jsonErr)
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: string(data)}, nil
 }

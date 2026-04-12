@@ -211,6 +211,18 @@ module ze-cli-show-cmd {
                 ze:command "ze-show:interface";
                 description "One-line-per-interface summary (name, state, IP, MTU)";
             }
+
+            container scan {
+                config false;
+                ze:command "ze-show:interface-scan";
+                description "Scan OS for interfaces and classify by Ze type.
+                             Returns a JSON array of discovered interfaces with
+                             name, type, and MAC. Pipe output to table, yaml, or
+                             json for different views. The --config flag in the
+                             standalone CLI (ze interface scan --config) is not
+                             available via the daemon path; use the standalone
+                             binary for config-syntax output.";
+            }
         }
     }
 }
