@@ -10,9 +10,14 @@ Suitable for N100-class mini PCs, Proxmox VMs, or QEMU testing.
 | Component | Purpose |
 |-----------|---------|
 | Linux kernel (x86_64) | Boot and hardware drivers |
-| Gokrazy init | Process supervisor, DHCP client, NTP, web status UI |
-| Ze | BGP daemon with all internal plugins compiled in |
+| Gokrazy init | Process supervisor, entropy seeding, watchdog heartbeat |
+| Ze | BGP daemon with DHCP client, NTP, and all internal plugins |
 | serial-busybox | Emergency shell on serial console (not started by default) |
+
+Ze owns network configuration (DHCP) and time synchronization (NTP). The gokrazy
+default DHCP and NTP packages are excluded from the image -- ze handles both via
+its config pipeline (`interface { ethernet eth0 { unit 0 { dhcp { enabled true } } } }`
+and `environment { ntp { enabled true } }`).
 
 The root filesystem is read-only (SquashFS). Persistent data lives on a separate ext4 partition mounted at `/perm`.
 

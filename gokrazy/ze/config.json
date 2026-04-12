@@ -11,6 +11,10 @@
         "github.com/gokrazy/serial-busybox",
         "codeberg.org/thomas-mangin/ze/cmd/ze"
     ],
+    "GokrazyPackages": [
+        "github.com/gokrazy/gokrazy/cmd/randomd",
+        "github.com/gokrazy/gokrazy/cmd/heartbeat"
+    ],
     "PackageConfig": {
         "github.com/gokrazy/gokrazy/cmd/randomd": {
             "ExtraFileContents": {
@@ -29,9 +33,8 @@
                 "ze.log.backend=stderr"
             ],
             "ExtraFileContents": {
-                "/etc/ze/ze.conf": "# Ze BGP configuration\n# Edit via ze config edit over SSH\n\nenvironment {\n    log {\n        level info\n    }\n\n    web {\n        enabled true\n        server default {\n            ip 0.0.0.0\n            port 8080\n        }\n    }\n\n    ssh {\n        enabled true\n        server default {\n            ip 0.0.0.0\n            port 22\n        }\n    }\n}\n"
-            },
-            "WaitForClock": true
+                "/etc/ze/ze.conf": "# Ze BGP configuration\n# Edit via ze config edit over SSH\n\nenvironment {\n    log {\n        level info\n    }\n\n    web {\n        enabled true\n        server default {\n            ip 0.0.0.0\n            port 8080\n        }\n    }\n\n    ssh {\n        enabled true\n        server default {\n            ip 0.0.0.0\n            port 22\n        }\n    }\n\n    ntp {\n        enabled true\n        server pool0 {\n            address 0.pool.ntp.org\n        }\n        server pool1 {\n            address 1.pool.ntp.org\n        }\n    }\n}\n\ninterface {\n    dhcp-auto true\n}\n"
+            }
         }
     },
     "SerialConsole": "ttyS0,115200",

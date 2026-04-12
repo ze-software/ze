@@ -307,6 +307,12 @@ module ze-iface-conf {
             description "Interface management backend (e.g., netlink, networkd)";
         }
 
+        leaf dhcp-auto {
+            type boolean;
+            default false;
+            description "Auto-discover first ethernet interface and run DHCP on it. Used when the interface name is not known at config time (e.g., gokrazy appliance). Ignored if any explicit DHCP config exists.";
+        }
+
         list ethernet {
             key "name";
             unique "mac-address";

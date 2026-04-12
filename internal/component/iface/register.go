@@ -367,6 +367,16 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 		collectDHCPUnits("lo", cfg.Loopback.Units)
 	}
 
+	// Auto-discovery: if dhcp-auto is true and no explicit DHCP is configured,
+	// find the first ethernet interface and run DHCPv4 on it.
+	if cfg.DHCPAuto && len(desired) == 0 {
+		if name := discoverPrimaryEthernet(log); name != "" {
+			key := dhcpUnitKey{ifaceName: name, unit: 0}
+			desired[key] = dhcpParams{v4: true}
+			log.Info("interface: dhcp-auto discovered primary ethernet", "iface", name)
+		}
+	}
+
 	// Stop clients that are no longer desired or whose params changed.
 	for key, entry := range active {
 		newParams, stillDesired := desired[key]
@@ -395,4 +405,22 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 		active[key] = dhcpEntry{client: client, params: p}
 		log.Info("interface: DHCP client started", "iface", key.ifaceName, "unit", key.unit, "v4", p.v4, "v6", p.v6)
 	}
+}
+
+// discoverPrimaryEthernet finds the first ethernet interface on the system.
+// Used by dhcp-auto mode to avoid hardcoding interface names. Returns ""
+// if no suitable interface is found (e.g., backend not loaded, no ethernet).
+func discoverPrimaryEthernet(log *slog.Logger) string {
+	ifaces, err := DiscoverInterfaces()
+	if err != nil {
+		log.Debug("interface: dhcp-auto discovery failed", "err", err)
+		return ""
+	}
+	for _, iface := range ifaces {
+		if iface.Type == zeTypeEthernet {
+			return iface.Name
+		}
+	}
+	log.Debug("interface: dhcp-auto found no ethernet interface")
+	return ""
 }

@@ -21,6 +21,7 @@ const yangTrue = "true"
 // ifaceConfig is the parsed representation of the interface config section.
 type ifaceConfig struct {
 	Backend   string
+	DHCPAuto  bool // auto-discover first ethernet for DHCP
 	Ethernet  []ifaceEntry
 	Dummy     []ifaceEntry
 	Veth      []vethEntry
@@ -160,6 +161,10 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 
 	if b, ok := ifaceMap["backend"].(string); ok && b != "" {
 		cfg.Backend = b
+	}
+
+	if v, ok := ifaceMap["dhcp-auto"].(string); ok {
+		cfg.DHCPAuto = v == yangTrue
 	}
 
 	if ethMap, ok := ifaceMap["ethernet"].(map[string]any); ok {
