@@ -1,0 +1,133 @@
+# Test: BFD plugin persists a Meticulous SHA1 TX sequence across a
+# process restart via the `bfd { persist-dir ... }` leaf.
+#
+# VALIDATES: spec-bfd-5 AC-7 -- SeqPersister writes the last-sent
+#            sequence to disk and a fresh ze process resumes from
+#            that floor so the peer does not reject our packets as
+#            replays.
+# PREVENTS:  regression where the persister drops the pending flush,
+#            uses a temp path inside tempdir, or fails silently.
+#
+# Method: a Python orchestrator launches ze twice in sequence. The
+# first run creates a meticulous session, lets the engine sign a
+# handful of packets, SIGTERMs cleanly. The second run opens a fresh
+# persister over the same directory and verifies the persisted
+# sequence advances.
+
+option=env:var=ze.bfd.test-parallel:value=true
+
+tmpfs=test-bfd-meticulous-persist.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Verify Meticulous SHA1 TX sequence survives a ze restart."""
+
+import os
+import subprocess
+import sys
+import tempfile
+import time
+import signal
+
+
+def build_config(persist_dir: str) -> str:
+    return f"""environment {{
+}}
+
+bfd {{
+\tenabled true;
+\tpersist-dir "{persist_dir}";
+\tprofile fast-meticulous {{
+\t\tdetect-multiplier 3
+\t\tdesired-min-tx-us 50000
+\t\trequired-min-rx-us 50000
+\t\tauth {{
+\t\t\ttype meticulous-keyed-sha1
+\t\t\tkey-id 1
+\t\t\tsecret "k-persist"
+\t\t}}
+\t}}
+\tsingle-hop-session 203.0.113.9 {{
+\t\tprofile fast-meticulous
+\t}}
+}}
+"""
+
+
+def run_once(persist_dir: str, run_seconds: float) -> str:
+    env = os.environ.copy()
+    env["ze.log.bfd"] = "debug"
+    env["ze.bfd.test-parallel"] = "true"
+    proc = subprocess.Popen(
+        ["ze", "-"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+    )
+    assert proc.stdin is not None
+    proc.stdin.write(build_config(persist_dir))
+    proc.stdin.close()
+
+    # Let ze spin long enough to sign a handful of packets and flush
+    # the persister at least once (flush cadence is 500 ms).
+    time.sleep(run_seconds)
+
+    proc.send_signal(signal.SIGTERM)
+    try:
+        proc.wait(timeout=5.0)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait(timeout=2.0)
+    captured = ""
+    if proc.stderr is not None:
+        try:
+            captured = proc.stderr.read() or ""
+        except (ValueError, OSError):
+            captured = ""
+    if captured:
+        sys.stderr.write(captured)
+        sys.stderr.flush()
+    return captured
+
+
+def main() -> int:
+    persist_dir = tempfile.mkdtemp(prefix="ze-bfd-auth-persist-")
+
+    captured1 = run_once(persist_dir, 2.5)
+    if "bfd plugin running" not in captured1:
+        sys.stderr.write("FAIL: first run did not reach 'bfd plugin running'\n")
+        return 1
+
+    files = [f for f in os.listdir(persist_dir) if f.endswith(".seq")]
+    if not files:
+        sys.stderr.write(f"FAIL: no persisted .seq file in {persist_dir}\n")
+        return 1
+    with open(os.path.join(persist_dir, files[0]), encoding="utf-8") as fh:
+        first_seq = int(fh.read())
+    if first_seq == 0:
+        sys.stderr.write("FAIL: persisted sequence is zero\n")
+        return 1
+
+    captured2 = run_once(persist_dir, 2.5)
+    if "bfd plugin running" not in captured2:
+        sys.stderr.write("FAIL: second run did not reach 'bfd plugin running'\n")
+        return 1
+    with open(os.path.join(persist_dir, files[0]), encoding="utf-8") as fh:
+        second_seq = int(fh.read())
+    if second_seq <= first_seq:
+        sys.stderr.write(
+            f"FAIL: second_seq={second_seq} not greater than first_seq={first_seq}\n"
+        )
+        return 1
+
+    sys.stderr.write(f"OK: sequence persisted {first_seq} -> {second_seq}\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 ./test-bfd-meticulous-persist.py:timeout=30s
+expect=exit:code=0
+expect=stderr:pattern=sequence persisted

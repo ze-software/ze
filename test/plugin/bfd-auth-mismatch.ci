@@ -1,0 +1,114 @@
+# Test: BFD plugin rejects `auth { type simple-password }` at parse time.
+#
+# VALIDATES: spec-bfd-5 AC-10 -- Simple Password is refused by the
+#            YANG enum (only the four keyed variants are accepted)
+#            and the parser emits a descriptive error pointing at
+#            RFC 5880 Section 6.7.2.
+# PREVENTS:  accidental acceptance of Simple Password via config
+#            drift; regression that silently falls back to no auth.
+#
+# Method: a Python orchestrator launches ze with a simple-password
+# auth block, waits briefly, and looks for the rejection message in
+# stderr. ze continues running after the bfd configure callback
+# fails (BFD is non-fatal) so the orchestrator SIGTERMs on success.
+
+option=env:var=ze.bfd.test-parallel:value=true
+
+tmpfs=test-bfd-auth-mismatch.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Drive ze with a simple-password auth block; assert parser refusal."""
+
+import os
+import signal
+import subprocess
+import sys
+import time
+
+REQUIRED = ["simple-password rejected"]
+
+CONFIG = """environment {
+}
+
+bfd {
+\tenabled true;
+\tprofile insecure {
+\t\tauth {
+\t\t\ttype simple-password
+\t\t\tkey-id 1
+\t\t\tsecret "plaintext"
+\t\t}
+\t}
+}
+"""
+
+
+def main() -> int:
+    env = os.environ.copy()
+    env["ze.log.bfd"] = "debug"
+
+    proc = subprocess.Popen(
+        ["ze", "-"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+    )
+    assert proc.stdin is not None
+    proc.stdin.write(CONFIG)
+    proc.stdin.close()
+
+    deadline = time.time() + 8.0
+    captured = ""
+    matched: set[str] = set()
+    while time.time() < deadline:
+        if proc.stderr is None:
+            break
+        line = proc.stderr.readline()
+        if not line:
+            if proc.poll() is not None:
+                break
+            time.sleep(0.05)
+            continue
+        captured += line
+        sys.stderr.write(line)
+        sys.stderr.flush()
+        for needle in REQUIRED:
+            if needle in line:
+                matched.add(needle)
+        if len(matched) == len(REQUIRED):
+            break
+
+    if proc.poll() is None:
+        proc.send_signal(signal.SIGTERM)
+        try:
+            proc.wait(timeout=3.0)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=2.0)
+
+    if proc.stderr is not None:
+        try:
+            tail = proc.stderr.read()
+        except (ValueError, OSError):
+            tail = ""
+        if tail:
+            captured += tail
+            sys.stderr.write(tail)
+            sys.stderr.flush()
+
+    missing = [n for n in REQUIRED if n not in captured]
+    if missing:
+        sys.stderr.write(f"FAIL: missing required patterns: {missing}\n")
+        return 1
+    sys.stderr.write("OK: simple-password rejection observed\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 ./test-bfd-auth-mismatch.py:timeout=15s
+expect=exit:code=0
+expect=stderr:pattern=simple-password rejected

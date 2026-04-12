@@ -58,6 +58,7 @@ func (m *Machine) Receive(c packet.Control) error {
 	m.vars.RemoteDemandMode = c.Demand
 	m.vars.RemoteMinRxInterval = c.RequiredMinRxInterval
 	m.vars.RemoteDetectMult = c.DetectMult
+	m.vars.RemoteMinEchoRxInterval = c.RequiredMinEchoRxInterval
 
 	// Section 6.8.6: terminate Poll on F=1.
 	if m.vars.PollOutstanding && c.Final {
@@ -196,6 +197,10 @@ func (m *Machine) AdminEnable() {
 // the periodic TX timer fires or in response to a received Poll. The
 // returned Control is ready for packet.Control.WriteTo.
 func (m *Machine) Build() packet.Control {
+	length := uint8(packet.MandatoryLen)
+	if m.authPair != nil {
+		length = uint8(packet.MandatoryLen + m.authPair.Signer.BodyLen())
+	}
 	return packet.Control{
 		Version:                   packet.Version,
 		Diag:                      m.vars.LocalDiag,
@@ -207,12 +212,12 @@ func (m *Machine) Build() packet.Control {
 		Demand:                    m.canSetDemand(),
 		Multipoint:                false,
 		DetectMult:                m.vars.DetectMult,
-		Length:                    packet.MandatoryLen,
+		Length:                    length,
 		MyDiscriminator:           m.vars.LocalDiscr,
 		YourDiscriminator:         m.vars.RemoteDiscr,
 		DesiredMinTxInterval:      m.vars.DesiredMinTxInterval,
 		RequiredMinRxInterval:     m.vars.RequiredMinRxInterval,
-		RequiredMinEchoRxInterval: 0,
+		RequiredMinEchoRxInterval: m.vars.RequiredMinEchoRxInterval,
 	}
 }
 
