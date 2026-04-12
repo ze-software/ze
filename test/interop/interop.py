@@ -309,6 +309,24 @@ class FRR:
         print(docker_logs(ZE_CONTAINER, 20))
         raise AssertionError("FRR BFD peer %s not Up" % peer)
 
+    def break_link(self, port=3784):
+        """Drop outbound BFD control packets to induce a link failure.
+
+        Used by spec-bfd-3b-frr-interop to measure sub-2s failover.
+        Requires NET_ADMIN cap on the container (scenario runner sets it).
+        """
+        docker_exec(self.container, [
+            "iptables", "-I", "OUTPUT", "1",
+            "-p", "udp", "--dport", str(port), "-j", "DROP",
+        ])
+
+    def restore_link(self, port=3784):
+        """Remove the iptables drop rule installed by break_link."""
+        docker_exec_quiet(self.container, [
+            "iptables", "-D", "OUTPUT",
+            "-p", "udp", "--dport", str(port), "-j", "DROP",
+        ])
+
 
 # --- BIRD helpers ------------------------------------------------------------
 

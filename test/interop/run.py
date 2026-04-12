@@ -74,13 +74,17 @@ def main():
         scenario_filter = sys.argv[1]
 
     # Check Docker is available.
-    result = subprocess.run(
-        ["docker", "info"],
-        capture_output=True, text=True, timeout=15,
-    )
-    if result.returncode != 0:
-        print("error: Docker is not running or not accessible", file=sys.stderr)
-        sys.exit(1)
+    try:
+        result = subprocess.run(
+            ["docker", "info"],
+            capture_output=True, text=True, timeout=15,
+        )
+        docker_ok = result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        docker_ok = False
+    if not docker_ok:
+        print("Docker unavailable, skipping interop tests")
+        sys.exit(0)
 
     build_images(frr_image, no_build)
 
