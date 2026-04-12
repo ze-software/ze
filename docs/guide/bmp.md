@@ -111,7 +111,6 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 - Sends Peer Up for each BGP peer reaching Established state
 - Sends Peer Down with mapped reason code on session close
 - Wraps received BGP UPDATEs as Route Monitoring messages
-- Per-collector ribout dedup suppresses identical paths
 - Sends Termination before graceful disconnect
 
 ## Limitations
@@ -120,6 +119,9 @@ Ze handles all 7 BMP message types defined in RFC 7854:
   carry raw BGP OPEN PDUs. Peer Up messages contain minimal OPENs built from
   AS metadata. Capabilities are not reflected. This can be improved when the
   event schema is extended.
+- **No per-NLRI ribout dedup:** all received UPDATEs are forwarded to
+  collectors as-is. Per-NLRI dedup requires parsing NLRIs from the raw
+  UPDATE, which is a follow-up task.
 - **Adj-RIB-Out** (RFC 8671) and **Loc-RIB** (RFC 9069) monitoring are not
   yet implemented.
 - **Route Mirroring** encoding on the sender side is not implemented.
