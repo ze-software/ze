@@ -1,0 +1,104 @@
+module ze-bmp-conf {
+    namespace "urn:ze:bmp:conf";
+    prefix bmp;
+
+    import ze-bgp-conf { prefix bgp; }
+    import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
+
+    description "BMP (BGP Monitoring Protocol, RFC 7854) configuration for Ze.
+                 Covers both receiver (accept feeds from routers) and
+                 sender (stream own state to collectors).";
+
+    revision 2026-04-12 {
+        description "Initial revision";
+    }
+
+    grouping bmp-config {
+        container bmp {
+            description "BGP Monitoring Protocol configuration";
+
+            container receiver {
+                presence "BMP receiver enabled";
+                description "Accept BMP sessions from remote routers";
+
+                list server {
+                    key "name";
+                    ze:listener;
+                    description "BMP receiver listen endpoints";
+
+                    leaf name {
+                        type string;
+                        description "Listener instance name";
+                    }
+
+                    uses zt:listener {
+                        refine ip {
+                            default "0.0.0.0";
+                        }
+                        refine port {
+                            default 11019;
+                        }
+                    }
+                }
+
+                leaf max-sessions {
+                    type uint16 {
+                        range "1..1000";
+                    }
+                    default 100;
+                    description "Maximum concurrent BMP sessions";
+                }
+            }
+
+            container sender {
+                presence "BMP sender enabled";
+                description "Stream BMP data to external collectors";
+
+                list collector {
+                    key "name";
+                    description "BMP collector endpoints to connect to";
+
+                    leaf name {
+                        type string;
+                        description "Collector instance name";
+                    }
+
+                    leaf address {
+                        type zt:ip-address;
+                        mandatory true;
+                        description "Collector IP address";
+                    }
+
+                    leaf port {
+                        type zt:port;
+                        default 11019;
+                        description "Collector TCP port";
+                    }
+                }
+
+                leaf route-monitoring-policy {
+                    type enumeration {
+                        enum pre-policy;
+                        enum all;
+                    }
+                    default "pre-policy";
+                    description "Which routes to stream: pre-policy (Adj-RIB-In) or all";
+                }
+
+                leaf statistics-timeout {
+                    type uint16 {
+                        range "0..65535";
+                    }
+                    default 0;
+                    units "seconds";
+                    description "Interval for periodic statistics reports (0 = disabled)";
+                }
+            }
+        }
+    }
+
+    augment "/bgp:bgp" {
+        uses bmp-config;
+    }
+}
