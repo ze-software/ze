@@ -8,34 +8,54 @@ feeds from routers) and as a **sender** (streaming state to collectors).
 
 ## Configuration
 
-BMP is configured under the `bgp { bmp { ... } }` block.
+BMP receiver is configured under `environment { bmp { ... } }` (like SSH,
+web, looking glass). Sender config lives under `bgp { bmp { ... } }`.
 
 ### Receiver
 
 The receiver listens for TCP connections from BMP-enabled routers.
+Configured under `environment` to follow ze's service listener pattern.
 
 ```
-bgp {
+environment {
     bmp {
-        receiver {
-            server default {
-                ip 0.0.0.0;
-                port 11019;
-            }
-            max-sessions 100;
+        enabled true;
+        server default {
+            ip 0.0.0.0;
+            port 11019;
         }
+        max-sessions 100;
     }
 }
 ```
 
-<!-- source: internal/component/bgp/plugins/bmp/schema/ze-bmp-conf.yang -- receiver container -->
+<!-- source: internal/component/bgp/plugins/bmp/schema/ze-bmp-conf.yang -- environment container -->
 
 | Field | Default | Description |
 |-------|---------|-------------|
+| `enabled` | false | Enable BMP receiver |
 | `server` | - | Named listener endpoints (key: name) |
 | `ip` | 0.0.0.0 | Listen IP address |
 | `port` | 11019 | Listen TCP port (IANA assigned for BMP) |
 | `max-sessions` | 100 | Maximum concurrent BMP sessions (1-1000) |
+
+Multiple listeners are supported (same pattern as SSH/web):
+
+```
+environment {
+    bmp {
+        enabled true;
+        server ipv4 {
+            ip 0.0.0.0;
+            port 11019;
+        }
+        server ipv6 {
+            ip "::";
+            port 11019;
+        }
+    }
+}
+```
 
 Port conflicts with other ze listeners are detected at config commit time
 via the YANG `ze:listener` extension.

@@ -17,7 +17,7 @@ func init() {
 		RFCs:        []string{"7854"},
 		Features:    "yang",
 		YANG:        bmpschema.ZeBMPConfYANG,
-		ConfigRoots: []string{"bgp"},
+		ConfigRoots: []string{"bgp", "environment"},
 		RunEngine:   RunBMPPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))

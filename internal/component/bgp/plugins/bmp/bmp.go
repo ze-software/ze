@@ -46,8 +46,9 @@ func setLogger(l *slog.Logger) {
 	}
 }
 
-// receiverConfig holds parsed receiver configuration.
+// receiverConfig holds parsed receiver configuration from environment { bmp { ... } }.
 type receiverConfig struct {
+	Enabled     bool             `json:"enabled"`
 	Servers     []listenerConfig `json:"server"`
 	MaxSessions uint16           `json:"max-sessions"`
 }
@@ -58,7 +59,7 @@ type listenerConfig struct {
 	Port uint16 `json:"port"`
 }
 
-// senderConfig holds parsed sender configuration.
+// senderConfig holds parsed sender configuration from bgp { bmp { sender { ... } } }.
 type senderConfig struct {
 	Collectors            []collectorConfig `json:"collector"`
 	RouteMonitoringPolicy string            `json:"route-monitoring-policy"`
@@ -71,15 +72,16 @@ type collectorConfig struct {
 	Port    uint16 `json:"port"`
 }
 
-// bmpConfig is the top-level BMP config parsed from the bgp section.
-type bmpConfig struct {
-	Receiver *receiverConfig `json:"receiver"`
-	Sender   *senderConfig   `json:"sender"`
+// environmentSection wraps the bmp key from the environment config section.
+type environmentSection struct {
+	BMP *receiverConfig `json:"bmp"`
 }
 
-// bgpSection wraps the bmp key from the bgp config section.
-type bgpSection struct {
-	BMP *bmpConfig `json:"bmp"`
+// bgpSenderSection wraps the bmp.sender from the bgp config section.
+type bgpSenderSection struct {
+	BMP *struct {
+		Sender *senderConfig `json:"sender"`
+	} `json:"bmp"`
 }
 
 // BMPPlugin implements the bgp-bmp plugin.
@@ -145,22 +147,25 @@ func RunBMPPlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "bgp" {
-				continue
-			}
-			cfg, err := parseBMPConfig(section.Data)
-			if err != nil {
-				logger().Error("bmp: config parse failed", "error", err)
-				return err
-			}
-			if cfg == nil {
-				continue
-			}
-			if cfg.Receiver != nil {
-				bp.startReceiver(cfg.Receiver)
-			}
-			if cfg.Sender != nil {
-				bp.startSender(cfg.Sender)
+			switch section.Root {
+			case "environment":
+				rcv, err := parseReceiverConfig(section.Data)
+				if err != nil {
+					logger().Error("bmp: receiver config parse failed", "error", err)
+					return err
+				}
+				if rcv != nil && rcv.Enabled && len(rcv.Servers) > 0 {
+					bp.startReceiver(rcv)
+				}
+			case "bgp":
+				snd, err := parseSenderConfig(section.Data)
+				if err != nil {
+					logger().Error("bmp: sender config parse failed", "error", err)
+					return err
+				}
+				if len(snd.Collectors) > 0 {
+					bp.startSender(snd)
+				}
 			}
 		}
 		return nil
@@ -173,7 +178,7 @@ func RunBMPPlugin(conn net.Conn) int {
 			{Name: "bmp peers", Description: "Show monitored BGP peers"},
 			{Name: "bmp collectors", Description: "Show BMP sender collector status"},
 		},
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{"bgp", "environment"},
 	})
 	if err != nil {
 		logger().Error("bgp-bmp plugin failed", "error", err)
@@ -190,13 +195,26 @@ func closeLog(c interface{ Close() error }, what string) {
 	}
 }
 
-// parseBMPConfig extracts BMP config from the bgp section JSON.
-func parseBMPConfig(data string) (*bmpConfig, error) {
-	var sec bgpSection
+// parseReceiverConfig extracts BMP receiver config from the environment section JSON.
+func parseReceiverConfig(data string) (*receiverConfig, error) {
+	var sec environmentSection
 	if err := json.Unmarshal([]byte(data), &sec); err != nil {
-		return nil, fmt.Errorf("bmp config: %w", err)
+		return nil, fmt.Errorf("bmp receiver config: %w", err)
 	}
 	return sec.BMP, nil
+}
+
+// parseSenderConfig extracts BMP sender config from the bgp section JSON.
+// Returns a zero-value config (no collectors) when BMP sender is not configured.
+func parseSenderConfig(data string) (*senderConfig, error) {
+	var sec bgpSenderSection
+	if err := json.Unmarshal([]byte(data), &sec); err != nil {
+		return nil, fmt.Errorf("bmp sender config: %w", err)
+	}
+	if sec.BMP == nil || sec.BMP.Sender == nil {
+		return &senderConfig{}, nil
+	}
+	return sec.BMP.Sender, nil
 }
 
 // startReceiver starts TCP listeners for the BMP receiver.

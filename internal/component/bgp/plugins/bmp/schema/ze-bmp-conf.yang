@@ -7,49 +7,62 @@ module ze-bmp-conf {
     import ze-extensions { prefix ze; }
 
     description "BMP (BGP Monitoring Protocol, RFC 7854) configuration for Ze.
-                 Covers both receiver (accept feeds from routers) and
-                 sender (stream own state to collectors).";
+                 Receiver listener lives under environment (like web, ssh, lg).
+                 Sender and protocol options live under bgp.";
 
     revision 2026-04-12 {
         description "Initial revision";
     }
 
-    grouping bmp-config {
+    // --- Receiver: environment { bmp { ... } } ---
+
+    container environment {
+        description "Environment settings for BMP receiver";
+
         container bmp {
-            description "BGP Monitoring Protocol configuration";
+            description "BMP receiver settings";
 
-            container receiver {
-                presence "BMP receiver enabled";
-                description "Accept BMP sessions from remote routers";
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Enable BMP receiver";
+            }
 
-                list server {
-                    key "name";
-                    ze:listener;
-                    description "BMP receiver listen endpoints";
+            list server {
+                key "name";
+                ze:listener;
+                description "BMP receiver listen endpoints";
 
-                    leaf name {
-                        type string;
-                        description "Listener instance name";
-                    }
-
-                    uses zt:listener {
-                        refine ip {
-                            default "0.0.0.0";
-                        }
-                        refine port {
-                            default 11019;
-                        }
-                    }
+                leaf name {
+                    type string;
+                    description "Listener instance name";
                 }
 
-                leaf max-sessions {
-                    type uint16 {
-                        range "1..1000";
+                uses zt:listener {
+                    refine ip {
+                        default "0.0.0.0";
                     }
-                    default 100;
-                    description "Maximum concurrent BMP sessions";
+                    refine port {
+                        default 11019;
+                    }
                 }
             }
+
+            leaf max-sessions {
+                type uint16 {
+                    range "1..1000";
+                }
+                default 100;
+                description "Maximum concurrent BMP sessions";
+            }
+        }
+    }
+
+    // --- Sender + protocol options: bgp { bmp { ... } } ---
+
+    grouping bmp-bgp-config {
+        container bmp {
+            description "BMP sender and protocol options";
 
             container sender {
                 presence "BMP sender enabled";
@@ -99,6 +112,6 @@ module ze-bmp-conf {
     }
 
     augment "/bgp:bgp" {
-        uses bmp-config;
+        uses bmp-bgp-config;
     }
 }
