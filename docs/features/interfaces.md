@@ -21,7 +21,7 @@ JunOS-style two-layer model: physical interfaces with logical units.
 | | GRE / GRETAP / IPIP / SIT tunnels | have | |
 | | IP6GRE / IP6GRETAP / IP6TNL / IPIP6 tunnels | have | |
 | | ERSPAN | missing | lower |
-| | WireGuard | missing | lower |
+| | WireGuard (declarative peers, `$9$`-encoded keys) | have | |
 | | MACsec | missing | lower |
 | | MACVLAN | missing | lower |
 | | Geneve | missing | lower |
@@ -126,6 +126,7 @@ JunOS-style two-layer model: physical interfaces with logical units.
 <!-- source: internal/component/iface/migrate_linux.go — MigrateInterface 5-phase protocol -->
 <!-- source: internal/plugins/ifacenetlink/manage_linux.go — CreateDummy, CreateVeth, CreateBridge, etc. -->
 <!-- source: internal/plugins/ifacenetlink/tunnel_linux.go — CreateTunnel for 8 tunnel kinds via Gretun/Gretap/Iptun/Sittun/Ip6tnl -->
+<!-- source: internal/plugins/ifacenetlink/wireguard_linux.go — CreateWireguardDevice (netlink), ConfigureWireguardDevice and GetWireguardDevice (wgctrl) -->
 <!-- source: internal/plugins/ifacenetlink/monitor_linux.go — netlink multicast subscription -->
 <!-- source: internal/plugins/ifacenetlink/bridge_linux.go — bridge ports, STP via sysfs -->
 <!-- source: internal/plugins/ifacenetlink/sysctl_linux.go — per-interface sysctl writes -->
@@ -308,6 +309,104 @@ daemon at reload time.
 <!-- source: cmd/ze/config/cmd_validate.go -- runValidation (YANG + BGP + hub only, no plugin OnConfigVerify) -->
 <!-- source: internal/component/iface/config.go -- parseTunnelEntry (iface tunnel validation runs at OnConfigVerify) -->
 - **Idempotent cleanup.** Delete and mirror removal succeed even if already gone.
+
+## WireGuard Configuration
+
+WireGuard interfaces are a top-level `wireguard` list under `interface`,
+alongside `ethernet`, `tunnel`, and the other iface kinds. Each entry carries
+interface-level parameters plus a nested `peer` list; unit-level addresses
+ride the same `interface-unit` grouping used everywhere else.
+
+```
+interface {
+    wireguard wg0 {
+        listen-port 51820
+        fwmark 0
+        private-key "$9$ABCabc..."        # $9$-encoded; see below
+        peer site2 {
+            public-key "YYYY..."           # base64, plaintext
+            preshared-key "$9$DEF..."      # optional, also $9$-encoded
+            endpoint {
+                ip 198.51.100.2
+                port 51820
+            }
+            allowed-ips [ 10.0.0.2/32 192.168.10.0/24 ]
+            persistent-keepalive 25
+        }
+        unit 0 {
+            address 10.0.0.1/24
+        }
+    }
+}
+```
+
+<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- list wireguard, ze:sensitive on private-key and peer preshared-key, ze:listener on the list entry -->
+<!-- source: internal/component/iface/wireguard.go -- WireguardSpec / WireguardPeerSpec types -->
+<!-- source: internal/component/iface/config.go -- parseWireguardEntry, applyWireguards, wireguardSpecEqual -->
+
+### Key material and `$9$` encoding
+
+`private-key` and peer `preshared-key` are marked `ze:sensitive` in YANG.
+The config parser auto-decodes `$9$`-prefixed values on load
+(`internal/component/config/parser.go:127`); `ze config show` / `ze config
+dump` always re-encodes them on output (`cmd/ze/config/cmd_dump.go:132`),
+so the plaintext base64 form never reaches the config file on disk. Public
+keys are public and stored plaintext.
+
+**`$9$` is JunOS-compatible obfuscation, not encryption.** Anyone with
+read access to the config file (or the zefs blob, depending on storage
+backend) can trivially recover the plaintext key via `secret.Decode`. The
+protection is on the filesystem layer: `chmod 600 /etc/ze/ze.conf` (or the
+equivalent on the `.zefs` blob). This is the same posture ze uses for BGP
+MD5 passwords, SSH secrets, MCP tokens, and API tokens.
+
+<!-- source: internal/component/config/secret/secret.go -- Encode, Decode, IsEncoded ($9$ implementation) -->
+
+### Reconciliation
+
+On reload, `applyWireguards` compares the new spec to the previously
+applied spec via `wireguardSpecEqual`. Unchanged entries are a no-op; the
+kernel is not touched and peer handshake state is preserved. Changed
+entries trigger a single `ConfigureWireguardDevice` call with
+`wgtypes.Config{ReplacePeers: true}` -- the kernel matches unchanged peers
+by public-key and preserves their handshake state, so "apply entire spec
+on every change" is functionally equivalent to a per-peer diff at a tiny
+fraction of the code. New wireguard entries get a `CreateWireguardDevice`
+(netlink) before the Configure call. Wireguard list entries removed from
+config are deleted by Phase 4 reconciliation, same as tunnels.
+
+Peer names in config (`peer site2 { ... }`) are operator-chosen labels.
+The kernel tracks peers only by public key, so the label can change
+freely without affecting the handshake. `ze init` emits discovered peers
+with synthetic names (`peer0`, `peer1`, ...) which operators typically
+rename via `ze config edit`.
+
+<!-- source: internal/component/iface/config.go -- wireguardSpecEqual, wireguardPeerEqual -->
+<!-- source: internal/component/iface/backend.go -- CreateWireguardDevice, ConfigureWireguardDevice, GetWireguardDevice interface methods -->
+
+### Port conflict detection
+
+`listen-port` participates in the same conflict-detection mechanism as
+TCP services (web, ssh, mcp, etc.) with one Phase-5 extension:
+`ListenerEndpoint` gained a `Protocol` field so wireguard's UDP ports
+never clash with a TCP service on the same port. Two wireguards with
+the same `listen-port` are rejected at reload time.
+
+<!-- source: internal/component/config/listener.go -- ListenerEndpoint.Protocol, collectWireguardListeners, conflicts -->
+
+### Dependencies
+
+WireGuard peer and key configuration uses
+[`golang.zx2c4.com/wireguard/wgctrl`](https://github.com/WireGuard/wgctrl-go),
+the reference Go client maintained by the WireGuard authors (Donenfeld,
+Layher). It is vendored under `vendor/golang.zx2c4.com/wireguard/wgctrl`
+along with its transitive dependencies `github.com/mdlayher/genetlink`
+and `github.com/mdlayher/netlink`. WireGuard has no RFC; reference
+material is the original whitepaper
+(https://www.wireguard.com/papers/wireguard.pdf), the Linux kernel
+genetlink spec
+(https://www.kernel.org/doc/html/latest/userspace-api/netlink/specs/wireguard.html),
+and `wg(8)`.
 
 ## Bus Topics
 
