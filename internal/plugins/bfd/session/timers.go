@@ -210,8 +210,8 @@ func (m *Machine) RecordEchoRTT(rtt time.Duration) { m.lastEchoRTT = rtt }
 
 // EchoSlowdownIntervalUs is the RFC 5880 §6.8.9 minimum interval
 // floor applied to both DesiredMinTxInterval and RequiredMinRxInterval
-// while echo is active. One second (1,000,000 µs) matches the RFC's
-// The value matches the RFC recommendation of not less than one second.
+// while echo is active. One second (1,000,000 µs) matches the RFC
+// recommendation of not less than one second.
 const EchoSlowdownIntervalUs uint32 = 1_000_000
 
 // ClearEchoSchedule resets the echo timer, drops every outstanding
