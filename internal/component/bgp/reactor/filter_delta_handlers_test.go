@@ -5,6 +5,7 @@ package reactor
 
 import (
 	"encoding/binary"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -301,4 +302,57 @@ func TestBuildModifiedPayload_MPReachNextHopSelf(t *testing.T) {
 	}
 	require.NotNil(t, foundNH, "MP_REACH still present after rewrite")
 	assert.Equal(t, newNH, foundNH, "MP_REACH next-hop was rewritten to the self address")
+}
+
+// TestApplyNextHopMod_IPv4EmitsBothOps verifies that applyNextHopMod with
+// an IPv4 local address emits both a legacy NEXT_HOP (type 3) op and an
+// MP_REACH_NLRI (type 14) op with IPv4-mapped IPv6 bytes.
+//
+// VALIDATES: Mixed-family next-hop rewrite for IPv4 local + IPv6 routes.
+// PREVENTS: IPv6 routes forwarded with stale next-hop when session is IPv4.
+func TestApplyNextHopMod_IPv4EmitsBothOps(t *testing.T) {
+	t.Parallel()
+
+	dest := &PeerSettings{
+		NextHopMode:  NextHopSelf,
+		LocalAddress: netip.MustParseAddr("127.0.0.2"),
+	}
+	var mods registry.ModAccumulator
+	applyNextHopMod(dest, &mods)
+
+	ops := mods.Ops()
+	require.Len(t, ops, 2, "IPv4 local must emit both type 3 and type 14 ops")
+
+	// Op 0: legacy NEXT_HOP (type 3) with 4-byte IPv4.
+	assert.Equal(t, uint8(3), ops[0].Code, "first op is legacy NEXT_HOP")
+	assert.Equal(t, []byte{127, 0, 0, 2}, ops[0].Buf, "NEXT_HOP = 127.0.0.2")
+
+	// Op 1: MP_REACH_NLRI (type 14) with 16-byte IPv4-mapped IPv6.
+	assert.Equal(t, uint8(14), ops[1].Code, "second op is MP_REACH_NLRI")
+	assert.Len(t, ops[1].Buf, 16, "IPv4-mapped IPv6 is 16 bytes")
+	// ::ffff:127.0.0.2 = 00 00 00 00 00 00 00 00 00 00 FF FF 7F 00 00 02
+	assert.Equal(t, byte(0xFF), ops[1].Buf[10], "mapped sentinel byte 10")
+	assert.Equal(t, byte(0xFF), ops[1].Buf[11], "mapped sentinel byte 11")
+	assert.Equal(t, []byte{127, 0, 0, 2}, ops[1].Buf[12:16], "embedded IPv4 in mapped address")
+}
+
+// TestApplyNextHopMod_IPv6EmitsOnlyMPReach verifies that applyNextHopMod
+// with an IPv6 local address emits only an MP_REACH_NLRI (type 14) op.
+//
+// VALIDATES: IPv6 local does not emit a legacy NEXT_HOP op.
+// PREVENTS: Invalid 16-byte value in a 4-byte NEXT_HOP attribute.
+func TestApplyNextHopMod_IPv6EmitsOnlyMPReach(t *testing.T) {
+	t.Parallel()
+
+	dest := &PeerSettings{
+		NextHopMode:  NextHopSelf,
+		LocalAddress: netip.MustParseAddr("2001:db8::1"),
+	}
+	var mods registry.ModAccumulator
+	applyNextHopMod(dest, &mods)
+
+	ops := mods.Ops()
+	require.Len(t, ops, 1, "IPv6 local emits only MP_REACH op")
+	assert.Equal(t, uint8(14), ops[0].Code, "op is MP_REACH_NLRI")
+	assert.Len(t, ops[0].Buf, 16, "IPv6 next-hop is 16 bytes")
 }

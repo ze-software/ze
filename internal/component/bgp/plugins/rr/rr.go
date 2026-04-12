@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md -- route reflector plugin
+// Detail: withdrawal.go -- NLRI tracking and peer-down withdrawal
 //
 // RFC 4456: BGP Route Reflection.
 // Subscribes to UPDATE events and forwards them to all peers via cache-forward.
@@ -17,6 +18,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -53,9 +55,18 @@ const (
 	eventState  = "state"
 	eventOpen   = "open"
 
-	updateRouteTimeout = 60 * time.Second
-	statusDone         = "done"
-	statusError        = "error"
+	updateRouteTimeout     = 60 * time.Second
+	replayConvergenceMax   = 10
+	replayConvergenceDelay = 20 * time.Millisecond
+	statusDone             = "done"
+	statusError            = "error"
+
+	// NLRI action tokens for withdrawal map tracking.
+	actionAdd = "add"
+	actionDel = "del"
+
+	// withdrawalBatchSize caps the number of prefixes per withdrawal RPC.
+	withdrawalBatchSize = 1000
 )
 
 // peerState tracks a connected peer's state and capabilities.
@@ -63,6 +74,7 @@ type peerState struct {
 	Address      string
 	ASN          uint32
 	Up           bool
+	ReplayGen    uint64 // Incremented on each state-up, guards stale goroutines
 	Families     map[string]bool
 	Capabilities map[string]bool
 }
@@ -76,6 +88,12 @@ type RouteReflector struct {
 	peers    map[string]*peerState
 	mu       sync.RWMutex
 	stopping atomic.Bool
+
+	// withdrawalMu protects the withdrawals map.
+	withdrawalMu sync.Mutex
+	// withdrawals tracks announced routes per source peer for withdrawal on peer-down.
+	// sourcePeer -> routeKey (family|prefix) -> withdrawalInfo.
+	withdrawals map[string]map[string]withdrawalInfo
 }
 
 // RunRouteReflector runs the Route Reflector plugin using the SDK RPC protocol.
@@ -85,8 +103,9 @@ func RunRouteReflector(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	rr := &RouteReflector{
-		plugin: p,
-		peers:  make(map[string]*peerState),
+		plugin:      p,
+		peers:       make(map[string]*peerState),
+		withdrawals: make(map[string]map[string]withdrawalInfo),
 	}
 
 	// Register structured event handler for DirectBridge delivery (hot path).
@@ -99,6 +118,12 @@ func RunRouteReflector(conn net.Conn) int {
 			switch se.EventType {
 			case eventUpdate:
 				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
+					// Update withdrawal map BEFORE forwarding: the forward path can
+					// trigger cache eviction which frees the pool buffer backing
+					// msg.WireUpdate. Reading WireUpdate after forward is use-after-free.
+					rr.withdrawalMu.Lock()
+					rr.updateWithdrawalMapWire(se.PeerAddress, msg)
+					rr.withdrawalMu.Unlock()
 					rr.forwardUpdate(msg.MessageID)
 				}
 			case eventState:
@@ -201,9 +226,58 @@ func (rr *RouteReflector) handleStructuredState(se *rpc.StructuredEvent) {
 	if rr.peers[se.PeerAddress] == nil {
 		rr.peers[se.PeerAddress] = &peerState{Address: se.PeerAddress}
 	}
-	rr.peers[se.PeerAddress].Up = (se.State == "up")
-	rr.peers[se.PeerAddress].ASN = se.PeerAS
-	rr.mu.Unlock()
+	peer := rr.peers[se.PeerAddress]
+	peer.Up = (se.State == "up")
+	peer.ASN = se.PeerAS
+	switch se.State {
+	case "up":
+		peer.ReplayGen++
+		gen := peer.ReplayGen
+		rr.mu.Unlock()
+		go rr.replayForPeer(se.PeerAddress, gen)
+	case "down":
+		rr.mu.Unlock()
+		rr.handleStateDown(se.PeerAddress)
+	default: // other states (e.g. "connected") -- no action
+		rr.mu.Unlock()
+	}
+}
+
+// handleStateDown sends withdrawals for all routes from the downed source peer.
+// Routes are batched by family into comma-separated prefix lists to minimize RPCs.
+// Withdrawals are sent asynchronously (per-lifecycle goroutine, not hot path).
+//
+// Concurrency: OnStructuredEvent is called serially by the engine's delivery
+// goroutine, so handleStateDown and UPDATE processing for the same peer cannot
+// race within the structured path. The withdrawalMu guards against the
+// (theoretical) case of text and structured paths processing the same peer
+// concurrently.
+func (rr *RouteReflector) handleStateDown(peerAddr string) {
+	rr.withdrawalMu.Lock()
+	entries := rr.withdrawals[peerAddr]
+	delete(rr.withdrawals, peerAddr)
+	rr.withdrawalMu.Unlock()
+
+	if len(entries) == 0 {
+		return
+	}
+
+	// Group prefixes by family for batched withdrawal.
+	byFamily := make(map[string][]string)
+	for _, info := range entries {
+		byFamily[info.Family] = append(byFamily[info.Family], info.Prefix)
+	}
+
+	// Send batched withdrawals to all peers except the one that went down.
+	// Cap each RPC at withdrawalBatchSize prefixes to bound command length.
+	go func() {
+		for fam, prefixes := range byFamily {
+			for i := 0; i < len(prefixes); i += withdrawalBatchSize {
+				end := min(i+withdrawalBatchSize, len(prefixes))
+				rr.updateRoute("!"+peerAddr, fmt.Sprintf("update text nlri %s del %s", fam, strings.Join(prefixes[i:end], ",")))
+			}
+		}
+	}()
 }
 
 // handleStructuredOpen processes OPEN events from DirectBridge.
@@ -298,8 +372,20 @@ func (rr *RouteReflector) dispatchText(text string) {
 			if rr.peers[peerAddr] == nil {
 				rr.peers[peerAddr] = &peerState{Address: peerAddr}
 			}
-			rr.peers[peerAddr].Up = (state == "up")
-			rr.mu.Unlock()
+			peer := rr.peers[peerAddr]
+			peer.Up = (state == "up")
+			switch state {
+			case "up":
+				peer.ReplayGen++
+				gen := peer.ReplayGen
+				rr.mu.Unlock()
+				go rr.replayForPeer(peerAddr, gen)
+			case "down":
+				rr.mu.Unlock()
+				rr.handleStateDown(peerAddr)
+			default: // other states (e.g. "connected")
+				rr.mu.Unlock()
+			}
 		}
 		return
 	}
@@ -314,6 +400,10 @@ func (rr *RouteReflector) dispatchText(text string) {
 		if err != nil {
 			return
 		}
+		// Text path cannot update the withdrawal map (no wire message to parse).
+		// Routes forwarded via text delivery will not be withdrawn on peer-down.
+		// This only affects fork-mode plugins; in-process DirectBridge uses the
+		// structured path which tracks withdrawals from wire bytes.
 		rr.forwardUpdate(msgID)
 	}
 }
@@ -346,4 +436,96 @@ func (rr *RouteReflector) peersJSON() string {
 
 	data, _ := json.Marshal(map[string]any{"peers": peers})
 	return string(data)
+}
+
+// replayForPeer replays existing routes to a newly-connected peer via adj-rib-in,
+// then sends End-of-RIB markers per negotiated family. Runs in a per-peer
+// lifecycle goroutine (not blocking the event loop).
+//
+// The gen parameter guards against rapid reconnects: if the peer's ReplayGen
+// has changed by the time replay finishes, this goroutine is stale.
+func (rr *RouteReflector) replayForPeer(peerAddr string, gen uint64) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	// Full replay from adj-rib-in index 0.
+	cmd := fmt.Sprintf("adj-rib-in replay %s 0", peerAddr)
+	status, data, err := rr.dispatchCommand(ctx, cmd)
+	if err != nil || status != statusDone {
+		// Replay failure is non-fatal: the peer will still receive new routes
+		// going forward. Log and return without sending EOR.
+		logger().Warn("replay failed", "peer", peerAddr, "status", status, "error", err)
+		return
+	}
+
+	// Parse last-index for convergent delta replay.
+	lastIndex, replayed := parseReplayResponse(data)
+
+	// Convergent delta replay: catch routes adj-rib-in received after the
+	// full replay snapshot (race between event delivery and replay).
+	for i := range replayConvergenceMax {
+		if lastIndex == 0 {
+			break
+		}
+		if i > 0 {
+			time.Sleep(replayConvergenceDelay)
+		}
+		deltaCmd := fmt.Sprintf("adj-rib-in replay %s %d", peerAddr, lastIndex)
+		_, deltaData, deltaErr := rr.dispatchCommand(ctx, deltaCmd)
+		if deltaErr != nil {
+			logger().Warn("delta replay failed", "peer", peerAddr, "attempt", i, "error", deltaErr)
+			break
+		}
+		newLast, deltaReplayed := parseReplayResponse(deltaData)
+		if deltaReplayed == 0 {
+			break
+		}
+		replayed += deltaReplayed
+		logger().Debug("delta replay caught new routes", "peer", peerAddr, "attempt", i, "replayed", deltaReplayed)
+		lastIndex = newLast
+	}
+
+	// Send EOR only after a non-empty replay. On initial session establishment
+	// with empty RIB, the reactor already sends EOR for negotiated families.
+	if replayed > 0 {
+		rr.sendEOR(peerAddr, gen)
+	}
+}
+
+// dispatchCommand sends a command to the engine via the SDK.
+func (rr *RouteReflector) dispatchCommand(ctx context.Context, command string) (string, string, error) {
+	return rr.plugin.DispatchCommand(ctx, command)
+}
+
+// sendEOR sends End-of-RIB markers for each of the peer's negotiated families.
+func (rr *RouteReflector) sendEOR(peerAddr string, gen uint64) {
+	rr.mu.RLock()
+	p := rr.peers[peerAddr]
+	if p == nil || p.ReplayGen != gen || len(p.Families) == 0 {
+		rr.mu.RUnlock()
+		return
+	}
+	families := make([]string, 0, len(p.Families))
+	for f := range p.Families {
+		families = append(families, f)
+	}
+	rr.mu.RUnlock()
+
+	sort.Strings(families)
+	for _, fam := range families {
+		rr.updateRoute(peerAddr, fmt.Sprintf("update text nlri %s eor", fam))
+	}
+	logger().Info("sent EOR", "peer", peerAddr, "families", families)
+}
+
+// parseReplayResponse extracts last-index and replayed count from a replay response.
+func parseReplayResponse(data string) (lastIndex uint64, replayed int) {
+	var resp struct {
+		LastIndex uint64 `json:"last-index"`
+		Replayed  int    `json:"replayed"`
+	}
+	if err := json.Unmarshal([]byte(data), &resp); err != nil {
+		return 0, 0
+	}
+	return resp.LastIndex, resp.Replayed
 }

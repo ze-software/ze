@@ -748,21 +748,14 @@ func (a *reactorAPIAdapter) UnregisterCacheConsumer(name string) {
 // RFC 4271 Section 5.1.3: next-hop handling for UPDATE messages.
 // RFC 4760 Section 3 / RFC 2545 Section 3: IPv6 next-hop lives inside MP_REACH.
 //
-// For IPv4 destinations the legacy NEXT_HOP attribute (code 3) is rewritten.
-// For IPv6 destinations the MP_REACH_NLRI attribute (code 14) is rewritten
-// via the mpReachNextHopHandler which patches the next-hop field in place
-// while preserving AFI/SAFI/Reserved/NLRI. When the handler sees a source
-// attribute that does not match the op's target code it leaves it unchanged,
-// so emitting only one of the two ops per peer is sufficient.
+// For IPv4 local addresses, BOTH legacy NEXT_HOP (type 3) and MP_REACH_NLRI
+// (type 14) ops are emitted. The legacy op rewrites IPv4 routes; the MP_REACH
+// op uses IPv4-mapped IPv6 (::ffff:a.b.c.d) for IPv6 routes over IPv4 transport.
+// Each handler is a no-op when its attribute is absent from the source wire bytes.
 //
-// TODO(cmd-1-phase5): Mixed-family sessions. A BGP session between IPv6
-// endpoints can carry IPv4 routes (and vice versa). Today this function
-// emits exactly one op -- matching the session's own address family -- so
-// the OTHER family's next-hop on the same UPDATE is left at the source's
-// value, which is wrong for "next-hop self" on mixed-family peers. Fixing
-// this requires the peer config to expose a paired IPv4/IPv6 local
-// address so we can construct BOTH ops and let the handlers ignore
-// whichever attribute is absent from the source wire bytes.
+// For IPv6 local addresses, only the MP_REACH_NLRI op is emitted. IPv4 routes
+// over IPv6 transport still need a paired IPv4 local address in the peer config
+// (not yet supported).
 func applyNextHopMod(dest *PeerSettings, mods *registry.ModAccumulator) {
 	switch dest.NextHopMode {
 	case NextHopAuto:
@@ -783,6 +776,12 @@ func applyNextHopMod(dest *PeerSettings, mods *registry.ModAccumulator) {
 		if local.Is4() {
 			nhBytes := local.As4()
 			mods.Op(3, registry.AttrModSet, nhBytes[:]) // NEXT_HOP (legacy IPv4)
+			// Also emit MP_REACH next-hop as IPv4-mapped IPv6 (::ffff:a.b.c.d)
+			// for mixed-family sessions carrying IPv6 routes over IPv4 transport.
+			// The mpReachNextHopHandler is a no-op when the source UPDATE has no
+			// MP_REACH_NLRI, so this is safe for pure-IPv4 UPDATEs.
+			mapped := local.As16() // IPv4-mapped IPv6: ::ffff:a.b.c.d
+			mods.Op(14, registry.AttrModSet, mapped[:])
 			return
 		}
 		// IPv6: rewrite MP_REACH_NLRI next-hop. When the peer config carries
@@ -812,11 +811,15 @@ func applyNextHopMod(dest *PeerSettings, mods *registry.ModAccumulator) {
 		if explicit.Is4() {
 			nhBytes := explicit.As4()
 			mods.Op(3, registry.AttrModSet, nhBytes[:]) // NEXT_HOP (legacy IPv4)
+			// Also emit MP_REACH next-hop as IPv4-mapped IPv6 for mixed-family sessions.
+			mapped := explicit.As16()
+			mods.Op(14, registry.AttrModSet, mapped[:])
 			return
 		}
-		// Explicit IPv6 next-hop: always global-only (16-byte NH). The
-		// dual-address 32-byte variant is only meaningful for "self" where
-		// the router knows both its global and its link-local address.
+		// Explicit IPv6 next-hop: global-only (16-byte NH). The dual-address
+		// 32-byte variant (global + link-local) is only meaningful for "self"
+		// where the router knows both addresses. IPv4 explicit is handled above
+		// with both legacy NEXT_HOP and IPv4-mapped MP_REACH ops.
 		nh := explicit.As16()
 		mods.Op(14, registry.AttrModSet, nh[:])
 	}

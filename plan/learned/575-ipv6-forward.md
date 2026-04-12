@@ -12,18 +12,23 @@ IPv6 UPDATEs with MP_REACH_NLRI were not being forwarded to destination peers in
 
 ## Consequences
 
-- `bgp-rr` is a minimal plugin (~300 lines). It lacks withdrawal tracking on peer-down and replay on peer-up (which `bgp-rs` has). These would be needed for production RR deployments with peer churn.
-- AC-2 (next-hop rewrite for IPv6) is partially met: `applyNextHopMod` with an IPv4 local address only rewrites legacy NEXT_HOP (type 3), not MP_REACH_NLRI (type 14). This is a known limitation documented at `reactor_api_forward.go:758-765`. A proper fix requires paired IPv4/IPv6 local addresses in peer config.
+- `bgp-rr` includes replay on peer-up (via adj-rib-in) with convergent delta loop. EOR is sent only after non-empty replay; the reactor handles initial EOR on empty sessions.
+- `bgp-rr` includes withdrawal tracking on peer-down via per-source-peer NLRI map (same pattern as bgp-rs). Wire path only; text-path (fork-mode fallback) does not track withdrawals.
+- `applyNextHopMod` now emits both legacy NEXT_HOP (type 3) and MP_REACH_NLRI (type 14) ops for IPv4 local addresses. The MP_REACH op uses IPv4-mapped IPv6 (::ffff:a.b.c.d). The reverse case (IPv6 local, IPv4 routes) still needs a paired address config.
 
 ## Gotchas
 
 - The root cause was none of the three hypotheses in the spec. The `.ci` test simply had no forwarding plugin loaded. Without `bgp-rr` or `bgp-rs`, the reactor receives UPDATEs but nothing triggers forwarding.
 - ze-peer mirrors the OPEN it receives with last byte of router-id incremented. Connection ordering determines which peer gets which mirrored router-id, making exact ORIGINATOR_ID/CLUSTER_LIST values unpredictable in tests.
 - Each `expect=bgp:conn=N:seq=M:contains=` line in `.ci` tests consumes a separate message. Multiple `contains=` checks on a single-message flow cause timeouts.
+- Replay on state-up must not send EOR with empty replay (replayed==0). The reactor sends initial EOR at session establishment. Sending EOR from the plugin before the peer reaches Established causes "invalid FSM state" errors. Only send EOR after non-empty replay.
 
 ## Files
 
 - `internal/component/bgp/plugins/rr/register.go` -- bgp-rr registration (RFC 4456)
-- `internal/component/bgp/plugins/rr/rr.go` -- route reflector plugin
+- `internal/component/bgp/plugins/rr/rr.go` -- route reflector plugin with replay + withdrawal
+- `internal/component/bgp/plugins/rr/withdrawal.go` -- NLRI tracking and peer-down withdrawal
+- `internal/component/bgp/reactor/reactor_api_forward.go` -- mixed-family next-hop fix
+- `internal/component/bgp/reactor/filter_delta_handlers_test.go` -- applyNextHopMod unit tests
 - `internal/component/plugin/all/all.go` -- added rr import
-- `test/plugin/nexthop-self-ipv6-forward.ci` -- updated with bgp-rr config + ORIGINATOR_ID assertion
+- `test/plugin/nexthop-self-ipv6-forward.ci` -- bgp-rr config + ORIGINATOR_ID assertion
