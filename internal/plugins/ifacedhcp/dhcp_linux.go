@@ -20,14 +20,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
-// DHCPConfig holds optional DHCP client parameters parsed from config.
-type DHCPConfig struct {
-	Hostname string // DHCPv4 option 12
-	ClientID string // DHCPv4 option 61
-	PDLength int    // DHCPv6 requested prefix delegation length (0 = server decides)
-	DUID     string // DHCPv6 DUID override
-}
-
 // DHCPClient manages DHCP on a single interface unit.
 //
 // Start MUST be called to begin DHCP negotiation. Stop MUST be called
