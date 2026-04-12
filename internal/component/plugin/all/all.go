@@ -105,6 +105,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibp4"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacedhcp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ntp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib"
 
 	// RPC command packages -- pluginserver.RegisterRPCs registration.

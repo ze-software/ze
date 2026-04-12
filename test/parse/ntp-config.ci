@@ -1,0 +1,19 @@
+# Valid config: NTP enabled with server pool
+# AC-1: ntp { enabled true; server { ... } } accepted by config validate.
+stdin=config:terminator=EOF_CONF
+environment {
+    ntp {
+        enabled true
+        interval 300
+        server pool0 {
+            address 0.pool.ntp.org
+        }
+        server pool1 {
+            address 1.pool.ntp.org
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

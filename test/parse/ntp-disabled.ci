@@ -1,0 +1,9 @@
+# Valid config: NTP disabled (default)
+# AC-2: Config without NTP block parses ok.
+stdin=config:terminator=EOF_CONF
+environment {
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

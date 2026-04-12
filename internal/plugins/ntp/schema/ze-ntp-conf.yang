@@ -1,0 +1,53 @@
+module ze-ntp-conf {
+    namespace "urn:ze:ntp:conf";
+    prefix ntp;
+
+    description "NTP client configuration for Ze";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    container environment {
+        description "Environment settings for NTP client";
+
+        container ntp {
+            description "NTP client settings";
+
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Enable NTP time synchronization";
+            }
+
+            leaf interval {
+                type uint32 {
+                    range "60..86400";
+                }
+                default 3600;
+                description "Sync interval in seconds";
+            }
+
+            leaf persist-path {
+                type string;
+                default "/perm/ze/timefile";
+                description "Path to save time on shutdown for recovery";
+            }
+
+            list server {
+                key "name";
+                description "NTP server pool entries";
+
+                leaf name {
+                    type string;
+                    description "Server entry name (used as key)";
+                }
+
+                leaf address {
+                    type string;
+                    description "NTP server hostname or IP address";
+                }
+            }
+        }
+    }
+}
