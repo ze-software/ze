@@ -400,10 +400,14 @@ func (rr *RouteReflector) dispatchText(text string) {
 		if err != nil {
 			return
 		}
-		// Text path cannot update the withdrawal map (no wire message to parse).
-		// Routes forwarded via text delivery will not be withdrawn on peer-down.
-		// This only affects fork-mode plugins; in-process DirectBridge uses the
-		// structured path which tracks withdrawals from wire bytes.
+		// Update withdrawal map from text before forwarding.
+		peerAddr := fields[1]
+		ops := parseTextNLRIOps(text)
+		if len(ops) > 0 {
+			rr.withdrawalMu.Lock()
+			rr.updateWithdrawalMapText(peerAddr, ops)
+			rr.withdrawalMu.Unlock()
+		}
 		rr.forwardUpdate(msgID)
 	}
 }

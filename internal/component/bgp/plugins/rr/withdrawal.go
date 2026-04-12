@@ -14,6 +14,7 @@ import (
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
@@ -168,4 +169,175 @@ func nlriKey(s string) string {
 		return after
 	}
 	return s
+}
+
+// --- Text-path withdrawal tracking (fork-mode fallback) ---
+
+// familyOperation represents a single add or del operation for a family.
+type familyOperation struct {
+	action string // "add" or "del"
+	nlris  []string
+}
+
+// updateWithdrawalMapText updates the withdrawal map from text-parsed NLRI operations.
+// Caller must hold rr.withdrawalMu.
+func (rr *RouteReflector) updateWithdrawalMapText(sourcePeer string, ops map[string][]familyOperation) {
+	for famName, familyOps := range ops {
+		for _, op := range familyOps {
+			switch op.action {
+			case actionAdd:
+				if rr.withdrawals[sourcePeer] == nil {
+					rr.withdrawals[sourcePeer] = make(map[string]withdrawalInfo)
+				}
+				for _, s := range op.nlris {
+					if s != "" {
+						routeKey := famName + "|" + nlriKey(s)
+						rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: famName, Prefix: s}
+					}
+				}
+			case actionDel:
+				if rr.withdrawals[sourcePeer] != nil {
+					for _, s := range op.nlris {
+						if s != "" {
+							delete(rr.withdrawals[sourcePeer], famName+"|"+nlriKey(s))
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// parseTextNLRIOps extracts family operations (add/del + NLRIs) from a text UPDATE.
+//
+// Format: "peer <addr> remote as <n> <dir> update <id> <attrs> [next <nh>] nlri <fam> add|del <nlris> ..."
+//
+// Key-dispatch loop processes keywords sequentially, resolving aliases via textparse.ResolveAlias:
+// - Attribute keywords (origin, path, pref, etc.): skip value(s)
+// - "nlri": consume family, extract action (add/del) and collect NLRI tokens until next keyword.
+func parseTextNLRIOps(text string) map[string][]familyOperation {
+	result := make(map[string][]familyOperation)
+	s := textparse.NewScanner(strings.TrimRight(text, "\n"))
+
+	// Skip header: peer <addr> remote as <n> <dir> update <id>
+	for i := 0; i < 8 && !s.Done(); i++ {
+		s.Next()
+	}
+
+	// Key-dispatch loop.
+	for !s.Done() {
+		raw, ok := s.Next()
+		if !ok {
+			break
+		}
+		tok := textparse.ResolveAlias(raw)
+
+		switch tok {
+		case textparse.KWNextHop:
+			s.Next() // consume the address
+
+		case textparse.KWNLRI:
+			fam, ok := s.Next()
+			if !ok || !strings.Contains(fam, "/") {
+				continue
+			}
+
+			// Optional path-id modifier.
+			next, ok := s.Peek()
+			if !ok {
+				continue
+			}
+			if textparse.ResolveAlias(next) == textparse.KWPathInformation {
+				s.Next() // consume "info"/"path-information"
+				s.Next() // consume the ID value
+				if _, ok = s.Peek(); !ok {
+					continue
+				}
+			}
+
+			// Action: add or del.
+			action, ok := s.Next()
+			if !ok || (action != actionAdd && action != actionDel) {
+				continue
+			}
+
+			// Collect NLRI tokens until next top-level keyword or end.
+			var nlriTokens []string
+			for !s.Done() {
+				next, ok := s.Peek()
+				if !ok || textparse.IsTopLevelKeyword(next) {
+					break
+				}
+				tok, _ := s.Next()
+				nlriTokens = append(nlriTokens, tok)
+			}
+
+			nlris := buildNLRIEntries(nlriTokens)
+			if len(nlris) > 0 {
+				result[fam] = append(result[fam], familyOperation{action: action, nlris: nlris})
+			}
+
+		// Attribute keywords: consume their values.
+		case textparse.KWOrigin, textparse.KWMED, textparse.KWLocalPreference,
+			textparse.KWAggregator, textparse.KWOriginatorID:
+			s.Next()
+		case textparse.KWASPath, textparse.KWCommunity, textparse.KWLargeCommunity,
+			textparse.KWExtendedCommunity, textparse.KWClusterList:
+			s.Next()
+		case textparse.KWAtomicAggregate:
+			// flag, no value
+		}
+	}
+
+	return result
+}
+
+// buildNLRIEntries splits collected tokens into individual NLRI strings.
+// Accepts two formats:
+//   - Comma: "prefix 10.0.0.0/24,10.0.1.0/24" -- type keyword + comma-separated values.
+//   - Keyword boundary: "prefix 10.0.0.0/24 prefix 10.0.1.0/24" -- repeated type keyword.
+func buildNLRIEntries(tokens []string) []string {
+	if len(tokens) == 0 {
+		return nil
+	}
+
+	// Check for comma in any token.
+	for i, tok := range tokens {
+		if !strings.Contains(tok, ",") {
+			continue
+		}
+		typePrefix := strings.Join(tokens[:i], " ")
+		var nlris []string
+		for part := range strings.SplitSeq(tok, ",") {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				if typePrefix != "" {
+					nlris = append(nlris, typePrefix+" "+part)
+				} else {
+					nlris = append(nlris, part)
+				}
+			}
+		}
+		return nlris
+	}
+
+	// No commas -- check for keyword boundary (repeated type keywords).
+	if textparse.NLRITypeKeywords[tokens[0]] {
+		var nlris []string
+		var current []string
+		for _, tok := range tokens {
+			if tok == tokens[0] && len(current) > 0 {
+				nlris = append(nlris, strings.Join(current, " "))
+				current = nil
+			}
+			current = append(current, tok)
+		}
+		if len(current) > 0 {
+			nlris = append(nlris, strings.Join(current, " "))
+		}
+		return nlris
+	}
+
+	// Single complex NLRI: join all tokens.
+	return []string{strings.Join(tokens, " ")}
 }
