@@ -36,6 +36,8 @@ type rtcTime struct {
 }
 
 // rtcSetTimeIOCTL is the RTC_SET_TIME ioctl number (from linux/rtc.h).
+// Value: _IOW('p', 0x0a, struct rtc_time) = 0x40000000 | (36<<16) | ('p'<<8) | 10.
+// struct rtc_time is 9 x int32 = 36 bytes on all architectures (Go int32 matches C int).
 const rtcSetTimeIOCTL = 0x4024700a
 
 // setRTC writes the given time to /dev/rtc0. Returns nil if the RTC

@@ -74,6 +74,35 @@ func runNTPPlugin(conn net.Conn) int {
 	var worker *syncWorker
 	var unsubscribe func()
 
+	// startWorker stops any existing worker, then starts a new one
+	// with the given config. Safe to call multiple times (reload).
+	startWorker := func(cfg ntpConfig) {
+		if worker != nil {
+			worker.stopAndWait()
+			worker = nil
+		}
+		if unsubscribe != nil {
+			unsubscribe()
+			unsubscribe = nil
+		}
+		if !cfg.Enabled {
+			log.Debug("ntp: disabled in config")
+			return
+		}
+		worker = newSyncWorker(cfg)
+		worker.start()
+		log.Info("ntp: sync worker started",
+			"servers", cfg.Servers, "interval", cfg.IntervalSec)
+
+		eb := getEventBus()
+		if eb != nil {
+			unsubscribe = subscribeDHCP(eb, worker)
+		}
+	}
+
+	// pendingCfg holds config between verify and apply phases.
+	var pendingCfg *ntpConfig
+
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, s := range sections {
 			if s.Root != "environment" {
@@ -83,29 +112,42 @@ func runNTPPlugin(conn net.Conn) int {
 			if err != nil {
 				return fmt.Errorf("ntp: %w", err)
 			}
-			if !cfg.Enabled {
-				log.Debug("ntp: disabled in config")
-				return nil
-			}
-
-			worker = newSyncWorker(cfg)
-			worker.start()
-			log.Info("ntp: sync worker started",
-				"servers", cfg.Servers, "interval", cfg.IntervalSec)
-
-			// Subscribe to DHCP events for option 42 NTP servers.
-			eb := getEventBus()
-			if eb != nil {
-				unsubscribe = subscribeDHCP(eb, worker)
-			}
+			startWorker(cfg)
 			return nil
 		}
 		return nil
 	})
 
+	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		for _, s := range sections {
+			if s.Root != "environment" {
+				continue
+			}
+			cfg, err := parseNTPConfig(s.Data)
+			if err != nil {
+				return fmt.Errorf("ntp: %w", err)
+			}
+			pendingCfg = &cfg
+			return nil
+		}
+		return nil
+	})
+
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		cfg := pendingCfg
+		pendingCfg = nil
+		if cfg == nil {
+			return nil
+		}
+		startWorker(*cfg)
+		return nil
+	})
+
 	ctx := context.Background()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"environment"},
+		WantsConfig:  []string{"environment"},
+		VerifyBudget: 2,
+		ApplyBudget:  5,
 	}); err != nil {
 		log.Error("ntp plugin failed", "error", err)
 		return 1

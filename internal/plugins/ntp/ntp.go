@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -124,7 +125,9 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 	// RFC 5905 recommends randomizing client requests.
 	// Cryptographic randomness is not needed for jitter/load balancing.
 	jitter := time.Duration(rand.IntN(250)) * time.Millisecond //nolint:gosec // jitter, not security
-	time.Sleep(jitter)
+	if !w.sleepOrStop(jitter) {
+		return false
+	}
 
 	// Pick a random server for load distribution.
 	server := servers[rand.IntN(len(servers))] //nolint:gosec // load balancing, not security
@@ -216,6 +219,7 @@ func (w *syncWorker) sleepOrStop(d time.Duration) bool {
 func (w *syncWorker) handleDHCPEvent(data string) {
 	var payload iface.DHCPPayload
 	if err := json.Unmarshal([]byte(data), &payload); err != nil {
+		loggerPtr.Load().Debug("ntp: failed to parse DHCP lease event", "err", err)
 		return
 	}
 	if len(payload.NTPServers) > 0 {
@@ -252,22 +256,62 @@ func parseNTPConfig(data string) (ntpConfig, error) {
 		}
 	}
 	if v, ok := ntpMap["persist-path"].(string); ok && v != "" {
+		if err := validatePersistPath(v); err != nil {
+			return cfg, fmt.Errorf("ntp config: persist-path: %w", err)
+		}
 		cfg.PersistPath = v
 	}
 
 	if serverMap, ok := ntpMap["server"].(map[string]any); ok {
-		for _, sv := range serverMap {
+		for name, sv := range serverMap {
 			sm, _ := sv.(map[string]any)
 			if sm == nil {
 				continue
 			}
 			if addr, ok := sm["address"].(string); ok && addr != "" {
+				if err := validateServerAddress(addr); err != nil {
+					return cfg, fmt.Errorf("ntp config: server %q: %w", name, err)
+				}
 				cfg.Servers = append(cfg.Servers, addr)
 			}
 		}
 	}
 
 	return cfg, nil
+}
+
+// validatePersistPath rejects path traversal and non-absolute paths.
+func validatePersistPath(path string) error {
+	if path == "" {
+		return nil
+	}
+	if !filepath.IsAbs(path) {
+		return fmt.Errorf("must be absolute path, got %q", path)
+	}
+	cleaned := filepath.Clean(path)
+	if cleaned != path {
+		return fmt.Errorf("path contains traversal or redundant separators: %q", path)
+	}
+	return nil
+}
+
+// validateServerAddress rejects obviously invalid server addresses.
+// Accepts hostnames and IPs; rejects empty, overly long, and control chars.
+const maxServerAddrLen = 253 // max DNS hostname length
+
+func validateServerAddress(addr string) error {
+	if addr == "" {
+		return fmt.Errorf("empty server address")
+	}
+	if len(addr) > maxServerAddrLen {
+		return fmt.Errorf("server address too long (%d > %d)", len(addr), maxServerAddrLen)
+	}
+	for _, c := range addr {
+		if c < 0x20 || c == 0x7f {
+			return fmt.Errorf("server address contains control character")
+		}
+	}
+	return nil
 }
 
 // subscribeDHCP sets up the event bus subscription for DHCP lease events.
