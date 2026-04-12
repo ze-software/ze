@@ -52,6 +52,28 @@ func applySocketOptions(c syscall.RawConn, device string) error {
 	return innerErr
 }
 
+// applySocketOptionsV6 mirrors applySocketOptions on the IPv6 side
+// for non-Linux builds. It rejects device binding for the same
+// reason (SO_BINDTODEVICE is Linux-only) and does not attempt to
+// set IPV6_UNICAST_HOPS via a portable path because the BSD
+// semantics differ per platform. The engine's TTL gate will fail
+// closed on receive until a production operator runs on Linux.
+func applySocketOptionsV6(c syscall.RawConn, device string) error {
+	if device != "" {
+		return errBindToDeviceUnsupported
+	}
+	var innerErr error
+	controlErr := c.Control(func(fd uintptr) {
+		if err := syscall.SetsockoptInt(int(fd), syscall.IPPROTO_IPV6, syscall.IPV6_UNICAST_HOPS, 255); err != nil {
+			innerErr = fmt.Errorf("setsockopt IPV6_UNICAST_HOPS=255: %w", err)
+		}
+	})
+	if controlErr != nil {
+		return fmt.Errorf("rawconn Control: %w", controlErr)
+	}
+	return innerErr
+}
+
 // parseReceivedTTL returns zero on non-Linux builds: the engine then
 // fails closed on single-hop sessions (TTL=0 != 255) and multi-hop
 // sessions drop packets whose MinTTL is not 0 (never, since the default

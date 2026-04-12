@@ -123,11 +123,20 @@ func (u *UDP) Start() error {
 	// Use ListenConfig.Control to run applySocketOptions on the raw fd
 	// before ListenPacket hands the socket off. This is the only place
 	// SO_BINDTODEVICE will succeed without CAP_NET_RAW-vs-bind ordering
-	// hazards, and it lets IP_RECVTTL be set before the first read.
+	// hazards, and it lets IP_RECVTTL / IPV6_RECVHOPLIMIT be set before
+	// the first read.
 	device := u.Device
+	isV6 := u.Bind.Addr().Is6() && !u.Bind.Addr().Is4In6()
 	var ctrlErr error
 	lc := net.ListenConfig{
 		Control: func(_, _ string, c syscall.RawConn) error {
+			if isV6 {
+				if err := applySocketOptionsV6(c, device); err != nil {
+					ctrlErr = err
+					return err
+				}
+				return nil
+			}
 			if err := applySocketOptions(c, device); err != nil {
 				ctrlErr = err
 				return err
@@ -137,7 +146,13 @@ func (u *UDP) Start() error {
 	}
 
 	network := "udp4"
-	addr := fmt.Sprintf("%s:%d", u.Bind.Addr().String(), u.Bind.Port())
+	if isV6 {
+		network = "udp6"
+	}
+	addr := fmt.Sprintf("[%s]:%d", u.Bind.Addr().String(), u.Bind.Port())
+	if !isV6 {
+		addr = fmt.Sprintf("%s:%d", u.Bind.Addr().String(), u.Bind.Port())
+	}
 	pc, err := lc.ListenPacket(context.Background(), network, addr)
 	if err != nil {
 		if ctrlErr != nil {
