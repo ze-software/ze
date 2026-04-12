@@ -13,8 +13,8 @@ import (
 func init() {
 	reg := registry.Registration{
 		Name:        "bgp-bmp",
-		Description: "BMP receiver and sender (RFC 7854)",
-		RFCs:        []string{"7854"},
+		Description: "BMP receiver and sender (RFC 7854, 8671)",
+		RFCs:        []string{"7854", "8671"},
 		Features:    "yang",
 		YANG:        bmpschema.ZeBMPConfYANG,
 		ConfigRoots: []string{"bgp", "environment"},

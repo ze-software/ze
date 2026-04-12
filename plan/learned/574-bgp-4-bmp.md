@@ -34,7 +34,9 @@ The comparison matrix showed "No" for BMP. Both GoBGP (sender) and bio-routing
   with the correct JSON wrapping pattern
 - Adj-RIB-Out (RFC 8671) supported: sender subscribes to "update direction sent",
   sets O+L flags in Per-Peer Header, route-monitoring-policy controls direction filter
-- Follow-up needed: Loc-RIB (RFC 9069), Route Mirroring sender, per-NLRI ribout
+- Follow-up needed: Loc-RIB (RFC 9069) requires BGP UPDATE wire encoder to
+  convert best-path changes back to wire format (bgp-rib publishes parsed JSON
+  via EventBus, not raw wire bytes). Route Mirroring sender, per-NLRI ribout
   dedup, raw OPEN PDU access from event system
 
 ## Gotchas
