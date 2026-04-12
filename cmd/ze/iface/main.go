@@ -54,6 +54,8 @@ func Run(args []string) int {
 	switch subcmd {
 	case "show":
 		return cmdShow(subArgs)
+	case "scan":
+		return cmdScan(subArgs)
 	case "create":
 		return cmdCreate(subArgs)
 	case "delete":
@@ -68,7 +70,7 @@ func Run(args []string) int {
 
 	fmt.Fprintf(os.Stderr, "error: unknown interface subcommand: %s\n", subcmd)
 	if s := suggest.Command(subcmd, []string{
-		"show", "create", "delete", "unit", "addr", "migrate", "help",
+		"show", "scan", "create", "delete", "unit", "addr", "migrate", "help",
 	}); s != "" {
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
 	}
@@ -84,6 +86,7 @@ func usage() {
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: "show [name]", Desc: "List interfaces or show one"},
+				{Name: "scan [--config|--json|--yaml]", Desc: "Scan OS for interfaces and classify by Ze type"},
 				{Name: "create dummy <name>", Desc: "Create a dummy interface"},
 				{Name: "create veth <name> <peer>", Desc: "Create a veth pair"},
 				{Name: "delete <name>", Desc: "Delete an interface"},
