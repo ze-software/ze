@@ -135,3 +135,27 @@ func (m *Machine) PollOutstanding() bool { return m.vars.PollOutstanding }
 // microseconds. Exposed so the engine and tests can observe timer
 // negotiation without reaching into the unexported Vars struct.
 func (m *Machine) DesiredMinTxIntervalUs() uint32 { return m.vars.DesiredMinTxInterval }
+
+// EchoEnabled reports whether the session has echo mode configured
+// locally AND the peer has advertised a non-zero
+// RequiredMinEchoRxInterval. Stage 6 uses this to gate the engine's
+// per-session echo scheduler; without both ends opting in, no echo
+// packets flow.
+func (m *Machine) EchoEnabled() bool {
+	return m.vars.DesiredMinEchoTxInterval != 0 &&
+		m.vars.RemoteMinEchoRxInterval != 0
+}
+
+// EchoInterval returns the negotiated echo TX cadence:
+// max(local DesiredMinEchoTx, peer RemoteMinEchoRx), as a Go
+// duration. Returns zero when echo is not active.
+func (m *Machine) EchoInterval() time.Duration {
+	if !m.EchoEnabled() {
+		return 0
+	}
+	us := uint64(m.vars.DesiredMinEchoTxInterval)
+	if r := uint64(m.vars.RemoteMinEchoRxInterval); r > us {
+		us = r
+	}
+	return time.Duration(us) * time.Microsecond
+}

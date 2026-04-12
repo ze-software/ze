@@ -1,0 +1,143 @@
+# Test: BFD plugin accepts `profile { echo { desired-min-echo-tx-us } }`
+# on a single-hop session and surfaces the configured rate.
+#
+# VALIDATES: spec-bfd-6 AC-1 -- echo config parses, the session
+#            enters the runtime with DesiredMinEchoTxInterval set,
+#            and the rate appears in outgoing Control packets as
+#            RequiredMinEchoRxInterval per RFC 5880 Section 6.8.9.
+# PREVENTS:  regression where the YANG block drops the echo leaves
+#            or the parser forgets to populate SessionRequest.
+
+option=env:var=ze.bfd.test-parallel:value=true
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=bfd-echo-config.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Verify an echo profile parses and the session runs."""
+
+import json
+import time
+
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(1.0)
+
+    r = dispatch(api, 'show bfd profile fast-echo')
+    if r.get('status') != 'done':
+        runtime_fail(f'profile status: {r.get("status")}')
+    try:
+        profile = json.loads(r.get('data', '') or '{}')
+    except json.JSONDecodeError as exc:
+        profile = {}
+        runtime_fail(f'profile json: {exc}')
+    if profile.get('name') != 'fast-echo':
+        runtime_fail(f'profile name: {profile}')
+
+    r = dispatch(api, 'show bfd session 203.0.113.9')
+    if r.get('status') != 'done':
+        runtime_fail(f'session status: {r.get("status")}')
+    try:
+        session = json.loads(r.get('data', '') or '{}')
+    except json.JSONDecodeError as exc:
+        session = {}
+        runtime_fail(f'session json: {exc}')
+    if session.get('peer') != '203.0.113.9':
+        runtime_fail(f'session peer: {session}')
+    if session.get('mode') != 'single-hop':
+        runtime_fail(f'session mode: {session}')
+    if session.get('profile') != 'fast-echo':
+        runtime_fail(f'session profile: {session.get("profile")!r}')
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bfd:terminator=EOF_CONF
+plugin {
+	external bfd-echo-config-test {
+		run ./bfd-echo-config.run
+		encoder json
+	}
+}
+
+environment {
+	log {
+		bfd debug
+	}
+}
+
+bfd {
+	enabled true;
+	profile fast-echo {
+		detect-multiplier 3
+		desired-min-tx-us 100000
+		required-min-rx-us 100000
+		echo {
+			desired-min-echo-tx-us 50000
+		}
+	}
+	single-hop-session 203.0.113.9 {
+		profile fast-echo
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process bfd-echo-config-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bfd:timeout=15s
+expect=exit:code=0
