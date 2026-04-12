@@ -1081,6 +1081,30 @@ func TestParseUnitDHCPWithStaticAddress(t *testing.T) {
 	assert.True(t, u.DHCP.Enabled)
 }
 
+// TestParseIfaceDHCPAuto verifies the dhcp-auto leaf is parsed.
+//
+// VALIDATES: dhcp-auto true parsed into ifaceConfig.DHCPAuto.
+// PREVENTS: Auto-discovery silently ignored due to parse bug.
+func TestParseIfaceDHCPAuto(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"dhcp-auto": "true"
+		}
+	}`)
+	assert.True(t, cfg.DHCPAuto)
+}
+
+// TestParseIfaceDHCPAutoDefault verifies dhcp-auto is false by default.
+//
+// VALIDATES: No dhcp-auto means disabled.
+// PREVENTS: DHCP auto-discovery running when not configured.
+func TestParseIfaceDHCPAutoDefault(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {}
+	}`)
+	assert.False(t, cfg.DHCPAuto)
+}
+
 // TestIfaceApplyJournalCreate verifies that applyConfig wrapped in a journal
 // can be rolled back by re-applying the previous config.
 //

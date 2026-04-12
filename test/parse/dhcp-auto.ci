@@ -1,0 +1,10 @@
+# Valid config: dhcp-auto discovers first ethernet
+# AC: interface { dhcp-auto true } accepted by config validate.
+stdin=config:terminator=EOF_CONF
+interface {
+    dhcp-auto true
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
