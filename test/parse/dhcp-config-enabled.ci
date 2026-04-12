@@ -1,0 +1,17 @@
+# Valid config: DHCPv4 enabled on ethernet unit
+# AC-1: dhcp { enabled true } accepted by config validate.
+stdin=config:terminator=EOF_CONF
+interface {
+    ethernet eth0 {
+        unit 0 {
+            dhcp {
+                enabled true
+                hostname ze-router
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

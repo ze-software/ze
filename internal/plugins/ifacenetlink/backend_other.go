@@ -39,6 +39,8 @@ func (s *stubBackend) DeleteInterface(_ string) error                         { 
 func (s *stubBackend) AddAddress(_, _ string) error                           { return unsupported() }
 func (s *stubBackend) RemoveAddress(_, _ string) error                        { return unsupported() }
 func (s *stubBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) error { return unsupported() }
+func (s *stubBackend) AddRoute(_, _, _ string) error                          { return unsupported() }
+func (s *stubBackend) RemoveRoute(_, _, _ string) error                       { return unsupported() }
 func (s *stubBackend) SetAdminUp(_ string) error                              { return unsupported() }
 func (s *stubBackend) SetAdminDown(_ string) error                            { return unsupported() }
 func (s *stubBackend) SetMTU(_ string, _ int) error                           { return unsupported() }

@@ -181,6 +181,10 @@ func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 			if len(dnsServers) > 0 {
 				dns = dnsServers[0].String()
 			}
+			dnsAll := make([]string, 0, len(dnsServers))
+			for _, s := range dnsServers {
+				dnsAll = append(dnsAll, s.String())
+			}
 
 			payload := iface.DHCPPayload{
 				Name:         c.ifaceName,
@@ -188,6 +192,7 @@ func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 				Address:      ip.String(),
 				PrefixLength: 128,
 				DNS:          dns,
+				DNSAll:       dnsAll,
 				LeaseTime:    int(iaAddr.ValidLifetime.Seconds()),
 			}
 			c.publishDHCP(topic, payload)
@@ -195,6 +200,20 @@ func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 			logger.Info("iface dhcp v6: address obtained",
 				"iface", c.ifaceName, "addr", cidr,
 				"valid", iaAddr.ValidLifetime)
+		}
+	}
+
+	// Write DNS servers from DHCPv6 reply to resolv.conf.
+	// Done once after the address loop rather than per-address.
+	dnsServers := msg.Options.DNS()
+	if len(dnsServers) > 0 {
+		dnsAll := make([]string, 0, len(dnsServers))
+		for _, s := range dnsServers {
+			dnsAll = append(dnsAll, s.String())
+		}
+		if err := writeResolvConf(dnsAll); err != nil {
+			logger.Warn("iface dhcp v6: resolv.conf write failed",
+				"iface", c.ifaceName, "err", err)
 		}
 	}
 

@@ -84,6 +84,24 @@ type unitEntry struct {
 	IPv6          *ipv6Sysctl
 	MirrorIngress string // destination interface name, empty = not configured
 	MirrorEgress  string
+	DHCP          *dhcpUnitConfig
+	DHCPv6        *dhcpv6UnitConfig
+}
+
+// dhcpUnitConfig holds DHCPv4 client settings parsed from the YANG
+// "dhcp" container inside an interface unit.
+type dhcpUnitConfig struct {
+	Enabled  bool
+	Hostname string
+	ClientID string
+}
+
+// dhcpv6UnitConfig holds DHCPv6 client settings parsed from the YANG
+// "dhcpv6" container inside an interface unit.
+type dhcpv6UnitConfig struct {
+	Enabled  bool
+	PDLength int // 0 = not set (server decides)
+	DUID     string
 }
 
 // ipv4Sysctl holds per-interface IPv4 sysctl settings.
@@ -538,6 +556,8 @@ func parseUnits(m map[string]any) []unitEntry {
 				u.MirrorIngress, _ = mirrorMap["ingress"].(string)
 				u.MirrorEgress, _ = mirrorMap["egress"].(string)
 			}
+			u.DHCP = parseDHCPv4Config(um)
+			u.DHCPv6 = parseDHCPv6Config(um)
 		}
 		units = append(units, u)
 	}
@@ -626,6 +646,48 @@ func parseIPv6Sysctl(um map[string]any) *ipv6Sysctl {
 		return nil
 	}
 	return s
+}
+
+// parseDHCPv4Config reads the "dhcp" container from a unit map and returns
+// a dhcpUnitConfig if the container is present. Returns nil when absent.
+func parseDHCPv4Config(um map[string]any) *dhcpUnitConfig {
+	dm, ok := um["dhcp"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	cfg := &dhcpUnitConfig{}
+	if v, ok := dm["enabled"].(string); ok {
+		cfg.Enabled = v == yangTrue
+	}
+	if v, ok := dm["hostname"].(string); ok {
+		cfg.Hostname = v
+	}
+	if v, ok := dm["client-id"].(string); ok {
+		cfg.ClientID = v
+	}
+	return cfg
+}
+
+// parseDHCPv6Config reads the "dhcpv6" container from a unit map and returns
+// a dhcpv6UnitConfig if the container is present. Returns nil when absent.
+func parseDHCPv6Config(um map[string]any) *dhcpv6UnitConfig {
+	dm, ok := um["dhcpv6"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	cfg := &dhcpv6UnitConfig{}
+	if v, ok := dm["enabled"].(string); ok {
+		cfg.Enabled = v == yangTrue
+	}
+	if pd, ok := dm["pd"].(map[string]any); ok {
+		if v, ok := pd["length"].(string); ok {
+			cfg.PDLength, _ = strconv.Atoi(v)
+		}
+	}
+	if v, ok := dm["duid"].(string); ok {
+		cfg.DUID = v
+	}
+	return cfg
 }
 
 func parseStringList(m map[string]any, key string) []string {

@@ -85,13 +85,15 @@ type InterfaceStats struct {
 // DHCPPayload is the JSON payload for DHCP lease events.
 // Field names use kebab-case per rules/json-format.md.
 type DHCPPayload struct {
-	Name         string `json:"name"`
-	Unit         int    `json:"unit"`
-	Address      string `json:"address"`
-	PrefixLength int    `json:"prefix-length"`
-	Router       string `json:"router,omitempty"`
-	DNS          string `json:"dns,omitempty"`
-	LeaseTime    int    `json:"lease-time"`
+	Name         string   `json:"name"`
+	Unit         int      `json:"unit"`
+	Address      string   `json:"address"`
+	PrefixLength int      `json:"prefix-length"`
+	Router       string   `json:"router,omitempty"`
+	DNS          string   `json:"dns,omitempty"`
+	DNSAll       []string `json:"dns-all,omitempty"`
+	NTPServers   []string `json:"ntp-servers,omitempty"`
+	LeaseTime    int      `json:"lease-time"`
 }
 
 // InterfaceInfo describes an OS network interface for display.

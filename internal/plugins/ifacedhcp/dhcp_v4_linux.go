@@ -43,7 +43,7 @@ func (c *DHCPClient) runV4() {
 		}
 
 		ctx, ctxCancel := c.stoppableContext()
-		lease, err := client.Request(ctx)
+		lease, err := client.Request(ctx, c.v4RequestModifiers()...)
 		ctxCancel()
 		if closeErr := client.Close(); closeErr != nil {
 			logger.Debug("iface dhcp v4: client close failed",
@@ -181,6 +181,23 @@ func (c *DHCPClient) handleV4Lease(ack *dhcpv4.DHCPv4, topic string) {
 	}
 
 	payload := c.v4Payload(ack)
+
+	// Install default route from DHCP Router option (RFC 2132 Section 3.5).
+	if payload.Router != "" {
+		if err := iface.AddRoute(c.ifaceName, "0.0.0.0/0", payload.Router); err != nil {
+			logger.Warn("iface dhcp v4: route install failed",
+				"iface", c.ifaceName, "gw", payload.Router, "err", err)
+		}
+	}
+
+	// Write DNS servers from DHCP to resolv.conf (RFC 2132 Section 3.8).
+	if len(payload.DNSAll) > 0 {
+		if err := writeResolvConf(payload.DNSAll); err != nil {
+			logger.Warn("iface dhcp v4: resolv.conf write failed",
+				"iface", c.ifaceName, "err", err)
+		}
+	}
+
 	c.publishDHCP(topic, payload)
 
 	logger.Info("iface dhcp v4: lease obtained",
@@ -188,6 +205,7 @@ func (c *DHCPClient) handleV4Lease(ack *dhcpv4.DHCPv4, topic string) {
 }
 
 func (c *DHCPClient) removeV4Addr(ack *dhcpv4.DHCPv4) {
+	logger := loggerPtr.Load()
 	ip := ack.YourIPAddr
 	mask := ack.SubnetMask()
 	ones, _ := mask.Size()
@@ -198,9 +216,24 @@ func (c *DHCPClient) removeV4Addr(ack *dhcpv4.DHCPv4) {
 	cidr := fmt.Sprintf("%s/%d", ip.String(), ones)
 
 	if err := iface.RemoveAddress(c.ifaceName, cidr); err != nil {
-		loggerPtr.Load().Debug("iface dhcp v4: addr removal failed",
+		logger.Debug("iface dhcp v4: addr removal failed",
 			"iface", c.ifaceName, "cidr", cidr, "err", err)
 	}
+
+	// Remove default route installed from this lease.
+	routerIP := dhcpv4.GetIP(dhcpv4.OptionRouter, ack.Options)
+	if routerIP != nil {
+		if err := iface.RemoveRoute(c.ifaceName, "0.0.0.0/0", routerIP.String()); err != nil {
+			logger.Debug("iface dhcp v4: route removal failed",
+				"iface", c.ifaceName, "gw", routerIP.String(), "err", err)
+		}
+	}
+
+	// resolv.conf is NOT cleared on individual lease expiry. When multiple
+	// interfaces have DHCP enabled, each writes DNS on acquire/renew (last
+	// writer wins). Clearing here would remove DNS that another active
+	// lease provided. Stale DNS is better than no DNS; the next lease
+	// acquisition overwrites with fresh servers.
 }
 
 func (c *DHCPClient) v4LeaseTime(ack *dhcpv4.DHCPv4) time.Duration {
@@ -231,6 +264,17 @@ func (c *DHCPClient) v4Payload(ack *dhcpv4.DHCPv4) iface.DHCPPayload {
 		dns = dnsServers[0].String()
 	}
 
+	dnsAll := make([]string, 0, len(dnsServers))
+	for _, s := range dnsServers {
+		dnsAll = append(dnsAll, s.String())
+	}
+
+	ntpIPs := dhcpv4.GetIPs(dhcpv4.OptionNTPServers, ack.Options)
+	ntpServers := make([]string, 0, len(ntpIPs))
+	for _, s := range ntpIPs {
+		ntpServers = append(ntpServers, s.String())
+	}
+
 	return iface.DHCPPayload{
 		Name:         c.ifaceName,
 		Unit:         c.unit,
@@ -238,6 +282,22 @@ func (c *DHCPClient) v4Payload(ack *dhcpv4.DHCPv4) iface.DHCPPayload {
 		PrefixLength: ones,
 		Router:       router,
 		DNS:          dns,
+		DNSAll:       dnsAll,
+		NTPServers:   ntpServers,
 		LeaseTime:    int(c.v4LeaseTime(ack).Seconds()),
 	}
+}
+
+// v4RequestModifiers builds dhcpv4 packet modifiers from the client config.
+// Adds hostname (option 12) and client-id (option 61) when configured.
+// RFC 2132 Section 3.14 (hostname), Section 9.14 (client-id).
+func (c *DHCPClient) v4RequestModifiers() []dhcpv4.Modifier {
+	var mods []dhcpv4.Modifier
+	if c.config.Hostname != "" {
+		mods = append(mods, dhcpv4.WithOption(dhcpv4.OptHostName(c.config.Hostname)))
+	}
+	if c.config.ClientID != "" {
+		mods = append(mods, dhcpv4.WithOption(dhcpv4.OptClientIdentifier([]byte(c.config.ClientID))))
+	}
+	return mods
 }

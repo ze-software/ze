@@ -20,6 +20,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
+// DHCPConfig holds optional DHCP client parameters parsed from config.
+type DHCPConfig struct {
+	Hostname string // DHCPv4 option 12
+	ClientID string // DHCPv4 option 61
+	PDLength int    // DHCPv6 requested prefix delegation length (0 = server decides)
+	DUID     string // DHCPv6 DUID override
+}
+
 // DHCPClient manages DHCP on a single interface unit.
 //
 // Start MUST be called to begin DHCP negotiation. Stop MUST be called
@@ -29,6 +37,7 @@ type DHCPClient struct {
 	ifaceName string
 	unit      int
 	eventBus  ze.EventBus
+	config    DHCPConfig
 	stop      chan struct{}
 	done      chan struct{}
 	v4        bool
@@ -39,7 +48,8 @@ type DHCPClient struct {
 
 // NewDHCPClient creates a DHCP client for the named interface.
 // eventBus must not be nil. At least one of v4 or v6 must be true.
-func NewDHCPClient(ifaceName string, unit int, eventBus ze.EventBus, v4, v6 bool) (*DHCPClient, error) {
+// cfg carries optional parameters (hostname, client-id) from the config.
+func NewDHCPClient(ifaceName string, unit int, eventBus ze.EventBus, v4, v6 bool, cfg DHCPConfig) (*DHCPClient, error) {
 	if eventBus == nil {
 		return nil, errors.New("iface dhcp: event bus is nil")
 	}
@@ -53,6 +63,7 @@ func NewDHCPClient(ifaceName string, unit int, eventBus ze.EventBus, v4, v6 bool
 		ifaceName: ifaceName,
 		unit:      unit,
 		eventBus:  eventBus,
+		config:    cfg,
 		stop:      make(chan struct{}),
 		done:      make(chan struct{}),
 		v4:        v4,
@@ -167,20 +178,14 @@ func (c *DHCPClient) publishDHCP(topic string, payload iface.DHCPPayload) {
 		loggerPtr.Load().Debug("iface dhcp: unknown topic", "topic", topic)
 		return
 	}
-	// Attach name and unit to the payload struct via a wrapper that
-	// inlines DHCPPayload and adds the routing metadata that used to
-	// ride in the bus metadata map.
-	wrapper := struct {
-		iface.DHCPPayload
-		Unit int `json:"unit"`
-	}{
-		DHCPPayload: payload,
-		Unit:        c.unit,
+	// Ensure name and unit are set in the payload before publishing.
+	if payload.Name == "" {
+		payload.Name = c.ifaceName
 	}
-	if wrapper.Name == "" {
-		wrapper.Name = c.ifaceName
+	if payload.Unit == 0 {
+		payload.Unit = c.unit
 	}
-	data, err := json.Marshal(wrapper)
+	data, err := json.Marshal(payload)
 	if err != nil {
 		loggerPtr.Load().Debug("iface dhcp: marshal failed", "event", eventType, "err", err)
 		return

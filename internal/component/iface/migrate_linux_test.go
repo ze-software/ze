@@ -102,6 +102,10 @@ func (m *mockMigrateBackend) RemoveMirror(_ string) error {
 func (m *mockMigrateBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) error {
 	return fmt.Errorf("mock: not supported")
 }
+func (m *mockMigrateBackend) AddRoute(_, _, _ string) error { return fmt.Errorf("mock: not supported") }
+func (m *mockMigrateBackend) RemoveRoute(_, _, _ string) error {
+	return fmt.Errorf("mock: not supported")
+}
 func (m *mockMigrateBackend) StartMonitor(_ ze.EventBus) error {
 	return fmt.Errorf("mock: not supported")
 }

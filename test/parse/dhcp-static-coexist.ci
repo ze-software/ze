@@ -1,0 +1,17 @@
+# Valid config: DHCP and static address on same unit
+# AC-15: Static IP alongside DHCP, both accepted.
+stdin=config:terminator=EOF_CONF
+interface {
+    ethernet eth0 {
+        unit 0 {
+            address [10.0.0.1/24]
+            dhcp {
+                enabled true
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

@@ -6,8 +6,10 @@
 package ifacenetlink
 
 import (
+	"errors"
 	"fmt"
 	"net"
+	"syscall"
 
 	"github.com/vishvananda/netlink"
 
@@ -202,6 +204,65 @@ func (b *netlinkBackend) ReplaceAddressWithLifetime(ifaceName, cidr string, vali
 	}
 	if err := netlink.AddrReplace(link, addr); err != nil {
 		return fmt.Errorf("iface: replace address %q on %q: %w", cidr, ifaceName, err)
+	}
+	return nil
+}
+
+func (b *netlinkBackend) AddRoute(ifaceName, destCIDR, gateway string) error {
+	if err := iface.ValidateIfaceName(ifaceName); err != nil {
+		return fmt.Errorf("iface: add route on %q: %w", ifaceName, err)
+	}
+	dst, err := netlink.ParseIPNet(destCIDR)
+	if err != nil {
+		return fmt.Errorf("iface: add route dest %q: %w", destCIDR, err)
+	}
+	gw := net.ParseIP(gateway)
+	if gw == nil {
+		return fmt.Errorf("iface: add route gateway %q: invalid IP", gateway)
+	}
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("iface: add route on %q: not found: %w", ifaceName, err)
+	}
+	route := &netlink.Route{
+		LinkIndex: link.Attrs().Index,
+		Dst:       dst,
+		Gw:        gw,
+	}
+	if err := netlink.RouteReplace(route); err != nil {
+		return fmt.Errorf("iface: add route %s via %s on %q: %w", destCIDR, gateway, ifaceName, err)
+	}
+	return nil
+}
+
+func (b *netlinkBackend) RemoveRoute(ifaceName, destCIDR, gateway string) error {
+	if err := iface.ValidateIfaceName(ifaceName); err != nil {
+		return fmt.Errorf("iface: remove route on %q: %w", ifaceName, err)
+	}
+	dst, err := netlink.ParseIPNet(destCIDR)
+	if err != nil {
+		return fmt.Errorf("iface: remove route dest %q: %w", destCIDR, err)
+	}
+	gw := net.ParseIP(gateway)
+	if gw == nil {
+		return fmt.Errorf("iface: remove route gateway %q: invalid IP", gateway)
+	}
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("iface: remove route on %q: not found: %w", ifaceName, err)
+	}
+	route := &netlink.Route{
+		LinkIndex: link.Attrs().Index,
+		Dst:       dst,
+		Gw:        gw,
+	}
+	if err := netlink.RouteDel(route); err != nil {
+		// ESRCH (no such route) is expected when cleaning up after a
+		// failed install or double-remove. Not an error on the teardown path.
+		if errors.Is(err, syscall.ESRCH) {
+			return nil
+		}
+		return fmt.Errorf("iface: remove route %s via %s on %q: %w", destCIDR, gateway, ifaceName, err)
 	}
 	return nil
 }

@@ -48,6 +48,12 @@ JunOS-style two-layer model: physical interfaces with logical units.
 | | Concurrent v4+v6 | have | |
 | | Direct netlink install | have | |
 | | Bus events (acquired/renewed/expired) | have | |
+| | Config-driven (`dhcp { enabled true }`) | have | |
+| | Default route from DHCP Router option | have | |
+| | DNS from DHCP to `/tmp/resolv.conf` | have | |
+| | Hostname in DHCPv4 (option 12) | have | |
+| | Client-ID in DHCPv4 (option 61) | have | |
+| | NTP servers from DHCP (option 42) | have | |
 | | DHCPv6 proper Renew (not re-solicit) | missing | medium |
 | | DHCP relay | missing | lower |
 | | DHCP server | missing | lower |

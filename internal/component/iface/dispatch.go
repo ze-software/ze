@@ -71,6 +71,22 @@ func RemoveAddress(iface, cidr string) error {
 	return b.RemoveAddress(iface, cidr)
 }
 
+func AddRoute(ifaceName, destCIDR, gateway string) error {
+	b, err := backendOrErr()
+	if err != nil {
+		return err
+	}
+	return b.AddRoute(ifaceName, destCIDR, gateway)
+}
+
+func RemoveRoute(ifaceName, destCIDR, gateway string) error {
+	b, err := backendOrErr()
+	if err != nil {
+		return err
+	}
+	return b.RemoveRoute(ifaceName, destCIDR, gateway)
+}
+
 func ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft int) error {
 	b, err := backendOrErr()
 	if err != nil {

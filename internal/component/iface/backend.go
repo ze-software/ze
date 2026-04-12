@@ -57,6 +57,12 @@ type Backend interface {
 	// address installation. validLft=0 or preferredLft=0 means kernel default.
 	ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft int) error
 
+	// Route management. Used by DHCP to install/remove default gateway.
+	// destCIDR is the destination (e.g., "0.0.0.0/0"), gateway is the
+	// next-hop IP (e.g., "192.168.1.1"), ifaceName scopes the route.
+	AddRoute(ifaceName, destCIDR, gateway string) error
+	RemoveRoute(ifaceName, destCIDR, gateway string) error
+
 	// Link state.
 	SetAdminUp(ifaceName string) error
 	SetAdminDown(ifaceName string) error

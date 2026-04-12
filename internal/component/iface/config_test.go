@@ -909,6 +909,178 @@ func mustParseIfaceJSON(t *testing.T, input string) *ifaceConfig {
 	return cfg
 }
 
+// TestParseUnitDHCPv4Enabled verifies that the dhcp container in a unit
+// is parsed into a dhcpUnitConfig with Enabled=true.
+//
+// VALIDATES: AC-1 - Config with dhcp { enabled true } parsed.
+// PREVENTS: DHCP leaves silently ignored by parseUnits.
+func TestParseUnitDHCPv4Enabled(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {
+							"dhcp": {
+								"enabled": "true"
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	require.Len(t, cfg.Ethernet[0].Units, 1)
+	u := cfg.Ethernet[0].Units[0]
+	require.NotNil(t, u.DHCP, "DHCP config should be parsed")
+	assert.True(t, u.DHCP.Enabled)
+	assert.Nil(t, u.DHCPv6, "DHCPv6 should be nil when not configured")
+}
+
+// TestParseUnitDHCPv4Hostname verifies hostname and client-id parsing.
+//
+// VALIDATES: AC-3, AC-4 - hostname and client-id parsed from config.
+// PREVENTS: DHCP options silently dropped during parsing.
+func TestParseUnitDHCPv4Hostname(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {
+							"dhcp": {
+								"enabled": "true",
+								"hostname": "ze-router",
+								"client-id": "ze:01"
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	u := cfg.Ethernet[0].Units[0]
+	require.NotNil(t, u.DHCP)
+	assert.True(t, u.DHCP.Enabled)
+	assert.Equal(t, "ze-router", u.DHCP.Hostname)
+	assert.Equal(t, "ze:01", u.DHCP.ClientID)
+}
+
+// TestParseUnitDHCPDisabledDefault verifies that a unit without a dhcp
+// container has DHCP=nil (disabled by default).
+//
+// VALIDATES: AC-2 - No dhcp block means no DHCP client.
+// PREVENTS: DHCP accidentally enabled when config omits the block.
+func TestParseUnitDHCPDisabledDefault(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {
+							"address": ["10.0.0.1/24"]
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	u := cfg.Ethernet[0].Units[0]
+	assert.Nil(t, u.DHCP, "DHCP should be nil when not configured")
+	assert.Nil(t, u.DHCPv6, "DHCPv6 should be nil when not configured")
+	assert.Equal(t, []string{"10.0.0.1/24"}, u.Addresses)
+}
+
+// TestParseUnitDHCPv6PD verifies DHCPv6 with prefix delegation parsing.
+//
+// VALIDATES: AC-12, AC-13 - DHCPv6 enabled with PD length.
+// PREVENTS: DHCPv6 PD length silently dropped.
+func TestParseUnitDHCPv6PD(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {
+							"dhcpv6": {
+								"enabled": "true",
+								"pd": {
+									"length": "56"
+								},
+								"duid": "00:01:00:01:aa:bb"
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	u := cfg.Ethernet[0].Units[0]
+	assert.Nil(t, u.DHCP, "DHCPv4 should be nil")
+	require.NotNil(t, u.DHCPv6)
+	assert.True(t, u.DHCPv6.Enabled)
+	assert.Equal(t, 56, u.DHCPv6.PDLength)
+	assert.Equal(t, "00:01:00:01:aa:bb", u.DHCPv6.DUID)
+}
+
+// TestParseUnitDHCPDualStack verifies both DHCPv4 and DHCPv6 on the same unit.
+//
+// VALIDATES: AC-15 - Dual-stack DHCP coexistence.
+// PREVENTS: v4 and v6 config interfering with each other.
+func TestParseUnitDHCPDualStack(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {
+							"dhcp": {"enabled": "true", "hostname": "ze"},
+							"dhcpv6": {"enabled": "true"}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	u := cfg.Ethernet[0].Units[0]
+	require.NotNil(t, u.DHCP)
+	assert.True(t, u.DHCP.Enabled)
+	assert.Equal(t, "ze", u.DHCP.Hostname)
+	require.NotNil(t, u.DHCPv6)
+	assert.True(t, u.DHCPv6.Enabled)
+}
+
+// TestParseUnitDHCPWithStaticAddress verifies DHCP alongside static addresses.
+//
+// VALIDATES: AC-15 - Static IP config alongside DHCP.
+// PREVENTS: DHCP parsing clobbering static address list.
+func TestParseUnitDHCPWithStaticAddress(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {
+							"address": ["10.0.0.1/24"],
+							"dhcp": {"enabled": "true"}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	u := cfg.Ethernet[0].Units[0]
+	assert.Equal(t, []string{"10.0.0.1/24"}, u.Addresses)
+	require.NotNil(t, u.DHCP)
+	assert.True(t, u.DHCP.Enabled)
+}
+
 // TestIfaceApplyJournalCreate verifies that applyConfig wrapped in a journal
 // can be rolled back by re-applying the previous config.
 //
@@ -1168,6 +1340,8 @@ func (b *fakeBackend) RemoveAddress(ifaceName, cidr string) error {
 }
 
 func (b *fakeBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) error { return nil }
+func (b *fakeBackend) AddRoute(_, _, _ string) error                          { return nil }
+func (b *fakeBackend) RemoveRoute(_, _, _ string) error                       { return nil }
 
 func (b *fakeBackend) ListInterfaces() ([]InterfaceInfo, error) {
 	var result []InterfaceInfo

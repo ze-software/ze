@@ -180,7 +180,7 @@ func TestNewDHCPClientValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			client, err := NewDHCPClient(tt.ifaceName, tt.unit, tt.eventBus, tt.v4, tt.v6)
+			client, err := NewDHCPClient(tt.ifaceName, tt.unit, tt.eventBus, tt.v4, tt.v6, DHCPConfig{})
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
@@ -193,6 +193,37 @@ func TestNewDHCPClientValidation(t *testing.T) {
 	}
 }
 
+func TestV4RequestModifiersHostname(t *testing.T) {
+	t.Parallel()
+
+	// VALIDATES: AC-3 - hostname option 12 added when configured.
+	// PREVENTS: hostname silently dropped from DHCP packets.
+
+	bus := stubEventBus{}
+	client, err := NewDHCPClient("eth0", 0, bus, true, false, DHCPConfig{
+		Hostname: "ze-router",
+		ClientID: "ze:01",
+	})
+	require.NoError(t, err)
+
+	mods := client.v4RequestModifiers()
+	assert.Len(t, mods, 2, "should have hostname and client-id modifiers")
+}
+
+func TestV4RequestModifiersEmpty(t *testing.T) {
+	t.Parallel()
+
+	// VALIDATES: no modifiers when config has no hostname/client-id.
+	// PREVENTS: nil/empty modifier accidentally injected.
+
+	bus := stubEventBus{}
+	client, err := NewDHCPClient("eth0", 0, bus, true, false, DHCPConfig{})
+	require.NoError(t, err)
+
+	mods := client.v4RequestModifiers()
+	assert.Empty(t, mods, "should have no modifiers with empty config")
+}
+
 func TestSleepOrStopWithClosedChannel(t *testing.T) {
 	t.Parallel()
 
@@ -201,7 +232,7 @@ func TestSleepOrStopWithClosedChannel(t *testing.T) {
 	// PREVENTS: goroutine hangs when Stop() races with retry backoff.
 
 	bus := stubEventBus{}
-	client, err := NewDHCPClient("eth0", 0, bus, true, false)
+	client, err := NewDHCPClient("eth0", 0, bus, true, false, DHCPConfig{})
 	require.NoError(t, err)
 
 	// Close the stop channel directly to simulate a stopped client.
