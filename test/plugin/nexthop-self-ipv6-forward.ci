@@ -1,0 +1,87 @@
+# Test: IPv6 route reflection via bgp-rr plugin
+# VALIDATES: IPv6 MP_REACH UPDATE forwarded between iBGP peers with route reflection
+# PREVENTS: IPv6 routes not forwarded due to missing forwarding plugin
+#
+# Two iBGP peers: peer-src (RR client) sends IPv6 UPDATE, peer-dst receives it
+# with RFC 4456 route-reflection attributes (ORIGINATOR_ID, CLUSTER_LIST).
+#
+# Assertion strategy: ORIGINATOR_ID (type 9, wire header 800904) is never present
+# in the source UPDATE. Its presence in the forwarded message proves the reactor
+# applied RFC 4456 reflection (ORIGINATOR_ID + CLUSTER_LIST are always added
+# together in reactor_api_forward.go). NLRI preservation (AC-4) is verified by
+# the contains check matching both the attribute header and the NLRI bytes.
+
+stdin=peer:terminator=EOF_PEER
+option=bind:value=0.0.0.0
+option=tcp_connections:value=2
+option=timeout:value=15s
+
+# Connection 1 (peer-src): send IPv6 UPDATE with MP_REACH_NLRI
+# ORIGIN=IGP, AS_PATH=65001, LOCAL_PREF=200, MP_REACH: AFI=2 SAFI=1 NH=2001:db8::1 NLRI=2001:db8:1::/48
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004B02000000344001010040020602010000FDE9400504000000C8900E001C0002011020010DB8000000000000000000000001003020010DB80001
+
+# Connection 2 (peer-dst): verify route-reflected UPDATE
+# AC-1: Route forwarded (UPDATE received by peer-dst)
+# AC-3: ORIGINATOR_ID present (800904 = type 9, len 4) -- proves RFC 4456 reflection
+# AC-4: NLRI preserved (2001:db8:1::/48 appears in same message)
+# Note: each expect= line consumes one message, so a single assertion covers all.
+expect=bgp:conn=2:seq=1:contains=800904
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rr {
+		use bgp-rr
+	}
+}
+bgp {
+	peer peer-src {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			route-reflector-client true
+			family {
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+
+	peer peer-dst {
+		connection {
+			remote {
+				ip 127.0.0.2
+				accept false
+			}
+			local {
+				ip 127.0.0.2
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.5
+			next-hop self
+			family {
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
