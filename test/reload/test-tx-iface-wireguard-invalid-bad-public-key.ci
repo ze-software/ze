@@ -1,0 +1,154 @@
+# Test: reload rejects wireguard peer with malformed public-key
+# parseWireguardPeer calls wgtypes.ParseKey on the peer's public-key
+# leaf. A value that is not valid base64 (or decodes to the wrong byte
+# length) is rejected at OnConfigVerify time. The daemon logs the
+# failure and keeps the old config active; BGP peer connection holds.
+#
+# AC-8 wiring test. Exercised at reload time because ze config
+# validate only runs YANG schema checks, and the YANG schema accepts
+# any string for public-key.
+
+stdin=peer:terminator=EOF_PEER
+
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Initial config: valid wireguard wg0
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+interface {
+	wireguard wg0 {
+		listen-port 51820
+		private-key "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+		peer site2 {
+			public-key "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI="
+			allowed-ips [ 10.0.0.2/32 ]
+		}
+	}
+}
+EOF_CONF
+
+# Updated config: peer public-key is garbage. Reload must reject.
+tmpfs=config2.conf:terminator=EOF_CONF2
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+interface {
+	wireguard wg0 {
+		listen-port 51820
+		private-key "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+		peer site2 {
+			public-key "not-a-valid-base64-wireguard-key!!!"
+			allowed-ips [ 10.0.0.2/32 ]
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+sleep 2
+cp config2.conf ze-bgp.conf
+kill -HUP $(cat daemon.pid)
+sleep 2
+kill -TERM $(cat daemon.pid)
+EOF_TRIGGER
+
+expect=stderr:contains=public-key
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s

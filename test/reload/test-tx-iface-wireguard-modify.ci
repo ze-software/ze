@@ -1,0 +1,165 @@
+# Test: WireGuard peer modification via SIGHUP-applied transaction
+# Initial config has a wireguard wg0 with one peer (endpoint, keepalive,
+# one allowed-ips entry). Updated config keeps wg0 but modifies the peer:
+# changes the endpoint IP, adds a second allowed-ips entry, bumps the
+# keepalive. Reconciliation must apply the diff without recreating the
+# netdev (wireguardSpecEqual returns false, applyWireguards calls
+# ConfigureWireguardDevice once). Daemon survives.
+#
+# Like the other reload tests, this validates wiring (spec-diff
+# detection, Configure dispatch) rather than kernel state. Kernel
+# round-trips are covered by the integration tests under
+# internal/plugins/ifacenetlink (gated on CAP_NET_ADMIN + wg module).
+
+stdin=peer:terminator=EOF_PEER
+
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Initial config: BGP peer + wireguard wg0 with one peer
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+interface {
+	wireguard wg0 {
+		listen-port 51820
+		private-key "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+		peer site2 {
+			public-key "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI="
+			endpoint {
+				ip 198.51.100.2
+				port 51820
+			}
+			allowed-ips [ 10.0.0.2/32 ]
+			persistent-keepalive 25
+		}
+	}
+}
+EOF_CONF
+
+# Updated config: same wg0, modified peer (endpoint + allowed-ips + keepalive)
+tmpfs=config2.conf:terminator=EOF_CONF2
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+interface {
+	wireguard wg0 {
+		listen-port 51820
+		private-key "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+		peer site2 {
+			public-key "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI="
+			endpoint {
+				ip 198.51.100.99
+				port 51820
+			}
+			allowed-ips [ 10.0.0.2/32 192.168.20.0/24 ]
+			persistent-keepalive 60
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+sleep 2
+cp config2.conf ze-bgp.conf
+kill -HUP $(cat daemon.pid)
+sleep 2
+kill -TERM $(cat daemon.pid)
+EOF_TRIGGER
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s

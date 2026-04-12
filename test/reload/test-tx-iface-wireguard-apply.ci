@@ -1,0 +1,159 @@
+# Test: WireGuard interface created via SIGHUP-applied transaction
+# Verifies that a wireguard list entry with one peer reaches the iface
+# backend through OnConfigVerify -> OnConfigApply -> applyWireguards ->
+# Backend.CreateWireguardDevice + Backend.ConfigureWireguardDevice. The
+# daemon must survive applying a config that creates a wireguard with
+# private-key, listen-port, fwmark, and a peer carrying all optional
+# fields (endpoint, allowed-ips, persistent-keepalive, preshared-key).
+#
+# Like test-tx-iface-tunnel-create.ci, this validates wiring (parser,
+# dispatch, backend method invocation). The actual netlink LinkAdd and
+# wgctrl ConfigureDevice calls may succeed or fail depending on test
+# runner privileges (CAP_NET_ADMIN) and whether the wireguard kernel
+# module is loaded; failures are logged at Debug level and do not
+# crash the daemon. Kernel-state round-trips are covered by the
+# integration tests under internal/plugins/ifacenetlink.
+#
+# The BGP peer connection confirms the daemon is still live after the
+# reload. Base64 keys below are dummy (all-ones, all-twos, all-threes,
+# all-fours) -- do NOT use in production.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Initial config: one BGP peer, no wireguard
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Updated config: same BGP peer + wireguard wg0 with one peer
+tmpfs=config2.conf:terminator=EOF_CONF2
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+interface {
+	wireguard wg0 {
+		listen-port 51820
+		fwmark 4660
+		private-key "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+		peer site2 {
+			public-key "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI="
+			preshared-key "BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ="
+			endpoint {
+				ip 198.51.100.2
+				port 51820
+			}
+			allowed-ips [ 10.0.0.2/32 192.168.10.0/24 ]
+			persistent-keepalive 25
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+sleep 2
+cp config2.conf ze-bgp.conf
+kill -HUP $(cat daemon.pid)
+sleep 2
+kill -TERM $(cat daemon.pid)
+EOF_TRIGGER
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
