@@ -21,7 +21,6 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
@@ -274,7 +273,7 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCer
 		if discovered, discErr := iface.DiscoverInterfaces(); discErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: interface discovery: %v\n", discErr)
 		} else if len(discovered) > 0 {
-			if config := generateInterfaceConfig(discovered); config != "" {
+			if config := iface.EmitConfig(discovered); config != "" {
 				configKey := zefs.KeyFileActive.Key("ze.conf")
 				if wErr := store.WriteFile(configKey, []byte(config), 0); wErr != nil {
 					fmt.Fprintf(os.Stderr, "warning: write initial config: %v\n", wErr)
@@ -419,121 +418,6 @@ func daemonRunning(dbPath string) bool {
 		return false
 	}
 	conn.Close() //nolint:errcheck // probe connection
-	return true
-}
-
-// generateInterfaceConfig produces Ze config syntax for discovered interfaces.
-const ifaceTypeLoopback = "loopback"
-
-func generateInterfaceConfig(discovered []iface.DiscoveredInterface) string {
-	if len(discovered) == 0 {
-		return ""
-	}
-
-	var b strings.Builder
-	b.WriteString("interface {\n")
-
-	hasLoopback := false
-	for i := range discovered {
-		di := &discovered[i]
-		switch di.Type {
-		case ifaceTypeLoopback:
-			hasLoopback = true
-		case "ethernet", "bridge", "veth", "dummy":
-			if !safeIfaceName(di.Name) {
-				continue
-			}
-			fmt.Fprintf(&b, "    %s %s {\n", di.Type, di.Name)
-			if di.MAC != "" {
-				fmt.Fprintf(&b, "        mac-address %s;\n", di.MAC)
-			}
-			fmt.Fprintf(&b, "        os-name %s;\n", di.Name)
-			b.WriteString("    }\n")
-		case "wireguard":
-			if !safeIfaceName(di.Name) {
-				continue
-			}
-			emitWireguardBlock(&b, di)
-		}
-	}
-
-	if hasLoopback {
-		fmt.Fprintf(&b, "    %s {\n", ifaceTypeLoopback)
-		b.WriteString("    }\n")
-	}
-
-	b.WriteString("}\n")
-	return b.String()
-}
-
-// emitWireguardBlock writes a wireguard list entry for a discovered
-// netdev. If Wireguard is nil (backend could not read kernel state, or
-// wgctrl returned an error), a skeleton block is emitted with only the
-// os-name leaf so the operator can fill the rest in after ze init. When
-// the spec is available, sensitive fields (private-key, peer preshared-
-// key) are passed through secret.Encode so the config file gets the
-// $9$-encoded form, matching the sensitive-leaf pattern used for BGP
-// MD5 passwords and other secrets in ze.
-func emitWireguardBlock(b *strings.Builder, di *iface.DiscoveredInterface) {
-	fmt.Fprintf(b, "    wireguard %s {\n", di.Name)
-	fmt.Fprintf(b, "        os-name %s;\n", di.Name)
-	spec := di.Wireguard
-	if spec == nil {
-		b.WriteString("    }\n")
-		return
-	}
-	if spec.ListenPortSet && spec.ListenPort != 0 {
-		fmt.Fprintf(b, "        listen-port %d;\n", spec.ListenPort)
-	}
-	if spec.FirewallMark != 0 {
-		fmt.Fprintf(b, "        fwmark %d;\n", spec.FirewallMark)
-	}
-	if encoded, err := secret.Encode(spec.PrivateKey.String()); err == nil {
-		fmt.Fprintf(b, "        private-key \"%s\";\n", encoded)
-	}
-	for idx := range spec.Peers {
-		p := &spec.Peers[idx]
-		peerName := fmt.Sprintf("peer%d", idx)
-		fmt.Fprintf(b, "        peer %s {\n", peerName)
-		fmt.Fprintf(b, "            public-key \"%s\";\n", p.PublicKey.String())
-		if p.HasPresharedKey {
-			if encoded, err := secret.Encode(p.PresharedKey.String()); err == nil {
-				fmt.Fprintf(b, "            preshared-key \"%s\";\n", encoded)
-			}
-		}
-		if p.EndpointIP != "" && p.EndpointPort != 0 {
-			b.WriteString("            endpoint {\n")
-			fmt.Fprintf(b, "                ip %s;\n", p.EndpointIP)
-			fmt.Fprintf(b, "                port %d;\n", p.EndpointPort)
-			b.WriteString("            }\n")
-		}
-		if len(p.AllowedIPs) > 0 {
-			b.WriteString("            allowed-ips [")
-			for _, cidr := range p.AllowedIPs {
-				fmt.Fprintf(b, " %s", cidr)
-			}
-			b.WriteString(" ];\n")
-		}
-		if p.PersistentKeepalive != 0 {
-			fmt.Fprintf(b, "            persistent-keepalive %d;\n", p.PersistentKeepalive)
-		}
-		b.WriteString("        }\n")
-	}
-	b.WriteString("    }\n")
-}
-
-// safeIfaceName returns true if name is safe to interpolate into config syntax.
-// Rejects names containing characters that would break config parsing.
-func safeIfaceName(name string) bool {
-	if name == "" {
-		return false
-	}
-	for i := range len(name) {
-		switch name[i] {
-		case '{', '}', ';', '\n', '\r', '\t', ' ', 0:
-			return false
-		}
-	}
 	return true
 }
 

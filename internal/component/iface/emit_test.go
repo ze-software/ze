@@ -1,19 +1,17 @@
-package init
+package iface
 
 import (
 	"strings"
 	"testing"
-
-	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
 
-// VALIDATES: generateInterfaceConfig produces correct Ze config syntax
+// VALIDATES: EmitConfig produces correct Ze config syntax
 // PREVENTS: malformed config from interface discovery breaking config parser
 
-func TestGenerateInterfaceConfig(t *testing.T) {
+func TestEmitConfig(t *testing.T) {
 	tests := []struct {
 		name       string
-		discovered []iface.DiscoveredInterface
+		discovered []DiscoveredInterface
 		wantEmpty  bool
 		contains   []string
 		excludes   []string
@@ -25,7 +23,7 @@ func TestGenerateInterfaceConfig(t *testing.T) {
 		},
 		{
 			name: "single ethernet with MAC",
-			discovered: []iface.DiscoveredInterface{
+			discovered: []DiscoveredInterface{
 				{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
 			},
 			contains: []string{
@@ -37,7 +35,7 @@ func TestGenerateInterfaceConfig(t *testing.T) {
 		},
 		{
 			name: "single ethernet without MAC",
-			discovered: []iface.DiscoveredInterface{
+			discovered: []DiscoveredInterface{
 				{Name: "eth0", Type: "ethernet"},
 			},
 			contains: []string{
@@ -50,7 +48,7 @@ func TestGenerateInterfaceConfig(t *testing.T) {
 		},
 		{
 			name: "loopback only",
-			discovered: []iface.DiscoveredInterface{
+			discovered: []DiscoveredInterface{
 				{Name: "lo", Type: "loopback"},
 			},
 			contains: []string{
@@ -64,7 +62,7 @@ func TestGenerateInterfaceConfig(t *testing.T) {
 		},
 		{
 			name: "mixed types",
-			discovered: []iface.DiscoveredInterface{
+			discovered: []DiscoveredInterface{
 				{Name: "br0", Type: "bridge", MAC: "11:22:33:44:55:66"},
 				{Name: "dummy0", Type: "dummy"},
 				{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
@@ -79,7 +77,7 @@ func TestGenerateInterfaceConfig(t *testing.T) {
 		},
 		{
 			name: "invalid name with brace is skipped",
-			discovered: []iface.DiscoveredInterface{
+			discovered: []DiscoveredInterface{
 				{Name: "bad{name", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
 				{Name: "eth0", Type: "ethernet", MAC: "11:22:33:44:55:66"},
 			},
@@ -92,7 +90,7 @@ func TestGenerateInterfaceConfig(t *testing.T) {
 		},
 		{
 			name: "invalid name with semicolon is skipped",
-			discovered: []iface.DiscoveredInterface{
+			discovered: []DiscoveredInterface{
 				{Name: "bad;name", Type: "ethernet"},
 			},
 			contains: []string{
@@ -105,7 +103,7 @@ func TestGenerateInterfaceConfig(t *testing.T) {
 		},
 		{
 			name: "invalid name with newline is skipped",
-			discovered: []iface.DiscoveredInterface{
+			discovered: []DiscoveredInterface{
 				{Name: "bad\nname", Type: "ethernet"},
 			},
 			excludes: []string{
@@ -114,7 +112,7 @@ func TestGenerateInterfaceConfig(t *testing.T) {
 		},
 		{
 			name: "invalid name with space is skipped",
-			discovered: []iface.DiscoveredInterface{
+			discovered: []DiscoveredInterface{
 				{Name: "bad name", Type: "ethernet"},
 			},
 			excludes: []string{
@@ -123,7 +121,7 @@ func TestGenerateInterfaceConfig(t *testing.T) {
 		},
 		{
 			name: "os-name populated in config",
-			discovered: []iface.DiscoveredInterface{
+			discovered: []DiscoveredInterface{
 				{Name: "enp3s0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
 			},
 			contains: []string{
@@ -134,7 +132,7 @@ func TestGenerateInterfaceConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := generateInterfaceConfig(tt.discovered)
+			got := EmitConfig(tt.discovered)
 
 			if tt.wantEmpty {
 				if got != "" {
@@ -158,27 +156,25 @@ func TestGenerateInterfaceConfig(t *testing.T) {
 	}
 }
 
-// TestGenerateInterfaceConfigWireguardSkeleton verifies that a wireguard
-// entry with no backend-populated spec still emits a valid config block
-// containing the interface name and os-name leaf. Operators fill in the
-// rest by hand.
+// TestEmitConfigWireguardSkeleton verifies that a wireguard entry with no
+// backend-populated spec still emits a valid config block containing the
+// interface name and os-name leaf. Operators fill in the rest by hand.
 //
-// VALIDATES: ze init emits a skeleton wireguard block even when
+// VALIDATES: EmitConfig emits a skeleton wireguard block even when
 // GetWireguardDevice fails.
 // PREVENTS: discovery silently dropping wireguard interfaces because of
 // a backend error.
-func TestGenerateInterfaceConfigWireguardSkeleton(t *testing.T) {
-	discovered := []iface.DiscoveredInterface{
+func TestEmitConfigWireguardSkeleton(t *testing.T) {
+	discovered := []DiscoveredInterface{
 		{Name: "wg0", Type: "wireguard"},
 	}
-	out := generateInterfaceConfig(discovered)
+	out := EmitConfig(discovered)
 	if !strings.Contains(out, "wireguard wg0 {") {
 		t.Errorf("missing wireguard block: %q", out)
 	}
 	if !strings.Contains(out, "os-name wg0;") {
 		t.Errorf("missing os-name leaf: %q", out)
 	}
-	// Skeleton must NOT contain keys, ports, or peers.
 	for _, leaf := range []string{"private-key", "listen-port", "fwmark", "peer "} {
 		if strings.Contains(out, leaf) {
 			t.Errorf("skeleton should omit %q leaf: %q", leaf, out)
@@ -186,29 +182,29 @@ func TestGenerateInterfaceConfigWireguardSkeleton(t *testing.T) {
 	}
 }
 
-// TestGenerateInterfaceConfigWireguardFullSpec verifies that when the
-// backend returned a full WireguardSpec, every field is emitted and the
-// sensitive leaves (private-key, preshared-key) are $9$-encoded.
+// TestEmitConfigWireguardFullSpec verifies that when the backend returned
+// a full WireguardSpec, every field is emitted and the sensitive leaves
+// (private-key, preshared-key) are $9$-encoded.
 //
-// VALIDATES: ze init captures a running wireguard netdev into config with
+// VALIDATES: EmitConfig captures a running wireguard netdev into config with
 // correctly encoded secrets. Public-keys stay plaintext; private and
 // preshared keys pass through secret.Encode.
 // PREVENTS: plaintext private keys leaking into ze.conf at init time.
-func TestGenerateInterfaceConfigWireguardFullSpec(t *testing.T) {
-	var priv, pub, psk iface.WireguardKey
+func TestEmitConfigWireguardFullSpec(t *testing.T) {
+	var priv, pub, psk WireguardKey
 	for i := range priv {
 		priv[i] = 0x11
 		pub[i] = 0x22
 		psk[i] = 0x33
 	}
 
-	spec := &iface.WireguardSpec{
+	spec := &WireguardSpec{
 		Name:          "wg0",
 		PrivateKey:    priv,
 		ListenPort:    51820,
 		ListenPortSet: true,
 		FirewallMark:  0x1234,
-		Peers: []iface.WireguardPeerSpec{{
+		Peers: []WireguardPeerSpec{{
 			Name:                "site2",
 			PublicKey:           pub,
 			PresharedKey:        psk,
@@ -220,18 +216,18 @@ func TestGenerateInterfaceConfigWireguardFullSpec(t *testing.T) {
 		}},
 	}
 
-	discovered := []iface.DiscoveredInterface{
+	discovered := []DiscoveredInterface{
 		{Name: "wg0", Type: "wireguard", Wireguard: spec},
 	}
-	out := generateInterfaceConfig(discovered)
+	out := EmitConfig(discovered)
 
 	mustContain := []string{
 		"wireguard wg0 {",
 		"listen-port 51820;",
 		"fwmark 4660;",
-		`private-key "$9$`, // encoded, never plaintext
+		`private-key "$9$`,
 		"peer peer0 {",
-		`public-key "`, // public-key is NOT $9$-encoded
+		`public-key "`,
 		`preshared-key "$9$`,
 		"endpoint {",
 		"ip 198.51.100.2;",
@@ -245,7 +241,6 @@ func TestGenerateInterfaceConfigWireguardFullSpec(t *testing.T) {
 		}
 	}
 
-	// Plaintext private-key must never appear (the base64 form of priv).
 	plaintextPriv := priv.String()
 	if strings.Contains(out, plaintextPriv) {
 		t.Errorf("plaintext private-key leaked into config:\n%s", out)
@@ -256,36 +251,36 @@ func TestGenerateInterfaceConfigWireguardFullSpec(t *testing.T) {
 	}
 }
 
-// VALIDATES: generateInterfaceConfig output is structurally valid config syntax
+// VALIDATES: EmitConfig output is structurally valid config syntax
 // PREVENTS: generated config breaking the config parser due to unbalanced braces,
 // missing terminators, or malformed block structure
 
-func TestGenerateInterfaceConfigStructure(t *testing.T) {
+func TestEmitConfigStructure(t *testing.T) {
 	tests := []struct {
 		name       string
-		discovered []iface.DiscoveredInterface
+		discovered []DiscoveredInterface
 	}{
 		{
 			name: "single ethernet",
-			discovered: []iface.DiscoveredInterface{
+			discovered: []DiscoveredInterface{
 				{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
 			},
 		},
 		{
 			name: "ethernet without MAC",
-			discovered: []iface.DiscoveredInterface{
+			discovered: []DiscoveredInterface{
 				{Name: "eth0", Type: "ethernet"},
 			},
 		},
 		{
 			name: "loopback only",
-			discovered: []iface.DiscoveredInterface{
+			discovered: []DiscoveredInterface{
 				{Name: "lo", Type: "loopback"},
 			},
 		},
 		{
 			name: "all types",
-			discovered: []iface.DiscoveredInterface{
+			discovered: []DiscoveredInterface{
 				{Name: "br0", Type: "bridge", MAC: "11:22:33:44:55:66"},
 				{Name: "dummy0", Type: "dummy"},
 				{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
@@ -296,7 +291,7 @@ func TestGenerateInterfaceConfigStructure(t *testing.T) {
 		},
 		{
 			name: "multiple ethernet",
-			discovered: []iface.DiscoveredInterface{
+			discovered: []DiscoveredInterface{
 				{Name: "enp3s0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
 				{Name: "enp4s0", Type: "ethernet", MAC: "11:22:33:44:55:66"},
 			},
@@ -305,12 +300,11 @@ func TestGenerateInterfaceConfigStructure(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := generateInterfaceConfig(tt.discovered)
+			got := EmitConfig(tt.discovered)
 			if got == "" {
 				t.Fatal("expected non-empty output")
 			}
 
-			// Must start with "interface {" and end with "}\n"
 			if !strings.HasPrefix(got, "interface {\n") {
 				t.Errorf("output must start with 'interface {\\n', got prefix: %q",
 					got[:min(len(got), 30)])
@@ -320,31 +314,26 @@ func TestGenerateInterfaceConfigStructure(t *testing.T) {
 					got[max(0, len(got)-20):])
 			}
 
-			// Braces must be balanced
 			opens := strings.Count(got, "{")
 			closes := strings.Count(got, "}")
 			if opens != closes {
 				t.Errorf("unbalanced braces: %d opens, %d closes", opens, closes)
 			}
 
-			// Verify per-interface structural properties
 			for _, di := range tt.discovered {
-				if !safeIfaceName(di.Name) {
+				if !safeEmitName(di.Name) {
 					continue
 				}
 				switch di.Type {
 				case "ethernet", "bridge", "veth", "dummy":
-					// Must have a named block
 					blockHeader := di.Type + " " + di.Name + " {"
 					if !strings.Contains(got, blockHeader) {
 						t.Errorf("missing block header %q", blockHeader)
 					}
-					// Must have os-name
 					osLine := "os-name " + di.Name + ";"
 					if !strings.Contains(got, osLine) {
 						t.Errorf("missing os-name line %q for %s", osLine, di.Name)
 					}
-					// MAC address present only when provided
 					if di.MAC != "" {
 						macLine := "mac-address " + di.MAC + ";"
 						if !strings.Contains(got, macLine) {
@@ -352,14 +341,12 @@ func TestGenerateInterfaceConfigStructure(t *testing.T) {
 						}
 					}
 				case "loopback":
-					// Loopback has no name key, no mac-address, no os-name
 					if strings.Contains(got, "loopback "+di.Name) {
 						t.Errorf("loopback should not have a name key")
 					}
 				}
 			}
 
-			// Loopback block has no mac-address or os-name
 			hasLoopback := false
 			for _, di := range tt.discovered {
 				if di.Type == "loopback" {
@@ -371,7 +358,6 @@ func TestGenerateInterfaceConfigStructure(t *testing.T) {
 				if !strings.Contains(got, "loopback {") {
 					t.Error("expected 'loopback {' block")
 				}
-				// Extract loopback block content and verify it has no leaves
 				if _, after, found := strings.Cut(got, "loopback {"); found {
 					if body, _, ok := strings.Cut(after, "}"); ok {
 						loBody := strings.TrimSpace(body)
@@ -382,7 +368,6 @@ func TestGenerateInterfaceConfigStructure(t *testing.T) {
 				}
 			}
 
-			// Every semicolon-terminated line must be inside a block (indented)
 			for i, line := range strings.Split(got, "\n") {
 				trimmed := strings.TrimSpace(line)
 				if strings.HasSuffix(trimmed, ";") {
@@ -395,20 +380,18 @@ func TestGenerateInterfaceConfigStructure(t *testing.T) {
 	}
 }
 
-// VALIDATES: generateInterfaceConfig round-trip: known inputs produce parseable output
+// VALIDATES: EmitConfig round-trip: known inputs produce parseable output
 // PREVENTS: config generation creating syntax that the config tokenizer rejects
 
-func TestGenerateInterfaceConfigTokenizable(t *testing.T) {
-	discovered := []iface.DiscoveredInterface{
+func TestEmitConfigTokenizable(t *testing.T) {
+	discovered := []DiscoveredInterface{
 		{Name: "eth0", Type: "ethernet", MAC: "aa:bb:cc:dd:ee:ff"},
 		{Name: "br0", Type: "bridge", MAC: "11:22:33:44:55:66"},
 		{Name: "lo", Type: "loopback"},
 	}
 
-	got := generateInterfaceConfig(discovered)
+	got := EmitConfig(discovered)
 
-	// The output should tokenize cleanly: every "{" has a matching "}" at the
-	// right nesting level, and leaf values end with ";".
 	depth := 0
 	for i, line := range strings.Split(got, "\n") {
 		trimmed := strings.TrimSpace(line)
@@ -432,10 +415,10 @@ func TestGenerateInterfaceConfigTokenizable(t *testing.T) {
 	}
 }
 
-// VALIDATES: safeIfaceName rejects config-breaking characters
+// VALIDATES: safeEmitName rejects config-breaking characters
 // PREVENTS: interface names with special characters breaking config syntax
 
-func TestSafeIfaceName(t *testing.T) {
+func TestSafeEmitName(t *testing.T) {
 	tests := []struct {
 		name string
 		in   string
@@ -457,9 +440,9 @@ func TestSafeIfaceName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := safeIfaceName(tt.in)
+			got := safeEmitName(tt.in)
 			if got != tt.want {
-				t.Errorf("safeIfaceName(%q) = %v, want %v", tt.in, got, tt.want)
+				t.Errorf("safeEmitName(%q) = %v, want %v", tt.in, got, tt.want)
 			}
 		})
 	}
