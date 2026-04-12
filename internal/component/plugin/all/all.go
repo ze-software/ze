@@ -17,6 +17,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_aspath/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_prefix/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
@@ -65,6 +66,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugin"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/aigp"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_aspath"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_prefix"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr"
@@ -107,3 +109,4 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 )
+

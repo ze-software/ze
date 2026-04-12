@@ -19,6 +19,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"bgp",
 		"bgp-adj-rib-in",
 		"bgp-aigp",
+		"bgp-filter-aspath",
 		"bgp-filter-community",
 		"bgp-filter-prefix",
 		"bgp-gr",

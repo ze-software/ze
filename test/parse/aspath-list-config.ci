@@ -1,0 +1,47 @@
+# Test: ze config validate accepts as-path-list config
+# VALIDATES: AC-9 -- as-path-list YANG config parses correctly
+# VALIDATES: Filter chain reference as-path-list:NAME resolves
+# PREVENTS: YANG schema or augment regression breaking as-path-list parsing
+stdin=config:terminator=EOF_CONF
+bgp {
+	policy {
+		as-path-list ALLOW-PEER {
+			entry "^[0-9]+$" {
+				action accept
+			}
+		}
+		as-path-list TRANSIT {
+			entry "^[0-9]+( [0-9]+)+" {
+				action accept
+			}
+			entry "^$" {
+				action reject
+			}
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+		filter {
+			import [ as-path-list:ALLOW-PEER ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

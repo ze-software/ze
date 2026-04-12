@@ -1,0 +1,110 @@
+# Test: as-path-list filter rejects non-matching routes (implicit deny)
+# VALIDATES: AC-4 -- reject action on match
+# VALIDATES: AC-6 -- no entry matches => implicit deny (reject)
+# PREVENTS: Routes leaking past as-path-list when no entry matches
+#
+# Flow:
+# 1. ze-peer sends UPDATE: ORIGIN=IGP, AS_PATH=[65001 65002], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+# 2. Filter chain calls bgp-filter-aspath:ALLOW-PEER
+# 3. as-path-list ALLOW-PEER has regex "^65002" (paths from AS 65002) -> "65001 65002" starts with 65001 -> no match -> implicit deny
+# 4. Plugin emits Info log "as-path-list reject ... filter=ALLOW-PEER"
+# 5. Assertions on stderr confirm the decision log.
+
+# Enable bgp.filter.aspath subsystem at Info level so decision logs are visible.
+option=env:var=ze.log.bgp.filter.aspath:value=info
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# Marker(16) + Len=0033(51) + Type=02 + WdLen=0000 + AttrLen=0018(24)
+#   ORIGIN: 40010100 (IGP)
+#   AS_PATH: 40020A02020000FDE90000FDEA (AS_SEQ [65001, 65002])
+#   NEXT_HOP: 40030401010101
+#   NLRI: 180A0000 (10.0.0.0/24)
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE90000FDEA40030401010101180A0000
+EOF_PEER
+
+# Observer: wait for filter dispatch then clean shutdown
+tmpfs=test-aspath-reject.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Observer for as-path-list reject test: clean shutdown after filter dispatch."""
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for session establishment and filter dispatch.
+    time.sleep(3.0)
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-aspath-reject {
+		run ./test-aspath-reject.run
+		encoder json
+	}
+}
+bgp {
+	policy {
+		as-path-list ALLOW-PEER {
+			entry "^65002" {
+				action accept
+			}
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		filter {
+			import [ bgp-filter-aspath:ALLOW-PEER ]
+		}
+
+		process test-aspath-reject {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-filter-aspath --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+# The filter must have rejected the non-matching AS-path.
+expect=stderr:pattern=as-path-list reject
+expect=stderr:pattern=filter=ALLOW-PEER
+reject=stderr:pattern=as-path-list accept

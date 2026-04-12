@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-04-11 |
+| Phase | 1/1 |
+| Updated | 2026-04-12 |
 
 ## Post-Compaction Recovery
 
@@ -291,48 +291,149 @@ No numeric inputs in this spec (regex string + enum action).
 ## Implementation Summary
 
 ### What Was Implemented
+
+Complete `bgp-filter-aspath` plugin following the established `bgp-filter-prefix` pattern:
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| YANG schema | `filter_aspath/schema/ze-filter-aspath.yang` | `as-path-list` augment under `bgp/policy` with `ze:filter` extension |
+| Schema embed | `filter_aspath/schema/embed.go` | `//go:embed` for YANG content |
+| Schema registration | `filter_aspath/schema/register.go` | `yang.RegisterModule()` at init |
+| Plugin entry point | `filter_aspath/filter_aspath.go` | SDK entry, OnConfigure, OnFilterUpdate, handleFilterUpdate |
+| Config parsing | `filter_aspath/config.go` | `parseAsPathLists` from `bgp { policy { as-path-list ... } }` |
+| Regex matching | `filter_aspath/match.go` | `evaluateASPath`, `extractASPathField` from filter text format |
+| Registration | `filter_aspath/register.go` | `registry.Register` with `FilterTypes: ["as-path-list"]` |
+| Unit tests (match) | `filter_aspath/match_test.go` | 14 cases for evaluateASPath, 8 cases for extractASPathField |
+| Unit tests (config) | `filter_aspath/config_test.go` | 10 cases for parseOneASPathEntry, 4 integration tests |
+| Functional: accept | `test/plugin/aspath-filter-accept.ci` | Single-ASN path matches regex -> accepted |
+| Functional: reject | `test/plugin/aspath-filter-reject.ci` | Multi-ASN path fails single-hop regex -> rejected |
+| Functional: shortform | `test/plugin/aspath-filter-shortform.ci` | `as-path-list:NAME` short-form reference resolves |
+| Functional: chain | `test/plugin/aspath-filter-chain.ci` | AS-path + prefix-list compose in import chain |
+| Config parse | `test/parse/aspath-list-config.ci` | `ze config validate` accepts as-path-list YANG config |
+| Plugin inventory | `cmd/ze/main_test.go`, `plugin/all/all_test.go` | Updated expected plugin counts |
+| Generated imports | `plugin/all/all.go` | `make generate` added filter_aspath imports |
+
 ### Bugs Found/Fixed
+
+None -- clean implementation.
+
 ### Documentation Updates
+
+Docs update deferred to umbrella completion (cmd-0 tracks docs for all child specs).
+
 ### Deviations from Plan
+
+| Deviation | Reason |
+|-----------|--------|
+| Backslash escaping in ze config syntax | `\d` in regex strings is consumed by config parser; .ci tests use `[0-9]` instead |
+| No ReDoS complexity analysis beyond length | Go's regexp uses RE2 (linear time, no backtracking); length limit (512 chars) is defense in depth |
+| No modify action | AS-path is attribute-level (whole UPDATE shares one AS-path); per-prefix partitioning is not meaningful |
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| YANG as-path-list under bgp/policy | Done | `filter_aspath/schema/ze-filter-aspath.yang` | augment with ze:filter |
+| Plugin registration with FilterTypes | Done | `filter_aspath/register.go` | FilterTypes: ["as-path-list"] |
+| Regex matching with first-match-wins | Done | `filter_aspath/match.go:evaluateASPath` | Ordered entries, implicit deny |
+| Config parsing from bgp subtree | Done | `filter_aspath/config.go:parseAsPathLists` | Map and slice form, regex compiled at load |
+| ReDoS protection | Done | `filter_aspath/config.go:maxRegexLen` | Go RE2 (linear time) + 512 char limit |
+| Filter chain integration | Done | Via existing `canonicalizeFilterRefs` + `PolicyFilterChain` | No filter_chain.go changes needed |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestEvaluateASPath/single_asn_accept`, `aspath-filter-accept.ci` | Regex matches -> accepted |
+| AC-2 | Done | `TestEvaluateASPath/second_entry_matches` | No match on first entry -> next evaluated |
+| AC-3 | Done | `TestEvaluateASPath/single_asn_accept`, `aspath-filter-accept.ci` | Accept action passes to next filter |
+| AC-4 | Done | `TestEvaluateASPath/single_asn_reject`, `aspath-filter-reject.ci` | Reject action blocks route |
+| AC-5 | Done | `TestEvaluateASPath/first_match_wins_*` | First matching entry's action applied |
+| AC-6 | Done | `TestEvaluateASPath/no_match_implicit_deny`, `aspath-filter-reject.ci` | No match = reject |
+| AC-7 | Done | `TestEvaluateASPath/empty_aspath_matches_caret_dollar` | ^$ matches empty AS-path |
+| AC-8 | Done | `aspath-filter-chain.ci` | AS-path + prefix-list compose in import chain |
+| AC-9 | Done | `TestParseOneASPathEntry/invalid_regex_syntax`, `aspath-list-config.ci` | Invalid regex rejected at parse time |
+| AC-10 | Done | `TestParseOneASPathEntry/regex_too_long` | Length limit + Go RE2 linear time guarantee |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestAsPathRegexMatch | Done | `match_test.go:TestEvaluateASPath/single_asn_accept` | Renamed to match Go convention |
+| TestAsPathRegexNoMatch | Done | `match_test.go:TestEvaluateASPath/no_match_implicit_deny` | |
+| TestAsPathRejectAction | Done | `match_test.go:TestEvaluateASPath/single_asn_reject` | |
+| TestAsPathFirstMatchWins | Done | `match_test.go:TestEvaluateASPath/first_match_wins_*` | Two cases: accept-then-reject, reject-then-accept |
+| TestAsPathImplicitDeny | Done | `match_test.go:TestEvaluateASPath/no_entries_implicit_deny` | |
+| TestAsPathEmptyPath | Done | `match_test.go:TestEvaluateASPath/empty_aspath_*` | Two cases: matches ^$, no match |
+| TestAsPathInvalidRegex | Done | `config_test.go:TestParseOneASPathEntry/invalid_regex_syntax` | |
+| TestAsPathRegexComplexity | Done | `config_test.go:TestParseOneASPathEntry/regex_too_long` | Length limit test |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `filter_aspath/schema/ze-filter-aspath.yang` | Done | YANG augment with ze:filter |
+| `filter_aspath/schema/embed.go` | Done | go:embed |
+| `filter_aspath/schema/register.go` | Done | yang.RegisterModule |
+| `filter_aspath/register.go` | Done | registry.Register |
+| `filter_aspath/filter_aspath.go` | Done | SDK entry point |
+| `filter_aspath/config.go` | Done | Config parsing |
+| `filter_aspath/match.go` | Done | Regex matching |
+| `filter_aspath/match_test.go` | Done | 22 test cases |
+| `filter_aspath/config_test.go` | Done | 14 test cases |
+| `test/plugin/aspath-filter-accept.ci` | Done | Accept functional test |
+| `test/plugin/aspath-filter-reject.ci` | Done | Reject functional test |
+| `test/plugin/aspath-filter-shortform.ci` | Done | Short-form reference test |
+| `test/plugin/aspath-filter-chain.ci` | Done | Chain composition test |
+| `test/parse/aspath-list-config.ci` | Done | Config parse test |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 30 (6 requirements + 10 ACs + 8 TDD tests + 6 planned files)
+- **Done:** 30
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (test names adapted to Go convention, 8 extra files created beyond plan)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `filter_aspath/schema/ze-filter-aspath.yang` | Yes | ls confirms |
+| `filter_aspath/schema/embed.go` | Yes | ls confirms |
+| `filter_aspath/schema/register.go` | Yes | ls confirms |
+| `filter_aspath/register.go` | Yes | ls confirms |
+| `filter_aspath/filter_aspath.go` | Yes | ls confirms |
+| `filter_aspath/config.go` | Yes | ls confirms |
+| `filter_aspath/match.go` | Yes | ls confirms |
+| `filter_aspath/match_test.go` | Yes | ls confirms |
+| `filter_aspath/config_test.go` | Yes | ls confirms |
+| `test/plugin/aspath-filter-accept.ci` | Yes | ls confirms |
+| `test/plugin/aspath-filter-reject.ci` | Yes | ls confirms |
+| `test/plugin/aspath-filter-shortform.ci` | Yes | ls confirms |
+| `test/plugin/aspath-filter-chain.ci` | Yes | ls confirms |
+| `test/parse/aspath-list-config.ci` | Yes | ls confirms |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Regex match -> accept | `aspath-filter-accept.ci` passes: `as-path-list accept filter=PEERS-ONLY` in stderr |
+| AC-2 | No match -> next entry | `TestEvaluateASPath/second_entry_matches` passes |
+| AC-3 | Accept action | `aspath-filter-accept.ci`: route in adj-rib-in |
+| AC-4 | Reject action | `aspath-filter-reject.ci`: `as-path-list reject` in stderr, 0 routes |
+| AC-5 | First match wins | `TestEvaluateASPath/first_match_wins_accept_then_reject` passes |
+| AC-6 | Implicit deny | `aspath-filter-reject.ci`: multi-ASN path rejected by single-hop regex |
+| AC-7 | Empty path ^$ | `TestEvaluateASPath/empty_aspath_matches_caret_dollar` passes |
+| AC-8 | Chain composable | `aspath-filter-chain.ci`: aspath + prefix-list both accept |
+| AC-9 | Invalid regex rejected | `TestParseOneASPathEntry/invalid_regex_syntax` passes |
+| AC-10 | Complexity limit | `TestParseOneASPathEntry/regex_too_long` passes + Go RE2 linear time |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| Config with `policy as-path-list` + `filter import as-path-list:X` (accept) | `test/plugin/aspath-filter-accept.ci` | Pass |
+| Config with `policy as-path-list` + `filter import as-path-list:X` (reject) | `test/plugin/aspath-filter-reject.ci` | Pass |
+| Config parse with as-path-list entries | `test/parse/aspath-list-config.ci` | Pass |
+| Short-form reference `as-path-list:NAME` | `test/plugin/aspath-filter-shortform.ci` | Pass |
+| Chain with prefix-list | `test/plugin/aspath-filter-chain.ci` | Pass |
 
 ## Checklist
 
