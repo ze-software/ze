@@ -3,6 +3,7 @@ package iface
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -1105,6 +1106,43 @@ func TestParseIfaceDHCPAutoDefault(t *testing.T) {
 	assert.False(t, cfg.DHCPAuto)
 }
 
+// TestHandleDHCPLeaseEventStoresGateway verifies that a DHCP lease event
+// updates the stored gateway for link-state failover.
+//
+// VALIDATES: Gateway stored from DHCP lease for failover use.
+// PREVENTS: Link failover silently does nothing because gateway is empty.
+func TestHandleDHCPLeaseEventStoresGateway(t *testing.T) {
+	active := map[dhcpUnitKey]dhcpEntry{
+		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{v4: true}},
+	}
+	logger := slog.Default()
+
+	data := `{"name":"eth0","unit":0,"router":"192.168.1.1","address":"192.168.1.50","prefix-length":24}`
+	handleDHCPLeaseEvent(data, active, logger)
+
+	entry := active[dhcpUnitKey{ifaceName: "eth0", unit: 0}]
+	assert.Equal(t, "192.168.1.1", entry.gateway)
+}
+
+// TestHandleDHCPLeaseEventNoMatch verifies that lease events for unknown
+// interfaces are silently ignored.
+//
+// VALIDATES: No panic or map corruption on unmatched lease event.
+// PREVENTS: Map write for interface not in activeDHCP.
+func TestHandleDHCPLeaseEventNoMatch(t *testing.T) {
+	active := map[dhcpUnitKey]dhcpEntry{
+		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{v4: true}},
+	}
+	logger := slog.Default()
+
+	data := `{"name":"eth1","unit":0,"router":"10.0.0.1"}`
+	handleDHCPLeaseEvent(data, active, logger)
+
+	// eth0 gateway unchanged (still empty).
+	entry := active[dhcpUnitKey{ifaceName: "eth0", unit: 0}]
+	assert.Equal(t, "", entry.gateway)
+}
+
 // TestIfaceApplyJournalCreate verifies that applyConfig wrapped in a journal
 // can be rolled back by re-applying the previous config.
 //
@@ -1364,7 +1402,7 @@ func (b *fakeBackend) RemoveAddress(ifaceName, cidr string) error {
 }
 
 func (b *fakeBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) error { return nil }
-func (b *fakeBackend) AddRoute(_, _, _ string) error                          { return nil }
+func (b *fakeBackend) AddRoute(_, _, _ string, _ int) error                   { return nil }
 func (b *fakeBackend) RemoveRoute(_, _, _ string) error                       { return nil }
 
 func (b *fakeBackend) ListInterfaces() ([]InterfaceInfo, error) {

@@ -71,12 +71,12 @@ func RemoveAddress(iface, cidr string) error {
 	return b.RemoveAddress(iface, cidr)
 }
 
-func AddRoute(ifaceName, destCIDR, gateway string) error {
+func AddRoute(ifaceName, destCIDR, gateway string, metric int) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.AddRoute(ifaceName, destCIDR, gateway)
+	return b.AddRoute(ifaceName, destCIDR, gateway, metric)
 }
 
 func RemoveRoute(ifaceName, destCIDR, gateway string) error {

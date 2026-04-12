@@ -184,7 +184,7 @@ func (c *DHCPClient) handleV4Lease(ack *dhcpv4.DHCPv4, topic string) {
 
 	// Install default route from DHCP Router option (RFC 2132 Section 3.5).
 	if payload.Router != "" {
-		if err := iface.AddRoute(c.ifaceName, "0.0.0.0/0", payload.Router); err != nil {
+		if err := iface.AddRoute(c.ifaceName, "0.0.0.0/0", payload.Router, 0); err != nil {
 			logger.Warn("iface dhcp v4: route install failed",
 				"iface", c.ifaceName, "gw", payload.Router, "err", err)
 		}

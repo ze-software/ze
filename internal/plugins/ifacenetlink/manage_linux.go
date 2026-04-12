@@ -208,7 +208,7 @@ func (b *netlinkBackend) ReplaceAddressWithLifetime(ifaceName, cidr string, vali
 	return nil
 }
 
-func (b *netlinkBackend) AddRoute(ifaceName, destCIDR, gateway string) error {
+func (b *netlinkBackend) AddRoute(ifaceName, destCIDR, gateway string, metric int) error {
 	if err := iface.ValidateIfaceName(ifaceName); err != nil {
 		return fmt.Errorf("iface: add route on %q: %w", ifaceName, err)
 	}
@@ -228,9 +228,10 @@ func (b *netlinkBackend) AddRoute(ifaceName, destCIDR, gateway string) error {
 		LinkIndex: link.Attrs().Index,
 		Dst:       dst,
 		Gw:        gw,
+		Priority:  metric,
 	}
 	if err := netlink.RouteReplace(route); err != nil {
-		return fmt.Errorf("iface: add route %s via %s on %q: %w", destCIDR, gateway, ifaceName, err)
+		return fmt.Errorf("iface: add route %s via %s on %q (metric %d): %w", destCIDR, gateway, ifaceName, metric, err)
 	}
 	return nil
 }

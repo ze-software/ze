@@ -5,6 +5,7 @@ package iface
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -109,7 +110,34 @@ func runEngine(conn net.Conn) int {
 	var activeJournal *sdk.Journal
 
 	// activeDHCP tracks running DHCP clients keyed by interface+unit.
+	// Protected by dhcpMu for concurrent access from event handlers.
 	activeDHCP := make(map[dhcpUnitKey]dhcpEntry)
+	var dhcpMu sync.Mutex
+
+	// linkEventCh is a buffered channel for link failover work items.
+	// Event bus handlers enqueue here (non-blocking, no I/O) and the
+	// linkWorker goroutine processes them with netlink calls.
+	type linkEvent struct {
+		name string
+		up   bool
+	}
+	linkEventCh := make(chan linkEvent, 16)
+	linkWorkerDone := make(chan struct{})
+	go func() {
+		defer close(linkWorkerDone)
+		for ev := range linkEventCh {
+			dhcpMu.Lock()
+			if ev.up {
+				handleLinkUp(ev.name, activeDHCP, log)
+			} else {
+				handleLinkDown(ev.name, activeDHCP, log)
+			}
+			dhcpMu.Unlock()
+		}
+	}()
+
+	// unsubscribers tracks event bus subscriptions for cleanup.
+	var unsubscribers []func()
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		cfg, err := parseIfaceSections(sections)
@@ -146,7 +174,47 @@ func runEngine(conn net.Conn) int {
 		log.Info("interface monitor started")
 
 		// Start DHCP clients for units that have DHCP enabled.
+		dhcpMu.Lock()
 		reconcileDHCP(cfg, eb, activeDHCP, log)
+		dhcpMu.Unlock()
+
+		// Subscribe to DHCP lease events to track gateways for link failover.
+		// Handlers only update the map (no I/O), so mutex is sufficient.
+		unsubscribers = append(unsubscribers,
+			eb.Subscribe(plugin.NamespaceInterface, plugin.EventInterfaceDHCPAcquired, func(data string) {
+				dhcpMu.Lock()
+				handleDHCPLeaseEvent(data, activeDHCP, log)
+				dhcpMu.Unlock()
+			}),
+			eb.Subscribe(plugin.NamespaceInterface, plugin.EventInterfaceDHCPRenewed, func(data string) {
+				dhcpMu.Lock()
+				handleDHCPLeaseEvent(data, activeDHCP, log)
+				dhcpMu.Unlock()
+			}),
+			// Link events enqueue to worker channel (no I/O in handler).
+			eb.Subscribe(plugin.NamespaceInterface, plugin.EventInterfaceDown, func(data string) {
+				var ev struct {
+					Name string `json:"name"`
+				}
+				if err := json.Unmarshal([]byte(data), &ev); err == nil && ev.Name != "" {
+					select {
+					case linkEventCh <- linkEvent{name: ev.Name, up: false}:
+					default: // non-blocking: drop if buffer full (transient overload)
+					}
+				}
+			}),
+			eb.Subscribe(plugin.NamespaceInterface, plugin.EventInterfaceUp, func(data string) {
+				var ev struct {
+					Name string `json:"name"`
+				}
+				if err := json.Unmarshal([]byte(data), &ev); err == nil && ev.Name != "" {
+					select {
+					case linkEventCh <- linkEvent{name: ev.Name, up: true}:
+					default: // non-blocking: drop if buffer full (transient overload)
+					}
+				}
+			}),
+		)
 
 		return nil
 	})
@@ -221,7 +289,9 @@ func runEngine(conn net.Conn) int {
 		// Reconcile DHCP clients after successful reload.
 		eb := GetEventBus()
 		if eb != nil {
+			dhcpMu.Lock()
 			reconcileDHCP(cfg, eb, activeDHCP, log)
+			dhcpMu.Unlock()
 		}
 
 		return nil
@@ -250,11 +320,22 @@ func runEngine(conn net.Conn) int {
 		return 1
 	}
 
+	// Unsubscribe event handlers.
+	for _, unsub := range unsubscribers {
+		unsub()
+	}
+
+	// Stop link event worker.
+	close(linkEventCh)
+	<-linkWorkerDone
+
 	// Stop all DHCP clients on shutdown.
+	dhcpMu.Lock()
 	for key, entry := range activeDHCP {
 		log.Debug("interface: stopping DHCP client on shutdown", "iface", key.ifaceName, "unit", key.unit)
 		entry.client.Stop()
 	}
+	dhcpMu.Unlock()
 
 	if err := CloseBackend(); err != nil {
 		log.Warn("interface backend close failed", "error", err)
@@ -307,8 +388,9 @@ type dhcpParams struct {
 
 // dhcpEntry tracks a running DHCP client and the params it was created with.
 type dhcpEntry struct {
-	client DHCPStopper
-	params dhcpParams
+	client  DHCPStopper
+	params  dhcpParams
+	gateway string // last known gateway from DHCP lease (for link failover)
 }
 
 // reconcileDHCP starts DHCP clients for newly enabled units, stops clients
@@ -423,4 +505,65 @@ func discoverPrimaryEthernet(log *slog.Logger) string {
 	}
 	log.Debug("interface: dhcp-auto found no ethernet interface")
 	return ""
+}
+
+// deprioritizedMetric is the route metric applied when a link goes down.
+// Matches gokrazy's behavior (priority 1024 for downed links).
+const deprioritizedMetric = 1024
+
+// handleDHCPLeaseEvent updates the stored gateway for link-state failover.
+func handleDHCPLeaseEvent(data string, active map[dhcpUnitKey]dhcpEntry, log *slog.Logger) {
+	var payload struct {
+		Name   string `json:"name"`
+		Unit   int    `json:"unit"`
+		Router string `json:"router"`
+	}
+	if err := json.Unmarshal([]byte(data), &payload); err != nil || payload.Router == "" {
+		return
+	}
+	key := dhcpUnitKey{ifaceName: payload.Name, unit: payload.Unit}
+	if entry, ok := active[key]; ok {
+		entry.gateway = payload.Router
+		active[key] = entry
+		log.Debug("interface: stored DHCP gateway for failover", "iface", payload.Name, "gw", payload.Router)
+	}
+}
+
+// handleLinkDown is called by the link worker when an interface carrier drops.
+// If there's a DHCP client on that interface with a known gateway, remove the
+// normal-metric route and add a deprioritized one.
+// Caller MUST hold dhcpMu.
+func handleLinkDown(ifaceName string, active map[dhcpUnitKey]dhcpEntry, log *slog.Logger) {
+	for key, entry := range active {
+		if key.ifaceName != ifaceName || entry.gateway == "" {
+			continue
+		}
+		log.Info("interface: link down, deprioritizing route", "iface", ifaceName, "gw", entry.gateway, "metric", deprioritizedMetric)
+		// Remove the metric-0 route first, then add metric-1024.
+		// Linux route identity is (dst, gw, link, metric) so RouteReplace
+		// with a different metric creates a second entry, not a replacement.
+		_ = RemoveRoute(ifaceName, "0.0.0.0/0", entry.gateway)
+		if err := AddRoute(ifaceName, "0.0.0.0/0", entry.gateway, deprioritizedMetric); err != nil {
+			log.Debug("interface: deprioritize route failed", "iface", ifaceName, "err", err)
+		}
+		return
+	}
+}
+
+// handleLinkUp is called by the link worker when an interface carrier is
+// restored. Removes the deprioritized route and installs normal metric.
+// Caller MUST hold dhcpMu.
+func handleLinkUp(ifaceName string, active map[dhcpUnitKey]dhcpEntry, log *slog.Logger) {
+	for key, entry := range active {
+		if key.ifaceName != ifaceName || entry.gateway == "" {
+			continue
+		}
+		log.Info("interface: link up, restoring route priority", "iface", ifaceName, "gw", entry.gateway)
+		// Remove the deprioritized route, add normal metric.
+		_ = RemoveRoute(ifaceName, "0.0.0.0/0", entry.gateway)
+		if err := AddRoute(ifaceName, "0.0.0.0/0", entry.gateway, 0); err != nil {
+			log.Debug("interface: restore route priority failed", "iface", ifaceName, "err", err)
+		}
+		return
+	}
 }

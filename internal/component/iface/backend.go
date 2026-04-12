@@ -60,7 +60,8 @@ type Backend interface {
 	// Route management. Used by DHCP to install/remove default gateway.
 	// destCIDR is the destination (e.g., "0.0.0.0/0"), gateway is the
 	// next-hop IP (e.g., "192.168.1.1"), ifaceName scopes the route.
-	AddRoute(ifaceName, destCIDR, gateway string) error
+	// metric is the route priority (lower = preferred); 0 = kernel default.
+	AddRoute(ifaceName, destCIDR, gateway string, metric int) error
 	RemoveRoute(ifaceName, destCIDR, gateway string) error
 
 	// Link state.
