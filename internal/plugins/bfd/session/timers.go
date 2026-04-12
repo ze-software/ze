@@ -159,3 +159,58 @@ func (m *Machine) EchoInterval() time.Duration {
 	}
 	return time.Duration(us) * time.Microsecond
 }
+
+// NextEchoTxDeadline returns the time at which the next echo
+// packet should be transmitted, or zero when echo is not currently
+// scheduled. Caller is the engine express-loop; the deadline is
+// initialized on the first echoTick and advanced by AdvanceEcho.
+func (m *Machine) NextEchoTxDeadline() time.Time { return m.nextEchoAt }
+
+// AdvanceEcho records that an echo packet was transmitted at now and
+// sets the next-echo deadline by EchoInterval. The engine calls this
+// right after the transport accepts the outbound packet.
+func (m *Machine) AdvanceEcho(now time.Time) {
+	interval := m.EchoInterval()
+	if interval <= 0 {
+		m.nextEchoAt = time.Time{}
+		return
+	}
+	m.nextEchoAt = now.Add(interval)
+}
+
+// PrimeEcho arms the echo timer for the first-ever TX at now.
+// Idempotent: if the timer is already armed the call is a no-op so
+// an echo that fires on the same tick does not reset its own
+// schedule. The engine calls PrimeEcho from echoTick whenever the
+// session is Up and echo is enabled.
+func (m *Machine) PrimeEcho(now time.Time) {
+	if !m.EchoEnabled() {
+		m.nextEchoAt = time.Time{}
+		return
+	}
+	if m.nextEchoAt.IsZero() {
+		m.nextEchoAt = now
+	}
+}
+
+// NextEchoSequence returns the next monotonic echo sequence number
+// and advances the counter. Wraps cleanly around uint32.
+func (m *Machine) NextEchoSequence() uint32 {
+	m.echoSequence++
+	return m.echoSequence
+}
+
+// LastEchoRTT returns the most recent echo round-trip observation.
+// Zero until the first reflected echo is matched.
+func (m *Machine) LastEchoRTT() time.Duration { return m.lastEchoRTT }
+
+// RecordEchoRTT stores a reflected echo round-trip time. Called from
+// the engine echo RX handler on every matched return packet.
+func (m *Machine) RecordEchoRTT(rtt time.Duration) { m.lastEchoRTT = rtt }
+
+// ClearEchoSchedule resets the echo timer. Called when a session
+// leaves the Up state so stale deadlines do not fire echoes while
+// the control path is still tearing down.
+func (m *Machine) ClearEchoSchedule() {
+	m.nextEchoAt = time.Time{}
+}

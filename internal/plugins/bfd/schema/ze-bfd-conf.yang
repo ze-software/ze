@@ -2,6 +2,8 @@ module ze-bfd-conf {
     namespace "urn:ze:bfd:conf";
     prefix bfd;
 
+    import ze-extensions { prefix ze; }
+
     description
         "Bidirectional Forwarding Detection (BFD) configuration for Ze.
 
@@ -162,6 +164,7 @@ module ze-bfd-conf {
                 leaf secret {
                     type string;
                     mandatory true;
+                    ze:sensitive;
                     description
                         "Shared secret for the keyed digest. Redacted
                          from `ze config show` output. MD5 variants

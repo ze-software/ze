@@ -96,11 +96,20 @@ func (r *runtimeState) loopFor(key loopKey, device string) (*engine.Loop, error)
 
 	bindV6 := r.cfg != nil && r.cfg.bindV6
 	tr := newTransport(key.mode, key.vrf, device, bindV6)
-	loop := engine.NewLoop(tr, clock.RealClock{})
+	var echoTr transport.Transport
+	if key.mode == api.SingleHop {
+		echoTr = newEchoTransport(key.vrf, device)
+	}
+	loop := engine.NewLoopWithEcho(tr, echoTr, clock.RealClock{})
 	attachMetricsHook(loop)
 	if startErr := loop.Start(); startErr != nil {
 		if stopErr := tr.Stop(); stopErr != nil {
 			logger().Debug("bfd udp stop after failed start", "err", stopErr)
+		}
+		if echoTr != nil {
+			if stopErr := echoTr.Stop(); stopErr != nil {
+				logger().Debug("bfd echo udp stop after failed start", "err", stopErr)
+			}
 		}
 		return nil, fmt.Errorf("bfd: start engine loop for %s (vrf=%s device=%s): %w", key.mode, key.vrf, device, startErr)
 	}
@@ -109,7 +118,8 @@ func (r *runtimeState) loopFor(key loopKey, device string) (*engine.Loop, error)
 		"vrf", key.vrf,
 		"mode", key.mode.String(),
 		"device", device,
-		"ipv6", bindV6)
+		"ipv6", bindV6,
+		"echo", echoTr != nil)
 	return loop, nil
 }
 
@@ -364,6 +374,22 @@ func newUDPTransport6(mode api.HopMode, vrf, device string) *transport.UDP {
 	return &transport.UDP{
 		Bind:   bind,
 		Mode:   mode,
+		VRF:    vrf,
+		Device: device,
+	}
+}
+
+// newEchoTransport allocates an IPv4 UDP transport bound to the
+// RFC 5881 echo port (3785). Single-hop loops only; the plugin
+// config parser rejects multi-hop echo per RFC 5883 Section 4.
+// The transport is always created for single-hop loops so a
+// reload that enables echo on an existing session can begin
+// transmitting without a socket-level change.
+func newEchoTransport(vrf, device string) *transport.UDP {
+	bind := netip.AddrPortFrom(netip.IPv4Unspecified(), transport.UDPPortEcho)
+	return &transport.UDP{
+		Bind:   bind,
+		Mode:   api.SingleHop,
 		VRF:    vrf,
 		Device: device,
 	}

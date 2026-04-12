@@ -29,6 +29,10 @@ var engineLog = slogutil.LazyLogger("bfd.engine")
 func (l *Loop) run() {
 	defer close(l.doneCh)
 	rx := l.transport.RX()
+	var echoRx <-chan transport.Inbound
+	if l.echoTransport != nil {
+		echoRx = l.echoTransport.RX()
+	}
 	ticker := l.clk.NewTicker(PollInterval)
 	defer ticker.Stop()
 
@@ -41,6 +45,17 @@ func (l *Loop) run() {
 				return
 			}
 			l.handleInbound(in)
+		case in, ok := <-echoRx:
+			if !ok {
+				// A nil channel blocks forever so this
+				// branch only fires when the echo transport
+				// has actively closed its RX. Treat it as a
+				// clean shutdown of the echo half without
+				// disturbing the Control path.
+				echoRx = nil
+				continue
+			}
+			l.handleEchoInbound(in)
 		case <-ticker.C():
 			l.tick()
 		}
@@ -182,6 +197,8 @@ func (l *Loop) tick() {
 			entry.machine.AdvanceTxWithJitter(now, reduction)
 		}
 	}
+
+	l.echoTickLocked(now)
 }
 
 // sendLocked encodes the Control packet via the packet pool and pushes it

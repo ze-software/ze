@@ -129,6 +129,22 @@ type Machine struct {
 
 	// nextTxAt is the deadline for the next periodic Control packet.
 	nextTxAt time.Time
+
+	// nextEchoAt is the deadline for the next RFC 5880 §6.4 echo
+	// packet. Zero means echo is not scheduled (session down or echo
+	// not negotiated). Advanced by AdvanceEcho after every echo TX.
+	nextEchoAt time.Time
+
+	// echoSequence is the monotonic counter carried inside the ZEEC
+	// envelope's Sequence field. Incremented by NextEchoSequence on
+	// every echo TX so the receive path (a reflected echo hitting
+	// the RTT histogram) has a unique identifier per packet.
+	echoSequence uint32
+
+	// lastEchoRTT is the most recently observed echo round-trip time.
+	// Zero until the first reflected echo is matched. Exposed via
+	// LastEchoRTT for snapshot consumers.
+	lastEchoRTT time.Duration
 }
 
 // Role is the BFD role (Active or Passive) per RFC 5883 Section 4.3.

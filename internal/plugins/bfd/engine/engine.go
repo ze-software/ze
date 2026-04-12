@@ -88,6 +88,7 @@ type MetricsHook interface {
 	OnAuthFailure(mode string)
 	OnEchoTx(mode string)
 	OnEchoRx(mode string)
+	OnEchoRTT(mode string, rtt time.Duration)
 }
 
 // Loop is the BFD express-loop runtime. Caller MUST call Start exactly
@@ -99,8 +100,9 @@ type MetricsHook interface {
 // briefly takes subsMu to fan out events. This split prevents the
 // notify-callback path from re-entering mu and deadlocking.
 type Loop struct {
-	transport transport.Transport
-	clk       clock.Clock
+	transport     transport.Transport
+	echoTransport transport.Transport
+	clk           clock.Clock
 
 	mu        sync.Mutex
 	sessions  map[api.Key]*sessionEntry
@@ -214,6 +216,20 @@ func NewLoop(t transport.Transport, clk clock.Clock) *Loop {
 	}
 }
 
+// NewLoopWithEcho creates a Loop with a second transport bound to
+// the RFC 5881 echo port. The echo transport is lifecycle-managed
+// by the Loop: Start binds both sockets, Stop closes both. Passing
+// a nil echo transport is equivalent to NewLoop.
+//
+// Only single-hop Loops should attach an echo transport; RFC 5883
+// Section 4 prohibits multi-hop echo and the plugin config parser
+// rejects it at load time.
+func NewLoopWithEcho(t, echo transport.Transport, clk clock.Clock) *Loop {
+	l := NewLoop(t, clk)
+	l.echoTransport = echo
+	return l
+}
+
 // applyJitter returns an RFC 5880 Section 6.8.7 TX interval reduction for
 // the given base interval and detect multiplier. The reduction is always
 // non-negative and strictly less than base so the next-TX deadline never
@@ -259,6 +275,19 @@ func (l *Loop) Start() error {
 		l.started.Store(false)
 		return err
 	}
+	if l.echoTransport != nil {
+		if err := l.echoTransport.Start(); err != nil {
+			// Control started successfully; roll it back so the
+			// kernel sees a clean shutdown before reporting the
+			// echo-bind failure upstream.
+			if stopErr := l.transport.Stop(); stopErr != nil {
+				engineLog().Debug("bfd control stop after echo start failure",
+					"err", stopErr)
+			}
+			l.started.Store(false)
+			return err
+		}
+	}
 	go l.run()
 	return nil
 }
@@ -272,6 +301,11 @@ func (l *Loop) Stop() error {
 	close(l.stopCh)
 	<-l.doneCh
 	stopErr := l.transport.Stop()
+	if l.echoTransport != nil {
+		if err := l.echoTransport.Stop(); err != nil && stopErr == nil {
+			stopErr = err
+		}
+	}
 
 	l.subsMu.Lock()
 	for k, subs := range l.subscribers {

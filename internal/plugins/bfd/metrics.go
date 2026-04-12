@@ -12,6 +12,7 @@ package bfd
 
 import (
 	"sync/atomic"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
@@ -23,14 +24,24 @@ import (
 // The fields are populated once in bindMetricsRegistry; subsequent reads
 // load through bfdMetricsPtr atomically.
 type bfdMetrics struct {
-	sessions         metrics.GaugeVec   // labels: state, mode, vrf
-	transitions      metrics.CounterVec // labels: from, to, diag, mode
-	detectionExpired metrics.CounterVec // labels: mode
-	txPackets        metrics.CounterVec // labels: mode
-	rxPackets        metrics.CounterVec // labels: mode
-	authFailures     metrics.CounterVec // labels: mode
-	echoTxPackets    metrics.CounterVec // labels: mode (single-hop only)
-	echoRxPackets    metrics.CounterVec // labels: mode
+	sessions         metrics.GaugeVec     // labels: state, mode, vrf
+	transitions      metrics.CounterVec   // labels: from, to, diag, mode
+	detectionExpired metrics.CounterVec   // labels: mode
+	txPackets        metrics.CounterVec   // labels: mode
+	rxPackets        metrics.CounterVec   // labels: mode
+	authFailures     metrics.CounterVec   // labels: mode
+	echoTxPackets    metrics.CounterVec   // labels: mode (single-hop only)
+	echoRxPackets    metrics.CounterVec   // labels: mode
+	echoRTTUs        metrics.HistogramVec // labels: mode; RTT microseconds
+}
+
+// echoRTTBuckets are the histogram cell boundaries for
+// ze_bfd_echo_rtt_us. The range targets sub-1ms loops (data center,
+// direct links) through 5 s (satellite, WAN). Values outside the top
+// bucket accumulate in the +Inf overflow cell.
+var echoRTTBuckets = []float64{
+	1_000, 5_000, 10_000, 50_000,
+	100_000, 500_000, 1_000_000, 5_000_000,
 }
 
 // bfdMetricsPtr holds the active metrics set. Nil while
@@ -61,6 +72,9 @@ func bindMetricsRegistry(reg metrics.Registry) {
 		authFailures:  reg.CounterVec("ze_bfd_auth_failures_total", "BFD authentication verify failures.", []string{"mode"}),
 		echoTxPackets: reg.CounterVec("ze_bfd_echo_tx_packets_total", "BFD Echo packets transmitted (RFC 5880 Section 6.4).", []string{"mode"}),
 		echoRxPackets: reg.CounterVec("ze_bfd_echo_rx_packets_total", "BFD Echo packets received on UDP port 3785.", []string{"mode"}),
+		echoRTTUs: reg.HistogramVec("ze_bfd_echo_rtt_us",
+			"BFD Echo round-trip time in microseconds (RFC 5880 Section 6.4).",
+			echoRTTBuckets, []string{"mode"}),
 	}
 	bfdMetricsPtr.Store(m)
 }
@@ -129,6 +143,18 @@ func (metricsHook) OnEchoRx(mode string) {
 		return
 	}
 	m.echoRxPackets.With(mode).Inc()
+}
+
+// OnEchoRTT records a round-trip observation against the RTT
+// histogram. The engine converts its time.Duration RTT into
+// microseconds here so the histogram buckets line up with the
+// echoRTTBuckets constant.
+func (metricsHook) OnEchoRTT(mode string, rtt time.Duration) {
+	m := bfdMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	m.echoRTTUs.With(mode).Observe(float64(rtt.Microseconds()))
 }
 
 // attachMetricsHook installs the metricsHook on a newly-created Loop.
