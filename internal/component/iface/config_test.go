@@ -132,6 +132,84 @@ func TestParseTunnelGreNoMAC(t *testing.T) {
 		"L3 tunnel must not carry mac-address (list-level mac-address must be ignored)")
 }
 
+// TestParseTunnelIp6gretapMAC verifies that mac-address inside the ip6gretap
+// case container is parsed correctly, mirroring TestParseTunnelGretapMAC for
+// the v6-underlay L2 kind.
+//
+// VALIDATES: ip6gretap mac-address parity with gretap.
+// PREVENTS: ip6gretap silently dropping mac-address.
+func TestParseTunnelIp6gretapMAC(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"tunnel": {
+				"ip6gretap0": {
+					"encapsulation": {
+						"ip6gretap": {
+							"local":  {"ip": "2001:db8::1"},
+							"remote": {"ip": "2001:db8::2"},
+							"mac-address": "11:22:33:44:55:66"
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Tunnel, 1)
+	assert.Equal(t, TunnelKindIP6GRETap, cfg.Tunnel[0].Spec.Kind)
+	assert.Equal(t, "11:22:33:44:55:66", cfg.Tunnel[0].MACAddress,
+		"mac-address inside ip6gretap case must be parsed")
+}
+
+// TestParseTunnelIp6gretap verifies the ip6gretap case is recognized as
+// a distinct bridgeable kind.
+//
+// VALIDATES: ip6gretap discriminator.
+// PREVENTS: ip6gretap kind regression.
+func TestParseTunnelIp6gretap(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"tunnel": {
+				"ip6gretap0": {
+					"encapsulation": {
+						"ip6gretap": {
+							"local":  {"ip": "2001:db8::1"},
+							"remote": {"ip": "2001:db8::2"}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Tunnel, 1)
+	assert.Equal(t, TunnelKindIP6GRETap, cfg.Tunnel[0].Spec.Kind)
+	assert.True(t, cfg.Tunnel[0].Spec.Kind.IsBridgeable())
+}
+
+// TestParseTunnelNoPMTUDiscovery verifies the no-pmtu-discovery empty leaf.
+//
+// VALIDATES: no-pmtu-discovery flag is set when present.
+// PREVENTS: NoPMTUDiscovery silently dropped.
+func TestParseTunnelNoPMTUDiscovery(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"tunnel": {
+				"gre0": {
+					"encapsulation": {
+						"gre": {
+							"local":  {"ip": "192.0.2.1"},
+							"remote": {"ip": "198.51.100.1"},
+							"no-pmtu-discovery": ""
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Tunnel, 1)
+	assert.True(t, cfg.Tunnel[0].Spec.NoPMTUDiscovery,
+		"no-pmtu-discovery empty leaf must set the flag")
+}
+
 // TestParseTunnelIp6gre verifies the ip6gre case with v6 endpoints, hoplimit,
 // and tclass parses into the right TunnelSpec fields.
 //

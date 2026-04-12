@@ -176,9 +176,8 @@ func CollectListeners(tree *Tree, schema *Schema) []ListenerEndpoint {
 		} else {
 			// Flat shape: list entries with a listen-port leaf (e.g. wireguard).
 			// IP is 0.0.0.0 because the kernel binds on all addresses.
-			listEntries := container.GetList(svc.listName)
-			for entryName, entry := range listEntries {
-				portStr, ok := entry.Get("listen-port")
+			for _, entry := range container.GetListOrdered(svc.listName) {
+				portStr, ok := entry.Value.Get("listen-port")
 				if !ok || portStr == "" {
 					continue
 				}
@@ -187,7 +186,7 @@ func CollectListeners(tree *Tree, schema *Schema) []ListenerEndpoint {
 					continue
 				}
 				endpoints = append(endpoints, ListenerEndpoint{
-					Service:  svc.name + " " + entryName,
+					Service:  svc.name + " " + entry.Key,
 					Protocol: svc.protocol,
 					IP:       net.IPv4zero,
 					Port:     uint16(port), //nolint:gosec // ParseUint bitSize=16 bounds value

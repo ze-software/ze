@@ -197,15 +197,27 @@ func TestCollectListeners(t *testing.T) {
 
 	// Should have web + plugin-hub, NOT ssh or mcp.
 	require.Len(t, endpoints, 2)
-	assert.Equal(t, "web main", endpoints[0].Service)
-	assert.Equal(t, uint16(3443), endpoints[0].Port)
-	assert.Equal(t, "plugin-hub local", endpoints[1].Service)
-	assert.Equal(t, uint16(12700), endpoints[1].Port)
+	byName := map[string]ListenerEndpoint{}
+	for _, ep := range endpoints {
+		byName[ep.Service] = ep
+	}
+	require.Contains(t, byName, "web main")
+	assert.Equal(t, uint16(3443), byName["web main"].Port)
+	require.Contains(t, byName, "plugin-hub local")
+	assert.Equal(t, uint16(12700), byName["plugin-hub local"].Port)
 }
 
 // TestCollectListeners_EmptyTree verifies empty tree returns nil.
 func TestCollectListeners_EmptyTree(t *testing.T) {
 	schema := listenerTestSchema(t)
+	tree := NewTree()
+	assert.Nil(t, CollectListeners(tree, schema))
+}
+
+// TestCollectListeners_EmptySchema verifies that a schema with no
+// ze:listener lists produces no endpoints without panicking.
+func TestCollectListeners_EmptySchema(t *testing.T) {
+	schema := NewSchema()
 	tree := NewTree()
 	assert.Nil(t, CollectListeners(tree, schema))
 }

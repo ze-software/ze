@@ -184,7 +184,7 @@ Each discovered interface also records an `os-name` hidden leaf that preserves t
 OS interface name. This field is auto-populated during discovery and remains available for
 debugging and internal binding after the user renames the config entry.
 
-<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- os-name hidden leaf in interface-physical grouping -->
+<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- os-name hidden leaf in interface-common grouping -->
 
 A MAC address validator (`ze:validate "mac-address"`) provides format checking (colon-separated
 hex octets) and live OS autocomplete. The `CompleteFn` calls `DiscoverInterfaces` on each

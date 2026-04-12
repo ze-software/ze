@@ -266,3 +266,84 @@ func TestParseWireguardKeyRoundTripThroughParseKey(t *testing.T) {
 	assert.Equal(t, encoded, entry.Spec.PrivateKey.String())
 	assert.Equal(t, k, entry.Spec.PrivateKey)
 }
+
+// TestParseWireguardEndpointIPWithoutPort verifies that an endpoint with
+// ip but no port is rejected.
+//
+// VALIDATES: endpoint requires both ip and port together.
+// PREVENTS: creating a peer with UDP port 0.
+func TestParseWireguardEndpointIPWithoutPort(t *testing.T) {
+	m := map[string]any{
+		"private-key": testPrivKeyB64,
+		"peer": map[string]any{
+			"site2": map[string]any{
+				"public-key": testPubKey1B64,
+				"endpoint": map[string]any{
+					"ip": "203.0.113.1",
+				},
+			},
+		},
+	}
+	_, err := parseWireguardEntry("wg0", m)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "endpoint has ip but no port")
+}
+
+// TestParseWireguardEndpointPortWithoutIP verifies that an endpoint with
+// port but no ip is rejected.
+//
+// VALIDATES: endpoint requires both ip and port together.
+// PREVENTS: silently discarding a port-only endpoint.
+func TestParseWireguardEndpointPortWithoutIP(t *testing.T) {
+	m := map[string]any{
+		"private-key": testPrivKeyB64,
+		"peer": map[string]any{
+			"site2": map[string]any{
+				"public-key": testPubKey1B64,
+				"endpoint": map[string]any{
+					"port": "51820",
+				},
+			},
+		},
+	}
+	_, err := parseWireguardEntry("wg0", m)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "endpoint has port but no ip")
+}
+
+// TestParseWireguardDuplicatePublicKey verifies that two peers with the
+// same public key are rejected.
+//
+// VALIDATES: duplicate public-key detection.
+// PREVENTS: undefined kernel behavior with duplicate peer keys.
+func TestParseWireguardDuplicatePublicKey(t *testing.T) {
+	m := map[string]any{
+		"private-key": testPrivKeyB64,
+		"peer": map[string]any{
+			"site1": map[string]any{"public-key": testPubKey1B64},
+			"site2": map[string]any{"public-key": testPubKey1B64},
+		},
+	}
+	_, err := parseWireguardEntry("wg0", m)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate public-key")
+}
+
+// TestParseWireguardMACIgnored verifies that a hand-injected mac-address
+// at the wireguard list level is cleared by the parser (defense-in-depth).
+//
+// VALIDATES: wireguard uses interface-common, not interface-l2.
+// PREVENTS: SetMACAddress on a wireguard device.
+func TestParseWireguardMACIgnored(t *testing.T) {
+	m := map[string]any{
+		"private-key": testPrivKeyB64,
+		"mac-address": "aa:bb:cc:dd:ee:ff",
+		"peer": map[string]any{
+			"site1": map[string]any{"public-key": testPubKey1B64},
+		},
+	}
+	entry, err := parseWireguardEntry("wg0", m)
+	require.NoError(t, err)
+	assert.Empty(t, entry.MACAddress,
+		"wireguard must not carry mac-address (cleared by parser)")
+}

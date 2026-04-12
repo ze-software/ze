@@ -372,6 +372,10 @@ func parseTunnelLeaves(spec *TunnelSpec, caseMap map[string]any) error {
 // decoded any $9$ prefix before the tree reaches us.
 func parseWireguardEntry(name string, m map[string]any) (wireguardEntry, error) {
 	entry := wireguardEntry{ifaceEntry: parseIfaceEntry(name, m)}
+	// Wireguard uses interface-common (no mac-address leaf). Clear any
+	// list-level mac-address that parseIfaceEntry may have read from a
+	// hand-edited config. Same defense-in-depth as parseTunnelEntry.
+	entry.MACAddress = ""
 	entry.Spec.Name = name
 
 	if m == nil {
@@ -406,12 +410,18 @@ func parseWireguardEntry(name string, m map[string]any) (wireguardEntry, error) 
 	}
 
 	if peerMap, ok := m["peer"].(map[string]any); ok {
+		seenPubKeys := make(map[string]string, len(peerMap))
 		for pname, pv := range peerMap {
 			pm, _ := pv.(map[string]any)
 			peer, err := parseWireguardPeer(pname, pm)
 			if err != nil {
 				return entry, fmt.Errorf("peer %q: %w", pname, err)
 			}
+			pubKeyStr := peer.PublicKey.String()
+			if prev, dup := seenPubKeys[pubKeyStr]; dup {
+				return entry, fmt.Errorf("peer %q: duplicate public-key (same as peer %q)", pname, prev)
+			}
+			seenPubKeys[pubKeyStr] = pname
 			entry.Spec.Peers = append(entry.Spec.Peers, peer)
 		}
 	}
@@ -463,6 +473,13 @@ func parseWireguardPeer(name string, m map[string]any) (WireguardPeerSpec, error
 				return peer, fmt.Errorf("endpoint port %q: %w", portStr, err)
 			}
 			peer.EndpointPort = uint16(p) //nolint:gosec // ParseUint bitSize=16 bounds value
+		}
+		// Endpoint requires both ip and port together.
+		if peer.EndpointIP != "" && peer.EndpointPort == 0 {
+			return peer, fmt.Errorf("endpoint has ip but no port")
+		}
+		if peer.EndpointIP == "" && peer.EndpointPort != 0 {
+			return peer, fmt.Errorf("endpoint has port but no ip")
 		}
 	}
 
@@ -947,12 +964,18 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			continue
 		}
 		if !hadPrev {
-			// New wireguard interface: create the netdev first. The
-			// Create path is a no-op if the netdev already exists; for
-			// robustness against a stale previous-state tracker we log
-			// at debug rather than erroring.
+			// New wireguard interface: create the netdev first.
 			if err := b.CreateWireguardDevice(e.Name); err != nil {
-				log.Debug("iface config: create wireguard (may already exist)",
+				// CreateWireguardDevice fails on "already exists" when
+				// the previous-state tracker is stale. That is harmless.
+				// A genuine failure (e.g. missing kernel module) means
+				// we must skip ConfigureWireguardDevice -- there is
+				// nothing to configure.
+				if _, getErr := b.GetInterface(e.Name); getErr != nil {
+					record(fmt.Sprintf("wireguard %s create", e.Name), err)
+					continue
+				}
+				log.Debug("iface config: create wireguard (already exists)",
 					"name", e.Name, "err", err)
 			}
 		}
@@ -984,7 +1007,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	}
 
 	// Phase 2: Set properties and create VLANs.
-	allEntries := make([]ifaceEntry, 0, len(cfg.Ethernet)+len(cfg.Dummy)+len(cfg.Veth)+len(cfg.Bridge)+len(cfg.Tunnel))
+	allEntries := make([]ifaceEntry, 0, len(cfg.Ethernet)+len(cfg.Dummy)+len(cfg.Veth)+len(cfg.Bridge)+len(cfg.Tunnel)+len(cfg.Wireguard))
 	allEntries = append(allEntries, cfg.Ethernet...)
 	allEntries = append(allEntries, cfg.Dummy...)
 	for _, e := range cfg.Veth {
@@ -995,6 +1018,9 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	}
 	for i := range cfg.Tunnel {
 		allEntries = append(allEntries, cfg.Tunnel[i].ifaceEntry)
+	}
+	for i := range cfg.Wireguard {
+		allEntries = append(allEntries, cfg.Wireguard[i].ifaceEntry)
 	}
 
 	for _, e := range allEntries {
