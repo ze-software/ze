@@ -55,7 +55,33 @@ Stage 4 gives operators a way to see what BFD is doing. Until now, the only obse
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (filled during /implement)
+**Source files read:**
+
+- [ ] `internal/plugins/bfd/engine/engine.go`
+- [ ] `internal/plugins/bfd/engine/loop.go`
+- [ ] `internal/plugins/bfd/bfd.go`
+- [ ] `internal/plugins/bfd/config.go`
+- [ ] `internal/plugins/bfd/api/events.go`
+- [ ] `internal/plugins/bfd/api/service.go`
+- [ ] `internal/plugins/bfd/session/session.go`
+- [ ] `internal/plugins/bfd/session/timers.go`
+- [ ] `internal/plugins/bfd/session/fsm.go`
+- [ ] `internal/plugins/bfd/packet/diag.go`
+- [ ] `internal/plugins/bfd/schema/ze-bfd-conf.yang`
+- [ ] `internal/core/metrics/metrics.go`
+- [ ] `internal/core/metrics/prometheus.go`
+- [ ] `internal/component/plugin/registry/registry.go`
+- [ ] `internal/component/plugin/inprocess.go`
+- [ ] `internal/component/plugin/server/handler.go`
+- [ ] `internal/component/cmd/show/show.go`
+- [ ] `internal/component/cmd/show/schema/ze-cli-show-cmd.yang`
+- [ ] `internal/component/bgp/plugins/cmd/rib/rib.go`
+- [ ] `internal/component/bgp/plugins/rib/schema/ze-rib-api.yang`
+- [ ] `internal/plugins/sysrib/sysrib.go`
+- [ ] `internal/plugins/sysrib/register.go`
+- [ ] `test/plugin/api-bgp-summary.ci`
+- [ ] `test/plugin/community-cumulative.ci`
+- [ ] `test/plugin/fib-sysrib.ci`
 
 **Behavior to preserve:**
 
@@ -309,48 +335,120 @@ Stage 4 gives operators a way to see what BFD is doing. Until now, the only obse
 ## Implementation Summary
 
 ### What Was Implemented
+- Snapshot API on `engine.Loop` returning `[]api.SessionState` sorted by `(mode, vrf, peer)`, copying fields under `l.mu` then releasing.
+- `Loop.SessionDetail(peer)` for the single-session view with the last 8 transitions kept on `sessionEntry.transitions` via a fixed-size ring.
+- `api.Service` gained `Snapshot`, `SessionDetail`, and `Profiles` methods. `pluginService` implements them with `runtimeStateGuard` wrapped around `state.loops` iteration.
+- `engine.MetricsHook` interface with `OnStateChange/OnTxPacket/OnRxPacket`; the bfd plugin implements `metricsHook{}` and attaches it to every Loop via `attachMetricsHook`. Prometheus metrics: `ze_bfd_sessions` (gauge), `ze_bfd_transitions_total`, `ze_bfd_detection_expired_total`, `ze_bfd_tx_packets_total`, `ze_bfd_rx_packets_total` (counter vecs).
+- YANG `ze-bfd-api.yang` module with `show-sessions`, `show-session`, `show-profile` RPCs.
+- New `internal/component/cmd/bfd` package with `ze-bfd-cmd.yang` augmenting `clishowcmd:show` and RPC forwarders that call `api.GetService()` directly (no IPC hop because bfd is in-process).
+- Four `.ci` tests (`bfd-show-sessions`, `bfd-show-session`, `bfd-show-profile`, `bfd-metrics`) and three Go unit tests (`snapshot_test.go`, cmd-side `bfd_test.go`, `metrics_test.go`).
+
 ### Bugs Found/Fixed
+- Timing-order race between plugin Phase 1 and the BGP loader's telemetry setup: `ConfigureMetrics` fires with `nil` because the BGP reactor's `CreateReactorFromTree` runs later and only then calls `registry.SetMetricsRegistry`. Fixed by re-binding from `OnStarted` via `registry.GetMetricsRegistry()` and re-attaching the metrics hook on already-running loops.
+
 ### Documentation Updates
+- `docs/guide/bfd.md` Observing-state section now documents the JSON payloads and the Prometheus metric table.
+- `docs/features.md` BFD row mentions the Stage 4 surface.
+- `docs/architecture/bfd.md` gains a Stage 4 layer table and trims the "next sessions" list.
+
 ### Deviations from Plan
+- The Stage 4 spec sketched human-readable "PEER LOCAL ..." tabular output; the handlers return JSON instead because the other ze show handlers publish JSON and the interactive CLI applies its own formatting layer. Operators using `ze show bfd sessions` see the interactive CLI's formatted table while scripts parse the JSON.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| `show bfd sessions` table | ✅ Done | `internal/component/cmd/bfd/bfd.go:handleShowSessions` | JSON array via api.GetService().Snapshot |
+| `show bfd session <peer>` detail + transitions | ✅ Done | `bfd.go:handleShowSession` + `engine/engine.go:recordTransition` | Ring of 8 entries |
+| `show bfd profile [<name>]` | ✅ Done | `bfd.go:handleShowProfile` | Filters by name, empty lists all |
+| `ze_bfd_sessions` gauge | ✅ Done | `internal/plugins/bfd/metrics.go:refreshSessionsGauge` | Updated from Snapshot at dispatch time |
+| `ze_bfd_transitions_total` counter | ✅ Done | `metrics.go:metricsHook.OnStateChange` | Incremented from Loop.makeNotify |
+| `ze_bfd_detection_expired_total` counter | ✅ Done | `metrics.go:metricsHook.OnStateChange` | Detected via packet.DiagControlDetectExpired |
+| `ze_bfd_tx_packets_total` counter | ✅ Done | `engine/loop.go:sendLocked` hook | OnTxPacket |
+| `ze_bfd_rx_packets_total` counter | ✅ Done | `engine/loop.go:handleInbound` hook | OnRxPacket |
+| YANG RPCs backing CLI commands | ✅ Done | `internal/plugins/bfd/schema/ze-bfd-api.yang` + `internal/component/cmd/bfd/schema/ze-bfd-cmd.yang` | Registered via yang.RegisterModule |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | ✅ Done | `test/plugin/bfd-show-sessions.ci` asserts two pinned peers + profile=fast | Runs `show bfd sessions`, parses JSON, checks peer set |
+| AC-2 | ✅ Done | `test/plugin/bfd-show-session.ci` known-peer branch | Verifies mode and peer fields |
+| AC-3 | ✅ Done | `test/plugin/bfd-show-session.ci` unknown-peer branch | StatusError + "no session for peer" |
+| AC-4 | ✅ Done | `test/plugin/bfd-show-profile.ci` specific-name branch | Verifies desired-min-tx-us matches profile config |
+| AC-5 | ✅ Done | `test/plugin/bfd-show-profile.ci` empty-args branch | Asserts both profiles present |
+| AC-6 | ✅ Done | `test/plugin/bfd-metrics.ci` scrape `http://127.0.0.1:19273/metrics` | Asserts `ze_bfd_sessions` appears after Snapshot primes the gauge |
+| AC-7 | ⚠️ Partial | `metrics.go:metricsHook.OnStateChange` + `TestMetricsHookStateChangeCounters` | Counter path exercised in unit tests; full Up→Down→Up behavior needs a two-speaker setup (FRR interop, Stage 3b) |
+| AC-8 | ⚠️ Partial | Same | Detection-expired increment path exercised in unit tests; live detection expiry needs the FRR interop scenario |
+| AC-9 | ✅ Done | `engine/snapshot_test.go:TestLoopSnapshotConcurrent` under `-race` | Writer + reader goroutines hammer Snapshot/EnsureSession for 40 ms |
+| AC-10 | ✅ Done | `make ze-verify` exercises `yang.RegisterModule` via `all_schemas_test.go` | Modules parse cleanly |
+| AC-11 | ✅ Done | `plan/deferrals.md` row marked `done` pointing at `plan/learned/561-bfd-4-operator-ux.md` | See deferrals edit in this commit |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestLoopSnapshotEmpty` | ✅ Done | `internal/plugins/bfd/engine/snapshot_test.go` | |
+| `TestLoopSnapshotTwoSessions` | ✅ Done | `snapshot_test.go` | Verifies profile + sort order |
+| `TestLoopSnapshotConcurrent` | ✅ Done | `snapshot_test.go` | Uses `sync.WaitGroup.Go` |
+| `TestHandleShowSessions` | ✅ Done | `internal/component/cmd/bfd/bfd_test.go` | stubService fake |
+| `TestHandleShowSessionNotFound` | ✅ Done | `bfd_test.go` | |
+| `TestMetricsRegistered` | 🔄 Changed | `internal/plugins/bfd/metrics_test.go:TestBindMetricsRegistry` | Renamed because `SetMetricsRegistry` was taken |
+| `TestLoopSessionDetail` | ✅ Done | `snapshot_test.go` | Added beyond the TDD plan to cover lookup path |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/plugins/bfd/engine/snapshot.go` | ✅ Created | |
+| `internal/plugins/bfd/engine/snapshot_test.go` | ✅ Created | |
+| `internal/component/cmd/bfd/bfd.go` | ✅ Created | Moved from proposed `internal/plugins/bfd/handlers_show.go` to keep RPC forwarders next to other cmd packages |
+| `internal/component/cmd/bfd/bfd_test.go` | ✅ Created | |
+| `internal/plugins/bfd/metrics.go` | ✅ Created | |
+| `internal/plugins/bfd/metrics_test.go` | ✅ Created | |
+| `test/plugin/bfd-show-sessions.ci` | ✅ Created | |
+| `test/plugin/bfd-show-session.ci` | ✅ Created | |
+| `test/plugin/bfd-show-profile.ci` | ✅ Created | |
+| `test/plugin/bfd-metrics.ci` | ✅ Created | |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 31
+- **Done:** 28
+- **Partial:** 2 (AC-7 and AC-8 -- live Up/Down transitions verified in unit tests, full behavior awaits FRR interop)
+- **Skipped:** 0
+- **Changed:** 1 (TestMetricsRegistered renamed to TestBindMetricsRegistry)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/plugins/bfd/engine/snapshot.go` | Yes | `ls -l` on disk before commit script run |
+| `internal/plugins/bfd/api/snapshot.go` | Yes | |
+| `internal/plugins/bfd/metrics.go` | Yes | |
+| `internal/component/cmd/bfd/bfd.go` | Yes | |
+| `internal/component/cmd/bfd/schema/ze-bfd-cmd.yang` | Yes | |
+| `internal/plugins/bfd/schema/ze-bfd-api.yang` | Yes | |
+| `test/plugin/bfd-show-sessions.ci` | Yes | |
+| `test/plugin/bfd-show-session.ci` | Yes | |
+| `test/plugin/bfd-show-profile.ci` | Yes | |
+| `test/plugin/bfd-metrics.ci` | Yes | |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | two sessions in `show bfd sessions` | `bin/ze-test bgp plugin -p 1 Z` -> `pass 1/1` |
+| AC-2/3 | known/unknown peer | `bin/ze-test bgp plugin -p 1 Y` -> `pass 1/1` |
+| AC-4/5 | profile filter and list | `bin/ze-test bgp plugin -p 1 X` -> `pass 1/1` |
+| AC-6 | metric family appears in scrape | `bin/ze-test bgp plugin -p 1 W` -> `pass 1/1` |
+| AC-9 | no race under concurrent load | `go test -race ./internal/plugins/bfd/engine/... -run TestLoopSnapshotConcurrent` clean |
+| AC-11 | deferral closed | `grep "spec-bfd-4-operator-ux" plan/deferrals.md` -> `done` row |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `show bfd sessions` | `test/plugin/bfd-show-sessions.ci` | Yes |
+| `show bfd session <peer>` | `test/plugin/bfd-show-session.ci` | Yes |
+| `show bfd profile [name]` | `test/plugin/bfd-show-profile.ci` | Yes |
+| Prometheus `/metrics` scrape | `test/plugin/bfd-metrics.ci` | Yes |
 
 ## Checklist
 

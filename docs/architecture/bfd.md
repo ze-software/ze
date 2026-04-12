@@ -203,12 +203,30 @@ are all merged. The production path is now:
 | Jitter | `internal/plugins/bfd/engine/engine.go` -- `applyJitter` | RFC 5880 §6.8.7 [0, 25%) reduction, clamped [10%, 25%) when `detect-multiplier=1`. |
 | Device choice | `internal/plugins/bfd/bfd.go` -- `resolveLoopDevices` | Per-loop `SO_BINDTODEVICE` target derived from pinned sessions. |
 
+## Stage 4 complete (operator UX)
+
+Stage 4 adds the operator-facing surface on top of the engine Snapshot:
+three `show bfd` commands and five `ze_bfd_*` Prometheus metrics.
+<!-- source: internal/plugins/bfd/engine/snapshot.go — Loop.Snapshot, Loop.SessionDetail -->
+<!-- source: internal/component/cmd/bfd/bfd.go — handleShowSessions, handleShowSession, handleShowProfile -->
+<!-- source: internal/plugins/bfd/metrics.go — bfdMetrics, metricsHook, refreshSessionsGauge -->
+
+| Layer | File | Responsibility |
+|-------|------|----------------|
+| Snapshot types | `internal/plugins/bfd/api/snapshot.go` | `SessionState`, `TransitionRecord`, `ProfileState` |
+| Engine Snapshot | `internal/plugins/bfd/engine/snapshot.go` | `Loop.Snapshot`, `Loop.SessionDetail`, `sessionEntry.snapshot` |
+| Transition ring | `internal/plugins/bfd/engine/engine.go` | `sessionEntry.recordTransition` (`api.TransitionHistoryDepth=8`) |
+| Metrics hook | `internal/plugins/bfd/engine/engine.go` | `Loop.SetMetricsHook`, `MetricsHook` interface |
+| Prometheus wiring | `internal/plugins/bfd/metrics.go` | `bindMetricsRegistry`, `metricsHook`, `refreshSessionsGauge` |
+| Service surface | `internal/plugins/bfd/api/service.go` | `Snapshot`, `SessionDetail`, `Profiles` |
+| CLI handlers | `internal/component/cmd/bfd/bfd.go` | `handleShowSessions`, `handleShowSession`, `handleShowProfile` |
+| YANG API | `internal/plugins/bfd/schema/ze-bfd-api.yang` | `show-sessions`, `show-session`, `show-profile` RPCs |
+| YANG cmd tree | `internal/component/cmd/bfd/schema/ze-bfd-cmd.yang` | augments `clishowcmd:show` with `bfd { sessions, session, profile }` |
+
 ### Next sessions: pick from these specs
 
 | Spec | Scope |
 |------|-------|
-| `plan/spec-bfd-3-bgp-client.md` | YANG augment `bgp peer { bfd { ... } }`, BGP reactor calls `Service.EnsureSession`, FRR `bfdd` interop. |
-| `plan/spec-bfd-4-operator-ux.md` | `show bfd sessions`, Prometheus metrics. |
 | `plan/spec-bfd-5-authentication.md` | Keyed SHA1/MD5 verifier, sequence-number persistence. |
 | `plan/spec-bfd-6-echo-mode.md` | RFC 5881 §5 echo mode on UDP 3785. |
 

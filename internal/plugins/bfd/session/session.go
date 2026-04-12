@@ -18,6 +18,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/auth"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/packet"
 )
 
@@ -61,6 +62,32 @@ type Vars struct {
 
 	AuthType uint8
 
+	// XmitAuthSeq is RFC 5880 §6.8.1 bfd.XmitAuthSeq: the sequence
+	// number the local end includes in the next authenticated
+	// Control packet. Advanced by engine.sendLocked after each
+	// periodic TX via Machine.AdvanceAuthSeq, and persisted through
+	// auth.SeqPersister so restart-to-replay is survivable.
+	XmitAuthSeq uint32
+
+	// DesiredMinEchoTxInterval is RFC 5880 Section 6.8.1
+	// bfd.DesiredMinEchoTxInterval: the rate at which the local end
+	// wants to transmit echo packets. Zero disables echo.
+	DesiredMinEchoTxInterval uint32
+
+	// RequiredMinEchoRxInterval is RFC 5880 Section 6.8.1
+	// bfd.RequiredMinEchoRxInterval: the minimum rate at which the
+	// local end is willing to receive echo packets. Zero tells the
+	// peer "do not send me echo packets." When non-zero, it appears
+	// in outbound Control packets so peers learn the local echo
+	// capability.
+	RequiredMinEchoRxInterval uint32
+
+	// RemoteMinEchoRxInterval captures the peer's advertised
+	// RequiredMinEchoRxInterval. Non-zero means the peer will
+	// echo back our packets; combined with a non-zero local
+	// DesiredMinEchoTxInterval this enables echo TX on the tick.
+	RemoteMinEchoRxInterval uint32
+
 	// PollOutstanding is true while the local end is sending packets
 	// with the P bit set, awaiting an F-bit reply.
 	PollOutstanding bool
@@ -78,6 +105,16 @@ type Machine struct {
 	clk       clock.Clock
 	notify    func(packet.State, packet.Diag)
 	configReq api.SessionRequest
+
+	// authPair holds the signer / verifier / persister bundle for
+	// authenticated sessions (RFC 5880 §6.7). Installed via
+	// SetAuth before the first send or receive; nil for
+	// unauthenticated sessions.
+	authPair *AuthPair
+
+	// rcvAuthSeq tracks bfd.RcvAuthSeq for the receive-side replay
+	// protection. Advanced by Verify on successful authentication.
+	rcvAuthSeq auth.SeqState
 
 	// State (mutable, owned by the express-loop goroutine)
 	vars       Vars
@@ -162,6 +199,8 @@ func (m *Machine) Init(req api.SessionRequest, localDiscr uint32, clk clock.Cloc
 		ConfiguredDesiredMinTxInterval:  configTx,
 		ConfiguredRequiredMinRxInterval: configRx,
 		DetectMult:                      mult,
+		RequiredMinEchoRxInterval:       req.DesiredMinEchoTxInterval,
+		DesiredMinEchoTxInterval:        req.DesiredMinEchoTxInterval,
 	}
 
 	m.createdAt = m.clk.Now()
@@ -226,3 +265,16 @@ func (m *Machine) MinTTL() uint8 {
 // when DetectMult == 1 the reduction has a 10% floor so the receiver
 // never detects before the next packet arrives.
 func (m *Machine) DetectMult() uint8 { return m.vars.DetectMult }
+
+// LocalDiag returns the current bfd.LocalDiag (RFC 5880 Section 4.1).
+// Exposed so observability consumers (Snapshot, show bfd sessions)
+// can report the latest diagnostic without touching the unexported
+// Vars struct.
+func (m *Machine) LocalDiag() packet.Diag { return m.vars.LocalDiag }
+
+// RemoteMinRxInterval returns the peer's most recently advertised
+// bfd.RequiredMinRxInterval as a Go time.Duration. Zero until the
+// first Control packet is received.
+func (m *Machine) RemoteMinRxInterval() time.Duration {
+	return time.Duration(m.vars.RemoteMinRxInterval) * time.Microsecond
+}

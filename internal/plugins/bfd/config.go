@@ -22,15 +22,18 @@ import (
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/packet"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/session"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 // pluginConfig is the validated, in-memory shape of a `bfd { ... }` block.
 type pluginConfig struct {
-	enabled  bool
-	profiles map[string]profileConfig
-	sessions []sessionConfig
+	enabled    bool
+	persistDir string
+	bindV6     bool
+	profiles   map[string]profileConfig
+	sessions   []sessionConfig
 }
 
 // profileConfig holds the timer parameters reusable across sessions.
@@ -40,6 +43,27 @@ type profileConfig struct {
 	desiredMinTxUs  uint32
 	requiredMinRxUs uint32
 	passive         bool
+	auth            *authConfig
+	echo            *echoConfig
+}
+
+// echoConfig captures the resolved RFC 5880 §6.4 Echo mode settings.
+// An empty pointer means echo is disabled for sessions using this
+// profile; a non-nil pointer means the engine schedules echo TX on
+// UDP port 3785 at max(DesiredMinEchoTxUs, peer.RequiredMinEchoRx).
+type echoConfig struct {
+	desiredMinEchoTxUs uint32
+}
+
+// authConfig captures the resolved authentication parameters from a
+// profile's `auth { ... }` block. The Secret is held as raw bytes so
+// logs and the config show RPC can redact it without parsing the
+// profile again.
+type authConfig struct {
+	authType   uint8
+	keyID      uint8
+	secret     []byte //nolint:gosec // BFD auth key; pluginConfig is never serialized
+	meticulous bool
 }
 
 // sessionConfig is one pinned session entry from `single-hop-session` or
@@ -94,6 +118,12 @@ func parseBFDSection(data string) (*pluginConfig, error) {
 	if v, ok := bfdMap["enabled"].(string); ok {
 		cfg.enabled = parseBool(v, true)
 	}
+	if v, ok := bfdMap["persist-dir"].(string); ok {
+		cfg.persistDir = v
+	}
+	if v, ok := bfdMap["bind-v6"].(string); ok {
+		cfg.bindV6 = parseBool(v, false)
+	}
 
 	if profMap, ok := bfdMap["profile"].(map[string]any); ok {
 		for name, raw := range profMap {
@@ -128,6 +158,9 @@ func parseBFDSection(data string) (*pluginConfig, error) {
 		}
 	}
 
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
 	return cfg, nil
 }
 
@@ -165,7 +198,96 @@ func parseProfile(name string, fields map[string]any) (profileConfig, error) {
 	if v, ok := fields["passive"].(string); ok {
 		p.passive = parseBool(v, false)
 	}
+	if authRaw, ok := fields["auth"].(map[string]any); ok {
+		ac, err := parseAuthConfig(name, authRaw)
+		if err != nil {
+			return profileConfig{}, err
+		}
+		p.auth = ac
+	}
+	if echoRaw, ok := fields["echo"].(map[string]any); ok {
+		ec, err := parseEchoConfig(name, echoRaw)
+		if err != nil {
+			return profileConfig{}, err
+		}
+		p.echo = ec
+	}
 	return p, nil
+}
+
+// parseEchoConfig decodes the `echo { ... }` block inside a profile.
+// The block's presence alone enables echo for sessions inheriting
+// this profile; the single leaf is the target TX rate. The parser
+// defends against zero by rejecting it because `max(0, peer.min-rx)`
+// degenerates to "send as fast as possible" if the peer leaves its
+// echo-rx at zero.
+func parseEchoConfig(profileName string, fields map[string]any) (*echoConfig, error) {
+	ec := &echoConfig{desiredMinEchoTxUs: 50_000}
+	if v, ok := fields["desired-min-echo-tx-us"].(string); ok && v != "" {
+		n, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("bfd: profile %q: echo desired-min-echo-tx-us %q: %w", profileName, v, err)
+		}
+		if n == 0 {
+			return nil, fmt.Errorf("bfd: profile %q: echo desired-min-echo-tx-us must be > 0", profileName)
+		}
+		ec.desiredMinEchoTxUs = uint32(n)
+	}
+	return ec, nil
+}
+
+// authTypeFromEnum resolves the YANG `auth type` enum string to the
+// RFC 5880 wire type and the meticulous flag. Simple Password is
+// explicitly rejected because RFC 5880 §6.7.2 warns it provides no
+// cryptographic protection.
+func authTypeFromEnum(s string) (wire uint8, meticulous, ok bool) {
+	if s == "keyed-md5" {
+		return packet.AuthTypeKeyedMD5, false, true
+	}
+	if s == "meticulous-keyed-md5" {
+		return packet.AuthTypeMeticulousKeyedMD5, true, true
+	}
+	if s == "keyed-sha1" {
+		return packet.AuthTypeKeyedSHA1, false, true
+	}
+	if s == "meticulous-keyed-sha1" {
+		return packet.AuthTypeMeticulousKeyedSHA1, true, true
+	}
+	return 0, false, false
+}
+
+// parseAuthConfig decodes the `auth { ... }` block inside a profile.
+// Simple Password is rejected here with a descriptive error.
+func parseAuthConfig(profileName string, fields map[string]any) (*authConfig, error) {
+	typeStr := stringField(fields, "type")
+	if typeStr == "" {
+		return nil, fmt.Errorf("bfd: profile %q: auth block missing type", profileName)
+	}
+	if typeStr == "simple-password" {
+		return nil, fmt.Errorf("bfd: profile %q: auth type simple-password rejected (RFC 5880 Section 6.7.2 warns against use)", profileName)
+	}
+	wire, meticulous, ok := authTypeFromEnum(typeStr)
+	if !ok {
+		return nil, fmt.Errorf("bfd: profile %q: unknown auth type %q", profileName, typeStr)
+	}
+	keyIDStr := stringField(fields, "key-id")
+	if keyIDStr == "" {
+		return nil, fmt.Errorf("bfd: profile %q: auth block missing key-id", profileName)
+	}
+	keyID, err := strconv.ParseUint(keyIDStr, 10, 8)
+	if err != nil {
+		return nil, fmt.Errorf("bfd: profile %q: auth key-id %q: %w", profileName, keyIDStr, err)
+	}
+	secret := stringField(fields, "secret")
+	if secret == "" {
+		return nil, fmt.Errorf("bfd: profile %q: auth block missing secret", profileName)
+	}
+	return &authConfig{
+		authType:   wire,
+		keyID:      uint8(keyID),
+		secret:     []byte(secret),
+		meticulous: meticulous,
+	}, nil
 }
 
 // parseSingleHopSession decodes one entry under `single-hop-session`. The
@@ -314,6 +436,7 @@ func (s sessionConfig) toSessionRequest(profiles map[string]profileConfig) api.S
 		VRF:       s.vrf,
 		Mode:      s.mode,
 		MinTTL:    s.minTTL,
+		Profile:   s.profile,
 	}
 	if s.profile != "" {
 		if p, ok := profiles[s.profile]; ok {
@@ -321,7 +444,38 @@ func (s sessionConfig) toSessionRequest(profiles map[string]profileConfig) api.S
 			req.RequiredMinRxInterval = p.requiredMinRxUs
 			req.DetectMult = p.detectMult
 			req.Passive = p.passive
+			if p.auth != nil {
+				req.Auth = &api.AuthSettings{
+					Type:       p.auth.authType,
+					KeyID:      p.auth.keyID,
+					Secret:     p.auth.secret,
+					Meticulous: p.auth.meticulous,
+				}
+			}
+			if p.echo != nil {
+				req.DesiredMinEchoTxInterval = p.echo.desiredMinEchoTxUs
+			}
 		}
 	}
 	return req
+}
+
+// validate checks a parsed pluginConfig for post-parse constraints
+// that cross profile/session boundaries. RFC 5883 Section 4 forbids
+// multi-hop echo, so a multi-hop session referencing an
+// echo-enabled profile is rejected here rather than silently.
+func (cfg *pluginConfig) validate() error {
+	for _, s := range cfg.sessions {
+		if s.mode != api.MultiHop || s.profile == "" {
+			continue
+		}
+		p, ok := cfg.profiles[s.profile]
+		if !ok {
+			continue
+		}
+		if p.echo != nil {
+			return fmt.Errorf("bfd: multi-hop-session %s uses profile %q with echo enabled (RFC 5883 Section 4 prohibits multi-hop echo)", s.peer, s.profile)
+		}
+	}
+	return nil
 }

@@ -18,6 +18,7 @@
 # internal/plugins/bfd/transport/udp_device_linux_test.go cover the
 # bind-to-device paths that do require privilege.
 
+option=env:var=ze.bfd.test-parallel:value=true
 tmpfs=test-bfd-stage2.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
 """Drive ze with pinned BFD sessions and assert Stage 2 wiring."""

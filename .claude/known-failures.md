@@ -411,3 +411,67 @@ been hiding. All fixes shipped inline with the relevant phase:
   Asserts on this log power AC-2/3/4/6 verification (community-tag,
   community-priority, community-cumulative). Shipped in commit
   `cc0ff733` (phase 2).
+
+## TestETSessionOption -- intermittent dirty flag under parallel load (logged 2026-04-11)
+
+**File:** `internal/component/cli/testing/session_test.go:18` (`TestETSessionOption`)
+**Symptom:** `step 3 (expect dirty): expected dirty:true, got false`. Occurs during `make ze-verify` but not in isolation.
+**Frequency observed:** 1 failure in the first post-rebase `make ze-verify` on 2026-04-11 (user report). Not reproduced in: (a) 10x `-count` isolated run, (b) 100x targeted run with concurrent full-package run, (c) 2 fresh `make ze-verify` cycles after adding diagnostic output. Rare.
+
+**Correction to the original handoff hypothesis.** The handoff in `tmp/HANDOFF-verify-flake.md` proposed that the race was between `handleDraftPoll` draining a pending draft-poll tick and the `expect=dirty:true` check, with the "prime suspect" `e.dirty.Store(false)` at `internal/component/cli/editor.go:1005`. **Both elements of that hypothesis are wrong:**
+
+1. `editor.go:1005` is inside `(e *Editor) Rollback()` (backup restore), not `CheckDraftChanged`. `Rollback` is not reachable from any draft-poll code path.
+2. `CheckDraftChanged` (`editor_draft.go:503-547`) only touches `e.draftMtime`, `e.tree`, and `e.meta`. It **never writes `e.dirty`** at any point, so draining a draft-poll tick cannot flip dirty to false.
+3. `NewHeadlessModelWithSession` (`testing/headless.go:59-87`) never runs `model.Init()`. The `tea.Tick(draftPollInterval, ...)` schedule at `model.go:379` is therefore never created in headless mode, so no `draftPollMsg` ever lands in `hm.pending` for a draft poll in the first place.
+
+Every `e.dirty.Store(false)` site has been enumerated and ruled out for this test:
+
+| Site | Function | Reachable from the test? |
+|------|----------|-------------------------|
+| `editor.go:1005` | `Rollback` (restore from backup) | No -- test issues no `rollback` command |
+| `editor_commands.go:468` | `Save` (non-session path) | No -- test has a session, `Save` returns an error before reaching the store |
+| `editor_commands.go:479` | `Discard` (non-session path) | No -- test issues no `discard` command |
+| `editor_commit.go:165` | `CommitSession` | No -- test issues no `commit` command |
+| `editor_commit.go:284` | `DiscardSessionPath` | No -- test issues no `discard` command |
+
+So the failing `state.Dirty()` reading `false` must mean **`writeThroughSet` (`editor_draft.go:102 e.dirty.Store(true)`) was never reached**, not that dirty was flipped back after being set.
+
+**Corrected hypothesis.** The `cmdSet` path (`model_commands.go:324`) has two validation gates before `m.editor.SetValue(...)`: `m.completer.validateTokenPath(path)` and `m.completer.ValidateValueAtPath(path, value)`. If either returns an error, `cmdSet` returns `commandResult{}, err` and `writeThroughSet` is never called -- dirty stays at its zero value (false). The dispatch produces `commandResultMsg{err: ...}` which `handleCommandResult` sets on `m.err`. The test's `expect=dirty:true` then observes false.
+
+Static inspection of both validators shows they only read `c.loader` (immutable YANG schema) and never read shared mutable state, so a data race on validation seems implausible. But the failure shape ("dirty false under parallel load, never in isolation") is consistent with an error returning from the dispatch goroutine for some other reason -- for example, a shared resource contention (filesystem lock, storage List under heavy parallel I/O) causing an earlier step in `writeThroughSet` to return an error before reaching `e.dirty.Store(true)`. Candidates inside `writeThroughSet`:
+
+| Line | Could fail under load | Leaves dirty at | Notes |
+|------|----------------------|----------------|-------|
+| `editor_draft.go:46` `store.AcquireLock(e.originalPath)` | Yes (blob-store contention) | false | Each test gets its own tmpDir so this should be contention-free within the test, but the blob store has a package-level registry |
+| `editor_draft.go:55` `walkOrCreateIn(e.tree.Clone(), path)` | Yes (if `e.tree` is concurrently mutated) | false | There is no lock protecting `e.tree`; typing and dispatch touch it from the same goroutine in the current test, but a stale validation tick could race |
+| `editor_draft.go:62` `readChangeFile(...)` | Yes (I/O) | false | Silently returns empty tree on read error -- does not fail |
+| `editor_draft.go:92` `guard.WriteFile(changePath, ...)` | Yes (I/O) | false | Would return an error under disk full / permission error, not under load |
+
+**Diagnostic already added (uncommitted, revert before closing the investigation).** `internal/component/cli/testing/expect.go:89-105` `checkDirty` now prints the full state on failure:
+```
+expected dirty:true, got false; err=<...> status="..." input="..." content="..."
+```
+If the flake reproduces with this in place, the `err=` field will tell us which validator/`writeThroughSet` step bailed out, and `content=` will tell us whether the editor tree state matches expectations. Keep the diagnostic until the flake is either reproduced with data in hand or definitively killed.
+
+**Reproduction attempts that failed:** `go test -race -count=10 -run TestETSessionOption ./internal/component/cli/testing/` (clean, 42s); `go test -race -count=100 -run TestETSessionOption ./internal/component/cli/testing/` with a concurrent full-package race run (both clean, 411s and 216s); `make ze-verify` x2 (both clean, 37 functional tests + full unit suite each).
+
+**Next-session plan:**
+1. Check whether the flake has reproduced by grepping recent `tmp/verify/*.log` files for `expected dirty:true`.
+2. If reproduced: read the diagnostic payload. The `err=` field points directly at which step failed. Fix root cause in that step.
+3. If not reproduced: consider running `make ze-verify` in a loop (e.g. 10 cycles) under even heavier parallel load. Also try bumping `processCmdWithDepth` slow-path timeout from 900ms to 2s to see if timing budget is actually the issue (low-risk revert).
+4. When done: revert the `checkDirty` diagnostic in `internal/component/cli/testing/expect.go` unless the flake is confirmed permanently fixed.
+
+## BFD CI tests flake under high parallelism (logged 2026-04-11, resolved 2026-04-11)
+
+**Resolution:** `applySocketOptions` now enables `SO_REUSEPORT` when
+`ze.bfd.test-parallel=true`, and every BFD `.ci` test sets that env
+var via `option=env:var=ze.bfd.test-parallel:value=true`. Production
+ze leaves the env var unset and keeps its fail-fast single-binder
+behavior. Verified with `bin/ze-test bgp plugin U V W X Y Z a b` ->
+`pass 8/8 100%` in parallel mode.
+
+**Original symptom:** `bfd: bind 0.0.0.0:3784: listen udp4 0.0.0.0:3784: bind: address already in use` on any second BFD test that started while another BFD test was still holding the port.
+
+**Root cause:** BFD binds fixed RFC 5881 / 5883 ports (3784, 4784); the test runner defaults to 20-wide parallelism.
+
+**Files touched by the fix:** `internal/plugins/bfd/transport/udp_linux.go` (env var + `SO_REUSEPORT` call), all six BFD `.ci` files under `test/plugin/bfd-*.ci` and `test/plugin/bgp-bfd-opt-in.ci` (env option line).

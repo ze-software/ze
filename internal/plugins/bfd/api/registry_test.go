@@ -22,6 +22,10 @@ func (f *fakeService) ReleaseSession(_ SessionHandle) error {
 	return nil
 }
 
+func (f *fakeService) Snapshot() []SessionState                    { return nil }
+func (f *fakeService) SessionDetail(_ string) (SessionState, bool) { return SessionState{}, false }
+func (f *fakeService) Profiles() []ProfileState                    { return nil }
+
 // fakeHandle is a no-op SessionHandle returned by fakeService so the
 // round-trip test can exercise Service.EnsureSession without nil
 // return values (lint rule nilnil forbids `return nil, nil`).

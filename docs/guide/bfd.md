@@ -2,12 +2,13 @@
 
 **Status:** the plugin is live, the production transport is hardened
 (GTSM, IP_TTL=255 outbound, SO_BINDTODEVICE for single-hop and multi-VRF,
-RFC 5880 §6.8.7 TX jitter), and the BGP peer opt-in is wired through the
-reactor lifecycle. Adding `bfd { ... }` inside a `bgp peer connection`
-block opens a per-peer BFD session on Established and tears the BGP
-session down with RFC 9384 Cease subcode 10 ("BFD Down") when BFD
-reports the forwarding path lost. Operator UX (`show bfd sessions`,
-Prometheus metrics) is still being wired in `spec-bfd-4-operator-ux`.
+RFC 5880 §6.8.7 TX jitter), the BGP peer opt-in is wired through the
+reactor lifecycle, and the Stage 4 operator surface (`show bfd
+sessions`, `show bfd session <peer>`, `show bfd profile`, Prometheus
+`ze_bfd_*` metrics) is available. Adding `bfd { ... }` inside a
+`bgp peer connection` block opens a per-peer BFD session on
+Established and tears the BGP session down with RFC 9384 Cease
+subcode 10 ("BFD Down") when BFD reports the forwarding path lost.
 <!-- source: internal/plugins/bfd/bfd.go — runtimeState, loopFor, newUDPTransport, pluginService -->
 <!-- source: internal/plugins/bfd/api/registry.go — SetService, GetService -->
 <!-- source: internal/plugins/bfd/engine/loop.go — passesTTLGate, tick jitter -->
@@ -74,6 +75,91 @@ every interval in microseconds. A future release may add `-ms` aliases.
 | `required-min-rx-us` | 0 – 4 294 967 295 | 300 000 | Minimum inter-packet gap the local end can handle. Zero means "do not send me periodic control packets." |
 | `detect-multiplier` | 1 – 255 | 3 | Number of consecutive missed packets that trigger a Down transition. |
 | `passive` | boolean | false | Active sessions transmit from creation. Passive waits for the peer's first packet. See RFC 5883 §4.3 for the unidirectional-link use case. |
+| `auth { type key-id secret }` | see below | none | RFC 5880 §6.7 cryptographic authentication (Stage 5). |
+| `echo { desired-min-echo-tx-us }` | see below | none | RFC 5880 §6.4 Echo mode (single-hop only). |
+
+### Echo mode
+
+Profiles may carry an `echo { desired-min-echo-tx-us N }` block
+that opts sessions into RFC 5880 §6.4 Echo mode. The block is
+valid only on single-hop sessions -- RFC 5883 §4 prohibits
+multi-hop echo, and the parser rejects the combination with a
+descriptive error.
+<!-- source: internal/plugins/bfd/config.go — parseEchoConfig + validate -->
+<!-- source: internal/plugins/bfd/packet/echo.go — ZEEC 16-byte envelope -->
+<!-- source: internal/plugins/bfd/session/timers.go — EchoEnabled, EchoInterval -->
+
+```
+bfd {
+    profile fast-echo {
+        desired-min-tx-us   100000;
+        required-min-rx-us  100000;
+        echo {
+            desired-min-echo-tx-us 50000;   # 50 ms
+        }
+    }
+
+    single-hop-session 203.0.113.9 {
+        profile fast-echo;
+    }
+}
+```
+
+When a session inherits this profile, every outgoing Control
+packet sets `RequiredMinEchoRxInterval` to the configured rate.
+Peers that see a non-zero advertisement learn that the local end
+is willing to reflect echo packets.
+
+**Current coverage:** the YANG surface, wire advertisement, and
+session state plumbing ship in Stage 6. The actual echo transport
+(UDP 3785 socket, per-session TX scheduler, RX demux, RTT
+histogram, detection-time switchover, async slow-down) is tracked
+as `spec-bfd-6b-echo-transport`. Configurations written against
+the Stage 6 surface remain valid when the transport half lands.
+The `ze_bfd_echo_tx_packets_total` and `ze_bfd_echo_rx_packets_total`
+metric families are registered now so downstream alerting can
+reference them from day one, even though the counters stay at
+zero until the transport half lands.
+
+### Authentication
+
+Profiles may carry an `auth { ... }` block that enables RFC 5880 §6.7
+authentication for every session inheriting them. Four types are
+supported: `keyed-md5`, `meticulous-keyed-md5`, `keyed-sha1`, and
+`meticulous-keyed-sha1`. Simple Password is refused at config parse
+time because RFC 5880 §6.7.2 warns it provides no cryptographic
+protection.
+<!-- source: internal/plugins/bfd/auth/signer.go — Signer/Verifier + Settings -->
+<!-- source: internal/plugins/bfd/auth/sha1.go — digestSigner/digestVerifier -->
+<!-- source: internal/plugins/bfd/config.go — parseAuthConfig rejects simple-password -->
+
+```
+bfd {
+    persist-dir "/var/lib/ze/bfd";
+
+    profile authenticated-fast {
+        desired-min-tx-us   50000;
+        required-min-rx-us  50000;
+        detect-multiplier   3;
+        auth {
+            type                meticulous-keyed-sha1;
+            key-id              7;
+            secret              "BFD-SHARED-SECRET-V1";
+        }
+    }
+}
+```
+
+The meticulous variants enforce strict monotonic sequence numbers;
+non-meticulous variants allow a receiver to accept equal sequence
+numbers across retransmits. The `persist-dir` leaf (top-level on
+`bfd { }`) names a directory where ze stores the last TX sequence
+per session so a Meticulous session resumes above the peer's replay
+window after a process restart. Without `persist-dir`, Meticulous
+sessions still work at runtime but briefly re-synchronize after a
+restart while the peer's replay window slides forward.
+
+Authentication failures increment `ze_bfd_auth_failures_total{mode}`.
 
 ### Enabling BFD on a BGP peer
 
@@ -257,48 +343,86 @@ sequence — no session flap.
 
 ## Observing state
 
+Stage 4 adds three operator-facing commands served by a snapshot of
+the engine's live session state. The handlers live in
+`internal/component/cmd/bfd/bfd.go` and publish JSON payloads so
+scripts can parse the output while the interactive CLI renders them.
+<!-- source: internal/component/cmd/bfd/bfd.go — handleShowSessions, handleShowSession, handleShowProfile -->
+<!-- source: internal/plugins/bfd/engine/snapshot.go — Loop.Snapshot, Loop.SessionDetail -->
+
 ### List all sessions
 
 ```
 operator@router> show bfd sessions
-PEER             LOCAL          IFACE   MODE   STATE   DIAG     TX/RX/MULT          UP-FOR
-192.0.2.2        192.0.2.1      eth0    1-hop  Up      none     50ms/50ms/3         3h12m
-192.0.2.10       192.0.2.1      eth0    1-hop  Up      none     300ms/300ms/3       3h12m
-10.255.255.4     10.255.255.1   -       multi  Up      none     300ms/300ms/5       17m
-192.0.2.254      192.0.2.1      eth0    1-hop  Up      none     200ms/200ms/3       3h12m
-198.51.100.7     10.0.0.1       -       multi  Down    detect   200ms/200ms/3       -
+[
+  {"peer":"192.0.2.2","vrf":"default","mode":"single-hop","state":"up","diag":"no-diagnostic","local-discriminator":1,"remote-discriminator":2147518038,"tx-interval":50000000,"rx-interval":50000000,"detection-interval":150000000,"detect-multiplier":3,"profile":"fast-link","tx-packets":2312,"rx-packets":2310,"refcount":1,...},
+  {"peer":"198.51.100.7","vrf":"default","mode":"multi-hop","state":"down","diag":"control-detection-time-expired","tx-interval":200000000,"rx-interval":200000000,"detection-interval":600000000,"detect-multiplier":3,"profile":"gateway",...}
+]
+```
+
+Fields are sorted stably by `(mode, vrf, peer)` so successive scrapes
+produce diff-able output.
+
+### Session detail
+
+`show bfd session <peer>` returns the same struct for one session
+plus the most recent state transitions kept in a bounded in-memory
+ring (eight entries by default -- see `api.TransitionHistoryDepth`):
+
+```
+operator@router> show bfd session 192.0.2.2
+{
+  "peer": "192.0.2.2",
+  "local": "192.0.2.1",
+  "interface": "eth0",
+  "vrf": "default",
+  "mode": "single-hop",
+  "state": "up",
+  "diag": "no-diagnostic",
+  "profile": "fast-link",
+  "local-discriminator": 1,
+  "remote-discriminator": 2147518038,
+  "tx-interval": 50000000,
+  "rx-interval": 50000000,
+  "detection-interval": 150000000,
+  "detect-multiplier": 3,
+  "tx-packets": 2312,
+  "rx-packets": 2310,
+  "refcount": 1,
+  "transitions": [
+    {"when":"2026-04-11T09:14:22Z","from":"down","to":"init","diag":"no-diagnostic"},
+    {"when":"2026-04-11T09:14:23Z","from":"init","to":"up","diag":"no-diagnostic"}
+  ]
+}
 ```
 
 ### List profiles
 
-```
-operator@router> show bfd profile
-NAME              DESIRED-TX  REQUIRED-RX  MULT   PASSIVE
-fast-link         50ms        50ms         3      no
-lan-default       300ms       300ms        3      no
-ibgp-loopback     300ms       300ms        5      no
-gateway           200ms       200ms        3      no
-```
-
-### Session detail
+`show bfd profile` returns every resolved (post-default) profile
+stored by the plugin. Passing a name filters to one entry; an unknown
+name returns an error:
 
 ```
-operator@router> show bfd session 192.0.2.2
-peer:                  192.0.2.2
-local:                 192.0.2.1
-interface:             eth0
-mode:                  single-hop
-state:                 Up (since 2026-04-11 09:14:23)
-local diagnostic:      no-diagnostic
-local discriminator:   0xCAFE0001
-remote discriminator:  0x80123456
-configured tx:         50ms
-configured rx:         50ms
-detect multiplier:     3
-negotiated detect:     150ms
-poll outstanding:      no
-clients:               bgp[192.0.2.2]
+operator@router> show bfd profile fast-link
+{"name":"fast-link","detect-multiplier":3,"desired-min-tx-us":50000,"required-min-rx-us":50000,"passive":false}
 ```
+
+### Prometheus metrics
+
+The plugin registers five metric families via
+`internal/plugins/bfd/metrics.go`. The families appear on the
+telemetry endpoint when `telemetry { prometheus { enabled true } }`
+is set.
+<!-- source: internal/plugins/bfd/metrics.go — bindMetricsRegistry, metricsHook, refreshSessionsGauge -->
+
+| Metric | Type | Labels | Meaning |
+|--------|------|--------|---------|
+| `ze_bfd_sessions` | gauge | state, mode, vrf | Live session count, updated on every `show bfd sessions` scrape |
+| `ze_bfd_transitions_total` | counter | from, to, diag, mode | Every session state change |
+| `ze_bfd_detection_expired_total` | counter | mode | Detection-timer expirations (RFC 5880 §6.8.4) |
+| `ze_bfd_tx_packets_total` | counter | mode | Control packets transmitted |
+| `ze_bfd_rx_packets_total` | counter | mode | Control packets received (after the TTL gate) |
+
 
 ## Operational guidance
 

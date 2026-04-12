@@ -1,0 +1,57 @@
+module ze-bfd-api {
+    namespace "urn:ze:bfd:api";
+    prefix bfdapi;
+
+    description
+        "BFD API operations for Ze. RPCs for observing session state
+         and resolved profiles. RFC 5880 sections 6.8.1 (state
+         variables) and 6.8.4 (detection time) supply the field
+         semantics.";
+
+    revision 2026-04-11 {
+        description "Initial BFD observability API (spec-bfd-4).";
+    }
+
+    rpc show-sessions {
+        description "Return every live BFD session.";
+        output {
+            leaf sessions {
+                type string;
+                description "JSON array of session objects.";
+            }
+        }
+    }
+
+    rpc show-session {
+        description "Return one BFD session by peer address.";
+        input {
+            leaf peer {
+                type string;
+                mandatory true;
+                description "Peer IPv4 or IPv6 address.";
+            }
+        }
+        output {
+            leaf session {
+                type string;
+                description "JSON object with session detail.";
+            }
+        }
+    }
+
+    rpc show-profile {
+        description "Return resolved BFD profile parameters.";
+        input {
+            leaf name {
+                type string;
+                description "Profile name (empty returns every profile).";
+            }
+        }
+        output {
+            leaf profiles {
+                type string;
+                description "JSON array of profile objects.";
+            }
+        }
+    }
+}

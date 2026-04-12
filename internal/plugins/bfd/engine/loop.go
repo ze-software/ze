@@ -92,6 +92,28 @@ func (l *Loop) handleInbound(in transport.Inbound) {
 		return
 	}
 
+	entry.rxPackets++
+	if hook := l.metricsHook.Load(); hook != nil {
+		(*hook).OnRxPacket(in.Mode.String())
+	}
+
+	// RFC 5880 §6.8.6: authenticate before the reception procedure
+	// runs. A mismatch or short auth section drops the packet
+	// entirely and increments the auth-failures counter. Sessions
+	// without an installed signer/verifier skip this branch and
+	// fall through to Receive, which enforces the A-bit match.
+	if c.Auth && entry.machine.HasAuth() {
+		if err := entry.machine.Verify(in.Bytes, c); err != nil {
+			if hook := l.metricsHook.Load(); hook != nil {
+				(*hook).OnAuthFailure(in.Mode.String())
+			}
+			engineLog().Debug("auth verify failed",
+				"peer", in.From,
+				"err", err)
+			return
+		}
+	}
+
 	if err := entry.machine.Receive(c); err != nil {
 		return
 	}
@@ -175,6 +197,15 @@ func (l *Loop) sendLocked(entry *sessionEntry, c packet.Control) {
 	buf := pb.Data()
 
 	n := c.WriteTo(buf, 0)
+	// RFC 5880 §6.7: append the authentication section immediately
+	// after the mandatory bytes when the session is authenticated.
+	// Machine.Sign writes Type/Len/KeyID/Seq/Digest using the
+	// current bfd.XmitAuthSeq; AdvanceAuthSeq bumps and persists
+	// the counter for the next TX.
+	if entry.machine.HasAuth() && c.Auth {
+		n += entry.machine.Sign(buf, n)
+		entry.machine.AdvanceAuthSeq()
+	}
 
 	key := entry.machine.Key()
 	out := transport.Outbound{
@@ -186,6 +217,11 @@ func (l *Loop) sendLocked(entry *sessionEntry, c packet.Control) {
 	}
 	if err := l.transport.Send(out); err != nil {
 		engineLog().Debug("transport send failed", "peer", out.To, "err", err)
+		return
+	}
+	entry.txPackets++
+	if hook := l.metricsHook.Load(); hook != nil {
+		(*hook).OnTxPacket(key.Mode.String())
 	}
 }
 

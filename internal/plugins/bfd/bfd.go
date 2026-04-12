@@ -28,7 +28,9 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/engine"
@@ -92,10 +94,12 @@ func (r *runtimeState) loopFor(key loopKey, device string) (*engine.Loop, error)
 		return l, nil
 	}
 
-	udp := newUDPTransport(key.mode, key.vrf, device)
-	loop := engine.NewLoop(udp, clock.RealClock{})
+	bindV6 := r.cfg != nil && r.cfg.bindV6
+	tr := newTransport(key.mode, key.vrf, device, bindV6)
+	loop := engine.NewLoop(tr, clock.RealClock{})
+	attachMetricsHook(loop)
 	if startErr := loop.Start(); startErr != nil {
-		if stopErr := udp.Stop(); stopErr != nil {
+		if stopErr := tr.Stop(); stopErr != nil {
 			logger().Debug("bfd udp stop after failed start", "err", stopErr)
 		}
 		return nil, fmt.Errorf("bfd: start engine loop for %s (vrf=%s device=%s): %w", key.mode, key.vrf, device, startErr)
@@ -104,7 +108,8 @@ func (r *runtimeState) loopFor(key loopKey, device string) (*engine.Loop, error)
 	logger().Info("bfd loop started",
 		"vrf", key.vrf,
 		"mode", key.mode.String(),
-		"device", device)
+		"device", device,
+		"ipv6", bindV6)
 	return loop, nil
 }
 
@@ -126,6 +131,12 @@ func (r *runtimeState) stopAll() {
 // have their shutdown bit re-applied so an operator flipping `shutdown
 // true/false` on a reload takes effect immediately.
 func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
+	// Publish the config BEFORE loopFor consults it so the new
+	// loops pick up top-level knobs (bindV6, persistDir) on their
+	// first start. r.cfg is only read from loopFor/pluginService
+	// under runtimeStateGuard which applyPinned also holds.
+	r.cfg = cfg
+
 	wanted := make(map[api.Key]sessionConfig, len(cfg.sessions))
 	for _, s := range cfg.sessions {
 		req := s.toSessionRequest(cfg.profiles)
@@ -162,6 +173,7 @@ func (r *runtimeState) applyPinned(cfg *pluginConfig) error {
 			return err
 		}
 		req := s.toSessionRequest(cfg.profiles)
+		req.PersistDir = cfg.persistDir
 		handle, ok := r.pinned[key]
 		if !ok {
 			h, ensureErr := loop.EnsureSession(req)
@@ -304,20 +316,51 @@ func dedupSorted(s []string) []string {
 	return out
 }
 
-// newUDPTransport allocates a transport.UDP for the given hop mode on
-// the canonical RFC port. Stage 2 passes through the VRF label and the
-// Linux network device for SO_BINDTODEVICE. IPv6 dual-bind is explicitly
-// deferred (see plan/deferrals.md spec-bfd-2b-ipv6-transport).
+// newTransport allocates the BFD transport for the given (vrf, mode)
+// loop. When bindV6 is true the function builds a transport.Dual
+// wrapping a paired IPv4 + IPv6 UDP, both bound to the canonical RFC
+// port; otherwise it returns a bare UDP (IPv4 only). Stage 2b
+// (spec-bfd-2b-ipv6-transport) introduces the IPv6 half.
 //
 // This function does not start the transport: the caller passes the
-// returned UDP to engine.NewLoop, then calls Loop.Start which is
+// returned value to engine.NewLoop, then calls Loop.Start which is
 // responsible for binding the socket. Bind failures surface there.
+func newTransport(mode api.HopMode, vrf, device string, bindV6 bool) transport.Transport {
+	v4 := newUDPTransport(mode, vrf, device)
+	if !bindV6 {
+		return v4
+	}
+	v6 := newUDPTransport6(mode, vrf, device)
+	return &transport.Dual{V4: v4, V6: v6}
+}
+
+// newUDPTransport allocates an IPv4 transport.UDP on the canonical
+// RFC port. Kept as its own helper so Dual can call it alongside
+// newUDPTransport6.
 func newUDPTransport(mode api.HopMode, vrf, device string) *transport.UDP {
 	port := transport.UDPPortSingleHopControl
 	if mode == api.MultiHop {
 		port = transport.UDPPortMultiHopControl
 	}
 	bind := netip.AddrPortFrom(netip.IPv4Unspecified(), port)
+	return &transport.UDP{
+		Bind:   bind,
+		Mode:   mode,
+		VRF:    vrf,
+		Device: device,
+	}
+}
+
+// newUDPTransport6 allocates an IPv6 transport.UDP on the same
+// canonical RFC port, bound to ::0 so the kernel accepts BFD
+// packets on every configured IPv6 interface. IPV6_UNICAST_HOPS is
+// applied by applySocketOptionsV6 inside UDP.Start.
+func newUDPTransport6(mode api.HopMode, vrf, device string) *transport.UDP {
+	port := transport.UDPPortSingleHopControl
+	if mode == api.MultiHop {
+		port = transport.UDPPortMultiHopControl
+	}
+	bind := netip.AddrPortFrom(netip.IPv6Unspecified(), port)
 	return &transport.UDP{
 		Bind:   bind,
 		Mode:   mode,
@@ -404,6 +447,91 @@ func (s *pluginService) ReleaseSession(h api.SessionHandle) error {
 		return nil
 	}
 	return loop.ReleaseSession(h)
+}
+
+// Snapshot walks every live engine.Loop and returns the concatenation
+// of their Loop.Snapshot() results. A stable sort is applied inside
+// each Loop, but the combined slice is re-sorted by (mode, vrf, peer)
+// so the plugin-level view mirrors a single-loop ordering even when
+// sessions span multiple (vrf, mode) loops.
+//
+// Safe for concurrent use. Takes runtimeStateGuard so a concurrent
+// config reload cannot tear down a loop mid-iteration.
+func (s *pluginService) Snapshot() []api.SessionState {
+	runtimeStateGuard.Lock()
+	loops := make([]*engine.Loop, 0, len(s.state.loops))
+	for _, loop := range s.state.loops {
+		loops = append(loops, loop)
+	}
+	runtimeStateGuard.Unlock()
+
+	snapshots := make([][]api.SessionState, len(loops))
+	total := 0
+	for i, loop := range loops {
+		snapshots[i] = loop.Snapshot()
+		total += len(snapshots[i])
+	}
+	out := make([]api.SessionState, 0, total)
+	for _, s := range snapshots {
+		out = append(out, s...)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Mode != out[j].Mode {
+			return out[i].Mode < out[j].Mode
+		}
+		if out[i].VRF != out[j].VRF {
+			return out[i].VRF < out[j].VRF
+		}
+		return out[i].Peer < out[j].Peer
+	})
+	refreshSessionsGauge(out)
+	return out
+}
+
+// SessionDetail searches every loop for a session whose Key.Peer.String()
+// matches peer. Returns the first match with a true second value; the
+// zero SessionState and false otherwise.
+func (s *pluginService) SessionDetail(peer string) (api.SessionState, bool) {
+	runtimeStateGuard.Lock()
+	loops := make([]*engine.Loop, 0, len(s.state.loops))
+	for _, loop := range s.state.loops {
+		loops = append(loops, loop)
+	}
+	runtimeStateGuard.Unlock()
+
+	for _, loop := range loops {
+		if st, ok := loop.SessionDetail(peer); ok {
+			return st, true
+		}
+	}
+	return api.SessionState{}, false
+}
+
+// Profiles returns every configured profile as an api.ProfileState
+// sorted by Name. An empty slice is returned when no profiles are
+// defined. Safe for concurrent use.
+func (s *pluginService) Profiles() []api.ProfileState {
+	runtimeStateGuard.Lock()
+	var cfg *pluginConfig
+	if s.state != nil {
+		cfg = s.state.cfg
+	}
+	runtimeStateGuard.Unlock()
+	if cfg == nil {
+		return nil
+	}
+	out := make([]api.ProfileState, 0, len(cfg.profiles))
+	for _, p := range cfg.profiles {
+		out = append(out, api.ProfileState{
+			Name:            p.name,
+			DetectMult:      p.detectMult,
+			DesiredMinTxUs:  p.desiredMinTxUs,
+			RequiredMinRxUs: p.requiredMinRxUs,
+			Passive:         p.passive,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
 }
 
 // RunBFDPlugin is the engine entry point. It uses the SDK 5-stage protocol
@@ -496,6 +624,19 @@ func RunBFDPlugin(conn net.Conn) int {
 		// after all configured loops have started, so an early BGP
 		// EnsureSession does not race the loop creation.
 		api.SetService(&pluginService{state: state})
+
+		// Re-bind the Prometheus registry at OnStarted time in case
+		// the registry was not yet installed when ConfigureMetrics
+		// ran (the telemetry server is set up by the BGP loader,
+		// which may finish after the BFD plugin's Configure phase).
+		// Calling bindMetricsRegistry a second time with the live
+		// registry replaces any earlier nil binding.
+		if reg, ok := registry.GetMetricsRegistry().(metrics.Registry); ok {
+			bindMetricsRegistry(reg)
+			for _, loop := range state.loops {
+				attachMetricsHook(loop)
+			}
+		}
 		log.Info("bfd plugin running")
 		return nil
 	})

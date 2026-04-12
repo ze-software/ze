@@ -28,6 +28,23 @@ type Service interface {
 	//
 	// Caller MUST NOT use the handle after ReleaseSession returns.
 	ReleaseSession(SessionHandle) error
+
+	// Snapshot returns a copy of every live session's observability
+	// state. The returned slice is a newly allocated copy; callers may
+	// mutate it freely without affecting engine state. Safe for
+	// concurrent use.
+	Snapshot() []SessionState
+
+	// SessionDetail returns the same view as Snapshot but for a single
+	// session matched by peer address (case-insensitive compare against
+	// Key.Peer.String()). The second return is false if no session with
+	// that peer exists. Safe for concurrent use.
+	SessionDetail(peer string) (SessionState, bool)
+
+	// Profiles returns a copy of every resolved (post-default) BFD
+	// profile currently configured on the plugin. Order is sorted by
+	// Name so operators see stable output across calls.
+	Profiles() []ProfileState
 }
 
 // SessionHandle is an opaque reference to a live session. Clients use it

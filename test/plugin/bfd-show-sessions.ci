@@ -1,0 +1,150 @@
+# Test: `show bfd sessions` returns the pinned BFD sessions as JSON.
+#
+# VALIDATES: spec-bfd-4 AC-1 -- Snapshot + handleShowSessions produces
+#            a row per pinned session with correct mode, state, peer,
+#            and profile fields, reachable from the operator-facing
+#            `show bfd sessions` command.
+# PREVENTS:  regression where Stage 4 leaves Snapshot, YANG RPCs, or
+#            cmd/bfd handler wiring dead from the CLI.
+
+option=env:var=ze.bfd.test-parallel:value=true
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=bfd-show-sessions.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Run `show bfd sessions` against a ze daemon with two pinned sessions."""
+
+import json
+import sys
+import time
+
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(1.0)
+
+    r = None
+    for _ in range(20):
+        r = dispatch(api, 'show bfd sessions')
+        if r.get('status') == 'done':
+            break
+        time.sleep(0.25)
+    if r is None or r.get('status') != 'done':
+        status = r.get('status') if r else 'nil'
+        data = r.get('data', '') if r else ''
+        runtime_fail(f'show bfd sessions: status={status} data={data[:200]}')
+
+    try:
+        sessions = json.loads(r.get('data', '') or '[]')
+    except json.JSONDecodeError as exc:
+        runtime_fail(f'show bfd sessions json: {exc}: {r.get("data", "")[:200]}')
+        sessions = []
+
+    peers = {s.get('peer') for s in sessions if isinstance(s, dict)}
+    for want in ('203.0.113.9', '198.51.100.9'):
+        if want not in peers:
+            runtime_fail(f'show bfd sessions: missing peer {want} in {sorted(peers)}')
+
+    for s in sessions:
+        if not isinstance(s, dict):
+            continue
+        for key in ('mode', 'state', 'vrf', 'local-discriminator'):
+            if key not in s:
+                runtime_fail(f'show bfd sessions: missing field {key} in {s.get("peer")}')
+        if s.get('profile') != 'fast':
+            runtime_fail(f'show bfd sessions: profile={s.get("profile")!r} want fast ({s.get("peer")})')
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bfd:terminator=EOF_CONF
+plugin {
+	external bfd-show-sessions-test {
+		run ./bfd-show-sessions.run
+		encoder json
+	}
+}
+
+environment {
+	log {
+		bfd debug
+	}
+}
+
+bfd {
+	enabled true;
+	profile fast {
+		detect-multiplier 3
+		desired-min-tx-us 50000
+		required-min-rx-us 50000
+	}
+	single-hop-session 203.0.113.9 {
+		profile fast
+	}
+	multi-hop-session 198.51.100.9 {
+		local 203.0.113.8
+		min-ttl 250
+		profile fast
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process bfd-show-sessions-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bfd:timeout=15s
+expect=exit:code=0

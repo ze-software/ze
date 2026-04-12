@@ -6,6 +6,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	bfdschema "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/schema"
 )
@@ -21,6 +22,11 @@ func init() {
 		RunEngine:   RunBFDPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			UseLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureMetrics: func(r any) {
+			if reg, ok := r.(metrics.Registry); ok {
+				bindMetricsRegistry(reg)
+			}
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

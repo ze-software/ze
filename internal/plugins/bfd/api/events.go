@@ -84,6 +84,40 @@ type SessionRequest struct {
 	// Passive flips the role from Active to Passive (RFC 5883 Section 4.3
 	// unidirectional links). Most clients leave this false.
 	Passive bool
+
+	// Profile is the optional name of the YANG profile this request was
+	// derived from. The engine does not consult it but exposes it through
+	// Snapshot so operators see which profile a session inherits.
+	Profile string
+
+	// Auth is the RFC 5880 Section 6.7 authentication configuration
+	// inherited from the profile. Nil means the session runs
+	// unauthenticated. The engine passes this through to
+	// session.Machine.SetAuth before any packets flow.
+	Auth *AuthSettings
+
+	// PersistDir is the absolute path where Meticulous Keyed
+	// sequence numbers are persisted. Empty means Meticulous
+	// variants still work at runtime but a process restart loses
+	// the sequence floor until the peer's replay window slides.
+	PersistDir string
+
+	// DesiredMinEchoTxInterval requests RFC 5880 Section 6.4 Echo
+	// mode at this rate (microseconds). Zero means echo is
+	// disabled. Only valid on single-hop sessions; the config
+	// parser rejects echo on multi-hop sessions because RFC 5883
+	// Section 4 prohibits multi-hop echo.
+	DesiredMinEchoTxInterval uint32
+}
+
+// AuthSettings is the subset of auth.Settings exported through the
+// public api package. Duplicated here so the api package stays a
+// leaf (no import of internal/plugins/bfd/auth from clients).
+type AuthSettings struct {
+	Type       uint8
+	KeyID      uint8
+	Secret     []byte //nolint:gosec // BFD auth key; AuthSettings is never serialized
+	Meticulous bool
 }
 
 // Key is the tuple that uniquely identifies a session within an engine.

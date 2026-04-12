@@ -88,6 +88,12 @@ func (s *fakeBFDService) ReleaseSession(_ api.SessionHandle) error {
 	return nil
 }
 
+func (s *fakeBFDService) Snapshot() []api.SessionState { return nil }
+func (s *fakeBFDService) SessionDetail(_ string) (api.SessionState, bool) {
+	return api.SessionState{}, false
+}
+func (s *fakeBFDService) Profiles() []api.ProfileState { return nil }
+
 // minimalPeerSettings builds a PeerSettings with the smallest set of
 // fields the BFD client code touches. It avoids the heavy NewPeer
 // constructor because the tests exercise startBFDClient / stopBFDClient

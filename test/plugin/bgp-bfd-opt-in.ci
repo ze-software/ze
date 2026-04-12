@@ -27,6 +27,7 @@
 # follow-up). This .ci test is the wiring proof per
 # rules/integration-completeness.md.
 
+option=env:var=ze.bfd.test-parallel:value=true
 tmpfs=test-bgp-bfd-optin.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
 """Drive ze with a BGP peer BFD opt-in and assert wiring log lines."""

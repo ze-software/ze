@@ -1,0 +1,40 @@
+module ze-bfd-cmd {
+    namespace "urn:ze:bfd:cmd";
+    prefix bfdcmd;
+    import ze-extensions    { prefix ze; }
+    import ze-cli-show-cmd  { prefix clishowcmd; }
+    description
+        "BFD CLI command tree. Augments the global `show` verb with a
+         `bfd` sub-tree so operators type `show bfd sessions`, `show
+         bfd session <peer>`, and `show bfd profile [<name>]`. Each
+         leaf container maps to a ze-bfd-api RPC via the ze:command
+         extension.";
+    revision 2026-04-11 {
+        description "Initial revision (spec-bfd-4).";
+    }
+
+    augment "/clishowcmd:show" {
+        container bfd {
+            config false;
+            description "BFD observability commands.";
+
+            container sessions {
+                config false;
+                ze:command "ze-bfd-api:show-sessions";
+                description "List every live BFD session.";
+            }
+
+            container session {
+                config false;
+                ze:command "ze-bfd-api:show-session";
+                description "Show one BFD session by peer address.";
+            }
+
+            container profile {
+                config false;
+                ze:command "ze-bfd-api:show-profile";
+                description "Show resolved BFD profile parameters.";
+            }
+        }
+    }
+}

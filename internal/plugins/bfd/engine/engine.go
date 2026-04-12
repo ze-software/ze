@@ -31,6 +31,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/auth"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/packet"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/session"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/transport"
@@ -75,6 +76,20 @@ var ErrDiscriminatorSpaceExhausted = errors.New("bfd: local discriminator space 
 // after the session has been torn down (refcount dropped to zero).
 var ErrUnknownSession = errors.New("bfd: session no longer exists")
 
+// MetricsHook is the Loop-level notification channel for the BFD
+// plugin's Prometheus metrics. The engine calls the hook's methods
+// from the express loop goroutine (except OnStateChange, which is
+// called from makeNotify while l.mu is held). Implementations MUST
+// be cheap and non-blocking; the hook runs inside the hot path.
+type MetricsHook interface {
+	OnStateChange(from, to packet.State, diag packet.Diag, mode, vrf string)
+	OnTxPacket(mode string)
+	OnRxPacket(mode string)
+	OnAuthFailure(mode string)
+	OnEchoTx(mode string)
+	OnEchoRx(mode string)
+}
+
 // Loop is the BFD express-loop runtime. Caller MUST call Start exactly
 // once and Stop exactly once. EnsureSession and ReleaseSession may be
 // called from any goroutine after Start.
@@ -96,16 +111,63 @@ type Loop struct {
 	subsMu      sync.Mutex
 	subscribers map[api.Key][]chan api.StateChange
 
+	metricsHook atomic.Pointer[MetricsHook]
+
 	stopCh  chan struct{}
 	doneCh  chan struct{}
 	started atomic.Bool
 	stopped atomic.Bool
 }
 
+// SetMetricsHook installs a Prometheus notification hook. Passing nil
+// clears the hook. Safe for concurrent use; installed atomically.
+func (l *Loop) SetMetricsHook(h MetricsHook) {
+	if h == nil {
+		l.metricsHook.Store(nil)
+		return
+	}
+	l.metricsHook.Store(&h)
+}
+
 // sessionEntry wraps a session.Machine with engine-side bookkeeping
 // (subscriber registry is held on the engine, not the entry).
+//
+// transitions is a bounded ring buffer of recent state changes; the
+// engine overwrites the oldest entry once the ring is full. profile
+// records the profile name this session inherited its timer parameters
+// from at config load time; the engine never consults it but Snapshot
+// surfaces it so `show bfd sessions` can show which profile applies.
+// txPackets / rxPackets are incremented inside the express loop and
+// exported via Snapshot + Prometheus counters.
 type sessionEntry struct {
-	machine *session.Machine
+	machine     *session.Machine
+	profile     string
+	createdAt   time.Time
+	txPackets   uint64
+	rxPackets   uint64
+	transitions []api.TransitionRecord
+	lastState   packet.State
+}
+
+// recordTransition appends a new TransitionRecord to the ring buffer.
+// When the ring is already at api.TransitionHistoryDepth entries, the
+// oldest entry is discarded via slice reslice; the buffer never grows
+// beyond the depth. Called from the makeNotify closure while l.mu is
+// held, so no additional synchronization is required.
+func (e *sessionEntry) recordTransition(from, to packet.State, diag packet.Diag, when time.Time) {
+	rec := api.TransitionRecord{
+		When: when,
+		From: from.String(),
+		To:   to.String(),
+		Diag: diag.String(),
+	}
+	if len(e.transitions) < api.TransitionHistoryDepth {
+		e.transitions = append(e.transitions, rec)
+		return
+	}
+	// Shift left by one and write the new record at the tail.
+	copy(e.transitions, e.transitions[1:])
+	e.transitions[len(e.transitions)-1] = rec
 }
 
 // firstPacketKey indexes sessions for first-packet (Your-Discriminator==0)
@@ -242,14 +304,66 @@ func (l *Loop) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) 
 	}
 
 	m := &session.Machine{}
-	notify := l.makeNotify(key)
+	entry := &sessionEntry{
+		machine:   m,
+		profile:   req.Profile,
+		createdAt: l.clk.Now(),
+		lastState: packet.StateDown,
+	}
+	notify := l.makeNotify(key, entry)
 	m.Init(req, discr, l.clk, notify)
 
-	entry := &sessionEntry{machine: m}
+	// RFC 5880 §6.7: install the authentication pair before the
+	// session sees any packets. Build signer + verifier from the
+	// request's AuthSettings and, for Meticulous variants with a
+	// configured PersistDir, attach a SeqPersister so the TX
+	// sequence survives a restart.
+	if req.Auth != nil {
+		pair, pairErr := buildAuthPair(req, key)
+		if pairErr != nil {
+			delete(l.sessions, key)
+			delete(l.byDiscr, discr)
+			delete(l.byKey, firstPacketIndex(key))
+			return nil, pairErr
+		}
+		m.SetAuth(pair)
+	}
+
 	l.sessions[key] = entry
 	l.byDiscr[discr] = entry
 	l.byKey[firstPacketIndex(key)] = entry
 	return &handle{loop: l, key: key}, nil
+}
+
+// buildAuthPair converts api.AuthSettings into a session.AuthPair,
+// including an optional SeqPersister for Meticulous variants. The
+// caller owns the pair and must call Close via Machine.CloseAuth on
+// session teardown.
+func buildAuthPair(req api.SessionRequest, key api.Key) (*session.AuthPair, error) {
+	cfg := auth.Settings{
+		Type:       req.Auth.Type,
+		KeyID:      req.Auth.KeyID,
+		Secret:     req.Auth.Secret,
+		Meticulous: req.Auth.Meticulous,
+	}
+	signer, err := auth.NewSigner(cfg)
+	if err != nil {
+		return nil, err
+	}
+	verifier, err := auth.NewVerifier(cfg)
+	if err != nil {
+		return nil, err
+	}
+	pair := &session.AuthPair{Signer: signer, Verifier: verifier}
+	if req.Auth.Meticulous && req.PersistDir != "" {
+		keyStr := key.Peer.String() + "-" + key.VRF + "-" + key.Mode.String()
+		p, perr := auth.NewSeqPersister(req.PersistDir, keyStr)
+		if perr != nil {
+			return nil, perr
+		}
+		pair.Persister = p
+	}
+	return pair, nil
 }
 
 // allocateDiscriminatorLocked returns the next free local discriminator,
@@ -298,6 +412,9 @@ func (l *Loop) ReleaseSession(h api.SessionHandle) error {
 		return nil
 	}
 	if entry.machine.Release() == 0 {
+		if err := entry.machine.CloseAuth(); err != nil {
+			engineLog().Debug("bfd auth persister close failed", "key", hh.key, "err", err)
+		}
 		delete(l.sessions, hh.key)
 		delete(l.byDiscr, entry.machine.LocalDiscriminator())
 		delete(l.byKey, firstPacketIndex(hh.key))
@@ -311,17 +428,28 @@ func (l *Loop) ReleaseSession(h api.SessionHandle) error {
 	return nil
 }
 
-// makeNotify returns a notify callback bound to a session key. The
-// callback runs from the express loop goroutine while l.mu is held; it
+// makeNotify returns a notify callback bound to a session key and its
+// engine-side bookkeeping entry. The callback runs from the express
+// loop goroutine while l.mu is held; it appends a TransitionRecord to
+// the entry's ring buffer, forwards the event to any metrics hook, and
 // acquires l.subsMu briefly to read the subscriber list, then delivers
 // outside the lock so a slow consumer cannot stall the loop.
-func (l *Loop) makeNotify(key api.Key) func(packet.State, packet.Diag) {
+func (l *Loop) makeNotify(key api.Key, entry *sessionEntry) func(packet.State, packet.Diag) {
 	return func(state packet.State, diag packet.Diag) {
+		now := l.clk.Now()
+		from := entry.lastState
+		entry.recordTransition(from, state, diag, now)
+		entry.lastState = state
+
+		if hook := l.metricsHook.Load(); hook != nil {
+			(*hook).OnStateChange(from, state, diag, key.Mode.String(), key.VRF)
+		}
+
 		change := api.StateChange{
 			Key:   key,
 			State: state,
 			Diag:  diag,
-			When:  l.clk.Now(),
+			When:  now,
 		}
 		l.subsMu.Lock()
 		subs := append([]chan api.StateChange(nil), l.subscribers[key]...)

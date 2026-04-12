@@ -1,0 +1,147 @@
+# Test: `show bfd profile [<name>]` returns resolved profile parameters.
+#
+# VALIDATES: spec-bfd-4 AC-4 and AC-5 -- handleShowProfile returns
+#            the resolved (post-default) profile set and filters to
+#            one entry by name.
+# PREVENTS:  regression where the profile output drops defaulted
+#            leaves or silently swallows an unknown profile name.
+
+option=env:var=ze.bfd.test-parallel:value=true
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=bfd-show-profile.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Exercise `show bfd profile` for the full list and a specific name."""
+
+import json
+import time
+
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(0.5)
+
+    # AC-5: list all
+    r = dispatch(api, 'show bfd profile')
+    if r.get('status') != 'done':
+        runtime_fail(f'list status: {r.get("status")}')
+    try:
+        profiles = json.loads(r.get('data', '') or '[]')
+    except json.JSONDecodeError as exc:
+        profiles = []
+        runtime_fail(f'list json: {exc}')
+    names = {p.get('name') for p in profiles if isinstance(p, dict)}
+    for want in ('fast', 'slow'):
+        if want not in names:
+            runtime_fail(f'missing profile {want} in {sorted(names)}')
+
+    # AC-4: specific profile
+    r = dispatch(api, 'show bfd profile fast')
+    if r.get('status') != 'done':
+        runtime_fail(f'fast status: {r.get("status")}')
+    try:
+        one = json.loads(r.get('data', '') or '{}')
+    except json.JSONDecodeError as exc:
+        one = {}
+        runtime_fail(f'fast json: {exc}')
+    if one.get('name') != 'fast':
+        runtime_fail(f'fast name: {one}')
+    if one.get('desired-min-tx-us') != 50000:
+        runtime_fail(f'fast timer: {one}')
+
+    # unknown name
+    r = dispatch(api, 'show bfd profile nope')
+    if r.get('status') != 'error':
+        runtime_fail(f'unknown status: {r.get("status")}')
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bfd:terminator=EOF_CONF
+plugin {
+	external bfd-show-profile-test {
+		run ./bfd-show-profile.run
+		encoder json
+	}
+}
+
+environment {
+	log {
+		bfd debug
+	}
+}
+
+bfd {
+	enabled true;
+	profile fast {
+		detect-multiplier 3
+		desired-min-tx-us 50000
+		required-min-rx-us 50000
+	}
+	profile slow {
+		detect-multiplier 3
+		desired-min-tx-us 1000000
+		required-min-rx-us 1000000
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process bfd-show-profile-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bfd:timeout=15s
+expect=exit:code=0

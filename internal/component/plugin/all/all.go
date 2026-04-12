@@ -32,6 +32,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor/filter/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/redistribute/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/bfd/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/commit/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/del/schema"
@@ -98,6 +99,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib"
 
 	// RPC command packages -- pluginserver.RegisterRPCs registration.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/bfd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"
@@ -105,4 +107,3 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 )
-
