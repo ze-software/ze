@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -125,6 +126,22 @@ func RunBMPPlugin(conn net.Conn) int {
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
 		return bp.handleCommand(command)
 	})
+
+	// Structured event handler: receives peer state changes and UPDATE messages
+	// from the reactor via DirectBridge. Used by the sender to stream BMP to collectors.
+	p.OnStructuredEvent(func(events []any) error {
+		for _, event := range events {
+			se, ok := event.(*rpc.StructuredEvent)
+			if !ok || se.PeerAddress == "" {
+				continue
+			}
+			bp.handleStructuredEvent(se)
+		}
+		return nil
+	})
+
+	// Subscribe to peer state (up/down) and received updates for BMP sender.
+	p.SetStartupSubscriptions([]string{"state", "update direction received"}, nil, "full")
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
@@ -443,4 +460,145 @@ func (bp *BMPPlugin) processRouteMirroring(remote string, m *RouteMirroring) {
 		"peer-as", m.Peer.PeerAS,
 		"tlv-count", len(m.TLVs),
 	)
+}
+
+// --- Sender event handling ---
+
+// handleStructuredEvent processes a reactor event and forwards it to all sender sessions.
+func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
+	bp.mu.RLock()
+	senders := bp.senders
+	bp.mu.RUnlock()
+
+	if len(senders) == 0 {
+		return
+	}
+
+	switch se.EventType {
+	case "state":
+		bp.handleSenderState(se, senders)
+	case "update":
+		if se.Direction == "received" {
+			bp.handleSenderUpdate(se, senders)
+		}
+	}
+}
+
+// handleSenderState sends Peer Up or Peer Down to all collectors.
+func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*senderSession) {
+	peer := peerHeaderFromEvent(se)
+
+	switch se.State {
+	case "up":
+		// Build synthetic OPEN messages from metadata.
+		// RFC 7854 requires OPEN PDUs in Peer Up; we build minimal ones
+		// from PeerAS/LocalAS since raw OPENs aren't in the event system.
+		sentOpen := BuildSyntheticOpen(uint16(min(se.LocalAS, 65535)), 0) //nolint:gosec // AS clamped to uint16
+		recvOpen := BuildSyntheticOpen(uint16(min(se.PeerAS, 65535)), 0)  //nolint:gosec // AS clamped to uint16
+
+		var localAddr [16]byte
+		parseIPInto(se.LocalAddress, &localAddr)
+
+		for _, ss := range senders {
+			if err := ss.writePeerUp(peer, localAddr, 179, 0, sentOpen, recvOpen); err != nil {
+				logger().Debug("bmp: sender peer up failed", "collector", ss.name, "error", err)
+			}
+		}
+	case "down":
+		reason := peerDownReasonFromString(se.Reason)
+		for _, ss := range senders {
+			if err := ss.writePeerDown(peer, reason, nil); err != nil {
+				logger().Debug("bmp: sender peer down failed", "collector", ss.name, "error", err)
+			}
+		}
+	}
+}
+
+// handleSenderUpdate sends Route Monitoring to all collectors.
+func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*senderSession) {
+	// Extract raw BGP UPDATE bytes from the structured event.
+	rawBytes := rawUpdateBytes(se)
+	if rawBytes == nil {
+		return
+	}
+
+	peer := peerHeaderFromEvent(se)
+	for _, ss := range senders {
+		if err := ss.writeRouteMonitoring(peer, rawBytes); err != nil {
+			logger().Debug("bmp: sender route monitoring failed", "collector", ss.name, "error", err)
+		}
+	}
+}
+
+// peerHeaderFromEvent builds a BMP PeerHeader from a StructuredEvent.
+func peerHeaderFromEvent(se *rpc.StructuredEvent) PeerHeader {
+	ph := PeerHeader{
+		PeerType:     PeerTypeGlobal,
+		PeerAS:       se.PeerAS,
+		TimestampSec: uint32(time.Now().Unix()),
+	}
+
+	parseIPInto(se.PeerAddress, &ph.Address)
+
+	// Check if IPv6 by looking for ':' in the address.
+	for _, c := range se.PeerAddress {
+		if c == ':' {
+			ph.Flags |= PeerFlagV
+			break
+		}
+	}
+
+	return ph
+}
+
+// parseIPInto parses an IP string into a 16-byte BMP address field.
+// IPv4 is stored as ::ffff:x.x.x.x per RFC 7854.
+func parseIPInto(addr string, out *[16]byte) {
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		return
+	}
+	ip16 := ip.To16()
+	if ip16 != nil {
+		copy(out[:], ip16)
+	}
+}
+
+// peerDownReasonFromString maps a ze close reason string to a BMP Peer Down reason code.
+func peerDownReasonFromString(reason string) uint8 {
+	switch reason {
+	case "notification":
+		return PeerDownLocalNotify
+	case "tcp-failure", "timer-expired":
+		return PeerDownLocalNoNotify
+	case "remote-notification":
+		return PeerDownRemoteNotify
+	case "remote-close":
+		return PeerDownRemoteNoData
+	case "config-changed", "deconfigured":
+		return PeerDownDeconfigured
+	}
+	return PeerDownLocalNoNotify // default for unknown reasons
+}
+
+// rawUpdateBytes extracts the raw BGP UPDATE wire bytes from a StructuredEvent.
+// Returns nil if not available.
+func rawUpdateBytes(se *rpc.StructuredEvent) []byte {
+	if se.RawMessage == nil {
+		return nil
+	}
+
+	// The RawMessage is interface{} -- try to extract wire bytes.
+	// Types that carry wire data have a Bytes() or Raw() method.
+	type rawer interface{ Raw() []byte }
+	if r, ok := se.RawMessage.(rawer); ok {
+		return r.Raw()
+	}
+
+	type byteser interface{ Bytes() []byte }
+	if b, ok := se.RawMessage.(byteser); ok {
+		return b.Bytes()
+	}
+
+	return nil
 }

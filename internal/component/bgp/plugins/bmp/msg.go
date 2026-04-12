@@ -404,6 +404,24 @@ func WriteStatisticsReport(buf []byte, off int, sr *StatisticsReport) int {
 	return totalLen
 }
 
+// BuildSyntheticOpen builds a minimal BGP OPEN message (29 bytes) for BMP Peer Up.
+// Used when actual OPEN PDUs are not available from the event system.
+// Fields: 16-byte marker, length=29, type=OPEN(1), version=4, AS, hold=90, router-id=0, opt-len=0.
+func BuildSyntheticOpen(asn uint16, routerID uint32) []byte {
+	buf := make([]byte, 29)
+	for i := range 16 {
+		buf[i] = 0xFF
+	}
+	binary.BigEndian.PutUint16(buf[16:18], 29) // length
+	buf[18] = 1                                // type = OPEN
+	buf[19] = 4                                // BGP version
+	binary.BigEndian.PutUint16(buf[20:22], asn)
+	binary.BigEndian.PutUint16(buf[22:24], 90) // hold time
+	binary.BigEndian.PutUint32(buf[24:28], routerID)
+	buf[28] = 0 // opt params length
+	return buf
+}
+
 // WriteRouteMirroring writes a complete Route Mirroring message into buf at off.
 // Returns total bytes written.
 func WriteRouteMirroring(buf []byte, off int, rm *RouteMirroring) int {
