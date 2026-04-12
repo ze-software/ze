@@ -1,0 +1,148 @@
+# Test: BMP receiver processes Initiation + Peer Up + Peer Down
+# VALIDATES: AC-13 -- initiation sysName captured
+# VALIDATES: AC-14 -- peer up tracked
+# VALIDATES: AC-16 -- peer down tracked
+#
+# Flow:
+# 1. ze starts with BMP receiver on $PORT2
+# 2. Observer connects TCP, sends Initiation, Peer Up, Peer Down
+# 3. Assertions verify all three message types logged
+
+option=env:var=ze.log.bgp.bmp:value=info
+option=timeout:value=15s
+
+tmpfs=bmp-client.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""BMP test client: sends Initiation + Peer Up + Peer Down, then shuts down."""
+import socket
+import struct
+import time
+from ze_api import API
+
+def bmp_header(msg_type, length):
+    return struct.pack('!BIB', 3, length, msg_type)
+
+def bmp_initiation():
+    name = b'test-router'
+    desc = b'ze ci test'
+    name_tlv = struct.pack('!HH', 2, len(name)) + name
+    desc_tlv = struct.pack('!HH', 1, len(desc)) + desc
+    payload = name_tlv + desc_tlv
+    return bmp_header(4, 6 + len(payload)) + payload
+
+def bgp_open(asn):
+    marker = b'\xff' * 16
+    body = struct.pack('!BHHIB', 4, asn, 90, 0x01020304, 0)
+    length = 19 + len(body)
+    return marker + struct.pack('!HB', length, 1) + body
+
+def bmp_peer_header(peer_as=65001):
+    ph = struct.pack('!BB', 0, 0)
+    ph += struct.pack('!Q', 0)
+    ph += b'\x00' * 10 + b'\xff\xff' + bytes([10, 0, 0, 1])
+    ph += struct.pack('!II', peer_as, 0x01020304)
+    ph += struct.pack('!II', int(time.time()), 0)
+    return ph
+
+def bmp_peer_up():
+    ph = bmp_peer_header()
+    local_addr = b'\x00' * 10 + b'\xff\xff' + bytes([10, 0, 0, 100])
+    ports = struct.pack('!HH', 179, 54321)
+    sent_open = bgp_open(65000)
+    recv_open = bgp_open(65001)
+    payload = ph + local_addr + ports + sent_open + recv_open
+    return bmp_header(3, 6 + len(payload)) + payload
+
+def bmp_peer_down(reason=5):
+    ph = bmp_peer_header()
+    payload = ph + struct.pack('!B', reason)
+    return bmp_header(2, 6 + len(payload)) + payload
+
+def dispatch(api, command):
+    api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    time.sleep(1.0)
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(('127.0.0.1', $PORT2))
+    sock.sendall(bmp_initiation())
+    time.sleep(0.2)
+    sock.sendall(bmp_peer_up())
+    time.sleep(0.2)
+    sock.sendall(bmp_peer_down())
+    time.sleep(0.5)
+    sock.close()
+
+    time.sleep(0.5)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+    bmp {
+        enabled true;
+        server default {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+plugin {
+    external bmp-client {
+        run ./bmp-client.run;
+        encoder json;
+    }
+}
+bgp {
+    router-id 1.2.3.5;
+    peer test {
+        connection {
+            remote {
+                ip 127.0.0.1;
+                accept false;
+            }
+            local {
+                ip 127.0.0.1;
+            }
+        }
+        session {
+            asn {
+                local 65000;
+                remote 65001;
+            }
+            router-id 1.2.3.5;
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        process bmp-client {
+            receive [ state ];
+        }
+    }
+}
+EOF_CONF
+
+stdin=peer:terminator=EOF_PEER
+EOF_PEER
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
+expect=exit:code=0
+expect=stderr:pattern=bmp: receiver listening
+expect=stderr:pattern=bmp: session started
+expect=stderr:pattern=bmp: initiation.*sysName.*test-router
+expect=stderr:pattern=bmp: peer up.*peer-as.*65001
+expect=stderr:pattern=bmp: peer down.*peer-as.*65001
+expect=stderr:pattern=bmp: session ended
