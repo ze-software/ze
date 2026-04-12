@@ -25,6 +25,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+
+	// Register the netlink backend so iface.LoadBackend("netlink")
+	// below resolves. Without this blank import, DiscoverInterfaces
+	// returns "no backend loaded" and every detected interface
+	// (ethernet, dummy, veth, bridge, tunnel, wireguard) is silently
+	// dropped from the initial ze.conf.
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
 )
 
 // Key aliases for readability (from zefs key registry).
@@ -254,17 +261,30 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCer
 		}
 	}
 
-	// Discover OS interfaces and generate initial config.
-	if discovered, discErr := iface.DiscoverInterfaces(); discErr != nil {
-		fmt.Fprintf(os.Stderr, "warning: interface discovery: %v\n", discErr)
-	} else if len(discovered) > 0 {
-		if config := generateInterfaceConfig(discovered); config != "" {
-			configKey := zefs.KeyFileActive.Key("ze.conf")
-			if wErr := store.WriteFile(configKey, []byte(config), 0); wErr != nil {
-				fmt.Fprintf(os.Stderr, "warning: write initial config: %v\n", wErr)
-			} else {
-				fmt.Printf("discovered %d interface(s), wrote initial config\n", len(discovered))
+	// Discover OS interfaces and generate initial config. LoadBackend
+	// activates the netlink backend registered via the blank import
+	// above; without it DiscoverInterfaces returns "no backend loaded"
+	// and every detected netdev is silently dropped. Backend load
+	// failures (e.g., non-Linux platforms with only the stub backend)
+	// are non-fatal -- init still completes, the user just gets an
+	// empty interface config.
+	if loadErr := iface.LoadBackend("netlink"); loadErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: load netlink backend: %v\n", loadErr)
+	} else {
+		if discovered, discErr := iface.DiscoverInterfaces(); discErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: interface discovery: %v\n", discErr)
+		} else if len(discovered) > 0 {
+			if config := generateInterfaceConfig(discovered); config != "" {
+				configKey := zefs.KeyFileActive.Key("ze.conf")
+				if wErr := store.WriteFile(configKey, []byte(config), 0); wErr != nil {
+					fmt.Fprintf(os.Stderr, "warning: write initial config: %v\n", wErr)
+				} else {
+					fmt.Printf("discovered %d interface(s), wrote initial config\n", len(discovered))
+				}
 			}
+		}
+		if closeErr := iface.CloseBackend(); closeErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: close netlink backend: %v\n", closeErr)
 		}
 	}
 
