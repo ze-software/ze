@@ -217,6 +217,7 @@ tab press, returning MAC addresses from currently active OS interfaces.
   remote endpoints use the same `local { ip ... } remote { ip ... }` shape as the
   BGP peer connection block, with `local { interface ... }` as an alternative when
   the source should be taken from another interface.
+- **Idempotent cleanup.** Delete and mirror removal succeed even if already gone.
 
 ## Tunnel Configuration
 
@@ -308,7 +309,6 @@ daemon at reload time.
 
 <!-- source: cmd/ze/config/cmd_validate.go -- runValidation (YANG + BGP + hub only, no plugin OnConfigVerify) -->
 <!-- source: internal/component/iface/config.go -- parseTunnelEntry (iface tunnel validation runs at OnConfigVerify) -->
-- **Idempotent cleanup.** Delete and mirror removal succeed even if already gone.
 
 ## WireGuard Configuration
 
