@@ -34,6 +34,8 @@ type senderSession struct {
 	conn   net.Conn
 	connMu sync.Mutex
 
+	rib *ribout // per-NLRI dedup
+
 	stopCh  chan struct{}
 	stopCtx context.Context
 	cancel  context.CancelFunc
@@ -46,6 +48,7 @@ func newSenderSession(cfg collectorConfig) *senderSession {
 		name:    cfg.Name,
 		address: cfg.Address,
 		port:    cfg.Port,
+		rib:     newRibout(),
 		stopCh:  make(chan struct{}),
 		stopCtx: ctx,
 		cancel:  cancel,
@@ -96,8 +99,10 @@ func (ss *senderSession) run() {
 		// Hold connection open until stopped or error.
 		ss.holdConnection(conn)
 
-		// Clear conn so concurrent writeMsg callers see nil (not a closed conn).
+		// Clear conn and ribout so concurrent writeMsg callers see nil,
+		// and reconnect re-sends all paths fresh.
 		ss.clearConn()
+		ss.rib.clear()
 	}
 }
 

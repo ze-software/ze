@@ -515,6 +515,7 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 }
 
 // handleSenderUpdate sends Route Monitoring to all collectors.
+// Uses per-collector ribout to suppress duplicate updates.
 func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*senderSession) {
 	// Extract raw BGP UPDATE bytes from the structured event.
 	rawBytes := rawUpdateBytes(se)
@@ -522,8 +523,16 @@ func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*send
 		return
 	}
 
+	// Use messageID as the dedup key and content hash for equality.
+	// MessageID is unique per UPDATE from the reactor.
+	key := fmt.Sprintf("%s/%d", se.PeerAddress, se.MessageID)
+	hash := fnvHash(rawBytes)
+
 	peer := peerHeaderFromEvent(se)
 	for _, ss := range senders {
+		if !ss.rib.shouldSend(key, hash) {
+			continue
+		}
 		if err := ss.writeRouteMonitoring(peer, rawBytes); err != nil {
 			logger().Debug("bmp: sender route monitoring failed", "collector", ss.name, "error", err)
 		}

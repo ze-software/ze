@@ -120,7 +120,7 @@ and `bgp-role` for RFC 9234 BGP roles enforcement. Each is a regular plugin
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Prometheus metrics | Yes | Yes | No | Yes | No | Yes | Yes | No | No | No | No |
 | Structured logging (JSON) | Yes | Yes | No | Yes | No | No | No | No | No | No | No |
-| BMP (RFC 7854) | No | Yes | Yes | Yes | Partial | Yes | Yes | No | No | Yes | Yes |
+| BMP (RFC 7854) | Yes | Yes | Yes | Yes | Partial | Yes | Yes | No | No | Yes | Yes |
 | MRT dump (RFC 6396) | No | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
 | Streaming route events | Yes | Yes | No | Yes | No | No | Yes | Yes | No | No | No |
 | JSON event protocol | Yes | No | No | No | No | No | No | Yes | No | No | No |
