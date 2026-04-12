@@ -1,0 +1,50 @@
+# Test: ze config validate accepts community-match config
+# VALIDATES: AC-1 -- community-match YANG config parses correctly
+# VALIDATES: Filter chain reference community-match:NAME resolves
+# PREVENTS: YANG schema or augment regression breaking community-match parsing
+stdin=config:terminator=EOF_CONF
+bgp {
+	policy {
+		community-match BLOCK-NO-EXPORT {
+			entry no-export {
+				type standard
+				action reject
+			}
+		}
+		community-match ALLOW-CUSTOMER {
+			entry 65001:100 {
+				type standard
+				action accept
+			}
+			entry 65001:200 {
+				type standard
+				action accept
+			}
+		}
+	}
+
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+		filter {
+			import [ community-match:BLOCK-NO-EXPORT ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

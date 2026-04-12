@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-04-11 |
+| Phase | 1/1 |
+| Updated | 2026-04-12 |
 
 ## Post-Compaction Recovery
 
@@ -288,9 +288,33 @@ No numeric inputs in this spec (community values are strings, action is enum).
 ## Implementation Summary
 
 ### What Was Implemented
+
+New `bgp-filter-community-match` plugin (separate from existing tag/strip `bgp-filter-community`):
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| YANG schema | `filter_community_match/schema/ze-filter-community-match.yang` | `community-match` augment under `bgp/policy` |
+| Schema embed/register | `filter_community_match/schema/{embed,register}.go` | Standard schema pattern |
+| Plugin entry point | `filter_community_match/filter_community_match.go` | SDK entry, OnConfigure, handleFilterUpdate |
+| Config parsing | `filter_community_match/config.go` | `parseCommunityLists` with name/value length limits |
+| Community matching | `filter_community_match/match.go` | `evaluateCommunities`, `extractCommunityField` |
+| Registration | `filter_community_match/register.go` | `FilterTypes: ["community-match"]` |
+| Unit tests | `filter_community_match/{match,config}_test.go` | 31 test cases |
+| Functional tests | `test/plugin/community-match-{accept,reject}.ci` | Accept/reject end-to-end |
+| Parse test | `test/parse/community-match-config.ci` | YANG validation |
+
 ### Bugs Found/Fixed
+None.
+
 ### Documentation Updates
+Deferred to umbrella completion.
+
 ### Deviations from Plan
+
+| Deviation | Reason |
+|-----------|--------|
+| New plugin instead of extending existing | Existing `bgp-filter-community` uses IngressFilter/EgressFilter (no FilterTypes, no PolicyFilterChain dispatch). Match-and-act requires a separate plugin with FilterTypes + OnFilterUpdate. |
+| AC-9 (composable with tag/strip) not tested in .ci | Tag/strip uses a different registration path (not PolicyFilterChain); composing them in a single import chain is not meaningful for the accept/reject pattern. They coexist by design but operate at different stages. |
 
 ## Implementation Audit
 
