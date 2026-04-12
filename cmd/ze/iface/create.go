@@ -22,9 +22,9 @@ func cmdCreate(args []string) int {
 	case "help", "-h", "--help": //nolint:goconst // consistent pattern across cmd files
 		createUsage()
 		return 0
-	case "dummy":
+	case "dummy": //nolint:goconst // CLI dispatch strings, constants in internal/component/iface
 		return cmdCreateDummy(args[1:])
-	case "veth":
+	case "veth": //nolint:goconst // CLI dispatch strings, constants in internal/component/iface
 		return cmdCreateVeth(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "error: unknown interface type: %s (expected dummy or veth)\n", args[0])

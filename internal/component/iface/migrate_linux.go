@@ -29,7 +29,7 @@ func validateMigrateConfig(cfg MigrateConfig) error {
 	}
 	if cfg.NewIfaceType != "" {
 		switch cfg.NewIfaceType {
-		case "dummy", "veth", "bridge": // valid types
+		case zeTypeDummy, zeTypeVeth, zeTypeBridge:
 		default: // unknown type
 			return fmt.Errorf("migrate: unknown interface type %q (expected dummy, veth, or bridge)", cfg.NewIfaceType)
 		}

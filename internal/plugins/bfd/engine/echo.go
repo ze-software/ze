@@ -28,15 +28,18 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/transport"
 )
 
-// echoTickLocked fires per-session echo TX deadlines. Caller MUST
-// hold l.mu. When a session is Up with echo negotiated and its
-// next-echo deadline has passed, encode one ZEEC envelope into a
-// pool buffer, send via the echo transport, and advance the
-// per-session schedule.
+// echoTickLocked fires per-session echo TX deadlines and drives
+// the echo-mode detection timer. Caller MUST hold l.mu. For every
+// session with echo negotiated and its deadline passed the loop
+// encodes one ZEEC envelope, hands it to the echo transport, and
+// advances the per-session schedule. Before the TX pass the
+// session's outstanding ring is checked for stale entries; any
+// outstanding echo older than DetectMult * EchoInterval fires a
+// transition to Down with DiagEchoFailed.
 //
-// Sessions that are not Up have their echo schedule cleared so a
-// session that flapped down does not fire stale echoes after going
-// back up (PrimeEcho rearms on the next Up tick).
+// Sessions that are not Up have their echo schedule and
+// outstanding ring cleared so a session that flapped down does
+// not carry stale detection state back into Up.
 func (l *Loop) echoTickLocked(now time.Time) {
 	if l.echoTransport == nil {
 		return
@@ -45,6 +48,17 @@ func (l *Loop) echoTickLocked(now time.Time) {
 		m := entry.machine
 		if m.State() != packet.StateUp || !m.EchoEnabled() {
 			m.ClearEchoSchedule()
+			continue
+		}
+		if m.EchoDetectionExpired(now) {
+			engineLog().Info("bfd echo detection expired",
+				"peer", m.PeerAddr().String(),
+				"detect", m.EchoDetectInterval())
+			m.EchoFail()
+			if hook := l.metricsHook.Load(); hook != nil {
+				(*hook).OnStateChange(packet.StateUp, packet.StateDown,
+					packet.DiagEchoFailed, m.Key().Mode.String(), m.Key().VRF)
+			}
 			continue
 		}
 		m.PrimeEcho(now)
@@ -60,18 +74,19 @@ func (l *Loop) echoTickLocked(now time.Time) {
 // sendEchoLocked encodes a single ZEEC envelope for the session and
 // hands it to the echo transport. Caller MUST hold l.mu.
 //
-// The envelope's TimestampMs field carries a truncated millisecond
-// slice of the engine clock so the reflected copy can be matched
-// back to the original TX without a separate outstanding-ID index.
-// The sequence counter is self-carried for future diagnostics
-// (packet loss estimation) but the current RX path does not
-// consult it.
+// The sequence counter lets the RX path match returning echoes
+// against the per-session outstanding ring (RegisterEchoTx /
+// MatchEchoRx). The envelope's TimestampMs field is still written
+// with a truncated millisecond slice of the engine clock so the
+// RTT can fall back to the self-carried value when the matching
+// entry has already been evicted from a small ring under load.
 func (l *Loop) sendEchoLocked(entry *sessionEntry, now time.Time) {
 	buf := [packet.EchoLen]byte{}
 	ts := uint32(now.UnixMilli())
+	seq := entry.machine.NextEchoSequence()
 	e := packet.Echo{
 		LocalDiscriminator: entry.machine.LocalDiscriminator(),
-		Sequence:           entry.machine.NextEchoSequence(),
+		Sequence:           seq,
 		TimestampMs:        ts,
 	}
 	packet.WriteEcho(buf[:], 0, e)
@@ -88,6 +103,7 @@ func (l *Loop) sendEchoLocked(entry *sessionEntry, now time.Time) {
 		engineLog().Debug("bfd echo send failed", "peer", out.To, "err", err)
 		return
 	}
+	entry.machine.RegisterEchoTx(seq, now)
 	if hook := l.metricsHook.Load(); hook != nil {
 		(*hook).OnEchoTx(key.Mode.String())
 	}
@@ -154,16 +170,22 @@ func (l *Loop) findSessionByPeerLocked(peer netip.Addr) *sessionEntry {
 // recordEchoRTTLocked stores the round-trip time on the session and
 // fires the metrics hook. Caller MUST hold l.mu.
 //
-// The TimestampMs field is truncated from the 64-bit UnixMilli of
-// the sender, so the RTT calculation is done in the same truncated
-// space: `now.UnixMilli() & 0xFFFFFFFF` minus the received timestamp,
-// interpreted as a signed 32-bit delta so a clock that wraps past
-// 2^32 ms (every ~49 days) stays correct across the boundary.
+// The ring lookup is the authoritative RTT source: Machine tracks
+// the monotonic sentAt for every outstanding echo, so the delta is
+// immune to wall-clock jumps and system-suspend artifacts. When the
+// ring has already evicted the matching entry (burst loss, ring
+// overflow) the calculation falls back to the self-carried
+// TimestampMs in the ZEEC envelope, which is truncated from the
+// 64-bit UnixMilli and treated as a signed 32-bit delta so a clock
+// crossing the 2^32 ms boundary (~49 days) stays correct.
 func (l *Loop) recordEchoRTTLocked(entry *sessionEntry, e packet.Echo, now time.Time, mode string) {
-	nowMs := uint32(now.UnixMilli())
-	delta := int32(nowMs - e.TimestampMs)
-	delta = max(delta, 0)
-	rtt := time.Duration(delta) * time.Millisecond
+	rtt, ok := entry.machine.MatchEchoRx(e.Sequence, now)
+	if !ok {
+		nowMs := uint32(now.UnixMilli())
+		delta := int32(nowMs - e.TimestampMs)
+		delta = max(delta, 0)
+		rtt = time.Duration(delta) * time.Millisecond
+	}
 	entry.machine.RecordEchoRTT(rtt)
 	if hook := l.metricsHook.Load(); hook != nil {
 		(*hook).OnEchoRx(mode)

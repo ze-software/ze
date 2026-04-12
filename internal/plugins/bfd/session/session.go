@@ -145,6 +145,36 @@ type Machine struct {
 	// Zero until the first reflected echo is matched. Exposed via
 	// LastEchoRTT for snapshot consumers.
 	lastEchoRTT time.Duration
+
+	// echoOutstanding is a fixed-size ring of echo TX entries that
+	// have not yet been matched by a returning reflection. The ring
+	// is the state that turns echo from a passive RTT probe into an
+	// active liveness channel: the engine declares the session Down
+	// with DiagEchoFailed when the oldest unreturned entry has been
+	// waiting longer than DetectMult * EchoInterval. Stage 6b Phase B.
+	//
+	// Slot semantics: sentAt.IsZero() marks an empty slot. The ring
+	// is sized at echoOutstandingCap which is generous for the
+	// default DetectMult=3 (the detection threshold is six outstanding
+	// entries in the worst case). A full ring overwrites the oldest
+	// slot and the overwritten entry is treated as a miss.
+	echoOutstanding [echoOutstandingCap]echoEntry
+}
+
+// echoOutstandingCap is the fixed ring size for per-session echo
+// TX tracking. Chosen to comfortably exceed 2 * DetectMult for the
+// common DetectMult=3 without making the Machine struct fat; the
+// current cap of 16 uses 16 * 24 = 384 bytes per session on a
+// 64-bit build.
+const echoOutstandingCap = 16
+
+// echoEntry is one outstanding echo TX slot. sentAt is the monotonic
+// time the engine handed the packet to the transport; sequence is
+// the ZEEC Sequence field for the matching RX lookup. A zero sentAt
+// marks the slot as empty (swept by MatchEchoRx or ClearEchoSchedule).
+type echoEntry struct {
+	sequence uint32
+	sentAt   time.Time
 }
 
 // Role is the BFD role (Active or Passive) per RFC 5883 Section 4.3.

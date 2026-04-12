@@ -72,7 +72,7 @@ func cmdMigrate(args []string) int {
 	// Validate --create type against known set.
 	if createTyp != "" {
 		switch createTyp {
-		case "dummy", "veth", "bridge": // valid
+		case "dummy", "veth", "bridge": //nolint:goconst // CLI dispatch strings, constants in internal/component/iface
 		default:
 			fmt.Fprintf(os.Stderr, "error: invalid --create type %q (expected dummy, veth, or bridge)\n", createTyp)
 			return 1

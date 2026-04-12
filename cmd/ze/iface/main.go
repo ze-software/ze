@@ -36,7 +36,7 @@ func Run(args []string) int {
 	subcmd := args[0]
 	subArgs := args[1:]
 
-	if subcmd == "help" || subcmd == "-h" || subcmd == "--help" {
+	if subcmd == "help" || subcmd == "-h" || subcmd == "--help" { //nolint:goconst // consistent pattern across cmd files
 		usage()
 		return 0
 	}

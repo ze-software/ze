@@ -105,10 +105,16 @@ func TestEchoRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loopB.EnsureSession: %v", err)
 	}
+	// Intentionally do NOT defer Unsubscribe on subA/subB: Loop.Stop
+	// closes every subscriber channel before this test returns, and
+	// the engine's notify path copies the subscriber slice out from
+	// under subsMu before sending, so calling Unsubscribe AFTER the
+	// defer chain has already started races the final echo-driven
+	// state transition against Machine.EchoFail's notify.
+	// TODO(spec-bfd-engine-unsubscribe-lock): tighten Unsubscribe so
+	// it is safe to call while the express loop is still running.
 	subA := hA.Subscribe()
 	subB := hB.Subscribe()
-	defer hA.Unsubscribe(subA)
-	defer hB.Unsubscribe(subB)
 
 	// The three-way handshake is required for both machines to reach Up
 	// so echoTickLocked stops clearing the echo schedule.
@@ -149,5 +155,117 @@ func TestEchoRoundTrip(t *testing.T) {
 	hookA.mu.Unlock()
 	if rttSamples == 0 {
 		t.Fatalf("no RTT samples recorded on hookA")
+	}
+}
+
+// dropEchoTransport is a Transport that accepts Sends silently and
+// never delivers any inbound packets. Used by
+// TestEchoDetectionSwitchover to simulate a peer that is dropping
+// every echo packet so the engine's echo detection path fires.
+//
+// Start / Stop are idempotent. The RX channel is never closed mid-test
+// so the express loop keeps selecting on a live channel; Stop closes
+// it so Loop.run's range exits cleanly.
+type dropEchoTransport struct {
+	rx chan transport.Inbound
+}
+
+func newDropEchoTransport() *dropEchoTransport {
+	return &dropEchoTransport{rx: make(chan transport.Inbound)}
+}
+
+func (*dropEchoTransport) Start() error                    { return nil }
+func (*dropEchoTransport) Send(_ transport.Outbound) error { return nil }
+func (t *dropEchoTransport) RX() <-chan transport.Inbound  { return t.rx }
+func (t *dropEchoTransport) Stop() error {
+	select {
+	case <-t.rx:
+	default:
+		close(t.rx)
+	}
+	return nil
+}
+
+// VALIDATES: spec-bfd-6c Phase B.2 -- when echo is negotiated and
+// Up but no reflected echoes return within DetectMult * EchoInterval,
+// the engine declares the session Down with DiagEchoFailed.
+// PREVENTS: regression where EchoFail never fires, fires with the
+// wrong diagnostic, or fails to clear the outstanding ring on
+// teardown.
+func TestEchoDetectionSwitchover(t *testing.T) {
+	addrAA := netip.MustParseAddr(addrA)
+	addrBB := netip.MustParseAddr(addrB)
+
+	controlA, controlB := transport.Pair(api.SingleHop, addrAA, addrBB)
+	loopA := NewLoopWithEcho(controlA, newDropEchoTransport(), clock.RealClock{})
+	loopB := NewLoopWithEcho(controlB, newDropEchoTransport(), clock.RealClock{})
+
+	if err := loopA.Start(); err != nil {
+		t.Fatalf("loopA.Start: %v", err)
+	}
+	defer func() {
+		if err := loopA.Stop(); err != nil {
+			t.Errorf("loopA.Stop: %v", err)
+		}
+	}()
+	if err := loopB.Start(); err != nil {
+		t.Fatalf("loopB.Start: %v", err)
+	}
+	defer func() {
+		if err := loopB.Stop(); err != nil {
+			t.Errorf("loopB.Stop: %v", err)
+		}
+	}()
+
+	hA, err := loopA.EnsureSession(echoReqFor(addrB, addrA))
+	if err != nil {
+		t.Fatalf("loopA.EnsureSession: %v", err)
+	}
+	if _, err := loopB.EnsureSession(echoReqFor(addrA, addrB)); err != nil {
+		t.Fatalf("loopB.EnsureSession: %v", err)
+	}
+
+	// Wait for the handshake to reach Up. Subsequent transitions
+	// (Up -> Down with DiagEchoFailed) are observed via subA.
+	subA := hA.Subscribe()
+	deadline := time.Now().Add(6 * time.Second)
+	upA := false
+	for !upA {
+		if time.Now().After(deadline) {
+			t.Fatalf("handshake not Up before deadline")
+		}
+		select {
+		case ev := <-subA:
+			if ev.State == packet.StateUp {
+				upA = true
+			}
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+
+	// After Up the drop transport swallows every outbound echo so
+	// the per-session outstanding ring fills up without any matching
+	// reflections. The engine tick then observes
+	// EchoDetectionExpired and calls EchoFail which publishes a
+	// Down event with DiagEchoFailed.
+	//
+	// Detection time = DetectMult (3) * EchoInterval (10ms) = 30ms;
+	// the poll interval is 5ms so the first expiry observation
+	// happens ~35ms after the first echo TX. A 2-second deadline is
+	// generously above that floor to absorb scheduler jitter under
+	// load.
+	deadline = time.Now().Add(2 * time.Second)
+	gotEchoFailed := false
+	for !gotEchoFailed {
+		if time.Now().After(deadline) {
+			t.Fatalf("no echo-failed transition within 2s")
+		}
+		select {
+		case ev := <-subA:
+			if ev.State == packet.StateDown && ev.Diag == packet.DiagEchoFailed {
+				gotEchoFailed = true
+			}
+		case <-time.After(20 * time.Millisecond):
+		}
 	}
 }

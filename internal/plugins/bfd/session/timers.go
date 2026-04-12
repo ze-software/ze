@@ -208,9 +208,135 @@ func (m *Machine) LastEchoRTT() time.Duration { return m.lastEchoRTT }
 // the engine echo RX handler on every matched return packet.
 func (m *Machine) RecordEchoRTT(rtt time.Duration) { m.lastEchoRTT = rtt }
 
-// ClearEchoSchedule resets the echo timer. Called when a session
-// leaves the Up state so stale deadlines do not fire echoes while
-// the control path is still tearing down.
+// ClearEchoSchedule resets the echo timer and drops every
+// outstanding ring entry. Called when a session leaves the Up
+// state so stale deadlines do not fire echoes while the control
+// path is still tearing down, and so a session that flaps back up
+// does not carry dead entries into the new detection window.
 func (m *Machine) ClearEchoSchedule() {
 	m.nextEchoAt = time.Time{}
+	for i := range m.echoOutstanding {
+		m.echoOutstanding[i] = echoEntry{}
+	}
+}
+
+// RegisterEchoTx adds an outstanding echo TX entry to the ring.
+// When the ring is full the oldest live slot is overwritten; an
+// overwrite is equivalent to a dropped echo from the detection
+// standpoint because the lost slot never had a chance to match.
+//
+// Caller is the engine express loop (after transport.Send returns
+// success) and is therefore the single writer. No synchronization
+// beyond the express-loop owning goroutine is required.
+func (m *Machine) RegisterEchoTx(seq uint32, now time.Time) {
+	slot := -1
+	oldest := -1
+	var oldestAt time.Time
+	for i := range m.echoOutstanding {
+		e := m.echoOutstanding[i]
+		if e.sentAt.IsZero() {
+			slot = i
+			break
+		}
+		if oldest == -1 || e.sentAt.Before(oldestAt) {
+			oldest = i
+			oldestAt = e.sentAt
+		}
+	}
+	if slot == -1 {
+		slot = oldest
+	}
+	m.echoOutstanding[slot] = echoEntry{sequence: seq, sentAt: now}
+}
+
+// MatchEchoRx scans the outstanding ring for a returning echo with
+// the given sequence number. On match the slot is cleared and the
+// observed round-trip time (now - sentAt) is returned with ok=true.
+// An unmatched sequence returns (0, false) and leaves the ring
+// untouched; the engine falls back to the self-carried ZEEC
+// TimestampMs for RTT in that case.
+//
+// Caller MUST be the express-loop goroutine.
+func (m *Machine) MatchEchoRx(seq uint32, now time.Time) (time.Duration, bool) {
+	for i := range m.echoOutstanding {
+		e := m.echoOutstanding[i]
+		if e.sentAt.IsZero() || e.sequence != seq {
+			continue
+		}
+		m.echoOutstanding[i] = echoEntry{}
+		return now.Sub(e.sentAt), true
+	}
+	return 0, false
+}
+
+// EchoDetectInterval returns the echo-mode detection time, that is
+// the maximum permitted silence between consecutive reflected
+// echoes before the session is declared Down. The formula follows
+// RFC 5880 Section 6.8.4 (echo variant):
+//
+//	detect_time = DetectMult * EchoInterval()
+//
+// Returns zero when echo is not active so the engine knows to skip
+// the detection check entirely.
+func (m *Machine) EchoDetectInterval() time.Duration {
+	if !m.EchoEnabled() {
+		return 0
+	}
+	interval := m.EchoInterval()
+	if interval <= 0 {
+		return 0
+	}
+	return time.Duration(m.vars.DetectMult) * interval
+}
+
+// EchoDetectionExpired reports whether any outstanding echo has
+// been waiting longer than EchoDetectInterval. The engine calls
+// this from echoTickLocked after every TX pass; a true return
+// drives the session to Down with DiagEchoFailed.
+//
+// The check walks the full ring because slots are not ordered by
+// sentAt (RegisterEchoTx overwrites the oldest slot when full, so
+// the insertion order is broken once wrapping begins). With a cap
+// of 16 slots the walk is trivially bounded.
+func (m *Machine) EchoDetectionExpired(now time.Time) bool {
+	detect := m.EchoDetectInterval()
+	if detect <= 0 {
+		return false
+	}
+	cutoff := now.Add(-detect)
+	for i := range m.echoOutstanding {
+		e := &m.echoOutstanding[i]
+		if e.sentAt.IsZero() {
+			continue
+		}
+		if e.sentAt.Before(cutoff) {
+			return true
+		}
+	}
+	return false
+}
+
+// EchoFail transitions the session to Down with DiagEchoFailed
+// (RFC 5880 Section 4.1 diagnostic 2). Used by the engine when
+// EchoDetectionExpired reports stale outstanding echoes. The
+// state transition fires the notify callback exactly once so
+// subscribers see the echo-originated teardown with the correct
+// diagnostic instead of inheriting DiagControlDetectExpired from
+// the parallel Control-path detection timer.
+//
+// Idempotent: a session already in Down or AdminDown is left
+// alone. Clears the outstanding ring so the next Up transition
+// starts with an empty detection window.
+func (m *Machine) EchoFail() {
+	if m.vars.SessionState != packet.StateInit && m.vars.SessionState != packet.StateUp {
+		return
+	}
+	prev := m.vars.SessionState
+	m.vars.LocalDiag = packet.DiagEchoFailed
+	m.vars.SessionState = packet.StateDown
+	m.nextEchoAt = time.Time{}
+	for i := range m.echoOutstanding {
+		m.echoOutstanding[i] = echoEntry{}
+	}
+	m.onStateChange(prev)
 }

@@ -108,7 +108,7 @@ func filterManaged(discovered []ifacepkg.DiscoveredInterface) []ifacepkg.Discove
 	filtered := make([]ifacepkg.DiscoveredInterface, 0, len(discovered))
 	for i := range discovered {
 		switch discovered[i].Type {
-		case "dummy", "veth", "bridge", "tunnel", "wireguard":
+		case "dummy", "veth", "bridge", "tunnel", "wireguard": //nolint:goconst // CLI dispatch strings
 			filtered = append(filtered, discovered[i])
 		}
 	}
