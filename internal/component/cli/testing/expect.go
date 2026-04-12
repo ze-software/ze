@@ -89,7 +89,12 @@ func checkContext(exp Expectation, state State) error {
 func checkDirty(exp Expectation, state State) error {
 	if _, hasTrue := exp.Values["true"]; hasTrue {
 		if !state.Dirty() {
-			return fmt.Errorf("expected dirty:true, got false")
+			errStr := "<nil>"
+			if e := state.Error(); e != nil {
+				errStr = e.Error()
+			}
+			return fmt.Errorf("expected dirty:true, got false; err=%s status=%q input=%q content=%q",
+				errStr, state.StatusMessage(), state.InputValue(), state.WorkingContent())
 		}
 		return nil
 	}
