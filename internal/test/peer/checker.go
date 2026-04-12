@@ -106,12 +106,19 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 			return 0, 0, "", fmt.Errorf("expect=bgp invalid seq=%q (must be >= 1): %q", seqStr, rule)
 		}
 
-		hex := kv["hex"]
-		if hex == "" {
-			return 0, 0, "", fmt.Errorf("expect=bgp missing hex: %q", rule)
+		if hexVal := kv["hex"]; hexVal != "" {
+			content = strings.ToUpper(strings.ReplaceAll(hexVal, ":", ""))
+			return conn, seq, content, nil
 		}
-		content = strings.ToUpper(strings.ReplaceAll(hex, ":", ""))
-		return conn, seq, content, nil
+		if prefixVal := kv["prefix"]; prefixVal != "" {
+			content = "prefix:" + strings.ToUpper(strings.ReplaceAll(prefixVal, ":", ""))
+			return conn, seq, content, nil
+		}
+		if containsVal := kv["contains"]; containsVal != "" {
+			content = "contains:" + strings.ToUpper(strings.ReplaceAll(containsVal, ":", ""))
+			return conn, seq, content, nil
+		}
+		return 0, 0, "", fmt.Errorf("expect=bgp missing hex, prefix, or contains: %q", rule)
 	}
 
 	// action=notification:conn=N:seq=N:text=...
@@ -337,7 +344,7 @@ func (c *Checker) Expected(msg *Message) bool {
 			received = received[32:]
 		}
 
-		if strings.EqualFold(check, received) {
+		if matchRule(check, received) {
 			c.messages = append(c.messages[:i], c.messages[i+1:]...)
 			c.updateMessagesIfRequired()
 			return true
@@ -383,7 +390,7 @@ func (c *Checker) ExpectedOrKeepalive(msg *Message) (matched, silentAccept bool)
 			received = received[32:]
 		}
 
-		if strings.EqualFold(check, received) {
+		if matchRule(check, received) {
 			c.messages = append(c.messages[:i], c.messages[i+1:]...)
 			c.updateMessagesIfRequired()
 			return true, false
@@ -583,6 +590,20 @@ func (c *Checker) NextSigtermAction() bool {
 	c.updateMessagesIfRequired()
 
 	return true
+}
+
+// matchRule checks if received matches the check rule.
+// Rules starting with "prefix:" match if received starts with the suffix.
+// Rules starting with "contains:" match if received contains the suffix.
+// All other rules use exact case-insensitive comparison.
+func matchRule(check, received string) bool {
+	if after, ok := strings.CutPrefix(check, "prefix:"); ok {
+		return strings.HasPrefix(strings.ToUpper(received), strings.ToUpper(after))
+	}
+	if after, ok := strings.CutPrefix(check, "contains:"); ok {
+		return strings.Contains(strings.ToUpper(received), strings.ToUpper(after))
+	}
+	return strings.EqualFold(check, received)
 }
 
 // ExpectingClose returns true if the connection is expected to close

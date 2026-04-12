@@ -113,8 +113,11 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) {
 		}
 
 	case "bind":
-		if kv["value"] == "ipv6" {
+		v := kv["value"]
+		if v == "ipv6" {
 			config.IPv6 = true
+		} else if v != "" {
+			config.BindAddr = v
 		}
 
 	case "tcp_connections":
