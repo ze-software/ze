@@ -188,167 +188,29 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
 
 	schema := NewSchema()
 
-	// Load ze-hub module (environment)
-	hubEntry := loader.GetEntry("ze-hub-conf")
-	if hubEntry != nil {
-		for _, name := range sortedKeys(hubEntry.Dir) {
-			child := hubEntry.Dir[name]
-			node := yangToNode(child, name)
-			if node != nil {
-				schema.Define(name, node)
-			}
+	// Walk every loaded YANG module whose name ends with "-conf"
+	// and load its top-level data nodes into the schema. Config
+	// modules follow the ze naming convention: ze-<component>-conf.
+	// Augment-only modules (ze-graceful-restart, ze-role, ze-rib,
+	// etc.) lack the suffix and produce no top-level nodes because
+	// their augments attach to the target module's entry tree.
+	//
+	// Schema.Define merges same-named top-level containers so
+	// modules that define children under a shared parent (e.g.,
+	// ze-web-conf and ze-dns-conf both contribute to "environment")
+	// compose correctly regardless of iteration order.
+	modNames := loader.ModuleNames()
+	sort.Strings(modNames)
+	for _, modName := range modNames {
+		if !strings.HasSuffix(modName, "-conf") {
+			continue
 		}
-	}
-
-	// Load ze-system-conf module (system identity and archive)
-	systemEntry := loader.GetEntry("ze-system-conf")
-	if systemEntry != nil {
-		for _, name := range sortedKeys(systemEntry.Dir) {
-			child := systemEntry.Dir[name]
-			node := yangToNode(child, name)
-			if node != nil {
-				schema.Define(name, node)
-			}
+		entry := loader.GetEntry(modName)
+		if entry == nil {
+			continue
 		}
-	}
-
-	// Load ze-plugin-conf module
-	pluginEntry := loader.GetEntry("ze-plugin-conf")
-	if pluginEntry != nil {
-		for _, name := range sortedKeys(pluginEntry.Dir) {
-			child := pluginEntry.Dir[name]
-			node := yangToNode(child, name)
-			if node != nil {
-				schema.Define(name, node)
-			}
-		}
-	}
-
-	// Load ze-bgp-conf module (bgp, template)
-	bgpEntry := loader.GetEntry("ze-bgp-conf")
-	if bgpEntry != nil {
-		for _, name := range sortedKeys(bgpEntry.Dir) {
-			child := bgpEntry.Dir[name]
-			node := yangToNode(child, name)
-			if node != nil {
-				schema.Define(name, node)
-			}
-		}
-	}
-
-	// Load ze-authz-conf module (system > authorization)
-	authzEntry := loader.GetEntry("ze-authz-conf")
-	if authzEntry != nil {
-		for _, name := range sortedKeys(authzEntry.Dir) {
-			child := authzEntry.Dir[name]
-			node := yangToNode(child, name)
-			if node != nil {
-				schema.Define(name, node)
-			}
-		}
-	}
-
-	// Load ze-ssh-conf module (system > ssh)
-	sshEntry := loader.GetEntry("ze-ssh-conf")
-	if sshEntry != nil {
-		for _, name := range sortedKeys(sshEntry.Dir) {
-			child := sshEntry.Dir[name]
-			node := yangToNode(child, name)
-			if node != nil {
-				schema.Define(name, node)
-			}
-		}
-	}
-
-	// Load ze-web-conf module (environment > web)
-	webEntry := loader.GetEntry("ze-web-conf")
-	if webEntry != nil {
-		for _, name := range sortedKeys(webEntry.Dir) {
-			child := webEntry.Dir[name]
-			node := yangToNode(child, name)
-			if node != nil {
-				schema.Define(name, node)
-			}
-		}
-	}
-
-	// Load ze-mcp-conf module (environment > mcp)
-	mcpEntry := loader.GetEntry("ze-mcp-conf")
-	if mcpEntry != nil {
-		for _, name := range sortedKeys(mcpEntry.Dir) {
-			child := mcpEntry.Dir[name]
-			node := yangToNode(child, name)
-			if node != nil {
-				schema.Define(name, node)
-			}
-		}
-	}
-
-	// Load ze-api-conf module (environment > api-server)
-	apiEntry := loader.GetEntry("ze-api-conf")
-	if apiEntry != nil {
-		for _, name := range sortedKeys(apiEntry.Dir) {
-			child := apiEntry.Dir[name]
-			node := yangToNode(child, name)
-			if node != nil {
-				schema.Define(name, node)
-			}
-		}
-	}
-
-	// Load ze-dns-conf module (environment > dns)
-	dnsEntry := loader.GetEntry("ze-dns-conf")
-	if dnsEntry != nil {
-		for _, name := range sortedKeys(dnsEntry.Dir) {
-			child := dnsEntry.Dir[name]
-			node := yangToNode(child, name)
-			if node != nil {
-				schema.Define(name, node)
-			}
-		}
-	}
-
-	// Load ze-lg-conf module (environment > looking-glass)
-	lgEntry := loader.GetEntry("ze-lg-conf")
-	if lgEntry != nil {
-		for _, name := range sortedKeys(lgEntry.Dir) {
-			child := lgEntry.Dir[name]
-			node := yangToNode(child, name)
-			if node != nil {
-				schema.Define(name, node)
-			}
-		}
-	}
-
-	// Load ze-telemetry-conf module (telemetry)
-	telemetryEntry := loader.GetEntry("ze-telemetry-conf")
-	if telemetryEntry != nil {
-		for _, name := range sortedKeys(telemetryEntry.Dir) {
-			child := telemetryEntry.Dir[name]
-			node := yangToNode(child, name)
-			if node != nil {
-				schema.Define(name, node)
-			}
-		}
-	}
-
-	// Load ze-iface-conf module (interface)
-	ifaceEntry := loader.GetEntry("ze-iface-conf")
-	if ifaceEntry != nil {
-		for _, name := range sortedKeys(ifaceEntry.Dir) {
-			child := ifaceEntry.Dir[name]
-			node := yangToNode(child, name)
-			if node != nil {
-				schema.Define(name, node)
-			}
-		}
-	}
-
-	// Load ze-bfd-conf module (bfd)
-	bfdEntry := loader.GetEntry("ze-bfd-conf")
-	if bfdEntry != nil {
-		for _, name := range sortedKeys(bfdEntry.Dir) {
-			child := bfdEntry.Dir[name]
+		for _, name := range sortedKeys(entry.Dir) {
+			child := entry.Dir[name]
 			node := yangToNode(child, name)
 			if node != nil {
 				schema.Define(name, node)
@@ -495,6 +357,16 @@ func hasHiddenExtension(entry *gyang.Entry) bool {
 	return false
 }
 
+// hasListenerExtension checks if a YANG entry has the ze:listener extension.
+func hasListenerExtension(entry *gyang.Entry) bool {
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:listener" || strings.HasSuffix(ext.Keyword, ":listener") {
+			return true
+		}
+	}
+	return false
+}
+
 // hasEphemeralExtension checks if a YANG entry has the ze:ephemeral extension.
 func hasEphemeralExtension(entry *gyang.Entry) bool {
 	for _, ext := range entry.Exts {
@@ -636,6 +508,7 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	l.KeyName = entry.Key
 	l.Hidden = hasHiddenExtension(entry)
 	l.Ephemeral = hasEphemeralExtension(entry)
+	l.Listener = hasListenerExtension(entry)
 	l.Description = entry.Description
 
 	// Scan children for ze:display-key extension (keyless lists only).

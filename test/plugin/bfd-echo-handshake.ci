@@ -1,0 +1,283 @@
+# Test: BFD echo mode end-to-end over real UDP sockets.
+#
+# VALIDATES: spec-bfd-6b+6c -- a ze session with echo enabled
+#            reaches Up against a minimal Python BFD peer, fires
+#            echo TX on UDP 3785, receives reflected echoes, and
+#            records RTT histogram samples observable via the
+#            telemetry endpoint.
+# PREVENTS:  regression where the echo transport never binds 3785,
+#            echoTickLocked never fires, or the RTT histogram
+#            is never observed.
+
+option=env:var=ze.bfd.test-parallel:value=true
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=bfd-echo-helper.py:mode=755:terminator=EOF_HELPER
+#!/usr/bin/env python3
+"""Minimal BFD Control speaker + echo reflector on 127.0.0.2.
+
+Binds 127.0.0.2:3784 for BFD Control and 127.0.0.2:3785 for echo
+reflection. Drives a bare-minimum three-way handshake so ze's
+session reaches Up with RequiredMinEchoRxInterval advertised.
+"""
+import socket
+import struct
+import threading
+import sys
+import time
+
+CTRL_PORT = 3784
+ECHO_PORT = 3785
+LOCAL_IP = '127.0.0.2'
+
+STATE_DOWN = 1
+STATE_INIT = 2
+STATE_UP = 3
+
+MY_DISCR = 0xDEAD0001
+DETECT_MULT = 3
+DESIRED_TX = 50_000
+REQUIRED_RX = 50_000
+ECHO_RX = 50_000
+
+
+def build_ctrl(state, your_discr):
+    """Encode a 24-byte BFD Control packet."""
+    b0 = (1 << 5)  # version=1, diag=0
+    b1 = (state << 6)  # state in top 2 bits
+    length = 24
+    return struct.pack(
+        '!BBBBIIIII',
+        b0, b1, DETECT_MULT, length,
+        MY_DISCR, your_discr,
+        DESIRED_TX, REQUIRED_RX, ECHO_RX,
+    )
+
+
+def parse_ctrl(data):
+    """Extract (state, my_discr, your_discr) from a Control packet."""
+    if len(data) < 24:
+        return None
+    b1 = data[1]
+    state = (b1 >> 6) & 0x3
+    my_d = struct.unpack_from('!I', data, 4)[0]
+    your_d = struct.unpack_from('!I', data, 8)[0]
+    return state, my_d, your_d
+
+
+def ctrl_loop(sock, stop_event):
+    local_state = STATE_DOWN
+    remote_discr = 0
+    sock.settimeout(0.2)
+    while not stop_event.is_set():
+        try:
+            data, addr = sock.recvfrom(256)
+        except socket.timeout:
+            continue
+        parsed = parse_ctrl(data)
+        if parsed is None:
+            continue
+        remote_state, remote_my, _ = parsed
+        remote_discr = remote_my
+        if remote_state == STATE_DOWN:
+            if local_state == STATE_DOWN:
+                local_state = STATE_INIT
+        elif remote_state == STATE_INIT:
+            if local_state in (STATE_INIT, STATE_UP):
+                local_state = STATE_UP
+        elif remote_state == STATE_UP:
+            if local_state == STATE_INIT:
+                local_state = STATE_UP
+        pkt = build_ctrl(local_state, remote_discr)
+        sock.sendto(pkt, addr)
+
+
+def echo_loop(sock, stop_event):
+    sock.settimeout(0.2)
+    while not stop_event.is_set():
+        try:
+            data, addr = sock.recvfrom(256)
+        except socket.timeout:
+            continue
+        sock.sendto(data, addr)
+
+
+def main():
+    stop = threading.Event()
+    csock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    csock.bind((LOCAL_IP, CTRL_PORT))
+    esock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    esock.bind((LOCAL_IP, ECHO_PORT))
+    ct = threading.Thread(target=ctrl_loop, args=(csock, stop), daemon=True)
+    et = threading.Thread(target=echo_loop, args=(esock, stop), daemon=True)
+    ct.start()
+    et.start()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        stop.set()
+        ct.join(timeout=2)
+        et.join(timeout=2)
+        csock.close()
+        esock.close()
+
+
+if __name__ == '__main__':
+    main()
+EOF_HELPER
+
+tmpfs=bfd-echo-observe.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Observer: wait for echo metrics then shut down ze."""
+import time
+import urllib.request
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(2.0)
+
+    # Trigger Snapshot so metric gauges are populated.
+    dispatch(api, 'show bfd sessions')
+
+    body = ''
+    for _ in range(40):
+        try:
+            with urllib.request.urlopen('http://127.0.0.1:19274/metrics', timeout=1.0) as resp:
+                body = resp.read().decode('utf-8', 'replace')
+                if 'ze_bfd_echo_tx_packets_total' in body:
+                    for line in body.splitlines():
+                        if line.startswith('ze_bfd_echo_tx_packets_total'):
+                            parts = line.split()
+                            if len(parts) >= 2 and float(parts[1]) > 0:
+                                break
+                    else:
+                        time.sleep(0.25)
+                        continue
+                    break
+        except (OSError, ValueError):
+            pass
+        time.sleep(0.25)
+
+    if 'ze_bfd_echo_tx_packets_total' not in body:
+        runtime_fail('missing ze_bfd_echo_tx_packets_total in scrape')
+
+    has_tx = False
+    has_rtt = False
+    for line in body.splitlines():
+        if line.startswith('ze_bfd_echo_tx_packets_total') and not line.startswith('#'):
+            parts = line.split()
+            if len(parts) >= 2 and float(parts[1]) > 0:
+                has_tx = True
+        if line.startswith('ze_bfd_echo_rtt_us_bucket') and not line.startswith('#'):
+            has_rtt = True
+    if not has_tx:
+        runtime_fail('ze_bfd_echo_tx_packets_total is zero')
+    if not has_rtt:
+        runtime_fail('ze_bfd_echo_rtt_us histogram has no buckets')
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bfd-echo:terminator=EOF_CONF
+plugin {
+	external bfd-echo-observe {
+		run ./bfd-echo-observe.run
+		encoder json
+	}
+}
+
+environment {
+	log {
+		bfd debug
+	}
+}
+
+telemetry {
+	prometheus {
+		enabled true
+		server primary {
+			ip 127.0.0.1
+			port 19274
+		}
+	}
+}
+
+bfd {
+	enabled true;
+	profile echo-fast {
+		detect-multiplier 3
+		desired-min-tx-us 50000
+		required-min-rx-us 50000
+		echo {
+			desired-min-echo-tx-us 50000
+		}
+	}
+	single-hop-session 127.0.0.2 {
+		profile echo-fast
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process bfd-echo-observe {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=python3 ./bfd-echo-helper.py
+cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bfd-echo:timeout=20s
+expect=exit:code=0
