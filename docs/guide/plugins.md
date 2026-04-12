@@ -264,6 +264,64 @@ rewriting the attribute value directly.
 <!-- source: internal/component/bgp/plugins/filter_prefix/match.go -- partitionUpdate -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- extractLegacyNLRIOverride -->
 
+### AS-Path Filter (`bgp-filter-aspath`)
+
+`bgp-filter-aspath` matches the UPDATE's AS-path against ordered regex
+entries defined in `bgp { policy { as-path-list NAME { entry REGEX { action
+accept|reject; } } } }`. The AS-path is converted to a space-separated
+decimal string (e.g., `"65001 65002 65003"`) and each entry's regex is
+matched using Go's RE2 engine (linear time, inherently ReDoS-safe). First
+match wins; no match is implicit deny.
+
+Chain references: `bgp-filter-aspath:NAME`, `as-path-list:NAME`, or bare
+`NAME`. Config authors should use `[0-9]` instead of `\d` in regex strings
+because ze's config parser interprets backslash as an escape character.
+
+<!-- source: internal/component/bgp/plugins/filter_aspath/filter_aspath.go -- handleFilterUpdate -->
+<!-- source: internal/component/bgp/plugins/filter_aspath/match.go -- evaluateASPath, extractASPathField -->
+
+### Community Match Filter (`bgp-filter-community-match`)
+
+`bgp-filter-community-match` checks for presence of a specific community
+value in the route's standard, large, or extended community attributes.
+Defined in `bgp { policy { community-match NAME { entry COMMUNITY { type
+standard|large|extended; action accept|reject; } } } }`. First match wins;
+no match is implicit deny.
+
+Separate from the tag/strip community plugin (`bgp-filter-community`) because
+intent differs: this plugin filters (accept/reject), that one modifies
+(tag/strip). They can coexist in the same deployment.
+
+Chain references: `bgp-filter-community-match:NAME` or `community-match:NAME`.
+
+Well-known community names (`no-export`, `no-advertise`, `blackhole`, etc.)
+work as match values because the filter text format renders them as names.
+
+<!-- source: internal/component/bgp/plugins/filter_community_match/filter_community_match.go -- handleFilterUpdate -->
+<!-- source: internal/component/bgp/plugins/filter_community_match/match.go -- evaluateCommunities -->
+
+### Route Attribute Modifier (`bgp-filter-modify`)
+
+`bgp-filter-modify` unconditionally sets declared attributes on every route
+that reaches it in the filter chain. Defined in `bgp { policy { modify NAME {
+set { local-preference 200; med 50; origin igp; next-hop 10.0.0.1;
+as-path-prepend 3; } } } }`. Only present leaves are applied; undeclared
+attributes pass through unchanged.
+
+For conditional modification, compose with match filters earlier in the chain:
+`filter import [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ]`.
+
+Chain references: `bgp-filter-modify:NAME` or `modify:NAME`.
+
+The plugin returns `action=modify` with a pre-built text delta. The engine
+handles wire-level rewriting via `textDeltaToModOps` and
+`buildModifiedPayload`. AS-path prepend uses a dedicated `AttrModPrepend`
+handler that inserts N copies of the peer's local AS before the existing path.
+
+<!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate -->
+<!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps -->
+<!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- aspathHandler -->
+
 ### NLRI Encoders/Decoders
 
 NLRI plugins register address family support at init time via `family.MustRegister(afi, safi, afiStr, safiStr)`. The four base families (`ipv4/unicast`, `ipv6/unicast`, `ipv4/multicast`, `ipv6/multicast`) live in `internal/core/family/registry.go` itself; everything else is owned by its plugin's `types.go`. Plugins are loaded automatically when the corresponding family is configured.

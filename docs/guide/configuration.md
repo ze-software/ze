@@ -302,6 +302,102 @@ Chain reference forms accepted by the engine:
 <!-- source: internal/component/bgp/plugins/filter_prefix/config.go -- parsePrefixLists -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, per-prefix partition modify path -->
 
+### AS-Path Filter
+
+Named AS-path regex filters live under `bgp { policy { as-path-list NAME { ... } } }`.
+Each list is an ordered sequence of regex entries with accept/reject action.
+The AS-path is converted to a space-separated decimal string and matched
+using Go RE2 (linear time, inherently ReDoS-safe). Use `[0-9]` instead of
+`\d` in regex strings (ze's config parser interprets backslash as escape).
+
+```
+bgp {
+    policy {
+        as-path-list ALLOW-PEER {
+            entry "^65001" { action accept }
+        }
+        as-path-list TRANSIT {
+            entry "^[0-9]+( [0-9]+)+" { action accept }
+        }
+    }
+
+    peer customer-a {
+        filter { import [ as-path-list:ALLOW-PEER ] }
+    }
+}
+```
+
+<!-- source: internal/component/bgp/plugins/filter_aspath/schema/ze-filter-aspath.yang -- as-path-list YANG container -->
+<!-- source: internal/component/bgp/plugins/filter_aspath/config.go -- parseAsPathLists -->
+
+### Community Match Filter
+
+Named community-match filters live under `bgp { policy { community-match NAME { ... } } }`.
+Each entry checks for presence of a specific community value in the route's
+standard, large, or extended community attributes.
+
+```
+bgp {
+    policy {
+        community-match BLOCK-NO-EXPORT {
+            entry no-export { type standard; action reject }
+        }
+        community-match ALLOW-CUSTOMER {
+            entry 65001:100 { type standard; action accept }
+            entry 65001:100:200 { type large; action accept }
+        }
+    }
+
+    peer transit-a {
+        filter { import [ community-match:BLOCK-NO-EXPORT ] }
+    }
+}
+```
+
+<!-- source: internal/component/bgp/plugins/filter_community_match/schema/ze-filter-community-match.yang -- community-match YANG container -->
+<!-- source: internal/component/bgp/plugins/filter_community_match/config.go -- parseCommunityLists -->
+
+### Route Attribute Modifier
+
+Named modifier definitions live under `bgp { policy { modify NAME { set { ... } } } }`.
+Only present leaves are applied; undeclared attributes pass through unchanged.
+For conditional modification, compose with match filters earlier in the chain.
+
+```
+bgp {
+    policy {
+        modify PREFER-LOCAL {
+            set {
+                local-preference 200
+            }
+        }
+        modify PREPEND-3 {
+            set {
+                as-path-prepend 3
+            }
+        }
+    }
+
+    peer transit-a {
+        filter {
+            import [ prefix-list:CUSTOMERS modify:PREFER-LOCAL ]
+            export [ modify:PREPEND-3 ]
+        }
+    }
+}
+```
+
+| Leaf | Type | Range | Purpose |
+|------|------|-------|---------|
+| `local-preference` | uint32 | 0-4294967295 | Set LOCAL_PREF |
+| `med` | uint32 | 0-4294967295 | Set MED |
+| `origin` | enum | igp, egp, incomplete | Set ORIGIN |
+| `next-hop` | IP address | IPv4 | Set NEXT_HOP |
+| `as-path-prepend` | uint8 | 1-32 | Prepend local AS N times |
+
+<!-- source: internal/component/bgp/plugins/filter_modify/schema/ze-filter-modify.yang -- modify YANG container -->
+<!-- source: internal/component/bgp/plugins/filter_modify/config.go -- parseModifyDefs -->
+
 ## Static Routes
 
 Routes can be configured directly per peer:

@@ -28,7 +28,10 @@ import (
 //
 // Returns the number of bytes written to dst, or an error.
 func RewriteASPath(dst, payload []byte, localASN uint32, srcASN4, dstASN4 bool) (int, error) {
-	return rewriteASPathPrepend(dst, payload, []uint32{localASN}, srcASN4, dstASN4)
+	// Stack-allocated single-element array avoids heap allocation on the hot path.
+	// The EBGPWire cache amortizes this, but the fast path is free.
+	asns := [1]uint32{localASN}
+	return rewriteASPathPrepend(dst, payload, asns[:], srcASN4, dstASN4)
 }
 
 // RewriteASPathDual prepends two ASNs to AS_PATH: primaryASN ends up closest
@@ -45,7 +48,8 @@ func RewriteASPathDual(dst, payload []byte, primaryASN, secondaryASN uint32, src
 	// asns[0] is inserted first (innermost), asns[len-1] last (outermost closest to peer).
 	// Prepend order below iterates the slice and calls Prepend one by one, so the
 	// last element prepended ends up in front. Final order: [primaryASN, secondaryASN, ...].
-	return rewriteASPathPrepend(dst, payload, []uint32{secondaryASN, primaryASN}, srcASN4, dstASN4)
+	asns := [2]uint32{secondaryASN, primaryASN}
+	return rewriteASPathPrepend(dst, payload, asns[:], srcASN4, dstASN4)
 }
 
 // rewriteASPathPrepend parses AS_PATH from payload, prepends asns (in order,

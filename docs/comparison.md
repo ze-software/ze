@@ -75,24 +75,30 @@ via the `redistribution {}` config block using `<plugin>:<filter>` references.
 Filters chain as piped transforms (accept/reject/modify) with delta-only output.
 RFC-mandated checks run as default filters that can be selectively overridden.
 Built-in filter plugins (shipped with ze) include `bgp-filter-prefix` for
-prefix-list matching with ge/le bounds and first-match-wins semantics,
-`bgp-filter-community` for standard / large / extended community tag/strip,
-and `bgp-role` for RFC 9234 BGP roles enforcement. Each is a regular plugin
--- their source is a full reference for writing custom filter plugins.
+prefix-list matching with ge/le bounds, `bgp-filter-aspath` for AS-path regex
+filtering, `bgp-filter-community-match` for community presence matching
+(standard/large/extended), `bgp-filter-modify` for route attribute modification
+(local-preference, MED, origin, next-hop, AS-path prepend),
+`bgp-filter-community` for community tag/strip, and `bgp-role` for RFC 9234
+roles enforcement. Filters compose in ordered chains:
+`filter import [ prefix-list:X as-path-list:Y modify:Z ]`.
 <!-- source: internal/component/bgp/plugins/filter_prefix/ -- bgp-filter-prefix cmd-4 -->
+<!-- source: internal/component/bgp/plugins/filter_aspath/ -- bgp-filter-aspath cmd-5 -->
+<!-- source: internal/component/bgp/plugins/filter_community_match/ -- bgp-filter-community-match cmd-6 -->
+<!-- source: internal/component/bgp/plugins/filter_modify/ -- bgp-filter-modify cmd-7 -->
 
 | Feature | Ze | rustbgpd | BIRD 3 | bio-rd | RustyBGP | FRR | GoBGP | ExaBGP | OpenBGPd | BIRD 2 | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Prefix matching (ge/le) | Yes | Yes | Yes | Yes | Partial | Yes | Yes | No | Yes | Yes | Yes |
-| AS-path regex | No | Yes | Yes | No | No | Yes | Yes | No | Yes | Yes | Yes |
+| AS-path regex | Yes | Yes | Yes | No | No | Yes | Yes | No | Yes | Yes | Yes |
 | Standard communities | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Extended communities | Yes | Yes | Yes | No | No | Yes | Yes | Yes | Yes | Yes | Yes |
 | Large communities (RFC 8092) | Yes | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Yes | Yes |
 | Community add/remove/replace | API | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
-| MED manipulation | API | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
-| LOCAL_PREF set | API | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
-| AS-path prepend | API | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
-| Next-hop set/self | API | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
+| MED manipulation | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
+| LOCAL_PREF set | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
+| AS-path prepend | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
+| Next-hop set/self | Yes | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
 | RPKI validation match | Yes | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
 | Neighbor/peer matching | Yes | Yes | Yes | No | No | Yes | Yes | No | Yes | Yes | Yes |
 | Named policy definitions | Plugin | Yes | Yes | Yes | Partial | Yes | Yes | No | Yes | Yes | Yes |
