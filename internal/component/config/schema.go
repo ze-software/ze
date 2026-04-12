@@ -164,6 +164,7 @@ type ListNode struct {
 	Suggest     [][]string // ze:suggest fields: shown in creation dialog but not mandatory
 	Hidden      bool       // ze:hidden -- excluded from config display output
 	Ephemeral   bool       // ze:ephemeral -- present in schema, not persisted to config file
+	Listener    bool       // ze:listener -- marks list as a network listener for port conflict detection
 	Description string     // YANG description for tooltips
 	children    map[string]Node
 	order       []string

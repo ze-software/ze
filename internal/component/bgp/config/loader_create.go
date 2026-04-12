@@ -97,7 +97,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	}
 
 	// Validate listener port conflicts across all services.
-	listeners := config.CollectListeners(tree)
+	listeners := config.CollectListeners(tree, pruneSchema)
 	if err := config.ValidateListenerConflicts(listeners); err != nil {
 		return nil, fmt.Errorf("config validation: %w", err)
 	}

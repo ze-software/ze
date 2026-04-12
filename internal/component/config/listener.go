@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 )
 
 // Protocol names for listener endpoints. Endpoints on different protocols
@@ -26,40 +27,123 @@ type ListenerEndpoint struct {
 	Port     uint16 // Listening port number
 }
 
-// listenerService defines a config tree path to a service with ze:listener server list entries.
+// listenerService defines a config tree path to a service with ze:listener entries.
+// Discovered dynamically from the YANG schema by DiscoverListenerServices.
 type listenerService struct {
-	name          string   // Human-readable name for error messages
-	protocol      string   // ProtocolTCP or ProtocolUDP
-	containers    []string // Path from tree root to the service container
-	alwaysEnabled bool     // True if service has no enabled leaf (always collect)
+	name           string   // Human-readable name for error messages
+	protocol       string   // ProtocolTCP or ProtocolUDP
+	containers     []string // Path from tree root to the service container (parent of the ze:listener list)
+	listName       string   // Name of the ze:listener list itself (e.g. "server", "wireguard")
+	serverList     bool     // True if the list uses zt:listener (ip+port children); false for flat listen-port
+	hasEnabledLeaf bool     // True if the schema parent container has an "enabled" child
 }
 
-// knownListenerServices enumerates all services that use ze:listener server lists.
-// Derived from YANG modules: ze-web-conf, ze-ssh-conf, ze-mcp-conf, ze-lg-conf,
-// ze-telemetry-conf, ze-plugin-conf, ze-api-conf. Every service here is TCP;
-// UDP services (wireguard) are collected by dedicated helpers because their
-// config shape does not fit the `server` sub-list pattern.
-var knownListenerServices = []listenerService{
-	{name: "web", protocol: ProtocolTCP, containers: []string{"environment", "web"}},
-	{name: "ssh", protocol: ProtocolTCP, containers: []string{"environment", "ssh"}},
-	{name: "mcp", protocol: ProtocolTCP, containers: []string{"environment", "mcp"}},
-	{name: "looking-glass", protocol: ProtocolTCP, containers: []string{"environment", "looking-glass"}},
-	{name: "prometheus", protocol: ProtocolTCP, containers: []string{"telemetry", "prometheus"}},
-	{name: "plugin-hub", protocol: ProtocolTCP, containers: []string{"plugin", "hub"}, alwaysEnabled: true},
-	{name: "api-server-rest", protocol: ProtocolTCP, containers: []string{"environment", "api-server", "rest"}},
-	{name: "api-server-grpc", protocol: ProtocolTCP, containers: []string{"environment", "api-server", "grpc"}},
+// DiscoverListenerServices walks the schema tree and returns all services
+// marked with ze:listener. The returned slice replaces the former hardcoded
+// knownListenerServices list. Each entry carries enough information for
+// CollectListeners to navigate the config tree and extract endpoints.
+//
+// Naming: path components between the root and the ze:listener list are joined
+// with "-", dropping "environment" and "interface" prefixes (common top-level
+// groupings) and "server" suffixes (conventional list names). This produces
+// names like "web", "ssh", "plugin-hub", "api-server-rest", "wireguard".
+//
+// Protocol: lists whose schema children include both "ip" and "port" (from the
+// zt:listener grouping) are TCP. Lists with a "listen-port" child are UDP.
+func DiscoverListenerServices(schema *Schema) []listenerService {
+	var services []listenerService
+	walkListenerNodes(schema.root, nil, &services)
+	return services
+}
+
+// walkListenerNodes recursively walks the schema tree, collecting ze:listener lists.
+// parentNode is the schema node that contains the children being iterated.
+func walkListenerNodes(parentNode Node, path []string, services *[]listenerService) {
+	cp, ok := parentNode.(childProvider)
+	if !ok {
+		return
+	}
+	for _, name := range cp.Children() {
+		child := cp.Get(name)
+		childPath := append(append([]string(nil), path...), name)
+
+		if ln, ok := child.(*ListNode); ok && ln.Listener {
+			svc := buildListenerService(ln, childPath, parentNode)
+			*services = append(*services, svc)
+		}
+
+		// Recurse into containers and lists.
+		walkListenerNodes(child, childPath, services)
+	}
+}
+
+// buildListenerService constructs a listenerService from a ze:listener list
+// node, its full schema path, and the schema parent node (used to check for
+// an "enabled" leaf that gates collection).
+func buildListenerService(ln *ListNode, fullPath []string, parentNode Node) listenerService {
+	listName := fullPath[len(fullPath)-1]
+	containers := fullPath[:len(fullPath)-1]
+
+	// Determine protocol from list children.
+	protocol := ProtocolTCP
+	serverList := ln.Has("ip") && ln.Has("port")
+	if !serverList && ln.Has("listen-port") {
+		protocol = ProtocolUDP
+	}
+
+	// Derive human-readable name: drop well-known top-level grouping
+	// containers (environment, telemetry, interface) and the list name
+	// if it is the conventional "server". Other top-level containers
+	// like "plugin" are kept because they carry meaning (e.g. "plugin-hub").
+	var nameParts []string
+	for i, p := range containers {
+		if i == 0 && (p == "environment" || p == "interface" || p == "telemetry") {
+			continue
+		}
+		nameParts = append(nameParts, p)
+	}
+	if listName != "server" {
+		nameParts = append(nameParts, listName)
+	}
+	name := strings.Join(nameParts, "-")
+	if name == "" {
+		name = listName
+	}
+
+	// Check whether the schema parent container defines an "enabled" leaf.
+	// Services with an enabled leaf require explicit enabled=true in config
+	// (YANG default is false). Services without one are always collected.
+	hasEnabled := false
+	if pcp, ok := parentNode.(childProvider); ok {
+		if child := pcp.Get("enabled"); child != nil {
+			if _, isLeaf := child.(*LeafNode); isLeaf {
+				hasEnabled = true
+			}
+		}
+	}
+
+	return listenerService{
+		name:           name,
+		protocol:       protocol,
+		containers:     containers,
+		listName:       listName,
+		serverList:     serverList,
+		hasEnabledLeaf: hasEnabled,
+	}
 }
 
 // CollectListeners walks the config tree and collects all listener endpoints
-// from services with ze:listener server lists. Services with enabled=false are skipped.
+// from services marked with ze:listener in the YANG schema. Services with
+// enabled=false are skipped.
 //
 // Note: YANG refine defaults (ip/port) are not present in the raw Tree.
 // Conflict detection only covers endpoints with explicitly configured ip+port.
 // Services relying solely on YANG defaults with empty server entries are not checked.
-func CollectListeners(tree *Tree) []ListenerEndpoint {
+func CollectListeners(tree *Tree, schema *Schema) []ListenerEndpoint {
+	services := DiscoverListenerServices(schema)
 	var endpoints []ListenerEndpoint
 
-	for _, svc := range knownListenerServices {
+	for _, svc := range services {
 		container := tree
 		for _, name := range svc.containers {
 			container = container.GetContainer(name)
@@ -72,62 +156,46 @@ func CollectListeners(tree *Tree) []ListenerEndpoint {
 		}
 
 		// Check enabled leaf -- YANG default is false, so absent = disabled.
-		// plugin-hub has no enabled leaf (alwaysEnabled).
-		if !svc.alwaysEnabled {
+		// Services without an enabled leaf in the schema (e.g. plugin-hub)
+		// are always collected.
+		if svc.hasEnabledLeaf {
 			v, ok := container.Get("enabled")
 			if !ok || v != configTrue {
 				continue
 			}
 		}
 
-		// Walk server list entries.
-		for _, entry := range container.GetListOrdered("server") {
-			ep := parseListenerEntry(svc.name, svc.protocol, entry.Key, entry.Value)
-			if ep != nil {
-				endpoints = append(endpoints, *ep)
+		if svc.serverList {
+			// Standard shape: list server { ip ...; port ...; }
+			for _, entry := range container.GetListOrdered(svc.listName) {
+				ep := parseListenerEntry(svc.name, svc.protocol, entry.Key, entry.Value)
+				if ep != nil {
+					endpoints = append(endpoints, *ep)
+				}
+			}
+		} else {
+			// Flat shape: list entries with a listen-port leaf (e.g. wireguard).
+			// IP is 0.0.0.0 because the kernel binds on all addresses.
+			listEntries := container.GetList(svc.listName)
+			for entryName, entry := range listEntries {
+				portStr, ok := entry.Get("listen-port")
+				if !ok || portStr == "" {
+					continue
+				}
+				port, err := strconv.ParseUint(portStr, 10, 16)
+				if err != nil || port == 0 {
+					continue
+				}
+				endpoints = append(endpoints, ListenerEndpoint{
+					Service:  svc.name + " " + entryName,
+					Protocol: svc.protocol,
+					IP:       net.IPv4zero,
+					Port:     uint16(port), //nolint:gosec // ParseUint bitSize=16 bounds value
+				})
 			}
 		}
 	}
 
-	endpoints = append(endpoints, collectWireguardListeners(tree)...)
-
-	return endpoints
-}
-
-// collectWireguardListeners walks interface.wireguard list entries and
-// emits a UDP listener endpoint for each entry that has a listen-port set.
-// Wireguard uses a flat `leaf listen-port` directly on the list entry
-// rather than a nested `server` sub-list, so it does not fit the
-// knownListenerServices walker and needs its own collector. The IP is
-// always 0.0.0.0 because the kernel binds on both families unconditionally;
-// a cross-family clash detector would need a separate "binds all families"
-// signal which is out of scope here.
-func collectWireguardListeners(tree *Tree) []ListenerEndpoint {
-	ifaceC := tree.GetContainer("interface")
-	if ifaceC == nil {
-		return nil
-	}
-	wgList := ifaceC.GetList("wireguard")
-	if len(wgList) == 0 {
-		return nil
-	}
-	var endpoints []ListenerEndpoint
-	for name, entry := range wgList {
-		portStr, ok := entry.Get("listen-port")
-		if !ok || portStr == "" {
-			continue
-		}
-		port, err := strconv.ParseUint(portStr, 10, 16)
-		if err != nil || port == 0 {
-			continue
-		}
-		endpoints = append(endpoints, ListenerEndpoint{
-			Service:  "wireguard " + name,
-			Protocol: ProtocolUDP,
-			IP:       net.IPv4zero,
-			Port:     uint16(port), //nolint:gosec // ParseUint bitSize=16 bounds value
-		})
-	}
 	return endpoints
 }
 

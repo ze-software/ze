@@ -139,10 +139,19 @@ func TestValidateListenerConflicts_NoListeners(t *testing.T) {
 	assert.NoError(t, ValidateListenerConflicts([]ListenerEndpoint{}))
 }
 
+// testSchema returns the YANG schema for use in listener tests.
+func listenerTestSchema(t *testing.T) *Schema {
+	t.Helper()
+	schema, err := YANGSchema()
+	require.NoError(t, err, "YANGSchema must load for listener tests")
+	return schema
+}
+
 // TestCollectListeners verifies tree walking collects enabled services and skips disabled.
-// VALIDATES: CollectListeners walks known service paths.
+// VALIDATES: CollectListeners walks ze:listener-marked service paths.
 // PREVENTS: Enabled/disabled logic broken, endpoints silently missed.
 func TestCollectListeners(t *testing.T) {
+	schema := listenerTestSchema(t)
 	tree := NewTree()
 
 	// Web: enabled true, one server entry.
@@ -174,7 +183,7 @@ func TestCollectListeners(t *testing.T) {
 
 	tree.SetContainer("environment", env)
 
-	// Plugin hub: no enabled leaf but alwaysEnabled.
+	// Plugin hub: no enabled leaf in YANG -- always collected.
 	plug := NewTree()
 	hub := NewTree()
 	hubSrv := NewTree()
@@ -184,7 +193,7 @@ func TestCollectListeners(t *testing.T) {
 	plug.SetContainer("hub", hub)
 	tree.SetContainer("plugin", plug)
 
-	endpoints := CollectListeners(tree)
+	endpoints := CollectListeners(tree, schema)
 
 	// Should have web + plugin-hub, NOT ssh or mcp.
 	require.Len(t, endpoints, 2)
@@ -196,18 +205,20 @@ func TestCollectListeners(t *testing.T) {
 
 // TestCollectListeners_EmptyTree verifies empty tree returns nil.
 func TestCollectListeners_EmptyTree(t *testing.T) {
+	schema := listenerTestSchema(t)
 	tree := NewTree()
-	assert.Nil(t, CollectListeners(tree))
+	assert.Nil(t, CollectListeners(tree, schema))
 }
 
 // TestCollectListeners_APIServerRest verifies api-server.rest listeners are
-// picked up by CollectListeners after the chunk-2 container->list migration.
+// picked up by CollectListeners via the dynamic YANG schema walk.
 //
 // VALIDATES: spec-named-service-listeners AC-16 (CollectListeners covers the
 // api-server transports so REST + gRPC mis-config is caught at parse time).
 // PREVENTS: Regression where api-server entries sit outside the conflict
 // inventory and collide silently.
 func TestCollectListeners_APIServerRest(t *testing.T) {
+	schema := listenerTestSchema(t)
 	tree := NewTree()
 	env := NewTree()
 	apiServer := NewTree()
@@ -221,7 +232,7 @@ func TestCollectListeners_APIServerRest(t *testing.T) {
 	env.SetContainer("api-server", apiServer)
 	tree.SetContainer("environment", env)
 
-	endpoints := CollectListeners(tree)
+	endpoints := CollectListeners(tree, schema)
 	require.Len(t, endpoints, 1)
 	assert.Equal(t, "api-server-rest main", endpoints[0].Service)
 	assert.Equal(t, uint16(8081), endpoints[0].Port)
@@ -230,6 +241,7 @@ func TestCollectListeners_APIServerRest(t *testing.T) {
 // TestCollectListeners_APIServerGrpc mirrors the REST case for the gRPC
 // transport.
 func TestCollectListeners_APIServerGrpc(t *testing.T) {
+	schema := listenerTestSchema(t)
 	tree := NewTree()
 	env := NewTree()
 	apiServer := NewTree()
@@ -243,7 +255,7 @@ func TestCollectListeners_APIServerGrpc(t *testing.T) {
 	env.SetContainer("api-server", apiServer)
 	tree.SetContainer("environment", env)
 
-	endpoints := CollectListeners(tree)
+	endpoints := CollectListeners(tree, schema)
 	require.Len(t, endpoints, 1)
 	assert.Equal(t, "api-server-grpc main", endpoints[0].Service)
 	assert.Equal(t, uint16(50051), endpoints[0].Port)
@@ -255,6 +267,7 @@ func TestCollectListeners_APIServerGrpc(t *testing.T) {
 // VALIDATES: spec-named-service-listeners AC-11 (overlapping api-server
 // transports rejected at parse time).
 func TestValidateListenerConflicts_APIRestGrpc(t *testing.T) {
+	schema := listenerTestSchema(t)
 	tree := NewTree()
 	env := NewTree()
 	apiServer := NewTree()
@@ -278,7 +291,7 @@ func TestValidateListenerConflicts_APIRestGrpc(t *testing.T) {
 	env.SetContainer("api-server", apiServer)
 	tree.SetContainer("environment", env)
 
-	endpoints := CollectListeners(tree)
+	endpoints := CollectListeners(tree, schema)
 	require.Len(t, endpoints, 2, "both transports must appear in the inventory")
 
 	err := ValidateListenerConflicts(endpoints)
@@ -349,14 +362,14 @@ func TestListenerProtocolDistinction(t *testing.T) {
 	assert.NoError(t, err, "TCP:443 and UDP:443 on the same IP must not clash")
 }
 
-// TestCollectWireguardListeners verifies that collectWireguardListeners
-// walks interface.wireguard entries with a listen-port and emits one UDP
-// endpoint per entry with IP=0.0.0.0.
+// TestCollectListeners_Wireguard verifies that CollectListeners discovers
+// wireguard entries via the dynamic schema walk and emits one UDP endpoint
+// per entry with IP=0.0.0.0.
 //
-// VALIDATES: per-wireguard listener endpoints are collected with the right
-// service name, protocol, and wildcard IP.
+// VALIDATES: AC-2 (spec-listener-dynamic-walk) -- wireguard flat-leaf shape handled.
 // PREVENTS: silent drop of wireguard listen-port in conflict detection.
-func TestCollectWireguardListeners(t *testing.T) {
+func TestCollectListeners_Wireguard(t *testing.T) {
+	schema := listenerTestSchema(t)
 	tree := NewTree()
 	ifaceC := NewTree()
 	wg0 := NewTree()
@@ -367,7 +380,7 @@ func TestCollectWireguardListeners(t *testing.T) {
 	ifaceC.AddListEntry("wireguard", "wg1", wg1)
 	tree.SetContainer("interface", ifaceC)
 
-	endpoints := collectWireguardListeners(tree)
+	endpoints := CollectListeners(tree, schema)
 	require.Len(t, endpoints, 2)
 
 	byName := map[string]ListenerEndpoint{}
@@ -382,14 +395,15 @@ func TestCollectWireguardListeners(t *testing.T) {
 	assert.Equal(t, uint16(51821), byName["wireguard wg1"].Port)
 }
 
-// TestCollectWireguardListenersNoPort verifies that a wireguard entry
+// TestCollectListeners_WireguardNoPort verifies that a wireguard entry
 // without a listen-port is skipped (kernel picks an ephemeral port, nothing
 // to conflict with).
 //
 // VALIDATES: wireguards with auto-assigned ports do not produce spurious
 // endpoints or errors in the conflict detector.
 // PREVENTS: accidental conflict on port 0 or false positive "missing port".
-func TestCollectWireguardListenersNoPort(t *testing.T) {
+func TestCollectListeners_WireguardNoPort(t *testing.T) {
+	schema := listenerTestSchema(t)
 	tree := NewTree()
 	ifaceC := NewTree()
 	wg0 := NewTree()
@@ -397,8 +411,87 @@ func TestCollectWireguardListenersNoPort(t *testing.T) {
 	ifaceC.AddListEntry("wireguard", "wg0", wg0)
 	tree.SetContainer("interface", ifaceC)
 
-	endpoints := collectWireguardListeners(tree)
+	endpoints := CollectListeners(tree, schema)
 	assert.Empty(t, endpoints)
+}
+
+// TestDynamicListenerWalk verifies that DiscoverListenerServices finds all
+// ze:listener-marked lists in the YANG schema, including all 8 TCP services
+// and the wireguard UDP service.
+//
+// VALIDATES: AC-1 (spec-listener-dynamic-walk) -- all existing services discovered.
+// VALIDATES: AC-4 (spec-listener-dynamic-walk) -- knownListenerServices deleted.
+// PREVENTS: dynamic walker misses a service that the hardcoded list had.
+func TestDynamicListenerWalk(t *testing.T) {
+	schema := listenerTestSchema(t)
+	services := DiscoverListenerServices(schema)
+
+	// Build a name->service map for assertions.
+	byName := map[string]listenerService{}
+	for _, svc := range services {
+		byName[svc.name] = svc
+	}
+
+	// All 8 TCP services must be discovered.
+	for _, name := range []string{"web", "ssh", "mcp", "looking-glass", "prometheus", "plugin-hub", "api-server-rest", "api-server-grpc"} {
+		svc, ok := byName[name]
+		require.True(t, ok, "service %q must be discovered", name)
+		assert.Equal(t, ProtocolTCP, svc.protocol, "service %q must be TCP", name)
+		assert.True(t, svc.serverList, "service %q must use server sub-list", name)
+	}
+
+	// Wireguard must be discovered as UDP with flat shape.
+	wg, ok := byName["wireguard"]
+	require.True(t, ok, "wireguard must be discovered")
+	assert.Equal(t, ProtocolUDP, wg.protocol)
+	assert.False(t, wg.serverList, "wireguard uses flat listen-port, not server sub-list")
+
+	// Plugin-hub has no enabled leaf in YANG.
+	assert.False(t, byName["plugin-hub"].hasEnabledLeaf, "plugin-hub has no enabled leaf")
+
+	// Web has an enabled leaf in YANG.
+	assert.True(t, byName["web"].hasEnabledLeaf, "web has an enabled leaf")
+}
+
+// TestDynamicListenerNewService verifies that a synthetic ze:listener list
+// added to the schema is auto-discovered without any Go code change.
+//
+// VALIDATES: AC-3 (spec-listener-dynamic-walk) -- new YANG ze:listener auto-discovered.
+// PREVENTS: dynamic walker only finding hardcoded services.
+func TestDynamicListenerNewService(t *testing.T) {
+	schema := listenerTestSchema(t)
+
+	// Inject a synthetic listener list into the schema under "test-service".
+	testContainer := &ContainerNode{
+		children: map[string]Node{
+			"enabled": &LeafNode{Type: TypeBool, Default: "false"},
+			"server": &ListNode{
+				KeyType:  TypeString,
+				KeyName:  "name",
+				Listener: true,
+				children: map[string]Node{
+					"name": &LeafNode{Type: TypeString},
+					"ip":   &LeafNode{Type: TypeIP},
+					"port": &LeafNode{Type: TypeUint16},
+				},
+				order: []string{"name", "ip", "port"},
+			},
+		},
+		order: []string{"enabled", "server"},
+	}
+	schema.Define("test-svc", testContainer)
+
+	services := DiscoverListenerServices(schema)
+	byName := map[string]listenerService{}
+	for _, svc := range services {
+		byName[svc.name] = svc
+	}
+
+	svc, ok := byName["test-svc"]
+	require.True(t, ok, "synthetic test-svc must be discovered without Go code change")
+	assert.Equal(t, ProtocolTCP, svc.protocol)
+	assert.True(t, svc.serverList)
+	assert.True(t, svc.hasEnabledLeaf)
 }
 
 // TestValidateListenerConflicts_WireguardDuplicatePort verifies AC-18: two
