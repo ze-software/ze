@@ -149,7 +149,8 @@ ze --plugins
 | `bgp-hostname` | FQDN capability | -- |
 | `bgp-softver` | Software version capability | -- |
 | `bgp-llnh` | Link-local next-hop (RFC 2545) | -- |
-<!-- source: internal/component/bgp/plugins/gr/register.go; internal/component/bgp/plugins/rpki/register.go; internal/component/bgp/plugins/rpki_decorator/register.go; internal/component/bgp/plugins/route_refresh/register.go; internal/component/bgp/plugins/role/register.go; internal/component/bgp/plugins/hostname/register.go; internal/component/bgp/plugins/softver/register.go; internal/component/bgp/plugins/llnh/register.go -->
+| `bgp-bmp` | BMP receiver + sender (RFC 7854) | `receive [ state update ]` |
+<!-- source: internal/component/bgp/plugins/gr/register.go; internal/component/bgp/plugins/rpki/register.go; internal/component/bgp/plugins/rpki_decorator/register.go; internal/component/bgp/plugins/route_refresh/register.go; internal/component/bgp/plugins/role/register.go; internal/component/bgp/plugins/hostname/register.go; internal/component/bgp/plugins/softver/register.go; internal/component/bgp/plugins/llnh/register.go; internal/component/bgp/plugins/bmp/register.go -->
 
 ### Infrastructure
 

@@ -745,6 +745,15 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `healthcheck reset <name>` | write | Withdraw route, reset FSM to INIT, immediate re-check. Error if DISABLED. |
 <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand -->
 
+### BMP (RFC 7854)
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `bmp sessions` | read-only | Show active BMP receiver sessions (router address, sysName, uptime) |
+| `bmp peers` | read-only | Show monitored BGP peers (AS, BGP ID, up/down status) |
+| `bmp collectors` | read-only | Show BMP sender collector connection status |
+<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- handleCommand -->
+
 ### Commit (Atomic Updates)
 
 | Command | Access | Purpose |
