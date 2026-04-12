@@ -10,10 +10,23 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
+	ifacepkg "codeberg.org/thomas-mangin/ze/internal/component/iface"
+
+	// Register the netlink backend so ifacepkg.LoadBackend("netlink")
+	// below resolves. Without this blank import, every subcommand that
+	// calls into the backend (show, create, delete, unit, addr, migrate)
+	// fails with "iface: no backend loaded".
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
 )
 
 // Run executes the interface subcommand with the given arguments.
 // Returns exit code.
+//
+// Help is handled before the backend is loaded so `ze interface help`
+// works on platforms where the netlink backend stub returns errors
+// (non-Linux). Every other subcommand requires the backend; LoadBackend
+// is called once here and released via defer so individual command
+// handlers do not repeat the boilerplate.
 func Run(args []string) int {
 	if len(args) < 1 {
 		usage()
@@ -23,10 +36,22 @@ func Run(args []string) int {
 	subcmd := args[0]
 	subArgs := args[1:]
 
-	switch subcmd {
-	case "help", "-h", "--help": //nolint:goconst // consistent pattern across cmd files
+	if subcmd == "help" || subcmd == "-h" || subcmd == "--help" {
 		usage()
 		return 0
+	}
+
+	if err := ifacepkg.LoadBackend("netlink"); err != nil {
+		fmt.Fprintf(os.Stderr, "error: load netlink backend: %v\n", err)
+		return 1
+	}
+	defer func() {
+		if err := ifacepkg.CloseBackend(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: close netlink backend: %v\n", err)
+		}
+	}()
+
+	switch subcmd {
 	case "show":
 		return cmdShow(subArgs)
 	case "create":
