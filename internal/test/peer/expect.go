@@ -120,6 +120,9 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) {
 			config.BindAddr = v
 		}
 
+	case "conn_map":
+		config.ConnMap = kv["value"]
+
 	case "tcp_connections":
 		if v, err := strconv.Atoi(kv["value"]); err == nil {
 			config.TCPConnections = v

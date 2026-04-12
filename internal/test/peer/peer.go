@@ -119,6 +119,11 @@ type Config struct {
 	SendUnknownMessage bool
 	// CapabilityOverrides: capabilities to add/remove from mirrored OPEN response
 	CapabilityOverrides []CapabilityOverride
+	// ConnMap determines how connections map to conn= numbers in .ci files.
+	// "router-id": sort by OPEN router-id (lowest = conn=1). Requires all
+	// connections to complete OPEN before processing send/expect rules.
+	// Empty: sequential accept order (default, existing behavior).
+	ConnMap string
 	// Expect: list of expected messages from .ci file
 	Expect []string
 	// Output: writer for logging (defaults to os.Stdout)
@@ -167,6 +172,9 @@ func (p *Peer) Ready() <-chan struct{} {
 
 // Run starts the test peer and blocks until completion or context cancellation.
 func (p *Peer) Run(ctx context.Context) Result {
+	if p.config.ConnMap == "router-id" {
+		return p.runConnMapRouterID(ctx)
+	}
 	host := p.config.BindAddr
 	if host == "" {
 		host = "127.0.0.1"
@@ -262,34 +270,38 @@ func (p *Peer) printf(format string, args ...any) {
 	}
 }
 
-func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
-	p.printf("\nnew connection from %s\n", conn.RemoteAddr())
-
-	p.checker.Init()
-
-	// Read OPEN.
-	header, body, err := ReadMessage(conn)
+// doOpenHandshake reads the peer's OPEN, sends our mirrored OPEN + KEEPALIVE,
+// and returns the peer's router-id extracted from the OPEN body.
+func (p *Peer) doOpenHandshake(conn net.Conn) (header, body []byte, routerID uint32, err error) {
+	header, body, err = ReadMessage(conn)
 	if err != nil {
-		return Result{Success: false, Error: fmt.Errorf("read OPEN: %w", err)}
+		return nil, nil, 0, fmt.Errorf("read OPEN: %w", err)
 	}
-
 	if header[18] != MsgOPEN {
-		return Result{Success: false, Error: fmt.Errorf("expected OPEN, got type %d", header[18])}
+		return nil, nil, 0, fmt.Errorf("expected OPEN, got type %d", header[18])
 	}
-
 	p.printf("\nnew session:\n")
 	p.printPayload("open recv", header, body)
-
-	// Generate and send our OPEN.
+	if len(body) >= 9 {
+		routerID = binary.BigEndian.Uint32(body[5:9])
+	}
 	ourOpen := p.generateOpen(header, body)
 	p.printPayload("open sent", ourOpen[:19], ourOpen[19:])
 	if _, err := conn.Write(ourOpen); err != nil {
-		return Result{Success: false, Error: fmt.Errorf("write OPEN: %w", err)}
+		return nil, nil, 0, fmt.Errorf("write OPEN: %w", err)
 	}
-
-	// Send KEEPALIVE.
 	if _, err := conn.Write(KeepaliveMsg()); err != nil {
-		return Result{Success: false, Error: fmt.Errorf("write KEEPALIVE: %w", err)}
+		return nil, nil, 0, fmt.Errorf("write KEEPALIVE: %w", err)
+	}
+	return header, body, routerID, nil
+}
+
+func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
+	p.printf("\nnew connection from %s\n", conn.RemoteAddr())
+	p.checker.Init()
+	header, body, _, err := p.doOpenHandshake(conn)
+	if err != nil {
+		return Result{Success: false, Error: err}
 	}
 
 	// Send unknown message type if requested.
@@ -312,6 +324,13 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 		}
 	}
 
+	return p.runMessageLoop(ctx, conn)
+}
+
+// runMessageLoop handles the post-OPEN message loop: send configured routes,
+// process action/expect rules, and validate received messages. Called by both
+// sequential handleConnection and router-id-mapped runConnMapRouterID.
+func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 	// Send default route if requested.
 	if p.config.SendDefaultRoute {
 		p.printf("sending default-route\n")

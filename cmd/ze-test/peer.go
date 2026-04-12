@@ -152,6 +152,12 @@ func parsePeerFlags() (*peer.Config, bool) {
 		if len(fileConfig.CapabilityOverrides) > 0 {
 			config.CapabilityOverrides = fileConfig.CapabilityOverrides
 		}
+		if fileConfig.BindAddr != "" && config.BindAddr == "" {
+			config.BindAddr = fileConfig.BindAddr
+		}
+		if fileConfig.ConnMap != "" {
+			config.ConnMap = fileConfig.ConnMap
+		}
 	}
 
 	if view {
