@@ -277,6 +277,9 @@ The eight supported encapsulation kinds map to Linux netlink kinds:
 `ipip6` shares the kernel `ip6tnl` netdev with a different inner protocol byte (4 vs 41).
 Both surface as distinct YANG cases so the schema and config are unambiguous.
 
+L2 tunnel kinds (`gretap`, `ip6gretap`) support an optional `mac-address` leaf inside
+the case container. L3 kinds do not carry a MAC address (the kernel does not assign one).
+
 ERSPAN, GRE keepalives, VRF underlay/overlay leaves, and `ignore-df` on gretap are
 out of scope for v1; see `plan/deferrals.md`.
 

@@ -73,6 +73,65 @@ func TestParseTunnelGretap(t *testing.T) {
 	assert.Equal(t, TunnelKindGRETap, cfg.Tunnel[0].Spec.Kind)
 }
 
+// TestParseTunnelGretapMAC verifies that mac-address inside the gretap case
+// container is parsed correctly. After the YANG restructure, mac-address
+// lives inside the per-case container for bridgeable kinds (gretap/ip6gretap),
+// not at the list level.
+//
+// VALIDATES: AC-2 (spec-iface-tunnel-mac-per-case) - mac-address inside gretap accepted.
+// PREVENTS: MAC address silently dropped when moved from list level to case container.
+func TestParseTunnelGretapMAC(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"tunnel": {
+				"gretap0": {
+					"encapsulation": {
+						"gretap": {
+							"local":  {"ip": "10.0.0.1"},
+							"remote": {"ip": "10.0.0.2"},
+							"mac-address": "aa:bb:cc:dd:ee:ff"
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Tunnel, 1)
+	assert.Equal(t, TunnelKindGRETap, cfg.Tunnel[0].Spec.Kind)
+	assert.Equal(t, "aa:bb:cc:dd:ee:ff", cfg.Tunnel[0].MACAddress,
+		"mac-address inside gretap case must be parsed")
+}
+
+// TestParseTunnelGreNoMAC verifies that an L3 tunnel kind (gre) does not
+// carry a mac-address, and that any mac-address at the list level is ignored
+// for tunnels (YANG enforces this; parser provides defense-in-depth).
+//
+// VALIDATES: AC-3 (spec-iface-tunnel-mac-per-case) - L3 kind without MAC accepted.
+// VALIDATES: AC-4 (spec-iface-tunnel-mac-per-case) - mac-address not available on L3 kinds.
+// PREVENTS: L3 tunnel silently accepting MAC that the kernel ignores.
+func TestParseTunnelGreNoMAC(t *testing.T) {
+	// mac-address at list level (old syntax) -- must be ignored for tunnels.
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"tunnel": {
+				"gre0": {
+					"mac-address": "aa:bb:cc:dd:ee:ff",
+					"encapsulation": {
+						"gre": {
+							"local":  {"ip": "192.0.2.1"},
+							"remote": {"ip": "198.51.100.1"}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Tunnel, 1)
+	assert.Equal(t, TunnelKindGRE, cfg.Tunnel[0].Spec.Kind)
+	assert.Empty(t, cfg.Tunnel[0].MACAddress,
+		"L3 tunnel must not carry mac-address (list-level mac-address must be ignored)")
+}
+
 // TestParseTunnelIp6gre verifies the ip6gre case with v6 endpoints, hoplimit,
 // and tclass parses into the right TunnelSpec fields.
 //

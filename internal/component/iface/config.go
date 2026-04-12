@@ -228,6 +228,10 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 // gretap/ip6gretap (the L2/bridgeable kinds) accept VLAN sub-interfaces.
 func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
 	entry := tunnelEntry{ifaceEntry: parseIfaceEntry(name, m)}
+	// MAC address for tunnels comes from inside the encapsulation case
+	// container (gretap/ip6gretap only), not from the list level. Clear
+	// any list-level mac-address that parseIfaceEntry may have read.
+	entry.MACAddress = ""
 	entry.Spec.Name = name
 
 	encMap, ok := m["encapsulation"].(map[string]any)
@@ -255,6 +259,13 @@ func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
 	entry.Spec.Kind = matchedKind
 	if err := parseTunnelLeaves(&entry.Spec, matchedCase); err != nil {
 		return entry, err
+	}
+	// MAC address lives inside the case container for bridgeable kinds
+	// (gretap/ip6gretap). L3 kinds have no mac-address leaf in YANG.
+	if matchedKind.IsBridgeable() {
+		if mac, ok := matchedCase["mac-address"].(string); ok {
+			entry.MACAddress = mac
+		}
 	}
 	if entry.Spec.LocalAddress != "" && entry.Spec.LocalInterface != "" {
 		return entry, fmt.Errorf("local ip and local interface are mutually exclusive")

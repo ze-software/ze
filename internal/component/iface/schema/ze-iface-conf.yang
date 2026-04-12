@@ -44,11 +44,10 @@ module ze-iface-conf {
     grouping interface-l2 {
         description "Interface properties for kinds that expose a MAC
                      address at the list level: ethernet, dummy, veth,
-                     bridge, tunnel (all encapsulation cases today, though
-                     L3 cases like gre/ipip/sit/ip6tnl do not actually use
-                     the leaf — per-case handling is deferred). L3-only
-                     kinds with no MAC (e.g. wireguard) use interface-common
-                     directly.";
+                     bridge. Tunnel L2 kinds (gretap, ip6gretap) carry
+                     mac-address inside their per-case containers instead.
+                     L3-only kinds with no MAC (e.g. wireguard, L3 tunnels)
+                     use interface-common directly.";
 
         uses interface-common;
 
@@ -464,6 +463,14 @@ module ze-iface-conf {
                                 type empty;
                                 description "Disable Path MTU Discovery on the outer header";
                             }
+
+                            leaf mac-address {
+                                type string {
+                                    pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}';
+                                }
+                                ze:validate "mac-address";
+                                description "Hardware MAC address (L2 tunnel kinds only)";
+                            }
                         }
                     }
 
@@ -513,6 +520,14 @@ module ze-iface-conf {
                                 type uint8;
                                 default 0;
                                 description "Outer IPv6 traffic class";
+                            }
+
+                            leaf mac-address {
+                                type string {
+                                    pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}';
+                                }
+                                ze:validate "mac-address";
+                                description "Hardware MAC address (L2 tunnel kinds only)";
                             }
                         }
                     }
@@ -622,7 +637,7 @@ module ze-iface-conf {
                 }
             }
 
-            uses interface-l2;
+            uses interface-common;
             uses interface-unit;
         }
 
