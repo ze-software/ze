@@ -146,6 +146,14 @@ type Machine struct {
 	// LastEchoRTT for snapshot consumers.
 	lastEchoRTT time.Duration
 
+	// echoSlowdownApplied tracks whether the RFC 5880 §6.8.9 echo
+	// slow-down is in effect. When true, DesiredMinTxInterval and
+	// RequiredMinRxInterval are raised to max(1s, configured) so the
+	// Control-path rate drops while echo handles sub-second detection.
+	// The flag prevents re-applying on every tick and ensures
+	// RevertEchoSlowdown only fires the restore+Poll once.
+	echoSlowdownApplied bool
+
 	// echoOutstanding is a fixed-size ring of echo TX entries that
 	// have not yet been matched by a returning reflection. The ring
 	// is the state that turns echo from a passive RTT probe into an

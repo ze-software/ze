@@ -260,8 +260,13 @@ func (h *handle) Subscribe() <-chan api.StateChange {
 	return ch
 }
 
-// Unsubscribe stops delivery on a previously subscribed channel and
-// closes it.
+// Unsubscribe removes ch from the subscriber list so the express loop
+// no longer delivers state changes to it. The channel is NOT closed
+// here: the express loop may still hold a snapshot of the list (taken
+// under subsMu in makeNotify) and attempt a send after Unsubscribe
+// returns. Closing here would race with that send. Loop.Stop is
+// responsible for closing every subscriber channel after the express
+// loop has exited.
 func (h *handle) Unsubscribe(ch <-chan api.StateChange) {
 	h.loop.subsMu.Lock()
 	defer h.loop.subsMu.Unlock()
@@ -269,7 +274,6 @@ func (h *handle) Unsubscribe(ch <-chan api.StateChange) {
 	for i, c := range subs {
 		if c == ch {
 			h.loop.subscribers[h.key] = append(subs[:i], subs[i+1:]...)
-			close(c)
 			return
 		}
 	}

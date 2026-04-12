@@ -105,16 +105,10 @@ func TestEchoRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loopB.EnsureSession: %v", err)
 	}
-	// Intentionally do NOT defer Unsubscribe on subA/subB: Loop.Stop
-	// closes every subscriber channel before this test returns, and
-	// the engine's notify path copies the subscriber slice out from
-	// under subsMu before sending, so calling Unsubscribe AFTER the
-	// defer chain has already started races the final echo-driven
-	// state transition against Machine.EchoFail's notify.
-	// TODO(spec-bfd-engine-unsubscribe-lock): tighten Unsubscribe so
-	// it is safe to call while the express loop is still running.
 	subA := hA.Subscribe()
 	subB := hB.Subscribe()
+	defer hA.Unsubscribe(subA)
+	defer hB.Unsubscribe(subB)
 
 	// The three-way handshake is required for both machines to reach Up
 	// so echoTickLocked stops clearing the echo schedule.

@@ -61,6 +61,7 @@ func (l *Loop) echoTickLocked(now time.Time) {
 			}
 			continue
 		}
+		m.ApplyEchoSlowdown()
 		m.PrimeEcho(now)
 		deadline := m.NextEchoTxDeadline()
 		if deadline.IsZero() || now.Before(deadline) {

@@ -347,6 +347,79 @@ func TestTransmitIntervalSlowStart(t *testing.T) {
 	}
 }
 
+// VALIDATES: ApplyEchoSlowdown raises DesiredMinTxInterval and
+// RequiredMinRxInterval to at least 1 s and sets PollOutstanding.
+// RevertEchoSlowdown (via ClearEchoSchedule) restores the configured
+// values.
+// PREVENTS: regression where the echo slow-down is never applied,
+// applied non-idempotently, or never reverted.
+func TestEchoSlowdown(t *testing.T) {
+	clk := newFakeClock()
+	req := api.SessionRequest{
+		Peer:                     netip.MustParseAddr("192.0.2.2"),
+		Local:                    netip.MustParseAddr("192.0.2.1"),
+		Mode:                     api.SingleHop,
+		Interface:                "eth0",
+		DesiredMinTxInterval:     300_000,
+		RequiredMinRxInterval:    300_000,
+		DetectMult:               3,
+		DesiredMinEchoTxInterval: 50_000,
+	}
+	m := &Machine{}
+	m.Init(req, 0xCAFEBABE, clk, func(packet.State, packet.Diag) {})
+
+	// Drive the machine to Up so the slow-down can apply.
+	echoRecv := recv(packet.StateInit, 0)
+	echoRecv.RequiredMinEchoRxInterval = 50_000
+	if err := m.Receive(echoRecv); err != nil {
+		t.Fatalf("Receive Init: %v", err)
+	}
+	echoRecv.State = packet.StateUp
+	echoRecv.YourDiscriminator = m.LocalDiscriminator()
+	if err := m.Receive(echoRecv); err != nil {
+		t.Fatalf("Receive Up: %v", err)
+	}
+	if m.State() != packet.StateUp {
+		t.Fatalf("expected Up, got %s", m.State())
+	}
+	if !m.EchoEnabled() {
+		t.Fatalf("echo not enabled (DesiredMinEchoTx=%d RemoteMinEchoRx=%d)",
+			m.vars.DesiredMinEchoTxInterval, m.vars.RemoteMinEchoRxInterval)
+	}
+
+	// Apply: both intervals rise to 1 s.
+	m.ApplyEchoSlowdown()
+	if m.vars.DesiredMinTxInterval < EchoSlowdownIntervalUs {
+		t.Fatalf("DesiredMinTxInterval %d < %d after ApplyEchoSlowdown",
+			m.vars.DesiredMinTxInterval, EchoSlowdownIntervalUs)
+	}
+	if m.vars.RequiredMinRxInterval < EchoSlowdownIntervalUs {
+		t.Fatalf("RequiredMinRxInterval %d < %d after ApplyEchoSlowdown",
+			m.vars.RequiredMinRxInterval, EchoSlowdownIntervalUs)
+	}
+	if !m.vars.PollOutstanding {
+		t.Fatalf("PollOutstanding not set after ApplyEchoSlowdown")
+	}
+
+	// Idempotent: second call is a no-op.
+	m.vars.PollOutstanding = false
+	m.ApplyEchoSlowdown()
+	if m.vars.PollOutstanding {
+		t.Fatalf("ApplyEchoSlowdown is not idempotent")
+	}
+
+	// Revert via ClearEchoSchedule: intervals restored.
+	m.ClearEchoSchedule()
+	if m.vars.DesiredMinTxInterval != req.DesiredMinTxInterval {
+		t.Fatalf("DesiredMinTxInterval %d != configured %d after revert",
+			m.vars.DesiredMinTxInterval, req.DesiredMinTxInterval)
+	}
+	if m.vars.RequiredMinRxInterval != req.RequiredMinRxInterval {
+		t.Fatalf("RequiredMinRxInterval %d != configured %d after revert",
+			m.vars.RequiredMinRxInterval, req.RequiredMinRxInterval)
+	}
+}
+
 // VALIDATES: DetectionInterval reflects the negotiated RX floor and the
 // remote's detect multiplier.
 // PREVENTS: regression where DetectionInterval returns zero or uses the

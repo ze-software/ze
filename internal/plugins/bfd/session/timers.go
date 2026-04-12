@@ -208,15 +208,55 @@ func (m *Machine) LastEchoRTT() time.Duration { return m.lastEchoRTT }
 // the engine echo RX handler on every matched return packet.
 func (m *Machine) RecordEchoRTT(rtt time.Duration) { m.lastEchoRTT = rtt }
 
-// ClearEchoSchedule resets the echo timer and drops every
-// outstanding ring entry. Called when a session leaves the Up
-// state so stale deadlines do not fire echoes while the control
-// path is still tearing down, and so a session that flaps back up
-// does not carry dead entries into the new detection window.
+// EchoSlowdownIntervalUs is the RFC 5880 §6.8.9 minimum interval
+// floor applied to both DesiredMinTxInterval and RequiredMinRxInterval
+// while echo is active. One second (1,000,000 µs) matches the RFC's
+// The value matches the RFC recommendation of not less than one second.
+const EchoSlowdownIntervalUs uint32 = 1_000_000
+
+// ClearEchoSchedule resets the echo timer, drops every outstanding
+// ring entry, and reverts any active echo slow-down. Called when a
+// session leaves the Up state so stale deadlines do not fire echoes
+// while the control path is still tearing down, and so a session
+// that flaps back up does not carry dead entries or a stale
+// slow-down flag into the new detection window.
 func (m *Machine) ClearEchoSchedule() {
 	m.nextEchoAt = time.Time{}
 	for i := range m.echoOutstanding {
 		m.echoOutstanding[i] = echoEntry{}
+	}
+	m.revertEchoSlowdownLocked()
+}
+
+// ApplyEchoSlowdown raises DesiredMinTxInterval and
+// RequiredMinRxInterval to max(1s, configured) and initiates a
+// Poll sequence so the peer learns the slowed rate atomically
+// (RFC 5880 §6.8.3). Idempotent: a second call while the
+// slow-down is already applied is a no-op. Called from
+// engine.echoTickLocked when the session is Up and echo is
+// negotiated.
+func (m *Machine) ApplyEchoSlowdown() {
+	if m.echoSlowdownApplied {
+		return
+	}
+	m.echoSlowdownApplied = true
+	m.vars.DesiredMinTxInterval = max(EchoSlowdownIntervalUs, m.vars.ConfiguredDesiredMinTxInterval)
+	m.vars.RequiredMinRxInterval = max(EchoSlowdownIntervalUs, m.vars.ConfiguredRequiredMinRxInterval)
+	m.vars.PollOutstanding = true
+}
+
+// revertEchoSlowdownLocked restores the configured intervals and
+// initiates a Poll if the slow-down was active. Safe to call when
+// the slow-down is not applied (no-op).
+func (m *Machine) revertEchoSlowdownLocked() {
+	if !m.echoSlowdownApplied {
+		return
+	}
+	m.echoSlowdownApplied = false
+	m.vars.DesiredMinTxInterval = m.vars.ConfiguredDesiredMinTxInterval
+	m.vars.RequiredMinRxInterval = m.vars.ConfiguredRequiredMinRxInterval
+	if m.vars.SessionState == packet.StateUp {
+		m.vars.PollOutstanding = true
 	}
 }
 

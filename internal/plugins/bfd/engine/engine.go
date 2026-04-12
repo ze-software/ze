@@ -501,12 +501,21 @@ func (l *Loop) makeNotify(key api.Key, entry *sessionEntry) func(packet.State, p
 }
 
 // trySendStateChange attempts a non-blocking send onto ch and returns
-// true on success, false when the channel is already full. The capacity
-// check is not racy because the express loop is the only writer; the
-// reader is the subscriber goroutine. A full channel means the
-// subscriber has fallen one SubscribeBuffer behind, which the engine
-// drops rather than blocks on.
-func trySendStateChange(ch chan api.StateChange, change api.StateChange) bool {
+// true on success, false when the channel is full or closed. The
+// capacity check is not racy for the full-channel case because the
+// express loop is the only writer.
+//
+// The recover guard handles a concurrent Unsubscribe closing the
+// channel between the makeNotify snapshot (taken under subsMu) and
+// this send (running outside subsMu). Without the guard the express
+// loop panics on send-to-closed-channel when a subscriber tears
+// down while a state transition is in flight.
+func trySendStateChange(ch chan api.StateChange, change api.StateChange) (sent bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			sent = false
+		}
+	}()
 	if cap(ch)-len(ch) == 0 {
 		return false
 	}
