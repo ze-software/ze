@@ -8,8 +8,8 @@ review in `docs/research/comparison/bio-routing/`. This session closed
 all five and removed the handoff. Three commits landed:
 
 - `e862dda4` -- Section A: four skeleton specs queued as tracked files
-  (`spec-pkg-ze-bgp`, `spec-bmp-receiver`, `spec-remote-rib-client`,
-  `spec-canonical-in-repo-docs`).
+  (`spec-pkg-ze-bgp`, `spec-bgp-4-bmp`, `spec-rib-3-remote-client`,
+  `spec-docs-1-canonical`).
 - `6be9a0c3` -- Section E: FSM HoldTimer restart refactor.
 - `7e0bfdd1` -- Sections B/C/D: gRPC domain-types spec, pull-metrics
   decision doc, five style bullets in `.claude/rules/go-standards.md`.
@@ -179,10 +179,10 @@ No surprises. Committed the four untracked skeletons as-is so they
 stop floating across sessions:
 
 - `spec-pkg-ze-bgp.md` -- expose BGP primitives under `pkg/ze/bgp/`.
-- `spec-bmp-receiver.md` -- BMP receiver plugin (RFC 7854).
-- `spec-remote-rib-client.md` -- subscribe to remote RIB as a synthetic
+- `spec-bgp-4-bmp.md` -- BMP receiver plugin (RFC 7854).
+- `spec-rib-3-remote-client.md` -- subscribe to remote RIB as a synthetic
   peer (streaming format TBD).
-- `spec-canonical-in-repo-docs.md` -- top-level docs entry pages. Note
+- `spec-docs-1-canonical.md` -- top-level docs entry pages. Note
   the `bgp-fsm.md` page it proposes is now partially redundant with
   the per-state runbooks already shipped; the spec should be trimmed
   during its design pass.
@@ -234,9 +234,9 @@ of check.
 ## Files touched (summary)
 
 **Commit `e862dda4` (Section A, 4 files):**
-- `plan/spec-pkg-ze-bgp.md`, `plan/spec-bmp-receiver.md`,
-  `plan/spec-remote-rib-client.md`,
-  `plan/spec-canonical-in-repo-docs.md`
+- `plan/spec-pkg-ze-bgp.md`, `plan/spec-bgp-4-bmp.md`,
+  `plan/spec-rib-3-remote-client.md`,
+  `plan/spec-docs-1-canonical.md`
 
 **Commit `6be9a0c3` (Section E, 7 files):**
 - `internal/component/bgp/fsm/fsm.go` (struct + SetTimers + 3 arms)
@@ -255,7 +255,7 @@ of check.
   the implementation-based closure)
 
 **Commit `7e0bfdd1` (Sections B/C/D, 4 files):**
-- `plan/spec-grpc-domain-types.md` (new)
+- `plan/spec-arch-1-grpc-types.md` (new)
 - `plan/decision-pull-model-metrics.md` (new)
 - `.claude/rules/go-standards.md` (added "Style patterns to prefer"
   section)

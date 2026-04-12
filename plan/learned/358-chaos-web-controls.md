@@ -10,7 +10,7 @@ Add interactive controls to the chaos web dashboard: control channel from web se
 - Manual triggers produce standard EventChaosExecuted flowing through the event pipeline — replayable in NDJSON log
 - Control actions (pause/resume/rate) logged as informational "control" record type, not as chaos events
 - Horizontal control strip layout (moved from sidebar in UX-5 iteration) — compact, always visible
-- Parameterized trigger form per action type — works for existing 10 actions; v2 action params deferred to spec-chaos-actions-v2
+- Parameterized trigger form per action type — works for existing 10 actions; v2 action params deferred to spec-chaos-1-actions
 
 ## Patterns
 

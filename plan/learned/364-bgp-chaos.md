@@ -21,7 +21,7 @@ Build ze-chaos, a deterministic chaos monkey tool for testing Ze's BGP route ser
 
 ## Gotchas
 
-- Integration tests (spec-bgp-chaos-integration) and v2 actions (spec-chaos-actions-v2) are separate specs, not part of the core tool
+- Integration tests (spec-chaos-4-bgp-integration) and v2 actions (spec-chaos-1-actions) are separate specs, not part of the core tool
 - Config reload (SIGHUP) chaos action was deferred from Phase 5 to future work
 - Web controls partial: no restart-with-new-seed, no v2 parameterized actions
 

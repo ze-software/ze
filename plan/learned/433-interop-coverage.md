@@ -16,7 +16,7 @@ Ze had 21 interop scenarios covering core BGP (session, routes, capabilities, co
 
 - 11 new scenarios provide triangulation: when a feature fails with both FRR and GoBGP, the bug is in Ze. When it passes with one but fails with another, the issue is vendor-specific.
 - 4 scenarios pass (IPv6/GoBGP, multihop/all three vendors), proving the test infrastructure and process plugin delivery work correctly for IPv4 and IPv6 unicast.
-- 7 scenarios fail, revealing Ze bugs in EVPN/VPN/FlowSpec capability negotiation and route delivery. These are tracked in `plan/spec-interop-failures.md`.
+- 7 scenarios fail, revealing Ze bugs in EVPN/VPN/FlowSpec capability negotiation and route delivery. These are tracked in `plan/spec-bgp-1-interop.md`.
 - Existing scenarios 01-21 need config migration to the new parser format (separate work, not part of this spec).
 
 ## Gotchas
@@ -31,4 +31,4 @@ Ze had 21 interop scenarios covering core BGP (session, routes, capabilities, co
 
 - `test/interop/scenarios/22-evpn-frr/` through `32-multihop-ebgp-gobgp/` (44 new files)
 - `docs/architecture/testing/interop.md` (inventory + gaps list updated)
-- `plan/spec-interop-failures.md` (investigation spec for 7 failing scenarios)
+- `plan/spec-bgp-1-interop.md` (investigation spec for 7 failing scenarios)

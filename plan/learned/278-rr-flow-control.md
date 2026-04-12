@@ -22,7 +22,7 @@ Wire end-to-end flow control so the route reflector achieves 100% route reflecti
 
 - Data race in chaos simulator: the `Drain` goroutine outlived the `readLoop`, causing concurrent access to the events channel. Fixed by joining `Drain` before `readLoop` returns via child context.
 - Handler RPC count test (`TestBgpHandlerRPCs`) expected 22 but became 24 after adding pause/resume handlers. Always update the count test when adding handlers.
-- Functional test for full pause→drain→resume→multi-peer verification is deferred to spec-inprocess-chaos. The `rr-backpressure.ci` test covers env var parsing and single-peer lifecycle only.
+- Functional test for full pause→drain→resume→multi-peer verification is deferred to spec-chaos-2-inprocess. The `rr-backpressure.ci` test covers env var parsing and single-peer lifecycle only.
 
 ## Files
 

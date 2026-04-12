@@ -12,7 +12,7 @@ Build a live web dashboard for ze-chaos providing real-time visualization, peer 
 - 200ms SSE debounce — ProcessEvent() sets dirty flags only (no I/O under write lock), background goroutine broadcasts
 - Shared HTTP mux when `--web` and `--metrics` both specified — single port serves dashboard + Prometheus
 - Controls (pause/resume/rate/trigger/stop/restart) implemented via buffered control channel to orchestrator event loop
-- 6 new parameterized chaos actions (ClockDrift, RouteBurst, etc.) deferred to spec-chaos-actions-v2
+- 6 new parameterized chaos actions (ClockDrift, RouteBurst, etc.) deferred to spec-chaos-1-actions
 
 ## Patterns
 

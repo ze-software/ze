@@ -14,7 +14,7 @@ ZeFS blob store used flat, unstructured keys (`ssh/username`, `etc/ze/router.con
 
 ## Consequences
 
-- `spec-config-versioning` can add `file/draft/` and `file/<date>/` qualifiers without touching the storage layer
+- `spec-config-1-versioning` can add `file/draft/` and `file/<date>/` qualifiers without touching the storage layer
 - `spec-fleet-config` can use `meta/instance/managed` to toggle hub connectivity
 - `ze data ls meta/` and `ze data ls file/` cleanly separate concerns
 - Migration happens automatically on first blob open via `migrateExistingFiles()`
