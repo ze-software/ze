@@ -1,0 +1,53 @@
+# Test: BMP receiver + sender config parses successfully
+# VALIDATES: AC-10 -- receiver config accepted
+# VALIDATES: AC-23 -- sender config accepted
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+    bmp {
+        enabled true;
+        server default {
+            ip 0.0.0.0;
+            port 11019;
+        }
+        max-sessions 50;
+    }
+}
+bgp {
+    router-id 1.2.3.4;
+    peer test {
+        connection {
+            remote {
+                ip 127.0.0.1;
+                accept false;
+            }
+            local {
+                ip 127.0.0.1;
+            }
+        }
+        session {
+            asn {
+                local 65000;
+                remote 65001;
+            }
+            router-id 1.2.3.4;
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+    }
+    bmp {
+        sender {
+            collector station1 {
+                address 10.0.0.100;
+                port 11019;
+            }
+            route-monitoring-policy pre-policy;
+            statistics-timeout 60;
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config check -:stdin=ze-bgp
+expect=exit:code=0

@@ -40,12 +40,12 @@ type senderSession struct {
 }
 
 // newSenderSession creates a sender session for the given collector.
-func newSenderSession(cfg collectorConfig) *senderSession {
+func newSenderSession(name string, cfg collectorConfig) *senderSession {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &senderSession{
-		name:    cfg.Name,
+		name:    name,
 		address: cfg.Address,
-		port:    cfg.Port,
+		port:    parseUint16(cfg.Port, DefaultPort),
 		stopCh:  make(chan struct{}),
 		stopCtx: ctx,
 		cancel:  cancel,

@@ -13,6 +13,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -47,41 +48,49 @@ func setLogger(l *slog.Logger) {
 }
 
 // receiverConfig holds parsed receiver configuration from environment { bmp { ... } }.
+// YANG config tree delivers all values as strings (including booleans and numbers).
+// YANG list with key is delivered as a map keyed by the key value.
 type receiverConfig struct {
-	Enabled     bool             `json:"enabled"`
-	Servers     []listenerConfig `json:"server"`
-	MaxSessions uint16           `json:"max-sessions"`
+	Enabled     string                    `json:"enabled"`
+	Servers     map[string]listenerConfig `json:"server"`
+	MaxSessions string                    `json:"max-sessions"`
 }
 
 type listenerConfig struct {
-	Name string `json:"name"`
 	IP   string `json:"ip"`
-	Port uint16 `json:"port"`
+	Port string `json:"port"`
 }
 
 // senderConfig holds parsed sender configuration from bgp { bmp { sender { ... } } }.
+// YANG list with key is delivered as a map keyed by the key value.
 type senderConfig struct {
-	Collectors            []collectorConfig `json:"collector"`
-	RouteMonitoringPolicy string            `json:"route-monitoring-policy"`
-	StatisticsTimeout     uint16            `json:"statistics-timeout"`
+	Collectors            map[string]collectorConfig `json:"collector"`
+	RouteMonitoringPolicy string                     `json:"route-monitoring-policy"`
+	StatisticsTimeout     string                     `json:"statistics-timeout"`
 }
 
 type collectorConfig struct {
-	Name    string `json:"name"`
 	Address string `json:"address"`
-	Port    uint16 `json:"port"`
+	Port    string `json:"port"`
 }
 
-// environmentSection wraps the bmp key from the environment config section.
+// environmentSection wraps the full environment config section.
+// ExtractConfigSubtree returns {"environment": {"bmp": {...}}}, so we need
+// two levels of wrapping.
 type environmentSection struct {
-	BMP *receiverConfig `json:"bmp"`
+	Environment *struct {
+		BMP *receiverConfig `json:"bmp"`
+	} `json:"environment"`
 }
 
-// bgpSenderSection wraps the bmp.sender from the bgp config section.
+// bgpSenderSection wraps the full bgp config section.
+// ExtractConfigSubtree returns {"bgp": {"bmp": {"sender": {...}}}}.
 type bgpSenderSection struct {
-	BMP *struct {
-		Sender *senderConfig `json:"sender"`
-	} `json:"bmp"`
+	BGP *struct {
+		BMP *struct {
+			Sender *senderConfig `json:"sender"`
+		} `json:"bmp"`
+	} `json:"bgp"`
 }
 
 // BMPPlugin implements the bgp-bmp plugin.
@@ -154,7 +163,7 @@ func RunBMPPlugin(conn net.Conn) int {
 					logger().Error("bmp: receiver config parse failed", "error", err)
 					return err
 				}
-				if rcv != nil && rcv.Enabled && len(rcv.Servers) > 0 {
+				if rcv.Enabled == "true" && len(rcv.Servers) > 0 {
 					bp.startReceiver(rcv)
 				}
 			case "bgp":
@@ -196,25 +205,30 @@ func closeLog(c interface{ Close() error }, what string) {
 }
 
 // parseReceiverConfig extracts BMP receiver config from the environment section JSON.
+// The JSON is {"environment": {"bmp": {...}}} (wrapped by ExtractConfigSubtree).
 func parseReceiverConfig(data string) (*receiverConfig, error) {
 	var sec environmentSection
 	if err := json.Unmarshal([]byte(data), &sec); err != nil {
 		return nil, fmt.Errorf("bmp receiver config: %w", err)
 	}
-	return sec.BMP, nil
+	if sec.Environment == nil || sec.Environment.BMP == nil {
+		return &receiverConfig{}, nil
+	}
+	return sec.Environment.BMP, nil
 }
 
 // parseSenderConfig extracts BMP sender config from the bgp section JSON.
+// The JSON is {"bgp": {"bmp": {"sender": {...}}}} (wrapped by ExtractConfigSubtree).
 // Returns a zero-value config (no collectors) when BMP sender is not configured.
 func parseSenderConfig(data string) (*senderConfig, error) {
 	var sec bgpSenderSection
 	if err := json.Unmarshal([]byte(data), &sec); err != nil {
 		return nil, fmt.Errorf("bmp sender config: %w", err)
 	}
-	if sec.BMP == nil || sec.BMP.Sender == nil {
+	if sec.BGP == nil || sec.BGP.BMP == nil || sec.BGP.BMP.Sender == nil {
 		return &senderConfig{}, nil
 	}
-	return sec.BMP.Sender, nil
+	return sec.BGP.BMP.Sender, nil
 }
 
 // startReceiver starts TCP listeners for the BMP receiver.
@@ -222,8 +236,9 @@ func (bp *BMPPlugin) startReceiver(cfg *receiverConfig) {
 	bp.mu.Lock()
 	defer bp.mu.Unlock()
 
+	maxSess := parseUint16(cfg.MaxSessions, 100)
 	for _, srv := range cfg.Servers {
-		addr := net.JoinHostPort(srv.IP, fmt.Sprintf("%d", srv.Port))
+		addr := net.JoinHostPort(srv.IP, srv.Port)
 		var lc net.ListenConfig
 		ln, err := lc.Listen(context.Background(), "tcp", addr)
 		if err != nil {
@@ -233,7 +248,6 @@ func (bp *BMPPlugin) startReceiver(cfg *receiverConfig) {
 		bp.listeners = append(bp.listeners, ln)
 		logger().Info("bmp: receiver listening", "address", addr)
 
-		maxSess := cfg.MaxSessions
 		bp.sessions.Go(func() {
 			bp.acceptLoop(ln, maxSess)
 		})
@@ -258,11 +272,11 @@ func (bp *BMPPlugin) startSender(cfg *senderConfig) {
 	bp.mu.Lock()
 	defer bp.mu.Unlock()
 
-	for _, col := range cfg.Collectors {
-		ss := newSenderSession(col)
+	for name, col := range cfg.Collectors {
+		ss := newSenderSession(name, col)
 		bp.senders = append(bp.senders, ss)
 		bp.sessions.Go(ss.run)
-		logger().Info("bmp: sender started", "collector", col.Name, "address", col.Address, "port", col.Port)
+		logger().Info("bmp: sender started", "collector", name, "address", col.Address, "port", col.Port)
 	}
 }
 
@@ -599,6 +613,18 @@ func peerDownReasonFromString(reason string) uint8 {
 		return PeerDownDeconfigured
 	}
 	return PeerDownLocalNoNotify // default for unknown reasons
+}
+
+// parseUint16 parses a string to uint16, returning def on error or empty input.
+func parseUint16(s string, def uint16) uint16 {
+	if s == "" {
+		return def
+	}
+	v, err := strconv.ParseUint(s, 10, 16)
+	if err != nil {
+		return def
+	}
+	return uint16(v)
 }
 
 // rawUpdateBytes extracts the raw BGP UPDATE wire bytes from a StructuredEvent.

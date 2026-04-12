@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -27,10 +28,9 @@ func TestBMPSenderConnects(t *testing.T) {
 	}()
 
 	addr, _ := ln.Addr().(*net.TCPAddr)
-	ss := newSenderSession(collectorConfig{
-		Name:    "test",
+	ss := newSenderSession("test", collectorConfig{
 		Address: "127.0.0.1",
-		Port:    uint16(addr.Port),
+		Port:    strconv.Itoa(addr.Port),
 	})
 
 	// Accept connection from sender in background.
@@ -89,10 +89,9 @@ func TestBMPSenderInitiation(t *testing.T) {
 	}()
 
 	addr, _ := ln.Addr().(*net.TCPAddr)
-	ss := newSenderSession(collectorConfig{
-		Name:    "test",
+	ss := newSenderSession("test", collectorConfig{
 		Address: "127.0.0.1",
-		Port:    uint16(addr.Port),
+		Port:    strconv.Itoa(addr.Port),
 	})
 
 	connCh := make(chan net.Conn, 1)

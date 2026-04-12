@@ -1,0 +1,87 @@
+# Test: BMP receiver starts listener from config
+# VALIDATES: AC-10 -- receiver binds TCP listener from config
+#
+# Flow:
+# 1. ze starts with BMP receiver enabled on $PORT2
+# 2. Observer waits for BMP listener log, then shuts down
+# 3. Assertion verifies receiver is listening
+
+option=env:var=ze.log.bgp.bmp:value=info
+option=timeout:value=15s
+
+tmpfs=bmp-observer.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Observer: wait for BMP receiver to start, then shutdown."""
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(2.0)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+    bmp {
+        enabled true;
+        server default {
+            ip 127.0.0.1;
+            port $PORT2;
+        }
+    }
+}
+plugin {
+    external bmp-observer {
+        run ./bmp-observer.run;
+        encoder json;
+    }
+}
+bgp {
+    router-id 1.2.3.5;
+    peer test {
+        connection {
+            remote {
+                ip 127.0.0.1;
+                accept false;
+            }
+            local {
+                ip 127.0.0.1;
+            }
+        }
+        session {
+            asn {
+                local 65000;
+                remote 65001;
+            }
+            router-id 1.2.3.5;
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        process bmp-observer {
+            receive [ state ];
+        }
+    }
+}
+EOF_CONF
+
+stdin=peer:terminator=EOF_PEER
+EOF_PEER
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
+expect=exit:code=0
+expect=stderr:pattern=bmp: receiver listening
