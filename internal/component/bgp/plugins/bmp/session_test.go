@@ -11,6 +11,7 @@ func TestBMPSessionAccepts(t *testing.T) {
 	// PREVENTS: session goroutine crash on connect
 
 	bp := &BMPPlugin{
+		state:  newBMPState(),
 		stopCh: make(chan struct{}),
 	}
 
@@ -65,6 +66,7 @@ func TestBMPMalformedHeaderDrops(t *testing.T) {
 	// PREVENTS: panic on garbage input
 
 	bp := &BMPPlugin{
+		state:  newBMPState(),
 		stopCh: make(chan struct{}),
 	}
 
@@ -117,6 +119,7 @@ func TestBMPMaxSessionsRejects(t *testing.T) {
 	// PREVENTS: unbounded connection count
 
 	bp := &BMPPlugin{
+		state:  newBMPState(),
 		stopCh: make(chan struct{}),
 	}
 

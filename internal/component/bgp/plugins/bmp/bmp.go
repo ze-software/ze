@@ -89,6 +89,7 @@ type bgpSection struct {
 type BMPPlugin struct {
 	plugin *sdk.Plugin
 	mu     sync.RWMutex
+	state  *bmpState
 
 	// Receiver state.
 	listeners []net.Listener
@@ -110,6 +111,7 @@ func RunBMPPlugin(conn net.Conn) int {
 
 	bp := &BMPPlugin{
 		plugin: p,
+		state:  newBMPState(),
 		stopCh: make(chan struct{}),
 	}
 
@@ -119,6 +121,10 @@ func RunBMPPlugin(conn net.Conn) int {
 		bp.stopListeners()
 		bp.sessions.Wait()
 	}()
+
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+		return bp.handleCommand(command)
+	})
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
@@ -146,9 +152,9 @@ func RunBMPPlugin(conn net.Conn) int {
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
-			{Name: "bmp sessions"},
-			{Name: "bmp peers"},
-			{Name: "bmp collectors"},
+			{Name: "bmp sessions", Description: "Show BMP receiver sessions"},
+			{Name: "bmp peers", Description: "Show monitored BGP peers"},
+			{Name: "bmp collectors", Description: "Show BMP sender collector status"},
 		},
 		WantsConfig: []string{"bgp"},
 	})
@@ -282,6 +288,8 @@ func (bp *BMPPlugin) handleSession(conn net.Conn) {
 
 	remote := conn.RemoteAddr().String()
 	logger().Info("bmp: session started", "remote", remote)
+	bp.state.addRouter(remote)
+	defer bp.state.removeRouter(remote)
 	defer logger().Info("bmp: session ended", "remote", remote)
 
 	headerBuf := make([]byte, CommonHeaderSize)
@@ -336,6 +344,22 @@ func (bp *BMPPlugin) handleSession(conn net.Conn) {
 	}
 }
 
+// handleCommand dispatches BMP CLI commands to the appropriate handler.
+func (bp *BMPPlugin) handleCommand(command string) (string, string, error) {
+	switch command {
+	case "bmp sessions":
+		return bp.state.sessionsCommand()
+	case "bmp peers":
+		return bp.state.peersCommand()
+	case "bmp collectors":
+		bp.mu.RLock()
+		senders := bp.senders
+		bp.mu.RUnlock()
+		return bp.state.collectorsCommand(senders)
+	}
+	return statusError, "", fmt.Errorf("unknown command: %s", command)
+}
+
 // processMessage dispatches a decoded BMP message to the appropriate handler.
 func (bp *BMPPlugin) processMessage(remote string, msg any) {
 	switch m := msg.(type) {
@@ -357,16 +381,20 @@ func (bp *BMPPlugin) processMessage(remote string, msg any) {
 }
 
 func (bp *BMPPlugin) processInitiation(remote string, m *Initiation) {
+	var sysName, sysDescr string
 	for _, tlv := range m.TLVs {
 		switch tlv.Type { //nolint:exhaustive // RFC 7854: unknown TLV types are silently ignored
 		case InitTLVSysName:
-			logger().Info("bmp: initiation", "remote", remote, "sysName", string(tlv.Value))
+			sysName = string(tlv.Value)
+			logger().Info("bmp: initiation", "remote", remote, "sysName", sysName)
 		case InitTLVSysDescr:
-			logger().Info("bmp: initiation", "remote", remote, "sysDescr", string(tlv.Value))
+			sysDescr = string(tlv.Value)
+			logger().Info("bmp: initiation", "remote", remote, "sysDescr", sysDescr)
 		case InitTLVString:
 			logger().Info("bmp: initiation", "remote", remote, "message", string(tlv.Value))
 		}
 	}
+	bp.state.setRouterInfo(remote, sysName, sysDescr)
 }
 
 func (bp *BMPPlugin) processTermination(remote string, _ *Termination) {
@@ -374,6 +402,7 @@ func (bp *BMPPlugin) processTermination(remote string, _ *Termination) {
 }
 
 func (bp *BMPPlugin) processPeerUp(remote string, m *PeerUp) {
+	bp.state.peerUp(remote, m.Peer)
 	logger().Info("bmp: peer up",
 		"remote", remote,
 		"peer-as", m.Peer.PeerAS,
@@ -384,6 +413,7 @@ func (bp *BMPPlugin) processPeerUp(remote string, m *PeerUp) {
 }
 
 func (bp *BMPPlugin) processPeerDown(remote string, m *PeerDown) {
+	bp.state.peerDown(remote, m.Peer, m.Reason)
 	logger().Info("bmp: peer down",
 		"remote", remote,
 		"peer-as", m.Peer.PeerAS,
