@@ -7,7 +7,10 @@
 package show
 
 import (
+	"fmt"
+	"net/netip"
 	"sort"
+	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -65,14 +68,7 @@ func handleShowPolicyChain(ctx *pluginserver.CommandContext, args []string) (*pl
 
 	allPeers := ctx.Reactor().Peers()
 	selector := ctx.PeerSelector()
-
-	var matched []plugin.PeerInfo
-	for i := range allPeers {
-		p := &allPeers[i]
-		if selector == "*" || p.Name == selector || p.Address.String() == selector {
-			matched = append(matched, *p)
-		}
-	}
+	matched := filterPeersByPolicySelector(allPeers, selector)
 
 	if len(matched) == 0 {
 		return &plugin.Response{
@@ -85,6 +81,12 @@ func handleShowPolicyChain(ctx *pluginserver.CommandContext, args []string) (*pl
 	direction := ""
 	if len(args) > 0 {
 		direction = args[0]
+		if direction != "import" && direction != "export" {
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Data:   fmt.Sprintf("invalid direction %q (expected import or export)", direction),
+			}, nil
+		}
 	}
 
 	type peerChain struct {
@@ -116,4 +118,46 @@ func handleShowPolicyChain(ctx *pluginserver.CommandContext, args []string) (*pl
 			"chains": chains,
 		},
 	}, nil
+}
+
+// filterPeersByPolicySelector returns peers matching the selector.
+// Supports: "*" (all), IP address (parsed), peer name (string), ASN ("as65001").
+// Mirrors the logic in bgp/plugins/cmd/peer/peer.go:filterPeersBySelector
+// without importing that package.
+func filterPeersByPolicySelector(peers []plugin.PeerInfo, selector string) []plugin.PeerInfo {
+	if selector == "*" {
+		return peers
+	}
+
+	// Try parsed IP address match.
+	if filterIP, err := netip.ParseAddr(selector); err == nil {
+		for i := range peers {
+			if peers[i].Address == filterIP {
+				return []plugin.PeerInfo{peers[i]}
+			}
+		}
+		return nil
+	}
+
+	// Try peer name match.
+	for i := range peers {
+		if peers[i].Name == selector {
+			return []plugin.PeerInfo{peers[i]}
+		}
+	}
+
+	// Try ASN selector: "as<N>" (case-insensitive).
+	if len(selector) > 2 && (selector[0] == 'a' || selector[0] == 'A') && (selector[1] == 's' || selector[1] == 'S') {
+		if asn, err := strconv.ParseUint(selector[2:], 10, 32); err == nil {
+			var matched []plugin.PeerInfo
+			for i := range peers {
+				if uint64(peers[i].PeerAS) == asn {
+					matched = append(matched, peers[i])
+				}
+			}
+			return matched
+		}
+	}
+
+	return nil
 }
