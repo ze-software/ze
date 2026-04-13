@@ -1,0 +1,18 @@
+# Test: sysctl config with fib-kernel loaded validates correctly
+# VALIDATES: AC-2 -- config layer coexists with fib-kernel defaults
+# PREVENTS: sysctl + fib-kernel dependency cycle or config rejection
+stdin=config:terminator=EOF_CONF
+fib {
+	kernel {
+	}
+}
+sysctl {
+	setting net.ipv6.conf.all.forwarding {
+		value 0
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

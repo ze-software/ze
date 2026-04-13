@@ -1,0 +1,17 @@
+# Test: ze config validate accepts sysctl config
+# VALIDATES: AC-4 -- sysctl YANG config parsed by config validator
+# PREVENTS: YANG schema regression breaking sysctl config parsing
+stdin=config:terminator=EOF_CONF
+sysctl {
+	setting net.ipv4.conf.all.forwarding {
+		value 1
+	}
+	setting net.core.somaxconn {
+		value 4096
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

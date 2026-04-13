@@ -249,11 +249,51 @@ func runSysctlPlugin(conn net.Conn) int {
 		return nil
 	})
 
+	const (
+		statusDone  = "done"
+		statusError = "error"
+	)
+
+	p.OnExecuteCommand(func(_, command string, args []string, _ string) (string, string, error) {
+		switch command {
+		case "sysctl show":
+			return statusDone, s.showEntries(), nil
+		case "sysctl list":
+			return statusDone, listKnownKeys(), nil
+		case "sysctl describe":
+			if len(args) < 1 {
+				return statusError, "", fmt.Errorf("sysctl describe: requires key argument")
+			}
+			return statusDone, s.describeKey(args[0]), nil
+		case "sysctl set":
+			if len(args) < 2 {
+				return statusError, "", fmt.Errorf("sysctl set: requires key and value arguments")
+			}
+			applied, err := s.setTransient(args[0], args[1])
+			if err != nil {
+				return statusError, "", fmt.Errorf("sysctl set %s: %w", args[0], err)
+			}
+			if applied != "" && eb != nil {
+				if _, emitErr := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlApplied, applied); emitErr != nil {
+					log.Debug("sysctl: applied emit failed", "err", emitErr)
+				}
+			}
+			return statusDone, applied, nil
+		}
+		return statusError, "", fmt.Errorf("unknown command: %s", command)
+	})
+
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig:  []string{"sysctl"},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
+		Commands: []sdk.CommandDecl{
+			{Name: "sysctl show", Description: "Show all active sysctl keys with source and persistence"},
+			{Name: "sysctl list", Description: "List all known sysctl keys with descriptions"},
+			{Name: "sysctl describe", Description: "Show detail for one sysctl key", Args: []string{"key"}},
+			{Name: "sysctl set", Description: "Set a transient sysctl value", Args: []string{"key", "value"}},
+		},
 	})
 	if err != nil {
 		log.Error("sysctl plugin failed", "error", err)
