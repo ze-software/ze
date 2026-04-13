@@ -54,12 +54,13 @@ func init() {
 	loggerPtr.Store(d)
 
 	reg := registry.Registration{
-		Name:        "interface",
-		Description: "OS network interface monitoring and management",
-		Features:    "yang",
-		YANG:        ifaceschema.ZeIfaceConfYANG,
-		ConfigRoots: []string{"interface"},
-		RunEngine:   runEngine,
+		Name:         "interface",
+		Description:  "OS network interface monitoring and management",
+		Features:     "yang",
+		YANG:         ifaceschema.ZeIfaceConfYANG,
+		ConfigRoots:  []string{"interface"},
+		Dependencies: []string{"sysctl"},
+		RunEngine:    runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -369,11 +370,11 @@ type DHCPStopper interface {
 // SetDHCPClientFactory. It returns a started DHCP client or an error.
 // The interface plugin calls this to create clients without importing
 // the ifacedhcp package.
-var dhcpClientFactory func(ifaceName string, unit int, eb ze.EventBus, v4, v6 bool, hostname, clientID string, pdLength int, duid string) (DHCPStopper, error)
+var dhcpClientFactory func(ifaceName string, unit int, eb ze.EventBus, v4, v6 bool, hostname, clientID string, pdLength int, duid, resolvConfPath string) (DHCPStopper, error)
 
 // SetDHCPClientFactory registers the factory function used to create
 // DHCP clients. Called from ifacedhcp's init().
-func SetDHCPClientFactory(f func(string, int, ze.EventBus, bool, bool, string, string, int, string) (DHCPStopper, error)) {
+func SetDHCPClientFactory(f func(string, int, ze.EventBus, bool, bool, string, string, int, string, string) (DHCPStopper, error)) {
 	dhcpClientFactory = f
 }
 
@@ -485,7 +486,7 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 		if _, running := active[key]; running {
 			continue
 		}
-		client, err := dhcpClientFactory(key.ifaceName, key.unit, eb, p.v4, p.v6, p.hostname, p.clientID, p.pdLength, p.duid)
+		client, err := dhcpClientFactory(key.ifaceName, key.unit, eb, p.v4, p.v6, p.hostname, p.clientID, p.pdLength, p.duid, cfg.ResolvConfPath)
 		if err != nil {
 			log.Warn("interface: DHCP client creation failed",
 				"iface", key.ifaceName, "unit", key.unit, "err", err)

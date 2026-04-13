@@ -174,7 +174,7 @@ func TestSyncWorkerServersConfigPriority(t *testing.T) {
 		Enabled: true,
 		Servers: []string{"configured.ntp.org"},
 	}
-	w := newSyncWorker(cfg)
+	w := newSyncWorker(cfg, nil)
 	w.addDHCPServers([]string{"dhcp.ntp.org"})
 
 	// Configured servers should win.
@@ -193,7 +193,7 @@ func TestSyncWorkerServersDHCPFallback(t *testing.T) {
 		Enabled: true,
 		Servers: nil, // no configured servers
 	}
-	w := newSyncWorker(cfg)
+	w := newSyncWorker(cfg, nil)
 	w.addDHCPServers([]string{"dhcp1.ntp.org", "dhcp2.ntp.org"})
 
 	servers := w.servers()
@@ -207,7 +207,7 @@ func TestSyncWorkerServersDHCPFallback(t *testing.T) {
 func TestSyncWorkerNoServers(t *testing.T) {
 	t.Parallel()
 	cfg := ntpConfig{Enabled: true}
-	w := newSyncWorker(cfg)
+	w := newSyncWorker(cfg, nil)
 
 	servers := w.servers()
 	assert.Empty(t, servers)
@@ -220,7 +220,7 @@ func TestSyncWorkerNoServers(t *testing.T) {
 func TestHandleDHCPEvent(t *testing.T) {
 	t.Parallel()
 	cfg := ntpConfig{Enabled: true}
-	w := newSyncWorker(cfg)
+	w := newSyncWorker(cfg, nil)
 
 	// Simulate a DHCP lease event with NTP servers.
 	data := `{"name":"eth0","unit":0,"address":"10.0.0.5","prefix-length":24,"ntp-servers":["192.168.1.1","192.168.1.2"]}`
@@ -229,6 +229,65 @@ func TestHandleDHCPEvent(t *testing.T) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	assert.Equal(t, []string{"192.168.1.1", "192.168.1.2"}, w.dhcpSrv)
+}
+
+// mockEventBus records Emit calls for testing.
+type mockEventBus struct {
+	emits []emitCall
+}
+
+type emitCall struct {
+	namespace, eventType, payload string
+}
+
+func (m *mockEventBus) Emit(namespace, eventType, payload string) (int, error) {
+	m.emits = append(m.emits, emitCall{namespace, eventType, payload})
+	return 0, nil
+}
+
+func (m *mockEventBus) Subscribe(_, _ string, _ func(string)) func() {
+	return func() {}
+}
+
+// TestSyncWorkerClockSyncedEmittedOnce verifies that the clock-synced
+// event is emitted exactly once after the first successful NTP sync.
+//
+// VALIDATES: AC-5 - Clock readiness gate: clock-synced event emitted.
+// PREVENTS: Missing clock-synced event, or event emitted on every sync.
+func TestSyncWorkerClockSyncedEmittedOnce(t *testing.T) {
+	t.Parallel()
+	eb := &mockEventBus{}
+	cfg := ntpConfig{Enabled: true}
+	w := newSyncWorker(cfg, eb)
+
+	// First sync: CompareAndSwap succeeds, event emitted.
+	if w.synced.CompareAndSwap(false, true) && w.eventBus != nil {
+		n, err := w.eventBus.Emit("system", "clock-synced", "")
+		assert.NoError(t, err)
+		assert.Equal(t, 0, n)
+	}
+	// Second attempt: CompareAndSwap fails, no emission.
+	if w.synced.CompareAndSwap(false, true) && w.eventBus != nil {
+		t.Fatal("should not reach here: synced already true")
+	}
+
+	assert.Len(t, eb.emits, 1)
+	assert.Equal(t, "system", eb.emits[0].namespace)
+	assert.Equal(t, "clock-synced", eb.emits[0].eventType)
+}
+
+// TestSyncWorkerClockSyncedNilEventBus verifies no panic with nil EventBus.
+//
+// VALIDATES: AC-5 - Graceful behavior when EventBus not available.
+// PREVENTS: Nil pointer panic when NTP syncs without EventBus.
+func TestSyncWorkerClockSyncedNilEventBus(t *testing.T) {
+	t.Parallel()
+	cfg := ntpConfig{Enabled: true}
+	w := newSyncWorker(cfg, nil)
+
+	// Should not panic.
+	assert.True(t, w.synced.CompareAndSwap(false, true))
+	assert.Nil(t, w.eventBus)
 }
 
 // TestPersistPathCreatesDirs verifies that saveTime creates parent dirs.

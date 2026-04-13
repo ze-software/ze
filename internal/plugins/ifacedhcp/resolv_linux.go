@@ -11,19 +11,6 @@ import (
 	"strings"
 )
 
-// resolvConfPath is the path to the resolv.conf file written by DHCP.
-// /tmp is used because gokrazy's rootfs is read-only SquashFS and /etc
-// is not writable. On non-gokrazy Linux systems, /tmp/resolv.conf still
-// works but is not the standard location (/etc/resolv.conf). A future
-// YANG leaf under dhcp could make this configurable.
-const resolvConfPath = "/tmp/resolv.conf"
-
-// writeResolvConf writes the given DNS server addresses to the default
-// resolv.conf path. Delegates to writeResolvConfTo for testability.
-func writeResolvConf(servers []string) error {
-	return writeResolvConfTo(resolvConfPath, servers)
-}
-
 // writeResolvConfTo writes DNS server addresses to the given path.
 // The file is written atomically (write tmp + rename) to avoid partial
 // reads by other processes. Each server becomes a "nameserver" line.

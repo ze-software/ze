@@ -8,6 +8,7 @@ package iface
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strconv"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -20,15 +21,16 @@ const yangTrue = "true"
 
 // ifaceConfig is the parsed representation of the interface config section.
 type ifaceConfig struct {
-	Backend   string
-	DHCPAuto  bool // auto-discover first ethernet for DHCP
-	Ethernet  []ifaceEntry
-	Dummy     []ifaceEntry
-	Veth      []vethEntry
-	Bridge    []bridgeEntry
-	Tunnel    []tunnelEntry
-	Wireguard []wireguardEntry
-	Loopback  *loopbackEntry
+	Backend        string
+	DHCPAuto       bool   // auto-discover first ethernet for DHCP
+	ResolvConfPath string // path for DHCP DNS resolv.conf (empty = disabled)
+	Ethernet       []ifaceEntry
+	Dummy          []ifaceEntry
+	Veth           []vethEntry
+	Bridge         []bridgeEntry
+	Tunnel         []tunnelEntry
+	Wireguard      []wireguardEntry
+	Loopback       *loopbackEntry
 }
 
 // tunnelEntry represents a configured tunnel interface. The Spec carries
@@ -156,7 +158,8 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 	}
 
 	cfg := &ifaceConfig{
-		Backend: defaultBackendName,
+		Backend:        defaultBackendName,
+		ResolvConfPath: "/tmp/resolv.conf",
 	}
 
 	if b, ok := ifaceMap["backend"].(string); ok && b != "" {
@@ -165,6 +168,16 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 
 	if v, ok := ifaceMap["dhcp-auto"].(string); ok {
 		cfg.DHCPAuto = v == yangTrue
+	}
+
+	if v, ok := ifaceMap["resolv-conf-path"].(string); ok {
+		if v != "" && !filepath.IsAbs(v) {
+			return nil, fmt.Errorf("interface resolv-conf-path: must be absolute path, got %q", v)
+		}
+		if v != "" && filepath.Clean(v) != v {
+			return nil, fmt.Errorf("interface resolv-conf-path: path contains traversal or redundant separators: %q", v)
+		}
+		cfg.ResolvConfPath = v
 	}
 
 	if ethMap, ok := ifaceMap["ethernet"].(map[string]any); ok {
@@ -1116,7 +1129,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 				}
 				osName = fmt.Sprintf("%s.%d", e.Name, u.VLANID)
 			}
-			errs = append(errs, applySysctl(b, osName, u)...)
+			applySysctl(osName, u)
 			errs = append(errs, applyMirror(b, osName, u)...)
 		}
 	}
@@ -1127,7 +1140,7 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 			if u.Disable {
 				continue
 			}
-			errs = append(errs, applySysctl(b, "lo", u)...)
+			applySysctl("lo", u)
 		}
 	}
 
@@ -1209,70 +1222,64 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 	return errs
 }
 
-// applySysctl applies per-interface IPv4/IPv6 sysctl settings from a unit config.
-// Only settings explicitly configured (non-nil) are applied; OS defaults are left alone.
-// Returns errors for settings that failed to apply.
-func applySysctl(b Backend, osName string, u unitEntry) []error {
-	var errs []error
-	fail := func(what string, err error) {
-		loggerPtr.Load().Warn("iface config: "+what, "iface", osName, "err", err)
-		errs = append(errs, fmt.Errorf("%s %s: %w", osName, what, err))
+// applySysctl emits per-interface sysctl defaults on the EventBus.
+// The sysctl plugin receives these and writes them to the kernel.
+// Only settings explicitly configured (non-nil) are emitted.
+func applySysctl(osName string, u unitEntry) {
+	eb := GetEventBus()
+	if eb == nil {
+		return
 	}
+	log := loggerPtr.Load()
+
+	emit := func(key, value string) {
+		payload := `{"key":"` + key + `","value":"` + value + `","source":"interface"}`
+		if _, err := eb.Emit("sysctl", "default", payload); err != nil {
+			log.Debug("iface: sysctl emit failed", "key", key, "err", err)
+		}
+	}
+
+	boolVal := func(v bool) string {
+		if v {
+			return "1"
+		}
+		return "0"
+	}
+
 	if s := u.IPv4; s != nil {
 		if s.Forwarding != nil {
-			if err := b.SetIPv4Forwarding(osName, *s.Forwarding); err != nil {
-				fail("ipv4 forwarding", err)
-			}
+			emit("net.ipv4.conf."+osName+".forwarding", boolVal(*s.Forwarding))
 		}
 		if s.ArpFilter != nil {
-			if err := b.SetIPv4ArpFilter(osName, *s.ArpFilter); err != nil {
-				fail("ipv4 arp-filter", err)
-			}
+			emit("net.ipv4.conf."+osName+".arp_filter", boolVal(*s.ArpFilter))
 		}
 		if s.ArpAccept != nil {
-			if err := b.SetIPv4ArpAccept(osName, *s.ArpAccept); err != nil {
-				fail("ipv4 arp-accept", err)
-			}
+			emit("net.ipv4.conf."+osName+".arp_accept", boolVal(*s.ArpAccept))
 		}
 		if s.ProxyARP != nil {
-			if err := b.SetIPv4ProxyARP(osName, *s.ProxyARP); err != nil {
-				fail("ipv4 proxy-arp", err)
-			}
+			emit("net.ipv4.conf."+osName+".proxy_arp", boolVal(*s.ProxyARP))
 		}
 		if s.ArpAnnounce != nil {
-			if err := b.SetIPv4ArpAnnounce(osName, *s.ArpAnnounce); err != nil {
-				fail("ipv4 arp-announce", err)
-			}
+			emit("net.ipv4.conf."+osName+".arp_announce", strconv.Itoa(*s.ArpAnnounce))
 		}
 		if s.ArpIgnore != nil {
-			if err := b.SetIPv4ArpIgnore(osName, *s.ArpIgnore); err != nil {
-				fail("ipv4 arp-ignore", err)
-			}
+			emit("net.ipv4.conf."+osName+".arp_ignore", strconv.Itoa(*s.ArpIgnore))
 		}
 		if s.RPFilter != nil {
-			if err := b.SetIPv4RPFilter(osName, *s.RPFilter); err != nil {
-				fail("ipv4 rp-filter", err)
-			}
+			emit("net.ipv4.conf."+osName+".rp_filter", strconv.Itoa(*s.RPFilter))
 		}
 	}
 	if s := u.IPv6; s != nil {
 		if s.Autoconf != nil {
-			if err := b.SetIPv6Autoconf(osName, *s.Autoconf); err != nil {
-				fail("ipv6 autoconf", err)
-			}
+			emit("net.ipv6.conf."+osName+".autoconf", boolVal(*s.Autoconf))
 		}
 		if s.AcceptRA != nil {
-			if err := b.SetIPv6AcceptRA(osName, *s.AcceptRA); err != nil {
-				fail("ipv6 accept-ra", err)
-			}
+			emit("net.ipv6.conf."+osName+".accept_ra", strconv.Itoa(*s.AcceptRA))
 		}
 		if s.Forwarding != nil {
-			if err := b.SetIPv6Forwarding(osName, *s.Forwarding); err != nil {
-				fail("ipv6 forwarding", err)
-			}
+			emit("net.ipv6.conf."+osName+".forwarding", boolVal(*s.Forwarding))
 		}
 	}
-	return errs
 }
 
 // applyMirror configures traffic mirroring on an interface from unit config.

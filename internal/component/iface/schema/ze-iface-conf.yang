@@ -313,6 +313,12 @@ module ze-iface-conf {
             description "Auto-discover first ethernet interface and run DHCP on it. Used when the interface name is not known at config time (e.g., gokrazy appliance). Ignored if any explicit DHCP config exists.";
         }
 
+        leaf resolv-conf-path {
+            type string;
+            default "/tmp/resolv.conf";
+            description "Path where DHCP-acquired DNS servers are written as resolv.conf. Default /tmp/resolv.conf suits gokrazy (read-only rootfs). Set to /etc/resolv.conf on standard Linux. Empty string disables resolv.conf writing.";
+        }
+
         list ethernet {
             key "name";
             unique "mac-address";

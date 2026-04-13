@@ -1106,6 +1106,63 @@ func TestParseIfaceDHCPAutoDefault(t *testing.T) {
 	assert.False(t, cfg.DHCPAuto)
 }
 
+// TestParseIfaceResolvConfPath verifies the resolv-conf-path leaf is parsed.
+//
+// VALIDATES: AC-6 - resolv-conf-path configured value parsed into ifaceConfig.
+// PREVENTS: Custom resolv.conf path silently ignored.
+func TestParseIfaceResolvConfPath(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"resolv-conf-path": "/etc/resolv.conf"
+		}
+	}`)
+	assert.Equal(t, "/etc/resolv.conf", cfg.ResolvConfPath)
+}
+
+// TestParseIfaceResolvConfPathDefault verifies the default resolv-conf-path.
+//
+// VALIDATES: AC-7 - Default /tmp/resolv.conf used when not configured.
+// PREVENTS: Empty resolv.conf path when no config provided.
+func TestParseIfaceResolvConfPathDefault(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {}
+	}`)
+	assert.Equal(t, "/tmp/resolv.conf", cfg.ResolvConfPath)
+}
+
+// TestParseIfaceResolvConfPathEmpty verifies empty string disables DNS writing.
+//
+// VALIDATES: AC-6 - Empty resolv-conf-path disables resolv.conf writes.
+// PREVENTS: DHCP writing to empty path.
+func TestParseIfaceResolvConfPathEmpty(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"resolv-conf-path": ""
+		}
+	}`)
+	assert.Equal(t, "", cfg.ResolvConfPath)
+}
+
+// TestParseIfaceResolvConfPathRelativeRejected verifies relative paths are rejected.
+//
+// VALIDATES: resolv-conf-path validation rejects relative paths.
+// PREVENTS: Path traversal via relative resolv-conf-path.
+func TestParseIfaceResolvConfPathRelativeRejected(t *testing.T) {
+	_, err := parseIfaceConfig(`{"interface":{"resolv-conf-path":"../etc/resolv.conf"}}`)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "absolute path")
+}
+
+// TestParseIfaceResolvConfPathTraversalRejected verifies traversal paths are rejected.
+//
+// VALIDATES: resolv-conf-path validation rejects path traversal.
+// PREVENTS: Writing to unintended locations via /../ in path.
+func TestParseIfaceResolvConfPathTraversalRejected(t *testing.T) {
+	_, err := parseIfaceConfig(`{"interface":{"resolv-conf-path":"/tmp/../etc/resolv.conf"}}`)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "traversal")
+}
+
 // TestHandleDHCPLeaseEventStoresGateway verifies that a DHCP lease event
 // updates the stored gateway for link-state failover.
 //
@@ -1431,16 +1488,6 @@ func (b *fakeBackend) BridgeAddPort(_, _ string) error     { return nil }
 func (b *fakeBackend) BridgeDelPort(_ string) error        { return nil }
 func (b *fakeBackend) BridgeSetSTP(_ string, _ bool) error { return nil }
 
-func (b *fakeBackend) SetIPv4Forwarding(_ string, _ bool) error { return nil }
-func (b *fakeBackend) SetIPv4ArpFilter(_ string, _ bool) error  { return nil }
-func (b *fakeBackend) SetIPv4ArpAccept(_ string, _ bool) error  { return nil }
-func (b *fakeBackend) SetIPv4ProxyARP(_ string, _ bool) error   { return nil }
-func (b *fakeBackend) SetIPv4ArpAnnounce(_ string, _ int) error { return nil }
-func (b *fakeBackend) SetIPv4ArpIgnore(_ string, _ int) error   { return nil }
-func (b *fakeBackend) SetIPv4RPFilter(_ string, _ int) error    { return nil }
-func (b *fakeBackend) SetIPv6Autoconf(_ string, _ bool) error   { return nil }
-func (b *fakeBackend) SetIPv6AcceptRA(_ string, _ int) error    { return nil }
-func (b *fakeBackend) SetIPv6Forwarding(_ string, _ bool) error { return nil }
 func (b *fakeBackend) SetupMirror(_, _ string, _, _ bool) error { return nil }
 func (b *fakeBackend) RemoveMirror(_ string) error              { return nil }
 func (b *fakeBackend) StartMonitor(_ ze.EventBus) error         { return nil }

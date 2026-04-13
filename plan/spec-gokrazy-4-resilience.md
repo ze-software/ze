@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 1/3 |
-| Updated | 2026-04-12 |
+| Phase | 2/3 |
+| Updated | 2026-04-13 |
 
 ## Post-Compaction Recovery
 
@@ -20,10 +20,10 @@ currently lacks. These are polish items that improve operational reliability
 but are not required for the gokrazy build change.
 
 **Features:**
-- Link-state failover: deprioritize routes when interface carrier drops
+- Link-state failover: deprioritize routes when interface carrier drops (DONE)
 - Readiness gate: components can block until clock is sane
-- Route priority: configurable metric for multi-uplink setups
-- DNS conflict detection: don't overwrite resolv.conf if another process manages it
+- ~~Route priority: configurable metric for multi-uplink setups~~ Moved to `spec-iface-route-priority.md` (not gokrazy-specific)
+- ~~DNS conflict detection: don't overwrite resolv.conf if another process manages it~~ Replaced by configurable resolv.conf path (YANG leaf)
 
 ## Required Reading
 
@@ -101,10 +101,11 @@ but are not required for the gokrazy build change.
 |-------|-------------------|-------------------|
 | AC-1 | Interface carrier drops | Routes via that interface get deprioritized (metric 1024) |
 | AC-2 | Interface carrier restores | Routes restored to configured priority |
-| AC-3 | Route priority configured in YANG | Applied as route metric |
+| ~~AC-3~~ | ~~Route priority configured in YANG~~ | Moved to `spec-iface-route-priority.md` |
 | AC-4 | No route priority configured | Default metric (0) used |
 | AC-5 | Clock readiness gate | Components can query clock status |
-| AC-6 | DNS conflict detection | resolv.conf not overwritten if externally managed |
+| AC-6 | YANG leaf `resolv-conf-path` configured | DHCP DNS writes to configured path instead of `/tmp/resolv.conf` |
+| AC-7 | No `resolv-conf-path` configured | Default `/tmp/resolv.conf` used (gokrazy compat) |
 
 ## TDD Test Plan
 

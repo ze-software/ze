@@ -21,8 +21,9 @@ var loggerPtr atomic.Pointer[slog.Logger]
 // Defined in this platform-independent file so register.go (no build tag)
 // can reference it when compiling on non-Linux (e.g., macOS build host).
 type DHCPConfig struct {
-	Hostname string // DHCPv4 option 12
-	ClientID string // DHCPv4 option 61
-	PDLength int    // DHCPv6 requested prefix delegation length (0 = server decides)
-	DUID     string // DHCPv6 DUID override
+	Hostname       string // DHCPv4 option 12
+	ClientID       string // DHCPv4 option 61
+	PDLength       int    // DHCPv6 requested prefix delegation length (0 = server decides)
+	DUID           string // DHCPv6 DUID override
+	ResolvConfPath string // path for DNS resolv.conf (empty = disabled)
 }

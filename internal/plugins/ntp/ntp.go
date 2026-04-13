@@ -48,18 +48,21 @@ func defaultConfig() ntpConfig {
 
 // syncWorker is the long-lived NTP sync goroutine.
 type syncWorker struct {
-	cfg     ntpConfig
-	stop    chan struct{}
-	done    chan struct{}
-	mu      sync.Mutex
-	dhcpSrv []string // DHCP-discovered servers (lower priority)
+	cfg      ntpConfig
+	stop     chan struct{}
+	done     chan struct{}
+	mu       sync.Mutex
+	dhcpSrv  []string    // DHCP-discovered servers (lower priority)
+	eventBus ze.EventBus // for emitting clock-synced event
+	synced   atomic.Bool // true after first successful NTP sync
 }
 
-func newSyncWorker(cfg ntpConfig) *syncWorker {
+func newSyncWorker(cfg ntpConfig, eb ze.EventBus) *syncWorker {
 	return &syncWorker{
-		cfg:  cfg,
-		stop: make(chan struct{}),
-		done: make(chan struct{}),
+		cfg:      cfg,
+		stop:     make(chan struct{}),
+		done:     make(chan struct{}),
+		eventBus: eb,
 	}
 }
 
@@ -159,6 +162,13 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 		return false
 	}
 	logger.Info("ntp: clock synced", "server", server, "offset", resp.ClockOffset)
+
+	// Emit clock-synced event once after first successful NTP sync.
+	if w.synced.CompareAndSwap(false, true) && w.eventBus != nil {
+		if _, err := w.eventBus.Emit(plugin.NamespaceSystem, plugin.EventClockSynced, ""); err != nil {
+			logger.Debug("ntp: clock-synced emit failed", "err", err)
+		}
+	}
 
 	// Write RTC if available.
 	if err := setRTC(clockTime); err != nil {

@@ -89,7 +89,7 @@ func runNTPPlugin(conn net.Conn) int {
 			log.Debug("ntp: disabled in config")
 			return
 		}
-		worker = newSyncWorker(cfg)
+		worker = newSyncWorker(cfg, getEventBus())
 		worker.start()
 		log.Info("ntp: sync worker started",
 			"servers", cfg.Servers, "interval", cfg.IntervalSec)

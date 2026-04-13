@@ -206,14 +206,14 @@ func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 	// Write DNS servers from DHCPv6 reply to resolv.conf.
 	// Done once after the address loop rather than per-address.
 	dnsServers := msg.Options.DNS()
-	if len(dnsServers) > 0 {
+	if len(dnsServers) > 0 && c.config.ResolvConfPath != "" {
 		dnsAll := make([]string, 0, len(dnsServers))
 		for _, s := range dnsServers {
 			dnsAll = append(dnsAll, s.String())
 		}
-		if err := writeResolvConf(dnsAll); err != nil {
+		if err := writeResolvConfTo(c.config.ResolvConfPath, dnsAll); err != nil {
 			logger.Warn("iface dhcp v6: resolv.conf write failed",
-				"iface", c.ifaceName, "err", err)
+				"iface", c.ifaceName, "path", c.config.ResolvConfPath, "err", err)
 		}
 	}
 

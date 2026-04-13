@@ -17,6 +17,8 @@ const (
 	NamespaceSystemRIB = "system-rib"
 	NamespaceFib       = "fib"
 	NamespaceInterface = "interface"
+	NamespaceSysctl    = "sysctl"
+	NamespaceSystem    = "system"
 )
 
 // BGP event types.
@@ -53,6 +55,24 @@ const (
 // Fib event types.
 const (
 	EventFibExternalChange = "external-change" // FIB observed a route installed by something other than ze
+)
+
+// System event types.
+const (
+	EventClockSynced = "clock-synced" // NTP plugin: system clock set from NTP
+)
+
+// Sysctl event types.
+const (
+	EventSysctlDefault         = "default"          // Plugin -> sysctl: register a required default value
+	EventSysctlSet             = "set"              // CLI -> sysctl: write a transient value
+	EventSysctlApplied         = "applied"          // sysctl -> any: value was written to kernel
+	EventSysctlShowRequest     = "show-request"     // CLI -> sysctl: request active keys table
+	EventSysctlShowResult      = "show-result"      // sysctl -> requester: active keys JSON table
+	EventSysctlListRequest     = "list-request"     // CLI -> sysctl: request known keys table
+	EventSysctlListResult      = "list-result"      // sysctl -> requester: known keys JSON table
+	EventSysctlDescribeRequest = "describe-request" // CLI -> sysctl: request detail for one key
+	EventSysctlDescribeResult  = "describe-result"  // sysctl -> requester: key detail JSON
 )
 
 // Interface event types.
@@ -136,6 +156,24 @@ var ValidFibEvents = map[string]bool{
 	EventFibExternalChange: true,
 }
 
+// ValidSystemEvents is the set of valid system-level event types.
+var ValidSystemEvents = map[string]bool{
+	EventClockSynced: true,
+}
+
+// ValidSysctlEvents is the set of valid sysctl event types.
+var ValidSysctlEvents = map[string]bool{
+	EventSysctlDefault:         true,
+	EventSysctlSet:             true,
+	EventSysctlApplied:         true,
+	EventSysctlShowRequest:     true,
+	EventSysctlShowResult:      true,
+	EventSysctlListRequest:     true,
+	EventSysctlListResult:      true,
+	EventSysctlDescribeRequest: true,
+	EventSysctlDescribeResult:  true,
+}
+
 // ValidInterfaceEvents is the set of valid interface monitor event types.
 var ValidInterfaceEvents = map[string]bool{
 	EventInterfaceCreated:      true,
@@ -177,6 +215,8 @@ var ValidEvents = map[string]map[string]bool{
 	NamespaceSystemRIB: ValidSystemRIBEvents,
 	NamespaceFib:       ValidFibEvents,
 	NamespaceInterface: ValidInterfaceEvents,
+	NamespaceSysctl:    ValidSysctlEvents,
+	NamespaceSystem:    ValidSystemEvents,
 }
 
 // IsValidEvent returns true if the event type is valid in the given namespace.

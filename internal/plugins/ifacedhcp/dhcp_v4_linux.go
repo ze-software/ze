@@ -191,10 +191,10 @@ func (c *DHCPClient) handleV4Lease(ack *dhcpv4.DHCPv4, topic string) {
 	}
 
 	// Write DNS servers from DHCP to resolv.conf (RFC 2132 Section 3.8).
-	if len(payload.DNSAll) > 0 {
-		if err := writeResolvConf(payload.DNSAll); err != nil {
+	if len(payload.DNSAll) > 0 && c.config.ResolvConfPath != "" {
+		if err := writeResolvConfTo(c.config.ResolvConfPath, payload.DNSAll); err != nil {
 			logger.Warn("iface dhcp v4: resolv.conf write failed",
-				"iface", c.ifaceName, "err", err)
+				"iface", c.ifaceName, "path", c.config.ResolvConfPath, "err", err)
 		}
 	}
 
