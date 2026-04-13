@@ -1131,6 +1131,18 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		}
 	}
 
+	// Phase 2c: Bring all non-disabled interfaces administratively UP.
+	// Without this, DHCP and other protocols cannot send packets on the
+	// interface even if the physical link is connected.
+	for _, e := range allEntries {
+		if e.Disable {
+			continue
+		}
+		if err := b.SetAdminUp(e.Name); err != nil {
+			log.Debug("iface config: admin up (may already be up)", "name", e.Name, "err", err)
+		}
+	}
+
 	// Phase 3: Reconcile addresses (add missing, remove extra).
 	desiredAddrs, managedNames := cfg.desiredState()
 

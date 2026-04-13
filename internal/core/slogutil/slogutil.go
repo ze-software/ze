@@ -7,7 +7,7 @@
 //   - ze.log=<level> - base level for all subsystems
 //   - ze.log.bgp=<level> - level for all bgp.* subsystems
 //   - ze.log.bgp.fsm=<level> - level for specific subsystem
-//   - ze.log.backend=<backend> - log output (stderr/stdout/syslog)
+//   - ze.log.backend=<backend> - log output (stderr/stdout/syslog/kmsg)
 //   - ze.log.destination=<addr> - syslog address (when backend=syslog)
 //   - ze.log.relay=<level> - plugin stderr relay level
 //   - ze.log.color=<bool> - force color on/off (overrides TTY detection)
@@ -126,6 +126,7 @@ const (
 	backendStdout = "stdout"
 	backendSyslog = "syslog"
 	backendStderr = "stderr"
+	backendKmsg   = "kmsg"
 )
 
 // levelRegistry tracks subsystem names to their *slog.LevelVar for runtime level changes.
@@ -247,25 +248,93 @@ func RelayLevel() (slog.Level, bool) {
 func createHandler(level slog.Leveler) slog.Handler {
 	opts := &slog.HandlerOptions{Level: level}
 	backend := getSpecialEnv("backend")
-	switch strings.ToLower(backend) {
-	case backendStdout:
-		if UseColor(os.Stdout) {
-			return newColorHandler(os.Stdout, opts)
-		}
-		return slog.NewTextHandler(os.Stdout, opts)
-	case backendSyslog:
+
+	// Split on comma: "kmsg,stderr" -> ["kmsg", "stderr"]
+	parts := strings.Split(strings.ToLower(backend), ",")
+
+	// Single syslog backend (not composable with io.Writer).
+	if len(parts) == 1 && strings.TrimSpace(parts[0]) == backendSyslog {
 		return newSyslogHandler(opts)
-	case backendStderr:
-		if UseColor(os.Stderr) {
-			return newColorHandler(os.Stderr, opts)
+	}
+
+	writers := make([]io.Writer, 0, len(parts))
+	for _, p := range parts {
+		name := strings.TrimSpace(p)
+		if w := writerForBackend(name); w != nil {
+			writers = append(writers, w)
 		}
-		return slog.NewTextHandler(os.Stderr, opts)
 	}
-	// default: stderr
-	if UseColor(os.Stderr) {
-		return newColorHandler(os.Stderr, opts)
+	if len(writers) == 0 {
+		writers = append(writers, os.Stderr)
 	}
-	return slog.NewTextHandler(os.Stderr, opts)
+
+	var w io.Writer
+	if len(writers) == 1 {
+		w = writers[0]
+	} else {
+		w = io.MultiWriter(writers...)
+	}
+
+	if UseColor(w) {
+		return newColorHandler(w, opts)
+	}
+	return slog.NewTextHandler(w, opts)
+}
+
+// writerForBackend returns an io.Writer for a backend name, or nil if unknown/empty.
+func writerForBackend(name string) io.Writer {
+	switch name {
+	case "":
+		return nil
+	case backendStdout:
+		return os.Stdout
+	case backendStderr:
+		return os.Stderr
+	case backendKmsg:
+		return openKmsg()
+	}
+	writeWarn(os.Stderr, "warning: unknown log backend %q, ignoring\n", name)
+	return nil
+}
+
+// kmsgFile holds the singleton /dev/kmsg file descriptor so repeated
+// calls to openKmsg (e.g., on config reload) reuse the same fd.
+var kmsgFile *os.File
+
+// openKmsg opens /dev/kmsg for writing (once). Falls back to stderr.
+func openKmsg() io.Writer {
+	if kmsgFile != nil {
+		return kmsgFile
+	}
+	f, err := os.OpenFile("/dev/kmsg", os.O_WRONLY, 0)
+	if err != nil {
+		return os.Stderr
+	}
+	kmsgFile = f
+	return f
+}
+
+var validBackends = map[string]bool{
+	backendStderr: true,
+	backendStdout: true,
+	backendSyslog: true,
+	backendKmsg:   true,
+}
+
+// validateBackends checks that every comma-separated backend name is known.
+func validateBackends(value string) error {
+	for part := range strings.SplitSeq(strings.ToLower(value), ",") {
+		name := strings.TrimSpace(part)
+		if name != "" && !validBackends[name] {
+			return fmt.Errorf("invalid log backend %q (must be stderr/stdout/syslog/kmsg)", name)
+		}
+	}
+	return nil
+}
+
+// writeWarn writes a warning to w, discarding write errors (logger not yet initialized).
+func writeWarn(w io.Writer, format string, args ...any) {
+	fmt.Fprintf(w, format, args...) //nolint:errcheck // pre-logger warning output
 }
 
 // parseLevel parses a log level string.
@@ -359,12 +428,8 @@ func applyLogConfigTo(configValues map[string]map[string]string, warnWriter io.W
 			envKey = "ze.log"
 			isLevel = true
 		case "backend":
-			// Validate backend value
-			switch strings.ToLower(value) {
-			case backendStderr, backendStdout, backendSyslog:
-				// valid
-			default:
-				_, _ = fmt.Fprintf(warnWriter, "warning: invalid log backend %q (must be stderr/stdout/syslog)\n", value)
+			if err := validateBackends(value); err != nil {
+				writeWarn(warnWriter, "warning: %v\n", err)
 				continue
 			}
 			envKey = "ze.log." + key

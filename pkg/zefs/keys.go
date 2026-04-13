@@ -19,4 +19,5 @@ var (
 	KeyHistory         = MustRegister(KeyEntry{Pattern: "meta/history/{username}/{mode}", Description: "Per-user command history"})
 	KeyFileActive      = MustRegister(KeyEntry{Pattern: "file/active/{basename}", Description: "Current active config file"})
 	KeyFileDraft       = MustRegister(KeyEntry{Pattern: "file/draft/{basename}", Description: "Draft config file (in progress)"})
+	KeyFileTemplate    = MustRegister(KeyEntry{Pattern: "file/template/{basename}", Description: "Config template (merged with discovery on first boot)"})
 )

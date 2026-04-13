@@ -40,6 +40,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/managed"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
@@ -727,12 +728,17 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 	}
 
 	configName := resolveDefaultConfig(store)
-	if !store.Exists(configName) {
-		if !webEnabled {
+	if !store.Exists(configName) || isEmptyConfig(store, configName) {
+		// First-boot bootstrap: merge template + interface discovery.
+		switch {
+		case bootstrapConfigFromTemplate(store, configName):
+			fmt.Fprintf(os.Stderr, "bootstrap: created config from template + discovery\n")
+		case webEnabled:
+			return hub.RunWebOnly(store, webListenAddr, insecureWeb)
+		default:
 			fmt.Fprintf(os.Stderr, "error: no config found in database (run ze config edit first)\n")
 			return 1
 		}
-		return hub.RunWebOnly(store, webListenAddr, insecureWeb)
 	}
 
 	ct := detectConfigType(store, configName)
@@ -956,6 +962,61 @@ func resolveDefaultConfig(store storage.Storage) string {
 		return "ze.conf"
 	}
 	return name + ".conf"
+}
+
+// isEmptyConfig returns true if the active config contains only
+// comments and whitespace (the stub that ze init writes when
+// interface discovery is unavailable on the build host).
+func isEmptyConfig(store storage.Storage, configName string) bool {
+	data, err := store.ReadFile(configName)
+	if err != nil {
+		return true
+	}
+	for line := range strings.SplitSeq(string(data), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+			return false
+		}
+	}
+	return true
+}
+
+// bootstrapConfigFromTemplate reads file/template/ze.conf from zefs,
+// runs interface discovery, merges them, and writes the result to the
+// active config. Returns true on success.
+func bootstrapConfigFromTemplate(store storage.Storage, configName string) bool {
+	templateKey := zefs.KeyFileTemplate.Key("ze.conf")
+	tmpl, err := store.ReadFile(templateKey)
+	if err != nil {
+		return false
+	}
+
+	var merged []byte
+	if loadErr := iface.LoadBackend("netlink"); loadErr != nil {
+		fmt.Fprintf(os.Stderr, "bootstrap: netlink backend unavailable: %v\n", loadErr)
+		merged = tmpl
+	} else {
+		discovered, discErr := iface.DiscoverInterfaces()
+		if closeErr := iface.CloseBackend(); closeErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: bootstrap: close backend: %v\n", closeErr)
+		}
+		if discErr != nil || len(discovered) == 0 {
+			merged = tmpl
+		} else {
+			ifaceCfg := iface.EmitSetConfig(discovered)
+			merged = make([]byte, 0, len(tmpl)+1+len(ifaceCfg))
+			merged = append(merged, tmpl...)
+			merged = append(merged, '\n')
+			merged = append(merged, []byte(ifaceCfg)...)
+		}
+	}
+
+	activeKey := zefs.KeyFileActive.Key(configName)
+	if writeErr := store.WriteFile(activeKey, merged, 0); writeErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: bootstrap: write config: %v\n", writeErr)
+		return false
+	}
+	return true
 }
 
 func usage() {

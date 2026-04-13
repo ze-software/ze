@@ -453,6 +453,13 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 	// find the first ethernet interface and run DHCPv4 on it.
 	if cfg.DHCPAuto && len(desired) == 0 {
 		if name := discoverPrimaryEthernet(log); name != "" {
+			// Bring the interface administratively UP before DHCP.
+			// Without this, the kernel cannot send DHCP packets.
+			if b := GetBackend(); b != nil {
+				if err := b.SetAdminUp(name); err != nil {
+					log.Warn("interface: dhcp-auto: failed to bring up", "iface", name, "err", err)
+				}
+			}
 			key := dhcpUnitKey{ifaceName: name, unit: 0}
 			desired[key] = dhcpParams{v4: true}
 			log.Info("interface: dhcp-auto discovered primary ethernet", "iface", name)

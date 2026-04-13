@@ -108,6 +108,10 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.enabled", Type: "bool", Description: "Enable looking glass server"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.tls", Type: "bool", Description: "Enable TLS for looking glass"})
 
+	// Gokrazy management proxy (mounted on ze web server at /gokrazy/).
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.gokrazy.enabled", Type: "bool", Description: "Enable gokrazy management proxy on web server at /gokrazy/"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.gokrazy.socket", Type: "string", Default: "/run/gokrazy-http.sock", Description: "Gokrazy management Unix socket path"})
+
 	// DNS resolver.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.server", Type: "string", Default: "8.8.8.8:53", Description: "DNS server address (e.g., 8.8.8.8:53)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.timeout", Type: "int", Default: "5", Description: "DNS query timeout in seconds (1-60)"})

@@ -29,6 +29,7 @@ import (
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
+	zegokrazy "codeberg.org/thomas-mangin/ze/internal/component/gokrazy"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 	"codeberg.org/thomas-mangin/ze/internal/component/lg"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
@@ -950,6 +951,10 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	srv.Handle("/config/diff-close", authWrap(diffCloseHandler))
 	srv.Handle("/config/commit", authWrap(commitHandler))
 	srv.Handle("POST /config/discard", authWrap(discardHandler))
+	if env.IsEnabled("ze.gokrazy.enabled") {
+		srv.Handle("/gokrazy/", authWrap(zegokrazy.Handler(env.Get("ze.gokrazy.socket"))))
+		zeweb.SetGokrazyEnabled()
+	}
 	srv.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			http.Redirect(w, r, "/show/", http.StatusFound)

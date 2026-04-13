@@ -22,6 +22,7 @@ const defaultBlobName = "database.zefs"
 // Each handler receives the blob path and remaining args.
 var subcommandHandlers = map[string]func(string, []string) int{
 	"import":     cmdImport,
+	"write":      cmdWrite,
 	"rm":         cmdRm,
 	"ls":         cmdLs,
 	"cat":        cmdCat,
@@ -111,6 +112,35 @@ func openOrCreateStore(storePath string) (*zefs.BlobStore, error) {
 // Only the base filename is used as the key (not the full path).
 func filePathToKey(path string) string {
 	return zefs.KeyFileActive.Key(filepath.Base(path))
+}
+
+func cmdWrite(storePath string, args []string) int {
+	if len(args) != 2 {
+		fmt.Fprintf(os.Stderr, "usage: ze data write <key> <file>\n")
+		return 1
+	}
+	key, srcPath := args[0], args[1]
+
+	data, err := os.ReadFile(srcPath) //nolint:gosec // user-provided path
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: read %s: %v\n", srcPath, err)
+		return 2
+	}
+
+	s, openErr := openOrCreateStore(storePath)
+	if openErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", openErr)
+		return 2
+	}
+	defer s.Close() //nolint:errcheck // best-effort close
+
+	if writeErr := s.WriteFile(key, data, 0); writeErr != nil {
+		fmt.Fprintf(os.Stderr, "error: write %s: %v\n", key, writeErr)
+		return 2
+	}
+
+	fmt.Printf("wrote %s (%d bytes) into %s\n", key, len(data), storePath)
+	return 0
 }
 
 func cmdImport(storePath string, args []string) int {
@@ -295,6 +325,7 @@ func usage() {
 		Usage:   []string{"ze data [--path <store>] <command> [args...]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
+				{Name: "write <key> <file>", Desc: "Write a file to an explicit key"},
 				{Name: "import <file>...", Desc: "Import files into the blob store"},
 				{Name: "rm <key>...", Desc: "Remove entries from the blob store"},
 				{Name: "ls [prefix]", Desc: "List entries in the blob store"},

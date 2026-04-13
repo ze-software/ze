@@ -117,6 +117,81 @@ func emitWireguardBlock(b *strings.Builder, di *DiscoveredInterface) {
 	b.WriteString("    }\n")
 }
 
+// EmitSetConfig produces set-command format for discovered interfaces.
+// Used by the bootstrap path where the template is already in set format.
+func EmitSetConfig(discovered []DiscoveredInterface) string {
+	if len(discovered) == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+	for i := range discovered {
+		di := &discovered[i]
+		switch di.Type {
+		case zeTypeLoopback:
+			// Loopback is a regular container, not a presence container.
+			// A bare "set interface loopback" with no child is invalid.
+			// Skip it; the OS loopback is always present.
+			continue
+		case zeTypeEthernet, zeTypeBridge, zeTypeVeth, zeTypeDummy:
+			if !safeEmitName(di.Name) {
+				continue
+			}
+			if di.MAC != "" {
+				fmt.Fprintf(&b, "set interface %s %s mac-address %s\n", di.Type, di.Name, di.MAC)
+			}
+			fmt.Fprintf(&b, "set interface %s %s os-name %s\n", di.Type, di.Name, di.Name)
+		case zeTypeWireguard:
+			if !safeEmitName(di.Name) {
+				continue
+			}
+			emitWireguardSet(&b, di)
+		}
+	}
+	return b.String()
+}
+
+// emitWireguardSet writes set-command lines for a discovered wireguard device.
+func emitWireguardSet(b *strings.Builder, di *DiscoveredInterface) {
+	prefix := fmt.Sprintf("set interface wireguard %s", di.Name)
+	fmt.Fprintf(b, "%s os-name %s\n", prefix, di.Name)
+	spec := di.Wireguard
+	if spec == nil {
+		return
+	}
+	if spec.ListenPortSet && spec.ListenPort != 0 {
+		fmt.Fprintf(b, "%s listen-port %d\n", prefix, spec.ListenPort)
+	}
+	if spec.FirewallMark != 0 {
+		fmt.Fprintf(b, "%s fwmark %d\n", prefix, spec.FirewallMark)
+	}
+	if encoded, err := secret.Encode(spec.PrivateKey.String()); err == nil {
+		fmt.Fprintf(b, "%s private-key \"%s\"\n", prefix, encoded)
+	}
+	for idx := range spec.Peers {
+		p := &spec.Peers[idx]
+		peerPrefix := fmt.Sprintf("%s peer peer%d", prefix, idx)
+		fmt.Fprintf(b, "%s public-key \"%s\"\n", peerPrefix, p.PublicKey.String())
+		if p.HasPresharedKey {
+			if encoded, err := secret.Encode(p.PresharedKey.String()); err == nil {
+				fmt.Fprintf(b, "%s preshared-key \"%s\"\n", peerPrefix, encoded)
+			}
+		}
+		if p.EndpointIP != "" && p.EndpointPort != 0 {
+			fmt.Fprintf(b, "%s endpoint ip %s\n", peerPrefix, p.EndpointIP)
+			fmt.Fprintf(b, "%s endpoint port %d\n", peerPrefix, p.EndpointPort)
+		}
+		if len(p.AllowedIPs) > 0 {
+			for _, cidr := range p.AllowedIPs {
+				fmt.Fprintf(b, "%s allowed-ips %s\n", peerPrefix, cidr)
+			}
+		}
+		if p.PersistentKeepalive != 0 {
+			fmt.Fprintf(b, "%s persistent-keepalive %d\n", peerPrefix, p.PersistentKeepalive)
+		}
+	}
+}
+
 // safeEmitName returns true if name is safe to interpolate into config
 // syntax. Rejects names containing characters that would break the
 // config parser (braces, semicolons, whitespace, NUL).

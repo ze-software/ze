@@ -518,11 +518,11 @@ tidy:
 # The image contains:
 #   - Linux kernel + gokrazy init (process supervisor, DHCP, NTP, web UI)
 #   - Ze binary with all internal plugins compiled in
-#   - Seed config at /etc/ze/ze.conf (read-only root)
-#   - SSH credentials in /perm/ze/database.zefs (persistent partition)
+#   - Config template + SSH credentials + TLS cert in /perm/ze/database.zefs
+#   - First boot: template merged with interface discovery into active config
 #
-# Gokrazy web UI: http://gokrazy:<password>@localhost:18080/
-# Ze web UI:      http://localhost:28080/
+# Ze web UI:      https://localhost:28080/ (ze login required)
+# Gokrazy mgmt:   https://localhost:28080/gokrazy/ (ze login required)
 # Ze SSH CLI:     ssh -p 2222 <user>@localhost
 #
 # Usage:
@@ -579,6 +579,7 @@ ze-gokrazy: ze bin/gok
 		echo "--- Creating SSH credentials + TLS certificate ---"; \
 		printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \
 			env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes --web-cert 0.0.0.0:8080 2>&1; \
+		bin/ze data --path $(GOKRAZY_ZEFS) write file/template/ze.conf gokrazy/ze/ze.conf; \
 	elif [ ! -f $(GOKRAZY_ZEFS) ]; then \
 		echo "error: no database found. First build requires credentials:"; \
 		echo "  make ze-gokrazy USER=admin PASS=secret"; \
@@ -607,8 +608,8 @@ ze-gokrazy-run:
 	@test -f $(GOKRAZY_IMG) || { echo "error: $(GOKRAZY_IMG) not found (run: make ze-gokrazy USER=admin PASS=secret)"; exit 1; }
 	@command -v qemu-system-x86_64 >/dev/null || { echo "error: qemu not found (brew install qemu)"; exit 1; }
 	@echo "Booting Ze gokrazy appliance..."
-	@echo "  Gokrazy web: http://gokrazy:$$(python3 -c "import json; print(json.load(open('$(GOKRAZY_DIR)/$(GOKRAZY_INSTANCE)/config.json'))['Update']['HTTPPassword'])" 2>/dev/null || echo 'see config')@localhost:18080/"
-	@echo "  Ze web:      http://localhost:28080/"
+	@echo "  Ze web:      https://localhost:28080/"
+	@echo "  Gokrazy:     https://localhost:28080/gokrazy/"
 	@echo "  Ze SSH:      ssh -p 2222 <user>@localhost"
 	@echo "  Quit:        Ctrl-A X"
 	@echo ""
@@ -617,7 +618,7 @@ ze-gokrazy-run:
 		-smp 2 -m 512 \
 		-drive file=$(GOKRAZY_IMG),format=raw \
 		-nographic -serial mon:stdio \
-		-nic user,model=e1000,hostfwd=tcp::18080-:80,hostfwd=tcp::28080-:8080,hostfwd=tcp::2222-:22
+		-nic user,model=e1000,hostfwd=tcp::28080-:8080,hostfwd=tcp::2222-:22
 
 # Clean build artifacts
 clean:
