@@ -50,6 +50,8 @@ JunOS-style two-layer model: physical interfaces with logical units.
 | | Bus events (acquired/renewed/expired) | have | |
 | | Config-driven (`dhcp { enabled true }`) | have | |
 | | Default route from DHCP Router option | have | |
+| | Route priority per unit (`route-priority`) | have | |
+| | Link-down route deprioritization (metric + 1024) | have | |
 | | DNS from DHCP to `/tmp/resolv.conf` | have | |
 | | Hostname in DHCPv4 (option 12) | have | |
 | | Client-ID in DHCPv4 (option 61) | have | |

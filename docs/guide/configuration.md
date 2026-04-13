@@ -488,6 +488,45 @@ discovered OS interfaces when editing config interactively.
 
 <!-- source: internal/component/config/validators.go -- MACAddressValidator -->
 
+### Route Priority
+
+The `route-priority` leaf on a unit sets the Linux route metric for DHCP-installed
+default routes on that interface. Lower values are preferred by the kernel. When a
+link goes down, the metric is increased by 1024 to deprioritize the interface,
+allowing traffic to shift to an alternative uplink. When the link comes back up,
+the original metric is restored.
+
+<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- route-priority leaf -->
+<!-- source: internal/component/iface/register.go -- handleLinkDown, handleLinkUp -->
+
+```
+interface {
+    ethernet uplink {
+        mac-address 00:1a:2b:3c:4d:5e;
+        unit 0 {
+            route-priority 1;
+            dhcp {
+                enabled true;
+            }
+        }
+    }
+    ethernet backup {
+        mac-address 00:1a:2b:3c:4d:5f;
+        unit 0 {
+            route-priority 5;
+            dhcp {
+                enabled true;
+            }
+        }
+    }
+}
+```
+
+With this config, uplink (metric 1) is preferred over backup (metric 5). If uplink
+goes down, its metric becomes 1025 (1 + 1024), so backup (metric 5) takes over. When
+uplink recovers, its metric returns to 1 and traffic shifts back. The default value
+is 0 (kernel default), which preserves existing behavior when not configured.
+
 ## Sysctl Configuration
 
 Kernel tunables are managed by the `sysctl` plugin via a generic key/value list:

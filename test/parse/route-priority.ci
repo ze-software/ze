@@ -1,0 +1,19 @@
+# Valid config: route-priority on ethernet unit
+# AC-1: route-priority 5 accepted by config validate.
+# AC-2: unit without route-priority uses default 0.
+stdin=config:terminator=EOF_CONF
+interface {
+    ethernet eth0 {
+        unit 0 {
+            route-priority 5
+            address [ 10.0.0.1/24 ]
+        }
+        unit 1 {
+            address [ 10.0.1.1/24 ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

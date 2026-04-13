@@ -84,6 +84,7 @@ type unitEntry struct {
 	VLANID        int
 	Addresses     []string
 	Disable       bool
+	RoutePriority int // route metric for DHCP default routes (0 = kernel default)
 	IPv4          *ipv4Sysctl
 	IPv6          *ipv6Sysctl
 	MirrorIngress string // destination interface name, empty = not configured
@@ -567,6 +568,9 @@ func parseUnits(m map[string]any) []unitEntry {
 			}
 			if _, ok := um["disable"]; ok {
 				u.Disable = true
+			}
+			if rp, ok := um["route-priority"].(string); ok {
+				u.RoutePriority, _ = strconv.Atoi(rp)
 			}
 			u.Addresses = parseStringList(um, "address")
 			u.IPv4 = parseIPv4Sysctl(um)

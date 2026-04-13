@@ -93,6 +93,17 @@ module ze-iface-conf {
                 description "Administratively disable this unit";
             }
 
+            leaf route-priority {
+                type uint32 {
+                    range "0..4294966271";
+                }
+                default 0;
+                description "Route metric for default routes installed via DHCP on
+                             this unit. Lower values are preferred. On link-down,
+                             the metric is increased by 1024 to deprioritize the
+                             interface. 0 = kernel default.";
+            }
+
             leaf vrf {
                 type string;
                 description "VRF membership";

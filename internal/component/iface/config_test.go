@@ -1163,6 +1163,54 @@ func TestParseIfaceResolvConfPathTraversalRejected(t *testing.T) {
 	assert.Contains(t, err.Error(), "traversal")
 }
 
+// TestParseUnitRoutePriority verifies that route-priority is parsed into
+// unitEntry.RoutePriority from the YANG config JSON.
+//
+// VALIDATES: AC-1 - Config with route-priority is parsed into unitEntry.
+// PREVENTS: route-priority silently ignored during config parsing.
+func TestParseUnitRoutePriority(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {
+							"route-priority": "5"
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	require.Len(t, cfg.Ethernet[0].Units, 1)
+	u := cfg.Ethernet[0].Units[0]
+	assert.Equal(t, 5, u.RoutePriority)
+}
+
+// TestParseUnitRoutePriorityDefault verifies that a unit without
+// route-priority configured defaults to 0 (kernel default).
+//
+// VALIDATES: AC-2 - No route-priority means metric 0 (unchanged behavior).
+// PREVENTS: Non-zero default accidentally changing existing route behavior.
+func TestParseUnitRoutePriorityDefault(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	require.Len(t, cfg.Ethernet[0].Units, 1)
+	u := cfg.Ethernet[0].Units[0]
+	assert.Equal(t, 0, u.RoutePriority)
+}
+
 // TestHandleDHCPLeaseEventStoresGateway verifies that a DHCP lease event
 // updates the stored gateway for link-state failover.
 //
@@ -1198,6 +1246,138 @@ func TestHandleDHCPLeaseEventNoMatch(t *testing.T) {
 	// eth0 gateway unchanged (still empty).
 	entry := active[dhcpUnitKey{ifaceName: "eth0", unit: 0}]
 	assert.Equal(t, "", entry.gateway)
+}
+
+// TestHandleLinkDownWithRoutePriority verifies that handleLinkDown removes
+// the base-metric route and installs a deprioritized route (base + 1024).
+//
+// VALIDATES: AC-3 - Link down with route-priority 5 deprioritizes to 1029.
+// PREVENTS: Link-down using hardcoded metric 0 instead of configured routePriority.
+func TestHandleLinkDownWithRoutePriority(t *testing.T) {
+	fb := &fakeBackend{ifaces: map[string]fakeIface{}}
+	backendName := "test-linkdown-" + t.Name()
+	err := RegisterBackend(backendName, func() (Backend, error) { return fb, nil })
+	require.NoError(t, err)
+	require.NoError(t, LoadBackend(backendName))
+	defer func() { _ = CloseBackend() }()
+
+	active := map[dhcpUnitKey]dhcpEntry{
+		{ifaceName: "eth0", unit: 0}: {
+			params:  dhcpParams{v4: true, routePriority: 5},
+			gateway: "192.168.1.1",
+		},
+	}
+	logger := slog.Default()
+
+	handleLinkDown("eth0", active, logger)
+
+	require.Len(t, fb.routeRemoves, 1, "should remove one route")
+	assert.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.168.1.1", 5}, fb.routeRemoves[0],
+		"should remove route with base metric")
+
+	require.Len(t, fb.routeAdds, 1, "should add one route")
+	assert.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.168.1.1", 1029}, fb.routeAdds[0],
+		"should add deprioritized route (5 + 1024 = 1029)")
+}
+
+// TestHandleLinkUpWithRoutePriority verifies that handleLinkUp removes
+// the deprioritized route and restores the base-metric route.
+//
+// VALIDATES: AC-4 - Link up with route-priority 5 restores metric to 5.
+// PREVENTS: Link-up using hardcoded metric 0 instead of configured routePriority.
+func TestHandleLinkUpWithRoutePriority(t *testing.T) {
+	fb := &fakeBackend{ifaces: map[string]fakeIface{}}
+	backendName := "test-linkup-" + t.Name()
+	err := RegisterBackend(backendName, func() (Backend, error) { return fb, nil })
+	require.NoError(t, err)
+	require.NoError(t, LoadBackend(backendName))
+	defer func() { _ = CloseBackend() }()
+
+	active := map[dhcpUnitKey]dhcpEntry{
+		{ifaceName: "eth0", unit: 0}: {
+			params:  dhcpParams{v4: true, routePriority: 5},
+			gateway: "192.168.1.1",
+		},
+	}
+	logger := slog.Default()
+
+	handleLinkUp("eth0", active, logger)
+
+	require.Len(t, fb.routeRemoves, 1, "should remove one route")
+	assert.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.168.1.1", 1029}, fb.routeRemoves[0],
+		"should remove deprioritized route (5 + 1024 = 1029)")
+
+	require.Len(t, fb.routeAdds, 1, "should add one route")
+	assert.Equal(t, routeCall{"eth0", "0.0.0.0/0", "192.168.1.1", 5}, fb.routeAdds[0],
+		"should restore route with base metric")
+}
+
+// TestHandleLinkDownDefaultMetric verifies that link-down with no route-priority
+// (default 0) uses metric 0 and 1024, preserving existing behavior.
+//
+// VALIDATES: AC-2 - No route-priority configured preserves existing behavior.
+// PREVENTS: Regression in default metric behavior.
+func TestHandleLinkDownDefaultMetric(t *testing.T) {
+	fb := &fakeBackend{ifaces: map[string]fakeIface{}}
+	backendName := "test-linkdown-default-" + t.Name()
+	err := RegisterBackend(backendName, func() (Backend, error) { return fb, nil })
+	require.NoError(t, err)
+	require.NoError(t, LoadBackend(backendName))
+	defer func() { _ = CloseBackend() }()
+
+	active := map[dhcpUnitKey]dhcpEntry{
+		{ifaceName: "eth0", unit: 0}: {
+			params:  dhcpParams{v4: true},
+			gateway: "10.0.0.1",
+		},
+	}
+	logger := slog.Default()
+
+	handleLinkDown("eth0", active, logger)
+
+	require.Len(t, fb.routeRemoves, 1)
+	assert.Equal(t, 0, fb.routeRemoves[0].metric, "should remove metric-0 route")
+
+	require.Len(t, fb.routeAdds, 1)
+	assert.Equal(t, 1024, fb.routeAdds[0].metric, "should add metric-1024 route")
+}
+
+// TestHandleLinkDownThenUp verifies the full down-then-up sequence uses
+// the same dhcpEntry and produces the correct route operations.
+//
+// VALIDATES: AC-3, AC-4 - Full failover cycle with route-priority 5.
+// PREVENTS: State corruption between handleLinkDown and handleLinkUp.
+func TestHandleLinkDownThenUp(t *testing.T) {
+	fb := &fakeBackend{ifaces: map[string]fakeIface{}}
+	backendName := "test-downup-" + t.Name()
+	err := RegisterBackend(backendName, func() (Backend, error) { return fb, nil })
+	require.NoError(t, err)
+	require.NoError(t, LoadBackend(backendName))
+	defer func() { _ = CloseBackend() }()
+
+	active := map[dhcpUnitKey]dhcpEntry{
+		{ifaceName: "eth0", unit: 0}: {
+			params:  dhcpParams{v4: true, routePriority: 5},
+			gateway: "192.168.1.1",
+		},
+	}
+	logger := slog.Default()
+
+	// Link goes down: remove metric-5, add metric-1029.
+	handleLinkDown("eth0", active, logger)
+
+	require.Len(t, fb.routeRemoves, 1)
+	assert.Equal(t, 5, fb.routeRemoves[0].metric)
+	require.Len(t, fb.routeAdds, 1)
+	assert.Equal(t, 1029, fb.routeAdds[0].metric)
+
+	// Link comes back up: remove metric-1029, add metric-5.
+	handleLinkUp("eth0", active, logger)
+
+	require.Len(t, fb.routeRemoves, 2)
+	assert.Equal(t, 1029, fb.routeRemoves[1].metric)
+	require.Len(t, fb.routeAdds, 2)
+	assert.Equal(t, 5, fb.routeAdds[1].metric)
 }
 
 // TestIfaceApplyJournalCreate verifies that applyConfig wrapped in a journal
@@ -1338,15 +1518,25 @@ func TestIfaceVerifyEstimate(t *testing.T) {
 	assert.Equal(t, 4, count, "operation count should reflect interface config size")
 }
 
+// routeCall records a single AddRoute or RemoveRoute invocation.
+type routeCall struct {
+	ifaceName string
+	destCIDR  string
+	gateway   string
+	metric    int
+}
+
 // fakeBackend implements Backend for testing config application.
 type fakeBackend struct {
-	ifaces     map[string]fakeIface
-	created    map[string]bool
-	deleted    map[string]bool
-	addrs      map[string][]string
-	tunnels    map[string]TunnelSpec
-	wgConfigs  map[string]WireguardSpec
-	wgConfigCt map[string]int
+	ifaces       map[string]fakeIface
+	created      map[string]bool
+	deleted      map[string]bool
+	addrs        map[string][]string
+	tunnels      map[string]TunnelSpec
+	wgConfigs    map[string]WireguardSpec
+	wgConfigCt   map[string]int
+	routeAdds    []routeCall
+	routeRemoves []routeCall
 }
 
 type fakeIface struct {
@@ -1459,8 +1649,16 @@ func (b *fakeBackend) RemoveAddress(ifaceName, cidr string) error {
 }
 
 func (b *fakeBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) error { return nil }
-func (b *fakeBackend) AddRoute(_, _, _ string, _ int) error                   { return nil }
-func (b *fakeBackend) RemoveRoute(_, _, _ string, _ int) error                { return nil }
+
+func (b *fakeBackend) AddRoute(ifaceName, destCIDR, gateway string, metric int) error {
+	b.routeAdds = append(b.routeAdds, routeCall{ifaceName, destCIDR, gateway, metric})
+	return nil
+}
+
+func (b *fakeBackend) RemoveRoute(ifaceName, destCIDR, gateway string, metric int) error {
+	b.routeRemoves = append(b.routeRemoves, routeCall{ifaceName, destCIDR, gateway, metric})
+	return nil
+}
 
 func (b *fakeBackend) ListInterfaces() ([]InterfaceInfo, error) {
 	var result []InterfaceInfo

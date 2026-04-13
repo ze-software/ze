@@ -26,4 +26,5 @@ type DHCPConfig struct {
 	PDLength       int    // DHCPv6 requested prefix delegation length (0 = server decides)
 	DUID           string // DHCPv6 DUID override
 	ResolvConfPath string // path for DNS resolv.conf (empty = disabled)
+	RouteMetric    int    // metric for DHCP-installed default routes (0 = kernel default)
 }

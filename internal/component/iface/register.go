@@ -370,11 +370,11 @@ type DHCPStopper interface {
 // SetDHCPClientFactory. It returns a started DHCP client or an error.
 // The interface plugin calls this to create clients without importing
 // the ifacedhcp package.
-var dhcpClientFactory func(ifaceName string, unit int, eb ze.EventBus, v4, v6 bool, hostname, clientID string, pdLength int, duid, resolvConfPath string) (DHCPStopper, error)
+var dhcpClientFactory func(ifaceName string, unit int, eb ze.EventBus, v4, v6 bool, hostname, clientID string, pdLength int, duid, resolvConfPath string, routeMetric int) (DHCPStopper, error)
 
 // SetDHCPClientFactory registers the factory function used to create
 // DHCP clients. Called from ifacedhcp's init().
-func SetDHCPClientFactory(f func(string, int, ze.EventBus, bool, bool, string, string, int, string, string) (DHCPStopper, error)) {
+func SetDHCPClientFactory(f func(string, int, ze.EventBus, bool, bool, string, string, int, string, string, int) (DHCPStopper, error)) {
 	dhcpClientFactory = f
 }
 
@@ -385,6 +385,7 @@ type dhcpParams struct {
 	hostname, clientID string
 	pdLength           int
 	duid               string
+	routePriority      int
 }
 
 // dhcpEntry tracks a running DHCP client and the params it was created with.
@@ -415,7 +416,7 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 				continue
 			}
 			key := dhcpUnitKey{ifaceName: name, unit: u.ID}
-			p := dhcpParams{v4: v4, v6: v6}
+			p := dhcpParams{v4: v4, v6: v6, routePriority: u.RoutePriority}
 			if u.DHCP != nil {
 				p.hostname = u.DHCP.Hostname
 				p.clientID = u.DHCP.ClientID
@@ -486,7 +487,7 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 		if _, running := active[key]; running {
 			continue
 		}
-		client, err := dhcpClientFactory(key.ifaceName, key.unit, eb, p.v4, p.v6, p.hostname, p.clientID, p.pdLength, p.duid, cfg.ResolvConfPath)
+		client, err := dhcpClientFactory(key.ifaceName, key.unit, eb, p.v4, p.v6, p.hostname, p.clientID, p.pdLength, p.duid, cfg.ResolvConfPath, p.routePriority)
 		if err != nil {
 			log.Warn("interface: DHCP client creation failed",
 				"iface", key.ifaceName, "unit", key.unit, "err", err)
@@ -546,12 +547,14 @@ func handleLinkDown(ifaceName string, active map[dhcpUnitKey]dhcpEntry, log *slo
 		if key.ifaceName != ifaceName || entry.gateway == "" {
 			continue
 		}
-		log.Info("interface: link down, deprioritizing route", "iface", ifaceName, "gw", entry.gateway, "metric", deprioritizedMetric)
-		// Remove the metric-0 route first, then add metric-1024.
+		baseMetric := entry.params.routePriority
+		newMetric := baseMetric + deprioritizedMetric
+		log.Info("interface: link down, deprioritizing route", "iface", ifaceName, "gw", entry.gateway, "from", baseMetric, "to", newMetric)
+		// Remove the base-metric route first, then add deprioritized.
 		// Linux route identity is (dst, gw, link, metric) so RouteReplace
 		// with a different metric creates a second entry, not a replacement.
-		_ = RemoveRoute(ifaceName, "0.0.0.0/0", entry.gateway, 0)
-		if err := AddRoute(ifaceName, "0.0.0.0/0", entry.gateway, deprioritizedMetric); err != nil {
+		_ = RemoveRoute(ifaceName, "0.0.0.0/0", entry.gateway, baseMetric)
+		if err := AddRoute(ifaceName, "0.0.0.0/0", entry.gateway, newMetric); err != nil {
 			log.Debug("interface: deprioritize route failed", "iface", ifaceName, "err", err)
 		}
 		return
@@ -566,10 +569,12 @@ func handleLinkUp(ifaceName string, active map[dhcpUnitKey]dhcpEntry, log *slog.
 		if key.ifaceName != ifaceName || entry.gateway == "" {
 			continue
 		}
-		log.Info("interface: link up, restoring route priority", "iface", ifaceName, "gw", entry.gateway)
-		// Remove the deprioritized route, add normal metric.
-		_ = RemoveRoute(ifaceName, "0.0.0.0/0", entry.gateway, deprioritizedMetric)
-		if err := AddRoute(ifaceName, "0.0.0.0/0", entry.gateway, 0); err != nil {
+		baseMetric := entry.params.routePriority
+		oldMetric := baseMetric + deprioritizedMetric
+		log.Info("interface: link up, restoring route priority", "iface", ifaceName, "gw", entry.gateway, "from", oldMetric, "to", baseMetric)
+		// Remove the deprioritized route, restore base metric.
+		_ = RemoveRoute(ifaceName, "0.0.0.0/0", entry.gateway, oldMetric)
+		if err := AddRoute(ifaceName, "0.0.0.0/0", entry.gateway, baseMetric); err != nil {
 			log.Debug("interface: restore route priority failed", "iface", ifaceName, "err", err)
 		}
 		return
