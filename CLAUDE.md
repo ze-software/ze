@@ -74,6 +74,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Action | Read first |
 |--------|-----------|
 | Start a session | `rules/session-start.md` |
+| Design or implement anything | `rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
 | Write any code | `rules/before-writing-code.md`, relevant `.claude/patterns/` |
 | Touch wire encoding | `rules/buffer-first.md` |
 | Touch registration | `.claude/patterns/registration.md` |
