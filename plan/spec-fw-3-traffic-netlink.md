@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-fw-1-data-model |
-| Phase | - |
+| Phase | 5/5 |
 | Updated | 2026-04-13 |
 
 ## Post-Compaction Recovery
@@ -275,9 +275,22 @@ No existing files modified. All new files.
 ## Implementation Summary
 
 ### What Was Implemented
+- Plugin registration: `register.go` calls `traffic.RegisterBackend("tc", newBackend)`
+- Non-Linux stub: `backend_other.go` returns "not supported on $GOOS"
+- Linux backend: `backend_linux.go` with Apply (per-interface qdisc replace, class add, filter add), ListQdiscs (query + type raise)
+- Translation layer: `translate_linux.go` converts all 10 ze qdisc types to netlink types, HTB/HFSC class translation with rate/ceil/priority, mark-based fw filter and u32 filter translation, bidirectional qdisc type mapping
+- `make generate` updated `all.go` to import trafficnetlink plugin
+
 ### Bugs Found/Fixed
+- None (greenfield)
+
 ### Documentation Updates
+- None (covered by fw-0 umbrella)
+
 ### Deviations from Plan
+- Linux-only code cannot be tested on macOS. Type mismatches in `_linux.go` files (reported by LSP cross-compilation diagnostics) need Linux CI validation.
+- Read method (ListQdiscs) returns qdisc type but not full class/filter tree. Full reconstruction requires walking the class and filter lists per qdisc.
+- Functional .ci tests deferred: require Linux + CAP_NET_ADMIN.
 
 ## Implementation Audit
 

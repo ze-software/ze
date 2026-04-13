@@ -112,6 +112,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ntp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/trafficnetlink"
 
 	// RPC command packages -- pluginserver.RegisterRPCs registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/bfd"
