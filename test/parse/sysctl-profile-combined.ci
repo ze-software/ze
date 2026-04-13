@@ -1,0 +1,15 @@
+# Valid config: combined DSR + hardened profiles on one unit
+# AC-2: sysctl-profile [ dsr hardened ] accepted by config validate.
+stdin=config:terminator=EOF_CONF
+interface {
+    ethernet eth0 {
+        unit 0 {
+            sysctl-profile [ dsr hardened ]
+            address [ 192.168.1.10/24 ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

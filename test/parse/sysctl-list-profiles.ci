@@ -1,0 +1,16 @@
+# Offline CLI: ze sysctl list-profiles shows built-in profiles
+# AC-6: list-profiles returns all registered profiles.
+# AC-9: works on Darwin (platform-independent definitions).
+# Note: config block required by test runner but not used by this command.
+stdin=config:terminator=EOF_CONF
+sysctl {
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze sysctl list-profiles
+expect=exit:code=0
+expect=stdout:contains=dsr
+expect=stdout:contains=router
+expect=stdout:contains=hardened
+expect=stdout:contains=multihomed
+expect=stdout:contains=proxy

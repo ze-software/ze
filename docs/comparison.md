@@ -172,6 +172,7 @@ banner reads the same source, so nothing is silently hidden. See
 | Interop test suite | Yes | Yes | No | Partial | No | No | No | No | No | No | Yes |
 | FIB/kernel integration | Yes | No | Yes | Yes | No | Yes | Yes | No | Yes | Yes | Yes |
 | Sysctl management | Yes | No | No | No | No | Partial | No | No | Partial | No | No |
+| Sysctl profiles | Yes | No | No | No | No | No | No | No | No | No | No |
 | Route server mode | Yes | Yes | Yes | Yes | No | Yes | Yes | No | Yes | Yes | Yes |
 | Dynamic neighbors | No | No | Yes | No | Yes | Yes | Yes | No | No | Yes | Yes |
 | Looking glass | Yes | Yes | Yes | Yes | No | No | No | No | Yes | Yes | Yes |

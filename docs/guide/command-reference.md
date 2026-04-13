@@ -788,13 +788,18 @@ Batch operations: `cache <id1>,<id2> <action> [args]`.
 | `sysctl list` | read-only | List all known sysctl keys with descriptions and types |
 | `sysctl describe <key>` | read-only | Show detail for one key: description, type, range, current value, source |
 | `sysctl set <key> <value>` | write | Set a transient sysctl value (overrides defaults, blocked by config) |
+| `sysctl list-profiles` | read-only | List all registered sysctl profiles (built-in and user-defined) with key counts |
+| `sysctl describe-profile <name>` | read-only | Show detail for one profile: description, all key/value pairs |
 
 The sysctl plugin manages kernel tunables with three-layer precedence: config (persistent, from YANG) wins over transient (CLI `sysctl set`), which wins over defaults (plugin-declared via EventBus). Original values are restored on clean daemon stop.
 
 Config example: `sysctl { setting net.ipv4.conf.all.forwarding { value 1; } }`
 
+Named profiles group co-dependent tunables for common use cases. Apply them per interface unit: `sysctl-profile [ dsr hardened ]`. Built-in profiles: `dsr`, `router`, `hardened`, `multihomed`, `proxy`. User-defined profiles declared in `sysctl { profile <name> { ... } }`.
+
 When fib-kernel is loaded, it automatically enables IPv4 and IPv6 forwarding as defaults.
 <!-- source: internal/plugins/sysctl/register.go -- OnExecuteCommand, CommandDecl -->
+<!-- source: internal/core/sysctl/profiles.go -- ProfileDef, builtinProfiles -->
 
 ### Event Monitoring
 

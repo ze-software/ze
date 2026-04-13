@@ -1,0 +1,15 @@
+# Valid config: DSR sysctl profile on ethernet unit
+# AC-1: sysctl-profile [ dsr ] accepted by config validate.
+stdin=config:terminator=EOF_CONF
+interface {
+    ethernet eth0 {
+        unit 0 {
+            sysctl-profile [ dsr ]
+            address [ 192.168.1.10/24 ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

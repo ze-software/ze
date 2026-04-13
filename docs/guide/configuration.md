@@ -553,6 +553,53 @@ and override both transient values (`sysctl set` from CLI) and plugin defaults
 <!-- source: internal/plugins/sysctl/sysctl.go -- parseSysctlConfig, applyConfig -->
 <!-- source: internal/plugins/sysctl/schema/ze-sysctl-conf.yang -- sysctl container -->
 
+### Sysctl Profiles
+
+Named profiles group co-dependent kernel tunables applied per interface unit.
+Five built-in profiles cover common network operator use cases:
+
+| Profile | Purpose | Keys set |
+|---------|---------|----------|
+| `dsr` | Direct Server Return ARP tuning | arp_announce=2, arp_ignore=1 |
+| `router` | Enable IPv4/IPv6 forwarding | forwarding=1 (both) |
+| `hardened` | Anti-spoofing | rp_filter=1, log_martians=1, arp_filter=1 |
+| `multihomed` | Prevent ARP flux | arp_filter=1 |
+| `proxy` | Proxy ARP | proxy_arp=1, arp_accept=1 |
+
+Apply profiles to an interface unit:
+
+```
+interface {
+    ethernet eth0 {
+        unit 0 {
+            sysctl-profile [ dsr hardened ]
+        }
+    }
+}
+```
+
+Profiles emit as defaults: explicit `sysctl { setting ... }` config overrides them.
+Multiple profiles per unit are composable; last wins on key overlap.
+
+User-defined profiles are declared in the `sysctl` config block:
+
+```
+sysctl {
+    profile my-edge {
+        setting net.ipv4.conf.<iface>.forwarding {
+            value 1
+        }
+        setting net.ipv4.conf.<iface>.rp_filter {
+            value 2
+        }
+    }
+}
+```
+
+The `<iface>` placeholder is substituted with the actual interface name at apply time.
+<!-- source: internal/core/sysctl/profiles.go -- ProfileDef, builtinProfiles, ResolveProfileSettings -->
+<!-- source: internal/component/iface/config.go -- applySysctlProfiles -->
+
 ## Environment Block
 
 Global settings outside BGP:

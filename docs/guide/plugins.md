@@ -162,7 +162,7 @@ ze --plugins
 | `rib` | System RIB: selects best route across protocols by admin distance | -- (Bus events, no peer binding) |
 | `fib-kernel` | FIB kernel: programs OS routes from system RIB via netlink | -- (Bus events, no peer binding) |
 | `fib-p4` | FIB P4: programs P4 switch from system RIB via gRPC/P4Runtime (noop backend) | -- (Bus events, no peer binding) |
-| `sysctl` | Kernel tunable management: three-layer precedence (config > transient > default), restore on stop | -- (Bus events, CLI commands) |
+| `sysctl` | Kernel tunable management: three-layer precedence (config > transient > default), restore on stop. Named profiles (dsr, router, hardened, multihomed, proxy) for interface units. User-defined profiles. | -- (Bus events, CLI commands) |
 <!-- source: internal/plugins/sysctl/register.go -- sysctl registration -->
 <!-- source: internal/component/iface/register.go -- iface registration -->
 <!-- source: internal/plugins/ifacenetlink/register.go -- iface-netlink backend registration -->
@@ -226,6 +226,7 @@ Bus topics in the sysctl pipeline:
 | `sysctl/show-result` | `sysctl` | requester | Active keys JSON (request-id, entries) |
 | `sysctl/list-request` | CLI | `sysctl` | Request known keys table (request-id) |
 | `sysctl/list-result` | `sysctl` | requester | Known keys JSON (request-id, entries) |
+| `sysctl/clear-profile-defaults` | `iface` | `sysctl` | Clear stale profile defaults for an interface before re-emission (interface) |
 <!-- source: internal/component/plugin/events.go -- NamespaceSysctl, EventSysctl* -->
 <!-- source: internal/plugins/sysctl/register.go -- EventBus subscribe/emit -->
 

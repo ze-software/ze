@@ -848,8 +848,19 @@ tab completion, and description. Per-interface keys use `<iface>` templates to m
 concrete interface names. Platform backends: Linux writes to `/proc/sys/`, Darwin uses
 `sysctlbyname(3)`. Original kernel values are saved before first write and restored on
 clean daemon stop.
+
+A profile registry (`internal/core/sysctl/profiles.go`) holds named collections of
+kernel tunables. Five built-in profiles (dsr, router, hardened, multihomed, proxy) are
+registered at init time. User-defined profiles are registered from sysctl config at
+load/reload time. Profiles are applied per interface unit via `sysctl-profile` leaf-list
+in the iface YANG schema. The iface plugin resolves profiles, substitutes `<iface>`
+templates, and emits settings as `(sysctl, default)` events. A conflict table
+(`internal/core/sysctl/conflicts.go`) warns when incompatible keys are active on the
+same interface (e.g., arp_ignore + proxy_arp).
 <!-- source: internal/plugins/sysctl/sysctl.go -- store, three-layer precedence -->
 <!-- source: internal/core/sysctl/known.go -- known-keys registry -->
+<!-- source: internal/core/sysctl/profiles.go -- profile registry, builtinProfiles -->
+<!-- source: internal/core/sysctl/conflicts.go -- conflict table, CheckConflicts -->
 <!-- source: internal/plugins/sysctl/register.go -- plugin registration, EventBus wiring -->
 
 ---

@@ -1,0 +1,25 @@
+# Valid config: user-defined profile in sysctl config, referenced by interface
+# AC-5: user-defined profile parsed and referenced by unit.
+stdin=config:terminator=EOF_CONF
+sysctl {
+    profile my-edge {
+        setting net.ipv4.conf.<iface>.forwarding {
+            value 1
+        }
+        setting net.ipv4.conf.<iface>.rp_filter {
+            value 2
+        }
+    }
+}
+interface {
+    ethernet eth0 {
+        unit 0 {
+            sysctl-profile [ my-edge ]
+            address [ 10.0.0.1/24 ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
