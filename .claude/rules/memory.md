@@ -99,6 +99,13 @@ Do NOT flag these as "identity wrappers adding no value."
 - **REQUIRED evidence:** name the user entry point + show .ci test or live demonstration. No evidence = not done.
 - **Rule:** `rules/integration-completeness.md`. A unit test is not a wiring test. Library code is dead code until wired.
 
+### Daemon Command Without Offline CLI (sysctl-0)
+- Built 4 CLI commands inside the daemon via `OnExecuteCommand` + `CommandDecl`. Tests passed. Docs written. Declared done.
+- User typed `ze sysctl show` from the shell and got a help page. Commands only worked via `ze cli sysctl show` (requires running daemon).
+- Root cause: treated daemon-side command dispatch as the only user entry point. Did not check whether `ze <plugin>` exists as an offline subcommand like `ze interface`, `ze env`, `ze bgp`.
+- **Rule:** every plugin that registers `CommandDecl` commands should also have a `cmd/ze/<name>/` offline subcommand. At minimum: read-only operations that can work without the daemon (list, describe, help). Write operations that need the daemon should print a clear error directing to `ze cli`.
+- **Check:** after wiring daemon commands, run `ze <plugin> <command>` from the shell. If it shows the help page, the offline entry point is missing.
+
 ### Wrong Production Path (rib-04)
 - Wrote spec pointing at `subsystem.go` stage-1 handler. Production path is `startup.go` (in `plugin/server/`).
 - Root cause: found *a* handler, assumed it was *the* handler. Never traced the actual call chain.
