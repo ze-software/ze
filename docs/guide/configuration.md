@@ -488,6 +488,32 @@ discovered OS interfaces when editing config interactively.
 
 <!-- source: internal/component/config/validators.go -- MACAddressValidator -->
 
+## Sysctl Configuration
+
+Kernel tunables are managed by the `sysctl` plugin via a generic key/value list:
+
+```
+sysctl {
+    setting net.ipv4.conf.all.forwarding {
+        value 1
+    }
+    setting net.core.somaxconn {
+        value 4096
+    }
+}
+```
+
+Keys use kernel-native names (e.g., the `/proc/sys/` path with `/` replaced by `.`
+on Linux, or MIB names on Darwin). Known keys get type and range validation on
+commit; unknown keys are validated by attempting the write.
+
+The sysctl plugin uses three-layer precedence: config values (above) are authoritative
+and override both transient values (`sysctl set` from CLI) and plugin defaults
+(e.g., fib-kernel declaring forwarding=1). See the
+[command reference](command-reference.md#sysctl-kernel-tunables) for CLI usage.
+<!-- source: internal/plugins/sysctl/sysctl.go -- parseSysctlConfig, applyConfig -->
+<!-- source: internal/plugins/sysctl/schema/ze-sysctl-conf.yang -- sysctl container -->
+
 ## Environment Block
 
 Global settings outside BGP:

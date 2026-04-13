@@ -836,6 +836,22 @@ when overwritten.
 <!-- source: internal/plugins/fibkernel/monitor_linux.go -- kernel route change detection -->
 <!-- source: internal/plugins/fibkernel/register.go -- fib-kernel plugin registration -->
 
+### Sysctl
+
+The `sysctl` plugin centralizes kernel tunable management. Plugins declare required
+defaults via `(sysctl, default)` EventBus events (e.g., fib-kernel declares forwarding=1).
+Users override via YANG config or transient CLI commands. Three-layer precedence:
+config > transient > default.
+
+A known-keys registry (`internal/core/sysctl/`) provides metadata for validation,
+tab completion, and description. Per-interface keys use `<iface>` templates to match
+concrete interface names. Platform backends: Linux writes to `/proc/sys/`, Darwin uses
+`sysctlbyname(3)`. Original kernel values are saved before first write and restored on
+clean daemon stop.
+<!-- source: internal/plugins/sysctl/sysctl.go -- store, three-layer precedence -->
+<!-- source: internal/core/sysctl/known.go -- known-keys registry -->
+<!-- source: internal/plugins/sysctl/register.go -- plugin registration, EventBus wiring -->
+
 ---
 
 ## 17. Implementation Priority

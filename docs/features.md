@@ -18,6 +18,9 @@ Ze is a BGP daemon written in Go.
 <!-- source: internal/plugins/bfd/bfd.go -- runtimeState, resolveLoopDevices, newUDPTransport -->
 <!-- source: internal/plugins/bfd/engine/snapshot.go -- Loop.Snapshot, SessionDetail -->
 <!-- source: internal/plugins/bfd/metrics.go -- bindMetricsRegistry, metricsHook -->
+| Kernel Tunable Management | Sysctl plugin centralizes kernel parameter management with three-layer precedence (config > transient > default). Plugins declare required defaults (e.g., fib-kernel enables forwarding), users override via config or CLI. Original values restored on clean stop. CLI: `sysctl show`, `sysctl list`, `sysctl describe`, `sysctl set`. |
+<!-- source: internal/plugins/sysctl/sysctl.go -- store, setDefault, setTransient, applyConfig -->
+<!-- source: internal/core/sysctl/known.go -- KnownSysctl registry, MustRegister, Validate -->
 | Modular Deployment | Config-driven plugin loading: BGP, interfaces, and FIB load only when their config section is present. Add or remove subsystems at runtime via config reload (SIGHUP). |
 <!-- source: internal/component/plugin/server/startup_autoload.go -- autoLoadForNewConfigPaths, autoStopForRemovedConfigPaths -->
 | Route Installation | FIB pipeline: protocol RIB best-path tracking, system RIB selection by admin distance, kernel route programming via netlink (RTPROT_ZE=250), crash recovery via stale-mark-sweep, external change monitoring |

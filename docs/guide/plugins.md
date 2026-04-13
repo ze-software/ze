@@ -162,6 +162,8 @@ ze --plugins
 | `rib` | System RIB: selects best route across protocols by admin distance | -- (Bus events, no peer binding) |
 | `fib-kernel` | FIB kernel: programs OS routes from system RIB via netlink | -- (Bus events, no peer binding) |
 | `fib-p4` | FIB P4: programs P4 switch from system RIB via gRPC/P4Runtime (noop backend) | -- (Bus events, no peer binding) |
+| `sysctl` | Kernel tunable management: three-layer precedence (config > transient > default), restore on stop | -- (Bus events, CLI commands) |
+<!-- source: internal/plugins/sysctl/register.go -- sysctl registration -->
 <!-- source: internal/component/iface/register.go -- iface registration -->
 <!-- source: internal/plugins/ifacenetlink/register.go -- iface-netlink backend registration -->
 <!-- source: internal/plugins/ifacedhcp/register.go -- iface-dhcp registration -->
@@ -212,6 +214,20 @@ Bus topics in the FIB pipeline:
 <!-- source: internal/plugins/sysrib/sysrib.go -- system-rib topic -->
 <!-- source: internal/plugins/fibkernel/monitor.go -- externalChangeTopic -->
 <!-- source: internal/plugins/fibkernel/fibkernel.go -- system-rib/best-change subscription -->
+
+Bus topics in the sysctl pipeline:
+
+| Topic | Publisher | Subscriber | Payload |
+|-------|-----------|------------|---------|
+| `sysctl/default` | `fib-kernel`, `iface` | `sysctl` | Plugin-required kernel default (key, value, source) |
+| `sysctl/set` | CLI | `sysctl` | Transient value from user (key, value) |
+| `sysctl/applied` | `sysctl` | any | Notification after kernel write (key, value, source) |
+| `sysctl/show-request` | CLI | `sysctl` | Request active keys table (request-id) |
+| `sysctl/show-result` | `sysctl` | requester | Active keys JSON (request-id, entries) |
+| `sysctl/list-request` | CLI | `sysctl` | Request known keys table (request-id) |
+| `sysctl/list-result` | `sysctl` | requester | Known keys JSON (request-id, entries) |
+<!-- source: internal/component/plugin/events.go -- NamespaceSysctl, EventSysctl* -->
+<!-- source: internal/plugins/sysctl/register.go -- EventBus subscribe/emit -->
 
 ### Redistribution Filters (planned)
 
