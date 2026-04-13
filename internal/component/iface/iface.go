@@ -117,6 +117,21 @@ type AddrInfo struct {
 	Family       string `json:"family"`
 }
 
+// RouteInfo describes a routing table entry. Used by ListRoutes for
+// stale route cleanup after suppressing kernel RA default routes.
+type RouteInfo struct {
+	Destination string `json:"destination"` // CIDR (e.g., "::/0")
+	Gateway     string `json:"gateway"`     // next-hop IP
+	Metric      int    `json:"metric"`
+}
+
+// RouterEventPayload is the JSON payload for router discovery/loss events.
+// Emitted by the netlink monitor when a neighbor's NTF_ROUTER flag changes.
+type RouterEventPayload struct {
+	Name     string `json:"name"`      // interface name
+	RouterIP string `json:"router-ip"` // link-local address of the router
+}
+
 // DiscoveredInterface describes an OS network interface found during discovery.
 // Used by ze init to generate initial interface config and by the MAC address
 // validator for autocomplete suggestions.

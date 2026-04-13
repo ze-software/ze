@@ -30,12 +30,19 @@ import (
 // start MUST be called exactly once. stop MUST be called after a successful
 // start to release resources. stop is safe to call multiple times.
 type monitor struct {
-	eventBus ze.EventBus
-	done     chan struct{}
-	stopCh   chan struct{}
-	stopFn   sync.Once
-	started  atomic.Bool
-	known    sync.Map // map[int]struct{}
+	eventBus     ze.EventBus
+	done         chan struct{}
+	stopCh       chan struct{}
+	stopFn       sync.Once
+	started      atomic.Bool
+	known        sync.Map // map[int]struct{} — known link indices
+	knownRouters sync.Map // map[neighKey]struct{} — neighbors seen with NTF_ROUTER
+}
+
+// neighKey identifies a neighbor entry for NTF_ROUTER tracking.
+type neighKey struct {
+	linkIndex int
+	ip        string
 }
 
 func newMonitor(eb ze.EventBus) *monitor {
@@ -53,6 +60,7 @@ func (m *monitor) start() error {
 
 	linkCh := make(chan netlink.LinkUpdate, 64)
 	addrCh := make(chan netlink.AddrUpdate, 64)
+	neighCh := make(chan netlink.NeighUpdate, 64)
 
 	if err := netlink.LinkSubscribe(linkCh, m.stopCh); err != nil {
 		m.started.Store(false)
@@ -63,8 +71,13 @@ func (m *monitor) start() error {
 		m.started.Store(false)
 		return fmt.Errorf("iface monitor: addr subscribe: %w", err)
 	}
+	if err := netlink.NeighSubscribe(neighCh, m.stopCh); err != nil {
+		m.stopFn.Do(func() { close(m.stopCh) })
+		m.started.Store(false)
+		return fmt.Errorf("iface monitor: neigh subscribe: %w", err)
+	}
 
-	go m.run(linkCh, addrCh)
+	go m.run(linkCh, addrCh, neighCh)
 	return nil
 }
 
@@ -76,7 +89,7 @@ func (m *monitor) stop() {
 	<-m.done
 }
 
-func (m *monitor) run(linkCh <-chan netlink.LinkUpdate, addrCh <-chan netlink.AddrUpdate) {
+func (m *monitor) run(linkCh <-chan netlink.LinkUpdate, addrCh <-chan netlink.AddrUpdate, neighCh <-chan netlink.NeighUpdate) {
 	defer close(m.done)
 	for {
 		select {
@@ -90,6 +103,11 @@ func (m *monitor) run(linkCh <-chan netlink.LinkUpdate, addrCh <-chan netlink.Ad
 				return
 			}
 			m.safeHandleAddrUpdate(au)
+		case nu, ok := <-neighCh:
+			if !ok {
+				return
+			}
+			m.safeHandleNeighUpdate(nu)
 		}
 	}
 }
@@ -112,6 +130,16 @@ func (m *monitor) safeHandleAddrUpdate(au netlink.AddrUpdate) {
 		}
 	}()
 	m.handleAddrUpdate(au)
+}
+
+func (m *monitor) safeHandleNeighUpdate(nu netlink.NeighUpdate) {
+	defer func() {
+		if r := recover(); r != nil {
+			loggerPtr.Load().Error("iface monitor: panic in neigh handler",
+				"panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+	m.handleNeighUpdate(nu)
 }
 
 // linkEventPayload is the JSON payload emitted on (interface, created/down)
@@ -213,6 +241,66 @@ func (m *monitor) handleAddrUpdate(au netlink.AddrUpdate) {
 		PrefixLength: ones,
 		Family:       fam,
 	})
+}
+
+// handleNeighUpdate processes neighbor table changes. It emits router
+// discovery/loss events when the NTF_ROUTER flag appears or disappears
+// on a neighbor entry. Only IPv6 link-local neighbors are relevant.
+//
+// RFC 4861: the kernel sets NTF_ROUTER when it receives a Router Advertisement
+// from a neighbor. The flag is cleared when the router sends an RA with
+// lifetime=0 or the neighbor entry transitions to NUD_FAILED/deleted.
+func (m *monitor) handleNeighUpdate(nu netlink.NeighUpdate) {
+	if nu.IP == nil || nu.IP.To4() != nil {
+		return // only IPv6 neighbors
+	}
+	if !nu.IP.IsLinkLocalUnicast() {
+		return // only link-local (fe80::) routers are default route gateways
+	}
+
+	link, err := netlink.LinkByIndex(nu.LinkIndex)
+	if err != nil {
+		return
+	}
+	attrs := link.Attrs()
+	if attrs == nil {
+		return
+	}
+	ifaceName := attrs.Name
+
+	nk := neighKey{linkIndex: nu.LinkIndex, ip: nu.IP.String()}
+	isRouter := nu.Flags&netlink.NTF_ROUTER != 0
+	isDeleted := nu.Type == unix.RTM_DELNEIGH
+	isFailed := nu.State == unix.NUD_FAILED
+
+	if isDeleted || isFailed {
+		// Only emit loss if we previously saw this neighbor as a router.
+		if _, wasRouter := m.knownRouters.LoadAndDelete(nk); wasRouter {
+			m.emit(plugin.EventInterfaceRouterLost, iface.RouterEventPayload{
+				Name:     ifaceName,
+				RouterIP: nu.IP.String(),
+			})
+		}
+		return
+	}
+
+	if isRouter {
+		if _, already := m.knownRouters.LoadOrStore(nk, struct{}{}); !already {
+			m.emit(plugin.EventInterfaceRouterDiscovered, iface.RouterEventPayload{
+				Name:     ifaceName,
+				RouterIP: nu.IP.String(),
+			})
+		}
+	} else {
+		// NTF_ROUTER cleared (e.g., router sent RA with lifetime=0).
+		// Only emit if we previously tracked this neighbor as a router.
+		if _, wasRouter := m.knownRouters.LoadAndDelete(nk); wasRouter {
+			m.emit(plugin.EventInterfaceRouterLost, iface.RouterEventPayload{
+				Name:     ifaceName,
+				RouterIP: nu.IP.String(),
+			})
+		}
+	}
 }
 
 // emit marshals the payload and emits it on the interface namespace.

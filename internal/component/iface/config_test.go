@@ -1537,6 +1537,7 @@ type fakeBackend struct {
 	wgConfigCt   map[string]int
 	routeAdds    []routeCall
 	routeRemoves []routeCall
+	staleRoutes  []RouteInfo // returned by ListRoutes for stale cleanup tests
 }
 
 type fakeIface struct {
@@ -1660,6 +1661,10 @@ func (b *fakeBackend) RemoveRoute(ifaceName, destCIDR, gateway string, metric in
 	return nil
 }
 
+func (b *fakeBackend) ListRoutes(_, _ string) ([]RouteInfo, error) {
+	return b.staleRoutes, nil
+}
+
 func (b *fakeBackend) ListInterfaces() ([]InterfaceInfo, error) {
 	var result []InterfaceInfo
 	for _, f := range b.ifaces {
@@ -1691,3 +1696,341 @@ func (b *fakeBackend) RemoveMirror(_ string) error              { return nil }
 func (b *fakeBackend) StartMonitor(_ ze.EventBus) error         { return nil }
 func (b *fakeBackend) StopMonitor()                             {}
 func (b *fakeBackend) Close() error                             { return nil }
+
+// --- IPv6 Router Tracking Tests ---
+
+// setupFakeBackendForTest registers and loads a fakeBackend for a test.
+func setupFakeBackendForTest(t *testing.T) *fakeBackend {
+	t.Helper()
+	fb := &fakeBackend{ifaces: map[string]fakeIface{}}
+	backendName := "test-" + t.Name()
+	err := RegisterBackend(backendName, func() (Backend, error) { return fb, nil })
+	require.NoError(t, err)
+	require.NoError(t, LoadBackend(backendName))
+	t.Cleanup(func() { _ = CloseBackend() })
+	return fb
+}
+
+// TestNeighRouterDetected verifies that a router-discovered event installs
+// an IPv6 default route with the configured metric.
+//
+// VALIDATES: AC-2 - Netlink neighbor event with NTF_ROUTER installs ::/0 with metric.
+// PREVENTS: Router event ignored, no IPv6 default route installed.
+func TestNeighRouterDetected(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	routers := make(map[routerKey]routerEntry)
+	active := map[dhcpUnitKey]dhcpEntry{
+		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{v6: true, routePriority: 5}},
+	}
+	logger := slog.Default()
+
+	data := `{"name":"eth0","router-ip":"fe80::1"}`
+	handleRouterDiscovered(data, routers, active, logger)
+
+	require.Len(t, fb.routeAdds, 1, "should install one IPv6 default route")
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5}, fb.routeAdds[0])
+	assert.Contains(t, routers, routerKey{ifaceName: "eth0", routerIP: "fe80::1"})
+}
+
+// TestNeighRouterRemoved verifies that a router-lost event removes the
+// IPv6 default route.
+//
+// VALIDATES: AC-6 - Router disappears, IPv6 default route removed.
+// PREVENTS: Stale route left after router goes away.
+func TestNeighRouterRemoved(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	routers := map[routerKey]routerEntry{
+		{ifaceName: "eth0", routerIP: "fe80::1"}: {metric: 5},
+	}
+	logger := slog.Default()
+
+	data := `{"name":"eth0","router-ip":"fe80::1"}`
+	handleRouterLost(data, routers, logger)
+
+	require.Len(t, fb.routeRemoves, 1, "should remove one IPv6 default route")
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5}, fb.routeRemoves[0])
+	assert.NotContains(t, routers, routerKey{ifaceName: "eth0", routerIP: "fe80::1"})
+}
+
+// TestLinkDownIPv6 verifies that link-down deprioritizes IPv6 default routes.
+//
+// VALIDATES: AC-4 - Link down deprioritizes IPv6 route to metric + 1024.
+// PREVENTS: IPv6 routes not deprioritized on carrier loss.
+func TestLinkDownIPv6(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	routers := map[routerKey]routerEntry{
+		{ifaceName: "eth0", routerIP: "fe80::1"}: {metric: 5},
+	}
+	logger := slog.Default()
+
+	handleLinkDownIPv6("eth0", routers, logger)
+
+	require.Len(t, fb.routeRemoves, 1, "should remove one route")
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5}, fb.routeRemoves[0])
+	require.Len(t, fb.routeAdds, 1, "should add deprioritized route")
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 1029}, fb.routeAdds[0])
+}
+
+// TestLinkUpIPv6 verifies that link-up restores IPv6 default route priority.
+//
+// VALIDATES: AC-5 - Link up restores IPv6 route to original metric.
+// PREVENTS: IPv6 routes stuck at deprioritized metric after carrier restore.
+func TestLinkUpIPv6(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	routers := map[routerKey]routerEntry{
+		{ifaceName: "eth0", routerIP: "fe80::1"}: {metric: 5},
+	}
+	logger := slog.Default()
+
+	handleLinkUpIPv6("eth0", routers, logger)
+
+	require.Len(t, fb.routeRemoves, 1, "should remove deprioritized route")
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 1029}, fb.routeRemoves[0])
+	require.Len(t, fb.routeAdds, 1, "should add restored route")
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5}, fb.routeAdds[0])
+}
+
+// TestNeighRouterDetectedNoRoutePriority verifies that router events are
+// ignored when route-priority is not configured (0).
+//
+// VALIDATES: AC-3/AC-9 - No route-priority means kernel handles everything.
+// PREVENTS: Ze installing routes when user didn't configure route-priority.
+func TestNeighRouterDetectedNoRoutePriority(t *testing.T) {
+	_ = setupFakeBackendForTest(t)
+	routers := make(map[routerKey]routerEntry)
+	active := map[dhcpUnitKey]dhcpEntry{
+		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{v6: true, routePriority: 0}},
+	}
+	logger := slog.Default()
+
+	data := `{"name":"eth0","router-ip":"fe80::1"}`
+	handleRouterDiscovered(data, routers, active, logger)
+
+	assert.Empty(t, routers, "should not track router when route-priority is 0")
+}
+
+// TestMultipleRoutersOnSameLink verifies that multiple routers on the same
+// interface are tracked independently.
+//
+// VALIDATES: AC-7 - Multiple routers, all with configured metric.
+// PREVENTS: Second router overwriting the first.
+func TestMultipleRoutersOnSameLink(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	routers := make(map[routerKey]routerEntry)
+	active := map[dhcpUnitKey]dhcpEntry{
+		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{v6: true, routePriority: 5}},
+	}
+	logger := slog.Default()
+
+	handleRouterDiscovered(`{"name":"eth0","router-ip":"fe80::1"}`, routers, active, logger)
+	handleRouterDiscovered(`{"name":"eth0","router-ip":"fe80::2"}`, routers, active, logger)
+
+	require.Len(t, fb.routeAdds, 2, "should install two IPv6 default routes")
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5}, fb.routeAdds[0])
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::2", 5}, fb.routeAdds[1])
+	assert.Len(t, routers, 2, "should track two routers")
+}
+
+// TestNeighRouterDuplicateIgnored verifies that a duplicate router-discovered
+// event for the same router is idempotent.
+//
+// VALIDATES: Idempotent router discovery.
+// PREVENTS: Duplicate routes installed for the same router.
+func TestNeighRouterDuplicateIgnored(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	routers := make(map[routerKey]routerEntry)
+	active := map[dhcpUnitKey]dhcpEntry{
+		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{v6: true, routePriority: 5}},
+	}
+	logger := slog.Default()
+
+	data := `{"name":"eth0","router-ip":"fe80::1"}`
+	handleRouterDiscovered(data, routers, active, logger)
+	handleRouterDiscovered(data, routers, active, logger)
+
+	require.Len(t, fb.routeAdds, 1, "duplicate discovery should not install a second route")
+}
+
+// TestReloadMetricChange verifies that when route-priority changes on reload,
+// the old metric routes are removed and new metric routes are installed.
+//
+// VALIDATES: AC-8 - Reload changes route-priority, routes updated.
+// PREVENTS: Stale metric routes left after config change.
+func TestReloadMetricChange(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	routers := map[routerKey]routerEntry{
+		{ifaceName: "eth0", routerIP: "fe80::1"}: {metric: 5},
+	}
+	active := map[dhcpUnitKey]dhcpEntry{
+		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{v6: true, routePriority: 10}},
+	}
+	logger := slog.Default()
+
+	// Simulate the router being re-discovered after config reload with new metric.
+	// First, the old entry should be cleaned up.
+	// restoreAcceptRaDefrtr removes existing routes; then suppressRAForConfig
+	// re-suppresses and the monitor re-discovers the router.
+	// Simulating the removal + re-discovery:
+	handleRouterLost(`{"name":"eth0","router-ip":"fe80::1"}`, routers, logger)
+	handleRouterDiscovered(`{"name":"eth0","router-ip":"fe80::1"}`, routers, active, logger)
+
+	// Old route removed with metric 5, new installed with metric 10.
+	require.Len(t, fb.routeRemoves, 1)
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5}, fb.routeRemoves[0])
+	require.Len(t, fb.routeAdds, 1)
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 10}, fb.routeAdds[0])
+	assert.Equal(t, 10, routers[routerKey{ifaceName: "eth0", routerIP: "fe80::1"}].metric)
+}
+
+// --- Sysctl Suppression/Restore Tests ---
+
+// testEventBus is a minimal EventBus that records emissions for testing.
+type testEventBus struct {
+	emissions []testEmission
+}
+
+type testEmission struct {
+	namespace string
+	eventType string
+	data      string
+}
+
+func (b *testEventBus) Emit(namespace, eventType, data string) (int, error) {
+	b.emissions = append(b.emissions, testEmission{namespace, eventType, data})
+	return 1, nil
+}
+
+func (b *testEventBus) Subscribe(_, _ string, _ func(string)) func() {
+	return func() {}
+}
+
+// TestAcceptRaDefrtrSet verifies that suppressAcceptRaDefrtr emits the
+// correct sysctl event to set accept_ra_defrtr=0.
+//
+// VALIDATES: AC-1 - Config with route-priority sets accept_ra_defrtr to 0.
+// PREVENTS: Sysctl not set, kernel continues installing RA default routes.
+func TestAcceptRaDefrtrSet(t *testing.T) {
+	eb := &testEventBus{}
+	suppressed := make(map[string]bool)
+	logger := slog.Default()
+
+	suppressAcceptRaDefrtr("eth0", suppressed, eb, logger)
+
+	require.Len(t, eb.emissions, 1, "should emit one sysctl event")
+	assert.Equal(t, "sysctl", eb.emissions[0].namespace)
+	assert.Equal(t, "set", eb.emissions[0].eventType)
+	assert.Contains(t, eb.emissions[0].data, "accept_ra_defrtr")
+	assert.Contains(t, eb.emissions[0].data, `"value":"0"`)
+	assert.True(t, suppressed["eth0"], "interface should be marked as suppressed")
+}
+
+// TestAcceptRaDefrtrRestore verifies that restoreAcceptRaDefrtr emits the
+// correct sysctl event to restore accept_ra_defrtr=1 and cleans up routes.
+//
+// VALIDATES: AC-10 - Config reload removes route-priority, sysctl restored.
+// PREVENTS: accept_ra_defrtr stuck at 0 after config change.
+func TestAcceptRaDefrtrRestore(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	eb := &testEventBus{}
+	suppressed := map[string]bool{"eth0": true}
+	routers := map[routerKey]routerEntry{
+		{ifaceName: "eth0", routerIP: "fe80::1"}: {metric: 5},
+	}
+	logger := slog.Default()
+
+	restoreAcceptRaDefrtr("eth0", suppressed, routers, eb, logger)
+
+	// Route should be removed.
+	require.Len(t, fb.routeRemoves, 1)
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 5}, fb.routeRemoves[0])
+
+	// Sysctl restored to 1.
+	require.Len(t, eb.emissions, 1)
+	assert.Contains(t, eb.emissions[0].data, `"value":"1"`)
+	assert.Contains(t, eb.emissions[0].data, "accept_ra_defrtr")
+
+	// State cleaned up.
+	assert.False(t, suppressed["eth0"], "interface should no longer be suppressed")
+	assert.Empty(t, routers, "router entry should be removed")
+}
+
+// TestAcceptRaDefrtrRestoreOnStop verifies that shutdown restores
+// accept_ra_defrtr on all suppressed interfaces.
+//
+// VALIDATES: AC-11 - Clean daemon shutdown restores accept_ra_defrtr.
+// PREVENTS: accept_ra_defrtr stuck at 0 after ze shutdown.
+func TestAcceptRaDefrtrRestoreOnStop(t *testing.T) {
+	_ = setupFakeBackendForTest(t)
+	eb := &testEventBus{}
+	suppressed := map[string]bool{"eth0": true, "eth1": true}
+	routers := map[routerKey]routerEntry{
+		{ifaceName: "eth0", routerIP: "fe80::1"}: {metric: 5},
+	}
+
+	// Simulate shutdown restore loop (collect keys first, same as production).
+	names := make([]string, 0, len(suppressed))
+	for name := range suppressed {
+		names = append(names, name)
+	}
+	logger := slog.Default()
+	for _, name := range names {
+		restoreAcceptRaDefrtr(name, suppressed, routers, eb, logger)
+	}
+
+	assert.Len(t, eb.emissions, 2, "should restore both interfaces")
+	assert.Empty(t, suppressed, "all interfaces should be restored")
+	assert.Empty(t, routers, "all router entries should be removed")
+}
+
+// TestStaleKernelRouteCleanup verifies that cleanupStaleIPv6DefaultRoutes
+// removes pre-existing ::/0 routes after sysctl suppression.
+//
+// VALIDATES: AC-12 - Stale kernel route removed after suppression.
+// PREVENTS: Duplicate default routes with different metrics.
+func TestStaleKernelRouteCleanup(t *testing.T) {
+	fb := &fakeBackend{
+		ifaces:      map[string]fakeIface{},
+		staleRoutes: []RouteInfo{{Destination: "::/0", Gateway: "fe80::1", Metric: 0}},
+	}
+	backendName := "test-" + t.Name()
+	err := RegisterBackend(backendName, func() (Backend, error) { return fb, nil })
+	require.NoError(t, err)
+	require.NoError(t, LoadBackend(backendName))
+	t.Cleanup(func() { _ = CloseBackend() })
+
+	logger := slog.Default()
+	cleanupStaleIPv6DefaultRoutes("eth0", logger)
+
+	require.Len(t, fb.routeRemoves, 1, "should remove one stale route")
+	assert.Equal(t, routeCall{"eth0", "::/0", "fe80::1", 0}, fb.routeRemoves[0])
+}
+
+// TestSuppressRAForConfigNoRoutePriority verifies that interfaces without
+// route-priority are not suppressed.
+//
+// VALIDATES: AC-3 - No route-priority means kernel handles everything.
+// PREVENTS: Suppressing accept_ra_defrtr when user didn't configure route-priority.
+func TestSuppressRAForConfigNoRoutePriority(t *testing.T) {
+	eb := &testEventBus{}
+	suppressed := make(map[string]bool)
+	routers := make(map[routerKey]routerEntry)
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {
+							"address": ["10.0.0.1/24"]
+						}
+					}
+				}
+			}
+		}
+	}`)
+	logger := slog.Default()
+
+	suppressRAForConfig(cfg, suppressed, routers, eb, logger)
+
+	assert.Empty(t, eb.emissions, "should not emit any sysctl events")
+	assert.Empty(t, suppressed, "should not suppress any interfaces")
+}

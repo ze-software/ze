@@ -269,6 +269,44 @@ func (b *netlinkBackend) RemoveRoute(ifaceName, destCIDR, gateway string, metric
 	return nil
 }
 
+func (b *netlinkBackend) ListRoutes(ifaceName, destCIDR string) ([]iface.RouteInfo, error) {
+	if err := iface.ValidateIfaceName(ifaceName); err != nil {
+		return nil, fmt.Errorf("iface: list routes on %q: %w", ifaceName, err)
+	}
+	dst, err := netlink.ParseIPNet(destCIDR)
+	if err != nil {
+		return nil, fmt.Errorf("iface: list routes dest %q: %w", destCIDR, err)
+	}
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return nil, fmt.Errorf("iface: list routes on %q: not found: %w", ifaceName, err)
+	}
+	family := netlink.FAMILY_V6
+	if dst.IP.To4() != nil {
+		family = netlink.FAMILY_V4
+	}
+	routes, err := netlink.RouteList(link, family)
+	if err != nil {
+		return nil, fmt.Errorf("iface: list routes on %q: %w", ifaceName, err)
+	}
+	var result []iface.RouteInfo
+	for _, r := range routes {
+		if r.Dst == nil || r.Dst.String() != dst.String() {
+			continue
+		}
+		gw := ""
+		if r.Gw != nil {
+			gw = r.Gw.String()
+		}
+		result = append(result, iface.RouteInfo{
+			Destination: r.Dst.String(),
+			Gateway:     gw,
+			Metric:      r.Priority,
+		})
+	}
+	return result, nil
+}
+
 func (b *netlinkBackend) SetMTU(ifaceName string, mtu int) error {
 	if err := iface.ValidateIfaceName(ifaceName); err != nil {
 		return fmt.Errorf("iface: set mtu on %q: %w", ifaceName, err)

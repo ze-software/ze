@@ -78,6 +78,9 @@ func (m *mockMigrateBackend) AddRoute(_, _, _ string, _ int) error {
 func (m *mockMigrateBackend) RemoveRoute(_, _, _ string, _ int) error {
 	return fmt.Errorf("mock: not supported")
 }
+func (m *mockMigrateBackend) ListRoutes(_, _ string) ([]RouteInfo, error) {
+	return nil, fmt.Errorf("mock: not supported")
+}
 func (m *mockMigrateBackend) StartMonitor(_ ze.EventBus) error {
 	return fmt.Errorf("mock: not supported")
 }

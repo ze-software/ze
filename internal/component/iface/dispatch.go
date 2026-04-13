@@ -87,6 +87,14 @@ func RemoveRoute(ifaceName, destCIDR, gateway string, metric int) error {
 	return b.RemoveRoute(ifaceName, destCIDR, gateway, metric)
 }
 
+func ListRoutes(ifaceName, destCIDR string) ([]RouteInfo, error) {
+	b, err := backendOrErr()
+	if err != nil {
+		return nil, err
+	}
+	return b.ListRoutes(ifaceName, destCIDR)
+}
+
 func ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft int) error {
 	b, err := backendOrErr()
 	if err != nil {

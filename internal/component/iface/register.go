@@ -92,6 +92,17 @@ type dhcpUnitKey struct {
 	unit      int
 }
 
+// routerKey identifies an IPv6 router discovered via NDP neighbor events.
+type routerKey struct {
+	ifaceName string
+	routerIP  string // bare link-local address, no zone ID
+}
+
+// routerEntry tracks an installed IPv6 default route for a discovered router.
+type routerEntry struct {
+	metric int // route-priority at install time
+}
+
 // runEngine is the engine-mode entry point for the interface plugin.
 // It uses the SDK 5-stage protocol to receive configuration, starts
 // the netlink interface monitor, and blocks until shutdown.
@@ -115,6 +126,15 @@ func runEngine(conn net.Conn) int {
 	activeDHCP := make(map[dhcpUnitKey]dhcpEntry)
 	var dhcpMu sync.Mutex
 
+	// activeRouters tracks IPv6 routers discovered via NTF_ROUTER neighbor events.
+	// Protected by dhcpMu (shared lock, short critical sections).
+	activeRouters := make(map[routerKey]routerEntry)
+
+	// suppressedRA tracks interfaces where ze set accept_ra_defrtr=0.
+	// Used to restore the sysctl on config change or clean shutdown.
+	// Protected by dhcpMu.
+	suppressedRA := make(map[string]bool)
+
 	// linkEventCh is a buffered channel for link failover work items.
 	// Event bus handlers enqueue here (non-blocking, no I/O) and the
 	// linkWorker goroutine processes them with netlink calls.
@@ -130,8 +150,10 @@ func runEngine(conn net.Conn) int {
 			dhcpMu.Lock()
 			if ev.up {
 				handleLinkUp(ev.name, activeDHCP, log)
+				handleLinkUpIPv6(ev.name, activeRouters, log)
 			} else {
 				handleLinkDown(ev.name, activeDHCP, log)
+				handleLinkDownIPv6(ev.name, activeRouters, log)
 			}
 			dhcpMu.Unlock()
 		}
@@ -215,7 +237,22 @@ func runEngine(conn net.Conn) int {
 					}
 				}
 			}),
+			// IPv6 router discovery events from netlink neighbor monitor.
+			eb.Subscribe(plugin.NamespaceInterface, plugin.EventInterfaceRouterDiscovered, func(data string) {
+				dhcpMu.Lock()
+				handleRouterDiscovered(data, activeRouters, activeDHCP, log)
+				dhcpMu.Unlock()
+			}),
+			eb.Subscribe(plugin.NamespaceInterface, plugin.EventInterfaceRouterLost, func(data string) {
+				dhcpMu.Lock()
+				handleRouterLost(data, activeRouters, log)
+				dhcpMu.Unlock()
+			}),
 		)
+
+		// Suppress accept_ra_defrtr on interfaces with route-priority > 0,
+		// so ze manages IPv6 default routes instead of the kernel.
+		suppressRAForConfig(cfg, suppressedRA, activeRouters, eb, log)
 
 		return nil
 	})
@@ -287,11 +324,12 @@ func runEngine(conn net.Conn) int {
 		activeJournal = j
 		log.Info("interface config reloaded via transaction")
 
-		// Reconcile DHCP clients after successful reload.
+		// Reconcile DHCP clients and IPv6 RA suppression after successful reload.
 		eb := GetEventBus()
 		if eb != nil {
 			dhcpMu.Lock()
 			reconcileDHCP(cfg, eb, activeDHCP, log)
+			suppressRAForConfig(cfg, suppressedRA, activeRouters, eb, log)
 			dhcpMu.Unlock()
 		}
 
@@ -335,6 +373,19 @@ func runEngine(conn net.Conn) int {
 	for key, entry := range activeDHCP {
 		log.Debug("interface: stopping DHCP client on shutdown", "iface", key.ifaceName, "unit", key.unit)
 		entry.client.Stop()
+	}
+
+	// Restore accept_ra_defrtr on all suppressed interfaces.
+	// Collect keys first: restoreAcceptRaDefrtr deletes from suppressedRA.
+	eb := GetEventBus()
+	if eb != nil {
+		suppNames := make([]string, 0, len(suppressedRA))
+		for name := range suppressedRA {
+			suppNames = append(suppNames, name)
+		}
+		for _, name := range suppNames {
+			restoreAcceptRaDefrtr(name, suppressedRA, activeRouters, eb, log)
+		}
 	}
 	dhcpMu.Unlock()
 
@@ -579,5 +630,220 @@ func handleLinkUp(ifaceName string, active map[dhcpUnitKey]dhcpEntry, log *slog.
 			log.Debug("interface: restore route priority failed", "iface", ifaceName, "err", err)
 		}
 		return
+	}
+}
+
+// handleRouterDiscovered processes a router-discovered event from the netlink
+// monitor. It installs an IPv6 default route via the discovered router with
+// the configured route-priority metric.
+// Caller MUST hold dhcpMu.
+func handleRouterDiscovered(data string, routers map[routerKey]routerEntry, active map[dhcpUnitKey]dhcpEntry, log *slog.Logger) {
+	var payload RouterEventPayload
+	if err := json.Unmarshal([]byte(data), &payload); err != nil || payload.RouterIP == "" || payload.Name == "" {
+		return
+	}
+	key := routerKey{ifaceName: payload.Name, routerIP: payload.RouterIP}
+	if _, exists := routers[key]; exists {
+		return // already tracking this router
+	}
+	metric := routePriorityForInterface(payload.Name, active)
+	if metric <= 0 {
+		return // route-priority not configured, kernel handles RA routes
+	}
+	if err := AddRoute(payload.Name, "::/0", payload.RouterIP, metric); err != nil {
+		log.Warn("interface: IPv6 default route install failed", "iface", payload.Name, "router", payload.RouterIP, "metric", metric, "err", err)
+		return
+	}
+	routers[key] = routerEntry{metric: metric}
+	log.Info("interface: IPv6 default route installed", "iface", payload.Name, "router", payload.RouterIP, "metric", metric)
+}
+
+// handleRouterLost processes a router-lost event. Removes the IPv6 default
+// route that was installed for this router.
+// Caller MUST hold dhcpMu.
+func handleRouterLost(data string, routers map[routerKey]routerEntry, log *slog.Logger) {
+	var payload RouterEventPayload
+	if err := json.Unmarshal([]byte(data), &payload); err != nil || payload.RouterIP == "" || payload.Name == "" {
+		return
+	}
+	key := routerKey{ifaceName: payload.Name, routerIP: payload.RouterIP}
+	entry, exists := routers[key]
+	if !exists {
+		return // not tracking this router
+	}
+	_ = RemoveRoute(payload.Name, "::/0", payload.RouterIP, entry.metric)
+	delete(routers, key)
+	log.Info("interface: IPv6 default route removed (router lost)", "iface", payload.Name, "router", payload.RouterIP)
+}
+
+// handleLinkDownIPv6 deprioritizes all IPv6 default routes on an interface
+// when its carrier drops. Same pattern as IPv4 handleLinkDown.
+// Caller MUST hold dhcpMu.
+func handleLinkDownIPv6(ifaceName string, routers map[routerKey]routerEntry, log *slog.Logger) {
+	for key, entry := range routers {
+		if key.ifaceName != ifaceName {
+			continue
+		}
+		newMetric := entry.metric + deprioritizedMetric
+		log.Info("interface: link down, deprioritizing IPv6 route", "iface", ifaceName, "router", key.routerIP, "from", entry.metric, "to", newMetric)
+		_ = RemoveRoute(ifaceName, "::/0", key.routerIP, entry.metric)
+		if err := AddRoute(ifaceName, "::/0", key.routerIP, newMetric); err != nil {
+			log.Debug("interface: IPv6 deprioritize failed", "iface", ifaceName, "err", err)
+		}
+	}
+}
+
+// handleLinkUpIPv6 restores all IPv6 default routes on an interface
+// when its carrier is restored.
+// Caller MUST hold dhcpMu.
+func handleLinkUpIPv6(ifaceName string, routers map[routerKey]routerEntry, log *slog.Logger) {
+	for key, entry := range routers {
+		if key.ifaceName != ifaceName {
+			continue
+		}
+		oldMetric := entry.metric + deprioritizedMetric
+		log.Info("interface: link up, restoring IPv6 route priority", "iface", ifaceName, "router", key.routerIP, "from", oldMetric, "to", entry.metric)
+		_ = RemoveRoute(ifaceName, "::/0", key.routerIP, oldMetric)
+		if err := AddRoute(ifaceName, "::/0", key.routerIP, entry.metric); err != nil {
+			log.Debug("interface: IPv6 restore priority failed", "iface", ifaceName, "err", err)
+		}
+	}
+}
+
+// routePriorityForInterface returns the route-priority configured for the
+// given interface from the active DHCP entries. Returns 0 if not configured.
+// IPv6 RA routes are per-interface (not per-unit), so if multiple units have
+// different route-priority values, the first non-zero value is used.
+func routePriorityForInterface(ifaceName string, active map[dhcpUnitKey]dhcpEntry) int {
+	result := 0
+	for key, entry := range active {
+		if key.ifaceName != ifaceName {
+			continue
+		}
+		rp := entry.params.routePriority
+		if rp > 0 && result == 0 {
+			result = rp
+		}
+	}
+	return result
+}
+
+// suppressAcceptRaDefrtr sets accept_ra_defrtr=0 on the given interface via
+// the sysctl event bus, and cleans up any stale kernel-installed ::/0 routes.
+// Records the interface in suppressedRA for restore on shutdown/config change.
+func suppressAcceptRaDefrtr(ifaceName string, suppressed map[string]bool, eb ze.EventBus, log *slog.Logger) {
+	if suppressed[ifaceName] {
+		return // already suppressed
+	}
+	sysctlKey := "net.ipv6.conf." + ifaceName + ".accept_ra_defrtr"
+	payload := fmt.Sprintf(`{"key":%q,"value":"0","source":"interface"}`, sysctlKey)
+	if _, err := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlSet, payload); err != nil {
+		log.Warn("interface: failed to suppress accept_ra_defrtr", "iface", ifaceName, "err", err)
+		return
+	}
+	suppressed[ifaceName] = true
+	log.Info("interface: suppressed accept_ra_defrtr", "iface", ifaceName)
+	cleanupStaleIPv6DefaultRoutes(ifaceName, log)
+}
+
+// restoreAcceptRaDefrtr restores accept_ra_defrtr=1 on the given interface
+// and removes all ze-managed ::/0 routes for it.
+func restoreAcceptRaDefrtr(ifaceName string, suppressed map[string]bool, routers map[routerKey]routerEntry, eb ze.EventBus, log *slog.Logger) {
+	if !suppressed[ifaceName] {
+		return
+	}
+	// Remove all ze-managed IPv6 default routes on this interface.
+	// Collect keys first: we delete from routers during iteration.
+	var removeKeys []routerKey
+	for key := range routers {
+		if key.ifaceName == ifaceName {
+			removeKeys = append(removeKeys, key)
+		}
+	}
+	for _, key := range removeKeys {
+		_ = RemoveRoute(ifaceName, "::/0", key.routerIP, routers[key].metric)
+		delete(routers, key)
+	}
+	sysctlKey := "net.ipv6.conf." + ifaceName + ".accept_ra_defrtr"
+	payload := fmt.Sprintf(`{"key":%q,"value":"1","source":"interface"}`, sysctlKey)
+	if _, err := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlSet, payload); err != nil {
+		log.Warn("interface: failed to restore accept_ra_defrtr", "iface", ifaceName, "err", err)
+	}
+	delete(suppressed, ifaceName)
+	log.Info("interface: restored accept_ra_defrtr", "iface", ifaceName)
+}
+
+// suppressRAForConfig iterates the config and suppresses accept_ra_defrtr on
+// interfaces that have route-priority > 0. Also restores accept_ra_defrtr on
+// interfaces that no longer qualify (config removal).
+func suppressRAForConfig(cfg *ifaceConfig, suppressed map[string]bool, routers map[routerKey]routerEntry, eb ze.EventBus, log *slog.Logger) {
+	if eb == nil {
+		return
+	}
+	// Build the set of interfaces that need suppression.
+	desired := make(map[string]bool)
+	// Suppress accept_ra_defrtr whenever route-priority > 0, regardless of
+	// whether DHCPv6 is enabled. SLAAC and static IPv6 also receive RAs that
+	// install kernel default routes. Suppressing on IPv4-only interfaces is
+	// harmless (no RAs to process).
+	collectSuppression := func(name string, units []unitEntry) {
+		for i := range units {
+			if units[i].RoutePriority > 0 {
+				desired[name] = true
+			}
+		}
+	}
+	for _, e := range cfg.Ethernet {
+		collectSuppression(e.Name, e.Units)
+	}
+	for _, e := range cfg.Dummy {
+		collectSuppression(e.Name, e.Units)
+	}
+	for _, e := range cfg.Veth {
+		collectSuppression(e.Name, e.Units)
+	}
+	for _, e := range cfg.Bridge {
+		collectSuppression(e.Name, e.Units)
+	}
+	for i := range cfg.Tunnel {
+		collectSuppression(cfg.Tunnel[i].Name, cfg.Tunnel[i].Units)
+	}
+	for i := range cfg.Wireguard {
+		collectSuppression(cfg.Wireguard[i].Name, cfg.Wireguard[i].Units)
+	}
+
+	// Suppress on newly qualifying interfaces.
+	for name := range desired {
+		suppressAcceptRaDefrtr(name, suppressed, eb, log)
+	}
+	// Restore on interfaces that no longer qualify.
+	// Collect keys first: restoreAcceptRaDefrtr deletes from suppressed.
+	restoreList := make([]string, 0)
+	for name := range suppressed {
+		if !desired[name] {
+			restoreList = append(restoreList, name)
+		}
+	}
+	for _, name := range restoreList {
+		restoreAcceptRaDefrtr(name, suppressed, routers, eb, log)
+	}
+}
+
+// cleanupStaleIPv6DefaultRoutes removes any pre-existing ::/0 routes on the
+// interface that were installed by the kernel before ze suppressed
+// accept_ra_defrtr. Prevents duplicate default routes with different metrics.
+//
+// Safe to remove all ::/0 routes because this only runs on first suppression
+// (suppressAcceptRaDefrtr returns early if already suppressed), before ze has
+// installed any routes via handleRouterDiscovered.
+func cleanupStaleIPv6DefaultRoutes(ifaceName string, log *slog.Logger) {
+	routes, err := ListRoutes(ifaceName, "::/0")
+	if err != nil {
+		log.Debug("interface: failed to list routes for stale cleanup", "iface", ifaceName, "err", err)
+		return
+	}
+	for _, r := range routes {
+		_ = RemoveRoute(ifaceName, "::/0", r.Gateway, r.Metric)
+		log.Info("interface: removed stale kernel IPv6 default route", "iface", ifaceName, "gw", r.Gateway, "metric", r.Metric)
 	}
 }

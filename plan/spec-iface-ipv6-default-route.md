@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | spec-iface-route-priority |
-| Phase | - |
+| Phase | 7/7 |
 | Updated | 2026-04-13 |
 
 ## Post-Compaction Recovery
@@ -54,8 +54,10 @@ route with ze's configured metric.
 |------|-------------|
 | Sysctl management | Set `accept_ra_defrtr=0` when `route-priority` is configured on a unit with IPv6 |
 | Netlink neighbor monitoring | Subscribe to neighbor events, filter for `NTF_ROUTER` flag |
-| Default route installation | `AddRoute("::/0", "fe80::router%iface", metric)` with configured route-priority |
-| Router lifetime tracking | Remove default route when router disappears (NUD_FAILED/deleted) |
+| Default route installation | `AddRoute(ifaceName, "::/0", "fe80::router", metric)` with configured route-priority |
+| Router lifetime tracking | Remove default route when router disappears (NTF_ROUTER cleared, NUD_FAILED, or neighbor deleted) |
+| Stale route cleanup | After setting `accept_ra_defrtr=0`, remove any pre-existing kernel `::/0` routes on the interface |
+| Sysctl restore | Restore `accept_ra_defrtr=1` on clean shutdown and when `route-priority` is removed from config |
 | Link failover for IPv6 | Extend `handleLinkDown`/`handleLinkUp` to handle `::/0` routes |
 | Multiple routers | Support multiple RA sources on the same link (multiple default routes with same metric) |
 
@@ -66,7 +68,7 @@ route with ze's configured metric.
 | RA packet parsing | Kernel handles RA processing; ze only reacts to neighbor table changes |
 | SLAAC address management | Kernel handles autoconfiguration independently of `accept_ra_defrtr` |
 | RDNSS from RA | Separate concern, kernel/systemd-resolved handles it |
-| DHCPv6 default routes | DHCPv6 protocol does not provide default routes (by design) |
+| DHCPv6 default routes | Standard IPv6 default routing uses RA, not DHCPv6 |
 | Router preference (RFC 4191) | RA carries router preference (high/medium/low); could be a future enhancement |
 
 ## Required Reading
@@ -89,6 +91,8 @@ route with ze's configured metric.
 - Router lifetime in RA determines how long the default route should persist
 - Multiple routers can exist on the same link (multiple default routes)
 - Link-local addresses (fe80::) are used as next-hop for IPv6 default routes
+- AddRoute already receives ifaceName as first parameter and sets route.LinkIndex from it, so bare link-local IPs (without zone ID) are sufficient
+- `net.ParseIP` does not parse zone IDs (`fe80::1%eth0` returns nil), so gateway must be passed as bare IP
 
 ## Current Behavior (MANDATORY)
 
@@ -119,12 +123,27 @@ route with ze's configured metric.
 ### Transformation Path
 1. Config parsed: `unitEntry.RoutePriority = 5` (already done, spec-iface-route-priority)
 2. If RoutePriority > 0 and IPv6 is active: set sysctl `net.ipv6.conf.eth0.accept_ra_defrtr = 0`
-3. Netlink monitor receives `NeighUpdate` with `Flags & NTF_ROUTER != 0` on eth0
-4. Router's link-local address extracted (e.g., `fe80::1`)
-5. `AddRoute("::/0", "fe80::1%eth0", 5)` installs default route with configured metric
-6. On link-down: `RemoveRoute("::/0", "fe80::1%eth0", 5)`, `AddRoute("::/0", "fe80::1%eth0", 1029)`
-7. On link-up: reverse of step 6
-8. On neighbor deletion (router gone): `RemoveRoute("::/0", "fe80::1%eth0", metric)`
+3. After sysctl suppression: scan and remove any existing kernel `::/0` routes on eth0 (startup race cleanup)
+4. Netlink monitor receives `NeighUpdate` with `Flags & NTF_ROUTER != 0` on eth0
+5. Monitor emits `EventInterfaceRouterDiscovered` on event bus with router IP and interface name
+6. Iface plugin handler stores router in `activeRouters[routerKey{ifaceName, routerIP}]` with configured metric
+7. Handler calls `AddRoute("eth0", "::/0", "fe80::1", 5)` (bare IP, LinkIndex from ifaceName)
+8. On link-down: `RemoveRoute("eth0", "::/0", "fe80::1", 5)`, `AddRoute("eth0", "::/0", "fe80::1", 1029)`
+9. On link-up: reverse of step 8
+10. On NTF_ROUTER cleared or neighbor deleted: monitor emits `EventInterfaceRouterLost`, handler removes route and deletes `activeRouters` entry
+11. On config reload removing route-priority: restore `accept_ra_defrtr=1`, remove ze-managed `::/0` routes
+12. On clean shutdown (OnStopping): restore `accept_ra_defrtr=1` on all suppressed interfaces
+
+### Router Tracking
+
+IPv6 routers are tracked separately from IPv4 DHCP gateways. The iface plugin maintains:
+
+| State | Type | Key | Value | Purpose |
+|-------|------|-----|-------|---------|
+| `activeRouters` | map | `routerKey` (ifaceName + routerIP) | `routerEntry` (metric at install time) | Track installed IPv6 default routes for failover and cleanup |
+| `suppressedRA` | map | ifaceName (string) | bool | Track which interfaces have `accept_ra_defrtr=0` for restore on shutdown/config change |
+
+Both maps are protected by the existing `dhcpMu` lock (short critical sections, no benefit from a separate lock).
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -139,7 +158,8 @@ route with ze's configured metric.
 - `ifacenetlink/monitor_linux.go` - add NeighSubscribe channel to event loop
 - `iface/register.go` - extend handleLinkDown/handleLinkUp for `::/0`
 - `iface/register.go` - new handler for router discovery events
-- `iface/register.go` - track IPv6 router gateways per interface (like gateway for IPv4)
+- `iface/register.go` - track IPv6 routers via `activeRouters` map (separate from IPv4 DHCP `activeDHCP`)
+- `iface/register.go` - track suppressed interfaces via `suppressedRA` map for sysctl restore
 - sysctl write for `accept_ra_defrtr`
 
 ### Architectural Verification
@@ -152,8 +172,10 @@ route with ze's configured metric.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| Config with route-priority + IPv6 RA | -> | accept_ra_defrtr=0 set, IPv6 default route installed | To be designed |
-| Link down with IPv6 default route | -> | IPv6 route deprioritized | To be designed |
+| Config with route-priority + DHCPv6 | -> | accept_ra_defrtr=0 set | `test/parse/ipv6-route-priority.ci` |
+| Router event on monitored interface | -> | IPv6 default route installed with metric | TestNeighRouterDetected |
+| Link down with IPv6 default route | -> | IPv6 route deprioritized | TestLinkDownIPv6 |
+| Config reload removes route-priority | -> | accept_ra_defrtr restored to 1 | TestAcceptRaDefrtrRestore |
 
 ## Acceptance Criteria
 
@@ -166,8 +188,11 @@ route with ze's configured metric.
 | AC-5 | Link up after AC-4 | IPv6 route restored to metric 5 |
 | AC-6 | Router disappears (neighbor deleted or NUD_FAILED) | IPv6 default route removed |
 | AC-7 | Multiple routers on same link | Multiple IPv6 default routes, all with configured metric |
-| AC-8 | Reload changes route-priority from 5 to 10 | IPv6 default route metric updated |
+| AC-8 | Reload changes route-priority from 5 to 10 | IPv6 default route metric updated (old metric removed, new metric installed) |
 | AC-9 | `route-priority 0` explicitly configured | Same as AC-3: kernel handles everything |
+| AC-10 | Config reload removes `route-priority` (was > 0) | `accept_ra_defrtr` restored to 1 on that interface, ze-managed `::/0` routes removed |
+| AC-11 | Clean daemon shutdown while `accept_ra_defrtr=0` on eth0 | `accept_ra_defrtr` restored to 1 on eth0 |
+| AC-12 | RA installed kernel `::/0` route before ze set `accept_ra_defrtr=0` | Stale kernel route removed after sysctl suppression |
 
 ## TDD Test Plan
 
@@ -179,6 +204,10 @@ route with ze's configured metric.
 | `TestLinkDownIPv6` | `internal/component/iface/config_test.go` | IPv6 route deprioritized on link-down | |
 | `TestLinkUpIPv6` | `internal/component/iface/config_test.go` | IPv6 route restored on link-up | |
 | `TestAcceptRaDefrtrSet` | `internal/component/iface/config_test.go` | Sysctl set when route-priority > 0 | |
+| `TestAcceptRaDefrtrRestore` | `internal/component/iface/config_test.go` | Sysctl restored to 1 when route-priority removed | |
+| `TestAcceptRaDefrtrRestoreOnStop` | `internal/component/iface/config_test.go` | Sysctl restored to 1 on clean shutdown | |
+| `TestStaleKernelRouteCleanup` | `internal/component/iface/config_test.go` | Pre-existing kernel `::/0` removed after sysctl suppression | |
+| `TestReloadMetricChange` | `internal/component/iface/config_test.go` | Metric change removes old route, installs new metric | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -190,7 +219,11 @@ Note: same range as IPv4 (already tested in spec-iface-route-priority).
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ipv6-route-priority` | `test/parse/ipv6-route-priority.ci` | Config with route-priority + IPv6 settings parses | |
+| `ipv6-route-priority` | `test/parse/ipv6-route-priority.ci` | Config with route-priority + DHCPv6 parses, sysctl suppression verified | |
+
+### Known Limitations (documented, not deferred)
+- **Router lifetime expiry on idle links:** If a router stops sending RAs and lets its advertised lifetime expire, but the neighbor entry stays in STALE state (no traffic to trigger NUD), ze keeps the stale default route until NUD fires. On active links, NUD detects unreachable routers within ~30 seconds. On idle links the stale route has no operational impact because no traffic uses it.
+- **Crash recovery:** If ze is killed (SIGKILL) or crashes, `accept_ra_defrtr` stays at 0. On restart with the same config, ze re-sets to 0 (no harm). If config changed while ze was dead, the user must manually run `sysctl -w net.ipv6.conf.<iface>.accept_ra_defrtr=1` or reboot.
 
 ### Future (if deferring any tests)
 - Integration test with real RA on Linux (requires router or radvd)
@@ -198,11 +231,9 @@ Note: same range as IPv4 (already tested in spec-iface-route-priority).
 
 ## Files to Modify
 
-- `internal/plugins/ifacenetlink/monitor_linux.go` - add NeighSubscribe channel
-- `internal/component/iface/register.go` - IPv6 router tracking, extend handleLinkDown/handleLinkUp
-- `internal/component/iface/backend.go` - ensure AddRoute/RemoveRoute handle IPv6 (::/0, fe80:: next-hop)
-- `internal/component/iface/iface.go` - new event type for router discovery
-- `internal/component/plugin/events.go` - EventInterfaceRouterDiscovered / EventInterfaceRouterLost
+- `internal/plugins/ifacenetlink/monitor_linux.go` - add NeighSubscribe channel to event loop, emit router discovery/loss events
+- `internal/component/iface/register.go` - IPv6 router tracking (`activeRouters`, `suppressedRA` maps), extend handleLinkDown/handleLinkUp for `::/0`, subscribe to router events, sysctl suppression and restore logic, stale kernel route cleanup, OnStopping restore
+- `internal/component/plugin/events.go` - add EventInterfaceRouterDiscovered / EventInterfaceRouterLost constants and valid event map entries
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -257,35 +288,42 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 1. **Phase: Netlink neighbor monitoring** -- add NeighSubscribe to monitor, emit router events
    - Tests: TestNeighRouterDetected, TestNeighRouterRemoved
-   - Files: monitor_linux.go, events.go, iface.go
+   - Files: monitor_linux.go, events.go
    - Verify: tests fail -> implement -> tests pass
 
-2. **Phase: Sysctl suppression** -- set accept_ra_defrtr=0 when route-priority configured
-   - Tests: TestAcceptRaDefrtrSet
+2. **Phase: Sysctl suppression and stale cleanup** -- set accept_ra_defrtr=0 when route-priority configured, scan and remove pre-existing kernel `::/0` routes
+   - Tests: TestAcceptRaDefrtrSet, TestStaleKernelRouteCleanup
    - Files: register.go
    - Verify: tests fail -> implement -> tests pass
 
-3. **Phase: IPv6 route management** -- install/remove IPv6 default route from router events
+3. **Phase: IPv6 route management** -- install/remove IPv6 default route from router events, track routers in activeRouters map
+   - Tests: TestNeighRouterDetected (route install), TestNeighRouterRemoved (route removal), TestReloadMetricChange
+   - Files: register.go
+   - Verify: tests fail -> implement -> tests pass
+
+4. **Phase: Link failover** -- extend handleLinkDown/handleLinkUp for `::/0` using activeRouters
    - Tests: TestLinkDownIPv6, TestLinkUpIPv6
-   - Files: register.go, backend.go
-   - Verify: tests fail -> implement -> tests pass
-
-4. **Phase: Link failover** -- extend handleLinkDown/handleLinkUp for ::/0
-   - Tests: existing link failover tests extended
    - Files: register.go
    - Verify: tests fail -> implement -> tests pass
 
-5. **Functional tests** -- config parse test
-6. **Full verification** -- `make ze-verify`
+5. **Phase: Sysctl restore** -- restore accept_ra_defrtr=1 on config removal and clean shutdown
+   - Tests: TestAcceptRaDefrtrRestore, TestAcceptRaDefrtrRestoreOnStop
+   - Files: register.go
+   - Verify: tests fail -> implement -> tests pass
+
+6. **Functional tests** -- config parse + sysctl verification test
+7. **Full verification** -- `make ze-verify`
 
 ### Critical Review Checklist (/implement stage 5)
 
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N implemented |
+| Completeness | Every AC-1 through AC-12 implemented |
 | Correctness | accept_ra_defrtr=0 only set when route-priority > 0, not always |
-| Correctness | Link-local next-hop includes interface scope (fe80::1%eth0) |
-| Correctness | Router lifetime respected (route removed when router expires) |
+| Correctness | Link-local next-hop passed as bare IP (no zone ID), LinkIndex from ifaceName |
+| Correctness | Router removal handled via NTF_ROUTER cleared, NUD_FAILED, neighbor deleted |
+| Correctness | accept_ra_defrtr restored to 1 on config removal and clean shutdown |
+| Correctness | Stale kernel `::/0` routes cleaned up after sysctl suppression |
 | Naming | Event types follow existing pattern (EventInterfaceRouter*) |
 | Data flow | Netlink -> monitor -> event bus -> handler (no shortcuts) |
 | Rule: no-layering | No duplicate route management path |
@@ -297,6 +335,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | NeighSubscribe in monitor | grep NeighSubscribe monitor_linux.go |
 | Router event types | grep EventInterfaceRouter events.go |
 | accept_ra_defrtr management | grep accept_ra_defrtr register.go |
+| accept_ra_defrtr restore | grep suppressedRA register.go |
+| Stale kernel route cleanup | grep "stale\|cleanup\|existing.*::/0" register.go |
+| activeRouters map | grep activeRouters register.go |
 | IPv6 route install | grep "::/0" register.go |
 | Link failover handles IPv6 | grep "::/0" handleLinkDown/handleLinkUp |
 | Functional test | ls test/parse/ipv6-route-priority.ci |
@@ -333,9 +374,16 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Mistake | Frequency | Proposed rule | Action |
 |---------|-----------|---------------|--------|
 
-## Design Insights
+## Design Decisions
 
-(to be filled during implementation)
+| # | Decision | Resolved | Rationale |
+|---|----------|----------|-----------|
+| 1 | Router discovery transport | Event bus | Consistent with IPv4 DHCP pattern; package boundary enforces it (ifacenetlink -> bus -> iface) |
+| 2 | Link-local gateway scoping | Pass bare IP, rely on existing LinkIndex | AddRoute already receives ifaceName and sets route.LinkIndex; net.ParseIP rejects zone IDs |
+| 3 | Router tracking data structure | Separate routerKey/routerEntry map, same dhcpMu | Routers are not DHCP clients; separate map avoids conflating discovery mechanisms |
+| 4 | Router lifetime gap | Document, no timer | NUD covers active links; idle links are harmless; YAGNI |
+| 5 | Startup race | Scan and remove stale kernel `::/0` routes after sysctl suppression | Fail-mode awareness; tunnel spec reconciliation precedent |
+| 6 | Sysctl restore | Restore on shutdown + config change; track suppressed interfaces; document crash | Ze owns what it touches; crash case is inherently unrecoverable |
 
 ## RFC Documentation
 
@@ -398,7 +446,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-9 all demonstrated
+- [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `make ze-verify` passes
 - [ ] Feature code integrated

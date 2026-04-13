@@ -65,6 +65,10 @@ type Backend interface {
 	// AddRoute and RemoveRoute require metric to target the correct entry.
 	AddRoute(ifaceName, destCIDR, gateway string, metric int) error
 	RemoveRoute(ifaceName, destCIDR, gateway string, metric int) error
+	// ListRoutes returns all routes matching the given destination CIDR on
+	// the named interface. Used by IPv6 RA default route management to
+	// clean up stale kernel-installed routes after suppressing accept_ra_defrtr.
+	ListRoutes(ifaceName, destCIDR string) ([]RouteInfo, error)
 
 	// Link state.
 	SetAdminUp(ifaceName string) error
