@@ -106,6 +106,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bfd"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibp4"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/firewallnft"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacedhcp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ntp"
