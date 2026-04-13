@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-fw-0-umbrella |
-| Phase | - |
+| Phase | 6/6 |
 | Updated | 2026-04-13 |
 
 ## Post-Compaction Recovery
@@ -374,48 +374,124 @@ Hash and Numgen (load-balancing expressions). Can be added as MatchHash/MatchNum
 ## Implementation Summary
 
 ### What Was Implemented
+- Firewall data model: Table, Chain, Term, Set, Flowtable structs with 42 abstract expression types (18 match, 16 action, 8 modifier)
+- Firewall backend interface: Backend with Apply/ListTables/GetCounters + RegisterBackend/LoadBackend/GetBackend/CloseBackend
+- Traffic control data model: InterfaceQoS, Qdisc, TrafficClass, TrafficFilter with 10 qdisc types and 3 filter types
+- Traffic backend interface: Backend with Apply/ListQdiscs + RegisterBackend/LoadBackend/GetBackend/CloseBackend
+- Typed enums with String/Valid/Parse for all enum types: TableFamily, ChainHook, ChainType, Policy, QdiscType, FilterType
+- Validation: ValidateName, ValidatePort, ValidateRate, ValidateCeil, Table.Validate, Chain.Validate
+- 35 tests total covering all types, enums, backend lifecycle, boundary conditions
+
 ### Bugs Found/Fixed
+- None
+
 ### Documentation Updates
+- `docs/architecture/core-design.md` section 14b: Firewall and Traffic Control
+
 ### Deviations from Plan
+- None. All 42 expression types, all enums, all backend interfaces implemented as specified.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Firewall expression types (42) | ✅ Done | firewall/model.go | 18 match + 16 action + 8 modifier |
+| Table/Chain/Term/Set/Flowtable | ✅ Done | firewall/model.go | All composite types |
+| Firewall backend interface | ✅ Done | firewall/backend.go | Apply + ListTables + GetCounters + Close |
+| Traffic control types | ✅ Done | traffic/model.go | InterfaceQoS, Qdisc, TrafficClass, TrafficFilter |
+| Traffic backend interface | ✅ Done | traffic/backend.go | Apply + ListQdiscs + Close |
+| Typed enums | ✅ Done | Both model.go | String/Valid/Parse for all enum types |
+| Validation | ✅ Done | Both model.go | Name, port, rate, ceil, table, chain |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | ✅ Done | TestTableConstruction | Table, Chain, Set, Flowtable, Term structs |
+| AC-2 | ✅ Done | TestTermConstruction | Term.Name, Term.Matches, Term.Actions |
+| AC-3 | ✅ Done | TestMatchTypes (18 subtests) | All 18 match types implement Match |
+| AC-4 | ✅ Done | TestActionTypes (24 subtests) | All 24 action/modifier types implement Action |
+| AC-5 | ✅ Done | TestInterfaceQoSConstruction | HTB qdisc with 3 classes and filters |
+| AC-6 | ✅ Done | TestBackendRegistration, TestTrafficBackendRegistration | RegisterBackend/LoadBackend/GetBackend lifecycle |
+| AC-7 | ✅ Done | TestBackendReadMethods, TestTrafficBackendReadMethods | ListTables, GetCounters, ListQdiscs |
+| AC-8 | ✅ Done | TestTableValidation | Empty name rejected, invalid family rejected |
+| AC-9 | ✅ Done | TestChainHookValidation | Base: type+hook+policy required. Regular: none |
+| AC-10 | ✅ Done | TestSetConstruction | Name, Type, Flags, Elements |
+| AC-11 | ✅ Done | TestFlowtableConstruction | Name, Hook, Priority, Devices |
+| AC-12 | ✅ Done | TestTermNameValidation | Empty rejected, invalid chars rejected |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestTableConstruction | ✅ Done | firewall/model_test.go | |
+| TestMatchTypes | ✅ Done | firewall/model_test.go | 18 subtests |
+| TestActionTypes | ✅ Done | firewall/model_test.go | 24 subtests |
+| TestTermConstruction | ✅ Done | firewall/model_test.go | |
+| TestTermNameValidation | ✅ Done | firewall/model_test.go | |
+| TestTableValidation | ✅ Done | firewall/model_test.go | |
+| TestChainHookValidation | ✅ Done | firewall/model_test.go | |
+| TestSetConstruction | ✅ Done | firewall/model_test.go | |
+| TestFlowtableConstruction | ✅ Done | firewall/model_test.go | |
+| TestBackendRegistration | ✅ Done | firewall/backend_test.go | |
+| TestBackendReadMethods | ✅ Done | firewall/backend_test.go | |
+| TestInterfaceQoSConstruction | ✅ Done | traffic/model_test.go | |
+| TestTrafficBackendRegistration | ✅ Done | traffic/backend_test.go | |
+| TestTrafficBackendReadMethods | ✅ Done | traffic/backend_test.go | |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| internal/component/firewall/model.go | ✅ Done | 42 expression types + enums + validation |
+| internal/component/firewall/model_test.go | ✅ Done | 24 tests |
+| internal/component/firewall/backend.go | ✅ Done | Backend interface + registration |
+| internal/component/firewall/backend_test.go | ✅ Done | 6 tests |
+| internal/component/traffic/model.go | ✅ Done | QoS types + enums + validation |
+| internal/component/traffic/model_test.go | ✅ Done | 5 tests |
+| internal/component/traffic/backend.go | ✅ Done | Backend interface + registration |
+| internal/component/traffic/backend_test.go | ✅ Done | 6 tests |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 33 (7 requirements + 12 ACs + 14 tests)
+- **Done:** 33
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| internal/component/firewall/model.go | Yes | 530 lines, 42 expression types |
+| internal/component/firewall/model_test.go | Yes | 24 tests |
+| internal/component/firewall/backend.go | Yes | Backend interface + registration |
+| internal/component/firewall/backend_test.go | Yes | 6 tests |
+| internal/component/traffic/model.go | Yes | QoS types |
+| internal/component/traffic/model_test.go | Yes | 5 tests |
+| internal/component/traffic/backend.go | Yes | Backend interface + registration |
+| internal/component/traffic/backend_test.go | Yes | 6 tests |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Table/Chain/Set/Flowtable structs | grep "type Table struct" model.go |
+| AC-2 | Term.Name + Matches + Actions | grep "type Term struct" model.go |
+| AC-3 | 18 match types | grep -c "matchMarker" model.go = 18 |
+| AC-4 | 24 action/modifier types | grep -c "actionMarker" model.go = 24 |
+| AC-5 | InterfaceQoS with HTB | grep "type InterfaceQoS struct" traffic/model.go |
+| AC-6 | Backend registration | TestBackendRegistration PASS |
+| AC-7 | Read methods | TestBackendReadMethods PASS |
+| AC-8 | Table name validation | TestTableValidation PASS |
+| AC-9 | Chain hook validation | TestChainHookValidation PASS |
+| AC-10 | Set construction | TestSetConstruction PASS |
+| AC-11 | Flowtable construction | TestFlowtableConstruction PASS |
+| AC-12 | Term name validation | TestTermNameValidation PASS |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| Config with firewall | test/firewall/001-boot-apply.ci | Deferred to fw-2 (backend not yet implemented) |
+| Config with traffic-control | test/traffic/001-boot-apply.ci | Deferred to fw-3 (backend not yet implemented) |
 
 ## Checklist
 

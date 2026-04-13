@@ -721,6 +721,33 @@ imports the component -- all communication flows through the Bus.
 
 ---
 
+## 14b. Firewall and Traffic Control
+
+Ze manages nftables firewall tables and tc traffic control through the same pluggable
+backend pattern as interfaces. Two independent components, each with its own backend
+interface and data model.
+
+| Component | Package | Backend interface | Linux plugin | VPP plugin |
+|-----------|---------|-------------------|-------------|------------|
+| Firewall | `internal/component/firewall/` | `Apply([]Table)`, `ListTables()`, `GetCounters()` | `firewallnft` (google/nftables) | `firewallvpp` (GoVPP) |
+| Traffic | `internal/component/traffic/` | `Apply(map[string]InterfaceQoS)`, `ListQdiscs()` | `trafficnetlink` (vishvananda/netlink) | `trafficvpp` (GoVPP) |
+
+The firewall data model uses 42 abstract expression types (18 match, 16 action, 8 modifier)
+that model firewall concepts (MatchSourceAddress, Accept, SetMark), not nftables register
+operations. The nft backend lowers abstract types to nftables expressions internally. The
+VPP backend maps them directly to ACL rules and policers.
+
+Table ownership: ze tables are prefixed `ze_*`. Backends only touch `ze_*` tables and never
+modify tables owned by other software (e.g., Lachesis). Apply receives the full desired state
+and reconciles against the kernel atomically.
+
+<!-- source: internal/component/firewall/model.go -- Table, Chain, Term, Match, Action types -->
+<!-- source: internal/component/firewall/backend.go -- Backend interface, RegisterBackend -->
+<!-- source: internal/component/traffic/model.go -- InterfaceQoS, Qdisc, TrafficClass types -->
+<!-- source: internal/component/traffic/backend.go -- Backend interface, RegisterBackend -->
+
+---
+
 ## 15. Operational Report Bus
 
 Ze's `internal/core/report/` package is the single cross-subsystem place where
