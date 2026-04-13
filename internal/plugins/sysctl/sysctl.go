@@ -292,13 +292,14 @@ func (s *store) applyConfig(settings map[string]string) ([]string, []error) {
 				"transient-value", e.transientValue)
 		}
 
-		e.configValue = value
 		s.saveOriginal(e)
 
 		if err := s.be.write(key, value); err != nil {
 			errs = append(errs, err)
 			continue
 		}
+		// Set config value only after successful kernel write.
+		e.configValue = value
 		applied = append(applied, appliedJSON(key, value, "config"))
 	}
 
@@ -333,6 +334,53 @@ func (s *store) showEntries() string {
 
 	data, _ := json.Marshal(entries)
 	return string(data)
+}
+
+// configSnapshot captures the config-layer state for rollback.
+type configSnapshot struct {
+	values map[string]string // key -> configValue (empty string = not set)
+}
+
+// snapshotConfig returns a snapshot of all current config-layer values.
+func (s *store) snapshotConfig() configSnapshot {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	snap := configSnapshot{values: make(map[string]string, len(s.entries))}
+	for _, e := range s.entries {
+		if e.configValue != "" {
+			snap.values[e.key] = e.configValue
+		}
+	}
+	return snap
+}
+
+// rollbackConfig restores config-layer values from a snapshot and re-applies
+// effective values to the kernel.
+func (s *store) rollbackConfig(snap configSnapshot) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Clear all config values, then restore from snapshot.
+	for _, e := range s.entries {
+		e.configValue = ""
+	}
+	for key, value := range snap.values {
+		e := s.getOrCreate(key)
+		e.configValue = value
+	}
+
+	// Re-apply effective values to kernel.
+	for _, e := range s.entries {
+		val, l := e.effective()
+		if l < 0 {
+			continue
+		}
+		if err := s.be.write(e.key, val); err != nil {
+			s.log.Warn("sysctl: rollback write failed", "key", e.key, "err", err)
+		}
+	}
+	s.log.Info("sysctl: config rolled back to previous state")
 }
 
 // restoreAll restores all saved original values on clean stop.

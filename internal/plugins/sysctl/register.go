@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
 	sysctlschema "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/schema"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -206,9 +207,25 @@ func runSysctlPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	p.OnConfigVerify(func(_ []sdk.ConfigSection) error {
+	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		for _, sec := range sections {
+			if sec.Root != "sysctl" {
+				continue
+			}
+			settings := parseSysctlConfig(sec.Data)
+			for key, value := range settings {
+				if err := validateKey(key); err != nil {
+					return err
+				}
+				if err := sysctlreg.Validate(key, value); err != nil {
+					return err
+				}
+			}
+		}
 		return nil
 	})
+
+	var activeJournal *sdk.Journal
 
 	p.OnConfigApply(func(sections []sdk.ConfigDiffSection) error {
 		for _, sec := range sections {
@@ -222,17 +239,35 @@ func runSysctlPlugin(conn net.Conn) int {
 			for _, data := range []string{sec.Added, sec.Changed} {
 				maps.Copy(settings, parseSysctlConfig(data))
 			}
-			applied, errs := s.applyConfig(settings)
-			if len(errs) > 0 {
-				return fmt.Errorf("sysctl config: %w", errs[0])
-			}
-			if eb != nil {
-				for _, payload := range applied {
-					if _, emitErr := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlApplied, payload); emitErr != nil {
-						log.Debug("sysctl: applied emit failed", "err", emitErr)
+
+			// Snapshot config state before apply for rollback.
+			snap := s.snapshotConfig()
+			j := sdk.NewJournal()
+			err := j.Record(
+				func() error {
+					applied, errs := s.applyConfig(settings)
+					if len(errs) > 0 {
+						return fmt.Errorf("sysctl config: %w", errs[0])
 					}
-				}
+					if eb != nil {
+						for _, payload := range applied {
+							if _, emitErr := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlApplied, payload); emitErr != nil {
+								log.Debug("sysctl: applied emit failed", "err", emitErr)
+							}
+						}
+					}
+					return nil
+				},
+				func() error {
+					s.rollbackConfig(snap)
+					return nil
+				},
+			)
+			if err != nil {
+				j.Rollback()
+				return err
 			}
+			activeJournal = j
 			log.Info("sysctl config reloaded", "keys", len(settings))
 			return nil
 		}
@@ -240,6 +275,14 @@ func runSysctlPlugin(conn net.Conn) int {
 	})
 
 	p.OnConfigRollback(func(_ string) error {
+		j := activeJournal
+		activeJournal = nil
+		if j == nil {
+			return nil
+		}
+		if errs := j.Rollback(); len(errs) > 0 {
+			return fmt.Errorf("sysctl rollback: %d errors", len(errs))
+		}
 		log.Info("sysctl config rolled back")
 		return nil
 	})
