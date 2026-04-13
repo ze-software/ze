@@ -22,6 +22,7 @@ test/internet/*.tmp
 
 # Research output (large generated files)
 docs/research/comparison/
+docs/research/ze-vpp-plan.md
 docs/performance.md
 
 # Coverage reports

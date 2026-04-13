@@ -13,7 +13,7 @@
 1. This spec file
 2. `.claude/rules/planning.md`
 3. `internal/component/iface/backend.go` — Backend interface pattern
-4. `plan/ze-vpp-plan.md` — VPP integration (firewall backends are Phase 4)
+4. `plan/spec-vpp-0-umbrella.md` — VPP integration (firewall backends are spec-vpp-5)
 
 ## Task
 
@@ -49,9 +49,9 @@ Two new components, four new plugins (two Linux backends, two VPP backends):
 - [ ] `internal/component/iface/backend.go` - existing backend interface pattern
   → Constraint: Backend registered via RegisterBackend in init(), selected by config leaf
   → Decision: single-method Apply pattern chosen over granular methods (design decision 3)
-- [ ] `plan/ze-vpp-plan.md` - VPP integration plan
-  → Constraint: VPP backends depend on VPP Phase 0 (lifecycle management)
-  → Decision: VPP plan Phase 4 ACL/Policer becomes firewallvpp/trafficvpp
+- [ ] `plan/spec-vpp-0-umbrella.md` - VPP integration spec set
+  → Constraint: VPP backends depend on vpp-1 (lifecycle management)
+  → Decision: VPP spec-vpp-5-features ACL/Policer becomes firewallvpp/trafficvpp
 - [ ] `.claude/patterns/registration.md` - registration pattern
   → Constraint: init() + registry.Register() pattern for plugins
 - [ ] `.claude/patterns/config-option.md` - config option pattern
