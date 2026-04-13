@@ -110,17 +110,30 @@ Three entry points:
 
 ### EventBus Events
 
+**Write events (fire-and-forget):**
+
 | Namespace | Event Type | Direction | Payload |
 |-----------|-----------|-----------|---------|
 | `sysctl` | `default` | fib/iface -> sysctl | key, value, source (plugin name) |
 | `sysctl` | `set` | CLI -> sysctl | key, value |
-| `sysctl` | `show-request` | CLI -> sysctl | empty or filter |
-| `sysctl` | `show-result` | sysctl -> requester | JSON table: key, value, source, persistent |
-| `sysctl` | `list-request` | CLI -> sysctl | empty |
-| `sysctl` | `list-result` | sysctl -> requester | JSON table: key, description, type, current value |
-| `sysctl` | `describe-request` | CLI -> sysctl | key |
-| `sysctl` | `describe-result` | sysctl -> requester | JSON detail |
 | `sysctl` | `applied` | sysctl -> anyone | key, value, source. Any plugin can subscribe and react. |
+
+**Query events (request/response with correlation ID):**
+
+| Namespace | Event Type | Direction | Payload |
+|-----------|-----------|-----------|---------|
+| `sysctl` | `show-request` | CLI -> sysctl | request-id |
+| `sysctl` | `show-result` | sysctl -> requester | request-id, JSON table: key, value, source, persistent |
+| `sysctl` | `list-request` | CLI -> sysctl | request-id |
+| `sysctl` | `list-result` | sysctl -> requester | request-id, JSON table: key, description, type, current value |
+| `sysctl` | `describe-request` | CLI -> sysctl | request-id, key |
+| `sysctl` | `describe-result` | sysctl -> requester | request-id, JSON detail |
+
+Query correlation: the requester generates a unique request-id (e.g., UUID or
+monotonic counter), subscribes to the result event type, emits the request, and
+matches the response by request-id. This allows concurrent queries from multiple
+CLI sessions without response mixup. The requester unsubscribes after receiving
+its response.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -161,10 +174,13 @@ say "I know what I'm doing," but without an override the default is the correct 
 **Override logging:** when config or transient overrides a plugin default, sysctl logs at
 warn level: "<key> set to <override-value> (<source>), overriding <plugin-name> default (<default-value>)".
 
-When config is applied: config values are authoritative. Transient and default values only
-take effect for keys NOT present in config.
+When config is applied: config values are authoritative. The sysctl plugin scans all
+active keys (transient and default) and re-evaluates them: any key now claimed by config
+is overwritten with the config value and the override warn is logged. Transient and default
+values only take effect for keys NOT present in config.
 
-When a transient value is set: it overrides any default for that key. Does not affect config keys.
+When a transient value is set: it overrides any default for that key. Does not affect
+config keys (if config already claims this key, the set is rejected with a message).
 
 When a plugin sets a default: it only takes effect if no config or transient override exists.
 
@@ -184,7 +200,14 @@ type, valid range, description, platform availability.
 |-------------|---------------|------|
 | sysctl plugin | own init() | Core system keys (net.core.somaxconn, net.ipv4.tcp_syncookies, net.ipv4.conf.all.log_martians) |
 | fibkernel | own init() | net.ipv4.conf.all.forwarding, net.ipv6.conf.all.forwarding |
-| ifacenetlink | own init() | Per-interface keys (net.ipv4.conf.*.arp_announce, arp_ignore, rp_filter, etc.) |
+| iface | own init() | Per-interface key templates (see below) |
+
+**Per-interface key templates:** iface registers key patterns with a `<iface>` placeholder
+(e.g., `net.ipv4.conf.<iface>.arp_announce`). The known registry stores these as templates,
+not literal keys. When validating or completing a concrete key like
+`net.ipv4.conf.eth0.arp_announce`, the registry matches against templates by extracting
+the interface name segment and checking the rest against the pattern. Tab completion
+substitutes `<iface>` with discovered interface names from the system.
 
 Unknown keys: accepted by `sysctl set` and config, written as-is. No tab completion,
 no validation, no description. User takes responsibility.
@@ -308,10 +331,10 @@ by attempting the write (fail = reject config).
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| rp-filter | 0-2 | 2 | N/A (0 valid) | 3 |
-| arp-announce | 0-2 | 2 | N/A (0 valid) | 3 |
-| arp-ignore | 0-2 | 2 | N/A (0 valid) | 3 |
-| accept-ra | 0-2 | 2 | N/A (0 valid) | 3 |
+| net.ipv4.conf.all.rp_filter | 0-2 | 2 | N/A (0 valid) | 3 |
+| net.ipv4.conf.all.arp_announce | 0-2 | 2 | N/A (0 valid) | 3 |
+| net.ipv4.conf.all.arp_ignore | 0-2 | 2 | N/A (0 valid) | 3 |
+| net.ipv6.conf.all.accept_ra | 0-2 | 2 | N/A (0 valid) | 3 |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -333,10 +356,9 @@ by attempting the write (fail = reject config).
 - `internal/component/iface/backend.go` - remove sysctl methods from Backend interface
 - `internal/component/iface/dispatch.go` - remove sysctl dispatch functions
 - `internal/component/iface/config.go` - applySysctl emits `(sysctl, default)` on EventBus instead of backend calls
-- `internal/component/iface/register.go` - add "sysctl" to Dependencies (ifacenetlink registration)
+- `internal/component/iface/register.go` - add "sysctl" to Dependencies (this file holds the registry.Registration)
 - `internal/plugins/ifacenetlink/sysctl_linux.go` - delete (code moves to sysctl plugin)
 - `internal/plugins/ifacenetlink/sysctl_linux_test.go` - delete (tests move to sysctl plugin)
-- `internal/plugins/ifacenetlink/register.go` - add "sysctl" to Dependencies
 - `internal/component/plugin/all/all.go` - add blank import for sysctl plugin
 - `internal/component/plugin/events.go` - add NamespaceSysctl + sysctl event types
 
@@ -481,7 +503,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | sysctl plugin registered | `grep 'sysctl' internal/component/plugin/all/all.go` |
 | sysctl namespace in events.go | `grep 'NamespaceSysctl' internal/component/plugin/events.go` |
 | fibkernel depends on sysctl | `grep 'sysctl' internal/plugins/fibkernel/register.go` |
-| iface depends on sysctl | `grep 'sysctl' internal/plugins/ifacenetlink/register.go` |
+| iface depends on sysctl | `grep 'sysctl' internal/component/iface/register.go` |
 | ifacenetlink sysctl code deleted | `ls internal/plugins/ifacenetlink/sysctl_linux.go` returns not found |
 | Known keys available on Linux | TestListResult shows Linux keys |
 | Known keys available on Darwin | TestListResult shows forwarding keys only |
