@@ -169,11 +169,30 @@ func MapPrefixToModule(prefix string) string {
 	switch prefix {
 	case "bgp":
 		return "ze-bgp-conf"
+	case "interface":
+		return "ze-iface-conf"
+	case "sysctl":
+		return "ze-sysctl-conf"
 	case "plugin":
 		return "ze-plugin-conf"
-	default: // Pass-through for module names that don't need mapping
-		return prefix
+	case "web":
+		return "ze-web-conf"
+	case "ssh":
+		return "ze-ssh-conf"
+	case "dns":
+		return "ze-dns-conf"
+	case "telemetry":
+		return "ze-telemetry-conf"
+	case "looking-glass":
+		return "ze-lg-conf"
+	case "mcp":
+		return "ze-mcp-conf"
+	case "fib":
+		return "ze-fib-conf"
+	case "managed":
+		return "ze-managed-conf"
 	}
+	return prefix
 }
 
 // stripListKey removes list key from path segment.
@@ -568,12 +587,28 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 			continue
 		}
 
-		// Leaf-list cardinality: count space-separated items in bracket-syntax leaf-lists.
+		// Leaf-list: validate cardinality and each item individually.
+		// Bracket leaf-lists are stored as space-separated strings.
 		if child.IsLeafList() {
 			if str, ok := value.(string); ok && str != "" {
-				count := uint64(len(strings.Fields(str)))
-				checkCardinality(childPath, child, count, errs)
+				items := strings.Fields(str)
+				checkCardinality(childPath, child, uint64(len(items)), errs)
+				for _, item := range items {
+					if leafErr := v.validateEntry(childPath, child, item); leafErr != nil {
+						var valErr *ValidationError
+						if errors.As(leafErr, &valErr) {
+							*errs = append(*errs, *valErr)
+						} else {
+							*errs = append(*errs, ValidationError{
+								Path:    childPath,
+								Type:    ErrTypeType,
+								Message: leafErr.Error(),
+							})
+						}
+					}
+				}
 			}
+			continue
 		}
 
 		// Non-map values are leaves — validate against YANG type.

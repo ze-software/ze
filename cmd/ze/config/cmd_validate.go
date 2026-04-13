@@ -14,7 +14,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	configyang "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 )
+
+// yangSectionsToValidate lists config sections that get YANG tree validation.
+// BGP is excluded because it has its own deeper validation path.
+var yangSectionsToValidate = []string{
+	"interface", "sysctl", "fib", "plugin", "web", "ssh", "dns",
+	"telemetry", "looking-glass", "mcp", "managed",
+}
 
 // validationResult holds validation results.
 type validationResult struct {
@@ -201,6 +209,29 @@ func runValidation(input, path string) *validationResult {
 	// Prune inactive nodes before resolution so the validation summary
 	// reflects only active config (inactive peers are not started).
 	config.PruneInactive(tree, schema)
+
+	// YANG tree validation: check cardinality, patterns, ranges, and mandatory
+	// fields for all non-BGP config sections. BGP has its own deeper path below.
+	if yangValidator, yangErr := config.YANGValidatorWithPlugins(nil); yangErr == nil {
+		for _, section := range yangSectionsToValidate {
+			container := tree.GetContainer(section)
+			if container == nil {
+				continue
+			}
+			for _, ve := range yangValidator.ValidateTree(section, container.ToMap()) {
+				if ve.Type == configyang.ErrTypeMissing {
+					result.Warnings = append(result.Warnings, validationWarning{
+						Message: fmt.Sprintf("%s: %s", section, ve.Message),
+					})
+				} else {
+					result.Valid = false
+					result.Errors = append(result.Errors, validationError{
+						Message: fmt.Sprintf("%s: %s", section, ve.Message),
+					})
+				}
+			}
+		}
+	}
 
 	// BGP-specific validation only when bgp {} is present.
 	if tree.GetContainer("bgp") != nil {
