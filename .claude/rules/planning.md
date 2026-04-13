@@ -97,16 +97,19 @@ Every spec MUST have a metadata table immediately after the `# Spec:` title. Thi
 | Phase | Multi-phase progress | `N/M` (e.g., `3/5`) or `-` for single-phase |
 | Updated | Date of last status change | `YYYY-MM-DD` -- NOT last file edit |
 
-### When to Update
+### When to Update (BLOCKING)
 
-| Event | Status change | Phase | Updated |
-|-------|--------------|-------|---------|
-| Start design | `skeleton` to `design` | - | Yes |
-| Design complete | `design` to `ready` | - | Yes |
-| Start coding | `ready` to `in-progress` | Set `1/N` | Yes |
-| Finish a phase | - | Increment | Yes |
-| Blocked | to `blocked` | - | Yes |
-| Deferred | to `deferred` | - | Yes |
+Status transitions happen at the BEGINNING of the phase, not at the end.
+A spec that stays in `design` during implementation is lying about its state.
+
+| Event | Status change | Phase | Updated | When exactly |
+|-------|--------------|-------|---------|--------------|
+| Start research | `skeleton` to `design` | - | Yes | First action of `/ze-spec` Step 2 |
+| Spec approved | `design` to `ready` | - | Yes | After user approves in `/ze-spec` Step 4 |
+| Start coding | `ready` to `in-progress` | Set `1/N` | Yes | First action of `/ze-implement`, before audit |
+| Finish a phase | - | Increment | Yes | After phase tests pass |
+| Blocked | to `blocked` | - | Yes | When blocker identified |
+| Deferred | to `deferred` | - | Yes | When user agrees to defer |
 
 ### Status Vocabulary
 

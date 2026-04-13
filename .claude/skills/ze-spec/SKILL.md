@@ -51,12 +51,15 @@ See also: `/ze-design` (stress-test a design), `/ze-explore` (research a topic),
    - Is there a simpler framing of the same goal?
 7. **GATE:** ASK user to confirm scope and direction. Present your concern alongside the recommendation. Do not proceed until confirmed.
 8. Write spec filename to `.claude/selected-spec`
+9. Create spec file with `Status: skeleton`
 
 ---
 
 ### Step 2: RESEARCH (Hard Gate)
 
 **Goal:** Understand existing code and architecture before designing anything.
+
+**Status transition:** When starting research, edit the spec: set `Status` to `design`, `Updated` to today. Do this before reading any source files.
 
 #### Checkpoint Rules
 
@@ -200,7 +203,8 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
 6. Present spec to user for final review.
 7. **GATE:** ASK user: "Ready to save? The weakest part is [X] -- should we strengthen it?"
    Iterate on feedback until approved.
-8. Save and `git add plan/spec-<name>.md`
+8. **Status transition:** Edit the spec: set `Status` to `ready`, `Updated` to today. Design is done, spec is ready for implementation.
+9. Save and `git add plan/spec-<name>.md`
 
 ---
 

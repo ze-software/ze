@@ -21,7 +21,12 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
 ## Steps
 
 1. **Read the spec:** Read `.claude/selected-spec`, then read `plan/<spec-name>`
-2. **Update spec status:** Set `Status` to `in-progress` and `Updated` to today's date immediately. This signals to other sessions that work has started.
+2. **Update spec status (BLOCKING -- do this FIRST, before any other work):**
+   Edit the spec file NOW: set `Status` to `in-progress`, `Phase` to `1/N`, `Updated` to today.
+   This is the FIRST action after reading. Not after audit, not after implementation, not at the end.
+   Do not proceed to step 3 until the spec file on disk shows `in-progress`.
+   **Why this is BLOCKING:** other sessions check spec status to avoid collisions. A spec that
+   stays in `design` or `ready` during implementation lies about its state.
 3. **Audit first:** Run `/ze-audit` logic. Check Files to Modify, Files to Create, and TDD Test Plan against the codebase. Identify what's already implemented, partially done, or missing. Do not redo existing work.
 4. **Implement:** Follow the spec's **Implementation Phases** section in order. For each phase:
    - Write the tests listed for that phase (TDD -- test must fail before implementation)
