@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 12/13 |
 | Updated | 2026-04-13 |
 
 ## Post-Compaction Recovery
@@ -16,7 +16,8 @@
 4. `internal/plugins/sysctl/sysctl.go` - store, setDefault, conflict checking target
 5. `internal/component/iface/config.go` - applySysctl, where profiles are resolved and emitted
 6. `internal/component/iface/schema/ze-iface-conf.yang` - unit grouping where sysctl-profile leaf-list goes
-7. `plan/learned/581-sysctl-0-plugin.md` - base sysctl plugin decisions
+7. `internal/component/cli/model_commands.go` - `cmdCommit`, where `commit force` goes
+8. `plan/learned/581-sysctl-0-plugin.md` - base sysctl plugin decisions
 
 ## Task
 
@@ -44,6 +45,10 @@ sets arp_announce=2, arp_ignore=1 automatically.
 | 7 | Code location | Core registry (`internal/core/sysctl/`) | Leaf package, no plugin deps; offline `ze sysctl list-profiles` works |
 | 8 | Conflict detection | Per-sysctl conflict table in core registry | Catches conflicts in user-defined profiles too, not just built-in pairs |
 | 9 | Conflict action | Warn only, apply anyway | Operator may override via explicit sysctl config; consistent with existing override logging |
+| 10 | Same-value overwrites | Silent (no log) | Two profiles setting same key to same value is redundant, not conflicting; only warn when values differ |
+| 11 | Dangling profile ref | Block commit (warning), `commit force` to override | Extends existing warning-blocks-commit pattern in `cmdCommit`; `commit force` skips warnings, not errors |
+| 12 | Profile reload cleanup | `(sysctl, clear-profile-defaults)` event per interface before re-emitting | Clears stale keys from previous profile version; no tracking state needed |
+| 13 | Boundary enforcement | YANG-only (`max-elements`, `length`, `pattern`) | Single source of truth; editor validates natively; no redundant Go-side checks |
 
 ## Required Reading
 
@@ -73,10 +78,12 @@ N/A - no protocol work.
 **Source files read:**
 - [ ] `internal/core/sysctl/known.go` - KeyDef, MustRegister, Lookup, Validate, All
   → Constraint: extend with ProfileDef, MustRegisterProfile, LookupProfile, AllProfiles, RegisterConflict
-- [ ] `internal/core/sysctl/known_linux.go` - Linux known keys (16 keys)
+- [ ] `internal/core/sysctl/known_linux.go` - Linux known keys (18 keys: 6 global + 12 per-interface templates)
   → Decision: built-in profile definitions go in new `profiles.go` (platform-independent; profiles use `<iface>` templates)
+  → Prerequisite: add `net.ipv4.conf.<iface>.log_martians` per-interface template (missing, needed by hardened profile)
 - [ ] `internal/plugins/sysctl/sysctl.go` - store, setDefault, appliedJSON
   → Constraint: setDefault already handles key conflicts between layers; profile emission uses same path
+  → Decision: setDefault must check `defaultValue == value` before logging; same value from different sources is silent
 - [ ] `internal/plugins/sysctl/register.go` - EventBus handlers, OnExecuteCommand
   → Decision: add `sysctl list-profiles` and `sysctl describe-profile` commands
 - [ ] `internal/component/iface/config.go` - applySysctl emits EventBus defaults per ipv4/ipv6 leaf
@@ -99,9 +106,12 @@ N/A - no protocol work.
 - Add `sysctl-profile` leaf-list to interface units
 - Add `profile` list to `sysctl {}` config block for user-defined profiles
 - Add profile registry to `internal/core/sysctl/`
-- Add conflict table and warn logging to sysctl store
+- Add conflict table and warn logging to sysctl store (only when values differ; same value is silent)
 - Add CLI commands for profile inspection
 - iface plugin resolves and emits profile sysctls during config apply
+- iface plugin emits `(sysctl, clear-profile-defaults)` per interface before re-emitting on reload (cleans stale keys)
+- Add `commit force` to CLI editor: skips warnings (not errors), needed for dangling profile references
+- Add `log_martians` per-interface template to `known_linux.go` (prerequisite for hardened profile)
 
 ## Data Flow (MANDATORY)
 
@@ -115,11 +125,13 @@ Three entry points for profile data:
 1. Built-in profiles registered via `sysctl.MustRegisterProfile(ProfileDef{...})` at init
 2. User-defined profiles registered via `sysctl.RegisterProfile(ProfileDef{...})` from sysctl plugin OnConfigure
 3. iface config parser reads `sysctl-profile` leaf-list from unit, stores as `[]string` in unitEntry
-4. `applySysctlProfiles(osName, profiles)` iterates profiles in order, calls `sysctl.LookupProfile(name)` for each
-5. For each profile, iterates settings, substitutes `<iface>` with osName, emits `(sysctl, default)` with `source: "profile:<name>"`
-6. sysctl plugin receives defaults, checks conflict table, warns if conflicting keys detected
-7. sysctl plugin writes to kernel via backend (existing flow)
-8. Last profile wins on key conflict within the same unit (later emit overwrites earlier default)
+4. `applySysctlProfiles(osName, profiles)` emits `(sysctl, clear-profile-defaults)` with `{interface: osName}` to clear stale keys from previous cycle
+5. Iterates profiles in order, calls `sysctl.LookupProfile(name)` for each
+6. For each profile, iterates settings, substitutes `<iface>` with osName, emits `(sysctl, default)` with `source: "profile:<name>"`
+7. sysctl plugin receives defaults; if `defaultValue == value` (same value), silent no-op; if values differ, warns and overwrites
+8. sysctl plugin checks conflict table, warns if conflicting keys detected
+9. sysctl plugin writes to kernel via backend (existing flow)
+10. Last profile wins on key conflict within the same unit (later emit overwrites earlier default)
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -127,16 +139,20 @@ Three entry points for profile data:
 | core registry ← init | `MustRegisterProfile()` at package init | [ ] |
 | sysctl plugin ← config | `RegisterProfile()` from OnConfigure | [ ] |
 | iface ← core registry | `LookupProfile()` (read-only, no plugin import) | [ ] |
+| iface → sysctl plugin | EventBus `(sysctl, clear-profile-defaults)` with `{interface: osName}` before re-emit | [ ] |
 | iface → sysctl plugin | EventBus `(sysctl, default)` with `source: "profile:<name>"` | [ ] |
 | sysctl plugin ← conflict table | `CheckConflicts()` on active defaults per interface | [ ] |
 | CLI ← core registry | `AllProfiles()` for `ze sysctl list-profiles` | [ ] |
 
 ### Integration Points
 - `internal/core/sysctl/` - new ProfileDef type, profile registry, conflict table
-- `internal/plugins/sysctl/register.go` - parse user-defined profiles from config, new CLI commands
-- `internal/component/iface/config.go` - parse sysctl-profile leaf-list, emit profile defaults
+- `internal/core/sysctl/known_linux.go` - add `log_martians` per-interface template (prerequisite)
+- `internal/plugins/sysctl/register.go` - parse user-defined profiles from config, new CLI commands, handle `clear-profile-defaults` event
+- `internal/plugins/sysctl/sysctl.go` - same-value check in `setDefault` (silent when equal)
+- `internal/component/iface/config.go` - parse sysctl-profile leaf-list, emit `clear-profile-defaults` then profile defaults
 - `internal/component/iface/schema/ze-iface-conf.yang` - sysctl-profile leaf-list in unit grouping
 - `internal/plugins/sysctl/schema/ze-sysctl-conf.yang` - profile list in sysctl container
+- `internal/component/cli/model_commands.go` - `commit force` (skip warnings, keep blocking on errors)
 - `cmd/ze/sysctl/main.go` - list-profiles, describe-profile subcommands
 
 ### Architectural Verification
@@ -255,6 +271,8 @@ Warn log: "net.ipv4.conf.eth0.arp_announce set to 1 (config), overriding profile
 | user-defined profile in sysctl config | -> | sysctl plugin registers profile, iface emits its keys | `test/parse/sysctl-profile-custom.ci` |
 | two conflicting profiles on same unit | -> | sysctl plugin warns on conflict | `test/plugin/sysctl-profile-conflict.ci` |
 | `ze sysctl list-profiles` offline | -> | core registry returns all profiles | `test/parse/sysctl-list-profiles.ci` |
+| config reload changes profile contents | -> | stale keys cleared, new keys emitted | `test/plugin/sysctl-profile-reload.ci` |
+| `commit force` with dangling profile ref | -> | commit succeeds despite warning | `test/editor/workflow/commit-force-warning.et` |
 
 ## Acceptance Criteria
 
@@ -275,6 +293,11 @@ Warn log: "net.ipv4.conf.eth0.arp_announce set to 1 (config), overriding profile
 | AC-13 | User-defined profile overrides built-in with same name | User-defined wins. Warn log at registration time. |
 | AC-14 | `sysctl-profile` leaf-list on loopback unit | Profiles applied to loopback interface (lo) |
 | AC-15 | `sysctl-profile` on VLAN unit (eth0.100) | Profile keys use `eth0.100` as interface name via `<iface>` substitution |
+| AC-16 | Two profiles set same key to same value on same unit | Silent: no warn log, value applied once |
+| AC-17 | Remove `profile my-edge` from sysctl config while interface unit still references it | Commit blocked with warning; `commit force` overrides |
+| AC-18 | `commit force` with dangling profile reference | Commit succeeds despite warning |
+| AC-19 | `commit force` with a validation error (not warning) | Commit still blocked (force only skips warnings) |
+| AC-20 | Config reload changes profile contents (adds/removes keys) | Stale keys from old profile version cleared before new keys emitted |
 
 ## TDD Test Plan
 
@@ -299,13 +322,18 @@ Warn log: "net.ipv4.conf.eth0.arp_announce set to 1 (config), overriding profile
 | `TestParseProfileConfig` | `internal/plugins/sysctl/sysctl_test.go` | User-defined profile parsed from JSON config | |
 | `TestApplySysctlProfiles` | `internal/component/iface/config_test.go` | Profiles resolved and emitted on EventBus | |
 | `TestMultipleProfilesLastWins` | `internal/component/iface/config_test.go` | Last profile's value used for overlapping keys | |
+| `TestSetDefaultSameValueSilent` | `internal/plugins/sysctl/sysctl_test.go` | Same value from different source produces no warn log | |
+| `TestSetDefaultDifferentValueWarns` | `internal/plugins/sysctl/sysctl_test.go` | Different value from different source produces warn log | |
+| `TestClearProfileDefaults` | `internal/plugins/sysctl/sysctl_test.go` | Clearing profile defaults removes stale keys for interface | |
+| `TestCommitForceSkipsWarnings` | `internal/component/cli/model_commands_test.go` | `commit force` succeeds despite warnings | |
+| `TestCommitForceBlocksErrors` | `internal/component/cli/model_commands_test.go` | `commit force` still blocked by errors | |
 
-### Boundary Tests (MANDATORY for numeric inputs)
-| Field | Range | Last Valid | Invalid Below | Invalid Above |
-|-------|-------|------------|---------------|---------------|
-| Profile name length | 1-64 | 64 chars | empty string | 65 chars |
-| Settings per profile | 1-50 | 50 | 0 (empty) | 51 |
-| Profiles per unit | 1-10 | 10 | 0 (empty leaf-list) | 11 |
+### Boundary Tests (YANG-enforced)
+| Field | YANG Constraint | Last Valid | Invalid Below | Invalid Above |
+|-------|----------------|------------|---------------|---------------|
+| Profile name length | `length "1..64"` + `pattern "[a-z0-9][a-z0-9-]*"` | 64 chars | empty string | 65 chars |
+| Settings per profile | `max-elements 50` | 50 | 0 (empty) | 51 |
+| Profiles per unit | `max-elements 10` | 10 | 0 (empty leaf-list) | 11 |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -316,6 +344,8 @@ Warn log: "net.ipv4.conf.eth0.arp_announce set to 1 (config), overriding profile
 | `sysctl-list-profiles` | `test/parse/sysctl-list-profiles.ci` | `ze sysctl list-profiles` shows built-in profiles | |
 | `sysctl-profile-unknown` | `test/parse/sysctl-profile-unknown.ci` | Unknown profile name rejected at validation | |
 | `sysctl-profile-combined` | `test/parse/sysctl-profile-combined.ci` | `sysctl-profile [ dsr hardened ]` validates | |
+| `sysctl-profile-reload` | `test/plugin/sysctl-profile-reload.ci` | Profile contents changed on reload, stale keys cleared | |
+| `commit-force-warning` | `test/editor/workflow/commit-force-warning.et` | `commit force` overrides warnings, blocks on errors | |
 
 ### Future (if deferring any tests)
 - `sysctl-global-profile`: system-wide profiles (tcp_syncookies, etc.) are out of scope for this spec
@@ -324,11 +354,13 @@ Warn log: "net.ipv4.conf.eth0.arp_announce set to 1 (config), overriding profile
 ## Files to Modify
 
 - `internal/core/sysctl/known.go` - add ProfileDef type, profile registry functions, conflict table
-- `internal/plugins/sysctl/register.go` - parse user-defined profiles from config, add list-profiles/describe-profile commands
-- `internal/plugins/sysctl/sysctl.go` - conflict checking in setDefault, `profile:<name>` source tracking
+- `internal/core/sysctl/known_linux.go` - add `net.ipv4.conf.<iface>.log_martians` per-interface template (prerequisite for hardened profile)
+- `internal/plugins/sysctl/register.go` - parse user-defined profiles from config, add list-profiles/describe-profile commands, handle `clear-profile-defaults` event
+- `internal/plugins/sysctl/sysctl.go` - same-value check in setDefault (silent when equal), conflict checking, `profile:<name>` source tracking, clear profile defaults for interface
 - `internal/plugins/sysctl/schema/ze-sysctl-conf.yang` - add `list profile` to sysctl container
-- `internal/component/iface/config.go` - add applySysctlProfiles, parse sysctl-profile leaf-list
+- `internal/component/iface/config.go` - add applySysctlProfiles, parse sysctl-profile leaf-list, emit `clear-profile-defaults` before profile re-emission
 - `internal/component/iface/schema/ze-iface-conf.yang` - add sysctl-profile leaf-list to interface-unit
+- `internal/component/cli/model_commands.go` - add `commit force` variant: skip warnings, keep blocking on errors
 - `cmd/ze/sysctl/main.go` - add list-profiles, describe-profile subcommands
 - `cmd/ze/main.go` - update help text to mention profiles
 
@@ -338,8 +370,10 @@ Warn log: "net.ipv4.conf.eth0.arp_announce set to 1 (config), overriding profile
 | YANG schema (sysctl container) | Yes | `internal/plugins/sysctl/schema/ze-sysctl-conf.yang` |
 | YANG schema (iface unit) | Yes | `internal/component/iface/schema/ze-iface-conf.yang` |
 | CLI commands/flags | Yes | `cmd/ze/sysctl/main.go` |
+| CLI editor `commit force` | Yes | `internal/component/cli/model_commands.go` |
 | Editor autocomplete | Yes | YANG-driven (automatic if YANG updated) |
 | Functional test for new feature | Yes | `test/parse/sysctl-profile-*.ci`, `test/plugin/sysctl-profile-*.ci` |
+| Known key prerequisite | Yes | `internal/core/sysctl/known_linux.go` (log_martians template) |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
@@ -371,6 +405,8 @@ Warn log: "net.ipv4.conf.eth0.arp_announce set to 1 (config), overriding profile
 - `test/parse/sysctl-profile-unknown.ci` - unknown profile rejected (expect failure)
 - `test/parse/sysctl-list-profiles.ci` - offline list-profiles command
 - `test/plugin/sysctl-profile-conflict.ci` - conflicting profiles warn
+- `test/plugin/sysctl-profile-reload.ci` - profile reload clears stale keys
+- `test/editor/workflow/commit-force-warning.et` - commit force overrides warnings
 
 ## Implementation Steps
 
@@ -395,50 +431,60 @@ Warn log: "net.ipv4.conf.eth0.arp_announce set to 1 (config), overriding profile
 
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
-1. **Phase: core profile registry** -- ProfileDef type, MustRegisterProfile, RegisterProfile, LookupProfile, AllProfiles, template substitution
+1. **Phase: prerequisites** -- add `net.ipv4.conf.<iface>.log_martians` template to `known_linux.go`; add same-value check to `setDefault` (silent when equal)
+   - Tests: TestSetDefaultSameValueSilent, TestSetDefaultDifferentValueWarns
+   - Files: internal/core/sysctl/known_linux.go, internal/plugins/sysctl/sysctl.go, sysctl_test.go
+   - Verify: tests fail -> implement -> tests pass
+
+2. **Phase: core profile registry** -- ProfileDef type, MustRegisterProfile, RegisterProfile, LookupProfile, AllProfiles, template substitution
    - Tests: TestMustRegisterProfile, TestDuplicateProfileRegistration, TestUserProfileOverridesBuiltin, TestLookupProfileUnknown, TestAllProfiles, TestTemplateSubstitution
    - Files: internal/core/sysctl/profiles.go, profile_test.go
    - Verify: tests fail -> implement -> tests pass
 
-2. **Phase: built-in profiles** -- register 5 built-in profiles at init
+3. **Phase: built-in profiles** -- register 5 built-in profiles at init
    - Tests: TestBuiltinDSR, TestBuiltinHardened, TestBuiltinRouter, TestBuiltinMultihomed, TestBuiltinProxy
    - Files: internal/core/sysctl/profiles.go (init function)
    - Verify: tests pass
 
-3. **Phase: conflict table** -- ConflictRule, RegisterConflict, CheckConflicts
+4. **Phase: conflict table** -- ConflictRule, RegisterConflict, CheckConflicts
    - Tests: TestConflictRegistration, TestCheckConflicts, TestCheckConflictsNoMatch
    - Files: internal/core/sysctl/conflicts.go, profile_test.go
    - Verify: tests fail -> implement -> tests pass
 
-4. **Phase: sysctl plugin profile parsing** -- parse user-defined profiles from sysctl config, register via RegisterProfile
+5. **Phase: sysctl plugin profile parsing** -- parse user-defined profiles from sysctl config, register via RegisterProfile
    - Tests: TestParseProfileConfig
    - Files: internal/plugins/sysctl/sysctl.go (parseProfileConfig), register.go (OnConfigure extension)
    - Verify: tests fail -> implement -> tests pass
 
-5. **Phase: sysctl plugin conflict checking** -- check conflict table on setDefault, warn log
-   - Tests: TestProfileSourceInShow
-   - Files: internal/plugins/sysctl/sysctl.go (extend setDefault)
+6. **Phase: sysctl plugin conflict checking + clear-profile-defaults** -- check conflict table on setDefault, warn log; handle `(sysctl, clear-profile-defaults)` event to clear stale profile defaults per interface
+   - Tests: TestProfileSourceInShow, TestClearProfileDefaults
+   - Files: internal/plugins/sysctl/sysctl.go (extend setDefault, add clearProfileDefaults), register.go (subscribe to new event)
    - Verify: tests pass
 
-6. **Phase: sysctl YANG** -- add `list profile` to sysctl container
+7. **Phase: sysctl YANG** -- add `list profile` to sysctl container with `max-elements 50`, name `length "1..64"` + `pattern "[a-z0-9][a-z0-9-]*"`
    - Files: internal/plugins/sysctl/schema/ze-sysctl-conf.yang
    - Verify: `make ze-lint`
 
-7. **Phase: iface YANG + config parsing** -- add sysctl-profile leaf-list, parse into unitEntry, applySysctlProfiles
+8. **Phase: iface YANG + config parsing** -- add sysctl-profile leaf-list (`max-elements 10`), parse into unitEntry, applySysctlProfiles (emit clear-profile-defaults then defaults)
    - Tests: TestApplySysctlProfiles, TestMultipleProfilesLastWins
    - Files: internal/component/iface/schema/ze-iface-conf.yang, internal/component/iface/config.go
    - Verify: tests fail -> implement -> tests pass
 
-8. **Phase: CLI commands** -- list-profiles, describe-profile in offline CLI; list-profiles, describe-profile in daemon OnExecuteCommand
-   - Files: cmd/ze/sysctl/main.go, internal/plugins/sysctl/register.go
-   - Verify: `ze sysctl list-profiles` shows 5 profiles
+9. **Phase: commit force** -- add `commit force` to CLI editor: skip warnings, keep blocking on errors
+   - Tests: TestCommitForceSkipsWarnings, TestCommitForceBlocksErrors
+   - Files: internal/component/cli/model_commands.go, model_commands_test.go
+   - Verify: tests fail -> implement -> tests pass
 
-9. **Phase: functional tests** -- all .ci tests
-   - Files: test/parse/sysctl-profile-*.ci, test/plugin/sysctl-profile-conflict.ci
-   - Verify: all .ci tests pass
+10. **Phase: CLI commands** -- list-profiles, describe-profile in offline CLI; list-profiles, describe-profile in daemon OnExecuteCommand
+    - Files: cmd/ze/sysctl/main.go, internal/plugins/sysctl/register.go
+    - Verify: `ze sysctl list-profiles` shows 5 profiles
 
-10. **Phase: full verification** -- `make ze-verify`
-11. **Phase: complete spec** -- audit, docs, learned summary
+11. **Phase: functional tests** -- all .ci and .et tests
+    - Files: test/parse/sysctl-profile-*.ci, test/plugin/sysctl-profile-*.ci, test/editor/workflow/commit-force-warning.et
+    - Verify: all tests pass
+
+12. **Phase: full verification** -- `make ze-verify`
+13. **Phase: complete spec** -- audit, docs, learned summary
 
 ### Critical Review Checklist (/implement stage 5)
 
@@ -451,7 +497,10 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Rule: no-layering | No parallel write path for profile sysctls. Profiles use existing setDefault. |
 | Rule: explicit > implicit | Profile contents visible via `ze sysctl describe-profile`. No hidden sysctl settings. |
 | Conflict detection | arp_ignore+proxy_arp, rp_filter+proxy_arp, arp_announce+proxy_arp all detected |
+| Same-value silent | Two profiles setting same key to same value produces no warn log |
 | Source tracking | `sysctl show` displays `profile:<name>` as source, not generic `interface` |
+| Reload cleanup | `clear-profile-defaults` emitted before re-emission; stale keys removed |
+| Commit force | `commit force` skips warnings, still blocks on errors |
 
 ### Deliverables Checklist (/implement stage 9)
 

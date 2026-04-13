@@ -1,5 +1,8 @@
 //go:build linux
 
+// Design: docs/architecture/core-design.md -- Linux sysctl known-keys
+// Overview: known.go -- registry types and functions
+
 package sysctl
 
 func init() {
@@ -57,6 +60,10 @@ func init() {
 	MustRegister(KeyDef{
 		Name: "net.ipv4.conf.<iface>.rp_filter", Type: TypeIntRange, Min: 0, Max: 2, Template: true,
 		Description: "Per-interface reverse path filter", Platform: PlatformLinux,
+	})
+	MustRegister(KeyDef{
+		Name: "net.ipv4.conf.<iface>.log_martians", Type: TypeBool, Template: true,
+		Description: "Log packets with impossible source addresses", Platform: PlatformLinux,
 	})
 	MustRegister(KeyDef{
 		Name: "net.ipv6.conf.<iface>.autoconf", Type: TypeBool, Template: true,

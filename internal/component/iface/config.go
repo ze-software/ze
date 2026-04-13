@@ -14,6 +14,7 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -80,17 +81,18 @@ type loopbackEntry struct {
 
 // unitEntry represents a logical unit on an interface.
 type unitEntry struct {
-	ID            int
-	VLANID        int
-	Addresses     []string
-	Disable       bool
-	RoutePriority int // route metric for DHCP default routes (0 = kernel default)
-	IPv4          *ipv4Sysctl
-	IPv6          *ipv6Sysctl
-	MirrorIngress string // destination interface name, empty = not configured
-	MirrorEgress  string
-	DHCP          *dhcpUnitConfig
-	DHCPv6        *dhcpv6UnitConfig
+	ID             int
+	VLANID         int
+	Addresses      []string
+	Disable        bool
+	RoutePriority  int // route metric for DHCP default routes (0 = kernel default)
+	SysctlProfiles []string
+	IPv4           *ipv4Sysctl
+	IPv6           *ipv6Sysctl
+	MirrorIngress  string // destination interface name, empty = not configured
+	MirrorEgress   string
+	DHCP           *dhcpUnitConfig
+	DHCPv6         *dhcpv6UnitConfig
 }
 
 // dhcpUnitConfig holds DHCPv4 client settings parsed from the YANG
@@ -312,8 +314,8 @@ func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
 		return entry, fmt.Errorf("local ip or local interface required")
 	}
 	if !matchedKind.IsBridgeable() {
-		for _, u := range entry.Units {
-			if u.VLANID > 0 {
+		for i := range entry.Units {
+			if entry.Units[i].VLANID > 0 {
 				return entry, fmt.Errorf("vlan-id units are not supported on %s tunnels (only gretap and ip6gretap carry Ethernet frames)", matchedKind)
 			}
 		}
@@ -573,6 +575,7 @@ func parseUnits(m map[string]any) []unitEntry {
 				u.RoutePriority, _ = strconv.Atoi(rp)
 			}
 			u.Addresses = parseStringList(um, "address")
+			u.SysctlProfiles = parseStringList(um, "sysctl-profile")
 			u.IPv4 = parseIPv4Sysctl(um)
 			u.IPv6 = parseIPv6Sysctl(um)
 			if mirrorMap, ok := um["mirror"].(map[string]any); ok {
@@ -741,7 +744,8 @@ func (cfg *ifaceConfig) desiredState() (addrs map[string]map[string]bool, manage
 	managed = make(map[string]bool)
 
 	addIfaceAddrs := func(name string, units []unitEntry) {
-		for _, u := range units {
+		for i := range units {
+			u := &units[i]
 			if u.Disable {
 				continue
 			}
@@ -803,7 +807,8 @@ func (cfg *ifaceConfig) desiredState() (addrs map[string]map[string]bool, manage
 		addIfaceAddrs(e.Name, e.Units)
 	}
 	if cfg.Loopback != nil {
-		for _, u := range cfg.Loopback.Units {
+		for i := range cfg.Loopback.Units {
+			u := &cfg.Loopback.Units[i]
 			if u.Disable {
 				continue
 			}
@@ -1122,7 +1127,8 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 				record(fmt.Sprintf("%s set mac", e.Name), err)
 			}
 		}
-		for _, u := range e.Units {
+		for i := range e.Units {
+			u := &e.Units[i]
 			if u.Disable {
 				continue
 			}
@@ -1134,18 +1140,21 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 				}
 				osName = fmt.Sprintf("%s.%d", e.Name, u.VLANID)
 			}
-			applySysctl(osName, u)
-			errs = append(errs, applyMirror(b, osName, u)...)
+			applySysctl(osName, *u)
+			applySysctlProfiles(osName, u.SysctlProfiles)
+			errs = append(errs, applyMirror(b, osName, *u)...)
 		}
 	}
 
 	// Phase 2b: Apply sysctl for loopback units.
 	if cfg.Loopback != nil {
-		for _, u := range cfg.Loopback.Units {
+		for i := range cfg.Loopback.Units {
+			u := &cfg.Loopback.Units[i]
 			if u.Disable {
 				continue
 			}
-			applySysctl("lo", u)
+			applySysctl("lo", *u)
+			applySysctlProfiles("lo", u.SysctlProfiles)
 		}
 	}
 
@@ -1287,6 +1296,48 @@ func applySysctl(osName string, u unitEntry) {
 		}
 		if s.Forwarding != nil {
 			emit("net.ipv6.conf."+osName+".forwarding", boolVal(*s.Forwarding))
+		}
+	}
+}
+
+// applySysctlProfiles resolves named profiles and emits their settings as
+// sysctl defaults via EventBus. Emits clear-profile-defaults first to remove
+// stale keys from a previous config cycle, then emits each profile's settings
+// in order (last wins on key overlap).
+func applySysctlProfiles(osName string, profiles []string) {
+	if len(profiles) == 0 {
+		return
+	}
+	eb := GetEventBus()
+	if eb == nil {
+		return
+	}
+	log := loggerPtr.Load()
+
+	// Clear stale profile defaults for this interface before re-emitting.
+	clearPayload, _ := json.Marshal(struct {
+		Interface string `json:"interface"`
+	}{Interface: osName})
+	if _, err := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlClearProfileDefaults, string(clearPayload)); err != nil {
+		log.Debug("iface: clear-profile-defaults emit failed", "iface", osName, "err", err)
+	}
+
+	for _, name := range profiles {
+		p, ok := sysctlreg.LookupProfile(name)
+		if !ok {
+			log.Warn("iface: unknown sysctl profile", "profile", name, "iface", osName)
+			continue
+		}
+		resolved := sysctlreg.ResolveProfileSettings(p.Settings, osName)
+		for _, s := range resolved {
+			payload, _ := json.Marshal(struct {
+				Key    string `json:"key"`
+				Value  string `json:"value"`
+				Source string `json:"source"`
+			}{Key: s.Key, Value: s.Value, Source: "profile:" + name})
+			if _, err := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlDefault, string(payload)); err != nil {
+				log.Debug("iface: profile sysctl emit failed", "key", s.Key, "profile", name, "err", err)
+			}
 		}
 	}
 }

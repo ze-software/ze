@@ -28,7 +28,8 @@ import (
 // cmdCommitConfirmed commits with auto-rollback if not confirmed within timeout.
 // Writes the trial config to .live.conf for audit, then overwrites .conf so the
 // daemon picks it up on reload. The original .conf is preserved in a dated backup.
-func (m *Model) cmdCommitConfirmed(seconds int) (commandResult, error) {
+// When force is true, warnings are skipped but errors still block.
+func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, error) {
 	// Boundary validation: 1-3600 seconds
 	if seconds < 1 {
 		return commandResult{}, fmt.Errorf("timeout must be at least 1 second")
@@ -37,13 +38,21 @@ func (m *Model) cmdCommitConfirmed(seconds int) (commandResult, error) {
 		return commandResult{}, fmt.Errorf("timeout must be at most 3600 seconds (1 hour)")
 	}
 
-	// Validate before commit — both errors and warnings block
+	// Validate before commit.
 	result := m.validator.Validate(m.editor.WorkingContent())
-	issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
-	issues = append(issues, result.Errors...)
-	issues = append(issues, result.Warnings...)
-	if len(issues) > 0 {
-		return commandResult{}, fmt.Errorf("cannot commit: %s", formatValidationErrors(issues))
+	if force {
+		// Force mode: only errors block, warnings are skipped.
+		if len(result.Errors) > 0 {
+			return commandResult{}, fmt.Errorf("cannot commit: %s", formatValidationErrors(result.Errors))
+		}
+	} else {
+		// Normal mode: both errors and warnings block.
+		issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
+		issues = append(issues, result.Errors...)
+		issues = append(issues, result.Warnings...)
+		if len(issues) > 0 {
+			return commandResult{}, fmt.Errorf("cannot commit: %s", formatValidationErrors(issues))
+		}
 	}
 
 	// Write trial config to .live.conf (audit trail + pending indicator)

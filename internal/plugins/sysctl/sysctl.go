@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -104,17 +105,19 @@ func validateKey(key string) error {
 
 // store manages all sysctl key entries with thread-safe access.
 type store struct {
-	mu      sync.RWMutex
-	entries map[string]*entry
-	be      backend
-	log     *slog.Logger
+	mu              sync.RWMutex
+	entries         map[string]*entry
+	warnedConflicts map[string]bool // dedup conflict warnings per apply cycle, keyed by "iface:reason"
+	be              backend
+	log             *slog.Logger
 }
 
 func newStore(be backend, log *slog.Logger) *store {
 	return &store{
-		entries: make(map[string]*entry),
-		be:      be,
-		log:     log,
+		entries:         make(map[string]*entry),
+		warnedConflicts: make(map[string]bool),
+		be:              be,
+		log:             log,
 	}
 }
 
@@ -171,6 +174,23 @@ func (s *store) setDefault(key, value, source string) (appliedPayload string, er
 	defer s.mu.Unlock()
 
 	e := s.getOrCreate(key)
+
+	// Same value from a different source is redundant, not a conflict.
+	// Update source silently, skip kernel write and applied event.
+	// Only applies when no higher-priority layer overrides this default.
+	if e.defaultValue == value && e.configValue == "" && e.transientValue == "" {
+		e.defaultSource = source
+		return "", nil
+	}
+
+	// Different value from a different source: warn and overwrite.
+	if e.defaultValue != "" && e.defaultValue != value {
+		s.log.Warn("sysctl: default overwritten",
+			"key", key,
+			"old-value", e.defaultValue, "old-source", e.defaultSource,
+			"new-value", value, "new-source", source)
+	}
+
 	e.defaultValue = value
 	e.defaultSource = source
 
@@ -193,6 +213,12 @@ func (s *store) setDefault(key, value, source string) (appliedPayload string, er
 	if werr != nil {
 		return "", werr
 	}
+
+	// Check for conflicts with other active defaults on the same interface.
+	if strings.HasPrefix(source, "profile:") {
+		s.checkProfileConflicts(key, source)
+	}
+
 	return appliedJSON(key, val, l.String()), nil
 }
 
@@ -515,6 +541,186 @@ func parseSysctlConfig(data string) map[string]string {
 		}
 	}
 	return result
+}
+
+// checkProfileConflicts collects active defaults for the same interface
+// as key and checks them against the conflict table. Logs warnings for
+// any detected conflicts. Must be called while s.mu is held.
+func (s *store) checkProfileConflicts(key, source string) {
+	// Extract interface segment from key (e.g., "eth0" from "net.ipv4.conf.eth0.forwarding").
+	parts := strings.Split(key, ".")
+	if len(parts) < 5 {
+		return // not a per-interface key
+	}
+	ifaceName := parts[len(parts)-2] // second-to-last segment
+
+	// Collect active defaults for this interface.
+	active := make(map[string]string)
+	for k, e := range s.entries {
+		if !strings.Contains(k, ".conf."+ifaceName+".") {
+			continue
+		}
+		if e.defaultValue != "" {
+			active[k] = e.defaultValue
+		}
+	}
+
+	conflicts := sysctlreg.CheckConflicts(active)
+	for _, c := range conflicts {
+		warnKey := ifaceName + ":" + c.Reason
+		if s.warnedConflicts[warnKey] {
+			continue
+		}
+		s.warnedConflicts[warnKey] = true
+		s.log.Warn("sysctl: profile conflict detected",
+			"interface", ifaceName, "source", source,
+			"conflict", c.Reason)
+	}
+}
+
+// clearProfileDefaults removes all default-layer entries whose source
+// starts with "profile:" for a given interface. Called before re-emitting
+// profile defaults on config reload to clean stale keys.
+func (s *store) clearProfileDefaults(ifaceName string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Reset conflict warning dedup for this interface so new conflicts
+	// are reported fresh after re-emission.
+	for k := range s.warnedConflicts {
+		if strings.HasPrefix(k, ifaceName+":") {
+			delete(s.warnedConflicts, k)
+		}
+	}
+
+	for key, e := range s.entries {
+		if !strings.Contains(key, ".conf."+ifaceName+".") {
+			continue
+		}
+		if !strings.HasPrefix(e.defaultSource, "profile:") {
+			continue
+		}
+		e.defaultValue = ""
+		e.defaultSource = ""
+
+		// Re-apply effective value: config or transient may still be set.
+		val, l := e.effective()
+		if val != "" {
+			if err := s.be.write(key, val); err != nil {
+				s.log.Warn("sysctl: clear-profile write failed", "key", key, "err", err)
+			}
+		} else if e.hasSaved {
+			// No layer has a value: restore original.
+			if err := s.be.write(key, e.original); err != nil {
+				s.log.Warn("sysctl: clear-profile restore failed", "key", key, "err", err)
+			}
+		}
+		_ = l // effective layer used for logging if needed
+	}
+}
+
+// parseSysctlProfileConfig parses user-defined profiles from config JSON.
+// YANG shape: {"sysctl": {"profile": {"name1": {"setting": {"key": {"value": "v"}, ...}}, ...}}}.
+func parseSysctlProfileConfig(data string) []sysctlreg.ProfileDef {
+	var root map[string]any
+	if err := json.Unmarshal([]byte(data), &root); err != nil {
+		return nil
+	}
+
+	sysctlMap, ok := root["sysctl"].(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	profileMap, ok := sysctlMap["profile"].(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	var profiles []sysctlreg.ProfileDef
+	for name, entry := range profileMap {
+		m, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		settingMap, ok := m["setting"].(map[string]any)
+		if !ok {
+			continue
+		}
+		var settings []sysctlreg.ProfileSetting
+		for key, sEntry := range settingMap {
+			if sm, ok := sEntry.(map[string]any); ok {
+				if v, ok := sm["value"].(string); ok {
+					settings = append(settings, sysctlreg.ProfileSetting{Key: key, Value: v})
+				}
+			}
+		}
+		profiles = append(profiles, sysctlreg.ProfileDef{
+			Name:     name,
+			Settings: settings,
+		})
+	}
+	return profiles
+}
+
+// listProfiles returns a formatted table of all registered profiles.
+func listProfiles() string {
+	profiles := sysctlreg.AllProfiles()
+	if len(profiles) == 0 {
+		return "{\"profiles\":[]}"
+	}
+
+	type profileEntry struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Builtin     bool   `json:"builtin"`
+		Keys        int    `json:"keys"`
+	}
+	entries := make([]profileEntry, 0, len(profiles))
+	for _, p := range profiles {
+		entries = append(entries, profileEntry{
+			Name:        p.Name,
+			Description: p.Description,
+			Builtin:     p.Builtin,
+			Keys:        len(p.Settings),
+		})
+	}
+	data, _ := json.Marshal(struct {
+		Profiles []profileEntry `json:"profiles"`
+	}{Profiles: entries})
+	return string(data)
+}
+
+// describeProfile returns JSON detail for a named profile.
+func describeProfile(name string) string {
+	p, ok := sysctlreg.LookupProfile(name)
+	if !ok {
+		data, _ := json.Marshal(struct {
+			Error string `json:"error"`
+		}{Error: fmt.Sprintf("unknown profile: %s", name)})
+		return string(data)
+	}
+
+	type settingEntry struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
+	}
+	settings := make([]settingEntry, 0, len(p.Settings))
+	for _, s := range p.Settings {
+		settings = append(settings, settingEntry{Key: s.Key, Value: s.Value})
+	}
+	data, _ := json.Marshal(struct {
+		Name        string         `json:"name"`
+		Description string         `json:"description"`
+		Builtin     bool           `json:"builtin"`
+		Settings    []settingEntry `json:"settings"`
+	}{
+		Name:        p.Name,
+		Description: p.Description,
+		Builtin:     p.Builtin,
+		Settings:    settings,
+	})
+	return string(data)
 }
 
 // appliedJSON builds the JSON payload for a (sysctl, applied) event.

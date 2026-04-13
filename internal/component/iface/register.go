@@ -409,7 +409,8 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 	// Collect from all interface types. Veth and bridge embed ifaceEntry;
 	// tunnel and wireguard embed ifaceEntry; loopback has only units.
 	collectDHCPUnits := func(name string, units []unitEntry) {
-		for _, u := range units {
+		for i := range units {
+			u := &units[i]
 			v4 := u.DHCP != nil && u.DHCP.Enabled
 			v6 := u.DHCPv6 != nil && u.DHCPv6.Enabled
 			if !v4 && !v6 {

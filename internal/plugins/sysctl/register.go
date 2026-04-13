@@ -44,7 +44,7 @@ func init() {
 		Description: "Kernel tunable management: three-layer precedence, restore on stop",
 		Features:    "yang",
 		YANG:        sysctlschema.ZeSysctlConfYANG,
-		ConfigRoots: []string{"sysctl"},
+		ConfigRoots: []string{configRoot},
 		RunEngine:   runSysctlPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -67,6 +67,8 @@ func init() {
 		os.Exit(1)
 	}
 }
+
+const configRoot = "sysctl"
 
 func runSysctlPlugin(conn net.Conn) int {
 	log := logger()
@@ -157,6 +159,17 @@ func runSysctlPlugin(conn net.Conn) int {
 					log.Debug("sysctl: list-result emit failed", "err", err)
 				}
 			}),
+			// Clear profile defaults for an interface (before re-emission on reload).
+			eb.Subscribe(plugin.NamespaceSysctl, plugin.EventSysctlClearProfileDefaults, func(payload string) {
+				var ev struct {
+					Interface string `json:"interface"`
+				}
+				if err := json.Unmarshal([]byte(payload), &ev); err != nil {
+					log.Warn("sysctl: bad clear-profile-defaults event", "err", err)
+					return
+				}
+				s.clearProfileDefaults(ev.Interface)
+			}),
 			// Query: describe one key.
 			eb.Subscribe(plugin.NamespaceSysctl, plugin.EventSysctlDescribeRequest, func(payload string) {
 				var req struct {
@@ -199,8 +212,13 @@ func runSysctlPlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, sec := range sections {
-			if sec.Root != "sysctl" {
+			if sec.Root != configRoot {
 				continue
+			}
+			// Register user-defined profiles before applying settings.
+			for _, prof := range parseSysctlProfileConfig(sec.Data) {
+				sysctlreg.RegisterProfile(prof)
+				log.Info("sysctl: registered user profile", "name", prof.Name, "keys", len(prof.Settings))
 			}
 			return applyFromJSON(sec.Data)
 		}
@@ -209,9 +227,10 @@ func runSysctlPlugin(conn net.Conn) int {
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		for _, sec := range sections {
-			if sec.Root != "sysctl" {
+			if sec.Root != configRoot {
 				continue
 			}
+			// Validate per-key settings.
 			settings := parseSysctlConfig(sec.Data)
 			for key, value := range settings {
 				if err := validateKey(key); err != nil {
@@ -219,6 +238,17 @@ func runSysctlPlugin(conn net.Conn) int {
 				}
 				if err := sysctlreg.Validate(key, value); err != nil {
 					return err
+				}
+			}
+			// Validate keys inside user-defined profiles.
+			for _, prof := range parseSysctlProfileConfig(sec.Data) {
+				for _, setting := range prof.Settings {
+					if err := validateKey(setting.Key); err != nil {
+						return fmt.Errorf("profile %s: %w", prof.Name, err)
+					}
+					if err := sysctlreg.Validate(setting.Key, setting.Value); err != nil {
+						return fmt.Errorf("profile %s: %w", prof.Name, err)
+					}
 				}
 			}
 		}
@@ -229,9 +259,22 @@ func runSysctlPlugin(conn net.Conn) int {
 
 	p.OnConfigApply(func(sections []sdk.ConfigDiffSection) error {
 		for _, sec := range sections {
-			if sec.Root != "sysctl" {
+			if sec.Root != configRoot {
 				continue
 			}
+			// Deregister profiles that were removed from config.
+			for _, prof := range parseSysctlProfileConfig(sec.Removed) {
+				sysctlreg.DeregisterProfile(prof.Name)
+				log.Info("sysctl: deregistered user profile", "name", prof.Name)
+			}
+			// Re-register user-defined profiles from added/changed config.
+			for _, data := range []string{sec.Added, sec.Changed} {
+				for _, prof := range parseSysctlProfileConfig(data) {
+					sysctlreg.RegisterProfile(prof)
+					log.Info("sysctl: registered user profile", "name", prof.Name, "keys", len(prof.Settings))
+				}
+			}
+
 			// Merge Added and Changed into one settings map. Keys absent
 			// from the result cause applyConfig to clear the config layer
 			// (handling Removed implicitly).
@@ -308,6 +351,13 @@ func runSysctlPlugin(conn net.Conn) int {
 				return statusError, "", fmt.Errorf("sysctl describe: requires key argument")
 			}
 			return statusDone, s.describeKey(args[0]), nil
+		case "sysctl list-profiles":
+			return statusDone, listProfiles(), nil
+		case "sysctl describe-profile":
+			if len(args) < 1 {
+				return statusError, "", fmt.Errorf("sysctl describe-profile: requires profile name argument")
+			}
+			return statusDone, describeProfile(args[0]), nil
 		case "sysctl set":
 			if len(args) < 2 {
 				return statusError, "", fmt.Errorf("sysctl set: requires key and value arguments")
@@ -328,7 +378,7 @@ func runSysctlPlugin(conn net.Conn) int {
 
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"sysctl"},
+		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
@@ -336,6 +386,8 @@ func runSysctlPlugin(conn net.Conn) int {
 			{Name: "sysctl list", Description: "List all known sysctl keys with descriptions"},
 			{Name: "sysctl describe", Description: "Show detail for one sysctl key", Args: []string{"key"}},
 			{Name: "sysctl set", Description: "Set a transient sysctl value", Args: []string{"key", "value"}},
+			{Name: "sysctl list-profiles", Description: "List all registered sysctl profiles"},
+			{Name: "sysctl describe-profile", Description: "Show detail for one sysctl profile", Args: []string{"name"}},
 		},
 	})
 	if err != nil {

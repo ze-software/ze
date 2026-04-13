@@ -35,6 +35,10 @@ func Run(args []string) int {
 		return cmdList(subArgs)
 	case "describe":
 		return cmdDescribe(subArgs)
+	case "list-profiles":
+		return cmdListProfiles(subArgs)
+	case "describe-profile":
+		return cmdDescribeProfile(subArgs)
 	case "show":
 		return cmdShow(subArgs)
 	case "set":
@@ -43,7 +47,7 @@ func Run(args []string) int {
 
 	fmt.Fprintf(os.Stderr, "error: unknown sysctl subcommand: %s\n", subcmd)
 	if s := suggest.Command(subcmd, []string{
-		"list", "describe", "show", "set", "help",
+		"list", "describe", "list-profiles", "describe-profile", "show", "set", "help",
 	}); s != "" {
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
 	}
@@ -118,6 +122,74 @@ func cmdDescribe(args []string) int {
 	return 0
 }
 
+func cmdListProfiles(_ []string) int {
+	profiles := sysctlreg.AllProfiles()
+	if len(profiles) == 0 {
+		fmt.Println("no sysctl profiles registered")
+		return 0
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	if _, err := fmt.Fprintln(w, "PROFILE\tKEYS\tBUILTIN\tDESCRIPTION"); err != nil {
+		return 1
+	}
+	for _, p := range profiles {
+		builtin := ""
+		if p.Builtin {
+			builtin = "yes"
+		}
+		if _, err := fmt.Fprintf(w, "%s\t%d\t%s\t%s\n", p.Name, len(p.Settings), builtin, p.Description); err != nil {
+			return 1
+		}
+	}
+	if err := w.Flush(); err != nil {
+		return 1
+	}
+	return 0
+}
+
+func cmdDescribeProfile(args []string) int {
+	if len(args) < 1 {
+		fmt.Fprintf(os.Stderr, "error: sysctl describe-profile requires a profile name argument\n")
+		return 1
+	}
+	name := args[0]
+
+	p, ok := sysctlreg.LookupProfile(name)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "unknown profile: %s\n", name)
+		return 1
+	}
+
+	type settingEntry struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
+	}
+	type profileDetail struct {
+		Name        string         `json:"name"`
+		Description string         `json:"description"`
+		Builtin     bool           `json:"builtin"`
+		Settings    []settingEntry `json:"settings"`
+	}
+	settings := make([]settingEntry, 0, len(p.Settings))
+	for _, s := range p.Settings {
+		settings = append(settings, settingEntry{Key: s.Key, Value: s.Value})
+	}
+	d := profileDetail{
+		Name:        p.Name,
+		Description: p.Description,
+		Builtin:     p.Builtin,
+		Settings:    settings,
+	}
+	data, err := json.MarshalIndent(d, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: marshal profile detail: %v\n", err)
+		return 1
+	}
+	fmt.Println(string(data))
+	return 0
+}
+
 func cmdShow(_ []string) int {
 	fmt.Fprintf(os.Stderr, "error: 'ze sysctl show' requires a running daemon\n")
 	fmt.Fprintf(os.Stderr, "hint: start ze, then use 'ze cli sysctl show' or the SSH CLI\n")
@@ -164,6 +236,8 @@ func usage() {
 			{Title: "Offline Commands (no daemon needed)", Entries: []helpfmt.HelpEntry{
 				{Name: "list", Desc: "List all known sysctl keys with descriptions"},
 				{Name: "describe <key>", Desc: "Show detail for one known key"},
+				{Name: "list-profiles", Desc: "List all registered sysctl profiles"},
+				{Name: "describe-profile <name>", Desc: "Show detail for one sysctl profile"},
 			}},
 			{Title: "Daemon Commands (requires running ze)", Entries: []helpfmt.HelpEntry{
 				{Name: "show", Desc: "Show active keys (via daemon CLI)"},
@@ -173,6 +247,8 @@ func usage() {
 		Examples: []string{
 			"ze sysctl list",
 			"ze sysctl describe net.ipv4.conf.all.forwarding",
+			"ze sysctl list-profiles",
+			"ze sysctl describe-profile dsr",
 			"ze cli sysctl show      # requires running daemon",
 			"ze cli sysctl set net.core.somaxconn 4096",
 		},

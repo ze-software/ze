@@ -37,6 +37,14 @@ func newTestStore() (*store, *fakeBackend) {
 	return newStore(fb, log), fb
 }
 
+// newTestStoreWithLog returns a store whose log output is captured in buf.
+func newTestStoreWithLog() (*store, *fakeBackend, *strings.Builder) {
+	fb := newFakeBackend()
+	var buf strings.Builder
+	log := slogutil.LoggerWithOutput("sysctl", "debug", &buf)
+	return newStore(fb, log), fb, &buf
+}
+
 func TestValuePrecedence(t *testing.T) {
 	// VALIDATES: AC-4 -- Config > transient > default ordering.
 	// PREVENTS: Lower-priority layer overwriting higher.
@@ -320,6 +328,192 @@ func TestDescribeKnown(t *testing.T) {
 	}
 	if !strings.Contains(result, "int-range") {
 		t.Errorf("describe missing type: %s", result)
+	}
+}
+
+func TestSetDefaultSameValueSilent(t *testing.T) {
+	// VALIDATES: AC-16 -- Two profiles setting same key to same value is silent.
+	// PREVENTS: Noisy warn logs for redundant profile overlap.
+	s, fb, logBuf := newTestStoreWithLog()
+
+	// First default sets value.
+	payload1, err := s.setDefault("net.ipv4.conf.eth0.arp_filter", "1", "profile:dsr")
+	if err != nil {
+		t.Fatalf("first setDefault: %v", err)
+	}
+	if payload1 == "" {
+		t.Error("first setDefault should return applied payload")
+	}
+	if fb.values["net.ipv4.conf.eth0.arp_filter"] != "1" {
+		t.Errorf("after first default: got %q, want %q", fb.values["net.ipv4.conf.eth0.arp_filter"], "1")
+	}
+
+	// Clear log from first call.
+	logBuf.Reset()
+
+	// Second default with SAME value from different source should be silent.
+	// No applied event emitted (value already written to kernel).
+	payload2, err := s.setDefault("net.ipv4.conf.eth0.arp_filter", "1", "profile:hardened")
+	if err != nil {
+		t.Fatalf("second setDefault same value: %v", err)
+	}
+	if payload2 != "" {
+		t.Errorf("second setDefault same value should return empty payload, got %q", payload2)
+	}
+
+	// No warn log for same-value overwrite.
+	if strings.Contains(logBuf.String(), "default overwritten") {
+		t.Errorf("same-value setDefault should not warn, got log: %s", logBuf.String())
+	}
+
+	// Source should be updated to the latest.
+	s.mu.RLock()
+	e := s.entries["net.ipv4.conf.eth0.arp_filter"]
+	s.mu.RUnlock()
+	if e.defaultSource != "profile:hardened" {
+		t.Errorf("defaultSource: got %q, want %q", e.defaultSource, "profile:hardened")
+	}
+}
+
+func TestSetDefaultDifferentValueWarns(t *testing.T) {
+	// VALIDATES: AC-16 complement -- Different values from different sources produces warn.
+	// PREVENTS: Silent value overwrite between conflicting profiles.
+	s, fb, logBuf := newTestStoreWithLog()
+
+	// First default sets value.
+	_, err := s.setDefault("net.ipv4.conf.eth0.arp_announce", "2", "profile:dsr")
+	if err != nil {
+		t.Fatalf("first setDefault: %v", err)
+	}
+
+	// Clear log from first call.
+	logBuf.Reset()
+
+	// Second default with DIFFERENT value: should apply (last wins) and warn.
+	payload, err := s.setDefault("net.ipv4.conf.eth0.arp_announce", "1", "profile:my-edge")
+	if err != nil {
+		t.Fatalf("second setDefault different value: %v", err)
+	}
+	if payload == "" {
+		t.Error("second setDefault should return applied payload")
+	}
+	if fb.values["net.ipv4.conf.eth0.arp_announce"] != "1" {
+		t.Errorf("after second default: got %q, want %q", fb.values["net.ipv4.conf.eth0.arp_announce"], "1")
+	}
+
+	// Warn log for different-value overwrite.
+	if !strings.Contains(logBuf.String(), "default overwritten") {
+		t.Errorf("different-value setDefault should warn, got log: %q", logBuf.String())
+	}
+
+	// Source should be the second profile.
+	s.mu.RLock()
+	e := s.entries["net.ipv4.conf.eth0.arp_announce"]
+	s.mu.RUnlock()
+	if e.defaultSource != "profile:my-edge" {
+		t.Errorf("defaultSource: got %q, want %q", e.defaultSource, "profile:my-edge")
+	}
+}
+
+func TestClearProfileDefaults(t *testing.T) {
+	// VALIDATES: AC-20 -- Config reload clears stale profile defaults.
+	// PREVENTS: Orphaned keys from old profile version staying active.
+	s, fb := newTestStore()
+
+	// Set two profile defaults for eth0.
+	if _, err := s.setDefault("net.ipv4.conf.eth0.arp_announce", "2", "profile:dsr"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.setDefault("net.ipv4.conf.eth0.arp_ignore", "1", "profile:dsr"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify both are written.
+	if fb.values["net.ipv4.conf.eth0.arp_announce"] != "2" {
+		t.Fatal("arp_announce not set")
+	}
+	if fb.values["net.ipv4.conf.eth0.arp_ignore"] != "1" {
+		t.Fatal("arp_ignore not set")
+	}
+
+	// Clear profile defaults for eth0.
+	s.clearProfileDefaults("eth0")
+
+	// Both should have default layer cleared.
+	s.mu.RLock()
+	for _, key := range []string{"net.ipv4.conf.eth0.arp_announce", "net.ipv4.conf.eth0.arp_ignore"} {
+		e := s.entries[key]
+		if e.defaultValue != "" {
+			t.Errorf("%s: defaultValue should be empty, got %q", key, e.defaultValue)
+		}
+		if e.defaultSource != "" {
+			t.Errorf("%s: defaultSource should be empty, got %q", key, e.defaultSource)
+		}
+	}
+	s.mu.RUnlock()
+}
+
+func TestProfileSourceInShow(t *testing.T) {
+	// VALIDATES: AC-10 -- sysctl show displays profile:<name> as source.
+	// PREVENTS: Profile defaults shown with generic source.
+	s, _ := newTestStore()
+
+	if _, err := s.setDefault("net.ipv4.conf.eth0.arp_announce", "2", "profile:dsr"); err != nil {
+		t.Fatal(err)
+	}
+
+	result := s.showEntries()
+	if !strings.Contains(result, "profile:dsr") {
+		t.Errorf("show missing profile:dsr source: %s", result)
+	}
+}
+
+func TestParseProfileConfig(t *testing.T) {
+	// VALIDATES: AC-5 -- User-defined profile parsed from JSON config.
+	// PREVENTS: User profiles silently ignored.
+	data := `{"sysctl":{"profile":{"my-edge":{"setting":{"net.ipv4.conf.<iface>.forwarding":{"value":"1"},"net.ipv4.conf.<iface>.rp_filter":{"value":"2"}}}}}}`
+	profiles := parseSysctlProfileConfig(data)
+	if len(profiles) != 1 {
+		t.Fatalf("parseSysctlProfileConfig: got %d profiles, want 1", len(profiles))
+	}
+	if profiles[0].Name != "my-edge" {
+		t.Errorf("Name: got %q, want %q", profiles[0].Name, "my-edge")
+	}
+	if len(profiles[0].Settings) != 2 {
+		t.Errorf("Settings: got %d, want 2", len(profiles[0].Settings))
+	}
+}
+
+func TestListProfiles(t *testing.T) {
+	// VALIDATES: AC-6 -- list-profiles returns all registered profiles.
+	// PREVENTS: Missing profiles in listing.
+	result := listProfiles()
+	if !strings.Contains(result, "dsr") {
+		t.Errorf("listProfiles missing dsr: %s", result)
+	}
+	if !strings.Contains(result, "router") {
+		t.Errorf("listProfiles missing router: %s", result)
+	}
+}
+
+func TestDescribeProfile(t *testing.T) {
+	// VALIDATES: AC-7 -- describe-profile returns JSON detail.
+	// PREVENTS: Missing profile detail.
+	result := describeProfile("dsr")
+	if !strings.Contains(result, "arp_announce") {
+		t.Errorf("describeProfile missing arp_announce: %s", result)
+	}
+	if !strings.Contains(result, "arp_ignore") {
+		t.Errorf("describeProfile missing arp_ignore: %s", result)
+	}
+}
+
+func TestDescribeProfileUnknown(t *testing.T) {
+	// VALIDATES: AC-8 -- Unknown profile returns error JSON.
+	// PREVENTS: Crash on unknown profile describe.
+	result := describeProfile("nosuch")
+	if !strings.Contains(result, "unknown profile") {
+		t.Errorf("describeProfile should report unknown: %s", result)
 	}
 }
 

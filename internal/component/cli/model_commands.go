@@ -73,23 +73,36 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 		return commandResult{output: m.editor.Diff()}, nil
 
 	case cmdCommit:
-		// Session-aware commit: use CommitSession when a session is active.
-		if m.editor.HasSession() {
-			if len(args) >= 1 && args[0] == cmdConfirmed {
+		// Parse force flag: "commit force", "commit force confirmed <N>"
+		force := len(args) >= 1 && args[0] == "force"
+		commitArgs := args
+		if force {
+			commitArgs = args[1:] // strip "force" for further parsing
+		}
+
+		// "commit [force] confirmed <N>" -- commit with auto-rollback
+		if len(commitArgs) >= 1 && commitArgs[0] == cmdConfirmed {
+			if m.editor.HasSession() {
 				return commandResult{}, fmt.Errorf("commit confirmed not yet supported in session mode (use 'commit')")
 			}
-			return m.cmdCommitSession()
-		}
-		// Check for "commit confirmed <N>"
-		if len(args) >= 1 && args[0] == cmdConfirmed {
-			if len(args) < 2 {
-				return commandResult{}, fmt.Errorf("usage: commit confirmed <seconds>")
+			if len(commitArgs) < 2 {
+				return commandResult{}, fmt.Errorf("usage: commit [force] confirmed <seconds>")
 			}
-			seconds, err := strconv.Atoi(args[1])
+			seconds, err := strconv.Atoi(commitArgs[1])
 			if err != nil {
-				return commandResult{}, fmt.Errorf("invalid seconds: %s", args[1])
+				return commandResult{}, fmt.Errorf("invalid seconds: %s", commitArgs[1])
 			}
-			return m.cmdCommitConfirmed(seconds)
+			return m.cmdCommitConfirmed(seconds, force)
+		}
+
+		// "commit force" -- skip warnings
+		if force {
+			return m.cmdCommitForce()
+		}
+
+		// Session-aware commit: use CommitSession when a session is active.
+		if m.editor.HasSession() {
+			return m.cmdCommitSession()
 		}
 		return m.cmdCommit()
 
@@ -789,29 +802,7 @@ func (m *Model) cmdCommit() (commandResult, error) {
 		}, nil
 	}
 
-	// Save changes
-	if err := m.editor.Save(); err != nil {
-		return commandResult{}, err
-	}
-	m.searchCache = "" // tree changed, invalidate cached set-view
-
-	// Archive config to remote locations (best-effort, non-fatal)
-	var archiveMsg string
-	if m.editor.HasArchiveNotifier() {
-		content := []byte(m.editor.WorkingContent())
-		if errs := m.editor.NotifyArchive(content); len(errs) > 0 {
-			archiveMsg = fmt.Sprintf(" (archive: %d error(s))", len(errs))
-		}
-	}
-
-	// Notify daemon of config change (best-effort)
-	// refreshConfig tells handleCommandResult to recompute the viewport from the editor's
-	// updated state — after Save(), original matches working so diff gutter clears.
-	if !m.editor.HasReloadNotifier() {
-		return commandResult{statusMessage: "Configuration committed (daemon not running)" + archiveMsg, refreshConfig: true, revalidate: true}, nil
-	}
-	reloadMsg := m.tryReload()
-	return commandResult{statusMessage: "Configuration committed" + reloadMsg + archiveMsg, refreshConfig: true, revalidate: true}, nil
+	return m.commitSaveAndReload()
 }
 
 // tryReload attempts a config reload and stores errors for the errors command.
@@ -823,6 +814,53 @@ func (m *Model) tryReload() string {
 		return " (reload errors, type 'errors' for details)"
 	}
 	return " and reloaded"
+}
+
+// cmdCommitForce saves changes, skipping warnings but still blocking on errors.
+// Used when the operator explicitly overrides warnings (e.g., dangling profile references).
+func (m *Model) cmdCommitForce() (commandResult, error) {
+	// Session mode uses CommitSession which has its own validation path.
+	// Force-skip of warnings is not yet supported there.
+	if m.editor.HasSession() {
+		return commandResult{}, fmt.Errorf("commit force not yet supported in session mode (use 'commit')")
+	}
+
+	result := m.validator.Validate(m.editor.WorkingContent())
+	if len(result.Errors) > 0 {
+		return commandResult{
+			statusMessage: fmt.Sprintf("commit blocked: %d error(s), type 'errors' for details", len(result.Errors)),
+			configView:    m.configViewAtPath(m.contextPath),
+		}, nil
+	}
+
+	if len(result.Warnings) > 0 {
+		m.statusMessage = fmt.Sprintf("commit force: skipping %d warning(s)", len(result.Warnings))
+	}
+
+	return m.commitSaveAndReload()
+}
+
+// commitSaveAndReload performs the save, archive, and reload steps shared
+// by cmdCommit and cmdCommitForce. Called after validation has passed.
+func (m *Model) commitSaveAndReload() (commandResult, error) {
+	if err := m.editor.Save(); err != nil {
+		return commandResult{}, err
+	}
+	m.searchCache = ""
+
+	var archiveMsg string
+	if m.editor.HasArchiveNotifier() {
+		content := []byte(m.editor.WorkingContent())
+		if errs := m.editor.NotifyArchive(content); len(errs) > 0 {
+			archiveMsg = fmt.Sprintf(" (archive: %d error(s))", len(errs))
+		}
+	}
+
+	if !m.editor.HasReloadNotifier() {
+		return commandResult{statusMessage: "Configuration committed (daemon not running)" + archiveMsg, refreshConfig: true, revalidate: true}, nil
+	}
+	reloadMsg := m.tryReload()
+	return commandResult{statusMessage: "Configuration committed" + reloadMsg + archiveMsg, refreshConfig: true, revalidate: true}, nil
 }
 
 // cmdCommitSession commits only the current session's changes with conflict detection.

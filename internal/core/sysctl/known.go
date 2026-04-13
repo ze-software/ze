@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md -- sysctl known-keys registry
+// Detail: known_linux.go -- Linux sysctl key registrations
 //
 // Package sysctl provides a registry of known kernel tunables. Plugins
 // register keys at init time with metadata (type, range, description,

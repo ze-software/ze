@@ -684,7 +684,9 @@ func (m Model) renderHelpOverlay(base string) string {
   option changes       Show pending changes
   compare              Show diff vs original
   commit               Save changes with backup
+  commit force         Save despite warnings (errors still block)
   commit confirmed <N> Save with auto-revert after N seconds
+  commit force confirmed <N> Force + auto-revert
   confirm              Make pending commit permanent
   abort                Cancel pending commit and roll back
   discard              Revert all changes

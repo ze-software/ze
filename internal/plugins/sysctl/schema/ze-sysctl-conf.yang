@@ -32,5 +32,42 @@ module ze-sysctl-conf {
                 description "Value to set for this key.";
             }
         }
+
+        list profile {
+            key "name";
+            max-elements 50;
+            description
+                "User-defined sysctl profile: a named collection of
+                 kernel tunables applied together to interface units.
+                 Overrides built-in profiles with the same name.";
+
+            leaf name {
+                type string {
+                    length "1..64";
+                    pattern "[a-z0-9][a-z0-9-]*";
+                }
+                description "Profile name (lowercase alphanumeric with hyphens).";
+            }
+
+            list setting {
+                key "name";
+                max-elements 50;
+                description "Kernel tunables in this profile.";
+
+                leaf name {
+                    type string;
+                    description
+                        "Kernel-native sysctl key name.
+                         Use <iface> for per-interface keys
+                         (substituted at apply time).";
+                }
+
+                leaf value {
+                    type string;
+                    mandatory true;
+                    description "Value to set for this key.";
+                }
+            }
+        }
     }
 }

@@ -117,6 +117,19 @@ module ze-iface-conf {
                 description "Interface addresses in CIDR notation (e.g., 10.0.0.1/24, fd00::1/64)";
             }
 
+            leaf-list sysctl-profile {
+                type string {
+                    length "1..64";
+                    pattern "[a-z0-9][a-z0-9-]*";
+                }
+                max-elements 10;
+                ze:syntax "bracket";
+                description "Named sysctl profiles to apply to this unit.
+                             Built-in: dsr, router, hardened, multihomed, proxy.
+                             User-defined profiles from sysctl { profile ... } config.
+                             Applied in order; last wins on key overlap.";
+            }
+
             container ipv4 {
                 ze:os "linux";
                 description "IPv4 protocol settings";
