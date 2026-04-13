@@ -1460,7 +1460,7 @@ func (b *fakeBackend) RemoveAddress(ifaceName, cidr string) error {
 
 func (b *fakeBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) error { return nil }
 func (b *fakeBackend) AddRoute(_, _, _ string, _ int) error                   { return nil }
-func (b *fakeBackend) RemoveRoute(_, _, _ string) error                       { return nil }
+func (b *fakeBackend) RemoveRoute(_, _, _ string, _ int) error                { return nil }
 
 func (b *fakeBackend) ListInterfaces() ([]InterfaceInfo, error) {
 	var result []InterfaceInfo

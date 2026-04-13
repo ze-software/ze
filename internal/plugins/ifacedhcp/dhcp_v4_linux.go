@@ -223,7 +223,7 @@ func (c *DHCPClient) removeV4Addr(ack *dhcpv4.DHCPv4) {
 	// Remove default route installed from this lease.
 	routerIP := dhcpv4.GetIP(dhcpv4.OptionRouter, ack.Options)
 	if routerIP != nil {
-		if err := iface.RemoveRoute(c.ifaceName, "0.0.0.0/0", routerIP.String()); err != nil {
+		if err := iface.RemoveRoute(c.ifaceName, "0.0.0.0/0", routerIP.String(), 0); err != nil {
 			logger.Debug("iface dhcp v4: route removal failed",
 				"iface", c.ifaceName, "gw", routerIP.String(), "err", err)
 		}

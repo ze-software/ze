@@ -236,7 +236,7 @@ func (b *netlinkBackend) AddRoute(ifaceName, destCIDR, gateway string, metric in
 	return nil
 }
 
-func (b *netlinkBackend) RemoveRoute(ifaceName, destCIDR, gateway string) error {
+func (b *netlinkBackend) RemoveRoute(ifaceName, destCIDR, gateway string, metric int) error {
 	if err := iface.ValidateIfaceName(ifaceName); err != nil {
 		return fmt.Errorf("iface: remove route on %q: %w", ifaceName, err)
 	}
@@ -256,6 +256,7 @@ func (b *netlinkBackend) RemoveRoute(ifaceName, destCIDR, gateway string) error 
 		LinkIndex: link.Attrs().Index,
 		Dst:       dst,
 		Gw:        gw,
+		Priority:  metric,
 	}
 	if err := netlink.RouteDel(route); err != nil {
 		// ESRCH (no such route) is expected when cleaning up after a
@@ -263,7 +264,7 @@ func (b *netlinkBackend) RemoveRoute(ifaceName, destCIDR, gateway string) error 
 		if errors.Is(err, syscall.ESRCH) {
 			return nil
 		}
-		return fmt.Errorf("iface: remove route %s via %s on %q: %w", destCIDR, gateway, ifaceName, err)
+		return fmt.Errorf("iface: remove route %s via %s metric %d on %q: %w", destCIDR, gateway, metric, ifaceName, err)
 	}
 	return nil
 }

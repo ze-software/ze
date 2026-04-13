@@ -550,7 +550,7 @@ func handleLinkDown(ifaceName string, active map[dhcpUnitKey]dhcpEntry, log *slo
 		// Remove the metric-0 route first, then add metric-1024.
 		// Linux route identity is (dst, gw, link, metric) so RouteReplace
 		// with a different metric creates a second entry, not a replacement.
-		_ = RemoveRoute(ifaceName, "0.0.0.0/0", entry.gateway)
+		_ = RemoveRoute(ifaceName, "0.0.0.0/0", entry.gateway, 0)
 		if err := AddRoute(ifaceName, "0.0.0.0/0", entry.gateway, deprioritizedMetric); err != nil {
 			log.Debug("interface: deprioritize route failed", "iface", ifaceName, "err", err)
 		}
@@ -568,7 +568,7 @@ func handleLinkUp(ifaceName string, active map[dhcpUnitKey]dhcpEntry, log *slog.
 		}
 		log.Info("interface: link up, restoring route priority", "iface", ifaceName, "gw", entry.gateway)
 		// Remove the deprioritized route, add normal metric.
-		_ = RemoveRoute(ifaceName, "0.0.0.0/0", entry.gateway)
+		_ = RemoveRoute(ifaceName, "0.0.0.0/0", entry.gateway, deprioritizedMetric)
 		if err := AddRoute(ifaceName, "0.0.0.0/0", entry.gateway, 0); err != nil {
 			log.Debug("interface: restore route priority failed", "iface", ifaceName, "err", err)
 		}
