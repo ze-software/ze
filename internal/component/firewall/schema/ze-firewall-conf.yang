@@ -1,0 +1,474 @@
+module ze-firewall-conf {
+    namespace "urn:ze:firewall:conf";
+    prefix fw;
+
+    import ze-types { prefix zt; }
+
+    description "Firewall configuration for Ze.
+                 Tables use nftables structural concepts (table, chain, hook,
+                 priority, policy, set, flowtable) with readable keyword names.
+                 Table names in config are bare; ze_ prefix added by component.";
+
+    revision 2026-04-13 {
+        description "Initial revision";
+    }
+
+    typedef table-family {
+        type enumeration {
+            enum inet { description "Dual-stack IPv4+IPv6"; }
+            enum ip { description "IPv4 only"; }
+            enum ip6 { description "IPv6 only"; }
+            enum arp { description "ARP"; }
+            enum bridge { description "Bridge"; }
+            enum netdev { description "Netdev"; }
+        }
+        description "nftables address family";
+    }
+
+    typedef chain-type {
+        type enumeration {
+            enum filter { description "Packet filtering"; }
+            enum nat { description "Network address translation"; }
+            enum route { description "Routing decision override"; }
+        }
+        description "nftables chain type";
+    }
+
+    typedef chain-hook {
+        type enumeration {
+            enum input { description "Input hook"; }
+            enum output { description "Output hook"; }
+            enum forward { description "Forward hook"; }
+            enum prerouting { description "Prerouting hook"; }
+            enum postrouting { description "Postrouting hook"; }
+            enum ingress { description "Ingress hook (netdev/inet)"; }
+            enum egress { description "Egress hook (netdev)"; }
+        }
+        description "Netfilter hook point";
+    }
+
+    typedef chain-policy {
+        type enumeration {
+            enum accept { description "Accept by default"; }
+            enum drop { description "Drop by default"; }
+        }
+        description "Default policy for base chains";
+    }
+
+    typedef set-type {
+        type enumeration {
+            enum ipv4 { description "IPv4 addresses"; }
+            enum ipv6 { description "IPv6 addresses"; }
+            enum ether { description "Ethernet addresses"; }
+            enum inet-service { description "TCP/UDP ports"; }
+            enum mark { description "Packet marks"; }
+            enum ifname { description "Interface names"; }
+        }
+        description "Named set element data type";
+    }
+
+    typedef protocol-name {
+        type enumeration {
+            enum tcp;
+            enum udp;
+            enum icmp;
+            enum icmpv6;
+            enum sctp;
+            enum gre;
+            enum esp;
+            enum ah;
+            enum ospf;
+            enum vrrp;
+        }
+        description "L4 protocol name";
+    }
+
+    typedef connection-state {
+        type string {
+            pattern '(new|established|related|invalid)'
+                  + '(,(new|established|related|invalid))*';
+        }
+        description "Comma-separated connection tracking states";
+    }
+
+    typedef reject-type {
+        type enumeration {
+            enum icmp;
+            enum icmpv6;
+            enum tcp-reset;
+        }
+        description "Reject response type";
+    }
+
+    typedef rate-unit {
+        type enumeration {
+            enum second;
+            enum minute;
+            enum hour;
+            enum day;
+        }
+        description "Rate limit time unit";
+    }
+
+    typedef dscp-value {
+        type string {
+            pattern '[a-z0-9]+';
+        }
+        description "DSCP value: numeric (0-63) or symbolic (ef, af41, cs6, etc.)";
+    }
+
+    typedef ip-prefix {
+        type string;
+        description "IPv4 or IPv6 prefix in CIDR notation, or @set-name reference";
+    }
+
+    typedef port-spec {
+        type string {
+            pattern '[0-9]+(-[0-9]+)?(,[0-9]+(-[0-9]+)?)*';
+        }
+        description "Port number, range (80-90), or comma-separated list (80,443,8080-8090)";
+    }
+
+    typedef mark-value {
+        type string {
+            pattern '0x[0-9a-fA-F]+(/0x[0-9a-fA-F]+)?|[0-9]+(/[0-9]+)?';
+        }
+        description "Mark value with optional mask (0x10/0xff or 16/255)";
+    }
+
+    typedef rate-spec {
+        type string {
+            pattern '[0-9]+/(second|minute|hour|day)';
+        }
+        description "Rate limit specification (e.g., 10/second)";
+    }
+
+    typedef nat-spec {
+        type string;
+        description "NAT target: address with optional port (1.2.3.4:80 or 1.2.3.4:1024-2048)";
+    }
+
+    grouping from-block {
+        description "Match criteria (from block in a term)";
+
+        leaf source-address {
+            type ip-prefix;
+            description "Source IP prefix or @set-name";
+        }
+        leaf destination-address {
+            type ip-prefix;
+            description "Destination IP prefix or @set-name";
+        }
+        leaf source-port {
+            type port-spec;
+            description "Source port, range, or list";
+        }
+        leaf destination-port {
+            type port-spec;
+            description "Destination port, range, or list";
+        }
+        leaf protocol {
+            type protocol-name;
+            description "L4 protocol";
+        }
+        leaf input-interface {
+            type string;
+            description "Input interface name";
+        }
+        leaf output-interface {
+            type string;
+            description "Output interface name";
+        }
+        leaf connection-state {
+            type connection-state;
+            description "Connection tracking state(s)";
+        }
+        leaf connection-mark {
+            type mark-value;
+            description "Connection mark value/mask";
+        }
+        leaf mark {
+            type mark-value;
+            description "Packet mark value/mask";
+        }
+        leaf dscp {
+            type dscp-value;
+            description "DSCP value";
+        }
+    }
+
+    grouping then-block {
+        description "Action and modifier expressions (then block in a term)";
+
+        leaf accept {
+            type empty;
+            description "Accept the packet";
+        }
+        leaf drop {
+            type empty;
+            description "Drop the packet";
+        }
+        container reject {
+            presence "Reject the packet";
+            leaf with {
+                type reject-type;
+                description "Reject response type";
+            }
+            leaf code {
+                type uint8;
+                description "ICMP code";
+            }
+        }
+        leaf return {
+            type empty;
+            description "Return to caller chain";
+        }
+        leaf jump {
+            type string;
+            description "Jump to target chain";
+        }
+        leaf goto {
+            type string;
+            description "Goto target chain (no return)";
+        }
+        container snat {
+            presence "Source NAT";
+            leaf to {
+                type nat-spec;
+                mandatory true;
+                description "NAT target address:port";
+            }
+        }
+        container dnat {
+            presence "Destination NAT";
+            leaf to {
+                type nat-spec;
+                mandatory true;
+                description "NAT target address:port";
+            }
+        }
+        leaf masquerade {
+            type empty;
+            description "Masquerade (source NAT with outgoing interface address)";
+        }
+        container redirect {
+            presence "Redirect to local port";
+            leaf to {
+                type zt:port;
+                mandatory true;
+                description "Local port number";
+            }
+        }
+        leaf notrack {
+            type empty;
+            description "Disable connection tracking";
+        }
+        container flow-offload {
+            presence "Hardware flow offload";
+            leaf flowtable {
+                type string;
+                mandatory true;
+                description "Flowtable name (prefixed with @)";
+            }
+        }
+        container mark-set {
+            presence "Set packet mark";
+            leaf value {
+                type mark-value;
+                mandatory true;
+                description "Mark value with optional mask";
+            }
+        }
+        container connection-mark-set {
+            presence "Set connection mark";
+            leaf value {
+                type mark-value;
+                mandatory true;
+                description "Mark value with optional mask";
+            }
+        }
+        leaf dscp-set {
+            type dscp-value;
+            description "Set DSCP field value";
+        }
+        leaf counter {
+            type string;
+            description "Counter name (empty string for anonymous)";
+        }
+        container log {
+            presence "Log the packet";
+            leaf prefix {
+                type string {
+                    length "0..127";
+                }
+                description "Log prefix string";
+            }
+            leaf level {
+                type uint32;
+                description "Log level (syslog severity)";
+            }
+        }
+        container limit-rate {
+            presence "Rate limit";
+            leaf rate {
+                type rate-spec;
+                mandatory true;
+                description "Rate limit (e.g., 10/second)";
+            }
+            leaf burst {
+                type uint32;
+                description "Burst size";
+            }
+        }
+    }
+
+    container firewall {
+        description "Ze-managed nftables firewall tables.
+                     Table names are bare in config; ze_ prefix added by component.";
+
+        list table {
+            key "name";
+            description "Named firewall table";
+
+            leaf name {
+                type string {
+                    length "1..255";
+                    pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
+                }
+                description "Table name (becomes ze_<name> in kernel)";
+            }
+
+            leaf family {
+                type table-family;
+                mandatory true;
+                description "Address family";
+            }
+
+            list chain {
+                key "name";
+                description "Named chain within table";
+
+                leaf name {
+                    type string {
+                        length "1..255";
+                        pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
+                    }
+                    description "Chain name";
+                }
+
+                leaf type {
+                    type chain-type;
+                    description "Chain type (base chains only)";
+                }
+
+                leaf hook {
+                    type chain-hook;
+                    description "Netfilter hook point (base chains only)";
+                }
+
+                leaf priority {
+                    type int32;
+                    description "Chain priority (base chains only)";
+                }
+
+                leaf policy {
+                    type chain-policy;
+                    description "Default policy (base chains only)";
+                }
+
+                list term {
+                    key "name";
+                    ordered-by user;
+                    description "Named rule (from/then structure)";
+
+                    leaf name {
+                        type string {
+                            length "1..255";
+                            pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
+                        }
+                        description "Term name (used in counters and logging)";
+                    }
+
+                    container from {
+                        uses from-block;
+                        description "Match criteria";
+                    }
+
+                    container then {
+                        uses then-block;
+                        description "Actions and modifiers";
+                    }
+                }
+            }
+
+            list set {
+                key "name";
+                description "Named set";
+
+                leaf name {
+                    type string {
+                        length "1..255";
+                        pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
+                    }
+                    description "Set name";
+                }
+
+                leaf type {
+                    type set-type;
+                    mandatory true;
+                    description "Element data type";
+                }
+
+                leaf flags-interval {
+                    type empty;
+                    description "Enable interval ranges";
+                }
+
+                leaf flags-timeout {
+                    type empty;
+                    description "Enable per-element timeouts";
+                }
+
+                leaf flags-constant {
+                    type empty;
+                    description "Immutable after creation";
+                }
+
+                leaf flags-dynamic {
+                    type empty;
+                    description "Dynamically populated";
+                }
+            }
+
+            list flowtable {
+                key "name";
+                description "Hardware offload flowtable";
+
+                leaf name {
+                    type string {
+                        length "1..255";
+                        pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
+                    }
+                    description "Flowtable name";
+                }
+
+                leaf hook {
+                    type chain-hook;
+                    mandatory true;
+                    description "Hook point (typically ingress)";
+                }
+
+                leaf priority {
+                    type int32;
+                    mandatory true;
+                    description "Priority (typically negative)";
+                }
+
+                leaf-list device {
+                    type string;
+                    description "Devices for offload";
+                }
+            }
+        }
+    }
+}

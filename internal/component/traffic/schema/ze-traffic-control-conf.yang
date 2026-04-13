@@ -1,0 +1,117 @@
+module ze-traffic-control-conf {
+    namespace "urn:ze:traffic:conf";
+    prefix tc;
+
+    description "Traffic control (tc) configuration for Ze.
+                 Configures queueing disciplines, classes, and filters
+                 per network interface.";
+
+    revision 2026-04-13 {
+        description "Initial revision";
+    }
+
+    typedef qdisc-type {
+        type enumeration {
+            enum htb { description "Hierarchical Token Bucket"; }
+            enum hfsc { description "Hierarchical Fair Service Curve"; }
+            enum fq { description "Fair Queue"; }
+            enum fq_codel { description "Fair Queue Controlled Delay"; }
+            enum sfq { description "Stochastic Fair Queue"; }
+            enum tbf { description "Token Bucket Filter"; }
+            enum netem { description "Network Emulator"; }
+            enum prio { description "Priority qdisc"; }
+            enum clsact { description "Classifier-Action qdisc"; }
+            enum ingress { description "Ingress qdisc"; }
+        }
+        description "Queueing discipline type";
+    }
+
+    typedef rate-bps {
+        type string {
+            pattern '[0-9]+(mbit|kbit|gbit|bit|mbps|kbps|gbps|bps)';
+        }
+        description "Rate in bits or bytes per second (e.g., 10mbit, 100kbps)";
+    }
+
+    typedef filter-type {
+        type enumeration {
+            enum mark { description "Match by packet mark (fw filter)"; }
+            enum dscp { description "Match by DSCP value"; }
+            enum protocol { description "Match by protocol"; }
+        }
+        description "Traffic filter match type";
+    }
+
+    container traffic-control {
+        description "Per-interface traffic control configuration";
+
+        list interface {
+            key "name";
+            description "Traffic control for a named interface";
+
+            leaf name {
+                type string;
+                description "Interface name (must exist in interface config)";
+            }
+
+            container qdisc {
+                description "Root queueing discipline";
+
+                leaf type {
+                    type qdisc-type;
+                    mandatory true;
+                    description "Qdisc type";
+                }
+
+                leaf default-class {
+                    type string;
+                    description "Name of the default class for unclassified traffic";
+                }
+
+                list class {
+                    key "name";
+                    description "Traffic class within the qdisc";
+
+                    leaf name {
+                        type string {
+                            length "1..255";
+                        }
+                        description "Class name";
+                    }
+
+                    leaf rate {
+                        type rate-bps;
+                        mandatory true;
+                        description "Guaranteed rate";
+                    }
+
+                    leaf ceil {
+                        type rate-bps;
+                        description "Maximum rate (defaults to rate if omitted)";
+                    }
+
+                    leaf priority {
+                        type uint8;
+                        description "Scheduling priority (0 = highest)";
+                    }
+
+                    list match {
+                        key "type";
+                        description "Filter to classify packets into this class";
+
+                        leaf type {
+                            type filter-type;
+                            description "Match type";
+                        }
+
+                        leaf value {
+                            type string;
+                            mandatory true;
+                            description "Match value (mark hex, dscp name, protocol name)";
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

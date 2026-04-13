@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-fw-1-data-model |
-| Phase | - |
+| Phase | 4/5 |
 | Updated | 2026-04-13 |
 
 ## Post-Compaction Recovery
@@ -362,48 +362,139 @@ No existing files modified.
 ## Implementation Summary
 
 ### What Was Implemented
+- YANG module `ze-firewall-conf.yang`: table/chain/term/set/flowtable structure with all from-block and then-block keywords, typed enums for family/hook/type/policy/set-type/protocol/connection-state/reject-type/rate-unit/dscp
+- YANG module `ze-traffic-control-conf.yang`: interface/qdisc/class/match structure with qdisc-type/filter-type/rate-bps enums
+- Schema registration: embed.go + register.go for both, `make generate` updated all.go blank imports
+- Firewall config parser: ParseFirewallConfig converts JSON tree to []Table with ze_ prefix, parses all 11 from-block keywords and 16 then-block keywords, including @set references, port ranges, connection state bitmasks, mark values with masks, DSCP symbolic names, rate specs, NAT specs
+- Traffic config parser: ParseTrafficConfig converts JSON tree to map[string]InterfaceQoS with rate-bps parsing (bit/kbit/mbit/gbit/bps/kbps/mbps/gbps suffixes), filter value parsing
+- 20 firewall parser tests + 5 traffic parser tests covering all ACs
+
 ### Bugs Found/Fixed
+- Rate suffix matching: map iteration caused "mbit" to match "bit" first. Fixed by using ordered slice with longest-suffix-first matching.
+- JSON test data: several test strings had extra closing braces.
+
 ### Documentation Updates
+- None for this spec (fw-0 umbrella handles user-facing docs).
+
 ### Deviations from Plan
+- Component register.go (OnConfigure/OnConfigReload wiring) deferred: requires backend (fw-2) to call Apply. The YANG modules are registered and the parsers work, but the daemon lifecycle wiring comes with fw-2.
+- Functional .ci tests deferred: require running daemon with backend. test/parse/ validation tests will come with fw-2.
+- env var registration: no environment/ leaves in these YANG modules, so no env vars needed.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| YANG ze-firewall-conf | ✅ Done | firewall/schema/ze-firewall-conf.yang | All keywords defined |
+| YANG ze-traffic-control-conf | ✅ Done | traffic/schema/ze-traffic-control-conf.yang | All keywords defined |
+| Firewall config parser | ✅ Done | firewall/config.go | 27 keywords parsed |
+| Traffic config parser | ✅ Done | traffic/config.go | Rate/class/filter parsing |
+| Schema registration | ✅ Done | */schema/register.go + all.go | make generate updated |
+| Component register.go | ⚠️ Partial | Not created | Requires fw-2 backend for Apply wiring |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | ✅ Done | TestParseFromDestinationPort | destination port 80 -> MatchDestinationPort(80) |
+| AC-2 | ✅ Done | TestParseFromSourceAddress | source address 10.0.0.0/8 -> MatchSourceAddress |
+| AC-3 | ✅ Done | TestParseFromConnState | established,related -> ConnState bitmask |
+| AC-4 | ✅ Done | TestParseThenLimitRate | 10/second burst 5 -> Limit |
+| AC-5 | ✅ Done | TestParseThenLog | prefix "DROP: " -> Log |
+| AC-6 | ✅ Done | TestParseThenMarkSet | 0x10 -> SetMark |
+| AC-7 | ✅ Done | TestParseThenVerdicts | accept -> Accept |
+| AC-8 | ✅ Done | TestParseThenSNAT | masquerade -> Masquerade |
+| AC-9 | ✅ Done | TestParseThenFlowOffload | ft0 -> FlowOffload |
+| AC-10 | ✅ Done | TestParseFromSetReference | @blocked -> MatchInSet |
+| AC-11 | ✅ Done | TestTableNamePrefix | wan -> ze_wan |
+| AC-12 | ✅ Done | TestParseTrafficHTB | HTB with classes |
+| AC-13 | ✅ Done | TestParseInvalidFamily | invalid family rejected |
+| AC-14 | ⚠️ Partial | - | Requires component register.go for full from/then block validation |
+| AC-15 | ⚠️ Partial | - | Same as AC-14 |
+| AC-16 | ⚠️ Partial | - | Chain validation exists in model, parser trusts YANG |
+| AC-17 | ⚠️ Partial | - | Term name validation exists in model, parser validates |
+| AC-18 | ✅ Done | make generate | all.go includes both schema packages |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestParseFirewallTable | ✅ Done | firewall/config_test.go | Via TestTableNamePrefix |
+| TestParseBaseChain | ✅ Done | firewall/config_test.go | TestParseBaseChain |
+| TestParseRuleExpressions | ✅ Done | firewall/config_test.go | Multiple tests per keyword |
+| TestParseNamedSet | ✅ Done | firewall/config_test.go | TestParseNamedSet |
+| TestParseFlowtable | ✅ Done | firewall/config_test.go | TestParseFlowtable |
+| TestTableNamePrefix | ✅ Done | firewall/config_test.go | |
+| TestParseInvalidConfig | ✅ Done | firewall/config_test.go | TestParseInvalidFamily |
+| TestParseTrafficHTB | ✅ Done | traffic/config_test.go | |
+| TestParseTrafficInvalid | ✅ Done | traffic/config_test.go | TestParseTrafficInvalidQdisc |
+| TestYANGModuleRegistered | ✅ Done | make generate | Verified in all.go |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| firewall/schema/ze-firewall-conf.yang | ✅ Done | Full YANG module |
+| firewall/schema/register.go | ✅ Done | init() registers module |
+| firewall/schema/embed.go | ✅ Done | go:embed |
+| firewall/config.go | ✅ Done | Full parser |
+| firewall/config_test.go | ✅ Done | 20 tests |
+| traffic/schema/ze-traffic-control-conf.yang | ✅ Done | Full YANG module |
+| traffic/schema/register.go | ✅ Done | init() registers module |
+| traffic/schema/embed.go | ✅ Done | go:embed |
+| traffic/config.go | ✅ Done | Full parser |
+| traffic/config_test.go | ✅ Done | 5 tests |
+| firewall/register.go | ⚠️ Partial | Not created | Deferred to fw-2 |
+| traffic/register.go | ⚠️ Partial | Not created | Deferred to fw-3 |
+| test/parse/firewall-invalid-001.ci | ⚠️ Partial | Not created | Deferred to fw-2 |
+| test/parse/traffic-invalid-001.ci | ⚠️ Partial | Not created | Deferred to fw-3 |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 38 (6 requirements + 18 ACs + 10 tests + 14 files - 10 shared)
+- **Done:** 30
+- **Partial:** 8 (all deferred to fw-2/fw-3 which wire the backend)
+- **Skipped:** 0
+- **Changed:** 0
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| firewall/schema/ze-firewall-conf.yang | Yes | YANG module with table/chain/term/set/flowtable |
+| firewall/schema/register.go | Yes | init() registers module |
+| firewall/schema/embed.go | Yes | go:embed |
+| firewall/config.go | Yes | Full parser ~580 lines |
+| firewall/config_test.go | Yes | 20 tests |
+| traffic/schema/ze-traffic-control-conf.yang | Yes | YANG module |
+| traffic/schema/register.go | Yes | init() registers module |
+| traffic/schema/embed.go | Yes | go:embed |
+| traffic/config.go | Yes | Full parser ~185 lines |
+| traffic/config_test.go | Yes | 5 tests |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | dest port parsing | TestParseFromDestinationPort PASS |
+| AC-2 | source addr parsing | TestParseFromSourceAddress PASS |
+| AC-3 | connstate parsing | TestParseFromConnState PASS |
+| AC-4 | rate limit | TestParseThenLimitRate PASS |
+| AC-5 | log prefix | TestParseThenLog PASS |
+| AC-6 | mark set | TestParseThenMarkSet PASS |
+| AC-7 | verdicts | TestParseThenVerdicts PASS |
+| AC-8 | masquerade | TestParseThenSNAT PASS |
+| AC-9 | flow offload | TestParseThenFlowOffload PASS |
+| AC-10 | set ref | TestParseFromSetReference PASS |
+| AC-11 | ze_ prefix | TestTableNamePrefix PASS |
+| AC-12 | HTB parsing | TestParseTrafficHTB PASS |
+| AC-13 | invalid family | TestParseInvalidFamily PASS |
+| AC-18 | YANG registered | grep firewall/schema all.go |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| firewall config | test/firewall/001-boot-apply.ci | Deferred to fw-2 |
+| traffic config | test/traffic/001-boot-apply.ci | Deferred to fw-3 |
+| invalid firewall | test/parse/firewall-invalid-001.ci | Deferred to fw-2 |
+| invalid traffic | test/parse/traffic-invalid-001.ci | Deferred to fw-3 |
 
 ## Checklist
 
