@@ -41,9 +41,11 @@ gokrazy uses eth=1, wlan=5, down=1024 as its metric scheme.
 | Area | Description |
 |------|-------------|
 | YANG leaf | `route-priority` under interface unit (integer, default 0) |
-| Config parsing | Parse leaf into unitEntry, pass to DHCP client and route calls |
+| Config parsing | Parse leaf into unitEntry |
+| DHCP route metric | DHCP client receives configured metric, installs routes with it |
+| dhcpEntry/dhcpParams | Track base metric for failover and reload change detection |
 | Failover update | Deprioritized metric = configured + 1024 |
-| Static route metric | Static default routes also use configured metric |
+| Reload metric change | When route-priority changes on reload, old-metric route removed, new-metric route installed |
 
 **Out of scope:**
 
@@ -52,6 +54,8 @@ gokrazy uses eth=1, wlan=5, down=1024 as its metric scheme.
 | WiFi management | No wlan support in ze |
 | Per-route metrics (non-default) | Different feature, per-route config |
 | Policy routing / multiple tables | Separate concern |
+| IPv6 default route metric | DHCPv6 does not install default routes in current implementation |
+| ~~Static route metric~~ | No static route config exists in the iface YANG schema |
 
 ## Required Reading
 
@@ -80,13 +84,18 @@ gokrazy uses eth=1, wlan=5, down=1024 as its metric scheme.
 **Behavior to preserve:**
 - Link-state failover continues to work
 - Default behavior unchanged when route-priority not configured (metric 0)
-- AddRoute/RemoveRoute signatures stable
 
 **Behavior to change:**
-- unitEntry gains route-priority field from YANG
-- DHCP route installation uses configured metric instead of 0
+- unitEntry gains RoutePriority field from YANG
+- dhcpParams gains RoutePriority field (triggers DHCP client restart on metric change)
+- dhcpEntry gains baseMetric field (used by failover handlers)
+- DHCP client receives configured metric via factory, installs routes with it
+- DHCP client removes routes with configured metric on lease expiry
 - Link-down deprioritization uses configured + 1024 instead of flat 1024
 - Link-up restoration uses configured metric instead of 0
+
+**Pre-requisite completed:**
+- RemoveRoute now accepts metric parameter (Backend interface, all implementations, all callers)
 
 ## Data Flow (MANDATORY - see `rules/data-flow-tracing.md`)
 
@@ -95,21 +104,31 @@ gokrazy uses eth=1, wlan=5, down=1024 as its metric scheme.
 
 ### Transformation Path
 1. YANG parser extracts `route-priority` leaf value
-2. `parseUnits` stores value in unitEntry
-3. On DHCP lease, AddRoute called with configured metric
-4. On link-down, AddRoute called with configured + 1024
-5. On link-up, AddRoute called with configured metric
+2. `parseUnits` stores value in unitEntry.RoutePriority
+3. `reconcileDHCP` copies RoutePriority into dhcpParams (change detection) and dhcpEntry.baseMetric
+4. DHCP client factory receives metric, client calls AddRoute with configured metric
+5. On link-down, RemoveRoute(baseMetric) then AddRoute(baseMetric + 1024)
+6. On link-up, RemoveRoute(baseMetric + 1024) then AddRoute(baseMetric)
+7. On DHCP lease expiry, RemoveRoute with configured metric
+8. On reload with changed route-priority, reconcileDHCP detects change via dhcpParams, restarts client
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Config -> iface plugin | unitEntry struct field | [ ] |
-| iface plugin -> Backend | metric parameter in AddRoute | [ ] |
+| Config -> iface plugin | unitEntry.RoutePriority field | [ ] |
+| iface plugin -> dhcpParams | RoutePriority field in reconcileDHCP | [ ] |
+| iface plugin -> dhcpEntry | baseMetric field for failover | [ ] |
+| iface plugin -> DHCP client | metric parameter via factory function | [ ] |
+| DHCP client -> Backend | metric parameter in AddRoute/RemoveRoute | [ ] |
 
 ### Integration Points
-- `unitEntry` struct in `config.go` - new field
-- `reconcileDHCP` in `register.go` - passes metric to AddRoute
-- `handleLinkDown`/`handleLinkUp` in `register.go` - uses configured + 1024
+- `unitEntry` struct in `config.go` - new RoutePriority field
+- `dhcpParams` struct in `register.go` - new RoutePriority field for change detection
+- `dhcpEntry` struct in `register.go` - new baseMetric field for failover
+- `dhcpClientFactory` signature in `register.go` - new metric parameter
+- `DHCPClient` in `ifacedhcp/` - stores and uses configured metric
+- `reconcileDHCP` in `register.go` - copies metric into params and entry
+- `handleLinkDown`/`handleLinkUp` in `register.go` - uses entry.baseMetric + 1024
 
 ### Architectural Verification
 - [ ] No bypassed layers (config flows through standard parsing)
@@ -133,6 +152,8 @@ gokrazy uses eth=1, wlan=5, down=1024 as its metric scheme.
 | AC-3 | Link down with route-priority 5 | Route deprioritized to metric 1029 (5 + 1024) |
 | AC-4 | Link up with route-priority 5 | Route restored to metric 5 |
 | AC-5 | Invalid route-priority (negative or > max) | Config rejected at parse time |
+| AC-6 | Reload changes route-priority from 5 to 10 | Old metric-5 route removed, new metric-10 route installed |
+| AC-7 | Two interfaces with different route-priority | Each uses its own configured metric independently |
 
 ## TDD Test Plan
 
@@ -145,7 +166,11 @@ gokrazy uses eth=1, wlan=5, down=1024 as its metric scheme.
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| route-priority | 0-1023 | 1023 | N/A (0 is valid) | 1024 |
+| route-priority | 0-4294966271 | 4294966271 | N/A (0 is valid) | 4294966272 |
+
+Note: upper bound is `2^32 - 1 - 1024` (max Linux metric minus deprioritized offset).
+This ensures `configured + 1024` never overflows a uint32. YANG type is uint32 with
+a range constraint.
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
@@ -159,7 +184,8 @@ gokrazy uses eth=1, wlan=5, down=1024 as its metric scheme.
 
 - `internal/component/iface/schema/ze-iface-conf.yang` - add route-priority leaf under unit
 - `internal/component/iface/config.go` - parse route-priority into unitEntry
-- `internal/component/iface/register.go` - use configured metric in DHCP routes and failover
+- `internal/component/iface/register.go` - dhcpParams/dhcpEntry gain metric fields, failover uses them, factory passes metric
+- `internal/plugins/ifacedhcp/dhcp_v4_linux.go` - store configured metric, use in AddRoute/RemoveRoute calls
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -339,7 +365,7 @@ N/A
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-5 all demonstrated
+- [ ] AC-1..AC-7 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `make ze-verify` passes
 - [ ] Feature code integrated
