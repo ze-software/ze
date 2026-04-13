@@ -7,7 +7,6 @@ import "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 
 // RegisterValidators registers all custom validators into the given registry.
 // Called during startup after YANG modules are loaded.
-// Protocol packages must call SetRedistributeSourceCallbacks before this.
 func RegisterValidators(reg *yang.ValidatorRegistry) {
 	reg.Register("registered-address-family", AddressFamilyValidator())
 	reg.Register("nonzero-ipv4", NonzeroIPv4Validator())

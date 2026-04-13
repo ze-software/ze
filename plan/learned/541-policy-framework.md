@@ -11,8 +11,7 @@ Ze had no configurable route filter framework. Filters existed only as in-proces
 - Each filter type augments `bgp/policy` with a `ze:filter`-marked list, over a flat list with type discriminator. Follows the ze-role/ze-filter-community augment pattern.
 - Loop-detection as a facade over in-process `LoopIngress`, over moving it to the text-format policy chain. Zero-copy preserved: settings (allow-own-as, cluster-id) flow through PeerFilterInfo, wire-bytes filter reads them.
 - `inactive:` prefix on leaf-list values for deactivation, over a separate `no-import` leaf-list or `active false` leaf. `delete` on a built-in auto-populated filter sets `inactive:` prefix instead of removing. Matches Junos `inactive:` semantics.
-- `redistribute` as a top-level core YANG module (`ze-redistribute.yang`), over nesting under bgp. Protocols augment the neutral root -- BGP adds ibgp/ebgp, future OSPF/ISIS add theirs. No cross-protocol YANG imports.
-- Callback pattern for redistribute validator (`SetRedistributeSourceCallbacks`), over direct import from config to bgp/redistribute. Keeps config layer protocol-agnostic.
+- `redistribute` as a top-level core YANG module (`ze-redistribute.yang`) with `list import` keyed by source and optional per-source `leaf-list family`. Each protocol component registers its sources via `config/redistribute.RegisterSource()`. No cross-protocol YANG imports.
 - `ze:hidden` enforced in all serializers (was declared but never checked). `ze:ephemeral` extension added for future runtime-only nodes.
 - Filter name validation: plain names (no colon) validated against policy registry at parse time. Colon names (external plugin filters like `rpki:validate`) skipped -- validated at runtime since plugins register at stage 1, after config parse.
 - `insert` CLI command for ordered leaf-list manipulation: `insert <path> <value> first|last|before <ref>|after <ref>`.

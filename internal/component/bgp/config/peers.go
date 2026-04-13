@@ -36,7 +36,7 @@ import (
 // Routes stay in the config package because they depend on config-internal
 // types (StaticRouteConfig, ParseRouteAttributes, etc.) that reactor cannot import.
 func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
-	// Ensure BGP redistribute sources and validator callbacks are registered.
+	// Register BGP redistribute sources (bgp, ibgp, ebgp) for config validation.
 	redistribute.RegisterBGPSources()
 
 	// Step 0: Prune inactive containers and list entries.

@@ -16,7 +16,26 @@ module ze-redistribute {
         ze:hidden true;
         description
             "Route redistribution between protocols.
-             Each protocol adds its own section via augment.
-             Controls which route sources are imported and exported.";
+             Import routes from registered sources (ibgp, ebgp, static, connected, ...),
+             optionally restricted to specific address families per source.";
+
+        list import {
+            key "source";
+            description "Import routes from a source.
+                         When family is omitted, all families are imported.";
+
+            leaf source {
+                type string;
+                ze:validate "redistribute-source";
+                description "Route source name (ibgp, ebgp, static, connected, ...)";
+            }
+
+            leaf-list family {
+                type string;
+                ze:validate "registered-address-family";
+                description "Address families to import from this source.
+                             Empty means all families.";
+            }
+        }
     }
 }
