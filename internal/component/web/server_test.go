@@ -263,6 +263,80 @@ func TestGenerateWebCertWithAddr(t *testing.T) {
 	}
 }
 
+// TestGenerateWebCertWithNames verifies that extra DNS names and IP addresses
+// are added as SANs to the generated certificate.
+// VALIDATES: extra names appear in cert SANs.
+// PREVENTS: cert missing hostname SAN when --web-cert-name is used.
+func TestGenerateWebCertWithNames(t *testing.T) {
+	tests := []struct {
+		name       string
+		listenAddr string
+		extraNames []string
+		expectDNS  []string
+		expectIPs  []string
+	}{
+		{
+			name:       "nil extra names",
+			listenAddr: "0.0.0.0:8080",
+			extraNames: nil,
+			expectDNS:  []string{"localhost"},
+		},
+		{
+			name:       "name only without listen addr",
+			listenAddr: "",
+			extraNames: []string{"router.example.com"},
+			expectDNS:  []string{"localhost", "router.example.com"},
+		},
+		{
+			name:       "DNS hostname added",
+			listenAddr: "0.0.0.0:8080",
+			extraNames: []string{"router.example.com"},
+			expectDNS:  []string{"localhost", "router.example.com"},
+		},
+		{
+			name:       "IP address added as IP SAN",
+			listenAddr: "0.0.0.0:8080",
+			extraNames: []string{"10.0.0.1"},
+			expectDNS:  []string{"localhost"},
+			expectIPs:  []string{"10.0.0.1"},
+		},
+		{
+			name:       "mixed DNS and IP",
+			listenAddr: "0.0.0.0:8080",
+			extraNames: []string{"router.local", "10.0.0.1"},
+			expectDNS:  []string{"localhost", "router.local"},
+			expectIPs:  []string{"10.0.0.1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			certPEM, _, err := GenerateWebCertWithNames(tt.listenAddr, tt.extraNames)
+			require.NoError(t, err)
+
+			block, _ := pem.Decode(certPEM)
+			require.NotNil(t, block)
+
+			cert, err := x509.ParseCertificate(block.Bytes)
+			require.NoError(t, err)
+
+			for _, dns := range tt.expectDNS {
+				assert.Contains(t, cert.DNSNames, dns, "certificate must include DNS SAN %s", dns)
+			}
+			for _, ipStr := range tt.expectIPs {
+				found := false
+				for _, ip := range cert.IPAddresses {
+					if ip.String() == ipStr {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found, "certificate must include IP SAN %s", ipStr)
+			}
+		})
+	}
+}
+
 // TestGenerateWebCertWithAddr_UnspecifiedIncludesInterfaceIPs verifies that
 // listening on 0.0.0.0 adds the machine's non-loopback interface IPs as SANs.
 // VALIDATES: cert is valid for any local IP when listening on all interfaces.

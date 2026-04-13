@@ -304,6 +304,14 @@ func GenerateWebCert() (certPEM, keyPEM []byte, err error) {
 // with SANs for localhost, 127.0.0.1, ::1, and the host portion of listenAddr
 // (if it parses as a valid IP not already covered by the defaults).
 func GenerateWebCertWithAddr(listenAddr string) (certPEM, keyPEM []byte, err error) {
+	return GenerateWebCertWithNames(listenAddr, nil)
+}
+
+// GenerateWebCertWithNames creates a self-signed ECDSA P-256 certificate
+// with SANs for localhost, 127.0.0.1, ::1, the host portion of listenAddr,
+// and any extra DNS names provided. Extra names that parse as IPs are added
+// as IP SANs instead of DNS SANs.
+func GenerateWebCertWithNames(listenAddr string, extraNames []string) (certPEM, keyPEM []byte, err error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("generate ECDSA key: %w", err)
@@ -343,6 +351,15 @@ func GenerateWebCertWithAddr(listenAddr string) (certPEM, keyPEM []byte, err err
 			} else {
 				template.IPAddresses = append(template.IPAddresses, ip)
 			}
+		}
+	}
+
+	// Add extra DNS names (or IP SANs if they parse as IPs).
+	for _, name := range extraNames {
+		if ip := net.ParseIP(name); ip != nil {
+			template.IPAddresses = append(template.IPAddresses, ip)
+		} else {
+			template.DNSNames = append(template.DNSNames, name)
 		}
 	}
 

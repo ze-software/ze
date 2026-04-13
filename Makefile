@@ -527,7 +527,8 @@ tidy:
 #
 # Usage:
 #   make ze-gokrazy-deps                    -- one-time: download gokrazy system packages
-#   make ze-gokrazy USER=admin PASS=secret  -- first build: create credentials + TLS cert
+#   make ze-gokrazy USER=admin PASS=secret CERTNAME=router.local  -- first build (cert cached per name)
+#   make ze-gokrazy USER=admin PASS=secret  -- first build (no cert caching without CERTNAME)
 #   make ze-gokrazy                         -- rebuild: reuse existing credentials
 #   make ze-gokrazy ZEFS=/path/to/db.zefs   -- rebuild: use external database
 #   make ze-gokrazy-run                     -- boot image in QEMU
@@ -564,10 +565,14 @@ ze-gokrazy-deps: bin/gok
 	@echo "Done. Builds now work offline."
 
 # Build a bootable VM image.
-# First build: make ze-gokrazy USER=admin PASS=secret
+# First build: make ze-gokrazy USER=admin PASS=secret CERTNAME=router.example.com
 # Rebuild:     make ze-gokrazy (reuses tmp/gokrazy/init/database.zefs)
 # External:    make ze-gokrazy ZEFS=/path/to/database.zefs
-GOKRAZY_ZEFS := tmp/gokrazy/init/database.zefs
+# When CERTNAME= is given, the TLS certificate includes it as a DNS SAN and is
+# cached under tmp/gokrazy/certs/<name>/ so rebuilds reuse the same cert
+# (stable fingerprint). Without CERTNAME=, a new cert is generated every time.
+GOKRAZY_ZEFS     := tmp/gokrazy/init/database.zefs
+GOKRAZY_CERT_DIR := tmp/gokrazy/certs/$(CERTNAME)
 
 ze-gokrazy: ze bin/gok
 	@test -f $(E2FS)/mkfs.ext4 || { echo "error: e2fsprogs not found (brew install e2fsprogs)"; exit 1; }
@@ -576,9 +581,26 @@ ze-gokrazy: ze bin/gok
 		echo "--- Using external database: $(ZEFS) ---"; \
 		cp "$(ZEFS)" $(GOKRAZY_ZEFS); \
 	elif [ -n "$(USER)" ] && [ -n "$(PASS)" ]; then \
-		echo "--- Creating SSH credentials + TLS certificate ---"; \
-		printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \
-			env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes --web-cert 0.0.0.0:8080 2>&1; \
+		if [ -n "$(CERTNAME)" ] && [ -f $(GOKRAZY_CERT_DIR)/cert.pem ] && [ -f $(GOKRAZY_CERT_DIR)/key.pem ]; then \
+			echo "--- Creating SSH credentials (reusing cached TLS certificate for $(CERTNAME)) ---"; \
+			printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \
+				env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes 2>&1; \
+			bin/ze data --path $(GOKRAZY_ZEFS) write meta/web/cert $(GOKRAZY_CERT_DIR)/cert.pem; \
+			bin/ze data --path $(GOKRAZY_ZEFS) write meta/web/key $(GOKRAZY_CERT_DIR)/key.pem; \
+		else \
+			echo "--- Creating SSH credentials + TLS certificate ---"; \
+			if [ -n "$(CERTNAME)" ]; then \
+				printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \
+					env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes --web-cert-name $(CERTNAME) 2>&1; \
+				mkdir -p $(GOKRAZY_CERT_DIR); \
+				bin/ze data --path $(GOKRAZY_ZEFS) cat meta/web/cert > $(GOKRAZY_CERT_DIR)/cert.pem; \
+				bin/ze data --path $(GOKRAZY_ZEFS) cat meta/web/key > $(GOKRAZY_CERT_DIR)/key.pem; \
+				echo "cached TLS certificate for $(CERTNAME) in $(GOKRAZY_CERT_DIR)/"; \
+			else \
+				printf '%s\n' "$(USER)" "$(PASS)" "0.0.0.0" "22" "ze" | \
+					env ze.config.dir=tmp/gokrazy/init bin/ze init --force --yes --web-cert 0.0.0.0:8080 2>&1; \
+			fi; \
+		fi; \
 		bin/ze data --path $(GOKRAZY_ZEFS) write file/template/ze.conf gokrazy/ze/ze.conf; \
 	elif [ ! -f $(GOKRAZY_ZEFS) ]; then \
 		echo "error: no database found. First build requires credentials:"; \

@@ -56,6 +56,7 @@ func Run(args []string) int {
 	forceFlag := fs.Bool("force", false, "Replace existing database (moves old to .replaced-<date>)")
 	yesFlag := fs.Bool("yes", false, "Skip confirmation prompt (use with --force)")
 	webCertFlag := fs.String("web-cert", "", "Generate TLS certificate for web server (listen address, e.g. 0.0.0.0:8080)")
+	webCertNameFlag := fs.String("web-cert-name", "", "Extra DNS name for the TLS certificate SAN (e.g. router.example.com)")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -75,6 +76,7 @@ func Run(args []string) int {
 					{Name: "--force", Desc: "Replace existing database (moves old to .replaced-<date>)"},
 					{Name: "--yes", Desc: "Skip confirmation prompt (use with --force)"},
 					{Name: "--web-cert <addr>", Desc: "Generate TLS certificate for web server (e.g. 0.0.0.0:8080)"},
+					{Name: "--web-cert-name <host>", Desc: "Extra DNS name for TLS certificate SAN (e.g. router.example.com)"},
 				}},
 			},
 			Examples: []string{
@@ -130,14 +132,14 @@ func Run(args []string) int {
 		}
 	}
 
-	return runInit(inputReader, promptWriter, dbPath, *managedFlag, *webCertFlag)
+	return runInit(inputReader, promptWriter, dbPath, *managedFlag, *webCertFlag, *webCertNameFlag)
 }
 
 // RunWithReader creates a zefs database with SSH credentials read from r.
 // Format: one line each for username, password, host, port, name.
 // Empty host defaults to 127.0.0.1, empty port defaults to 2222.
 func RunWithReader(r io.Reader, dbPath string, managed bool) int {
-	return runInit(r, nil, dbPath, managed, "")
+	return runInit(r, nil, dbPath, managed, "", "")
 }
 
 // RunWithReaderForce is like RunWithReader but moves an existing database aside first.
@@ -148,16 +150,16 @@ func RunWithReaderForce(r io.Reader, dbPath string, managed bool) (int, error) {
 			return 1, err
 		}
 	}
-	return runInit(r, nil, dbPath, managed, ""), nil
+	return runInit(r, nil, dbPath, managed, "", ""), nil
 }
 
 // RunInteractive creates a zefs database with interactive prompts.
 // Prompts are written to w (typically os.Stderr).
 func RunInteractive(r io.Reader, w io.Writer, dbPath string) int {
-	return runInit(r, w, dbPath, false, "")
+	return runInit(r, w, dbPath, false, "", "")
 }
 
-func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCertAddr string) int {
+func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCertAddr, webCertName string) int {
 	// Check if database already exists
 	if _, err := os.Stat(dbPath); err == nil {
 		fmt.Fprintf(os.Stderr, "error: database already exists: %s\n", dbPath)
@@ -288,8 +290,15 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCer
 	}
 
 	// Generate and store TLS certificate if requested.
-	if webCertAddr != "" {
-		certPEM, keyPEM, certErr := zeweb.GenerateWebCertWithAddr(webCertAddr)
+	// --web-cert-name generates a cert with the hostname as DNS SAN (no IP enumeration).
+	// --web-cert generates a cert with IP SANs derived from the listen address.
+	// Both can be combined.
+	if webCertAddr != "" || webCertName != "" {
+		var extraNames []string
+		if webCertName != "" {
+			extraNames = []string{webCertName}
+		}
+		certPEM, keyPEM, certErr := zeweb.GenerateWebCertWithNames(webCertAddr, extraNames)
 		if certErr != nil {
 			fmt.Fprintf(os.Stderr, "error: generate TLS certificate: %v\n", certErr)
 			store.Close()     //nolint:errcheck // best-effort cleanup
@@ -308,7 +317,14 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCer
 			os.Remove(dbPath) //nolint:errcheck // best-effort cleanup
 			return 1
 		}
-		fmt.Printf("generated TLS certificate for %s\n", webCertAddr)
+		switch {
+		case webCertName != "" && webCertAddr != "":
+			fmt.Printf("generated TLS certificate for %s (%s)\n", webCertName, webCertAddr)
+		case webCertName != "":
+			fmt.Printf("generated TLS certificate for %s\n", webCertName)
+		default:
+			fmt.Printf("generated TLS certificate for %s\n", webCertAddr)
+		}
 	}
 
 	if err := store.Close(); err != nil {
