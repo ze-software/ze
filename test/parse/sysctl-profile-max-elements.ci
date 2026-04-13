@@ -1,0 +1,17 @@
+# Invalid config: too many sysctl-profiles on one unit (max-elements 10)
+# VALIDATES: YANG max-elements enforcement for leaf-list.
+# PREVENTS: Unbounded profile lists bypassing cardinality constraints.
+stdin=config:terminator=EOF_CONF
+interface {
+    ethernet eth0 {
+        unit 0 {
+            sysctl-profile [ a1 a2 a3 a4 a5 a6 a7 a8 a9 a10 a11 ]
+            address [ 10.0.0.1/24 ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=too many entries

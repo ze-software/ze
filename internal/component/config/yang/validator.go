@@ -16,13 +16,14 @@ import (
 type ErrorType int
 
 const (
-	ErrTypeUnknown ErrorType = iota
-	ErrTypeMissing           // Missing mandatory field
-	ErrTypeType              // Wrong type
-	ErrTypeRange             // Value outside allowed range
-	ErrTypePattern           // String doesn't match pattern
-	ErrTypeEnum              // Invalid enum value
-	ErrTypeLength            // String length outside allowed range
+	ErrTypeUnknown     ErrorType = iota
+	ErrTypeMissing               // Missing mandatory field
+	ErrTypeType                  // Wrong type
+	ErrTypeRange                 // Value outside allowed range
+	ErrTypePattern               // String doesn't match pattern
+	ErrTypeEnum                  // Invalid enum value
+	ErrTypeLength                // String length outside allowed range
+	ErrTypeCardinality           // List/leaf-list has too many or too few entries
 )
 
 func (e ErrorType) String() string {
@@ -40,6 +41,8 @@ func (e ErrorType) String() string {
 		return "enum"
 	case ErrTypeLength:
 		return "length"
+	case ErrTypeCardinality:
+		return "cardinality"
 	default:
 		return "unknown"
 	}
@@ -556,11 +559,21 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 					entryPath := childPath + "[" + listKey + "]"
 					v.walkTree(entryPath, child, entryMap, errs)
 				}
+				// Check list cardinality against YANG max-elements.
+				checkCardinality(childPath, child, uint64(len(subMap)), errs)
 			} else if child.Dir != nil {
 				// Container: recurse.
 				v.walkTree(childPath, child, subMap, errs)
 			}
 			continue
+		}
+
+		// Leaf-list cardinality: count space-separated items in bracket-syntax leaf-lists.
+		if child.IsLeafList() {
+			if str, ok := value.(string); ok && str != "" {
+				count := uint64(len(strings.Fields(str)))
+				checkCardinality(childPath, child, count, errs)
+			}
 		}
 
 		// Non-map values are leaves — validate against YANG type.
@@ -602,6 +615,32 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 				}
 			}
 		}
+	}
+}
+
+// checkCardinality validates list/leaf-list entry count against YANG
+// min-elements and max-elements constraints. Appends errors if violated.
+func checkCardinality(path string, entry *yang.Entry, count uint64, errs *[]ValidationError) {
+	if entry.ListAttr == nil {
+		return
+	}
+	if entry.ListAttr.MinElements > 0 && count < entry.ListAttr.MinElements {
+		*errs = append(*errs, ValidationError{
+			Path:     path,
+			Type:     ErrTypeCardinality,
+			Message:  fmt.Sprintf("too few entries: %d (minimum %d)", count, entry.ListAttr.MinElements),
+			Expected: fmt.Sprintf(">=%d", entry.ListAttr.MinElements),
+			Got:      fmt.Sprintf("%d", count),
+		})
+	}
+	if entry.ListAttr.MaxElements > 0 && count > entry.ListAttr.MaxElements {
+		*errs = append(*errs, ValidationError{
+			Path:     path,
+			Type:     ErrTypeCardinality,
+			Message:  fmt.Sprintf("too many entries: %d (maximum %d)", count, entry.ListAttr.MaxElements),
+			Expected: fmt.Sprintf("<=%d", entry.ListAttr.MaxElements),
+			Got:      fmt.Sprintf("%d", count),
+		})
 	}
 }
 
