@@ -14,6 +14,7 @@ import (
 // VALIDATES: Every internal plugin registers via init().
 // PREVENTS: Missing plugin registration when a register.go is forgotten.
 func TestAllPluginsRegistered(t *testing.T) {
+	// All plugins that register unconditionally (no build tags).
 	expected := []string{
 		"bfd",
 		"bgp",
@@ -44,27 +45,39 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"bgp-route-refresh",
 		"bgp-rpki",
 		"bgp-rpki-decorator",
+		"bgp-rr",
 		"bgp-rs",
 		"bgp-softver",
 		"bgp-watchdog",
 		"fib-kernel",
 		"fib-p4",
-		"iface-dhcp",
 		"interface",
 		"loop",
+		"ntp",
 		"rib",
+		"sysctl",
+	}
+
+	// Plugins with //go:build linux that only register on Linux.
+	linuxOnly := []string{
+		"iface-dhcp",
 	}
 
 	names := registry.Names()
 	sort.Strings(names)
 
-	if len(names) != len(expected) {
-		t.Fatalf("expected %d plugins, got %d: %v", len(expected), len(names), names)
+	// Every expected plugin must be registered.
+	for _, want := range expected {
+		if !slices.Contains(names, want) {
+			t.Errorf("expected plugin %q not registered", want)
+		}
 	}
 
-	for i, want := range expected {
-		if names[i] != want {
-			t.Errorf("plugin[%d] = %q, want %q", i, names[i], want)
+	// Every registered plugin must be in expected or linuxOnly.
+	all := append(append([]string{}, expected...), linuxOnly...)
+	for _, name := range names {
+		if !slices.Contains(all, name) {
+			t.Errorf("unexpected plugin %q registered (add to expected list)", name)
 		}
 	}
 }

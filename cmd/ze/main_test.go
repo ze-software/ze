@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,11 +19,21 @@ import (
 // VALIDATES: All expected plugins are listed.
 // PREVENTS: Missing plugin entries in discovery output.
 func TestAvailablePlugins(t *testing.T) {
-	// Expected plugins (sorted - AvailableInternalPlugins returns sorted list)
-	expected := []string{"bfd", "bgp", "bgp-adj-rib-in", "bgp-aigp", "bgp-bmp", "bgp-filter-aspath", "bgp-filter-community", "bgp-filter-community-match", "bgp-filter-modify", "bgp-filter-prefix", "bgp-gr", "bgp-healthcheck", "bgp-hostname", "bgp-llnh", "bgp-nlri-evpn", "bgp-nlri-flowspec", "bgp-nlri-labeled", "bgp-nlri-ls", "bgp-nlri-mup", "bgp-nlri-mvpn", "bgp-nlri-rtc", "bgp-nlri-vpls", "bgp-nlri-vpn", "bgp-persist", "bgp-rib", "bgp-role", "bgp-route-refresh", "bgp-rpki", "bgp-rpki-decorator", "bgp-rs", "bgp-softver", "bgp-watchdog", "fib-kernel", "fib-p4", "iface-dhcp", "interface", "loop", "rib"}
+	// Plugins that register unconditionally (no build tags).
+	expected := []string{"bfd", "bgp", "bgp-adj-rib-in", "bgp-aigp", "bgp-bmp", "bgp-filter-aspath", "bgp-filter-community", "bgp-filter-community-match", "bgp-filter-modify", "bgp-filter-prefix", "bgp-gr", "bgp-healthcheck", "bgp-hostname", "bgp-llnh", "bgp-nlri-evpn", "bgp-nlri-flowspec", "bgp-nlri-labeled", "bgp-nlri-ls", "bgp-nlri-mup", "bgp-nlri-mvpn", "bgp-nlri-rtc", "bgp-nlri-vpls", "bgp-nlri-vpn", "bgp-persist", "bgp-rib", "bgp-role", "bgp-route-refresh", "bgp-rpki", "bgp-rpki-decorator", "bgp-rr", "bgp-rs", "bgp-softver", "bgp-watchdog", "fib-kernel", "fib-p4", "interface", "loop", "ntp", "rib", "sysctl"}
+	// iface-dhcp only registers on linux (//go:build linux).
+	linuxOnly := []string{"iface-dhcp"}
 
 	got := plugin.AvailableInternalPlugins()
-	assert.Equal(t, expected, got)
+	// Every expected plugin must be registered.
+	for _, want := range expected {
+		assert.Contains(t, got, want, "expected plugin %q not registered", want)
+	}
+	// Every registered plugin must be in expected or linuxOnly.
+	all := append(append([]string{}, expected...), linuxOnly...)
+	for _, name := range got {
+		assert.True(t, slices.Contains(all, name), "unexpected plugin %q registered (add to expected list)", name)
+	}
 }
 
 // TestLooksLikeConfig verifies config file detection.
