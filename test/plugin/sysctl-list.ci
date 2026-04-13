@@ -1,0 +1,128 @@
+# Test: `sysctl list` returns known keys with descriptions.
+#
+# VALIDATES: AC-6/AC-7 -- sysctl list shows platform-filtered known keys.
+# PREVENTS:  Known keys registry not wired to CLI command dispatch.
+
+option=env:var=ze.log.sysctl:value=debug
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=sysctl-list.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Dispatch `sysctl list` and verify known keys are returned."""
+
+import json
+import sys
+import time
+
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(0.5)
+
+    r = None
+    for _ in range(20):
+        r = dispatch(api, 'sysctl list')
+        if r.get('status') == 'done':
+            break
+        time.sleep(0.25)
+    if r is None or r.get('status') != 'done':
+        status = r.get('status') if r else 'nil'
+        runtime_fail(f'sysctl list: status={status}')
+
+    try:
+        keys = json.loads(r.get('data', '') or '[]')
+    except json.JSONDecodeError as exc:
+        runtime_fail(f'sysctl list json: {exc}: {r.get("data", "")[:200]}')
+        keys = []
+
+    if not isinstance(keys, list) or len(keys) == 0:
+        runtime_fail(f'sysctl list: expected non-empty list, got {type(keys).__name__} len={len(keys) if isinstance(keys, list) else "N/A"}')
+
+    # Every entry must have key, description, type fields.
+    for entry in keys:
+        if not isinstance(entry, dict):
+            runtime_fail(f'sysctl list: entry is not dict: {entry}')
+        for field in ('key', 'description', 'type'):
+            if field not in entry:
+                runtime_fail(f'sysctl list: missing field {field} in {entry.get("key", "?")}')
+
+    # At least one forwarding key must be present (registered on all platforms).
+    key_names = {e.get('key') for e in keys}
+    found_forwarding = any('forwarding' in k for k in key_names)
+    if not found_forwarding:
+        runtime_fail(f'sysctl list: no forwarding key found in {sorted(key_names)[:5]}')
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-sysctl:terminator=EOF_CONF
+plugin {
+	external sysctl-list-test {
+		run ./sysctl-list.run
+		encoder json
+	}
+}
+
+sysctl {
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process sysctl-list-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-sysctl:timeout=15s
+expect=exit:code=0

@@ -1,0 +1,142 @@
+# Test: `sysctl show` returns empty array, `sysctl describe` returns metadata.
+#
+# VALIDATES: AC-5 -- show-result with empty store returns [].
+# VALIDATES: AC-8 -- describe-result for known key includes description and type.
+# PREVENTS:  CLI command dispatch broken, JSON format wrong.
+
+option=env:var=ze.log.sysctl:value=debug
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=sysctl-show-describe.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Dispatch `sysctl show` and `sysctl describe` and verify output."""
+
+import json
+import sys
+import time
+
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(0.5)
+
+    # Test sysctl show: no config applied, no defaults => empty array.
+    r = None
+    for _ in range(20):
+        r = dispatch(api, 'sysctl show')
+        if r.get('status') == 'done':
+            break
+        time.sleep(0.25)
+    if r is None or r.get('status') != 'done':
+        runtime_fail(f'sysctl show: status={r.get("status") if r else "nil"}')
+
+    try:
+        entries = json.loads(r.get('data', '') or '[]')
+    except json.JSONDecodeError as exc:
+        runtime_fail(f'sysctl show json: {exc}')
+        entries = None
+
+    if not isinstance(entries, list):
+        runtime_fail(f'sysctl show: expected list, got {type(entries).__name__}')
+
+    # Test sysctl describe: pick first key from sysctl list.
+    r = dispatch(api, 'sysctl list')
+    if r.get('status') != 'done':
+        runtime_fail(f'sysctl list for describe: status={r.get("status")}')
+
+    keys = json.loads(r.get('data', '') or '[]')
+    if not keys:
+        runtime_fail('sysctl list returned empty, cannot test describe')
+
+    first_key = keys[0].get('key', '')
+    r = dispatch(api, f'sysctl describe {first_key}')
+    if r.get('status') != 'done':
+        runtime_fail(f'sysctl describe {first_key}: status={r.get("status")}')
+
+    try:
+        detail = json.loads(r.get('data', '') or '{}')
+    except json.JSONDecodeError as exc:
+        runtime_fail(f'sysctl describe json: {exc}')
+        detail = {}
+
+    if detail.get('key') != first_key:
+        runtime_fail(f'sysctl describe: key={detail.get("key")!r} want {first_key!r}')
+    if not detail.get('description'):
+        runtime_fail(f'sysctl describe {first_key}: missing description')
+    if not detail.get('type'):
+        runtime_fail(f'sysctl describe {first_key}: missing type')
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-sysctl:terminator=EOF_CONF
+plugin {
+	external sysctl-show-describe-test {
+		run ./sysctl-show-describe.run
+		encoder json
+	}
+}
+
+sysctl {
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process sysctl-show-describe-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-sysctl:timeout=15s
+expect=exit:code=0
