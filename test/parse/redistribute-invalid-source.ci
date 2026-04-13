@@ -1,0 +1,33 @@
+# Test: ze config validate accepts redistribute with unknown source at parse time
+# The redistribute-source custom validator does not fire during ze config validate
+# (list key values are not validated by ze:validate at parse time).
+# Unknown sources are caught at daemon startup by ExtractRedistributeRules.
+# This test verifies the YANG structure is valid even with an unregistered source.
+# VALIDATES: AC-4 -- redistribute list structure accepted by YANG parser
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+redistribute {
+	import rip;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

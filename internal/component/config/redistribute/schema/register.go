@@ -5,5 +5,5 @@ package schema
 import "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 
 func init() {
-	yang.RegisterModule("ze-redistribute.yang", ZeRedistributeYANG)
+	yang.RegisterModule("ze-redistribute-conf.yang", ZeRedistributeYANG)
 }

@@ -20,7 +20,7 @@ import (
 // PREVENTS: Missing plugin entries in discovery output.
 func TestAvailablePlugins(t *testing.T) {
 	// Plugins that register unconditionally (no build tags).
-	expected := []string{"bfd", "bgp", "bgp-adj-rib-in", "bgp-aigp", "bgp-bmp", "bgp-filter-aspath", "bgp-filter-community", "bgp-filter-community-match", "bgp-filter-modify", "bgp-filter-prefix", "bgp-gr", "bgp-healthcheck", "bgp-hostname", "bgp-llnh", "bgp-nlri-evpn", "bgp-nlri-flowspec", "bgp-nlri-labeled", "bgp-nlri-ls", "bgp-nlri-mup", "bgp-nlri-mvpn", "bgp-nlri-rtc", "bgp-nlri-vpls", "bgp-nlri-vpn", "bgp-persist", "bgp-rib", "bgp-role", "bgp-route-refresh", "bgp-rpki", "bgp-rpki-decorator", "bgp-rr", "bgp-rs", "bgp-softver", "bgp-watchdog", "fib-kernel", "fib-p4", "interface", "loop", "ntp", "rib", "sysctl"}
+	expected := []string{"bfd", "bgp", "bgp-adj-rib-in", "bgp-aigp", "bgp-bmp", "bgp-filter-aspath", "bgp-filter-community", "bgp-filter-community-match", "bgp-filter-modify", "bgp-filter-prefix", "bgp-gr", "bgp-healthcheck", "bgp-hostname", "bgp-llnh", "bgp-nlri-evpn", "bgp-nlri-flowspec", "bgp-nlri-labeled", "bgp-nlri-ls", "bgp-nlri-mup", "bgp-nlri-mvpn", "bgp-nlri-rtc", "bgp-nlri-vpls", "bgp-nlri-vpn", "bgp-persist", "bgp-redistribute", "bgp-rib", "bgp-role", "bgp-route-refresh", "bgp-rpki", "bgp-rpki-decorator", "bgp-rr", "bgp-rs", "bgp-softver", "bgp-watchdog", "fib-kernel", "fib-p4", "interface", "loop", "ntp", "rib", "sysctl"}
 	// iface-dhcp only registers on linux (//go:build linux).
 	linuxOnly := []string{"iface-dhcp"}
 

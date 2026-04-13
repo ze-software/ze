@@ -1,0 +1,35 @@
+# Test: ze config validate with redistribute import + family filter
+# VALIDATES: AC-1 -- redistribute container with import list accepted by YANG schema
+# VALIDATES: AC-2 -- per-source family filter parses without error
+# VALIDATES: AC-3 -- import without family filter (all families) parses without error
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+redistribute {
+	import ebgp {
+		family [ ipv4/unicast ipv4/vpn ];
+	}
+	import ibgp;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

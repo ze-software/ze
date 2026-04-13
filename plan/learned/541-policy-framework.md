@@ -11,7 +11,7 @@ Ze had no configurable route filter framework. Filters existed only as in-proces
 - Each filter type augments `bgp/policy` with a `ze:filter`-marked list, over a flat list with type discriminator. Follows the ze-role/ze-filter-community augment pattern.
 - Loop-detection as a facade over in-process `LoopIngress`, over moving it to the text-format policy chain. Zero-copy preserved: settings (allow-own-as, cluster-id) flow through PeerFilterInfo, wire-bytes filter reads them.
 - `inactive:` prefix on leaf-list values for deactivation, over a separate `no-import` leaf-list or `active false` leaf. `delete` on a built-in auto-populated filter sets `inactive:` prefix instead of removing. Matches Junos `inactive:` semantics.
-- `redistribute` as a top-level core YANG module (`ze-redistribute.yang`) with `list import` keyed by source and optional per-source `leaf-list family`. Each protocol component registers its sources via `config/redistribute.RegisterSource()`. No cross-protocol YANG imports.
+- `redistribute` as a top-level core YANG module (`ze-redistribute-conf.yang`) with `list import` keyed by source and optional per-source `leaf-list family`. Each protocol component registers its sources via `config/redistribute.RegisterSource()`. No cross-protocol YANG imports.
 - `ze:hidden` enforced in all serializers (was declared but never checked). `ze:ephemeral` extension added for future runtime-only nodes.
 - Filter name validation: plain names (no colon) validated against policy registry at parse time. Colon names (external plugin filters like `rpki:validate`) skipped -- validated at runtime since plugins register at stage 1, after config parse.
 - `insert` CLI command for ordered leaf-list manipulation: `insert <path> <value> first|last|before <ref>|after <ref>`.
@@ -24,7 +24,7 @@ Ze had no configurable route filter framework. Filters existed only as in-proces
 - Default loop-detection auto-populates in every peer's import chain. Deactivatable via `inactive:` prefix.
 - The `redistribution { import [ rpki:validate ] }` format is fully removed (no-layering). Replaced by `filter { import [ ... ] }`.
 - Future filter types (prefix-filter, as-path-filter, community-tag, etc.) add a YANG augment + Go filter logic -- zero core changes.
-- Future protocols (OSPF, ISIS) augment `ze-redistribute.yang` with their sources.
+- Future protocols (OSPF, ISIS) register sources via `config/redistribute.RegisterSource()`.
 - `ze:hidden` now works: nodes marked hidden are excluded from all three serializers (display, annotated, blame) but still saved to file.
 
 ## Gotchas
@@ -51,10 +51,12 @@ Ze had no configurable route filter framework. Filters existed only as in-proces
 - `internal/component/bgp/reactor/filter_chain.go` -- inactive: prefix skipping
 - `internal/component/bgp/reactor/peersettings.go` -- LoopAllowOwnAS, LoopClusterID
 - `internal/component/plugin/registry/registry_bgp_filter.go` -- AllowOwnAS, ClusterID in PeerFilterInfo
-- `internal/component/config/redistribute/schema/ze-redistribute.yang` -- core redistribute module
-- `internal/component/bgp/redistribute/schema/ze-bgp-redistribute.yang` -- BGP augment (ibgp/ebgp)
-- `internal/component/bgp/redistribute/registry.go` -- source registry
-- `internal/component/config/validators.go` -- RedistributeSourceValidator with callbacks
+- `internal/component/config/redistribute/schema/ze-redistribute-conf.yang` -- core redistribute module
+- `internal/component/config/redistribute/registry.go` -- central source registry
+- `internal/component/config/redistribute/route.go` -- RedistRoute, ImportRule, loop prevention
+- `internal/component/config/redistribute/evaluator.go` -- thread-safe evaluator with global singleton
+- `internal/component/config/loader_redistribute.go` -- ExtractRedistributeRules from config tree
+- `internal/component/config/validators.go` -- RedistributeSourceValidator (direct registry import)
 - `internal/component/config/tree.go` -- RenameListEntry, CopyListEntry, InsertMultiValue, DeactivateMultiValue, ActivateMultiValue
 - `internal/component/cli/editor_commands.go` -- RenameListEntry, InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue
 - `internal/component/cli/model_commands.go` -- cmdRename, cmdCopy, cmdInsert, leaf-list deactivate/activate

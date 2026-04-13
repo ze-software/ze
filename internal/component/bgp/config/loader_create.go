@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -31,6 +32,20 @@ import (
 // It creates a global listener so the ze-test peer can connect to ze.
 // This is NOT the ExaBGP "bgp > listen" config leaf (removed from YANG).
 const envKeyTCPPort = "ze.bgp.tcp.port"
+
+// initRedistribute parses redistribute import rules from the config tree
+// and installs the global evaluator. Called during reactor creation.
+// Non-fatal: logs a warning if parsing fails (redistribute is optional).
+func initRedistribute(tree *config.Tree) {
+	rules, err := config.ExtractRedistributeRules(tree)
+	if err != nil {
+		slogutil.Logger("config").Warn("redistribute config error", "error", err)
+		return
+	}
+	if len(rules) > 0 {
+		redistribute.SetGlobal(redistribute.NewEvaluator(rules))
+	}
+}
 
 var _ = coreenv.MustRegister(coreenv.EnvEntry{
 	Key:         envKeyTCPPort,
@@ -90,6 +105,9 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 			return nil, fmt.Errorf("build peers: %w", err)
 		}
 	}
+
+	// Parse and install redistribution import rules (optional, non-fatal).
+	initRedistribute(tree)
 
 	// Validate plugin references
 	if err := ValidatePluginReferences(tree, plugins); err != nil {
@@ -281,6 +299,9 @@ func createReloadFunc(store storage.Storage) reactor.ReloadFunc {
 		if err != nil {
 			return nil, fmt.Errorf("parse config: %w", err)
 		}
+
+		// Update redistribute rules on reload.
+		initRedistribute(tree)
 
 		return PeersFromConfigTree(tree)
 	}
