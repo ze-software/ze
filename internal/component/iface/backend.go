@@ -61,8 +61,10 @@ type Backend interface {
 	// destCIDR is the destination (e.g., "0.0.0.0/0"), gateway is the
 	// next-hop IP (e.g., "192.168.1.1"), ifaceName scopes the route.
 	// metric is the route priority (lower = preferred); 0 = kernel default.
+	// On Linux, route identity is (dst, gw, link, metric), so both
+	// AddRoute and RemoveRoute require metric to target the correct entry.
 	AddRoute(ifaceName, destCIDR, gateway string, metric int) error
-	RemoveRoute(ifaceName, destCIDR, gateway string) error
+	RemoveRoute(ifaceName, destCIDR, gateway string, metric int) error
 
 	// Link state.
 	SetAdminUp(ifaceName string) error
@@ -82,18 +84,6 @@ type Backend interface {
 	BridgeAddPort(bridgeName, portName string) error
 	BridgeDelPort(portName string) error
 	BridgeSetSTP(bridgeName string, enabled bool) error
-
-	// Sysctl (per-interface kernel tunables).
-	SetIPv4Forwarding(ifaceName string, enabled bool) error
-	SetIPv4ArpFilter(ifaceName string, enabled bool) error
-	SetIPv4ArpAccept(ifaceName string, enabled bool) error
-	SetIPv4ProxyARP(ifaceName string, enabled bool) error
-	SetIPv4ArpAnnounce(ifaceName string, level int) error
-	SetIPv4ArpIgnore(ifaceName string, level int) error
-	SetIPv4RPFilter(ifaceName string, level int) error
-	SetIPv6Autoconf(ifaceName string, enabled bool) error
-	SetIPv6AcceptRA(ifaceName string, level int) error
-	SetIPv6Forwarding(ifaceName string, enabled bool) error
 
 	// Traffic mirroring.
 	SetupMirror(srcIface, dstIface string, ingress, egress bool) error

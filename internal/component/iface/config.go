@@ -13,6 +13,7 @@ import (
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -1233,8 +1234,12 @@ func applySysctl(osName string, u unitEntry) {
 	log := loggerPtr.Load()
 
 	emit := func(key, value string) {
-		payload := `{"key":"` + key + `","value":"` + value + `","source":"interface"}`
-		if _, err := eb.Emit("sysctl", "default", payload); err != nil {
+		payload, _ := json.Marshal(struct {
+			Key    string `json:"key"`
+			Value  string `json:"value"`
+			Source string `json:"source"`
+		}{Key: key, Value: value, Source: "interface"})
+		if _, err := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlDefault, string(payload)); err != nil {
 			log.Debug("iface: sysctl emit failed", "key", key, "err", err)
 		}
 	}

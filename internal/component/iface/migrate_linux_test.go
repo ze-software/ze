@@ -63,36 +63,6 @@ func (m *mockMigrateBackend) BridgeDelPort(_ string) error { return fmt.Errorf("
 func (m *mockMigrateBackend) BridgeSetSTP(_ string, _ bool) error {
 	return fmt.Errorf("mock: not supported")
 }
-func (m *mockMigrateBackend) SetIPv4Forwarding(_ string, _ bool) error {
-	return fmt.Errorf("mock: not supported")
-}
-func (m *mockMigrateBackend) SetIPv4ArpFilter(_ string, _ bool) error {
-	return fmt.Errorf("mock: not supported")
-}
-func (m *mockMigrateBackend) SetIPv4ArpAccept(_ string, _ bool) error {
-	return fmt.Errorf("mock: not supported")
-}
-func (m *mockMigrateBackend) SetIPv4ProxyARP(_ string, _ bool) error {
-	return fmt.Errorf("mock: not supported")
-}
-func (m *mockMigrateBackend) SetIPv4ArpAnnounce(_ string, _ int) error {
-	return fmt.Errorf("mock: not supported")
-}
-func (m *mockMigrateBackend) SetIPv4ArpIgnore(_ string, _ int) error {
-	return fmt.Errorf("mock: not supported")
-}
-func (m *mockMigrateBackend) SetIPv4RPFilter(_ string, _ int) error {
-	return fmt.Errorf("mock: not supported")
-}
-func (m *mockMigrateBackend) SetIPv6Autoconf(_ string, _ bool) error {
-	return fmt.Errorf("mock: not supported")
-}
-func (m *mockMigrateBackend) SetIPv6AcceptRA(_ string, _ int) error {
-	return fmt.Errorf("mock: not supported")
-}
-func (m *mockMigrateBackend) SetIPv6Forwarding(_ string, _ bool) error {
-	return fmt.Errorf("mock: not supported")
-}
 func (m *mockMigrateBackend) SetupMirror(_, _ string, _, _ bool) error {
 	return fmt.Errorf("mock: not supported")
 }
@@ -105,7 +75,7 @@ func (m *mockMigrateBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) e
 func (m *mockMigrateBackend) AddRoute(_, _, _ string, _ int) error {
 	return fmt.Errorf("mock: not supported")
 }
-func (m *mockMigrateBackend) RemoveRoute(_, _, _ string) error {
+func (m *mockMigrateBackend) RemoveRoute(_, _, _ string, _ int) error {
 	return fmt.Errorf("mock: not supported")
 }
 func (m *mockMigrateBackend) StartMonitor(_ ze.EventBus) error {

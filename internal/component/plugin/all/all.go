@@ -63,6 +63,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibp4/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/schema"
 
 	// Plugin packages — plugin + schema registration.
@@ -106,6 +107,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacedhcp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ntp"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib"
 
 	// RPC command packages -- pluginserver.RegisterRPCs registration.

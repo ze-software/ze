@@ -79,12 +79,12 @@ func AddRoute(ifaceName, destCIDR, gateway string, metric int) error {
 	return b.AddRoute(ifaceName, destCIDR, gateway, metric)
 }
 
-func RemoveRoute(ifaceName, destCIDR, gateway string) error {
+func RemoveRoute(ifaceName, destCIDR, gateway string, metric int) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.RemoveRoute(ifaceName, destCIDR, gateway)
+	return b.RemoveRoute(ifaceName, destCIDR, gateway, metric)
 }
 
 func ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft int) error {
@@ -178,77 +178,6 @@ func BridgeSetSTP(bridge string, on bool) error {
 	return b.BridgeSetSTP(bridge, on)
 }
 
-func SetIPv4Forwarding(iface string, on bool) error {
-	b, err := backendOrErr()
-	if err != nil {
-		return err
-	}
-	return b.SetIPv4Forwarding(iface, on)
-}
-func SetIPv4ArpFilter(iface string, on bool) error {
-	b, err := backendOrErr()
-	if err != nil {
-		return err
-	}
-	return b.SetIPv4ArpFilter(iface, on)
-}
-func SetIPv4ArpAccept(iface string, on bool) error {
-	b, err := backendOrErr()
-	if err != nil {
-		return err
-	}
-	return b.SetIPv4ArpAccept(iface, on)
-}
-func SetIPv4ProxyARP(iface string, on bool) error {
-	b, err := backendOrErr()
-	if err != nil {
-		return err
-	}
-	return b.SetIPv4ProxyARP(iface, on)
-}
-func SetIPv4ArpAnnounce(iface string, lvl int) error {
-	b, err := backendOrErr()
-	if err != nil {
-		return err
-	}
-	return b.SetIPv4ArpAnnounce(iface, lvl)
-}
-func SetIPv4ArpIgnore(iface string, lvl int) error {
-	b, err := backendOrErr()
-	if err != nil {
-		return err
-	}
-	return b.SetIPv4ArpIgnore(iface, lvl)
-}
-func SetIPv4RPFilter(iface string, lvl int) error {
-	b, err := backendOrErr()
-	if err != nil {
-		return err
-	}
-	return b.SetIPv4RPFilter(iface, lvl)
-}
-func SetIPv6Autoconf(iface string, on bool) error {
-	b, err := backendOrErr()
-	if err != nil {
-		return err
-	}
-	return b.SetIPv6Autoconf(iface, on)
-}
-func SetIPv6AcceptRA(iface string, lvl int) error {
-	b, err := backendOrErr()
-	if err != nil {
-		return err
-	}
-	return b.SetIPv6AcceptRA(iface, lvl)
-}
-func SetIPv6Forwarding(iface string, on bool) error {
-	b, err := backendOrErr()
-	if err != nil {
-		return err
-	}
-	return b.SetIPv6Forwarding(iface, on)
-}
-
 func SetupMirror(src, dst string, ingress, egress bool) error {
 	b, err := backendOrErr()
 	if err != nil {
@@ -264,12 +193,6 @@ func RemoveMirror(src string) error {
 	}
 	return b.RemoveMirror(src)
 }
-
-// EnableSLAAC enables IPv6 SLAAC on an interface.
-func EnableSLAAC(iface string) error { return SetIPv6Autoconf(iface, true) }
-
-// DisableSLAAC disables IPv6 SLAAC on an interface.
-func DisableSLAAC(iface string) error { return SetIPv6Autoconf(iface, false) }
 
 // Monitor wraps the backend's monitoring capability.
 type Monitor struct {

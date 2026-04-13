@@ -84,6 +84,32 @@ func getEventBus() ze.EventBus {
 	return *p
 }
 
+// emitForwardingDefaults publishes forwarding sysctl defaults on the EventBus.
+// The sysctl plugin receives these and writes them to the kernel unless
+// the user has overridden them via config.
+func emitForwardingDefaults() {
+	eb := getEventBus()
+	if eb == nil {
+		logger().Warn("fib-kernel: no event bus, cannot emit forwarding defaults")
+		return
+	}
+	type sysctlDefault struct {
+		Key    string `json:"key"`
+		Value  string `json:"value"`
+		Source string `json:"source"`
+	}
+	for _, key := range []string{
+		"net.ipv4.conf.all.forwarding",
+		"net.ipv6.conf.all.forwarding",
+	} {
+		payload, _ := json.Marshal(sysctlDefault{Key: key, Value: "1", Source: "fib-kernel"})
+		if _, err := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlDefault, string(payload)); err != nil {
+			logger().Warn("fib-kernel: emit sysctl default failed", "key", key, "err", err)
+		}
+	}
+	logger().Info("fib-kernel: emitted forwarding defaults via sysctl")
+}
+
 // routeBackend abstracts OS-specific route programming.
 type routeBackend interface {
 	// addRoute installs a route in the OS routing table.

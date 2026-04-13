@@ -22,7 +22,7 @@ func init() {
 		Features:     "yang",
 		YANG:         fibschema.ZeFibConfYANG,
 		ConfigRoots:  []string{"fib.kernel"},
-		Dependencies: []string{"rib"},
+		Dependencies: []string{"rib", "sysctl"},
 		RunEngine:    runFIBKernelPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
@@ -93,6 +93,9 @@ func runFIBKernelPlugin(conn net.Conn) int {
 	})
 
 	p.OnStarted(func(ctx context.Context) error {
+		// Emit forwarding defaults via sysctl plugin.
+		emitForwardingDefaults()
+
 		// Startup sweep for crash recovery.
 		stale := f.startupSweep()
 

@@ -1,0 +1,36 @@
+module ze-sysctl-conf {
+    namespace "urn:ze:sysctl:conf";
+    prefix sysctl;
+
+    description
+        "Sysctl configuration for Ze.
+         Generic key/value list for kernel tunables.
+         Known keys get type/range validation; unknown keys
+         are validated by attempting the write on commit.";
+
+    revision 2026-04-13 {
+        description "Initial sysctl plugin schema.";
+    }
+
+    container sysctl {
+        description "Kernel tunable management.";
+
+        list setting {
+            key "name";
+            description
+                "A kernel tunable to set persistently.
+                 Uses kernel-native naming (e.g., net.ipv4.conf.all.forwarding).";
+
+            leaf name {
+                type string;
+                description "Kernel-native sysctl key name.";
+            }
+
+            leaf value {
+                type string;
+                mandatory true;
+                description "Value to set for this key.";
+            }
+        }
+    }
+}

@@ -40,7 +40,7 @@ func (s *stubBackend) AddAddress(_, _ string) error                           { 
 func (s *stubBackend) RemoveAddress(_, _ string) error                        { return unsupported() }
 func (s *stubBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) error { return unsupported() }
 func (s *stubBackend) AddRoute(_, _, _ string, _ int) error                   { return unsupported() }
-func (s *stubBackend) RemoveRoute(_, _, _ string) error                       { return unsupported() }
+func (s *stubBackend) RemoveRoute(_, _, _ string, _ int) error                { return unsupported() }
 func (s *stubBackend) SetAdminUp(_ string) error                              { return unsupported() }
 func (s *stubBackend) SetAdminDown(_ string) error                            { return unsupported() }
 func (s *stubBackend) SetMTU(_ string, _ int) error                           { return unsupported() }
@@ -52,16 +52,6 @@ func (s *stubBackend) GetInterface(_ string) (*iface.InterfaceInfo, error)    { 
 func (s *stubBackend) BridgeAddPort(_, _ string) error                        { return unsupported() }
 func (s *stubBackend) BridgeDelPort(_ string) error                           { return unsupported() }
 func (s *stubBackend) BridgeSetSTP(_ string, _ bool) error                    { return unsupported() }
-func (s *stubBackend) SetIPv4Forwarding(_ string, _ bool) error               { return unsupported() }
-func (s *stubBackend) SetIPv4ArpFilter(_ string, _ bool) error                { return unsupported() }
-func (s *stubBackend) SetIPv4ArpAccept(_ string, _ bool) error                { return unsupported() }
-func (s *stubBackend) SetIPv4ProxyARP(_ string, _ bool) error                 { return unsupported() }
-func (s *stubBackend) SetIPv4ArpAnnounce(_ string, _ int) error               { return unsupported() }
-func (s *stubBackend) SetIPv4ArpIgnore(_ string, _ int) error                 { return unsupported() }
-func (s *stubBackend) SetIPv4RPFilter(_ string, _ int) error                  { return unsupported() }
-func (s *stubBackend) SetIPv6Autoconf(_ string, _ bool) error                 { return unsupported() }
-func (s *stubBackend) SetIPv6AcceptRA(_ string, _ int) error                  { return unsupported() }
-func (s *stubBackend) SetIPv6Forwarding(_ string, _ bool) error               { return unsupported() }
 func (s *stubBackend) SetupMirror(_, _ string, _, _ bool) error               { return unsupported() }
 func (s *stubBackend) RemoveMirror(_ string) error                            { return unsupported() }
 func (s *stubBackend) StartMonitor(_ ze.EventBus) error                       { return unsupported() }
