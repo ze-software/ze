@@ -52,6 +52,7 @@ JunOS-style two-layer model: physical interfaces with logical units.
 | | Default route from DHCP Router option | have | |
 | | Route priority per unit (`route-priority`) | have | |
 | | Link-down route deprioritization (metric + 1024) | have | |
+| | IPv6 default route from RA with configurable metric | have | |
 | | DNS from DHCP to `/tmp/resolv.conf` | have | |
 | | Hostname in DHCPv4 (option 12) | have | |
 | | Client-ID in DHCPv4 (option 61) | have | |
@@ -59,9 +60,9 @@ JunOS-style two-layer model: physical interfaces with logical units.
 | | DHCPv6 proper Renew (not re-solicit) | missing | medium |
 | | DHCP relay | missing | lower |
 | | DHCP server | missing | lower |
-| **Monitoring** | Netlink multicast (link + addr) | have | |
+| **Monitoring** | Netlink multicast (link + addr + neigh) | have | |
 | | Virtual iface state detection | have | |
-| | 9 bus topics, JSON payloads | have | |
+| | 11 bus topics, JSON payloads | have | |
 | | Interface statistics/counters | have | |
 | | Persistent counter tracking | missing | medium |
 | **Per-Interface Tuning** | IPv4 forwarding | have | |

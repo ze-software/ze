@@ -490,14 +490,22 @@ discovered OS interfaces when editing config interactively.
 
 ### Route Priority
 
-The `route-priority` leaf on a unit sets the Linux route metric for DHCP-installed
-default routes on that interface. Lower values are preferred by the kernel. When a
-link goes down, the metric is increased by 1024 to deprioritize the interface,
-allowing traffic to shift to an alternative uplink. When the link comes back up,
-the original metric is restored.
+The `route-priority` leaf on a unit sets the Linux route metric for default routes
+on that interface. Lower values are preferred by the kernel. When a link goes down,
+the metric is increased by 1024 to deprioritize the interface, allowing traffic to
+shift to an alternative uplink. When the link comes back up, the original metric is
+restored.
+
+For IPv4, ze installs the default route with the configured metric when a DHCP lease
+provides a gateway. For IPv6, ze suppresses the kernel's automatic RA default route
+(`accept_ra_defrtr=0`) and installs `::/0` routes with the configured metric when
+NDP neighbor events indicate a router (NTF_ROUTER flag). Multiple routers on the
+same link are each installed with the same metric. On clean shutdown or config
+removal, `accept_ra_defrtr` is restored to 1.
 
 <!-- source: internal/component/iface/schema/ze-iface-conf.yang -- route-priority leaf -->
-<!-- source: internal/component/iface/register.go -- handleLinkDown, handleLinkUp -->
+<!-- source: internal/component/iface/register.go -- handleLinkDown, handleLinkUp, handleLinkDownIPv6, handleLinkUpIPv6 -->
+<!-- source: internal/component/iface/register.go -- suppressAcceptRaDefrtr, handleRouterDiscovered -->
 
 ```
 interface {

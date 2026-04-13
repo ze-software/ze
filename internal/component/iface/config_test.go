@@ -2034,3 +2034,200 @@ func TestSuppressRAForConfigNoRoutePriority(t *testing.T) {
 	assert.Empty(t, eb.emissions, "should not emit any sysctl events")
 	assert.Empty(t, suppressed, "should not suppress any interfaces")
 }
+
+// TestSuppressRAForConfigWithRoutePriority verifies that interfaces with
+// route-priority > 0 get accept_ra_defrtr suppressed.
+//
+// VALIDATES: AC-1 - route-priority triggers suppression.
+// PREVENTS: suppressRAForConfig silently skipping valid interfaces.
+func TestSuppressRAForConfigWithRoutePriority(t *testing.T) {
+	eb := &testEventBus{}
+	suppressed := make(map[string]bool)
+	routers := make(map[routerKey]routerEntry)
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {
+							"route-priority": "5",
+							"address": ["10.0.0.1/24"]
+						}
+					}
+				}
+			}
+		}
+	}`)
+	logger := slog.Default()
+
+	suppressRAForConfig(cfg, suppressed, routers, eb, logger)
+
+	require.Len(t, eb.emissions, 1, "should emit one sysctl event")
+	assert.Contains(t, eb.emissions[0].data, `"value":"0"`)
+	assert.True(t, suppressed["eth0"])
+}
+
+// TestSuppressRAForConfigRestore verifies that removing route-priority from
+// config restores accept_ra_defrtr on previously suppressed interfaces.
+//
+// VALIDATES: AC-10 - Config reload removes route-priority, sysctl restored.
+// PREVENTS: Suppression never lifted after config change.
+func TestSuppressRAForConfigRestore(t *testing.T) {
+	_ = setupFakeBackendForTest(t)
+	eb := &testEventBus{}
+	suppressed := map[string]bool{"eth0": true}
+	routers := map[routerKey]routerEntry{
+		{ifaceName: "eth0", routerIP: "fe80::1"}: {metric: 5},
+	}
+	// Config with NO route-priority.
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"0": {
+							"address": ["10.0.0.1/24"]
+						}
+					}
+				}
+			}
+		}
+	}`)
+	logger := slog.Default()
+
+	suppressRAForConfig(cfg, suppressed, routers, eb, logger)
+
+	require.Len(t, eb.emissions, 1, "should emit restore sysctl event")
+	assert.Contains(t, eb.emissions[0].data, `"value":"1"`)
+	assert.Empty(t, suppressed, "interface should no longer be suppressed")
+	assert.Empty(t, routers, "router entries should be cleaned up")
+}
+
+// TestLinkDownIPv6MultipleRouters verifies that link-down deprioritizes
+// all routers on the same interface.
+//
+// VALIDATES: AC-4 + AC-7 combined - all routers deprioritized on carrier loss.
+// PREVENTS: Only first router deprioritized, others left at normal metric.
+func TestLinkDownIPv6MultipleRouters(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	routers := map[routerKey]routerEntry{
+		{ifaceName: "eth0", routerIP: "fe80::1"}: {metric: 5},
+		{ifaceName: "eth0", routerIP: "fe80::2"}: {metric: 5},
+	}
+	logger := slog.Default()
+
+	handleLinkDownIPv6("eth0", routers, logger)
+
+	assert.Len(t, fb.routeRemoves, 2, "should remove both routes")
+	assert.Len(t, fb.routeAdds, 2, "should add both deprioritized routes")
+}
+
+// TestRouterLostUnknown verifies that a RouterLost event for an untracked
+// router is a silent no-op.
+//
+// VALIDATES: Defensive handling of unknown router events.
+// PREVENTS: Panic or error on RouterLost for router not in activeRouters.
+func TestRouterLostUnknown(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	routers := make(map[routerKey]routerEntry)
+	logger := slog.Default()
+
+	handleRouterLost(`{"name":"eth0","router-ip":"fe80::99"}`, routers, logger)
+
+	assert.Empty(t, fb.routeRemoves, "should not attempt to remove unknown route")
+}
+
+// TestSuppressIdempotent verifies that calling suppress twice only emits once.
+//
+// VALIDATES: Idempotent suppression.
+// PREVENTS: Double sysctl write and double stale cleanup.
+func TestSuppressIdempotent(t *testing.T) {
+	eb := &testEventBus{}
+	suppressed := make(map[string]bool)
+	logger := slog.Default()
+
+	suppressAcceptRaDefrtr("eth0", suppressed, eb, logger)
+	suppressAcceptRaDefrtr("eth0", suppressed, eb, logger)
+
+	require.Len(t, eb.emissions, 1, "second call should be no-op")
+}
+
+// TestRestoreNotSuppressed verifies that restoring a non-suppressed
+// interface is a silent no-op.
+//
+// VALIDATES: Defensive handling of restore on clean interface.
+// PREVENTS: Spurious sysctl write or route removal.
+func TestRestoreNotSuppressed(t *testing.T) {
+	eb := &testEventBus{}
+	suppressed := make(map[string]bool)
+	routers := make(map[routerKey]routerEntry)
+	logger := slog.Default()
+
+	restoreAcceptRaDefrtr("eth0", suppressed, routers, eb, logger)
+
+	assert.Empty(t, eb.emissions, "should not emit anything")
+}
+
+// TestRoutePriorityForInterfaceMultiUnit verifies that the first non-zero
+// route-priority is returned when multiple units exist.
+//
+// VALIDATES: Multi-unit interface returns a valid metric.
+// PREVENTS: Zero returned when a non-zero route-priority exists.
+func TestRoutePriorityForInterfaceMultiUnit(t *testing.T) {
+	active := map[dhcpUnitKey]dhcpEntry{
+		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{routePriority: 0}},
+		{ifaceName: "eth0", unit: 1}: {params: dhcpParams{routePriority: 7}},
+	}
+
+	result := routePriorityForInterface("eth0", active)
+	assert.Equal(t, 7, result, "should return the non-zero route-priority")
+}
+
+// TestRoutePriorityForInterfaceNoMatch verifies that an unknown interface
+// returns 0.
+//
+// VALIDATES: Unknown interface returns zero (kernel default).
+// PREVENTS: Non-zero metric for unconfigured interface.
+func TestRoutePriorityForInterfaceNoMatch(t *testing.T) {
+	active := map[dhcpUnitKey]dhcpEntry{
+		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{routePriority: 5}},
+	}
+
+	result := routePriorityForInterface("eth1", active)
+	assert.Equal(t, 0, result, "unknown interface should return 0")
+}
+
+// TestRouterDiscoveredBadJSON verifies that malformed JSON is silently ignored.
+//
+// VALIDATES: Defensive JSON parsing.
+// PREVENTS: Panic on malformed event bus payload.
+func TestRouterDiscoveredBadJSON(t *testing.T) {
+	_ = setupFakeBackendForTest(t)
+	routers := make(map[routerKey]routerEntry)
+	active := map[dhcpUnitKey]dhcpEntry{
+		{ifaceName: "eth0", unit: 0}: {params: dhcpParams{routePriority: 5}},
+	}
+	logger := slog.Default()
+
+	handleRouterDiscovered("not json", routers, active, logger)
+	handleRouterDiscovered(`{"name":"","router-ip":"fe80::1"}`, routers, active, logger)
+	handleRouterDiscovered(`{"name":"eth0","router-ip":""}`, routers, active, logger)
+
+	assert.Empty(t, routers, "should not track any router from bad input")
+}
+
+// TestLinkDownIPv6NoRouters verifies that link-down with no IPv6 routers
+// is a silent no-op.
+//
+// VALIDATES: Defensive handling of link-down without IPv6 state.
+// PREVENTS: Panic or error when no IPv6 routers exist.
+func TestLinkDownIPv6NoRouters(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	routers := make(map[routerKey]routerEntry)
+	logger := slog.Default()
+
+	handleLinkDownIPv6("eth0", routers, logger)
+
+	assert.Empty(t, fb.routeRemoves, "should not attempt any route changes")
+	assert.Empty(t, fb.routeAdds, "should not attempt any route changes")
+}
