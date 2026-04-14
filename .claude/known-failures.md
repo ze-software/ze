@@ -503,3 +503,11 @@ behavior. Verified with `bin/ze-test bgp plugin U V W X Y Z a b` ->
 **Remaining failure on bestpath-reason after the expect=EoR fix:** `expected 2+ candidates, got 1: ['10.0.0.99']`. The test injects a second route via `bgp rib inject` and queries `bgp rib show best reason`, expecting both the peer's UPDATE and the injected route as candidates. Only the injected one appears. Either (a) the peer's UPDATE never reaches `bgp-rib` (bgp-rib plugin doesn't auto-subscribe to UPDATE events, test config only sets `send [update]` which is plugin->ze, not ze->plugin), or (b) the `best reason` endpoint filters out the peer's path. Not traced.
 
 **Parked.** Full mechanical fix would be: add `expect=bgp:...EoR` to every file in the list, then debug each test's secondary assertions (RIB candidate counts, multipath behaviour, RR forwarding, nexthop rewrites). Each is a distinct investigation.
+
+## test/plugin/show-errors-received (flake) -- LOGGED 2026-04-14
+
+**File:** `test/plugin/show-errors-received.ci` (test index 250 in `bin/ze-test bgp plugin`)
+**Symptom:** Observer reports `ZE-OBSERVER-FAIL: unexpected error: no response for ze-plugin-engine:dispatch-command`. First `make ze-verify` run failed here; immediate retry passed with 37/37.
+**Reproduction:** Not reliable -- occurred once during phase-2 l2tp-reliable implementation session, not on retry.
+**Hypothesis:** The observer dispatches a `dispatch-command` event to `ze-plugin-engine` and awaits a response within a timeout. Under load (full `ze-verify` runs many other suites concurrently), the dispatch response may not arrive in time. The observer protocol likely needs a longer per-call timeout, or the test needs to gate on a readiness signal before dispatching.
+**Parked.** Orthogonal to L2TP phase-2 work. Investigation needs a grep of `dispatch-command` handling in `ze-plugin-engine` and the observer's timeout config. Estimated 15-30 min.

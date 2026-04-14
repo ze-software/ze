@@ -95,3 +95,72 @@ response-bearing message: 2 for SCCRP, 3 for SCCCN. Verification uses
 header and AVPs. See `docs/guide/command-reference.md`.
 
 <!-- source: cmd/ze/l2tp/decode.go — decode subcommand -->
+
+## Reliable delivery engine
+
+Phase 2 (see `plan/learned/NNN-l2tp-2-reliable.md`) adds the reliable
+delivery engine on top of the wire layer. The engine implements RFC 2661
+Section 5.8 (Ns/Nr sequencing, exponential-backoff retransmission, duplicate
+detection, post-teardown retention) and Appendix A (slow start / congestion
+avoidance).
+
+<!-- source: internal/component/l2tp/reliable.go — ReliableEngine type and public API -->
+
+### Package surface (phase 2 additions)
+
+| Area | File | Key symbols |
+|------|------|-------------|
+| Engine | `reliable.go` | `ReliableEngine`, `ReliableConfig`, `Classification`, `RecvEntry`, `ReceiveResult`, `TickResult`, `NewReliableEngine`, `Enqueue`, `OnReceive`, `UpdatePeerRWS`, `Tick`, `NextDeadline`, `NeedsZLB`, `BuildZLB`, `Close`, `Expired`, `ErrEngineClosed`, `ErrBodyTooLarge`, `ErrSendQueueFull`, `MaxSendQueueDepth` |
+| Sequence | `reliable_seq.go` | `seqBefore`, `retentionDuration`, `DefaultRTimeout`, `DefaultRTimeoutCap`, `DefaultMaxRetransmit`, `DefaultPeerRcvWindow`, `DefaultRecvWindow`, `RecvWindowMax` |
+| Congestion | `reliable_window.go` | internal `window` struct (CWND/SSTHRESH/fractional counter) |
+| Reorder buffer | `reliable_reorder.go` | internal `reorderQueue` ring buffer |
+
+<!-- source: internal/component/l2tp/reliable_seq.go — seqBefore and retention math -->
+
+### Engine lifecycle
+
+| Event | Engine action |
+|-------|---------------|
+| `NewReliableEngine(cfg)` | Allocates state. CWND=1, SSTHRESH=peerRWS, Ns=Nr=0, no deadlines. |
+| `Enqueue(sid, body, now)` | Constructs header (Ns=nextSendSeq++, Nr=nextRecvSeq), appends to rtms_queue if window allows, else to send_queue (bounded by `MaxSendQueueDepth`). |
+| `OnReceive(hdr, payload, now)` | Classifies (InOrder/Duplicate/ReorderQueued/Discarded/ZLB/DataMessage). Advances peer_Nr from hdr.Nr, clears acked entries, grows CWND, drains send_queue. |
+| `UpdatePeerRWS(size, now)` | Updates the peer's advertised window mid-tunnel. Drains send_queue if the cap grew. |
+| `Tick(now)` | If now >= deadline and rtms_queue non-empty: rewrites Nr in each entry's bytes at offset 10-11, halves SSTHRESH, resets CWND to 1, doubles rtimeout up to cap. Returns TeardownRequired on max_retransmit exceeded. |
+| `BuildZLB(buf, off)` | Writes a 12-byte header with Ns=nextSendSeq (unchanged) and Nr=nextRecvSeq. Clears needsZLB. |
+| `Close(now)` | Transitions to closed; subsequent Enqueue returns ErrEngineClosed. OnReceive still classifies and BuildZLB still works during retention. |
+| `Expired(now)` | Returns true once now is at least `retentionDuration(rtimeout, cap, maxRetransmit)` past closedAt. Default schedule yields 31s retention. |
+
+<!-- source: internal/component/l2tp/reliable.go — ReliableEngine methods -->
+
+### Classification
+
+| Class | Trigger | Engine state change | ACK required |
+|-------|---------|---------------------|--------------|
+| `ClassDelivered` | hdr.Ns == nextRecvSeq | nextRecvSeq++, drains reorder queue | Yes (via needsZLB) |
+| `ClassDuplicate` | seqBefore(hdr.Ns, nextRecvSeq) | None | Yes (RFC 2661 S5.8 MUST) |
+| `ClassReorderQueued` | hdr.Ns > nextRecvSeq within window | Buffered in reorder queue | No (Nr did not advance) |
+| `ClassDiscarded` | hdr.Ns > nextRecvSeq beyond window | None | No |
+| `ClassZLB` | len(payload) == 0 | Nr processed | No (no ACK-of-ACK) |
+| `ClassDataMessage` | hdr.IsControl == false | None (RFC 2661 trap 24.4: Nr reserved in data) | No |
+
+### Concurrency
+
+Engine is NOT safe for concurrent use. Phase 3's reactor owns one engine
+per tunnel and serializes all method calls on its own goroutine. A
+shared timer goroutine aggregates `NextDeadline()` values across tunnels
+in a min-heap and calls `Tick(now)` on the owning tunnel when its
+deadline expires. No locks are taken inside the engine.
+
+### Memory ownership
+
+| Buffer | Owned by | Lifetime |
+|--------|----------|----------|
+| `Enqueue`'s `body` | Caller before Enqueue; copied into engine's rtms_entry | Caller may reuse after Enqueue returns |
+| `Enqueue`'s return (when window open) | Engine (same slice as rtms_entry bytes) | Valid until next engine method call that mutates rtms_queue |
+| `Tick`'s return slice | Engine (slices of rtms_entry bytes) | Valid until next Tick |
+| `OnReceive`'s `payload` | Caller | Engine reads during call; copies into reorder buffer only if queued |
+| `RecvEntry.Payload` for in-order delivery | Caller's OnReceive buffer | Caller must process before next engine call |
+| `RecvEntry.Payload` for gap-fill delivery | Engine's reorder buffer copy | Valid until next engine call |
+| `BuildZLB`'s `buf` | Caller | Engine writes, does not retain |
+
+<!-- source: internal/component/l2tp/reliable.go — ownership contract in godoc -->
