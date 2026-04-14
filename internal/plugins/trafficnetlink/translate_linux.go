@@ -30,8 +30,7 @@ func translateQdisc(q traffic.Qdisc, linkIdx int) (netlink.Qdisc, error) {
 		return &netlink.Htb{
 			QdiscAttrs: attrs,
 			Defcls:     findDefaultClassMinor(q),
-			DirectPkts: 0,
-			DirectQlen: 0,
+			DirectQlen: nil,
 		}, nil
 	case traffic.QdiscHFSC:
 		return &netlink.Hfsc{

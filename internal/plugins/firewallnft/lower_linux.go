@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
+	"golang.org/x/sys/unix"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
 )
@@ -56,24 +57,32 @@ func raiseFamily(f nftables.TableFamily) firewall.TableFamily {
 }
 
 func lowerHook(h firewall.ChainHook) *nftables.ChainHook {
-	var hook nftables.ChainHook
 	switch h {
 	case firewall.HookInput:
-		hook = nftables.ChainHookInput
+		return nftables.ChainHookInput
 	case firewall.HookOutput:
-		hook = nftables.ChainHookOutput
+		return nftables.ChainHookOutput
 	case firewall.HookForward:
-		hook = nftables.ChainHookForward
+		return nftables.ChainHookForward
 	case firewall.HookPrerouting:
-		hook = nftables.ChainHookPrerouting
+		return nftables.ChainHookPrerouting
 	case firewall.HookPostrouting:
-		hook = nftables.ChainHookPostrouting
+		return nftables.ChainHookPostrouting
 	case firewall.HookIngress:
-		hook = nftables.ChainHookIngress
+		return nftables.ChainHookIngress
 	case firewall.HookEgress:
-		hook = *nftables.ChainHookRef(nftables.ChainHook(4)) // NF_NETDEV_EGRESS=4
+		return nftables.ChainHookEgress
 	}
-	return nftables.ChainHookRef(hook)
+	return nftables.ChainHookIngress
+}
+
+func lowerFlowtableHook(h firewall.ChainHook) *nftables.FlowtableHook {
+	switch h {
+	case firewall.HookIngress:
+		return nftables.FlowtableHookIngress
+	}
+	// Flowtables only support ingress; fall back to ingress for any other value.
+	return nftables.FlowtableHookIngress
 }
 
 func lowerChainType(ct firewall.ChainType) nftables.ChainType {
@@ -326,14 +335,14 @@ func lowerDSCPMatch(value uint8) ([]expr.Any, error) {
 
 func lowerReject(r firewall.Reject) ([]expr.Any, error) {
 	rej := &expr.Reject{
-		Type: expr.RejectTypeICMPUnreach,
+		Type: unix.NFT_REJECT_ICMP_UNREACH,
 		Code: uint8(r.Code),
 	}
 	switch r.Type {
 	case "tcp-reset":
-		rej.Type = expr.RejectTypeTCPRST
+		rej.Type = unix.NFT_REJECT_TCP_RST
 	case "icmpv6":
-		rej.Type = expr.RejectTypeICMP6Unreach
+		rej.Type = unix.NFT_REJECT_ICMPX_UNREACH
 	}
 	return []expr.Any{rej}, nil
 }
@@ -404,7 +413,7 @@ func lowerSetMark(value, mask uint32) ([]expr.Any, error) {
 		// Actually, nftables handles this via two immediate+bitwise. The kernel
 		// expression for "mark set value/mask" is simpler: use Meta(MARK) read,
 		// Bitwise(mask=~mask, xor=value&mask), Meta(MARK) write.
-		&expr.Meta{Key: expr.MetaKeyMARK, SourceRegister: 1, Register: 1},
+		&expr.Meta{Key: expr.MetaKeyMARK, SourceRegister: true, Register: 1},
 	}, nil
 }
 

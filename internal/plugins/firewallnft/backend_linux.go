@@ -149,7 +149,7 @@ func (b *backend) applySet(t *nftables.Table, s *firewall.Set) error {
 }
 
 func (b *backend) applyFlowtable(t *nftables.Table, ft *firewall.Flowtable) error {
-	hooknum := lowerHook(ft.Hook)
+	hooknum := lowerFlowtableHook(ft.Hook)
 	b.conn.AddFlowtable(&nftables.Flowtable{
 		Table:    t,
 		Name:     ft.Name,
