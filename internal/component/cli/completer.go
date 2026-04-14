@@ -864,8 +864,20 @@ func (c *Completer) entryDescription(entry *gyang.Entry) string {
 	return desc
 }
 
-// confModules lists the YANG config modules to search for schema entries.
-var confModules = []string{"ze-bgp-conf", "ze-hub-conf", "ze-plugin-conf", "ze-web-conf"}
+// confModuleNames returns all loaded YANG config module names (ending in "-conf").
+func (c *Completer) confModuleNames() []string {
+	if c.loader == nil {
+		return nil
+	}
+	var names []string
+	for _, name := range c.loader.ModuleNames() {
+		if strings.HasSuffix(name, "-conf") {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
 
 // getEntry returns the YANG entry at the given path.
 // Handles list keys by skipping key values (e.g., "peer", "1.1.1.1" → navigate to peer list children).
@@ -922,7 +934,7 @@ func (c *Completer) mergedRoot() *gyang.Entry {
 		Kind: gyang.DirectoryEntry,
 		Dir:  make(map[string]*gyang.Entry),
 	}
-	for _, modName := range confModules {
+	for _, modName := range c.confModuleNames() {
 		modEntry := c.loader.GetEntry(modName)
 		if modEntry == nil || modEntry.Dir == nil {
 			continue
@@ -938,7 +950,7 @@ func (c *Completer) mergedRoot() *gyang.Entry {
 // findModuleEntry searches all config modules for a top-level child by name,
 // returning the child entry (not the module root).
 func (c *Completer) findModuleEntry(name string) *gyang.Entry {
-	for _, modName := range confModules {
+	for _, modName := range c.confModuleNames() {
 		modEntry := c.loader.GetEntry(modName)
 		if modEntry == nil || modEntry.Dir == nil {
 			continue

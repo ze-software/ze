@@ -63,8 +63,17 @@ type AnalysisNode struct {
 	Children    map[string]*AnalysisNode
 }
 
-// confModules lists the YANG config modules to search (same as cli/completer.go).
-var confModules = []string{"ze-bgp-conf", "ze-hub-conf", "ze-plugin-conf", "ze-web-conf"}
+// confModuleNames returns all loaded YANG config module names (ending in "-conf").
+func confModuleNames(loader *yang.Loader) []string {
+	var names []string
+	for _, name := range loader.ModuleNames() {
+		if strings.HasSuffix(name, "-conf") {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
 
 // BuildUnifiedTree loads YANG schemas and RPC registrations, then merges
 // config entries and command entries into a single analysis tree.
@@ -91,7 +100,7 @@ func addConfigNodes(root *AnalysisNode) error {
 		return fmt.Errorf("YANG loader: %w", err)
 	}
 
-	for _, modName := range confModules {
+	for _, modName := range confModuleNames(loader) {
 		entry := loader.GetEntry(modName)
 		if entry == nil || entry.Dir == nil {
 			continue
