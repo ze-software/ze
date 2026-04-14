@@ -18,6 +18,13 @@
 | Implement an RFC | `rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
 | Write a spec | `rules/planning.md` | `plan/TEMPLATE.md` |
 
+## Dev Tools
+
+| Tool | Location | Purpose |
+|------|----------|---------|
+| `go_extract.go` | `scripts/dev/` | Move Go symbols between files |
+| `replace.py` | `scripts/dev/` | Bulk find-and-replace with diff preview (run without `--apply` to review, then `--apply` to write). Supports `--regex` and `--all`. |
+
 ## Pattern Cookbooks
 
 Mechanical recipes for creating common artifacts. Read before coding.

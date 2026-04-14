@@ -10,7 +10,7 @@ Rationale: `.claude/rationale/before-writing-code.md`
 [ ] 4. Verify file paths exist (Glob/Grep)
 [ ] 5. Buffer-first check (wire encoding) — see `rules/buffer-first.md`
 [ ] 6. Lazy-first check — can the consumer use existing wire type methods directly? See `design-principles.md` "Lazy over eager"
-[ ] 7. Bulk-edit check — modifying >2 files with the same pattern? Change ONE first, test it, confirm it works, THEN apply to the rest. Never assume a pattern works across files without validation.
+[ ] 7. Bulk-edit check — modifying >2 files with the same pattern? Change ONE first, test it, confirm it works, THEN apply to the rest with `scripts/dev/replace.py` (preview diff before `--apply`). Never assume a pattern works across files without validation.
 [ ] 8. Sibling call-site audit — when adding a guard/fallback/retry to ONE call site of a function, grep all OTHER call sites of that function and apply the same change in the same commit. See "Sibling Call-Site Audit" below.
 ```
 
