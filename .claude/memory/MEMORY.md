@@ -25,6 +25,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 ## Feedback (workflow)
 
 - [feedback_workflow_cycle.md](feedback_workflow_cycle.md) - Standard cycle: /ze-implement -> work -> /ze-review -> fix -> /ze-commit -> repeat
+- [feedback_verify_specs_against_code.md](feedback_verify_specs_against_code.md) - Never trust spec "What Remains"; grep code before reporting progress
 
 ## Feedback (testing)
 
