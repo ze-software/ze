@@ -69,8 +69,8 @@ func StreamEventMonitor(ctx context.Context, s *Server, w io.Writer, _ string, a
 	}
 }
 
-// excludedFromMonitor contains entries in ValidBgpEvents that are not event
-// types but rather config flags (e.g., "sent" is a direction, not an event).
+// excludedFromMonitor contains entries in the BGP event namespace that are not
+// event types but rather config flags (e.g., "sent" is a direction, not an event).
 var excludedFromMonitor = map[string]bool{
 	events.DirectionSent: true,
 }

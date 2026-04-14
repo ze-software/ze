@@ -115,7 +115,7 @@ func TestValidatePluginName(t *testing.T) {
 // VALIDATES: every string in ReservedPluginNames collides with at least one
 // broadcast/ack event type, and conversely every broadcast/ack event type
 // that uses a "<base>-<suffix>" shape has its suffix in ReservedPluginNames.
-// PREVENTS: ReservedPluginNames drifting out of sync with ValidConfigEvents
+// PREVENTS: ReservedPluginNames drifting out of sync with config event types
 // after a new ack/broadcast event type is added in a future phase.
 func TestReservedPluginNamesMatchValidEvents(t *testing.T) {
 	bases := []string{EventVerify, EventApply, EventRollback}
@@ -131,7 +131,7 @@ func TestReservedPluginNamesMatchValidEvents(t *testing.T) {
 			}
 		}
 		if !collided {
-			t.Errorf("ReservedPluginNames has %q but it does not collide with any ValidConfigEvents entry", reserved)
+			t.Errorf("ReservedPluginNames has %q but it does not collide with any config event type", reserved)
 		}
 	}
 

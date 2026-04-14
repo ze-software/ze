@@ -178,7 +178,7 @@ func TestBuildEventMonitorSubscriptionsDefault(t *testing.T) {
 	// Must include RIB types too.
 	assert.Contains(t, types, "cache", "should include rib cache")
 	assert.Contains(t, types, "route", "should include rib route")
-	// Must NOT include "sent" (it's a direction flag in ValidBgpEvents, not an event type).
+	// Must NOT include "sent" (it's a direction flag in the BGP namespace, not an event type).
 	assert.NotContains(t, types, "sent", "sent is a direction, not an event type")
 }
 

@@ -37,7 +37,8 @@ func init() {
 		bgpevents.EventKeepalive, bgpevents.EventRefresh, bgpevents.EventState,
 		bgpevents.EventNegotiated, bgpevents.EventEOR, bgpevents.EventCongested,
 		bgpevents.EventResumed, bgpevents.EventRPKI, bgpevents.EventListenerReady,
-		bgpevents.EventUpdateNotification, events.DirectionSent,
+		bgpevents.EventUpdateNotification,
+		events.DirectionSent, // "sent" is a config receive flag, not a true event type
 	)
 
 	reg := registry.Registration{

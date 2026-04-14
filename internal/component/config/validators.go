@@ -25,7 +25,7 @@ import (
 var baseSendTypes = []string{"update", "refresh"}
 
 // ReceiveEventValidator returns a validator that checks if a value is a valid event type
-// for the receive leaf-list. Queries ValidBgpEvents at call time so it reflects
+// for the receive leaf-list. Queries the BGP event namespace at call time so it reflects
 // plugin-registered event types (e.g., "update-rpki").
 func ReceiveEventValidator() yang.CustomValidator {
 	return yang.CustomValidator{
@@ -76,7 +76,7 @@ func SendMessageValidator() yang.CustomValidator {
 	}
 }
 
-// allBGPEventNames returns sorted BGP event type names from the ValidBgpEvents map.
+// allBGPEventNames returns sorted BGP event type names from the event registry.
 func allBGPEventNames() []string {
 	raw := events.ValidEventNames(bgpevents.Namespace)
 	if raw == "" {

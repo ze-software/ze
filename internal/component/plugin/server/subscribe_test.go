@@ -10,6 +10,7 @@ import (
 	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 // =============================================================================
@@ -23,9 +24,9 @@ import (
 func TestParseSubscriptionBasic(t *testing.T) {
 	sub, err := ParseSubscription([]string{"bgp", "event", "update"})
 	require.NoError(t, err)
-	assert.Equal(t, "bgp", sub.Namespace)
-	assert.Equal(t, "update", sub.EventType)
-	assert.Equal(t, "both", sub.Direction)
+	assert.Equal(t, bgpevents.Namespace, sub.Namespace)
+	assert.Equal(t, bgpevents.EventUpdate, sub.EventType)
+	assert.Equal(t, events.DirectionBoth, sub.Direction)
 	assert.Nil(t, sub.PeerFilter)
 	assert.Empty(t, sub.PluginFilter)
 }
@@ -37,8 +38,8 @@ func TestParseSubscriptionBasic(t *testing.T) {
 func TestParseSubscriptionWithPeer(t *testing.T) {
 	sub, err := ParseSubscription([]string{"peer", "10.0.0.1", "bgp", "event", "update"})
 	require.NoError(t, err)
-	assert.Equal(t, "bgp", sub.Namespace)
-	assert.Equal(t, "update", sub.EventType)
+	assert.Equal(t, bgpevents.Namespace, sub.Namespace)
+	assert.Equal(t, bgpevents.EventUpdate, sub.EventType)
 	require.NotNil(t, sub.PeerFilter)
 	assert.Equal(t, "10.0.0.1", sub.PeerFilter.Selector)
 }
@@ -109,9 +110,9 @@ func TestParseSubscriptionWithDirection(t *testing.T) {
 func TestParseSubscriptionFull(t *testing.T) {
 	sub, err := ParseSubscription([]string{"peer", "10.0.0.1", "bgp", "event", "update", "direction", "sent"})
 	require.NoError(t, err)
-	assert.Equal(t, "bgp", sub.Namespace)
-	assert.Equal(t, "update", sub.EventType)
-	assert.Equal(t, "sent", sub.Direction)
+	assert.Equal(t, bgpevents.Namespace, sub.Namespace)
+	assert.Equal(t, bgpevents.EventUpdate, sub.EventType)
+	assert.Equal(t, events.DirectionSent, sub.Direction)
 	require.NotNil(t, sub.PeerFilter)
 	assert.Equal(t, "10.0.0.1", sub.PeerFilter.Selector)
 }
@@ -241,91 +242,91 @@ func TestSubscriptionMatches(t *testing.T) {
 	}{
 		{
 			name:      "exact_match",
-			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both"},
+			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth},
 			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1",
 			want: true,
 		},
 		{
 			name:      "direction_received_match",
-			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "received"},
+			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionReceived},
 			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1",
 			want: true,
 		},
 		{
 			name:      "direction_received_no_match",
-			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "received"},
+			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionReceived},
 			namespace: "bgp", eventType: "update", direction: "sent", peer: "10.0.0.1",
 			want: false,
 		},
 		{
 			name:      "namespace_mismatch",
-			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both"},
+			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth},
 			namespace: "bgp-rib", eventType: "update", direction: "received", peer: "10.0.0.1",
 			want: false,
 		},
 		{
 			name:      "event_mismatch",
-			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both"},
+			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth},
 			namespace: "bgp", eventType: "state", direction: "received", peer: "10.0.0.1",
 			want: false,
 		},
 		{
 			name:      "peer_filter_match",
-			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "10.0.0.1"}},
+			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "10.0.0.1"}},
 			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1",
 			want: true,
 		},
 		{
 			name:      "peer_filter_no_match",
-			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "10.0.0.1"}},
+			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "10.0.0.1"}},
 			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.2",
 			want: false,
 		},
 		{
 			name:      "peer_glob_match",
-			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "*"}},
+			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "*"}},
 			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1",
 			want: true,
 		},
 		{
 			name:      "peer_exclude_match",
-			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "!10.0.0.1"}},
+			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "!10.0.0.1"}},
 			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.2",
 			want: true,
 		},
 		{
 			name:      "peer_exclude_no_match",
-			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "!10.0.0.1"}},
+			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "!10.0.0.1"}},
 			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1",
 			want: false,
 		},
 		{
 			name:      "peer_name_match",
-			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "upstream-1"}},
+			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "upstream-1"}},
 			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1", peerName: "upstream-1",
 			want: true,
 		},
 		{
 			name:      "peer_name_no_match",
-			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "upstream-1"}},
+			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "upstream-1"}},
 			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1", peerName: "downstream-2",
 			want: false,
 		},
 		{
 			name:      "peer_name_exclude_by_name",
-			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "!upstream-1"}},
+			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "!upstream-1"}},
 			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1", peerName: "upstream-1",
 			want: false,
 		},
 		{
 			name:      "peer_name_exclude_passes",
-			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "!upstream-1"}},
+			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "!upstream-1"}},
 			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1", peerName: "downstream-2",
 			want: true,
 		},
 		{
 			name:      "peer_ip_filter_matches_addr_not_name",
-			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "10.0.0.1"}},
+			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "10.0.0.1"}},
 			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1", peerName: "upstream-1",
 			want: true,
 		},
@@ -351,7 +352,7 @@ func TestSubscriptionManagerAddRemove(t *testing.T) {
 	sm := NewSubscriptionManager()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test"})
 
-	sub := &Subscription{Namespace: "bgp", EventType: "update", Direction: "both"}
+	sub := &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth}
 
 	// Add subscription
 	sm.Add(proc, sub)
@@ -379,13 +380,13 @@ func TestSubscriptionManagerGetMatching(t *testing.T) {
 	proc3 := process.NewProcess(plugin.PluginConfig{Name: "proc3"})
 
 	// proc1 subscribes to updates
-	sm.Add(proc1, &Subscription{Namespace: "bgp", EventType: "update", Direction: "both"})
+	sm.Add(proc1, &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth})
 
 	// proc2 subscribes to state
-	sm.Add(proc2, &Subscription{Namespace: "bgp", EventType: "state", Direction: "both"})
+	sm.Add(proc2, &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventState, Direction: events.DirectionBoth})
 
 	// proc3 subscribes to updates from specific peer
-	sm.Add(proc3, &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "10.0.0.1"}})
+	sm.Add(proc3, &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "10.0.0.1"}})
 
 	// Update from 10.0.0.1 should match proc1 and proc3
 	matches := sm.GetMatching(bgpevents.Namespace, "update", "received", "10.0.0.1", "")
@@ -419,9 +420,9 @@ func TestSubscriptionManagerConcurrency(t *testing.T) {
 		wg.Go(func() {
 			for range iterations {
 				sm.Add(proc, &Subscription{
-					Namespace: "bgp",
-					EventType: "update",
-					Direction: "both",
+					Namespace: bgpevents.Namespace,
+					EventType: bgpevents.EventUpdate,
+					Direction: events.DirectionBoth,
 				})
 			}
 		})
@@ -448,8 +449,8 @@ func TestSubscriptionManagerClearProcess(t *testing.T) {
 	sm := NewSubscriptionManager()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test"})
 
-	sm.Add(proc, &Subscription{Namespace: "bgp", EventType: "update", Direction: "both"})
-	sm.Add(proc, &Subscription{Namespace: "bgp", EventType: "state", Direction: "both"})
+	sm.Add(proc, &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth})
+	sm.Add(proc, &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventState, Direction: events.DirectionBoth})
 	assert.Equal(t, 2, sm.Count(proc))
 
 	sm.ClearProcess(proc)
