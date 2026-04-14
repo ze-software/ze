@@ -113,10 +113,14 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/firewallnft"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacedhcp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacevpp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ntp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/trafficnetlink"
+
+	// Event namespace packages -- events.RegisterNamespace registration.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
 
 	// RPC command packages -- pluginserver.RegisterRPCs registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/bfd"
