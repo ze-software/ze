@@ -78,6 +78,8 @@ github.com/creack/pty
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
+# github.com/fsnotify/fsnotify v1.9.0
+## explicit; go 1.17
 # github.com/gaissmai/bart v0.26.1
 ## explicit; go 1.24.0
 github.com/gaissmai/bart
@@ -126,6 +128,8 @@ github.com/josharian/native
 # github.com/lucasb-eyer/go-colorful v1.3.0
 ## explicit; go 1.12
 github.com/lucasb-eyer/go-colorful
+# github.com/lunixbochs/struc v0.0.0-20200521075829-a4cb8d33dbbe
+## explicit; go 1.12
 # github.com/mattn/go-runewidth v0.0.21
 ## explicit; go 1.20
 github.com/mattn/go-runewidth
@@ -192,6 +196,8 @@ github.com/prometheus/procfs/internal/util
 # github.com/rivo/uniseg v0.4.7
 ## explicit; go 1.18
 github.com/rivo/uniseg
+# github.com/sirupsen/logrus v1.9.3
+## explicit; go 1.13
 # github.com/stretchr/testify v1.11.1
 ## explicit; go 1.17
 github.com/stretchr/testify/assert
@@ -211,6 +217,8 @@ github.com/vishvananda/netns
 # github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e
 ## explicit; go 1.19
 github.com/xo/terminfo
+# go.fd.io/govpp v0.13.0
+## explicit; go 1.24.0
 # go.yaml.in/yaml/v2 v2.4.2
 ## explicit; go 1.15
 go.yaml.in/yaml/v2

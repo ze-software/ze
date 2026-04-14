@@ -1,0 +1,170 @@
+module ze-vpp-conf {
+    namespace "urn:ze:vpp:conf";
+    prefix zvpp;
+
+    description
+        "VPP (Vector Packet Processing) lifecycle configuration for Ze.
+         Manages VPP process startup, DPDK NIC binding, GoVPP connection,
+         and LCP (Linux Control Plane) plugin settings.";
+
+    revision 2026-04-14 {
+        description "Initial revision.";
+    }
+
+    container vpp {
+        description "VPP data plane configuration.";
+
+        leaf enabled {
+            type boolean;
+            default false;
+            description
+                "Enable VPP integration. When true, ze manages VPP
+                 lifecycle: generates startup.conf, binds DPDK NICs,
+                 starts VPP process, connects via GoVPP.";
+        }
+
+        leaf api-socket {
+            type string;
+            default "/run/vpp/api.sock";
+            description
+                "GoVPP binary API Unix socket path.";
+        }
+
+        container cpu {
+            description "VPP CPU pinning configuration.";
+
+            leaf main-core {
+                type uint8;
+                description
+                    "CPU core for VPP main thread.
+                     Omit for automatic assignment.";
+            }
+
+            leaf workers {
+                type uint8;
+                description
+                    "Number of VPP worker threads.
+                     Omit for automatic (one per available core).";
+            }
+        }
+
+        container memory {
+            description "VPP memory and buffer configuration.";
+
+            leaf main-heap {
+                type string;
+                default "1G";
+                description
+                    "VPP main heap size (e.g. 512M, 1G, 1536M).
+                     Production with full DFZ: 1536M.";
+            }
+
+            leaf hugepage-size {
+                type enumeration {
+                    enum 2M;
+                    enum 1G;
+                }
+                default "2M";
+                description "Hugepage size for VPP buffers.";
+            }
+
+            leaf buffers {
+                type uint32;
+                default 128000;
+                description
+                    "Number of packet buffers per NUMA node.
+                     128000 is proven for full DFZ at 10G.";
+            }
+        }
+
+        container dpdk {
+            description "DPDK NIC configuration.";
+
+            list interface {
+                key "pci-address";
+                description "DPDK-managed network interface.";
+
+                leaf pci-address {
+                    type string;
+                    description
+                        "PCI bus address in DDDD:DD:DD.D format
+                         (e.g. 0000:03:00.0).";
+                }
+
+                leaf name {
+                    type string;
+                    description
+                        "Short interface name (e.g. xe0, e1).
+                         Used in ze CLI and config.";
+                }
+
+                leaf rx-queues {
+                    type uint8;
+                    description
+                        "Number of receive queues.
+                         Omit for VPP default.";
+                }
+
+                leaf tx-queues {
+                    type uint8;
+                    description
+                        "Number of transmit queues.
+                         Omit for VPP default.";
+                }
+            }
+        }
+
+        container stats {
+            description "VPP stats segment configuration.";
+
+            leaf segment-size {
+                type string;
+                default "512M";
+                description "Stats segment shared memory size.";
+            }
+
+            leaf socket-path {
+                type string;
+                default "/run/vpp/stats.sock";
+                description "Stats segment Unix socket path.";
+            }
+        }
+
+        container lcp {
+            description
+                "Linux Control Plane plugin. Creates TAP mirrors
+                 in Linux for VPP interfaces, enabling routing daemons
+                 (ze BGP) to use Linux TCP on VPP-managed NICs.";
+
+            leaf enabled {
+                type boolean;
+                default true;
+                description "Enable LCP plugin in VPP.";
+            }
+
+            leaf sync {
+                type boolean;
+                default true;
+                description
+                    "Sync VPP state changes (link, MTU, IP)
+                     to Linux TAP mirrors.";
+            }
+
+            leaf auto-subint {
+                type boolean;
+                default true;
+                description
+                    "Auto-create sub-TAPs for dot1q/QinQ
+                     sub-interfaces.";
+            }
+
+            leaf netns {
+                type string;
+                default "dataplane";
+                description
+                    "Network namespace for LCP TAP interfaces.
+                     Routing daemons run in this namespace.";
+            }
+        }
+    }
+}

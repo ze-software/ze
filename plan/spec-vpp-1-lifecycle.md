@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | spec-vpp-0-umbrella |
-| Phase | - |
-| Updated | 2026-04-13 |
+| Phase | 1/6 |
+| Updated | 2026-04-14 |
 
 ## Post-Compaction Recovery
 
@@ -18,13 +18,16 @@
 
 ## Task
 
-Create ze's VPP component that manages VPP's full process lifecycle. Ze execs VPP, supervises
-it (restart with backoff on crash), and shuts down cleanly (SIGTERM, wait, unbind NICs). No
-systemd or external process manager required (gokrazy appliance has no init system).
+Create ze's VPP component as a self-contained system that manages VPP's full process lifecycle.
+Ze execs VPP, supervises it (restart with backoff on crash), and shuts down cleanly (SIGTERM,
+wait, unbind NICs). No systemd or external process manager required (gokrazy appliance has no
+init system).
 
-The component generates startup.conf from YANG config, binds NICs to DPDK (vfio-pci), execs
-VPP, monitors health via GoVPP connection state, and exposes a shared GoVPP connection for
-dependent plugins (fibvpp, ifacevpp).
+The core is a self-contained `Manager` type with a `Run(ctx) error` method that owns the
+entire lifecycle: parse config, generate startup.conf, bind DPDK NICs, exec VPP, connect
+GoVPP, monitor, restart on crash, clean shutdown. The plugin registration (`register.go`) is
+a thin entry point that creates the Manager and calls Run. SDK callbacks do not drive the
+lifecycle; the Manager's own loop does.
 
 Connection sharing uses two mechanisms:
 - **Bus**: EventBus events `("vpp", "connected/disconnected/reconnected")` for lifecycle notifications
@@ -50,8 +53,9 @@ with a healthy GoVPP connection.
   → Decision: VPP is a component (lifecycle), not a plugin (feature)
 - [ ] `internal/plugins/fibkernel/register.go` - plugin registration pattern
   → Constraint: registry.Registration with Name, Description, Features, YANG, Dependencies, RunEngine
-- [ ] `internal/component/iface/iface.go` - component lifecycle pattern
-  → Constraint: OnStarted, OnConfigVerify, OnConfigApply callbacks
+- [ ] `internal/component/iface/register.go` - component lifecycle pattern
+  → Constraint: Components register via registry.Register() same as plugins. iface uses OnConfigure for initial setup, OnConfigVerify/OnConfigApply/OnConfigRollback for reload pipeline. fibkernel uses OnStarted for EventBus subscription after config is applied.
+  → Decision: VPP component uses OnConfigure for config parsing, OnStarted for VPP process exec + GoVPP connect (needs config first)
 - [ ] `.claude/patterns/registration.md` - registration pattern
   → Constraint: init() + registry.Register()
 - [ ] `.claude/patterns/config-option.md` - config option pattern
@@ -64,19 +68,22 @@ with a healthy GoVPP connection.
 Not protocol work. No RFCs apply.
 
 **Key insights:**
-- VPP component registers as a plugin (registry.Register) so other plugins can declare dependency on it
-- GoVPP AsyncConnect provides event channel for connection state changes
-- DPDK NIC binding follows VyOS control_host.py pattern: save driver, load vfio, unbind, rebind
-- startup.conf is a template rendered from YANG config leaves
+- VPP component registers as a plugin via registry.Register() (same mechanism as iface, fibkernel). Other plugins declare Dependencies: ["vpp"] to ensure startup ordering.
+- traffic and firewall components do NOT register as plugins. VPP must register because it needs to be a dependency target.
+- GoVPP AsyncConnect provides event channel for connection state changes (Connected, Disconnected).
+- "vpp" EventBus namespace does not exist yet. Must add to internal/component/plugin/events.go: NamespaceVPP const + ValidVPPEvents map + event type constants.
+- DPDK NIC binding follows VyOS control_host.py pattern: save driver, load vfio, unbind, rebind. Mellanox mlx5 is exception (RDMA, not vfio).
+- startup.conf is a template rendered from YANG config leaves. See docs/research/vpp-deployment-reference.md for exact syntax and production values.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
 - [ ] `internal/plugins/fibkernel/register.go` — Registration with Dependencies, YANG, RunEngine
   → Constraint: vpp component follows same registration pattern
-- [ ] `internal/plugins/fibkernel/fibkernel.go` — Plugin run loop with EventBus subscription
-  → Constraint: vpp component provides connection, dependents subscribe to its ready state
-- [ ] `internal/component/iface/iface.go` — Component lifecycle callbacks
+- [ ] `internal/plugins/fibkernel/fibkernel.go` — Plugin run loop: getEventBus() then eb.Subscribe(NamespaceSystemRIB, EventSystemRIBBestChange, handler) in run()
+  → Constraint: VPP component emits EventBus events in ("vpp", "connected/disconnected/reconnected") namespace. Dependents subscribe via eb.Subscribe().
+  → Decision: "vpp" namespace must be added to internal/component/plugin/events.go (ValidVPPEvents map + constants)
+- [ ] `internal/component/iface/register.go` — Component lifecycle callbacks
   → Constraint: OnStarted for initial setup, OnConfigApply for changes
 - [ ] No existing VPP code in ze
 
@@ -197,6 +204,8 @@ Not protocol work. No RFCs apply.
 - `go.mod` — add go.fd.io/govpp dependency
 - `go.sum` — updated
 - `vendor/` — GoVPP vendored
+- `internal/component/plugin/events.go` — add NamespaceVPP + event type constants + ValidVPPEvents map
+- `internal/component/plugin/all/all.go` — updated by `make generate` after adding vpp register.go
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -224,12 +233,12 @@ Not protocol work. No RFCs apply.
 
 ## Files to Create
 
-- `internal/component/vpp/vpp.go` — Component: startup, shutdown, health monitoring
+- `internal/component/vpp/vpp.go` — Self-contained Manager: Run(ctx) loop owns full lifecycle (configure, start, monitor, restart, stop)
 - `internal/component/vpp/config.go` — Parse YANG config into VPP settings struct
-- `internal/component/vpp/startupconf.go` — Generate VPP startup.conf from config
-- `internal/component/vpp/dpdk.go` — NIC driver binding: save driver, load vfio, bind vfio-pci
-- `internal/component/vpp/conn.go` — GoVPP connection management (AsyncConnect, retry, health check)
-- `internal/component/vpp/register.go` — Component registration
+- `internal/component/vpp/startupconf.go` — Generate VPP startup.conf from settings
+- `internal/component/vpp/dpdk.go` — NIC driver binding: save driver, load vfio, bind vfio-pci, unbind on teardown
+- `internal/component/vpp/conn.go` — GoVPP connection management (AsyncConnect, retry, Channel() for dependents)
+- `internal/component/vpp/register.go` — Thin plugin registration entry point: creates Manager, calls Run
 - `internal/component/vpp/schema/ze-vpp-conf.yang` — YANG module
 - `internal/component/vpp/startupconf_test.go` — startup.conf generation tests
 - `internal/component/vpp/dpdk_test.go` — DPDK binding tests
@@ -260,7 +269,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 1. **Phase: YANG + config parsing** — YANG module, config struct, parser
    - Tests: `TestConfigParse`, `TestConfigValidation`
-   - Files: schema/ze-vpp-conf.yang, config.go, config_test.go
+   - Files: schema/ze-vpp-conf.yang, schema/register.go, schema/embed.go, config.go, config_test.go
    - Verify: tests fail → implement → tests pass
 
 2. **Phase: startup.conf generation** — template rendering from config
@@ -273,14 +282,21 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: dpdk.go, dpdk_test.go
    - Verify: tests fail → implement → tests pass
 
-4. **Phase: GoVPP connection** — AsyncConnect, state machine, health check
+4. **Phase: GoVPP connection** — AsyncConnect, Channel() for dependents
    - Tests: connection lifecycle tests
    - Files: conn.go
    - Verify: tests fail → implement → tests pass
 
-5. **Phase: Component wiring** — registration, lifecycle callbacks, dependency exposure
+5. **Phase: Self-contained Manager** — Run(ctx) loop, process exec, monitor, restart, EventBus events
+   - Tests: manager lifecycle tests (start, crash restart, clean shutdown)
+   - Files: vpp.go, vpp_test.go
+   - Manager.Run(ctx) loop: configure → generate startup.conf → bind NICs → exec VPP → connect GoVPP → emit ("vpp","connected") → monitor → on crash: emit ("vpp","disconnected"), backoff, restart → on ctx cancel: SIGTERM, wait, unbind, emit ("vpp","disconnected")
+   - Verify: tests fail → implement → tests pass
+
+6. **Phase: Registration + EventBus wiring** — thin plugin entry point, VPP event namespace
    - Tests: registration test
-   - Files: vpp.go, register.go
+   - Files: register.go, internal/component/plugin/events.go (add NamespaceVPP)
+   - register.go creates Manager and calls Run(ctx) in RunEngine callback
    - Verify: tests fail → implement → tests pass
 
 6. **Functional tests** → `test/vpp/001-boot.ci`
