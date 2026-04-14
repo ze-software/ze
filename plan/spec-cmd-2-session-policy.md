@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 3/4 |
+| Phase | 4/4 |
 | Updated | 2026-04-14 |
 
 ## Post-Compaction Recovery
@@ -323,16 +323,18 @@ No numeric inputs in this spec (all enum/boolean/string).
 
 ### What Remains
 
+~~Local-AS modifier behavior in OPEN~~ -- DONE. Found during 2026-04-14 audit:
+- OPEN uses `settings.LocalAS` (already the per-peer override) at `session_negotiate.go:123`
+- Forwarding in `reactor_api_forward.go:488-494` skips dual-prepend of `GlobalLocalAS` when either `LocalASNoPrepend` or `LocalASReplaceAS` is set
+
+~~Default-originate-filter conditional check~~ -- DONE. Found during 2026-04-14 audit:
+- `defaultOriginateFilterAccepts()` at `peer_initial_sync.go:793` runs named filter as dry-run (fail-closed)
+- Called from `sendDefaultOriginateRoutes()` at line 764 before originating default route
+- Two unit tests: `TestDefaultOriginateFilterFailsClosedWithoutReactor`, `TestDefaultOriginateFilterFailsClosedOnMalformedRef`
+
 | Item | Effort | Design needed |
 |------|--------|---------------|
-| Local-AS modifier behavior in OPEN | Medium | No -- modify `buildLocalOpen()` in `session_open.go` to respect `LocalASNoPrepend`/`LocalASReplaceAS` when constructing AS_PATH in OPEN and prepending during forwarding. Read `session_open.go` to find where local AS is prepended. |
-| Default-originate-filter conditional check | Small | No -- in `sendDefaultOriginateRoutes`, look up filter name in policy registry, call filter function, skip sending if filter rejects. Requires the filter registry to be accessible from the peer context. |
-
-**Implementation notes for local-AS modifiers:**
-- `LocalASNoPrepend`: when local-as override is set, Ze normally prepends real ASN before local-as in outbound AS_PATH. With no-prepend, skip the real ASN prepend.
-- `LocalASReplaceAS`: local-as completely replaces real ASN. In OPEN, advertise local-as as MyAS. In AS_PATH prepend, use local-as only.
-- Both together: full replacement with no extra prepend.
-- Key file: `session_open.go` for OPEN construction, `reactor_api_forward.go` for AS_PATH prepend during forwarding.
+| (none -- all features implemented) | - | - |
 
 ### Bugs Found/Fixed
 - None
@@ -341,8 +343,8 @@ No numeric inputs in this spec (all enum/boolean/string).
 - `docs/guide/command-reference.md` not yet updated (deferred to spec completion)
 
 ### Deviations from Plan
-- Default-originate-filter conditional check deferred (TODO in code)
-- Local-AS modifier OPEN behavior deferred (requires session_open.go changes)
+- ~~Default-originate-filter conditional check deferred~~ -- found already implemented (2026-04-14 audit)
+- ~~Local-AS modifier OPEN behavior deferred~~ -- OPEN already uses LocalAS override; forwarding path handles NoPrepend/ReplaceAS (2026-04-14 audit)
 
 ## Implementation Audit
 ### Requirements from Task
