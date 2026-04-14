@@ -475,3 +475,31 @@ behavior. Verified with `bin/ze-test bgp plugin U V W X Y Z a b` ->
 **Root cause:** BFD binds fixed RFC 5881 / 5883 ports (3784, 4784); the test runner defaults to 20-wide parallelism.
 
 **Files touched by the fix:** `internal/plugins/bfd/transport/udp_linux.go` (env var + `SO_REUSEPORT` call), all six BFD `.ci` files under `test/plugin/bfd-*.ci` and `test/plugin/bgp-bfd-opt-in.ci` (env option line).
+
+## cli-completion-env-{api,children,daemon,debug,log,reactor,tcp} (stdout empty) -- FIXED 2026-04-14
+
+**Files:** `test/ui/cli-completion-env-api.ci`, `test/ui/cli-completion-env-children.ci`, `test/ui/cli-completion-env-daemon.ci`, `test/ui/cli-completion-env-debug.ci`, `test/ui/cli-completion-env-log.ci`, `test/ui/cli-completion-env-reactor.ci`, `test/ui/cli-completion-env-tcp.ci`
+
+**Original symptom:** `ze config completion --context environment/<name>` returned only `api-server` (from `ze-api-conf`) instead of the full merged `environment` container with `daemon`/`log`/`debug`/`tcp`/`cache`/`reactor` etc. from every `-conf` module that augments `environment`.
+
+**Root cause:** `internal/component/cli/completer.go` `findModuleEntry(name)` returned the first module whose top-level Dir had the name, and `mergedRoot()` used `maps.Copy` which overwrote colliding keys. When modules augment a shared container (the standard YANG pattern for `environment`), only the first match was visible -- the rest were dropped.
+
+**Fix:** Both helpers now collect every matching entry and recursively merge their `Dir` maps via a new `mergeAugmentedEntries` helper. Leaf-level fields (Kind/Node/etc.) come from the first entry; the union of all children is preserved so completion sees the same merged tree YANG parse produces at runtime.
+
+**Verification:** `bin/ze-test ui -a` -> 80/80 pass; `bin/ze config completion --context environment --input set+ <file>` returns `api`, `api-server`, `bgp`, `bmp`, `cache`, `chaos`, `daemon`, `debug`, `dns`, `log`, `looking-glass`, `mcp`, `ntp`, `reactor`, `ssh`, `tcp`, `web` -- the full merged set.
+
+**Originating regression:** `88057ac9` / `d87009c2` (dynamic conf-module discovery). Those commits removed the hardcoded module list and started walking every `-conf` module, which exposed the shallow merge in `findModuleEntry`/`mergedRoot`. The old hardcoded path only looked at `ze-bgp-conf` for `environment`, so the bug existed in the code but was never hit.
+
+## plugin tests Y, 147, 150-152, 244-245 (peer never reaches established) -- LOGGED 2026-04-14
+
+**Files:** `test/plugin/bestpath-reason.ci`, `test/plugin/multipath-basic.ci`, `test/plugin/nexthop-self.ci`, `test/plugin/nexthop-self-ipv6-forward.ci`, `test/plugin/nexthop-unchanged.ci`, `test/plugin/rr-basic.ci`, `test/plugin/rr-ipv6-config.ci` (plus `bfd-echo-handshake.ci` with a different symptom).
+
+**Symptom:** Python observer polls `peer peer1 detail` for 6s and always sees `"state":"Connecting"` even though `keepalives-sent=1`, `keepalives-received=1`, `updates-received=1`, `eor-sent=1`. The session DID reach Established briefly -- the counters prove it -- but by the time the observer starts polling, the peer tool has already closed TCP (Completed()=true after action=send) and ze has transitioned back to Connecting.
+
+**Root cause:** Race between (a) plugin-protocol handshake stages 1-5 on the observer side and (b) `action=send` + TCP close on the peer-tool side. These tests were added in `2679f77e` (2026-04-14) with `poll-until-established instead of time.sleep` -- but with no `expect=bgp:...EoR` in the peer stdin to keep the connection open, so the Established window is <100ms and the observer misses it every time on a fast machine.
+
+**Confirmed fix for the "never reached established" half:** add `expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000` to each test's `stdin=peer` block (the pattern `api-peer-show.ci` and every other passing poll-based test uses). With the expect added, `bestpath-reason.ci` advances past the establishment check.
+
+**Remaining failure on bestpath-reason after the expect=EoR fix:** `expected 2+ candidates, got 1: ['10.0.0.99']`. The test injects a second route via `bgp rib inject` and queries `bgp rib show best reason`, expecting both the peer's UPDATE and the injected route as candidates. Only the injected one appears. Either (a) the peer's UPDATE never reaches `bgp-rib` (bgp-rib plugin doesn't auto-subscribe to UPDATE events, test config only sets `send [update]` which is plugin->ze, not ze->plugin), or (b) the `best reason` endpoint filters out the peer's path. Not traced.
+
+**Parked.** Full mechanical fix would be: add `expect=bgp:...EoR` to every file in the list, then debug each test's secondary assertions (RIB candidate counts, multipath behaviour, RR forwarding, nexthop rewrites). Each is a distinct investigation.

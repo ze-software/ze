@@ -7,7 +7,6 @@ package cli
 
 import (
 	"fmt"
-	"maps"
 	"slices"
 	"sort"
 
@@ -923,37 +922,78 @@ func (c *Completer) getEntry(path []string) *gyang.Entry {
 }
 
 // mergedRoot returns a virtual root entry with children from all config modules.
+// When multiple modules declare a top-level container with the same name (the
+// augment pattern, e.g. "environment"), their Dir maps are merged recursively
+// so the caller sees the union of all augmentations.
 func (c *Completer) mergedRoot() *gyang.Entry {
-	root := &gyang.Entry{
-		Kind: gyang.DirectoryEntry,
-		Dir:  make(map[string]*gyang.Entry),
-	}
+	groups := make(map[string][]*gyang.Entry)
 	for _, modName := range c.confModuleNames() {
 		modEntry := c.loader.GetEntry(modName)
 		if modEntry == nil || modEntry.Dir == nil {
 			continue
 		}
-		maps.Copy(root.Dir, modEntry.Dir)
+		for name, child := range modEntry.Dir {
+			groups[name] = append(groups[name], child)
+		}
 	}
-	if len(root.Dir) == 0 {
+	if len(groups) == 0 {
 		return nil
+	}
+	root := &gyang.Entry{
+		Kind: gyang.DirectoryEntry,
+		Dir:  make(map[string]*gyang.Entry, len(groups)),
+	}
+	for name, children := range groups {
+		root.Dir[name] = mergeAugmentedEntries(children)
 	}
 	return root
 }
 
-// findModuleEntry searches all config modules for a top-level child by name,
-// returning the child entry (not the module root).
+// findModuleEntry searches all config modules for a top-level child by name.
+// When multiple modules declare the same top-level container (augment), their
+// entries are merged recursively so the caller sees the union of all fields.
 func (c *Completer) findModuleEntry(name string) *gyang.Entry {
+	var matches []*gyang.Entry
 	for _, modName := range c.confModuleNames() {
 		modEntry := c.loader.GetEntry(modName)
 		if modEntry == nil || modEntry.Dir == nil {
 			continue
 		}
 		if child, ok := modEntry.Dir[name]; ok {
-			return child
+			matches = append(matches, child)
 		}
 	}
-	return nil
+	return mergeAugmentedEntries(matches)
+}
+
+// mergeAugmentedEntries returns a virtual entry whose Dir is the recursive
+// union of the inputs' Dir maps. When the same child name appears in more
+// than one input, those children are merged in turn. Non-Dir fields are
+// taken from the first entry (YANG augment semantics keep the original
+// container's Kind/Node/etc.). Returns nil for an empty list; returns the
+// single input unchanged when len==1 to avoid wrapping real entries.
+func mergeAugmentedEntries(entries []*gyang.Entry) *gyang.Entry {
+	if len(entries) == 0 {
+		return nil
+	}
+	if len(entries) == 1 {
+		return entries[0]
+	}
+	groups := make(map[string][]*gyang.Entry)
+	for _, e := range entries {
+		for name, child := range e.Dir {
+			groups[name] = append(groups[name], child)
+		}
+	}
+	if len(groups) == 0 {
+		return entries[0]
+	}
+	merged := *entries[0]
+	merged.Dir = make(map[string]*gyang.Entry, len(groups))
+	for name, children := range groups {
+		merged.Dir[name] = mergeAugmentedEntries(children)
+	}
+	return &merged
 }
 
 // getChildrenAtPath returns children names at path.
