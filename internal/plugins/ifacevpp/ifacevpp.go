@@ -9,13 +9,25 @@ package ifacevpp
 import (
 	"fmt"
 	"net/netip"
+	"sync/atomic"
 
 	"go.fd.io/govpp/api"
+	interfaces "go.fd.io/govpp/binapi/interface"
+	"go.fd.io/govpp/binapi/interface_types"
+	"go.fd.io/govpp/binapi/ip_types"
+	"go.fd.io/govpp/binapi/l2"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+// nextBridgeDomainID is an auto-incrementing bridge domain ID counter.
+var nextBridgeDomainID atomic.Uint32
+
+func init() {
+	nextBridgeDomainID.Store(1) // BD 0 is reserved
+}
 
 // vppBackendImpl implements iface.Backend using GoVPP.
 type vppBackendImpl struct {
@@ -38,17 +50,48 @@ func newVPPBackend() (iface.Backend, error) {
 	}, nil
 }
 
-// errNotSupported returns a descriptive error for unsupported operations.
+// errNotSupported returns a descriptive error for operations not available on VPP.
 func errNotSupported(method string) error {
 	return fmt.Errorf("ifacevpp: %s not supported on VPP backend", method)
+}
+
+// resolveIndex looks up the VPP SwIfIndex for a ze interface name.
+func (b *vppBackendImpl) resolveIndex(name string) (interface_types.InterfaceIndex, error) {
+	idx, ok := b.names.LookupIndex(name)
+	if !ok {
+		return 0, fmt.Errorf("ifacevpp: unknown interface %q", name)
+	}
+	return interface_types.InterfaceIndex(idx), nil
+}
+
+// sendReq sends a GoVPP request and checks the reply retval.
+func sendReq[Req api.Message, Reply interface {
+	api.Message
+	GetRetval() int32
+}](ch api.Channel, req Req, reply Reply,
+) error {
+	if err := ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return err
+	}
+	if ret := reply.GetRetval(); ret != 0 {
+		return fmt.Errorf("VPP retval=%d", ret)
+	}
+	return nil
 }
 
 // --- Interface lifecycle ---
 
 func (b *vppBackendImpl) CreateDummy(name string) error {
-	// VPP equivalent: create loopback interface.
-	// TODO: call CreateLoopback via GoVPP, register name mapping.
-	return errNotSupported("CreateDummy (pending GoVPP CreateLoopback wiring)")
+	req := &interfaces.CreateLoopback{}
+	reply := &interfaces.CreateLoopbackReply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("ifacevpp: CreateLoopback: %w", err)
+	}
+	if reply.Retval != 0 {
+		return fmt.Errorf("ifacevpp: CreateLoopback retval=%d", reply.Retval)
+	}
+	b.names.Add(name, uint32(reply.SwIfIndex), name)
+	return nil
 }
 
 func (b *vppBackendImpl) CreateVeth(_, _ string) error {
@@ -56,20 +99,52 @@ func (b *vppBackendImpl) CreateVeth(_, _ string) error {
 }
 
 func (b *vppBackendImpl) CreateBridge(name string) error {
-	// VPP equivalent: BridgeDomainAddDelV2.
-	return errNotSupported("CreateBridge (pending GoVPP BridgeDomainAddDelV2 wiring)")
+	bdID := nextBridgeDomainID.Add(1) - 1
+	req := &l2.BridgeDomainAddDelV2{
+		BdID:    bdID,
+		IsAdd:   true,
+		Flood:   true,
+		UuFlood: true,
+		Forward: true,
+		Learn:   true,
+		BdTag:   name,
+	}
+	reply := &l2.BridgeDomainAddDelV2Reply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("ifacevpp: BridgeDomainAddDelV2: %w", err)
+	}
+	if reply.Retval != 0 {
+		return fmt.Errorf("ifacevpp: BridgeDomainAddDelV2 retval=%d", reply.Retval)
+	}
+	b.names.Add(name, bdID, name)
+	return nil
 }
 
 func (b *vppBackendImpl) CreateVLAN(parentName string, vlanID int) error {
 	if vlanID < 1 || vlanID > 4094 {
 		return fmt.Errorf("ifacevpp: VLAN ID %d out of range (1-4094)", vlanID)
 	}
-	// VPP equivalent: CreateSubif with dot1q.
-	return errNotSupported("CreateVLAN (pending GoVPP CreateSubif wiring)")
+	parentIdx, err := b.resolveIndex(parentName)
+	if err != nil {
+		return err
+	}
+	req := &interfaces.CreateVlanSubif{
+		SwIfIndex: parentIdx,
+		VlanID:    uint32(vlanID),
+	}
+	reply := &interfaces.CreateVlanSubifReply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("ifacevpp: CreateVlanSubif: %w", err)
+	}
+	if reply.Retval != 0 {
+		return fmt.Errorf("ifacevpp: CreateVlanSubif retval=%d", reply.Retval)
+	}
+	subName := fmt.Sprintf("%s.%d", parentName, vlanID)
+	b.names.Add(subName, uint32(reply.SwIfIndex), subName)
+	return nil
 }
 
-func (b *vppBackendImpl) CreateTunnel(spec iface.TunnelSpec) error {
-	// VPP equivalent depends on kind: VxlanAddDelTunnelV3, GreTunnelAddDel, IpipAddTunnel.
+func (b *vppBackendImpl) CreateTunnel(_ iface.TunnelSpec) error {
 	return errNotSupported("CreateTunnel (pending GoVPP tunnel API wiring)")
 }
 
@@ -86,64 +161,156 @@ func (b *vppBackendImpl) GetWireguardDevice(_ string) (iface.WireguardSpec, erro
 }
 
 func (b *vppBackendImpl) DeleteInterface(name string) error {
-	return errNotSupported("DeleteInterface (pending GoVPP delete wiring)")
+	idx, err := b.resolveIndex(name)
+	if err != nil {
+		return err
+	}
+	// Try DeleteLoopback first (works for loopbacks).
+	req := &interfaces.DeleteLoopback{SwIfIndex: idx}
+	reply := &interfaces.DeleteLoopbackReply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		// Fallback: try DeleteSubif.
+		subReq := &interfaces.DeleteSubif{SwIfIndex: idx}
+		subReply := &interfaces.DeleteSubifReply{}
+		if subErr := b.ch.SendRequest(subReq).ReceiveReply(subReply); subErr != nil {
+			return fmt.Errorf("ifacevpp: delete %s: loopback=%w, subif=%w", name, err, subErr)
+		}
+	}
+	b.names.Remove(name)
+	return nil
 }
 
 // --- Address management ---
 
 func (b *vppBackendImpl) AddAddress(ifaceName, cidr string) error {
-	_, err := netip.ParsePrefix(cidr)
+	prefix, err := netip.ParsePrefix(cidr)
 	if err != nil {
 		return fmt.Errorf("ifacevpp: invalid CIDR %q: %w", cidr, err)
 	}
-	// VPP equivalent: SwInterfaceAddDelAddress with IsAdd=true.
-	return errNotSupported("AddAddress (pending GoVPP SwInterfaceAddDelAddress wiring)")
+	idx, err := b.resolveIndex(ifaceName)
+	if err != nil {
+		return err
+	}
+	req := &interfaces.SwInterfaceAddDelAddress{
+		SwIfIndex: idx,
+		IsAdd:     true,
+		Prefix:    toAddressWithPrefix(prefix),
+	}
+	reply := &interfaces.SwInterfaceAddDelAddressReply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("ifacevpp: AddAddress: %w", err)
+	}
+	if reply.Retval != 0 {
+		return fmt.Errorf("ifacevpp: AddAddress retval=%d", reply.Retval)
+	}
+	return nil
 }
 
 func (b *vppBackendImpl) RemoveAddress(ifaceName, cidr string) error {
-	_, err := netip.ParsePrefix(cidr)
+	prefix, err := netip.ParsePrefix(cidr)
 	if err != nil {
 		return fmt.Errorf("ifacevpp: invalid CIDR %q: %w", cidr, err)
 	}
-	return errNotSupported("RemoveAddress (pending GoVPP SwInterfaceAddDelAddress wiring)")
+	idx, err := b.resolveIndex(ifaceName)
+	if err != nil {
+		return err
+	}
+	req := &interfaces.SwInterfaceAddDelAddress{
+		SwIfIndex: idx,
+		IsAdd:     false,
+		Prefix:    toAddressWithPrefix(prefix),
+	}
+	reply := &interfaces.SwInterfaceAddDelAddressReply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("ifacevpp: RemoveAddress: %w", err)
+	}
+	if reply.Retval != 0 {
+		return fmt.Errorf("ifacevpp: RemoveAddress retval=%d", reply.Retval)
+	}
+	return nil
 }
 
 func (b *vppBackendImpl) ReplaceAddressWithLifetime(ifaceName, cidr string, _, _ int) error {
+	// VPP does not support address lifetimes. Just add the address.
 	return b.AddAddress(ifaceName, cidr)
 }
 
 // --- Route management ---
 
 func (b *vppBackendImpl) AddRoute(_, _, _ string, _ int) error {
-	return errNotSupported("AddRoute (pending GoVPP IPRouteAddDel wiring)")
+	return errNotSupported("AddRoute (use fib-vpp plugin for route programming)")
 }
 
 func (b *vppBackendImpl) RemoveRoute(_, _, _ string, _ int) error {
-	return errNotSupported("RemoveRoute (pending GoVPP IPRouteAddDel wiring)")
+	return errNotSupported("RemoveRoute (use fib-vpp plugin for route programming)")
 }
 
 func (b *vppBackendImpl) ListRoutes(_, _ string) ([]iface.RouteInfo, error) {
-	return nil, errNotSupported("ListRoutes (pending GoVPP IPRouteDump wiring)")
+	return nil, errNotSupported("ListRoutes (use fib-vpp plugin for route queries)")
 }
 
 // --- Link state ---
 
-func (b *vppBackendImpl) SetAdminUp(_ string) error {
-	// VPP equivalent: SwInterfaceSetFlags with IF_STATUS_API_FLAG_ADMIN_UP.
-	return errNotSupported("SetAdminUp (pending GoVPP SwInterfaceSetFlags wiring)")
+func (b *vppBackendImpl) SetAdminUp(ifaceName string) error {
+	idx, err := b.resolveIndex(ifaceName)
+	if err != nil {
+		return err
+	}
+	req := &interfaces.SwInterfaceSetFlags{
+		SwIfIndex: idx,
+		Flags:     interface_types.IF_STATUS_API_FLAG_ADMIN_UP,
+	}
+	reply := &interfaces.SwInterfaceSetFlagsReply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("ifacevpp: SetAdminUp: %w", err)
+	}
+	if reply.Retval != 0 {
+		return fmt.Errorf("ifacevpp: SetAdminUp retval=%d", reply.Retval)
+	}
+	return nil
 }
 
-func (b *vppBackendImpl) SetAdminDown(_ string) error {
-	return errNotSupported("SetAdminDown (pending GoVPP SwInterfaceSetFlags wiring)")
+func (b *vppBackendImpl) SetAdminDown(ifaceName string) error {
+	idx, err := b.resolveIndex(ifaceName)
+	if err != nil {
+		return err
+	}
+	req := &interfaces.SwInterfaceSetFlags{
+		SwIfIndex: idx,
+		Flags:     0,
+	}
+	reply := &interfaces.SwInterfaceSetFlagsReply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("ifacevpp: SetAdminDown: %w", err)
+	}
+	if reply.Retval != 0 {
+		return fmt.Errorf("ifacevpp: SetAdminDown retval=%d", reply.Retval)
+	}
+	return nil
 }
 
 // --- Interface properties ---
 
-func (b *vppBackendImpl) SetMTU(_ string, mtu int) error {
+func (b *vppBackendImpl) SetMTU(ifaceName string, mtu int) error {
 	if mtu < 68 || mtu > 65535 {
 		return fmt.Errorf("ifacevpp: MTU %d out of range (68-65535)", mtu)
 	}
-	return errNotSupported("SetMTU (pending GoVPP SwInterfaceSetMtu wiring)")
+	idx, err := b.resolveIndex(ifaceName)
+	if err != nil {
+		return err
+	}
+	req := &interfaces.SwInterfaceSetMtu{
+		SwIfIndex: idx,
+		Mtu:       []uint32{uint32(mtu), uint32(mtu), uint32(mtu), uint32(mtu)},
+	}
+	reply := &interfaces.SwInterfaceSetMtuReply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("ifacevpp: SetMTU: %w", err)
+	}
+	if reply.Retval != 0 {
+		return fmt.Errorf("ifacevpp: SetMTU retval=%d", reply.Retval)
+	}
+	return nil
 }
 
 func (b *vppBackendImpl) SetMACAddress(_, _ string) error {
@@ -170,12 +337,47 @@ func (b *vppBackendImpl) GetInterface(_ string) (*iface.InterfaceInfo, error) {
 
 // --- Bridge operations ---
 
-func (b *vppBackendImpl) BridgeAddPort(_, _ string) error {
-	return errNotSupported("BridgeAddPort (pending GoVPP SwInterfaceSetL2Bridge wiring)")
+func (b *vppBackendImpl) BridgeAddPort(bridgeName, portName string) error {
+	bridgeIdx, err := b.resolveIndex(bridgeName)
+	if err != nil {
+		return err
+	}
+	portIdx, err := b.resolveIndex(portName)
+	if err != nil {
+		return err
+	}
+	req := &l2.SwInterfaceSetL2Bridge{
+		RxSwIfIndex: portIdx,
+		BdID:        uint32(bridgeIdx),
+		Enable:      true,
+	}
+	reply := &l2.SwInterfaceSetL2BridgeReply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("ifacevpp: BridgeAddPort: %w", err)
+	}
+	if reply.Retval != 0 {
+		return fmt.Errorf("ifacevpp: BridgeAddPort retval=%d", reply.Retval)
+	}
+	return nil
 }
 
-func (b *vppBackendImpl) BridgeDelPort(_ string) error {
-	return errNotSupported("BridgeDelPort (pending GoVPP SwInterfaceSetL2Bridge wiring)")
+func (b *vppBackendImpl) BridgeDelPort(portName string) error {
+	portIdx, err := b.resolveIndex(portName)
+	if err != nil {
+		return err
+	}
+	req := &l2.SwInterfaceSetL2Bridge{
+		RxSwIfIndex: portIdx,
+		Enable:      false,
+	}
+	reply := &l2.SwInterfaceSetL2BridgeReply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("ifacevpp: BridgeDelPort: %w", err)
+	}
+	if reply.Retval != 0 {
+		return fmt.Errorf("ifacevpp: BridgeDelPort retval=%d", reply.Retval)
+	}
+	return nil
 }
 
 func (b *vppBackendImpl) BridgeSetSTP(_ string, _ bool) error {
@@ -205,4 +407,33 @@ func (b *vppBackendImpl) StopMonitor() {}
 func (b *vppBackendImpl) Close() error {
 	b.ch.Close()
 	return nil
+}
+
+// --- Helpers ---
+
+// toAddressWithPrefix converts a Go netip.Prefix to VPP ip_types.AddressWithPrefix.
+func toAddressWithPrefix(p netip.Prefix) ip_types.AddressWithPrefix {
+	addr := p.Addr()
+	if addr.Is4() {
+		a4 := addr.As4()
+		var ip4 ip_types.IP4Address
+		copy(ip4[:], a4[:])
+		return ip_types.AddressWithPrefix{
+			Address: ip_types.Address{
+				Af: ip_types.ADDRESS_IP4,
+				Un: ip_types.AddressUnionIP4(ip4),
+			},
+			Len: uint8(p.Bits()),
+		}
+	}
+	a16 := addr.As16()
+	var ip6 ip_types.IP6Address
+	copy(ip6[:], a16[:])
+	return ip_types.AddressWithPrefix{
+		Address: ip_types.Address{
+			Af: ip_types.ADDRESS_IP6,
+			Un: ip_types.AddressUnionIP6(ip6),
+		},
+		Len: uint8(p.Bits()),
+	}
 }

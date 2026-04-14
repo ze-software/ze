@@ -228,9 +228,11 @@ go.fd.io/govpp/adapter/socketclient
 go.fd.io/govpp/api
 go.fd.io/govpp/binapi/ethernet_types
 go.fd.io/govpp/binapi/fib_types
+go.fd.io/govpp/binapi/interface
 go.fd.io/govpp/binapi/interface_types
 go.fd.io/govpp/binapi/ip
 go.fd.io/govpp/binapi/ip_types
+go.fd.io/govpp/binapi/l2
 go.fd.io/govpp/binapi/memclnt
 go.fd.io/govpp/binapi/mfib_types
 go.fd.io/govpp/codec
