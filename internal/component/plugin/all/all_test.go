@@ -51,6 +51,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"bgp-watchdog",
 		"fib-kernel",
 		"fib-p4",
+		"fib-vpp",
 		"interface",
 		"loop",
 		"ntp",
