@@ -853,7 +853,8 @@ func (c *Completer) entryDescription(entry *gyang.Entry) string {
 	if entry == nil {
 		return ""
 	}
-	desc := entry.Description
+	// YANG descriptions can be multi-line; collapse to single line for dropdown display.
+	desc := strings.Join(strings.Fields(entry.Description), " ")
 	if entry.Mandatory == gyang.TSTrue && !strings.Contains(desc, "(required)") {
 		if desc != "" {
 			desc += " (required)"

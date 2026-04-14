@@ -500,6 +500,91 @@ func TestDropdownWidthWide(t *testing.T) {
 	}
 }
 
+// TestCollectAnsiState verifies ANSI sequence collection for color restoration.
+func TestCollectAnsiState(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		width  int
+		expect string
+	}{
+		{
+			name:   "plain text returns empty",
+			input:  "hello world",
+			width:  5,
+			expect: "",
+		},
+		{
+			name:   "single color sequence",
+			input:  "\x1b[32mgreen text",
+			width:  5,
+			expect: "\x1b[32m",
+		},
+		{
+			name:   "reset after color",
+			input:  "\x1b[32mhi\x1b[0m bye",
+			width:  6,
+			expect: "\x1b[32m\x1b[0m",
+		},
+		{
+			name:   "multiple sequences",
+			input:  "\x1b[1m\x1b[34mbold blue",
+			width:  5,
+			expect: "\x1b[1m\x1b[34m",
+		},
+		{
+			name:   "zero width returns empty",
+			input:  "\x1b[32mtext",
+			width:  0,
+			expect: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := collectAnsiState(tt.input, tt.width)
+			assert.Equal(t, tt.expect, got)
+		})
+	}
+}
+
+// TestOverlayLineRestoresColor verifies background color is restored after overlay.
+func TestOverlayLineRestoresColor(t *testing.T) {
+	bg := "\x1b[34mblue background text here\x1b[0m"
+	fg := "OVER"
+	result := overlayLine(bg, fg, 5)
+
+	// The right portion should be preceded by the background's ANSI state
+	// so terminal color is restored after the overlay ends.
+	assert.Contains(t, result, "OVER\x1b[0m\x1b[34m", "should restore bg color after overlay")
+}
+
+// TestDropdownMultilineDescriptionCollapsed verifies multi-line descriptions
+// do not break the box structure.
+func TestDropdownMultilineDescriptionCollapsed(t *testing.T) {
+	m := Model{
+		completions: []Completion{
+			{Text: "firewall", Description: "Firewall tables.\nTable names are bare.", Type: "command"},
+			{Text: "interface", Description: "Network interface config", Type: "command"},
+		},
+		selected:     0,
+		showDropdown: true,
+		width:        80,
+	}
+
+	dropdown := m.renderDropdownBox(10)
+	lines := strings.Split(dropdown, "\n")
+
+	// Every content line (between top and bottom borders) must start and end with │
+	for i := 1; i < len(lines)-1; i++ {
+		assert.True(t, strings.HasPrefix(lines[i], "│"), "line %d should start with │: %q", i, lines[i])
+		assert.True(t, strings.HasSuffix(lines[i], "│"), "line %d should end with │: %q", i, lines[i])
+	}
+
+	// Should have exactly: top border + 2 items + bottom border = 4 lines
+	assert.Equal(t, 4, len(lines), "should have 4 lines (top + 2 items + bottom)")
+}
+
 // TestModelStatusBarNoErrorsWhenValid verifies no indicator when valid.
 //
 // VALIDATES: View() shows no error indicator for valid config.

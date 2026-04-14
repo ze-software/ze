@@ -490,8 +490,46 @@ func overlayLine(bg, fg string, x int) string {
 	// Get right portion: skip x + fgWidth visible chars
 	right := skipWidth(bg, x+fgWidth)
 
-	// Add reset between parts to prevent style bleeding
-	return left + reset + padding + fg + reset + right
+	// Collect ANSI sequences from bg up to the right-portion cut point,
+	// so we can restore the background's active styling after the overlay.
+	bgRestore := collectAnsiState(bg, x+fgWidth)
+
+	return left + reset + padding + fg + reset + bgRestore + right
+}
+
+// collectAnsiState walks s up to width visible characters and returns
+// all ANSI escape sequences encountered, concatenated. Replaying these
+// sequences restores the terminal styling that was active at that point.
+func collectAnsiState(s string, width int) string {
+	var seqs strings.Builder
+	var seq strings.Builder
+	w := 0
+	inEsc := false
+
+	for _, r := range s {
+		if w >= width && !inEsc {
+			break
+		}
+
+		if r == '\x1b' {
+			inEsc = true
+			seq.Reset()
+			seq.WriteRune(r)
+			continue
+		}
+		if inEsc {
+			seq.WriteRune(r)
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+				inEsc = false
+				seqs.WriteString(seq.String())
+			}
+			continue
+		}
+
+		w++
+	}
+
+	return seqs.String()
 }
 
 // truncateAtWidth returns the prefix of s up to width visible characters.
@@ -620,7 +658,7 @@ func (m Model) renderDropdownBox(availableHeight int) string {
 			cmd = string(cmdRunes[:cmdWidth])
 		}
 
-		desc := comp.Description
+		desc := strings.Join(strings.Fields(comp.Description), " ")
 		if descRunes := []rune(desc); len(descRunes) > descWidth {
 			desc = string(descRunes[:descWidth-3]) + "..."
 		}
