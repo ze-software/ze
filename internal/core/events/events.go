@@ -133,22 +133,24 @@ func AllValidEventNames() string {
 }
 
 // RegisterNamespace adds a new namespace with the given initial event types.
-// The namespace must not already exist. Use RegisterEventType to add events
-// to an existing namespace. Safe for concurrent use.
+// Idempotent: if the namespace already exists, the event types are merged
+// into the existing set. This allows multiple init() functions to contribute
+// events to the same namespace without depending on import order.
+// Safe for concurrent use.
 func RegisterNamespace(namespace string, eventTypes ...string) error {
 	if namespace == "" {
 		return fmt.Errorf("namespace must not be empty")
 	}
 	eventsMu.Lock()
 	defer eventsMu.Unlock()
-	if _, exists := ValidEvents[namespace]; exists {
-		return fmt.Errorf("namespace %q already registered", namespace)
+	m, exists := ValidEvents[namespace]
+	if !exists {
+		m = make(map[string]bool, len(eventTypes))
+		ValidEvents[namespace] = m
 	}
-	m := make(map[string]bool, len(eventTypes))
 	for _, e := range eventTypes {
 		m[e] = true
 	}
-	ValidEvents[namespace] = m
 	return nil
 }
 

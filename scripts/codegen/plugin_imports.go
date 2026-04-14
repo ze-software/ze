@@ -261,8 +261,8 @@ func discoverRPCPackages(root, module string) ([]string, error) {
 	return deduped, nil
 }
 
-// discoverEventNamespaces finds packages that register event namespaces via
-// events.RegisterNamespace. Scans all non-test .go files under internal/.
+// discoverEventNamespaces finds packages that call .RegisterNamespace() via
+// any import alias. Scans all non-test .go files under internal/.
 // Packages already in the plugins list are excluded (they're already imported).
 func discoverEventNamespaces(internalDir, module string, plugins []string) ([]string, error) {
 	pluginSet := make(map[string]bool, len(plugins))
@@ -286,7 +286,7 @@ func discoverEventNamespaces(internalDir, module string, plugins []string) ([]st
 		if filepath.Base(filepath.Dir(path)) == "schema" {
 			return nil
 		}
-		if !fileImports(path, "events.RegisterNamespace") {
+		if !fileImports(path, ".RegisterNamespace(") {
 			return nil
 		}
 		pkgRel, _ := filepath.Rel(filepath.Dir(internalDir), filepath.Dir(path))

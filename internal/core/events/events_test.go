@@ -12,6 +12,9 @@ import (
 // Uses string literals because this package tests the machinery itself,
 // not the component-owned constants. In production, components import
 // their own events/ sub-packages and call RegisterNamespace from init().
+//
+// Keep in sync with the component events/ sub-packages. If a component
+// adds or removes an event type, update the matching line here.
 func TestMain(m *testing.M) {
 	_ = RegisterNamespace("bgp",
 		"update", "open", "notification", "keepalive",
@@ -277,9 +280,18 @@ func TestRegisterNamespace(t *testing.T) {
 	}
 }
 
-func TestRegisterNamespaceDuplicate(t *testing.T) {
-	err := RegisterNamespace("bgp", "some-event")
-	if err == nil {
-		t.Fatal("expected error for duplicate namespace")
+func TestRegisterNamespaceDuplicateIsMerge(t *testing.T) {
+	// Duplicate registration merges event types into the existing namespace.
+	if err := RegisterNamespace("bgp", "test-merge-event"); err != nil {
+		t.Fatalf("duplicate RegisterNamespace should merge, got error: %v", err)
+	}
+	defer unregisterEventType("bgp", "test-merge-event")
+
+	if !IsValidEvent("bgp", "test-merge-event") {
+		t.Fatal("merged event type should be valid")
+	}
+	// Original events should still be present.
+	if !IsValidEvent("bgp", "update") {
+		t.Fatal("original event types should survive merge")
 	}
 }
