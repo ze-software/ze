@@ -59,6 +59,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ssh/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/vpp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/web/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/core/ipc/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/schema"

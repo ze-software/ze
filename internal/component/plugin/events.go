@@ -19,6 +19,7 @@ const (
 	NamespaceInterface = "interface"
 	NamespaceSysctl    = "sysctl"
 	NamespaceSystem    = "system"
+	NamespaceVPP       = "vpp"
 )
 
 // BGP event types.
@@ -74,6 +75,13 @@ const (
 	EventSysctlDescribeRequest      = "describe-request"       // CLI -> sysctl: request detail for one key
 	EventSysctlDescribeResult       = "describe-result"        // sysctl -> requester: key detail JSON
 	EventSysctlClearProfileDefaults = "clear-profile-defaults" // iface -> sysctl: clear all profile defaults for an interface before re-emission
+)
+
+// VPP lifecycle event types.
+const (
+	EventVPPConnected    = "connected"    // VPP component -> dependents: GoVPP connection established
+	EventVPPDisconnected = "disconnected" // VPP component -> dependents: GoVPP connection lost
+	EventVPPReconnected  = "reconnected"  // VPP component -> dependents: GoVPP reconnected after crash
 )
 
 // Interface event types.
@@ -154,6 +162,13 @@ var ValidSystemRIBEvents = map[string]bool{
 	EventSystemRIBReplayRequest: true,
 }
 
+// ValidVPPEvents is the set of valid VPP lifecycle event types.
+var ValidVPPEvents = map[string]bool{
+	EventVPPConnected:    true,
+	EventVPPDisconnected: true,
+	EventVPPReconnected:  true,
+}
+
 // ValidFibEvents is the set of valid FIB event types.
 var ValidFibEvents = map[string]bool{
 	EventFibExternalChange: true,
@@ -223,6 +238,7 @@ var ValidEvents = map[string]map[string]bool{
 	NamespaceInterface: ValidInterfaceEvents,
 	NamespaceSysctl:    ValidSysctlEvents,
 	NamespaceSystem:    ValidSystemEvents,
+	NamespaceVPP:       ValidVPPEvents,
 }
 
 // IsValidEvent returns true if the event type is valid in the given namespace.
