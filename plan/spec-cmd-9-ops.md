@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 2/3 |
-| Updated | 2026-04-10 |
+| Phase | 3/3 |
+| Updated | 2026-04-14 |
 
 ## Post-Compaction Recovery
 
@@ -343,28 +343,22 @@ Add `// RFC 4271 Section 9.1.2: "<decision step>"` above each best-path reason s
 
 ### What Remains
 
+~~`rib best <prefix> reason` terminal~~ -- DONE. Found already implemented during 2026-04-14 audit.
+
 | Item | Effort | Design needed |
 |------|--------|---------------|
-| `rib best <prefix> reason` terminal | Hard | **Yes** -- see design questions below |
+| (none -- all features implemented) | - | - |
 
-**Design questions for best-path reason:**
-
-1. **Instrumentation point:** The best-path comparison in `bestpath.go` currently returns a winner. To report reasons, it needs to track which RFC 4271 Section 9.1.2 step decided each comparison. Options:
-   - Return a `DecisionTrace` struct alongside the winner
-   - Add a `reason` callback parameter to the comparison function
-   - Separate `explainBestPath()` function that re-runs comparison with tracing
-
-2. **Output format:** What does the user see?
-   - Per-candidate: "path via 10.0.0.1 lost at step 4 (higher MED: 200 > 100)"
-   - Or per-step: "step 1 (local-pref): all equal. step 2 (AS-path length): 10.0.0.1 wins (2 < 3)"
-
-3. **Pipeline integration:** New terminal `reason` for `rib best`. The pipeline currently yields RouteItems; the reason terminal would need to re-run best-path with tracing for the matched prefix.
-
-**Recommended approach:** Add `explainBestPath(prefix)` that re-runs comparison with a trace recorder. Returns `[]DecisionStep{Step int, Description string, Winner string, Loser string}`. The `reason` terminal calls this and formats the output.
-
-**Key files to read:**
-- `internal/component/bgp/plugins/rib/bestpath.go` -- comparison logic
-- `internal/component/bgp/plugins/rib/rib_pipeline_best.go` -- best terminal in pipeline
+**rib best reason implementation (found 2026-04-14):**
+- `BestStep` enum with `String()` in `bestpath.go` (10 named steps, RFC 4271 order)
+- `BestPathExplanation` + `PairwiseStep` structs for narration
+- `SelectBestExplain()`: slow-path variant recording per-step decisions
+- `comparePairWithReason()`: core comparison with reason + step output
+- `bestReasonTerminal` in `rib_pipeline_best.go`: drains upstream, re-runs explanation per prefix
+- `parseBestPipelineArgs()` accepts "reason" keyword
+- JSON shape: `{"best-path-reason": [{"family","prefix","winner-peer","candidates","steps":[{"step","incumbent","challenger","winner","reason"}]}]}`
+- 7 unit tests (`TestSelectBestExplain_*`) + 4 pipeline tests (`TestBestPipelineReason_*`)
+- Functional test: `test/plugin/bestpath-reason.ci` (added 2026-04-14)
 
 ### Bugs Found/Fixed
 - show uptime panicked on nil CommandContext (fixed with nil guard)
@@ -373,7 +367,7 @@ Add `// RFC 4271 Section 9.1.2: "<decision step>"` above each best-path reason s
 - `docs/guide/command-reference.md` not yet updated
 
 ### Deviations from Plan
-- `rib best reason` deferred pending design of instrumentation approach
+- ~~`rib best reason` deferred pending design of instrumentation approach~~ -- found already implemented (2026-04-14 audit)
 
 ## Implementation Audit
 

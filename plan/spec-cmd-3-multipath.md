@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 1/3 |
-| Updated | 2026-04-10 |
+| Phase | 3/3 |
+| Updated | 2026-04-14 |
 
 ## Post-Compaction Recovery
 
@@ -280,38 +280,31 @@ Add `// RFC 4271 Section 9.1.2: "<requirement>"` above best-path and multipath s
 
 ### What Was Implemented
 
-**Phase 1 (YANG) -- DONE:**
+**Phase 1 (YANG + Config) -- DONE:**
 - `bgp/multipath` container with `maximum-paths` (uint16, range 1-256, default 1) and `relax-as-path` (boolean, default false)
 - Parse test: `test/parse/multipath-config.ci`
+
+**Phase 2 (Config Delivery + Best-Path Extension) -- DONE:**
+Found already implemented during 2026-04-14 audit:
+- `extractMultipathConfig()` in `rib_multipath_config.go`: extracts `bgp/multipath` from JSON, validates bounds (1-256)
+- RIBManager wires it in Stage 2 `OnConfigure`: stores in `maximumPaths` and `relaxASPath` atomic fields
+- `SelectMultipath()` in `bestpath.go`: post-selection equal-cost multipath (RFC 4271 extension)
+- `multipathEqual()`: gates on LOCAL_PREF, AS_PATH length/content, Origin, MED (same neighbor), eBGP/iBGP
+- 6 config extraction unit tests in `rib_multipath_config_test.go`
+- 12 best-path selection unit tests in `bestpath_test.go` (lines 838-1064)
+
+**Phase 3 (Pipeline Output) -- DONE:**
+Found already implemented during 2026-04-14 audit:
+- `rib_pipeline_best.go`: loads `multipathMax` atomic, calls `SelectMultipath()`, populates `MultipathPeers`
+- `RouteItem.MultipathPeers []string` field, marshaled as `"multipath-peers"` (omitempty)
+- 2 pipeline output tests in `rib_pipeline_best_test.go`
+- Functional test: `test/plugin/multipath-basic.ci` (added 2026-04-14)
 
 ### What Remains
 
 | Item | Effort | Design needed |
 |------|--------|---------------|
-| Config delivery to RIB plugin | Medium | No -- use Stage 2 config delivery (same as GR plugin receives restart-time). RIB plugin reads `bgp/multipath/maximum-paths` and `relax-as-path` from its config callback. |
-| RIB N-way best-path selection | Hard | **Yes** -- see design questions below |
-
-**Design questions for N-way best-path:**
-
-1. **Storage model:** Currently `bestpath.go` tracks one best path per prefix. With multipath, it needs to track up to N paths. Options:
-   - `bestPaths []bestEntry` per prefix (simple, but changes the data structure)
-   - Separate `multipathSet` alongside the single best (preserves existing single-best for FIB, adds multipath set for ECMP consumers)
-
-2. **Consumer API:** Who reads the multipath set?
-   - FIB plugin (kernel route programming) needs all N paths for ECMP nexthop groups
-   - `rib best` CLI needs to show all N paths
-   - `rib best reason` needs to explain why each path was selected
-
-3. **relax-as-path semantics:** When true, paths with different AS-path content but same length are equal-cost. When false, AS-path content must also match. This affects the comparison function in `bestpath.go`.
-
-4. **Interaction with ADD-PATH:** When ADD-PATH is negotiated, multiple paths per prefix are already stored. Multipath selects N best from the full set. These are independent features but interact at the storage level.
-
-**Recommended approach:** Add a `multipathN` field to the RIB manager (from config). In `computeBestPath()`, instead of keeping only the single winner, keep up to N paths that tie at each RFC 4271 Section 9.1.2 decision step. The existing single-best remains the first element. FIB consumers iterate the full set.
-
-**Key files to read before implementing:**
-- `internal/component/bgp/plugins/rib/bestpath.go` -- current best-path selection
-- `internal/component/bgp/plugins/rib/rib_bestchange.go` -- best-path change notifications
-- `internal/component/bgp/plugins/rib/rib.go` -- RIB manager and config delivery
+| (none -- all phases implemented) | - | - |
 
 ### Bugs Found/Fixed
 - None
@@ -320,7 +313,7 @@ Add `// RFC 4271 Section 9.1.2: "<requirement>"` above best-path and multipath s
 - Not yet
 
 ### Deviations from Plan
-- Only YANG schema implemented; RIB algorithm change deferred pending design
+- ~~Only YANG schema implemented; RIB algorithm change deferred pending design~~ -- all phases found implemented during 2026-04-14 audit. Spec was stale.
 
 ## Implementation Audit
 

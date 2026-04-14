@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 3/4 |
-| Updated | 2026-04-10 |
+| Phase | 4/4 |
+| Updated | 2026-04-14 |
 
 ## Post-Compaction Recovery
 
@@ -324,10 +324,12 @@ Add `// RFC 4271 Section 5.1.3: "<requirement>"` above next-hop rewriting code.
 - Handlers registered in `attrModHandlersWithDefaults()`
 - 6 handler test subtests
 
-**Phase 3 (Next-Hop Control) -- DONE (IPv4 only):**
+**Phase 3 (Next-Hop Control) -- DONE (IPv4 + IPv6):**
 - `applyNextHopMod()`: per-destination-peer NEXT_HOP (type 3) modification via ModAccumulator
 - IPv4 safety: `Is4()` check before `As4()` to prevent zero-value on IPv6 addresses
 - Auto/self/unchanged/explicit modes all functional
+- IPv6: `mpReachNextHopHandler()` in `filter_delta_handlers.go` rewrites MP_REACH_NLRI (type 14) NH field
+- `applyNextHopMod` emits MP_REACH ops for IPv6 addresses
 
 **Phase 3b (Cluster-ID Sync) -- DONE:**
 - `PeersFromConfigTree` syncs `session/cluster-id` and `loop-detection/cluster-id`
@@ -341,15 +343,11 @@ Add `// RFC 4271 Section 5.1.3: "<requirement>"` above next-hop rewriting code.
 
 ### What Remains
 
+~~IPv6 next-hop rewriting (MP_REACH_NLRI type 14)~~ -- DONE. `mpReachNextHopHandler()` implements approach 1 (type-14 AttrModHandler). Found already implemented during 2026-04-14 audit.
+
 | Item | Effort | Design needed |
 |------|--------|---------------|
-| IPv6 next-hop rewriting (MP_REACH_NLRI type 14) | Hard | Yes -- MP_REACH has variable-length NH (16 or 32 bytes). Needs to parse NLRI header to locate NH field. Decision: ModAccumulator with new handler for type 14, or separate rewrite path like `wireu.RewriteASPath`? |
-
-**Design question for IPv6 NH:** The existing `applyNextHopMod` only sets NEXT_HOP (type 3), which is IPv4-only. For IPv6 unicast and multiprotocol families, the next-hop lives inside MP_REACH_NLRI (type 14) as a variable-length field after AFI(2)+SAFI(1)+NH-len(1). Two approaches:
-1. Add a type-14 AttrModHandler that parses MP_REACH header, locates NH bytes, rewrites in place. Pro: uses existing ModAccumulator. Con: handler must understand MP_REACH structure.
-2. Separate rewrite function like `wireu.RewriteNextHop()` called before ModAccumulator. Pro: cleaner separation. Con: new code path.
-
-Recommendation: approach 1 (type-14 handler) since it follows the established pattern.
+| Wire-level forwarding .ci tests (rr-basic, nexthop-self, nexthop-unchanged) | Medium | No -- blocked by bgp-rr replay timing in single-ze-peer multi-IP pattern. Config acceptance + RIB storage tests exist. |
 
 ### Bugs Found/Fixed
 - ORIGINATOR_ID initially used source peer IP instead of BGP Identifier (review finding 1 -- fixed)
@@ -361,7 +359,8 @@ Recommendation: approach 1 (type-14 handler) since it follows the established pa
 - `docs/guide/command-reference.md` not yet updated (deferred to spec completion)
 
 ### Deviations from Plan
-- IPv6 next-hop rewriting deferred to separate phase (not in original spec scope but identified during review)
+- ~~IPv6 next-hop rewriting deferred to separate phase~~ -- found already implemented (2026-04-14 audit)
+- Wire-level forwarding .ci tests use config-acceptance + RIB-storage pattern instead of two-peer hex verification (bgp-rr replay timing blocker)
 
 ## Implementation Audit
 
