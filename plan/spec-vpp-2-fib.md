@@ -23,6 +23,14 @@ VPP's FIB via GoVPP `IPRouteAddDel`. Direct copy of fib-p4/fib-kernel structure.
 batch optimization (collect multiple changes, dispatch in bulk) and VPP restart recovery
 via replay-request.
 
+fibvpp gets the GoVPP connection via direct import of `internal/component/vpp/` (`vpp.Channel()`).
+Lifecycle events arrive via EventBus `("vpp", "connected/disconnected/reconnected")`. On
+"reconnected", fibvpp emits a replay-request to repopulate VPP's ephemeral FIB.
+
+fibvpp owns its own Prometheus metrics via `ConfigureMetrics` callback (same pattern as
+fibkernel): `ze_fibvpp_routes_installed`, `ze_fibvpp_route_installs_total`, etc. No dependency
+from vpp-6 telemetry back into fibvpp.
+
 This is the core value proposition: ze's BGP decisions programmed directly into VPP's FIB
 with sub-second convergence, no kernel intermediary.
 

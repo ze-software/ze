@@ -18,17 +18,27 @@
 
 ## Task
 
-Create ze's VPP component that manages VPP as a supervised process. The component generates
-startup.conf from YANG config, binds NICs to DPDK (vfio-pci), starts/stops VPP, monitors
-health via GoVPP connection state, and exposes a shared GoVPP connection for dependent plugins
-(fibvpp, ifacevpp).
+Create ze's VPP component that manages VPP's full process lifecycle. Ze execs VPP, supervises
+it (restart with backoff on crash), and shuts down cleanly (SIGTERM, wait, unbind NICs). No
+systemd or external process manager required (gokrazy appliance has no init system).
+
+The component generates startup.conf from YANG config, binds NICs to DPDK (vfio-pci), execs
+VPP, monitors health via GoVPP connection state, and exposes a shared GoVPP connection for
+dependent plugins (fibvpp, ifacevpp).
+
+Connection sharing uses two mechanisms:
+- **Bus**: EventBus events `("vpp", "connected/disconnected/reconnected")` for lifecycle notifications
+- **Direct import**: Plugins import `internal/component/vpp/` and call `vpp.Channel()` for GoVPP API access
+- **Startup ordering**: Plugins declare `Dependencies: ["rib", "vpp"]` in registration
 
 This is the foundation: everything else in the VPP spec set requires a running VPP instance
 with a healthy GoVPP connection.
 
 ### Reference
 
-- IPng.ch blog: VPP deployment patterns, startup.conf templates, DPDK binding, LCP configuration
+- `~/Code/site/ipng.ch/vpp-deployment-notes.md` — consolidated notes from 83 IPng articles (production values, NIC quirks, LCP details)
+- `~/Code/site/ipng.ch/ze-vpp-analysis.md` — feasibility analysis with three integration strategies (ze chose Strategy 3)
+- `~/Code/site/ipng.ch/articles/` — full article archive (83 articles by topic)
 - VyOS: `control_host.py` for DPDK NIC driver binding logic (ported to Go)
 - GoVPP documentation (go.fd.io/govpp): AsyncConnect, stats client, socket transport
 
@@ -93,12 +103,13 @@ Not protocol work. No RFCs apply.
    a. Parse YANG config into VPP settings struct
    b. Generate startup.conf from settings
    c. Bind configured NICs to vfio-pci (DPDK)
-   d. Start VPP process (or verify externally managed VPP is running)
+   d. Exec VPP process (ze owns lifecycle, no external manager)
    e. Connect via GoVPP AsyncConnect to api-socket
    f. Wait for Connected event
-   g. Notify dependents (fibvpp, ifacevpp) that VPP is ready
-4. On config reload: regenerate startup.conf, signal VPP to reload (or restart)
-5. On shutdown: disconnect GoVPP, unbind NICs from vfio-pci, restore original drivers
+   g. Emit EventBus ("vpp", "connected") to notify dependents
+4. On config reload: regenerate startup.conf, restart VPP process, reconnect GoVPP
+5. On VPP crash: detect via GoVPP disconnect, emit ("vpp", "disconnected"), restart with backoff, emit ("vpp", "reconnected") on recovery
+6. On shutdown: disconnect GoVPP, SIGTERM VPP, wait for exit, unbind NICs from vfio-pci, restore original drivers
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -354,16 +365,33 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | linux-nl | rx-buffer-size (67108864) | Hardcoded (only if LCP enabled) |
 | statseg | size, page-size | vpp/stats + vpp/memory YANG leaves |
 
-Pattern follows IPng.ch blog and VyOS proven templates.
+## IPng Production Knowledge
+
+Full reference: `docs/research/vpp-deployment-reference.md`
+Source articles: `~/Code/site/ipng.ch/` (83 articles, deployment notes, feasibility analysis)
+
+Key values that inform this spec's YANG defaults and startup.conf generation:
+
+- **Buffers:** 128K proven for full DFZ at 10G. Default-data-size 2048 (9216 for jumbo).
+- **Heap:** 1536M (1.5G) for ~958K IPv4 + ~198K IPv6 FIB.
+- **Stats segment:** 1G.
+- **Plugin pattern:** `plugin default { disable }`, enable dpdk + linux_cp + linux_nl.
+- **linux-nl:** `rx-buffer-size 67108864` (64MB) required for full DFZ route injection.
+- **Hugepages:** 3072 x 2MB (6GB) for production. IOMMU required (`intel_iommu=on iommu=pt`).
+- **CPU:** `isolcpus=<worker-cores>` kernel param. main-core 0, workers on isolated cores.
+- **Mellanox exception:** mlx5 uses RDMA, not vfio-pci. Skip DPDK binding, use `RdmaCreate` API.
+- **LCP:** Start with upstream (VPP 25.02+). lcpng fork needed only for MPLS (vpp-3).
+- **Performance:** ~35 Mpps (4C Xeon D1518), ~250K API calls/sec (GoVPP), ~175K routes/sec (netlink).
 
 ## DPDK NIC Driver Management
 
 **Bind sequence** (per configured PCI address):
 1. Read current driver from `/sys/bus/pci/devices/<addr>/driver` symlink
 2. Save original driver name to persistent state file
-3. Load vfio kernel modules: `vfio`, `vfio_pci`, `vfio_iommu_type1`
-4. Write PCI address to `/sys/bus/pci/devices/<addr>/driver/unbind`
-5. Write vendor:device to `/sys/bus/pci/drivers/vfio-pci/new_id`
+3. Check if NIC uses RDMA (mlx5): if yes, skip vfio binding, use RDMA interface creation
+4. Load vfio kernel modules: `vfio`, `vfio_pci`, `vfio_iommu_type1`
+5. Write PCI address to `/sys/bus/pci/devices/<addr>/driver/unbind`
+6. Write vendor:device to `/sys/bus/pci/drivers/vfio-pci/new_id`
 
 **Unbind sequence** (teardown, reverse):
 1. Unbind from vfio-pci

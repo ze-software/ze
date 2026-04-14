@@ -22,6 +22,12 @@ Read VPP's stats segment for per-interface counters, per-node CPU cycles, and sy
 Expose via ze's telemetry component as Prometheus gauges/counters. The stats segment is a
 shared-memory region (separate from the binary API), accessed via GoVPP's stats client.
 
+**No dependency on fibvpp.** FIB route count metrics (`ze_fibvpp_routes_installed` etc.) are
+owned by fibvpp itself via its `ConfigureMetrics` callback (same pattern as fibkernel). This
+spec only handles VPP-native stats segment telemetry.
+
+**YANG:** Poll interval is added directly to `ze-vpp-conf.yang` (owned by vpp-1, same component).
+
 This provides visibility into VPP's forwarding performance that is not available through the
 kernel intermediary approach.
 
@@ -39,7 +45,7 @@ kernel intermediary approach.
 - [ ] `internal/component/telemetry/` — existing telemetry component
   → Constraint: VPP metrics register via same Prometheus registry
 - [ ] `internal/plugins/fibvpp/` — fib-vpp plugin from vpp-2
-  → Constraint: FIB route count metric sourced from fibvpp installed map
+  → Decision: fibvpp owns its own route count metrics via ConfigureMetrics. No dependency from vpp-6.
 
 ### RFC Summaries (MUST for protocol work)
 
@@ -65,7 +71,7 @@ Not protocol work. No RFCs apply.
 **Behavior to preserve:**
 - Existing telemetry component and metrics unchanged
 - VPP component lifecycle unchanged
-- fib-vpp plugin unchanged (route count is a read-only metric)
+- fib-vpp plugin unchanged (fibvpp owns its own route count metrics)
 
 **Behavior to change:**
 - VPP stats polling goroutine added to vpp component or as separate plugin
@@ -87,14 +93,14 @@ Not protocol work. No RFCs apply.
    c. GetSystemStats → vector rate, input rate
 4. Convert to Prometheus metrics (gauge/counter as appropriate)
 5. Update registered metrics
-6. fibvpp installed map length → fib_routes_installed gauge (read from fibvpp)
+   (fibvpp route count metrics are separate, owned by fibvpp via ConfigureMetrics)
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | VPP stats segment → GoVPP stats client | Shared memory read via stats socket | [ ] |
 | GoVPP stats client → telemetry | Stats structs converted to Prometheus metrics | [ ] |
-| fibvpp installed map → telemetry | Route count read from fibvpp exported function | [ ] |
+| ~~fibvpp installed map → telemetry~~ | ~~Route count read from fibvpp~~ | Removed: fibvpp owns its own metrics via ConfigureMetrics |
 
 ### Integration Points
 - `internal/component/vpp/` — stats socket path from config, connection lifecycle

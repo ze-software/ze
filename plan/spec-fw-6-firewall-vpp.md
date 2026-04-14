@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Depends | spec-fw-1-data-model, VPP Phase 0 (ze-vpp-plan.md) |
+| Depends | spec-fw-1-data-model, spec-vpp-1-lifecycle |
 | Phase | - |
 | Updated | 2026-04-13 |
 
@@ -12,24 +12,27 @@
 **Re-read these after context compaction:**
 1. This spec file
 2. `plan/spec-fw-0-umbrella.md` — design decisions, VPP compatibility table
-3. `plan/ze-vpp-plan.md` — VPP Phase 0 (lifecycle), Phase 4 (ACL/policer)
-4. `internal/component/firewall/backend.go` — Backend interface (from fw-1)
+3. `plan/spec-vpp-0-umbrella.md` — VPP architecture, design decisions
+4. `plan/spec-vpp-1-lifecycle.md` — VPP lifecycle component (GoVPP connection)
+5. `internal/component/firewall/backend.go` — Backend interface (from fw-1)
 
 ## Task
 
 Implement the firewallvpp plugin using GoVPP. The plugin receives `[]Table` via `Apply`,
 translates ze Expression types to VPP ACL rules, classifier sessions, and policers.
 
-Depends on VPP Phase 0 (lifecycle management, GoVPP connection) being implemented first.
-This spec subsumes VPP plan Phase 4 ACL feature.
+Depends on spec-vpp-1-lifecycle (VPP component, GoVPP connection) being implemented first.
+firewallvpp gets the GoVPP connection via direct import of `internal/component/vpp/`
+(`vpp.Channel()`), same pattern as fibvpp. This spec owns all VPP ACL work (dropped from
+vpp-5 to avoid duplication).
 
 ## Required Reading
 
 ### Architecture Docs
 - [ ] `plan/spec-fw-0-umbrella.md` — VPP compatibility mapping table
   → Decision: same data model, different backend translation
-- [ ] `plan/ze-vpp-plan.md` — Phase 0 (VPPConn), Phase 4 (ACL)
-  → Constraint: depends on VPPConn for GoVPP connection management
+- [ ] `plan/spec-vpp-1-lifecycle.md` — VPP lifecycle component
+  → Constraint: depends on vpp.Channel() for GoVPP connection (direct import)
   → Constraint: ACL via AclAddReplace, AclInterfaceSetAclList
 
 **Key insights:**
@@ -42,8 +45,8 @@ This spec subsumes VPP plan Phase 4 ACL feature.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `plan/ze-vpp-plan.md` — Phase 4 ACL section: AclAddReplace, AclInterfaceSetAclList, PolicerAddDel APIs
-  → Constraint: AclAddReplace, AclInterfaceSetAclList, PolicerAddDel APIs
+- [ ] `plan/spec-vpp-0-umbrella.md` — VPP architecture decisions (connection sharing, YANG ownership)
+  → Constraint: GoVPP connection via direct import of internal/component/vpp/
 - [ ] `internal/component/firewall/backend.go` — Backend interface (from fw-1, to be created)
   → Constraint: same Apply([]Table) interface as firewallnft
 - [ ] `internal/component/firewall/model.go` — Expression types (from fw-1, to be created)
@@ -78,7 +81,7 @@ This spec subsumes VPP plan Phase 4 ACL feature.
 ### Integration Points
 - `internal/component/firewall/model.go` (fw-1) — same Table/Expression types
 - `internal/component/firewall/backend.go` (fw-1) — same Backend interface
-- `internal/component/vpp/conn.go` (VPP Phase 0) — GoVPP connection
+- `internal/component/vpp/` (spec-vpp-1-lifecycle) — GoVPP connection via vpp.Channel()
 
 ### Architectural Verification
 - [ ] No bypassed layers
@@ -162,7 +165,7 @@ No existing files modified.
 ### /implement Stage Mapping
 | /implement Stage | Spec Section |
 |------------------|--------------|
-| 1. Read spec | This file + fw-0 + fw-1 + ze-vpp-plan |
+| 1. Read spec | This file + fw-0 + fw-1 + vpp-0-umbrella + vpp-1-lifecycle |
 | 2. Audit | Files to Create |
 | 3. Implement | Phases below |
 | 4-12 | Standard flow |

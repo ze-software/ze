@@ -2,8 +2,8 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
-| Depends | spec-vpp-2-fib |
+| Status | deferred |
+| Depends | spec-vpp-2-fib + sysRIB label extension spec (not yet written) |
 | Phase | - |
 | Updated | 2026-04-13 |
 
@@ -17,6 +17,11 @@
 5. `internal/plugins/fibvpp/` — files from vpp-2
 
 ## Task
+
+**DEFERRED:** sysRIB event payload (`outgoingChange` in `internal/plugins/sysrib/sysrib.go`)
+has no `labels` field today. This spec requires a sysRIB label extension spec to be designed
+and implemented first. The extension adds an optional `labels` JSON array to the
+`(system-rib, best-change)` event, backward-compatible via `omitempty`.
 
 Extend fib-vpp to program MPLS label push/swap/pop in VPP's FIB based on BGP next-hop labels
 (RFC 3107, RFC 8277). Ze's BGP implementation already parses MPLS labels from UPDATE messages.

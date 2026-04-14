@@ -33,9 +33,16 @@ implementation cycle within the spec.
 | Bridge domain with BVI | `vpp bridge-domain` | BridgeDomainAddDelV2 + BVI interface | High |
 | VXLAN tunnel (dynamic) | `vpp vxlan` | VxlanAddDelTunnelV3 | High |
 | Policer | `vpp policer` | PolicerAddDel | Medium |
-| ACL | `vpp acl` | AclAddReplace, AclInterfaceSetAclList | Medium (also in spec-fw-6) |
+| ~~ACL~~ | ~~`vpp acl`~~ | ~~AclAddReplace, AclInterfaceSetAclList~~ | ~~Dropped: owned by spec-fw-6 (firewall VPP backend)~~ |
 | SRv6 policy | `vpp srv6` | SrPolicyAdd, SrSteeringAddDel | Medium |
 | sFlow | `vpp sflow` | SflowEnableDisable, SflowSamplingRateSet | Low |
+
+**Note:** ACL removed from this spec. VPP ACLs are a firewall backend implementation, owned
+by `spec-fw-6-firewall-vpp.md`. The firewall component already has a Backend interface
+(`internal/component/firewall/backend.go`).
+
+**YANG:** All feature containers are added directly to `ze-vpp-conf.yang` (owned by vpp-1).
+Same component, no augment needed.
 
 ### Reference
 

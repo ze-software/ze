@@ -10,6 +10,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 
 - [project_cli_dispatch_discovery.md](project_cli_dispatch_discovery.md) - Three CLI gaps blocking debugging: no one-shot command, help shows RPC names not dispatch keys, no dispatch key listing
 - [project_no_filtered_routes.md](project_no_filtered_routes.md) - Ze does not track filtered/noexport routes; birdwatcher endpoints return empty
+- [project_gokrazy_appliance.md](project_gokrazy_appliance.md) - Ze targets gokrazy appliance (no systemd); must own full process lifecycle for VPP
 
 
 ## User Profile
@@ -20,6 +21,10 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 ## Reference
 
 - [reference_discord_bot.md](reference_discord_bot.md) - Discord bot in ~/Unix/bin/discord.sh: --channel ze-news/ze-test, --text "msg"
+
+## Feedback (workflow)
+
+- [feedback_workflow_cycle.md](feedback_workflow_cycle.md) - Standard cycle: /ze-implement -> work -> /ze-review -> fix -> /ze-commit -> repeat
 
 ## Feedback (testing)
 

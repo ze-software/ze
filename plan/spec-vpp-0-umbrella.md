@@ -54,11 +54,17 @@ push/swap/pop from BGP, SRv6 steering, per-prefix VPP counters, multipath with u
 | Decision | Detail |
 |----------|--------|
 | GoVPP binary API, no CGo | GoVPP's socket client is pure Go. No CGo dependency. |
-| Component + plugin split | `internal/component/vpp/` for lifecycle. `internal/plugins/fibvpp/` for FIB. `internal/plugins/ifacevpp/` for interfaces. |
+| Component + plugin split | `internal/component/vpp/` for lifecycle (component). `internal/plugins/fibvpp/` for FIB (standalone plugin, same pattern as fibkernel/fibp4). `internal/plugins/ifacevpp/` for interfaces (backend plugin for iface component). |
+| Ze owns VPP process lifecycle | Ze execs VPP, supervises (restart with backoff), and shuts down cleanly. No systemd dependency. Required for gokrazy appliance (no init system). |
+| Connection sharing: bus + direct import | EventBus `("vpp", "connected/disconnected/reconnected")` for lifecycle notifications. Direct import `vpp.Channel()` for GoVPP API calls. `Dependencies: ["rib", "vpp"]` for startup ordering. |
 | fib-kernel and fib-vpp coexist | fib-kernel programs kernel routes for local services (SSH, web UI). fib-vpp programs VPP's FIB for transit traffic. |
+| fibvpp owns its own metrics | `ConfigureMetrics` callback registers `ze_fibvpp_routes_installed` etc., same pattern as fibkernel. No reverse dependency from telemetry. |
 | VPP FIB is ephemeral | Lost on VPP restart. Recovery via replay-request from sysRIB. Simpler than fib-kernel's crash recovery. |
 | LCP for control plane | BGP reactor binds TCP sockets on Linux interfaces. LCP ensures those interfaces exist as TAPs. |
 | Pin to VPP 25.02 LTS | GoVPP bindings must match VPP release. Regenerate per release. |
+| YANG ownership | vpp-1 owns `ze-vpp-conf.yang`. vpp-2 augments `/fib:fib` (cross-component, like fibp4). vpp-5/vpp-6 add leaves directly to `ze-vpp-conf.yang` (same component). |
+| ACL owned by spec-fw-6 | VPP ACLs are a firewall backend, not a standalone VPP feature. Dropped from vpp-5. |
+| vpp-3 deferred | sysRIB event payload has no labels field today. MPLS label extension needs separate design before vpp-3 can proceed. |
 
 ### Architecture
 
@@ -111,7 +117,7 @@ No CGo. GoVPP's socket client is pure Go.
 |------|-------|---------|----------|
 | `spec-vpp-1-lifecycle.md` | VPP component: startup.conf generation, DPDK NIC binding, GoVPP connection, health monitoring | This umbrella | ~800 |
 | `spec-vpp-2-fib.md` | fib-vpp plugin: IPv4/IPv6 route programming via GoVPP, batch optimization, replay recovery | vpp-1 | ~1200 |
-| `spec-vpp-3-mpls.md` | MPLS label push/swap/pop from BGP labels, sysRIB label extension | vpp-2 | ~600 |
+| `spec-vpp-3-mpls.md` | MPLS label push/swap/pop from BGP labels, sysRIB label extension. **Deferred**: sysRIB event payload needs labels field first. | vpp-2 + sysRIB label spec | ~600 |
 | `spec-vpp-4-iface.md` | VPP interface backend: iface.Backend implementation, LCP pairs, naming | vpp-1 | ~2000 |
 | `spec-vpp-5-features.md` | VPP-native features: L2XC, bridge domains, VXLAN, policers, ACLs, SRv6, sFlow | vpp-4 | ~500-800 each |
 | `spec-vpp-6-telemetry.md` | VPP telemetry: stats segment polling, per-prefix/interface/node counters, Prometheus | vpp-1 | ~600 |
@@ -134,7 +140,7 @@ Phases vpp-5 and vpp-6 are incremental value adds. Each feature in vpp-5 is inde
 
 | Spec | Relationship |
 |------|-------------|
-| `spec-fw-6-firewall-vpp.md` | Depends on vpp-1 (VPP lifecycle). Uses GoVPP ACL API. |
+| `spec-fw-6-firewall-vpp.md` | Depends on vpp-1 (VPP lifecycle). Uses GoVPP ACL API. Owns all VPP ACL work (dropped from vpp-5). |
 | `spec-fw-7-traffic-vpp.md` | Depends on vpp-1. Uses GoVPP policer/scheduler API. |
 
 ## Required Reading
@@ -176,8 +182,10 @@ Phases vpp-5 and vpp-6 are incremental value adds. Each feature in vpp-5 is inde
 
 | Document | Purpose |
 |----------|---------|
-| IPng.ch blog | VPP deployment patterns, startup.conf templates, DPDK binding, LCP configuration, production experience |
-| VyOS VPP integration | vppcfg tool, `control_host.py` for DPDK NIC driver binding, VPP startup.conf generation patterns |
+| `docs/research/vpp-deployment-reference.md` | Production values, NIC driver matrix, startup.conf reference, LCP details, performance baselines (from IPng.ch 83 articles) |
+| `docs/research/ze-vpp-plan.md` | Original integration plan with Strategy 1/2/3 analysis and GoVPP API examples |
+| `~/Code/site/ipng.ch/vpp-deployment-notes.md` | Consolidated notes from 83 IPng articles |
+| `~/Code/site/ipng.ch/ze-vpp-analysis.md` | Feasibility analysis with three integration strategies |
 | GoVPP documentation (go.fd.io/govpp) | Binary API client, stats client, binapi code generation |
 | VPP 25.02 documentation | API reference for ip, mpls, interface, lcp, acl, policer, srv6, sflow modules |
 
@@ -547,10 +555,10 @@ Ported from VyOS `control_host.py` to Go:
 | State | Transition | Action |
 |-------|-----------|--------|
 | Disconnected | Connect requested | AsyncConnect to api-socket with retry (10 attempts, 1s interval) |
-| Connecting | Connected event | Mark ready, notify dependents (fibvpp, ifacevpp) |
-| Connected | Disconnect event | Mark unavailable, dependents stop operations |
-| Connected | Health check timeout | Reconnect with backoff |
-| Reconnecting | Connected event | Emit replay-request for FIB repopulation |
+| Connecting | Connected event | Mark ready, emit EventBus ("vpp", "connected"), expose vpp.Channel() |
+| Connected | Disconnect event | Mark unavailable, emit ("vpp", "disconnected"), dependents stop operations |
+| Connected | Health check timeout | Restart VPP process with backoff, reconnect |
+| Reconnecting | Connected event | Emit ("vpp", "reconnected"), fibvpp replays FIB |
 
 Connection provides typed API clients:
 - IP client for route operations (IPRouteAddDel)
@@ -566,8 +574,8 @@ Connection provides typed API clients:
 | VPP crashes lose FIB (ephemeral state) | GoVPP detects disconnect; ze re-emits replay-request to repopulate. |
 | LCP plugin stability (IPng maintains their own fork) | Start with upstream LCP (shipped with VPP 25.02+). Evaluate lcpng if insufficient. |
 | DPDK NIC compatibility | Document supported NICs: Intel E810, Mellanox Cx5+, i40e, i350, virtio. |
-| sysRIB event format change for MPLS labels | Design label extension in vpp-2 so sysRIB is ready before vpp-3. |
-| VPP process management on non-systemd systems | vpp-1 generates config; ze can either start VPP via systemd unit or exec directly. |
+| sysRIB event format change for MPLS labels | vpp-3 deferred until sysRIB label extension spec is designed and implemented. |
+| VPP process management | Ze owns full VPP lifecycle (exec, supervise, restart with backoff, clean shutdown). Required for gokrazy appliance (no systemd). |
 
 ## Phase Summary
 
@@ -575,7 +583,7 @@ Connection provides typed API clients:
 |-------|------|-----------|----------------|
 | vpp-1 | VPP lifecycle (startup.conf, DPDK, connect) | Nothing | go.fd.io/govpp |
 | vpp-2 | fib-vpp (IPv4/IPv6 route programming) | vpp-1 | - |
-| vpp-3 | MPLS label operations | vpp-2 + sysRIB label extension | - |
+| vpp-3 | MPLS label operations (**deferred**: sysRIB needs labels field) | vpp-2 + sysRIB label spec | - |
 | vpp-4 | VPP interface backend (iface.Backend) | vpp-1 | - |
 | vpp-5 | VPP-specific features (L2XC, VXLAN, policers...) | vpp-4 | - |
 | vpp-6 | Telemetry (stats segment, Prometheus) | vpp-1 | - |
