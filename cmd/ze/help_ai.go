@@ -12,14 +12,12 @@ import (
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
-	ribschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
-	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
-	ipcschema "codeberg.org/thomas-mangin/ze/internal/core/ipc/schema"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // printAIHelp outputs a machine-friendly reference generated from code.
@@ -369,7 +367,7 @@ func printFamilies() {
 	}
 
 	// Builtin families (engine, not registered by plugins).
-	for _, fam := range []string{"ipv4/unicast", "ipv6/unicast", "ipv4/multicast", "ipv6/multicast"} {
+	for _, fam := range family.RegisteredFamilyNames() {
 		if _, ok := families[fam]; !ok {
 			families[fam] = []string{"builtin"}
 		}
@@ -801,21 +799,9 @@ func buildAISchemaRegistry() *pluginserver.SchemaRegistry {
 		fmt.Fprintf(os.Stderr, "warning: resolve YANG: %v\n", err)
 	}
 
-	apiModules := []struct {
-		name    string
-		content string
-	}{
-		{"ze-bgp-api", bgpschema.ZeBGPAPIYANG},
-		{"ze-system-api", ipcschema.ZeSystemAPIYANG},
-		{"ze-plugin-api", ipcschema.ZePluginAPIYANG},
-		{"ze-rib-api", ribschema.ZeRibAPIYANG},
-	}
-	for _, mod := range apiModules {
-		if mod.content == "" {
-			continue
-		}
-		rpcs := yang.ExtractRPCs(loader, mod.name)
-		_ = schemaReg.RegisterRPCs(mod.name, rpcs)
+	for _, name := range loader.APIModuleNames() {
+		rpcs := yang.ExtractRPCs(loader, name)
+		_ = schemaReg.RegisterRPCs(name, rpcs)
 	}
 
 	return schemaReg

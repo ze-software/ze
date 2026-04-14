@@ -870,14 +870,7 @@ func (c *Completer) confModuleNames() []string {
 	if c.loader == nil {
 		return nil
 	}
-	var names []string
-	for _, name := range c.loader.ModuleNames() {
-		if strings.HasSuffix(name, "-conf") {
-			names = append(names, name)
-		}
-	}
-	sort.Strings(names)
-	return names
+	return c.loader.ConfModuleNames()
 }
 
 // getEntry returns the YANG entry at the given path.

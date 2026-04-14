@@ -17,12 +17,10 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
-	ribschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	ipcschema "codeberg.org/thomas-mangin/ze/internal/core/ipc/schema"
 )
 
 // Plugin ID prefix for internal plugins (e.g., "ze.bgp", "ze.gr").
@@ -423,23 +421,6 @@ func cmdListSchema(
 	return 0
 }
 
-// apiYANGModules returns the API YANG modules that define RPCs and notifications.
-// These are separate from the -conf modules (which define config containers).
-func apiYANGModules() []struct {
-	name    string
-	content string
-} {
-	return []struct {
-		name    string
-		content string
-	}{
-		{"ze-bgp-api.yang", bgpschema.ZeBGPAPIYANG},
-		{"ze-system-api.yang", ipcschema.ZeSystemAPIYANG},
-		{"ze-plugin-api.yang", ipcschema.ZePluginAPIYANG},
-		{"ze-rib-api.yang", ribschema.ZeRibAPIYANG},
-	}
-}
-
 // loadAPIRPCs loads API YANG modules and registers their RPCs and notifications.
 func loadAPIRPCs(registry *pluginserver.SchemaRegistry) error {
 	loader := yang.NewLoader()
@@ -455,9 +436,7 @@ func loadAPIRPCs(registry *pluginserver.SchemaRegistry) error {
 	}
 
 	// Extract and register RPCs and notifications from each API module
-	for _, mod := range apiYANGModules() {
-		moduleName := strings.TrimSuffix(mod.name, ".yang")
-
+	for _, moduleName := range loader.APIModuleNames() {
 		rpcs := yang.ExtractRPCs(loader, moduleName)
 		if len(rpcs) > 0 {
 			if err := registry.RegisterRPCs(moduleName, rpcs); err != nil {

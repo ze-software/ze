@@ -12,25 +12,14 @@ import (
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
-	ribschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
-	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all" // trigger init() registration for all schemas
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	ipcschema "codeberg.org/thomas-mangin/ze/internal/core/ipc/schema"
-
-	// Blank imports trigger init() registration for YANG schemas.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in/schema"    // ze-adj-rib-in
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"            // ze-graceful-restart (augments bgp-conf)
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/hostname/schema"      // ze-hostname (augments bgp-conf)
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/llnh/schema"          // ze-link-local-nexthop (augments bgp-conf)
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/role/schema"          // ze-role (augments bgp-conf)
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/schema" // ze-route-refresh (augments bgp-conf)
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver/schema"       // ze-softver (augments bgp-conf)
-	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"                       // ze-hub-conf (imported by bgp-conf)
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/schema"                    // ze-plugin-conf
 
 	// Blank imports trigger init() registration for RPC handlers.
+	// These packages call pluginserver.RegisterRPCs in init() but are not
+	// included in plugin/all due to import cycles (see plugin_imports.go rpcDirs).
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib"
@@ -63,18 +52,6 @@ type AnalysisNode struct {
 	Children    map[string]*AnalysisNode
 }
 
-// confModuleNames returns all loaded YANG config module names (ending in "-conf").
-func confModuleNames(loader *yang.Loader) []string {
-	var names []string
-	for _, name := range loader.ModuleNames() {
-		if strings.HasSuffix(name, "-conf") {
-			names = append(names, name)
-		}
-	}
-	sort.Strings(names)
-	return names
-}
-
 // BuildUnifiedTree loads YANG schemas and RPC registrations, then merges
 // config entries and command entries into a single analysis tree.
 func BuildUnifiedTree() (*AnalysisNode, error) {
@@ -100,7 +77,7 @@ func addConfigNodes(root *AnalysisNode) error {
 		return fmt.Errorf("YANG loader: %w", err)
 	}
 
-	for _, modName := range confModuleNames(loader) {
+	for _, modName := range loader.ConfModuleNames() {
 		entry := loader.GetEntry(modName)
 		if entry == nil || entry.Dir == nil {
 			continue
@@ -358,22 +335,6 @@ type rpcParams struct {
 	Output []yang.LeafMeta
 }
 
-// apiYANGModules returns the API YANG modules that define RPCs.
-func apiYANGModules() []struct {
-	name    string
-	content string
-} {
-	return []struct {
-		name    string
-		content string
-	}{
-		{"ze-bgp-api.yang", bgpschema.ZeBGPAPIYANG},
-		{"ze-system-api.yang", ipcschema.ZeSystemAPIYANG},
-		{"ze-plugin-api.yang", ipcschema.ZePluginAPIYANG},
-		{"ze-rib-api.yang", ribschema.ZeRibAPIYANG},
-	}
-}
-
 // loadRPCParams loads YANG API modules and returns a map of wire method to parameters.
 func loadRPCParams() (map[string]rpcParams, error) {
 	loader, err := yang.DefaultLoader()
@@ -383,8 +344,7 @@ func loadRPCParams() (map[string]rpcParams, error) {
 
 	result := make(map[string]rpcParams)
 
-	for _, mod := range apiYANGModules() {
-		moduleName := strings.TrimSuffix(mod.name, ".yang")
+	for _, moduleName := range loader.APIModuleNames() {
 		wireModule := yang.WireModule(moduleName)
 		rpcs := yang.ExtractRPCs(loader, moduleName)
 		for _, rpc := range rpcs {

@@ -6,6 +6,8 @@ package yang
 import (
 	"embed"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/openconfig/goyang/pkg/yang"
 )
@@ -120,5 +122,26 @@ func (l *Loader) ModuleNames() []string {
 	for name := range l.modules.Modules {
 		names = append(names, name)
 	}
+	return names
+}
+
+// ConfModuleNames returns sorted names of loaded config modules (suffix "-conf").
+func (l *Loader) ConfModuleNames() []string {
+	return l.moduleNamesBySuffix("-conf")
+}
+
+// APIModuleNames returns sorted names of loaded API modules (suffix "-api").
+func (l *Loader) APIModuleNames() []string {
+	return l.moduleNamesBySuffix("-api")
+}
+
+func (l *Loader) moduleNamesBySuffix(suffix string) []string {
+	var names []string
+	for name := range l.modules.Modules {
+		if strings.HasSuffix(name, suffix) {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
 	return names
 }
