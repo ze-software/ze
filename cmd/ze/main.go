@@ -33,6 +33,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdutil"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
+	zel2tp "codeberg.org/thomas-mangin/ze/cmd/ze/l2tp"
 	zeplugin "codeberg.org/thomas-mangin/ze/cmd/ze/plugin"
 	zeresolve "codeberg.org/thomas-mangin/ze/cmd/ze/resolve"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
@@ -440,6 +441,8 @@ dispatch:
 		os.Exit(zeenv.Run(args[1:]))
 	case "sysctl":
 		os.Exit(zesysctl.Run(args[1:]))
+	case "l2tp":
+		os.Exit(zel2tp.Run(args[1:]))
 	case "run":
 		fmt.Fprintf(os.Stderr, "error: 'ze run' has been replaced by direct verb dispatch\n")
 		fmt.Fprintf(os.Stderr, "hint: use 'ze show <command>' for read-only commands\n")
@@ -543,7 +546,7 @@ dispatch:
 	commands := []string{
 		"show", "set", "del", "update", "validate", "monitor",
 		"bgp", "plugin", "cli", "config", "data", "env", "init", "interface", "start", "schema",
-		"sysctl", "yang", "exabgp", "signal", "status", "completion", "version", "help",
+		"sysctl", "l2tp", "yang", "exabgp", "signal", "status", "completion", "version", "help",
 	}
 	if suggestion := suggest.Command(arg, commands); suggestion != "" {
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", suggestion)
@@ -1060,6 +1063,7 @@ func usage() {
 				{Name: "signal", Desc: "Send signals to running daemon (reload, stop, quit)"},
 				{Name: "interface", Desc: "Manage OS network interfaces"},
 				{Name: "sysctl", Desc: "Inspect and manage kernel tunables"},
+				{Name: "l2tp", Desc: "L2TPv2 offline tools (decode wire messages)"},
 				{Name: "resolve", Desc: "Query DNS, Cymru, PeeringDB, and IRR services"},
 				{Name: "exabgp", Desc: "ExaBGP bridge tools"},
 				{Name: "completion", Desc: "Generate shell completion scripts"},

@@ -1,0 +1,8 @@
+# L2TPv2 wire decode: truncated input is rejected
+# VALIDATES: AC-22 -- `ze l2tp decode` exits non-zero and reports a parse error
+#            when the hex blob is too short for the claimed header layout.
+# PREVENTS: silent success on malformed wire input.
+stdin=payload:hex=c8
+cmd=foreground:seq=1:exec=ze l2tp decode:stdin=payload
+expect=exit:code=1
+expect=stderr:contains=short buffer

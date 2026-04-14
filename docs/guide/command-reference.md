@@ -802,6 +802,28 @@ When fib-kernel is loaded, it automatically enables IPv4 and IPv6 forwarding as 
 <!-- source: internal/plugins/sysctl/register.go -- OnExecuteCommand, CommandDecl -->
 <!-- source: internal/core/sysctl/profiles.go -- ProfileDef, builtinProfiles -->
 
+### L2TPv2 (Offline Tools)
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `l2tp decode [--pretty]` | offline | Decode a hex L2TPv2 control message on stdin and emit JSON on stdout |
+
+`ze l2tp decode` runs without a daemon. Input is ASCII hex (whitespace
+allowed); output is a JSON object with a parsed `header` and an `avps`
+array. Each AVP carries its vendor, numeric type, RFC 2661 catalog name
+(when vendor 0), flag booleans, and the raw value as lowercase hex. Use
+`--pretty` for indented output.
+
+Example:
+
+```
+echo c8020044... | ze l2tp decode --pretty
+```
+
+Exit code is 0 on successful parse, 1 on invalid hex, truncated header, or
+malformed AVPs; stderr carries the reason.
+<!-- source: cmd/ze/l2tp/decode.go -- cmdDecode, avpName -->
+
 ### Event Monitoring
 
 ```

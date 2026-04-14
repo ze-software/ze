@@ -1,0 +1,14 @@
+# L2TPv2 wire decode: SCCRQ
+# VALIDATES: AC-21 -- `ze l2tp decode` parses a realistic SCCRQ hex on stdin
+#            and emits JSON with header + named AVPs on stdout.
+# PREVENTS: silent regressions in header parser or AVP iterator reaching
+#           the user-facing decode command.
+stdin=payload:hex=c8020044000000000000000080080000000000018008000000020100800a0000000300000003800e000000076c61632d64656d6f800800000009123480080000000a0010
+cmd=foreground:seq=1:exec=ze l2tp decode:stdin=payload
+expect=exit:code=0
+expect=stdout:contains="is-control":true
+expect=stdout:contains="length":68
+expect=stdout:contains="name":"message-type"
+expect=stdout:contains="name":"protocol-version"
+expect=stdout:contains="name":"host-name"
+expect=stdout:contains="value":"6c61632d64656d6f"
