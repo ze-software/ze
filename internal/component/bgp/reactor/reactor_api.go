@@ -52,7 +52,7 @@ func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
 		Accept:       s.Connection.Accept,
 		State:        peer.State().String(),
 	}
-	o.dispatcher.OnPeerStateChange(peerInfo, "up", "")
+	o.dispatcher.OnPeerStateChange(&peerInfo, "up", "")
 }
 
 func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
@@ -72,7 +72,7 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
 		Accept:       s.Connection.Accept,
 		State:        peer.State().String(),
 	}
-	o.dispatcher.OnPeerStateChange(peerInfo, "down", reason)
+	o.dispatcher.OnPeerStateChange(&peerInfo, "down", reason)
 }
 
 // reactorAPIAdapter implements plugin.ReactorLifecycle + bgptypes.BGPReactor for the Reactor.

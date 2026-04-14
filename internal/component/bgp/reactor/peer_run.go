@@ -432,7 +432,7 @@ func (p *Peer) runOnce() error {
 				msgs[i] = batch[i].msg
 			}
 
-			counts := receiver.OnMessageBatchReceived(batch[0].peerInfo, msgs)
+			counts := receiver.OnMessageBatchReceived(&batch[0].peerInfo, msgs)
 			for i := range batch {
 				count := 0
 				if i < len(counts) {

@@ -59,6 +59,27 @@ func getEventBus() ze.EventBus {
 	return eventBusRef
 }
 
+// connectorMu guards the package-level connector reference.
+var (
+	connectorMu  sync.Mutex
+	connectorRef *Connector
+)
+
+// GetActiveConnector returns the GoVPP connector from the running VPP Manager.
+// Dependent plugins (fibvpp, ifacevpp) call this to get API channels.
+// Returns nil if the VPP component is not running.
+func GetActiveConnector() *Connector {
+	connectorMu.Lock()
+	defer connectorMu.Unlock()
+	return connectorRef
+}
+
+func setActiveConnector(c *Connector) {
+	connectorMu.Lock()
+	defer connectorMu.Unlock()
+	connectorRef = c
+}
+
 // VPPManager is the self-contained VPP lifecycle manager.
 // It owns startup, health monitoring, crash recovery, and clean shutdown.
 // Call Run(ctx) to start the lifecycle loop. Run blocks until ctx is canceled.
@@ -116,6 +137,11 @@ func (m *VPPManager) Run(ctx context.Context) error {
 		return fmt.Errorf("vpp: dpdk bind: %w", err)
 	}
 	lg.Info("vpp: DPDK NICs bound", "count", len(m.settings.DPDK.Interfaces))
+
+	// Register connector so dependent plugins can access it via GetActiveConnector().
+	setActiveConnector(m.connector)
+	defer setActiveConnector(nil)
+
 	defer func() {
 		if err := m.dpdk.UnbindAll(); err != nil {
 			lg.Error("vpp: dpdk unbind failed", "error", err)

@@ -31,11 +31,11 @@ func (d panicDialer) DialContext(_ context.Context, _, _ string) (net.Conn, erro
 // simulating a bug in message processing.
 type panicReceiver struct{}
 
-func (r panicReceiver) OnMessageReceived(_ plugin.PeerInfo, _ any) int { return 0 }
-func (r panicReceiver) OnMessageBatchReceived(_ plugin.PeerInfo, _ []any) []int {
+func (r panicReceiver) OnMessageReceived(_ *plugin.PeerInfo, _ any) int { return 0 }
+func (r panicReceiver) OnMessageBatchReceived(_ *plugin.PeerInfo, _ []any) []int {
 	panic("simulated receiver panic")
 }
-func (r panicReceiver) OnMessageSent(_ plugin.PeerInfo, _ any) {}
+func (r panicReceiver) OnMessageSent(_ *plugin.PeerInfo, _ any) {}
 
 // TestPeerRunRecoversPanic verifies that a panic inside runOnce (via the dialer)
 // is caught by safeRunOnce, logged, and the peer reconnects with backoff instead
@@ -106,7 +106,7 @@ func TestPeerDeliveryRecoversPanic(t *testing.T) {
 		for first := range deliverChan {
 			// Mirrors production: call receiver.OnMessageBatchReceived.
 			msgs := []any{first.msg}
-			receiver.OnMessageBatchReceived(first.peerInfo, msgs)
+			receiver.OnMessageBatchReceived(&first.peerInfo, msgs)
 		}
 	}()
 

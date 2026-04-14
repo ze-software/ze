@@ -26,7 +26,7 @@ var jsonSafeReplacer = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
 // Structure matches YANG peer-info grouping: address, name, remote.as, group.
 // Always includes address, name, and remote.as. Includes group when non-empty.
 // Key order is alphabetical (matching json.Marshal output from peerMap).
-func writePeerJSON(sb *strings.Builder, peer plugin.PeerInfo) {
+func writePeerJSON(sb *strings.Builder, peer *plugin.PeerInfo) {
 	sb.WriteString(`,"peer":{"address":"`)
 	sb.WriteString(peer.Address.String())
 	sb.WriteByte('"')
@@ -64,7 +64,7 @@ func writePeerJSON(sb *strings.Builder, peer plugin.PeerInfo) {
 // Used by fmt.Sprintf sites where a Builder is not available.
 // Structure matches YANG peer-info grouping: address, name, remote.as, group.
 // Key order is alphabetical (matching json.Marshal output from peerMap).
-func peerJSONInline(peer plugin.PeerInfo) string {
+func peerJSONInline(peer *plugin.PeerInfo) string {
 	var sb strings.Builder
 	sb.WriteString(`"peer":{"address":"`)
 	sb.WriteString(peer.Address.String())
@@ -104,7 +104,7 @@ func peerJSONInline(peer plugin.PeerInfo) string {
 // Uses lazy parsing via AttrsWire when available for optimal performance.
 // Handles encoding (json/text), format (parsed/raw/full), and attribute filtering.
 // If overrideDir is non-empty, it overrides msg.Direction for formatting.
-func FormatMessage(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, overrideDir string) string {
+func FormatMessage(peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, overrideDir string) string {
 	content = content.WithDefaults()
 
 	// Compute effective direction
@@ -157,7 +157,7 @@ func FormatMessage(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptyp
 
 // formatEmptyUpdate formats an empty UPDATE message.
 // ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update"},...}}.
-func formatEmptyUpdate(peer plugin.PeerInfo, content bgptypes.ContentConfig) string {
+func formatEmptyUpdate(peer *plugin.PeerInfo, content bgptypes.ContentConfig) string {
 	if content.Encoding == plugin.EncodingJSON {
 		return `{"type":"bgp","bgp":{"message":{"type":"update"},` + peerJSONInline(peer) + `,"nlri":{}}}` + "\n"
 	}
@@ -171,7 +171,7 @@ func formatEmptyUpdate(peer plugin.PeerInfo, content bgptypes.ContentConfig) str
 // For RAW format, it respects Encoding (JSON or text with raw hex).
 // For structured JSON output of non-UPDATE messages, use Server.formatMessage()
 // which has access to the shared JSONEncoder with proper counter semantics.
-func formatNonUpdate(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, direction string) string {
+func formatNonUpdate(peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, direction string) string {
 	// For parsed format, use dedicated text formatters
 	if content.Format != plugin.FormatRaw {
 		switch msg.Type { //nolint:exhaustive // only specific types have dedicated formatters
@@ -201,7 +201,7 @@ func formatNonUpdate(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgpt
 // formatFromFilterResult formats UPDATE using lazy-parsed FilterResult.
 // This is the optimized path that only parses requested attributes.
 // ctx provides ADD-PATH state per family (nil means no ADD-PATH).
-func formatFromFilterResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
+func formatFromFilterResult(peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	switch content.Format {
 	case plugin.FormatRaw, plugin.FormatHex:
 		return formatRawFromResult(peer, msg, content, direction)
@@ -214,7 +214,7 @@ func formatFromFilterResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, conte
 
 // formatRawFromResult formats raw hex (doesn't need FilterResult attributes).
 // ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update",...},...}}.
-func formatRawFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, direction string) string {
+func formatRawFromResult(peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, direction string) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	if content.Encoding == plugin.EncodingJSON {
 		var msgFields string
@@ -228,7 +228,7 @@ func formatRawFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content 
 
 // formatParsedFromResult formats parsed UPDATE using FilterResult.
 // ctx provides ADD-PATH state per family.
-func formatParsedFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
+func formatParsedFromResult(peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	if content.Encoding == plugin.EncodingJSON {
 		return formatFilterResultJSON(peer, result, msg.MessageID, direction, ctx)
 	}
@@ -238,7 +238,7 @@ func formatParsedFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, conte
 // formatFullFromResult formats both parsed content AND raw hex (ze-bgp JSON).
 // ctx provides ADD-PATH state per family.
 // Includes raw bytes nested under "raw" object: attributes, nlri, withdrawn.
-func formatFullFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
+func formatFullFromResult(peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	parsed := formatParsedFromResult(peer, msg, content, result, ctx, direction)
 
@@ -405,7 +405,7 @@ func writeJSONEscapedString(sb *strings.Builder, s string) {
 // Format: peer <ip> remote as <asn> <direction> open <msg-id> router-id <id> hold-time <t> [cap <code> <name> <value>]...
 // ASN is the speaker's ASN (from the OPEN message).
 // Capabilities use "cap <code> <name> <value>" format for easy parsing.
-func FormatOpen(peer plugin.PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
+func FormatOpen(peer *plugin.PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "peer %s remote as %d %s open %d router-id %s hold-time %d",
 		peer.Address, open.ASN, direction, msgID, open.RouterID, open.HoldTime)
@@ -424,7 +424,7 @@ func FormatOpen(peer plugin.PeerInfo, open DecodedOpen, direction string, msgID 
 // FormatNotification formats a NOTIFICATION message as text output.
 // Format: peer <ip> remote as <asn> <direction> notification <msg-id> code <n> subcode <n> code-name <name> subcode-name <name> data <hex>.
 // Names are hyphenated for single-word parsing (e.g., "Administrative-Shutdown").
-func FormatNotification(peer plugin.PeerInfo, notify DecodedNotification, direction string, msgID uint64) string {
+func FormatNotification(peer *plugin.PeerInfo, notify DecodedNotification, direction string, msgID uint64) string {
 	dataHex := ""
 	if len(notify.Data) > 0 {
 		dataHex = fmt.Sprintf("%x", notify.Data)
@@ -441,14 +441,14 @@ func FormatNotification(peer plugin.PeerInfo, notify DecodedNotification, direct
 
 // FormatKeepalive formats a KEEPALIVE message as text output.
 // Format: peer <ip> remote as <asn> <direction> keepalive <msg-id>.
-func FormatKeepalive(peer plugin.PeerInfo, direction string, msgID uint64) string {
+func FormatKeepalive(peer *plugin.PeerInfo, direction string, msgID uint64) string {
 	return fmt.Sprintf("peer %s remote as %d %s keepalive %d\n", peer.Address, peer.PeerAS, direction, msgID)
 }
 
 // FormatRouteRefresh formats a ROUTE-REFRESH message as text output.
 // RFC 7313: Type is "refresh" (subtype 0), "borr" (subtype 1), or "eorr" (subtype 2).
 // Format: peer <ip> remote as <asn> <direction> <type> <msg-id> family <family>.
-func FormatRouteRefresh(peer plugin.PeerInfo, decoded DecodedRouteRefresh, direction string, msgID uint64) string {
+func FormatRouteRefresh(peer *plugin.PeerInfo, decoded DecodedRouteRefresh, direction string, msgID uint64) string {
 	return fmt.Sprintf("peer %s remote as %d %s %s %d family %s\n",
 		peer.Address, peer.PeerAS, direction, decoded.SubtypeName, msgID, decoded.Family)
 }
@@ -458,7 +458,7 @@ func FormatRouteRefresh(peer plugin.PeerInfo, decoded DecodedRouteRefresh, direc
 // Common states: "up", "down", "connected", "established".
 // FormatStateChange formats a peer state change event.
 // reason is the close reason (empty for "up"): "tcp-failure", "notification", etc.
-func FormatStateChange(peer plugin.PeerInfo, state, reason, encoding string) string {
+func FormatStateChange(peer *plugin.PeerInfo, state, reason, encoding string) string {
 	if encoding == plugin.EncodingJSON {
 		return formatStateChangeJSON(peer, state, reason)
 	}
@@ -468,7 +468,7 @@ func FormatStateChange(peer plugin.PeerInfo, state, reason, encoding string) str
 // FormatEOR formats an End-of-RIB marker event.
 // RFC 4724 Section 2: EOR signals that initial routing information exchange is complete.
 // family is the address family (e.g., "ipv4/unicast", "ipv6/unicast").
-func FormatEOR(peer plugin.PeerInfo, family, encoding string) string {
+func FormatEOR(peer *plugin.PeerInfo, family, encoding string) string {
 	if encoding == plugin.EncodingJSON {
 		return `{"type":"bgp","bgp":{"message":{"type":"eor"},` + peerJSONInline(peer) + `,"eor":{"family":"` + family + `"}}}` + "\n"
 	}
@@ -477,7 +477,7 @@ func FormatEOR(peer plugin.PeerInfo, family, encoding string) string {
 
 // FormatCongestion formats a forward-path congestion event.
 // eventType is "congested" or "resumed". peerAddr is the destination peer address.
-func FormatCongestion(peer plugin.PeerInfo, eventType, encoding string) string {
+func FormatCongestion(peer *plugin.PeerInfo, eventType, encoding string) string {
 	if encoding == plugin.EncodingJSON {
 		return `{"type":"bgp","bgp":{"message":{"type":"` + eventType + `"},` + peerJSONInline(peer) + `}}` + "\n"
 	}
@@ -486,7 +486,7 @@ func FormatCongestion(peer plugin.PeerInfo, eventType, encoding string) string {
 
 // FormatNegotiated formats negotiated capabilities event.
 // Sent after OPEN exchange to inform plugins of negotiated capabilities.
-func FormatNegotiated(peer plugin.PeerInfo, neg DecodedNegotiated, encoder *JSONEncoder) string {
+func FormatNegotiated(peer *plugin.PeerInfo, neg DecodedNegotiated, encoder *JSONEncoder) string {
 	// Always use JSON for negotiated - too complex for text format
 	return encoder.Negotiated(peer, neg)
 }
@@ -494,7 +494,7 @@ func FormatNegotiated(peer plugin.PeerInfo, neg DecodedNegotiated, encoder *JSON
 // FormatSentMessage formats a sent UPDATE message.
 // Uses "type":"sent" instead of "type":"update" to distinguish from received messages.
 // For text format, uses "sent update" instead of "received update".
-func FormatSentMessage(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig) string {
+func FormatSentMessage(peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig) string {
 	// Format with direction override (no mutation of msg)
 	output := FormatMessage(peer, msg, content, "sent")
 

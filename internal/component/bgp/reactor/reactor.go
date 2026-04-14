@@ -186,15 +186,15 @@ type ConnectionCallback func(conn net.Conn, settings *PeerSettings)
 type MessageReceiver interface {
 	// OnMessageReceived is called when a BGP message is received from a peer.
 	// Returns the count of cache-consumer plugins that successfully received the event.
-	OnMessageReceived(peer plugin.PeerInfo, msg bgptypes.RawMessage) int
+	OnMessageReceived(peer *plugin.PeerInfo, msg bgptypes.RawMessage) int
 
 	// OnMessageBatchReceived handles a batch of received BGP messages from the same peer.
 	// Returns per-message cache-consumer counts for Activate calls.
-	OnMessageBatchReceived(peer plugin.PeerInfo, msgs []bgptypes.RawMessage) []int
+	OnMessageBatchReceived(peer *plugin.PeerInfo, msgs []bgptypes.RawMessage) []int
 
 	// OnMessageSent is called when a BGP message is sent to a peer.
 	// Only UPDATE messages trigger sent events.
-	OnMessageSent(peer plugin.PeerInfo, msg bgptypes.RawMessage)
+	OnMessageSent(peer *plugin.PeerInfo, msg bgptypes.RawMessage)
 }
 
 // PeerLifecycleObserver receives peer state change notifications.

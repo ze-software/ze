@@ -32,7 +32,7 @@ var errBindToDeviceUnsupported = errors.New("bfd: SO_BINDTODEVICE is Linux-only"
 // SO_BINDTODEVICE is rejected -- the underlying Linux primitive does not
 // exist on BSD/macOS. IP_RECVTTL is not attempted: BSD reuses the name
 // with different semantics and the engine fails closed on missing TTL,
-// which is the intended behaviour on platforms ze does not officially
+// which is the intended behavior on platforms ze does not officially
 // target.
 func applySocketOptions(c syscall.RawConn, device string) error {
 	if device != "" {

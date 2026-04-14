@@ -49,7 +49,7 @@ func (d *EventDispatcher) SetEventBus(eb ze.EventBus) {
 
 // OnMessageReceived handles raw BGP messages from peers.
 // Returns the count of cache-consumer plugins that successfully received the event.
-func (d *EventDispatcher) OnMessageReceived(peer plugin.PeerInfo, msg bgptypes.RawMessage) int {
+func (d *EventDispatcher) OnMessageReceived(peer *plugin.PeerInfo, msg bgptypes.RawMessage) int {
 	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
 		return 0
 	}
@@ -58,7 +58,7 @@ func (d *EventDispatcher) OnMessageReceived(peer plugin.PeerInfo, msg bgptypes.R
 
 // OnMessageBatchReceived handles a batch of received BGP messages from the same peer.
 // Returns per-message cache-consumer counts for Activate calls.
-func (d *EventDispatcher) OnMessageBatchReceived(peer plugin.PeerInfo, msgs []bgptypes.RawMessage) []int {
+func (d *EventDispatcher) OnMessageBatchReceived(peer *plugin.PeerInfo, msgs []bgptypes.RawMessage) []int {
 	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
 		return make([]int, len(msgs))
 	}
@@ -66,7 +66,7 @@ func (d *EventDispatcher) OnMessageBatchReceived(peer plugin.PeerInfo, msgs []bg
 }
 
 // OnMessageSent handles BGP messages sent to peers.
-func (d *EventDispatcher) OnMessageSent(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
+func (d *EventDispatcher) OnMessageSent(peer *plugin.PeerInfo, msg bgptypes.RawMessage) {
 	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
 		return
 	}
@@ -76,7 +76,7 @@ func (d *EventDispatcher) OnMessageSent(peer plugin.PeerInfo, msg bgptypes.RawMe
 // OnPeerStateChange handles peer state transitions.
 // Called by apiStateObserver when peers are established or closed.
 // reason is the close reason (e.g., "tcp-failure", "notification") — empty for "up".
-func (d *EventDispatcher) OnPeerStateChange(peer plugin.PeerInfo, state, reason string) {
+func (d *EventDispatcher) OnPeerStateChange(peer *plugin.PeerInfo, state, reason string) {
 	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
 		return
 	}
@@ -86,7 +86,7 @@ func (d *EventDispatcher) OnPeerStateChange(peer plugin.PeerInfo, state, reason 
 // OnEORReceived handles End-of-RIB marker detection for an UPDATE.
 // RFC 4724 Section 2: EOR signals completion of initial routing exchange.
 // Called after normal UPDATE delivery when the UPDATE is detected as an EOR marker.
-func (d *EventDispatcher) OnEORReceived(peer plugin.PeerInfo, family string) {
+func (d *EventDispatcher) OnEORReceived(peer *plugin.PeerInfo, family string) {
 	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
 		return
 	}
@@ -95,7 +95,7 @@ func (d *EventDispatcher) OnEORReceived(peer plugin.PeerInfo, family string) {
 
 // OnPeerNegotiated handles capability negotiation completion.
 // neg is format.DecodedNegotiated (typed as any from reactor).
-func (d *EventDispatcher) OnPeerNegotiated(peer plugin.PeerInfo, neg any) {
+func (d *EventDispatcher) OnPeerNegotiated(peer *plugin.PeerInfo, neg any) {
 	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
 		return
 	}
@@ -105,7 +105,7 @@ func (d *EventDispatcher) OnPeerNegotiated(peer plugin.PeerInfo, neg any) {
 // OnPeerCongestionChange handles forward-path congestion state transitions.
 // eventType is "congested" or "resumed". Called from reactor congestion callbacks.
 // Delivery is parallel via long-lived per-process goroutines.
-func (d *EventDispatcher) OnPeerCongestionChange(peer plugin.PeerInfo, eventType string) {
+func (d *EventDispatcher) OnPeerCongestionChange(peer *plugin.PeerInfo, eventType string) {
 	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
 		return
 	}

@@ -32,7 +32,7 @@ func NewJSONEncoder(_ string) *JSONEncoder {
 // peerMap builds the "peer" JSON object from PeerInfo.
 // Structure matches YANG peer-info grouping: address, name, remote.as, group.
 // Always includes address, name, and remote.as. Includes group when non-empty.
-func peerMap(peer plugin.PeerInfo) map[string]any {
+func peerMap(peer *plugin.PeerInfo) map[string]any {
 	m := map[string]any{
 		"address": peer.Address.String(),
 		"name":    peer.Name,
@@ -58,7 +58,7 @@ func peerMap(peer plugin.PeerInfo) map[string]any {
 // Returns the outer bgp payload and inner event payload.
 // ze-bgp JSON Format: {"message":{"type":"<msgType>"},"peer":{...},"<msgType>":{...}}.
 // Type is in message object, peer is at bgp level, event-specific data in inner map.
-func (e *JSONEncoder) message(peer plugin.PeerInfo, msgType string) (outer, inner map[string]any) {
+func (e *JSONEncoder) message(peer *plugin.PeerInfo, msgType string) (outer, inner map[string]any) {
 	inner = make(map[string]any)
 	outer = map[string]any{
 		"message": map[string]any{
@@ -101,7 +101,7 @@ func getOrCreateMessage(payload map[string]any) map[string]any {
 
 // StateUp returns JSON for a peer state "up" event.
 // ze-bgp JSON: {"message":{"type":"state"},"peer":{...},"state":"up"}.
-func (e *JSONEncoder) StateUp(peer plugin.PeerInfo) string {
+func (e *JSONEncoder) StateUp(peer *plugin.PeerInfo) string {
 	payload := map[string]any{
 		"message": map[string]any{
 			"type": "state",
@@ -114,7 +114,7 @@ func (e *JSONEncoder) StateUp(peer plugin.PeerInfo) string {
 
 // StateDown returns JSON for a peer state "down" event.
 // ze-bgp JSON: {"message":{"type":"state"},"peer":{...},"state":"down","reason":"..."}.
-func (e *JSONEncoder) StateDown(peer plugin.PeerInfo, reason string) string {
+func (e *JSONEncoder) StateDown(peer *plugin.PeerInfo, reason string) string {
 	payload := map[string]any{
 		"message": map[string]any{
 			"type": "state",
@@ -128,7 +128,7 @@ func (e *JSONEncoder) StateDown(peer plugin.PeerInfo, reason string) string {
 
 // StateConnected returns JSON for a peer "connected" event.
 // ze-bgp JSON: {"message":{"type":"state"},"peer":{...},"state":"connected"}.
-func (e *JSONEncoder) StateConnected(peer plugin.PeerInfo) string {
+func (e *JSONEncoder) StateConnected(peer *plugin.PeerInfo) string {
 	payload := map[string]any{
 		"message": map[string]any{
 			"type": "state",
@@ -141,7 +141,7 @@ func (e *JSONEncoder) StateConnected(peer plugin.PeerInfo) string {
 
 // EOR returns JSON for an End-of-RIB marker.
 // EOR is an empty UPDATE message for a specific family.
-func (e *JSONEncoder) EOR(peer plugin.PeerInfo, family string) string {
+func (e *JSONEncoder) EOR(peer *plugin.PeerInfo, family string) string {
 	outer, inner := e.message(peer, "update")
 	inner["eor"] = map[string]any{
 		"afi":  family,
@@ -152,7 +152,7 @@ func (e *JSONEncoder) EOR(peer plugin.PeerInfo, family string) string {
 
 // Notification returns JSON for a NOTIFICATION message.
 // Fields in inner payload: code, subcode, data, code-name, subcode-name.
-func (e *JSONEncoder) Notification(peer plugin.PeerInfo, notify DecodedNotification, direction string, msgID uint64) string {
+func (e *JSONEncoder) Notification(peer *plugin.PeerInfo, notify DecodedNotification, direction string, msgID uint64) string {
 	outer, inner := e.message(peer, "notification")
 	setMessageDirection(outer, direction)
 	setMessageID(outer, msgID)
@@ -180,7 +180,7 @@ func (e *JSONEncoder) Notification(peer plugin.PeerInfo, notify DecodedNotificat
 
 // Open returns JSON for an OPEN message.
 // Fields in inner payload: asn, router-id, timer { hold-time }, capabilities.
-func (e *JSONEncoder) Open(peer plugin.PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
+func (e *JSONEncoder) Open(peer *plugin.PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
 	outer, inner := e.message(peer, "open")
 	setMessageDirection(outer, direction)
 	setMessageID(outer, msgID)
@@ -208,7 +208,7 @@ func (e *JSONEncoder) Open(peer plugin.PeerInfo, open DecodedOpen, direction str
 }
 
 // Keepalive returns JSON for a KEEPALIVE message.
-func (e *JSONEncoder) Keepalive(peer plugin.PeerInfo, direction string, msgID uint64) string {
+func (e *JSONEncoder) Keepalive(peer *plugin.PeerInfo, direction string, msgID uint64) string {
 	outer, _ := e.message(peer, "keepalive")
 	setMessageDirection(outer, direction)
 	setMessageID(outer, msgID)
@@ -217,7 +217,7 @@ func (e *JSONEncoder) Keepalive(peer plugin.PeerInfo, direction string, msgID ui
 
 // RouteRefresh returns JSON for a ROUTE-REFRESH message.
 // RFC 7313: Type is "refresh" (subtype 0), "borr" (subtype 1), or "eorr" (subtype 2).
-func (e *JSONEncoder) RouteRefresh(peer plugin.PeerInfo, decoded DecodedRouteRefresh, direction string, msgID uint64) string {
+func (e *JSONEncoder) RouteRefresh(peer *plugin.PeerInfo, decoded DecodedRouteRefresh, direction string, msgID uint64) string {
 	// Use subtype name as event type for proper dispatch
 	outer, inner := e.message(peer, decoded.SubtypeName)
 	setMessageDirection(outer, direction)
@@ -237,7 +237,7 @@ func (e *JSONEncoder) RouteRefresh(peer plugin.PeerInfo, decoded DecodedRouteRef
 
 // Negotiated returns JSON for negotiated capabilities after OPEN exchange.
 // Fields in inner payload: timer { hold-time }, asn4, families, add-path.
-func (e *JSONEncoder) Negotiated(peer plugin.PeerInfo, neg DecodedNegotiated) string {
+func (e *JSONEncoder) Negotiated(peer *plugin.PeerInfo, neg DecodedNegotiated) string {
 	outer, inner := e.message(peer, "negotiated")
 
 	// Fields in inner payload (hyphenated per json-format.md)

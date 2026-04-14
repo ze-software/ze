@@ -207,9 +207,7 @@ func RedistributeSourceValidator() yang.CustomValidator {
 			}
 			return nil
 		},
-		CompleteFn: func() []string {
-			return redistribute.SourceNames()
-		},
+		CompleteFn: redistribute.SourceNames,
 	}
 }
 

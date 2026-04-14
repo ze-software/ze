@@ -9,14 +9,6 @@
 // constants from the iface component.
 package ifacedhcp
 
-import (
-	"log/slog"
-	"sync/atomic"
-)
-
-// loggerPtr is the package-level logger, disabled by default.
-var loggerPtr atomic.Pointer[slog.Logger]
-
 // DHCPConfig holds optional DHCP client parameters parsed from config.
 // Defined in this platform-independent file so register.go (no build tag)
 // can reference it when compiling on non-Linux (e.g., macOS build host).

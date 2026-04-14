@@ -80,7 +80,7 @@ func TestFormatStateChange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatStateChange(peer, tt.state, tt.reason, tt.encoding)
+			got := FormatStateChange(&peer, tt.state, tt.reason, tt.encoding)
 			if got != tt.want {
 				t.Errorf("FormatStateChange() = %q, want %q", got, tt.want)
 			}
@@ -138,7 +138,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatStateChange(tt.peer, "established", "", plugin.EncodingJSON)
+			got := FormatStateChange(&tt.peer, "established", "", plugin.EncodingJSON)
 			if got != tt.want {
 				t.Errorf("FormatStateChange() =\n  %s\nwant:\n  %s", got, tt.want)
 			}
@@ -190,7 +190,7 @@ func TestFormatEOR(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatEOR(peer, tt.fam, tt.encoding)
+			got := FormatEOR(&peer, tt.fam, tt.encoding)
 			if got != tt.want {
 				t.Errorf("FormatEOR(%q, %q)\n  got:  %q\n  want: %q", tt.fam, tt.encoding, got, tt.want)
 			}
@@ -242,7 +242,7 @@ func TestFormatCongestion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatCongestion(peer, tt.eventType, tt.encoding)
+			got := FormatCongestion(&peer, tt.eventType, tt.encoding)
 			if got != tt.want {
 				t.Errorf("FormatCongestion(%q, %q)\n  got:  %q\n  want: %q", tt.eventType, tt.encoding, got, tt.want)
 			}
@@ -290,7 +290,7 @@ func TestFormatMessageText(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	got := FormatMessage(peer, msg, content, "")
+	got := FormatMessage(&peer, msg, content, "")
 
 	// Format: peer <ip> remote as <asn> <direction> update <id> <attrs> family <family> next-hop <ip> nlri add <prefixes>
 	if !strings.Contains(got, "peer 10.0.0.1 remote as 65001 received update") {
@@ -351,7 +351,7 @@ func TestFormatMessageJSON(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	got := FormatMessage(peer, msg, content, "")
+	got := FormatMessage(&peer, msg, content, "")
 
 	// Check key parts of the ze-bgp JSON JSON structure
 	// Outer wrapper: {"type":"bgp","bgp":{...}}
@@ -484,7 +484,7 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	got := FormatMessage(peer, msg, content, "")
+	got := FormatMessage(&peer, msg, content, "")
 
 	// Should use FormatOpen with uniform header: peer X remote as Y received open <msg-id> router-id R hold-time T cap ...
 	if !strings.Contains(got, "peer 10.0.0.1 remote as 42 received open") {
@@ -519,7 +519,7 @@ func TestFormatNonUpdateKeepalive(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	got := FormatMessage(peer, msg, content, "")
+	got := FormatMessage(&peer, msg, content, "")
 
 	// Should use uniform header: peer X remote as Y received keepalive
 	if !strings.Contains(got, "peer 10.0.0.1 remote as 65001 received keepalive") {
@@ -808,7 +808,7 @@ func TestFormatOpenWithDirection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatOpen(peer, open, tt.direction, 42)
+			got := FormatOpen(&peer, open, tt.direction, 42)
 			if got != tt.want {
 				t.Errorf("FormatOpen() = %q, want %q", got, tt.want)
 			}
@@ -845,7 +845,7 @@ func TestFormatKeepaliveWithDirection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatKeepalive(peer, tt.direction, 42)
+			got := FormatKeepalive(&peer, tt.direction, 42)
 			if got != tt.want {
 				t.Errorf("FormatKeepalive() = %q, want %q", got, tt.want)
 			}
@@ -890,7 +890,7 @@ func TestFormatNotificationWithDirection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatNotification(peer, notify, tt.direction, 42)
+			got := FormatNotification(&peer, notify, tt.direction, 42)
 			if got != tt.want {
 				t.Errorf("FormatNotification() = %q, want %q", got, tt.want)
 			}
@@ -1061,14 +1061,14 @@ func TestFormatHexMatchesRaw(t *testing.T) {
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatRaw,
 	}
-	rawOut := FormatMessage(peer, msg, rawContent, "")
+	rawOut := FormatMessage(&peer, msg, rawContent, "")
 
 	// FormatHex output — should be identical to FormatRaw
 	hexContent := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatHex,
 	}
-	hexOut := FormatMessage(peer, msg, hexContent, "")
+	hexOut := FormatMessage(&peer, msg, hexContent, "")
 
 	if hexOut != rawOut {
 		t.Errorf("FormatHex and FormatRaw produce different output:\nhex: %s\nraw: %s", hexOut, rawOut)
@@ -1095,7 +1095,7 @@ func TestFormatFilterResultTextEmptyUpdate(t *testing.T) {
 	}
 	// Empty FilterResult: no announced, no withdrawn NLRIs
 	result := bgpfilter.FilterResult{}
-	text := formatFilterResultText(peer, result, 7, "received", nil)
+	text := formatFilterResultText(&peer, result, 7, "received", nil)
 	if text == "" {
 		t.Fatal("empty UPDATE should produce a non-empty text line")
 	}
@@ -1144,7 +1144,7 @@ func TestFormatMessageTextEncoding(t *testing.T) {
 		Encoding: plugin.EncodingText,
 		Format:   plugin.FormatParsed,
 	}
-	textOut := FormatMessage(peer, msg, textContent, "")
+	textOut := FormatMessage(&peer, msg, textContent, "")
 
 	// Text output should NOT be JSON
 	if strings.HasPrefix(textOut, "{") {
@@ -1160,7 +1160,7 @@ func TestFormatMessageTextEncoding(t *testing.T) {
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
 	}
-	jsonOut := FormatMessage(peer, msg, jsonContent, "")
+	jsonOut := FormatMessage(&peer, msg, jsonContent, "")
 	if !strings.HasPrefix(jsonOut, "{") {
 		t.Error("json encoding should produce JSON")
 	}

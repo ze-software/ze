@@ -40,7 +40,7 @@ import (
 //	    }
 //	  }
 //	}
-func formatFilterResultJSON(peer plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
+func formatFilterResultJSON(peer *plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
 	var sb strings.Builder
 	var numBuf [20]byte
 
@@ -349,7 +349,7 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 	sb.WriteString(`"`)
 }
 
-func formatStateChangeJSON(peer plugin.PeerInfo, state, reason string) string {
+func formatStateChangeJSON(peer *plugin.PeerInfo, state, reason string) string {
 	// ze-bgp JSON format with reason for down events.
 	// reason is only present for "down" events — "up" has no close reason.
 	p := peerJSONInline(peer)

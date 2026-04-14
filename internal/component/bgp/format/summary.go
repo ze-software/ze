@@ -23,7 +23,7 @@ import (
 //	"withdrawn":  bool   - legacy withdrawn section has bytes
 //	"mp-reach":   string - MP_REACH_NLRI family name, or "" if absent
 //	"mp-unreach": string - MP_UNREACH_NLRI family name, or "" if absent
-func formatSummary(peer plugin.PeerInfo, rawBytes []byte, msgID uint64, direction string) string {
+func formatSummary(peer *plugin.PeerInfo, rawBytes []byte, msgID uint64, direction string) string {
 	sections, err := wire.ParseUpdateSections(rawBytes)
 	if err != nil {
 		return formatSummaryEmpty(peer, msgID, direction)
@@ -104,7 +104,7 @@ func scanMPFamilies(attrs []byte) (mpReach, mpUnreach string) {
 // formats which omit id when 0. Summary consumers need stable field presence for lightweight parsing.
 // NOTE: Output uses "message":{"type":"update" prefix, same as other formats.
 // FormatSentMessage relies on this for its string replacement to "type":"sent".
-func buildSummaryJSON(peer plugin.PeerInfo, msgID uint64, direction string, announce, withdrawn bool, mpReach, mpUnreach string) string {
+func buildSummaryJSON(peer *plugin.PeerInfo, msgID uint64, direction string, announce, withdrawn bool, mpReach, mpUnreach string) string {
 	var sb strings.Builder
 	sb.Grow(256)
 
@@ -132,6 +132,6 @@ func buildSummaryJSON(peer plugin.PeerInfo, msgID uint64, direction string, anno
 }
 
 // formatSummaryEmpty returns summary JSON for a malformed or empty UPDATE.
-func formatSummaryEmpty(peer plugin.PeerInfo, msgID uint64, direction string) string {
+func formatSummaryEmpty(peer *plugin.PeerInfo, msgID uint64, direction string) string {
 	return buildSummaryJSON(peer, msgID, direction, false, false, "", "")
 }

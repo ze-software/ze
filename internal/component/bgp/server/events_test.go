@@ -258,8 +258,8 @@ func TestPreFormatOptimization(t *testing.T) {
 }
 
 // testPeerInfo returns a PeerInfo for testing.
-func testPeerInfo() plugin.PeerInfo {
-	return plugin.PeerInfo{
+func testPeerInfo() *plugin.PeerInfo {
+	return &plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 	}
 }
@@ -459,8 +459,8 @@ func TestStateChangeRespectsEncoding(t *testing.T) {
 	// Verify FormatStateChange produces correct output per encoding.
 	// onPeerStateChange calls FormatStateChange with proc.Encoding(),
 	// so testing the format function directly validates the per-process path.
-	textState := format.FormatStateChange(peer, "up", "", plugin.EncodingText)
-	jsonState := format.FormatStateChange(peer, "up", "", plugin.EncodingJSON)
+	textState := format.FormatStateChange(&peer, "up", "", plugin.EncodingText)
+	jsonState := format.FormatStateChange(&peer, "up", "", plugin.EncodingJSON)
 
 	require.Contains(t, textState, "peer 10.0.0.1", "text state should contain peer address")
 	require.Contains(t, textState, "state up", "text state should contain state value")

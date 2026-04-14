@@ -104,7 +104,7 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 	}
 
 	decoded := format.NegotiatedToDecoded(neg)
-	r.eventDispatcher.OnPeerNegotiated(peerInfo, decoded)
+	r.eventDispatcher.OnPeerNegotiated(&peerInfo, decoded)
 
 	// Cross-component consumers receive (bgp, negotiated) via the EventBus.
 	r.emitPeerNegotiatedEvent(peer)
@@ -173,7 +173,7 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 	if r.eventDispatcher == nil {
 		return
 	}
-	r.eventDispatcher.OnPeerCongestionChange(peerInfo, eventType)
+	r.eventDispatcher.OnPeerCongestionChange(&peerInfo, eventType)
 
 	// Cross-component consumers receive (bgp, congested) or (bgp, resumed) via the EventBus.
 	// eventType is events.EventCongested or events.EventResumed -- pass through directly.
@@ -447,7 +447,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 
 	// Sent messages: synchronous delivery, no async channel.
 	if direction == events.DirectionSent {
-		receiver.OnMessageSent(peerInfo, msg)
+		receiver.OnMessageSent(&peerInfo, msg)
 		return kept
 	}
 
@@ -463,7 +463,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	}
 
 	// Synchronous fallback: no delivery channel or non-UPDATE message.
-	consumerCount := receiver.OnMessageReceived(peerInfo, msg)
+	consumerCount := receiver.OnMessageReceived(&peerInfo, msg)
 	if kept {
 		r.recentUpdates.Activate(messageID, consumerCount)
 	}

@@ -1555,14 +1555,14 @@ type testMessageReceiver struct {
 	onSent     func(plugin.PeerInfo, bgptypes.RawMessage)
 }
 
-func (r *testMessageReceiver) OnMessageReceived(peer plugin.PeerInfo, msg bgptypes.RawMessage) int {
+func (r *testMessageReceiver) OnMessageReceived(peer *plugin.PeerInfo, msg bgptypes.RawMessage) int {
 	if r.onReceived != nil {
-		r.onReceived(peer, msg)
+		r.onReceived(*peer, msg)
 	}
 	return 0 // Test receiver reports no consumers
 }
 
-func (r *testMessageReceiver) OnMessageBatchReceived(peer plugin.PeerInfo, msgs []bgptypes.RawMessage) []int {
+func (r *testMessageReceiver) OnMessageBatchReceived(peer *plugin.PeerInfo, msgs []bgptypes.RawMessage) []int {
 	counts := make([]int, len(msgs))
 	for i := range msgs {
 		counts[i] = r.OnMessageReceived(peer, msgs[i])
@@ -1570,9 +1570,9 @@ func (r *testMessageReceiver) OnMessageBatchReceived(peer plugin.PeerInfo, msgs 
 	return counts
 }
 
-func (r *testMessageReceiver) OnMessageSent(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
+func (r *testMessageReceiver) OnMessageSent(peer *plugin.PeerInfo, msg bgptypes.RawMessage) {
 	if r.onSent != nil {
-		r.onSent(peer, msg)
+		r.onSent(*peer, msg)
 	}
 }
 
@@ -1585,14 +1585,14 @@ type testDeliveryReceiver struct {
 	consumerCount int
 }
 
-func (r *testDeliveryReceiver) OnMessageReceived(peer plugin.PeerInfo, msg bgptypes.RawMessage) int {
+func (r *testDeliveryReceiver) OnMessageReceived(peer *plugin.PeerInfo, msg bgptypes.RawMessage) int {
 	if r.onReceived != nil {
-		r.onReceived(peer, msg)
+		r.onReceived(*peer, msg)
 	}
 	return r.consumerCount
 }
 
-func (r *testDeliveryReceiver) OnMessageBatchReceived(peer plugin.PeerInfo, msgs []bgptypes.RawMessage) []int {
+func (r *testDeliveryReceiver) OnMessageBatchReceived(peer *plugin.PeerInfo, msgs []bgptypes.RawMessage) []int {
 	counts := make([]int, len(msgs))
 	for i := range msgs {
 		counts[i] = r.OnMessageReceived(peer, msgs[i])
@@ -1600,9 +1600,9 @@ func (r *testDeliveryReceiver) OnMessageBatchReceived(peer plugin.PeerInfo, msgs
 	return counts
 }
 
-func (r *testDeliveryReceiver) OnMessageSent(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
+func (r *testDeliveryReceiver) OnMessageSent(peer *plugin.PeerInfo, msg bgptypes.RawMessage) {
 	if r.onSent != nil {
-		r.onSent(peer, msg)
+		r.onSent(*peer, msg)
 	}
 }
 
@@ -1672,7 +1672,7 @@ func startTestDelivery(t *testing.T, r *Reactor, peerAddr netip.Addr, capacity i
 				msgs[i] = batch[i].msg
 			}
 
-			counts := receiver.OnMessageBatchReceived(batch[0].peerInfo, msgs)
+			counts := receiver.OnMessageBatchReceived(&batch[0].peerInfo, msgs)
 			for i := range batch {
 				count := 0
 				if i < len(counts) {
@@ -2120,7 +2120,7 @@ func TestPeerDeliveryDrainBatch(t *testing.T) {
 			for i := range batch {
 				msgs[i] = batch[i].msg
 			}
-			counts := recv.OnMessageBatchReceived(batch[0].peerInfo, msgs)
+			counts := recv.OnMessageBatchReceived(&batch[0].peerInfo, msgs)
 			for i := range batch {
 				count := 0
 				if i < len(counts) {

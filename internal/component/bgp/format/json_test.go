@@ -88,7 +88,7 @@ func TestJSONEncoderStateUp(t *testing.T) {
 		PeerAS:       65002,
 	}
 
-	msg := enc.StateUp(peer)
+	msg := enc.StateUp(&peer)
 
 	// Parse JSON to verify structure
 	var result map[string]any
@@ -128,7 +128,7 @@ func TestJSONEncoderStateDown(t *testing.T) {
 		PeerAS:       65002,
 	}
 
-	msg := enc.StateDown(peer, "hold timer expired")
+	msg := enc.StateDown(&peer, "hold timer expired")
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(msg), &result)
@@ -156,7 +156,7 @@ func TestJSONEncoderStateConnected(t *testing.T) {
 		PeerAS:       65001,
 	}
 
-	msg := enc.StateConnected(peer)
+	msg := enc.StateConnected(&peer)
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(msg), &result)
@@ -185,10 +185,10 @@ func TestJSONEncoderValidJSON(t *testing.T) {
 	}
 
 	messages := []string{
-		enc.StateUp(peer),
-		enc.StateDown(peer, "test reason"),
-		enc.StateConnected(peer),
-		enc.StateDown(peer, `reason with "quotes" and \backslashes`),
+		enc.StateUp(&peer),
+		enc.StateDown(&peer, "test reason"),
+		enc.StateConnected(&peer),
+		enc.StateDown(&peer, `reason with "quotes" and \backslashes`),
 	}
 
 	for i, msg := range messages {
@@ -214,7 +214,7 @@ func TestJSONEncoderSpecialCharacters(t *testing.T) {
 
 	// Reason with special characters
 	reason := `connection reset: "peer closed" with \n newline`
-	msg := enc.StateDown(peer, reason)
+	msg := enc.StateDown(&peer, reason)
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(msg), &result)
@@ -239,7 +239,7 @@ func TestJSONEncoderIPv6(t *testing.T) {
 		PeerAS:       65002,
 	}
 
-	msg := enc.StateUp(peer)
+	msg := enc.StateUp(&peer)
 
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(msg), &result))
@@ -285,7 +285,7 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(peer, msg, content, "")
+	output := FormatMessage(&peer, msg, content, "")
 
 	// Parse JSON
 	var result map[string]any
@@ -324,7 +324,7 @@ func TestJSONEncoderNotification(t *testing.T) {
 		Data:             []byte{0x12, 0x6d, 0x61, 0x69, 0x6e, 0x74, 0x65, 0x6e, 0x61, 0x6e, 0x63, 0x65, 0x20, 0x77, 0x69, 0x6e, 0x64, 0x6f, 0x77},
 	}
 
-	msg := enc.Notification(peer, notify, "received", 42)
+	msg := enc.Notification(&peer, notify, "received", 42)
 
 	// Parse JSON to verify structure
 	var result map[string]any
@@ -385,7 +385,7 @@ func TestJSONEncoderNotificationMinimal(t *testing.T) {
 		Data:             nil, // No data
 	}
 
-	msg := enc.Notification(peer, notify, "received", 0)
+	msg := enc.Notification(&peer, notify, "received", 0)
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(msg), &result)
@@ -432,7 +432,7 @@ func TestJSONEncoderNotificationSent(t *testing.T) {
 		ErrorSubcodeName: "Peer De-configured",
 	}
 
-	msg := enc.Notification(peer, notify, "sent", 100)
+	msg := enc.Notification(&peer, notify, "sent", 100)
 
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(msg), &result))
@@ -489,7 +489,7 @@ func TestFormatMessageNotificationText_Parsed(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(peer, msg, content, "")
+	output := FormatMessage(&peer, msg, content, "")
 
 	// Verify text format
 	assert.Contains(t, output, "peer 10.0.0.1")
@@ -528,7 +528,7 @@ func TestFormatMessageIgnoresEncodingForParsedNonUpdate(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(peer, msg, content, "")
+	output := FormatMessage(&peer, msg, content, "")
 
 	// ...but we get TEXT because FormatMessage ignores Encoding for parsed non-UPDATE
 	assert.True(t, strings.HasPrefix(output, "peer "),
@@ -558,7 +558,7 @@ func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(peer, msg, content, "")
+	output := FormatMessage(&peer, msg, content, "")
 
 	// Parse JSON
 	var result map[string]any
@@ -628,7 +628,7 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(peer, msg, content, "")
+	output := FormatMessage(&peer, msg, content, "")
 
 	// Parse JSON
 	var result map[string]any
@@ -688,7 +688,7 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(peer, msg, content, "")
+	output := FormatMessage(&peer, msg, content, "")
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
@@ -751,7 +751,7 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(peer, msg, content, "")
+	output := FormatMessage(&peer, msg, content, "")
 
 	var result map[string]any
 	err = json.Unmarshal([]byte(output), &result)
@@ -818,7 +818,7 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(peer, msg, content, "")
+	output := FormatMessage(&peer, msg, content, "")
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
@@ -889,7 +889,7 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(peer, msg, content, "")
+	output := FormatMessage(&peer, msg, content, "")
 
 	var result map[string]any
 	err = json.Unmarshal([]byte(output), &result)
@@ -1073,7 +1073,7 @@ func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(peer, msg, content, "")
+	output := FormatMessage(&peer, msg, content, "")
 
 	var result map[string]any
 	err = json.Unmarshal([]byte(output), &result)
@@ -1606,7 +1606,7 @@ func TestJSONEncoderNegotiated(t *testing.T) {
 		},
 	}
 
-	output := enc.Negotiated(peer, neg)
+	output := enc.Negotiated(&peer, neg)
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
@@ -1661,7 +1661,7 @@ func TestJSONEncoderNegotiatedMinimal(t *testing.T) {
 		Families:     []string{"ipv4/unicast"},
 	}
 
-	output := enc.Negotiated(peer, neg)
+	output := enc.Negotiated(&peer, neg)
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
@@ -1734,7 +1734,7 @@ func TestEventJSONHasTopLevelType(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(peer, msg, content, "")
+	output := FormatMessage(&peer, msg, content, "")
 
 	var result map[string]any
 	err = json.Unmarshal([]byte(output), &result)
@@ -1774,12 +1774,12 @@ func TestEventJSONBgpTypeField(t *testing.T) {
 	}{
 		{
 			name:     "state_up",
-			output:   enc.StateUp(peer),
+			output:   enc.StateUp(&peer),
 			wantType: "state",
 		},
 		{
 			name:     "state_down",
-			output:   enc.StateDown(peer, "test"),
+			output:   enc.StateDown(&peer, "test"),
 			wantType: "state",
 		},
 	}
@@ -1836,7 +1836,7 @@ func TestEventJSONMessageMetadata(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(peer, msg, content, "")
+	output := FormatMessage(&peer, msg, content, "")
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
@@ -1867,7 +1867,7 @@ func TestEventJSONPeerObject(t *testing.T) {
 		PeerAS:       65002,
 	}
 
-	output := enc.StateUp(peer)
+	output := enc.StateUp(&peer)
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
@@ -1937,7 +1937,7 @@ func TestEventJSONPeerNameGroup(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			msg := enc.StateUp(tt.peer)
+			msg := enc.StateUp(&tt.peer)
 
 			var result map[string]any
 			err := json.Unmarshal([]byte(msg), &result)
@@ -1994,7 +1994,7 @@ func TestEventJSONNestedStructure(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(peer, msg, content, "")
+	output := FormatMessage(&peer, msg, content, "")
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
@@ -2064,7 +2064,7 @@ func TestEventJSONRawSection(t *testing.T) {
 		Format:   plugin.FormatFull, // Request raw bytes
 	}
 
-	output := FormatMessage(peer, msg, content, "")
+	output := FormatMessage(&peer, msg, content, "")
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)

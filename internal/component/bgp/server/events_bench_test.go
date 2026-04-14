@@ -17,7 +17,7 @@ import (
 
 // buildBenchUpdate builds a realistic UPDATE RawMessage for benchmarking.
 // Contains ORIGIN, AS_PATH, NEXT_HOP, MED, LOCAL_PREF attributes and an IPv4 NLRI.
-func buildBenchUpdate() (plugin.PeerInfo, bgptypes.RawMessage) {
+func buildBenchUpdate() (*plugin.PeerInfo, bgptypes.RawMessage) {
 	// Minimal UPDATE payload: withdrawn(2) + attrs + NLRI
 	// Attrs: ORIGIN(IGP) + AS_PATH(65001) + NEXT_HOP(10.0.0.1) + MED(100) + LOCAL_PREF(200)
 	// NLRI: 10.0.0.0/24
@@ -84,7 +84,7 @@ func buildBenchUpdate() (plugin.PeerInfo, bgptypes.RawMessage) {
 		WireUpdate: wu,
 	}
 
-	return peer, msg
+	return &peer, msg
 }
 
 // BenchmarkJSONPath measures the JSON format + parse round-trip.

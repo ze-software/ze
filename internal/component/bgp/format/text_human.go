@@ -19,7 +19,7 @@ import (
 // formatFilterResultText formats FilterResult as text.
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
 // ctx provides ADD-PATH state per family.
-func formatFilterResultText(peer plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
+func formatFilterResultText(peer *plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
 	var sb strings.Builder
 	var scratch [64]byte
 
@@ -209,7 +209,7 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 	fmt.Fprintf(sb, "attr-%d %x", code, attrBuf)
 }
 
-func formatStateChangeText(peer plugin.PeerInfo, state, reason string) string {
+func formatStateChangeText(peer *plugin.PeerInfo, state, reason string) string {
 	if reason != "" {
 		return fmt.Sprintf("peer %s remote as %d state %s reason %s\n", peer.Address, peer.PeerAS, state, reason)
 	}

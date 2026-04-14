@@ -36,7 +36,7 @@ var eorEventBus ze.EventBus //nolint:gochecknoglobals // EventBus reference set 
 const monitorFormatKey = "parsed+json"
 
 // getStructuredEvent returns a StructuredEvent from the pool with peer fields populated.
-func getStructuredEvent(peer plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.StructuredEvent {
+func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.StructuredEvent {
 	se := rpc.GetStructuredEvent()
 	se.PeerAddress = peer.Address.String()
 	se.PeerName = peer.Name
@@ -53,7 +53,7 @@ func getStructuredEvent(peer plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.Str
 }
 
 // getStructuredStateEvent returns a StructuredEvent for a peer state change.
-func getStructuredStateEvent(peer plugin.PeerInfo, state, reason string) *rpc.StructuredEvent {
+func getStructuredStateEvent(peer *plugin.PeerInfo, state, reason string) *rpc.StructuredEvent {
 	se := rpc.GetStructuredEvent()
 	se.PeerAddress = peer.Address.String()
 	se.PeerName = peer.Name
@@ -120,7 +120,7 @@ func (c *formatCache) reset() {
 // Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
 // Events are enqueued to each process's delivery channel; no per-event goroutines are created.
 // Format encoding is pre-computed once per distinct format mode.
-func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage) int {
+func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer *plugin.PeerInfo, msg bgptypes.RawMessage) int {
 	if s.Context().Err() != nil {
 		return 0 // Server shutting down, skip event delivery
 	}
@@ -220,7 +220,7 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 // Each message gets its own delivery and result collection, preserving per-message
 // cacheCount semantics for cache lifecycle tracking.
 // Returns a slice of cache-consumer counts, one per message.
-func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msgs []bgptypes.RawMessage) []int {
+func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer *plugin.PeerInfo, msgs []bgptypes.RawMessage) []int {
 	counts := make([]int, len(msgs))
 	if len(msgs) == 0 || s.Context().Err() != nil {
 		return counts
@@ -342,7 +342,7 @@ func messageTypeToEventType(msgType message.MessageType) string {
 // formatMessageForSubscription formats a BGP message for subscription-based delivery.
 // Uses the specified encoding and format (from process settings).
 // For text encoding, non-UPDATE types use dedicated text formatters instead of JSONEncoder.
-func formatMessageForSubscription(encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage, fmtMode, encoding string) string {
+func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.PeerInfo, msg bgptypes.RawMessage, fmtMode, encoding string) string {
 	switch msg.Type { //nolint:exhaustive // Only supported types; unsupported are filtered by caller
 	case message.TypeUPDATE:
 		content := bgptypes.ContentConfig{
@@ -464,7 +464,7 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 // reason is the close reason (empty for "up"): "tcp-failure", "notification", etc.
 // State events are delivered sequentially in reverse dependency order so that
 // plugins with dependencies (e.g., bgp-gr) process before their dependencies (e.g., bgp-rib).
-func onPeerStateChange(s *pluginserver.Server, peer plugin.PeerInfo, state, reason string) {
+func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state, reason string) {
 	if s.Context().Err() != nil {
 		return // Server shutting down, skip event delivery
 	}
@@ -538,7 +538,7 @@ func onPeerStateChange(s *pluginserver.Server, peer plugin.PeerInfo, state, reas
 // onPeerNegotiated handles capability negotiation completion.
 // neg is format.DecodedNegotiated passed as any from the generic hook.
 // Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
-func onPeerNegotiated(s *pluginserver.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, neg any) {
+func onPeerNegotiated(s *pluginserver.Server, encoder *format.JSONEncoder, peer *plugin.PeerInfo, neg any) {
 	if s.Context().Err() != nil {
 		return // Server shutting down, skip event delivery
 	}
@@ -570,7 +570,7 @@ func onPeerNegotiated(s *pluginserver.Server, encoder *format.JSONEncoder, peer 
 // Called when an incoming UPDATE is detected as an EOR marker.
 // EOR events are delivered sequentially in reverse dependency order, like state events,
 // to enable inter-plugin coordination (e.g., bgp-gr triggers stale route purge).
-func onEORReceived(s *pluginserver.Server, peer plugin.PeerInfo, family string) {
+func onEORReceived(s *pluginserver.Server, peer *plugin.PeerInfo, family string) {
 	if s.Context().Err() != nil {
 		return // Server shutting down, skip event delivery
 	}
@@ -637,7 +637,7 @@ func onEORReceived(s *pluginserver.Server, peer plugin.PeerInfo, family string) 
 //
 // Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
 // Format encoding is pre-computed once per distinct format mode.
-func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage) {
+func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *plugin.PeerInfo, msg bgptypes.RawMessage) {
 	if s.Context().Err() != nil {
 		return // Server shutting down, skip event delivery
 	}
@@ -710,7 +710,7 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plu
 // onPeerCongestionChange handles forward-path congestion state transitions.
 // eventType is events.EventCongested or events.EventResumed.
 // Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
-func onPeerCongestionChange(s *pluginserver.Server, peer plugin.PeerInfo, eventType string) {
+func onPeerCongestionChange(s *pluginserver.Server, peer *plugin.PeerInfo, eventType string) {
 	if s.Context().Err() != nil {
 		return // Server shutting down, skip event delivery
 	}
