@@ -13,6 +13,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 // WireMethod is the YANG RPC wire method for the monitor command.
@@ -152,7 +153,7 @@ func buildSubscriptions(opts *monitorOpts) []*pluginserver.Subscription {
 		eventTypes = allBGPEventTypes
 	}
 
-	dir := plugin.DirectionBoth
+	dir := events.DirectionBoth
 	if opts.direction != "" {
 		dir = opts.direction
 	}
@@ -165,7 +166,7 @@ func buildSubscriptions(opts *monitorOpts) []*pluginserver.Subscription {
 	subs := make([]*pluginserver.Subscription, len(eventTypes))
 	for i, et := range eventTypes {
 		subs[i] = &pluginserver.Subscription{
-			Namespace:  plugin.NamespaceBGP,
+			Namespace:  events.NamespaceBGP,
 			EventType:  et,
 			Direction:  dir,
 			PeerFilter: peerFilter,
@@ -175,14 +176,14 @@ func buildSubscriptions(opts *monitorOpts) []*pluginserver.Subscription {
 }
 
 var allBGPEventTypes = []string{
-	plugin.EventUpdate,
-	plugin.EventOpen,
-	plugin.EventNotification,
-	plugin.EventKeepalive,
-	plugin.EventRefresh,
-	plugin.EventState,
-	plugin.EventNegotiated,
-	plugin.EventEOR,
+	events.EventUpdate,
+	events.EventOpen,
+	events.EventNotification,
+	events.EventKeepalive,
+	events.EventRefresh,
+	events.EventState,
+	events.EventNegotiated,
+	events.EventEOR,
 }
 
 // monitorOpts holds parsed monitor command options.
@@ -240,8 +241,8 @@ func parseMonitorArgs(args []string) (*monitorOpts, error) {
 				if t == "" {
 					return nil, fmt.Errorf("empty event type in list")
 				}
-				if !plugin.IsValidEvent(plugin.NamespaceBGP, t) {
-					return nil, fmt.Errorf("invalid event type: %s (valid: %s)", t, plugin.ValidEventNames(plugin.NamespaceBGP))
+				if !events.IsValidEvent(events.NamespaceBGP, t) {
+					return nil, fmt.Errorf("invalid event type: %s (valid: %s)", t, events.ValidEventNames(events.NamespaceBGP))
 				}
 			}
 			opts.eventTypes = types
@@ -252,7 +253,7 @@ func parseMonitorArgs(args []string) (*monitorOpts, error) {
 			}
 			i++
 			dir := args[i]
-			if dir != plugin.DirectionReceived && dir != plugin.DirectionSent {
+			if dir != events.DirectionReceived && dir != events.DirectionSent {
 				return nil, fmt.Errorf("invalid direction: %s (valid: received, sent)", dir)
 			}
 			opts.direction = dir

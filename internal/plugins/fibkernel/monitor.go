@@ -13,7 +13,7 @@ package fibkernel
 import (
 	"encoding/json"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 // externalChangeEvent is the JSON payload for (fib, external-change).
@@ -72,7 +72,7 @@ func publishExternalChange(change externalChangeEvent) {
 		logger().Warn("fib-kernel: marshal external change failed", "error", err)
 		return
 	}
-	if _, err := eb.Emit(plugin.NamespaceFib, plugin.EventFibExternalChange, string(payload)); err != nil {
+	if _, err := eb.Emit(events.NamespaceFib, events.EventFibExternalChange, string(payload)); err != nil {
 		logger().Warn("fib-kernel: external-change emit failed", "error", err)
 	}
 }

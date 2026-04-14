@@ -13,7 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -376,7 +376,7 @@ func publishChanges(changes []outgoingChange, family string) {
 		logger().Warn("sysrib: marshal failed", "error", err)
 		return
 	}
-	if _, err := eb.Emit(plugin.NamespaceSystemRIB, plugin.EventSystemRIBBestChange, string(payload)); err != nil {
+	if _, err := eb.Emit(events.NamespaceSystemRIB, events.EventSystemRIBBestChange, string(payload)); err != nil {
 		logger().Warn("sysrib: emit failed", "error", err)
 	}
 }
@@ -412,7 +412,7 @@ func (s *sysRIB) replayBest() {
 			logger().Warn("sysrib: replay marshal failed", "error", err)
 			continue
 		}
-		if _, err := eb.Emit(plugin.NamespaceSystemRIB, plugin.EventSystemRIBBestChange, string(payload)); err != nil {
+		if _, err := eb.Emit(events.NamespaceSystemRIB, events.EventSystemRIBBestChange, string(payload)); err != nil {
 			logger().Warn("sysrib: replay emit failed", "error", err)
 		}
 	}
@@ -431,7 +431,7 @@ func (s *sysRIB) run(ctx context.Context) {
 	// Subscribe to (rib, best-change). The EventBus delivers one event at
 	// a time; we no longer need a Consumer batch wrapper because the engine
 	// fan-out is synchronous and per-event.
-	unsubBest := eb.Subscribe(plugin.NamespaceBGPRIB, plugin.EventBestChange, func(payload string) {
+	unsubBest := eb.Subscribe(events.NamespaceBGPRIB, events.EventBestChange, func(payload string) {
 		fam, changes := s.processEvent(payload)
 		if len(changes) > 0 {
 			publishChanges(changes, fam)
@@ -441,14 +441,14 @@ func (s *sysRIB) run(ctx context.Context) {
 
 	// Subscribe to (sysrib, replay-request) from downstream consumers
 	// (e.g., fib-kernel). On request, replay the entire system best table.
-	unsubReplay := eb.Subscribe(plugin.NamespaceSystemRIB, plugin.EventSystemRIBReplayRequest, func(_ string) {
+	unsubReplay := eb.Subscribe(events.NamespaceSystemRIB, events.EventSystemRIBReplayRequest, func(_ string) {
 		s.replayBest()
 	})
 	defer unsubReplay()
 
 	// Request full-table replay from protocol RIBs so we populate even if
 	// they started before us. Empty payload by convention.
-	if _, err := eb.Emit(plugin.NamespaceBGPRIB, plugin.EventReplayRequest, ""); err != nil {
+	if _, err := eb.Emit(events.NamespaceBGPRIB, events.EventReplayRequest, ""); err != nil {
 		logger().Warn("sysrib: replay-request emit failed", "error", err)
 	}
 

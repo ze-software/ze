@@ -25,7 +25,7 @@ type EventGateway interface {
 	// but are not counted in the return value.
 	//
 	// eventType MUST be a registered event type in the config namespace
-	// (see plugin.IsValidEvent). Per-plugin event types
+	// (see events.IsValidEvent). Per-plugin event types
 	// (verify-<plugin>, apply-<plugin>) must be registered before they
 	// can be emitted.
 	EmitConfigEvent(eventType string, payload []byte) (int, error)

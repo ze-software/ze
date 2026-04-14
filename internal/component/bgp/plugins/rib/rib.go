@@ -31,7 +31,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -408,7 +408,7 @@ func RunRIBPlugin(conn net.Conn) int {
 		// When a subscriber emits (rib, replay-request), replay the full
 		// best-path table. The handler ignores the payload (always empty).
 		if eb := getEventBus(); eb != nil {
-			eb.Subscribe(plugin.NamespaceBGPRIB, plugin.EventReplayRequest, func(_ string) {
+			eb.Subscribe(events.NamespaceBGPRIB, events.EventReplayRequest, func(_ string) {
 				r.replayBestPaths()
 			})
 		}

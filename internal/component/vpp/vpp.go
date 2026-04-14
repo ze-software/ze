@@ -17,7 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -132,7 +132,7 @@ func (m *VPPManager) Run(ctx context.Context) error {
 		}
 
 		lg.Error("vpp: process exited unexpectedly", "error", err, "backoff", backoff)
-		m.emitEvent(plugin.EventVPPDisconnected)
+		m.emitEvent(events.EventVPPDisconnected)
 
 		select {
 		case <-time.After(backoff):
@@ -180,9 +180,9 @@ func (m *VPPManager) runOnce(ctx context.Context, confPath string) error {
 	lg.Info("vpp: GoVPP connected", "socket", m.settings.APISocket)
 
 	if m.hasRunOnce {
-		m.emitEvent(plugin.EventVPPReconnected)
+		m.emitEvent(events.EventVPPReconnected)
 	} else {
-		m.emitEvent(plugin.EventVPPConnected)
+		m.emitEvent(events.EventVPPConnected)
 		m.hasRunOnce = true
 	}
 
@@ -211,7 +211,7 @@ func (m *VPPManager) emitEvent(eventType string) {
 	if eb == nil {
 		return
 	}
-	if _, err := eb.Emit(plugin.NamespaceVPP, eventType, ""); err != nil {
+	if _, err := eb.Emit(events.NamespaceVPP, eventType, ""); err != nil {
 		logger().Error("vpp: emit event failed", "event", eventType, "error", err)
 	}
 }

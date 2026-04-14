@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 // PluginType represents the type of plugin resolution.
@@ -82,7 +83,7 @@ func RegisterPluginEventTypes() {
 			for _, et := range reg.EventTypes {
 				// All plugin event types currently go into the BGP namespace.
 				// If a future plugin needs RIB events, EventTypes would need namespace info.
-				if err := RegisterEventType(NamespaceBGP, et); err != nil {
+				if err := events.RegisterEventType(events.NamespaceBGP, et); err != nil {
 					slog.Error("register plugin event type failed", "plugin", reg.Name, "event", et, "error", err)
 				}
 			}
@@ -101,7 +102,7 @@ func RegisterPluginSendTypes() {
 	registerSendTypesOnce.Do(func() {
 		for _, reg := range registry.All() {
 			for _, st := range reg.SendTypes {
-				if err := RegisterSendType(st); err != nil {
+				if err := events.RegisterSendType(st); err != nil {
 					slog.Error("register plugin send type failed", "plugin", reg.Name, "send-type", st, "error", err)
 				}
 			}

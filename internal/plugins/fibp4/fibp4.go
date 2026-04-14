@@ -14,7 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -181,13 +181,13 @@ func (f *fibP4) run(ctx context.Context, flushOnStop bool) {
 		return
 	}
 
-	unsub := eb.Subscribe(plugin.NamespaceSystemRIB, plugin.EventSystemRIBBestChange, func(payload string) {
+	unsub := eb.Subscribe(events.NamespaceSystemRIB, events.EventSystemRIBBestChange, func(payload string) {
 		f.processEvent(payload)
 	})
 	defer unsub()
 
 	// Request full-table replay from sysrib. Empty payload by convention.
-	if _, err := eb.Emit(plugin.NamespaceSystemRIB, plugin.EventSystemRIBReplayRequest, ""); err != nil {
+	if _, err := eb.Emit(events.NamespaceSystemRIB, events.EventSystemRIBReplayRequest, ""); err != nil {
 		logger().Warn("fib-p4: replay-request emit failed", "error", err)
 	}
 

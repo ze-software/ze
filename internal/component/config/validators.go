@@ -15,8 +15,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 // baseSendTypes are the built-in send types (handled by dedicated bool fields
@@ -33,9 +33,9 @@ func ReceiveEventValidator() yang.CustomValidator {
 			if !ok {
 				return fmt.Errorf("expected string, got %T", value)
 			}
-			if !plugin.IsValidEvent(plugin.NamespaceBGP, str) {
+			if !events.IsValidEvent(events.NamespaceBGP, str) {
 				return fmt.Errorf("%q is not a valid receive event type (valid: %s)",
-					str, plugin.ValidEventNames(plugin.NamespaceBGP))
+					str, events.ValidEventNames(events.NamespaceBGP))
 			}
 			return nil
 		},
@@ -55,7 +55,7 @@ func SendMessageValidator() yang.CustomValidator {
 			if slices.Contains(baseSendTypes, str) {
 				return nil
 			}
-			if plugin.IsValidSendType(str) {
+			if events.IsValidSendType(str) {
 				return nil
 			}
 			return fmt.Errorf("%q is not a valid send type (valid: %s)",
@@ -63,7 +63,7 @@ func SendMessageValidator() yang.CustomValidator {
 		},
 		CompleteFn: func() []string {
 			names := append([]string{}, baseSendTypes...)
-			extra := plugin.ValidSendTypeNames()
+			extra := events.ValidSendTypeNames()
 			if extra != "" {
 				for part := range strings.SplitSeq(extra, ", ") {
 					names = append(names, part)
@@ -77,7 +77,7 @@ func SendMessageValidator() yang.CustomValidator {
 
 // allBGPEventNames returns sorted BGP event type names from the ValidBgpEvents map.
 func allBGPEventNames() []string {
-	raw := plugin.ValidEventNames(plugin.NamespaceBGP)
+	raw := events.ValidEventNames(events.NamespaceBGP)
 	if raw == "" {
 		return nil
 	}
@@ -93,7 +93,7 @@ func allBGPEventNames() []string {
 // (base + plugin-registered) for error messages.
 func allSendTypeNames() string {
 	names := append([]string{}, baseSendTypes...)
-	extra := plugin.ValidSendTypeNames()
+	extra := events.ValidSendTypeNames()
 	if extra != "" {
 		for part := range strings.SplitSeq(extra, ", ") {
 			names = append(names, part)

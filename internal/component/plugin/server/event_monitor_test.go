@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 // VALIDATES: AC-1 -- no filters means all events, all peers, both directions.
@@ -141,12 +141,12 @@ func TestBuildEventMonitorSubscriptionsExclude(t *testing.T) {
 // PREVENTS: Direction filter ignored during subscription building.
 func TestBuildEventMonitorSubscriptionsDirection(t *testing.T) {
 	opts := &EventMonitorOpts{
-		Direction: plugin.DirectionReceived,
+		Direction: events.DirectionReceived,
 	}
 	subs := BuildEventMonitorSubscriptions(opts)
 	require.NotEmpty(t, subs)
 	for _, s := range subs {
-		assert.Equal(t, plugin.DirectionReceived, s.Direction,
+		assert.Equal(t, events.DirectionReceived, s.Direction,
 			"all subscriptions should have direction=received, got %s for %s/%s", s.Direction, s.Namespace, s.EventType)
 	}
 }
@@ -305,7 +305,7 @@ func TestBuildEventMonitorSubscriptionsDefaultDirection(t *testing.T) {
 	subs := BuildEventMonitorSubscriptions(opts)
 	require.NotEmpty(t, subs)
 	for _, s := range subs {
-		assert.Equal(t, plugin.DirectionBoth, s.Direction)
+		assert.Equal(t, events.DirectionBoth, s.Direction)
 	}
 }
 

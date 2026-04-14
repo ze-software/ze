@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 func TestIntegrationMigrateFullCycle(t *testing.T) {
@@ -43,7 +43,7 @@ func TestIntegrationMigrateFullCycle(t *testing.T) {
 
 		// Simulate BGP readiness by emitting a matching (bgp, listener-ready) event.
 		payload, _ := json.Marshal(map[string]string{"address": "10.88.0.1"})
-		if _, err := bus.Emit(plugin.NamespaceBGP, plugin.EventListenerReady, string(payload)); err != nil {
+		if _, err := bus.Emit(events.NamespaceBGP, events.EventListenerReady, string(payload)); err != nil {
 			t.Fatalf("emit bgp listener-ready: %v", err)
 		}
 

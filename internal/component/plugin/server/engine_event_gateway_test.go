@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -17,7 +17,7 @@ func TestConfigEventGatewayEmit(t *testing.T) {
 	g := NewConfigEventGateway(s)
 
 	var got string
-	unsub := s.SubscribeEngineEvent(plugin.NamespaceConfig, "verify-ok", func(event string) {
+	unsub := s.SubscribeEngineEvent(events.NamespaceConfig, "verify-ok", func(event string) {
 		got = event
 	})
 	defer unsub()
@@ -52,7 +52,7 @@ func TestConfigEventGatewaySubscribe(t *testing.T) {
 	defer unsub()
 
 	emitted := `{"plugin":"iface","code":"ok"}`
-	if _, err := s.EmitEngineEvent(plugin.NamespaceConfig, "apply-ok", emitted); err != nil {
+	if _, err := s.EmitEngineEvent(events.NamespaceConfig, "apply-ok", emitted); err != nil {
 		t.Fatalf("EmitEngineEvent: %v", err)
 	}
 	if string(got) != emitted {
@@ -77,7 +77,7 @@ func TestConfigEventGatewayNilHandler(t *testing.T) {
 	unsub()
 
 	// Verify nothing was registered: emit and observe no panic.
-	if _, err := s.EmitEngineEvent(plugin.NamespaceConfig, "verify-ok", `payload`); err != nil {
+	if _, err := s.EmitEngineEvent(events.NamespaceConfig, "verify-ok", `payload`); err != nil {
 		t.Fatalf("EmitEngineEvent: %v", err)
 	}
 }

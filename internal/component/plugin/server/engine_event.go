@@ -128,7 +128,7 @@ func invokeEngineHandler(namespace, eventType, event string, h EngineEventHandle
 // handler count is intentionally not reported because engine subscribers
 // are in-process and always receive synchronously when matching).
 //
-// The event must use a registered (namespace, eventType) per plugin.IsValidEvent;
+// The event must use a registered (namespace, eventType) per events.IsValidEvent;
 // unknown pairs return an error and deliver to nobody (neither engine handlers
 // nor plugin subscribers).
 func (s *Server) EmitEngineEvent(namespace, eventType, event string) (int, error) {

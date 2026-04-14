@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 // TestParsePeerFromTree verifies basic peer parsing from a map[string]any tree.
@@ -737,7 +737,7 @@ func TestParseSendFlagsMixedValidInvalid(t *testing.T) {
 // VALIDATES: AC-1: Plugin registers SendTypes and they are accepted in config.
 // PREVENTS: Dynamically registered send types rejected by config parser.
 func TestParseOneSendFlagDynamic(t *testing.T) {
-	require.NoError(t, plugin.RegisterSendType("enhanced-refresh"))
+	require.NoError(t, events.RegisterSendType("enhanced-refresh"))
 	defer func() {}()
 
 	var b ProcessBinding
@@ -759,7 +759,7 @@ func TestParseOneSendFlagRejectsUnregistered(t *testing.T) {
 }
 
 // TestParseReceiveFlagsRejectsUnknown verifies that parseReceiveFlags returns an error
-// for event types not registered with plugin.RegisterEventType.
+// for event types not registered with events.RegisterEventType.
 //
 // VALIDATES: AC-9: unknown event types rejected at runtime (not YANG).
 // PREVENTS: Typos in config silently accepted.
@@ -776,7 +776,7 @@ func TestParseReceiveFlagsRejectsUnknown(t *testing.T) {
 // VALIDATES: AC-1: registered event types accepted in receive config.
 // PREVENTS: Plugin-registered types incorrectly rejected.
 func TestParseReceiveFlagsAcceptsRegistered(t *testing.T) {
-	plugin.RegisterEventType(plugin.NamespaceBGP, "test-custom-event") //nolint:errcheck // test setup
+	events.RegisterEventType(events.NamespaceBGP, "test-custom-event") //nolint:errcheck // test setup
 
 	var b ProcessBinding
 	err := parseReceiveFlags("update test-custom-event", &b)
@@ -791,8 +791,8 @@ func TestParseReceiveFlagsAcceptsRegistered(t *testing.T) {
 // VALIDATES: First custom event type initializes ReceiveCustom from nil; second reuses existing map.
 // PREVENTS: Nil map panic on first custom event or map re-creation losing earlier entries.
 func TestReceiveCustomMapInit(t *testing.T) {
-	plugin.RegisterEventType(plugin.NamespaceBGP, "test-map-init-1") //nolint:errcheck // test setup
-	plugin.RegisterEventType(plugin.NamespaceBGP, "test-map-init-2") //nolint:errcheck // test setup
+	events.RegisterEventType(events.NamespaceBGP, "test-map-init-1") //nolint:errcheck // test setup
+	events.RegisterEventType(events.NamespaceBGP, "test-map-init-2") //nolint:errcheck // test setup
 
 	var b ProcessBinding
 	assert.Nil(t, b.ReceiveCustom, "ReceiveCustom should be nil before any custom event")

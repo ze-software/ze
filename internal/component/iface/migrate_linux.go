@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -113,7 +113,7 @@ func MigrateInterface(cfg MigrateConfig, eb ze.EventBus, timeout time.Duration) 
 	targetParsed, targetErr := netip.ParseAddr(targetIP)
 	ready := make(chan struct{}, 1)
 
-	unsub := eb.Subscribe(plugin.NamespaceBGP, plugin.EventListenerReady, func(payload string) {
+	unsub := eb.Subscribe(events.NamespaceBGP, events.EventListenerReady, func(payload string) {
 		var p bgpListenerReadyPayload
 		if err := json.Unmarshal([]byte(payload), &p); err != nil {
 			return

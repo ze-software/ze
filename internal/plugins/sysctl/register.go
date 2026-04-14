@@ -9,9 +9,9 @@ import (
 	"os"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
 	sysctlschema "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/schema"
@@ -87,7 +87,7 @@ func runSysctlPlugin(conn net.Conn) int {
 	if eb != nil {
 		unsubscribers = append(unsubscribers,
 			// Default events from other plugins.
-			eb.Subscribe(plugin.NamespaceSysctl, plugin.EventSysctlDefault, func(payload string) {
+			eb.Subscribe(events.NamespaceSysctl, events.EventSysctlDefault, func(payload string) {
 				var ev struct {
 					Key    string `json:"key"`
 					Value  string `json:"value"`
@@ -103,13 +103,13 @@ func runSysctlPlugin(conn net.Conn) int {
 					return
 				}
 				if applied != "" {
-					if _, emitErr := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlApplied, applied); emitErr != nil {
+					if _, emitErr := eb.Emit(events.NamespaceSysctl, events.EventSysctlApplied, applied); emitErr != nil {
 						log.Debug("sysctl: applied emit failed", "err", emitErr)
 					}
 				}
 			}),
 			// Transient set events (from CLI).
-			eb.Subscribe(plugin.NamespaceSysctl, plugin.EventSysctlSet, func(payload string) {
+			eb.Subscribe(events.NamespaceSysctl, events.EventSysctlSet, func(payload string) {
 				var ev struct {
 					Key   string `json:"key"`
 					Value string `json:"value"`
@@ -124,13 +124,13 @@ func runSysctlPlugin(conn net.Conn) int {
 					return
 				}
 				if applied != "" {
-					if _, emitErr := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlApplied, applied); emitErr != nil {
+					if _, emitErr := eb.Emit(events.NamespaceSysctl, events.EventSysctlApplied, applied); emitErr != nil {
 						log.Debug("sysctl: applied emit failed", "err", emitErr)
 					}
 				}
 			}),
 			// Query: show active keys.
-			eb.Subscribe(plugin.NamespaceSysctl, plugin.EventSysctlShowRequest, func(payload string) {
+			eb.Subscribe(events.NamespaceSysctl, events.EventSysctlShowRequest, func(payload string) {
 				var req struct {
 					RequestID string `json:"request-id"`
 				}
@@ -140,12 +140,12 @@ func runSysctlPlugin(conn net.Conn) int {
 					RequestID string `json:"request-id"`
 					Entries   string `json:"entries"`
 				}{RequestID: req.RequestID, Entries: result})
-				if _, err := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlShowResult, string(resp)); err != nil {
+				if _, err := eb.Emit(events.NamespaceSysctl, events.EventSysctlShowResult, string(resp)); err != nil {
 					log.Debug("sysctl: show-result emit failed", "err", err)
 				}
 			}),
 			// Query: list known keys.
-			eb.Subscribe(plugin.NamespaceSysctl, plugin.EventSysctlListRequest, func(payload string) {
+			eb.Subscribe(events.NamespaceSysctl, events.EventSysctlListRequest, func(payload string) {
 				var req struct {
 					RequestID string `json:"request-id"`
 				}
@@ -155,12 +155,12 @@ func runSysctlPlugin(conn net.Conn) int {
 					RequestID string `json:"request-id"`
 					Entries   string `json:"entries"`
 				}{RequestID: req.RequestID, Entries: result})
-				if _, err := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlListResult, string(resp)); err != nil {
+				if _, err := eb.Emit(events.NamespaceSysctl, events.EventSysctlListResult, string(resp)); err != nil {
 					log.Debug("sysctl: list-result emit failed", "err", err)
 				}
 			}),
 			// Clear profile defaults for an interface (before re-emission on reload).
-			eb.Subscribe(plugin.NamespaceSysctl, plugin.EventSysctlClearProfileDefaults, func(payload string) {
+			eb.Subscribe(events.NamespaceSysctl, events.EventSysctlClearProfileDefaults, func(payload string) {
 				var ev struct {
 					Interface string `json:"interface"`
 				}
@@ -171,7 +171,7 @@ func runSysctlPlugin(conn net.Conn) int {
 				s.clearProfileDefaults(ev.Interface)
 			}),
 			// Query: describe one key.
-			eb.Subscribe(plugin.NamespaceSysctl, plugin.EventSysctlDescribeRequest, func(payload string) {
+			eb.Subscribe(events.NamespaceSysctl, events.EventSysctlDescribeRequest, func(payload string) {
 				var req struct {
 					RequestID string `json:"request-id"`
 					Key       string `json:"key"`
@@ -182,7 +182,7 @@ func runSysctlPlugin(conn net.Conn) int {
 					RequestID string `json:"request-id"`
 					Detail    string `json:"detail"`
 				}{RequestID: req.RequestID, Detail: result})
-				if _, err := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlDescribeResult, string(resp)); err != nil {
+				if _, err := eb.Emit(events.NamespaceSysctl, events.EventSysctlDescribeResult, string(resp)); err != nil {
 					log.Debug("sysctl: describe-result emit failed", "err", err)
 				}
 			}),
@@ -201,7 +201,7 @@ func runSysctlPlugin(conn net.Conn) int {
 		}
 		if eb != nil {
 			for _, payload := range applied {
-				if _, emitErr := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlApplied, payload); emitErr != nil {
+				if _, emitErr := eb.Emit(events.NamespaceSysctl, events.EventSysctlApplied, payload); emitErr != nil {
 					log.Debug("sysctl: applied emit failed", "err", emitErr)
 				}
 			}
@@ -294,7 +294,7 @@ func runSysctlPlugin(conn net.Conn) int {
 					}
 					if eb != nil {
 						for _, payload := range applied {
-							if _, emitErr := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlApplied, payload); emitErr != nil {
+							if _, emitErr := eb.Emit(events.NamespaceSysctl, events.EventSysctlApplied, payload); emitErr != nil {
 								log.Debug("sysctl: applied emit failed", "err", emitErr)
 							}
 						}
@@ -367,7 +367,7 @@ func runSysctlPlugin(conn net.Conn) int {
 				return statusError, "", fmt.Errorf("sysctl set %s: %w", args[0], err)
 			}
 			if applied != "" && eb != nil {
-				if _, emitErr := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlApplied, applied); emitErr != nil {
+				if _, emitErr := eb.Emit(events.NamespaceSysctl, events.EventSysctlApplied, applied); emitErr != nil {
 					log.Debug("sysctl: applied emit failed", "err", emitErr)
 				}
 			}

@@ -13,6 +13,7 @@ import (
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	plugipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -248,7 +249,7 @@ func parseEventString(event string) (string, string) {
 	if len(parts) >= 3 && parts[1] == "direction" {
 		return parts[0], parts[2]
 	}
-	return event, plugin.DirectionBoth
+	return event, events.DirectionBoth
 }
 
 // registerSubscriptions registers event subscriptions for a process.
@@ -264,7 +265,7 @@ func (s *Server) registerSubscriptions(proc *process.Process, input *rpc.Subscri
 	for _, event := range input.Events {
 		eventType, direction := parseEventString(event)
 		sub := &Subscription{
-			Namespace: plugin.NamespaceBGP,
+			Namespace: events.NamespaceBGP,
 			EventType: eventType,
 			Direction: direction,
 		}
@@ -351,7 +352,7 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 	}
 
 	// Validate event type exists in the namespace (uses canonical registry).
-	if !plugin.IsValidEvent(namespace, eventType) {
+	if !events.IsValidEvent(namespace, eventType) {
 		return 0, &rpc.RPCCallError{Message: "unknown event: " + namespace + "/" + eventType}
 	}
 

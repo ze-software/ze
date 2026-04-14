@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -182,7 +182,7 @@ func (c *DHCPClient) publishDHCP(topic string, payload iface.DHCPPayload) {
 		loggerPtr.Load().Debug("iface dhcp: marshal failed", "event", eventType, "err", err)
 		return
 	}
-	if _, err := c.eventBus.Emit(plugin.NamespaceInterface, eventType, string(data)); err != nil {
+	if _, err := c.eventBus.Emit(events.NamespaceInterface, eventType, string(data)); err != nil {
 		loggerPtr.Load().Debug("iface dhcp: emit failed", "event", eventType, "err", err)
 	}
 }
@@ -192,11 +192,11 @@ func (c *DHCPClient) publishDHCP(topic string, payload iface.DHCPPayload) {
 func dhcpTopicToEventType(topic string) (string, bool) {
 	switch topic {
 	case iface.TopicDHCPLeaseAcquired:
-		return plugin.EventInterfaceDHCPAcquired, true
+		return events.EventInterfaceDHCPAcquired, true
 	case iface.TopicDHCPLeaseRenewed:
-		return plugin.EventInterfaceDHCPRenewed, true
+		return events.EventInterfaceDHCPRenewed, true
 	case iface.TopicDHCPLeaseExpired:
-		return plugin.EventInterfaceDHCPExpired, true
+		return events.EventInterfaceDHCPExpired, true
 	}
 	return "", false
 }

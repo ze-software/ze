@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 // EventMonitorOpts holds parsed arguments for the event monitor command.
@@ -72,7 +72,7 @@ func StreamEventMonitor(ctx context.Context, s *Server, w io.Writer, _ string, a
 // excludedFromMonitor contains entries in ValidBgpEvents that are not event
 // types but rather config flags (e.g., "sent" is a direction, not an event).
 var excludedFromMonitor = map[string]bool{
-	plugin.DirectionSent: true,
+	events.DirectionSent: true,
 }
 
 // ParseEventMonitorArgs parses keyword arguments for the event monitor command.
@@ -156,7 +156,7 @@ func ParseEventMonitorArgs(args []string) (*EventMonitorOpts, error) {
 				return nil, fmt.Errorf("direction requires 'received' or 'sent'")
 			}
 			d := strings.ToLower(args[i])
-			if d != plugin.DirectionReceived && d != plugin.DirectionSent {
+			if d != events.DirectionReceived && d != events.DirectionSent {
 				return nil, fmt.Errorf("invalid direction %q: must be 'received' or 'sent'", d)
 			}
 			opts.Direction = d
@@ -195,12 +195,12 @@ func validateEventTypeAnyNamespace(eventType string) error {
 		return fmt.Errorf("invalid event type %q: %q is a direction, not an event type", eventType, eventType)
 	}
 
-	if plugin.IsValidEventAnyNamespace(eventType) {
+	if events.IsValidEventAnyNamespace(eventType) {
 		return nil
 	}
 
 	// Build a filtered list of valid types for the error message.
-	all := plugin.AllEventTypes()
+	all := events.AllEventTypes()
 	seen := make(map[string]bool)
 	for _, types := range all {
 		for _, t := range types {
@@ -220,7 +220,7 @@ func validateEventTypeAnyNamespace(eventType string) error {
 // allEventTypes returns all valid event types across all namespaces,
 // excluding non-event entries like "sent".
 func allEventTypes() map[string][]string {
-	all := plugin.AllEventTypes()
+	all := events.AllEventTypes()
 	for ns, types := range all {
 		filtered := types[:0]
 		for _, et := range types {
@@ -245,7 +245,7 @@ func BuildEventMonitorSubscriptions(opts *EventMonitorOpts) []*Subscription {
 
 	direction := opts.Direction
 	if direction == "" {
-		direction = plugin.DirectionBoth
+		direction = events.DirectionBoth
 	}
 
 	all := allEventTypes()

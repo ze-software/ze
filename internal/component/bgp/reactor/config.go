@@ -17,6 +17,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 )
@@ -673,7 +674,7 @@ func parseProcessBindingsFromTree(tree map[string]any, ps *PeerSettings) error {
 
 // parseReceiveFlags sets receive flags on a ProcessBinding from a space-separated list.
 // Base event types are mapped to bool fields. Plugin-registered event types (validated
-// against plugin.IsValidEvent) are stored in ReceiveCustom.
+// against events.IsValidEvent) are stored in ReceiveCustom.
 // Unknown event types cause a config parse error (fail-on-unknown per config-design.md).
 func parseReceiveFlags(s string, b *ProcessBinding) error {
 	for token := range strings.FieldsSeq(s) {
@@ -706,9 +707,9 @@ func parseOneReceiveFlag(token string, b *ProcessBinding) error {
 	case "negotiated":
 		b.ReceiveNegotiated = true
 	default: // Plugin-registered event types (e.g., "rpki", "update-rpki"). Fail on truly unknown.
-		if !plugin.IsValidEvent(plugin.NamespaceBGP, token) {
+		if !events.IsValidEvent(events.NamespaceBGP, token) {
 			return fmt.Errorf("invalid value for receive: %q (valid: %s)",
-				token, plugin.ValidEventNames(plugin.NamespaceBGP))
+				token, events.ValidEventNames(events.NamespaceBGP))
 		}
 		if b.ReceiveCustom == nil {
 			b.ReceiveCustom = make(map[string]bool)
@@ -743,7 +744,7 @@ func parseOneSendFlag(token string, b *ProcessBinding) error {
 		return nil
 	}
 	// Plugin-registered send types: validate against dynamic registry.
-	if plugin.IsValidSendType(token) {
+	if events.IsValidSendType(token) {
 		if b.SendCustom == nil {
 			b.SendCustom = make(map[string]bool)
 		}
@@ -751,7 +752,7 @@ func parseOneSendFlag(token string, b *ProcessBinding) error {
 		return nil
 	}
 	valid := "update, refresh"
-	if extra := plugin.ValidSendTypeNames(); extra != "" {
+	if extra := events.ValidSendTypeNames(); extra != "" {
 		valid += ", " + extra
 	}
 	return fmt.Errorf("invalid value for send: %q (valid: %s)", token, valid)

@@ -49,6 +49,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
@@ -451,14 +452,14 @@ func New(config *Config) *Reactor {
 	// goroutines (onResumed). They must not block.
 	r.fwdPool.onCongested = func(peerAddr netip.AddrPort) {
 		reactorLogger().Warn("forward peer congested", "peer", peerAddr)
-		r.emitCongestionEvent(peerAddr.Addr(), plugin.EventCongested)
+		r.emitCongestionEvent(peerAddr.Addr(), events.EventCongested)
 		if r.rmetrics != nil {
 			r.rmetrics.fwdCongestionEvents.With(peerAddr.Addr().String()).Inc()
 		}
 	}
 	r.fwdPool.onResumed = func(peerAddr netip.AddrPort) {
 		reactorLogger().Info("forward peer resumed", "peer", peerAddr)
-		r.emitCongestionEvent(peerAddr.Addr(), plugin.EventResumed)
+		r.emitCongestionEvent(peerAddr.Addr(), events.EventResumed)
 		if r.rmetrics != nil {
 			r.rmetrics.fwdCongestionResume.With(peerAddr.Addr().String()).Inc()
 		}
@@ -609,7 +610,7 @@ func (r *Reactor) emitPeerStateEvent(peer *Peer, state, reason string) {
 	if err != nil {
 		return
 	}
-	if _, err := r.eventBus.Emit(plugin.NamespaceBGP, plugin.EventState, string(data)); err != nil {
+	if _, err := r.eventBus.Emit(events.NamespaceBGP, events.EventState, string(data)); err != nil {
 		reactorLogger().Debug("emit bgp state failed", "error", err)
 	}
 }
@@ -626,14 +627,14 @@ func (r *Reactor) emitPeerNegotiatedEvent(peer *Peer) {
 	if err != nil {
 		return
 	}
-	if _, err := r.eventBus.Emit(plugin.NamespaceBGP, plugin.EventNegotiated, string(data)); err != nil {
+	if _, err := r.eventBus.Emit(events.NamespaceBGP, events.EventNegotiated, string(data)); err != nil {
 		reactorLogger().Debug("emit bgp negotiated failed", "error", err)
 	}
 }
 
 // emitCongestionEventBus emits a (bgp, congested) or (bgp, resumed) event
-// depending on eventType. eventType MUST be plugin.EventCongested or
-// plugin.EventResumed. No-op if no EventBus.
+// depending on eventType. eventType MUST be events.EventCongested or
+// events.EventResumed. No-op if no EventBus.
 func (r *Reactor) emitCongestionEventBus(peerAddr, eventType string) {
 	if r.eventBus == nil {
 		return
@@ -642,7 +643,7 @@ func (r *Reactor) emitCongestionEventBus(peerAddr, eventType string) {
 	if err != nil {
 		return
 	}
-	if _, err := r.eventBus.Emit(plugin.NamespaceBGP, eventType, string(data)); err != nil {
+	if _, err := r.eventBus.Emit(events.NamespaceBGP, eventType, string(data)); err != nil {
 		reactorLogger().Debug("emit bgp congestion failed", "event", eventType, "error", err)
 	}
 }
@@ -662,7 +663,7 @@ func (r *Reactor) emitUpdateNotificationEvent(peerAddr, direction string) {
 	if err != nil {
 		return
 	}
-	if _, err := r.eventBus.Emit(plugin.NamespaceBGP, plugin.EventUpdateNotification, string(data)); err != nil {
+	if _, err := r.eventBus.Emit(events.NamespaceBGP, events.EventUpdateNotification, string(data)); err != nil {
 		reactorLogger().Debug("emit bgp update-notification failed", "error", err)
 	}
 }

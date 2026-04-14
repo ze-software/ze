@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"sync"
 
-	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 // Subscribe/unsubscribe handlers are in component/cmd/subscribe/subscribe.go.
@@ -62,7 +62,7 @@ func (s *Subscription) Matches(namespace, eventType, direction, peerAddr, peerNa
 	}
 
 	// Direction filter (only for events that have direction)
-	if direction != "" && s.Direction != plugin.DirectionBoth && s.Direction != direction {
+	if direction != "" && s.Direction != events.DirectionBoth && s.Direction != direction {
 		return false
 	}
 
@@ -176,7 +176,7 @@ func (sm *SubscriptionManager) GetSubscriptions(proc *process.Process) []*Subscr
 // Format: [peer <sel> | plugin <name>] <namespace> event <type> [direction received|sent|both].
 func ParseSubscription(args []string) (*Subscription, error) {
 	sub := &Subscription{
-		Direction: plugin.DirectionBoth,
+		Direction: events.DirectionBoth,
 	}
 
 	i := 0
@@ -205,8 +205,8 @@ func ParseSubscription(args []string) (*Subscription, error) {
 		return nil, fmt.Errorf("missing namespace")
 	}
 	ns := args[i]
-	if !plugin.IsValidNamespace(ns) {
-		return nil, fmt.Errorf("invalid namespace: %s (valid: %s)", ns, plugin.ValidNamespaceNames())
+	if !events.IsValidNamespace(ns) {
+		return nil, fmt.Errorf("invalid namespace: %s (valid: %s)", ns, events.ValidNamespaceNames())
 	}
 	sub.Namespace = ns
 	i++
@@ -235,7 +235,7 @@ func ParseSubscription(args []string) (*Subscription, error) {
 		}
 		dir := args[i+1]
 		switch dir {
-		case plugin.DirectionReceived, plugin.DirectionSent, plugin.DirectionBoth:
+		case events.DirectionReceived, events.DirectionSent, events.DirectionBoth:
 			sub.Direction = dir
 		default:
 			return nil, fmt.Errorf("invalid direction: %s (valid: received, sent, both)", dir)
@@ -273,13 +273,13 @@ func validatePeerSelector(selector string) error {
 }
 
 // validateEventType validates an event type for a namespace.
-// Both namespaces and event types are derived from plugin.ValidEvents.
+// Both namespaces and event types are derived from events.ValidEvents.
 func validateEventType(namespace, eventType string) error {
-	if !plugin.IsValidNamespace(namespace) {
-		return fmt.Errorf("invalid namespace: %s (valid: %s)", namespace, plugin.ValidNamespaceNames())
+	if !events.IsValidNamespace(namespace) {
+		return fmt.Errorf("invalid namespace: %s (valid: %s)", namespace, events.ValidNamespaceNames())
 	}
-	if !plugin.IsValidEvent(namespace, eventType) {
-		return fmt.Errorf("invalid %s event type: %s (valid: %s)", namespace, eventType, plugin.ValidEventNames(namespace))
+	if !events.IsValidEvent(namespace, eventType) {
+		return fmt.Errorf("invalid %s event type: %s (valid: %s)", namespace, eventType, events.ValidEventNames(namespace))
 	}
 	return nil
 }

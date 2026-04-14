@@ -20,7 +20,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -103,7 +103,7 @@ func emitForwardingDefaults() {
 		"net.ipv6.conf.all.forwarding",
 	} {
 		payload, _ := json.Marshal(sysctlDefault{Key: key, Value: "1", Source: "fib-kernel"})
-		if _, err := eb.Emit(plugin.NamespaceSysctl, plugin.EventSysctlDefault, string(payload)); err != nil {
+		if _, err := eb.Emit(events.NamespaceSysctl, events.EventSysctlDefault, string(payload)); err != nil {
 			logger().Warn("fib-kernel: emit sysctl default failed", "key", key, "err", err)
 		}
 	}
@@ -292,14 +292,14 @@ func (f *fibKernel) run(ctx context.Context, flushOnStop bool) {
 		return
 	}
 
-	unsub := eb.Subscribe(plugin.NamespaceSystemRIB, plugin.EventSystemRIBBestChange, func(payload string) {
+	unsub := eb.Subscribe(events.NamespaceSystemRIB, events.EventSystemRIBBestChange, func(payload string) {
 		f.processEvent(payload)
 	})
 	defer unsub()
 
 	// Request full-table replay from sysrib so we populate even if sysrib
 	// started before us. Empty payload by convention.
-	if _, err := eb.Emit(plugin.NamespaceSystemRIB, plugin.EventSystemRIBReplayRequest, ""); err != nil {
+	if _, err := eb.Emit(events.NamespaceSystemRIB, events.EventSystemRIBReplayRequest, ""); err != nil {
 		logger().Warn("fib-kernel: replay-request emit failed", "error", err)
 	}
 

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 // VALIDATES: All event type constants match their plugin package source values.
@@ -124,7 +124,7 @@ func TestReservedPluginNamesMatchValidEvents(t *testing.T) {
 		collided := false
 		for _, base := range bases {
 			candidate := base + "-" + reserved
-			if plugin.ValidConfigEvents[candidate] {
+			if events.ValidConfigEvents[candidate] {
 				collided = true
 				break
 			}
@@ -135,7 +135,7 @@ func TestReservedPluginNamesMatchValidEvents(t *testing.T) {
 	}
 
 	// Every event type of shape "<base>-<suffix>" must have its suffix reserved.
-	for event := range plugin.ValidConfigEvents {
+	for event := range events.ValidConfigEvents {
 		for _, base := range bases {
 			prefix := base + "-"
 			if !strings.HasPrefix(event, prefix) {
@@ -151,15 +151,15 @@ func TestReservedPluginNamesMatchValidEvents(t *testing.T) {
 	// EventVerifyFor/EventApplyFor on every reserved name must collide;
 	// on every accepted name must not.
 	for reserved := range ReservedPluginNames {
-		if !plugin.ValidConfigEvents[EventVerifyFor(reserved)] && !plugin.ValidConfigEvents[EventApplyFor(reserved)] {
+		if !events.ValidConfigEvents[EventVerifyFor(reserved)] && !events.ValidConfigEvents[EventApplyFor(reserved)] {
 			t.Errorf("neither EventVerifyFor(%q) nor EventApplyFor(%q) collide with ValidConfigEvents", reserved, reserved)
 		}
 	}
 	for _, safe := range []string{"bgp", "interface", "rib", "bgp-rib"} {
-		if plugin.ValidConfigEvents[EventVerifyFor(safe)] {
+		if events.ValidConfigEvents[EventVerifyFor(safe)] {
 			t.Errorf("EventVerifyFor(%q) = %q collides with a broadcast/ack event type", safe, EventVerifyFor(safe))
 		}
-		if plugin.ValidConfigEvents[EventApplyFor(safe)] {
+		if events.ValidConfigEvents[EventApplyFor(safe)] {
 			t.Errorf("EventApplyFor(%q) = %q collides with a broadcast/ack event type", safe, EventApplyFor(safe))
 		}
 	}

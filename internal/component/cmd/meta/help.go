@@ -9,6 +9,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 func init() {
@@ -25,7 +26,7 @@ func init() {
 // bgpEventTypes returns the current list of valid BGP event types,
 // excluding non-event entries like "sent" (a direction flag).
 func bgpEventTypes() []string {
-	names := plugin.ValidEventNames(plugin.NamespaceBGP)
+	names := events.ValidEventNames(events.NamespaceBGP)
 	if names == "" {
 		return nil
 	}
@@ -33,7 +34,7 @@ func bgpEventTypes() []string {
 	// Filter out "sent" which is a direction flag, not an event type.
 	result := types[:0]
 	for _, t := range types {
-		if t != plugin.DirectionSent {
+		if t != events.DirectionSent {
 			result = append(result, t)
 		}
 	}

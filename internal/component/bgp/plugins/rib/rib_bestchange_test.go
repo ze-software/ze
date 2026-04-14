@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
-	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
@@ -140,8 +140,8 @@ func TestRIBBestChangePublish(t *testing.T) {
 
 	evt := bus.lastEvent()
 	require.NotNil(t, evt)
-	assert.Equal(t, plugin.NamespaceBGPRIB, evt.Namespace)
-	assert.Equal(t, plugin.EventBestChange, evt.EventType)
+	assert.Equal(t, events.NamespaceBGPRIB, evt.Namespace)
+	assert.Equal(t, events.EventBestChange, evt.EventType)
 
 	var batch bestChangeBatch
 	require.NoError(t, json.Unmarshal([]byte(evt.Payload), &batch))
@@ -456,8 +456,8 @@ func TestRIBReplayOnSubscribe(t *testing.T) {
 	// Should have published a replay batch.
 	evt := bus.lastEvent()
 	require.NotNil(t, evt, "should publish replay batch")
-	assert.Equal(t, plugin.NamespaceBGPRIB, evt.Namespace)
-	assert.Equal(t, plugin.EventBestChange, evt.EventType)
+	assert.Equal(t, events.NamespaceBGPRIB, evt.Namespace)
+	assert.Equal(t, events.EventBestChange, evt.EventType)
 
 	var batch bestChangeBatch
 	require.NoError(t, json.Unmarshal([]byte(evt.Payload), &batch))

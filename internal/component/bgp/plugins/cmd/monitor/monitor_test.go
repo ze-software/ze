@@ -13,6 +13,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 // syncBuffer is a thread-safe bytes.Buffer for concurrent read/write in tests.
@@ -334,21 +335,21 @@ func TestBuildSubscriptions(t *testing.T) {
 			name:        "no_filters_subscribes_all_events",
 			opts:        &monitorOpts{},
 			wantCount:   len(allBGPEventTypes),
-			wantDir:     plugin.DirectionBoth,
+			wantDir:     events.DirectionBoth,
 			wantPeerNil: true,
 		},
 		{
 			name:        "specific_events",
 			opts:        &monitorOpts{eventTypes: []string{"update", "state"}},
 			wantCount:   2,
-			wantDir:     plugin.DirectionBoth,
+			wantDir:     events.DirectionBoth,
 			wantPeerNil: true,
 		},
 		{
 			name:        "with_peer_filter",
 			opts:        &monitorOpts{peer: "10.0.0.1"},
 			wantCount:   len(allBGPEventTypes),
-			wantDir:     plugin.DirectionBoth,
+			wantDir:     events.DirectionBoth,
 			wantPeerNil: false,
 			wantPeerSel: "10.0.0.1",
 		},
@@ -375,7 +376,7 @@ func TestBuildSubscriptions(t *testing.T) {
 			require.Len(t, subs, tt.wantCount)
 
 			for _, sub := range subs {
-				assert.Equal(t, plugin.NamespaceBGP, sub.Namespace, "namespace should be bgp")
+				assert.Equal(t, events.NamespaceBGP, sub.Namespace, "namespace should be bgp")
 				assert.Equal(t, tt.wantDir, sub.Direction, "direction mismatch")
 				if tt.wantPeerNil {
 					assert.Nil(t, sub.PeerFilter, "peer filter should be nil")
@@ -467,7 +468,7 @@ func TestStreamMonitor(t *testing.T) {
 
 	// Deliver an event.
 	eventJSON := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"type":"update","direction":"received"}}}`
-	mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", "", eventJSON)
+	mm.Deliver(events.NamespaceBGP, events.EventUpdate, events.DirectionReceived, "10.0.0.1", "", eventJSON)
 
 	// Wait for the event to appear in output.
 	require.Eventually(t, func() bool {
@@ -511,11 +512,11 @@ func TestStreamMonitorWithFilters(t *testing.T) {
 
 	// Deliver matching event.
 	matchEvent := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"type":"update","direction":"received"}}}`
-	mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", "", matchEvent)
+	mm.Deliver(events.NamespaceBGP, events.EventUpdate, events.DirectionReceived, "10.0.0.1", "", matchEvent)
 
 	// Deliver non-matching event (different peer).
 	noMatchEvent := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.2","remote":{"as":65002}},"message":{"type":"update","direction":"received"}}}`
-	mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.2", "", noMatchEvent)
+	mm.Deliver(events.NamespaceBGP, events.EventUpdate, events.DirectionReceived, "10.0.0.2", "", noMatchEvent)
 
 	// Wait for the matching event.
 	require.Eventually(t, func() bool {
