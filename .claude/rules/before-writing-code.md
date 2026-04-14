@@ -5,7 +5,7 @@ Rationale: `.claude/rationale/before-writing-code.md`
 
 ```
 [ ] 1. Read pattern cookbook — if touching CLI, web, plugin, config, or tests: read `.claude/patterns/<domain>.md` first. See `.claude/INDEX.md` "I Want To..." table.
-[ ] 2. Search for existing implementations (Grep/Glob) — extend if found
+[ ] 2. Search for existing implementations (Grep/Glob) — extend if found. Hook `check-existing-patterns.sh` blocks `Write` of a NEW `.go` file under `internal/` when the first struct type name already exists elsewhere. Generic names (`State`, `Manager`, `Tracker`, `Handler`) collide; grep `^type Foo ` before creating the file or expect to be blocked at Write time
 [ ] 3. Know source files — use digests if available, read + write digest if not
 [ ] 4. Verify file paths exist (Glob/Grep)
 [ ] 5. Buffer-first check (wire encoding) — see `rules/buffer-first.md`
