@@ -128,6 +128,16 @@ module ze-vpp-conf {
                 default "/run/vpp/stats.sock";
                 description "Stats segment Unix socket path.";
             }
+
+            leaf poll-interval {
+                type uint16 {
+                    range "1..3600";
+                }
+                default 30;
+                description
+                    "Stats polling interval in seconds. Controls how often
+                     ze reads VPP's stats segment for Prometheus metrics.";
+            }
         }
 
         container lcp {

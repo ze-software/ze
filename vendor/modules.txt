@@ -82,6 +82,9 @@ github.com/davecgh/go-spew/spew
 ## explicit; go 1.17
 github.com/fsnotify/fsnotify
 github.com/fsnotify/fsnotify/internal
+# github.com/ftrvxmtrx/fd v0.0.0-20150925145434-c6d800382fff
+## explicit
+github.com/ftrvxmtrx/fd
 # github.com/gaissmai/bart v0.26.1
 ## explicit; go 1.24.0
 github.com/gaissmai/bart
@@ -225,6 +228,7 @@ github.com/xo/terminfo
 ## explicit; go 1.24.0
 go.fd.io/govpp/adapter
 go.fd.io/govpp/adapter/socketclient
+go.fd.io/govpp/adapter/statsclient
 go.fd.io/govpp/api
 go.fd.io/govpp/binapi/ethernet_types
 go.fd.io/govpp/binapi/fib_types

@@ -56,8 +56,9 @@ type DPDKInterface struct {
 
 // StatsSettings holds VPP stats segment settings.
 type StatsSettings struct {
-	SegmentSize string
-	SocketPath  string
+	SegmentSize  string
+	SocketPath   string
+	PollInterval uint16 // seconds, 1-3600, default 30
 }
 
 // LCPSettings holds Linux Control Plane plugin settings.
@@ -171,8 +172,9 @@ func ParseSettings(section json.RawMessage) (*VPPSettings, error) {
 			Buffers:      128000,
 		},
 		Stats: StatsSettings{
-			SegmentSize: "512M",
-			SocketPath:  "/run/vpp/stats.sock",
+			SegmentSize:  "512M",
+			SocketPath:   "/run/vpp/stats.sock",
+			PollInterval: 30,
 		},
 		LCP: LCPSettings{
 			Enabled:    true,
@@ -367,7 +369,7 @@ func parseStats(data json.RawMessage, stats *StatsSettings) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("vpp stats: %w", err)
 	}
-	if err := unknownKeys("stats", raw, []string{"segment-size", "socket-path"}); err != nil {
+	if err := unknownKeys("stats", raw, []string{"segment-size", "socket-path", "poll-interval"}); err != nil {
 		return err
 	}
 	if v, ok := raw["segment-size"]; ok {
@@ -375,6 +377,16 @@ func parseStats(data json.RawMessage, stats *StatsSettings) error {
 	}
 	if v, ok := raw["socket-path"]; ok {
 		stats.SocketPath = strings.Trim(string(v), `"`)
+	}
+	if v, ok := raw["poll-interval"]; ok {
+		n, err := parseUint16(v)
+		if err != nil {
+			return fmt.Errorf("vpp stats poll-interval: %w", err)
+		}
+		if n < 1 || n > 3600 {
+			return fmt.Errorf("vpp stats poll-interval: must be 1..3600, got %d", n)
+		}
+		stats.PollInterval = n
 	}
 	return nil
 }
@@ -400,6 +412,15 @@ func parseLCP(data json.RawMessage, lcp *LCPSettings) error {
 		lcp.Netns = strings.Trim(string(v), `"`)
 	}
 	return nil
+}
+
+func parseUint16(data json.RawMessage) (uint16, error) {
+	s := strings.Trim(string(data), `"`)
+	n, err := strconv.ParseUint(s, 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("expected uint16: %w", err)
+	}
+	return uint16(n), nil
 }
 
 func parseUint8(data json.RawMessage) (uint8, error) {

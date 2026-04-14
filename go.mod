@@ -50,6 +50,7 @@ require (
 	github.com/creack/pty v1.1.24 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
+	github.com/ftrvxmtrx/fd v0.0.0-20150925145434-c6d800382fff // indirect
 	github.com/go-logfmt/logfmt v0.6.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/josharian/native v1.1.0 // indirect

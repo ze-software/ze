@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | spec-vpp-1-lifecycle |
-| Phase | - |
-| Updated | 2026-04-13 |
+| Phase | 4/5 |
+| Updated | 2026-04-14 |
 
 ## Post-Compaction Recovery
 
@@ -130,13 +130,15 @@ Not protocol work. No RFCs apply.
 | AC-3 | Prometheus /metrics scraped | `ze_vpp_interface_rx_packets` counter present per interface |
 | AC-4 | Prometheus /metrics scraped | `ze_vpp_interface_tx_bytes` counter present per interface |
 | AC-5 | Prometheus /metrics scraped | `ze_vpp_interface_drops` counter present per interface |
-| AC-6 | Prometheus /metrics scraped | `ze_vpp_node_clocks_per_packet` gauge present per graph node |
-| AC-7 | Prometheus /metrics scraped | `ze_vpp_node_vectors_per_call` gauge present per graph node |
+| AC-6 | Prometheus /metrics scraped | `ze_vpp_node_clocks` gauge present per graph node |
+| AC-7 | Prometheus /metrics scraped | `ze_vpp_node_vectors` gauge present per graph node |
 | AC-8 | Prometheus /metrics scraped | `ze_vpp_system_vector_rate` gauge present |
-| AC-9 | Prometheus /metrics scraped | `ze_vpp_fib_routes_installed` gauge present |
-| AC-10 | Prometheus /metrics scraped | `ze_vpp_fib_route_installs_total` counter present |
+| AC-9 | Prometheus /metrics scraped | `ze_fibvpp_routes_installed` gauge present |
+| AC-10 | Prometheus /metrics scraped | `ze_fibvpp_route_installs_total` counter present |
 | AC-11 | VPP restarts | Stats client reconnects, metrics resume after recovery |
 | AC-12 | Stats poll interval configured via YANG | Poll frequency matches config |
+| AC-13 | VPP stats client connected | `ze_vpp_stats_up` gauge is 1 |
+| AC-14 | VPP stats client disconnected | `ze_vpp_stats_up` gauge is 0, other metrics hold last value |
 
 ## 🧪 TDD Test Plan
 
@@ -150,6 +152,7 @@ Not protocol work. No RFCs apply.
 | `TestFibRouteCount` | `internal/plugins/fibvpp/stats_test.go` | Installed map length exposed as gauge | |
 | `TestStatsReconnect` | `internal/component/vpp/telemetry_test.go` | Stats client reconnects after VPP restart | |
 | `TestStatsPollInterval` | `internal/component/vpp/telemetry_test.go` | Config poll interval respected | |
+| `TestStatsUpGauge` | `internal/component/vpp/telemetry_test.go` | ze_vpp_stats_up is 1 when connected, 0 when disconnected | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -296,12 +299,13 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | `ze_vpp_interface_drops` | InterfaceStats | counter | interface |
 | `ze_vpp_interface_rx_errors` | InterfaceStats | counter | interface |
 | `ze_vpp_interface_tx_errors` | InterfaceStats | counter | interface |
-| `ze_vpp_node_clocks_per_packet` | NodeStats | gauge | node |
-| `ze_vpp_node_vectors_per_call` | NodeStats | gauge | node |
+| `ze_vpp_node_clocks` | NodeStats | gauge | node |
+| `ze_vpp_node_vectors` | NodeStats | gauge | node |
 | `ze_vpp_system_vector_rate` | SystemStats | gauge | - |
 | `ze_vpp_system_input_rate` | SystemStats | gauge | - |
-| `ze_vpp_fib_routes_installed` | fibvpp installed map | gauge | - |
-| `ze_vpp_fib_route_installs_total` | fibvpp counter | counter | - |
+| `ze_vpp_stats_up` | Stats client state | gauge | - |
+| `ze_fibvpp_routes_installed` | fibvpp installed map | gauge | - |
+| `ze_fibvpp_route_installs_total` | fibvpp counter | counter | - |
 
 ## Stats Client Connection
 
@@ -397,7 +401,7 @@ Added to existing vpp stats container:
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-12 all demonstrated
+- [ ] AC-1..AC-14 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `make ze-test` passes
 - [ ] Feature code integrated

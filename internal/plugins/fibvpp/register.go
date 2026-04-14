@@ -10,6 +10,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
 	vppevents "codeberg.org/thomas-mangin/ze/internal/component/vpp/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	fibvppschema "codeberg.org/thomas-mangin/ze/internal/plugins/fibvpp/schema"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
@@ -28,6 +29,11 @@ func init() {
 		RunEngine:    runFibVPPPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setFibVPPLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureMetrics: func(reg any) {
+			if r, ok := reg.(metrics.Registry); ok {
+				SetMetricsRegistry(r)
+			}
 		},
 		ConfigureEventBus: func(eb any) {
 			if e, ok := eb.(ze.EventBus); ok {

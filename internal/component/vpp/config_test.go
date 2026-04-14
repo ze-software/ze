@@ -144,7 +144,7 @@ func TestParseSettings(t *testing.T) {
 		},
 		{
 			name:  "stats settings",
-			input: `{"stats":{"segment-size":"1G","socket-path":"/tmp/stats.sock"}}`,
+			input: `{"stats":{"segment-size":"1G","socket-path":"/tmp/stats.sock","poll-interval":"10"}}`,
 			check: func(t *testing.T, s *VPPSettings) {
 				t.Helper()
 				if s.Stats.SegmentSize != "1G" {
@@ -152,6 +152,19 @@ func TestParseSettings(t *testing.T) {
 				}
 				if s.Stats.SocketPath != "/tmp/stats.sock" {
 					t.Errorf("socket-path: got %q", s.Stats.SocketPath)
+				}
+				if s.Stats.PollInterval != 10 {
+					t.Errorf("poll-interval: got %d, want 10", s.Stats.PollInterval)
+				}
+			},
+		},
+		{
+			name:  "stats poll-interval default",
+			input: `{"stats":{}}`,
+			check: func(t *testing.T, s *VPPSettings) {
+				t.Helper()
+				if s.Stats.PollInterval != 30 {
+					t.Errorf("default poll-interval: got %d, want 30", s.Stats.PollInterval)
 				}
 			},
 		},
@@ -193,6 +206,36 @@ func TestParseSettings(t *testing.T) {
 			name:    "unknown lcp key rejected",
 			input:   `{"lcp":{"enabled":"true","unknown":"yes"}}`,
 			wantErr: true,
+		},
+		{
+			name:    "poll-interval zero rejected",
+			input:   `{"stats":{"poll-interval":"0"}}`,
+			wantErr: true,
+		},
+		{
+			name:    "poll-interval 3601 rejected",
+			input:   `{"stats":{"poll-interval":"3601"}}`,
+			wantErr: true,
+		},
+		{
+			name:  "poll-interval last valid 3600",
+			input: `{"stats":{"poll-interval":"3600"}}`,
+			check: func(t *testing.T, s *VPPSettings) {
+				t.Helper()
+				if s.Stats.PollInterval != 3600 {
+					t.Errorf("poll-interval: got %d, want 3600", s.Stats.PollInterval)
+				}
+			},
+		},
+		{
+			name:  "poll-interval first valid 1",
+			input: `{"stats":{"poll-interval":"1"}}`,
+			check: func(t *testing.T, s *VPPSettings) {
+				t.Helper()
+				if s.Stats.PollInterval != 1 {
+					t.Errorf("poll-interval: got %d, want 1", s.Stats.PollInterval)
+				}
+			},
 		},
 	}
 

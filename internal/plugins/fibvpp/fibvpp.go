@@ -152,6 +152,10 @@ func (f *fibVPP) processEvent(payload string) {
 				continue
 			}
 			f.installed[c.Prefix] = c.NextHop
+			if m := fibVPPMetricsPtr.Load(); m != nil {
+				m.routeInstalls.Inc()
+				m.routesInstalled.Set(float64(len(f.installed)))
+			}
 		case "update":
 			nextHop, nhErr := netip.ParseAddr(c.NextHop)
 			if nhErr != nil {
@@ -163,12 +167,19 @@ func (f *fibVPP) processEvent(payload string) {
 				continue
 			}
 			f.installed[c.Prefix] = c.NextHop
+			if m := fibVPPMetricsPtr.Load(); m != nil {
+				m.routeUpdates.Inc()
+			}
 		case "withdraw":
 			if err := f.backend.delRoute(prefix); err != nil {
 				logger().Error("fib-vpp: del route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
 			delete(f.installed, c.Prefix)
+			if m := fibVPPMetricsPtr.Load(); m != nil {
+				m.routeRemovals.Inc()
+				m.routesInstalled.Set(float64(len(f.installed)))
+			}
 		}
 	}
 }
@@ -188,6 +199,10 @@ func (f *fibVPP) flushRoutes() {
 		}
 	}
 	f.installed = make(map[string]string)
+
+	if m := fibVPPMetricsPtr.Load(); m != nil {
+		m.routesInstalled.Set(0)
+	}
 }
 
 // showInstalled returns the currently installed routes as JSON.

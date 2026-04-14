@@ -15,6 +15,7 @@ import (
 	vppevents "codeberg.org/thomas-mangin/ze/internal/component/vpp/events"
 	vppschema "codeberg.org/thomas-mangin/ze/internal/component/vpp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -40,6 +41,11 @@ func init() {
 		RunEngine:   runVPPEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetVPPLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureMetrics: func(reg any) {
+			if r, ok := reg.(metrics.Registry); ok {
+				SetVPPMetricsRegistry(r)
+			}
 		},
 		ConfigureEventBus: func(eb any) {
 			if e, ok := eb.(ze.EventBus); ok {

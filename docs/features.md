@@ -54,4 +54,8 @@ Ze is a BGP daemon written in Go.
 | [MCP Integration](features/mcp-integration.md) | AI-assisted BGP operations via Model Context Protocol |
 | [DNS Resolver](features/dns-resolver.md) | Built-in cached DNS resolver for all components |
 | Resolution CLI | Offline `ze resolve` tool for DNS, Team Cymru ASN names, PeeringDB prefix counts, and IRR AS-SET expansion |
+| VPP Data Plane | Manages VPP lifecycle (startup, crash recovery, DPDK NIC binding), programs FIB routes via GoVPP binary API, and polls VPP's stats segment for per-interface, per-node, and system-wide Prometheus metrics. Configurable poll interval. |
+<!-- source: internal/component/vpp/vpp.go -- VPPManager lifecycle -->
+<!-- source: internal/component/vpp/telemetry.go -- stats poller, Prometheus metrics -->
+<!-- source: internal/plugins/fibvpp/fibvpp.go -- FIB route programming -->
 | [ExaBGP Compatibility](features/exabgp-compatibility.md) | Automatic config migration and plugin bridge |

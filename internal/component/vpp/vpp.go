@@ -212,8 +212,33 @@ func (m *VPPManager) runOnce(ctx context.Context, confPath string) error {
 		m.hasRunOnce = true
 	}
 
+	// Start stats telemetry poller if metrics registry and stats connection are available.
+	var pollerCancel context.CancelFunc
+	var statsConn statsDisconnector
+	if reg := getMetricsRegistry(); reg != nil {
+		sc, statsErr := connectStats(m.settings.Stats.SocketPath)
+		if statsErr != nil {
+			lg.Warn("vpp: stats connection failed, telemetry disabled", "error", statsErr)
+		} else {
+			pollerCtx, cancel := context.WithCancel(ctx)
+			pollerCancel = cancel
+			statsConn = sc
+			interval := time.Duration(m.settings.Stats.PollInterval) * time.Second
+			vppM := newVPPMetrics(reg)
+			poller := newStatsPoller(sc, vppM, interval)
+			go poller.run(pollerCtx)
+			lg.Info("vpp: stats telemetry started", "interval", interval)
+		}
+	}
+
 	// Wait for VPP process to exit.
 	err := cmd.Wait()
+	if pollerCancel != nil {
+		pollerCancel()
+	}
+	if statsConn != nil {
+		statsConn.Disconnect()
+	}
 	m.connector.Close()
 	return fmt.Errorf("vpp process exited: %w", err)
 }
