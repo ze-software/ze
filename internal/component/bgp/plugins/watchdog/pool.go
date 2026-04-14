@@ -284,7 +284,15 @@ type PoolEntry struct {
 	initiallyAnnounced bool
 
 	announced map[string]bool // peerAddr → isAnnounced (protected by pool.mu)
-	pool      *RoutePool      // back-pointer for locking
+
+	// pendingMED stores the latest MED-override value a caller asked to
+	// announce for this peer while the session was not yet up. On peer
+	// up, handleStateUp consumes the entry so the replayed UPDATE carries
+	// the override instead of the config default. Cleared after replay
+	// or on explicit withdraw.
+	pendingMED map[string]*uint32 // peerAddr → MED (protected by pool.mu)
+
+	pool *RoutePool // back-pointer for locking
 }
 
 // NewPoolEntry creates a new pool entry with the given key and commands.
@@ -294,6 +302,7 @@ func NewPoolEntry(key, announceCmd, withdrawCmd string) *PoolEntry {
 		AnnounceCmd: announceCmd,
 		WithdrawCmd: withdrawCmd,
 		announced:   make(map[string]bool),
+		pendingMED:  make(map[string]*uint32),
 	}
 }
 

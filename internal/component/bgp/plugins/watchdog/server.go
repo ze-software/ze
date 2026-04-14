@@ -201,17 +201,29 @@ func (s *watchdogServer) handlePoolActionSingle(name, peer string, announce bool
 // For each entry in the pool: clone Route, set MED, format a one-off command.
 // Bypasses the announced boolean dedup -- always dispatches when peer is up.
 // Sets announced[peer]=true so subsequent non-MED announces are deduped.
+//
+// When the peer session is NOT yet up, the MED is stashed in
+// PoolEntry.pendingMED and announced[peer] is still flipped to true.
+// handleStateUp consumes pendingMED on session establishment so the
+// first UPDATE carries the override instead of the config default.
+// This covers the healthcheck race where probe success fires before
+// BGP finishes its OPEN handshake (regression surfaced by
+// test/plugin/healthcheck-cycle.ci with debounce=true).
 func (s *watchdogServer) handleMEDOverride(pool *RoutePool, peer string, isUp bool, name string, med *uint32) (string, string, error) {
 	// Clone routes and build commands under lock (#17: Route read must be under lock).
 	pool.mu.Lock()
 	var cmds []string
 	for _, e := range pool.routes {
+		e.announced[peer] = true
 		if isUp {
-			e.announced[peer] = true
+			delete(e.pendingMED, peer)
 			clone := e.Route
 			clone.MED = med
 			cmds = append(cmds, bgp.FormatAnnounceCommand(&clone))
+			continue
 		}
+		// Peer not yet up — defer the dispatch by stashing the override.
+		e.pendingMED[peer] = med
 	}
 	count := len(pool.routes)
 	pool.mu.Unlock()
@@ -264,9 +276,25 @@ func (s *watchdogServer) handleStateUp(peerAddr string) {
 		// untouched — they require an explicit "watchdog announce" command.
 		pools.AnnounceInitial(poolName, peerAddr)
 
-		// Second pass: send all announced routes
+		// Second pass: send all announced routes. When an earlier
+		// handleMEDOverride deferred its dispatch because the peer was
+		// not yet up, the override MED sits in pendingMED[peerAddr];
+		// consume it here so the replayed UPDATE carries the same MED
+		// the healthcheck asked for.
 		announced := pools.AnnouncedForPeer(poolName, peerAddr)
 		for _, entry := range announced {
+			pool.mu.Lock()
+			med, hasPending := entry.pendingMED[peerAddr]
+			if hasPending {
+				delete(entry.pendingMED, peerAddr)
+			}
+			pool.mu.Unlock()
+			if hasPending {
+				clone := entry.Route
+				clone.MED = med
+				s.sendRoute(peerAddr, bgp.FormatAnnounceCommand(&clone))
+				continue
+			}
 			s.sendRoute(peerAddr, entry.AnnounceCmd)
 		}
 
