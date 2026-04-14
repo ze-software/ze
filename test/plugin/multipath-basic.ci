@@ -12,6 +12,10 @@ option=timeout:value=20s
 
 # Send IPv4 UPDATE with LOCAL_PREF=100, AS_PATH=[65001], NEXT_HOP=10.0.0.1
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040A00000140050400000064180A0100
+# Wait for ze's End-of-RIB so the peer does not close TCP before the
+# observer can poll for peer state. Without this, ze transitions
+# Established -> Idle -> Connecting before the observer's first poll fires.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 tmpfs=multipath-test.run:mode=755:terminator=EOF_RUN

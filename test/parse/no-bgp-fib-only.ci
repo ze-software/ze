@@ -12,5 +12,5 @@ fib {
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
-expect=exit:code=1
-expect=stderr:contains=unknown top-level keyword: fib
+expect=exit:code=0
+expect=stdout:contains=valid

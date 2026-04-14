@@ -14,6 +14,10 @@ option=timeout:value=15s
 
 # Send a basic IPv4 UPDATE
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040A000001400504000000C8180A0100
+# Wait for ze's End-of-RIB so the peer does not close TCP before the
+# observer can poll for peer state. Without this, ze transitions
+# Established -> Idle -> Connecting before the observer's first poll fires.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 tmpfs=nh-test.run:mode=755:terminator=EOF_RUN
