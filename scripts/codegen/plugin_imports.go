@@ -103,6 +103,7 @@ var pluginDirs = []string{
 	"internal/component/bgp/plugins",
 	"internal/component/bgp/reactor/filter",
 	"internal/component/iface",
+	"internal/component/vpp",
 	"internal/plugins",
 }
 

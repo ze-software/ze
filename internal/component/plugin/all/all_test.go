@@ -56,6 +56,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"ntp",
 		"rib",
 		"sysctl",
+		"vpp",
 	}
 
 	// Plugins with //go:build linux that only register on Linux.
