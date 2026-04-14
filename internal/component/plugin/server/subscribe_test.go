@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
@@ -387,16 +388,16 @@ func TestSubscriptionManagerGetMatching(t *testing.T) {
 	sm.Add(proc3, &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "10.0.0.1"}})
 
 	// Update from 10.0.0.1 should match proc1 and proc3
-	matches := sm.GetMatching("bgp", "update", "received", "10.0.0.1", "")
+	matches := sm.GetMatching(bgpevents.Namespace, "update", "received", "10.0.0.1", "")
 	assert.Len(t, matches, 2)
 
 	// Update from 10.0.0.2 should only match proc1
-	matches = sm.GetMatching("bgp", "update", "received", "10.0.0.2", "")
+	matches = sm.GetMatching(bgpevents.Namespace, "update", "received", "10.0.0.2", "")
 	assert.Len(t, matches, 1)
 	assert.Equal(t, "proc1", matches[0].Name())
 
 	// State event should only match proc2
-	matches = sm.GetMatching("bgp", "state", "", "10.0.0.1", "")
+	matches = sm.GetMatching(bgpevents.Namespace, "state", "", "10.0.0.1", "")
 	assert.Len(t, matches, 1)
 	assert.Equal(t, "proc2", matches[0].Name())
 }
@@ -430,7 +431,7 @@ func TestSubscriptionManagerConcurrency(t *testing.T) {
 	for range goroutines {
 		wg.Go(func() {
 			for range iterations {
-				_ = sm.GetMatching("bgp", "update", "received", "10.0.0.1", "")
+				_ = sm.GetMatching(bgpevents.Namespace, "update", "received", "10.0.0.1", "")
 			}
 		})
 	}

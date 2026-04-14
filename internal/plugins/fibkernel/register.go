@@ -8,14 +8,18 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	fibevents "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel/events"
 	fibschema "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel/schema"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 func init() {
+	_ = events.RegisterNamespace(fibevents.Namespace, fibevents.EventExternalChange)
+
 	reg := registry.Registration{
 		Name:         "fib-kernel",
 		Description:  "FIB kernel: programs OS routes from system RIB via netlink/route socket",

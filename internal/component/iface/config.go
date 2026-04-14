@@ -13,8 +13,8 @@ import (
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
+	sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -1252,7 +1252,7 @@ func applySysctl(osName string, u unitEntry) {
 			Value  string `json:"value"`
 			Source string `json:"source"`
 		}{Key: key, Value: value, Source: "interface"})
-		if _, err := eb.Emit(events.NamespaceSysctl, events.EventSysctlDefault, string(payload)); err != nil {
+		if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventDefault, string(payload)); err != nil {
 			log.Debug("iface: sysctl emit failed", "key", key, "err", err)
 		}
 	}
@@ -1318,7 +1318,7 @@ func applySysctlProfiles(osName string, profiles []string) {
 	clearPayload, _ := json.Marshal(struct {
 		Interface string `json:"interface"`
 	}{Interface: osName})
-	if _, err := eb.Emit(events.NamespaceSysctl, events.EventSysctlClearProfileDefaults, string(clearPayload)); err != nil {
+	if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventClearProfileDefaults, string(clearPayload)); err != nil {
 		log.Debug("iface: clear-profile-defaults emit failed", "iface", osName, "err", err)
 	}
 
@@ -1335,7 +1335,7 @@ func applySysctlProfiles(osName string, profiles []string) {
 				Value  string `json:"value"`
 				Source string `json:"source"`
 			}{Key: s.Key, Value: s.Value, Source: "profile:" + name})
-			if _, err := eb.Emit(events.NamespaceSysctl, events.EventSysctlDefault, string(payload)); err != nil {
+			if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventDefault, string(payload)); err != nil {
 				log.Debug("iface: profile sysctl emit failed", "key", s.Key, "profile", name, "err", err)
 			}
 		}

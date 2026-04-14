@@ -15,9 +15,11 @@ import (
 	"os"
 	"sync"
 
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -30,6 +32,14 @@ var (
 )
 
 func init() {
+	_ = events.RegisterNamespace(bgpevents.Namespace,
+		bgpevents.EventUpdate, bgpevents.EventOpen, bgpevents.EventNotification,
+		bgpevents.EventKeepalive, bgpevents.EventRefresh, bgpevents.EventState,
+		bgpevents.EventNegotiated, bgpevents.EventEOR, bgpevents.EventCongested,
+		bgpevents.EventResumed, bgpevents.EventRPKI, bgpevents.EventListenerReady,
+		bgpevents.EventUpdateNotification, events.DirectionSent,
+	)
+
 	reg := registry.Registration{
 		Name:               "bgp",
 		Description:        "BGP routing daemon",

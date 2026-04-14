@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -194,7 +195,7 @@ func TestServerSubscribeEngineEventUnsub(t *testing.T) {
 	s := &Server{engineSubscribers: newEngineEventSubscribers()}
 
 	var calls int
-	unsub := s.SubscribeEngineEvent("config", "verify-ok", func(_ string) { calls++ })
+	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(_ string) { calls++ })
 
 	s.dispatchEngineEvent("config", "verify-ok", `payload`)
 	if calls != 1 {
@@ -214,7 +215,7 @@ func TestServerSubscribeEngineEventUnsub(t *testing.T) {
 // Server was constructed without the registry.
 func TestServerSubscribeEngineEventNilRegistry(t *testing.T) {
 	s := &Server{} // engineSubscribers is nil
-	unsub := s.SubscribeEngineEvent("config", "verify-ok", func(_ string) {})
+	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(_ string) {})
 	if unsub == nil {
 		t.Fatal("SubscribeEngineEvent returned nil unsub function")
 	}
@@ -228,7 +229,7 @@ func TestServerSubscribeEngineEventNilRegistry(t *testing.T) {
 func TestServerSubscribeEngineEventNilHandler(t *testing.T) {
 	s := &Server{engineSubscribers: newEngineEventSubscribers()}
 
-	unsub := s.SubscribeEngineEvent("config", "verify-ok", nil)
+	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", nil)
 	if unsub == nil {
 		t.Fatal("SubscribeEngineEvent returned nil unsub function")
 	}
@@ -248,12 +249,12 @@ func TestServerEmitEngineEventEndToEnd(t *testing.T) {
 	s := &Server{engineSubscribers: newEngineEventSubscribers()}
 
 	var got string
-	unsub := s.SubscribeEngineEvent("config", "verify-ok", func(event string) {
+	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(event string) {
 		got = event
 	})
 	defer unsub()
 
-	delivered, err := s.EmitEngineEvent("config", "verify-ok", `{"plugin":"bgp","code":"ok"}`)
+	delivered, err := s.EmitEngineEvent(txevents.Namespace, "verify-ok", `{"plugin":"bgp","code":"ok"}`)
 	if err != nil {
 		t.Fatalf("EmitEngineEvent: %v", err)
 	}

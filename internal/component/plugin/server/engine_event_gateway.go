@@ -4,15 +4,13 @@
 
 package server
 
-import (
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
-)
+import txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
 
 // ConfigEventGateway adapts Server to the
 // internal/component/config/transaction.EventGateway interface used by the
 // config transaction orchestrator.
 //
-// The adapter hides the namespace parameter (always events.NamespaceConfig)
+// The adapter hides the namespace parameter (always "config")
 // and converts between the orchestrator's []byte payloads and Server's
 // string event payloads.
 //
@@ -37,7 +35,7 @@ func NewConfigEventGateway(s *Server) *ConfigEventGateway {
 // EmitConfigEvent publishes a stream event in the config namespace.
 // Returns the number of plugin processes that received the event.
 func (g *ConfigEventGateway) EmitConfigEvent(eventType string, payload []byte) (int, error) {
-	return g.server.EmitEngineEvent(events.NamespaceConfig, eventType, string(payload))
+	return g.server.EmitEngineEvent(txevents.Namespace, eventType, string(payload))
 }
 
 // SubscribeConfigEvent registers a handler for a config namespace event type.
@@ -47,7 +45,7 @@ func (g *ConfigEventGateway) SubscribeConfigEvent(eventType string, handler func
 	if handler == nil {
 		return func() {}
 	}
-	return g.server.SubscribeEngineEvent(events.NamespaceConfig, eventType, func(event string) {
+	return g.server.SubscribeEngineEvent(txevents.Namespace, eventType, func(event string) {
 		handler([]byte(event))
 	})
 }

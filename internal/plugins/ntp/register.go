@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	ntpevents "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/events"
 	ntpschema "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/schema"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -34,6 +36,8 @@ func getEventBus() ze.EventBus {
 }
 
 func init() {
+	_ = events.RegisterNamespace(ntpevents.Namespace, ntpevents.EventClockSynced)
+
 	d := slogutil.DiscardLogger()
 	loggerPtr.Store(d)
 

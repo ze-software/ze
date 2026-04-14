@@ -17,8 +17,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -221,13 +221,13 @@ func (f *fibVPP) run(ctx context.Context, flushOnStop bool) {
 		return
 	}
 
-	unsub := eb.Subscribe(events.NamespaceSystemRIB, events.EventSystemRIBBestChange, func(payload string) {
+	unsub := eb.Subscribe(sysribevents.Namespace, sysribevents.EventBestChange, func(payload string) {
 		f.processEvent(payload)
 	})
 	defer unsub()
 
 	// Request full-table replay from sysrib.
-	if _, err := eb.Emit(events.NamespaceSystemRIB, events.EventSystemRIBReplayRequest, ""); err != nil {
+	if _, err := eb.Emit(sysribevents.Namespace, sysribevents.EventReplayRequest, ""); err != nil {
 		logger().Warn("fib-vpp: replay-request emit failed", "error", err)
 	}
 

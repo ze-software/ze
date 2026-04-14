@@ -145,7 +145,7 @@ func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
 
 // emitCongestionEvent emits a congestion state change event to subscribed plugins.
 // Called from fwdPool congestion callbacks. peerAddr is the destination peer address.
-// eventType is events.EventCongested or events.EventResumed.
+// eventType is bgpevents.EventCongested or bgpevents.EventResumed.
 // Safe to call before the eventDispatcher is initialized (nil check after peer lookup).
 //
 // Looks up peer before checking eventDispatcher, so that missing peers are
@@ -176,7 +176,7 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 	r.eventDispatcher.OnPeerCongestionChange(&peerInfo, eventType)
 
 	// Cross-component consumers receive (bgp, congested) or (bgp, resumed) via the EventBus.
-	// eventType is events.EventCongested or events.EventResumed -- pass through directly.
+	// eventType is bgpevents.EventCongested or bgpevents.EventResumed -- pass through directly.
 	r.emitCongestionEventBus(peerAddr.String(), eventType)
 }
 

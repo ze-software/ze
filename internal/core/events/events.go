@@ -15,19 +15,6 @@ import (
 	"sync"
 )
 
-// Event namespaces.
-const (
-	NamespaceBGP       = "bgp"
-	NamespaceBGPRIB    = "bgp-rib"
-	NamespaceConfig    = "config"
-	NamespaceSystemRIB = "system-rib"
-	NamespaceFib       = "fib"
-	NamespaceInterface = "interface"
-	NamespaceSysctl    = "sysctl"
-	NamespaceSystem    = "system"
-	NamespaceVPP       = "vpp"
-)
-
 // Direction constants for event filtering.
 const (
 	DirectionReceived = "received"
@@ -42,18 +29,9 @@ var eventsMu sync.RWMutex
 
 // ValidEvents maps namespace to its set of valid event types.
 // This is the single source of truth for namespace/event validation.
+// Populated dynamically by components calling RegisterNamespace from init().
 // Protected by eventsMu for concurrent access.
-var ValidEvents = map[string]map[string]bool{
-	NamespaceBGP:       ValidBgpEvents,
-	NamespaceBGPRIB:    ValidBGPRIBEvents,
-	NamespaceConfig:    ValidConfigEvents,
-	NamespaceSystemRIB: ValidSystemRIBEvents,
-	NamespaceFib:       ValidFibEvents,
-	NamespaceInterface: ValidInterfaceEvents,
-	NamespaceSysctl:    ValidSysctlEvents,
-	NamespaceSystem:    ValidSystemEvents,
-	NamespaceVPP:       ValidVPPEvents,
-}
+var ValidEvents = map[string]map[string]bool{}
 
 // IsValidEvent returns true if the event type is valid in the given namespace.
 // Safe for concurrent use.

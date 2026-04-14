@@ -13,10 +13,12 @@ import (
 	"sync"
 	"sync/atomic"
 
+	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
 	ifaceschema "codeberg.org/thomas-mangin/ze/internal/component/iface/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -50,6 +52,14 @@ func GetEventBus() ze.EventBus {
 }
 
 func init() {
+	_ = events.RegisterNamespace(ifaceevents.Namespace,
+		ifaceevents.EventCreated, ifaceevents.EventUp, ifaceevents.EventDown,
+		ifaceevents.EventAddrAdded, ifaceevents.EventAddrRemoved,
+		ifaceevents.EventDHCPAcquired, ifaceevents.EventDHCPRenewed,
+		ifaceevents.EventDHCPExpired, ifaceevents.EventRollback,
+		ifaceevents.EventRouterDiscovered, ifaceevents.EventRouterLost,
+	)
+
 	d := slogutil.DiscardLogger()
 	loggerPtr.Store(d)
 
@@ -204,18 +214,18 @@ func runEngine(conn net.Conn) int {
 		// Subscribe to DHCP lease events to track gateways for link failover.
 		// Handlers only update the map (no I/O), so mutex is sufficient.
 		unsubscribers = append(unsubscribers,
-			eb.Subscribe(events.NamespaceInterface, events.EventInterfaceDHCPAcquired, func(data string) {
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDHCPAcquired, func(data string) {
 				dhcpMu.Lock()
 				handleDHCPLeaseEvent(data, activeDHCP, log)
 				dhcpMu.Unlock()
 			}),
-			eb.Subscribe(events.NamespaceInterface, events.EventInterfaceDHCPRenewed, func(data string) {
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDHCPRenewed, func(data string) {
 				dhcpMu.Lock()
 				handleDHCPLeaseEvent(data, activeDHCP, log)
 				dhcpMu.Unlock()
 			}),
 			// Link events enqueue to worker channel (no I/O in handler).
-			eb.Subscribe(events.NamespaceInterface, events.EventInterfaceDown, func(data string) {
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDown, func(data string) {
 				var ev struct {
 					Name string `json:"name"`
 				}
@@ -226,7 +236,7 @@ func runEngine(conn net.Conn) int {
 					}
 				}
 			}),
-			eb.Subscribe(events.NamespaceInterface, events.EventInterfaceUp, func(data string) {
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventUp, func(data string) {
 				var ev struct {
 					Name string `json:"name"`
 				}
@@ -238,12 +248,12 @@ func runEngine(conn net.Conn) int {
 				}
 			}),
 			// IPv6 router discovery events from netlink neighbor monitor.
-			eb.Subscribe(events.NamespaceInterface, events.EventInterfaceRouterDiscovered, func(data string) {
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventRouterDiscovered, func(data string) {
 				dhcpMu.Lock()
 				handleRouterDiscovered(data, activeRouters, activeDHCP, log)
 				dhcpMu.Unlock()
 			}),
-			eb.Subscribe(events.NamespaceInterface, events.EventInterfaceRouterLost, func(data string) {
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventRouterLost, func(data string) {
 				dhcpMu.Lock()
 				handleRouterLost(data, activeRouters, log)
 				dhcpMu.Unlock()
@@ -308,7 +318,7 @@ func runEngine(conn net.Conn) int {
 				// Emit rollback event so downstream plugins react.
 				eb := GetEventBus()
 				if eb != nil {
-					if _, emitErr := eb.Emit(events.NamespaceInterface, events.EventInterfaceRollback, ""); emitErr != nil {
+					if _, emitErr := eb.Emit(ifaceevents.Namespace, ifaceevents.EventRollback, ""); emitErr != nil {
 						log.Debug("interface rollback emit failed", "error", emitErr)
 					}
 				}
@@ -737,7 +747,7 @@ func suppressAcceptRaDefrtr(ifaceName string, suppressed map[string]bool, eb ze.
 	}
 	sysctlKey := "net.ipv6.conf." + ifaceName + ".accept_ra_defrtr"
 	payload := fmt.Sprintf(`{"key":%q,"value":"0","source":"interface"}`, sysctlKey)
-	if _, err := eb.Emit(events.NamespaceSysctl, events.EventSysctlSet, payload); err != nil {
+	if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventSet, payload); err != nil {
 		log.Warn("interface: failed to suppress accept_ra_defrtr", "iface", ifaceName, "err", err)
 		return
 	}
@@ -766,7 +776,7 @@ func restoreAcceptRaDefrtr(ifaceName string, suppressed map[string]bool, routers
 	}
 	sysctlKey := "net.ipv6.conf." + ifaceName + ".accept_ra_defrtr"
 	payload := fmt.Sprintf(`{"key":%q,"value":"1","source":"interface"}`, sysctlKey)
-	if _, err := eb.Emit(events.NamespaceSysctl, events.EventSysctlSet, payload); err != nil {
+	if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventSet, payload); err != nil {
 		log.Warn("interface: failed to restore accept_ra_defrtr", "iface", ifaceName, "err", err)
 	}
 	delete(suppressed, ifaceName)

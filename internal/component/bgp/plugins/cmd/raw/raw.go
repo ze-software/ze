@@ -10,10 +10,10 @@ import (
 	"net/netip"
 	"strings"
 
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 func init() {
@@ -128,7 +128,7 @@ func parseMessageType(s string) (uint8, bool) {
 	switch strings.ToLower(s) {
 	case "open":
 		return uint8(message.TypeOPEN), true
-	case events.EventUpdate:
+	case bgpevents.EventUpdate:
 		return uint8(message.TypeUPDATE), true
 	case "notification":
 		return uint8(message.TypeNOTIFICATION), true

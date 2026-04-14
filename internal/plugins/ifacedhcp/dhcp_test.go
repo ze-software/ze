@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -37,19 +37,19 @@ func TestDhcpTopicToEventType(t *testing.T) {
 		{
 			name:      "acquired",
 			topic:     iface.TopicDHCPLeaseAcquired,
-			wantEvent: events.EventInterfaceDHCPAcquired,
+			wantEvent: ifaceevents.EventDHCPAcquired,
 			wantOK:    true,
 		},
 		{
 			name:      "renewed",
 			topic:     iface.TopicDHCPLeaseRenewed,
-			wantEvent: events.EventInterfaceDHCPRenewed,
+			wantEvent: ifaceevents.EventDHCPRenewed,
 			wantOK:    true,
 		},
 		{
 			name:      "expired",
 			topic:     iface.TopicDHCPLeaseExpired,
-			wantEvent: events.EventInterfaceDHCPExpired,
+			wantEvent: ifaceevents.EventDHCPExpired,
 			wantOK:    true,
 		},
 		{

@@ -11,7 +11,7 @@ import (
 	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
 )
 
 // emittedEvent records a single (namespace, eventType, payload) tuple as
@@ -78,11 +78,11 @@ func TestHandleLinkUpdate_Create(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
-	if events[0].Namespace != events.NamespaceInterface {
-		t.Errorf("namespace = %q, want %q", events[0].Namespace, events.NamespaceInterface)
+	if events[0].Namespace != "interface" {
+		t.Errorf("namespace = %q, want %q", events[0].Namespace, "interface")
 	}
-	if events[0].EventType != events.EventInterfaceCreated {
-		t.Errorf("event type = %q, want %q", events[0].EventType, events.EventInterfaceCreated)
+	if events[0].EventType != ifaceevents.EventCreated {
+		t.Errorf("event type = %q, want %q", events[0].EventType, ifaceevents.EventCreated)
 	}
 }
 
@@ -97,8 +97,8 @@ func TestHandleLinkUpdate_StateChange(t *testing.T) {
 
 	m.handleLinkUpdate(lu)
 	events := bus.snapshot()
-	if events[0].EventType != events.EventInterfaceCreated {
-		t.Fatalf("first event type = %q, want %q", events[0].EventType, events.EventInterfaceCreated)
+	if events[0].EventType != ifaceevents.EventCreated {
+		t.Fatalf("first event type = %q, want %q", events[0].EventType, ifaceevents.EventCreated)
 	}
 
 	m.handleLinkUpdate(lu)
@@ -106,8 +106,8 @@ func TestHandleLinkUpdate_StateChange(t *testing.T) {
 	if len(events) != 2 {
 		t.Fatalf("expected 2 events, got %d", len(events))
 	}
-	if events[1].EventType != events.EventInterfaceUp {
-		t.Errorf("second event type = %q, want %q", events[1].EventType, events.EventInterfaceUp)
+	if events[1].EventType != ifaceevents.EventUp {
+		t.Errorf("second event type = %q, want %q", events[1].EventType, ifaceevents.EventUp)
 	}
 
 	attrs.OperState = netlink.OperDown
@@ -117,8 +117,8 @@ func TestHandleLinkUpdate_StateChange(t *testing.T) {
 	if len(events) != 3 {
 		t.Fatalf("expected 3 events, got %d", len(events))
 	}
-	if events[2].EventType != events.EventInterfaceDown {
-		t.Errorf("third event type = %q, want %q", events[2].EventType, events.EventInterfaceDown)
+	if events[2].EventType != ifaceevents.EventDown {
+		t.Errorf("third event type = %q, want %q", events[2].EventType, ifaceevents.EventDown)
 	}
 }
 
@@ -139,8 +139,8 @@ func TestHandleLinkUpdate_Delete(t *testing.T) {
 	if len(events) != 2 {
 		t.Fatalf("expected 2 events, got %d", len(events))
 	}
-	if events[1].EventType != events.EventInterfaceDown {
-		t.Errorf("delete event type = %q, want %q (down)", events[1].EventType, events.EventInterfaceDown)
+	if events[1].EventType != ifaceevents.EventDown {
+		t.Errorf("delete event type = %q, want %q (down)", events[1].EventType, ifaceevents.EventDown)
 	}
 
 	lu.Header = unix.NlMsghdr{Type: unix.RTM_NEWLINK}
@@ -149,8 +149,8 @@ func TestHandleLinkUpdate_Delete(t *testing.T) {
 	if len(events) != 3 {
 		t.Fatalf("expected 3 events, got %d", len(events))
 	}
-	if events[2].EventType != events.EventInterfaceCreated {
-		t.Errorf("re-create event type = %q, want %q", events[2].EventType, events.EventInterfaceCreated)
+	if events[2].EventType != ifaceevents.EventCreated {
+		t.Errorf("re-create event type = %q, want %q", events[2].EventType, ifaceevents.EventCreated)
 	}
 }
 
@@ -162,8 +162,8 @@ func TestAddrUpdateToEventType(t *testing.T) {
 		isNew bool
 		want  string
 	}{
-		{"addr added", true, events.EventInterfaceAddrAdded},
-		{"addr removed", false, events.EventInterfaceAddrRemoved},
+		{"addr added", true, ifaceevents.EventAddrAdded},
+		{"addr removed", false, ifaceevents.EventAddrRemoved},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

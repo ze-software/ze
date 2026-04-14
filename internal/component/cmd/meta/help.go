@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
@@ -26,7 +27,7 @@ func init() {
 // bgpEventTypes returns the current list of valid BGP event types,
 // excluding non-event entries like "sent" (a direction flag).
 func bgpEventTypes() []string {
-	names := events.ValidEventNames(events.NamespaceBGP)
+	names := events.ValidEventNames(bgpevents.Namespace)
 	if names == "" {
 		return nil
 	}

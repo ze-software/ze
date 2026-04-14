@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	ntpevents "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/events"
 )
 
 // TestParseNTPConfigEnabled verifies that NTP config is parsed correctly.
@@ -262,7 +264,7 @@ func TestSyncWorkerClockSyncedEmittedOnce(t *testing.T) {
 
 	// First sync: CompareAndSwap succeeds, event emitted.
 	if w.synced.CompareAndSwap(false, true) && w.eventBus != nil {
-		n, err := w.eventBus.Emit("system", "clock-synced", "")
+		n, err := w.eventBus.Emit(ntpevents.Namespace, "clock-synced", "")
 		assert.NoError(t, err)
 		assert.Equal(t, 0, n)
 	}

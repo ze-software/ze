@@ -12,7 +12,9 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	vppevents "codeberg.org/thomas-mangin/ze/internal/component/vpp/events"
 	vppschema "codeberg.org/thomas-mangin/ze/internal/component/vpp/schema"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -25,6 +27,10 @@ const defaultVPPBinary = "/usr/bin/vpp"
 const defaultConfDir = "/etc/vpp"
 
 func init() {
+	_ = events.RegisterNamespace(vppevents.Namespace,
+		vppevents.EventConnected, vppevents.EventDisconnected, vppevents.EventReconnected,
+	)
+
 	reg := registry.Registration{
 		Name:        "vpp",
 		Description: "VPP data plane lifecycle management",

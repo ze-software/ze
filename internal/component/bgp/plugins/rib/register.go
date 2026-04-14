@@ -4,15 +4,21 @@ import (
 	"fmt"
 	"os"
 
+	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	ribschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 func init() {
+	_ = events.RegisterNamespace(ribevents.Namespace,
+		ribevents.EventCache, ribevents.EventRoute, ribevents.EventBestChange, ribevents.EventReplayRequest,
+	)
+
 	reg := registry.Registration{
 		Name:        "bgp-rib",
 		Description: "Route Information Base storage",

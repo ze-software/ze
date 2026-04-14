@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	plugipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
@@ -265,7 +266,7 @@ func (s *Server) registerSubscriptions(proc *process.Process, input *rpc.Subscri
 	for _, event := range input.Events {
 		eventType, direction := parseEventString(event)
 		sub := &Subscription{
-			Namespace: events.NamespaceBGP,
+			Namespace: bgpevents.Namespace,
 			EventType: eventType,
 			Direction: direction,
 		}

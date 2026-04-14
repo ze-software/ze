@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
@@ -166,7 +167,7 @@ func buildSubscriptions(opts *monitorOpts) []*pluginserver.Subscription {
 	subs := make([]*pluginserver.Subscription, len(eventTypes))
 	for i, et := range eventTypes {
 		subs[i] = &pluginserver.Subscription{
-			Namespace:  events.NamespaceBGP,
+			Namespace:  bgpevents.Namespace,
 			EventType:  et,
 			Direction:  dir,
 			PeerFilter: peerFilter,
@@ -176,14 +177,14 @@ func buildSubscriptions(opts *monitorOpts) []*pluginserver.Subscription {
 }
 
 var allBGPEventTypes = []string{
-	events.EventUpdate,
-	events.EventOpen,
-	events.EventNotification,
-	events.EventKeepalive,
-	events.EventRefresh,
-	events.EventState,
-	events.EventNegotiated,
-	events.EventEOR,
+	bgpevents.EventUpdate,
+	bgpevents.EventOpen,
+	bgpevents.EventNotification,
+	bgpevents.EventKeepalive,
+	bgpevents.EventRefresh,
+	bgpevents.EventState,
+	bgpevents.EventNegotiated,
+	bgpevents.EventEOR,
 }
 
 // monitorOpts holds parsed monitor command options.
@@ -241,8 +242,8 @@ func parseMonitorArgs(args []string) (*monitorOpts, error) {
 				if t == "" {
 					return nil, fmt.Errorf("empty event type in list")
 				}
-				if !events.IsValidEvent(events.NamespaceBGP, t) {
-					return nil, fmt.Errorf("invalid event type: %s (valid: %s)", t, events.ValidEventNames(events.NamespaceBGP))
+				if !events.IsValidEvent(bgpevents.Namespace, t) {
+					return nil, fmt.Errorf("invalid event type: %s (valid: %s)", t, events.ValidEventNames(bgpevents.Namespace))
 				}
 			}
 			opts.eventTypes = types

@@ -22,7 +22,8 @@ import (
 	"github.com/beevik/ntp"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
+	ntpevents "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -165,7 +166,7 @@ func (w *syncWorker) doSync(logger *slog.Logger) bool {
 
 	// Emit clock-synced event once after first successful NTP sync.
 	if w.synced.CompareAndSwap(false, true) && w.eventBus != nil {
-		if _, err := w.eventBus.Emit(events.NamespaceSystem, events.EventClockSynced, ""); err != nil {
+		if _, err := w.eventBus.Emit(ntpevents.Namespace, ntpevents.EventClockSynced, ""); err != nil {
 			logger.Debug("ntp: clock-synced emit failed", "err", err)
 		}
 	}
@@ -326,5 +327,5 @@ func validateServerAddress(addr string) error {
 
 // subscribeDHCP sets up the event bus subscription for DHCP lease events.
 func subscribeDHCP(eb ze.EventBus, w *syncWorker) func() {
-	return eb.Subscribe(events.NamespaceInterface, events.EventInterfaceDHCPAcquired, w.handleDHCPEvent)
+	return eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDHCPAcquired, w.handleDHCPEvent)
 }

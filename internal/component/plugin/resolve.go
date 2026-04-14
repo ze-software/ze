@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
@@ -83,7 +84,7 @@ func RegisterPluginEventTypes() {
 			for _, et := range reg.EventTypes {
 				// All plugin event types currently go into the BGP namespace.
 				// If a future plugin needs RIB events, EventTypes would need namespace info.
-				if err := events.RegisterEventType(events.NamespaceBGP, et); err != nil {
+				if err := events.RegisterEventType(bgpevents.Namespace, et); err != nil {
 					slog.Error("register plugin event type failed", "plugin", reg.Name, "event", et, "error", err)
 				}
 			}

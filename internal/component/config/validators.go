@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -33,9 +34,9 @@ func ReceiveEventValidator() yang.CustomValidator {
 			if !ok {
 				return fmt.Errorf("expected string, got %T", value)
 			}
-			if !events.IsValidEvent(events.NamespaceBGP, str) {
+			if !events.IsValidEvent(bgpevents.Namespace, str) {
 				return fmt.Errorf("%q is not a valid receive event type (valid: %s)",
-					str, events.ValidEventNames(events.NamespaceBGP))
+					str, events.ValidEventNames(bgpevents.Namespace))
 			}
 			return nil
 		},
@@ -77,7 +78,7 @@ func SendMessageValidator() yang.CustomValidator {
 
 // allBGPEventNames returns sorted BGP event type names from the ValidBgpEvents map.
 func allBGPEventNames() []string {
-	raw := events.ValidEventNames(events.NamespaceBGP)
+	raw := events.ValidEventNames(bgpevents.Namespace)
 	if raw == "" {
 		return nil
 	}

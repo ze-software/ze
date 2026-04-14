@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"sort"
 
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
@@ -61,7 +62,7 @@ func getStructuredStateEvent(peer *plugin.PeerInfo, state, reason string) *rpc.S
 	se.PeerAS = peer.PeerAS
 	se.LocalAS = peer.LocalAS
 	se.LocalAddress = peer.LocalAddress.String()
-	se.EventType = events.EventState
+	se.EventType = bgpevents.EventState
 	se.State = state
 	se.Reason = reason
 	return se
@@ -132,7 +133,7 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(events.NamespaceBGP, eventType, msg.Direction, peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventType, msg.Direction, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return 0
@@ -234,7 +235,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(events.NamespaceBGP, eventType, msgs[0].Direction, peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventType, msgs[0].Direction, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return counts
@@ -325,15 +326,15 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 func messageTypeToEventType(msgType message.MessageType) string {
 	switch msgType { //nolint:exhaustive // Only supported types; caller checks empty return
 	case message.TypeUPDATE:
-		return events.EventUpdate
+		return bgpevents.EventUpdate
 	case message.TypeOPEN:
-		return events.EventOpen
+		return bgpevents.EventOpen
 	case message.TypeNOTIFICATION:
-		return events.EventNotification
+		return bgpevents.EventNotification
 	case message.TypeKEEPALIVE:
-		return events.EventKeepalive
+		return bgpevents.EventKeepalive
 	case message.TypeROUTEREFRESH:
-		return events.EventRefresh
+		return bgpevents.EventRefresh
 	default: // Unsupported type — caller checks for empty string
 		return ""
 	}
@@ -388,7 +389,7 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.Peer
 // json+parsed format string. This is a no-op if no monitors match.
 // All events in this package are BGP namespace, so namespace is hardcoded.
 func monitorDeliver(s *pluginserver.Server, eventType, direction, peerAddr, peerName, jsonOutput string) {
-	s.Monitors().Deliver(events.NamespaceBGP, eventType, direction, peerAddr, peerName, jsonOutput)
+	s.Monitors().Deliver(bgpevents.Namespace, eventType, direction, peerAddr, peerName, jsonOutput)
 }
 
 // deliverToProcs enqueues events to long-lived per-process delivery goroutines and
@@ -470,7 +471,7 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state, rea
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(events.NamespaceBGP, events.EventState, "", peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, bgpevents.EventState, "", peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return
@@ -532,7 +533,7 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state, rea
 	if !ok {
 		jsonOutput = format.FormatStateChange(peer, state, reason, "json")
 	}
-	monitorDeliver(s, events.EventState, "", peerAddr, peer.Name, jsonOutput)
+	monitorDeliver(s, bgpevents.EventState, "", peerAddr, peer.Name, jsonOutput)
 }
 
 // onPeerNegotiated handles capability negotiation completion.
@@ -550,7 +551,7 @@ func onPeerNegotiated(s *pluginserver.Server, encoder *format.JSONEncoder, peer 
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(events.NamespaceBGP, events.EventNegotiated, "", peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, bgpevents.EventNegotiated, "", peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return
@@ -562,7 +563,7 @@ func onPeerNegotiated(s *pluginserver.Server, encoder *format.JSONEncoder, peer 
 	deliverToProcs(s, procs, output, "OnPeerNegotiated")
 
 	// Deliver to CLI monitors (negotiated is always JSON format).
-	monitorDeliver(s, events.EventNegotiated, "", peerAddr, peer.Name, output)
+	monitorDeliver(s, bgpevents.EventNegotiated, "", peerAddr, peer.Name, output)
 }
 
 // onEORReceived handles End-of-RIB marker detection.
@@ -576,7 +577,7 @@ func onEORReceived(s *pluginserver.Server, peer *plugin.PeerInfo, family string)
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(events.NamespaceBGP, events.EventEOR, events.DirectionReceived, peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, bgpevents.EventEOR, events.DirectionReceived, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return
@@ -614,7 +615,7 @@ func onEORReceived(s *pluginserver.Server, peer *plugin.PeerInfo, family string)
 	if !ok {
 		jsonOutput = format.FormatEOR(peer, family, "json")
 	}
-	monitorDeliver(s, events.EventEOR, events.DirectionReceived, peerAddr, peer.Name, jsonOutput)
+	monitorDeliver(s, bgpevents.EventEOR, events.DirectionReceived, peerAddr, peer.Name, jsonOutput)
 
 	// Cross-component consumers receive (bgp, eor) via the EventBus.
 	if eorEventBus != nil {
@@ -623,7 +624,7 @@ func onEORReceived(s *pluginserver.Server, peer *plugin.PeerInfo, family string)
 			"family": family,
 		})
 		if err == nil {
-			if _, err := eorEventBus.Emit(events.NamespaceBGP, events.EventEOR, string(payload)); err != nil {
+			if _, err := eorEventBus.Emit(bgpevents.Namespace, bgpevents.EventEOR, string(payload)); err != nil {
 				logger().Debug("emit bgp eor failed", "peer", peerAddr, "family", family, "error", err)
 			}
 		}
@@ -648,7 +649,7 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(events.NamespaceBGP, eventType, events.DirectionSent, peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventType, events.DirectionSent, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return
@@ -708,7 +709,7 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 }
 
 // onPeerCongestionChange handles forward-path congestion state transitions.
-// eventType is events.EventCongested or events.EventResumed.
+// eventType is bgpevents.EventCongested or bgpevents.EventResumed.
 // Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
 func onPeerCongestionChange(s *pluginserver.Server, peer *plugin.PeerInfo, eventType string) {
 	if s.Context().Err() != nil {
@@ -716,7 +717,7 @@ func onPeerCongestionChange(s *pluginserver.Server, peer *plugin.PeerInfo, event
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(events.NamespaceBGP, eventType, "", peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventType, "", peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return

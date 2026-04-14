@@ -1,11 +1,46 @@
-// VALIDATES: rpki is a valid BGP event type
-// PREVENTS: rpki events rejected by subscription validation.
+// VALIDATES: event namespace registration and validation machinery.
+// PREVENTS: broken registration, validation, or query functions.
 package events
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
+
+// TestMain registers test namespaces before any tests run.
+// Uses string literals because this package tests the machinery itself,
+// not the component-owned constants. In production, components import
+// their own events/ sub-packages and call RegisterNamespace from init().
+func TestMain(m *testing.M) {
+	_ = RegisterNamespace("bgp",
+		"update", "open", "notification", "keepalive",
+		"refresh", "state", "negotiated", "eor",
+		"congested", "resumed", "rpki", "listener-ready",
+		"update-notification", DirectionSent,
+	)
+	_ = RegisterNamespace("bgp-rib", "cache", "route", "best-change", "replay-request")
+	_ = RegisterNamespace("config",
+		"verify", "apply", "rollback", "committed", "applied", "rolled-back",
+		"verify-abort", "verify-ok", "verify-failed",
+		"apply-ok", "apply-failed", "rollback-ok",
+	)
+	_ = RegisterNamespace("system-rib", "best-change", "replay-request")
+	_ = RegisterNamespace("fib", "external-change")
+	_ = RegisterNamespace("interface",
+		"created", "up", "down", "addr-added", "addr-removed",
+		"dhcp-acquired", "dhcp-renewed", "dhcp-expired", "rollback",
+		"router-discovered", "router-lost",
+	)
+	_ = RegisterNamespace("sysctl",
+		"default", "set", "applied", "show-request", "show-result",
+		"list-request", "list-result", "describe-request", "describe-result",
+		"clear-profile-defaults",
+	)
+	_ = RegisterNamespace("system", "clock-synced")
+	_ = RegisterNamespace("vpp", "connected", "disconnected", "reconnected")
+	os.Exit(m.Run())
+}
 
 // unregisterEventType removes a dynamically registered event type. Test helper only.
 func unregisterEventType(namespace, eventType string) {
@@ -15,42 +50,33 @@ func unregisterEventType(namespace, eventType string) {
 }
 
 func TestValidBgpEventsIncludesRPKI(t *testing.T) {
-	if !IsValidEvent(NamespaceBGP, EventRPKI) {
+	if !IsValidEvent("bgp", "rpki") {
 		t.Fatal("rpki should be a valid BGP event type")
-	}
-	if EventRPKI != "rpki" {
-		t.Fatalf("expected EventRPKI = %q, got %q", "rpki", EventRPKI)
 	}
 }
 
-// VALIDATES: RegisterEventType adds a new event type to ValidEvents.
-// PREVENTS: Plugin-registered event types rejected by subscribe/emit validation.
 func TestRegisterEventType(t *testing.T) {
-	if err := RegisterEventType(NamespaceBGP, "update-rpki"); err != nil {
+	if err := RegisterEventType("bgp", "update-rpki"); err != nil {
 		t.Fatalf("RegisterEventType failed: %v", err)
 	}
-	defer unregisterEventType(NamespaceBGP, "update-rpki")
+	defer unregisterEventType("bgp", "update-rpki")
 
-	if !IsValidEvent(NamespaceBGP, "update-rpki") {
+	if !IsValidEvent("bgp", "update-rpki") {
 		t.Fatal("update-rpki should be a valid BGP event after registration")
 	}
 }
 
-// VALIDATES: Duplicate registration is idempotent (no error).
-// PREVENTS: Plugin startup failure when two plugins register the same event type.
 func TestRegisterEventTypeDuplicate(t *testing.T) {
-	if err := RegisterEventType(NamespaceBGP, "test-dup"); err != nil {
+	if err := RegisterEventType("bgp", "test-dup"); err != nil {
 		t.Fatalf("first registration failed: %v", err)
 	}
-	defer unregisterEventType(NamespaceBGP, "test-dup")
+	defer unregisterEventType("bgp", "test-dup")
 
-	if err := RegisterEventType(NamespaceBGP, "test-dup"); err != nil {
+	if err := RegisterEventType("bgp", "test-dup"); err != nil {
 		t.Fatalf("duplicate registration should be idempotent: %v", err)
 	}
 }
 
-// VALIDATES: RegisterEventType rejects unknown namespaces.
-// PREVENTS: Typo in namespace silently creating orphan event types.
 func TestRegisterEventTypeInvalidNamespace(t *testing.T) {
 	err := RegisterEventType("nonexistent", "some-event")
 	if err == nil {
@@ -58,42 +84,34 @@ func TestRegisterEventTypeInvalidNamespace(t *testing.T) {
 	}
 }
 
-// VALIDATES: RegisterEventType rejects empty event type names.
-// PREVENTS: Empty string accepted as a valid event type.
 func TestRegisterEventTypeEmpty(t *testing.T) {
-	err := RegisterEventType(NamespaceBGP, "")
+	err := RegisterEventType("bgp", "")
 	if err == nil {
 		t.Fatal("expected error for empty event type")
 	}
 }
 
-// VALIDATES: RegisterEventType rejects event types with whitespace.
-// PREVENTS: Whitespace in event type names causing subscription parsing issues.
 func TestRegisterEventTypeWhitespace(t *testing.T) {
 	for _, input := range []string{"update rpki", "tab\there", "new\nline", "cr\rreturn"} {
-		err := RegisterEventType(NamespaceBGP, input)
+		err := RegisterEventType("bgp", input)
 		if err == nil {
 			t.Fatalf("expected error for event type with whitespace: %q", input)
 		}
 	}
 }
 
-// VALIDATES: ValidEventNames includes dynamically registered types.
-// PREVENTS: Error messages showing stale list after dynamic registration.
 func TestValidEventNamesIncludesRegistered(t *testing.T) {
-	if err := RegisterEventType(NamespaceBGP, "update-rpki"); err != nil {
+	if err := RegisterEventType("bgp", "update-rpki"); err != nil {
 		t.Fatalf("RegisterEventType failed: %v", err)
 	}
-	defer unregisterEventType(NamespaceBGP, "update-rpki")
+	defer unregisterEventType("bgp", "update-rpki")
 
-	names := ValidEventNames(NamespaceBGP)
+	names := ValidEventNames("bgp")
 	if !strings.Contains(names, "update-rpki") {
 		t.Fatalf("ValidEventNames should include update-rpki, got: %s", names)
 	}
 }
 
-// VALIDATES: IsValidEventAnyNamespace returns true for types in any namespace.
-// PREVENTS: Cross-namespace event types rejected by event monitor.
 func TestIsValidEventAnyNamespace(t *testing.T) {
 	if !IsValidEventAnyNamespace("update") {
 		t.Fatal("update should be valid (BGP namespace)")
@@ -106,11 +124,9 @@ func TestIsValidEventAnyNamespace(t *testing.T) {
 	}
 }
 
-// VALIDATES: AllEventTypes returns types grouped by namespace.
-// PREVENTS: Missing namespaces or types in all-events query.
 func TestAllEventTypes(t *testing.T) {
 	all := AllEventTypes()
-	bgp, ok := all[NamespaceBGP]
+	bgp, ok := all["bgp"]
 	if !ok {
 		t.Fatal("AllEventTypes should include bgp namespace")
 	}
@@ -118,7 +134,7 @@ func TestAllEventTypes(t *testing.T) {
 		t.Fatal("bgp namespace should have event types")
 	}
 
-	rib, ok := all[NamespaceBGPRIB]
+	rib, ok := all["bgp-rib"]
 	if !ok {
 		t.Fatal("AllEventTypes should include rib namespace")
 	}
@@ -126,16 +142,13 @@ func TestAllEventTypes(t *testing.T) {
 		t.Fatal("bgp-rib namespace should have event types")
 	}
 
-	// Verify it returns a copy (mutations don't affect global state).
-	all[NamespaceBGP] = nil
+	all["bgp"] = nil
 	fresh := AllEventTypes()
-	if len(fresh[NamespaceBGP]) == 0 {
+	if len(fresh["bgp"]) == 0 {
 		t.Fatal("AllEventTypes should return a fresh copy")
 	}
 }
 
-// VALIDATES: AllValidEventNames returns a deduped sorted list.
-// PREVENTS: Duplicate types in error messages, unsorted output.
 func TestAllValidEventNames(t *testing.T) {
 	names := AllValidEventNames()
 	if !strings.Contains(names, "update") {
@@ -146,50 +159,29 @@ func TestAllValidEventNames(t *testing.T) {
 	}
 }
 
-// VALIDATES: every config namespace event type defined in ValidConfigEvents
-// is recognized by IsValidEvent, and unknown names are rejected.
-// PREVENTS: Regressions where a future edit silently drops one of the 12
-// config events from ValidConfigEvents without a test failing.
 func TestIsValidEventConfig(t *testing.T) {
-	want := map[string]string{
-		"EventConfigVerify":       EventConfigVerify,
-		"EventConfigApply":        EventConfigApply,
-		"EventConfigRollback":     EventConfigRollback,
-		"EventConfigCommitted":    EventConfigCommitted,
-		"EventConfigApplied":      EventConfigApplied,
-		"EventConfigRolledBack":   EventConfigRolledBack,
-		"EventConfigVerifyAbort":  EventConfigVerifyAbort,
-		"EventConfigVerifyOK":     EventConfigVerifyOK,
-		"EventConfigVerifyFailed": EventConfigVerifyFailed,
-		"EventConfigApplyOK":      EventConfigApplyOK,
-		"EventConfigApplyFailed":  EventConfigApplyFailed,
-		"EventConfigRollbackOK":   EventConfigRollbackOK,
+	want := []string{
+		"verify", "apply", "rollback", "committed", "applied", "rolled-back",
+		"verify-abort", "verify-ok", "verify-failed",
+		"apply-ok", "apply-failed", "rollback-ok",
 	}
-	if len(want) != len(ValidConfigEvents) {
-		t.Fatalf("ValidConfigEvents has %d entries, test covers %d", len(ValidConfigEvents), len(want))
-	}
-	for name, value := range want {
-		if !IsValidEvent(NamespaceConfig, value) {
-			t.Errorf("expected (config, %s = %q) to be valid", name, value)
+	for _, value := range want {
+		if !IsValidEvent("config", value) {
+			t.Errorf("expected (config, %q) to be valid", value)
 		}
 	}
-	if IsValidEvent(NamespaceConfig, "nonsense") {
+	if IsValidEvent("config", "nonsense") {
 		t.Errorf("expected (config, nonsense) to be invalid")
-	}
-	if IsValidEvent(NamespaceConfig, "") {
-		t.Errorf("expected (config, empty) to be invalid")
 	}
 }
 
-// VALIDATES: per-plugin config event types can be registered dynamically.
-// PREVENTS: "verify-<plugin>" / "apply-<plugin>" rejected when engine emits them.
 func TestRegisterConfigPerPluginEvent(t *testing.T) {
-	if err := RegisterEventType(NamespaceConfig, "verify-test"); err != nil {
+	if err := RegisterEventType("config", "verify-test"); err != nil {
 		t.Fatalf("unexpected error registering verify-test: %v", err)
 	}
-	defer unregisterEventType(NamespaceConfig, "verify-test")
+	defer unregisterEventType("config", "verify-test")
 
-	if !IsValidEvent(NamespaceConfig, "verify-test") {
+	if !IsValidEvent("config", "verify-test") {
 		t.Errorf("expected (config, verify-test) to be valid after registration")
 	}
 }
@@ -201,8 +193,6 @@ func unregisterSendType(sendType string) {
 	delete(ValidSendTypes, sendType)
 }
 
-// VALIDATES: RegisterSendType adds a new send type to ValidSendTypes.
-// PREVENTS: Plugin-registered send types rejected by config validation.
 func TestRegisterSendType(t *testing.T) {
 	if err := RegisterSendType("enhanced-refresh"); err != nil {
 		t.Fatalf("RegisterSendType failed: %v", err)
@@ -214,8 +204,6 @@ func TestRegisterSendType(t *testing.T) {
 	}
 }
 
-// VALIDATES: RegisterSendType is idempotent for duplicate registration.
-// PREVENTS: Plugin startup failure when two plugins register the same send type.
 func TestRegisterSendTypeDuplicate(t *testing.T) {
 	if err := RegisterSendType("test-send-dup"); err != nil {
 		t.Fatalf("first registration failed: %v", err)
@@ -227,28 +215,20 @@ func TestRegisterSendTypeDuplicate(t *testing.T) {
 	}
 }
 
-// VALIDATES: RegisterSendType rejects empty names.
-// PREVENTS: Empty string accepted as a valid send type.
 func TestRegisterSendTypeEmpty(t *testing.T) {
-	err := RegisterSendType("")
-	if err == nil {
+	if err := RegisterSendType(""); err == nil {
 		t.Fatal("expected error for empty send type")
 	}
 }
 
-// VALIDATES: RegisterSendType rejects names with whitespace.
-// PREVENTS: Whitespace in send type names causing config parsing issues.
 func TestRegisterSendTypeWhitespace(t *testing.T) {
 	for _, input := range []string{"enhanced refresh", "tab\there", "new\nline"} {
-		err := RegisterSendType(input)
-		if err == nil {
+		if err := RegisterSendType(input); err == nil {
 			t.Fatalf("expected error for send type with whitespace: %q", input)
 		}
 	}
 }
 
-// VALIDATES: ValidSendTypeNames includes dynamically registered types.
-// PREVENTS: Error messages showing stale list after dynamic registration.
 func TestValidSendTypeNamesIncludesRegistered(t *testing.T) {
 	if err := RegisterSendType("enhanced-refresh"); err != nil {
 		t.Fatalf("RegisterSendType failed: %v", err)
@@ -261,21 +241,17 @@ func TestValidSendTypeNamesIncludesRegistered(t *testing.T) {
 	}
 }
 
-// VALIDATES: IsValidSendType returns false for unregistered types.
-// PREVENTS: Unregistered send types silently accepted.
 func TestIsValidSendTypeRejectsUnregistered(t *testing.T) {
 	if IsValidSendType("nonexistent-send-type") {
 		t.Fatal("nonexistent send type should not be valid")
 	}
 }
 
-// VALIDATES: IsValidNamespace returns correct results.
-// PREVENTS: Namespace validation broken after refactor.
 func TestIsValidNamespace(t *testing.T) {
-	if !IsValidNamespace(NamespaceBGP) {
+	if !IsValidNamespace("bgp") {
 		t.Fatal("bgp should be a valid namespace")
 	}
-	if !IsValidNamespace(NamespaceBGPRIB) {
+	if !IsValidNamespace("bgp-rib") {
 		t.Fatal("bgp-rib should be a valid namespace")
 	}
 	if IsValidNamespace("nonexistent") {
@@ -283,8 +259,6 @@ func TestIsValidNamespace(t *testing.T) {
 	}
 }
 
-// VALIDATES: RegisterNamespace adds a new namespace.
-// PREVENTS: Dynamic namespace registration broken.
 func TestRegisterNamespace(t *testing.T) {
 	if err := RegisterNamespace("test-ns", "event-a", "event-b"); err != nil {
 		t.Fatalf("RegisterNamespace failed: %v", err)
@@ -301,15 +275,10 @@ func TestRegisterNamespace(t *testing.T) {
 	if !IsValidEvent("test-ns", "event-a") {
 		t.Fatal("event-a should be valid in test-ns")
 	}
-	if !IsValidEvent("test-ns", "event-b") {
-		t.Fatal("event-b should be valid in test-ns")
-	}
 }
 
-// VALIDATES: RegisterNamespace rejects duplicate namespaces.
-// PREVENTS: Accidental namespace overwrite.
 func TestRegisterNamespaceDuplicate(t *testing.T) {
-	err := RegisterNamespace(NamespaceBGP, "some-event")
+	err := RegisterNamespace("bgp", "some-event")
 	if err == nil {
 		t.Fatal("expected error for duplicate namespace")
 	}

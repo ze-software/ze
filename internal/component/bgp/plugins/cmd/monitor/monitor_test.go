@@ -8,13 +8,28 @@ import (
 	"testing"
 	"time"
 
+	"os"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
+
+func TestMain(m *testing.M) {
+	// Register bgp namespace since bgp/server/register.go init() doesn't run in this test package.
+	_ = events.RegisterNamespace(bgpevents.Namespace,
+		bgpevents.EventUpdate, bgpevents.EventOpen, bgpevents.EventNotification,
+		bgpevents.EventKeepalive, bgpevents.EventRefresh, bgpevents.EventState,
+		bgpevents.EventNegotiated, bgpevents.EventEOR, bgpevents.EventCongested,
+		bgpevents.EventResumed, bgpevents.EventRPKI, bgpevents.EventListenerReady,
+		bgpevents.EventUpdateNotification, events.DirectionSent,
+	)
+	os.Exit(m.Run())
+}
 
 // syncBuffer is a thread-safe bytes.Buffer for concurrent read/write in tests.
 type syncBuffer struct {
@@ -376,7 +391,7 @@ func TestBuildSubscriptions(t *testing.T) {
 			require.Len(t, subs, tt.wantCount)
 
 			for _, sub := range subs {
-				assert.Equal(t, events.NamespaceBGP, sub.Namespace, "namespace should be bgp")
+				assert.Equal(t, "bgp", sub.Namespace, "namespace should be bgp")
 				assert.Equal(t, tt.wantDir, sub.Direction, "direction mismatch")
 				if tt.wantPeerNil {
 					assert.Nil(t, sub.PeerFilter, "peer filter should be nil")
@@ -468,7 +483,7 @@ func TestStreamMonitor(t *testing.T) {
 
 	// Deliver an event.
 	eventJSON := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"type":"update","direction":"received"}}}`
-	mm.Deliver(events.NamespaceBGP, events.EventUpdate, events.DirectionReceived, "10.0.0.1", "", eventJSON)
+	mm.Deliver(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", eventJSON)
 
 	// Wait for the event to appear in output.
 	require.Eventually(t, func() bool {
@@ -512,11 +527,11 @@ func TestStreamMonitorWithFilters(t *testing.T) {
 
 	// Deliver matching event.
 	matchEvent := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"type":"update","direction":"received"}}}`
-	mm.Deliver(events.NamespaceBGP, events.EventUpdate, events.DirectionReceived, "10.0.0.1", "", matchEvent)
+	mm.Deliver(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.1", "", matchEvent)
 
 	// Deliver non-matching event (different peer).
 	noMatchEvent := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.2","remote":{"as":65002}},"message":{"type":"update","direction":"received"}}}`
-	mm.Deliver(events.NamespaceBGP, events.EventUpdate, events.DirectionReceived, "10.0.0.2", "", noMatchEvent)
+	mm.Deliver(bgpevents.Namespace, bgpevents.EventUpdate, events.DirectionReceived, "10.0.0.2", "", noMatchEvent)
 
 	// Wait for the matching event.
 	require.Eventually(t, func() bool {

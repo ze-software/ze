@@ -1,6 +1,11 @@
 // Design: docs/architecture/api/process-protocol.md -- BGP event types
 
+// Package events defines event constants for the BGP component.
+// This is a leaf package with no dependencies, safe to import from anywhere.
 package events
+
+// Namespace is the event namespace for the BGP component.
+const Namespace = "bgp"
 
 // BGP event types.
 const (
@@ -18,22 +23,3 @@ const (
 	EventListenerReady      = "listener-ready"      // BGP reactor: TCP listener bound and accepting
 	EventUpdateNotification = "update-notification" // Lightweight observability notification for UPDATE arrivals
 )
-
-// ValidBgpEvents is the set of valid BGP event types.
-// Includes all types accepted in config receive flags (base + directions).
-var ValidBgpEvents = map[string]bool{
-	EventUpdate:             true,
-	EventOpen:               true,
-	EventNotification:       true,
-	EventKeepalive:          true,
-	EventRefresh:            true,
-	EventState:              true,
-	EventNegotiated:         true,
-	EventEOR:                true,
-	EventCongested:          true,
-	EventResumed:            true,
-	EventRPKI:               true,
-	EventListenerReady:      true,
-	EventUpdateNotification: true,
-	DirectionSent:           true, // "sent" -- config receive flag for sent UPDATE events
-}

@@ -8,14 +8,20 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 	sysribschema "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/schema"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 func init() {
+	_ = events.RegisterNamespace(sysribevents.Namespace,
+		sysribevents.EventBestChange, sysribevents.EventReplayRequest,
+	)
+
 	reg := registry.Registration{
 		Name:        "rib",
 		Description: "System RIB: selects best route across protocols by admin distance",

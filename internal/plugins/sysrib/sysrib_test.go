@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 )
 
 // testEvent records a single event emitted on the in-memory test EventBus.
@@ -191,8 +191,8 @@ func TestSysRIBPublishChange(t *testing.T) {
 
 	evt := bus.lastEvent()
 	require.NotNil(t, evt)
-	assert.Equal(t, events.NamespaceSystemRIB, evt.Namespace)
-	assert.Equal(t, events.EventSystemRIBBestChange, evt.EventType)
+	assert.Equal(t, "system-rib", evt.Namespace)
+	assert.Equal(t, sysribevents.EventBestChange, evt.EventType)
 
 	var batch outgoingBatch
 	require.NoError(t, json.Unmarshal([]byte(evt.Payload), &batch))

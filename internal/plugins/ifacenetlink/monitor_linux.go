@@ -19,7 +19,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -182,22 +182,22 @@ func (m *monitor) handleLinkUpdate(lu netlink.LinkUpdate) {
 	switch lu.Header.Type {
 	case unix.RTM_NEWLINK:
 		if _, seen := m.known.LoadOrStore(idx, struct{}{}); !seen {
-			m.emit(events.EventInterfaceCreated, linkEventPayload{
+			m.emit(ifaceevents.EventCreated, linkEventPayload{
 				Name: name, Type: lu.Type(), Index: idx, MTU: attrs.MTU,
 			})
 			return
 		}
 		if isLinkUp(attrs) {
-			m.emit(events.EventInterfaceUp, stateEventPayload{Name: name, Index: idx})
+			m.emit(ifaceevents.EventUp, stateEventPayload{Name: name, Index: idx})
 		} else {
-			m.emit(events.EventInterfaceDown, stateEventPayload{Name: name, Index: idx})
+			m.emit(ifaceevents.EventDown, stateEventPayload{Name: name, Index: idx})
 		}
 	case unix.RTM_DELLINK:
 		m.known.Delete(idx)
 		// Interface deletion maps to (interface, down): there is no
 		// separate "deleted" event type in the stream registry. Down is
 		// the closest semantic match (link is no longer operational).
-		m.emit(events.EventInterfaceDown, linkEventPayload{
+		m.emit(ifaceevents.EventDown, linkEventPayload{
 			Name: name, Type: lu.Type(), Index: idx, MTU: attrs.MTU,
 		})
 	}
@@ -276,7 +276,7 @@ func (m *monitor) handleNeighUpdate(nu netlink.NeighUpdate) {
 	if isDeleted || isFailed {
 		// Only emit loss if we previously saw this neighbor as a router.
 		if _, wasRouter := m.knownRouters.LoadAndDelete(nk); wasRouter {
-			m.emit(events.EventInterfaceRouterLost, iface.RouterEventPayload{
+			m.emit(ifaceevents.EventRouterLost, iface.RouterEventPayload{
 				Name:     ifaceName,
 				RouterIP: nu.IP.String(),
 			})
@@ -286,7 +286,7 @@ func (m *monitor) handleNeighUpdate(nu netlink.NeighUpdate) {
 
 	if isRouter {
 		if _, already := m.knownRouters.LoadOrStore(nk, struct{}{}); !already {
-			m.emit(events.EventInterfaceRouterDiscovered, iface.RouterEventPayload{
+			m.emit(ifaceevents.EventRouterDiscovered, iface.RouterEventPayload{
 				Name:     ifaceName,
 				RouterIP: nu.IP.String(),
 			})
@@ -295,7 +295,7 @@ func (m *monitor) handleNeighUpdate(nu netlink.NeighUpdate) {
 		// NTF_ROUTER cleared (e.g., router sent RA with lifetime=0).
 		// Only emit if we previously tracked this neighbor as a router.
 		if _, wasRouter := m.knownRouters.LoadAndDelete(nk); wasRouter {
-			m.emit(events.EventInterfaceRouterLost, iface.RouterEventPayload{
+			m.emit(ifaceevents.EventRouterLost, iface.RouterEventPayload{
 				Name:     ifaceName,
 				RouterIP: nu.IP.String(),
 			})
@@ -313,16 +313,16 @@ func (m *monitor) emit(eventType string, payload any) {
 		loggerPtr.Load().Debug("iface monitor: marshal failed", "event", eventType, "err", err)
 		return
 	}
-	if _, err := m.eventBus.Emit(events.NamespaceInterface, eventType, string(data)); err != nil {
+	if _, err := m.eventBus.Emit(ifaceevents.Namespace, eventType, string(data)); err != nil {
 		loggerPtr.Load().Debug("iface monitor: emit failed", "event", eventType, "err", err)
 	}
 }
 
 func addrUpdateToEventType(isNew bool) string {
 	if isNew {
-		return events.EventInterfaceAddrAdded
+		return ifaceevents.EventAddrAdded
 	}
-	return events.EventInterfaceAddrRemoved
+	return ifaceevents.EventAddrRemoved
 }
 
 func resolveVLANUnit(name string) (parent string, unit int, isVLAN bool) {

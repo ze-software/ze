@@ -12,9 +12,9 @@ package rib
 import (
 	"encoding/json"
 
+	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
@@ -289,7 +289,7 @@ func (r *RIBManager) replayBestPaths() {
 			logger().Warn("replay marshal failed", "error", err)
 			continue
 		}
-		if _, err := eb.Emit(events.NamespaceBGPRIB, events.EventBestChange, string(payload)); err != nil {
+		if _, err := eb.Emit(ribevents.Namespace, ribevents.EventBestChange, string(payload)); err != nil {
 			logger().Warn("replay emit failed", "error", err)
 		}
 	}
@@ -315,7 +315,7 @@ func publishBestChanges(changes []bestChangeEntry, family string) {
 		logger().Warn("best-change marshal failed", "error", err)
 		return
 	}
-	if _, err := eb.Emit(events.NamespaceBGPRIB, events.EventBestChange, string(payload)); err != nil {
+	if _, err := eb.Emit(ribevents.Namespace, ribevents.EventBestChange, string(payload)); err != nil {
 		logger().Warn("best-change emit failed", "error", err)
 	}
 }

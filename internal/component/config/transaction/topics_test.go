@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
@@ -124,7 +125,7 @@ func TestReservedPluginNamesMatchValidEvents(t *testing.T) {
 		collided := false
 		for _, base := range bases {
 			candidate := base + "-" + reserved
-			if events.ValidConfigEvents[candidate] {
+			if events.IsValidEvent(txevents.Namespace, candidate) {
 				collided = true
 				break
 			}
@@ -135,7 +136,8 @@ func TestReservedPluginNamesMatchValidEvents(t *testing.T) {
 	}
 
 	// Every event type of shape "<base>-<suffix>" must have its suffix reserved.
-	for event := range events.ValidConfigEvents {
+	configEvents := events.AllEventTypes()["config"]
+	for _, event := range configEvents {
 		for _, base := range bases {
 			prefix := base + "-"
 			if !strings.HasPrefix(event, prefix) {
@@ -143,7 +145,7 @@ func TestReservedPluginNamesMatchValidEvents(t *testing.T) {
 			}
 			suffix := event[len(prefix):]
 			if !ReservedPluginNames[suffix] {
-				t.Errorf("ValidConfigEvents has %q (suffix %q) but suffix is not in ReservedPluginNames", event, suffix)
+				t.Errorf("config event %q (suffix %q) but suffix is not in ReservedPluginNames", event, suffix)
 			}
 		}
 	}
@@ -151,15 +153,17 @@ func TestReservedPluginNamesMatchValidEvents(t *testing.T) {
 	// EventVerifyFor/EventApplyFor on every reserved name must collide;
 	// on every accepted name must not.
 	for reserved := range ReservedPluginNames {
-		if !events.ValidConfigEvents[EventVerifyFor(reserved)] && !events.ValidConfigEvents[EventApplyFor(reserved)] {
-			t.Errorf("neither EventVerifyFor(%q) nor EventApplyFor(%q) collide with ValidConfigEvents", reserved, reserved)
+		vf := EventVerifyFor(reserved)
+		af := EventApplyFor(reserved)
+		if !events.IsValidEvent(txevents.Namespace, vf) && !events.IsValidEvent(txevents.Namespace, af) {
+			t.Errorf("neither EventVerifyFor(%q) nor EventApplyFor(%q) collide with config events", reserved, reserved)
 		}
 	}
 	for _, safe := range []string{"bgp", "interface", "rib", "bgp-rib"} {
-		if events.ValidConfigEvents[EventVerifyFor(safe)] {
+		if events.IsValidEvent(txevents.Namespace, EventVerifyFor(safe)) {
 			t.Errorf("EventVerifyFor(%q) = %q collides with a broadcast/ack event type", safe, EventVerifyFor(safe))
 		}
-		if events.ValidConfigEvents[EventApplyFor(safe)] {
+		if events.IsValidEvent(txevents.Namespace, EventApplyFor(safe)) {
 			t.Errorf("EventApplyFor(%q) = %q collides with a broadcast/ack event type", safe, EventApplyFor(safe))
 		}
 	}

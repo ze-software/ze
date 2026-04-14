@@ -9,7 +9,8 @@ import (
 	"net/netip"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
+	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
 )
 
 // interfaceAddrPayload is the JSON payload emitted by the interface monitor
@@ -45,8 +46,8 @@ func (r *Reactor) SubscribeInterfaceEvents() {
 	if r.eventBus == nil {
 		return
 	}
-	unsubAdded := r.eventBus.Subscribe(events.NamespaceInterface, events.EventInterfaceAddrAdded, r.onInterfaceAddrAdded)
-	unsubRemoved := r.eventBus.Subscribe(events.NamespaceInterface, events.EventInterfaceAddrRemoved, r.onInterfaceAddrRemoved)
+	unsubAdded := r.eventBus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrAdded, r.onInterfaceAddrAdded)
+	unsubRemoved := r.eventBus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrRemoved, r.onInterfaceAddrRemoved)
 	r.eventBusUnsubs = append(r.eventBusUnsubs, unsubAdded, unsubRemoved)
 }
 
@@ -114,7 +115,7 @@ func (r *Reactor) handleAddrAddedPayload(p interfaceAddrPayload) {
 	}
 	if r.eventBus != nil {
 		readyPayload, _ := json.Marshal(bgpListenerReadyPayload{Address: p.Address})
-		if _, emitErr := r.eventBus.Emit(events.NamespaceBGP, events.EventListenerReady, string(readyPayload)); emitErr != nil {
+		if _, emitErr := r.eventBus.Emit(bgpevents.Namespace, bgpevents.EventListenerReady, string(readyPayload)); emitErr != nil {
 			reactorLogger().Debug("iface: emit listener-ready", "address", p.Address, "error", emitErr)
 		}
 	}

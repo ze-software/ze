@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
@@ -776,7 +777,7 @@ func TestParseReceiveFlagsRejectsUnknown(t *testing.T) {
 // VALIDATES: AC-1: registered event types accepted in receive config.
 // PREVENTS: Plugin-registered types incorrectly rejected.
 func TestParseReceiveFlagsAcceptsRegistered(t *testing.T) {
-	events.RegisterEventType(events.NamespaceBGP, "test-custom-event") //nolint:errcheck // test setup
+	events.RegisterEventType(bgpevents.Namespace, "test-custom-event") //nolint:errcheck // test setup
 
 	var b ProcessBinding
 	err := parseReceiveFlags("update test-custom-event", &b)
@@ -791,8 +792,8 @@ func TestParseReceiveFlagsAcceptsRegistered(t *testing.T) {
 // VALIDATES: First custom event type initializes ReceiveCustom from nil; second reuses existing map.
 // PREVENTS: Nil map panic on first custom event or map re-creation losing earlier entries.
 func TestReceiveCustomMapInit(t *testing.T) {
-	events.RegisterEventType(events.NamespaceBGP, "test-map-init-1") //nolint:errcheck // test setup
-	events.RegisterEventType(events.NamespaceBGP, "test-map-init-2") //nolint:errcheck // test setup
+	events.RegisterEventType(bgpevents.Namespace, "test-map-init-1") //nolint:errcheck // test setup
+	events.RegisterEventType(bgpevents.Namespace, "test-map-init-2") //nolint:errcheck // test setup
 
 	var b ProcessBinding
 	assert.Nil(t, b.ReceiveCustom, "ReceiveCustom should be nil before any custom event")

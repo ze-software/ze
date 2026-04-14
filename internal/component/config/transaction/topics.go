@@ -13,35 +13,35 @@ import (
 	"fmt"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
 )
 
 // Namespace re-exported for transaction code clarity.
-const Namespace = events.NamespaceConfig
+const Namespace = "config"
 
 // Engine -> plugin event type bases. Per-plugin variants are registered
 // dynamically at plugin start as "<base>-<plugin>" (e.g. "verify-bgp").
 const (
-	EventVerify   = events.EventConfigVerify
-	EventApply    = events.EventConfigApply
-	EventRollback = events.EventConfigRollback
+	EventVerify   = txevents.EventVerify
+	EventApply    = txevents.EventApply
+	EventRollback = txevents.EventRollback
 )
 
 // Engine -> plugins broadcast event types.
 const (
-	EventVerifyAbort = events.EventConfigVerifyAbort
-	EventCommitted   = events.EventConfigCommitted
-	EventApplied     = events.EventConfigApplied
-	EventRolledBack  = events.EventConfigRolledBack
+	EventVerifyAbort = txevents.EventVerifyAbort
+	EventCommitted   = txevents.EventCommitted
+	EventApplied     = txevents.EventApplied
+	EventRolledBack  = txevents.EventRolledBack
 )
 
 // Plugin -> engine ack event types.
 const (
-	EventVerifyOK     = events.EventConfigVerifyOK
-	EventVerifyFailed = events.EventConfigVerifyFailed
-	EventApplyOK      = events.EventConfigApplyOK
-	EventApplyFailed  = events.EventConfigApplyFailed
-	EventRollbackOK   = events.EventConfigRollbackOK
+	EventVerifyOK     = txevents.EventVerifyOK
+	EventVerifyFailed = txevents.EventVerifyFailed
+	EventApplyOK      = txevents.EventApplyOK
+	EventApplyFailed  = txevents.EventApplyFailed
+	EventRollbackOK   = txevents.EventRollbackOK
 )
 
 // ReservedPluginNames are plugin names that would cause per-plugin event

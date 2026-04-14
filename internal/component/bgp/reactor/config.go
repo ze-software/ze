@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
+	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -707,9 +708,9 @@ func parseOneReceiveFlag(token string, b *ProcessBinding) error {
 	case "negotiated":
 		b.ReceiveNegotiated = true
 	default: // Plugin-registered event types (e.g., "rpki", "update-rpki"). Fail on truly unknown.
-		if !events.IsValidEvent(events.NamespaceBGP, token) {
+		if !events.IsValidEvent(bgpevents.Namespace, token) {
 			return fmt.Errorf("invalid value for receive: %q (valid: %s)",
-				token, events.ValidEventNames(events.NamespaceBGP))
+				token, events.ValidEventNames(bgpevents.Namespace))
 		}
 		if b.ReceiveCustom == nil {
 			b.ReceiveCustom = make(map[string]bool)

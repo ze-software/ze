@@ -48,12 +48,17 @@ func main() {
 		fatal(err)
 	}
 
-	output := filepath.Join(root, "internal", "component", "plugin", "all", "all.go")
-	if err := generateAllGo(output, plugins, schemas, rpcs); err != nil {
+	namespaces, err := discoverEventNamespaces(filepath.Join(root, "internal"), module, plugins)
+	if err != nil {
 		fatal(err)
 	}
 
-	fmt.Printf("Generated %s with %d plugins, %d schemas, %d rpcs\n", output, len(plugins), len(schemas), len(rpcs))
+	output := filepath.Join(root, "internal", "component", "plugin", "all", "all.go")
+	if err := generateAllGo(output, plugins, schemas, rpcs, namespaces); err != nil {
+		fatal(err)
+	}
+
+	fmt.Printf("Generated %s with %d plugins, %d schemas, %d rpcs, %d namespaces\n", output, len(plugins), len(schemas), len(rpcs), len(namespaces))
 }
 
 func fatal(err error) {
@@ -256,8 +261,53 @@ func discoverRPCPackages(root, module string) ([]string, error) {
 	return deduped, nil
 }
 
+// discoverEventNamespaces finds packages that register event namespaces via
+// events.RegisterNamespace. Scans all non-test .go files under internal/.
+// Packages already in the plugins list are excluded (they're already imported).
+func discoverEventNamespaces(internalDir, module string, plugins []string) ([]string, error) {
+	pluginSet := make(map[string]bool, len(plugins))
+	for _, p := range plugins {
+		pluginSet[p] = true
+	}
+
+	var imports []string
+	seen := make(map[string]bool)
+
+	err := filepath.Walk(internalDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() || !strings.HasSuffix(info.Name(), ".go") {
+			return nil
+		}
+		if strings.HasSuffix(info.Name(), "_test.go") {
+			return nil
+		}
+		if filepath.Base(filepath.Dir(path)) == "schema" {
+			return nil
+		}
+		if !fileImports(path, "events.RegisterNamespace") {
+			return nil
+		}
+		pkgRel, _ := filepath.Rel(filepath.Dir(internalDir), filepath.Dir(path))
+		imp := module + "/" + pkgRel
+		if pluginSet[imp] || seen[imp] {
+			return nil
+		}
+		seen[imp] = true
+		imports = append(imports, imp)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Strings(imports)
+	return imports, nil
+}
+
 // generateAllGo writes the all.go file with blank imports for plugins and schemas.
-func generateAllGo(path string, plugins, schemas, rpcs []string) error {
+func generateAllGo(path string, plugins, schemas, rpcs, namespaces []string) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
@@ -289,6 +339,15 @@ func generateAllGo(path string, plugins, schemas, rpcs []string) error {
 
 	for _, imp := range plugins {
 		fmt.Fprintf(w, "\t_ \"%s\"\n", imp)
+	}
+
+	// Event namespace packages -- events.RegisterNamespace registration.
+	if len(namespaces) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "\t// Event namespace packages -- events.RegisterNamespace registration.")
+		for _, imp := range namespaces {
+			fmt.Fprintf(w, "\t_ \"%s\"\n", imp)
+		}
 	}
 
 	// RPC command packages -- init() registers RPCs via pluginserver.RegisterRPCs.

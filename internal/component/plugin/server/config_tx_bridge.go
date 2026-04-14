@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
+	txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
@@ -101,10 +102,10 @@ func (b *configTxBridge) Subscribe(ctx context.Context) error {
 	// successive transactions is cheap. Do it outside the subscribe loop so
 	// a registration failure fails fast before any handler goes live.
 	for _, name := range b.participantNames {
-		if err := events.RegisterEventType(events.NamespaceConfig, transaction.EventVerifyFor(name)); err != nil {
+		if err := events.RegisterEventType(txevents.Namespace, transaction.EventVerifyFor(name)); err != nil {
 			return fmt.Errorf("register verify event for %s: %w", name, err)
 		}
-		if err := events.RegisterEventType(events.NamespaceConfig, transaction.EventApplyFor(name)); err != nil {
+		if err := events.RegisterEventType(txevents.Namespace, transaction.EventApplyFor(name)); err != nil {
 			return fmt.Errorf("register apply event for %s: %w", name, err)
 		}
 	}
@@ -238,7 +239,7 @@ type txIDProbe struct {
 // the matching ack.
 func (b *configTxBridge) subscribePhase(parentCtx context.Context, name string, ph phaseKind) {
 	eventType := ph.eventType(name)
-	unsub := b.server.SubscribeEngineEvent(events.NamespaceConfig, eventType, func(event string) {
+	unsub := b.server.SubscribeEngineEvent(txevents.Namespace, eventType, func(event string) {
 		raw := []byte(event)
 
 		// Extract txID first so a failure ack from a later step has
@@ -304,7 +305,7 @@ func deadlineCtx(parent context.Context, deadlineMS int64) (context.Context, con
 // to every participant and emits rollback-ok acks. RPC errors translate to a
 // CodeBroken ack so the orchestrator restarts the plugin via its restartFn.
 func (b *configTxBridge) subscribeRollback(parentCtx context.Context) {
-	unsub := b.server.SubscribeEngineEvent(events.NamespaceConfig, transaction.EventRollback, func(event string) {
+	unsub := b.server.SubscribeEngineEvent(txevents.Namespace, transaction.EventRollback, func(event string) {
 		var ev transaction.RollbackEvent
 		if err := json.Unmarshal([]byte(event), &ev); err != nil {
 			logger().Error("config tx bridge: unmarshal rollback event", "error", err)
