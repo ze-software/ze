@@ -99,6 +99,10 @@ func translateClass(qt traffic.QdiscType, tc traffic.TrafficClass, linkIdx int, 
 		return &netlink.HfscClass{
 			ClassAttrs: attrs,
 		}, nil
+	case traffic.QdiscFQ, traffic.QdiscFQCodel, traffic.QdiscSFQ,
+		traffic.QdiscTBF, traffic.QdiscNetem, traffic.QdiscPrio,
+		traffic.QdiscClsact, traffic.QdiscIngress:
+		return nil, fmt.Errorf("qdisc type %v is classless and cannot have classes", qt)
 	}
 	return nil, fmt.Errorf("unsupported classful qdisc type %v", qt)
 }

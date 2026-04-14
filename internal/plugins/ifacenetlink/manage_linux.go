@@ -290,7 +290,8 @@ func (b *netlinkBackend) ListRoutes(ifaceName, destCIDR string) ([]iface.RouteIn
 		return nil, fmt.Errorf("iface: list routes on %q: %w", ifaceName, err)
 	}
 	var result []iface.RouteInfo
-	for _, r := range routes {
+	for i := range routes {
+		r := &routes[i]
 		if r.Dst == nil || r.Dst.String() != dst.String() {
 			continue
 		}

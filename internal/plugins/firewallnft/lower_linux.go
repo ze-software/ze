@@ -52,6 +52,8 @@ func raiseFamily(f nftables.TableFamily) firewall.TableFamily {
 		return firewall.FamilyBridge
 	case nftables.TableFamilyNetdev:
 		return firewall.FamilyNetdev
+	case nftables.TableFamilyUnspecified:
+		return firewall.FamilyInet
 	}
 	return firewall.FamilyInet
 }
@@ -77,11 +79,13 @@ func lowerHook(h firewall.ChainHook) *nftables.ChainHook {
 }
 
 func lowerFlowtableHook(h firewall.ChainHook) *nftables.FlowtableHook {
+	// Flowtables only support ingress; fall back to ingress for any other value.
 	switch h {
-	case firewall.HookIngress:
+	case firewall.HookIngress,
+		firewall.HookInput, firewall.HookOutput, firewall.HookForward,
+		firewall.HookPrerouting, firewall.HookPostrouting, firewall.HookEgress:
 		return nftables.FlowtableHookIngress
 	}
-	// Flowtables only support ingress; fall back to ingress for any other value.
 	return nftables.FlowtableHookIngress
 }
 
@@ -336,7 +340,7 @@ func lowerDSCPMatch(value uint8) ([]expr.Any, error) {
 func lowerReject(r firewall.Reject) ([]expr.Any, error) {
 	rej := &expr.Reject{
 		Type: unix.NFT_REJECT_ICMP_UNREACH,
-		Code: uint8(r.Code),
+		Code: r.Code,
 	}
 	switch r.Type {
 	case "tcp-reset":
@@ -465,7 +469,7 @@ func ifnameBytes(name string) []byte {
 	return b
 }
 
-func prefixMask(bits int, addrLen int) []byte {
+func prefixMask(bits, addrLen int) []byte {
 	mask := make([]byte, addrLen)
 	for i := range mask {
 		if bits >= 8 {

@@ -319,7 +319,7 @@ func TestExtractRPCs(t *testing.T) {
 			module: "ze-system-api",
 			wantRPCs: []string{
 				"help", "version-software", "version-api",
-				"daemon-shutdown", "daemon-quit", "daemon-status", "daemon-reload",
+				"daemon-shutdown", "daemon-reboot", "daemon-quit", "daemon-status", "daemon-reload",
 				"subsystem-list",
 				"command-list", "command-help", "command-complete",
 				"dispatch",

@@ -90,9 +90,7 @@ func (b *backend) applyTable(tbl *firewall.Table) error {
 	}
 
 	for i := range tbl.Flowtables {
-		if err := b.applyFlowtable(t, &tbl.Flowtables[i]); err != nil {
-			return fmt.Errorf("flowtable %q: %w", tbl.Flowtables[i].Name, err)
-		}
+		b.applyFlowtable(t, &tbl.Flowtables[i])
 	}
 
 	return nil
@@ -148,7 +146,7 @@ func (b *backend) applySet(t *nftables.Table, s *firewall.Set) error {
 	return nil
 }
 
-func (b *backend) applyFlowtable(t *nftables.Table, ft *firewall.Flowtable) error {
+func (b *backend) applyFlowtable(t *nftables.Table, ft *firewall.Flowtable) {
 	hooknum := lowerFlowtableHook(ft.Hook)
 	b.conn.AddFlowtable(&nftables.Flowtable{
 		Table:    t,
@@ -157,7 +155,6 @@ func (b *backend) applyFlowtable(t *nftables.Table, ft *firewall.Flowtable) erro
 		Priority: nftables.FlowtablePriorityRef(nftables.FlowtablePriority(ft.Priority)),
 		Devices:  ft.Devices,
 	})
-	return nil
 }
 
 // ListTables returns current ze_* tables from the kernel.

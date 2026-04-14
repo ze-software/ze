@@ -57,7 +57,7 @@ func (b *linuxBackend) read(key string) (string, error) {
 	}
 	rel := keyToPath(key)
 	full := filepath.Join(procSysRoot, rel)
-	data, err := os.ReadFile(full)
+	data, err := os.ReadFile(full) //nolint:gosec // key validated (no ".."), rooted at procSysRoot
 	if err != nil {
 		return "", fmt.Errorf("sysctl read %s: %w", key, err)
 	}
