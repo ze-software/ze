@@ -1,0 +1,98 @@
+# Healthcheck: full announce->withdraw cycle (ExaBGP #1383 regression).
+#
+# Reproduces the scenario from github.com/Exa-Networks/exabgp/issues/1383:
+# a healthcheck probe initially succeeds (route announced), then fails
+# (route must be withdrawn). The issue reported that the withdrawal never
+# happened despite the probe failing.
+#
+# Mechanism: a tmpfs sentinel file "healthy" exists at test start. The probe
+# command checks for it (test -f healthy). A background helper removes the
+# file after 3 seconds. With rise=1, fall=1, debounce=true:
+# - First check succeeds -> INIT->UP -> announce with med 100
+# - After file removed, next check fails -> UP->DOWN -> withdraw
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+# EOR (no routes initially -- watchdog has withdraw=true)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# After first probe succeeds: INIT -> UP, announce with med 100.
+# UPDATE: origin igp, as-path [], nhop 1.2.3.4, med 100, local-pref 100, nlri 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=healthcheck probe UP triggers announce
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C40010100400200400304010203048004040000006440050400000064180A0000
+# After probe fails: UP -> DOWN, withdraw route.
+# UPDATE: withdrawn 10.0.0.0/24, no path attributes.
+cmd=api:conn=1:seq=2:text=healthcheck probe DOWN triggers withdraw
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	healthcheck {
+		probe dns {
+			command "test -f healthy"
+			group hc-dns
+			interval 1
+			rise 1
+			fall 1
+			withdraw-on-down true
+			debounce true
+			up-metric 100
+		}
+	}
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 10.0.0.10
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 1.2.3.4
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.0/24
+			}
+			watchdog {
+				name hc-dns
+				withdraw true
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Sentinel file: probe succeeds while this exists.
+tmpfs=healthy:terminator=EOF_HEALTHY
+1
+EOF_HEALTHY
+
+# Helper: removes sentinel after delay to trigger probe failure, then exits.
+tmpfs=remove-healthy.run:mode=755:terminator=EOF_REMOVE
+#!/bin/sh
+sleep 3
+rm -f ./healthy
+exit 0
+EOF_REMOVE
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=./remove-healthy.run
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-healthcheck --plugin ze.bgp-watchdog -:stdin=ze-bgp:timeout=15s
