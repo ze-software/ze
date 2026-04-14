@@ -66,7 +66,7 @@ func TestBashContainsSubcommands(t *testing.T) {
 		{"config)", []string{"edit", "validate", "migrate", "fmt", "dump", "diff", "completion"}},
 		{"cli)", []string{"help"}},
 		{"schema)", []string{"list", "show", "handlers", "methods", "events", "protocol"}},
-		{"signal)", []string{"reload", "stop", "restart", "status", "quit"}},
+		{"signal)", []string{"reload", "stop", "restart", "reboot", "status", "quit"}},
 		{"exabgp)", []string{"plugin", "migrate"}},
 		{"completion)", []string{"bash", "zsh", "fish", "nushell"}},
 	}

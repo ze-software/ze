@@ -171,6 +171,7 @@ _ze() {
                         'reload:Send SIGHUP - reload configuration'
                         'stop:Send SIGTERM - graceful shutdown'
                         'restart:Graceful restart (writes GR marker, then shuts down)'
+                        'reboot:Graceful shutdown then system reboot (requires root on Linux)'
                         'status:Send SIGUSR1 - dump daemon status'
                         'quit:Send SIGQUIT - goroutine dump + immediate exit'
                     )

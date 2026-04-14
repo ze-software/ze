@@ -95,6 +95,34 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 				return
 			}
 
+			// writeGRMarker writes the BGP Graceful Restart marker before
+			// a planned shutdown (restart or reboot) so peers hold routes.
+			writeGRMarker := func() {
+				apiSrv := params.APIServer()
+				if apiSrv == nil {
+					return
+				}
+				allCaps := apiSrv.AllPluginCapabilities()
+				maxRT := grmarker.MaxRestartTime(allCaps)
+				if maxRT > 0 {
+					expiresAt := time.Now().Add(time.Duration(maxRT) * time.Second)
+					if writeErr := grmarker.Write(params.Store, expiresAt); writeErr != nil {
+						log.Error("failed to write GR marker", "error", writeErr)
+					} else {
+						log.Info("GR marker written", "expires", expiresAt)
+					}
+				}
+			}
+
+			// Wire reboot func on plugin server (for "daemon reboot" RPC).
+			if apiSrv := params.APIServer(); apiSrv != nil {
+				apiSrv.SetRebootFunc(func() {
+					writeGRMarker()
+					rebootRequested.Store(true)
+					r.Stop()
+				})
+			}
+
 			if authzStore != nil {
 				d.SetAuthorizer(authzStore)
 				log.Info("authorization profiles loaded")
@@ -154,19 +182,12 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 				})
 				sshSrv.SetShutdownFunc(func() { r.Stop() })
 				sshSrv.SetRestartFunc(func() {
-					apiServer := params.APIServer()
-					if apiServer != nil {
-						allCaps := apiServer.AllPluginCapabilities()
-						maxRT := grmarker.MaxRestartTime(allCaps)
-						if maxRT > 0 {
-							expiresAt := time.Now().Add(time.Duration(maxRT) * time.Second)
-							if writeErr := grmarker.Write(params.Store, expiresAt); writeErr != nil {
-								log.Error("failed to write GR marker", "error", writeErr)
-							} else {
-								log.Info("GR marker written", "expires", expiresAt)
-							}
-						}
-					}
+					writeGRMarker()
+					r.Stop()
+				})
+				sshSrv.SetRebootFunc(func() {
+					writeGRMarker()
+					rebootRequested.Store(true)
 					r.Stop()
 				})
 				// Wire login warnings.

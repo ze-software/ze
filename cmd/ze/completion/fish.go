@@ -265,6 +265,7 @@ complete -c ze -n 'test (__ze_depth exabgp) -ge 1' -F
 complete -c ze -n 'test (__ze_depth signal) = 0' -a reload -d 'Send SIGHUP - reload configuration'
 complete -c ze -n 'test (__ze_depth signal) = 0' -a stop -d 'Send SIGTERM - graceful shutdown'
 complete -c ze -n 'test (__ze_depth signal) = 0' -a restart -d 'Graceful restart (writes GR marker, then shuts down)'
+complete -c ze -n 'test (__ze_depth signal) = 0' -a reboot -d 'Graceful shutdown then system reboot (requires root on Linux)'
 complete -c ze -n 'test (__ze_depth signal) = 0' -a status -d 'Send SIGUSR1 - dump daemon status'
 complete -c ze -n 'test (__ze_depth signal) = 0' -a quit -d 'Send SIGQUIT - goroutine dump + immediate exit'
 

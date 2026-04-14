@@ -193,6 +193,7 @@ typo from causing memory exhaustion.
 
 ```
 daemon shutdown          # Graceful shutdown
+daemon reboot            # Graceful shutdown + OS reboot (requires root on Linux)
 daemon reload            # Reload configuration
 daemon restart           # Restart all peers
 daemon status            # Get daemon status
@@ -323,6 +324,7 @@ system command complete "<cmd>" args [<completed>...] "<partial>"  # Arg complet
 
 ```
 daemon shutdown          # Gracefully shutdown the daemon
+daemon reboot            # Gracefully shutdown then reboot the system
 daemon status            # Show daemon status
 daemon reload            # Reload the configuration
 ```

@@ -142,7 +142,7 @@ func TestSignalCommandUnknown(t *testing.T) {
 // PREVENTS: missing command after refactor
 
 func TestCommandsRegistryComplete(t *testing.T) {
-	expected := []string{"reload", "stop", "restart", "status", "quit"}
+	expected := []string{"reload", "stop", "restart", "reboot", "status", "quit"}
 	names := Names()
 	if len(names) != len(expected) {
 		t.Fatalf("Commands count: got %d, want %d", len(names), len(expected))
@@ -165,6 +165,7 @@ func TestCommandExecMapping(t *testing.T) {
 		{"reload", "daemon reload"},
 		{"stop", "stop"},
 		{"restart", "restart"},
+		{"reboot", "reboot"},
 		{"status", "daemon status"},
 		{"quit", "daemon quit"},
 	}

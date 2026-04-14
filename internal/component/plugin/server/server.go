@@ -86,6 +86,7 @@ type Server struct {
 	startupErr      error // non-nil when a config-path plugin fails during startup
 
 	configLoader ConfigLoader // Loads new config tree for ReloadFromDisk
+	rebootFunc   func()       // Set by daemon; called on "daemon reboot" RPC
 
 	ctx    context.Context
 	cancel context.CancelFunc

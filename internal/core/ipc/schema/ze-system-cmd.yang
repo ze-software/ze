@@ -94,6 +94,12 @@ module ze-system-cmd {
             description "Gracefully shutdown the daemon";
         }
 
+        container reboot {
+            config false;
+            ze:command "ze-system:daemon-reboot";
+            description "Gracefully shutdown then reboot the system";
+        }
+
         container quit {
             config false;
             ze:command "ze-system:daemon-quit";

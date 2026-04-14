@@ -263,6 +263,7 @@ Usage: `ze signal <command>`
 | reload | SSH exec `daemon reload` | Reload sent | Not running / SSH error |
 | stop | SSH exec `stop` | Stop sent | Not running / SSH error |
 | restart | SSH exec `restart` | Restart sent | Not running / SSH error |
+| reboot | SSH exec `reboot` | Reboot sent | Not running / SSH error |
 | status | SSH exec `daemon status` | Status returned | Not running / SSH error |
 | quit | SSH exec `daemon quit` | Quit sent | Not running / SSH error |
 <!-- source: cmd/ze/signal/main.go -- Commands registry, ExitSuccess, ExitNotRunning -->

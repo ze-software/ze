@@ -19,6 +19,7 @@ func init() {
 		RPCRegistration{WireMethod: "ze-system:version-software", Handler: handleSystemVersionSoftware},
 		RPCRegistration{WireMethod: "ze-system:version-api", Handler: handleSystemVersionAPI},
 		RPCRegistration{WireMethod: "ze-system:daemon-shutdown", Handler: handleDaemonShutdown},
+		RPCRegistration{WireMethod: "ze-system:daemon-reboot", Handler: handleDaemonReboot},
 		RPCRegistration{WireMethod: "ze-system:daemon-quit", Handler: handleDaemonQuit},
 		RPCRegistration{WireMethod: "ze-system:daemon-status", Handler: handleDaemonStatus},
 		RPCRegistration{WireMethod: "ze-system:daemon-reload", Handler: handleDaemonReload},
@@ -78,6 +79,7 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*plugin.Response, error)
 	if len(commands) == 0 {
 		commands = []string{
 			"daemon shutdown - Gracefully shutdown the daemon",
+			"daemon reboot - Gracefully shutdown then reboot the system",
 			"daemon status - Show daemon status",
 			"peer <selector> list - List peer(s) (brief)",
 			"peer <selector> show - Show peer(s) details",
@@ -129,6 +131,35 @@ func handleDaemonShutdown(ctx *CommandContext, _ []string) (*plugin.Response, er
 			"message": "shutdown initiated",
 		},
 	}, nil
+}
+
+// handleDaemonReboot signals a system reboot after graceful shutdown.
+// The reboot function is wired by the daemon at startup via SetRebootFunc.
+// The response is sent to the caller before the shutdown sequence begins.
+func handleDaemonReboot(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+	_, errResp, err := RequireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+	if ctx.Server == nil || ctx.Server.rebootFunc == nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   "reboot not available",
+		}, fmt.Errorf("reboot function not configured")
+	}
+	ctx.Server.rebootFunc()
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"message": "reboot initiated",
+		},
+	}, nil
+}
+
+// SetRebootFunc sets the function called for "daemon reboot" commands.
+// Called by the daemon to wire graceful shutdown + OS reboot.
+func (s *Server) SetRebootFunc(fn func()) {
+	s.rebootFunc = fn
 }
 
 // handleDaemonQuit dumps all goroutine stacks then shuts down.

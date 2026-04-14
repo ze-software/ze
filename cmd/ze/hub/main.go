@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -46,12 +47,18 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
+	"codeberg.org/thomas-mangin/ze/internal/core/reboot"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 // Env var registrations are centralized in internal/component/config/environment.go.
 // No duplicate registrations here -- import that package to trigger init.
+
+// rebootRequested is set by the SSH/RPC reboot handler before triggering
+// reactor.Stop(). After the graceful shutdown sequence completes, the main
+// loop checks this flag and attempts an OS-level reboot if set.
+var rebootRequested atomic.Bool
 
 // RunWebOnly starts only the web server (no BGP engine).
 // Used when ze start --web is called without a config.
@@ -619,6 +626,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	fmt.Println("Ze stopped.")
+
+	if rebootRequested.Load() {
+		fmt.Println("Initiating system reboot...")
+		if err := reboot.Reboot(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: %v\n", err)
+		}
+	}
+
 	return 0
 }
 

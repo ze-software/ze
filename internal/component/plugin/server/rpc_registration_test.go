@@ -58,7 +58,7 @@ func TestRPCRegistrationPerModule(t *testing.T) {
 	}
 
 	assert.Greater(t, counts["ze-bgp"], 0, "ze-bgp RPCs registered via plugin/all")
-	assert.Equal(t, 12, counts["ze-system"], "ze-system RPCs (server-only, stable count)")
+	assert.Equal(t, 13, counts["ze-system"], "ze-system RPCs (server-only, stable count)")
 	assert.Equal(t, 7, counts["ze-plugin"], "ze-plugin RPCs (session-peer-ready in bgp/plugins/cmd/peer)")
 	// ze-editor RPCs may or may not be loaded depending on plugin/all
 	// ze-rib RPCs may or may not be loaded depending on plugin/all
@@ -80,6 +80,7 @@ func TestRPCRegistrationExpectedMethods(t *testing.T) {
 	// BGP handler RPCs (subscribe, rib, peer ops) are tested in handler_test.go.
 	expectedMethods := []string{
 		"ze-system:daemon-shutdown",
+		"ze-system:daemon-reboot",
 		"ze-system:daemon-quit",
 		"ze-system:daemon-status",
 		"ze-system:daemon-reload",

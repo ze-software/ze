@@ -47,6 +47,7 @@ var commands = []Command{
 	{"reload", "daemon reload", "Reload configuration", "SIGHUP"},
 	{"stop", "stop", "Graceful shutdown (no GR marker)", "SIGTERM"},
 	{"restart", "restart", "Graceful restart (writes GR marker, then shuts down)", ""},
+	{"reboot", "reboot", "Graceful shutdown then system reboot (requires root on Linux)", ""},
 	{"status", "daemon status", "Dump daemon status", "SIGUSR1"},
 	{"quit", "daemon quit", "Goroutine dump + immediate exit", "SIGQUIT"},
 }

@@ -91,6 +91,10 @@ type ShutdownFunc func()
 // It writes the GR marker to zefs, then shuts down the daemon.
 type RestartFunc func()
 
+// RebootFunc is called when the SSH server receives a "reboot" exec command.
+// It initiates graceful shutdown followed by an OS-level system reboot.
+type RebootFunc func()
+
 // Server is the SSH server subsystem.
 // It serves the config editor over SSH with password authentication.
 // Exec commands (non-interactive) are dispatched through the executor.
@@ -109,6 +113,7 @@ type Server struct {
 	sessionModelFactory      contract.SessionModelFactory // set by hub; creates TUI model per session
 	shutdownFunc             ShutdownFunc                 // set by daemon; called on "stop" exec command
 	restartFunc              RestartFunc                  // set by daemon; called on "restart" exec command
+	rebootFunc               RebootFunc                   // set by daemon; called on "reboot" exec command
 	loginWarningsFunc        LoginWarningsFunc            // set by daemon; returns login warnings for SSH sessions
 }
 
@@ -231,6 +236,14 @@ func (s *Server) SetRestartFunc(f RestartFunc) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.restartFunc = f
+}
+
+// SetRebootFunc sets the callback for "reboot" exec commands.
+// Called by the daemon to wire graceful shutdown + OS reboot via SSH.
+func (s *Server) SetRebootFunc(f RebootFunc) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.rebootFunc = f
 }
 
 // SetLoginWarnings sets the function that returns login warnings for new SSH sessions.
@@ -472,8 +485,8 @@ func (s *Server) execMiddleware() wish.Middleware {
 			s.logger.Info("SSH exec command", "user", sess.User(), "command", input, "remote", sess.RemoteAddr().String())
 
 			// Handle lifecycle commands directly.
-			// Note: stop/restart bypass RPC authorization by design -- any authenticated
-			// SSH user can shut down the daemon. Restrict via SSH user config.
+			// Note: stop/restart/reboot bypass RPC authorization by design -- any
+			// authenticated SSH user can shut down or reboot. Restrict via SSH user config.
 			lcInput := strings.ToLower(strings.TrimSpace(input))
 			if lcInput == "stop" {
 				s.mu.Lock()
@@ -500,6 +513,20 @@ func (s *Server) execMiddleware() wish.Middleware {
 				} else {
 					fmt.Fprintln(sess.Stderr(), "error: restart not available") //nolint:errcheck // best-effort
 					sess.Exit(1)                                                //nolint:errcheck // best-effort
+				}
+				return
+			}
+			if lcInput == "reboot" {
+				s.mu.Lock()
+				fn := s.rebootFunc
+				s.mu.Unlock()
+				if fn != nil {
+					fmt.Fprintln(sess, "rebooting system") //nolint:errcheck // best-effort response
+					sess.Exit(0)                           //nolint:errcheck // best-effort exit status
+					fn()
+				} else {
+					fmt.Fprintln(sess.Stderr(), "error: reboot not available") //nolint:errcheck // best-effort
+					sess.Exit(1)                                               //nolint:errcheck // best-effort
 				}
 				return
 			}
