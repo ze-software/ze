@@ -204,6 +204,9 @@ func (u *UDP) Stop() error {
 }
 
 // Send writes an Outbound to the peer address via the bound socket. The
+// destination port is the transport's own bound port (Bind.Port) so an
+// echo transport bound to UDPPortEcho sends to 3785 while a control
+// transport bound to UDPPortSingleHopControl sends to 3784. The
 // IP_TTL=255 socket option applied at Start means every packet leaves
 // with the maximum TTL, satisfying RFC 5881 Section 5 for both hop modes
 // (multi-hop peers happily accept TTL=255 since their floor is typically
@@ -215,11 +218,7 @@ func (u *UDP) Send(out Outbound) error {
 	if conn == nil {
 		return errUDPNotStarted
 	}
-	port := UDPPortSingleHopControl
-	if out.Mode == api.MultiHop {
-		port = UDPPortMultiHopControl
-	}
-	raddr := &net.UDPAddr{IP: out.To.AsSlice(), Port: int(port)}
+	raddr := &net.UDPAddr{IP: out.To.AsSlice(), Port: int(u.Bind.Port())}
 	_, err := conn.WriteToUDP(out.Bytes, raddr)
 	return err
 }

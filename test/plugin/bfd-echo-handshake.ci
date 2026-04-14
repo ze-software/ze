@@ -40,9 +40,9 @@ STATE_UP = 3
 
 MY_DISCR = 0xDEAD0001
 DETECT_MULT = 3
-DESIRED_TX = 50_000
-REQUIRED_RX = 50_000
-ECHO_RX = 50_000
+DESIRED_TX = 500_000
+REQUIRED_RX = 500_000
+ECHO_RX = 500_000
 
 
 def build_ctrl(state, your_discr):
@@ -109,8 +109,21 @@ def echo_loop(sock, stop_event):
 def main():
     stop = threading.Event()
     csock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # ze binds 0.0.0.0:3784/:3785 with SO_REUSEPORT when
+    # ze.bfd.test-parallel=true (see internal/plugins/bfd/transport/udp_linux.go).
+    # We mirror that so the wildcard and the specific 127.0.0.2 bind can
+    # coexist. Linux delivers packets to the longest-prefix-match socket
+    # first, so packets to 127.0.0.2:{3784,3785} land here and packets
+    # to other local IPs land on ze's wildcard socket.
+    csock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    # RFC 5881 Section 5: BFD control packets MUST have TTL=255 on the wire.
+    # ze gates received packets on ttl>=254 (`ttl gate drop` in the engine);
+    # the default Python socket emits TTL=64, which ze silently drops.
+    csock.setsockopt(socket.IPPROTO_IP, socket.IP_TTL, 255)
     csock.bind((LOCAL_IP, CTRL_PORT))
     esock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    esock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    esock.setsockopt(socket.IPPROTO_IP, socket.IP_TTL, 255)
     esock.bind((LOCAL_IP, ECHO_PORT))
     ct = threading.Thread(target=ctrl_loop, args=(csock, stop), daemon=True)
     et = threading.Thread(target=echo_loop, args=(esock, stop), daemon=True)
@@ -233,10 +246,10 @@ bfd {
 	enabled true;
 	profile echo-fast {
 		detect-multiplier 3
-		desired-min-tx-us 50000
-		required-min-rx-us 50000
+		desired-min-tx-us 500000
+		required-min-rx-us 500000
 		echo {
-			desired-min-echo-tx-us 50000
+			desired-min-echo-tx-us 500000
 		}
 	}
 	single-hop-session 127.0.0.2 {
