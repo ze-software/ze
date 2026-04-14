@@ -1,22 +1,16 @@
-# Test: IPv6 route reflection config acceptance
-# VALIDATES: IPv6 RR client config parses with route-reflector-client + next-hop self
-# VALIDATES: cmd-1 AC-13 -- peer detail shows route-reflector-client and next-hop
-# PREVENTS: IPv6 RR config not parsed, next-hop self not wired for IPv6 peers
-#
-# NOTE: Wire-level forwarding verification (ORIGINATOR_ID in forwarded UPDATE)
-# requires two peers on different IPs which is blocked by the single-ze-peer
-# multi-IP timing issue. Unit tests verify the wire attribute modification.
+# Test: RR client config parses and peer detail reports it
+# VALIDATES: cmd-1 AC-13 -- peer detail shows route-reflector-client and cluster-id
+# VALIDATES: cmd-1 AC-6 -- cluster-id configured and visible in peer detail
+# PREVENTS: RR config not wired to PeerSettings
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
 
-# Send IPv6 UPDATE with MP_REACH_NLRI
-# ORIGIN=IGP, AS_PATH=65001, LOCAL_PREF=200, MP_REACH: AFI=2 SAFI=1 NH=2001:db8::1 NLRI=2001:db8:1::/48
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004B02000000344001010040020602010000FDE9400504000000C8900E001C0002011020010DB8000000000000000000000001003020010DB80001
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040A000001400504000000C8180A0100
 EOF_PEER
 
-tmpfs=rr-ipv6-test.run:mode=755:terminator=EOF_RUN
+tmpfs=rr-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
@@ -38,7 +32,7 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Poll until peer session is established
+    # Poll until peer session is established (more robust than sleep)
     for _ in range(20):
         time.sleep(0.3)
         result = dispatch(api, 'peer peer-src detail')
@@ -54,8 +48,23 @@ def main():
     detail = result.get('data', '')
     if 'route-reflector-client' not in detail:
         runtime_fail(f'missing route-reflector-client: {detail[:300]}')
+    if 'cluster-id' not in detail:
+        runtime_fail(f'missing cluster-id: {detail[:300]}')
 
-    print('OK: IPv6 RR client config accepted, peer detail shows RR fields', file=sys.stderr)
+    # Verify RIB has the route (proves UPDATE was processed, not just config accepted)
+    result = dispatch(api, 'bgp rib show best')
+    if result.get('status') != 'done':
+        runtime_fail(f'rib show best failed: {result}')
+
+    data = result.get('data', '{}')
+    parsed = json.loads(data) if isinstance(data, str) else data
+    entries = parsed.get('best-path', [])
+
+    found = any(e.get('prefix') == '10.1.0.0/24' for e in entries)
+    if not found:
+        runtime_fail(f'route 10.1.0.0/24 not in RIB')
+
+    print('OK: RR client and cluster-id visible in peer detail, route in RIB', file=sys.stderr)
 
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()
@@ -66,8 +75,12 @@ EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external rr-ipv6-test {
-		run ./rr-ipv6-test.run
+	external rr-test {
+		run ./rr-test.run
+		encoder json
+	}
+	external bgp-rib {
+		use bgp-rib
 		encoder json
 	}
 }
@@ -89,16 +102,20 @@ bgp {
 			}
 			router-id 1.2.3.4
 			route-reflector-client true
-			next-hop self
+			cluster-id 10.10.10.10
 			family {
-				ipv6/unicast { prefix { maximum 10000; } }
+				ipv4/unicast { prefix { maximum 10000; } }
 			}
 			capability {
 				graceful-restart disable
 			}
 		}
 
-		process rr-ipv6-test {
+		process rr-test {
+		}
+		process bgp-rib {
+			receive [ state ]
+			send [ update ]
 		}
 	}
 }

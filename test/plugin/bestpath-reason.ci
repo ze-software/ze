@@ -1,0 +1,158 @@
+# Test: rib best reason terminal narrates decision steps
+# VALIDATES: cmd-9 AC-1 -- rib best reason shows decision steps with winner/loser
+# VALIDATES: cmd-9 AC-2 -- local-pref difference identified as deciding factor
+# PREVENTS: reason terminal not wired or returning empty JSON
+
+# One real peer sends a route. Python observer injects a second route for a
+# synthetic peer via bgp rib inject. Then queries rib best reason and verifies
+# the JSON output shows the local-preference deciding step.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+
+# Send IPv4 UPDATE with LOCAL_PREF=200
+# ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=10.0.0.1, LOCAL_PREF=200, NLRI=10.1.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040A000001400504000000C8180A0100
+EOF_PEER
+
+tmpfs=reason-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+import time
+from ze_api import API, runtime_fail
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Poll until peer session is established and route is in RIB
+    for _ in range(20):
+        time.sleep(0.3)
+        result = dispatch(api, 'peer peer1 detail')
+        if result.get('status') == 'done' and 'established' in result.get('data', '').lower():
+            break
+    else:
+        runtime_fail('peer1 never reached established state')
+
+    time.sleep(1.0)  # allow UPDATE processing after session up
+
+    # Inject a second route from synthetic peer with lower LOCAL_PREF
+    result = dispatch(api, 'bgp rib inject 10.0.0.99 ipv4/unicast 10.1.0.0/24 origin igp aspath 65002 localpref 100')
+    if result.get('status') != 'done':
+        runtime_fail(f'rib inject failed: {result}')
+
+    time.sleep(0.5)
+
+    # Query rib best reason
+    result = dispatch(api, 'bgp rib show best reason')
+    if result.get('status') != 'done':
+        runtime_fail(f'rib best reason failed: {result}')
+
+    data = result.get('data', '{}')
+    parsed = json.loads(data) if isinstance(data, str) else data
+    entries = parsed.get('best-path-reason', [])
+
+    if not entries:
+        runtime_fail(f'best-path-reason array is empty, raw: {data[:200]}')
+
+    # Find the entry for 10.1.0.0/24
+    found = None
+    for entry in entries:
+        if entry.get('prefix') == '10.1.0.0/24':
+            found = entry
+            break
+
+    if found is None:
+        runtime_fail(f'no reason entry for 10.1.0.0/24, got: {[e.get("prefix") for e in entries]}')
+
+    # Verify there are candidates and steps
+    candidates = found.get('candidates', [])
+    if len(candidates) < 2:
+        runtime_fail(f'expected 2+ candidates, got {len(candidates)}: {candidates}')
+
+    steps = found.get('steps', [])
+    if not steps:
+        runtime_fail(f'no decision steps, candidates: {candidates}')
+
+    step = steps[0]
+    if 'local-preference' not in step.get('step', ''):
+        runtime_fail(f'expected local-preference step, got: {step}')
+
+    reason = step.get('reason', '')
+    if '200' not in reason or '100' not in reason:
+        runtime_fail(f'reason should mention LP 200 and 100, got: {reason}')
+
+    print(f'OK: best-path reason: {step["step"]} {reason}', file=sys.stderr)
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external reason-test {
+		run ./reason-test.run
+		encoder json
+	}
+	external bgp-rib {
+		use bgp-rib
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+
+		process reason-test {
+		}
+		process bgp-rib {
+			receive [ state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

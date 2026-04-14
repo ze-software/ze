@@ -1,0 +1,135 @@
+# Test: next-hop self config parses and peer detail reports it
+# VALIDATES: cmd-1 AC-7 -- next-hop self configured on peer
+# VALIDATES: cmd-1 AC-13 -- peer detail shows next-hop mode
+# PREVENTS: next-hop self config not wired to PeerSettings
+
+# One iBGP peer with next-hop self. Python observer verifies the peer
+# detail output shows the next-hop mode. Wire-level NH rewriting is
+# covered by unit tests (TestNextHopSelf in reactor_forward_test.go)
+# and the config parse test (test/parse/rr-nexthop-config.ci).
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+
+# Send a basic IPv4 UPDATE
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040A000001400504000000C8180A0100
+EOF_PEER
+
+tmpfs=nh-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+import time
+from ze_api import API, runtime_fail
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Poll until peer session is established
+    for _ in range(20):
+        time.sleep(0.3)
+        result = dispatch(api, 'peer peer1 detail')
+        if result.get('status') == 'done' and 'established' in result.get('data', '').lower():
+            break
+    else:
+        runtime_fail('peer1 never reached established state')
+
+    # Verify peer detail shows next-hop self
+    result = dispatch(api, 'peer peer1 detail')
+    if result.get('status') != 'done':
+        runtime_fail(f'peer detail failed: {result}')
+
+    detail = result.get('data', '')
+    if '"next-hop"' not in detail:
+        runtime_fail(f'peer detail missing next-hop field: {detail[:200]}')
+    if '"self"' not in detail:
+        runtime_fail(f'peer detail should show next-hop self: {detail[:200]}')
+
+    # Verify RIB has the route
+    result = dispatch(api, 'bgp rib show best')
+    if result.get('status') != 'done':
+        runtime_fail(f'rib show best failed: {result}')
+
+    data = result.get('data', '{}')
+    parsed = json.loads(data) if isinstance(data, str) else data
+    entries = parsed.get('best-path', [])
+
+    found = any(e.get('prefix') == '10.1.0.0/24' for e in entries)
+    if not found:
+        runtime_fail(f'route 10.1.0.0/24 not in RIB')
+
+    print('OK: next-hop self configured and route in RIB', file=sys.stderr)
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external nh-test {
+		run ./nh-test.run
+		encoder json
+	}
+	external bgp-rib {
+		use bgp-rib
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			next-hop self
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+
+		process nh-test {
+		}
+		process bgp-rib {
+			receive [ state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL
