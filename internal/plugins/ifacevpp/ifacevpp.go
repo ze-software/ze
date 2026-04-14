@@ -31,8 +31,9 @@ func init() {
 
 // vppBackendImpl implements iface.Backend using GoVPP.
 type vppBackendImpl struct {
-	ch    api.Channel
-	names *nameMap
+	ch            api.Channel
+	names         *nameMap
+	bridgeDomains map[string]uint32 // bridge name -> BD ID (separate from SwIfIndex space)
 }
 
 func newVPPBackend() (iface.Backend, error) {
@@ -45,8 +46,9 @@ func newVPPBackend() (iface.Backend, error) {
 		return nil, fmt.Errorf("ifacevpp: GoVPP channel: %w", err)
 	}
 	return &vppBackendImpl{
-		ch:    ch,
-		names: newNameMap(),
+		ch:            ch,
+		names:         newNameMap(),
+		bridgeDomains: make(map[string]uint32),
 	}, nil
 }
 
@@ -64,19 +66,13 @@ func (b *vppBackendImpl) resolveIndex(name string) (interface_types.InterfaceInd
 	return interface_types.InterfaceIndex(idx), nil
 }
 
-// sendReq sends a GoVPP request and checks the reply retval.
-func sendReq[Req api.Message, Reply interface {
-	api.Message
-	GetRetval() int32
-}](ch api.Channel, req Req, reply Reply,
-) error {
-	if err := ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		return err
+// resolveBridgeDomain looks up the VPP bridge domain ID for a bridge name.
+func (b *vppBackendImpl) resolveBridgeDomain(name string) (uint32, error) {
+	bdID, ok := b.bridgeDomains[name]
+	if !ok {
+		return 0, fmt.Errorf("ifacevpp: unknown bridge domain %q", name)
 	}
-	if ret := reply.GetRetval(); ret != 0 {
-		return fmt.Errorf("VPP retval=%d", ret)
-	}
-	return nil
+	return bdID, nil
 }
 
 // --- Interface lifecycle ---
@@ -116,7 +112,7 @@ func (b *vppBackendImpl) CreateBridge(name string) error {
 	if reply.Retval != 0 {
 		return fmt.Errorf("ifacevpp: BridgeDomainAddDelV2 retval=%d", reply.Retval)
 	}
-	b.names.Add(name, bdID, name)
+	b.bridgeDomains[name] = bdID
 	return nil
 }
 
@@ -168,13 +164,19 @@ func (b *vppBackendImpl) DeleteInterface(name string) error {
 	// Try DeleteLoopback first (works for loopbacks).
 	req := &interfaces.DeleteLoopback{SwIfIndex: idx}
 	reply := &interfaces.DeleteLoopbackReply{}
-	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
-		// Fallback: try DeleteSubif.
-		subReq := &interfaces.DeleteSubif{SwIfIndex: idx}
-		subReply := &interfaces.DeleteSubifReply{}
-		if subErr := b.ch.SendRequest(subReq).ReceiveReply(subReply); subErr != nil {
-			return fmt.Errorf("ifacevpp: delete %s: loopback=%w, subif=%w", name, err, subErr)
-		}
+	err = b.ch.SendRequest(req).ReceiveReply(reply)
+	if err == nil && reply.Retval == 0 {
+		b.names.Remove(name)
+		return nil
+	}
+	// Fallback: try DeleteSubif (works for VLAN sub-interfaces).
+	subReq := &interfaces.DeleteSubif{SwIfIndex: idx}
+	subReply := &interfaces.DeleteSubifReply{}
+	if subErr := b.ch.SendRequest(subReq).ReceiveReply(subReply); subErr != nil {
+		return fmt.Errorf("ifacevpp: delete %s: loopback=%w, subif=%w", name, err, subErr)
+	}
+	if subReply.Retval != 0 {
+		return fmt.Errorf("ifacevpp: delete %s: subif retval=%d", name, subReply.Retval)
 	}
 	b.names.Remove(name)
 	return nil
@@ -338,7 +340,7 @@ func (b *vppBackendImpl) GetInterface(_ string) (*iface.InterfaceInfo, error) {
 // --- Bridge operations ---
 
 func (b *vppBackendImpl) BridgeAddPort(bridgeName, portName string) error {
-	bridgeIdx, err := b.resolveIndex(bridgeName)
+	bdID, err := b.resolveBridgeDomain(bridgeName)
 	if err != nil {
 		return err
 	}
@@ -348,7 +350,7 @@ func (b *vppBackendImpl) BridgeAddPort(bridgeName, portName string) error {
 	}
 	req := &l2.SwInterfaceSetL2Bridge{
 		RxSwIfIndex: portIdx,
-		BdID:        uint32(bridgeIdx),
+		BdID:        bdID,
 		Enable:      true,
 	}
 	reply := &l2.SwInterfaceSetL2BridgeReply{}
