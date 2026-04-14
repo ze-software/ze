@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-fw-2-firewall-nft, spec-fw-3-traffic-netlink, spec-fw-4-yang-config |
-| Phase | - |
+| Phase | 5/5 |
 | Updated | 2026-04-13 |
 
 ## Post-Compaction Recovery

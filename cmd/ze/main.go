@@ -26,6 +26,7 @@ import (
 	zedata "codeberg.org/thomas-mangin/ze/cmd/ze/data"
 	zeenv "codeberg.org/thomas-mangin/ze/cmd/ze/environ"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
+	zefirewall "codeberg.org/thomas-mangin/ze/cmd/ze/firewall"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
 	zeiface "codeberg.org/thomas-mangin/ze/cmd/ze/iface"
 	zeinit "codeberg.org/thomas-mangin/ze/cmd/ze/init"
@@ -37,6 +38,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	zesysctl "codeberg.org/thomas-mangin/ze/cmd/ze/sysctl"
+	zetc "codeberg.org/thomas-mangin/ze/cmd/ze/tc"
 	zeyang "codeberg.org/thomas-mangin/ze/cmd/ze/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -422,6 +424,10 @@ dispatch:
 		os.Exit(zeyang.Run(args[1:]))
 	case "interface":
 		os.Exit(zeiface.Run(args[1:]))
+	case "firewall":
+		os.Exit(zefirewall.Run(args[1:]))
+	case "traffic-control":
+		os.Exit(zetc.Run(args[1:]))
 	case "resolve":
 		os.Exit(zeresolve.Run(args[1:]))
 	case "exabgp":
