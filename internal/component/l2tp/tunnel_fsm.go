@@ -247,6 +247,14 @@ func (t *L2TPTunnel) handleSCCCN(now time.Time, defaults TunnelDefaults, payload
 // handlers that decide to tear the tunnel down (bad Challenge Response,
 // malformed SCCCN, etc.). RFC 2661 S4.4.2.
 func (t *L2TPTunnel) teardownStopCCN(now time.Time, resultCode uint16) []sendRequest {
+	// Clear all sessions before closing the tunnel. Same as handleStopCCN
+	// (peer-initiated) per RFC 2661 S4.4.2. Phase 5: this also queues
+	// kernel teardown events via clearSessions -> pendingKernelTeardowns.
+	cleared := t.clearSessions()
+	if len(cleared) > 0 {
+		t.logger.Info("l2tp: teardownStopCCN clearing sessions", "count", len(cleared))
+	}
+
 	bodyBuf := GetBuf()
 	defer PutBuf(bodyBuf)
 	n := writeStopCCNBody(*bodyBuf, t.localTID, resultCode)

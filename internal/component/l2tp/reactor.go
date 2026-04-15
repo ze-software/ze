@@ -70,6 +70,12 @@ type L2TPReactor struct {
 	tickCh   chan tickReq
 	updateCh chan heapUpdate
 
+	// Kernel integration channels. nil on non-Linux or when no kernel
+	// worker is configured. The reactor checks for nil before use.
+	// Phase 5 kernel integration.
+	kernelWorker *kernelWorker
+	kernelErrCh  <-chan kernelSetupFailed
+
 	mu      sync.Mutex
 	stop    chan struct{}
 	wg      sync.WaitGroup
@@ -149,6 +155,8 @@ func (r *L2TPReactor) run() {
 			r.handle(pkt)
 		case tr := <-r.tickCh:
 			r.handleTick(tr)
+		case kerr := <-r.kernelErrCh:
+			r.handleKernelError(kerr)
 		case <-r.stop:
 			r.drainOnStop(rx)
 			return
@@ -251,6 +259,9 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 	// lastActivity is set inside Process only when the engine delivers
 	// at least one new message (not on duplicates/out-of-window).
 
+	// Phase 5: collect kernel events while still holding tunnelsMu.
+	setupEvents, teardownEvents := r.collectKernelEventsLocked(tunnel)
+
 	// Capture the tunnel's new deadline for the timer heap update.
 	// If the tunnel just reached established and the engine has no
 	// pending retransmits, schedule a HELLO deadline so the keepalive
@@ -264,6 +275,9 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 	}
 	localTID := tunnel.localTID
 	r.tunnelsMu.Unlock()
+
+	// Phase 5: enqueue kernel events after releasing the lock.
+	r.enqueueKernelEvents(setupEvents, teardownEvents)
 
 	for _, req := range outbound {
 		if err := r.listener.Send(req.to, req.bytes); err != nil {
@@ -296,7 +310,7 @@ func (r *L2TPReactor) handleTick(tr tickReq) {
 
 	// Reaper sweep: check all closed tunnels for expiry. The returned
 	// IDs are notified to the timer AFTER releasing the lock.
-	reaped := r.reapExpiredLocked(now)
+	reaped, reapTeardowns := r.reapExpiredLocked(now)
 
 	tunnel, ok := r.tunnelsByLocalID[tr.tunnelID]
 	if !ok {
@@ -304,6 +318,7 @@ func (r *L2TPReactor) handleTick(tr tickReq) {
 		// this dispatch. Send a zero-deadline update to remove the
 		// stale heap entry.
 		r.tunnelsMu.Unlock()
+		r.enqueueKernelEvents(nil, reapTeardowns)
 		r.notifyReaped(reaped)
 		select {
 		case r.updateCh <- heapUpdate{tunnelID: tr.tunnelID}:
@@ -338,6 +353,9 @@ func (r *L2TPReactor) handleTick(tr tickReq) {
 		}
 	}
 
+	// Phase 5: collect kernel events (teardownStopCCN may have cleared sessions).
+	_, tickTeardowns := r.collectKernelEventsLocked(tunnel)
+
 	newDeadline := tunnel.engine.NextDeadline()
 	// If the tunnel is established and has a HELLO interval, ensure
 	// the deadline is at most helloInterval from now so the timer
@@ -351,6 +369,9 @@ func (r *L2TPReactor) handleTick(tr tickReq) {
 
 	localTID := tunnel.localTID
 	r.tunnelsMu.Unlock()
+
+	// Phase 5: enqueue kernel teardown events after releasing the lock.
+	r.enqueueKernelEvents(nil, append(reapTeardowns, tickTeardowns...))
 
 	r.notifyReaped(reaped)
 	for _, req := range outbound {
@@ -380,9 +401,11 @@ func (r *L2TPReactor) notifyReaped(ids []uint16) {
 
 // reapExpiredLocked removes all tunnels in the closed state whose
 // engine retention window has elapsed. Returns the IDs of reaped
-// tunnels so the caller can notify the timer AFTER releasing the lock.
+// tunnels so the caller can notify the timer AFTER releasing the lock,
+// plus any kernel teardown events from reaped tunnels whose sessions
+// had kernel resources.
 // Caller MUST hold tunnelsMu.
-func (r *L2TPReactor) reapExpiredLocked(now time.Time) []uint16 {
+func (r *L2TPReactor) reapExpiredLocked(now time.Time) ([]uint16, []kernelTeardownEvent) {
 	// Collect IDs first to avoid modifying the map during iteration.
 	var expired []uint16
 	for tid, t := range r.tunnelsByLocalID {
@@ -390,11 +413,16 @@ func (r *L2TPReactor) reapExpiredLocked(now time.Time) []uint16 {
 			expired = append(expired, tid)
 		}
 	}
+	teardowns := make([]kernelTeardownEvent, 0, len(expired))
 	for _, tid := range expired {
 		t := r.tunnelsByLocalID[tid]
 		r.discardTunnelLocked(t, "retention expired")
+		// Collect kernel teardowns queued by clearSessions inside
+		// discardTunnelLocked. The tunnel is about to become unreachable.
+		teardowns = append(teardowns, t.pendingKernelTeardowns...)
+		t.pendingKernelTeardowns = nil
 	}
-	return expired
+	return expired, teardowns
 }
 
 // locateTunnelLocked resolves the target tunnel for an inbound control
@@ -519,6 +547,8 @@ func (r *L2TPReactor) resolveTieBreakerLocked(from netip.AddrPort, newTB []byte)
 // out if our tunnel was the only one tracking it). Caller MUST hold
 // tunnelsMu.
 func (r *L2TPReactor) discardTunnelLocked(t *L2TPTunnel, reason string) {
+	// Phase 5: clear sessions so kernel teardown events are queued.
+	t.clearSessions()
 	pk := peerKey{addr: t.peerAddr, tid: t.remoteTID}
 	delete(r.tunnelsByLocalID, t.localTID)
 	delete(r.tunnelsByPeer, pk)
@@ -561,4 +591,97 @@ func (r *L2TPReactor) TunnelByLocalID(tid uint16) *L2TPTunnel {
 	r.tunnelsMu.Lock()
 	defer r.tunnelsMu.Unlock()
 	return r.tunnelsByLocalID[tid]
+}
+
+// collectKernelEventsLocked scans the tunnel for sessions that need
+// kernel setup and for pending kernel teardowns. Clears the flags and
+// drains the teardown list. Caller MUST hold tunnelsMu.
+func (r *L2TPReactor) collectKernelEventsLocked(tunnel *L2TPTunnel) ([]kernelSetupEvent, []kernelTeardownEvent) {
+	if r.kernelWorker == nil {
+		return nil, nil
+	}
+
+	var setups []kernelSetupEvent
+	socketFD := -1 // resolved lazily below
+
+	for _, sess := range tunnel.sessions {
+		if !sess.kernelSetupNeeded {
+			continue
+		}
+		if socketFD < 0 {
+			fd, err := r.listener.SocketFD()
+			if err != nil {
+				r.logger.Warn("l2tp: cannot get socket fd for kernel setup", "error", err.Error())
+				// Do NOT clear kernelSetupNeeded: retry on next dispatch.
+				continue
+			}
+			socketFD = fd
+		}
+		sess.kernelSetupNeeded = false
+		setups = append(setups, kernelSetupEvent{
+			localTID:   tunnel.localTID,
+			remoteTID:  tunnel.remoteTID,
+			peerAddr:   tunnel.peerAddr,
+			localSID:   sess.localSID,
+			remoteSID:  sess.remoteSID,
+			socketFD:   socketFD,
+			lnsMode:    sess.lnsMode,
+			sequencing: sess.sequencingRequired,
+		})
+	}
+
+	teardowns := tunnel.pendingKernelTeardowns
+	tunnel.pendingKernelTeardowns = nil
+
+	return setups, teardowns
+}
+
+// enqueueKernelEvents sends setup and teardown events to the kernel
+// worker. Called after releasing tunnelsMu.
+func (r *L2TPReactor) enqueueKernelEvents(setups []kernelSetupEvent, teardowns []kernelTeardownEvent) {
+	if r.kernelWorker == nil {
+		return
+	}
+	for _, ev := range setups {
+		r.kernelWorker.Enqueue(ev)
+	}
+	for _, ev := range teardowns {
+		r.kernelWorker.Enqueue(ev)
+	}
+}
+
+// handleKernelError processes a setup failure reported by the kernel
+// worker. Grabs tunnelsMu, looks up the session, and sends a CDN to
+// the peer if the session still exists.
+func (r *L2TPReactor) handleKernelError(kerr kernelSetupFailed) {
+	r.tunnelsMu.Lock()
+	tunnel, ok := r.tunnelsByLocalID[kerr.localTID]
+	if !ok {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	sess := tunnel.lookupSession(kerr.localSID)
+	if sess == nil {
+		// Session was already removed (CDN arrived from peer concurrently).
+		r.tunnelsMu.Unlock()
+		return
+	}
+	now := r.params.Clock()
+	outbound := tunnel.teardownSession(sess, cdnResultGeneralError, now, r.logger)
+	r.tunnelsMu.Unlock()
+
+	for _, req := range outbound {
+		if err := r.listener.Send(req.to, req.bytes); err != nil {
+			r.logger.Warn("l2tp: outbound send failed (kernel error CDN)",
+				"to", req.to.String(), "error", err.Error())
+		}
+	}
+}
+
+// SetKernelWorker configures the kernel worker for this reactor.
+// Called by the subsystem after creating the worker. Must be called
+// before Start().
+func (r *L2TPReactor) SetKernelWorker(w *kernelWorker, errCh <-chan kernelSetupFailed) {
+	r.kernelWorker = w
+	r.kernelErrCh = errCh
 }

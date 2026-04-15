@@ -98,6 +98,11 @@ type L2TPTunnel struct {
 	// maxSessions is the per-tunnel session limit (0 = unbounded).
 	// Copied from config at tunnel creation time.
 	maxSessions uint16
+
+	// pendingKernelTeardowns collects sessions that were removed from the
+	// tunnel and had kernel resources. The reactor drains this after
+	// Process() returns and enqueues kernelTeardownEvents. Phase 5.
+	pendingKernelTeardowns []kernelTeardownEvent
 }
 
 // newTunnel constructs a tunnel in the idle state with a pre-wired

@@ -81,6 +81,17 @@ type L2TPSession struct {
 
 	// SLI ACCM values (RFC 2661 S19.2). Updated on each SLI received.
 	accm ACCMValue
+
+	// kernelSetupNeeded is set to true by handleICCN/handleOCCN when the
+	// session transitions to L2TPSessionEstablished. The reactor checks
+	// this flag after Process() returns and enqueues a kernelSetupEvent.
+	// Phase 5 kernel integration.
+	kernelSetupNeeded bool
+
+	// lnsMode records whether this session was established via handleICCN
+	// (LNS side, true) or handleOCCN (LAC side, false). Used by the
+	// kernel worker to set L2TP_ATTR_LNS_MODE.
+	lnsMode bool
 }
 
 // State returns the session's current FSM state.
@@ -127,8 +138,17 @@ func (t *L2TPTunnel) addSession(s *L2TPSession) {
 	t.sessions[s.localSID] = s
 }
 
-// removeSession removes a session from the tunnel's maps.
+// removeSession removes a session from the tunnel's maps. If the session
+// had reached established state (kernel resources may exist), a teardown
+// event is queued for the reactor to send to the kernel worker.
 func (t *L2TPTunnel) removeSession(sid uint16) {
+	sess := t.sessions[sid]
+	if sess != nil && sess.state == L2TPSessionEstablished {
+		t.pendingKernelTeardowns = append(t.pendingKernelTeardowns, kernelTeardownEvent{
+			localTID: t.localTID,
+			localSID: sid,
+		})
+	}
 	delete(t.sessions, sid)
 }
 
@@ -158,13 +178,20 @@ func (t *L2TPTunnel) lookupSessionByRemote(remoteSID uint16) *L2TPSession {
 
 // clearSessions removes all sessions from the tunnel. Used during
 // StopCCN processing. Returns the sessions that were active (for CDN
-// generation by the caller).
+// generation by the caller). Established sessions are queued for kernel
+// teardown.
 func (t *L2TPTunnel) clearSessions() []*L2TPSession {
 	if len(t.sessions) == 0 {
 		return nil
 	}
 	result := make([]*L2TPSession, 0, len(t.sessions))
 	for _, s := range t.sessions {
+		if s.state == L2TPSessionEstablished {
+			t.pendingKernelTeardowns = append(t.pendingKernelTeardowns, kernelTeardownEvent{
+				localTID: t.localTID,
+				localSID: s.localSID,
+			})
+		}
 		result = append(result, s)
 	}
 	t.sessions = nil

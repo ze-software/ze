@@ -182,6 +182,10 @@ func (t *L2TPTunnel) handleICCN(sess *L2TPSession, payload []byte, now time.Time
 	sess.framingType = info.framingType
 	sess.sequencingRequired = info.sequencingRequired
 
+	// Phase 5: signal reactor to create kernel resources.
+	sess.kernelSetupNeeded = true
+	sess.lnsMode = true // LNS side (ICCN)
+
 	// AC-17: proxy LCP AVPs.
 	sess.proxyInitialRecvLCPConfReq = info.proxyInitialRecvLCPConfReq
 	sess.proxyLastSentLCPConfReq = info.proxyLastSentLCPConfReq
@@ -301,6 +305,10 @@ func (t *L2TPTunnel) handleOCCN(sess *L2TPSession, payload []byte, now time.Time
 	sess.rxConnectSpeed = info.rxConnectSpeed
 	sess.framingType = info.framingType
 	sess.sequencingRequired = info.sequencingRequired
+
+	// Phase 5: signal reactor to create kernel resources.
+	sess.kernelSetupNeeded = true
+	sess.lnsMode = false // LAC side (OCCN)
 
 	logger.Info("l2tp: session established (outgoing)",
 		"local-sid", sess.localSID, "remote-sid", sess.remoteSID,

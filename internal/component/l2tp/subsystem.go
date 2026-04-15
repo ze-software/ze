@@ -33,11 +33,12 @@ type Subsystem struct {
 	params Parameters
 	logger *slog.Logger
 
-	mu        sync.Mutex
-	started   bool
-	listeners []*UDPListener
-	reactors  []*L2TPReactor
-	timers    []*tunnelTimer
+	mu            sync.Mutex
+	started       bool
+	listeners     []*UDPListener
+	reactors      []*L2TPReactor
+	timers        []*tunnelTimer
+	kernelWorkers []*kernelWorker
 }
 
 // NewSubsystem constructs an L2TP subsystem from parsed Parameters. The returned
@@ -76,9 +77,17 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 		return nil
 	}
 
+	// Phase 5: probe kernel modules before binding listeners.
+	// AC-1/AC-2: on Linux, modprobe l2tp_ppp or pppol2tp must succeed.
+	// On non-Linux, probeKernelModules() is a no-op (returns nil).
+	// RFC 2661 Section 24.23: fail startup if module probe fails.
+	if err := probeKernelModules(); err != nil {
+		return fmt.Errorf("l2tp: %w", err)
+	}
+
 	// Bind every configured listen endpoint and launch a reactor + timer
-	// for each. On any bind failure, unwind the partial state so a retry
-	// is safe.
+	// + kernel worker for each. On any bind failure, unwind the partial
+	// state so a retry is safe.
 	for _, addr := range s.params.ListenAddrs {
 		ln := NewUDPListener(addr, s.logger)
 		if err := ln.Start(ctx); err != nil {
@@ -130,7 +139,15 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 // all without suppressing any.
 func (s *Subsystem) unwindLocked() {
 	var errs []error
-	// Timers first: they send on reactor channels, so stop them before
+	// Kernel workers first: teardown all kernel resources while reactors
+	// and listeners are still alive (the worker may need the socket fd).
+	for _, kw := range s.kernelWorkers {
+		if kw != nil {
+			kw.TeardownAll()
+			kw.Stop()
+		}
+	}
+	// Timers next: they send on reactor channels, so stop them before
 	// the reactors close those channels.
 	for _, t := range s.timers {
 		t.Stop()
@@ -143,6 +160,7 @@ func (s *Subsystem) unwindLocked() {
 			errs = append(errs, err)
 		}
 	}
+	s.kernelWorkers = nil
 	s.timers = nil
 	s.reactors = nil
 	s.listeners = nil
@@ -164,7 +182,15 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	s.logger.Info("L2TP subsystem stopping")
 
 	var errs []error
-	// Timers first: they send on reactor channels, so stop them before
+	// Kernel workers first: teardown all kernel resources while reactors
+	// and listeners are still alive (AC-14).
+	for _, kw := range s.kernelWorkers {
+		if kw != nil {
+			kw.TeardownAll()
+			kw.Stop()
+		}
+	}
+	// Timers next: they send on reactor channels, so stop them before
 	// the reactors close those channels.
 	for _, t := range s.timers {
 		t.Stop()
@@ -177,6 +203,7 @@ func (s *Subsystem) Stop(_ context.Context) error {
 			errs = append(errs, err)
 		}
 	}
+	s.kernelWorkers = nil
 	s.timers = nil
 	s.reactors = nil
 	s.listeners = nil

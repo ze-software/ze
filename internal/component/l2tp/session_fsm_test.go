@@ -636,6 +636,138 @@ func TestSession_ProxyLCPAndAuth(t *testing.T) {
 	}
 }
 
+// --- Phase 5 kernel integration flag tests ---
+
+func TestSessionEstablishedSetsKernelFlag(t *testing.T) {
+	// VALIDATES: AC-3 -- handleICCN sets kernelSetupNeeded and lnsMode.
+	// PREVENTS: session established without kernel notification.
+	tun := newEstablishedTunnel(t, 0)
+	now := time.Now()
+	logger := slog.Default()
+
+	tun.handleICRQ(buildICRQ(500, 1001), now, logger)
+	var sess *L2TPSession
+	for _, s := range tun.sessions {
+		sess = s
+	}
+	if sess == nil {
+		t.Fatal("no session created")
+	}
+
+	tun.handleICCN(sess, buildICCN(10000000, 2), now, logger)
+	if sess.state != L2TPSessionEstablished {
+		t.Fatalf("expected established, got %s", sess.state)
+	}
+	if !sess.kernelSetupNeeded {
+		t.Fatal("expected kernelSetupNeeded = true after ICCN")
+	}
+	if !sess.lnsMode {
+		t.Fatal("expected lnsMode = true for LNS-side (ICCN)")
+	}
+}
+
+func TestSessionEstablishedOutgoingSetsKernelFlag(t *testing.T) {
+	// VALIDATES: AC-3 -- handleOCCN sets kernelSetupNeeded, lnsMode=false.
+	// PREVENTS: outgoing session established without kernel notification.
+	//
+	// handleOCCN requires WaitConnect state. Create session via ICRQ
+	// (which puts it in WaitConnect) then deliver OCCN.
+	tun := newEstablishedTunnel(t, 0)
+	now := time.Now()
+	logger := slog.Default()
+
+	tun.handleICRQ(buildICRQ(500, 1001), now, logger)
+	var sess *L2TPSession
+	for _, s := range tun.sessions {
+		sess = s
+	}
+	if sess == nil {
+		t.Fatal("no session created")
+	}
+	if sess.state != L2TPSessionWaitConnect {
+		t.Fatalf("expected wait-connect, got %s", sess.state)
+	}
+
+	tun.handleOCCN(sess, buildOCCN(10000000, 2), now, logger)
+	if sess.state != L2TPSessionEstablished {
+		t.Fatalf("expected established, got %s", sess.state)
+	}
+	if !sess.kernelSetupNeeded {
+		t.Fatal("expected kernelSetupNeeded = true after OCCN")
+	}
+	if sess.lnsMode {
+		t.Fatal("expected lnsMode = false for LAC-side (OCCN)")
+	}
+}
+
+func TestSessionCDNQueuesTeardown(t *testing.T) {
+	// VALIDATES: AC-10 -- CDN on established session queues kernel teardown.
+	// PREVENTS: kernel resources leaked after CDN.
+	tun := newEstablishedTunnel(t, 0)
+	now := time.Now()
+	logger := slog.Default()
+
+	tun.handleICRQ(buildICRQ(500, 1001), now, logger)
+	var sess *L2TPSession
+	for _, s := range tun.sessions {
+		sess = s
+	}
+	tun.handleICCN(sess, buildICCN(10000000, 2), now, logger)
+	localSID := sess.localSID
+
+	if len(tun.pendingKernelTeardowns) != 0 {
+		t.Fatalf("expected 0 pending teardowns before CDN, got %d", len(tun.pendingKernelTeardowns))
+	}
+
+	// CDN removes the established session. buildCDN(resultCode, assignedSID).
+	cdnPayload := buildCDN(2, localSID)
+	tun.handleCDN(localSID, cdnPayload, logger)
+
+	if len(tun.pendingKernelTeardowns) != 1 {
+		t.Fatalf("expected 1 pending teardown after CDN, got %d", len(tun.pendingKernelTeardowns))
+	}
+	td := tun.pendingKernelTeardowns[0]
+	if td.localTID != tun.localTID || td.localSID != localSID {
+		t.Fatalf("teardown event IDs wrong: tid=%d sid=%d", td.localTID, td.localSID)
+	}
+}
+
+func TestStopCCNQueuesAllTeardowns(t *testing.T) {
+	// VALIDATES: AC-12 -- StopCCN queues kernel teardowns for all sessions.
+	// PREVENTS: kernel resources leaked after StopCCN.
+	tun := newEstablishedTunnel(t, 0)
+	now := time.Now()
+	logger := slog.Default()
+
+	// Create 3 established sessions.
+	for _, peerSID := range []uint16{500, 600, 700} {
+		tun.handleICRQ(buildICRQ(peerSID, uint32(peerSID)+500), now, logger)
+	}
+	sessions := make([]*L2TPSession, 0, len(tun.sessions))
+	for _, s := range tun.sessions {
+		sessions = append(sessions, s)
+	}
+	for _, s := range sessions {
+		tun.handleICCN(s, buildICCN(10000000, 2), now, logger)
+	}
+
+	if len(tun.pendingKernelTeardowns) != 0 {
+		t.Fatalf("expected 0 pending teardowns before StopCCN, got %d", len(tun.pendingKernelTeardowns))
+	}
+
+	// Build StopCCN payload directly (same pattern as existing tests).
+	var buf [64]byte
+	off := 0
+	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgStopCCN))
+	off += WriteAVPUint16(buf[:], off, true, AVPAssignedTunnelID, 200)
+	off += WriteAVPResultCode(buf[:], off, true, ResultCodeValue{Result: 1})
+	tun.handleStopCCN(now, buf[:off])
+
+	if len(tun.pendingKernelTeardowns) != 3 {
+		t.Fatalf("expected 3 pending teardowns after StopCCN, got %d", len(tun.pendingKernelTeardowns))
+	}
+}
+
 // --- Parser unit tests ---
 
 func TestParseICRQ_Valid(t *testing.T) {

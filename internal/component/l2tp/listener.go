@@ -182,6 +182,30 @@ func (u *UDPListener) Addr() netip.AddrPort {
 	return netip.AddrPortFrom(a.Unmap(), uint16(udpAddr.Port))
 }
 
+// SocketFD returns the raw file descriptor of the UDP socket. Used by
+// the kernel worker for L2TP_CMD_TUNNEL_CREATE which requires the fd
+// of the connected UDP socket. The fd is valid for the lifetime of the
+// listener. Phase 5 kernel integration.
+func (u *UDPListener) SocketFD() (int, error) {
+	u.mu.Lock()
+	conn := u.conn
+	u.mu.Unlock()
+	if conn == nil {
+		return -1, errListenerNotStarted
+	}
+	raw, err := conn.SyscallConn()
+	if err != nil {
+		return -1, fmt.Errorf("l2tp: syscall conn: %w", err)
+	}
+	var fd int
+	if ctrlErr := raw.Control(func(fdp uintptr) {
+		fd = int(fdp)
+	}); ctrlErr != nil {
+		return -1, fmt.Errorf("l2tp: control: %w", ctrlErr)
+	}
+	return fd, nil
+}
+
 // Send writes bytes to the given peer. Returns errListenerNotStarted if
 // Start has not run (or Stop has already been called).
 func (u *UDPListener) Send(to netip.AddrPort, bytes []byte) error {
