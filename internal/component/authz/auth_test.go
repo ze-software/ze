@@ -1,12 +1,168 @@
 package authz
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// fakeBackend is a test Authenticator that returns configurable results.
+type fakeBackend struct {
+	result AuthResult
+	err    error
+	called bool
+}
+
+func (f *fakeBackend) Authenticate(username, password string) (AuthResult, error) {
+	f.called = true
+	return f.result, f.err
+}
+
+// VALIDATES: Authenticator interface exists and LocalAuthenticator implements it.
+// PREVENTS: interface drift or missing method.
+func TestAuthenticatorInterface(t *testing.T) {
+	var _ Authenticator = (*LocalAuthenticator)(nil)
+	var _ Authenticator = (*ChainAuthenticator)(nil)
+}
+
+// VALIDATES: AC-5 -- LocalAuthenticator wraps existing bcrypt logic unchanged.
+// PREVENTS: regression in local auth after interface extraction.
+func TestLocalAuthenticatorCompat(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.MinCost)
+	require.NoError(t, err)
+
+	local := &LocalAuthenticator{
+		Users: []UserConfig{
+			{Name: "admin", Hash: string(hash), Profiles: []string{"admin"}},
+		},
+	}
+
+	// Correct password succeeds.
+	result, err := local.Authenticate("admin", "secret")
+	assert.NoError(t, err)
+	assert.True(t, result.Authenticated)
+	assert.Equal(t, "local", result.Source)
+	assert.Equal(t, []string{"admin"}, result.Profiles)
+
+	// Wrong password returns ErrAuthRejected.
+	result, err = local.Authenticate("admin", "wrong")
+	assert.ErrorIs(t, err, ErrAuthRejected)
+	assert.False(t, result.Authenticated)
+
+	// Unknown user returns ErrAuthRejected.
+	result, err = local.Authenticate("nobody", "secret")
+	assert.ErrorIs(t, err, ErrAuthRejected)
+	assert.False(t, result.Authenticated)
+
+	// Empty username returns ErrAuthRejected.
+	result, err = local.Authenticate("", "secret")
+	assert.ErrorIs(t, err, ErrAuthRejected)
+	assert.False(t, result.Authenticated)
+}
+
+// VALIDATES: ChainAuthenticator tries backends in order, first success wins.
+// PREVENTS: chain skipping backends or returning wrong result.
+func TestChainAuthenticator(t *testing.T) {
+	first := &fakeBackend{
+		result: AuthResult{Authenticated: true, Source: "first", Profiles: []string{"admin"}},
+	}
+	second := &fakeBackend{
+		result: AuthResult{Authenticated: true, Source: "second"},
+	}
+
+	chain := &ChainAuthenticator{Backends: []Authenticator{first, second}}
+	result, err := chain.Authenticate("user", "pass")
+
+	assert.NoError(t, err)
+	assert.True(t, result.Authenticated)
+	assert.Equal(t, "first", result.Source)
+	assert.True(t, first.called)
+	assert.False(t, second.called, "second backend should not be called when first succeeds")
+}
+
+// VALIDATES: ChainAuthenticator falls through on connection error.
+// PREVENTS: chain stopping on infrastructure failure instead of trying next.
+func TestChainFallback(t *testing.T) {
+	failing := &fakeBackend{
+		err: fmt.Errorf("connection refused"),
+	}
+	local := &fakeBackend{
+		result: AuthResult{Authenticated: true, Source: "local", Profiles: []string{"admin"}},
+	}
+
+	chain := &ChainAuthenticator{Backends: []Authenticator{failing, local}}
+	result, err := chain.Authenticate("user", "pass")
+
+	assert.NoError(t, err)
+	assert.True(t, result.Authenticated)
+	assert.Equal(t, "local", result.Source)
+	assert.True(t, failing.called)
+	assert.True(t, local.called)
+}
+
+// VALIDATES: ChainAuthenticator returns error when all backends fail.
+// PREVENTS: silent auth success when no backend can authenticate.
+func TestChainAllFail(t *testing.T) {
+	first := &fakeBackend{err: fmt.Errorf("server down")}
+	second := &fakeBackend{err: fmt.Errorf("server unreachable")}
+
+	chain := &ChainAuthenticator{Backends: []Authenticator{first, second}}
+	result, err := chain.Authenticate("user", "pass")
+
+	assert.Error(t, err)
+	assert.False(t, result.Authenticated)
+	assert.True(t, first.called)
+	assert.True(t, second.called)
+}
+
+// VALIDATES: AC-2 -- explicit rejection stops the chain immediately.
+// PREVENTS: TACACS+ wrong-password falling through to local auth.
+func TestChainRejectNoFallback(t *testing.T) {
+	tacacs := &fakeBackend{
+		result: AuthResult{Source: "tacacs"},
+		err:    ErrAuthRejected,
+	}
+	local := &fakeBackend{
+		result: AuthResult{Authenticated: true, Source: "local"},
+	}
+
+	chain := &ChainAuthenticator{Backends: []Authenticator{tacacs, local}}
+	result, err := chain.Authenticate("user", "wrongpass")
+
+	assert.ErrorIs(t, err, ErrAuthRejected)
+	assert.False(t, result.Authenticated)
+	assert.Equal(t, "tacacs", result.Source)
+	assert.True(t, tacacs.called)
+	assert.False(t, local.called, "local MUST NOT be tried after explicit rejection")
+}
+
+// VALIDATES: ChainAuthenticator with no backends returns error.
+// PREVENTS: nil pointer or silent pass with empty chain.
+func TestChainNoBackends(t *testing.T) {
+	chain := &ChainAuthenticator{}
+	result, err := chain.Authenticate("user", "pass")
+
+	assert.Error(t, err)
+	assert.False(t, result.Authenticated)
+}
+
+// VALIDATES: ChainAuthenticator wraps last error.
+// PREVENTS: losing error context from failing backends.
+func TestChainWrapsLastError(t *testing.T) {
+	connErr := fmt.Errorf("connection refused")
+	first := &fakeBackend{err: connErr}
+
+	chain := &ChainAuthenticator{Backends: []Authenticator{first}}
+	_, err := chain.Authenticate("user", "pass")
+
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, connErr), "should wrap the connection error")
+}
 
 // VALIDATES: AC-3 — correct password passes bcrypt validation.
 // PREVENTS: accepting wrong passwords or broken hash comparison.
