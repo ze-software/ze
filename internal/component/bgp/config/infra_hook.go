@@ -6,6 +6,7 @@ package bgpconfig
 import (
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -35,6 +36,7 @@ type LoginWarning struct {
 type InfraHookParams struct {
 	Reactor    *reactor.Reactor
 	SSHConfig  SSHExtractedConfig
+	ConfigTree *config.Tree // full config tree for component-specific extraction
 	AuthzStore *authz.Store
 	ConfigDir  string
 	ConfigPath string

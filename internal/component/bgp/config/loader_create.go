@@ -237,6 +237,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		infraHook(InfraHookParams{
 			Reactor:              r,
 			SSHConfig:            sshCfg,
+			ConfigTree:           tree,
 			AuthzStore:           authzStore,
 			ConfigDir:            configDir,
 			ConfigPath:           configPath,

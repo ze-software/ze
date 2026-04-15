@@ -136,6 +136,7 @@ func buildUserAuthenticator(users []authz.UserConfig) func(string) (string, bool
 	if len(users) == 0 {
 		return nil
 	}
+	auth := &authz.LocalAuthenticator{Users: users}
 	return func(header string) (string, bool) {
 		raw, ok := strings.CutPrefix(header, "Bearer ")
 		if !ok {
@@ -145,7 +146,8 @@ func buildUserAuthenticator(users []authz.UserConfig) func(string) (string, bool
 		if !ok || username == "" {
 			return "", false
 		}
-		if !authz.AuthenticateUser(users, username, password) {
+		result, err := auth.Authenticate(username, password)
+		if err != nil || !result.Authenticated {
 			return "", false
 		}
 		return username, true

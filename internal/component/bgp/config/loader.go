@@ -417,6 +417,7 @@ func ExtractSSHConfig(tree *config.Tree) SSHExtractedConfig {
 				if pw, ok := entry.Get("password"); ok {
 					uc.Hash = pw
 				}
+				uc.Profiles = entry.GetSlice("profile")
 				cfg.Users = append(cfg.Users, uc)
 			}
 		}

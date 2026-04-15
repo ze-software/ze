@@ -168,7 +168,7 @@ func (s *SessionStore) InvalidateUser(username string) {
 //
 // HTMX requests (HX-Request header) with expired sessions receive a 401 with
 // a login overlay instead of a full page, enabling in-place session recovery.
-func AuthMiddleware(store *SessionStore, users []authz.UserConfig, loginRenderer func(w http.ResponseWriter, r *http.Request), next http.Handler) http.Handler {
+func AuthMiddleware(store *SessionStore, authenticator authz.Authenticator, loginRenderer func(w http.ResponseWriter, r *http.Request), next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check session cookie first.
 		if cookie, err := r.Cookie("ze-session"); err == nil {
@@ -182,7 +182,7 @@ func AuthMiddleware(store *SessionStore, users []authz.UserConfig, loginRenderer
 
 		// Fall back to Basic Auth for JSON API requests.
 		if username, password, ok := parseBasicAuth(r); ok {
-			if authz.AuthenticateUser(users, username, password) {
+			if result, err := authenticator.Authenticate(username, password); err == nil && result.Authenticated {
 				logger.Debug("basic auth accepted", "username", username)
 				addSecurityHeaders(w)
 				next.ServeHTTP(w, r.WithContext(withUsername(r.Context(), username)))
@@ -202,7 +202,7 @@ func AuthMiddleware(store *SessionStore, users []authz.UserConfig, loginRenderer
 // LoginHandler returns an http.HandlerFunc that processes POST login requests.
 // On successful authentication, it creates a session, sets the ze-session cookie,
 // and redirects to "/". On failure, it returns 401 with the login page.
-func LoginHandler(store *SessionStore, users []authz.UserConfig, loginRenderer func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
+func LoginHandler(store *SessionStore, authenticator authz.Authenticator, loginRenderer func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -215,7 +215,8 @@ func LoginHandler(store *SessionStore, users []authz.UserConfig, loginRenderer f
 		username := r.FormValue("username")
 		password := r.FormValue("password")
 
-		if !authz.AuthenticateUser(users, username, password) {
+		result, err := authenticator.Authenticate(username, password)
+		if err != nil || !result.Authenticated {
 			logger.Warn("login failed", "username", username, "remote", r.RemoteAddr)
 			w.WriteHeader(http.StatusUnauthorized)
 			loginRenderer(w, r)

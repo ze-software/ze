@@ -19,7 +19,7 @@ module ze-ssh-conf {
 
             list user {
                 key "name";
-                description "Authenticated user";
+                description "Authenticated user (local)";
 
                 leaf name {
                     type string;

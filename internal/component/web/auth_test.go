@@ -51,7 +51,7 @@ func TestSessionCookieValidation(t *testing.T) {
 	session, err := store.CreateSession("alice")
 	require.NoError(t, err)
 
-	handler := AuthMiddleware(store, users, noopRenderer, okHandler())
+	handler := AuthMiddleware(store, &authz.LocalAuthenticator{Users: users}, noopRenderer, okHandler())
 
 	tests := []struct {
 		name       string
@@ -161,7 +161,7 @@ func TestSessionInvalidation(t *testing.T) {
 func TestBasicAuthForJSONAPI(t *testing.T) {
 	store := NewSessionStore()
 	users := testUsers(t)
-	handler := AuthMiddleware(store, users, noopRenderer, okHandler())
+	handler := AuthMiddleware(store, &authz.LocalAuthenticator{Users: users}, noopRenderer, okHandler())
 
 	tests := []struct {
 		name       string
@@ -215,7 +215,7 @@ func TestSecurityHeaders(t *testing.T) {
 	session, err := store.CreateSession("alice")
 	require.NoError(t, err)
 
-	handler := AuthMiddleware(store, users, noopRenderer, okHandler())
+	handler := AuthMiddleware(store, &authz.LocalAuthenticator{Users: users}, noopRenderer, okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	req.AddCookie(&http.Cookie{Name: "ze-session", Value: session.Token})
@@ -250,7 +250,7 @@ func TestSecurityHeaders(t *testing.T) {
 func TestLoginHandler(t *testing.T) {
 	store := NewSessionStore()
 	users := testUsers(t)
-	handler := LoginHandler(store, users, noopRenderer)
+	handler := LoginHandler(store, &authz.LocalAuthenticator{Users: users}, noopRenderer)
 
 	t.Run("valid credentials set session cookie", func(t *testing.T) {
 		form := url.Values{

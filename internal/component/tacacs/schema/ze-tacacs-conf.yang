@@ -1,0 +1,88 @@
+module ze-tacacs-conf {
+    namespace "urn:ze:tacacs:conf";
+    prefix tacacs;
+
+    import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
+
+    description "TACACS+ AAA configuration for Ze (RFC 8907)";
+
+    revision 2026-04-15 {
+        description "Initial revision";
+    }
+
+    container system {
+        description "System-level settings";
+
+        container authentication {
+            description "System authentication settings";
+
+            container tacacs {
+                description "TACACS+ server configuration (RFC 8907)";
+
+                list server {
+                    key "address";
+                    ordered-by user;
+                    description "TACACS+ servers, tried in configured order";
+
+                    leaf address {
+                        type zt:ip-address;
+                        description "Server IP address";
+                    }
+
+                    leaf port {
+                        type uint16;
+                        default 49;
+                        description "TCP port (default 49)";
+                    }
+
+                    leaf key {
+                        type string;
+                        ze:sensitive;
+                        description "Shared encryption key";
+                    }
+                }
+
+                leaf timeout {
+                    type uint16 {
+                        range "1..300";
+                    }
+                    default 5;
+                    description "Per-server connection timeout in seconds";
+                }
+
+                leaf source-address {
+                    type zt:ip-address;
+                    description "Source IP for outbound TACACS+ connections";
+                }
+
+                leaf authorization {
+                    type empty;
+                    description "Enable per-command TACACS+ authorization";
+                }
+
+                leaf accounting {
+                    type empty;
+                    description "Enable command execution accounting";
+                }
+            }
+
+            list tacacs-profile {
+                key "level";
+                description "Maps TACACS+ privilege level to ze authorization profile";
+
+                leaf level {
+                    type uint8 {
+                        range "0..15";
+                    }
+                    description "TACACS+ privilege level (0-15)";
+                }
+
+                leaf-list profile {
+                    type string;
+                    description "Ze authorization profile name(s)";
+                }
+            }
+        }
+    }
+}

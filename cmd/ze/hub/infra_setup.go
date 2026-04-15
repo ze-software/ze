@@ -7,17 +7,54 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
+	"codeberg.org/thomas-mangin/ze/internal/component/tacacs"
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
+
+// buildAuthenticator constructs a ChainAuthenticator from the config tree.
+// If TACACS+ servers are configured, the chain is [TACACS+, local].
+// If no TACACS+ servers, the chain is [local] only.
+func buildAuthenticator(tacacsCfg tacacs.ExtractedConfig, users []authz.UserConfig, logger *slog.Logger) authz.Authenticator {
+	local := &authz.LocalAuthenticator{Users: users}
+
+	if !tacacsCfg.HasServers() {
+		return &authz.ChainAuthenticator{Backends: []authz.Authenticator{local}}
+	}
+
+	client := tacacs.NewTacacsClient(tacacs.TacacsClientConfig{
+		Servers:       tacacsCfg.Servers,
+		Timeout:       tacacsCfg.Timeout,
+		SourceAddress: tacacsCfg.SourceAddress,
+		Logger:        logger,
+	})
+
+	privMap := tacacsCfg.PrivLvlMap
+	if privMap == nil {
+		privMap = map[int][]string{}
+	}
+
+	tacacsAuth := tacacs.NewTacacsAuthenticator(client, privMap, logger)
+
+	logger.Info("TACACS+ authentication configured",
+		"servers", len(tacacsCfg.Servers),
+		"authorization", tacacsCfg.Authorization,
+		"accounting", tacacsCfg.Accounting)
+
+	return &authz.ChainAuthenticator{
+		Backends: []authz.Authenticator{tacacsAuth, local},
+	}
+}
 
 // setupInfraHook creates and registers the infrastructure setup hook.
 // Called once before the engine starts. The hook itself runs when the
@@ -61,6 +98,10 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 		if zefsUsers, err := loadZefsUsers(); err == nil {
 			cfg.Users = append(zefsUsers, cfg.Users...)
 		}
+
+		// Build pluggable authenticator (TACACS+ + local chain, or local only).
+		tacacsCfg := tacacs.ExtractConfig(params.ConfigTree)
+		cfg.Authenticator = buildAuthenticator(tacacsCfg, cfg.Users, log)
 		cfg.ConfigDir = params.ConfigDir
 		if cfg.ConfigDir == "" {
 			cfg.ConfigDir = coreenv.Get("ze.config.dir")

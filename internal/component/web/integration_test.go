@@ -91,8 +91,9 @@ func setupTestServer(t *testing.T) (baseURL string, client *http.Client, cleanup
 	require.NoError(t, err, "NewWebServer must succeed")
 
 	// Register routes on the server's mux.
-	loginHandler := LoginHandler(store, users, loginRenderer)
-	authMiddleware := AuthMiddleware(store, users, loginRenderer, contentHandler)
+	auth := &authz.LocalAuthenticator{Users: users}
+	loginHandler := LoginHandler(store, auth, loginRenderer)
+	authMiddleware := AuthMiddleware(store, auth, loginRenderer, contentHandler)
 	assetHandler := http.StripPrefix("/assets/", renderer.AssetHandler())
 
 	srv.HandleFunc("POST /login", loginHandler)

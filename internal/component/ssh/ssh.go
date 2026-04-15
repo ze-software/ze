@@ -72,16 +72,17 @@ type PluginProtocolFunc func(ctx context.Context, reader io.ReadCloser, writer i
 
 // Config holds SSH server configuration parsed from the config file.
 type Config struct {
-	Listen      string
-	ListenAddrs []string // all listen addresses (first == Listen)
-	HostKeyPath string
-	ConfigDir   string          // directory of the config file; used for host-key default
-	ConfigPath  string          // path to config file; used by SSH sessions for concurrent editing
-	Storage     storage.Storage // when set, host key is read from/stored to blob
-	IdleTimeout uint32
-	MaxSessions int
-	Users       []authz.UserConfig
-	Executor    CommandExecutor // injected by daemon, not from config
+	Listen        string
+	ListenAddrs   []string // all listen addresses (first == Listen)
+	HostKeyPath   string
+	ConfigDir     string          // directory of the config file; used for host-key default
+	ConfigPath    string          // path to config file; used by SSH sessions for concurrent editing
+	Storage       storage.Storage // when set, host key is read from/stored to blob
+	IdleTimeout   uint32
+	MaxSessions   int
+	Users         []authz.UserConfig
+	Authenticator authz.Authenticator // pluggable auth backend (nil = use Users with bcrypt)
+	Executor      CommandExecutor     // injected by daemon, not from config
 }
 
 // ShutdownFunc is called when the SSH server receives a "stop" exec command.
@@ -314,7 +315,11 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 		return fmt.Errorf("resolve host key: %w", err)
 	}
 
-	users := s.config.Users
+	authenticator := s.config.Authenticator
+	if authenticator == nil {
+		// No explicit authenticator: wrap local users as a LocalAuthenticator.
+		authenticator = &authz.LocalAuthenticator{Users: s.config.Users}
+	}
 
 	// Always register a password auth handler.
 	// When no users are configured, reject all attempts (never allow NoClientAuth).
@@ -332,13 +337,16 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 			s.maxSessionsMiddleware(),
 		),
 		wish.WithPasswordAuth(func(ctx ssh.Context, pass string) bool {
-			ok := authz.AuthenticateUser(users, ctx.User(), pass)
-			if ok {
-				s.logger.Info("SSH auth success", "username", ctx.User(), "remote", ctx.RemoteAddr().String())
-			} else {
-				s.logger.Warn("SSH auth failure", "username", ctx.User(), "remote", ctx.RemoteAddr().String())
+			username := ctx.User()
+			remote := ctx.RemoteAddr().String()
+
+			result, err := authenticator.Authenticate(username, pass)
+			if err == nil && result.Authenticated {
+				s.logger.Info("SSH auth success", "username", username, "remote", remote, "source", result.Source)
+				return true
 			}
-			return ok
+			s.logger.Warn("SSH auth failure", "username", username, "remote", remote)
+			return false
 		}),
 	}
 

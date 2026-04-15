@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 4/8 |
 | Updated | 2026-04-15 |
 
 ## Post-Compaction Recovery
@@ -22,19 +22,14 @@
 Add TACACS+ client support to ze for SSH authentication, command authorization, and
 accounting. TACACS+ is the standard AAA protocol for ISP network equipment management.
 
-The VyOS LNS config:
-```
-set system login tacacs server 82.219.1.113 key 'EXA-TACACS-KEY'
-```
-
-This authenticates SSH logins against the TACACS+ server at 82.219.1.113, allowing
+This authenticates SSH logins against a central TACACS+ server, allowing
 centralised user management across the Exa network fleet. Without TACACS+, each device
 needs local user accounts maintained individually.
 
 ### What TACACS+ provides
 
-| Function | Description | VyOS LNS usage |
-|----------|-------------|----------------|
+| Function | Description | Exa usage |
+|----------|-------------|-----------|
 | **Authentication** | Verify username + password against central server | SSH login for all Exa engineers |
 | **Authorization** | Check if user is allowed to run a specific command | Per-user privilege levels |
 | **Accounting** | Log command execution to central server | Audit trail of who did what |
@@ -78,16 +73,28 @@ needs local user accounts maintained individually.
   --> Constraint: three services: authentication, authorization, accounting
   --> Constraint: authentication types: ASCII (interactive), PAP, CHAP, MS-CHAP
   --> Constraint: single-connect mode (persistent TCP) vs per-session TCP
+  --> Constraint: 12-byte fixed header, body encrypted with MD5 pseudo-pad XOR
+  --> Constraint: sequence numbers start at 1, client odd, server even, max 0xFE
+  --> Constraint: version byte 0xC0 default, 0xC1 for PAP/CHAP/MSCHAP authen
+  --> Decision: ze summary at rfc/short/rfc8907.md
+
+### Reference implementations (studied, not vendored)
+- github.com/nwaples/tacplus -- Go client/server, unmaintained (5 years), known issues with buffer allocation, no failover, no graceful shutdown, legacy logging. Clean packet marshal/unmarshal pattern worth following.
+- github.com/facebookincubator/tacquito -- Facebook Go server, dependency injection, handler composition. Good testing patterns.
+- Both cloned to ~/Code/github.com/ for reference during implementation.
 
 **Key insights:**
 - TACACS+ uses TCP (port 49), not UDP like RADIUS
-- Packet body is encrypted with MD5-based stream cipher using shared secret
-- Authentication flow: START -> REPLY (pass/fail/getdata/getuser/error)
-- Authorization flow: REQUEST -> RESPONSE (pass-add/pass-repl/fail/error)
-- Accounting flow: REQUEST -> REPLY (success/error)
-- Go TACACS+ libraries: github.com/facebookincubator/tacquito (Facebook), github.com/nwaples/tacplus
+- Packet body is XOR-obfuscated with MD5 pseudo-pad (NOT true encryption per RFC 8907 Section 10.5)
+- Pseudo-pad: MD5(session_id + key + version + seq_no), chained for subsequent 16-byte blocks
+- Secret validation after decryption: field lengths must sum to header body length
+- Authentication flow: START -> REPLY (pass/fail/getdata/getuser/error), optionally CONTINUE
+- Authorization flow: REQUEST -> RESPONSE (pass-add/pass-repl/fail/error), single round-trip
+- Accounting flow: REQUEST -> REPLY (success/error), single round-trip
+- Authorization arguments use = (mandatory, client must handle) or * (optional, may ignore)
 - wish SSH password callback receives (ctx, password) and returns bool
 - ze's authz profiles map naturally to TACACS+ privilege levels (priv-lvl=15 -> admin, priv-lvl=1 -> read-only)
+- Privilege levels 0-15: 0=minimum, 1=user default, 15=admin. 2-14 site-defined.
 
 ## Current Behavior (MANDATORY)
 
@@ -99,7 +106,9 @@ needs local user accounts maintained individually.
 - [ ] `internal/component/ssh/ssh.go` -- SSH server calls authz.AuthenticateUser in password callback. Users passed in at server creation.
   --> Constraint: user list is static after server start
 - [ ] `internal/component/ssh/schema/ze-ssh-conf.yang` -- user list under system.authentication
+  --> Constraint: YANG schema defines system.authentication.user list with name, password, profile leaves
 - [ ] `cmd/ze/hub/main.go` -- merges zefs users and config users into single list
+  --> Constraint: user loading happens at startup in hub, passed to SSH server constructor
 
 **Behavior to preserve:**
 - Local user authentication continues to work (bcrypt password)
@@ -121,64 +130,50 @@ needs local user accounts maintained individually.
 
 ### Authentication flow
 
-```
-SSH client connects
-    |
-    v
-wish password callback(username, password)
-    |
-    v
-Authenticator.Authenticate(username, password)
-    |
-    ├── TacacsAuthenticator: TCP connect to 82.219.1.113:49
-    │   ├── AUTHEN START (username, PAP password)
-    │   ├── AUTHEN REPLY (pass/fail)
-    │   ├── If pass: extract priv-lvl, map to ze profile
-    │   └── If fail or timeout: fall through
-    │
-    └── LocalAuthenticator: bcrypt compare (existing)
-        ├── If match: use local user's profile
-        └── If no match: reject
-```
+| Step | Actor | Action |
+|------|-------|--------|
+| 1 | SSH client | Connects, provides username + password |
+| 2 | wish server | Invokes password callback with (username, password) |
+| 3 | ChainAuthenticator | Calls TacacsAuthenticator.Authenticate(username, password) |
+| 4 | TacacsAuthenticator | TCP connect to first configured server (e.g., 82.219.1.113:49) |
+| 5a | TACACS+ server reachable | Send AUTHEN START (PAP, username, password). Receive AUTHEN REPLY. |
+| 5b | AUTHEN REPLY = PASS | Extract priv-lvl from server response, map to ze profile. Return success. |
+| 5c | AUTHEN REPLY = FAIL | Return rejection immediately. Chain does NOT try local. Authentication fails. |
+| 5d | Server unreachable / timeout | Try next TACACS+ server. If all servers exhausted, return connection error. |
+| 6 | ChainAuthenticator | On connection error only: call LocalAuthenticator.Authenticate(username, password) |
+| 7 | LocalAuthenticator | Bcrypt compare against configured user list (existing logic). Return success or rejection. |
 
 ### Authorization flow (per command)
 
-```
-User types command in CLI
-    |
-    v
-authz.Authorize(user.profiles, section, path)
-    |
-    ├── Local profiles: existing RBAC check
-    │
-    └── If TACACS+ authorization enabled:
-        AUTHOR REQUEST(username, cmd, cmd-arg)
-        AUTHOR RESPONSE(pass-add/pass-repl/fail)
-```
+| Step | Condition | Action |
+|------|-----------|--------|
+| 1 | User types command in CLI | |
+| 2 | TACACS+ authorization disabled (default) | Use local profiles only: existing RBAC check via authz.Authorize(profiles, section, path) |
+| 2 | TACACS+ authorization enabled | Send AUTHOR REQUEST (service=shell, cmd=X, cmd-arg=Y) to TACACS+ server |
+| 3 | AUTHOR RESPONSE = PASS_ADD or PASS_REPL | Command proceeds |
+| 3 | AUTHOR RESPONSE = FAIL | Command blocked |
+| 3 | Server unreachable | Fall back to local profile RBAC check |
 
 ### Accounting flow
 
-```
-User executes command
-    |
-    v
-ACCT REQUEST(username, cmd, start, task_id)
-    ... command runs ...
-ACCT REQUEST(username, cmd, stop, task_id, elapsed)
-```
+| Step | Event | Action |
+|------|-------|--------|
+| 1 | User executes command | Send ACCT REQUEST with START flag (username, service=shell, cmd, task_id, start_time) |
+| 2 | Command completes | Send ACCT REQUEST with STOP flag (same task_id, elapsed_time, stop_time) |
+| 3 | Server unreachable | Log locally, do not block command execution |
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
 | SSH callback --> Authenticator | Interface method call | [ ] |
 | Authenticator --> TACACS+ server | TCP connection, encrypted TACACS+ packets | [ ] |
-| CLI command --> Accounting | Hook after command execution | [ ] |
+| CLI command --> Accounting | Dispatcher.Dispatch() hook in command.go:336 (START after auth, STOP after handler) | [ ] |
 
 ### Integration Points
 - `internal/component/authz/auth.go` -- new Authenticator interface
 - `internal/component/ssh/ssh.go` -- password callback uses Authenticator
 - `internal/component/authz/authz.go` -- TACACS+ priv-lvl to profile mapping
-- New TACACS+ client library (dependency)
+- `internal/component/tacacs/` -- native TACACS+ client (RFC 8907, no external dependency)
 
 ### Architectural Verification
 - [ ] No bypassed layers (SSH -> Authenticator -> TACACS+/local)
@@ -206,69 +201,77 @@ ACCT REQUEST(username, cmd, stop, task_id, elapsed)
 | Port | uint16 | TCP port (default 49) |
 | Secret | string | Shared encryption key |
 
-### Authenticator interface
+### Authenticator interface (in authz package)
 
-```
-type Authenticator interface {
-    Authenticate(username, password string) (AuthResult, error)
-}
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| Authenticate | username string, password string | AuthResult, error | Attempt authentication against this backend |
 
-type AuthResult struct {
-    Authenticated bool
-    Profiles      []string  // ze authz profiles for this user
-    Source        string    // "tacacs", "local"
-}
-```
+### AuthResult
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Authenticated | bool | Whether authentication succeeded |
+| Profiles | []string | Ze authz profile names for this user |
+| Source | string | Backend identifier ("tacacs", "local") |
 
 ### Auth chain
 
-The auth chain tries backends in order. First success wins. If all fail, reject:
+The ChainAuthenticator holds an ordered list of Authenticator backends.
+It tries each in order. The chain distinguishes two failure modes:
 
-```
-type ChainAuthenticator struct {
-    Backends []Authenticator
-}
-```
+| Failure mode | Behavior |
+|-------------|----------|
+| Explicit rejection (wrong password) | Stop immediately. Do NOT try next backend. Authentication fails. |
+| Connection error (server unreachable, timeout) | Try next backend in chain. |
 
-Default chain: [TacacsAuthenticator, LocalAuthenticator]
-If no TACACS+ configured: [LocalAuthenticator] (current behaviour)
+Default chain when TACACS+ configured: TacacsAuthenticator, then LocalAuthenticator.
+When no TACACS+ configured: LocalAuthenticator only (current behaviour, unchanged).
 
 ## Config Syntax
 
-```
-system {
-    authentication {
-        # TACACS+ servers (tried in order)
-        tacacs {
-            server 82.219.1.113 {
-                secret "$9$encrypted-shared-key"
-                port 49
-            }
-            server 82.219.1.114 {
-                secret "$9$encrypted-shared-key"
-                port 49
-            }
-            timeout 5
-            source-address 82.219.0.154
-            authorization
-            accounting
-        }
+Config path: `system.authentication.tacacs`
 
-        # Privilege level to profile mapping
-        tacacs-profile {
-            level 15 { profile admin; }
-            level 5 { profile operator; }
-            level 1 { profile read-only; }
-        }
+### TACACS+ server list
 
-        # Local users (fallback)
-        user exa {
-            password "$2a$10$..."
-            profile admin
-        }
-    }
-}
-```
+| Path | Type | Default | Description |
+|------|------|---------|-------------|
+| `system.authentication.tacacs.server <ip>` | list, keyed by IP | - | TACACS+ servers, tried in configured order |
+| `system.authentication.tacacs.server <ip>.secret` | string | (required) | Shared encryption key ($9$ encrypted format) |
+| `system.authentication.tacacs.server <ip>.port` | uint16 | 49 | TCP port |
+| `system.authentication.tacacs.timeout` | uint16 | 5 | Per-server connection timeout in seconds (max 300) |
+| `system.authentication.tacacs.source-address` | ip-address | (none) | Source IP for outbound TACACS+ TCP connections |
+| `system.authentication.tacacs.authorization` | empty leaf (presence) | disabled | Enable per-command TACACS+ authorization |
+| `system.authentication.tacacs.accounting` | empty leaf (presence) | disabled | Enable command execution accounting |
+
+### Privilege level to profile mapping
+
+| Path | Type | Default | Description |
+|------|------|---------|-------------|
+| `system.authentication.tacacs-profile.level <N>` | list, keyed by uint8 (0-15) | - | Maps TACACS+ priv-lvl to ze authz profile |
+| `system.authentication.tacacs-profile.level <N>.profile` | string | (required) | Ze authorization profile name |
+
+### Local users (existing, unchanged)
+
+| Path | Type | Description |
+|------|------|-------------|
+| `system.authentication.user <name>` | list, keyed by name | Local user accounts |
+| `system.authentication.user <name>.password` | string | Bcrypt hash ($2a$ format) |
+| `system.authentication.user <name>.profile` | leaf-list | Authorization profile names |
+
+### Example set commands
+
+`set system authentication tacacs server 82.219.1.113 secret "$9$encrypted-key"`
+`set system authentication tacacs server 82.219.1.114 secret "$9$encrypted-key"`
+`set system authentication tacacs timeout 5`
+`set system authentication tacacs source-address 82.219.0.154`
+`set system authentication tacacs authorization`
+`set system authentication tacacs accounting`
+`set system authentication tacacs-profile level 15 profile admin`
+`set system authentication tacacs-profile level 5 profile operator`
+`set system authentication tacacs-profile level 1 profile read-only`
+`set system authentication user exa password "$2a$10$..."`
+`set system authentication user exa profile admin`
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -284,7 +287,7 @@ system {
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | TACACS+ server configured, valid credentials | User authenticated, priv-lvl mapped to ze profile |
-| AC-2 | TACACS+ server configured, invalid credentials | TACACS+ rejects, local auth attempted, both fail -> rejected |
+| AC-2 | TACACS+ server configured, invalid credentials | TACACS+ rejects (FAIL status), authentication fails immediately. Local auth NOT attempted. |
 | AC-3 | TACACS+ server unreachable, valid local credentials | Local auth succeeds (fallback) |
 | AC-4 | TACACS+ server unreachable, no local user | Authentication fails |
 | AC-5 | No TACACS+ configured | Local-only auth, identical to current behavior |
@@ -297,6 +300,10 @@ system {
 | AC-12 | TACACS+ auth timing | Timing-safe: failed TACACS+ auth takes similar time regardless of failure reason |
 | AC-13 | `ze show tacacs` | Displays server status (reachable/unreachable), auth stats |
 | AC-14 | Shared secret with $9$ encoding | Secret decrypted before use (ze's encrypted password format) |
+| AC-15 | TACACS+ server returns ERROR status (not FAIL) | Treat as server unavailable, try next server or fall back to local |
+| AC-16 | Single-connect negotiation | Client sets flag 0x04 on first packet. If server echoes it, reuse TCP for subsequent sessions. If not, one connection per session. |
+| AC-17 | Wrong shared secret | Decryption produces body length mismatch. Treat as server error, try next server. |
+| AC-18 | Unmapped priv-lvl (no matching tacacs-profile entry) | Authentication rejected. TACACS+ users with unmapped priv-lvl are denied access. Log warning naming the priv-lvl so admin can add mapping. |
 
 ## TDD Test Plan
 
@@ -320,6 +327,14 @@ system {
 | `TestPrivLevelMapping` | `internal/component/tacacs/mapping_test.go` | priv-lvl to ze profile mapping | |
 | `TestParseTacacsConfig` | `internal/component/tacacs/config_test.go` | Config JSON to TacacsConfig | |
 | `TestTacacsRegistration` | `internal/component/tacacs/register_test.go` | Component registration | |
+| `TestChainRejectNoFallback` | `internal/component/authz/auth_test.go` | TACACS+ explicit rejection does NOT fall through to local (AC-2) | |
+| `TestTacacsSecretValidation` | `internal/component/tacacs/packet_test.go` | Wrong shared secret detected by body length mismatch (AC-17) | |
+| `TestTacacsErrorStatusFallback` | `internal/component/tacacs/client_test.go` | ERROR status treated as server unavailable, try next (AC-15) | |
+| `TestTacacsSingleConnect` | `internal/component/tacacs/client_test.go` | Single-connect flag negotiation (AC-16) | |
+| `TestUnmappedPrivLevel` | `internal/component/tacacs/mapping_test.go` | priv-lvl with no config entry rejects auth, logs warning (AC-18) | |
+| `TestTacacsPacketRoundTrip` | `internal/component/tacacs/packet_test.go` | Marshal then unmarshal produces identical packet for all types | |
+| `FuzzTacacsPacketUnmarshal` | `internal/component/tacacs/packet_test.go` | Fuzz: random bytes to unmarshal, must not panic | |
+| `FuzzTacacsEncryptDecrypt` | `internal/component/tacacs/packet_test.go` | Fuzz: encrypt then decrypt round-trip with random keys and bodies | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 
@@ -329,6 +344,9 @@ system {
 | Timeout | 1-300 | 300 | 0 (invalid) | 301 (rejected, too long) |
 | Privilege level | 0-15 | 15 | N/A (0 is valid) | 16 (invalid per TACACS+) |
 | Shared secret length | 1-256 | 256 | 0 (empty, rejected) | N/A (string) |
+| Sequence number | 1-254 | 254 (0xFE) | 0 (invalid) | 255 (overflow, abort session) |
+| Body length | 0-65535 | 65535 | N/A (0 is valid, e.g. empty body) | Values above 65535 rejected |
+| Session ID | 1-4294967295 | full uint32 range | 0 (valid but unusual) | N/A (uint32) |
 
 ### Functional Tests
 
@@ -339,8 +357,16 @@ system {
 | Local only | `test/ssh/012-local-only.ci` | No TACACS+ config, existing auth unchanged | |
 | Accounting | `test/ssh/013-tacacs-acct.ci` | Command execution logged to TACACS+ | |
 
+### Test Infrastructure
+
+Functional tests require a TACACS+ server. Implement a minimal Go test server
+(`internal/component/tacacs/testserver_test.go`) that handles AUTHEN START/REPLY
+for PAP, accepts/rejects based on configured credentials, and responds to AUTHOR
+and ACCT requests. This is internal test code, not production. Allows all .ci
+tests to run without external infrastructure.
+
 ### Future (if deferring any tests)
-- TACACS+ authorization tests require a running TACACS+ server in CI. May use a Go-based test server.
+- TACACS+ authorization per-command tests (AC-9, AC-10) may be deferred if test server complexity is high.
 
 ## Files to Modify
 
@@ -348,6 +374,8 @@ system {
 - `internal/component/ssh/ssh.go` -- use Authenticator interface in password callback instead of direct authz.AuthenticateUser
 - `internal/component/ssh/schema/ze-ssh-conf.yang` -- add tacacs container to system.authentication
 - `cmd/ze/hub/main.go` -- build ChainAuthenticator from config (TACACS+ + local)
+- `internal/component/plugin/server/command.go` -- add accounting hook interface to Dispatcher, add RemoteAddr to CommandContext, insert START/STOP calls around handler execution
+- `cmd/ze/hub/infra_setup.go` -- populate RemoteAddr in CommandContext from SSH session
 
 ### Integration Checklist
 
@@ -434,9 +462,18 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: tacacs/config.go, tacacs/mapping.go, tacacs/register.go, ze-ssh-conf.yang, hub/main.go
    - Verify: end-to-end config to authentication chain
 
-5. **Phase: Accounting** -- command start/stop logging
-   - Files: tacacs/acct.go (extend), ssh/ssh.go or CLI hooks
-   - Verify: accounting records sent on command execution
+5. **Phase: Accounting** -- command start/stop logging via Dispatcher hook
+   - Hook point: `Dispatcher.Dispatch()` in `internal/component/plugin/server/command.go:336`
+     All commands (SSH exec, interactive TUI, local CLI) converge at this single function.
+     Insert accounting START after authorization check (line 386), STOP after handler returns (line 427).
+   - Add RemoteAddr field to CommandContext (`internal/component/plugin/server/command.go`).
+     Populate from SSH session in `cmd/ze/hub/infra_setup.go:133` where CommandContext is created.
+   - Accounting hook interface on Dispatcher: optional, nil when accounting disabled.
+     Mirrors existing authorization pattern (Dispatcher already has isAuthorized).
+   - Files: command.go (hook interface + calls), infra_setup.go (RemoteAddr population),
+     tacacs/acct.go (implement hook using TACACS+ ACCT REQUEST/REPLY)
+   - Tests: TestAcctStartStop, TestAcctServerUnreachable (log locally, never block command)
+   - Verify: accounting records sent on command execution, commands never blocked by accounting failure
 
 6. **Functional tests** --> All .ci tests
 7. **Full verification** --> `make ze-verify`
@@ -446,8 +483,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N (AC-1 through AC-14) has implementation |
-| Correctness | TACACS+ packet format matches RFC 8907; encryption correct |
+| Completeness | Every AC-N (AC-1 through AC-18) has implementation |
+| Correctness | TACACS+ packet format matches RFC 8907 (rfc/short/rfc8907.md); encryption correct |
 | Backwards compat | No TACACS+ config = identical behaviour to today |
 | Timing safety | Auth timing does not leak user existence |
 | Secret handling | Shared secrets never logged, never in CLI output |
@@ -473,8 +510,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Timing attack | Authentication timing constant regardless of failure reason |
 | User enumeration | No difference in response between "user not found" and "wrong password" |
 | TCP security | TACACS+ connection from configured source address only |
-| Fallback safety | Local fallback does not weaken security (TACACS+ rejection is final; only unreachability triggers fallback) |
+| Fallback safety | Local fallback does not weaken security (TACACS+ FAIL is final; only unreachability/ERROR triggers fallback) |
 | Connection reuse | Single-connect mode: persistent TCP must handle connection loss gracefully |
+| Fuzz testing | All packet unmarshal paths fuzzed, no panics on malformed input |
 
 ### Failure Routing
 
@@ -489,13 +527,15 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 | # | Decision | Rationale |
 |---|----------|-----------|
-| 1 | Native TACACS+ implementation, not a Go library dependency | TACACS+ wire protocol is simple (RFC 8907 is 60 pages, mostly examples). A native implementation avoids dependency risk and gives full control. Packet format is header + encrypted body, three message types. |
+| 1 | Native TACACS+ implementation, not a Go library dependency | TACACS+ wire protocol is simple (RFC 8907 is 60 pages, mostly examples). A native implementation avoids dependency risk and gives full control. nwaples/tacplus is unmaintained (5 years, unfixed bugs); tacquito is server-focused. Study both, implement our own with ze patterns (pooled buffers, slog, context-based lifecycle). |
 | 2 | Authenticator interface in authz package, not tacacs package | The interface belongs to the consumer (authz), not the provider (tacacs). Other auth backends (RADIUS, LDAP, OIDC) can implement the same interface without importing tacacs. |
 | 3 | Chain authenticator with ordered fallback | Standard ISP pattern: try TACACS+ first, fall back to local if server unreachable. TACACS+ rejection (wrong password) does NOT fall through to local. Only connection failure triggers fallback. |
 | 4 | priv-lvl to profile mapping via config | Different ISPs map privilege levels differently. Hardcoding 15=admin would be wrong. Config-driven mapping (level 15 -> admin, level 5 -> operator, etc.) is flexible. |
 | 5 | Accounting as optional | Not all deployments need accounting. Config flag enables/disables it. When disabled, no accounting packets sent, no overhead. |
 | 6 | PAP authentication type | SSH already verifies the transport (encrypted channel). TACACS+ over SSH is double-encrypted. PAP (plaintext password in TACACS+ packet, encrypted by TACACS+ body encryption) is sufficient and simplest. CHAP would require challenge-response which doesn't fit the SSH password callback model. |
 | 7 | VRF-aware TACACS+ connections | TACACS+ TCP connections should use the VRF context of the SSH server. If SSH is in the management VRF, TACACS+ connections go through the management VRF too. Uses vrfnet.Dial when VRF support is available. |
+| 8 | Unmapped priv-lvl denies access | TACACS+ users with a priv-lvl not in the tacacs-profile mapping are rejected. This differs from local users (no profile = admin). Rationale: an unmapped priv-lvl means the admin hasn't configured this level, so denying is safer than granting unexpected admin access. Warning logged with the priv-lvl value. |
+| 9 | Accounting hooks in Dispatcher.Dispatch() | All commands converge at Dispatcher.Dispatch() in command.go:336. Accounting START inserted after authorization check (line 386), STOP after handler returns (line 427). Single hook point covers SSH exec, interactive TUI, and local CLI. Accounting failures are logged locally, never block command execution. |
 
 ## Mistake Log
 
@@ -569,7 +609,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-14 all demonstrated
+- [ ] AC-1..AC-18 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `make ze-test` passes
 - [ ] Feature code integrated

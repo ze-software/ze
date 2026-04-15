@@ -58,6 +58,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ssh/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/tacacs/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/vpp/schema"

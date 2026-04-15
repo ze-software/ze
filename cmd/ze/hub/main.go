@@ -44,6 +44,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"
 	resolveDNS "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
+	"codeberg.org/thomas-mangin/ze/internal/component/tacacs"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
@@ -466,6 +467,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		if zefsUsers, err := loadZefsUsers(); err == nil {
 			cfg.Users = append(zefsUsers, cfg.Users...)
 		}
+
+		// Build pluggable authenticator (TACACS+ + local chain, or local only).
+		tacacsCfg := tacacs.ExtractConfig(loadResult.Tree)
+		cfg.Authenticator = buildAuthenticator(tacacsCfg, cfg.Users, slog.Default())
+
 		cfg.ConfigDir = loadResult.ConfigDir
 		if cfg.ConfigDir == "" {
 			cfg.ConfigDir = env.Get("ze.config.dir")
@@ -943,16 +949,17 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	modeHandler := zeweb.HandleCLIModeToggle(editorMgr, schema, renderer)
 
 	// Auth wrapper for protecting individual routes.
+	webAuth := &authz.LocalAuthenticator{Users: users}
 	var authWrap func(http.Handler) http.Handler
 	if insecureWeb {
 		authWrap = zeweb.InsecureMiddleware
 	} else {
 		authWrap = func(h http.Handler) http.Handler {
-			return zeweb.AuthMiddleware(sessionStore, users, loginRenderer, h)
+			return zeweb.AuthMiddleware(sessionStore, webAuth, loginRenderer, h)
 		}
 	}
 
-	loginHandler := zeweb.LoginHandler(sessionStore, users, loginRenderer)
+	loginHandler := zeweb.LoginHandler(sessionStore, webAuth, loginRenderer)
 	assetHandler := http.StripPrefix("/assets/", renderer.AssetHandler())
 
 	// Admin command tree for web UI.
