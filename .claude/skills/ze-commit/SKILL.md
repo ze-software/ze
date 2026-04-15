@@ -112,7 +112,7 @@ N issues found. [or "Clean -- no issues."]
 - **NEVER run `git add` or `git commit` directly.** Write the commit script only.
 - Never include spec files unless the user explicitly asks.
 - Never include documentation changes unless they're part of the task.
-- If `make ze-verify` hasn't passed this session, run it before preparing the commit.
+- If `make ze-verify-fast` hasn't passed this session, run it before preparing the commit.
 - If in doubt about scope, ask. The cost of asking is low; the cost of a bad commit is high.
 - Same system = one commit. Disjoint systems = separate commit scripts.
 - Never suggest, ask about, or hint at committing. Complete ALL work first. The user decides when.

@@ -1,6 +1,6 @@
 .PHONY: all build ze chaos test analyse clean fmt vet tidy generate help
 .PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-race-reactor ze-test ze-verify ze-ci
-.PHONY: ze-lint-changed ze-unit-test-changed ze-verify-changed
+.PHONY: ze-lint-changed ze-unit-test-changed ze-verify-changed ze-verify-fast ze-clean-tmp
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test ze-managed-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-all ze-all-test
@@ -248,8 +248,53 @@ ze-test: ze-lint ze-unit-test ze-functional-test ze-exabgp-test ze-fuzz-test
 	@echo "All ze tests passed"
 
 # All tests except fuzz (ze only -- use during development)
+# Sequential version (for make dependency chains)
 ze-verify: ze-lint ze-unit-test ze-functional-test ze-exabgp-test
 	@echo "Ze verification passed"
+
+# Parallel verify: runs lint+unit in parallel, then functional+exabgp in parallel.
+# Output captured to ZE_VERIFY_LOG (default: tmp/ze-verify.log).
+# Override: make ze-verify-fast ZE_VERIFY_LOG=tmp/my-verify.log
+# Lock file prevents concurrent runs; second caller waits and reads the log.
+ZE_VERIFY_LOG ?= tmp/ze-verify.log
+ze-verify-fast: bin/ze bin/ze-test
+	@mkdir -p tmp
+	@LOCKFILE=tmp/.ze-verify.lock; \
+	if [ -f "$$LOCKFILE" ]; then \
+		LOCK_PID=$$(cat "$$LOCKFILE" 2>/dev/null); \
+		if kill -0 "$$LOCK_PID" 2>/dev/null; then \
+			printf "\033[33mze-verify-fast already running (pid %s). Waiting...\033[0m\n" "$$LOCK_PID"; \
+			while kill -0 "$$LOCK_PID" 2>/dev/null; do sleep 2; done; \
+			printf "Previous run finished. Log: $(ZE_VERIFY_LOG)\n"; \
+			if tail -1 "$(ZE_VERIFY_LOG)" 2>/dev/null | grep -q "PASS"; then exit 0; else exit 1; fi; \
+		fi; \
+		rm -f "$$LOCKFILE"; \
+	fi; \
+	echo $$$$ > "$$LOCKFILE"; \
+	trap 'rm -f '"$$LOCKFILE" EXIT; \
+	echo "Running ze-verify (parallel)..." | tee "$(ZE_VERIFY_LOG)"; \
+	FAIL=0; \
+	echo "--- Phase 1: lint + unit (parallel) ---" | tee -a "$(ZE_VERIFY_LOG)"; \
+	golangci-lint run ./cmd/ze/... ./cmd/ze-test/... ./internal/... ./pkg/... ./parked/... ./test/... > tmp/.ze-lint.log 2>&1 & LINT_PID=$$!; \
+	$(GO_TEST) -race $(ZE_PACKAGES) > tmp/.ze-unit.log 2>&1 & UNIT_PID=$$!; \
+	wait $$LINT_PID || { echo "FAIL: lint" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); }; \
+	cat tmp/.ze-lint.log >> "$(ZE_VERIFY_LOG)"; \
+	wait $$UNIT_PID || { echo "FAIL: unit-test" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); }; \
+	cat tmp/.ze-unit.log >> "$(ZE_VERIFY_LOG)"; \
+	echo "--- Phase 2: functional + exabgp (parallel) ---" | tee -a "$(ZE_VERIFY_LOG)"; \
+	$(MAKE) --no-print-directory ze-functional-test > tmp/.ze-func.log 2>&1 & FUNC_PID=$$!; \
+	uv run --with psutil --with paramiko ./test/exabgp-compat/bin/functional encoding --timeout 60 > tmp/.ze-exabgp.log 2>&1 & EXABGP_PID=$$!; \
+	wait $$FUNC_PID || { echo "FAIL: functional-test" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); }; \
+	cat tmp/.ze-func.log >> "$(ZE_VERIFY_LOG)"; \
+	wait $$EXABGP_PID || { echo "FAIL: exabgp-test" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); }; \
+	cat tmp/.ze-exabgp.log >> "$(ZE_VERIFY_LOG)"; \
+	rm -f tmp/.ze-lint.log tmp/.ze-unit.log tmp/.ze-func.log tmp/.ze-exabgp.log; \
+	if [ $$FAIL -gt 0 ]; then \
+		printf "\n\033[31mFAIL  ze-verify-fast: %d stage(s) failed\033[0m\n" $$FAIL | tee -a "$(ZE_VERIFY_LOG)"; \
+		printf "Log: $(ZE_VERIFY_LOG)\n"; \
+		exit 1; \
+	fi; \
+	printf "\n\033[32mPASS  ze-verify-fast: all stages\033[0m\n" | tee -a "$(ZE_VERIFY_LOG)"
 
 # --- Scoped targets (parallel-safe: only lint/test packages with changed .go files) ---
 
@@ -651,6 +696,16 @@ clean:
 	@echo "Cleaning..."
 	rm -rf bin/ tmp/
 	rm -f coverage.out coverage.html
+
+# Clean tmp/ scratch files older than 24h (preserves build caches and session/)
+ze-clean-tmp:
+	@echo "Cleaning tmp/ scratch files older than 24h..."
+	@find tmp/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
+	@find tmp/ -maxdepth 1 -type d -not -name tmp -not -name session \
+		-not -name go-cache -not -name golangci-lint-cache \
+		-mmin +1440 -exec rm -rf {} + 2>/dev/null || true
+	@find tmp/session/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
+	@echo "Done. $$(ls -1 tmp/ 2>/dev/null | wc -l | tr -d ' ') entries remain."
 
 # Quick check (fast feedback during development)
 check: fmt vet

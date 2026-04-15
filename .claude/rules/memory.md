@@ -43,7 +43,7 @@ Key decisions agreed with user:
 - **Interfaces in `pkg/ze/`** — public so external plugins can depend on them
 - **ConfigManager is central authority** — editor (`ze config edit`), web UI, subsystems, plugins all use same interface
 - **Performance matters** — user explicitly asked for performance-conscious design
-- **`make ze-verify`** before closing spec/committing
+- **`make ze-verify-fast`** before closing spec/committing
 - **Cross-check child specs against umbrella** after each phase
 
 ### YANG Choice/Case Validation Gaps

@@ -36,7 +36,8 @@ Each `test/<subdir>/` has its own runner and format — they are not interchange
 | `make ze-unit-test` | Unit tests with race detector |
 | `make ze-functional-test` | All functional tests |
 | `make ze-lint` | 26 linters |
-| `make ze-verify` | All tests except fuzz (before commits) |
+| `make ze-verify-fast` | All tests except fuzz, parallel (before commits) |
+| `make ze-verify` | Same as above, sequential |
 | `make ze-ci` | lint + unit + build |
 | `make ze-fuzz-test` | Fuzz tests (15s per target) |
 | `make ze-exabgp-test` | ExaBGP compatibility |
@@ -67,11 +68,12 @@ Each `test/<subdir>/` has its own runner and format — they are not interchange
 | Single package | `go test -race ./internal/component/bgp/reactor/...` | seconds |
 | All unit tests | `make ze-unit-test` | fast |
 | All editor tests | `make ze-editor-test` | ~30s |
-| Pre-commit gate | `make ze-verify` | ~2 min |
+| Pre-commit gate | `make ze-verify-fast` | ~1 min |
 
-`make ze-verify` is the **final gate**, not a development tool. Use targeted commands during iteration.
+`make ze-verify-fast` is the **final gate**, not a development tool. Use targeted commands during iteration.
+Output is auto-captured to `tmp/ze-verify.log` (overwritten each run, no junk accumulation).
 
-**Overlapping runs:** If a test run is failing, kill it before starting another. Never run `make ze-verify` twice concurrently.
+**Overlapping runs:** If a test run is failing, kill it before starting another. Never run `make ze-verify-fast` twice concurrently.
 
 **Understand before modifying:** Before bulk-editing `.ci` files or test files, run one test and read its output to understand the format and expected behavior. Assumptions about test syntax cause cascading failures across every modified file.
 
@@ -105,10 +107,12 @@ Create a subfolder per debugging task (e.g., `tmp/watchdog-debug/`) to keep arti
 
 ## Debugging Failures
 
-**BLOCKING:** Capture output. Search the log — don't re-run the suite.
+**BLOCKING:** Search the log, don't re-run the suite.
 
 ```bash
-make ze-verify > tmp/ze-test-SESSION.log 2>&1 || grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-test-SESSION.log
+make ze-verify-fast   # output auto-captured to tmp/ze-verify.log
+# On failure, search:
+grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-verify.log
 ```
 
 On failure: search the log. On success: one line of exit status. Never `| tail`.
@@ -180,7 +184,7 @@ Tests organized by concern in `test/editor/`: `commands/`, `completion/`, `lifec
 |---------|---------|-----|
 | Default | 15000ms | Bash tool default |
 | `make ze-unit-test` | 120s | Longer than default |
-| `make ze-verify` | 180s | Runs lint + unit + functional + exabgp; regularly takes over 1m50s |
+| `make ze-verify-fast` | 180s | Parallel lint + unit + functional + exabgp |
 
 ## Common Flaky Test Causes
 
@@ -249,5 +253,5 @@ and must be migrated.
 
 See `rules/git-safety.md` for the full pre-commit workflow.
 
-`make ze-verify` is the ONLY acceptable pre-commit verification. Not `go test`. Not any subset.
+`make ze-verify-fast` is the ONLY acceptable pre-commit verification. Not `go test`. Not any subset.
 During development: `go test`, `make ze-unit-test` are fine for fast iteration.

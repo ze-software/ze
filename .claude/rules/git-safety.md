@@ -69,12 +69,13 @@ so in the commit summary. If unsure, run it.
 
 ### Step 1: If `ze-verify` applies (BLOCKING)
 
-**`make ze-verify` (timeout 180s). Not `go test`, not any subset.**
+**`make ze-verify-fast` (timeout 180s). Not `go test`, not any subset.**
 
-`make ze-verify` must pass before presenting the commit script. Fix what fails.
+`make ze-verify-fast` must pass before presenting the commit script. Fix what fails.
+Output is auto-captured to `tmp/ze-verify.log`.
 
 ```
-[ ] 1. Run `make ze-verify` capturing to tmp/ze-test-SESSION.log (SESSION = your 8-char ID).
+[ ] 1. Run `make ze-verify-fast` (180s timeout). Output is in tmp/ze-verify.log.
 [ ] 2. If failures caused by current work: fix them before proceeding. Re-run.
       If pre-existing failures: do not block current work. Fix them after the primary task
       completes, in a separate commit script. If fix needs >10 min, log to

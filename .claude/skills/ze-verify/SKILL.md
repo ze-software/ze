@@ -1,16 +1,21 @@
 # Verify
 
-Run `make ze-verify` and report results clearly.
+Run `make ze-verify-fast` and report results clearly.
 
 See also: `/ze-debug` (investigate failures), `/ze-commit` (prepare commit after passing)
 
 ## Steps
 
-1. **Run verification:** Execute `make ze-verify` with 180s timeout, capturing output to `tmp/ze-test-SESSION.log`.
-2. **Parse results:** Search the log for failures:
-   - `grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-test-SESSION.log`
+1. **Check for running verify:** If `tmp/.ze-verify.lock` exists and the PID inside is alive, another session is already running verify. Do NOT start a second run. Instead:
+   - Report "ze-verify-fast already running (pid N), waiting for it to finish"
+   - Wait for it to complete (the make target handles this automatically)
+   - Read `tmp/ze-verify.log` for the results
+2. **Run verification:** Execute `make ze-verify-fast` with 180s timeout. Output is auto-captured to `tmp/ze-verify.log`.
+   - Custom log path: `make ze-verify-fast ZE_VERIFY_LOG=tmp/ze-verify-myname.log`
+3. **Parse results:** On failure, search the log:
+   - `grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-verify.log`
    - Also check exit code
-3. **Report** using this format:
+4. **Report** using this format:
 
    **On success:**
    ```
@@ -37,11 +42,11 @@ See also: `/ze-debug` (investigate failures), `/ze-commit` (prepare commit after
    - Functional tests: pass/fail
    ```
 
-4. **On failure:** Do NOT propose fixes automatically. Report all failures and ask the user how to proceed.
+5. **On failure:** Do NOT propose fixes automatically. Report all failures and ask the user how to proceed.
 
 ## Fallback
 
-If `make ze-verify` times out (180s), fall back to running stages separately:
+If `make ze-verify-fast` times out (180s), fall back to running stages separately:
 1. `make ze-lint` (60s timeout)
 2. `make ze-unit-test` (120s timeout)
 3. `make ze-functional-test` (120s timeout)
@@ -54,3 +59,4 @@ Report whichever stages completed. Note which stage timed out. This gives partia
 - List EVERY failure. No omissions, no "and N more".
 - Never say "pre-existing" or "unrelated" to justify ignoring a failure.
 - The user decides what to do about failures.
+- If another session is running verify, wait for it instead of starting a duplicate run.
