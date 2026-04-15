@@ -79,8 +79,7 @@ func NewEditorWithStorage(store storage.Storage, configPath string) (*Editor, er
 	if err != nil {
 		return nil, fmt.Errorf("YANG schema: %w", err)
 	}
-	parser := config.NewParser(schema)
-	tree, err := parser.Parse(content)
+	tree, _, err := parseConfigWithFormat(content, schema)
 	if err != nil {
 		// Non-fatal: allow editing invalid configs
 		tree = config.NewTree()
