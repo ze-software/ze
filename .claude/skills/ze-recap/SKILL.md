@@ -6,12 +6,12 @@ See also: `/ze-status` (wider cross-project view), `/ze-handoff` (prepare for ne
 
 ## Steps
 
-1. **Selected spec:** Read `.claude/selected-spec`. If a spec is selected, read it and extract:
+1. **Selected spec:** Read `tmp/session/selected-spec`. If a spec is selected, read it and extract:
    - Spec title and metadata (Status, Phase, Depends)
    - Task section (what the work aims to achieve)
    - Acceptance Criteria summary (total count, how many have evidence)
    - Implementation Phases (which phases exist, any phase markers)
-2. **Session state:** Find the most recent `.claude/session-state-<spec-stem>-*.md` file for this spec (per-session files). Extract the most recent session entry.
+2. **Session state:** Find the most recent `tmp/session/session-state-<spec-stem>-*.md` file for this spec (per-session files). Extract the most recent session entry.
 3. **Git state:** Run `git status`, `git diff --stat`, and `git log --oneline -10`. Summarize:
    - Current branch
    - Uncommitted changes (count, key files, and scale from diff stat)

@@ -6,7 +6,7 @@ See also: `/ze-recap` (deep dive on current session/spec)
 
 ## Steps
 
-1. **Selected spec:** Read `.claude/selected-spec`. If set, read spec metadata (Status, Phase, Updated).
+1. **Selected spec:** Read `tmp/session/selected-spec`. If set, read spec metadata (Status, Phase, Updated).
 2. **Open specs:** Scan `plan/spec-*.md` for all specs. For each, extract Status from metadata table. Present:
 
 | Spec | Status | Updated |
@@ -18,7 +18,7 @@ See also: `/ze-recap` (deep dive on current session/spec)
    - Uncommitted changes (count and key files)
    - Recent commits (last 5)
 4. **Deferrals:** Read `plan/deferrals.md`. Count open items. List any that reference the selected spec.
-5. **Test state:** Find the most recent `tmp/ze-test-*.log` file. If one exists, check its age and whether it shows failures.
+5. **Test state:** Check `tmp/ze-verify.log`. If it exists, check its age and whether it shows failures.
    - Fresh (<1h) and passing: "Tests: PASS (Nh ago)"
    - Fresh and failing: "Tests: FAIL -- [count] failures (Nh ago)"
    - Stale (>1h) or missing: "Tests: not run recently"

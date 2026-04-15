@@ -1,7 +1,7 @@
 ---
 paths:
   - "plan/**"
-  - ".claude/selected-spec"
+  - "tmp/session/selected-spec"
 ---
 
 # Spec Preservation

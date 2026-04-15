@@ -10,9 +10,14 @@ source .claude/hooks/lib/state-file.sh
 # Clean up stale markers from dead sessions
 _cleanup_stale_markers
 
+# Clean up old tmp/ scratch files (>24h) silently
+find tmp/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
+find tmp/session/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
+
 # --- Claim spec for this session ---
 # Read all specs from selected-spec
-SELECTED_SPECS=$(grep -v '^#' .claude/selected-spec 2>/dev/null | grep -v '^$')
+mkdir -p tmp/session
+SELECTED_SPECS=$(grep -v '^#' tmp/session/selected-spec 2>/dev/null | grep -v '^$')
 SELECTED_COUNT=$(echo "$SELECTED_SPECS" | grep -c . 2>/dev/null || true)
 
 # Find which specs are already claimed by other sessions
@@ -20,7 +25,7 @@ UNCLAIMED=""
 while IFS= read -r spec; do
     [ -z "$spec" ] && continue
     CLAIMED=false
-    for marker in .claude/.session-*; do
+    for marker in tmp/session/.session-*; do
         [ -f "$marker" ] || continue
         if [ "$(head -1 "$marker" 2>/dev/null)" = "$spec" ]; then
             CLAIMED=true
@@ -48,7 +53,7 @@ fi
 
 # --- Auto-transition spec status to in-progress when claimed ---
 SID_CHECK=$(_session_id)
-MARKER_CHECK=".claude/.session-${SID_CHECK}"
+MARKER_CHECK="tmp/session/.session-${SID_CHECK}"
 CLAIMED_SPEC_NAME=""
 if [ -f "$MARKER_CHECK" ]; then
     CLAIMED_SPEC_NAME=$(head -1 "$MARKER_CHECK" 2>/dev/null)
@@ -115,7 +120,7 @@ if [ -f "$STATE_FILE" ]; then
 else
     # Look for a previous session's state for the same spec
     SID=$(_session_id)
-    MARKER=".claude/.session-${SID}"
+    MARKER="tmp/session/.session-${SID}"
     CLAIMED_SPEC=""
     if [ -f "$MARKER" ]; then
         CLAIMED_SPEC=$(head -1 "$MARKER" 2>/dev/null)

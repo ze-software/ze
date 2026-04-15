@@ -1,7 +1,7 @@
 ---
 paths:
   - "plan/**"
-  - ".claude/selected-spec"
+  - "tmp/session/selected-spec"
 ---
 
 # Implementation Audit
@@ -68,7 +68,7 @@ Hook `pre-commit-spec-audit.sh` (exit 2) blocks `git commit` when:
 | Pre-Commit Verification | Section exists with filled Files Exist + AC Verified + Wiring Verified tables |
 | Learned summary | Exists and does not contain "not wired", "library only", etc. |
 
-Bypass: clear `.claude/selected-spec` for unrelated commits.
+Bypass: clear `tmp/session/selected-spec` for unrelated commits.
 
 ## Pre-Commit Verification (BLOCKING)
 

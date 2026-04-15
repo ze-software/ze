@@ -194,6 +194,6 @@ RFC summaries: `rfc/short/`. Full RFCs: `rfc/full/`.
 
 ## Session State
 
-Per-session: `.claude/session-state-<spec-stem>-<SID>.md` (not committed). Each session gets its own file.
-Session markers: `.claude/.session-<ID>` map sessions to specs. See `hooks/lib/state-file.sh`.
+Per-session: `tmp/session/session-state-<spec-stem>-<SID>.md` (gitignored). Each session gets its own file.
+Session markers: `tmp/session/.session-<ID>` map sessions to specs. See `hooks/lib/state-file.sh`.
 On startup, `_find_latest_state_for_spec()` finds the most recent state file for a spec from any previous session.

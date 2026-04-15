@@ -9,7 +9,7 @@ See also: `/ze-design` (stress-test a design), `/ze-explore` (research a topic),
 
 ### Step 0: Detect Mode
 
-1. Read `.claude/selected-spec`
+1. Read `tmp/session/selected-spec`
 2. If set AND spec file exists in `plan/`: **RESUME mode** -- go to Step R
 3. If empty or spec doesn't exist: **NEW mode** -- go to Step 1
 
@@ -18,7 +18,7 @@ See also: `/ze-design` (stress-test a design), `/ze-explore` (research a topic),
 ### Step R: Resume Existing Spec
 
 1. Read the spec file from `plan/`
-2. Read per-session state (most recent `.claude/session-state-<spec-stem>-*.md`) for digests
+2. Read per-session state (most recent `tmp/session/session-state-<spec-stem>-*.md`) for digests
 3. Determine current phase by checking spec completeness:
    - No `→ Decision:` / `→ Constraint:` annotations → still in RESEARCH
    - Data Flow section empty → still in RESEARCH
@@ -50,7 +50,7 @@ See also: `/ze-design` (stress-test a design), `/ze-explore` (research a topic),
    - Is the scope too broad for one spec? Too narrow to be useful?
    - Is there a simpler framing of the same goal?
 7. **GATE:** ASK user to confirm scope and direction. Present your concern alongside the recommendation. Do not proceed until confirmed.
-8. Write spec filename to `.claude/selected-spec`
+8. Write spec filename to `tmp/session/selected-spec`
 9. Create spec file with `Status: skeleton`
 
 ---
@@ -216,4 +216,4 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
 - Style: tables and prose, never code snippets in specs (`rules/spec-no-code.md`)
 - All research findings go into spec exhaustively (`rules/planning.md`)
 - Append-only editing for existing specs (`rules/spec-preservation.md`)
-- One spec at a time -- `.claude/selected-spec` tracks which
+- One spec at a time -- `tmp/session/selected-spec` tracks which

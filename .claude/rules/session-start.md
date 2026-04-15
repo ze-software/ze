@@ -7,9 +7,9 @@ Rationale: `.claude/rationale/session-start.md`
 
 ```
 [ ] 1. Load LSP tool (`select:LSP`) for Go code intelligence
-[ ] 2. Read .claude/selected-spec
+[ ] 2. Read tmp/session/selected-spec
 [ ] 3. Read plan/<spec-name> (if selected)
-[ ] 4. Read per-spec session state (.claude/session-state-<spec-stem>-<SID>.md) if exists
+[ ] 4. Read per-spec session state (tmp/session/session-state-<spec-stem>-<SID>.md) if exists
 [ ] 5. Check git status
 [ ] 6. If user provides a handoff: complete Receiving a Handoff (below) BEFORE any plan
 [ ] 7. Start working

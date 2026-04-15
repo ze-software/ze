@@ -8,7 +8,7 @@ See also: `/ze-recap` (current session state), `/ze-status` (cross-project atten
 
 ## Steps
 
-1. **Read the spec:** Read `.claude/selected-spec`. If a spec is selected, read the spec file.
+1. **Read the spec:** Read `tmp/session/selected-spec`. If a spec is selected, read the spec file.
 2. **Identify remaining work:** From the spec, conversation, and task list, enumerate:
    - What is done (committed or implemented)
    - What is in progress (uncommitted changes)

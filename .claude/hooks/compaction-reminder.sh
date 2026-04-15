@@ -11,8 +11,9 @@ MESSAGE=$(cat)
 if echo "$MESSAGE" | grep -q "continued from a previous conversation" && \
    echo "$MESSAGE" | grep -q "ran out of context\|context compaction"; then
     SID=$(_session_id)
-    echo "$(date -Iseconds)" > ".claude/.compaction-detected-${SID}"
-    SELECTED_SPEC=$(grep -v '^#' .claude/selected-spec 2>/dev/null | grep -v '^$' | tail -1 | tr -d '[:space:]')
+    mkdir -p tmp/session
+    echo "$(date -Iseconds)" > "tmp/session/.compaction-detected-${SID}"
+    SELECTED_SPEC=$(grep -v '^#' tmp/session/selected-spec 2>/dev/null | grep -v '^$' | tail -1 | tr -d '[:space:]')
 
     # Compact output to stderr (no tokens)
     echo "🔄 COMPACTION: Read .claude/rules/post-compaction.md" >&2

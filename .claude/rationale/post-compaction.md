@@ -6,7 +6,7 @@ Why: `.claude/rules/post-compaction.md`
 A `[x]` in a spec means you read it in a previous session. You don't remember the content. Re-read files you need for your current task, not "ALL files ever listed."
 
 ## Why Tiered Recovery
-- Tier 1 (essential): spec + session-state + git status -- always needed
+- Tier 1 (essential): spec + session state (tmp/session/) + git status -- always needed
 - Tier 2 (file digests): compact summaries replace re-reading 10+ full files with ~20 lines
 - Tier 3 (fallback): only when no digests available -- re-read source + write digests immediately
 

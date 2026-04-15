@@ -24,7 +24,7 @@ if [[ "$FILE_PATH" =~ plan/deferrals\.md$ ]]; then
 fi
 
 # Skip memory and session state files
-if [[ "$FILE_PATH" =~ \.claude/(memory|session-state|plan)/ ]] || [[ "$FILE_PATH" =~ \.claude/session-state ]]; then
+if [[ "$FILE_PATH" =~ \.claude/(memory|plan)/ ]] || [[ "$FILE_PATH" =~ tmp/session/ ]]; then
     exit 0
 fi
 

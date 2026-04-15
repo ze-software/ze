@@ -8,7 +8,7 @@ For architecture docs and RFC navigation, see `.claude/INDEX.md`.
 
 Read `.claude/rules/session-start.md` first. It contains the TOP 6 blocking rules that prevent the most expensive mistakes. The short version:
 
-1. Read the selected spec (`.claude/selected-spec`) before doing anything
+1. Read the selected spec (`tmp/session/selected-spec`) before doing anything
 2. Read source code before writing code — understand what exists
 3. No code without understanding — you must be able to name 3 related files
 4. TDD: test must FAIL before implementation

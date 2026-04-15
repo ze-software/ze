@@ -6,7 +6,7 @@ See also: `/ze-implement` (implement the spec), `/ze-review-spec` (post-impl ver
 
 ## Steps
 
-1. **Read the spec:** Read `.claude/selected-spec`, then read `plan/<spec-name>`
+1. **Read the spec:** Read `tmp/session/selected-spec`, then read `plan/<spec-name>`
 2. **Extract all requirements:** List every item from:
    - Task section (features/requirements)
    - TDD Test Plan (unit + functional tests)

@@ -20,7 +20,7 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
 
 ## Steps
 
-1. **Read the spec:** Read `.claude/selected-spec`, then read `plan/<spec-name>`
+1. **Read the spec:** Read `tmp/session/selected-spec`, then read `plan/<spec-name>`
 2. **Update spec status (BLOCKING -- do this FIRST, before any other work):**
    Edit the spec file NOW: set `Status` to `in-progress`, `Phase` to `1/N`, `Updated` to today.
    This is the FIRST action after reading. Not after audit, not after implementation, not at the end.

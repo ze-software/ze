@@ -1,7 +1,7 @@
 ---
 paths:
   - "plan/**"
-  - ".claude/selected-spec"
+  - "tmp/session/selected-spec"
 ---
 
 # Planning
@@ -11,7 +11,7 @@ Rationale: `.claude/rationale/planning.md`
 
 ## Spec Selection
 
-One spec at a time per session. Tracked in `.claude/selected-spec` (one filename per line).
+One spec at a time per session. Tracked in `tmp/session/selected-spec` (one filename per line).
 **Append** your spec filename when selecting. **Remove your line** after writing summary to `plan/learned/`.
 Multiple lines means multiple Claude sessions are working concurrently -- do not overwrite their entries.
 
@@ -177,7 +177,7 @@ If a spec describes work that is **already implemented**, run the full Completio
 [ ] 7. Review Mistake Log — check MEMORY.md, promote if seen before
 [ ] 8. Update spec — Implementation Summary, Documentation Updates, Deviations
 [ ] 9. Write learned summary: plan/learned/NNN-<name>.md (see plan/TEMPLATE.md for summary format)
-[ ] 10. Verify: `make ze-verify` + git status + git diff, no unintended changes
+[ ] 10. Verify: `make ze-verify-fast` + git status + git diff, no unintended changes
 [ ] 11. Executive Summary Report — present to user with what was done and what is left (including deferred).
         BLOCKING: learned summary (step 9) must exist. Name the file in the report.
         Do NOT ask to commit. The user will tell you when to commit.

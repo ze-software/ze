@@ -13,7 +13,7 @@
 # 7. Pre-Commit Verification section exists and has data rows
 # 8. Learned summary exists and does not claim incompleteness
 #
-# Bypass: clear .claude/selected-spec to commit unrelated work.
+# Bypass: clear tmp/session/selected-spec to commit unrelated work.
 # Exit code 2 = BLOCK the commit.
 
 INPUT=$(cat)
@@ -27,11 +27,11 @@ fi
 cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || exit 0
 
 # Check if there's a selected spec
-if [[ ! -f .claude/selected-spec ]]; then
+if [[ ! -f tmp/session/selected-spec ]]; then
     exit 0
 fi
 
-SPEC_NAME=$(grep -v '^#' .claude/selected-spec 2>/dev/null | grep -v '^$' | tail -1 | tr -d '[:space:]')
+SPEC_NAME=$(grep -v '^#' tmp/session/selected-spec 2>/dev/null | grep -v '^$' | tail -1 | tr -d '[:space:]')
 if [[ -z "$SPEC_NAME" ]]; then
     exit 0
 fi
@@ -206,7 +206,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
         echo -e "  ${RED}✗${RESET} $err" >&2
     done
     echo "" >&2
-    echo -e "${YELLOW}Fix these, or clear .claude/selected-spec for unrelated commits.${RESET}" >&2
+    echo -e "${YELLOW}Fix these, or clear tmp/session/selected-spec for unrelated commits.${RESET}" >&2
     echo -e "See: rules/implementation-audit.md, rules/integration-completeness.md" >&2
     exit 2
 fi

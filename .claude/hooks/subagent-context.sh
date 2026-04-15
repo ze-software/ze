@@ -7,8 +7,8 @@ PROJECT_DIR="$(cd "$DIR/.." && pwd)"
 
 # Selected spec (if any)
 SPEC=""
-if [ -f "$DIR/selected-spec" ]; then
-  SPEC=$(cat "$DIR/selected-spec" 2>/dev/null | tr -d '[:space:]')
+if [ -f "$PROJECT_DIR/tmp/session/selected-spec" ]; then
+  SPEC=$(cat "$PROJECT_DIR/tmp/session/selected-spec" 2>/dev/null | tr -d '[:space:]')
 fi
 
 # Current branch

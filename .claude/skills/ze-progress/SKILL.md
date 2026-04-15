@@ -22,7 +22,7 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
 
 ## Steps
 
-1. **Read `.claude/selected-spec`.** If empty or missing: report "No spec selected. Run `/ze-spec` to pick or create one." and stop.
+1. **Read `tmp/session/selected-spec`.** If empty or missing: report "No spec selected. Run `/ze-spec` to pick or create one." and stop.
 2. **Read `plan/<spec-name>`.** Extract the metadata table (`Status`, `Updated`), the Acceptance Criteria table, the TDD Test Plan, the Files to Modify / Files to Create lists, and the Wiring Test table.
 3. **Check git state:** `git status`, `git log --oneline -20`, and `git log --oneline -- plan/<spec-name>`. Record the timestamp of the most recent commit touching any spec-scoped file.
 4. **Stage 1 -- Implementation:** Build the AC / TDD / Files table below by checking each row against the code:
@@ -39,7 +39,7 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
    - If uncommitted code exists AND no review has run since it was written: STAGE = 3. Go to step 9.
    - If a review ran but reported unresolved BLOCKER or ISSUE items that are not yet fixed: STAGE = 3.
 7. **Stage 4 -- Commit A:** Check:
-   - Did `make ze-verify` pass recently? Look for a fresh `tmp/ze-test-*.log` (<1h old) or a documented pass in session state.
+   - Did `make ze-verify-fast` pass recently? Check `tmp/ze-verify.log` (<1h old) or a documented pass in session state.
    - Are there uncommitted files in the spec scope (code, tests, docs, or the spec file itself)?
    - If uncommitted spec-scoped files remain: STAGE = 4. Go to step 9.
 8. **Stage 5 -- Commit B (closure):** Check:
