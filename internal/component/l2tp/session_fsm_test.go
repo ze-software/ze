@@ -105,6 +105,16 @@ func buildSLI(accm ACCMValue) []byte {
 	return buf[:off]
 }
 
+// buildOCCN builds a minimal valid OCCN body.
+func buildOCCN(txSpeed, framingType uint32) []byte {
+	var buf [128]byte
+	off := 0
+	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgOCCN))
+	off += WriteAVPUint32(buf[:], off, true, AVPTxConnectSpeed, txSpeed)
+	off += WriteAVPUint32(buf[:], off, true, AVPFramingType, framingType)
+	return buf[:off]
+}
+
 // --- AC-1: ICRQ -> ICRP full handshake start ---
 
 func TestSession_IncomingLNS_ICRQ(t *testing.T) {
@@ -453,6 +463,47 @@ func TestSession_OutgoingLAC_OCRQ(t *testing.T) {
 	}
 }
 
+func TestSession_OutgoingLAC_OCCN(t *testing.T) {
+	// VALIDATES: AC-13 -- OCCN received on session in wait-connect -> established.
+	// PREVENTS: OCCN silently dropped or state not transitioned.
+	//
+	// handleOCCN requires WaitConnect state. Create a session via ICRQ (which
+	// puts it in WaitConnect) and then deliver OCCN to exercise the handler.
+	// The handler is state-based, not call-type-based.
+	tun := newEstablishedTunnel(t, 0)
+	now := time.Now()
+	logger := slog.Default()
+
+	// Step 1: Create session in WaitConnect via ICRQ.
+	tun.handleICRQ(buildICRQ(500, 1001), now, logger)
+	var sess *L2TPSession
+	for _, s := range tun.sessions {
+		sess = s
+	}
+	if sess == nil {
+		t.Fatal("no session created")
+	}
+	if sess.state != L2TPSessionWaitConnect {
+		t.Fatalf("expected wait-connect, got %s", sess.state)
+	}
+
+	// Step 2: Deliver OCCN.
+	occnPayload := buildOCCN(56000, 1) // 56kbps, async framing
+	out := tun.handleOCCN(sess, occnPayload, now, logger)
+	if len(out) != 0 {
+		t.Fatalf("OCCN: expected 0 sends, got %d", len(out))
+	}
+	if sess.state != L2TPSessionEstablished {
+		t.Fatalf("expected established after OCCN, got %s", sess.state)
+	}
+	if sess.txConnectSpeed != 56000 {
+		t.Fatalf("expected tx speed 56000, got %d", sess.txConnectSpeed)
+	}
+	if sess.framingType != 1 {
+		t.Fatalf("expected framing 1, got %d", sess.framingType)
+	}
+}
+
 // --- AC-14: Unknown mandatory AVP -> CDN ---
 
 func TestSession_UnknownMandatoryAVP(t *testing.T) {
@@ -644,6 +695,20 @@ func TestParseOCRQ_Valid(t *testing.T) {
 	}
 	if info.assignedSessionID != 600 {
 		t.Fatalf("expected SID 600, got %d", info.assignedSessionID)
+	}
+}
+
+func TestParseOCCN_Valid(t *testing.T) {
+	payload := buildOCCN(56000, 1)
+	info, err := parseOCCN(payload)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if info.txConnectSpeed != 56000 {
+		t.Fatalf("expected tx speed 56000, got %d", info.txConnectSpeed)
+	}
+	if info.framingType != 1 {
+		t.Fatalf("expected framing 1, got %d", info.framingType)
 	}
 }
 

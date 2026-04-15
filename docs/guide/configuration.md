@@ -793,6 +793,7 @@ l2tp {
     shared-secret "my-tunnel-secret";
     hello-interval 60;
     max-tunnels 1000;
+    max-sessions 100;
 }
 
 environment {
@@ -814,6 +815,7 @@ Protocol settings (root `l2tp {}`):
 | `shared-secret` | string | (unset) | CHAP-MD5 challenge/response secret (RFC 2661 S4.2). If unset and a peer sends a Challenge AVP, the tunnel is rejected with StopCCN Result Code 4. |
 | `hello-interval` | uint16 | (unset) | Seconds of peer silence before sending HELLO (1-3600). RFC 2661 recommends 60. |
 | `max-tunnels` | uint16 | 0 (unbounded) | Maximum concurrent tunnels. New SCCRQs beyond the limit receive StopCCN Result Code 2. |
+| `max-sessions` | uint16 | 0 (unbounded) | Maximum concurrent sessions per tunnel. New ICRQs/OCRQs beyond the limit receive CDN Result Code 4 (no resources). |
 
 Listener endpoints (`environment { l2tp { } }`):
 

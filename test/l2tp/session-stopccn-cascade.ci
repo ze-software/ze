@@ -1,0 +1,205 @@
+# Test: StopCCN cascades to all active sessions.
+# VALIDATES: AC-9 -- StopCCN clears all sessions via CDN.
+
+tmpfs=session-stopccn-cascade.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Establish tunnel + two sessions, then send StopCCN. Verify cascade."""
+import hashlib
+import os
+import socket
+import struct
+import sys
+import time
+
+if len(sys.argv) < 2:
+    print("usage: session-stopccn-cascade.py <port>", file=sys.stderr)
+    sys.exit(2)
+
+TARGET = ("127.0.0.1", int(sys.argv[1]))
+SECRET = os.environ.get("TEST_SECRET", "s3cr3t").encode("utf-8")
+PEER_TID = 0x0123
+PEER_CHALLENGE = bytes.fromhex("00112233445566778899aabbccddeeff")
+
+
+def avp(mandatory, attr_type, value, vendor=0):
+    flags = 0x8000 if mandatory else 0
+    return struct.pack("!HHH", flags | (6 + len(value)), vendor, attr_type) + value
+
+
+def l2tp_ctrl(dest_tid, dest_sid, ns, nr, body):
+    total = 12 + len(body)
+    hdr = struct.pack("!HHHHHH", 0xC802, total, dest_tid, dest_sid, ns, nr)
+    return hdr + body
+
+
+def parse_avps(body):
+    out = {}
+    off = 0
+    while off + 6 <= len(body):
+        word, vendor, atype = struct.unpack("!HHH", body[off:off+6])
+        length = word & 0x03FF
+        if length < 6 or off + length > len(body):
+            break
+        if vendor == 0:
+            out[atype] = body[off+6:off+length]
+        off += length
+    return out
+
+
+def recv_ctrl(sock, expect_type):
+    """Receive a control message of the given type, skipping ZLBs."""
+    deadline = time.time() + 2.0
+    while time.time() < deadline:
+        try:
+            data, _ = sock.recvfrom(1500)
+        except (socket.timeout, OSError):
+            continue
+        if len(data) < 12:
+            continue
+        _, length, tid, sid, ns, nr = struct.unpack("!HHHHHH", data[:12])
+        if length <= 12:
+            continue  # ZLB ACK
+        avps = parse_avps(data[12:length])
+        if 0 not in avps:
+            continue
+        mt = struct.unpack("!H", avps[0])[0]
+        if mt == expect_type:
+            return avps
+    return None
+
+
+def drain(sock):
+    """Drain all pending messages from the socket."""
+    old_timeout = sock.gettimeout()
+    sock.settimeout(0.1)
+    while True:
+        try:
+            sock.recvfrom(1500)
+        except (socket.timeout, OSError):
+            break
+    sock.settimeout(old_timeout)
+
+
+def main():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", 0))
+    sock.settimeout(0.25)
+    time.sleep(0.05)
+
+    # --- Tunnel handshake (SCCRQ/SCCRP/SCCCN) ---
+    sccrq_body = b""
+    sccrq_body += avp(True, 0, struct.pack("!H", 1))
+    sccrq_body += avp(True, 2, b"\x01\x00")
+    sccrq_body += avp(True, 3, struct.pack("!I", 3))
+    sccrq_body += avp(True, 4, struct.pack("!I", 0))
+    sccrq_body += avp(True, 7, b"py-peer")
+    sccrq_body += avp(True, 9, struct.pack("!H", PEER_TID))
+    sccrq_body += avp(True, 10, struct.pack("!H", 8))
+    sccrq_body += avp(True, 11, PEER_CHALLENGE)
+    sccrq = l2tp_ctrl(0, 0, 0, 0, sccrq_body)
+
+    sccrp_avps = None
+    for _ in range(20):
+        try:
+            sock.sendto(sccrq, TARGET)
+            data, _ = sock.recvfrom(1500)
+            if len(data) >= 12:
+                _, length, _, _, _, _ = struct.unpack("!HHHHHH", data[:12])
+                avps = parse_avps(data[12:length])
+                if 0 in avps and struct.unpack("!H", avps[0])[0] == 2:
+                    sccrp_avps = avps
+                    break
+        except (socket.timeout, ConnectionRefusedError, OSError):
+            continue
+    if sccrp_avps is None:
+        print("ERROR: no SCCRP", file=sys.stderr)
+        return 1
+    local_tid = struct.unpack("!H", sccrp_avps[9])[0]
+    digest = hashlib.md5(bytes([3]) + SECRET + sccrp_avps[11]).digest()
+    sock.settimeout(1.0)
+    scccn_body = avp(True, 0, struct.pack("!H", 3)) + avp(True, 13, digest)
+    sock.sendto(l2tp_ctrl(local_tid, 0, 1, 1, scccn_body), TARGET)
+    drain(sock)
+
+    # --- Session 1: ICRQ -> ICRP -> ICCN ---
+    time.sleep(0.1)
+    icrq1_body = b""
+    icrq1_body += avp(True, 0, struct.pack("!H", 10))
+    icrq1_body += avp(True, 14, struct.pack("!H", 500))
+    icrq1_body += avp(True, 15, struct.pack("!I", 1))
+    sock.sendto(l2tp_ctrl(local_tid, 0, 2, 1, icrq1_body), TARGET)
+    icrp1 = recv_ctrl(sock, 11)  # ICRP
+    if icrp1 is None:
+        print("ERROR: no ICRP for session 1", file=sys.stderr)
+        return 1
+    ze_sid1 = struct.unpack("!H", icrp1[14])[0]
+    drain(sock)
+
+    iccn1_body = b""
+    iccn1_body += avp(True, 0, struct.pack("!H", 12))
+    iccn1_body += avp(True, 24, struct.pack("!I", 10000000))
+    iccn1_body += avp(True, 19, struct.pack("!I", 2))
+    sock.sendto(l2tp_ctrl(local_tid, ze_sid1, 3, 2, iccn1_body), TARGET)
+    drain(sock)
+
+    # --- Session 2: ICRQ -> ICRP -> ICCN ---
+    time.sleep(0.1)
+    icrq2_body = b""
+    icrq2_body += avp(True, 0, struct.pack("!H", 10))
+    icrq2_body += avp(True, 14, struct.pack("!H", 501))
+    icrq2_body += avp(True, 15, struct.pack("!I", 2))
+    sock.sendto(l2tp_ctrl(local_tid, 0, 4, 2, icrq2_body), TARGET)
+    icrp2 = recv_ctrl(sock, 11)  # ICRP
+    if icrp2 is None:
+        print("ERROR: no ICRP for session 2", file=sys.stderr)
+        return 1
+    ze_sid2 = struct.unpack("!H", icrp2[14])[0]
+    drain(sock)
+
+    iccn2_body = b""
+    iccn2_body += avp(True, 0, struct.pack("!H", 12))
+    iccn2_body += avp(True, 24, struct.pack("!I", 56000))
+    iccn2_body += avp(True, 19, struct.pack("!I", 1))
+    sock.sendto(l2tp_ctrl(local_tid, ze_sid2, 5, 3, iccn2_body), TARGET)
+    drain(sock)
+    time.sleep(0.1)
+
+    # --- StopCCN to tear down tunnel + all sessions ---
+    stopccn_body = b""
+    stopccn_body += avp(True, 0, struct.pack("!H", 4))          # Message Type = StopCCN
+    stopccn_body += avp(True, 9, struct.pack("!H", PEER_TID))   # Assigned Tunnel ID
+    stopccn_body += avp(True, 1, struct.pack("!HH", 1, 0))      # Result Code (1=general)
+    sock.sendto(l2tp_ctrl(local_tid, 0, 6, 3, stopccn_body), TARGET)
+    drain(sock)
+
+    print("OK: StopCCN sent with 2 active sessions")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF_PY
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=TEST_SECRET:value=s3cr3t
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=python3 session-stopccn-cascade.py $PORT:timeout=10s
+expect=exit:code=0
+expect=stdout:contains=OK: StopCCN sent
+expect=stderr:contains=StopCCN clearing sessions

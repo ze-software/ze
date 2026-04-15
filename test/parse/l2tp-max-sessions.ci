@@ -1,0 +1,20 @@
+# Test: ze config validate with max-sessions L2TP config
+# VALIDATES: AC-5 config -- max-sessions leaf parses correctly
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true
+    max-sessions 100
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port 1701
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

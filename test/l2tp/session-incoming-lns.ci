@@ -1,0 +1,204 @@
+# Test: ICRQ -> ICRP -> ICCN session handshake on established tunnel.
+# VALIDATES: AC-1, AC-2 -- full incoming call LNS-side session establishment.
+
+tmpfs=session-incoming-lns.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Establish an L2TP tunnel, then create a session via ICRQ/ICCN."""
+import hashlib
+import os
+import socket
+import struct
+import sys
+import time
+
+if len(sys.argv) < 2:
+    print("usage: session-incoming-lns.py <port>", file=sys.stderr)
+    sys.exit(2)
+
+TARGET = ("127.0.0.1", int(sys.argv[1]))
+SECRET = os.environ.get("TEST_SECRET", "s3cr3t").encode("utf-8")
+PEER_TID = 0x0123
+PEER_SID = 500
+PEER_CHALLENGE = bytes.fromhex("00112233445566778899aabbccddeeff")
+
+
+def avp(mandatory, attr_type, value, vendor=0):
+    flags = 0x8000 if mandatory else 0
+    return struct.pack("!HHH", flags | (6 + len(value)), vendor, attr_type) + value
+
+
+def l2tp_ctrl(dest_tid, ns, nr, body):
+    total = 12 + len(body)
+    hdr = struct.pack("!HHHHHH", 0xC802, total, dest_tid, 0, ns, nr)
+    return hdr + body
+
+
+def parse_avps(body):
+    out = {}
+    off = 0
+    while off + 6 <= len(body):
+        word, vendor, atype = struct.unpack("!HHH", body[off:off+6])
+        length = word & 0x03FF
+        if length < 6 or off + length > len(body):
+            break
+        if vendor == 0:
+            out[atype] = body[off+6:off+length]
+        off += length
+    return out
+
+
+def build_sccrq():
+    body = b""
+    body += avp(True, 0, struct.pack("!H", 1))          # Message Type = SCCRQ
+    body += avp(True, 2, b"\x01\x00")                    # Protocol Version v1.0
+    body += avp(True, 3, struct.pack("!I", 0x3))         # Framing Caps
+    body += avp(True, 4, struct.pack("!I", 0x0))         # Bearer Caps
+    body += avp(True, 7, b"py-peer")                     # Host Name
+    body += avp(True, 9, struct.pack("!H", PEER_TID))    # Assigned Tunnel ID
+    body += avp(True, 10, struct.pack("!H", 8))          # Recv Window
+    body += avp(True, 11, PEER_CHALLENGE)                # Challenge
+    return l2tp_ctrl(0, 0, 0, body)
+
+
+def build_scccn(dest_tid, ns, nr, response):
+    body = b""
+    body += avp(True, 0, struct.pack("!H", 3))           # Message Type = SCCCN
+    body += avp(True, 13, response)                      # Challenge Response
+    return l2tp_ctrl(dest_tid, ns, nr, body)
+
+
+def build_icrq(dest_tid, ns, nr):
+    body = b""
+    body += avp(True, 0, struct.pack("!H", 10))          # Message Type = ICRQ
+    body += avp(True, 14, struct.pack("!H", PEER_SID))   # Assigned Session ID
+    body += avp(True, 15, struct.pack("!I", 42))          # Call Serial Number
+    return l2tp_ctrl(dest_tid, ns, nr, body)
+
+
+def build_iccn(dest_tid, dest_sid, ns, nr):
+    body = b""
+    body += avp(True, 0, struct.pack("!H", 12))          # Message Type = ICCN
+    body += avp(True, 24, struct.pack("!I", 10000000))    # Tx Connect Speed
+    body += avp(True, 19, struct.pack("!I", 2))           # Framing Type (sync)
+    return l2tp_ctrl_session(dest_tid, dest_sid, ns, nr, body)
+
+
+def l2tp_ctrl_session(dest_tid, dest_sid, ns, nr, body):
+    total = 12 + len(body)
+    hdr = struct.pack("!HHHHHH", 0xC802, total, dest_tid, dest_sid, ns, nr)
+    return hdr + body
+
+
+def recv_msg(sock, expect_type=None):
+    """Receive and parse one L2TP control message, returning (avps, header)."""
+    data, _ = sock.recvfrom(1500)
+    if len(data) < 12:
+        return None, None
+    _, length, tid, sid, ns, nr = struct.unpack("!HHHHHH", data[:12])
+    avps = parse_avps(data[12:length])
+    if expect_type is not None:
+        mt = struct.unpack("!H", avps[0])[0] if 0 in avps else 0
+        if mt != expect_type:
+            print(f"ERROR: expected msg type {expect_type}, got {mt}", file=sys.stderr)
+            return None, None
+    return avps, {"tid": tid, "sid": sid, "ns": ns, "nr": nr}
+
+
+def main():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", 0))
+    sock.settimeout(0.25)
+    time.sleep(0.05)
+
+    # --- Tunnel handshake ---
+    sccrq = build_sccrq()
+    sccrp_avps = None
+    for _ in range(20):
+        try:
+            sock.sendto(sccrq, TARGET)
+            sccrp_avps, _ = recv_msg(sock, expect_type=2)  # SCCRP
+            if sccrp_avps is not None:
+                break
+        except (socket.timeout, ConnectionRefusedError, OSError):
+            continue
+    if sccrp_avps is None:
+        print("ERROR: no SCCRP received", file=sys.stderr)
+        return 1
+    our_challenge = sccrp_avps.get(11)
+    tid_bytes = sccrp_avps.get(9)
+    if our_challenge is None or tid_bytes is None:
+        print("ERROR: SCCRP missing Challenge or Assigned Tunnel ID", file=sys.stderr)
+        return 1
+    local_tid = struct.unpack("!H", tid_bytes)[0]
+
+    # SCCCN
+    digest = hashlib.md5(bytes([3]) + SECRET + our_challenge).digest()
+    sock.settimeout(1.0)
+    sock.sendto(build_scccn(local_tid, 1, 1, digest), TARGET)
+    try:
+        sock.recvfrom(1500)  # ZLB ACK
+    except (socket.timeout, OSError):
+        pass
+
+    # --- Session handshake ---
+    time.sleep(0.05)
+    sock.settimeout(1.0)
+    sock.sendto(build_icrq(local_tid, 2, 1), TARGET)
+
+    # Expect ICRP (msg type 11)
+    icrp_avps, icrp_hdr = recv_msg(sock, expect_type=11)
+    if icrp_avps is None:
+        print("ERROR: no ICRP received", file=sys.stderr)
+        return 1
+    ze_sid_bytes = icrp_avps.get(14)  # Assigned Session ID
+    if ze_sid_bytes is None:
+        print("ERROR: ICRP missing Assigned Session ID", file=sys.stderr)
+        return 1
+    ze_sid = struct.unpack("!H", ze_sid_bytes)[0]
+    print(f"OK: ICRP received, ze SID={ze_sid}")
+
+    # Drain possible ZLB ACK for ICRQ
+    try:
+        sock.recvfrom(1500)
+    except (socket.timeout, OSError):
+        pass
+
+    # Send ICCN
+    sock.sendto(build_iccn(local_tid, ze_sid, 3, 2), TARGET)
+    # Drain ZLB ACK for ICCN
+    try:
+        sock.recvfrom(1500)
+    except (socket.timeout, OSError):
+        pass
+
+    print("OK: ICCN sent, session should be established")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF_PY
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=TEST_SECRET:value=s3cr3t
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=python3 session-incoming-lns.py $PORT:timeout=10s
+expect=exit:code=0
+expect=stdout:contains=OK: ICCN sent
+expect=stderr:contains=session established

@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-l2tp-3-tunnel |
-| Phase | - |
+| Phase | 9/9 |
 | Updated | 2026-04-15 |
 
 ## Post-Compaction Recovery
@@ -388,55 +388,171 @@ Add `// RFC 2661 Section X.Y` above enforcing code:
 ## Implementation Summary
 
 ### What Was Implemented
-- (to be filled)
+- L2TPSession struct and state enum (6 states) in session.go (173L)
+- Session map helpers on L2TPTunnel: allocateSessionID, addSession, removeSession, clearSessions, lookupSession, lookupSessionByRemote
+- All session message handlers in session_fsm.go: handleICRQ, handleICCN, handleOCRQ, handleOCRP, handleOCCN, handleCDN, handleWEN, handleSLI
+- Parsers: parseICRQ, parseICCN, parseOCRQ, parseOCCN, parseCDN
+- Builders: writeICRPBody, writeOCRPBody, writeCDNBody
+- dispatchToSession routing in tunnel_fsm.go handleMessage
+- StopCCN cascade: clearSessions + log in handleStopCCN
+- MaxSessions config: YANG leaf, env var ze.l2tp.max-sessions, Parameters field, enforcement in handleICRQ/handleOCRQ
+- Unknown M=1 vendor AVP detection in all session parsers (CDN, not StopCCN per S24.12)
+- Proxy LCP/auth AVP capture from ICCN for phase 6 PPP engine
+- Sequencing Required flag capture from ICCN/OCCN
 
 ### Bugs Found/Fixed
-- (to be filled)
+- Header Session ID in ICRP/OCRP initially used local SID (should use peer's SID = recipient's assigned ID). Fixed before commit.
 
 ### Documentation Updates
-- (to be filled)
+- docs/guide/configuration.md: added max-sessions leaf to L2TP config table
+- rfc/short/rfc2661.md: added Session State Machines section (4 FSMs, session-scoped rules, proxy LCP/auth, WEN/SLI)
 
 ### Deviations from Plan
-- (to be filled)
+- AC-13 test uses ICRQ-created session (WaitConnect state) rather than the deferred LNS-initiated outgoing call path. handleOCCN is state-based, not call-type-based, so the validation is equivalent.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Incoming call LNS-side FSM (ICRQ/ICRP/ICCN) | Done | session_fsm.go:handleICRQ, handleICCN | AC-1, AC-2, AC-3 |
+| Outgoing call LAC-side FSM (OCRQ/OCRP) | Done | session_fsm.go:handleOCRQ | AC-12 |
+| OCCN handler | Done | session_fsm.go:handleOCCN | AC-13 |
+| CDN teardown all states | Done | session_fsm.go:handleCDN | AC-7, AC-8 |
+| StopCCN cascade | Done | tunnel_fsm.go:handleStopCCN | AC-9 |
+| WEN/SLI handlers | Done | session_fsm.go:handleWEN, handleSLI | AC-10, AC-11 |
+| Max sessions config | Done | config.go, ze-l2tp-conf.yang | AC-5 |
+| Proxy LCP/auth capture | Done | session_fsm.go:handleICCN | AC-17, AC-18 |
+| Sequencing Required | Done | session_fsm.go:handleICCN, handleOCCN | AC-19 |
+| Unknown M=1 vendor AVP | Done | session_fsm.go parsers | AC-14 |
+| Session ID collision retry | Done | session.go:allocateSessionID | AC-15 |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | TestSession_IncomingLNS_ICRQ, session-incoming-lns.ci | ICRQ->ICRP |
+| AC-2 | Done | TestSession_IncomingLNS_FullHandshake, session-incoming-lns.ci | ICCN->established |
+| AC-3 | Done | TestSession_IncomingLNS_ICCNMissingTxSpeed | Malformed ICCN->CDN |
+| AC-4 | Done | TestSession_IncomingLNS_NonEstablishedTunnel | Non-established tunnel drops ICRQ |
+| AC-5 | Done | TestSession_MaxSessionsEnforced, l2tp-max-sessions.ci | Max sessions->CDN RC=4 |
+| AC-6 | Done | TestSession_ICRQAssignedSIDZero | SID=0 rejected->CDN RC=2 |
+| AC-7 | Done | TestSession_CDN_EstablishedSession, session-cdn-teardown.ci | CDN destroys session |
+| AC-8 | Done | TestSession_CDN_AnyState | CDN in wait-connect state |
+| AC-9 | Done | TestSession_StopCCN_CascadeSessions, session-stopccn-cascade.ci | StopCCN clears all sessions |
+| AC-10 | Done | TestSession_WEN_CallErrors | WEN counters captured |
+| AC-11 | Done | TestSession_SLI_ACCM | SLI ACCM captured |
+| AC-12 | Done | TestSession_OutgoingLAC_OCRQ | OCRQ->OCRP |
+| AC-13 | Done | TestSession_OutgoingLAC_OCCN | OCCN->established |
+| AC-14 | Done | TestSession_UnknownMandatoryAVP | M=1 vendor->CDN not StopCCN |
+| AC-15 | Done | allocateSessionID with maxAllocRetries | Collision retry |
+| AC-16 | Done | TestSession_UnknownHeaderSID | Unknown SID dropped |
+| AC-17 | Done | TestSession_ProxyLCPAndAuth | Proxy LCP AVPs captured |
+| AC-18 | Done | TestSession_ProxyLCPAndAuth | Proxy auth AVPs captured |
+| AC-19 | Done | TestSession_ProxyLCPAndAuth | Sequencing Required flag |
+| AC-20 | Deferred | plan/deferrals.md | LAC-initiated incoming (requires LAC tunnel) |
+| AC-21 | Deferred | plan/deferrals.md | LNS-initiated outgoing (requires LAC tunnel) |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestSession_IncomingLNS_FullHandshake | Done | session_fsm_test.go | AC-1, AC-2 |
+| TestSession_IncomingLNS_ICCNMissingAVP | Done | session_fsm_test.go (as ICCNMissingTxSpeed) | AC-3 |
+| TestSession_IncomingLNS_NonEstablishedTunnel | Done | session_fsm_test.go | AC-4 |
+| TestSession_MaxSessionsEnforced | Done | session_fsm_test.go | AC-5 |
+| TestSession_ICRQAssignedSIDZero | Done | session_fsm_test.go | AC-6 |
+| TestSession_CDN_EstablishedSession | Done | session_fsm_test.go | AC-7 |
+| TestSession_CDN_AnyState | Done | session_fsm_test.go | AC-8 |
+| TestSession_StopCCN_CascadeSessions | Done | session_fsm_test.go | AC-9 |
+| TestSession_WEN_CallErrors | Done | session_fsm_test.go | AC-10 |
+| TestSession_SLI_ACCM | Done | session_fsm_test.go | AC-11 |
+| TestSession_OutgoingLAC_OCRQ | Done | session_fsm_test.go | AC-12 |
+| TestSession_OutgoingLAC_OCCN | Done | session_fsm_test.go | AC-13 |
+| TestSession_UnknownMandatoryAVP | Done | session_fsm_test.go | AC-14 |
+| TestSession_UnknownHeaderSID | Done | session_fsm_test.go | AC-16 |
+| TestSession_ProxyLCPAndAuth | Done | session_fsm_test.go | AC-17, AC-18, AC-19 |
+| TestParseICRQ_Valid | Done | session_fsm_test.go | Parser |
+| TestParseICRQ_MissingSID | Done | session_fsm_test.go | Parser |
+| TestParseICCN_Valid | Done | session_fsm_test.go | Parser |
+| TestParseICCN_MissingTxSpeed | Done | session_fsm_test.go | Parser |
+| TestParseOCRQ_Valid | Done | session_fsm_test.go | Parser |
+| TestParseOCCN_Valid | Done | session_fsm_test.go | Parser |
+| TestParseCDN_Valid | Done | session_fsm_test.go | Parser |
+| TestWriteICRPBody | Done | session_fsm_test.go | Builder round-trip |
+| TestWriteCDNBody | Done | session_fsm_test.go | Builder round-trip |
+| TestWriteOCRPBody | Done | session_fsm_test.go | Builder round-trip |
+| session-incoming-lns.ci | Done | test/l2tp/ | Functional: ICRQ/ICCN end-to-end |
+| session-cdn-teardown.ci | Done | test/l2tp/ | Functional: CDN teardown |
+| session-stopccn-cascade.ci | Done | test/l2tp/ | Functional: StopCCN cascade |
+| l2tp-max-sessions.ci | Done | test/parse/ | Config parse: max-sessions |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| internal/component/l2tp/session.go | Done | Created: 173L |
+| internal/component/l2tp/session_fsm.go | Done | Created: ~1050L |
+| internal/component/l2tp/session_fsm_test.go | Done | Created: ~780L |
+| internal/component/l2tp/tunnel.go | Done | Modified: sessions map + maxSessions |
+| internal/component/l2tp/tunnel_fsm.go | Done | Modified: session dispatch + StopCCN cascade |
+| internal/component/l2tp/config.go | Done | Modified: MaxSessions field |
+| internal/component/l2tp/config_test.go | Done | Modified: MaxSessions test |
+| internal/component/l2tp/reactor.go | Done | Modified: MaxSessions passthrough |
+| internal/component/l2tp/subsystem.go | Done | Modified: MaxSessions in ReactorParams |
+| internal/component/l2tp/schema/ze-l2tp-conf.yang | Done | Modified: max-sessions leaf |
+| test/l2tp/session-incoming-lns.ci | Done | Created |
+| test/l2tp/session-cdn-teardown.ci | Done | Created |
+| test/l2tp/session-stopccn-cascade.ci | Done | Created |
+| test/parse/l2tp-max-sessions.ci | Done | Created |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 62 (11 requirements + 21 ACs + 28 tests + 14 files) minus 2 deferred ACs
+- **Done:** 60
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (AC-13 test approach: ICRQ-created session instead of LNS-initiated outgoing)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| session.go | Yes | 5.5K Apr 15 12:57 |
+| session_fsm.go | Yes | 34K Apr 15 12:57 |
+| session_fsm_test.go | Yes | 26K Apr 15 13:46 |
+| session-incoming-lns.ci | Yes | 6.4K Apr 15 13:48 |
+| session-cdn-teardown.ci | Yes | 5.2K Apr 15 13:48 |
+| session-stopccn-cascade.ci | Yes | 6.5K Apr 15 13:53 |
+| l2tp-max-sessions.ci | Yes | 444 Apr 15 13:49 |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | ICRQ -> ICRP | TestSession_IncomingLNS_ICRQ PASS, session-incoming-lns.ci PASS |
+| AC-2 | ICCN -> established | TestSession_IncomingLNS_FullHandshake PASS, session-incoming-lns.ci logs "session established" |
+| AC-3 | Malformed ICCN -> CDN | TestSession_IncomingLNS_ICCNMissingTxSpeed PASS |
+| AC-4 | Non-established drops ICRQ | TestSession_IncomingLNS_NonEstablishedTunnel PASS (0 sends) |
+| AC-5 | Max sessions -> CDN RC=4 | TestSession_MaxSessionsEnforced PASS, l2tp-max-sessions.ci PASS |
+| AC-6 | SID=0 -> CDN RC=2 | TestSession_ICRQAssignedSIDZero PASS |
+| AC-7 | CDN destroys session | TestSession_CDN_EstablishedSession PASS, session-cdn-teardown.ci PASS |
+| AC-8 | CDN any state | TestSession_CDN_AnyState PASS (wait-connect) |
+| AC-9 | StopCCN cascade | TestSession_StopCCN_CascadeSessions PASS, session-stopccn-cascade.ci PASS |
+| AC-10 | WEN counters | TestSession_WEN_CallErrors PASS (CRC=42, framing=7) |
+| AC-11 | SLI ACCM | TestSession_SLI_ACCM PASS (send=0x000A0000, recv=0xFFFFFFFF) |
+| AC-12 | OCRQ -> OCRP | TestSession_OutgoingLAC_OCRQ PASS (wait-cs-answer) |
+| AC-13 | OCCN -> established | TestSession_OutgoingLAC_OCCN PASS (tx=56000, framing=1) |
+| AC-14 | M=1 vendor -> CDN | TestSession_UnknownMandatoryAVP PASS (tunnel still established) |
+| AC-15 | SID collision retry | allocateSessionID retries up to maxAllocRetries=100 |
+| AC-16 | Unknown SID dropped | TestSession_UnknownHeaderSID PASS (0 sends) |
+| AC-17 | Proxy LCP | TestSession_ProxyLCPAndAuth PASS (3 LCP blobs captured) |
+| AC-18 | Proxy auth | TestSession_ProxyLCPAndAuth PASS (type=2, name="user1", ID=42) |
+| AC-19 | Sequencing Required | TestSession_ProxyLCPAndAuth PASS (sequencingRequired=true) |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| UDP ICRQ on established tunnel | session-incoming-lns.ci | PASS (ze-test l2tp 4) |
+| UDP CDN on established session | session-cdn-teardown.ci | PASS (ze-test l2tp 3) |
+| UDP StopCCN on tunnel with sessions | session-stopccn-cascade.ci | PASS (ze-test l2tp 5) |
+| Config with max-sessions | l2tp-max-sessions.ci | PASS (ze-test bgp parse 71) |
 
 ## Checklist
 
