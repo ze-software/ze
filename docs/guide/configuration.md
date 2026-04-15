@@ -781,6 +781,49 @@ When disabled (or when all peers have unique encoding contexts), behavior is ide
 <!-- source: internal/component/bgp/reactor/update_group.go -- NewUpdateGroupIndexFromEnv -->
 <!-- source: internal/exabgp/migration/migrate.go -- injectUpdateGroupsDisabled -->
 
+### L2TP Tunnels
+
+L2TPv2 (RFC 2661) tunnel support uses two config blocks. Protocol settings
+live under the root-level `l2tp {}` block. Listener endpoints follow the
+standard named-server pattern under `environment { l2tp { } }`.
+
+```
+l2tp {
+    enabled true;
+    shared-secret "my-tunnel-secret";
+    hello-interval 60;
+    max-tunnels 1000;
+}
+
+environment {
+    l2tp {
+        server main {
+            ip 0.0.0.0;
+            port 1701;
+        }
+    }
+}
+```
+<!-- source: internal/component/l2tp/schema/ze-l2tp-conf.yang -- L2TP YANG schema -->
+
+Protocol settings (root `l2tp {}`):
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `enabled` | boolean | `true` | Presence of `l2tp {}` implies enabled. Use `enabled false` to disable. Use `enabled true` as a filler when no other settings are needed. |
+| `shared-secret` | string | (unset) | CHAP-MD5 challenge/response secret (RFC 2661 S4.2). If unset and a peer sends a Challenge AVP, the tunnel is rejected with StopCCN Result Code 4. |
+| `hello-interval` | uint16 | (unset) | Seconds of peer silence before sending HELLO (1-3600). RFC 2661 recommends 60. |
+| `max-tunnels` | uint16 | 0 (unbounded) | Maximum concurrent tunnels. New SCCRQs beyond the limit receive StopCCN Result Code 2. |
+
+Listener endpoints (`environment { l2tp { } }`):
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `server <name>` | list | `0.0.0.0:1701` | Named UDP listen endpoints, same pattern as other services. |
+
+<!-- source: internal/component/l2tp/config.go -- ExtractParameters -->
+<!-- source: internal/component/l2tp/subsystem.go -- L2TPSubsystem lifecycle -->
+
 ## Hub Configuration
 
 The plugin hub provides TLS transport for plugin communication and fleet management.

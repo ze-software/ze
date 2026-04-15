@@ -58,4 +58,8 @@ Ze is a BGP daemon written in Go.
 <!-- source: internal/component/vpp/vpp.go -- VPPManager lifecycle -->
 <!-- source: internal/component/vpp/telemetry.go -- stats poller, Prometheus metrics -->
 <!-- source: internal/plugins/fibvpp/fibvpp.go -- FIB route programming -->
+| L2TPv2 Tunnels | RFC 2661 L2TPv2 tunnel lifecycle: LNS-side SCCRQ/SCCRP/SCCCN handshake, CHAP-MD5 challenge/response authentication, HELLO keepalive with configurable interval, peer StopCCN teardown with post-teardown retention window, tie-breaker resolution for simultaneous open. Single UDP listener with reactor/timer goroutine pair, reliable delivery with sliding window and congestion avoidance. |
+<!-- source: internal/component/l2tp/subsystem.go -- L2TPSubsystem lifecycle -->
+<!-- source: internal/component/l2tp/reactor.go -- L2TPReactor dispatch -->
+<!-- source: internal/component/l2tp/tunnel_fsm.go -- tunnel FSM transitions -->
 | [ExaBGP Compatibility](features/exabgp-compatibility.md) | Automatic config migration and plugin bridge |

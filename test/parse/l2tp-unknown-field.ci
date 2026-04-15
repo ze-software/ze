@@ -1,9 +1,11 @@
 # Test: ze config validate rejects unknown L2TP field
 # VALIDATES: unknown fields in l2tp block are rejected by YANG schema
 stdin=config:terminator=EOF_CONF
+l2tp {
+	enabled true
+}
 environment {
 	l2tp {
-		enabled true
 		server main {
 			ip 127.0.0.1
 			port 1701

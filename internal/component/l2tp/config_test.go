@@ -25,13 +25,16 @@ func TestConfig_MissingBlockReturnsZero(t *testing.T) {
 	assert.Equal(t, uint16(0), p.MaxTunnels)
 }
 
-// TestConfig_MinimalListen parses l2tp { server main { ip ... port ... } }.
+// TestConfig_MinimalListen uses `enabled true` as a filler in an otherwise
+// empty l2tp{} block.
 //
 // VALIDATES: AC-1 -- minimal listen config produces one AddrPort.
 func TestConfig_MinimalListen(t *testing.T) {
-	const src = `environment {
+	const src = `l2tp {
+	enabled true
+}
+environment {
 	l2tp {
-		enabled true
 		server main {
 			ip 127.0.0.1
 			port 1701
@@ -47,13 +50,53 @@ func TestConfig_MinimalListen(t *testing.T) {
 	assert.Equal(t, 60*time.Second, p.HelloInterval)
 }
 
+// TestConfig_PresenceImpliesEnabled verifies that l2tp{} with any setting
+// but no explicit `enabled` is still enabled.
+//
+// VALIDATES: presence of l2tp{} block implies enabled.
+func TestConfig_PresenceImpliesEnabled(t *testing.T) {
+	const src = `l2tp {
+	shared-secret s3cr3t
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	assert.True(t, p.Enabled, "l2tp{} with content but no enabled leaf should be enabled")
+	assert.Equal(t, "s3cr3t", p.SharedSecret)
+}
+
+// TestConfig_ExplicitDisable verifies that `enabled false` disables even
+// when other settings are present.
+//
+// VALIDATES: enabled false overrides the presence-implies-enabled default.
+func TestConfig_ExplicitDisable(t *testing.T) {
+	const src = `l2tp {
+	enabled false
+	shared-secret s3cr3t
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	assert.False(t, p.Enabled)
+}
+
 // TestConfig_MultipleServers parses multiple list entries.
 //
 // VALIDATES: list server { ... } is ordered and all addresses collected.
 func TestConfig_MultipleServers(t *testing.T) {
-	const src = `environment {
+	const src = `l2tp {
+	enabled true
+}
+environment {
 	l2tp {
-		enabled true
 		server a {
 			ip 127.0.0.1
 			port 1701
@@ -78,7 +121,10 @@ func TestConfig_MultipleServers(t *testing.T) {
 //
 // VALIDATES: boundary -- port 0 is the first invalid value below the range.
 func TestConfig_BadPortRejected(t *testing.T) {
-	const src = `environment {
+	const src = `l2tp {
+	enabled true
+}
+environment {
 	l2tp {
 		server bad {
 			ip 127.0.0.1
@@ -94,10 +140,12 @@ func TestConfig_BadPortRejected(t *testing.T) {
 
 // TestConfig_HelloIntervalOverride honors a custom hello-interval.
 func TestConfig_HelloIntervalOverride(t *testing.T) {
-	const src = `environment {
+	const src = `l2tp {
+	enabled true
+	hello-interval 30
+}
+environment {
 	l2tp {
-		enabled true
-		hello-interval 30
 		server main {
 			ip 127.0.0.1
 			port 1701
@@ -114,10 +162,12 @@ func TestConfig_HelloIntervalOverride(t *testing.T) {
 //
 // VALIDATES: boundary -- hello-interval=0 invalid below; 1 is last valid.
 func TestConfig_HelloIntervalZeroRejected(t *testing.T) {
-	const src = `environment {
+	const src = `l2tp {
+	enabled true
+	hello-interval 0
+}
+environment {
 	l2tp {
-		enabled true
-		hello-interval 0
 		server main {
 			ip 127.0.0.1
 			port 1701
@@ -132,10 +182,12 @@ func TestConfig_HelloIntervalZeroRejected(t *testing.T) {
 
 // TestConfig_MaxTunnels passes the integer through.
 func TestConfig_MaxTunnels(t *testing.T) {
-	const src = `environment {
+	const src = `l2tp {
+	enabled true
+	max-tunnels 1024
+}
+environment {
 	l2tp {
-		enabled true
-		max-tunnels 1024
 		server main {
 			ip 127.0.0.1
 			port 1701
@@ -154,10 +206,12 @@ func TestConfig_MaxTunnels(t *testing.T) {
 //
 // VALIDATES: max-tunnels=0 semantic documented in ze-l2tp-conf.yang.
 func TestConfig_MaxTunnelsZeroIsUnbounded(t *testing.T) {
-	const src = `environment {
+	const src = `l2tp {
+	enabled true
+	max-tunnels 0
+}
+environment {
 	l2tp {
-		enabled true
-		max-tunnels 0
 		server main {
 			ip 127.0.0.1
 			port 1701
@@ -175,9 +229,11 @@ func TestConfig_MaxTunnelsZeroIsUnbounded(t *testing.T) {
 // VALIDATES: AC-2 (partial) -- YANG zt:listener accepts IPv6 addresses
 // and ExtractParameters produces a correctly-scoped AddrPort.
 func TestConfig_IPv6Listener(t *testing.T) {
-	const src = `environment {
+	const src = `l2tp {
+	enabled true
+}
+environment {
 	l2tp {
-		enabled true
 		server main {
 			ip ::1
 			port 1701
@@ -200,9 +256,11 @@ func TestConfig_IPv6Listener(t *testing.T) {
 // time (ze-config's uint16 coercion catches it before YANG or ze-l2tp).
 func TestConfig_PortBoundary(t *testing.T) {
 	// Last valid (65535) goes all the way through.
-	srcLast := `environment {
+	srcLast := `l2tp {
+	enabled true
+}
+environment {
 	l2tp {
-		enabled true
 		server main {
 			ip 127.0.0.1
 			port 65535
@@ -219,9 +277,11 @@ func TestConfig_PortBoundary(t *testing.T) {
 	// uint16 coercion before ExtractParameters runs. We call LoadConfig
 	// directly (bypassing loadTree's require.NoError) to capture the
 	// parse-time rejection.
-	srcOver := `environment {
+	srcOver := `l2tp {
+	enabled true
+}
+environment {
 	l2tp {
-		enabled true
 		server main {
 			ip 127.0.0.1
 			port 65536
@@ -252,10 +312,12 @@ func TestConfig_HelloIntervalBoundary(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			src := `environment {
+			src := `l2tp {
+	enabled true
+	hello-interval ` + tc.value + `
+}
+environment {
 	l2tp {
-		enabled true
-		hello-interval ` + tc.value + `
 		server main {
 			ip 127.0.0.1
 			port 1701

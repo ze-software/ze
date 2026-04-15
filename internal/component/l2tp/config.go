@@ -27,8 +27,8 @@ var (
 	_ = env.MustRegister(env.EnvEntry{
 		Key:         "ze.l2tp.enabled",
 		Type:        "bool",
-		Default:     "false",
-		Description: "Enable the L2TP subsystem (overrides YANG environment/l2tp/enabled)",
+		Default:     "true",
+		Description: "Enable the L2TP subsystem (overrides YANG l2tp/enabled; true when l2tp{} block exists)",
 	})
 	_ = env.MustRegister(env.EnvEntry{
 		Key:         "ze.l2tp.max-tunnels",
@@ -74,47 +74,34 @@ type Parameters struct {
 }
 
 // ExtractParameters pulls L2TP configuration out of the parsed config tree.
-// Returns a zero-value Parameters (Enabled=false) if no
-// `environment { l2tp {} }` block is present.
+//
+// Protocol settings (enabled, shared-secret, hello-interval, max-tunnels)
+// live under the root-level `l2tp {}` block. Listener endpoints live under
+// `environment { l2tp { server <name> { ip ...; port ...; } } }`.
+//
+// Returns a zero-value Parameters (Enabled=false) if no `l2tp {}` block is
+// present.
 func ExtractParameters(tree *config.Tree) (Parameters, error) {
 	if tree == nil {
 		return Parameters{}, nil
 	}
-	envC := tree.GetContainer("environment")
-	if envC == nil {
-		return Parameters{}, nil
-	}
-	l2tpC := envC.GetContainer("l2tp")
-	if l2tpC == nil {
+
+	// Protocol settings from root-level l2tp{}.
+	l2tpRoot := tree.GetContainer("l2tp")
+	if l2tpRoot == nil {
 		return Parameters{}, nil
 	}
 
 	p := Parameters{
+		Enabled:       true, // presence of l2tp{} implies enabled
 		HelloInterval: time.Duration(DefaultHelloSecs) * time.Second,
 	}
 
-	if v, ok := l2tpC.Get("enabled"); ok {
+	if v, ok := l2tpRoot.Get("enabled"); ok {
 		p.Enabled = v == "true"
 	}
 
-	servers := l2tpC.GetListOrdered("server")
-	for _, s := range servers {
-		ip := DefaultListenIP
-		port := strconv.Itoa(DefaultListenPort)
-		if v, ok := s.Value.Get("ip"); ok && v != "" {
-			ip = v
-		}
-		if v, ok := s.Value.Get("port"); ok && v != "" {
-			port = v
-		}
-		addr, err := parseListen(ip, port)
-		if err != nil {
-			return Parameters{}, fmt.Errorf("l2tp server %q: %w", s.Key, err)
-		}
-		p.ListenAddrs = append(p.ListenAddrs, addr)
-	}
-
-	if v, ok := l2tpC.Get("max-tunnels"); ok {
+	if v, ok := l2tpRoot.Get("max-tunnels"); ok {
 		n, err := strconv.ParseUint(v, 10, 16)
 		if err != nil {
 			return Parameters{}, fmt.Errorf("l2tp max-tunnels: %w", err)
@@ -122,7 +109,7 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 		p.MaxTunnels = uint16(n)
 	}
 
-	if v, ok := l2tpC.Get("hello-interval"); ok {
+	if v, ok := l2tpRoot.Get("hello-interval"); ok {
 		n, err := strconv.ParseUint(v, 10, 16)
 		if err != nil {
 			return Parameters{}, fmt.Errorf("l2tp hello-interval: %w", err)
@@ -133,8 +120,30 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 		p.HelloInterval = time.Duration(n) * time.Second
 	}
 
-	if v, ok := l2tpC.Get("shared-secret"); ok {
+	if v, ok := l2tpRoot.Get("shared-secret"); ok {
 		p.SharedSecret = v
+	}
+
+	// Listener endpoints from environment { l2tp { server ... } }.
+	if envC := tree.GetContainer("environment"); envC != nil {
+		if l2tpEnv := envC.GetContainer("l2tp"); l2tpEnv != nil {
+			servers := l2tpEnv.GetListOrdered("server")
+			for _, s := range servers {
+				ip := DefaultListenIP
+				port := strconv.Itoa(DefaultListenPort)
+				if v, ok := s.Value.Get("ip"); ok && v != "" {
+					ip = v
+				}
+				if v, ok := s.Value.Get("port"); ok && v != "" {
+					port = v
+				}
+				addr, err := parseListen(ip, port)
+				if err != nil {
+					return Parameters{}, fmt.Errorf("l2tp server %q: %w", s.Key, err)
+				}
+				p.ListenAddrs = append(p.ListenAddrs, addr)
+			}
+		}
 	}
 
 	return p, nil

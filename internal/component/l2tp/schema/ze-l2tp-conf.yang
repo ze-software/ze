@@ -7,21 +7,63 @@ module ze-l2tp-conf {
 
     description "L2TPv2 (RFC 2661) subsystem configuration for Ze";
 
-    revision 2026-04-14 {
-        description "Initial revision (phase 3 -- tunnel state machine). Listen endpoints only; full LNS/LAC config in phase 7.";
+    revision 2026-04-15 {
+        description "Split config: protocol settings at root l2tp{}, listeners under environment{l2tp{}}.";
+    }
+
+    container l2tp {
+        description "L2TPv2 tunnel subsystem settings (RFC 2661).
+                     Presence of this block with any content implies the
+                     subsystem is enabled. Use 'enabled false' to disable
+                     explicitly, or 'enabled true' as a filler when no
+                     other settings are needed.";
+
+        leaf enabled {
+            type boolean;
+            default true;
+            description "Enable L2TP subsystem. Defaults to true when the
+                         l2tp block is present; set to false to disable.";
+        }
+
+        leaf max-tunnels {
+            type uint16;
+            description
+                "Maximum concurrent L2TP tunnels. A value of 0 (and the
+                 unset default) means unbounded by this knob; the only
+                 cap is the 65535 ceiling imposed by RFC 2661's 16-bit
+                 Tunnel ID field. Set to a positive value to reject
+                 further SCCRQs with StopCCN Result Code 2 once the
+                 limit is reached.";
+        }
+
+        leaf shared-secret {
+            type string;
+            ze:sensitive;
+            description
+                "Shared secret used to compute CHAP-MD5 Challenge
+                 Responses (RFC 2661 Section 4.2). When unset and a
+                 peer sends a Challenge AVP, the subsystem rejects the
+                 tunnel with StopCCN Result Code 4 (Not Authorized).
+                 Value is masked in CLI output and cleared from the
+                 process environment after first read.";
+        }
+
+        leaf hello-interval {
+            type uint16 {
+                range "1..3600";
+            }
+            description
+                "Seconds of peer silence before sending HELLO. RFC 2661
+                 recommends 60s; values above 3600 (one hour) are
+                 rejected because they effectively disable keepalive.";
+        }
     }
 
     container environment {
         description "Environment settings for L2TP subsystem";
 
         container l2tp {
-            description "L2TP subsystem settings";
-
-            leaf enabled {
-                type boolean;
-                default false;
-                description "Enable L2TP subsystem";
-            }
+            description "L2TP listener endpoints";
 
             list server {
                 key "name";
@@ -41,39 +83,6 @@ module ze-l2tp-conf {
                         default 1701;
                     }
                 }
-            }
-
-            leaf max-tunnels {
-                type uint16;
-                description
-                    "Maximum concurrent L2TP tunnels. A value of 0 (and the
-                     unset default) means unbounded by this knob; the only
-                     cap is the 65535 ceiling imposed by RFC 2661's 16-bit
-                     Tunnel ID field. Set to a positive value to reject
-                     further SCCRQs with StopCCN Result Code 2 once the
-                     limit is reached.";
-            }
-
-            leaf shared-secret {
-                type string;
-                ze:sensitive;
-                description
-                    "Shared secret used to compute CHAP-MD5 Challenge
-                     Responses (RFC 2661 Section 4.2). When unset and a
-                     peer sends a Challenge AVP, the subsystem rejects the
-                     tunnel with StopCCN Result Code 4 (Not Authorized).
-                     Value is masked in CLI output and cleared from the
-                     process environment after first read.";
-            }
-
-            leaf hello-interval {
-                type uint16 {
-                    range "1..3600";
-                }
-                description
-                    "Seconds of peer silence before sending HELLO. RFC 2661
-                     recommends 60s; values above 3600 (one hour) are
-                     rejected because they effectively disable keepalive.";
             }
         }
     }

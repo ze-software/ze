@@ -1,9 +1,11 @@
 # Test: ze config validate rejects port 0 in L2TP server block
 # VALIDATES: zt:listener's typedef port { range "1..65535" } is enforced
 stdin=config:terminator=EOF_CONF
+l2tp {
+	enabled true
+}
 environment {
 	l2tp {
-		enabled true
 		server main {
 			ip 127.0.0.1
 			port 0

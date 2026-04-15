@@ -124,10 +124,12 @@ if __name__ == "__main__":
 EOF_PY
 
 stdin=config:terminator=EOF_CONF
+l2tp {
+	enabled true
+	shared-secret s3cr3t
+}
 environment {
 	l2tp {
-		enabled true
-		shared-secret s3cr3t
 		server main {
 			ip 127.0.0.1
 			port $PORT

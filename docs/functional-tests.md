@@ -938,4 +938,33 @@ If namespace creation fails (missing `CAP_NET_ADMIN`), the test is skipped with 
 
 ---
 
-**Updated:** 2026-03-30
+## L2TP Tests
+
+L2TP functional tests (`test/l2tp/`) verify tunnel lifecycle over real loopback UDP.
+Run with `make ze-l2tp-test` or `bin/ze-test l2tp`.
+
+```bash
+ze-test l2tp --list    # List available tests
+ze-test l2tp --all     # Run all tests
+```
+
+| Test | File | What it verifies |
+|------|------|-----------------|
+| SCCRQ handshake | `test/l2tp/handshake-sccrq.ci` | Python client sends SCCRQ hex, receives SCCRP |
+| Full handshake | `test/l2tp/handshake-full.ci` | SCCRQ/SCCRP/SCCCN/ZLB exchange with challenge/response |
+| Bad challenge | `test/l2tp/bad-challenge-response.ci` | Wrong challenge response triggers StopCCN RC=4 |
+
+Config parsing tests live in `test/parse/`:
+
+| Test | File | What it verifies |
+|------|------|-----------------|
+| Minimal config | `test/parse/l2tp-minimal.ci` | `l2tp { server main { port 1701 } }` parses |
+| Bad port | `test/parse/l2tp-bad-port.ci` | `port 0` rejected |
+| Unknown field | `test/parse/l2tp-unknown-field.ci` | Unknown key rejected with suggestion |
+
+<!-- source: cmd/ze-test/l2tp.go -- l2tpCmd runner dispatch -->
+<!-- source: internal/test/runner/record_parse.go -- .ci discovery and directive parsing -->
+
+---
+
+**Updated:** 2026-04-15
