@@ -1,0 +1,124 @@
+# Test: Python client sends SCCRQ; ze daemon replies with SCCRP.
+# VALIDATES: AC-6 -- valid SCCRQ transitions tunnel to wait-ctl-conn and
+# SCCRP is sent back to the peer address.
+
+tmpfs=handshake.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Send SCCRQ to ze's L2TP listener and assert a SCCRP reply."""
+import socket
+import struct
+import sys
+import time
+
+if len(sys.argv) < 2:
+	print("usage: handshake.py <port>", file=sys.stderr)
+	sys.exit(2)
+TARGET = ("127.0.0.1", int(sys.argv[1]))
+PEER_TID = 0x0101
+# Short startup cushion before entering the retry loop. The .ci runner
+# starts the background ze process and this foreground Python script
+# back to back; the send+recv loop below rides out the rest.
+time.sleep(0.05)
+
+
+def avp_uint16(mandatory, attr_type, value):
+	flags = 0x8000 if mandatory else 0
+	return struct.pack("!HHHH", flags | 8, 0, attr_type, value)
+
+
+def avp_uint32(mandatory, attr_type, value):
+	flags = 0x8000 if mandatory else 0
+	return struct.pack("!HHHI", flags | 10, 0, attr_type, value)
+
+
+def avp_string(mandatory, attr_type, s):
+	encoded = s.encode("utf-8")
+	flags = 0x8000 if mandatory else 0
+	return struct.pack("!HHH", flags | (6 + len(encoded)), 0, attr_type) + encoded
+
+
+def avp_bytes(mandatory, attr_type, data):
+	flags = 0x8000 if mandatory else 0
+	return struct.pack("!HHH", flags | (6 + len(data)), 0, attr_type) + data
+
+
+def build_sccrq():
+	body = b""
+	body += avp_uint16(True, 0, 1)           # Message Type = SCCRQ
+	body += avp_bytes(True, 2, b"\x01\x00")  # Protocol Version v1.0
+	body += avp_uint32(True, 3, 0x3)         # Framing Capabilities
+	body += avp_uint32(True, 4, 0x0)         # Bearer Capabilities
+	body += avp_string(True, 7, "py-peer")   # Host Name
+	body += avp_uint16(True, 9, PEER_TID)    # Assigned Tunnel ID
+	body += avp_uint16(True, 10, 8)          # Receive Window Size
+
+	total = 12 + len(body)
+	header = struct.pack("!HHHHHH", 0xC802, total, 0, 0, 0, 0)
+	return header + body
+
+
+def main():
+	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	sock.bind(("127.0.0.1", 0))
+	# Retry send+recv up to N attempts to ride out the .ci runner's
+	# startup race where the daemon may not yet have bound the listener
+	# when the Python process starts. 20 * 0.25s = 5s total -- generous
+	# for loopback while failing fast on real bugs.
+	sock.settimeout(0.25)
+	payload = build_sccrq()
+	data = None
+	addr = None
+	attempts = 0
+	for _ in range(20):
+		attempts += 1
+		try:
+			sock.sendto(payload, TARGET)
+			data, addr = sock.recvfrom(1500)
+			break
+		except (socket.timeout, ConnectionRefusedError, OSError):
+			continue
+	if data is None:
+		print(f"ERROR: no SCCRP after {attempts} attempts", file=sys.stderr)
+		return 1
+	if len(data) < 14:
+		print(f"ERROR: response too short: {len(data)} bytes", file=sys.stderr)
+		return 1
+	flag_word, length, _tid, _sid, _ns, _nr = struct.unpack("!HHHHHH", data[:12])
+	if flag_word != 0xC802:
+		print(f"ERROR: bad flag word 0x{flag_word:04x}", file=sys.stderr)
+		return 1
+	body = data[12:length]
+	if len(body) < 8:
+		print("ERROR: body too short for Message Type AVP", file=sys.stderr)
+		return 1
+	_, _, avp_type = struct.unpack("!HHH", body[:6])
+	msg_type = struct.unpack("!H", body[6:8])[0]
+	if avp_type != 0 or msg_type != 2:
+		print(f"ERROR: first AVP not SCCRP (type={avp_type} value={msg_type})", file=sys.stderr)
+		return 1
+	print(f"OK: SCCRP received ({len(data)} bytes) from {addr}")
+	return 0
+
+
+if __name__ == "__main__":
+	sys.exit(main())
+EOF_PY
+
+stdin=config:terminator=EOF_CONF
+environment {
+	l2tp {
+		enabled true
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.l2tp:value=debug
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=python3 handshake.py $PORT:timeout=10s
+expect=exit:code=0
+expect=stdout:contains=OK: SCCRP received

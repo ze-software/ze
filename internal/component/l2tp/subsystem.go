@@ -83,7 +83,16 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 			s.unwindLocked()
 			return fmt.Errorf("l2tp: bind %s: %w", addr, err)
 		}
-		reactor := NewL2TPReactor(ln, s.logger)
+		reactor := NewL2TPReactor(ln, s.logger, ReactorParams{
+			MaxTunnels: s.params.MaxTunnels,
+			Defaults: TunnelDefaults{
+				// HostName left empty; reactor applies "ze" default.
+				// Phase 7 will wire a YANG leaf for operator-controlled hostname.
+				FramingCapabilities: 0x00000003, // sync + async per RFC 2661 S4.4.3
+				BearerCapabilities:  0,
+				RecvWindow:          16,
+			},
+		})
 		if err := reactor.Start(); err != nil {
 			reactorErr := fmt.Errorf("l2tp: start reactor for %s: %w", addr, err)
 			if stopErr := ln.Stop(); stopErr != nil {
