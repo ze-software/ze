@@ -57,6 +57,13 @@ type sendRequest struct {
 func (t *L2TPTunnel) Process(hdr MessageHeader, payload []byte, now time.Time, defaults TunnelDefaults, sccrq *sccrqInfo) []sendRequest {
 	var out []sendRequest
 	res := t.engine.OnReceive(hdr, payload, now)
+	if len(res.Delivered) > 0 {
+		// Update lastActivity only when the engine delivers at least
+		// one new message. Duplicates and out-of-window packets do not
+		// count as peer activity (a peer replaying old Ns values must
+		// not prevent the HELLO timeout from firing).
+		t.lastActivity = now
+	}
 	for _, d := range res.Delivered {
 		out = append(out, t.handleMessage(d, now, defaults, sccrq)...)
 		// Only the FIRST delivery can be the SCCRQ we validated at
@@ -95,11 +102,13 @@ func (t *L2TPTunnel) handleMessage(entry RecvEntry, now time.Time, defaults Tunn
 		return t.handleSCCCN(now, defaults, entry.Payload)
 	}
 	if msgType == MsgStopCCN {
-		t.logger.Debug("l2tp: StopCCN received (teardown lands in phase 5)")
-		return nil
+		return t.handleStopCCN(now, entry.Payload)
 	}
 	if msgType == MsgHello {
-		t.logger.Debug("l2tp: Hello received (keepalive lands in phase 5)")
+		// Peer HELLO: no action needed beyond ACK. The engine's
+		// NeedsZLB path already schedules the ZLB ACK. The inbound
+		// message resets lastActivity via the reactor's Process caller.
+		t.logger.Debug("l2tp: Hello received")
 		return nil
 	}
 	t.logger.Debug("l2tp: unsupported message type ignored", "type", uint16(msgType))
@@ -229,8 +238,6 @@ func (t *L2TPTunnel) handleSCCCN(now time.Time, defaults TunnelDefaults, payload
 // closed, and returns the resulting outbound datagram. Called from FSM
 // handlers that decide to tear the tunnel down (bad Challenge Response,
 // malformed SCCCN, etc.). RFC 2661 S4.4.2.
-//
-//nolint:unparam // phase 4 only emits RC=4; phase 5 adds HELLO/admin teardown codes.
 func (t *L2TPTunnel) teardownStopCCN(now time.Time, resultCode uint16) []sendRequest {
 	bodyBuf := GetBuf()
 	defer PutBuf(bodyBuf)
@@ -506,8 +513,135 @@ func parseSCCCN(payload []byte) (scccnInfo, error) {
 // per RFC 2661 S4.4.2. Shared across all outbound control messages.
 var protocolVersionValue = [2]byte{0x01, 0x00}
 
-// StopCCN Result Codes used by phase 4 (RFC 2661 S4.4.2). Phase 5 will
-// add the codes for HELLO timeout, administrative shutdown, etc.
+// StopCCN Result Codes (RFC 2661 S4.4.2).
 const (
+	resultGeneralError  uint16 = 1 // "General request to clear control connection"
 	resultNotAuthorized uint16 = 4 // "Requester is not authorized to establish a control connection"
 )
+
+// handleStopCCN processes a peer-sent StopCCN on any tunnel state.
+// The tunnel transitions to closed and the engine begins its retention
+// window. During retention, the engine continues to ACK retransmitted
+// StopCCNs via the NeedsZLB path. AC-14.
+//
+// RFC 2661 S4.4.2: upon receipt of a StopCCN, the tunnel and all
+// sessions within it must be cleared.
+func (t *L2TPTunnel) handleStopCCN(now time.Time, payload []byte) []sendRequest {
+	if t.state == L2TPTunnelClosed {
+		t.logger.Debug("l2tp: StopCCN on already-closed tunnel ignored")
+		return nil
+	}
+	info, err := parseStopCCN(payload)
+	if err != nil {
+		t.logger.Warn("l2tp: malformed StopCCN; ignoring", "error", err.Error())
+		return nil
+	}
+	t.state = L2TPTunnelClosed
+	t.engine.Close(now)
+	t.logger.Info("l2tp: peer StopCCN received; tunnel closed",
+		"result", info.Result,
+		"error-code", info.Error,
+		"message", info.Message)
+	return nil
+}
+
+// stopCCNInfo collects the fields parseStopCCN extracts from a StopCCN body.
+type stopCCNInfo struct {
+	AssignedTunnelID uint16
+	Result           uint16
+	Error            uint16
+	Message          string
+}
+
+// parseStopCCN walks the AVP stream of a StopCCN body and collects the
+// required fields. Message Type AVP MUST be first (RFC 2661 S4.1);
+// Assigned Tunnel ID and Result Code are required per S6.1.
+func parseStopCCN(payload []byte) (stopCCNInfo, error) {
+	var info stopCCNInfo
+	iter := NewAVPIterator(payload)
+	first := true
+	for {
+		vendorID, attrType, flags, value, ok := iter.Next()
+		if !ok {
+			if err := iter.Err(); err != nil {
+				return stopCCNInfo{}, err
+			}
+			break
+		}
+		if flags&FlagReserved != 0 {
+			if flags&FlagMandatory != 0 {
+				return stopCCNInfo{}, fmt.Errorf("l2tp: mandatory StopCCN AVP type %d with reserved bits set", attrType)
+			}
+			continue
+		}
+		if vendorID != 0 {
+			if flags&FlagMandatory != 0 {
+				return stopCCNInfo{}, fmt.Errorf("l2tp: mandatory StopCCN vendor %d AVP not recognized", vendorID)
+			}
+			continue
+		}
+		if first {
+			if attrType != AVPMessageType {
+				return stopCCNInfo{}, errors.New("l2tp: first StopCCN AVP must be Message Type (RFC 2661 S4.1)")
+			}
+			mt, rerr := ReadAVPUint16(value)
+			if rerr != nil {
+				return stopCCNInfo{}, fmt.Errorf("l2tp: read StopCCN message type: %w", rerr)
+			}
+			if MessageType(mt) != MsgStopCCN {
+				return stopCCNInfo{}, fmt.Errorf("l2tp: expected StopCCN (4), got %d", mt)
+			}
+			first = false
+			continue
+		}
+		if attrType == AVPAssignedTunnelID {
+			v, rerr := ReadAVPUint16(value)
+			if rerr != nil {
+				return stopCCNInfo{}, fmt.Errorf("l2tp: read StopCCN assigned tunnel id: %w", rerr)
+			}
+			info.AssignedTunnelID = v
+			continue
+		}
+		if attrType == AVPResultCode {
+			rc, rerr := ReadResultCode(value)
+			if rerr != nil {
+				return stopCCNInfo{}, fmt.Errorf("l2tp: read StopCCN result code: %w", rerr)
+			}
+			info.Result = rc.Result
+			if rc.ErrorPresent {
+				info.Error = rc.Error
+			}
+			info.Message = rc.Message
+			continue
+		}
+	}
+	if first {
+		return stopCCNInfo{}, errors.New("l2tp: empty StopCCN body")
+	}
+	return info, nil
+}
+
+// handleHelloTimer is called by the reactor when the HELLO interval
+// has elapsed without peer activity on an established tunnel. It
+// enqueues a HELLO control message (body = Message Type AVP only,
+// MsgHello = 6) through the reliable engine. The peer's ZLB ACK will
+// flow through the engine's NeedsZLB path; no FSM response is needed.
+// AC-12.
+//
+// RFC 2661 S15: a Hello message is sent after a dead interval during
+// which a control message has not been received.
+func (t *L2TPTunnel) handleHelloTimer(now time.Time) []sendRequest {
+	if t.state != L2TPTunnelEstablished {
+		return nil
+	}
+	bodyBuf := GetBuf()
+	defer PutBuf(bodyBuf)
+	n := WriteAVPUint16(*bodyBuf, 0, true, AVPMessageType, uint16(MsgHello))
+	wire, err := t.engine.Enqueue(0, (*bodyBuf)[:n], now)
+	if err != nil {
+		t.logger.Warn("l2tp: HELLO enqueue failed", "error", err.Error())
+		return nil
+	}
+	t.logger.Debug("l2tp: HELLO sent on silence timeout")
+	return []sendRequest{{to: t.peerAddr, bytes: wire}}
+}

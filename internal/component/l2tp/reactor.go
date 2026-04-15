@@ -30,9 +30,10 @@ type peerKey struct {
 // hardcodes host name and capabilities; phase 7 wires them through
 // YANG).
 type ReactorParams struct {
-	MaxTunnels uint16 // 0 = unbounded (by this knob; uint16 still caps at 65535)
-	Defaults   TunnelDefaults
-	Clock      func() time.Time // injected for tests; time.Now if nil
+	MaxTunnels    uint16        // 0 = unbounded (by this knob; uint16 still caps at 65535)
+	HelloInterval time.Duration // peer silence before HELLO; 0 = no keepalive
+	Defaults      TunnelDefaults
+	Clock         func() time.Time // injected for tests; time.Now if nil
 }
 
 // L2TPReactor is the single goroutine that owns the tunnel map and
@@ -59,6 +60,14 @@ type L2TPReactor struct {
 	tunnelsByLocalID map[uint16]*L2TPTunnel
 	tunnelsByPeer    map[peerKey]*L2TPTunnel
 	nextLocalTID     uint16
+
+	// Timer channels. Created by the reactor; the tunnelTimer goroutine
+	// is owned by the subsystem, not the reactor, but the reactor creates
+	// the channels at construction time so tests can work without a
+	// subsystem. tickCh receives tick requests from the timer; updateCh
+	// sends heap updates back to the timer.
+	tickCh   chan tickReq
+	updateCh chan heapUpdate
 
 	mu      sync.Mutex
 	stop    chan struct{}
@@ -88,6 +97,8 @@ func NewL2TPReactor(listener *UDPListener, logger *slog.Logger, params ReactorPa
 		params:           params,
 		tunnelsByLocalID: make(map[uint16]*L2TPTunnel),
 		tunnelsByPeer:    make(map[peerKey]*L2TPTunnel),
+		tickCh:           make(chan tickReq, 1),
+		updateCh:         make(chan heapUpdate, 16),
 	}
 }
 
@@ -120,12 +131,11 @@ func (r *L2TPReactor) Stop() {
 	r.wg.Wait()
 }
 
-// run is the reactor's main loop. It consumes packets from the listener
-// and dispatches each to handle. The loop exits when the listener's RX
-// channel closes (Stop was called on the listener) or when r.stop fires.
-// On stop, any packets already buffered in the RX channel are drained
-// with release() only -- not dispatched -- so the listener's slot pool
-// frees promptly instead of waiting for GC.
+// run is the reactor's main loop. It consumes packets from the listener,
+// timer tick requests, and dispatches each accordingly. The loop exits
+// when r.stop fires. On stop, any packets already buffered in the RX
+// channel are drained with release() only so the listener's slot pool
+// frees promptly.
 func (r *L2TPReactor) run() {
 	defer r.wg.Done()
 	rx := r.listener.RX()
@@ -136,6 +146,8 @@ func (r *L2TPReactor) run() {
 				return
 			}
 			r.handle(pkt)
+		case tr := <-r.tickCh:
+			r.handleTick(tr)
 		case <-r.stop:
 			r.drainOnStop(rx)
 			return
@@ -233,7 +245,23 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 		return
 	}
 	tunnel.peerAddr = pkt.from
-	outbound := tunnel.Process(hdr, payload, r.params.Clock(), r.params.Defaults, sccrq)
+	now := r.params.Clock()
+	outbound := tunnel.Process(hdr, payload, now, r.params.Defaults, sccrq)
+	// lastActivity is set inside Process only when the engine delivers
+	// at least one new message (not on duplicates/out-of-window).
+
+	// Capture the tunnel's new deadline for the timer heap update.
+	// If the tunnel just reached established and the engine has no
+	// pending retransmits, schedule a HELLO deadline so the keepalive
+	// timer is armed from the start.
+	newDeadline := tunnel.engine.NextDeadline()
+	if tunnel.state == L2TPTunnelEstablished && r.params.HelloInterval > 0 {
+		helloDeadline := now.Add(r.params.HelloInterval)
+		if newDeadline.IsZero() || helloDeadline.Before(newDeadline) {
+			newDeadline = helloDeadline
+		}
+	}
+	localTID := tunnel.localTID
 	r.tunnelsMu.Unlock()
 
 	for _, req := range outbound {
@@ -242,6 +270,130 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 				"to", req.to.String(), "len", len(req.bytes), "error", err.Error())
 		}
 	}
+	// Notify the timer of the tunnel's new deadline. Non-blocking because
+	// updateCh is buffered (16 slots); if it is full, the timer will catch
+	// up on the next drain. A dropped update only delays a tick by one
+	// retransmit interval, which is acceptable.
+	select {
+	case r.updateCh <- heapUpdate{tunnelID: localTID, deadline: newDeadline}:
+	case <-r.stop:
+	}
+}
+
+// handleTick processes a tick request from the timer goroutine. It runs
+// the engine's Tick for the specified tunnel, sends any retransmits,
+// checks the HELLO keepalive interval for established tunnels, handles
+// TeardownRequired, and reaps expired closed tunnels. After processing,
+// it sends a heapUpdate back to the timer with the tunnel's new deadline.
+//
+// The tick also serves as the reaper sweep: every tick examines ALL
+// closed tunnels for expiry, not just the one that fired. This is cheap
+// at phase-5 scale (tens of tunnels).
+func (r *L2TPReactor) handleTick(tr tickReq) {
+	now := r.params.Clock()
+	r.tunnelsMu.Lock()
+
+	// Reaper sweep: check all closed tunnels for expiry. The returned
+	// IDs are notified to the timer AFTER releasing the lock.
+	reaped := r.reapExpiredLocked(now)
+
+	tunnel, ok := r.tunnelsByLocalID[tr.tunnelID]
+	if !ok {
+		// Tunnel was reaped or discarded between the timer firing and
+		// this dispatch. Send a zero-deadline update to remove the
+		// stale heap entry.
+		r.tunnelsMu.Unlock()
+		r.notifyReaped(reaped)
+		select {
+		case r.updateCh <- heapUpdate{tunnelID: tr.tunnelID}:
+		case <-r.stop:
+		}
+		return
+	}
+
+	// Run engine.Tick for retransmission.
+	result := tunnel.engine.Tick(now)
+	var outbound []sendRequest
+
+	if result.TeardownRequired {
+		// Retransmit limit exhausted. Tear down the tunnel.
+		if tunnel.state != L2TPTunnelClosed {
+			outbound = append(outbound, tunnel.teardownStopCCN(now, resultGeneralError)...)
+		}
+	} else {
+		// Queue retransmits produced by the engine.
+		for _, wire := range result.Retransmits {
+			outbound = append(outbound, sendRequest{to: tunnel.peerAddr, bytes: wire})
+		}
+
+		// HELLO keepalive check for established tunnels. Skip if the
+		// engine already has outstanding retransmits: those serve as
+		// keepalive signals, and adding a HELLO would consume an extra
+		// retransmit slot that could cause premature TeardownRequired.
+		if tunnel.state == L2TPTunnelEstablished && r.params.HelloInterval > 0 && tunnel.engine.Outstanding() == 0 {
+			if !tunnel.lastActivity.IsZero() && now.Sub(tunnel.lastActivity) >= r.params.HelloInterval {
+				outbound = append(outbound, tunnel.handleHelloTimer(now)...)
+			}
+		}
+	}
+
+	newDeadline := tunnel.engine.NextDeadline()
+	// If the tunnel is established and has a HELLO interval, ensure
+	// the deadline is at most helloInterval from now so the timer
+	// fires for the next keepalive check.
+	if tunnel.state == L2TPTunnelEstablished && r.params.HelloInterval > 0 {
+		helloDeadline := now.Add(r.params.HelloInterval)
+		if newDeadline.IsZero() || helloDeadline.Before(newDeadline) {
+			newDeadline = helloDeadline
+		}
+	}
+
+	localTID := tunnel.localTID
+	r.tunnelsMu.Unlock()
+
+	r.notifyReaped(reaped)
+	for _, req := range outbound {
+		if err := r.listener.Send(req.to, req.bytes); err != nil {
+			r.logger.Warn("l2tp: outbound send failed",
+				"to", req.to.String(), "len", len(req.bytes), "error", err.Error())
+		}
+	}
+
+	select {
+	case r.updateCh <- heapUpdate{tunnelID: localTID, deadline: newDeadline}:
+	case <-r.stop:
+	}
+}
+
+// notifyReaped sends zero-deadline heap updates for reaped tunnel IDs.
+// Called AFTER releasing tunnelsMu.
+func (r *L2TPReactor) notifyReaped(ids []uint16) {
+	for _, tid := range ids {
+		select {
+		case r.updateCh <- heapUpdate{tunnelID: tid}:
+		case <-r.stop:
+			return
+		}
+	}
+}
+
+// reapExpiredLocked removes all tunnels in the closed state whose
+// engine retention window has elapsed. Returns the IDs of reaped
+// tunnels so the caller can notify the timer AFTER releasing the lock.
+// Caller MUST hold tunnelsMu.
+func (r *L2TPReactor) reapExpiredLocked(now time.Time) []uint16 {
+	// Collect IDs first to avoid modifying the map during iteration.
+	var expired []uint16
+	for tid, t := range r.tunnelsByLocalID {
+		if t.state == L2TPTunnelClosed && t.engine.Expired(now) {
+			expired = append(expired, tid)
+		}
+	}
+	for _, tid := range expired {
+		t := r.tunnelsByLocalID[tid]
+		r.discardTunnelLocked(t, "retention expired")
+	}
+	return expired
 }
 
 // locateTunnelLocked resolves the target tunnel for an inbound control

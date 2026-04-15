@@ -7,6 +7,7 @@ package l2tp
 import (
 	"log/slog"
 	"net/netip"
+	"time"
 )
 
 // L2TPTunnelState enumerates the four tunnel FSM states from RFC 2661 S9.
@@ -78,6 +79,14 @@ type L2TPTunnel struct {
 	// Caller MUST hold the owning reactor's tunnelsMu. Set once by
 	// handleSCCRQ and read by locateTunnelLocked's tie-breaker path.
 	tieBreaker []byte
+
+	// lastActivity records the time.Now() of the most recent inbound
+	// control message from the peer. Used by the reactor to decide when
+	// to send a HELLO keepalive (AC-12). Updated on every Process call
+	// that delivers at least one message. Zero until the first delivery.
+	//
+	// Caller MUST hold the owning reactor's tunnelsMu.
+	lastActivity time.Time
 }
 
 // newTunnel constructs a tunnel in the idle state with a pre-wired

@@ -961,3 +961,435 @@ func TestTunnelFSM_TieBreakerEqual(t *testing.T) {
 	}
 	require.Equal(t, 0, r.TunnelCount(), "equal tie-breaker must discard both tunnels")
 }
+
+// --- Phase 5 AC tests ---
+//
+// These tests use an injected clock (via ReactorParams.Clock) and call
+// handleTick directly on the reactor to verify keepalive, teardown, and
+// reaper behavior without depending on real-time timer scheduling.
+// The timer goroutine is tested separately in timer_test.go.
+
+// buildLogReactorWithClock constructs a reactor with a controllable clock
+// and HelloInterval. The clock function returns the value pointed to by
+// *now, which the test advances manually. No tunnelTimer is attached;
+// tests call r.handleTick() directly.
+//
+//nolint:unparam // all current callers use 60s but the parameter keeps call sites self-documenting.
+func buildLogReactorWithClock(t *testing.T, now *time.Time, helloInterval time.Duration, secret string) (*UDPListener, *L2TPReactor, *lockedBuffer, func()) {
+	t.Helper()
+	buf := &lockedBuffer{}
+	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
+	require.NoError(t, ln.Start(context.Background()))
+	r := NewL2TPReactor(ln, logger, ReactorParams{
+		HelloInterval: helloInterval,
+		Defaults:      TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16, SharedSecret: secret},
+		Clock:         func() time.Time { return *now },
+	})
+	require.NoError(t, r.Start())
+
+	stop := func() {
+		r.Stop()
+		_ = ln.Stop()
+	}
+	return ln, r, buf, stop
+}
+
+// driveToEstablished sends SCCRQ + SCCCN through the reactor to bring a
+// tunnel to established state. Returns the local TID and the testClient.
+// Uses the injected clock for timestamps.
+//
+//nolint:unparam // all current callers use "" but the parameter supports future auth-path tests.
+func driveToEstablished(t *testing.T, ln *UDPListener, secret string) (*testClient, uint16) {
+	t.Helper()
+	client := newClient(t, ln)
+
+	if secret != "" {
+		peerChallenge := bytes.Repeat([]byte{0xDD}, 16)
+		client.Send(t, buildSCCRQWithChallenge(t, 42, "peer-timer", peerChallenge))
+		sccrp := readDatagram(t, client)
+
+		ourChallenge := extractAVP(t, sccrp, AVPChallenge)
+		ourLocalTIDBytes := extractAVP(t, sccrp, AVPAssignedTunnelID)
+		ourLocalTID := uint16(ourLocalTIDBytes[0])<<8 | uint16(ourLocalTIDBytes[1])
+		resp := ChallengeResponse(ChapIDSCCCN, []byte(secret), ourChallenge)
+		client.Send(t, buildSCCCN(t, ourLocalTID, 1, 1, resp[:]))
+		return client, ourLocalTID
+	}
+
+	client.Send(t, buildSCCRQ(t, 42, "peer-timer"))
+	sccrp := readDatagram(t, client)
+	ourLocalTIDBytes := extractAVP(t, sccrp, AVPAssignedTunnelID)
+	ourLocalTID := uint16(ourLocalTIDBytes[0])<<8 | uint16(ourLocalTIDBytes[1])
+	client.Send(t, buildSCCCN(t, ourLocalTID, 1, 1, nil))
+	return client, ourLocalTID
+}
+
+// buildStopCCN returns a StopCCN datagram for the given destination TID
+// with a Result Code AVP. The peerAssignedTID is the peer's own TID
+// (included in the body per RFC 2661 S4.4.2).
+//
+//nolint:unparam // Ns/Nr/resultCode are explicit for protocol clarity; future tests will vary them.
+func buildStopCCN(t *testing.T, destTID, ns, nr, peerAssignedTID, resultCode uint16) []byte {
+	t.Helper()
+	bodyBuf := GetBuf()
+	defer PutBuf(bodyBuf)
+	buf := *bodyBuf
+	off := 0
+	off += WriteAVPUint16(buf, off, true, AVPMessageType, uint16(MsgStopCCN))
+	off += WriteAVPUint16(buf, off, true, AVPAssignedTunnelID, peerAssignedTID)
+	off += WriteAVPResultCode(buf, off, true, ResultCodeValue{Result: resultCode})
+	total := 12 + off
+	pkt := make([]byte, total)
+	WriteControlHeader(pkt, 0, uint16(total), destTID, 0, ns, nr)
+	copy(pkt[12:], buf[:off])
+	return pkt
+}
+
+// TestTunnelFSM_HelloOnSilence -- AC-12.
+//
+// VALIDATES: AC-12 -- when HelloInterval elapses without peer activity,
+// the reactor sends a HELLO control message. The peer's ZLB ACK resets
+// the silence timer by updating lastActivity.
+func TestTunnelFSM_HelloOnSilence(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	helloInterval := 60 * time.Second
+	ln, r, logs, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
+	defer stop()
+
+	client, localTID := driveToEstablished(t, ln, "")
+	defer client.Close()
+
+	waitForLog(t, logs, "tunnel now established")
+
+	// Drain the ZLB ACK for the SCCCN.
+	_ = readDatagram(t, client)
+
+	// Advance clock past hello interval and trigger a tick.
+	now = now.Add(61 * time.Second)
+
+	r.tunnelsMu.Lock()
+	tunnel := r.tunnelsByLocalID[localTID]
+	// Set lastActivity to well before the hello interval.
+	tunnel.lastActivity = now.Add(-65 * time.Second)
+	r.tunnelsMu.Unlock()
+
+	r.handleTick(tickReq{tunnelID: localTID})
+
+	// Read the HELLO datagram the reactor produced.
+	helloPkt := readDatagram(t, client)
+	require.GreaterOrEqual(t, len(helloPkt), 12, "HELLO packet must be at least a control header")
+
+	// Verify the body is a Message Type AVP with value 6 (HELLO).
+	msgType := extractAVP(t, helloPkt, AVPMessageType)
+	require.NotNil(t, msgType, "HELLO must carry Message Type AVP")
+	require.Equal(t, uint16(MsgHello), uint16(msgType[0])<<8|uint16(msgType[1]))
+
+	require.Contains(t, logs.String(), "HELLO sent on silence timeout")
+}
+
+// TestTunnelFSM_HelloExhaustedTeardown -- AC-13.
+//
+// VALIDATES: AC-13 -- after HELLO retransmissions are exhausted (engine
+// Tick returns TeardownRequired), the reactor emits StopCCN and the
+// tunnel reaches closed state. After the retention window, the reaper
+// removes it from both maps.
+func TestTunnelFSM_HelloExhaustedTeardown(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	helloInterval := 60 * time.Second
+	ln, r, logs, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
+	defer stop()
+
+	client, localTID := driveToEstablished(t, ln, "")
+	defer client.Close()
+
+	waitForLog(t, logs, "tunnel now established")
+	_ = readDatagram(t, client) // drain ZLB
+
+	// Set lastActivity to before hello interval and trigger HELLO.
+	now = now.Add(65 * time.Second)
+	r.tunnelsMu.Lock()
+	tunnel := r.tunnelsByLocalID[localTID]
+	tunnel.lastActivity = now.Add(-70 * time.Second)
+	r.tunnelsMu.Unlock()
+
+	r.handleTick(tickReq{tunnelID: localTID})
+
+	// HELLO is sent; drain it. Do NOT send ZLB back (simulate peer silence).
+	_ = readDatagram(t, client)
+
+	// Now repeatedly tick until the engine exhausts its retransmit
+	// attempts (DefaultMaxRetransmit = 5, doubling from 1s).
+	// Advance time past each retransmit deadline.
+	retransmitTimeout := DefaultRTimeout
+	for range DefaultMaxRetransmit + 1 {
+		now = now.Add(retransmitTimeout + time.Second)
+		retransmitTimeout *= 2
+		if retransmitTimeout > DefaultRTimeoutCap {
+			retransmitTimeout = DefaultRTimeoutCap
+		}
+		r.handleTick(tickReq{tunnelID: localTID})
+
+		// Drain any retransmit or StopCCN that was sent.
+		if err := client.conn.SetReadDeadline(time.Now().Add(50 * time.Millisecond)); err == nil {
+			buf := make([]byte, 1500)
+			if n, _, rerr := client.conn.ReadFromUDP(buf); rerr == nil && n > 0 {
+				_ = buf[:n]
+			}
+		}
+	}
+
+	// Tunnel should be closed now.
+	r.tunnelsMu.Lock()
+	tunnel = r.tunnelsByLocalID[localTID]
+	var state L2TPTunnelState
+	if tunnel != nil {
+		state = tunnel.state
+	}
+	r.tunnelsMu.Unlock()
+
+	require.Equal(t, L2TPTunnelClosed, state, "tunnel must be closed after HELLO exhaustion")
+	require.Contains(t, logs.String(), "StopCCN sent; tunnel closed")
+
+	// Advance time past the retention window and tick again for reaper.
+	// Retention with defaults: 1+2+4+8+16 = 31s.
+	now = now.Add(60 * time.Second)
+	r.handleTick(tickReq{tunnelID: localTID})
+
+	require.Equal(t, 0, r.TunnelCount(), "expired tunnel must be reaped")
+	require.Contains(t, logs.String(), "retention expired")
+}
+
+// TestTunnelFSM_StopCCNEstablished -- AC-14.
+//
+// VALIDATES: AC-14 -- when a peer sends StopCCN on an established
+// tunnel, the tunnel transitions to closed, engine.Close is called, and
+// the engine continues to serve ZLB ACKs for retransmitted StopCCNs
+// until the retention window expires.
+func TestTunnelFSM_StopCCNEstablished(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	ln, r, logs, stop := buildLogReactorWithClock(t, &now, 60*time.Second, "")
+	defer stop()
+
+	client, localTID := driveToEstablished(t, ln, "")
+	defer client.Close()
+
+	waitForLog(t, logs, "tunnel now established")
+	_ = readDatagram(t, client) // drain ZLB
+
+	// Peer sends StopCCN with Result Code 1 (general).
+	// Ns=2 (SCCRQ=0, SCCCN=1, StopCCN=2), Nr=1 (ACKs our SCCRP at Ns=0).
+	client.Send(t, buildStopCCN(t, localTID, 2, 1, 42, 1))
+
+	waitForLog(t, logs, "peer StopCCN received; tunnel closed")
+
+	r.tunnelsMu.Lock()
+	tunnel := r.tunnelsByLocalID[localTID]
+	require.NotNil(t, tunnel)
+	state := tunnel.state
+	r.tunnelsMu.Unlock()
+
+	require.Equal(t, L2TPTunnelClosed, state, "tunnel must be closed after peer StopCCN")
+
+	// The tunnel should still be in the map (retention window active).
+	require.Equal(t, 1, r.TunnelCount(), "tunnel must remain during retention window")
+
+	// Retransmitted StopCCN should be ACKed (ZLB).
+	client.Send(t, buildStopCCN(t, localTID, 2, 1, 42, 1))
+	// Give the reactor time to process.
+	time.Sleep(50 * time.Millisecond)
+
+	// The engine should ACK the retransmitted StopCCN.
+	zlb := readDatagram(t, client)
+	require.Equal(t, 12, len(zlb), "ZLB ACK should be exactly 12 bytes (control header only)")
+}
+
+// TestReaper_ExpiredTunnelRemoved -- AC-15.
+//
+// VALIDATES: AC-15 -- after engine.Expired(now) returns true on a closed
+// tunnel, the tunnel is removed from BOTH the primary (tunnelsByLocalID)
+// and secondary (tunnelsByPeer) maps.
+func TestReaper_ExpiredTunnelRemoved(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	ln, r, logs, stop := buildLogReactorWithClock(t, &now, 60*time.Second, "")
+	defer stop()
+
+	client, localTID := driveToEstablished(t, ln, "")
+	defer client.Close()
+
+	waitForLog(t, logs, "tunnel now established")
+	_ = readDatagram(t, client) // drain ZLB
+
+	// Peer sends StopCCN to close the tunnel.
+	client.Send(t, buildStopCCN(t, localTID, 2, 1, 42, 1))
+	waitForLog(t, logs, "peer StopCCN received; tunnel closed")
+
+	require.Equal(t, 1, r.TunnelCount(), "tunnel present during retention")
+
+	// Advance past retention window (defaults: 1+2+4+8+16 = 31s).
+	now = now.Add(60 * time.Second)
+
+	// Tick triggers the reaper.
+	r.handleTick(tickReq{tunnelID: localTID})
+
+	require.Equal(t, 0, r.TunnelCount(), "expired tunnel removed from primary map")
+
+	r.tunnelsMu.Lock()
+	peerMapLen := len(r.tunnelsByPeer)
+	r.tunnelsMu.Unlock()
+	require.Equal(t, 0, peerMapLen, "expired tunnel removed from secondary (peer) map")
+
+	require.Contains(t, logs.String(), "retention expired")
+}
+
+// TestIntegration_LoopbackHandshake verifies the full handshake +
+// StopCCN + reaper cycle end-to-end with all components wired (no
+// injected clock, real timer).
+func TestIntegration_LoopbackHandshake(t *testing.T) {
+	ln, r, logs, stop := buildLogReactor(t)
+	defer stop()
+
+	// Start a timer for the reactor.
+	timer := newTunnelTimer(r.tickCh, r.updateCh)
+	require.NoError(t, timer.Start())
+	defer timer.Stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	// Drive to established.
+	client.Send(t, buildSCCRQ(t, 77, "peer-integ"))
+	sccrp := readDatagram(t, client)
+	ourLocalTIDBytes := extractAVP(t, sccrp, AVPAssignedTunnelID)
+	ourLocalTID := uint16(ourLocalTIDBytes[0])<<8 | uint16(ourLocalTIDBytes[1])
+	client.Send(t, buildSCCCN(t, ourLocalTID, 1, 1, nil))
+	waitForLog(t, logs, "tunnel now established")
+
+	// Drain ZLB.
+	_ = readDatagram(t, client)
+
+	// Peer sends StopCCN.
+	client.Send(t, buildStopCCN(t, ourLocalTID, 2, 1, 77, 1))
+	waitForLog(t, logs, "peer StopCCN received; tunnel closed")
+
+	// Tunnel should be closed but still present (retention).
+	r.tunnelsMu.Lock()
+	tunnel := r.tunnelsByLocalID[ourLocalTID]
+	require.NotNil(t, tunnel)
+	state := tunnel.state
+	r.tunnelsMu.Unlock()
+	require.Equal(t, L2TPTunnelClosed, state)
+}
+
+// TestTunnelFSM_StopCCNDuringHandshake -- ISSUE-5 from review.
+//
+// VALIDATES: a StopCCN received on a tunnel in wait-ctl-conn state
+// (SCCRP sent, SCCCN not yet received) closes the tunnel correctly.
+// This is a valid protocol scenario where the peer aborts mid-handshake.
+func TestTunnelFSM_StopCCNDuringHandshake(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	ln, r, logs, stop := buildLogReactorWithClock(t, &now, 60*time.Second, "")
+	defer stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	// Send SCCRQ only (no SCCCN). Tunnel reaches wait-ctl-conn.
+	client.Send(t, buildSCCRQ(t, 50, "peer-abort"))
+	waitForLog(t, logs, "SCCRP sent; tunnel now wait-ctl-conn")
+	_ = readDatagram(t, client) // drain SCCRP
+
+	r.tunnelsMu.Lock()
+	var localTID uint16
+	for tid := range r.tunnelsByLocalID {
+		localTID = tid
+	}
+	r.tunnelsMu.Unlock()
+
+	// Peer sends StopCCN while we are in wait-ctl-conn.
+	// Ns=1 (SCCRQ was Ns=0, StopCCN=1), Nr=1 (ACKs our SCCRP).
+	client.Send(t, buildStopCCN(t, localTID, 1, 1, 50, 1))
+	waitForLog(t, logs, "peer StopCCN received; tunnel closed")
+
+	r.tunnelsMu.Lock()
+	tunnel := r.tunnelsByLocalID[localTID]
+	require.NotNil(t, tunnel)
+	state := tunnel.state
+	r.tunnelsMu.Unlock()
+	require.Equal(t, L2TPTunnelClosed, state, "StopCCN during handshake must close tunnel")
+}
+
+// TestTunnelFSM_MalformedStopCCNIgnored -- ISSUE-6 from review.
+//
+// VALIDATES: a StopCCN with a malformed body (wrong first AVP) is
+// ignored without crash; the tunnel remains in its current state.
+func TestTunnelFSM_MalformedStopCCNIgnored(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	ln, r, logs, stop := buildLogReactorWithClock(t, &now, 60*time.Second, "")
+	defer stop()
+
+	client, localTID := driveToEstablished(t, ln, "")
+	defer client.Close()
+
+	waitForLog(t, logs, "tunnel now established")
+	_ = readDatagram(t, client) // drain ZLB
+
+	// Build a StopCCN whose first AVP is correct (MessageType=4) but
+	// includes a mandatory vendor AVP (vendor 9999) which parseStopCCN
+	// rejects as "mandatory vendor AVP not recognized."
+	bodyBuf := GetBuf()
+	defer PutBuf(bodyBuf)
+	buf := *bodyBuf
+	off := 0
+	off += WriteAVPUint16(buf, off, true, AVPMessageType, uint16(MsgStopCCN))
+	// Mandatory (M=1) vendor AVP with vendor ID 9999.
+	off += WriteAVPBytes(buf, off, true, 9999, AVPType(1), []byte{0x01, 0x02})
+	total := 12 + off
+	pkt := make([]byte, total)
+	WriteControlHeader(pkt, 0, uint16(total), localTID, 0, 2, 1)
+	copy(pkt[12:], buf[:off])
+
+	client.Send(t, pkt)
+	waitForLog(t, logs, "malformed StopCCN; ignoring")
+
+	// Tunnel must remain established.
+	r.tunnelsMu.Lock()
+	tunnel := r.tunnelsByLocalID[localTID]
+	require.NotNil(t, tunnel)
+	state := tunnel.state
+	r.tunnelsMu.Unlock()
+	require.Equal(t, L2TPTunnelEstablished, state, "malformed StopCCN must not change tunnel state")
+}
+
+// TestTunnelFSM_HelloNotSentWhenLastActivityZero -- ISSUE-7 from review.
+//
+// VALIDATES: if lastActivity is zero (tunnel somehow has no recorded
+// inbound delivery), handleTick does NOT send a HELLO. The zero check
+// prevents spurious HELLOs before the tunnel has seen any traffic.
+func TestTunnelFSM_HelloNotSentWhenLastActivityZero(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	helloInterval := 60 * time.Second
+	ln, r, logs, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
+	defer stop()
+
+	client, localTID := driveToEstablished(t, ln, "")
+	defer client.Close()
+
+	waitForLog(t, logs, "tunnel now established")
+	_ = readDatagram(t, client) // drain ZLB
+
+	// Force lastActivity to zero (simulate a tunnel that reached
+	// established without the reactor setting lastActivity).
+	now = now.Add(120 * time.Second)
+	r.tunnelsMu.Lock()
+	tunnel := r.tunnelsByLocalID[localTID]
+	tunnel.lastActivity = time.Time{}
+	r.tunnelsMu.Unlock()
+
+	r.handleTick(tickReq{tunnelID: localTID})
+
+	// No HELLO should have been sent.
+	require.NotContains(t, logs.String(), "HELLO sent on silence timeout",
+		"HELLO must not fire when lastActivity is zero")
+}

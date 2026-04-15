@@ -37,6 +37,7 @@ type Subsystem struct {
 	started   bool
 	listeners []*UDPListener
 	reactors  []*L2TPReactor
+	timers    []*tunnelTimer
 }
 
 // NewSubsystem constructs an L2TP subsystem from parsed Parameters. The returned
@@ -75,8 +76,9 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 		return nil
 	}
 
-	// Bind every configured listen endpoint and launch a reactor for each.
-	// On any bind failure, unwind the partial state so a retry is safe.
+	// Bind every configured listen endpoint and launch a reactor + timer
+	// for each. On any bind failure, unwind the partial state so a retry
+	// is safe.
 	for _, addr := range s.params.ListenAddrs {
 		ln := NewUDPListener(addr, s.logger)
 		if err := ln.Start(ctx); err != nil {
@@ -84,7 +86,8 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 			return fmt.Errorf("l2tp: bind %s: %w", addr, err)
 		}
 		reactor := NewL2TPReactor(ln, s.logger, ReactorParams{
-			MaxTunnels: s.params.MaxTunnels,
+			MaxTunnels:    s.params.MaxTunnels,
+			HelloInterval: s.params.HelloInterval,
 			Defaults: TunnelDefaults{
 				// HostName left empty; reactor applies "ze" default.
 				// Phase 7 will wire a YANG leaf for operator-controlled hostname.
@@ -102,8 +105,19 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 			s.unwindLocked()
 			return reactorErr
 		}
+		timer := newTunnelTimer(reactor.tickCh, reactor.updateCh)
+		if err := timer.Start(); err != nil {
+			reactor.Stop()
+			timerErr := fmt.Errorf("l2tp: start timer for %s: %w", addr, err)
+			if stopErr := ln.Stop(); stopErr != nil {
+				timerErr = errors.Join(timerErr, fmt.Errorf("l2tp: close listener %s: %w", addr, stopErr))
+			}
+			s.unwindLocked()
+			return timerErr
+		}
 		s.listeners = append(s.listeners, ln)
 		s.reactors = append(s.reactors, reactor)
+		s.timers = append(s.timers, timer)
 		s.logger.Info("L2TP listener bound", "address", ln.Addr().String())
 	}
 	s.started = true
@@ -115,6 +129,11 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 // all without suppressing any.
 func (s *Subsystem) unwindLocked() {
 	var errs []error
+	// Timers first: they send on reactor channels, so stop them before
+	// the reactors close those channels.
+	for _, t := range s.timers {
+		t.Stop()
+	}
 	for _, r := range s.reactors {
 		r.Stop()
 	}
@@ -123,6 +142,7 @@ func (s *Subsystem) unwindLocked() {
 			errs = append(errs, err)
 		}
 	}
+	s.timers = nil
 	s.reactors = nil
 	s.listeners = nil
 	if len(errs) > 0 {
@@ -143,6 +163,11 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	s.logger.Info("L2TP subsystem stopping")
 
 	var errs []error
+	// Timers first: they send on reactor channels, so stop them before
+	// the reactors close those channels.
+	for _, t := range s.timers {
+		t.Stop()
+	}
 	for _, r := range s.reactors {
 		r.Stop()
 	}
@@ -151,6 +176,7 @@ func (s *Subsystem) Stop(_ context.Context) error {
 			errs = append(errs, err)
 		}
 	}
+	s.timers = nil
 	s.reactors = nil
 	s.listeners = nil
 	s.started = false
