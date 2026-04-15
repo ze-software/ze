@@ -87,6 +87,17 @@ type L2TPTunnel struct {
 	//
 	// Caller MUST hold the owning reactor's tunnelsMu.
 	lastActivity time.Time
+
+	// sessions maps our locally-assigned Session ID to the session state.
+	// Nil until the first session is created. Keyed by local SID (the ID
+	// in the header of inbound session-scoped messages).
+	//
+	// Caller MUST hold the owning reactor's tunnelsMu.
+	sessions map[uint16]*L2TPSession
+
+	// maxSessions is the per-tunnel session limit (0 = unbounded).
+	// Copied from config at tunnel creation time.
+	maxSessions uint16
 }
 
 // newTunnel constructs a tunnel in the idle state with a pre-wired

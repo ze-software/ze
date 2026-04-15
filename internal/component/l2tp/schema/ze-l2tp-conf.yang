@@ -36,6 +36,16 @@ module ze-l2tp-conf {
                  limit is reached.";
         }
 
+        leaf max-sessions {
+            type uint16;
+            description
+                "Maximum concurrent sessions per tunnel. A value of 0
+                 (and the unset default) means unbounded. Set to a
+                 positive value to reject further ICRQs and OCRQs with
+                 CDN Result Code 4 (no resources) once the limit is
+                 reached on any given tunnel.";
+        }
+
         leaf shared-secret {
             type string;
             ze:sensitive;

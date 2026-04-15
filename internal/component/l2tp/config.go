@@ -48,6 +48,12 @@ var (
 		Description: "Shared secret for CHAP-MD5 tunnel authentication (RFC 2661 S4.2)",
 		Secret:      true,
 	})
+	_ = env.MustRegister(env.EnvEntry{
+		Key:         "ze.l2tp.max-sessions",
+		Type:        "int",
+		Default:     "0",
+		Description: "Maximum concurrent sessions per tunnel (0 = unbounded)",
+	})
 )
 
 // Default listener values. Phase 3 only implements a single well-known-port
@@ -66,6 +72,7 @@ type Parameters struct {
 	Enabled       bool
 	ListenAddrs   []netip.AddrPort
 	MaxTunnels    uint16
+	MaxSessions   uint16
 	HelloInterval time.Duration
 	// SharedSecret is the CHAP-MD5 tunnel authentication secret (RFC 2661
 	// S4.2). Empty means peers that include a Challenge AVP in SCCRQ will
@@ -107,6 +114,14 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("l2tp max-tunnels: %w", err)
 		}
 		p.MaxTunnels = uint16(n)
+	}
+
+	if v, ok := l2tpRoot.Get("max-sessions"); ok {
+		n, err := strconv.ParseUint(v, 10, 16)
+		if err != nil {
+			return Parameters{}, fmt.Errorf("l2tp max-sessions: %w", err)
+		}
+		p.MaxSessions = uint16(n)
 	}
 
 	if v, ok := l2tpRoot.Get("hello-interval"); ok {

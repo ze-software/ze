@@ -224,6 +224,49 @@ environment {
 	assert.Equal(t, uint16(0), p.MaxTunnels, "max-tunnels=0 should parse as zero and be interpreted as unbounded by consumers")
 }
 
+// TestConfig_MaxSessions passes the integer through.
+//
+// VALIDATES: max-sessions config extraction.
+func TestConfig_MaxSessions(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	max-sessions 100
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	assert.Equal(t, uint16(100), p.MaxSessions)
+}
+
+// TestConfig_MaxSessionsZeroIsUnbounded captures the contract that
+// max-sessions 0 (and the unset default) means "no limit per tunnel".
+func TestConfig_MaxSessionsZeroIsUnbounded(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	max-sessions 0
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	assert.Equal(t, uint16(0), p.MaxSessions)
+}
+
 // TestConfig_IPv6Listener — symmetry check for the IPv4 test.
 //
 // VALIDATES: AC-2 (partial) -- YANG zt:listener accepts IPv6 addresses

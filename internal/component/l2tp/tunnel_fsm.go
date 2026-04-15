@@ -1,5 +1,6 @@
 // Design: docs/research/l2tpv2-implementation-guide.md -- S9 tunnel FSM + S4 AVP handling
 // Related: tunnel.go -- L2TPTunnel value and state enum
+// Detail: session_fsm.go -- session-scoped message handlers dispatched from handleMessage
 
 package l2tp
 
@@ -110,6 +111,13 @@ func (t *L2TPTunnel) handleMessage(entry RecvEntry, now time.Time, defaults Tunn
 		// message resets lastActivity via the reactor's Process caller.
 		t.logger.Debug("l2tp: Hello received")
 		return nil
+	}
+	// Session-scoped messages: ICRQ, ICRP, ICCN, OCRQ, OCRP, OCCN, CDN, WEN, SLI.
+	// Dispatched to session_fsm.go handlers via dispatchToSession.
+	if msgType == MsgICRQ || msgType == MsgICRP || msgType == MsgICCN ||
+		msgType == MsgOCRQ || msgType == MsgOCRP || msgType == MsgOCCN ||
+		msgType == MsgCDN || msgType == MsgWEN || msgType == MsgSLI {
+		return t.dispatchToSession(msgType, entry.SessionID, entry.Payload, now, t.logger)
 	}
 	t.logger.Debug("l2tp: unsupported message type ignored", "type", uint16(msgType))
 	return nil
@@ -535,6 +543,13 @@ func (t *L2TPTunnel) handleStopCCN(now time.Time, payload []byte) []sendRequest 
 	if err != nil {
 		t.logger.Warn("l2tp: malformed StopCCN; ignoring", "error", err.Error())
 		return nil
+	}
+	// AC-9: cascade CDN to all active sessions before closing tunnel.
+	// RFC 2661 S4.4.2: upon receipt of a StopCCN, the tunnel and all
+	// sessions within it must be cleared.
+	cleared := t.clearSessions()
+	if len(cleared) > 0 {
+		t.logger.Info("l2tp: StopCCN clearing sessions", "count", len(cleared))
 	}
 	t.state = L2TPTunnelClosed
 	t.engine.Close(now)

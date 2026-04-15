@@ -87,6 +87,7 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 		}
 		reactor := NewL2TPReactor(ln, s.logger, ReactorParams{
 			MaxTunnels:    s.params.MaxTunnels,
+			MaxSessions:   s.params.MaxSessions,
 			HelloInterval: s.params.HelloInterval,
 			Defaults: TunnelDefaults{
 				// HostName left empty; reactor applies "ze" default.

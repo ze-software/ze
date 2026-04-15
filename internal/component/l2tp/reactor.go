@@ -31,6 +31,7 @@ type peerKey struct {
 // YANG).
 type ReactorParams struct {
 	MaxTunnels    uint16        // 0 = unbounded (by this knob; uint16 still caps at 65535)
+	MaxSessions   uint16        // 0 = unbounded per-tunnel session limit
 	HelloInterval time.Duration // peer silence before HELLO; 0 = no keepalive
 	Defaults      TunnelDefaults
 	Clock         func() time.Time // injected for tests; time.Now if nil
@@ -458,6 +459,7 @@ func (r *L2TPReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 		return nil
 	}
 	t := newTunnel(localTID, sccrq.AssignedTunnelID, from, ReliableConfig{RecvWindow: r.params.Defaults.RecvWindow}, r.logger)
+	t.maxSessions = r.params.MaxSessions
 	r.tunnelsByLocalID[localTID] = t
 	r.tunnelsByPeer[key] = t
 	r.logger.Info("l2tp: new tunnel created from SCCRQ",
