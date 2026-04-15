@@ -313,6 +313,8 @@ func doSelectConfig(store storage.Storage, configDir, defaultPath string, in io.
 func cmdEditWithStorage(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config edit", flag.ExitOnError)
 	fileOverride := fs.Bool("f", false, "Use filesystem directly, bypass blob store")
+	user := fs.String("user", "", "SSH login username (overrides zefs super-admin)")
+	fs.StringVar(user, "u", "", "Short alias for --user")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -408,18 +410,18 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 		return 1
 	}
 
-	return runEditor(ed, store, configPath)
+	return runEditor(ed, store, configPath, *user)
 }
 
 // runEditor runs the interactive editor TUI after the Editor is created.
-func runEditor(ed *cli.Editor, store storage.Storage, configPath string) int {
+func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string) int {
 	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
 	// Probe daemon SSH port at startup.
 	// If no daemon is running and credentials are available, start an ephemeral daemon.
 	// Skip ephemeral daemon when config has no recognized block (bgp, plugin) — the
 	// daemon would reject it with "no recognized block" and exit immediately.
-	creds, credsErr := sshclient.LoadCredentials()
+	creds, credsErr := sshclient.LoadCredentialsWithFlags(user)
 	var ephemeralProc *os.Process
 	daemonReachable := false
 	if credsErr == nil {

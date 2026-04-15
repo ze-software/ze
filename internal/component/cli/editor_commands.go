@@ -452,6 +452,14 @@ func (e *Editor) Save() error {
 		return nil
 	}
 
+	// Hash any plaintext-password siblings of ze:bcrypt leaves before
+	// serialization. Mirrors the commit-time hashing done in CommitSession.
+	if e.treeValid && e.tree != nil && e.schema != nil {
+		if err := config.ApplyPasswordHashing(e.tree, e.schema); err != nil {
+			return fmt.Errorf("hash password: %w", err)
+		}
+	}
+
 	// Create backup of original
 	if err := e.createBackup(e.originalContent, nil); err != nil {
 		return fmt.Errorf("failed to create backup: %w", err)

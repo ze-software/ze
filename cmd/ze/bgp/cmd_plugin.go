@@ -65,6 +65,8 @@ func pluginUsage() {
 func cmdPluginCLI(args []string) int {
 	fs := flag.NewFlagSet("plugin cli", flag.ExitOnError)
 	name := fs.String("name", "", "Plugin name (default: auto-generated)")
+	user := fs.String("user", "", "SSH login username (overrides zefs super-admin)")
+	fs.StringVar(user, "u", "", "Short alias for --user")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -95,7 +97,7 @@ func cmdPluginCLI(args []string) int {
 	}
 
 	// Load SSH credentials.
-	creds, err := sshclient.LoadCredentials()
+	creds, err := sshclient.LoadCredentialsWithFlags(*user)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		fmt.Fprintf(os.Stderr, "hint: is the daemon running?\n")

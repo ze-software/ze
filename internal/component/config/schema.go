@@ -115,7 +115,8 @@ type Node interface {
 type LeafNode struct {
 	Type        ValueType
 	Default     string
-	Sensitive   bool     // ze:sensitive — value is a password/key, masked in display
+	Sensitive   bool     // ze:sensitive — value is a password/key, masked in display ($9$ reversible)
+	Bcrypt      bool     // ze:bcrypt — one-way bcrypt hash; parser skips $9$ decode, commit hashes plaintext sibling
 	Hidden      bool     // ze:hidden — excluded from config display output
 	Ephemeral   bool     // ze:ephemeral — present in schema, not persisted to config file
 	Decorate    string   // ze:decorate — decorator name for display-time enrichment

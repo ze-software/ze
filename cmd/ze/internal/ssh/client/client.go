@@ -9,11 +9,13 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/term"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
@@ -25,7 +27,8 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.config.dir", Type: "string", Description: "Override default config directory"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.host", Type: "string", Default: "127.0.0.1", Description: "Override SSH host"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.port", Type: "string", Default: "2222", Description: "Override SSH port"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.password", Type: "string", Description: "SSH password (zefs stores bcrypt hash)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.username", Type: "string", Description: "Override SSH username (default: zefs super-admin)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.password", Type: "string", Description: "SSH password (zefs stores bcrypt hash)", Secret: true})
 )
 
 // dialTimeout is the maximum time to establish an SSH connection.
@@ -201,35 +204,107 @@ func OpenProtocolSession(creds Credentials, command string) (*ProtocolSession, e
 	}, nil
 }
 
-// ReadCredentials reads SSH credentials from a zefs database.
-// Host and port can be overridden by env vars (ze_ssh_host, ze_ssh_port).
-// Auth credential: env var ze_ssh_password overrides zefs. The zefs stores a
-// bcrypt hash (written by ze init) which is sent as-is (hash-as-token auth).
+// ReadCredentials reads SSH credentials from a zefs database using the
+// default super-admin username from zefs.
+//
+// Equivalent to ReadCredentialsWithFlags(dbPath, "").
 func ReadCredentials(dbPath string) (Credentials, error) {
+	return ReadCredentialsWithFlags(dbPath, "")
+}
+
+// ReadCredentialsWithFlags reads SSH credentials and lets the caller supply
+// a CLI-flag override for the username.
+//
+// Username precedence: cliUser > env ze.ssh.username > zefs meta/ssh/username.
+// Password precedence (super-admin path -- cliUser empty or matches zefs user):
+//
+//	env ze.ssh.password > zefs meta/ssh/password (sent as bcrypt hash-as-token).
+//
+// Password precedence (different user -- cliUser names a non-super-admin):
+//
+//	env ze.ssh.password > interactive TTY prompt > error.
+//
+// Host and port: env > zefs > defaults (127.0.0.1:2222) regardless of user.
+func ReadCredentialsWithFlags(dbPath, cliUser string) (Credentials, error) {
 	store, err := zefs.Open(dbPath)
 	if err != nil {
 		return Credentials{}, fmt.Errorf("open database: %w", err)
 	}
 	defer store.Close() //nolint:errcheck // read-only access
 
-	username, err := readKey(store, zefs.KeySSHUsername.Pattern)
+	zefsUser, err := readKey(store, zefs.KeySSHUsername.Pattern)
 	if err != nil {
 		return Credentials{}, err
 	}
 
-	// Password: env var overrides zefs.
-	password := env.Get("ze.ssh.password")
-	if password == "" {
-		password, err = readKey(store, zefs.KeySSHPassword.Pattern)
-		if err != nil {
-			return Credentials{}, err
-		}
+	username := resolveUsername(cliUser, zefsUser)
+	isSuperAdmin := username == zefsUser
+
+	password, err := resolvePassword(store, username, isSuperAdmin)
+	if err != nil {
+		return Credentials{}, err
 	}
 
-	// Host and port: env var takes priority, then zefs, then defaults.
+	host, port := resolveHostPort(store)
+
+	return Credentials{
+		Host:     host,
+		Port:     port,
+		Username: username,
+		Auth:     password,
+	}, nil
+}
+
+// resolveUsername picks a username from the CLI flag, env, or zefs in order.
+// Comparison is exact (case- and whitespace-sensitive) to match SSH server
+// semantics: `--user "admin "` (trailing space) is a different user than the
+// zefs `admin` and will exercise the non-super-admin password path.
+func resolveUsername(cliUser, zefsUser string) string {
+	if cliUser != "" {
+		return cliUser
+	}
+	if v := env.Get("ze.ssh.username"); v != "" {
+		return v
+	}
+	return zefsUser
+}
+
+// resolvePassword returns the SSH credential to send. Super-admin can fall
+// back to the zefs hash-as-token; other users must supply a real password
+// (env or interactive prompt) because only their bcrypt hash lives in YANG.
+func resolvePassword(store *zefs.BlobStore, username string, isSuperAdmin bool) (string, error) {
+	if v := env.Get("ze.ssh.password"); v != "" {
+		return v, nil
+	}
+	if isSuperAdmin {
+		return readKey(store, zefs.KeySSHPassword.Pattern)
+	}
+	if isStdinTTY() {
+		return promptPassword(username)
+	}
+	return "", fmt.Errorf("no password source for user %q (set ze.ssh.password or run interactively)", username)
+}
+
+// isStdinTTY reports whether stdin is a terminal.
+func isStdinTTY() bool {
+	return term.IsTerminal(int(os.Stdin.Fd()))
+}
+
+// promptPassword reads a password from the terminal without echo.
+func promptPassword(username string) (string, error) {
+	fmt.Fprintf(os.Stderr, "password for %s: ", username)
+	pw, err := term.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Fprintln(os.Stderr)
+	if err != nil {
+		return "", fmt.Errorf("read password: %w", err)
+	}
+	return string(pw), nil
+}
+
+// resolveHostPort picks host and port from env, zefs, or built-in defaults.
+func resolveHostPort(store *zefs.BlobStore) (string, string) {
 	host := env.Get("ze.ssh.host")
 	port := env.Get("ze.ssh.port")
-
 	if host == "" {
 		if h, hErr := readKey(store, zefs.KeySSHHost.Pattern); hErr == nil {
 			host = h
@@ -246,13 +321,7 @@ func ReadCredentials(dbPath string) (Credentials, error) {
 	if port == "" {
 		port = "2222"
 	}
-
-	return Credentials{
-		Host:     host,
-		Port:     port,
-		Username: username,
-		Auth:     password,
-	}, nil
+	return host, port
 }
 
 func readKey(store *zefs.BlobStore, key string) (string, error) {
@@ -290,11 +359,21 @@ func ResolveDBPath() string {
 	return filepath.Join(dir, "database.zefs")
 }
 
-// LoadCredentials reads SSH credentials from the default zefs database.
+// LoadCredentials reads SSH credentials from the default zefs database
+// using the zefs super-admin username (no CLI flag override).
+//
+// Preserved for callers that have not yet adopted --user.
 func LoadCredentials() (Credentials, error) {
+	return LoadCredentialsWithFlags("")
+}
+
+// LoadCredentialsWithFlags reads SSH credentials from the default zefs
+// database, applying a CLI-flag username override when non-empty.
+// See ReadCredentialsWithFlags for the full precedence rules.
+func LoadCredentialsWithFlags(cliUser string) (Credentials, error) {
 	dbPath := ResolveDBPath()
 	if dbPath == "" {
 		return Credentials{}, fmt.Errorf("cannot determine database location")
 	}
-	return ReadCredentials(dbPath)
+	return ReadCredentialsWithFlags(dbPath, cliUser)
 }

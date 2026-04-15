@@ -34,6 +34,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	zel2tp "codeberg.org/thomas-mangin/ze/cmd/ze/l2tp"
+	zepasswd "codeberg.org/thomas-mangin/ze/cmd/ze/passwd"
 	zeplugin "codeberg.org/thomas-mangin/ze/cmd/ze/plugin"
 	zeresolve "codeberg.org/thomas-mangin/ze/cmd/ze/resolve"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
@@ -421,6 +422,8 @@ dispatch:
 		os.Exit(code)
 	case "init":
 		os.Exit(zeinit.Run(args[1:]))
+	case "passwd":
+		os.Exit(zepasswd.Run(args[1:]))
 	case "data":
 		os.Exit(zedata.Run(args[1:]))
 	case "schema":

@@ -1,0 +1,38 @@
+# Test: ze config validate warns on literal plaintext on the canonical password leaf.
+# VALIDATES: AC-5 -- canonical leaf with non-bcrypt value triggers a warning.
+# PREVENTS: silent failure when an operator hand-edits a config and writes
+# password "secret" instead of using plaintext-password (which would be hashed).
+
+stdin=config:terminator=EOF_STDIN
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+system {
+	authentication {
+		user alice {
+			password "literal-plaintext"
+		}
+	}
+}
+EOF_STDIN
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=warning
+expect=stdout:contains=bcrypt

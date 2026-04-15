@@ -361,6 +361,42 @@ to the database as `ze.conf`.
 <!-- source: cmd/ze/init/main.go -- Run, defaultHost, defaultPort, generateInterfaceConfig -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
 
+### ze passwd
+
+Bcrypt-hash a plaintext password for use in `system.authentication.user.password`.
+Reads from stdin (piped, single line) or interactive TTY (prompts twice for
+confirmation). Uses `bcrypt.DefaultCost` (10), the same cost as `ze init`.
+
+```
+echo "secret" | ze passwd                                # one-shot pipe
+ze passwd                                                # interactive
+```
+
+The output is suitable for direct paste into a YANG `password` leaf, or as a
+shell substitution into `ze config set ... password "$(echo s | ze passwd)"`.
+<!-- source: cmd/ze/passwd/main.go -- runImpl -->
+
+### --user / -u flag (all client CLIs)
+
+`ze cli`, `ze bgp plugin cli`, `ze signal`, `ze config set`, `ze config edit`,
+and `ze interface migrate` accept `--user <name>` (long) and `-u <name>`
+(short) to override the bootstrap super-admin username. Without the flag,
+the CLI uses the username stored in `meta/ssh/username` by `ze init`.
+
+| Source | Wins over |
+|--------|-----------|
+| `--user`/`-u` flag | env, zefs |
+| `ze.ssh.username` env var | zefs |
+| zefs `meta/ssh/username` | (default) |
+
+The password for a non-super-admin user must come from `ze.ssh.password`
+(env) or an interactive prompt. There is intentionally no `--password`
+flag (passwords in argv leak into shell history and `ps`).
+
+See [authentication.md](authentication.md) for the full multi-user workflow.
+<!-- source: cmd/ze/internal/ssh/client/client.go -- ReadCredentialsWithFlags -->
+<!-- source: docs/guide/authentication.md -- Logging in as a YANG user -->
+
 ### ze start --web
 
 Add the HTTPS web interface alongside the BGP daemon. The web server runs on a

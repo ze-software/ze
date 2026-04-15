@@ -96,6 +96,8 @@ func runBGP(args []string) int {
 	fs := flag.NewFlagSet("cli", flag.ExitOnError)
 	runCmd := fs.String("c", "", "Execute single command and exit")
 	format := fs.String("format", "yaml", "Output format: yaml, json, table")
+	user := fs.String("user", "", "SSH login username (overrides zefs super-admin)")
+	fs.StringVar(user, "u", "", "Short alias for --user")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -103,7 +105,7 @@ func runBGP(args []string) int {
 	}
 
 	// Load SSH credentials to connect to daemon
-	creds, err := sshclient.LoadCredentials()
+	creds, err := sshclient.LoadCredentialsWithFlags(*user)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		fmt.Fprintf(os.Stderr, "hint: is the daemon running?\n")

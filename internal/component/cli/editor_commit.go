@@ -133,6 +133,16 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 		return nil, fmt.Errorf("backup: %w", err)
 	}
 
+	// Hash any plaintext-password siblings of ze:bcrypt leaves into their
+	// canonical form and remove the plaintext. Junos-style one-way commit
+	// so the serialized config never carries plaintext. Drop the matching
+	// SessionEntries so commit metadata does not record orphan annotations
+	// for a leaf that no longer exists in the tree.
+	if err := config.ApplyPasswordHashing(committedTree, e.schema); err != nil {
+		return nil, fmt.Errorf("hash password: %w", err)
+	}
+	myEntries = dropPlaintextPasswordEntries(myEntries)
+
 	// Write committed tree to config.conf.
 	now := time.Now()
 	commitMeta := buildCommitMeta(existingMeta, draftMeta, myEntries, e.session.User, now, e.schema)
@@ -343,6 +353,36 @@ func checkLiveConflicts(meta *config.MetaTree, mySessionID, yangPath string, pat
 	}
 
 	return conflicts
+}
+
+// plaintextPasswordLeafPrefix is the leaf-name prefix used by the Junos-style
+// auto-hash convention; entries targeting these leaves are dropped from the
+// commit metadata after ApplyPasswordHashing removes the leaves from the tree.
+// Mirror of password_hash.go's plaintextPrefix.
+const plaintextPasswordLeafPrefix = "plaintext-"
+
+// dropPlaintextPasswordEntries filters out SessionEntry records whose final
+// path segment starts with "plaintext-". Called after ApplyPasswordHashing so
+// commit metadata does not annotate a leaf that no longer exists in the tree.
+//
+// Returns a new slice; the input is not mutated. Callers should expect the
+// length to drop by one for each plaintext-* entry; the relative order of
+// the remaining entries is preserved.
+//
+// The "plaintext-" prefix matches the convention enforced by
+// config.ApplyPasswordHashing -- a future YANG schema author who names a
+// non-bcrypt-companion leaf "plaintext-foo" would have it dropped from
+// commit metadata here. No such leaf exists today.
+func dropPlaintextPasswordEntries(entries []config.SessionEntry) []config.SessionEntry {
+	out := make([]config.SessionEntry, 0, len(entries))
+	for _, se := range entries {
+		parts := strings.Fields(se.Path)
+		if len(parts) > 0 && strings.HasPrefix(parts[len(parts)-1], plaintextPasswordLeafPrefix) {
+			continue
+		}
+		out = append(out, se)
+	}
+	return out
 }
 
 // buildCommitMeta creates metadata for the committed config.conf.

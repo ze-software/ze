@@ -123,8 +123,11 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 		return p.errorf(tok, "expected value for %s, got %s", name, tok.Type)
 	}
 
-	// Decode $9$-encoded values on sensitive leaves
-	if node.Sensitive && secret.IsEncoded(value) {
+	// Decode $9$-encoded values on sensitive leaves.
+	// Skipped for ze:bcrypt leaves: bcrypt is one-way, cannot share the
+	// $9$ reversible path. A $9$-prefixed string on a bcrypt leaf is
+	// preserved verbatim (and will fail bcrypt format validation later).
+	if node.Sensitive && !node.Bcrypt && secret.IsEncoded(value) {
 		decoded, err := secret.Decode(value)
 		if err != nil {
 			return p.errorf(tok, "invalid $9$ encoding for %s: %v", name, err)

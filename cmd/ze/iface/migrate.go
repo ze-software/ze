@@ -28,6 +28,7 @@ func cmdMigrate(args []string) int {
 		address   string
 		createTyp string
 		timeout   time.Duration
+		user      string
 	)
 
 	fs.StringVar(&from, "from", "", "source interface.unit (e.g., eth0.0)")
@@ -35,6 +36,8 @@ func cmdMigrate(args []string) int {
 	fs.StringVar(&address, "address", "", "CIDR address to migrate (e.g., 10.0.0.1/24)")
 	fs.StringVar(&createTyp, "create", "", "create new interface of type: dummy, veth, bridge")
 	fs.DurationVar(&timeout, "timeout", 30*time.Second, "BGP readiness timeout")
+	fs.StringVar(&user, "user", "", "SSH login username (overrides zefs super-admin)")
+	fs.StringVar(&user, "u", "", "Short alias for --user")
 
 	fs.Usage = func() { migrateUsage() }
 
@@ -89,7 +92,7 @@ func cmdMigrate(args []string) int {
 		cmd += " --timeout " + timeout.String()
 	}
 
-	creds, err := sshclient.LoadCredentials()
+	creds, err := sshclient.LoadCredentialsWithFlags(user)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		fmt.Fprintf(os.Stderr, "hint: run 'ze init' first, or start the daemon with 'ze start'\n")

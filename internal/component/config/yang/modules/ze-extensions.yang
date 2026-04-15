@@ -216,4 +216,22 @@ module ze-extensions {
                      and autocompleted but not written to the config file.
                      Contrast with ze:hidden (hidden from display, saved).";
     }
+
+    // Extension: bcrypt
+    // Marks a leaf as a one-way bcrypt-hashed value. Distinct from ze:sensitive
+    // (which uses $9$ reversible obfuscation). Parser does NOT apply $9$ decode.
+    // The companion commit hook (config.ApplyPasswordHashing) walks ze:bcrypt
+    // leaves and bcrypt-hashes any plaintext-password sibling, populating this
+    // leaf with the resulting hash. Canonical form is "$2a$10$...".
+    extension bcrypt {
+        description "Marks a leaf as one-way bcrypt-hashed. Parser preserves
+                     value verbatim (no $9$ decode). Commit hook hashes any
+                     sibling 'plaintext-<name>' leaf into this one.
+
+                     Naming convention: the ephemeral input leaf MUST be named
+                     'plaintext-<canonical>' (e.g., 'plaintext-password' next
+                     to 'password'). The commit hook (config.ApplyPasswordHashing)
+                     looks up the sibling by this exact prefix; a different
+                     name silently disables auto-hash for that pair.";
+    }
 }

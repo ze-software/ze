@@ -347,6 +347,16 @@ func hasSensitiveExtension(entry *gyang.Entry) bool {
 	return false
 }
 
+// hasBcryptExtension checks if a YANG entry has the ze:bcrypt extension.
+func hasBcryptExtension(entry *gyang.Entry) bool {
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:bcrypt" || strings.HasSuffix(ext.Keyword, ":bcrypt") {
+			return true
+		}
+	}
+	return false
+}
+
 // hasHiddenExtension checks if a YANG entry has the ze:hidden extension with argument "true".
 func hasHiddenExtension(entry *gyang.Entry) bool {
 	for _, ext := range entry.Exts {
@@ -385,6 +395,7 @@ func yangToLeaf(entry *gyang.Entry) *LeafNode {
 		node.Default = entry.Default[0]
 	}
 	node.Sensitive = hasSensitiveExtension(entry)
+	node.Bcrypt = hasBcryptExtension(entry)
 	node.Hidden = hasHiddenExtension(entry)
 	node.Ephemeral = hasEphemeralExtension(entry)
 	node.Decorate = getDecorateExtension(entry)

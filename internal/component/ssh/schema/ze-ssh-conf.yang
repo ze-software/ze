@@ -28,8 +28,19 @@ module ze-ssh-conf {
 
                 leaf password {
                     type string;
-                    ze:sensitive;
-                    description "Bcrypt-hashed password";
+                    ze:bcrypt;
+                    description "Bcrypt-hashed password (canonical form, e.g. $2a$10$...).
+                                 Write plaintext via plaintext-password -- it is hashed
+                                 into this leaf on commit and then discarded.";
+                }
+
+                leaf plaintext-password {
+                    type string;
+                    ze:ephemeral;
+                    description "Write-only plaintext password. On commit, the config
+                                 system bcrypt-hashes this value into the canonical
+                                 password leaf and removes this one from the tree.
+                                 Never persisted to the config file.";
                 }
 
                 leaf-list profile {

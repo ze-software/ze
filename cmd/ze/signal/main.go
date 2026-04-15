@@ -84,6 +84,8 @@ func Run(args []string) int {
 	fs := flag.NewFlagSet("signal", flag.ContinueOnError)
 	host := fs.String("host", "", "SSH host (default from env or 127.0.0.1)")
 	port := fs.String("port", "", "SSH port (default from env or 2222)")
+	user := fs.String("user", "", "SSH login username (overrides zefs super-admin)")
+	fs.StringVar(user, "u", "", "Short alias for --user")
 
 	fs.Usage = func() {
 		cmdEntries := make([]helpfmt.HelpEntry, len(commands))
@@ -141,7 +143,7 @@ func Run(args []string) int {
 		fs.Usage()
 		return ExitNotRunning
 	}
-	return cmdSSHExec(addr, cmd.ExecCommand)
+	return cmdSSHExec(addr, cmd.ExecCommand, *user)
 }
 
 // RunStatus executes the ze status command with the given arguments.
@@ -202,8 +204,8 @@ func RunStatus(args []string) int {
 }
 
 // cmdSSHExec sends a command to the daemon via SSH exec.
-func cmdSSHExec(addr, command string) int {
-	creds, err := sshclient.LoadCredentials()
+func cmdSSHExec(addr, command, user string) int {
+	creds, err := sshclient.LoadCredentialsWithFlags(user)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		fmt.Fprintf(os.Stderr, "hint: run 'ze init' to set up credentials\n")

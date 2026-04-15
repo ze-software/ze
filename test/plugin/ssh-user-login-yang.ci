@@ -1,0 +1,157 @@
+# Test: YANG-configured user authenticates via SSH using ze cli --user.
+#
+# VALIDATES: AC-6 -- YANG user with bcrypt password authenticates via SSH.
+# VALIDATES: AC-9 -- ze cli --user alice with ze.ssh.password env succeeds.
+# VALIDATES: AC-12 -- short flag -u behaves identically to --user.
+# PREVENTS: regression where YANG-only users cannot use ze cli (handover gap).
+#
+# Flow:
+# 1. Daemon starts with super-admin "operator" + YANG user "alice", both bcrypt.
+# 2. ze init writes operator credentials to zefs (super-admin path).
+# 3. ze cli (no flag) -- baseline: super-admin path still works.
+# 4. ze cli --user alice -- AC-9: YANG user path with env password.
+# 5. ze cli -u alice -- AC-12: short flag.
+# 6. ze cli --user alice with wrong password -- AC-7: rejected.
+
+tmpfs=test-ssh-user-login-yang.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+touch daemon.ready
+
+# bcrypt cost-4 hash of "testpass" -- borrowed from authz-allow.ci so we don't
+# need to generate one at test time. Same plaintext for both users keeps the
+# fixture small; test discriminates on which user the client SAYS they are.
+PASSHASH='$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO'
+
+cat > ssh-user-login.conf << ZECONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+system {
+	authentication {
+		user operator {
+			password "$PASSHASH"
+		}
+		user alice {
+			password "$PASSHASH"
+		}
+	}
+}
+
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port 0;
+		}
+	}
+}
+ZECONF
+
+export ze_bgp_tcp_port=$((10000 + ($$ % 50000)))
+
+ze ssh-user-login.conf 2>daemon.log &
+DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
+		break
+	fi
+	sleep 0.2
+done
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: SSH server did not start (no address in daemon.log)" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+echo "SSH port: $SSH_PORT" >&2
+
+sleep 0.5
+
+# Set up operator credentials in a sandbox zefs (super-admin path).
+ZE_DIR=$(mktemp -d)
+trap 'rm -rf "$ZE_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+printf 'operator\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ZE_DIR" ze init >/dev/null
+
+# Test 1 (baseline): super-admin path with env password (zefs hash != YANG hash
+# because they were generated with different bcrypt salts; env password sends
+# plaintext which both code paths accept).
+OUTPUT=$(ZE_CONFIG_DIR="$ZE_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "peer list" 2>&1) || {
+	echo "FAIL: super-admin baseline failed" >&2
+	echo "OUTPUT: $OUTPUT" >&2
+	exit 1
+}
+echo "OK: super-admin baseline" >&2
+
+# Test 2 (AC-9): --user alice with ze.ssh.password env.
+# Capture the daemon log size so we can assert the next "auth success" line is alice.
+DLOG_BEFORE=$(wc -c < daemon.log)
+OUTPUT=$(ZE_CONFIG_DIR="$ZE_DIR" ZE_SSH_PASSWORD="testpass" ze cli --user alice -c "peer list" 2>&1) || {
+	echo "FAIL: ze cli --user alice should authenticate (env password)" >&2
+	echo "OUTPUT: $OUTPUT" >&2
+	cat daemon.log >&2
+	exit 1
+}
+# Discriminator: the daemon must log username=alice for THIS auth, not operator.
+NEW_LOG=$(tail -c +$((DLOG_BEFORE + 1)) daemon.log)
+if ! echo "$NEW_LOG" | grep -q 'SSH auth success.*username=alice'; then
+	echo "FAIL: daemon did not log auth success for username=alice" >&2
+	echo "NEW LOG: $NEW_LOG" >&2
+	exit 1
+fi
+if echo "$NEW_LOG" | grep -q 'SSH auth success.*username=operator'; then
+	echo "FAIL: daemon authenticated alice's request as operator" >&2
+	exit 1
+fi
+echo "OK: --user alice authenticated and was identified as alice" >&2
+
+# Test 3 (AC-12): -u short flag is identical to --user.
+DLOG_BEFORE=$(wc -c < daemon.log)
+OUTPUT=$(ZE_CONFIG_DIR="$ZE_DIR" ZE_SSH_PASSWORD="testpass" ze cli -u alice -c "peer list" 2>&1) || {
+	echo "FAIL: ze cli -u alice (short flag) should authenticate" >&2
+	echo "OUTPUT: $OUTPUT" >&2
+	exit 1
+}
+NEW_LOG=$(tail -c +$((DLOG_BEFORE + 1)) daemon.log)
+if ! echo "$NEW_LOG" | grep -q 'SSH auth success.*username=alice'; then
+	echo "FAIL: -u short flag did not authenticate as alice" >&2
+	echo "NEW LOG: $NEW_LOG" >&2
+	exit 1
+fi
+echo "OK: -u alice authenticated as alice" >&2
+
+# Test 4 (AC-7): wrong password is rejected. Expect non-zero exit.
+if ZE_CONFIG_DIR="$ZE_DIR" ZE_SSH_PASSWORD="wrongpass" ze cli --user alice -c "peer list" >/dev/null 2>&1; then
+	echo "FAIL: wrong password should NOT authenticate" >&2
+	exit 1
+fi
+echo "OK: wrong password rejected" >&2
+
+echo "OK: all SSH user-login tests passed" >&2
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-ssh-user-login-yang.sh:timeout=15s
+expect=exit:code=0

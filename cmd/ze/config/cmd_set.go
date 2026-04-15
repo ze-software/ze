@@ -27,6 +27,8 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config set", flag.ExitOnError)
 	dryRun := fs.Bool("dry-run", false, "show what would change without writing")
 	noReload := fs.Bool("no-reload", false, "do not notify running daemon after save")
+	user := fs.String("user", "", "SSH login username (overrides zefs super-admin)")
+	fs.StringVar(user, "u", "", "Short alias for --user")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
@@ -123,7 +125,7 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 
 	// Notify daemon (best-effort) via SSH
 	if !*noReload {
-		creds, credErr := sshclient.LoadCredentials()
+		creds, credErr := sshclient.LoadCredentialsWithFlags(*user)
 		if credErr == nil {
 			ed.SetReloadNotifier(func() error {
 				_, reloadErr := sshclient.ExecCommand(creds, "reload")

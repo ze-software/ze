@@ -130,6 +130,16 @@ func (v *ConfigValidator) Validate(content string) ConfigValidationResult {
 	result.Errors = append(result.Errors, yangErrs...)
 	result.Warnings = append(result.Warnings, yangWarns...)
 
+	// Warn when a ze:bcrypt canonical leaf holds a non-bcrypt value
+	// (typically literal plaintext from hand-edited config). The daemon
+	// will fail to authenticate against this entry until it is fixed.
+	for _, msg := range config.CheckBcryptLeaves(tree, v.schema) {
+		result.Warnings = append(result.Warnings, ConfigValidationError{
+			Message:  msg,
+			Severity: severityWarning,
+		})
+	}
+
 	return result
 }
 

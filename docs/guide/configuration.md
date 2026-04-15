@@ -535,6 +535,38 @@ goes down, its metric becomes 1025 (1 + 1024), so backup (metric 5) takes over. 
 uplink recovers, its metric returns to 1 and traffic shifts back. The default value
 is 0 (kernel default), which preserves existing behavior when not configured.
 
+## Authentication Users
+
+Local SSH login users are declared under `system.authentication.user`. The
+list key is the username; each entry has a one-way bcrypt-hashed password
+and an optional list of authorization profile names.
+
+```
+system {
+    authentication {
+        user alice {
+            plaintext-password "secret"     # write-only; hashed on commit
+            profile [ admin ]
+        }
+        user bob {
+            password "$2a$10$..."           # canonical form, paste from `ze passwd`
+            profile [ read-only ]
+        }
+    }
+}
+```
+
+| Leaf | Stored on disk | Notes |
+|------|---------------|-------|
+| `password` | bcrypt hash (`$2a$10$...`) | Canonical, displayed in `show config`. Hand-editing a literal plaintext here triggers a `ze config validate` warning. |
+| `plaintext-password` | never persisted | Junos-style write-only input. The commit hook bcrypt-hashes the value into `password` and removes this leaf. |
+
+Both leaves are mutually exchangeable inputs; only `password` survives a
+commit. For end-to-end usage (login, hashing, multi-user setup) see
+[authentication.md](authentication.md).
+<!-- source: internal/component/ssh/schema/ze-ssh-conf.yang -- system.authentication.user -->
+<!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
+
 ## Sysctl Configuration
 
 Kernel tunables are managed by the `sysctl` plugin via a generic key/value list:

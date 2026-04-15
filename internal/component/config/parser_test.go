@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
 )
 
 // testSchema returns a schema for testing.
@@ -737,4 +739,78 @@ func TestActivateMultiValue(t *testing.T) {
 	// Activating value without inactive: prefix fails.
 	err = tree.ActivateMultiValue("import", "reject-bogons")
 	require.Error(t, err)
+}
+
+// bcryptTestSchema returns a schema with two secret-shaped leaves for testing
+// ze:sensitive ($9$) vs ze:bcrypt (verbatim) parser behavior divergence.
+func bcryptTestSchema() *Schema {
+	schema := NewSchema()
+	secretLeaf := Leaf(TypeString)
+	secretLeaf.Sensitive = true
+	schema.Define("api-token", secretLeaf)
+
+	hashLeaf := Leaf(TypeString)
+	hashLeaf.Bcrypt = true
+	schema.Define("password-hash", hashLeaf)
+	return schema
+}
+
+// TestParserBcryptLeafNoSecretDecode verifies that a $9$-encoded value on a
+// ze:bcrypt leaf is preserved verbatim. The $9$ reversible obfuscation must
+// NOT be applied to bcrypt leaves -- bcrypt is one-way.
+//
+// VALIDATES: Parser skips $9$ decode on ze:bcrypt leaves.
+//
+// PREVENTS: Accidental plaintext extraction from bcrypt leaves that happen
+// to hold a $9$-prefixed string.
+func TestParserBcryptLeafNoSecretDecode(t *testing.T) {
+	// A valid $9$-encoded string. On a Sensitive leaf this would decode
+	// to plaintext; on a Bcrypt leaf it must be preserved.
+	sample := "$9$abcdefg"
+
+	p := NewParser(bcryptTestSchema())
+	tree, err := p.Parse("password-hash " + sample)
+	require.NoError(t, err)
+
+	val, ok := tree.Get("password-hash")
+	require.True(t, ok)
+	assert.Equal(t, sample, val, "Bcrypt leaf must preserve $9$-prefixed value verbatim")
+}
+
+// TestParserBcryptLeafAcceptsHash verifies a bcrypt hash stored verbatim.
+//
+// VALIDATES: ze:bcrypt leaf accepts $2a$10$... canonical format as-is.
+//
+// PREVENTS: Bcrypt hash corruption on config load.
+func TestParserBcryptLeafAcceptsHash(t *testing.T) {
+	hash := "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234"
+
+	p := NewParser(bcryptTestSchema())
+	tree, err := p.Parse(`password-hash "` + hash + `"`)
+	require.NoError(t, err)
+
+	val, ok := tree.Get("password-hash")
+	require.True(t, ok)
+	assert.Equal(t, hash, val)
+}
+
+// TestParserSensitiveLeafStillDecodesSecret confirms the existing $9$ path
+// remains intact for Sensitive (non-Bcrypt) leaves.
+//
+// VALIDATES: ze:sensitive semantics unchanged by ze:bcrypt addition.
+//
+// PREVENTS: Regression on API-token leaves that rely on $9$ reversibility.
+func TestParserSensitiveLeafStillDecodesSecret(t *testing.T) {
+	// Encode a known plaintext to $9$ form, then verify the parser decodes it.
+	plain := "hello"
+	encoded, err := secret.Encode(plain)
+	require.NoError(t, err)
+
+	p := NewParser(bcryptTestSchema())
+	tree, err := p.Parse(`api-token "` + encoded + `"`)
+	require.NoError(t, err)
+
+	val, ok := tree.Get("api-token")
+	require.True(t, ok)
+	assert.Equal(t, plain, val, "Sensitive leaf must still decode $9$ to plaintext")
 }
