@@ -57,6 +57,27 @@ type L2TPTunnel struct {
 	peerFraming    uint32
 	peerBearer     uint32
 	peerRecvWindow uint16
+
+	// ourChallenge is the 16-byte random Challenge value we emitted in
+	// SCCRP when peer authentication was requested (sccrq.ChallengePresent
+	// + non-empty SharedSecret). Used to verify the peer's Challenge
+	// Response AVP in SCCCN (RFC 2661 S4.2 / S5.1.2.3). Nil when we did
+	// not challenge the peer, or has been cleared after successful SCCCN
+	// verification.
+	//
+	// Caller MUST hold the owning reactor's tunnelsMu. Mutated by the FSM
+	// during handleSCCRQ/handleSCCCN.
+	ourChallenge []byte
+
+	// tieBreaker is the 8-byte Tie Breaker AVP value captured from the
+	// peer's SCCRQ when present (RFC 2661 S9.5). Used by the reactor when
+	// a second SCCRQ arrives from the same peer address to decide which
+	// tunnel keeps and which is torn down. Nil when the SCCRQ carried no
+	// Tie Breaker AVP.
+	//
+	// Caller MUST hold the owning reactor's tunnelsMu. Set once by
+	// handleSCCRQ and read by locateTunnelLocked's tie-breaker path.
+	tieBreaker []byte
 }
 
 // newTunnel constructs a tunnel in the idle state with a pre-wired

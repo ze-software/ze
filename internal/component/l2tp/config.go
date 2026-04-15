@@ -1,4 +1,5 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- subsystem config extraction
+// Related: subsystem.go -- consumes Parameters returned by ExtractParameters
 
 package l2tp
 
@@ -41,6 +42,12 @@ var (
 		Default:     "60",
 		Description: "Seconds of peer silence before sending HELLO",
 	})
+	_ = env.MustRegister(env.EnvEntry{
+		Key:         "ze.l2tp.shared-secret",
+		Type:        "string",
+		Description: "Shared secret for CHAP-MD5 tunnel authentication (RFC 2661 S4.2)",
+		Secret:      true,
+	})
 )
 
 // Default listener values. Phase 3 only implements a single well-known-port
@@ -60,6 +67,10 @@ type Parameters struct {
 	ListenAddrs   []netip.AddrPort
 	MaxTunnels    uint16
 	HelloInterval time.Duration
+	// SharedSecret is the CHAP-MD5 tunnel authentication secret (RFC 2661
+	// S4.2). Empty means peers that include a Challenge AVP in SCCRQ will
+	// be rejected with StopCCN Result Code 4 (Not Authorized).
+	SharedSecret string
 }
 
 // ExtractParameters pulls L2TP configuration out of the parsed config tree.
@@ -120,6 +131,10 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("l2tp hello-interval: must be > 0")
 		}
 		p.HelloInterval = time.Duration(n) * time.Second
+	}
+
+	if v, ok := l2tpC.Get("shared-secret"); ok {
+		p.SharedSecret = v
 	}
 
 	return p, nil

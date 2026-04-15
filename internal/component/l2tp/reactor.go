@@ -7,6 +7,7 @@
 package l2tp
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -274,6 +275,22 @@ func (r *L2TPReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 			"from", from.String(), "peer-tid", sccrq.AssignedTunnelID, "local-tid", existing.localTID)
 		return existing
 	}
+	// Tie breaker resolution (RFC 2661 S9.5). When a second SCCRQ arrives
+	// from the same peer address with a Tie Breaker AVP, compare it
+	// byte-wise against tie breakers stored on any existing tunnel from
+	// the same peer address. Lower value wins and keeps its tunnel;
+	// higher value's SCCRQ is dropped. Equal means both discard (RFC:
+	// "both peers' tunnels MUST be silently torn down").
+	//
+	// This runs only when BOTH the new SCCRQ and an existing tunnel carry
+	// tie breakers; a peer that omits the AVP on either SCCRQ keeps both
+	// tunnels per RFC 2661 S24.17 (multiple concurrent tunnels between
+	// the same addr pair are legitimate).
+	if sccrq.TieBreakerPresent {
+		if tunnel := r.resolveTieBreakerLocked(from, sccrq.TieBreakerValue); tunnel == nil {
+			return nil
+		}
+	}
 	// Max-tunnels enforcement. MaxTunnels == 0 means unbounded by this
 	// knob; the map can still grow to 65535 (the uint16 TID ceiling).
 	if r.params.MaxTunnels != 0 && uint16(len(r.tunnelsByLocalID)) >= r.params.MaxTunnels {
@@ -294,6 +311,66 @@ func (r *L2TPReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 	r.logger.Info("l2tp: new tunnel created from SCCRQ",
 		"from", from.String(), "local-tid", localTID, "peer-tid", sccrq.AssignedTunnelID)
 	return t
+}
+
+// resolveTieBreakerLocked compares the new SCCRQ's Tie Breaker value
+// against every existing tunnel from the same peer address that carries
+// a Tie Breaker. Returns nil if the new SCCRQ must be dropped (it lost
+// the comparison, or the values were equal and both sides discard). On
+// success (new SCCRQ wins or has no conflict) returns a non-nil sentinel
+// and performs any winning-side map cleanup inline.
+//
+// Caller MUST hold tunnelsMu. Called only when sccrq.TieBreakerPresent
+// is true and newTB is non-nil.
+func (r *L2TPReactor) resolveTieBreakerLocked(from netip.AddrPort, newTB []byte) *L2TPTunnel {
+	sentinel := &L2TPTunnel{} // non-nil "proceed" return value
+	var losers []*L2TPTunnel
+	newLoses := false
+	for _, existing := range r.tunnelsByLocalID {
+		if existing.peerAddr.Addr() != from.Addr() {
+			continue
+		}
+		if existing.tieBreaker == nil {
+			continue
+		}
+		cmp := bytes.Compare(newTB, existing.tieBreaker)
+		if cmp < 0 {
+			// New SCCRQ's tie breaker is lower -> new wins, existing discarded.
+			losers = append(losers, existing)
+			continue
+		}
+		if cmp > 0 {
+			// Existing is lower -> existing wins, new SCCRQ dropped.
+			newLoses = true
+			continue
+		}
+		// Equal -> both sides discard (RFC 2661 S9.5).
+		losers = append(losers, existing)
+		newLoses = true
+	}
+	for _, loser := range losers {
+		r.discardTunnelLocked(loser, "tie-breaker lost")
+	}
+	if newLoses {
+		r.logger.Info("l2tp: new SCCRQ discarded by tie breaker",
+			"from", from.String())
+		return nil
+	}
+	return sentinel
+}
+
+// discardTunnelLocked removes a tunnel from both lookup maps and marks it
+// closed. Used by tie-breaker resolution; no StopCCN is emitted because
+// the peer will observe its own tie-breaker loss symmetrically (or time
+// out if our tunnel was the only one tracking it). Caller MUST hold
+// tunnelsMu.
+func (r *L2TPReactor) discardTunnelLocked(t *L2TPTunnel, reason string) {
+	pk := peerKey{addr: t.peerAddr, tid: t.remoteTID}
+	delete(r.tunnelsByLocalID, t.localTID)
+	delete(r.tunnelsByPeer, pk)
+	t.state = L2TPTunnelClosed
+	r.logger.Info("l2tp: tunnel discarded",
+		"local-tid", t.localTID, "peer", t.peerAddr.String(), "reason", reason)
 }
 
 // allocateLocalTID picks a non-zero uint16 not already present in

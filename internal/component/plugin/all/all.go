@@ -51,6 +51,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/firewall/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/lg/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/mcp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/schema"

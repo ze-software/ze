@@ -91,6 +91,7 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 				FramingCapabilities: 0x00000003, // sync + async per RFC 2661 S4.4.3
 				BearerCapabilities:  0,
 				RecvWindow:          16,
+				SharedSecret:        s.params.SharedSecret,
 			},
 		})
 		if err := reactor.Start(); err != nil {

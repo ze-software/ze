@@ -1,0 +1,145 @@
+# Test: SCCCN with wrong Challenge Response -> StopCCN RC=4.
+# VALIDATES: AC-9 -- invalid CHAP-MD5 response causes the reactor to emit
+# StopCCN with Result Code 4 (Not Authorized) and close the tunnel.
+
+tmpfs=bad-response.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Drive SCCRQ -> SCCRP, then send SCCCN with a deliberately wrong
+Challenge Response. Expect a StopCCN back carrying Result Code 4.
+"""
+import socket
+import struct
+import sys
+import time
+
+if len(sys.argv) < 2:
+	print("usage: bad-response.py <port>", file=sys.stderr)
+	sys.exit(2)
+
+TARGET = ("127.0.0.1", int(sys.argv[1]))
+PEER_TID = 0x0234
+PEER_CHALLENGE = bytes.fromhex("ffeeddccbbaa99887766554433221100")
+
+
+def avp(mandatory, attr_type, value):
+	flags = 0x8000 if mandatory else 0
+	return struct.pack("!HHH", flags | (6 + len(value)), 0, attr_type) + value
+
+
+def build_sccrq():
+	body = b""
+	body += avp(True, 0, struct.pack("!H", 1))
+	body += avp(True, 2, b"\x01\x00")
+	body += avp(True, 3, struct.pack("!I", 0x3))
+	body += avp(True, 4, struct.pack("!I", 0x0))
+	body += avp(True, 7, b"py-bad")
+	body += avp(True, 9, struct.pack("!H", PEER_TID))
+	body += avp(True, 10, struct.pack("!H", 8))
+	body += avp(True, 11, PEER_CHALLENGE)
+	total = 12 + len(body)
+	hdr = struct.pack("!HHHHHH", 0xC802, total, 0, 0, 0, 0)
+	return hdr + body
+
+
+def parse_avps(body):
+	out = {}
+	off = 0
+	while off + 6 <= len(body):
+		word, vendor, atype = struct.unpack("!HHH", body[off:off+6])
+		length = word & 0x03FF
+		if length < 6 or off + length > len(body):
+			break
+		if vendor == 0:
+			out[atype] = body[off+6:off+length]
+		off += length
+	return out
+
+
+def build_scccn(dest_tid, ns, nr, response):
+	body = b""
+	body += avp(True, 0, struct.pack("!H", 3))
+	body += avp(True, 13, response)
+	total = 12 + len(body)
+	hdr = struct.pack("!HHHHHH", 0xC802, total, dest_tid, 0, ns, nr)
+	return hdr + body
+
+
+def main():
+	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	sock.bind(("127.0.0.1", 0))
+	sock.settimeout(0.25)
+	time.sleep(0.05)
+	sccrq = build_sccrq()
+	sccrp = None
+	for _ in range(20):
+		try:
+			sock.sendto(sccrq, TARGET)
+			data, _ = sock.recvfrom(1500)
+			sccrp = data
+			break
+		except (socket.timeout, ConnectionRefusedError, OSError):
+			continue
+	if sccrp is None:
+		print("ERROR: no SCCRP received", file=sys.stderr)
+		return 1
+	_, length, _, _, _, _ = struct.unpack("!HHHHHH", sccrp[:12])
+	avps = parse_avps(sccrp[12:length])
+	tid_bytes = avps.get(9)
+	if tid_bytes is None:
+		print("ERROR: SCCRP missing Assigned Tunnel ID", file=sys.stderr)
+		return 1
+	local_tid = struct.unpack("!H", tid_bytes)[0]
+
+	# Deliberately wrong response (16 zero bytes).
+	wrong = bytes(16)
+	sock.settimeout(2.0)
+	sock.sendto(build_scccn(local_tid, 1, 1, wrong), TARGET)
+
+	# Expect a StopCCN back.
+	stopccn, _ = sock.recvfrom(1500)
+	_, length, _, _, _, _ = struct.unpack("!HHHHHH", stopccn[:12])
+	avps = parse_avps(stopccn[12:length])
+	msg_type_bytes = avps.get(0)
+	if msg_type_bytes is None:
+		print("ERROR: StopCCN missing Message Type AVP", file=sys.stderr)
+		return 1
+	msg_type = struct.unpack("!H", msg_type_bytes)[0]
+	if msg_type != 4:
+		print(f"ERROR: expected StopCCN (4), got {msg_type}", file=sys.stderr)
+		return 1
+	rc = avps.get(1)
+	if rc is None or len(rc) < 2:
+		print("ERROR: StopCCN missing Result Code AVP", file=sys.stderr)
+		return 1
+	result = struct.unpack("!H", rc[:2])[0]
+	if result != 4:
+		print(f"ERROR: expected Result Code 4, got {result}", file=sys.stderr)
+		return 1
+	print("OK: StopCCN RC=4 received")
+	return 0
+
+
+if __name__ == "__main__":
+	sys.exit(main())
+EOF_PY
+
+stdin=config:terminator=EOF_CONF
+environment {
+	l2tp {
+		enabled true
+		shared-secret s3cr3t
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.l2tp:value=debug
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=python3 bad-response.py $PORT:timeout=10s
+expect=exit:code=0
+expect=stdout:contains=OK: StopCCN RC=4 received
+expect=stderr:contains=Challenge Response did not verify

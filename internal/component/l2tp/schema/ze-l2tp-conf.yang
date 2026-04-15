@@ -54,6 +54,18 @@ module ze-l2tp-conf {
                      limit is reached.";
             }
 
+            leaf shared-secret {
+                type string;
+                ze:sensitive;
+                description
+                    "Shared secret used to compute CHAP-MD5 Challenge
+                     Responses (RFC 2661 Section 4.2). When unset and a
+                     peer sends a Challenge AVP, the subsystem rejects the
+                     tunnel with StopCCN Result Code 4 (Not Authorized).
+                     Value is masked in CLI output and cleared from the
+                     process environment after first read.";
+            }
+
             leaf hello-interval {
                 type uint16 {
                     range "1..3600";

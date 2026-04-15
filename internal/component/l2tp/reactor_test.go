@@ -443,3 +443,521 @@ func TestReactor_StopIdempotent(t *testing.T) {
 	r.Stop()
 	_ = ln // keep ln used; stop() handles the teardown
 }
+
+// buildLogReactorSecret constructs a listener + reactor pair whose
+// TunnelDefaults carries the given shared secret. Mirrors buildLogReactor
+// otherwise. Phase-4 auth tests call this instead of buildLogReactor.
+//
+//nolint:unparam // phase 4 auth tests all use the same secret value; keeping the parameter makes call sites self-documenting and leaves room for future auth-variant tests.
+func buildLogReactorSecret(t *testing.T, secret string) (*UDPListener, *L2TPReactor, *lockedBuffer, func()) {
+	t.Helper()
+	buf := &lockedBuffer{}
+	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
+	require.NoError(t, ln.Start(context.Background()))
+	r := NewL2TPReactor(ln, logger, ReactorParams{
+		Defaults: TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16, SharedSecret: secret},
+	})
+	require.NoError(t, r.Start())
+	stop := func() {
+		r.Stop()
+		_ = ln.Stop()
+	}
+	return ln, r, buf, stop
+}
+
+// buildSCCRQWithChallenge returns an SCCRQ datagram that includes a
+// Challenge AVP (type 11) carrying the given 16-byte peer challenge.
+// Otherwise identical to buildSCCRQ.
+func buildSCCRQWithChallenge(t *testing.T, peerTID uint16, hostName string, peerChallenge []byte) []byte {
+	t.Helper()
+	bodyBuf := GetBuf()
+	defer PutBuf(bodyBuf)
+	buf := *bodyBuf
+	off := 0
+	off += WriteAVPUint16(buf, off, true, AVPMessageType, uint16(MsgSCCRQ))
+	off += WriteAVPBytes(buf, off, true, 0, AVPProtocolVersion, []byte{0x01, 0x00})
+	off += WriteAVPUint32(buf, off, true, AVPFramingCapabilities, 0x3)
+	off += WriteAVPUint32(buf, off, true, AVPBearerCapabilities, 0x0)
+	off += WriteAVPString(buf, off, true, AVPHostName, hostName)
+	off += WriteAVPUint16(buf, off, true, AVPAssignedTunnelID, peerTID)
+	off += WriteAVPUint16(buf, off, true, AVPReceiveWindowSize, 8)
+	off += WriteAVPBytes(buf, off, true, 0, AVPChallenge, peerChallenge)
+
+	total := 12 + off
+	pkt := make([]byte, total)
+	WriteControlHeader(pkt, 0, uint16(total), 0, 0, 0, 0)
+	copy(pkt[12:], buf[:off])
+	return pkt
+}
+
+// buildSCCRQWithTieBreaker returns an SCCRQ datagram that includes a
+// Tie Breaker AVP (type 5) carrying the given 8-byte value.
+func buildSCCRQWithTieBreaker(t *testing.T, peerTID uint16, hostName string, tb []byte) []byte {
+	t.Helper()
+	bodyBuf := GetBuf()
+	defer PutBuf(bodyBuf)
+	buf := *bodyBuf
+	off := 0
+	off += WriteAVPUint16(buf, off, true, AVPMessageType, uint16(MsgSCCRQ))
+	off += WriteAVPBytes(buf, off, true, 0, AVPProtocolVersion, []byte{0x01, 0x00})
+	off += WriteAVPUint32(buf, off, true, AVPFramingCapabilities, 0x3)
+	off += WriteAVPUint32(buf, off, true, AVPBearerCapabilities, 0x0)
+	off += WriteAVPString(buf, off, true, AVPHostName, hostName)
+	off += WriteAVPUint16(buf, off, true, AVPAssignedTunnelID, peerTID)
+	off += WriteAVPUint16(buf, off, true, AVPReceiveWindowSize, 8)
+	off += WriteAVPBytes(buf, off, true, 0, AVPTieBreaker, tb)
+
+	total := 12 + off
+	pkt := make([]byte, total)
+	WriteControlHeader(pkt, 0, uint16(total), 0, 0, 0, 0)
+	copy(pkt[12:], buf[:off])
+	return pkt
+}
+
+// buildSCCCN returns an SCCCN datagram for the given destination Tunnel
+// ID with Ns/Nr and an optional Challenge Response AVP. localChallengeResp
+// is nil when the test does not need to carry a Response.
+//
+//nolint:unparam // all phase-4 tests ACK a single SCCRP at Nr=1; keeping the parameter explicit leaves room for retransmit / out-of-order variants in phase 5.
+func buildSCCCN(t *testing.T, destTID, ns, nr uint16, localChallengeResp []byte) []byte {
+	t.Helper()
+	bodyBuf := GetBuf()
+	defer PutBuf(bodyBuf)
+	buf := *bodyBuf
+	off := 0
+	off += WriteAVPUint16(buf, off, true, AVPMessageType, uint16(MsgSCCCN))
+	if localChallengeResp != nil {
+		off += WriteAVPBytes(buf, off, true, 0, AVPChallengeResponse, localChallengeResp)
+	}
+	total := 12 + off
+	pkt := make([]byte, total)
+	WriteControlHeader(pkt, 0, uint16(total), destTID, 0, ns, nr)
+	copy(pkt[12:], buf[:off])
+	return pkt
+}
+
+// readDatagram reads one datagram from the UDP socket with the standard
+// retry loop. Returns the bytes received.
+func readDatagram(t *testing.T, c *testClient) []byte {
+	t.Helper()
+	if err := c.conn.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatalf("set read deadline: %v", err)
+	}
+	rbuf := make([]byte, 1500)
+	n, _, err := c.conn.ReadFromUDP(rbuf)
+	require.NoError(t, err)
+	return rbuf[:n]
+}
+
+// extractAVP walks the AVP stream in the given control-message payload
+// and returns the bytes of the first AVP matching attrType, or nil if
+// not present.
+func extractAVP(t *testing.T, pkt []byte, attrType AVPType) []byte {
+	t.Helper()
+	require.GreaterOrEqual(t, len(pkt), 12, "packet too short for control header")
+	body := pkt[12:]
+	iter := NewAVPIterator(body)
+	for {
+		vendorID, at, _, value, ok := iter.Next()
+		if !ok {
+			require.NoError(t, iter.Err())
+			return nil
+		}
+		if vendorID == 0 && at == attrType {
+			return append([]byte(nil), value...)
+		}
+	}
+}
+
+// TestReactor_ChallengeResponseEmitted -- phase 4 bonus AC.
+//
+// VALIDATES: when peer sends SCCRQ with Challenge AVP and shared-secret
+// is configured, SCCRP carries both a Challenge AVP (our 16-byte random)
+// and a Challenge Response AVP whose MD5 value equals
+// MD5(SCCRP_MsgType || secret || peer_challenge).
+func TestReactor_ChallengeResponseEmitted(t *testing.T) {
+	const secret = "topsecret"
+	ln, _, _, stop := buildLogReactorSecret(t, secret)
+	defer stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	peerChallenge := bytes.Repeat([]byte{0xAB}, 16)
+	client.Send(t, buildSCCRQWithChallenge(t, 77, "peer-auth", peerChallenge))
+
+	sccrp := readDatagram(t, client)
+
+	// Expected Challenge Response per RFC 2661 S4.2:
+	// MD5(CHAP_ID=SCCRP || secret || peer_challenge).
+	want := ChallengeResponse(ChapIDSCCRP, []byte(secret), peerChallenge)
+
+	got := extractAVP(t, sccrp, AVPChallengeResponse)
+	require.NotNil(t, got, "SCCRP must carry Challenge Response AVP")
+	require.Equal(t, want[:], got, "Challenge Response bytes must match MD5(CHAP_ID||secret||peer_challenge)")
+
+	ours := extractAVP(t, sccrp, AVPChallenge)
+	require.NotNil(t, ours, "SCCRP must carry our Challenge AVP when peer challenged us")
+	require.Len(t, ours, 16, "our Challenge must be 16 bytes")
+}
+
+// TestTunnelFSM_SCCCNEstablishes -- AC-8.
+//
+// VALIDATES: AC-8 -- the full SCCRQ -> SCCRP -> SCCCN exchange with
+// matching Challenge Response drives the tunnel to established.
+func TestTunnelFSM_SCCCNEstablishes(t *testing.T) {
+	const secret = "topsecret"
+	ln, r, logs, stop := buildLogReactorSecret(t, secret)
+	defer stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	peerChallenge := bytes.Repeat([]byte{0xCD}, 16)
+	client.Send(t, buildSCCRQWithChallenge(t, 101, "peer-est", peerChallenge))
+	sccrp := readDatagram(t, client)
+
+	// Extract our tunnel's local TID and our Challenge so we can build
+	// the matching SCCCN.
+	ourChallenge := extractAVP(t, sccrp, AVPChallenge)
+	require.Len(t, ourChallenge, 16)
+
+	ourLocalTIDBytes := extractAVP(t, sccrp, AVPAssignedTunnelID)
+	require.Len(t, ourLocalTIDBytes, 2)
+	ourLocalTID := uint16(ourLocalTIDBytes[0])<<8 | uint16(ourLocalTIDBytes[1])
+
+	// Compute the correct Challenge Response for SCCCN (CHAP_ID = 3).
+	resp := ChallengeResponse(ChapIDSCCCN, []byte(secret), ourChallenge)
+
+	// Peer Ns=1 (SCCRQ was Ns=0); Nr=1 (ACKs our SCCRP at Ns=0).
+	client.Send(t, buildSCCCN(t, ourLocalTID, 1, 1, resp[:]))
+
+	waitForLog(t, logs, "tunnel now established")
+
+	tunnel := r.TunnelByLocalID(ourLocalTID)
+	require.NotNil(t, tunnel)
+	r.tunnelsMu.Lock()
+	state := tunnel.state
+	r.tunnelsMu.Unlock()
+	require.Equal(t, L2TPTunnelEstablished, state)
+}
+
+// TestTunnelFSM_BadChallengeResponse_StopCCN -- AC-9.
+//
+// VALIDATES: AC-9 -- SCCCN with wrong Challenge Response causes the
+// reactor to emit StopCCN with Result Code 4 and close the tunnel.
+func TestTunnelFSM_BadChallengeResponse_StopCCN(t *testing.T) {
+	const secret = "topsecret"
+	ln, r, logs, stop := buildLogReactorSecret(t, secret)
+	defer stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	peerChallenge := bytes.Repeat([]byte{0xEF}, 16)
+	client.Send(t, buildSCCRQWithChallenge(t, 202, "peer-bad", peerChallenge))
+	sccrp := readDatagram(t, client)
+
+	ourLocalTIDBytes := extractAVP(t, sccrp, AVPAssignedTunnelID)
+	require.Len(t, ourLocalTIDBytes, 2)
+	ourLocalTID := uint16(ourLocalTIDBytes[0])<<8 | uint16(ourLocalTIDBytes[1])
+
+	// Send SCCCN with a DELIBERATELY WRONG Response.
+	wrong := make([]byte, 16)
+	client.Send(t, buildSCCCN(t, ourLocalTID, 1, 1, wrong))
+
+	stopccn := readDatagram(t, client)
+
+	waitForLog(t, logs, "Challenge Response did not verify")
+
+	// StopCCN body: Message Type AVP first (value = 4 = StopCCN).
+	msgType := extractAVP(t, stopccn, AVPMessageType)
+	require.Len(t, msgType, 2)
+	require.Equal(t, uint16(MsgStopCCN), uint16(msgType[0])<<8|uint16(msgType[1]))
+
+	// Result Code compound AVP (first two bytes = result code = 4).
+	rc := extractAVP(t, stopccn, AVPResultCode)
+	require.GreaterOrEqual(t, len(rc), 2, "Result Code AVP must carry at least a 2-byte result")
+	require.Equal(t, uint16(4), uint16(rc[0])<<8|uint16(rc[1]), "Result Code must be 4 (Not Authorized)")
+
+	// Tunnel should be in closed state.
+	tunnel := r.TunnelByLocalID(ourLocalTID)
+	require.NotNil(t, tunnel)
+	r.tunnelsMu.Lock()
+	state := tunnel.state
+	r.tunnelsMu.Unlock()
+	require.Equal(t, L2TPTunnelClosed, state)
+}
+
+// TestTunnelFSM_TieBreakerLocalLoses -- AC-10.
+//
+// VALIDATES: AC-10 -- when two SCCRQs arrive from the same peer with
+// Tie Breaker AVPs, the tunnel whose tie-breaker is HIGHER is discarded.
+// The one with the LOWER tie-breaker survives (RFC 2661 S9.5 lower wins).
+// Here, the FIRST SCCRQ has the higher value and is torn down.
+func TestTunnelFSM_TieBreakerLocalLoses(t *testing.T) {
+	ln, r, _, stop := buildLogReactor(t)
+	defer stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	// First SCCRQ with HIGH tie-breaker value.
+	highTB := []byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+	client.Send(t, buildSCCRQWithTieBreaker(t, 111, "peer-hi", highTB))
+	// Consume SCCRP so the socket does not buffer it across sends.
+	_ = readDatagram(t, client)
+
+	require.Equal(t, 1, r.TunnelCount())
+	firstTID := uint16(0)
+	r.tunnelsMu.Lock()
+	for tid := range r.tunnelsByLocalID {
+		firstTID = tid
+	}
+	r.tunnelsMu.Unlock()
+
+	// Second SCCRQ with LOW tie-breaker (lower wins -> first is discarded).
+	lowTB := []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
+	client.Send(t, buildSCCRQWithTieBreaker(t, 222, "peer-lo", lowTB))
+	_ = readDatagram(t, client)
+
+	// Wait until the reactor has processed the second SCCRQ and the
+	// map reflects the new state.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if r.TunnelCount() == 1 {
+			r.tunnelsMu.Lock()
+			_, firstStillThere := r.tunnelsByLocalID[firstTID]
+			r.tunnelsMu.Unlock()
+			if !firstStillThere {
+				break
+			}
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+
+	require.Equal(t, 1, r.TunnelCount(), "loser must be removed, winner stays")
+	r.tunnelsMu.Lock()
+	_, firstStillThere := r.tunnelsByLocalID[firstTID]
+	r.tunnelsMu.Unlock()
+	require.False(t, firstStillThere, "first tunnel (higher tie-breaker) must be discarded")
+}
+
+// TestReactor_ZeroLengthChallengeRejected -- regression for the blocker
+// where a peer-sent SCCRQ carrying a header-only (value_len=0) Challenge
+// AVP crashed the daemon via the ChallengeResponse panic guard.
+//
+// VALIDATES: parseSCCRQ rejects empty Challenge AVP at the reactor edge,
+// before any tunnel state is allocated. Exploitable pre-fix; safely
+// dropped post-fix.
+func TestReactor_ZeroLengthChallengeRejected(t *testing.T) {
+	const secret = "topsecret"
+	ln, r, logs, stop := buildLogReactorSecret(t, secret)
+	defer stop()
+
+	// Build an SCCRQ whose Challenge AVP carries a zero-byte value. The
+	// AVP header reports totalLen=6 (AVPHeaderLen only). Wire-legal;
+	// semantically illegal per RFC 2661 S5.12 ("at least one octet").
+	bodyBuf := GetBuf()
+	defer PutBuf(bodyBuf)
+	buf := *bodyBuf
+	off := 0
+	off += WriteAVPUint16(buf, off, true, AVPMessageType, uint16(MsgSCCRQ))
+	off += WriteAVPBytes(buf, off, true, 0, AVPProtocolVersion, []byte{0x01, 0x00})
+	off += WriteAVPUint32(buf, off, true, AVPFramingCapabilities, 0x3)
+	off += WriteAVPUint32(buf, off, true, AVPBearerCapabilities, 0x0)
+	off += WriteAVPString(buf, off, true, AVPHostName, "peer-empty-challenge")
+	off += WriteAVPUint16(buf, off, true, AVPAssignedTunnelID, 555)
+	off += WriteAVPUint16(buf, off, true, AVPReceiveWindowSize, 8)
+	off += WriteAVPEmpty(buf, off, true, 0, AVPChallenge)
+
+	total := 12 + off
+	pkt := make([]byte, total)
+	WriteControlHeader(pkt, 0, uint16(total), 0, 0, 0, 0)
+	copy(pkt[12:], buf[:off])
+
+	send(t, ln, pkt)
+	waitForLog(t, logs, "malformed body dropped")
+	require.Equal(t, 0, r.TunnelCount(), "zero-length Challenge must not create a tunnel")
+}
+
+// TestReactor_ShortTieBreakerRejected -- regression that a Tie Breaker
+// AVP with the wrong length (RFC 2661 S4.4.2 fixes it at 8 bytes) is
+// rejected at parse time.
+//
+// VALIDATES: parseSCCRQ treats non-8-byte Tie Breaker as malformed so a
+// peer cannot win collisions by sending a shorter (always-lower) value.
+func TestReactor_ShortTieBreakerRejected(t *testing.T) {
+	ln, r, logs, stop := buildLogReactor(t)
+	defer stop()
+
+	bodyBuf := GetBuf()
+	defer PutBuf(bodyBuf)
+	buf := *bodyBuf
+	off := 0
+	off += WriteAVPUint16(buf, off, true, AVPMessageType, uint16(MsgSCCRQ))
+	off += WriteAVPBytes(buf, off, true, 0, AVPProtocolVersion, []byte{0x01, 0x00})
+	off += WriteAVPUint32(buf, off, true, AVPFramingCapabilities, 0x3)
+	off += WriteAVPUint32(buf, off, true, AVPBearerCapabilities, 0x0)
+	off += WriteAVPString(buf, off, true, AVPHostName, "peer-short-tb")
+	off += WriteAVPUint16(buf, off, true, AVPAssignedTunnelID, 666)
+	off += WriteAVPUint16(buf, off, true, AVPReceiveWindowSize, 8)
+	// 1-byte Tie Breaker -- illegal per RFC.
+	off += WriteAVPBytes(buf, off, true, 0, AVPTieBreaker, []byte{0x00})
+
+	total := 12 + off
+	pkt := make([]byte, total)
+	WriteControlHeader(pkt, 0, uint16(total), 0, 0, 0, 0)
+	copy(pkt[12:], buf[:off])
+
+	send(t, ln, pkt)
+	waitForLog(t, logs, "malformed body dropped")
+	require.Equal(t, 0, r.TunnelCount(), "wrong-length Tie Breaker must not create a tunnel")
+}
+
+// TestTunnelFSM_SCCCNMissingResponseWhenChallenged -- explicit coverage
+// for the "!scccn.ChallengeResponsePresent" branch in handleSCCCN.
+//
+// VALIDATES: an SCCCN that carries NO Challenge Response AVP on a
+// tunnel we challenged is treated as an auth failure (StopCCN RC=4).
+func TestTunnelFSM_SCCCNMissingResponseWhenChallenged(t *testing.T) {
+	const secret = "topsecret"
+	ln, r, logs, stop := buildLogReactorSecret(t, secret)
+	defer stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	peerChallenge := bytes.Repeat([]byte{0x5A}, 16)
+	client.Send(t, buildSCCRQWithChallenge(t, 707, "peer-missing-resp", peerChallenge))
+	sccrp := readDatagram(t, client)
+
+	ourLocalTIDBytes := extractAVP(t, sccrp, AVPAssignedTunnelID)
+	require.Len(t, ourLocalTIDBytes, 2)
+	ourLocalTID := uint16(ourLocalTIDBytes[0])<<8 | uint16(ourLocalTIDBytes[1])
+
+	// SCCCN with NO Challenge Response AVP.
+	client.Send(t, buildSCCCN(t, ourLocalTID, 1, 1, nil))
+
+	stopccn := readDatagram(t, client)
+	waitForLog(t, logs, "SCCCN missing Challenge Response")
+
+	msgType := extractAVP(t, stopccn, AVPMessageType)
+	require.Equal(t, uint16(MsgStopCCN), uint16(msgType[0])<<8|uint16(msgType[1]))
+
+	tunnel := r.TunnelByLocalID(ourLocalTID)
+	require.NotNil(t, tunnel)
+	r.tunnelsMu.Lock()
+	state := tunnel.state
+	r.tunnelsMu.Unlock()
+	require.Equal(t, L2TPTunnelClosed, state)
+}
+
+// TestTunnelFSM_SCCCNIgnoredOnEstablished -- defense-in-depth per
+// handover landmine #13. A second SCCCN with a different Ns delivered
+// after the tunnel is established must not re-run verification; it is
+// dropped with a debug log.
+//
+// VALIDATES: the state != wait-ctl-conn branch of handleSCCCN drops
+// cleanly without mutating state or emitting anything.
+func TestTunnelFSM_SCCCNIgnoredOnEstablished(t *testing.T) {
+	const secret = "topsecret"
+	ln, r, logs, stop := buildLogReactorSecret(t, secret)
+	defer stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	// First: drive the tunnel to established via the normal handshake.
+	peerChallenge := bytes.Repeat([]byte{0x3C}, 16)
+	client.Send(t, buildSCCRQWithChallenge(t, 808, "peer-doubled", peerChallenge))
+	sccrp := readDatagram(t, client)
+	ourChallenge := extractAVP(t, sccrp, AVPChallenge)
+	ourLocalTIDBytes := extractAVP(t, sccrp, AVPAssignedTunnelID)
+	ourLocalTID := uint16(ourLocalTIDBytes[0])<<8 | uint16(ourLocalTIDBytes[1])
+	resp := ChallengeResponse(ChapIDSCCCN, []byte(secret), ourChallenge)
+	client.Send(t, buildSCCCN(t, ourLocalTID, 1, 1, resp[:]))
+	waitForLog(t, logs, "tunnel now established")
+	// Drain the engine's ZLB for the SCCCN.
+	_ = readDatagram(t, client)
+
+	// Second SCCCN (new Ns=2) must be delivered by the engine and dropped
+	// by the FSM state check; state stays established.
+	client.Send(t, buildSCCCN(t, ourLocalTID, 2, 1, resp[:]))
+	waitForLog(t, logs, "SCCCN on non-wait-ctl-conn tunnel ignored")
+
+	tunnel := r.TunnelByLocalID(ourLocalTID)
+	require.NotNil(t, tunnel)
+	r.tunnelsMu.Lock()
+	state := tunnel.state
+	r.tunnelsMu.Unlock()
+	require.Equal(t, L2TPTunnelEstablished, state, "established tunnel must not revert on a duplicate-Ns SCCCN")
+}
+
+// TestTunnelFSM_SCCCNWithResponseUnchallenged -- when the peer did not
+// challenge us (no Challenge AVP in SCCRQ) we emit SCCRP without our own
+// Challenge. If the peer's SCCCN nevertheless carries a Challenge
+// Response AVP, that AVP is ignored and the tunnel still reaches
+// established (RFC: unrecognized non-mandatory AVPs silently skipped).
+//
+// VALIDATES: handleSCCCN's "t.ourChallenge == nil" branch accepts a
+// spurious Challenge Response without rejecting the tunnel.
+func TestTunnelFSM_SCCCNWithResponseUnchallenged(t *testing.T) {
+	// No shared-secret -> we never challenge the peer even if it
+	// challenges us. To test an "unchallenged" tunnel we use an SCCRQ
+	// that does not carry a Challenge AVP (buildSCCRQ) and a secret-less
+	// reactor.
+	ln, r, logs, stop := buildLogReactor(t)
+	defer stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	client.Send(t, buildSCCRQ(t, 909, "peer-no-auth"))
+	sccrp := readDatagram(t, client)
+	ourLocalTIDBytes := extractAVP(t, sccrp, AVPAssignedTunnelID)
+	ourLocalTID := uint16(ourLocalTIDBytes[0])<<8 | uint16(ourLocalTIDBytes[1])
+
+	// SCCCN with a spurious Challenge Response AVP -- should be ignored.
+	spurious := bytes.Repeat([]byte{0xAA}, 16)
+	client.Send(t, buildSCCCN(t, ourLocalTID, 1, 1, spurious))
+
+	waitForLog(t, logs, "tunnel now established")
+	tunnel := r.TunnelByLocalID(ourLocalTID)
+	require.NotNil(t, tunnel)
+	r.tunnelsMu.Lock()
+	state := tunnel.state
+	r.tunnelsMu.Unlock()
+	require.Equal(t, L2TPTunnelEstablished, state)
+}
+
+// TestTunnelFSM_TieBreakerEqual -- AC-11.
+//
+// VALIDATES: AC-11 -- bit-for-bit equal Tie Breaker values cause both
+// sides to discard; no tunnel survives.
+func TestTunnelFSM_TieBreakerEqual(t *testing.T) {
+	ln, r, _, stop := buildLogReactor(t)
+	defer stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	tb := []byte{0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88}
+	client.Send(t, buildSCCRQWithTieBreaker(t, 321, "peer-a", tb))
+	_ = readDatagram(t, client)
+	require.Equal(t, 1, r.TunnelCount())
+
+	// Second SCCRQ with the SAME tie-breaker; equal -> both discard.
+	client.Send(t, buildSCCRQWithTieBreaker(t, 654, "peer-b", tb))
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if r.TunnelCount() == 0 {
+			break
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	require.Equal(t, 0, r.TunnelCount(), "equal tie-breaker must discard both tunnels")
+}

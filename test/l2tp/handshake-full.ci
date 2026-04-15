@@ -1,0 +1,140 @@
+# Test: Full SCCRQ -> SCCRP -> SCCCN handshake with CHAP-MD5 auth.
+# VALIDATES: AC-8 -- valid SCCCN with matching Challenge Response
+# transitions the tunnel to `established`.
+
+tmpfs=handshake-full.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Drive the full L2TP handshake against ze's listener.
+
+Sends SCCRQ with Challenge, receives SCCRP, computes the expected
+SCCCN Challenge Response, sends SCCCN, and verifies ze logs
+"tunnel now established" by observing the stderr stream for the
+presence of the log line. The runner's expect=stderr:contains directive
+does the actual assertion.
+"""
+import hashlib
+import os
+import socket
+import struct
+import sys
+import time
+
+if len(sys.argv) < 2:
+	print("usage: handshake-full.py <port>", file=sys.stderr)
+	sys.exit(2)
+
+TARGET = ("127.0.0.1", int(sys.argv[1]))
+SECRET = os.environ.get("TEST_SECRET", "s3cr3t").encode("utf-8")
+PEER_TID = 0x0123
+PEER_CHALLENGE = bytes.fromhex("00112233445566778899aabbccddeeff")
+
+
+def avp(mandatory, attr_type, value):
+	flags = 0x8000 if mandatory else 0
+	return struct.pack("!HHH", flags | (6 + len(value)), 0, attr_type) + value
+
+
+def build_sccrq():
+	body = b""
+	body += avp(True, 0, struct.pack("!H", 1))          # Message Type = SCCRQ
+	body += avp(True, 2, b"\x01\x00")                    # Protocol Version v1.0
+	body += avp(True, 3, struct.pack("!I", 0x3))         # Framing Caps
+	body += avp(True, 4, struct.pack("!I", 0x0))         # Bearer Caps
+	body += avp(True, 7, b"py-peer")                     # Host Name
+	body += avp(True, 9, struct.pack("!H", PEER_TID))    # Assigned Tunnel ID
+	body += avp(True, 10, struct.pack("!H", 8))          # Recv Window
+	body += avp(True, 11, PEER_CHALLENGE)                # Challenge
+	total = 12 + len(body)
+	hdr = struct.pack("!HHHHHH", 0xC802, total, 0, 0, 0, 0)
+	return hdr + body
+
+
+def parse_avps(body):
+	out = {}
+	off = 0
+	while off + 6 <= len(body):
+		word, vendor, atype = struct.unpack("!HHH", body[off:off+6])
+		length = word & 0x03FF
+		if length < 6 or off + length > len(body):
+			break
+		if vendor == 0:
+			out[atype] = body[off+6:off+length]
+		off += length
+	return out
+
+
+def build_scccn(dest_tid, ns, nr, response):
+	body = b""
+	body += avp(True, 0, struct.pack("!H", 3))           # Message Type = SCCCN
+	body += avp(True, 13, response)                      # Challenge Response
+	total = 12 + len(body)
+	hdr = struct.pack("!HHHHHH", 0xC802, total, dest_tid, 0, ns, nr)
+	return hdr + body
+
+
+def main():
+	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	sock.bind(("127.0.0.1", 0))
+	sock.settimeout(0.25)
+	time.sleep(0.05)
+	sccrq = build_sccrq()
+	sccrp = None
+	for _ in range(20):
+		try:
+			sock.sendto(sccrq, TARGET)
+			data, _ = sock.recvfrom(1500)
+			sccrp = data
+			break
+		except (socket.timeout, ConnectionRefusedError, OSError):
+			continue
+	if sccrp is None:
+		print("ERROR: no SCCRP received", file=sys.stderr)
+		return 1
+	_, length, _, _, _, _ = struct.unpack("!HHHHHH", sccrp[:12])
+	avps = parse_avps(sccrp[12:length])
+	our_challenge = avps.get(11)
+	tid_bytes = avps.get(9)
+	if our_challenge is None or tid_bytes is None:
+		print("ERROR: SCCRP missing Challenge or Assigned Tunnel ID", file=sys.stderr)
+		return 1
+	local_tid = struct.unpack("!H", tid_bytes)[0]
+
+	# CHAP_ID for SCCCN is Message Type 3.
+	digest = hashlib.md5(bytes([3]) + SECRET + our_challenge).digest()
+	sock.settimeout(1.0)
+	sock.sendto(build_scccn(local_tid, 1, 1, digest), TARGET)
+	# The engine will send back a ZLB ACK. Drain it so the socket stays
+	# clean for the runner; we do not assert on its contents.
+	try:
+		sock.recvfrom(1500)
+	except (socket.timeout, OSError):
+		pass
+	print("OK: SCCCN sent")
+	return 0
+
+
+if __name__ == "__main__":
+	sys.exit(main())
+EOF_PY
+
+stdin=config:terminator=EOF_CONF
+environment {
+	l2tp {
+		enabled true
+		shared-secret s3cr3t
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=TEST_SECRET:value=s3cr3t
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=python3 handshake-full.py $PORT:timeout=10s
+expect=exit:code=0
+expect=stdout:contains=OK: SCCCN sent
+expect=stderr:contains=tunnel now established
