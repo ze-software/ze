@@ -44,7 +44,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/cymru"
 	resolveDNS "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
-	"codeberg.org/thomas-mangin/ze/internal/component/tacacs"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
@@ -181,6 +180,11 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 // via ConfigRoots matching: bgp {} loads BGP, interface {} loads iface, etc.
 // This is the unified startup path for all ze configs (except hub orchestrator mode).
 func runYANGConfig(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string) int { //nolint:cyclop // startup orchestration
+	// Close the AAA bundle on every exit path so TACACS+ accounting and other
+	// backend workers drain before the process terminates. swapAAABundle is
+	// called by infraSetup on config load; closeAAABundle here matches it.
+	defer closeAAABundle(slogutil.Logger("hub.aaa"))
+
 	// Phase 1: Parse config and resolve plugins.
 	loadResult, err := zeconfig.LoadConfig(string(data), configPath, plugins)
 	if err != nil {
@@ -468,9 +472,17 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			cfg.Users = append(zefsUsers, cfg.Users...)
 		}
 
-		// Build pluggable authenticator (TACACS+ + local chain, or local only).
-		tacacsCfg := tacacs.ExtractConfig(loadResult.Tree)
-		cfg.Authenticator = buildAuthenticator(tacacsCfg, cfg.Users, slog.Default())
+		// Build the AAA bundle via the registry (local + any enabled remote backends).
+		// swapAAABundle installs it as the live bundle so closeAAABundle (deferred
+		// at the top of runYANGConfig) drains backend workers on process exit.
+		aaaLog := slogutil.Logger("hub.aaa")
+		aaaBundle, aaaErr := buildAAABundle(loadResult.Tree, cfg.Users, nil, aaaLog)
+		if aaaErr != nil {
+			aaaLog.Warn("AAA backend build failed; SSH authenticator not set", "error", aaaErr)
+		} else {
+			cfg.Authenticator = aaaBundle.Authenticator
+			swapAAABundle(aaaBundle, aaaLog)
+		}
 
 		cfg.ConfigDir = loadResult.ConfigDir
 		if cfg.ConfigDir == "" {

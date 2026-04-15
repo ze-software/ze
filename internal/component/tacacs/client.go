@@ -1,5 +1,8 @@
 // Design: (none -- new TACACS+ component)
 // Overview: packet.go -- packet header and encryption
+// Detail: authenticator.go -- bridges client to authz.Authenticator
+// Detail: authorizer.go -- bridges client to per-command authorization
+// Detail: accounting.go -- bridges client to aaa.Accountant
 
 // TACACS+ TCP client with server failover.
 // RFC 8907 Section 4 -- connection management.
@@ -18,6 +21,8 @@ import (
 // Packet type constants used by the client.
 const (
 	typeAuthentication = 0x01
+	typeAuthorization  = 0x02
+	typeAccounting     = 0x03
 )
 
 // TacacsServer holds configuration for a single TACACS+ server.
@@ -62,6 +67,64 @@ func (c *TacacsClient) Authenticate(username, password, port, remAddr string) (*
 		return nil, fmt.Errorf("marshal authen start: %w", err)
 	}
 
+	replyData, err := c.sendToServers(body, typeAuthentication, start.Version(), "authentication")
+	if err != nil {
+		return nil, err
+	}
+
+	reply, err := UnmarshalAuthenReply(replyData)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal authen reply: %w", err)
+	}
+	return reply, nil
+}
+
+// SendAuthorization sends an authorization REQUEST to the first reachable TACACS+ server.
+// Returns the AuthorResponse on success or error if all servers are unreachable.
+// RFC 8907 Section 6.
+func (c *TacacsClient) SendAuthorization(req *AuthorRequest) (*AuthorResponse, error) {
+	body, err := req.MarshalBinary()
+	if err != nil {
+		return nil, fmt.Errorf("marshal author request: %w", err)
+	}
+
+	replyData, err := c.sendToServers(body, typeAuthorization, 0xC0, "authorization")
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := UnmarshalAuthorResponse(replyData)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal author response: %w", err)
+	}
+	return resp, nil
+}
+
+// SendAccounting sends an accounting REQUEST to the first reachable TACACS+ server.
+// Returns the AcctReply on success or error if all servers are unreachable.
+// Accounting errors are informational -- callers should log them, never block.
+func (c *TacacsClient) SendAccounting(req *AcctRequest) (*AcctReply, error) {
+	body, err := req.MarshalBinary()
+	if err != nil {
+		return nil, fmt.Errorf("marshal acct request: %w", err)
+	}
+
+	replyData, err := c.sendToServers(body, typeAccounting, 0xC0, "accounting")
+	if err != nil {
+		return nil, err
+	}
+
+	reply, err := UnmarshalAcctReply(replyData)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal acct reply: %w", err)
+	}
+	return reply, nil
+}
+
+// sendToServers sends a request body to TACACS+ servers in order, returning
+// the first successful response body. Shared by Authenticate, SendAuthorization,
+// and SendAccounting.
+func (c *TacacsClient) sendToServers(body []byte, pktType, version uint8, purpose string) ([]byte, error) {
 	sessionID, err := randomSessionID()
 	if err != nil {
 		return nil, fmt.Errorf("generate session ID: %w", err)
@@ -70,32 +133,25 @@ func (c *TacacsClient) Authenticate(username, password, port, remAddr string) (*
 	for _, srv := range c.config.Servers {
 		pkt := &Packet{
 			Header: PacketHeader{
-				Version:   start.Version(),
-				Type:      typeAuthentication,
+				Version:   version,
+				Type:      pktType,
 				SeqNo:     1,
 				SessionID: sessionID,
 			},
 			Body: body,
 		}
 
-		replyData, err := c.sendReceive(srv, pkt)
-		if err != nil {
+		replyData, sendErr := c.sendReceive(srv, pkt)
+		if sendErr != nil {
 			c.logger.Warn("TACACS+ server unreachable",
-				"server", srv.Address, "error", err)
-			continue // try next server
-		}
-
-		reply, err := UnmarshalAuthenReply(replyData)
-		if err != nil {
-			c.logger.Warn("TACACS+ malformed reply (possible wrong shared secret)",
-				"server", srv.Address, "error", err)
+				"purpose", purpose, "server", srv.Address, "error", sendErr)
 			continue
 		}
 
-		return reply, nil
+		return replyData, nil
 	}
 
-	return nil, fmt.Errorf("all TACACS+ servers unreachable")
+	return nil, fmt.Errorf("all TACACS+ servers unreachable for %s", purpose)
 }
 
 // sendReceive connects to a server, sends a packet, and reads the response.

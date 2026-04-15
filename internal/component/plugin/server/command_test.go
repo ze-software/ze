@@ -582,13 +582,13 @@ func TestForwardToPluginBuiltinConflict(t *testing.T) {
 	assert.Contains(t, results[0].Error, "conflicts with builtin")
 }
 
-// mockAuthorizer implements Authorizer for testing.
+// mockAuthorizer implements aaa.Authorizer for testing.
 type mockAuthorizer struct {
-	decision authz.Action
+	allow bool
 }
 
-func (m *mockAuthorizer) Authorize(_, _ string, _ bool) authz.Action {
-	return m.decision
+func (m *mockAuthorizer) Authorize(_, _ string, _ bool) bool {
+	return m.allow
 }
 
 // TestDispatcherAuthorizationAllow verifies authorized commands execute.
@@ -597,7 +597,7 @@ func (m *mockAuthorizer) Authorize(_, _ string, _ bool) authz.Action {
 // PREVENTS: Authorization blocking all commands.
 func TestDispatcherAuthorizationAllow(t *testing.T) {
 	d := NewDispatcher()
-	d.SetAuthorizer(&mockAuthorizer{decision: authz.Allow})
+	d.SetAuthorizer(&mockAuthorizer{allow: true})
 
 	called := false
 	d.Register("peer show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
@@ -618,7 +618,7 @@ func TestDispatcherAuthorizationAllow(t *testing.T) {
 // PREVENTS: Authorization bypass allowing all commands.
 func TestDispatcherAuthorizationDeny(t *testing.T) {
 	d := NewDispatcher()
-	d.SetAuthorizer(&mockAuthorizer{decision: authz.Deny})
+	d.SetAuthorizer(&mockAuthorizer{allow: false})
 
 	d.Register("restart", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		t.Fatal("handler should not be called when denied")
@@ -691,9 +691,9 @@ type readOnlyCapture struct {
 	captured *bool
 }
 
-func (r *readOnlyCapture) Authorize(_, _ string, readOnly bool) authz.Action {
+func (r *readOnlyCapture) Authorize(_, _ string, readOnly bool) bool {
 	*r.captured = readOnly
-	return authz.Allow
+	return true
 }
 
 // TestDispatcherAuthorizationUsesUsername verifies Username from context is passed.
@@ -722,9 +722,9 @@ type usernameCapture struct {
 	captured *string
 }
 
-func (u *usernameCapture) Authorize(username, _ string, _ bool) authz.Action {
+func (u *usernameCapture) Authorize(username, _ string, _ bool) bool {
 	*u.captured = username
-	return authz.Allow
+	return true
 }
 
 // TestDispatcherWithAuthzStore verifies the authz.Store integrates with the dispatcher.
@@ -749,7 +749,7 @@ func TestDispatcherWithAuthzStore(t *testing.T) {
 	store.AssignProfiles("operator", []string{"noc"})
 
 	d := NewDispatcher()
-	d.SetAuthorizer(store)
+	d.SetAuthorizer(authz.StoreAuthorizer{Store: store})
 
 	showCalled := false
 	d.RegisterWithOptions("peer show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
@@ -798,7 +798,7 @@ func TestDispatcherWithAuthzStore(t *testing.T) {
 // PREVENTS: Authorization bypass by sending unregistered commands to plugin/subsystem dispatch.
 func TestDispatcherAuthorizationAppliesToUnknownCommands(t *testing.T) {
 	d := NewDispatcher()
-	d.SetAuthorizer(&mockAuthorizer{decision: authz.Deny})
+	d.SetAuthorizer(&mockAuthorizer{allow: false})
 
 	// Don't register "custom plugin cmd" as a builtin — it falls to plugin dispatch.
 	ctx := &CommandContext{Username: "noc-user"}
@@ -977,4 +977,82 @@ func TestDispatchEmbeddedNoSelector(t *testing.T) {
 	_, err := d.Dispatch(ctx, "update bgp peer prefix")
 	require.Error(t, err, "embedded peer without selector must be rejected")
 	assert.Contains(t, err.Error(), "requires a peer selector")
+}
+
+// fakeAccountant records accounting calls for testing.
+type fakeAccountant struct {
+	starts []string // commands that triggered START
+	stops  []string // commands that triggered STOP
+}
+
+func (f *fakeAccountant) CommandStart(_, _, command string) string {
+	f.starts = append(f.starts, command)
+	return "task-1"
+}
+
+func (f *fakeAccountant) CommandStop(_, _, _, command string) {
+	f.stops = append(f.stops, command)
+}
+
+// TestDispatcherAccountingHook verifies that the accounting hook is called on command dispatch.
+//
+// VALIDATES: AC-8 -- accounting START/STOP records sent around command execution.
+// PREVENTS: accounting hook never firing after being wired.
+func TestDispatcherAccountingHook(t *testing.T) {
+	d := NewDispatcher()
+	acct := &fakeAccountant{}
+	d.SetAccountingHook(acct)
+
+	d.Register("show version", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone, Data: "v1.0"}, nil
+	}, "Show version")
+
+	ctx := &CommandContext{Username: "admin", RemoteAddr: "10.0.0.1:12345"}
+	resp, err := d.Dispatch(ctx, "show version")
+
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	assert.Equal(t, []string{"show version"}, acct.starts, "START should fire before handler")
+	assert.Equal(t, []string{"show version"}, acct.stops, "STOP should fire after handler")
+}
+
+// TestDispatcherAccountingSkipsNoUsername verifies accounting is skipped for unauthenticated contexts.
+//
+// VALIDATES: AC-8 -- accounting only fires for authenticated users.
+// PREVENTS: sending accounting records with empty username.
+func TestDispatcherAccountingSkipsNoUsername(t *testing.T) {
+	d := NewDispatcher()
+	acct := &fakeAccountant{}
+	d.SetAccountingHook(acct)
+
+	d.Register("show version", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "Show version")
+
+	// No username -- accounting should be skipped.
+	ctx := &CommandContext{}
+	_, err := d.Dispatch(ctx, "show version")
+
+	require.NoError(t, err)
+	assert.Empty(t, acct.starts, "no START for unauthenticated user")
+	assert.Empty(t, acct.stops, "no STOP for unauthenticated user")
+}
+
+// TestDispatcherAccountingNilHook verifies commands work without an accounting hook.
+//
+// VALIDATES: AC-5 -- no accounting hook = no crash, normal operation.
+// PREVENTS: nil pointer dereference when accounting is disabled.
+func TestDispatcherAccountingNilHook(t *testing.T) {
+	d := NewDispatcher()
+	// No accounting hook set.
+
+	d.Register("show version", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "Show version")
+
+	ctx := &CommandContext{Username: "admin"}
+	resp, err := d.Dispatch(ctx, "show version")
+
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
 }

@@ -11,54 +11,43 @@ import (
 	"os"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
+	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
-	"codeberg.org/thomas-mangin/ze/internal/component/tacacs"
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
-// buildAuthenticator constructs a ChainAuthenticator from the config tree.
-// If TACACS+ servers are configured, the chain is [TACACS+, local].
-// If no TACACS+ servers, the chain is [local] only.
-func buildAuthenticator(tacacsCfg tacacs.ExtractedConfig, users []authz.UserConfig, logger *slog.Logger) authz.Authenticator {
-	local := &authz.LocalAuthenticator{Users: users}
-
-	if !tacacsCfg.HasServers() {
-		return &authz.ChainAuthenticator{Backends: []authz.Authenticator{local}}
+// buildAAABundle composes the AAA bundle through the pluggable backend
+// registry. The hub does not import any backend package by name: every
+// backend self-registers via init() in its own package (authz, tacacs,
+// future RADIUS/LDAP) and Build assembles the live Authenticator chain,
+// Authorizer, and Accountant.
+//
+// A nil store yields a nil LocalAuthorizer so the local backend does not
+// contribute a permissive "allow all" authorizer when the caller explicitly
+// has no RBAC configured.
+func buildAAABundle(tree *zeconfig.Tree, users []aaa.UserCredential, store *authz.Store, logger *slog.Logger) (*aaa.Bundle, error) {
+	var localAuthorizer aaa.Authorizer
+	if store != nil {
+		localAuthorizer = authz.StoreAuthorizer{Store: store}
 	}
-
-	client := tacacs.NewTacacsClient(tacacs.TacacsClientConfig{
-		Servers:       tacacsCfg.Servers,
-		Timeout:       tacacsCfg.Timeout,
-		SourceAddress: tacacsCfg.SourceAddress,
-		Logger:        logger,
-	})
-
-	privMap := tacacsCfg.PrivLvlMap
-	if privMap == nil {
-		privMap = map[int][]string{}
+	params := aaa.BuildParams{
+		Ctx:             context.Background(),
+		ConfigTree:      tree,
+		Logger:          logger,
+		LocalUsers:      users,
+		LocalAuthorizer: localAuthorizer,
 	}
-
-	tacacsAuth := tacacs.NewTacacsAuthenticator(client, privMap, logger)
-
-	logger.Info("TACACS+ authentication configured",
-		"servers", len(tacacsCfg.Servers),
-		"authorization", tacacsCfg.Authorization,
-		"accounting", tacacsCfg.Accounting)
-
-	return &authz.ChainAuthenticator{
-		Backends: []authz.Authenticator{tacacsAuth, local},
-	}
+	return aaa.Default.Build(params)
 }
 
 // setupInfraHook creates and registers the infrastructure setup hook.
-// Called once before the engine starts. The hook itself runs when the
-// BGP plugin creates its reactor via CreateReactorFromTree.
 func setupInfraHook() {
 	bgpconfig.SetInfraHook(infraSetup)
 }
@@ -84,24 +73,35 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 		hasSSHConfig = true
 	}
 
-	if hasSSHConfig {
+	// Users from zefs + config. Loaded regardless of SSH so the local AAA
+	// backend sees them even on API-only or MCP-only deployments where
+	// authorization and accounting must still apply.
+	users := append([]aaa.UserCredential{}, sshCfg.Users...)
+	if zefsUsers, err := loadZefsUsers(); err == nil {
+		users = append(zefsUsers, users...)
+	}
+
+	// Build the AAA bundle unconditionally. TACACS+ accounting fires on
+	// every dispatched command (SSH, MCP, API), so the bundle must exist
+	// even when SSH is disabled. On config reload the previous bundle is
+	// closed so backend workers (TACACS+ accounting) drain.
+	bundle, buildErr := buildAAABundle(params.ConfigTree, users, params.AuthzStore, log)
+	if buildErr != nil {
+		log.Warn("AAA backend build failed", "error", buildErr)
+		bundle = nil
+	}
+	swapAAABundle(bundle, log)
+
+	if hasSSHConfig && bundle != nil {
 		cfg := zessh.Config{
-			Listen:      sshCfg.Listen,
-			ListenAddrs: sshCfg.ListenAddrs,
-			HostKeyPath: sshCfg.HostKeyPath,
-			IdleTimeout: sshCfg.IdleTimeout,
-			MaxSessions: sshCfg.MaxSessions,
-			Users:       sshCfg.Users,
+			Listen:        sshCfg.Listen,
+			ListenAddrs:   sshCfg.ListenAddrs,
+			HostKeyPath:   sshCfg.HostKeyPath,
+			IdleTimeout:   sshCfg.IdleTimeout,
+			MaxSessions:   sshCfg.MaxSessions,
+			Users:         users,
+			Authenticator: bundle.Authenticator,
 		}
-
-		// Merge users from zefs database (ze init) with config-based users.
-		if zefsUsers, err := loadZefsUsers(); err == nil {
-			cfg.Users = append(zefsUsers, cfg.Users...)
-		}
-
-		// Build pluggable authenticator (TACACS+ + local chain, or local only).
-		tacacsCfg := tacacs.ExtractConfig(params.ConfigTree)
-		cfg.Authenticator = buildAuthenticator(tacacsCfg, cfg.Users, log)
 		cfg.ConfigDir = params.ConfigDir
 		if cfg.ConfigDir == "" {
 			cfg.ConfigDir = coreenv.Get("ze.config.dir")
@@ -121,23 +121,20 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 				if writeErr := os.WriteFile(ephemeralFile, []byte(srv.Address()), 0o600); writeErr != nil {
 					log.Warn("failed to write ephemeral SSH address", "error", writeErr)
 				}
-				// Wire session model factory (moved from ssh/session.go).
 				sshSrv.SetSessionModelFactory(buildSessionModelFactory(sshSrv, params))
 			}
 		}
 	}
 
-	// Post-start wiring: after reactor starts and Dispatcher is available.
 	authzStore := params.AuthzStore
-	if authzStore != nil || sshSrv != nil {
+	needsPostStart := authzStore != nil || sshSrv != nil || bundle != nil
+	if needsPostStart {
 		r.SetPostStartFunc(func() {
 			d := r.Dispatcher()
 			if d == nil {
 				return
 			}
 
-			// writeGRMarker writes the BGP Graceful Restart marker before
-			// a planned shutdown (restart or reboot) so peers hold routes.
 			writeGRMarker := func() {
 				apiSrv := params.APIServer()
 				if apiSrv == nil {
@@ -155,7 +152,6 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 				}
 			}
 
-			// Wire reboot func on plugin server (for "daemon reboot" RPC).
 			if apiSrv := params.APIServer(); apiSrv != nil {
 				apiSrv.SetRebootFunc(func() {
 					writeGRMarker()
@@ -164,18 +160,27 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 				})
 			}
 
-			if authzStore != nil {
-				d.SetAuthorizer(authzStore)
+			if bundle != nil && bundle.Authorizer != nil {
+				d.SetAuthorizer(bundle.Authorizer)
+				log.Info("authorization configured", "source", "aaa bundle")
+			} else if authzStore != nil {
+				d.SetAuthorizer(authz.StoreAuthorizer{Store: authzStore})
 				log.Info("authorization profiles loaded")
+			}
+
+			if bundle != nil && bundle.Accountant != nil {
+				d.SetAccountingHook(bundle.Accountant)
+				log.Info("AAA accounting enabled")
 			}
 
 			if sshSrv != nil {
 				apiServer := params.APIServer()
-				sshSrv.SetExecutorFactory(func(username string) zessh.CommandExecutor {
+				sshSrv.SetExecutorFactory(func(username, remoteAddr string) zessh.CommandExecutor {
 					return func(input string) (string, error) {
 						ctx := &pluginserver.CommandContext{
-							Server:   apiServer,
-							Username: username,
+							Server:     apiServer,
+							Username:   username,
+							RemoteAddr: remoteAddr,
 						}
 						resp, err := d.Dispatch(ctx, input)
 						if err != nil {
@@ -231,7 +236,6 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 					rebootRequested.Store(true)
 					r.Stop()
 				})
-				// Wire login warnings.
 				rl := apiServer.Reactor()
 				sshSrv.SetLoginWarnings(func() []contract.LoginWarning {
 					bw := params.CollectLoginWarnings(rl)

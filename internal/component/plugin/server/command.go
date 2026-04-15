@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/authz"
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
@@ -85,19 +85,15 @@ func RegisterDefaultHandlers(d *Dispatcher, wireToPath, pathToDesc map[string]st
 // Handler processes a command and returns a response.
 type Handler func(ctx *CommandContext, args []string) (*plugin.Response, error)
 
-// Authorizer checks whether a user is allowed to execute a command.
-type Authorizer interface {
-	Authorize(username, command string, isReadOnly bool) authz.Action
-}
-
 // CommandContext provides access to reactor and session state.
 // Dependencies are accessed through Server; per-request state is stored directly.
 type CommandContext struct {
-	Server   *Server          // Gateway to all server state (reactor, dispatcher, etc.)
-	Process  *process.Process // The API process (for session state)
-	Peer     string           // Peer selector: "*" for all, or specific IP. Empty = "*"
-	Username string           // Authenticated username (empty = no auth, full access)
-	Meta     map[string]any   // Route metadata from UpdateRoute RPC; nil if not set.
+	Server     *Server          // Gateway to all server state (reactor, dispatcher, etc.)
+	Process    *process.Process // The API process (for session state)
+	Peer       string           // Peer selector: "*" for all, or specific IP. Empty = "*"
+	Username   string           // Authenticated username (empty = no auth, full access)
+	RemoteAddr string           // Remote address of the client (e.g., SSH peer IP:port)
+	Meta       map[string]any   // Route metadata from UpdateRoute RPC; nil if not set.
 }
 
 // Reactor returns the BGP reactor lifecycle interface via Server.
@@ -187,7 +183,8 @@ type Dispatcher struct {
 	registry   *CommandRegistry  // Plugin commands
 	pending    *PendingRequests  // In-flight plugin requests
 	subsystems *SubsystemManager // Forked subsystem processes
-	authorizer Authorizer        // Authorization checker (nil = allow all)
+	authorizer aaa.Authorizer    // Authorization checker (nil = allow all)
+	accountant aaa.Accountant    // Accounting recorder (nil = disabled)
 }
 
 // NewDispatcher creates a new command dispatcher.
@@ -225,8 +222,15 @@ func (d *Dispatcher) HasCommandPrefix(input string) bool {
 
 // SetAuthorizer sets the authorization checker for the dispatcher.
 // When set, all commands are checked against the authorizer before execution.
-func (d *Dispatcher) SetAuthorizer(a Authorizer) {
+func (d *Dispatcher) SetAuthorizer(a aaa.Authorizer) {
 	d.authorizer = a
+}
+
+// SetAccountingHook sets the accounting recorder for the dispatcher.
+// When set, command START/STOP records are sent for every dispatched command.
+// Accounting failures never block command execution.
+func (d *Dispatcher) SetAccountingHook(h aaa.Accountant) {
+	d.accountant = h
 }
 
 // Subsystems returns the subsystem manager.
@@ -326,7 +330,7 @@ func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, readOnly bo
 	if ctx != nil {
 		username = ctx.Username
 	}
-	return d.authorizer.Authorize(username, input, readOnly) != authz.Deny
+	return d.authorizer.Authorize(username, input, readOnly)
 }
 
 // Dispatch parses and executes a command.
@@ -422,6 +426,13 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	// Execute handler
 	if matchedCmd.Handler == nil {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	// Accounting: record command start/stop (AC-8).
+	// Accounting failures never block command execution.
+	if d.accountant != nil && ctx != nil && ctx.Username != "" {
+		taskID := d.accountant.CommandStart(ctx.Username, ctx.RemoteAddr, input)
+		defer d.accountant.CommandStop(taskID, ctx.Username, ctx.RemoteAddr, input)
 	}
 
 	return matchedCmd.Handler(ctx, args)

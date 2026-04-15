@@ -51,9 +51,9 @@ const (
 type CommandExecutor func(input string) (string, error)
 
 // CommandExecutorFactory creates a per-session CommandExecutor.
-// The username is the authenticated SSH user; the returned executor
-// can use it for authorization context.
-type CommandExecutorFactory func(username string) CommandExecutor
+// The username is the authenticated SSH user; remoteAddr is the SSH client's
+// IP:port. The returned executor can use both for authorization and accounting.
+type CommandExecutorFactory func(username, remoteAddr string) CommandExecutor
 
 // StreamingExecutor executes a streaming command, writing output line-by-line
 // to the writer until the context is canceled or a write error occurs.
@@ -268,7 +268,7 @@ func (s *Server) ExecutorForUser(username string) CommandExecutor {
 		}
 		return nil
 	}
-	return factory(username)
+	return factory(username, "")
 }
 
 // MonitorFactoryFunc returns the monitor factory, or nil if not set.
@@ -585,7 +585,7 @@ func (s *Server) execMiddleware() wish.Middleware {
 				return
 			}
 
-			executor := factory(sess.User())
+			executor := factory(sess.User(), sess.RemoteAddr().String())
 			result, err := executor(input)
 			if err != nil {
 				fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort

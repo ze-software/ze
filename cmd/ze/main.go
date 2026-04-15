@@ -60,6 +60,10 @@ import (
 	// Must happen at the binary entry point (not in internal/plugin)
 	// to avoid import cycles: format → plugin → all → bgp-rs → format.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+
+	// Import all AAA backends so their init() fires and aaa.Default
+	// contains the backend factories before the hub calls aaa.Default.Build.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/aaa/all"
 )
 
 // Env var registrations for storage and config.

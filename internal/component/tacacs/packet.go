@@ -1,4 +1,12 @@
 // Design: (none -- new TACACS+ component)
+// Detail: authen.go -- authentication START/REPLY (RFC 8907 Section 5)
+// Detail: author.go -- authorization REQUEST/RESPONSE (RFC 8907 Section 6)
+// Detail: acct.go -- accounting REQUEST/REPLY (RFC 8907 Section 7)
+// Detail: client.go -- TCP client with server failover
+// Detail: authenticator.go -- bridges client to authz.Authenticator
+// Detail: authorizer.go -- bridges client to per-command authorization
+// Detail: accounting.go -- bridges client to aaa.Accountant
+// Detail: config.go -- config extraction from YANG tree
 
 // Package tacacs implements the TACACS+ protocol (RFC 8907) client.
 // RFC 8907 Section 4 -- packet header and body encryption.

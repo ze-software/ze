@@ -1,7 +1,7 @@
 // Design: (none -- new TACACS+ component)
 // Overview: packet.go -- packet header and encryption
 
-// TACACS+ configuration extraction from the config tree.
+// TACACS+ configuration extraction from the YANG config tree.
 package tacacs
 
 import (

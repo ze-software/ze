@@ -1,5 +1,7 @@
 // Design: (none -- new TACACS+ component)
 // Overview: packet.go -- packet header and encryption
+// Related: authen.go -- authentication messages (sibling protocol service)
+// Related: author.go -- authorization messages (sibling protocol service)
 
 // RFC 8907 Section 7 -- TACACS+ Accounting messages.
 package tacacs

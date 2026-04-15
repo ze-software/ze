@@ -1,49 +1,35 @@
 // Design: (none -- new authorization component)
 // Overview: authz.go -- profile-based command authorization
+// Related: register.go -- registers the local AAA backend with aaa.Default
 
 package authz
 
 import (
 	"crypto/subtle"
-	"errors"
-	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 )
+
+// Type aliases: the AAA interface layer lives in internal/component/aaa.
+// authz keeps these names as aliases so existing call sites (ssh, web,
+// tacacs, tests) compile unchanged. Only the ownership moved.
+type (
+	UserConfig         = aaa.UserCredential
+	AuthResult         = aaa.AuthResult
+	Authenticator      = aaa.Authenticator
+	ChainAuthenticator = aaa.ChainAuthenticator
+)
+
+// ErrAuthRejected re-exports aaa.ErrAuthRejected so callers that check
+// errors.Is(err, authz.ErrAuthRejected) keep working without an edit.
+var ErrAuthRejected = aaa.ErrAuthRejected
 
 // dummyHash is a pre-computed bcrypt hash used for timing-safe authentication.
 // When a username is not found, we still run bcrypt against this hash to prevent
 // timing side-channel attacks that could enumerate valid usernames.
 var dummyHash = []byte("$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ01234") //nolint:gosec // not a credential
-
-// ErrAuthRejected is returned when a backend explicitly rejects credentials.
-// This is distinct from connection errors: a rejected authentication MUST NOT
-// fall through to the next backend in the chain.
-var ErrAuthRejected = errors.New("authentication rejected")
-
-// UserConfig holds a configured user's credentials.
-type UserConfig struct {
-	Name     string
-	Hash     string   // bcrypt hash of the user's credential
-	Profiles []string // ze authz profile names
-}
-
-// AuthResult holds the outcome of an authentication attempt.
-type AuthResult struct {
-	Authenticated bool
-	Profiles      []string // ze authz profiles for this user
-	Source        string   // backend identifier ("local", "tacacs")
-}
-
-// Authenticator is a pluggable authentication backend.
-// Implementations: LocalAuthenticator (bcrypt), TacacsAuthenticator (TACACS+).
-type Authenticator interface {
-	// Authenticate checks the username/password against this backend.
-	// Returns (result, nil) on success or explicit rejection.
-	// Returns (zero, error) on connection/infrastructure failure.
-	// An explicit rejection sets Authenticated=false and returns ErrAuthRejected.
-	Authenticate(username, password string) (AuthResult, error)
-}
 
 // LocalAuthenticator wraps the existing bcrypt-based user list authentication.
 type LocalAuthenticator struct {
@@ -76,41 +62,6 @@ func (a *LocalAuthenticator) Authenticate(username, password string) (AuthResult
 		bcrypt.CompareHashAndPassword(dummyHash, []byte(password)) //nolint:errcheck // result intentionally ignored
 	}
 	return AuthResult{Source: "local"}, ErrAuthRejected
-}
-
-// ChainAuthenticator tries backends in order. It distinguishes two failure modes:
-//   - Explicit rejection (ErrAuthRejected): stop immediately, do not try next backend.
-//   - Connection error (any other error): try next backend.
-//
-// First successful authentication wins.
-type ChainAuthenticator struct {
-	Backends []Authenticator
-}
-
-// Authenticate tries each backend in order.
-// Returns on first success or first explicit rejection (ErrAuthRejected).
-// Only connection errors cause fallthrough to the next backend.
-func (c *ChainAuthenticator) Authenticate(username, password string) (AuthResult, error) {
-	if len(c.Backends) == 0 {
-		return AuthResult{}, fmt.Errorf("no authentication backends configured")
-	}
-	var lastErr error
-	for _, backend := range c.Backends {
-		result, err := backend.Authenticate(username, password)
-		if err == nil && result.Authenticated {
-			return result, nil
-		}
-		if errors.Is(err, ErrAuthRejected) {
-			// Explicit rejection: stop chain, do not try next backend.
-			return result, ErrAuthRejected
-		}
-		// Connection/infrastructure error: try next backend.
-		lastErr = err
-	}
-	if lastErr != nil {
-		return AuthResult{}, fmt.Errorf("all authentication backends failed: %w", lastErr)
-	}
-	return AuthResult{}, fmt.Errorf("all authentication backends failed")
 }
 
 // CheckPassword validates a credential against a stored bcrypt hash.
