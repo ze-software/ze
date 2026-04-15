@@ -3,6 +3,17 @@
 Pre-existing failures that need fixing. Each entry includes failure output and root-cause hypothesis.
 Sessions should attempt to fix entries here before logging new ones.
 
+## bfd-auth-meticulous-persist (flake under parallel load) -- 2026-04-15
+
+**File:** `test/plugin/bfd-auth-meticulous-persist.ci`
+**Symptom:** `FAIL: no persisted .seq file in /tmp/ze-bfd-auth-persist-XXXX`; exit 1 when run under `make ze-verify-fast` (parallel mode).
+**Reproduction:**
+- FAILS: `make ze-verify-fast` (functional stage running concurrently with unit+lint).
+- PASSES: `bin/ze-test bgp plugin Z` in isolation (5.1s).
+**Hypothesis:** Persistence handshake depends on wall-clock; under parallel CPU load the `.seq` file write races with the test's observer exit. The meticulous mode is supposed to flush on BFD Down -> Init -> Up transition, but the test may assert before the transition completes under load.
+**Fix needed:** Either synchronize on a production log line confirming the persist write, or bump the polling/timeout window in the observer. Estimated 30-60 min investigation.
+**Not caused by l2tp-5 kernel integration work (2026-04-15) -- verified orthogonal; the file paths and concerns do not overlap.**
+
 Remove entries once fixed.
 
 ## TestSSEMultiLineData / TestSSEServeHTTP (timeout) -- FIXED 2026-04-07
@@ -511,3 +522,20 @@ behavior. Verified with `bin/ze-test bgp plugin U V W X Y Z a b` ->
 **Reproduction:** Not reliable -- occurred once during phase-2 l2tp-reliable implementation session, not on retry.
 **Hypothesis:** The observer dispatches a `dispatch-command` event to `ze-plugin-engine` and awaits a response within a timeout. Under load (full `ze-verify` runs many other suites concurrently), the dispatch response may not arrive in time. The observer protocol likely needs a longer per-call timeout, or the test needs to gate on a readiness signal before dispatching.
 **Parked.** Orthogonal to L2TP phase-2 work. Investigation needs a grep of `dispatch-command` handling in `ze-plugin-engine` and the observer's timeout config. Estimated 15-30 min.
+
+## internal/component/l2tp lint errcheck failures -- LOGGED 2026-04-15
+
+**Files:** `internal/component/l2tp/kernel_linux.go`, `internal/component/l2tp/pppox_linux.go`
+**Symptom:** `make ze-verify-fast` Phase 1 lint reports 14 errcheck violations on `unix.Close(fd)` and similar calls.
+**Reproduction:** `golangci-lint run ./internal/component/l2tp/...` (always reproduces).
+**Root cause:** Pre-existing code that ignores Close() return values in cleanup paths. Likely intentional (cleanup-after-error has nowhere to surface the error) but lacking `//nolint:errcheck` or `_ = unix.Close(fd)` annotation.
+**Why parked:** Files are owned by an active L2TP refactor session (multiple untracked test scaffolding files in `internal/component/l2tp/*_test.go` reference an undefined `addTestTunnel` helper). Touching kernel_linux.go from another session would collide with that work.
+**Suggested fix:** Replace `unix.Close(fd)` with `_ = unix.Close(fd)` at each call site or add `//nolint:errcheck // <reason>` once the L2TP author can confirm the cleanup intent.
+
+## internal/component/l2tp untracked test scaffolding -- LOGGED 2026-04-15
+
+**Files (all untracked):** `internal/component/l2tp/genl_linux_test.go`, `kernel_linux_test.go`, `pppox_linux_test.go`, `reactor_kernel_test.go`.
+**Symptom:** `go test ./internal/component/l2tp/...` fails with `undefined: addTestTunnel` (5 references in `reactor_kernel_test.go`). Subsystem tests `TestReactorCollectsKernelSetupEvent`, `TestReactorCollectsTeardownEvent`, `TestSubsystem_StartEnabledWithListener`, `TestSubsystem_BindFailureUnwinds` fail because the package no longer compiles.
+**Root cause:** Scratch test scaffolding that references a helper not yet written (or not yet committed). Same shape as the `tmp/<topic>/*.go` mistake recorded in repo memory ("Scratch .go files in tmp/ break go test ./...").
+**Why parked:** Files belong to another in-flight session's L2TP work; safe to delete from this session's perspective (they are untracked) but doing so would discard that session's progress.
+
