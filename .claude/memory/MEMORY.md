@@ -22,6 +22,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 ## Reference
 
 - [reference_discord_bot.md](reference_discord_bot.md) - Discord bot in ~/Unix/bin/discord.sh: --channel ze-news/ze-test, --text "msg"
+- [feedback_discord_voice.md](feedback_discord_voice.md) - Discord posts as Zeledon; use third person for Thomas, not "I"
 
 ## Feedback (workflow)
 
