@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | spec-vpp-1-lifecycle |
 | Phase | - |
-| Updated | 2026-04-13 |
+| Updated | 2026-04-14 |
 
 ## Post-Compaction Recovery
 
@@ -54,10 +54,13 @@ Not protocol work. No RFCs apply.
 
 **Key insights:**
 - Backend is a 30+ method interface covering lifecycle, addressing, routes, link state, properties, query, bridge, mirror, monitor
-- ifacenetlink is the reference implementation; ifacevpp mirrors it method-for-method
-- Backend registration via iface.RegisterBackend("vpp", factory) in init()
+- ifacenetlink registers via iface.RegisterBackend("netlink", factory) in init(). NOT via registry.Register(). No plugin SDK.
+- ifacevpp follows same: iface.RegisterBackend("vpp", factory). Blank import triggers init().
+- GoVPP connection via vpp.GetActiveConnector().NewChannel()
+- GoVPP binapi packages: interface, l2, vxlan, gre, lcp, tapv2
 - VPP interface names are long (TenGigabitEthernet3/0/0); ze uses short names (xe0)
 - LCP pairs create Linux TAPs for VPP interfaces so BGP TCP sessions can bind
+- Unsupported ops (CreateVeth, Wireguard without plugin, Mirror on old VPP) return descriptive errors
 
 ## Current Behavior (MANDATORY)
 

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | spec-vpp-1-lifecycle |
-| Phase | - |
-| Updated | 2026-04-13 |
+| Phase | 1/3 |
+| Updated | 2026-04-14 |
 
 ## Post-Compaction Recovery
 
@@ -65,11 +65,15 @@ with sub-second convergence, no kernel intermediary.
 Not directly protocol work. MPLS label handling is in spec-vpp-3.
 
 **Key insights:**
-- FIB plugins are event-driven: subscribe to (system-rib, best-change) in OnStarted
-- Event payload is JSON with family, replay flag, and array of changes (action, prefix, next-hop)
-- fibkernel maintains an installed map (prefix -> next-hop) for replace vs add decisions
+- FIB plugins are event-driven: subscribe to (system-rib, best-change) via EventBus in run loop
+- Event payload is JSON: `{"family":"ipv4","replay":false,"changes":[{"action":"add","prefix":"10.0.0.0/24","next-hop":"192.168.1.1","protocol":"bgp"}]}`
+- fibkernel maintains installed map (prefix -> next-hop) for replace vs add decisions
 - VPP FIB is ephemeral: on VPP restart, emit replay-request to repopulate (no sweep needed)
 - Batch optimization: collect changes within batch-interval-ms, dispatch as batch
+- GoVPP types: `ip.IPRouteAddDel{IsAdd, Route: ip.IPRoute{TableID, Prefix, NPaths, Paths}}`
+- FibPath: `fib_types.FibPath{Proto, Nh, Weight, NLabels, LabelStack}` -- NLabels/LabelStack for vpp-3 MPLS
+- fibvpp imports `internal/component/vpp/` for GoVPP connection via `vpp.NewConnector().NewChannel()`
+- VPP lifecycle events in ("vpp", "connected/disconnected/reconnected") namespace, defined in events.go
 
 ## Current Behavior (MANDATORY)
 

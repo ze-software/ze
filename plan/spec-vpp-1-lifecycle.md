@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-vpp-0-umbrella |
-| Phase | 1/6 |
+| Phase | 6/6 |
 | Updated | 2026-04-14 |
 
 ## Post-Compaction Recovery
