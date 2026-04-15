@@ -17,6 +17,7 @@
 | Add a capability | `patterns/plugin.md` (capabilities section) | `docs/architecture/wire/capabilities.md` |
 | Implement an RFC | `rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
 | Write a spec | `rules/planning.md` | `plan/TEMPLATE.md` |
+| Reorganize YANG tree | `scripts/dev/yang_move.py --help` | Preview diff, then `--apply` |
 
 ## Dev Tools
 
@@ -24,6 +25,7 @@
 |------|----------|---------|
 | `go_extract.go` | `scripts/dev/` | Move Go symbols between files |
 | `replace.py` | `scripts/dev/` | Bulk find-and-replace with diff preview (run without `--apply` to review, then `--apply` to write). Supports `--regex` and `--all`. |
+| `yang_move.py` | `scripts/dev/` | Format-aware YANG path refactoring. When YANG nodes move, updates slash paths, set commands, brace blocks, and GetContainer chains across the codebase. `remove <seg> --under <path>`, `rename <old> <new> --under <path>`, `move <src> <dst>`. Preview by default, `--apply` to write. Run `--test` for self-tests. |
 
 ## Pattern Cookbooks
 
