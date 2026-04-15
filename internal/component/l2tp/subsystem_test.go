@@ -53,6 +53,11 @@ func TestSubsystem_StartEnabledNoListener(t *testing.T) {
 // VALIDATES: AC-2 -- subsystem binds a UDP socket for the configured
 // listener address.
 func TestSubsystem_StartEnabledWithListener(t *testing.T) {
+	// Phase 5 adds kernel module probing to Start(); dev/CI machines may
+	// not have l2tp_ppp/pppol2tp available. Neutralize the probe for this
+	// pure-userspace test.
+	defer l2tp.SetProbeKernelModulesForTest(func() error { return nil })()
+
 	addr := netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0)
 	sub := l2tp.NewSubsystem(l2tp.Parameters{
 		Enabled:     true,
@@ -72,6 +77,8 @@ func TestSubsystem_StartEnabledWithListener(t *testing.T) {
 // VALIDATES: Failure-mode analysis (FM7) in the spec -- partial-start
 // state cleanup.
 func TestSubsystem_BindFailureUnwinds(t *testing.T) {
+	defer l2tp.SetProbeKernelModulesForTest(func() error { return nil })()
+
 	// Pre-bind an ephemeral port as an external blocker.
 	blocker, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
 	require.NoError(t, err)

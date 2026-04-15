@@ -22,6 +22,11 @@ var _ ze.Subsystem = (*Subsystem)(nil)
 // SubsystemName is the canonical identifier for the L2TP subsystem.
 const SubsystemName = "l2tp"
 
+// probeKernelModulesFn is the kernel module probe invoked at Start().
+// Production uses probeKernelModules (Linux modprobe; no-op on other OS).
+// Tests override this via export_test.go to run without root privileges.
+var probeKernelModulesFn = probeKernelModules
+
 // Subsystem is the ze.Subsystem implementation for L2TPv2.
 //
 // Phase 3 scope: UDP listener + reactor skeleton are wired. Tunnel state
@@ -81,7 +86,7 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 	// AC-1/AC-2: on Linux, modprobe l2tp_ppp or pppol2tp must succeed.
 	// On non-Linux, probeKernelModules() is a no-op (returns nil).
 	// RFC 2661 Section 24.23: fail startup if module probe fails.
-	if err := probeKernelModules(); err != nil {
+	if err := probeKernelModulesFn(); err != nil {
 		return fmt.Errorf("l2tp: %w", err)
 	}
 
@@ -107,7 +112,27 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 				SharedSecret:        s.params.SharedSecret,
 			},
 		})
+
+		// Phase 5: wire the kernel worker BEFORE starting the reactor so
+		// SetKernelWorker's writes happen-before the reactor goroutine
+		// first reads kernelErrCh. Worker may be nil on non-Linux or when
+		// genl resolve fails -- the reactor handles that gracefully.
+		//
+		// errCh has a single sender (the worker) and a single reader (the
+		// reactor's run loop). It is never closed: GC reclaims it when both
+		// goroutines exit during Stop. Closing would race with the worker's
+		// reportError select.
+		errCh := make(chan kernelSetupFailed, 16)
+		worker := newSubsystemKernelWorker(errCh, s.logger)
+		reactor.SetKernelWorker(worker, errCh)
+		if worker != nil {
+			worker.Start()
+		}
+
 		if err := reactor.Start(); err != nil {
+			if worker != nil {
+				worker.Stop()
+			}
 			reactorErr := fmt.Errorf("l2tp: start reactor for %s: %w", addr, err)
 			if stopErr := ln.Stop(); stopErr != nil {
 				reactorErr = errors.Join(reactorErr, fmt.Errorf("l2tp: close listener %s: %w", addr, stopErr))
@@ -118,6 +143,9 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 		timer := newTunnelTimer(reactor.tickCh, reactor.updateCh)
 		if err := timer.Start(); err != nil {
 			reactor.Stop()
+			if worker != nil {
+				worker.Stop()
+			}
 			timerErr := fmt.Errorf("l2tp: start timer for %s: %w", addr, err)
 			if stopErr := ln.Stop(); stopErr != nil {
 				timerErr = errors.Join(timerErr, fmt.Errorf("l2tp: close listener %s: %w", addr, stopErr))
@@ -128,6 +156,7 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 		s.listeners = append(s.listeners, ln)
 		s.reactors = append(s.reactors, reactor)
 		s.timers = append(s.timers, timer)
+		s.kernelWorkers = append(s.kernelWorkers, worker)
 		s.logger.Info("L2TP listener bound", "address", ln.Addr().String())
 	}
 	s.started = true
@@ -137,24 +166,36 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 // unwindLocked stops any partially-started reactors and listeners. Must be
 // called with s.mu held. Errors are joined so the caller can surface them
 // all without suppressing any.
+//
+// Order matters. Stop the reactors and timers BEFORE the kernel workers so
+// no new kernelSetupEvents can be enqueued mid-teardown. Then TeardownAll
+// drains kernel state and Stop signals the worker goroutine to exit. The
+// listener is closed last because the kernel data plane (programmed via
+// the worker's socketFD) holds a kernel-side reference until tunnel delete
+// completes.
 func (s *Subsystem) unwindLocked() {
 	var errs []error
-	// Kernel workers first: teardown all kernel resources while reactors
-	// and listeners are still alive (the worker may need the socket fd).
+	// Timers first: they send on reactor channels, so stop them before
+	// the reactors close those channels.
+	for _, t := range s.timers {
+		t.Stop()
+	}
+	// Reactors next: after this returns, no new packets are dispatched
+	// and no new kernelSetupEvents are enqueued.
+	for _, r := range s.reactors {
+		r.Stop()
+	}
+	// Kernel workers: drain any in-flight setup events (TeardownAll waits
+	// for setupSession to release w.mu, then deletes everything it knows
+	// about), then signal the worker goroutine to exit.
 	for _, kw := range s.kernelWorkers {
 		if kw != nil {
 			kw.TeardownAll()
 			kw.Stop()
 		}
 	}
-	// Timers next: they send on reactor channels, so stop them before
-	// the reactors close those channels.
-	for _, t := range s.timers {
-		t.Stop()
-	}
-	for _, r := range s.reactors {
-		r.Stop()
-	}
+	// Listeners last: kernel tunnel/session delete commands carry a
+	// reference to the UDP socket; close after the worker drains.
 	for _, l := range s.listeners {
 		if err := l.Stop(); err != nil {
 			errs = append(errs, err)
@@ -182,21 +223,20 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	s.logger.Info("L2TP subsystem stopping")
 
 	var errs []error
-	// Kernel workers first: teardown all kernel resources while reactors
-	// and listeners are still alive (AC-14).
-	for _, kw := range s.kernelWorkers {
-		if kw != nil {
-			kw.TeardownAll()
-			kw.Stop()
-		}
-	}
-	// Timers next: they send on reactor channels, so stop them before
-	// the reactors close those channels.
+	// Same order as unwindLocked. Reactors stop before workers so no new
+	// kernelSetupEvents land in eventCh after TeardownAll, satisfying
+	// AC-14: every kernel resource is torn down before Stop() returns.
 	for _, t := range s.timers {
 		t.Stop()
 	}
 	for _, r := range s.reactors {
 		r.Stop()
+	}
+	for _, kw := range s.kernelWorkers {
+		if kw != nil {
+			kw.TeardownAll()
+			kw.Stop()
+		}
 	}
 	for _, l := range s.listeners {
 		if err := l.Stop(); err != nil {

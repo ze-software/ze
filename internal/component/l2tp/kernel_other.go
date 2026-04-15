@@ -5,6 +5,8 @@
 
 package l2tp
 
+import "log/slog"
+
 // kernelWorker is nil on non-Linux platforms. The reactor checks for nil
 // before enqueueing events, and the subsystem skips module probing and
 // worker creation.
@@ -25,6 +27,13 @@ func (w *kernelWorker) Start() {}
 // probeKernelModules is a no-op on non-Linux. L2TP kernel integration
 // is Linux-only; other platforms run without data plane acceleration.
 func probeKernelModules() error { return nil }
+
+// newSubsystemKernelWorker returns nil on non-Linux. The reactor checks
+// for nil before using the worker, so the userspace control path still
+// functions; sessions simply cannot program the kernel data plane.
+func newSubsystemKernelWorker(_ chan<- kernelSetupFailed, _ *slog.Logger) *kernelWorker {
+	return nil
+}
 
 // Compile-time references so the linter does not flag event type fields
 // as unused on non-Linux. All fields are consumed by kernel_linux.go.

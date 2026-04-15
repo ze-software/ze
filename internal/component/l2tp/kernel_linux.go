@@ -8,10 +8,12 @@
 package l2tp
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os/exec"
 	"sync"
+	"time"
 
 	"golang.org/x/sys/unix"
 )
@@ -59,24 +61,24 @@ func pppSetupReal(ev kernelSetupEvent) (pppSessionFDs, error) {
 
 	if ev.lnsMode {
 		if serr := pppoxSetLNSMode(pppoxFD, true); serr != nil {
-			unix.Close(pppoxFD)
+			unix.Close(pppoxFD) //nolint:errcheck // rollback path; primary error is serr
 			return pppSessionFDs{}, fmt.Errorf("l2tp: pppox set LNS mode: %w", serr)
 		}
 	}
 	if ev.sequencing {
 		if serr := pppoxSetSendSeq(pppoxFD, true); serr != nil {
-			unix.Close(pppoxFD)
+			unix.Close(pppoxFD) //nolint:errcheck // rollback path; primary error is serr
 			return pppSessionFDs{}, fmt.Errorf("l2tp: pppox set send seq: %w", serr)
 		}
 		if serr := pppoxSetRecvSeq(pppoxFD, true); serr != nil {
-			unix.Close(pppoxFD)
+			unix.Close(pppoxFD) //nolint:errcheck // rollback path; primary error is serr
 			return pppSessionFDs{}, fmt.Errorf("l2tp: pppox set recv seq: %w", serr)
 		}
 	}
 
 	chanFD, unitFD, unitNum, err := devPPPSetup(pppoxFD)
 	if err != nil {
-		unix.Close(pppoxFD)
+		unix.Close(pppoxFD) //nolint:errcheck // rollback path; primary error is err
 		return pppSessionFDs{}, err
 	}
 
@@ -308,14 +310,22 @@ func (w *kernelWorker) teardownSession(ev kernelTeardownEvent) {
 // Caller MUST hold w.mu.
 func (w *kernelWorker) teardownSessionFDsLocked(key sessionKey, fds *pppSessionFDs) {
 	// Reverse order: unit fd, channel fd, pppox socket, then genl delete.
+	// Close failures on teardown are logged warnings at most; they do not
+	// block the rest of the cleanup sequence.
 	if fds.unitFD >= 0 {
-		w.ops.closeFD(fds.unitFD)
+		if err := w.ops.closeFD(fds.unitFD); err != nil {
+			w.logger.Warn("l2tp: close unit fd", "fd", fds.unitFD, "error", err.Error())
+		}
 	}
 	if fds.chanFD >= 0 {
-		w.ops.closeFD(fds.chanFD)
+		if err := w.ops.closeFD(fds.chanFD); err != nil {
+			w.logger.Warn("l2tp: close chan fd", "fd", fds.chanFD, "error", err.Error())
+		}
 	}
 	if fds.pppoxFD >= 0 {
-		w.ops.closeFD(fds.pppoxFD)
+		if err := w.ops.closeFD(fds.pppoxFD); err != nil {
+			w.logger.Warn("l2tp: close pppox fd", "fd", fds.pppoxFD, "error", err.Error())
+		}
 	}
 	if err := w.ops.sessionDelete(key.tunnelID, key.sessionID); err != nil {
 		w.logger.Warn("l2tp: kernel session delete failed",
@@ -358,12 +368,35 @@ func (w *kernelWorker) reportError(localTID, localSID uint16, err error) {
 // probeKernelModules loads the L2TP kernel module. Tries l2tp_ppp first,
 // falls back to pppol2tp. Returns an error if both fail.
 // RFC 2661 Section 24.23: fail startup if module probe fails.
+//
+// Each modprobe invocation gets its own 10s deadline so a hung first call
+// does not starve the fallback.
 func probeKernelModules() error {
-	if err := exec.Command("modprobe", "l2tp_ppp").Run(); err == nil {
-		return nil
-	}
-	if err := exec.Command("modprobe", "pppol2tp").Run(); err == nil {
-		return nil
+	for _, mod := range [...]string{"l2tp_ppp", "pppol2tp"} {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		// mod is bound to literals from the array above; not user input.
+		err := exec.CommandContext(ctx, "modprobe", mod).Run() //nolint:gosec // mod is a compile-time constant
+		cancel()
+		if err == nil {
+			return nil
+		}
 	}
 	return fmt.Errorf("l2tp: failed to load kernel modules (tried l2tp_ppp, pppol2tp)")
+}
+
+// newSubsystemKernelWorker constructs a kernel worker ready for wiring
+// into a reactor. Resolves the L2TP Generic Netlink family and builds the
+// real kernelOps. Returns nil if genl resolution fails (kernel integration
+// stays disabled for this reactor; userspace control still works).
+//
+// Caller MUST call SetKernelWorker on the reactor before Start(), then
+// Start() the worker after the reactor has its channels wired.
+func newSubsystemKernelWorker(errCh chan<- kernelSetupFailed, logger *slog.Logger) *kernelWorker {
+	genl, err := resolveGenlFamily()
+	if err != nil {
+		logger.Warn("l2tp: genl family resolve failed; kernel integration disabled",
+			"error", err.Error())
+		return nil
+	}
+	return newKernelWorker(newKernelOps(genl), errCh, logger)
 }

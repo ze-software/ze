@@ -107,7 +107,9 @@ func buildSockaddrPPPoL2TP(
 
 	size := unsafe.Sizeof(sa)
 	buf := make([]byte, size)
-	copy(buf, (*[128]byte)(unsafe.Pointer(&sa))[:size])
+	// sockaddr_pppol2tp has no Go-friendly accessor; the kernel reads
+	// the raw byte layout. #nosec G103 -- required for binary struct copy.
+	copy(buf, (*[128]byte)(unsafe.Pointer(&sa))[:size]) //nolint:gosec // sockaddr binary layout
 	return buf, nil
 }
 
@@ -115,7 +117,9 @@ func buildSockaddrPPPoL2TP(
 func htons(v uint16) uint16 {
 	var buf [2]byte
 	binary.BigEndian.PutUint16(buf[:], v)
-	return *(*uint16)(unsafe.Pointer(&buf[0]))
+	// Reinterpret the network-order bytes as a uint16 value whose native
+	// in-memory layout is the correct sockaddr_in::sin_port encoding.
+	return *(*uint16)(unsafe.Pointer(&buf[0])) //nolint:gosec // sockaddr port layout
 }
 
 // pppoxCreate creates a PPPoL2TP socket and connects it to the kernel
@@ -134,19 +138,21 @@ func pppoxCreate(
 
 	sa, err := buildSockaddrPPPoL2TP(socketFD, peerAddr, localTID, localSID, remoteTID, remoteSID)
 	if err != nil {
-		unix.Close(fd)
+		unix.Close(fd) //nolint:errcheck // rollback path; primary error is err
 		return -1, err
 	}
 
 	// connect() binds the PPPoL2TP socket to the kernel L2TP session.
+	// The kernel reads &sa[0] as a sockaddr_pppol2tp; unsafe.Pointer is
+	// the only way to pass an arbitrary-shape sockaddr to SYS_CONNECT.
 	_, _, errno := unix.RawSyscall(
 		unix.SYS_CONNECT,
 		uintptr(fd),
-		uintptr(unsafe.Pointer(&sa[0])),
+		uintptr(unsafe.Pointer(&sa[0])), //nolint:gosec // sockaddr pointer for SYS_CONNECT
 		uintptr(len(sa)),
 	)
 	if errno != 0 {
-		unix.Close(fd)
+		unix.Close(fd) //nolint:errcheck // rollback path; primary error is errno
 		return -1, fmt.Errorf("l2tp: pppox connect: %w", errno)
 	}
 	return fd, nil
@@ -211,28 +217,28 @@ func devPPPSetup(pppoxFD int) (chanFD, unitFD, unitNum int, err error) {
 		return -1, -1, -1, err
 	}
 	if err := ioctlSetInt(chanFD, pppiocAttChan, chanIdx); err != nil {
-		unix.Close(chanFD)
+		unix.Close(chanFD) //nolint:errcheck // rollback path; primary error is err
 		return -1, -1, -1, fmt.Errorf("l2tp: PPPIOCATTCHAN: %w", err)
 	}
 
 	// Step 3: open /dev/ppp and allocate a PPP unit (creates pppN).
 	unitFD, err = openDevPPP()
 	if err != nil {
-		unix.Close(chanFD)
+		unix.Close(chanFD) //nolint:errcheck // rollback path; primary error is err
 		return -1, -1, -1, err
 	}
 	unitNum = -1 // kernel assigns the unit number
 	unitNum, err = ioctlGetSetInt(unitFD, pppiocNewUnit, unitNum)
 	if err != nil {
-		unix.Close(unitFD)
-		unix.Close(chanFD)
+		unix.Close(unitFD) //nolint:errcheck // rollback path; primary error is err
+		unix.Close(chanFD) //nolint:errcheck // rollback path; primary error is err
 		return -1, -1, -1, fmt.Errorf("l2tp: PPPIOCNEWUNIT: %w", err)
 	}
 
 	// Step 4: connect the channel to the unit.
 	if err := ioctlSetInt(chanFD, pppiocConnect, unitNum); err != nil {
-		unix.Close(unitFD)
-		unix.Close(chanFD)
+		unix.Close(unitFD) //nolint:errcheck // rollback path; primary error is err
+		unix.Close(chanFD) //nolint:errcheck // rollback path; primary error is err
 		return -1, -1, -1, fmt.Errorf("l2tp: PPPIOCCONNECT: %w", err)
 	}
 
@@ -248,7 +254,7 @@ func openDevPPP() (int, error) {
 	// Extract the raw fd and prevent Go from closing it when the
 	// *os.File is garbage-collected. The caller manages the fd lifetime.
 	rawFD, err := dupFD(fd)
-	fd.Close()
+	fd.Close() //nolint:errcheck // source *os.File replaced by rawFD below
 	if err != nil {
 		return -1, fmt.Errorf("l2tp: dup /dev/ppp fd: %w", err)
 	}
@@ -275,7 +281,8 @@ func dupFD(f *os.File) (int, error) {
 // ioctlGetInt performs an ioctl that reads an int value.
 func ioctlGetInt(fd int, req uint) (int, error) {
 	var val int32
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(unsafe.Pointer(&val)))
+	// SYS_IOCTL takes a pointer; unsafe.Pointer is the only way to pass it.
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(unsafe.Pointer(&val))) //nolint:gosec // ioctl pointer arg
 	if errno != 0 {
 		return 0, errno
 	}
@@ -285,7 +292,7 @@ func ioctlGetInt(fd int, req uint) (int, error) {
 // ioctlSetInt performs an ioctl that writes an int value.
 func ioctlSetInt(fd int, req uint, val int) error {
 	v := int32(val)
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(unsafe.Pointer(&v)))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(unsafe.Pointer(&v))) //nolint:gosec // ioctl pointer arg
 	if errno != 0 {
 		return errno
 	}
@@ -297,7 +304,7 @@ func ioctlSetInt(fd int, req uint, val int) error {
 // and returns the allocated number.
 func ioctlGetSetInt(fd int, req uint, val int) (int, error) {
 	v := int32(val)
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(unsafe.Pointer(&v)))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(req), uintptr(unsafe.Pointer(&v))) //nolint:gosec // ioctl pointer arg
 	if errno != 0 {
 		return 0, errno
 	}
