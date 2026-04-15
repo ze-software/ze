@@ -1,0 +1,17 @@
+# Test: ze config validate with minimal L2TP config block
+# VALIDATES: AC-1 -- l2tp { server main { ip 127.0.0.1 port 1701 } } parses
+stdin=config:terminator=EOF_CONF
+environment {
+	l2tp {
+		enabled true
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

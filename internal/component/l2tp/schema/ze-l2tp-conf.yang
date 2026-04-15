@@ -1,0 +1,68 @@
+module ze-l2tp-conf {
+    namespace "urn:ze:l2tp:conf";
+    prefix l2tp;
+
+    import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
+
+    description "L2TPv2 (RFC 2661) subsystem configuration for Ze";
+
+    revision 2026-04-14 {
+        description "Initial revision (phase 3 -- tunnel state machine). Listen endpoints only; full LNS/LAC config in phase 7.";
+    }
+
+    container environment {
+        description "Environment settings for L2TP subsystem";
+
+        container l2tp {
+            description "L2TP subsystem settings";
+
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Enable L2TP subsystem";
+            }
+
+            list server {
+                key "name";
+                ze:listener;
+                description "L2TP server listen endpoints (UDP)";
+
+                leaf name {
+                    type string;
+                    description "Server instance name";
+                }
+
+                uses zt:listener {
+                    refine ip {
+                        default "0.0.0.0";
+                    }
+                    refine port {
+                        default 1701;
+                    }
+                }
+            }
+
+            leaf max-tunnels {
+                type uint16;
+                description
+                    "Maximum concurrent L2TP tunnels. A value of 0 (and the
+                     unset default) means unbounded by this knob; the only
+                     cap is the 65535 ceiling imposed by RFC 2661's 16-bit
+                     Tunnel ID field. Set to a positive value to reject
+                     further SCCRQs with StopCCN Result Code 2 once the
+                     limit is reached.";
+            }
+
+            leaf hello-interval {
+                type uint16 {
+                    range "1..3600";
+                }
+                description
+                    "Seconds of peer silence before sending HELLO. RFC 2661
+                     recommends 60s; values above 3600 (one hour) are
+                     rejected because they effectively disable keepalive.";
+            }
+        }
+    }
+}

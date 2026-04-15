@@ -45,6 +45,8 @@ func main() {
 		os.Exit(uiCmd())
 	case "mcp":
 		os.Exit(mcpCmd())
+	case "l2tp":
+		os.Exit(l2tpCmd())
 	case "managed":
 		os.Exit(managedCmd())
 	case "peer":
@@ -83,6 +85,7 @@ func printUsage() {
 Commands:
   bgp          Run BGP functional tests (encoding, plugin, decoding, parsing)
   editor       Run editor functional tests (.et files)
+  l2tp         Run L2TPv2 functional tests (listener, tunnel FSM, handshake)
   ui           Run UI functional tests (completion, CLI)
   mcp          MCP client (send commands to daemon via MCP endpoint)
   managed      Run managed config tests (hub, auth, fleet)

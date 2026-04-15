@@ -32,6 +32,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	zegokrazy "codeberg.org/thomas-mangin/ze/internal/component/gokrazy"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
+	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/lg"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
 	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -384,6 +385,23 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// engine, plugins, and subsystems all share one namespaced pub/sub
 	// backbone. The standalone bus in internal/component/bus/ is gone.
 	eng := engine.NewEngine(apiServer, configProvider, pm)
+
+	// L2TP subsystem (phase 3 scaffolding). ExtractParameters returns a
+	// zero-value struct when the config tree has no `environment { l2tp {} }`
+	// block; we only register with the engine when the operator actually
+	// asked for L2TP (Enabled=true or at least one listener configured).
+	// Full tunnel-reactor wiring lands in later phases.
+	l2tpParams, l2tpErr := l2tp.ExtractParameters(loadResult.Tree)
+	if l2tpErr != nil {
+		fmt.Fprintf(os.Stderr, "error: parse l2tp config: %v\n", l2tpErr)
+		return 1
+	}
+	if l2tpParams.Enabled || len(l2tpParams.ListenAddrs) > 0 {
+		if regErr := eng.RegisterSubsystem(l2tp.NewSubsystem(l2tpParams)); regErr != nil {
+			fmt.Fprintf(os.Stderr, "error: register l2tp subsystem: %v\n", regErr)
+			return 1
+		}
+	}
 
 	startCtx := context.Background()
 	if err := eng.Start(startCtx); err != nil {
