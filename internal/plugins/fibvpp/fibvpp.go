@@ -85,19 +85,11 @@ func parseFibVPPConfig(data string) (*fibVPPConfig, error) {
 	return cfg, nil
 }
 
-// incomingBatch is the JSON payload received from (system-rib, best-change).
-type incomingBatch struct {
-	Family  string           `json:"family"`
-	Replay  bool             `json:"replay,omitempty"`
-	Changes []incomingChange `json:"changes"`
-}
+// incomingBatch aliases the (system-rib, best-change) payload type.
+type incomingBatch = sysribevents.BestChangeBatch
 
-type incomingChange struct {
-	Action   string `json:"action"`
-	Prefix   string `json:"prefix"`
-	NextHop  string `json:"next-hop"`
-	Protocol string `json:"protocol"`
-}
+// incomingChange aliases a single entry in an incoming batch.
+type incomingChange = sysribevents.BestChangeEntry
 
 // fibVPP manages VPP FIB route programming.
 type fibVPP struct {
@@ -113,11 +105,10 @@ func newFibVPP(backend vppBackend) *fibVPP {
 	}
 }
 
-// processEvent handles a single (system-rib, best-change) payload.
-func (f *fibVPP) processEvent(payload string) {
-	var batch incomingBatch
-	if err := json.Unmarshal([]byte(payload), &batch); err != nil {
-		logger().Warn("fib-vpp: failed to unmarshal batch", "error", err)
+// processEvent handles a single (system-rib, best-change) payload received
+// via the typed BestChange handle.
+func (f *fibVPP) processEvent(batch *incomingBatch) {
+	if batch == nil {
 		return
 	}
 
@@ -236,13 +227,11 @@ func (f *fibVPP) run(ctx context.Context, flushOnStop bool) {
 		return
 	}
 
-	unsub := eb.Subscribe(sysribevents.Namespace, sysribevents.EventBestChange, func(payload string) {
-		f.processEvent(payload)
-	})
+	unsub := sysribevents.BestChange.Subscribe(eb, f.processEvent)
 	defer unsub()
 
 	// Request full-table replay from sysrib.
-	if _, err := eb.Emit(sysribevents.Namespace, sysribevents.EventReplayRequest, ""); err != nil {
+	if _, err := sysribevents.ReplayRequest.Emit(eb); err != nil {
 		logger().Warn("fib-vpp: replay-request emit failed", "error", err)
 	}
 

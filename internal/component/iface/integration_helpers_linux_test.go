@@ -102,7 +102,7 @@ type collectingBus struct {
 	events []collectedEvent
 }
 
-func (b *collectingBus) Emit(namespace, eventType, payload string) (int, error) {
+func (b *collectingBus) Emit(namespace, eventType string, payload any) (int, error) {
 	b.mu.Lock()
 	b.events = append(b.events, collectedEvent{
 		Namespace: namespace,
@@ -113,7 +113,7 @@ func (b *collectingBus) Emit(namespace, eventType, payload string) (int, error) 
 	return 0, nil
 }
 
-func (b *collectingBus) Subscribe(_, _ string, _ func(string)) func() {
+func (b *collectingBus) Subscribe(_, _ string, _ func(any)) func() {
 	return func() {}
 }
 

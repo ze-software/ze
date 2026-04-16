@@ -1892,15 +1892,15 @@ type testEventBus struct {
 type testEmission struct {
 	namespace string
 	eventType string
-	data      string
+	data      any
 }
 
-func (b *testEventBus) Emit(namespace, eventType, data string) (int, error) {
+func (b *testEventBus) Emit(namespace, eventType string, data any) (int, error) {
 	b.emissions = append(b.emissions, testEmission{namespace, eventType, data})
 	return 1, nil
 }
 
-func (b *testEventBus) Subscribe(_, _ string, _ func(string)) func() {
+func (b *testEventBus) Subscribe(_, _ string, _ func(any)) func() {
 	return func() {}
 }
 

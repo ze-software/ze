@@ -146,40 +146,22 @@ func parseAdminDistanceConfig(jsonData string) (map[string]int, error) {
 	return result, nil
 }
 
-// incomingBatch is the JSON payload received from protocol RIBs on
-// (rib, best-change). It carries protocol and family in-band so the
-// EventBus can stay metadata-free.
-type incomingBatch struct {
-	Protocol string           `json:"protocol"` // "bgp", "static", etc.
-	Family   string           `json:"family"`   // "ipv4/unicast" etc.
-	Replay   bool             `json:"replay,omitempty"`
-	Changes  []incomingChange `json:"changes"`
-}
+// incomingBatch aliases the (bgp-rib, best-change) payload type. sysrib
+// receives one of these per BGP best-change and fans it out to the FIB
+// plugins after admin-distance arbitration.
+type incomingBatch = ribevents.BestChangeBatch
 
-type incomingChange struct {
-	Action       string `json:"action"`
-	Prefix       string `json:"prefix"`
-	NextHop      string `json:"next-hop"`
-	Priority     int    `json:"priority"`
-	Metric       uint32 `json:"metric"`
-	ProtocolType string `json:"protocol-type"` // "ebgp", "ibgp", etc.
-}
+// incomingChange aliases a single entry in the incoming batch.
+type incomingChange = ribevents.BestChangeEntry
 
-// outgoingChange is one entry in the (sysrib, best-change) payload.
-type outgoingChange struct {
-	Action   string `json:"action"`
-	Prefix   string `json:"prefix"`
-	NextHop  string `json:"next-hop,omitempty"`
-	Protocol string `json:"protocol"`
-}
+// outgoingChange aliases the exported payload entry type so functions in
+// this file keep their current signatures while producing the exported
+// payload shape used by fib plugins.
+type outgoingChange = sysribevents.BestChangeEntry
 
-// outgoingBatch is the JSON payload emitted on (sysrib, best-change).
-// Family is part of the payload because the EventBus has no metadata map.
-type outgoingBatch struct {
-	Family  string           `json:"family"`
-	Replay  bool             `json:"replay,omitempty"`
-	Changes []outgoingChange `json:"changes"`
-}
+// outgoingBatch aliases the exported payload type. The producer builds one
+// batch per family and emits via the typed BestChange handle.
+type outgoingBatch = sysribevents.BestChangeBatch
 
 // effectivePriority returns the configured admin distance for a protocol type
 // if one exists, otherwise returns the incoming priority unchanged.
@@ -196,10 +178,10 @@ func (s *sysRIB) effectivePriority(protocolType string, incomingPriority int) in
 // processEvent handles a batch of protocol RIB changes received from the
 // EventBus. Returns the outgoing changes the caller should publish on the
 // (sysrib, best-change) channel, plus the family the changes belong to.
-func (s *sysRIB) processEvent(payload string) (string, []outgoingChange) {
-	var batch incomingBatch
-	if err := json.Unmarshal([]byte(payload), &batch); err != nil {
-		logger().Warn("sysrib: failed to unmarshal batch", "error", err)
+// batch is the typed payload delivered by the bgp-rib BestChange handle.
+func (s *sysRIB) processEvent(batch *incomingBatch) (string, []outgoingChange) {
+	if batch == nil {
+		logger().Warn("sysrib: nil batch")
 		return "", nil
 	}
 	proto := batch.Protocol
@@ -360,24 +342,20 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 	}
 }
 
-// publishChanges marshals outgoing changes and emits one event on the
-// EventBus under (sysrib, best-change).
+// publishChanges emits one event on (system-rib, best-change) via the
+// typed BestChange handle. In-process FIB plugins receive the *BestChangeBatch
+// directly; external plugin processes receive JSON marshaled by the bus.
 func publishChanges(changes []outgoingChange, family string) {
 	eb := getEventBus()
 	if eb == nil {
 		return
 	}
 
-	batch := outgoingBatch{
+	batch := &outgoingBatch{
 		Family:  family,
 		Changes: changes,
 	}
-	payload, err := json.Marshal(batch)
-	if err != nil {
-		logger().Warn("sysrib: marshal failed", "error", err)
-		return
-	}
-	if _, err := eb.Emit(sysribevents.Namespace, sysribevents.EventBestChange, string(payload)); err != nil {
+	if _, err := sysribevents.BestChange.Emit(eb, batch); err != nil {
 		logger().Warn("sysrib: emit failed", "error", err)
 	}
 }
@@ -403,17 +381,12 @@ func (s *sysRIB) replayBest() {
 	s.mu.RUnlock()
 
 	for famName, changes := range changesByFamily {
-		batch := outgoingBatch{
+		batch := &outgoingBatch{
 			Family:  famName,
 			Replay:  true,
 			Changes: changes,
 		}
-		payload, err := json.Marshal(batch)
-		if err != nil {
-			logger().Warn("sysrib: replay marshal failed", "error", err)
-			continue
-		}
-		if _, err := eb.Emit(sysribevents.Namespace, sysribevents.EventBestChange, string(payload)); err != nil {
+		if _, err := sysribevents.BestChange.Emit(eb, batch); err != nil {
 			logger().Warn("sysrib: replay emit failed", "error", err)
 		}
 	}
@@ -429,27 +402,24 @@ func (s *sysRIB) run(ctx context.Context) {
 		return
 	}
 
-	// Subscribe to (rib, best-change). The EventBus delivers one event at
-	// a time; we no longer need a Consumer batch wrapper because the engine
-	// fan-out is synchronous and per-event.
-	unsubBest := eb.Subscribe(ribevents.Namespace, ribevents.EventBestChange, func(payload string) {
-		fam, changes := s.processEvent(payload)
+	// Subscribe to (bgp-rib, best-change) via the typed handle. The handler
+	// receives *BestChangeBatch directly; no JSON round-trip.
+	unsubBest := ribevents.BestChange.Subscribe(eb, func(batch *incomingBatch) {
+		fam, changes := s.processEvent(batch)
 		if len(changes) > 0 {
 			publishChanges(changes, fam)
 		}
 	})
 	defer unsubBest()
 
-	// Subscribe to (sysrib, replay-request) from downstream consumers
+	// Subscribe to (system-rib, replay-request) from downstream consumers
 	// (e.g., fib-kernel). On request, replay the entire system best table.
-	unsubReplay := eb.Subscribe(sysribevents.Namespace, sysribevents.EventReplayRequest, func(_ string) {
-		s.replayBest()
-	})
+	unsubReplay := sysribevents.ReplayRequest.Subscribe(eb, s.replayBest)
 	defer unsubReplay()
 
 	// Request full-table replay from protocol RIBs so we populate even if
-	// they started before us. Empty payload by convention.
-	if _, err := eb.Emit(ribevents.Namespace, ribevents.EventReplayRequest, ""); err != nil {
+	// they started before us. Signal event, no payload.
+	if _, err := ribevents.ReplayRequest.Emit(eb); err != nil {
 		logger().Warn("sysrib: replay-request emit failed", "error", err)
 	}
 

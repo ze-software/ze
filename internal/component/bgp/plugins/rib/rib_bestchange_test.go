@@ -17,7 +17,7 @@ import (
 type testEvent struct {
 	Namespace string
 	EventType string
-	Payload   string
+	Payload   any
 }
 
 // testEventBus is a minimal ze.EventBus implementation for unit tests.
@@ -27,19 +27,19 @@ type testEvent struct {
 type testEventBus struct {
 	mu       sync.Mutex
 	events   []testEvent
-	handlers map[string][]func(string)
+	handlers map[string][]func(any)
 }
 
 func newTestEventBus() *testEventBus {
 	return &testEventBus{
-		handlers: make(map[string][]func(string)),
+		handlers: make(map[string][]func(any)),
 	}
 }
 
-func (b *testEventBus) Emit(namespace, eventType, payload string) (int, error) {
+func (b *testEventBus) Emit(namespace, eventType string, payload any) (int, error) {
 	b.mu.Lock()
 	b.events = append(b.events, testEvent{Namespace: namespace, EventType: eventType, Payload: payload})
-	hs := append([]func(string){}, b.handlers[namespace+"/"+eventType]...)
+	hs := append([]func(any){}, b.handlers[namespace+"/"+eventType]...)
 	b.mu.Unlock()
 	for _, h := range hs {
 		h(payload)
@@ -47,7 +47,7 @@ func (b *testEventBus) Emit(namespace, eventType, payload string) (int, error) {
 	return 0, nil
 }
 
-func (b *testEventBus) Subscribe(namespace, eventType string, handler func(string)) func() {
+func (b *testEventBus) Subscribe(namespace, eventType string, handler func(any)) func() {
 	if handler == nil {
 		return func() {}
 	}
@@ -130,7 +130,7 @@ func TestRIBBestChangePublish(t *testing.T) {
 	r.mu.Unlock()
 
 	require.NotNil(t, change, "should detect new best path")
-	assert.Equal(t, bestChangeAdd, change.Action)
+	assert.Equal(t, ribevents.BestChangeAdd, change.Action)
 	assert.Equal(t, "10.0.0.0/24", change.Prefix)
 	assert.Equal(t, "192.168.1.1", change.NextHop)
 	assert.Equal(t, 20, change.Priority, "eBGP should have priority 20")
@@ -143,12 +143,13 @@ func TestRIBBestChangePublish(t *testing.T) {
 	assert.Equal(t, "bgp-rib", evt.Namespace)
 	assert.Equal(t, ribevents.EventBestChange, evt.EventType)
 
-	var batch bestChangeBatch
-	require.NoError(t, json.Unmarshal([]byte(evt.Payload), &batch))
+	batchPtr, ok := evt.Payload.(*bestChangeBatch)
+	require.True(t, ok, "expected *bestChangeBatch payload, got %T", evt.Payload)
+	batch := *batchPtr
 	assert.Equal(t, "bgp", batch.Protocol)
 	assert.Equal(t, "ipv4/unicast", batch.Family)
 	require.Len(t, batch.Changes, 1)
-	assert.Equal(t, "add", batch.Changes[0].Action)
+	assert.Equal(t, ribevents.BestChangeAdd, batch.Changes[0].Action)
 	assert.Equal(t, "10.0.0.0/24", batch.Changes[0].Prefix)
 	assert.Equal(t, "192.168.1.1", batch.Changes[0].NextHop)
 }
@@ -215,7 +216,7 @@ func TestRIBBestChangeWithdraw(t *testing.T) {
 	r.mu.Unlock()
 
 	require.NotNil(t, change, "should detect withdraw")
-	assert.Equal(t, bestChangeWithdraw, change.Action)
+	assert.Equal(t, ribevents.BestChangeWithdraw, change.Action)
 	assert.Equal(t, "10.0.0.0/24", change.Prefix)
 	assert.Empty(t, change.NextHop, "withdraw should have no next-hop")
 }
@@ -274,11 +275,12 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 	evt := bus.lastEvent()
 	require.NotNil(t, evt)
 
-	var batch bestChangeBatch
-	require.NoError(t, json.Unmarshal([]byte(evt.Payload), &batch))
+	batchPtr, ok := evt.Payload.(*bestChangeBatch)
+	require.True(t, ok, "expected *bestChangeBatch payload, got %T", evt.Payload)
+	batch := *batchPtr
 	assert.Len(t, batch.Changes, 3)
 	for _, c := range batch.Changes {
-		assert.Equal(t, bestChangeWithdraw, c.Action)
+		assert.Equal(t, ribevents.BestChangeWithdraw, c.Action)
 	}
 }
 
@@ -404,7 +406,7 @@ func TestRIBBestChangeUpdate(t *testing.T) {
 	change1 := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 	require.NotNil(t, change1)
-	assert.Equal(t, bestChangeAdd, change1.Action)
+	assert.Equal(t, ribevents.BestChangeAdd, change1.Action)
 
 	// Peer 2: eBGP route (better -- eBGP preferred over iBGP).
 	peer2 := "192.0.2.2"
@@ -417,7 +419,7 @@ func TestRIBBestChangeUpdate(t *testing.T) {
 	r.mu.Unlock()
 
 	require.NotNil(t, change2, "should detect best-path update")
-	assert.Equal(t, bestChangeUpdate, change2.Action)
+	assert.Equal(t, ribevents.BestChangeUpdate, change2.Action)
 	assert.Equal(t, "10.0.0.2", change2.NextHop, "should switch to eBGP next-hop")
 	assert.Equal(t, 20, change2.Priority, "eBGP priority")
 	_ = bus
@@ -459,11 +461,12 @@ func TestRIBReplayOnSubscribe(t *testing.T) {
 	assert.Equal(t, "bgp-rib", evt.Namespace)
 	assert.Equal(t, ribevents.EventBestChange, evt.EventType)
 
-	var batch bestChangeBatch
-	require.NoError(t, json.Unmarshal([]byte(evt.Payload), &batch))
+	batchPtr, ok := evt.Payload.(*bestChangeBatch)
+	require.True(t, ok, "expected *bestChangeBatch payload, got %T", evt.Payload)
+	batch := *batchPtr
 	assert.Equal(t, "bgp", batch.Protocol)
 	assert.True(t, batch.Replay, "replay batch must have Replay=true")
 	require.Len(t, batch.Changes, 1)
-	assert.Equal(t, "add", batch.Changes[0].Action)
+	assert.Equal(t, ribevents.BestChangeAdd, batch.Changes[0].Action)
 	assert.Equal(t, "192.168.1.1", batch.Changes[0].NextHop)
 }

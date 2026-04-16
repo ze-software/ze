@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -239,7 +240,13 @@ type txIDProbe struct {
 // the matching ack.
 func (b *configTxBridge) subscribePhase(parentCtx context.Context, name string, ph phaseKind) {
 	eventType := ph.eventType(name)
-	unsub := b.server.SubscribeEngineEvent(txevents.Namespace, eventType, func(event string) {
+	unsub := b.server.SubscribeEngineEvent(txevents.Namespace, eventType, func(p any) {
+		event, ok := p.(string)
+		if !ok {
+			logger().Error("config tx bridge: non-string phase payload",
+				"plugin", name, "event-type", eventType, "got", reflect.TypeOf(p))
+			return
+		}
 		raw := []byte(event)
 
 		// Extract txID first so a failure ack from a later step has
@@ -305,7 +312,13 @@ func deadlineCtx(parent context.Context, deadlineMS int64) (context.Context, con
 // to every participant and emits rollback-ok acks. RPC errors translate to a
 // CodeBroken ack so the orchestrator restarts the plugin via its restartFn.
 func (b *configTxBridge) subscribeRollback(parentCtx context.Context) {
-	unsub := b.server.SubscribeEngineEvent(txevents.Namespace, transaction.EventRollback, func(event string) {
+	unsub := b.server.SubscribeEngineEvent(txevents.Namespace, transaction.EventRollback, func(p any) {
+		event, ok := p.(string)
+		if !ok {
+			logger().Error("config tx bridge: non-string rollback payload",
+				"got", reflect.TypeOf(p))
+			return
+		}
 		var ev transaction.RollbackEvent
 		if err := json.Unmarshal([]byte(event), &ev); err != nil {
 			logger().Error("config tx bridge: unmarshal rollback event", "error", err)

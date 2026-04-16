@@ -1,7 +1,6 @@
 package fibp4
 
 import (
-	"encoding/json"
 	"sync"
 	"testing"
 
@@ -47,14 +46,13 @@ func (m *mockBackend) replaceRoute(prefix, nextHop string) error {
 
 func (m *mockBackend) close() error { return nil }
 
-// makeSysribPayload builds a (sysrib, best-change) JSON payload for testing.
-func makeSysribPayload(changes []incomingChange) string {
-	batch := incomingBatch{
+// makeSysribPayload builds a typed (system-rib, best-change) payload.
+// Returns *incomingBatch — the shape the typed handle carries on the bus.
+func makeSysribPayload(changes []incomingChange) *incomingBatch {
+	return &incomingBatch{
 		Family:  "ipv4/unicast",
 		Changes: changes,
 	}
-	data, _ := json.Marshal(batch)
-	return string(data)
 }
 
 // VALIDATES: fib-p4 installs forwarding entry on add event.

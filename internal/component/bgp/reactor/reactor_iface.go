@@ -11,6 +11,7 @@ import (
 
 	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 // interfaceAddrPayload is the JSON payload emitted by the interface monitor
@@ -46,8 +47,8 @@ func (r *Reactor) SubscribeInterfaceEvents() {
 	if r.eventBus == nil {
 		return
 	}
-	unsubAdded := r.eventBus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrAdded, r.onInterfaceAddrAdded)
-	unsubRemoved := r.eventBus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrRemoved, r.onInterfaceAddrRemoved)
+	unsubAdded := r.eventBus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrAdded, events.AsString(r.onInterfaceAddrAdded))
+	unsubRemoved := r.eventBus.Subscribe(ifaceevents.Namespace, ifaceevents.EventAddrRemoved, events.AsString(r.onInterfaceAddrRemoved))
 	r.eventBusUnsubs = append(r.eventBusUnsubs, unsubAdded, unsubRemoved)
 }
 

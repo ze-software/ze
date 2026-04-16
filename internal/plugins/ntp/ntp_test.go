@@ -239,15 +239,16 @@ type mockEventBus struct {
 }
 
 type emitCall struct {
-	namespace, eventType, payload string
+	namespace, eventType string
+	payload              any
 }
 
-func (m *mockEventBus) Emit(namespace, eventType, payload string) (int, error) {
+func (m *mockEventBus) Emit(namespace, eventType string, payload any) (int, error) {
 	m.emits = append(m.emits, emitCall{namespace, eventType, payload})
 	return 0, nil
 }
 
-func (m *mockEventBus) Subscribe(_, _ string, _ func(string)) func() {
+func (m *mockEventBus) Subscribe(_, _ string, _ func(any)) func() {
 	return func() {}
 }
 

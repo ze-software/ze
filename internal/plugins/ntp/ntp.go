@@ -23,6 +23,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	ntpevents "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -327,5 +328,5 @@ func validateServerAddress(addr string) error {
 
 // subscribeDHCP sets up the event bus subscription for DHCP lease events.
 func subscribeDHCP(eb ze.EventBus, w *syncWorker) func() {
-	return eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDHCPAcquired, w.handleDHCPEvent)
+	return eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDHCPAcquired, events.AsString(w.handleDHCPEvent))
 }

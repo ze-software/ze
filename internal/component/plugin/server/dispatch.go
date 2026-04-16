@@ -7,6 +7,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -331,7 +332,10 @@ func (s *Server) handleEmitEventRPC(proc *process.Process, conn *plugipc.PluginC
 }
 
 // emitEvent is the JSON wrapper for emit-event (RPC and Direct).
-// Unmarshals params, delegates to deliverEvent, wraps result.
+// Unmarshals params, delegates to deliverEvent, wraps result. The RPC
+// payload arrives as a JSON string; deliverEvent handles the string->typed
+// conversion for engine-side typed subscribers when the event has a
+// registered payload type.
 func (s *Server) emitEvent(emitter *process.Process, params json.RawMessage) (*rpc.EmitEventOutput, error) {
 	var input rpc.EmitEventInput
 	if err := json.Unmarshal(params, &input); err != nil {
@@ -345,11 +349,21 @@ func (s *Server) emitEvent(emitter *process.Process, params json.RawMessage) (*r
 }
 
 // deliverEvent is the core emit-event logic shared by JSON and typed paths.
-// Validates inputs, finds matching subscribers, and delivers the event string.
-// The emitting process is excluded from delivery to prevent self-delivery loops.
-func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, direction, peerAddress, event string) (int, error) {
-	if namespace == "" || eventType == "" || event == "" {
-		return 0, &rpc.RPCCallError{Message: "emit-event requires namespace, event-type, and event"}
+// Payload semantics:
+//   - A nil payload is valid (signal events, registered via
+//     events.RegisterSignal).
+//   - An `any`-typed payload from engine code is passed through to engine
+//     subscribers directly and marshaled to JSON lazily only when at least
+//     one plugin-process subscriber exists.
+//   - A `string` payload (emitted via plugin RPC) is the JSON form;
+//     engine-side typed subscribers receive the unmarshaled Go value if the
+//     event has a registered payload type, otherwise the raw string.
+//
+// The emitting process is excluded from plugin-process delivery to prevent
+// self-delivery loops.
+func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, direction, peerAddress string, payload any) (int, error) {
+	if namespace == "" || eventType == "" {
+		return 0, &rpc.RPCCallError{Message: "emit-event requires namespace and event-type"}
 	}
 
 	// Validate event type exists in the namespace (uses canonical registry).
@@ -357,29 +371,127 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 		return 0, &rpc.RPCCallError{Message: "unknown event: " + namespace + "/" + eventType}
 	}
 
+	// Compute the engine payload lazily. If the raw payload is a string,
+	// the event has a registered typed payload, AND at least one engine
+	// subscriber is listening, unmarshal once so typed engine subscribers
+	// receive a native Go value. The hasSubscribers gate avoids decoding
+	// for events that nobody on the engine side has registered for.
+	//
+	// The gate is best-effort: a subscriber that registers between this
+	// check and the deferred dispatchEngineEvent below would receive the
+	// undecoded raw string, and its typed-handle wrapper would log a
+	// type-mismatch drop. Eliminating that race would require decoding
+	// unconditionally whenever PayloadType != nil, losing most of the
+	// lazy-decode benefit on events emitted only to external plugins.
+	enginePayload := payload
+	if raw, ok := payload.(string); ok && s.engineSubscribers != nil &&
+		s.engineSubscribers.hasSubscribers(namespace, eventType) {
+		if decoded, decodedOK := tryDecodeTypedPayload(namespace, eventType, raw); decodedOK {
+			enginePayload = decoded
+		}
+	}
+
 	// Engine-side subscribers fire regardless of whether the plugin
 	// SubscriptionManager is initialized. They are a parallel registry.
 	// Deferred so engine handlers run AFTER plugin process delivery, and so
 	// they fire even if a plugin subscriber panics.
-	defer s.dispatchEngineEvent(namespace, eventType, event)
+	defer s.dispatchEngineEvent(namespace, eventType, enginePayload)
 
 	if s.subscriptions == nil {
 		return 0, nil
 	}
 
 	procs := s.subscriptions.GetMatching(namespace, eventType, direction, peerAddress, "")
+	if len(procs) == 0 {
+		return 0, nil
+	}
+
+	// Lazy JSON: marshal once only when at least one external subscriber
+	// exists. Producers that already have JSON (plugin RPC path, or
+	// json.RawMessage) skip re-marshal.
+	eventJSON, err := payloadToJSON(namespace, eventType, payload)
+	if err != nil {
+		return 0, &rpc.RPCCallError{Message: "marshal event payload: " + err.Error()}
+	}
+
 	delivered := 0
 	for _, p := range procs {
 		// Skip self-delivery to prevent loops.
 		if p == emitter {
 			continue
 		}
-		if p.Deliver(process.EventDelivery{Output: event}) {
+		if p.Deliver(process.EventDelivery{Output: eventJSON}) {
 			delivered++
 		}
 	}
 
 	return delivered, nil
+}
+
+// payloadToJSON converts a bus payload into the JSON string delivered to
+// plugin-process subscribers. Nil maps to "null" (signal events); an
+// already-marshaled string or json.RawMessage passes through without a
+// re-marshal; any other value is marshaled once.
+//
+// When payload is nil but the event has a registered non-signal payload
+// type, this is a publisher bug (engine code emitted nil for a typed
+// event); log a warn so external plugin processes do not silently
+// receive "null" JSON the consumer cannot make sense of.
+func payloadToJSON(namespace, eventType string, payload any) (string, error) {
+	if payload == nil {
+		if typ, isSignal := events.PayloadInfo(namespace, eventType); typ != nil && !isSignal {
+			logger().Warn("eventbus: typed event emitted with nil payload, external subs will receive \"null\"",
+				"namespace", namespace, "event-type", eventType, "want", typ.String())
+		}
+		return "null", nil
+	}
+	if s, ok := payload.(string); ok {
+		return s, nil
+	}
+	if raw, ok := payload.(json.RawMessage); ok {
+		return string(raw), nil
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+// tryDecodeTypedPayload inspects the event registry and unmarshals raw JSON
+// into the registered Go type when one exists. Returns (decoded, true) on
+// success, (nil, false) otherwise (unknown event, signal event, empty
+// payload, or unmarshal failure). Unmarshal failures and empty-payload
+// arrivals on registered typed events log a warn so silent drops do not
+// mask publisher / consumer drift; the caller forwards the raw string so
+// the typed-handle wrapper can also log its drop and the engine
+// subscriber still has a chance to handle the string if it registered for
+// strings.
+func tryDecodeTypedPayload(namespace, eventType, raw string) (any, bool) {
+	typ, isSignal := events.PayloadInfo(namespace, eventType)
+	if typ == nil {
+		return nil, false
+	}
+	if isSignal {
+		return nil, false
+	}
+	if raw == "" {
+		logger().Warn("eventbus: typed event arrived with empty payload, dropping decode",
+			"namespace", namespace, "event-type", eventType, "want", typ.String())
+		return nil, false
+	}
+	// reflect.New(T) yields *T. For payloads declared as *S, typ is *S, so
+	// reflect.New(typ) gives **S and Unmarshal populates a fresh *S inside.
+	// Calling Elem() once returns the *S (or S for value-typed payloads)
+	// that engine subscribers expect.
+	ptr := reflect.New(typ)
+	if err := json.Unmarshal([]byte(raw), ptr.Interface()); err != nil {
+		logger().Warn("eventbus: typed event JSON unmarshal failed, dropping decode",
+			"namespace", namespace, "event-type", eventType,
+			"want", typ.String(), "error", err)
+		return nil, false
+	}
+	return ptr.Elem().Interface(), true
 }
 
 // handleCodecRPC is a shared helper for plugin->engine codec RPCs (decode-nlri, encode-nlri).

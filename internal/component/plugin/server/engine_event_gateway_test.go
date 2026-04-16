@@ -17,8 +17,10 @@ func TestConfigEventGatewayEmit(t *testing.T) {
 	g := NewConfigEventGateway(s)
 
 	var got string
-	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(event string) {
-		got = event
+	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(p any) {
+		if s, ok := p.(string); ok {
+			got = s
+		}
 	})
 	defer unsub()
 

@@ -131,21 +131,12 @@ type installedRoute struct {
 	nextHop string
 }
 
-// incomingBatch is the JSON payload received from (sysrib, best-change).
-// The sysrib publisher carries the family in-band so the EventBus stays
-// metadata-free.
-type incomingBatch struct {
-	Family  string           `json:"family"`
-	Replay  bool             `json:"replay,omitempty"`
-	Changes []incomingChange `json:"changes"`
-}
+// incomingBatch aliases the (system-rib, best-change) payload type.
+// sysrib publishes these; fib-kernel consumes them to program the kernel FIB.
+type incomingBatch = sysribevents.BestChangeBatch
 
-type incomingChange struct {
-	Action   string `json:"action"`
-	Prefix   string `json:"prefix"`
-	NextHop  string `json:"next-hop"`
-	Protocol string `json:"protocol"`
-}
+// incomingChange aliases a single entry in an incoming batch.
+type incomingChange = sysribevents.BestChangeEntry
 
 // fibKernel manages route installation and monitoring.
 type fibKernel struct {
@@ -162,12 +153,11 @@ func newFIBKernel(backend routeBackend) *fibKernel {
 	}
 }
 
-// processEvent handles a single (sysrib, best-change) payload received on
-// the EventBus. The sysrib publisher emits one event per family.
-func (f *fibKernel) processEvent(payload string) {
-	var batch incomingBatch
-	if err := json.Unmarshal([]byte(payload), &batch); err != nil {
-		logger().Warn("fib-kernel: failed to unmarshal batch", "error", err)
+// processEvent handles a single (system-rib, best-change) payload. The
+// sysrib publisher emits one event per family with the typed
+// *BestChangeBatch payload.
+func (f *fibKernel) processEvent(batch *incomingBatch) {
+	if batch == nil {
 		return
 	}
 
@@ -293,14 +283,12 @@ func (f *fibKernel) run(ctx context.Context, flushOnStop bool) {
 		return
 	}
 
-	unsub := eb.Subscribe(sysribevents.Namespace, sysribevents.EventBestChange, func(payload string) {
-		f.processEvent(payload)
-	})
+	unsub := sysribevents.BestChange.Subscribe(eb, f.processEvent)
 	defer unsub()
 
 	// Request full-table replay from sysrib so we populate even if sysrib
-	// started before us. Empty payload by convention.
-	if _, err := eb.Emit(sysribevents.Namespace, sysribevents.EventReplayRequest, ""); err != nil {
+	// started before us. Signal event, no payload.
+	if _, err := sysribevents.ReplayRequest.Emit(eb); err != nil {
 		logger().Warn("fib-kernel: replay-request emit failed", "error", err)
 	}
 

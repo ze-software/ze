@@ -19,7 +19,7 @@ import (
 type emittedEvent struct {
 	Namespace string
 	EventType string
-	Payload   string
+	Payload   any
 }
 
 // collectingEventBus is a minimal ze.EventBus that records every emission.
@@ -31,7 +31,7 @@ type collectingEventBus struct {
 	events []emittedEvent
 }
 
-func (b *collectingEventBus) Emit(namespace, eventType, payload string) (int, error) {
+func (b *collectingEventBus) Emit(namespace, eventType string, payload any) (int, error) {
 	b.mu.Lock()
 	b.events = append(b.events, emittedEvent{
 		Namespace: namespace,
@@ -42,7 +42,7 @@ func (b *collectingEventBus) Emit(namespace, eventType, payload string) (int, er
 	return 0, nil
 }
 
-func (b *collectingEventBus) Subscribe(_, _ string, _ func(string)) func() {
+func (b *collectingEventBus) Subscribe(_, _ string, _ func(any)) func() {
 	return func() {}
 }
 
@@ -306,8 +306,12 @@ func TestEmitCreatedPayload(t *testing.T) {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
 
+	raw, ok := events[0].Payload.(string)
+	if !ok {
+		t.Fatalf("expected string payload, got %T", events[0].Payload)
+	}
 	var payload linkEventPayload
-	if err := json.Unmarshal([]byte(events[0].Payload), &payload); err != nil {
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
 		t.Fatalf("unmarshal failed: %v", err)
 	}
 	if payload.Name != "eth0" {

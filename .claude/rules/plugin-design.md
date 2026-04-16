@@ -277,3 +277,35 @@ Internal plugins that register `OnStructuredEvent` receive `*rpc.StructuredEvent
 | OPEN, NOTIFICATION, REFRESH | PeerAddress, PeerAS, Direction, MessageID | Set — carries `RawBytes` for wire decoding |
 
 Plugins read attributes via `AttrsWire.Get(code)` (lazy, per-attribute) and NLRIs via `WireUpdate.NLRI()` / `MPReach()` / `MPUnreach()` (zero-copy byte slices). External/forked plugins continue receiving JSON text via `OnEvent`.
+
+## EventBus Typed Payloads (BLOCKING)
+
+`pkg/ze/eventbus.go` carries `payload any`. New events MUST be declared via
+`events.Register[T](namespace, eventType)` (typed) or
+`events.RegisterSignal(namespace, eventType)` (no payload). Producers call
+`Handle.Emit(bus, payload)` and consumers call
+`Handle.Subscribe(bus, func(T))`; the registry is the single source of
+truth for the payload type.
+
+**Test-stub convention.** Every test file that defines a private mock of
+`ze.EventBus` MUST add a compile-time check on the same file:
+
+```go
+var _ ze.EventBus = (*<stubName>)(nil)
+```
+
+Without this line, an interface change (e.g. `Emit` gaining `any`) compiles
+the stub against an outdated signature and only fails when the test
+actually constructs the stub. The current 8 stub files
+(`pkg/ze/ze_test.go`, `internal/plugins/{sysrib,ntp,ifacedhcp}/*_test.go`,
+`internal/plugins/ifacenetlink/monitor_linux_test.go`,
+`internal/component/iface/{migrate_linux,integration_helpers_linux,config}_test.go`,
+`internal/component/plugin/{server,manager}/*_test.go`,
+`internal/component/bgp/plugins/rib/rib_bestchange_test.go`) all carry
+this assertion. New stubs without it should fail review.
+
+Subscribers MUST type-assert via the typed handle (`Event[T].Subscribe`)
+rather than calling `bus.Subscribe` directly. The handle's wrapper logs a
+warn on type mismatch; raw `bus.Subscribe` callers swallow mismatches
+silently. The legacy `events.AsString` shim exists only for events that
+have not yet migrated to a typed handle and is not for new code.

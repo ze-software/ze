@@ -91,21 +91,21 @@ func (m *mockMigrateBackend) Close() error { return nil }
 // Subscribe records handlers; tests drive delivery explicitly via Emit.
 type stubEventBus struct {
 	mu       sync.Mutex
-	handlers map[string][]func(payload string)
+	handlers map[string][]func(payload any)
 	subErr   error
 }
 
 func newStubEventBus() *stubEventBus {
-	return &stubEventBus{handlers: make(map[string][]func(string))}
+	return &stubEventBus{handlers: make(map[string][]func(any))}
 }
 
 func (b *stubEventBus) key(namespace, eventType string) string {
 	return namespace + ":" + eventType
 }
 
-func (b *stubEventBus) Emit(namespace, eventType, payload string) (int, error) {
+func (b *stubEventBus) Emit(namespace, eventType string, payload any) (int, error) {
 	b.mu.Lock()
-	handlers := append([]func(string){}, b.handlers[b.key(namespace, eventType)]...)
+	handlers := append([]func(any){}, b.handlers[b.key(namespace, eventType)]...)
 	b.mu.Unlock()
 	for _, h := range handlers {
 		h(payload)
@@ -113,7 +113,7 @@ func (b *stubEventBus) Emit(namespace, eventType, payload string) (int, error) {
 	return len(handlers), nil
 }
 
-func (b *stubEventBus) Subscribe(namespace, eventType string, handler func(payload string)) func() {
+func (b *stubEventBus) Subscribe(namespace, eventType string, handler func(payload any)) func() {
 	if b.subErr != nil {
 		return func() {}
 	}

@@ -408,9 +408,7 @@ func RunRIBPlugin(conn net.Conn) int {
 		// When a subscriber emits (rib, replay-request), replay the full
 		// best-path table. The handler ignores the payload (always empty).
 		if eb := getEventBus(); eb != nil {
-			eb.Subscribe(ribevents.Namespace, ribevents.EventReplayRequest, func(_ string) {
-				r.replayBestPaths()
-			})
+			ribevents.ReplayRequest.Subscribe(eb, r.replayBestPaths)
 		}
 		return nil
 	})

@@ -214,18 +214,18 @@ func runEngine(conn net.Conn) int {
 		// Subscribe to DHCP lease events to track gateways for link failover.
 		// Handlers only update the map (no I/O), so mutex is sufficient.
 		unsubscribers = append(unsubscribers,
-			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDHCPAcquired, func(data string) {
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDHCPAcquired, events.AsString(func(data string) {
 				dhcpMu.Lock()
 				handleDHCPLeaseEvent(data, activeDHCP, log)
 				dhcpMu.Unlock()
-			}),
-			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDHCPRenewed, func(data string) {
+			})),
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDHCPRenewed, events.AsString(func(data string) {
 				dhcpMu.Lock()
 				handleDHCPLeaseEvent(data, activeDHCP, log)
 				dhcpMu.Unlock()
-			}),
+			})),
 			// Link events enqueue to worker channel (no I/O in handler).
-			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDown, func(data string) {
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDown, events.AsString(func(data string) {
 				var ev struct {
 					Name string `json:"name"`
 				}
@@ -235,8 +235,8 @@ func runEngine(conn net.Conn) int {
 					default: // non-blocking: drop if buffer full (transient overload)
 					}
 				}
-			}),
-			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventUp, func(data string) {
+			})),
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventUp, events.AsString(func(data string) {
 				var ev struct {
 					Name string `json:"name"`
 				}
@@ -246,18 +246,18 @@ func runEngine(conn net.Conn) int {
 					default: // non-blocking: drop if buffer full (transient overload)
 					}
 				}
-			}),
+			})),
 			// IPv6 router discovery events from netlink neighbor monitor.
-			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventRouterDiscovered, func(data string) {
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventRouterDiscovered, events.AsString(func(data string) {
 				dhcpMu.Lock()
 				handleRouterDiscovered(data, activeRouters, activeDHCP, log)
 				dhcpMu.Unlock()
-			}),
-			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventRouterLost, func(data string) {
+			})),
+			eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventRouterLost, events.AsString(func(data string) {
 				dhcpMu.Lock()
 				handleRouterLost(data, activeRouters, log)
 				dhcpMu.Unlock()
-			}),
+			})),
 		)
 
 		// Suppress accept_ra_defrtr on interfaces with route-priority > 0,

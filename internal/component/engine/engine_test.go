@@ -362,8 +362,8 @@ func TestEngineSatisfiesInterface(t *testing.T) {
 
 type testBus struct{}
 
-func (b *testBus) Emit(string, string, string) (int, error) { return 0, nil }
-func (b *testBus) Subscribe(_, _ string, _ func(string)) func() {
+func (b *testBus) Emit(string, string, any) (int, error) { return 0, nil }
+func (b *testBus) Subscribe(_, _ string, _ func(any)) func() {
 	return func() {}
 }
 

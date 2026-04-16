@@ -11,10 +11,14 @@ import (
 // satisfaction tests.
 type mockEventBus struct{}
 
-func (m *mockEventBus) Emit(namespace, eventType, payload string) (int, error) { return 0, nil }
-func (m *mockEventBus) Subscribe(_, _ string, _ func(string)) func() {
+func (m *mockEventBus) Emit(namespace, eventType string, payload any) (int, error) {
+	return 0, nil
+}
+func (m *mockEventBus) Subscribe(_, _ string, _ func(any)) func() {
 	return func() {}
 }
+
+var _ ze.EventBus = (*mockEventBus)(nil)
 
 // mockConfigProvider is a minimal ConfigProvider implementation.
 type mockConfigProvider struct{}

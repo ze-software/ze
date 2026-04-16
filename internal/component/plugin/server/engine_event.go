@@ -9,16 +9,16 @@ import (
 	"sync"
 )
 
-// EngineEventHandler is invoked when a stream event matches an engine subscription.
-// The event string is the same payload that plugin subscribers receive (typically
-// JSON). Handlers are called synchronously from deliverEvent. Handlers MUST NOT
-// block on external I/O; push to a buffered channel and return if work is needed.
+// EngineEventHandler is invoked when a stream event matches an engine
+// subscription. The payload is the publisher's typed Go value, passed as
+// `any`. Consumers type-assert to the documented payload type for the
+// (namespace, eventType) pair. Handlers are called synchronously from
+// deliverEvent; they MUST NOT block on external I/O.
 //
 // A handler that panics is recovered by the dispatch loop, logged, and the
 // remaining handlers for the same event still fire. The panic does NOT
-// propagate to the emitter (whoever called EmitEngineEvent or any other
-// path that ends in deliverEvent).
-type EngineEventHandler func(event string)
+// propagate to the emitter.
+type EngineEventHandler func(payload any)
 
 // engineEventSubscribers tracks engine-side subscriptions to stream events.
 // Parallel to SubscriptionManager (which tracks plugin-process subscriptions).
@@ -90,7 +90,7 @@ func (e *engineEventSubscribers) unregister(namespace, eventType string, id uint
 // Each handler invocation is wrapped in a deferred recover so a single
 // panicking handler does not abort the loop or propagate the panic out
 // to the emitter. Panics are logged via the package logger.
-func (e *engineEventSubscribers) dispatch(namespace, eventType, event string) {
+func (e *engineEventSubscribers) dispatch(namespace, eventType string, payload any) {
 	e.mu.RLock()
 	key := engineSubKey{Namespace: namespace, EventType: eventType}
 	m, ok := e.handlers[key]
@@ -105,21 +105,31 @@ func (e *engineEventSubscribers) dispatch(namespace, eventType, event string) {
 	e.mu.RUnlock()
 
 	for _, h := range handlers {
-		invokeEngineHandler(namespace, eventType, event, h)
+		invokeEngineHandler(namespace, eventType, payload, h)
 	}
+}
+
+// hasSubscribers reports whether any handler is registered for the given
+// (namespace, eventType). Used by deliverEvent to skip the typed-payload
+// decode when no engine subscriber would consume it.
+func (e *engineEventSubscribers) hasSubscribers(namespace, eventType string) bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	m, ok := e.handlers[engineSubKey{Namespace: namespace, EventType: eventType}]
+	return ok && len(m) > 0
 }
 
 // invokeEngineHandler runs a single handler with panic recovery.
 // Extracted so the dispatch loop is straight-line and the deferred
 // recover scope is exactly one handler invocation.
-func invokeEngineHandler(namespace, eventType, event string, h EngineEventHandler) {
+func invokeEngineHandler(namespace, eventType string, payload any, h EngineEventHandler) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger().Error("engine event handler panicked",
 				"namespace", namespace, "event-type", eventType, "panic", r)
 		}
 	}()
-	h(event)
+	h(payload)
 }
 
 // EmitEngineEvent publishes an event from the engine to the stream system.
@@ -131,17 +141,18 @@ func invokeEngineHandler(namespace, eventType, event string, h EngineEventHandle
 // The event must use a registered (namespace, eventType) per events.IsValidEvent;
 // unknown pairs return an error and deliver to nobody (neither engine handlers
 // nor plugin subscribers).
-func (s *Server) EmitEngineEvent(namespace, eventType, event string) (int, error) {
-	// Reuse the existing deliverEvent path. Passing nil emitter means no plugin
-	// process will be excluded from delivery (the existing exclusion check
-	// "if p == emitter" never matches a real process when emitter is nil).
-	return s.deliverEvent(nil, namespace, eventType, "", "", event)
+//
+// payload is the publisher's typed Go value. In-process subscribers receive
+// it directly; plugin-process subscribers receive JSON bytes marshaled once
+// per Emit (only when at least one plugin-process subscriber exists).
+func (s *Server) EmitEngineEvent(namespace, eventType string, payload any) (int, error) {
+	return s.deliverEvent(nil, namespace, eventType, "", "", payload)
 }
 
 // Emit satisfies the pkg/ze.EventBus interface. It is a thin alias for
 // EmitEngineEvent so engine components can depend on the public ze.EventBus
 // type without importing this package directly.
-func (s *Server) Emit(namespace, eventType, payload string) (int, error) {
+func (s *Server) Emit(namespace, eventType string, payload any) (int, error) {
 	return s.EmitEngineEvent(namespace, eventType, payload)
 }
 
@@ -149,7 +160,7 @@ func (s *Server) Emit(namespace, eventType, payload string) (int, error) {
 // for SubscribeEngineEvent that adapts the handler signature from
 // EngineEventHandler (a named type) to a plain func, which is what
 // ze.EventBus declares.
-func (s *Server) Subscribe(namespace, eventType string, handler func(payload string)) func() {
+func (s *Server) Subscribe(namespace, eventType string, handler func(payload any)) func() {
 	if handler == nil {
 		return func() {}
 	}
@@ -161,8 +172,9 @@ func (s *Server) Subscribe(namespace, eventType string, handler func(payload str
 // unregisters the handler when called; safe to call multiple times.
 //
 // Handlers fire synchronously from deliverEvent. They must not block on
-// external I/O. The handler receives the same event string that plugin
-// process subscribers would receive.
+// external I/O. The handler receives the publisher's typed payload via
+// `any`; consumers type-assert to the canonical type documented next to
+// the event constant in the publishing package.
 //
 // Engine subscriptions are parallel to plugin process subscriptions managed
 // by SubscriptionManager. Both fire on the same deliverEvent call.
@@ -186,8 +198,6 @@ func (s *Server) Subscribe(namespace, eventType string, handler func(payload str
 // panic at first dispatch.
 func (s *Server) SubscribeEngineEvent(namespace, eventType string, handler EngineEventHandler) func() {
 	if s.engineSubscribers == nil {
-		// Defensive: should never happen because NewServer initializes it.
-		// Return a no-op unsubscribe so callers can defer it safely.
 		return func() {}
 	}
 	if handler == nil {
@@ -206,9 +216,9 @@ func (s *Server) SubscribeEngineEvent(namespace, eventType string, handler Engin
 // (namespace, eventType) pair is already validated by deliverEvent before
 // the defer is registered, so this method does no further validation
 // beyond the nil-check on the registry.
-func (s *Server) dispatchEngineEvent(namespace, eventType, event string) {
+func (s *Server) dispatchEngineEvent(namespace, eventType string, payload any) {
 	if s.engineSubscribers == nil {
 		return
 	}
-	s.engineSubscribers.dispatch(namespace, eventType, event)
+	s.engineSubscribers.dispatch(namespace, eventType, payload)
 }

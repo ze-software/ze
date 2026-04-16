@@ -13,8 +13,8 @@ import (
 // doesn't use it yet).
 type stubBus struct{}
 
-func (s *stubBus) Emit(string, string, string) (int, error) { return 0, nil }
-func (s *stubBus) Subscribe(_, _ string, _ func(string)) func() {
+func (s *stubBus) Emit(string, string, any) (int, error) { return 0, nil }
+func (s *stubBus) Subscribe(_, _ string, _ func(any)) func() {
 	return func() {}
 }
 

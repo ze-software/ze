@@ -1,10 +1,23 @@
 package fibvpp
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/netip"
 	"testing"
 )
+
+// parseBatch is a test helper that builds a typed (system-rib, best-change)
+// batch from a JSON literal. The bus delivers typed batches at runtime; tests
+// keep using JSON literals for readability.
+func parseBatch(t *testing.T, payload string) *incomingBatch {
+	t.Helper()
+	var b incomingBatch
+	if err := json.Unmarshal([]byte(payload), &b); err != nil {
+		t.Fatalf("parseBatch: %v\npayload: %s", err, payload)
+	}
+	return &b
+}
 
 func TestProcessEventAdd(t *testing.T) {
 	// VALIDATES: AC-1 -- add action programs VPP FIB route
@@ -12,7 +25,7 @@ func TestProcessEventAdd(t *testing.T) {
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
 
-	f.processEvent(`{"family":"ipv4","changes":[{"action":"add","prefix":"10.0.0.0/24","next-hop":"192.168.1.1","protocol":"bgp"}]}`)
+	f.processEvent(parseBatch(t, `{"family":"ipv4","changes":[{"action":"add","prefix":"10.0.0.0/24","next-hop":"192.168.1.1","protocol":"bgp"}]}`))
 
 	if len(mock.adds) != 1 {
 		t.Fatalf("expected 1 add, got %d", len(mock.adds))
@@ -35,7 +48,7 @@ func TestProcessEventDel(t *testing.T) {
 	f := newFibVPP(mock)
 	f.installed["10.0.0.0/24"] = "192.168.1.1"
 
-	f.processEvent(`{"family":"ipv4","changes":[{"action":"withdraw","prefix":"10.0.0.0/24","protocol":"bgp"}]}`)
+	f.processEvent(parseBatch(t, `{"family":"ipv4","changes":[{"action":"withdraw","prefix":"10.0.0.0/24","protocol":"bgp"}]}`))
 
 	if len(mock.dels) != 1 {
 		t.Fatalf("expected 1 del, got %d", len(mock.dels))
@@ -55,7 +68,7 @@ func TestProcessEventReplace(t *testing.T) {
 	f := newFibVPP(mock)
 	f.installed["10.0.0.0/24"] = "192.168.1.1"
 
-	f.processEvent(`{"family":"ipv4","changes":[{"action":"update","prefix":"10.0.0.0/24","next-hop":"192.168.2.2","protocol":"bgp"}]}`)
+	f.processEvent(parseBatch(t, `{"family":"ipv4","changes":[{"action":"update","prefix":"10.0.0.0/24","next-hop":"192.168.2.2","protocol":"bgp"}]}`))
 
 	if len(mock.replaces) != 1 {
 		t.Fatalf("expected 1 replace, got %d", len(mock.replaces))
@@ -74,11 +87,11 @@ func TestProcessEventBatch(t *testing.T) {
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
 
-	f.processEvent(`{"family":"ipv4","changes":[
+	f.processEvent(parseBatch(t, `{"family":"ipv4","changes":[
 		{"action":"add","prefix":"10.0.0.0/24","next-hop":"1.1.1.1","protocol":"bgp"},
 		{"action":"add","prefix":"10.0.1.0/24","next-hop":"2.2.2.2","protocol":"bgp"},
 		{"action":"add","prefix":"10.0.2.0/24","next-hop":"3.3.3.3","protocol":"bgp"}
-	]}`)
+	]}`))
 
 	if len(mock.adds) != 3 {
 		t.Fatalf("expected 3 adds, got %d", len(mock.adds))
@@ -94,10 +107,10 @@ func TestProcessEventReplay(t *testing.T) {
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
 
-	f.processEvent(`{"family":"ipv4","replay":true,"changes":[
+	f.processEvent(parseBatch(t, `{"family":"ipv4","replay":true,"changes":[
 		{"action":"add","prefix":"10.0.0.0/24","next-hop":"1.1.1.1","protocol":"bgp"},
 		{"action":"add","prefix":"10.0.1.0/24","next-hop":"2.2.2.2","protocol":"bgp"}
-	]}`)
+	]}`))
 
 	if len(mock.adds) != 2 {
 		t.Fatalf("expected 2 adds on replay, got %d", len(mock.adds))
@@ -110,7 +123,7 @@ func TestProcessEventIPv6(t *testing.T) {
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
 
-	f.processEvent(`{"family":"ipv6","changes":[{"action":"add","prefix":"2001:db8::/32","next-hop":"fe80::1","protocol":"bgp"}]}`)
+	f.processEvent(parseBatch(t, `{"family":"ipv6","changes":[{"action":"add","prefix":"2001:db8::/32","next-hop":"fe80::1","protocol":"bgp"}]}`))
 
 	if len(mock.adds) != 1 {
 		t.Fatalf("expected 1 add, got %d", len(mock.adds))
@@ -130,16 +143,16 @@ func TestInstalledMapTracking(t *testing.T) {
 	f := newFibVPP(mock)
 
 	// Add two routes.
-	f.processEvent(`{"family":"ipv4","changes":[
+	f.processEvent(parseBatch(t, `{"family":"ipv4","changes":[
 		{"action":"add","prefix":"10.0.0.0/24","next-hop":"1.1.1.1","protocol":"bgp"},
 		{"action":"add","prefix":"10.0.1.0/24","next-hop":"2.2.2.2","protocol":"bgp"}
-	]}`)
+	]}`))
 	if len(f.installed) != 2 {
 		t.Fatalf("expected 2 installed, got %d", len(f.installed))
 	}
 
 	// Withdraw one.
-	f.processEvent(`{"family":"ipv4","changes":[{"action":"withdraw","prefix":"10.0.0.0/24","protocol":"bgp"}]}`)
+	f.processEvent(parseBatch(t, `{"family":"ipv4","changes":[{"action":"withdraw","prefix":"10.0.0.0/24","protocol":"bgp"}]}`))
 	if len(f.installed) != 1 {
 		t.Fatalf("expected 1 installed after withdraw, got %d", len(f.installed))
 	}
@@ -154,7 +167,7 @@ func TestProcessEventInvalidPrefix(t *testing.T) {
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
 
-	f.processEvent(`{"family":"ipv4","changes":[{"action":"add","prefix":"not-a-prefix","next-hop":"1.1.1.1","protocol":"bgp"}]}`)
+	f.processEvent(parseBatch(t, `{"family":"ipv4","changes":[{"action":"add","prefix":"not-a-prefix","next-hop":"1.1.1.1","protocol":"bgp"}]}`))
 
 	if len(mock.adds) != 0 {
 		t.Error("should not add route with invalid prefix")
@@ -167,23 +180,23 @@ func TestProcessEventEmptyPrefix(t *testing.T) {
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
 
-	f.processEvent(`{"family":"ipv4","changes":[{"action":"add","prefix":"","next-hop":"1.1.1.1","protocol":"bgp"}]}`)
+	f.processEvent(parseBatch(t, `{"family":"ipv4","changes":[{"action":"add","prefix":"","next-hop":"1.1.1.1","protocol":"bgp"}]}`))
 
 	if len(mock.adds) != 0 {
 		t.Error("should not add route with empty prefix")
 	}
 }
 
-func TestProcessEventInvalidJSON(t *testing.T) {
-	// VALIDATES: invalid JSON handled gracefully
-	// PREVENTS: panic on malformed payload
+func TestProcessEventNilBatch(t *testing.T) {
+	// VALIDATES: nil batch handled gracefully
+	// PREVENTS: panic on nil payload (no-op contract for typed delivery)
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
 
-	f.processEvent(`{broken json`)
+	f.processEvent(nil)
 
 	if len(mock.adds) != 0 {
-		t.Error("should not process anything from invalid JSON")
+		t.Error("should not process anything from nil batch")
 	}
 }
 
@@ -193,10 +206,10 @@ func TestProcessEventBackendError(t *testing.T) {
 	mock := &mockBackend{err: fmt.Errorf("vpp api error")}
 	f := newFibVPP(mock)
 
-	f.processEvent(`{"family":"ipv4","changes":[
+	f.processEvent(parseBatch(t, `{"family":"ipv4","changes":[
 		{"action":"add","prefix":"10.0.0.0/24","next-hop":"1.1.1.1","protocol":"bgp"},
 		{"action":"add","prefix":"10.0.1.0/24","next-hop":"2.2.2.2","protocol":"bgp"}
-	]}`)
+	]}`))
 
 	// Both adds attempted despite errors.
 	if len(mock.adds) != 0 {
@@ -215,10 +228,10 @@ func TestFlushRoutes(t *testing.T) {
 	f := newFibVPP(mock)
 
 	// Add routes.
-	f.processEvent(`{"family":"ipv4","changes":[
+	f.processEvent(parseBatch(t, `{"family":"ipv4","changes":[
 		{"action":"add","prefix":"10.0.0.0/24","next-hop":"1.1.1.1","protocol":"bgp"},
 		{"action":"add","prefix":"10.0.1.0/24","next-hop":"2.2.2.2","protocol":"bgp"}
-	]}`)
+	]}`))
 
 	f.flushRoutes()
 
@@ -236,7 +249,7 @@ func TestShowInstalled(t *testing.T) {
 	mock := &mockBackend{}
 	f := newFibVPP(mock)
 
-	f.processEvent(`{"family":"ipv4","changes":[{"action":"add","prefix":"10.0.0.0/24","next-hop":"1.1.1.1","protocol":"bgp"}]}`)
+	f.processEvent(parseBatch(t, `{"family":"ipv4","changes":[{"action":"add","prefix":"10.0.0.0/24","next-hop":"1.1.1.1","protocol":"bgp"}]}`))
 
 	out := f.showInstalled()
 	if out == "[]" || out == "" {

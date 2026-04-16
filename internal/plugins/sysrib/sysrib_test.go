@@ -1,7 +1,6 @@
 package sysrib
 
 import (
-	"encoding/json"
 	"sync"
 	"testing"
 
@@ -15,26 +14,26 @@ import (
 type testEvent struct {
 	Namespace string
 	EventType string
-	Payload   string
+	Payload   any
 }
 
 // testEventBus is a minimal ze.EventBus implementation for unit tests.
 type testEventBus struct {
 	mu       sync.Mutex
 	events   []testEvent
-	handlers map[string][]func(string)
+	handlers map[string][]func(any)
 }
 
 func newTestEventBus() *testEventBus {
 	return &testEventBus{
-		handlers: make(map[string][]func(string)),
+		handlers: make(map[string][]func(any)),
 	}
 }
 
-func (b *testEventBus) Emit(namespace, eventType, payload string) (int, error) {
+func (b *testEventBus) Emit(namespace, eventType string, payload any) (int, error) {
 	b.mu.Lock()
 	b.events = append(b.events, testEvent{Namespace: namespace, EventType: eventType, Payload: payload})
-	hs := append([]func(string){}, b.handlers[namespace+"/"+eventType]...)
+	hs := append([]func(any){}, b.handlers[namespace+"/"+eventType]...)
 	b.mu.Unlock()
 	for _, h := range hs {
 		h(payload)
@@ -42,7 +41,7 @@ func (b *testEventBus) Emit(namespace, eventType, payload string) (int, error) {
 	return 0, nil
 }
 
-func (b *testEventBus) Subscribe(namespace, eventType string, handler func(string)) func() {
+func (b *testEventBus) Subscribe(namespace, eventType string, handler func(any)) func() {
 	if handler == nil {
 		return func() {}
 	}
@@ -62,15 +61,14 @@ func (b *testEventBus) lastEvent() *testEvent {
 	return &b.events[len(b.events)-1]
 }
 
-// makePayload builds a JSON payload matching the new (rib, best-change) shape.
-func makePayload(protocol, family string, changes []incomingChange) string {
-	batch := incomingBatch{
+// makePayload builds a typed (bgp-rib, best-change) payload for tests. Returns
+// a pointer because that is the shape the typed handle carries on the bus.
+func makePayload(protocol, family string, changes []incomingChange) *incomingBatch {
+	return &incomingBatch{
 		Protocol: protocol,
 		Family:   family,
 		Changes:  changes,
 	}
-	data, _ := json.Marshal(batch)
-	return string(data)
 }
 
 // VALIDATES: AC-4 -- System RIB receives (rib, best-change) for an eBGP route
@@ -194,8 +192,9 @@ func TestSysRIBPublishChange(t *testing.T) {
 	assert.Equal(t, "system-rib", evt.Namespace)
 	assert.Equal(t, sysribevents.EventBestChange, evt.EventType)
 
-	var batch outgoingBatch
-	require.NoError(t, json.Unmarshal([]byte(evt.Payload), &batch))
+	batchPtr, ok := evt.Payload.(*outgoingBatch)
+	require.True(t, ok, "expected *outgoingBatch payload, got %T", evt.Payload)
+	batch := *batchPtr
 	assert.Equal(t, "ipv4/unicast", batch.Family)
 	require.Len(t, batch.Changes, 1)
 	assert.Equal(t, "add", batch.Changes[0].Action)

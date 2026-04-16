@@ -10,41 +10,21 @@
 package rib
 
 import (
-	"encoding/json"
-
 	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
-// bestChangeAction represents the type of best-path change.
-const (
-	bestChangeAdd      = "add"
-	bestChangeUpdate   = "update"
-	bestChangeWithdraw = "withdraw"
-)
+// bestChangeEntry is an alias for the exported event payload entry type so
+// the per-prefix functions in this file keep their current signatures while
+// still producing the exported payload shape. See ribevents.BestChangeEntry.
+type bestChangeEntry = ribevents.BestChangeEntry
 
-// bestChangeEntry records one prefix best-path change for batch publishing.
-type bestChangeEntry struct {
-	Action       string `json:"action"`
-	Prefix       string `json:"prefix"`
-	NextHop      string `json:"next-hop,omitempty"`
-	Priority     int    `json:"priority"`
-	Metric       uint32 `json:"metric"`
-	ProtocolType string `json:"protocol-type,omitempty"` // "ebgp" or "ibgp"
-}
-
-// bestChangeBatch is the JSON payload emitted on (rib, best-change). The
-// previous bus implementation carried protocol and family in the topic and
-// metadata map; the namespaced bus only ships an opaque payload string, so
-// these fields move into the JSON wrapper.
-type bestChangeBatch struct {
-	Protocol string            `json:"protocol"`         // always "bgp" for the BGP RIB plugin
-	Family   string            `json:"family"`           // e.g. "ipv4/unicast"
-	Replay   bool              `json:"replay,omitempty"` // true for full-table replay batches
-	Changes  []bestChangeEntry `json:"changes"`
-}
+// bestChangeBatch is an alias for the exported event payload. The producer
+// path builds one batch per (protocol, family) combination, then emits via
+// the typed BestChange handle.
+type bestChangeBatch = ribevents.BestChangeBatch
 
 // bestPathKey identifies a unique prefix in the RIB for best-path tracking.
 type bestPathKey struct {
@@ -95,7 +75,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		if prev != nil {
 			delete(r.bestPrev, key)
 			return &bestChangeEntry{
-				Action: bestChangeWithdraw,
+				Action: ribevents.BestChangeWithdraw,
 				Prefix: prefix,
 			}
 		}
@@ -119,7 +99,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			ProtocolType: protoType,
 		}
 		return &bestChangeEntry{
-			Action:       bestChangeAdd,
+			Action:       ribevents.BestChangeAdd,
 			Prefix:       prefix,
 			NextHop:      nextHop,
 			Priority:     priority,
@@ -143,7 +123,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		ProtocolType: protoType,
 	}
 	return &bestChangeEntry{
-		Action:       bestChangeUpdate,
+		Action:       ribevents.BestChangeUpdate,
 		Prefix:       prefix,
 		NextHop:      nextHop,
 		Priority:     priority,
@@ -267,7 +247,7 @@ func (r *RIBManager) replayBestPaths() {
 			continue // Skip entries with unparseable prefixes.
 		}
 		changesByFamily[key.Family] = append(changesByFamily[key.Family], bestChangeEntry{
-			Action:       bestChangeAdd,
+			Action:       ribevents.BestChangeAdd,
 			Prefix:       rec.Prefix,
 			NextHop:      rec.NextHop,
 			Priority:     rec.Priority,
@@ -278,18 +258,13 @@ func (r *RIBManager) replayBestPaths() {
 	r.mu.RUnlock()
 
 	for famName, changes := range changesByFamily {
-		batch := bestChangeBatch{
+		batch := &bestChangeBatch{
 			Protocol: "bgp",
 			Family:   famName,
 			Replay:   true,
 			Changes:  changes,
 		}
-		payload, err := json.Marshal(batch)
-		if err != nil {
-			logger().Warn("replay marshal failed", "error", err)
-			continue
-		}
-		if _, err := eb.Emit(ribevents.Namespace, ribevents.EventBestChange, string(payload)); err != nil {
+		if _, err := ribevents.BestChange.Emit(eb, batch); err != nil {
 			logger().Warn("replay emit failed", "error", err)
 		}
 	}
@@ -297,25 +272,23 @@ func (r *RIBManager) replayBestPaths() {
 	logger().Info("best-path replay published", "families", len(changesByFamily))
 }
 
-// publishBestChanges marshals a batch of changes and emits one event on the
-// EventBus under (rib, best-change). Called AFTER the RIB lock is released.
+// publishBestChanges emits a best-change batch on the EventBus under
+// (bgp-rib, best-change) via the typed BestChange handle. Called AFTER the
+// RIB lock is released. In-process subscribers receive *BestChangeBatch
+// directly; external plugin processes receive the JSON marshaling that the
+// bus produces lazily (only when at least one external subscriber exists).
 func publishBestChanges(changes []bestChangeEntry, family string) {
 	eb := getEventBus()
 	if eb == nil {
 		return
 	}
 
-	batch := bestChangeBatch{
+	batch := &bestChangeBatch{
 		Protocol: "bgp",
 		Family:   family,
 		Changes:  changes,
 	}
-	payload, err := json.Marshal(batch)
-	if err != nil {
-		logger().Warn("best-change marshal failed", "error", err)
-		return
-	}
-	if _, err := eb.Emit(ribevents.Namespace, ribevents.EventBestChange, string(payload)); err != nil {
+	if _, err := ribevents.BestChange.Emit(eb, batch); err != nil {
 		logger().Warn("best-change emit failed", "error", err)
 	}
 }

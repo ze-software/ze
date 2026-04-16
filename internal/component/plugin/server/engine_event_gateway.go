@@ -4,7 +4,10 @@
 
 package server
 
-import txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
+import (
+	txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+)
 
 // ConfigEventGateway adapts Server to the
 // internal/component/config/transaction.EventGateway interface used by the
@@ -34,7 +37,12 @@ func NewConfigEventGateway(s *Server) *ConfigEventGateway {
 
 // EmitConfigEvent publishes a stream event in the config namespace.
 // Returns the number of plugin processes that received the event.
+// Empty payloads are rejected — config acks always carry at least a
+// transaction-id envelope, so an empty []byte is a programmer error.
 func (g *ConfigEventGateway) EmitConfigEvent(eventType string, payload []byte) (int, error) {
+	if len(payload) == 0 {
+		return 0, &rpc.RPCCallError{Message: "emit-config-event requires non-empty payload"}
+	}
 	return g.server.EmitEngineEvent(txevents.Namespace, eventType, string(payload))
 }
 
@@ -45,7 +53,13 @@ func (g *ConfigEventGateway) SubscribeConfigEvent(eventType string, handler func
 	if handler == nil {
 		return func() {}
 	}
-	return g.server.SubscribeEngineEvent(txevents.Namespace, eventType, func(event string) {
-		handler([]byte(event))
+	return g.server.SubscribeEngineEvent(txevents.Namespace, eventType, func(p any) {
+		if event, ok := p.(string); ok {
+			handler([]byte(event))
+			return
+		}
+		if raw, ok := p.([]byte); ok {
+			handler(raw)
+		}
 	})
 }

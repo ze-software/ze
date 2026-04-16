@@ -64,20 +64,11 @@ type p4Backend interface {
 	close() error
 }
 
-// incomingBatch is the JSON payload received from (sysrib, best-change).
-// Family is carried in-band so the EventBus stays metadata-free.
-type incomingBatch struct {
-	Family  string           `json:"family"`
-	Replay  bool             `json:"replay,omitempty"`
-	Changes []incomingChange `json:"changes"`
-}
+// incomingBatch aliases the (system-rib, best-change) payload type.
+type incomingBatch = sysribevents.BestChangeBatch
 
-type incomingChange struct {
-	Action   string `json:"action"`
-	Prefix   string `json:"prefix"`
-	NextHop  string `json:"next-hop"`
-	Protocol string `json:"protocol"`
-}
+// incomingChange aliases a single entry in an incoming batch.
+type incomingChange = sysribevents.BestChangeEntry
 
 // fibP4 manages P4 switch route programming.
 type fibP4 struct {
@@ -93,12 +84,10 @@ func newFIBP4(backend p4Backend) *fibP4 {
 	}
 }
 
-// processEvent handles a single (sysrib, best-change) payload received on
-// the EventBus.
-func (f *fibP4) processEvent(payload string) {
-	var batch incomingBatch
-	if err := json.Unmarshal([]byte(payload), &batch); err != nil {
-		logger().Warn("fib-p4: failed to unmarshal batch", "error", err)
+// processEvent handles a single (system-rib, best-change) payload received
+// via the typed BestChange handle.
+func (f *fibP4) processEvent(batch *incomingBatch) {
+	if batch == nil {
 		return
 	}
 
@@ -181,13 +170,11 @@ func (f *fibP4) run(ctx context.Context, flushOnStop bool) {
 		return
 	}
 
-	unsub := eb.Subscribe(sysribevents.Namespace, sysribevents.EventBestChange, func(payload string) {
-		f.processEvent(payload)
-	})
+	unsub := sysribevents.BestChange.Subscribe(eb, f.processEvent)
 	defer unsub()
 
-	// Request full-table replay from sysrib. Empty payload by convention.
-	if _, err := eb.Emit(sysribevents.Namespace, sysribevents.EventReplayRequest, ""); err != nil {
+	// Request full-table replay from sysrib.
+	if _, err := sysribevents.ReplayRequest.Emit(eb); err != nil {
 		logger().Warn("fib-p4: replay-request emit failed", "error", err)
 	}
 

@@ -96,7 +96,7 @@ func runSysctlPlugin(conn net.Conn) int {
 	if eb != nil {
 		unsubscribers = append(unsubscribers,
 			// Default events from other plugins.
-			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventDefault, func(payload string) {
+			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventDefault, events.AsString(func(payload string) {
 				var ev struct {
 					Key    string `json:"key"`
 					Value  string `json:"value"`
@@ -116,9 +116,9 @@ func runSysctlPlugin(conn net.Conn) int {
 						log.Debug("sysctl: applied emit failed", "err", emitErr)
 					}
 				}
-			}),
+			})),
 			// Transient set events (from CLI).
-			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventSet, func(payload string) {
+			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventSet, events.AsString(func(payload string) {
 				var ev struct {
 					Key   string `json:"key"`
 					Value string `json:"value"`
@@ -137,9 +137,9 @@ func runSysctlPlugin(conn net.Conn) int {
 						log.Debug("sysctl: applied emit failed", "err", emitErr)
 					}
 				}
-			}),
+			})),
 			// Query: show active keys.
-			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventShowRequest, func(payload string) {
+			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventShowRequest, events.AsString(func(payload string) {
 				var req struct {
 					RequestID string `json:"request-id"`
 				}
@@ -152,9 +152,9 @@ func runSysctlPlugin(conn net.Conn) int {
 				if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventShowResult, string(resp)); err != nil {
 					log.Debug("sysctl: show-result emit failed", "err", err)
 				}
-			}),
+			})),
 			// Query: list known keys.
-			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventListRequest, func(payload string) {
+			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventListRequest, events.AsString(func(payload string) {
 				var req struct {
 					RequestID string `json:"request-id"`
 				}
@@ -167,9 +167,9 @@ func runSysctlPlugin(conn net.Conn) int {
 				if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventListResult, string(resp)); err != nil {
 					log.Debug("sysctl: list-result emit failed", "err", err)
 				}
-			}),
+			})),
 			// Clear profile defaults for an interface (before re-emission on reload).
-			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventClearProfileDefaults, func(payload string) {
+			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventClearProfileDefaults, events.AsString(func(payload string) {
 				var ev struct {
 					Interface string `json:"interface"`
 				}
@@ -178,9 +178,9 @@ func runSysctlPlugin(conn net.Conn) int {
 					return
 				}
 				s.clearProfileDefaults(ev.Interface)
-			}),
+			})),
 			// Query: describe one key.
-			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventDescribeRequest, func(payload string) {
+			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventDescribeRequest, events.AsString(func(payload string) {
 				var req struct {
 					RequestID string `json:"request-id"`
 					Key       string `json:"key"`
@@ -194,7 +194,7 @@ func runSysctlPlugin(conn net.Conn) int {
 				if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventDescribeResult, string(resp)); err != nil {
 					log.Debug("sysctl: describe-result emit failed", "err", err)
 				}
-			}),
+			})),
 		)
 	}
 

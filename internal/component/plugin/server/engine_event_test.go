@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -9,6 +10,17 @@ import (
 	txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+// mustString type-asserts to string for tests that passed string payloads.
+// Uses t.Helper so the failure points at the caller, not this helper.
+func mustString(t *testing.T, p any) string {
+	t.Helper()
+	s, ok := p.(string)
+	if !ok {
+		t.Fatalf("expected string payload, got %T", p)
+	}
+	return s
+}
 
 // VALIDATES: register stores a handler and dispatch invokes it once per event.
 // PREVENTS: silent handler loss or duplicate delivery in the engine subscriber registry.
@@ -19,9 +31,9 @@ func TestEngineSubscribersRegisterAndDispatch(t *testing.T) {
 		mu       sync.Mutex
 		received []string
 	)
-	id := subs.register("config", "verify-ok", func(event string) {
+	id := subs.register("config", "verify-ok", func(p any) {
 		mu.Lock()
-		received = append(received, event)
+		received = append(received, mustString(t, p))
 		mu.Unlock()
 	})
 	if id == 0 {
@@ -47,7 +59,7 @@ func TestEngineSubscribersUnregister(t *testing.T) {
 	subs := newEngineEventSubscribers()
 
 	var calls int
-	id := subs.register("config", "apply-ok", func(_ string) { calls++ })
+	id := subs.register("config", "apply-ok", func(_ any) { calls++ })
 
 	subs.dispatch("config", "apply-ok", `first`)
 	subs.unregister("config", "apply-ok", id)
@@ -64,8 +76,8 @@ func TestEngineSubscribersMultipleHandlersForSameEvent(t *testing.T) {
 	subs := newEngineEventSubscribers()
 
 	var calls1, calls2 int
-	subs.register("config", "rollback-ok", func(_ string) { calls1++ })
-	subs.register("config", "rollback-ok", func(_ string) { calls2++ })
+	subs.register("config", "rollback-ok", func(_ any) { calls1++ })
+	subs.register("config", "rollback-ok", func(_ any) { calls2++ })
 
 	subs.dispatch("config", "rollback-ok", `payload`)
 
@@ -89,7 +101,7 @@ func TestEngineSubscribersDispatchUnknownNoop(t *testing.T) {
 func TestEngineSubscribersHandlerCanUnregisterDuringDispatch(t *testing.T) {
 	subs := newEngineEventSubscribers()
 	var id uint64
-	id = subs.register("config", "committed", func(_ string) {
+	id = subs.register("config", "committed", func(_ any) {
 		subs.unregister("config", "committed", id)
 	})
 	subs.dispatch("config", "committed", `payload`)
@@ -110,10 +122,10 @@ func TestEngineSubscribersMidDispatchUnregisterTakesEffectNextDispatch(t *testin
 	var bCalls int
 
 	// Handler B records each invocation.
-	bID = subs.register("config", "applied", func(_ string) { bCalls++ })
+	bID = subs.register("config", "applied", func(_ any) { bCalls++ })
 
 	// Handler A unregisters B when invoked.
-	subs.register("config", "applied", func(_ string) {
+	subs.register("config", "applied", func(_ any) {
 		subs.unregister("config", "applied", bID)
 	})
 
@@ -153,7 +165,7 @@ func TestEngineSubscribersUnregisterZeroIsNoop(t *testing.T) {
 	subs := newEngineEventSubscribers()
 
 	var calls int
-	subs.register("config", "verify-ok", func(_ string) { calls++ })
+	subs.register("config", "verify-ok", func(_ any) { calls++ })
 
 	subs.unregister("config", "verify-ok", 0)
 	subs.dispatch("config", "verify-ok", `payload`)
@@ -171,10 +183,10 @@ func TestEngineSubscribersHandlerPanicRecovered(t *testing.T) {
 	subs := newEngineEventSubscribers()
 
 	var afterCalls int
-	subs.register("config", "verify-ok", func(_ string) {
+	subs.register("config", "verify-ok", func(_ any) {
 		panic("boom")
 	})
-	subs.register("config", "verify-ok", func(_ string) {
+	subs.register("config", "verify-ok", func(_ any) {
 		afterCalls++
 	})
 
@@ -195,7 +207,7 @@ func TestServerSubscribeEngineEventUnsub(t *testing.T) {
 	s := &Server{engineSubscribers: newEngineEventSubscribers()}
 
 	var calls int
-	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(_ string) { calls++ })
+	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(_ any) { calls++ })
 
 	s.dispatchEngineEvent("config", "verify-ok", `payload`)
 	if calls != 1 {
@@ -215,7 +227,7 @@ func TestServerSubscribeEngineEventUnsub(t *testing.T) {
 // Server was constructed without the registry.
 func TestServerSubscribeEngineEventNilRegistry(t *testing.T) {
 	s := &Server{} // engineSubscribers is nil
-	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(_ string) {})
+	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(_ any) {})
 	if unsub == nil {
 		t.Fatal("SubscribeEngineEvent returned nil unsub function")
 	}
@@ -249,8 +261,8 @@ func TestServerEmitEngineEventEndToEnd(t *testing.T) {
 	s := &Server{engineSubscribers: newEngineEventSubscribers()}
 
 	var got string
-	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(event string) {
-		got = event
+	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(p any) {
+		got = mustString(t, p)
 	})
 	defer unsub()
 
@@ -276,7 +288,7 @@ func TestServerEmitEngineEventRejectsUnknown(t *testing.T) {
 	s := &Server{engineSubscribers: newEngineEventSubscribers()}
 
 	var calls int
-	defer s.SubscribeEngineEvent("typo", "nonsense", func(_ string) { calls++ })()
+	defer s.SubscribeEngineEvent("typo", "nonsense", func(_ any) { calls++ })()
 
 	_, err := s.EmitEngineEvent("typo", "nonsense", `{}`)
 	if err == nil {
@@ -291,8 +303,10 @@ func TestServerEmitEngineEventRejectsUnknown(t *testing.T) {
 	}
 }
 
-// VALIDATES: EmitEngineEvent rejects empty namespace, event type, or event payload.
-// PREVENTS: deliverEvent's empty-check being bypassed by the engine path.
+// VALIDATES: EmitEngineEvent rejects empty namespace and event type. Empty
+// and nil payloads are valid under the typed-payload design (signal events
+// carry nil; empty string payload is a non-nil typed value).
+// PREVENTS: deliverEvent's empty-check regressing into payload rejection.
 func TestServerEmitEngineEventRejectsEmpty(t *testing.T) {
 	s := &Server{engineSubscribers: newEngineEventSubscribers()}
 
@@ -300,11 +314,10 @@ func TestServerEmitEngineEventRejectsEmpty(t *testing.T) {
 		name      string
 		namespace string
 		eventType string
-		event     string
+		event     any
 	}{
 		{"empty namespace", "", "verify-ok", `payload`},
 		{"empty event type", "config", "", `payload`},
-		{"empty event payload", "config", "verify-ok", ``},
 	}
 	for _, tc := range cases {
 		_, err := s.EmitEngineEvent(tc.namespace, tc.eventType, tc.event)
@@ -332,8 +345,8 @@ func TestEngineSubscribersNamespaceIsolation(t *testing.T) {
 	subs := newEngineEventSubscribers()
 
 	var configCalls, bgpCalls int
-	subs.register("config", "update", func(_ string) { configCalls++ })
-	subs.register("bgp", "update", func(_ string) { bgpCalls++ })
+	subs.register("config", "update", func(_ any) { configCalls++ })
+	subs.register("bgp", "update", func(_ any) { bgpCalls++ })
 
 	subs.dispatch("config", "update", `payload`)
 	if configCalls != 1 || bgpCalls != 0 {
@@ -343,6 +356,160 @@ func TestEngineSubscribersNamespaceIsolation(t *testing.T) {
 	subs.dispatch("bgp", "update", `payload`)
 	if configCalls != 1 || bgpCalls != 1 {
 		t.Errorf("after bgp dispatch: configCalls=%d bgpCalls=%d, want 1 1", configCalls, bgpCalls)
+	}
+}
+
+// VALIDATES: AC-2 — in-process subscriber receives the publisher's pointer
+// untouched. No JSON marshal happens for an engine-only delivery.
+// PREVENTS: a future change accidentally serializing the engine path.
+func TestServerEmitTypedPayloadInProcess(t *testing.T) {
+	s := &Server{engineSubscribers: newEngineEventSubscribers()}
+
+	type myPayload struct{ N int }
+	emitted := &myPayload{N: 42}
+
+	var got *myPayload
+	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(p any) {
+		v, ok := p.(*myPayload)
+		if !ok {
+			t.Errorf("expected *myPayload, got %T", p)
+			return
+		}
+		got = v
+	})
+	defer unsub()
+
+	if _, err := s.EmitEngineEvent(txevents.Namespace, "verify-ok", emitted); err != nil {
+		t.Fatalf("EmitEngineEvent: %v", err)
+	}
+	if got != emitted {
+		t.Errorf("subscriber received different pointer (got=%p emitted=%p)", got, emitted)
+	}
+}
+
+// VALIDATES: AC-3 — when no plugin-process subscribers exist, deliverEvent
+// does not invoke json.Marshal even for a non-string payload.
+// PREVENTS: regressing to eager marshal on every Emit.
+func TestServerEmitSkipsMarshalWhenNoExternalSubs(t *testing.T) {
+	s := &Server{engineSubscribers: newEngineEventSubscribers()}
+
+	// marshalCounter wraps a payload with a json.Marshaler that increments
+	// on every Marshal call. Because there are no plugin-process subscribers,
+	// the bus must not call it.
+	var marshalCalls int
+	payload := &marshalCounter{calls: &marshalCalls}
+
+	var fired bool
+	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(_ any) {
+		fired = true
+	})
+	defer unsub()
+
+	if _, err := s.EmitEngineEvent(txevents.Namespace, "verify-ok", payload); err != nil {
+		t.Fatalf("EmitEngineEvent: %v", err)
+	}
+	if !fired {
+		t.Error("engine subscriber did not fire")
+	}
+	if marshalCalls != 0 {
+		t.Errorf("MarshalJSON called %d times, want 0 (no external subs)", marshalCalls)
+	}
+}
+
+// marshalCounter satisfies json.Marshaler and counts calls so tests can
+// verify whether the bus invoked json.Marshal.
+type marshalCounter struct {
+	calls *int
+}
+
+func (m *marshalCounter) MarshalJSON() ([]byte, error) {
+	*m.calls++
+	return []byte(`"counter"`), nil
+}
+
+// VALIDATES: AC-6 — nil payload is a valid signal-only event. Handlers
+// receive nil; emit succeeds.
+// PREVENTS: a nil payload being rejected as "empty event".
+func TestServerEmitNilPayload(t *testing.T) {
+	s := &Server{engineSubscribers: newEngineEventSubscribers()}
+
+	var fired bool
+	var received any = "sentinel"
+	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(p any) {
+		fired = true
+		received = p
+	})
+	defer unsub()
+
+	if _, err := s.EmitEngineEvent(txevents.Namespace, "verify-ok", nil); err != nil {
+		t.Fatalf("EmitEngineEvent(nil): %v", err)
+	}
+	if !fired {
+		t.Error("engine subscriber did not fire on nil payload")
+	}
+	if received != nil {
+		t.Errorf("subscriber received %v, want nil", received)
+	}
+}
+
+// VALIDATES: empty-string payload flows through the bus to engine
+// subscribers under the new typed contract. The old deliverEvent guard
+// "event == ”" no longer exists; callers that need to forbid empty
+// payloads (e.g. ConfigEventGateway) gate at their own layer. This test
+// pins the new behavior so the guard cannot silently reappear.
+// PREVENTS: an accidental re-introduction of the empty-string rejection
+// breaking every replay-request style signal that used to emit "".
+func TestServerEmitEmptyStringPayload(t *testing.T) {
+	s := &Server{engineSubscribers: newEngineEventSubscribers()}
+
+	var got any = "sentinel"
+	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(p any) {
+		got = p
+	})
+	defer unsub()
+
+	delivered, err := s.EmitEngineEvent(txevents.Namespace, "verify-ok", "")
+	if err != nil {
+		t.Fatalf("EmitEngineEvent empty-string: %v", err)
+	}
+	if delivered != 0 {
+		t.Errorf("delivered = %d, want 0 (no plugin processes)", delivered)
+	}
+	s2, ok := got.(string)
+	if !ok {
+		t.Fatalf("subscriber received %T, want string", got)
+	}
+	if s2 != "" {
+		t.Errorf("subscriber received %q, want empty string", s2)
+	}
+}
+
+// VALIDATES: payloadToJSON returns "null" for nil, passes string and
+// json.RawMessage through, and marshals other types once.
+// PREVENTS: regressions where the lazy-marshal helper allocates twice
+// or mishandles the pre-marshaled paths.
+func TestPayloadToJSON(t *testing.T) {
+	cases := []struct {
+		name string
+		in   any
+		want string
+	}{
+		{"nil", nil, "null"},
+		{"string", `{"k":"v"}`, `{"k":"v"}`},
+		{"raw-message", json.RawMessage(`{"k":1}`), `{"k":1}`},
+		{"struct", struct {
+			A int `json:"a"`
+		}{A: 7}, `{"a":7}`},
+	}
+	for _, tc := range cases {
+		got, err := payloadToJSON(txevents.Namespace, "verify-ok", tc.in)
+		if err != nil {
+			t.Errorf("%s: payloadToJSON err = %v", tc.name, err)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("%s: payloadToJSON = %q, want %q", tc.name, got, tc.want)
+		}
 	}
 }
 
@@ -362,7 +529,7 @@ func TestEngineSubscribersConcurrentRegisterDispatch(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range iters {
-				id := subs.register("config", "verify-ok", func(_ string) {
+				id := subs.register("config", "verify-ok", func(_ any) {
 					atomic.AddInt64(&dispatched, 1)
 				})
 				subs.unregister("config", "verify-ok", id)

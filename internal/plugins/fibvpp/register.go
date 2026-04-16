@@ -10,6 +10,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
 	vppevents "codeberg.org/thomas-mangin/ze/internal/component/vpp/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	fibvppschema "codeberg.org/thomas-mangin/ze/internal/plugins/fibvpp/schema"
@@ -129,12 +130,12 @@ func runFibVPPPlugin(conn net.Conn) int {
 		// Subscribe to VPP lifecycle events for restart recovery.
 		eb := getEventBus()
 		if eb != nil {
-			vppUnsub = eb.Subscribe(vppevents.Namespace, vppevents.EventReconnected, func(_ string) {
+			vppUnsub = eb.Subscribe(vppevents.Namespace, vppevents.EventReconnected, events.AsString(func(_ string) {
 				lg.Info("fib-vpp: VPP reconnected, requesting replay")
 				if _, emitErr := eb.Emit(sysribevents.Namespace, sysribevents.EventReplayRequest, ""); emitErr != nil {
 					lg.Warn("fib-vpp: replay-request emit failed", "error", emitErr)
 				}
-			})
+			}))
 		}
 
 		go fib.run(ctx, false)

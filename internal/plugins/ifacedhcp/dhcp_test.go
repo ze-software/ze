@@ -18,8 +18,8 @@ import (
 // No methods are called in the error-path tests; only non-nil is needed.
 type stubEventBus struct{}
 
-func (stubEventBus) Emit(string, string, string) (int, error)                    { return 0, nil }
-func (stubEventBus) Subscribe(string, string, func(string)) (unsubscribe func()) { return func() {} }
+func (stubEventBus) Emit(string, string, any) (int, error)                    { return 0, nil }
+func (stubEventBus) Subscribe(string, string, func(any)) (unsubscribe func()) { return func() {} }
 
 func TestDhcpTopicToEventType(t *testing.T) {
 	t.Parallel()

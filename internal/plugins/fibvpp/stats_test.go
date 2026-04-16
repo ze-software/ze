@@ -1,7 +1,6 @@
 package fibvpp
 
 import (
-	"encoding/json"
 	"sync"
 	"testing"
 
@@ -62,13 +61,11 @@ func (r *fibTestRegistry) HistogramVec(_, _ string, _ []float64, _ []string) met
 	return nil
 }
 
-func makeBatch(changes ...incomingChange) string {
-	batch := incomingBatch{
+func makeBatch(changes ...incomingChange) *incomingBatch {
+	return &incomingBatch{
 		Family:  "ipv4/unicast",
 		Changes: changes,
 	}
-	data, _ := json.Marshal(batch)
-	return string(data)
 }
 
 // VALIDATES: AC-9 — ze_fibvpp_routes_installed gauge present.
