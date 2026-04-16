@@ -25,6 +25,13 @@ type kernelSetupEvent struct {
 	// Session parameters from ICCN/OCCN that affect kernel session creation.
 	lnsMode    bool // true for LNS-side (handleICCN), false for LAC-side (handleOCCN)
 	sequencing bool // from session.sequencingRequired
+
+	// RFC 2661 Section 18: proxy LCP AVPs from ICCN. Empty slices when
+	// the peer omitted the AVPs. Carried verbatim through the kernel
+	// worker into the success event so PPP can short-circuit LCP.
+	proxyInitialRecvLCPConfReq []byte
+	proxyLastSentLCPConfReq    []byte
+	proxyLastRecvLCPConfReq    []byte
 }
 
 // kernelTeardownEvent requests the kernel worker to destroy kernel
@@ -42,4 +49,25 @@ type kernelSetupFailed struct {
 	localTID uint16
 	localSID uint16
 	err      error
+}
+
+// kernelSetupSucceeded is sent from the kernel worker to the reactor
+// after setupSession completes. Carries the fds the PPP driver needs to
+// run a per-session goroutine, plus the session metadata so the reactor
+// can build a ppp.StartSession without re-locking the tunnel map.
+//
+// The reactor's run loop dispatches this to ppp.Driver.SessionsIn().
+type kernelSetupSucceeded struct {
+	localTID   uint16
+	localSID   uint16
+	lnsMode    bool
+	sequencing bool
+	fds        pppSessionFDs
+
+	// RFC 2661 Section 18: proxy LCP AVPs sourced from L2TPSession at the
+	// time the kernelSetupEvent was enqueued. Empty when the peer omitted
+	// them; PPP runs the full LCP negotiation.
+	proxyInitialRecvLCPConfReq []byte
+	proxyLastSentLCPConfReq    []byte
+	proxyLastRecvLCPConfReq    []byte
 }

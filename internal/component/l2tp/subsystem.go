@@ -13,8 +13,28 @@ import (
 	"log/slog"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+// ifaceBackendFn returns the active iface backend wrapped in the small
+// interface ppp.Driver consumes. Production wires iface.GetBackend();
+// if no backend is loaded the subsystem skips PPP driver construction.
+// Package-level var so a future test can swap it when a test-only
+// fake iface backend is introduced; no injector exists today.
+var ifaceBackendFn = defaultIfaceBackend
+
+// defaultIfaceBackend returns iface.GetBackend() typed as ppp.IfaceBackend
+// when one is loaded; nil when none. The PPP driver is only constructed
+// when this returns non-nil so MTU-set on pppN is always reachable.
+func defaultIfaceBackend() ppp.IfaceBackend {
+	b := iface.GetBackend()
+	if b == nil {
+		return nil
+	}
+	return b
+}
 
 // Compile-time interface check: Subsystem must satisfy ze.Subsystem.
 var _ ze.Subsystem = (*Subsystem)(nil)
@@ -44,6 +64,7 @@ type Subsystem struct {
 	reactors      []*L2TPReactor
 	timers        []*tunnelTimer
 	kernelWorkers []*kernelWorker
+	pppDrivers    []*ppp.Driver
 }
 
 // NewSubsystem constructs an L2TP subsystem from parsed Parameters. The returned
@@ -118,13 +139,39 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 		// first reads kernelErrCh. Worker may be nil on non-Linux or when
 		// genl resolve fails -- the reactor handles that gracefully.
 		//
-		// errCh has a single sender (the worker) and a single reader (the
-		// reactor's run loop). It is never closed: GC reclaims it when both
-		// goroutines exit during Stop. Closing would race with the worker's
-		// reportError select.
+		// errCh and successCh each have a single sender (the worker) and a
+		// single reader (the reactor's run loop). They are never closed: GC
+		// reclaims them when both goroutines exit during Stop. Closing
+		// would race with the worker's report selects.
 		errCh := make(chan kernelSetupFailed, 16)
-		worker := newSubsystemKernelWorker(errCh, s.logger)
-		reactor.SetKernelWorker(worker, errCh)
+		successCh := make(chan kernelSetupSucceeded, 16)
+		worker := newSubsystemKernelWorker(errCh, successCh, s.logger)
+		reactor.SetKernelWorker(worker, errCh, successCh)
+
+		// Phase 6a: construct a PPP driver if an iface backend is loaded.
+		// The driver owns per-session goroutines that drive LCP and (in
+		// later specs) auth + NCPs. Skip when no backend is available
+		// (test paths, non-Linux, init order); the reactor logs a warning
+		// when a kernelSetupSucceeded arrives without a driver.
+		var pppDriver *ppp.Driver
+		if backend := ifaceBackendFn(); backend != nil {
+			pppDriver = ppp.NewProductionDriver(s.logger.With("component", "ppp"), backend)
+			reactor.SetPPPDriver(pppDriver)
+		}
+
+		// Start ordering: PPP driver before the kernel worker so any
+		// success event the worker emits has a consumer ready, and both
+		// before the reactor so its select arms have live channels.
+		if pppDriver != nil {
+			if err := pppDriver.Start(); err != nil {
+				startErr := fmt.Errorf("l2tp: start PPP driver for %s: %w", addr, err)
+				if stopErr := ln.Stop(); stopErr != nil {
+					startErr = errors.Join(startErr, fmt.Errorf("l2tp: close listener %s: %w", addr, stopErr))
+				}
+				s.unwindLocked()
+				return startErr
+			}
+		}
 		if worker != nil {
 			worker.Start()
 		}
@@ -132,6 +179,9 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 		if err := reactor.Start(); err != nil {
 			if worker != nil {
 				worker.Stop()
+			}
+			if pppDriver != nil {
+				pppDriver.Stop()
 			}
 			reactorErr := fmt.Errorf("l2tp: start reactor for %s: %w", addr, err)
 			if stopErr := ln.Stop(); stopErr != nil {
@@ -146,6 +196,9 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 			if worker != nil {
 				worker.Stop()
 			}
+			if pppDriver != nil {
+				pppDriver.Stop()
+			}
 			timerErr := fmt.Errorf("l2tp: start timer for %s: %w", addr, err)
 			if stopErr := ln.Stop(); stopErr != nil {
 				timerErr = errors.Join(timerErr, fmt.Errorf("l2tp: close listener %s: %w", addr, stopErr))
@@ -157,6 +210,7 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 		s.reactors = append(s.reactors, reactor)
 		s.timers = append(s.timers, timer)
 		s.kernelWorkers = append(s.kernelWorkers, worker)
+		s.pppDrivers = append(s.pppDrivers, pppDriver)
 		s.logger.Info("L2TP listener bound", "address", ln.Addr().String())
 	}
 	s.started = true
@@ -167,12 +221,15 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 // called with s.mu held. Errors are joined so the caller can surface them
 // all without suppressing any.
 //
-// Order matters. Stop the reactors and timers BEFORE the kernel workers so
-// no new kernelSetupEvents can be enqueued mid-teardown. Then TeardownAll
-// drains kernel state and Stop signals the worker goroutine to exit. The
-// listener is closed last because the kernel data plane (programmed via
-// the worker's socketFD) holds a kernel-side reference until tunnel delete
-// completes.
+// Order matters. Stop timers and reactors BEFORE the PPP drivers so no new
+// ppp.StartSession writes land on pppDriver.SessionsIn() mid-teardown.
+// Stop the PPP drivers BEFORE the kernel workers: the kernel worker owns
+// the fds, and pppDriver.Stop closes them from the PPP side; the kernel
+// worker's TeardownAll is idempotent against double-close via closeFD
+// error logging. Then TeardownAll drains kernel state and Stop signals
+// the worker goroutine to exit. The listener is closed last because the
+// kernel data plane (programmed via the worker's socketFD) holds a
+// kernel-side reference until tunnel delete completes.
 func (s *Subsystem) unwindLocked() {
 	var errs []error
 	// Timers first: they send on reactor channels, so stop them before
@@ -180,14 +237,29 @@ func (s *Subsystem) unwindLocked() {
 	for _, t := range s.timers {
 		t.Stop()
 	}
-	// Reactors next: after this returns, no new packets are dispatched
-	// and no new kernelSetupEvents are enqueued.
+	// Reactors next: after this returns, no new packets are dispatched,
+	// no new kernelSetupEvents are enqueued, and no new ppp.StartSession
+	// writes land on pppDriver.SessionsIn().
 	for _, r := range s.reactors {
 		r.Stop()
 	}
-	// Kernel workers: drain any in-flight setup events (TeardownAll waits
-	// for setupSession to release w.mu, then deletes everything it knows
-	// about), then signal the worker goroutine to exit.
+	// PPP drivers: close every active session's chan fd (blocking reads
+	// return EBADF, per-session goroutines exit), wait for them.
+	for _, d := range s.pppDrivers {
+		if d != nil {
+			d.Stop()
+		}
+	}
+	// Kernel workers: SignalStop first to break any in-flight
+	// setupSession out of its successCh/errCh channel-send select BEFORE
+	// TeardownAll acquires w.mu; otherwise a blocked report would hold
+	// w.mu forever. Then TeardownAll drains kernel state, and Stop
+	// finally reaps the worker goroutine.
+	for _, kw := range s.kernelWorkers {
+		if kw != nil {
+			kw.SignalStop()
+		}
+	}
 	for _, kw := range s.kernelWorkers {
 		if kw != nil {
 			kw.TeardownAll()
@@ -201,6 +273,7 @@ func (s *Subsystem) unwindLocked() {
 			errs = append(errs, err)
 		}
 	}
+	s.pppDrivers = nil
 	s.kernelWorkers = nil
 	s.timers = nil
 	s.reactors = nil
@@ -223,14 +296,27 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	s.logger.Info("L2TP subsystem stopping")
 
 	var errs []error
-	// Same order as unwindLocked. Reactors stop before workers so no new
-	// kernelSetupEvents land in eventCh after TeardownAll, satisfying
-	// AC-14: every kernel resource is torn down before Stop() returns.
+	// Same order as unwindLocked. Reactors stop before PPP drivers and
+	// workers so no new kernelSetupEvents / ppp.StartSession dispatches
+	// land after TeardownAll, satisfying AC-14: every kernel resource is
+	// torn down before Stop() returns.
 	for _, t := range s.timers {
 		t.Stop()
 	}
 	for _, r := range s.reactors {
 		r.Stop()
+	}
+	for _, d := range s.pppDrivers {
+		if d != nil {
+			d.Stop()
+		}
+	}
+	// Same SignalStop-first pattern as unwindLocked: release w.mu holders
+	// before TeardownAll acquires the lock.
+	for _, kw := range s.kernelWorkers {
+		if kw != nil {
+			kw.SignalStop()
+		}
 	}
 	for _, kw := range s.kernelWorkers {
 		if kw != nil {
@@ -243,6 +329,7 @@ func (s *Subsystem) Stop(_ context.Context) error {
 			errs = append(errs, err)
 		}
 	}
+	s.pppDrivers = nil
 	s.kernelWorkers = nil
 	s.timers = nil
 	s.reactors = nil

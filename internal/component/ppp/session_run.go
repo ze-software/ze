@@ -117,6 +117,10 @@ func (s *pppSession) run(start StartSession) {
 	}
 	s.magic = mag
 
+	// RFC 2661 Section 18: when the peer LAC provides Initial-Received-
+	// LCP-CONFREQ, Last-Sent-LCP-CONFREQ, and Last-Received-LCP-CONFREQ
+	// AVPs in ICCN, the LNS MAY skip LCP negotiation and use the
+	// proxied options as if they had been negotiated directly.
 	proxy, perr := EvaluateProxyLCP(
 		start.ProxyLCPInitialRecv, start.ProxyLCPLastSent, start.ProxyLCPLastRecv,
 	)
@@ -678,6 +682,16 @@ func (s *pppSession) sendTerminateAck(req LCPPacket) bool {
 	return s.writeFrame(buf[:off])
 }
 
+// sendCodeReject replies with an LCP Code-Reject when an unknown or
+// unsupported Code is received in a valid LCP packet.
+//
+// RFC 1661 §5.7: "Reception of a Code-Reject of a code which is
+// fundamental to this version of the protocol indicates an
+// implementation which is running a catastrophically different
+// version... In this case, the implementation SHOULD report the
+// problem and drop the connection". The rejected packet's original
+// Code, Identifier, Length, and Data are included in the Rejected-
+// Packet field verbatim so the peer can identify what was rejected.
 func (s *pppSession) sendCodeReject(req LCPPacket) bool {
 	body := make([]byte, lcpHeaderLen+len(req.Data))
 	body[0] = req.Code

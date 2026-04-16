@@ -3,6 +3,16 @@
 Pre-existing failures that need fixing. Each entry includes failure output and root-cause hypothesis.
 Sessions should attempt to fix entries here before logging new ones.
 
+## plugin test 272 watchdog (flake under parallel load) -- LOGGED 2026-04-16
+
+**File:** `test/plugin/watchdog.ci`
+**Symptom:** Output `mismatch` under `make ze-verify-fast` (parallel mode); passes in isolation (`bin/ze-test bgp plugin 272`, 3.8s).
+**Reproduction:**
+- FAILS: `make ze-verify-fast` occasionally on first run; retries pass.
+- PASSES: `bin/ze-test bgp plugin 272` in isolation, every run.
+**Hypothesis:** Same class as the bfd-auth-meticulous-persist and nexthop flakes: peer-tool timing against scripted BGP sessions under parallel CPU load. The watchdog test asserts a specific session outcome that may arrive out-of-order when the tester's event loop is preempted.
+**Not caused by spec-l2tp-6a PPP work (2026-04-16) -- verified orthogonal; watchdog is BGP peering, no PPP code path touched. Repro is 1-in-2 under `make ze-verify-fast`; clean re-runs pass.**
+
 ## bfd-auth-meticulous-persist (flake under parallel load) -- 2026-04-15
 
 **File:** `test/plugin/bfd-auth-meticulous-persist.ci`

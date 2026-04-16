@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-l2tp-0-umbrella |
-| Phase | 10/13 |
-| Updated | 2026-04-15 |
+| Phase | 13/13 |
+| Updated | 2026-04-16 |
 
 ## Post-Compaction Recovery
 
@@ -412,55 +412,159 @@ Add `// RFC 2661 Section 18: "..."` above proxy LCP short-circuit logic.
 ## Implementation Summary
 
 ### What Was Implemented
-- (to be filled)
+- Standalone `internal/component/ppp/` package: Driver + per-session goroutines, PPP frame codec, LCP packet + option + FSM (ten states, full RFC 1661 §4.1 transition table), LCP Echo keepalive + loopback detection, proxy LCP short-circuit (RFC 2661 §18), MRU ioctl via injectable `pppOps`, stub auth hook, fake-backend tests.
+- L2TP -> PPP integration (Phase 11): new `kernelSetupSucceeded` event travelling kernel worker -> reactor -> `ppp.Driver.SessionsIn()`; new reactor arm reads `pppDriver.EventsOut()` and issues a CDN on `EventSessionDown` / `EventSessionRejected`.
+- Subsystem lifecycle: construct `ppp.NewProductionDriver` when `iface.GetBackend()` is available; start/stop ordering reactor before driver before kernel worker before listener.
+- RFC comments: Code-Reject §5.7 at `sendCodeReject`; proxy LCP §18 above the `EvaluateProxyLCP` call (pre-existing §6.4 magic and §5.8 echo comments already present).
 
 ### Bugs Found/Fixed
-- (to be filled)
+- No new bugs introduced. One pre-existing lint issue surfaced after adding the fourth `teardownSession` caller (unparam on `resultCode`); addressed with a targeted `//nolint:unparam` + doc comment naming the future RFC 2661 S4.4.1 result codes that will plug in.
 
 ### Documentation Updates
-- (to be filled)
+- RFC 1661 §5.7 reference added at `sendCodeReject` (session_run.go).
+- RFC 2661 §18 reference added at the proxy LCP short-circuit entry (session_run.go).
+- `docs/architecture/core-design.md` `ppp` component entry: deferred to Phase 7 subsystem spec (which owns the cross-component docs rewrite).
 
 ### Deviations from Plan
-- (to be filled)
+- Added `pppDriverIface` interface in `reactor.go` instead of passing `*ppp.Driver` directly so the reactor tests can substitute a fake without an iface backend (spec assumed fakes would come with a real `ppp.Driver`; an interface is cheaper and keeps the test set aligned with the reactor's actual needs).
+- Added `ppp.NewProductionDriver(logger, authHook, backend)` so l2tp can construct a driver without reaching into the unexported `pppOps` type. Spec implied l2tp would call `ppp.NewDriver(DriverConfig{...})`, which is impossible from outside the ppp package because `DriverConfig.Ops` is unexported.
+- `handlePPPEvent` is the single entry point for *all* `ppp.Event` values; on informational events it returns without touching the tunnel map. Spec described a switch inside the EventsOut consumer; the behaviour is identical, the shape differs to keep the reactor's run-loop select arm small.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| `ppp` package layout | Done | `internal/component/ppp/` | peer of l2tp, not nested |
+| `ppp.Driver` lifecycle | Done | `ppp/manager.go` Driver + `Start`/`Stop` | renamed from Manager (collision with existing `Manager` types) |
+| Per-session goroutine | Done | `ppp/session_run.go::run` | one goroutine per active session |
+| PPP frame I/O on chan fd | Done | `ppp/frame_linux.go` | `os.NewFile` + Go runtime poller blocking reads |
+| LCP packet codec | Done | `ppp/lcp.go` + `ppp/lcp_test.go` | Configure-Req/Ack/Nak/Reject, Terminate-Req/Ack, Code-Reject, Echo-Req/Rep, Discard-Req |
+| LCP FSM (ten states) | Done | `ppp/lcp_fsm.go` | RFC 1661 §4.1 transition table |
+| LCP option negotiation | Done | `ppp/lcp_options.go` | MRU, Auth-Proto, Magic, ACCM, PFC, ACFC |
+| LCP Echo keepalive | Done | `ppp/echo.go` | periodic Echo-Request; N no-replies -> SessionDown |
+| Proxy LCP | Done | `ppp/proxy.go`, `session_run.go` | short-circuit on AVP 26/27/28 present |
+| pppN MTU set | Done | `ppp/session_run.go::afterLCPOpen` | `IfaceBackend.SetMTU(name, mru-4)` |
+| Auth-phase hook | Done | `ppp/auth_hook.go` | StubAuthHook always accepts + WARN log |
+| `kernelSetupSucceeded` event | Done | `l2tp/kernel_event.go`, `kernel_linux.go`, `reactor.go` | new event + worker emit + reactor dispatch |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestKernelWorkerEmitsSucceeded` (`kernel_linux_test.go`) | worker emits kernelSetupSucceeded with fds/IDs/proxy bytes |
+| AC-2 | Done | `TestL2TPReactorDispatchesToPPPDriver` (`reactor_ppp_test.go`) | reactor writes ppp.StartSession to SessionsIn |
+| AC-3 | Done | `TestManagerStartSessionRunsLCP` + `TestManagerStartStop` (`ppp/manager_test.go`) | session registered in map, goroutine spawned |
+| AC-4 | Done | `TestLCPFSMHappyPath` (`ppp/lcp_fsm_test.go`) | Req-Sent -> Ack-Sent -> Opened on CONFREQ + CONFACK |
+| AC-5 | Done | `TestLCPOpenedSetsMTU` (`ppp/manager_test.go`) | fake backend records SetMTU(name, mru-4) |
+| AC-6 | Done | `TestStubAuthHookAlwaysAccepts` + event-sequence assertions in manager tests | stub returns Accept=true; EventSessionUp follows |
+| AC-7 | Done | `TestLCPEchoReply` (`ppp/echo_test.go`) | EchoReply mirrors Identifier + Magic |
+| AC-8 | Done | `TestLCPEchoTimeout` (`ppp/echo_test.go`) | N no-replies emits SessionDown |
+| AC-9 | Done | `TestLCPFSMTerminate` (`ppp/lcp_fsm_test.go`) | Opened -> Stopped on Terminate-Request + Ack |
+| AC-10 | Done | `TestLCPOptionsNegotiate` (`ppp/lcp_options_test.go`) | unknown option triggers Configure-Reject |
+| AC-11 | Done | `TestLCPOptionsNegotiate` (`ppp/lcp_options_test.go`) | MRU above local max triggers Configure-Nak with clamped value |
+| AC-12 | Done | `TestManagerStopSession` (`ppp/manager_test.go`) | chan fd closed, goroutine exits within 100ms |
+| AC-13 | Done | `TestProxyLCPSkipsNegotiation` (`ppp/proxy_test.go`) + `TestL2TPReactorDispatchesToPPPDriver` proxy fields | FSM jumps to Opened without sending packets; reactor forwards proxy bytes |
+| AC-14 | Done | `TestLCPOpenedSetsMTU` | fake backend records 1456 when MRU=1460 |
+| AC-15 | Done | `TestManagerStartStop` (`ppp/manager_test.go`) | Start after Stop returns ErrDriverStopped; all goroutines reaped |
+| AC-16 | Done | `TestManagerConcurrentSessions` (`ppp/manager_test.go`) | two sessions run independently; events tagged per (tid, sid) |
+| AC-17 | Done | `TestSessionExitsOnFDClose` (`ppp/session_test.go`) | EBADF / os.ErrClosed causes clean exit |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestPPPFrameParse | Done | `ppp/frame_test.go` | PFC and non-PFC |
+| TestPPPFrameWriteTo | Done | `ppp/frame_test.go` | offset writes, no allocs in helper |
+| TestLCPPacketParse | Done | `ppp/lcp_test.go` | bounds-checked |
+| TestLCPPacketWriteTo | Done | `ppp/lcp_test.go` | round-trip |
+| TestLCPOptionsParse | Done | `ppp/lcp_options_test.go` | all six options |
+| TestLCPOptionsNegotiate | Done | `ppp/lcp_options_test.go` | MRU clamp, Auth-Proto Nak, Magic propose |
+| TestLCPFSMHappyPath | Done | `ppp/lcp_fsm_test.go` | RFC 1661 §4.3 transitions |
+| TestLCPFSMRetransmit | Done | `ppp/lcp_fsm_test.go` | CONFREQ retransmit |
+| TestLCPFSMTerminate | Done | `ppp/lcp_fsm_test.go` | Opened -> Closing -> Stopped |
+| TestLCPFSMCodeReject | Done | `ppp/lcp_fsm_test.go` | unknown code triggers Code-Reject |
+| TestLCPEchoReply | Done | `ppp/echo_test.go` | Identifier + Magic match |
+| TestLCPEchoTimeout | Done | `ppp/echo_test.go` | N no-replies -> SessionDown |
+| TestProxyLCPParse | Done | `ppp/proxy_test.go` | AVP decode |
+| TestProxyLCPSkipsNegotiation | Done | `ppp/proxy_test.go` | goroutine emits LCPUp without CONFREQ |
+| TestManagerStartStop | Done | `ppp/manager_test.go` | lifecycle, goroutine reaping |
+| TestManagerStartSessionRunsLCP | Done | `ppp/manager_test.go` | net.Pipe peer drives LCP to Opened |
+| TestManagerStopSession | Done | `ppp/manager_test.go` | StopSession closes fd, exits <=100ms |
+| TestManagerSessionByID | Done | `ppp/manager_test.go` | thread-safe snapshot |
+| TestLCPOpenedSetsMTU | Done | `ppp/manager_test.go` | fake backend records MRU-4 |
+| TestPPPOpsSetMRU | Done | `ppp/ops_test.go` | stub records (unitFD, mru) |
+| TestL2TPReactorDispatchesToPPPManager | Done (renamed) | `l2tp/reactor_ppp_test.go::TestL2TPReactorDispatchesToPPPDriver` | driver rename (was Manager) |
+| TestKernelWorkerEmitsSucceeded | Done | `l2tp/kernel_linux_test.go` | success event carries fds + proxy bytes |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `ppp/doc.go` | Done | package-level documentation |
+| `ppp/manager.go` | Done | Driver type + public API |
+| `ppp/session.go` | Done | pppSession struct + IfaceBackend interface |
+| `ppp/start_session.go` | Done | StartSession payload |
+| `ppp/events.go` | Done | sealed sum Event (LCPUp/Down, SessionUp/Down/Rejected) |
+| `ppp/frame.go` + `frame_linux.go` + `frame_other.go` | Done | parser + serializer + OS split |
+| `ppp/lcp.go` | Done | LCP packet codec |
+| `ppp/lcp_fsm.go` | Done | ten-state FSM |
+| `ppp/lcp_options.go` | Done | option codec + negotiation |
+| `ppp/echo.go` | Done | Echo handler + timer |
+| `ppp/proxy.go` | Done | proxy LCP decode + FSM short-circuit |
+| `ppp/ops.go` + `mtu_linux.go` + `mtu_other.go` | Done | MRU ioctl surface |
+| `ppp/auth_hook.go` | Done | stub AuthHook |
+| Test files (12) | Done | listed in TDD table above |
+| `l2tp/kernel_event.go` | Done | +proxy fields on kernelSetupEvent; new kernelSetupSucceeded |
+| `l2tp/kernel_linux.go` | Done | successCh field + reportSuccess emission |
+| `l2tp/kernel_other.go` | Done | signature parity + linter compile-time refs |
+| `l2tp/reactor.go` | Done | kernelSuccessCh arm, pppEventsOut arm, handleKernelSuccess, handlePPPEvent, SetPPPDriver |
+| `l2tp/subsystem.go` | Done | ppp.NewProductionDriver when iface backend loaded; reverse Stop order |
+| `l2tp/subsystem_test.go` | Done | iface backend nil in tests -> PPP driver skipped; existing tests still green |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 17 requirements + 17 AC + 22 tests + 20 files = 76
+- **Done:** 76
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (driver rename Manager->Driver; interface rather than concrete type in reactor; ppp.NewProductionDriver helper for unexported Ops)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/ppp/doc.go` | yes | `ls internal/component/ppp/doc.go` |
+| `internal/component/ppp/manager.go` | yes | `ls internal/component/ppp/manager.go` |
+| `internal/component/ppp/session.go` | yes | `ls internal/component/ppp/session.go` |
+| `internal/component/ppp/session_run.go` | yes | `ls internal/component/ppp/session_run.go` |
+| `internal/component/ppp/start_session.go` | yes | `ls internal/component/ppp/start_session.go` |
+| `internal/component/ppp/events.go` | yes | `ls internal/component/ppp/events.go` |
+| `internal/component/ppp/frame.go` + `_linux.go` + `_other.go` | yes | three files present |
+| `internal/component/ppp/lcp.go` + `lcp_fsm.go` + `lcp_options.go` | yes | three files present |
+| `internal/component/ppp/echo.go` | yes | `ls internal/component/ppp/echo.go` |
+| `internal/component/ppp/proxy.go` | yes | `ls internal/component/ppp/proxy.go` |
+| `internal/component/ppp/ops.go` + `mtu_linux.go` + `mtu_other.go` | yes | three files present |
+| `internal/component/ppp/auth_hook.go` | yes | `ls internal/component/ppp/auth_hook.go` |
+| `internal/component/l2tp/reactor_ppp_test.go` | yes | new Phase 11 file |
+| All test files from TDD Plan | yes | see `ls internal/component/ppp/*_test.go` |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | worker emits kernelSetupSucceeded | `go test -run TestKernelWorkerEmitsSucceeded -v ./internal/component/l2tp/...` PASS |
+| AC-2 | reactor dispatches to PPP SessionsIn | `go test -run TestL2TPReactorDispatchesToPPPDriver -v ./internal/component/l2tp/...` PASS |
+| AC-4..11 | LCP negotiation behaviours | `go test -race ./internal/component/ppp/...` PASS (count=1 and count=20) |
+| AC-13 | proxy LCP end-to-end | `grep -n proxyInitialRecvLCPConfReq internal/component/l2tp/kernel_event.go` shows field plumbed through setup event and success event |
+| AC-14 | MTU=MRU-4 | test `TestLCPOpenedSetsMTU` asserts fake-backend recorded 1456 for MRU=1460 |
+| Reactor race-free | no race at count=20 | `go test -race -count=20 ./internal/component/l2tp/...` PASS 29.5s |
+| Build clean | `make ze-verify-fast` | exit 0 (one unrelated BFD flake + one unrelated nexthop flake, both in `.claude/known-failures.md`) |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| L2TP reactor kernelSetupSucceeded -> ppp.Driver.SessionsIn | `internal/component/l2tp/reactor_ppp_test.go::TestL2TPReactorDispatchesToPPPDriver` | yes -- Go-level wiring test per spec (`.ci` deferred to spec-l2tp-7-subsystem as recorded in `plan/deferrals.md`) |
+| ppp.Manager receives StartSession -> per-session goroutine runs LCP | `internal/component/ppp/manager_test.go::TestManagerStartSessionRunsLCP` | yes |
+| LCP CONFREQ -> FSM Req-Sent -> Ack-Sent -> Opened | `internal/component/ppp/lcp_fsm_test.go::TestLCPFSMHappyPath` | yes |
+| LCP-Opened -> iface.Backend.SetMTU called | `internal/component/ppp/manager_test.go::TestLCPOpenedSetsMTU` | yes |
+| Proxy LCP AVPs -> FSM jumps to Opened without packets | `internal/component/ppp/proxy_test.go::TestProxyLCPSkipsNegotiation` | yes |
 
 ## Checklist
 

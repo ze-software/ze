@@ -421,6 +421,13 @@ func (t *L2TPTunnel) handleSLI(sessionID uint16, payload []byte, logger *slog.Lo
 
 // teardownSession sends a CDN for the given session and removes it from the
 // tunnel's session map. Used when we detect an error during session setup.
+//
+// resultCode stays parameterised even though every current caller passes
+// cdnResultGeneralError: RFC 2661 S4.4.1 defines distinct codes (admin
+// shutdown, busy, no-bearer, no-bandwidth) that will be routed to this
+// function once the corresponding events are wired.
+//
+//nolint:unparam // see doc comment: future RFC 2661 result codes plug in here
 func (t *L2TPTunnel) teardownSession(sess *L2TPSession, resultCode uint16, now time.Time, logger *slog.Logger) []sendRequest {
 	bodyBuf := GetBuf()
 	defer PutBuf(bodyBuf)

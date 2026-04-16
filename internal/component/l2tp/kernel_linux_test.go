@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 // fakeKernelOps records calls and lets tests inject failures at any
@@ -92,14 +94,26 @@ func discardLogger() *slog.Logger {
 }
 
 // newTestWorker builds a kernelWorker around the given fake ops and
-// returns (worker, errCh). Caller must Stop the worker.
+// returns (worker, errCh). Caller must Stop the worker. successCh is
+// allocated here so callers wanting to assert success events can receive
+// on it; exposed via newTestWorkerWithSuccess.
 func newTestWorker(t *testing.T, fake *fakeKernelOps) (*kernelWorker, chan kernelSetupFailed) {
 	t.Helper()
+	w, errCh, _ := newTestWorkerWithSuccess(t, fake)
+	return w, errCh
+}
+
+// newTestWorkerWithSuccess is like newTestWorker but also returns the
+// success channel. Tests that assert kernelSetupSucceeded events receive
+// on the returned successCh.
+func newTestWorkerWithSuccess(t *testing.T, fake *fakeKernelOps) (*kernelWorker, chan kernelSetupFailed, chan kernelSetupSucceeded) {
+	t.Helper()
 	errCh := make(chan kernelSetupFailed, 4)
-	w := newKernelWorker(fake.ops(), errCh, discardLogger())
+	successCh := make(chan kernelSetupSucceeded, 4)
+	w := newKernelWorker(fake.ops(), errCh, successCh, discardLogger())
 	w.Start()
 	t.Cleanup(w.Stop)
-	return w, errCh
+	return w, errCh, successCh
 }
 
 // setupEvent builds a synthetic kernelSetupEvent with sensible defaults.
@@ -393,4 +407,62 @@ func TestKernelWorkerStopIdempotent(t *testing.T) {
 
 	w.Stop()
 	w.Stop() // must not panic
+}
+
+func TestKernelWorkerEmitsSucceeded(t *testing.T) {
+	// VALIDATES: AC-1 -- after setupSession completes, the worker writes
+	// a kernelSetupSucceeded event carrying the fds, IDs, lnsMode,
+	// sequencing, and the proxy LCP bytes that arrived on the setup event.
+	// PREVENTS: kernel setup succeeding silently with no downstream PPP
+	// dispatch, leaving sessions established at L2TP but never reaching
+	// LCP negotiation.
+	fake := &fakeKernelOps{
+		pppSetupResult: &pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
+	}
+	w, _, successCh := newTestWorkerWithSuccess(t, fake)
+
+	ev := setupEvent(100, 1001)
+	ev.sequencing = true
+	ev.proxyInitialRecvLCPConfReq = []byte{0x01, 0x02, 0x03}
+	ev.proxyLastSentLCPConfReq = []byte{0x04, 0x05}
+	ev.proxyLastRecvLCPConfReq = []byte{0x06}
+	w.Enqueue(ev)
+
+	select {
+	case succ := <-successCh:
+		require.Equal(t, uint16(100), succ.localTID)
+		require.Equal(t, uint16(1001), succ.localSID)
+		require.True(t, succ.lnsMode)
+		require.True(t, succ.sequencing)
+		require.Equal(t, 30, succ.fds.pppoxFD)
+		require.Equal(t, 31, succ.fds.chanFD)
+		require.Equal(t, 32, succ.fds.unitFD)
+		require.Equal(t, 7, succ.fds.unitNum)
+		require.Equal(t, []byte{0x01, 0x02, 0x03}, succ.proxyInitialRecvLCPConfReq)
+		require.Equal(t, []byte{0x04, 0x05}, succ.proxyLastSentLCPConfReq)
+		require.Equal(t, []byte{0x06}, succ.proxyLastRecvLCPConfReq)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for kernelSetupSucceeded")
+	}
+}
+
+func TestKernelWorkerSucceededCoexistsWithNilChannel(t *testing.T) {
+	// VALIDATES: when successCh is nil (e.g., tests that only care about
+	// failure paths), a successful setup does not panic and does not
+	// block the worker's run loop.
+	// PREVENTS: regressions in the existing teardown/failure tests that
+	// still use newTestWorker (no successCh exposed).
+	fake := &fakeKernelOps{}
+	errCh := make(chan kernelSetupFailed, 4)
+	w := newKernelWorker(fake.ops(), errCh, nil, discardLogger())
+	w.Start()
+	t.Cleanup(w.Stop)
+
+	w.Enqueue(setupEvent(100, 1001))
+
+	waitFor(t, func() bool {
+		fake.mu.Lock()
+		defer fake.mu.Unlock()
+		return len(fake.pppSetups) == 1
+	}, "pppSetup called even without successCh")
 }

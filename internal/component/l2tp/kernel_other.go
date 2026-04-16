@@ -21,6 +21,9 @@ func (w *kernelWorker) TeardownAll() {}
 // Stop is a no-op on non-Linux.
 func (w *kernelWorker) Stop() {}
 
+// SignalStop is a no-op on non-Linux.
+func (w *kernelWorker) SignalStop() {}
+
 // Start is a no-op on non-Linux.
 func (w *kernelWorker) Start() {}
 
@@ -31,7 +34,7 @@ func probeKernelModules() error { return nil }
 // newSubsystemKernelWorker returns nil on non-Linux. The reactor checks
 // for nil before using the worker, so the userspace control path still
 // functions; sessions simply cannot program the kernel data plane.
-func newSubsystemKernelWorker(_ chan<- kernelSetupFailed, _ *slog.Logger) *kernelWorker {
+func newSubsystemKernelWorker(_ chan<- kernelSetupFailed, _ chan<- kernelSetupSucceeded, _ *slog.Logger) *kernelWorker {
 	return nil
 }
 
@@ -47,6 +50,9 @@ var _ = func() {
 	_ = s.socketFD
 	_ = s.lnsMode
 	_ = s.sequencing
+	_ = s.proxyInitialRecvLCPConfReq
+	_ = s.proxyLastSentLCPConfReq
+	_ = s.proxyLastRecvLCPConfReq
 	var t kernelTeardownEvent
 	_ = t.localTID
 	_ = t.localSID
@@ -54,4 +60,13 @@ var _ = func() {
 	_ = f.localTID
 	_ = f.localSID
 	_ = f.err
+	var ok kernelSetupSucceeded
+	_ = ok.localTID
+	_ = ok.localSID
+	_ = ok.lnsMode
+	_ = ok.sequencing
+	_ = ok.fds
+	_ = ok.proxyInitialRecvLCPConfReq
+	_ = ok.proxyLastSentLCPConfReq
+	_ = ok.proxyLastRecvLCPConfReq
 }

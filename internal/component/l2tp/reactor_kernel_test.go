@@ -70,10 +70,11 @@ func TestReactorCollectsKernelSetupEvent(t *testing.T) {
 
 	fake := &fakeKernelOps{}
 	errCh := make(chan kernelSetupFailed, 4)
-	w := newKernelWorker(fake.ops(), errCh, r.logger)
+	successCh := make(chan kernelSetupSucceeded, 4)
+	w := newKernelWorker(fake.ops(), errCh, successCh, r.logger)
 	w.Start()
 	defer w.Stop()
-	r.SetKernelWorker(w, errCh)
+	r.SetKernelWorker(w, errCh, successCh)
 
 	peer := netip.MustParseAddrPort("10.0.0.7:1701")
 	tun := mkTunnel(r, 100, 200, peer)
@@ -112,10 +113,11 @@ func TestReactorCollectsTeardownEvent(t *testing.T) {
 
 	fake := &fakeKernelOps{}
 	errCh := make(chan kernelSetupFailed, 4)
-	w := newKernelWorker(fake.ops(), errCh, r.logger)
+	successCh := make(chan kernelSetupSucceeded, 4)
+	w := newKernelWorker(fake.ops(), errCh, successCh, r.logger)
 	w.Start()
 	defer w.Stop()
-	r.SetKernelWorker(w, errCh)
+	r.SetKernelWorker(w, errCh, successCh)
 
 	tun := mkTunnel(r, 101, 201, netip.MustParseAddrPort("10.0.0.8:1701"))
 	tun.pendingKernelTeardowns = []kernelTeardownEvent{

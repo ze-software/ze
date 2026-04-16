@@ -27,8 +27,14 @@ func (EventLCPUp) isPPPEvent() {}
 
 // EventLCPDown is emitted when LCP transitions out of the Opened state
 // for any reason (peer Terminate-Request, Echo timeout, fatal parse
-// error). Reason is human-readable for logs; the transport should
-// treat any LCP-Down as session teardown.
+// error). Reason is human-readable for logs.
+//
+// INFORMATIONAL: EventLCPDown does NOT require the transport to tear
+// down the L2TP session. The per-session goroutine ALWAYS exits after
+// LCP closes, and that exit emits EventSessionDown, which is the
+// canonical teardown signal. Transports that react to both LCPDown
+// and SessionDown would double-teardown. Use LCPDown only for metrics
+// and logging.
 type EventLCPDown struct {
 	TunnelID  uint16
 	SessionID uint16

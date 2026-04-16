@@ -112,8 +112,9 @@ type kernelWorker struct {
 	ops    kernelOps
 	logger *slog.Logger
 
-	eventCh chan any // receives kernelSetupEvent and kernelTeardownEvent
-	errCh   chan<- kernelSetupFailed
+	eventCh   chan any // receives kernelSetupEvent and kernelTeardownEvent
+	errCh     chan<- kernelSetupFailed
+	successCh chan<- kernelSetupSucceeded
 
 	mu       sync.Mutex
 	stopped  bool
@@ -124,17 +125,22 @@ type kernelWorker struct {
 	wg   sync.WaitGroup
 }
 
-// newKernelWorker constructs a kernel worker. The errCh is used to
-// report setup failures back to the reactor. The worker does not own
-// errCh; the reactor creates and reads it.
-func newKernelWorker(ops kernelOps, errCh chan<- kernelSetupFailed, logger *slog.Logger) *kernelWorker {
+// newKernelWorker constructs a kernel worker. The errCh and successCh
+// are used to report setup outcomes back to the reactor. The worker does
+// not own either channel; the reactor creates and reads them.
+//
+// successCh may be nil for tests that exercise teardown / failure paths
+// only; setupSession then runs the success branch without notifying the
+// reactor.
+func newKernelWorker(ops kernelOps, errCh chan<- kernelSetupFailed, successCh chan<- kernelSetupSucceeded, logger *slog.Logger) *kernelWorker {
 	return &kernelWorker{
-		ops:      ops,
-		logger:   logger,
-		eventCh:  make(chan any, 64),
-		errCh:    errCh,
-		tunnels:  make(map[uint16]*kernelTunnelState),
-		sessions: make(map[sessionKey]*pppSessionFDs),
+		ops:       ops,
+		logger:    logger,
+		eventCh:   make(chan any, 64),
+		errCh:     errCh,
+		successCh: successCh,
+		tunnels:   make(map[uint16]*kernelTunnelState),
+		sessions:  make(map[sessionKey]*pppSessionFDs),
 	}
 }
 
@@ -147,6 +153,19 @@ func (w *kernelWorker) Start() {
 
 // Stop signals the worker to exit and waits. Idempotent.
 func (w *kernelWorker) Stop() {
+	w.SignalStop()
+	w.wg.Wait()
+}
+
+// SignalStop closes the worker's stop channel without waiting for the
+// run goroutine. Idempotent. Separated from Stop so the subsystem can
+// break reportSuccess/reportError out of their channel-send selects
+// BEFORE TeardownAll grabs w.mu -- otherwise a setupSession that was
+// blocked on successCh (because the reactor already exited) would
+// keep w.mu held indefinitely and deadlock TeardownAll.
+//
+// Caller MUST still call Stop (or Wait) to reap the goroutine.
+func (w *kernelWorker) SignalStop() {
 	w.mu.Lock()
 	if w.stopped {
 		w.mu.Unlock()
@@ -156,7 +175,6 @@ func (w *kernelWorker) Stop() {
 	w.mu.Unlock()
 
 	close(w.stop)
-	w.wg.Wait()
 }
 
 // Enqueue sends an event to the worker. Blocks until the event is
@@ -271,6 +289,30 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 	w.logger.Info("l2tp: kernel session established",
 		"tunnel-id", ev.localTID, "session-id", ev.localSID,
 		"ppp-unit", fds.unitNum)
+
+	w.reportSuccess(ev, fds)
+}
+
+// reportSuccess sends a setup success to the reactor via successCh.
+// successCh may be nil in tests that exercise teardown / failure paths
+// only; in that case the success event is dropped silently.
+func (w *kernelWorker) reportSuccess(ev kernelSetupEvent, fds pppSessionFDs) {
+	if w.successCh == nil {
+		return
+	}
+	select {
+	case w.successCh <- kernelSetupSucceeded{
+		localTID:                   ev.localTID,
+		localSID:                   ev.localSID,
+		lnsMode:                    ev.lnsMode,
+		sequencing:                 ev.sequencing,
+		fds:                        fds,
+		proxyInitialRecvLCPConfReq: ev.proxyInitialRecvLCPConfReq,
+		proxyLastSentLCPConfReq:    ev.proxyLastSentLCPConfReq,
+		proxyLastRecvLCPConfReq:    ev.proxyLastRecvLCPConfReq,
+	}:
+	case <-w.stop:
+	}
 }
 
 // teardownSession destroys kernel resources for a session.
@@ -391,12 +433,12 @@ func probeKernelModules() error {
 //
 // Caller MUST call SetKernelWorker on the reactor before Start(), then
 // Start() the worker after the reactor has its channels wired.
-func newSubsystemKernelWorker(errCh chan<- kernelSetupFailed, logger *slog.Logger) *kernelWorker {
+func newSubsystemKernelWorker(errCh chan<- kernelSetupFailed, successCh chan<- kernelSetupSucceeded, logger *slog.Logger) *kernelWorker {
 	genl, err := resolveGenlFamily()
 	if err != nil {
 		logger.Warn("l2tp: genl family resolve failed; kernel integration disabled",
 			"error", err.Error())
 		return nil
 	}
-	return newKernelWorker(newKernelOps(genl), errCh, logger)
+	return newKernelWorker(newKernelOps(genl), errCh, successCh, logger)
 }

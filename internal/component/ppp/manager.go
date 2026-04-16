@@ -99,6 +99,28 @@ type DriverConfig struct {
 	Ops pppOps
 }
 
+// NewProductionDriver constructs a Driver wired to the real /dev/ppp
+// ioctl ops, the supplied logger, and the iface backend for pppN MTU
+// set. The transport (l2tp today, PPPoE later) calls this rather than
+// NewDriver because pppOps is package-private.
+//
+// Auth hook is hardwired to StubAuthHook for the 6a phase. spec-6b
+// replaces the AuthHook interface with a channel-based dispatcher and
+// at that point this constructor changes signature to accept the real
+// hook. Per rules/no-layering.md, no layered wrapper or optional
+// parameter is added in advance.
+//
+// Caller MUST call Start before sending on SessionsIn(). Caller MUST
+// call Stop before discarding the Driver.
+func NewProductionDriver(logger *slog.Logger, backend IfaceBackend) *Driver {
+	return NewDriver(DriverConfig{
+		Logger:   logger,
+		AuthHook: StubAuthHook{Logger: logger},
+		Backend:  backend,
+		Ops:      newPPPOps(),
+	})
+}
+
 // NewDriver constructs a Driver. Does NOT start the dispatch
 // goroutine; call Start when ready.
 //
