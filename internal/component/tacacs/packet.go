@@ -194,6 +194,13 @@ func UnmarshalPacket(data, key []byte) (*Packet, error) {
 		return nil, ErrBodyTooBig
 	}
 
+	// UnmarshalPacket is only used by round-trip and fuzz tests. The
+	// production receive path in client.go/trySend reads into the pooled
+	// buffer directly and calls UnmarshalPacketHeader on header bytes.
+	// Copying here keeps the decrypt-in-place step from mutating the
+	// caller's input slice, which would be a surprising side-effect for
+	// a function named Unmarshal. Since this is never on the hot path,
+	// the bounded allocation is acceptable.
 	body := make([]byte, bodyLen)
 	copy(body, data[hdrLen:hdrLen+bodyLen])
 

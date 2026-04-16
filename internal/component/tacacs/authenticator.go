@@ -73,10 +73,14 @@ func (a *TacacsAuthenticator) Authenticate(username, password string) (aaa.AuthR
 
 // handlePass processes a PASS reply: extracts priv-lvl and maps to ze profiles.
 func (a *TacacsAuthenticator) handlePass(username string, reply *AuthenReply) (aaa.AuthResult, error) {
-	// Extract priv-lvl from server data (convention: first byte of data, or default 1).
-	privLvl := 1
-	if len(reply.Data) > 0 {
-		privLvl = int(reply.Data[0])
+	// Extract priv-lvl via the stack-safe PrivLvl field rather than reply.Data.
+	// reply.Data aliases the client's pool buffer which has already been
+	// Put by the time we get here; reading it would race with any concurrent
+	// TACACS+ exchange (auth, authz, or accounting) that Gets the same slot.
+	// Defaults to 1 when the server sent no priv-lvl byte.
+	privLvl := int(reply.PrivLvl)
+	if privLvl == 0 && len(reply.Data) == 0 {
+		privLvl = 1
 	}
 
 	profiles, ok := a.privLvlMap[privLvl]

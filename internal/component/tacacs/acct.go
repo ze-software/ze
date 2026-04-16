@@ -92,13 +92,19 @@ func (a *AcctRequest) MarshalBinary() ([]byte, error) {
 
 // AcctReply is an accounting REPLY packet body.
 // RFC 8907 Section 7.2.
+//
+// Memory lifetime: the Data field aliases the slice passed to
+// UnmarshalAcctReply; see the AuthenReply godoc for the full rule.
+// Production callers read only Status, so aliasing is safe for them; tests
+// that assert on Data must hold the input buffer for the assertion window.
 type AcctReply struct {
-	ServerMsg string
-	Data      []byte
+	ServerMsg string // Go string -- copies its backing bytes, safe post-Put
+	Data      []byte // aliases input buffer; see struct doc
 	Status    uint8
 }
 
-// UnmarshalAcctReply decodes an accounting REPLY body.
+// UnmarshalAcctReply decodes an accounting REPLY body. The returned
+// AcctReply.Data aliases the input slice (no allocation).
 func UnmarshalAcctReply(data []byte) (*AcctReply, error) {
 	if len(data) < 5 {
 		return nil, fmt.Errorf("acct reply too short: %d bytes", len(data))
@@ -117,12 +123,9 @@ func UnmarshalAcctReply(data []byte) (*AcctReply, error) {
 	serverMsg := string(data[off : off+serverMsgLen])
 	off += serverMsgLen
 
-	replyData := make([]byte, dataLen)
-	copy(replyData, data[off:off+dataLen])
-
 	return &AcctReply{
 		ServerMsg: serverMsg,
-		Data:      replyData,
+		Data:      data[off : off+dataLen],
 		Status:    status,
 	}, nil
 }
