@@ -433,12 +433,19 @@ func (t *L2TPTunnel) teardownSession(sess *L2TPSession, resultCode uint16, now t
 	defer PutBuf(bodyBuf)
 	n := writeCDNBody(*bodyBuf, sess.localSID, resultCode)
 
+	// Order matches handleICRQ/handleOCRQ: check the engine outcome
+	// before removing the session. On enqueue failure we still drop the
+	// session locally -- the engine is either closed (terminal) or the
+	// send queue is full (peer already unreachable), so keeping local
+	// state would only delay cleanup without ever producing a CDN.
 	wire, err := t.engine.Enqueue(sess.remoteSID, (*bodyBuf)[:n], now)
-	t.removeSession(sess.localSID)
 	if err != nil {
-		logger.Warn("l2tp: CDN enqueue failed", "local-sid", sess.localSID, "error", err.Error())
+		logger.Warn("l2tp: CDN enqueue failed; session dropped without peer notification",
+			"local-sid", sess.localSID, "error", err.Error())
+		t.removeSession(sess.localSID)
 		return nil
 	}
+	t.removeSession(sess.localSID)
 	logger.Info("l2tp: CDN sent; session destroyed",
 		"local-sid", sess.localSID, "remote-sid", sess.remoteSID,
 		"result-code", resultCode)

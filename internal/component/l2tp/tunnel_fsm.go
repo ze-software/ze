@@ -129,14 +129,18 @@ func (t *L2TPTunnel) handleMessage(entry RecvEntry, now time.Time, defaults Tunn
 // Engine dedup guarantees this runs at most once per tunnel.
 //
 // Challenge flow (RFC 2661 S4.2 / S5.1.2):
-//   - peer Challenge present + shared secret configured: compute peer's
-//     CHAP-MD5 Response (CHAP_ID = SCCRP Message Type) and include it in
-//     SCCRP; generate a 16-byte random Challenge of our own, store it on
-//     the tunnel for SCCCN verification, and include it in SCCRP too.
+//   - shared secret configured: we ALWAYS generate our own 16-byte
+//     random Challenge and store it on the tunnel; SCCCN MUST carry a
+//     valid Challenge Response or we tear down with RC=4. If the peer
+//     also sent a Challenge AVP we additionally emit the peer's
+//     CHAP-MD5 Response in SCCRP so it can authenticate us too. This
+//     matches operator intent: if SharedSecret is set the operator
+//     wants authentication; a peer cannot bypass it by omitting its
+//     Challenge AVP.
 //   - peer Challenge present + no shared secret: we cannot authenticate,
 //     reject with StopCCN Result Code 4 (Not Authorized).
-//   - peer Challenge absent: SCCRP is emitted without auth AVPs; SCCCN is
-//     accepted unconditionally because the peer declined to request auth.
+//   - no shared secret + peer Challenge absent: SCCRP is emitted without
+//     auth AVPs; SCCCN is accepted unconditionally.
 //
 // Tie breaker: the parsed value (if present) is stored on the tunnel for
 // the reactor to consult if a second SCCRQ collides with this one.
@@ -146,17 +150,13 @@ func (t *L2TPTunnel) handleSCCRQ(now time.Time, defaults TunnelDefaults, sccrq *
 		return nil
 	}
 	if sccrq == nil {
-		// The engine delivered an SCCRQ for which the reactor did not
-		// pre-parse. Shouldn't happen -- reactor validates every
-		// TunnelID=0 SCCRQ before creating the tunnel -- but fall back
-		// to parsing rather than panicking, so a future code path that
-		// delivers SCCRQ via a different route stays correct.
-		info, err := parseSCCRQ(nil)
-		if err != nil {
-			t.logger.Warn("l2tp: SCCRQ delivered without pre-parsed info; refusing")
-			return nil
-		}
-		sccrq = &info
+		// The engine delivered an SCCRQ without pre-parsed info. The
+		// reactor validates every TunnelID=0 SCCRQ before creating the
+		// tunnel, so this path is unreachable under the current
+		// dispatch. Refuse loudly rather than silently establishing a
+		// tunnel from unvalidated bytes.
+		t.logger.Warn("l2tp: SCCRQ delivered without pre-parsed info; refusing")
+		return nil
 	}
 	t.peerHostName = sccrq.HostName
 	t.peerFraming = sccrq.FramingCapabilities
@@ -174,6 +174,11 @@ func (t *L2TPTunnel) handleSCCRQ(now time.Time, defaults TunnelDefaults, sccrq *
 		}
 		resp := ChallengeResponse(ChapIDSCCRP, []byte(defaults.SharedSecret), sccrq.ChallengeValue)
 		peerResponse = resp[:]
+	}
+	// Whenever the operator configured a SharedSecret, we authenticate
+	// the peer regardless of whether it sent us a Challenge. Otherwise a
+	// peer could bypass auth by simply omitting its Challenge AVP.
+	if defaults.SharedSecret != "" {
 		ours := make([]byte, 16)
 		if _, err := rand.Read(ours); err != nil {
 			t.logger.Warn("l2tp: unable to read random Challenge; sending StopCCN RC=4", "error", err.Error())
@@ -564,7 +569,7 @@ func (t *L2TPTunnel) handleStopCCN(now time.Time, payload []byte) []sendRequest 
 	t.logger.Info("l2tp: peer StopCCN received; tunnel closed",
 		"result", info.Result,
 		"error-code", info.Error,
-		"message", info.Message)
+		"message", strconv.Quote(info.Message))
 	return nil
 }
 

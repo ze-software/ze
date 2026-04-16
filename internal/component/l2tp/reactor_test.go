@@ -691,6 +691,65 @@ func TestTunnelFSM_BadChallengeResponse_StopCCN(t *testing.T) {
 	require.Equal(t, L2TPTunnelClosed, state)
 }
 
+// TestTunnelFSM_AuthRequiredWhenSecretConfigured -- security regression.
+//
+// VALIDATES: when the operator configures SharedSecret, the server MUST
+// authenticate the peer even if the peer does not itself send a
+// Challenge AVP in SCCRQ. Before the auth-bypass fix, a peer could
+// omit the Challenge AVP and have its SCCCN accepted unconditionally,
+// bypassing CHAP entirely. This test sends an unchallenging SCCRQ
+// followed by an SCCCN without ChallengeResponse AVP and asserts the
+// tunnel does NOT reach Established (StopCCN RC=4 is emitted).
+//
+// PREVENTS: revert of the SharedSecret-always-challenge policy in
+// tunnel_fsm.go handleSCCRQ.
+func TestTunnelFSM_AuthRequiredWhenSecretConfigured(t *testing.T) {
+	const secret = "topsecret"
+	ln, r, logs, stop := buildLogReactorSecret(t, secret)
+	defer stop()
+
+	client := newClient(t, ln)
+	defer client.Close()
+
+	// Peer sends SCCRQ WITHOUT a Challenge AVP, hoping to bypass auth.
+	client.Send(t, buildSCCRQ(t, 303, "peer-bypass"))
+	sccrp := readDatagram(t, client)
+
+	// Server MUST still include its own Challenge AVP in SCCRP because
+	// SharedSecret is configured. This is the wire-level proof the
+	// bypass is closed.
+	ours := extractAVP(t, sccrp, AVPChallenge)
+	require.NotNil(t, ours, "SCCRP must carry server Challenge AVP when SharedSecret is configured, regardless of peer")
+	require.Len(t, ours, 16)
+
+	ourLocalTIDBytes := extractAVP(t, sccrp, AVPAssignedTunnelID)
+	require.Len(t, ourLocalTIDBytes, 2)
+	ourLocalTID := uint16(ourLocalTIDBytes[0])<<8 | uint16(ourLocalTIDBytes[1])
+
+	// Peer sends SCCCN with no ChallengeResponse -- server MUST reject.
+	client.Send(t, buildSCCCN(t, ourLocalTID, 1, 1, nil))
+
+	stopccn := readDatagram(t, client)
+	waitForLog(t, logs, "SCCCN missing Challenge Response")
+
+	msgType := extractAVP(t, stopccn, AVPMessageType)
+	require.Len(t, msgType, 2)
+	require.Equal(t, uint16(MsgStopCCN), uint16(msgType[0])<<8|uint16(msgType[1]),
+		"expected StopCCN response when SCCCN has no ChallengeResponse")
+	rc := extractAVP(t, stopccn, AVPResultCode)
+	require.GreaterOrEqual(t, len(rc), 2)
+	require.Equal(t, uint16(4), uint16(rc[0])<<8|uint16(rc[1]),
+		"Result Code must be 4 (Not Authorized)")
+
+	tunnel := r.TunnelByLocalID(ourLocalTID)
+	require.NotNil(t, tunnel)
+	r.tunnelsMu.Lock()
+	state := tunnel.state
+	r.tunnelsMu.Unlock()
+	require.Equal(t, L2TPTunnelClosed, state,
+		"tunnel must be closed after bypass attempt is rejected")
+}
+
 // TestTunnelFSM_TieBreakerLocalLoses -- AC-10.
 //
 // VALIDATES: AC-10 -- when two SCCRQs arrive from the same peer with

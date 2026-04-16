@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"os/exec"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -116,8 +117,13 @@ type kernelWorker struct {
 	errCh     chan<- kernelSetupFailed
 	successCh chan<- kernelSetupSucceeded
 
+	// stopped is an atomic flag so SignalStop can close w.stop without
+	// acquiring w.mu. Locking would deadlock when setupSession holds
+	// w.mu across a blocked successCh send after the reactor exited
+	// (reactor drained before the worker, no reader for successCh).
+	stopped atomic.Bool
+
 	mu       sync.Mutex
-	stopped  bool
 	tunnels  map[uint16]*kernelTunnelState
 	sessions map[sessionKey]*pppSessionFDs
 
@@ -166,14 +172,9 @@ func (w *kernelWorker) Stop() {
 //
 // Caller MUST still call Stop (or Wait) to reap the goroutine.
 func (w *kernelWorker) SignalStop() {
-	w.mu.Lock()
-	if w.stopped {
-		w.mu.Unlock()
+	if !w.stopped.CompareAndSwap(false, true) {
 		return
 	}
-	w.stopped = true
-	w.mu.Unlock()
-
 	close(w.stop)
 }
 
@@ -274,11 +275,20 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 		w.logger.Error("l2tp: ppp setup failed",
 			"tunnel-id", ev.localTID, "session-id", ev.localSID, "error", err.Error())
 		// Rollback: delete kernel session, maybe delete tunnel.
+		// Only decrement sessionCount when the kernel delete actually
+		// succeeded. A failed delete means the kernel still holds the
+		// session, so leaving the counter high keeps our Go-side view
+		// conservative: cleanupTunnelIfNew then skips the tunnel delete
+		// and we leak loudly rather than silently producing an
+		// inconsistent "clean" state in Go while the kernel still has
+		// state.
 		if derr := w.ops.sessionDelete(ev.localTID, ev.localSID); derr != nil {
-			w.logger.Warn("l2tp: rollback session delete", "error", derr.Error())
+			w.logger.Error("l2tp: rollback session delete FAILED; kernel state leaked",
+				"tunnel-id", ev.localTID, "session-id", ev.localSID, "error", derr.Error())
+		} else {
+			ts.sessionCount--
+			w.cleanupTunnelIfNew(ev.localTID, tunnelExisted)
 		}
-		ts.sessionCount--
-		w.cleanupTunnelIfNew(ev.localTID, tunnelExisted)
 		w.reportError(ev.localTID, ev.localSID, err)
 		return
 	}

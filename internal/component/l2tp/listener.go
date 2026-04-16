@@ -251,13 +251,16 @@ func (u *UDPListener) readLoop() {
 		buf := backing[idx*rxBufLen : (idx+1)*rxBufLen]
 		n, raddr, err := u.conn.ReadFromUDPAddrPort(buf)
 		if err != nil {
-			freeCh <- idx
+			// Check closed BEFORE recycling the slot so a concurrent
+			// Stop() path that already closed the socket exits this
+			// loop deterministically rather than spinning once more.
 			u.mu.Lock()
 			closed := u.closed
 			u.mu.Unlock()
 			if closed {
 				return
 			}
+			freeCh <- idx
 			continue
 		}
 
