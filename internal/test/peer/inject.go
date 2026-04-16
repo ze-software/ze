@@ -311,6 +311,144 @@ func writeU128(dst []byte, v u128, n int) {
 	copy(dst, tmp[:n])
 }
 
+// runActive is the entry point when Config.Dial is set. It dials the target,
+// completes an active-role BGP OPEN handshake (send OPEN -> read peer OPEN ->
+// send KEEPALIVE -> read peer KEEPALIVE), then hands off to doInject.
+// Only supported with Mode == ModeInject.
+func (p *Peer) runActive(ctx context.Context) Result {
+	if p.config.Mode != ModeInject {
+		return Result{Error: errors.New("--dial is only supported with --mode inject")}
+	}
+	if p.config.Inject == nil {
+		return Result{Error: errors.New("--dial requires an inject spec")}
+	}
+	// Signal "ready" so callers waiting on Ready() unblock; there is no
+	// listener to bind when dialing.
+	p.readyOnce.Do(func() { close(p.ready) })
+
+	p.printf("dialing %s...\n", p.config.Dial)
+	dialer := &net.Dialer{Timeout: 5 * time.Second}
+	deadline := time.Now().Add(30 * time.Second)
+	var conn net.Conn
+	var err error
+	for {
+		conn, err = dialer.DialContext(ctx, "tcp", p.config.Dial)
+		if err == nil {
+			break
+		}
+		if ctx.Err() != nil {
+			return Result{Error: fmt.Errorf("dial canceled: %w", ctx.Err())}
+		}
+		if time.Now().After(deadline) {
+			return Result{Error: fmt.Errorf("dial %s: %w", p.config.Dial, err)}
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	defer func() {
+		if cerr := conn.Close(); cerr != nil {
+			p.printf("conn close: %v\n", cerr)
+		}
+	}()
+
+	// Low-latency handshake, large-batch inject. SetNoDelay flips again
+	// inside doInject before the bulk write.
+	if tc, ok := conn.(*net.TCPConn); ok {
+		if nerr := tc.SetNoDelay(true); nerr != nil {
+			p.printf("set nodelay: %v\n", nerr)
+		}
+	}
+
+	ourOpen := buildActiveOpen(p.config)
+	p.printPayload("open sent", ourOpen[:HeaderLen], ourOpen[HeaderLen:])
+	if _, werr := conn.Write(ourOpen); werr != nil {
+		return Result{Error: fmt.Errorf("write OPEN: %w", werr)}
+	}
+
+	peerHeader, peerBody, rerr := ReadMessage(conn)
+	if rerr != nil {
+		return Result{Error: fmt.Errorf("read peer OPEN: %w", rerr)}
+	}
+	if peerHeader[18] != MsgOPEN {
+		return Result{Error: fmt.Errorf("expected OPEN, got type %d", peerHeader[18])}
+	}
+	p.printPayload("open recv", peerHeader, peerBody)
+
+	if _, werr := conn.Write(KeepaliveMsg()); werr != nil {
+		return Result{Error: fmt.Errorf("write KEEPALIVE: %w", werr)}
+	}
+	kaHeader, _, kerr := ReadMessage(conn)
+	if kerr != nil {
+		return Result{Error: fmt.Errorf("read peer KEEPALIVE: %w", kerr)}
+	}
+	if kaHeader[18] != MsgKEEPALIVE {
+		return Result{Error: fmt.Errorf("expected KEEPALIVE, got type %d", kaHeader[18])}
+	}
+
+	return p.doInject(ctx, conn)
+}
+
+// buildActiveOpen constructs the OPEN message we send when acting as the
+// active BGP role. We advertise the single address family implied by the
+// inject spec plus the 4-byte ASN capability so ze's OPEN negotiation can
+// accept 32-bit ASNs. No capability mirroring: we pick the minimum set.
+func buildActiveOpen(cfg *Config) []byte {
+	asn := uint32(0)
+	family := uint16(1) // AFI=1 IPv4 by default
+	if cfg.Inject != nil {
+		asn = cfg.Inject.ASN
+		if cfg.Inject.Prefix.Addr().Is6() {
+			family = 2
+		}
+	}
+	// Capabilities (RFC 5492 bundled in one type-2 optional parameter):
+	//   MP-BGP: code 1, len 4, AFI(2) + reserved(1=0) + SAFI(1)
+	//   4-byte ASN: code 65, len 4, ASN(4)
+	var asnBytes [4]byte
+	binary.BigEndian.PutUint32(asnBytes[:], asn)
+	caps := make([]byte, 0, 16)
+	caps = append(caps, 1, 4, byte(family>>8), byte(family), 0, 1, 65, 4)
+	caps = append(caps, asnBytes[:]...)
+
+	// Optional parameter wrapper: type 2 (Capability), length, caps.
+	optParam := make([]byte, 0, 2+len(caps))
+	optParam = append(optParam, 2, byte(len(caps)))
+	optParam = append(optParam, caps...)
+
+	// Router ID: derive from --dial host (active-side local identity is
+	// less important than being unique; a fixed 1.1.1.1 fallback works if
+	// the dial addr is not parseable).
+	routerID := [4]byte{1, 1, 1, 1}
+	if cfg.Dial != "" {
+		if host, _, sperr := net.SplitHostPort(cfg.Dial); sperr == nil {
+			if addr, perr := netip.ParseAddr(host); perr == nil {
+				if addr.Is4() {
+					routerID = addr.As4()
+				}
+			}
+		}
+	}
+
+	// OPEN body: version(1) + AS(2) + hold(2) + id(4) + optlen(1) + optparam
+	// 2-byte ASN field: use AS_TRANS (23456) for >16-bit ASNs; the real
+	// ASN is carried in the 4-byte ASN capability above.
+	asn2 := uint16(23456)
+	if asn <= 65535 {
+		asn2 = uint16(asn) //nolint:gosec // bounds checked
+	}
+	body := make([]byte, 0, 10+len(optParam))
+	body = append(body, 4, byte(asn2>>8), byte(asn2), 0, 180)
+	body = append(body, routerID[:]...)
+	body = append(body, byte(len(optParam)))
+	body = append(body, optParam...)
+
+	msgLen := HeaderLen + len(body)
+	msg := make([]byte, 0, msgLen)
+	msg = append(msg, Marker...)
+	msg = append(msg, byte(msgLen>>8), byte(msgLen), MsgOPEN)
+	msg = append(msg, body...)
+	return msg
+}
+
 // doInject is the ModeInject connection handler. Called from
 // handleConnection after OPEN + KEEPALIVE have been exchanged.
 func (p *Peer) doInject(ctx context.Context, conn net.Conn) Result {

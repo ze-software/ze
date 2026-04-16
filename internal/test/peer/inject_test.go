@@ -240,6 +240,125 @@ func TestInjectEndToEnd(t *testing.T) {
 	}
 }
 
+// TestInjectActiveMode runs ze-test peer with --dial against a trivial
+// listener that mimics ze: it reads our OPEN, writes back a well-formed
+// OPEN + KEEPALIVE, reads our KEEPALIVE, then drains the injected stream
+// and verifies byte-image equality.
+func TestInjectActiveMode(t *testing.T) {
+	// VALIDATES: active-role handshake (send OPEN -> read OPEN -> send
+	// KEEPALIVE -> read KEEPALIVE) then injection.
+	// PREVENTS: malformed OPEN, wrong handshake order in runActive,
+	// keepalive interleaved mid-stream.
+	const (
+		count = 500
+		asn   = 65100
+	)
+	spec := &InjectSpec{
+		Prefix:   netip.MustParsePrefix("10.0.0.0/24"),
+		Count:    count,
+		NextHop:  netip.MustParseAddr("127.0.0.1"),
+		ASN:      asn,
+		EndOfRIB: true,
+	}
+
+	// Start a tiny listener that acts as ze.
+	var lc net.ListenConfig
+	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer func() {
+		if cerr := ln.Close(); cerr != nil {
+			t.Logf("ln close: %v", cerr)
+		}
+	}()
+	addr, ok := ln.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatalf("listen addr: %T", ln.Addr())
+	}
+
+	streamCh := make(chan []byte, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		conn, aerr := ln.Accept()
+		if aerr != nil {
+			errCh <- aerr
+			return
+		}
+		defer func() { _ = conn.Close() }()
+
+		// Read peer's OPEN.
+		if _, _, rerr := ReadMessage(conn); rerr != nil {
+			errCh <- fmt.Errorf("read peer OPEN: %w", rerr)
+			return
+		}
+		// Send our OPEN (reuse the minimal OPEN helper from TestInjectEndToEnd).
+		if _, werr := conn.Write(minimalOpenMsg(asn, "127.0.0.1")); werr != nil {
+			errCh <- fmt.Errorf("write our OPEN: %w", werr)
+			return
+		}
+		// Send KEEPALIVE.
+		if _, werr := conn.Write(KeepaliveMsg()); werr != nil {
+			errCh <- fmt.Errorf("write KEEPALIVE: %w", werr)
+			return
+		}
+		// Read peer's KEEPALIVE.
+		if _, _, rerr := ReadMessage(conn); rerr != nil {
+			errCh <- fmt.Errorf("read peer KEEPALIVE: %w", rerr)
+			return
+		}
+		// Drain the injected stream.
+		want, _, berr := BuildUpdates(*spec)
+		if berr != nil {
+			errCh <- fmt.Errorf("build want: %w", berr)
+			return
+		}
+		got := make([]byte, len(want))
+		if _, rerr := io.ReadFull(conn, got); rerr != nil {
+			errCh <- fmt.Errorf("read stream: %w", rerr)
+			return
+		}
+		streamCh <- got
+	}()
+
+	// Run the peer in active mode.
+	p, err := New(&Config{
+		Mode:   ModeInject,
+		Dial:   fmt.Sprintf("127.0.0.1:%d", addr.Port),
+		Inject: spec,
+		Output: io.Discard,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	peerDone := make(chan Result, 1)
+	go func() { peerDone <- p.Run(ctx) }()
+
+	select {
+	case got := <-streamCh:
+		want, _, berr := BuildUpdates(*spec)
+		if berr != nil {
+			t.Fatalf("build want: %v", berr)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("byte image mismatch: got %d bytes, want %d bytes", len(got), len(want))
+		}
+	case err := <-errCh:
+		t.Fatalf("server: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for injected stream")
+	}
+
+	cancel()
+	select {
+	case <-peerDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("peer did not return after cancel")
+	}
+}
+
 // countNLRI walks a raw BGP UPDATE byte stream and counts NLRI across both
 // inline-NLRI fields and MP_REACH_NLRI attributes.
 func countNLRI(t *testing.T, buf []byte) (int, int) {

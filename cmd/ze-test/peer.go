@@ -109,6 +109,7 @@ func parsePeerFlags() (*peer.Config, bool) {
 	fs := flag.NewFlagSet("peer", flag.ExitOnError)
 	fs.IntVar(&config.Port, "port", port, "port to bind to")
 	fs.StringVar(&config.BindAddr, "bind", "", "bind address (default 127.0.0.1, or ::1 with -ipv6)")
+	fs.StringVar(&config.Dial, "dial", "", "dial host:port instead of listening (active BGP role; requires --mode inject)")
 	fs.IntVar(&config.ASN, "asn", 0, "ASN to use (0 = extract from peer OPEN)")
 	fs.StringVar(&mode, "mode", "check", "operation mode: check, sink, echo, inject")
 	fs.BoolVar(&config.IPv6, "ipv6", false, "bind using IPv6")
@@ -247,6 +248,10 @@ Inject options (all required when --mode inject):
   --inject-asn N     Origin ASN (single-segment AS_SEQUENCE, 4-byte)
   --inject-dwell D   Hold the session open this long after the last byte
                      is written (default: until SIGTERM).
+  --dial H:P         Act as the active BGP role: dial H:P instead of
+                     listening. Sends OPEN first with minimal capabilities
+                     (one MP-BGP family inferred from --inject-prefix,
+                     plus 4-byte ASN). Combined with --mode inject only.
 
 Examples:
   ze-test peer --mode sink --port 1790
@@ -256,5 +261,8 @@ Examples:
   ze-test peer --mode inject --port 1790 \
       --inject-prefix 10.0.0.0/24 --inject-count 1000000 \
       --inject-nexthop 172.31.0.3 --inject-asn 65100
+  ze-test peer --mode inject --dial 172.31.0.2:179 \
+      --inject-prefix 10.0.0.0/24 --inject-count 1000000 \
+      --inject-nexthop 172.31.0.3 --inject-asn 65100 --inject-dwell 60s
 `)
 }

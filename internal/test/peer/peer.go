@@ -135,6 +135,10 @@ type Config struct {
 	// Inject: bulk UPDATE stream descriptor for ModeInject (stress tests).
 	// Must be non-nil when Mode == ModeInject. See inject.go.
 	Inject *InjectSpec
+	// Dial, if set, makes the peer act as the active BGP role: it dials the
+	// given "host:port" instead of listening. Currently only supported with
+	// Mode == ModeInject; handshake is driven by inject.go.
+	Dial string
 	// Output: writer for logging (defaults to os.Stdout)
 	Output io.Writer
 }
@@ -181,6 +185,9 @@ func (p *Peer) Ready() <-chan struct{} {
 
 // Run starts the test peer and blocks until completion or context cancellation.
 func (p *Peer) Run(ctx context.Context) Result {
+	if p.config.Dial != "" {
+		return p.runActive(ctx)
+	}
 	if p.config.ConnMap == "router-id" {
 		return p.runConnMapRouterID(ctx)
 	}

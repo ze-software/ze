@@ -2,76 +2,62 @@
 """Scenario 01: Bulk IPv4 route injection.
 
 Validates: Ze can receive and process large numbers of IPv4 unicast routes
-           from BNG Blaster without errors or session drops.
+           without errors. Runs four rounds with increasing prefix counts
+           (100k, 250k, 500k, 1M) and reports ingestion throughput.
 
-Runs four rounds with increasing prefix counts (100k, 250k, 500k, 1M) and
-reports ingestion rates for each.
+Each round spawns a fresh `ze-test peer --mode inject` in bb-ns. Different
+from the previous BNG-Blaster pipeline, each round is its own BGP session:
+the peer dials ze, streams the image, dwells briefly, exits. ze reconnects
+on the next round (the peer comes back up with a new listener).
 """
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-from bngblaster import (
-    BNGBlaster,
-    Ze,
-    Timer,
-    generate_updates,
+from harness import (
     BB_IP,
+    Timer,
     log_info,
     log_pass,
-    log_fail,
+    start_peer_inject,
+    wait_peer_done,
 )
 
 
+# (prefix_count, prefix_base, peer_timeout_s)
 ROUNDS = [
-    (100_000, "10.0.0.0/24", 300),
-    (250_000, "10.64.0.0/24", 600),
-    (500_000, "10.128.0.0/24", 900),
-    (1_000_000, "11.0.0.0/24", 1800),
+    (100_000, "10.0.0.0/24", 120),
+    (250_000, "10.64.0.0/24", 180),
+    (500_000, "10.128.0.0/24", 300),
+    (1_000_000, "11.0.0.0/24", 600),
 ]
 
 
 def check():
-    bb = BNGBlaster()
-    ze = Ze(bb)
-
-    # Wait for initial BGP session.
-    bb.wait_session_established()
-
     for prefix_count, prefix_base, timeout in ROUNDS:
         log_info("")
         log_info("=== Round: %d prefixes ===" % prefix_count)
 
-        # Generate update file.
-        update_file = generate_updates(
-            prefix_base=prefix_base,
-            prefix_count=prefix_count,
-            nexthop=BB_IP,
-            asn=65100,
-            filename="round-%dk.bgp" % (prefix_count // 1_000),
-        )
+        with Timer("round %dk" % (prefix_count // 1_000)) as t:
+            peer = start_peer_inject(
+                prefix_base=prefix_base,
+                prefix_count=prefix_count,
+                nexthop=BB_IP,
+                asn=65100,
+                dwell="15s",
+            )
+            metrics = wait_peer_done(peer, timeout=timeout)
 
-        # Inject updates via control socket.
-        with Timer("injection") as t_inject:
-            bb.bgp_raw_update(update_file)
-            bb.wait_raw_update_done(timeout=timeout)
-
-        # Wait for Ze to finish processing.
-        with Timer("ze processing") as t_process:
-            ze.wait_settled(timeout=min(timeout, 60))
-
-        # Verify session is still established.
-        sessions = bb.bgp_sessions()
-        for s in sessions.get("bgp-sessions", []):
-            if s.get("state") != "established":
-                log_fail("session dropped during %d-prefix injection" % prefix_count)
-                raise AssertionError("session dropped")
-
-        rate = prefix_count / t_inject.elapsed if t_inject.elapsed > 0 else 0
-        log_pass(
-            "%d prefixes: injection %.2fs, settled %.2fs (%.0f routes/s)"
-            % (prefix_count, t_inject.elapsed, t_process.elapsed, rate)
-        )
+        rate = prefix_count / t.elapsed if t.elapsed > 0 else 0
+        if metrics and "mbps" in metrics:
+            log_pass(
+                "%d prefixes in %.2fs (%.0f routes/s, wire %.1f MB/s)"
+                % (prefix_count, t.elapsed, rate, metrics["mbps"])
+            )
+        else:
+            log_pass(
+                "%d prefixes in %.2fs (%.0f routes/s)" % (prefix_count, t.elapsed, rate)
+            )
 
     log_pass("all bulk injection rounds completed")

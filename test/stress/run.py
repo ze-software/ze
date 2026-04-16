@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Ze BGP stress test runner using BNG Blaster.
+"""Ze BGP stress test runner.
 
 Uses network namespaces and veth pairs. Requires root (sudo) on Linux.
-BNG Blaster must be installed first (see setup.py).
+The BGP traffic is generated and streamed by `bin/ze-test peer --mode
+inject` (built from this repo). Run `make ze-test` before the first run.
 
 Usage:
     sudo python3 test/stress/run.py                     # run all scenarios
@@ -23,14 +24,14 @@ import sys
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 
-# Make bngblaster module importable from check.py scripts.
+# Make the harness module importable from check.py scripts.
 sys.path.insert(0, SCRIPT_DIR)
 
-from bngblaster import Scenario, log_fail, log_pass, log_info  # noqa: E402
+from harness import Scenario, log_fail, log_pass, log_info  # noqa: E402
 
 
 def _find_missing():
-    return [t for t in ["bngblaster", "bngblaster-cli"] if not shutil.which(t)]
+    return [t for t in ["ip", "ethtool"] if not shutil.which(t)]
 
 
 def check_prerequisites():
@@ -41,7 +42,10 @@ def check_prerequisites():
 
     missing = _find_missing()
     if missing:
-        print("Installing BNG Blaster (first run, missing: %s)..." % ", ".join(missing))
+        print(
+            "Installing stress-test deps (first run, missing: %s)..."
+            % ", ".join(missing)
+        )
         setup = os.path.join(SCRIPT_DIR, "setup.py")
         subprocess.run([sys.executable, setup], check=True, timeout=600)
         still_missing = _find_missing()
@@ -99,7 +103,7 @@ def main():
 
     print("")
     print("\u2501" * 40)
-    print(" Ze BGP Stress Tests (BNG Blaster)")
+    print(" Ze BGP Stress Tests (ze-test peer inject)")
     print("\u2501" * 40)
     print("")
 
