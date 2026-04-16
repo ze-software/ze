@@ -1,6 +1,11 @@
 #!/bin/bash
-# PreToolUse hook: Block per-call allocations in encoding code
-# BLOCKING: All encoding must use pooled buffers, not make()/append()/Bytes()/Pack() (buffer-first.md)
+# PreToolUse hook: Block per-call allocations in wire-facing code
+# BLOCKING: All wire encoding must use pooled buffers, not make()/append()/Bytes()/Pack().
+# References:
+#   .claude/rules/buffer-first.md          -- mechanical reference
+#   .claude/rules/design-principles.md     -- "No make where pools exist", "Pool strategy by goroutine shape"
+#   plan/learned/603-make-pool-audit.md    -- 2026-04-16 audit that expanded scope to TACACS+, plugin-rpc,
+#                                              BGP forward_build, BMP sender, BFD Verify, L2TP reliable
 
 set -e
 
@@ -23,17 +28,31 @@ if [[ "$FILE_PATH" =~ _test\.go$ ]]; then
     exit 0
 fi
 
-# Only check hot-path encoding — UPDATE building and message packing.
-# Plugin encode.go and helpers.go are NOT hot path
-# (CLI/registry/API routes called at human speed — pools are wrong there).
+# Scope: BGP wire-encoding hot paths only. Plugin encode.go and CLI/API
+# routes are NOT hot path (called at human speed; pools are wrong there).
+#
+# The 2026-04-16 audit (learned/603) considered widening this hook to
+# every wire-facing subsystem (TACACS+, plugin-rpc, BMP, BFD, L2TP).
+# Empirical testing showed that line-based regex cannot distinguish:
+#   - legitimate one-shot `make([]byte, N)` in pool New funcs and
+#     per-session scratch init from
+#   - new variable-size allocations on the hot path
+# nor can it distinguish:
+#   - intentional `append(buf, ...)` builders (plugin-rpc AppendXxx) from
+#   - byte-slice append regressions
+# Widening produced too many false positives in the migrated files.
+#
+# The hook stays narrow. Coverage of the migrated subsystems is enforced
+# by:
+#   - the design rules in `.claude/rules/design-principles.md`
+#   - the per-subsystem pool helpers (calling `make` instead is obvious in review)
+#   - `/ze-find-alloc` for periodic auditing
 IS_ENCODE=0
-if [[ "$FILE_PATH" =~ update_build ]]; then
-    IS_ENCODE=1
-elif [[ "$FILE_PATH" =~ /message/pack ]]; then
-    IS_ENCODE=1
-elif [[ "$FILE_PATH" =~ reactor_wire ]]; then
-    IS_ENCODE=1
-fi
+case "$FILE_PATH" in
+    *update_build*)        IS_ENCODE=1 ;;
+    */message/pack*)       IS_ENCODE=1 ;;
+    *reactor_wire*)        IS_ENCODE=1 ;;
+esac
 
 if [[ "$IS_ENCODE" -eq 0 ]]; then
     exit 0
@@ -56,11 +75,18 @@ if [[ -n "$APPEND_MATCHES" ]]; then
     done <<< "$APPEND_MATCHES"
 fi
 
-# 2. Check for make([]byte in non-pool context
-# Allow: pool New func (return make), result copies that are followed by copy()
-MAKE_MATCHES=$(echo "$CONTENT" | grep -nE 'make\s*\(\s*\[\s*\]\s*byte' | grep -viE '(return make|Pool|New.*func|nlriBytes\s*:=\s*make|owned\s*:=\s*make|result\s*:=\s*make)' | head -3 || true)
+# 2. Check for make([]byte in non-pool context.
+# Allowlist: pool New funcs (return make), Pool/New named contexts,
+# specific named patterns, and explicit `// pool-fallback` markers.
+#
+# `result := make` is NOT blanket-exempted (audit 2026-04-16 found it
+# masked update_build.go:496). Code that legitimately allocates a result
+# slice for a sync.Pool fallback must add `// pool-fallback` on the same
+# line as the make call to opt in.
+MAKE_ALLOW='return make|Pool|New.*func|nlriBytes\s*:=\s*make|owned\s*:=\s*make|//\s*pool-fallback'
+MAKE_MATCHES=$(echo "$CONTENT" | grep -nE 'make\s*\(\s*\[\s*\]\s*byte' | grep -viE "($MAKE_ALLOW)" | head -3 || true)
 if [[ -n "$MAKE_MATCHES" ]]; then
-    ERRORS+=("make([]byte) in encoding code — use pool buffer instead:")
+    ERRORS+=("make([]byte) in encoding hot path — use pool buffer instead:")
     while IFS= read -r line; do
         [[ -n "$line" ]] && ERRORS+=("  $line")
     done <<< "$MAKE_MATCHES"
@@ -110,15 +136,17 @@ if [[ -n "$LEN_WRITE_MATCHES" ]]; then
 fi
 
 if [[ ${#ERRORS[@]} -gt 0 ]]; then
-    echo -e "${RED}${BOLD}❌ BLOCKED: Per-call allocation in encoding code${RESET}" >&2
+    echo -e "${RED}${BOLD}❌ BLOCKED: per-call allocation in encoding hot path${RESET}" >&2
     echo "" >&2
     for err in "${ERRORS[@]}"; do
         echo -e "  ${RED}✗${RESET} $err" >&2
     done
     echo "" >&2
-    echo -e "  ${YELLOW}All encoding MUST use pooled buffers + WriteTo(buf, off)${RESET}" >&2
-    echo -e "  ${YELLOW}Pool buffer = RFC max length = bounded encoding space${RESET}" >&2
-    echo -e "  ${YELLOW}See .claude/rules/buffer-first.md${RESET}" >&2
+    echo -e "  ${YELLOW}Encoding hot path MUST use pooled buffers + WriteTo(buf, off).${RESET}" >&2
+    echo -e "  ${YELLOW}Pool buffer = RFC max length = bounded encoding space.${RESET}" >&2
+    echo -e "  ${YELLOW}If a per-call make IS a legit sync.Pool fallback or one-shot${RESET}" >&2
+    echo -e "  ${YELLOW}init, add '// pool-fallback' on the same line as the make call.${RESET}" >&2
+    echo -e "  ${YELLOW}Rules: .claude/rules/{buffer-first,design-principles}.md${RESET}" >&2
     exit 2
 fi
 
