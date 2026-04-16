@@ -23,6 +23,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 
 - [reference_discord_bot.md](reference_discord_bot.md) - Discord bot in ~/Unix/bin/discord.sh: --channel ze-news/ze-test, --text "msg"
 - [feedback_discord_voice.md](feedback_discord_voice.md) - Discord posts as Zeledon; use third person for Thomas, not "I"
+- [reference_python_uv.md](reference_python_uv.md) - Install Python deps via `uv`, not `pip3 --break-system-packages`. test/stress/setup.py still uses pip3 and is broken on modern systems
 
 ## Feedback (workflow)
 
