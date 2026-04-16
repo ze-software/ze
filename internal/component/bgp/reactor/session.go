@@ -162,6 +162,24 @@ const sendHoldTimerMin = 8 * time.Minute
 // Returns true if callback took ownership of buf (caller should not return to pool).
 type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction string, buf BufHandle, meta map[string]any) (kept bool)
 
+// Lock hierarchy (acquire in this order; never reverse):
+//
+//  1. s.mu         — most fields (settings, conn, bufReader/Writer, peerOpen, sentMeta, ...)
+//  2. s.writeMu    — writeBuf and bufWriter; acquired AFTER s.mu when both are needed
+//     (see closeConn in session_connection.go and sendOpen in session_negotiate.go)
+//  3. s.sendHoldMu — sendHoldTimer; acquired AFTER s.writeMu via resetSendHoldTimer,
+//     which Send* methods call from inside their writeMu critical section
+//
+// s.pauseMu is independent of the other three: it protects only the resumeCh
+// create/close pair (see session_flow.go) and is never nested with s.mu,
+// s.writeMu, or s.sendHoldMu.
+//
+// Atomics (no lock interaction needed):
+//
+//	tearingDown   — set by Teardown to block Accept races
+//	paused        — fast-path pause check for the read loop
+//	closeReason   — first close reason wins (CompareAndSwap from nil)
+//	recentRead    — read loop signals "data arrived" to hold-timer callback
 type Session struct {
 	mu sync.RWMutex
 
