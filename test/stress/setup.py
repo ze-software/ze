@@ -143,36 +143,18 @@ def install_bird():
     run(["apt-get", "install", "-y", "--no-install-recommends", "bird2"])
 
 
-def install_scapy():
-    """Install scapy for bgpupdate."""
-    print("Installing scapy...")
-    run(["pip3", "install", "--break-system-packages", "scapy"], check=False)
-
-
 def verify():
     """Verify all tools are available."""
     print("")
     print("Verification:")
     ok = True
-    for tool in ["bngblaster", "bngblaster-cli", "bgpupdate", "ip", "bird", "birdc"]:
+    for tool in ["bngblaster", "bngblaster-cli", "ip", "bird", "birdc"]:
         path = shutil.which(tool)
         if path:
             print("  %s: %s" % (tool, path))
         else:
             print("  %s: NOT FOUND" % tool)
             ok = False
-
-    # Check scapy.
-    result = subprocess.run(
-        ["python3", "-c", "from scapy.all import *"],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode == 0:
-        print("  scapy: ok")
-    else:
-        print("  scapy: NOT FOUND")
-        ok = False
 
     if ok:
         print("\nAll tools installed.")
@@ -191,7 +173,6 @@ def main():
     build_libdict()
     build_bngblaster()
     install_bird()
-    install_scapy()
     verify()
     print("\nSetup complete. Run stress tests with: make ze-stress-test")
 

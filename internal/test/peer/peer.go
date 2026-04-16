@@ -39,9 +39,10 @@ var ErrConnectionClosed = errors.New("connection closed before completion")
 type Mode int
 
 const (
-	ModeCheck Mode = iota // Validate received messages against expectations (default)
-	ModeSink              // Accept any BGP messages, reply with keepalive
-	ModeEcho              // Accept any BGP messages, echo them back
+	ModeCheck  Mode = iota // Validate received messages against expectations (default)
+	ModeSink               // Accept any BGP messages, reply with keepalive
+	ModeEcho               // Accept any BGP messages, echo them back
+	ModeInject             // Stream a pre-built bulk UPDATE image after OPEN (stress tests)
 )
 
 // Mode name constants.
@@ -49,6 +50,7 @@ const (
 	modeNameCheck   = "check"
 	modeNameSink    = "sink"
 	modeNameEcho    = "echo"
+	modeNameInject  = "inject"
 	modeNameUnknown = "unknown"
 )
 
@@ -61,6 +63,8 @@ func (m Mode) String() string {
 		return modeNameSink
 	case ModeEcho:
 		return modeNameEcho
+	case ModeInject:
+		return modeNameInject
 	default:
 		return modeNameUnknown
 	}
@@ -76,6 +80,8 @@ func ParseMode(s string) (Mode, bool) {
 		return ModeSink, true
 	case modeNameEcho:
 		return ModeEcho, true
+	case modeNameInject:
+		return ModeInject, true
 	default:
 		return ModeCheck, false
 	}
@@ -126,6 +132,9 @@ type Config struct {
 	ConnMap string
 	// Expect: list of expected messages from .ci file
 	Expect []string
+	// Inject: bulk UPDATE stream descriptor for ModeInject (stress tests).
+	// Must be non-nil when Mode == ModeInject. See inject.go.
+	Inject *InjectSpec
 	// Output: writer for logging (defaults to os.Stdout)
 	Output io.Writer
 }
@@ -302,6 +311,11 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 	header, body, _, err := p.doOpenHandshake(conn)
 	if err != nil {
 		return Result{Success: false, Error: err}
+	}
+
+	// Inject mode: stream the bulk UPDATE image after handshake, then dwell.
+	if p.config.Mode == ModeInject {
+		return p.doInject(ctx, conn)
 	}
 
 	// Send unknown message type if requested.

@@ -26,27 +26,11 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 # Make bngblaster module importable from check.py scripts.
 sys.path.insert(0, SCRIPT_DIR)
 
-from bngblaster import Scenario, log_fail, log_pass, log_info
-
-
-def _scapy_importable():
-    """bgpupdate needs scapy at runtime -- verify it imports."""
-    return (
-        subprocess.run(
-            [sys.executable, "-c", "import scapy.all"],
-            capture_output=True,
-        ).returncode
-        == 0
-    )
+from bngblaster import Scenario, log_fail, log_pass, log_info  # noqa: E402
 
 
 def _find_missing():
-    missing = [
-        t for t in ["bngblaster", "bngblaster-cli", "bgpupdate"] if not shutil.which(t)
-    ]
-    if not _scapy_importable():
-        missing.append("scapy")
-    return missing
+    return [t for t in ["bngblaster", "bngblaster-cli"] if not shutil.which(t)]
 
 
 def check_prerequisites():

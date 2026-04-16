@@ -11,6 +11,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - [project_cli_dispatch_discovery.md](project_cli_dispatch_discovery.md) - Three CLI gaps blocking debugging: no one-shot command, help shows RPC names not dispatch keys, no dispatch key listing
 - [project_no_filtered_routes.md](project_no_filtered_routes.md) - Ze does not track filtered/noexport routes; birdwatcher endpoints return empty
 - [project_gokrazy_appliance.md](project_gokrazy_appliance.md) - Ze targets gokrazy appliance (no systemd); must own full process lifecycle for VPP
+- [project_stress_injector.md](project_stress_injector.md) - Stress UPDATE stream generated in-memory in Go inside `ze-test peer --mode inject`, streamed directly; no file, no bngblaster
 
 
 ## User Profile
@@ -23,7 +24,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 
 - [reference_discord_bot.md](reference_discord_bot.md) - Discord bot in ~/Unix/bin/discord.sh: --channel ze-news/ze-test, --text "msg"
 - [feedback_discord_voice.md](feedback_discord_voice.md) - Discord posts as Zeledon; use third person for Thomas, not "I"
-- [reference_python_uv.md](reference_python_uv.md) - Install Python deps via `uv`, not `pip3 --break-system-packages`. test/stress/setup.py still uses pip3 and is broken on modern systems
+- [reference_python_uv.md](reference_python_uv.md) - Install Python deps via `uv run --with`. No scapy dep remains; stress-test uses `test/stress/bgpgen.py` (stdlib-only RFC 4271/4760 generator)
 
 ## Feedback (workflow)
 

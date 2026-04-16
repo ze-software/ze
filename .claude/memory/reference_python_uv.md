@@ -1,19 +1,21 @@
 ---
 name: Python deps via uv, not pip3
-description: Project installs Python dependencies with `uv` (run/pip), not `pip3 --break-system-packages`. User confirmed this after hitting friction with the stress-test setup script.
+description: Project installs Python dependencies with `uv run --with`. `pip3 install --break-system-packages` is forbidden (PEP 668). No scapy dependency remains.
 type: reference
 originSessionId: e2f0855a-d034-476f-81b6-5a035dc15c6e
 ---
-Python dependencies in ze are installed via `uv`. The Makefile uses
-`uv run --with <pkg>` for ExaBGP-compat tests (see `Makefile:244,286`).
+Python dependencies in ze are installed via `uv run --with <pkg>` (see
+`Makefile:244,286` for the ExaBGP-compat test harness). `pip3 install
+--break-system-packages` fails on modern systems (PEP 668 externally-managed
+environment) and must not be introduced.
 
-`pip3 install --break-system-packages <pkg>` fails on the user's system
-(PEP 668 externally-managed environment). User had to install scapy
-manually via `uv` to work around it.
+**Stress test generator:** `test/stress/bgpgen.py` is a pure-stdlib BGP raw
+UPDATE file generator (RFC 4271 / 4760 wire format) that replaced the
+upstream scapy-based `bgpupdate` tool. It is ~500x faster (1M /24 prefixes
+in ~1 s vs. ~500 s under scapy). There is no remaining scapy dependency in
+the stress test path.
 
-**Outlier to watch:** `test/stress/setup.py:146-149` still calls
-`pip3 install --break-system-packages scapy`. It is inconsistent with
-the rest of the project and will fail on modern systems. If asked to
-touch stress-test setup, propose migrating that call to `uv` (but verify
-first whether `bgpupdate` invokes scapy from system python or can be
-wrapped in `uv run` -- the constraint was not confirmed).
+`test/stress/setup.py` no longer installs scapy; `test/stress/run.py` no
+longer checks for it. If a new scenario needs features bgpgen does not
+cover (MPLS labels, withdraw, ADD_PATH, multi-ASN paths), extend
+`bgpgen.py` rather than reintroducing scapy.

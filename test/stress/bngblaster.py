@@ -18,10 +18,10 @@ import json
 import os
 import re
 import shutil
-import signal
 import subprocess
-import sys
 import time
+
+import bgpgen
 
 # Namespace and interface naming (PID suffix avoids conflicts).
 _SUFFIX = os.environ.get("ZE_STRESS_SUFFIX", str(os.getpid()))
@@ -324,28 +324,26 @@ def generate_updates(
     output_dir="/tmp",
     extra_args=None,
 ):
-    """Generate BGP raw update file using bgpupdate."""
+    """Generate BGP raw update file (in-process, stdlib, see bgpgen.py)."""
+    if extra_args:
+        raise NotImplementedError(
+            "extra_args dropped with the scapy-based bgpupdate. "
+            "Extend test/stress/bgpgen.py if a scenario needs new knobs."
+        )
     output_path = os.path.join(output_dir, filename)
-    cmd = [
-        "bgpupdate",
-        "-p",
-        prefix_base,
-        "-P",
-        str(prefix_count),
-        "-n",
-        nexthop,
-        "-a",
-        str(asn),
-        "-f",
-        output_path,
-        "--end-of-rib",
-    ]
-    for arg in extra_args or []:
-        cmd.append(arg)
     log_info("generating %d prefixes from %s..." % (prefix_count, prefix_base))
-    gen_timeout = max(120, prefix_count // 2000)  # ~2s per 1k prefixes, min 120s
-    _run(cmd, timeout=gen_timeout)
-    log_pass("generated %s (%d prefixes)" % (filename, prefix_count))
+    t0 = time.time()
+    bgpgen.generate_file(
+        path=output_path,
+        prefix_base=prefix_base,
+        prefix_count=prefix_count,
+        nexthop=nexthop,
+        asn=asn,
+        end_of_rib=True,
+    )
+    log_pass(
+        "generated %s (%d prefixes, %.2fs)" % (filename, prefix_count, time.time() - t0)
+    )
     return output_path
 
 
