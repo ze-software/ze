@@ -24,6 +24,7 @@ package nlri
 
 import (
 	"encoding/binary"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
@@ -90,6 +91,18 @@ type NLRI interface {
 	// RFC 7911 Section 3: ADD-PATH capability allows multiple paths per prefix.
 	// Some NLRI types (FlowSpec, BGPLS, etc.) don't support ADD-PATH per their RFCs.
 	SupportsAddPath() bool
+}
+
+// JSONWriter is an optional interface implemented by NLRI types that can
+// emit their own JSON representation directly into a strings.Builder, bypassing
+// the wire-encode / hex / re-parse / map-marshal round-trip used by the RPC
+// decoder path.
+//
+// Hot-path formatters (format/text_json.go) probe for this interface and use
+// it when available. Types that do not implement it fall back to the registry
+// decoder path (required for external plugins that live over RPC).
+type JSONWriter interface {
+	AppendJSON(sb *strings.Builder)
 }
 
 // LenWithContext returns the wire-format length adjusted for ADD-PATH.

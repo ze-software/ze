@@ -3,6 +3,18 @@
 Pre-existing failures that need fixing. Each entry includes failure output and root-cause hypothesis.
 Sessions should attempt to fix entries here before logging new ones.
 
+## TestInProcessBasicRoute (flake under parallel load) -- LOGGED 2026-04-16
+
+**File:** `internal/chaos/inprocess/runner_test.go` -- `TestInProcessBasicRoute`
+**Symptom:** Two BGP peers fail to reach established state under `make ze-verify-fast` parallel unit-test load; the test assertions `peer 0/1 should establish BGP session` fail.
+**Reproduction:**
+- FAILS: `make ze-verify-fast` (unit+lint parallel stage, runtime 46s vs normal 2.9s).
+- PASSES: `go test -count=1 -run TestInProcessBasicRoute ./internal/chaos/inprocess/` in isolation (2.87s).
+- PASSES: same with `-race` isolated (7.17s).
+**Hypothesis:** Same class as the existing chaos/inprocess pool-worker flakes under parallel-binary CPU contention. The test orchestrates live BGP FSM handshake and route delivery against a wallclock deadline; when the ze-verify-fast scheduler runs unit+lint in parallel the chaos binary starves of slots and the handshake window expires before OPEN is exchanged.
+**Not caused by the 2026-04-16 nlri.JSONWriter refactor -- verified orthogonal.** The refactor only changes how already-established routes are formatted for subscribers; session establishment has no JSON path. Failure surfaces before any route is advertised.
+**Fix needed:** Either increase the session-establish deadline in the runner, or isolate `internal/chaos/inprocess` from the unit parallel pool (similar to how reactor/chaos are partitioned today). 30-60 min investigation.
+
 ## plugin test 272 watchdog (flake under parallel load) -- LOGGED 2026-04-16
 
 **File:** `test/plugin/watchdog.ci`

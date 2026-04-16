@@ -119,18 +119,24 @@ type familyOperation struct {
 // Simple prefixes without path-id are output as strings: "10.0.0.0/24".
 // Complex NLRIs (ADD-PATH, VPN, EVPN, FlowSpec) are output as objects with structured fields.
 //
-// Plugin NLRI types (VPN, EVPN, FlowSpec) are decoded via registry.DecodeNLRIByFamily,
-// which routes to the plugin's in-process decoder. This avoids direct plugin type imports.
-// Core types (LabeledUnicast) are handled directly since they live in the nlri package.
+// Hot path: NLRI types implementing nlri.JSONWriter stream JSON directly into
+// the builder (zero-alloc for simple plugins, single json.Marshal for FlowSpec).
+// Registry hex decoder path is retained as a fallback for external plugins that
+// live over RPC and have no in-process Go type to assert against.
 //
 // RFC 4364: VPN NLRI includes RD and labels.
 // RFC 7432: EVPN NLRI includes route-type, ESI, etc.
 // RFC 8277: Labeled Unicast NLRI includes labels.
 // RFC 8955: FlowSpec NLRI includes match components.
 func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI, familyStr string) {
-	// Try registry-based decode for plugin NLRI types (VPN, EVPN, FlowSpec, Labeled).
-	// The registry routes to the plugin's InProcessNLRIDecoder by family.
-	// Path-id is transport-level (ADD-PATH) and not included in decoder output.
+	// Fast path: concrete in-process NLRI types implement nlri.JSONWriter and
+	// write their JSON directly, skipping wire encode + hex + re-parse + map.
+	if w, ok := n.(nlri.JSONWriter); ok {
+		w.AppendJSON(sb)
+		return
+	}
+
+	// Fallback: external plugins over RPC. Wire-encode, hex, dispatch via registry.
 	if registry.PluginForFamily(familyStr) != "" {
 		hexData := hex.EncodeToString(n.Bytes())
 		decoded, err := registry.DecodeNLRIByFamily(familyStr, hexData)
