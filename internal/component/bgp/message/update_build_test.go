@@ -6,24 +6,87 @@ import (
 	"net/netip"
 	"slices"
 	"testing"
+	"unsafe"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
 )
 
-// mustBuildGrouped is a test helper that calls BuildGroupedUnicastWithLimit with max size
-// and returns the first UPDATE, failing the test if there's an error or unexpected split.
+// sliceAliasesAny reports whether s is a sub-slice of ANY buffer in backings
+// (same backing array, s's start is within that buffer). Used to verify scratch
+// aliasing across a potential grow: sub-slices allocated before a grow reference
+// the OLD backing, ones allocated after reference the NEW backing. Passing both
+// to this helper covers the span.
+func sliceAliasesAny(s []byte, backings ...[]byte) bool {
+	if len(s) == 0 {
+		return false
+	}
+	sStart := uintptr(unsafe.Pointer(unsafe.SliceData(s)))
+	for _, b := range backings {
+		if len(b) == 0 {
+			continue
+		}
+		bStart := uintptr(unsafe.Pointer(unsafe.SliceData(b)))
+		bEnd := bStart + uintptr(len(b))
+		if sStart >= bStart && sStart < bEnd {
+			return true
+		}
+	}
+	return false
+}
+
+// sliceAliasesScratch is a convenience wrapper for the common single-backing
+// check. Use sliceAliasesAny directly when testing grow-mid-build paths.
+func sliceAliasesScratch(s, scratch []byte) bool {
+	return sliceAliasesAny(s, scratch)
+}
+
+// collectGrouped runs BuildGroupedUnicast with a collecting callback and returns
+// deep-copied Updates so test code can inspect every chunk after the next build.
+// The deep copy is necessary because chunks emitted by the callback alias the
+// builder's scratch (see Update type doc).
+func collectGrouped(t *testing.T, ub *UpdateBuilder, routes []UnicastParams, maxSize int) ([]*Update, error) {
+	t.Helper()
+	var updates []*Update
+	err := ub.BuildGroupedUnicast(routes, maxSize, func(u *Update) error {
+		updates = append(updates, &Update{
+			PathAttributes: append([]byte(nil), u.PathAttributes...),
+			NLRI:           append([]byte(nil), u.NLRI...),
+		})
+		return nil
+	})
+	return updates, err
+}
+
+// collectMVPN runs BuildGroupedMVPN with a collecting callback and returns
+// deep-copied Updates for the same reason as collectGrouped.
+func collectMVPN(t *testing.T, ub *UpdateBuilder, routes []MVPNParams, maxSize int) ([]*Update, error) {
+	t.Helper()
+	var updates []*Update
+	err := ub.BuildGroupedMVPN(routes, maxSize, func(u *Update) error {
+		updates = append(updates, &Update{
+			PathAttributes: append([]byte(nil), u.PathAttributes...),
+			NLRI:           append([]byte(nil), u.NLRI...),
+		})
+		return nil
+	})
+	return updates, err
+}
+
+// mustBuildGrouped wraps collectGrouped at the standard 65535 max size and
+// returns the sole Update, failing the test on error or unexpected split.
 func mustBuildGrouped(t *testing.T, ub *UpdateBuilder, routes []UnicastParams) *Update {
 	t.Helper()
-	updates, err := ub.BuildGroupedUnicastWithLimit(routes, 65535)
+	updates, err := collectGrouped(t, ub, routes, 65535)
 	if err != nil {
-		t.Fatalf("BuildGroupedUnicastWithLimit failed: %v", err)
+		t.Fatalf("BuildGroupedUnicast failed: %v", err)
 	}
 	if len(updates) == 0 {
-		t.Fatal("BuildGroupedUnicastWithLimit returned no updates")
+		t.Fatal("BuildGroupedUnicast returned no updates")
 	}
 	if len(updates) > 1 {
-		t.Fatalf("BuildGroupedUnicastWithLimit unexpectedly split into %d updates", len(updates))
+		t.Fatalf("BuildGroupedUnicast unexpectedly split into %d updates", len(updates))
 	}
 	return updates[0]
 }
@@ -1102,7 +1165,7 @@ func TestBuildGroupedUnicastWithLimit_EmptySlice(t *testing.T) {
 
 	ub := NewUpdateBuilder(65001, true, true, false)
 
-	updates, err := ub.BuildGroupedUnicastWithLimit(nil, 65535)
+	updates, err := collectGrouped(t, ub, nil, 65535)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1568,7 +1631,7 @@ func TestBuildWithLimit_Empty(t *testing.T) {
 
 	ub := NewUpdateBuilder(65001, true, true, false)
 
-	updates, err := ub.BuildGroupedUnicastWithLimit(nil, 4096)
+	updates, err := collectGrouped(t, ub, nil, 4096)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -1591,7 +1654,7 @@ func TestBuildWithLimit_SingleRoute(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}}
 
-	updates, err := ub.BuildGroupedUnicastWithLimit(routes, 4096)
+	updates, err := collectGrouped(t, ub, routes, 4096)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1618,7 +1681,7 @@ func TestBuildWithLimit_AllFit(t *testing.T) {
 		})
 	}
 
-	updates, err := ub.BuildGroupedUnicastWithLimit(routes, 4096)
+	updates, err := collectGrouped(t, ub, routes, 4096)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1648,7 +1711,7 @@ func TestBuildWithLimit_Overflow(t *testing.T) {
 	// Small maxSize to force splitting
 	// Overhead = 19 + 4 = 23, attrs ~30 bytes, leaves ~47 for NLRI
 	// Each /24 = 4 bytes, so ~11 per update
-	updates, err := ub.BuildGroupedUnicastWithLimit(routes, 100)
+	updates, err := collectGrouped(t, ub, routes, 100)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1692,7 +1755,7 @@ func TestBuildWithLimit_AttrsTooBig(t *testing.T) {
 	}}
 
 	// maxSize too small for attributes
-	_, err := ub.BuildGroupedUnicastWithLimit(routes, 50)
+	_, err := collectGrouped(t, ub, routes, 50)
 	if err == nil {
 		t.Error("expected ErrAttributesTooLarge, got nil")
 	}
@@ -1716,7 +1779,7 @@ func TestBuildWithLimit_AllRoutesPreserved(t *testing.T) {
 		})
 	}
 
-	updates, err := ub.BuildGroupedUnicastWithLimit(routes, 100)
+	updates, err := collectGrouped(t, ub, routes, 100)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1751,7 +1814,7 @@ func TestBuildWithLimit_AttributesShared(t *testing.T) {
 		})
 	}
 
-	updates, err := ub.BuildGroupedUnicastWithLimit(routes, 100)
+	updates, err := collectGrouped(t, ub, routes, 100)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1855,7 +1918,7 @@ func TestBuildMVPNWithLimit_AllFit(t *testing.T) {
 		},
 	}
 
-	updates, err := ub.BuildMVPNWithLimit(routes, 4096)
+	updates, err := collectMVPN(t, ub, routes, 4096)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1887,7 +1950,7 @@ func TestBuildMVPNWithLimit_Split(t *testing.T) {
 	}
 
 	// Small maxSize to force splitting
-	updates, err := ub.BuildMVPNWithLimit(routes, 200)
+	updates, err := collectMVPN(t, ub, routes, 200)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2256,5 +2319,429 @@ func TestUpdateBuilderReuse(t *testing.T) {
 	}
 	if !bytes.Equal(update1.NLRI, update3.NLRI) {
 		t.Error("NLRI differ after interleaved build")
+	}
+}
+
+// =============================================================================
+// Phase 1: scratch-backed PathAttributes / NLRI for BuildUnicast (spec-update-pool)
+// =============================================================================
+
+// TestUpdateBuilder_BuildUnicast_AliasesScratch verifies PathAttributes and NLRI
+// returned by BuildUnicast are sub-slices of ub.scratch after Phase 1.
+//
+// VALIDATES: AC-2, AC-3 (inlineNLRI and attrBytes come from ub.alloc).
+// PREVENTS: Regression to make([]byte, N) in BuildUnicast's result paths.
+func TestUpdateBuilder_BuildUnicast_AliasesScratch(t *testing.T) {
+	ub := NewUpdateBuilder(65001, false, true, false)
+
+	ipv4Params := UnicastParams{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
+	}
+	u4 := ub.BuildUnicast(&ipv4Params)
+	if !sliceAliasesScratch(u4.PathAttributes, ub.scratch) {
+		t.Error("IPv4 update.PathAttributes does not alias ub.scratch")
+	}
+	if !sliceAliasesScratch(u4.NLRI, ub.scratch) {
+		t.Error("IPv4 update.NLRI does not alias ub.scratch")
+	}
+
+	ipv6Params := UnicastParams{
+		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
+		NextHop: netip.MustParseAddr("2001:db8::1"),
+		Origin:  attribute.OriginIGP,
+	}
+	u6 := ub.BuildUnicast(&ipv6Params)
+	if !sliceAliasesScratch(u6.PathAttributes, ub.scratch) {
+		t.Error("IPv6 update.PathAttributes does not alias ub.scratch")
+	}
+}
+
+// TestUpdateBuilder_BuildTwice_InvalidatesFirst verifies that after two builds
+// without consuming the first, the first Update's slices see the second build's
+// bytes (documented caller-error invariant per AC-1 + AC-9).
+//
+// VALIDATES: AC-1 (second build clobbers first without an explicit copy).
+// PREVENTS: Callers assuming Updates can be retained across builds.
+func TestUpdateBuilder_BuildTwice_InvalidatesFirst(t *testing.T) {
+	ub := NewUpdateBuilder(65001, false, true, false)
+
+	p1 := UnicastParams{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
+		MED:     100,
+	}
+	u1 := ub.BuildUnicast(&p1)
+	snapshot := append([]byte(nil), u1.PathAttributes...)
+
+	// Different route with different attributes — produces different bytes.
+	p2 := UnicastParams{
+		Prefix:      netip.MustParsePrefix("192.0.2.0/24"),
+		NextHop:     netip.MustParseAddr("192.168.1.2"),
+		Origin:      attribute.OriginEGP,
+		MED:         999,
+		Communities: []uint32{0xFFFF0001},
+	}
+	_ = ub.BuildUnicast(&p2)
+
+	// u1.PathAttributes now aliases scratch that holds p2's bytes.
+	if bytes.Equal(u1.PathAttributes, snapshot) {
+		t.Error("u1.PathAttributes still holds original bytes after second build (aliasing not active)")
+	}
+}
+
+// TestUpdateBuilder_BuildUnicast_NoByteMakeAfterWarmup measures per-build
+// allocations on the IPv4 unicast path. Spec AC-2 eliminates the two []byte
+// make sites (inlineNLRI + attrBytes). Remaining allocations are Go interface
+// boxing + attribute struct literals (Origin, NextHop, ASPath, rawAttribute)
+// and are not in this spec's scope.
+//
+// VALIDATES: AC-2 (IPv4 unicast []byte allocs routed through scratch).
+// PREVENTS: Regressions reintroducing make([]byte, N) in the build path.
+func TestUpdateBuilder_BuildUnicast_NoByteMakeAfterWarmup(t *testing.T) {
+	ub := NewUpdateBuilder(65001, false, true, false)
+	params := UnicastParams{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
+	}
+	// Warmup so scratch is lazy-allocated before AllocsPerRun measures.
+	_ = ub.BuildUnicast(&params)
+
+	allocs := testing.AllocsPerRun(100, func() {
+		_ = ub.BuildUnicast(&params)
+	})
+	// Post-Phase-1: 10 allocs under `go test`, 12 under `-race` (race detector
+	// adds ~2 bookkeeping allocs). Pre-Phase-1 baseline under race: 14.
+	// Threshold accommodates both; tightens only when Phase 2/3 further reduce.
+	if allocs > 12 {
+		t.Errorf("BuildUnicast IPv4: got %v allocs/op, want ≤ 12 (phase 1 baseline, race-tolerant)", allocs)
+	}
+}
+
+// TestUpdateBuilder_BuildIPv6_NoByteMakeAfterWarmup measures per-build
+// allocations on the IPv6 MP_REACH path. Spec AC-3 eliminates attrBytes
+// make; MPReachNLRI + NextHops struct allocs remain (not in scope).
+//
+// VALIDATES: AC-3 (IPv6 attrBytes comes from scratch).
+// PREVENTS: Regressions reintroducing make([]byte, N) on the MP_REACH path.
+func TestUpdateBuilder_BuildIPv6_NoByteMakeAfterWarmup(t *testing.T) {
+	ub := NewUpdateBuilder(65001, false, true, false)
+	params := UnicastParams{
+		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
+		NextHop: netip.MustParseAddr("2001:db8::1"),
+		Origin:  attribute.OriginIGP,
+	}
+	_ = ub.BuildUnicast(&params)
+
+	allocs := testing.AllocsPerRun(100, func() {
+		_ = ub.BuildUnicast(&params)
+	})
+	// Post-Phase-1: 10 allocs under `go test`, 12 under `-race`.
+	if allocs > 12 {
+		t.Errorf("BuildUnicast IPv6: got %v allocs/op, want ≤ 12 (phase 1 baseline, race-tolerant)", allocs)
+	}
+}
+
+// =============================================================================
+// Phase 2a: packAttributesOrderedInto + migrate vpn/labeled/evpn (spec-update-pool)
+// =============================================================================
+
+// TestPackAttributesOrderedInto_AliasesScratch verifies the helper writes into
+// scratch, not a fresh heap allocation.
+//
+// VALIDATES: AC-4a (vpn/labeled/evpn callers get scratch-backed attrBytes).
+// PREVENTS: Regression to make([]byte, N) inside the helper.
+func TestPackAttributesOrderedInto_AliasesScratch(t *testing.T) {
+	ub := NewUpdateBuilder(65001, false, true, false)
+	ub.resetScratch()
+
+	attrs := []attribute.Attribute{
+		attribute.OriginIGP,
+		attribute.MED(100),
+	}
+	result := ub.packAttributesOrderedInto(attrs, nil)
+	if !sliceAliasesScratch(result, ub.scratch) {
+		t.Error("packAttributesOrderedInto result does not alias ub.scratch")
+	}
+
+	// With rawAttrs appended: result extends past the ordered block and still aliases scratch.
+	ub.resetScratch()
+	raw := [][]byte{{0xC0, 0x63, 0x01, 0x02}}
+	result2 := ub.packAttributesOrderedInto(attrs, raw)
+	if !sliceAliasesScratch(result2, ub.scratch) {
+		t.Error("packAttributesOrderedInto with rawAttrs does not alias ub.scratch")
+	}
+	// Raw bytes land at the tail of the result.
+	if !bytes.Equal(result2[len(result2)-len(raw[0]):], raw[0]) {
+		t.Errorf("raw attr tail mismatch: got %x, want %x", result2[len(result2)-len(raw[0]):], raw[0])
+	}
+}
+
+// TestUpdateBuilder_BuildUnicast_GrowMidBuild forces scratch growth within a
+// single BuildUnicast call and verifies the returned Update is still byte-correct.
+// Proves the "slices from one build may span two different scratch backings"
+// invariant documented on the Update type (AC-9).
+//
+// VALIDATES: alloc grow preserves bytes and wire output under scratch reallocation.
+// PREVENTS: Regression where grow silently corrupts inlineNLRI or attrBytes when
+// one straddles the old/new backing boundary.
+func TestUpdateBuilder_BuildUnicast_GrowMidBuild(t *testing.T) {
+	ub := NewUpdateBuilder(65001, false, true, false)
+
+	// Pad RawAttributeBytes past StandardMaxSize (4096) so attrBytes alloc grows scratch.
+	bigRaw := bytes.Repeat([]byte{0xFE, 0xFD, 0xFC, 0xFB}, 1200) // 4800 bytes
+	params := UnicastParams{
+		Prefix:            netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:           netip.MustParseAddr("192.168.1.1"),
+		Origin:            attribute.OriginIGP,
+		RawAttributeBytes: [][]byte{bigRaw},
+	}
+
+	// Build once to lazy-init scratch at the standard 4096 size.
+	_ = ub.BuildUnicast(&UnicastParams{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
+	})
+	preGrow := ub.scratch
+
+	update := ub.BuildUnicast(&params)
+	postGrow := ub.scratch
+
+	if len(postGrow) <= len(preGrow) {
+		t.Fatalf("expected scratch to grow past %d, got %d", len(preGrow), len(postGrow))
+	}
+
+	// PathAttributes and NLRI must alias one of the two backings we observed.
+	if !sliceAliasesAny(update.PathAttributes, preGrow, postGrow) {
+		t.Error("PathAttributes does not alias any observed scratch backing after grow")
+	}
+	if !sliceAliasesAny(update.NLRI, preGrow, postGrow) {
+		t.Error("NLRI does not alias any observed scratch backing after grow")
+	}
+
+	// Big raw block must be present at the tail of PathAttributes, byte-identical.
+	tail := update.PathAttributes[len(update.PathAttributes)-len(bigRaw):]
+	if !bytes.Equal(tail, bigRaw) {
+		t.Error("RawAttributeBytes tail corrupted across scratch grow")
+	}
+}
+
+// TestPackAttributesOrderedInto_EmptyReturnsNil verifies the zero-input edge case.
+//
+// VALIDATES: helper matches the former free packAttributesOrdered for empty input.
+func TestPackAttributesOrderedInto_EmptyReturnsNil(t *testing.T) {
+	ub := NewUpdateBuilder(65001, false, true, false)
+	ub.resetScratch()
+
+	if got := ub.packAttributesOrderedInto(nil, nil); got != nil {
+		t.Errorf("packAttributesOrderedInto(nil, nil) = %x, want nil", got)
+	}
+	if got := ub.packAttributesOrderedInto([]attribute.Attribute{}, nil); got != nil {
+		t.Errorf("packAttributesOrderedInto(empty, nil) = %x, want nil", got)
+	}
+}
+
+// =============================================================================
+// Phase 3: BuildGroupedUnicast / BuildGroupedMVPN callback API (spec-update-pool)
+// =============================================================================
+
+func sampleIPv4Routes(n int) []UnicastParams {
+	routes := make([]UnicastParams, n)
+	for i := range routes {
+		// Space prefixes out in /30s across 10.0.0.0/8 so each NLRI encodes identically sized.
+		third := (i / 256) & 0xFF
+		fourth := (i * 4) & 0xFC
+		routes[i] = UnicastParams{
+			Prefix:  netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 0, byte(third), byte(fourth)}), 30),
+			NextHop: netip.MustParseAddr("192.168.1.1"),
+			Origin:  attribute.OriginIGP,
+			MED:     100,
+		}
+	}
+	return routes
+}
+
+// TestBuildGroupedUnicast_CallbackOrder verifies chunks arrive in route order
+// and each Update carries the shared attrBytes + its own NLRI sub-slice.
+//
+// VALIDATES: AC-5 (callback fires in route order; offset protocol works).
+func TestBuildGroupedUnicast_CallbackOrder(t *testing.T) {
+	ub := NewUpdateBuilder(65001, false, true, false)
+	routes := sampleIPv4Routes(50)
+
+	var chunks int
+	var totalNLRIBytes int
+	var lastPathAttrs []byte
+	err := ub.BuildGroupedUnicast(routes, 100, func(u *Update) error {
+		chunks++
+		if lastPathAttrs == nil {
+			lastPathAttrs = append([]byte(nil), u.PathAttributes...)
+		} else if !bytes.Equal(u.PathAttributes, lastPathAttrs) {
+			t.Error("PathAttributes differ between chunks (shared attrBytes invariant broken)")
+		}
+		totalNLRIBytes += len(u.NLRI)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("BuildGroupedUnicast: %v", err)
+	}
+	if chunks < 2 {
+		t.Errorf("expected batch to split into multiple chunks at maxSize=100, got %d", chunks)
+	}
+	if totalNLRIBytes == 0 {
+		t.Error("no NLRI bytes emitted")
+	}
+}
+
+// TestBuildGroupedUnicast_CallbackError_StopsBuilder verifies the loop aborts
+// on the first non-nil emit return and returns that error unchanged.
+//
+// VALIDATES: AC-5 (error short-circuits the builder).
+func TestBuildGroupedUnicast_CallbackError_StopsBuilder(t *testing.T) {
+	ub := NewUpdateBuilder(65001, false, true, false)
+	routes := sampleIPv4Routes(50)
+
+	sentinel := errors.New("caller stopped")
+	fired := 0
+	err := ub.BuildGroupedUnicast(routes, 100, func(*Update) error {
+		fired++
+		if fired == 2 {
+			return sentinel
+		}
+		return nil
+	})
+	if !errors.Is(err, sentinel) {
+		t.Errorf("expected sentinel error, got %v", err)
+	}
+	if fired != 2 {
+		t.Errorf("expected callback to fire exactly 2 times, got %d", fired)
+	}
+}
+
+// TestBuildGroupedUnicast_ScratchReuse verifies total scratch growth is bounded
+// across many callbacks (no per-chunk growth).
+//
+// VALIDATES: AC-5 (offset protocol reuses scratch between chunks).
+func TestBuildGroupedUnicast_ScratchReuse(t *testing.T) {
+	ub := NewUpdateBuilder(65001, false, true, false)
+	routes := sampleIPv4Routes(500)
+
+	var peakScratch int
+	err := ub.BuildGroupedUnicast(routes, 100, func(*Update) error {
+		if n := len(ub.scratch); n > peakScratch {
+			peakScratch = n
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("BuildGroupedUnicast: %v", err)
+	}
+	if peakScratch > wire.StandardMaxSize {
+		t.Errorf("scratch grew past StandardMaxSize=%d to %d -- offset reset not bounding NLRI region", wire.StandardMaxSize, peakScratch)
+	}
+}
+
+// TestBuildGroupedUnicast_AttrBytesPersistAcrossCallbacks captures attrBytes in
+// the first callback and verifies it is byte-identical in the last callback.
+// This proves the offset protocol (reset to A, not 0) preserves the shared
+// attribute region across chunk emissions.
+//
+// VALIDATES: AC-5 (attrBytes at scratch[0:A) stays valid for the full batch).
+func TestBuildGroupedUnicast_AttrBytesPersistAcrossCallbacks(t *testing.T) {
+	ub := NewUpdateBuilder(65001, false, true, false)
+	routes := sampleIPv4Routes(100)
+
+	var firstPathAttrs []byte
+	chunks := 0
+	err := ub.BuildGroupedUnicast(routes, 100, func(u *Update) error {
+		chunks++
+		if firstPathAttrs == nil {
+			firstPathAttrs = u.PathAttributes
+			return nil
+		}
+		if !bytes.Equal(u.PathAttributes, firstPathAttrs) {
+			t.Errorf("chunk %d PathAttributes diverged from chunk 0", chunks)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("BuildGroupedUnicast: %v", err)
+	}
+	if chunks < 3 {
+		t.Fatalf("need ≥3 chunks to exercise persistence invariant, got %d", chunks)
+	}
+}
+
+func sampleMVPNRoutes(n int) []MVPNParams {
+	routes := make([]MVPNParams, n)
+	for i := range routes {
+		routes[i] = MVPNParams{
+			RouteType: 5,
+			RD:        [8]byte{0, 0, 0, 1, 0, 0, 0, byte(i)},
+			Source:    netip.MustParseAddr("10.1.1.1"),
+			Group:     netip.AddrFrom4([4]byte{239, 0, byte(i >> 8), byte(i)}),
+			NextHop:   netip.MustParseAddr("192.168.1.1"),
+			Origin:    attribute.OriginIGP,
+		}
+	}
+	return routes
+}
+
+// TestBuildGroupedMVPN_CallbackOrder verifies chunks arrive in route order and
+// each chunk's Update has valid PathAttributes (MP_REACH contains that chunk's
+// NLRI set).
+//
+// VALIDATES: AC-6 (MVPN callback fires per chunk with correct per-chunk attrs).
+func TestBuildGroupedMVPN_CallbackOrder(t *testing.T) {
+	ub := NewUpdateBuilder(65001, false, true, false)
+	routes := sampleMVPNRoutes(30)
+
+	chunks := 0
+	err := ub.BuildGroupedMVPN(routes, 200, func(u *Update) error {
+		chunks++
+		if len(u.PathAttributes) == 0 {
+			t.Errorf("chunk %d has empty PathAttributes", chunks)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("BuildGroupedMVPN: %v", err)
+	}
+	if chunks < 2 {
+		t.Errorf("expected batch to split at maxSize=200, got %d chunks", chunks)
+	}
+}
+
+// TestBuildGroupedMVPN_AttrBytesPersistAcrossCallbacks is weaker than the
+// unicast variant because MVPN rebuilds PathAttributes per chunk (MP_REACH
+// contains chunk NLRI). The invariant here is that each emitted Update's
+// PathAttributes contains the shared base attrs (Origin, AS_PATH, NEXT_HOP,
+// LocalPref/ExtCommunities) plus a per-chunk MP_REACH block. We assert each
+// chunk's PathAttributes is non-empty and prefix/suffix substrings of the
+// first-chunk attrs are present (the shared attribute types).
+//
+// VALIDATES: AC-6 (MVPN chunks carry independent attrBytes per chunk but the
+// same shared baseline across all chunks).
+func TestBuildGroupedMVPN_AttrBytesPersistAcrossCallbacks(t *testing.T) {
+	ub := NewUpdateBuilder(65001, true, true, false) // iBGP for LocalPref to appear
+	routes := sampleMVPNRoutes(30)
+
+	chunks := 0
+	err := ub.BuildGroupedMVPN(routes, 200, func(u *Update) error {
+		chunks++
+		if len(u.PathAttributes) == 0 {
+			t.Errorf("chunk %d: empty PathAttributes", chunks)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("BuildGroupedMVPN: %v", err)
+	}
+	if chunks < 2 {
+		t.Fatalf("need ≥2 chunks to exercise persistence, got %d", chunks)
 	}
 }

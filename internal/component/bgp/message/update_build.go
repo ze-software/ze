@@ -285,9 +285,9 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
 		mpReach := ub.buildMPReach(p)
 		attrs = append(attrs, mpReach)
 	case p.Prefix.Addr().Is4():
-		// IPv4 unicast: inline NLRI
+		// IPv4 unicast: inline NLRI written into scratch via alloc.
 		inet := nlri.NewINET(family.IPv4Unicast, p.Prefix, p.PathID)
-		inlineNLRI = make([]byte, nlri.LenWithContext(inet, ub.AddPath))
+		inlineNLRI = ub.alloc(nlri.LenWithContext(inet, ub.AddPath))
 		nlri.WriteNLRI(inet, inlineNLRI, 0, ub.AddPath)
 	}
 
@@ -320,14 +320,14 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
 		return attrs[i].Code() < attrs[j].Code()
 	})
 
-	// Write sorted attributes
+	// Write sorted attributes into scratch-backed buffer.
 	attrSize := attribute.AttributesSize(attrs)
 	// Calculate raw attributes size
 	rawSize := 0
 	for _, raw := range p.RawAttributeBytes {
 		rawSize += len(raw)
 	}
-	attrBytes := make([]byte, attrSize+rawSize)
+	attrBytes := ub.alloc(attrSize + rawSize)
 	off := attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
 
 	// Append raw attributes (already packed, pass-through from config)
@@ -484,16 +484,25 @@ func (r *rawAttribute) CheckedWriteTo(buf []byte, off int) (int, error) {
 	return r.WriteTo(buf, off), nil
 }
 
-// packAttributesOrdered packs attributes with MP_UNREACH first, regular attrs
-// by type code, then MP_REACH last. This matches ExaBGP output.
+// packAttributesOrderedInto packs attributes with MP_UNREACH first, regular
+// attrs by type code, then MP_REACH last. Matches ExaBGP output ordering.
+// Appends rawAttrs after the ordered block, pass-through for raw config bytes.
 //
-// Uses WriteAttributesOrdered (zero-alloc write into pre-sized buffer).
-func packAttributesOrdered(attrs []attribute.Attribute) []byte {
-	if len(attrs) == 0 {
+// Result is a sub-slice of ub.scratch. See the Update type doc for the
+// scratch-aliasing lifetime invariant.
+func (ub *UpdateBuilder) packAttributesOrderedInto(attrs []attribute.Attribute, rawAttrs [][]byte) []byte {
+	if len(attrs) == 0 && len(rawAttrs) == 0 {
 		return nil
 	}
-	totalSize := attribute.AttributesSize(attrs)
-	result := make([]byte, totalSize)
-	attribute.WriteAttributesOrdered(attrs, result, 0)
+	attrSize := attribute.AttributesSize(attrs)
+	rawSize := 0
+	for _, r := range rawAttrs {
+		rawSize += len(r)
+	}
+	result := ub.alloc(attrSize + rawSize)
+	off := attribute.WriteAttributesOrdered(attrs, result, 0)
+	for _, r := range rawAttrs {
+		off += copy(result[off:], r)
+	}
 	return result
 }

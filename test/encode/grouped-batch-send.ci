@@ -1,0 +1,62 @@
+# grouped-batch-send: exercise BuildGroupedUnicast callback path.
+#
+# Four IPv4 unicast routes sharing identical attributes are configured on the
+# peer; group-updates is enabled so peer_initial_sync batches them through
+# BuildGroupedUnicast, which emits one UPDATE containing all four NLRIs via
+# the scratch offset protocol (attrBytes at scratch[0:A), per-chunk NLRI at
+# scratch[A:)). Followed by an EOR marker for ipv4/unicast.
+
+stdin=peer:terminator=EOF_PEER
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000001540010100400200400304C000020140050400000064180A0000100A00140A00001C0A000010
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration -- four shared-attribute routes, group-updates enabled.
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 10.0.0.2
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates enable
+		}
+		timer {
+			receive-hold-time 180
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.1
+				med 0
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.0/24
+				ipv4/unicast add 10.0.0.16/28
+				ipv4/unicast add 10.0.0.0/16
+				ipv4/unicast add 10.0.0.0/20
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

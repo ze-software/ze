@@ -116,25 +116,23 @@ func (p *Peer) SendRawMessage(msgType uint8, payload []byte) error {
 	return session.SendRawMessage(msgType, payload)
 }
 
-// sendUpdateWithSplit sends an UPDATE, splitting if it exceeds maxSize.
-// Uses SplitUpdateWithAddPath to chunk oversized messages into multiple UPDATEs.
-// The addPath parameter must match the encoding used to build the UPDATE's NLRIs.
-// Returns nil on success, first error encountered on failure.
+// sendUpdateWithSplit sends an UPDATE, splitting via Splitter.Split when it
+// exceeds maxSize. The addPath parameter must match the encoding used to build
+// the UPDATE's NLRIs. Returns nil on success, the first error encountered
+// otherwise.
+//
+// Each chunk is handed to p.SendUpdate (which copies synchronously through
+// WriteTo) before the next chunk is built -- this satisfies the splitter's
+// scratch-aliasing lifetime invariant (see Update type doc).
 //
 // RFC 4271 Section 4.3: Each split UPDATE is self-contained with full attributes.
 // RFC 7911: Add-Path requires 4-byte path identifier before each NLRI.
 // RFC 8654: Respects peer's max message size (4096 or 65535).
 func (p *Peer) sendUpdateWithSplit(update *message.Update, maxSize int, addPath bool) error {
-	chunks, err := message.SplitUpdateWithAddPath(update, maxSize, addPath)
-	if err != nil {
-		// Attributes too large or single NLRI too large - cannot send
+	s := message.GetSplitter()
+	defer message.PutSplitter(s)
+	if err := s.Split(update, maxSize, addPath, p.SendUpdate); err != nil {
 		return fmt.Errorf("splitting update: %w", err)
-	}
-
-	for _, chunk := range chunks {
-		if err := p.SendUpdate(chunk); err != nil {
-			return err
-		}
 	}
 	return nil
 }

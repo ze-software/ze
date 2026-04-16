@@ -197,13 +197,9 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p *LabeledUnicastParams) *Update {
 	}
 
 	// Order attributes: MP_UNREACH first, regular attrs by code, MP_REACH last.
-	// This matches ExaBGP output for compatibility testing.
-	attrBytes := packAttributesOrdered(attrs)
-
-	// Append raw attributes (already packed, pass-through from config)
-	for _, raw := range p.RawAttributeBytes {
-		attrBytes = append(attrBytes, raw...)
-	}
+	// Matches the wire-byte order used by ExaBGP fixture round-trip tests.
+	// Raw attributes (already-packed pass-through from config) follow.
+	attrBytes := ub.packAttributesOrderedInto(attrs, p.RawAttributeBytes)
 
 	return &Update{
 		PathAttributes: attrBytes,

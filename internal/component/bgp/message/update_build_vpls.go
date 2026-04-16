@@ -115,8 +115,7 @@ func (ub *UpdateBuilder) BuildVPLS(p VPLSParams) *Update {
 		return attrs[i].Code() < attrs[j].Code()
 	})
 
-	attrBytes := make([]byte, attribute.AttributesSize(attrs))
-	attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
+	attrBytes := ub.packAttributesOrderedInto(attrs, nil)
 
 	return &Update{
 		PathAttributes: attrBytes,

@@ -111,16 +111,9 @@ func (p *Peer) sendInitialRoutes() {
 				if len(params) == 0 {
 					continue
 				}
-				updates, err := ub.BuildGroupedUnicastWithLimit(params, maxMsgSize)
-				if err != nil {
-					routesLogger().Debug("build error", "peer", addr, "error", err)
+				if err := ub.BuildGroupedUnicast(params, maxMsgSize, p.SendUpdate); err != nil {
+					routesLogger().Debug("grouped unicast error", "peer", addr, "error", err)
 					break
-				}
-				for _, update := range updates {
-					if err := p.SendUpdate(update); err != nil {
-						routesLogger().Debug("send error", "peer", addr, "error", err)
-						break
-					}
 				}
 			}
 			for i := range routes {
@@ -433,19 +426,15 @@ func (p *Peer) sendMVPNRoutes() {
 		ipv4Groups := groupMVPNRoutesByKey(ipv4Routes)
 		for _, key := range sortedKeys(ipv4Groups) {
 			routes := ipv4Groups[key]
-			// Use size-aware builder to respect max message size
-			updates, err := ub.BuildMVPNWithLimit(toMVPNParams(routes), maxMsgSize)
-			if err != nil {
-				routesLogger().Debug("MVPN build error", "peer", addr, "error", err)
+			if err := ub.BuildGroupedMVPN(toMVPNParams(routes), maxMsgSize, p.SendUpdate); err != nil {
+				if isMVPNBuildError(err) {
+					routesLogger().Debug("MVPN build error", "peer", addr, "error", err)
+				} else {
+					routesLogger().Debug("MVPN send error", "peer", addr, "error", err)
+				}
 				continue
 			}
-			for _, update := range updates {
-				if err := p.SendUpdate(update); err != nil {
-					routesLogger().Debug("MVPN send error", "peer", addr, "error", err)
-					break
-				}
-			}
-			routesLogger().Debug("sent IPv4 MVPN routes", "peer", addr, "routes", len(routes), "updates", len(updates))
+			routesLogger().Debug("sent IPv4 MVPN routes", "peer", addr, "routes", len(routes))
 		}
 	}
 
@@ -457,23 +446,39 @@ func (p *Peer) sendMVPNRoutes() {
 		ipv6Groups := groupMVPNRoutesByKey(ipv6Routes)
 		for _, key := range sortedKeys(ipv6Groups) {
 			routes := ipv6Groups[key]
-			// Use size-aware builder to respect max message size
-			updates, err := ub.BuildMVPNWithLimit(toMVPNParams(routes), maxMsgSize)
-			if err != nil {
-				routesLogger().Debug("MVPN build error", "peer", addr, "error", err)
+			if err := ub.BuildGroupedMVPN(toMVPNParams(routes), maxMsgSize, p.SendUpdate); err != nil {
+				if isMVPNBuildError(err) {
+					routesLogger().Debug("MVPN build error", "peer", addr, "error", err)
+				} else {
+					routesLogger().Debug("MVPN send error", "peer", addr, "error", err)
+				}
 				continue
 			}
-			for _, update := range updates {
-				if err := p.SendUpdate(update); err != nil {
-					routesLogger().Debug("MVPN send error", "peer", addr, "error", err)
-					break
-				}
-			}
-			routesLogger().Debug("sent IPv6 MVPN routes", "peer", addr, "routes", len(routes), "updates", len(updates))
+			routesLogger().Debug("sent IPv6 MVPN routes", "peer", addr, "routes", len(routes))
 		}
 	}
 	// Note: EORs are sent by the generic loop in sendInitialRoutes() for ALL
 	// negotiated families, so we don't send family-specific EORs here.
+}
+
+// isMVPNBuildError reports whether err originates from BuildGroupedMVPN's
+// build-side validation (attrs/NLRI/update size) rather than from the emit
+// callback's send-side failure. Distinguishes operator-visible categories so a
+// flapping session isn't confused with a malformed MVPN config.
+//
+// ASSUMES the emit callback (p.SendUpdate) NEVER returns or wraps any of these
+// size sentinels -- today true because SendUpdate's error surface is limited to
+// ErrNotConnected, ErrInvalidState, and raw TCP write errors. If SendUpdate
+// ever grows to propagate a build sentinel, this classifier would misattribute;
+// switch to a `sentAny bool` flag in the emit closure if that changes.
+//
+// Matches the idiom at peer_initial_sync.go:214,236,338,358 which uses the same
+// sentinels (minus ErrUpdateTooLarge -- sendUpdateWithSplit never produces that;
+// only BuildGroupedMVPN's defense-in-depth check does) to gate connError.
+func isMVPNBuildError(err error) bool {
+	return errors.Is(err, message.ErrAttributesTooLarge) ||
+		errors.Is(err, message.ErrNLRITooLarge) ||
+		errors.Is(err, message.ErrUpdateTooLarge)
 }
 
 // mvpnRouteGroupKey generates a grouping key for MVPN routes.

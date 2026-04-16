@@ -14,6 +14,23 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
+// collectSplit runs message.Splitter.Split with a deep-copying callback so
+// tests can inspect every chunk after Split returns.
+func collectSplit(t *testing.T, u *message.Update, maxSize int, addPath bool) ([]*message.Update, error) {
+	t.Helper()
+	var chunks []*message.Update
+	s := message.NewSplitter()
+	err := s.Split(u, maxSize, addPath, func(c *message.Update) error {
+		chunks = append(chunks, &message.Update{
+			WithdrawnRoutes: append([]byte(nil), c.WithdrawnRoutes...),
+			PathAttributes:  append([]byte(nil), c.PathAttributes...),
+			NLRI:            append([]byte(nil), c.NLRI...),
+		})
+		return nil
+	})
+	return chunks, err
+}
+
 // TestForwardUpdateSplitting verifies UPDATE splitting on forward.
 //
 // VALIDATES: Large UPDATE from Extended Message peer errors for non-Extended peer.
@@ -252,7 +269,7 @@ func TestSplitUpdateEndToEnd(t *testing.T) {
 	require.Greater(t, origSize, message.MaxMsgLen,
 		"original UPDATE should exceed 4096 bytes, got %d", origSize)
 
-	chunks, err := message.SplitUpdate(update, message.MaxMsgLen)
+	chunks, err := collectSplit(t, update, message.MaxMsgLen, false)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
 
@@ -296,7 +313,7 @@ func TestSplitUpdateAddPathEndToEnd(t *testing.T) {
 		NLRI:           nlriBytes,
 	}
 
-	chunks, err := message.SplitUpdateWithAddPath(update, 200, true)
+	chunks, err := collectSplit(t, update, 200, true)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split Add-Path NLRIs")
 

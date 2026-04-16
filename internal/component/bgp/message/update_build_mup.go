@@ -103,8 +103,7 @@ func (ub *UpdateBuilder) BuildMUP(p MUPParams) *Update {
 		return attrs[i].Code() < attrs[j].Code()
 	})
 
-	attrBytes := make([]byte, attribute.AttributesSize(attrs))
-	attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
+	attrBytes := ub.packAttributesOrderedInto(attrs, nil)
 
 	return &Update{
 		PathAttributes: attrBytes,
@@ -208,8 +207,7 @@ func (ub *UpdateBuilder) BuildMUPWithdraw(p MUPParams) *Update {
 		return attrs[i].Code() < attrs[j].Code()
 	})
 
-	attrBytes := make([]byte, attribute.AttributesSize(attrs))
-	attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
+	attrBytes := ub.packAttributesOrderedInto(attrs, nil)
 
 	return &Update{
 		PathAttributes: attrBytes,

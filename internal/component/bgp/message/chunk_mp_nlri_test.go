@@ -1020,7 +1020,7 @@ func TestSplitUpdate_DetectsMPReach(t *testing.T) {
 	}
 
 	// Split with small maxSize to force splitting
-	chunks, err := SplitUpdate(u, 200)
+	chunks, err := collectChunks(t, u, 200, false)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "MP_REACH_NLRI should be split")
 
@@ -1060,7 +1060,7 @@ func TestSplitUpdate_DetectsMPUnreach(t *testing.T) {
 		PathAttributes: pathAttrs,
 	}
 
-	chunks, err := SplitUpdate(u, 200)
+	chunks, err := collectChunks(t, u, 200, false)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "MP_UNREACH_NLRI should be split")
 }
@@ -1100,7 +1100,7 @@ func TestSplitUpdate_PreservesOtherAttrs(t *testing.T) {
 
 	u := &Update{PathAttributes: attrs}
 
-	chunks, err := SplitUpdate(u, 150)
+	chunks, err := collectChunks(t, u, 150, false)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1)
 
@@ -1179,7 +1179,7 @@ func TestSplitUpdate_BothMPReachAndUnreach(t *testing.T) {
 	// MP_UNREACH overhead: AFI(2) + SAFI(1) + header(4) = 7
 	// Each /64 NLRI = 9 bytes
 	// Use maxSize = 300 to allow ~20 NLRIs per MP chunk
-	chunks, err := SplitUpdate(u, 300)
+	chunks, err := collectChunks(t, u, 300, false)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
 
@@ -1240,7 +1240,7 @@ func TestSplitUpdate_AddPath(t *testing.T) {
 	}
 
 	// Small maxSize to force splitting
-	chunks, err := SplitUpdateWithAddPath(u, 80, true)
+	chunks, err := collectChunks(t, u, 80, true)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split Add-Path NLRIs")
 

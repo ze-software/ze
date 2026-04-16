@@ -21,73 +21,81 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
-// BuildGroupedUnicastWithLimit builds multiple UPDATEs if needed to respect size limit.
+// BuildGroupedUnicast builds one or more IPv4-unicast UPDATEs respecting maxSize
+// and delivers each one to emit synchronously. All routes MUST share identical
+// path attributes (caller's responsibility).
 //
-// All routes MUST have identical attributes (caller's responsibility).
-// Returns error if attributes exceed maxSize.
+// The shared PathAttributes is packed ONCE at scratch[0:A) and reused across every
+// emitted Update. Each chunk's NLRI is packed at scratch[A:) and ub.off is reset
+// to A after emit returns, so the next chunk's NLRI overwrites the previous one
+// but attrBytes is preserved. See the Update type doc and
+// docs/architecture/update-building.md "Scratch Contract" for the full invariant.
 //
-// Design: Build-and-tally approach - pack incrementally, flush when full.
-// This avoids wasteful pre-calculation of sizes.
+// Each emitted Update MUST be consumed (WriteTo, copy out, or hand to SendUpdate
+// which copies internally) before emit returns. If emit returns a non-nil error,
+// no further Updates are built and the error is returned.
 //
 // RFC 4271 Section 4.3: Multiple UPDATEs may advertise same attributes.
 // RFC 8654: Respects maxSize (4096 or 65535 based on Extended Message).
-func (ub *UpdateBuilder) BuildGroupedUnicastWithLimit(routes []UnicastParams, maxSize int) ([]*Update, error) {
+func (ub *UpdateBuilder) BuildGroupedUnicast(routes []UnicastParams, maxSize int, emit func(*Update) error) error {
 	ub.resetScratch()
 
 	if len(routes) == 0 {
-		return nil, nil
+		return nil
 	}
 
-	// Build attributes once from first route (shared across all)
+	// Build attributes once from first route (shared across all emitted chunks).
 	attrBytes := ub.packGroupedAttributes(&routes[0])
 
-	// Calculate overhead and available NLRI space
+	// Calculate overhead and available NLRI space.
 	// Overhead = Header(19) + WithdrawnLen(2) + AttrLen(2) + Attrs
 	overhead := HeaderLen + 4 + len(attrBytes)
-
 	if overhead > maxSize {
-		return nil, ErrAttributesTooLarge
+		return ErrAttributesTooLarge
 	}
-
 	nlriSpace := maxSize - overhead
 
-	var updates []*Update
-	var currentNLRI []byte
+	// nlriStart = end of attrBytes = start of the per-chunk NLRI region.
+	// ub.off resets to this between emitted chunks so attrBytes stays valid.
+	nlriStart := ub.off
 
 	for i := range routes {
 		r := &routes[i]
-		// Calculate NLRI size and pack
 		inet := nlri.NewINET(family.IPv4Unicast, r.Prefix, r.PathID)
 		nlriLen := nlri.LenWithContext(inet, ub.AddPath)
+
+		// Single NLRI too large to fit any chunk.
+		if nlriLen > nlriSpace {
+			return ErrNLRITooLarge
+		}
+
+		// Would adding this NLRI overflow the current chunk? Flush first.
+		currentLen := ub.off - nlriStart
+		if currentLen+nlriLen > nlriSpace && currentLen > 0 {
+			if err := emit(&Update{
+				PathAttributes: attrBytes,
+				NLRI:           ub.scratch[nlriStart:ub.off],
+			}); err != nil {
+				return err
+			}
+			ub.off = nlriStart
+		}
+
 		nlriBytes := ub.alloc(nlriLen)
 		nlri.WriteNLRI(inet, nlriBytes, 0, ub.AddPath)
-
-		// Check if single NLRI is too large
-		if len(nlriBytes) > nlriSpace {
-			return nil, ErrNLRITooLarge
-		}
-
-		// Would overflow? Flush current batch
-		if len(currentNLRI)+len(nlriBytes) > nlriSpace && len(currentNLRI) > 0 {
-			updates = append(updates, &Update{
-				PathAttributes: attrBytes,
-				NLRI:           currentNLRI,
-			})
-			currentNLRI = nil
-		}
-
-		currentNLRI = append(currentNLRI, nlriBytes...)
 	}
 
-	// Flush remainder
-	if len(currentNLRI) > 0 {
-		updates = append(updates, &Update{
+	// Flush remainder.
+	if ub.off > nlriStart {
+		if err := emit(&Update{
 			PathAttributes: attrBytes,
-			NLRI:           currentNLRI,
-		})
+			NLRI:           ub.scratch[nlriStart:ub.off],
+		}); err != nil {
+			return err
+		}
 	}
 
-	return updates, nil
+	return nil
 }
 
 // packGroupedAttributes packs attributes for grouped unicast routes.
@@ -198,21 +206,7 @@ func (ub *UpdateBuilder) packGroupedAttributes(first *UnicastParams) []byte {
 		return attrs[i].Code() < attrs[j].Code()
 	})
 
-	// Calculate total size including raw attributes
-	attrSize := attribute.AttributesSize(attrs)
-	rawSize := 0
-	for _, raw := range first.RawAttributeBytes {
-		rawSize += len(raw)
-	}
-	attrBytes := make([]byte, attrSize+rawSize)
-	off := attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
-
-	// Append raw attributes from first route (pass-through from config)
-	for _, raw := range first.RawAttributeBytes {
-		off += copy(attrBytes[off:], raw)
-	}
-
-	return attrBytes
+	return ub.packAttributesOrderedInto(attrs, first.RawAttributeBytes)
 }
 
 // =============================================================================
@@ -263,22 +257,27 @@ func (ub *UpdateBuilder) BuildUnicastWithMaxSize(p *UnicastParams, maxSize int) 
 	return update, nil
 }
 
-// BuildMVPNWithLimit builds multiple UPDATEs if needed to respect size limit.
+// BuildGroupedMVPN builds one or more MVPN UPDATEs respecting maxSize and
+// delivers each one to emit synchronously. Routes are batched; each chunk's
+// Update is built via BuildMVPN (which resets scratch), so the previous chunk's
+// Update is invalidated once the next is built -- emit MUST consume each chunk
+// before returning. See the Update type doc and
+// docs/architecture/update-building.md "Scratch Contract" for the full invariant.
 //
-// MVPN routes share attributes, so they can be batched.
-// Returns []*Update split across multiple messages if needed.
-//
-// Design: Build-and-tally approach - pack incrementally, flush when full.
+// If emit returns a non-nil error, no further chunks are built.
 //
 // RFC 6514 - MVPN uses MP_REACH_NLRI with SAFI=5.
 // RFC 4271 Section 4.3: Multiple UPDATEs may advertise same attributes.
 // RFC 8654: Respects maxSize (4096 or 65535 based on Extended Message).
-func (ub *UpdateBuilder) BuildMVPNWithLimit(routes []MVPNParams, maxSize int) ([]*Update, error) {
-	ub.resetScratch()
-
+func (ub *UpdateBuilder) BuildGroupedMVPN(routes []MVPNParams, maxSize int, emit func(*Update) error) error {
 	if len(routes) == 0 {
-		return nil, nil
+		return nil
 	}
+
+	// Sizing pass: build base attrs + MP_REACH overhead in scratch to measure
+	// the space available for NLRI. The result is discarded -- BuildMVPN called
+	// per chunk below rebuilds from scratch.
+	ub.resetScratch()
 
 	// For MVPN, attributes are from first route
 	// We need to calculate overhead to know how much space we have for NLRI
@@ -357,54 +356,56 @@ func (ub *UpdateBuilder) BuildMVPNWithLimit(routes []MVPNParams, maxSize int) ([
 	overhead := HeaderLen + 4 + baseAttrSize + mpReachOverhead
 
 	if overhead > maxSize {
-		return nil, ErrAttributesTooLarge
+		return ErrAttributesTooLarge
 	}
 
 	nlriSpace := maxSize - overhead
 
-	var updates []*Update
-	var currentBatch []MVPNParams
-	currentSize := 0 // Track incrementally for O(n) instead of O(n²)
+	// emitBatch builds + emits one chunk. Includes a defense-in-depth size check
+	// in case the overhead estimate above undershoots.
+	emitBatch := func(batch []MVPNParams) error {
+		update := ub.BuildMVPN(batch)
+		if HeaderLen+4+len(update.PathAttributes) > maxSize {
+			return ErrUpdateTooLarge
+		}
+		return emit(update)
+	}
+
+	// Reuse a single batch slice across chunks; capacity bounded by total routes
+	// so the slice never grows beyond a one-shot allocation at this line.
+	currentBatch := make([]MVPNParams, 0, len(routes)) //nolint:prealloc // intentional: bounded by input
+	currentSize := 0
 
 	for i := range routes {
 		nlriBytes := ub.buildMVPNNLRIBytes(routes[i])
 		nlriLen := len(nlriBytes)
 
-		// Check if single NLRI fits
-		// RFC 6514: MVPN NLRI is typically small (<100 bytes), but validate anyway
+		// RFC 6514: MVPN NLRI is typically small (<100 bytes). Reject any single
+		// NLRI that cannot fit in an UPDATE rather than emit an oversized one.
 		if nlriLen > nlriSpace {
-			// Single NLRI too large - cannot fit in any UPDATE
-			// Return error rather than creating oversized message
-			return nil, ErrNLRITooLarge
+			return ErrNLRITooLarge
 		}
 
-		// Would adding this route overflow?
 		if currentSize+nlriLen > nlriSpace && len(currentBatch) > 0 {
-			// Flush current batch
-			updates = append(updates, ub.BuildMVPN(currentBatch))
-			currentBatch = nil
+			if err := emitBatch(currentBatch); err != nil {
+				return err
+			}
+			currentBatch = currentBatch[:0]
 			currentSize = 0
 		}
 
-		currentBatch = append(currentBatch, routes[i])
+		currentBatch = currentBatch[:len(currentBatch)+1]
+		currentBatch[len(currentBatch)-1] = routes[i]
 		currentSize += nlriLen
 	}
 
-	// Flush remainder
 	if len(currentBatch) > 0 {
-		updates = append(updates, ub.BuildMVPN(currentBatch))
-	}
-
-	// Verify size limits (defense-in-depth for overhead calculation bugs)
-	for _, u := range updates {
-		size := HeaderLen + 4 + len(u.PathAttributes)
-		if size > maxSize {
-			// This indicates a bug in overhead calculation - return error, not partial results
-			return nil, ErrUpdateTooLarge
+		if err := emitBatch(currentBatch); err != nil {
+			return err
 		}
 	}
 
-	return updates, nil
+	return nil
 }
 
 // BuildVPNWithMaxSize builds a VPN UPDATE with size validation.

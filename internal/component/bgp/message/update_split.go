@@ -8,8 +8,10 @@ package message
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
@@ -31,68 +33,126 @@ var (
 	ErrUpdateTooLarge = errors.New("UPDATE message exceeds max size")
 )
 
-// SplitUpdate splits an UPDATE into chunks respecting maxSize.
+// Splitter chunks an oversized UPDATE into smaller ones and delivers each chunk
+// via a callback. It owns a scratch buffer that backs every emitted chunk's
+// PathAttributes -- each chunk's slice is invalidated by the next emit call, so
+// the callback MUST consume (WriteTo, copy out, hand to SendUpdate) before it
+// returns. See the Update type doc and docs/architecture/update-building.md
+// "Scratch Contract" for the full invariant.
 //
-// This is a convenience wrapper that assumes Add-Path is not enabled.
-// Use SplitUpdateWithAddPath when Add-Path capability is negotiated.
-//
-// RFC 4271 Section 4.3: Each UPDATE is self-contained with full attributes.
-func SplitUpdate(u *Update, maxSize int) ([]*Update, error) {
-	return SplitUpdateWithAddPath(u, maxSize, false)
+// Typical ownership: one Splitter per peer (or per forward worker), retained
+// across sessions to amortize the scratch allocation.
+type Splitter struct {
+	scratch []byte
+	off     int
 }
 
-// SplitUpdateWithAddPath splits an UPDATE into chunks respecting maxSize.
-//
-// The addPath parameter indicates whether Add-Path (RFC 7911) is negotiated
-// for this family. This affects NLRI boundary detection during splitting.
+// NewSplitter returns a Splitter with a lazily-allocated scratch buffer.
+func NewSplitter() *Splitter {
+	return &Splitter{}
+}
+
+// splitterPool amortizes Splitter allocation across concurrent callers that do
+// not own a dedicated Splitter instance. Reactor paths that call GetSplitter
+// pay one atomic exchange + possibly zero allocations on the hot path; the
+// scratch buffer is retained inside the Splitter across Put/Get so subsequent
+// users with similar message sizes reuse it.
+var splitterPool = sync.Pool{
+	New: func() any { return NewSplitter() },
+}
+
+// GetSplitter returns a ready-to-use Splitter from the package pool. Call
+// PutSplitter when done; do NOT retain the returned Splitter past the Put.
+func GetSplitter() *Splitter {
+	s, _ := splitterPool.Get().(*Splitter)
+	return s
+}
+
+// PutSplitter returns s to the pool for reuse. The caller MUST ensure no
+// previously-emitted chunk slices are retained past this call (per the
+// scratch-aliasing invariant, those slices may be invalidated by any future
+// Get+Split on the returned Splitter).
+func PutSplitter(s *Splitter) {
+	if s == nil {
+		return
+	}
+	s.off = 0
+	splitterPool.Put(s)
+}
+
+// resetScratch prepares the scratch buffer for a new Split call.
+func (s *Splitter) resetScratch() {
+	if s.scratch == nil {
+		s.scratch = make([]byte, wire.StandardMaxSize)
+	}
+	s.off = 0
+}
+
+// alloc returns a sub-slice of length n from the scratch buffer. Grows the
+// scratch buffer on demand (rare; only for extended messages).
+func (s *Splitter) alloc(n int) []byte {
+	end := s.off + n
+	if end > len(s.scratch) {
+		newSize := max(len(s.scratch)*2, end)
+		newBuf := make([]byte, newSize)
+		copy(newBuf, s.scratch[:s.off])
+		s.scratch = newBuf
+	}
+	out := s.scratch[s.off:end:end]
+	s.off = end
+	return out
+}
+
+// Split chunks an oversized UPDATE into multiple UPDATEs respecting maxSize
+// and delivers each chunk to emit synchronously. addPath indicates whether
+// Add-Path (RFC 7911) is negotiated for this family.
 //
 // Handles both IPv4 (NLRI field) and MP families (MP_REACH_NLRI attribute):
-// - IPv4 announcements: split u.NLRI via ChunkMPNLRI
-// - IPv4 withdrawals: split u.WithdrawnRoutes via ChunkMPNLRI
-// - MP announcements: detect MP_REACH_NLRI in PathAttributes, split via SplitMPReachNLRI
-// - MP withdrawals: detect MP_UNREACH_NLRI in PathAttributes, split via SplitMPUnreachNLRI
+//   - IPv4 announcements: split u.NLRI via ChunkMPNLRI
+//   - IPv4 withdrawals: split u.WithdrawnRoutes via ChunkMPNLRI
+//   - MP announcements: detect MP_REACH_NLRI, split via SplitMPReachNLRI
+//   - MP withdrawals: detect MP_UNREACH_NLRI, split via SplitMPUnreachNLRI
 //
 // WIRE CACHE PRESERVATION:
-// - For IPv4: u.PathAttributes reused directly in all chunks (zero-copy)
-// - For MP: other attributes preserved, MP_REACH/UNREACH rebuilt per chunk
+//   - For IPv4: u.PathAttributes is passed through unchanged to every chunk
+//   - For MP: other attributes preserved, MP_REACH/UNREACH rebuilt per chunk
+//     in the splitter's scratch
 //
 // Returns error if:
-// - Attributes alone exceed maxSize (ErrAttributesTooLarge)
-// - Single NLRI exceeds available space (ErrNLRITooLarge)
+//   - Attributes alone exceed maxSize (ErrAttributesTooLarge)
+//   - Single NLRI exceeds available space (ErrNLRITooLarge)
+//   - emit returns non-nil (propagated)
 //
-// Note: maxSize is always 4096 or 65535 from MaxMessageLength() - no validation needed.
+// Note: maxSize is always 4096 or 65535 from MaxMessageLength() -- no validation needed.
 //
 // RFC 4271 Section 4.3: Each UPDATE is self-contained with full attributes.
 // RFC 7911: Add-Path requires 4-byte path identifier before each NLRI.
-func SplitUpdateWithAddPath(u *Update, maxSize int, addPath bool) ([]*Update, error) {
-	// Empty UPDATE (End-of-RIB) - return as-is
+func (s *Splitter) Split(u *Update, maxSize int, addPath bool, emit func(*Update) error) error {
+	// Empty UPDATE (End-of-RIB) - pass through as-is.
 	if u.IsEndOfRIB() {
-		return []*Update{u}, nil
+		return emit(u)
 	}
 
 	// Calculate fixed overhead: header(19) + withdrawn_len(2) + attr_len(2) = 23
 	overhead := HeaderLen + 4
 
-	// Calculate current UPDATE size
+	// Fast path: already fits.
 	attrSize := len(u.PathAttributes)
 	currentSize := overhead + len(u.WithdrawnRoutes) + attrSize + len(u.NLRI)
-
-	// Fast path: fits already
 	if currentSize <= maxSize {
-		return []*Update{u}, nil
+		return emit(u)
 	}
 
-	// Check for MP_REACH_NLRI or MP_UNREACH_NLRI in PathAttributes
+	// Detect MP attributes in PathAttributes.
 	mpReachInfo := findMPAttribute(u.PathAttributes, attribute.AttrMPReachNLRI)
 	mpUnreachInfo := findMPAttribute(u.PathAttributes, attribute.AttrMPUnreachNLRI)
 
-	// If we have MP attributes that are large, split those
 	if mpReachInfo.found || mpUnreachInfo.found {
-		return splitUpdateWithMP(u, maxSize, mpReachInfo, mpUnreachInfo, addPath)
+		return s.splitUpdateWithMP(u, maxSize, mpReachInfo, mpUnreachInfo, addPath, emit)
 	}
 
-	// No MP attributes - handle IPv4 splitting
-	return splitUpdateIPv4(u, maxSize, addPath)
+	// IPv4 path (no MP attributes).
+	return s.splitUpdateIPv4(u, maxSize, addPath, emit)
 }
 
 // ExtractMPFamily returns the address family from MP_REACH_NLRI or MP_UNREACH_NLRI
@@ -141,191 +201,198 @@ func findMPAttribute(pathAttrs []byte, code attribute.AttributeCode) mpAttrInfo 
 	}
 }
 
-// splitUpdateWithMP handles splitting when MP_REACH_NLRI or MP_UNREACH_NLRI is present.
-func splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnreachInfo mpAttrInfo, addPath bool) ([]*Update, error) {
+// splitUpdateWithMP emits one or more UPDATE chunks when MP_REACH_NLRI or
+// MP_UNREACH_NLRI is present. Each chunk's PathAttributes is written into the
+// splitter's scratch: base attrs (everything except MP) at scratch[0:B),
+// per-chunk MP attribute at scratch[B:F), emitted as scratch[0:F]. Between
+// chunks s.off is reset to B so the next MP attribute overwrites the previous
+// one while base attrs stay valid.
+func (s *Splitter) splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnreachInfo mpAttrInfo, addPath bool, emit func(*Update) error) error {
+	s.resetScratch()
 	overhead := HeaderLen + 4
-	var updates []*Update
 
-	// Build base attributes (everything except MP_REACH and MP_UNREACH)
-	baseAttrs := u.PathAttributes
-	// Remove both MP attributes from baseAttrs, handling index shifts
-	switch {
-	case mpUnreachInfo.found && mpReachInfo.found:
-		if mpUnreachInfo.start < mpReachInfo.start {
-			// MP_UNREACH first: remove it, then adjust MP_REACH indices
-			baseAttrs = removeAttribute(baseAttrs, mpUnreachInfo.start, mpUnreachInfo.end)
-			shift := mpUnreachInfo.end - mpUnreachInfo.start
-			baseAttrs = removeAttribute(baseAttrs, mpReachInfo.start-shift, mpReachInfo.end-shift)
-		} else {
-			// MP_REACH first: remove it, then adjust MP_UNREACH indices
-			baseAttrs = removeAttribute(baseAttrs, mpReachInfo.start, mpReachInfo.end)
-			shift := mpReachInfo.end - mpReachInfo.start
-			baseAttrs = removeAttribute(baseAttrs, mpUnreachInfo.start-shift, mpUnreachInfo.end-shift)
-		}
-	case mpUnreachInfo.found:
-		baseAttrs = removeAttribute(baseAttrs, mpUnreachInfo.start, mpUnreachInfo.end)
-	case mpReachInfo.found:
-		baseAttrs = removeAttribute(baseAttrs, mpReachInfo.start, mpReachInfo.end)
-	}
+	// Copy base attrs (u.PathAttributes minus MP_REACH and MP_UNREACH ranges)
+	// into scratch in one pass.
+	baseLen := s.writeBaseAttrs(u.PathAttributes, mpReachInfo, mpUnreachInfo)
+	emitted := 0
 
-	// Handle MP_UNREACH_NLRI first (withdrawals before announcements)
+	// MP_UNREACH_NLRI first (withdrawals before announcements).
 	if mpUnreachInfo.found {
-		// Parse MP_UNREACH_NLRI
 		mpUnreach, err := attribute.ParseMPUnreachNLRI(mpUnreachInfo.value)
 		if err != nil {
-			return nil, fmt.Errorf("parsing MP_UNREACH_NLRI: %w", err)
+			return fmt.Errorf("parsing MP_UNREACH_NLRI: %w", err)
 		}
-
-		// Calculate max attribute size for MP_UNREACH_NLRI
-		// Attribute header is 3-4 bytes (flags, code, length)
 		attrHeaderSize := 4 // Extended length for safety
-		maxMPAttrValue := maxSize - overhead - len(baseAttrs) - attrHeaderSize
-
+		maxMPAttrValue := maxSize - overhead - baseLen - attrHeaderSize
 		if maxMPAttrValue <= 0 {
-			return nil, ErrAttributesTooLarge
+			return ErrAttributesTooLarge
 		}
-
-		// Split MP_UNREACH_NLRI with Add-Path awareness
 		mpChunks, err := SplitMPUnreachNLRIWithAddPath(mpUnreach, maxMPAttrValue, addPath)
 		if err != nil {
-			return nil, fmt.Errorf("splitting MP_UNREACH_NLRI: %w", err)
+			return fmt.Errorf("splitting MP_UNREACH_NLRI: %w", err)
 		}
-
-		// Create UPDATE for each chunk
 		for _, chunk := range mpChunks {
-			chunkAttrs := append([]byte(nil), baseAttrs...)
-			// Write attribute with header — use pre-computed length to avoid
-			// double Len() traversal (WriteAttrTo would call Len() again).
-			attrLen := chunk.Len()
-			hdrLen := 3
-			if attrLen > 255 {
-				hdrLen = 4
+			if err := s.emitMPChunk(baseLen, chunk, emit); err != nil {
+				return err
 			}
-			attrBuf := make([]byte, hdrLen+attrLen)
-			attribute.WriteAttrToWithLen(chunk, attrBuf, 0, attrLen)
-			chunkAttrs = append(chunkAttrs, attrBuf...)
-			updates = append(updates, &Update{
-				PathAttributes: chunkAttrs,
-			})
+			emitted++
 		}
 	}
 
-	// Handle MP_REACH_NLRI (announcements)
+	// MP_REACH_NLRI (announcements).
 	if mpReachInfo.found {
-		// Parse MP_REACH_NLRI
 		mpReach, err := attribute.ParseMPReachNLRI(mpReachInfo.value)
 		if err != nil {
-			return nil, fmt.Errorf("parsing MP_REACH_NLRI: %w", err)
+			return fmt.Errorf("parsing MP_REACH_NLRI: %w", err)
 		}
-
-		// Calculate max attribute size for MP_REACH_NLRI
-		// baseAttrs already has both MP attributes removed
 		attrHeaderSize := 4 // Extended length
-		maxMPAttrValue := maxSize - overhead - len(baseAttrs) - attrHeaderSize
-
+		maxMPAttrValue := maxSize - overhead - baseLen - attrHeaderSize
 		if maxMPAttrValue <= 0 {
-			return nil, ErrAttributesTooLarge
+			return ErrAttributesTooLarge
 		}
-
-		// Split MP_REACH_NLRI with Add-Path awareness
 		mpChunks, err := SplitMPReachNLRIWithAddPath(mpReach, maxMPAttrValue, addPath)
 		if err != nil {
-			return nil, fmt.Errorf("splitting MP_REACH_NLRI: %w", err)
+			return fmt.Errorf("splitting MP_REACH_NLRI: %w", err)
 		}
-
-		// Create UPDATE for each chunk
 		for _, chunk := range mpChunks {
-			chunkAttrs := append([]byte(nil), baseAttrs...)
-			// Write attribute with header — use pre-computed length to avoid
-			// double Len() traversal (WriteAttrTo would call Len() again).
-			attrLen := chunk.Len()
-			hdrLen := 3
-			if attrLen > 255 {
-				hdrLen = 4
+			if err := s.emitMPChunk(baseLen, chunk, emit); err != nil {
+				return err
 			}
-			attrBuf := make([]byte, hdrLen+attrLen)
-			attribute.WriteAttrToWithLen(chunk, attrBuf, 0, attrLen)
-			chunkAttrs = append(chunkAttrs, attrBuf...)
-			updates = append(updates, &Update{
-				PathAttributes: chunkAttrs,
-			})
+			emitted++
 		}
 	}
 
-	// If no updates created (shouldn't happen if mpInfo.found is true), fall back
-	if len(updates) == 0 {
-		return []*Update{u}, nil
+	// No chunks emitted (shouldn't happen when mpInfo.found was true with NLRI).
+	// Pass through the original UPDATE as a fallback.
+	if emitted == 0 {
+		return emit(u)
 	}
-
-	return updates, nil
+	return nil
 }
 
-// removeAttribute returns PathAttributes with the attribute at [start:end] removed.
-func removeAttribute(pathAttrs []byte, start, end int) []byte {
-	if start >= end || start < 0 || end > len(pathAttrs) {
-		return pathAttrs
+// writeBaseAttrs copies pathAttrs into scratch, omitting the ranges occupied by
+// MP_REACH and MP_UNREACH. Returns the base-attrs length (also s.off after the
+// call).
+func (s *Splitter) writeBaseAttrs(pathAttrs []byte, mpReachInfo, mpUnreachInfo mpAttrInfo) int {
+	// Collect skip ranges sorted by start.
+	var skipStart, skipEnd [2]int
+	n := 0
+	add := func(start, end int) {
+		// Insert in sorted order (small N, simple).
+		for i := 0; i < n; i++ {
+			if start >= skipStart[i] {
+				continue
+			}
+			copy(skipStart[i+1:n+1], skipStart[i:n])
+			copy(skipEnd[i+1:n+1], skipEnd[i:n])
+			skipStart[i] = start
+			skipEnd[i] = end
+			n++
+			return
+		}
+		skipStart[n] = start
+		skipEnd[n] = end
+		n++
 	}
-	result := make([]byte, 0, len(pathAttrs)-(end-start))
-	result = append(result, pathAttrs[:start]...)
-	result = append(result, pathAttrs[end:]...)
-	return result
+	if mpUnreachInfo.found {
+		add(mpUnreachInfo.start, mpUnreachInfo.end)
+	}
+	if mpReachInfo.found {
+		add(mpReachInfo.start, mpReachInfo.end)
+	}
+
+	// Compute total base size and allocate once from scratch.
+	baseSize := len(pathAttrs)
+	for i := range n {
+		baseSize -= skipEnd[i] - skipStart[i]
+	}
+	base := s.alloc(baseSize)
+
+	// Copy surviving ranges.
+	pos := 0
+	off := 0
+	for i := range n {
+		off += copy(base[off:], pathAttrs[pos:skipStart[i]])
+		pos = skipEnd[i]
+	}
+	copy(base[off:], pathAttrs[pos:])
+
+	return baseSize
 }
 
-// splitUpdateIPv4 handles IPv4-only UPDATE splitting.
-// addPath indicates whether Add-Path is negotiated for IPv4 unicast.
-func splitUpdateIPv4(u *Update, maxSize int, addPath bool) ([]*Update, error) {
+// emitMPChunk writes one MP attribute (chunk) into scratch[baseLen:F) and emits
+// an Update whose PathAttributes is scratch[0:F]. Resets s.off to baseLen after
+// the callback so the next chunk's attribute overwrites this chunk's region.
+func (s *Splitter) emitMPChunk(baseLen int, chunk attribute.Attribute, emit func(*Update) error) error {
+	attrLen := chunk.Len()
+	// Extended length for >255-byte attributes.
+	hdrLen := 3
+	if attrLen > 255 {
+		hdrLen = 4
+	}
+	// Reset to base end and allocate the chunk region.
+	s.off = baseLen
+	attrBuf := s.alloc(hdrLen + attrLen)
+	attribute.WriteAttrToWithLen(chunk, attrBuf, 0, attrLen)
+
+	err := emit(&Update{
+		PathAttributes: s.scratch[:s.off],
+	})
+	s.off = baseLen // always reset, even on error; next call starts fresh
+	return err
+}
+
+// splitUpdateIPv4 emits one or more UPDATE chunks for an IPv4-only UPDATE.
+// The input u.PathAttributes is passed through unchanged to each chunk. NLRI
+// byte chunks come from ChunkMPNLRI (heap-allocated there; outside this
+// splitter's scratch ownership).
+func (s *Splitter) splitUpdateIPv4(u *Update, maxSize int, addPath bool, emit func(*Update) error) error {
 	overhead := HeaderLen + 4
 	attrSize := len(u.PathAttributes)
 
-	// Check if attributes alone exceed limit (cannot split)
+	// Check if attributes alone exceed limit (cannot split).
 	if overhead+attrSize > maxSize {
-		return nil, ErrAttributesTooLarge
+		return ErrAttributesTooLarge
 	}
 
-	// Handle withdrawal-only, announcement-only, or mixed
 	hasWithdrawn := len(u.WithdrawnRoutes) > 0
 	hasNLRI := len(u.NLRI) > 0
 
-	var updates []*Update
-
-	// Split withdrawals (no attributes needed for withdrawals)
+	// Split withdrawals (no attributes needed for withdrawals).
 	if hasWithdrawn {
 		withdrawnSpace := maxSize - overhead // No attrs for withdrawals
 		withdrawnChunks, err := chunkIPv4NLRI(u.WithdrawnRoutes, withdrawnSpace, addPath)
 		if err != nil {
-			return nil, fmt.Errorf("chunking withdrawn routes: %w", err)
+			return fmt.Errorf("chunking withdrawn routes: %w", err)
 		}
-
 		for _, chunk := range withdrawnChunks {
-			updates = append(updates, &Update{
-				WithdrawnRoutes: chunk,
-			})
+			if err := emit(&Update{WithdrawnRoutes: chunk}); err != nil {
+				return err
+			}
 		}
 	}
 
-	// Split announcements (need attributes)
+	// Split announcements (need attributes).
 	if hasNLRI {
 		nlriSpace := maxSize - overhead - attrSize
-
-		// Check if single NLRI is too large
 		if nlriSpace <= 0 {
-			return nil, ErrAttributesTooLarge
+			return ErrAttributesTooLarge
 		}
-
 		nlriChunks, err := chunkIPv4NLRI(u.NLRI, nlriSpace, addPath)
 		if err != nil {
-			return nil, fmt.Errorf("chunking NLRI: %w", err)
+			return fmt.Errorf("chunking NLRI: %w", err)
 		}
-
 		for _, chunk := range nlriChunks {
-			updates = append(updates, &Update{
+			if err := emit(&Update{
 				PathAttributes: u.PathAttributes, // Zero-copy: reuse same slice
 				NLRI:           chunk,
-			})
+			}); err != nil {
+				return err
+			}
 		}
 	}
 
-	return updates, nil
+	return nil
 }
 
 // chunkIPv4NLRI splits IPv4 NLRI respecting maxSize and Add-Path state.
@@ -348,7 +415,7 @@ func chunkIPv4NLRI(nlriData []byte, maxSize int, addPath bool) ([][]byte, error)
 }
 
 // =============================================================================
-// Phase 2: MP_REACH_NLRI and MP_UNREACH_NLRI Splitting
+// MP_REACH_NLRI and MP_UNREACH_NLRI attribute-level splitting
 // =============================================================================
 
 // SplitMPReachNLRI splits an MP_REACH_NLRI attribute into chunks.

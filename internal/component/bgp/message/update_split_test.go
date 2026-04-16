@@ -1,6 +1,7 @@
 package message
 
 import (
+	"errors"
 	"net/netip"
 	"testing"
 
@@ -9,6 +10,25 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 )
+
+// collectChunks runs Splitter.Split with a collecting callback and returns
+// deep-copied Updates so test code can inspect every chunk after the next
+// split. Deep copy is necessary because chunks emitted by the callback alias
+// the splitter's scratch (see Update type doc).
+func collectChunks(t *testing.T, u *Update, maxSize int, addPath bool) ([]*Update, error) {
+	t.Helper()
+	var chunks []*Update
+	s := NewSplitter()
+	err := s.Split(u, maxSize, addPath, func(c *Update) error {
+		chunks = append(chunks, &Update{
+			WithdrawnRoutes: append([]byte(nil), c.WithdrawnRoutes...),
+			PathAttributes:  append([]byte(nil), c.PathAttributes...),
+			NLRI:            append([]byte(nil), c.NLRI...),
+		})
+		return nil
+	})
+	return chunks, err
+}
 
 // =============================================================================
 // Phase 1: SplitUpdate IPv4 Tests
@@ -29,7 +49,7 @@ func TestSplitUpdate_SmallFits(t *testing.T) {
 	}
 
 	// maxSize = 4096, UPDATE is tiny
-	chunks, err := SplitUpdate(u, 4096)
+	chunks, err := collectChunks(t, u, 4096, false)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, u.PathAttributes, chunks[0].PathAttributes)
@@ -49,7 +69,7 @@ func TestSplitUpdate_ExactFit(t *testing.T) {
 		NLRI:           []byte{0x18, 0xC0, 0xA8, 0x01}, // 4 bytes
 	}
 
-	chunks, err := SplitUpdate(u, 31)
+	chunks, err := collectChunks(t, u, 31, false)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1, "exact fit should not split")
 }
@@ -74,7 +94,7 @@ func TestSplitUpdate_NLRIOverflow(t *testing.T) {
 	// maxSize = 100 bytes total
 	// Overhead = 19 + 4 + 4 = 27 bytes, leaving 73 for NLRI
 	// 73 / 4 = 18 prefixes per chunk, need ~6 chunks
-	chunks, err := SplitUpdate(u, 100)
+	chunks, err := collectChunks(t, u, 100, false)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
 
@@ -110,7 +130,7 @@ func TestSplitUpdate_WithdrawnOverflow(t *testing.T) {
 
 	// maxSize = 80 bytes
 	// Overhead = 19 + 4 = 23 bytes (no attrs), leaving 57 for withdrawn
-	chunks, err := SplitUpdate(u, 80)
+	chunks, err := collectChunks(t, u, 80, false)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split withdrawals")
 
@@ -141,7 +161,7 @@ func TestSplitUpdate_MixedSeparates(t *testing.T) {
 
 	// Force split with small maxSize
 	// This UPDATE has both withdrawn and NLRI - verify both preserved
-	chunks, err := SplitUpdate(u, 4096)
+	chunks, err := collectChunks(t, u, 4096, false)
 	require.NoError(t, err)
 
 	// With large maxSize, should fit in one chunk
@@ -157,7 +177,7 @@ func TestSplitUpdate_MixedSeparates(t *testing.T) {
 func TestSplitUpdate_EndOfRIB(t *testing.T) {
 	u := &Update{} // Empty = End-of-RIB
 
-	chunks, err := SplitUpdate(u, 4096)
+	chunks, err := collectChunks(t, u, 4096, false)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.True(t, chunks[0].IsEndOfRIB())
@@ -172,7 +192,7 @@ func TestSplitUpdate_WithdrawalOnly(t *testing.T) {
 		WithdrawnRoutes: []byte{0x18, 0x0A, 0x00, 0x01},
 	}
 
-	chunks, err := SplitUpdate(u, 4096)
+	chunks, err := collectChunks(t, u, 4096, false)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Empty(t, chunks[0].PathAttributes)
@@ -195,7 +215,7 @@ func TestSplitUpdate_OneByteOver(t *testing.T) {
 	}
 
 	// maxSize = 34 (one byte less than needed)
-	chunks, err := SplitUpdate(u, 34)
+	chunks, err := collectChunks(t, u, 34, false)
 	require.NoError(t, err)
 	require.Len(t, chunks, 2, "should split into exactly 2 chunks")
 }
@@ -216,7 +236,7 @@ func TestSplitUpdate_AttributesBytesPreserved(t *testing.T) {
 		NLRI:           nlri,
 	}
 
-	chunks, err := SplitUpdate(u, 80)
+	chunks, err := collectChunks(t, u, 80, false)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1)
 
@@ -239,7 +259,7 @@ func TestSplitUpdate_AttributesTooLarge(t *testing.T) {
 	}
 
 	// maxSize = 50, but attrs alone = 100
-	_, err := SplitUpdate(u, 50)
+	_, err := collectChunks(t, u, 50, false)
 	require.ErrorIs(t, err, ErrAttributesTooLarge)
 }
 
@@ -255,7 +275,7 @@ func TestSplitUpdate_SingleNLRITooLarge(t *testing.T) {
 		PathAttributes: []byte{0x40, 0x01, 0x01, 0x00},       // 4 bytes
 		NLRI:           []byte{0x20, 0x0A, 0x00, 0x00, 0x01}, // 5 bytes (/32)
 	}
-	_, err := SplitUpdate(u, 30)
+	_, err := collectChunks(t, u, 30, false)
 	require.ErrorIs(t, err, ErrNLRITooLarge)
 }
 
@@ -274,7 +294,7 @@ func TestSplitUpdate_AllChunksValid(t *testing.T) {
 		NLRI:           nlri,
 	}
 
-	chunks, err := SplitUpdate(u, 100)
+	chunks, err := collectChunks(t, u, 100, false)
 	require.NoError(t, err)
 
 	// Each chunk should pack and unpack correctly
@@ -308,7 +328,7 @@ func TestSplitUpdate_NLRICountPreserved(t *testing.T) {
 		NLRI:           nlri,
 	}
 
-	chunks, err := SplitUpdate(u, 80)
+	chunks, err := collectChunks(t, u, 80, false)
 	require.NoError(t, err)
 
 	// Count prefixes in all chunks
@@ -517,7 +537,7 @@ func TestSplitUpdateWithAddPath_IPv4(t *testing.T) {
 
 	// maxSize = 60, overhead = 27, leaves 33 for NLRI
 	// Each Add-Path /24 = 8 bytes, so ~4 per chunk
-	chunks, err := SplitUpdateWithAddPath(u, 60, true)
+	chunks, err := collectChunks(t, u, 60, true)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split Add-Path NLRI")
 
@@ -587,7 +607,7 @@ func TestSplitUpdateWithAddPath_Withdrawal(t *testing.T) {
 
 	// maxSize = 60, overhead = 23, leaves 37 for withdrawn
 	// Each Add-Path /24 = 8 bytes, so ~4 per chunk
-	chunks, err := SplitUpdateWithAddPath(u, 60, true)
+	chunks, err := collectChunks(t, u, 60, true)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split Add-Path withdrawals")
 
@@ -617,7 +637,7 @@ func TestSplitUpdateWithAddPath_FalseDoesNotAssumePathId(t *testing.T) {
 	}
 
 	// Split with addPath=false
-	chunks, err := SplitUpdateWithAddPath(u, 50, false)
+	chunks, err := collectChunks(t, u, 50, false)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1)
 
@@ -722,7 +742,7 @@ func TestSplitUpdate_MixedLargeSplits(t *testing.T) {
 	// Overhead = 23, attrs = 4, so:
 	// - Withdrawal space = 100 - 23 = 77 bytes (~19 prefixes per chunk)
 	// - NLRI space = 100 - 23 - 4 = 73 bytes (~18 prefixes per chunk)
-	chunks, err := SplitUpdate(u, 100)
+	chunks, err := collectChunks(t, u, 100, false)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 2, "should split into multiple chunks")
 
@@ -774,7 +794,7 @@ func TestSplitUpdate_MixedWithdrawalsFirst(t *testing.T) {
 
 	// Force split by using small maxSize
 	// This should create: withdrawal chunk(s), then announcement chunk(s)
-	chunks, err := SplitUpdate(u, 35)
+	chunks, err := collectChunks(t, u, 35, false)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1)
 
@@ -819,7 +839,7 @@ func TestSplitUpdate_RoundTrip_PackUnpack(t *testing.T) {
 	}
 
 	// Split with small maxSize to force many chunks
-	chunks, err := SplitUpdate(original, 80)
+	chunks, err := collectChunks(t, original, 80, false)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 5, "should create multiple chunks")
 
@@ -896,7 +916,7 @@ func TestSplitUpdate_RoundTrip_LargeAttributes(t *testing.T) {
 	// Calculate minimum size needed (attrs are ~290 bytes)
 	// With overhead (23) + attrs (290) = 313, need at least 320 for one NLRI
 	// Use 350 to fit a few NLRIs per chunk
-	chunks, err := SplitUpdate(original, 350)
+	chunks, err := collectChunks(t, original, 350, false)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split with large attributes")
 
@@ -932,7 +952,7 @@ func TestSplitUpdate_RoundTrip_Withdrawals(t *testing.T) {
 	}
 
 	// Split
-	chunks, err := SplitUpdate(original, 80)
+	chunks, err := collectChunks(t, original, 80, false)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 5)
 
@@ -979,7 +999,7 @@ func TestSplitUpdate_CheckAfterWrite(t *testing.T) {
 
 	// maxSize = 50: overhead(23) + attrs(4) = 27, leaving 23 for NLRI
 	// 5 /24 = 20 bytes fits, 6th would be 24 > 23
-	chunks, err := SplitUpdate(u, 50)
+	chunks, err := collectChunks(t, u, 50, false)
 	require.NoError(t, err)
 
 	// Should split: first chunk has 5 prefixes (20 bytes), rest in subsequent chunks
@@ -1013,7 +1033,7 @@ func TestSplitUpdate_IPv4Field(t *testing.T) {
 		NLRI:           nlri,
 	}
 
-	chunks, err := SplitUpdate(u, 80)
+	chunks, err := collectChunks(t, u, 80, false)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split IPv4 NLRI field")
 
@@ -1108,7 +1128,7 @@ func TestSplitUpdate_EmptyNLRI(t *testing.T) {
 		WithdrawnRoutes: []byte{24, 10, 0, 1}, // 10.0.1.0/24
 	}
 
-	chunks, err := SplitUpdate(u, 100)
+	chunks, err := collectChunks(t, u, 100, false)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Empty(t, chunks[0].NLRI)
@@ -1118,8 +1138,124 @@ func TestSplitUpdate_EmptyNLRI(t *testing.T) {
 	// This is unusual but valid (could be EoR marker)
 	u2 := &Update{}
 
-	chunks, err = SplitUpdate(u2, 100)
+	chunks, err = collectChunks(t, u2, 100, false)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.True(t, chunks[0].IsEndOfRIB())
+}
+
+// =============================================================================
+// Phase 4: Splitter callback API (spec-update-pool)
+// =============================================================================
+
+// TestSplitter_CallbackOrder verifies chunks fire in order during MP splitting.
+//
+// VALIDATES: AC-11 (Splitter.Split callback order).
+func TestSplitter_CallbackOrder(t *testing.T) {
+	// Build a large MP_REACH_NLRI UPDATE that needs multiple chunks at maxSize=200.
+	var nlriBytes []byte
+	for i := range 100 {
+		// /24 prefixes in 10.0.0.0/8, 4 bytes each.
+		nlriBytes = append(nlriBytes, 0x18, 10, byte(i/256), byte(i))
+	}
+	// Minimal MP_REACH_NLRI: flags(1) + code(1) + len(2 extended) + AFI(2) + SAFI(1) + NH_Len(1) + NH(4) + Reserved(1) + NLRI.
+	mpValue := []byte{0x00, 0x01, 0x01, 0x04, 192, 168, 1, 1, 0x00}
+	mpValue = append(mpValue, nlriBytes...)
+	mpHdr := []byte{0x90, 0x0E, byte(len(mpValue) >> 8), byte(len(mpValue))}
+	pathAttrs := append([]byte{0x40, 0x01, 0x01, 0x00}, mpHdr...) // ORIGIN + MP_REACH
+	pathAttrs = append(pathAttrs, mpValue...)
+	u := &Update{PathAttributes: pathAttrs}
+
+	s := NewSplitter()
+	chunks := 0
+	err := s.Split(u, 200, false, func(c *Update) error {
+		chunks++
+		if len(c.PathAttributes) == 0 {
+			t.Errorf("chunk %d: empty PathAttributes", chunks)
+		}
+		return nil
+	})
+	require.NoError(t, err)
+	require.Greater(t, chunks, 1, "expected multiple chunks at maxSize=200")
+}
+
+// TestSplitter_ChunksAliasScratch verifies emitted chunks' PathAttributes
+// reference the splitter's scratch buffer (not heap-allocated).
+//
+// VALIDATES: AC-11 (chunk PathAttributes alias splitter scratch).
+func TestSplitter_ChunksAliasScratch(t *testing.T) {
+	// Build MP_REACH large enough to chunk.
+	var nlriBytes []byte
+	for i := range 60 {
+		nlriBytes = append(nlriBytes, 0x18, 10, 0, byte(i))
+	}
+	mpValue := []byte{0x00, 0x01, 0x01, 0x04, 192, 168, 1, 1, 0x00}
+	mpValue = append(mpValue, nlriBytes...)
+	mpHdr := []byte{0x90, 0x0E, byte(len(mpValue) >> 8), byte(len(mpValue))}
+	pathAttrs := append([]byte{0x40, 0x01, 0x01, 0x00}, mpHdr...)
+	pathAttrs = append(pathAttrs, mpValue...)
+	u := &Update{PathAttributes: pathAttrs}
+
+	s := NewSplitter()
+	fired := false
+	err := s.Split(u, 150, false, func(c *Update) error {
+		fired = true
+		if !sliceAliasesAny(c.PathAttributes, s.scratch) {
+			t.Error("emitted chunk PathAttributes does not alias splitter scratch")
+		}
+		return nil
+	})
+	require.NoError(t, err)
+	require.True(t, fired, "callback should have fired at least once")
+}
+
+// TestSplitter_CallbackError_StopsSplit verifies non-nil emit short-circuits.
+//
+// VALIDATES: AC-11 (error propagation stops the splitter).
+func TestSplitter_CallbackError_StopsSplit(t *testing.T) {
+	var nlriBytes []byte
+	for i := range 100 {
+		nlriBytes = append(nlriBytes, 0x18, 10, 0, byte(i))
+	}
+	mpValue := []byte{0x00, 0x01, 0x01, 0x04, 192, 168, 1, 1, 0x00}
+	mpValue = append(mpValue, nlriBytes...)
+	mpHdr := []byte{0x90, 0x0E, byte(len(mpValue) >> 8), byte(len(mpValue))}
+	pathAttrs := append([]byte{0x40, 0x01, 0x01, 0x00}, mpHdr...)
+	pathAttrs = append(pathAttrs, mpValue...)
+	u := &Update{PathAttributes: pathAttrs}
+
+	sentinel := errors.New("splitter stopped")
+	s := NewSplitter()
+	fired := 0
+	err := s.Split(u, 200, false, func(*Update) error {
+		fired++
+		if fired == 1 {
+			return sentinel
+		}
+		return nil
+	})
+	require.ErrorIs(t, err, sentinel)
+	require.Equal(t, 1, fired, "callback should fire once then stop")
+}
+
+// TestSplitter_ZeroAllocAfterWarmup measures that the Split fast-path (UPDATE
+// already fits) is zero-alloc after scratch warmup.
+//
+// VALIDATES: AC-11 (fast-path does not touch scratch).
+func TestSplitter_ZeroAllocAfterWarmup(t *testing.T) {
+	u := &Update{
+		PathAttributes: []byte{0x40, 0x01, 0x01, 0x00},
+		NLRI:           []byte{0x18, 0xC0, 0xA8, 0x01},
+	}
+	s := NewSplitter()
+	emit := func(*Update) error { return nil }
+	// Warmup.
+	_ = s.Split(u, 4096, false, emit)
+	allocs := testing.AllocsPerRun(100, func() {
+		_ = s.Split(u, 4096, false, emit)
+	})
+	// Fast-path: single emit call, no struct allocation. Under -race, ≤ 2.
+	if allocs > 2 {
+		t.Errorf("Splitter.Split fast-path: got %v allocs/op, want ≤ 2", allocs)
+	}
 }

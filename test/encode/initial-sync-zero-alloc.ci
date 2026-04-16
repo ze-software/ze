@@ -1,0 +1,82 @@
+# initial-sync-zero-alloc: exercise BuildUnicast + Splitter fast-path.
+#
+# Three IPv4 unicast routes with DIFFERENT attributes; group-updates is
+# disabled so peer_initial_sync sends each through buildStaticRouteUpdateNew
+# -> BuildUnicast -> sendUpdateWithSplit (Splitter.Split fast-path emits
+# directly because each fits under maxSize). Followed by an EOR for
+# ipv4/unicast.
+
+stdin=peer:terminator=EOF_PEER
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001C40010100400200400304C00002018004040000006440050400000064200A010101
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001C40010100400200400304C0000202800404000000C840050400000064100A02
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C40010100400200400304C00002038004040000019040050400000064180A0303
+expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration -- three routes each with distinct next-hop + MED,
+# group-updates disabled to force individual BuildUnicast invocations.
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 10.0.0.2
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		timer {
+			receive-hold-time 180
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.1
+				med 100
+			}
+			nlri {
+				ipv4/unicast add 10.1.1.1/32
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.2
+				med 200
+			}
+			nlri {
+				ipv4/unicast add 10.2.2.2/16
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 192.0.2.3
+				med 400
+			}
+			nlri {
+				ipv4/unicast add 10.3.3.3/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

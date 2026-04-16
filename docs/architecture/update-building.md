@@ -249,6 +249,72 @@ All `Build*()` methods produce an `Update` with populated `[]byte` fields.
 
 ---
 
+## Scratch Contract (Builder and Splitter)
+
+The `UpdateBuilder` and `Splitter` own a **reusable scratch buffer** that backs every
+variable-size `[]byte` they emit. Understanding this contract is mandatory before
+modifying any `Build*` method or consuming a returned `*Update`.
+
+<!-- source: internal/component/bgp/message/update_build.go -- UpdateBuilder, scratch, alloc -->
+<!-- source: internal/component/bgp/message/update_split.go -- Splitter, Split -->
+
+### Why scratch, not `make`
+
+Every `Update.PathAttributes` and `Update.NLRI` is a wire-facing variable-size byte
+slice. Per `.claude/rules/design-principles.md` ("No `make` where pools exist"), such
+allocations must come from a bounded pool. The builder's `scratch` IS that pool: one
+buffer per builder, sized to `wire.StandardMaxSize` (4096) on first use, grown on
+demand for Extended Message peers.
+
+### Lifetime invariant (MUST understand before using)
+
+| Object | Valid from | Invalidated by |
+|--------|-----------|----------------|
+| `update.PathAttributes` | return of `Build*` | next `Build*` call on the same builder |
+| `update.NLRI` | return of `Build*` | next `Build*` call on the same builder |
+| Splitter chunk's `PathAttributes` | fires via `emit(chunk)` | return of `emit` callback (next chunk's build reuses scratch) |
+
+**Consequence:** callers MUST consume the Update (WriteTo, copy out, or hand to
+SendUpdate which copies internally) before the next `Build*` on the same builder,
+and splitter callers MUST complete `emit(chunk)` before the callback returns.
+
+### Grow semantics (stranded backings are safe)
+
+`alloc(n)` on overflow does `make(newSize) + copy + swap`. Sub-slices returned before
+the grow still reference the OLD backing; the new backing holds everything allocated
+after. The old backing stays alive (GC-pinned by those sub-slices) until all emitted
+Updates are discarded. A single `Update` returned from one `Build*` call may therefore
+have `PathAttributes` and `NLRI` pointing to two different arrays -- this is memory-safe
+and byte-correct. Treat slices as opaque; never assume they share backing.
+
+### Callback-builder offset protocol
+
+`BuildGroupedUnicast` and `BuildGroupedMVPN` (and `Splitter.Split`) emit multiple
+Updates per outer call, all sharing a subset of scratch. To keep this safe without
+re-building shared attributes per chunk:
+
+| Region | Offset | Lifetime |
+|--------|-------|----------|
+| attrBytes (shared across all chunks in batch) | `scratch[0:A)` | Full outer-call duration |
+| per-Update NLRI / chunk PathAttributes | `scratch[A:)` | Until the callback returns |
+
+After each callback returns, the builder resets `off` to **A** (the end of the shared
+attribute region), NOT to 0. The next chunk's bytes overwrite the previous chunk's
+NLRI region but leave the shared attribute region untouched, so the next emitted
+Update still has a valid `PathAttributes` pointing at `scratch[0:A)`.
+
+### Who owns a builder/splitter
+
+| Role | Owner | Scope |
+|------|-------|-------|
+| UpdateBuilder | Short-lived, one per build-group | Created, used for a batch of builds, discarded |
+| Splitter | Long-lived, one per peer (or forward worker) | Created at peer up, retained across sessions |
+
+Builders are cheap to allocate; splitters amortise scratch across millions of
+split operations and should NOT be created per-call.
+
+---
+
 ## Context-Dependent Encoding
 
 Wire format depends on negotiated capabilities:

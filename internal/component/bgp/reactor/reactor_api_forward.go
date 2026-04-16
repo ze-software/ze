@@ -607,7 +607,23 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 						destSendCtx := peer.SendContext()
 						addPath := addPathForUpdate(destSendCtx, parsedUpdate)
 
-						chunks, splitErr := message.SplitUpdateWithAddPath(parsedUpdate, maxMsgSize, addPath)
+						// Chunks are retained in item.updates (possibly cached and
+						// iterated later), so deep-copy each one out of splitter
+						// scratch before appending. Wrap the splitter use in a
+						// closure so the defer returns it to the pool even if
+						// the callback panics.
+						splitErr := func() error {
+							splitter := message.GetSplitter()
+							defer message.PutSplitter(splitter)
+							return splitter.Split(parsedUpdate, maxMsgSize, addPath, func(c *message.Update) error {
+								item.updates = append(item.updates, &message.Update{
+									WithdrawnRoutes: append([]byte(nil), c.WithdrawnRoutes...),
+									PathAttributes:  append([]byte(nil), c.PathAttributes...),
+									NLRI:            append([]byte(nil), c.NLRI...),
+								})
+								return nil
+							})
+						}()
 						if splitErr != nil {
 							fwdLogger().Warn("forward split failed",
 								"peer", peer.Settings().Address,
@@ -615,7 +631,6 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 							)
 							continue
 						}
-						item.updates = append(item.updates, chunks...)
 					} else {
 						item.updates = append(item.updates, parsedUpdate)
 					}

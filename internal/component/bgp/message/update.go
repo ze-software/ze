@@ -40,6 +40,16 @@ import (
 // This is a wire-level representation storing raw bytes.
 // Detailed parsing of path attributes and NLRI is handled separately
 // to support lazy parsing and zero-copy passthrough.
+//
+// Scratch-aliasing lifetime invariant (updates produced by UpdateBuilder.Build*):
+// PathAttributes and NLRI MAY alias the source UpdateBuilder's scratch buffer.
+// Callers MUST consume the Update (WriteTo, copy out, or hand to SendUpdate which
+// copies internally) before the next Build* call on the same builder. Retaining
+// an Update across a subsequent Build* on its source builder is a caller bug; the
+// previous slices will see the next build's bytes. Slices from one build may span
+// two different scratch backings if the buffer grew mid-build -- treat them as
+// opaque; do not assume PathAttributes and NLRI share a backing array.
+// See docs/architecture/update-building.md "Scratch Contract" for full details.
 type Update struct {
 	// Raw message body for passthrough optimization
 	rawData []byte
@@ -50,9 +60,15 @@ type Update struct {
 	WithdrawnRoutes []byte
 	// RFC 4271 Section 4.3 - Path Attributes: variable-length sequence of path
 	// attributes, each a triple <attribute type, attribute length, attribute value>.
+	//
+	// LIFETIME: when produced by UpdateBuilder.Build*, this slice may alias the
+	// builder's scratch buffer. See the Update type doc for the full invariant.
 	PathAttributes []byte
 	// RFC 4271 Section 4.3 - Network Layer Reachability Information: variable-length
 	// field containing IP address prefixes, each encoded as <length, prefix>.
+	//
+	// LIFETIME: when produced by UpdateBuilder.Build*, this slice may alias the
+	// builder's scratch buffer. See the Update type doc for the full invariant.
 	NLRI []byte
 }
 

@@ -152,6 +152,11 @@ func (s *Sender) buildInlineBatch(prefixes []netip.Prefix) []byte {
 		off += nlri.WriteNLRI(inet, nlriBytes, off, false)
 	}
 
+	// dummy.PathAttributes aliases s.builder's scratch (see Update godoc).
+	// Safe here because SerializeMsg runs WriteTo synchronously into a fresh
+	// heap buffer before returning; no call path holds a reference past this
+	// line. Any future refactor that defers serialization (queue, channel,
+	// callback) must copy dummy.PathAttributes first.
 	return SerializeMsg(&message.Update{
 		PathAttributes: dummy.PathAttributes,
 		NLRI:           nlriBytes[:off],
