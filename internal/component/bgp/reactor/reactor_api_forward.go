@@ -508,8 +508,12 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		// RFC 9494: Convert announce to withdrawal for this peer (LLGR egress filter).
 		// Checked before attribute mods since withdrawal replaces the entire payload.
 		if mods.IsWithdraw() {
-			if withdrawal := buildWithdrawalPayload(peerWire.Payload()); withdrawal != nil {
+			peerKey := fwdKey{peerAddr: peer.Settings().PeerKey()}
+			modPool := a.r.fwdPool.OutgoingPool(peerKey)
+			if withdrawal, bufIdx := buildWithdrawalPayload(peerWire.Payload(), modPool); withdrawal != nil {
 				peerWire = wireu.NewWireUpdate(withdrawal, peerWire.SourceCtxID())
+				modBufIdx = bufIdx
+				modPoolRef = modPool
 			} else {
 				fwdLogger().Warn("withdrawal conversion failed, suppressing route",
 					"peer", peer.Settings().Address)
