@@ -6,6 +6,7 @@ Prevents:  Same-AS rejection bugs or LOCAL_PREF handling issues.
 """
 
 import sys, os
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import FRR, ZE_IP
 

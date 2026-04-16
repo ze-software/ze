@@ -8,6 +8,7 @@ Verifies:
 """
 
 import os, sys, time
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import GoBGP, log_pass, log_info
 
@@ -20,7 +21,9 @@ def check():
 
     # Wait briefly and verify session stays up.
     time.sleep(5)
-    assert gobgp.session_established("172.30.0.2"), "GoBGP session dropped after role negotiation"
+    assert gobgp.session_established("172.30.0.2"), (
+        "GoBGP session dropped after role negotiation"
+    )
     log_pass("session stable after role capability negotiation")
 
     log_pass("RFC 9234 role capability interop with GoBGP passed")

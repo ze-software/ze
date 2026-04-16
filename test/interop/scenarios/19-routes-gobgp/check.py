@@ -10,6 +10,7 @@ Both sides verify receipt.
 
 import time
 import os, sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import GoBGP, Ze, ZE_IP, log_pass, log_info, log_fail
 
@@ -35,8 +36,9 @@ def check():
             attr_types = [a.get("type", 0) for a in attrs]
             # Type 1 = ORIGIN, Type 2 = AS_PATH, Type 3 = NEXT_HOP
             assert 1 in attr_types, "ORIGIN attribute missing from GoBGP route"
-            assert 3 in attr_types or any("nexthop" in str(a).lower() for a in attrs), \
+            assert 3 in attr_types or any("nexthop" in str(a).lower() for a in attrs), (
                 "NEXT_HOP attribute missing from GoBGP route"
+            )
             log_pass("GoBGP route has expected attributes (ORIGIN, NEXT_HOP)")
         else:
             log_fail("GoBGP route has no paths (cannot verify attributes)")

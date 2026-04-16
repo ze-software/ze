@@ -52,6 +52,7 @@ _processes = []
 
 # --- Logging ----------------------------------------------------------------
 
+
 def log_info(msg):
     print("  %s" % msg)
 
@@ -71,15 +72,21 @@ def log_debug(msg):
 
 # --- Shell helpers -----------------------------------------------------------
 
+
 def _run(cmd, check=True, timeout=30, capture=True):
     """Run a command, return CompletedProcess."""
     log_debug("$ %s" % " ".join(cmd))
     try:
         return subprocess.run(
-            cmd, capture_output=capture, text=True, timeout=timeout,
+            cmd,
+            capture_output=capture,
+            text=True,
+            timeout=timeout,
         )
     except subprocess.TimeoutExpired:
-        raise RuntimeError("command timed out after %ds: %s" % (timeout, " ".join(cmd[:4])))
+        raise RuntimeError(
+            "command timed out after %ds: %s" % (timeout, " ".join(cmd[:4]))
+        )
 
 
 def _run_ok(cmd, timeout=30):
@@ -104,6 +111,7 @@ def _nsexec_ok(ns, cmd, **kwargs):
 
 
 # --- Network namespace management --------------------------------------------
+
 
 def create_netns_pair():
     """Create two network namespaces connected by a veth pair.
@@ -162,11 +170,17 @@ def destroy_netns_pair():
     _run(["ip", "netns", "del", BB_NS], check=False)
 
     # Clean up temp files.
-    for path in [BB_SOCKET, "/tmp/ze-stress-bb-%s.json" % _SUFFIX,
-                  "/tmp/ze-stress-ze-%s.log" % _SUFFIX, "/tmp/ze-stress-bb-%s.log" % _SUFFIX,
-                  "/tmp/ze-stress-bb-%s.stdout" % _SUFFIX, "/tmp/ze-stress-pcap-%s.txt" % _SUFFIX,
-                  "/tmp/ze-stress-bird-%s.log" % _SUFFIX, "/tmp/ze-stress-bird-%s.pid" % _SUFFIX,
-                  "/tmp/ze-stress-bird-%s.ctl" % _SUFFIX]:
+    for path in [
+        BB_SOCKET,
+        "/tmp/ze-stress-bb-%s.json" % _SUFFIX,
+        "/tmp/ze-stress-ze-%s.log" % _SUFFIX,
+        "/tmp/ze-stress-bb-%s.log" % _SUFFIX,
+        "/tmp/ze-stress-bb-%s.stdout" % _SUFFIX,
+        "/tmp/ze-stress-pcap-%s.txt" % _SUFFIX,
+        "/tmp/ze-stress-bird-%s.log" % _SUFFIX,
+        "/tmp/ze-stress-bird-%s.pid" % _SUFFIX,
+        "/tmp/ze-stress-bird-%s.ctl" % _SUFFIX,
+    ]:
         try:
             os.unlink(path)
         except OSError:
@@ -174,6 +188,7 @@ def destroy_netns_pair():
 
 
 # --- Process management ------------------------------------------------------
+
 
 def start_ze(ze_binary, config_path):
     """Start Ze in the ze-ns namespace. Returns Popen."""
@@ -190,7 +205,8 @@ def start_ze(ze_binary, config_path):
     cmd.append(config_path)
     proc = subprocess.Popen(
         cmd,
-        stdout=ze_logfile, stderr=subprocess.STDOUT,
+        stdout=ze_logfile,
+        stderr=subprocess.STDOUT,
         env=ze_env,
     )
     proc._ze_logfile = ze_logfile  # prevent GC close
@@ -202,7 +218,9 @@ def start_ze(ze_binary, config_path):
         ze_logfile.flush()
         with open(ze_log) as f:
             output = f.read()
-        raise RuntimeError("Ze exited immediately (rc=%d): %s" % (proc.returncode, output[:1000]))
+        raise RuntimeError(
+            "Ze exited immediately (rc=%d): %s" % (proc.returncode, output[:1000])
+        )
     # Verify port 179 is listening.
     ss = _nsexec_ok(ZE_NS, ["ss", "-tlnp", "sport", "=", "179"])
     if "LISTEN" in ss:
@@ -214,9 +232,24 @@ def start_ze(ze_binary, config_path):
     # Start background packet capture on ze-veth for post-mortem analysis.
     pcap_file = "/tmp/ze-stress-pcap-%s.txt" % _SUFFIX
     tcpdump_proc = subprocess.Popen(
-        ["ip", "netns", "exec", ZE_NS, "tcpdump", "-i", ZE_VETH,
-         "-nn", "-l", "-c", "100", "tcp", "port", "179"],
-        stdout=open(pcap_file, "w"), stderr=subprocess.STDOUT,
+        [
+            "ip",
+            "netns",
+            "exec",
+            ZE_NS,
+            "tcpdump",
+            "-i",
+            ZE_VETH,
+            "-nn",
+            "-l",
+            "-c",
+            "100",
+            "tcp",
+            "port",
+            "179",
+        ],
+        stdout=open(pcap_file, "w"),
+        stderr=subprocess.STDOUT,
     )
     tcpdump_proc._pcap_file = pcap_file
     _processes.append(tcpdump_proc)
@@ -243,10 +276,23 @@ def start_bngblaster(config_path):
     bb_stdout = "/tmp/ze-stress-bb-%s.stdout" % _SUFFIX
     bb_stdoutfile = open(bb_stdout, "w")
     proc = subprocess.Popen(
-        ["ip", "netns", "exec", BB_NS,
-         "bngblaster", "-C", rendered, "-S", BB_SOCKET,
-         "-L", bb_log, "-l", "bgp"],
-        stdout=bb_stdoutfile, stderr=subprocess.STDOUT,
+        [
+            "ip",
+            "netns",
+            "exec",
+            BB_NS,
+            "bngblaster",
+            "-C",
+            rendered,
+            "-S",
+            BB_SOCKET,
+            "-L",
+            bb_log,
+            "-l",
+            "bgp",
+        ],
+        stdout=bb_stdoutfile,
+        stderr=subprocess.STDOUT,
     )
     proc._bb_logfile = bb_stdoutfile
     proc._bb_log = bb_log
@@ -257,7 +303,10 @@ def start_bngblaster(config_path):
         bb_stdoutfile.flush()
         with open(bb_stdout) as f:
             output = f.read()
-        raise RuntimeError("BNG Blaster exited immediately (rc=%d): %s" % (proc.returncode, output[:1000]))
+        raise RuntimeError(
+            "BNG Blaster exited immediately (rc=%d): %s"
+            % (proc.returncode, output[:1000])
+        )
     log_pass("BNG Blaster started (pid %d)" % proc.pid)
     log_debug("BNG Blaster log: %s" % bb_log)
     return proc
@@ -265,20 +314,33 @@ def start_bngblaster(config_path):
 
 # --- Route generation -------------------------------------------------------
 
-def generate_updates(prefix_base, prefix_count, nexthop, asn,
-                     filename="updates.bgp", output_dir="/tmp", extra_args=None):
+
+def generate_updates(
+    prefix_base,
+    prefix_count,
+    nexthop,
+    asn,
+    filename="updates.bgp",
+    output_dir="/tmp",
+    extra_args=None,
+):
     """Generate BGP raw update file using bgpupdate."""
     output_path = os.path.join(output_dir, filename)
     cmd = [
         "bgpupdate",
-        "-p", prefix_base,
-        "-P", str(prefix_count),
-        "-n", nexthop,
-        "-a", str(asn),
-        "-f", output_path,
+        "-p",
+        prefix_base,
+        "-P",
+        str(prefix_count),
+        "-n",
+        nexthop,
+        "-a",
+        str(asn),
+        "-f",
+        output_path,
         "--end-of-rib",
     ]
-    for arg in (extra_args or []):
+    for arg in extra_args or []:
         cmd.append(arg)
     log_info("generating %d prefixes from %s..." % (prefix_count, prefix_base))
     gen_timeout = max(120, prefix_count // 2000)  # ~2s per 1k prefixes, min 120s
@@ -289,6 +351,7 @@ def generate_updates(prefix_base, prefix_count, nexthop, asn,
 
 # --- BNG Blaster control socket ---------------------------------------------
 
+
 class BNGBlaster:
     """Control socket client for BNG Blaster."""
 
@@ -297,8 +360,7 @@ class BNGBlaster:
 
     def _cli(self, method, params=None):
         """Send command via bngblaster-cli (runs in bb-ns)."""
-        cmd = ["ip", "netns", "exec", BB_NS,
-               "bngblaster-cli", self.socket, method]
+        cmd = ["ip", "netns", "exec", BB_NS, "bngblaster-cli", self.socket, method]
         if params:
             for k, v in params.items():
                 cmd.extend([k, str(v)])
@@ -340,7 +402,9 @@ class BNGBlaster:
             for s in sessions:
                 state = s.get("state", "unknown")
                 if state == "established":
-                    log_pass("BGP session established (peer %s)" % s.get("peer-address", "?"))
+                    log_pass(
+                        "BGP session established (peer %s)" % s.get("peer-address", "?")
+                    )
                     return s
                 if state != last_state:
                     log_debug("BGP session state: %s" % state)
@@ -372,10 +436,14 @@ class BNGBlaster:
         ss_listen = _nsexec_ok(ZE_NS, ["ss", "-tlnp", "sport", "=", "179"])
         log_info("Ze listeners:\n%s" % ss_listen.strip())
         # All TCP states on port 179.
-        ss_all = _nsexec_ok(ZE_NS, ["ss", "-tanp", "sport", "=", "179", "or", "dport", "=", "179"])
+        ss_all = _nsexec_ok(
+            ZE_NS, ["ss", "-tanp", "sport", "=", "179", "or", "dport", "=", "179"]
+        )
         log_info("Ze TCP all states:\n%s" % ss_all.strip())
         arp = _nsexec_ok(ZE_NS, ["ip", "neigh", "show"])
-        log_info("Ze ARP table: %s" % arp.strip() if arp.strip() else "Ze ARP table: (empty)")
+        log_info(
+            "Ze ARP table: %s" % arp.strip() if arp.strip() else "Ze ARP table: (empty)"
+        )
         # Background pcap capture (started with Ze).
         pcap_file = "/tmp/ze-stress-pcap-%s.txt" % _SUFFIX
         if os.path.isfile(pcap_file):
@@ -386,7 +454,9 @@ class BNGBlaster:
                 for line in pcap_lines[:20]:
                     print("    %s" % line.rstrip())
             else:
-                log_info("tcpdump tcp/179: NO TCP PACKETS on port 179 (BNG Blaster never sent SYN)")
+                log_info(
+                    "tcpdump tcp/179: NO TCP PACKETS on port 179 (BNG Blaster never sent SYN)"
+                )
         # BNG Blaster interface state via control socket.
         ifaces = self._cli("interfaces")
         if ifaces:
@@ -450,6 +520,7 @@ class BNGBlaster:
 
 # --- Ze helpers --------------------------------------------------------------
 
+
 class Ze:
     """Helpers for querying Ze in stress tests.
 
@@ -493,6 +564,7 @@ class Ze:
 
 # --- BIRD helpers ------------------------------------------------------------
 
+
 def start_bird(config_path):
     """Start BIRD in the ze-ns namespace. Returns Popen."""
     log_info("starting BIRD in %s..." % ZE_NS)
@@ -501,10 +573,22 @@ def start_bird(config_path):
     bird_pid = "/tmp/ze-stress-bird-%s.pid" % _SUFFIX
     bird_sock = "/tmp/ze-stress-bird-%s.ctl" % _SUFFIX
     proc = subprocess.Popen(
-        ["ip", "netns", "exec", ZE_NS,
-         "bird", "-f", "-c", config_path,
-         "-P", bird_pid, "-s", bird_sock],
-        stdout=bird_logfile, stderr=subprocess.STDOUT,
+        [
+            "ip",
+            "netns",
+            "exec",
+            ZE_NS,
+            "bird",
+            "-f",
+            "-c",
+            config_path,
+            "-P",
+            bird_pid,
+            "-s",
+            bird_sock,
+        ],
+        stdout=bird_logfile,
+        stderr=subprocess.STDOUT,
     )
     proc._ze_logfile = bird_logfile
     proc._ze_log = bird_log
@@ -515,7 +599,9 @@ def start_bird(config_path):
         bird_logfile.flush()
         with open(bird_log) as f:
             output = f.read()
-        raise RuntimeError("BIRD exited immediately (rc=%d): %s" % (proc.returncode, output[:1000]))
+        raise RuntimeError(
+            "BIRD exited immediately (rc=%d): %s" % (proc.returncode, output[:1000])
+        )
     # Verify port 179 is listening.
     ss = _nsexec_ok(ZE_NS, ["ss", "-tln", "sport", "=", "179"])
     if "LISTEN" in ss:
@@ -534,14 +620,16 @@ class BIRD:
         bird_sock = "/tmp/ze-stress-bird-%s.ctl" % _SUFFIX
         output = _nsexec_ok(ZE_NS, ["birdc", "-s", bird_sock, "show", "route", "count"])
         # BIRD output: "1234 of 1234 routes (1 network)"
-        m = re.search(r'(\d+)\s+of\s+\d+\s+routes', output)
+        m = re.search(r"(\d+)\s+of\s+\d+\s+routes", output)
         if m:
             return int(m.group(1))
         return 0
 
     def wait_route_count(self, minimum, timeout=120):
         """Poll until BIRD's RIB has at least `minimum` routes."""
-        log_info("waiting for BIRD RIB >= %d routes (timeout %ds)..." % (minimum, timeout))
+        log_info(
+            "waiting for BIRD RIB >= %d routes (timeout %ds)..." % (minimum, timeout)
+        )
         deadline = time.time() + timeout
         last_count = 0
         while time.time() < deadline:
@@ -554,11 +642,17 @@ class BIRD:
                 last_count = count
             time.sleep(2)
         count = self.route_count()
-        log_fail("BIRD RIB has %d routes after %ds (expected >= %d)" % (count, timeout, minimum))
-        raise AssertionError("BIRD RIB has %d routes, expected >= %d" % (count, minimum))
+        log_fail(
+            "BIRD RIB has %d routes after %ds (expected >= %d)"
+            % (count, timeout, minimum)
+        )
+        raise AssertionError(
+            "BIRD RIB has %d routes, expected >= %d" % (count, minimum)
+        )
 
 
 # --- Timing helpers ----------------------------------------------------------
+
 
 class Timer:
     """Simple wall-clock timer for measuring phases."""
@@ -578,6 +672,7 @@ class Timer:
 
 
 # --- Scenario lifecycle ------------------------------------------------------
+
 
 class Scenario:
     """Manages namespace lifecycle for a stress test scenario."""
@@ -608,8 +703,11 @@ class Scenario:
         elif os.path.isfile(bird_conf):
             if not shutil.which("bird"):
                 print("Installing BIRD 2.x (first run)...")
-                subprocess.run(["apt-get", "install", "-y", "--no-install-recommends", "bird2"],
-                               check=True, timeout=120)
+                subprocess.run(
+                    ["apt-get", "install", "-y", "--no-install-recommends", "bird2"],
+                    check=True,
+                    timeout=120,
+                )
                 if not shutil.which("bird"):
                     raise RuntimeError("BIRD install failed")
             start_bird(bird_conf)
@@ -629,6 +727,7 @@ class Scenario:
             raise RuntimeError("no check.py in %s" % self.name)
 
         import importlib.util
+
         spec = importlib.util.spec_from_file_location("check", check_path)
         if spec is None:
             raise RuntimeError("cannot load check.py from %s" % self.name)

@@ -16,9 +16,13 @@ time.sleep(1)
 
 # Announce two paths for the same prefix with different path-ids and AS paths.
 # path-information is a top-level keyword before origin, using dotted-quad notation.
-flush('peer * update text path-information 0.0.0.1 origin igp path 65001 65010 nhop 172.30.0.2 nlri ipv4/unicast add 10.10.0.0/24\n')
+flush(
+    "peer * update text path-information 0.0.0.1 origin igp path 65001 65010 nhop 172.30.0.2 nlri ipv4/unicast add 10.10.0.0/24\n"
+)
 time.sleep(0.1)
-flush('peer * update text path-information 0.0.0.2 origin igp path 65001 65020 nhop 172.30.0.2 nlri ipv4/unicast add 10.10.0.0/24\n')
+flush(
+    "peer * update text path-information 0.0.0.2 origin igp path 65001 65020 nhop 172.30.0.2 nlri ipv4/unicast add 10.10.0.0/24\n"
+)
 
 # Keep plugin alive for the check script to verify routes.
 wait_for_shutdown(timeout=120)

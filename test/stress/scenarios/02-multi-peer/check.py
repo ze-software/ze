@@ -10,9 +10,14 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from bngblaster import (
-    BNGBlaster, Ze, Timer,
-    generate_updates, BB_IP,
-    log_info, log_pass, log_fail,
+    BNGBlaster,
+    Ze,
+    Timer,
+    generate_updates,
+    BB_IP,
+    log_info,
+    log_pass,
+    log_fail,
 )
 
 
@@ -69,5 +74,7 @@ def check():
             raise AssertionError("session dropped")
 
     rate = total / tp.elapsed if tp.elapsed > 0 else 0
-    log_pass("mixed injection: %d IPv4 + %d IPv6 = %d total (%.0f routes/s)"
-             % (IPV4_COUNT, IPV6_COUNT, total, rate))
+    log_pass(
+        "mixed injection: %d IPv4 + %d IPv6 = %d total (%.0f routes/s)"
+        % (IPV4_COUNT, IPV6_COUNT, total, rate)
+    )

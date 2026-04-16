@@ -7,8 +7,8 @@ import time
 
 
 def _prefixed(level, message):
-    now = time.strftime('%a, %d %b %Y %H:%M:%S\n', time.localtime())
-    return '%s %-8s %-6d %s\n' % (now, level, os.getpid(), message)
+    now = time.strftime("%a, %d %b %Y %H:%M:%S\n", time.localtime())
+    return "%s %-8s %-6d %s\n" % (now, level, os.getpid(), message)
 
 
 def main():
@@ -19,7 +19,7 @@ def main():
         try:
             line = sys.stdin.readline().strip()
             sys.stdout.flush()
-            if line == '':
+            if line == "":
                 counter += 1
                 if counter > 100:
                     break
@@ -27,7 +27,9 @@ def main():
 
             counter = 0
 
-            sys.stderr.write(_prefixed(sys.argv[1] if len(sys.argv) >= 2 else 'EXABGP PROCESS', line))
+            sys.stderr.write(
+                _prefixed(sys.argv[1] if len(sys.argv) >= 2 else "EXABGP PROCESS", line)
+            )
         except KeyboardInterrupt:
             pass
         except OSError:
@@ -35,6 +37,6 @@ def main():
             pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     main()

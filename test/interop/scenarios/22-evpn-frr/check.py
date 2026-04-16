@@ -7,6 +7,7 @@ Prevents:  EVPN NLRI encoding bugs (Type-2 MAC/IP), capability negotiation issue
 
 import json
 import os, sys, time
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import FRR, Ze, ZE_IP, log_info, log_pass, log_fail
 
@@ -58,12 +59,14 @@ def check():
 
     # Verify EVPN route content: check for announced MAC addresses.
     routes_str = json.dumps(raw_data)
-    assert "00:11:22:33:44:55" in routes_str, \
+    assert "00:11:22:33:44:55" in routes_str, (
         "MAC 00:11:22:33:44:55 not found in EVPN routes"
+    )
     log_pass("EVPN Type-2 route with MAC 00:11:22:33:44:55 verified")
 
-    assert "00:11:22:33:44:66" in routes_str, \
+    assert "00:11:22:33:44:66" in routes_str, (
         "MAC 00:11:22:33:44:66 not found in EVPN routes"
+    )
     log_pass("EVPN Type-2 route with MAC 00:11:22:33:44:66 verified")
 
     assert frr.session_established(ZE_IP), "session dropped after EVPN exchange"

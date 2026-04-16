@@ -12,6 +12,7 @@ Topology:
 """
 
 import sys, os
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import FRR, BIRD, ZE_IP, BIRD_IP, log_pass
 

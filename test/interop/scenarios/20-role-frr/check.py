@@ -9,6 +9,7 @@ Verifies:
 """
 
 import os, sys, time
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import FRR, log_pass, log_info
 
@@ -33,7 +34,9 @@ def check():
     log_pass("route 10.99.0.0/24 received from FRR customer")
 
     # Verify session is still up (no Role Mismatch NOTIFICATION).
-    assert frr.session_established("172.30.0.2"), "FRR session dropped after route exchange"
+    assert frr.session_established("172.30.0.2"), (
+        "FRR session dropped after route exchange"
+    )
     log_pass("session stable after route exchange with role capability")
 
     log_pass("RFC 9234 role capability interop with FRR passed")

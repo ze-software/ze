@@ -3,6 +3,7 @@
 
 import json
 import os, sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import FRR, Ze, docker_exec_quiet, log_pass, log_fail
 
@@ -18,7 +19,9 @@ def check():
     frr.check_route("10.10.0.0/24")
 
     # Check if GR capability was negotiated via JSON.
-    output = docker_exec_quiet(frr.container, ["vtysh", "-c", "show bgp neighbor 172.30.0.2 json"])
+    output = docker_exec_quiet(
+        frr.container, ["vtysh", "-c", "show bgp neighbor 172.30.0.2 json"]
+    )
     gr_found = False
     if output.strip():
         try:
@@ -36,7 +39,9 @@ def check():
 
     if not gr_found:
         # Fallback to text check.
-        output = docker_exec_quiet(frr.container, ["vtysh", "-c", "show bgp neighbor 172.30.0.2"])
+        output = docker_exec_quiet(
+            frr.container, ["vtysh", "-c", "show bgp neighbor 172.30.0.2"]
+        )
         if "graceful restart" in output.lower():
             gr_found = True
 

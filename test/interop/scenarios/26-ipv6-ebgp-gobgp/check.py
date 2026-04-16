@@ -6,6 +6,7 @@ Prevents:  MP_REACH encoding bugs specific to GoBGP's implementation.
 """
 
 import os, sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import GoBGP, ZE_IP, log_pass
 

@@ -37,17 +37,13 @@ def main():
     parser.add_argument("file", help="File to modify")
     parser.add_argument("old", help="String or pattern to find")
     parser.add_argument("new", help="Replacement string")
-    parser.add_argument(
-        "--regex", action="store_true", help="Treat <old> as regex"
-    )
+    parser.add_argument("--regex", action="store_true", help="Treat <old> as regex")
     parser.add_argument(
         "--all",
         action="store_true",
         help="Replace all occurrences (default: first only)",
     )
-    parser.add_argument(
-        "--apply", action="store_true", help="Write changes to disk"
-    )
+    parser.add_argument("--apply", action="store_true", help="Write changes to disk")
     args = parser.parse_args()
 
     try:

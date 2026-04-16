@@ -48,26 +48,41 @@ from pathlib import Path
 
 # -- Data types ---------------------------------------------------------------
 
-DEFAULT_LIST_NODES = frozenset({
-    "peer", "group", "family", "update", "route", "external",
-    "profile", "user", "server", "tunnel", "bridge", "vlan",
-    "macvlan", "veth", "wireguard", "vxlan",
-})
+DEFAULT_LIST_NODES = frozenset(
+    {
+        "peer",
+        "group",
+        "family",
+        "update",
+        "route",
+        "external",
+        "profile",
+        "user",
+        "server",
+        "tunnel",
+        "bridge",
+        "vlan",
+        "macvlan",
+        "veth",
+        "wireguard",
+        "vxlan",
+    }
+)
 
 FILE_GLOBS = {
-    "yang":  ["**/*.yang"],
-    "go":    ["internal/**/*.go", "cmd/**/*.go", "pkg/**/*.go"],
-    "ci":    ["test/**/*.ci"],
-    "et":    ["test/**/*.et"],
+    "yang": ["**/*.yang"],
+    "go": ["internal/**/*.go", "cmd/**/*.go", "pkg/**/*.go"],
+    "ci": ["test/**/*.ci"],
+    "et": ["test/**/*.et"],
 }
 
 
 @dataclass
 class Operation:
-    kind: str          # "remove", "rename", "move"
-    target: str        # segment to remove/rename (remove/rename) or source path (move)
-    replacement: str   # new name (rename) or destination path (move); empty for remove
-    under: str         # path prefix (remove/rename); empty for move
+    kind: str  # "remove", "rename", "move"
+    target: str  # segment to remove/rename (remove/rename) or source path (move)
+    replacement: str  # new name (rename) or destination path (move); empty for remove
+    under: str  # path prefix (remove/rename); empty for move
     list_nodes: frozenset
 
 
@@ -88,13 +103,15 @@ class ManualEdit:
 
 # -- Path matching ------------------------------------------------------------
 
+
 def split_path(p: str) -> list[str]:
     """Split a slash-separated path into segments, filtering empties."""
     return [s for s in p.split("/") if s]
 
 
-def match_under_prefix(path_segs: list[str], under_segs: list[str],
-                       list_nodes: frozenset) -> int | None:
+def match_under_prefix(
+    path_segs: list[str], under_segs: list[str], list_nodes: frozenset
+) -> int | None:
     """Check if path_segs starts with the structural prefix under_segs.
 
     List keys (segments following a list node name) are skipped in the
@@ -128,13 +145,13 @@ def transform_slash_path(path_str: str, op: Operation) -> str | None:
         if under_segs:
             idx = match_under_prefix(segs, under_segs, op.list_nodes)
             if idx is not None and idx < len(segs) and segs[idx] == op.target:
-                new_segs = segs[:idx] + segs[idx + 1:]
+                new_segs = segs[:idx] + segs[idx + 1 :]
                 return "/".join(new_segs) if new_segs else None
         else:
             # No --under: remove first occurrence of target
             if op.target in segs:
                 idx = segs.index(op.target)
-                new_segs = segs[:idx] + segs[idx + 1:]
+                new_segs = segs[:idx] + segs[idx + 1 :]
                 return "/".join(new_segs) if new_segs else None
         # Also handle relative paths (no under prefix in the path itself)
         # e.g., ze:required "connection/remote/ip" where context is implicit
@@ -179,8 +196,12 @@ def transform_slash_path(path_str: str, op: Operation) -> str | None:
     return None
 
 
-def _rebuild_move_path(path_segs: list[str], src_segs: list[str],
-                       dst_segs: list[str], list_nodes: frozenset) -> list[str] | None:
+def _rebuild_move_path(
+    path_segs: list[str],
+    src_segs: list[str],
+    dst_segs: list[str],
+    list_nodes: frozenset,
+) -> list[str] | None:
     """Rebuild the prefix portion of a path after a move operation.
 
     Extracts list key values from the original path and inserts them
@@ -211,9 +232,11 @@ def _rebuild_move_path(path_segs: list[str], src_segs: list[str],
 # Matches YANG-style slash paths in quotes (lowercase segments with hyphens).
 # Excludes Go import paths (contain dots like codeberg.org), file paths (contain
 # dots like .md/.go), and URLs (contain ://).
-RE_QUOTED_SLASH_PATH = re.compile(r'(?<=["\'])([a-z][\w-]*/[a-z][\w/-]*[a-z\d])(?=["\'])')
+RE_QUOTED_SLASH_PATH = re.compile(
+    r'(?<=["\'])([a-z][\w-]*/[a-z][\w/-]*[a-z\d])(?=["\'])'
+)
 # Matches --context <path> in .ci/.et files
-RE_CONTEXT_FLAG = re.compile(r'(--context\s+)([\w/.-]+)')
+RE_CONTEXT_FLAG = re.compile(r"(--context\s+)([\w/.-]+)")
 
 
 def transform_slash_paths(content: str, op: Operation, ext: str) -> str:
@@ -238,9 +261,9 @@ def transform_slash_paths(content: str, op: Operation, ext: str) -> str:
 
 # -- Format 2: Set commands (space-separated paths) ---------------------------
 
-RE_SET_COMMAND = re.compile(r'^(\s*)(set\s+.+)$', re.MULTILINE)
+RE_SET_COMMAND = re.compile(r"^(\s*)(set\s+.+)$", re.MULTILINE)
 # In .et files: input=type:text=set ...
-RE_ET_SET = re.compile(r'(input=type:text=)(set\s+.+)$', re.MULTILINE)
+RE_ET_SET = re.compile(r"(input=type:text=)(set\s+.+)$", re.MULTILINE)
 
 
 def transform_set_command_line(line: str, op: Operation) -> str | None:
@@ -265,7 +288,9 @@ def transform_set_command_line(line: str, op: Operation) -> str | None:
             # Check if current structural position matches under/target
             if seg == op.target:
                 check_path = "/".join(structural[:-1])
-                idx = match_under_prefix(split_path(check_path), under_segs, op.list_nodes)
+                idx = match_under_prefix(
+                    split_path(check_path), under_segs, op.list_nodes
+                )
                 if idx is not None or not under_segs:
                     # Skip this segment (remove it)
                     changed = True
@@ -285,7 +310,9 @@ def transform_set_command_line(line: str, op: Operation) -> str | None:
             under_segs = split_path(op.under)
             if seg == op.target:
                 check_path = "/".join(structural[:-1])
-                idx = match_under_prefix(split_path(check_path), under_segs, op.list_nodes)
+                idx = match_under_prefix(
+                    split_path(check_path), under_segs, op.list_nodes
+                )
                 if idx is not None or not under_segs:
                     new_parts.append(op.replacement)
                     changed = True
@@ -339,6 +366,7 @@ def transform_set_commands(content: str, op: Operation, ext: str) -> str:
 
 # -- Format 3: Brace-nested config blocks ------------------------------------
 
+
 def transform_brace_blocks(content: str, op: Operation) -> str:
     """Remove or rename brace-nested config blocks.
 
@@ -369,7 +397,9 @@ def transform_brace_blocks(content: str, op: Operation) -> str:
                         child_indent = _detect_child_indent(lines, i + 1, close_idx)
                         # Skip opening line, dedent children, skip closing line
                         for j in range(i + 1, close_idx):
-                            dedented = _dedent_line(lines[j], child_indent, target_indent)
+                            dedented = _dedent_line(
+                                lines[j], child_indent, target_indent
+                            )
                             result.append(dedented)
                         i = close_idx + 1
                         continue
@@ -434,8 +464,9 @@ def _is_in_context(lines: list[str], target_line: int, op: Operation) -> bool:
     return _stack_matches_under(stack, under_segs, op.list_nodes)
 
 
-def _stack_matches_under(stack: list[str], under_segs: list[str],
-                         list_nodes: frozenset) -> bool:
+def _stack_matches_under(
+    stack: list[str], under_segs: list[str], list_nodes: frozenset
+) -> bool:
     """Check if the nesting stack contains the --under path as a subsequence.
 
     Outer containers (e.g., environment, stdin config blocks) are skipped.
@@ -497,11 +528,12 @@ def _dedent_line(line: str, child_indent: str, target_indent: str) -> str:
     if not line.strip():
         return line  # preserve blank lines
     if child_indent and line.startswith(child_indent):
-        return target_indent + line[len(child_indent):]
+        return target_indent + line[len(child_indent) :]
     return line
 
 
 # -- Format 4: Go GetContainer chains ----------------------------------------
+
 
 def transform_getcontainer_inline(content: str, op: Operation) -> str:
     """Transform inline GetContainer chains where the call is mid-chain.
@@ -521,10 +553,8 @@ def transform_getcontainer_inline(content: str, op: Operation) -> str:
 
     elif op.kind == "rename":
         # Rename is safe even for terminal calls (no structural change)
-        pattern = re.compile(
-            r'(\.GetContainer\(")' + re.escape(op.target) + r'("\))'
-        )
-        return pattern.sub(r'\g<1>' + op.replacement + r'\g<2>', content)
+        pattern = re.compile(r'(\.GetContainer\(")' + re.escape(op.target) + r'("\))')
+        return pattern.sub(r"\g<1>" + op.replacement + r"\g<2>", content)
 
     return content
 
@@ -546,9 +576,7 @@ def find_getcontainer_manual(content: str, op: Operation) -> list[ManualEdit]:
     chain_pattern = re.compile(
         r'\.GetContainer\("' + re.escape(target) + r'"\)(?=\.Get)'
     )
-    any_pattern = re.compile(
-        r'\.GetContainer\("' + re.escape(target) + r'"\)'
-    )
+    any_pattern = re.compile(r'\.GetContainer\("' + re.escape(target) + r'"\)')
 
     for i, line in enumerate(content.split("\n"), 1):
         stripped = line.strip()
@@ -557,16 +585,19 @@ def find_getcontainer_manual(content: str, op: Operation) -> list[ManualEdit]:
             continue
         # Report if the line has a terminal/standalone GetContainer call
         if any_pattern.search(stripped):
-            edits.append(ManualEdit(
-                path="",  # filled in by caller
-                line=i,
-                text=stripped,
-                reason=f"GetContainer(\"{target}\") - not in chain, manual rewrite needed",
-            ))
+            edits.append(
+                ManualEdit(
+                    path="",  # filled in by caller
+                    line=i,
+                    text=stripped,
+                    reason=f'GetContainer("{target}") - not in chain, manual rewrite needed',
+                )
+            )
     return edits
 
 
 # -- Format 6: YANG node reporter --------------------------------------------
+
 
 def find_yang_definitions(content: str, op: Operation) -> list[ManualEdit]:
     """Find YANG container/leaf definitions that need manual restructuring."""
@@ -574,29 +605,36 @@ def find_yang_definitions(content: str, op: Operation) -> list[ManualEdit]:
     target = op.target if op.kind in ("remove", "rename") else split_path(op.target)[-1]
 
     pattern = re.compile(
-        r'^\s*(container|leaf|leaf-list|list|grouping)\s+' + re.escape(target) + r'\s*\{',
+        r"^\s*(container|leaf|leaf-list|list|grouping)\s+"
+        + re.escape(target)
+        + r"\s*\{",
     )
 
     for i, line in enumerate(content.split("\n"), 1):
         m = pattern.match(line)
         if m:
-            edits.append(ManualEdit(
-                path="",
-                line=i,
-                text=line.strip(),
-                reason=f"YANG {m.group(1)} definition - manual restructure needed",
-            ))
+            edits.append(
+                ManualEdit(
+                    path="",
+                    line=i,
+                    text=line.strip(),
+                    reason=f"YANG {m.group(1)} definition - manual restructure needed",
+                )
+            )
     return edits
 
 
 # -- Orchestration ------------------------------------------------------------
+
 
 def find_project_root() -> Path:
     """Find the project root via git."""
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, check=True,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         return Path(result.stdout.strip())
     except (subprocess.CalledProcessError, FileNotFoundError):
@@ -611,14 +649,19 @@ def discover_files(root: Path) -> dict[str, list[Path]]:
         for pattern in globs:
             paths.extend(root.glob(pattern))
         # Filter out vendor/ and tmp/ (check as path components, not substrings)
-        paths = [p for p in paths
-                 if "vendor" not in p.relative_to(root).parts
-                 and "tmp" not in p.relative_to(root).parts]
+        paths = [
+            p
+            for p in paths
+            if "vendor" not in p.relative_to(root).parts
+            and "tmp" not in p.relative_to(root).parts
+        ]
         files[category] = sorted(paths)
     return files
 
 
-def process_file(filepath: Path, op: Operation, category: str) -> tuple[FileChange | None, list[ManualEdit]]:
+def process_file(
+    filepath: Path, op: Operation, category: str
+) -> tuple[FileChange | None, list[ManualEdit]]:
     """Process a single file through applicable transformers."""
     try:
         content = filepath.read_text(encoding="utf-8")
@@ -684,6 +727,7 @@ def format_diff(change: FileChange, root: Path) -> str:
 
 # -- Self-tests ---------------------------------------------------------------
 
+
 def run_tests():
     """Run embedded self-tests."""
     passed = 0
@@ -702,44 +746,60 @@ def run_tests():
     # -- match_under_prefix tests --
     ln = DEFAULT_LIST_NODES
 
-    check("match basic",
-          match_under_prefix(["bgp", "peer", "p1", "connection"], ["bgp", "peer"], ln),
-          3)
-    check("match no list key",
-          match_under_prefix(["bgp", "router-id"], ["bgp"], ln),
-          1)
-    check("match mismatch",
-          match_under_prefix(["bgp", "router-id"], ["iface"], ln),
-          None)
+    check(
+        "match basic",
+        match_under_prefix(["bgp", "peer", "p1", "connection"], ["bgp", "peer"], ln),
+        3,
+    )
+    check("match no list key", match_under_prefix(["bgp", "router-id"], ["bgp"], ln), 1)
+    check(
+        "match mismatch", match_under_prefix(["bgp", "router-id"], ["iface"], ln), None
+    )
 
     # -- transform_slash_path: remove --
     op_rm = Operation("remove", "connection", "", "bgp/peer", ln)
-    check("slash remove full",
-          transform_slash_path("bgp/peer/p1/connection/remote/ip", op_rm),
-          "bgp/peer/p1/remote/ip")
-    check("slash remove relative",
-          transform_slash_path("connection/remote/ip", op_rm),
-          "remote/ip")
-    check("slash remove no match",
-          transform_slash_path("bgp/peer/p1/session/asn", op_rm),
-          None)
+    check(
+        "slash remove full",
+        transform_slash_path("bgp/peer/p1/connection/remote/ip", op_rm),
+        "bgp/peer/p1/remote/ip",
+    )
+    check(
+        "slash remove relative",
+        transform_slash_path("connection/remote/ip", op_rm),
+        "remote/ip",
+    )
+    check(
+        "slash remove no match",
+        transform_slash_path("bgp/peer/p1/session/asn", op_rm),
+        None,
+    )
 
     # -- transform_slash_path: rename --
     op_rn = Operation("rename", "session", "protocol", "bgp/peer", ln)
-    check("slash rename full",
-          transform_slash_path("bgp/peer/p1/session/asn/local", op_rn),
-          "bgp/peer/p1/protocol/asn/local")
-    check("slash rename relative",
-          transform_slash_path("session/asn/local", op_rn),
-          "protocol/asn/local")
+    check(
+        "slash rename full",
+        transform_slash_path("bgp/peer/p1/session/asn/local", op_rn),
+        "bgp/peer/p1/protocol/asn/local",
+    )
+    check(
+        "slash rename relative",
+        transform_slash_path("session/asn/local", op_rn),
+        "protocol/asn/local",
+    )
 
     # -- transform_set_command_line: remove --
-    check("set remove",
-          transform_set_command_line("set bgp peer p1 connection remote ip 1.2.3.4", op_rm),
-          "set bgp peer p1 remote ip 1.2.3.4")
-    check("set remove no match",
-          transform_set_command_line("set bgp peer p1 session asn local 65000", op_rm),
-          None)
+    check(
+        "set remove",
+        transform_set_command_line(
+            "set bgp peer p1 connection remote ip 1.2.3.4", op_rm
+        ),
+        "set bgp peer p1 remote ip 1.2.3.4",
+    )
+    check(
+        "set remove no match",
+        transform_set_command_line("set bgp peer p1 session asn local 65000", op_rm),
+        None,
+    )
 
     # -- transform_brace_blocks: remove --
     input_brace = (
@@ -788,40 +848,57 @@ def run_tests():
         "    }\n"
         "}"
     )
-    check("brace rename", transform_brace_blocks(input_rename, op_rn_brace), expected_rename)
+    check(
+        "brace rename",
+        transform_brace_blocks(input_rename, op_rn_brace),
+        expected_rename,
+    )
 
     # -- inline GetContainer: remove (chain) --
     go_input = 'conn := peer.GetContainer("connection").GetContainer("remote")'
     go_expected = 'conn := peer.GetContainer("remote")'
-    check("getcontainer chain remove",
-          transform_getcontainer_inline(go_input, op_rm),
-          go_expected)
+    check(
+        "getcontainer chain remove",
+        transform_getcontainer_inline(go_input, op_rm),
+        go_expected,
+    )
 
     # -- inline GetContainer: remove (standalone, should NOT transform) --
     go_standalone = 'connContainer := peerTree.GetContainer("connection")'
-    check("getcontainer standalone no-op",
-          transform_getcontainer_inline(go_standalone, op_rm),
-          go_standalone)
+    check(
+        "getcontainer standalone no-op",
+        transform_getcontainer_inline(go_standalone, op_rm),
+        go_standalone,
+    )
 
     # -- inline GetContainer: rename --
     go_input2 = 'sess := peer.GetContainer("session").GetContainer("asn")'
     go_expected2 = 'sess := peer.GetContainer("protocol").GetContainer("asn")'
-    check("getcontainer chain rename",
-          transform_getcontainer_inline(go_input2, op_rn),
-          go_expected2)
+    check(
+        "getcontainer chain rename",
+        transform_getcontainer_inline(go_input2, op_rn),
+        go_expected2,
+    )
 
     # -- move: slash path --
-    op_mv = Operation("move", "bgp/peer/session/capability",
-                      "bgp/peer/capability", "", ln)
-    check("slash move full",
-          transform_slash_path("bgp/peer/p1/session/capability/graceful-restart", op_mv),
-          "bgp/peer/p1/capability/graceful-restart")
-    check("slash move no match",
-          transform_slash_path("bgp/peer/p1/session/asn/local", op_mv),
-          None)
-    check("slash move exact",
-          transform_slash_path("bgp/peer/p1/session/capability", op_mv),
-          "bgp/peer/p1/capability")
+    op_mv = Operation(
+        "move", "bgp/peer/session/capability", "bgp/peer/capability", "", ln
+    )
+    check(
+        "slash move full",
+        transform_slash_path("bgp/peer/p1/session/capability/graceful-restart", op_mv),
+        "bgp/peer/p1/capability/graceful-restart",
+    )
+    check(
+        "slash move no match",
+        transform_slash_path("bgp/peer/p1/session/asn/local", op_mv),
+        None,
+    )
+    check(
+        "slash move exact",
+        transform_slash_path("bgp/peer/p1/session/capability", op_mv),
+        "bgp/peer/p1/capability",
+    )
 
     # -- Summary --
     total = passed + failed
@@ -835,6 +912,7 @@ def run_tests():
 
 # -- CLI entry point ----------------------------------------------------------
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Format-aware YANG path refactoring for ze",
@@ -842,17 +920,24 @@ def parse_args() -> argparse.Namespace:
         epilog=__doc__,
     )
 
-    parser.add_argument("--test", action="store_true",
-                        help="Run embedded self-tests")
+    parser.add_argument("--test", action="store_true", help="Run embedded self-tests")
 
     # Shared flags for subcommands
     shared = argparse.ArgumentParser(add_help=False)
-    shared.add_argument("--apply", action="store_true",
-                        help="Write changes to disk (default: preview only)")
-    shared.add_argument("--list-nodes", type=str, default=None,
-                        help="Comma-separated list node names (default: peer,group,...)")
-    shared.add_argument("--verbose", "-v", action="store_true",
-                        help="Show per-file processing info")
+    shared.add_argument(
+        "--apply",
+        action="store_true",
+        help="Write changes to disk (default: preview only)",
+    )
+    shared.add_argument(
+        "--list-nodes",
+        type=str,
+        default=None,
+        help="Comma-separated list node names (default: peer,group,...)",
+    )
+    shared.add_argument(
+        "--verbose", "-v", action="store_true", help="Show per-file processing info"
+    )
 
     sub = parser.add_subparsers(dest="command")
 
@@ -880,7 +965,9 @@ def main():
         return
 
     if not args.command:
-        print("error: specify a command (remove, rename, move) or --test", file=sys.stderr)
+        print(
+            "error: specify a command (remove, rename, move) or --test", file=sys.stderr
+        )
         sys.exit(2)
 
     # Parse list nodes
@@ -932,8 +1019,10 @@ def main():
         print(diff_text, end="")
 
     # Summary to stderr
-    print(f"\n--- {len(all_changes)} file(s) modified, {files_scanned} scanned ---",
-          file=sys.stderr)
+    print(
+        f"\n--- {len(all_changes)} file(s) modified, {files_scanned} scanned ---",
+        file=sys.stderr,
+    )
 
     if all_manual:
         print("\nManual edits needed:", file=sys.stderr)

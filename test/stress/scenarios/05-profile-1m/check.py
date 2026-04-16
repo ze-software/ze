@@ -17,12 +17,21 @@ import subprocess
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from bngblaster import (
-    BNGBlaster, Ze, Timer, ZE_NS,
-    generate_updates, BB_IP, _nsexec_ok,
-    log_info, log_pass, log_fail,
+    BNGBlaster,
+    Ze,
+    Timer,
+    ZE_NS,
+    generate_updates,
+    BB_IP,
+    _nsexec_ok,
+    log_info,
+    log_pass,
+    log_fail,
 )
 
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+PROJECT_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "..")
+)
 PROFILE_DIR = os.path.join(PROJECT_ROOT, "tmp")
 PPROF = "http://127.0.0.1:6060/debug/pprof"
 
@@ -32,7 +41,9 @@ def fetch_profile(name, url, timeout=120):
     path = os.path.join(PROFILE_DIR, "stress-profile-%s.pb.gz" % name)
     _nsexec_ok(ZE_NS, ["curl", "-sS", "-o", path, url], timeout=timeout)
     if os.path.isfile(path) and os.path.getsize(path) > 0:
-        log_pass("saved %s profile: %s (%d bytes)" % (name, path, os.path.getsize(path)))
+        log_pass(
+            "saved %s profile: %s (%d bytes)" % (name, path, os.path.getsize(path))
+        )
     else:
         log_fail("failed to save %s profile" % name)
 
@@ -64,9 +75,17 @@ def check():
         log_info("starting 90s CPU profile capture...")
         cpu_path = os.path.join(PROFILE_DIR, "stress-profile-cpu.pb.gz")
         cpu_proc = subprocess.Popen(
-            ["ip", "netns", "exec", ZE_NS,
-             "curl", "-sS", "-o", cpu_path,
-             "%s/profile?seconds=90" % PPROF],
+            [
+                "ip",
+                "netns",
+                "exec",
+                ZE_NS,
+                "curl",
+                "-sS",
+                "-o",
+                cpu_path,
+                "%s/profile?seconds=90" % PPROF,
+            ],
         )
         time.sleep(1)
 
@@ -84,8 +103,10 @@ def check():
             raise AssertionError("session dropped")
 
     rate = prefix_count / t_inject.elapsed if t_inject.elapsed > 0 else 0
-    log_pass("%d prefixes: injection %.2fs, settled %.2fs (%.0f routes/s)"
-             % (prefix_count, t_inject.elapsed, t_process.elapsed, rate))
+    log_pass(
+        "%d prefixes: injection %.2fs, settled %.2fs (%.0f routes/s)"
+        % (prefix_count, t_inject.elapsed, t_process.elapsed, rate)
+    )
 
     if pprof:
         # Fetch heap + goroutine profiles (instant snapshots).
@@ -98,7 +119,9 @@ def check():
             cpu_proc.wait(timeout=120)
             cpu_path = os.path.join(PROFILE_DIR, "stress-profile-cpu.pb.gz")
             if os.path.isfile(cpu_path) and os.path.getsize(cpu_path) > 0:
-                log_pass("CPU profile: %s (%d bytes)" % (cpu_path, os.path.getsize(cpu_path)))
+                log_pass(
+                    "CPU profile: %s (%d bytes)" % (cpu_path, os.path.getsize(cpu_path))
+                )
             else:
                 log_fail("CPU profile capture failed")
 

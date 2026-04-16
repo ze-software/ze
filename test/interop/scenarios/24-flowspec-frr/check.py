@@ -7,6 +7,7 @@ Prevents:  FlowSpec NLRI encoding bugs, capability negotiation issues.
 
 import json
 import os, sys, time
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import FRR, Ze, ZE_IP, log_info, log_pass, log_fail
 
@@ -24,7 +25,9 @@ def check():
             nbr = json.loads(nbr_output)
             peer = nbr.get(ZE_IP, {})
             afis = peer.get("addressFamilyInfo", {})
-            assert "ipv4Flowspec" in afis, "ipv4/flowspec family not negotiated with FRR"
+            assert "ipv4Flowspec" in afis, (
+                "ipv4/flowspec family not negotiated with FRR"
+            )
             log_pass("ipv4/flowspec address family negotiated")
         except (json.JSONDecodeError, KeyError):
             log_info("could not verify FlowSpec capability (non-fatal)")
@@ -56,12 +59,14 @@ def check():
 
     # Verify FlowSpec rule content: route keys should reference announced destinations.
     routes_str = json.dumps(raw_data)
-    assert "10.99.0" in routes_str, \
+    assert "10.99.0" in routes_str, (
         "destination 10.99.0.0/24 not found in FlowSpec rules"
+    )
     log_pass("FlowSpec rule with destination 10.99.0.0/24 verified")
 
-    assert "10.99.1" in routes_str, \
+    assert "10.99.1" in routes_str, (
         "destination 10.99.1.0/24 not found in FlowSpec rules"
+    )
     log_pass("FlowSpec rule with destination 10.99.1.0/24 verified")
 
     assert frr.session_established(ZE_IP), "session dropped after FlowSpec exchange"

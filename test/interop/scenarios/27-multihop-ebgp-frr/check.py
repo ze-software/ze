@@ -13,6 +13,7 @@ mismatch with FRR's ebgp-multihop setting.
 
 import json
 import os, sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import FRR, Ze, ZE_IP, log_info, log_pass
 
@@ -31,8 +32,9 @@ def check():
             nbr = json.loads(nbr_output)
             peer = nbr.get(ZE_IP, {})
             multihop = peer.get("externalBgpNbrMaxHopsAway", 0)
-            assert multihop >= 2, \
+            assert multihop >= 2, (
                 "FRR does not show ebgp-multihop >= 2 (got %d)" % multihop
+            )
             log_pass("FRR confirms ebgp-multihop %d" % multihop)
         except (json.JSONDecodeError, KeyError):
             log_info("could not verify multihop setting (non-fatal)")

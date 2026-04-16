@@ -2,6 +2,7 @@
 """Scenario 09: Ze announces 3 routes, then withdraws 1 -- FRR removes it."""
 
 import os, sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import FRR, log_pass
 

@@ -48,7 +48,7 @@ class API:
         """
         self._stdin_fd = stdin if stdin is not None else sys.stdin.fileno()
         self._stdout = stdout if stdout is not None else sys.stdout
-        self._buffer = ''
+        self._buffer = ""
 
         # Install SIGPIPE handler
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
@@ -68,7 +68,7 @@ class API:
         Args:
             command: Command string (newline added automatically)
         """
-        self.flush(f'{command}\n')
+        self.flush(f"{command}\n")
 
     def read_line(self, timeout: float = 0.1) -> str | None:
         """Read a complete line from stdin using buffered I/O.
@@ -83,23 +83,23 @@ class API:
             Complete line (without newline) or None if no complete line available
         """
         # Check if we already have a complete line in buffer
-        if '\n' in self._buffer:
-            line, self._buffer = self._buffer.split('\n', 1)
+        if "\n" in self._buffer:
+            line, self._buffer = self._buffer.split("\n", 1)
             return line
 
         # Read more data if available
         try:
             ready, _, _ = select.select([self._stdin_fd], [], [], timeout)
             if ready:
-                chunk = os.read(self._stdin_fd, 4096).decode('utf-8', errors='replace')
+                chunk = os.read(self._stdin_fd, 4096).decode("utf-8", errors="replace")
                 if chunk:
                     self._buffer += chunk
         except (OSError, IOError):
             return None
 
         # Check again for complete line
-        if '\n' in self._buffer:
-            line, self._buffer = self._buffer.split('\n', 1)
+        if "\n" in self._buffer:
+            line, self._buffer = self._buffer.split("\n", 1)
             return line
 
         return None
@@ -120,16 +120,16 @@ class API:
         if not line:
             return None
 
-        if line.startswith('{'):
+        if line.startswith("{"):
             # JSON format
             try:
                 data = json.loads(line)
-                return data.get('answer')
+                return data.get("answer")
             except (json.JSONDecodeError, TypeError):
                 return None
         else:
             # Text format - check if it's a known answer
-            if line in ('done', 'error', 'shutdown'):
+            if line in ("done", "error", "shutdown"):
                 return line
             return None
 
@@ -166,11 +166,11 @@ class API:
 
             # Parse the answer
             answer = self.parse_answer(line)
-            if answer == 'done':
+            if answer == "done":
                 received += 1
-            elif answer == 'error':
+            elif answer == "error":
                 return False
-            elif answer == 'shutdown':
+            elif answer == "shutdown":
                 raise SystemExit(0)
             # Ignore other messages (could be BGP updates, data responses, etc.)
 
@@ -213,29 +213,29 @@ class API:
                 data = json.loads(line)
                 # Check for terminator
                 if isinstance(data, dict):
-                    answer = data.get('answer')
-                    if answer in ('done', 'error', 'shutdown'):
-                        if answer == 'shutdown':
+                    answer = data.get("answer")
+                    if answer in ("done", "error", "shutdown"):
+                        if answer == "shutdown":
                             raise SystemExit(0)
                         if responses:
-                            return {'data': responses, 'answer': answer}
+                            return {"data": responses, "answer": answer}
                         return data
                 # Accumulate non-terminator responses
                 responses.append(data)
             except json.JSONDecodeError:
                 # Not JSON - check for text terminators
-                if line in ('done', 'error', 'shutdown'):
-                    if line == 'shutdown':
+                if line in ("done", "error", "shutdown"):
+                    if line == "shutdown":
                         raise SystemExit(0)
                     if responses:
-                        return {'data': responses, 'answer': line}
-                    return {'answer': line}
+                        return {"data": responses, "answer": line}
+                    return {"answer": line}
                 # Return raw text
                 return line
 
         # Timeout - return accumulated responses or None
         if responses:
-            return {'data': responses, 'answer': 'timeout'}
+            return {"data": responses, "answer": "timeout"}
         return None
 
     def send_and_wait(self, command: str, timeout: float = 2.0) -> bool:
@@ -268,7 +268,7 @@ class API:
                 line = self.read_line(0.5)
                 if line is not None:
                     answer = self.parse_answer(line)
-                    if answer == 'shutdown' or 'shutdown' in line:
+                    if answer == "shutdown" or "shutdown" in line:
                         break
         except (IOError, OSError):
             pass

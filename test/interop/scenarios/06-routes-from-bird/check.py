@@ -9,6 +9,7 @@ We verify the session stays Established after route exchange.
 """
 
 import sys, os
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import BIRD, Ze, log_info, log_pass, log_fail
 
@@ -47,5 +48,6 @@ def check():
     ze.rib_received(3)
 
     # Verify session is still Established after route exchange.
-    assert bird.session_established("ze_peer"), \
+    assert bird.session_established("ze_peer"), (
         "session dropped after route exchange (Ze may have sent NOTIFICATION)"
+    )

@@ -7,6 +7,7 @@ Prevents:  FlowSpec NLRI encoding bugs specific to GoBGP's implementation.
 
 import json
 import os, sys, time
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import GoBGP, Ze, ZE_IP, log_info, log_pass, log_fail
 
@@ -22,7 +23,12 @@ def check():
     raw_data = None
     while time.time() < deadline:
         data = gobgp._gobgp_json(["global", "rib", "-a", "ipv4-flowspec"])
-        if data and (isinstance(data, list) and len(data) > 0 or isinstance(data, dict) and len(data) > 0):
+        if data and (
+            isinstance(data, list)
+            and len(data) > 0
+            or isinstance(data, dict)
+            and len(data) > 0
+        ):
             raw_data = data
             break
         time.sleep(2)
@@ -35,7 +41,9 @@ def check():
     routes_str = json.dumps(raw_data)
     log_pass("FlowSpec rules received by GoBGP")
 
-    assert "10.99.0" in routes_str, "destination 10.99.0.0/24 not found in FlowSpec rules"
+    assert "10.99.0" in routes_str, (
+        "destination 10.99.0.0/24 not found in FlowSpec rules"
+    )
     log_pass("FlowSpec rule with destination 10.99.0.0/24 verified")
 
     assert gobgp.session_established(ZE_IP), "session dropped after FlowSpec exchange"

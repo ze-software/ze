@@ -7,6 +7,7 @@ Prevents:  ASN4 capability encoding/decoding mismatch, AS_TRANS fallback.
 
 import json
 import sys, os
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import FRR, ZE_IP, docker_exec_quiet, log_pass, log_fail
 
@@ -16,7 +17,9 @@ def check():
     frr.wait_session(ZE_IP)
 
     # Verify FRR sees the real 4-byte ASN, not AS_TRANS (23456).
-    output = docker_exec_quiet(frr.container, ["vtysh", "-c", "show bgp neighbor %s json" % ZE_IP])
+    output = docker_exec_quiet(
+        frr.container, ["vtysh", "-c", "show bgp neighbor %s json" % ZE_IP]
+    )
     if output.strip():
         try:
             data = json.loads(output)

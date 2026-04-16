@@ -12,9 +12,14 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from bngblaster import (
-    BNGBlaster, Ze, Timer,
-    generate_updates, BB_IP,
-    log_info, log_pass, log_fail,
+    BNGBlaster,
+    Ze,
+    Timer,
+    generate_updates,
+    BB_IP,
+    log_info,
+    log_pass,
+    log_fail,
 )
 
 
@@ -62,6 +67,7 @@ def check():
         log_info("disconnecting BGP session...")
         bb.bgp_disconnect()
         import time
+
         time.sleep(2)
 
         # BNG Blaster reconnects automatically (reconnect: true).

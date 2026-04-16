@@ -604,6 +604,17 @@
         "hooks": [
           {
             "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/auto_py_format.sh",
+            "timeout": 30,
+            "blocking": false
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/validate-spec.sh",
             "timeout": 10,
             "blocking": true

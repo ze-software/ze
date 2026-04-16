@@ -717,7 +717,8 @@ check: fmt vet
 # Go tools (goimports, protoc plugins) are vendored via tools.go and
 # used with "go run" -- no "go install" needed.
 # golangci-lint is installed separately (large dependency tree).
-# System packages (protoc, jq) require the OS package manager.
+# ruff lints the Python test/stress harness and scripts/ utilities.
+# System packages (protoc, jq, pipx) require the OS package manager.
 ze-setup:
 	@echo "Vendoring Go dependencies (includes tools from tools.go)..."
 	go mod tidy
@@ -728,11 +729,15 @@ ze-setup:
 	@echo ""
 	@echo "Installing system packages..."
 ifeq ($(shell uname -s),Darwin)
-	brew install protobuf jq
+	brew install protobuf jq pipx
 else
-	@echo "Run: sudo apt install -y protobuf-compiler jq"
+	@echo "Run: sudo apt install -y protobuf-compiler jq pipx"
 	@echo "(requires sudo -- not run automatically)"
 endif
+	@echo ""
+	@echo "Installing ruff (Python linter) via pipx..."
+	@command -v pipx >/dev/null 2>&1 || { echo "pipx missing -- install it first (see above), then re-run 'make ze-setup'"; exit 1; }
+	pipx install --force ruff
 	@echo ""
 	@echo "Setup complete. Verify with: make check"
 

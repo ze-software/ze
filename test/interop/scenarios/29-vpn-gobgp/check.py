@@ -7,6 +7,7 @@ Prevents:  VPN NLRI encoding bugs specific to GoBGP's implementation.
 
 import json
 import os, sys, time
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import GoBGP, Ze, ZE_IP, log_info, log_pass, log_fail
 
@@ -22,7 +23,12 @@ def check():
     raw_data = None
     while time.time() < deadline:
         data = gobgp._gobgp_json(["global", "rib", "-a", "vpnv4"])
-        if data and (isinstance(data, list) and len(data) > 0 or isinstance(data, dict) and len(data) > 0):
+        if data and (
+            isinstance(data, list)
+            and len(data) > 0
+            or isinstance(data, dict)
+            and len(data) > 0
+        ):
             raw_data = data
             break
         time.sleep(2)

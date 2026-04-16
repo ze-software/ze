@@ -13,17 +13,22 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from bngblaster import (
-    BNGBlaster, Ze, Timer,
-    generate_updates, BB_IP,
-    log_info, log_pass, log_fail,
+    BNGBlaster,
+    Ze,
+    Timer,
+    generate_updates,
+    BB_IP,
+    log_info,
+    log_pass,
+    log_fail,
 )
 
 
 ROUNDS = [
-    (100_000,   "10.0.0.0/24",    300),
-    (250_000,   "10.64.0.0/24",   600),
-    (500_000,   "10.128.0.0/24",  900),
-    (1_000_000, "11.0.0.0/24",   1800),
+    (100_000, "10.0.0.0/24", 300),
+    (250_000, "10.64.0.0/24", 600),
+    (500_000, "10.128.0.0/24", 900),
+    (1_000_000, "11.0.0.0/24", 1800),
 ]
 
 
@@ -64,7 +69,9 @@ def check():
                 raise AssertionError("session dropped")
 
         rate = prefix_count / t_inject.elapsed if t_inject.elapsed > 0 else 0
-        log_pass("%d prefixes: injection %.2fs, settled %.2fs (%.0f routes/s)"
-                 % (prefix_count, t_inject.elapsed, t_process.elapsed, rate))
+        log_pass(
+            "%d prefixes: injection %.2fs, settled %.2fs (%.0f routes/s)"
+            % (prefix_count, t_inject.elapsed, t_process.elapsed, rate)
+        )
 
     log_pass("all bulk injection rounds completed")

@@ -7,6 +7,7 @@ Prevents:  VPN NLRI encoding bugs (RD, label), capability negotiation issues.
 
 import json
 import os, sys, time
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import FRR, Ze, ZE_IP, log_info, log_pass, log_fail
 
@@ -50,8 +51,7 @@ def check():
     # Verify VPN-specific content: Route Distinguisher should be present.
     route_data = frr.route("10.99.0.0/24", family="ipv4 vpn")
     route_str = json.dumps(route_data)
-    assert "65001:100" in route_str, \
-        "RD 65001:100 not found in VPN route data"
+    assert "65001:100" in route_str, "RD 65001:100 not found in VPN route data"
     log_pass("VPN route with RD 65001:100 verified")
 
     assert frr.session_established(ZE_IP), "session dropped after VPN route exchange"

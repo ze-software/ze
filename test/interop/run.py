@@ -33,26 +33,51 @@ def build_images(frr_image, no_build=False):
 
     print("Building Ze image...")
     subprocess.run(
-        ["docker", "build", "-t", "ze-interop",
-         "-f", os.path.join(SCRIPT_DIR, "Dockerfile.ze"),
-         PROJECT_ROOT, "-q"],
-        check=True, timeout=600,
+        [
+            "docker",
+            "build",
+            "-t",
+            "ze-interop",
+            "-f",
+            os.path.join(SCRIPT_DIR, "Dockerfile.ze"),
+            PROJECT_ROOT,
+            "-q",
+        ],
+        check=True,
+        timeout=600,
     )
 
     print("Building BIRD image...")
     subprocess.run(
-        ["docker", "build", "-t", "bird-interop",
-         "-f", os.path.join(SCRIPT_DIR, "Dockerfile.bird"),
-         SCRIPT_DIR, "-q"],
-        check=True, timeout=600,
+        [
+            "docker",
+            "build",
+            "-t",
+            "bird-interop",
+            "-f",
+            os.path.join(SCRIPT_DIR, "Dockerfile.bird"),
+            SCRIPT_DIR,
+            "-q",
+        ],
+        check=True,
+        timeout=600,
     )
 
     print("Building GoBGP image...")
     result = subprocess.run(
-        ["docker", "build", "-t", "gobgp-interop",
-         "-f", os.path.join(SCRIPT_DIR, "Dockerfile.gobgp"),
-         SCRIPT_DIR, "-q"],
-        capture_output=True, text=True, timeout=600,
+        [
+            "docker",
+            "build",
+            "-t",
+            "gobgp-interop",
+            "-f",
+            os.path.join(SCRIPT_DIR, "Dockerfile.gobgp"),
+            SCRIPT_DIR,
+            "-q",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=600,
     )
     if result.returncode != 0:
         print("  warning: GoBGP image build failed (GoBGP scenarios will fail)")
@@ -60,7 +85,8 @@ def build_images(frr_image, no_build=False):
     print("Pulling FRR image...")
     subprocess.run(
         ["docker", "pull", "-q", frr_image],
-        check=True, timeout=600,
+        check=True,
+        timeout=600,
     )
 
 
@@ -77,7 +103,9 @@ def main():
     try:
         result = subprocess.run(
             ["docker", "info"],
-            capture_output=True, text=True, timeout=15,
+            capture_output=True,
+            text=True,
+            timeout=15,
         )
         docker_ok = result.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -138,7 +166,9 @@ def main():
 
     # Warn if filter matched nothing.
     if scenario_filter and passed + failed == 0:
-        print("error: no scenario matching '%s' found" % scenario_filter, file=sys.stderr)
+        print(
+            "error: no scenario matching '%s' found" % scenario_filter, file=sys.stderr
+        )
         sys.exit(1)
 
     # Summary.
@@ -146,8 +176,10 @@ def main():
     if failed == 0:
         print("\033[32mPASS  %d scenario(s)\033[0m" % passed)
     else:
-        print("\033[31mFAIL  %d passed, %d failed: %s\033[0m"
-              % (passed, failed, " ".join(failed_names)))
+        print(
+            "\033[31mFAIL  %d passed, %d failed: %s\033[0m"
+            % (passed, failed, " ".join(failed_names))
+        )
     print("\u2501" * 40)
 
     sys.exit(0 if failed == 0 else 1)

@@ -62,16 +62,16 @@ import sys
 from typing import Any, Callable
 
 
-def _ze_env(key: str, default: str = '') -> str:
+def _ze_env(key: str, default: str = "") -> str:
     """Look up a Ze environment variable in dot, lowercase underscore, and uppercase underscore notation.
 
     Priority: ze.foo.bar > ze_foo_bar > ZE_FOO_BAR
     """
-    v = os.environ.get(key, '')
+    v = os.environ.get(key, "")
     if v:
         return v
-    under = key.replace('.', '_')
-    v = os.environ.get(under, '')
+    under = key.replace(".", "_")
+    v = os.environ.get(under, "")
     if v:
         return v
     return os.environ.get(under.upper(), default)
@@ -96,29 +96,29 @@ class API:
         """
         self._tls_sock: ssl.SSLSocket | None = None
         self._tls_mode = False
-        self._read_buf = b''
+        self._read_buf = b""
         self._pending_requests: list[tuple[int, str, dict | None]] = []
         self._engine_fd = -1
         self._callback_fd = -1
 
-        token = _ze_env('ze.plugin.hub.token')
+        token = _ze_env("ze.plugin.hub.token")
         if token:
             self._init_tls(token)
         else:
             if engine_fd is None:
-                engine_fd = int(_ze_env('ze.engine.fd', '3'))
+                engine_fd = int(_ze_env("ze.engine.fd", "3"))
             if callback_fd is None:
-                callback_fd = int(_ze_env('ze.callback.fd', '4'))
+                callback_fd = int(_ze_env("ze.callback.fd", "4"))
             self._engine_fd = engine_fd
             self._callback_fd = callback_fd
 
-        self._engine_buf = b''
-        self._callback_buf = b''
+        self._engine_buf = b""
+        self._callback_buf = b""
         self._req_id = 0
         self._shutdown = False
 
         # Plugin name (set during TLS auth or registry sharing)
-        self._name = _ze_env('ze.plugin.name', 'python-plugin')
+        self._name = _ze_env("ze.plugin.name", "python-plugin")
 
         # Accumulated declarations for Stage 1
         self._families: list[dict[str, str]] = []
@@ -148,7 +148,7 @@ class API:
         self._subscription: dict[str, Any] | None = None
 
         # Plugin name from registry sharing
-        self._plugin_name = ''
+        self._plugin_name = ""
 
         # Pending events from deliver-batch (returned one per read_line call)
         self._pending_events: list[str] = []
@@ -158,8 +158,8 @@ class API:
 
     def _init_tls(self, token: str) -> None:
         """Connect to engine via TLS and authenticate."""
-        host = _ze_env('ze.plugin.hub.host', '127.0.0.1')
-        port = int(_ze_env('ze.plugin.hub.port', '12700'))
+        host = _ze_env("ze.plugin.hub.host", "127.0.0.1")
+        port = int(_ze_env("ze.plugin.hub.port", "12700"))
 
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ctx.check_hostname = False
@@ -171,18 +171,18 @@ class API:
         self._tls_mode = True
 
         # Auth: send #0 auth {"token":"...","name":"..."}
-        name = _ze_env('ze.plugin.name', 'python-plugin')
-        auth_line = self._format_line(0, 'auth', {'token': token, 'name': name})
+        name = _ze_env("ze.plugin.name", "python-plugin")
+        auth_line = self._format_line(0, "auth", {"token": token, "name": name})
         self._tls_sock.sendall(auth_line)
 
         # Read auth response
         resp_line = self._read_tls_line(timeout=10.0)
         if resp_line is None:
-            raise RuntimeError('no auth response from engine')
+            raise RuntimeError("no auth response from engine")
         _, verb, payload = self._parse_line(resp_line)
-        if verb == 'error':
-            msg = payload.get('message', '') if payload else ''
-            raise RuntimeError(f'auth rejected: {msg}')
+        if verb == "error":
+            msg = payload.get("message", "") if payload else ""
+            raise RuntimeError(f"auth rejected: {msg}")
 
         # In TLS mode, use the TLS socket fd for both engine and callback.
         self._engine_fd = self._tls_sock.fileno()
@@ -191,11 +191,11 @@ class API:
     def _read_tls_line(self, timeout: float | None = None) -> str | None:
         """Read a newline-terminated line from the TLS socket."""
         while True:
-            nl_pos = self._read_buf.find(b'\n')
+            nl_pos = self._read_buf.find(b"\n")
             if nl_pos >= 0:
                 line_bytes = self._read_buf[:nl_pos]
-                self._read_buf = self._read_buf[nl_pos + 1:]
-                return line_bytes.decode('utf-8')
+                self._read_buf = self._read_buf[nl_pos + 1 :]
+                return line_bytes.decode("utf-8")
 
             if timeout is not None:
                 # TLS may have decrypted data buffered internally that
@@ -218,12 +218,14 @@ class API:
     # Low-level newline-framed line transport
     # ==================================================================
 
-    def _format_line(self, req_id: int, verb: str, payload: dict | None = None) -> bytes:
+    def _format_line(
+        self, req_id: int, verb: str, payload: dict | None = None
+    ) -> bytes:
         """Format #<id> <verb> [<json-payload>] newline-terminated line."""
         if payload is not None:
-            json_str = json.dumps(payload, separators=(',', ':'))
-            return f'#{req_id} {verb} {json_str}\n'.encode('utf-8')
-        return f'#{req_id} {verb}\n'.encode('utf-8')
+            json_str = json.dumps(payload, separators=(",", ":"))
+            return f"#{req_id} {verb} {json_str}\n".encode("utf-8")
+        return f"#{req_id} {verb}\n".encode("utf-8")
 
     def _parse_line(self, line: str) -> tuple[int, str, dict | None]:
         """Parse #<id> <verb> [<json-payload>] from a raw line.
@@ -231,16 +233,18 @@ class API:
         Returns:
             Tuple of (request_id, verb, payload_dict_or_None)
         """
-        if not line.startswith('#'):
-            raise RuntimeError(f'line missing # prefix: {line[:80]}')
+        if not line.startswith("#"):
+            raise RuntimeError(f"line missing # prefix: {line[:80]}")
         rest = line[1:]
-        id_str, _, body = rest.partition(' ')
+        id_str, _, body = rest.partition(" ")
         req_id = int(id_str)
-        verb, _, payload_str = body.partition(' ')
+        verb, _, payload_str = body.partition(" ")
         payload = json.loads(payload_str) if payload_str else None
         return req_id, verb, payload
 
-    def _send_rpc(self, fd: int, req_id: int, method: str, params: dict | None = None) -> None:
+    def _send_rpc(
+        self, fd: int, req_id: int, method: str, params: dict | None = None
+    ) -> None:
         """Send a newline-terminated RPC line: #<id> <method> [<json-params>]."""
         line = self._format_line(req_id, method, params)
         if self._tls_mode:
@@ -248,7 +252,9 @@ class API:
         else:
             os.write(fd, line)
 
-    def _read_line(self, fd: int, buf_attr: str, timeout: float | None = None) -> str | None:
+    def _read_line(
+        self, fd: int, buf_attr: str, timeout: float | None = None
+    ) -> str | None:
         """Read a newline-terminated line from fd.
 
         Args:
@@ -263,11 +269,11 @@ class API:
 
         while True:
             # Check buffer for complete line
-            nl_pos = buf.find(b'\n')
+            nl_pos = buf.find(b"\n")
             if nl_pos >= 0:
                 line_bytes = buf[:nl_pos]
-                setattr(self, buf_attr, buf[nl_pos + 1:])
-                return line_bytes.decode('utf-8')
+                setattr(self, buf_attr, buf[nl_pos + 1 :])
+                return line_bytes.decode("utf-8")
 
             # Wait for data
             if timeout is not None:
@@ -313,29 +319,29 @@ class API:
             if self._tls_mode:
                 line = self._read_tls_line(timeout=30.0)
             else:
-                line = self._read_line(self._engine_fd, '_engine_buf')
+                line = self._read_line(self._engine_fd, "_engine_buf")
             if line is None:
-                raise RuntimeError(f'no response for {method}')
+                raise RuntimeError(f"no response for {method}")
 
             resp_id, verb, payload = self._parse_line(line)
 
             # In TLS mode, we might receive inbound requests (engine calling us)
             # while waiting for our response. Queue them.
-            if self._tls_mode and verb not in ('ok', 'error'):
+            if self._tls_mode and verb not in ("ok", "error"):
                 self._pending_requests.append((resp_id, verb, payload))
                 continue
 
-            if verb == 'error':
-                msg = ''
+            if verb == "error":
+                msg = ""
                 if payload:
-                    msg = payload.get('message', str(payload))
-                raise RuntimeError(f'RPC error from {method}: {msg}')
+                    msg = payload.get("message", str(payload))
+                raise RuntimeError(f"RPC error from {method}: {msg}")
             # Wrap payload in {"result": ...} envelope for backward compatibility.
-            return {'result': payload}
+            return {"result": payload}
 
     def _respond_ok(self, req_id: int) -> None:
         """Send OK response: #<id> ok."""
-        line = self._format_line(req_id, 'ok')
+        line = self._format_line(req_id, "ok")
         if self._tls_mode:
             self._tls_sock.sendall(line)
         else:
@@ -343,7 +349,7 @@ class API:
 
     def _respond_result(self, req_id: int, result: dict) -> None:
         """Send OK response with JSON result: #<id> ok <json>."""
-        line = self._format_line(req_id, 'ok', result)
+        line = self._format_line(req_id, "ok", result)
         if self._tls_mode:
             self._tls_sock.sendall(line)
         else:
@@ -355,42 +361,44 @@ class API:
         Centralizes callback dispatch for both the _pending_requests drain
         and the main read loop in read_line().
         """
-        if method == 'ze-plugin-callback:deliver-batch':
+        if method == "ze-plugin-callback:deliver-batch":
             self._respond_ok(req_id)
             if params:
-                events = params.get('events', [])
+                events = params.get("events", [])
                 for event in events:
                     self._pending_events.append(
-                        json.dumps(event, separators=(',', ':')) if isinstance(event, dict) else str(event)
+                        json.dumps(event, separators=(",", ":"))
+                        if isinstance(event, dict)
+                        else str(event)
                     )
-        elif method == 'ze-plugin-callback:deliver-event':
+        elif method == "ze-plugin-callback:deliver-event":
             self._respond_ok(req_id)
             if params:
-                self._pending_events.append(params.get('event', ''))
-        elif method == 'ze-plugin-callback:bye':
+                self._pending_events.append(params.get("event", ""))
+        elif method == "ze-plugin-callback:bye":
             self._respond_ok(req_id)
             self._shutdown = True
-        elif method == 'ze-plugin-callback:filter-update':
+        elif method == "ze-plugin-callback:filter-update":
             if self._filter_handler and params:
                 result = self._filter_handler(params)
                 self._respond_result(req_id, result)
             else:
-                self._respond_result(req_id, {'action': 'accept'})
-        elif method == 'ze-plugin-callback:config-verify':
+                self._respond_result(req_id, {"action": "accept"})
+        elif method == "ze-plugin-callback:config-verify":
             # Bridge dispatches config-verify during reload transactions.
             # Plugin default is accept, matching the Go SDK contract.
             if self._config_verify_handler:
                 result = self._config_verify_handler(params or {})
                 self._respond_result(req_id, result)
             else:
-                self._respond_result(req_id, {'status': 'ok'})
-        elif method == 'ze-plugin-callback:config-apply':
+                self._respond_result(req_id, {"status": "ok"})
+        elif method == "ze-plugin-callback:config-apply":
             if self._config_apply_handler:
                 result = self._config_apply_handler(params or {})
                 self._respond_result(req_id, result)
             else:
-                self._respond_result(req_id, {'status': 'ok'})
-        elif method == 'ze-plugin-callback:config-rollback':
+                self._respond_result(req_id, {"status": "ok"})
+        elif method == "ze-plugin-callback:config-rollback":
             if self._config_rollback_handler:
                 self._config_rollback_handler(params or {})
             self._respond_ok(req_id)
@@ -407,20 +415,20 @@ class API:
         if self._tls_mode and self._pending_requests:
             req_id, method, params = self._pending_requests.pop(0)
             if method != expected_method:
-                raise RuntimeError(f'expected {expected_method}, got {method}')
+                raise RuntimeError(f"expected {expected_method}, got {method}")
             self._respond_ok(req_id)
             return params
 
         if self._tls_mode:
             line = self._read_tls_line(timeout=timeout)
         else:
-            line = self._read_line(self._callback_fd, '_callback_buf', timeout=timeout)
+            line = self._read_line(self._callback_fd, "_callback_buf", timeout=timeout)
         if line is None:
-            raise RuntimeError(f'timeout waiting for {expected_method}')
+            raise RuntimeError(f"timeout waiting for {expected_method}")
 
         req_id, method, params = self._parse_line(line)
         if method != expected_method:
-            raise RuntimeError(f'expected {expected_method}, got {method}')
+            raise RuntimeError(f"expected {expected_method}, got {method}")
 
         self._respond_ok(req_id)
         return params
@@ -441,7 +449,9 @@ class API:
         # YANG RPC doesn't have an encoding field, so this is a no-op.
         pass
 
-    def declare_family(self, afi: str, safi: str | None = None, mode: str = 'both') -> None:
+    def declare_family(
+        self, afi: str, safi: str | None = None, mode: str = "both"
+    ) -> None:
         """Declare an address family (Stage 1).
 
         Args:
@@ -449,11 +459,11 @@ class API:
             safi: Subsequent AFI (unicast, multicast, flow, etc.)
             mode: 'encode', 'decode', or 'both'
         """
-        if afi == 'all':
+        if afi == "all":
             # 'all' is not valid in YANG RPC, skip (engine handles all families)
             return
-        name = f'{afi}/{safi}' if safi else afi
-        self._families.append({'name': name, 'mode': mode})
+        name = f"{afi}/{safi}" if safi else afi
+        self._families.append({"name": name, "mode": mode})
 
     def declare_config(self, pattern: str) -> None:
         """Declare a config pattern hook (Stage 1).
@@ -469,10 +479,11 @@ class API:
         Args:
             command: Command name to register
         """
-        self._commands.append({'name': command})
+        self._commands.append({"name": command})
 
-    def declare_connection_handler(self, handler_type: str = 'listen',
-                                   port: int = 0, address: str = '') -> None:
+    def declare_connection_handler(
+        self, handler_type: str = "listen", port: int = 0, address: str = ""
+    ) -> None:
         """Declare a connection handler for listen socket handoff (Stage 1).
 
         The engine will create a listen socket on the specified port and
@@ -484,16 +495,22 @@ class API:
             port: TCP port to listen on (1-65535)
             address: Bind address (empty = all interfaces)
         """
-        self._connection_handlers.append({
-            'type': handler_type,
-            'port': port,
-            'address': address,
-        })
+        self._connection_handlers.append(
+            {
+                "type": handler_type,
+                "port": port,
+                "address": address,
+            }
+        )
 
-    def declare_filter(self, name: str, direction: str = 'both',
-                       attributes: list[str] | None = None,
-                       on_error: str = 'reject',
-                       overrides: list[str] | None = None) -> None:
+    def declare_filter(
+        self,
+        name: str,
+        direction: str = "both",
+        attributes: list[str] | None = None,
+        on_error: str = "reject",
+        overrides: list[str] | None = None,
+    ) -> None:
         """Declare a named route filter (Stage 1).
 
         Args:
@@ -503,11 +520,11 @@ class API:
             on_error: 'reject' (fail-closed) or 'accept' (fail-open)
             overrides: Default filters this filter replaces
         """
-        f: dict[str, Any] = {'name': name, 'direction': direction, 'on-error': on_error}
+        f: dict[str, Any] = {"name": name, "direction": direction, "on-error": on_error}
         if attributes:
-            f['attributes'] = attributes
+            f["attributes"] = attributes
         if overrides:
-            f['overrides'] = overrides
+            f["overrides"] = overrides
         self._filters.append(f)
 
     def on_filter_update(self, handler: Callable[[dict], dict]) -> None:
@@ -569,17 +586,17 @@ class API:
         """
         params: dict[str, Any] = {}
         if self._families:
-            params['families'] = self._families
+            params["families"] = self._families
         if self._commands:
-            params['commands'] = self._commands
+            params["commands"] = self._commands
         if self._wants_config:
-            params['wants-config'] = self._wants_config
+            params["wants-config"] = self._wants_config
         if self._connection_handlers:
-            params['connection-handlers'] = self._connection_handlers
+            params["connection-handlers"] = self._connection_handlers
         if self._filters:
-            params['filters'] = self._filters
+            params["filters"] = self._filters
 
-        self._call_engine('ze-plugin-engine:declare-registration', params)
+        self._call_engine("ze-plugin-engine:declare-registration", params)
 
     def receive_listener(self) -> socket.socket:
         """Receive a listen socket fd from the engine via SCM_RIGHTS on callback connection.
@@ -595,15 +612,15 @@ class API:
         sock = socket.fromfd(self._callback_fd, socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             # Read 1 framing byte + ancillary data (SCM_RIGHTS carrying one fd).
-            fds = array.array('i')
+            fds = array.array("i")
             msg, ancdata, _flags, _addr = sock.recvmsg(
-                1, socket.CMSG_SPACE(fds.itemsize))
+                1, socket.CMSG_SPACE(fds.itemsize)
+            )
             if not msg:
-                raise RuntimeError('no data received (connection closed?)')
+                raise RuntimeError("no data received (connection closed?)")
             for cmsg_level, cmsg_type, cmsg_data in ancdata:
-                if (cmsg_level == socket.SOL_SOCKET and
-                        cmsg_type == socket.SCM_RIGHTS):
-                    received_fds = array.array('i', cmsg_data)
+                if cmsg_level == socket.SOL_SOCKET and cmsg_type == socket.SCM_RIGHTS:
+                    received_fds = array.array("i", cmsg_data)
                     if not received_fds:
                         continue
                     fd = received_fds[0]
@@ -627,7 +644,7 @@ class API:
                     listener = socket.fromfd(fd, family, socket.SOCK_STREAM)
                     os.close(fd)
                     return listener
-            raise RuntimeError('no fd in control message')
+            raise RuntimeError("no fd in control message")
         finally:
             # Close the dup'd socket -- the original _callback_fd is unaffected.
             sock.close()
@@ -647,27 +664,31 @@ class API:
         Returns:
             List of config sections, each with 'root' and 'data' keys
         """
-        params = self._serve_one('ze-plugin-callback:configure', timeout=timeout)
+        params = self._serve_one("ze-plugin-callback:configure", timeout=timeout)
         if params is None:
             return []
-        sections = params.get('sections', []) or []
+        sections = params.get("sections", []) or []
         # Convert to compatible format
         configs = []
         for section in sections:
-            configs.append({
-                'context': section.get('root', ''),
-                'name': '',
-                'value': section.get('data', ''),
-                'root': section.get('root', ''),
-                'data': section.get('data', ''),
-            })
+            configs.append(
+                {
+                    "context": section.get("root", ""),
+                    "name": "",
+                    "value": section.get("data", ""),
+                    "root": section.get("root", ""),
+                    "data": section.get("data", ""),
+                }
+            )
         return configs
 
     # ==================================================================
     # Stage 3: Capability Declaration
     # ==================================================================
 
-    def declare_capability(self, code: int, payload: str, encoding: str = 'b64') -> None:
+    def declare_capability(
+        self, code: int, payload: str, encoding: str = "b64"
+    ) -> None:
         """Declare a capability for OPEN messages (Stage 3).
 
         Args:
@@ -675,19 +696,21 @@ class API:
             payload: Encoded capability value
             encoding: Encoding of payload (b64, hex, or text)
         """
-        self._capabilities.append({
-            'code': code,
-            'encoding': encoding,
-            'payload': payload,
-        })
+        self._capabilities.append(
+            {
+                "code": code,
+                "encoding": encoding,
+                "payload": payload,
+            }
+        )
 
     def capability_done(self) -> None:
         """Signal Stage 3 capability declaration complete.
 
         Sends ze-plugin-engine:declare-capabilities RPC.
         """
-        params = {'capabilities': self._capabilities}
-        self._call_engine('ze-plugin-engine:declare-capabilities', params)
+        params = {"capabilities": self._capabilities}
+        self._call_engine("ze-plugin-engine:declare-capabilities", params)
 
     # ==================================================================
     # Stage 4: Registry Sharing
@@ -704,17 +727,19 @@ class API:
         Returns:
             Dict with 'name' (empty in YANG RPC) and 'commands' list
         """
-        params = self._serve_one('ze-plugin-callback:share-registry', timeout=timeout)
+        params = self._serve_one("ze-plugin-callback:share-registry", timeout=timeout)
         commands = []
         if params:
-            for cmd in (params.get('commands', []) or []):
-                commands.append({
-                    'plugin': cmd.get('plugin', ''),
-                    'encoding': cmd.get('encoding', ''),
-                    'command': cmd.get('name', ''),
-                    'name': cmd.get('name', ''),
-                })
-        return {'name': self._plugin_name, 'commands': commands}
+            for cmd in params.get("commands", []) or []:
+                commands.append(
+                    {
+                        "plugin": cmd.get("plugin", ""),
+                        "encoding": cmd.get("encoding", ""),
+                        "command": cmd.get("name", ""),
+                        "name": cmd.get("name", ""),
+                    }
+                )
+        return {"name": self._plugin_name, "commands": commands}
 
     @property
     def plugin_name(self) -> str:
@@ -734,8 +759,8 @@ class API:
         """
         params: dict[str, Any] = {}
         if self._subscription is not None:
-            params['subscribe'] = self._subscription
-        self._call_engine('ze-plugin-engine:ready', params)
+            params["subscribe"] = self._subscription
+        self._call_engine("ze-plugin-engine:ready", params)
 
     # ==================================================================
     # Runtime: Send commands
@@ -747,7 +772,7 @@ class API:
         Args:
             msg: Message to send (trailing newline stripped)
         """
-        msg = msg.rstrip('\n')
+        msg = msg.rstrip("\n")
         if msg:
             self.send(msg)
 
@@ -765,9 +790,9 @@ class API:
         if not command:
             return
 
-        if command.startswith('subscribe '):
+        if command.startswith("subscribe "):
             self._handle_subscribe_command(command)
-        elif command.startswith('peer ') or command.startswith('update '):
+        elif command.startswith("peer ") or command.startswith("update "):
             self._send_update_route(command)
         else:
             # Unknown command type -- try as update-route
@@ -783,7 +808,7 @@ class API:
         events = []
         i = 1
         while i < len(parts):
-            if parts[i] == 'event':
+            if parts[i] == "event":
                 i += 1
                 continue
             events.append(parts[i])
@@ -791,12 +816,14 @@ class API:
 
         if events:
             self._subscription = {
-                'events': events,
-                'peers': [],
-                'format': '',
+                "events": events,
+                "peers": [],
+                "format": "",
             }
 
-    def subscribe(self, events: list[str], peers: list[str] | None = None, fmt: str = '') -> None:
+    def subscribe(
+        self, events: list[str], peers: list[str] | None = None, fmt: str = ""
+    ) -> None:
         """Set event subscriptions for the ready RPC.
 
         Must be called before ready(). Subscriptions are included
@@ -808,9 +835,9 @@ class API:
             fmt: Wire format ('hex', 'parsed', etc.)
         """
         self._subscription = {
-            'events': events,
-            'peers': peers or [],
-            'format': fmt,
+            "events": events,
+            "peers": peers or [],
+            "format": fmt,
         }
 
     def _send_update_route(self, command: str) -> None:
@@ -820,20 +847,20 @@ class API:
             command: Full command string (e.g., 'peer * update text ...')
         """
         # Extract peer selector from 'peer <selector> <rest>'
-        peer_selector = '*'
+        peer_selector = "*"
         cmd = command
-        if command.startswith('peer '):
-            rest = command[len('peer '):]
+        if command.startswith("peer "):
+            rest = command[len("peer ") :]
             # Find the next space-separated token as peer selector
-            parts = rest.split(' ', 1)
+            parts = rest.split(" ", 1)
             peer_selector = parts[0]
-            cmd = parts[1] if len(parts) > 1 else ''
+            cmd = parts[1] if len(parts) > 1 else ""
 
         params = {
-            'peer-selector': peer_selector,
-            'command': cmd,
+            "peer-selector": peer_selector,
+            "command": cmd,
         }
-        self._call_engine('ze-plugin-engine:update-route', params)
+        self._call_engine("ze-plugin-engine:update-route", params)
 
     # ==================================================================
     # Runtime: Read events / responses
@@ -878,26 +905,30 @@ class API:
             if self._tls_mode:
                 raw = self._read_tls_line(timeout=timeout)
             else:
-                raw = self._read_line(self._callback_fd, '_callback_buf', timeout=timeout)
+                raw = self._read_line(
+                    self._callback_fd, "_callback_buf", timeout=timeout
+                )
             if raw is None:
                 return None
 
             req_id, method, params = self._parse_line(raw)
 
-            if method in ('ze-plugin-callback:deliver-event',
-                          'ze-plugin-callback:deliver-batch'):
+            if method in (
+                "ze-plugin-callback:deliver-event",
+                "ze-plugin-callback:deliver-batch",
+            ):
                 self._handle_callback(req_id, method, params)
                 # Events were buffered; loop back to return from _pending_events.
                 continue
 
-            if method == 'ze-plugin-callback:bye':
+            if method == "ze-plugin-callback:bye":
                 self._handle_callback(req_id, method, params)
                 # Flush any buffered events before returning None.
                 if self._pending_events:
                     return self._pending_events.pop(0)
                 return None
 
-            if method == 'ze-plugin-callback:filter-update':
+            if method == "ze-plugin-callback:filter-update":
                 self._handle_callback(req_id, method, params)
                 # Filter handled; loop back to read next event.
                 continue
@@ -920,13 +951,13 @@ class API:
         """
         if not line:
             return None
-        if line.startswith('{'):
+        if line.startswith("{"):
             try:
                 data = json.loads(line)
-                return data.get('answer')
+                return data.get("answer")
             except (json.JSONDecodeError, TypeError):
                 return None
-        if line in ('done', 'error', 'shutdown'):
+        if line in ("done", "error", "shutdown"):
             return line
         return None
 
@@ -945,8 +976,9 @@ class API:
             True (always succeeds)
         """
         import time
+
         try:
-            self._call_engine('ze-bgp:peer-flush', {'selector': '*'})
+            self._call_engine("ze-bgp:peer-flush", {"selector": "*"})
         except RuntimeError:
             pass
         # After flush confirms forward pool drained, allow time for
@@ -1002,6 +1034,7 @@ class API:
             timeout: Maximum time to wait
         """
         import time
+
         start_time = time.time()
         try:
             while not self._shutdown and os.getppid() != 1:
@@ -1019,7 +1052,7 @@ class API:
     # Error Handling
     # ==================================================================
 
-    def fail(self, message: str, encoding: str = 'text') -> None:
+    def fail(self, message: str, encoding: str = "text") -> None:
         """Signal startup failure to ZeBGP.
 
         In YANG RPC, errors are signaled via RPC error responses.
@@ -1029,7 +1062,7 @@ class API:
             message: Error message
             encoding: Encoding of message (ignored in YANG RPC)
         """
-        raise RuntimeError(f'plugin startup failed: {message}')
+        raise RuntimeError(f"plugin startup failed: {message}")
 
 
 # ==================================================================
@@ -1102,6 +1135,7 @@ def wait_for_shutdown(timeout: float = 5.0) -> None:
 
 # Stage protocol convenience functions
 
+
 def declare_rfc(rfc_number: int) -> None:
     """Declare an RFC number (Stage 1)."""
     _get_api().declare_rfc(rfc_number)
@@ -1112,7 +1146,7 @@ def declare_encoding(encoding: str) -> None:
     _get_api().declare_encoding(encoding)
 
 
-def declare_family(afi: str, safi: str | None = None, mode: str = 'both') -> None:
+def declare_family(afi: str, safi: str | None = None, mode: str = "both") -> None:
     """Declare an address family (Stage 1)."""
     _get_api().declare_family(afi, safi, mode)
 
@@ -1127,8 +1161,9 @@ def declare_command(command: str) -> None:
     _get_api().declare_command(command)
 
 
-def declare_connection_handler(handler_type: str = 'listen',
-                                port: int = 0, address: str = '') -> None:
+def declare_connection_handler(
+    handler_type: str = "listen", port: int = 0, address: str = ""
+) -> None:
     """Declare a connection handler for listen socket handoff (Stage 1)."""
     _get_api().declare_connection_handler(handler_type, port, address)
 
@@ -1138,10 +1173,13 @@ def receive_listener() -> socket.socket:
     return _get_api().receive_listener()
 
 
-def declare_filter(name: str, direction: str = 'both',
-                   attributes: list[str] | None = None,
-                   on_error: str = 'reject',
-                   overrides: list[str] | None = None) -> None:
+def declare_filter(
+    name: str,
+    direction: str = "both",
+    attributes: list[str] | None = None,
+    on_error: str = "reject",
+    overrides: list[str] | None = None,
+) -> None:
     """Declare a named route filter (Stage 1)."""
     _get_api().declare_filter(name, direction, attributes, on_error, overrides)
 
@@ -1161,7 +1199,7 @@ def wait_for_config(timeout: float = 10.0) -> list[dict]:
     return _get_api().wait_for_config(timeout)
 
 
-def declare_capability(code: int, payload: str, encoding: str = 'b64') -> None:
+def declare_capability(code: int, payload: str, encoding: str = "b64") -> None:
     """Declare a capability for OPEN messages (Stage 3)."""
     _get_api().declare_capability(code, payload, encoding)
 
@@ -1176,12 +1214,12 @@ def wait_for_registry(timeout: float = 10.0) -> dict:
     return _get_api().wait_for_registry(timeout)
 
 
-def subscribe(events: list[str], peers: list[str] | None = None, fmt: str = '') -> None:
+def subscribe(events: list[str], peers: list[str] | None = None, fmt: str = "") -> None:
     """Set event subscriptions for ready RPC."""
     _get_api().subscribe(events, peers, fmt)
 
 
-def fail(message: str, encoding: str = 'text') -> None:
+def fail(message: str, encoding: str = "text") -> None:
     """Signal startup failure to ZeBGP."""
     _get_api().fail(message, encoding)
 
@@ -1191,7 +1229,7 @@ def fail(message: str, encoding: str = 'text') -> None:
 # ze's own exit code. See internal/test/runner/runner_validate.go and
 # .claude/known-failures.md (section 8) for background. Keeping the literal
 # in code and in the runner makes this a two-point coupling; change both.
-_OBSERVER_FAIL_SENTINEL = 'ZE-OBSERVER-FAIL'
+_OBSERVER_FAIL_SENTINEL = "ZE-OBSERVER-FAIL"
 
 
 def runtime_fail(message: str) -> None:
@@ -1222,16 +1260,16 @@ def runtime_fail(message: str) -> None:
     # be present for classifyStderrLine to treat it as "valid slog" and pass
     # the relay filter. The subsystem attr identifies the source in telemetry.
     line = (
-        f'time=runtime level=ERROR '
+        f"time=runtime level=ERROR "
         f'msg="{_OBSERVER_FAIL_SENTINEL}: {message}" '
-        f'subsystem=test.observer\n'
+        f"subsystem=test.observer\n"
     )
     sys.stderr.write(line)
     sys.stderr.flush()
     try:
         _get_api()._call_engine(
-            'ze-plugin-engine:dispatch-command',
-            {'command': 'daemon shutdown'},
+            "ze-plugin-engine:dispatch-command",
+            {"command": "daemon shutdown"},
         )
     except Exception:  # noqa: BLE001  # best-effort shutdown after fatal signal
         pass

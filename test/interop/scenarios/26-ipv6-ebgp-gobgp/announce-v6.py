@@ -14,10 +14,16 @@ ready()
 # Let BGP session fully establish.
 time.sleep(1)
 
-flush('peer * update text origin igp path 65001 nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8:1::/48\n')
+flush(
+    "peer * update text origin igp path 65001 nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8:1::/48\n"
+)
 time.sleep(0.1)
-flush('peer * update text origin igp path 65001 nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8:2::/48\n')
+flush(
+    "peer * update text origin igp path 65001 nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8:2::/48\n"
+)
 time.sleep(0.1)
-flush('peer * update text origin igp path 65001 nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8:3::/48\n')
+flush(
+    "peer * update text origin igp path 65001 nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8:3::/48\n"
+)
 
 wait_for_shutdown(timeout=120)

@@ -59,6 +59,8 @@ def check():
                 "BGP teardown took %.3fs, expected < %.1fs"
                 % (elapsed, FAILOVER_BUDGET_S)
             )
-        log_pass("BFD failover: BGP down in %.3fs (< %.1fs)" % (elapsed, FAILOVER_BUDGET_S))
+        log_pass(
+            "BFD failover: BGP down in %.3fs (< %.1fs)" % (elapsed, FAILOVER_BUDGET_S)
+        )
     finally:
         frr.restore_link()

@@ -31,17 +31,34 @@ def install_build_deps():
     """Install build dependencies for libdict and BNG Blaster."""
     print("Installing build dependencies...")
     run(["apt-get", "update", "-qq"])
-    run(["apt-get", "install", "-y", "--no-install-recommends",
-         "build-essential", "cmake", "git",
-         "libncurses-dev", "libssl-dev", "libjansson-dev", "libpcap-dev",
-         "python3", "python3-pip", "python3-venv",
-         "iproute2", "jq"])
+    run(
+        [
+            "apt-get",
+            "install",
+            "-y",
+            "--no-install-recommends",
+            "build-essential",
+            "cmake",
+            "git",
+            "libncurses-dev",
+            "libssl-dev",
+            "libjansson-dev",
+            "libpcap-dev",
+            "python3",
+            "python3-pip",
+            "python3-venv",
+            "iproute2",
+            "jq",
+        ]
+    )
 
 
 def build_libdict():
     """Build and install libdict from source."""
     src = "/opt/bngblaster-build/libdict"
-    if os.path.isfile("/usr/local/lib/libdict.a") or os.path.isfile("/usr/lib/libdict.a"):
+    if os.path.isfile("/usr/local/lib/libdict.a") or os.path.isfile(
+        "/usr/lib/libdict.a"
+    ):
         print("libdict already installed, skipping")
         return
 
@@ -49,14 +66,20 @@ def build_libdict():
     os.makedirs("/opt/bngblaster-build", exist_ok=True)
     if os.path.isdir(src):
         shutil.rmtree(src)
-    run(["git", "clone", "--depth", "1",
-         "https://github.com/rtbrick/libdict.git", src])
+    run(["git", "clone", "--depth", "1", "https://github.com/rtbrick/libdict.git", src])
     build = os.path.join(src, "build")
     os.makedirs(build, exist_ok=True)
-    run(["cmake", "..", "-DCMAKE_BUILD_TYPE=Release",
-         "-DCMAKE_INSTALL_PREFIX=/usr/local",
-         "-DLIBDICT_TESTS=OFF", "-DLIBDICT_TOOLS=OFF"],
-        cwd=build)
+    run(
+        [
+            "cmake",
+            "..",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DCMAKE_INSTALL_PREFIX=/usr/local",
+            "-DLIBDICT_TESTS=OFF",
+            "-DLIBDICT_TOOLS=OFF",
+        ],
+        cwd=build,
+    )
     run(["cmake", "--build", ".", "-j%d" % os.cpu_count()], cwd=build)
     run(["cmake", "--install", "."], cwd=build)
     run(["ldconfig"])
@@ -73,8 +96,16 @@ def build_bngblaster():
     os.makedirs("/opt/bngblaster-build", exist_ok=True)
     if os.path.isdir(src):
         shutil.rmtree(src)
-    run(["git", "clone", "--depth", "1",
-         "https://github.com/rtbrick/bngblaster.git", src])
+    run(
+        [
+            "git",
+            "clone",
+            "--depth",
+            "1",
+            "https://github.com/rtbrick/bngblaster.git",
+            src,
+        ]
+    )
     build = os.path.join(src, "build")
     os.makedirs(build, exist_ok=True)
     run(["cmake", "..", "-DCMAKE_BUILD_TYPE=Release"], cwd=build)
@@ -83,12 +114,24 @@ def build_bngblaster():
     # Install binaries.
     bb = os.path.join(build, "code", "bngblaster", "bngblaster")
     run(["install", "-m", "755", bb, "/usr/local/sbin/bngblaster"])
-    run(["install", "-m", "755",
-         os.path.join(src, "code", "bngblaster-cli"),
-         "/usr/local/sbin/bngblaster-cli"])
-    run(["install", "-m", "755",
-         os.path.join(src, "code", "bgpupdate"),
-         "/usr/local/bin/bgpupdate"])
+    run(
+        [
+            "install",
+            "-m",
+            "755",
+            os.path.join(src, "code", "bngblaster-cli"),
+            "/usr/local/sbin/bngblaster-cli",
+        ]
+    )
+    run(
+        [
+            "install",
+            "-m",
+            "755",
+            os.path.join(src, "code", "bgpupdate"),
+            "/usr/local/bin/bgpupdate",
+        ]
+    )
 
 
 def install_bird():
@@ -103,8 +146,7 @@ def install_bird():
 def install_scapy():
     """Install scapy for bgpupdate."""
     print("Installing scapy...")
-    run(["pip3", "install", "--break-system-packages", "scapy"],
-        check=False)
+    run(["pip3", "install", "--break-system-packages", "scapy"], check=False)
 
 
 def verify():
@@ -123,7 +165,8 @@ def verify():
     # Check scapy.
     result = subprocess.run(
         ["python3", "-c", "from scapy.all import *"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode == 0:
         print("  scapy: ok")

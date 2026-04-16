@@ -10,6 +10,7 @@ send NOTIFICATION due to parse errors).
 """
 
 import sys, os
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import FRR, Ze, ZE_IP, log_info, log_pass, log_fail
 
@@ -49,5 +50,6 @@ def check():
     ze.rib_received(3)
 
     # Verify session is still Established after route exchange.
-    assert frr.session_established(ZE_IP), \
+    assert frr.session_established(ZE_IP), (
         "session dropped after route exchange (Ze may have sent NOTIFICATION)"
+    )

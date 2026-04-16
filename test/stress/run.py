@@ -31,15 +31,19 @@ from bngblaster import Scenario, log_fail, log_pass, log_info
 
 def _scapy_importable():
     """bgpupdate needs scapy at runtime -- verify it imports."""
-    return subprocess.run(
-        [sys.executable, "-c", "import scapy.all"],
-        capture_output=True,
-    ).returncode == 0
+    return (
+        subprocess.run(
+            [sys.executable, "-c", "import scapy.all"],
+            capture_output=True,
+        ).returncode
+        == 0
+    )
 
 
 def _find_missing():
-    missing = [t for t in ["bngblaster", "bngblaster-cli", "bgpupdate"]
-               if not shutil.which(t)]
+    missing = [
+        t for t in ["bngblaster", "bngblaster-cli", "bgpupdate"] if not shutil.which(t)
+    ]
     if not _scapy_importable():
         missing.append("scapy")
     return missing
@@ -58,8 +62,11 @@ def check_prerequisites():
         subprocess.run([sys.executable, setup], check=True, timeout=600)
         still_missing = _find_missing()
         if still_missing:
-            print("error: setup completed but still missing: %s" % ", ".join(still_missing),
-                  file=sys.stderr)
+            print(
+                "error: setup completed but still missing: %s"
+                % ", ".join(still_missing),
+                file=sys.stderr,
+            )
             sys.exit(1)
 
 
@@ -79,13 +86,18 @@ def build_ze():
     # Build from source (only works when go is in PATH).
     if not shutil.which("go"):
         print("error: bin/ze not found and 'go' not in PATH", file=sys.stderr)
-        print("hint: run 'make ze-stress-test' which builds Ze before sudo", file=sys.stderr)
+        print(
+            "hint: run 'make ze-stress-test' which builds Ze before sudo",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     print("Building Ze...")
     subprocess.run(
         ["go", "build", "-o", ze_binary, "./cmd/ze"],
-        cwd=PROJECT_ROOT, check=True, timeout=120,
+        cwd=PROJECT_ROOT,
+        check=True,
+        timeout=120,
     )
     log_pass("Ze built: %s" % ze_binary)
     return ze_binary
@@ -151,7 +163,9 @@ def main():
 
     # Warn if filter matched nothing.
     if scenario_filter and passed + failed == 0:
-        print("error: no scenario matching '%s' found" % scenario_filter, file=sys.stderr)
+        print(
+            "error: no scenario matching '%s' found" % scenario_filter, file=sys.stderr
+        )
         sys.exit(1)
 
     # Summary.
@@ -159,8 +173,10 @@ def main():
     if failed == 0:
         print("\033[32mPASS  %d scenario(s)\033[0m" % passed)
     else:
-        print("\033[31mFAIL  %d passed, %d failed: %s\033[0m"
-              % (passed, failed, " ".join(failed_names)))
+        print(
+            "\033[31mFAIL  %d passed, %d failed: %s\033[0m"
+            % (passed, failed, " ".join(failed_names))
+        )
     print("\u2501" * 40)
 
     sys.exit(0 if failed == 0 else 1)

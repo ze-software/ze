@@ -6,6 +6,7 @@ Prevents:  TTL configuration bugs with BIRD as peer.
 """
 
 import os, sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import BIRD, log_pass
 

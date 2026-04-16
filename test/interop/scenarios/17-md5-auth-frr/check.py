@@ -2,6 +2,7 @@
 """Scenario 17: TCP MD5 authenticated session with FRR."""
 
 import os, sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import FRR, log_pass
 

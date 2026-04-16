@@ -37,6 +37,7 @@ VERBOSE = os.environ.get("VERBOSE", "0") == "1"
 
 # --- Logging ----------------------------------------------------------------
 
+
 def log_info(msg):
     print("  %s" % msg)
 
@@ -56,15 +57,20 @@ def log_debug(msg):
 
 # --- Docker helpers ----------------------------------------------------------
 
+
 def docker_exec(container, cmd):
     """Run command in container, return stdout. Raises on failure."""
     try:
         result = subprocess.run(
             ["docker", "exec", container] + cmd,
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
     except subprocess.TimeoutExpired:
-        raise RuntimeError("docker exec %s %s timed out after 30s" % (container, " ".join(cmd)))
+        raise RuntimeError(
+            "docker exec %s %s timed out after 30s" % (container, " ".join(cmd))
+        )
     if result.returncode != 0:
         raise RuntimeError(
             "docker exec %s %s failed (rc=%d): %s"
@@ -78,7 +84,9 @@ def docker_exec_quiet(container, cmd):
     try:
         result = subprocess.run(
             ["docker", "exec", container] + cmd,
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         if result.returncode != 0:
             return ""
@@ -90,14 +98,14 @@ def docker_exec_quiet(container, cmd):
 def docker_run(name, image, ip, volumes=None, caps=None, extra_args=None, cmd=None):
     """Start a container."""
     args = ["docker", "run", "-d", "--name", name, "--network", NETWORK, "--ip", ip]
-    for cap in (caps or []):
+    for cap in caps or []:
         args.extend(["--cap-add", cap])
-    for vol in (volumes or []):
+    for vol in volumes or []:
         args.extend(["-v", vol])
-    for arg in (extra_args or []):
+    for arg in extra_args or []:
         args.append(arg)
     args.append(image)
-    for c in (cmd or []):
+    for c in cmd or []:
         args.append(c)
     try:
         result = subprocess.run(args, capture_output=True, text=True, timeout=60)
@@ -111,7 +119,9 @@ def docker_rm(name):
     """Remove container, ignore if not exists."""
     subprocess.run(
         ["docker", "rm", "-f", name],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
 
 
@@ -120,7 +130,9 @@ def docker_logs(container, lines=30):
     try:
         result = subprocess.run(
             ["docker", "logs", container, "--tail", str(lines)],
-            capture_output=True, text=True, timeout=15,
+            capture_output=True,
+            text=True,
+            timeout=15,
         )
         return result.stdout + result.stderr
     except subprocess.TimeoutExpired:
@@ -128,6 +140,7 @@ def docker_logs(container, lines=30):
 
 
 # --- FRR helpers -------------------------------------------------------------
+
 
 class FRR:
     """Helpers for querying FRR via vtysh."""
@@ -144,7 +157,9 @@ class FRR:
         """Poll until BGP session with neighbor reaches Established."""
         if timeout is None:
             timeout = SESSION_TIMEOUT
-        log_info("waiting for FRR session with %s (timeout %ds)..." % (neighbor, timeout))
+        log_info(
+            "waiting for FRR session with %s (timeout %ds)..." % (neighbor, timeout)
+        )
         deadline = time.time() + timeout
         while time.time() < deadline:
             output = self._vtysh_quiet("show bgp neighbor %s" % neighbor)
@@ -152,7 +167,10 @@ class FRR:
                 log_pass("FRR session with %s is Established" % neighbor)
                 return
             time.sleep(2)
-        log_fail("FRR session with %s did not reach Established within %ds" % (neighbor, timeout))
+        log_fail(
+            "FRR session with %s did not reach Established within %ds"
+            % (neighbor, timeout)
+        )
         output = self._vtysh_quiet("show bgp neighbor %s" % neighbor)
         for line in output.splitlines()[:10]:
             print("  %s" % line)
@@ -273,11 +291,15 @@ class FRR:
                 aspath_str = aspath.get("string", "")
                 if asn_str in aspath_str.split():
                     log_fail("FRR route %s AS_PATH contains AS %s" % (prefix, asn))
-                    raise AssertionError("AS %s found in AS_PATH for %s" % (asn, prefix))
+                    raise AssertionError(
+                        "AS %s found in AS_PATH for %s" % (asn, prefix)
+                    )
             elif isinstance(aspath, str):
                 if asn_str in aspath.split():
                     log_fail("FRR route %s AS_PATH contains AS %s" % (prefix, asn))
-                    raise AssertionError("AS %s found in AS_PATH for %s" % (asn, prefix))
+                    raise AssertionError(
+                        "AS %s found in AS_PATH for %s" % (asn, prefix)
+                    )
         log_pass("FRR route %s AS_PATH does not contain AS %s" % (prefix, asn))
 
     def session_established(self, neighbor):
@@ -294,7 +316,9 @@ class FRR:
         """
         if timeout is None:
             timeout = SESSION_TIMEOUT
-        log_info("waiting for FRR BFD session with %s (timeout %ds)..." % (peer, timeout))
+        log_info(
+            "waiting for FRR BFD session with %s (timeout %ds)..." % (peer, timeout)
+        )
         deadline = time.time() + timeout
         while time.time() < deadline:
             output = self._vtysh_quiet("show bfd peers")
@@ -315,20 +339,42 @@ class FRR:
         Used by spec-bfd-3b-frr-interop to measure sub-2s failover.
         Requires NET_ADMIN cap on the container (scenario runner sets it).
         """
-        docker_exec(self.container, [
-            "iptables", "-I", "OUTPUT", "1",
-            "-p", "udp", "--dport", str(port), "-j", "DROP",
-        ])
+        docker_exec(
+            self.container,
+            [
+                "iptables",
+                "-I",
+                "OUTPUT",
+                "1",
+                "-p",
+                "udp",
+                "--dport",
+                str(port),
+                "-j",
+                "DROP",
+            ],
+        )
 
     def restore_link(self, port=3784):
         """Remove the iptables drop rule installed by break_link."""
-        docker_exec_quiet(self.container, [
-            "iptables", "-D", "OUTPUT",
-            "-p", "udp", "--dport", str(port), "-j", "DROP",
-        ])
+        docker_exec_quiet(
+            self.container,
+            [
+                "iptables",
+                "-D",
+                "OUTPUT",
+                "-p",
+                "udp",
+                "--dport",
+                str(port),
+                "-j",
+                "DROP",
+            ],
+        )
 
 
 # --- BIRD helpers ------------------------------------------------------------
+
 
 class BIRD:
     """Helpers for querying BIRD via birdc."""
@@ -354,7 +400,10 @@ class BIRD:
                     log_pass("BIRD protocol %s is Established" % protocol)
                     return
             time.sleep(2)
-        log_fail("BIRD protocol %s did not reach Established within %ds" % (protocol, timeout))
+        log_fail(
+            "BIRD protocol %s did not reach Established within %ds"
+            % (protocol, timeout)
+        )
         output = self._birdc_quiet("show protocols all")
         print(output)
         print(docker_logs(ZE_CONTAINER, 20))
@@ -392,7 +441,9 @@ class BIRD:
                 found_aspath = True
                 if str(asn) in line.split():
                     log_fail("BIRD route %s AS_PATH contains AS %s" % (prefix, asn))
-                    raise AssertionError("AS %s found in AS_PATH for %s" % (asn, prefix))
+                    raise AssertionError(
+                        "AS %s found in AS_PATH for %s" % (asn, prefix)
+                    )
         if not found_aspath:
             log_fail("BIRD route %s has no AS_PATH line (cannot verify)" % prefix)
             raise AssertionError("no AS_PATH found for %s" % prefix)
@@ -403,7 +454,7 @@ class BIRD:
         output = self._birdc_quiet("show protocols all %s" % protocol)
         for line in output.splitlines():
             if "Routes:" in line:
-                m = re.search(r'(\d+)\s+exported', line)
+                m = re.search(r"(\d+)\s+exported", line)
                 if m:
                     return int(m.group(1))
         return 0
@@ -418,6 +469,7 @@ class BIRD:
 
 
 # --- GoBGP helpers -----------------------------------------------------------
+
 
 class GoBGP:
     """Helpers for querying GoBGP via gobgp CLI."""
@@ -444,7 +496,9 @@ class GoBGP:
         """Poll until BGP session with neighbor reaches Established."""
         if timeout is None:
             timeout = SESSION_TIMEOUT
-        log_info("waiting for GoBGP session with %s (timeout %ds)..." % (neighbor, timeout))
+        log_info(
+            "waiting for GoBGP session with %s (timeout %ds)..." % (neighbor, timeout)
+        )
         deadline = time.time() + timeout
         while time.time() < deadline:
             output = self._gobgp_quiet(["neighbor", neighbor])
@@ -452,7 +506,10 @@ class GoBGP:
                 log_pass("GoBGP session with %s is Established" % neighbor)
                 return
             time.sleep(2)
-        log_fail("GoBGP session with %s did not reach Established within %ds" % (neighbor, timeout))
+        log_fail(
+            "GoBGP session with %s did not reach Established within %ds"
+            % (neighbor, timeout)
+        )
         output = self._gobgp_quiet(["neighbor"])
         print("  %s" % output[:500])
         print(docker_logs(ZE_CONTAINER, 20))
@@ -501,12 +558,24 @@ class GoBGP:
 
     def inject_route(self, prefix, nexthop="172.30.0.5"):
         """Inject a route into GoBGP's global RIB. Raises on failure."""
-        docker_exec(self.container, [
-            "gobgp", "global", "rib", "add", prefix, "-a", "ipv4", "nexthop", nexthop,
-        ])
+        docker_exec(
+            self.container,
+            [
+                "gobgp",
+                "global",
+                "rib",
+                "add",
+                prefix,
+                "-a",
+                "ipv4",
+                "nexthop",
+                nexthop,
+            ],
+        )
 
 
 # --- Ze helpers --------------------------------------------------------------
+
 
 class Ze:
     """Helpers for querying Ze."""
@@ -526,7 +595,9 @@ class Ze:
         """Assert RIB has >= minimum received routes."""
         count = self.rib_count()
         if count >= minimum:
-            log_pass("Ze RIB has %d received routes (expected >= %d)" % (count, minimum))
+            log_pass(
+                "Ze RIB has %d received routes (expected >= %d)" % (count, minimum)
+            )
             return
         log_fail("Ze RIB has %d received routes (expected >= %d)" % (count, minimum))
         raise AssertionError("Ze RIB has %d routes, expected >= %d" % (count, minimum))
@@ -538,12 +609,15 @@ class Ze:
 
 # --- Container health --------------------------------------------------------
 
+
 def _check_container_running(name):
     """Check if a container is in running state."""
     try:
         result = subprocess.run(
             ["docker", "inspect", name, "--format", "{{.State.Running}}"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         return "true" in result.stdout
     except subprocess.TimeoutExpired:
@@ -555,7 +629,9 @@ def _check_container_responsive(name, cmd):
     try:
         result = subprocess.run(
             ["docker", "exec", name] + cmd,
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         return result.returncode == 0
     except subprocess.TimeoutExpired:
@@ -572,11 +648,15 @@ def wait_containers_healthy(timeout=30):
             all_ready = False
 
         if _check_container_running(FRR_CONTAINER):
-            if not _check_container_responsive(FRR_CONTAINER, ["vtysh", "-c", "show version"]):
+            if not _check_container_responsive(
+                FRR_CONTAINER, ["vtysh", "-c", "show version"]
+            ):
                 all_ready = False
 
         if _check_container_running(BIRD_CONTAINER):
-            if not _check_container_responsive(BIRD_CONTAINER, ["birdc", "show status"]):
+            if not _check_container_responsive(
+                BIRD_CONTAINER, ["birdc", "show status"]
+            ):
                 all_ready = False
 
         if _check_container_running(GOBGP_CONTAINER):
@@ -594,6 +674,7 @@ def wait_containers_healthy(timeout=30):
 
 # --- Scenario lifecycle ------------------------------------------------------
 
+
 class Scenario:
     """Manages container lifecycle for a scenario."""
 
@@ -609,10 +690,14 @@ class Scenario:
         # Create network.
         result = subprocess.run(
             ["docker", "network", "create", "--subnet=172.30.0.0/24", NETWORK],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         if result.returncode != 0 and "already exists" not in result.stderr:
-            raise RuntimeError("docker network create failed: %s" % result.stderr.strip())
+            raise RuntimeError(
+                "docker network create failed: %s" % result.stderr.strip()
+            )
 
         ze_conf = os.path.join(self.scenario_dir, "ze.conf")
         if not os.path.isfile(ze_conf):
@@ -631,7 +716,9 @@ class Scenario:
 
         # Start Ze (always present).
         docker_run(
-            ZE_CONTAINER, "ze-interop", ZE_IP,
+            ZE_CONTAINER,
+            "ze-interop",
+            ZE_IP,
             volumes=volumes,
             caps=["NET_ADMIN"],
             cmd=["/etc/ze/bgp.conf"],
@@ -642,7 +729,9 @@ class Scenario:
         if os.path.isfile(frr_conf):
             script_dir = os.path.dirname(os.path.abspath(__file__))
             docker_run(
-                FRR_CONTAINER, self.frr_image, FRR_IP,
+                FRR_CONTAINER,
+                self.frr_image,
+                FRR_IP,
                 volumes=[
                     "%s:/etc/frr/frr.conf:ro" % os.path.abspath(frr_conf),
                     "%s/daemons:/etc/frr/daemons:ro" % script_dir,
@@ -655,7 +744,9 @@ class Scenario:
         bird_conf = os.path.join(self.scenario_dir, "bird.conf")
         if os.path.isfile(bird_conf):
             docker_run(
-                BIRD_CONTAINER, "bird-interop", BIRD_IP,
+                BIRD_CONTAINER,
+                "bird-interop",
+                BIRD_IP,
                 volumes=[
                     "%s:/etc/bird/bird.conf:ro" % os.path.abspath(bird_conf),
                 ],
@@ -666,7 +757,9 @@ class Scenario:
         gobgp_conf = os.path.join(self.scenario_dir, "gobgp.toml")
         if os.path.isfile(gobgp_conf):
             docker_run(
-                GOBGP_CONTAINER, "gobgp-interop", GOBGP_IP,
+                GOBGP_CONTAINER,
+                "gobgp-interop",
+                GOBGP_IP,
                 volumes=[
                     "%s:/etc/gobgp/gobgp.toml:ro" % os.path.abspath(gobgp_conf),
                 ],
@@ -684,7 +777,9 @@ class Scenario:
         docker_rm(GOBGP_CONTAINER)
         subprocess.run(
             ["docker", "network", "rm", NETWORK],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
 
     def run_check(self):
@@ -694,6 +789,7 @@ class Scenario:
             raise RuntimeError("no check.py in %s" % self.name)
 
         import importlib.util
+
         spec = importlib.util.spec_from_file_location("check", check_path)
         if spec is None:
             raise RuntimeError("cannot load check.py from %s" % self.name)
@@ -701,7 +797,9 @@ class Scenario:
         try:
             spec.loader.exec_module(mod)
         except Exception as e:
-            raise RuntimeError("check.py in %s failed to load: %s" % (self.name, e)) from e
+            raise RuntimeError(
+                "check.py in %s failed to load: %s" % (self.name, e)
+            ) from e
         if not hasattr(mod, "check"):
             raise RuntimeError("check.py in %s has no check() function" % self.name)
         mod.check()
@@ -710,8 +808,12 @@ class Scenario:
 def global_cleanup():
     """Remove all containers and network on exit."""
     for name in [ZE_CONTAINER, FRR_CONTAINER, BIRD_CONTAINER, GOBGP_CONTAINER]:
-        subprocess.run(["docker", "rm", "-f", name], capture_output=True, text=True, timeout=30)
-    subprocess.run(["docker", "network", "rm", NETWORK], capture_output=True, text=True, timeout=30)
+        subprocess.run(
+            ["docker", "rm", "-f", name], capture_output=True, text=True, timeout=30
+        )
+    subprocess.run(
+        ["docker", "network", "rm", NETWORK], capture_output=True, text=True, timeout=30
+    )
 
 
 atexit.register(global_cleanup)
