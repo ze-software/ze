@@ -157,12 +157,14 @@ func toStaticRouteVPNParams(r *StaticRoute, nextHop netip.Addr) message.VPNParam
 	}
 }
 
-// buildStaticRouteUpdateNew builds an UPDATE for a static route using UpdateBuilder.
-// This is the new implementation that will replace buildStaticRouteUpdate.
+// buildStaticRouteUpdateNew builds an UPDATE for a static route using ub.
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
 // linkLocal is the peer's IPv6 link-local for 32-byte MP_REACH next-hop (RFC 2545 Section 3).
-func buildStaticRouteUpdateNew(route *StaticRoute, nextHop, linkLocal netip.Addr, localAS uint32, isIBGP, asn4, addPath bool, sendCtx *bgpctx.EncodingContext) *message.Update {
-	ub := message.NewUpdateBuilder(localAS, isIBGP, asn4, addPath)
+//
+// The returned *Update's PathAttributes/NLRI alias ub.scratch. Caller MUST
+// fully consume the Update (send, copy, hand to sendUpdateWithSplit) before
+// calling message.PutUpdateBuilder(ub) or reusing ub for another Build*.
+func buildStaticRouteUpdateNew(ub *message.UpdateBuilder, route *StaticRoute, nextHop, linkLocal netip.Addr, sendCtx *bgpctx.EncodingContext) *message.Update {
 	if route.IsVPN() {
 		p := toStaticRouteVPNParams(route, nextHop)
 		return ub.BuildVPN(&p)

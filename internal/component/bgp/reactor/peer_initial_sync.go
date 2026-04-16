@@ -89,8 +89,11 @@ func (p *Peer) sendInitialRoutes() {
 					routesLogger().Debug("next-hop resolution failed", "peer", addr, "error", nhErr)
 					continue
 				}
-				update := buildStaticRouteUpdateNew(&routes[0], nextHop, p.settings.LinkLocal, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx.Load())
-				if err := p.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
+				ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+				update := buildStaticRouteUpdateNew(ub, &routes[0], nextHop, p.settings.LinkLocal, p.sendCtx.Load())
+				err := p.sendUpdateWithSplit(update, maxMsgSize, addPath)
+				message.PutUpdateBuilder(ub)
+				if err != nil {
 					routesLogger().Debug("send error", "peer", addr, "error", err)
 					break
 				}
@@ -135,8 +138,11 @@ func (p *Peer) sendInitialRoutes() {
 				continue
 			}
 			addPath := p.addPathFor(routeFamily(route))
-			update := buildStaticRouteUpdateNew(route, nextHop, p.settings.LinkLocal, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx.Load())
-			if err := p.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
+			ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+			update := buildStaticRouteUpdateNew(ub, route, nextHop, p.settings.LinkLocal, p.sendCtx.Load())
+			err := p.sendUpdateWithSplit(update, maxMsgSize, addPath)
+			message.PutUpdateBuilder(ub)
+			if err != nil {
 				routesLogger().Debug("send error", "peer", addr, "error", err)
 				break
 			}
