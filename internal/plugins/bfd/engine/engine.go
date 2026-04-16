@@ -294,12 +294,27 @@ func (l *Loop) Start() error {
 
 // Stop signals the express loop to exit, waits for it, and stops the
 // transport. Stop is idempotent. Subscribers' channels are closed.
+//
+// Any session still pinned at shutdown has its auth persister closed
+// so the Meticulous Keyed TX sequence reaches disk before the process
+// exits. ReleaseSession handles this for refcount-driven teardown;
+// Stop covers the runtimeState.stopAll path where loops are torn down
+// while pinned handles are still live.
 func (l *Loop) Stop() error {
 	if !l.stopped.CompareAndSwap(false, true) {
 		return nil
 	}
 	close(l.stopCh)
 	<-l.doneCh
+
+	l.mu.Lock()
+	for key, entry := range l.sessions {
+		if err := entry.machine.CloseAuth(); err != nil {
+			engineLog().Debug("bfd auth persister close failed", "key", key, "err", err)
+		}
+	}
+	l.mu.Unlock()
+
 	stopErr := l.transport.Stop()
 	if l.echoTransport != nil {
 		if err := l.echoTransport.Stop(); err != nil && stopErr == nil {

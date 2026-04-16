@@ -21,16 +21,13 @@ Sessions should attempt to fix entries here before logging new ones.
 **Hypothesis:** Same class as the bfd-auth-meticulous-persist and nexthop flakes: peer-tool timing against scripted BGP sessions under parallel CPU load. The watchdog test asserts a specific session outcome that may arrive out-of-order when the tester's event loop is preempted.
 **Not caused by spec-l2tp-6a PPP work (2026-04-16) -- verified orthogonal; watchdog is BGP peering, no PPP code path touched. Repro is 1-in-2 under `make ze-verify-fast`; clean re-runs pass.**
 
-## bfd-auth-meticulous-persist (flake under parallel load) -- 2026-04-15
+## bfd-auth-meticulous-persist (flake under parallel load) -- FIXED 2026-04-16
 
 **File:** `test/plugin/bfd-auth-meticulous-persist.ci`
-**Symptom:** `FAIL: no persisted .seq file in /tmp/ze-bfd-auth-persist-XXXX`; exit 1 when run under `make ze-verify-fast` (parallel mode).
-**Reproduction:**
-- FAILS: `make ze-verify-fast` (functional stage running concurrently with unit+lint).
-- PASSES: `bin/ze-test bgp plugin Z` in isolation (5.1s).
-**Hypothesis:** Persistence handshake depends on wall-clock; under parallel CPU load the `.seq` file write races with the test's observer exit. The meticulous mode is supposed to flush on BFD Down -> Init -> Up transition, but the test may assert before the transition completes under load.
-**Fix needed:** Either synchronize on a production log line confirming the persist write, or bump the polling/timeout window in the observer. Estimated 30-60 min investigation.
-**Not caused by l2tp-5 kernel integration work (2026-04-15) -- verified orthogonal; the file paths and concerns do not overlap.**
+**Original symptom:** `FAIL: no persisted .seq file in /tmp/ze-bfd-auth-persist-XXXX`; exit 1 when run under `make ze-verify-fast` parallel mode. Passed in isolation (5.1s).
+**Root cause:** `internal/plugins/bfd/engine/engine.go:Loop.Stop()` tore down the express-loop goroutine and transport but never iterated `l.sessions` to call `CloseAuth`. Only `ReleaseSession` closed the `auth.SeqPersister`. `internal/plugins/bfd/bfd.go:runtimeState.stopAll()` calls `loop.Stop()` directly without first releasing pinned handles, so on SIGTERM the persister goroutine was killed mid-flight instead of flushing. Under no load the persister's 500 ms ticker had fired at least once during the 2.5 s test window; under parallel CPU load ze startup pushed the first TX past ~2 s, leaving the persister ticker unable to fire before shutdown and no Close path to rescue it.
+**Fix:** Drain `l.sessions` in `Loop.Stop()` after the run goroutine exits: iterate under `l.mu`, call `entry.machine.CloseAuth()` on each, log at debug on error (same discipline as `ReleaseSession`). Guarantees the final flush regardless of refcount discipline.
+**Verification:** Added regression `TestLoopStopFlushesPinnedPersister` at `internal/plugins/bfd/engine/engine_test.go`. Proves (a) reverting the fix makes the test fail with `no .seq file present ...; CloseAuth did not flush`; (b) with the fix, `go test -race -count=5 ./internal/plugins/bfd/engine/` passes, `go test -race -count=3 ./internal/plugins/bfd/...` passes, `bin/ze-test bgp plugin Z` passes, and `make ze-verify-fast` passes under parallel load.
 
 Remove entries once fixed.
 

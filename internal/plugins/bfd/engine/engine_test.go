@@ -2,11 +2,15 @@ package engine
 
 import (
 	"net/netip"
+	"os"
+	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/auth"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/packet"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/transport"
 )
@@ -213,5 +217,104 @@ func TestEnsureSessionRefcount(t *testing.T) {
 	loop.mu.Unlock()
 	if stillPresent {
 		t.Fatal("session still present after final Release")
+	}
+}
+
+// VALIDATES: Loop.Stop closes the auth persister of every pinned
+// session so the Meticulous Keyed TX sequence reaches disk before the
+// process exits, even when ReleaseSession was never called.
+// PREVENTS: regression of the bfd-auth-meticulous-persist flake where
+// the runtime teardown path skipped CloseAuth on still-pinned sessions
+// and the persister's 500 ms ticker was the only flush mechanism.
+func TestLoopStopFlushesPinnedPersister(t *testing.T) {
+	dir := t.TempDir()
+	secret := []byte("k-persist-test")
+
+	lbA, lbB := transport.Pair(api.SingleHop, netip.MustParseAddr(addrA), netip.MustParseAddr(addrB))
+	defer func() { _ = lbB.Stop() }()
+
+	loop := NewLoop(lbA, clock.RealClock{})
+	if err := loop.Start(); err != nil {
+		t.Fatalf("loop.Start: %v", err)
+	}
+
+	req := reqFor(addrB, addrA)
+	req.Auth = &api.AuthSettings{
+		Type:       packet.AuthTypeMeticulousKeyedSHA1,
+		KeyID:      1,
+		Secret:     secret,
+		Meticulous: true,
+	}
+	req.PersistDir = dir
+
+	if _, err := loop.EnsureSession(req); err != nil {
+		t.Fatalf("EnsureSession: %v", err)
+	}
+
+	// Wait for the express-loop to tick a handful of times so
+	// AdvanceAuthSeq has stored at least one sequence. The persister's
+	// 500 ms ticker cannot have fired yet -- if the .seq file exists
+	// after Stop, Stop's CloseAuth path is the only thing that could
+	// have written it.
+	deadline := time.Now().Add(250 * time.Millisecond)
+	var txFired bool
+	for time.Now().Before(deadline) {
+		loop.mu.Lock()
+		for _, entry := range loop.sessions {
+			if entry.txPackets > 0 {
+				txFired = true
+			}
+		}
+		loop.mu.Unlock()
+		if txFired {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if !txFired {
+		t.Fatal("no TX packet within 250ms; express-loop never advanced auth")
+	}
+
+	if err := loop.Stop(); err != nil {
+		t.Fatalf("loop.Stop: %v", err)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read persist dir: %v", err)
+	}
+	var seqFile string
+	for _, e := range entries {
+		if filepath.Ext(e.Name()) == ".seq" {
+			seqFile = filepath.Join(dir, e.Name())
+			break
+		}
+	}
+	if seqFile == "" {
+		t.Fatalf("no .seq file present in %s after Stop; CloseAuth did not flush", dir)
+	}
+
+	raw, err := os.ReadFile(seqFile) //nolint:gosec // test-owned tempdir
+	if err != nil {
+		t.Fatalf("read %s: %v", seqFile, err)
+	}
+	n, err := strconv.ParseUint(string(raw), 10, 32)
+	if err != nil {
+		t.Fatalf("parse %s contents %q: %v", seqFile, raw, err)
+	}
+	if n == 0 {
+		t.Fatalf("persisted sequence is zero; expected > 0 after express-loop TX")
+	}
+
+	// A fresh persister on the same directory + key must see the
+	// stored sequence as its starting floor.
+	keyStr := netip.MustParseAddr(addrB).String() + "--" + api.SingleHop.String()
+	p, err := auth.NewSeqPersister(dir, keyStr)
+	if err != nil {
+		t.Fatalf("reopen NewSeqPersister: %v", err)
+	}
+	defer func() { _ = p.Close() }()
+	if got := p.Start(); uint64(got) != n {
+		t.Fatalf("reopened Start() = %d, want %d", got, n)
 	}
 }
