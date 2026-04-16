@@ -26,6 +26,14 @@ const (
 //
 // Caller MUST call stop() to shut down the session goroutine, then
 // wait on the WaitGroup that tracks it.
+//
+// Scratch usage: writePeerUp/Down/RouteMonitoring/StatisticsReport all
+// encode into `scratch` before writeMsg flushes to the TCP connection.
+// The plugin's event loop (p.OnStructuredEvent) dispatches one event
+// at a time, and each handler iterates senders serially, so only one
+// write* call is ever in flight on a given senderSession. A single
+// scratch slice (sized to maxBMPMsgSize) therefore covers every path
+// without a lock or pool.
 type senderSession struct {
 	name    string
 	address string
@@ -37,6 +45,8 @@ type senderSession struct {
 	stopCh  chan struct{}
 	stopCtx context.Context
 	cancel  context.CancelFunc
+
+	scratch []byte
 }
 
 // newSenderSession creates a sender session for the given collector.
@@ -49,6 +59,10 @@ func newSenderSession(name string, cfg collectorConfig) *senderSession {
 		stopCh:  make(chan struct{}),
 		stopCtx: ctx,
 		cancel:  cancel,
+		// maxBMPMsgSize (65535) is the RFC 7854 ceiling. Allocating
+		// this once per collector session keeps the BGP-UPDATE → BMP
+		// Route Monitoring hot path allocation-free.
+		scratch: make([]byte, maxBMPMsgSize),
 	}
 }
 
@@ -235,6 +249,21 @@ func (ss *senderSession) waitOrStop(d time.Duration) bool {
 	}
 }
 
+// scratchFor returns ss.scratch sliced to need bytes. Lazily allocates
+// the maxBMPMsgSize buffer on first use so test fixtures that build a
+// senderSession via struct literal (no newSenderSession) work without
+// extra setup. Returns an error if need exceeds maxBMPMsgSize so the
+// caller skips the write rather than truncating.
+func (ss *senderSession) scratchFor(need int) ([]byte, error) {
+	if ss.scratch == nil {
+		ss.scratch = make([]byte, maxBMPMsgSize)
+	}
+	if need > len(ss.scratch) {
+		return nil, fmt.Errorf("bmp: message exceeds max size (%d > %d)", need, len(ss.scratch))
+	}
+	return ss.scratch[:need], nil
+}
+
 // writePeerUp encodes and sends a BMP Peer Up message.
 func (ss *senderSession) writePeerUp(peer PeerHeader, localAddr [16]byte, localPort, remotePort uint16, sentOpen, recvOpen []byte) error {
 	pu := &PeerUp{
@@ -245,7 +274,10 @@ func (ss *senderSession) writePeerUp(peer PeerHeader, localAddr [16]byte, localP
 		SentOpenMsg:     sentOpen,
 		ReceivedOpenMsg: recvOpen,
 	}
-	buf := make([]byte, CommonHeaderSize+PeerHeaderSize+peerUpFixedSize+len(sentOpen)+len(recvOpen))
+	buf, err := ss.scratchFor(CommonHeaderSize + PeerHeaderSize + peerUpFixedSize + len(sentOpen) + len(recvOpen))
+	if err != nil {
+		return err
+	}
 	n := WritePeerUp(buf, 0, pu)
 	return ss.writeMsg(buf[:n])
 }
@@ -257,7 +289,10 @@ func (ss *senderSession) writePeerDown(peer PeerHeader, reason uint8, data []byt
 		Reason: reason,
 		Data:   data,
 	}
-	buf := make([]byte, CommonHeaderSize+PeerHeaderSize+1+len(data))
+	buf, err := ss.scratchFor(CommonHeaderSize + PeerHeaderSize + 1 + len(data))
+	if err != nil {
+		return err
+	}
 	n := WritePeerDown(buf, 0, pd)
 	return ss.writeMsg(buf[:n])
 }
@@ -268,7 +303,10 @@ func (ss *senderSession) writeRouteMonitoring(peer PeerHeader, bgpUpdate []byte)
 		Peer:      peer,
 		BGPUpdate: bgpUpdate,
 	}
-	buf := make([]byte, CommonHeaderSize+PeerHeaderSize+len(bgpUpdate))
+	buf, err := ss.scratchFor(CommonHeaderSize + PeerHeaderSize + len(bgpUpdate))
+	if err != nil {
+		return err
+	}
 	n := WriteRouteMonitoring(buf, 0, rm)
 	return ss.writeMsg(buf[:n])
 }
@@ -280,11 +318,14 @@ func (ss *senderSession) writeStatisticsReport(peer PeerHeader, stats []StatEntr
 		Stats: stats,
 	}
 	// Size: header + peer + count(4) + stats entries.
-	size := CommonHeaderSize + PeerHeaderSize + 4
+	need := CommonHeaderSize + PeerHeaderSize + 4
 	for _, s := range stats {
-		size += TLVHeaderSize + len(s.Value)
+		need += TLVHeaderSize + len(s.Value)
 	}
-	buf := make([]byte, size)
+	buf, err := ss.scratchFor(need)
+	if err != nil {
+		return err
+	}
 	n := WriteStatisticsReport(buf, 0, sr)
 	return ss.writeMsg(buf[:n])
 }

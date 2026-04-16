@@ -89,6 +89,13 @@ func (s *digestSigner) Sign(buf []byte, off int, seq uint32) int {
 }
 
 // digestVerifier mirrors digestSigner on the receive side.
+//
+// BFD runs one goroutine per session, so Verify is never called
+// concurrently on a given verifier. That lets us park the two per-call
+// scratch buffers (received digest + packet copy with key substituted)
+// directly on the struct and reuse them across every Verify invocation
+// -- sub-second BFD timers made these two makes the dominant allocation
+// source on the receive path.
 type digestVerifier struct {
 	authType   uint8
 	keyID      uint8
@@ -96,10 +103,23 @@ type digestVerifier struct {
 	key        []byte
 	digest     digestFunc
 	meticulous bool
+
+	// received holds the digest extracted from the incoming packet.
+	// Length is fixed by the algorithm (16 for MD5, 20 for SHA1 =
+	// bodyLen-8) and is allocated once by newDigestVerifier.
+	received []byte
+
+	// scratch is reused for the digest-over-packet computation. It is
+	// sized at construction to the largest BFD Control + auth section
+	// combination (MandatoryLen + bodyLen) which bounds the packet
+	// length the verifier ever inspects.
+	scratch []byte
 }
 
 // newDigestVerifier builds a verifier with the same parameters as
-// newDigestSigner plus the replay-protection mode.
+// newDigestSigner plus the replay-protection mode. Pre-allocates the
+// two scratch buffers Verify needs so the receive hot path never calls
+// `make`.
 func newDigestVerifier(cfg Settings, bodyLen int, digest digestFunc, meticulous bool) *digestVerifier {
 	keySize := bodyLen - 8
 	key := make([]byte, keySize)
@@ -111,6 +131,8 @@ func newDigestVerifier(cfg Settings, bodyLen int, digest digestFunc, meticulous 
 		key:        key,
 		digest:     digest,
 		meticulous: meticulous,
+		received:   make([]byte, keySize),
+		scratch:    make([]byte, packet.MandatoryLen+bodyLen),
 	}
 }
 
@@ -141,13 +163,17 @@ func (v *digestVerifier) Verify(data []byte, c packet.Control, seqState *SeqStat
 	if err := seqState.Check(seq, v.meticulous); err != nil {
 		return err
 	}
-	received := make([]byte, v.bodyLen-8)
-	copy(received, data[off+8:off+v.bodyLen])
-	scratch := make([]byte, c.Length)
+	// Reuse the pre-allocated per-verifier scratch. v.received is sized
+	// bodyLen-8 (the digest length, fixed by algorithm) and v.scratch is
+	// sized packet.MandatoryLen+bodyLen (the largest packet this
+	// verifier ever inspects). c.Length is bounded by those at parse
+	// time, so the copies below stay within cap.
+	copy(v.received, data[off+8:off+v.bodyLen])
+	scratch := v.scratch[:c.Length]
 	copy(scratch, data[:c.Length])
 	copy(scratch[off+8:off+v.bodyLen], v.key)
 	h := v.digest(scratch)
-	if subtle.ConstantTimeCompare(h, received) != 1 {
+	if subtle.ConstantTimeCompare(h, v.received) != 1 {
 		return ErrDigestMismatch
 	}
 	seqState.Advance(seq, v.meticulous)
