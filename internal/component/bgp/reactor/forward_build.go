@@ -273,7 +273,7 @@ func buildModifiedPayload(
 	}
 
 	// Sync.Pool fallback: copy result so pool buffer can be returned.
-	result := make([]byte, off)
+	result := make([]byte, off) // pool-fallback
 	copy(result, buf[:off])
 
 	return result, 0
@@ -347,7 +347,7 @@ func buildWithdrawalPayload(payload []byte, pp *peerPool) ([]byte, int) {
 		return buf[:n], peerBufIdx
 	}
 	// Sync.Pool fallback: copy result so pool buffer can be returned.
-	result := make([]byte, n)
+	result := make([]byte, n) // pool-fallback
 	copy(result, buf[:n])
 	return result, 0
 }

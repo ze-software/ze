@@ -72,8 +72,10 @@ func ParseRouteDistinguisher(data []byte) (RouteDistinguisher, error) {
 }
 
 // Bytes returns the wire format per RFC 4364 Section 4.2.
+// Hot-path callers use WriteTo(buf, off) into a pool buffer; this method
+// is for JSON/test/format callers that need a standalone 8-byte slice.
 func (rd RouteDistinguisher) Bytes() []byte {
-	buf := make([]byte, 8)
+	buf := make([]byte, 8) // pool-fallback: result owned by caller
 	binary.BigEndian.PutUint16(buf[:2], uint16(rd.Type))
 	copy(buf[2:], rd.Value[:])
 	return buf
@@ -277,7 +279,7 @@ func ParseLabelStack(data []byte) ([]uint32, []byte, error) {
 // standalone slice. Hot-path encoders should call WriteLabelStack
 // (helpers.go) directly with a pool buffer to skip the make.
 func EncodeLabelStack(labels []uint32) []byte {
-	buf := make([]byte, len(labels)*3)
+	buf := make([]byte, len(labels)*3) // pool-fallback: result owned by caller
 	WriteLabelStack(buf, 0, labels)
 	return buf
 }

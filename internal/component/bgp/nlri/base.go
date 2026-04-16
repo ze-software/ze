@@ -63,13 +63,20 @@ func (r *RDNLRIBase) RD() RouteDistinguisher {
 }
 
 // buildData returns rd+data or a copy of data.
-// ALLOCATES - use only in Bytes(), not WriteTo().
+// ALLOCATES - use only in Bytes(), not WriteTo(). Hot-path callers write
+// directly into a pool buffer; this function backs format/test/JSON-fallback
+// callers that need a standalone result slice.
 func (r *RDNLRIBase) buildData() []byte {
 	if hasRD(r.rd) {
-		return append(r.rd.Bytes(), r.data...)
+		// RFC 4364 §4.2: RD is always 8 bytes. Pre-size and write in place
+		// instead of append(rd.Bytes(), data...) — one alloc, no hidden copies.
+		result := make([]byte, 8+len(r.data)) // pool-fallback: result owned by caller
+		r.rd.WriteTo(result, 0)
+		copy(result[8:], r.data)
+		return result
 	}
-	// Return copy to avoid aliasing original slice
-	result := make([]byte, len(r.data))
+	// Return copy to avoid aliasing original slice.
+	result := make([]byte, len(r.data)) // pool-fallback: result owned by caller
 	copy(result, r.data)
 	return result
 }

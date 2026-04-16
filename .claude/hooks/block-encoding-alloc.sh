@@ -42,16 +42,24 @@ fi
 #   - byte-slice append regressions
 # Widening produced too many false positives in the migrated files.
 #
-# The hook stays narrow. Coverage of the migrated subsystems is enforced
-# by:
+# Scope is narrow on purpose. Files included below have been audited:
+# every existing `make([]byte, ...)` site in them is either allowlisted
+# by the MAKE_ALLOW regex or carries a `// pool-fallback` opt-in comment.
+# Coverage of the other migrated subsystems (bmp/sender, filter_community,
+# bgp/nlri) is enforced by:
 #   - the design rules in `.claude/rules/design-principles.md`
 #   - the per-subsystem pool helpers (calling `make` instead is obvious in review)
 #   - `/ze-find-alloc` for periodic auditing
 IS_ENCODE=0
 case "$FILE_PATH" in
-    *update_build*)        IS_ENCODE=1 ;;
-    */message/pack*)       IS_ENCODE=1 ;;
-    *reactor_wire*)        IS_ENCODE=1 ;;
+    */message/update_build*)   IS_ENCODE=1 ;;
+    */message/update_split*)   IS_ENCODE=1 ;;
+    */message/pack*)           IS_ENCODE=1 ;;
+    */reactor_wire*)           IS_ENCODE=1 ;;
+    */reactor/forward_build*)  IS_ENCODE=1 ;;
+    */bgp/nlri/base*)          IS_ENCODE=1 ;;
+    */bgp/nlri/inet*)          IS_ENCODE=1 ;;
+    */bgp/nlri/rd*)            IS_ENCODE=1 ;;
 esac
 
 if [[ "$IS_ENCODE" -eq 0 ]]; then

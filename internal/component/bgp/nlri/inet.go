@@ -161,7 +161,7 @@ func (i *INET) Bytes() []byte {
 	prefixLen := i.prefix.Bits()
 	prefixBytes := PrefixBytes(prefixLen)
 
-	buf := make([]byte, 1+prefixBytes)
+	buf := make([]byte, 1+prefixBytes) // pool-fallback: result owned by caller
 	buf[0] = byte(prefixLen)
 	copy(buf[1:], i.prefix.Addr().AsSlice()[:prefixBytes])
 
