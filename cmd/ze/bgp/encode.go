@@ -139,7 +139,8 @@ func cmdEncode(args []string) int {
 	case safi == family.SAFIUnicast:
 		// Unicast is handled locally (not a plugin family)
 		// #nosec G115 - localAS is from uint flag, bounded by flag validation
-		ub := message.NewUpdateBuilder(uint32(*localAS), isIBGP, *asn4, *pathInfo)
+		ub := message.GetUpdateBuilder(uint32(*localAS), isIBGP, *asn4, *pathInfo)
+		defer message.PutUpdateBuilder(ub)
 		updateBytes, nlriBytes, err = encodeUnicastRoute(ub, routeCmd, afi == family.AFIIPv6, *asn4, *pathInfo)
 	default:
 		// All other families dispatch via plugin registry

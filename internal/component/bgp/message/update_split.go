@@ -83,18 +83,26 @@ func PutSplitter(s *Splitter) {
 // resetScratch prepares the scratch buffer for a new Split call.
 func (s *Splitter) resetScratch() {
 	if s.scratch == nil {
-		s.scratch = make([]byte, wire.StandardMaxSize)
+		s.scratch = make([]byte, wire.StandardMaxSize) // pool-fallback
 	}
 	s.off = 0
 }
 
-// alloc returns a sub-slice of length n from the scratch buffer. Grows the
-// scratch buffer on demand (rare; only for extended messages).
+// alloc returns a sub-slice of length n from the scratch buffer.
+//
+// First-grow path: scratch starts at StandardMaxSize (RFC 4271, 4096) and is
+// resized once to ExtendedMaxSize (RFC 8654, 65535) when Split produces an
+// extended-message chunk. A split chunk cannot exceed ExtendedMaxSize by
+// RFC; caller's maxSize argument must be <= ExtendedMaxSize. Exceeding it
+// means the caller passed a maxSize larger than any valid BGP UPDATE — that
+// case panics.
 func (s *Splitter) alloc(n int) []byte {
 	end := s.off + n
 	if end > len(s.scratch) {
-		newSize := max(len(s.scratch)*2, end)
-		newBuf := make([]byte, newSize)
+		if end > wire.ExtendedMaxSize {
+			panic("BUG: UPDATE split chunk exceeds RFC 8654 ExtendedMaxSize")
+		}
+		newBuf := make([]byte, wire.ExtendedMaxSize) // pool-fallback: bounded by RFC 8654
 		copy(newBuf, s.scratch[:s.off])
 		s.scratch = newBuf
 	}

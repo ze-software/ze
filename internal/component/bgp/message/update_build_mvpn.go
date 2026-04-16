@@ -151,6 +151,8 @@ func (ub *UpdateBuilder) BuildMVPN(routes []MVPNParams) *Update {
 // buildMPReachMVPN constructs MP_REACH_NLRI for MVPN routes.
 //
 // RFC 6514 Section 4 - MVPN NLRI format.
+// Sizes the NLRI block via mvpnNLRISize, allocates one scratch-backed value
+// buffer, and writes each NLRI directly into it via writeMVPNNLRI.
 func (ub *UpdateBuilder) buildMPReachMVPN(routes []MVPNParams) *rawAttribute {
 	if len(routes) == 0 {
 		return nil
@@ -158,10 +160,9 @@ func (ub *UpdateBuilder) buildMPReachMVPN(routes []MVPNParams) *rawAttribute {
 
 	first := routes[0]
 
-	// Build NLRI data for all routes
-	var nlriData []byte
+	totalNLRISize := 0
 	for i := range routes {
-		nlriData = append(nlriData, ub.buildMVPNNLRIBytes(routes[i])...) //nolint:gocritic // existing append pattern for NLRI aggregation
+		totalNLRISize += mvpnNLRISize(routes[i])
 	}
 
 	// AFI/SAFI
@@ -175,8 +176,8 @@ func (ub *UpdateBuilder) buildMPReachMVPN(routes []MVPNParams) *rawAttribute {
 	nhBytes := first.NextHop.AsSlice()
 	nhLen := len(nhBytes)
 
-	// Build MP_REACH_NLRI value
-	valueLen := 2 + 1 + 1 + nhLen + 1 + len(nlriData)
+	// MP_REACH_NLRI value: AFI(2) + SAFI(1) + NH_Len(1) + NH + Reserved(1) + NLRIs
+	valueLen := 2 + 1 + 1 + nhLen + 1 + totalNLRISize
 	value := ub.alloc(valueLen)
 	value[0] = byte(afi >> 8)
 	value[1] = byte(afi)
@@ -184,7 +185,11 @@ func (ub *UpdateBuilder) buildMPReachMVPN(routes []MVPNParams) *rawAttribute {
 	value[3] = byte(nhLen)
 	copy(value[4:4+nhLen], nhBytes)
 	value[4+nhLen] = 0 // reserved
-	copy(value[5+nhLen:], nlriData)
+
+	off := 5 + nhLen
+	for i := range routes {
+		off += writeMVPNNLRI(value, off, routes[i])
+	}
 
 	return &rawAttribute{
 		flags: attribute.FlagOptional,
@@ -193,66 +198,97 @@ func (ub *UpdateBuilder) buildMPReachMVPN(routes []MVPNParams) *rawAttribute {
 	}
 }
 
-// buildMVPNNLRIBytes builds a single MVPN NLRI.
+// mvpnNLRISize returns the wire-format length of a single MVPN NLRI.
 //
-// RFC 6514 Section 4 - MVPN NLRI format:
-// Route Type (1) + Length (1) + Route Type Specific Data.
-func (ub *UpdateBuilder) buildMVPNNLRIBytes(route MVPNParams) []byte {
-	var data []byte
-
+// RFC 6514 Section 4: Route Type (1) + Length (1) + Route-Type-Specific Data.
+// Unknown route types produce only the 2-byte header (zero data), matching
+// writeMVPNNLRI's behavior.
+func mvpnNLRISize(route MVPNParams) int {
+	dataLen := 0
 	switch route.RouteType {
-	case 5: // Source Active A-D
-		// RD (8) + Source (len + IP) + Group (len + IP)
-		data = append(data, route.RD[:]...)
+	case 5:
+		// RD (8) + Source (1 + addr) + Group (1 + addr)
+		dataLen = 8
 		if route.Source.Is4() {
-			data = append(data, 32) // prefix len
-			src4 := route.Source.As4()
-			data = append(data, src4[:]...)
+			dataLen += 1 + 4
 		} else {
-			data = append(data, 128)
-			src16 := route.Source.As16()
-			data = append(data, src16[:]...)
+			dataLen += 1 + 16
 		}
 		if route.Group.Is4() {
-			data = append(data, 32)
-			grp4 := route.Group.As4()
-			data = append(data, grp4[:]...)
+			dataLen += 1 + 4
 		} else {
-			data = append(data, 128)
-			grp16 := route.Group.As16()
-			data = append(data, grp16[:]...)
+			dataLen += 1 + 16
 		}
-
-	case 6, 7: // Shared Tree Join (6) or Source Tree Join (7)
-		// RD (8) + Source-AS (4) + Source/RP (len + IP) + Group (len + IP)
-		data = append(data, route.RD[:]...)
-		data = append(data, byte(route.SourceAS>>24), byte(route.SourceAS>>16),
-			byte(route.SourceAS>>8), byte(route.SourceAS))
+	case 6, 7:
+		// RD (8) + Source-AS (4) + Source (1 + addr) + Group (1 + addr)
+		dataLen = 8 + 4
 		if route.Source.Is4() {
-			data = append(data, 32)
-			src4 := route.Source.As4()
-			data = append(data, src4[:]...)
+			dataLen += 1 + 4
 		} else {
-			data = append(data, 128)
-			src16 := route.Source.As16()
-			data = append(data, src16[:]...)
+			dataLen += 1 + 16
 		}
 		if route.Group.Is4() {
-			data = append(data, 32)
-			grp4 := route.Group.As4()
-			data = append(data, grp4[:]...)
+			dataLen += 1 + 4
 		} else {
-			data = append(data, 128)
-			grp16 := route.Group.As16()
-			data = append(data, grp16[:]...)
+			dataLen += 1 + 16
 		}
 	}
+	return 2 + dataLen
+}
 
-	// MVPN NLRI: Type (1) + Length (1) + Data
-	result := ub.alloc(2 + len(data))
-	result[0] = route.RouteType
-	result[1] = byte(len(data))
-	copy(result[2:], data)
+// writeMVPNNLRI writes one MVPN NLRI into buf at off and returns bytes written.
+//
+// RFC 6514 Section 4 - NLRI format: Route Type (1) + Length (1) + Data.
+// Source/Group prefix length is 32 for IPv4, 128 for IPv6.
+// Caller MUST size buf via mvpnNLRISize(route); no capacity checks here.
+func writeMVPNNLRI(buf []byte, off int, route MVPNParams) int {
+	start := off
+	typeOff := off
+	lenOff := off + 1
+	off += 2
+	dataStart := off
 
-	return result
+	switch route.RouteType {
+	case 5: // Source Active A-D: RD + Source + Group
+		copy(buf[off:], route.RD[:])
+		off += 8
+		off += writeMVPNAddr(buf, off, route.Source)
+		off += writeMVPNAddr(buf, off, route.Group)
+
+	case 6, 7: // Shared / Source Tree Join: RD + Source-AS + Source + Group
+		copy(buf[off:], route.RD[:])
+		off += 8
+		buf[off] = byte(route.SourceAS >> 24)
+		buf[off+1] = byte(route.SourceAS >> 16)
+		buf[off+2] = byte(route.SourceAS >> 8)
+		buf[off+3] = byte(route.SourceAS)
+		off += 4
+		off += writeMVPNAddr(buf, off, route.Source)
+		off += writeMVPNAddr(buf, off, route.Group)
+	}
+
+	dataLen := off - dataStart
+	if dataLen > 0xFF {
+		// RFC 6514 NLRI Length field is 1 byte. No current route type
+		// (5/6/7) produces > 255 bytes of data, but guard against future
+		// additions that might silently truncate here.
+		panic("BUG: MVPN NLRI data exceeds 255 bytes (RFC 6514 Length field)")
+	}
+	buf[typeOff] = route.RouteType
+	buf[lenOff] = byte(dataLen)
+	return off - start
+}
+
+// writeMVPNAddr writes a prefix-length + address pair (RFC 6514 Section 4).
+func writeMVPNAddr(buf []byte, off int, addr netip.Addr) int {
+	if addr.Is4() {
+		buf[off] = 32
+		a := addr.As4()
+		copy(buf[off+1:], a[:])
+		return 5
+	}
+	buf[off] = 128
+	a := addr.As16()
+	copy(buf[off+1:], a[:])
+	return 17
 }

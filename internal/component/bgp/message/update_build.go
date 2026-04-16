@@ -17,6 +17,7 @@ import (
 	"net/netip"
 	"slices"
 	"sort"
+	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
@@ -24,6 +25,41 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
+
+// updateBuilderPool amortizes UpdateBuilder + scratch allocation across one-shot
+// callers (plugin encoders, peer_initial_sync family loops, reactor static
+// routes). The scratch buffer is retained across Put/Get cycles so subsequent
+// users reuse it. Follows the Splitter pattern (GetSplitter/PutSplitter).
+var updateBuilderPool = sync.Pool{
+	New: func() any { return &UpdateBuilder{} },
+}
+
+// GetUpdateBuilder returns a pool-backed UpdateBuilder with the given context.
+// The scratch buffer is retained across pool cycles; callers pay the 4KB
+// (or 64KB if any prior user grew it) init only on first-ever Get.
+//
+// Caller MUST return the builder via PutUpdateBuilder after all Build* results
+// have been consumed. The Update returned by Build* aliases ub.scratch —
+// returning the builder while any emitted Update is still in use will let a
+// concurrent Get overwrite the live bytes.
+func GetUpdateBuilder(localAS uint32, isIBGP, asn4, addPath bool) *UpdateBuilder {
+	ub, _ := updateBuilderPool.Get().(*UpdateBuilder)
+	ub.LocalAS = localAS
+	ub.IsIBGP = isIBGP
+	ub.ASN4 = asn4
+	ub.AddPath = addPath
+	ub.off = 0
+	return ub
+}
+
+// PutUpdateBuilder returns ub to the pool for reuse. The scratch buffer is
+// retained. See GetUpdateBuilder for the scratch-consumption contract.
+func PutUpdateBuilder(ub *UpdateBuilder) {
+	if ub == nil {
+		return
+	}
+	updateBuilderPool.Put(ub)
+}
 
 // UpdateBuilder provides context for building UPDATE messages.
 //
@@ -59,19 +95,28 @@ type UpdateBuilder struct {
 // Called at the start of each Build* method.
 func (ub *UpdateBuilder) resetScratch() {
 	if ub.scratch == nil {
-		ub.scratch = make([]byte, wire.StandardMaxSize)
+		ub.scratch = make([]byte, wire.StandardMaxSize) // pool-fallback
 	}
 	ub.off = 0
 }
 
 // alloc returns a sub-slice of length n from the scratch buffer.
 // The returned slice is valid until the next resetScratch() call.
-// Grows the scratch buffer if needed (rare — only for extended messages).
+//
+// First-grow path: scratch starts at StandardMaxSize (RFC 4271, 4096) and is
+// resized once to ExtendedMaxSize (RFC 8654, 65535) when a Build* run needs
+// extended-message capacity. A single UPDATE body cannot exceed
+// ExtendedMaxSize by RFC; exceeding it means the caller passed an input
+// whose encoded form is invalid. Build*WithMaxSize wrappers post-check the
+// built Update against maxSize (peer-negotiated, <= ExtendedMaxSize) but
+// cannot recover from a > ExtendedMaxSize alloc — that case panics.
 func (ub *UpdateBuilder) alloc(n int) []byte {
 	end := ub.off + n
 	if end > len(ub.scratch) {
-		newSize := max(len(ub.scratch)*2, end)
-		newBuf := make([]byte, newSize)
+		if end > wire.ExtendedMaxSize {
+			panic("BUG: UPDATE build exceeds RFC 8654 ExtendedMaxSize")
+		}
+		newBuf := make([]byte, wire.ExtendedMaxSize) // pool-fallback: bounded by RFC 8654
 		copy(newBuf, ub.scratch[:ub.off])
 		ub.scratch = newBuf
 	}

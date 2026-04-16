@@ -97,7 +97,7 @@ func (p *Peer) sendInitialRoutes() {
 			} else {
 				// Multi-route group - IPv4 unicast only (routeGroupKey ensures this)
 				// Use size-aware builder to respect max message size
-				ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+				ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 				params := make([]message.UnicastParams, 0, len(routes))
 				for i := range routes {
 					r := &routes[i]
@@ -109,9 +109,12 @@ func (p *Peer) sendInitialRoutes() {
 					params = append(params, toStaticRouteUnicastParams(r, nextHop, p.settings.LinkLocal, p.sendCtx.Load()))
 				}
 				if len(params) == 0 {
+					message.PutUpdateBuilder(ub)
 					continue
 				}
-				if err := ub.BuildGroupedUnicast(params, maxMsgSize, p.SendUpdate); err != nil {
+				err := ub.BuildGroupedUnicast(params, maxMsgSize, p.SendUpdate)
+				message.PutUpdateBuilder(ub)
+				if err != nil {
 					routesLogger().Debug("grouped unicast error", "peer", addr, "error", err)
 					break
 				}
@@ -422,7 +425,8 @@ func (p *Peer) sendMVPNRoutes() {
 	if len(ipv4Routes) > 0 {
 		ipv4MVPNFamily := family.Family{AFI: 1, SAFI: 5} // IPv4 MVPN
 		addPath := p.addPathFor(ipv4MVPNFamily)
-		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		defer message.PutUpdateBuilder(ub)
 		ipv4Groups := groupMVPNRoutesByKey(ipv4Routes)
 		for _, key := range sortedKeys(ipv4Groups) {
 			routes := ipv4Groups[key]
@@ -442,7 +446,8 @@ func (p *Peer) sendMVPNRoutes() {
 	if len(ipv6Routes) > 0 {
 		ipv6MVPNFamily := family.Family{AFI: 2, SAFI: 5} // IPv6 MVPN
 		addPath := p.addPathFor(ipv6MVPNFamily)
-		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		defer message.PutUpdateBuilder(ub)
 		ipv6Groups := groupMVPNRoutesByKey(ipv6Routes)
 		for _, key := range sortedKeys(ipv6Groups) {
 			routes := ipv6Groups[key]
@@ -550,7 +555,8 @@ func (p *Peer) sendVPLSRoutes() {
 		// Note: VPLS doesn't support ADD-PATH
 		vplsFamily := family.Family{AFI: 25, SAFI: 65}
 		addPath := p.addPathFor(vplsFamily)
-		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		defer message.PutUpdateBuilder(ub)
 		for i := range p.settings.VPLSRoutes {
 			update := ub.BuildVPLS(toVPLSParams(p.settings.VPLSRoutes[i]))
 			if err := p.SendUpdate(update); err != nil {
@@ -612,16 +618,19 @@ func (p *Peer) sendFlowSpecRoutes() {
 			safi = 134
 		}
 		addPath := p.addPathFor(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)})
-		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		// RFC 5575 Section 4: FlowSpec NLRI max 4095 bytes.
 		// Single FlowSpec rule is atomic - cannot be split across UPDATEs.
 		update, err := ub.BuildFlowSpecWithMaxSize(toFlowSpecParams(*route), maxMsgSize)
 		if err != nil {
+			message.PutUpdateBuilder(ub)
 			routesLogger().Debug("FlowSpec build error (too large?)", "peer", addr, "error", err)
 			continue
 		}
-		if err := p.SendUpdate(update); err != nil {
-			routesLogger().Debug("FlowSpec send error", "peer", addr, "error", err)
+		sendErr := p.SendUpdate(update)
+		message.PutUpdateBuilder(ub)
+		if sendErr != nil {
+			routesLogger().Debug("FlowSpec send error", "peer", addr, "error", sendErr)
 			continue
 		}
 		sentCount++
@@ -675,7 +684,8 @@ func (p *Peer) sendMUPRoutes() {
 		routesLogger().Debug("sending IPv4 MUP routes", "peer", addr, "count", len(ipv4Routes))
 		ipv4MUPFamily := family.Family{AFI: 1, SAFI: 85}
 		addPath := p.addPathFor(ipv4MUPFamily)
-		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		defer message.PutUpdateBuilder(ub)
 		for _, route := range ipv4Routes {
 			update := ub.BuildMUP(toMUPParams(route))
 			if err := p.SendUpdate(update); err != nil {
@@ -689,7 +699,8 @@ func (p *Peer) sendMUPRoutes() {
 		routesLogger().Debug("sending IPv6 MUP routes", "peer", addr, "count", len(ipv6Routes))
 		ipv6MUPFamily := family.Family{AFI: 2, SAFI: 85}
 		addPath := p.addPathFor(ipv6MUPFamily)
-		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		defer message.PutUpdateBuilder(ub)
 		for _, route := range ipv6Routes {
 			update := ub.BuildMUP(toMUPParams(route))
 			if err := p.SendUpdate(update); err != nil {
@@ -748,10 +759,8 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 			continue
 		}
 
-		// Build a default route UPDATE: 0.0.0.0/0 for IPv4, ::/0 for IPv6.
-		addPath := p.addPathFor(fam)
-		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
-
+		// Resolve default prefix / next-hop BEFORE acquiring the builder so
+		// early-return paths don't need a Put.
 		var nextHop netip.Addr
 		if p.settings.LocalAddress.IsValid() {
 			nextHop = p.settings.LocalAddress
@@ -774,14 +783,18 @@ func (p *Peer) sendDefaultOriginateRoutes(nc *NegotiatedCapabilities) {
 			}
 		}
 
+		// Build a default route UPDATE: 0.0.0.0/0 for IPv4, ::/0 for IPv6.
+		addPath := p.addPathFor(fam)
+		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		params := message.UnicastParams{
 			Prefix:  defaultPrefix,
 			NextHop: nextHop,
 			Origin:  attribute.OriginIGP,
 		}
 		update := ub.BuildUnicast(&params)
-
-		if err := p.SendUpdate(update); err != nil {
+		err := p.SendUpdate(update)
+		message.PutUpdateBuilder(ub)
+		if err != nil {
 			routesLogger().Debug("default-originate send error", "peer", addr, "family", familyKey, "error", err)
 			continue
 		}

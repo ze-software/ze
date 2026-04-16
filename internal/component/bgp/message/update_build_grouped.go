@@ -377,8 +377,7 @@ func (ub *UpdateBuilder) BuildGroupedMVPN(routes []MVPNParams, maxSize int, emit
 	currentSize := 0
 
 	for i := range routes {
-		nlriBytes := ub.buildMVPNNLRIBytes(routes[i])
-		nlriLen := len(nlriBytes)
+		nlriLen := mvpnNLRISize(routes[i])
 
 		// RFC 6514: MVPN NLRI is typically small (<100 bytes). Reject any single
 		// NLRI that cannot fit in an UPDATE rather than emit an oversized one.

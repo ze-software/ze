@@ -121,7 +121,8 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 // This implements the InProcessRouteEncoder signature for the plugin registry.
 func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error) {
 	isIPv6 := strings.HasPrefix(family, "ipv6/")
-	ub := message.NewUpdateBuilder(localAS, isIBGP, asn4, addPath)
+	ub := message.GetUpdateBuilder(localAS, isIBGP, asn4, addPath)
+	defer message.PutUpdateBuilder(ub)
 
 	// Parse route command
 	args := strings.Fields(routeCmd)
