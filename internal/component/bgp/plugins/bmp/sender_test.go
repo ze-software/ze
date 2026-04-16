@@ -9,6 +9,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
 
 func TestBMPSenderConnects(t *testing.T) {
@@ -260,19 +262,20 @@ func TestBMPSenderPeerDown(t *testing.T) {
 }
 
 func TestBMPSenderRouteMonitoring(t *testing.T) {
-	// VALIDATES: AC-28 -- Route Monitoring wraps BGP UPDATE
+	// VALIDATES: AC-28 -- Route Monitoring wraps BGP UPDATE with a
+	// synthesized RFC 4271 §4.1 header (marker + length + type=UPDATE).
 
 	server, client := net.Pipe()
 	defer closeLog(server, "server-pipe")
 	defer closeLog(client, "client-pipe")
 
 	ss := &senderSession{name: "test", conn: client, stopCh: make(chan struct{})}
-	bgpUpdate := []byte{0xDE, 0xAD, 0xBE, 0xEF}
+	body := []byte{0xDE, 0xAD, 0xBE, 0xEF}
 	peer := testPeerHeader()
 
 	result := asyncRead(server)
 
-	if err := ss.writeRouteMonitoring(peer, bgpUpdate); err != nil {
+	if err := ss.writeRouteMonitoring(peer, message.TypeUPDATE, body); err != nil {
 		t.Fatalf("writeRouteMonitoring: %v", err)
 	}
 
@@ -284,8 +287,23 @@ func TestBMPSenderRouteMonitoring(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *RouteMonitoring, got %T", r.msg)
 	}
-	if !bytes.Equal(rm.BGPUpdate, bgpUpdate) {
-		t.Errorf("BGP update mismatch: got %x, want %x", rm.BGPUpdate, bgpUpdate)
+
+	wantLen := message.HeaderLen + len(body)
+	if len(rm.BGPUpdate) != wantLen {
+		t.Fatalf("BGPUpdate length = %d, want %d (header + body)", len(rm.BGPUpdate), wantLen)
+	}
+	if !bytes.Equal(rm.BGPUpdate[:message.MarkerLen], message.Marker[:]) {
+		t.Errorf("marker mismatch: got %x, want %x", rm.BGPUpdate[:message.MarkerLen], message.Marker[:])
+	}
+	gotLen := uint16(rm.BGPUpdate[message.MarkerLen])<<8 | uint16(rm.BGPUpdate[message.MarkerLen+1])
+	if int(gotLen) != wantLen {
+		t.Errorf("length field = %d, want %d", gotLen, wantLen)
+	}
+	if rm.BGPUpdate[message.MarkerLen+2] != byte(message.TypeUPDATE) {
+		t.Errorf("type = %d, want %d (UPDATE)", rm.BGPUpdate[message.MarkerLen+2], message.TypeUPDATE)
+	}
+	if !bytes.Equal(rm.BGPUpdate[message.HeaderLen:], body) {
+		t.Errorf("body mismatch: got %x, want %x", rm.BGPUpdate[message.HeaderLen:], body)
 	}
 }
 

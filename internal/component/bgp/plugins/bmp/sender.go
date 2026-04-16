@@ -13,6 +13,8 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
 
 // RFC 7854 suggested reconnection intervals.
@@ -298,17 +300,30 @@ func (ss *senderSession) writePeerDown(peer PeerHeader, reason uint8, data []byt
 }
 
 // writeRouteMonitoring encodes and sends a BMP Route Monitoring message.
-func (ss *senderSession) writeRouteMonitoring(peer PeerHeader, bgpUpdate []byte) error {
-	rm := &RouteMonitoring{
-		Peer:      peer,
-		BGPUpdate: bgpUpdate,
-	}
-	buf, err := ss.scratchFor(CommonHeaderSize + PeerHeaderSize + len(bgpUpdate))
+// bgpBody is the BGP message body only (no 16B marker, no 2B length, no 1B
+// type) -- that is what bgptypes.RawMessage.RawBytes holds. The 19-byte BGP
+// message header per RFC 4271 §4.1 is synthesized inline using msgType so the
+// emitted PDU is a complete BGP message as RFC 7854 §4.6 Route Monitoring
+// requires. In practice the caller always passes message.TypeUPDATE (BMP
+// Route Monitoring carries UPDATEs per RFC 7854) but the parameter makes the
+// synthesized header explicit rather than hardcoded.
+func (ss *senderSession) writeRouteMonitoring(peer PeerHeader, msgType message.MessageType, bgpBody []byte) error {
+	bgpPDULen := message.HeaderLen + len(bgpBody)
+	total := CommonHeaderSize + PeerHeaderSize + bgpPDULen
+	buf, err := ss.scratchFor(total)
 	if err != nil {
 		return err
 	}
-	n := WriteRouteMonitoring(buf, 0, rm)
-	return ss.writeMsg(buf[:n])
+	off := CommonHeaderSize
+	off += WritePeerHeader(buf, off, peer)
+	// Synthesize BGP message header (RFC 4271 §4.1): Marker(16) + Length(2) + Type(1).
+	copy(buf[off:], message.Marker[:])
+	binary.BigEndian.PutUint16(buf[off+message.MarkerLen:], uint16(bgpPDULen)) //nolint:gosec // bgpPDULen bounded by scratch size (maxBMPMsgSize < 65535)
+	buf[off+message.MarkerLen+2] = byte(msgType)
+	off += message.HeaderLen
+	copy(buf[off:], bgpBody)
+	WriteCommonHeader(buf, 0, CommonHeader{Version: Version, Length: uint32(total), Type: MsgRouteMonitoring}) //nolint:gosec // total bounded by scratch size
+	return ss.writeMsg(buf[:total])
 }
 
 // writeStatisticsReport encodes and sends a BMP Statistics Report.

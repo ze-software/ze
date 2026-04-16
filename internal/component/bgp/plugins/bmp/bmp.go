@@ -18,6 +18,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -567,14 +569,14 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 // Adj-RIB-Out per RFC 8671) updates. The O flag in the Per-Peer Header
 // distinguishes the two directions.
 func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*senderSession) {
-	rawBytes := rawUpdateBytes(se)
+	rawBytes, msgType := rawUpdateBytes(se)
 	if rawBytes == nil {
 		return
 	}
 
 	peer := peerHeaderFromEvent(se)
 	for _, ss := range senders {
-		if err := ss.writeRouteMonitoring(peer, rawBytes); err != nil {
+		if err := ss.writeRouteMonitoring(peer, msgType, rawBytes); err != nil {
 			logger().Debug("bmp: sender route monitoring failed", "collector", ss.name, "error", err)
 		}
 	}
@@ -653,24 +655,19 @@ func parseUint16(s string, def uint16) uint16 {
 	return uint16(v)
 }
 
-// rawUpdateBytes extracts the raw BGP UPDATE wire bytes from a StructuredEvent.
-// Returns nil if not available.
-func rawUpdateBytes(se *rpc.StructuredEvent) []byte {
-	if se.RawMessage == nil {
-		return nil
+// rawUpdateBytes returns the BGP message body bytes (without the 19-byte BGP
+// header) and the BGP message type from a StructuredEvent, or (nil, 0) if
+// not available. The BGP message header is synthesized downstream by
+// writeRouteMonitoring using the returned msgType.
+//
+// se.RawMessage is interface{}-typed for SDK-protocol reasons, but in
+// production it is always *bgptypes.RawMessage (set by server/events.go
+// getStructuredEvent); msg.RawBytes is documented as the message body without
+// marker/header, matching session_read.go body and session_write.go body.
+func rawUpdateBytes(se *rpc.StructuredEvent) ([]byte, message.MessageType) {
+	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
+	if !ok || msg == nil {
+		return nil, 0
 	}
-
-	// The RawMessage is interface{} -- try to extract wire bytes.
-	// Types that carry wire data have a Bytes() or Raw() method.
-	type rawer interface{ Raw() []byte }
-	if r, ok := se.RawMessage.(rawer); ok {
-		return r.Raw()
-	}
-
-	type byteser interface{ Bytes() []byte }
-	if b, ok := se.RawMessage.(byteser); ok {
-		return b.Bytes()
-	}
-
-	return nil
+	return msg.RawBytes, msg.Type
 }
