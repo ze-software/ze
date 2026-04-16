@@ -65,9 +65,15 @@ func TestInProcessBasicRoute(t *testing.T) {
 	defer cancel()
 
 	result, err := Run(ctx, RunConfig{
-		Profiles:  profiles,
-		Seed:      42,
-		Duration:  10 * time.Second,
+		Profiles: profiles,
+		Seed:     42,
+		// 25s duration covers the observed ~46s wall-clock slowdown under
+		// `make ze-verify-fast` parallel load (reactor startup + OPEN/
+		// KEEPALIVE for two peers + 5-route advertisement). The enclosing
+		// ctx timeout of 30s still bounds total runtime. Isolated runs
+		// finish in ~3s, so this is ~8x slack, matching the worst-case
+		// slowdown observed under parallel-binary CPU contention.
+		Duration:  25 * time.Second,
 		LocalAS:   65000,
 		RouterID:  netip.MustParseAddr("10.0.0.1"),
 		LocalAddr: "127.0.0.1",
