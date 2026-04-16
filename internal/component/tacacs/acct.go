@@ -37,57 +37,77 @@ type AcctRequest struct {
 	Args          []string
 }
 
-// MarshalBinary encodes an AcctRequest body.
-// Returns error if any variable field exceeds 255 bytes (uint8 length limit).
-func (a *AcctRequest) MarshalBinary() ([]byte, error) {
+// MarshalBinaryInto encodes an AcctRequest body into dst and returns
+// the number of bytes written. Used by the client to write directly
+// into a pooled wire buffer; dst MUST have capacity for the full body.
+//
+// Returns error if any variable field exceeds 255 bytes (uint8 length
+// limit) or if dst is too small.
+func (a *AcctRequest) MarshalBinaryInto(dst []byte) (int, error) {
 	userLen := len(a.User)
 	portLen := len(a.Port)
 	remLen := len(a.RemAddr)
 	argCount := len(a.Args)
 
 	if userLen > 255 || portLen > 255 || remLen > 255 || argCount > 255 {
-		return nil, fmt.Errorf("field exceeds 255: user=%d port=%d rem=%d args=%d",
+		return 0, fmt.Errorf("field exceeds 255: user=%d port=%d rem=%d args=%d",
 			userLen, portLen, remLen, argCount)
 	}
 	for i, arg := range a.Args {
 		if len(arg) > 255 {
-			return nil, fmt.Errorf("arg[%d] exceeds 255 bytes: %d", i, len(arg))
+			return 0, fmt.Errorf("arg[%d] exceeds 255 bytes: %d", i, len(arg))
 		}
 	}
 
-	// Calculate total size: 9 fixed + argCount arg lengths + variable fields.
 	varLen := userLen + portLen + remLen
 	for _, arg := range a.Args {
 		varLen += len(arg)
 	}
-	body := make([]byte, 9+argCount+varLen)
+	need := 9 + argCount + varLen
+	if len(dst) < need {
+		return 0, fmt.Errorf("acct request buffer too small: need %d, have %d", need, len(dst))
+	}
 
-	body[0] = a.Flags
-	body[1] = a.AuthenMethod
-	body[2] = a.PrivLvl
-	body[3] = a.AuthenType
-	body[4] = a.AuthenService
-	body[5] = uint8(userLen)
-	body[6] = uint8(portLen)
-	body[7] = uint8(remLen)
-	body[8] = uint8(argCount)
+	dst[0] = a.Flags
+	dst[1] = a.AuthenMethod
+	dst[2] = a.PrivLvl
+	dst[3] = a.AuthenType
+	dst[4] = a.AuthenService
+	dst[5] = uint8(userLen)
+	dst[6] = uint8(portLen)
+	dst[7] = uint8(remLen)
+	dst[8] = uint8(argCount)
 
-	// Arg lengths.
 	off := 9
 	for _, arg := range a.Args {
-		body[off] = uint8(len(arg))
+		dst[off] = uint8(len(arg))
 		off++
 	}
 
-	// Variable fields.
-	off += copy(body[off:], a.User)
-	off += copy(body[off:], a.Port)
-	off += copy(body[off:], a.RemAddr)
+	off += copy(dst[off:], a.User)
+	off += copy(dst[off:], a.Port)
+	off += copy(dst[off:], a.RemAddr)
 	for _, arg := range a.Args {
-		off += copy(body[off:], arg)
+		off += copy(dst[off:], arg)
 	}
 
-	return body, nil
+	return off, nil
+}
+
+// MarshalBinary encodes an AcctRequest body to a freshly-allocated
+// slice. Retained for round-trip unit tests; production code paths use
+// MarshalBinaryInto with a pooled buffer.
+func (a *AcctRequest) MarshalBinary() ([]byte, error) {
+	varLen := len(a.User) + len(a.Port) + len(a.RemAddr)
+	for _, arg := range a.Args {
+		varLen += len(arg)
+	}
+	body := make([]byte, 9+len(a.Args)+varLen)
+	n, err := a.MarshalBinaryInto(body)
+	if err != nil {
+		return nil, err
+	}
+	return body[:n], nil
 }
 
 // AcctReply is an accounting REPLY packet body.

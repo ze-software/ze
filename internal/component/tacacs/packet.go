@@ -53,15 +53,28 @@ type PacketHeader struct {
 }
 
 // MarshalBinary encodes the header to 12 bytes in network byte order.
+// Retained for tests; production paths use MarshalInto to write directly
+// into a pooled wire buffer.
 func (h *PacketHeader) MarshalBinary() []byte {
 	buf := make([]byte, hdrLen)
-	buf[0] = h.Version
-	buf[1] = h.Type
-	buf[2] = h.SeqNo
-	buf[3] = h.Flags
-	binary.BigEndian.PutUint32(buf[4:8], h.SessionID)
-	binary.BigEndian.PutUint32(buf[8:12], h.Length)
+	h.MarshalInto(buf)
 	return buf
+}
+
+// MarshalInto writes the 12-byte header into dst in network byte order.
+// dst MUST have at least hdrLen bytes available; the caller normally
+// passes `buf[:hdrLen]` where `buf` is a pool buffer whose body slot
+// `buf[hdrLen:]` has already been filled by a request type's
+// MarshalBinaryInto. Returns hdrLen for symmetry with body writers.
+func (h *PacketHeader) MarshalInto(dst []byte) int {
+	_ = dst[hdrLen-1] // bounds check hint for the compiler
+	dst[0] = h.Version
+	dst[1] = h.Type
+	dst[2] = h.SeqNo
+	dst[3] = h.Flags
+	binary.BigEndian.PutUint32(dst[4:8], h.SessionID)
+	binary.BigEndian.PutUint32(dst[8:12], h.Length)
+	return hdrLen
 }
 
 // UnmarshalPacketHeader decodes a 12-byte header from network byte order.
@@ -100,9 +113,17 @@ func Encrypt(body []byte, sessionID uint32, key []byte, version, seqNo uint8) {
 		return
 	}
 
-	// Build the initial MD5 input: session_id(4) + key(N) + version(1) + seq_no(1)
+	// Build the initial MD5 input: session_id(4) + key(N) + version(1) + seq_no(1).
+	// TACACS+ shared secrets are typically 16-64 bytes, so the 256-byte stack
+	// scratch covers every realistic key. Larger keys fall back to the heap.
 	inputLen := 4 + len(key) + 2
-	input := make([]byte, inputLen)
+	var stack [256]byte
+	var input []byte
+	if inputLen <= len(stack) {
+		input = stack[:inputLen]
+	} else {
+		input = make([]byte, inputLen)
+	}
 	binary.BigEndian.PutUint32(input[0:4], sessionID)
 	copy(input[4:4+len(key)], key)
 	input[inputLen-2] = version
