@@ -118,6 +118,7 @@ roles enforcement. Filters compose in ordered chains:
 | ASPA verification | No | Yes | Yes | No | No | No | No | No | Yes | Yes | No |
 | Private AS removal | No | Yes | Yes | No | No | Yes | Yes | No | Yes | Yes | Yes |
 | Privilege separation | No | No | No | No | No | No | No | No | Yes | No | No |
+| TACACS+ AAA (RFC 8907) | Yes | No | No | No | No | Yes | No | No | No | No | Yes |
 | Memory-safe language | Yes | Yes | No | Yes | Yes | No | Yes | Yes | No | No | Yes |
 
 ## Monitoring & Observability

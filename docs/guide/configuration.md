@@ -567,6 +567,43 @@ commit. For end-to-end usage (login, hashing, multi-user setup) see
 <!-- source: internal/component/ssh/schema/ze-ssh-conf.yang -- system.authentication.user -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
 
+### TACACS+ AAA
+
+`system.authentication.tacacs` adds RFC 8907 TACACS+ as the first backend
+in the AAA chain; local bcrypt remains the fallback. Servers are tried in
+declaration order on connection failure. Explicit FAIL replies stop the
+chain (no fallthrough to local). See [tacacs.md](tacacs.md) for the full
+flow and operational notes.
+
+```
+system {
+    authentication {
+        tacacs {
+            server 10.0.0.1 { port 49; key "$9$encrypted-key"; }
+            server 10.0.0.2 { port 49; key "$9$encrypted-key"; }
+            timeout 5
+            accounting true
+        }
+        tacacs-profile 15 { profile [ admin ]; }
+        tacacs-profile 1  { profile [ read-only ]; }
+    }
+}
+```
+
+| Leaf | Type | Default | Notes |
+|------|------|---------|-------|
+| `tacacs.server <ip>` | list, ordered-by-user | - | Failover order |
+| `tacacs.server <ip>.port` | uint16 | 49 | TCP |
+| `tacacs.server <ip>.key` | string (`ze:sensitive`) | required | Stored as `$9$` ciphertext |
+| `tacacs.timeout` | uint16 (1-300) | 5 | Per-server connect timeout (s) |
+| `tacacs.source-address` | ip-address | none | Local source IP for outbound TCP |
+| `tacacs.authorization` | boolean | false | Per-command TACACS+ authorization |
+| `tacacs.accounting` | boolean | false | START/STOP records on every CLI command |
+| `tacacs-profile <N>.profile` | leaf-list | required | Map priv-lvl 0-15 to local authz profile name(s) |
+
+<!-- source: internal/component/tacacs/schema/ze-tacacs-conf.yang -- system.authentication.tacacs -->
+<!-- source: internal/component/tacacs/config.go -- ExtractConfig -->
+
 ## Sysctl Configuration
 
 Kernel tunables are managed by the `sysctl` plugin via a generic key/value list:

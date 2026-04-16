@@ -57,6 +57,8 @@ func main() {
 		os.Exit(textPluginCmd())
 	case "rtr-mock":
 		os.Exit(rtrMockCmd())
+	case "tacacs-mock":
+		os.Exit(tacacsMockCmd())
 	case "rpki":
 		os.Exit(rpkiCmd())
 	case "peeringdb":

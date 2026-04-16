@@ -76,10 +76,10 @@ func ExtractConfig(tree *config.Tree) ExtractedConfig {
 		if v, ok := tacContainer.Get("source-address"); ok {
 			cfg.SourceAddress = v
 		}
-		if _, ok := tacContainer.Get("authorization"); ok {
+		if v, ok := tacContainer.Get("authorization"); ok && v == "true" {
 			cfg.Authorization = true
 		}
-		if _, ok := tacContainer.Get("accounting"); ok {
+		if v, ok := tacContainer.Get("accounting"); ok && v == "true" {
 			cfg.Accounting = true
 		}
 	}

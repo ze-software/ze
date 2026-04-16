@@ -46,8 +46,8 @@ func TestExtractConfigServers(t *testing.T) {
 
 	tac.Set("timeout", "10")
 	tac.Set("source-address", "192.168.1.1")
-	tac.Set("authorization", "")
-	tac.Set("accounting", "")
+	tac.Set("authorization", "true")
+	tac.Set("accounting", "true")
 
 	auth.SetContainer("tacacs", tac)
 	sys.SetContainer("authentication", auth)

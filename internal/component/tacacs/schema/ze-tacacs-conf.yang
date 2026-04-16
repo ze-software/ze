@@ -57,12 +57,14 @@ module ze-tacacs-conf {
                 }
 
                 leaf authorization {
-                    type empty;
+                    type boolean;
+                    default false;
                     description "Enable per-command TACACS+ authorization";
                 }
 
                 leaf accounting {
-                    type empty;
+                    type boolean;
+                    default false;
                     description "Enable command execution accounting";
                 }
             }

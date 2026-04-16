@@ -59,6 +59,12 @@ Ze is a BGP daemon written in Go.
 <!-- source: internal/component/vpp/telemetry.go -- stats poller, Prometheus metrics -->
 <!-- source: internal/plugins/fibvpp/fibvpp.go -- FIB route programming -->
 | L2TPv2 Tunnels | RFC 2661 L2TPv2 tunnel lifecycle: LNS-side SCCRQ/SCCRP/SCCCN handshake, CHAP-MD5 challenge/response authentication, HELLO keepalive with configurable interval, peer StopCCN teardown with post-teardown retention window, tie-breaker resolution for simultaneous open. Single UDP listener with reactor/timer goroutine pair, reliable delivery with sliding window and congestion avoidance. |
+| [TACACS+ AAA](guide/tacacs.md) | RFC 8907 TACACS+ client for SSH login: PAP authentication, ordered server failover with per-server timeout, MD5 pseudo-pad body encryption, priv-lvl-to-profile mapping, command accounting (START/STOP records on every dispatched CLI command), and explicit-reject vs unreachable distinction so wrong-password TACACS+ replies do NOT silently fall through to local bcrypt. Runs as a pluggable `aaa.Authenticator` so local bcrypt remains the fallback when every TACACS+ server is unreachable. |
+<!-- source: internal/component/tacacs/client.go -- TacacsClient, server failover -->
+<!-- source: internal/component/tacacs/packet.go -- PacketHeader, Encrypt (RFC 8907 §4.6 MD5 pseudo-pad) -->
+<!-- source: internal/component/tacacs/authenticator.go -- TacacsAuthenticator, priv-lvl handling -->
+<!-- source: internal/component/tacacs/accounting.go -- TacacsAccountant, START/STOP via Dispatcher hook -->
+<!-- source: internal/component/tacacs/register.go -- aaa.Default.Register, AAA chain integration -->
 <!-- source: internal/component/l2tp/subsystem.go -- L2TPSubsystem lifecycle -->
 <!-- source: internal/component/l2tp/reactor.go -- L2TPReactor dispatch -->
 <!-- source: internal/component/l2tp/tunnel_fsm.go -- tunnel FSM transitions -->

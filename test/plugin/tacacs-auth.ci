@@ -1,0 +1,138 @@
+# Test: TACACS+ authentication succeeds over SSH
+#
+# Flow:
+# 1. ze-test tacacs-mock starts on a random port, accepts admin:testpass @ priv-lvl 15
+# 2. Daemon starts with ONLY TACACS+ configured (no local admin user)
+# 3. ze init writes admin/testpass client creds
+# 4. ze cli -c "summary" authenticates admin via TACACS+
+# 5. Daemon logs "TACACS+ auth success" -- confirms the chain dispatched to TACACS+
+#
+# VALIDATES: AC-1 -- TACACS+ server configured, valid credentials => user authenticated,
+#             priv-lvl 15 mapped to "admin" profile.
+# VALIDATES: AC-6 -- priv-lvl 15 maps to admin profile.
+# PREVENTS: TACACS+ backend registered but not reached by the chain, leaving SSH auth
+#           on local bcrypt silently.
+
+tmpfs=test-tacacs-auth.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+# Signal test runner readiness
+touch daemon.ready
+
+# Start TACACS+ mock on random port, address written to mock.addr
+ze-test tacacs-mock --port 0 --key ze-mock-key \
+	--user admin:testpass:15 --addr-file mock.addr 2>mock.log &
+MOCK_PID=$!
+trap 'kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
+
+# Wait for mock to write its address
+MOCK_ADDR=""
+for i in $(seq 1 30); do
+	if [ -s mock.addr ]; then
+		MOCK_ADDR=$(cat mock.addr)
+		break
+	fi
+	sleep 0.1
+done
+if [ -z "$MOCK_ADDR" ]; then
+	echo "FAIL: TACACS+ mock did not report address" >&2
+	cat mock.log >&2
+	exit 1
+fi
+MOCK_IP=$(echo "$MOCK_ADDR" | cut -d: -f1)
+MOCK_PORT=$(echo "$MOCK_ADDR" | cut -d: -f2)
+echo "mock at $MOCK_ADDR" >&2
+
+# Daemon config -- no local admin user. Only TACACS+ can authenticate admin.
+cat > tacacs-auth.conf <<ZECONF
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; accept false; }
+			local  { ip 127.0.0.1; }
+		}
+		session { asn { local 65533; remote 65533; } }
+	}
+}
+
+system {
+	authentication {
+		tacacs {
+			server ${MOCK_IP} { port ${MOCK_PORT}; key "ze-mock-key"; }
+			timeout 2;
+		}
+		tacacs-profile 15 { profile [ admin ]; }
+	}
+	authorization {
+		profile admin { run { default-action allow; } edit { default-action allow; } }
+	}
+}
+
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port 0; }
+	}
+}
+ZECONF
+
+# BGP port derived from PID so concurrent tests do not collide
+export ze_bgp_tcp_port=$((10000 + ($$ % 50000)))
+
+# Start daemon, capturing stderr to a file so we can replay it to the script's
+# stderr after the auth attempt (so .ci runner's stderr patterns match).
+ze tacacs-auth.conf 2>daemon.log &
+DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true; kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
+
+# Wait for SSH listener
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
+		break
+	fi
+	sleep 0.2
+done
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: SSH server did not start" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+echo "ssh on :$SSH_PORT" >&2
+
+# Brief delay for post-start wiring
+sleep 0.5
+
+# Client: admin/testpass -- only TACACS+ accepts, no local admin user exists
+ADMIN_DIR=$(mktemp -d)
+trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true; kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
+printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
+
+OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "summary" 2>&1) || {
+	echo "FAIL: 'summary' via TACACS+ auth" >&2
+	echo "OUTPUT: $OUTPUT" >&2
+	echo "--- daemon log ---" >&2
+	cat daemon.log >&2
+	echo "--- mock log ---" >&2
+	cat mock.log >&2
+	exit 1
+}
+echo "OK: summary ran via TACACS+ auth" >&2
+
+# Give the daemon a beat to emit the "TACACS+ auth success" log, then replay
+# daemon.log to this script's stderr so the .ci runner's expect=stderr:pattern
+# matchers can see it.
+sleep 0.3
+cat daemon.log >&2
+
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-tacacs-auth.sh:timeout=20s
+expect=exit:code=0
+# SSH emits "auth success ... source=tacacs" after the Authenticator chain
+# returns from TacacsAuthenticator -- this is the proof that TACACS+ (not local
+# bcrypt) satisfied the credential check.
+expect=stderr:pattern=auth success.*source=tacacs

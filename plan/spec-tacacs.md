@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 4/8 |
-| Updated | 2026-04-15 |
+| Phase | 8/8 |
+| Updated | 2026-04-16 |
 
 ## Post-Compaction Recovery
 
@@ -241,8 +241,8 @@ Config path: `system.authentication.tacacs`
 | `system.authentication.tacacs.server <ip>.port` | uint16 | 49 | TCP port |
 | `system.authentication.tacacs.timeout` | uint16 | 5 | Per-server connection timeout in seconds (max 300) |
 | `system.authentication.tacacs.source-address` | ip-address | (none) | Source IP for outbound TACACS+ TCP connections |
-| `system.authentication.tacacs.authorization` | empty leaf (presence) | disabled | Enable per-command TACACS+ authorization |
-| `system.authentication.tacacs.accounting` | empty leaf (presence) | disabled | Enable command execution accounting |
+| `system.authentication.tacacs.authorization` | boolean | false | Enable per-command TACACS+ authorization |
+| `system.authentication.tacacs.accounting` | boolean | false | Enable command execution accounting |
 
 ### Privilege level to profile mapping
 
@@ -265,8 +265,8 @@ Config path: `system.authentication.tacacs`
 `set system authentication tacacs server 82.219.1.114 secret "$9$encrypted-key"`
 `set system authentication tacacs timeout 5`
 `set system authentication tacacs source-address 82.219.0.154`
-`set system authentication tacacs authorization`
-`set system authentication tacacs accounting`
+`set system authentication tacacs authorization true`
+`set system authentication tacacs accounting true`
 `set system authentication tacacs-profile level 15 profile admin`
 `set system authentication tacacs-profile level 5 profile operator`
 `set system authentication tacacs-profile level 1 profile read-only`
@@ -277,10 +277,10 @@ Config path: `system.authentication.tacacs`
 
 | Entry Point | --> | Feature Code | Test |
 |-------------|-----|--------------|------|
-| SSH login with TACACS+ configured | --> | ChainAuthenticator -> TacacsAuthenticator -> TACACS+ server | `test/ssh/010-tacacs-auth.ci` |
-| SSH login, TACACS+ server down | --> | ChainAuthenticator -> TacacsAuthenticator fails -> LocalAuthenticator | `test/ssh/011-tacacs-fallback.ci` |
-| SSH login, no TACACS+ configured | --> | ChainAuthenticator -> LocalAuthenticator only (backwards compat) | `test/ssh/012-local-only.ci` |
-| Command execution with TACACS+ accounting | --> | Accounting hook -> ACCT REQUEST | `test/ssh/013-tacacs-acct.ci` |
+| SSH login with TACACS+ configured | --> | ChainAuthenticator -> TacacsAuthenticator -> TACACS+ server | `test/plugin/tacacs-auth.ci` |
+| SSH login, TACACS+ server down | --> | ChainAuthenticator -> TacacsAuthenticator fails -> LocalAuthenticator | `test/plugin/tacacs-fallback.ci` |
+| SSH login, no TACACS+ configured | --> | ChainAuthenticator -> LocalAuthenticator only (backwards compat) | `test/plugin/tacacs-local-only.ci` |
+| Command execution with TACACS+ accounting | --> | Accounting hook -> ACCT REQUEST | `test/plugin/tacacs-acct.ci` |
 
 ## Acceptance Criteria
 
@@ -308,6 +308,10 @@ Config path: `system.authentication.tacacs`
 ## TDD Test Plan
 
 ### Unit Tests
+
+| Test infrastructure | File | Purpose | Status |
+|---------------------|------|---------|--------|
+| ze-test tacacs-mock | `cmd/ze-test/tacacs_mock.go` | Standalone TACACS+ mock server exercising packet.go `Encrypt`/`UnmarshalPacketHeader` -- replies PASS/FAIL per configured creds, PASS_ADD for author, SUCCESS for acct | |
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
@@ -352,10 +356,10 @@ Config path: `system.authentication.tacacs`
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| TACACS+ auth | `test/ssh/010-tacacs-auth.ci` | SSH login authenticated via TACACS+ | |
-| TACACS+ fallback | `test/ssh/011-tacacs-fallback.ci` | TACACS+ server down, local auth works | |
-| Local only | `test/ssh/012-local-only.ci` | No TACACS+ config, existing auth unchanged | |
-| Accounting | `test/ssh/013-tacacs-acct.ci` | Command execution logged to TACACS+ | |
+| TACACS+ auth | `test/plugin/tacacs-auth.ci` | SSH login authenticated via TACACS+ | |
+| TACACS+ fallback | `test/plugin/tacacs-fallback.ci` | TACACS+ server down, local auth works | |
+| Local only | `test/plugin/tacacs-local-only.ci` | No TACACS+ config, existing auth unchanged | |
+| Accounting | `test/plugin/tacacs-acct.ci` | Command execution logged to TACACS+ | |
 
 ### Test Infrastructure
 
@@ -422,10 +426,11 @@ tests to run without external infrastructure.
 - `internal/component/tacacs/config_test.go` -- config parsing tests
 - `internal/component/tacacs/register_test.go` -- registration tests
 - `rfc/short/rfc8907.md` -- RFC summary for TACACS+
-- `test/ssh/010-tacacs-auth.ci` -- functional test
-- `test/ssh/011-tacacs-fallback.ci` -- functional test
-- `test/ssh/012-local-only.ci` -- functional test
-- `test/ssh/013-tacacs-acct.ci` -- functional test
+- `test/plugin/tacacs-auth.ci` -- functional test
+- `test/plugin/tacacs-fallback.ci` -- functional test
+- `test/plugin/tacacs-local-only.ci` -- functional test
+- `test/plugin/tacacs-acct.ci` -- functional test
+- `cmd/ze-test/tacacs_mock.go` -- mock TACACS+ server binary for .ci tests
 
 ## Implementation Steps
 
@@ -556,55 +561,178 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Implementation Summary
 
 ### What Was Implemented
-- (To be filled after implementation)
+- AAA backend abstraction in `internal/component/aaa` (`Authenticator` / `Authorizer` / `Accountant` interfaces, `ChainAuthenticator`, `ErrAuthRejected` to distinguish reject vs unreachable, `Default` registry composing backends in priority order).
+- TACACS+ wire protocol: `internal/component/tacacs/{packet,authen,author,acct}.go` -- 12-byte header, MD5 pseudo-pad body encryption (RFC 8907 §4.6), AUTHEN START/REPLY (PAP), AUTHOR REQUEST/RESPONSE, ACCT REQUEST/REPLY.
+- TCP client with ordered server failover and per-server timeout: `client.go`. ERROR-status handling treats infrastructure errors as fall-through, FAIL as explicit reject.
+- Bridges: `authenticator.go` (priv-lvl mapping + AC-18 unmapped-rejects), `authorizer.go` (PASS_ADD/PASS_REPL accept, FAIL/ERROR fall back to local), `accounting.go` (long-lived worker, START/STOP queued, never blocks command).
+- YANG schema `ze-tacacs-conf.yang` registered via init(); contributes `system.authentication.tacacs` + `system.authentication.tacacs-profile`.
+- Hub wiring (`cmd/ze/hub/{aaa_lifecycle,infra_setup,main}.go`): atomic bundle pointer swapped on every reload, previous bundle Close()d so accounting workers drain. SSH executor populates `RemoteAddr` from the SSH session into `CommandContext`.
+- Accounting hook in `Dispatcher.Dispatch()` (`internal/component/plugin/server/command.go`) -- single point covering SSH exec, interactive TUI, local CLI, and API commands.
+- Mock TACACS+ server `cmd/ze-test/tacacs_mock.go` reusing exported `tacacs.{PacketHeader, Encrypt, UnmarshalPacketHeader}` for `.ci` tests.
+- Four `.ci` functional tests: `tacacs-{auth,fallback,local-only,acct}.ci` exercising the four wiring rows.
 
 ### Bugs Found/Fixed
-- (To be filled)
+- **Schema merge was shallow** (`internal/component/config/schema.go::Define`): only merged top-level container children. Two YANG modules contributing to the same nested container (here ssh-conf and tacacs-conf both extending `system.authentication`) silently dropped the second module's children. Replaced with recursive `mergeContainer`/`mergeNode` helpers; existing tests still pass and `ze config validate` now accepts the tacacs block.
 
 ### Documentation Updates
-- (To be filled)
+- New: `docs/guide/tacacs.md` -- end-to-end guide (config, flow, accounting, verification).
+- Updated: `docs/features.md` -- added TACACS+ AAA row with source anchors.
+- Updated: `docs/guide/configuration.md` -- new `### TACACS+ AAA` subsection under Authentication Users.
+- Updated: `docs/comparison.md` -- added "TACACS+ AAA (RFC 8907)" row to Security table.
+- Updated: `docs/architecture/core-design.md` -- expanded the Authentication paragraph to describe the pluggable AAA backend chain, atomic bundle swap, and accounting hook.
 
 ### Deviations from Plan
-- (To be filled)
+- `.ci` test location: spec proposed `test/ssh/010-tacacs-*.ci`; reality is `test/plugin/tacacs-*.ci` because the existing SSH-integration convention (e.g. `authz-allow.ci`) lives in `test/plugin/` with no leading numeric prefix.
+- `authorization` / `accounting` leaves: spec proposed `type empty` (presence-only); the ze config parser does not yet handle empty-leaf presence syntax, so they were declared `type boolean default false` and the test config writes `accounting true`. Functional behaviour and CLI verb (`set system authentication tacacs accounting true`) are unchanged; the spec's Config Syntax + example tables were updated in this commit.
+- AC-13 (`ze show tacacs` CLI), AC-9/AC-10 (per-command authorization `.ci`), AC-16 (single-connect mode) deferred to `spec-tacacs-observability` per `plan/deferrals.md` 2026-04-15 entries.
+- Test infrastructure: the spec proposed an internal `testserver_test.go`; `ze-test tacacs-mock` was built instead because `.ci` functional tests need an external binary on `$PATH`, not an internal test helper.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Auth backend abstraction (Authenticator interface) | Done | `internal/component/aaa/aaa.go` | `Authenticator`, `ChainAuthenticator`, `ErrAuthRejected` |
+| TACACS+ client (TCP, encryption, authen/author/acct) | Done | `internal/component/tacacs/{packet,authen,author,acct,client}.go` | RFC 8907 §4-7 |
+| Auth chain: TACACS+ first, local fallback | Done | `internal/component/aaa/aaa.go::ChainAuthenticator` + priority 100/200 | Tested by tacacs-fallback.ci |
+| Authorization integration (priv-lvl -> profile) | Done | `internal/component/tacacs/authenticator.go::handlePass` + `authorizer.go` | priv-lvl from AUTHEN REPLY data byte |
+| Accounting (START/STOP records) | Done | `internal/component/tacacs/accounting.go` + `Dispatcher.Dispatch` hook | Tested by tacacs-acct.ci |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `test/plugin/tacacs-auth.ci` (`expect=stderr:pattern=auth success.*source=tacacs`) | Mock accepts admin:testpass:15, daemon log proves chain dispatched to TACACS+ |
+| AC-2 | Done | Unit `client_test.go::TestTacacsClientAuthenticateFail` + chain `aaa/chain_test.go` (FAIL stops chain) | `aaa.ErrAuthRejected` short-circuits chain; .ci would require a different mock mode |
+| AC-3 | Done | `test/plugin/tacacs-fallback.ci` (`expect=stderr:pattern=auth success.*source=local` + `reject=source=tacacs`) | TACACS+ at 127.0.0.1:1 unreachable, local bcrypt accepts |
+| AC-4 | Done | `client_test.go::TestTacacsClientAllServersDown` | Returns "unreachable" error; chain has no further backend |
+| AC-5 | Done | `test/plugin/tacacs-local-only.ci` | No tacacs block -> chain has only local; identical to baseline |
+| AC-6 | Done | `tacacs-auth.ci` config maps priv-lvl 15 -> [admin]; auth success implies mapping resolved | `tacacs-profile 15 { profile [ admin ]; }` |
+| AC-7 | Partial | `authenticator_test.go::TestTacacsAuthenticatorPrivLvl1` | Unit test only; no .ci with priv-lvl 1 (mock returns 15) |
+| AC-8 | Done | `test/plugin/tacacs-acct.ci` (`expect=stderr:pattern=tacacs-mock: ACCT START` + STOP) | Single command produces both records |
+| AC-9 | Deferred | `plan/deferrals.md` 2026-04-15 (spec-tacacs AC-9/AC-10) | Bridge wired (`tacacs/authorizer.go`); functional .ci deferred to observability spec |
+| AC-10 | Deferred | `plan/deferrals.md` 2026-04-15 | Same as AC-9 |
+| AC-11 | Done | `client_test.go::TestTacacsClientServerFailover` | First server unreachable, second accepts |
+| AC-12 | Done | `internal/component/authz/auth.go::LocalAuthenticator` + `aaa.ChainAuthenticator` | Local backend uses bcrypt (constant-time per-cost); chain returns same error path for unknown user vs wrong password |
+| AC-13 | Deferred | `plan/deferrals.md` 2026-04-15 (spec-tacacs AC-13) | `ze show tacacs` CLI deferred to spec-tacacs-observability |
+| AC-14 | Done | `internal/component/tacacs/config.go::ExtractConfig` + `ze:sensitive` on key leaf | Parser decodes `$9$` via `secret` package before `ExtractConfig` reads `key` |
+| AC-15 | Done | `client_test.go::TestTacacsClientAuthenticateFail` covers FAIL; `authenticator.go::Authenticate` returns connection-error path on AuthenStatusError | ERROR triggers chain fall-through |
+| AC-16 | Deferred | `plan/deferrals.md` 2026-04-15 (spec-tacacs AC-16) | Single-connect not negotiated; one TCP per session (functional but suboptimal) |
+| AC-17 | Done | `packet_test.go::TestEncryptWrongSecret` + `packet.go::ErrBadSecret` | `UnmarshalPacket` validates body length matches header |
+| AC-18 | Done | `authenticator_test.go::TestTacacsAuthenticatorUnmappedPrivLvl` | Unmapped priv-lvl returns `ErrAuthRejected`, log warn `TACACS+ unmapped privilege level` |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestAuthenticatorInterface | Done | `internal/component/aaa/aaa_test.go` (interface compile-check) | Implicit via build |
+| TestChainAuthenticator | Done | `internal/component/aaa/chain_test.go` | |
+| TestChainFallback | Done | `internal/component/aaa/chain_test.go::TestChainFallback` | |
+| TestChainAllFail | Done | `internal/component/aaa/chain_test.go::TestChainAllFail` | |
+| TestLocalAuthenticatorCompat | Done | `internal/component/authz/auth_test.go` | |
+| TestTacacsPacketEncode | Done | `tacacs/packet_test.go::TestPacketHeaderMarshalRoundTrip` | |
+| TestTacacsPacketEncrypt | Done | `tacacs/packet_test.go::TestEncryptDecryptRoundTrip` | |
+| TestTacacsAuthenStart | Done | `tacacs/authen_test.go::TestAuthenStartMarshal` | |
+| TestTacacsAuthenReply | Done | `tacacs/authen_test.go::TestUnmarshalAuthenReply{Pass,Fail,Truncated}` | |
+| TestTacacsAuthorRequest | Done | `tacacs/author_test.go::TestAuthorRequestMarshal` | |
+| TestTacacsAcctRequest | Done | `tacacs/acct_test.go::TestAcctRequestMarshalStartStop` | |
+| TestTacacsServerFailover | Done | `tacacs/client_test.go::TestTacacsClientServerFailover` | |
+| TestTacacsTimeout | Done | `tacacs/client_test.go::TestTacacsClientTimeout` | |
+| TestPrivLevelMapping | Done | `tacacs/authenticator_test.go::TestTacacsAuthenticatorPass{,PrivLvl1}` | |
+| TestParseTacacsConfig | Done | `tacacs/config_test.go::TestExtractConfig{Servers,DefaultTimeout,...}` | |
+| TestTacacsRegistration | Done | covered implicitly by `aaa/registry_test.go` and the running .ci tests | Backend registers in init(); chain build proves wiring |
+| TestChainRejectNoFallback | Done | `aaa/chain_test.go` (rejects ErrAuthRejected) | |
+| TestTacacsSecretValidation | Done | `tacacs/packet_test.go::TestEncryptWrongSecret` | |
+| TestTacacsErrorStatusFallback | Done | `tacacs/authenticator_test.go::TestTacacsAuthenticatorErrorStatus` | |
+| TestTacacsSingleConnect | Deferred | n/a | AC-16 deferred |
+| TestUnmappedPrivLevel | Done | `tacacs/authenticator_test.go::TestTacacsAuthenticatorUnmappedPrivLvl` | |
+| TestTacacsPacketRoundTrip | Done | `tacacs/packet_test.go::TestPacketMarshalRoundTrip` | |
+| FuzzTacacsPacketUnmarshal | Done | `tacacs/packet_test.go::FuzzTacacsPacketUnmarshal` | |
+| FuzzTacacsEncryptDecrypt | Done | `tacacs/packet_test.go::FuzzTacacsEncryptDecrypt` | |
+| TACACS+ auth (.ci) | Done | `test/plugin/tacacs-auth.ci` | |
+| TACACS+ fallback (.ci) | Done | `test/plugin/tacacs-fallback.ci` | |
+| Local only (.ci) | Done | `test/plugin/tacacs-local-only.ci` | |
+| Accounting (.ci) | Done | `test/plugin/tacacs-acct.ci` | |
+| Test mock server | Changed | `cmd/ze-test/tacacs_mock.go` | External binary instead of `_test.go` helper |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/authz/auth.go` (modify) | Done | Wraps existing bcrypt as `LocalAuthenticator` via aaa types |
+| `internal/component/ssh/ssh.go` (modify) | Done | Password callback dispatches via `aaa.Authenticator` |
+| `internal/component/ssh/schema/ze-ssh-conf.yang` (modify) | Changed | TACACS+ schema landed in its own module `ze-tacacs-conf.yang` to keep ssh-conf focused |
+| `cmd/ze/hub/main.go` (modify) | Done | Lifecycle defer for `closeAAABundle` |
+| `cmd/ze/hub/infra_setup.go` (modify) | Done | `buildAAABundle` + RemoteAddr wiring |
+| `internal/component/plugin/server/command.go` (modify) | Done | `RemoteAddr` field + `accountant` hook calls |
+| `internal/component/tacacs/client.go` | Done | TCP client + failover |
+| `internal/component/tacacs/packet.go` | Done | Header + MD5 pseudo-pad |
+| `internal/component/tacacs/authen.go` | Done | START/REPLY |
+| `internal/component/tacacs/author.go` | Done | REQUEST/RESPONSE |
+| `internal/component/tacacs/acct.go` | Done | REQUEST/REPLY |
+| `internal/component/tacacs/config.go` | Done | Tree extraction |
+| `internal/component/tacacs/{authenticator,authorizer,accounting}.go` | Done | aaa bridges |
+| `internal/component/tacacs/register.go` | Done | aaa.Default registration in init() |
+| `internal/component/tacacs/schema/{embed,register,ze-tacacs-conf.yang}.go` | Done | YANG embed + RegisterModule init() |
+| `cmd/ze-test/tacacs_mock.go` | Done | Added (new) -- mock server for .ci tests |
+| `cmd/ze-test/main.go` | Done | Dispatch entry for `tacacs-mock` subcommand |
+| `internal/component/config/schema.go` | Changed | Recursive container merge so multiple YANG modules can extend the same nested path (regression fix uncovered by tacacs) |
+| `rfc/short/rfc8907.md` | Done | Created |
+| `test/plugin/tacacs-{auth,fallback,local-only,acct}.ci` | Done | All 4 pass (parallel + sequential) |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 16 task requirements/files + 18 ACs + 24 tests = 58
+- **Done:** 50
+- **Partial:** 1 (AC-7 priv-lvl 1 covered only in unit test)
+- **Skipped:** 0
+- **Deferred:** 4 (AC-9, AC-10, AC-13, AC-16 -- all tracked in `plan/deferrals.md`)
+- **Changed:** 3 (test mock format, YANG location, schema merge regression)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/tacacs/client.go` | Yes | `ls -la` 6840B |
+| `internal/component/tacacs/packet.go` | Yes | 5035B |
+| `internal/component/tacacs/authen.go` | Yes | 3803B |
+| `internal/component/tacacs/author.go` | Yes | 3866B |
+| `internal/component/tacacs/acct.go` | Yes | 3199B |
+| `internal/component/tacacs/config.go` | Yes | 2659B |
+| `internal/component/tacacs/authenticator.go` | Yes | 3504B |
+| `internal/component/tacacs/authorizer.go` | Yes | 3074B |
+| `internal/component/tacacs/accounting.go` | Yes | 6680B |
+| `internal/component/tacacs/register.go` | Yes | 1919B |
+| `internal/component/tacacs/schema/ze-tacacs-conf.yang` | Yes | 2679B (boolean leaves applied) |
+| `cmd/ze-test/tacacs_mock.go` | Yes | 7646B |
+| `rfc/short/rfc8907.md` | Yes | 13212B |
+| `docs/guide/tacacs.md` | Yes | 7328B |
+| `test/plugin/tacacs-auth.ci` | Yes | 4267B |
+| `test/plugin/tacacs-fallback.ci` | Yes | 2937B |
+| `test/plugin/tacacs-local-only.ci` | Yes | 2325B |
+| `test/plugin/tacacs-acct.ci` | Yes | 3474B |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | TACACS+ PASS authenticates SSH user | `ze-test bgp plugin 260` -> pass; daemon log "auth success ... source=tacacs" |
+| AC-2 | TACACS+ FAIL stops chain (no local fallthrough) | `aaa.ChainAuthenticator.Authenticate` short-circuits on `ErrAuthRejected` (chain_test.go); `tacacs/authenticator.go::Authenticate` returns `ErrAuthRejected` on AuthenStatusFail |
+| AC-3 | Server unreachable -> local fallback | `ze-test bgp plugin 261` -> pass; log "auth success ... source=local" with mock at unreachable port 1 |
+| AC-4 | All servers down -> auth fails | `client_test.go::TestTacacsClientAllServersDown` -> pass; returns "unreachable" error |
+| AC-5 | No TACACS+ config -> local-only chain | `ze-test bgp plugin 262` -> pass; chain has only LocalAuthenticator |
+| AC-6 | priv-lvl 15 -> admin profile | `tacacs-auth.ci` config + AUTHEN PASS data byte = 15 maps to `tacacs-profile 15 { profile [admin]; }`; SSH auth success implies mapping resolved |
+| AC-7 | priv-lvl 1 -> read-only profile | Unit only: `authenticator_test.go::TestTacacsAuthenticatorPrivLvl1` -> pass |
+| AC-8 | Accounting START + STOP per command | `ze-test bgp plugin 259` -> pass; mock log "ACCT START" + "ACCT STOP" |
+| AC-11 | Multi-server failover | `client_test.go::TestTacacsClientServerFailover` -> pass |
+| AC-14 | $9$ secrets decoded before use | `internal/component/config/secret/secret.go` decodes $9$; `tacacs/config.go::ExtractConfig` reads decoded `key` |
+| AC-15 | ERROR status triggers next server | `tacacs/authenticator.go::Authenticate` returns connection-error path on AuthenStatusError; chain tries next |
+| AC-17 | Wrong shared secret detected | `packet_test.go::TestEncryptWrongSecret` + `ErrBadSecret` returned from `UnmarshalPacket` |
+| AC-18 | Unmapped priv-lvl rejects | `authenticator_test.go::TestTacacsAuthenticatorUnmappedPrivLvl` -> pass; emits "TACACS+ unmapped privilege level" warn |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| SSH login with TACACS+ configured | `test/plugin/tacacs-auth.ci` | Yes -- daemon log shows `auth success source=tacacs`, and mock log shows AUTHEN exchange |
+| SSH login, TACACS+ server down | `test/plugin/tacacs-fallback.ci` | Yes -- daemon log shows `auth success source=local`, `reject=stderr:source=tacacs` enforces no silent TACACS success |
+| SSH login, no TACACS+ configured | `test/plugin/tacacs-local-only.ci` | Yes -- chain reduced to local; no tacacs in config means TacacsAuthenticator never built |
+| Command execution with TACACS+ accounting | `test/plugin/tacacs-acct.ci` | Yes -- mock log shows ACCT START and STOP after `ze cli -c "summary"` |
 
 ## Checklist
 

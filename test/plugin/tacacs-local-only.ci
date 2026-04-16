@@ -1,0 +1,94 @@
+# Test: no TACACS+ configured -- chain falls back to local only
+#
+# Flow:
+# 1. Daemon config has NO tacacs block
+# 2. Local admin user has bcrypt("testpass") and profile [ admin ]
+# 3. ze cli -c "summary" authenticates locally
+# 4. SSH auth log shows source=local
+#
+# VALIDATES: AC-5 -- No TACACS+ configured => local-only auth, identical to current behavior.
+# PREVENTS: Introducing the TACACS+ backend breaking the zero-config baseline.
+
+tmpfs=test-tacacs-local-only.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+touch daemon.ready
+
+cat > tacacs-local-only.conf <<'ZECONF'
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; accept false; }
+			local  { ip 127.0.0.1; }
+		}
+		session { asn { local 65533; remote 65533; } }
+	}
+}
+
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+			profile [ admin ]
+		}
+	}
+	authorization {
+		profile admin { run { default-action allow; } edit { default-action allow; } }
+	}
+}
+
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port 0; }
+	}
+}
+ZECONF
+
+export ze_bgp_tcp_port=$((10000 + ($$ % 50000)))
+
+ze tacacs-local-only.conf 2>daemon.log &
+DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true' EXIT
+
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
+		break
+	fi
+	sleep 0.2
+done
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: SSH server did not start" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+echo "ssh on :$SSH_PORT" >&2
+
+sleep 0.5
+
+ADMIN_DIR=$(mktemp -d)
+trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true' EXIT
+printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
+
+OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "summary" 2>&1) || {
+	echo "FAIL: 'summary' via local auth" >&2
+	echo "OUTPUT: $OUTPUT" >&2
+	echo "--- daemon log ---" >&2
+	cat daemon.log >&2
+	exit 1
+}
+echo "OK: summary ran via local auth" >&2
+
+sleep 0.3
+cat daemon.log >&2
+
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-tacacs-local-only.sh:timeout=20s
+expect=exit:code=0
+expect=stderr:pattern=auth success.*source=local
+reject=stderr:pattern=source=tacacs

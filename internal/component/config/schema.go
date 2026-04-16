@@ -204,22 +204,15 @@ func NewSchema() *Schema {
 }
 
 // Define adds a top-level node to the schema.
-// If a node with the same name already exists, it is replaced
-// without adding a duplicate to the order.
+// If a node with the same name already exists, containers are merged recursively
+// so multiple YANG modules can contribute children under a shared path
+// (e.g., ze-ssh-conf and ze-tacacs-conf both extend system.authentication).
 func (s *Schema) Define(name string, node Node) {
 	existing, exists := s.root.children[name]
 	if exists {
-		// Merge containers: add new children to existing container.
-		// Multiple YANG modules may define children under the same top-level container
-		// (e.g., ze-system-conf and ze-ssh-conf both contribute to "system").
 		if ec, ok := existing.(*ContainerNode); ok {
 			if nc, ok := node.(*ContainerNode); ok {
-				for _, childName := range nc.order {
-					if _, dup := ec.children[childName]; !dup {
-						ec.children[childName] = nc.children[childName]
-						ec.order = append(ec.order, childName)
-					}
-				}
+				mergeContainer(ec, nc)
 				return
 			}
 		}
@@ -227,6 +220,45 @@ func (s *Schema) Define(name string, node Node) {
 	s.root.children[name] = node
 	if !exists {
 		s.root.order = append(s.root.order, name)
+	}
+}
+
+// mergeContainer recursively merges src into dst. New children are appended in
+// declaration order. Children that already exist in dst are recursed into when
+// both sides are containers; otherwise the dst child wins (first registration
+// defines the type). Same-shape lists merge their child schemas the same way.
+func mergeContainer(dst, src *ContainerNode) {
+	for _, childName := range src.order {
+		srcChild := src.children[childName]
+		if existing, ok := dst.children[childName]; ok {
+			mergeNode(existing, srcChild)
+			continue
+		}
+		dst.children[childName] = srcChild
+		dst.order = append(dst.order, childName)
+	}
+}
+
+// mergeNode dispatches on node kind to recurse where structural merge is
+// possible. Leaf collisions keep the first registration -- matches the prior
+// behavior where a re-defined leaf was silently ignored.
+func mergeNode(dst, src Node) {
+	switch d := dst.(type) {
+	case *ContainerNode:
+		if s, ok := src.(*ContainerNode); ok {
+			mergeContainer(d, s)
+		}
+	case *ListNode:
+		if s, ok := src.(*ListNode); ok {
+			for _, childName := range s.order {
+				if _, dup := d.children[childName]; dup {
+					mergeNode(d.children[childName], s.children[childName])
+					continue
+				}
+				d.children[childName] = s.children[childName]
+				d.order = append(d.order, childName)
+			}
+		}
 	}
 }
 

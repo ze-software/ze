@@ -946,14 +946,35 @@ import `authz` for `UserConfig`, `CheckPassword`, `AuthenticateUser`.
 The `authz` package also provides profile-based command authorization
 (allow/deny rules per user role).
 
+**Pluggable AAA backends.** `internal/component/aaa` defines the
+`Authenticator`, `Authorizer`, and `Accountant` interfaces and a
+backend registry (`aaa.Default`). Each backend (local bcrypt, TACACS+,
+future RADIUS/LDAP) self-registers via `init()` and implements `Build()`
+to translate the YANG config tree into a `Contribution` (one bridge per
+function it provides). The hub's `infra_setup.buildAAABundle` calls
+`aaa.Default.Build()` to compose a `ChainAuthenticator` ordered by
+backend priority (TACACS+ = 100, local bcrypt = 200). The chain
+distinguishes explicit rejection (`ErrAuthRejected` -> stop) from
+connection error (-> next backend), so a wrong TACACS+ password cannot
+silently fall through to a stale local hash. The composed bundle is
+swapped atomically on every config reload (`aaaBundle atomic.Pointer`)
+and `Close()`d so backend workers (e.g. TACACS+ accounting) drain
+cleanly. The TACACS+ accountant hooks into `Dispatcher.Dispatch()` so
+START/STOP records cover SSH exec, interactive TUI, and local CLI
+commands through a single point.
+
 **Infrastructure wiring** (SSH server creation, command executor, monitor
 factory, login warnings) is handled by the hub via `bgpconfig.InfraHook`.
 The BGP config package extracts plain data; the hub creates servers.
 This avoids bgp importing ssh, cli, or web.
 
 <!-- source: internal/component/authz/auth.go -- UserConfig, AuthenticateUser -->
+<!-- source: internal/component/aaa/aaa.go -- Authenticator/Authorizer/Accountant interfaces, ChainAuthenticator -->
+<!-- source: internal/component/aaa/all/all.go -- backend blank-imports (authz, tacacs) -->
+<!-- source: internal/component/tacacs/register.go -- tacacsBackend.Build, AAA registration -->
+<!-- source: cmd/ze/hub/aaa_lifecycle.go -- atomic bundle swap on reload -->
+<!-- source: cmd/ze/hub/infra_setup.go -- buildAAABundle, SSH wiring, accountant hook installation -->
 <!-- source: internal/component/bgp/config/infra_hook.go -- InfraHook, SSHExtractedConfig -->
-<!-- source: cmd/ze/hub/infra_setup.go -- hub infrastructure setup hook -->
 
 ---
 
