@@ -94,58 +94,80 @@ func ParseLine(line []byte) (id uint64, verb string, payload []byte, err error) 
 	return id, verb, payload, nil
 }
 
-// FormatRequest formats a request line: #<id> <method> [<json>].
-func FormatRequest(id uint64, method string, params json.RawMessage) []byte {
-	if len(params) == 0 || string(params) == "null" {
-		return fmt.Appendf(nil, "#%d %s", id, method)
-	}
-	buf := make([]byte, 0, 2+20+1+len(method)+1+len(params))
+// AppendRequest appends a request line (#<id> <method> [<json>]) to buf
+// and returns the extended slice. Newline is NOT appended. Callers on
+// the hot path should supply a pool buffer; tests and one-shot callers
+// can pass nil.
+func AppendRequest(buf []byte, id uint64, method string, params json.RawMessage) []byte {
 	buf = append(buf, '#')
 	buf = strconv.AppendUint(buf, id, 10)
 	buf = append(buf, ' ')
 	buf = append(buf, method...)
+	if len(params) == 0 || string(params) == "null" {
+		return buf
+	}
 	buf = append(buf, ' ')
 	buf = append(buf, params...)
 	return buf
 }
 
-// FormatResult formats a success response: #<id> ok [<json>].
-func FormatResult(id uint64, result json.RawMessage) []byte {
-	if len(result) == 0 || string(result) == "null" {
-		return FormatOK(id)
-	}
-	buf := make([]byte, 0, 2+20+4+len(result))
+// AppendResult appends a success response line (#<id> ok [<json>]) to
+// buf. Newline is NOT appended.
+func AppendResult(buf []byte, id uint64, result json.RawMessage) []byte {
 	buf = append(buf, '#')
 	buf = strconv.AppendUint(buf, id, 10)
+	if len(result) == 0 || string(result) == "null" {
+		return append(buf, ' ', 'o', 'k')
+	}
 	buf = append(buf, ' ', 'o', 'k', ' ')
 	buf = append(buf, result...)
 	return buf
 }
 
-// FormatOK formats an empty success response: #<id> ok.
-func FormatOK(id uint64) []byte {
-	buf := make([]byte, 0, 2+20+3)
+// AppendOK appends an empty success response line (#<id> ok) to buf.
+// Newline is NOT appended.
+func AppendOK(buf []byte, id uint64) []byte {
 	buf = append(buf, '#')
 	buf = strconv.AppendUint(buf, id, 10)
-	buf = append(buf, ' ', 'o', 'k')
-	return buf
+	return append(buf, ' ', 'o', 'k')
 }
 
-// FormatError formats an error response: #<id> error [<json>].
-func FormatError(id uint64, errPayload json.RawMessage) []byte {
-	if len(errPayload) == 0 {
-		buf := make([]byte, 0, 2+20+6)
-		buf = append(buf, '#')
-		buf = strconv.AppendUint(buf, id, 10)
-		buf = append(buf, " error"...)
-		return buf
-	}
-	buf := make([]byte, 0, 2+20+7+len(errPayload))
+// AppendError appends an error response line (#<id> error [<json>]) to
+// buf. Newline is NOT appended.
+func AppendError(buf []byte, id uint64, errPayload json.RawMessage) []byte {
 	buf = append(buf, '#')
 	buf = strconv.AppendUint(buf, id, 10)
+	if len(errPayload) == 0 {
+		return append(buf, " error"...)
+	}
 	buf = append(buf, " error "...)
 	buf = append(buf, errPayload...)
 	return buf
+}
+
+// FormatRequest returns a request line (#<id> <method> [<json>]) in a
+// freshly-allocated slice. Retained for tests and low-rate callers;
+// hot-path senders should use AppendRequest with a pool buffer.
+func FormatRequest(id uint64, method string, params json.RawMessage) []byte {
+	return AppendRequest(make([]byte, 0, 2+20+1+len(method)+1+len(params)), id, method, params)
+}
+
+// FormatResult returns a success response in a freshly-allocated slice.
+// Retained for tests; hot-path senders should use AppendResult.
+func FormatResult(id uint64, result json.RawMessage) []byte {
+	return AppendResult(make([]byte, 0, 2+20+4+len(result)), id, result)
+}
+
+// FormatOK returns an empty success response in a freshly-allocated
+// slice. Retained for tests; hot-path senders should use AppendOK.
+func FormatOK(id uint64) []byte {
+	return AppendOK(make([]byte, 0, 2+20+3), id)
+}
+
+// FormatError returns an error response in a freshly-allocated slice.
+// Retained for tests; hot-path senders should use AppendError.
+func FormatError(id uint64, errPayload json.RawMessage) []byte {
+	return AppendError(make([]byte, 0, 2+20+7+len(errPayload)), id, errPayload)
 }
 
 // NewErrorPayload creates a JSON error payload with code and message fields.

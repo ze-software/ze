@@ -132,11 +132,13 @@ func (m *MuxConn) CallRPC(ctx context.Context, method string, params any) (json.
 		paramsRaw = b
 	}
 
-	// Format and send request line: #<id> <method> [<json>]\n
-	line := FormatRequest(id, method, paramsRaw)
-	if err := m.conn.writeLineWithContext(ctx, line); err != nil {
+	// Send request line: #<id> <method> [<json>]\n (appended into pool buffer).
+	writeErr := m.conn.writeAppended(ctx, func(buf []byte) []byte {
+		return AppendRequest(buf, id, method, paramsRaw)
+	})
+	if writeErr != nil {
 		m.pending.Delete(idStr)
-		return nil, fmt.Errorf("send request: %w", err)
+		return nil, fmt.Errorf("send request: %w", writeErr)
 	}
 
 	// Wait for response, context cancellation, or reader death.

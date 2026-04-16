@@ -10,7 +10,57 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 )
+
+// frameBufInitial is the initial capacity of a pooled frame buffer. Most
+// RPC lines (<1KB: #id method json-payload) fit without growth. Larger
+// events (e.g. UPDATE structured events) grow the underlying slice via
+// append; buffers are returned to the pool only if their capacity stays
+// below frameBufMax to avoid a single large batch permanently inflating
+// the pool.
+const (
+	frameBufInitial = 4 * 1024
+	frameBufMax     = 64 * 1024
+)
+
+// framePool provides reusable buffers for every per-request, per-
+// response, and per-event RPC line. One buffer is acquired, the
+// caller's Append* helper writes into it, the newline is appended, the
+// single buf is written to the wire, then the buffer is returned.
+//
+// sync.Pool is the right shape: plugin-rpc Conns are shared across
+// goroutines (SendResult/SendOK/SendError from dispatch goroutines,
+// CallRPC from the caller goroutine, event emitters) and sync.Pool's
+// per-P local cache removes Get/Put contention.
+var framePool = sync.Pool{
+	New: func() any {
+		buf := make([]byte, 0, frameBufInitial)
+		return &buf
+	},
+}
+
+// getFrameBuf returns a pooled frame buffer re-sliced to zero length.
+func getFrameBuf() *[]byte {
+	bp, ok := framePool.Get().(*[]byte)
+	if !ok {
+		b := make([]byte, 0, frameBufInitial)
+		bp = &b
+	}
+	*bp = (*bp)[:0]
+	return bp
+}
+
+// putFrameBuf returns a frame buffer to the pool. Buffers that grew
+// beyond frameBufMax are dropped so a single large frame cannot
+// permanently inflate pooled memory.
+func putFrameBuf(bp *[]byte) {
+	if cap(*bp) > frameBufMax {
+		return
+	}
+	*bp = (*bp)[:0]
+	framePool.Put(bp)
+}
 
 // MaxMessageSize is the maximum allowed message size (16 MB).
 const MaxMessageSize = 16 * 1024 * 1024

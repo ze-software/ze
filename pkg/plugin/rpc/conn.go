@@ -166,11 +166,70 @@ func (c *Conn) NextID() uint64 {
 	return c.idSeq.Add(1)
 }
 
+// writeAppended formats a line into a pooled buffer via the appender,
+// appends the newline terminator, and writes the single buffer to the
+// underlying writer under c.mu. Callers provide an Append* helper from
+// message.go as the appender; the helper writes into the pool buffer
+// with no intermediate allocation.
+//
+// This is the hot-path alternative to writeLineWithContext: it avoids
+// both the Format*-side []byte allocation and FrameWriter.Write's
+// per-call copy.
+func (c *Conn) writeAppended(ctx context.Context, appender func([]byte) []byte) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	dl, hasDeadline := ctx.Deadline()
+	deadline := dl
+	if !hasDeadline {
+		deadline = time.Now().Add(defaultWriteDeadline)
+	}
+
+	bp := getFrameBuf()
+	defer putFrameBuf(bp)
+
+	buf := appender(*bp)
+	buf = append(buf, '\n')
+	*bp = buf
+	if len(buf) > MaxMessageSize+1 {
+		return fmt.Errorf("message exceeds maximum size %d", MaxMessageSize)
+	}
+
+	c.mu.Lock()
+	dlWriter, hasDL := c.writeCloser.(writeDeadliner)
+	if hasDL {
+		if err := dlWriter.SetWriteDeadline(deadline); err != nil {
+			c.mu.Unlock()
+			return fmt.Errorf("set write deadline: %w", err)
+		}
+	}
+	_, writeErr := c.writer.RawWriter().Write(buf)
+	if hasDL {
+		_ = dlWriter.SetWriteDeadline(time.Time{})
+	}
+	c.mu.Unlock()
+
+	if writeErr != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		if hasDeadline {
+			return context.DeadlineExceeded
+		}
+		return fmt.Errorf("write frame: %w", writeErr)
+	}
+	return nil
+}
+
 // writeLineWithContext writes a line with context-derived write deadline.
 // The deadline set, write, and deadline clear are all performed under c.mu
 // to prevent interleaving when multiple goroutines write concurrently.
 // When the writer does not support SetWriteDeadline (e.g., os.Stdout),
 // deadline setting is skipped and writes may block longer.
+//
+// Retained for tests and external callers that already hold a
+// pre-formatted []byte. Production hot paths use writeAppended to skip
+// both the Format*-side allocation and FrameWriter's per-write copy.
 func (c *Conn) writeLineWithContext(ctx context.Context, line []byte) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -240,24 +299,32 @@ func (c *Conn) SendResult(ctx context.Context, id uint64, data any) error {
 			return fmt.Errorf("marshal result data: %w", err)
 		}
 	}
-	return c.writeLineWithContext(ctx, FormatResult(id, result))
+	return c.writeAppended(ctx, func(buf []byte) []byte {
+		return AppendResult(buf, id, result)
+	})
 }
 
 // SendOK sends an empty successful RPC response.
 func (c *Conn) SendOK(ctx context.Context, id uint64) error {
-	return c.writeLineWithContext(ctx, FormatOK(id))
+	return c.writeAppended(ctx, func(buf []byte) []byte {
+		return AppendOK(buf, id)
+	})
 }
 
 // SendError sends an error RPC response.
 func (c *Conn) SendError(ctx context.Context, id uint64, message string) error {
 	payload := NewErrorPayload("error", message)
-	return c.writeLineWithContext(ctx, FormatError(id, payload))
+	return c.writeAppended(ctx, func(buf []byte) []byte {
+		return AppendError(buf, id, payload)
+	})
 }
 
 // SendCodedError sends an error RPC response with a specific error code.
 func (c *Conn) SendCodedError(ctx context.Context, id uint64, code, message string) error {
 	payload := NewErrorPayload(code, message)
-	return c.writeLineWithContext(ctx, FormatError(id, payload))
+	return c.writeAppended(ctx, func(buf []byte) []byte {
+		return AppendError(buf, id, payload)
+	})
 }
 
 // CallRPC sends an RPC request and waits for the response.
@@ -279,9 +346,11 @@ func (c *Conn) CallRPC(ctx context.Context, method string, params any) (json.Raw
 		}
 	}
 
-	line := FormatRequest(id, method, paramsRaw)
-	if err := c.writeLineWithContext(ctx, line); err != nil {
-		return nil, fmt.Errorf("send request: %w", err)
+	writeErr := c.writeAppended(ctx, func(buf []byte) []byte {
+		return AppendRequest(buf, id, method, paramsRaw)
+	})
+	if writeErr != nil {
+		return nil, fmt.Errorf("send request: %w", writeErr)
 	}
 
 	// Read response frame via persistent reader.
