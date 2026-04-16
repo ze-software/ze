@@ -29,20 +29,34 @@ sys.path.insert(0, SCRIPT_DIR)
 from bngblaster import Scenario, log_fail, log_pass, log_info
 
 
+def _scapy_importable():
+    """bgpupdate needs scapy at runtime -- verify it imports."""
+    return subprocess.run(
+        [sys.executable, "-c", "import scapy.all"],
+        capture_output=True,
+    ).returncode == 0
+
+
+def _find_missing():
+    missing = [t for t in ["bngblaster", "bngblaster-cli", "bgpupdate"]
+               if not shutil.which(t)]
+    if not _scapy_importable():
+        missing.append("scapy")
+    return missing
+
+
 def check_prerequisites():
     """Verify tools are available, run setup if needed."""
     if os.geteuid() != 0:
         print("error: must run as root (sudo) for network namespaces", file=sys.stderr)
         sys.exit(1)
 
-    missing = [t for t in ["bngblaster", "bngblaster-cli", "bgpupdate"]
-               if not shutil.which(t)]
+    missing = _find_missing()
     if missing:
-        print("Installing BNG Blaster (first run)...")
+        print("Installing BNG Blaster (first run, missing: %s)..." % ", ".join(missing))
         setup = os.path.join(SCRIPT_DIR, "setup.py")
         subprocess.run([sys.executable, setup], check=True, timeout=600)
-        # Verify after install.
-        still_missing = [t for t in missing if not shutil.which(t)]
+        still_missing = _find_missing()
         if still_missing:
             print("error: setup completed but still missing: %s" % ", ".join(still_missing),
                   file=sys.stderr)
