@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-l2tp-6a-lcp-base |
-| Phase | 3/9 |
+| Phase | 4/9 |
 | Updated | 2026-04-16 |
 
 ## Scope Changes (2026-04-16)
@@ -191,7 +191,7 @@ RADIUS query lives in spec-l2tp-8-plugins (l2tp-auth plugin).
 | AC-7 | Handler calls `AuthResponse(id, accept=true, message)` after PAP | PPP sends Authenticate-Ack with message field; emits `EventSessionUp` |
 | AC-8 | Handler calls `AuthResponse(id, accept=false, ...)` after CHAP | PPP sends Failure with message field; sends LCP Terminate-Request; emits `EventSessionDown` |
 | AC-9 | Handler calls `AuthResponse` for MS-CHAPv2 with `authenticatorResponse` blob | PPP sends MS-CHAPv2 Success carrying that blob |
-| AC-10 | No AuthResponse within `auth-timeout` (default 30s) | PPP sends Failure/Nak; sends LCP Terminate-Request; emits `EventSessionDown` |
+| AC-10 | No AuthResponse within `auth-timeout` (default 30s) | PPP emits `EventAuthFailure{Reason:"timeout"}`; `s.fail` emits `EventSessionDown`; session goroutine exits. No wire-level Nak is sent on timeout -- the LCP Terminate-Request that follows the session-down signal is the single authoritative tear-down. (Matches the Phase 1 `runAuthPhase` timeout contract; `runPAPAuthPhase` preserves it.) |
 | AC-11 | Proxy auth AVPs present, config `trust-proxy=true` | PPP skips wire exchange; emits `EventAuthSuccess`; transitions to NCP phase |
 | AC-12 | Proxy auth AVPs present, config `trust-proxy=false` (default) | PPP ignores proxy bytes; runs full auth exchange |
 | AC-13 | Peer NAKs the proposed Auth-Protocol with alternative | PPP fallbacks per `auth-fallback-order` config (default: prefer CHAP > MS-CHAPv2 > PAP) |
