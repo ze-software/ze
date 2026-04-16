@@ -25,13 +25,16 @@ func TestDriverStartStop(t *testing.T) {
 }
 
 // VALIDATES: NewDriver panics on missing required dependencies.
+//
+// The "nil AuthHook" case from 6a was removed when spec-l2tp-6b-auth
+// replaced the AuthHook interface with channel-based dispatch; auth is
+// no longer a NewDriver-time required dependency.
 func TestDriverNewDriverPanics(t *testing.T) {
 	cases := []struct {
 		name    string
 		mutator func(*DriverConfig)
 	}{
 		{"nil Logger", func(c *DriverConfig) { c.Logger = nil }},
-		{"nil AuthHook", func(c *DriverConfig) { c.AuthHook = nil }},
 		{"nil Backend", func(c *DriverConfig) { c.Backend = nil }},
 		{"nil Ops.setMRU", func(c *DriverConfig) { c.Ops = pppOps{} }},
 	}
@@ -44,10 +47,9 @@ func TestDriverNewDriverPanics(t *testing.T) {
 			}()
 			ops, _, _ := newFakeOps()
 			cfg := DriverConfig{
-				Logger:   discardLogger(),
-				AuthHook: StubAuthHook{},
-				Backend:  &fakeBackend{},
-				Ops:      ops,
+				Logger:  discardLogger(),
+				Backend: &fakeBackend{},
+				Ops:     ops,
 			}
 			tc.mutator(&cfg)
 			NewDriver(cfg)

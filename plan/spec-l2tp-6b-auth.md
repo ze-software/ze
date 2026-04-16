@@ -2,10 +2,33 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-l2tp-6a-lcp-base |
-| Phase | - |
-| Updated | 2026-04-15 |
+| Phase | 1/9 |
+| Updated | 2026-04-16 |
+
+## Scope Changes (2026-04-16)
+
+**Proxy-authentication handling dropped.** Survey of every extant RFC 2661 LNS
+implementation shows it is universally unimplemented:
+
+| Implementation | Code path | Behavior |
+|----------------|-----------|----------|
+| accel-ppp | `accel-pppd/ctrl/l2tp/l2tp.c:3590-3594` | silent-accept `break` in ICCN switch |
+| mpd5 (FreeBSD) | `src/l2tp_avp.c:714-737` | decoded into struct, only reads are cleanup + debug print |
+| xl2tpd | `avp.c:54-58` + `avp.c:383-388` | `ignore_avp`; comment labels proxy auth "a ridiculous security threat" |
+
+Shipping a `trust-proxy=true` knob nobody asks for adds a credential-forwarding
+surface with no offsetting benefit. ze matches the accel-ppp stance: always
+re-authenticate over PPP. `L2TPSession.proxyAuthen*` fields remain populated
+(parsing is already cheap, they are useful for logs), but PPP consumes none of
+them. Deferral recorded in `plan/deferrals.md` with Destination
+`user-approved-drop`.
+
+**Phase count restructured** from 13 to 9. Sections below referencing proxy auth
+(scope table, AC-11/12, wiring-test row, TDD tests, phase 7, Files to Modify
+`proxy.go` extension, Security Review `trust-proxy` row) are superseded by this
+note; they will be struck through as each phase is implemented.
 
 ## Post-Compaction Recovery
 

@@ -184,14 +184,35 @@ func scriptedPeer(t *testing.T, conn net.Conn, done chan<- struct{}) {
 	}
 }
 
-// makeTestDriver constructs a Driver with a discard logger and the
-// supplied dependencies.
+// makeTestDriver constructs a Driver with a discard logger, the
+// supplied dependencies, and an always-accept auth responder
+// goroutine reading d.AuthEventsOut() until the Driver stops.
+//
+// The responder replaces 6a's StubAuthHook. Tests that exercise
+// auth-reject or auth-timeout paths MUST construct the Driver with
+// NewDriver directly and drive the auth channel themselves rather
+// than call this helper.
 func makeTestDriver(backend IfaceBackend, ops pppOps) *Driver {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return NewDriver(DriverConfig{
-		Logger:   logger,
-		AuthHook: StubAuthHook{Logger: logger},
-		Backend:  backend,
-		Ops:      ops,
+	d := NewDriver(DriverConfig{
+		Logger:  logger,
+		Backend: backend,
+		Ops:     ops,
 	})
+	go autoAcceptAuth(d)
+	return d
+}
+
+// autoAcceptAuth reads every EventAuthRequest from d.AuthEventsOut()
+// and replies with AuthResponse(accept=true). Exits when the channel
+// closes (Driver.Stop). EventAuthSuccess / EventAuthFailure events
+// from the session goroutine are consumed and discarded.
+func autoAcceptAuth(d *Driver) {
+	for ev := range d.AuthEventsOut() {
+		req, ok := ev.(EventAuthRequest)
+		if !ok {
+			continue
+		}
+		_ = d.AuthResponse(req.TunnelID, req.SessionID, true, "", nil) //nolint:errcheck // ignore teardown race (ErrSessionNotFound) or duplicate-response (ErrAuthResponsePending)
+	}
 }

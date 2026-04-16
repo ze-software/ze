@@ -1,6 +1,7 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- PPP driver + per-session goroutines
 // Related: session.go -- pppSession struct held in the sessions map
 // Related: session_run.go -- per-session goroutine main loop
+// Related: auth_events.go -- AuthEvent sealed sum, AuthMethod, authResponseMsg
 
 package ppp
 
@@ -12,8 +13,9 @@ import (
 
 // Default channel buffer sizes.
 const (
-	defaultSessionsInBuf = 16
-	defaultEventsOutBuf  = 64
+	defaultSessionsInBuf    = 16
+	defaultEventsOutBuf     = 64
+	defaultAuthEventsOutBuf = 64
 )
 
 // Errors returned by Driver.
@@ -28,6 +30,12 @@ var (
 	// ErrSessionNotFound is returned by StopSession / SessionByID for
 	// an unknown (tunnelID, sessionID) pair.
 	ErrSessionNotFound = errors.New("ppp: session not found")
+
+	// ErrAuthResponsePending is returned by AuthResponse when the
+	// session's buffered(1) authRespCh already holds an unconsumed
+	// decision. Signals a caller bug (duplicate AuthResponse for one
+	// request) or a race with session teardown.
+	ErrAuthResponsePending = errors.New("ppp: auth response already pending")
 )
 
 // sessionKey identifies a PPP session by its (tunnelID, sessionID)
@@ -59,13 +67,13 @@ var newChanFileFn = NewFDFile
 //
 // Safe for concurrent use across the documented public methods.
 type Driver struct {
-	logger   *slog.Logger
-	authHook AuthHook
-	backend  IfaceBackend
-	ops      pppOps
+	logger  *slog.Logger
+	backend IfaceBackend
+	ops     pppOps
 
-	sessionsIn chan StartSession
-	eventsOut  chan Event
+	sessionsIn    chan StartSession
+	eventsOut     chan Event
+	authEventsOut chan AuthEvent
 
 	dispatchDone chan struct{} // closed when dispatch goroutine exits
 	stopCh       chan struct{}
@@ -84,11 +92,6 @@ type DriverConfig struct {
 	// Logger is required. Use slogutil.Logger("ppp") in production.
 	Logger *slog.Logger
 
-	// AuthHook handles the auth-phase decision after LCP-Opened.
-	// 6a passes StubAuthHook{Logger: Logger}; 6b replaces this
-	// interface with a channel-based dispatcher.
-	AuthHook AuthHook
-
 	// Backend configures pppN interface properties (MTU, admin
 	// state) after LCP-Opened. iface.GetBackend() in production;
 	// fake in tests.
@@ -104,20 +107,18 @@ type DriverConfig struct {
 // set. The transport (l2tp today, PPPoE later) calls this rather than
 // NewDriver because pppOps is package-private.
 //
-// Auth hook is hardwired to StubAuthHook for the 6a phase. spec-6b
-// replaces the AuthHook interface with a channel-based dispatcher and
-// at that point this constructor changes signature to accept the real
-// hook. Per rules/no-layering.md, no layered wrapper or optional
-// parameter is added in advance.
+// Authentication is delivered through AuthEventsOut() / AuthResponse();
+// the constructor does not take an auth handler. Production wires a
+// consumer (l2tp-auth plugin in Phase 8); tests wire an auto-accept
+// responder.
 //
 // Caller MUST call Start before sending on SessionsIn(). Caller MUST
 // call Stop before discarding the Driver.
 func NewProductionDriver(logger *slog.Logger, backend IfaceBackend) *Driver {
 	return NewDriver(DriverConfig{
-		Logger:   logger,
-		AuthHook: StubAuthHook{Logger: logger},
-		Backend:  backend,
-		Ops:      newPPPOps(),
+		Logger:  logger,
+		Backend: backend,
+		Ops:     newPPPOps(),
 	})
 }
 
@@ -130,9 +131,6 @@ func NewDriver(cfg DriverConfig) *Driver {
 	if cfg.Logger == nil {
 		panic("BUG: ppp.NewDriver: Logger is required")
 	}
-	if cfg.AuthHook == nil {
-		panic("BUG: ppp.NewDriver: AuthHook is required")
-	}
 	if cfg.Backend == nil {
 		panic("BUG: ppp.NewDriver: Backend is required")
 	}
@@ -140,14 +138,14 @@ func NewDriver(cfg DriverConfig) *Driver {
 		panic("BUG: ppp.NewDriver: Ops.setMRU is required")
 	}
 	return &Driver{
-		logger:       cfg.Logger,
-		authHook:     cfg.AuthHook,
-		backend:      cfg.Backend,
-		ops:          cfg.Ops,
-		sessionsIn:   make(chan StartSession, defaultSessionsInBuf),
-		eventsOut:    make(chan Event, defaultEventsOutBuf),
-		dispatchDone: make(chan struct{}),
-		sessions:     make(map[sessionKey]*pppSession),
+		logger:        cfg.Logger,
+		backend:       cfg.Backend,
+		ops:           cfg.Ops,
+		sessionsIn:    make(chan StartSession, defaultSessionsInBuf),
+		eventsOut:     make(chan Event, defaultEventsOutBuf),
+		authEventsOut: make(chan AuthEvent, defaultAuthEventsOutBuf),
+		dispatchDone:  make(chan struct{}),
+		sessions:      make(map[sessionKey]*pppSession),
 	}
 }
 
@@ -170,6 +168,11 @@ func (d *Driver) Start() error {
 // Stop signals the dispatch loop and every session goroutine to
 // exit, then waits for them. Idempotent. After Stop returns, the
 // Driver MUST NOT be re-used; create a new one.
+//
+// During wg.Wait, session goroutines acquire d.mu to remove their
+// own entries from d.sessions via their natural-exit defer. The
+// map is therefore empty (or near-empty) by the time Stop returns,
+// drained by the goroutines themselves rather than by Stop.
 func (d *Driver) Stop() {
 	d.mu.Lock()
 	if d.stopped || !d.started {
@@ -196,6 +199,7 @@ func (d *Driver) Stop() {
 	d.wg.Wait()
 	<-d.dispatchDone
 	close(d.eventsOut)
+	close(d.authEventsOut)
 }
 
 // SessionsIn returns the write-only channel the transport uses to
@@ -213,9 +217,58 @@ func (d *Driver) EventsOut() <-chan Event {
 	return d.eventsOut
 }
 
+// AuthEventsOut returns the read-only channel the external auth
+// handler (l2tp-auth plugin in production, test responder in unit
+// tests) reads to receive EventAuthRequest / EventAuthSuccess /
+// EventAuthFailure. Closed by the Driver during Stop after every
+// session has exited.
+//
+// Caller MUST consume this channel promptly when sessions are
+// active; sustained backlog beyond the default buffer (64) blocks
+// PPP progress. Separate from EventsOut so L2TP's reactor is not
+// forced to pattern-match auth types it does not act on.
+func (d *Driver) AuthEventsOut() <-chan AuthEvent {
+	return d.authEventsOut
+}
+
+// AuthResponse delivers the external handler's auth decision to the
+// per-session goroutine. Returns ErrSessionNotFound if no session
+// matches (tunnelID, sessionID) -- this covers both "never started"
+// and "already torn down" from the caller's perspective.
+//
+// Safe for concurrent use. Non-blocking: the per-session authRespCh
+// is buffered(1); a duplicate AuthResponse for the same request
+// returns ErrAuthResponsePending rather than blocking.
+func (d *Driver) AuthResponse(tunnelID, sessionID uint16, accept bool, message string, authResponseBlob []byte) error {
+	k := sessionKey{tunnelID, sessionID}
+	d.mu.Lock()
+	s, ok := d.sessions[k]
+	d.mu.Unlock()
+	if !ok {
+		return ErrSessionNotFound
+	}
+	msg := authResponseMsg{
+		accept:           accept,
+		message:          message,
+		authResponseBlob: authResponseBlob,
+	}
+	select {
+	case s.authRespCh <- msg:
+		return nil
+	default: // buffered(1) already full: caller issued a duplicate AuthResponse or lost a race with teardown
+		return ErrAuthResponsePending
+	}
+}
+
 // StopSession terminates the session for (tunnelID, sessionID) and
-// waits up to the goroutine's natural exit (close-fd unblocks read).
-// Returns ErrSessionNotFound if no such session exists.
+// waits for the goroutine to exit. Returns ErrSessionNotFound if no
+// such session exists.
+//
+// Closes the per-session sessStop first so that a goroutine parked
+// in the auth phase (waiting on authRespCh) unblocks; closing
+// chanFile alone would only unblock readFrames, which is not running
+// yet during the initial auth phase on the proxy-LCP short-circuit
+// path.
 //
 // Idempotent: calling StopSession a second time returns
 // ErrSessionNotFound (the first call removed it from the map).
@@ -230,6 +283,7 @@ func (d *Driver) StopSession(tunnelID, sessionID uint16) error {
 	delete(d.sessions, k)
 	d.mu.Unlock()
 
+	s.sessStopOnce.Do(func() { close(s.sessStop) })
 	_ = s.chanFile.Close() //nolint:errcheck // shutdown best-effort
 	<-s.done
 	return nil
@@ -306,21 +360,24 @@ func (d *Driver) spawnSession(start StartSession) {
 	}
 
 	s := &pppSession{
-		tunnelID:     start.TunnelID,
-		sessionID:    start.SessionID,
-		chanFile:     newChanFileFn(start.ChanFD, "ppp.chan"),
-		unitFD:       start.UnitFD,
-		unitNum:      start.UnitNum,
-		lnsMode:      start.LNSMode,
-		maxMRU:       maxMRU,
-		echoInterval: start.EchoInterval,
-		echoFailures: start.EchoFailures,
-		authHook:     d.authHook,
-		backend:      d.backend,
-		ops:          d.ops,
-		eventsOut:    d.eventsOut,
-		stopCh:       d.stopCh,
-		done:         make(chan struct{}),
+		tunnelID:      start.TunnelID,
+		sessionID:     start.SessionID,
+		chanFile:      newChanFileFn(start.ChanFD, "ppp.chan"),
+		unitFD:        start.UnitFD,
+		unitNum:       start.UnitNum,
+		lnsMode:       start.LNSMode,
+		maxMRU:        maxMRU,
+		echoInterval:  start.EchoInterval,
+		echoFailures:  start.EchoFailures,
+		authTimeout:   start.AuthTimeout,
+		backend:       d.backend,
+		ops:           d.ops,
+		eventsOut:     d.eventsOut,
+		authEventsOut: d.authEventsOut,
+		authRespCh:    make(chan authResponseMsg, 1),
+		stopCh:        d.stopCh,
+		sessStop:      make(chan struct{}),
+		done:          make(chan struct{}),
 		logger: d.logger.With(
 			"tunnel-id", start.TunnelID,
 			"session-id", start.SessionID,
@@ -334,6 +391,17 @@ func (d *Driver) spawnSession(start StartSession) {
 	go func() {
 		defer d.wg.Done()
 		defer close(s.done)
+		defer func() {
+			// On natural exit (peer teardown, LCP failure, auth
+			// reject, timeout), remove the session from the map so
+			// AuthResponse / SessionByID observe ErrSessionNotFound
+			// instead of holding a stale reference. StopSession has
+			// already done the delete when it fires; delete of an
+			// absent key is a no-op.
+			d.mu.Lock()
+			delete(d.sessions, k)
+			d.mu.Unlock()
+		}()
 		s.run(start)
 	}()
 }

@@ -1,4 +1,7 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- per-session PPP state ownership
+// Related: manager.go -- Driver owns pppSession values in sessions map
+// Related: session_run.go -- per-session goroutine main loop
+// Related: auth_events.go -- authEventsOut + authRespCh fields on pppSession
 
 package ppp
 
@@ -35,13 +38,11 @@ type pppSession struct {
 	maxMRU       uint16
 	echoInterval time.Duration
 	echoFailures uint8
+	authTimeout  time.Duration
 
 	// Magic-Number for THIS session. Generated via crypto/rand by
 	// the goroutine on entry; non-zero per RFC 1661 §6.4.
 	magic uint32
-
-	// Auth hook injection (replaced in spec-l2tp-6b-auth).
-	authHook AuthHook
 
 	// Iface backend for setting pppN MTU after LCP-Opened.
 	backend IfaceBackend
@@ -49,12 +50,37 @@ type pppSession struct {
 	// pppOps for ioctls (PPPIOCSMRU). Injected for tests.
 	ops pppOps
 
-	// Manager's events channel (write-only from this goroutine).
+	// Driver's lifecycle events channel (write-only from this
+	// goroutine). Carries Event (EventLCPUp / EventSessionUp / ...).
 	eventsOut chan<- Event
 
-	// Manager's shutdown signal (the goroutine selects on this and
+	// Driver's auth events channel (write-only from this goroutine).
+	// Carries EventAuthRequest / EventAuthSuccess / EventAuthFailure
+	// consumed by the external auth handler (l2tp-auth plugin in
+	// production, auto-accept responder in tests). Separate from
+	// eventsOut so L2TP's reactor is not forced to pattern-match
+	// auth types -- see auth_events.go.
+	authEventsOut chan<- AuthEvent
+
+	// Auth decision delivered by Driver.AuthResponse. Buffered(1) so
+	// a caller that beats the session to the receive position does
+	// not block. The session reads exactly once per auth phase.
+	authRespCh chan authResponseMsg
+
+	// Driver's shutdown signal (the goroutine selects on this and
 	// the chan fd's blocking read).
 	stopCh <-chan struct{}
+
+	// Per-session cancellation, closed by Driver.StopSession via
+	// sessStopOnce.Do. The auth phase selects on this in addition
+	// to stopCh so a single-session teardown (as opposed to a
+	// whole-driver shutdown) unblocks a goroutine parked on
+	// authRespCh. Closing chanFile alone is insufficient because
+	// the auth phase runs before or alongside readFrames rather
+	// than consuming from it. sessStopOnce guarantees idempotent
+	// close if a future cleanup path joins StopSession.
+	sessStop     chan struct{}
+	sessStopOnce sync.Once
 
 	// done is closed by the goroutine on exit; the manager waits on
 	// it during StopSession to confirm cleanup.

@@ -23,6 +23,7 @@ const (
 	defaultEchoInterval  = 10 * time.Second
 	defaultEchoFailures  = 3
 	defaultNegoTimeout   = 30 * time.Second
+	defaultAuthTimeout   = 30 * time.Second
 	pppFrameReadBufSize  = MaxFrameLen
 	pppFrameWriteBufSize = MaxFrameLen
 	magicDrawMaxAttempts = 8
@@ -377,13 +378,7 @@ func (s *pppSession) afterLCPOpen() bool {
 		return false
 	}
 
-	authResp := s.authHook.Authenticate(context.Background(), AuthRequest{
-		TunnelID:  s.tunnelID,
-		SessionID: s.sessionID,
-		Method:    "none",
-	})
-	if !authResp.Accept {
-		s.fail("auth rejected: " + authResp.Message)
+	if !s.runAuthPhase() {
 		return false
 	}
 
@@ -392,6 +387,92 @@ func (s *pppSession) afterLCPOpen() bool {
 		SessionID: s.sessionID,
 	})
 	return true
+}
+
+// runAuthPhase emits EventAuthRequest on the auth events channel,
+// blocks on authRespCh for the consumer's decision, and emits
+// EventAuthSuccess / EventAuthFailure to report the outcome.
+//
+// Phase 1 of 6b only advertises AuthMethodNone -- LCP carries no
+// Auth-Protocol option yet so there are no wire credentials to
+// forward. The event fires regardless so an external handler can
+// log admits and denials during the transition period. PAP / CHAP
+// / MS-CHAPv2 wire codecs land in later phases and populate
+// Username / Challenge / Response.
+//
+// Ordering note for consumers: on the reject path, EventSessionDown
+// is emitted on EventsOut before EventAuthFailure is emitted on
+// AuthEventsOut. Within each channel order is preserved, but a
+// consumer that reads both channels sees them cross-channel.
+//
+// Returns false (and fails the session) on reject, timeout, driver
+// stop, or per-session stop.
+func (s *pppSession) runAuthPhase() bool {
+	req := EventAuthRequest{
+		TunnelID:  s.tunnelID,
+		SessionID: s.sessionID,
+		Method:    AuthMethodNone,
+	}
+	select {
+	case s.authEventsOut <- req:
+	case <-s.stopCh:
+		return false
+	case <-s.sessStop:
+		return false
+	}
+
+	timeout := s.authTimeout
+	if timeout <= 0 {
+		timeout = defaultAuthTimeout
+	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	var resp authResponseMsg
+	select {
+	case resp = <-s.authRespCh:
+	case <-s.stopCh:
+		return false
+	case <-s.sessStop:
+		return false
+	case <-timer.C:
+		s.fail("auth timeout after " + timeout.String())
+		s.sendAuthEvent(EventAuthFailure{
+			TunnelID:  s.tunnelID,
+			SessionID: s.sessionID,
+			Reason:    "timeout",
+		})
+		return false
+	}
+
+	if !resp.accept {
+		s.fail("auth rejected: " + resp.message)
+		s.sendAuthEvent(EventAuthFailure{
+			TunnelID:  s.tunnelID,
+			SessionID: s.sessionID,
+			Reason:    resp.message,
+		})
+		return false
+	}
+
+	s.sendAuthEvent(EventAuthSuccess{
+		TunnelID:  s.tunnelID,
+		SessionID: s.sessionID,
+	})
+	return true
+}
+
+// sendAuthEvent writes to authEventsOut, blocking until the consumer
+// reads, the driver stops, or the session is stopped. Mirrors
+// sendEvent for the separate auth channel. The consumer MUST drain
+// events promptly or PPP processing will stall (buffer is
+// defaultAuthEventsOutBuf, 64).
+func (s *pppSession) sendAuthEvent(ev AuthEvent) {
+	select {
+	case s.authEventsOut <- ev:
+	case <-s.stopCh:
+	case <-s.sessStop:
+	}
 }
 
 // readFrames reads PPP frames from chanFile in a loop and forwards

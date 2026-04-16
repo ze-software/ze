@@ -44,6 +44,12 @@ type StartSession struct {
 	EchoInterval time.Duration
 	EchoFailures uint8
 
+	// AuthTimeout bounds how long the per-session goroutine waits
+	// for Driver.AuthResponse after emitting EventAuthRequest. Zero
+	// means use the package default (30s). On timeout the session
+	// emits EventAuthFailure{Reason: "timeout"} + EventSessionDown.
+	AuthTimeout time.Duration
+
 	// Proxy LCP bytes from L2TP ICCN AVPs (RFC 2661 Section 18).
 	// When all three are present, the LCP FSM short-circuits to the
 	// Opened state with the proxied options. Empty slices mean no
