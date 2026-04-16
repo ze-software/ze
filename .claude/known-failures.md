@@ -3,56 +3,54 @@
 Pre-existing failures that need fixing. Each entry includes failure output and root-cause hypothesis.
 Sessions should attempt to fix entries here before logging new ones.
 
-## test/encode/addpath.ci MP_REACH_NLRI mismatch -- LOGGED 2026-04-16
+## addpath MP_REACH_NLRI mismatch (encode + exabgp suites) -- LOGGED 2026-04-16
 
-**File:** `test/encode/addpath.ci` -- test "0 addpath"
+**Files:** `test/encode/addpath.ci` test "0 addpath"; `test/exabgp-compat`
+retry test "0 conf-addpath".
 **Symptom under `make ze-verify-fast`:**
 ```
 MP_REACH_NLRI: expected=0001800c0000000000000000c0a80001000000000a7004e2c100000064000000640a0000
 got=            0001800c0102030420c10002c0a80001000000000a7004e2c100000064000000640a0000
 ```
-The expected encoding has sixteen zero bytes in the next-hop region; the
-received encoding has the 8-byte RD from the peer's OPEN NLRI Capability
-identifier followed by a 4-byte RFC 6514 style VPN label payload. This
-looks like a VPN-unicast next-hop encoder that is no longer zero-padding
-the RD when the advertised family is plain `ipv4 addpath`.
+Expected encoding has sixteen zero bytes in the next-hop region; received
+encoding has the 8-byte RD from the peer's OPEN NLRI Capability identifier
+followed by a 4-byte RFC 6514 style VPN label payload. Looks like a
+VPN-unicast next-hop encoder that is no longer zero-padding the RD when
+the advertised family is plain `ipv4 addpath`. The `exabgp-compat`
+"conf-addpath" test fails with the same root cause (both suites exercise
+addpath encoding against a peer that negotiates IPv4 addpath).
 **Caused by:** BGP scratch-pool / MVPN encoder work landed earlier today
-by a parallel session (commits `233ff172` "perf(bgp): zero-alloc MVPN
-NLRI build, bounded scratch, UpdateBuilder pool" and `94c0579b`
-"refactor(bgp): scratch-pool UPDATE builder + callback splitter"). PAP
-work is orthogonal: `internal/component/ppp/*` is the only tree the
-Phase 4 commit touches; `internal/component/bgp/{message,nlri,plugins/nlri/*,reactor}`
+(commits `233ff172` "perf(bgp): zero-alloc MVPN NLRI build, bounded
+scratch, UpdateBuilder pool" and `94c0579b` "refactor(bgp): scratch-pool
+UPDATE builder + callback splitter"). Two failing tests (addpath + exabgp
+conf-addpath) share this root cause; both predate the spec-l2tp-6b Phase 4
+PAP work.
+**Not caused by spec-l2tp-6b Phase 4 (PAP codec).** The Phase 4 commit
+only touches `internal/component/ppp/*`; `internal/component/bgp/{message,nlri,plugins/nlri/*,reactor}`
 are owned by the scratch-pool refactor.
-**Not caused by spec-l2tp-6b Phase 4 (PAP codec).** Safe to leave when
-committing PAP work. The next session that owns the BGP scratch-pool
-changes should fix the VPN next-hop encoder before landing those files.
 **Hypothesis to investigate:** one of the recent scratch-pool refactors
 (`update_build_mvpn.go`, `update_split.go`, or `nlri/base.go`) is
 serialising the per-peer NextHop reused across families without
 re-zeroing the RD prefix when the family is non-VPN. Grep for
 `NextHop` + `copy` + `rd[` in those files.
 
-## TestPAPTimeoutEmitsFailure / TestPAPHandlerWireErrors -- LOGGED 2026-04-16
+## TestPAPTimeoutEmitsFailure / TestPAPHandlerWireErrors -- RESOLVED 2026-04-16
 
-**Files:** `internal/component/ppp/pap_test.go` (untracked, parallel-session
-work-in-progress for spec-l2tp-6b PAP codec).
-**Symptom under `make ze-verify-fast`:**
-```
---- FAIL: TestPAPTimeoutEmitsFailure (2.00s)
---- FAIL: TestPAPHandlerWireErrors (8.01s)
-    --- FAIL: TestPAPHandlerWireErrors/peer_closes_without_sending (2.00s)
-    --- FAIL: TestPAPHandlerWireErrors/frame_too_short_for_protocol_field (2.00s)
-    --- FAIL: TestPAPHandlerWireErrors/wrong_protocol_on_chanFile (2.00s)
-    --- FAIL: TestPAPHandlerWireErrors/valid_PAP_framing_but_wrong_code (2.00s)
-```
-**Not caused by** the ze-test-peer `ModeInject` work (2026-04-16); that
-work only touches `internal/test/peer/` + `cmd/ze-test/` + `test/stress/`
-(Python) + `.claude/memory/`. `internal/component/ppp/pap*.go` files are
-untracked in HEAD, authored by the spec-l2tp-6b PAP codec session still
-in flight. Both tests expect a `failure` event from the PAP handler
-within 2 s; they time out, suggesting either the handler has not been
-wired to the Driver yet or the test-side channel setup is incomplete.
-Owner session should finish the handler wiring before the next verify.
+**Files:** `internal/component/ppp/pap_test.go` (spec-l2tp-6b Phase 4).
+**Original symptom under the parallel session's `make ze-verify-fast`:** both
+tests timed out waiting for `EventAuthFailure` because my pap.go
+**(a)** did not call `s.fail()` on the reject and wire-error paths, so
+`EventSessionDown` was never emitted when the test expected; and
+**(b)** `newPAPTestSession` did not set `pppSession.eventsOut`, so when
+`s.fail()` tried to send on the nil lifecycle channel the handler
+blocked forever.
+**Fix:** added `s.fail("pap: auth rejected: " + resp.message)` before the
+reject-path `sendAuthEvent(EventAuthFailure{...})` in `pap.go`, mirroring
+`runAuthPhase`; initialised `eventsOut` as a buffered `chan Event` in
+`newPAPTestSession` so lifecycle sends never block.
+**Verification:** `go test -race -count=20 -run TestPAP
+./internal/component/ppp/...` -> all green; `go test -race -count=5
+./internal/component/ppp/` -> ok.
 
 ## TestInProcessBasicRoute (flake under parallel load) -- FIXED 2026-04-16
 
