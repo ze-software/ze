@@ -61,12 +61,16 @@ type AuthEvent interface {
 // within the configured auth-timeout (future phases) or the session
 // times out.
 //
-// Challenge and Response are opaque bytes: CHAP-MD5 stores the MD5
-// challenge + response; MS-CHAPv2 stores the 16-byte Peer-Challenge
-// followed by the 8-byte Reserved + 24-byte NT-Response. PAP leaves
-// Challenge empty and places the cleartext password in Response.
-// Phase 1 of 6b emits only AuthMethodNone with all opaque fields
-// empty; future phases populate them as wire codecs land.
+// Challenge and Response are opaque bytes. For CHAP-MD5, Challenge is
+// the 16-byte value ze sent and Response is the 16-byte MD5 digest the
+// peer returned. For MS-CHAPv2, Challenge is the 16-byte Authenticator
+// Challenge ze sent and Response is Peer-Challenge (16) ||
+// NT-Response (24) = 40 bytes: Reserved and Flags are validated as
+// zero at parse time and not exposed (the RFC 2759 Section 5 hash
+// recipes do not take them). PAP leaves Challenge empty and places
+// the cleartext password in Response. Phase 1 of 6b emits only
+// AuthMethodNone with all opaque fields empty; later phases populate
+// them as wire codecs land.
 type EventAuthRequest struct {
 	TunnelID   uint16
 	SessionID  uint16

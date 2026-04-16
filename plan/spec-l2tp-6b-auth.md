@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-l2tp-6a-lcp-base |
-| Phase | 5/9 |
+| Phase | 6/9 |
 | Updated | 2026-04-16 |
 
 ## Scope Changes (2026-04-16)

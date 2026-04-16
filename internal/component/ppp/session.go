@@ -44,10 +44,12 @@ type pppSession struct {
 	// the goroutine on entry; non-zero per RFC 1661 §6.4.
 	magic uint32
 
-	// CHAP-MD5 Identifier counter per session. RFC 1994 Section 4.1
-	// MUST: "The Identifier field MUST be changed each time a
-	// Challenge is sent." Incremented by runCHAPAuthPhase; wraps at
-	// 256 which is far beyond any realistic re-auth cadence.
+	// Per-session CHAP Identifier counter. Shared between CHAP-MD5
+	// (runCHAPAuthPhase) and MS-CHAPv2 (runMSCHAPv2AuthPhase) because
+	// LCP negotiates exactly one Auth-Protocol method per session and
+	// both methods use the same RFC 1994 Identifier-MUST-change-per-
+	// Challenge rule (RFC 2759 Section 4 inherits the discipline).
+	// Wraps at 256 which is far beyond any realistic re-auth cadence.
 	chapIdentifier uint8
 
 	// Iface backend for setting pppN MTU after LCP-Opened.
