@@ -101,4 +101,4 @@ When the config structure changes (new container, new nesting level):
 - Do NOT fix anything. Report findings only.
 - Do NOT check spec completeness -- that is `/ze-review-spec`.
 - After the user reviews your list, they will tell you which to fix.
-- Maximum 2 review passes. If issues remain after 2 passes, list them and stop.
+- Maximum 3 review passes. If issues remain after 3 passes, list them and stop.
