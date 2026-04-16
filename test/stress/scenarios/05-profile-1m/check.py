@@ -62,7 +62,7 @@ def check():
     log_info("=== Profiling: %d prefixes ===" % prefix_count)
 
     update_file = generate_updates(
-        prefix_base="11.0.0.0/24",
+        prefix_base="10.0.0.0/8",
         prefix_count=prefix_count,
         nexthop=BB_IP,
         asn=65100,
