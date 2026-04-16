@@ -113,7 +113,8 @@
       "Bash(gofmt:*)",
       "Bash(./scripts/dev/worktree_update.sh:*)",
       "Bash(gh issue:*)",
-      "Bash(zellij setup:*)"
+      "Bash(zellij setup:*)",
+      "Bash(mkdir -p tmp/session)"
     ],
     "deny": [
       "Bash(git commit:*)",

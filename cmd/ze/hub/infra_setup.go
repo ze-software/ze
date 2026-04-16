@@ -81,6 +81,24 @@ func infraSetup(params bgpconfig.InfraHookParams) {
 		users = append(zefsUsers, users...)
 	}
 
+	// Warn on every ze:bcrypt canonical leaf that holds a non-bcrypt value.
+	// `ze config validate` already surfaces this, but a daemon reload from a
+	// hand-edited file (or a fleet push) bypasses validate -- the warning
+	// here ensures operators see the problem in daemon logs.
+	//
+	// Note: zeconfig.YANGSchema() re-parses the YANG modules on every call
+	// (no cache as of 2026-04-15). Cost is sub-millisecond and reload is
+	// rare, so the duplicate work is acceptable. If reload latency ever
+	// matters, thread a *config.Schema through InfraHookParams so the
+	// loader's already-parsed schema is reused here.
+	if params.ConfigTree != nil {
+		if schema, schemaErr := zeconfig.YANGSchema(); schemaErr == nil {
+			for _, msg := range zeconfig.CheckBcryptLeaves(params.ConfigTree, schema) {
+				log.Warn("password leaf format invalid", "detail", msg)
+			}
+		}
+	}
+
 	// Build the AAA bundle unconditionally. TACACS+ accounting fires on
 	// every dispatched command (SSH, MCP, API), so the bundle must exist
 	// even when SSH is disabled. On config reload the previous bundle is
