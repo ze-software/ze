@@ -28,7 +28,6 @@ import (
 type FlowSpecVPN struct {
 	rd       RouteDistinguisher
 	flowSpec *FlowSpec
-	cached   []byte
 }
 
 // NewFlowSpecVPN creates a new FlowSpec VPN NLRI (SAFI 134).
@@ -65,7 +64,6 @@ func (f *FlowSpecVPN) FlowSpec() *FlowSpec {
 // AddComponent adds a component to the FlowSpec.
 func (f *FlowSpecVPN) AddComponent(c FlowComponent) {
 	f.flowSpec.AddComponent(c)
-	f.cached = nil
 }
 
 // Components returns the FlowSpec components.
@@ -79,36 +77,18 @@ func (f *FlowSpecVPN) Components() []FlowComponent {
 // 8 octets of the Route Distinguisher as well as the subsequent
 // Flow Specification NLRI value.".
 func (f *FlowSpecVPN) Bytes() []byte {
-	if f.cached != nil {
-		return f.cached
-	}
-
-	// Get component bytes (without FlowSpec length prefix)
-	compBytes := f.flowSpec.ComponentBytes()
-
-	// Total payload = RD (8) + components per RFC 8955 Section 8
-	payloadLen := 8 + len(compBytes)
-
-	// Build with length prefix per RFC 8955 Section 4.1
-	if payloadLen < 240 {
-		f.cached = make([]byte, 1+payloadLen)
-		f.cached[0] = byte(payloadLen)
-		copy(f.cached[1:9], f.rd.Bytes())
-		copy(f.cached[9:], compBytes)
-	} else {
-		f.cached = make([]byte, 2+payloadLen)
-		f.cached[0] = 0xF0 | byte(payloadLen>>8)
-		f.cached[1] = byte(payloadLen)
-		copy(f.cached[2:10], f.rd.Bytes())
-		copy(f.cached[10:], compBytes)
-	}
-
-	return f.cached
+	buf := make([]byte, f.Len())
+	f.WriteTo(buf, 0)
+	return buf
 }
 
 // Len returns the length in bytes.
 func (f *FlowSpecVPN) Len() int {
-	return len(f.Bytes())
+	payloadLen := 8 + f.flowSpec.componentLen()
+	if payloadLen < 240 {
+		return 1 + payloadLen
+	}
+	return 2 + payloadLen
 }
 
 // PathID returns 0 (FlowSpecVPN doesn't use ADD-PATH).
@@ -192,11 +172,6 @@ func ParseFlowSpecVPN(fam Family, data []byte) (*FlowSpecVPN, error) {
 // WriteTo writes the FlowSpecVPN NLRI directly to buf at offset (zero-alloc).
 // RFC 8955 Section 8: Length + RD (8 bytes) + sorted components.
 func (f *FlowSpecVPN) WriteTo(buf []byte, off int) int {
-	// Fallback: if we have cached bytes but no components, use cached bytes
-	if len(f.flowSpec.components) == 0 && f.cached != nil {
-		return copy(buf[off:], f.cached)
-	}
-
 	pos := off
 
 	// Calculate payload length: RD (8) + components

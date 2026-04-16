@@ -272,16 +272,12 @@ func ParseLabelStack(data []byte) ([]uint32, []byte, error) {
 //	Byte 2: label[3:0] | EXP[2:0] | S
 //
 // The S (bottom-of-stack) bit is set on the last label only.
+//
+// Retained as a convenience wrapper for JSON / test callers that need a
+// standalone slice. Hot-path encoders should call WriteLabelStack
+// (helpers.go) directly with a pool buffer to skip the make.
 func EncodeLabelStack(labels []uint32) []byte {
 	buf := make([]byte, len(labels)*3)
-	for i, label := range labels {
-		off := i * 3
-		buf[off] = byte(label >> 12)
-		buf[off+1] = byte(label >> 4)
-		buf[off+2] = byte(label<<4) & 0xF0
-		if i == len(labels)-1 {
-			buf[off+2] |= 0x01 // RFC 3107: S (bottom-of-stack) bit
-		}
-	}
+	WriteLabelStack(buf, 0, labels)
 	return buf
 }

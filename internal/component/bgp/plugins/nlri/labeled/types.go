@@ -100,28 +100,12 @@ func (l *LabeledUnicast) Labels() []uint32 {
 // [Length (1 byte)][Labels (3*N bytes)][Prefix (variable)]
 //
 // Note: Path ID is NOT included. Use WriteNLRI() for ADD-PATH encoding.
+//
+// Bytes allocates a standalone slice and delegates to WriteTo; hot-path
+// senders should call WriteTo directly with a pool buffer.
 func (l *LabeledUnicast) Bytes() []byte {
-	prefixBits := l.prefix.Bits()
-	prefixBytes := nlri.PrefixBytes(prefixBits)
-	labelBytes := nlri.EncodeLabelStack(l.labels)
-
-	// Total bits: 24 per label + prefix bits
-	totalBits := len(l.labels)*24 + prefixBits
-
-	// Calculate buffer size: length (1) + labels + prefix
-	buf := make([]byte, 1+len(labelBytes)+prefixBytes)
-
-	// Length byte
-	buf[0] = byte(totalBits)
-
-	// Copy encoded labels
-	copy(buf[1:], labelBytes)
-
-	// Prefix bytes
-	if prefixBytes > 0 {
-		copy(buf[1+len(labelBytes):], l.prefix.Addr().AsSlice()[:prefixBytes])
-	}
-
+	buf := make([]byte, l.Len())
+	l.WriteTo(buf, 0)
 	return buf
 }
 

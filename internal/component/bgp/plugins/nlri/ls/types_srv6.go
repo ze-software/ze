@@ -94,34 +94,10 @@ func NewBGPLSSRv6SID(proto BGPLSProtocolID, id uint64, node NodeDescriptor, sid 
 
 // Bytes returns the wire-format encoding.
 // Uses RFC 7752 NLRI header format with RFC 9514 SRv6 SID descriptor.
-//
-//nolint:dupl // Similar structure to BGPLSPrefix.Bytes() is intentional
 func (s *BGPLSSRv6SID) Bytes() []byte {
-	if s.cached != nil {
-		return s.cached
-	}
-
-	// RFC 7752 Section 3.2.1.2 - Local Node Descriptors (TLV 256)
-	localNodeTLV := tlv(TLVLocalNodeDesc, s.LocalNode.Bytes())
-	// RFC 9514 - SRv6 SID descriptor TLVs
-	sidTLV := s.SRv6SID.Bytes()
-
-	bodyLen := 9 + len(localNodeTLV) + len(sidTLV)
-	body := make([]byte, bodyLen)
-	body[0] = byte(s.protocolID)                        // Protocol-ID (1 byte)
-	binary.BigEndian.PutUint64(body[1:9], s.identifier) // Identifier (8 bytes)
-	offset := 9
-	copy(body[offset:], localNodeTLV)
-	offset += len(localNodeTLV)
-	copy(body[offset:], sidTLV)
-
-	// RFC 7752 Section 3.2 - NLRI header format
-	s.cached = make([]byte, 4+len(body))
-	binary.BigEndian.PutUint16(s.cached[0:2], uint16(s.nlriType)) // NLRI Type (2 bytes)
-	binary.BigEndian.PutUint16(s.cached[2:4], uint16(len(body)))  //nolint:gosec // Total NLRI Length (2 bytes)
-	copy(s.cached[4:], body)
-
-	return s.cached
+	buf := make([]byte, s.Len())
+	s.WriteTo(buf, 0)
+	return buf
 }
 
 // Len returns the length in bytes.

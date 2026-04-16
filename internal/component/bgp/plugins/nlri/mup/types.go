@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -85,8 +84,6 @@ const (
 type MUP struct {
 	rd        RouteDistinguisher
 	data      []byte
-	cached    []byte
-	cacheOnce sync.Once
 	afi       AFI
 	archType  MUPArchType
 	routeType MUPRouteType
@@ -132,7 +129,6 @@ func ParseMUP(afi AFI, data []byte) (*MUP, []byte, error) {
 	}
 
 	mup := &MUP{
-		cached:    data[:4+nlriLen],
 		afi:       afi,
 		archType:  archType,
 		routeType: routeType,
@@ -169,26 +165,25 @@ func (m *MUP) RouteType() MUPRouteType { return m.routeType }
 // RD returns the Route Distinguisher.
 func (m *MUP) RD() RouteDistinguisher { return m.rd }
 
-// Bytes returns the wire-format encoding.
+// Bytes allocates a standalone slice and delegates to WriteTo; hot-path
+// senders should call WriteTo directly with a pool buffer.
 func (m *MUP) Bytes() []byte {
-	if m.cached != nil {
-		return m.cached
-	}
-
-	m.cacheOnce.Do(func() {
-		totalData := m.buildData()
-		m.cached = make([]byte, 4+len(totalData))
-		m.cached[0] = byte(m.archType)
-		binary.BigEndian.PutUint16(m.cached[1:3], uint16(m.routeType))
-		m.cached[3] = byte(len(totalData) & 0xFF)
-		copy(m.cached[4:], totalData)
-	})
-
-	return m.cached
+	buf := make([]byte, m.Len())
+	m.WriteTo(buf, 0)
+	return buf
 }
 
-// Len returns the length in bytes.
-func (m *MUP) Len() int { return len(m.Bytes()) }
+// Len returns the wire-format length in bytes.
+//
+// 4-byte MUP header (arch + route type + length) + optional 8-byte RD +
+// route-type-specific data carried in m.data.
+func (m *MUP) Len() int {
+	n := 4 + len(m.data)
+	if hasRD(m.rd) {
+		n += 8
+	}
+	return n
+}
 
 // PathID returns 0.
 func (m *MUP) PathID() uint32 { return 0 }
@@ -207,12 +202,9 @@ func (m *MUP) String() string {
 	return m.routeType.String()
 }
 
-// WriteTo writes the MUP NLRI directly to buf at offset.
+// WriteTo writes the MUP NLRI directly to buf at offset. Zero-alloc:
+// RD is written in place via RouteDistinguisher.WriteTo.
 func (m *MUP) WriteTo(buf []byte, off int) int {
-	if m.cached != nil {
-		return copy(buf[off:], m.cached)
-	}
-
 	pos := off
 
 	dataLen := len(m.data)
@@ -233,16 +225,6 @@ func (m *MUP) WriteTo(buf []byte, off int) int {
 	pos += len(m.data)
 
 	return pos - off
-}
-
-// buildData returns rd+data for Bytes() caching.
-func (m *MUP) buildData() []byte {
-	if hasRD(m.rd) {
-		return append(m.rd.Bytes(), m.data...)
-	}
-	result := make([]byte, len(m.data))
-	copy(result, m.data)
-	return result
 }
 
 // hasRD returns true if the RD is non-zero.

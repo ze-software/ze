@@ -4,10 +4,8 @@
 package mvpn
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -84,8 +82,6 @@ func (t MVPNRouteType) String() string {
 type MVPN struct {
 	rd        RouteDistinguisher
 	data      []byte
-	cached    []byte
-	cacheOnce sync.Once
 	afi       AFI
 	routeType MVPNRouteType
 }
@@ -129,7 +125,6 @@ func ParseMVPN(afi AFI, data []byte) (*MVPN, []byte, error) {
 	nlriData := data[2 : 2+nlriLen]
 
 	mvpn := &MVPN{
-		cached:    data[:2+nlriLen],
 		afi:       afi,
 		routeType: routeType,
 	}
@@ -163,23 +158,19 @@ func (m *MVPN) RD() RouteDistinguisher { return m.rd }
 
 // Bytes returns the wire-format encoding.
 func (m *MVPN) Bytes() []byte {
-	if m.cached != nil {
-		return m.cached
-	}
-
-	m.cacheOnce.Do(func() {
-		totalData := m.buildData()
-		m.cached = make([]byte, 2+len(totalData))
-		m.cached[0] = byte(m.routeType)
-		m.cached[1] = byte(len(totalData))
-		copy(m.cached[2:], totalData)
-	})
-
-	return m.cached
+	buf := make([]byte, m.Len())
+	m.WriteTo(buf, 0)
+	return buf
 }
 
 // Len returns the length in bytes.
-func (m *MVPN) Len() int { return len(m.Bytes()) }
+func (m *MVPN) Len() int {
+	n := 2 + len(m.data)
+	if hasRD(m.rd) {
+		n += 8
+	}
+	return n
+}
 
 // PathID returns 0 (MVPN doesn't typically use ADD-PATH).
 func (m *MVPN) PathID() uint32 { return 0 }
@@ -200,10 +191,6 @@ func (m *MVPN) String() string {
 
 // WriteTo writes the MVPN NLRI directly to buf at offset.
 func (m *MVPN) WriteTo(buf []byte, off int) int {
-	if m.cached != nil {
-		return copy(buf[off:], m.cached)
-	}
-
 	pos := off
 
 	dataLen := len(m.data)
@@ -223,19 +210,6 @@ func (m *MVPN) WriteTo(buf []byte, off int) int {
 	pos += len(m.data)
 
 	return pos - off
-}
-
-// buildData returns rd+data for Bytes() caching.
-func (m *MVPN) buildData() []byte {
-	if hasRD(m.rd) {
-		rdBytes := make([]byte, 10)
-		binary.BigEndian.PutUint16(rdBytes[:2], uint16(m.rd.Type))
-		copy(rdBytes[2:8], m.rd.Value[:])
-		return append(rdBytes[:8], m.data...)
-	}
-	result := make([]byte, len(m.data))
-	copy(result, m.data)
-	return result
 }
 
 // hasRD returns true if the RD is non-zero.

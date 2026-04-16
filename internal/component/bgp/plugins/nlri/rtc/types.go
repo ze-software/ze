@@ -78,7 +78,6 @@ func (rt RouteTarget) String() string {
 type RTC struct {
 	originAS    uint32      // Origin AS number (4 bytes)
 	routeTarget RouteTarget // Route Target extended community (8 bytes)
-	cached      []byte
 }
 
 // NewRTC creates a new RTC NLRI.
@@ -105,9 +104,7 @@ func ParseRTC(data []byte) (*RTC, []byte, error) {
 		return nil, nil, ErrRTCTruncated
 	}
 
-	rtc := &RTC{
-		cached: data[:1+prefixBytes],
-	}
+	rtc := &RTC{}
 
 	if prefixLen == 0 {
 		return rtc, data[1:], nil
@@ -151,27 +148,19 @@ func (r *RTC) IsDefault() bool {
 //
 // RFC 4684 Section 4: prefix-length is in bits: 96 = 12 bytes.
 func (r *RTC) Bytes() []byte {
-	if r.cached != nil {
-		return r.cached
-	}
-
-	if r.IsDefault() {
-		r.cached = []byte{0}
-		return r.cached
-	}
-
-	r.cached = make([]byte, 13)
-	r.cached[0] = 96
-
-	binary.BigEndian.PutUint32(r.cached[1:5], r.originAS)
-	binary.BigEndian.PutUint16(r.cached[5:7], r.routeTarget.Type)
-	copy(r.cached[7:13], r.routeTarget.Value[:])
-
-	return r.cached
+	buf := make([]byte, r.Len())
+	r.WriteTo(buf, 0)
+	return buf
 }
 
 // Len returns the length in bytes.
-func (r *RTC) Len() int { return len(r.Bytes()) }
+// RFC 4684 Section 4: 1 byte for default, 13 bytes otherwise.
+func (r *RTC) Len() int {
+	if r.IsDefault() {
+		return 1
+	}
+	return 13
+}
 
 // PathID returns 0.
 func (r *RTC) PathID() uint32 { return 0 }
@@ -192,10 +181,6 @@ func (r *RTC) String() string {
 
 // WriteTo writes the RTC NLRI directly to buf at offset.
 func (r *RTC) WriteTo(buf []byte, off int) int {
-	if r.cached != nil {
-		return copy(buf[off:], r.cached)
-	}
-
 	if r.IsDefault() {
 		buf[off] = 0
 		return 1

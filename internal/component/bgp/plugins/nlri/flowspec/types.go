@@ -234,7 +234,6 @@ type FlowComponent interface {
 type FlowSpec struct {
 	family     Family
 	components []FlowComponent
-	cached     []byte
 }
 
 // NewFlowSpec creates a new FlowSpec NLRI.
@@ -258,7 +257,6 @@ func (f *FlowSpec) Components() []FlowComponent {
 // AddComponent adds a component to the FlowSpec.
 func (f *FlowSpec) AddComponent(c FlowComponent) {
 	f.components = append(f.components, c)
-	f.cached = nil // Invalidate cache
 }
 
 // ComponentBytes returns the wire-format encoding of components without length prefix.
@@ -289,32 +287,18 @@ func (f *FlowSpec) ComponentBytes() []byte {
 //
 // Example from RFC 8955: 239 -> 0xef (1 octet), 240 -> 0xf0f0 (2 octets).
 func (f *FlowSpec) Bytes() []byte {
-	if f.cached != nil {
-		return f.cached
-	}
-
-	// Encode components
-	data := f.ComponentBytes()
-
-	// Add NLRI length prefix per RFC 8955 Section 4.1
-	if len(data) < 240 {
-		// Single octet length (values 0x00-0xef)
-		f.cached = append([]byte{byte(len(data))}, data...)
-	} else {
-		// Extended length (2 bytes): 0xfnnn format
-		// High nibble is 0xf, remaining 12 bits encode length (max 4095)
-		f.cached = make([]byte, 2+len(data))
-		f.cached[0] = 0xF0 | byte(len(data)>>8)
-		f.cached[1] = byte(len(data))
-		copy(f.cached[2:], data)
-	}
-
-	return f.cached
+	buf := make([]byte, f.Len())
+	f.WriteTo(buf, 0)
+	return buf
 }
 
 // Len returns the length in bytes.
 func (f *FlowSpec) Len() int {
-	return len(f.Bytes())
+	dataLen := f.componentLen()
+	if dataLen < 240 {
+		return 1 + dataLen
+	}
+	return 2 + dataLen
 }
 
 // PathID returns 0 (FlowSpec doesn't use ADD-PATH).
@@ -455,12 +439,6 @@ func (f *FlowSpec) writeComponentsSorted(buf []byte, off int) int {
 // WriteTo writes the FlowSpec NLRI directly to buf at offset (zero-alloc).
 // RFC 8955 Section 4.1: Length encoding + sorted components.
 func (f *FlowSpec) WriteTo(buf []byte, off int) int {
-	// Fallback: if we have cached bytes but no components (parsed FlowSpec
-	// where components weren't reconstructed), use cached bytes
-	if len(f.components) == 0 && f.cached != nil {
-		return copy(buf[off:], f.cached)
-	}
-
 	pos := off
 
 	// Calculate component data length

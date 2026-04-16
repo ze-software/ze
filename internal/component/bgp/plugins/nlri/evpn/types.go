@@ -39,6 +39,7 @@ var (
 	ParseRouteDistinguisher = nlri.ParseRouteDistinguisher
 	ParseLabelStack         = nlri.ParseLabelStack
 	EncodeLabelStack        = nlri.EncodeLabelStack
+	WriteLabelStack         = nlri.WriteLabelStack
 	ParseRDString           = nlri.ParseRDString
 )
 
@@ -288,23 +289,30 @@ func (e *EVPNType1) PathID() uint32           { return e.pathID }
 func (e *EVPNType1) HasPathID() bool          { return e.hasPath }
 func (e *EVPNType1) SupportsAddPath() bool    { return true }
 
+// WriteTo encodes the EVPN Type 1 NLRI directly into buf at off. Returns
+// bytes written. Zero-alloc primitive: label stack and RD are written
+// in place via their own WriteTo helpers, never through an intermediate
+// `make`.
+func (e *EVPNType1) WriteTo(buf []byte, off int) int {
+	payloadLen := 8 + 10 + 4 + len(e.labels)*3
+	buf[off] = byte(EVPNRouteType1)
+	buf[off+1] = byte(payloadLen)
+	pos := off + 2
+	pos += e.rd.WriteTo(buf, pos)
+	copy(buf[pos:], e.esi[:])
+	pos += 10
+	binary.BigEndian.PutUint32(buf[pos:], e.ethernetTag)
+	pos += 4
+	pos += WriteLabelStack(buf, pos, e.labels)
+	return pos - off
+}
+
+// Bytes returns a standalone wire encoding. Retained for JSON / test
+// callers that need an owned slice; hot-path senders should call
+// WriteTo directly into a pool buffer.
 func (e *EVPNType1) Bytes() []byte {
-	labelBytes := EncodeLabelStack(e.labels)
-	payloadLen := 8 + 10 + 4 + len(labelBytes)
-
-	buf := make([]byte, 2+payloadLen)
-	buf[0] = byte(EVPNRouteType1)
-	buf[1] = byte(payloadLen)
-
-	offset := 2
-	copy(buf[offset:], e.rd.Bytes())
-	offset += 8
-	copy(buf[offset:], e.esi[:])
-	offset += 10
-	binary.BigEndian.PutUint32(buf[offset:], e.ethernetTag)
-	offset += 4
-	copy(buf[offset:], labelBytes)
-
+	buf := make([]byte, e.Len())
+	e.WriteTo(buf, 0)
 	return buf
 }
 
@@ -329,8 +337,6 @@ func (e *EVPNType1) String() string {
 	}
 	return sb.String()
 }
-
-func (e *EVPNType1) WriteTo(buf []byte, off int) int { return copy(buf[off:], e.Bytes()) }
 
 // EVPNType2 represents a MAC/IP Advertisement route (RFC 7432 Section 7.2).
 type EVPNType2 struct {
@@ -428,48 +434,50 @@ func (e *EVPNType2) PathID() uint32           { return e.pathID }
 func (e *EVPNType2) HasPathID() bool          { return e.hasPath }
 func (e *EVPNType2) SupportsAddPath() bool    { return true }
 
+// WriteTo encodes the EVPN Type 2 NLRI directly into buf at off.
+// Zero-alloc: label stack, RD, and IP are written in place.
+func (e *EVPNType2) WriteTo(buf []byte, off int) int {
+	ipLen, ipBytesLen := 0, 0
+	switch {
+	case e.ip.Is4():
+		ipLen, ipBytesLen = 32, 4
+	case e.ip.Is6():
+		ipLen, ipBytesLen = 128, 16
+	}
+	payloadLen := 8 + 10 + 4 + 1 + 6 + 1 + ipBytesLen + len(e.labels)*3
+	buf[off] = byte(EVPNRouteType2)
+	buf[off+1] = byte(payloadLen)
+	pos := off + 2
+	pos += e.rd.WriteTo(buf, pos)
+	copy(buf[pos:], e.esi[:])
+	pos += 10
+	binary.BigEndian.PutUint32(buf[pos:], e.ethernetTag)
+	pos += 4
+	buf[pos] = 48 // RFC 7432: MAC Addr Length (bits)
+	pos++
+	copy(buf[pos:], e.mac[:])
+	pos += 6
+	buf[pos] = byte(ipLen)
+	pos++
+	switch ipBytesLen {
+	case 4:
+		ip4 := e.ip.As4()
+		copy(buf[pos:], ip4[:])
+		pos += 4
+	case 16:
+		ip6 := e.ip.As16()
+		copy(buf[pos:], ip6[:])
+		pos += 16
+	}
+	pos += WriteLabelStack(buf, pos, e.labels)
+	return pos - off
+}
+
+// Bytes returns a standalone wire encoding. Retained for JSON / test
+// callers; hot-path senders should call WriteTo into a pool buffer.
 func (e *EVPNType2) Bytes() []byte {
-	labelBytes := EncodeLabelStack(e.labels)
-
-	ipLen := 0
-	var ipBytes []byte
-	if e.ip.IsValid() {
-		if e.ip.Is4() {
-			ipLen = 32
-			ip4 := e.ip.As4()
-			ipBytes = ip4[:]
-		} else {
-			ipLen = 128
-			ip6 := e.ip.As16()
-			ipBytes = ip6[:]
-		}
-	}
-
-	payloadLen := 8 + 10 + 4 + 1 + 6 + 1 + len(ipBytes) + len(labelBytes)
-
-	buf := make([]byte, 2+payloadLen)
-	buf[0] = byte(EVPNRouteType2)
-	buf[1] = byte(payloadLen)
-
-	offset := 2
-	copy(buf[offset:], e.rd.Bytes())
-	offset += 8
-	copy(buf[offset:], e.esi[:])
-	offset += 10
-	binary.BigEndian.PutUint32(buf[offset:], e.ethernetTag)
-	offset += 4
-	buf[offset] = 48
-	offset++
-	copy(buf[offset:], e.mac[:])
-	offset += 6
-	buf[offset] = byte(ipLen)
-	offset++
-	if len(ipBytes) > 0 {
-		copy(buf[offset:], ipBytes)
-		offset += len(ipBytes)
-	}
-	copy(buf[offset:], labelBytes)
-
+	buf := make([]byte, e.Len())
+	e.WriteTo(buf, 0)
 	return buf
 }
 
@@ -507,8 +515,6 @@ func (e *EVPNType2) String() string {
 	}
 	return sb.String()
 }
-
-func (e *EVPNType2) WriteTo(buf []byte, off int) int { return copy(buf[off:], e.Bytes()) }
 
 // EVPNType3 represents an Inclusive Multicast Ethernet Tag route (RFC 7432 Section 7.3).
 type EVPNType3 struct {
@@ -558,34 +564,40 @@ func (e *EVPNType3) PathID() uint32           { return e.pathID }
 func (e *EVPNType3) HasPathID() bool          { return e.hasPath }
 func (e *EVPNType3) SupportsAddPath() bool    { return true }
 
-func (e *EVPNType3) Bytes() []byte {
-	var ipLen int
-	var ipBytes []byte
+// WriteTo encodes the EVPN Type 3 NLRI directly into buf at off.
+// Zero-alloc: RD and IP are written in place.
+func (e *EVPNType3) WriteTo(buf []byte, off int) int {
+	ipLen, ipBytesLen := 128, 16
 	if e.originatorIP.Is4() {
-		ipLen = 32
-		ip4 := e.originatorIP.As4()
-		ipBytes = ip4[:]
-	} else {
-		ipLen = 128
-		ip6 := e.originatorIP.As16()
-		ipBytes = ip6[:]
+		ipLen, ipBytesLen = 32, 4
 	}
+	payloadLen := 8 + 4 + 1 + ipBytesLen
+	buf[off] = byte(EVPNRouteType3)
+	buf[off+1] = byte(payloadLen)
+	pos := off + 2
+	pos += e.rd.WriteTo(buf, pos)
+	binary.BigEndian.PutUint32(buf[pos:], e.ethernetTag)
+	pos += 4
+	buf[pos] = byte(ipLen)
+	pos++
+	switch ipBytesLen {
+	case 4:
+		ip4 := e.originatorIP.As4()
+		copy(buf[pos:], ip4[:])
+		pos += 4
+	case 16:
+		ip6 := e.originatorIP.As16()
+		copy(buf[pos:], ip6[:])
+		pos += 16
+	}
+	return pos - off
+}
 
-	payloadLen := 8 + 4 + 1 + len(ipBytes)
-
-	buf := make([]byte, 2+payloadLen)
-	buf[0] = byte(EVPNRouteType3)
-	buf[1] = byte(payloadLen)
-
-	offset := 2
-	copy(buf[offset:], e.rd.Bytes())
-	offset += 8
-	binary.BigEndian.PutUint32(buf[offset:], e.ethernetTag)
-	offset += 4
-	buf[offset] = byte(ipLen)
-	offset++
-	copy(buf[offset:], ipBytes)
-
+// Bytes returns a standalone wire encoding. Retained for JSON / test
+// callers; hot-path senders should call WriteTo into a pool buffer.
+func (e *EVPNType3) Bytes() []byte {
+	buf := make([]byte, e.Len())
+	e.WriteTo(buf, 0)
 	return buf
 }
 
@@ -610,8 +622,6 @@ func (e *EVPNType3) String() string {
 	}
 	return sb.String()
 }
-
-func (e *EVPNType3) WriteTo(buf []byte, off int) int { return copy(buf[off:], e.Bytes()) }
 
 // EVPNType4 represents an Ethernet Segment route (RFC 7432 Section 7.4).
 type EVPNType4 struct {
@@ -678,34 +688,40 @@ func (e *EVPNType4) PathID() uint32           { return e.pathID }
 func (e *EVPNType4) HasPathID() bool          { return e.hasPath }
 func (e *EVPNType4) SupportsAddPath() bool    { return true }
 
-func (e *EVPNType4) Bytes() []byte {
-	var ipLen int
-	var ipBytes []byte
+// WriteTo encodes the EVPN Type 4 NLRI directly into buf at off.
+// Zero-alloc: RD and IP are written in place.
+func (e *EVPNType4) WriteTo(buf []byte, off int) int {
+	ipLen, ipBytesLen := 128, 16
 	if e.originatorIP.Is4() {
-		ipLen = 32
-		ip4 := e.originatorIP.As4()
-		ipBytes = ip4[:]
-	} else {
-		ipLen = 128
-		ip6 := e.originatorIP.As16()
-		ipBytes = ip6[:]
+		ipLen, ipBytesLen = 32, 4
 	}
+	payloadLen := 8 + 10 + 1 + ipBytesLen
+	buf[off] = byte(EVPNRouteType4)
+	buf[off+1] = byte(payloadLen)
+	pos := off + 2
+	pos += e.rd.WriteTo(buf, pos)
+	copy(buf[pos:], e.esi[:])
+	pos += 10
+	buf[pos] = byte(ipLen)
+	pos++
+	switch ipBytesLen {
+	case 4:
+		ip4 := e.originatorIP.As4()
+		copy(buf[pos:], ip4[:])
+		pos += 4
+	case 16:
+		ip6 := e.originatorIP.As16()
+		copy(buf[pos:], ip6[:])
+		pos += 16
+	}
+	return pos - off
+}
 
-	payloadLen := 8 + 10 + 1 + len(ipBytes)
-
-	buf := make([]byte, 2+payloadLen)
-	buf[0] = byte(EVPNRouteType4)
-	buf[1] = byte(payloadLen)
-
-	offset := 2
-	copy(buf[offset:], e.rd.Bytes())
-	offset += 8
-	copy(buf[offset:], e.esi[:])
-	offset += 10
-	buf[offset] = byte(ipLen)
-	offset++
-	copy(buf[offset:], ipBytes)
-
+// Bytes returns a standalone wire encoding. Retained for JSON / test
+// callers; hot-path senders should call WriteTo into a pool buffer.
+func (e *EVPNType4) Bytes() []byte {
+	buf := make([]byte, e.Len())
+	e.WriteTo(buf, 0)
 	return buf
 }
 
@@ -729,8 +745,6 @@ func (e *EVPNType4) String() string {
 	sb.WriteString(e.originatorIP.String())
 	return sb.String()
 }
-
-func (e *EVPNType4) WriteTo(buf []byte, off int) int { return copy(buf[off:], e.Bytes()) }
 
 // EVPNType5 represents an IP Prefix route (RFC 9136 Section 3).
 type EVPNType5 struct {
@@ -821,54 +835,53 @@ func (e *EVPNType5) PathID() uint32           { return e.pathID }
 func (e *EVPNType5) HasPathID() bool          { return e.hasPath }
 func (e *EVPNType5) SupportsAddPath() bool    { return true }
 
-func (e *EVPNType5) Bytes() []byte {
-	labelBytes := EncodeLabelStack(e.labels)
-
-	var prefixSize int
+// WriteTo encodes the EVPN Type 5 NLRI directly into buf at off.
+// Zero-alloc: label stack, RD, prefix, and gateway are written in place.
+func (e *EVPNType5) WriteTo(buf []byte, off int) int {
+	prefixSize := 16
 	if e.prefix.Addr().Is4() {
 		prefixSize = 4
-	} else {
-		prefixSize = 16
 	}
-
-	payloadLen := 8 + 10 + 4 + 1 + prefixSize + prefixSize + len(labelBytes)
-
-	buf := make([]byte, 2+payloadLen)
-	buf[0] = byte(EVPNRouteType5)
-	buf[1] = byte(payloadLen)
-
-	offset := 2
-	copy(buf[offset:], e.rd.Bytes())
-	offset += 8
-	copy(buf[offset:], e.esi[:])
-	offset += 10
-	binary.BigEndian.PutUint32(buf[offset:], e.ethernetTag)
-	offset += 4
-	buf[offset] = byte(e.prefix.Bits())
-	offset++
-
-	if prefixSize == 4 {
+	payloadLen := 8 + 10 + 4 + 1 + prefixSize + prefixSize + len(e.labels)*3
+	buf[off] = byte(EVPNRouteType5)
+	buf[off+1] = byte(payloadLen)
+	pos := off + 2
+	pos += e.rd.WriteTo(buf, pos)
+	copy(buf[pos:], e.esi[:])
+	pos += 10
+	binary.BigEndian.PutUint32(buf[pos:], e.ethernetTag)
+	pos += 4
+	buf[pos] = byte(e.prefix.Bits())
+	pos++
+	switch prefixSize {
+	case 4:
 		ip4 := e.prefix.Addr().As4()
-		copy(buf[offset:], ip4[:])
-		offset += 4
+		copy(buf[pos:], ip4[:])
+		pos += 4
 		if e.gateway.IsValid() {
 			gw4 := e.gateway.As4()
-			copy(buf[offset:], gw4[:])
+			copy(buf[pos:], gw4[:])
 		}
-		offset += 4
-	} else {
+		pos += 4
+	case 16:
 		ip6 := e.prefix.Addr().As16()
-		copy(buf[offset:], ip6[:])
-		offset += 16
+		copy(buf[pos:], ip6[:])
+		pos += 16
 		if e.gateway.IsValid() {
 			gw6 := e.gateway.As16()
-			copy(buf[offset:], gw6[:])
+			copy(buf[pos:], gw6[:])
 		}
-		offset += 16
+		pos += 16
 	}
+	pos += WriteLabelStack(buf, pos, e.labels)
+	return pos - off
+}
 
-	copy(buf[offset:], labelBytes)
-
+// Bytes returns a standalone wire encoding. Retained for JSON / test
+// callers; hot-path senders should call WriteTo into a pool buffer.
+func (e *EVPNType5) Bytes() []byte {
+	buf := make([]byte, e.Len())
+	e.WriteTo(buf, 0)
 	return buf
 }
 
@@ -904,8 +917,6 @@ func (e *EVPNType5) String() string {
 	}
 	return sb.String()
 }
-
-func (e *EVPNType5) WriteTo(buf []byte, off int) int { return copy(buf[off:], e.Bytes()) }
 
 // EVPNGeneric holds unparsed EVPN routes.
 type EVPNGeneric struct {

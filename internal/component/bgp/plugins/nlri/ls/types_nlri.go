@@ -34,27 +34,9 @@ func NewBGPLSNode(proto BGPLSProtocolID, id uint64, localNode NodeDescriptor) *B
 // RFC 7752 Section 3.2 - NLRI encoding format:
 //   - Type (2 bytes) + Length (2 bytes) + Protocol-ID (1 byte) + Identifier (8 bytes) + Descriptors
 func (n *BGPLSNode) Bytes() []byte {
-	if n.cached != nil {
-		return n.cached
-	}
-
-	// RFC 7752 Section 3.2.1.2 - Local Node Descriptors (TLV 256)
-	localNodeData := n.LocalNode.Bytes()
-	localNodeTLV := tlv(TLVLocalNodeDesc, localNodeData)
-
-	// Build NLRI body per RFC 7752 Section 3.2
-	body := make([]byte, 9+len(localNodeTLV))
-	body[0] = byte(n.protocolID)                        // Protocol-ID (1 byte)
-	binary.BigEndian.PutUint64(body[1:9], n.identifier) // Identifier (8 bytes)
-	copy(body[9:], localNodeTLV)
-
-	// Build full NLRI with type and length per RFC 7752 Section 3.2
-	n.cached = make([]byte, 4+len(body))
-	binary.BigEndian.PutUint16(n.cached[0:2], uint16(n.nlriType)) // NLRI Type (2 bytes)
-	binary.BigEndian.PutUint16(n.cached[2:4], uint16(len(body)))  //nolint:gosec // Total NLRI Length (2 bytes)
-	copy(n.cached[4:], body)
-
-	return n.cached
+	buf := make([]byte, n.Len())
+	n.WriteTo(buf, 0)
+	return buf
 }
 
 // Len returns the length in bytes.
@@ -134,35 +116,9 @@ func NewBGPLSLink(proto BGPLSProtocolID, id uint64, local, remote NodeDescriptor
 // Link descriptor TLVs (258-263) appear directly in the NLRI body after
 // the Remote Node Descriptors, NOT wrapped in a container TLV.
 func (l *BGPLSLink) Bytes() []byte {
-	if l.cached != nil {
-		return l.cached
-	}
-
-	// RFC 7752 Section 3.2.1.2 - Local Node Descriptors (TLV 256)
-	localNodeTLV := tlv(TLVLocalNodeDesc, l.LocalNode.Bytes())
-	// RFC 7752 Section 3.2.1.3 - Remote Node Descriptors (TLV 257)
-	remoteNodeTLV := tlv(TLVRemoteNodeDesc, l.RemoteNode.Bytes())
-	// RFC 7752 Section 3.2.2 - Link descriptor TLVs appear directly (not wrapped)
-	linkDescBytes := l.LinkDesc.Bytes()
-
-	bodyLen := 9 + len(localNodeTLV) + len(remoteNodeTLV) + len(linkDescBytes)
-	body := make([]byte, bodyLen)
-	body[0] = byte(l.protocolID)                        // Protocol-ID (1 byte)
-	binary.BigEndian.PutUint64(body[1:9], l.identifier) // Identifier (8 bytes)
-	offset := 9
-	copy(body[offset:], localNodeTLV)
-	offset += len(localNodeTLV)
-	copy(body[offset:], remoteNodeTLV)
-	offset += len(remoteNodeTLV)
-	copy(body[offset:], linkDescBytes)
-
-	// RFC 7752 Section 3.2 - NLRI header
-	l.cached = make([]byte, 4+len(body))
-	binary.BigEndian.PutUint16(l.cached[0:2], uint16(l.nlriType)) // NLRI Type (2 bytes)
-	binary.BigEndian.PutUint16(l.cached[2:4], uint16(len(body)))  //nolint:gosec // Total NLRI Length (2 bytes)
-	copy(l.cached[4:], body)
-
-	return l.cached
+	buf := make([]byte, l.Len())
+	l.WriteTo(buf, 0)
+	return buf
 }
 
 // Len returns the length in bytes.
@@ -263,34 +219,10 @@ func NewBGPLSPrefixV6(proto BGPLSProtocolID, id uint64, node NodeDescriptor, pre
 // Bytes returns the wire-format encoding per RFC 7752 Section 3.2.3.
 // Prefix descriptor TLVs (263-265) appear directly in the NLRI body after
 // the Local Node Descriptors, NOT wrapped in a container TLV.
-//
-//nolint:dupl // Similar structure to BGPLSSRv6SID.Bytes() is intentional
 func (p *BGPLSPrefix) Bytes() []byte {
-	if p.cached != nil {
-		return p.cached
-	}
-
-	// RFC 7752 Section 3.2.1.2 - Local Node Descriptors (TLV 256)
-	localNodeTLV := tlv(TLVLocalNodeDesc, p.LocalNode.Bytes())
-	// RFC 7752 Section 3.2.3 - Prefix descriptor TLVs appear directly (not wrapped)
-	prefixDescBytes := p.PrefixDesc.Bytes()
-
-	bodyLen := 9 + len(localNodeTLV) + len(prefixDescBytes)
-	body := make([]byte, bodyLen)
-	body[0] = byte(p.protocolID)                        // Protocol-ID (1 byte)
-	binary.BigEndian.PutUint64(body[1:9], p.identifier) // Identifier (8 bytes)
-	offset := 9
-	copy(body[offset:], localNodeTLV)
-	offset += len(localNodeTLV)
-	copy(body[offset:], prefixDescBytes)
-
-	// RFC 7752 Section 3.2 - NLRI header
-	p.cached = make([]byte, 4+len(body))
-	binary.BigEndian.PutUint16(p.cached[0:2], uint16(p.nlriType)) // NLRI Type (2 bytes)
-	binary.BigEndian.PutUint16(p.cached[2:4], uint16(len(body)))  //nolint:gosec // Total NLRI Length (2 bytes)
-	copy(p.cached[4:], body)
-
-	return p.cached
+	buf := make([]byte, p.Len())
+	p.WriteTo(buf, 0)
+	return buf
 }
 
 // Len returns the length in bytes.

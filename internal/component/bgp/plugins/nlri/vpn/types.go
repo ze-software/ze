@@ -237,22 +237,11 @@ func (v *VPN) SupportsAddPath() bool { return true }
 //	[IP Prefix (variable)]         IPv4 (RFC 4364) or IPv6 (RFC 4659)
 //
 // Note: Path ID is NOT included. Use WriteNLRI() for ADD-PATH encoding.
+// Bytes allocates a standalone slice and delegates to WriteTo; hot-path
+// senders should call WriteTo directly with a pool buffer.
 func (v *VPN) Bytes() []byte {
-	labelBytes := EncodeLabelStack(v.labels)
-	rdBytes := v.rd.Bytes()
-
-	prefixBits := v.prefix.Bits()
-	prefixBytes := PrefixBytes(prefixBits)
-
-	// RFC 3107: Length field = label bits + RD bits (64) + prefix bits
-	totalBits := len(labelBytes)*8 + 64 + prefixBits
-
-	buf := make([]byte, 1+len(labelBytes)+8+prefixBytes)
-	buf[0] = byte(totalBits)
-	copy(buf[1:], labelBytes)
-	copy(buf[1+len(labelBytes):], rdBytes)
-	copy(buf[1+len(labelBytes)+8:], v.prefix.Addr().AsSlice()[:prefixBytes])
-
+	buf := make([]byte, v.Len())
+	v.WriteTo(buf, 0)
 	return buf
 }
 

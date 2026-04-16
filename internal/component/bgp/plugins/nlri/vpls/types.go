@@ -48,7 +48,6 @@ type VPLS struct {
 	veBlockOffset uint16 // Starting VE ID for the label block
 	veBlockSize   uint16 // Number of labels in the block
 	labelBase     uint32 // 20-bit MPLS label base
-	cached        []byte
 }
 
 // NewVPLS creates a new VPLS NLRI.
@@ -106,7 +105,6 @@ func ParseVPLS(data []byte) (*VPLS, []byte, error) {
 		veID:          binary.BigEndian.Uint16(nlriData[8:10]),
 		veBlockOffset: binary.BigEndian.Uint16(nlriData[10:12]),
 		veBlockSize:   binary.BigEndian.Uint16(nlriData[12:14]),
-		cached:        data[:2+nlriLen],
 	}
 
 	if nlriLen >= 17 {
@@ -138,28 +136,13 @@ func (v *VPLS) LabelBase() uint32 { return v.labelBase }
 
 // Bytes returns the wire-format encoding.
 func (v *VPLS) Bytes() []byte {
-	if v.cached != nil {
-		return v.cached
-	}
-
-	v.cached = make([]byte, 19)
-	binary.BigEndian.PutUint16(v.cached[0:2], 17)
-
-	copy(v.cached[2:10], v.rd.Bytes())
-
-	binary.BigEndian.PutUint16(v.cached[10:12], v.veID)
-	binary.BigEndian.PutUint16(v.cached[12:14], v.veBlockOffset)
-	binary.BigEndian.PutUint16(v.cached[14:16], v.veBlockSize)
-
-	v.cached[16] = byte(v.labelBase >> 12)
-	v.cached[17] = byte(v.labelBase >> 4)
-	v.cached[18] = byte(v.labelBase<<4) | 0x01
-
-	return v.cached
+	buf := make([]byte, v.Len())
+	v.WriteTo(buf, 0)
+	return buf
 }
 
-// Len returns the length in bytes.
-func (v *VPLS) Len() int { return len(v.Bytes()) }
+// Len returns the length in bytes (2-byte length prefix + 17-byte fixed NLRI).
+func (v *VPLS) Len() int { return 19 }
 
 // PathID returns 0.
 func (v *VPLS) PathID() uint32 { return 0 }
@@ -177,10 +160,6 @@ func (v *VPLS) String() string {
 
 // WriteTo writes the VPLS NLRI directly to buf at offset.
 func (v *VPLS) WriteTo(buf []byte, off int) int {
-	if v.cached != nil {
-		return copy(buf[off:], v.cached)
-	}
-
 	pos := off
 
 	binary.BigEndian.PutUint16(buf[pos:], 17)
