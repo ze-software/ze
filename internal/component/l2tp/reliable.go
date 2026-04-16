@@ -10,6 +10,19 @@ import (
 	"encoding/binary"
 	"errors"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/bufpool"
+)
+
+// Pool sizing for the reliable engine's send/rtms queues. A TACACS+-style
+// max-size slab (1023 bytes = 10-bit Length field ceiling) is borrowed on
+// Enqueue and Put back on ACK in processNr. 16 slabs cover two generous
+// windows of in-flight messages per tunnel; overflow falls through to
+// the pool's `New` path, which is a plain `make` -- acceptable because
+// L2TP control traffic is slow-paced (tunnel setup + periodic HELLO).
+const (
+	reliableSlabSize = 0x03FF // 1023 octets; matches 10-bit Length field cap
+	reliableSlabSeed = 16
 )
 
 // Classification tags the outcome of processing one inbound control
@@ -169,17 +182,22 @@ type TickResult struct {
 }
 
 // rtmsEntry is one unacknowledged outbound message. The engine owns
-// bytes and mutates byte positions 10-11 (Nr) on retransmit.
+// bytes and mutates byte positions 10-11 (Nr) on retransmit. `bytes`
+// is a sub-slice of a `bufpool.Pool` slab (cap == reliableSlabSize) so
+// processNr can return it via `e.bufs.Put` on ACK.
 type rtmsEntry struct {
 	ns    uint16
 	bytes []byte
 }
 
-// pendingSend is a message waiting for the window to open. The engine
-// constructs the header when promoting it into the rtms_queue.
+// pendingSend is a message waiting for the window to open. The slab is
+// a pool buffer with the AVP body already copied into
+// slab[ControlHeaderLen:ControlHeaderLen+bodyLen]; send() stamps the
+// header into slab[:ControlHeaderLen] when the window reopens.
 type pendingSend struct {
 	sessionID uint16
-	body      []byte
+	slab      []byte // full pool slab; cap == reliableSlabSize
+	bodyLen   int
 }
 
 // ReliableEngine implements RFC 2661 Section 5.8 reliable delivery for
@@ -212,6 +230,12 @@ type ReliableEngine struct {
 
 	// Acknowledgment.
 	needsZLB bool
+
+	// Pre-allocated 1023-byte slabs for control-message wire buffers.
+	// Every pendingSend and rtmsEntry borrows from here on Enqueue and
+	// returns on processNr ACK -- eliminates the per-message `make` on
+	// the send path per the "No make where pools exist" design rule.
+	bufs *bufpool.Pool
 
 	// Teardown.
 	closed    bool
@@ -253,6 +277,7 @@ func NewReliableEngine(cfg ReliableConfig) *ReliableEngine {
 		rtimeoutCap:   cfg.RTimeoutCap,
 		maxRetransmit: cfg.MaxRetransmit,
 		retention:     retentionDuration(cfg.RTimeout, cfg.RTimeoutCap, cfg.MaxRetransmit),
+		bufs:          bufpool.New(reliableSlabSeed, reliableSlabSize, "l2tp-reliable"),
 	}
 }
 
@@ -289,30 +314,41 @@ func (e *ReliableEngine) Enqueue(sessionID uint16, body []byte, now time.Time) (
 		return nil, ErrBodyTooLarge
 	}
 
+	// Borrow one slab for this message's lifetime. Body is copied into
+	// slab[ControlHeaderLen:ControlHeaderLen+bodyLen] so both the queued
+	// path and the direct-send path can hand the same slab to send(),
+	// which only needs to stamp the header at slab[:ControlHeaderLen].
+	slab := e.bufs.Get()
+	bodyLen := len(body)
+	copy(slab[ControlHeaderLen:ControlHeaderLen+bodyLen], body)
+
 	// If outstanding count is at the window limit, queue.
 	outstanding := uint16(len(e.rtmsQueue)) //nolint:gosec // rtmsQueue is bounded by window <= 32768
 	if e.win.available(outstanding) == 0 {
 		if len(e.sendQueue) >= MaxSendQueueDepth {
+			e.bufs.Put(slab)
 			return nil, ErrSendQueueFull
 		}
-		e.sendQueue = append(e.sendQueue, pendingSend{sessionID: sessionID, body: append([]byte(nil), body...)})
+		e.sendQueue = append(e.sendQueue, pendingSend{sessionID: sessionID, slab: slab, bodyLen: bodyLen})
 		return nil, nil
 	}
 
-	return e.send(sessionID, body, now), nil
+	return e.send(sessionID, slab, bodyLen, now), nil
 }
 
-// send encodes one message with the current Ns/Nr, stores the bytes in
-// the rtms_queue, schedules the retransmit deadline if needed, and
-// returns the bytes for transmission. Caller owns the transmission; the
-// returned slice remains valid only until the next engine call.
-func (e *ReliableEngine) send(sessionID uint16, body []byte, now time.Time) []byte {
-	length := uint16(ControlHeaderLen + len(body)) //nolint:gosec // bounded by Enqueue's 1023-octet check
-	bytes := make([]byte, length)
+// send stamps the header into slab[:ControlHeaderLen] (body is already
+// at slab[ControlHeaderLen:ControlHeaderLen+bodyLen]), records the
+// resulting wire bytes in the rtms_queue, schedules the retransmit
+// deadline if needed, and returns a sub-slice of the slab for
+// transmission. Caller owns the transmission; the returned slice remains
+// valid only until the next engine call. The slab's capacity is
+// reliableSlabSize so processNr can return it to `e.bufs` on ACK.
+func (e *ReliableEngine) send(sessionID uint16, slab []byte, bodyLen int, now time.Time) []byte {
+	length := uint16(ControlHeaderLen + bodyLen) //nolint:gosec // bounded by Enqueue's 1023-octet check
 	// RFC 2661 Section 5.8: sender assigns Ns = next_send_seq, Nr =
 	// next expected from peer. WriteControlHeader stamps flags 0xC802.
-	WriteControlHeader(bytes, 0, length, e.cfg.PeerTunnelID, sessionID, e.nextSendSeq, e.nextRecvSeq)
-	copy(bytes[ControlHeaderLen:], body)
+	WriteControlHeader(slab[:ControlHeaderLen], 0, length, e.cfg.PeerTunnelID, sessionID, e.nextSendSeq, e.nextRecvSeq)
+	bytes := slab[:length]
 
 	e.rtmsQueue = append(e.rtmsQueue, rtmsEntry{ns: e.nextSendSeq, bytes: bytes})
 	e.nextSendSeq++
@@ -336,7 +372,7 @@ func (e *ReliableEngine) send(sessionID uint16, body []byte, now time.Time) []by
 // cap.
 //
 // After each dequeue, the freed slot in the backing array is cleared
-// before the slice header advances, so the old body reference is not
+// before the slice header advances, so the old slab reference is not
 // retained via the backing-array root even though the slice view no
 // longer covers that index.
 func (e *ReliableEngine) drainSendQueue(now time.Time) [][]byte {
@@ -349,7 +385,7 @@ func (e *ReliableEngine) drainSendQueue(now time.Time) [][]byte {
 		head := e.sendQueue[0]
 		e.sendQueue[0] = pendingSend{}
 		e.sendQueue = e.sendQueue[1:]
-		sent = append(sent, e.send(head.sessionID, head.body, now))
+		sent = append(sent, e.send(head.sessionID, head.slab, head.bodyLen, now))
 	}
 	return sent
 }
@@ -430,10 +466,11 @@ func (e *ReliableEngine) OnReceive(hdr MessageHeader, payload []byte, now time.T
 // processNr removes rtms_queue entries acknowledged by the peer's Nr,
 // and drives CWND growth. Returns the number of entries removed.
 //
-// Each freed rtmsEntry's bytes reference is cleared in the backing
-// array before the slice header advances, so the up-to-1023-byte
-// message buffer becomes garbage-collectable even though the slice
-// view still shares the array.
+// Each freed rtmsEntry's bytes reference is returned to the engine's
+// slab pool (cap matches `reliableSlabSize`, so `bufs.Put` accepts it)
+// and then the backing-array slot is cleared before the slice header
+// advances so the pool-owned memory is not also retained via the
+// backing-array root.
 func (e *ReliableEngine) processNr(nr uint16) int {
 	// Nr is "next expected from peer", i.e., every Ns < nr is acked.
 	// Only advance peerNr if the new nr is newer.
@@ -444,6 +481,7 @@ func (e *ReliableEngine) processNr(nr uint16) int {
 
 	n := 0
 	for len(e.rtmsQueue) > 0 && seqBefore(e.rtmsQueue[0].ns, nr) {
+		e.bufs.Put(e.rtmsQueue[0].bytes)
 		e.rtmsQueue[0] = rtmsEntry{}
 		e.rtmsQueue = e.rtmsQueue[1:]
 		e.win.onAck()
