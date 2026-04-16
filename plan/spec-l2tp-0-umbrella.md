@@ -93,8 +93,10 @@ to upstream routers.
 | 3 | `spec-l2tp-3-tunnel.md` | Tunnel state machine (4 states): SCCRQ/SCCRP/SCCCN handshake, StopCCN teardown, HELLO keepalive, challenge/response authentication, tie breaker resolution. UDP listener. Tunnel management (create, lookup, destroy). | l2tp-2 |
 | 4 | `spec-l2tp-4-session.md` | Session state machine: incoming calls (LNS: idle, wait-connect, established; LAC: idle, wait-tunnel, wait-reply, established), outgoing calls (LNS and LAC sides), CDN teardown. Session management within tunnels. WEN and SLI message handling. | l2tp-3 |
 | 5 | `spec-l2tp-5-kernel.md` | Linux kernel integration: Generic Netlink for L2TP tunnel/session creation and deletion, PPPoL2TP socket creation and lifecycle, `/dev/ppp` channel/unit management (PPPIOCGCHAN, PPPIOCATTCHAN, PPPIOCNEWUNIT, PPPIOCCONNECT), pppN interface creation, cleanup ordering. Kernel module probing at startup. | l2tp-4 |
-| 6 | `spec-l2tp-6-ppp.md` | PPP protocol engine: LCP FSM (RFC 1661, 10 states), LCP option negotiation (MRU, auth method, magic number, echo), PAP authentication, CHAP-MD5 authentication, MS-CHAPv2 authentication, IPCP negotiation (IPv4 address, DNS servers), IPv6CP negotiation (interface identifier). PPP worker pool for blocking I/O. Interface configuration via netlink (address, routes, MTU). | l2tp-5 |
-| 7 | `spec-l2tp-7-subsystem.md` | Ze subsystem wiring: `ze.Subsystem` implementation (Start/Stop/Reload), event namespace (`l2tp`) and event types in `events.go`, YANG schema (`ze-l2tp-conf.yang`), env var registration, CLI commands (`show l2tp tunnels/sessions`, `clear l2tp`), redistribute source registration, config transaction participation, main binary wiring, Prometheus metrics. | l2tp-6 |
+| 6a | `spec-l2tp-6a-lcp-base.md` | PPP scaffold (`internal/component/ppp/` peer of l2tp), per-session goroutine model, PPP frame I/O via Go runtime poller, LCP FSM (RFC 1661, 10 states), LCP options (MRU, Auth-Proto, Magic, ACCM, PFC, ACFC), Echo keepalive, proxy LCP (RFC 2661 §18), pppN MTU set via `iface.Backend`, auth-phase hook (stubbed), new `kernelSetupSucceeded` event from L2TP kernel worker. | l2tp-5 |
+| 6b | `spec-l2tp-6b-auth.md` | PPP authentication: PAP (RFC 1334), CHAP-MD5 (RFC 1994), MS-CHAPv2 (RFC 2759), proxy authentication (RFC 2661 §18). `EventAuthRequest`/`Manager.AuthResponse` channel-based dispatch; ze handles wire format only, RADIUS query lives in l2tp-auth plugin (Phase 8). Replaces 6a stub. | l2tp-6a |
+| 6c | `spec-l2tp-6c-ncp.md` | IPCP (RFC 1332) + DNS option (RFC 1877), IPv6CP (RFC 5072, interface identifier only). Parallel NCP execution after auth. `EventIPRequest`/`Manager.IPResponse` channel flow. pppN address via `iface.Backend.AddAddressP2P` (interface extension). `EventSessionIPAssigned` emitted for redistribute integration in Phase 7. | l2tp-6b |
+| 7 | `spec-l2tp-7-subsystem.md` | Ze subsystem wiring: `ze.Subsystem` implementation (Start/Stop/Reload), event namespace (`l2tp`) and event types in `events.go`, YANG schema (`ze-l2tp-conf.yang`), env var registration, CLI commands (`show l2tp tunnels/sessions`, `clear l2tp`), redistribute source registration, config transaction participation, main binary wiring, Prometheus metrics. | l2tp-6c |
 | 8 | `spec-l2tp-8-plugins.md` | L2TP plugins: l2tp-auth (RADIUS authentication, accounting, CoA/DM), l2tp-pool (IPv4/IPv6 address pools, RADIUS-directed selection), l2tp-shaper (TC rules on pppN), l2tp-stats (session counters, Prometheus export). Plugin registration with correct `registry.Registration` fields. | l2tp-7 |
 
 Phases are strictly ordered. Each phase must be complete before the next begins.
@@ -272,7 +274,9 @@ Detailed in child specs. Summary:
 | Tunnel state machine | l2tp-3 | All transitions in state table |
 | Session state machine | l2tp-4 | Incoming/outgoing call flows |
 | Kernel integration | l2tp-5 | Netlink tunnel/session create/delete |
-| PPP FSM | l2tp-6 | LCP 10-state transitions, IPCP negotiation |
+| PPP LCP FSM | l2tp-6a | LCP 10-state transitions, option negotiation, proxy LCP |
+| PPP authentication | l2tp-6b | PAP/CHAP-MD5/MS-CHAPv2 wire format, proxy auth |
+| PPP NCPs | l2tp-6c | IPCP/IPv6CP negotiation, pppN configuration |
 | Subsystem lifecycle | l2tp-7 | Start/Stop/Reload |
 | Plugin registration | l2tp-8 | All four plugins register and start |
 
@@ -372,7 +376,10 @@ Each child spec is one phase. Phases are strictly ordered by dependency.
 3. **Phase 3: Tunnel state machine** (spec-l2tp-3-tunnel) -- control connection lifecycle
 4. **Phase 4: Session state machine** (spec-l2tp-4-session) -- call setup/teardown
 5. **Phase 5: Kernel integration** (spec-l2tp-5-kernel) -- netlink, PPPoL2TP, /dev/ppp
-6. **Phase 6: PPP engine** (spec-l2tp-6-ppp) -- LCP, auth, IPCP, IPv6CP
+6. **Phase 6: PPP engine** -- split into three sub-phases:
+   - 6a (spec-l2tp-6a-lcp-base) -- LCP scaffold, FSM, proxy LCP, MTU set
+   - 6b (spec-l2tp-6b-auth) -- PAP, CHAP-MD5, MS-CHAPv2, proxy auth
+   - 6c (spec-l2tp-6c-ncp) -- IPCP, IPv6CP, pppN address/route configuration
 7. **Phase 7: Subsystem wiring** (spec-l2tp-7-subsystem) -- events, config, CLI, redistribute
 8. **Phase 8: Plugins** (spec-l2tp-8-plugins) -- auth, pool, shaper, stats
 

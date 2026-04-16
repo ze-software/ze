@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Depends | spec-l2tp-6-ppp |
+| Depends | spec-l2tp-6c-ncp |
 | Phase | - |
 | Updated | 2026-04-13 |
 

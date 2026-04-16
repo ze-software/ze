@@ -501,6 +501,17 @@ behavior. Verified with `bin/ze-test bgp plugin U V W X Y Z a b` ->
 
 **Originating regression:** `88057ac9` / `d87009c2` (dynamic conf-module discovery). Those commits removed the hardcoded module list and started walking every `-conf` module, which exposed the shallow merge in `findModuleEntry`/`mergedRoot`. The old hardcoded path only looked at `ze-bgp-conf` for `environment`, so the bug existed in the code but was never hit.
 
+## plugin test 153 nexthop (MP_REACH_NLRI mismatch under parallel load) -- LOGGED 2026-04-16
+
+**File:** `test/plugin/nexthop.ci`
+**Symptom:** Under `make ze-verify-changed` the test fails with message mismatch: received MP_REACH_NLRI ends in `0001` while expected ends in `0002`. The other IPv6 next-hop byte in the 2-hop list is the one being compared, suggesting the peer replayed only the first UPDATE and cut the session before the second was delivered.
+**Reproduction:**
+- FAILS: `make ze-verify-changed` (parallel load across categories).
+- PASSES: `bin/ze-test bgp plugin 153` in isolation (1.9s).
+**Hypothesis:** Same family as the "plugin tests Y, 147, 150-152, 244-245" entry below -- peer-tool closes TCP before the session-establishment handshake completes, observer sees truncated flow. The `nexthop.ci` file is not in the original list but exhibits the same symptom class.
+**Fix needed:** Add `expect=bgp:...EoR` gating to the peer stdin, matching the pattern documented in the 2026-04-14 entry.
+**Not caused by spec-l2tp-6a PPP work (2026-04-16) -- verified orthogonal; nexthop.ci is BGP encoding, no PPP code path touched.**
+
 ## plugin tests Y, 147, 150-152, 244-245 (peer never reaches established) -- LOGGED 2026-04-14
 
 **Files:** `test/plugin/bestpath-reason.ci`, `test/plugin/multipath-basic.ci`, `test/plugin/nexthop-self.ci`, `test/plugin/nexthop-self-ipv6-forward.ci`, `test/plugin/nexthop-unchanged.ci`, `test/plugin/rr-basic.ci`, `test/plugin/rr-ipv6-config.ci` (plus `bfd-echo-handshake.ci` with a different symptom).
