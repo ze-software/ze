@@ -25,6 +25,8 @@ func canInlineContainer(tree *Tree) bool {
 	if maxInlineDepth < 1 {
 		return false
 	}
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
 	valueCount := len(tree.values)
 	if _, ok := tree.values[InactiveLeafName]; ok {
 		valueCount--
@@ -36,9 +38,14 @@ func canInlineContainer(tree *Tree) bool {
 // serializeContainerInline writes a container with a single leaf child inline:
 // "containerName childName value\n" without braces.
 func serializeContainerInline(b *strings.Builder, child *Tree, name string, node *ContainerNode, indent int) {
+	child.mu.RLock()
+	defer child.mu.RUnlock()
+
 	prefix := strings.Repeat("\t", indent)
 	b.WriteString(prefix)
-	if isInactiveTree(child) {
+	// Inline inactive-check: child.mu is already RLocked, cannot call
+	// isInactiveTree (which would re-enter Get).
+	if v, ok := child.values[InactiveLeafName]; ok && v == configTrue {
 		b.WriteString("inactive: ")
 	}
 	b.WriteString(name)
@@ -73,6 +80,10 @@ func serializeContainerInline(b *strings.Builder, child *Tree, name string, node
 
 // writeInlineLeaf writes a leaf value inline (without prefix or newline).
 // Returns true if the child had data and was written.
+//
+// Caller MUST hold tree.mu.RLock() -- this helper reads tree.values and
+// tree.multiValues directly rather than going through Get/GetSlice (which
+// would attempt to re-acquire the lock).
 func writeInlineLeaf(b *strings.Builder, tree *Tree, name string, node Node) bool {
 	switch node.(type) {
 	case *LeafNode:
@@ -101,7 +112,7 @@ func writeInlineLeaf(b *strings.Builder, tree *Tree, name string, node Node) boo
 			return true
 		}
 	case *ValueOrArrayNode:
-		if items := tree.GetSlice(name); len(items) > 0 {
+		if items := tree.multiValues[name]; len(items) > 0 {
 			b.WriteString(" ")
 			b.WriteString(name)
 			if len(items) == 1 {
@@ -207,7 +218,13 @@ func serializeExtraValues(b *strings.Builder, tree *Tree, children []string, ind
 
 // serializeWithChildren serializes tree content using a schema node that provides
 // Children() and Get() for ordering.
+//
+// Holds tree.mu.RLock for the duration so callees can read tree.values /
+// tree.containers / tree.lists directly. Recursion into child trees acquires
+// the child's own lock independently.
 func serializeWithChildren(b *strings.Builder, tree *Tree, node childProvider, indent int) {
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
 	for _, name := range node.Children() {
 		child := node.Get(name)
 		serializeNode(b, tree, name, child, indent)
@@ -216,8 +233,13 @@ func serializeWithChildren(b *strings.Builder, tree *Tree, node childProvider, i
 	serializeExtraValues(b, tree, node.Children(), indent)
 }
 
+// serializeTree is the primary walker entry; holds tree.mu.RLock across the
+// schema-ordered walk. Recursion crosses to child trees via serializeNode,
+// which re-enters serializeTree / serializeListEntry / etc. on a different
+// tree that locks its own mutex.
 func serializeTree(b *strings.Builder, tree *Tree, node *ContainerNode, indent int) {
-	// Serialize in schema order where possible
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
 	for _, name := range node.Children() {
 		child := node.Get(name)
 		serializeNode(b, tree, name, child, indent)
@@ -264,7 +286,9 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 		}
 
 	case *ValueOrArrayNode:
-		if items := tree.GetSlice(name); len(items) > 0 {
+		// Direct access: caller holds tree.mu.RLock, calling GetSlice
+		// would recursively RLock the same mutex (unsafe per Go docs).
+		if items := tree.multiValues[name]; len(items) > 0 {
 			b.WriteString(prefix)
 			b.WriteString(name)
 			if len(items) == 1 {
@@ -413,11 +437,15 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 				// Strip #N suffix from duplicate keys for serialization
 				displayKey := StripListKeySuffix(key)
 
-				// Decide: inline or block?
-				// Use inline if all values are simple (no nested containers)
+				// entry is a separate Tree; lock it before inspecting
+				// entry.containers / entry.lists / entry.values. The
+				// block branch releases this lock before recursing
+				// via serializeInlineListEntry (which re-locks).
+				entry.mu.RLock()
 				useInline := len(entry.containers) == 0 && len(entry.lists) == 0
+				hasValues := useInline && len(entry.values) > 0
 
-				if useInline && len(entry.values) > 0 {
+				if hasValues {
 					b.WriteString(prefix)
 					b.WriteString(name)
 					b.WriteString(" ")
@@ -439,8 +467,10 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 							b.WriteString(quoteIfNeeded(v))
 						}
 					}
+					entry.mu.RUnlock()
 					b.WriteString("\n")
 				} else {
+					entry.mu.RUnlock()
 					b.WriteString(prefix)
 					b.WriteString(name)
 					b.WriteString(" ")
@@ -510,7 +540,8 @@ func serializeListMultiBlock(b *strings.Builder, name string, entries map[string
 }
 
 func serializeListEntry(b *strings.Builder, tree *Tree, node *ListNode, indent int) {
-	// Serialize in schema order
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
 	for _, name := range node.Children() {
 		child := node.Get(name)
 		serializeNode(b, tree, name, child, indent)
@@ -520,6 +551,8 @@ func serializeListEntry(b *strings.Builder, tree *Tree, node *ListNode, indent i
 }
 
 func serializeFreeform(b *strings.Builder, tree *Tree, indent int) {
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
 	prefix := strings.Repeat("\t", indent)
 
 	// Sort keys for deterministic output
@@ -588,7 +621,8 @@ func serializePresenceContainer(b *strings.Builder, tree *Tree, name string, nod
 }
 
 func serializeFlexContainer(b *strings.Builder, tree *Tree, node *FlexNode, indent int) {
-	// Serialize in schema order
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
 	for _, name := range node.Children() {
 		child := node.Get(name)
 		serializeNode(b, tree, name, child, indent)
@@ -598,7 +632,8 @@ func serializeFlexContainer(b *strings.Builder, tree *Tree, node *FlexNode, inde
 }
 
 func serializeInlineListEntry(b *strings.Builder, tree *Tree, node *InlineListNode, indent int) {
-	// Serialize in schema order
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
 	for _, name := range node.Children() {
 		child := node.Get(name)
 		serializeNode(b, tree, name, child, indent)

@@ -78,10 +78,16 @@ func writeCloseBraceGutter(b *strings.Builder, meta *MetaTree) {
 
 // firstSubtreeEntry finds the first MetaEntry with a non-empty User in the subtree.
 // Traverses entries, then containers, then lists, in sorted key order.
+//
+// Self-locking: callers pass a sub-MetaTree that the caller is NOT holding a
+// lock on. Each recursive call locks its own receiver's mutex (different
+// mutex per level, never recursive on the same one).
 func firstSubtreeEntry(meta *MetaTree) (MetaEntry, bool) {
 	if meta == nil {
 		return MetaEntry{}, false
 	}
+	meta.mu.RLock()
+	defer meta.mu.RUnlock()
 	keys := sortedEntryKeys(meta.entries)
 	for _, k := range keys {
 		for _, e := range meta.entries[k] {
@@ -105,10 +111,14 @@ func firstSubtreeEntry(meta *MetaTree) (MetaEntry, bool) {
 
 // lastSubtreeEntry finds the last MetaEntry with a non-empty User in the subtree.
 // Traverses lists, then containers, then entries, in reverse sorted key order.
+//
+// Self-locking: same contract as firstSubtreeEntry.
 func lastSubtreeEntry(meta *MetaTree) (MetaEntry, bool) {
 	if meta == nil {
 		return MetaEntry{}, false
 	}
+	meta.mu.RLock()
+	defer meta.mu.RUnlock()
 	for _, k := range reverseSortedMapKeys(meta.lists) {
 		if e, ok := lastSubtreeEntry(meta.lists[k]); ok {
 			return e, true
@@ -169,7 +179,17 @@ func SerializeBlame(tree *Tree, meta *MetaTree, schema *Schema) string {
 }
 
 // serializeBlameTree walks schema children, emitting blame-annotated hierarchical output.
+//
+// Holds tree.mu.RLock (and meta.mu.RLock when meta is non-nil) for the walk
+// so callees can read tree / meta internals directly. Recursion into sub-
+// trees / sub-metas acquires their own locks independently.
 func serializeBlameTree(b *strings.Builder, tree *Tree, meta *MetaTree, parent childProvider, indent int) {
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
+	if meta != nil {
+		meta.mu.RLock()
+		defer meta.mu.RUnlock()
+	}
 	for _, name := range parent.Children() {
 		child := parent.Get(name)
 		serializeBlameTreeNode(b, tree, meta, name, child, indent)
@@ -221,7 +241,8 @@ func serializeBlameTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, name
 		}
 
 	case *ValueOrArrayNode:
-		if items := tree.GetSlice(name); len(items) > 0 {
+		// Direct access: caller holds tree.mu.RLock via serializeBlameTree.
+		if items := tree.multiValues[name]; len(items) > 0 {
 			writeBlameGutter(b, meta, name)
 			b.WriteString(prefix)
 			b.WriteString(name)
@@ -349,10 +370,18 @@ func serializeBlameFreeform(b *strings.Builder, tree *Tree, meta *MetaTree, name
 	innerPrefix := strings.Repeat("\t", indent+1)
 	childMeta := metaContainerChild(meta, name)
 
+	// firstSubtreeEntry in writeOpenBraceGutter self-locks childMeta.
+	// Do not hold childMeta.mu here.
 	writeOpenBraceGutter(b, childMeta)
 	b.WriteString(prefix)
 	b.WriteString(name)
 	b.WriteString(" {\n")
+
+	// Lock child + childMeta for the loop body's direct reads.
+	child.mu.RLock()
+	if childMeta != nil {
+		childMeta.mu.RLock()
+	}
 
 	keys := make([]string, 0, len(child.values))
 	for k := range child.values {
@@ -377,6 +406,11 @@ func serializeBlameFreeform(b *strings.Builder, tree *Tree, meta *MetaTree, name
 		}
 		b.WriteString("\n")
 	}
+
+	if childMeta != nil {
+		childMeta.mu.RUnlock()
+	}
+	child.mu.RUnlock()
 
 	writeCloseBraceGutter(b, childMeta)
 	b.WriteString(prefix)
@@ -461,13 +495,20 @@ func serializeBlameInlineList(b *strings.Builder, tree *Tree, meta *MetaTree, na
 		displayKey := StripListKeySuffix(key)
 		entryMeta := metaListEntry(meta, name, key)
 
+		// Snapshot inline/values decision under entry's lock; release
+		// before firstSubtreeEntry (self-locks entryMeta).
+		entry.mu.RLock()
 		useInline := len(entry.containers) == 0 && len(entry.lists) == 0
-		if useInline && len(entry.values) > 0 {
-			writeOpenBraceGutter(b, entryMeta)
+		hasValues := useInline && len(entry.values) > 0
+		entry.mu.RUnlock()
+
+		writeOpenBraceGutter(b, entryMeta)
+		if hasValues {
 			b.WriteString(prefix)
 			b.WriteString(name)
 			b.WriteString(" ")
 			b.WriteString(quoteIfNeeded(displayKey))
+			entry.mu.RLock()
 			for _, attrName := range node.Children() {
 				if v, ok := entry.values[attrName]; ok {
 					b.WriteString(" ")
@@ -476,15 +517,19 @@ func serializeBlameInlineList(b *strings.Builder, tree *Tree, meta *MetaTree, na
 					b.WriteString(quoteIfNeeded(v))
 				}
 			}
+			entry.mu.RUnlock()
 			b.WriteString("\n")
 		} else {
-			writeOpenBraceGutter(b, entryMeta)
 			b.WriteString(prefix)
 			b.WriteString(name)
 			b.WriteString(" ")
 			b.WriteString(quoteIfNeeded(displayKey))
 			b.WriteString(" {\n")
 			innerPrefix := strings.Repeat("\t", indent+1)
+			entry.mu.RLock()
+			if entryMeta != nil {
+				entryMeta.mu.RLock()
+			}
 			for _, childName := range node.Children() {
 				v, ok := entry.values[childName]
 				if !ok {
@@ -497,6 +542,10 @@ func serializeBlameInlineList(b *strings.Builder, tree *Tree, meta *MetaTree, na
 				b.WriteString(quoteIfNeeded(v))
 				b.WriteString("\n")
 			}
+			if entryMeta != nil {
+				entryMeta.mu.RUnlock()
+			}
+			entry.mu.RUnlock()
 			writeCloseBraceGutter(b, entryMeta)
 			b.WriteString(prefix)
 			b.WriteString("}\n")

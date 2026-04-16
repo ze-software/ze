@@ -185,7 +185,17 @@ func SerializeAnnotatedSubtreeSet(tree *Tree, meta *MetaTree, parent childProvid
 // --- Annotated Tree Serialization ---
 
 // serializeAnnotatedTree walks schema children, emitting annotated hierarchical output.
+//
+// Holds tree.mu.RLock (and meta.mu.RLock when meta is non-nil) for the walk
+// so callees can read tree / meta internals directly. Recursion into sub-
+// trees and sub-metas acquires their own locks independently.
 func serializeAnnotatedTree(b *strings.Builder, tree *Tree, meta *MetaTree, parent childProvider, columns ShowColumns, indent int) {
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
+	if meta != nil {
+		meta.mu.RLock()
+		defer meta.mu.RUnlock()
+	}
 	for _, name := range parent.Children() {
 		child := parent.Get(name)
 		serializeAnnotatedTreeNode(b, tree, meta, name, child, columns, indent)
@@ -237,7 +247,8 @@ func serializeAnnotatedTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, 
 		}
 
 	case *ValueOrArrayNode:
-		if items := tree.GetSlice(name); len(items) > 0 {
+		// Direct access: caller holds tree.mu.RLock via serializeAnnotatedTree.
+		if items := tree.multiValues[name]; len(items) > 0 {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
 			b.WriteString(prefix)
 			b.WriteString(name)
@@ -371,10 +382,19 @@ func serializeAnnotatedFreeform(b *strings.Builder, tree *Tree, meta *MetaTree, 
 	innerPrefix := strings.Repeat("\t", indent+1)
 	childMeta := metaContainerChild(meta, name)
 
+	// firstSubtreeEntry (used by writeAnnotatedOpenBraceGutter) self-locks
+	// childMeta briefly -- must NOT hold childMeta.mu here.
 	writeAnnotatedOpenBraceGutter(b, childMeta, columns)
 	b.WriteString(prefix)
 	b.WriteString(name)
 	b.WriteString(" {\n")
+
+	// Lock child + childMeta for the loop body's direct map reads and the
+	// writeAnnotatedLeafGutter calls (which read childMeta.entries).
+	child.mu.RLock()
+	if childMeta != nil {
+		childMeta.mu.RLock()
+	}
 
 	keys := make([]string, 0, len(child.values))
 	for k := range child.values {
@@ -400,6 +420,13 @@ func serializeAnnotatedFreeform(b *strings.Builder, tree *Tree, meta *MetaTree, 
 		b.WriteString("\n")
 	}
 
+	if childMeta != nil {
+		childMeta.mu.RUnlock()
+	}
+	child.mu.RUnlock()
+
+	// lastSubtreeEntry (used by writeAnnotatedCloseBraceGutter) self-locks
+	// childMeta briefly -- must NOT hold childMeta.mu here.
 	writeAnnotatedCloseBraceGutter(b, childMeta, columns)
 	b.WriteString(prefix)
 	b.WriteString("}\n")
@@ -483,13 +510,21 @@ func serializeAnnotatedInlineList(b *strings.Builder, tree *Tree, meta *MetaTree
 		displayKey := StripListKeySuffix(key)
 		entryMeta := metaListEntry(meta, name, key)
 
+		// Snapshot the inline/values decision under entry's lock, then
+		// release to avoid recursive RLock when writeAnnotatedOpenBraceGutter
+		// calls firstSubtreeEntry (which self-locks entryMeta).
+		entry.mu.RLock()
 		useInline := len(entry.containers) == 0 && len(entry.lists) == 0
-		if useInline && len(entry.values) > 0 {
-			writeAnnotatedOpenBraceGutter(b, entryMeta, columns)
+		hasValues := useInline && len(entry.values) > 0
+		entry.mu.RUnlock()
+
+		writeAnnotatedOpenBraceGutter(b, entryMeta, columns)
+		if hasValues {
 			b.WriteString(prefix)
 			b.WriteString(name)
 			b.WriteString(" ")
 			b.WriteString(quoteIfNeeded(displayKey))
+			entry.mu.RLock()
 			for _, attrName := range node.Children() {
 				if v, ok := entry.values[attrName]; ok {
 					b.WriteString(" ")
@@ -498,15 +533,19 @@ func serializeAnnotatedInlineList(b *strings.Builder, tree *Tree, meta *MetaTree
 					b.WriteString(quoteIfNeeded(v))
 				}
 			}
+			entry.mu.RUnlock()
 			b.WriteString("\n")
 		} else {
-			writeAnnotatedOpenBraceGutter(b, entryMeta, columns)
 			b.WriteString(prefix)
 			b.WriteString(name)
 			b.WriteString(" ")
 			b.WriteString(quoteIfNeeded(displayKey))
 			b.WriteString(" {\n")
 			innerPrefix := strings.Repeat("\t", indent+1)
+			entry.mu.RLock()
+			if entryMeta != nil {
+				entryMeta.mu.RLock()
+			}
 			for _, childName := range node.Children() {
 				v, ok := entry.values[childName]
 				if !ok {
@@ -519,6 +558,10 @@ func serializeAnnotatedInlineList(b *strings.Builder, tree *Tree, meta *MetaTree
 				b.WriteString(quoteIfNeeded(v))
 				b.WriteString("\n")
 			}
+			if entryMeta != nil {
+				entryMeta.mu.RUnlock()
+			}
+			entry.mu.RUnlock()
 			writeAnnotatedCloseBraceGutter(b, entryMeta, columns)
 			b.WriteString(prefix)
 			b.WriteString("}\n")
@@ -558,7 +601,16 @@ func serializeAnnotatedExtraValues(b *strings.Builder, tree *Tree, meta *MetaTre
 // --- Annotated Set Serialization ---
 
 // serializeAnnotatedSetNode walks schema children, emitting annotated set commands.
+//
+// Holds tree.mu.RLock (and meta.mu.RLock when meta is non-nil) for the walk.
+// Recursion into sub-trees / sub-metas acquires their own locks.
 func serializeAnnotatedSetNode(b *strings.Builder, tree *Tree, meta *MetaTree, parent childProvider, columns ShowColumns, prefix string) {
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
+	if meta != nil {
+		meta.mu.RLock()
+		defer meta.mu.RUnlock()
+	}
 	for _, name := range parent.Children() {
 		child := parent.Get(name)
 		serializeAnnotatedSetChild(b, tree, meta, name, child, columns, prefix)
@@ -594,7 +646,8 @@ func serializeAnnotatedSetChild(b *strings.Builder, tree *Tree, meta *MetaTree, 
 		}
 
 	case *ValueOrArrayNode:
-		if items := tree.GetSlice(name); len(items) > 0 {
+		// Direct access: caller holds tree.mu.RLock via serializeAnnotatedSetNode.
+		if items := tree.multiValues[name]; len(items) > 0 {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
 			if len(items) == 1 {
 				fmt.Fprintf(b, "set %s %s\n", path, quoteIfNeeded(items[0]))
@@ -640,6 +693,11 @@ func serializeAnnotatedSetChild(b *strings.Builder, tree *Tree, meta *MetaTree, 
 	case *FreeformNode:
 		if child := tree.containers[name]; child != nil {
 			childMeta := metaContainerChild(meta, name)
+			// child and childMeta are separate nodes; lock before direct access.
+			child.mu.RLock()
+			if childMeta != nil {
+				childMeta.mu.RLock()
+			}
 			keys := make([]string, 0, len(child.values))
 			for k := range child.values {
 				keys = append(keys, k)
@@ -654,6 +712,10 @@ func serializeAnnotatedSetChild(b *strings.Builder, tree *Tree, meta *MetaTree, 
 					fmt.Fprintf(b, "set %s %s [ %s ]\n", path, k, v)
 				}
 			}
+			if childMeta != nil {
+				childMeta.mu.RUnlock()
+			}
+			child.mu.RUnlock()
 		}
 
 	case *FlexNode:
@@ -747,6 +809,11 @@ func serializeAnnotatedSetInlineList(b *strings.Builder, tree *Tree, meta *MetaT
 		entryPath := path + " " + quoteIfNeeded(displayKey)
 		entryMeta := metaListEntry(meta, name, key)
 
+		// entry and entryMeta are separate nodes; lock before direct access.
+		entry.mu.RLock()
+		if entryMeta != nil {
+			entryMeta.mu.RLock()
+		}
 		for _, childName := range node.Children() {
 			v, ok := entry.values[childName]
 			if !ok {
@@ -755,5 +822,9 @@ func serializeAnnotatedSetInlineList(b *strings.Builder, tree *Tree, meta *MetaT
 			writeAnnotatedLeafGutter(b, entryMeta, childName, columns)
 			fmt.Fprintf(b, "set %s %s %s\n", entryPath, childName, quoteIfNeeded(v))
 		}
+		if entryMeta != nil {
+			entryMeta.mu.RUnlock()
+		}
+		entry.mu.RUnlock()
 	}
 }

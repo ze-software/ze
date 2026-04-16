@@ -90,7 +90,13 @@ func SerializeSet(tree *Tree, schema *Schema) string {
 
 // serializeSetNode walks the schema children in order, emitting set commands.
 // prefix accumulates the path segments (e.g., "neighbor 192.0.2.1 ").
+//
+// Holds tree.mu.RLock for the duration of the walk so callees can read
+// tree.values / tree.containers / tree.lists directly. Recursion into child
+// trees acquires the child's own lock independently.
 func serializeSetNode(b *strings.Builder, tree *Tree, parent childProvider, prefix string) {
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
 	for _, name := range parent.Children() {
 		child := parent.Get(name)
 		serializeSetChild(b, tree, name, child, prefix)
@@ -136,7 +142,8 @@ func serializeSetChild(b *strings.Builder, tree *Tree, name string, node Node, p
 		}
 
 	case *ValueOrArrayNode:
-		if items := tree.GetSlice(name); len(items) > 0 {
+		// Direct access: caller holds tree.mu.RLock (see serializeSetNode).
+		if items := tree.multiValues[name]; len(items) > 0 {
 			b.WriteString("set ")
 			b.WriteString(prefix)
 			b.WriteString(name)
@@ -237,6 +244,11 @@ func serializeSetFreeform(b *strings.Builder, tree *Tree, name, prefix string) {
 		return
 	}
 
+	// child is a separate Tree from the outer RLock holder; lock it
+	// before reading its values map.
+	child.mu.RLock()
+	defer child.mu.RUnlock()
+
 	keys := make([]string, 0, len(child.values))
 	for k := range child.values {
 		keys = append(keys, k)
@@ -323,7 +335,9 @@ func serializeSetInlineList(b *strings.Builder, tree *Tree, name string, node *I
 		displayKey := StripListKeySuffix(key)
 		entryPrefix := prefix + name + " " + quoteIfNeeded(displayKey) + " "
 
-		// Emit each child value
+		// entry is a separate Tree: lock it before reading entry.values
+		// directly (the caller's lock covers tree, not entry).
+		entry.mu.RLock()
 		for _, childName := range node.Children() {
 			v, ok := entry.values[childName]
 			if !ok {
@@ -336,6 +350,7 @@ func serializeSetInlineList(b *strings.Builder, tree *Tree, name string, node *I
 			b.WriteString(quoteIfNeeded(v))
 			b.WriteString("\n")
 		}
+		entry.mu.RUnlock()
 	}
 }
 
@@ -432,7 +447,18 @@ func metaListEntry(meta *MetaTree, listName, key string) *MetaTree {
 }
 
 // serializeSetMetaNode walks schema children, emitting set commands with metadata.
+//
+// Holds tree.mu.RLock (and meta.mu.RLock when meta is non-nil) for the
+// duration of the walk so callees can read tree / meta internals directly.
+// Recursion into child trees and sub-metas acquires their own locks
+// independently.
 func serializeSetMetaNode(b *strings.Builder, tree *Tree, meta *MetaTree, parent childProvider, prefix string) {
+	tree.mu.RLock()
+	defer tree.mu.RUnlock()
+	if meta != nil {
+		meta.mu.RLock()
+		defer meta.mu.RUnlock()
+	}
 	for _, name := range parent.Children() {
 		child := parent.Get(name)
 		serializeSetMetaChild(b, tree, meta, name, child, prefix)
@@ -463,7 +489,8 @@ func serializeSetMetaChild(b *strings.Builder, tree *Tree, meta *MetaTree, name 
 		}
 
 	case *ValueOrArrayNode:
-		if items := tree.GetSlice(name); len(items) > 0 {
+		// Direct access: caller holds tree.mu.RLock (see serializeSetMetaNode).
+		if items := tree.multiValues[name]; len(items) > 0 {
 			pathPfx := prefix + name + " "
 			if len(items) == 1 {
 				writeMetaLeafLine(b, meta, name, pathPfx, quoteIfNeeded(items[0]))
@@ -612,6 +639,11 @@ func serializeSetMetaInlineList(b *strings.Builder, tree *Tree, meta *MetaTree, 
 }
 
 // writeFreeformLines is the shared implementation for freeform serialization.
+//
+// The non-meta writer ignores the childMeta argument (the nil path of
+// writeLine). The meta writer (writeMetaLeafLine) reads childMeta.entries,
+// which lives on a sub-MetaTree that the caller's meta.mu.RLock does NOT
+// cover; lock it here before handing it to writeLine.
 func writeFreeformLines(b *strings.Builder, tree *Tree, meta *MetaTree, name, prefix string, writeLine leafLineWriter) {
 	child := tree.containers[name]
 	if child == nil {
@@ -619,6 +651,14 @@ func writeFreeformLines(b *strings.Builder, tree *Tree, meta *MetaTree, name, pr
 	}
 
 	childMeta := metaContainerChild(meta, name)
+
+	// child is a separate Tree; lock it before reading its values map.
+	child.mu.RLock()
+	defer child.mu.RUnlock()
+	if childMeta != nil {
+		childMeta.mu.RLock()
+		defer childMeta.mu.RUnlock()
+	}
 
 	keys := make([]string, 0, len(child.values))
 	for k := range child.values {
@@ -694,6 +734,12 @@ func writeInlineListLines(b *strings.Builder, tree *Tree, meta *MetaTree, name s
 		entryPrefix := prefix + name + " " + quoteIfNeeded(displayKey) + " "
 		entryMeta := metaListEntry(meta, name, key)
 
+		// entry and entryMeta are separate nodes; lock each before
+		// reading entry.values / entryMeta.entries.
+		entry.mu.RLock()
+		if entryMeta != nil {
+			entryMeta.mu.RLock()
+		}
 		for _, childName := range node.Children() {
 			v, ok := entry.values[childName]
 			if !ok {
@@ -701,6 +747,10 @@ func writeInlineListLines(b *strings.Builder, tree *Tree, meta *MetaTree, name s
 			}
 			writeLine(b, entryMeta, childName, entryPrefix+childName+" ", quoteIfNeeded(v))
 		}
+		if entryMeta != nil {
+			entryMeta.mu.RUnlock()
+		}
+		entry.mu.RUnlock()
 	}
 }
 

@@ -11,10 +11,19 @@ import (
 	"maps"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // Tree represents parsed configuration data.
+//
+// Safe for concurrent use: mu protects every map and slice below. Every
+// public method acquires the appropriate lock; walkers in the same package
+// that touch the internal fields directly MUST hold t.mu before reading or
+// writing them. Each Tree (including sub-containers and list entries) owns
+// its own mutex, so recursion into a child never re-acquires the parent's
+// lock.
 type Tree struct {
+	mu          sync.RWMutex
 	values      map[string]string
 	valuesOrder []string            // Preserves insertion order for value keys
 	multiValues map[string][]string // For multiple inline values (e.g., multiple mup entries)
@@ -36,13 +45,21 @@ func NewTree() *Tree {
 
 // Get returns a leaf value.
 func (t *Tree) Get(name string) (string, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	v, ok := t.values[name]
 	return v, ok
 }
 
 // Set sets a leaf value.
 func (t *Tree) Set(name, value string) {
-	// Track insertion order for new keys
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.setLocked(name, value)
+}
+
+// setLocked is the lock-free core of Set. Caller MUST hold t.mu.Lock().
+func (t *Tree) setLocked(name, value string) {
 	if _, exists := t.values[name]; !exists {
 		t.valuesOrder = append(t.valuesOrder, name)
 	}
@@ -51,22 +68,30 @@ func (t *Tree) Set(name, value string) {
 
 // AppendValue appends a value to the multi-values list (for Flex nodes with multiple entries).
 func (t *Tree) AppendValue(name, value string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.multiValues[name] = append(t.multiValues[name], value)
 }
 
 // GetMultiValues returns all values for a multi-value field.
 func (t *Tree) GetMultiValues(name string) []string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	return t.multiValues[name]
 }
 
 // SetSlice stores a leaf-list value as a string slice, preserving token boundaries.
 func (t *Tree) SetSlice(name string, items []string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.multiValues[name] = items
 }
 
 // GetSlice returns a leaf-list value as a string slice.
 // Returns nil if the key is not set.
 func (t *Tree) GetSlice(name string) []string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	return t.multiValues[name]
 }
 
@@ -76,6 +101,9 @@ func (t *Tree) Clone() *Tree {
 	if t == nil {
 		return nil
 	}
+
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 
 	clone := NewTree()
 
@@ -89,7 +117,8 @@ func (t *Tree) Clone() *Tree {
 		clone.multiValues[k] = copied
 	}
 
-	// Clone containers (deep)
+	// Clone containers (deep). v.Clone() takes v.mu.RLock(); a different
+	// mutex from t.mu, so no reentrancy risk.
 	for k, v := range t.containers {
 		clone.containers[k] = v.Clone()
 	}
@@ -121,6 +150,8 @@ func (t *Tree) Clone() *Tree {
 // GetFlex returns a value from either leaf values or the first multiValue.
 // Used for Flex nodes that can be parsed as either Set() or AppendValue().
 func (t *Tree) GetFlex(name string) (string, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	if v, ok := t.values[name]; ok {
 		return v, true
 	}
@@ -132,16 +163,22 @@ func (t *Tree) GetFlex(name string) (string, bool) {
 
 // GetContainer returns a nested container.
 func (t *Tree) GetContainer(name string) *Tree {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	return t.containers[name]
 }
 
 // SetContainer sets a nested container.
 func (t *Tree) SetContainer(name string, child *Tree) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.containers[name] = child
 }
 
 // ContainerNames returns the names of all nested containers.
 func (t *Tree) ContainerNames() []string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	names := make([]string, 0, len(t.containers))
 	for k := range t.containers {
 		names = append(names, k)
@@ -176,6 +213,8 @@ func collectPaths(t *Tree, prefix string, paths *[]string) {
 // RemoveContainer removes a nested container and returns it.
 // Returns nil if the container doesn't exist.
 func (t *Tree) RemoveContainer(name string) *Tree {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	c := t.containers[name]
 	delete(t.containers, name)
 	return c
@@ -183,41 +222,67 @@ func (t *Tree) RemoveContainer(name string) *Tree {
 
 // MergeContainer merges a container into existing one (or creates if not exists).
 // This handles the case of multiple same-named blocks in config (e.g., multiple announce blocks).
+//
+// Called during config parsing/migration. Holds t.mu across the whole
+// operation so a concurrent RemoveContainer/SetContainer cannot orphan
+// `existing` mid-merge; recursive merges into sub-containers acquire the
+// sub-container's own lock in parent-then-child order. `child` is the
+// caller's (not yet shared) tree and is not locked.
 func (t *Tree) MergeContainer(name string, child *Tree) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	existing := t.containers[name]
 	if existing == nil {
 		t.containers[name] = child
 		return
 	}
-	// Merge values.
-	maps.Copy(existing.values, child.values)
-	// Merge multiValues (append).
-	for k, v := range child.multiValues {
-		existing.multiValues[k] = append(existing.multiValues[k], v...)
+	existing.mergeFrom(child)
+}
+
+// mergeFrom merges the contents of `other` into t. Acquires t.mu itself;
+// caller MUST NOT hold t.mu on t, but MAY hold t's ancestor's lock --
+// this is how MergeContainer drives the recursive descent.
+//
+// Lock order invariant: parent first, child second. Every caller of
+// mergeFrom must respect this order. There is no code path that takes
+// a child mutex before its parent; if one is added, deadlock is possible.
+// `other` is assumed caller-owned and unshared.
+func (t *Tree) mergeFrom(other *Tree) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	maps.Copy(t.values, other.values)
+	for k, v := range other.multiValues {
+		t.multiValues[k] = append(t.multiValues[k], v...)
 	}
-	// Merge containers (recursively).
-	for k, v := range child.containers {
-		existing.MergeContainer(k, v)
-	}
-	// Merge lists (preserving order).
-	for k, v := range child.lists {
-		if existing.lists[k] == nil {
-			existing.lists[k] = v
-			existing.listOrder[k] = child.listOrder[k]
+	for k, v := range other.containers {
+		if existing := t.containers[k]; existing != nil {
+			// existing.mu is a different lock from t.mu; recurse in
+			// parent-then-child order (we still hold t.mu here).
+			existing.mergeFrom(v)
 		} else {
-			// Append new keys in child's order.
-			for _, key := range child.listOrder[k] {
-				if _, exists := existing.lists[k][key]; !exists {
-					existing.listOrder[k] = append(existing.listOrder[k], key)
-				}
-				existing.lists[k][key] = v[key]
+			t.containers[k] = v
+		}
+	}
+	for k, v := range other.lists {
+		if t.lists[k] == nil {
+			t.lists[k] = v
+			t.listOrder[k] = other.listOrder[k]
+			continue
+		}
+		for _, key := range other.listOrder[k] {
+			if _, exists := t.lists[k][key]; !exists {
+				t.listOrder[k] = append(t.listOrder[k], key)
 			}
+			t.lists[k][key] = v[key]
 		}
 	}
 }
 
 // GetList returns a list (keyed map of trees).
 func (t *Tree) GetList(name string) map[string]*Tree {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	return t.lists[name]
 }
 
@@ -225,6 +290,9 @@ func (t *Tree) GetList(name string) map[string]*Tree {
 // For duplicate keys, generates unique keys by appending #N suffix.
 // This supports ADD-PATH routes with same prefix but different path-info.
 func (t *Tree) AddListEntry(name, key string, entry *Tree) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	if t.lists[name] == nil {
 		t.lists[name] = make(map[string]*Tree)
 	}
@@ -250,6 +318,8 @@ func (t *Tree) GetListOrdered(name string) []struct {
 	Key   string
 	Value *Tree
 } {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	order := t.listOrder[name]
 	list := t.lists[name]
 	if list == nil {
@@ -272,6 +342,8 @@ func (t *Tree) GetListOrdered(name string) []struct {
 
 // ListKeys returns the keys for a list (e.g., neighbor IPs).
 func (t *Tree) ListKeys(name string) []string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	list := t.lists[name]
 	if list == nil {
 		return nil
@@ -285,9 +357,12 @@ func (t *Tree) ListKeys(name string) []string {
 
 // Values returns all value keys in insertion order (for iterating Freeform entries).
 func (t *Tree) Values() []string {
-	// Return in insertion order if available, otherwise fallback to map order
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	if len(t.valuesOrder) > 0 {
-		return t.valuesOrder
+		out := make([]string, len(t.valuesOrder))
+		copy(out, t.valuesOrder)
+		return out
 	}
 	keys := make([]string, 0, len(t.values))
 	for k := range t.values {
@@ -299,6 +374,8 @@ func (t *Tree) Values() []string {
 // GetOrCreateContainer returns an existing container or creates a new one.
 // Used by migrations to ensure a container exists before adding to it.
 func (t *Tree) GetOrCreateContainer(name string) *Tree {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if c := t.containers[name]; c != nil {
 		return c
 	}
@@ -310,6 +387,9 @@ func (t *Tree) GetOrCreateContainer(name string) *Tree {
 // RemoveListEntry removes and returns a specific list entry.
 // Returns nil if the entry doesn't exist.
 func (t *Tree) RemoveListEntry(listName, key string) *Tree {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	list := t.lists[listName]
 	if list == nil {
 		return nil
@@ -335,6 +415,9 @@ func (t *Tree) RemoveListEntry(listName, key string) *Tree {
 // RenameListEntry changes the key of a list entry, preserving its subtree and position.
 // Returns an error if the old key does not exist or the new key already exists.
 func (t *Tree) RenameListEntry(listName, oldKey, newKey string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	list := t.lists[listName]
 	if list == nil {
 		return fmt.Errorf("list %s not found", listName)
@@ -365,26 +448,50 @@ func (t *Tree) RenameListEntry(listName, oldKey, newKey string) error {
 // CopyListEntry clones a list entry under a new key, appended after the source.
 // Returns an error if the source key does not exist or the target key already exists.
 func (t *Tree) CopyListEntry(listName, srcKey, dstKey string) error {
+	t.mu.Lock()
+
 	list := t.lists[listName]
 	if list == nil {
+		t.mu.Unlock()
 		return fmt.Errorf("list %s not found", listName)
 	}
 	entry, exists := list[srcKey]
 	if !exists {
+		t.mu.Unlock()
 		return fmt.Errorf("%s not found in %s", srcKey, listName)
+	}
+	if _, exists := list[dstKey]; exists {
+		t.mu.Unlock()
+		return fmt.Errorf("%s already exists in %s", dstKey, listName)
+	}
+
+	// Release t.mu before entry.Clone() to avoid holding t.mu while
+	// acquiring entry.mu.RLock(). Lock order: clone under entry.mu, then
+	// re-acquire t.mu to mutate our own maps.
+	t.mu.Unlock()
+	cloned := entry.Clone()
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	// Re-check invariants after re-acquiring the lock. srcKey may have
+	// been removed or rename-collapsed; dstKey may have been inserted
+	// concurrently.
+	list = t.lists[listName]
+	if list == nil {
+		return fmt.Errorf("list %s vanished during clone", listName)
+	}
+	if _, stillThere := list[srcKey]; !stillThere {
+		return fmt.Errorf("%s removed from %s during clone", srcKey, listName)
 	}
 	if _, exists := list[dstKey]; exists {
 		return fmt.Errorf("%s already exists in %s", dstKey, listName)
 	}
-
-	// Deep-copy the subtree and insert after the source in order
-	list[dstKey] = entry.Clone()
+	list[dstKey] = cloned
 	order := t.listOrder[listName]
 	for i, k := range order {
 		if k != srcKey {
 			continue
 		}
-		// Insert dstKey right after srcKey
 		newOrder := make([]string, 0, len(order)+1)
 		newOrder = append(newOrder, order[:i+1]...)
 		newOrder = append(newOrder, dstKey)
@@ -397,9 +504,10 @@ func (t *Tree) CopyListEntry(listName, srcKey, dstKey string) error {
 }
 
 // ClearList removes all entries from a list.
-// Reserved for future migrations that need bulk list replacement.
-// Current migration uses RemoveListEntry for order preservation.
+// Used by migrations that need bulk list replacement.
 func (t *Tree) ClearList(name string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	delete(t.lists, name)
 	delete(t.listOrder, name)
 }
@@ -412,15 +520,15 @@ const (
 	InsertAfter  = "after"
 )
 
-// syncMultiValueToValue updates the values map to match multiValues for a key.
-// Keeps the space-separated string representation in sync with the slice.
-func (t *Tree) syncMultiValueToValue(name string) {
+// syncMultiValueToValueLocked updates the values map to match multiValues for
+// a key. Caller MUST hold t.mu.Lock().
+func (t *Tree) syncMultiValueToValueLocked(name string) {
 	items := t.multiValues[name]
 	if len(items) == 0 {
 		delete(t.values, name)
 		return
 	}
-	t.Set(name, strings.Join(items, " "))
+	t.setLocked(name, strings.Join(items, " "))
 }
 
 // InsertMultiValue inserts a value into a multi-value list at the specified position.
@@ -430,6 +538,9 @@ func (t *Tree) InsertMultiValue(name, value, position, ref string) error {
 	if !isValidInsertPosition(position) {
 		return fmt.Errorf("invalid position %q (use first, last, before, after)", position)
 	}
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
 	items := t.multiValues[name]
 	if multiValueIndex(items, value) >= 0 {
@@ -457,7 +568,7 @@ func (t *Tree) InsertMultiValue(name, value, position, ref string) error {
 		t.multiValues[name] = newItems
 	}
 
-	t.syncMultiValueToValue(name)
+	t.syncMultiValueToValueLocked(name)
 	return nil
 }
 
@@ -467,15 +578,18 @@ func (t *Tree) DeactivateMultiValue(name, value string) error {
 	if strings.HasPrefix(value, "inactive:") {
 		return fmt.Errorf("%q is already deactivated", value)
 	}
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	items := t.multiValues[name]
-	// Check if already deactivated.
 	if multiValueIndex(items, "inactive:"+value) >= 0 {
 		return fmt.Errorf("%q is already deactivated in %s", value, name)
 	}
 	for i, item := range items {
 		if item == value {
 			items[i] = "inactive:" + value
-			t.syncMultiValueToValue(name)
+			t.syncMultiValueToValueLocked(name)
 			return nil
 		}
 	}
@@ -484,12 +598,15 @@ func (t *Tree) DeactivateMultiValue(name, value string) error {
 
 // ActivateMultiValue removes "inactive:" prefix from a value in a multi-value list.
 func (t *Tree) ActivateMultiValue(name, value string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	items := t.multiValues[name]
 	target := "inactive:" + value
 	for i, item := range items {
 		if item == target {
 			items[i] = value
-			t.syncMultiValueToValue(name)
+			t.syncMultiValueToValueLocked(name)
 			return nil
 		}
 	}
@@ -518,14 +635,15 @@ func (t *Tree) ToMap() map[string]any {
 		return nil
 	}
 
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
 	result := make(map[string]any)
 
-	// Add leaf values
 	for k, v := range t.values {
 		result[k] = v
 	}
 
-	// Add multi-values as arrays
 	for k, v := range t.multiValues {
 		if len(v) == 1 {
 			result[k] = v[0]
@@ -534,12 +652,11 @@ func (t *Tree) ToMap() map[string]any {
 		}
 	}
 
-	// Add containers (recursively)
+	// v.ToMap() locks v.mu separately.
 	for k, v := range t.containers {
 		result[k] = v.ToMap()
 	}
 
-	// Add lists as nested objects (key -> subtree)
 	for listName, entries := range t.lists {
 		listMap := make(map[string]any)
 		for key, tree := range entries {

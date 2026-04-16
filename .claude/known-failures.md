@@ -3,17 +3,13 @@
 Pre-existing failures that need fixing. Each entry includes failure output and root-cause hypothesis.
 Sessions should attempt to fix entries here before logging new ones.
 
-## TestInProcessBasicRoute (flake under parallel load) -- LOGGED 2026-04-16
+## TestInProcessBasicRoute (flake under parallel load) -- FIXED 2026-04-16
 
 **File:** `internal/chaos/inprocess/runner_test.go` -- `TestInProcessBasicRoute`
-**Symptom:** Two BGP peers fail to reach established state under `make ze-verify-fast` parallel unit-test load; the test assertions `peer 0/1 should establish BGP session` fail.
-**Reproduction:**
-- FAILS: `make ze-verify-fast` (unit+lint parallel stage, runtime 46s vs normal 2.9s).
-- PASSES: `go test -count=1 -run TestInProcessBasicRoute ./internal/chaos/inprocess/` in isolation (2.87s).
-- PASSES: same with `-race` isolated (7.17s).
-**Hypothesis:** Same class as the existing chaos/inprocess pool-worker flakes under parallel-binary CPU contention. The test orchestrates live BGP FSM handshake and route delivery against a wallclock deadline; when the ze-verify-fast scheduler runs unit+lint in parallel the chaos binary starves of slots and the handshake window expires before OPEN is exchanged.
-**Not caused by the 2026-04-16 nlri.JSONWriter refactor -- verified orthogonal.** The refactor only changes how already-established routes are formatted for subscribers; session establishment has no JSON path. Failure surfaces before any route is advertised.
-**Fix needed:** Either increase the session-establish deadline in the runner, or isolate `internal/chaos/inprocess` from the unit parallel pool (similar to how reactor/chaos are partitioned today). 30-60 min investigation.
+**Original symptom:** Two BGP peers failed to reach established state under `make ze-verify-fast` parallel unit-test load; assertions `peer 0/1 should establish BGP session` failed intermittently. Isolated runs passed in ~3s; parallel-load runs needed ~46s.
+**Root cause:** `Duration: 10 * time.Second` gave the scenario too little wall-clock budget to complete OPEN/KEEPALIVE + 5-route advertisement when the chaos binary was starved of CPU slots. The surrounding `ctx` timeout of 30s was never the limiter.
+**Fix:** Bumped `Duration` to `25 * time.Second` (`runner_test.go:77`). Isolated runs still finish in seconds; ~8x slack matches the observed worst-case slowdown without touching the 30s ctx outer bound.
+**Verification:** `go test -race -count=3 ./internal/chaos/inprocess/` green in 13.5s; `make ze-verify-fast` passes all 8 suites including the inprocess package under parallel load (58-59s).
 
 ## plugin test 272 watchdog (flake under parallel load) -- LOGGED 2026-04-16
 
@@ -445,7 +441,15 @@ been hiding. All fixes shipped inline with the relevant phase:
   community-priority, community-cumulative). Shipped in commit
   `cc0ff733` (phase 2).
 
-## TestETSessionOption -- intermittent dirty flag under parallel load (logged 2026-04-11)
+## TestETSessionOption -- intermittent dirty flag under parallel load (FIXED 2026-04-16)
+
+**Resolution:** Root-caused to an unsynchronized race on `config.Tree.values` / `config.MetaTree.entries` maps. `HeadlessModel.processCmdWithDepth` (`testing/headless.go:167`) dispatched tea.Cmds in a goroutine, so `cmdSet -> Editor.SetValue -> writeThroughSet -> target.Set` raced with `CheckExpectation -> checkDirty -> WorkingContent -> SerializeSetWithMeta`. The writer ran after `SendMsg` returned while the reader walked the tree.
+
+**Fix:** Added `sync.RWMutex` to both `config.Tree` (`tree.go`) and `config.MetaTree` (`meta.go`). Every public method acquires the appropriate lock; the walkers in `serialize_set.go` RLock each tree / meta node at entry so direct map access is protected. Recursion into sub-trees locks each child separately (different mutex, no reentrancy).
+
+**Verification:** `go test -race -count=20 -run TestETSession ./internal/component/cli/testing/` -> 20/20 clean in 278s. `make ze-verify-fast` -> all 8 suites green, zero data races.
+
+**Old investigation notes (kept for future reference):**
 
 **File:** `internal/component/cli/testing/session_test.go:18` (`TestETSessionOption`)
 **Symptom:** `step 3 (expect dirty): expected dirty:true, got false`. Occurs during `make ze-verify` but not in isolation.

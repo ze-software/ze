@@ -6,7 +6,9 @@
 package config
 
 import (
+	"maps"
 	"sort"
+	"sync"
 	"time"
 )
 
@@ -50,7 +52,11 @@ type SessionEntry struct {
 // Navigation uses the same path segments as Tree (containers for YANG containers,
 // list entries keyed by their identifier).
 // Each leaf can have multiple entries (one per session) for contested leaves.
+//
+// Safe for concurrent use: mu guards every map below. Each MetaTree owns its
+// own mutex; recursion into a child node locks the child separately.
 type MetaTree struct {
+	mu         sync.RWMutex
 	entries    map[string][]MetaEntry
 	containers map[string]*MetaTree
 	lists      map[string]*MetaTree
@@ -69,6 +75,9 @@ func NewMetaTree() *MetaTree {
 // If an entry from the same session exists, it is replaced.
 // Entries from different sessions are preserved (for live conflict detection).
 func (mt *MetaTree) SetEntry(name string, entry MetaEntry) {
+	mt.mu.Lock()
+	defer mt.mu.Unlock()
+
 	existing := mt.entries[name]
 	var updated []MetaEntry
 	replaced := false
@@ -89,6 +98,8 @@ func (mt *MetaTree) SetEntry(name string, entry MetaEntry) {
 
 // GetEntry retrieves metadata for a leaf (returns the last entry).
 func (mt *MetaTree) GetEntry(name string) (MetaEntry, bool) {
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
 	entries := mt.entries[name]
 	if len(entries) == 0 {
 		return MetaEntry{}, false
@@ -98,12 +109,17 @@ func (mt *MetaTree) GetEntry(name string) (MetaEntry, bool) {
 
 // RemoveEntry removes all metadata entries for a leaf, regardless of session.
 func (mt *MetaTree) RemoveEntry(name string) {
+	mt.mu.Lock()
+	defer mt.mu.Unlock()
 	delete(mt.entries, name)
 }
 
 // RemoveSessionEntry removes entries for a specific session from a leaf.
 // Preserves entries from other sessions. If no entries remain, the key is deleted.
 func (mt *MetaTree) RemoveSessionEntry(name, sessionID string) {
+	mt.mu.Lock()
+	defer mt.mu.Unlock()
+
 	entries := mt.entries[name]
 	var kept []MetaEntry
 	for _, e := range entries {
@@ -121,11 +137,21 @@ func (mt *MetaTree) RemoveSessionEntry(name, sessionID string) {
 // GetAllEntries returns all metadata entries for a leaf.
 // Multiple entries exist when different sessions have pending changes at the same path.
 func (mt *MetaTree) GetAllEntries(name string) []MetaEntry {
-	return mt.entries[name]
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
+	entries := mt.entries[name]
+	if len(entries) == 0 {
+		return nil
+	}
+	out := make([]MetaEntry, len(entries))
+	copy(out, entries)
+	return out
 }
 
 // Entries returns the primary (last) entry for each leaf name.
 func (mt *MetaTree) Entries() map[string]MetaEntry {
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
 	result := make(map[string]MetaEntry, len(mt.entries))
 	for name, entries := range mt.entries {
 		if len(entries) > 0 {
@@ -135,37 +161,60 @@ func (mt *MetaTree) Entries() map[string]MetaEntry {
 	return result
 }
 
-// AllEntries returns all entries keyed by leaf name.
+// AllEntries returns a snapshot of all entries keyed by leaf name.
+// The returned slices are copies; callers may mutate them without affecting the tree.
 func (mt *MetaTree) AllEntries() map[string][]MetaEntry {
-	return mt.entries
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
+	result := make(map[string][]MetaEntry, len(mt.entries))
+	for name, entries := range mt.entries {
+		out := make([]MetaEntry, len(entries))
+		copy(out, entries)
+		result[name] = out
+	}
+	return result
 }
 
-// Containers returns all container sub-trees.
+// Containers returns a snapshot of all container sub-trees.
 func (mt *MetaTree) Containers() map[string]*MetaTree {
-	return mt.containers
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
+	out := make(map[string]*MetaTree, len(mt.containers))
+	maps.Copy(out, mt.containers)
+	return out
 }
 
-// Lists returns all list entry sub-trees.
+// Lists returns a snapshot of all list entry sub-trees.
 func (mt *MetaTree) Lists() map[string]*MetaTree {
-	return mt.lists
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
+	out := make(map[string]*MetaTree, len(mt.lists))
+	maps.Copy(out, mt.lists)
+	return out
 }
 
 // GetContainer returns the sub-tree for a YANG container, or nil if not found.
 // Use this for read-only navigation (e.g., conflict checks) to avoid
 // mutating the tree during reads.
 func (mt *MetaTree) GetContainer(name string) *MetaTree {
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
 	return mt.containers[name]
 }
 
 // GetListEntry returns the sub-tree for a YANG list entry, or nil if not found.
 // Use this for read-only navigation to avoid creating empty entries.
 func (mt *MetaTree) GetListEntry(key string) *MetaTree {
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
 	return mt.lists[key]
 }
 
 // GetOrCreateContainer returns the sub-tree for a YANG container,
 // creating it if it doesn't exist.
 func (mt *MetaTree) GetOrCreateContainer(name string) *MetaTree {
+	mt.mu.Lock()
+	defer mt.mu.Unlock()
 	if child, ok := mt.containers[name]; ok {
 		return child
 	}
@@ -178,6 +227,8 @@ func (mt *MetaTree) GetOrCreateContainer(name string) *MetaTree {
 // creating it if it doesn't exist. List entries are keyed by their
 // identifier (e.g., neighbor address).
 func (mt *MetaTree) GetOrCreateListEntry(key string) *MetaTree {
+	mt.mu.Lock()
+	defer mt.mu.Unlock()
 	if child, ok := mt.lists[key]; ok {
 		return child
 	}
@@ -196,7 +247,12 @@ func (mt *MetaTree) SessionEntries(sessionID string) []SessionEntry {
 }
 
 // collectSession recursively walks the tree, accumulating path prefix.
+// Acquires mt.mu.RLock for its own node; child recursion locks the child
+// independently.
 func (mt *MetaTree) collectSession(sessionID, prefix string, result *[]SessionEntry) {
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
+
 	for name, entries := range mt.entries {
 		for _, entry := range entries {
 			if entry.SessionKey() == sessionID {
@@ -229,6 +285,7 @@ func (mt *MetaTree) collectSession(sessionID, prefix string, result *[]SessionEn
 // RemoveSession removes all entries matching the given session ID
 // from the entire tree. Preserves entries from other sessions.
 func (mt *MetaTree) RemoveSession(sessionID string) {
+	mt.mu.Lock()
 	for name, entries := range mt.entries {
 		var kept []MetaEntry
 		for _, e := range entries {
@@ -243,11 +300,22 @@ func (mt *MetaTree) RemoveSession(sessionID string) {
 		}
 	}
 
+	// Snapshot children so recursion does not hold mt.mu while calling
+	// into the child (the child acquires its own lock).
+	containers := make([]*MetaTree, 0, len(mt.containers))
 	for _, child := range mt.containers {
+		containers = append(containers, child)
+	}
+	lists := make([]*MetaTree, 0, len(mt.lists))
+	for _, child := range mt.lists {
+		lists = append(lists, child)
+	}
+	mt.mu.Unlock()
+
+	for _, child := range containers {
 		child.RemoveSession(sessionID)
 	}
-
-	for _, child := range mt.lists {
+	for _, child := range lists {
 		child.RemoveSession(sessionID)
 	}
 }
@@ -267,6 +335,9 @@ func (mt *MetaTree) AllSessions() []string {
 
 // collectSessions recursively gathers unique session IDs.
 func (mt *MetaTree) collectSessions(seen map[string]bool) {
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
+
 	for _, entries := range mt.entries {
 		for _, entry := range entries {
 			if key := entry.SessionKey(); key != "" {
@@ -286,6 +357,9 @@ func (mt *MetaTree) collectSessions(seen map[string]bool) {
 
 // HasSession returns true if any entry in the tree belongs to the given session.
 func (mt *MetaTree) HasSession(sessionID string) bool {
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
+
 	for _, entries := range mt.entries {
 		for _, entry := range entries {
 			if entry.SessionKey() == sessionID {
