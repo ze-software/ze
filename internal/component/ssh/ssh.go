@@ -118,6 +118,30 @@ type Server struct {
 	loginWarningsFunc        LoginWarningsFunc            // set by daemon; returns login warnings for SSH sessions
 }
 
+// maxLoggedProfiles caps the number of profile names that appear in an
+// "SSH auth success" log line. Values above this are replaced with a
+// "+N more" suffix so a user mapped to a pathologically long profile
+// list cannot blow up the log pipeline or aggregation backend.
+const maxLoggedProfiles = 8
+
+// truncateProfiles always returns a bracket-delimited string so slog's
+// rendering is consistent regardless of list length -- no shape shift
+// between []string and string, which was confusing for log parsers. For
+// short lists the output reads like `[admin operator]`; long lists read
+// like `[p1 p2 ... p8 +3 more]`. Names that contain spaces will still be
+// ambiguous in the output, but the YANG profile leaf is a `string` with
+// no internal convention forbidding spaces so we preserve them as-is.
+func truncateProfiles(profiles []string) string {
+	n := len(profiles)
+	if n == 0 {
+		return "[]"
+	}
+	if n <= maxLoggedProfiles {
+		return "[" + strings.Join(profiles, " ") + "]"
+	}
+	return fmt.Sprintf("[%s +%d more]", strings.Join(profiles[:maxLoggedProfiles], " "), n-maxLoggedProfiles)
+}
+
 // NewServer creates a new SSH server with the given configuration.
 // It applies defaults for unset fields but does not start listening.
 // If HostKeyPath is empty, it defaults to ssh_host_ed25519_key in ConfigDir.
@@ -342,7 +366,10 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 
 			result, err := authenticator.Authenticate(username, pass)
 			if err == nil && result.Authenticated {
-				s.logger.Info("SSH auth success", "username", username, "remote", remote, "source", result.Source)
+				s.logger.Info("SSH auth success",
+					"username", username, "remote", remote,
+					"source", result.Source,
+					"profiles", truncateProfiles(result.Profiles))
 				return true
 			}
 			s.logger.Warn("SSH auth failure", "username", username, "remote", remote)

@@ -5,7 +5,7 @@
 package tacacs
 
 import (
-	"fmt"
+	"net"
 	"strconv"
 	"time"
 
@@ -58,8 +58,13 @@ func ExtractConfig(tree *config.Tree) ExtractedConfig {
 					port = uint16(n)
 				}
 			}
+			// net.JoinHostPort brackets IPv6 addresses so the resulting
+			// string round-trips through net.SplitHostPort and
+			// net.Dialer.Dial. Plain Sprintf("%s:%d", ...) would produce
+			// "2001:db8::1:49" which neither parser can unambiguously
+			// split back into host and port.
 			srv := TacacsServer{
-				Address: fmt.Sprintf("%s:%d", addr, port),
+				Address: net.JoinHostPort(addr, strconv.Itoa(int(port))),
 			}
 			if v, ok := entry.Get("key"); ok {
 				srv.Key = []byte(v)

@@ -1,0 +1,137 @@
+# Test: TACACS+ single-connect (RFC 8907 §4.4) reuses one TCP across sessions
+#
+# Flow:
+# 1. Mock echoes FlagSingleConnect (0x04) on any reply whose request had it set.
+#    (Our mock supports this unconditionally.)
+# 2. Daemon enables TACACS+ accounting so every dispatched command fires an
+#    ACCT exchange against the mock -- multiple exchanges in quick succession.
+# 3. ze init + ze cli -c "summary" + ze cli -c "peer list" produce several
+#    AUTHEN + ACCT exchanges.
+# 4. Mock logs "connection #N" on every accepted TCP. With single-connect
+#    the count stays at 1 (one TCP, reused); without it the count would
+#    grow with the number of sessions.
+#
+# VALIDATES: AC-16 -- client sets flag 0x04 on first packet; if server echoes,
+#            reuse TCP for subsequent sessions.
+# PREVENTS: regressing to per-session TCP creates (handshake storm under load).
+
+tmpfs=test-tacacs-singleconnect.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+touch daemon.ready
+
+ze-test tacacs-mock --port 0 --key ze-mock-key \
+	--user admin:testpass:15 --addr-file mock.addr 2>mock.log &
+MOCK_PID=$!
+trap 'kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
+
+MOCK_ADDR=""
+for i in $(seq 1 30); do
+	if [ -s mock.addr ]; then
+		MOCK_ADDR=$(cat mock.addr)
+		break
+	fi
+	sleep 0.1
+done
+if [ -z "$MOCK_ADDR" ]; then
+	echo "FAIL: mock did not report address" >&2
+	cat mock.log >&2
+	exit 1
+fi
+MOCK_IP=$(echo "$MOCK_ADDR" | cut -d: -f1)
+MOCK_PORT=$(echo "$MOCK_ADDR" | cut -d: -f2)
+
+cat > tacacs-sc.conf <<ZECONF
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; accept false; }
+			local  { ip 127.0.0.1; }
+		}
+		session { asn { local 65533; remote 65533; } }
+	}
+}
+
+system {
+	authentication {
+		tacacs {
+			server ${MOCK_IP} { port ${MOCK_PORT}; key "ze-mock-key"; }
+			timeout 2;
+			accounting true;
+		}
+		tacacs-profile 15 { profile [ admin ]; }
+	}
+	authorization {
+		profile admin { run { default-action allow; } edit { default-action allow; } }
+	}
+}
+
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port 0; }
+	}
+}
+ZECONF
+
+export ze_bgp_tcp_port=$((10000 + ($$ % 50000)))
+
+ze tacacs-sc.conf 2>daemon.log &
+DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true; kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
+
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
+		break
+	fi
+	sleep 0.2
+done
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: SSH server did not start" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+
+sleep 0.5
+
+ADMIN_DIR=$(mktemp -d)
+trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true; kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
+printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
+
+# Run several commands so the client performs multiple AUTHEN + ACCT exchanges.
+for cmd in "summary" "peer list" "summary" "peer list"; do
+	ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "$cmd" >/dev/null 2>&1 || {
+		echo "FAIL: $cmd failed" >&2
+		exit 1
+	}
+done
+
+# Give accounting worker time to drain its queue.
+sleep 0.8
+
+# Count connections accepted by the mock. With single-connect the count is
+# exactly 1 (the very first TCP stays open and every subsequent exchange
+# reuses it); without it, the count grows with every session.
+CONNS=$(grep -cE 'tacacs-mock: connection #' mock.log || true)
+echo "mock accepted $CONNS TCP connection(s)" >&2
+if [ "$CONNS" -gt 1 ]; then
+	echo "FAIL: expected 1 pooled TCP connection, got $CONNS" >&2
+	cat mock.log >&2
+	exit 1
+fi
+
+# Echo mock log so the .ci runner can see the single-connect accept log.
+cat mock.log >&2
+
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-tacacs-singleconnect.sh:timeout=20s
+expect=exit:code=0
+# Mock logged that single-connect was negotiated on the first packet.
+expect=stderr:pattern=tacacs-mock: single-connect accepted
+# Mock saw exactly 1 connection despite many TACACS+ exchanges.
+expect=stderr:pattern=mock accepted 1 TCP connection

@@ -1,0 +1,105 @@
+# Test: ze tacacs show probes each configured server and reports reachability
+#
+# Flow:
+# 1. Mock listens; reachable server written to the config
+# 2. Second server (127.0.0.1:1) is always unreachable (connect refused)
+# 3. ze tacacs show prints a table with one 'yes' and one 'no' row
+#
+# VALIDATES: AC-13 -- ze show tacacs displays server status
+#            (reachable / unreachable), auth stats.
+# PREVENTS: The offline reachability tool goes stale: config schema changes,
+#           flag parsing regressions, or missing AAA backend registration
+#           would all fail this check.
+
+tmpfs=test-tacacs-show.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+touch daemon.ready
+
+ze-test tacacs-mock --port 0 --key ze-mock-key \
+	--user admin:testpass:15 --addr-file mock.addr 2>mock.log &
+MOCK_PID=$!
+trap 'kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
+
+MOCK_ADDR=""
+for i in $(seq 1 30); do
+	if [ -s mock.addr ]; then
+		MOCK_ADDR=$(cat mock.addr)
+		break
+	fi
+	sleep 0.1
+done
+if [ -z "$MOCK_ADDR" ]; then
+	echo "FAIL: mock did not report address" >&2
+	cat mock.log >&2
+	exit 1
+fi
+MOCK_IP=$(echo "$MOCK_ADDR" | cut -d: -f1)
+MOCK_PORT=$(echo "$MOCK_ADDR" | cut -d: -f2)
+
+# Pick a guaranteed-unreachable port by briefly binding a socket via Python
+# and releasing it; the OS rarely reuses the port within the test window.
+# This avoids platform-specific assumptions about 127.0.0.2 routing.
+DEAD_PORT=$(python3 -c "import socket; s=socket.socket(); s.bind(('127.0.0.1',0)); p=s.getsockname()[1]; s.close(); print(p)")
+if [ -z "$DEAD_PORT" ]; then
+	echo "FAIL: could not pick a dead port" >&2
+	exit 1
+fi
+echo "dead port: $DEAD_PORT" >&2
+
+# Second entry uses 127.1.1.1 (different IP so the YANG list key is unique)
+# and the just-released DEAD_PORT. On Linux 127.1.1.1 routes to lo; with no
+# socket bound the connect returns ECONNREFUSED quickly, bounded by the 1s
+# timeout regardless of platform.
+cat > probe.conf <<ZECONF
+system {
+	authentication {
+		tacacs {
+			server ${MOCK_IP} { port ${MOCK_PORT}; key "ze-mock-key"; }
+			server 127.1.1.1 { port ${DEAD_PORT}; key "never-up"; }
+			timeout 1;
+		}
+	}
+}
+ZECONF
+
+# Default (table) output
+TABLE=$(ze tacacs show probe.conf 2>&1) || true
+echo "--- table output ---" >&2
+echo "$TABLE" >&2
+
+# JSON output
+JSON=$(ze tacacs show --json probe.conf 2>&1)
+RC=$?
+echo "--- json output ---" >&2
+echo "$JSON" >&2
+
+# Mock should be reachable; 127.0.0.2:1 unreachable.
+echo "$TABLE" | grep -E "^${MOCK_IP}:${MOCK_PORT}[[:space:]]" | grep -q " yes " || {
+	echo "FAIL: mock server row missing 'yes' in table" >&2
+	exit 1
+}
+echo "$TABLE" | grep -q " no " || {
+	echo "FAIL: expected at least one 'no' row" >&2
+	exit 1
+}
+echo "OK: ze tacacs show reports mock reachable, second server unreachable" >&2
+
+# At least one reachable -> exit 0 from the probe command.
+if [ "$RC" -ne 0 ]; then
+	echo "FAIL: --json exit code $RC, expected 0 (one server reachable)" >&2
+	exit 1
+fi
+
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-tacacs-show.sh:timeout=15s
+expect=exit:code=0
+# Headline headers present (proves tabwriter ran with the right columns).
+expect=stderr:pattern=ADDRESS\s+PORT\s+REACHABLE\s+RTT\s+ERROR
+# JSON output included a reachable entry.
+expect=stderr:pattern="reachable": true
+# Unreachable entry present (127.0.0.2:1).
+expect=stderr:pattern="reachable": false

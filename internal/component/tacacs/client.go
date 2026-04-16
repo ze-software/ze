@@ -11,10 +11,12 @@ package tacacs
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -40,9 +42,27 @@ type TacacsClientConfig struct {
 }
 
 // TacacsClient is a TACACS+ client that connects to servers in order.
+//
+// When a server supports single-connect (RFC 8907 §4.4, flag 0x04 echoed
+// on the first reply), its TCP connection is retained in `pool` and reused
+// for subsequent sessions. Request serialization per server is enforced by
+// `serverMu[address]`: exactly one send/receive cycle may be in flight on
+// any given TACACS+ server at a time, so the shared TCP stream cannot be
+// interleaved by concurrent auth / authz / accounting goroutines.
+//
+// True concurrent multiplexing (multiple in-flight sessions on one TCP,
+// demultiplexed by session ID on read) would allow more throughput but is
+// not implemented; sequential reuse still saves one handshake per auth
+// and matches how Cisco and IOS XR TACACS+ clients behave.
 type TacacsClient struct {
 	config TacacsClientConfig
 	logger *slog.Logger
+
+	poolMu   sync.Mutex
+	pool     map[string]net.Conn    // server address -> reusable connection
+	serverMu map[string]*sync.Mutex // server address -> I/O serialization mutex
+	closed   bool                   // set by Close(); new pool inserts close the conn instead of storing
+	bufs     *bufPool               // pre-allocated wire buffers; used for every read path
 }
 
 // NewTacacsClient creates a TACACS+ client.
@@ -54,12 +74,55 @@ func NewTacacsClient(cfg TacacsClientConfig) *TacacsClient {
 	if cfg.Timeout == 0 {
 		cfg.Timeout = 5 * time.Second
 	}
-	return &TacacsClient{config: cfg, logger: logger}
+	return &TacacsClient{
+		config:   cfg,
+		logger:   logger,
+		pool:     make(map[string]net.Conn),
+		serverMu: make(map[string]*sync.Mutex),
+		bufs:     newBufPool(poolBufs, poolBufSize),
+	}
+}
+
+// lockServer returns the per-server I/O mutex, creating it on first use.
+// Callers MUST hold this mutex across the entire send/receive cycle for a
+// given server address so concurrent goroutines (auth, authz, accounting)
+// never interleave bytes on a pooled TCP connection.
+func (c *TacacsClient) lockServer(address string) *sync.Mutex {
+	c.poolMu.Lock()
+	defer c.poolMu.Unlock()
+	mu, ok := c.serverMu[address]
+	if !ok {
+		mu = &sync.Mutex{}
+		c.serverMu[address] = mu
+	}
+	return mu
+}
+
+// Close releases every pooled single-connect TCP connection and marks the
+// client as shut down so any in-flight request that dials a fresh conn
+// after this point will close it instead of re-populating the pool.
+// Safe to call multiple times. Callers should invoke this when the AAA
+// bundle is replaced so the previous client's connections drain cleanly.
+func (c *TacacsClient) Close() {
+	c.poolMu.Lock()
+	defer c.poolMu.Unlock()
+	c.closed = true
+	for addr, conn := range c.pool {
+		if err := conn.Close(); err != nil {
+			c.logger.Debug("TACACS+ close pooled connection", "server", addr, "error", err)
+		}
+		delete(c.pool, addr)
+	}
 }
 
 // Authenticate performs PAP authentication against TACACS+ servers.
 // Tries servers in order. Returns on first response (pass or fail).
 // Returns error only on infrastructure failure (all servers unreachable).
+//
+// Memory: one pool buffer is acquired up front and carried through the
+// send/recv/retry chain. The reply parser (UnmarshalAuthenReply) copies
+// the data it cares about into its own struct, so it is safe to Put the
+// buffer as soon as parsing returns.
 func (c *TacacsClient) Authenticate(username, password, port, remAddr string) (*AuthenReply, error) {
 	start := NewPAPAuthenStart(username, password, port, remAddr)
 	body, err := start.MarshalBinary()
@@ -67,7 +130,10 @@ func (c *TacacsClient) Authenticate(username, password, port, remAddr string) (*
 		return nil, fmt.Errorf("marshal authen start: %w", err)
 	}
 
-	replyData, err := c.sendToServers(body, typeAuthentication, start.Version(), "authentication")
+	buf := c.bufs.Get()
+	defer c.bufs.Put(buf)
+
+	replyData, err := c.sendToServers(buf, body, typeAuthentication, start.Version(), "authentication")
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +154,10 @@ func (c *TacacsClient) SendAuthorization(req *AuthorRequest) (*AuthorResponse, e
 		return nil, fmt.Errorf("marshal author request: %w", err)
 	}
 
-	replyData, err := c.sendToServers(body, typeAuthorization, 0xC0, "authorization")
+	buf := c.bufs.Get()
+	defer c.bufs.Put(buf)
+
+	replyData, err := c.sendToServers(buf, body, typeAuthorization, 0xC0, "authorization")
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +178,10 @@ func (c *TacacsClient) SendAccounting(req *AcctRequest) (*AcctReply, error) {
 		return nil, fmt.Errorf("marshal acct request: %w", err)
 	}
 
-	replyData, err := c.sendToServers(body, typeAccounting, 0xC0, "accounting")
+	buf := c.bufs.Get()
+	defer c.bufs.Put(buf)
+
+	replyData, err := c.sendToServers(buf, body, typeAccounting, 0xC0, "accounting")
 	if err != nil {
 		return nil, err
 	}
@@ -123,8 +195,9 @@ func (c *TacacsClient) SendAccounting(req *AcctRequest) (*AcctReply, error) {
 
 // sendToServers sends a request body to TACACS+ servers in order, returning
 // the first successful response body. Shared by Authenticate, SendAuthorization,
-// and SendAccounting.
-func (c *TacacsClient) sendToServers(body []byte, pktType, version uint8, purpose string) ([]byte, error) {
+// and SendAccounting. The caller-owned pool buffer is threaded all the way
+// down so no wire path ever calls `make([]byte, N)` for variable-size N.
+func (c *TacacsClient) sendToServers(buf, body []byte, pktType, version uint8, purpose string) ([]byte, error) {
 	sessionID, err := randomSessionID()
 	if err != nil {
 		return nil, fmt.Errorf("generate session ID: %w", err)
@@ -141,7 +214,7 @@ func (c *TacacsClient) sendToServers(body []byte, pktType, version uint8, purpos
 			Body: body,
 		}
 
-		replyData, sendErr := c.sendReceive(srv, pkt)
+		replyData, sendErr := c.sendReceive(buf, srv, pkt)
 		if sendErr != nil {
 			c.logger.Warn("TACACS+ server unreachable",
 				"purpose", purpose, "server", srv.Address, "error", sendErr)
@@ -154,61 +227,215 @@ func (c *TacacsClient) sendToServers(body []byte, pktType, version uint8, purpos
 	return nil, fmt.Errorf("all TACACS+ servers unreachable for %s", purpose)
 }
 
-// sendReceive connects to a server, sends a packet, and reads the response.
-// Returns the decrypted response body.
-func (c *TacacsClient) sendReceive(srv TacacsServer, pkt *Packet) ([]byte, error) {
-	conn, err := c.dial(srv.Address)
+// sendReceive connects to a server (or reuses a pooled single-connect TCP),
+// sends a packet, and reads the response. Returns a slice of `buf` that
+// aliases the decrypted response body -- the caller MUST parse it before
+// releasing `buf` back to the pool.
+//
+// Concurrency:
+//   - A per-server mutex is held for the entire send/receive so concurrent
+//     goroutines (auth callback, dispatcher authorization, accounting worker)
+//     cannot interleave bytes on a pooled TCP.
+//
+// Single-connect handshake (RFC 8907 §4.4):
+//   - On a fresh TCP, the client sets FlagSingleConnect on the first packet.
+//   - If the server echoes FlagSingleConnect on its reply, the connection is
+//     retained in the pool for future sessions; subsequent packets do NOT
+//     set the flag.
+//   - If the server does not echo the flag, the connection is closed after
+//     the exchange and the next session opens a fresh TCP.
+//   - A pooled connection that has become dead (read/write failure) is
+//     evicted and a fresh dial retried once; persistent failure surfaces
+//     to the caller which will try the next server.
+func (c *TacacsClient) sendReceive(buf []byte, srv TacacsServer, pkt *Packet) ([]byte, error) {
+	mu := c.lockServer(srv.Address)
+	mu.Lock()
+	defer mu.Unlock()
+
+	if reply, err := c.trySend(buf, srv, pkt, true); err == nil {
+		return reply, nil
+	} else if !isPooledConnError(err) {
+		return nil, err
+	}
+	// Pooled connection was dead: trySend already closed and removed it via
+	// closeAndEvict before returning pooledConnErr, so retry directly with a
+	// fresh dial.
+	return c.trySend(buf, srv, pkt, false)
+}
+
+// trySend performs one send/receive cycle using the provided pool buffer.
+// Layout within `buf`:
+//
+//	[0 : hdrLen]               request/response header (written twice)
+//	[hdrLen : hdrLen+bodyLen]  body (request written first, then overwritten
+//	                            by the response read)
+//
+// One buffer serves the request marshal, the wire write, the response
+// header read, and the response body read. No `make([]byte, N)` anywhere.
+// When `allowPool` is true the pooled connection (if any) is used;
+// otherwise a fresh TCP is always dialed. The caller retries once after
+// eviction.
+func (c *TacacsClient) trySend(buf []byte, srv TacacsServer, pkt *Packet, allowPool bool) ([]byte, error) {
+	conn, reused, err := c.acquireConn(srv.Address, allowPool)
 	if err != nil {
 		return nil, fmt.Errorf("connect %s: %w", srv.Address, err)
 	}
-	defer func() { _ = conn.Close() }()
 
-	// Set read/write deadlines.
-	deadline := time.Now().Add(c.config.Timeout)
-	if err := conn.SetDeadline(deadline); err != nil {
-		return nil, fmt.Errorf("set deadline: %w", err)
-	}
-
-	// Marshal and send.
-	wire, err := pkt.Marshal(srv.Key)
-	if err != nil {
-		return nil, fmt.Errorf("marshal packet: %w", err)
-	}
-	if _, err := conn.Write(wire); err != nil {
-		return nil, fmt.Errorf("write: %w", err)
+	// On a fresh TCP, set FlagSingleConnect on the first packet so the
+	// server can advertise support. On a reused pooled TCP, the flag is
+	// omitted -- the server already agreed on the first exchange.
+	if !reused {
+		pkt.Header.Flags |= FlagSingleConnect
 	}
 
-	// Read response header.
-	hdrBuf := make([]byte, hdrLen)
-	if _, err := io.ReadFull(conn, hdrBuf); err != nil {
-		return nil, fmt.Errorf("read header: %w", err)
-	}
-	respHdr, err := UnmarshalPacketHeader(hdrBuf)
-	if err != nil {
-		return nil, fmt.Errorf("parse header: %w", err)
+	if deadlineErr := conn.SetDeadline(time.Now().Add(c.config.Timeout)); deadlineErr != nil {
+		c.closeAndEvict(srv.Address, conn)
+		return nil, fmt.Errorf("set deadline: %w", deadlineErr)
 	}
 
-	// Validate response header.
+	// Marshal the request into the pool buffer -- no allocation.
+	wireLen, marshalErr := pkt.MarshalInto(buf, srv.Key)
+	if marshalErr != nil {
+		c.closeAndEvict(srv.Address, conn)
+		return nil, fmt.Errorf("marshal packet: %w", marshalErr)
+	}
+	if _, writeErr := conn.Write(buf[:wireLen]); writeErr != nil {
+		c.closeAndEvict(srv.Address, conn)
+		if reused {
+			return nil, pooledConnErr{err: writeErr}
+		}
+		return nil, fmt.Errorf("write: %w", writeErr)
+	}
+
+	// Read the response header into the same buffer (overwrites the
+	// request bytes that have already been flushed to the socket).
+	if _, readErr := io.ReadFull(conn, buf[:hdrLen]); readErr != nil {
+		c.closeAndEvict(srv.Address, conn)
+		if reused {
+			return nil, pooledConnErr{err: readErr}
+		}
+		return nil, fmt.Errorf("read header: %w", readErr)
+	}
+	respHdr, hdrErr := UnmarshalPacketHeader(buf[:hdrLen])
+	if hdrErr != nil {
+		c.closeAndEvict(srv.Address, conn)
+		return nil, fmt.Errorf("parse header: %w", hdrErr)
+	}
+
 	if respHdr.SessionID != pkt.Header.SessionID {
+		c.closeAndEvict(srv.Address, conn)
 		return nil, fmt.Errorf("session ID mismatch: sent %x, got %x",
 			pkt.Header.SessionID, respHdr.SessionID)
 	}
 	if respHdr.Length > maxBodyLen {
+		c.closeAndEvict(srv.Address, conn)
 		return nil, ErrBodyTooBig
 	}
 
-	// Read response body.
-	body := make([]byte, respHdr.Length)
-	if _, err := io.ReadFull(conn, body); err != nil {
-		return nil, fmt.Errorf("read body: %w", err)
+	// Read the response body directly into the buffer slot immediately
+	// after the header.
+	bodyEnd := hdrLen + int(respHdr.Length)
+	if _, bodyErr := io.ReadFull(conn, buf[hdrLen:bodyEnd]); bodyErr != nil {
+		c.closeAndEvict(srv.Address, conn)
+		if reused {
+			return nil, pooledConnErr{err: bodyErr}
+		}
+		return nil, fmt.Errorf("read body: %w", bodyErr)
 	}
 
-	// Decrypt.
-	if len(srv.Key) > 0 && respHdr.Flags&flagUnencrypted == 0 {
-		Encrypt(body, respHdr.SessionID, srv.Key, respHdr.Version, respHdr.SeqNo)
+	if len(srv.Key) > 0 && respHdr.Flags&FlagUnencrypted == 0 {
+		Encrypt(buf[hdrLen:bodyEnd], respHdr.SessionID, srv.Key, respHdr.Version, respHdr.SeqNo)
 	}
 
-	return body, nil
+	// Post-exchange connection disposition: if this was a fresh TCP AND
+	// the server echoed FlagSingleConnect, promote the conn to the pool;
+	// otherwise close it.
+	if !reused {
+		if respHdr.Flags&FlagSingleConnect != 0 {
+			c.storeConn(srv.Address, conn)
+		} else {
+			if closeErr := conn.Close(); closeErr != nil {
+				c.logger.Debug("TACACS+ close non-reusable connection",
+					"server", srv.Address, "error", closeErr)
+			}
+		}
+	}
+	// When reused == true the connection is already in the pool and stays
+	// there; no action needed on the happy path.
+
+	// Return a slice of the pool buffer aliasing the decrypted body. The
+	// caller (Authenticate/SendAuthorization/SendAccounting) MUST parse
+	// it before its deferred Put releases the buffer.
+	return buf[hdrLen:bodyEnd], nil
+}
+
+// pooledConnErr marks an error as coming from a reused pooled connection so
+// sendReceive can choose to retry with a fresh dial. Never surfaces to
+// callers outside this file.
+type pooledConnErr struct{ err error }
+
+func (e pooledConnErr) Error() string { return e.err.Error() }
+
+func isPooledConnError(err error) bool {
+	var p pooledConnErr
+	return errors.As(err, &p)
+}
+
+// acquireConn returns a connection to `address`. When `allowPool` is true
+// and the pool has a live connection, it is returned with reused=true; the
+// caller should not dial or negotiate single-connect again. Otherwise a
+// fresh TCP is dialed.
+func (c *TacacsClient) acquireConn(address string, allowPool bool) (net.Conn, bool, error) {
+	if allowPool {
+		c.poolMu.Lock()
+		if conn, ok := c.pool[address]; ok {
+			c.poolMu.Unlock()
+			return conn, true, nil
+		}
+		c.poolMu.Unlock()
+	}
+	conn, err := c.dial(address)
+	if err != nil {
+		return nil, false, err
+	}
+	return conn, false, nil
+}
+
+// storeConn promotes a fresh connection to the pool. If another connection
+// is already pooled (rare, from concurrent negotiations) the new one is
+// stored and the prior one closed. If the client has already been Close()d
+// (for example, a retry after a config-reload-triggered bundle swap), the
+// fresh conn is closed instead of being stashed into an abandoned pool
+// that nothing will drain.
+func (c *TacacsClient) storeConn(address string, conn net.Conn) {
+	c.poolMu.Lock()
+	defer c.poolMu.Unlock()
+	if c.closed {
+		if err := conn.Close(); err != nil {
+			c.logger.Debug("TACACS+ discard post-close connection", "server", address, "error", err)
+		}
+		return
+	}
+	if prev, ok := c.pool[address]; ok && prev != conn {
+		if err := prev.Close(); err != nil {
+			c.logger.Debug("TACACS+ replace pooled connection", "server", address, "error", err)
+		}
+	}
+	c.pool[address] = conn
+}
+
+// closeAndEvict removes a pooled connection and closes it. Used on local
+// errors (set deadline, marshal) where the connection may still be alive
+// but cannot be trusted for subsequent sessions.
+func (c *TacacsClient) closeAndEvict(address string, conn net.Conn) {
+	c.poolMu.Lock()
+	if pooled, ok := c.pool[address]; ok && pooled == conn {
+		delete(c.pool, address)
+	}
+	c.poolMu.Unlock()
+	if err := conn.Close(); err != nil {
+		c.logger.Debug("TACACS+ close on error", "server", address, "error", err)
+	}
 }
 
 // dial creates a TCP connection to the server with the configured timeout.

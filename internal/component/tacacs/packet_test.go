@@ -193,7 +193,7 @@ func TestUnmarshalPacketUnencryptedFlag(t *testing.T) {
 			Version:   0xC0,
 			Type:      0x01,
 			SeqNo:     1,
-			Flags:     flagUnencrypted,
+			Flags:     FlagUnencrypted,
 			SessionID: 0x5678,
 		},
 		Body: body,

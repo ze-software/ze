@@ -47,14 +47,24 @@ func (tacacsBackend) Build(params aaa.BuildParams) (aaa.Contribution, error) {
 		contrib.Authorizer = NewTacacsAuthorizer(client, params.LocalAuthorizer, params.Logger)
 	}
 
+	var acct *TacacsAccountant
 	if cfg.Accounting {
-		acct := NewTacacsAccountant(client, params.Logger)
+		acct = NewTacacsAccountant(client, params.Logger)
 		acct.Start()
 		contrib.Accountant = acct
-		contrib.Close = func() error {
+	}
+
+	// Close runs on every AAA bundle swap (config reload or clean shutdown).
+	// Always stop the accountant worker (if any) AND drain the client's
+	// single-connect pool -- without this, reloading with tacacs still
+	// configured leaks pooled TCP connections into the next bundle's
+	// replacement client.
+	contrib.Close = func() error {
+		if acct != nil {
 			acct.Stop()
-			return nil
 		}
+		client.Close()
+		return nil
 	}
 
 	return contrib, nil

@@ -57,13 +57,26 @@ func (u *tacacsUserList) Set(s string) error {
 // observe accounting traffic via an atomic snapshot in the log.
 var acctCounter atomic.Uint64
 
+// connCounter is incremented for every accepted TCP connection so tests can
+// verify single-connect mode keeps the connection count low across many
+// sessions.
+var connCounter atomic.Uint64
+
+// stringSliceFlag captures repeatable string flags such as --author-deny.
+type stringSliceFlag []string
+
+func (s *stringSliceFlag) String() string { return strings.Join(*s, ",") }
+
+func (s *stringSliceFlag) Set(v string) error { *s = append(*s, v); return nil }
+
 func tacacsMockCmd() int {
 	var (
-		port    int
-		key     string
-		users   tacacsUserList
-		addrOut string
-		logAll  bool
+		port       int
+		key        string
+		users      tacacsUserList
+		addrOut    string
+		logAll     bool
+		authorDeny stringSliceFlag
 	)
 
 	fs := flag.NewFlagSet("ze-test tacacs-mock", flag.ExitOnError)
@@ -72,6 +85,7 @@ func tacacsMockCmd() int {
 	fs.Var(&users, "user", "credential: name:pass[:privlvl] (repeatable, priv-lvl default 15)")
 	fs.StringVar(&addrOut, "addr-file", "", "write listening host:port to this file")
 	fs.BoolVar(&logAll, "log-packets", true, "log every received packet to stderr")
+	fs.Var(&authorDeny, "author-deny", "deny AUTHOR REQUEST when cmd contains this substring (repeatable)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: ze-test tacacs-mock [flags]\n\nMock TACACS+ server for AAA testing.\n\nFlags:\n")
@@ -113,40 +127,71 @@ func tacacsMockCmd() int {
 		if err != nil {
 			return 0 // listener closed
 		}
-		go tacacsMockHandle(conn, keyBytes, users, logAll)
+		n := connCounter.Add(1)
+		if logAll {
+			fmt.Fprintf(os.Stderr, "tacacs-mock: connection #%d from %s\n", n, conn.RemoteAddr())
+		}
+		go tacacsMockHandle(conn, keyBytes, users, authorDeny, logAll)
 	}
 }
 
-// tacacsMockHandle reads one packet from the connection, replies per type, and
-// closes. TACACS+ single-connect is not negotiated; every session is its own
-// TCP connection in this mock.
-func tacacsMockHandle(conn net.Conn, key []byte, users tacacsUserList, logPackets bool) {
+// tacacsMockHandle reads packets from the connection and replies per type.
+//
+// If the first packet has FlagSingleConnect (0x04) set, the mock echoes it
+// on the reply and keeps the connection open for subsequent sessions. If
+// the flag is absent, the mock closes the connection after one exchange
+// (the historical per-session-TCP behavior).
+func tacacsMockHandle(conn net.Conn, key []byte, users tacacsUserList, authorDeny []string, logPackets bool) {
 	defer func() { _ = conn.Close() }()
 
-	hdrBuf := make([]byte, 12)
-	if _, err := io.ReadFull(conn, hdrBuf); err != nil {
-		return
-	}
-	hdr, err := tacacs.UnmarshalPacketHeader(hdrBuf)
-	if err != nil {
-		return
-	}
+	singleConnect := false
+	for i := 0; ; i++ {
+		hdrBuf := make([]byte, 12)
+		if _, err := io.ReadFull(conn, hdrBuf); err != nil {
+			return // client closed, or read error
+		}
+		hdr, err := tacacs.UnmarshalPacketHeader(hdrBuf)
+		if err != nil {
+			return
+		}
 
-	body := make([]byte, hdr.Length)
-	if _, err := io.ReadFull(conn, body); err != nil {
-		return
-	}
-	tacacs.Encrypt(body, hdr.SessionID, key, hdr.Version, hdr.SeqNo)
+		// Cap at the same 65535 ceiling the production client enforces
+		// (packet.go::maxBodyLen). Without this, a rogue client could
+		// advertise a 4 GB body in the header and OOM the mock.
+		if hdr.Length > 65535 {
+			fmt.Fprintf(os.Stderr, "tacacs-mock: rejecting oversized body length %d\n", hdr.Length)
+			return
+		}
+		body := make([]byte, hdr.Length)
+		if _, err := io.ReadFull(conn, body); err != nil {
+			return
+		}
+		tacacs.Encrypt(body, hdr.SessionID, key, hdr.Version, hdr.SeqNo)
 
-	switch hdr.Type {
-	case 0x01: // AUTHEN
-		tacacsMockReplyAuthen(conn, hdr, body, key, users, logPackets)
-	case 0x02: // AUTHOR
-		tacacsMockReplyAuthor(conn, hdr, key, logPackets)
-	case 0x03: // ACCT
-		tacacsMockReplyAcct(conn, hdr, body, key, logPackets)
-	default:
-		fmt.Fprintf(os.Stderr, "tacacs-mock: unknown packet type 0x%02x\n", hdr.Type)
+		replyFlags := uint8(0)
+		if i == 0 && hdr.Flags&tacacs.FlagSingleConnect != 0 {
+			singleConnect = true
+			replyFlags |= tacacs.FlagSingleConnect
+			if logPackets {
+				fmt.Fprintf(os.Stderr, "tacacs-mock: single-connect accepted on %s\n", conn.RemoteAddr())
+			}
+		}
+
+		switch hdr.Type {
+		case 0x01: // AUTHEN
+			tacacsMockReplyAuthen(conn, hdr, body, key, users, replyFlags, logPackets)
+		case 0x02: // AUTHOR
+			tacacsMockReplyAuthor(conn, hdr, body, key, authorDeny, replyFlags, logPackets)
+		case 0x03: // ACCT
+			tacacsMockReplyAcct(conn, hdr, body, key, replyFlags, logPackets)
+		default:
+			fmt.Fprintf(os.Stderr, "tacacs-mock: unknown packet type 0x%02x\n", hdr.Type)
+			return
+		}
+
+		if !singleConnect {
+			return
+		}
 	}
 }
 
@@ -170,7 +215,7 @@ func parseAuthenStart(body []byte) (user, data string) {
 	return user, data
 }
 
-func tacacsMockReplyAuthen(conn net.Conn, hdr tacacs.PacketHeader, body, key []byte, users tacacsUserList, logPackets bool) {
+func tacacsMockReplyAuthen(conn net.Conn, hdr tacacs.PacketHeader, body, key []byte, users tacacsUserList, replyFlags uint8, logPackets bool) {
 	user, data := parseAuthenStart(body)
 	if logPackets {
 		fmt.Fprintf(os.Stderr, "tacacs-mock: AUTHEN user=%q data-len=%d\n", user, len(data))
@@ -201,22 +246,66 @@ func tacacsMockReplyAuthen(conn net.Conn, hdr tacacs.PacketHeader, body, key []b
 	copy(reply[6:], msg)
 	copy(reply[6+len(msg):], dataField)
 
-	tacacsMockSendReply(conn, hdr, reply, key)
+	tacacsMockSendReply(conn, hdr, reply, key, replyFlags)
 	if logPackets {
 		fmt.Fprintf(os.Stderr, "tacacs-mock: AUTHEN reply user=%q status=0x%02x priv-lvl=%d\n", user, status, privLvl)
 	}
 }
 
-func tacacsMockReplyAuthor(conn net.Conn, hdr tacacs.PacketHeader, key []byte, logPackets bool) {
-	// Always reply PASS_ADD. Body: status(1) arg-count(1) server-msg-len(2) data-len(2)
-	reply := []byte{0x01, 0x00, 0x00, 0x00, 0x00, 0x00}
-	tacacsMockSendReply(conn, hdr, reply, key)
+func tacacsMockReplyAuthor(conn net.Conn, hdr tacacs.PacketHeader, body, key []byte, authorDeny []string, replyFlags uint8, logPackets bool) {
+	cmd := parseAuthorCmd(body)
+	status := uint8(0x01) // PASS_ADD
+	statusName := "PASS_ADD"
+	for _, deny := range authorDeny {
+		if deny != "" && strings.Contains(cmd, deny) {
+			status = 0x10 // FAIL
+			statusName = "FAIL"
+			break
+		}
+	}
+
+	// Body: status(1) arg-count(1) server-msg-len(2) data-len(2)
+	reply := []byte{status, 0x00, 0x00, 0x00, 0x00, 0x00}
+	tacacsMockSendReply(conn, hdr, reply, key, replyFlags)
 	if logPackets {
-		fmt.Fprintf(os.Stderr, "tacacs-mock: AUTHOR reply status=PASS_ADD\n")
+		fmt.Fprintf(os.Stderr, "tacacs-mock: AUTHOR cmd=%q reply=%s\n", cmd, statusName)
 	}
 }
 
-func tacacsMockReplyAcct(conn net.Conn, hdr tacacs.PacketHeader, body, key []byte, logPackets bool) {
+// parseAuthorCmd extracts the value of the cmd= arg from an AUTHOR REQUEST
+// body. Returns "" if the body is malformed or no cmd arg is present. Mirrors
+// `tacacs.AuthorRequest.MarshalBinary` layout (RFC 8907 §6.1).
+func parseAuthorCmd(body []byte) string {
+	if len(body) < 8 {
+		return ""
+	}
+	userLen := int(body[4])
+	portLen := int(body[5])
+	remLen := int(body[6])
+	argCount := int(body[7])
+	if len(body) < 8+argCount {
+		return ""
+	}
+	argLens := make([]int, argCount)
+	for i := range argCount {
+		argLens[i] = int(body[8+i])
+	}
+	off := 8 + argCount + userLen + portLen + remLen
+	for i, alen := range argLens {
+		if off+alen > len(body) {
+			return ""
+		}
+		arg := string(body[off : off+alen])
+		off += alen
+		if v, ok := strings.CutPrefix(arg, "cmd="); ok {
+			return v
+		}
+		_ = i
+	}
+	return ""
+}
+
+func tacacsMockReplyAcct(conn net.Conn, hdr tacacs.PacketHeader, body, key []byte, replyFlags uint8, logPackets bool) {
 	n := acctCounter.Add(1)
 	var flags uint8
 	if len(body) > 0 {
@@ -237,16 +326,18 @@ func tacacsMockReplyAcct(conn net.Conn, hdr tacacs.PacketHeader, body, key []byt
 
 	// ACCT REPLY body: server-msg-len(2) data-len(2) status(1)
 	reply := []byte{0x00, 0x00, 0x00, 0x00, 0x01} // status SUCCESS
-	tacacsMockSendReply(conn, hdr, reply, key)
+	tacacsMockSendReply(conn, hdr, reply, key, replyFlags)
 }
 
 // tacacsMockSendReply encrypts and writes a reply packet. SeqNo increments
 // from the client's value per RFC 8907 Section 4.1 (client odd, server even).
-func tacacsMockSendReply(conn net.Conn, hdr tacacs.PacketHeader, body, key []byte) {
+// replyFlags is ORed into the header flags so single-connect is echoed.
+func tacacsMockSendReply(conn net.Conn, hdr tacacs.PacketHeader, body, key []byte, replyFlags uint8) {
 	replyHdr := tacacs.PacketHeader{
 		Version:   hdr.Version,
 		Type:      hdr.Type,
 		SeqNo:     hdr.SeqNo + 1,
+		Flags:     replyFlags,
 		SessionID: hdr.SessionID,
 		Length:    uint32(len(body)),
 	}

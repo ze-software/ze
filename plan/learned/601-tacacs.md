@@ -99,8 +99,56 @@ without disturbing recovery paths.
 - `internal/component/config/schema.go` -- recursive merge fix
 - `cmd/ze/hub/{aaa_lifecycle,infra_setup,main}.go` -- bundle lifecycle, RemoteAddr wiring
 - `internal/component/plugin/server/command.go` -- accountant hook in Dispatcher
-- `cmd/ze-test/{main,tacacs_mock}.go` -- mock server
-- `test/plugin/tacacs-{auth,fallback,local-only,acct}.ci` -- wiring tests
+- `internal/component/ssh/ssh.go` -- SSH auth success log includes mapped profiles (proves priv-lvl -> profile wiring)
+- `cmd/ze-test/{main,tacacs_mock}.go` -- mock server (AUTHOR deny, single-connect echo, connection counter)
+- `cmd/ze/tacacs/main.go` -- `ze tacacs show` offline reachability probe (AC-13)
+- `test/plugin/tacacs-{auth,fallback,local-only,acct,readonly,author,show,singleconnect}.ci` -- wiring tests
 - `rfc/short/rfc8907.md` -- RFC summary
 - `docs/{features,comparison}.md`, `docs/guide/{tacacs,configuration}.md`,
   `docs/architecture/core-design.md` -- documentation
+
+## Second pass (2026-04-16): closing the five deferred ACs
+
+- **AC-7**: `tacacs-readonly.ci` — SSH auth success log now includes
+  `profiles=[...]` so the test asserts `profiles=[read-only]` as direct
+  proof of priv-lvl 1 -> read-only mapping.
+- **AC-9/AC-10**: `tacacs-author.ci` — mock extended with `--author-deny
+  <substring>`; one `.ci` runs `ze cli -c summary` (expect PASS_ADD) and
+  `ze cli -c configure` (expect FAIL) against the same mock, asserting
+  both the mock-side replies and the script's blocking behaviour.
+- **AC-13**: `ze tacacs show <config>` — offline TCP probe of each
+  configured server; `cmd/ze/tacacs/main.go` dispatches `show` via
+  `tabwriter` or `--json`. `tacacs-show.ci` validates reachable vs
+  unreachable rows.
+- **AC-16**: single-connect (RFC 8907 §4.4) — client keeps a per-server
+  `pool map[string]net.Conn` guarded by a mutex. First packet to a fresh
+  TCP sets FlagSingleConnect (0x04); if the server echoes it on reply,
+  the conn is promoted to the pool; pooled conns are reused for
+  subsequent AUTHEN/AUTHOR/ACCT exchanges. Dead pooled conn is evicted
+  on read/write error and the caller retries once. Mock echoes the flag
+  and counts accepted TCP connections; `tacacs-singleconnect.ci` runs
+  four `ze cli -c` invocations and asserts the mock saw exactly one
+  connection.
+
+### Gotchas added this pass
+
+- **`set -e` + trap + `wait`**: under dash, a non-zero exit from any
+  command in a trap (here `wait $PID` returning 143 after killing the
+  daemon) propagates as the script's exit code, ignoring the explicit
+  `exit 0`. Fix: `|| true` after *every* command in the trap, not just
+  the last one.
+- **slog logger subsystem filter**: tacacs auth/author/acct loggers all
+  use `slogutil.Logger("hub.infra")` via the bundle's Logger parameter.
+  Per-subsystem filtering means `ze.log.hub.infra=info` toggles ALL of
+  them. The SSH-side `"SSH auth success ... source=..."` log (in the
+  `ssh` subsystem) is on by default and is the more robust wiring
+  assertion than the tacacs package's Info log.
+- **Flag ordering in `ze tacacs show`**: stdlib `flag.Parse` stops at
+  the first non-flag arg, so `ze tacacs show <config> --json` treats
+  `--json` as garbage. Operators must write `ze tacacs show --json
+  <config>` (documented in `ze tacacs show --help`). Left unchanged to
+  match the rest of the ze CLI.
+- **YANG duplicate list key**: putting the same IP twice in
+  `tacacs.server` (as in tests) produces disambiguated keys
+  (`127.0.0.1`, `127.0.0.1#1`). Tests use distinct IPs to avoid this
+  cosmetic surprise.

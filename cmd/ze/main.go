@@ -40,6 +40,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	zesysctl "codeberg.org/thomas-mangin/ze/cmd/ze/sysctl"
+	zetacacs "codeberg.org/thomas-mangin/ze/cmd/ze/tacacs"
 	zetc "codeberg.org/thomas-mangin/ze/cmd/ze/tc"
 	zeyang "codeberg.org/thomas-mangin/ze/cmd/ze/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
@@ -448,6 +449,8 @@ dispatch:
 		os.Exit(zeenv.Run(args[1:]))
 	case "sysctl":
 		os.Exit(zesysctl.Run(args[1:]))
+	case "tacacs":
+		os.Exit(zetacacs.Run(args[1:]))
 	case "l2tp":
 		os.Exit(zel2tp.Run(args[1:]))
 	case "run":

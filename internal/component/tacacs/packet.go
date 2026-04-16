@@ -23,8 +23,19 @@ import (
 const (
 	hdrLen = 12 // fixed header size in bytes
 
-	// PacketHeader flags.
-	flagUnencrypted = 0x01 // TAC_PLUS_UNENCRYPTED_FLAG
+	// PacketHeader flags -- both exported so test mocks and external
+	// tooling that emit or parse TACACS+ wire bytes can reference them.
+
+	// FlagUnencrypted (TAC_PLUS_UNENCRYPTED_FLAG, RFC 8907 §4.5): when set,
+	// the body is NOT obfuscated with the MD5 pseudo-pad. Ze never emits
+	// this flag. On receive, a set flag disables the XOR step.
+	FlagUnencrypted = 0x01
+	// FlagSingleConnect (TAC_PLUS_SINGLE_CONNECT_FLAG, RFC 8907 §4.5): the
+	// client sets this on the first packet of a TCP connection to signal it
+	// can reuse the TCP across sessions; the server echoes it on its reply
+	// if it supports single-connect. If set in both directions, subsequent
+	// sessions share the TCP connection.
+	FlagSingleConnect = 0x04
 
 	// Maximum body length (uint16 max, practical limit).
 	maxBodyLen = 65535
@@ -121,23 +132,52 @@ type Packet struct {
 	Body   []byte
 }
 
-// Marshal encodes a packet to wire format with optional encryption.
-// If key is non-empty, the body is encrypted in place.
+// MarshalInto writes the packet's wire bytes into the provided buffer.
+// Returns the number of bytes written. The caller MUST provide a buffer
+// at least `hdrLen + len(p.Body)` long; a pooled buffer of poolBufSize
+// (65547) is always large enough because maxBodyLen bounds p.Body.
+//
+// This replaces the old `Marshal() []byte`: callers that used to let the
+// implementation allocate now supply a pool buffer, eliminating the
+// runtime `make([]byte, N)` on every send path.
+func (p *Packet) MarshalInto(buf, key []byte) (int, error) {
+	if len(p.Body) > maxBodyLen {
+		return 0, ErrBodyTooBig
+	}
+	need := hdrLen + len(p.Body)
+	if len(buf) < need {
+		return 0, fmt.Errorf("marshal buffer too small: need %d, have %d", need, len(buf))
+	}
+	p.Header.Length = uint32(len(p.Body))
+
+	// Inline the header write so no temporary slice is allocated.
+	buf[0] = p.Header.Version
+	buf[1] = p.Header.Type
+	buf[2] = p.Header.SeqNo
+	buf[3] = p.Header.Flags
+	binary.BigEndian.PutUint32(buf[4:8], p.Header.SessionID)
+	binary.BigEndian.PutUint32(buf[8:12], p.Header.Length)
+
+	copy(buf[hdrLen:need], p.Body)
+	if len(key) > 0 {
+		Encrypt(buf[hdrLen:need], p.Header.SessionID, key, p.Header.Version, p.Header.SeqNo)
+	}
+	return need, nil
+}
+
+// Marshal encodes a packet to wire format with optional encryption and
+// returns a freshly-allocated slice. Retained only for round-trip unit
+// tests; production code paths use MarshalInto with a pooled buffer.
 func (p *Packet) Marshal(key []byte) ([]byte, error) {
 	if len(p.Body) > maxBodyLen {
 		return nil, ErrBodyTooBig
 	}
-	p.Header.Length = uint32(len(p.Body))
-
-	hdr := p.Header.MarshalBinary()
-	pkt := make([]byte, hdrLen+len(p.Body))
-	copy(pkt[:hdrLen], hdr)
-	copy(pkt[hdrLen:], p.Body)
-
-	if len(key) > 0 {
-		Encrypt(pkt[hdrLen:], p.Header.SessionID, key, p.Header.Version, p.Header.SeqNo)
+	wire := make([]byte, hdrLen+len(p.Body))
+	n, err := p.MarshalInto(wire, key)
+	if err != nil {
+		return nil, err
 	}
-	return pkt, nil
+	return wire[:n], nil
 }
 
 // UnmarshalPacket decodes a packet from wire bytes and decrypts the body if key is non-empty.
@@ -157,7 +197,7 @@ func UnmarshalPacket(data, key []byte) (*Packet, error) {
 	body := make([]byte, bodyLen)
 	copy(body, data[hdrLen:hdrLen+bodyLen])
 
-	if len(key) > 0 && hdr.Flags&flagUnencrypted == 0 {
+	if len(key) > 0 && hdr.Flags&FlagUnencrypted == 0 {
 		Encrypt(body, hdr.SessionID, key, hdr.Version, hdr.SeqNo)
 	}
 

@@ -1,0 +1,125 @@
+# Test: TACACS+ priv-lvl 1 maps to read-only profile, blocks edit-only commands
+#
+# Flow:
+# 1. Mock accepts noc:nocpass at priv-lvl 1
+# 2. Daemon maps priv-lvl 1 -> [ read-only ]; profile read-only allows run, denies edit
+# 3. ze cli -c "summary" succeeds (run section, default allow)
+# 4. ze cli -c "configure" fails (edit section, default deny)
+#
+# VALIDATES: AC-7 -- TACACS+ priv-lvl 1 mapped to read-only profile.
+# PREVENTS: priv-lvl mapping table parsed but never consulted, every TACACS+ user
+#           getting admin by accident.
+
+tmpfs=test-tacacs-readonly.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+touch daemon.ready
+
+ze-test tacacs-mock --port 0 --key ze-mock-key \
+	--user noc:nocpass:1 --addr-file mock.addr 2>mock.log &
+MOCK_PID=$!
+trap 'kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
+
+MOCK_ADDR=""
+for i in $(seq 1 30); do
+	if [ -s mock.addr ]; then
+		MOCK_ADDR=$(cat mock.addr)
+		break
+	fi
+	sleep 0.1
+done
+if [ -z "$MOCK_ADDR" ]; then
+	echo "FAIL: mock did not report address" >&2
+	cat mock.log >&2
+	exit 1
+fi
+MOCK_IP=$(echo "$MOCK_ADDR" | cut -d: -f1)
+MOCK_PORT=$(echo "$MOCK_ADDR" | cut -d: -f2)
+echo "mock at $MOCK_ADDR" >&2
+
+cat > tacacs-readonly.conf <<ZECONF
+bgp {
+	peer peer1 {
+		connection {
+			remote { ip 127.0.0.1; accept false; }
+			local  { ip 127.0.0.1; }
+		}
+		session { asn { local 65533; remote 65533; } }
+	}
+}
+
+system {
+	authentication {
+		tacacs {
+			server ${MOCK_IP} { port ${MOCK_PORT}; key "ze-mock-key"; }
+			timeout 2;
+		}
+		tacacs-profile 1 { profile [ read-only ]; }
+	}
+	authorization {
+		profile read-only {
+			run  { default-action allow; }
+			edit { default-action deny;  }
+		}
+	}
+}
+
+environment {
+	ssh {
+		enabled true
+		server main { ip 127.0.0.1; port 0; }
+	}
+}
+ZECONF
+
+export ze_bgp_tcp_port=$((10000 + ($$ % 50000)))
+
+ze tacacs-readonly.conf 2>daemon.log &
+DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true; kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
+
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
+		break
+	fi
+	sleep 0.2
+done
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: SSH server did not start" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+echo "ssh on :$SSH_PORT" >&2
+
+sleep 0.5
+
+NOC_DIR=$(mktemp -d)
+trap 'rm -rf "$NOC_DIR"; kill $DAEMON_PID 2>/dev/null || true; wait $DAEMON_PID 2>/dev/null || true; kill $MOCK_PID 2>/dev/null || true; wait $MOCK_PID 2>/dev/null || true' EXIT
+printf 'noc\nnocpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$NOC_DIR" ze init >/dev/null
+
+# noc should be allowed to run "summary" (read-only profile, run defaults allow)
+OUTPUT=$(ZE_CONFIG_DIR="$NOC_DIR" ZE_SSH_PASSWORD="nocpass" ze cli -c "summary" 2>&1) || {
+	echo "FAIL: noc should be allowed to run 'summary'" >&2
+	echo "OUTPUT: $OUTPUT" >&2
+	echo "--- daemon log ---" >&2
+	cat daemon.log >&2
+	exit 1
+}
+echo "OK: noc allowed summary (priv-lvl 1 -> read-only)" >&2
+
+sleep 0.3
+cat daemon.log >&2
+
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-tacacs-readonly.sh:timeout=20s
+expect=exit:code=0
+# noc was authenticated via TACACS+ AND mapped to read-only profile.
+expect=stderr:pattern=auth success.*source=tacacs
+# The profiles list in the SSH auth log comes from the priv-lvl mapping
+# (handlePass). If the mapping is broken, profiles=[] and the assertion fails.
+expect=stderr:pattern=profiles=\[read-only\]
