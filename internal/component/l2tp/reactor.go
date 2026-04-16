@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // pppDriverIface is the subset of *ppp.Driver the reactor uses. Defined
@@ -737,6 +738,21 @@ func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	}
 	r.tunnelsMu.Unlock()
 
+	// ze.l2tp.auth.timeout (registered in internal/component/config/environment.go)
+	// bounds the PPP auth phase. spec-l2tp-7-subsystem will wire this to a
+	// YANG leaf; until then the env var is the only config surface. Inline
+	// parse rather than env.GetDuration so malformed operator input surfaces
+	// as a WARN instead of silently falling back to 30s.
+	authTimeout := 30 * time.Second
+	if raw := env.Get("ze.l2tp.auth.timeout"); raw != "" {
+		if d, err := time.ParseDuration(raw); err == nil {
+			authTimeout = d
+		} else {
+			r.logger.Warn("l2tp: invalid ze.l2tp.auth.timeout; falling back to 30s",
+				"value", raw, "err", err)
+		}
+	}
+
 	start := ppp.StartSession{
 		TunnelID:            ksucc.localTID,
 		SessionID:           ksucc.localSID,
@@ -745,6 +761,7 @@ func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		UnitNum:             ksucc.fds.unitNum,
 		LNSMode:             ksucc.lnsMode,
 		PeerAddr:            peerAddr,
+		AuthTimeout:         authTimeout,
 		ProxyLCPInitialRecv: ksucc.proxyInitialRecvLCPConfReq,
 		ProxyLCPLastSent:    ksucc.proxyLastSentLCPConfReq,
 		ProxyLCPLastRecv:    ksucc.proxyLastRecvLCPConfReq,

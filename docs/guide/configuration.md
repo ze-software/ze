@@ -892,8 +892,15 @@ Listener endpoints (`environment { l2tp { } }`):
 |---------|------|---------|-------------|
 | `server <name>` | list | `0.0.0.0:1701` | Named UDP listen endpoints, same pattern as other services. |
 
+PPP authentication (env var, YANG pending in spec-l2tp-7-subsystem):
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `ze.l2tp.auth.timeout` | duration | `30s` | Upper bound on the PPP authentication phase per session. If no auth handler responds within this window, the session fails closed (LCP Terminate + session down). Malformed values fall back to 30s with a WARN log. |
+
 <!-- source: internal/component/l2tp/config.go -- ExtractParameters -->
 <!-- source: internal/component/l2tp/subsystem.go -- L2TPSubsystem lifecycle -->
+<!-- source: internal/component/l2tp/reactor.go -- handleKernelSuccess auth-timeout read -->
 
 ## Hub Configuration
 

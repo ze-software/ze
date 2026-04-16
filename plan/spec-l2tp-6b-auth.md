@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-l2tp-6a-lcp-base |
-| Phase | 1/9 |
+| Phase | 3/9 |
 | Updated | 2026-04-16 |
 
 ## Scope Changes (2026-04-16)
@@ -29,6 +29,17 @@ them. Deferral recorded in `plan/deferrals.md` with Destination
 (scope table, AC-11/12, wiring-test row, TDD tests, phase 7, Files to Modify
 `proxy.go` extension, Security Review `trust-proxy` row) are superseded by this
 note; they will be struck through as each phase is implemented.
+
+**Phase 3 scope (2026-04-16).** Phase 3 ships env-var registration and reactor
+plumbing only. `ze.l2tp.auth.timeout` is registered in
+`internal/component/config/environment.go` (duration, default 30s) and the
+L2TP reactor now reads it in `handleKernelSuccess` and fills
+`ppp.StartSession.AuthTimeout` on every dispatch. The matching YANG leaf and
+the other two env vars (`ze.l2tp.auth.reauth-interval`, `ze.l2tp.auth.methods`)
+are deferred per YAGNI -- they have no consumer until Phase 7 (auth state
+machine) and spec-l2tp-7-subsystem (YANG wiring), respectively. The Integration
+Checklist row "auth knobs come via env vars; YANG wiring in
+spec-l2tp-7-subsystem" stands.
 
 ## Post-Compaction Recovery
 

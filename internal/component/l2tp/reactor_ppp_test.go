@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // openPeerSocket binds a UDP socket on loopback ephemeral port. The
@@ -84,6 +85,114 @@ func TestL2TPReactorDispatchesToPPPDriver(t *testing.T) {
 		require.Equal(t, []byte{0x01, 0x02}, start.ProxyLCPInitialRecv)
 		require.Equal(t, []byte{0x03}, start.ProxyLCPLastSent)
 		require.Equal(t, []byte{0x04}, start.ProxyLCPLastRecv)
+		require.Equal(t, 30*time.Second, start.AuthTimeout,
+			"default ze.l2tp.auth.timeout (30s) should flow into StartSession.AuthTimeout")
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for ppp.StartSession dispatch")
+	}
+}
+
+func TestL2TPReactorAuthTimeoutFromEnv(t *testing.T) {
+	// VALIDATES: spec-l2tp-6b-auth Phase 3 -- ze.l2tp.auth.timeout env var
+	// overrides the default 30s and is plumbed onto every new StartSession.
+	// PREVENTS: operator setting auth-timeout in env and seeing no effect
+	// until spec-l2tp-7-subsystem wires the YANG leaf.
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	t.Setenv("ze.l2tp.auth.timeout", "45s")
+	env.ResetCache()
+
+	_, r, stop := newUnstartedReactor(t)
+	defer stop()
+
+	fake := newFakePPPDriver()
+	r.SetPPPDriver(fake)
+
+	mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
+
+	r.handleKernelSuccess(kernelSetupSucceeded{
+		localTID: 100,
+		localSID: 1001,
+		lnsMode:  true,
+		fds:      pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
+	})
+
+	select {
+	case start := <-fake.sessionsIn:
+		require.Equal(t, 45*time.Second, start.AuthTimeout)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for ppp.StartSession dispatch")
+	}
+}
+
+func TestL2TPReactorAuthTimeoutInvalidEnvFallsBack(t *testing.T) {
+	// VALIDATES: ze.l2tp.auth.timeout set to a value time.ParseDuration
+	// cannot decode (operator typo, wrong units) falls back to 30s and does
+	// not crash.
+	// PREVENTS: a bad env value propagating as 0 or a partial parse into
+	// ppp.StartSession.AuthTimeout, which would either disable the fail-
+	// closed guard or time sessions out immediately.
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	t.Setenv("ze.l2tp.auth.timeout", "not-a-duration")
+	env.ResetCache()
+
+	_, r, stop := newUnstartedReactor(t)
+	defer stop()
+
+	fake := newFakePPPDriver()
+	r.SetPPPDriver(fake)
+
+	mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
+
+	r.handleKernelSuccess(kernelSetupSucceeded{
+		localTID: 100,
+		localSID: 1001,
+		lnsMode:  true,
+		fds:      pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
+	})
+
+	select {
+	case start := <-fake.sessionsIn:
+		require.Equal(t, 30*time.Second, start.AuthTimeout,
+			"invalid env value must fall back to the 30s default")
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for ppp.StartSession dispatch")
+	}
+}
+
+func TestL2TPReactorAuthTimeoutZeroPropagates(t *testing.T) {
+	// VALIDATES: ze.l2tp.auth.timeout=0s is NOT interpreted by the reactor
+	// as "use default". The reactor forwards 0 onto StartSession.AuthTimeout
+	// verbatim; it is ppp that documents zero as "use package default (30s)"
+	// in start_session.go. Pins the boundary so neither side accidentally
+	// starts (or stops) doing the zero translation.
+	// PREVENTS: double translation where reactor reads 0s, substitutes 30s,
+	// then ppp sees 30s and cannot distinguish default from explicit.
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+	t.Setenv("ze.l2tp.auth.timeout", "0s")
+	env.ResetCache()
+
+	_, r, stop := newUnstartedReactor(t)
+	defer stop()
+
+	fake := newFakePPPDriver()
+	r.SetPPPDriver(fake)
+
+	mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
+
+	r.handleKernelSuccess(kernelSetupSucceeded{
+		localTID: 100,
+		localSID: 1001,
+		lnsMode:  true,
+		fds:      pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
+	})
+
+	select {
+	case start := <-fake.sessionsIn:
+		require.Equal(t, time.Duration(0), start.AuthTimeout,
+			"0s env must propagate as 0; ppp (not reactor) owns the zero-as-default contract")
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for ppp.StartSession dispatch")
 	}
