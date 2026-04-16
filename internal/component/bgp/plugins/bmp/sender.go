@@ -134,7 +134,12 @@ func (ss *senderSession) sendInitiation(conn net.Conn) error {
 	}
 
 	// Size: common header(6) + sysName TLV(4+2) + sysDescr TLV(4+14) = 30.
-	buf := make([]byte, CommonHeaderSize+TLVHeaderSize+2+TLVHeaderSize+14)
+	// Fixed compile-time size — a size-constant regression fails to compile.
+	// net.Conn.Write is an interface call so escape analysis moves this to
+	// heap today; if the write path ever becomes a concrete type or a
+	// provided scratch buffer, the same code path stays on the stack.
+	var stack [CommonHeaderSize + TLVHeaderSize + 2 + TLVHeaderSize + 14]byte
+	buf := stack[:]
 	n := WriteInitiation(buf, 0, init)
 	return ss.writeRaw(conn, buf[:n])
 }
@@ -149,7 +154,11 @@ func (ss *senderSession) sendTermination(conn net.Conn) {
 	}
 
 	// Size: common header(6) + TLV(4+13) = 23.
-	buf := make([]byte, CommonHeaderSize+TLVHeaderSize+13)
+	// Fixed compile-time size — a size-constant regression fails to compile.
+	// Escapes via net.Conn.Write today; pattern holds if the write path ever
+	// becomes a concrete type.
+	var stack [CommonHeaderSize + TLVHeaderSize + 13]byte
+	buf := stack[:]
 	n := WriteTermination(buf, 0, term)
 	if err := ss.writeRaw(conn, buf[:n]); err != nil {
 		logger().Debug("bmp: sender termination write failed", "collector", ss.name, "error", err)
@@ -184,7 +193,8 @@ func (ss *senderSession) writeMsg(data []byte) error {
 // router->collector, but the collector might close the TCP).
 // Termination is sent from this goroutine only, avoiding the stop/write race.
 func (ss *senderSession) holdConnection(conn net.Conn) {
-	discard := make([]byte, 1)
+	var discardArr [1]byte
+	discard := discardArr[:]
 	for {
 		if ss.isStopping() {
 			ss.sendTermination(conn)
