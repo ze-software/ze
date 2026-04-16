@@ -271,6 +271,11 @@ func (b *bgplsBase) PathID() uint32              { return 0 }
 func (b *bgplsBase) HasPathID() bool             { return false }
 func (b *bgplsBase) SupportsAddPath() bool       { return false }
 
+// cachedBytes returns the original wire bytes if ParseBGPLS set them, or nil
+// for programmatically-constructed NLRIs. Used by the AppendJSON fast path
+// (json.go) to skip a fresh WriteTo allocation on every encode.
+func (b *bgplsBase) cachedBytes() []byte { return b.cached }
+
 // ParseBGPLS parses a BGP-LS NLRI from wire format.
 // RFC 7752 Section 3.2 defines the NLRI encoding:
 //
