@@ -292,7 +292,7 @@ func TestPAPWriteAckCapsMessageAt255(t *testing.T) {
 func TestPAPRequestEmitsEvent(t *testing.T) {
 	peerEnd, driverEnd := net.Pipe()
 	defer closeConn(peerEnd)
-	s, authEventsOut := newPAPTestSession(driverEnd)
+	s, authEventsOut := newAuthTestSession(driverEnd)
 
 	// Spawn the handler so the goroutine can read from chanFile
 	// and write the reply back to the peer.
@@ -354,7 +354,7 @@ func TestPAPRequestEmitsEvent(t *testing.T) {
 	s.authRespCh <- authResponseMsg{accept: true, message: "welcome"}
 
 	// Read the Authenticate-Ack frame on the peer side.
-	proto, payload := readPeerFrame(t, peerEnd, 2*time.Second)
+	proto, payload := readPeerFrame(t, peerEnd)
 	if proto != ProtoPAP {
 		t.Errorf("reply proto = 0x%04x, want 0x%04x", proto, ProtoPAP)
 	}
@@ -394,7 +394,7 @@ func TestPAPRequestEmitsEvent(t *testing.T) {
 func TestPAPRejectWritesNak(t *testing.T) {
 	peerEnd, driverEnd := net.Pipe()
 	defer closeConn(peerEnd)
-	s, authEventsOut := newPAPTestSession(driverEnd)
+	s, authEventsOut := newAuthTestSession(driverEnd)
 
 	handlerDone := make(chan bool, 1)
 	go func() {
@@ -423,7 +423,7 @@ func TestPAPRejectWritesNak(t *testing.T) {
 
 	s.authRespCh <- authResponseMsg{accept: false, message: "nope"}
 
-	_, payload := readPeerFrame(t, peerEnd, 2*time.Second)
+	_, payload := readPeerFrame(t, peerEnd)
 	if payload[0] != PAPAuthenticateNak {
 		t.Errorf("reply code = %d, want PAPAuthenticateNak", payload[0])
 	}
@@ -467,7 +467,7 @@ func TestPAPRejectWritesNak(t *testing.T) {
 func TestPAPTimeoutEmitsFailure(t *testing.T) {
 	peerEnd, driverEnd := net.Pipe()
 	defer closeConn(peerEnd)
-	s, authEventsOut := newPAPTestSession(driverEnd)
+	s, authEventsOut := newAuthTestSession(driverEnd)
 	s.authTimeout = 80 * time.Millisecond
 
 	handlerDone := make(chan bool, 1)
@@ -596,7 +596,7 @@ func TestPAPHandlerWireErrors(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			peerEnd, driverEnd := net.Pipe()
-			s, authEventsOut := newPAPTestSession(driverEnd)
+			s, authEventsOut := newAuthTestSession(driverEnd)
 
 			handlerDone := make(chan bool, 1)
 			go func() {
@@ -633,57 +633,6 @@ func TestPAPHandlerWireErrors(t *testing.T) {
 	}
 }
 
-// newPAPTestSession builds a pppSession with the minimum fields the
-// PAP handler needs plus buffered lifecycle and auth-event channels.
-// eventsOut is buffered large enough to absorb every EventSessionDown
-// the handler may emit via s.fail without blocking; tests assert on
-// authEventsOut and on peerEnd wire bytes rather than on eventsOut.
-func newPAPTestSession(driverEnd net.Conn) (*pppSession, chan AuthEvent) {
-	authEventsOut := make(chan AuthEvent, 4)
-	eventsOut := make(chan Event, 4)
-	s := &pppSession{
-		tunnelID:      55,
-		sessionID:     66,
-		chanFile:      driverEnd,
-		eventsOut:     eventsOut,
-		authEventsOut: authEventsOut,
-		authRespCh:    make(chan authResponseMsg, 1),
-		stopCh:        make(chan struct{}),
-		sessStop:      make(chan struct{}),
-		done:          make(chan struct{}),
-		authTimeout:   2 * time.Second,
-		logger:        discardLogger(),
-	}
-	return s, authEventsOut
-}
-
-// readPeerFrame reads one frame from the peer end of a net.Pipe and
-// returns (proto, payload). Uses a goroutine to bound the otherwise
-// deadline-less net.Pipe Read by the supplied timeout.
-func readPeerFrame(t *testing.T, peerEnd net.Conn, timeout time.Duration) (uint16, []byte) {
-	t.Helper()
-	type readResult struct {
-		buf []byte
-		err error
-	}
-	ch := make(chan readResult, 1)
-	go func() {
-		buf := make([]byte, MaxFrameLen)
-		n, err := peerEnd.Read(buf)
-		ch <- readResult{buf[:n], err}
-	}()
-	select {
-	case r := <-ch:
-		if r.err != nil {
-			t.Fatalf("peer read: %v", r.err)
-		}
-		proto, payload, _, err := ParseFrame(r.buf)
-		if err != nil {
-			t.Fatalf("ParseFrame: %v", err)
-		}
-		return proto, payload
-	case <-time.After(timeout):
-		t.Fatal("timed out reading from peer")
-		return 0, nil
-	}
-}
+// Helpers newAuthTestSession and readPeerFrame moved to
+// auth_pipe_helpers_test.go so chap_test.go can reuse them. Both
+// still call t.Fatal on pipe errors.

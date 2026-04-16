@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-l2tp-6a-lcp-base |
-| Phase | 4/9 |
+| Phase | 5/9 |
 | Updated | 2026-04-16 |
 
 ## Scope Changes (2026-04-16)
@@ -40,6 +40,20 @@ are deferred per YAGNI -- they have no consumer until Phase 7 (auth state
 machine) and spec-l2tp-7-subsystem (YANG wiring), respectively. The Integration
 Checklist row "auth knobs come via env vars; YANG wiring in
 spec-l2tp-7-subsystem" stands.
+
+**Phase 5 scope: AC-16 behavior (2026-04-16).** AC-16 as written says "PPP
+discards; auth eventually times out" on Identifier mismatch. That wording
+presumes a retransmit-Challenge loop that Phase 5 does not implement
+(deferred to Phase 9 -- see RFC 1994 Section 4.1 Implementation Notes on
+retry). Without a retry loop, "silently discard and wait for timeout"
+yields the same operational outcome as "fail immediately with
+identifier-mismatch reason": the session tears down via
+EventSessionDown + LCP Terminate-Request either way, the only difference
+is the fail reason string and the time-to-teardown. Phase 5 implements
+the fail-immediately variant so operators see an actionable error reason
+rather than a generic timeout; when Phase 9 lands the retransmit loop,
+this fail path becomes a retry-counter-expired path and the AC-16 text
+will apply as written.
 
 ## Post-Compaction Recovery
 
