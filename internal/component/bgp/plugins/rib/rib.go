@@ -329,7 +329,7 @@ func (r *RIBManager) updateMetrics() {
 	m.routesOut.Set(float64(totalOut))
 
 	m.bestpathInternerSize.With("peers").Set(float64(internerPeers))
-	m.bestpathInternerSize.With("nextHops").Set(float64(internerNextHops))
+	m.bestpathInternerSize.With("nexthops").Set(float64(internerNextHops))
 	m.bestpathInternerSize.With("metrics").Set(float64(internerMetrics))
 
 	// Attribute pool dedup metrics (polled from atomic counters)

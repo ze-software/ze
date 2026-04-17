@@ -152,7 +152,7 @@ func (b *bestPrevInterner) internNextHop(v netip.Addr) (uint16, bool) {
 	if len(b.nextHops) >= internerCap {
 		if !b.nextHopsOverflowed {
 			b.nextHopsOverflowed = true
-			logger().Error("best-path interner saturated", "table", "nextHops", "cap", internerCap)
+			logger().Error("best-path interner saturated", "table", "nexthops", "cap", internerCap)
 		}
 		return 0, false
 	}
