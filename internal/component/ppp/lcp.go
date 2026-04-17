@@ -1,5 +1,5 @@
 // Design: docs/research/l2tpv2-implementation-guide.md -- LCP packet format
-// Related: lcp_fsm.go -- FSM that drives Configure/Terminate exchanges
+// Related: ppp_fsm.go -- FSM that drives Configure/Terminate exchanges
 // Related: lcp_options.go -- option codec used inside Configure-* packets
 // Related: echo.go -- Echo-Request/Reply built on top of WriteLCPPacket
 

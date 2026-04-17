@@ -8,6 +8,7 @@ package ppp
 import (
 	"errors"
 	"log/slog"
+	"net/netip"
 	"sync"
 )
 
@@ -16,6 +17,7 @@ const (
 	defaultSessionsInBuf    = 16
 	defaultEventsOutBuf     = 64
 	defaultAuthEventsOutBuf = 64
+	defaultIPEventsOutBuf   = 64
 )
 
 // Errors returned by Driver.
@@ -36,6 +38,12 @@ var (
 	// decision. Signals a caller bug (duplicate AuthResponse for one
 	// request) or a race with session teardown.
 	ErrAuthResponsePending = errors.New("ppp: auth response already pending")
+
+	// ErrIPResponsePending is returned by IPResponse when the
+	// session's buffered(2) ipRespCh already holds two pending
+	// decisions (one per family). Signals a caller bug (duplicate
+	// IPResponse for one request) or a race with session teardown.
+	ErrIPResponsePending = errors.New("ppp: ip response already pending")
 )
 
 // sessionKey identifies a PPP session by its (tunnelID, sessionID)
@@ -74,6 +82,7 @@ type Driver struct {
 	sessionsIn    chan StartSession
 	eventsOut     chan Event
 	authEventsOut chan AuthEvent
+	ipEventsOut   chan IPEvent
 
 	dispatchDone chan struct{} // closed when dispatch goroutine exits
 	stopCh       chan struct{}
@@ -144,6 +153,7 @@ func NewDriver(cfg DriverConfig) *Driver {
 		sessionsIn:    make(chan StartSession, defaultSessionsInBuf),
 		eventsOut:     make(chan Event, defaultEventsOutBuf),
 		authEventsOut: make(chan AuthEvent, defaultAuthEventsOutBuf),
+		ipEventsOut:   make(chan IPEvent, defaultIPEventsOutBuf),
 		dispatchDone:  make(chan struct{}),
 		sessions:      make(map[sessionKey]*pppSession),
 	}
@@ -200,6 +210,7 @@ func (d *Driver) Stop() {
 	<-d.dispatchDone
 	close(d.eventsOut)
 	close(d.authEventsOut)
+	close(d.ipEventsOut)
 }
 
 // SessionsIn returns the write-only channel the transport uses to
@@ -229,6 +240,77 @@ func (d *Driver) EventsOut() <-chan Event {
 // forced to pattern-match auth types it does not act on.
 func (d *Driver) AuthEventsOut() <-chan AuthEvent {
 	return d.authEventsOut
+}
+
+// IPEventsOut returns the read-only channel the external IP handler
+// (l2tp-pool plugin in production, test responder in unit tests)
+// reads to receive EventIPRequest. Closed by the Driver during Stop
+// after every session has exited.
+//
+// Caller MUST consume this channel promptly when sessions are
+// active; sustained backlog beyond the default buffer (64) blocks
+// PPP progress. Separate from EventsOut and AuthEventsOut so a
+// handler subscribes only to the concern it implements.
+func (d *Driver) IPEventsOut() <-chan IPEvent {
+	return d.ipEventsOut
+}
+
+// IPResponseArgs packages the fields Driver.IPResponse hands to the
+// per-session goroutine. A struct keeps the method signature stable
+// as families grow new optional knobs (reverse DNS, hostname,
+// MS-specific NBNS options).
+//
+// On accept=true for family=ipv4, Local and Peer MUST both be
+// non-zero IPv4 addresses; DNSPrimary / DNSSecondary are optional.
+//
+// On accept=true for family=ipv6, PeerInterfaceID is optional: a
+// non-zero value forces the peer to use that identifier, zero
+// accepts whatever the peer offered.
+type IPResponseArgs struct {
+	Accept           bool
+	Family           AddressFamily
+	Reason           string
+	Local            netip.Addr
+	Peer             netip.Addr
+	DNSPrimary       netip.Addr
+	DNSSecondary     netip.Addr
+	PeerInterfaceID  [8]byte
+	HasPeerInterface bool
+}
+
+// IPResponse delivers the external handler's IP decision to the
+// per-session goroutine. Returns ErrSessionNotFound if no session
+// matches (tunnelID, sessionID) -- this covers both "never started"
+// and "already torn down" from the caller's perspective.
+//
+// Safe for concurrent use. Non-blocking: the per-session ipRespCh
+// is buffered(2) (one slot per family); a duplicate IPResponse for
+// the same family returns ErrIPResponsePending rather than blocking.
+func (d *Driver) IPResponse(tunnelID, sessionID uint16, args IPResponseArgs) error {
+	k := sessionKey{tunnelID, sessionID}
+	d.mu.Lock()
+	s, ok := d.sessions[k]
+	d.mu.Unlock()
+	if !ok {
+		return ErrSessionNotFound
+	}
+	msg := ipResponseMsg{
+		accept:           args.Accept,
+		family:           args.Family,
+		reason:           args.Reason,
+		local:            args.Local,
+		peer:             args.Peer,
+		dnsPrimary:       args.DNSPrimary,
+		dnsSecondary:     args.DNSSecondary,
+		peerInterfaceID:  args.PeerInterfaceID,
+		hasPeerInterface: args.HasPeerInterface,
+	}
+	select {
+	case s.ipRespCh <- msg:
+		return nil
+	default: // buffered(2) already full: duplicate IPResponse or teardown race
+		return ErrIPResponsePending
+	}
 }
 
 // AuthResponse delivers the external handler's auth decision to the
@@ -378,11 +460,16 @@ func (d *Driver) spawnSession(start StartSession) {
 		authFallbackOrder:    fallback,
 		reauthInterval:       start.ReauthInterval,
 		configuredAuthMethod: start.AuthMethod,
+		disableIPCP:          start.DisableIPCP,
+		disableIPv6CP:        start.DisableIPv6CP,
+		ipTimeout:            start.IPTimeout,
 		backend:              d.backend,
 		ops:                  d.ops,
 		eventsOut:            d.eventsOut,
 		authEventsOut:        d.authEventsOut,
+		ipEventsOut:          d.ipEventsOut,
 		authRespCh:           make(chan authResponseMsg, 1),
+		ipRespCh:             make(chan ipResponseMsg, 2),
 		stopCh:               d.stopCh,
 		sessStop:             make(chan struct{}),
 		done:                 make(chan struct{}),

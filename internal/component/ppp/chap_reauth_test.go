@@ -267,6 +267,8 @@ func TestPeriodicReauthCHAPTearsDownOnReject(t *testing.T) {
 		AuthMethod:     AuthMethodCHAPMD5,
 		AuthTimeout:    3 * time.Second,
 		ReauthInterval: 150 * time.Millisecond,
+		DisableIPCP:    true,
+		DisableIPv6CP:  true,
 	}
 
 	<-peerDone

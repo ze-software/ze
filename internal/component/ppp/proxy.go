@@ -1,6 +1,6 @@
 // Design: docs/research/l2tpv2-implementation-guide.md -- proxy LCP (RFC 2661 §18)
 // Related: lcp_options.go -- option codec used to parse the proxied byte streams
-// Related: lcp_fsm.go -- FSM that the short-circuit drives directly to Opened
+// Related: ppp_fsm.go -- FSM that the short-circuit drives directly to Opened
 
 package ppp
 

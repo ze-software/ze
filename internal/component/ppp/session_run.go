@@ -1,7 +1,8 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- per-session goroutine main loop
 // Related: session.go -- pppSession struct
 // Related: manager.go -- Driver that spawns these goroutines
-// Related: lcp_fsm.go -- pure FSM transition function
+// Related: ppp_fsm.go -- pure FSM transition function
+// Related: ncp.go -- NCP phase driver invoked from afterLCPOpen
 
 package ppp
 
@@ -102,6 +103,7 @@ func (s *pppSession) run(start StartSession) {
 		readerWG sync.WaitGroup
 	)
 	defer func() {
+		s.teardownNCPResources()
 		if s.chanFile != nil {
 			_ = s.chanFile.Close() //nolint:errcheck // exit cleanup
 		}
@@ -452,6 +454,10 @@ func (s *pppSession) afterLCPOpen() bool {
 		return false
 	}
 
+	if !s.runNCPPhase() {
+		return false
+	}
+
 	s.sendEvent(EventSessionUp{
 		TunnelID:  s.tunnelID,
 		SessionID: s.sessionID,
@@ -566,8 +572,10 @@ func (s *pppSession) readFrames(out chan<- []byte, done chan<- error) {
 	}
 }
 
-// handleFrame parses one received frame and dispatches LCP packets to
-// the FSM. Returns true if the session should terminate.
+// handleFrame parses one received frame and dispatches by protocol to
+// the appropriate FSM handler. LCP, IPCP, and IPv6CP all share the
+// same packet shape (RFC 1661 §5); only the Data semantics differ.
+// Returns true if the session should terminate.
 func (s *pppSession) handleFrame(frame []byte) bool {
 	proto, payload, _, err := ParseFrame(frame)
 	if err != nil {
@@ -575,18 +583,39 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 		return false
 	}
 
-	if proto != ProtoLCP {
-		s.logger.Debug("ppp: non-LCP protocol dropped (6a scope)",
-			"protocol", strconv.FormatUint(uint64(proto), 16))
-		return false
-	}
+	pkt, perr := ParseLCPPacket(payload)
 
-	pkt, err := ParseLCPPacket(payload)
-	if err != nil {
-		s.logger.Debug("ppp: malformed LCP packet", "error", err.Error())
-		return false
+	switch proto {
+	case ProtoLCP:
+		if perr != nil {
+			s.logger.Debug("ppp: malformed LCP packet", "error", perr.Error())
+			return false
+		}
+		return s.handleLCPPacket(pkt)
+	case ProtoIPCP:
+		if s.disableIPCP {
+			s.logger.Debug("ppp: IPCP frame dropped (disabled)")
+			return false
+		}
+		if perr != nil {
+			s.logger.Debug("ppp: malformed IPCP packet", "error", perr.Error())
+			return false
+		}
+		return s.handleIPCPPacket(pkt)
+	case ProtoIPv6CP:
+		if s.disableIPv6CP {
+			s.logger.Debug("ppp: IPv6CP frame dropped (disabled)")
+			return false
+		}
+		if perr != nil {
+			s.logger.Debug("ppp: malformed IPv6CP packet", "error", perr.Error())
+			return false
+		}
+		return s.handleIPv6CPPacket(pkt)
 	}
-	return s.handleLCPPacket(pkt)
+	s.logger.Debug("ppp: non-control-plane protocol dropped",
+		"protocol", strconv.FormatUint(uint64(proto), 16))
+	return false
 }
 
 // codeToEvent maps an LCP code to the FSM event for a "received"
@@ -650,7 +679,7 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 	// handleLCPPacket call as the received Nak/Reject.
 	//
 	// Gated on the negotiating states whose RCN edge emits SCR per
-	// the RFC 1661 §4.1 transition table (see lcp_fsm.go). Naks in
+	// the RFC 1661 §4.1 transition table (see ppp_fsm.go). Naks in
 	// Closed / Stopped / Closing / Stopping states are handled with
 	// STA or ignored and never trigger a resend, so mutating the
 	// method there would be wasted work on a stale packet.

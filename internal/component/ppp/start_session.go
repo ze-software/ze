@@ -86,6 +86,23 @@ type StartSession struct {
 	// decision from the auth handler tears the session down.
 	ReauthInterval time.Duration
 
+	// DisableIPCP suppresses the IPv4 NCP. Inverted sense so the
+	// zero value enables IPCP, matching the spec default
+	// "enable-ipcp=true". When both DisableIPCP and DisableIPv6CP are
+	// true the session emits a warning log and reaches EventSessionUp
+	// immediately after auth with no IP configured.
+	DisableIPCP bool
+
+	// DisableIPv6CP suppresses the IPv6 NCP (RFC 5072 Interface-
+	// Identifier negotiation). Zero value enables it.
+	DisableIPv6CP bool
+
+	// IPTimeout bounds how long the per-session goroutine waits for
+	// Driver.IPResponse after emitting EventIPRequest. Zero means use
+	// the package default (30s). On timeout the session emits
+	// EventSessionDown and an LCP Terminate-Request.
+	IPTimeout time.Duration
+
 	// Proxy LCP bytes from L2TP ICCN AVPs (RFC 2661 Section 18).
 	// When all three are present, the LCP FSM short-circuits to the
 	// Opened state with the proxied options. Empty slices mean no

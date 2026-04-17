@@ -800,6 +800,21 @@ func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	// session of useful throughput.
 	reauthInterval := clampReauthInterval(r.logger, env.Get("ze.l2tp.auth.reauth-interval"))
 
+	// spec-l2tp-6c-ncp: NCP enablement and timeout drawn from env vars.
+	// Defaults: both NCPs enabled, 30s ip-timeout. Inline parsing so
+	// operator typos log at WARN instead of silently defaulting.
+	disableIPCP := !env.GetBool("ze.l2tp.ncp.enable-ipcp", true)
+	disableIPv6CP := !env.GetBool("ze.l2tp.ncp.enable-ipv6cp", true)
+	ipTimeout := 30 * time.Second
+	if raw := env.Get("ze.l2tp.ncp.ip-timeout"); raw != "" {
+		if d, err := time.ParseDuration(raw); err == nil {
+			ipTimeout = d
+		} else {
+			r.logger.Warn("l2tp: invalid ze.l2tp.ncp.ip-timeout; falling back to 30s",
+				"value", raw, "err", err)
+		}
+	}
+
 	start := ppp.StartSession{
 		TunnelID:            ksucc.localTID,
 		SessionID:           ksucc.localSID,
@@ -810,6 +825,9 @@ func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		PeerAddr:            peerAddr,
 		AuthTimeout:         authTimeout,
 		ReauthInterval:      reauthInterval,
+		DisableIPCP:         disableIPCP,
+		DisableIPv6CP:       disableIPv6CP,
+		IPTimeout:           ipTimeout,
 		ProxyLCPInitialRecv: ksucc.proxyInitialRecvLCPConfReq,
 		ProxyLCPLastSent:    ksucc.proxyLastSentLCPConfReq,
 		ProxyLCPLastRecv:    ksucc.proxyLastRecvLCPConfReq,

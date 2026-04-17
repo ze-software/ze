@@ -378,6 +378,8 @@ func TestRunAuthPhaseAccept(t *testing.T) {
 		UnitNum:             5,
 		LNSMode:             true,
 		MaxMRU:              1500,
+		DisableIPCP:         true,
+		DisableIPv6CP:       true,
 		ProxyLCPInitialRecv: stream,
 		ProxyLCPLastSent:    stream,
 		ProxyLCPLastRecv:    stream,

@@ -8,6 +8,7 @@ package ppp
 import (
 	"io"
 	"log/slog"
+	"net/netip"
 	"sync"
 	"time"
 )
@@ -89,10 +90,28 @@ type pppSession struct {
 	// auth types -- see auth_events.go.
 	authEventsOut chan<- AuthEvent
 
+	// Driver's IP events channel (write-only from this goroutine).
+	// Carries EventIPRequest consumed by the external IP handler
+	// (l2tp-pool plugin in production, in-test pool stub). Separate
+	// channel for the same reason the auth channel is separate.
+	ipEventsOut chan<- IPEvent
+
 	// Auth decision delivered by Driver.AuthResponse. Buffered(1) so
 	// a caller that beats the session to the receive position does
 	// not block. The session reads exactly once per auth phase.
 	authRespCh chan authResponseMsg
+
+	// IP decisions delivered by Driver.IPResponse. Buffered(2), one
+	// slot per family, so IPv4 and IPv6 responses may arrive in any
+	// order and both be accepted without blocking the caller. The
+	// session reads exactly once per family per NCP round.
+	ipRespCh chan ipResponseMsg
+
+	// NCP configuration captured from StartSession. Zero/false means
+	// the NCP is enabled (spec default "enable-*cp=true").
+	disableIPCP   bool
+	disableIPv6CP bool
+	ipTimeout     time.Duration
 
 	// Driver's shutdown signal (the goroutine selects on this and
 	// the chan fd's blocking read).
@@ -122,6 +141,20 @@ type pppSession struct {
 	negotiatedMRU        uint16
 	negotiatedAuthMethod AuthMethod
 	echoOutstanding      uint8 // count of unanswered Echo-Request
+
+	// NCP state, goroutine-owned after session spawn; no lock needed
+	// because every writer is the session goroutine. Snapshot under
+	// mu if SessionByID grows NCP-aware in a later phase.
+	ipcpState        LCPState
+	ipv6cpState      LCPState
+	ipcpIdentifier   uint8
+	ipv6cpIdentifier uint8
+	localIPv4        netip.Addr
+	peerIPv4         netip.Addr
+	dnsPrimary       netip.Addr
+	dnsSecondary     netip.Addr
+	localInterfaceID [8]byte
+	peerInterfaceID  [8]byte
 }
 
 // SessionInfo is a snapshot of pppSession state suitable for `show

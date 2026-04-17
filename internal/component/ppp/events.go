@@ -1,12 +1,15 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- PPP -> transport event boundary
+// Related: auth_events.go -- AuthEvent sum for auth handler channel
+// Related: ip_events.go -- IPEvent sum for IP handler channel
 
 package ppp
+
+import "net/netip"
 
 // Event is the sealed sum type emitted on Manager.EventsOut. The
 // transport (l2tp today) reads this channel in its select loop and
 // reacts: EventLCPDown / EventSessionDown trigger a CDN; EventSessionUp
-// is informational; future EventAuthRequest / EventIPRequest (specs 6b,
-// 6c) feed plugins.
+// is informational; EventSessionIPAssigned carries NCP completion.
 //
 // Implementations are restricted to the types in this file via the
 // unexported isPPPEvent method.
@@ -43,19 +46,44 @@ type EventLCPDown struct {
 
 func (EventLCPDown) isPPPEvent() {}
 
-// EventSessionUp is emitted when LCP and authentication and at least
-// one NCP have completed successfully and pppN is configured.
-//
-// In Phase 6a the auth-phase hook is stubbed to always succeed and
-// NCPs are not yet wired, so this event fires immediately after the
-// stub auth returns. Specs 6b and 6c gate it on real auth and NCP
-// completion respectively.
+// EventSessionUp is emitted when LCP, authentication, and every
+// enabled NCP have completed successfully and pppN is configured.
+// Spec 6c moves this event from "after auth" to "after NCPs complete"
+// so the transport does not declare the session usable until an IP
+// address is actually on pppN.
 type EventSessionUp struct {
 	TunnelID  uint16
 	SessionID uint16
 }
 
 func (EventSessionUp) isPPPEvent() {}
+
+// EventSessionIPAssigned is emitted after one NCP (IPCP or IPv6CP)
+// has successfully completed negotiation and ze has either programmed
+// the pppN interface (IPv4) or noted the negotiated identifier (IPv6).
+// The L2TP subsystem reacts by injecting the subscriber route into the
+// redistribute path (wired in spec-l2tp-7-subsystem).
+//
+// For family=ipv4: Local and Peer are populated with the 32-bit
+// addresses, DNSPrimary / DNSSecondary are optional (may be the zero
+// netip.Addr), InterfaceID is zero-valued.
+//
+// For family=ipv6: InterfaceID holds the 8-byte EUI-64 interface
+// identifier negotiated with the peer; Local / Peer / DNSPrimary /
+// DNSSecondary are zero-valued. Ze does not assign a /64 via IPv6CP
+// (DHCPv6-PD and SLAAC are out of umbrella scope).
+type EventSessionIPAssigned struct {
+	TunnelID     uint16
+	SessionID    uint16
+	Family       AddressFamily
+	Local        netip.Addr
+	Peer         netip.Addr
+	DNSPrimary   netip.Addr
+	DNSSecondary netip.Addr
+	InterfaceID  [8]byte
+}
+
+func (EventSessionIPAssigned) isPPPEvent() {}
 
 // EventSessionDown is emitted when a per-session goroutine that WAS
 // running exits for any reason: peer-initiated teardown, local

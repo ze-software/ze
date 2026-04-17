@@ -54,6 +54,27 @@ var (
 		Default:     "0",
 		Description: "Maximum concurrent sessions per tunnel (0 = unbounded)",
 	})
+	// spec-l2tp-6c-ncp: NCP enablement and timeout. Default enabled
+	// for both families; ip-timeout bounds how long PPP waits for the
+	// IP handler's response after emitting EventIPRequest.
+	_ = env.MustRegister(env.EnvEntry{
+		Key:         "ze.l2tp.ncp.enable-ipcp",
+		Type:        "bool",
+		Default:     "true",
+		Description: "Enable the IPCP NCP (RFC 1332) for new L2TP sessions",
+	})
+	_ = env.MustRegister(env.EnvEntry{
+		Key:         "ze.l2tp.ncp.enable-ipv6cp",
+		Type:        "bool",
+		Default:     "true",
+		Description: "Enable the IPv6CP NCP (RFC 5072) for new L2TP sessions",
+	})
+	_ = env.MustRegister(env.EnvEntry{
+		Key:         "ze.l2tp.ncp.ip-timeout",
+		Type:        "string",
+		Default:     "30s",
+		Description: "Duration the NCP phase waits for an IP handler response (spec-l2tp-6c-ncp AC-17)",
+	})
 )
 
 // Default listener values. Phase 3 only implements a single well-known-port
