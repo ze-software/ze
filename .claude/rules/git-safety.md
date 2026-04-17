@@ -72,10 +72,15 @@ so in the commit summary. If unsure, run it.
 **`make ze-verify-fast` (timeout 180s). Not `go test`, not any subset.**
 
 `make ze-verify-fast` must pass before presenting the commit script. Fix what fails.
-Output is auto-captured to `tmp/ze-verify.log`.
+Output is auto-captured to `tmp/ze-verify.log`; on failure, a short index
+is written to `tmp/ze-verify-failures.log` (read this FIRST, not the full log).
 
 ```
-[ ] 1. Run `make ze-verify-fast` (180s timeout). Output is in tmp/ze-verify.log.
+[ ] 0. Run `scripts/dev/verify-status.sh check`. If it prints `FRESH`, the last PASS
+      covered this exact tree -- skip step 1 and note the timestamp in the commit summary.
+      If `STALE`, continue to step 1.
+[ ] 1. Run `make ze-verify-fast` (180s timeout). On failure read
+      tmp/ze-verify-failures.log first; fall back to tmp/ze-verify.log for detail.
 [ ] 2. If failures caused by current work: fix them before proceeding. Re-run.
       If pre-existing failures: do not block current work. Fix them after the primary task
       completes, in a separate commit script. If fix needs >10 min, log to

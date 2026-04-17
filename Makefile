@@ -272,15 +272,19 @@ ze-verify-fast: bin/ze bin/ze-test
 
 _ze-verify-fast-impl:
 	@mkdir -p tmp
+	@rm -f tmp/ze-verify-failures.log tmp/ze-verify-lint.log tmp/ze-verify-unit.log tmp/ze-verify-func.log tmp/ze-verify-exabgp.log
 	@echo "Running ze-verify (lint -> parallel tests, GOMAXPROCS=$(GO_TEST_PROCS))..." | tee "$(ZE_VERIFY_LOG)"; \
 	FAIL=0; \
 	echo "--- Phase 1: lint ---" | tee -a "$(ZE_VERIFY_LOG)"; \
 	if ! golangci-lint run ./cmd/ze/... ./cmd/ze-test/... ./internal/... ./pkg/... ./parked/... ./test/... > tmp/.ze-lint.log 2>&1; then \
 		echo "FAIL: lint" | tee -a "$(ZE_VERIFY_LOG)"; \
 		cat tmp/.ze-lint.log >> "$(ZE_VERIFY_LOG)"; \
-		rm -f tmp/.ze-lint.log; \
+		mv tmp/.ze-lint.log tmp/ze-verify-lint.log; \
+		scripts/dev/verify-summary.sh tmp/ze-verify-failures.log lint tmp/ze-verify-lint.log; \
 		printf "\n\033[31mFAIL  ze-verify-fast: lint\033[0m\n" | tee -a "$(ZE_VERIFY_LOG)"; \
-		printf "Log: $(ZE_VERIFY_LOG)\n"; \
+		printf "Failures: tmp/ze-verify-failures.log\n"; \
+		printf "Full log: $(ZE_VERIFY_LOG)\n"; \
+		scripts/dev/verify-status.sh write 1; \
 		exit 1; \
 	fi; \
 	cat tmp/.ze-lint.log >> "$(ZE_VERIFY_LOG)"; \
@@ -290,19 +294,39 @@ _ze-verify-fast-impl:
 	$(GO_TEST) -race $(ZE_PACKAGES) > tmp/.ze-unit.log 2>&1 & UNIT_PID=$$!; \
 	$(MAKE) --no-print-directory ze-functional-test > tmp/.ze-func.log 2>&1 & FUNC_PID=$$!; \
 	uv run --with psutil --with paramiko ./test/exabgp-compat/bin/functional encoding --timeout 60 > tmp/.ze-exabgp.log 2>&1 & EXABGP_PID=$$!; \
-	wait $$UNIT_PID || { echo "FAIL: unit-test" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); }; \
-	cat tmp/.ze-unit.log >> "$(ZE_VERIFY_LOG)"; \
-	wait $$FUNC_PID || { echo "FAIL: functional-test" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); }; \
-	cat tmp/.ze-func.log >> "$(ZE_VERIFY_LOG)"; \
-	wait $$EXABGP_PID || { echo "FAIL: exabgp-test" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); }; \
-	cat tmp/.ze-exabgp.log >> "$(ZE_VERIFY_LOG)"; \
-	rm -f tmp/.ze-unit.log tmp/.ze-func.log tmp/.ze-exabgp.log; \
+	if ! wait $$UNIT_PID; then \
+		echo "FAIL: unit-test" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); \
+		mv tmp/.ze-unit.log tmp/ze-verify-unit.log; \
+		cat tmp/ze-verify-unit.log >> "$(ZE_VERIFY_LOG)"; \
+		scripts/dev/verify-summary.sh tmp/ze-verify-failures.log unit-test tmp/ze-verify-unit.log; \
+	else \
+		cat tmp/.ze-unit.log >> "$(ZE_VERIFY_LOG)"; rm -f tmp/.ze-unit.log; \
+	fi; \
+	if ! wait $$FUNC_PID; then \
+		echo "FAIL: functional-test" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); \
+		mv tmp/.ze-func.log tmp/ze-verify-func.log; \
+		cat tmp/ze-verify-func.log >> "$(ZE_VERIFY_LOG)"; \
+		scripts/dev/verify-summary.sh tmp/ze-verify-failures.log functional-test tmp/ze-verify-func.log; \
+	else \
+		cat tmp/.ze-func.log >> "$(ZE_VERIFY_LOG)"; rm -f tmp/.ze-func.log; \
+	fi; \
+	if ! wait $$EXABGP_PID; then \
+		echo "FAIL: exabgp-test" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); \
+		mv tmp/.ze-exabgp.log tmp/ze-verify-exabgp.log; \
+		cat tmp/ze-verify-exabgp.log >> "$(ZE_VERIFY_LOG)"; \
+		scripts/dev/verify-summary.sh tmp/ze-verify-failures.log exabgp-test tmp/ze-verify-exabgp.log; \
+	else \
+		cat tmp/.ze-exabgp.log >> "$(ZE_VERIFY_LOG)"; rm -f tmp/.ze-exabgp.log; \
+	fi; \
 	if [ $$FAIL -gt 0 ]; then \
 		printf "\n\033[31mFAIL  ze-verify-fast: %d stage(s) failed\033[0m\n" $$FAIL | tee -a "$(ZE_VERIFY_LOG)"; \
-		printf "Log: $(ZE_VERIFY_LOG)\n"; \
+		printf "Failures: tmp/ze-verify-failures.log\n"; \
+		printf "Full log: $(ZE_VERIFY_LOG)\n"; \
+		scripts/dev/verify-status.sh write 1; \
 		exit 1; \
 	fi; \
-	printf "\n\033[32mPASS  ze-verify-fast: all stages\033[0m\n" | tee -a "$(ZE_VERIFY_LOG)"
+	printf "\n\033[32mPASS  ze-verify-fast: all stages\033[0m\n" | tee -a "$(ZE_VERIFY_LOG)"; \
+	scripts/dev/verify-status.sh write 0
 
 # --- Scoped targets (parallel-safe: only lint/test packages with changed .go files) ---
 
