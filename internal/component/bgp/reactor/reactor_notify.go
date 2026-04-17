@@ -379,7 +379,16 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	if direction == events.DirectionReceived && wireUpdate != nil && hasPeer {
 		if filters := peer.settings.ImportFilters; len(filters) > 0 && r.api != nil {
 			attrsWire, _ := wireUpdate.Attrs()
-			updateText := FormatUpdateForFilter(attrsWire, wireUpdate, nil)
+			// Stack-local scratch for zero-alloc AppendUpdateForFilter path.
+			// One `string(scratch)` conversion at the IPC boundary below.
+			// Size rationale: 4096B covers typical UPDATEs (12 attrs,
+			// 50-500B each) including extreme community / large-community
+			// lists up to ~2-4KB. Pathological inputs (200+ large-communities)
+			// spill to heap via `append` growth -- correct but not zero alloc.
+			// See plan/learned/614-fmt-0-append.md invariant 4.
+			var scratchArr [4096]byte
+			scratch := AppendUpdateForFilter(scratchArr[:0], attrsWire, wireUpdate, nil)
+			updateText := string(scratch)
 			action, modifiedText := PolicyFilterChain(filters, "import", peerAddr.String(), peerInfo.PeerAS,
 				updateText, r.policyFilterFunc(wireUpdate.Payload()),
 			)

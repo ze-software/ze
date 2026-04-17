@@ -38,8 +38,13 @@ func formatAnnounceText(route *Route) string {
 
 	// AS-Path (use [] for list).
 	if len(route.ASPath) > 0 {
-		sb.WriteString(" as-path ")
-		sb.WriteString(attribute.FormatASPath(route.ASPath))
+		p := &attribute.ASPath{Segments: []attribute.ASPathSegment{{Type: attribute.ASSequence, ASNs: route.ASPath}}}
+		var scratch [128]byte
+		// AppendText emits "as-path <value>" for non-empty paths; insert the
+		// leading space separator via the scratch buffer itself to avoid a
+		// double-space seam with the " as-path " token this writer prepends.
+		sb.WriteByte(' ')
+		sb.Write(p.AppendText(scratch[:0]))
 	}
 
 	// MED.

@@ -1,7 +1,9 @@
 // Design: docs/architecture/wire/attributes.md — path attribute encoding
+// Related: text_append.go — zero-alloc AppendText helpers (filter-text output)
 //
-// Text format parsing and formatting for BGP attributes.
-// Used by plugin system and any component needing text serialization.
+// Text format parsing for BGP attributes. Used by plugin system and any
+// component needing text serialization. The reverse direction (attribute
+// to filter text) lives in text_append.go as zero-alloc AppendText methods.
 //
 // Format rules:
 //   - Scalars: "name value" (e.g., "origin igp", "med 100")
@@ -249,102 +251,8 @@ func ParseLargeCommunitiesText(args []string) ([]LargeCommunity, int, error) {
 	return lcomms, consumed, nil
 }
 
-// -----------------------------------------------------------------------------
-// Formatting Functions
-// -----------------------------------------------------------------------------
-
-// FormatOrigin formats origin value to text.
-func FormatOrigin(origin uint8) string {
-	switch origin {
-	case 0:
-		return "igp"
-	case 1:
-		return "egp"
-	default:
-		return "incomplete"
-	}
-}
-
-// FormatASPath formats AS path to text with [] if >1 rule.
-func FormatASPath(asPath []uint32) string {
-	if len(asPath) == 0 {
-		return ""
-	}
-	if len(asPath) == 1 {
-		return strconv.FormatUint(uint64(asPath[0]), 10)
-	}
-	// Multiple: [65001 65002]
-	parts := make([]string, len(asPath))
-	for i, asn := range asPath {
-		parts[i] = strconv.FormatUint(uint64(asn), 10)
-	}
-	return "[" + strings.Join(parts, " ") + "]"
-}
-
-// FormatCommunity formats a single community as ASN:VAL.
-func FormatCommunity(c uint32) string {
-	// Check well-known values
-	switch c {
-	case TextCommunityNoExport:
-		return "no-export"
-	case TextCommunityNoAdvertise:
-		return "no-advertise"
-	case TextCommunityNoExportSubconfed:
-		return "no-export-subconfed"
-	case TextCommunityNoPeer:
-		return "nopeer"
-	case TextCommunityBlackhole:
-		return "blackhole"
-	}
-	asn := c >> 16
-	val := c & 0xFFFF
-	return fmt.Sprintf("%d:%d", asn, val)
-}
-
-// FormatCommunities formats communities to text with [] if >1 rule.
-func FormatCommunities(comms []uint32) string {
-	if len(comms) == 0 {
-		return ""
-	}
-	if len(comms) == 1 {
-		return FormatCommunity(comms[0])
-	}
-	// Multiple: [65000:100 65000:200]
-	parts := make([]string, len(comms))
-	for i, c := range comms {
-		parts[i] = FormatCommunity(c)
-	}
-	return "[" + strings.Join(parts, " ") + "]"
-}
-
-// FormatLargeCommunities formats large communities to text with [] if >1 rule.
-func FormatLargeCommunities(lcomms []LargeCommunity) string {
-	if len(lcomms) == 0 {
-		return ""
-	}
-	if len(lcomms) == 1 {
-		return lcomms[0].String()
-	}
-	// Multiple: [65000:1:2 65000:1:3]
-	parts := make([]string, len(lcomms))
-	for i, lc := range lcomms {
-		parts[i] = lc.String()
-	}
-	return "[" + strings.Join(parts, " ") + "]"
-}
-
-// FormatExtendedCommunities formats extended communities to text with [] if >1 rule.
-func FormatExtendedCommunities(extcomms []ExtendedCommunity) string {
-	if len(extcomms) == 0 {
-		return ""
-	}
-	if len(extcomms) == 1 {
-		return fmt.Sprintf("%x", extcomms[0][:])
-	}
-	// Multiple: [hex1 hex2]
-	parts := make([]string, len(extcomms))
-	for i, ec := range extcomms {
-		parts[i] = fmt.Sprintf("%x", ec[:])
-	}
-	return "[" + strings.Join(parts, " ") + "]"
-}
+// Text formatting for BGP attributes lives in text_append.go (attribute-level
+// AppendText methods and element-level *.AppendText helpers on Aggregator,
+// LargeCommunity, and ExtendedCommunity). The legacy Format* helpers that
+// returned strings were deleted as part of the fmt-0-append migration per
+// `.claude/rules/no-layering.md`.

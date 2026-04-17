@@ -80,7 +80,7 @@ func TestFormatStateChange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatStateChange(&peer, tt.state, tt.reason, tt.encoding)
+			got := string(AppendStateChange(nil, &peer, tt.state, tt.reason, tt.encoding))
 			if got != tt.want {
 				t.Errorf("FormatStateChange() = %q, want %q", got, tt.want)
 			}
@@ -138,7 +138,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatStateChange(&tt.peer, "established", "", plugin.EncodingJSON)
+			got := string(AppendStateChange(nil, &tt.peer, "established", "", plugin.EncodingJSON))
 			if got != tt.want {
 				t.Errorf("FormatStateChange() =\n  %s\nwant:\n  %s", got, tt.want)
 			}
@@ -190,7 +190,7 @@ func TestFormatEOR(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatEOR(&peer, tt.fam, tt.encoding)
+			got := string(AppendEOR(nil, &peer, tt.fam, tt.encoding))
 			if got != tt.want {
 				t.Errorf("FormatEOR(%q, %q)\n  got:  %q\n  want: %q", tt.fam, tt.encoding, got, tt.want)
 			}
@@ -242,7 +242,7 @@ func TestFormatCongestion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatCongestion(&peer, tt.eventType, tt.encoding)
+			got := string(AppendCongestion(nil, &peer, tt.eventType, tt.encoding))
 			if got != tt.want {
 				t.Errorf("FormatCongestion(%q, %q)\n  got:  %q\n  want: %q", tt.eventType, tt.encoding, got, tt.want)
 			}
@@ -808,7 +808,7 @@ func TestFormatOpenWithDirection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatOpen(&peer, open, tt.direction, 42)
+			got := string(AppendOpen(nil, &peer, open, tt.direction, 42))
 			if got != tt.want {
 				t.Errorf("FormatOpen() = %q, want %q", got, tt.want)
 			}
@@ -845,7 +845,7 @@ func TestFormatKeepaliveWithDirection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatKeepalive(&peer, tt.direction, 42)
+			got := string(AppendKeepalive(nil, &peer, tt.direction, 42))
 			if got != tt.want {
 				t.Errorf("FormatKeepalive() = %q, want %q", got, tt.want)
 			}
@@ -890,7 +890,7 @@ func TestFormatNotificationWithDirection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatNotification(&peer, notify, tt.direction, 42)
+			got := string(AppendNotification(nil, &peer, notify, tt.direction, 42))
 			if got != tt.want {
 				t.Errorf("FormatNotification() = %q, want %q", got, tt.want)
 			}

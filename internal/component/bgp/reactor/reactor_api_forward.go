@@ -416,7 +416,16 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				fwdLogger().Debug("attrs extraction for export filter",
 					"peer", peer.Settings().Address, "error", attrErr)
 			}
-			updateText := FormatUpdateForFilter(attrsWire, update.WireUpdate, nil)
+			// Stack-local scratch for zero-alloc AppendUpdateForFilter path.
+			// One `string(scratch)` conversion at the IPC boundary below.
+			// Size rationale: 4096B covers typical UPDATEs (12 attrs,
+			// 50-500B each) including extreme community / large-community
+			// lists up to ~2-4KB. Pathological inputs (200+ large-communities)
+			// spill to heap via `append` growth -- correct but not zero alloc.
+			// See plan/learned/614-fmt-0-append.md invariant 4.
+			var scratchArr [4096]byte
+			scratch := AppendUpdateForFilter(scratchArr[:0], attrsWire, update.WireUpdate, nil)
+			updateText := string(scratch)
 			action, modifiedText := PolicyFilterChain(exportFilters, "export", peer.Settings().Address.String(), peer.Settings().PeerAS,
 				updateText, a.r.policyFilterFunc(update.WireUpdate.Payload()),
 			)

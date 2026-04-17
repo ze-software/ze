@@ -344,6 +344,13 @@ func messageTypeToEventType(msgType message.MessageType) string {
 // Uses the specified encoding and format (from process settings).
 // For text encoding, non-UPDATE types use dedicated text formatters instead of JSONEncoder.
 func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.PeerInfo, msg bgptypes.RawMessage, fmtMode, encoding string) string {
+	// Stack-local scratch for the non-UPDATE Append path. Single string
+	// conversion at each return is the named AC-9 boundary edge.
+	// Size rationale: typical OPEN (~6 caps) / NOTIFICATION / KEEPALIVE /
+	// ROUTE-REFRESH lines fit in 512B. Pathological inputs (many caps,
+	// long data hex) spill to heap transparently via `append` growth.
+	// See plan/learned/614-fmt-0-append.md invariant 4.
+	var scratchArr [512]byte
 	switch msg.Type { //nolint:exhaustive // Only supported types; unsupported are filtered by caller
 	case message.TypeUPDATE:
 		content := bgptypes.ContentConfig{
@@ -355,27 +362,27 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.Peer
 	case message.TypeOPEN:
 		decoded := format.DecodeOpen(msg.RawBytes)
 		if encoding == plugin.EncodingText {
-			return format.FormatOpen(peer, decoded, msg.Direction, msg.MessageID)
+			return string(format.AppendOpen(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
 		}
 		return encoder.Open(peer, decoded, msg.Direction, msg.MessageID)
 
 	case message.TypeNOTIFICATION:
 		decoded := format.DecodeNotification(msg.RawBytes)
 		if encoding == plugin.EncodingText {
-			return format.FormatNotification(peer, decoded, msg.Direction, msg.MessageID)
+			return string(format.AppendNotification(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
 		}
 		return encoder.Notification(peer, decoded, msg.Direction, msg.MessageID)
 
 	case message.TypeKEEPALIVE:
 		if encoding == plugin.EncodingText {
-			return format.FormatKeepalive(peer, msg.Direction, msg.MessageID)
+			return string(format.AppendKeepalive(scratchArr[:0], peer, msg.Direction, msg.MessageID))
 		}
 		return encoder.Keepalive(peer, msg.Direction, msg.MessageID)
 
 	case message.TypeROUTEREFRESH:
 		decoded := format.DecodeRouteRefresh(msg.RawBytes)
 		if encoding == plugin.EncodingText {
-			return format.FormatRouteRefresh(peer, decoded, msg.Direction, msg.MessageID)
+			return string(format.AppendRouteRefresh(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
 		}
 		return encoder.RouteRefresh(peer, decoded, msg.Direction, msg.MessageID)
 
@@ -484,14 +491,20 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state, rea
 
 	// Pre-format once per distinct encoding (text consumers only).
 	// DirectBridge structured consumers get StructuredEvent with State/Reason fields.
+	// Stack-local scratch; single string(scratch) conversion at the cache edge.
+	// Size rationale: a typical state-change line (peer, ASN, state, reason,
+	// optional group/local) fits well under 512B. Long peer/group names
+	// spill transparently. See plan/learned/614-fmt-0-append.md.
 	var fmtCache formatCache
+	var scratchArr [512]byte
 	for _, proc := range procs {
 		if proc.HasStructuredHandler() {
 			continue // DirectBridge — no text formatting needed
 		}
 		enc := proc.Encoding()
 		if _, ok := fmtCache.get(enc); !ok {
-			fmtCache.set(enc, format.FormatStateChange(peer, state, reason, enc))
+			scratch := format.AppendStateChange(scratchArr[:0], peer, state, reason, enc)
+			fmtCache.set(enc, string(scratch))
 		}
 	}
 
@@ -531,7 +544,7 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state, rea
 	// Deliver to CLI monitors.
 	jsonOutput, ok := fmtCache.get("json")
 	if !ok {
-		jsonOutput = format.FormatStateChange(peer, state, reason, "json")
+		jsonOutput = string(format.AppendStateChange(scratchArr[:0], peer, state, reason, "json"))
 	}
 	monitorDeliver(s, bgpevents.EventState, "", peerAddr, peer.Name, jsonOutput)
 }
@@ -588,12 +601,18 @@ func onEORReceived(s *pluginserver.Server, peer *plugin.PeerInfo, family string)
 
 	logger().Debug("OnEORReceived", "peer", peerAddr, "family", family, "count", len(procs))
 
-	// Pre-format once per distinct encoding.
+	// Pre-format once per distinct encoding. Stack-local scratch; single
+	// string(scratch) conversion at the cache edge (AC-9 site).
+	// Size rationale: EOR line is "peer X remote as N eor <family>" or the
+	// equivalent JSON envelope; always under 256B.
+	// See plan/learned/614-fmt-0-append.md.
 	var fmtCache formatCache
+	var scratchArr [256]byte
 	for _, proc := range procs {
 		enc := proc.Encoding()
 		if _, ok := fmtCache.get(enc); !ok {
-			fmtCache.set(enc, format.FormatEOR(peer, family, enc))
+			scratch := format.AppendEOR(scratchArr[:0], peer, family, enc)
+			fmtCache.set(enc, string(scratch))
 		}
 	}
 
@@ -613,7 +632,7 @@ func onEORReceived(s *pluginserver.Server, peer *plugin.PeerInfo, family string)
 	// Deliver to CLI monitors.
 	jsonOutput, ok := fmtCache.get("json")
 	if !ok {
-		jsonOutput = format.FormatEOR(peer, family, "json")
+		jsonOutput = string(format.AppendEOR(scratchArr[:0], peer, family, "json"))
 	}
 	monitorDeliver(s, bgpevents.EventEOR, events.DirectionReceived, peerAddr, peer.Name, jsonOutput)
 
@@ -725,12 +744,18 @@ func onPeerCongestionChange(s *pluginserver.Server, peer *plugin.PeerInfo, event
 
 	logger().Debug("OnPeerCongestionChange", "peer", peerAddr, "event", eventType, "count", len(procs))
 
-	// Pre-format once per distinct encoding.
+	// Pre-format once per distinct encoding. Stack-local scratch; single
+	// string(scratch) conversion at the cache edge (AC-9 site).
+	// Size rationale: congestion line is "peer X remote as N <eventType>"
+	// or the JSON envelope; always under 256B.
+	// See plan/learned/614-fmt-0-append.md.
 	var fmtCache formatCache
+	var scratchArr [256]byte
 	for _, proc := range procs {
 		enc := proc.Encoding()
 		if _, ok := fmtCache.get(enc); !ok {
-			fmtCache.set(enc, format.FormatCongestion(peer, eventType, enc))
+			scratch := format.AppendCongestion(scratchArr[:0], peer, eventType, enc)
+			fmtCache.set(enc, string(scratch))
 		}
 	}
 
@@ -756,7 +781,7 @@ func onPeerCongestionChange(s *pluginserver.Server, peer *plugin.PeerInfo, event
 	// Deliver to CLI monitors.
 	jsonOutput, ok := fmtCache.get("json")
 	if !ok {
-		jsonOutput = format.FormatCongestion(peer, eventType, "json")
+		jsonOutput = string(format.AppendCongestion(scratchArr[:0], peer, eventType, "json"))
 	}
 	monitorDeliver(s, eventType, "", peerAddr, peer.Name, jsonOutput)
 }

@@ -1,20 +1,19 @@
 // Design: docs/architecture/core-design.md — policy filter chain
 // Related: filter_chain.go — policy filter chain execution
+// Related: filter_delta.go — text delta to wire-mod-ops consumer of the same format
 
 package reactor
 
 import (
-	"fmt"
 	"net/netip"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
-// FormatUpdateForFilter formats both attributes AND NLRI from a wire UPDATE
-// into the text protocol consumed by filter plugins. The format is:
+// AppendUpdateForFilter appends the filter-text rendering of an UPDATE
+// (attributes + NLRI) into buf and returns the extended slice. The format is:
 //
 //	"<attr> <val> ... nlri <family> <op> [<prefix>...]"
 //
@@ -26,75 +25,84 @@ import (
 // For families whose NLRI is a plain CIDR prefix (unicast, multicast,
 // mpls-label in AFI IPv4/IPv6), the prefix list is emitted inline so text-
 // mode filters can match directly. For non-CIDR families (EVPN, Flowspec,
-// VPN, BGP-LS, MVPN, etc.) a MARKER block `nlri <family> <op>` is emitted
+// VPN, BGP-LS, MVPN, etc.) a marker block `nlri <family> <op>` is emitted
 // WITHOUT prefixes, so a text-mode filter plugin attached to a session
 // carrying those families can still tell that an update exists for a given
 // family. A filter plugin that needs to inspect non-CIDR NLRI bytes MUST
 // declare `raw=true` in its `FilterRegistration` and parse the wire payload
-// from `FilterUpdateInput.Raw`. The text marker alone is insufficient for
-// per-prefix decisions on non-CIDR families and is intentionally advisory.
+// from `FilterUpdateInput.Raw`.
 //
-// Returns "" if attrs is nil and wireUpdate has no NLRI sections. Attrs-only
-// output (no nlri tokens) is valid when wireUpdate is nil or carries no
-// reachability / withdrawal information.
-func FormatUpdateForFilter(attrs *attribute.AttributesWire, wireUpdate *wireu.WireUpdate, declared []string) string {
-	attrText := FormatAttrsForFilter(attrs, declared)
-	if wireUpdate == nil {
-		return attrText
-	}
+// Returns buf unchanged if attrs is nil and wireUpdate has no NLRI sections.
+// Attrs-only output (no nlri tokens) is valid when wireUpdate is nil or
+// carries no reachability / withdrawal information.
+//
+// Zero-alloc: the caller owns buf; AppendUpdateForFilter appends via the
+// stdlib builtin `append` and returns the extended slice. No fmt.Sprintf,
+// no strings.Join, no intermediate []string.
+func AppendUpdateForFilter(buf []byte, attrs *attribute.AttributesWire, wireUpdate *wireu.WireUpdate, declared []string) []byte {
+	start := len(buf)
+	buf = AppendAttrsForFilter(buf, attrs, declared)
 
-	var blocks []string
+	if wireUpdate == nil {
+		return buf
+	}
 
 	// Legacy IPv4 unicast NLRI (RFC 4271 Section 4.3).
 	if raw, err := wireUpdate.NLRI(); err == nil && len(raw) > 0 {
 		if prefixes := wireu.ParseIPv4Prefixes(raw); len(prefixes) > 0 {
-			blocks = append(blocks, formatNLRIBlock("ipv4/unicast", "add", prefixes))
+			if len(buf) > start {
+				buf = append(buf, ' ')
+			}
+			buf = appendNLRIBlock(buf, "ipv4/unicast", "add", prefixes)
 		}
 	}
 	// Legacy IPv4 unicast withdrawn (RFC 4271 Section 4.3 Withdrawn Routes).
 	if raw, err := wireUpdate.Withdrawn(); err == nil && len(raw) > 0 {
 		if prefixes := wireu.ParseIPv4Prefixes(raw); len(prefixes) > 0 {
-			blocks = append(blocks, formatNLRIBlock("ipv4/unicast", "del", prefixes))
+			if len(buf) > start {
+				buf = append(buf, ' ')
+			}
+			buf = appendNLRIBlock(buf, "ipv4/unicast", "del", prefixes)
 		}
 	}
 
 	// MP_REACH_NLRI and MP_UNREACH_NLRI (RFC 4760).
 	if mp, err := wireUpdate.MPReach(); err == nil && mp != nil {
-		if block := formatMPBlock(mp.Family(), "add", mp.Prefixes()); block != "" {
-			blocks = append(blocks, block)
-		}
+		buf = appendMPBlock(buf, mp.Family(), "add", mp.Prefixes(), len(buf) == start)
 	}
 	if mpu, err := wireUpdate.MPUnreach(); err == nil && mpu != nil {
-		if block := formatMPBlock(mpu.Family(), "del", mpu.Prefixes()); block != "" {
-			blocks = append(blocks, block)
-		}
+		buf = appendMPBlock(buf, mpu.Family(), "del", mpu.Prefixes(), len(buf) == start)
 	}
 
-	if len(blocks) == 0 {
-		return attrText
-	}
-	if attrText == "" {
-		return strings.Join(blocks, " ")
-	}
-	return attrText + " " + strings.Join(blocks, " ")
+	return buf
 }
 
-// formatMPBlock formats one MP_REACH / MP_UNREACH NLRI section for a filter
-// text block. For CIDR-prefix families (unicast/multicast/mpls-label in
-// IPv4/IPv6) the prefixes are included inline. For non-CIDR families a
-// marker block with no prefixes is emitted so text-mode filters still learn
-// that the family is present in the update; filters needing per-NLRI
-// decisions must declare raw=true.
-func formatMPBlock(fam family.Family, op string, prefixes []netip.Prefix) string {
+// appendMPBlock appends one MP_REACH / MP_UNREACH NLRI section. For CIDR-prefix
+// families (unicast/multicast/mpls-label in IPv4/IPv6) the prefixes are
+// included inline. For non-CIDR families a marker block with no prefixes is
+// emitted so text-mode filters still learn that the family is present;
+// filters needing per-NLRI decisions must declare raw=true. bufEmpty is true
+// when buf currently has no appended content since the outer call began; no
+// leading space separator is emitted in that case.
+func appendMPBlock(buf []byte, fam family.Family, op string, prefixes []netip.Prefix, bufEmpty bool) []byte {
 	if isCIDRFamily(fam) {
 		if len(prefixes) == 0 {
-			return ""
+			return buf
 		}
-		return formatNLRIBlock(fam.String(), op, prefixes)
+		if !bufEmpty {
+			buf = append(buf, ' ')
+		}
+		return appendNLRIBlock(buf, fam.String(), op, prefixes)
 	}
-	// Non-CIDR: marker block, prefixes intentionally omitted. See
-	// FormatUpdateForFilter godoc.
-	return "nlri " + fam.String() + " " + op
+	// Non-CIDR: marker block, prefixes intentionally omitted.
+	if !bufEmpty {
+		buf = append(buf, ' ')
+	}
+	buf = append(buf, "nlri "...)
+	buf = append(buf, fam.String()...)
+	buf = append(buf, ' ')
+	buf = append(buf, op...)
+	return buf
 }
 
 // cidrSAFIs is the set of SAFIs whose NLRI wire format is a plain CIDR
@@ -119,14 +127,18 @@ func isCIDRFamily(fam family.Family) bool {
 	return ok
 }
 
-// formatNLRIBlock formats one "nlri <family> <op> <prefix>..." block.
-func formatNLRIBlock(family, op string, prefixes []netip.Prefix) string {
-	parts := make([]string, 0, 3+len(prefixes))
-	parts = append(parts, "nlri", family, op)
+// appendNLRIBlock appends one "nlri <family> <op> <prefix>..." block to buf.
+// prefixes are rendered via netip.Prefix.AppendTo (zero-alloc on warm buf).
+func appendNLRIBlock(buf []byte, fam, op string, prefixes []netip.Prefix) []byte {
+	buf = append(buf, "nlri "...)
+	buf = append(buf, fam...)
+	buf = append(buf, ' ')
+	buf = append(buf, op...)
 	for _, p := range prefixes {
-		parts = append(parts, p.String())
+		buf = append(buf, ' ')
+		buf = p.AppendTo(buf)
 	}
-	return strings.Join(parts, " ")
+	return buf
 }
 
 // attrNameToCode maps filter text attribute names to wire codes.
@@ -145,121 +157,101 @@ var attrNameToCode = map[string]attribute.AttributeCode{
 	"large-community":    attribute.AttrLargeCommunity,
 }
 
-// FormatAttrsForFilter formats selected attributes from wire into text for filter input.
-// Only attributes named in `declared` are included. Returns space-separated "name value" pairs.
-// If declared is empty, all parseable attributes are included.
-func FormatAttrsForFilter(attrs *attribute.AttributesWire, declared []string) string {
+// AppendAttrsForFilter appends selected attributes from wire into buf as
+// space-separated "<name> <value>" pairs. Only attributes named in declared
+// are included. If declared is empty, all parseable attributes are included.
+// Returns buf unchanged when attrs is nil.
+func AppendAttrsForFilter(buf []byte, attrs *attribute.AttributesWire, declared []string) []byte {
 	if attrs == nil {
-		return ""
+		return buf
 	}
-
-	var parts []string
-
 	if len(declared) == 0 {
-		// No declared list: format all attributes.
-		parts = formatAllAttrs(attrs)
-	} else {
-		// Only format declared attributes.
-		for _, name := range declared {
-			code, ok := attrNameToCode[name]
-			if !ok {
-				continue
-			}
-			parsed, err := attrs.Get(code)
-			if err != nil || parsed == nil {
-				continue
-			}
-			if text := formatSingleAttr(parsed); text != "" {
-				parts = append(parts, text)
-			}
-		}
+		return appendAllAttrs(buf, attrs)
 	}
-
-	return strings.Join(parts, " ")
+	first := true
+	for _, name := range declared {
+		code, ok := attrNameToCode[name]
+		if !ok {
+			continue
+		}
+		parsed, err := attrs.Get(code)
+		if err != nil || parsed == nil {
+			continue
+		}
+		buf, first = appendSingleAttr(buf, parsed, first)
+	}
+	return buf
 }
 
-// formatAllAttrs formats all known attributes from wire.
-func formatAllAttrs(attrs *attribute.AttributesWire) []string {
+// appendAllAttrs appends all known attributes from wire in a stable order.
+func appendAllAttrs(buf []byte, attrs *attribute.AttributesWire) []byte {
 	order := []string{
 		"origin", "as-path", "next-hop", "med", "local-preference",
 		policyAttrAtomicAggregate, "aggregator", "community", "originator-id",
 		"cluster-list", "extended-community", "large-community",
 	}
-	var parts []string
+	first := true
 	for _, name := range order {
 		code := attrNameToCode[name]
 		parsed, err := attrs.Get(code)
 		if err != nil || parsed == nil {
 			continue
 		}
-		if text := formatSingleAttr(parsed); text != "" {
-			parts = append(parts, text)
-		}
+		buf, first = appendSingleAttr(buf, parsed, first)
 	}
-	return parts
+	return buf
 }
 
-// formatSingleAttr formats one attribute as "name value" text.
-func formatSingleAttr(attr attribute.Attribute) string {
+// appendSingleAttr appends one attribute as "<name> <value>" text into buf,
+// with a leading space separator when first is false. Returns the updated
+// buffer and the updated first flag (false if anything was appended).
+func appendSingleAttr(buf []byte, attr attribute.Attribute, first bool) ([]byte, bool) {
+	start := len(buf)
+	if !first {
+		buf = append(buf, ' ')
+	}
+	sep := len(buf)
+
 	switch a := attr.(type) {
 	case *attribute.Origin:
-		return fmt.Sprintf("origin %s", attribute.FormatOrigin(uint8(*a)))
-
+		buf = a.AppendText(buf)
 	case *attribute.ASPath:
-		var asns []uint32
-		for _, seg := range a.Segments {
-			asns = append(asns, seg.ASNs...)
-		}
-		if len(asns) == 0 {
-			return ""
-		}
-		return fmt.Sprintf("as-path %s", attribute.FormatASPath(asns))
-
+		buf = a.AppendText(buf)
 	case *attribute.NextHop:
-		if !a.Addr.IsValid() {
-			return ""
-		}
-		return fmt.Sprintf("next-hop %s", a.Addr.String())
-
+		buf = a.AppendText(buf)
 	case *attribute.MED:
-		return fmt.Sprintf("med %d", uint32(*a))
-
+		buf = a.AppendText(buf)
 	case *attribute.LocalPref:
-		return fmt.Sprintf("local-preference %d", uint32(*a))
-
+		buf = a.AppendText(buf)
 	case *attribute.AtomicAggregate:
-		return policyAttrAtomicAggregate
-
+		buf = a.AppendText(buf)
 	case *attribute.Aggregator:
-		return fmt.Sprintf("aggregator %d:%s", a.ASN, a.Address.String())
-
+		// (*Aggregator).AppendText emits just the element form "<asn>:<ip>"
+		// (and nothing when Address is invalid). Prepend the attribute token
+		// only if AppendText will actually write something, so an invalid
+		// aggregator drops cleanly without leaving a dangling "aggregator ".
+		before := len(buf)
+		buf = append(buf, "aggregator "...)
+		after := len(buf)
+		buf = a.AppendText(buf)
+		if len(buf) == after {
+			buf = buf[:before]
+		}
 	case attribute.Communities:
-		comms := make([]uint32, len(a))
-		for i, c := range a {
-			comms[i] = uint32(c)
-		}
-		return fmt.Sprintf("community %s", attribute.FormatCommunities(comms))
-
+		buf = a.AppendText(buf)
+	case attribute.OriginatorID:
+		buf = a.AppendText(buf)
 	case *attribute.ClusterList:
-		if len(*a) == 0 {
-			return ""
-		}
-		ids := make([]string, len(*a))
-		for i, id := range *a {
-			ids[i] = fmt.Sprintf("%d.%d.%d.%d", byte(id>>24), byte(id>>16), byte(id>>8), byte(id))
-		}
-		return fmt.Sprintf("cluster-list %s", strings.Join(ids, " "))
-
+		buf = a.AppendText(buf)
 	case attribute.LargeCommunities:
-		lcs := make([]attribute.LargeCommunity, len(a))
-		copy(lcs, a)
-		return fmt.Sprintf("large-community %s", attribute.FormatLargeCommunities(lcs))
-
+		buf = a.AppendText(buf)
 	case attribute.ExtendedCommunities:
-		ecs := make([]attribute.ExtendedCommunity, len(a))
-		copy(ecs, a)
-		return fmt.Sprintf("extended-community %s", attribute.FormatExtendedCommunities(ecs))
+		buf = a.AppendText(buf)
 	}
 
-	return ""
+	if len(buf) == sep {
+		// Nothing was appended — restore buf (drop the leading space too).
+		return buf[:start], first
+	}
+	return buf, false
 }

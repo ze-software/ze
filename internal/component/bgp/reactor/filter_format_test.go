@@ -67,7 +67,7 @@ func TestIsCIDRFamily(t *testing.T) {
 	}
 }
 
-// TestFormatMPBlockNonCIDRMarker covers dest-2's hybrid emit strategy:
+// TestAppendMPBlockNonCIDRMarker covers dest-2's hybrid emit strategy:
 // CIDR families get prefixes inline, non-CIDR families get a marker-only
 // block, and empty CIDR updates emit nothing at all.
 //
@@ -79,7 +79,7 @@ func TestIsCIDRFamily(t *testing.T) {
 // PREVENTS:  regression to the pre-fix state where MP_REACH for EVPN /
 //
 //	Flowspec was silently dropped from the filter text protocol.
-func TestFormatMPBlockNonCIDRMarker(t *testing.T) {
+func TestAppendMPBlockNonCIDRMarker(t *testing.T) {
 	evpn := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
 	flowspec := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 	ipv6u := family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIUnicast}
@@ -90,16 +90,16 @@ func TestFormatMPBlockNonCIDRMarker(t *testing.T) {
 	// canonical names (idempotent).
 	family.RegisterTestFamilies()
 
-	// Non-CIDR: marker only, no prefixes.
-	got := formatMPBlock(evpn, "add", nil)
+	// Non-CIDR: marker only, no prefixes. bufEmpty=true skips leading space.
+	got := string(appendMPBlock(nil, evpn, "add", nil, true))
 	assert.Equal(t, "nlri l2vpn/evpn add", got)
 
 	// Non-CIDR with an accidentally non-empty prefix slice (from a buggy
 	// wire parser): still marker only. Prefixes are intentionally ignored.
-	got = formatMPBlock(flowspec, "del", nil)
+	got = string(appendMPBlock(nil, flowspec, "del", nil, true))
 	assert.Equal(t, "nlri ipv4/flow del", got)
 
 	// CIDR with empty prefix list: emit nothing (caller appends blocks).
-	got = formatMPBlock(ipv6u, "add", nil)
+	got = string(appendMPBlock(nil, ipv6u, "add", nil, true))
 	assert.Equal(t, "", got)
 }
