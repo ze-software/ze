@@ -6,6 +6,7 @@ package iface
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -16,6 +17,7 @@ import (
 	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
 	ifaceschema "codeberg.org/thomas-mangin/ze/internal/component/iface/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	vppevents "codeberg.org/thomas-mangin/ze/internal/component/vpp/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
@@ -113,6 +115,25 @@ type routerEntry struct {
 	metric int // route-priority at install time
 }
 
+// subscribeReconcileOnReady registers the vpp lifecycle handlers that run
+// iface reconciliation once the vpp backend finishes its handshake.
+// Subscribes to EventConnected (first handshake after daemon start) and
+// EventReconnected (handshake after a vpp crash). The returned slice
+// contains the unsubscribe funcs; callers append them to their shutdown
+// cleanup list.
+//
+// Exposed at package level so config_test.go can exercise the wiring
+// without standing up the SDK event loop.
+func subscribeReconcileOnReady(bus ze.EventBus, activeCfg *atomic.Pointer[ifaceConfig]) []func() {
+	handler := events.AsString(func(_ string) {
+		reconcileOnVPPReady(activeCfg)
+	})
+	return []func(){
+		bus.Subscribe(vppevents.Namespace, vppevents.EventConnected, handler),
+		bus.Subscribe(vppevents.Namespace, vppevents.EventReconnected, handler),
+	}
+}
+
 // runEngine is the engine-mode entry point for the interface plugin.
 // It uses the SDK 5-stage protocol to receive configuration, starts
 // the netlink interface monitor, and blocks until shutdown.
@@ -126,10 +147,19 @@ func runEngine(conn net.Conn) int {
 	// pendingCfg holds the validated config between verify and apply phases.
 	var pendingCfg *ifaceConfig
 
-	// activeCfg tracks the last successfully applied config for rollback.
+	// activeCfg tracks the last successfully applied config for rollback
+	// and for reconciliation triggered by vpp lifecycle events. Stored as
+	// atomic.Pointer because the vppevents.EventConnected handler reads it
+	// concurrently with the SDK's OnConfigApply writer.
 	// Initialized from OnConfigure so the first reload rollback restores startup state.
-	var activeCfg *ifaceConfig
+	var activeCfg atomic.Pointer[ifaceConfig]
 	var activeJournal *sdk.Journal
+
+	// vppReadyOnce guards the one-shot subscription to vppevents so that a
+	// config reload does not double-subscribe. The subscription lives inside
+	// OnConfigure because that is where unsubscribers is populated and
+	// where we know the EventBus is available.
+	var vppReadyOnce sync.Once
 
 	// activeDHCP tracks running DHCP clients keyed by interface+unit.
 	// Protected by dhcpMu for concurrent access from event handlers.
@@ -192,7 +222,7 @@ func runEngine(conn net.Conn) int {
 		if errs := applyConfig(cfg, nil, b); len(errs) > 0 {
 			return joinApplyErrors("interface config", errs)
 		}
-		activeCfg = cfg
+		activeCfg.Store(cfg)
 		log.Info("interface config applied")
 
 		eb := GetEventBus()
@@ -202,9 +232,15 @@ func runEngine(conn net.Conn) int {
 		}
 
 		if err := b.StartMonitor(eb); err != nil {
-			return fmt.Errorf("interface monitor start: %w", err)
+			if errors.Is(err, ErrBackendNotReady) {
+				log.Debug("iface monitor deferred, backend not ready")
+				// The vppevents.EventConnected handler retries StartMonitor.
+			} else {
+				return fmt.Errorf("interface monitor start: %w", err)
+			}
+		} else {
+			log.Info("interface monitor started")
 		}
-		log.Info("interface monitor started")
 
 		// Start DHCP clients for units that have DHCP enabled.
 		dhcpMu.Lock()
@@ -260,6 +296,14 @@ func runEngine(conn net.Conn) int {
 			})),
 		)
 
+		// Subscribe once to vpp lifecycle events so reconciliation that was
+		// deferred during initial apply (vpp handshake still in flight) runs
+		// as soon as GoVPP is connected. The same handler fires on
+		// EventReconnected so post-crash recovery also re-reconciles.
+		vppReadyOnce.Do(func() {
+			unsubscribers = append(unsubscribers, subscribeReconcileOnReady(eb, &activeCfg)...)
+		})
+
 		// Suppress accept_ra_defrtr on interfaces with route-priority > 0,
 		// so ze manages IPv6 default routes instead of the kernel.
 		suppressRAForConfig(cfg, suppressedRA, activeRouters, eb, log)
@@ -293,7 +337,7 @@ func runEngine(conn net.Conn) int {
 			return fmt.Errorf("interface config apply: no backend loaded")
 		}
 
-		previousCfg := activeCfg
+		previousCfg := activeCfg.Load()
 		j := sdk.NewJournal()
 		err := j.Record(
 			func() error {
@@ -330,7 +374,7 @@ func runEngine(conn net.Conn) int {
 			return err
 		}
 
-		activeCfg = cfg
+		activeCfg.Store(cfg)
 		activeJournal = j
 		log.Info("interface config reloaded via transaction")
 

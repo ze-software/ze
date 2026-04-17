@@ -46,12 +46,10 @@ func init() {
 // configuration. ensureChannel acquires the channel on the first method
 // call that needs it, at which point vpp has had time to connect.
 type vppBackendImpl struct {
-	// chMu guards ch, chErr, and chReady.
+	// chMu guards ch and chReady.
 	chMu     sync.Mutex
 	ch       api.Channel
-	chErr    error
 	chReady  bool // ch acquired (may be nil in tests that inject directly)
-	chOnce   sync.Once
 	populate sync.Once
 
 	names         *nameMap
@@ -60,6 +58,23 @@ type vppBackendImpl struct {
 	// monMu guards mon; the pointer is only mutated under the lock.
 	monMu sync.Mutex
 	mon   *monitor
+}
+
+// getActiveConnector returns the VPP connector. Tests override this to
+// inject connector state (nil, disconnected, or a ready mock).
+var getActiveConnector = func() vppConnector {
+	c := vppcomp.GetActiveConnector()
+	if c == nil {
+		return nil
+	}
+	return c
+}
+
+// vppConnector is the subset of vppcomp.Connector ifacevpp depends on,
+// isolated so tests can supply fakes.
+type vppConnector interface {
+	IsConnected() bool
+	NewChannel() (api.Channel, error)
 }
 
 func newVPPBackend() (iface.Backend, error) {
@@ -72,47 +87,64 @@ func newVPPBackend() (iface.Backend, error) {
 }
 
 // ensureChannel acquires the GoVPP channel on first use and seeds the name
-// map. Safe to call repeatedly; subsequent calls return the cached result.
-// Tests that inject a channel directly (ch set before first call) short
-// -circuit the connector lookup.
+// map. When the vpp component has not finished its handshake the call returns
+// iface.ErrBackendNotReady without caching, so a later call (triggered by
+// vppevents.EventConnected) can retry. Tests that inject a channel directly
+// (ch set before first call) short-circuit the connector lookup.
 func (b *vppBackendImpl) ensureChannel() error {
-	b.chOnce.Do(func() {
-		b.chMu.Lock()
-		// Test-injected channel: just mark ready.
-		if b.ch != nil {
-			b.chReady = true
-			b.chMu.Unlock()
-			return
-		}
+	b.chMu.Lock()
+	if b.chReady {
 		b.chMu.Unlock()
+		b.populateOnce()
+		return nil
+	}
+	// Test-injected channel: just mark ready.
+	if b.ch != nil {
+		b.chReady = true
+		b.chMu.Unlock()
+		b.populateOnce()
+		return nil
+	}
+	b.chMu.Unlock()
 
-		connector := vppcomp.GetActiveConnector()
-		if connector == nil {
-			b.chErr = fmt.Errorf("ifacevpp: VPP connector not available")
-			return
-		}
-		ch, err := connector.NewChannel()
-		if err != nil {
-			b.chErr = fmt.Errorf("ifacevpp: GoVPP channel: %w", err)
-			return
-		}
-		b.chMu.Lock()
+	// Not ready? Return sentinel WITHOUT caching so the next call retries.
+	// "Not ready" spans two cases: no connector registered yet (vpp plugin
+	// not yet in OnStarted) and connector registered but GoVPP handshake
+	// still in flight.
+	connector := getActiveConnector()
+	if connector == nil || !connector.IsConnected() {
+		return fmt.Errorf("ifacevpp: VPP connector not ready: %w", iface.ErrBackendNotReady)
+	}
+
+	ch, err := connector.NewChannel()
+	if err != nil {
+		return fmt.Errorf("ifacevpp: GoVPP channel: %w", err)
+	}
+
+	b.chMu.Lock()
+	// Another goroutine may have won the race while we were dialing.
+	if b.chReady {
+		b.chMu.Unlock()
+		ch.Close()
+	} else {
 		b.ch = ch
 		b.chReady = true
 		b.chMu.Unlock()
-	})
-	if b.chErr != nil {
-		return b.chErr
 	}
-	// Seed the name map exactly once after the channel is live. Failure
-	// is not fatal: a fresh VPP instance with no DPDK interfaces reports
-	// zero entries and CreateDummy / CreateVLAN add their own names.
+
+	b.populateOnce()
+	return nil
+}
+
+// populateOnce seeds the name map exactly once after the channel is live.
+// Failure is not fatal: a fresh VPP instance with no DPDK interfaces reports
+// zero entries and CreateDummy / CreateVLAN add their own names.
+func (b *vppBackendImpl) populateOnce() {
 	b.populate.Do(func() {
 		if err := b.populateNameMap(); err != nil {
 			loggerPtr.Load().Warn("ifacevpp: populate name map", "err", err)
 		}
 	})
-	return nil
 }
 
 // errNotSupported returns a descriptive error for operations not available on VPP.

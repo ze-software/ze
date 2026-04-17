@@ -149,10 +149,9 @@ func (b *vppBackendImpl) SetMACAddress(ifaceName, mac string) error {
 // Idempotent: it overwrites existing entries.
 //
 // MUST be called with a live channel already acquired (ensureChannel has
-// completed the chOnce.Do path). Uses dumpAllRaw rather than
-// dumpAllInterfaces because it is invoked from inside ensureChannel's
-// populate.Do block, and dumpAllInterfaces would recurse back into
-// ensureChannel.
+// set chReady). Uses dumpAllRaw rather than dumpAllInterfaces because it is
+// invoked from inside ensureChannel's populate.Do block, and dumpAllInterfaces
+// would recurse back into ensureChannel.
 func (b *vppBackendImpl) populateNameMap() error {
 	details, err := b.dumpAllRaw()
 	if err != nil {

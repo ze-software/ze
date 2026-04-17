@@ -5,11 +5,21 @@
 package iface
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+// ErrBackendNotReady signals that a backend method was called before the
+// underlying transport is usable. Callers that can defer their work (for
+// example, applyConfig's reconciliation phase) should detect this sentinel
+// with errors.Is and retry when the transport becomes ready.
+//
+// Produced by ifacevpp.ensureChannel when the vpp component has not yet
+// completed its GoVPP handshake. The netlink backend never returns it.
+var ErrBackendNotReady = errors.New("iface: backend not ready")
 
 // Backend defines the operations that an interface management backend must
 // implement. The iface component dispatches all OS-specific work through

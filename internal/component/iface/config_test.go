@@ -2,16 +2,305 @@ package iface
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	vppevents "codeberg.org/thomas-mangin/ze/internal/component/vpp/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+// recordingEventBus is a portable ze.EventBus stub used by the ready-gate
+// tests. Subscribe records handlers keyed by (namespace, eventType) and
+// Emit invokes them synchronously. Tests use this to prove that the
+// Subscribe/Emit wiring mirrored from register.go actually routes into
+// reconcileOnVPPReady.
+type recordingEventBus struct {
+	mu       sync.Mutex
+	handlers map[string][]func(any)
+}
+
+var _ ze.EventBus = (*recordingEventBus)(nil)
+
+func newRecordingEventBus() *recordingEventBus {
+	return &recordingEventBus{handlers: make(map[string][]func(any))}
+}
+
+func (b *recordingEventBus) key(namespace, eventType string) string {
+	return namespace + ":" + eventType
+}
+
+func (b *recordingEventBus) Emit(namespace, eventType string, payload any) (int, error) {
+	b.mu.Lock()
+	handlers := append([]func(any){}, b.handlers[b.key(namespace, eventType)]...)
+	b.mu.Unlock()
+	for _, h := range handlers {
+		h(payload)
+	}
+	return len(handlers), nil
+}
+
+func (b *recordingEventBus) Subscribe(namespace, eventType string, handler func(any)) func() {
+	k := b.key(namespace, eventType)
+	b.mu.Lock()
+	b.handlers[k] = append(b.handlers[k], handler)
+	idx := len(b.handlers[k]) - 1
+	b.mu.Unlock()
+	return func() {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		hs := b.handlers[k]
+		if idx < len(hs) {
+			b.handlers[k] = append(hs[:idx], hs[idx+1:]...)
+		}
+	}
+}
+
+// TestReconcileOnVPPReady_NoOpWhenActiveCfgNil verifies AC-4 / defensive
+// path: when no config has been applied yet, the handler is a no-op.
+//
+// VALIDATES: defensive handling before the first applyConfig.
+// PREVENTS: nil-deref when EventConnected arrives during startup ordering.
+func TestReconcileOnVPPReady_NoOpWhenActiveCfgNil(t *testing.T) {
+	var cfg atomic.Pointer[ifaceConfig]
+	// Should not panic nor touch the backend (there is none registered).
+	reconcileOnVPPReady(&cfg)
+}
+
+// TestReconcileOnVPPReady_RunsReconcile verifies AC-4: when activeCfg is
+// set and the backend is registered, the handler invokes reconcileOnReady
+// against the registered backend and prunes orphans.
+//
+// VALIDATES: AC-4 -- EventConnected handler triggers full reconcile.
+// PREVENTS: activeCfg being ignored after vpp connects.
+func TestReconcileOnVPPReady_RunsReconcile(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	// Pre-populate backend state with an orphan interface not in config.
+	fb.ifaces["orphan-dum"] = fakeIface{name: "orphan-dum", linkType: zeTypeDummy}
+	fb.ifaces["dum0"] = fakeIface{name: "dum0", linkType: zeTypeDummy}
+
+	cfg := testConfigWithAddresses()
+	var activeCfg atomic.Pointer[ifaceConfig]
+	activeCfg.Store(cfg)
+
+	reconcileOnVPPReady(&activeCfg)
+
+	require.True(t, fb.deleted["orphan-dum"], "orphan should have been pruned")
+	require.ElementsMatch(t, []string{"10.0.0.1/24", "10.0.0.2/24"}, fb.addrs["dum0"])
+}
+
+// TestReconcileOnVPPReady_InvokedOnEventConnected verifies AC-4: a Subscribe
+// wired like register.go, when the EventBus emits vppevents.EventConnected,
+// actually routes delivery into reconcileOnVPPReady against the registered
+// backend.
+//
+// VALIDATES: AC-4 -- EventConnected on the bus triggers deferred reconcile.
+// PREVENTS: a regression that breaks the Subscribe wiring (wrong namespace,
+//
+//	wrong event name, handler not invoked) without the functional test
+//	catching it.
+func TestReconcileOnVPPReady_InvokedOnEventConnected(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	fb.ifaces["orphan-dum"] = fakeIface{name: "orphan-dum", linkType: zeTypeDummy}
+	fb.ifaces["dum0"] = fakeIface{name: "dum0", linkType: zeTypeDummy}
+
+	var activeCfg atomic.Pointer[ifaceConfig]
+	activeCfg.Store(testConfigWithAddresses())
+
+	bus := newRecordingEventBus()
+	unsubs := subscribeReconcileOnReady(bus, &activeCfg)
+	t.Cleanup(func() {
+		for _, u := range unsubs {
+			u()
+		}
+	})
+
+	n, err := bus.Emit(vppevents.Namespace, vppevents.EventConnected, "")
+	require.NoError(t, err)
+	require.Equal(t, 1, n, "expected exactly one subscriber for EventConnected")
+
+	require.True(t, fb.deleted["orphan-dum"], "EventConnected should prune orphan")
+	require.ElementsMatch(t, []string{"10.0.0.1/24", "10.0.0.2/24"}, fb.addrs["dum0"])
+}
+
+// TestReconcileOnVPPReady_InvokedOnEventReconnected verifies AC-5: after a
+// vpp crash/reconnect, emitting EventReconnected re-runs reconciliation
+// against the currently-active config.
+//
+// VALIDATES: AC-5 -- crash-recovery reconcile path.
+// PREVENTS: reconcileOnVPPReady being wired only to EventConnected and
+//
+//	missing the reconnect path.
+func TestReconcileOnVPPReady_InvokedOnEventReconnected(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	fb.ifaces["dum0"] = fakeIface{name: "dum0", linkType: zeTypeDummy}
+
+	var activeCfg atomic.Pointer[ifaceConfig]
+	activeCfg.Store(testConfigWithAddresses())
+
+	bus := newRecordingEventBus()
+	unsubs := subscribeReconcileOnReady(bus, &activeCfg)
+	t.Cleanup(func() {
+		for _, u := range unsubs {
+			u()
+		}
+	})
+
+	n, err := bus.Emit(vppevents.Namespace, vppevents.EventReconnected, "")
+	require.NoError(t, err)
+	require.Equal(t, 1, n, "expected exactly one subscriber for EventReconnected")
+
+	require.ElementsMatch(t, []string{"10.0.0.1/24", "10.0.0.2/24"}, fb.addrs["dum0"])
+}
+
+// TestUnsubscribeOnShutdown verifies AC-7: the unsubscribe functions
+// returned by Subscribe remove the handlers so a later Emit does not
+// invoke reconcileOnVPPReady after the plugin has shut down.
+//
+// VALIDATES: AC-7 -- plugin shutdown cleanup path.
+// PREVENTS: handler leaks that would keep firing reconcile after the
+//
+//	plugin's resources (logger, backend) have been torn down.
+func TestUnsubscribeOnShutdown(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	fb.ifaces["orphan-dum"] = fakeIface{name: "orphan-dum", linkType: zeTypeDummy}
+
+	var activeCfg atomic.Pointer[ifaceConfig]
+	activeCfg.Store(testConfigWithAddresses())
+
+	bus := newRecordingEventBus()
+	unsubs := subscribeReconcileOnReady(bus, &activeCfg)
+
+	// Shutdown: call every unsubscribe.
+	for _, u := range unsubs {
+		u()
+	}
+
+	n, err := bus.Emit(vppevents.Namespace, vppevents.EventConnected, "")
+	require.NoError(t, err)
+	require.Equal(t, 0, n, "EventConnected must have no subscribers after shutdown")
+
+	require.False(t, fb.deleted["orphan-dum"], "handler must not fire after unsubscribe")
+}
+
+// testConfigWithAddresses builds an ifaceConfig that declares one dummy
+// interface with two addresses. Shared by reconcileOnReady tests.
+func testConfigWithAddresses() *ifaceConfig {
+	return &ifaceConfig{
+		Backend: "netlink",
+		Dummy: []ifaceEntry{{
+			Name: "dum0",
+			Units: []unitEntry{{
+				Addresses: []string{"10.0.0.1/24", "10.0.0.2/24"},
+			}},
+		}},
+	}
+}
+
+// TestReconcileOnReady_DefersOnSentinel verifies AC-2: when ListInterfaces
+// returns an error wrapping ErrBackendNotReady, reconcileOnReady signals
+// "deferred" with no errors so the caller can retry later.
+//
+// VALIDATES: AC-2 -- sentinel error does not pollute errs.
+// PREVENTS: startup ERROR logs when vpp is still handshaking.
+func TestReconcileOnReady_DefersOnSentinel(t *testing.T) {
+	fb := &fakeBackend{
+		ifaces:  map[string]fakeIface{},
+		listErr: fmt.Errorf("ifacevpp: VPP connector not ready: %w", ErrBackendNotReady),
+	}
+	cfg := testConfigWithAddresses()
+
+	errs, deferred := reconcileOnReady(cfg, fb)
+	require.True(t, deferred, "expected deferred=true when backend returns ErrBackendNotReady")
+	require.Empty(t, errs, "expected no errs when deferred")
+}
+
+// TestReconcileOnReady_RecordsNonSentinelError verifies AC-8: a real
+// ListInterfaces error (not the sentinel) is still recorded in errs.
+//
+// VALIDATES: AC-8 -- non-sentinel errors still surface.
+// PREVENTS: silent swallowing of real backend failures.
+func TestReconcileOnReady_RecordsNonSentinelError(t *testing.T) {
+	realErr := errors.New("netlink: rtnetlink receive: permission denied")
+	fb := &fakeBackend{
+		ifaces:  map[string]fakeIface{},
+		listErr: realErr,
+	}
+	cfg := testConfigWithAddresses()
+
+	errs, deferred := reconcileOnReady(cfg, fb)
+	require.False(t, deferred, "expected deferred=false for non-sentinel error")
+	require.Len(t, errs, 1, "expected non-sentinel error to be recorded")
+	require.ErrorIs(t, errs[0], realErr)
+}
+
+// TestApplyConfig_SkipsReconcileOnSentinel verifies AC-2/AC-3: when the
+// backend defers reconciliation at ListInterfaces, applyConfig still applies
+// additive-only address changes and returns an empty errs slice.
+//
+// VALIDATES: AC-2/AC-3 -- deferred reconcile path produces no error.
+// PREVENTS: deliverConfigRPC failure at startup under vpp backend.
+func TestApplyConfig_SkipsReconcileOnSentinel(t *testing.T) {
+	fb := &fakeBackend{
+		ifaces:  map[string]fakeIface{},
+		listErr: fmt.Errorf("ifacevpp: VPP connector not ready: %w", ErrBackendNotReady),
+	}
+	cfg := testConfigWithAddresses()
+
+	errs := applyConfig(cfg, nil, fb)
+	require.Empty(t, errs, "applyConfig must not return errs when deferred")
+	// Additive fallback: desired addresses applied despite reconcile deferral.
+	require.ElementsMatch(t, []string{"10.0.0.1/24", "10.0.0.2/24"}, fb.addrs["dum0"])
+}
+
+// TestReconcileOnReady_AddsMissing verifies AC-4: when the backend is ready
+// and has no pre-existing addresses on the managed interface,
+// reconcileOnReady adds every desired address.
+//
+// VALIDATES: AC-4 -- full reconcile runs Phase 3 on the ready path.
+// PREVENTS: reconcileOnReady regressing on the ready path.
+func TestReconcileOnReady_AddsMissing(t *testing.T) {
+	fb := &fakeBackend{
+		ifaces: map[string]fakeIface{
+			"dum0": {name: "dum0", linkType: "dummy"},
+		},
+	}
+	cfg := testConfigWithAddresses() // desires 10.0.0.1/24 + 10.0.0.2/24
+
+	errs, deferred := reconcileOnReady(cfg, fb)
+	require.False(t, deferred)
+	require.Empty(t, errs)
+	require.ElementsMatch(t, []string{"10.0.0.1/24", "10.0.0.2/24"}, fb.addrs["dum0"])
+}
+
+// TestReconcileOnReady_PrunesNonConfigInterface verifies AC-4: when the
+// backend is ready and an unmanaged ze interface exists that is not in
+// cfg, reconcileOnReady deletes it (Phase 4).
+//
+// VALIDATES: AC-4 -- full reconcile runs Phase 4.
+// PREVENTS: stale interfaces persisting after config apply.
+func TestReconcileOnReady_PrunesNonConfigInterface(t *testing.T) {
+	fb := &fakeBackend{
+		ifaces: map[string]fakeIface{
+			"dum0":       {name: "dum0", linkType: zeTypeDummy},
+			"orphan-dum": {name: "orphan-dum", linkType: zeTypeDummy},
+		},
+	}
+	cfg := testConfigWithAddresses() // managed set = {dum0}
+
+	errs, deferred := reconcileOnReady(cfg, fb)
+	require.False(t, deferred)
+	require.Empty(t, errs)
+	require.True(t, fb.deleted["orphan-dum"], "orphan interface should be deleted")
+	require.False(t, fb.deleted["dum0"], "configured interface should NOT be deleted")
+}
 
 // TestParseTunnelGRE verifies that a gre case with all common leaves parses
 // into a TunnelSpec with the correct kind and fields.
@@ -1538,6 +1827,7 @@ type fakeBackend struct {
 	routeAdds    []routeCall
 	routeRemoves []routeCall
 	staleRoutes  []RouteInfo // returned by ListRoutes for stale cleanup tests
+	listErr      error       // if non-nil, ListInterfaces returns this instead of enumerating
 }
 
 type fakeIface struct {
@@ -1668,6 +1958,9 @@ func (b *fakeBackend) ListRoutes(_, _ string) ([]RouteInfo, error) {
 }
 
 func (b *fakeBackend) ListInterfaces() ([]InterfaceInfo, error) {
+	if b.listErr != nil {
+		return nil, b.listErr
+	}
 	var result []InterfaceInfo
 	for _, f := range b.ifaces {
 		info := InterfaceInfo{Name: f.name, Type: f.linkType}

@@ -159,3 +159,7 @@ EOF_PY
 cmd=foreground:seq=1:exec=python3 ./driver.py:timeout=25s
 expect=exit:code=0
 expect=stderr:pattern=OK: ifacevpp loaded
+# spec-iface-vpp-ready-gate: reconciliation must defer silently, not
+# surface as deliverConfigRPC failure, when vpp is still handshaking.
+reject=stderr:pattern=deliverConfigRPC failed
+reject=stderr:pattern=list interfaces for reconciliation

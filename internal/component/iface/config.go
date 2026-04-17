@@ -7,9 +7,11 @@ package iface
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
+	"sync/atomic"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
@@ -1170,21 +1172,48 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		}
 	}
 
-	// Phase 3: Reconcile addresses (add missing, remove extra).
+	// Phase 3+4: Reconcile addresses (add missing, remove extra) and prune
+	// non-config interfaces. If the backend is not yet ready (vpp handshake
+	// still in flight), log + defer: reconcile will re-run once
+	// vppevents.EventConnected fires. The additive-only fallback still
+	// applies desired addresses so the daemon is usable before vpp comes up.
+	reconcileErrs, deferred := reconcileOnReady(cfg, b)
+	if deferred {
+		log.Debug("iface reconcile deferred, backend not ready")
+		addDesiredAddresses(cfg, b)
+		return errs
+	}
+	errs = append(errs, reconcileErrs...)
+
+	return errs
+}
+
+// reconcileOnReady runs Phase 3 (address reconcile) and Phase 4 (prune
+// non-config interfaces) for cfg against backend b. It is called from
+// applyConfig on every config apply; it is also called from the
+// vppevents.EventConnected / EventReconnected handler in register.go so that
+// reconciliation deferred at startup (because the vpp backend was not yet
+// ready) fires once GoVPP is connected.
+//
+// Returns (nil, true) when the backend reports iface.ErrBackendNotReady --
+// callers can retry later. Returns (errs, false) with any operational
+// failures encountered during a normal reconcile.
+func reconcileOnReady(cfg *ifaceConfig, b Backend) (errs []error, deferred bool) {
+	log := loggerPtr.Load()
 	desiredAddrs, managedNames := cfg.desiredState()
 
 	currentInfos, err := b.ListInterfaces()
 	if err != nil {
-		record("list interfaces for reconciliation", err)
-		// Fall back to additive-only: add all desired addresses.
-		for osName, addrs := range desiredAddrs {
-			for addr := range addrs {
-				if err := b.AddAddress(osName, addr); err != nil {
-					log.Debug("iface config: add address", "iface", osName, "addr", addr, "err", err)
-				}
-			}
+		if errors.Is(err, ErrBackendNotReady) {
+			return nil, true
 		}
-		return errs
+		errs = append(errs, fmt.Errorf("list interfaces for reconciliation: %w", err))
+		return errs, false
+	}
+
+	record := func(msg string, err error) {
+		log.Warn(msg, "err", err)
+		errs = append(errs, fmt.Errorf("%s: %w", msg, err))
 	}
 
 	currentAddrs := currentAddrSet(currentInfos)
@@ -1233,7 +1262,67 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 		}
 	}
 
-	return errs
+	return errs, false
+}
+
+// addDesiredAddresses adds every configured address without consulting the
+// backend for current state. Used as the additive-only fallback when
+// reconcileOnReady defers; the full reconcile fires later via
+// vppevents.EventConnected.
+func addDesiredAddresses(cfg *ifaceConfig, b Backend) {
+	log := loggerPtr.Load()
+	desiredAddrs, _ := cfg.desiredState()
+	for osName, addrs := range desiredAddrs {
+		for addr := range addrs {
+			if err := b.AddAddress(osName, addr); err != nil {
+				log.Debug("iface config: add address", "iface", osName, "addr", addr, "err", err)
+			}
+		}
+	}
+}
+
+// reconcileOnVPPReady is invoked from the register.go EventBus handler when
+// vppevents.EventConnected or EventReconnected fires. It looks up the
+// currently-active config and, if one exists and the registered backend is
+// live, runs reconcileOnReady. It also retries b.StartMonitor so a monitor
+// deferred at startup (backend not ready at OnConfigure time) installs as
+// soon as the backend becomes live. No-op when no config has been applied
+// yet or when the backend is still unregistered.
+//
+// Exposed at package level so the register-time handler is easy to test
+// without standing up the SDK event loop.
+func reconcileOnVPPReady(activeCfg *atomic.Pointer[ifaceConfig]) {
+	log := loggerPtr.Load()
+	cfg := activeCfg.Load()
+	if cfg == nil {
+		return
+	}
+	b := GetBackend()
+	if b == nil {
+		return
+	}
+
+	// Retry the monitor install if it was deferred at OnConfigure time.
+	// StartMonitor is idempotent (a second call after a first success is
+	// a no-op), so a call on every vpp event is safe.
+	if eb := GetEventBus(); eb != nil {
+		if err := b.StartMonitor(eb); err != nil {
+			if errors.Is(err, ErrBackendNotReady) {
+				log.Debug("iface monitor still deferred after vpp event")
+				return
+			}
+			log.Warn("iface monitor start on vpp ready", "err", err)
+		}
+	}
+
+	errs, deferred := reconcileOnReady(cfg, b)
+	if deferred {
+		log.Debug("iface reconcile still deferred after vpp event")
+		return
+	}
+	for _, e := range errs {
+		log.Warn("iface reconcile on vpp ready", "err", e)
+	}
 }
 
 // applySysctl emits per-interface sysctl defaults on the EventBus.
