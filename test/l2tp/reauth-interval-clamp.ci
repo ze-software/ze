@@ -1,0 +1,61 @@
+# Test: sub-floor ze.l2tp.auth.reauth-interval is clamped with a WARN
+#       emitted at subsystem startup (before any session connects).
+# VALIDATES: spec-l2tp-6b-auth Phase 9 -- clampReauthInterval's safety-
+#            floor WARN is reachable via operator env config and fires
+#            at subsystem start, not only on first kernel setup.
+# PREVENTS: operator typo (e.g. "1us") silently launching a reauth
+#           storm because the clamp only fired behind closed doors
+#           deep in handleKernelSuccess.
+
+tmpfs=probe.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Wait for ze's L2TP listener to bind, then exit.
+
+Sending a single byte to the listener port with a retry loop is the
+simplest reliable way to confirm the subsystem's Start() has returned
+(which is when the clamp WARN is emitted). Once send succeeds, the
+subsystem is up and the WARN has already hit stderr.
+"""
+import socket
+import sys
+import time
+
+if len(sys.argv) < 2:
+	print("usage: probe.py <port>", file=sys.stderr)
+	sys.exit(2)
+port = int(sys.argv[1])
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.settimeout(0.25)
+for _ in range(40):
+	try:
+		sock.sendto(b"\x00", ("127.0.0.1", port))
+		print("OK: listener bound")
+		sys.exit(0)
+	except (ConnectionRefusedError, OSError):
+		time.sleep(0.05)
+print("ERROR: listener never bound", file=sys.stderr)
+sys.exit(1)
+EOF_PY
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+	enabled true
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.l2tp.auth.reauth-interval:value=1us
+option=env:var=ze.log.l2tp:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=python3 probe.py $PORT:timeout=10s
+expect=exit:code=0
+expect=stdout:contains=OK: listener bound
+expect=stderr:contains=below safety floor; clamping

@@ -1,0 +1,17 @@
+# Test: ze.l2tp.auth.reauth-interval is registered and operator-discoverable
+# VALIDATES: spec-l2tp-6b-auth Phase 9 env surface -- reauth-interval
+#            is in `ze env list` and `ze env get` exposes its metadata
+# PREVENTS: regression where env.MustRegister is removed but the
+#           corresponding code path still consults env.Get, silently
+#           returning default and making operator config a no-op
+
+cmd=foreground:seq=1:exec=ze env list
+expect=exit:code=0
+expect=stdout:contains=ze.l2tp.auth.reauth-interval
+
+cmd=foreground:seq=2:exec=ze env get ze.l2tp.auth.reauth-interval
+expect=exit:code=0
+expect=stdout:contains=Key:
+expect=stdout:contains=Type:
+expect=stdout:contains=duration
+expect=stdout:contains=Default:

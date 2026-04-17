@@ -256,4 +256,65 @@ clean fix handles Echo-Reply and Echo-Request on distinct FSM events.
 **Parked.** Not on the Phase 9 critical path; Phase 9 regression test
 rewritten to use IPCP (0x8021) which handleFrame drops cleanly.
 
+## vpp-config-invalid-poll-interval / -invalid-hugepage parse tests -- LOGGED 2026-04-17
+
+**Files:**
+- `test/parse/vpp-config-invalid-poll-interval.ci` (parse test 314)
+- `test/parse/vpp-config-invalid-hugepage.ci` (parse test 315)
+
+**Symptom under `make ze-verify-fast`:**
+```
+✗ vpp-config-invalid-poll-interval: expected failure but validation succeeded
+✗ vpp-config-invalid-hugepage: expected failure but validation succeeded
+```
+Both tests declare `expect=exit:code=1` (negative tests). `ze config
+validate` returns 0 for the bad input, so the parse runner flags them.
+
+**Why unrelated to spec-l2tp-6b-auth Phase 9 .ci work:** the .ci files
+added in this session only touch `test/ui/cli-env-reauth-interval.ci`,
+`test/l2tp/reauth-interval-clamp.ci`, and
+`internal/component/l2tp/subsystem.go`. The failing tests load VPP
+config; they fail because sibling uncommitted work in
+`internal/component/vpp/{config,vpp,schema}.go` has loosened the
+validator without updating the negative-test fixtures. `git status`
+at session start shows these files modified but not committed.
+
+**Hypothesis:** VPP validator changes made `poll-interval` /
+`hugepage` accept the previously-invalid values; the invalid-case
+fixtures now look valid to the validator.
+
+**Next steps to try (for the VPP-work author):**
+- Diff `internal/component/vpp/config.go` and
+  `internal/component/vpp/schema/ze-vpp-conf.yang` against HEAD and
+  decide whether the new validator is intentionally more permissive.
+- Either tighten the validator back up, or update the two .ci
+  fixtures with a value that is still invalid under the new rules.
+
+**Correction (spec-vpp-7 session, 2026-04-17 10:56Z):** the hypothesis
+above is wrong. I A/B-tested by temporarily reverting
+`internal/component/vpp/{config.go,vpp.go,schema/ze-vpp-conf.yang}`
+to `origin/main` (HEAD `f5895422`), rebuilt `bin/ze`, and re-ran
+`ze config validate` against the same `hugepage-size=4M` / `poll-interval=0`
+inputs both tests use -- `ze config validate` returns exit 0 and
+`configuration valid` in BOTH cases on pristine origin. My VPP changes
+(add `external bool` leaf + `runOnce` external branch) did not touch
+the hugepage enum nor the poll-interval range; diff of the three files
+against origin confirms. The root cause is that `ze config validate`
+does not enforce YANG enum or range constraints at all -- it only
+enforces `unknownKeys` (so `nonsense-leaf` IS rejected, which is why
+`vpp-config-unknown-key.ci` passes). The two invalid-input tests have
+been failing since commit `6b7f5db9` (the one that added them).
+
+**Actual next step:** extend ze's YANG-to-schema walker
+(`internal/component/config/yang_schema.go`) to honor `enum` and
+`range` restrictions during `ze config validate`, or add the missing
+validators into `VPPSettings.Validate()` and make `ze config validate`
+invoke plugin OnConfigVerify callbacks (the latter is a known
+limitation -- see the "YANG Choice/Case Validation Gaps" memory
+entry in `.claude/rules/memory.md`).
+
+**Parked.** Owned by the concurrent spec-vpp-* session. Not touched
+here -- Claude sessions must not edit another session's uncommitted
+files.
+
 Remove entries once fixed.

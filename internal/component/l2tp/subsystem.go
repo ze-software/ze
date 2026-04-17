@@ -15,6 +15,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -101,6 +102,16 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 		s.logger.Warn("L2TP subsystem enabled but no listener configured, skipping start")
 		s.started = true
 		return nil
+	}
+
+	// spec-l2tp-6b-auth Phase 9: surface the effective PPP periodic
+	// re-auth interval at startup so the clamp WARN (or the "disabled"
+	// parse warning) fires once, before any session connects, rather
+	// than only on first successful kernel setup in handleKernelSuccess.
+	// handleKernelSuccess still re-reads the env per session so operators
+	// can change the value on reload for new sessions.
+	if d := clampReauthInterval(s.logger, env.Get("ze.l2tp.auth.reauth-interval")); d > 0 {
+		s.logger.Info("l2tp: periodic PPP re-auth enabled", "interval", d)
 	}
 
 	// Phase 5: probe kernel modules before binding listeners.
