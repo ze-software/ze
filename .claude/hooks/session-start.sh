@@ -136,7 +136,7 @@ fi
 
 if [ -n "$FOUND_STATE" ]; then
     LAST_UPDATE=$(head -5 "$FOUND_STATE" | grep -o '20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]' | head -1)
-    PHASE=$(grep '^Phase:' "$FOUND_STATE" 2>/dev/null | head -1 | sed 's/^Phase:\s*//')
+    PHASE=$(grep '^Phase:' "$FOUND_STATE" 2>/dev/null | head -1 | sed 's/^Phase:[[:space:]]*//')
     if [ -n "$PHASE" ]; then
         echo "Session state: $FOUND_STATE (phase: $PHASE)"
     elif [ -n "$LAST_UPDATE" ]; then

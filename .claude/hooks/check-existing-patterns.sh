@@ -34,7 +34,7 @@ RESET='\033[0m'
 ERRORS=()
 
 # Extract type/struct names from content being written
-TYPES=$(echo "$CONTENT" | grep -oE 'type\s+[A-Z][a-zA-Z0-9]*\s+struct' | awk '{print $2}' | head -5)
+TYPES=$(echo "$CONTENT" | grep -oE 'type[[:space:]]+[A-Z][a-zA-Z0-9]*[[:space:]]+struct' | awk '{print $2}' | head -5)
 
 # Check if types already exist (BLOCKING)
 for t in $TYPES; do
@@ -50,7 +50,7 @@ for t in $TYPES; do
 done
 
 # Extract exported function names (not methods)
-FUNCS=$(echo "$CONTENT" | grep -oE '^func\s+[A-Z][a-zA-Z0-9]*\(' | sed 's/func\s*//;s/(//' | head -5)
+FUNCS=$(echo "$CONTENT" | grep -oE '^func[[:space:]]+[A-Z][a-zA-Z0-9]*\(' | sed 's/func[[:space:]]*//;s/(//' | head -5)
 
 # Check if functions already exist (BLOCKING)
 for fn in $FUNCS; do

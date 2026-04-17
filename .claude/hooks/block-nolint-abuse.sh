@@ -30,7 +30,7 @@ ERRORS=()
 # Invalid: //nolint:errcheck (no reason)
 
 # Find nolint directives
-NOLINT_LINES=$(echo "$CONTENT" | grep -nE '//\s*nolint' || true)
+NOLINT_LINES=$(echo "$CONTENT" | grep -nE '//[[:space:]]*nolint' || true)
 
 if [[ -n "$NOLINT_LINES" ]]; then
     while IFS= read -r line; do
@@ -38,7 +38,7 @@ if [[ -n "$NOLINT_LINES" ]]; then
 
         # Check if there's a comment after the nolint directive
         # Pattern: //nolint:something // reason
-        if ! echo "$line" | grep -qE '//\s*nolint:[a-zA-Z,]+\s+//'; then
+        if ! echo "$line" | grep -qE '//[[:space:]]*nolint:[a-zA-Z,]+[[:space:]]+//'; then
             # No justification comment
             LINENUM=$(echo "$line" | cut -d: -f1)
             ERRORS+=("Line $LINENUM: nolint without justification")

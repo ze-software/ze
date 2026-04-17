@@ -30,7 +30,7 @@ ERRORS=()
 # Common patterns: _, _ = fmt.Fprintf, _ = f.Close()
 
 # Direct error ignore: `_ = something()`  where something likely returns error
-IGNORED=$(echo "$CONTENT" | grep -nE '^\s*_\s*=\s*\w+\.(Close|Write|Read|Flush|Sync|Remove|Mkdir|Chmod)\s*\(' || true)
+IGNORED=$(echo "$CONTENT" | grep -nE '^[[:space:]]*_[[:space:]]*=[[:space:]]*[[:alnum:]_]+\.(Close|Write|Read|Flush|Sync|Remove|Mkdir|Chmod)[[:space:]]*\(' || true)
 if [[ -n "$IGNORED" ]]; then
     ERRORS+=("Ignored error from Close/Write/Read/etc:")
     while IFS= read -r line; do
@@ -39,7 +39,7 @@ if [[ -n "$IGNORED" ]]; then
 fi
 
 # Two blanks: `_, _ = something()`
-DOUBLE_BLANK=$(echo "$CONTENT" | grep -nE '^\s*_\s*,\s*_\s*=' || true)
+DOUBLE_BLANK=$(echo "$CONTENT" | grep -nE '^[[:space:]]*_[[:space:]]*,[[:space:]]*_[[:space:]]*=' || true)
 if [[ -n "$DOUBLE_BLANK" ]]; then
     ERRORS+=("Double blank assignment (ignoring value AND error):")
     while IFS= read -r line; do

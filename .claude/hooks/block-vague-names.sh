@@ -32,7 +32,7 @@ RESET='\033[0m'
 
 # Check for vague variable names (exported or struct fields)
 # These are the worst offenders per design-principles.md
-VAGUE_NAMES=$(grep -nE '\b(Data|Info|Result|Item|Thing|Temp|Tmp|Val|Obj)\s+\w+\s*=' "$FILE_PATH" 2>/dev/null | head -3 || true)
+VAGUE_NAMES=$(grep -nE '(^|[^[:alnum:]_])(Data|Info|Result|Item|Thing|Temp|Tmp|Val|Obj)[[:space:]]+[[:alnum:]_]+[[:space:]]*=' "$FILE_PATH" 2>/dev/null | head -3 || true)
 
 if [[ -n "$VAGUE_NAMES" ]]; then
     echo -e "${YELLOW}⚠️  Vague variable names detected:${RESET}" >&2

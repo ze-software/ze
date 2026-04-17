@@ -49,7 +49,7 @@ RESET='\033[0m'
 ERRORS=()
 
 # Block println() - always wrong in production code
-PRINTLN=$(echo "$CONTENT" | grep -nE '^\s*println\s*\(' | head -2 || true)
+PRINTLN=$(echo "$CONTENT" | grep -nE '^[[:space:]]*println[[:space:]]*\(' | head -2 || true)
 if [[ -n "$PRINTLN" ]]; then
     ERRORS+=("println() found (use slogutil):")
     while IFS= read -r line; do
@@ -77,7 +77,7 @@ fi
 
 # Block bare fmt.Println with simple string (likely debug)
 # Exception: strings containing "error", "fail", "warn", "usage", "help"
-BARE_PRINTLN=$(echo "$CONTENT" | grep -nE 'fmt\.Println\s*\(\s*"[^"]{1,50}"\s*\)' | grep -viE 'error|fail|warn|usage|help|version' | head -2 || true)
+BARE_PRINTLN=$(echo "$CONTENT" | grep -nE 'fmt\.Println[[:space:]]*\([[:space:]]*"[^"]{1,50}"[[:space:]]*\)' | grep -viE 'error|fail|warn|usage|help|version' | head -2 || true)
 if [[ -n "$BARE_PRINTLN" ]]; then
     ERRORS+=("Bare fmt.Println found (use slogutil for debug, or proper error handling):")
     while IFS= read -r line; do

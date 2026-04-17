@@ -45,7 +45,7 @@ if echo "$CONTENT" | grep -qE '"log"'; then
 fi
 
 # Check for log.Print/Printf/Println/Fatal usage
-if echo "$CONTENT" | grep -qE '\blog\.(Print|Printf|Println|Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)\b'; then
+if echo "$CONTENT" | grep -qE '(^|[^[:alnum:]_])log\.(Print|Printf|Println|Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)([^[:alnum:]_]|$)'; then
     ERRORS+=("Legacy log.Print/Fatal/Panic usage detected")
     ERRORS+=("→ Use slog.Info/Warn/Error/Debug instead")
     ERRORS+=("→ See .claude/rules/go-standards.md")

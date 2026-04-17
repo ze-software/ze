@@ -37,7 +37,7 @@ ERRORS=()
 
 # Check for panic() calls (but not recover())
 # Allow panic("unreachable") and panic("not implemented") as valid uses
-PANIC_LINES=$(echo "$CONTENT" | grep -nE '\bpanic\s*\(' | grep -vE 'panic\s*\(\s*"(unreachable|not implemented|unimplemented|TODO|BUG|impossible)' || true)
+PANIC_LINES=$(echo "$CONTENT" | grep -nE '(^|[^[:alnum:]_])panic[[:space:]]*\(' | grep -vE 'panic[[:space:]]*\([[:space:]]*"(unreachable|not implemented|unimplemented|TODO|BUG|impossible)' || true)
 
 if [[ -n "$PANIC_LINES" ]]; then
     ERRORS+=("panic() used for error handling")

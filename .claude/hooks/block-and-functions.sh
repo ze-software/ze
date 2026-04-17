@@ -32,7 +32,7 @@ ERRORS=()
 
 # Check for function names with "And" (violates single responsibility)
 # Pattern: func FooAndBar or func (x *T) FooAndBar
-AND_FUNCS=$(echo "$CONTENT" | grep -nE '^func\s+(\([^)]+\)\s+)?[A-Z][a-zA-Z]*And[A-Z]' || true)
+AND_FUNCS=$(echo "$CONTENT" | grep -nE '^func[[:space:]]+(\([^)]+\)[[:space:]]+)?[A-Z][a-zA-Z]*And[A-Z]' || true)
 
 if [[ -n "$AND_FUNCS" ]]; then
     ERRORS+=("Function with 'And' in name (violates single responsibility):")

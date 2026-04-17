@@ -149,7 +149,7 @@ fi
 
 # Audit Summary — must have actual numbers
 SUMMARY_SECTION=$(echo "$AUDIT_SECTION" | sed -n '/^### Audit Summary/,/^## \|^### /p')
-if echo "$SUMMARY_SECTION" | grep -qE 'Total items:\s*$'; then
+if echo "$SUMMARY_SECTION" | grep -qE 'Total items:[[:space:]]*$'; then
     ERRORS+=("Audit: Audit Summary has no totals")
 fi
 

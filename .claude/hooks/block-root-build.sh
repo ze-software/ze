@@ -14,22 +14,22 @@ fi
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 # Only check commands that contain "go build"
-if ! echo "$COMMAND" | grep -qE '\bgo\s+build\b'; then
+if ! echo "$COMMAND" | grep -qE '(^|[^[:alnum:]_])go[[:space:]]+build([^[:alnum:]_]|$)'; then
     exit 0
 fi
 
 # Allow if -o flag points to bin/
-if echo "$COMMAND" | grep -qE '\-o\s+bin/'; then
+if echo "$COMMAND" | grep -qE '\-o[[:space:]]+bin/'; then
     exit 0
 fi
 
 # Allow "go build ./..." (check-only, no binary output)
-if echo "$COMMAND" | grep -qE 'go\s+build\s+\./\.\.\.'; then
+if echo "$COMMAND" | grep -qE 'go[[:space:]]+build[[:space:]]+\./\.\.\.'; then
     exit 0
 fi
 
 # Allow "go build -v ./..." style checks
-if echo "$COMMAND" | grep -qE 'go\s+build\s+(-\w+\s+)*\./\.\.\.'; then
+if echo "$COMMAND" | grep -qE 'go[[:space:]]+build[[:space:]]+(-[[:alnum:]_]+[[:space:]]+)*\./\.\.\.'; then
     exit 0
 fi
 

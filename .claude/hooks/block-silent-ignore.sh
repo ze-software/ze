@@ -47,11 +47,11 @@ ERRORS=()
 
 # Check for silent ignore patterns
 SILENT_PATTERNS=(
-    'continue\s*//\s*ignore'
-    'return\s*nil\s*//\s*ignore'
-    '//\s*silently\s*ignore'
-    '//\s*skip\s*unknown'
-    'default:\s*$'  # Empty default in switch (may silently ignore)
+    'continue[[:space:]]*//[[:space:]]*ignore'
+    'return[[:space:]]*nil[[:space:]]*//[[:space:]]*ignore'
+    '//[[:space:]]*silently[[:space:]]*ignore'
+    '//[[:space:]]*skip[[:space:]]*unknown'
+    'default:[[:space:]]*$'  # Empty default in switch (may silently ignore)
 )
 
 for pattern in "${SILENT_PATTERNS[@]}"; do
@@ -69,7 +69,7 @@ done
 
 # Check for swallowing errors in config parsing
 if [[ "$FILE_PATH" =~ /config/ ]]; then
-    if echo "$CONTENT" | grep -qE 'default:\s*//|default:\s*break|default:\s*$'; then
+    if echo "$CONTENT" | grep -qE 'default:[[:space:]]*//|default:[[:space:]]*break|default:[[:space:]]*$'; then
         ERRORS+=("Config parsing with empty default case")
         ERRORS+=("→ Must fail on unknown keys, not silently ignore")
     fi

@@ -52,7 +52,7 @@ if echo "$CONTENT" | grep -qiE 'flowspec|traffic.?filter'; then
 fi
 
 # API keywords
-if echo "$CONTENT" | grep -qiE '\bapi\b|command|plugin|announce|withdraw'; then
+if echo "$CONTENT" | grep -qiE '(^|[^[:alnum:]_])api([^[:alnum:]_]|$)|command|plugin|announce|withdraw'; then
     KEYWORDS="$KEYWORDS api"
     if [[ -f "$SESSION_STATE" ]] && ! grep -q "api/architecture.md" "$SESSION_STATE" 2>/dev/null; then
         WARNINGS+=("API spec but api/architecture.md not in session-state")
@@ -61,7 +61,7 @@ if echo "$CONTENT" | grep -qiE '\bapi\b|command|plugin|announce|withdraw'; then
 fi
 
 # NLRI keywords
-if echo "$CONTENT" | grep -qiE '\bnlri\b|prefix|mp.?reach'; then
+if echo "$CONTENT" | grep -qiE '(^|[^[:alnum:]_])nlri([^[:alnum:]_]|$)|prefix|mp.?reach'; then
     KEYWORDS="$KEYWORDS nlri"
     if [[ -f "$SESSION_STATE" ]] && ! grep -q "wire/nlri.md" "$SESSION_STATE" 2>/dev/null; then
         WARNINGS+=("NLRI spec but wire/nlri.md not in session-state")

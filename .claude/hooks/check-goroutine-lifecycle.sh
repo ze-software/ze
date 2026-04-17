@@ -40,7 +40,7 @@ RESET='\033[0m'
 ERRORS=()
 
 # Detect go func() pattern (per-event goroutine)
-GO_FUNC_MATCHES=$(echo "$CONTENT" | grep -nE '^\s*go func\(' | head -3 || true)
+GO_FUNC_MATCHES=$(echo "$CONTENT" | grep -nE '^[[:space:]]*go func\(' | head -3 || true)
 
 if [[ -n "$GO_FUNC_MATCHES" ]]; then
     ERRORS+=("go func() in hot-path file -- use channel + worker pattern:")

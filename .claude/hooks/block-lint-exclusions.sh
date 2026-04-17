@@ -30,7 +30,7 @@ ERRORS=()
 # Detect patterns that add exclusions
 if echo "$CONTENT" | grep -qE 'exclude-rules:|exclude:|issues-exclude:|skip-files:|skip-dirs:'; then
     # Check if this is adding to exclusions (not just reading existing)
-    if echo "$CONTENT" | grep -qE '^\s*-\s*(path|text|linters|source):'; then
+    if echo "$CONTENT" | grep -qE '^[[:space:]]*-[[:space:]]*(path|text|linters|source):'; then
         ERRORS+=("Adding linter exclusions")
         ERRORS+=("→ Fix the code instead of excluding it")
         ERRORS+=("→ See .claude/rules/quality.md")
@@ -38,7 +38,7 @@ if echo "$CONTENT" | grep -qE 'exclude-rules:|exclude:|issues-exclude:|skip-file
 fi
 
 # Check for disabling linters
-if echo "$CONTENT" | grep -qE 'disable:\s*$|disable:.*-' | grep -vE '#.*disable'; then
+if echo "$CONTENT" | grep -qE 'disable:[[:space:]]*$|disable:.*-' | grep -vE '#.*disable'; then
     ERRORS+=("Disabling linters")
     ERRORS+=("→ Fix the code, don't disable the linter")
 fi

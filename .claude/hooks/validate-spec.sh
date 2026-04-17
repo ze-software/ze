@@ -87,9 +87,9 @@ done
 CURRENT_BEHAVIOR_SECTION=$(sed -n '/^## Current Behavior/,/^##/p' "$FILE_PATH" | head -30)
 if [[ -n "$CURRENT_BEHAVIOR_SECTION" ]]; then
     # Check for "Source files read:" with actual file paths
-    if ! echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE '^\s*-\s*\[\s*\]\s*`[^`]+\.(go|py|rs|ts|js)`'; then
+    if ! echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE '^[[:space:]]*-[[:space:]]*\[[[:space:]]*\][[:space:]]*`[^`]+\.(go|py|rs|ts|js)`'; then
         # No unchecked source files - check for checked ones
-        if ! echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE '^\s*-\s*\[x\]\s*`[^`]+\.(go|py|rs|ts|js)`'; then
+        if ! echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE '^[[:space:]]*-[[:space:]]*\[x\][[:space:]]*`[^`]+\.(go|py|rs|ts|js)`'; then
             ERRORS+=("Current Behavior section must list source files read (e.g., '- [ ] \`path/to/file.go\`')")
         fi
     fi
@@ -97,7 +97,7 @@ if [[ -n "$CURRENT_BEHAVIOR_SECTION" ]]; then
     # Check for "Behavior to preserve:" with actual content
     if ! echo "$CURRENT_BEHAVIOR_SECTION" | grep -qiE 'behavior to preserve|preserve.*:'; then
         WARNINGS+=("Current Behavior should document 'Behavior to preserve'")
-    elif echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE 'Behavior to preserve.*:\s*$'; then
+    elif echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE 'Behavior to preserve.*:[[:space:]]*$'; then
         # Empty behavior to preserve
         ERRORS+=("Current Behavior: 'Behavior to preserve' section is empty. Document existing behavior!")
     fi
@@ -129,7 +129,7 @@ if [[ -n "$DATA_FLOW_SECTION" ]]; then
 
     # Check Transformation Path has actual stages (numbered list)
     TRANSFORM_CONTENT=$(echo "$DATA_FLOW_SECTION" | sed -n '/### Transformation Path/,/### /p' | grep -v '^#' | head -10)
-    if ! echo "$TRANSFORM_CONTENT" | grep -qE '^[0-9]+\.\s+'; then
+    if ! echo "$TRANSFORM_CONTENT" | grep -qE '^[0-9]+\.[[:space:]]+'; then
         WARNINGS+=("Data Flow: Transformation Path should have numbered stages (1. ... 2. ...)")
     fi
     if echo "$TRANSFORM_CONTENT" | grep -qE '\[Stage [0-9N]+'; then
@@ -189,7 +189,7 @@ fi
 
 # === FEATURE INTEGRATION CHECK ===
 # Ensure Files to Modify includes actual codebase files (feature code), not just tests
-FILES_SECTION=$(sed -n '/^## Files to Modify/,/^##/p' "$FILE_PATH" | grep -E '^\s*-\s*`' || true)
+FILES_SECTION=$(sed -n '/^## Files to Modify/,/^##/p' "$FILE_PATH" | grep -E '^[[:space:]]*-[[:space:]]*`' || true)
 if [[ -n "$FILES_SECTION" ]]; then
     # Check if ANY file is feature code (not _test.go, not in test/, not .ci, not qa/)
     FEATURE_FILES=$(echo "$FILES_SECTION" | grep -vE '_test\.go|test/|\.ci`|qa/' || true)
@@ -219,7 +219,7 @@ fi
 
 # Also check for inline code that looks like function definitions (outside of code blocks)
 # This catches func/def/fn at line start which shouldn't appear in prose
-FUNC_DEFS=$(grep -cE '^func\s+\w+|^def\s+\w+|^fn\s+\w+' "$FILE_PATH" 2>/dev/null | head -1 || echo "0")
+FUNC_DEFS=$(grep -cE '^func[[:space:]]+[[:alnum:]_]+|^def[[:space:]]+[[:alnum:]_]+|^fn[[:space:]]+[[:alnum:]_]+' "$FILE_PATH" 2>/dev/null | head -1 || echo "0")
 if [[ "$FUNC_DEFS" -gt 0 ]]; then
     ERRORS+=("Specs MUST NOT contain function definitions. Use tables/prose to describe behavior")
 fi
@@ -286,10 +286,10 @@ fi
 REQ_READING_SECTION=$(sed -n '/^## Required Reading/,/^## /p' "$FILE_PATH" | head -40)
 if [[ -n "$REQ_READING_SECTION" ]]; then
     # Count doc entries (checkbox lines: - [ ] or - [x])
-    DOC_ENTRIES=$(echo "$REQ_READING_SECTION" | grep -cE '^\s*-\s*\[\s*[x ]\s*\]' || true)
+    DOC_ENTRIES=$(echo "$REQ_READING_SECTION" | grep -cE '^[[:space:]]*-[[:space:]]*\[[[:space:]]*[x ][[:space:]]*\]' || true)
     DOC_ENTRIES=${DOC_ENTRIES:-0}
     # Count checkpoint lines
-    CHECKPOINT_LINES=$(echo "$REQ_READING_SECTION" | grep -cE '^\s*→\s*(Decision|Constraint):' || true)
+    CHECKPOINT_LINES=$(echo "$REQ_READING_SECTION" | grep -cE '^[[:space:]]*→[[:space:]]*(Decision|Constraint):' || true)
     CHECKPOINT_LINES=${CHECKPOINT_LINES:-0}
     if [[ "$DOC_ENTRIES" -gt 0 && "$CHECKPOINT_LINES" -eq 0 ]]; then
         WARNINGS+=("Required Reading entries should have '→ Decision:' or '→ Constraint:' checkpoint annotations")

@@ -33,7 +33,7 @@ if [[ "$FILE_PATH" =~ /utils/ ]] || [[ "$FILE_PATH" =~ /helpers/ ]] || [[ "$FILE
 fi
 
 # Check for package declaration
-if echo "$CONTENT" | grep -qE '^package\s+(utils|helpers|common|misc)\s*$'; then
+if echo "$CONTENT" | grep -qE '^package[[:space:]]+(utils|helpers|common|misc)[[:space:]]*$'; then
     ERRORS+=("Package name 'utils/helpers/common/misc' forbidden")
     ERRORS+=("→ Use domain-specific package name")
 fi

@@ -75,7 +75,7 @@ ERRORS=()
 
 # 1. Check for append() in encoding code
 # Allow: append to args/strings slices (CLI parsing), but not byte slices
-APPEND_MATCHES=$(echo "$CONTENT" | grep -nE 'append\s*\(' | grep -viE '(args|strings|labels|families|errors|ERRORS|names|fields|parts)' | grep -viE '//.*append' | head -3 || true)
+APPEND_MATCHES=$(echo "$CONTENT" | grep -nE 'append[[:space:]]*\(' | grep -viE '(args|strings|labels|families|errors|ERRORS|names|fields|parts)' | grep -viE '//.*append' | head -3 || true)
 if [[ -n "$APPEND_MATCHES" ]]; then
     ERRORS+=("append() in encoding code — use pre-computed size + offset writes:")
     while IFS= read -r line; do
@@ -91,8 +91,8 @@ fi
 # masked update_build.go:496). Code that legitimately allocates a result
 # slice for a sync.Pool fallback must add `// pool-fallback` on the same
 # line as the make call to opt in.
-MAKE_ALLOW='return make|Pool|New.*func|nlriBytes\s*:=\s*make|owned\s*:=\s*make|//\s*pool-fallback'
-MAKE_MATCHES=$(echo "$CONTENT" | grep -nE 'make\s*\(\s*\[\s*\]\s*byte' | grep -viE "($MAKE_ALLOW)" | head -3 || true)
+MAKE_ALLOW='return make|Pool|New.*func|nlriBytes[[:space:]]*:=[[:space:]]*make|owned[[:space:]]*:=[[:space:]]*make|//[[:space:]]*pool-fallback'
+MAKE_MATCHES=$(echo "$CONTENT" | grep -nE 'make[[:space:]]*\([[:space:]]*\[[[:space:]]*\][[:space:]]*byte' | grep -viE "($MAKE_ALLOW)" | head -3 || true)
 if [[ -n "$MAKE_MATCHES" ]]; then
     ERRORS+=("make([]byte) in encoding hot path — use pool buffer instead:")
     while IFS= read -r line; do
@@ -102,7 +102,7 @@ fi
 
 # 3. Check for .Bytes() calls (should use .WriteTo)
 # Only exclude: rd.Bytes() which returns a fixed [8]byte (no alloc), and json/spec access patterns
-BYTES_MATCHES=$(echo "$CONTENT" | grep -nE '\.\s*Bytes\s*\(\s*\)' | grep -viE '(rd\.Bytes|spec\.|json\.|\.String\(\)\.Bytes)' | head -3 || true)
+BYTES_MATCHES=$(echo "$CONTENT" | grep -nE '\.[[:space:]]*Bytes[[:space:]]*\([[:space:]]*\)' | grep -viE '(rd\.Bytes|spec\.|json\.|\.String\(\)\.Bytes)' | head -3 || true)
 if [[ -n "$BYTES_MATCHES" ]]; then
     ERRORS+=(".Bytes() in encoding code — use .WriteTo(buf, off) instead:")
     while IFS= read -r line; do
@@ -111,7 +111,7 @@ if [[ -n "$BYTES_MATCHES" ]]; then
 fi
 
 # 4. Check for .Pack() calls (legacy pattern)
-PACK_MATCHES=$(echo "$CONTENT" | grep -nE '\.\s*Pack\s*\(\s*\)' | head -3 || true)
+PACK_MATCHES=$(echo "$CONTENT" | grep -nE '\.[[:space:]]*Pack[[:space:]]*\([[:space:]]*\)' | head -3 || true)
 if [[ -n "$PACK_MATCHES" ]]; then
     ERRORS+=(".Pack() is legacy — use .WriteTo(buf, off) instead:")
     while IFS= read -r line; do
@@ -120,7 +120,7 @@ if [[ -n "$PACK_MATCHES" ]]; then
 fi
 
 # 5. Check for buildFoo() returning []byte (should be writeFoo writing into buffer)
-BUILD_RETURN_MATCHES=$(echo "$CONTENT" | grep -nE 'func\s+build\w+\(.*\)\s*\(\s*\[\s*\]\s*byte' | head -3 || true)
+BUILD_RETURN_MATCHES=$(echo "$CONTENT" | grep -nE 'func[[:space:]]+build[[:alnum:]_]+\(.*\)[[:space:]]*\([[:space:]]*\[[[:space:]]*\][[:space:]]*byte' | head -3 || true)
 if [[ -n "$BUILD_RETURN_MATCHES" ]]; then
     ERRORS+=("build*() returning []byte — use write*() writing into caller buffer:")
     while IFS= read -r line; do

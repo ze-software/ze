@@ -28,10 +28,10 @@ ERRORS=()
 
 # Check for version fields in config
 VERSION_PATTERNS=(
-    'version\s*[=:]\s*[0-9]'
-    'Version\s*[=:]\s*[0-9]'
-    '"version"\s*:'
-    'version\s+[0-9]+\s*;'
+    'version[[:space:]]*[=:][[:space:]]*[0-9]'
+    'Version[[:space:]]*[=:][[:space:]]*[0-9]'
+    '"version"[[:space:]]*:'
+    'version[[:space:]]+[0-9]+[[:space:]]*;'
     'config.?version'
     'schema.?version'
 )
