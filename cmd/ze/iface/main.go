@@ -7,6 +7,7 @@ package iface
 import (
 	"fmt"
 	"os"
+	"slices"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
@@ -22,11 +23,12 @@ import (
 // Run executes the interface subcommand with the given arguments.
 // Returns exit code.
 //
-// Help is handled before the backend is loaded so `ze interface help`
-// works on platforms where the netlink backend stub returns errors
-// (non-Linux). Every other subcommand requires the backend; LoadBackend
-// is called once here and released via defer so individual command
-// handlers do not repeat the boilerplate.
+// Help and unknown-subcommand rejection run BEFORE the backend is loaded.
+// Loading+closing the backend for a bogus subcommand perturbs global
+// backend state in ways that race with unit tests calling individual
+// cmdXxx handlers in parallel (they depend on the backend loaded in
+// init()). Gating the backend load on a known-subcommand check keeps
+// the perturbation window closed to the actual command dispatch path.
 func Run(args []string) int {
 	if len(args) < 1 {
 		usage()
@@ -39,6 +41,19 @@ func Run(args []string) int {
 	if subcmd == "help" || subcmd == "-h" || subcmd == "--help" { //nolint:goconst // consistent pattern across cmd files
 		usage()
 		return 0
+	}
+
+	// Validate subcommand BEFORE touching the backend. Otherwise a bogus
+	// subcommand triggers LoadBackend + defer CloseBackend, mutating
+	// package-global state that parallel unit tests rely on.
+	known := []string{"show", "scan", "create", "delete", "unit", "addr", "migrate"}
+	if !slices.Contains(known, subcmd) {
+		fmt.Fprintf(os.Stderr, "error: unknown interface subcommand: %s\n", subcmd)
+		if s := suggest.Command(subcmd, append(known, "help")); s != "" {
+			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
+		}
+		usage()
+		return 1
 	}
 
 	if err := ifacepkg.LoadBackend("netlink"); err != nil {
@@ -67,14 +82,7 @@ func Run(args []string) int {
 	case "migrate":
 		return cmdMigrate(subArgs)
 	}
-
-	fmt.Fprintf(os.Stderr, "error: unknown interface subcommand: %s\n", subcmd)
-	if s := suggest.Command(subcmd, []string{
-		"show", "scan", "create", "delete", "unit", "addr", "migrate", "help",
-	}); s != "" {
-		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
-	}
-	usage()
+	// Unreachable: known-subcommand gate above.
 	return 1
 }
 

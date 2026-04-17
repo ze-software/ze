@@ -21,7 +21,7 @@ import (
 // BGP is excluded because it has its own deeper validation path.
 var yangSectionsToValidate = []string{
 	"interface", "sysctl", "fib", "plugin", "web", "ssh", "dns",
-	"telemetry", "looking-glass", "mcp", "managed",
+	"telemetry", "looking-glass", "mcp", "managed", "vpp",
 }
 
 // validationResult holds validation results.
@@ -219,14 +219,23 @@ func runValidation(input, path string) *validationResult {
 				continue
 			}
 			for _, ve := range yangValidator.ValidateTree(section, container.ToMap()) {
+				// Include ve.Path (the dotted leaf path, e.g.,
+				// "vpp.memory.hugepage-size") so operators can locate the
+				// offending node from a single error line. Without the
+				// path the message is "value "4M" is not a valid
+				// enumeration value" with no pointer to the field.
+				msg := ve.Message
+				if ve.Path != "" {
+					msg = fmt.Sprintf("%s: %s", ve.Path, ve.Message)
+				}
 				if ve.Type == configyang.ErrTypeMissing {
 					result.Warnings = append(result.Warnings, validationWarning{
-						Message: fmt.Sprintf("%s: %s", section, ve.Message),
+						Message: fmt.Sprintf("%s: %s", section, msg),
 					})
 				} else {
 					result.Valid = false
 					result.Errors = append(result.Errors, validationError{
-						Message: fmt.Sprintf("%s: %s", section, ve.Message),
+						Message: fmt.Sprintf("%s: %s", section, msg),
 					})
 				}
 			}

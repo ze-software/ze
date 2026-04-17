@@ -191,6 +191,8 @@ func MapPrefixToModule(prefix string) string {
 		return "ze-fib-conf"
 	case "managed":
 		return "ze-managed-conf"
+	case "vpp":
+		return "ze-vpp-conf"
 	}
 	return prefix
 }
