@@ -174,14 +174,20 @@ If a spec describes work that is **already implemented**, run the full Completio
       Fill the "## Pre-Commit Verification" section in the spec.
       Hook `pre-commit-spec-audit.sh` (exit 2) checks this section is filled.
 [ ] 6. Critical Review (BLOCKING — rules/quality.md)
-[ ] 7. Review Mistake Log — check MEMORY.md, promote if seen before
-[ ] 8. Update spec — Implementation Summary, Documentation Updates, Deviations
-[ ] 9. Write learned summary: plan/learned/NNN-<name>.md (see plan/TEMPLATE.md for summary format)
-[ ] 10. Verify: `make ze-verify-fast` + git status + git diff, no unintended changes
-[ ] 11. Executive Summary Report — present to user with what was done and what is left (including deferred).
-        BLOCKING: learned summary (step 9) must exist. Name the file in the report.
+[ ] 7. `/ze-review` gate (BLOCKING — before final testing/verify)
+       Invoke `/ze-review`. Fill the "## Review Gate" section in the spec with the
+       findings list. If ANY finding is severity BLOCKER or ISSUE (anything above
+       NOTE), fix it and re-run `/ze-review`. Loop until the review returns only
+       NOTEs (or nothing). Paste the final clean review output into the spec.
+       NOTE-only findings do NOT block — record them and proceed.
+[ ] 8. Review Mistake Log — check MEMORY.md, promote if seen before
+[ ] 9. Update spec — Implementation Summary, Documentation Updates, Deviations
+[ ] 10. Write learned summary: plan/learned/NNN-<name>.md (see plan/TEMPLATE.md for summary format)
+[ ] 11. Verify: `make ze-verify-fast` + git status + git diff, no unintended changes
+[ ] 12. Executive Summary Report — present to user with what was done and what is left (including deferred).
+        BLOCKING: learned summary (step 10) must exist. Name the file in the report.
         Do NOT ask to commit. The user will tell you when to commit.
-[ ] 12. Commit (when user says so) — TWO commits, in order:
+[ ] 13. Commit (when user says so) — TWO commits, in order:
         **Commit A:** code + tests + docs + completed spec (with filled audit/verification tables).
         This preserves the completed spec in git history for future review.
         **Commit B:** delete spec (`git rm plan/spec-<name>.md`) + add learned summary (`plan/learned/NNN-<name>.md`).

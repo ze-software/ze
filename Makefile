@@ -1,6 +1,7 @@
 .PHONY: all build ze chaos test analyse clean fmt vet tidy generate help
 .PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-race-reactor ze-test ze-verify ze-ci
 .PHONY: ze-lint-changed ze-unit-test-changed ze-verify-changed ze-verify-fast ze-clean-tmp
+.PHONY: _ze-verify-impl _ze-verify-fast-impl _ze-verify-changed-impl _ze-chaos-verify-impl
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test ze-managed-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-all ze-all-test
@@ -35,8 +36,9 @@ ZE_VERSION := $(shell date +%y.%m.%d)
 ZE_BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 ZE_LDFLAGS := -X main.version=$(ZE_VERSION) -X main.buildDate=$(ZE_BUILD_DATE)
 
-# CPU limit: use 50% of available cores for tests (minimum 1)
-GO_TEST_PROCS := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); p=$$(( n / 2 )); [ $$p -lt 1 ] && p=1; echo $$p)
+# CPU limit: leave 3 cores free (minimum 1). Used as GOMAXPROCS for tests and
+# concurrent stages in ze-verify-fast so parallel stages do not starve the system.
+GO_TEST_PROCS := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); p=$$(( n - 3 )); [ $$p -lt 1 ] && p=1; echo $$p)
 GO_TEST = GOMAXPROCS=$(GO_TEST_PROCS) go test
 
 # Packages
@@ -248,47 +250,53 @@ ze-test: ze-lint ze-unit-test ze-functional-test ze-exabgp-test ze-fuzz-test
 	@echo "All ze tests passed"
 
 # All tests except fuzz (ze only -- use during development)
-# Sequential version (for make dependency chains)
-ze-verify: ze-lint ze-unit-test ze-functional-test ze-exabgp-test
+# Sequential version (for make dependency chains). Wrapped in the shared verify
+# lock so only one verify-class run exists at a time across concurrent sessions.
+ze-verify:
+	@scripts/dev/verify-lock.sh ze-verify $(MAKE) --no-print-directory _ze-verify-impl
+
+_ze-verify-impl: ze-lint ze-unit-test ze-functional-test ze-exabgp-test
 	@echo "Ze verification passed"
 
-# Parallel verify: runs lint+unit in parallel, then functional+exabgp in parallel.
+# Parallel verify: lint first (sequential), then unit+functional+exabgp in parallel.
+# Lint runs alone because it is CPU-bound and finishes fastest; running it alongside
+# -race tests starves both. After lint passes, the three test stages run concurrently
+# with GOMAXPROCS=GO_TEST_PROCS (nproc-3) exported so spawned bin/ze daemons honor
+# the same cap (otherwise they default to runtime.NumCPU() and over-subscribe).
 # Output captured to ZE_VERIFY_LOG (default: tmp/ze-verify.log).
 # Override: make ze-verify-fast ZE_VERIFY_LOG=tmp/my-verify.log
-# Lock file prevents concurrent runs; second caller waits and reads the log.
+# Wrapped in the shared verify lock (see ze-verify).
 ZE_VERIFY_LOG ?= tmp/ze-verify.log
 ze-verify-fast: bin/ze bin/ze-test
+	@scripts/dev/verify-lock.sh ze-verify-fast $(MAKE) --no-print-directory _ze-verify-fast-impl
+
+_ze-verify-fast-impl:
 	@mkdir -p tmp
-	@LOCKFILE=tmp/.ze-verify.lock; \
-	if [ -f "$$LOCKFILE" ]; then \
-		LOCK_PID=$$(cat "$$LOCKFILE" 2>/dev/null); \
-		if kill -0 "$$LOCK_PID" 2>/dev/null; then \
-			printf "\033[33mze-verify-fast already running (pid %s). Waiting...\033[0m\n" "$$LOCK_PID"; \
-			while kill -0 "$$LOCK_PID" 2>/dev/null; do sleep 2; done; \
-			printf "Previous run finished. Log: $(ZE_VERIFY_LOG)\n"; \
-			if tail -1 "$(ZE_VERIFY_LOG)" 2>/dev/null | grep -q "PASS"; then exit 0; else exit 1; fi; \
-		fi; \
-		rm -f "$$LOCKFILE"; \
-	fi; \
-	echo $$$$ > "$$LOCKFILE"; \
-	trap 'rm -f '"$$LOCKFILE" EXIT; \
-	echo "Running ze-verify (parallel)..." | tee "$(ZE_VERIFY_LOG)"; \
+	@echo "Running ze-verify (lint -> parallel tests, GOMAXPROCS=$(GO_TEST_PROCS))..." | tee "$(ZE_VERIFY_LOG)"; \
 	FAIL=0; \
-	echo "--- Phase 1: lint + unit (parallel) ---" | tee -a "$(ZE_VERIFY_LOG)"; \
-	golangci-lint run ./cmd/ze/... ./cmd/ze-test/... ./internal/... ./pkg/... ./parked/... ./test/... > tmp/.ze-lint.log 2>&1 & LINT_PID=$$!; \
-	$(GO_TEST) -race $(ZE_PACKAGES) > tmp/.ze-unit.log 2>&1 & UNIT_PID=$$!; \
-	wait $$LINT_PID || { echo "FAIL: lint" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); }; \
+	echo "--- Phase 1: lint ---" | tee -a "$(ZE_VERIFY_LOG)"; \
+	if ! golangci-lint run ./cmd/ze/... ./cmd/ze-test/... ./internal/... ./pkg/... ./parked/... ./test/... > tmp/.ze-lint.log 2>&1; then \
+		echo "FAIL: lint" | tee -a "$(ZE_VERIFY_LOG)"; \
+		cat tmp/.ze-lint.log >> "$(ZE_VERIFY_LOG)"; \
+		rm -f tmp/.ze-lint.log; \
+		printf "\n\033[31mFAIL  ze-verify-fast: lint\033[0m\n" | tee -a "$(ZE_VERIFY_LOG)"; \
+		printf "Log: $(ZE_VERIFY_LOG)\n"; \
+		exit 1; \
+	fi; \
 	cat tmp/.ze-lint.log >> "$(ZE_VERIFY_LOG)"; \
-	wait $$UNIT_PID || { echo "FAIL: unit-test" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); }; \
-	cat tmp/.ze-unit.log >> "$(ZE_VERIFY_LOG)"; \
-	echo "--- Phase 2: functional + exabgp (parallel) ---" | tee -a "$(ZE_VERIFY_LOG)"; \
+	rm -f tmp/.ze-lint.log; \
+	echo "--- Phase 2: unit + functional + exabgp (parallel, GOMAXPROCS=$(GO_TEST_PROCS)) ---" | tee -a "$(ZE_VERIFY_LOG)"; \
+	export GOMAXPROCS=$(GO_TEST_PROCS); \
+	$(GO_TEST) -race $(ZE_PACKAGES) > tmp/.ze-unit.log 2>&1 & UNIT_PID=$$!; \
 	$(MAKE) --no-print-directory ze-functional-test > tmp/.ze-func.log 2>&1 & FUNC_PID=$$!; \
 	uv run --with psutil --with paramiko ./test/exabgp-compat/bin/functional encoding --timeout 60 > tmp/.ze-exabgp.log 2>&1 & EXABGP_PID=$$!; \
+	wait $$UNIT_PID || { echo "FAIL: unit-test" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); }; \
+	cat tmp/.ze-unit.log >> "$(ZE_VERIFY_LOG)"; \
 	wait $$FUNC_PID || { echo "FAIL: functional-test" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); }; \
 	cat tmp/.ze-func.log >> "$(ZE_VERIFY_LOG)"; \
 	wait $$EXABGP_PID || { echo "FAIL: exabgp-test" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); }; \
 	cat tmp/.ze-exabgp.log >> "$(ZE_VERIFY_LOG)"; \
-	rm -f tmp/.ze-lint.log tmp/.ze-unit.log tmp/.ze-func.log tmp/.ze-exabgp.log; \
+	rm -f tmp/.ze-unit.log tmp/.ze-func.log tmp/.ze-exabgp.log; \
 	if [ $$FAIL -gt 0 ]; then \
 		printf "\n\033[31mFAIL  ze-verify-fast: %d stage(s) failed\033[0m\n" $$FAIL | tee -a "$(ZE_VERIFY_LOG)"; \
 		printf "Log: $(ZE_VERIFY_LOG)\n"; \
@@ -314,8 +322,12 @@ ze-unit-test-changed:
 	echo "Testing changed packages: $$pkgs"; \
 	$(GO_TEST) -race $$pkgs
 
-# Scoped verify: lint + test changed packages, then full functional + exabgp
-ze-verify-changed: ze-lint-changed ze-unit-test-changed ze-functional-test ze-exabgp-test
+# Scoped verify: lint + test changed packages, then full functional + exabgp.
+# Wrapped in the shared verify lock (see ze-verify).
+ze-verify-changed:
+	@scripts/dev/verify-lock.sh ze-verify-changed $(MAKE) --no-print-directory _ze-verify-changed-impl
+
+_ze-verify-changed-impl: ze-lint-changed ze-unit-test-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification (changed) passed"
 
 # Everything: ze + chaos (no fuzz)
@@ -368,8 +380,12 @@ ze-chaos-web-test: bin/ze-test
 ze-chaos-test: ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test
 	@echo "All chaos tests passed"
 
-# Chaos verification
-ze-chaos-verify: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test
+# Chaos verification. Wrapped in the shared verify lock (see ze-verify) because
+# chaos tests run bin/ze instances that would contend with a concurrent ze-verify.
+ze-chaos-verify:
+	@scripts/dev/verify-lock.sh ze-chaos-verify $(MAKE) --no-print-directory _ze-chaos-verify-impl
+
+_ze-chaos-verify-impl: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test
 	@echo "Chaos verification passed"
 
 # ─── Interop tests ──────────────────────────────────────────────────────────

@@ -82,6 +82,27 @@ Output is auto-captured to `tmp/ze-verify.log`.
       `.claude/known-failures.md` so the next session picks it up.
 ```
 
+### Concurrent Verify Runs (BLOCKING)
+
+**Only one `make ze-verify*` (or `ze-chaos-verify`) runs at a time across the whole repo.**
+Multiple parallel sessions share the build cache, ports, and `bin/ze` processes -- two
+verify runs at once trash each other and make both slower than either alone.
+
+All verify variants (`ze-verify`, `ze-verify-fast`, `ze-verify-changed`, `ze-chaos-verify`)
+are wrapped by `scripts/dev/verify-lock.sh`, which acquires `tmp/.ze-verify.lock` via
+`flock` before running. **A second invocation blocks automatically** until the first one
+releases the lock. You do not need to poll or check the lockfile yourself.
+
+| Do | Don't |
+|----|-------|
+| Invoke `make ze-verify-fast` and let it block if another is running | Kill the running verify to "skip ahead" |
+| If the run is clearly yours (same source state), read `tmp/ze-verify.log` when it finishes instead of re-running | Delete `tmp/.ze-verify.lock` to bypass the wait |
+| If you see the "waiting for lock" message, do other work until it releases | Start `go test`, `golangci-lint`, or `bin/ze-test` directly in parallel with a verify run (bypasses the lock) |
+
+The lock is held only during the verify run; it releases automatically when the command
+exits (success or failure). Stale locks are handled by `flock` (fd-backed, not PID-backed),
+so there is no cleanup needed after a crash.
+
 ### Step 2: Always (regardless of ze-verify)
 
 ```

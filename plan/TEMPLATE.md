@@ -168,15 +168,16 @@
 | 1. Read spec | This file |
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan — check what exists |
 | 3. Implement (TDD) | Implementation phases below (write-test-fail-implement-pass per phase) |
-| 4. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
-| 5. Critical review | Critical Review Checklist below |
-| 6. Fix issues | Fix every issue from critical review |
-| 7. Re-verify | Re-run stage 4 |
-| 8. Repeat 5-7 | Max 2 review passes |
-| 9. Deliverables review | Deliverables Checklist below |
-| 10. Security review | Security Review Checklist below |
-| 11. Re-verify | Re-run stage 4 |
-| 12. Present summary | Executive Summary Report per `rules/planning.md` |
+| 4. /ze-review gate | Review Gate section — run `/ze-review`; fix every BLOCKER/ISSUE; re-run until only NOTEs remain (BEFORE full verification) |
+| 5. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
+| 6. Critical review | Critical Review Checklist below |
+| 7. Fix issues | Fix every issue from critical review |
+| 8. Re-verify | Re-run stage 5 |
+| 9. Repeat 6-8 | Max 2 review passes |
+| 10. Deliverables review | Deliverables Checklist below |
+| 11. Security review | Security Review Checklist below |
+| 12. Re-verify | Re-run stage 5 |
+| 13. Present summary | Executive Summary Report per `rules/planning.md` |
 
 ### Implementation Phases
 
@@ -198,7 +199,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 5. **Full verification** → `make ze-verify` (lint + all ze tests except fuzz)
 6. **Complete spec** → Fill audit tables, write learned summary to `plan/learned/NNN-<name>.md`, delete spec from `plan/`. BLOCKING: summary is part of the commit, not a follow-up.
 
-### Critical Review Checklist (/implement stage 5)
+### Critical Review Checklist (/implement stage 6)
 
 <!-- MANDATORY: Fill with feature-specific checks. /implement uses this table
      to verify the implementation. Generic checks from rules/quality.md always apply;
@@ -212,7 +213,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Rule: no-layering | [if replacing something: "old code fully deleted"] |
 | Rule: [other relevant rule] | [what to check] |
 
-### Deliverables Checklist (/implement stage 9)
+### Deliverables Checklist (/implement stage 10)
 
 <!-- MANDATORY: Every deliverable with a concrete verification method.
      /implement re-reads the spec and checks each item independently. -->
@@ -220,7 +221,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 |-------------|---------------------|
 | [concrete thing that must exist] | [grep/ls/test command to verify] |
 
-### Security Review Checklist (/implement stage 10)
+### Security Review Checklist (/implement stage 11)
 
 <!-- MANDATORY: Feature-specific security concerns. /implement checks each item.
      Think about: untrusted input, injection, resource exhaustion, error leakage. -->
@@ -305,6 +306,31 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - **Skipped:** (all require user approval)
 - **Changed:** (documented in Deviations)
 
+## Review Gate
+
+<!-- BLOCKING (rules/planning.md Completion Checklist step 7): -->
+<!-- Run /ze-review BEFORE the final testing/verify step. Record the findings here. -->
+<!-- Every BLOCKER and ISSUE (severity > NOTE) must be fixed, then re-run /ze-review. -->
+<!-- Loop until the review returns only NOTEs (or nothing). Paste the final clean run. -->
+<!-- NOTE-only findings do not block — record them and proceed. -->
+
+### Run 1 (initial)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+
+### Fixes applied
+- [short bullet per BLOCKER/ISSUE, naming the file and change]
+
+### Run 2+ (re-runs until clean)
+<!-- Add a new block per re-run. Final run MUST show zero BLOCKER/ISSUE. -->
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+
+### Final status
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [ ] All NOTEs recorded above (or explicitly "none")
+
 ## Pre-Commit Verification
 
 <!-- BLOCKING: Do NOT trust the audit above. Re-verify everything independently. -->
@@ -335,6 +361,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
+- [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
