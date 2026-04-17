@@ -8,8 +8,63 @@
 package ppp
 
 import (
+	"encoding/binary"
 	"time"
 )
+
+// adjustAuthOnNakOrReject inspects a received LCP Configure-Nak or
+// Configure-Reject packet for the Auth-Protocol option and, if present,
+// updates s.configuredAuthMethod so the FSM's next Send-Configure-
+// Request carries the adjusted value.
+//
+//   - Configure-Reject (RFC 1661 §5.4): the peer does not recognize
+//     the option at all. Drop Auth-Protocol from future CONFREQs by
+//     setting configuredAuthMethod to AuthMethodNone.
+//   - Configure-Nak (RFC 1661 §5.3): the peer recognizes the option
+//     but wants a different value. Decode the peer's suggested
+//     Auth-Protocol, look it up in s.authFallbackOrder via
+//     selectAuthFallback, and use the result (AuthMethodNone when the
+//     peer's choice is not on our list).
+//
+// Goroutine-owned mutation: caller (handleLCPPacket) runs on the
+// per-session goroutine, which is the sole writer to
+// configuredAuthMethod outside the initial manager.spawnSession set.
+// No lock is needed.
+//
+// Called before LCPDoTransition so the subsequent LCPActSCR sees the
+// updated field when it rebuilds the CONFREQ option list.
+func (s *pppSession) adjustAuthOnNakOrReject(pkt LCPPacket) {
+	opts, err := ParseLCPOptions(pkt.Data)
+	if err != nil {
+		return
+	}
+	data, ok := lookupOption(opts, LCPOptAuthProto)
+	if !ok {
+		return
+	}
+
+	if pkt.Code == LCPConfigureReject {
+		s.configuredAuthMethod = AuthMethodNone
+		s.logger.Debug("ppp: peer Configure-Rejected Auth-Protocol; clearing method")
+		return
+	}
+
+	// Configure-Nak: decode the peer's proposed Auth-Protocol.
+	if len(data) < 2 {
+		// Malformed suggestion; treat as "unacceptable" and drop auth.
+		s.configuredAuthMethod = AuthMethodNone
+		return
+	}
+	proto := binary.BigEndian.Uint16(data[:2])
+	suggestion := authMethodFromAuthProto(proto, data[2:])
+	next := selectAuthFallback(suggestion, s.authFallbackOrder)
+	s.logger.Debug("ppp: peer Configure-Naked Auth-Protocol",
+		"peer-proto", proto,
+		"peer-method", suggestion.String(),
+		"selected", next.String(),
+	)
+	s.configuredAuthMethod = next
+}
 
 // PPP Auth-Protocol values (RFC 1661 §6.2 table 3) and CHAP Algorithm
 // codes (RFC 1994 §3 + IANA PPP Authentication Algorithms registry).
@@ -50,6 +105,51 @@ func authMethodFromAuthProto(proto uint16, algorithm []byte) AuthMethod {
 			return AuthMethodCHAPMD5
 		case chapAlgorithmMSv2:
 			return AuthMethodMSCHAPv2
+		}
+	}
+	return AuthMethodNone
+}
+
+// defaultAuthFallbackOrder returns the package-default preference list
+// for Configure-Nak fallback. Matches the spec l2tp-6b-auth AC-13
+// guidance: "prefer CHAP > MS-CHAPv2 > PAP". PAP is last because it
+// sends cleartext passwords on the wire. A fresh slice is returned so
+// callers can retain or mutate it without aliasing.
+func defaultAuthFallbackOrder() []AuthMethod {
+	return []AuthMethod{
+		AuthMethodCHAPMD5,
+		AuthMethodMSCHAPv2,
+		AuthMethodPAP,
+	}
+}
+
+// selectAuthFallback chooses the AuthMethod ze will advertise in its
+// next LCP Configure-Request after the peer Naks the prior one.
+//
+// RFC 1661 §5.3: "The options field is filled with the unacceptable
+// Configuration Options from the Configure-Request. All Configuration
+// Options are Configure-Naked at once, although each option is Naked
+// individually." The peer's Nak of the Auth-Protocol option carries
+// the value the peer is willing to accept.
+//
+// peerSuggestion is the AuthMethod decoded from the peer's Nak (via
+// authMethodFromAuthProto). order is ze's configured preference list;
+// an empty list means "no fallback is acceptable" and the caller falls
+// back to AuthMethodNone. The first method in order that equals
+// peerSuggestion is returned; if no match, AuthMethodNone is returned
+// and the next CONFREQ omits the Auth-Protocol option.
+//
+// The function is order-respecting: if the peer suggests PAP and order
+// is [CHAPMD5, PAP], the result is PAP (matches on the second entry).
+// If order is [CHAPMD5] only, the result is AuthMethodNone because the
+// peer's choice is not on ze's list.
+func selectAuthFallback(peerSuggestion AuthMethod, order []AuthMethod) AuthMethod {
+	if peerSuggestion == AuthMethodNone {
+		return AuthMethodNone
+	}
+	for _, m := range order {
+		if m == peerSuggestion {
+			return m
 		}
 	}
 	return AuthMethodNone

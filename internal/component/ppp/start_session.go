@@ -63,6 +63,19 @@ type StartSession struct {
 	// one mid-session.
 	AuthMethod AuthMethod
 
+	// AuthFallbackOrder lists the AuthMethod values ze will accept
+	// when the peer replies to ze's CONFREQ with a Configure-Nak
+	// naming a different Auth-Protocol (RFC 1661 §5.3). The peer's
+	// suggestion is looked up in this list; a match becomes ze's new
+	// configured method for the next CONFREQ, a non-match falls back
+	// to AuthMethodNone. An empty slice means "use the package
+	// default": [CHAPMD5, MSCHAPv2, PAP].
+	//
+	// Configure-Reject of the Auth-Protocol option always clears the
+	// method regardless of this list, because Reject means "I do not
+	// recognize this option at all" (RFC 1661 §5.4).
+	AuthFallbackOrder []AuthMethod
+
 	// Proxy LCP bytes from L2TP ICCN AVPs (RFC 2661 Section 18).
 	// When all three are present, the LCP FSM short-circuits to the
 	// Opened state with the proxied options. Empty slices mean no

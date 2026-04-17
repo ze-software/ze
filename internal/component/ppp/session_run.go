@@ -585,6 +585,32 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 			}
 		}
 	}
+
+	// RFC 1661 §5.3 (Configure-Nak) / §5.4 (Configure-Reject): when
+	// the peer rejects or suggests an alternative to the Auth-
+	// Protocol ze advertised, adjust configuredAuthMethod BEFORE the
+	// FSM fires LCPActSCR. The resent CONFREQ is built from
+	// configuredAuthMethod, so the mutation must happen in the same
+	// handleLCPPacket call as the received Nak/Reject.
+	//
+	// Gated on the negotiating states whose RCN edge emits SCR per
+	// the RFC 1661 §4.1 transition table (see lcp_fsm.go). Naks in
+	// Closed / Stopped / Closing / Stopping states are handled with
+	// STA or ignored and never trigger a resend, so mutating the
+	// method there would be wasted work on a stale packet.
+	if pkt.Code == LCPConfigureNak || pkt.Code == LCPConfigureReject {
+		switch cur {
+		case LCPStateReqSent, LCPStateAckSent, LCPStateAckRcvd, LCPStateOpened:
+			s.adjustAuthOnNakOrReject(pkt)
+		case LCPStateInitial, LCPStateStarting, LCPStateClosed,
+			LCPStateStopped, LCPStateClosing, LCPStateStopping:
+			// Nak/Reject in these states never triggers SCR per RFC
+			// 1661 §4.1 transition table: handled with STA (Stopped),
+			// ignored (Starting / Initial), or no-op (Closing /
+			// Stopping). Skip the mutation -- the packet is stale.
+		}
+	}
+
 	ev := codeToEvent(pkt.Code, optsBad)
 
 	tr := LCPDoTransition(cur, ev)
@@ -618,16 +644,13 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 			// RFC 1661 §6.1.
 			s.negotiatedMRU = MaxFrameLen
 		}
-		// Normal (non-proxy) path: we assume the peer ACKed ze's
-		// CONFREQ verbatim and the negotiated method equals the
-		// configured one. That assumption breaks when the peer NAKs
-		// or Rejects the Auth-Protocol option -- the FSM resends
-		// CONFREQ without it and still reaches Opened, but this
-		// assignment keeps `configuredAuthMethod` in force so the
-		// session enters a handler whose wire message the peer will
-		// never send and times out. Tracked deferral 2026-04-17 in
-		// plan/deferrals.md; closes as part of Phase 8 (AC-13 LCP
-		// NAK/Reject fallback).
+		// Normal (non-proxy) path: the effective auth method is
+		// whatever configuredAuthMethod holds at Opened. Phase 8
+		// mutates configuredAuthMethod when the peer Naks or Rejects
+		// the Auth-Protocol option (adjustAuthOnNakOrReject runs
+		// BEFORE the FSM resends CONFREQ), so by the time an Ack
+		// brings us here the field already reflects what the peer
+		// accepted.
 		s.negotiatedAuthMethod = s.configuredAuthMethod
 		mru := s.negotiatedMRU
 		s.mu.Unlock()

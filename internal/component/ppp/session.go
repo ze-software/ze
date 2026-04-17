@@ -41,10 +41,21 @@ type pppSession struct {
 
 	// Configuration captured from StartSession (immutable after
 	// goroutine start).
-	maxMRU               uint16
-	echoInterval         time.Duration
-	echoFailures         uint8
-	authTimeout          time.Duration
+	maxMRU            uint16
+	echoInterval      time.Duration
+	echoFailures      uint8
+	authTimeout       time.Duration
+	authFallbackOrder []AuthMethod
+
+	// configuredAuthMethod is the Auth-Protocol value ze will
+	// advertise in its next LCP Configure-Request. Initialized from
+	// StartSession.AuthMethod by manager.spawnSession BEFORE the
+	// per-session goroutine starts (happens-before established by
+	// the spawn); thereafter it is goroutine-owned. The session
+	// goroutine mutates it on LCP Configure-Nak / Configure-Reject
+	// of the Auth-Protocol option (RFC 1661 §5.3-5.4, spec Phase 8,
+	// AC-13). No lock is held on read/write because the goroutine
+	// is the sole accessor after spawn.
 	configuredAuthMethod AuthMethod
 
 	// Magic-Number for THIS session. Generated via crypto/rand by

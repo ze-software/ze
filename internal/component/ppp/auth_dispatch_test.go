@@ -2,9 +2,349 @@ package ppp
 
 import (
 	"encoding/binary"
+	"net"
 	"testing"
 	"time"
 )
+
+// peerNegotiateReadTimeout bounds the two critical reads in
+// authProtoReplyPeer. Long enough to absorb scheduler jitter, short
+// enough to surface a "ze never sent the expected frame" failure with
+// a clear error instead of deadlocking on an idle net.Pipe.
+const peerNegotiateReadTimeout = 2 * time.Second
+
+// authProtoReplyPeer scripts one side of an LCP negotiation for the
+// NAK / Reject fallback tests. It reads ze's first Configure-Request,
+// checks the Auth-Protocol option matches wantProto, then sends either
+// a Configure-Reject echoing the Auth-Protocol option (when code ==
+// LCPConfigureReject) or a Configure-Nak containing the nakProto
+// suggestion (when code == LCPConfigureNak). The second CONFREQ that
+// ze emits in response is returned on secondCR for the main test to
+// inspect.
+//
+// Both critical reads use SetReadDeadline so a regression where ze
+// stops sending frames surfaces as a localized peer-side timeout with
+// a specific error message rather than deadlocking until the outer
+// test timeout fires. After the second CR is published the goroutine
+// returns; no idle Read loop is kept open, because in these tests ze
+// performs no further wire activity until negotiation timer fires
+// (30 s, well outside the test's scope) or StopSession closes the fd.
+func authProtoReplyPeer(
+	t *testing.T,
+	conn net.Conn,
+	wantProto uint16,
+	code uint8,
+	nakProto uint16,
+	nakAlgo []byte,
+	secondCR chan<- LCPPacket,
+	done chan<- struct{},
+) {
+	t.Helper()
+	defer close(done)
+
+	buf := make([]byte, MaxFrameLen)
+
+	// Read ze's first Configure-Request.
+	if err := conn.SetReadDeadline(time.Now().Add(peerNegotiateReadTimeout)); err != nil {
+		t.Errorf("peer: SetReadDeadline: %v", err)
+		return
+	}
+	n, err := conn.Read(buf)
+	if err != nil {
+		t.Errorf("peer: read first CR: %v", err)
+		return
+	}
+	firstProto, firstPayload, _, err := ParseFrame(buf[:n])
+	if err != nil || firstProto != ProtoLCP {
+		t.Errorf("peer: first frame bad: proto=0x%04x err=%v", firstProto, err)
+		return
+	}
+	firstCR, err := ParseLCPPacket(firstPayload)
+	if err != nil || firstCR.Code != LCPConfigureRequest {
+		t.Errorf("peer: expected CR, got code=%d err=%v", firstCR.Code, err)
+		return
+	}
+	firstOpts, err := ParseLCPOptions(firstCR.Data)
+	if err != nil {
+		t.Errorf("peer: parse CR options: %v", err)
+		return
+	}
+	authData, hasAuth := lookupOption(firstOpts, LCPOptAuthProto)
+	if !hasAuth {
+		t.Errorf("peer: first CR missing Auth-Protocol option")
+		return
+	}
+	if len(authData) < 2 || binary.BigEndian.Uint16(authData[:2]) != wantProto {
+		t.Errorf("peer: first CR Auth-Protocol = %x, want proto 0x%04x", authData, wantProto)
+		return
+	}
+
+	// Build Nak or Reject body containing only the Auth-Protocol
+	// option. For Reject, echo the option verbatim per RFC 1661 §5.4.
+	// For Nak, carry the new suggested protocol per §5.3.
+	out := make([]byte, MaxFrameLen)
+	off := WriteFrame(out, 0, ProtoLCP, nil)
+	dataOff := off + lcpHeaderLen
+	var replyOpt LCPOption
+	if code == LCPConfigureReject {
+		replyOpt = LCPOption{Type: LCPOptAuthProto, Data: authData}
+	} else {
+		replyOpt = authProtoOpt(nakProto, nakAlgo...)
+	}
+	dataLen := WriteLCPOptions(out, dataOff, []LCPOption{replyOpt})
+	off += WriteLCPPacket(out, off, code, firstCR.Identifier, out[dataOff:dataOff+dataLen])
+	if _, err := conn.Write(out[:off]); err != nil {
+		t.Errorf("peer: write reject/nak: %v", err)
+		return
+	}
+
+	// Read ze's second Configure-Request (the resent one).
+	if err := conn.SetReadDeadline(time.Now().Add(peerNegotiateReadTimeout)); err != nil {
+		t.Errorf("peer: SetReadDeadline (second): %v", err)
+		return
+	}
+	n, err = conn.Read(buf)
+	if err != nil {
+		t.Errorf("peer: read second CR: %v", err)
+		return
+	}
+	secondProto, secondPayload, _, err := ParseFrame(buf[:n])
+	if err != nil || secondProto != ProtoLCP {
+		t.Errorf("peer: second frame bad: proto=0x%04x err=%v", secondProto, err)
+		return
+	}
+	secondPkt, err := ParseLCPPacket(secondPayload)
+	if err != nil {
+		t.Errorf("peer: parse second CR: %v", err)
+		return
+	}
+	// Copy the Data slice before sending on the channel because buf
+	// is reused if this goroutine ever re-enters Read (it does not
+	// today, but the copy keeps the channel send decoupled from buf's
+	// lifetime for future refactors).
+	dataCopy := make([]byte, len(secondPkt.Data))
+	copy(dataCopy, secondPkt.Data)
+	secondPkt.Data = dataCopy
+	secondCR <- secondPkt
+}
+
+// VALIDATES: Phase 8 AC: when the peer Configure-Rejects ze's
+//
+//	Auth-Protocol option, the FSM resends CONFREQ WITHOUT
+//	Auth-Protocol and configuredAuthMethod is cleared so the
+//	session later enters runNoAuthPhase instead of a handler
+//	that would wait for a wire message the peer will not send.
+//
+// PREVENTS: regression (deferral 2026-04-17) where the Reject path
+//
+//	keeps configuredAuthMethod in force, the session reaches
+//	Opened advertising an auth method the peer refused, and
+//	times out on the authentication phase.
+func TestAuthProtoRejectClearsMethod(t *testing.T) {
+	reg := newPipeRegistry()
+	installPipeRegistry(t, reg)
+	pair := newPipePair(reg, 16001)
+	defer closeConn(pair.peerEnd)
+
+	ops, _, _ := newFakeOps()
+	d := newTestDriverNoResponder(&fakeBackend{}, ops)
+	if err := d.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer d.Stop()
+
+	secondCR := make(chan LCPPacket, 1)
+	peerDone := make(chan struct{})
+	go authProtoReplyPeer(
+		t, pair.peerEnd,
+		authProtoPAP, LCPConfigureReject, 0, nil,
+		secondCR, peerDone,
+	)
+	t.Cleanup(func() { <-peerDone })
+
+	d.SessionsIn() <- StartSession{
+		TunnelID:   181,
+		SessionID:  281,
+		ChanFD:     16001,
+		UnitFD:     981,
+		UnitNum:    21,
+		LNSMode:    true,
+		MaxMRU:     1500,
+		AuthMethod: AuthMethodPAP,
+	}
+
+	select {
+	case pkt := <-secondCR:
+		if pkt.Code != LCPConfigureRequest {
+			t.Fatalf("second frame code = %d, want LCPConfigureRequest", pkt.Code)
+		}
+		opts, err := ParseLCPOptions(pkt.Data)
+		if err != nil {
+			t.Fatalf("ParseLCPOptions on second CR: %v", err)
+		}
+		if _, ok := lookupOption(opts, LCPOptAuthProto); ok {
+			t.Errorf("second CONFREQ still carries Auth-Protocol after Configure-Reject")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for second CONFREQ")
+	}
+
+	if err := d.StopSession(181, 281); err != nil {
+		t.Logf("StopSession: %v", err)
+	}
+	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
+}
+
+// VALIDATES: Phase 8 AC-13: when the peer Configure-Naks ze's
+//
+//	Auth-Protocol with a different value that IS in ze's
+//	AuthFallbackOrder, the second CONFREQ advertises the
+//	peer's suggested method and configuredAuthMethod tracks
+//	the change.
+//
+// PREVENTS: regression where a Nak triggers either a blind drop of
+//
+//	Auth-Protocol (losing the opportunity to fall back to
+//	CHAP/MS-CHAPv2) or an infinite resend of the same
+//	rejected value.
+func TestAuthFallbackOnNakDispatches(t *testing.T) {
+	reg := newPipeRegistry()
+	installPipeRegistry(t, reg)
+	pair := newPipePair(reg, 16101)
+	defer closeConn(pair.peerEnd)
+
+	ops, _, _ := newFakeOps()
+	d := newTestDriverNoResponder(&fakeBackend{}, ops)
+	if err := d.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer d.Stop()
+
+	secondCR := make(chan LCPPacket, 1)
+	peerDone := make(chan struct{})
+	go authProtoReplyPeer(
+		t, pair.peerEnd,
+		authProtoPAP, LCPConfigureNak,
+		authProtoCHAP, []byte{chapAlgorithmMD5},
+		secondCR, peerDone,
+	)
+	t.Cleanup(func() { <-peerDone })
+
+	d.SessionsIn() <- StartSession{
+		TunnelID:   182,
+		SessionID:  282,
+		ChanFD:     16101,
+		UnitFD:     982,
+		UnitNum:    22,
+		LNSMode:    true,
+		MaxMRU:     1500,
+		AuthMethod: AuthMethodPAP,
+		// Explicit order so the test does not depend on the package
+		// default silently matching CHAP-MD5.
+		AuthFallbackOrder: []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2},
+	}
+
+	select {
+	case pkt := <-secondCR:
+		if pkt.Code != LCPConfigureRequest {
+			t.Fatalf("second frame code = %d, want LCPConfigureRequest", pkt.Code)
+		}
+		opts, err := ParseLCPOptions(pkt.Data)
+		if err != nil {
+			t.Fatalf("ParseLCPOptions on second CR: %v", err)
+		}
+		data, ok := lookupOption(opts, LCPOptAuthProto)
+		if !ok {
+			t.Fatalf("second CONFREQ missing Auth-Protocol after Nak (want CHAP-MD5)")
+		}
+		if len(data) < 3 {
+			t.Fatalf("Auth-Protocol data too short: %x", data)
+		}
+		proto := binary.BigEndian.Uint16(data[:2])
+		if proto != authProtoCHAP {
+			t.Errorf("second CONFREQ Auth-Protocol = 0x%04x, want 0x%04x (CHAP)",
+				proto, authProtoCHAP)
+		}
+		if data[2] != chapAlgorithmMD5 {
+			t.Errorf("second CONFREQ CHAP Algorithm = 0x%02x, want 0x%02x (MD5)",
+				data[2], chapAlgorithmMD5)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for second CONFREQ")
+	}
+
+	if err := d.StopSession(182, 282); err != nil {
+		t.Logf("StopSession: %v", err)
+	}
+	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
+}
+
+// VALIDATES: Phase 8: when the peer Configure-Naks with a suggestion
+//
+//	that is NOT in ze's AuthFallbackOrder, the next
+//	CONFREQ drops the Auth-Protocol option entirely so the
+//	session proceeds with runNoAuthPhase rather than
+//	re-sending a method the peer already rejected.
+//
+// PREVENTS: regression where a non-matching Nak silently keeps the
+//
+//	rejected method in force, or where fallback ignores the
+//	order list.
+func TestAuthFallbackOnNakExhaustsToNone(t *testing.T) {
+	reg := newPipeRegistry()
+	installPipeRegistry(t, reg)
+	pair := newPipePair(reg, 16201)
+	defer closeConn(pair.peerEnd)
+
+	ops, _, _ := newFakeOps()
+	d := newTestDriverNoResponder(&fakeBackend{}, ops)
+	if err := d.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer d.Stop()
+
+	secondCR := make(chan LCPPacket, 1)
+	peerDone := make(chan struct{})
+	// Peer suggests PAP, but order only accepts CHAP-MD5 -- so the
+	// fallback should collapse to None.
+	go authProtoReplyPeer(
+		t, pair.peerEnd,
+		authProtoCHAP, LCPConfigureNak,
+		authProtoPAP, nil,
+		secondCR, peerDone,
+	)
+	t.Cleanup(func() { <-peerDone })
+
+	d.SessionsIn() <- StartSession{
+		TunnelID:          183,
+		SessionID:         283,
+		ChanFD:            16201,
+		UnitFD:            983,
+		UnitNum:           23,
+		LNSMode:           true,
+		MaxMRU:            1500,
+		AuthMethod:        AuthMethodCHAPMD5,
+		AuthFallbackOrder: []AuthMethod{AuthMethodCHAPMD5},
+	}
+
+	select {
+	case pkt := <-secondCR:
+		opts, err := ParseLCPOptions(pkt.Data)
+		if err != nil {
+			t.Fatalf("ParseLCPOptions on second CR: %v", err)
+		}
+		if _, ok := lookupOption(opts, LCPOptAuthProto); ok {
+			t.Errorf("second CONFREQ carries Auth-Protocol after non-matching Nak; want it cleared to None")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for second CONFREQ")
+	}
+
+	if err := d.StopSession(183, 283); err != nil {
+		t.Logf("StopSession: %v", err)
+	}
+	drainEventsBest(t, d.EventsOut(), 2, 500*time.Millisecond)
+}
 
 // buildPAPRequestFrame assembles a full PAP Authenticate-Request
 // wrapped in a PPP frame for delivery over a net.Pipe. Used by the

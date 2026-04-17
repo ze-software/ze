@@ -95,6 +95,187 @@ func TestAuthMethodRoundTrip(t *testing.T) {
 	}
 }
 
+// VALIDATES: selectAuthFallback picks the peer's suggested method when
+//
+//	it is present in ze's fallback order, and returns
+//	AuthMethodNone otherwise. The order list is consulted
+//	for membership only -- position does not downgrade a
+//	matched method to an earlier one.
+//
+// PREVENTS: regression where an empty order or an order that omits the
+//
+//	peer's choice silently permits the rejected method, and
+//	regression where a matched suggestion is rewritten to the
+//	first list entry instead of returned verbatim.
+func TestSelectAuthFallback(t *testing.T) {
+	full := []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2, AuthMethodPAP}
+	cases := []struct {
+		name       string
+		suggestion AuthMethod
+		order      []AuthMethod
+		want       AuthMethod
+	}{
+		{"peer suggests CHAP-MD5, in full order", AuthMethodCHAPMD5, full, AuthMethodCHAPMD5},
+		{"peer suggests MS-CHAPv2, in full order", AuthMethodMSCHAPv2, full, AuthMethodMSCHAPv2},
+		{"peer suggests PAP, in full order", AuthMethodPAP, full, AuthMethodPAP},
+		{"peer suggests PAP, CHAP-only order", AuthMethodPAP, []AuthMethod{AuthMethodCHAPMD5}, AuthMethodNone},
+		{"peer suggests None (degenerate)", AuthMethodNone, full, AuthMethodNone},
+		{"nil order", AuthMethodPAP, nil, AuthMethodNone},
+		{"empty order", AuthMethodCHAPMD5, []AuthMethod{}, AuthMethodNone},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := selectAuthFallback(tc.suggestion, tc.order)
+			if got != tc.want {
+				t.Errorf("got %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// VALIDATES: adjustAuthOnNakOrReject mutates configuredAuthMethod
+//
+//	correctly for each RFC 1661 §5.3/§5.4 code+payload
+//	combination, and leaves the field untouched when the
+//	packet carries no Auth-Protocol option or when the
+//	option bytes cannot be decoded.
+//
+// PREVENTS: regression where the helper silently mutates for unrelated
+//
+//	options (e.g., a Nak of MRU should NOT clear the auth
+//	method), or where malformed Auth-Protocol bytes are
+//	interpreted as valid methods, or where a short option
+//	(<2 bytes) crashes the uint16 decode.
+func TestAdjustAuthOnNakOrReject(t *testing.T) {
+	// Helper: build an LCP options payload from the supplied options.
+	buildData := func(opts []LCPOption) []byte {
+		buf := make([]byte, 256)
+		n := WriteLCPOptions(buf, 0, opts)
+		return buf[:n]
+	}
+
+	cases := []struct {
+		name       string
+		start      AuthMethod
+		order      []AuthMethod
+		code       uint8
+		data       []byte
+		wantMethod AuthMethod
+	}{
+		{
+			name:       "Reject echoing Auth-Protocol clears method",
+			start:      AuthMethodPAP,
+			order:      []AuthMethod{AuthMethodCHAPMD5, AuthMethodPAP},
+			code:       LCPConfigureReject,
+			data:       buildData([]LCPOption{authProtoOpt(authProtoPAP)}),
+			wantMethod: AuthMethodNone,
+		},
+		{
+			name:       "Reject of unrelated MRU option leaves method alone",
+			start:      AuthMethodPAP,
+			order:      []AuthMethod{AuthMethodCHAPMD5, AuthMethodPAP},
+			code:       LCPConfigureReject,
+			data:       buildData([]LCPOption{mruOpt(1500)}),
+			wantMethod: AuthMethodPAP,
+		},
+		{
+			name:       "Nak suggesting CHAP-MD5 when in order accepts it",
+			start:      AuthMethodPAP,
+			order:      []AuthMethod{AuthMethodCHAPMD5, AuthMethodPAP},
+			code:       LCPConfigureNak,
+			data:       buildData([]LCPOption{authProtoOpt(authProtoCHAP, chapAlgorithmMD5)}),
+			wantMethod: AuthMethodCHAPMD5,
+		},
+		{
+			name:       "Nak suggesting method not in order clears to None",
+			start:      AuthMethodCHAPMD5,
+			order:      []AuthMethod{AuthMethodCHAPMD5},
+			code:       LCPConfigureNak,
+			data:       buildData([]LCPOption{authProtoOpt(authProtoPAP)}),
+			wantMethod: AuthMethodNone,
+		},
+		{
+			name:       "Nak of unrelated MRU option leaves method alone",
+			start:      AuthMethodPAP,
+			order:      []AuthMethod{AuthMethodPAP},
+			code:       LCPConfigureNak,
+			data:       buildData([]LCPOption{mruOpt(1500)}),
+			wantMethod: AuthMethodPAP,
+		},
+		{
+			name:       "Auth-Protocol option with 1-byte data clears to None",
+			start:      AuthMethodPAP,
+			order:      []AuthMethod{AuthMethodPAP},
+			code:       LCPConfigureNak,
+			data:       []byte{LCPOptAuthProto, 0x03, 0xC0}, // Length=3, one proto byte
+			wantMethod: AuthMethodNone,
+		},
+		{
+			name:       "Malformed option stream (parse error) leaves method alone",
+			start:      AuthMethodPAP,
+			order:      []AuthMethod{AuthMethodPAP},
+			code:       LCPConfigureNak,
+			data:       []byte{0x03, 0x00}, // Length=0 is below header minimum
+			wantMethod: AuthMethodPAP,
+		},
+		{
+			name:       "Empty data leaves method alone",
+			start:      AuthMethodPAP,
+			order:      []AuthMethod{AuthMethodPAP},
+			code:       LCPConfigureReject,
+			data:       nil,
+			wantMethod: AuthMethodPAP,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &pppSession{
+				configuredAuthMethod: tc.start,
+				authFallbackOrder:    tc.order,
+				logger:               discardLogger(),
+			}
+			pkt := LCPPacket{
+				Code:       tc.code,
+				Identifier: 1,
+				Data:       tc.data,
+			}
+			s.adjustAuthOnNakOrReject(pkt)
+			if s.configuredAuthMethod != tc.wantMethod {
+				t.Errorf("configuredAuthMethod = %v, want %v", s.configuredAuthMethod, tc.wantMethod)
+			}
+		})
+	}
+}
+
+// VALIDATES: defaultAuthFallbackOrder matches the spec AC-13 guidance
+//
+//	"prefer CHAP > MS-CHAPv2 > PAP" and returns a fresh
+//	slice on every call (no shared mutation hazard).
+//
+// PREVENTS: regression where the default order is silently reshuffled
+//
+//	to put PAP (cleartext on wire) before CHAP.
+func TestDefaultAuthFallbackOrder(t *testing.T) {
+	a := defaultAuthFallbackOrder()
+	want := []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2, AuthMethodPAP}
+	if len(a) != len(want) {
+		t.Fatalf("length = %d, want %d", len(a), len(want))
+	}
+	for i, m := range want {
+		if a[i] != m {
+			t.Errorf("index %d = %v, want %v", i, a[i], m)
+		}
+	}
+
+	// Mutate one copy and verify the next call is unaffected.
+	a[0] = AuthMethodPAP
+	b := defaultAuthFallbackOrder()
+	if b[0] != AuthMethodCHAPMD5 {
+		t.Errorf("mutation of first call leaked into second: b[0] = %v", b[0])
+	}
+}
+
 // VALIDATES: awaitAuthDecision emits the request, returns the handler's
 //
 //	decision on authRespCh, and does NOT fire the timeout

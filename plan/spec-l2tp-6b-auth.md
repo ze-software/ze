@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-l2tp-6a-lcp-base |
-| Phase | 7/9 |
+| Phase | 8/9 |
 | Updated | 2026-04-17 |
 
 ## Scope Changes (2026-04-16)
@@ -438,6 +438,33 @@ RFC 2759 strict 49-byte Response, Reserved-must-be-zero, Flags-must-be-zero.
 `chapIdentifier` shared with CHAP-MD5 (LCP negotiates one method per session).
 `rfc/short/rfc2759.md` summary written.
 
+**Phase 8 (2026-04-17):** LCP Configure-Nak / Configure-Reject
+fallback for the Auth-Protocol option.
+
+- New `StartSession.AuthFallbackOrder []AuthMethod` field; zero-value
+  defers to `defaultAuthFallbackOrder()` which returns `[CHAP-MD5,
+  MS-CHAPv2, PAP]` per AC-13 (prefer CHAP > MS-CHAPv2 > PAP; PAP last
+  because it sends cleartext on the wire).
+- `pppSession` gains `authFallbackOrder []AuthMethod` (immutable from
+  StartSession). `configuredAuthMethod` reclassified from "immutable
+  after goroutine start" to "goroutine-owned mutable" so the session
+  can rewrite its next-CONFREQ intent on Nak/Reject.
+- `selectAuthFallback(peerSuggestion, order)` pure helper in `auth.go`:
+  returns peer's suggestion iff it appears in the ordered list,
+  otherwise `AuthMethodNone`.
+- `adjustAuthOnNakOrReject(pkt)` method consulted by `handleLCPPacket`
+  BEFORE `LCPDoTransition`. On Configure-Reject of Auth-Protocol:
+  clears the method. On Configure-Nak: decodes the peer's Auth-
+  Protocol suggestion and applies `selectAuthFallback`.
+- `handleLCPPacket` at LCP-Opened now trusts that `configuredAuthMethod`
+  is the effective method; the stale "assumption breaks on Nak/Reject"
+  comment is gone.
+- Three integration tests via scripted peer: `TestAuthProtoRejectClears
+  Method`, `TestAuthFallbackOnNakDispatches`, `TestAuthFallbackOnNak
+  ExhaustsToNone`. Two pure-helper unit tests:
+  `TestSelectAuthFallback`, `TestDefaultAuthFallbackOrder`.
+- Deferral `2026-04-17` closed in `plan/deferrals.md`.
+
 **Phase 7 (2026-04-17):** auth dispatch integration.
 
 - `StartSession.AuthMethod` field threaded through `spawnSession` into
@@ -498,6 +525,22 @@ RFC 2759 strict 49-byte Response, Reserved-must-be-zero, Flags-must-be-zero.
 - **Phase 8 / 9 still open**: LCP NAK / Reject fallback (AC-13), periodic
   re-auth (AC-14), and the full end-to-end net.Pipe functional tests
   remain. Handover at `tmp/handover-l2tp-6b-phase8.md`.
+- **Phase 8 scope limited to Auth-Protocol.** AC-13 calls for fallback on
+  Auth-Protocol Nak. Ze does NOT interpret Nak / Reject payloads for
+  any other LCP option (MRU, Magic, ACCM, PFC, ACFC); the FSM simply
+  resends the same CONFREQ values until `defaultNegoTimeout` fires or
+  the peer relents. This matches pre-Phase-8 behavior and is out of
+  scope; a future hardening pass would close it across all options.
+- **Phase 8 normal-path end-to-end deferred to Phase 9.** The three
+  Phase 8 integration tests (`TestAuthProtoRejectClearsMethod`,
+  `TestAuthFallbackOnNakDispatches`, `TestAuthFallbackOnNakExhaustsToNone`)
+  assert on ze's second CONFREQ bytes. They stop before the peer ACKs
+  the second CR, so `runAuthPhase` is not driven end-to-end on the
+  normal path. Decision E in `tmp/handover-l2tp-6b-phase8.md` tracks
+  this: when Phase 9 adds the PAP / CHAP / MS-CHAPv2 normal-path
+  dispatch tests, extend them to also cover the post-fallback auth
+  method reaching `runPAPAuthPhase` / `runCHAPAuthPhase` /
+  `runMSCHAPv2AuthPhase`.
 
 ## Implementation Audit
 

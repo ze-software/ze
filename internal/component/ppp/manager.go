@@ -359,6 +359,11 @@ func (d *Driver) spawnSession(start StartSession) {
 		maxMRU = MaxFrameLen
 	}
 
+	fallback := start.AuthFallbackOrder
+	if len(fallback) == 0 {
+		fallback = defaultAuthFallbackOrder()
+	}
+
 	s := &pppSession{
 		tunnelID:             start.TunnelID,
 		sessionID:            start.SessionID,
@@ -370,6 +375,7 @@ func (d *Driver) spawnSession(start StartSession) {
 		echoInterval:         start.EchoInterval,
 		echoFailures:         start.EchoFailures,
 		authTimeout:          start.AuthTimeout,
+		authFallbackOrder:    fallback,
 		configuredAuthMethod: start.AuthMethod,
 		backend:              d.backend,
 		ops:                  d.ops,
