@@ -101,6 +101,7 @@ Test patterns, infrastructure, chaos testing.
 - [274](plan/learned/274-spec-test-diagnostics.md) -- Test diagnostic improvements
 - [258](plan/learned/258-bgp-chaos-families.md) -- Chaos family fuzzing
 - [265](plan/learned/265-bgp-chaos-selftest.md) -- Chaos self-test patterns
+- [608](plan/learned/608-concurrent-test-patterns.md) -- Concurrent-test flake patterns (locked-write/unlocked-read, subscribe-before-broadcast, gate-handler, barrier FIFO, cleanup-drains-work)
 
 ## Gotchas
 

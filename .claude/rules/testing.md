@@ -194,6 +194,11 @@ Tests organized by concern in `test/editor/`: `commands/`, `completion/`, `lifec
 | Completion test fails intermittently | Real bug, not flaky | Check `completeShowPath` includes YANG schema children |
 | Inter-message timing in plugin tests | Sleep too tight under load | Increase inter-message delay or use synchronization |
 
+Flake-shape catalogue (locked-write/unlocked-read, subscribe-before-broadcast,
+gate-handler queue state, barrier FIFO, cleanup-drains-work, fixed-port
+SO_REUSEPORT gate, test-fake pool IDs): `plan/learned/608-concurrent-test-patterns.md`.
+Read it before investigating a new race or isolation flake.
+
 ## Reactor Concurrency Code (BLOCKING)
 
 When touching `internal/component/bgp/reactor/session*.go`, `forward_pool*.go`,
