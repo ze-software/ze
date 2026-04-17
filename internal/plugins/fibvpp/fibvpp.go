@@ -56,6 +56,10 @@ func getEventBus() ze.EventBus {
 }
 
 // fibVPPConfig holds parsed fib/vpp config values.
+// batch-size and batch-interval-ms are accepted by the parser (YANG leaves
+// exist) but not consumed: sysRIB already delivers per-family batches and
+// VPP's IPRouteAddDel is per-route, so cross-emission accumulation adds
+// complexity for zero benefit today.
 type fibVPPConfig struct {
 	tableID uint32
 }

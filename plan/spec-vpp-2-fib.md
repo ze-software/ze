@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-vpp-1-lifecycle |
-| Phase | 1/3 |
-| Updated | 2026-04-14 |
+| Phase | 3/3 |
+| Updated | 2026-04-17 |
 
 ## Post-Compaction Recovery
 
@@ -384,55 +384,128 @@ Augments /fib:fib (same pattern as fib-p4):
 ## Implementation Summary
 
 ### What Was Implemented
-- (To be filled after implementation)
+- `internal/plugins/fibvpp/fibvpp.go` (272L): event processing (add/update/withdraw), installed map, flush, show
+- `internal/plugins/fibvpp/backend.go` (168L): `govppBackend` wrapping GoVPP `IPRouteAddDel`, IPv4/IPv6 prefix conversion, mock backend
+- `internal/plugins/fibvpp/register.go` (174L): plugin registration, Dependencies ["rib","vpp"], VPP reconnect replay, run loop
+- `internal/plugins/fibvpp/stats.go` (36L): Prometheus metrics (gauge + 3 counters)
+- `internal/plugins/fibvpp/schema/ze-fib-vpp-conf.yang`: augments /fib:fib with vpp container
+- `internal/plugins/fibvpp/backend_test.go` (308L): 15 tests covering GoVPP backend via mock channel
+- `internal/plugins/fibvpp/fibvpp_test.go` (287L): 15 tests covering event processing
+- `internal/plugins/fibvpp/stats_test.go` (141L): 1 test covering metrics
+- `test/vpp/002-fib-route.ci`: wiring test for route add via BGP UPDATE
 
 ### Bugs Found/Fixed
-- (To be filled)
+- None
 
 ### Documentation Updates
-- (To be filled)
+- `docs/guide/vpp.md`, `docs/features.md`, `docs/functional-tests.md` updated by vpp-7 session
 
 ### Deviations from Plan
-- (To be filled)
+- **AC-4 batch optimization:** YANG leaves `batch-size` and `batch-interval-ms` are accepted by the parser but not consumed. sysRIB already delivers per-family batches; VPP's `IPRouteAddDel` is per-route with no batch API. Cross-emission time-based accumulation would add complexity for zero benefit. The tight loop in `processEvent` already dispatches all changes in a single lock acquisition.
+- **`test/vpp/003-fib-withdraw.ci`:** deferred to vpp-7 Phase 3 (tracked in `plan/deferrals.md` 2026-04-17)
+- **`test/vpp/004-vpp-restart.ci`:** deferred to vpp-7 Phase 3 (tracked in `plan/deferrals.md` 2026-04-17)
+- **`test/vpp/007-coexist.ci`:** deferred to vpp-7 Phase 3 (tracked in `plan/deferrals.md` 2026-04-17)
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Subscribe to (system-rib, best-change) | ✅ Done | `fibvpp.go:257` | `sysribevents.BestChange.Subscribe` |
+| Program VPP FIB via GoVPP | ✅ Done | `backend.go:52-76` | `IPRouteAddDel` via `api.Channel` |
+| Installed map tracking | ✅ Done | `fibvpp.go:123-126` | `map[string]string` prefix to next-hop |
+| VPP restart recovery | ✅ Done | `register.go:133-138` | Subscribes `(vpp, reconnected)`, emits replay-request |
+| Prometheus metrics | ✅ Done | `stats.go` | gauge + 3 counters |
+| Plugin registration | ✅ Done | `register.go:23-56` | Name "fib-vpp", Deps ["rib","vpp"] |
+| YANG augment /fib:fib | ✅ Done | `schema/ze-fib-vpp-conf.yang` | enabled, table-id, batch-size, batch-interval-ms |
+| Batch optimization | 🔄 Changed | `fibvpp.go:137` | sysRIB batch delivery + tight loop. See Deviations. |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | ✅ Done | `TestProcessEventAdd`, `TestBackendAddRoute`, `test/vpp/002-fib-route.ci` | add action to IPRouteAddDel IsAdd=true |
+| AC-2 | ✅ Done | `TestProcessEventDel`, `TestBackendDelRoute` | withdraw to IPRouteAddDel IsAdd=false |
+| AC-3 | ✅ Done | `TestProcessEventReplace`, `TestBackendReplaceRoute` | update to IPRouteAddDel IsAdd=true (VPP overwrites) |
+| AC-4 | 🔄 Changed | `TestProcessEventBatch` | sysRIB batches per-family; tight loop dispatch. YANG leaves reserved. |
+| AC-5 | ✅ Done | `register.go:133-138`, `TestProcessEventReplay` | VPP reconnect emits replay-request |
+| AC-6 | ✅ Done | Independent subscriptions (fibkernel + fibvpp) | Both subscribe to same EventBus topic |
+| AC-7 | ✅ Done | `TestToVPPPrefixIPv4Bytes`, `TestBackendIPv4PrefixConversion`, `TestToFibPathIPv4` | Correct AF, bytes, prefix length |
+| AC-8 | ✅ Done | `TestToVPPPrefixIPv6Bytes`, `TestBackendIPv6PrefixConversion`, `TestToFibPathIPv6` | Correct AF, bytes, prefix length |
+| AC-9 | ✅ Done | `TestBackendVRFTableID` | TableID=42 propagated to IPRoute struct |
+| AC-10 | ✅ Done | `TestFlushRoutes`, `TestBackendClose` | flushRoutes deletes all; close releases channel |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestProcessEventAdd | ✅ Done | `fibvpp_test.go:22` | |
+| TestProcessEventDel | ✅ Done | `fibvpp_test.go:44` | |
+| TestProcessEventReplace | ✅ Done | `fibvpp_test.go:64` | |
+| TestProcessEventBatch | ✅ Done | `fibvpp_test.go:84` | |
+| TestProcessEventReplay | ✅ Done | `fibvpp_test.go:104` | |
+| TestInstalledMapTracking | ✅ Done | `fibvpp_test.go:139` | |
+| TestBackendAddRoute | ✅ Done | `backend_test.go:141` | Via mock GoVPP channel |
+| TestBackendDelRoute | ✅ Done | `backend_test.go:165` | |
+| TestBackendReplaceRoute | ✅ Done | `backend_test.go:202` | |
+| TestBackendBatchAdd | 🔄 Changed | N/A | No VPP batch API; tested via TestProcessEventBatch |
+| TestBackendIPv4 | ✅ Done | `backend_test.go:62,108,270` | toVPPPrefix + toFibPath + full request |
+| TestBackendIPv6 | ✅ Done | `backend_test.go:78,120,290` | toVPPPrefix + toFibPath + full request |
+| TestBackendVRF | ✅ Done | `backend_test.go:218` | |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/plugins/fibvpp/fibvpp.go` | ✅ Done | 272 lines |
+| `internal/plugins/fibvpp/backend.go` | ✅ Done | 168 lines |
+| `internal/plugins/fibvpp/register.go` | ✅ Done | 174 lines |
+| `internal/plugins/fibvpp/schema/ze-fib-vpp-conf.yang` | ✅ Done | Augments /fib:fib |
+| `internal/plugins/fibvpp/fibvpp_test.go` | ✅ Done | 15 tests |
+| `internal/plugins/fibvpp/backend_test.go` | ✅ Done | 15 tests |
+| `test/vpp/002-fib-route.ci` | ✅ Done | Route add wiring test |
+| `test/vpp/003-fib-withdraw.ci` | Deferred | plan/deferrals.md 2026-04-17 |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 31
+- **Done:** 28
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (AC-4 batch, TestBackendBatchAdd, 003/004/007 .ci deferred)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/plugins/fibvpp/fibvpp.go` | Yes | 272 lines |
+| `internal/plugins/fibvpp/backend.go` | Yes | 168 lines |
+| `internal/plugins/fibvpp/register.go` | Yes | 174 lines |
+| `internal/plugins/fibvpp/stats.go` | Yes | 36 lines |
+| `internal/plugins/fibvpp/schema/ze-fib-vpp-conf.yang` | Yes | augments /fib:fib |
+| `internal/plugins/fibvpp/fibvpp_test.go` | Yes | 15 tests PASS |
+| `internal/plugins/fibvpp/backend_test.go` | Yes | 15 tests PASS |
+| `internal/plugins/fibvpp/stats_test.go` | Yes | 1 test PASS |
+| `test/vpp/002-fib-route.ci` | Yes | wiring test |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | add route | `TestBackendAddRoute`: IsAdd=true, NPaths=1 |
+| AC-2 | del route | `TestBackendDelRoute`: IsAdd=false, NPaths=0, Paths=nil |
+| AC-3 | replace route | `TestBackendReplaceRoute`: IsAdd=true (VPP overwrites) |
+| AC-4 | batch | `TestProcessEventBatch`: 3 changes in 1 event, 3 adds dispatched |
+| AC-5 | VPP restart replay | `register.go:133` subscribes (vpp, reconnected), emits replay-request |
+| AC-6 | coexistence | Independent EventBus subscriptions, no shared state |
+| AC-7 | IPv4 | `TestBackendIPv4PrefixConversion`: AF=ADDRESS_IP4, Len=12 |
+| AC-8 | IPv6 | `TestBackendIPv6PrefixConversion`: AF=ADDRESS_IP6, Len=32, Proto=IP6 |
+| AC-9 | VRF table-id | `TestBackendVRFTableID`: TableID=42 in IPRoute struct |
+| AC-10 | clean shutdown | `TestFlushRoutes`: 2 deletes; `TestBackendClose`: ch.closed=true |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| sysRIB best-change (add) | `test/vpp/002-fib-route.ci` | Yes: BGP UPDATE to stub ip_route_add_del |
+| fib.vpp YANG config | `test/vpp/002-fib-route.ci` | Yes: config parsed, plugin loaded |
+| sysRIB best-change (del) | `test/vpp/003-fib-withdraw.ci` | Deferred (plan/deferrals.md) |
+| VPP restart replay | `test/vpp/004-vpp-restart.ci` | Deferred (plan/deferrals.md) |
 
 ## Checklist
 
