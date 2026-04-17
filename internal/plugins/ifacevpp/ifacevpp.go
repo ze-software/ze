@@ -1,5 +1,7 @@
 // Design: docs/research/vpp-deployment-reference.md -- VPP interface management via GoVPP
 // Detail: naming.go -- ze name to VPP SwIfIndex bidirectional map
+// Detail: query.go -- ListInterfaces, GetInterface, Get/SetMACAddress
+// Detail: monitor.go -- interface event delivery via WantInterfaceEvents
 //
 // ifacevpp implements iface.Backend for VPP via GoVPP binary API.
 // Registered via iface.RegisterBackend("vpp", factory) in init().
@@ -8,7 +10,9 @@ package ifacevpp
 
 import (
 	"fmt"
+	"log/slog"
 	"net/netip"
+	"sync"
 	"sync/atomic"
 
 	"go.fd.io/govpp/api"
@@ -19,14 +23,18 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 // nextBridgeDomainID is an auto-incrementing bridge domain ID counter.
 var nextBridgeDomainID atomic.Uint32
 
+// loggerPtr is the package-level logger, disabled by default.
+var loggerPtr atomic.Pointer[slog.Logger]
+
 func init() {
 	nextBridgeDomainID.Store(1) // BD 0 is reserved
+	loggerPtr.Store(slogutil.DiscardLogger())
 }
 
 // vppBackendImpl implements iface.Backend using GoVPP.
@@ -34,6 +42,10 @@ type vppBackendImpl struct {
 	ch            api.Channel
 	names         *nameMap
 	bridgeDomains map[string]uint32 // bridge name -> BD ID (separate from SwIfIndex space)
+
+	// monMu guards mon; the pointer is only mutated under the lock.
+	monMu sync.Mutex
+	mon   *monitor
 }
 
 func newVPPBackend() (iface.Backend, error) {
@@ -45,11 +57,18 @@ func newVPPBackend() (iface.Backend, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ifacevpp: GoVPP channel: %w", err)
 	}
-	return &vppBackendImpl{
+	b := &vppBackendImpl{
 		ch:            ch,
 		names:         newNameMap(),
 		bridgeDomains: make(map[string]uint32),
-	}, nil
+	}
+	// Seed the name map from what VPP already knows. Failure is not fatal:
+	// a fresh VPP instance with no DPDK interfaces reports zero entries
+	// and CreateDummy / CreateVLAN add their own names as they execute.
+	if err := b.populateNameMap(); err != nil {
+		loggerPtr.Load().Warn("ifacevpp: populate name map", "err", err)
+	}
+	return b, nil
 }
 
 // errNotSupported returns a descriptive error for operations not available on VPP.
@@ -237,6 +256,13 @@ func (b *vppBackendImpl) ReplaceAddressWithLifetime(ifaceName, cidr string, _, _
 	return b.AddAddress(ifaceName, cidr)
 }
 
+// AddAddressP2P is not yet implemented on the VPP backend: PPP NCPs
+// currently run only against netlink. A real VPP implementation would
+// need an ip_address_add with the peer field populated.
+func (b *vppBackendImpl) AddAddressP2P(_, _, _ string) error {
+	return errNotSupported("AddAddressP2P (PPP NCP not supported on VPP backend yet)")
+}
+
 // --- Route management ---
 
 func (b *vppBackendImpl) AddRoute(_, _, _ string, _ int) error {
@@ -315,26 +341,8 @@ func (b *vppBackendImpl) SetMTU(ifaceName string, mtu int) error {
 	return nil
 }
 
-func (b *vppBackendImpl) SetMACAddress(_, _ string) error {
-	return errNotSupported("SetMACAddress (pending GoVPP SwInterfaceSetMacAddress wiring)")
-}
-
-func (b *vppBackendImpl) GetMACAddress(_ string) (string, error) {
-	return "", errNotSupported("GetMACAddress (pending GoVPP SwInterfaceDump wiring)")
-}
-
 func (b *vppBackendImpl) GetStats(_ string) (*iface.InterfaceStats, error) {
 	return nil, errNotSupported("GetStats (pending GoVPP stats API wiring)")
-}
-
-// --- Query ---
-
-func (b *vppBackendImpl) ListInterfaces() ([]iface.InterfaceInfo, error) {
-	return nil, errNotSupported("ListInterfaces (pending GoVPP SwInterfaceDump wiring)")
-}
-
-func (b *vppBackendImpl) GetInterface(_ string) (*iface.InterfaceInfo, error) {
-	return nil, errNotSupported("GetInterface (pending GoVPP SwInterfaceDump wiring)")
 }
 
 // --- Bridge operations ---
@@ -396,17 +404,13 @@ func (b *vppBackendImpl) RemoveMirror(_ string) error {
 	return errNotSupported("RemoveMirror (pending GoVPP SpanEnableDisableL2 wiring)")
 }
 
-// --- Monitoring ---
-
-func (b *vppBackendImpl) StartMonitor(_ ze.EventBus) error {
-	return errNotSupported("StartMonitor (pending GoVPP WantInterfaceEvents wiring)")
-}
-
-func (b *vppBackendImpl) StopMonitor() {}
-
 // --- Cleanup ---
 
+// Close drains any active monitor and releases the GoVPP channel. Caller
+// MUST call Close when the backend is retired; LoadBackend in iface/backend.go
+// invokes it on re-configuration.
 func (b *vppBackendImpl) Close() error {
+	b.StopMonitor()
 	b.ch.Close()
 	return nil
 }

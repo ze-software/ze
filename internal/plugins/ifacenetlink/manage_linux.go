@@ -188,6 +188,34 @@ func (b *netlinkBackend) RemoveAddress(ifaceName, cidr string) error {
 	return nil
 }
 
+// AddAddressP2P installs a point-to-point address pair on ifaceName:
+// localCIDR as IFA_LOCAL and peerCIDR as IFA_ADDRESS. Used by PPP NCPs
+// after IPCP / IPv6CP negotiation. rtnetlink stores the pair and
+// `ip addr show` renders `<local> peer <peer>`.
+func (b *netlinkBackend) AddAddressP2P(ifaceName, localCIDR, peerCIDR string) error {
+	if err := iface.ValidateIfaceName(ifaceName); err != nil {
+		return fmt.Errorf("iface: add p2p address on %q: %w", ifaceName, err)
+	}
+	local, err := netlink.ParseAddr(localCIDR)
+	if err != nil {
+		return fmt.Errorf("iface: add p2p address local %q on %q: %w", localCIDR, ifaceName, err)
+	}
+	peer, err := netlink.ParseAddr(peerCIDR)
+	if err != nil {
+		return fmt.Errorf("iface: add p2p address peer %q on %q: %w", peerCIDR, ifaceName, err)
+	}
+	local.Peer = peer.IPNet
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("iface: add p2p address on %q: not found: %w", ifaceName, err)
+	}
+	if err := netlink.AddrAdd(link, local); err != nil {
+		return fmt.Errorf("iface: add p2p address %q peer %q on %q: %w",
+			localCIDR, peerCIDR, ifaceName, err)
+	}
+	return nil
+}
+
 func (b *netlinkBackend) ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft int) error {
 	if err := iface.ValidateIfaceName(ifaceName); err != nil {
 		return fmt.Errorf("iface: replace address on %q: %w", ifaceName, err)

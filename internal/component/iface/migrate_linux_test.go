@@ -72,6 +72,9 @@ func (m *mockMigrateBackend) RemoveMirror(_ string) error {
 func (m *mockMigrateBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) error {
 	return fmt.Errorf("mock: not supported")
 }
+func (m *mockMigrateBackend) AddAddressP2P(_, _, _ string) error {
+	return fmt.Errorf("mock: not supported")
+}
 func (m *mockMigrateBackend) AddRoute(_, _, _ string, _ int) error {
 	return fmt.Errorf("mock: not supported")
 }

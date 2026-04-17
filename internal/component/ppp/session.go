@@ -156,4 +156,14 @@ func (s *pppSession) snapshot() SessionInfo {
 type IfaceBackend interface {
 	SetMTU(name string, mtu int) error
 	SetAdminUp(name string) error
+	// AddAddressP2P installs a point-to-point address on pppN after
+	// IPCP negotiation completes (spec-l2tp-6c-ncp AC-5).
+	AddAddressP2P(name, localCIDR, peerCIDR string) error
+	// AddRoute programs the kernel to reach the peer via pppN
+	// (spec-l2tp-6c-ncp AC-6). gateway == "" means "onlink via dev".
+	AddRoute(name, destCIDR, gateway string, metric int) error
+	// RemoveAddress / RemoveRoute undo the above on session teardown
+	// (spec-l2tp-6c-ncp AC-18).
+	RemoveAddress(name, cidr string) error
+	RemoveRoute(name, destCIDR, gateway string, metric int) error
 }

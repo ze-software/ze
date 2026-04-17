@@ -1651,6 +1651,8 @@ func (b *fakeBackend) RemoveAddress(ifaceName, cidr string) error {
 
 func (b *fakeBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) error { return nil }
 
+func (b *fakeBackend) AddAddressP2P(_, _, _ string) error { return nil }
+
 func (b *fakeBackend) AddRoute(ifaceName, destCIDR, gateway string, metric int) error {
 	b.routeAdds = append(b.routeAdds, routeCall{ifaceName, destCIDR, gateway, metric})
 	return nil

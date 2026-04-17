@@ -1,8 +1,15 @@
-// Design: docs/research/l2tpv2-implementation-guide.md -- LCP FSM (RFC 1661 §4)
-// Related: lcp.go -- packet codec the FSM consumes
-// Related: lcp_options.go -- option negotiation the FSM invokes
+// Design: docs/research/l2tpv2-implementation-guide.md -- PPP FSM (RFC 1661 §4)
+// Related: lcp.go -- LCP packet codec driven by this FSM
+// Related: lcp_options.go -- LCP option negotiation invoked from this FSM
 
 package ppp
+
+// The state machine in this file is the "LCP FSM" defined in RFC 1661
+// §4.1-4.4, but per RFC 1661 §2 the same FSM is reused by every
+// Network Control Protocol (IPCP, IPv6CP, CCP, ...). Only the option
+// codec and the code/identifier space differ between protocols; the
+// states, events, actions and transition table are identical. NCP code
+// uses these types directly -- no wrapping, no adapter.
 
 // LCP FSM state. RFC 1661 §4.2 defines the ten states. State numbers
 // match the order in the RFC's transition table for direct cross-

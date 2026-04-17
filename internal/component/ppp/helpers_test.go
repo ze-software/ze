@@ -10,16 +10,42 @@ import (
 
 // fakeBackend records iface.Backend calls for assertions.
 type fakeBackend struct {
-	mu       sync.Mutex
-	mtuCalls []mtuCall
-	upCalls  []string
-	mtuErr   error
-	upErr    error
+	mu             sync.Mutex
+	mtuCalls       []mtuCall
+	upCalls        []string
+	p2pCalls       []p2pCall
+	routeAddCalls  []routeCall
+	addrRemoves    []addrCall
+	routeRemoves   []routeCall
+	mtuErr         error
+	upErr          error
+	addAddrP2PErr  error
+	addRouteErr    error
+	removeAddrErr  error
+	removeRouteErr error
 }
 
 type mtuCall struct {
 	name string
 	mtu  int
+}
+
+type p2pCall struct {
+	name  string
+	local string
+	peer  string
+}
+
+type addrCall struct {
+	name string
+	cidr string
+}
+
+type routeCall struct {
+	name    string
+	dest    string
+	gateway string
+	metric  int
 }
 
 func (f *fakeBackend) SetMTU(name string, mtu int) error {
@@ -36,6 +62,34 @@ func (f *fakeBackend) SetAdminUp(name string) error {
 	return f.upErr
 }
 
+func (f *fakeBackend) AddAddressP2P(name, localCIDR, peerCIDR string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.p2pCalls = append(f.p2pCalls, p2pCall{name, localCIDR, peerCIDR})
+	return f.addAddrP2PErr
+}
+
+func (f *fakeBackend) AddRoute(name, destCIDR, gateway string, metric int) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.routeAddCalls = append(f.routeAddCalls, routeCall{name, destCIDR, gateway, metric})
+	return f.addRouteErr
+}
+
+func (f *fakeBackend) RemoveAddress(name, cidr string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.addrRemoves = append(f.addrRemoves, addrCall{name, cidr})
+	return f.removeAddrErr
+}
+
+func (f *fakeBackend) RemoveRoute(name, destCIDR, gateway string, metric int) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.routeRemoves = append(f.routeRemoves, routeCall{name, destCIDR, gateway, metric})
+	return f.removeRouteErr
+}
+
 func (f *fakeBackend) MTUCalls() []mtuCall {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -49,6 +103,38 @@ func (f *fakeBackend) UpCalls() []string {
 	defer f.mu.Unlock()
 	out := make([]string, len(f.upCalls))
 	copy(out, f.upCalls)
+	return out
+}
+
+func (f *fakeBackend) P2PCalls() []p2pCall {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]p2pCall, len(f.p2pCalls))
+	copy(out, f.p2pCalls)
+	return out
+}
+
+func (f *fakeBackend) RouteAddCalls() []routeCall {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]routeCall, len(f.routeAddCalls))
+	copy(out, f.routeAddCalls)
+	return out
+}
+
+func (f *fakeBackend) AddrRemoveCalls() []addrCall {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]addrCall, len(f.addrRemoves))
+	copy(out, f.addrRemoves)
+	return out
+}
+
+func (f *fakeBackend) RouteRemoveCalls() []routeCall {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]routeCall, len(f.routeRemoves))
+	copy(out, f.routeRemoves)
 	return out
 }
 

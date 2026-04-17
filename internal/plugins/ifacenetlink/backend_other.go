@@ -39,6 +39,7 @@ func (s *stubBackend) DeleteInterface(_ string) error                         { 
 func (s *stubBackend) AddAddress(_, _ string) error                           { return unsupported() }
 func (s *stubBackend) RemoveAddress(_, _ string) error                        { return unsupported() }
 func (s *stubBackend) ReplaceAddressWithLifetime(_, _ string, _, _ int) error { return unsupported() }
+func (s *stubBackend) AddAddressP2P(_, _, _ string) error                     { return unsupported() }
 func (s *stubBackend) AddRoute(_, _, _ string, _ int) error                   { return unsupported() }
 func (s *stubBackend) RemoveRoute(_, _, _ string, _ int) error                { return unsupported() }
 func (s *stubBackend) ListRoutes(_, _ string) ([]iface.RouteInfo, error)      { return nil, unsupported() }

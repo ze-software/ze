@@ -57,6 +57,17 @@ type Backend interface {
 	// address installation. validLft=0 or preferredLft=0 means kernel default.
 	ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft int) error
 
+	// AddAddressP2P installs a point-to-point address on a virtual
+	// interface: IFA_LOCAL holds the local side, IFA_ADDRESS holds the
+	// remote (peer) side. Used by PPP NCPs (IPCP, IPv6CP) and any other
+	// tunnel that needs /32 (/128) addressing with an explicit peer.
+	// Both arguments are CIDR strings; the prefix length is what the
+	// kernel stores and what `ip -d addr show` reports. The address
+	// pair (local, peer) may be unrelated subnets -- this is how PPP
+	// links typically work. Returns an error if the interface does not
+	// exist or the kernel rejects the add.
+	AddAddressP2P(ifaceName, localCIDR, peerCIDR string) error
+
 	// Route management. Used by DHCP to install/remove default gateway.
 	// destCIDR is the destination (e.g., "0.0.0.0/0"), gateway is the
 	// next-hop IP (e.g., "192.168.1.1"), ifaceName scopes the route.
