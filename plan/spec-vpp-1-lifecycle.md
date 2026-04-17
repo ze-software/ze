@@ -162,7 +162,7 @@ Not protocol work. No RFCs apply.
 | AC-8 | LCP enabled in config | startup.conf includes linux-cp and linux-nl sections |
 | AC-9 | LCP disabled in config | startup.conf omits linux-cp and linux-nl sections |
 | AC-10 | Invalid PCI address in config | OnConfigVerify rejects with clear error message |
-| AC-11 | YANG config env vars | Every `vpp.*` config leaf has matching `ze.vpp.*` env var via env.MustRegister() |
+| ~~AC-11~~ | ~~YANG config env vars~~ | ~~Every `vpp.*` config leaf has matching `ze.vpp.*` env var via env.MustRegister()~~ Struck: VPP config is YANG-only, no env var overrides needed. Config-time decisions (PCI addresses, hugepages, socket paths) are not operational knobs. |
 
 ## 🧪 TDD Test Plan
 
