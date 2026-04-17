@@ -263,7 +263,7 @@ implemented:
 | Phase | What it adds | Why not yet |
 |-------|--------------|-------------|
 | vpp-3 | MPLS label push / swap / pop driven from BGP labelled unicast | Requires a labels field in the sysRIB event payload, which is a separate design task. |
-| vpp-4 | VPP-native `iface.Backend`: managing interfaces directly via GoVPP instead of through the kernel | Depends on vpp-1, roughly 2000 LOC. |
+| vpp-4 | VPP-native `iface.Backend`: managing interfaces directly via GoVPP instead of through the kernel | **In tree.** Backend registers as `"vpp"` and loads cleanly under `interface { backend vpp; }`. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (`ListInterfaces`, `GetInterface`, `GetMACAddress`, `SetMACAddress`), and monitor (`WantInterfaceEvents` -> EventBus) all wired against vendored GoVPP. Tunnels (VXLAN/GRE/IPIP), LCP TAP pairs, VPP stats segment, mirror, and wireguard are deferred to vpp-4b/4c/5/6b (each blocked on vendoring the matching `go.fd.io/govpp/binapi/*` package). Iface-component reconciliation also currently races the vpp handshake at startup and degrades to additive-only -- tracked in `spec-iface-vpp-ready-gate`. |
 | vpp-5 | L2 cross-connect, bridge domains, VXLAN tunnels, policers, ACLs, SRv6, sFlow | Depends on vpp-4. Each feature is independent. |
 
 The three-strategy framing in

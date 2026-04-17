@@ -1,0 +1,161 @@
+# Test: ifacevpp registers as the "vpp" iface.Backend and loads cleanly
+#       when ze boots with interface.backend=vpp against the GoVPP stub.
+#
+# Flow: driver.py starts two processes:
+#   1. vpp_stub on a per-test Unix socket with JSONL log.
+#   2. ze with vpp.external=true + vpp.api-socket=<sock> + interface.backend=vpp.
+# Ze's iface component calls LoadBackend("vpp"), ifacevpp connects to the
+# stub, issues a SwInterfaceDump to populate its name map (the stub returns
+# control_ping synchronously -- the dump is empty but the handshake succeeds),
+# and logs "interface backend loaded backend=vpp".
+#
+# VALIDATES: spec-vpp-4 AC-1 -- Backend "vpp" registered and loadable
+#            spec-vpp-4 AC-13 -- populateNameMap runs without hanging
+# PREVENTS:  ifacevpp compiling in isolation but failing to register, or
+#            populateNameMap blocking the iface component startup path.
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Start vpp_stub + ze with interface.backend=vpp; assert clean load."""
+import os
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+
+def _wait_for_socket(path, deadline):
+    while time.time() < deadline:
+        if os.path.exists(path):
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def _find_repo_root():
+    for p in os.environ.get("PYTHONPATH", "").split(os.pathsep):
+        if p and os.path.basename(p) == "scripts":
+            return os.path.dirname(os.path.dirname(p))
+    d = os.getcwd()
+    while d and d != "/":
+        if os.path.isfile(os.path.join(d, "go.mod")):
+            return d
+        d = os.path.dirname(d)
+    raise SystemExit("driver: cannot locate repo root")
+
+
+def main() -> int:
+    repo = _find_repo_root()
+    stub_py = os.path.join(repo, "test", "scripts", "vpp_stub.py")
+    if not os.path.isfile(stub_py):
+        sys.stderr.write(f"driver: stub not found at {stub_py}\n")
+        return 1
+
+    with tempfile.TemporaryDirectory(prefix="ze-vpp-iface-") as tmp:
+        sock = os.path.join(tmp, "api.sock")
+        if len(sock) >= 108:
+            sys.stderr.write(f"driver: socket path too long: {sock}\n")
+            return 1
+        log = os.path.join(tmp, "vpp-requests.jsonl")
+
+        stub = subprocess.Popen(
+            ["python3", stub_py, "--socket", sock, "--log", log,
+             "--deadline", "20", "-v"],
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        try:
+            if not _wait_for_socket(sock, time.time() + 5.0):
+                sys.stderr.write("driver: stub socket did not appear\n")
+                return 1
+
+            cfg = (
+                "environment {\n}\n\n"
+                "bgp {\n"
+                "\trouter-id 10.0.0.1;\n"
+                "\tsession { asn { local 65533; } }\n"
+                "}\n\n"
+                "vpp {\n"
+                "\tenabled true;\n"
+                "\texternal true;\n"
+                f"\tapi-socket {sock};\n"
+                "}\n\n"
+                "interface {\n"
+                "\tbackend vpp;\n"
+                "}\n"
+            )
+
+            env = os.environ.copy()
+            env["ze.log.vpp"] = "info"
+            env["ze.log.interface"] = "info"
+            env["ze.log.bgp"] = "warn"
+            ze = subprocess.Popen(
+                ["ze", "-"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=env,
+            )
+            assert ze.stdin is not None
+            ze.stdin.write(cfg)
+            ze.stdin.close()
+
+            # Drain stderr until we see the backend-loaded line or ze exits.
+            deadline = time.time() + 10.0
+            saw_loaded = False
+            ze_stderr = ""
+            while time.time() < deadline:
+                if ze.stderr is None:
+                    break
+                line = ze.stderr.readline()
+                if not line:
+                    if ze.poll() is not None:
+                        break
+                    time.sleep(0.05)
+                    continue
+                ze_stderr += line
+                sys.stderr.write(line)
+                if "interface backend loaded" in line and "backend=vpp" in line:
+                    saw_loaded = True
+                    break
+
+            # Shut ze down and drain remaining stderr.
+            if ze.poll() is None:
+                ze.send_signal(signal.SIGTERM)
+                try:
+                    ze.wait(timeout=3.0)
+                except subprocess.TimeoutExpired:
+                    ze.kill()
+                    ze.wait(timeout=2.0)
+
+            if ze.stderr is not None:
+                try:
+                    rest = ze.stderr.read()
+                except (ValueError, OSError):
+                    rest = ""
+                ze_stderr += rest
+                sys.stderr.write(rest)
+
+            if not saw_loaded:
+                sys.stderr.write("FAIL: ze did not log 'interface backend loaded backend=vpp'\n")
+                return 1
+            sys.stderr.write("OK: ifacevpp loaded and name map populated\n")
+            return 0
+        finally:
+            if stub.poll() is None:
+                stub.send_signal(signal.SIGTERM)
+                try:
+                    stub.wait(timeout=3.0)
+                except subprocess.TimeoutExpired:
+                    stub.kill()
+                    stub.wait(timeout=2.0)
+
+
+sys.exit(main())
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 ./driver.py:timeout=25s
+expect=exit:code=0
+expect=stderr:pattern=OK: ifacevpp loaded

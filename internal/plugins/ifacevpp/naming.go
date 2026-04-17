@@ -1,4 +1,7 @@
 // Design: docs/research/vpp-deployment-reference.md -- VPP interface naming and LCP TAP mapping
+// Overview: ifacevpp.go -- VPP Backend implementation
+// Related: query.go -- SwInterfaceDump consumers that feed populateNameMap
+// Related: monitor.go -- async SwInterfaceEvent delivery that removes entries
 
 package ifacevpp
 

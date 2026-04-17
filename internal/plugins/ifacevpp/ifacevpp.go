@@ -38,8 +38,22 @@ func init() {
 }
 
 // vppBackendImpl implements iface.Backend using GoVPP.
+//
+// Channel acquisition is lazy. newVPPBackend does NOT dial VPP: the iface
+// component loads backends during its OnConfigure phase, which can run
+// before the vpp component finishes its GoVPP handshake. Eager dialing
+// there would fail with "govpp: not connected" and poison the whole iface
+// configuration. ensureChannel acquires the channel on the first method
+// call that needs it, at which point vpp has had time to connect.
 type vppBackendImpl struct {
-	ch            api.Channel
+	// chMu guards ch, chErr, and chReady.
+	chMu     sync.Mutex
+	ch       api.Channel
+	chErr    error
+	chReady  bool // ch acquired (may be nil in tests that inject directly)
+	chOnce   sync.Once
+	populate sync.Once
+
 	names         *nameMap
 	bridgeDomains map[string]uint32 // bridge name -> BD ID (separate from SwIfIndex space)
 
@@ -49,26 +63,56 @@ type vppBackendImpl struct {
 }
 
 func newVPPBackend() (iface.Backend, error) {
-	connector := vppcomp.GetActiveConnector()
-	if connector == nil {
-		return nil, fmt.Errorf("ifacevpp: VPP connector not available")
-	}
-	ch, err := connector.NewChannel()
-	if err != nil {
-		return nil, fmt.Errorf("ifacevpp: GoVPP channel: %w", err)
-	}
-	b := &vppBackendImpl{
-		ch:            ch,
+	// Do NOT acquire the GoVPP channel yet -- see the comment on
+	// vppBackendImpl. ensureChannel handles first-use acquisition.
+	return &vppBackendImpl{
 		names:         newNameMap(),
 		bridgeDomains: make(map[string]uint32),
+	}, nil
+}
+
+// ensureChannel acquires the GoVPP channel on first use and seeds the name
+// map. Safe to call repeatedly; subsequent calls return the cached result.
+// Tests that inject a channel directly (ch set before first call) short
+// -circuit the connector lookup.
+func (b *vppBackendImpl) ensureChannel() error {
+	b.chOnce.Do(func() {
+		b.chMu.Lock()
+		// Test-injected channel: just mark ready.
+		if b.ch != nil {
+			b.chReady = true
+			b.chMu.Unlock()
+			return
+		}
+		b.chMu.Unlock()
+
+		connector := vppcomp.GetActiveConnector()
+		if connector == nil {
+			b.chErr = fmt.Errorf("ifacevpp: VPP connector not available")
+			return
+		}
+		ch, err := connector.NewChannel()
+		if err != nil {
+			b.chErr = fmt.Errorf("ifacevpp: GoVPP channel: %w", err)
+			return
+		}
+		b.chMu.Lock()
+		b.ch = ch
+		b.chReady = true
+		b.chMu.Unlock()
+	})
+	if b.chErr != nil {
+		return b.chErr
 	}
-	// Seed the name map from what VPP already knows. Failure is not fatal:
-	// a fresh VPP instance with no DPDK interfaces reports zero entries
-	// and CreateDummy / CreateVLAN add their own names as they execute.
-	if err := b.populateNameMap(); err != nil {
-		loggerPtr.Load().Warn("ifacevpp: populate name map", "err", err)
-	}
-	return b, nil
+	// Seed the name map exactly once after the channel is live. Failure
+	// is not fatal: a fresh VPP instance with no DPDK interfaces reports
+	// zero entries and CreateDummy / CreateVLAN add their own names.
+	b.populate.Do(func() {
+		if err := b.populateNameMap(); err != nil {
+			loggerPtr.Load().Warn("ifacevpp: populate name map", "err", err)
+		}
+	})
+	return nil
 }
 
 // errNotSupported returns a descriptive error for operations not available on VPP.
@@ -76,8 +120,14 @@ func errNotSupported(method string) error {
 	return fmt.Errorf("ifacevpp: %s not supported on VPP backend", method)
 }
 
-// resolveIndex looks up the VPP SwIfIndex for a ze interface name.
+// resolveIndex looks up the VPP SwIfIndex for a ze interface name. It also
+// acts as the lazy-channel tripwire for every method that resolves a name
+// before calling VPP: if the channel is not yet up, operations fail fast
+// with a clear error instead of deref-ing a nil channel.
 func (b *vppBackendImpl) resolveIndex(name string) (interface_types.InterfaceIndex, error) {
+	if err := b.ensureChannel(); err != nil {
+		return 0, err
+	}
 	idx, ok := b.names.LookupIndex(name)
 	if !ok {
 		return 0, fmt.Errorf("ifacevpp: unknown interface %q", name)
@@ -87,6 +137,9 @@ func (b *vppBackendImpl) resolveIndex(name string) (interface_types.InterfaceInd
 
 // resolveBridgeDomain looks up the VPP bridge domain ID for a bridge name.
 func (b *vppBackendImpl) resolveBridgeDomain(name string) (uint32, error) {
+	if err := b.ensureChannel(); err != nil {
+		return 0, err
+	}
 	bdID, ok := b.bridgeDomains[name]
 	if !ok {
 		return 0, fmt.Errorf("ifacevpp: unknown bridge domain %q", name)
@@ -97,6 +150,9 @@ func (b *vppBackendImpl) resolveBridgeDomain(name string) (uint32, error) {
 // --- Interface lifecycle ---
 
 func (b *vppBackendImpl) CreateDummy(name string) error {
+	if err := b.ensureChannel(); err != nil {
+		return err
+	}
 	req := &interfaces.CreateLoopback{}
 	reply := &interfaces.CreateLoopbackReply{}
 	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
@@ -114,6 +170,9 @@ func (b *vppBackendImpl) CreateVeth(_, _ string) error {
 }
 
 func (b *vppBackendImpl) CreateBridge(name string) error {
+	if err := b.ensureChannel(); err != nil {
+		return err
+	}
 	bdID := nextBridgeDomainID.Add(1) - 1
 	req := &l2.BridgeDomainAddDelV2{
 		BdID:    bdID,
@@ -408,10 +467,18 @@ func (b *vppBackendImpl) RemoveMirror(_ string) error {
 
 // Close drains any active monitor and releases the GoVPP channel. Caller
 // MUST call Close when the backend is retired; LoadBackend in iface/backend.go
-// invokes it on re-configuration.
+// invokes it on re-configuration. A backend that never acquired a channel
+// (no method call ever succeeded) is safe to close: there is nothing to
+// release on the VPP side.
 func (b *vppBackendImpl) Close() error {
 	b.StopMonitor()
-	b.ch.Close()
+	b.chMu.Lock()
+	ch := b.ch
+	b.ch = nil
+	b.chMu.Unlock()
+	if ch != nil {
+		ch.Close()
+	}
 	return nil
 }
 
