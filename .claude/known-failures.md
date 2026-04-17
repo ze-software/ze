@@ -8,35 +8,6 @@ Resolved flake-investigation knowledge distilled into
 summary before investigating a new concurrency or test-isolation failure --
 the recurring shapes are catalogued there.
 
-## addpath MP_REACH_NLRI mismatch (encode + exabgp suites) -- LOGGED 2026-04-16
-
-**Files:** `test/encode/addpath.ci` test "0 addpath"; `test/exabgp-compat`
-retry test "0 conf-addpath".
-**Symptom under `make ze-verify-fast`:**
-```
-MP_REACH_NLRI: expected=0001800c0000000000000000c0a80001000000000a7004e2c100000064000000640a0000
-got=            0001800c0102030420c10002c0a80001000000000a7004e2c100000064000000640a0000
-```
-Expected encoding has sixteen zero bytes in the next-hop region; received
-encoding has the 8-byte RD from the peer's OPEN NLRI Capability identifier
-followed by a 4-byte RFC 6514 style VPN label payload. Looks like a
-VPN-unicast next-hop encoder that is no longer zero-padding the RD when
-the advertised family is plain `ipv4 addpath`. The `exabgp-compat`
-"conf-addpath" test fails with the same root cause (both suites exercise
-addpath encoding against a peer that negotiates IPv4 addpath).
-**Caused by:** BGP scratch-pool / MVPN encoder work landed 2026-04-16
-(commits `233ff172` "perf(bgp): zero-alloc MVPN NLRI build, bounded
-scratch, UpdateBuilder pool" and `94c0579b` "refactor(bgp): scratch-pool
-UPDATE builder + callback splitter"). Two failing tests (addpath + exabgp
-conf-addpath) share this root cause.
-**Hypothesis to investigate:** one of the recent scratch-pool refactors
-(`update_build_mvpn.go`, `update_split.go`, or `nlri/base.go`) is
-serialising the per-peer NextHop reused across families without
-re-zeroing the RD prefix when the family is non-VPN. Grep for
-`NextHop` + `copy` + `rd[` in those files.
-**Confirmed still broken 2026-04-17:** `bin/ze-test bgp encode 0` fails
-with the same hex mismatch.
-
 ## TestFwdPool_StopUnblocksDispatch (residual flake) -- LOGGED 2026-04-11
 
 **File:** `internal/component/bgp/reactor/forward_pool_stop_test.go`

@@ -225,30 +225,28 @@ func (ub *UpdateBuilder) buildMPReachVPN(p *VPNParams) *rawAttribute {
 	}
 	safi := byte(128) // SAFI MPLS VPN
 
-	// Build next-hop: RD (8 bytes, all zeros) + IP address
-	// RFC 4364: Next-hop for VPN is RD + IP
-	var nhBytes []byte
-	if p.NextHop.Is4() {
-		nhBytes = ub.alloc(12) // 8-byte RD + 4-byte IPv4
-		copy(nhBytes[8:], p.NextHop.AsSlice())
-	} else {
-		nhBytes = ub.alloc(24) // 8-byte RD + 16-byte IPv6
-		copy(nhBytes[8:], p.NextHop.AsSlice())
+	// Next-hop: RD (8 zero bytes) + IP. RFC 4364 Section 4.3.2.
+	nhLen := 12 // 8-byte RD + 4-byte IPv4
+	if p.NextHop.Is6() {
+		nhLen = 24 // 8-byte RD + 16-byte IPv6
 	}
 
 	// Build VPN NLRI: Length + Label + RD + Prefix
 	vpnNLRI := ub.buildVPNNLRIBytes(p)
 
-	// MP_REACH_NLRI value: AFI(2) + SAFI(1) + NH_Len(1) + NextHop + Reserved(1) + NLRI
-	valueLen := 2 + 1 + 1 + len(nhBytes) + 1 + len(vpnNLRI)
+	// MP_REACH_NLRI value: AFI(2) + SAFI(1) + NH_Len(1) + NextHop + Reserved(1) + NLRI.
+	// Writing directly into value (rather than via an intermediate nhBytes slice from
+	// ub.alloc) keeps the RD slot zeroed without relying on scratch-buffer state.
+	valueLen := 2 + 1 + 1 + nhLen + 1 + len(vpnNLRI)
 	value := ub.alloc(valueLen)
 	value[0] = byte(afi >> 8)
 	value[1] = byte(afi)
 	value[2] = safi
-	value[3] = byte(len(nhBytes))
-	copy(value[4:], nhBytes)
-	value[4+len(nhBytes)] = 0 // Reserved
-	copy(value[4+len(nhBytes)+1:], vpnNLRI)
+	value[3] = byte(nhLen)
+	clear(value[4 : 4+8])                         // RD (must be zero per RFC 4364)
+	copy(value[4+8:4+nhLen], p.NextHop.AsSlice()) // IP address
+	value[4+nhLen] = 0                            // Reserved
+	copy(value[4+nhLen+1:], vpnNLRI)
 
 	return &rawAttribute{
 		flags: attribute.FlagOptional,
