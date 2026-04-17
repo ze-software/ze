@@ -165,10 +165,8 @@ Phases vpp-5 and vpp-6 are incremental value adds. Each feature in vpp-5 is inde
   → Constraint: fail on unknown keys, no version numbers, listener grouping pattern
 
 ### RFC Summaries (MUST for protocol work)
-- [ ] `rfc/short/rfc3107.md` - Carrying Label Information in BGP-4 (Phase vpp-3 MPLS)
-  → Constraint: label encoding in NLRI for labeled unicast
-- [ ] `rfc/short/rfc8277.md` - Using BGP to Bind MPLS Labels to Address Prefixes (Phase vpp-3 MPLS)
-  → Constraint: label binding procedures, label stack encoding
+- [ ] `rfc/short/rfc8277.md` - Using BGP to Bind MPLS Labels to Address Prefixes (Phase vpp-3 MPLS; obsoletes RFC 3107)
+  → Constraint: label binding procedures, label stack encoding, labelled unicast NLRI format
 
 **Key insights:**
 - FIB plugins (fibkernel, fibp4) share identical registration + event subscription patterns; fibvpp copies this
@@ -183,9 +181,9 @@ Phases vpp-5 and vpp-6 are incremental value adds. Each feature in vpp-5 is inde
 | Document | Purpose |
 |----------|---------|
 | `docs/research/vpp-deployment-reference.md` | Production values, NIC driver matrix, startup.conf reference, LCP details, performance baselines (from IPng.ch 83 articles) |
-| `docs/research/ze-vpp-plan.md` | Original integration plan with Strategy 1/2/3 analysis and GoVPP API examples |
-| `~/Code/site/ipng.ch/vpp-deployment-notes.md` | Consolidated notes from 83 IPng articles |
-| `~/Code/site/ipng.ch/ze-vpp-analysis.md` | Feasibility analysis with three integration strategies |
+| `docs/research/ze-vpp-analysis.md` | Three-strategy feasibility analysis (strategy 1 LCP-transparent, strategy 2 VPP-native iface backend, strategy 3 direct FIB). Local copy; originally from `~/Code/site/ipng.ch/ze-vpp-analysis.md` |
+| `docs/guide/vpp.md` | Reader-facing user guide. MUST be kept current with every phase that lands (see Documentation Update Checklist). |
+| `docs/research/vpp-deployment-notes.md` | Consolidated notes from 83 IPng articles (local copy; originally from `~/Code/site/ipng.ch/vpp-deployment-notes.md`) |
 | GoVPP documentation (go.fd.io/govpp) | Binary API client, stats client, binapi code generation |
 | VPP 25.02 documentation | API reference for ip, mpls, interface, lcp, acl, policer, srv6, sflow modules |
 
@@ -355,7 +353,7 @@ Umbrella creates no files directly. All files are in child specs.
 | 6 | Has a user guide page? | Yes | `docs/guide/vpp.md` |
 | 7 | Wire format changed? | No | - |
 | 8 | Plugin SDK/protocol changed? | No | - |
-| 9 | RFC behavior implemented? | Yes (MPLS) | `rfc/short/rfc3107.md`, `rfc/short/rfc8277.md` |
+| 9 | RFC behavior implemented? | Yes (MPLS, Phase vpp-3 deferred) | `rfc/short/rfc8277.md` |
 | 10 | Test infrastructure changed? | No | - |
 | 11 | Affects daemon comparison? | Yes | `docs/comparison.md` — add VPP comparison |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` — add VPP component |

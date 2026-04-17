@@ -3,9 +3,9 @@
 Source: 83 blog articles from ipng.ch (Pim van Pelt / IPng Networks, AS8298 / AS50869),
 VyOS VPP integration, and GoVPP documentation.
 
-Full article archive: `~/Code/site/ipng.ch/articles/`
-Consolidated notes: `~/Code/site/ipng.ch/vpp-deployment-notes.md`
-Feasibility analysis: `~/Code/site/ipng.ch/ze-vpp-analysis.md`
+Full article archive: `~/Code/site/ipng.ch/articles/` (external, not checked in)
+Consolidated notes: `docs/research/vpp-deployment-notes.md`
+Feasibility analysis: `docs/research/ze-vpp-analysis.md`
 
 ## Production Architecture (IPng AS8298)
 

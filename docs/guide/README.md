@@ -45,6 +45,7 @@
 | [BGP Role](bgp-role.md) | Prevent route leaks | OTC attribute filtering (RFC 9234) |
 | [Monitoring](monitoring.md) | Watch sessions and routes | Real-time event streaming, JSON format |
 | [Route Injection](route-injection.md) | Announce routes at runtime | Text, hex, base64 UPDATE commands, commit workflow |
+| [VPP Data Plane](vpp.md) | High-throughput forwarding | Ze manages VPP lifecycle and programs its FIB directly via GoVPP |
 
 ## Operations
 

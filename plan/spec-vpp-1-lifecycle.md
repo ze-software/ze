@@ -39,9 +39,9 @@ with a healthy GoVPP connection.
 
 ### Reference
 
-- `~/Code/site/ipng.ch/vpp-deployment-notes.md` — consolidated notes from 83 IPng articles (production values, NIC quirks, LCP details)
-- `~/Code/site/ipng.ch/ze-vpp-analysis.md` — feasibility analysis with three integration strategies (ze chose Strategy 3)
-- `~/Code/site/ipng.ch/articles/` — full article archive (83 articles by topic)
+- `docs/research/vpp-deployment-notes.md` — consolidated notes from 83 IPng articles (production values, NIC quirks, LCP details)
+- `docs/research/ze-vpp-analysis.md` — feasibility analysis with three integration strategies (ze chose Strategy 3)
+- `~/Code/site/ipng.ch/articles/` — full article archive, 83 articles by topic (external, not checked in)
 - VyOS: `control_host.py` for DPDK NIC driver binding logic (ported to Go)
 - GoVPP documentation (go.fd.io/govpp): AsyncConnect, stats client, socket transport
 
@@ -384,7 +384,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## IPng Production Knowledge
 
 Full reference: `docs/research/vpp-deployment-reference.md`
-Source articles: `~/Code/site/ipng.ch/` (83 articles, deployment notes, feasibility analysis)
+Consolidated notes: `docs/research/vpp-deployment-notes.md`
+Feasibility analysis: `docs/research/ze-vpp-analysis.md`
+Source articles: `~/Code/site/ipng.ch/articles/` (83 articles, external, not checked in)
 
 Key values that inform this spec's YANG defaults and startup.conf generation:
 
