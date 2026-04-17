@@ -168,8 +168,13 @@ func TestStartMonitorSendsEnable(t *testing.T) {
 	}
 }
 
-func TestStartMonitorAlreadyStarted(t *testing.T) {
-	// VALIDATES: second StartMonitor is rejected
+// TestStartMonitorIdempotent verifies that a second StartMonitor after a
+// first success is a no-op (returns nil without re-subscribing). This
+// contract is load-bearing for spec-iface-vpp-ready-gate: the
+// vppevents.EventConnected handler retries StartMonitor on every event so
+// a deferred initial call can succeed, and subsequent events must not
+// error after the monitor is already running.
+func TestStartMonitorIdempotent(t *testing.T) {
 	ch := &monitorChannel{}
 	b := &vppBackendImpl{ch: ch, names: newNameMap()}
 	bus := &recordingBus{}
@@ -179,8 +184,12 @@ func TestStartMonitorAlreadyStarted(t *testing.T) {
 	}
 	defer b.StopMonitor()
 
-	if err := b.StartMonitor(bus); err == nil {
-		t.Fatal("expected error on second StartMonitor")
+	if err := b.StartMonitor(bus); err != nil {
+		t.Fatalf("second StartMonitor must be a no-op, got %v", err)
+	}
+	// wantOffs history should still show a single enable, not two.
+	if len(ch.wantOffs) != 1 || !ch.wantOffs[0] {
+		t.Errorf("wantOffs history: got %v, want [true]", ch.wantOffs)
 	}
 }
 

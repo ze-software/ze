@@ -74,6 +74,34 @@ func TestReconcileOnVPPReady_NoOpWhenActiveCfgNil(t *testing.T) {
 	reconcileOnVPPReady(&cfg)
 }
 
+// TestReconcileOnVPPReady_NoOpForNonVPPBackend guards against mutating
+// non-vpp backend state when a vpp lifecycle event fires under a
+// non-vpp-backed iface config. Scenario: vpp.enabled=true is paired with
+// interface.backend=netlink (vpp for FIB, netlink for interface mgmt).
+// Netlink's StartMonitor is not idempotent, so retrying it on every
+// EventConnected / EventReconnected would leak a fresh monitor goroutine
+// each time.
+//
+// VALIDATES: reconcileOnVPPReady gates on cfg.Backend == vppBackendName.
+// PREVENTS: netlink monitor goroutine leak on every vpp lifecycle event.
+func TestReconcileOnVPPReady_NoOpForNonVPPBackend(t *testing.T) {
+	fb := setupFakeBackendForTest(t)
+	fb.ifaces["orphan-dum"] = fakeIface{name: "orphan-dum", linkType: zeTypeDummy}
+
+	cfg := testConfigWithAddresses()
+	cfg.Backend = "netlink"
+	var activeCfg atomic.Pointer[ifaceConfig]
+	activeCfg.Store(cfg)
+
+	reconcileOnVPPReady(&activeCfg)
+
+	// Reconcile MUST NOT have pruned the orphan: for non-vpp backends the
+	// handler is a no-op because vpp-ready carries no meaning for netlink.
+	require.False(t, fb.deleted["orphan-dum"], "non-vpp backend must not trigger reconcile on vpp event")
+	// No addresses should have been applied either.
+	require.Empty(t, fb.addrs["dum0"], "non-vpp backend must not add addresses on vpp event")
+}
+
 // TestReconcileOnVPPReady_RunsReconcile verifies AC-4: when activeCfg is
 // set and the backend is registered, the handler invokes reconcileOnReady
 // against the registered backend and prunes orphans.
@@ -115,7 +143,11 @@ func TestReconcileOnVPPReady_InvokedOnEventConnected(t *testing.T) {
 	activeCfg.Store(testConfigWithAddresses())
 
 	bus := newRecordingEventBus()
-	unsubs := subscribeReconcileOnReady(bus, &activeCfg)
+	// Synchronous trigger for deterministic assertions; production uses a
+	// non-blocking enqueue onto vppReconcileCh. Both paths call
+	// reconcileOnVPPReady eventually; this test just verifies the
+	// subscribe/trigger wiring by forcing a direct reconcile.
+	unsubs := subscribeReconcileOnReady(bus, func() { reconcileOnVPPReady(&activeCfg) })
 	t.Cleanup(func() {
 		for _, u := range unsubs {
 			u()
@@ -146,7 +178,7 @@ func TestReconcileOnVPPReady_InvokedOnEventReconnected(t *testing.T) {
 	activeCfg.Store(testConfigWithAddresses())
 
 	bus := newRecordingEventBus()
-	unsubs := subscribeReconcileOnReady(bus, &activeCfg)
+	unsubs := subscribeReconcileOnReady(bus, func() { reconcileOnVPPReady(&activeCfg) })
 	t.Cleanup(func() {
 		for _, u := range unsubs {
 			u()
@@ -176,7 +208,7 @@ func TestUnsubscribeOnShutdown(t *testing.T) {
 	activeCfg.Store(testConfigWithAddresses())
 
 	bus := newRecordingEventBus()
-	unsubs := subscribeReconcileOnReady(bus, &activeCfg)
+	unsubs := subscribeReconcileOnReady(bus, func() { reconcileOnVPPReady(&activeCfg) })
 
 	// Shutdown: call every unsubscribe.
 	for _, u := range unsubs {
@@ -191,10 +223,13 @@ func TestUnsubscribeOnShutdown(t *testing.T) {
 }
 
 // testConfigWithAddresses builds an ifaceConfig that declares one dummy
-// interface with two addresses. Shared by reconcileOnReady tests.
+// interface with two addresses. Shared by reconcileOnReady and
+// reconcileOnVPPReady tests. Backend is "vpp" so the VPP-event handler's
+// backend guard (reconcileOnVPPReady) passes; the pure reconcileOnReady
+// tests never inspect Backend, so they are unaffected.
 func testConfigWithAddresses() *ifaceConfig {
 	return &ifaceConfig{
-		Backend: "netlink",
+		Backend: vppBackendName,
 		Dummy: []ifaceEntry{{
 			Name: "dum0",
 			Units: []unitEntry{{

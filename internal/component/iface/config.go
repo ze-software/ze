@@ -1283,11 +1283,14 @@ func addDesiredAddresses(cfg *ifaceConfig, b Backend) {
 
 // reconcileOnVPPReady is invoked from the register.go EventBus handler when
 // vppevents.EventConnected or EventReconnected fires. It looks up the
-// currently-active config and, if one exists and the registered backend is
-// live, runs reconcileOnReady. It also retries b.StartMonitor so a monitor
-// deferred at startup (backend not ready at OnConfigure time) installs as
-// soon as the backend becomes live. No-op when no config has been applied
-// yet or when the backend is still unregistered.
+// currently-active config and, if one exists and the currently active
+// backend is vpp, runs reconcileOnReady. It also retries b.StartMonitor so
+// a monitor deferred at startup (backend not ready at OnConfigure time)
+// installs as soon as the backend becomes live. No-op when no config has
+// been applied yet, when the backend is still unregistered, or when the
+// active backend is not vpp (the subscription is installed unconditionally
+// for simplicity but should not mutate netlink state on a vpp lifecycle
+// event, since vpp-ready has no meaning for the netlink backend).
 //
 // Exposed at package level so the register-time handler is easy to test
 // without standing up the SDK event loop.
@@ -1295,6 +1298,14 @@ func reconcileOnVPPReady(activeCfg *atomic.Pointer[ifaceConfig]) {
 	log := loggerPtr.Load()
 	cfg := activeCfg.Load()
 	if cfg == nil {
+		return
+	}
+	// Guard against firing against a non-vpp backend. A reload that flipped
+	// the backend from vpp to netlink would otherwise call netlink's
+	// StartMonitor on every EventConnected / EventReconnected, leaking a
+	// fresh monitor goroutine per event (netlink's StartMonitor is not
+	// idempotent -- see ifacenetlink/monitor_linux.go:364).
+	if cfg.Backend != vppBackendName {
 		return
 	}
 	b := GetBackend()

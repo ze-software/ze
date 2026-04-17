@@ -21,6 +21,12 @@ import (
 // completed its GoVPP handshake. The netlink backend never returns it.
 var ErrBackendNotReady = errors.New("iface: backend not ready")
 
+// vppBackendName is the string key ifacevpp registers under via
+// iface.RegisterBackend. Exposed as a named constant so the
+// reconcileOnVPPReady handler can gate on "is the active backend vpp?"
+// without relying on a string literal scattered across the package.
+const vppBackendName = "vpp"
+
 // Backend defines the operations that an interface management backend must
 // implement. The iface component dispatches all OS-specific work through
 // this interface. Implementations are registered via RegisterBackend and

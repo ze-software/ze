@@ -65,10 +65,15 @@ func (b *vppBackendImpl) StartMonitor(eb ze.EventBus) error {
 	if err := b.ensureChannel(); err != nil {
 		return err
 	}
+	// Idempotent: a second StartMonitor after a first success is a no-op.
+	// This is important because the iface register-time code retries
+	// StartMonitor on vppevents.EventConnected when the initial attempt
+	// fired too early (backend not ready); the retry must not error out
+	// after the backend has reconnected and monitor was already installed.
 	b.monMu.Lock()
 	if b.mon != nil {
 		b.monMu.Unlock()
-		return fmt.Errorf("ifacevpp: monitor already started")
+		return nil
 	}
 	b.monMu.Unlock()
 

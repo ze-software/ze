@@ -115,18 +115,22 @@ type routerEntry struct {
 	metric int // route-priority at install time
 }
 
-// subscribeReconcileOnReady registers the vpp lifecycle handlers that run
-// iface reconciliation once the vpp backend finishes its handshake.
-// Subscribes to EventConnected (first handshake after daemon start) and
-// EventReconnected (handshake after a vpp crash). The returned slice
-// contains the unsubscribe funcs; callers append them to their shutdown
-// cleanup list.
+// subscribeReconcileOnReady registers the vpp lifecycle handlers that trigger
+// iface reconciliation once the vpp backend finishes its handshake. Subscribes
+// to EventConnected (first handshake after daemon start) and EventReconnected
+// (handshake after a vpp crash).
 //
-// Exposed at package level so config_test.go can exercise the wiring
-// without standing up the SDK event loop.
-func subscribeReconcileOnReady(bus ze.EventBus, activeCfg *atomic.Pointer[ifaceConfig]) []func() {
+// trigger is invoked synchronously inside the EventBus Emit goroutine. Per
+// pkg/ze/eventbus.go the handler MUST NOT block on I/O, so the production
+// caller passes a non-blocking enqueue that hands the actual reconcile off
+// to a worker goroutine. Tests may pass a synchronous reconcile for
+// deterministic assertions.
+//
+// The returned unsubscribe funcs are appended by the caller to its shutdown
+// cleanup list.
+func subscribeReconcileOnReady(bus ze.EventBus, trigger func()) []func() {
 	handler := events.AsString(func(_ string) {
-		reconcileOnVPPReady(activeCfg)
+		trigger()
 	})
 	return []func(){
 		bus.Subscribe(vppevents.Namespace, vppevents.EventConnected, handler),
@@ -184,6 +188,19 @@ func runEngine(conn net.Conn) int {
 	}
 	linkEventCh := make(chan linkEvent, 16)
 	linkWorkerDone := make(chan struct{})
+	// vppReconcileCh coalesces vpp-lifecycle reconcile requests into at most
+	// one pending work item. The vppReadyWorker goroutine drains it and
+	// calls reconcileOnVPPReady so the actual GoVPP I/O runs outside the
+	// EventBus Emit caller (the VPPManager goroutine). Honors the
+	// pkg/ze/eventbus.go "handler MUST NOT block on I/O" contract.
+	vppReconcileCh := make(chan struct{}, 1)
+	vppReconcileDone := make(chan struct{})
+	go func() {
+		defer close(vppReconcileDone)
+		for range vppReconcileCh {
+			reconcileOnVPPReady(&activeCfg)
+		}
+	}()
 	go func() {
 		defer close(linkWorkerDone)
 		for ev := range linkEventCh {
@@ -300,8 +317,17 @@ func runEngine(conn net.Conn) int {
 		// deferred during initial apply (vpp handshake still in flight) runs
 		// as soon as GoVPP is connected. The same handler fires on
 		// EventReconnected so post-crash recovery also re-reconciles.
+		// The handler itself does not touch the VPP backend -- it signals
+		// vppReconcileCh and vppReadyWorker does the GoVPP RPCs outside the
+		// Emit goroutine.
 		vppReadyOnce.Do(func() {
-			unsubscribers = append(unsubscribers, subscribeReconcileOnReady(eb, &activeCfg)...)
+			trigger := func() {
+				select {
+				case vppReconcileCh <- struct{}{}:
+				default: // non-blocking: reconcile already pending, next worker iteration absorbs this event
+				}
+			}
+			unsubscribers = append(unsubscribers, subscribeReconcileOnReady(eb, trigger)...)
 		})
 
 		// Suppress accept_ra_defrtr on interfaces with route-priority > 0,
@@ -421,6 +447,11 @@ func runEngine(conn net.Conn) int {
 	// Stop link event worker.
 	close(linkEventCh)
 	<-linkWorkerDone
+
+	// Stop vpp-ready reconcile worker. Must happen after the vpp-events
+	// unsubscribers above have run so no further sends race the close.
+	close(vppReconcileCh)
+	<-vppReconcileDone
 
 	// Stop all DHCP clients on shutdown.
 	dhcpMu.Lock()
