@@ -96,7 +96,7 @@ inject the subscriber route into the redistribute path in Phase 7.
   direct `go test -race ./...` invocation. Pre-existing
   `TestVPPManagerRunOnce_External*` failures on Darwin are unrelated
   (sun_path length: macOS 104, Linux 108); logged in
-  `.claude/known-failures.md`.
+  `plan/known-failures.md`.
 
 ## Files
 

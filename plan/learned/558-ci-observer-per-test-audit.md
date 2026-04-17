@@ -64,7 +64,7 @@ a clean starting point.
   `ZE-OBSERVER-FAIL` via `checkObserverSentinel`. Dest-1's sentinel
   infrastructure works; the remaining question is always per-test
   assertion quality.
-- **`.claude/known-failures.md` "Egress-filter tests need
+- **`plan/known-failures.md` "Egress-filter tests need
   forwarding-plugin redesign"** documents the 8 partial-conversion
   tests and the two redesign paths (Path A: add `--plugin ze.bgp-rs`
   and assert on a production decision log; Path B: switch dest peer
@@ -172,7 +172,7 @@ a clean starting point.
 - `internal/component/bgp/plugins/filter_community/filter_community.go`
   -- added `community ingress applied` info log in `ingressFilter`
   (3ece1c6d).
-- `.claude/known-failures.md` -- deleted the "Observer-exit
+- `plan/known-failures.md` -- deleted the "Observer-exit
   antipattern in plugin .ci tests" section and the
   "community-priority (logging_mismatch flake)" entry; added
   "Egress-filter tests need forwarding-plugin redesign" redesign note

@@ -251,7 +251,7 @@ production code path, not the observer.
 
 Detection hook: `block-observer-sys-exit.sh` (warns on Write/Edit of `.ci`
 files containing `tmpfs=*.run` Python with `sys.exit(1)` and no
-`runtime_fail`). Known violations are tracked in `.claude/known-failures.md`
+`runtime_fail`). Known violations are tracked in `plan/known-failures.md`
 and must be migrated.
 
 ## Pre-Commit

@@ -97,7 +97,7 @@ place to prove its wiring.
   pre-existing tests (`vpp-config-invalid-hugepage`,
   `vpp-config-invalid-poll-interval`) were failing on
   origin/main before this session started and still fail after --
-  logged and corrected in `.claude/known-failures.md`. A full fix
+  logged and corrected in `plan/known-failures.md`. A full fix
   belongs in `internal/component/config/yang_schema.go`.
 - **Stray `.go` files in project `tmp/`** (`debug_paths.go`,
   `old_vpn.go` -- scratch from prior sessions) block `go test ./...`

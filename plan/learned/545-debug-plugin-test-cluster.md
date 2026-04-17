@@ -69,7 +69,7 @@ Fix: move the env options OUTSIDE the peer block and add `option=env:var=ze.stor
 - `cmd/ze/hub/main.go` -- `if sshCfg.HasConfig && !hasBGPBlock` gate.
 - `test/plugin/gr-marker-restart.ci` -- move env opts outside peer block, add `ze.storage.blob=false`.
 - `test/plugin/gr-marker-expired.ci` -- same.
-- `.claude/known-failures.md` -- remove the resolved OPEN section.
+- `plan/known-failures.md` -- remove the resolved OPEN section.
 
 ### Already landed upstream (by Thomas as `5f66e4f5`)
 

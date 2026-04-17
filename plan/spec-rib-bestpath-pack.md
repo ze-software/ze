@@ -161,7 +161,7 @@ Not applicable -- internal storage shape change.
 | AC-5 | Replay path (`replayBestPaths`) | Emits identical `BestChangeBatch` payloads via `resolve()`; one batch per family |
 | AC-6 | Interner dedups values | First insert of a unique value appends to reverse table; repeated inserts return the cached uint16 index. Verified by unit test |
 | AC-7 | Interner overflow path is non-panic | `intern*` returns `(0, false)` when the table is saturated; `checkBestPathChange` logs `slog.Error` once and returns `(zero, false)` for that single record. Verified by unit test that drives one interner to cap and confirms no panic fires |
-| AC-8 | `make ze-verify-fast` | Passes (disregarding the pre-existing addpath MP_REACH mismatch documented in `.claude/known-failures.md`) |
+| AC-8 | `make ze-verify-fast` | Passes (disregarding the pre-existing addpath MP_REACH mismatch documented in `plan/known-failures.md`) |
 | AC-9 | `go test -race -tags maprib ./internal/component/bgp/plugins/rib/...` | Passes |
 | AC-10 | GC share of CPU | `gcBgMarkWorker` cumulative drops by at least 5 pp vs Phase-4b (target: 27% -> under 22%) |
 

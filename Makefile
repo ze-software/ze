@@ -234,7 +234,7 @@ ze-fuzz-one:
 # rare scheduling windows; -race enforces the Go memory model. The bufReader/
 # bufWriter races (8dffd422, d5843235) lived 47 days because the standard
 # -race -count=1 unit test never triggered the schedule. See
-# .claude/known-failures.md "TestInProcessSpeed (race) -- FIXED 2026-04-11".
+# plan/known-failures.md "TestInProcessSpeed (race) -- FIXED 2026-04-11".
 ze-race-reactor:
 	@echo "Stress race-test reactor (count=20)..."
 	$(GO_TEST) -race -count=20 ./internal/component/bgp/reactor/...

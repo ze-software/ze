@@ -2,7 +2,7 @@
 
 ## Context
 
-Between 2026-04-07 and 2026-04-16, `.claude/known-failures.md` accumulated a
+Between 2026-04-07 and 2026-04-16, `plan/known-failures.md` accumulated a
 cluster of investigations into race-detector hits, timeouts and flaky
 assertions. Most were closed by the same handful of patterns recurring across
 subsystems (BGP reactor, forward pool, SSE broker, CLI editor, BFD transport,

@@ -84,7 +84,7 @@ is written to `tmp/ze-verify-failures.log` (read this FIRST, not the full log).
 [ ] 2. If failures caused by current work: fix them before proceeding. Re-run.
       If pre-existing failures: do not block current work. Fix them after the primary task
       completes, in a separate commit script. If fix needs >10 min, log to
-      `.claude/known-failures.md` so the next session picks it up.
+      `plan/known-failures.md` so the next session picks it up.
 ```
 
 ### Concurrent Verify Runs (BLOCKING)

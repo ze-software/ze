@@ -9,7 +9,7 @@
 # Tests must use testPoolBuf(t) which tags the handle with the noPoolBufID
 # sentinel so ReturnReadBuffer skips it.
 #
-# See .claude/known-failures.md "Observer-exit antipattern" section and
+# See plan/known-failures.md "Observer-exit antipattern" section and
 # commit 3b21dadb for the full history.
 #
 # Exceptions: testPoolBuf's own definition (which carries noPoolBufID), and
@@ -75,6 +75,6 @@ echo -e "  ${YELLOW}Fix:${RESET} use the testPoolBuf(t) helper in reactor_test.g
 echo -e "  returns BufHandle{ID: noPoolBufID, Buf: make([]byte, 4096)}." >&2
 echo -e "  ReturnReadBuffer short-circuits handles carrying the sentinel." >&2
 echo "" >&2
-echo -e "  ${YELLOW}Reference:${RESET} commit 3b21dadb, .claude/known-failures.md" >&2
+echo -e "  ${YELLOW}Reference:${RESET} commit 3b21dadb, plan/known-failures.md" >&2
 
 exit 2

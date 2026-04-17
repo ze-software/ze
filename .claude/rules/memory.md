@@ -139,7 +139,7 @@ Do NOT flag these as "identity wrappers adding no value."
 - Original problem: said "pre-existing, skipping" and proposed committing with failing tests.
 - Old bad behavior: report failures, block current work, never actually fix them. Created an endless loop.
 - **Current rule:** Fix pre-existing failures in the same session, after primary task. Separate commit script.
-  If fix needs >10 min, log to `.claude/known-failures.md` for next session. Never block, never skip.
+  If fix needs >10 min, log to `plan/known-failures.md` for next session. Never block, never skip.
 - See `rules/anti-rationalization.md` Test Failures section.
 
 ### Plugin Placement Anchor Bias (jsonrpc gateway)

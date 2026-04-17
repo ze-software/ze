@@ -491,7 +491,7 @@ it must copy.
 | AC-10 | Done | 8 stub files have `var _ ze.EventBus = (*stub)(nil)` | compile-time check enforces |
 | AC-11 | Deferred | requires sudo profile re-run | user runs `sudo ZE_PPROF=1 python3 test/stress/run.py 05-profile-1m` |
 | AC-12 | Deferred | requires sudo profile re-run | same as AC-11 |
-| AC-13 | Done with known-failure caveat | `tmp/ze-verify.log` | 2 pre-existing failures (addpath, conf-addpath) per `.claude/known-failures.md`; 1 parallel-test flake (TestCmdShowSuccess) confirmed passing in isolation |
+| AC-13 | Done with known-failure caveat | `tmp/ze-verify.log` | 2 pre-existing failures (addpath, conf-addpath) per `plan/known-failures.md`; 1 parallel-test flake (TestCmdShowSuccess) confirmed passing in isolation |
 
 ### Tests from TDD Plan
 

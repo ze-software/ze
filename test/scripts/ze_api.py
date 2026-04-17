@@ -1227,7 +1227,7 @@ def fail(message: str, encoding: str = "text") -> None:
 # Sentinel string recognised by the .ci test runner. When this prefix appears
 # on ze's relayed stderr, the runner forces the test to FAIL regardless of
 # ze's own exit code. See internal/test/runner/runner_validate.go and
-# .claude/known-failures.md (section 8) for background. Keeping the literal
+# plan/known-failures.md (section 8) for background. Keeping the literal
 # in code and in the runner makes this a two-point coupling; change both.
 _OBSERVER_FAIL_SENTINEL = "ZE-OBSERVER-FAIL"
 

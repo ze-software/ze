@@ -124,7 +124,7 @@ spec-l2tp-8-plugins (`l2tp-auth`).
 - **3 pre-existing suite failures surfaced during `ze-verify-fast`**
   (BGP encode addpath, fib-vpp-* plugin tests, exabgp conf-addpath)
   are unrelated to Phase 9 (no PPP / L2TP / auth files touched).
-  Logged to `.claude/known-failures.md` under the 2026-04-17 entry.
+  Logged to `plan/known-failures.md` under the 2026-04-17 entry.
 
 ## Files
 
