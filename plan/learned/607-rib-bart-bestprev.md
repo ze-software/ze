@@ -89,6 +89,32 @@ and the best-path tracker can share.
   constraint is part of the BART library contract; the collection loop makes
   a transient per-stale-entry allocation, bounded by stale count.
 
+## Measurement
+
+1M-prefix stress re-profile (`make ze-stress-profile`, 90s CPU + heap snapshot)
+comparing the Phase-4 BART-backed bestPrev against the Phase-3
+(map-with-presize) baseline captured earlier in the same session.
+
+| Metric | Phase-3 baseline | Phase-4 | Delta |
+|---|---|---|---|
+| `checkBestPathChange` flat heap | 107.74 MB (47% of inuse) | not in top 20 (< 0.72 MB) | -99% |
+| `bart NewFringeNode[bestPathRecord]` | N/A | 41 MB (28%) | new: bestPrev trie storage |
+| `bart NewFringeNode[RouteEntry]` | 48.5 MB | 37.5 MB | -23% |
+| `fmt.Sprintf` via `bestCandidateNextHop` | 15 MB | 15 MB | unchanged (separate target) |
+| Total inuse heap | 228 MB | 144 MB | -37% |
+| Total CPU samples | 8.98s (10.0% wall) | 6.82s (7.58% wall) | -24% |
+| GC share (gcBgMarkWorker cum) | 31% | ~25% | -6 pp |
+| `checkBestPathChange` CPU flat | 0.26s | 0.04s | -85% |
+
+The 107.74 MB of per-insert churn in `checkBestPathChange` collapsed into
+41 MB of steady-state BART fringe nodes for `bestPathRecord`. AC-1 target was
+"under 50 MB on the hot function" -- actual is ~41 MB, and that lives in the
+trie as durable storage rather than as per-update allocation pressure.
+
+`fmt.Sprintf` at 15 MB is the remaining `bestCandidateNextHop -> formatNextHop`
+allocation flagged earlier in the `/ze-design` decision log as an out-of-scope
+follow-up; it did not move because this spec did not touch that path.
+
 ## Files
 
 - `internal/component/bgp/plugins/rib/storage/store_bart.go` (new) -- generic
