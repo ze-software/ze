@@ -39,19 +39,35 @@ RESET='\033[0m'
 # Cross-reference pattern: matches // Detail:, // Overview:, // Related:
 XREF_PATTERN='// (Detail|Overview|Related):'
 
-# --- Gather content to check ---
+# --- Gather post-op content to check ---
+# For Write: tool_input.content is the full new file.
+# For Edit: simulate post-edit state by applying old_string→new_string to disk.
+# Bash ${var//pat/repl} treats pat as a glob, so any old_string containing *, ?,
+# or [ would break. Python does literal replacement; it also supports replace_all.
 
-CONTENT=""
-if [[ "$TOOL_NAME" == "Write" ]]; then
-    CONTENT=$(echo "$INPUT" | jq -r '.tool_input.content // empty')
-elif [[ "$TOOL_NAME" == "Edit" ]]; then
-    # For Edit: use file on disk (pre-edit state)
-    if [[ -f "$FILE_PATH" ]]; then
-        CONTENT=$(cat "$FILE_PATH")
-    fi
-    # Also check if the edit is adding refs
-    NEW_STRING=$(echo "$INPUT" | jq -r '.tool_input.new_string // empty')
-fi
+CONTENT=$(echo "$INPUT" | python3 -c '
+import json, sys
+data = json.load(sys.stdin)
+tool = data.get("tool_name", "")
+ti = data.get("tool_input", {})
+if tool == "Write":
+    sys.stdout.write(ti.get("content", ""))
+    sys.exit(0)
+if tool == "Edit":
+    path = ti.get("file_path", "")
+    try:
+        with open(path, "r") as f:
+            content = f.read()
+    except OSError:
+        content = ""
+    old = ti.get("old_string", "")
+    new = ti.get("new_string", "")
+    if ti.get("replace_all", False):
+        content = content.replace(old, new)
+    else:
+        content = content.replace(old, new, 1)
+    sys.stdout.write(content)
+')
 
 # --- Check 1: Siblings reference this file → must have a back-reference ---
 
@@ -59,20 +75,7 @@ fi
 SIBLINGS_REF_ME=$(grep -rlE "// (Detail|Overview|Related): ${BASE} " "$DIR"/*.go 2>/dev/null | grep -v "_test\.go" | grep -v "_gen\.go" || true)
 
 if [[ -n "$SIBLINGS_REF_ME" ]]; then
-    HAS_XREF=false
-
-    if echo "$CONTENT" | grep -qE "$XREF_PATTERN"; then
-        HAS_XREF=true
-    fi
-
-    # For Edit: also check if new_string adds it
-    if [[ "$TOOL_NAME" == "Edit" && "$HAS_XREF" == "false" ]]; then
-        if echo "$NEW_STRING" | grep -qE "$XREF_PATTERN"; then
-            HAS_XREF=true
-        fi
-    fi
-
-    if [[ "$HAS_XREF" == "false" ]]; then
+    if ! echo "$CONTENT" | grep -qE "$XREF_PATTERN"; then
         echo -e "${RED}${BOLD}✘ BLOCKED: Missing cross-reference comment${RESET}" >&2
         echo "" >&2
         echo -e "  ${RED}!${RESET} File: $BASE" >&2
@@ -88,20 +91,13 @@ fi
 
 # --- Check 2: Stale refs — cross-ref points to non-existent file ---
 
-# Extract referenced filenames from content (Write) or file+new_string (Edit)
-CHECK_CONTENT="$CONTENT"
-if [[ "$TOOL_NAME" == "Edit" && -n "$NEW_STRING" ]]; then
-    CHECK_CONTENT="$CONTENT
-$NEW_STRING"
-fi
-
 STALE=()
 while IFS= read -r ref_file; do
     [[ -z "$ref_file" ]] && continue
     if [[ ! -f "$DIR/$ref_file" ]]; then
         STALE+=("$ref_file")
     fi
-done < <(echo "$CHECK_CONTENT" | grep -E '// (Detail|Overview|Related):' | sed -E 's#.*// (Detail|Overview|Related): ([^ ]*\.go).*#\2#' 2>/dev/null || true)
+done < <(echo "$CONTENT" | grep -E '// (Detail|Overview|Related):' | sed -E 's#.*// (Detail|Overview|Related): ([^ ]*\.go).*#\2#' 2>/dev/null || true)
 
 if [[ ${#STALE[@]} -gt 0 ]]; then
     echo -e "${RED}${BOLD}✘ BLOCKED: Stale cross-references${RESET}" >&2
