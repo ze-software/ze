@@ -84,7 +84,7 @@ func newTestRIBManagerWithBus(eb *testEventBus) *RIBManager {
 		peerMeta:      make(map[string]*PeerMeta),
 		retainedPeers: make(map[string]bool),
 		grState:       make(map[string]*peerGRState),
-		bestPrev:      make(map[bestPathKey]*bestPathRecord),
+		bestPrev:      make(map[family.Family]*bestPrevStore),
 	}
 }
 
@@ -126,17 +126,17 @@ func TestRIBBestChangePublish(t *testing.T) {
 
 	// Check best-path change under lock.
 	r.mu.Lock()
-	change := r.checkBestPathChange(fam, prefix, false)
+	change, ok := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
-	require.NotNil(t, change, "should detect new best path")
+	require.True(t, ok, "should detect new best path")
 	assert.Equal(t, ribevents.BestChangeAdd, change.Action)
 	assert.Equal(t, "10.0.0.0/24", change.Prefix)
 	assert.Equal(t, "192.168.1.1", change.NextHop)
 	assert.Equal(t, 20, change.Priority, "eBGP should have priority 20")
 
 	// Publish and verify the EventBus event.
-	publishBestChanges([]bestChangeEntry{*change}, fam.String())
+	publishBestChanges([]bestChangeEntry{change}, fam.String())
 
 	evt := bus.lastEvent()
 	require.NotNil(t, evt)
@@ -172,18 +172,18 @@ func TestRIBBestChangeNoPublishSameBest(t *testing.T) {
 
 	// First check: detects new best.
 	r.mu.Lock()
-	change1 := r.checkBestPathChange(fam, prefix, false)
+	_, ok1 := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
-	require.NotNil(t, change1)
+	require.True(t, ok1)
 
 	// Re-insert same route (implicit withdraw + re-add with same attrs).
 	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	// Second check: same best, no change.
 	r.mu.Lock()
-	change2 := r.checkBestPathChange(fam, prefix, false)
+	_, ok2 := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
-	assert.Nil(t, change2, "no change when best path is unchanged")
+	assert.False(t, ok2, "no change when best path is unchanged")
 }
 
 // VALIDATES: AC-2 -- BGP withdraws last route for prefix, RIB emits
@@ -212,10 +212,10 @@ func TestRIBBestChangeWithdraw(t *testing.T) {
 	r.ribInPool[peerAddr].Remove(fam, prefix)
 
 	r.mu.Lock()
-	change := r.checkBestPathChange(fam, prefix, false)
+	change, ok := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
-	require.NotNil(t, change, "should detect withdraw")
+	require.True(t, ok, "should detect withdraw")
 	assert.Equal(t, ribevents.BestChangeWithdraw, change.Action)
 	assert.Equal(t, "10.0.0.0/24", change.Prefix)
 	assert.Empty(t, change.NextHop, "withdraw should have no next-hop")
@@ -260,8 +260,8 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 	r.mu.Lock()
 	var changes []bestChangeEntry
 	for _, p := range prefixes {
-		if change := r.checkBestPathChange(fam, p, false); change != nil {
-			changes = append(changes, *change)
+		if change, ok := r.checkBestPathChange(fam, p, false); ok {
+			changes = append(changes, change)
 		}
 	}
 	r.mu.Unlock()
@@ -301,10 +301,10 @@ func TestRIBBestChangeEBGPMetadata(t *testing.T) {
 	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	r.mu.Lock()
-	change := r.checkBestPathChange(fam, prefix, false)
+	change, ok := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
-	require.NotNil(t, change)
+	require.True(t, ok)
 	assert.Equal(t, "ebgp", change.ProtocolType, "eBGP route must have protocol-type 'ebgp'")
 
 	// Verify it survives JSON round-trip (sysrib reads this from payload).
@@ -332,10 +332,10 @@ func TestRIBBestChangeIBGPMetadata(t *testing.T) {
 	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	r.mu.Lock()
-	change := r.checkBestPathChange(fam, prefix, false)
+	change, ok := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
-	require.NotNil(t, change)
+	require.True(t, ok)
 	assert.Equal(t, "ibgp", change.ProtocolType, "iBGP route must have protocol-type 'ibgp'")
 }
 
@@ -356,10 +356,10 @@ func TestRIBBestChangeEBGPPriority(t *testing.T) {
 	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	r.mu.Lock()
-	change := r.checkBestPathChange(fam, prefix, false)
+	change, ok := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
-	require.NotNil(t, change)
+	require.True(t, ok)
 	assert.Equal(t, 20, change.Priority, "eBGP admin distance should be 20")
 }
 
@@ -380,10 +380,10 @@ func TestRIBBestChangeIBGPPriority(t *testing.T) {
 	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	r.mu.Lock()
-	change := r.checkBestPathChange(fam, prefix, false)
+	change, ok := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
-	require.NotNil(t, change)
+	require.True(t, ok)
 	assert.Equal(t, 200, change.Priority, "iBGP admin distance should be 200")
 }
 
@@ -403,9 +403,9 @@ func TestRIBBestChangeUpdate(t *testing.T) {
 	r.ribInPool[peer1].Insert(fam, makeAttrBytes([4]byte{10, 0, 0, 1}), prefix)
 
 	r.mu.Lock()
-	change1 := r.checkBestPathChange(fam, prefix, false)
+	change1, ok1 := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
-	require.NotNil(t, change1)
+	require.True(t, ok1)
 	assert.Equal(t, ribevents.BestChangeAdd, change1.Action)
 
 	// Peer 2: eBGP route (better -- eBGP preferred over iBGP).
@@ -415,10 +415,10 @@ func TestRIBBestChangeUpdate(t *testing.T) {
 	r.ribInPool[peer2].Insert(fam, makeAttrBytes([4]byte{10, 0, 0, 2}), prefix)
 
 	r.mu.Lock()
-	change2 := r.checkBestPathChange(fam, prefix, false)
+	change2, ok2 := r.checkBestPathChange(fam, prefix, false)
 	r.mu.Unlock()
 
-	require.NotNil(t, change2, "should detect best-path update")
+	require.True(t, ok2, "should detect best-path update")
 	assert.Equal(t, ribevents.BestChangeUpdate, change2.Action)
 	assert.Equal(t, "10.0.0.2", change2.NextHop, "should switch to eBGP next-hop")
 	assert.Equal(t, 20, change2.Priority, "eBGP priority")

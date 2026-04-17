@@ -32,6 +32,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -206,9 +207,12 @@ type RIBManager struct {
 	// RFC 4724 Section 4.2: Receiving Speaker route retention state.
 	grState map[string]*peerGRState
 
-	// bestPrev tracks the previous best-path per (family, prefix) for change detection.
-	// Used by checkBestPathChange to detect when the best path changes after an insert/remove.
-	bestPrev map[bestPathKey]*bestPathRecord
+	// bestPrev tracks the previous best-path per (family, prefix) for change
+	// detection. Each family holds a bestPrevStore pairing a BART-backed trie
+	// (non-ADD-PATH peers) with a map-backed store (ADD-PATH peers), so a
+	// family can host peers with mixed ADD-PATH capability without key
+	// collision. Used by checkBestPathChange after each insert/remove.
+	bestPrev map[family.Family]*bestPrevStore
 
 	// maximumPaths is the configured N for multipath/ECMP selection.
 	// Populated from bgp/multipath/maximum-paths in the Stage 2 configure callback.
@@ -327,7 +331,7 @@ func RunRIBPlugin(conn net.Conn) int {
 		peerMeta:      make(map[string]*PeerMeta),
 		retainedPeers: make(map[string]bool),
 		grState:       make(map[string]*peerGRState),
-		bestPrev:      make(map[bestPathKey]*bestPathRecord),
+		bestPrev:      make(map[family.Family]*bestPrevStore),
 	}
 	// Initialize multipath to the RFC 4271 single best-path default BEFORE
 	// OnConfigure runs. Any consumer that reads maximumPaths during plugin

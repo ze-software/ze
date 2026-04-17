@@ -2,322 +2,148 @@
 
 // Design: docs/architecture/plugin/rib-storage-design.md -- RIB storage internals
 // Overview: familyrib.go -- shared helpers (entriesEqual, ToWireBytes, wire helpers)
-// Related: nlrikey.go -- NLRIToPrefix/PrefixToNLRI conversion, NLRIKey for ADD-PATH fallback
+// Related: store_bart.go -- generic Store[T] backing this wrapper
+// Related: nlrikey.go -- NLRIKey / NLRIToPrefix / PrefixToNLRI used by Store[T]
 
 package storage
 
 import (
-	"net/netip"
-
-	"github.com/gaissmai/bart"
-
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
-// FamilyRIB stores routes with per-attribute-type deduplication.
-// Each route has its own RouteEntry with handles to individual attribute pools.
-// Routes sharing common attributes (e.g., same ORIGIN) share pool entries.
+// FamilyRIB stores routes with per-attribute-type deduplication. Each route
+// has its own RouteEntry with handles to individual attribute pools; routes
+// sharing common attributes (e.g., same ORIGIN) share pool entries.
 //
-// Uses a BART trie (popcount-compressed multibit trie) for non-ADD-PATH families,
-// eliminating the Go map rehash cliff at 1M+ routes. Falls back to map[NLRIKey]RouteEntry
-// for ADD-PATH families where the same prefix can have multiple path-IDs.
+// Backed by a generic *Store[RouteEntry] which dispatches between a BART trie
+// (non-ADD-PATH) and a map keyed by NLRIKey (ADD-PATH). Pool-handle lifecycle
+// (Release, MarkStale, PurgeStale, StaleCount) is layered on top of the
+// storage primitives here, because Store[T] is pure storage and knows nothing
+// about RouteEntry semantics.
 type FamilyRIB struct {
-	fam     family.Family
-	addPath bool
-
-	// BART trie for non-ADD-PATH (no rehash, cache-friendly traversal).
-	trie *bart.Table[RouteEntry]
-
-	// Map fallback for ADD-PATH (path-id is part of key, BART can't handle that).
-	routes map[NLRIKey]RouteEntry
+	store *Store[RouteEntry]
 }
 
 // NewFamilyRIB creates a FamilyRIB for the given address family.
 func NewFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
-	r := &FamilyRIB{
-		fam:     fam,
-		addPath: addPath,
-	}
-	if addPath {
-		r.routes = make(map[NLRIKey]RouteEntry)
-	} else {
-		r.trie = new(bart.Table[RouteEntry])
-	}
-	return r
+	return &FamilyRIB{store: NewStore[RouteEntry](fam, addPath)}
 }
 
-// Insert adds a route with its attributes to the RIB.
-// Parses attributes into per-type pools for fine-grained deduplication.
-// If the NLRI already exists, performs implicit withdraw (releases old entry).
+// Insert adds a route with its attributes to the RIB. Parses attributes into
+// per-type pools for fine-grained deduplication. If the NLRI already exists,
+// performs implicit withdraw (releases the old entry) unless the new
+// attributes are bit-identical, in which case the new handles are released
+// and the old entry is retained with its stale flag cleared.
 func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
-	// Parse attributes into RouteEntry.
 	newEntry, err := ParseAttributes(attrBytes)
 	if err != nil {
-		// Malformed attributes - skip.
 		return
 	}
 
-	if r.addPath {
-		r.insertMap(nlriBytes, newEntry)
-	} else {
-		r.insertTrie(nlriBytes, newEntry)
-	}
-}
-
-func (r *FamilyRIB) insertTrie(nlriBytes []byte, newEntry RouteEntry) {
-	pfx, ok := NLRIToPrefix(r.fam, nlriBytes)
-	if !ok {
-		newEntry.Release()
-		return
-	}
-
-	// Check for existing route (implicit withdraw).
-	if oldEntry, exists := r.trie.Get(pfx); exists {
-		// Check if same attributes (no-op update).
+	if oldEntry, exists := r.store.Lookup(nlriBytes); exists {
 		if entriesEqual(oldEntry, newEntry) {
-			// Same attributes - release the new entry, keep old.
+			// Same attributes -- release the new entry, keep old.
 			// RFC 4724: clear stale flag -- re-announcement means route is still valid.
 			oldEntry.StaleLevel = StaleLevelFresh
-			r.trie.Insert(pfx, oldEntry)
+			r.store.Insert(nlriBytes, oldEntry)
 			newEntry.Release()
 			return
 		}
-		// Different attributes - release old entry.
+		// Different attributes -- release old entry.
 		oldEntry.Release()
 	}
 
-	r.trie.Insert(pfx, newEntry)
+	r.store.Insert(nlriBytes, newEntry)
 }
 
-func (r *FamilyRIB) insertMap(nlriBytes []byte, newEntry RouteEntry) {
-	nlriKey := NewNLRIKey(nlriBytes)
-
-	// Check for existing route (implicit withdraw).
-	if oldEntry, exists := r.routes[nlriKey]; exists {
-		// Check if same attributes (no-op update).
-		if entriesEqual(oldEntry, newEntry) {
-			// Same attributes - release the new entry, keep old.
-			// RFC 4724: clear stale flag -- re-announcement means route is still valid.
-			oldEntry.StaleLevel = StaleLevelFresh
-			r.routes[nlriKey] = oldEntry
-			newEntry.Release()
-			return
-		}
-		// Different attributes - release old entry.
-		oldEntry.Release()
-	}
-
-	r.routes[nlriKey] = newEntry
-}
-
-// Remove withdraws an NLRI from the RIB.
-// Returns true if the NLRI existed.
+// Remove withdraws an NLRI from the RIB. Returns true if the NLRI existed.
 func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
-	if r.addPath {
-		return r.removeMap(nlriBytes)
-	}
-	return r.removeTrie(nlriBytes)
-}
-
-func (r *FamilyRIB) removeTrie(nlriBytes []byte) bool {
-	pfx, ok := NLRIToPrefix(r.fam, nlriBytes)
-	if !ok {
-		return false
-	}
-
-	entry, exists := r.trie.Get(pfx)
+	entry, exists := r.store.Lookup(nlriBytes)
 	if !exists {
 		return false
 	}
-
 	entry.Release()
-	r.trie.Delete(pfx)
-	return true
+	return r.store.Delete(nlriBytes)
 }
 
-func (r *FamilyRIB) removeMap(nlriBytes []byte) bool {
-	nlriKey := NewNLRIKey(nlriBytes)
-	entry, exists := r.routes[nlriKey]
-	if !exists {
-		return false
-	}
-
-	entry.Release()
-	delete(r.routes, nlriKey)
-	return true
-}
-
-// LookupEntry finds the RouteEntry for an NLRI.
-// Returns (entry, true) if found, (zero RouteEntry, false) otherwise.
-// The returned entry is a copy -- safe for read-only use.
+// LookupEntry finds the RouteEntry for an NLRI. Returns (entry, true) if
+// found, (zero RouteEntry, false) otherwise. The returned entry is a copy --
+// safe for read-only use.
 func (r *FamilyRIB) LookupEntry(nlriBytes []byte) (RouteEntry, bool) {
-	if r.addPath {
-		entry, exists := r.routes[NewNLRIKey(nlriBytes)]
-		return entry, exists
-	}
-
-	pfx, ok := NLRIToPrefix(r.fam, nlriBytes)
-	if !ok {
-		return RouteEntry{}, false
-	}
-	return r.trie.Get(pfx)
+	return r.store.Lookup(nlriBytes)
 }
 
 // Len returns the total number of routes in the RIB.
-func (r *FamilyRIB) Len() int {
-	if r.addPath {
-		return len(r.routes)
-	}
-	return r.trie.Size()
-}
+func (r *FamilyRIB) Len() int { return r.store.Len() }
 
 // IterateEntry calls fn for each route with its NLRI bytes and RouteEntry.
 // Stops if fn returns false.
 func (r *FamilyRIB) IterateEntry(fn func(nlriBytes []byte, entry RouteEntry) bool) {
-	if r.addPath {
-		for nlriKey, entry := range r.routes {
-			if !fn(nlriKey.Bytes(), entry) {
-				return
-			}
-		}
-		return
-	}
-
-	for pfx, entry := range r.trie.All() {
-		nlriBytes := PrefixToNLRI(pfx)
-		if !fn(nlriBytes, entry) {
-			return
-		}
-	}
+	r.store.Iterate(fn)
 }
 
-// Release frees all RouteEntry handles and clears the RIB.
+// Release frees all RouteEntry handles and clears the RIB. The backing
+// Store is reset in place rather than replaced, so the outer Store header
+// and its family/addPath fields are not reallocated.
 func (r *FamilyRIB) Release() {
-	if r.addPath {
-		for _, entry := range r.routes {
-			entry.Release()
-		}
-		r.routes = make(map[NLRIKey]RouteEntry)
-		return
-	}
-
-	for _, entry := range r.trie.All() {
-		entry.Release()
-	}
-	r.trie = new(bart.Table[RouteEntry])
+	r.store.ModifyAll(func(e *RouteEntry) { e.Release() })
+	r.store.Reset()
 }
 
-// ModifyEntry calls fn with a pointer to the entry for the given NLRI.
-// fn may mutate the entry (e.g., update StaleLevel or pool handles).
-// Returns false if the NLRI does not exist.
+// ModifyEntry calls fn with a pointer to the entry for the given NLRI. fn
+// may mutate the entry (e.g., update StaleLevel or pool handles). Returns
+// false if the NLRI does not exist.
 func (r *FamilyRIB) ModifyEntry(nlriBytes []byte, fn func(entry *RouteEntry)) bool {
-	if r.addPath {
-		key := NewNLRIKey(nlriBytes)
-		entry, exists := r.routes[key]
-		if !exists {
-			return false
-		}
-		fn(&entry)
-		r.routes[key] = entry
-		return true
-	}
-
-	pfx, ok := NLRIToPrefix(r.fam, nlriBytes)
-	if !ok {
-		return false
-	}
-	entry, exists := r.trie.Get(pfx)
-	if !exists {
-		return false
-	}
-	fn(&entry)
-	r.trie.Insert(pfx, entry)
-	return true
+	return r.store.Modify(nlriBytes, fn)
 }
 
 // ModifyAll calls fn with a pointer to each entry. fn may mutate the entry.
 func (r *FamilyRIB) ModifyAll(fn func(entry *RouteEntry)) {
-	if r.addPath {
-		for key, entry := range r.routes {
-			fn(&entry)
-			r.routes[key] = entry
-		}
-		return
-	}
-
-	for pfx, entry := range r.trie.All() {
-		fn(&entry)
-		r.trie.Insert(pfx, entry)
-	}
+	r.store.ModifyAll(fn)
 }
 
 // Family returns the address family of this RIB.
-func (r *FamilyRIB) Family() family.Family {
-	return r.fam
-}
+func (r *FamilyRIB) Family() family.Family { return r.store.Family() }
 
 // HasAddPath returns whether ADD-PATH is enabled.
-func (r *FamilyRIB) HasAddPath() bool {
-	return r.addPath
-}
+func (r *FamilyRIB) HasAddPath() bool { return r.store.AddPath() }
 
-// MarkStale sets StaleLevel on all routes in this family.
-// The level is plugin-defined (e.g., 1 for GR, 2 for LLGR).
+// MarkStale sets StaleLevel on all routes in this family. The level is
+// plugin-defined (e.g., 1 for GR, 2 for LLGR).
 func (r *FamilyRIB) MarkStale(level uint8) {
-	r.ModifyAll(func(entry *RouteEntry) {
-		entry.StaleLevel = level
-	})
+	r.ModifyAll(func(entry *RouteEntry) { entry.StaleLevel = level })
 }
 
 // PurgeStale deletes all routes where StaleLevel > 0, releasing pool handles.
 // Returns the number of routes purged.
 func (r *FamilyRIB) PurgeStale() int {
-	purged := 0
-
-	if r.addPath {
-		for key, entry := range r.routes {
-			if entry.StaleLevel > StaleLevelFresh {
-				entry.Release()
-				delete(r.routes, key)
-				purged++
-			}
-		}
-		return purged
-	}
-
-	// Collect stale prefixes first (can't delete during BART iteration).
-	var stale []netip.Prefix
-	for pfx, entry := range r.trie.All() {
+	var stale [][]byte
+	r.IterateEntry(func(nlriBytes []byte, entry RouteEntry) bool {
 		if entry.StaleLevel > StaleLevelFresh {
+			// Keep a copy -- the backing bytes may be recycled by iteration.
+			cp := make([]byte, len(nlriBytes))
+			copy(cp, nlriBytes)
+			stale = append(stale, cp)
+		}
+		return true
+	})
+	for _, nlri := range stale {
+		if entry, ok := r.store.Lookup(nlri); ok {
 			entry.Release()
-			stale = append(stale, pfx)
-			purged++
+			r.store.Delete(nlri)
 		}
 	}
-	for _, pfx := range stale {
-		r.trie.Delete(pfx)
-	}
-
-	return purged
+	return len(stale)
 }
 
 // StaleCount returns the number of routes with StaleLevel > 0.
 func (r *FamilyRIB) StaleCount() int {
 	count := 0
-
-	if r.addPath {
-		for _, entry := range r.routes {
-			if entry.StaleLevel > StaleLevelFresh {
-				count++
-			}
-		}
-		return count
-	}
-
-	for _, entry := range r.trie.All() {
+	r.IterateEntry(func(_ []byte, entry RouteEntry) bool {
 		if entry.StaleLevel > StaleLevelFresh {
 			count++
 		}
-	}
+		return true
+	})
 	return count
 }

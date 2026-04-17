@@ -48,24 +48,44 @@ func NLRIToPrefix(fam family.Family, nlriBytes []byte) (netip.Prefix, bool) {
 }
 
 // PrefixToNLRI converts a netip.Prefix back to NLRI wire bytes.
-// Returns [prefix-len:1][prefix-bytes] format.
+// Returns [prefix-len:1][prefix-bytes] format. Allocates; for zero-alloc
+// iteration, use PrefixToNLRIInto with a caller-provided buffer.
 func PrefixToNLRI(pfx netip.Prefix) []byte {
+	buf := make([]byte, 17) // max: 1 (prefix-len) + 16 (IPv6 addr)
+	return PrefixToNLRIInto(pfx, buf)
+}
+
+// PrefixToNLRIInto writes NLRI wire bytes for pfx into buf and returns the
+// slice header. The returned slice aliases buf -- callers must not retain it
+// past the next write into buf. buf must be at least 17 bytes (1 prefix-len +
+// 16 for IPv6); returns nil if too small.
+//
+// Used on hot iteration paths to avoid per-entry allocation: the caller
+// declares `var buf [17]byte` on the stack, calls this in a loop, and the
+// trie iterator yields nlriBytes without touching the heap.
+func PrefixToNLRIInto(pfx netip.Prefix, buf []byte) []byte {
 	bits := pfx.Bits()
+	if bits < 0 {
+		// Zero-value / invalid Prefix -- refuse rather than write the
+		// sentinel byte 0xFF that would otherwise encode to a malformed
+		// NLRI (prefix-length 255, zero bytes).
+		return nil
+	}
 	byteLen := (bits + 7) / 8
+	needed := 1 + byteLen
+	if len(buf) < needed {
+		return nil
+	}
+	buf[0] = byte(bits)
 	addr := pfx.Addr()
-
-	result := make([]byte, 1+byteLen)
-	result[0] = byte(bits)
-
 	if addr.Is4() {
 		raw := addr.As4()
-		copy(result[1:], raw[:byteLen])
+		copy(buf[1:needed], raw[:byteLen])
 	} else {
 		raw := addr.As16()
-		copy(result[1:], raw[:byteLen])
+		copy(buf[1:needed], raw[:byteLen])
 	}
-
-	return result
+	return buf[:needed]
 }
 
 // NLRIKey is a fixed-size map key for NLRI bytes, eliminating per-route string allocation.

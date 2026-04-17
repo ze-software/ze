@@ -74,8 +74,11 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// Get encoding context for add-path flags.
 	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
 
-	// Track affected prefixes for best-path change detection.
-	var affected []affectedPrefix
+	// Track affected prefixes for best-path change detection. Preallocate
+	// for a typical stress-sized UPDATE; cap 16 left ~70 MB of regrowth on
+	// the profile, cap 128 covers the common case without over-allocating
+	// the small-UPDATE path (entries are ~40 bytes each).
+	affected := make([]affectedPrefix, 0, 128)
 
 	r.mu.Lock()
 	locked := true
@@ -161,12 +164,20 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 
 	// Check best-path changes for all affected prefixes (under lock).
 	// Group changes by family so each family gets its own batch with correct metadata.
+	// Preallocate the per-family slices with len(affected) -- all changes in a single
+	// UPDATE almost always belong to one family, so one grow-free append per batch.
 	changesByFamily := make(map[string][]bestChangeEntry)
 	for _, ap := range affected {
-		if change := r.checkBestPathChange(ap.fam, ap.nlriBytes, ap.addPath); change != nil {
-			familyStr := ap.fam.String()
-			changesByFamily[familyStr] = append(changesByFamily[familyStr], *change)
+		change, ok := r.checkBestPathChange(ap.fam, ap.nlriBytes, ap.addPath)
+		if !ok {
+			continue
 		}
+		familyStr := ap.fam.String()
+		slice, seen := changesByFamily[familyStr]
+		if !seen {
+			slice = make([]bestChangeEntry, 0, len(affected))
+		}
+		changesByFamily[familyStr] = append(slice, change)
 	}
 
 	r.mu.Unlock()
@@ -505,6 +516,14 @@ func isSimplePrefixFamilyNLRI(fam family.Family) bool {
 // wirePrefixToString converts NLRI wire prefix bytes [prefix-len][prefix-bytes...] to "ip/len" string.
 // Returns "" if the wire bytes are malformed.
 // Uses stack-allocated [16]byte to avoid heap allocation.
+//
+// Does not bounds-check prefixLen against the family maximum (32 for IPv4,
+// 128 for IPv6). That validation lives at the wire layer: RFC 7606 Section
+// 5.3 requires treat-as-withdraw for over-length prefixes, enforced in
+// internal/component/bgp/message/rfc7606.go during UPDATE parse. By the time
+// bytes reach this helper they are guaranteed in-range, so an asymmetry with
+// storage.NLRIToPrefix (which rejects over-length) is unreachable in
+// practice.
 func wirePrefixToString(wire []byte, family string) string {
 	if len(wire) == 0 {
 		return ""

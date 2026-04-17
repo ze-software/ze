@@ -548,15 +548,35 @@ type PeerRIB struct {
 
 // FamilyRIB stores routes for one AFI/SAFI
 // NOTE: Current implementation uses per-attribute dedup (not whole-blob).
-// Key type is NLRIKey (struct with len + [24]byte, zero alloc).
-// Value type is RouteEntry (56 bytes, stored by value in map, zero alloc).
-// See internal/component/bgp/plugins/rib/storage/familyrib.go.
+// FamilyRIB wraps a generic *Store[RouteEntry] which dispatches between a
+// BART trie (non-ADD-PATH) and a map keyed by NLRIKey (ADD-PATH).
+// FamilyRIB adds pool-handle lifecycle methods (Release, MarkStale,
+// PurgeStale, StaleCount) on top of the pure storage primitives.
+// See internal/component/bgp/plugins/rib/storage/familyrib_bart.go.
 type FamilyRIB struct {
-    family  family.Family
-    addPath bool
-    routes  map[NLRIKey]RouteEntry  // fixed-size key, value-type entry
+    store *Store[RouteEntry]  // generic storage with BART+map dispatch
 }
 ```
+
+### Generic `Store[T]` and bestPrev Consolidation
+
+The BART-vs-map dispatch is factored into `storage.Store[T]` (a generic
+NLRI-keyed store). `FamilyRIB` is one user; the best-path change tracker
+(`rib_bestchange.go`) is the other. `FamilyRIB` is single-mode (mode fixed at
+peer-OPEN time from negotiated ADD-PATH capability). Best-path tracking is
+cross-peer, so its `bestPrevStore` holds **two** `*Store[bestPathRecord]` --
+one non-ADD-PATH (trie), one ADD-PATH (map) -- and dispatches per call on the
+incoming `addPath` flag. This lets one family host peers with mixed ADD-PATH
+capability without key collision between the two wire shapes.
+
+The `maprib` build tag degrades `Store[T]` to map-only storage for both
+backends; `FamilyRIB` retains its two build-tagged files
+(`familyrib_bart.go`, `familyrib_map.go`) wrapping the corresponding
+`Store[T]` variant.
+<!-- source: internal/component/bgp/plugins/rib/storage/store_bart.go -- Store[T] default BART+map dispatch -->
+<!-- source: internal/component/bgp/plugins/rib/storage/store_map.go -- Store[T] map-only under maprib -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestPrevStore pairs two Store[bestPathRecord] -->
+
 
 ### ADD-PATH Support (RFC 7911)
 

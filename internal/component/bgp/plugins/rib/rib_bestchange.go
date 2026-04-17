@@ -26,20 +26,48 @@ type bestChangeEntry = ribevents.BestChangeEntry
 // the typed BestChange handle.
 type bestChangeBatch = ribevents.BestChangeBatch
 
-// bestPathKey identifies a unique prefix in the RIB for best-path tracking.
-type bestPathKey struct {
-	Family string
-	NLRI   string // string(nlriBytes)
-}
-
 // bestPathRecord stores the previous best-path state for change detection.
+// The prefix is not stored -- it is the key of the owning bestPrevStore entry
+// and is formatted lazily from that key on the emission path.
 type bestPathRecord struct {
 	PeerAddr     string
-	Prefix       string // parsed prefix string, stored to avoid re-parsing during replay
 	NextHop      string
 	Priority     int // admin distance: eBGP=20, iBGP=200
 	Metric       uint32
 	ProtocolType string // "ebgp" or "ibgp"
+}
+
+// bestPrevStore holds the previously-recorded best path per prefix for one
+// family. It carries both a non-ADD-PATH trie-backed Store and an ADD-PATH
+// map-backed Store so a family can host peers with mixed ADD-PATH capability
+// without key collision -- AP peers advertise NLRIs with a 4-byte path-id
+// prefix which the trie cannot key on, while non-AP peers use bare prefix
+// bytes which the map would conflate with other path-ids.
+type bestPrevStore struct {
+	trie *storage.Store[bestPathRecord] // addPath=false backend
+	ap   *storage.Store[bestPathRecord] // addPath=true backend
+}
+
+// newBestPrevStore creates a bestPrevStore for a family. Both backends are
+// allocated eagerly so mixed-mode sessions (some peers ADD-PATH-capable, some
+// not, for the same family) route each call to the correct key space without
+// collision. The empty backend pays only a small idle cost (one map header
+// or one empty trie root) regardless of which keys the family ends up using
+// -- accepted trade-off for correctness on mixed sessions. See the
+// rib-bart-bestprev design decision log entry D2.
+func newBestPrevStore(fam family.Family) *bestPrevStore {
+	return &bestPrevStore{
+		trie: storage.NewStore[bestPathRecord](fam, false),
+		ap:   storage.NewStore[bestPathRecord](fam, true),
+	}
+}
+
+// pick returns the backend store for the given addPath flag.
+func (s *bestPrevStore) pick(addPath bool) *storage.Store[bestPathRecord] {
+	if addPath {
+		return s.ap
+	}
+	return s.trie
 }
 
 // prefixBytesForDisplay returns the NLRI bytes suitable for wirePrefixToString.
@@ -55,31 +83,42 @@ func prefixBytesForDisplay(nlriBytes []byte, addPath bool) []byte {
 // Compares with the previous best and returns a change entry if the best path changed.
 // addPath indicates whether nlriBytes includes a 4-byte path-ID prefix.
 // Caller MUST hold r.mu (write lock).
-func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, addPath bool) *bestChangeEntry {
-	familyStr := fam.String()
-	key := bestPathKey{Family: familyStr, NLRI: string(nlriBytes)}
-
+// Returns (entry, true) when a change occurred; (zero, false) when unchanged or
+// the NLRI is malformed. The bool form avoids heap-allocating *bestChangeEntry
+// per update, which dominated GC work under stress.
+func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, addPath bool) (bestChangeEntry, bool) {
 	// Gather candidates from all peers for this prefix.
 	candidates := r.gatherCandidates(fam, nlriBytes)
 	newBest := SelectBest(candidates)
 
-	prev := r.bestPrev[key]
-	displayBytes := prefixBytesForDisplay(nlriBytes, addPath)
-	prefix := wirePrefixToString(displayBytes, familyStr)
-	if prefix == "" {
-		return nil
+	store := r.bestPrev[fam]
+	if store == nil && newBest == nil {
+		// Nothing to do -- no candidates and no previous record.
+		return bestChangeEntry{}, false
 	}
+	if store == nil {
+		store = newBestPrevStore(fam)
+		r.bestPrev[fam] = store
+	}
+	backend := store.pick(addPath)
+
+	prev, havePrev := backend.Lookup(nlriBytes)
 
 	if newBest == nil {
 		// No candidates remain -- withdraw if we had a previous best.
-		if prev != nil {
-			delete(r.bestPrev, key)
-			return &bestChangeEntry{
-				Action: ribevents.BestChangeWithdraw,
-				Prefix: prefix,
-			}
+		if !havePrev {
+			return bestChangeEntry{}, false
 		}
-		return nil
+		familyStr := fam.String()
+		prefix := wirePrefixToString(prefixBytesForDisplay(nlriBytes, addPath), familyStr)
+		if prefix == "" {
+			return bestChangeEntry{}, false
+		}
+		backend.Delete(nlriBytes)
+		return bestChangeEntry{
+			Action: ribevents.BestChangeWithdraw,
+			Prefix: prefix,
+		}, true
 	}
 
 	// Extract next-hop, priority, and protocol type from the new best.
@@ -88,48 +127,38 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	protoType := r.protocolType(newBest)
 	metric := newBest.MED
 
-	if prev == nil {
-		// New best path where none existed before.
-		r.bestPrev[key] = &bestPathRecord{
-			PeerAddr:     newBest.PeerAddr,
-			Prefix:       prefix,
-			NextHop:      nextHop,
-			Priority:     priority,
-			Metric:       metric,
-			ProtocolType: protoType,
-		}
-		return &bestChangeEntry{
-			Action:       ribevents.BestChangeAdd,
-			Prefix:       prefix,
-			NextHop:      nextHop,
-			Priority:     priority,
-			Metric:       metric,
-			ProtocolType: protoType,
-		}
-	}
-
-	// Check if the best path actually changed.
-	if prev.PeerAddr == newBest.PeerAddr && prev.NextHop == nextHop &&
+	if havePrev && prev.PeerAddr == newBest.PeerAddr && prev.NextHop == nextHop &&
 		prev.Priority == priority && prev.Metric == metric {
-		return nil // Same best, no change.
+		return bestChangeEntry{}, false // Same best, no change.
 	}
 
-	// Best path changed.
-	r.bestPrev[key] = &bestPathRecord{
+	// Compute the display prefix only now -- the unchanged steady state above
+	// skips this entirely, saving a wirePrefixToString alloc per update.
+	familyStr := fam.String()
+	prefix := wirePrefixToString(prefixBytesForDisplay(nlriBytes, addPath), familyStr)
+	if prefix == "" {
+		return bestChangeEntry{}, false
+	}
+
+	backend.Insert(nlriBytes, bestPathRecord{
 		PeerAddr:     newBest.PeerAddr,
 		NextHop:      nextHop,
 		Priority:     priority,
 		Metric:       metric,
 		ProtocolType: protoType,
+	})
+	action := ribevents.BestChangeAdd
+	if havePrev {
+		action = ribevents.BestChangeUpdate
 	}
-	return &bestChangeEntry{
-		Action:       ribevents.BestChangeUpdate,
+	return bestChangeEntry{
+		Action:       action,
 		Prefix:       prefix,
 		NextHop:      nextHop,
 		Priority:     priority,
 		Metric:       metric,
 		ProtocolType: protoType,
-	}
+	}, true
 }
 
 // protocolType returns the protocol-type label for a candidate based on
@@ -241,19 +270,41 @@ func (r *RIBManager) replayBestPaths() {
 	}
 
 	r.mu.RLock()
-	changesByFamily := make(map[string][]bestChangeEntry)
-	for key, rec := range r.bestPrev {
-		if rec.Prefix == "" {
-			continue // Skip entries with unparseable prefixes.
+	changesByFamily := make(map[string][]bestChangeEntry, len(r.bestPrev))
+	for fam, store := range r.bestPrev {
+		famStr := fam.String()
+		// Replay is a cold path fired on late-subscriber replay-request.
+		// Presize to the exact final length so a 1M-entry family commits
+		// one ~80 MB allocation instead of paying ~20 geometric-growth
+		// cycles (~30 MB transient peak, similar final size). Upfront
+		// commitment is acceptable because the batch is emitted and
+		// released in the same function; GC reclaims immediately after.
+		changes := make([]bestChangeEntry, 0, store.trie.Len()+store.ap.Len())
+		appendEntry := func(nlriBytes []byte, rec bestPathRecord, addPath bool) {
+			prefix := wirePrefixToString(prefixBytesForDisplay(nlriBytes, addPath), famStr)
+			if prefix == "" {
+				return
+			}
+			changes = append(changes, bestChangeEntry{
+				Action:       ribevents.BestChangeAdd,
+				Prefix:       prefix,
+				NextHop:      rec.NextHop,
+				Priority:     rec.Priority,
+				Metric:       rec.Metric,
+				ProtocolType: rec.ProtocolType,
+			})
 		}
-		changesByFamily[key.Family] = append(changesByFamily[key.Family], bestChangeEntry{
-			Action:       ribevents.BestChangeAdd,
-			Prefix:       rec.Prefix,
-			NextHop:      rec.NextHop,
-			Priority:     rec.Priority,
-			Metric:       rec.Metric,
-			ProtocolType: rec.ProtocolType,
+		store.trie.Iterate(func(nlriBytes []byte, rec bestPathRecord) bool {
+			appendEntry(nlriBytes, rec, false)
+			return true
 		})
+		store.ap.Iterate(func(nlriBytes []byte, rec bestPathRecord) bool {
+			appendEntry(nlriBytes, rec, true)
+			return true
+		})
+		if len(changes) > 0 {
+			changesByFamily[famStr] = changes
+		}
 	}
 	r.mu.RUnlock()
 
