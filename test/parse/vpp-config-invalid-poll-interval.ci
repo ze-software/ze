@@ -1,0 +1,21 @@
+# Test: poll-interval out of YANG range 1..3600 is rejected
+# VALIDATES: ze-vpp-conf.yang -- stats/poll-interval has range "1..3600".
+# PREVENTS: a zero or absurdly large poll interval reaching the stats
+#           poller goroutine, where a zero interval would busy-loop.
+stdin=config:terminator=EOF_CONF
+vpp {
+	enabled true;
+	stats {
+		poll-interval 0;
+	}
+	dpdk {
+		interface 0000:03:00.0 {
+			name xe0;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=poll-interval

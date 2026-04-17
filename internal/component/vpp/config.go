@@ -150,6 +150,31 @@ func ValidatePCIAddress(addr string) error {
 	return nil
 }
 
+// ParseConfigSection parses a wrapped VPP config section delivered by the
+// plugin-server `ExtractConfigSubtree` helper. That helper wraps every
+// subtree in its path structure, so a section for the "vpp" root arrives
+// as `{"vpp": {...}}` rather than the bare `{...}` that ParseSettings
+// operates on. This function unwraps the "vpp" root and delegates to
+// ParseSettings.
+//
+// Use this from plugin OnConfigure callbacks. Use ParseSettings directly
+// from tests or callers that already hold the inner subtree.
+func ParseConfigSection(data string) (*VPPSettings, error) {
+	var wrapped map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(data), &wrapped); err != nil {
+		return nil, fmt.Errorf("vpp: parse wrapped config: %w", err)
+	}
+	inner, ok := wrapped["vpp"]
+	if !ok {
+		return nil, fmt.Errorf("vpp: config section missing 'vpp' root")
+	}
+	parsed, err := ParseSettings(inner)
+	if err != nil {
+		return nil, fmt.Errorf("vpp: parse config: %w", err)
+	}
+	return parsed, nil
+}
+
 // ParseSettings extracts VPP configuration from a YANG config JSON section.
 // The section is the "vpp" subtree from the config tree.
 func ParseSettings(section json.RawMessage) (*VPPSettings, error) {

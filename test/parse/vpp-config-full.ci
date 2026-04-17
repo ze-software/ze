@@ -1,0 +1,45 @@
+# Test: full VPP config with every container and leaf parses
+# VALIDATES: ze-vpp-conf.yang -- every documented leaf under vpp (cpu,
+#            memory, dpdk, stats, lcp) is accepted at non-default values.
+# PREVENTS: silent YANG schema drift where a leaf gets renamed, the type
+#           tightens, or a container disappears between revisions.
+stdin=config:terminator=EOF_CONF
+vpp {
+	enabled true;
+	api-socket "/run/vpp/api.sock";
+	cpu {
+		main-core 0;
+		workers 3;
+	}
+	memory {
+		main-heap 1536M;
+		hugepage-size 2M;
+		buffers 128000;
+	}
+	dpdk {
+		interface 0000:03:00.0 {
+			name xe0;
+			rx-queues 2;
+			tx-queues 2;
+		}
+		interface 0000:03:00.1 {
+			name xe1;
+		}
+	}
+	stats {
+		segment-size 512M;
+		socket-path "/run/vpp/stats.sock";
+		poll-interval 30;
+	}
+	lcp {
+		enabled true;
+		sync true;
+		auto-subint true;
+		netns dataplane;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=valid

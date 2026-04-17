@@ -1,0 +1,23 @@
+# Test: fib-vpp augment of /fib:fib parses with non-default values
+# VALIDATES: ze-fib-vpp-conf.yang -- the augment adds vpp { enabled, table-id,
+#            batch-size, batch-interval-ms } under fib, and every leaf is
+#            accepted via `ze config validate`.
+# PREVENTS: augment path regressions where /fib:fib loses the vpp subtree
+#           or a leaf disappears silently. fib-kernel and fib-vpp can
+#           coexist under the same fib container.
+stdin=config:terminator=EOF_CONF
+fib {
+	kernel {
+	}
+	vpp {
+		enabled true;
+		table-id 0;
+		batch-size 256;
+		batch-interval-ms 10;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=valid

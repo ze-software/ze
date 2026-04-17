@@ -1,0 +1,23 @@
+# Test: invalid hugepage-size enum is rejected by YANG schema
+# VALIDATES: ze-vpp-conf.yang -- hugepage-size is an enumeration with
+#            exactly two values (2M, 1G); any other value is a schema error.
+# PREVENTS: a typo or unit mistake ("4M", "2MB", "2048K") silently reaching
+#           the startup.conf generator where it would emit an invalid
+#           page-size directive.
+stdin=config:terminator=EOF_CONF
+vpp {
+	enabled true;
+	memory {
+		hugepage-size 4M;
+	}
+	dpdk {
+		interface 0000:03:00.0 {
+			name xe0;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=hugepage-size

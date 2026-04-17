@@ -24,7 +24,7 @@ func init() {
 		Name:         "fib-vpp",
 		Description:  "FIB VPP: programs VPP FIB entries from system RIB via GoVPP binary API",
 		Features:     "yang",
-		ConfigRoots:  []string{"fib.vpp"},
+		ConfigRoots:  []string{"fib/vpp"},
 		Dependencies: []string{"rib", "vpp"},
 		YANG:         fibvppschema.ZeFibVppConfYANG,
 		RunEngine:    runFibVPPPlugin,
@@ -68,10 +68,10 @@ func runFibVPPPlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, s := range sections {
-			if s.Root != "fib.vpp" {
+			if s.Root != "fib/vpp" {
 				continue
 			}
-			parsed, err := parseFibVPPConfig(s.Data)
+			parsed, err := parseFibVPPConfigSection(s.Data)
 			if err != nil {
 				return fmt.Errorf("fib-vpp: parse config: %w", err)
 			}
@@ -154,7 +154,7 @@ func runFibVPPPlugin(conn net.Conn) int {
 
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"fib.vpp"},
+		WantsConfig:  []string{"fib/vpp"},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{

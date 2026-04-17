@@ -19,7 +19,7 @@ func init() {
 		Name:         "fib-p4",
 		Description:  "FIB P4: programs P4 switch forwarding entries from system RIB via gRPC/P4Runtime",
 		Features:     "yang",
-		ConfigRoots:  []string{"fib.p4"},
+		ConfigRoots:  []string{"fib/p4"},
 		Dependencies: []string{"rib"},
 		YANG:         fibp4schema.ZeFibP4ConfYANG,
 		RunEngine:    runFIBP4Plugin,
@@ -95,7 +95,7 @@ func runFIBP4Plugin(conn net.Conn) int {
 
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"fib.p4"},
+		WantsConfig:  []string{"fib/p4"},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{

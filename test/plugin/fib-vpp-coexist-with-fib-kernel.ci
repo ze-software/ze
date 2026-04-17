@@ -1,0 +1,139 @@
+# Test: fib-vpp and fib-kernel coexist; both subscribe to best-change
+#       events under the same daemon.
+#
+# VALIDATES: spec-vpp-0-umbrella AC-10 -- "fib-kernel and fib-vpp both
+#            configured: both coexist: kernel routes for local, VPP FIB
+#            for transit". Both plugins auto-load from their respective
+#            ConfigRoots (fib.kernel, fib.vpp); both call Subscribe on
+#            sysribevents.BestChange without the first subscriber
+#            clobbering the second.
+# PREVENTS:  a future refactor that routes the system RIB to a single
+#            FIB backend, which would silently break the dual-dataplane
+#            promise. The warn line "VPP connector not available" is
+#            proof that fib-vpp's code path ran alongside fib-kernel's
+#            netlink path.
+#
+# Method: spawn ze with both fib.kernel {} and fib.vpp {enabled true;}
+# present; assert both plugins log lifecycle messages. fib-kernel's
+# netlink programming is best-effort under an unprivileged test runner;
+# this test does not assert kernel route installation, only that the
+# plugin starts and does not prevent fib-vpp from starting too.
+
+tmpfs=test-fib-coexist.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Assert fib-kernel and fib-vpp both start under one daemon."""
+
+import os
+import signal
+import subprocess
+import sys
+import time
+
+REQUIRED_FIB_VPP = [
+    "VPP connector not available, using noop backend",
+    "fib-vpp: running",
+]
+
+REQUIRED_FIB_KERNEL = [
+    "subsystem=fib.kernel",
+]
+
+REQUIRED = REQUIRED_FIB_VPP + REQUIRED_FIB_KERNEL
+
+CONFIG = """environment {
+}
+
+bgp {
+\trouter-id 10.0.0.1;
+\tsession { asn { local 65533; } }
+}
+
+vpp {
+\tenabled false;
+}
+
+fib {
+\tkernel {
+\t}
+\tvpp {
+\t\tenabled true;
+\t}
+}
+"""
+
+
+def main() -> int:
+    env = os.environ.copy()
+    env["ze.log.fib.vpp"] = "debug"
+    env["ze.log.fib.kernel"] = "debug"
+    env["ze.log.vpp"] = "info"
+
+    proc = subprocess.Popen(
+        ["ze", "-"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+    )
+    assert proc.stdin is not None
+    proc.stdin.write(CONFIG)
+    proc.stdin.close()
+
+    deadline = time.time() + 10.0
+    captured = ""
+    matched: set[str] = set()
+    while time.time() < deadline:
+        if proc.stderr is None:
+            break
+        line = proc.stderr.readline()
+        if not line:
+            if proc.poll() is not None:
+                break
+            time.sleep(0.05)
+            continue
+        captured += line
+        sys.stderr.write(line)
+        sys.stderr.flush()
+        for needle in REQUIRED:
+            if needle in line:
+                matched.add(needle)
+        if len(matched) == len(REQUIRED):
+            break
+
+    if proc.poll() is None:
+        proc.send_signal(signal.SIGTERM)
+        try:
+            proc.wait(timeout=3.0)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=2.0)
+
+    if proc.stderr is not None:
+        try:
+            tail = proc.stderr.read()
+        except (ValueError, OSError):
+            tail = ""
+        if tail:
+            captured += tail
+            sys.stderr.write(tail)
+            sys.stderr.flush()
+
+    missing = [needle for needle in REQUIRED if needle not in captured]
+    if missing:
+        sys.stderr.write(f"FAIL: missing required patterns: {missing}\n")
+        return 1
+
+    sys.stderr.write("OK: fib-kernel and fib-vpp both loaded\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 ./test-fib-coexist.py:timeout=15s
+expect=exit:code=0
+expect=stderr:pattern=VPP connector not available, using noop backend
+expect=stderr:pattern=fib-vpp: running
+expect=stderr:pattern=subsystem=fib.kernel

@@ -1,0 +1,24 @@
+# Test: LCP disabled config is accepted
+# VALIDATES: ze-vpp-conf.yang -- lcp.enabled can be false while the rest
+#            of the VPP config remains valid (startup.conf generator
+#            conditionally skips the linux-cp and linux-nl sections).
+# PREVENTS: the LCP container becoming mandatory by accident; a deployment
+#           that does not need control-plane connectivity on VPP ports
+#           (e.g. pure transit forwarding) being forced to enable LCP.
+stdin=config:terminator=EOF_CONF
+vpp {
+	enabled true;
+	dpdk {
+		interface 0000:03:00.0 {
+			name xe0;
+		}
+	}
+	lcp {
+		enabled false;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=valid

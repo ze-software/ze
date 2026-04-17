@@ -188,8 +188,10 @@ func (t *Tree) ContainerNames() []string {
 }
 
 // CollectContainerPaths returns all container paths present in the tree,
-// recursively walking nested containers. Paths use "." separator.
-// Example: tree with fib { kernel { } } returns ["fib", "fib.kernel"].
+// recursively walking nested containers. Paths use the config package's
+// PathSep ("/"), matching ExtractConfigSubtree and the plugin auto-loader.
+// Example: tree with fib { kernel { } } returns ["fib", "fib/kernel"].
+// Plugin ConfigRoots MUST use the same separator for auto-load matching.
 func CollectContainerPaths(t *Tree) []string {
 	var paths []string
 	collectPaths(t, "", &paths)

@@ -25,7 +25,7 @@ func init() {
 		Description:  "FIB kernel: programs OS routes from system RIB via netlink/route socket",
 		Features:     "yang",
 		YANG:         fibschema.ZeFibConfYANG,
-		ConfigRoots:  []string{"fib.kernel"},
+		ConfigRoots:  []string{"fib/kernel"},
 		Dependencies: []string{"rib", "sysctl"},
 		RunEngine:    runFIBKernelPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -130,7 +130,7 @@ func runFIBKernelPlugin(conn net.Conn) int {
 
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"fib.kernel"},
+		WantsConfig:  []string{"fib/kernel"},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{

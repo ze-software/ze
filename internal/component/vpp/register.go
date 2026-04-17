@@ -5,7 +5,6 @@ package vpp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -76,7 +75,11 @@ func runVPPEngine(conn net.Conn) int {
 	p := sdk.NewWithConn("vpp", conn)
 	defer func() { _ = p.Close() }()
 
-	var settings *VPPSettings
+	// Initialize settings to the disabled default so OnStarted can run
+	// safely even if OnConfigure never fires or fails to parse. Without this,
+	// a failed OnConfigure returns an error, leaves `settings` as nil, and
+	// NewVPPManager(nil) in OnStarted deref-panics on settings.APISocket.
+	settings := &VPPSettings{Enabled: false}
 	var mgrCancel context.CancelFunc
 	var mgrDone chan struct{}
 
@@ -85,14 +88,11 @@ func runVPPEngine(conn net.Conn) int {
 			if s.Root != "vpp" {
 				continue
 			}
-			parsed, err := ParseSettings(json.RawMessage(s.Data))
+			parsed, err := ParseConfigSection(s.Data)
 			if err != nil {
-				return fmt.Errorf("vpp: parse config: %w", err)
+				return err
 			}
 			settings = parsed
-		}
-		if settings == nil {
-			settings = &VPPSettings{Enabled: false}
 		}
 		return nil
 	})

@@ -2,6 +2,7 @@ package vpp
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -414,3 +415,94 @@ func TestValidatePCIAddress(t *testing.T) {
 		})
 	}
 }
+
+// TestParseConfigSection locks the plugin-server wrapping contract that
+// the fib-vpp-plugin-load .ci test surfaced. ExtractConfigSubtree in
+// internal/component/plugin/server/startup.go wraps every subtree in
+// its path structure, so the vpp plugin receives `{"vpp": {...}}` at
+// runtime. Before the fix, OnConfigure called ParseSettings(s.Data)
+// directly on the wrapped JSON, which rejected the outer "vpp" key as
+// unknown, returned an error, left `settings` nil, and caused
+// NewVPPManager to deref-panic in OnStarted. This test guards both the
+// unwrap and the "inner parse failure wraps cleanly" behaviors.
+//
+// VALIDATES: live plugin OnConfigure path. spec-vpp-1-lifecycle wiring.
+// PREVENTS:  regression to the pre-2026-04-17 state where live ze with
+//
+//	a vpp { ... } config crashed the plugin on startup.
+func TestParseConfigSection(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr string // substring; empty means expect success
+		check   func(*testing.T, *VPPSettings)
+	}{
+		{
+			name:  "wrapped minimal config",
+			input: `{"vpp":{"enabled":"true"}}`,
+			check: func(t *testing.T, s *VPPSettings) {
+				t.Helper()
+				if !s.Enabled {
+					t.Error("expected enabled=true after unwrap")
+				}
+				if s.APISocket != "/run/vpp/api.sock" {
+					t.Errorf("api-socket default: got %q", s.APISocket)
+				}
+			},
+		},
+		{
+			name:  "wrapped full config",
+			input: `{"vpp":{"enabled":"true","api-socket":"/tmp/vpp.sock","cpu":{"main-core":"0","workers":"3"}}}`,
+			check: func(t *testing.T, s *VPPSettings) {
+				t.Helper()
+				if s.APISocket != "/tmp/vpp.sock" {
+					t.Errorf("api-socket: got %q", s.APISocket)
+				}
+				if s.CPU.MainCore == nil || *s.CPU.MainCore != 0 {
+					t.Errorf("main-core: got %v", s.CPU.MainCore)
+				}
+			},
+		},
+		{
+			name:    "missing vpp root",
+			input:   `{"not-vpp":{}}`,
+			wantErr: "missing 'vpp' root",
+		},
+		{
+			name:    "malformed JSON",
+			input:   `{not valid json`,
+			wantErr: "parse wrapped config",
+		},
+		{
+			name:    "inner parse failure propagates",
+			input:   `{"vpp":{"memory":{"hugepage-size":"4K"}}}`,
+			wantErr: "parse config",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseConfigSection(tt.input)
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+				}
+				if !strings.Contains(err.Error(), tt.wantErr) {
+					t.Errorf("error %q does not contain %q", err.Error(), tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got == nil {
+				t.Fatal("expected non-nil settings")
+			}
+			if tt.check != nil {
+				tt.check(t, got)
+			}
+		})
+	}
+}
+
+// (dead helpers removed; tests use strings.Contains directly)

@@ -1,0 +1,19 @@
+# Test: minimal VPP config parses
+# VALIDATES: ze-vpp-conf.yang -- vpp container with a single DPDK interface
+#            parses cleanly via `ze config validate`.
+# PREVENTS: YANG schema regressions where the mandatory leaves drift from
+#           the parser's expectations (name required, pci-address as list key).
+stdin=config:terminator=EOF_CONF
+vpp {
+	enabled true;
+	dpdk {
+		interface 0000:03:00.0 {
+			name xe0;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=valid

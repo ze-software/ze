@@ -1,0 +1,17 @@
+# Test: vpp.enabled=false with no other leaves is valid
+# VALIDATES: ze-vpp-conf.yang -- the vpp container can be present but
+#            inactive; validators inside VPPSettings.Validate short-circuit
+#            when enabled is false.
+# PREVENTS: a disabled VPP block being rejected by a validator that was
+#           meant to run only on enabled deployments (e.g. PCI address
+#           format checks that should not fire when no interfaces are
+#           declared).
+stdin=config:terminator=EOF_CONF
+vpp {
+	enabled false;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=valid

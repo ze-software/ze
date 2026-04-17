@@ -1,0 +1,22 @@
+# Test: unknown leaf under vpp is rejected by YANG strict mode
+# VALIDATES: ze-vpp-conf.yang -- YANG strict schema validation and
+#            config.go unknownKeys guard both refuse keys not declared
+#            in the module.
+# PREVENTS: typos in leaf names (e.g. "api-sockett") being silently
+#           ignored and the operator never realizing their config was
+#           parsed as empty.
+stdin=config:terminator=EOF_CONF
+vpp {
+	enabled true;
+	nonsense-leaf "this-leaf-does-not-exist";
+	dpdk {
+		interface 0000:03:00.0 {
+			name xe0;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=unknown field in vpp: nonsense-leaf

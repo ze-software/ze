@@ -71,8 +71,9 @@ func (s *Server) getUnclaimedSendTypePlugins() []plugin.PluginConfig {
 
 // getConfigPathPlugins returns plugins to auto-load based on config section presence.
 // Matches ConfiguredPaths (present config containers) against ConfigRoots declared
-// by registered plugins. A plugin with ConfigRoots: ["fib.kernel"] loads when the
-// config has fib { kernel { } }.
+// by registered plugins. Paths on both sides use the config package's PathSep ("/").
+// A plugin with ConfigRoots: ["fib/kernel"] loads when the config has
+// fib { kernel { } }.
 func (s *Server) getConfigPathPlugins() []plugin.PluginConfig {
 	if len(s.config.ConfiguredPaths) == 0 {
 		return nil

@@ -55,9 +55,36 @@ func getEventBus() ze.EventBus {
 	return *p
 }
 
-// fibVPPConfig holds parsed fib.vpp config values.
+// fibVPPConfig holds parsed fib/vpp config values.
 type fibVPPConfig struct {
 	tableID uint32
+}
+
+// parseFibVPPConfigSection parses a wrapped fib-vpp config section delivered
+// by the plugin-server ExtractConfigSubtree helper. For ConfigRoots "fib/vpp"
+// the helper wraps the subtree as `{"fib":{"vpp":{...}}}`. This function
+// unwraps both levels and delegates to parseFibVPPConfig.
+//
+// Use this from the plugin OnConfigure callback. Use parseFibVPPConfig
+// directly from tests or callers that already hold the inner subtree.
+func parseFibVPPConfigSection(data string) (*fibVPPConfig, error) {
+	var outer map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(data), &outer); err != nil {
+		return nil, fmt.Errorf("fib-vpp: parse wrapped config: %w", err)
+	}
+	fibRaw, ok := outer["fib"]
+	if !ok {
+		return nil, fmt.Errorf("fib-vpp: config section missing 'fib' root")
+	}
+	var fib map[string]json.RawMessage
+	if err := json.Unmarshal(fibRaw, &fib); err != nil {
+		return nil, fmt.Errorf("fib-vpp: parse fib container: %w", err)
+	}
+	vppRaw, ok := fib["vpp"]
+	if !ok {
+		return nil, fmt.Errorf("fib-vpp: config section missing 'fib/vpp' subtree")
+	}
+	return parseFibVPPConfig(string(vppRaw))
 }
 
 // parseFibVPPConfig extracts fib-vpp settings from config section JSON.
