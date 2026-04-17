@@ -121,6 +121,24 @@ module ze-extensions {
                      leaf to show in navigation and prompt for on creation.";
     }
 
+    // Extension: backend
+    // Declares which interface/firewall/traffic backends implement this node.
+    // The argument is a space-separated list of backend names (e.g.,
+    // "netlink", "netlink vpp"). An absent `ze:backend` statement means the
+    // node is supported by every registered backend for its component
+    // (unrestricted). When the active backend is not in the list, the
+    // commit-time feature gate rejects the config with a YANG-path diagnostic
+    // instead of letting an Apply-time "not supported" error fire later.
+    //
+    // Consumers match on Keyword == "ze:backend" OR strings.HasSuffix on
+    // ":backend" to accept both the long and short YANG prefixes.
+    extension backend {
+        argument names;
+        description "Declares which backends implement this node. Argument is
+                     a space-separated list of backend names (e.g.,
+                     \"netlink\", \"netlink vpp\"). Absent = unrestricted.";
+    }
+
     // Extension: os
     // Restricts a node to a specific operating system.
     // When the runtime OS does not match the argument, the node is excluded

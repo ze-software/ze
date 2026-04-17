@@ -11,9 +11,11 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
 	ifaceschema "codeberg.org/thomas-mangin/ze/internal/component/iface/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -24,6 +26,60 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+// configRootInterface is the top-level YANG config root that the iface
+// plugin owns. Used to select the right ConfigSection and to name the
+// subtree walked by the backend feature gate.
+const configRootInterface = "interface"
+
+// backendLeafPath is the YANG path shown to the user in backend-gate
+// error text so they know where to change the backend leaf.
+const backendLeafPath = "/interface/backend"
+
+// backendGateSchema caches the config schema used by validateBackendGate.
+// Built lazily on first commit/verify to avoid paying YANG load cost at
+// daemon startup. Schema is immutable after build -- safe for concurrent
+// reads from any goroutine.
+var (
+	backendGateSchemaOnce sync.Once
+	backendGateSchema     *config.Schema
+	backendGateSchemaErr  error
+)
+
+// validateBackendGate runs the ze:backend commit-time feature check.
+// sections holds the raw config sections delivered by the SDK; activeBackend
+// is the already-parsed backend leaf value. On any mismatch or on schema
+// load failure, it returns a single joined error suitable for propagation
+// back to the SDK as the commit rejection.
+//
+// Runs cheaply on the happy path (no annotations trigger -> nil). The
+// schema is built once per daemon lifetime.
+func validateBackendGate(sections []sdk.ConfigSection, activeBackend string) error {
+	backendGateSchemaOnce.Do(func() {
+		backendGateSchema, backendGateSchemaErr = config.YANGSchema()
+	})
+	if backendGateSchemaErr != nil {
+		return fmt.Errorf("interface backend gate: schema load: %w", backendGateSchemaErr)
+	}
+	for _, s := range sections {
+		if s.Root != configRootInterface {
+			continue
+		}
+		errs := config.ValidateBackendFeaturesJSON(
+			s.Data, backendGateSchema,
+			configRootInterface, activeBackend, backendLeafPath,
+		)
+		if len(errs) == 0 {
+			return nil
+		}
+		msgs := make([]string, 0, len(errs))
+		for _, e := range errs {
+			msgs = append(msgs, e.Error())
+		}
+		return fmt.Errorf("interface commit rejected:\n  %s", strings.Join(msgs, "\n  "))
+	}
+	return nil
+}
 
 // loggerPtr is the package-level logger, disabled by default.
 // Stored as atomic.Pointer to avoid data races when tests start
@@ -229,6 +285,10 @@ func runEngine(conn net.Conn) int {
 			return fmt.Errorf("interface: no backend configured and no OS default available")
 		}
 
+		if err := validateBackendGate(sections, cfg.Backend); err != nil {
+			return err
+		}
+
 		if err := LoadBackend(cfg.Backend); err != nil {
 			return fmt.Errorf("interface backend %q: %w", cfg.Backend, err)
 		}
@@ -344,6 +404,9 @@ func runEngine(conn net.Conn) int {
 		}
 		if cfg.Backend == "" {
 			return fmt.Errorf("interface: no backend configured and no OS default available")
+		}
+		if err := validateBackendGate(sections, cfg.Backend); err != nil {
+			return err
 		}
 		pendingCfg = cfg
 		log.Debug("interface config verified", "backend", cfg.Backend)

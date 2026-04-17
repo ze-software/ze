@@ -1,0 +1,21 @@
+# Test: bridge is rejected under backend vpp
+# VALIDATES: spec-backend-feature-gate AC-1 -- commit-time feature gate
+#            rejects a bridge list entry when the active backend is vpp,
+#            naming the /interface/bridge YANG path and the vpp backend.
+# PREVENTS: vpp receiving an Apply call for bridge creation that it has
+#           never implemented, with an opaque "CreateBridge not supported"
+#           error surfacing long after commit.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+	bridge br0 {
+		mac-address 02:00:00:00:00:01;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=/interface/bridge
+expect=stderr:contains="vpp"
+expect=stderr:contains=netlink

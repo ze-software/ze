@@ -721,6 +721,31 @@ imports the component -- all communication flows through the Bus.
 
 ---
 
+## 14a. Commit-Time Backend Capability Gate
+
+The `iface`, `firewall`, and `traffic` components expose a `backend` leaf that
+selects a pluggable backend. Before those components reach their imperative or
+declarative Apply path, a generic walker rejects configs that use features the
+active backend does not implement, and names the exact YANG path and backend
+in the diagnostic.
+
+| Concept | Description |
+|---------|-------------|
+| **YANG extension** | `ze:backend "<names>"` on a YANG node declares which backends implement it. Absent annotation = unrestricted. Declared in `ze-extensions.yang` alongside `ze:os`, `ze:listener`, etc. |
+| **Schema reader** | `getBackendExtension` in `yang_schema.go` mirrors `getOSExtension`; stores the de-duplicated name list on the schema `Node` (`LeafNode.Backend`, `ContainerNode.Backend`, `ListNode.Backend`). |
+| **Walker** | `config.ValidateBackendFeatures(tree, schema, root, activeBackend, backendLeafPath)` descends the parsed JSON tree alongside the schema and emits one error per YANG path where the node's annotation excludes the active backend. |
+| **Narrowest wins** | A descendant annotation that accepts the active backend suppresses an outer annotation that rejects it, so per-case overrides work. |
+| **Wiring** | iface plugin calls the gate in `OnConfigure` (startup) and `OnConfigVerify` (reload). `ze config validate` calls the same helper so offline validation matches daemon commit. Runtime `errNotSupported` returns in `ifacevpp` stay as defence-in-depth. |
+| **Initial coverage** | iface: `bridge`, `tunnel`, `wireguard`, `veth`, `mirror` annotated `ze:backend "netlink"`. firewall and traffic carry a `leaf backend` default (`nft`, `tc`); per-feature annotations land when fw-3 and fw-5 implement the declarative Apply paths. |
+
+<!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension backend -->
+<!-- source: internal/component/config/yang_schema.go -- getBackendExtension, Backend population on LeafNode/ContainerNode/ListNode -->
+<!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures, walkBackendNode, walkBackendListEntry -->
+<!-- source: internal/component/iface/register.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
+<!-- source: cmd/ze/config/cmd_validate.go -- runValidation, backend-gate loop over gated components -->
+
+---
+
 ## 14b. Firewall and Traffic Control
 
 Ze manages nftables firewall tables and tc traffic control through the same pluggable

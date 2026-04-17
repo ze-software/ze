@@ -488,6 +488,32 @@ discovered OS interfaces when editing config interactively.
 
 <!-- source: internal/component/config/validators.go -- MACAddressValidator -->
 
+### Backend Capability Errors
+
+The `interface` (and, in upcoming releases, `firewall` and `traffic-control`)
+components carry a `backend` leaf. The YANG schema annotates feature nodes
+with a list of supporting backends via the `ze:backend` extension. When the
+config selects a backend that does not implement a used feature, commit and
+`ze config validate` reject the config before any Apply call runs.
+
+Example: the `bridge`, `tunnel`, `wireguard`, `veth`, and `mirror` nodes are
+annotated `ze:backend "netlink"`. Selecting `backend vpp` while using any of
+them produces a diagnostic naming the YANG path, the active backend, and the
+list of backends that DO implement the feature:
+
+```
+/interface/bridge: feature not supported by backend "vpp" (supported: netlink)
+/interface/tunnel: feature not supported by backend "vpp" (supported: netlink)
+```
+
+Fix: change `backend` back to `netlink` (the default on Linux), or remove the
+unsupported entries. The same gate runs at daemon reload (`SIGHUP`) and on
+first-apply at startup, so the daemon cannot boot into an unworkable state.
+
+<!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures, walkBackendNode -->
+<!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension backend -->
+<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- ze:backend annotations on bridge/tunnel/wireguard/veth/mirror -->
+
 ### Route Priority
 
 The `route-priority` leaf on a unit sets the Linux route metric for default routes

@@ -242,6 +242,43 @@ func runValidation(input, path string) *validationResult {
 		}
 	}
 
+	// Commit-time backend feature gate for components that carry a
+	// `backend` leaf (interface today; fw-3 / fw-5 later). Matches the
+	// gate the iface plugin runs at OnConfigure / OnConfigVerify so the
+	// offline CLI diagnoses the same rejections without a running daemon.
+	//
+	// defaultB is the backend chosen when the user has not set a `backend`
+	// leaf; it MUST match what the component plugin uses at runtime. For
+	// iface that is `netlink` on Linux and "" on every other platform (see
+	// internal/component/iface/default_{linux,other}.go). When defaultB
+	// resolves to "", the walker's empty-backend guard fires and reports
+	// the same "no backend configured" rejection that the daemon would
+	// surface -- keeping CLI and daemon diagnostics aligned across
+	// platforms.
+	for _, gated := range []struct {
+		root     string
+		leafPath string
+		defaultB string
+	}{
+		{root: "interface", leafPath: "/interface/backend", defaultB: ifaceDefaultBackend()},
+	} {
+		container := tree.GetContainer(gated.root)
+		if container == nil {
+			continue
+		}
+		active := gated.defaultB
+		if v, ok := container.Get("backend"); ok && v != "" {
+			active = v
+		}
+		rootMap := map[string]any{gated.root: container.ToMap()}
+		for _, ge := range config.ValidateBackendFeatures(rootMap, schema, gated.root, active, gated.leafPath) {
+			result.Valid = false
+			result.Errors = append(result.Errors, validationError{
+				Message: ge.Error(),
+			})
+		}
+	}
+
 	// BGP-specific validation only when bgp {} is present.
 	if tree.GetContainer("bgp") != nil {
 		// Resolve templates and get BGP tree as map.

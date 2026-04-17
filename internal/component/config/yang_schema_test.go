@@ -1314,6 +1314,65 @@ func TestYangToNodeSkipsWrongOS(t *testing.T) {
 	assert.Nil(t, node, "node with ze:os plan9 should be skipped on this platform")
 }
 
+func TestGetBackendExtension_AbsentReturnsEmpty(t *testing.T) {
+	// VALIDATES: YANG entry without ze:backend yields nil list.
+	// PREVENTS: Unrestricted nodes being implicitly restricted.
+	entry := &gyang.Entry{Exts: nil}
+	got := getBackendExtension(entry)
+	assert.Nil(t, got)
+}
+
+func TestGetBackendExtension_SingleArgument(t *testing.T) {
+	// VALIDATES: ze:backend "netlink" yields ["netlink"].
+	// PREVENTS: Single-name annotation being dropped.
+	entry := &gyang.Entry{
+		Exts: []*gyang.Statement{{Keyword: "ze:backend", Argument: "netlink"}},
+	}
+	got := getBackendExtension(entry)
+	assert.Equal(t, []string{"netlink"}, got)
+}
+
+func TestGetBackendExtension_SpaceSeparatedList(t *testing.T) {
+	// VALIDATES: ze:backend "netlink vpp" yields ["netlink","vpp"] in order.
+	// PREVENTS: Multiple-name annotations being collapsed to the first.
+	entry := &gyang.Entry{
+		Exts: []*gyang.Statement{{Keyword: "ze:backend", Argument: "netlink vpp"}},
+	}
+	got := getBackendExtension(entry)
+	assert.Equal(t, []string{"netlink", "vpp"}, got)
+}
+
+func TestGetBackendExtension_DedupsRepeats(t *testing.T) {
+	// VALIDATES: Duplicate names in ze:backend arg are de-duplicated.
+	// PREVENTS: Noisy error text listing the same backend twice.
+	entry := &gyang.Entry{
+		Exts: []*gyang.Statement{{Keyword: "ze:backend", Argument: "netlink netlink"}},
+	}
+	got := getBackendExtension(entry)
+	assert.Equal(t, []string{"netlink"}, got)
+}
+
+func TestGetBackendExtension_SuffixMatch(t *testing.T) {
+	// VALIDATES: Extension keyword with non-default prefix (e.g. iface:backend)
+	// is still matched by the suffix-based fallback.
+	// PREVENTS: Prefix renames silently breaking the reader.
+	entry := &gyang.Entry{
+		Exts: []*gyang.Statement{{Keyword: "iface:backend", Argument: "netlink"}},
+	}
+	got := getBackendExtension(entry)
+	assert.Equal(t, []string{"netlink"}, got)
+}
+
+func TestGetBackendExtension_EmptyArgumentReturnsNil(t *testing.T) {
+	// VALIDATES: ze:backend "" is treated as absent (unrestricted).
+	// PREVENTS: A useless annotation accidentally restricting nothing to nothing.
+	entry := &gyang.Entry{
+		Exts: []*gyang.Statement{{Keyword: "ze:backend", Argument: ""}},
+	}
+	got := getBackendExtension(entry)
+	assert.Nil(t, got)
+}
+
 func TestYangToNodeKeepsMatchingOS(t *testing.T) {
 	// VALIDATES: yangToNode keeps nodes with ze:os matching runtime.GOOS.
 	// PREVENTS: Nodes for the current platform being incorrectly filtered.

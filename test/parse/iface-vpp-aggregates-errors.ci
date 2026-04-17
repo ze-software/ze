@@ -1,0 +1,31 @@
+# Test: multiple unsupported features under vpp produce one error per feature
+# VALIDATES: spec-backend-feature-gate AC-5 -- the walker aggregates every
+#            mismatch in a single pass so the user sees all three YANG
+#            paths (bridge, tunnel, wireguard) at once instead of fixing
+#            one, re-validating, and hitting the next one.
+# PREVENTS: first-error-wins UX that forces iterative fix-and-retest.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+	bridge br0 {
+		mac-address 02:00:00:00:00:04;
+	}
+	tunnel t0 {
+		encapsulation {
+			gre {
+				local { ip 192.0.2.1; }
+				remote { ip 198.51.100.1; }
+			}
+		}
+	}
+	wireguard wg0 {
+		listen-port 51820;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=/interface/bridge
+expect=stderr:contains=/interface/tunnel
+expect=stderr:contains=/interface/wireguard

@@ -326,6 +326,18 @@ module ze-firewall-conf {
         description "Ze-managed nftables firewall tables.
                      Table names are bare in config; ze_ prefix added by component.";
 
+        leaf backend {
+            type string;
+            default "nft";
+            description "Firewall backend implementation. Default is nft
+                         (nftables via libnftnl). Future backends can declare
+                         themselves via firewall.RegisterBackend. The
+                         ze:backend YANG extension on feature nodes declares
+                         per-feature backend support so the commit-time gate
+                         rejects configs that try to use unsupported
+                         primitives.";
+        }
+
         list table {
             key "name";
             description "Named firewall table";

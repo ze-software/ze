@@ -92,3 +92,44 @@ func TestWireguardYANGStructure(t *testing.T) {
 	assert.Contains(t, peerChildren, "persistent-keepalive")
 	assert.Contains(t, peerChildren, "disable")
 }
+
+// TestIfaceYANGBackendAnnotations verifies that the iface YANG annotates
+// the netlink-only feature lists (bridge, tunnel, wireguard, veth, mirror)
+// with ze:backend "netlink" so the commit-time feature gate rejects
+// configs that try to use those features under a backend (e.g. vpp) that
+// has not implemented them.
+//
+// VALIDATES: spec-backend-feature-gate AC-1, AC-2, AC-5; yangToList reads
+// ze:backend into the ListNode.Backend field; yangToContainer does the
+// same for ContainerNode (mirror).
+//
+// PREVENTS: annotations being silently dropped by a future YANG edit, and
+// the gate from having nothing to gate on.
+func TestIfaceYANGBackendAnnotations(t *testing.T) {
+	s, err := config.YANGSchema()
+	require.NoError(t, err)
+
+	iface := s.Get("interface")
+	require.NotNil(t, iface, "interface container missing from schema")
+	ifaceCN, ok := iface.(*config.ContainerNode)
+	require.True(t, ok, "interface must be a container")
+
+	for _, name := range []string{"bridge", "tunnel", "wireguard", "veth"} {
+		node := ifaceCN.Get(name)
+		require.NotNilf(t, node, "interface.%s missing from schema", name)
+		list, ok := node.(*config.ListNode)
+		require.Truef(t, ok, "interface.%s must be a list", name)
+		assert.Equalf(t, []string{"netlink"}, list.Backend,
+			"interface.%s must carry ze:backend \"netlink\"", name)
+	}
+
+	// ethernet, dummy, loopback should remain UNRESTRICTED (nil Backend).
+	for _, name := range []string{"ethernet", "dummy"} {
+		node := ifaceCN.Get(name)
+		require.NotNilf(t, node, "interface.%s missing from schema", name)
+		list, ok := node.(*config.ListNode)
+		require.Truef(t, ok, "interface.%s must be a list", name)
+		assert.Nilf(t, list.Backend,
+			"interface.%s must NOT carry ze:backend (supported by every backend)", name)
+	}
+}

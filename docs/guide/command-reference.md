@@ -54,7 +54,15 @@ ze config validate --json <config-file> # JSON output
 | `--json` | JSON output |
 
 Exit codes: 0 = valid, 1 = invalid, 2 = file not found.
-<!-- source: cmd/ze/config/cmd_validate.go -- cmdValidate -->
+
+Validation includes the commit-time backend capability gate: a config whose
+active `backend` leaf does not implement a feature it uses (e.g. `backend vpp`
+with a `bridge`, `tunnel`, `wireguard`, `veth`, or `mirror` entry) is
+rejected with one error per offending YANG path, matching the diagnostic
+the running daemon produces on reload. See
+[Backend Capability Errors](configuration.md#backend-capability-errors).
+<!-- source: cmd/ze/config/cmd_validate.go -- cmdValidate, backend-gate loop -->
+<!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures -->
 
 ### ze config
 

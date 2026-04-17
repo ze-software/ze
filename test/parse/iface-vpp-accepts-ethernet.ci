@@ -1,0 +1,18 @@
+# Test: ethernet is accepted under backend vpp
+# VALIDATES: spec-backend-feature-gate AC-3 -- the feature gate does NOT
+#            reject features that have no ze:backend annotation (ethernet
+#            is unrestricted: all backends support it).
+# PREVENTS: over-aggressive rejection of valid configs; regression where
+#           a future annotation accidentally lands on ethernet.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+	ethernet eth0 {
+		mac-address 02:00:00:00:00:02;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

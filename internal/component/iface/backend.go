@@ -130,6 +130,14 @@ type Backend interface {
 	Close() error
 }
 
+// DefaultBackendName returns the backend name used when the config does
+// not specify one. It is the exported view of the package-private
+// defaultBackendName constant, selected at build time via
+// default_linux.go / default_other.go. `ze config validate` consults this
+// so the offline CLI diagnoses the same rejection as the daemon on a
+// config that omits the backend leaf.
+func DefaultBackendName() string { return defaultBackendName }
+
 // backendsMu protects the backends map and activeBackend.
 var backendsMu sync.Mutex
 

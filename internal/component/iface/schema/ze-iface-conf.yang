@@ -251,6 +251,7 @@ module ze-iface-conf {
 
             container mirror {
                 ze:os "linux";
+                ze:backend "netlink";
                 description "Traffic mirroring";
 
                 leaf ingress {
@@ -375,6 +376,7 @@ module ze-iface-conf {
             key "name";
             unique "mac-address";
             ze:required "mac-address";
+            ze:backend "netlink";
             description "Virtual ethernet pair interface";
 
             leaf name {
@@ -395,6 +397,7 @@ module ze-iface-conf {
             key "name";
             unique "mac-address";
             ze:required "mac-address";
+            ze:backend "netlink";
             description "Bridge interface";
 
             leaf name {
@@ -422,6 +425,7 @@ module ze-iface-conf {
 
         list tunnel {
             key "name";
+            ze:backend "netlink";
             description "Tunnel interface (GRE/GRETAP/IPIP/SIT/IP6TNL families).
                          Encapsulation kind is selected by the choice below; each
                          case carries only the leaves valid for that kind.
@@ -680,6 +684,7 @@ module ze-iface-conf {
         list wireguard {
             key "name";
             ze:listener;
+            ze:backend "netlink";
             description "WireGuard interface. Declarative config: interface-level
                          listen-port, fwmark, private-key, and a nested peer list
                          with public-key, endpoint, allowed-ips, preshared-key,

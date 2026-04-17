@@ -337,6 +337,50 @@ func getOSExtension(entry *gyang.Entry) string {
 	return ""
 }
 
+// getBackendExtension reads every ze:backend statement on a YANG entry and
+// returns the union of backend names across them, de-duplicated and in
+// statement-then-argument order. Returns nil when no ze:backend is present
+// (meaning unrestricted -- every registered backend is accepted).
+//
+// Whitespace tokenisation mirrors a YANG author writing
+// `ze:backend "netlink vpp";`, where both names are valid. Tokens empty
+// after trimming contribute nothing: `ze:backend "";` is identical to
+// not writing the statement at all, and CANNOT reset or widen a sibling
+// statement -- the union always grows (or is a no-op), never shrinks.
+//
+// Merging multiple statements (`ze:backend "netlink"; ze:backend "vpp";`)
+// lets grouping authors add annotations without stomping a caller's existing
+// one, and makes the merge rule explicit rather than "first statement wins"
+// which surprises schema authors.
+//
+// Unlike ze:os (which prunes at schema-build time because GOOS is
+// immutable), ze:backend is consulted post-parse: the active backend is
+// chosen by the `backend` config leaf, not at schema-build time. The
+// returned list is therefore stored on the schema Node for the walker
+// in backend_gate.go.
+func getBackendExtension(entry *gyang.Entry) []string {
+	var (
+		out  []string
+		seen map[string]bool
+	)
+	for _, ext := range entry.Exts {
+		if ext.Keyword != "ze:backend" && !strings.HasSuffix(ext.Keyword, ":backend") {
+			continue
+		}
+		for f := range strings.FieldsSeq(ext.Argument) {
+			if seen == nil {
+				seen = make(map[string]bool)
+			}
+			if seen[f] {
+				continue
+			}
+			seen[f] = true
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 // hasSensitiveExtension checks if a YANG entry has the ze:sensitive extension.
 func hasSensitiveExtension(entry *gyang.Entry) bool {
 	for _, ext := range entry.Exts {
@@ -400,6 +444,7 @@ func yangToLeaf(entry *gyang.Entry) *LeafNode {
 	node.Ephemeral = hasEphemeralExtension(entry)
 	node.Decorate = getDecorateExtension(entry)
 	node.Description = entry.Description
+	node.Backend = getBackendExtension(entry)
 	if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
 		node.Enums = entry.Type.Enum.Names()
 	}
@@ -457,6 +502,7 @@ func yangToContainer(entry *gyang.Entry, path string) *ContainerNode {
 	// Check for YANG presence statement — enables flag/value/block modes
 	container.Presence = hasPresenceStatement(entry)
 	container.Description = entry.Description
+	container.Backend = getBackendExtension(entry)
 
 	return container
 }
@@ -521,6 +567,7 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	l.Ephemeral = hasEphemeralExtension(entry)
 	l.Listener = hasListenerExtension(entry)
 	l.Description = entry.Description
+	l.Backend = getBackendExtension(entry)
 
 	// Scan children for ze:display-key extension (keyless lists only).
 	if entry.Key == "" {
@@ -599,7 +646,9 @@ func yangChildOrder(entry *gyang.Entry) []string {
 // yangToFlex converts YANG entry to FlexNode.
 func yangToFlex(entry *gyang.Entry, path string) *FlexNode {
 	if entry.Dir == nil {
-		return Flex()
+		f := Flex()
+		f.Backend = getBackendExtension(entry)
+		return f
 	}
 
 	fields := make([]FieldDef, 0, len(entry.Dir))
@@ -613,7 +662,9 @@ func yangToFlex(entry *gyang.Entry, path string) *FlexNode {
 			fields = append(fields, Field(name, node))
 		}
 	}
-	return Flex(fields...)
+	f := Flex(fields...)
+	f.Backend = getBackendExtension(entry)
+	return f
 }
 
 // yangToInlineListWithKey converts YANG entry to InlineListNode with specified key type.
@@ -633,7 +684,9 @@ func yangToInlineListWithKey(entry *gyang.Entry, path string, keyType ValueType)
 		}
 	}
 
-	return InlineList(keyType, fields...)
+	l := InlineList(keyType, fields...)
+	l.Backend = getBackendExtension(entry)
+	return l
 }
 
 // yangTypeToValueType converts YANG type to config ValueType.

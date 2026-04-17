@@ -69,4 +69,8 @@ Ze is a BGP daemon written in Go.
 <!-- source: internal/component/l2tp/subsystem.go -- L2TPSubsystem lifecycle -->
 <!-- source: internal/component/l2tp/reactor.go -- L2TPReactor dispatch -->
 <!-- source: internal/component/l2tp/tunnel_fsm.go -- tunnel FSM transitions -->
+| Commit-Time Backend Capability Check | YANG nodes that correspond to backend-specific features carry a `ze:backend "<names>"` annotation. On commit (daemon reload, first-apply, and `ze config validate`), the walker rejects the config with the YANG path and the list of supporting backends whenever the active backend does not implement the feature -- instead of letting an Apply-time "not supported" error fire inside the backend. Today the gate covers `interface` (netlink-only bridge, tunnel, wireguard, veth, mirror under the vpp backend); fw-3 and fw-5 adopt the same pattern for firewall and traffic. |
+<!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension backend -->
+<!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures, walkBackendNode -->
+<!-- source: internal/component/iface/register.go -- validateBackendGate wired into OnConfigure and OnConfigVerify -->
 | [ExaBGP Compatibility](features/exabgp-compatibility.md) | Automatic config migration and plugin bridge |

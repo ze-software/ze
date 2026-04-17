@@ -1,0 +1,17 @@
+# Test: bridge is accepted under the default netlink backend
+# VALIDATES: spec-backend-feature-gate AC-6 -- regression guard: the new
+#            ze:backend annotation must not break the netlink happy path.
+# PREVENTS: accidentally annotating with the wrong backend name, which
+#           would silently reject valid netlink configs.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink;
+	bridge br0 {
+		mac-address 02:00:00:00:00:03;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

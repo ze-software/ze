@@ -45,6 +45,19 @@ module ze-traffic-control-conf {
     container traffic-control {
         description "Per-interface traffic control configuration";
 
+        leaf backend {
+            type string;
+            default "tc";
+            description "Traffic control backend implementation. Default is
+                         tc (Linux iproute2 queueing disciplines). Future
+                         backends can declare themselves via
+                         traffic.RegisterBackend. The ze:backend YANG
+                         extension on feature nodes declares per-feature
+                         backend support so the commit-time gate rejects
+                         configs that try to use unsupported qdiscs or
+                         filter types.";
+        }
+
         list interface {
             key "name";
             description "Traffic control for a named interface";

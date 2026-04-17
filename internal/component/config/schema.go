@@ -122,6 +122,7 @@ type LeafNode struct {
 	Decorate    string   // ze:decorate — decorator name for display-time enrichment
 	Description string   // YANG description for tooltips/help
 	Enums       []string // Valid enum values (nil for non-enum types)
+	Backend     []string // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
 }
 
 func (n *LeafNode) Kind() NodeKind { return NodeLeaf }
@@ -135,6 +136,7 @@ type ContainerNode struct {
 	Ephemeral    bool     // ze:ephemeral — present in schema, not persisted to config file
 	Presence     bool     // YANG presence container: accepts flag (;), value (word;), or block ({})
 	Description  string   // YANG description for tooltips
+	Backend      []string // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
 }
 
 func (n *ContainerNode) Kind() NodeKind { return NodeContainer }
@@ -167,6 +169,7 @@ type ListNode struct {
 	Ephemeral   bool       // ze:ephemeral -- present in schema, not persisted to config file
 	Listener    bool       // ze:listener -- marks list as a network listener for port conflict detection
 	Description string     // YANG description for tooltips
+	Backend     []string   // ze:backend -- supporting backends; nil = unrestricted (see backend_gate.go)
 	children    map[string]Node
 	order       []string
 }
@@ -563,6 +566,7 @@ func ValueOrArrayEnum(validValues []string) *ValueOrArrayNode {
 type FlexNode struct {
 	children map[string]Node
 	order    []string
+	Backend  []string // ze:backend -- supporting backends; nil = unrestricted (see backend_gate.go)
 }
 
 func (n *FlexNode) Kind() NodeKind { return NodeFlex }
@@ -601,6 +605,7 @@ type InlineListNode struct {
 	KeyType  ValueType
 	children map[string]Node
 	order    []string
+	Backend  []string // ze:backend -- supporting backends; nil = unrestricted (see backend_gate.go)
 }
 
 func (n *InlineListNode) Kind() NodeKind { return NodeInlineList }
