@@ -17,9 +17,12 @@ if [[ -n "$FILE_PATH" ]]; then
     fi
 fi
 
-# --- Bash: check command for /tmp references ---
+# --- Bash: check command for absolute /tmp references ---
+# Only match /tmp when it starts a path token -- preceded by start-of-string,
+# whitespace, or a common shell arg delimiter (= ' " $ ( ` : ,). This avoids
+# false positives on legitimate paths like test/tmp/ or ~/tmp/.
 if [[ -n "$COMMAND" ]]; then
-    if [[ "$COMMAND" == *"/tmp/"* || "$COMMAND" == *"/tmp "* || "$COMMAND" =~ /tmp$ ]]; then
+    if [[ "$COMMAND" =~ (^|[[:space:]=\'\"\$\(\`:,])/tmp(/|[[:space:]]|$) ]]; then
         echo "❌ Blocked: /tmp access is forbidden" >&2
         echo "Use project tmp/ instead: tmp/<subfolder>/" >&2
         exit 2
