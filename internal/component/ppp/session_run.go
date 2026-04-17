@@ -118,6 +118,19 @@ func (s *pppSession) run(start StartSession) {
 	}
 	s.magic = mag
 
+	// Start the single reader goroutine BEFORE LCP / auth so both
+	// phases consume frames from the same queue. Running auth reads
+	// directly on chanFile while readFrames is also reading would
+	// race on the underlying fd; routing every read through framesIn
+	// keeps the contract "one reader per chanFile" intact.
+	frames := make(chan []byte, 4)
+	readDone := make(chan error, 1)
+	framesCh = frames
+	s.framesIn = frames
+	readerWG.Go(func() {
+		s.readFrames(frames, readDone)
+	})
+
 	// RFC 2661 Section 18: when the peer LAC provides Initial-Received-
 	// LCP-CONFREQ, Last-Sent-LCP-CONFREQ, and Last-Received-LCP-CONFREQ
 	// AVPs in ICCN, the LNS MAY skip LCP negotiation and use the
@@ -128,14 +141,22 @@ func (s *pppSession) run(start StartSession) {
 	isProxy := perr == nil
 
 	if isProxy {
+		// proxy.AuthProto is zero when no Auth-Protocol option was
+		// carried in the LAC's Last-Sent CONFREQ; authMethodFromAuthProto
+		// maps that to AuthMethodNone just like every other unknown
+		// value, so no explicit zero check is needed.
+		negotiatedMethod := authMethodFromAuthProto(proxy.AuthProto, proxy.AuthData)
 		s.logger.Info("ppp: proxy LCP short-circuit",
-			"mru", proxy.MRU, "auth-proto", strconv.Itoa(int(proxy.AuthProto)))
+			"mru", proxy.MRU,
+			"auth-proto", strconv.Itoa(int(proxy.AuthProto)),
+			"auth-method", negotiatedMethod.String())
 		mru := proxy.MRU
 		if mru == 0 {
 			mru = MaxFrameLen
 		}
 		s.mu.Lock()
 		s.negotiatedMRU = mru
+		s.negotiatedAuthMethod = negotiatedMethod
 		s.mu.Unlock()
 		s.sendEvent(EventLCPUp{
 			TunnelID:      s.tunnelID,
@@ -169,13 +190,6 @@ func (s *pppSession) run(start StartSession) {
 		s.state = trOpen.NewState
 		s.mu.Unlock()
 	}
-
-	frames := make(chan []byte, 4)
-	readDone := make(chan error, 1)
-	framesCh = frames
-	readerWG.Go(func() {
-		s.readFrames(frames, readDone)
-	})
 
 	// Negotiation timeout timer. Active until Opened is reached
 	// (or skipped via proxy). After Opened the timer is stopped and
@@ -389,16 +403,11 @@ func (s *pppSession) afterLCPOpen() bool {
 	return true
 }
 
-// runAuthPhase emits EventAuthRequest on the auth events channel,
-// blocks on authRespCh for the consumer's decision, and emits
-// EventAuthSuccess / EventAuthFailure to report the outcome.
-//
-// Phase 1 of 6b only advertises AuthMethodNone -- LCP carries no
-// Auth-Protocol option yet so there are no wire credentials to
-// forward. The event fires regardless so an external handler can
-// log admits and denials during the transition period. PAP / CHAP
-// / MS-CHAPv2 wire codecs land in later phases and populate
-// Username / Challenge / Response.
+// runAuthPhase dispatches to the per-method authentication handler
+// driven by s.negotiatedAuthMethod (set when LCP reaches Opened,
+// either via proxy LCP or normal negotiation). AuthMethodNone runs
+// the accounting-only path: one EventAuthRequest emitted, the
+// handler's decision observed, no wire packets exchanged.
 //
 // Ordering note for consumers: on the reject path, EventSessionDown
 // is emitted on EventsOut before EventAuthFailure is emitted on
@@ -408,53 +417,53 @@ func (s *pppSession) afterLCPOpen() bool {
 // Returns false (and fails the session) on reject, timeout, driver
 // stop, or per-session stop.
 func (s *pppSession) runAuthPhase() bool {
+	s.mu.Lock()
+	method := s.negotiatedAuthMethod
+	s.mu.Unlock()
+
+	switch method {
+	case AuthMethodNone:
+		return s.runNoAuthPhase()
+	case AuthMethodPAP:
+		return s.runPAPAuthPhase()
+	case AuthMethodCHAPMD5:
+		return s.runCHAPAuthPhase()
+	case AuthMethodMSCHAPv2:
+		return s.runMSCHAPv2AuthPhase()
+	}
+	// Unreachable for all defined AuthMethod constants; any value
+	// arriving here is a programmer error (out-of-range cast).
+	// AuthMethod.String() would itself panic on such a value, so
+	// stringify the numeric code directly to preserve the intent of
+	// "fail cleanly, do not crash the session goroutine."
+	s.fail("auth: unknown method " + strconv.Itoa(int(method)))
+	return false
+}
+
+// runNoAuthPhase is the AuthMethodNone dispatch target. It emits one
+// EventAuthRequest on the auth channel so an external handler can
+// still admit or deny by policy, waits on authRespCh, and on accept
+// emits EventAuthSuccess. The session's LCP Auth-Protocol option was
+// absent or REJECTed, so no wire packets are exchanged here.
+func (s *pppSession) runNoAuthPhase() bool {
 	req := EventAuthRequest{
 		TunnelID:  s.tunnelID,
 		SessionID: s.sessionID,
 		Method:    AuthMethodNone,
 	}
-	select {
-	case s.authEventsOut <- req:
-	case <-s.stopCh:
-		return false
-	case <-s.sessStop:
+	decision, ok := s.awaitAuthDecision(req, "")
+	if !ok {
 		return false
 	}
-
-	timeout := s.authTimeout
-	if timeout <= 0 {
-		timeout = defaultAuthTimeout
-	}
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-
-	var resp authResponseMsg
-	select {
-	case resp = <-s.authRespCh:
-	case <-s.stopCh:
-		return false
-	case <-s.sessStop:
-		return false
-	case <-timer.C:
-		s.fail("auth timeout after " + timeout.String())
+	if !decision.accept {
+		s.fail("auth rejected: " + decision.message)
 		s.sendAuthEvent(EventAuthFailure{
 			TunnelID:  s.tunnelID,
 			SessionID: s.sessionID,
-			Reason:    "timeout",
+			Reason:    decision.message,
 		})
 		return false
 	}
-
-	if !resp.accept {
-		s.fail("auth rejected: " + resp.message)
-		s.sendAuthEvent(EventAuthFailure{
-			TunnelID:  s.tunnelID,
-			SessionID: s.sessionID,
-			Reason:    resp.message,
-		})
-		return false
-	}
-
 	s.sendAuthEvent(EventAuthSuccess{
 		TunnelID:  s.tunnelID,
 		SessionID: s.sessionID,
@@ -609,6 +618,17 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 			// RFC 1661 §6.1.
 			s.negotiatedMRU = MaxFrameLen
 		}
+		// Normal (non-proxy) path: we assume the peer ACKed ze's
+		// CONFREQ verbatim and the negotiated method equals the
+		// configured one. That assumption breaks when the peer NAKs
+		// or Rejects the Auth-Protocol option -- the FSM resends
+		// CONFREQ without it and still reaches Opened, but this
+		// assignment keeps `configuredAuthMethod` in force so the
+		// session enters a handler whose wire message the peer will
+		// never send and times out. Tracked deferral 2026-04-17 in
+		// plan/deferrals.md; closes as part of Phase 8 (AC-13 LCP
+		// NAK/Reject fallback).
+		s.negotiatedAuthMethod = s.configuredAuthMethod
 		mru := s.negotiatedMRU
 		s.mu.Unlock()
 		s.sendEvent(EventLCPUp{
@@ -699,9 +719,12 @@ func (s *pppSession) performAction(act LCPAction, current LCPPacket) bool {
 }
 
 func (s *pppSession) sendConfigureRequest() bool {
+	authProto, authData := authMethodToLCPOptions(s.configuredAuthMethod)
 	opts := BuildLocalConfigRequest(LCPOptions{
-		MRU:   s.maxMRU,
-		Magic: s.magic,
+		MRU:       s.maxMRU,
+		Magic:     s.magic,
+		AuthProto: authProto,
+		AuthData:  authData,
 	})
 	buf := getFrameBuf()
 	defer putFrameBuf(buf)

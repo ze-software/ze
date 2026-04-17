@@ -28,17 +28,24 @@ type pppSession struct {
 
 	// Underlying I/O. chanFile is the wrapped chan fd; closing it
 	// unblocks the goroutine's blocking Read and signals shutdown.
+	// chanFile is the authoritative WRITE target (wire frames sent
+	// by this session). Reads come from framesIn (fed by the single
+	// readFrames goroutine) -- never directly from chanFile once
+	// run() has started, because two concurrent readers on the same
+	// net.Pipe / kernel fd interleave undefined bytes.
 	chanFile io.ReadWriteCloser
+	framesIn <-chan []byte
 	unitFD   int
 	unitNum  int
 	lnsMode  bool
 
 	// Configuration captured from StartSession (immutable after
 	// goroutine start).
-	maxMRU       uint16
-	echoInterval time.Duration
-	echoFailures uint8
-	authTimeout  time.Duration
+	maxMRU               uint16
+	echoInterval         time.Duration
+	echoFailures         uint8
+	authTimeout          time.Duration
+	configuredAuthMethod AuthMethod
 
 	// Magic-Number for THIS session. Generated via crypto/rand by
 	// the goroutine on entry; non-zero per RFC 1661 §6.4.
@@ -98,10 +105,11 @@ type pppSession struct {
 
 	// State below is mu-protected; written by the goroutine, read
 	// by SessionByID.
-	mu              sync.Mutex
-	state           LCPState
-	negotiatedMRU   uint16
-	echoOutstanding uint8 // count of unanswered Echo-Request
+	mu                   sync.Mutex
+	state                LCPState
+	negotiatedMRU        uint16
+	negotiatedAuthMethod AuthMethod
+	echoOutstanding      uint8 // count of unanswered Echo-Request
 }
 
 // SessionInfo is a snapshot of pppSession state suitable for `show

@@ -50,6 +50,19 @@ type StartSession struct {
 	// emits EventAuthFailure{Reason: "timeout"} + EventSessionDown.
 	AuthTimeout time.Duration
 
+	// AuthMethod selects the PPP Authentication Protocol that ze
+	// advertises in its LCP CONFREQ and that runAuthPhase dispatches
+	// to after LCP-Opened. Zero (AuthMethodNone) omits the Auth-
+	// Protocol option and runs the no-wire-auth phase (existing
+	// handler still fires one EventAuthRequest for accounting).
+	//
+	// When proxy LCP AVPs are present the Auth-Protocol value from
+	// the LAC's Last-Sent CONFREQ overrides this field, because the
+	// LAC's negotiation with the peer is what the peer already
+	// accepted; ze inherits that choice rather than forcing a new
+	// one mid-session.
+	AuthMethod AuthMethod
+
 	// Proxy LCP bytes from L2TP ICCN AVPs (RFC 2661 Section 18).
 	// When all three are present, the LCP FSM short-circuits to the
 	// Opened state with the proxied options. Empty slices mean no

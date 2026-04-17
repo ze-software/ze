@@ -14,7 +14,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"strconv"
-	"time"
 )
 
 // PAP packet codes from RFC 1334 Section 2.1. Unlike CHAP there are
@@ -142,36 +141,32 @@ func writePAPReply(buf []byte, off int, code, identifier uint8, message []byte) 
 }
 
 // runPAPAuthPhase reads one PAP Authenticate-Request from chanFile,
-// emits EventAuthRequest on the auth events channel, waits for the
-// external handler's AuthResponse, and writes Authenticate-Ack (on
-// accept) or Authenticate-Nak (on reject) back to the peer. Returns
-// false if the session should tear down (reject, timeout, stop).
+// emits EventAuthRequest via awaitAuthDecision, and writes
+// Authenticate-Ack (on accept) or Authenticate-Nak (on reject) back
+// to the peer. Returns false if the session should tear down
+// (reject, timeout, stop).
 //
-// Phase 7 replaces runAuthPhase's AuthMethodNone fallthrough with a
-// method switch that calls this function when LCP negotiated
-// Auth-Protocol = 0xC023 (PAP).
+// Called from runAuthPhase when LCP negotiated Auth-Protocol = 0xC023
+// (PAP); see session_run.go method switch.
 //
 // RFC 1334 Section 2 flow: the peer is the sole initiator, so the
 // handler's first action is a blocking Read rather than a write.
-//
-// TODO(phase-7): the emit-event / wait-authRespCh / fail-on-stop
-// triplet here duplicates the same sequence in runAuthPhase
-// (session_run.go). Phase 7 introduces auth.go as the canonical auth
-// state machine; it should factor the shared shape into a helper
-// (e.g. awaitAuthDecision) that runAuthPhase, runPAPAuthPhase,
-// runCHAPAuthPhase, and runMSCHAPv2AuthPhase all call. Deferring the
-// consolidation to Phase 7 per design-principles.md "No premature
-// abstraction" (three call sites will exist after Phase 5 / Phase 6
-// land CHAP and MS-CHAPv2).
 func (s *pppSession) runPAPAuthPhase() bool {
-	readBuf := getFrameBuf()
-	defer putFrameBuf(readBuf)
-	n, err := s.chanFile.Read(readBuf)
-	if err != nil {
-		s.fail("pap: chan fd read: " + err.Error())
+	var frame []byte
+	select {
+	case f, ok := <-s.framesIn:
+		if !ok {
+			s.fail("pap: frames channel closed")
+			return false
+		}
+		frame = f
+	case <-s.stopCh:
+		return false
+	case <-s.sessStop:
 		return false
 	}
-	proto, payload, _, perr := ParseFrame(readBuf[:n])
+	defer putFrameBuf(frame)
+	proto, payload, _, perr := ParseFrame(frame)
 	if perr != nil {
 		s.fail("pap: malformed frame: " + perr.Error())
 		return false
@@ -195,35 +190,8 @@ func (s *pppSession) runPAPAuthPhase() bool {
 		Username:   req.Username,
 		Response:   []byte(req.Password),
 	}
-	select {
-	case s.authEventsOut <- evt:
-	case <-s.stopCh:
-		return false
-	case <-s.sessStop:
-		return false
-	}
-
-	timeout := s.authTimeout
-	if timeout <= 0 {
-		timeout = defaultAuthTimeout
-	}
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-
-	var resp authResponseMsg
-	select {
-	case resp = <-s.authRespCh:
-	case <-s.stopCh:
-		return false
-	case <-s.sessStop:
-		return false
-	case <-timer.C:
-		s.fail("pap: auth timeout after " + timeout.String())
-		s.sendAuthEvent(EventAuthFailure{
-			TunnelID:  s.tunnelID,
-			SessionID: s.sessionID,
-			Reason:    "timeout",
-		})
+	resp, ok := s.awaitAuthDecision(evt, "pap")
+	if !ok {
 		return false
 	}
 

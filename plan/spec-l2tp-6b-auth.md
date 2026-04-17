@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-l2tp-6a-lcp-base |
-| Phase | 6/9 |
-| Updated | 2026-04-16 |
+| Phase | 7/9 |
+| Updated | 2026-04-17 |
 
 ## Scope Changes (2026-04-16)
 
@@ -415,16 +415,89 @@ Add `// RFC 2661 Section 18: "..."` above proxy-auth short-circuit + distrust pa
 ## Implementation Summary
 
 ### What Was Implemented
-- (to be filled)
+
+**Phase 1 (2026-04-15):** channel-based auth dispatch skeleton -- `AuthEvent`
+sealed sum, `Manager.AuthResponse`, per-session `authRespCh`, `runAuthPhase`
+emitting `EventAuthRequest{Method:None}` with accept/reject/timeout plumbing.
+
+**Phase 3 (2026-04-16):** env-var `ze.l2tp.auth.timeout` registered in
+`internal/component/config/environment.go`; L2TP reactor now reads it in
+`handleKernelSuccess` and populates `ppp.StartSession.AuthTimeout` on every
+dispatch.
+
+**Phase 4 (2026-04-16):** PAP codec + `runPAPAuthPhase` handler. Wire format
+per RFC 1334 Section 2; `ParsePAPRequest`, `WritePAPAck`, `WritePAPNak`, plus
+fuzz target. Net.Pipe-driven unit tests.
+
+**Phase 5 (2026-04-16):** CHAP-MD5 codec + `runCHAPAuthPhase` handler.
+RFC 1994 Section 4; per-session `chapIdentifier` counter, `drawCHAPChallenge`
+backed by `crypto/rand`. Authenticator-initiated (Challenge-first) flow.
+
+**Phase 6 (2026-04-16):** MS-CHAPv2 codec + `runMSCHAPv2AuthPhase` handler.
+RFC 2759 strict 49-byte Response, Reserved-must-be-zero, Flags-must-be-zero.
+`chapIdentifier` shared with CHAP-MD5 (LCP negotiates one method per session).
+`rfc/short/rfc2759.md` summary written.
+
+**Phase 7 (2026-04-17):** auth dispatch integration.
+
+- `StartSession.AuthMethod` field threaded through `spawnSession` into
+  `pppSession.configuredAuthMethod`.
+- `pppSession.negotiatedAuthMethod` (mu-protected) set at LCP-Opened:
+  proxy path decodes `ProxyLCPResult.{AuthProto, AuthData}` via
+  `authMethodFromAuthProto`; normal path copies from `configuredAuthMethod`
+  (Phase 8 refines the Reject / Nak cases).
+- `runAuthPhase` now switches on `negotiatedAuthMethod` and dispatches to
+  `runPAPAuthPhase` / `runCHAPAuthPhase` / `runMSCHAPv2AuthPhase`; the
+  previous inline AuthMethodNone body moved to `runNoAuthPhase`.
+- `awaitAuthDecision(req, label)` helper in `auth.go` factors the shared
+  emit/wait/timeout triplet; all four dispatch targets consume it. Four
+  TODO(phase-7) markers in pap.go / chap.go / mschapv2.go / session_run.go
+  removed.
+- `sendConfigureRequest` now populates `LCPOptions.AuthProto` and
+  `LCPOptions.AuthData` from `configuredAuthMethod` via
+  `authMethodToLCPOptions`; CONFREQ advertises the selected method.
+- `pppSession.framesIn <-chan []byte` replaces direct `chanFile.Read` in
+  the three auth handlers. `readFrames` starts once at the top of `run()`
+  (previously restricted to the non-proxy path) so the auth phase and the
+  main loop never contend for the same kernel fd.
 
 ### Bugs Found/Fixed
-- (to be filled)
+
+- **Double-reader race on normal-path `chanFile`** (discovered while writing
+  the first normal-path dispatch test). `runPAPAuthPhase` / `runCHAPAuthPhase`
+  / `runMSCHAPv2AuthPhase` previously called `s.chanFile.Read` directly, but
+  for the non-proxy path `readFrames` was already pulling bytes off the same
+  fd -- `net.Pipe` and a real chan fd interleave undefined bytes between two
+  concurrent readers. Fix: route every read through `framesIn`.
+- `runAuthPhase` "unknown method" fallback called `method.String()` which
+  itself panics on an out-of-range cast, defeating the clean-fail intent.
+  Replaced with `strconv.Itoa(int(method))`.
 
 ### Documentation Updates
-- (to be filled)
+
+- `rfc/short/rfc2759.md` created (Phase 6).
+- In-code `// RFC 1334 / 1994 / 2759 Section X.Y` anchors above each parser
+  / encoder.
+- `plan/deferrals.md`: one new entry `2026-04-17` tracking the Phase 8
+  NAK/Reject fallback gap.
 
 ### Deviations from Plan
-- (to be filled)
+
+- **Proxy-auth (AC-11, AC-12) dropped** per the 2026-04-16 scope note; see
+  top of spec for the three-implementation survey rationale.
+- **Phase 5 AC-16 (CHAP Identifier mismatch)** implemented as
+  fail-immediately rather than silent-discard; see scope note at top.
+- **Phase 7 auth handler reads** moved from `chanFile.Read` to the
+  `framesIn` channel (not called out in the original plan; required to
+  close the double-reader race discovered during integration testing).
+- **`TestStartSessionAuthMethodThreaded` + `TestProxyLCPAuthMethodOverrides`
+  + `TestProxyLCPDispatchesCHAPMD5` + `TestProxyLCPDispatchesMSCHAPv2`
+  + `TestLocalCONFREQAdvertisesAuthMethod`** added in Phase 7; the original
+  TDD table only named `TestAuthPhaseEntered`. The additions cover the
+  concrete dispatch paths that the TDD table described in prose.
+- **Phase 8 / 9 still open**: LCP NAK / Reject fallback (AC-13), periodic
+  re-auth (AC-14), and the full end-to-end net.Pipe functional tests
+  remain. Handover at `tmp/handover-l2tp-6b-phase8.md`.
 
 ## Implementation Audit
 

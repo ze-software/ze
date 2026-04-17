@@ -556,10 +556,13 @@ func TestPAPHandlerWireErrors(t *testing.T) {
 			write: func(t *testing.T, peerEnd net.Conn) {
 				t.Helper()
 				// A 1-byte write is below ParseFrame's 2-byte
-				// minimum.
+				// minimum. readFrames drops such frames; close
+				// the pipe afterward so the handler observes the
+				// now-closed framesIn channel and fails cleanly.
 				if _, err := peerEnd.Write([]byte{0xFF}); err != nil {
 					t.Fatalf("peer write: %v", err)
 				}
+				closeConn(peerEnd)
 			},
 		},
 		{

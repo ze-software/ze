@@ -684,9 +684,13 @@ func TestCHAPHandlerWireErrors(t *testing.T) {
 			name: "frame too short for protocol field",
 			write: func(t *testing.T, peerEnd net.Conn, _ uint8) {
 				t.Helper()
+				// readFrames drops frames shorter than the
+				// 2-byte protocol field; close the pipe so the
+				// handler observes framesIn closed and fails.
 				if _, err := peerEnd.Write([]byte{0xFF}); err != nil {
 					t.Fatalf("peer write: %v", err)
 				}
+				closeConn(peerEnd)
 			},
 		},
 		{

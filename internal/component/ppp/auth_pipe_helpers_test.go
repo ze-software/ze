@@ -8,20 +8,32 @@ import (
 
 // newAuthTestSession builds a pppSession with the minimum fields the
 // auth-phase handlers (PAP, CHAP, MS-CHAPv2) need plus buffered
-// lifecycle and auth-event channels. eventsOut is buffered large
-// enough to absorb every EventSessionDown the handler may emit via
-// s.fail without blocking; tests assert on authEventsOut and on
-// peerEnd wire bytes rather than on eventsOut.
+// lifecycle and auth-event channels, and starts a reader goroutine
+// that bridges the driver-side net.Pipe end into the session's
+// framesIn channel (production's readFrames equivalent). This way
+// existing tests can keep writing to peerEnd without caring that
+// the handlers now consume from a channel rather than chanFile.
 //
-// Shared across pap_test.go and chap_test.go so both auth codecs
-// exercise identical plumbing.
+// The reader goroutine exits when driverEnd.Read returns an error
+// (e.g. test closes peerEnd during cleanup), so no explicit tear-
+// down hook is exposed.
+//
+// eventsOut is buffered large enough to absorb every
+// EventSessionDown the handler may emit via s.fail without blocking;
+// tests assert on authEventsOut and on peerEnd wire bytes rather
+// than on eventsOut.
+//
+// Shared across pap_test.go, chap_test.go, and mschapv2_test.go so
+// all three auth codecs exercise identical plumbing.
 func newAuthTestSession(driverEnd net.Conn) (*pppSession, chan AuthEvent) {
 	authEventsOut := make(chan AuthEvent, 4)
 	eventsOut := make(chan Event, 4)
+	frames := make(chan []byte, 4)
 	s := &pppSession{
 		tunnelID:      55,
 		sessionID:     66,
 		chanFile:      driverEnd,
+		framesIn:      frames,
 		eventsOut:     eventsOut,
 		authEventsOut: authEventsOut,
 		authRespCh:    make(chan authResponseMsg, 1),
@@ -31,6 +43,8 @@ func newAuthTestSession(driverEnd net.Conn) (*pppSession, chan AuthEvent) {
 		authTimeout:   2 * time.Second,
 		logger:        discardLogger(),
 	}
+	readDone := make(chan error, 1)
+	go s.readFrames(frames, readDone)
 	return s, authEventsOut
 }
 

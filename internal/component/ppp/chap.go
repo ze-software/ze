@@ -16,7 +16,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"strconv"
-	"time"
 )
 
 // CHAP packet codes from RFC 1994 Section 4. The authenticator drives
@@ -240,15 +239,10 @@ func drawCHAPChallenge(dst []byte) error {
 // before drawing the next value and uses the result as the Challenge
 // Identifier; the peer's Response MUST echo that same Identifier.
 //
-// TODO(phase-7): the draw-value / emit-event / wait-authRespCh /
-// fail-on-stop triplet here duplicates the same sequence in
-// runAuthPhase (session_run.go) and runPAPAuthPhase (pap.go). Phase 7
-// introduces auth.go as the canonical auth state machine; it should
-// factor the shared emit/wait/fail shape into a helper (e.g.
-// awaitAuthDecision) that all four runXxxAuthPhase functions call.
-// Deferring the consolidation to Phase 7 per design-principles.md "No
-// premature abstraction": four call sites will exist after Phase 6
-// lands MS-CHAPv2, which is the right time to extract.
+// Called from runAuthPhase when LCP negotiated Auth-Protocol = 0xC223
+// (CHAP) with Algorithm = 5 (MD5); see session_run.go method switch.
+// The emit/wait/timeout triplet is factored into awaitAuthDecision
+// (auth.go).
 func (s *pppSession) runCHAPAuthPhase() bool {
 	var value [chapChallengeValueLen]byte
 	if err := drawCHAPChallenge(value[:]); err != nil {
@@ -266,14 +260,21 @@ func (s *pppSession) runCHAPAuthPhase() bool {
 		return false
 	}
 
-	readBuf := getFrameBuf()
-	defer putFrameBuf(readBuf)
-	n, err := s.chanFile.Read(readBuf)
-	if err != nil {
-		s.fail("chap: chan fd read: " + err.Error())
+	var frame []byte
+	select {
+	case f, ok := <-s.framesIn:
+		if !ok {
+			s.fail("chap: frames channel closed")
+			return false
+		}
+		frame = f
+	case <-s.stopCh:
+		return false
+	case <-s.sessStop:
 		return false
 	}
-	proto, payload, _, perr := ParseFrame(readBuf[:n])
+	defer putFrameBuf(frame)
+	proto, payload, _, perr := ParseFrame(frame)
 	if perr != nil {
 		s.fail("chap: malformed frame: " + perr.Error())
 		return false
@@ -318,35 +319,8 @@ func (s *pppSession) runCHAPAuthPhase() bool {
 		Response:   resp.Value,
 		PeerName:   resp.Name,
 	}
-	select {
-	case s.authEventsOut <- evt:
-	case <-s.stopCh:
-		return false
-	case <-s.sessStop:
-		return false
-	}
-
-	timeout := s.authTimeout
-	if timeout <= 0 {
-		timeout = defaultAuthTimeout
-	}
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-
-	var decision authResponseMsg
-	select {
-	case decision = <-s.authRespCh:
-	case <-s.stopCh:
-		return false
-	case <-s.sessStop:
-		return false
-	case <-timer.C:
-		s.fail("chap: auth timeout after " + timeout.String())
-		s.sendAuthEvent(EventAuthFailure{
-			TunnelID:  s.tunnelID,
-			SessionID: s.sessionID,
-			Reason:    "timeout",
-		})
+	decision, ok := s.awaitAuthDecision(evt, "chap")
+	if !ok {
 		return false
 	}
 

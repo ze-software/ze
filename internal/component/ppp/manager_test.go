@@ -447,22 +447,23 @@ func drainTwoEvents(t *testing.T, ch <-chan Event, timeout time.Duration) []Even
 	return out
 }
 
-// drainEventsBest reads up to n events; returns whatever arrived
-// before the timeout. Best-effort, no failure.
-func drainEventsBest(t *testing.T, ch <-chan Event, n int, timeout time.Duration) []Event {
+// drainEventsBest reads up to n events before the timeout fires and
+// drops them on the floor. Best-effort, no failure. Used by tests
+// that need to consume trailing lifecycle events during cleanup so
+// subsequent channel observers do not receive them.
+func drainEventsBest(t *testing.T, ch <-chan Event, n int, timeout time.Duration) {
 	t.Helper()
-	out := make([]Event, 0, n)
+	drained := 0
 	deadline := time.NewTimer(timeout)
 	defer deadline.Stop()
-	for len(out) < n {
+	for drained < n {
 		select {
-		case ev := <-ch:
-			out = append(out, ev)
+		case <-ch:
+			drained++
 		case <-deadline.C:
-			return out
+			return
 		}
 	}
-	return out
 }
 
 func closeConn(c interface{ Close() error }) {

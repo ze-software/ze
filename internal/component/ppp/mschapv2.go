@@ -16,7 +16,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"strconv"
-	"time"
 )
 
 // MS-CHAPv2 packet codes. Section 4 inherits the CHAP framing from
@@ -326,9 +325,10 @@ func drawMSCHAPv2Challenge(dst []byte) error {
 // validated and dropped (RFC 2759 Section 5 hash recipes do not take
 // them).
 //
-// Phase 7 replaces runAuthPhase's AuthMethodNone fallthrough with a
-// method switch that calls this function when LCP negotiated
-// Auth-Protocol = 0xC223 with Algorithm = 0x81 (MS-CHAPv2).
+// Called from runAuthPhase when LCP negotiated Auth-Protocol = 0xC223
+// with Algorithm = 0x81 (MS-CHAPv2); see session_run.go method switch.
+// The emit/wait/timeout triplet is factored into awaitAuthDecision
+// (auth.go).
 //
 // RFC 2759 Section 4 inherits RFC 1994 Section 4.1's Identifier
 // discipline: the Identifier MUST change each time a Challenge is sent.
@@ -337,15 +337,6 @@ func drawMSCHAPv2Challenge(dst []byte) error {
 // peer's Response MUST echo that same Identifier. The counter is shared
 // with CHAP-MD5 because LCP negotiates exactly one Auth-Protocol method
 // per session.
-//
-// TODO(phase-7): the draw-value / emit-event / wait-authRespCh /
-// fail-on-stop triplet here duplicates the same sequence in
-// runAuthPhase, runPAPAuthPhase, and runCHAPAuthPhase. Phase 7
-// introduces auth.go as the canonical auth state machine; it should
-// factor the shared emit/wait/fail shape into a helper (e.g.
-// awaitAuthDecision) that all four runXxxAuthPhase functions call. This
-// is the fourth call site -- the right moment to extract per
-// design-principles.md "No premature abstraction".
 func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 	var value [mschapv2ChallengeValueLen]byte
 	if err := drawMSCHAPv2Challenge(value[:]); err != nil {
@@ -363,14 +354,21 @@ func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 		return false
 	}
 
-	readBuf := getFrameBuf()
-	defer putFrameBuf(readBuf)
-	n, err := s.chanFile.Read(readBuf)
-	if err != nil {
-		s.fail("chap-v2: chan fd read: " + err.Error())
+	var frame []byte
+	select {
+	case f, ok := <-s.framesIn:
+		if !ok {
+			s.fail("chap-v2: frames channel closed")
+			return false
+		}
+		frame = f
+	case <-s.stopCh:
+		return false
+	case <-s.sessStop:
 		return false
 	}
-	proto, payload, _, perr := ParseFrame(readBuf[:n])
+	defer putFrameBuf(frame)
+	proto, payload, _, perr := ParseFrame(frame)
 	if perr != nil {
 		s.fail("chap-v2: malformed frame: " + perr.Error())
 		return false
@@ -416,35 +414,8 @@ func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 		Response:   responsePayload,
 		PeerName:   resp.Name,
 	}
-	select {
-	case s.authEventsOut <- evt:
-	case <-s.stopCh:
-		return false
-	case <-s.sessStop:
-		return false
-	}
-
-	timeout := s.authTimeout
-	if timeout <= 0 {
-		timeout = defaultAuthTimeout
-	}
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-
-	var decision authResponseMsg
-	select {
-	case decision = <-s.authRespCh:
-	case <-s.stopCh:
-		return false
-	case <-s.sessStop:
-		return false
-	case <-timer.C:
-		s.fail("chap-v2: auth timeout after " + timeout.String())
-		s.sendAuthEvent(EventAuthFailure{
-			TunnelID:  s.tunnelID,
-			SessionID: s.sessionID,
-			Reason:    "timeout",
-		})
+	decision, ok := s.awaitAuthDecision(evt, "chap-v2")
+	if !ok {
 		return false
 	}
 
