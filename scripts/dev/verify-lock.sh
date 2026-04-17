@@ -5,6 +5,15 @@
 # ze-chaos-verify) is already running. Ensures only ONE verify-class run at a time
 # across concurrent Claude sessions and human invocations.
 #
+# The `flock -o` (close-on-exec) is load-bearing: flock itself stays alive as the
+# parent process and holds the lock fd. The command it exec-s -- make, go test,
+# bin/ze, external plugin subprocesses like test/plugin/lg-graph-lab/lg-lab.run --
+# never inherits the fd. Without -o, orphaned plugin subprocesses (parent dies,
+# they get reparented to init) keep the fd open long after their parent test
+# finishes, blocking every subsequent verify run until an operator kills the
+# orphan by hand. flock releases the lock automatically when flock itself exits
+# (i.e. when the wrapped command returns).
+#
 # Usage: scripts/dev/verify-lock.sh LABEL CMD [ARGS...]
 
 set -e
@@ -25,16 +34,11 @@ fi
 mkdir -p tmp
 LOCKFILE="tmp/.ze-verify.lock"
 
-# Open fd on the lock file. Try non-blocking first so we can print a waiting
-# message; fall back to blocking flock if another verify holds it.
-exec {LOCKFD}>"$LOCKFILE"
-if ! flock -n "$LOCKFD"; then
+# Print the "waiting" banner only when the lock is actually held right now.
+# The probe briefly takes the lock via `true`; if -n returns non-zero the
+# lock is held and the real acquire below will block.
+if ! flock -n -o "$LOCKFILE" true 2>/dev/null; then
 	printf '\033[33m[%s] another verify run in progress, waiting for lock...\033[0m\n' "$LABEL"
-	flock "$LOCKFD"
-	printf '[%s] lock acquired.\n' "$LABEL"
 fi
 
-# Record our PID inside the lock file for diagnostics (best-effort).
-printf '%s\n' "$$" >&"$LOCKFD" 2>/dev/null || true
-
-exec "$@"
+exec flock -o "$LOCKFILE" "$@"
