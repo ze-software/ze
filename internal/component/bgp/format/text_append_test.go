@@ -1,6 +1,7 @@
 package format
 
 import (
+	"fmt"
 	"net/netip"
 	"strings"
 	"testing"
@@ -22,9 +23,34 @@ func testPeer() *plugin.PeerInfo {
 
 // legacyEscapeJSON mirrors the old jsonSafeReplacer+writeJSONEscapedString
 // combo so parity tests can assert byte-for-byte equality of appendJSONString.
+// Kept inline after peer_json.go deletion (fmt-1) so this parity test still
+// documents the byte-identical contract with the fmt-0 combo.
 func legacyEscapeJSON(s string) string {
 	var sb strings.Builder
-	writeJSONEscapedString(&sb, s)
+	for _, r := range s {
+		switch r {
+		case '\\':
+			sb.WriteString(`\\`)
+			continue
+		case '"':
+			sb.WriteString(`\"`)
+			continue
+		case '\n':
+			sb.WriteString(`\n`)
+			continue
+		case '\r':
+			sb.WriteString(`\r`)
+			continue
+		case '\t':
+			sb.WriteString(`\t`)
+			continue
+		}
+		if r < 0x20 {
+			fmt.Fprintf(&sb, `\u%04x`, r)
+			continue
+		}
+		sb.WriteRune(r)
+	}
 	return sb.String()
 }
 

@@ -1,8 +1,7 @@
 // Design: docs/architecture/api/json-format.md — non-UPDATE message formatting
 // Related: text_update.go — UPDATE-path formatters that reuse peer/JSON helpers
-// Related: peer_json.go — string-returning peer JSON + escape helpers for external callers
-// Related: text_human.go — formatStateChangeText (text StateChange)
-// Related: text_json.go — formatStateChangeJSON (JSON StateChange)
+// Related: text_human.go — appendStateChangeText (text StateChange)
+// Related: text_json.go — appendStateChangeJSON (JSON StateChange)
 // Related: ../textparse/keywords.go — shared keyword constants and alias resolution
 //
 // Non-UPDATE message text serialization. All formatters append into a
@@ -20,7 +19,7 @@ import (
 
 // appendJSONString appends s to buf wrapped in JSON string escaping rules.
 // Escapes: \ " and control characters (0x00-0x1F). Byte-identical output
-// to the legacy writeJSONEscapedString + jsonSafeReplacer combo over the
+// to the legacy JSON-escape path (writeJSONEscapedString + jsonSafeReplacer
 // test corpus (empty, ASCII, control chars, embedded quotes/backslashes,
 // multi-byte UTF-8 sequences).
 func appendJSONString(buf []byte, s string) []byte {
@@ -205,14 +204,11 @@ func AppendRouteRefresh(buf []byte, peer *plugin.PeerInfo, decoded DecodedRouteR
 // State events are separate from BGP protocol messages.
 // Common states: "up", "down", "connected", "established".
 // reason is the close reason (empty for "up"): "tcp-failure", "notification", etc.
-// Delegates to the existing formatStateChangeText/JSON helpers (out of scope
-// for this migration) and appends their result; this is the only non-zero
-// boundary allocation inside AppendStateChange.
 func AppendStateChange(buf []byte, peer *plugin.PeerInfo, state, reason, encoding string) []byte {
 	if encoding == plugin.EncodingJSON {
-		return append(buf, formatStateChangeJSON(peer, state, reason)...)
+		return appendStateChangeJSON(buf, peer, state, reason)
 	}
-	return append(buf, formatStateChangeText(peer, state, reason)...)
+	return appendStateChangeText(buf, peer, state, reason)
 }
 
 // AppendEOR appends an End-of-RIB marker event to buf.

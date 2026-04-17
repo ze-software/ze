@@ -1,11 +1,12 @@
 // Design: docs/architecture/api/json-format.md — message formatting
+// Related: text_update.go — UPDATE-path orchestrator that invokes appendSummary
+// Related: text.go — appendPeerJSON reused for the peer fragment
 
 package format
 
 import (
 	"encoding/binary"
 	"strconv"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
@@ -13,7 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
-// formatSummary formats an UPDATE as lightweight NLRI metadata.
+// appendSummary appends an UPDATE summary (lightweight NLRI metadata) to buf.
 // Extracts only: which legacy sections are present and which MP families appear.
 // Cost: parse section offsets + scan attribute headers for MP_REACH/MP_UNREACH + 3 bytes per MP attr.
 //
@@ -23,10 +24,13 @@ import (
 //	"withdrawn":  bool   - legacy withdrawn section has bytes
 //	"mp-reach":   string - MP_REACH_NLRI family name, or "" if absent
 //	"mp-unreach": string - MP_UNREACH_NLRI family name, or "" if absent
-func formatSummary(peer *plugin.PeerInfo, rawBytes []byte, msgID uint64, direction string) string {
+//
+// messageType is "update" or "sent" -- threaded through so callers do not run
+// strings.Replace surgery on the resulting JSON.
+func appendSummary(buf []byte, peer *plugin.PeerInfo, rawBytes []byte, msgID uint64, direction, messageType string) []byte {
 	sections, err := wire.ParseUpdateSections(rawBytes)
 	if err != nil {
-		return formatSummaryEmpty(peer, msgID, direction)
+		return appendSummaryJSON(buf, peer, msgID, direction, messageType, false, false, "", "")
 	}
 
 	announce := sections.NLRILen(rawBytes) > 0
@@ -37,7 +41,7 @@ func formatSummary(peer *plugin.PeerInfo, rawBytes []byte, msgID uint64, directi
 		mpReach, mpUnreach = scanMPFamilies(attrsBytes)
 	}
 
-	return buildSummaryJSON(peer, msgID, direction, announce, withdrawn, mpReach, mpUnreach)
+	return appendSummaryJSON(buf, peer, msgID, direction, messageType, announce, withdrawn, mpReach, mpUnreach)
 }
 
 // scanMPFamilies walks attribute headers looking for MP_REACH and MP_UNREACH.
@@ -99,39 +103,33 @@ func scanMPFamilies(attrs []byte) (mpReach, mpUnreach string) {
 	return mpReach, mpUnreach
 }
 
-// buildSummaryJSON builds the summary format JSON string.
+// appendSummaryJSON appends the summary format JSON to buf, terminated by '\n'.
 // message.id is always included (even when 0) — intentional divergence from parsed/raw/full
 // formats which omit id when 0. Summary consumers need stable field presence for lightweight parsing.
-// NOTE: Output uses "message":{"type":"update" prefix, same as other formats.
-// FormatSentMessage relies on this for its string replacement to "type":"sent".
-func buildSummaryJSON(peer *plugin.PeerInfo, msgID uint64, direction string, announce, withdrawn bool, mpReach, mpUnreach string) string {
-	var sb strings.Builder
-	sb.Grow(256)
-
-	sb.WriteString(`{"type":"bgp","bgp":{"message":{"type":"update","id":`)
-	sb.WriteString(strconv.FormatUint(msgID, 10))
+// messageType is written directly ("update" for received, "sent" for sent).
+func appendSummaryJSON(buf []byte, peer *plugin.PeerInfo, msgID uint64, direction, messageType string, announce, withdrawn bool, mpReach, mpUnreach string) []byte {
+	buf = append(buf, `{"type":"bgp","bgp":{"message":{"type":"`...)
+	buf = append(buf, messageType...)
+	buf = append(buf, `","id":`...)
+	buf = strconv.AppendUint(buf, msgID, 10)
 	if direction != "" {
-		sb.WriteString(`,"direction":"`)
-		sb.WriteString(direction)
-		sb.WriteByte('"')
+		// Defensive escape: direction is bounded today ("received"/"sent");
+		// keep the legacy escape shape without bringing fmt back.
+		buf = append(buf, `,"direction":"`...)
+		buf = appendJSONString(buf, direction)
+		buf = append(buf, '"')
 	}
-	sb.WriteString(`}`)
-	writePeerJSON(&sb, peer)
-	sb.WriteString(`,"nlri":{"announce":`)
-	sb.WriteString(strconv.FormatBool(announce))
-	sb.WriteString(`,"withdrawn":`)
-	sb.WriteString(strconv.FormatBool(withdrawn))
-	sb.WriteString(`,"mp-reach":"`)
-	sb.WriteString(mpReach)
-	sb.WriteString(`","mp-unreach":"`)
-	sb.WriteString(mpUnreach)
-	sb.WriteString(`"}}}`)
-	sb.WriteByte('\n')
-
-	return sb.String()
-}
-
-// formatSummaryEmpty returns summary JSON for a malformed or empty UPDATE.
-func formatSummaryEmpty(peer *plugin.PeerInfo, msgID uint64, direction string) string {
-	return buildSummaryJSON(peer, msgID, direction, false, false, "", "")
+	buf = append(buf, `},`...)
+	buf = appendPeerJSON(buf, peer)
+	buf = append(buf, `,"nlri":{"announce":`...)
+	buf = strconv.AppendBool(buf, announce)
+	buf = append(buf, `,"withdrawn":`...)
+	buf = strconv.AppendBool(buf, withdrawn)
+	buf = append(buf, `,"mp-reach":"`...)
+	buf = append(buf, mpReach...)
+	buf = append(buf, `","mp-unreach":"`...)
+	buf = append(buf, mpUnreach...)
+	buf = append(buf, `"}}}`...)
+	buf = append(buf, '\n')
+	return buf
 }

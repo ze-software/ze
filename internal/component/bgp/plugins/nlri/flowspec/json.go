@@ -1,8 +1,8 @@
 // Design: docs/architecture/wire/nlri-flowspec.md — FlowSpec in-process JSON writer
 //
 // AppendJSON streams the FlowSpec NLRI JSON representation directly into a
-// strings.Builder. It skips both the RPC-level hex round-trip (DecodeNLRIHex)
-// AND the previous map+json.Marshal round-trip (flowSpecToJSON).
+// caller-provided []byte. It skips both the RPC-level hex round-trip
+// (DecodeNLRIHex) AND the previous map+json.Marshal round-trip (flowSpecToJSON).
 //
 // Components are grouped by type and emitted in RFC 8955 §4.2 on-wire
 // order (types 1..13). Multiple components of the same type are merged
@@ -18,23 +18,23 @@ import (
 	"strings"
 )
 
-// AppendJSON satisfies nlri.JSONWriter for FlowSpec (SAFI 133).
-func (f *FlowSpec) AppendJSON(sb *strings.Builder) {
-	appendFlowSpecJSON(sb, f, f.family.String(), nil)
+// AppendJSON satisfies nlri.JSONAppender for FlowSpec (SAFI 133).
+func (f *FlowSpec) AppendJSON(buf []byte) []byte {
+	return appendFlowSpecJSON(buf, f, f.family.String(), nil)
 }
 
-// AppendJSON satisfies nlri.JSONWriter for FlowSpecVPN (SAFI 134).
-func (f *FlowSpecVPN) AppendJSON(sb *strings.Builder) {
+// AppendJSON satisfies nlri.JSONAppender for FlowSpecVPN (SAFI 134).
+func (f *FlowSpecVPN) AppendJSON(buf []byte) []byte {
 	rd := f.rd
-	appendFlowSpecJSON(sb, f.flowSpec, f.Family().String(), &rd)
+	return appendFlowSpecJSON(buf, f.flowSpec, f.Family().String(), &rd)
 }
 
-// appendFlowSpecJSON streams FlowSpec components as JSON into sb.
+// appendFlowSpecJSON streams FlowSpec components as JSON into buf.
 // rd is emitted first (VPN only), followed by one key per populated
 // component type in type order. Unknown component types are emitted last as
 // "type-N":[] to match the legacy componentToJSON fallback; in practice
 // ParseFlowSpec rejects unknown types so this path is defensive only.
-func appendFlowSpecJSON(sb *strings.Builder, fs *FlowSpec, family string, rd *RouteDistinguisher) {
+func appendFlowSpecJSON(buf []byte, fs *FlowSpec, family string, rd *RouteDistinguisher) []byte {
 	isIPv6 := strings.Contains(family, "ipv6")
 
 	// Index 0 unused; indices 1..13 hold accumulated OR groups per type.
@@ -65,12 +65,12 @@ func appendFlowSpecJSON(sb *strings.Builder, fs *FlowSpec, family string, rd *Ro
 		}
 	}
 
-	sb.WriteByte('{')
+	buf = append(buf, '{')
 	first := true
 	if rd != nil {
-		sb.WriteString(`"rd":"`)
-		sb.WriteString(rd.String())
-		sb.WriteByte('"')
+		buf = append(buf, `"rd":"`...)
+		buf = append(buf, rd.String()...)
+		buf = append(buf, '"')
 		first = false
 	}
 
@@ -79,27 +79,28 @@ func appendFlowSpecJSON(sb *strings.Builder, fs *FlowSpec, family string, rd *Ro
 			continue
 		}
 		if !first {
-			sb.WriteByte(',')
+			buf = append(buf, ',')
 		}
 		first = false
 
-		sb.WriteByte('"')
-		sb.WriteString(flowSpecKey(ct, isIPv6))
-		sb.WriteString(`":`)
-		appendNestedStringArray(sb, matchesByType[ct])
+		buf = append(buf, '"')
+		buf = append(buf, flowSpecKey(ct, isIPv6)...)
+		buf = append(buf, `":`...)
+		buf = appendNestedStringArray(buf, matchesByType[ct])
 	}
 
 	for _, ct := range unknownTypes {
 		if !first {
-			sb.WriteByte(',')
+			buf = append(buf, ',')
 		}
 		first = false
-		sb.WriteString(`"type-`)
-		sb.WriteString(strconv.Itoa(int(ct)))
-		sb.WriteString(`":[]`)
+		buf = append(buf, `"type-`...)
+		buf = strconv.AppendInt(buf, int64(ct), 10)
+		buf = append(buf, `":[]`...)
 	}
 
-	sb.WriteByte('}')
+	buf = append(buf, '}')
+	return buf
 }
 
 // flowSpecKey returns the JSON key for a FlowSpec component type.
@@ -145,25 +146,26 @@ func flowSpecKey(ct FlowComponentType, isIPv6 bool) string {
 	return "" // unreachable: caller bounds ct to 1..FlowFlowLabel
 }
 
-// appendNestedStringArray writes [["a","b"],["c"]] into sb.
+// appendNestedStringArray writes [["a","b"],["c"]] into buf.
 // Values come from FlowSpec formatters (operators, digits, protocol and flag
 // names) and contain only JSON-safe ASCII.
-func appendNestedStringArray(sb *strings.Builder, groups [][]string) {
-	sb.WriteByte('[')
+func appendNestedStringArray(buf []byte, groups [][]string) []byte {
+	buf = append(buf, '[')
 	for i, g := range groups {
 		if i > 0 {
-			sb.WriteByte(',')
+			buf = append(buf, ',')
 		}
-		sb.WriteByte('[')
+		buf = append(buf, '[')
 		for j, v := range g {
 			if j > 0 {
-				sb.WriteByte(',')
+				buf = append(buf, ',')
 			}
-			sb.WriteByte('"')
-			sb.WriteString(v)
-			sb.WriteByte('"')
+			buf = append(buf, '"')
+			buf = append(buf, v...)
+			buf = append(buf, '"')
 		}
-		sb.WriteByte(']')
+		buf = append(buf, ']')
 	}
-	sb.WriteByte(']')
+	buf = append(buf, ']')
+	return buf
 }

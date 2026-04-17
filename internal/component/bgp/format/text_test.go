@@ -290,11 +290,11 @@ func TestFormatMessageText(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	got := FormatMessage(&peer, msg, content, "")
+	got := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	// Format: peer <ip> remote as <asn> <direction> update <id> <attrs> family <family> next-hop <ip> nlri add <prefixes>
 	if !strings.Contains(got, "peer 10.0.0.1 remote as 65001 received update") {
-		t.Errorf("FormatMessage() =\n%q\nshould contain 'peer 10.0.0.1 remote as 65001 received update'", got)
+		t.Errorf("string(AppendMessage(nil, )) =\n%q\nshould contain 'peer 10.0.0.1 remote as 65001 received update'", got)
 	}
 	if strings.Contains(got, "announce") {
 		t.Error("should not contain 'announce' keyword (replaced by family + nlri add)")
@@ -351,7 +351,7 @@ func TestFormatMessageJSON(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	got := FormatMessage(&peer, msg, content, "")
+	got := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	// Check key parts of the ze-bgp JSON JSON structure
 	// Outer wrapper: {"type":"bgp","bgp":{...}}
@@ -484,17 +484,17 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	got := FormatMessage(&peer, msg, content, "")
+	got := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	// Should use FormatOpen with uniform header: peer X remote as Y received open <msg-id> router-id R hold-time T cap ...
 	if !strings.Contains(got, "peer 10.0.0.1 remote as 42 received open") {
-		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'peer 10.0.0.1 remote as 42 received open'", got)
+		t.Errorf("string(AppendMessage(nil, )) for OPEN =\n%q\nshould contain 'peer 10.0.0.1 remote as 42 received open'", got)
 	}
 	if !strings.Contains(got, "router-id 10.0.0.1") {
-		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'router-id 10.0.0.1'", got)
+		t.Errorf("string(AppendMessage(nil, )) for OPEN =\n%q\nshould contain 'router-id 10.0.0.1'", got)
 	}
 	if !strings.Contains(got, "hold-time 180") {
-		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'hold-time 180'", got)
+		t.Errorf("string(AppendMessage(nil, )) for OPEN =\n%q\nshould contain 'hold-time 180'", got)
 	}
 }
 
@@ -519,11 +519,11 @@ func TestFormatNonUpdateKeepalive(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	got := FormatMessage(&peer, msg, content, "")
+	got := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	// Should use uniform header: peer X remote as Y received keepalive
 	if !strings.Contains(got, "peer 10.0.0.1 remote as 65001 received keepalive") {
-		t.Errorf("FormatMessage() for KEEPALIVE =\n%q\nshould contain 'peer 10.0.0.1 remote as 65001 received keepalive'", got)
+		t.Errorf("string(AppendMessage(nil, )) for KEEPALIVE =\n%q\nshould contain 'peer 10.0.0.1 remote as 65001 received keepalive'", got)
 	}
 }
 
@@ -906,7 +906,7 @@ func TestFormatNLRIJSONWithPathID(t *testing.T) {
 	n := NewTestNLRI(netip.MustParsePrefix("10.0.0.0/24"), 42)
 
 	var sb strings.Builder
-	formatNLRIJSON(&sb, n)
+	sb.Write(appendNLRIJSON(nil, n))
 
 	want := `{"prefix":"10.0.0.0/24","path-id":42}`
 	if got := sb.String(); got != want {
@@ -922,7 +922,7 @@ func TestFormatNLRIJSONNoPathID(t *testing.T) {
 	n := NewTestNLRI(netip.MustParsePrefix("10.0.0.0/24"), 0)
 
 	var sb strings.Builder
-	formatNLRIJSON(&sb, n)
+	sb.Write(appendNLRIJSON(nil, n))
 
 	want := `{"prefix":"10.0.0.0/24"}`
 	if got := sb.String(); got != want {
@@ -938,7 +938,7 @@ func TestFormatNLRIJSONPathIDMax(t *testing.T) {
 	n := NewTestNLRI(netip.MustParsePrefix("192.168.1.0/24"), 4294967295)
 
 	var sb strings.Builder
-	formatNLRIJSON(&sb, n)
+	sb.Write(appendNLRIJSON(nil, n))
 
 	want := `{"prefix":"192.168.1.0/24","path-id":4294967295}`
 	if got := sb.String(); got != want {
@@ -971,10 +971,9 @@ func TestWriteJSONEscapedString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var sb strings.Builder
-			writeJSONEscapedString(&sb, tt.input)
-			if got := sb.String(); got != tt.want {
-				t.Errorf("writeJSONEscapedString(%q) = %q, want %q", tt.input, got, tt.want)
+			got := string(appendJSONString(nil, tt.input))
+			if got != tt.want {
+				t.Errorf("appendJSONString(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}
@@ -1061,14 +1060,14 @@ func TestFormatHexMatchesRaw(t *testing.T) {
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatRaw,
 	}
-	rawOut := FormatMessage(&peer, msg, rawContent, "")
+	rawOut := string(AppendMessage(nil, &peer, msg, rawContent, ""))
 
 	// FormatHex output — should be identical to FormatRaw
 	hexContent := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatHex,
 	}
-	hexOut := FormatMessage(&peer, msg, hexContent, "")
+	hexOut := string(AppendMessage(nil, &peer, msg, hexContent, ""))
 
 	if hexOut != rawOut {
 		t.Errorf("FormatHex and FormatRaw produce different output:\nhex: %s\nraw: %s", hexOut, rawOut)
@@ -1095,7 +1094,7 @@ func TestFormatFilterResultTextEmptyUpdate(t *testing.T) {
 	}
 	// Empty FilterResult: no announced, no withdrawn NLRIs
 	result := bgpfilter.FilterResult{}
-	text := formatFilterResultText(&peer, result, 7, "received", nil)
+	text := string(appendFilterResultText(nil, &peer, result, 7, "received", nil))
 	if text == "" {
 		t.Fatal("empty UPDATE should produce a non-empty text line")
 	}
@@ -1144,7 +1143,7 @@ func TestFormatMessageTextEncoding(t *testing.T) {
 		Encoding: plugin.EncodingText,
 		Format:   plugin.FormatParsed,
 	}
-	textOut := FormatMessage(&peer, msg, textContent, "")
+	textOut := string(AppendMessage(nil, &peer, msg, textContent, ""))
 
 	// Text output should NOT be JSON
 	if strings.HasPrefix(textOut, "{") {
@@ -1160,7 +1159,7 @@ func TestFormatMessageTextEncoding(t *testing.T) {
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
 	}
-	jsonOut := FormatMessage(&peer, msg, jsonContent, "")
+	jsonOut := string(AppendMessage(nil, &peer, msg, jsonContent, ""))
 	if !strings.HasPrefix(jsonOut, "{") {
 		t.Error("json encoding should produce JSON")
 	}
@@ -1240,8 +1239,7 @@ func TestFormatTextUpdate_ShortAliases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var sb strings.Builder
-			var scratch [64]byte
-			formatAttributeText(&sb, tt.code, tt.attr, scratch[:])
+			sb.Write(appendAttributeText(nil, tt.code, tt.attr))
 			got := sb.String()
 			if got != tt.want {
 				t.Errorf("formatAttributeText() = %q, want %q", got, tt.want)

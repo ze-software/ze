@@ -8,6 +8,31 @@ Resolved flake-investigation knowledge distilled into
 summary before investigating a new concurrency or test-isolation failure --
 the recurring shapes are catalogued there.
 
+## vpp-config-invalid-{hugepage,poll-interval} .ci tests -- LOGGED 2026-04-17
+
+**Files:** `test/parse/vpp-config-invalid-hugepage.ci`, `test/parse/vpp-config-invalid-poll-interval.ci`
+**Symptom:** Both tests `expect=exit:code=1` but `ze config validate` returns 0
+("configuration valid"). The YANG enum validation is not rejecting invalid
+hugepage-size ("4M" not in {"2M","1G"}) or out-of-range poll-interval. Matches
+the memory entry "YANG Choice/Case Validation Gaps" -- inner-enum / mandatory
+validation is not enforced at parse time; Go-side plugin validation only runs
+at daemon reload.
+**Hypothesis:** same root cause as the documented YANG gap. Fix requires YANG
+schema walker to apply `range`/`enumeration` constraints at
+`ze config validate` time, not just at daemon reload.
+**Unrelated to fmt-1-text-update** -- the format refactor does not touch
+config/yang/parse code paths.
+
+## TestCmdShow / TestCmdShowSuccess ("iface: no backend loaded") -- LOGGED 2026-04-17
+
+**File:** `cmd/ze/iface/show_test.go`
+**Symptom:** `cmdShow(args)` returns non-zero: "error: iface: no backend loaded". The test
+calls `cmdShow` directly without going through the `Run()` entry point where commit
+`64e422e7 iface-cli: load netlink backend at Run() entry` installs the netlink backend.
+Pre-existing; fmt-1 refactor did not touch cmd/ze/iface or internal/component/iface.
+**Hypothesis:** Move backend load out of `Run()` into a test-friendly helper, or call the
+loader explicitly in the test setup.
+
 ## TestPeerInfoPopulatesStats (uptime == 0) -- LOGGED 2026-04-17
 
 **File:** `internal/component/bgp/reactor/reactor_api_test.go:47`

@@ -6,8 +6,8 @@ package format
 import (
 	"encoding/hex"
 	"net/netip"
+	"slices"
 	"strconv"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
@@ -17,9 +17,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
-// formatFilterResultJSON formats FilterResult as JSON (ze-bgp JSON).
+// appendFilterResultJSON appends FilterResult as JSON to buf (ze-bgp JSON).
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
-// ctx provides ADD-PATH state per family.
+// ctx provides ADD-PATH state per family. closeEnvelope controls whether the
+// outer `}}}\n` is written: true for standalone parsed output, false when the
+// caller (formatFullFromResult) needs to inject additional fields before the close.
 //
 // RFC 4271 Section 5.1.3: NEXT_HOP defines the IP address of the router
 // that SHOULD be used as next hop to the destinations.
@@ -40,87 +42,182 @@ import (
 //	    }
 //	  }
 //	}
-func formatFilterResultJSON(peer *plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
-	var sb strings.Builder
-	var numBuf [20]byte
-
+//
+// messageType is "update" or "sent" -- threaded in so callers do not run
+// strings.Replace surgery on the produced JSON.
+func appendFilterResultJSON(buf []byte, peer *plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext, messageType string, closeEnvelope bool) []byte {
 	// ze-bgp JSON outer wrapper
-	sb.WriteString(`{"type":"bgp","bgp":{`)
+	buf = append(buf, `{"type":"bgp","bgp":{`...)
 
 	// Message metadata with type inside
-	sb.WriteString(`"message":{"type":"update"`)
+	buf = append(buf, `"message":{"type":"`...)
+	buf = append(buf, messageType...)
+	buf = append(buf, '"')
 	if msgID > 0 {
-		sb.WriteString(`,"id":`)
-		sb.Write(strconv.AppendUint(numBuf[:0], msgID, 10))
+		buf = append(buf, `,"id":`...)
+		buf = strconv.AppendUint(buf, msgID, 10)
 	}
 	if direction != "" {
-		sb.WriteString(`,"direction":"`)
-		sb.WriteString(direction)
-		sb.WriteString(`"`)
+		// Defensive escape: direction is bounded today ("received"/"sent")
+		// but the legacy fmt.Sprintf(%q) shape also escaped it; preserve
+		// that property without the fmt dependency.
+		buf = append(buf, `,"direction":"`...)
+		buf = appendJSONString(buf, direction)
+		buf = append(buf, '"')
 	}
-	sb.WriteString(`}`)
+	buf = append(buf, '}', ',')
 
 	// Peer at bgp level
-	writePeerJSON(&sb, peer)
+	buf = appendPeerJSON(buf, peer)
 
 	// Update container with attr and nlri inside
-	sb.WriteString(`,"update":{`)
+	buf = append(buf, `,"update":{`...)
 
 	// Attributes inside update
 	if len(result.Attributes) > 0 {
-		sb.WriteString(`"attr":{`)
-		formatAttributesJSON(&sb, result)
-		sb.WriteString(`},`)
+		buf = append(buf, `"attr":{`...)
+		buf = appendAttributesJSON(buf, result)
+		buf = append(buf, `},`...)
 	}
 
-	// Collect operations by family
-	// Map: family -> list of operations (each op has action, next-hop, nlris)
-	familyOps := make(map[string][]familyOperation)
-
-	// Add announced routes (action: add)
 	announced := result.AnnouncedByFamily(ctx)
-	for _, fam := range announced {
-		op := familyOperation{
-			Action:  "add",
-			NextHop: fam.NextHop.String(),
-			NLRIs:   fam.NLRIs,
-		}
-		familyOps[fam.Family] = append(familyOps[fam.Family], op)
-	}
-
-	// Add withdrawn routes (action: del)
 	withdrawn := result.WithdrawnByFamily(ctx)
-	for _, fam := range withdrawn {
-		op := familyOperation{
-			Action: "del",
-			NLRIs:  fam.NLRIs,
-		}
-		familyOps[fam.Family] = append(familyOps[fam.Family], op)
+
+	// NLRIs inside update: emit per-family operations WITHOUT building an
+	// intermediate map (map creation was the dominant allocation on warm
+	// scratch before fmt-1). Families are discovered in iteration order
+	// (announced first, then new families from withdrawn). Map iteration
+	// order of the legacy code was non-deterministic; tests already
+	// tolerate this, and parity assertions use JSON-parsed comparison for
+	// the map-containing regions.
+	buf = append(buf, `"nlri":{`...)
+	buf = appendFamiliesJSON(buf, announced, withdrawn)
+	buf = append(buf, '}')
+
+	if closeEnvelope {
+		// Close update, bgp, and outer wrapper.
+		buf = append(buf, "}}}\n"...)
 	}
-
-	// NLRIs inside update
-	sb.WriteString(`"nlri":{`)
-	formatFamilyOpsJSON(&sb, familyOps)
-	sb.WriteString(`}`)
-
-	// Close update, bgp, and outer wrapper
-	sb.WriteString("}}}\n")
-	return sb.String()
+	// INVARIANT: when closeEnvelope is false, buf ends with `,"nlri":{...}}`
+	// -- the last `}` closes `nlri`, leaving `"update":{...`, `"bgp":{...`,
+	// and the outer `{` all open. appendFullFromResult depends on this exact
+	// shape to inject `,"raw":{...},"route-meta":{...}}}\n`. Any change to
+	// what this writer leaves open MUST update appendFullFromResult in
+	// lockstep (the legacy strings.HasSuffix guard is gone).
+	return buf
 }
 
 // familyOperation represents a single operation (add/del) for a family.
+// Retained for FormatDecodeUpdateJSON (codec.go) which still uses the map
+// grouping since it mixes legacy IPv4 + MP routes from multiple sources.
 type familyOperation struct {
 	Action  string      // "add" or "del"
 	NextHop string      // Only for "add" operations
 	NLRIs   []nlri.NLRI // NLRIs in this operation
 }
 
-// formatNLRIJSONValue formats a single NLRI as JSON value.
+// appendFamiliesJSON writes the per-family operation object directly from
+// the ordered announced / withdrawn slices, without building an intermediate
+// map keyed by family. Families are discovered in iteration order: announced
+// first, then withdrawn families not previously seen. Matches the legacy
+// (non-deterministic) map iteration in the common case of one entry per
+// family; tests compare the map region via JSON-parsed equality.
+func appendFamiliesJSON(buf []byte, announced, withdrawn []bgpfilter.FamilyNLRI) []byte {
+	// Stack-local scan array: typical UPDATE has ≤2 families; 8 covers every
+	// case we see in production while keeping the array on the stack.
+	var seenScratch [8]string
+	seen := seenScratch[:0]
+
+	contains := func(s string) bool {
+		return slices.Contains(seen, s)
+	}
+
+	writeFamily := func(buf []byte, fam string, isFirst bool) []byte {
+		if !isFirst {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, '"')
+		buf = append(buf, fam...)
+		buf = append(buf, `":[`...)
+		opFirst := true
+		// Emit all announced ops for this family (action=add).
+		for i := range announced {
+			if announced[i].Family != fam {
+				continue
+			}
+			if !opFirst {
+				buf = append(buf, ',')
+			}
+			opFirst = false
+			buf = append(buf, '{')
+			nh := announced[i].NextHop
+			if nh.IsValid() {
+				buf = append(buf, `"next-hop":"`...)
+				buf = nh.AppendTo(buf)
+				buf = append(buf, `",`...)
+			}
+			buf = append(buf, `"action":"add","nlri":[`...)
+			for j, n := range announced[i].NLRIs {
+				if j > 0 {
+					buf = append(buf, ',')
+				}
+				buf = appendNLRIJSONValue(buf, n, fam)
+			}
+			buf = append(buf, `]}`...)
+		}
+		// Emit all withdrawn ops for this family (action=del).
+		for i := range withdrawn {
+			if withdrawn[i].Family != fam {
+				continue
+			}
+			if !opFirst {
+				buf = append(buf, ',')
+			}
+			opFirst = false
+			buf = append(buf, `{"action":"del","nlri":[`...)
+			for j, n := range withdrawn[i].NLRIs {
+				if j > 0 {
+					buf = append(buf, ',')
+				}
+				buf = appendNLRIJSONValue(buf, n, fam)
+			}
+			buf = append(buf, `]}`...)
+		}
+		buf = append(buf, ']')
+		return buf
+	}
+
+	first := true
+	for i := range announced {
+		fam := announced[i].Family
+		if contains(fam) {
+			continue
+		}
+		// append grows beyond cap(seen) into the heap when families exceed
+		// the stack array; that is the expected fallback for pathological
+		// UPDATEs with more than 8 distinct families.
+		seen = append(seen, fam)
+		buf = writeFamily(buf, fam, first)
+		first = false
+	}
+	for i := range withdrawn {
+		fam := withdrawn[i].Family
+		if contains(fam) {
+			continue
+		}
+		seen = append(seen, fam)
+		buf = writeFamily(buf, fam, first)
+		first = false
+	}
+	return buf
+}
+
+// appendNLRIJSONValue appends a single NLRI as JSON value to buf.
 // Simple prefixes without path-id are output as strings: "10.0.0.0/24".
 // Complex NLRIs (ADD-PATH, VPN, EVPN, FlowSpec) are output as objects with structured fields.
 //
-// Hot path: NLRI types implementing nlri.JSONWriter stream JSON directly into
-// the builder (zero-alloc for simple plugins, single json.Marshal for FlowSpec).
+// Hot path: NLRI types implementing nlri.JSONAppender stream JSON directly into
+// buf (zero-alloc for simple plugins, single json.Marshal for FlowSpec).
 // Registry hex decoder path is retained as a fallback for external plugins that
 // live over RPC and have no in-process Go type to assert against.
 //
@@ -128,12 +225,11 @@ type familyOperation struct {
 // RFC 7432: EVPN NLRI includes route-type, ESI, etc.
 // RFC 8277: Labeled Unicast NLRI includes labels.
 // RFC 8955: FlowSpec NLRI includes match components.
-func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI, familyStr string) {
-	// Fast path: concrete in-process NLRI types implement nlri.JSONWriter and
+func appendNLRIJSONValue(buf []byte, n nlri.NLRI, familyStr string) []byte {
+	// Fast path: concrete in-process NLRI types implement nlri.JSONAppender and
 	// write their JSON directly, skipping wire encode + hex + re-parse + map.
-	if w, ok := n.(nlri.JSONWriter); ok {
-		w.AppendJSON(sb)
-		return
+	if w, ok := n.(nlri.JSONAppender); ok {
+		return w.AppendJSON(buf)
 	}
 
 	// Fallback: external plugins over RPC. Wire-encode, hex, dispatch via registry.
@@ -141,8 +237,7 @@ func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI, familyStr string) {
 		hexData := hex.EncodeToString(n.Bytes())
 		decoded, err := registry.DecodeNLRIByFamily(familyStr, hexData)
 		if err == nil {
-			sb.WriteString(decoded)
-			return
+			return append(buf, decoded...)
 		}
 	}
 
@@ -151,16 +246,15 @@ func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI, familyStr string) {
 	// Simple prefix without path-id: output as string
 	if pathID == 0 {
 		if p, ok := n.(prefixer); ok {
-			var pfxBuf [44]byte // max IPv6 prefix: 39 chars + /3 digits + NUL
-			sb.WriteString(`"`)
-			sb.Write(p.Prefix().AppendTo(pfxBuf[:0]))
-			sb.WriteString(`"`)
-			return
+			buf = append(buf, '"')
+			buf = p.Prefix().AppendTo(buf)
+			buf = append(buf, '"')
+			return buf
 		}
 	}
 
 	// Complex NLRI (has path-id or not a simple prefix): output as object
-	formatNLRIJSON(sb, n)
+	return appendNLRIJSON(buf, n)
 }
 
 // prefixer is implemented by NLRI types that have a Prefix() method.
@@ -168,199 +262,213 @@ type prefixer interface {
 	Prefix() netip.Prefix
 }
 
-// formatNLRIJSON formats a single NLRI as JSON.
+// appendNLRIJSON appends a single NLRI as JSON object to buf.
 // RFC 7911: Outputs structured format with path-id when present.
 // Format: {"prefix":"10.0.0.0/24"} or {"prefix":"10.0.0.0/24","path-id":1}.
-func formatNLRIJSON(sb *strings.Builder, n nlri.NLRI) {
-	sb.WriteString(`{"prefix":"`)
+func appendNLRIJSON(buf []byte, n nlri.NLRI) []byte {
+	buf = append(buf, `{"prefix":"`...)
 
 	// Use type assertion to get prefix cleanly
 	if p, ok := n.(prefixer); ok {
-		var pfxBuf [44]byte
-		sb.Write(p.Prefix().AppendTo(pfxBuf[:0]))
+		buf = p.Prefix().AppendTo(buf)
 	} else {
 		// Fallback for complex NLRI types (EVPN, FlowSpec, etc.)
 		// Escape for JSON safety (handles quotes, backslashes, control chars)
-		writeJSONEscapedString(sb, n.String())
+		buf = appendJSONString(buf, n.String())
 	}
-	sb.WriteString(`"`)
+	buf = append(buf, '"')
 
 	if pathID := n.PathID(); pathID != 0 {
-		var numBuf [20]byte
-		sb.WriteString(`,"path-id":`)
-		sb.Write(strconv.AppendUint(numBuf[:0], uint64(pathID), 10))
+		buf = append(buf, `,"path-id":`...)
+		buf = strconv.AppendUint(buf, uint64(pathID), 10)
 	}
 
-	sb.WriteString(`}`)
+	buf = append(buf, '}')
+	return buf
 }
 
-// formatAttributesJSON formats attributes from FilterResult for JSON.
-func formatAttributesJSON(sb *strings.Builder, result bgpfilter.FilterResult) {
+// appendAttributesJSON appends attributes from FilterResult for JSON.
+func appendAttributesJSON(buf []byte, result bgpfilter.FilterResult) []byte {
 	if len(result.Attributes) == 0 {
-		return
+		return buf
 	}
 
 	first := true
 	for code, attr := range result.Attributes {
 		if !first {
-			sb.WriteString(",")
+			buf = append(buf, ',')
 		}
 		first = false
-		formatAttributeJSON(sb, code, attr)
+		buf = appendAttributeJSON(buf, code, attr)
 	}
+	return buf
 }
 
-// formatFamilyOpsJSON writes family operations as JSON object entries.
-// Shared by formatFilterResultJSON and FormatDecodeUpdateJSON.
-func formatFamilyOpsJSON(sb *strings.Builder, familyOps map[string][]familyOperation) {
+// appendFamilyOpsJSON appends family operations as JSON object entries.
+// Shared by appendFilterResultJSON and FormatDecodeUpdateJSON.
+func appendFamilyOpsJSON(buf []byte, familyOps map[string][]familyOperation) []byte {
 	first := true
 	for fam, ops := range familyOps {
 		if !first {
-			sb.WriteString(",")
+			buf = append(buf, ',')
 		}
 		first = false
-		sb.WriteString(`"`)
-		sb.WriteString(fam)
-		sb.WriteString(`":[`)
+		buf = append(buf, '"')
+		buf = append(buf, fam...)
+		buf = append(buf, `":[`...)
 		for i, op := range ops {
 			if i > 0 {
-				sb.WriteString(",")
+				buf = append(buf, ',')
 			}
-			sb.WriteString(`{`)
+			buf = append(buf, '{')
 			if op.Action == "add" && op.NextHop != "" && op.NextHop != "invalid IP" {
-				sb.WriteString(`"next-hop":"`)
-				sb.WriteString(op.NextHop)
-				sb.WriteString(`",`)
+				buf = append(buf, `"next-hop":"`...)
+				buf = append(buf, op.NextHop...)
+				buf = append(buf, `",`...)
 			}
-			sb.WriteString(`"action":"`)
-			sb.WriteString(op.Action)
-			sb.WriteString(`","nlri":[`)
+			buf = append(buf, `"action":"`...)
+			buf = append(buf, op.Action...)
+			buf = append(buf, `","nlri":[`...)
 			for j, n := range op.NLRIs {
 				if j > 0 {
-					sb.WriteString(",")
+					buf = append(buf, ',')
 				}
-				formatNLRIJSONValue(sb, n, fam)
+				buf = appendNLRIJSONValue(buf, n, fam)
 			}
-			sb.WriteString(`]}`)
+			buf = append(buf, `]}`...)
 		}
-		sb.WriteString(`]`)
+		buf = append(buf, ']')
 	}
+	return buf
 }
 
-// formatAttributeJSON formats a single attribute for JSON.
+// appendAttributeJSON appends a single attribute for JSON.
 // Known attribute types are formatted with named keys; unknown types use "attr-N" with hex value.
-func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr attribute.Attribute) {
-	var numBuf [20]byte
-
+func appendAttributeJSON(buf []byte, code attribute.AttributeCode, attr attribute.Attribute) []byte {
 	switch code { //nolint:exhaustive // common attributes; unknown handled after switch
 	case attribute.AttrOrigin:
 		switch o := attr.(type) {
 		case *attribute.Origin:
-			sb.WriteString(`"origin":"`)
-			sb.WriteString(strings.ToLower(o.String()))
-			sb.WriteString(`"`)
+			buf = append(buf, `"origin":"`...)
+			buf = appendLower(buf, o.String())
+			buf = append(buf, '"')
 		case attribute.Origin:
-			sb.WriteString(`"origin":"`)
-			sb.WriteString(strings.ToLower(o.String()))
-			sb.WriteString(`"`)
+			buf = append(buf, `"origin":"`...)
+			buf = appendLower(buf, o.String())
+			buf = append(buf, '"')
 		}
-		return
+		return buf
 	case attribute.AttrASPath:
 		if ap, ok := attr.(*attribute.ASPath); ok {
-			sb.WriteString(`"as-path":[`)
+			buf = append(buf, `"as-path":[`...)
 			first := true
 			for _, seg := range ap.Segments {
 				for _, asn := range seg.ASNs {
 					if !first {
-						sb.WriteString(",")
+						buf = append(buf, ',')
 					}
 					first = false
-					sb.Write(strconv.AppendUint(numBuf[:0], uint64(asn), 10))
+					buf = strconv.AppendUint(buf, uint64(asn), 10)
 				}
 			}
-			sb.WriteString("]")
+			buf = append(buf, ']')
 		}
-		return
+		return buf
 	case attribute.AttrMED:
 		switch m := attr.(type) {
 		case *attribute.MED:
-			sb.WriteString(`"med":`)
-			sb.Write(strconv.AppendUint(numBuf[:0], uint64(uint32(*m)), 10))
+			buf = append(buf, `"med":`...)
+			buf = strconv.AppendUint(buf, uint64(uint32(*m)), 10)
 		case attribute.MED:
-			sb.WriteString(`"med":`)
-			sb.Write(strconv.AppendUint(numBuf[:0], uint64(uint32(m)), 10))
+			buf = append(buf, `"med":`...)
+			buf = strconv.AppendUint(buf, uint64(uint32(m)), 10)
 		}
-		return
+		return buf
 	case attribute.AttrLocalPref:
 		switch lp := attr.(type) {
 		case *attribute.LocalPref:
-			sb.WriteString(`"local-preference":`)
-			sb.Write(strconv.AppendUint(numBuf[:0], uint64(uint32(*lp)), 10))
+			buf = append(buf, `"local-preference":`...)
+			buf = strconv.AppendUint(buf, uint64(uint32(*lp)), 10)
 		case attribute.LocalPref:
-			sb.WriteString(`"local-preference":`)
-			sb.Write(strconv.AppendUint(numBuf[:0], uint64(uint32(lp)), 10))
+			buf = append(buf, `"local-preference":`...)
+			buf = strconv.AppendUint(buf, uint64(uint32(lp)), 10)
 		}
-		return
+		return buf
 	case attribute.AttrCommunity:
 		if c, ok := attr.(*attribute.Communities); ok {
-			sb.WriteString(`"communities":[`)
+			buf = append(buf, `"communities":[`...)
 			for i, comm := range *c {
 				if i > 0 {
-					sb.WriteString(",")
+					buf = append(buf, ',')
 				}
-				sb.WriteString(`"`)
-				sb.WriteString(comm.String())
-				sb.WriteString(`"`)
+				buf = append(buf, '"')
+				buf = append(buf, comm.String()...)
+				buf = append(buf, '"')
 			}
-			sb.WriteString("]")
+			buf = append(buf, ']')
 		}
-		return
+		return buf
 	case attribute.AttrLargeCommunity:
 		if lc, ok := attr.(*attribute.LargeCommunities); ok {
-			sb.WriteString(`"large-communities":[`)
+			buf = append(buf, `"large-communities":[`...)
 			for i, comm := range *lc {
 				if i > 0 {
-					sb.WriteString(",")
+					buf = append(buf, ',')
 				}
-				sb.WriteString(`"`)
-				sb.WriteString(comm.String())
-				sb.WriteString(`"`)
+				buf = append(buf, '"')
+				buf = append(buf, comm.String()...)
+				buf = append(buf, '"')
 			}
-			sb.WriteString("]")
+			buf = append(buf, ']')
 		}
-		return
+		return buf
 	case attribute.AttrExtCommunity:
 		if ec, ok := attr.(*attribute.ExtendedCommunities); ok {
-			sb.WriteString(`"extended-communities":[`)
-			var hexBuf [16]byte // ext community is 8 bytes -> 16 hex chars
+			buf = append(buf, `"extended-communities":[`...)
 			for i, comm := range *ec {
 				if i > 0 {
-					sb.WriteString(",")
+					buf = append(buf, ',')
 				}
-				sb.WriteString(`"`)
-				sb.Write(hex.AppendEncode(hexBuf[:0], comm[:]))
-				sb.WriteString(`"`)
+				buf = append(buf, '"')
+				buf = hex.AppendEncode(buf, comm[:])
+				buf = append(buf, '"')
 			}
-			sb.WriteString("]")
+			buf = append(buf, ']')
 		}
-		return
+		return buf
 	}
-	// Unknown attribute code — format as "attr-N": "hex"
-	attrBuf := make([]byte, attr.Len())
-	attr.WriteTo(attrBuf, 0)
-	sb.WriteString(`"attr-`)
-	sb.Write(strconv.AppendUint(numBuf[:0], uint64(code), 10))
-	sb.WriteString(`":"`)
-	sb.Write(hex.AppendEncode(nil, attrBuf))
-	sb.WriteString(`"`)
+	// Unknown attribute code — format as "attr-N": "hex".
+	// attr.Len() bounds hex output; stack scratch for the common case, heap
+	// spill via make for pathological inputs (RFC 4271 extended max is 65535).
+	var scratch [512]byte
+	raw := scratch[:0]
+	if n := attr.Len(); n > cap(raw) {
+		raw = make([]byte, n)
+	} else {
+		raw = scratch[:n]
+	}
+	attr.WriteTo(raw, 0)
+	buf = append(buf, `"attr-`...)
+	buf = strconv.AppendUint(buf, uint64(code), 10)
+	buf = append(buf, `":"`...)
+	buf = hex.AppendEncode(buf, raw)
+	buf = append(buf, '"')
+	return buf
 }
 
-func formatStateChangeJSON(peer *plugin.PeerInfo, state, reason string) string {
-	// ze-bgp JSON format with reason for down events.
-	// reason is only present for "down" events — "up" has no close reason.
-	p := peerJSONInline(peer)
+// appendStateChangeJSON appends the ze-bgp state-change JSON envelope to buf,
+// terminated by '\n'. reason is only present for "down" events; "up" has no
+// close reason.
+func appendStateChangeJSON(buf []byte, peer *plugin.PeerInfo, state, reason string) []byte {
+	buf = append(buf, `{"type":"bgp","bgp":{"message":{"type":"state"},`...)
+	buf = appendPeerJSON(buf, peer)
+	buf = append(buf, `,"state":"`...)
+	buf = append(buf, state...)
 	if reason != "" {
-		return `{"type":"bgp","bgp":{"message":{"type":"state"},` + p + `,"state":"` + state + `","reason":"` + reason + `"}}` + "\n"
+		buf = append(buf, `","reason":"`...)
+		buf = append(buf, reason...)
 	}
-	return `{"type":"bgp","bgp":{"message":{"type":"state"},` + p + `,"state":"` + state + `"}}` + "\n"
+	buf = append(buf, `"}}`...)
+	buf = append(buf, '\n')
+	return buf
 }

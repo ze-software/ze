@@ -124,7 +124,7 @@ func TestFormatSummaryPeerNameGroup(t *testing.T) {
 		0, 0, nil,
 	)
 	msg := summaryMsg(body, 1)
-	got := FormatMessage(&peer, msg, summaryContent(), "")
+	got := string(AppendMessage(nil, &peer, msg, summaryContent(), ""))
 
 	bgp := parseSummaryJSON(t, got)
 	peerObj, ok := bgp["peer"].(map[string]any)
@@ -149,7 +149,7 @@ func TestFormatSummaryLegacyNLRI(t *testing.T) {
 		0, 0, nil,
 	)
 	msg := summaryMsg(body, 1)
-	got := FormatMessage(&summaryPeer, msg, summaryContent(), "")
+	got := string(AppendMessage(nil, &summaryPeer, msg, summaryContent(), ""))
 
 	bgp := parseSummaryJSON(t, got)
 	nlriObj := getNLRISummary(t, bgp)
@@ -167,7 +167,7 @@ func TestFormatSummaryLegacyNLRI(t *testing.T) {
 func TestFormatSummaryLegacyWithdrawn(t *testing.T) {
 	body := buildTestUpdateBodyWithWithdrawn(netip.MustParsePrefix("10.0.0.0/24"))
 	msg := summaryMsg(body, 2)
-	got := FormatMessage(&summaryPeer, msg, summaryContent(), "")
+	got := string(AppendMessage(nil, &summaryPeer, msg, summaryContent(), ""))
 
 	bgp := parseSummaryJSON(t, got)
 	nlriObj := getNLRISummary(t, bgp)
@@ -187,7 +187,7 @@ func TestFormatSummaryMPReach(t *testing.T) {
 	mpReach := buildMPReachAttr(25, 70)
 	body := buildSummaryUpdateBody(nil, mpReach, nil)
 	msg := summaryMsg(body, 3)
-	got := FormatMessage(&summaryPeer, msg, summaryContent(), "")
+	got := string(AppendMessage(nil, &summaryPeer, msg, summaryContent(), ""))
 
 	bgp := parseSummaryJSON(t, got)
 	nlriObj := getNLRISummary(t, bgp)
@@ -207,7 +207,7 @@ func TestFormatSummaryMPUnreach(t *testing.T) {
 	mpUnreach := buildMPUnreachAttr(2, 1)
 	body := buildSummaryUpdateBody(nil, mpUnreach, nil)
 	msg := summaryMsg(body, 4)
-	got := FormatMessage(&summaryPeer, msg, summaryContent(), "")
+	got := string(AppendMessage(nil, &summaryPeer, msg, summaryContent(), ""))
 
 	bgp := parseSummaryJSON(t, got)
 	nlriObj := getNLRISummary(t, bgp)
@@ -235,7 +235,7 @@ func TestFormatSummaryMixed(t *testing.T) {
 
 	body := buildSummaryUpdateBody(withdrawn, attrs, nlriBytes)
 	msg := summaryMsg(body, 5)
-	got := FormatMessage(&summaryPeer, msg, summaryContent(), "")
+	got := string(AppendMessage(nil, &summaryPeer, msg, summaryContent(), ""))
 
 	bgp := parseSummaryJSON(t, got)
 	nlriObj := getNLRISummary(t, bgp)
@@ -270,7 +270,7 @@ func TestFormatSummaryNonUpdate(t *testing.T) {
 		MessageID: 6,
 	}
 
-	got := FormatMessage(&summaryPeer, msg, summaryContent(), "")
+	got := string(AppendMessage(nil, &summaryPeer, msg, summaryContent(), ""))
 
 	// Should produce parsed OPEN output, not summary JSON
 	var result map[string]any
@@ -297,7 +297,7 @@ func TestFormatSummaryEmptyUpdate(t *testing.T) {
 	// Empty UPDATE: withdrawn_len=0, attr_len=0, no NLRI
 	body := []byte{0, 0, 0, 0}
 	msg := summaryMsg(body, 7)
-	got := FormatMessage(&summaryPeer, msg, summaryContent(), "")
+	got := string(AppendMessage(nil, &summaryPeer, msg, summaryContent(), ""))
 
 	bgp := parseSummaryJSON(t, got)
 	nlriObj := getNLRISummary(t, bgp)
@@ -317,7 +317,7 @@ func TestFormatSummaryEndOfRIB(t *testing.T) {
 	mpUnreach := buildMPUnreachAttr(2, 1)
 	body := buildSummaryUpdateBody(nil, mpUnreach, nil)
 	msg := summaryMsg(body, 8)
-	got := FormatMessage(&summaryPeer, msg, summaryContent(), "")
+	got := string(AppendMessage(nil, &summaryPeer, msg, summaryContent(), ""))
 
 	bgp := parseSummaryJSON(t, got)
 	nlriObj := getNLRISummary(t, bgp)
@@ -342,7 +342,7 @@ func TestFormatSummaryMessageID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msg := summaryMsg(body, tt.msgID)
-			got := FormatMessage(&summaryPeer, msg, summaryContent(), "")
+			got := string(AppendMessage(nil, &summaryPeer, msg, summaryContent(), ""))
 
 			bgp := parseSummaryJSON(t, got)
 			msgObj, ok := bgp["message"].(map[string]any)
@@ -371,7 +371,7 @@ func TestFormatSummaryMalformed(t *testing.T) {
 		MessageID: 10,
 	}
 
-	got := FormatMessage(&summaryPeer, msg, summaryContent(), "")
+	got := string(AppendMessage(nil, &summaryPeer, msg, summaryContent(), ""))
 	assert.NotEmpty(t, got, "should produce output even for malformed UPDATE")
 
 	// Should be valid JSON

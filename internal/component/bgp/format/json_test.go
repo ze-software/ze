@@ -285,7 +285,7 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(&peer, msg, content, "")
+	output := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	// Parse JSON
 	var result map[string]any
@@ -489,7 +489,7 @@ func TestFormatMessageNotificationText_Parsed(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(&peer, msg, content, "")
+	output := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	// Verify text format
 	assert.Contains(t, output, "peer 10.0.0.1")
@@ -528,7 +528,7 @@ func TestFormatMessageIgnoresEncodingForParsedNonUpdate(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(&peer, msg, content, "")
+	output := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	// ...but we get TEXT because FormatMessage ignores Encoding for parsed non-UPDATE
 	assert.True(t, strings.HasPrefix(output, "peer "),
@@ -558,7 +558,7 @@ func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(&peer, msg, content, "")
+	output := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	// Parse JSON
 	var result map[string]any
@@ -628,7 +628,7 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(&peer, msg, content, "")
+	output := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	// Parse JSON
 	var result map[string]any
@@ -688,7 +688,7 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(&peer, msg, content, "")
+	output := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
@@ -751,7 +751,7 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(&peer, msg, content, "")
+	output := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	var result map[string]any
 	err = json.Unmarshal([]byte(output), &result)
@@ -818,7 +818,7 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(&peer, msg, content, "")
+	output := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
@@ -889,7 +889,7 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(&peer, msg, content, "")
+	output := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	var result map[string]any
 	err = json.Unmarshal([]byte(output), &result)
@@ -1073,7 +1073,7 @@ func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(&peer, msg, content, "")
+	output := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	var result map[string]any
 	err = json.Unmarshal([]byte(output), &result)
@@ -1169,7 +1169,7 @@ func TestJSONEncoderRDTypes(t *testing.T) {
 
 			// Format using formatNLRIJSONValue (registry-based decode)
 			var sb strings.Builder
-			formatNLRIJSONValue(&sb, vpnNLRI, vpnNLRI.Family().String())
+			sb.Write(appendNLRIJSONValue(nil, vpnNLRI, vpnNLRI.Family().String()))
 			output := sb.String()
 
 			// Verify RD in JSON output
@@ -1209,7 +1209,7 @@ func TestJSONEncoderEVPN(t *testing.T) {
 
 	// Format using formatNLRIJSONValue (registry-based decode)
 	var sb strings.Builder
-	formatNLRIJSONValue(&sb, evpnNLRI, evpnNLRI.Family().String())
+	sb.Write(appendNLRIJSONValue(nil, evpnNLRI, evpnNLRI.Family().String()))
 	output := sb.String()
 
 	// Verify all fields (plugin decode format: array with code/name/parsed/raw fields)
@@ -1315,7 +1315,7 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 
 			// Format using formatNLRIJSONValue (routes through registry decoder)
 			var sb strings.Builder
-			formatNLRIJSONValue(&sb, lu, lu.Family().String())
+			sb.Write(appendNLRIJSONValue(nil, lu, lu.Family().String()))
 			output := sb.String()
 
 			// Verify prefix
@@ -1465,7 +1465,7 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 
 			// Format using formatNLRIJSONValue (registry-based decode)
 			var sb strings.Builder
-			formatNLRIJSONValue(&sb, vpnNLRI, vpnNLRI.Family().String())
+			sb.Write(appendNLRIJSONValue(nil, vpnNLRI, vpnNLRI.Family().String()))
 			output := sb.String()
 
 			// Verify prefix
@@ -1556,7 +1556,7 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 
 			// Format using formatNLRIJSONValue (registry-based decode)
 			var sb strings.Builder
-			formatNLRIJSONValue(&sb, fsv, fsv.Family().String())
+			sb.Write(appendNLRIJSONValue(nil, fsv, fsv.Family().String()))
 			output := sb.String()
 
 			// Verify RD with type prefix
@@ -1734,7 +1734,7 @@ func TestEventJSONHasTopLevelType(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(&peer, msg, content, "")
+	output := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	var result map[string]any
 	err = json.Unmarshal([]byte(output), &result)
@@ -1836,7 +1836,7 @@ func TestEventJSONMessageMetadata(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(&peer, msg, content, "")
+	output := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
@@ -1994,7 +1994,7 @@ func TestEventJSONNestedStructure(t *testing.T) {
 		Format:   plugin.FormatParsed,
 	}
 
-	output := FormatMessage(&peer, msg, content, "")
+	output := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
@@ -2064,7 +2064,7 @@ func TestEventJSONRawSection(t *testing.T) {
 		Format:   plugin.FormatFull, // Request raw bytes
 	}
 
-	output := FormatMessage(&peer, msg, content, "")
+	output := string(AppendMessage(nil, &peer, msg, content, ""))
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)

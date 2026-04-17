@@ -4,7 +4,6 @@ package format
 
 import (
 	"encoding/json"
-	"strings"
 
 	bgpfilter "codeberg.org/thomas-mangin/ze/internal/component/bgp/filter"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
@@ -13,14 +12,15 @@ import (
 // FormatDecodeUpdateJSON formats a FilterResult as ze-bgp JSON for the decode-update RPC.
 // Produces {"update":{"attr":{...},"nlri":{...}}} without peer/message metadata.
 func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string {
-	var sb strings.Builder
-	sb.WriteString(`{"update":{`)
+	var scratch [1024]byte
+	buf := scratch[:0]
+	buf = append(buf, `{"update":{`...)
 
 	// Attributes
 	if len(result.Attributes) > 0 {
-		sb.WriteString(`"attr":{`)
-		formatAttributesJSON(&sb, result)
-		sb.WriteString(`},`)
+		buf = append(buf, `"attr":{`...)
+		buf = appendAttributesJSON(buf, result)
+		buf = append(buf, `},`...)
 	}
 
 	// Collect NLRI operations by family
@@ -76,28 +76,31 @@ func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string 
 	}
 
 	// Format NLRI operations
-	sb.WriteString(`"nlri":{`)
-	formatFamilyOpsJSON(&sb, familyOps)
-	sb.WriteString(`}}}`)
+	buf = append(buf, `"nlri":{`...)
+	buf = appendFamilyOpsJSON(buf, familyOps)
+	buf = append(buf, `}}}`...)
 
-	return sb.String()
+	return string(buf)
 }
 
 // FormatNLRIsAsJSON formats a slice of NLRIs as a JSON array.
-// Uses formatNLRIJSONValue for consistent formatting of all NLRI types.
+// Uses appendNLRIJSONValue for consistent formatting of all NLRI types.
 func FormatNLRIsAsJSON(nlris []nlri.NLRI) json.RawMessage {
-	var sb strings.Builder
-	sb.WriteString("[")
+	var scratch [512]byte
+	buf := scratch[:0]
+	buf = append(buf, '[')
 	var familyStr string
 	if len(nlris) > 0 {
 		familyStr = nlris[0].Family().String()
 	}
 	for i, n := range nlris {
 		if i > 0 {
-			sb.WriteString(",")
+			buf = append(buf, ',')
 		}
-		formatNLRIJSONValue(&sb, n, familyStr)
+		buf = appendNLRIJSONValue(buf, n, familyStr)
 	}
-	sb.WriteString("]")
-	return json.RawMessage(sb.String())
+	buf = append(buf, ']')
+	result := make([]byte, len(buf))
+	copy(result, buf)
+	return json.RawMessage(result)
 }

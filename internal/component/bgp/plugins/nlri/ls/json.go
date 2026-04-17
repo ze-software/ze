@@ -1,6 +1,6 @@
 // Design: docs/architecture/wire/nlri-bgpls.md — BGP-LS in-process JSON writer
 //
-// AppendJSON lets BGP-LS NLRI types participate in the nlri.JSONWriter fast
+// AppendJSON lets BGP-LS NLRI types participate in the nlri.JSONAppender fast
 // path (formatNLRIJSONValue). Without this file, BGP-LS falls through
 // formatNLRIJSON and emits {"prefix":"<String()>"} (e.g. "node protocol OSPFv2
 // asn 65000") instead of the structured RFC 7752 / 9514 JSON.
@@ -20,63 +20,62 @@ package ls
 import (
 	"encoding/json"
 	"strconv"
-	"strings"
 )
 
-// AppendJSON satisfies nlri.JSONWriter for BGP-LS Node NLRI (Type 1).
-func (n *BGPLSNode) AppendJSON(sb *strings.Builder) { appendBGPLSJSON(sb, n) }
+// AppendJSON satisfies nlri.JSONAppender for BGP-LS Node NLRI (Type 1).
+func (n *BGPLSNode) AppendJSON(buf []byte) []byte { return appendBGPLSJSON(buf, n) }
 
-// AppendJSON satisfies nlri.JSONWriter for BGP-LS Link NLRI (Type 2).
-func (l *BGPLSLink) AppendJSON(sb *strings.Builder) { appendBGPLSJSON(sb, l) }
+// AppendJSON satisfies nlri.JSONAppender for BGP-LS Link NLRI (Type 2).
+func (l *BGPLSLink) AppendJSON(buf []byte) []byte { return appendBGPLSJSON(buf, l) }
 
-// AppendJSON satisfies nlri.JSONWriter for BGP-LS IPv4/IPv6 Prefix NLRI (Types 3/4).
-func (p *BGPLSPrefix) AppendJSON(sb *strings.Builder) { appendBGPLSJSON(sb, p) }
+// AppendJSON satisfies nlri.JSONAppender for BGP-LS IPv4/IPv6 Prefix NLRI (Types 3/4).
+func (p *BGPLSPrefix) AppendJSON(buf []byte) []byte { return appendBGPLSJSON(buf, p) }
 
-// AppendJSON satisfies nlri.JSONWriter for BGP-LS SRv6 SID NLRI (Type 6, RFC 9514).
-func (s *BGPLSSRv6SID) AppendJSON(sb *strings.Builder) { appendBGPLSJSON(sb, s) }
+// AppendJSON satisfies nlri.JSONAppender for BGP-LS SRv6 SID NLRI (Type 6, RFC 9514).
+func (s *BGPLSSRv6SID) AppendJSON(buf []byte) []byte { return appendBGPLSJSON(buf, s) }
 
-// appendBGPLSJSON streams the BGP-LS JSON representation of n into sb in
+// appendBGPLSJSON streams the BGP-LS JSON representation of n into buf in
 // alphabetical key order (matches json.Marshal(bgplsToJSON(...))).
 // Mirrors bgplsToJSON (plugin.go) -- update both if the shape changes.
-func appendBGPLSJSON(sb *strings.Builder, n BGPLSNLRI) {
+func appendBGPLSJSON(buf []byte, n BGPLSNLRI) []byte {
 	data := bgplsRawBytes(n)
 
-	sb.WriteByte('{')
+	buf = append(buf, '{')
 
 	switch n.NLRIType() {
 	case BGPLSNodeNLRI:
 		// Keys: l3-routing-topology, ls-nlri-type, node-descriptors, protocol-id
-		writeTopology(sb, n)
-		sb.WriteByte(',')
-		writeType(sb, n)
-		sb.WriteString(`,"node-descriptors":`)
-		marshalAny(sb, parseBGPLSNodeTLVs(data))
-		sb.WriteByte(',')
-		writeProtocol(sb, n)
+		buf = appendTopology(buf, n)
+		buf = append(buf, ',')
+		buf = appendType(buf, n)
+		buf = append(buf, `,"node-descriptors":`...)
+		buf = appendMarshaled(buf, parseBGPLSNodeTLVs(data))
+		buf = append(buf, ',')
+		buf = appendProtocol(buf, n)
 
 	case BGPLSLinkNLRI:
 		// Keys: interface-addresses, l3-routing-topology, link-identifiers,
 		// local-node-descriptors, ls-nlri-type, multi-topology-ids,
 		// neighbor-addresses, protocol-id, remote-node-descriptors.
 		localDescs, remoteDescs, info := parseBGPLSLinkTLVs(data)
-		sb.WriteString(`"interface-addresses":`)
-		marshalAny(sb, info.ifAddrs)
-		sb.WriteByte(',')
-		writeTopology(sb, n)
-		sb.WriteString(`,"link-identifiers":`)
-		marshalAny(sb, info.linkIDs)
-		sb.WriteString(`,"local-node-descriptors":`)
-		marshalAny(sb, localDescs)
-		sb.WriteByte(',')
-		writeType(sb, n)
-		sb.WriteString(`,"multi-topology-ids":`)
-		marshalAny(sb, info.mtIDs)
-		sb.WriteString(`,"neighbor-addresses":`)
-		marshalAny(sb, info.neighAddrs)
-		sb.WriteByte(',')
-		writeProtocol(sb, n)
-		sb.WriteString(`,"remote-node-descriptors":`)
-		marshalAny(sb, remoteDescs)
+		buf = append(buf, `"interface-addresses":`...)
+		buf = appendMarshaled(buf, info.ifAddrs)
+		buf = append(buf, ',')
+		buf = appendTopology(buf, n)
+		buf = append(buf, `,"link-identifiers":`...)
+		buf = appendMarshaled(buf, info.linkIDs)
+		buf = append(buf, `,"local-node-descriptors":`...)
+		buf = appendMarshaled(buf, localDescs)
+		buf = append(buf, ',')
+		buf = appendType(buf, n)
+		buf = append(buf, `,"multi-topology-ids":`...)
+		buf = appendMarshaled(buf, info.mtIDs)
+		buf = append(buf, `,"neighbor-addresses":`...)
+		buf = appendMarshaled(buf, info.neighAddrs)
+		buf = append(buf, ',')
+		buf = appendProtocol(buf, n)
+		buf = append(buf, `,"remote-node-descriptors":`...)
+		buf = appendMarshaled(buf, remoteDescs)
 
 	case BGPLSPrefixV4NLRI, BGPLSPrefixV6NLRI:
 		// Keys: ip-reach-prefix, ip-reachability-tlv (both only if prefix!=""),
@@ -84,64 +83,65 @@ func appendBGPLSJSON(sb *strings.Builder, n BGPLSNLRI) {
 		// node-descriptors, protocol-id.
 		nodeDescs, prefixInfo := parseBGPLSPrefixTLVs(data, n.NLRIType())
 		if prefixInfo.prefix != "" {
-			sb.WriteString(`"ip-reach-prefix":`)
-			writeJSONString(sb, prefixInfo.prefix)
-			sb.WriteString(`,"ip-reachability-tlv":`)
-			writeJSONString(sb, prefixInfo.prefix)
-			sb.WriteByte(',')
+			buf = append(buf, `"ip-reach-prefix":`...)
+			buf = appendJSONQuoted(buf, prefixInfo.prefix)
+			buf = append(buf, `,"ip-reachability-tlv":`...)
+			buf = appendJSONQuoted(buf, prefixInfo.prefix)
+			buf = append(buf, ',')
 		}
-		writeTopology(sb, n)
-		sb.WriteByte(',')
-		writeType(sb, n)
-		sb.WriteString(`,"multi-topology-ids":`)
-		marshalAny(sb, prefixInfo.mtIDs)
-		sb.WriteString(`,"node-descriptors":`)
-		marshalAny(sb, nodeDescs)
-		sb.WriteByte(',')
-		writeProtocol(sb, n)
+		buf = appendTopology(buf, n)
+		buf = append(buf, ',')
+		buf = appendType(buf, n)
+		buf = append(buf, `,"multi-topology-ids":`...)
+		buf = appendMarshaled(buf, prefixInfo.mtIDs)
+		buf = append(buf, `,"node-descriptors":`...)
+		buf = appendMarshaled(buf, nodeDescs)
+		buf = append(buf, ',')
+		buf = appendProtocol(buf, n)
 
 	case BGPLSSRv6SIDNLRI:
 		// Keys: l3-routing-topology, ls-nlri-type, node-descriptors,
 		// protocol-id, srv6-sid (only if SID present).
-		writeTopology(sb, n)
-		sb.WriteByte(',')
-		writeType(sb, n)
-		sb.WriteString(`,"node-descriptors":`)
-		marshalAny(sb, parseBGPLSNodeTLVs(data))
-		sb.WriteByte(',')
-		writeProtocol(sb, n)
+		buf = appendTopology(buf, n)
+		buf = append(buf, ',')
+		buf = appendType(buf, n)
+		buf = append(buf, `,"node-descriptors":`...)
+		buf = appendMarshaled(buf, parseBGPLSNodeTLVs(data))
+		buf = append(buf, ',')
+		buf = appendProtocol(buf, n)
 		if v, ok := n.(*BGPLSSRv6SID); ok && len(v.SRv6SID.SRv6SID) > 0 {
-			sb.WriteString(`,"srv6-sid":`)
-			writeJSONString(sb, formatIPv6Compressed(v.SRv6SID.SRv6SID))
+			buf = append(buf, `,"srv6-sid":`...)
+			buf = appendJSONQuoted(buf, formatIPv6Compressed(v.SRv6SID.SRv6SID))
 		}
 
 	default: // unknown type — emit only the always-present keys
-		writeTopology(sb, n)
-		sb.WriteByte(',')
-		writeType(sb, n)
-		sb.WriteByte(',')
-		writeProtocol(sb, n)
+		buf = appendTopology(buf, n)
+		buf = append(buf, ',')
+		buf = appendType(buf, n)
+		buf = append(buf, ',')
+		buf = appendProtocol(buf, n)
 	}
 
-	sb.WriteByte('}')
+	buf = append(buf, '}')
+	return buf
 }
 
-// writeType writes `"ls-nlri-type":"<name>"` (no leading comma).
-func writeType(sb *strings.Builder, n BGPLSNLRI) {
-	sb.WriteString(`"ls-nlri-type":`)
-	writeJSONString(sb, bgplsNLRITypeString(uint16(n.NLRIType())))
+// appendType writes `"ls-nlri-type":"<name>"` (no leading comma).
+func appendType(buf []byte, n BGPLSNLRI) []byte {
+	buf = append(buf, `"ls-nlri-type":`...)
+	return appendJSONQuoted(buf, bgplsNLRITypeString(uint16(n.NLRIType())))
 }
 
-// writeTopology writes `"l3-routing-topology":<identifier>` (no leading comma).
-func writeTopology(sb *strings.Builder, n BGPLSNLRI) {
-	sb.WriteString(`"l3-routing-topology":`)
-	sb.WriteString(strconv.FormatUint(n.Identifier(), 10))
+// appendTopology writes `"l3-routing-topology":<identifier>` (no leading comma).
+func appendTopology(buf []byte, n BGPLSNLRI) []byte {
+	buf = append(buf, `"l3-routing-topology":`...)
+	return strconv.AppendUint(buf, n.Identifier(), 10)
 }
 
-// writeProtocol writes `"protocol-id":<proto>` (no leading comma).
-func writeProtocol(sb *strings.Builder, n BGPLSNLRI) {
-	sb.WriteString(`"protocol-id":`)
-	sb.WriteString(strconv.Itoa(int(n.ProtocolID())))
+// appendProtocol writes `"protocol-id":<proto>` (no leading comma).
+func appendProtocol(buf []byte, n BGPLSNLRI) []byte {
+	buf = append(buf, `"protocol-id":`...)
+	return strconv.AppendInt(buf, int64(n.ProtocolID()), 10)
 }
 
 // bgplsRawBytes returns the wire bytes for n, preferring the cached slice set
@@ -157,22 +157,21 @@ func bgplsRawBytes(n BGPLSNLRI) []byte {
 	return n.Bytes()
 }
 
-// marshalAny encodes v with json.Marshal and appends the result to sb.
+// appendMarshaled encodes v with json.Marshal and appends the result to buf.
 // On error the JSON "null" literal is written so the surrounding object stays
 // valid JSON -- callers are walking wire TLVs, not untrusted user input, so a
 // marshal failure means a programming bug in a parseBGPLS* helper.
-func marshalAny(sb *strings.Builder, v any) {
+func appendMarshaled(buf []byte, v any) []byte {
 	b, err := json.Marshal(v)
 	if err != nil {
-		sb.WriteString("null")
-		return
+		return append(buf, "null"...)
 	}
-	sb.Write(b)
+	return append(buf, b...)
 }
 
-// writeJSONString writes s as a JSON-quoted string using strconv.Quote.
+// appendJSONQuoted writes s as a JSON-quoted string using strconv.AppendQuote.
 // Strings from the BGP-LS formatters are ASCII (IP prefixes, type names,
-// IGP router IDs); strconv.Quote escapes control chars defensively.
-func writeJSONString(sb *strings.Builder, s string) {
-	sb.WriteString(strconv.Quote(s))
+// IGP router IDs); strconv.AppendQuote escapes control chars defensively.
+func appendJSONQuoted(buf []byte, s string) []byte {
+	return strconv.AppendQuote(buf, s)
 }

@@ -4,9 +4,8 @@
 package format
 
 import (
-	"fmt"
+	"encoding/hex"
 	"strconv"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
@@ -16,202 +15,249 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
-// formatFilterResultText formats FilterResult as text.
+// appendFilterResultText appends FilterResult as text to buf.
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
 // ctx provides ADD-PATH state per family.
-func formatFilterResultText(peer *plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
-	var sb strings.Builder
-	var scratch [64]byte
-
+func appendFilterResultText(buf []byte, peer *plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) []byte {
 	// Uniform header: peer <ip> remote as <asn> <direction> update <id>
-	sb.WriteString("peer ")
-	sb.Write(peer.Address.AppendTo(scratch[:0]))
-	sb.WriteString(" remote as ")
-	sb.Write(strconv.AppendUint(scratch[:0], uint64(peer.PeerAS), 10))
-	sb.WriteByte(' ')
-	sb.WriteString(direction)
-	sb.WriteString(" update ")
-	sb.Write(strconv.AppendUint(scratch[:0], msgID, 10))
+	buf = append(buf, "peer "...)
+	buf = peer.Address.AppendTo(buf)
+	buf = append(buf, " remote as "...)
+	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
+	buf = append(buf, ' ')
+	buf = append(buf, direction...)
+	buf = append(buf, " update "...)
+	buf = strconv.AppendUint(buf, msgID, 10)
 
 	announced := result.AnnouncedByFamily(ctx)
 	withdrawn := result.WithdrawnByFamily(ctx)
 
 	if len(announced) == 0 && len(withdrawn) == 0 {
 		// Empty UPDATE (End-of-RIB marker or attribute-only): minimal text line
-		sb.WriteString("\n")
-		return sb.String()
+		buf = append(buf, '\n')
+		return buf
 	}
 
 	// Attributes (shared across all families)
-	formatAttributesText(&sb, result, scratch[:])
+	buf = appendAttributesText(buf, result)
 
 	// Announced routes: next <nh> nlri <fam> add <nlri>[,<nlri>]...
 	for _, fam := range announced {
-		sb.WriteString(" " + textparse.ShortNext + " ")
-		sb.Write(fam.NextHop.AppendTo(scratch[:0]))
-		sb.WriteString(" nlri ")
-		sb.WriteString(fam.Family)
-		sb.WriteString(" add ")
-		writeNLRIList(&sb, fam.NLRIs)
+		buf = append(buf, ' ')
+		buf = append(buf, textparse.ShortNext...)
+		buf = append(buf, ' ')
+		buf = fam.NextHop.AppendTo(buf)
+		buf = append(buf, " nlri "...)
+		buf = append(buf, fam.Family...)
+		buf = append(buf, " add "...)
+		buf = appendNLRIList(buf, fam.NLRIs)
 	}
 
 	// Withdrawn routes: nlri <fam> del <nlri>[,<nlri>]...
 	for _, fam := range withdrawn {
-		sb.WriteString(" nlri ")
-		sb.WriteString(fam.Family)
-		sb.WriteString(" del ")
-		writeNLRIList(&sb, fam.NLRIs)
+		buf = append(buf, " nlri "...)
+		buf = append(buf, fam.Family...)
+		buf = append(buf, " del "...)
+		buf = appendNLRIList(buf, fam.NLRIs)
 	}
 
-	sb.WriteString("\n")
-	return sb.String()
+	buf = append(buf, '\n')
+	return buf
 }
 
-// writeNLRIList writes NLRIs in compact format.
+// appendNLRIList appends NLRIs in compact format.
 // INET NLRIs use comma-separated CIDRs: prefix <a>,<b>.
 // Other NLRIs use keyword boundary: <nlri1> <nlri2>.
 // Uses AppendString/AppendKey for INET NLRIs to avoid per-NLRI string allocations.
-func writeNLRIList(sb *strings.Builder, nlris []nlri.NLRI) {
+func appendNLRIList(buf []byte, nlris []nlri.NLRI) []byte {
 	if len(nlris) == 0 {
-		return
+		return buf
 	}
 
 	// Check if first NLRI is INET (supports zero-alloc append methods).
 	firstINET, useComma := nlris[0].(*nlri.INET)
 
-	var scratch [64]byte
 	if useComma {
-		sb.Write(firstINET.AppendString(scratch[:0]))
+		buf = firstINET.AppendString(buf)
 	} else {
-		sb.WriteString(nlris[0].String())
+		buf = append(buf, nlris[0].String()...)
 	}
 	for _, n := range nlris[1:] {
 		if useComma {
-			sb.WriteByte(',')
+			buf = append(buf, ',')
 			if inet, ok := n.(*nlri.INET); ok {
-				sb.Write(inet.AppendKey(scratch[:0]))
+				buf = inet.AppendKey(buf)
 			} else {
-				sb.WriteString(n.String())
+				buf = append(buf, n.String()...)
 			}
 		} else {
-			sb.WriteByte(' ')
-			sb.WriteString(n.String())
+			buf = append(buf, ' ')
+			buf = append(buf, n.String()...)
 		}
 	}
+	return buf
 }
 
-// formatAttributesText formats attributes from FilterResult for text output.
+// appendAttributesText appends attributes from FilterResult for text output.
 // Only outputs what's in result.Attributes (lazy parsing - filter controls what's parsed).
-// scratch is a caller-provided buffer for zero-alloc integer/address formatting.
-func formatAttributesText(sb *strings.Builder, result bgpfilter.FilterResult, scratch []byte) {
+func appendAttributesText(buf []byte, result bgpfilter.FilterResult) []byte {
 	for code, attr := range result.Attributes {
-		sb.WriteString(" ")
-		formatAttributeText(sb, code, attr, scratch)
+		buf = append(buf, ' ')
+		buf = appendAttributeText(buf, code, attr)
 	}
+	return buf
 }
 
-// formatAttributeText formats a single attribute for text output.
+// appendAttributeText appends a single attribute for text output.
 // Known attribute types are formatted with named keys (short aliases for API output);
 // unknown types use "attr-N" with hex value.
 // Short forms: next (next-hop), path (as-path), pref (local-preference),
 // s-com (community), l-com (large-community), e-com (extended-community).
-// scratch is a caller-provided buffer for zero-alloc integer/address formatting.
-func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr attribute.Attribute, scratch []byte) {
+func appendAttributeText(buf []byte, code attribute.AttributeCode, attr attribute.Attribute) []byte {
 	switch code { //nolint:exhaustive // common attributes; unknown handled after switch
 	case attribute.AttrOrigin:
 		switch o := attr.(type) {
 		case *attribute.Origin:
-			sb.WriteString(textparse.KWOrigin + " ")
-			sb.WriteString(strings.ToLower(o.String()))
+			buf = append(buf, textparse.KWOrigin...)
+			buf = append(buf, ' ')
+			buf = appendLower(buf, o.String())
 		case attribute.Origin:
-			sb.WriteString(textparse.KWOrigin + " ")
-			sb.WriteString(strings.ToLower(o.String()))
+			buf = append(buf, textparse.KWOrigin...)
+			buf = append(buf, ' ')
+			buf = appendLower(buf, o.String())
 		}
-		return
+		return buf
 	case attribute.AttrASPath:
 		if ap, ok := attr.(*attribute.ASPath); ok {
-			sb.WriteString(textparse.ShortPath + " ")
+			buf = append(buf, textparse.ShortPath...)
+			buf = append(buf, ' ')
 			first := true
 			for _, seg := range ap.Segments {
 				for _, asn := range seg.ASNs {
 					if !first {
-						sb.WriteString(",")
+						buf = append(buf, ',')
 					}
-					sb.Write(strconv.AppendUint(scratch[:0], uint64(asn), 10))
+					buf = strconv.AppendUint(buf, uint64(asn), 10)
 					first = false
 				}
 			}
 		}
-		return
+		return buf
 	case attribute.AttrNextHop:
 		if nh, ok := attr.(*attribute.NextHop); ok {
-			sb.WriteString(textparse.ShortNext + " ")
-			sb.Write(nh.Addr.AppendTo(scratch[:0]))
+			buf = append(buf, textparse.ShortNext...)
+			buf = append(buf, ' ')
+			buf = nh.Addr.AppendTo(buf)
 		}
-		return
+		return buf
 	case attribute.AttrMED:
 		switch m := attr.(type) {
 		case *attribute.MED:
-			sb.WriteString(textparse.KWMED + " ")
-			sb.Write(strconv.AppendUint(scratch[:0], uint64(uint32(*m)), 10))
+			buf = append(buf, textparse.KWMED...)
+			buf = append(buf, ' ')
+			buf = strconv.AppendUint(buf, uint64(uint32(*m)), 10)
 		case attribute.MED:
-			sb.WriteString(textparse.KWMED + " ")
-			sb.Write(strconv.AppendUint(scratch[:0], uint64(uint32(m)), 10))
+			buf = append(buf, textparse.KWMED...)
+			buf = append(buf, ' ')
+			buf = strconv.AppendUint(buf, uint64(uint32(m)), 10)
 		}
-		return
+		return buf
 	case attribute.AttrLocalPref:
 		switch lp := attr.(type) {
 		case *attribute.LocalPref:
-			sb.WriteString(textparse.ShortPref + " ")
-			sb.Write(strconv.AppendUint(scratch[:0], uint64(uint32(*lp)), 10))
+			buf = append(buf, textparse.ShortPref...)
+			buf = append(buf, ' ')
+			buf = strconv.AppendUint(buf, uint64(uint32(*lp)), 10)
 		case attribute.LocalPref:
-			sb.WriteString(textparse.ShortPref + " ")
-			sb.Write(strconv.AppendUint(scratch[:0], uint64(uint32(lp)), 10))
+			buf = append(buf, textparse.ShortPref...)
+			buf = append(buf, ' ')
+			buf = strconv.AppendUint(buf, uint64(uint32(lp)), 10)
 		}
-		return
+		return buf
 	case attribute.AttrCommunity:
 		if c, ok := attr.(*attribute.Communities); ok {
-			sb.WriteString(textparse.ShortSCom + " ")
+			buf = append(buf, textparse.ShortSCom...)
+			buf = append(buf, ' ')
 			for i, comm := range *c {
 				if i > 0 {
-					sb.WriteString(",")
+					buf = append(buf, ',')
 				}
-				sb.WriteString(comm.String())
+				buf = append(buf, comm.String()...)
 			}
 		}
-		return
+		return buf
 	case attribute.AttrLargeCommunity:
 		if lc, ok := attr.(*attribute.LargeCommunities); ok {
-			sb.WriteString(textparse.ShortLCom + " ")
+			buf = append(buf, textparse.ShortLCom...)
+			buf = append(buf, ' ')
 			for i, comm := range *lc {
 				if i > 0 {
-					sb.WriteString(",")
+					buf = append(buf, ',')
 				}
-				sb.WriteString(comm.String())
+				buf = append(buf, comm.String()...)
 			}
 		}
-		return
+		return buf
 	case attribute.AttrExtCommunity:
 		if ec, ok := attr.(*attribute.ExtendedCommunities); ok {
-			sb.WriteString(textparse.ShortXCom + " ")
+			buf = append(buf, textparse.ShortXCom...)
+			buf = append(buf, ' ')
 			for i, comm := range *ec {
 				if i > 0 {
-					sb.WriteString(",")
+					buf = append(buf, ',')
 				}
-				fmt.Fprintf(sb, "%x", comm[:])
+				buf = hex.AppendEncode(buf, comm[:])
 			}
 		}
-		return
+		return buf
 	}
-	// Unknown attribute code — format as "attr-N hex"
-	attrBuf := make([]byte, attr.Len())
-	attr.WriteTo(attrBuf, 0)
-	fmt.Fprintf(sb, "attr-%d %x", code, attrBuf)
+	// Unknown attribute code — format as "attr-N hex".
+	// attr.Len() bounds hex output to RFC 4271 extended max (65535 bytes of
+	// attribute value, 131070 hex chars). Stack scratch sized for the common
+	// case; pathological inputs spill via append growth.
+	var scratch [512]byte
+	raw := scratch[:0]
+	if n := attr.Len(); n > cap(raw) {
+		raw = make([]byte, n)
+	} else {
+		raw = scratch[:n]
+	}
+	attr.WriteTo(raw, 0)
+	buf = append(buf, "attr-"...)
+	buf = strconv.AppendUint(buf, uint64(code), 10)
+	buf = append(buf, ' ')
+	buf = hex.AppendEncode(buf, raw)
+	return buf
 }
 
-func formatStateChangeText(peer *plugin.PeerInfo, state, reason string) string {
+// appendStateChangeText appends a peer state change text line to buf,
+// terminated by '\n'.
+// Format: peer <ip> remote as <asn> state <state> [reason <reason>] .
+func appendStateChangeText(buf []byte, peer *plugin.PeerInfo, state, reason string) []byte {
+	buf = append(buf, "peer "...)
+	buf = peer.Address.AppendTo(buf)
+	buf = append(buf, " remote as "...)
+	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
+	buf = append(buf, " state "...)
+	buf = append(buf, state...)
 	if reason != "" {
-		return fmt.Sprintf("peer %s remote as %d state %s reason %s\n", peer.Address, peer.PeerAS, state, reason)
+		buf = append(buf, " reason "...)
+		buf = append(buf, reason...)
 	}
-	return fmt.Sprintf("peer %s remote as %d state %s\n", peer.Address, peer.PeerAS, state)
+	buf = append(buf, '\n')
+	return buf
+}
+
+// appendLower appends s to buf lowercased (ASCII only).
+// Origin names are RFC-defined tokens (IGP/EGP/INCOMPLETE) -- strings.ToLower
+// would allocate; this stays on the stack.
+func appendLower(buf []byte, s string) []byte {
+	for i := range len(s) {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		buf = append(buf, c)
+	}
+	return buf
 }

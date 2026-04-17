@@ -1,33 +1,33 @@
 // Design: docs/architecture/wire/nlri.md — Labeled Unicast in-process JSON writer
 //
 // AppendJSON writes the labeled unicast NLRI's JSON representation directly
-// into a strings.Builder, bypassing the wire-encode / hex / re-parse
+// into a caller-provided []byte, bypassing the wire-encode / hex / re-parse
 // round-trip used by the RPC decoder path (DecodeNLRIHex).
 
 package labeled
 
 import (
 	"strconv"
-	"strings"
 )
 
-// AppendJSON satisfies nlri.JSONWriter.
+// AppendJSON satisfies nlri.JSONAppender.
 // Matches DecodeNLRIHex output: {"labels":[n,...],"prefix":"..."}.
 // Note: labels is a flat array here (not nested like VPN).
-func (l *LabeledUnicast) AppendJSON(sb *strings.Builder) {
-	sb.WriteByte('{')
+func (l *LabeledUnicast) AppendJSON(buf []byte) []byte {
+	buf = append(buf, '{')
 	if len(l.labels) > 0 {
-		sb.WriteString(`"labels":[`)
+		buf = append(buf, `"labels":[`...)
 		for i, lab := range l.labels {
 			if i > 0 {
-				sb.WriteByte(',')
+				buf = append(buf, ',')
 			}
-			sb.WriteString(strconv.FormatUint(uint64(lab), 10))
+			buf = strconv.AppendUint(buf, uint64(lab), 10)
 		}
-		sb.WriteString(`],`)
+		buf = append(buf, `],`...)
 	}
-	sb.WriteString(`"prefix":"`)
+	buf = append(buf, `"prefix":"`...)
 	var pfxBuf [44]byte
-	sb.Write(l.prefix.AppendTo(pfxBuf[:0]))
-	sb.WriteString(`"}`)
+	buf = append(buf, l.prefix.AppendTo(pfxBuf[:0])...)
+	buf = append(buf, `"}`...)
+	return buf
 }

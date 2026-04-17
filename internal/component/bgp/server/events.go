@@ -357,7 +357,8 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.Peer
 			Encoding: encoding,
 			Format:   fmtMode,
 		}
-		return format.FormatMessage(peer, msg, content, "")
+		var updateScratch [4096]byte
+		return string(format.AppendMessage(updateScratch[:0], peer, msg, content, ""))
 
 	case message.TypeOPEN:
 		decoded := format.DecodeOpen(msg.RawBytes)
@@ -571,7 +572,9 @@ func onPeerNegotiated(s *pluginserver.Server, encoder *format.JSONEncoder, peer 
 	}
 
 	// Format once — negotiated output is identical for all plugins (always JSON).
-	output := format.FormatNegotiated(peer, decoded, encoder)
+	// FormatNegotiated was a one-line wrapper around encoder.Negotiated; rewire
+	// directly now that the wrapper is deleted (spec-fmt-1-text-update AC-3).
+	output := encoder.Negotiated(peer, decoded)
 
 	deliverToProcs(s, procs, output, "OnPeerNegotiated")
 
@@ -680,6 +683,10 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 	// Pre-format: encode once per distinct format+encoding combination.
 	// DirectBridge structured consumers skip text formatting entirely.
 	var fmtCache formatCache
+	// Hoist the stack scratch above the loop: re-declaring inside the loop
+	// pays a 4KB zero-init per iteration; one declaration + scratch[:0]
+	// reset costs nothing after the first pass.
+	var sentScratch [4096]byte
 	for _, proc := range procs {
 		if proc.HasStructuredHandler() {
 			continue // DirectBridge — no text formatting needed
@@ -688,7 +695,7 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 		if _, ok := fmtCache.get(cacheKey); !ok {
 			if isUpdate {
 				content := bgptypes.ContentConfig{Encoding: proc.Encoding(), Format: proc.Format()}
-				fmtCache.set(cacheKey, format.FormatSentMessage(peer, msg, content))
+				fmtCache.set(cacheKey, string(format.AppendSentMessage(sentScratch[:0], peer, msg, content)))
 			} else {
 				fmtCache.set(cacheKey, formatMessageForSubscription(encoder, peer, msg, proc.Format(), proc.Encoding()))
 			}
@@ -719,7 +726,8 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 	if !ok {
 		if isUpdate {
 			content := bgptypes.ContentConfig{Encoding: "json", Format: "parsed"}
-			jsonOutput = format.FormatSentMessage(peer, msg, content)
+			var monScratch [4096]byte
+			jsonOutput = string(format.AppendSentMessage(monScratch[:0], peer, msg, content))
 		} else {
 			jsonOutput = formatMessageForSubscription(encoder, peer, msg, "parsed", "json")
 		}

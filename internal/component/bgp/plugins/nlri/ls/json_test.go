@@ -2,7 +2,6 @@ package ls
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -76,21 +75,21 @@ func TestBGPLSAppendJSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var sb strings.Builder
+			var buf []byte
 			switch n := tt.nlri.(type) {
 			case *BGPLSNode:
-				n.AppendJSON(&sb)
+				buf = n.AppendJSON(buf)
 			case *BGPLSLink:
-				n.AppendJSON(&sb)
+				buf = n.AppendJSON(buf)
 			case *BGPLSPrefix:
-				n.AppendJSON(&sb)
+				buf = n.AppendJSON(buf)
 			case *BGPLSSRv6SID:
-				n.AppendJSON(&sb)
+				buf = n.AppendJSON(buf)
 			default:
 				t.Fatalf("unexpected NLRI type %T", n)
 			}
 
-			output := sb.String()
+			output := string(buf)
 			var parsed map[string]any
 			require.NoError(t, json.Unmarshal([]byte(output), &parsed), "output must be valid JSON: %s", output)
 
@@ -119,11 +118,10 @@ func TestBGPLSAppendJSONSRv6SID(t *testing.T) {
 		}},
 	)
 
-	var sb strings.Builder
-	sid.AppendJSON(&sb)
+	buf := sid.AppendJSON(nil)
 
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(sb.String()), &parsed))
+	require.NoError(t, json.Unmarshal(buf, &parsed))
 
 	assert.Equal(t, "bgpls-srv6-sid", parsed["ls-nlri-type"])
 	assert.Contains(t, parsed, "srv6-sid")
@@ -142,11 +140,10 @@ func TestBGPLSAppendJSONPrefixEmpty(t *testing.T) {
 		PrefixDescriptor{IPReachabilityInfo: nil},
 	)
 
-	var sb strings.Builder
-	prefix.AppendJSON(&sb)
+	buf := prefix.AppendJSON(nil)
 
 	var parsed map[string]any
-	require.NoError(t, json.Unmarshal([]byte(sb.String()), &parsed), "output must be valid JSON: %s", sb.String())
+	require.NoError(t, json.Unmarshal(buf, &parsed), "output must be valid JSON: %s", string(buf))
 	assert.Equal(t, "bgpls-prefix-v4", parsed["ls-nlri-type"])
 	assert.NotContains(t, parsed, "ip-reach-prefix")
 	assert.NotContains(t, parsed, "ip-reachability-tlv")
@@ -195,16 +192,16 @@ func TestBGPLSAppendJSONMatchesRPCDecode(t *testing.T) {
 		t.Run(bgplsNLRITypeString(uint16(n.NLRIType())), func(t *testing.T) {
 			t.Parallel()
 
-			var sb strings.Builder
+			var buf []byte
 			switch c := n.(type) {
 			case *BGPLSNode:
-				c.AppendJSON(&sb)
+				buf = c.AppendJSON(buf)
 			case *BGPLSLink:
-				c.AppendJSON(&sb)
+				buf = c.AppendJSON(buf)
 			case *BGPLSPrefix:
-				c.AppendJSON(&sb)
+				buf = c.AppendJSON(buf)
 			case *BGPLSSRv6SID:
-				c.AppendJSON(&sb)
+				buf = c.AppendJSON(buf)
 			default:
 				t.Fatalf("unsupported NLRI type %T", c)
 			}
@@ -215,7 +212,7 @@ func TestBGPLSAppendJSONMatchesRPCDecode(t *testing.T) {
 			require.NoError(t, err)
 
 			// Byte-for-byte comparison: both paths must sort keys alphabetically.
-			assert.Equal(t, string(refBytes), sb.String(),
+			assert.Equal(t, string(refBytes), string(buf),
 				"AppendJSON output must match json.Marshal(bgplsToJSON(...)) byte-for-byte")
 		})
 	}
