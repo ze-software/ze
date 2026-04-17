@@ -20,6 +20,7 @@ import (
 // VPPSettings holds parsed VPP configuration from the YANG config tree.
 type VPPSettings struct {
 	Enabled   bool
+	External  bool // true: ze connects via GoVPP but does not exec/supervise the VPP binary
 	APISocket string
 	CPU       CPUSettings
 	Memory    MemorySettings
@@ -184,7 +185,7 @@ func ParseSettings(section json.RawMessage) (*VPPSettings, error) {
 	}
 
 	if err := unknownKeys("config", raw, []string{
-		"enabled", "api-socket", "cpu", "memory", "dpdk", "stats", "lcp",
+		"enabled", "external", "api-socket", "cpu", "memory", "dpdk", "stats", "lcp",
 	}); err != nil {
 		return nil, err
 	}
@@ -211,6 +212,9 @@ func ParseSettings(section json.RawMessage) (*VPPSettings, error) {
 
 	if v, ok := raw["enabled"]; ok {
 		cfg.Enabled = strings.Trim(string(v), `"`) == yangTrue
+	}
+	if v, ok := raw["external"]; ok {
+		cfg.External = strings.Trim(string(v), `"`) == yangTrue
 	}
 	if v, ok := raw["api-socket"]; ok {
 		cfg.APISocket = strings.Trim(string(v), `"`)

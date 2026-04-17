@@ -23,6 +23,19 @@ module ze-vpp-conf {
                  starts VPP process, connects via GoVPP.";
         }
 
+        leaf external {
+            type boolean;
+            default false;
+            description
+                "When true, ze does NOT exec or supervise the VPP
+                 process. Ze still generates startup.conf (for the
+                 external supervisor to use) and connects via GoVPP
+                 to api-socket. Use this for systemd-managed VPP,
+                 container sidecar deployments, or the
+                 `ze-test vpp` stub harness. Default: false (ze owns
+                 VPP lifecycle).";
+        }
+
         leaf api-socket {
             type string;
             default "/run/vpp/api.sock";

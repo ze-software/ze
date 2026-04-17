@@ -1,0 +1,176 @@
+# Test: ze boots with vpp.external=true, connects to the Python GoVPP stub,
+#       and the stub observes the sockclnt_create handshake.
+#
+# VALIDATES: spec-vpp-7 AC-1, AC-2, AC-5 -- runOnce external branch skips
+#            cmd.Start, Connector.Connect speaks to the stub socket, stub
+#            replies sockclnt_create_reply with the vendored message table.
+# PREVENTS:  vpp.external silently still execing VPP, or the stub misframing
+#            the handshake reply.
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Start vpp_stub + ze, wait for handshake, assert exit cleanly."""
+import json
+import os
+import signal
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+
+
+def _wait_for_socket(path, deadline):
+    while time.time() < deadline:
+        if os.path.exists(path):
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def _find_repo_root():
+    # PYTHONPATH is <repo>/test/scripts (set by ze-test runner). Walk up once.
+    for p in os.environ.get("PYTHONPATH", "").split(os.pathsep):
+        if p and os.path.basename(p) == "scripts":
+            return os.path.dirname(os.path.dirname(p))
+    # Fall back: walk up from CWD looking for go.mod.
+    d = os.getcwd()
+    while d and d != "/":
+        if os.path.isfile(os.path.join(d, "go.mod")):
+            return d
+        d = os.path.dirname(d)
+    raise SystemExit("driver: cannot locate repo root")
+
+
+def main() -> int:
+    repo = _find_repo_root()
+    stub_py = os.path.join(repo, "test", "scripts", "vpp_stub.py")
+    if not os.path.isfile(stub_py):
+        sys.stderr.write(f"driver: stub not found at {stub_py}\n")
+        return 1
+
+    with tempfile.TemporaryDirectory(prefix="ze-vpp-") as tmp:
+        sock = os.path.join(tmp, "api.sock")
+        if len(sock) >= 108:
+            sys.stderr.write(f"driver: socket path too long: {sock}\n")
+            return 1
+        log = os.path.join(tmp, "vpp-requests.jsonl")
+
+        stub = subprocess.Popen(
+            ["python3", stub_py, "--socket", sock, "--log", log,
+             "--deadline", "20", "-v"],
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        try:
+            if not _wait_for_socket(sock, time.time() + 5.0):
+                sys.stderr.write("driver: stub socket did not appear\n")
+                return 1
+
+            cfg = (
+                "environment {\n}\n\n"
+                "bgp {\n"
+                "\trouter-id 10.0.0.1;\n"
+                "\tsession { asn { local 65533; } }\n"
+                "}\n\n"
+                "vpp {\n"
+                "\tenabled true;\n"
+                "\texternal true;\n"
+                f"\tapi-socket {sock};\n"
+                "}\n"
+            )
+
+            env = os.environ.copy()
+            env["ze.log.vpp"] = "info"
+            env["ze.log.bgp"] = "warn"
+            ze = subprocess.Popen(
+                ["ze", "-"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=env,
+            )
+            assert ze.stdin is not None
+            ze.stdin.write(cfg)
+            ze.stdin.close()
+
+            # Watch the stub's JSONL for sockclnt_create within 5s.
+            deadline = time.time() + 5.0
+            saw_create = False
+            ze_stderr = ""
+            while time.time() < deadline:
+                if os.path.exists(log):
+                    with open(log, "r", encoding="utf-8") as fh:
+                        for line in fh:
+                            try:
+                                entry = json.loads(line)
+                            except json.JSONDecodeError:
+                                continue
+                            if entry.get("msg") == "sockclnt_create":
+                                saw_create = True
+                                break
+                if saw_create:
+                    break
+                time.sleep(0.1)
+
+            # Drain ze stderr so we can assert on "GoVPP connected".
+            deadline2 = time.time() + 2.0
+            while time.time() < deadline2:
+                if ze.stderr is None:
+                    break
+                line = ze.stderr.readline()
+                if not line:
+                    if ze.poll() is not None:
+                        break
+                    time.sleep(0.05)
+                    continue
+                ze_stderr += line
+                sys.stderr.write(line)
+                if "GoVPP connected" in line:
+                    break
+
+            # Shut ze down, then the stub.
+            if ze.poll() is None:
+                ze.send_signal(signal.SIGTERM)
+                try:
+                    ze.wait(timeout=3.0)
+                except subprocess.TimeoutExpired:
+                    ze.kill()
+                    ze.wait(timeout=2.0)
+
+            # Drain remaining ze stderr.
+            if ze.stderr is not None:
+                try:
+                    rest = ze.stderr.read()
+                except (ValueError, OSError):
+                    rest = ""
+                ze_stderr += rest
+                sys.stderr.write(rest)
+
+            if not saw_create:
+                sys.stderr.write("FAIL: stub did not log sockclnt_create\n")
+                return 1
+            if "GoVPP connected" not in ze_stderr:
+                sys.stderr.write("FAIL: ze did not report 'GoVPP connected'\n")
+                return 1
+            sys.stderr.write("OK: handshake observed, ze connected via external stub\n")
+            return 0
+        finally:
+            if stub.poll() is None:
+                stub.send_signal(signal.SIGTERM)
+                try:
+                    stub.wait(timeout=3.0)
+                except subprocess.TimeoutExpired:
+                    stub.kill()
+                    stub.wait(timeout=2.0)
+
+
+# Silence unused-import warning for socket when the stub path is absent.
+_ = socket
+sys.exit(main())
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 ./driver.py:timeout=20s
+expect=exit:code=0
+expect=stderr:pattern=OK: handshake observed

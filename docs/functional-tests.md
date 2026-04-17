@@ -134,7 +134,39 @@ action=sighup:conn=1:seq=2
 expect=bgp:conn=2:seq=1:hex=...   # Both routes after reload
 ```
 
-### 5. Decode Tests (`test/decode/`)
+### 5. VPP Tests (`test/vpp/`)
+
+Functional tests that exercise `fib-vpp` end-to-end against a Python
+GoVPP-API stub. The stub replaces the real VPP process in CI: no DPDK,
+no vfio, no root. Each test runs against a fresh per-test Unix socket.
+<!-- source: test/scripts/vpp_stub.py -- stdlib-only GoVPP socket-client stub -->
+
+**Runner:** `ze-test vpp [flags] [tests...]`
+
+| Flag | Purpose |
+|------|---------|
+| `-l`, `--list` | List available tests (discovered from `test/vpp/*.ci`) |
+| `-a`, `--all` | Run every test under `test/vpp/` |
+| `-t`, `--timeout` | Per-test timeout (default 30s) |
+| `-p`, `--parallel` | Concurrent tests (default 1 -- each test binds its own Unix socket) |
+| `-v`, `--verbose` | Show per-test output |
+| `-s`, `--save DIR` | Save client/peer logs under `DIR/<nick>-<name>/` for offline inspection |
+
+**Dependencies:**
+- Tests use the `vpp.external` YANG leaf (default `false`) so ze connects
+  via GoVPP without execing the VPP binary. See `docs/guide/vpp.md`.
+- The stub runs as `python3 -m vpp_stub --socket <path> --log <path>`;
+  PYTHONPATH is set by the runner to `test/scripts/`.
+
+**Example:**
+```
+bin/ze-test vpp -l
+bin/ze-test vpp 001-boot
+bin/ze-test vpp -a
+```
+<!-- source: cmd/ze-test/vpp.go -- vppCmd wires EncodingTests to test/vpp/ -->
+
+### 6. Decode Tests (`test/decode/`)
 
 BGP message decoding tests - verify wire bytes decode to expected JSON.
 

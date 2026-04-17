@@ -1,6 +1,11 @@
 # Research: VPP Python API Stub Harness for `.ci` Integration Tests
 
-## Status: Design sketch (pre-spec)
+> **Promoted to `plan/spec-vpp-7-test-harness.md` on 2026-04-17.**
+> The spec is the authoritative plan; this file is retained as a historical
+> design sketch and is scheduled for `git rm` in Commit B of the
+> spec-preservation two-commit sequence once vpp-7 Phase 1 lands.
+
+## Status: Design sketch (pre-spec, superseded)
 
 **Promotion path:** when work starts, rename to `plan/spec-vpp-7-test-harness.md`,
 fill in the full `plan/TEMPLATE.md` scaffold, add to `spec-vpp-0-umbrella.md`

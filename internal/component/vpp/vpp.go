@@ -128,15 +128,20 @@ func (m *VPPManager) Run(ctx context.Context) error {
 	}
 
 	confPath := filepath.Join(m.confDir, "startup.conf")
-	if err := m.writeStartupConf(confPath); err != nil {
-		return fmt.Errorf("vpp: write startup.conf: %w", err)
-	}
-	lg.Info("vpp: startup.conf written", "path", confPath)
+	if !m.settings.External {
+		if err := m.writeStartupConf(confPath); err != nil {
+			return fmt.Errorf("vpp: write startup.conf: %w", err)
+		}
+		lg.Info("vpp: startup.conf written", "path", confPath)
 
-	if err := m.dpdk.BindAll(m.settings.DPDK.Interfaces); err != nil {
-		return fmt.Errorf("vpp: dpdk bind: %w", err)
+		if err := m.dpdk.BindAll(m.settings.DPDK.Interfaces); err != nil {
+			return fmt.Errorf("vpp: dpdk bind: %w", err)
+		}
+		lg.Info("vpp: DPDK NICs bound", "count", len(m.settings.DPDK.Interfaces))
+	} else {
+		lg.Info("vpp: external mode, skipping startup.conf + DPDK bind",
+			"reason", "external supervisor owns VPP lifecycle")
 	}
-	lg.Info("vpp: DPDK NICs bound", "count", len(m.settings.DPDK.Interfaces))
 
 	// Register connector so dependent plugins can access it via GetActiveConnector().
 	setActiveConnector(m.connector)
@@ -180,27 +185,36 @@ func (m *VPPManager) IsConnected() bool {
 	return m.connector.IsConnected()
 }
 
-// runOnce starts VPP, connects GoVPP, and waits for process exit.
-// Returns when VPP exits or ctx is canceled.
+// runOnce starts VPP (or skips exec when external=true), connects GoVPP, and
+// blocks until the VPP process exits or ctx is canceled.
+// Returns a non-nil error when VPP exited unexpectedly; returns ctx.Err when
+// ctx was canceled (the outer loop converts ctx.Err to a clean shutdown).
 func (m *VPPManager) runOnce(ctx context.Context, confPath string) error {
 	lg := logger()
 
-	cmd := exec.CommandContext(ctx, m.vppBinary, "-c", confPath) //nolint:gosec // vppBinary is set at registration, not user input
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	var cmd *exec.Cmd
+	if !m.settings.External {
+		cmd = exec.CommandContext(ctx, m.vppBinary, "-c", confPath) //nolint:gosec // vppBinary is set at registration, not user input
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("start vpp: %w", err)
+		if err := cmd.Start(); err != nil {
+			return fmt.Errorf("start vpp: %w", err)
+		}
+		lg.Info("vpp: process started", "pid", cmd.Process.Pid)
+	} else {
+		lg.Info("vpp: external mode, not execing VPP binary", "socket", m.settings.APISocket)
 	}
-	lg.Info("vpp: process started", "pid", cmd.Process.Pid)
 
 	// Give VPP time to initialize and create the API socket.
 	connectCtx, connectCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer connectCancel()
 
 	if err := m.connector.Connect(connectCtx, 10, time.Second); err != nil {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
+		if cmd != nil {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+		}
 		return fmt.Errorf("govpp connect: %w", err)
 	}
 	lg.Info("vpp: GoVPP connected", "socket", m.settings.APISocket)
@@ -231,8 +245,15 @@ func (m *VPPManager) runOnce(ctx context.Context, confPath string) error {
 		}
 	}
 
-	// Wait for VPP process to exit.
-	err := cmd.Wait()
+	var err error
+	if cmd != nil {
+		// Wait for VPP process to exit.
+		err = cmd.Wait()
+	} else {
+		// External mode: block on ctx.Done; the external supervisor owns VPP lifecycle.
+		<-ctx.Done()
+		err = ctx.Err()
+	}
 	if pollerCancel != nil {
 		pollerCancel()
 	}
@@ -240,7 +261,10 @@ func (m *VPPManager) runOnce(ctx context.Context, confPath string) error {
 		statsConn.Disconnect()
 	}
 	m.connector.Close()
-	return fmt.Errorf("vpp process exited: %w", err)
+	if cmd != nil {
+		return fmt.Errorf("vpp process exited: %w", err)
+	}
+	return err
 }
 
 // writeStartupConf generates and writes the VPP startup.conf file.

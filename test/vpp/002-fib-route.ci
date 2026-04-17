@@ -1,0 +1,255 @@
+# Test: fib-vpp programs a BGP route into VPP via the GoVPP stub.
+#
+# Flow: driver.py starts three processes in order:
+#   1. vpp_stub on a per-test Unix socket, JSONL log.
+#   2. ze-peer on a dynamic port with a send-route directive so it sends
+#      a BGP UPDATE for 10.20.0.0/24 next-hop 10.0.0.1 once ze establishes
+#      the session.
+#   3. ze with vpp.external=true and fib.vpp.enabled=true. Ze dials
+#      127.0.0.1:$PORT, receives the UPDATE, sysrib emits best-change,
+#      fib-vpp builds an ip_route_add_del request, stub logs it.
+# The driver polls the stub's JSONL log for ip_route_add_del is_add=true
+# prefix=10.20.0.0/24, reports PLUGIN OK, then shuts all three processes
+# down in reverse order.
+#
+# VALIDATES: spec-vpp-7 AC-3 -- fib-vpp -> stub ip_route_add_del path
+#            spec-vpp-7 AC-5 -- runner exit 0 when evidence is captured
+# PREVENTS:  fib-vpp wired in isolation (unit-test-only); stub misparsing
+#            the IPRouteAddDel body so the logged prefix/next-hop is wrong.
+
+tmpfs=peer-script:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=update:value=send-route:prefix=10.20.0.0/24:next-hop=10.0.0.1:origin-as=65001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Orchestrate vpp_stub + ze-peer + ze; assert ip_route_add_del on JSONL."""
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+
+
+CONFIG_TEMPLATE = """environment {
+\ttcp {
+\t\tattempts 3
+\t}
+}
+
+bgp {
+\tpeer peer1 {
+\t\tconnection {
+\t\t\tremote { ip 127.0.0.1; accept false; }
+\t\t\tlocal  { ip 127.0.0.1; }
+\t\t}
+\t\tsession {
+\t\t\tasn { local 1; remote 1; }
+\t\t\trouter-id 1.2.3.4;
+\t\t\tfamily { ipv4/unicast { prefix { maximum 10000; } } }
+\t\t\tcapability { graceful-restart disable; }
+\t\t}
+\t\tbehavior { group-updates disable; }
+\t}
+}
+
+vpp {
+\tenabled  true;
+\texternal true;
+\tapi-socket %SOCK%;
+}
+
+fib {
+\tvpp {
+\t\tenabled true;
+\t}
+}
+"""
+
+
+def _find_repo_root():
+    for p in os.environ.get("PYTHONPATH", "").split(os.pathsep):
+        if p and os.path.basename(p) == "scripts":
+            return os.path.dirname(os.path.dirname(p))
+    d = os.getcwd()
+    while d and d != "/":
+        if os.path.isfile(os.path.join(d, "go.mod")):
+            return d
+        d = os.path.dirname(d)
+    raise SystemExit("driver: cannot locate repo root")
+
+
+def _wait_for_socket(path, deadline):
+    while time.time() < deadline:
+        if os.path.exists(path):
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def _stub_saw_add(log_path, deadline_s, prefix):
+    end = time.time() + deadline_s
+    while time.time() < end:
+        if os.path.exists(log_path):
+            try:
+                with open(log_path, "r", encoding="utf-8") as fh:
+                    for line in fh:
+                        try:
+                            entry = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        if entry.get("msg") != "ip_route_add_del":
+                            continue
+                        fields = entry.get("fields") or {}
+                        if fields.get("is_add") and fields.get("prefix") == prefix:
+                            return True
+            except OSError:
+                pass
+        time.sleep(0.1)
+    return False
+
+
+def _terminate(proc, grace=3.0):
+    if proc is None or proc.poll() is not None:
+        return
+    proc.send_signal(signal.SIGTERM)
+    try:
+        proc.wait(timeout=grace)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait(timeout=2.0)
+
+
+def main() -> int:
+    repo = _find_repo_root()
+    stub_py = os.path.join(repo, "test", "scripts", "vpp_stub.py")
+
+    cwd = os.getcwd()
+    sock = os.path.join(cwd, "api.sock")
+    if len(sock) >= 108:
+        sys.stderr.write(f"driver: socket path too long: {sock}\n")
+        return 1
+    log = os.path.join(cwd, "vpp-requests.jsonl")
+
+    # The runner substitutes $PORT in exec strings; the driver takes it
+    # as argv[1] so it can pass the same port to ze-peer and to ze's
+    # ze_bgp_tcp_port env var.
+    if len(sys.argv) < 2:
+        sys.stderr.write("driver: expected port as argv[1]\n")
+        return 1
+    try:
+        port = int(sys.argv[1])
+    except ValueError:
+        sys.stderr.write(f"driver: bad port arg {sys.argv[1]!r}\n")
+        return 1
+
+    # 1. Launch the stub.
+    stub = subprocess.Popen(
+        ["python3", stub_py, "--socket", sock, "--log", log, "--deadline", "30", "-v"],
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    ze = None
+    peer = None
+    try:
+        if not _wait_for_socket(sock, time.time() + 5.0):
+            sys.stderr.write("driver: stub socket did not appear\n")
+            return 1
+
+        # 2. Launch ze-peer with the embedded peer-script contents.
+        peer_cmd = [
+            "ze-test", "peer",
+            "--port", str(port),
+            os.path.join(cwd, "peer-script"),
+        ]
+        # Let ze-peer write directly to the test's stderr so its stdout
+        # buffer cannot backpressure the send-route flow. Also spawn a
+        # drainer thread on stdout so we can detect "listening on".
+        peer_stdout_r, peer_stdout_w = os.pipe()
+        peer = subprocess.Popen(
+            peer_cmd,
+            stdout=peer_stdout_w,
+            stderr=sys.stderr,
+            text=True,
+        )
+        os.close(peer_stdout_w)
+        peer_listening = False
+        listen_deadline = time.time() + 5.0
+        peer_stdout_file = os.fdopen(peer_stdout_r, "r", buffering=1)
+        while time.time() < listen_deadline:
+            if peer.poll() is not None:
+                break
+            line = peer_stdout_file.readline()
+            if not line:
+                time.sleep(0.05)
+                continue
+            sys.stderr.write(f"peer> {line}")
+            if "listening on" in line:
+                peer_listening = True
+                break
+        # Drain the rest in background so ze-peer never blocks on write.
+        import threading
+        def _drain():
+            try:
+                for line in peer_stdout_file:
+                    sys.stderr.write(f"peer> {line}")
+            except (ValueError, OSError):
+                pass
+        threading.Thread(target=_drain, daemon=True).start()
+        if not peer_listening:
+            sys.stderr.write(
+                f"driver: ze-peer did not report listening rc={peer.returncode}\n"
+            )
+            return 1
+
+        # 3. Launch ze.
+        config = CONFIG_TEMPLATE.replace("%SOCK%", sock)
+        env = os.environ.copy()
+        env["ze.log.vpp"] = "info"
+        env["ze.log.fib.vpp"] = "debug"
+        env["ze.log.bgp"] = "info"
+        env["ze_bgp_tcp_port"] = str(port)
+        ze = subprocess.Popen(
+            ["ze", "-"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+        )
+        assert ze.stdin is not None
+        ze.stdin.write(config)
+        ze.stdin.close()
+
+        # 4. Watch the stub's JSONL for the expected entry.
+        ok = _stub_saw_add(log, 12.0, "10.20.0.0/24")
+        if ok:
+            sys.stderr.write("OK: fib-vpp programmed 10.20.0.0/24 into stub\n")
+        else:
+            sys.stderr.write("FAIL: stub did not observe ip_route_add_del 10.20.0.0/24\n")
+
+        # Drain ze stderr for debugging.
+        _terminate(ze, grace=3.0)
+        if ze.stderr is not None:
+            try:
+                tail = ze.stderr.read()
+            except (ValueError, OSError):
+                tail = ""
+            sys.stderr.write(tail)
+
+        return 0 if ok else 1
+    finally:
+        _terminate(peer, grace=2.0)
+        _terminate(stub, grace=2.0)
+
+
+sys.exit(main())
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 ./driver.py $PORT:timeout=30s
+expect=exit:code=0
+expect=stderr:pattern=OK: fib-vpp programmed 10.20.0.0/24 into stub

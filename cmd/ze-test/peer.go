@@ -162,6 +162,9 @@ func parsePeerFlags() (*peer.Config, bool) {
 		if fileConfig.SendDefaultRoute {
 			config.SendDefaultRoute = true
 		}
+		if len(fileConfig.SendRoutes) > 0 {
+			config.SendRoutes = append(config.SendRoutes, fileConfig.SendRoutes...)
+		}
 		if fileConfig.InspectOpenMessage {
 			config.InspectOpenMessage = true
 		}

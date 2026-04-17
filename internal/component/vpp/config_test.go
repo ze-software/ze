@@ -238,6 +238,40 @@ func TestParseSettings(t *testing.T) {
 				}
 			},
 		},
+		{
+			// VALIDATES: AC-4 -- external defaults to false when omitted
+			// PREVENTS: silent behavior change for existing configs
+			name:  "external default false",
+			input: `{"enabled":"true"}`,
+			check: func(t *testing.T, s *VPPSettings) {
+				t.Helper()
+				if s.External {
+					t.Error("external default should be false")
+				}
+			},
+		},
+		{
+			// VALIDATES: AC-1 -- external=true plumbs through ParseSettings
+			// PREVENTS: external leaf silently dropped
+			name:  "external true",
+			input: `{"enabled":"true","external":"true"}`,
+			check: func(t *testing.T, s *VPPSettings) {
+				t.Helper()
+				if !s.External {
+					t.Error("expected External=true")
+				}
+				if !s.Enabled {
+					t.Error("expected Enabled=true alongside External")
+				}
+			},
+		},
+		{
+			// VALIDATES: unknown keys still rejected even with new leaf present
+			// PREVENTS: typo of "external" silently ignored
+			name:    "unknown key near external rejected",
+			input:   `{"enabled":"true","externall":"true"}`,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

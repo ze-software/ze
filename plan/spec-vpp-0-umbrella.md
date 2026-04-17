@@ -121,6 +121,7 @@ No CGo. GoVPP's socket client is pure Go.
 | `spec-vpp-4-iface.md` | VPP interface backend: iface.Backend implementation, LCP pairs, naming | vpp-1 | ~2000 |
 | `spec-vpp-5-features.md` | VPP-native features: L2XC, bridge domains, VXLAN, policers, ACLs, SRv6, sFlow | vpp-4 | ~500-800 each |
 | `spec-vpp-6-telemetry.md` | VPP telemetry: stats segment polling, per-prefix/interface/node counters, Prometheus | vpp-1 | ~600 |
+| `spec-vpp-7-test-harness.md` | Python GoVPP-API stub + `test/vpp/` runner + `vpp.external` config leaf; unlocks the seven umbrella `test/vpp/NNN-*.ci` wiring tests without needing real VPP or DPDK in CI | vpp-1, vpp-2 | ~1000 |
 
 ### Execution Order and MVP
 
@@ -135,6 +136,11 @@ VPP interfaces are managed separately (vppcfg or manual vppctl). With it, `ze co
 handles everything.
 
 Phases vpp-5 and vpp-6 are incremental value adds. Each feature in vpp-5 is independent.
+
+Phase vpp-7 (test harness) is the coverage backstop for every VPP phase: the
+umbrella wiring-test rows for vpp-1..vpp-6 all resolve to `.ci` files under
+`test/vpp/` that only run when the vpp-7 stub + runner exist. Land vpp-7 early
+so subsequent VPP work has green wiring evidence, not just unit tests.
 
 ### Cross-references
 

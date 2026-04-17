@@ -106,6 +106,41 @@ the operator's. This matters on a gokrazy appliance where there is no
 systemd and ze is PID 1 for the data plane.
 <!-- source: .claude/memory/project_gokrazy_appliance.md -- appliance context -->
 
+## Running against an externally supervised VPP
+
+Set `vpp.external true` when something other than ze owns the VPP
+process -- a systemd unit, a container sidecar, or the Python stub
+the functional tests use. In this mode ze skips steps 3, 4, 5, 6 and 11
+of the table above: no `startup.conf` generation, no vfio module load,
+no NIC unbind, no `exec vpp`, no PCI rescan on shutdown. Ze still
+connects via GoVPP at step 7, emits the same lifecycle events at step 8,
+runs the stats poller at step 9, and blocks on context cancellation
+instead of `cmd.Wait` at step 10.
+<!-- source: internal/component/vpp/vpp.go -- External branch in Run and runOnce -->
+
+Typical configurations:
+
+```
+vpp {
+  enabled  true;
+  external true;
+  api-socket /run/vpp/api.sock;
+}
+```
+
+The operator owns `startup.conf`, owns the systemd unit, owns the vfio
+bind. Ze owns the API socket conversation and the FIB programming.
+
+Use this for:
+- **Systemd deployments:** the system VPP unit starts before ze, ze
+  connects to its API socket on startup.
+- **Gokrazy containers:** a sidecar image bundles `vpp` and `ze`; the
+  supervisor starts VPP first, then ze with `external true`.
+- **Functional tests:** `bin/ze-test vpp` runs `test/vpp/*.ci` which
+  drive a Python `vpp_stub.py` listening on the API socket instead of
+  a real VPP. See `docs/functional-tests.md` for the harness.
+<!-- source: test/scripts/vpp_stub.py -- Python GoVPP API stub -->
+
 ## Configuring VPP
 
 The `vpp { ... }` container lives in the main ze config. Minimal example:
@@ -133,6 +168,7 @@ the stats poll interval only when the defaults do not fit the workload.
 | Path | Type | Default | What it controls |
 |------|------|---------|------------------|
 | `vpp.enabled` | boolean | `false` | Master switch. `false` means ze does not start VPP at all. |
+| `vpp.external` | boolean | `false` | When `true`, ze connects to an existing VPP via `api-socket` but does NOT generate `startup.conf`, bind DPDK NICs, or exec the VPP binary. Use this on systemd-managed hosts, container sidecars, or the `ze-test vpp` stub harness. Default `false` preserves the ze-owned-lifecycle behavior. |
 | `vpp.api-socket` | string | `/run/vpp/api.sock` | GoVPP Unix socket. Ze validates it is absolute, has no `..`, and fits in 108 characters. |
 | `vpp.cpu.main-core` | uint8 | auto | CPU core pinned to the VPP main thread. Omit for VPP default. |
 | `vpp.cpu.workers` | uint8 | auto | Number of worker threads. Ze allocates `main-core+1 .. main-core+workers` for `corelist-workers` in startup.conf. |

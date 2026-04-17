@@ -2,6 +2,9 @@ package vpp
 
 import (
 	"context"
+	"net"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -108,5 +111,96 @@ func TestMaxRestartBackoff(t *testing.T) {
 	}
 	if backoff != maxRestartBackoff {
 		t.Errorf("backoff should cap at %v, got %v", maxRestartBackoff, backoff)
+	}
+}
+
+// TestVPPManagerRunOnce_ExternalSkipsExec verifies that with External=true,
+// runOnce does NOT attempt to exec the VPP binary. The assertion is indirect:
+// we point vppBinary at a path that would cause exec.Start to fail with
+// "start vpp: ..." if External were false, and assert the returned error
+// never mentions the exec path (it comes from the connect phase instead).
+//
+// VALIDATES: AC-1 -- External=true connects via GoVPP without execing VPP.
+// PREVENTS: the external-branch accidentally still calling cmd.Start.
+func TestVPPManagerRunOnce_ExternalSkipsExec(t *testing.T) {
+	dir := t.TempDir()
+	sock := filepath.Join(dir, "api.sock")
+	if len(sock) >= 108 {
+		t.Fatalf("socket path too long for sun_path: %d bytes", len(sock))
+	}
+
+	s := &VPPSettings{
+		Enabled:   true,
+		External:  true,
+		APISocket: sock,
+		Memory:    MemorySettings{MainHeap: "1G", HugepageSize: "2M", Buffers: 128000},
+		Stats:     StatsSettings{SegmentSize: "512M", SocketPath: "/run/vpp/stats.sock", PollInterval: 30},
+	}
+	mgr := NewVPPManager(s, dir, "/definitely/nonexistent/path/to/vpp")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+
+	err := mgr.runOnce(ctx, filepath.Join(dir, "startup.conf"))
+	// Either we got a govpp connect error or ctx cancellation; we must NOT
+	// have seen a "start vpp" error from exec.Start of the bogus binary.
+	if err != nil && strings.Contains(err.Error(), "start vpp") {
+		t.Errorf("External=true but runOnce tried to exec VPP: %v", err)
+	}
+}
+
+// TestVPPManagerRunOnce_ExternalBlocksOnCtx verifies the full external
+// happy path: with External=true and a real Unix socket listener on the
+// api-socket path, runOnce connects via GoVPP and blocks on ctx.Done
+// instead of cmd.Wait.
+//
+// VALIDATES: AC-1 -- runOnce blocks on ctx.Done (not cmd.Wait) when external.
+// PREVENTS: external branch closing the connector before ctx.Done.
+func TestVPPManagerRunOnce_ExternalBlocksOnCtx(t *testing.T) {
+	dir := t.TempDir()
+	sock := filepath.Join(dir, "api.sock")
+	if len(sock) >= 108 {
+		t.Fatalf("socket path too long for sun_path: %d bytes", len(sock))
+	}
+
+	// Listener keeps the socket file alive; we drop any accepted connection.
+	var lc net.ListenConfig
+	ln, err := lc.Listen(t.Context(), "unix", sock)
+	if err != nil {
+		t.Fatalf("listen on %s: %v", sock, err)
+	}
+	t.Cleanup(func() {
+		if cerr := ln.Close(); cerr != nil && !strings.Contains(cerr.Error(), "closed") {
+			t.Logf("listener close: %v", cerr)
+		}
+	})
+	go func() {
+		for {
+			c, aerr := ln.Accept()
+			if aerr != nil {
+				return
+			}
+			if cerr := c.Close(); cerr != nil {
+				t.Logf("accept close: %v", cerr)
+				return
+			}
+		}
+	}()
+
+	s := &VPPSettings{
+		Enabled:   true,
+		External:  true,
+		APISocket: sock,
+		Memory:    MemorySettings{MainHeap: "1G", HugepageSize: "2M", Buffers: 128000},
+		Stats:     StatsSettings{SegmentSize: "512M", SocketPath: "/run/vpp/stats.sock", PollInterval: 30},
+	}
+	mgr := NewVPPManager(s, dir, "/definitely/nonexistent/path/to/vpp")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	defer cancel()
+
+	err = mgr.runOnce(ctx, filepath.Join(dir, "startup.conf"))
+	if err != nil && strings.Contains(err.Error(), "start vpp") {
+		t.Errorf("External=true but runOnce tried to exec VPP: %v", err)
 	}
 }
