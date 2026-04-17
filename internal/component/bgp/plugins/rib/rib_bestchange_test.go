@@ -1,7 +1,11 @@
 package rib
 
 import (
+	"bytes"
 	"encoding/json"
+	"log/slog"
+	"net/netip"
+	"strings"
 	"sync"
 	"testing"
 
@@ -77,15 +81,7 @@ func (b *testEventBus) eventCount() int {
 // Name is preserved from the original test for traceability.
 func newTestRIBManagerWithBus(eb *testEventBus) *RIBManager {
 	SetEventBus(eb)
-	return &RIBManager{
-		ribInPool:     make(map[string]*storage.PeerRIB),
-		ribOut:        make(map[string]map[string]map[string]*Route),
-		peerUp:        make(map[string]bool),
-		peerMeta:      make(map[string]*PeerMeta),
-		retainedPeers: make(map[string]bool),
-		grState:       make(map[string]*peerGRState),
-		bestPrev:      make(map[family.Family]*bestPrevStore),
-	}
+	return NewRIBManager(nil)
 }
 
 // makeAttrBytes builds minimal attribute wire bytes for testing.
@@ -469,4 +465,267 @@ func TestRIBReplayOnSubscribe(t *testing.T) {
 	require.Len(t, batch.Changes, 1)
 	assert.Equal(t, ribevents.BestChangeAdd, batch.Changes[0].Action)
 	assert.Equal(t, "192.168.1.1", batch.Changes[0].NextHop)
+}
+
+// VALIDATES: AC-4 -- packed bestPathRecord round-trips through pack/unpack.
+// PREVENTS: Bit-layout regressions that silently corrupt stored records.
+func TestBestPathRecordPackUnpack(t *testing.T) {
+	cases := []struct {
+		name                                 string
+		metricIdx, peerIdx, nhIdx, flagsBits uint16
+	}{
+		{"all-zero", 0, 0, 0, 0},
+		{"all-max", 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF},
+		{"typical-ebgp", 3, 42, 17, flagEBGP},
+		{"typical-ibgp", 0, 7, 0, 0},
+		{"distinct-fields", 0x1234, 0x5678, 0x9ABC, 0xDEF0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := packBestPath(tc.metricIdx, tc.peerIdx, tc.nhIdx, tc.flagsBits)
+			assert.Equal(t, tc.metricIdx, rec.MetricIdx(), "metric idx round-trip")
+			assert.Equal(t, tc.peerIdx, rec.PeerIdx(), "peer idx round-trip")
+			assert.Equal(t, tc.nhIdx, rec.NextHopIdx(), "next-hop idx round-trip")
+			assert.Equal(t, tc.flagsBits, rec.Flags(), "flags round-trip")
+			assert.Equal(t, tc.flagsBits&flagEBGP != 0, rec.IsEBGP(), "IsEBGP matches flag bit 0")
+		})
+	}
+}
+
+// VALIDATES: AC-4 -- packed bestPathRecord equality is a single uint64 compare.
+// PREVENTS: Same-best short-circuit breaking when fields differ.
+func TestBestPathRecordEquality(t *testing.T) {
+	base := packBestPath(3, 42, 17, flagEBGP)
+	same := packBestPath(3, 42, 17, flagEBGP)
+	assert.Equal(t, base, same, "identical fields compare equal")
+
+	diffMetric := packBestPath(4, 42, 17, flagEBGP)
+	diffPeer := packBestPath(3, 43, 17, flagEBGP)
+	diffNH := packBestPath(3, 42, 18, flagEBGP)
+	diffFlags := packBestPath(3, 42, 17, 0)
+	assert.NotEqual(t, base, diffMetric, "metric differs")
+	assert.NotEqual(t, base, diffPeer, "peer differs")
+	assert.NotEqual(t, base, diffNH, "next-hop differs")
+	assert.NotEqual(t, base, diffFlags, "flags differ (ebgp vs ibgp)")
+}
+
+// VALIDATES: AC-6 -- interner dedupes on repeat and grows the reverse table
+// only on first sighting.
+// PREVENTS: Reverse table bloating on every checkBestPathChange call.
+func TestBestPrevInternerDedup(t *testing.T) {
+	ir := newBestPrevInterner()
+
+	p1, ok := ir.internPeer("192.0.2.1")
+	require.True(t, ok)
+	p2, ok := ir.internPeer("192.0.2.2")
+	require.True(t, ok)
+	p1dup, ok := ir.internPeer("192.0.2.1")
+	require.True(t, ok)
+
+	assert.NotEqual(t, p1, p2, "distinct peers get distinct indices")
+	assert.Equal(t, p1, p1dup, "repeat returns the same index")
+	assert.Len(t, ir.peers, 2, "reverse table grows only on new values")
+
+	nh := netip.MustParseAddr("10.0.0.1")
+	nhIdx, ok := ir.internNextHop(nh)
+	require.True(t, ok)
+	nhDupIdx, ok := ir.internNextHop(nh)
+	require.True(t, ok)
+	assert.Equal(t, nhIdx, nhDupIdx)
+	assert.Len(t, ir.nextHops, 1)
+
+	m1, ok := ir.internMetric(100)
+	require.True(t, ok)
+	m2, ok := ir.internMetric(200)
+	require.True(t, ok)
+	mDup, ok := ir.internMetric(100)
+	require.True(t, ok)
+	assert.NotEqual(t, m1, m2)
+	assert.Equal(t, m1, mDup)
+	assert.Len(t, ir.metrics, 2)
+}
+
+// VALIDATES: AC-6 -- reverse-table lookups return the originally interned value.
+// PREVENTS: Emission path emitting stale or wrong values.
+func TestBestPrevInternerReverse(t *testing.T) {
+	ir := newBestPrevInterner()
+
+	peers := []string{"192.0.2.1", "192.0.2.2", "198.51.100.7"}
+	peerIdxs := make([]uint16, len(peers))
+	for i, p := range peers {
+		idx, ok := ir.internPeer(p)
+		require.True(t, ok)
+		peerIdxs[i] = idx
+	}
+	for i, idx := range peerIdxs {
+		assert.Equal(t, peers[i], ir.peers[idx])
+	}
+
+	nhs := []netip.Addr{
+		netip.MustParseAddr("10.0.0.1"),
+		netip.MustParseAddr("2001:db8::1"),
+		{}, // zero / invalid -- must round-trip via interner
+	}
+	nhIdxs := make([]uint16, len(nhs))
+	for i, nh := range nhs {
+		idx, ok := ir.internNextHop(nh)
+		require.True(t, ok)
+		nhIdxs[i] = idx
+	}
+	for i, idx := range nhIdxs {
+		assert.Equal(t, nhs[i], ir.nextHops[idx])
+	}
+
+	metrics := []uint32{0, 100, 42, 1<<31 - 1}
+	metricIdxs := make([]uint16, len(metrics))
+	for i, m := range metrics {
+		idx, ok := ir.internMetric(m)
+		require.True(t, ok)
+		metricIdxs[i] = idx
+	}
+	for i, idx := range metricIdxs {
+		assert.Equal(t, metrics[i], ir.metrics[idx])
+	}
+}
+
+// VALIDATES: AC-7 -- an interner saturated at 65536 entries returns (0, false)
+// without panicking; subsequent checkBestPathChange calls return (zero, false)
+// for the affected record. No panic is permitted in this path.
+// PREVENTS: Architectural-unreachable overflow becoming a crash.
+func TestBestPrevInternerOverflow(t *testing.T) {
+	// Part 1: bare interner overflow on each table, no RIB involved.
+	t.Run("bare-intern-overflow", func(t *testing.T) {
+		ir := newBestPrevInterner()
+		for i := range internerCap {
+			_, ok := ir.internMetric(uint32(i))
+			require.True(t, ok, "insertion %d within cap must succeed", i)
+		}
+		assert.Len(t, ir.metrics, internerCap)
+
+		// Re-inserting an already-known value still succeeds (forward map hit).
+		idx, ok := ir.internMetric(0)
+		require.True(t, ok, "dedup hit bypasses the cap check")
+		assert.Equal(t, uint16(0), idx)
+
+		// A brand-new value must be rejected without panic.
+		require.NotPanics(t, func() {
+			_, ok := ir.internMetric(0xFFFFFFFF)
+			assert.False(t, ok, "overflow returns (_, false)")
+		})
+	})
+
+	// Part 2: checkBestPathChange drops a record when its peer cannot be
+	// interned. Saturate the peer table with synthetic keys, then introduce
+	// one more distinct peer and confirm the call returns (zero, false)
+	// without panicking.
+	t.Run("checkBestPathChange-drops-on-overflow", func(t *testing.T) {
+		bus := newTestEventBus()
+		r := newTestRIBManagerWithBus(bus)
+
+		// Saturate the peer reverse table with distinct synthetic keys.
+		for i := range internerCap {
+			_, ok := r.bestPathInterner.internPeer(syntheticPeerKey(i))
+			require.True(t, ok)
+		}
+
+		peerAddr := "192.0.2.1"
+		r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+		fam := family.Family{AFI: 1, SAFI: 1}
+		prefix := ipv4Prefix(24, 10, 0, 0)
+		attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
+		r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
+		r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
+
+		require.NotPanics(t, func() {
+			r.mu.Lock()
+			entry, ok := r.checkBestPathChange(fam, prefix, false)
+			r.mu.Unlock()
+			assert.False(t, ok, "overflow returns (zero, false)")
+			assert.Equal(t, bestChangeEntry{}, entry)
+		})
+	})
+
+	// Part 3: saturation logs an slog.Error exactly once per table. Repeated
+	// saturated calls on the same table are silent -- this prevents the
+	// per-UPDATE log flood a deployed-at-cap daemon would otherwise produce.
+	t.Run("overflow-logs-once-per-table", func(t *testing.T) {
+		var logBuf bytes.Buffer
+		prior := logger()
+		h := slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelError})
+		SetLogger(slog.New(h))
+		defer SetLogger(prior)
+
+		ir := newBestPrevInterner()
+		for i := range internerCap {
+			if _, ok := ir.internMetric(uint32(i)); !ok {
+				t.Fatalf("fill %d: metric interner unexpectedly rejected within cap", i)
+			}
+		}
+
+		// First overflow on metrics: MUST emit one log line.
+		_, ok := ir.internMetric(0xFFFFFFFF)
+		require.False(t, ok)
+		assert.Equal(t, 1, strings.Count(logBuf.String(), "best-path interner saturated"),
+			"first saturation logs once")
+		assert.Contains(t, logBuf.String(), "table=metrics")
+
+		// Second overflow on the same table: MUST NOT emit another log line.
+		_, ok = ir.internMetric(0xFFFFFFFE)
+		require.False(t, ok)
+		assert.Equal(t, 1, strings.Count(logBuf.String(), "best-path interner saturated"),
+			"repeat saturation on same table is silent")
+
+		// Overflow on a different table: MUST emit its own log line.
+		for i := range internerCap {
+			if _, ok := ir.internPeer(syntheticPeerKey(i)); !ok {
+				t.Fatalf("fill %d: peer interner unexpectedly rejected within cap", i)
+			}
+		}
+		_, ok = ir.internPeer("203.0.113.99")
+		require.False(t, ok)
+		assert.Equal(t, 2, strings.Count(logBuf.String(), "best-path interner saturated"),
+			"each table logs its own first saturation")
+		assert.Contains(t, logBuf.String(), "table=peers")
+	})
+}
+
+// syntheticPeerKey builds a guaranteed-unique string for the overflow test
+// without relying on net-parseable IP syntax -- the interner stores strings
+// verbatim, so any distinct input drives a new index.
+func syntheticPeerKey(i int) string {
+	const hex = "0123456789abcdef"
+	return string([]byte{
+		hex[(i>>12)&0xF], hex[(i>>8)&0xF], hex[(i>>4)&0xF], hex[i&0xF],
+	})
+}
+
+// VALIDATES: AC-5 -- resolve rebuilds BestChangeEntry payload fields from the
+// packed record plus interner reverse tables.
+// PREVENTS: Emission path regressions producing wrong priority / protocol-type.
+func TestBestPathResolve(t *testing.T) {
+	ir := newBestPrevInterner()
+	peerIdx, _ := ir.internPeer("192.0.2.1")
+	nhIdx, _ := ir.internNextHop(netip.MustParseAddr("10.0.0.1"))
+	metricIdx, _ := ir.internMetric(500)
+
+	ebgpRec := packBestPath(metricIdx, peerIdx, nhIdx, flagEBGP)
+	ebgpEntry := ebgpRec.resolve(ir, ribevents.BestChangeAdd, "10.0.0.0/24")
+	assert.Equal(t, ribevents.BestChangeAdd, ebgpEntry.Action)
+	assert.Equal(t, "10.0.0.0/24", ebgpEntry.Prefix)
+	assert.Equal(t, "10.0.0.1", ebgpEntry.NextHop)
+	assert.Equal(t, 20, ebgpEntry.Priority, "eBGP records resolve to priority 20")
+	assert.Equal(t, uint32(500), ebgpEntry.Metric)
+	assert.Equal(t, "ebgp", ebgpEntry.ProtocolType)
+
+	ibgpRec := packBestPath(metricIdx, peerIdx, nhIdx, 0)
+	ibgpEntry := ibgpRec.resolve(ir, ribevents.BestChangeUpdate, "10.0.0.0/24")
+	assert.Equal(t, ribevents.BestChangeUpdate, ibgpEntry.Action)
+	assert.Equal(t, 200, ibgpEntry.Priority, "iBGP records resolve to priority 200")
+	assert.Equal(t, "ibgp", ibgpEntry.ProtocolType)
+
+	// Zero next-hop round-trips to empty string via nextHopString.
+	zeroNHIdx, _ := ir.internNextHop(netip.Addr{})
+	zeroRec := packBestPath(metricIdx, peerIdx, zeroNHIdx, 0)
+	zeroEntry := zeroRec.resolve(ir, ribevents.BestChangeWithdraw, "")
+	assert.Empty(t, zeroEntry.NextHop)
 }

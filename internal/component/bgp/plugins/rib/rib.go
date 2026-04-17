@@ -103,6 +103,11 @@ type ribMetrics struct {
 	poolInternTotal metrics.GaugeVec // labels: pool -- monotonic, use rate()
 	poolDedupHits   metrics.GaugeVec // labels: pool -- monotonic, use rate()
 	poolSlotsUsed   metrics.GaugeVec // labels: pool
+
+	// Best-path interner reverse-table occupancy per type (peers, nextHops,
+	// metrics). Operators can alert on approach to the uint16 cap (65536);
+	// realistic deployments sit in the tens to low hundreds per table.
+	bestpathInternerSize metrics.GaugeVec // labels: table
 }
 
 // metricsPtr stores RIB metrics gauges, set by SetMetricsRegistry.
@@ -124,6 +129,10 @@ func SetMetricsRegistry(reg metrics.Registry) {
 		poolInternTotal: reg.GaugeVec("ze_attr_pool_intern_total", "Total Intern() calls per pool.", []string{"pool"}),
 		poolDedupHits:   reg.GaugeVec("ze_attr_pool_dedup_hits_total", "Intern() dedup hits per pool.", []string{"pool"}),
 		poolSlotsUsed:   reg.GaugeVec("ze_attr_pool_slots_used", "Active slots per pool.", []string{"pool"}),
+
+		bestpathInternerSize: reg.GaugeVec("ze_rib_bestpath_interner_size",
+			"Best-path interner reverse-table entry count (cap 65536 per table).",
+			[]string{"table"}),
 	}
 	metricsPtr.Store(m)
 }
@@ -214,6 +223,14 @@ type RIBManager struct {
 	// collision. Used by checkBestPathChange after each insert/remove.
 	bestPrev map[family.Family]*bestPrevStore
 
+	// bestPathInterner dedupes peer address, next-hop, and MED values across
+	// every family's bestPrevStore into uint16 reverse-table indices that are
+	// packed into the stored bestPathRecord. Shared, not per-family, because
+	// realistic deployments use <10^4 unique values per attribute type and
+	// sharing amortizes the dedup maps across hundreds of peers/families.
+	// Protected by r.mu (same lock as bestPrev).
+	bestPathInterner *bestPrevInterner
+
 	// maximumPaths is the configured N for multipath/ECMP selection.
 	// Populated from bgp/multipath/maximum-paths in the Stage 2 configure callback.
 	// Default 1 = single best-path behavior (RFC 4271 §9.1.2, no ECMP).
@@ -283,6 +300,15 @@ func (r *RIBManager) updateMetrics() {
 		totalOut += count
 	}
 
+	// Best-path interner occupancy. Read under the same RLock as bestPrev
+	// so the snapshot is consistent with the stored record indices.
+	var internerPeers, internerNextHops, internerMetrics int
+	if r.bestPathInterner != nil {
+		internerPeers = len(r.bestPathInterner.peers)
+		internerNextHops = len(r.bestPathInterner.nextHops)
+		internerMetrics = len(r.bestPathInterner.metrics)
+	}
+
 	r.mu.RUnlock()
 
 	// Delete stale peer labels (peers removed since last cycle)
@@ -302,6 +328,10 @@ func (r *RIBManager) updateMetrics() {
 	m.routesIn.Set(float64(totalIn))
 	m.routesOut.Set(float64(totalOut))
 
+	m.bestpathInternerSize.With("peers").Set(float64(internerPeers))
+	m.bestpathInternerSize.With("nextHops").Set(float64(internerNextHops))
+	m.bestpathInternerSize.With("metrics").Set(float64(internerMetrics))
+
 	// Attribute pool dedup metrics (polled from atomic counters)
 	for _, entry := range poolNames() {
 		pm := entry.pool.Metrics()
@@ -309,6 +339,31 @@ func (r *RIBManager) updateMetrics() {
 		m.poolDedupHits.With(entry.name).Set(float64(pm.InternHits))
 		m.poolSlotsUsed.With(entry.name).Set(float64(pm.LiveSlots))
 	}
+}
+
+// NewRIBManager returns a fully-initialized RIBManager bound to the given SDK
+// plugin handle. Every map and the shared bestPathInterner are allocated, and
+// maximumPaths is pre-set to the RFC 4271 single best-path default so that
+// any consumer reading it before Stage 2 configure delivery sees 1, not the
+// atomic zero value (no "ECMP disabled" race at boot).
+//
+// Tests pass a plugin handle wired to a closed net.Pipe (see newTestRIBManager).
+// This is the only constructor; bypassing it with a zero-value struct literal
+// panics on the first intern call against the nil map.
+func NewRIBManager(plugin *sdk.Plugin) *RIBManager {
+	r := &RIBManager{
+		plugin:           plugin,
+		ribInPool:        make(map[string]*storage.PeerRIB),
+		ribOut:           make(map[string]map[string]map[string]*Route),
+		peerUp:           make(map[string]bool),
+		peerMeta:         make(map[string]*PeerMeta),
+		retainedPeers:    make(map[string]bool),
+		grState:          make(map[string]*peerGRState),
+		bestPrev:         make(map[family.Family]*bestPrevStore),
+		bestPathInterner: newBestPrevInterner(),
+	}
+	r.maximumPaths.Store(1)
+	return r
 }
 
 // RunRIBPlugin runs the RIB plugin using the SDK RPC protocol.
@@ -323,21 +378,7 @@ func RunRIBPlugin(conn net.Conn) int {
 	// Built-in commands registered here; plugins register via RegisterRIBCommand.
 	registerBuiltinCommands()
 
-	r := &RIBManager{
-		plugin:        p,
-		ribInPool:     make(map[string]*storage.PeerRIB),
-		ribOut:        make(map[string]map[string]map[string]*Route),
-		peerUp:        make(map[string]bool),
-		peerMeta:      make(map[string]*PeerMeta),
-		retainedPeers: make(map[string]bool),
-		grState:       make(map[string]*peerGRState),
-		bestPrev:      make(map[family.Family]*bestPrevStore),
-	}
-	// Initialize multipath to the RFC 4271 single best-path default BEFORE
-	// OnConfigure runs. Any consumer that reads maximumPaths during plugin
-	// startup (before Stage 2 config delivery) sees 1, not the atomic zero
-	// value -- no "ECMP disabled" race at boot.
-	r.maximumPaths.Store(1)
+	r := NewRIBManager(p)
 
 	// Structured event handler for DirectBridge delivery.
 	// Eliminates JSON round-trip: reads peer metadata from StructuredEvent fields,

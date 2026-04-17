@@ -28,21 +28,212 @@ type bestChangeEntry = ribevents.BestChangeEntry
 // the typed BestChange handle.
 type bestChangeBatch = ribevents.BestChangeBatch
 
+// Packed bestPathRecord layout: four 16-bit fields in a single uint64.
+// High bits first so pack/unpack is a single shift-and-OR. Three of the
+// four fields are indices into per-attribute reverse tables on the shared
+// bestPrevInterner -- resolve() dereferences them only on the cold
+// emission path. The fourth field is a Flags word whose bit 0 encodes
+// eBGP vs iBGP; the rest is reserved. Zero GC-traceable pointers are
+// stored per entry, so a BART fringe holding 1M of these is opaque to
+// the GC mark phase (the primary motivation; see spec-rib-bestpath-pack.md).
+const (
+	shiftMetricIdx  = 48
+	shiftPeerIdx    = 32
+	shiftNextHopIdx = 16
+	flagEBGP        = 0x0001
+	// internerCap is the exclusive upper bound for any single interner
+	// reverse table. uint16 cardinality is architecturally unreachable
+	// (~2k peers at the largest Internet IXP); the cap exists only so
+	// a mis-deployment degrades gracefully rather than corrupting indices.
+	internerCap = 1 << 16 // 65536
+)
+
 // bestPathRecord stores the previous best-path state for change detection.
 // The prefix is not stored -- it is the key of the owning bestPrevStore entry
-// and is formatted lazily from that key on the emission path.
+// and is formatted lazily from that key on the emission path. Neither the
+// peer address, next-hop, nor metric are stored directly: they are interned
+// on the shared bestPrevInterner (held by RIBManager) and the three uint16
+// indices are packed into this 8-byte value. The hot-path same-best check
+// is a single uint64 equality comparison; the cold emission path calls
+// resolve() to materialize the full bestChangeEntry from the reverse tables.
+type bestPathRecord uint64
+
+// packBestPath assembles a bestPathRecord from three interner indices plus a
+// Flags word. Pure arithmetic; safe on any uint16 input.
+func packBestPath(metricIdx, peerIdx, nextHopIdx, flags uint16) bestPathRecord {
+	return bestPathRecord(uint64(metricIdx)<<shiftMetricIdx |
+		uint64(peerIdx)<<shiftPeerIdx |
+		uint64(nextHopIdx)<<shiftNextHopIdx |
+		uint64(flags))
+}
+
+// MetricIdx returns the interner index for this record's MED value.
+func (r bestPathRecord) MetricIdx() uint16 { return uint16(r >> shiftMetricIdx) }
+
+// PeerIdx returns the interner index for this record's peer address.
+func (r bestPathRecord) PeerIdx() uint16 { return uint16(r >> shiftPeerIdx) }
+
+// NextHopIdx returns the interner index for this record's next-hop.
+func (r bestPathRecord) NextHopIdx() uint16 { return uint16(r >> shiftNextHopIdx) }
+
+// Flags returns the 16-bit flag field; bit 0 = isEBGP, bits 1-15 reserved.
+func (r bestPathRecord) Flags() uint16 { return uint16(r) }
+
+// IsEBGP reports whether the recorded best-path was learned from an eBGP peer.
+func (r bestPathRecord) IsEBGP() bool { return r&flagEBGP != 0 }
+
+// bestPrevInterner maps per-attribute values (peer address, next-hop, MED)
+// to dense uint16 indices shared across all families on a RIBManager. The
+// forward map dedupes on insert; the reverse slice restores the original
+// value at emission time. Realistic BGP deployments use <10^4 unique values
+// per attribute (the largest IXP carries ~2k peers) -- uint16 gives >30x
+// headroom, and the cap is defensive only.
 //
-// NextHop is a netip.Addr rather than a formatted string: comparison on the
-// hot steady-state path is a value compare (no allocation), and the display
-// string is produced only when a change event is actually emitted via
-// nextHopString below. Prior to this shape, fmt.Sprintf inside formatNextHop
-// accounted for ~15 MB of inuse allocation under the 1M-prefix stress.
-type bestPathRecord struct {
-	PeerAddr     string
-	NextHop      netip.Addr
-	Priority     int // admin distance: eBGP=20, iBGP=200
-	Metric       uint32
-	ProtocolType string // "ebgp" or "ibgp"
+// The three `*Overflowed` booleans are one-shot latches: the first time a
+// given table saturates, the interner logs an slog.Error and flips the
+// latch; subsequent saturated lookups return (0, false) silently. This
+// avoids the per-UPDATE log flood a saturated deployment would otherwise
+// produce while still surfacing the event once.
+//
+// Concurrency: NOT safe for concurrent use. Callers hold RIBManager.mu for
+// all intern* and reverse-lookup calls.
+type bestPrevInterner struct {
+	peers              []string
+	peerIdx            map[string]uint16
+	peersOverflowed    bool
+	nextHops           []netip.Addr
+	nextHopIdx         map[netip.Addr]uint16
+	nextHopsOverflowed bool
+	metrics            []uint32
+	metricIdx          map[uint32]uint16
+	metricsOverflowed  bool
+}
+
+// newBestPrevInterner constructs an empty interner with modest initial
+// capacity. The maps grow with unique values; the reverse slices share the
+// same growth cadence.
+func newBestPrevInterner() *bestPrevInterner {
+	return &bestPrevInterner{
+		peerIdx:    make(map[string]uint16),
+		nextHopIdx: make(map[netip.Addr]uint16),
+		metricIdx:  make(map[uint32]uint16),
+	}
+}
+
+// internPeer returns the uint16 index for v. On a first sighting, v is
+// appended to the reverse table and assigned the next index. Returns
+// (0, false) only when the reverse table is saturated at 65536 entries --
+// the caller must treat that as a degraded record and not store it. The
+// first saturation logs an slog.Error; subsequent ones are silent.
+func (b *bestPrevInterner) internPeer(v string) (uint16, bool) {
+	if idx, ok := b.peerIdx[v]; ok {
+		return idx, true
+	}
+	if len(b.peers) >= internerCap {
+		if !b.peersOverflowed {
+			b.peersOverflowed = true
+			logger().Error("best-path interner saturated", "table", "peers", "cap", internerCap)
+		}
+		return 0, false
+	}
+	idx := uint16(len(b.peers))
+	b.peers = append(b.peers, v)
+	b.peerIdx[v] = idx
+	return idx, true
+}
+
+// internNextHop returns the uint16 index for v; see internPeer for contract.
+// The zero netip.Addr (invalid / absent next-hop) is interned like any other
+// value so resolve() round-trips it back to nextHopString("").
+func (b *bestPrevInterner) internNextHop(v netip.Addr) (uint16, bool) {
+	if idx, ok := b.nextHopIdx[v]; ok {
+		return idx, true
+	}
+	if len(b.nextHops) >= internerCap {
+		if !b.nextHopsOverflowed {
+			b.nextHopsOverflowed = true
+			logger().Error("best-path interner saturated", "table", "nextHops", "cap", internerCap)
+		}
+		return 0, false
+	}
+	idx := uint16(len(b.nextHops))
+	b.nextHops = append(b.nextHops, v)
+	b.nextHopIdx[v] = idx
+	return idx, true
+}
+
+// internMetric returns the uint16 index for v; see internPeer for contract.
+func (b *bestPrevInterner) internMetric(v uint32) (uint16, bool) {
+	if idx, ok := b.metricIdx[v]; ok {
+		return idx, true
+	}
+	if len(b.metrics) >= internerCap {
+		if !b.metricsOverflowed {
+			b.metricsOverflowed = true
+			logger().Error("best-path interner saturated", "table", "metrics", "cap", internerCap)
+		}
+		return 0, false
+	}
+	idx := uint16(len(b.metrics))
+	b.metrics = append(b.metrics, v)
+	b.metricIdx[v] = idx
+	return idx, true
+}
+
+// peerAt returns the original peer string for idx, or "" if idx is past the
+// reverse-table bounds. A bounds-safe wrapper so emission and steady-state
+// comparison do not panic if an index from an older interner lifetime (or a
+// manually-constructed record in tests) outlives its backing table.
+func (b *bestPrevInterner) peerAt(idx uint16) string {
+	if int(idx) >= len(b.peers) {
+		return ""
+	}
+	return b.peers[idx]
+}
+
+// nextHopAt returns the original netip.Addr for idx, or the zero Addr if idx
+// is past the reverse-table bounds. See peerAt for rationale.
+func (b *bestPrevInterner) nextHopAt(idx uint16) netip.Addr {
+	if int(idx) >= len(b.nextHops) {
+		return netip.Addr{}
+	}
+	return b.nextHops[idx]
+}
+
+// metricAt returns the original uint32 for idx, or 0 if idx is past the
+// reverse-table bounds. See peerAt for rationale.
+func (b *bestPrevInterner) metricAt(idx uint16) uint32 {
+	if int(idx) >= len(b.metrics) {
+		return 0
+	}
+	return b.metrics[idx]
+}
+
+// resolve materializes a bestChangeEntry from a packed record plus an action
+// label and display prefix. The emitted payload priority (20 eBGP / 200 iBGP)
+// and protocol-type ("ebgp"/"ibgp") derive from the packed Flags bit 0, so
+// the single source of truth for protocol class is the stored record rather
+// than a derivable pair of fields. Caller MUST hold at least RIBManager.mu
+// for reading (the reverse tables are mutated on insert).
+//
+// Reverse-table lookups go through the bounds-safe accessors, so a record
+// whose indices outlive a reset interner emits zero-valued NextHop/Metric
+// rather than panicking.
+func (r bestPathRecord) resolve(interner *bestPrevInterner, action, prefix string) bestChangeEntry {
+	priority := 200
+	protoType := protocolTypeIBGP
+	if r.IsEBGP() {
+		priority = 20
+		protoType = protocolTypeEBGP
+	}
+	return bestChangeEntry{
+		Action:       action,
+		Prefix:       prefix,
+		NextHop:      nextHopString(interner.nextHopAt(r.NextHopIdx())),
+		Priority:     priority,
+		Metric:       interner.metricAt(r.MetricIdx()),
+		ProtocolType: protoType,
+	}
 }
 
 // bestPrevStore holds the previously-recorded best path per prefix for one
@@ -119,17 +310,28 @@ func nextHopString(a netip.Addr) string {
 // Compares with the previous best and returns a change entry if the best path changed.
 // addPath indicates whether nlriBytes includes a 4-byte path-ID prefix.
 // Caller MUST hold r.mu (write lock).
-// Returns (entry, true) when a change occurred; (zero, false) when unchanged or
-// the NLRI is malformed. The bool form avoids heap-allocating *bestChangeEntry
-// per update, which dominated GC work under stress.
+//
+// Returns (entry, true) when a change occurred; (zero, false) when unchanged,
+// the NLRI is malformed, or an interner table is saturated. On saturation,
+// the interner logs an slog.Error once (see bestPrevInterner), and the stored
+// `prev` record is left in place: consumers continue to see the pre-saturation
+// best path for that prefix rather than a spurious withdraw. Once saturated,
+// the interner has no mechanism to recover within a process lifetime; a
+// restart is required.
+//
+// Hot-path shape:
+//  1. If there is a previous record, unpack its reverse-table entries and
+//     compare against the winner's raw values. A match short-circuits with
+//     no interner mutation and no prefix allocation.
+//  2. Otherwise compute the display prefix (malformed NLRI bails without
+//     mutation).
+//  3. Intern the winner's fields, pack, store, and emit.
 func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, addPath bool) (bestChangeEntry, bool) {
-	// Gather candidates from all peers for this prefix.
 	candidates := r.gatherCandidates(fam, nlriBytes)
 	newBest := SelectBest(candidates)
 
 	store := r.bestPrev[fam]
 	if store == nil && newBest == nil {
-		// Nothing to do -- no candidates and no previous record.
 		return bestChangeEntry{}, false
 	}
 	if store == nil {
@@ -145,8 +347,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		if !havePrev {
 			return bestChangeEntry{}, false
 		}
-		familyStr := fam.String()
-		prefix := wirePrefixToString(prefixBytesForDisplay(nlriBytes, addPath), familyStr)
+		prefix := wirePrefixToString(prefixBytesForDisplay(nlriBytes, addPath), fam.String())
 		if prefix == "" {
 			return bestChangeEntry{}, false
 		}
@@ -157,49 +358,57 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		}, true
 	}
 
-	// Extract next-hop, priority, and protocol type from the new best.
-	// NextHop is kept as netip.Addr for the hot comparison; the display
-	// string is materialized only if we go on to emit a change below.
 	nextHop := r.bestCandidateNextHopAddr(fam, nlriBytes, newBest)
-	priority := r.adminDistance(newBest)
-	protoType := r.protocolType(newBest)
-	metric := newBest.MED
+	isEBGP := r.protocolType(newBest) == protocolTypeEBGP
 
-	if havePrev && prev.PeerAddr == newBest.PeerAddr && prev.NextHop == nextHop &&
-		prev.Priority == priority && prev.Metric == metric {
-		return bestChangeEntry{}, false // Same best, no change.
+	// Same-best short-circuit: compare raw winner values against the
+	// previous record's unpacked reverse-table entries. Three slice
+	// lookups + three value compares; no interner mutation; no prefix
+	// allocation. If the bounds-safe accessors report a miss (stale
+	// index from a reset interner), the comparison falls through and
+	// the record is re-interned below.
+	if havePrev {
+		ir := r.bestPathInterner
+		if ir.peerAt(prev.PeerIdx()) == newBest.PeerAddr &&
+			ir.nextHopAt(prev.NextHopIdx()) == nextHop &&
+			ir.metricAt(prev.MetricIdx()) == newBest.MED &&
+			prev.IsEBGP() == isEBGP {
+			return bestChangeEntry{}, false
+		}
 	}
 
-	// Compute the display prefix and next-hop only now -- the unchanged
-	// steady state above skips both entirely, saving a wirePrefixToString
-	// alloc and a nextHop.String() alloc per update. The latter was the
-	// ~15 MB fmt.Sprintf hotspot in the prior profile.
-	familyStr := fam.String()
-	prefix := wirePrefixToString(prefixBytesForDisplay(nlriBytes, addPath), familyStr)
+	// The record has changed (or is brand new). Validate the display
+	// prefix before any interner mutation so a malformed NLRI cannot
+	// grow the reverse tables with unreferenced entries.
+	prefix := wirePrefixToString(prefixBytesForDisplay(nlriBytes, addPath), fam.String())
 	if prefix == "" {
 		return bestChangeEntry{}, false
 	}
-	nextHopStr := nextHopString(nextHop)
 
-	backend.Insert(nlriBytes, bestPathRecord{
-		PeerAddr:     newBest.PeerAddr,
-		NextHop:      nextHop,
-		Priority:     priority,
-		Metric:       metric,
-		ProtocolType: protoType,
-	})
+	peerIdx, ok := r.bestPathInterner.internPeer(newBest.PeerAddr)
+	if !ok {
+		return bestChangeEntry{}, false
+	}
+	nhIdx, ok := r.bestPathInterner.internNextHop(nextHop)
+	if !ok {
+		return bestChangeEntry{}, false
+	}
+	metricIdx, ok := r.bestPathInterner.internMetric(newBest.MED)
+	if !ok {
+		return bestChangeEntry{}, false
+	}
+	var flags uint16
+	if isEBGP {
+		flags |= flagEBGP
+	}
+	newRec := packBestPath(metricIdx, peerIdx, nhIdx, flags)
+
+	backend.Insert(nlriBytes, newRec)
 	action := ribevents.BestChangeAdd
 	if havePrev {
 		action = ribevents.BestChangeUpdate
 	}
-	return bestChangeEntry{
-		Action:       action,
-		Prefix:       prefix,
-		NextHop:      nextHopStr,
-		Priority:     priority,
-		Metric:       metric,
-		ProtocolType: protoType,
-	}, true
+	return newRec.resolve(r.bestPathInterner, action, prefix), true
 }
 
 // protocolType returns the protocol-type label for a candidate based on
@@ -211,15 +420,6 @@ func (r *RIBManager) protocolType(c *Candidate) string {
 		return protocolTypeEBGP
 	}
 	return protocolTypeIBGP
-}
-
-// adminDistance returns the admin distance for a candidate.
-// eBGP = 20, iBGP = 200. Uses protocolType to determine the session type.
-func (r *RIBManager) adminDistance(c *Candidate) int {
-	if r.protocolType(c) == protocolTypeEBGP {
-		return 20
-	}
-	return 200 // iBGP
 }
 
 // bestCandidateNextHopAddr extracts the next-hop for the winning candidate's
@@ -321,24 +521,16 @@ func (r *RIBManager) replayBestPaths() {
 		famStr := fam.String()
 		// Replay is a cold path fired on late-subscriber replay-request.
 		// Presize to the exact final length so a 1M-entry family commits
-		// one ~80 MB allocation instead of paying ~20 geometric-growth
-		// cycles (~30 MB transient peak, similar final size). Upfront
-		// commitment is acceptable because the batch is emitted and
-		// released in the same function; GC reclaims immediately after.
+		// one allocation instead of paying multiple geometric-growth
+		// cycles. Upfront commitment is acceptable because the batch is
+		// emitted and released in the same function; GC reclaims immediately.
 		changes := make([]bestChangeEntry, 0, store.trie.Len()+store.ap.Len())
 		appendEntry := func(nlriBytes []byte, rec bestPathRecord, addPath bool) {
 			prefix := wirePrefixToString(prefixBytesForDisplay(nlriBytes, addPath), famStr)
 			if prefix == "" {
 				return
 			}
-			changes = append(changes, bestChangeEntry{
-				Action:       ribevents.BestChangeAdd,
-				Prefix:       prefix,
-				NextHop:      nextHopString(rec.NextHop),
-				Priority:     rec.Priority,
-				Metric:       rec.Metric,
-				ProtocolType: rec.ProtocolType,
-			})
+			changes = append(changes, rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, prefix))
 		}
 		store.trie.Iterate(func(nlriBytes []byte, rec bestPathRecord) bool {
 			appendEntry(nlriBytes, rec, false)

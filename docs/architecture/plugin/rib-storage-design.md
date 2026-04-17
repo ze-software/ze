@@ -577,6 +577,18 @@ backends; `FamilyRIB` retains its two build-tagged files
 <!-- source: internal/component/bgp/plugins/rib/storage/store_map.go -- Store[T] map-only under maprib -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestPrevStore pairs two Store[bestPathRecord] -->
 
+`bestPathRecord` is a named `uint64` -- four 16-bit fields (MetricIdx,
+PeerIdx, NextHopIdx, Flags bit 0 = isEBGP) packed into one scalar. The
+three index fields resolve through a shared `bestPrevInterner` on the
+RIBManager (one interner across every family's `bestPrevStore`), which
+dedupes peer addresses, next-hops, and MED values to dense uint16
+indices. The hot-path same-best check is a single `uint64` equality;
+emission resolves indices back to their original values via reverse
+tables. BART fringe nodes are opaque to GC because the stored value
+carries no pointers -- the motivation for the pack is cutting GC scan
+time at 1M-prefix scale.
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestPathRecord uint64 + bestPrevInterner -->
+
 
 ### ADD-PATH Support (RFC 7911)
 

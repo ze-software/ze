@@ -27,16 +27,7 @@ func newTestRIBManager(t *testing.T) *RIBManager {
 	}
 	p := sdk.NewWithConn("rib-test", pluginEnd)
 	t.Cleanup(func() { _ = p.Close() })
-	return &RIBManager{
-		plugin:        p,
-		ribInPool:     make(map[string]*storage.PeerRIB),
-		ribOut:        make(map[string]map[string]map[string]*Route),
-		peerUp:        make(map[string]bool),
-		peerMeta:      make(map[string]*PeerMeta),
-		retainedPeers: make(map[string]bool),
-		grState:       make(map[string]*peerGRState),
-		bestPrev:      make(map[family.Family]*bestPrevStore),
-	}
+	return NewRIBManager(p)
 }
 
 // TestParseEvent_SentFormat verifies parsing of sent UPDATE events.
