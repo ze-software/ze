@@ -830,8 +830,17 @@ func (p *Peer) defaultOriginateFilterAccepts(filterName string, fam family.Famil
 	// Synthesize the update text the filter would see for this default route.
 	// Format matches the ingress/egress policy text contract:
 	//   "origin igp next-hop <ip> nlri <family> add <prefix>"
-	updateText := fmt.Sprintf("origin igp next-hop %s nlri %s add %s",
-		nextHop.String(), fam.String(), prefix.String())
+	// Uses the same stack-scratch + Append + string(scratch) pattern as the
+	// main filter dispatch (see reactor_notify.go, reactor_api_forward.go)
+	// so every policy-filter text path goes through a single boundary alloc.
+	var scratchArr [256]byte
+	scratch := append(scratchArr[:0], "origin igp next-hop "...)
+	scratch = nextHop.AppendTo(scratch)
+	scratch = append(scratch, " nlri "...)
+	scratch = append(scratch, fam.String()...)
+	scratch = append(scratch, " add "...)
+	scratch = prefix.AppendTo(scratch)
+	updateText := string(scratch)
 
 	action, _ := PolicyFilterChain(
 		[]string{filterName},

@@ -8,6 +8,13 @@ Resolved flake-investigation knowledge distilled into
 summary before investigating a new concurrency or test-isolation failure --
 the recurring shapes are catalogued there.
 
+## TestPeerInfoPopulatesStats (uptime == 0) -- LOGGED 2026-04-17
+
+**File:** `internal/component/bgp/reactor/reactor_api_test.go:47`
+**Symptom:** `assert.True(t, p.Uptime > 0, "uptime should be non-zero for established peer")` fails because `SetEstablishedNow()` stamps the current time and `adapter.Peers()` runs immediately after, often computing `time.Since(established)` == 0 on fast CPUs (nanosecond clock resolution can return the same value twice in back-to-back calls). Reproduced with `go test -run TestPeerInfoPopulatesStats -count=3` (3/3 fail).
+**Hypothesis:** The test was introduced in commit `0801fe949 feat: replace generic message counters with per-type BGP statistics`; uses `SetEstablishedNow()` + immediate `Peers()` call with no delay in between. Pre-existing; not caused by any fmt-0-append or peer_initial_sync migration.
+**Fix pattern candidate:** Adjust the test to set `EstablishedAt` explicitly to `time.Now().Add(-time.Millisecond)` (or similar) instead of calling `SetEstablishedNow()`, so `time.Since` is guaranteed positive. Mirror pattern already used by `TestPeerInfoUptimeUsesEstablishedAt` at line 56.
+
 ## TestFwdPool_StopUnblocksDispatch (residual flake) -- LOGGED 2026-04-11
 
 **File:** `internal/component/bgp/reactor/forward_pool_stop_test.go`
