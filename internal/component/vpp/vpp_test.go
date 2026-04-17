@@ -3,11 +3,38 @@ package vpp
 import (
 	"context"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+// shortTempDir returns a temp directory whose path is short enough to
+// accommodate a Unix-socket filename without exceeding sun_path. Linux
+// sun_path is 108 bytes, BSD/Darwin is 104. Go's t.TempDir() on Darwin
+// returns /var/folders/xx/.../TestXXXX/001/ paths that are already
+// 80-100 bytes before the socket filename is appended; on Linux
+// t.TempDir() lives under /tmp/TestXXXX/001/ which fits comfortably.
+//
+// When t.TempDir() would produce a path too long for the caller's
+// socket filename, fall back to os.MkdirTemp("/tmp", "v") which
+// produces /tmp/vXXXXXXXXXX (~15 bytes). /tmp exists on every Unix
+// system ze supports.
+func shortTempDir(t *testing.T, reservedFor string) string {
+	t.Helper()
+	dir := t.TempDir()
+	// Reserve 8 bytes of headroom for a trailing slash + future growth.
+	if len(dir)+1+len(reservedFor)+8 < 104 {
+		return dir
+	}
+	alt, err := os.MkdirTemp("/tmp", "v")
+	if err != nil {
+		t.Skipf("cannot create short-path temp dir for sun_path test: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(alt) }) //nolint:errcheck // test cleanup
+	return alt
+}
 
 func TestNewVPPManager(t *testing.T) {
 	// VALIDATES: Manager construction
@@ -123,9 +150,9 @@ func TestMaxRestartBackoff(t *testing.T) {
 // VALIDATES: AC-1 -- External=true connects via GoVPP without execing VPP.
 // PREVENTS: the external-branch accidentally still calling cmd.Start.
 func TestVPPManagerRunOnce_ExternalSkipsExec(t *testing.T) {
-	dir := t.TempDir()
+	dir := shortTempDir(t, "api.sock")
 	sock := filepath.Join(dir, "api.sock")
-	if len(sock) >= 108 {
+	if len(sock) >= 104 {
 		t.Fatalf("socket path too long for sun_path: %d bytes", len(sock))
 	}
 
@@ -157,9 +184,9 @@ func TestVPPManagerRunOnce_ExternalSkipsExec(t *testing.T) {
 // VALIDATES: AC-1 -- runOnce blocks on ctx.Done (not cmd.Wait) when external.
 // PREVENTS: external branch closing the connector before ctx.Done.
 func TestVPPManagerRunOnce_ExternalBlocksOnCtx(t *testing.T) {
-	dir := t.TempDir()
+	dir := shortTempDir(t, "api.sock")
 	sock := filepath.Join(dir, "api.sock")
-	if len(sock) >= 108 {
+	if len(sock) >= 104 {
 		t.Fatalf("socket path too long for sun_path: %d bytes", len(sock))
 	}
 

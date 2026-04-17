@@ -8,22 +8,6 @@ Resolved flake-investigation knowledge distilled into
 summary before investigating a new concurrency or test-isolation failure --
 the recurring shapes are catalogued there.
 
-## TestVPPManagerRunOnce_External* (Darwin-only) -- LOGGED 2026-04-17
-
-**File:** `internal/component/vpp/vpp_test.go`
-**Symptom:** On macOS, both `TestVPPManagerRunOnce_ExternalSkipsExec` and
-`TestVPPManagerRunOnce_ExternalBlocksOnCtx` fail at the path-length guard
-(`t.Fatalf("socket path too long for sun_path: %d bytes", len(sock))`).
-Reported lengths: 110 and 112 bytes.
-**Root cause:** The tests compare against `>= 108` (Linux `sun_path` = 108).
-On Darwin/BSD, `sun_path` is 104 bytes. `t.TempDir()` returns paths under
-`/var/folders/.../T/TestXXX123/001/api.sock` which exceed 104.
-**Pre-existing:** VPP tests were added in commits `fc5bc3c20` (vpp-1 phases
-4-6) and `9a9a2c991` (vpp-7). Unrelated to spec-l2tp-6c-ncp work.
-**Fix pattern:** use `runtime.GOOS == "darwin"` to skip or use a shorter
-tmp dir (e.g. `/tmp/vppXXXX`). Or add `//go:build linux` tag since these
-tests exercise a Linux-only socket API and Darwin never runs VPP.
-
 ## TestFwdPool_StopUnblocksDispatch (residual flake) -- LOGGED 2026-04-11
 
 **File:** `internal/component/bgp/reactor/forward_pool_stop_test.go`
