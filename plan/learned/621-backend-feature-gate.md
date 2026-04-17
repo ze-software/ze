@@ -46,10 +46,15 @@ adding a `backend` leaf and a one-line call.
 - Every new backend-bearing feature now has a one-line declaration (`ze:backend "<names>";`)
   for its support matrix, consumed by commit-time validation and offline `ze config validate`
   uniformly.
-- fw-3 (firewall component plugin) and fw-5 (traffic component plugin) can adopt the gate
-  with: (1) add `ze:backend` annotations to the YANG nodes that vary per backend, (2) call
-  `config.ValidateBackendFeatures` from their `OnConfigVerify` with their `componentRoot` /
-  `backendLeafPath`. Walker needs no changes.
+- The firewall and traffic components can adopt the gate once they grow an
+  `OnConfigVerify` callback (work owned by `spec-fw-8-lns-gaps.md` Gap 4 for firewall and
+  `spec-fw-9-traffic-lifecycle.md` for traffic). The adoption is: (1) add `ze:backend`
+  annotations to YANG nodes that vary per backend, (2) call
+  `config.ValidateBackendFeaturesJSON` from the component's `OnConfigure` and
+  `OnConfigVerify`, (3) add a row to the gated-components table in
+  `cmd/ze/config/cmd_validate.go`. Walker needs no changes. The numbering names
+  "fw-3" and "fw-5" that earlier drafts of this spec used are already taken by shipped
+  work (traffic-netlink backend, CLI) and should not be used.
 - `Backend []string` now lives on `LeafNode`, `ContainerNode`, `ListNode`. Code reading
   these nodes for other purposes must ignore the new field (default `nil` = unrestricted).
 - The `ze:backend` name is now part of the YANG surface; its extension shape (argument

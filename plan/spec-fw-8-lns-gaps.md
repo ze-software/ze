@@ -146,6 +146,12 @@ No rfc/short/ entries needed; the type numbers are well-known constants.
 5. OnConfigReload: same path (verify new config, apply, rollback on failure)
 6. Shutdown: calls CloseBackend
 
+Related: `plan/learned/621-backend-feature-gate.md` describes the commit-time
+`ze:backend` walker that iface already calls from its `OnConfigure` /
+`OnConfigVerify`. The firewall reactor is the natural call site for the same
+helper; whether to bundle that wiring with Gap 4 or land it in a follow-up
+commit is an implementation choice for this spec's author.
+
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|

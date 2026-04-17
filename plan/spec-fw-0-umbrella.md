@@ -39,6 +39,8 @@ Two new components, four new plugins (two Linux backends, two VPP backends):
 | `spec-fw-5-cli.md` | show, monitor, counters CLI commands | fw-2, fw-3, fw-4 |
 | `spec-fw-6-firewall-vpp.md` | firewallvpp plugin, GoVPP ACL/classifier | VPP Phase 0 |
 | `spec-fw-7-traffic-vpp.md` | trafficvpp plugin, GoVPP policer/scheduler | VPP Phase 0 |
+| `spec-fw-8-lns-gaps.md` | ICMP type / iface wildcard / NAT exclude matches + firewall component reactor (Gap 4) | fw-1, fw-2, fw-4 |
+| `spec-fw-9-traffic-lifecycle.md` | traffic component reactor (register.go, OnConfigure/Apply, backend-gate call wiring; annotation-driven rejection tests deferred to fw-7) | - |
 
 ## Required Reading
 
@@ -51,7 +53,7 @@ Two new components, four new plugins (two Linux backends, two VPP backends):
   → Decision: single-method Apply pattern chosen over granular methods (design decision 3)
 - [ ] `plan/spec-vpp-0-umbrella.md` - VPP integration spec set
   → Constraint: VPP backends depend on vpp-1 (lifecycle management)
-  → Decision: VPP spec-vpp-5-features ACL/Policer becomes firewallvpp/trafficvpp
+  → Decision: ACL and Policer/QoS are owned by firewallvpp (spec-fw-6) and trafficvpp (spec-fw-7), not by a separate VPP-native YANG surface. Replaces the original spec-vpp-5-features plan, retired 2026-04-17.
 - [ ] `.claude/patterns/registration.md` - registration pattern
   → Constraint: init() + registry.Register() pattern for plugins
 - [ ] `.claude/patterns/config-option.md` - config option pattern
