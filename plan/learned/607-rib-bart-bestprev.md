@@ -1,0 +1,119 @@
+# 607 -- RIB BART bestPrev consolidation
+
+## Context
+
+After three phases of `checkBestPathChange` allocation reductions
+(`plan/learned/534-rib-alloc.md` and its phase-2/phase-3 iterations), the
+1M-prefix stress profile still showed `checkBestPathChange` holding 107.74 MB
+of flat inuse heap (47% of the total) and `gcBgMarkWorker` consuming 31% of
+CPU. The residual allocation was the nested Go map `bestPrev
+map[Family]map[string]bestPathRecord`: every non-duplicate insert copied
+NLRI bytes into a `string` key, every `bestPathRecord` eagerly stored a
+formatted `Prefix string`, and the inner map paid 7+ bucket-growth rehashes
+approaching 1M entries. The goal was to close that gap by folding `bestPrev`
+into BART via a generic, single-source dispatch pattern that both `FamilyRIB`
+and the best-path tracker can share.
+
+## Decisions
+
+- Introduced `storage.Store[T]` as a generic NLRI-keyed store dispatching
+  between a BART trie (non-ADD-PATH) and a map keyed by `NLRIKey` (ADD-PATH),
+  over two other candidates: a hybrid always-both-backends generic (would
+  have forced `FamilyRIB` to carry an empty map forever) and two small
+  orthogonal primitives (would have renamed the split instead of
+  consolidating). `Store[T]` is single-mode at construction; hybrid dispatch
+  lives one layer up at the rib layer where it is actually needed.
+- Rewrote `FamilyRIB` as a thin wrapper around `*Store[RouteEntry]` plus
+  pool-handle lifecycle methods (`Release`, `MarkStale`, `PurgeStale`,
+  `StaleCount`). Public API unchanged; callers see the same signatures.
+- Replaced `bestPrev map[Family]map[string]bestPathRecord` with
+  `map[Family]*bestPrevStore` where each `bestPrevStore` holds two
+  `*Store[bestPathRecord]` (one non-ADD-PATH, one ADD-PATH). Mixed-mode
+  sessions (some peers ADD-PATH, some not, same family) route each call to
+  the correct key space.
+- Dropped `bestPathRecord.Prefix string` (the eagerly-formatted display
+  string). The trie backend yields `netip.Prefix` for free; the map backend
+  yields `NLRIKey`. The display prefix is formatted lazily only when a change
+  event is emitted or when replay rebuilds a batch.
+- Preserved the `maprib` build tag: `store_bart.go` (`!maprib`) is BART+map,
+  `store_map.go` (`maprib`) is map-only; both `FamilyRIB` variants wrap the
+  corresponding `Store[T]`.
+- `Store[T].Iterate` reuses a single stack `[17]byte` buffer for the trie
+  backend instead of allocating via `PrefixToNLRI` per entry. Added
+  `PrefixToNLRIInto(pfx, buf)` in `nlrikey.go` so callers with a scratch
+  buffer pay zero heap. Iteration contract documented: `nlriBytes` is valid
+  only during the callback; copy if retained.
+
+## Consequences
+
+- bestPrev no longer pays for Go map rehash cycles as it crosses bucket
+  thresholds; BART grows incrementally with one node per insert.
+- The `bestPathRecord` struct is smaller (one less `string` field). On 1M
+  entries this eliminates ~30 MB of eagerly-formatted prefix strings.
+- `FamilyRIB` and `bestPrev` share one dispatch implementation instead of
+  two. Future storage changes (new families, different sharding) land in one
+  place.
+- The `addPath` parameter at `checkBestPathChange` call sites is now
+  load-bearing: it selects which backend the call routes to. Callers that
+  pass the wrong flag will silently write to the wrong backend (same latent
+  risk as the prior `string(nlriBytes)` approach, which likewise relied on
+  the 4-byte path-id prefix being present or absent as declared).
+- `FamilyRIB.IterateEntry` on the trie backend now runs without per-entry
+  heap allocation via the shared stack buffer. Cold-path callers
+  (`ze show rib`) at 1M-prefix scale no longer generate 17 MB of transient
+  garbage per enumeration.
+- The `maprib` escape hatch remains a debugging lever: `go test -tags maprib`
+  forces map-only storage for both `FamilyRIB` and `bestPrev`, useful for
+  isolating BART-specific regressions.
+
+## Gotchas
+
+- The `Store[T].Iterate` trie path uses a reused stack scratch buffer.
+  Callbacks that retain the `nlriBytes` slice past return will observe
+  subsequent iterations' data. Documented on the type and mirrored on the
+  map backend (where `key.Bytes()` has analogous semantics). `PurgeStale`
+  demonstrates the correct pattern: collect copies during iteration, delete
+  after iteration returns.
+- `wirePrefixToString` (in `rib_structured.go`) does not bounds-check
+  `prefixLen` against family max, while `NLRIToPrefix` does. The asymmetry
+  is unreachable in practice because RFC 7606 §5.3 treat-as-withdraw runs
+  earlier in the wire parser (`message/rfc7606.go`), but the comment now
+  points at that guarantee so the next reader does not mistake it for a
+  latent bug.
+- `bestPrevStore` allocates both the trie and the map eagerly (tens of bytes
+  idle when a family ends up using only one). Intentional: lazy allocation
+  would have required a per-call `if nil` check on the hot path for an
+  ignorable memory saving.
+- `FamilyRIB.PurgeStale` collects stale NLRIs into an allocated slice before
+  deletion because BART iteration cannot accept concurrent deletes. The
+  constraint is part of the BART library contract; the collection loop makes
+  a transient per-stale-entry allocation, bounded by stale count.
+
+## Files
+
+- `internal/component/bgp/plugins/rib/storage/store_bart.go` (new) -- generic
+  `Store[T]` with BART+map dispatch under default build
+- `internal/component/bgp/plugins/rib/storage/store_map.go` (new) -- generic
+  `Store[T]` map-only under `-tags maprib`
+- `internal/component/bgp/plugins/rib/storage/store_test.go` (new) --
+  table-driven coverage of the generic surface
+- `internal/component/bgp/plugins/rib/storage/store_bart_test.go` (new) --
+  trie-only malformed-input assertion gated by `!maprib`
+- `internal/component/bgp/plugins/rib/storage/familyrib_bart.go` -- rewritten
+  as a thin wrapper around `*Store[RouteEntry]` + lifecycle layer
+- `internal/component/bgp/plugins/rib/storage/familyrib_map.go` -- same
+  rewrite under the `maprib` tag
+- `internal/component/bgp/plugins/rib/storage/nlrikey.go` -- added
+  `PrefixToNLRIInto(pfx, buf)` for zero-alloc iteration
+- `internal/component/bgp/plugins/rib/rib_bestchange.go` -- dropped
+  `bestPathRecord.Prefix`; introduced `bestPrevStore` pairing two
+  `*Store[bestPathRecord]`; rewrote `checkBestPathChange` and
+  `replayBestPaths`
+- `internal/component/bgp/plugins/rib/rib.go` -- `bestPrev` field type
+  change + initializer update
+- `internal/component/bgp/plugins/rib/rib_bestchange_test.go`,
+  `internal/component/bgp/plugins/rib/rib_test.go` -- constructor lines
+- `internal/component/bgp/plugins/rib/rib_structured.go` -- RFC 7606
+  guarantee comment on `wirePrefixToString`
+- `docs/architecture/plugin/rib-storage-design.md` -- paragraph on
+  `Store[T]` and the bestPrev consolidation
