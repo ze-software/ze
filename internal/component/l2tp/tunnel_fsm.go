@@ -536,8 +536,9 @@ var protocolVersionValue = [2]byte{0x01, 0x00}
 
 // StopCCN Result Codes (RFC 2661 S4.4.2).
 const (
-	resultGeneralError  uint16 = 1 // "General request to clear control connection"
-	resultNotAuthorized uint16 = 4 // "Requester is not authorized to establish a control connection"
+	resultGeneralError   uint16 = 1 // "General request to clear control connection"
+	resultNotAuthorized  uint16 = 4 // "Requester is not authorized to establish a control connection"
+	resultAdministrative uint16 = 6 // "Administrative shutdown"
 )
 
 // handleStopCCN processes a peer-sent StopCCN on any tunnel state.

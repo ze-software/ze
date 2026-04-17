@@ -5,3 +5,6 @@ import _ "embed"
 
 //go:embed ze-l2tp-conf.yang
 var ZeL2TPConfYANG string
+
+//go:embed ze-l2tp-api.yang
+var ZeL2TPAPIYANG string

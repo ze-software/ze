@@ -13,8 +13,9 @@ import (
 
 // CDN Result Codes (RFC 2661 S5.4.2). Distinct from StopCCN Result Codes.
 const (
-	cdnResultGeneralError uint16 = 2 // Call disconnected -- general error
-	cdnResultNoResources  uint16 = 4 // Call disconnected -- no appropriate facilities
+	cdnResultGeneralError   uint16 = 2 // Call disconnected -- general error
+	cdnResultAdministrative uint16 = 3 // Call disconnected for administrative reasons
+	cdnResultNoResources    uint16 = 4 // Call disconnected -- no appropriate facilities
 )
 
 // dispatchToSession routes a session-scoped message to the appropriate
@@ -124,6 +125,7 @@ func (t *L2TPTunnel) handleICRQ(payload []byte, now time.Time, logger *slog.Logg
 		localSID:  localSID,
 		remoteSID: info.assignedSessionID,
 		state:     L2TPSessionWaitConnect,
+		createdAt: now,
 	}
 	t.addSession(sess)
 
@@ -198,6 +200,15 @@ func (t *L2TPTunnel) handleICCN(sess *L2TPSession, payload []byte, now time.Time
 	sess.proxyAuthenID = info.proxyAuthenID
 	sess.proxyAuthenResponse = info.proxyAuthenResponse
 
+	// Mirror the proxy-auth identity onto the session's canonical
+	// username field so the CLI snapshot and RouteObserver can read
+	// it without reaching into proxy-specific fields. The auth plugin
+	// (spec-l2tp-8) may later overwrite this with the RADIUS-validated
+	// identity.
+	if info.proxyAuthenName != "" {
+		sess.username = info.proxyAuthenName
+	}
+
 	logger.Info("l2tp: session established (incoming LNS)",
 		"local-sid", sess.localSID, "remote-sid", sess.remoteSID,
 		"tx-speed", info.txConnectSpeed, "framing", fmt.Sprintf("0x%08x", info.framingType))
@@ -250,6 +261,7 @@ func (t *L2TPTunnel) handleOCRQ(payload []byte, now time.Time, logger *slog.Logg
 		localSID:  localSID,
 		remoteSID: info.assignedSessionID,
 		state:     L2TPSessionWaitCSAnswer,
+		createdAt: now,
 	}
 	t.addSession(sess)
 

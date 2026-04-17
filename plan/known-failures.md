@@ -8,6 +8,23 @@ Resolved flake-investigation knowledge distilled into
 summary before investigating a new concurrency or test-isolation failure --
 the recurring shapes are catalogued there.
 
+## bfd-auth-meticulous-persist / prefix-maximum-enforce parallel-load flakes -- LOGGED 2026-04-17
+
+**Files:** `test/plugin/bfd-auth-meticulous-persist.ci`, `test/plugin/prefix-maximum-enforce.ci`
+**Symptom:** Both fail intermittently under `make ze-verify-fast` (GOMAXPROCS=29, parallel
+functional suite). Standalone retries pass cleanly:
+  `bin/ze-test bgp plugin bfd-auth-meticulous-persist` -> pass 5.1s
+  `bin/ze-test bgp plugin prefix-maximum-enforce` -> pass 1.0s
+The bfd test's Python driver gets `subprocess.TimeoutExpired` after 5.0s waiting for `ze -`; the
+prefix test gets a NOTIFICATION where it expected an UPDATE (race between UPDATE send and
+NOTIFICATION from maximum-prefix enforcement).
+**Hypothesis:** Port/time contention under high-parallel runner load. Both use 5-second hard
+timeouts on the Python side that do not account for 37 concurrent daemon starts. Fix candidates:
+(a) bump per-test timeouts, (b) serialise these two with `option=serial`, or (c) switch to
+event-driven synchronisation instead of wall-clock timeouts.
+**Unrelated to spec-l2tp-7** -- no L2TP code touched by either test; same behaviour before the
+spec landed.
+
 ## TestPeerInfoPopulatesStats (uptime == 0) -- LOGGED 2026-04-17
 
 **File:** `internal/component/bgp/reactor/reactor_api_test.go:47`

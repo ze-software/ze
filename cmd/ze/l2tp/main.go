@@ -28,6 +28,12 @@ func Run(args []string) int {
 	switch subcmd {
 	case "decode":
 		return cmdDecode(subArgs)
+	case "show":
+		return cmdShow(subArgs)
+	case "tunnel":
+		return cmdTunnelTeardown(subArgs)
+	case "session":
+		return cmdSessionTeardown(subArgs)
 	default:
 		fmt.Fprintf(os.Stderr, "error: unknown l2tp subcommand: %s\n", subcmd)
 		usage()
@@ -39,6 +45,11 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "usage: ze l2tp <subcommand> [flags]")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "subcommands:")
-	fmt.Fprintln(os.Stderr, "  decode    Decode a hex L2TPv2 control message from stdin to JSON")
-	fmt.Fprintln(os.Stderr, "  help      Show this message")
+	fmt.Fprintln(os.Stderr, "  decode                            Decode a hex L2TPv2 control message from stdin to JSON")
+	fmt.Fprintln(os.Stderr, "  show [tunnels|tunnel <id>|...]    Query the running daemon (forwards via SSH)")
+	fmt.Fprintln(os.Stderr, "  tunnel teardown <id>              Send StopCCN to one tunnel")
+	fmt.Fprintln(os.Stderr, "  tunnel teardown-all               Send StopCCN to every tunnel")
+	fmt.Fprintln(os.Stderr, "  session teardown <id>             Send CDN to one session")
+	fmt.Fprintln(os.Stderr, "  session teardown-all              Send CDN to every session")
+	fmt.Fprintln(os.Stderr, "  help                              Show this message")
 }

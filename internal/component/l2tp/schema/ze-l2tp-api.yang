@@ -1,0 +1,188 @@
+module ze-l2tp-api {
+    namespace "urn:ze:l2tp:api";
+    prefix l2tpapi;
+
+    description
+        "L2TP API operations for Ze. RPCs for observing tunnel and
+         session state, bound listeners, effective configuration, and
+         for operator-initiated teardown. RFC 2661 supplies the
+         field semantics (tunnel/session state, AVP values).";
+
+    revision 2026-04-17 {
+        description "Initial L2TP observability + teardown API (spec-l2tp-7).";
+    }
+
+    // -----------------------------------------------------------------
+    // Read operations (show l2tp ...). Every output value is a string
+    // carrying the JSON payload; the CLI handler renders it directly.
+    // -----------------------------------------------------------------
+
+    rpc summary {
+        description
+            "Return subsystem summary: tunnel count, session count,
+             listener count, aggregate state.";
+        output {
+            leaf summary {
+                type string;
+                description "JSON object with aggregate counters.";
+            }
+        }
+    }
+
+    rpc tunnels {
+        description "List every live tunnel.";
+        output {
+            leaf tunnels {
+                type string;
+                description "JSON array of tunnel summary objects.";
+            }
+        }
+    }
+
+    rpc tunnel {
+        description "Return one tunnel by local tunnel ID.";
+        input {
+            leaf tunnel-id {
+                type uint16;
+                mandatory true;
+                description "Local tunnel ID (1..65535).";
+            }
+        }
+        output {
+            leaf tunnel {
+                type string;
+                description "JSON object with tunnel detail.";
+            }
+        }
+    }
+
+    rpc sessions {
+        description "List every live session across all tunnels.";
+        output {
+            leaf sessions {
+                type string;
+                description "JSON array of session summary objects.";
+            }
+        }
+    }
+
+    rpc session {
+        description "Return one session by local session ID.";
+        input {
+            leaf session-id {
+                type uint16;
+                mandatory true;
+                description "Local session ID (1..65535).";
+            }
+        }
+        output {
+            leaf session {
+                type string;
+                description "JSON object with session detail.";
+            }
+        }
+    }
+
+    rpc statistics {
+        description
+            "Return protocol counters: tunnel/session counts,
+             listener bind state, redistribute activity.";
+        output {
+            leaf statistics {
+                type string;
+                description "JSON object with counter values.";
+            }
+        }
+    }
+
+    rpc listeners {
+        description "List bound UDP listener endpoints.";
+        output {
+            leaf listeners {
+                type string;
+                description "JSON array of listener objects.";
+            }
+        }
+    }
+
+    rpc config {
+        description
+            "Return effective runtime configuration. Shared-secret is
+             redacted to <set>/<unset>.";
+        output {
+            leaf config {
+                type string;
+                description "JSON object with effective config.";
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Destructive operations. All send either StopCCN (tunnel) or CDN
+    // (session) with administrative Result Code and return a status
+    // message.
+    // -----------------------------------------------------------------
+
+    rpc tunnel-teardown {
+        description
+            "Send StopCCN Result Code 6 (administrative) for the
+             tunnel with the given local tunnel ID.";
+        input {
+            leaf tunnel-id {
+                type uint16;
+                mandatory true;
+                description "Local tunnel ID (1..65535).";
+            }
+        }
+        output {
+            leaf result {
+                type string;
+                description "JSON object describing the teardown outcome.";
+            }
+        }
+    }
+
+    rpc tunnel-teardown-all {
+        description
+            "Send StopCCN Result Code 6 (administrative) for every
+             live tunnel on every listener.";
+        output {
+            leaf result {
+                type string;
+                description "JSON object with the number of tunnels torn down.";
+            }
+        }
+    }
+
+    rpc session-teardown {
+        description
+            "Send CDN Result Code 3 (administrative) for the session
+             with the given local session ID.";
+        input {
+            leaf session-id {
+                type uint16;
+                mandatory true;
+                description "Local session ID (1..65535).";
+            }
+        }
+        output {
+            leaf result {
+                type string;
+                description "JSON object describing the teardown outcome.";
+            }
+        }
+    }
+
+    rpc session-teardown-all {
+        description
+            "Send CDN Result Code 3 (administrative) for every live
+             session on every tunnel on every listener. Tunnels are
+             not torn down.";
+        output {
+            leaf result {
+                type string;
+                description "JSON object with the number of sessions torn down.";
+            }
+        }
+    }
+}

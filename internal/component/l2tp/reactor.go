@@ -152,6 +152,12 @@ type L2TPReactor struct {
 	pppDriver    pppDriverIface
 	pppEventsOut <-chan ppp.Event
 
+	// spec-l2tp-7 Phase 6: optional route observer. When set, the
+	// reactor invokes OnSessionIPUp on EventSessionIPAssigned and
+	// OnSessionDown at session teardown time. nil when no observer is
+	// installed (tests, subsystem disabled).
+	routeObserver RouteObserver
+
 	mu      sync.Mutex
 	stop    chan struct{}
 	wg      sync.WaitGroup
@@ -577,7 +583,7 @@ func (r *L2TPReactor) locateTunnelLocked(from netip.AddrPort, hdr MessageHeader,
 			"from", from.String(), "error", err.Error())
 		return nil, teardowns
 	}
-	t := newTunnel(localTID, sccrq.AssignedTunnelID, from, ReliableConfig{RecvWindow: r.params.Defaults.RecvWindow}, r.logger)
+	t := newTunnel(localTID, sccrq.AssignedTunnelID, from, ReliableConfig{RecvWindow: r.params.Defaults.RecvWindow}, r.logger, r.params.Clock())
 	t.maxSessions = r.params.MaxSessions
 	r.tunnelsByLocalID[localTID] = t
 	r.tunnelsByPeer[key] = t
@@ -852,6 +858,14 @@ func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 // set at the count the reactor knows about; bumping the count in a
 // future spec forces the author to handle the new type here too.
 func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
+	// spec-l2tp-7 Phase 6: EventSessionIPAssigned drives the route
+	// observer. Handled before the teardown switch so it does not
+	// accidentally reach the "unknown ppp.Event" fallback.
+	if ipAssigned, ok := ev.(ppp.EventSessionIPAssigned); ok {
+		r.handleSessionIPAssigned(ipAssigned)
+		return
+	}
+
 	var tid, sid uint16
 	var reason string
 	switch e := ev.(type) {
@@ -883,6 +897,13 @@ func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
 	outbound := tunnel.teardownSession(sess, cdnResultGeneralError, now, r.logger)
 	r.tunnelsMu.Unlock()
 
+	// spec-l2tp-7 Phase 6: notify the route observer before the CDN
+	// goes on the wire so subscriber routes are withdrawn promptly
+	// even if the outbound send blocks.
+	if r.routeObserver != nil {
+		r.routeObserver.OnSessionDown(sid)
+	}
+
 	r.logger.Info("l2tp: PPP requested session teardown; sending CDN",
 		"tunnel-id", tid, "session-id", sid, "reason", reason)
 	for _, req := range outbound {
@@ -890,6 +911,41 @@ func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
 			r.logger.Warn("l2tp: outbound send failed (PPP teardown CDN)",
 				"to", req.to.String(), "error", err.Error())
 		}
+	}
+}
+
+// handleSessionIPAssigned records the NCP-negotiated peer IP on the
+// session struct and calls RouteObserver.OnSessionIPUp. Called from
+// handlePPPEvent for every EventSessionIPAssigned (once per family
+// per session in dual-stack flows).
+func (r *L2TPReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
+	r.tunnelsMu.Lock()
+	tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]
+	if !ok {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	sess := tunnel.lookupSession(ev.SessionID)
+	if sess == nil {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	var addr netip.Addr
+	switch {
+	case ev.Peer.IsValid():
+		addr = ev.Peer
+		sess.assignedAddr = ev.Peer
+	case ev.Local.IsValid() && ev.InterfaceID != [8]byte{}:
+		// IPv6CP negotiates only an interface identifier; derive an
+		// fe80::/64 link-local for snapshot display.
+		addr = ev.Local
+		sess.assignedAddr = ev.Local
+	}
+	username := sess.username
+	r.tunnelsMu.Unlock()
+
+	if r.routeObserver != nil && addr.IsValid() {
+		r.routeObserver.OnSessionIPUp(ev.SessionID, username, addr)
 	}
 }
 

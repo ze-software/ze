@@ -135,9 +135,12 @@ func TestSubsystem_StopIdempotent(t *testing.T) {
 	require.NoError(t, sub.Stop(ctx))
 }
 
-// TestSubsystem_Reload — no-op in phase 3, transactions wired in phase 7.
+// TestSubsystem_Reload — spec-l2tp-7 made Reload meaningful. Calling
+// Reload on a never-Started subsystem now returns ErrSubsystemNotStarted
+// (detailed diff-apply semantics exercised in subsystem_reload_test.go).
 func TestSubsystem_Reload(t *testing.T) {
 	sub := l2tp.NewSubsystem(l2tp.Parameters{})
 	ctx := context.Background()
-	require.NoError(t, sub.Reload(ctx, nil))
+	err := sub.Reload(ctx, nil)
+	require.ErrorIs(t, err, l2tp.ErrSubsystemNotStarted)
 }

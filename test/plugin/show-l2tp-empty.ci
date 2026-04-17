@@ -1,0 +1,166 @@
+# Test: `show l2tp` returns aggregate counts of 0 on an idle daemon.
+#
+# VALIDATES: spec-l2tp-7 AC-6 -- Snapshot aggregated across reactors
+#            produces tunnel-count=0, session-count=0, listener-count
+#            matching the bound endpoints. Proves the CLI handlers,
+#            service locator, YANG augment of `show`, and subsystem
+#            façade are wired end-to-end.
+# PREVENTS:  regression where the L2TP CLI surface comes un-wired.
+#
+# Runs under test/plugin/ because the runner sets up the TLS hub
+# required for external plugins (the `show-l2tp-empty-test` observer
+# dispatches text commands via the engine).
+
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=show-l2tp-empty.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Dispatch `show l2tp` on an idle ze daemon and assert empty state."""
+
+import json
+import time
+
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(1.0)
+
+    r = None
+    for _ in range(20):
+        r = dispatch(api, 'show l2tp')
+        if r.get('status') == 'done':
+            break
+        time.sleep(0.25)
+    if r is None or r.get('status') != 'done':
+        status = r.get('status') if r else 'nil'
+        data = r.get('data', '') if r else ''
+        runtime_fail(f'show l2tp: status={status} data={data[:200]}')
+
+    try:
+        summary = json.loads(r.get('data', '') or '{}')
+    except json.JSONDecodeError as exc:
+        runtime_fail(f'show l2tp json: {exc}: {r.get("data", "")[:200]}')
+        summary = {}
+
+    if summary.get('tunnel-count') != 0:
+        runtime_fail(f'show l2tp tunnel-count={summary.get("tunnel-count")!r} want 0')
+    if summary.get('session-count') != 0:
+        runtime_fail(f'show l2tp session-count={summary.get("session-count")!r} want 0')
+    if summary.get('listener-count') != 1:
+        runtime_fail(f'show l2tp listener-count={summary.get("listener-count")!r} want 1')
+
+    # Probe `show l2tp listeners` shape.
+    r2 = dispatch(api, 'show l2tp listeners')
+    if r2.get('status') != 'done':
+        runtime_fail(f'show l2tp listeners: status={r2.get("status")}')
+    try:
+        lns = json.loads(r2.get('data', '') or '[]')
+    except json.JSONDecodeError as exc:
+        runtime_fail(f'show l2tp listeners json: {exc}')
+        lns = []
+    if len(lns) != 1 or lns[0].get('address') != '127.0.0.1':
+        runtime_fail(f'show l2tp listeners unexpected: {lns}')
+
+    # Probe `show l2tp config` redacts the shared secret.
+    r3 = dispatch(api, 'show l2tp config')
+    if r3.get('status') != 'done':
+        runtime_fail(f'show l2tp config: status={r3.get("status")}')
+    cfg = json.loads(r3.get('data', '') or '{}')
+    if cfg.get('shared-secret') not in ('<set>', '<unset>'):
+        runtime_fail(f'show l2tp config shared-secret leaked: {cfg.get("shared-secret")!r}')
+
+    # AC-18: unknown tunnel ID returns a StatusError naming the ID.
+    r4 = dispatch(api, 'show l2tp tunnel 999')
+    if r4.get('status') != 'error':
+        runtime_fail(f'show l2tp tunnel 999: expected status=error got {r4.get("status")!r}')
+    if '999' not in (r4.get('data') or ''):
+        runtime_fail(f'show l2tp tunnel 999: error must name the missing ID; got {r4.get("data")!r}')
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external show-l2tp-empty-test {
+		run ./show-l2tp-empty.run
+		encoder json
+	}
+}
+
+environment {
+	log {
+		l2tp debug
+	}
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+l2tp {
+	enabled true
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process show-l2tp-empty-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0

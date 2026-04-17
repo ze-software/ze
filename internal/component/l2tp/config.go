@@ -54,6 +54,17 @@ var (
 		Default:     "0",
 		Description: "Maximum concurrent sessions per tunnel (0 = unbounded)",
 	})
+	// Test-only: skip the modprobe l2tp_ppp / pppol2tp probe at Start.
+	// The .ci test harness sets this so show-l2tp-empty.ci can verify
+	// the CLI wiring without CAP_NET_ADMIN. Production paths leave it
+	// unset, so the real probe runs and surfaces loader errors.
+	_ = env.MustRegister(env.EnvEntry{
+		Key:         "ze.l2tp.skip-kernel-probe",
+		Type:        "bool",
+		Default:     "false",
+		Description: "Skip kernel module probe at Start (test-only; bypasses modprobe for L2TP CLI tests)",
+		Private:     true,
+	})
 	// spec-l2tp-6c-ncp: NCP enablement and timeout. Default enabled
 	// for both families; ip-timeout bounds how long PPP waits for the
 	// IP handler's response after emitting EventIPRequest.

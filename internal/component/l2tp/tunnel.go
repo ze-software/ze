@@ -88,6 +88,11 @@ type L2TPTunnel struct {
 	// Caller MUST hold the owning reactor's tunnelsMu.
 	lastActivity time.Time
 
+	// createdAt records the time the tunnel object was allocated (SCCRQ
+	// receive on LNS side, SCCRQ send on LAC side). Used by the CLI
+	// snapshot to report uptime. Immutable after newTunnel.
+	createdAt time.Time
+
 	// sessions maps our locally-assigned Session ID to the session state.
 	// Nil until the first session is created. Keyed by local SID (the ID
 	// in the header of inbound session-scoped messages).
@@ -108,7 +113,7 @@ type L2TPTunnel struct {
 // newTunnel constructs a tunnel in the idle state with a pre-wired
 // reliable engine. Caller owns the tunnel map entry; this function only
 // produces the value.
-func newTunnel(localTID, remoteTID uint16, peer netip.AddrPort, cfg ReliableConfig, logger *slog.Logger) *L2TPTunnel {
+func newTunnel(localTID, remoteTID uint16, peer netip.AddrPort, cfg ReliableConfig, logger *slog.Logger, now time.Time) *L2TPTunnel {
 	cfg.LocalTunnelID = localTID
 	cfg.PeerTunnelID = remoteTID
 	return &L2TPTunnel{
@@ -118,8 +123,13 @@ func newTunnel(localTID, remoteTID uint16, peer netip.AddrPort, cfg ReliableConf
 		state:     L2TPTunnelIdle,
 		engine:    NewReliableEngine(cfg),
 		logger:    logger.With("local-tid", localTID, "peer", peer.String()),
+		createdAt: now,
 	}
 }
+
+// CreatedAt returns the time the tunnel object was allocated.
+// Caller MUST hold the owning reactor's tunnelsMu.
+func (t *L2TPTunnel) CreatedAt() time.Time { return t.createdAt }
 
 // State returns the tunnel's current FSM state.
 //

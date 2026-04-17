@@ -66,6 +66,10 @@ type Subsystem struct {
 	timers        []*tunnelTimer
 	kernelWorkers []*kernelWorker
 	pppDrivers    []*ppp.Driver
+	// routeObserver tracks subscriber routes (session IP-up / down).
+	// One instance per subsystem; installed into every reactor at
+	// Start. See spec-l2tp-7 "Redistribute" and route_observer.go.
+	routeObserver *subscriberRouteObserver
 }
 
 // NewSubsystem constructs an L2TP subsystem from parsed Parameters. The returned
@@ -114,11 +118,25 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 		s.logger.Info("l2tp: periodic PPP re-auth enabled", "interval", d)
 	}
 
+	// spec-l2tp-7 Phase 6: register the L2TP redistribute source
+	// (`redistribute l2tp` becomes a valid config knob) and stand up
+	// the per-subsystem route observer. The observer is installed
+	// into every reactor below so session IP-up / session-down
+	// transitions drive subscriber route inject / withdraw.
+	RegisterL2TPSources()
+	s.routeObserver = newSubscriberRouteObserver(s.logger)
+
 	// Phase 5: probe kernel modules before binding listeners.
 	// AC-1/AC-2: on Linux, modprobe l2tp_ppp or pppol2tp must succeed.
 	// On non-Linux, probeKernelModules() is a no-op (returns nil).
 	// RFC 2661 Section 24.23: fail startup if module probe fails.
-	if err := probeKernelModulesFn(); err != nil {
+	//
+	// spec-l2tp-7 Phase 8: ze.l2tp.skip-kernel-probe bypasses the probe
+	// so `.ci` tests that only exercise the CLI surface (no data plane)
+	// can boot ze without CAP_NET_ADMIN.
+	if env.GetBool("ze.l2tp.skip-kernel-probe", false) {
+		s.logger.Warn("l2tp: skipping kernel module probe (ze.l2tp.skip-kernel-probe=true)")
+	} else if err := probeKernelModulesFn(); err != nil {
 		return fmt.Errorf("l2tp: %w", err)
 	}
 
@@ -144,6 +162,10 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 				SharedSecret:        s.params.SharedSecret,
 			},
 		})
+		// spec-l2tp-7 Phase 6: install the subsystem's route observer
+		// into every reactor so EventSessionIPAssigned and
+		// EventSessionDown drive inject / withdraw.
+		reactor.SetRouteObserver(s.routeObserver)
 
 		// Phase 5: wire the kernel worker BEFORE starting the reactor so
 		// SetKernelWorker's writes happen-before the reactor goroutine
@@ -225,6 +247,10 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 		s.logger.Info("L2TP listener bound", "address", ln.Addr().String())
 	}
 	s.started = true
+	// Publish the Service so CLI handlers (internal/component/cmd/l2tp/)
+	// can reach the subsystem without importing it directly. Cleared in
+	// Stop below so late callers observe nil rather than racing teardown.
+	PublishService(s)
 	return nil
 }
 
@@ -304,6 +330,10 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	if !s.started {
 		return nil
 	}
+	// Clear the Service publication BEFORE shutting down the reactors so
+	// concurrent CLI handlers observe nil instead of calling into a
+	// half-stopped subsystem. LookupService returns nil thereafter.
+	PublishService(nil)
 	s.logger.Info("L2TP subsystem stopping")
 
 	var errs []error
@@ -349,10 +379,4 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	return errors.Join(errs...)
 }
 
-// Reload implements ze.Subsystem. Phase 3 is restart-only; Reload accepts the
-// new ConfigProvider but does not apply changes until phase 7 wires config
-// transaction participation.
-func (s *Subsystem) Reload(_ context.Context, _ ze.ConfigProvider) error {
-	s.logger.Debug("L2TP Reload received (config transaction participation added in phase 7)")
-	return nil
-}
+// Reload is implemented in subsystem_reload.go.

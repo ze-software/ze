@@ -14,7 +14,7 @@ func newEstablishedTunnel(t *testing.T, maxSessions uint16) *L2TPTunnel {
 	logger := slog.Default()
 	tun := newTunnel(100, 200, netip.MustParseAddrPort("10.0.0.1:1701"),
 		ReliableConfig{MaxRetransmit: 5, RTimeout: time.Second, RTimeoutCap: 8 * time.Second, RecvWindow: 4},
-		logger)
+		logger, time.Now())
 	tun.state = L2TPTunnelEstablished
 	tun.maxSessions = maxSessions
 	return tun

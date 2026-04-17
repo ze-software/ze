@@ -50,7 +50,7 @@ func addEstablishedSession(tun *L2TPTunnel, localSID, remoteSID uint16, lns bool
 func mkTunnel(r *L2TPReactor, localTID, remoteTID uint16, peer netip.AddrPort) *L2TPTunnel {
 	tun := newTunnel(localTID, remoteTID, peer,
 		ReliableConfig{MaxRetransmit: 3, RTimeout: time.Second, RTimeoutCap: 4 * time.Second, RecvWindow: 4},
-		r.logger)
+		r.logger, time.Now())
 	tun.state = L2TPTunnelEstablished
 	r.tunnelsMu.Lock()
 	r.tunnelsByLocalID[tun.localTID] = tun

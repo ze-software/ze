@@ -7,6 +7,8 @@ package l2tp
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"net/netip"
+	"time"
 )
 
 // L2TPSessionState enumerates the session FSM states from RFC 2661 S10.
@@ -56,6 +58,27 @@ type L2TPSession struct {
 	remoteSID uint16
 	state     L2TPSessionState
 
+	// createdAt is the time.Now() when the session was allocated
+	// (handleICRQ on LNS side, handleOCRQ on LAC side). Used by the
+	// CLI snapshot to report uptime. Immutable after creation.
+	createdAt time.Time
+
+	// assignedAddr is the peer IP address the PPP NCP layer negotiated
+	// (IPCP for IPv4, IPv6CP interface-ID for IPv6). Zero-valued until
+	// EventSessionIPAssigned arrives. Populated by handlePPPEvent in
+	// the reactor; the RouteObserver uses this to inject the /32 or
+	// /128 into the protocol RIB.
+	//
+	// Caller MUST hold the owning reactor's tunnelsMu.
+	assignedAddr netip.Addr
+
+	// username is the PPP-authenticated peer identity. Populated from
+	// proxyAuthenName on ICCN (LAC->LNS proxy auth) or from the auth
+	// plugin response (spec-l2tp-8). Empty until populated.
+	//
+	// Caller MUST hold the owning reactor's tunnelsMu.
+	username string
+
 	// Connection parameters captured from ICCN/OCCN.
 	txConnectSpeed     uint32
 	rxConnectSpeed     uint32
@@ -102,6 +125,20 @@ func (s *L2TPSession) LocalSID() uint16 { return s.localSID }
 
 // RemoteSID returns the peer's Assigned Session ID.
 func (s *L2TPSession) RemoteSID() uint16 { return s.remoteSID }
+
+// CreatedAt returns the wall-clock time the session was allocated.
+// Caller MUST hold the owning reactor's tunnelsMu.
+func (s *L2TPSession) CreatedAt() time.Time { return s.createdAt }
+
+// AssignedAddr returns the peer IP negotiated via IPCP / IPv6CP, or a
+// zero netip.Addr when no NCP has completed yet.
+// Caller MUST hold the owning reactor's tunnelsMu.
+func (s *L2TPSession) AssignedAddr() netip.Addr { return s.assignedAddr }
+
+// Username returns the PPP-authenticated peer identity, or "" when
+// authentication is not yet complete or was not required.
+// Caller MUST hold the owning reactor's tunnelsMu.
+func (s *L2TPSession) Username() string { return s.username }
 
 // maxAllocRetries caps the session ID collision retry loop to prevent
 // infinite spinning when the ID space is exhausted.
