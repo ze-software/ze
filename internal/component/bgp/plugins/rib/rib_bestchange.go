@@ -10,6 +10,8 @@
 package rib
 
 import (
+	"net/netip"
+
 	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
@@ -29,9 +31,15 @@ type bestChangeBatch = ribevents.BestChangeBatch
 // bestPathRecord stores the previous best-path state for change detection.
 // The prefix is not stored -- it is the key of the owning bestPrevStore entry
 // and is formatted lazily from that key on the emission path.
+//
+// NextHop is a netip.Addr rather than a formatted string: comparison on the
+// hot steady-state path is a value compare (no allocation), and the display
+// string is produced only when a change event is actually emitted via
+// nextHopString below. Prior to this shape, fmt.Sprintf inside formatNextHop
+// accounted for ~15 MB of inuse allocation under the 1M-prefix stress.
 type bestPathRecord struct {
 	PeerAddr     string
-	NextHop      string
+	NextHop      netip.Addr
 	Priority     int // admin distance: eBGP=20, iBGP=200
 	Metric       uint32
 	ProtocolType string // "ebgp" or "ibgp"
@@ -79,6 +87,34 @@ func prefixBytesForDisplay(nlriBytes []byte, addPath bool) []byte {
 	return nlriBytes
 }
 
+// parseNextHopAddr converts raw NEXT_HOP attribute bytes into a netip.Addr.
+// Returns the zero Addr (IsValid()==false) on malformed input. Zero-alloc:
+// netip.AddrFrom4 and AddrFrom16 are pure value constructors.
+func parseNextHopAddr(data []byte) netip.Addr {
+	switch len(data) {
+	case 4:
+		var a [4]byte
+		copy(a[:], data)
+		return netip.AddrFrom4(a)
+	case 16:
+		var a [16]byte
+		copy(a[:], data)
+		return netip.AddrFrom16(a)
+	}
+	return netip.Addr{}
+}
+
+// nextHopString produces the display form of a best-path next-hop for the
+// BestChangeEntry JSON payload. Returns "" for the zero Addr (absent /
+// malformed). IPv6 is emitted in canonical (RFC 5952) compressed form, which
+// matches ze's other JSON paths in test/encode/*.ci and test/plugin/*.ci.
+func nextHopString(a netip.Addr) string {
+	if !a.IsValid() {
+		return ""
+	}
+	return a.String()
+}
+
 // checkBestPathChange evaluates the best path for a prefix after an insert or remove.
 // Compares with the previous best and returns a change entry if the best path changed.
 // addPath indicates whether nlriBytes includes a 4-byte path-ID prefix.
@@ -122,7 +158,9 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	}
 
 	// Extract next-hop, priority, and protocol type from the new best.
-	nextHop := r.bestCandidateNextHop(fam, nlriBytes, newBest)
+	// NextHop is kept as netip.Addr for the hot comparison; the display
+	// string is materialized only if we go on to emit a change below.
+	nextHop := r.bestCandidateNextHopAddr(fam, nlriBytes, newBest)
 	priority := r.adminDistance(newBest)
 	protoType := r.protocolType(newBest)
 	metric := newBest.MED
@@ -132,13 +170,16 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		return bestChangeEntry{}, false // Same best, no change.
 	}
 
-	// Compute the display prefix only now -- the unchanged steady state above
-	// skips this entirely, saving a wirePrefixToString alloc per update.
+	// Compute the display prefix and next-hop only now -- the unchanged
+	// steady state above skips both entirely, saving a wirePrefixToString
+	// alloc and a nextHop.String() alloc per update. The latter was the
+	// ~15 MB fmt.Sprintf hotspot in the prior profile.
 	familyStr := fam.String()
 	prefix := wirePrefixToString(prefixBytesForDisplay(nlriBytes, addPath), familyStr)
 	if prefix == "" {
 		return bestChangeEntry{}, false
 	}
+	nextHopStr := nextHopString(nextHop)
 
 	backend.Insert(nlriBytes, bestPathRecord{
 		PeerAddr:     newBest.PeerAddr,
@@ -154,7 +195,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	return bestChangeEntry{
 		Action:       action,
 		Prefix:       prefix,
-		NextHop:      nextHop,
+		NextHop:      nextHopStr,
 		Priority:     priority,
 		Metric:       metric,
 		ProtocolType: protoType,
@@ -181,47 +222,52 @@ func (r *RIBManager) adminDistance(c *Candidate) int {
 	return 200 // iBGP
 }
 
-// bestCandidateNextHop extracts the next-hop string for the winning candidate's route entry.
+// bestCandidateNextHopAddr extracts the next-hop for the winning candidate's
+// route entry as a netip.Addr. Returns the zero Addr when missing. This is
+// the zero-alloc equivalent of the former string-returning helper: the hot
+// comparison in checkBestPathChange is a value compare against the stored
+// bestPathRecord.NextHop, with string materialization deferred until the
+// emission path.
 // For IPv4, reads from the NEXT_HOP attribute (code 3).
 // For IPv6 and other MP families, extracts from MP_REACH_NLRI (code 14) in OtherAttrs.
 // Caller MUST hold r.mu (at least read lock).
-func (r *RIBManager) bestCandidateNextHop(fam family.Family, nlriBytes []byte, best *Candidate) string {
+func (r *RIBManager) bestCandidateNextHopAddr(fam family.Family, nlriBytes []byte, best *Candidate) netip.Addr {
 	peerRIB := r.ribInPool[best.PeerAddr]
 	if peerRIB == nil {
-		return ""
+		return netip.Addr{}
 	}
 	entry, ok := peerRIB.Lookup(fam, nlriBytes)
 	if !ok {
-		return ""
+		return netip.Addr{}
 	}
 
 	// Try IPv4 NEXT_HOP attribute (code 3) first.
 	if entry.HasNextHop() {
 		data, err := pool.NextHop.Get(entry.NextHop)
 		if err == nil {
-			return formatNextHop(data)
+			if a := parseNextHopAddr(data); a.IsValid() {
+				return a
+			}
 		}
 	}
 
 	// For IPv6/multiprotocol: extract next-hop from MP_REACH_NLRI (code 14) in OtherAttrs.
 	// MP_REACH wire format: AFI(2) + SAFI(1) + NH_len(1) + NH(variable) + reserved(1) + NLRIs.
 	if entry.HasOtherAttrs() {
-		nh := extractMPNextHop(entry)
-		if nh != "" {
-			return nh
-		}
+		return extractMPNextHopAddr(entry)
 	}
 
-	return ""
+	return netip.Addr{}
 }
 
-// extractMPNextHop extracts the next-hop from MP_REACH_NLRI stored in OtherAttrs.
+// extractMPNextHopAddr extracts the next-hop from MP_REACH_NLRI stored in
+// OtherAttrs as a netip.Addr. Returns zero Addr on missing / malformed input.
 // OtherAttrs format: [type(1)][flags(1)][length_16bit(2)][value(n)]...
 // MP_REACH value: AFI(2) + SAFI(1) + NH_len(1) + NH(variable) + ...
-func extractMPNextHop(entry storage.RouteEntry) string {
+func extractMPNextHopAddr(entry storage.RouteEntry) netip.Addr {
 	data, err := pool.OtherAttrs.Get(entry.OtherAttrs)
 	if err != nil {
-		return ""
+		return netip.Addr{}
 	}
 
 	// Walk OtherAttrs to find attribute type code 14 (MP_REACH_NLRI).
@@ -239,23 +285,23 @@ func extractMPNextHop(entry storage.RouteEntry) string {
 			value := data[off : off+length]
 			// AFI(2) + SAFI(1) + NH_len(1) = 4 bytes minimum.
 			if len(value) < 4 {
-				return ""
+				return netip.Addr{}
 			}
 			nhLen := int(value[3])
 			if len(value) < 4+nhLen {
-				return ""
+				return netip.Addr{}
 			}
 			nhBytes := value[4 : 4+nhLen]
 			// For 32-byte next-hop (IPv6 global + link-local), use the first 16 bytes.
 			if nhLen == 32 {
 				nhBytes = nhBytes[:16]
 			}
-			return formatNextHop(nhBytes)
+			return parseNextHopAddr(nhBytes)
 		}
 
 		off += length
 	}
-	return ""
+	return netip.Addr{}
 }
 
 // replayBestPaths emits the entire current best-path table as one batch per
@@ -288,7 +334,7 @@ func (r *RIBManager) replayBestPaths() {
 			changes = append(changes, bestChangeEntry{
 				Action:       ribevents.BestChangeAdd,
 				Prefix:       prefix,
-				NextHop:      rec.NextHop,
+				NextHop:      nextHopString(rec.NextHop),
 				Priority:     rec.Priority,
 				Metric:       rec.Metric,
 				ProtocolType: rec.ProtocolType,

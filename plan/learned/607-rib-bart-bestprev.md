@@ -113,7 +113,42 @@ trie as durable storage rather than as per-update allocation pressure.
 
 `fmt.Sprintf` at 15 MB is the remaining `bestCandidateNextHop -> formatNextHop`
 allocation flagged earlier in the `/ze-design` decision log as an out-of-scope
-follow-up; it did not move because this spec did not touch that path.
+follow-up; it did not move because this initial refactor did not touch that
+path.
+
+### Phase-4b follow-up: NextHop as netip.Addr
+
+Immediately after the Phase-4 commits landed, a follow-up pass converted
+`bestPathRecord.NextHop` from `string` to `netip.Addr` so the hot-path
+comparison inside `checkBestPathChange` became a value compare, and the
+display string was produced only on the emission path. `formatNextHop`
+itself was left alone (used by show/filter code paths with their own
+existing conventions); a new `parseNextHopAddr`, `extractMPNextHopAddr`
+and `nextHopString` helpers sit on the best-path path.
+
+| Metric | Phase-4 | Phase-4b | Delta |
+|---|---|---|---|
+| `fmt.Sprintf` via bestCandidateNextHop | 15 MB (10.4%) | not in top 20 | eliminated |
+| Total CPU | 6.82s (7.58%) | 6.36s (7.07%) | -7% |
+| `checkBestPathChange` flat heap | < 0.72 MB | < 0.86 MB | unchanged |
+| BART NewFringeNode[bestPathRecord] | 41 MB | 56.5 MB | +15 MB (larger record) |
+| Total inuse heap | 144 MB | 172 MB | run variance |
+
+The bestPathRecord struct grew by 8 bytes per entry (netip.Addr 24 vs
+string header 16), reflected in the larger fringe-node allocation. This
+cost is steady-state trie storage, offset by the elimination of the
+per-call transient string allocations that were producing 15 MB of
+fmt.Sprintf churn. The total-heap variance (+28 MB) is run-to-run noise
+once allocations are dominated by BART internals; both phase-4 runs
+are well below the 228 MB Phase-3 baseline.
+
+IPv6 next-hop emission now uses `netip.Addr.String()` which produces
+RFC 5952 canonical compressed form (`2001::1`). This aligns the
+best-change event output with ze's other JSON paths (verified against
+`test/plugin/nexthop.ci`, `ipv6.ci`, `mup6.ci` expectations). The
+former `formatNextHop` in `rib_nlri.go` produced uncompressed form and
+remains unchanged for the non-best-change callers (show / filter)
+where those paths' existing output format is preserved.
 
 ## Files
 
