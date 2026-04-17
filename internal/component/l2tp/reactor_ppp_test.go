@@ -5,6 +5,8 @@
 package l2tp
 
 import (
+	"io"
+	"log/slog"
 	"net"
 	"net/netip"
 	"testing"
@@ -15,6 +17,50 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
+
+// discardLoggerForTest returns a logger that drops every record.
+// Local helper to avoid dragging a production slogutil dependency
+// into reactor tests.
+func discardLoggerForTest() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
+// VALIDATES: clampReauthInterval applies the 5 s safety floor, ignores
+//
+//	non-positive values, and logs a WARN when falling back or
+//	clamping. An empty value yields 0 (disabled); a malformed
+//	duration yields 0 (disabled); a 1 ms value clamps to 5 s;
+//	a 10 s value passes through verbatim.
+//
+// PREVENTS: regression where a 1 us operator typo in
+//
+//	ze.l2tp.auth.reauth-interval would launch a reauth
+//	storm (ISSUE 2 from /ze-review 2026-04-17).
+func TestClampReauthInterval(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  string
+		want time.Duration
+	}{
+		{"empty disables", "", 0},
+		{"zero disables", "0s", 0},
+		{"negative disables", "-1s", 0},
+		{"malformed disables", "not-a-duration", 0},
+		{"one microsecond clamps to floor", "1us", reauthIntervalFloor},
+		{"one millisecond clamps to floor", "1ms", reauthIntervalFloor},
+		{"floor passes through verbatim", reauthIntervalFloor.String(), reauthIntervalFloor},
+		{"ten seconds passes through", "10s", 10 * time.Second},
+		{"one hour passes through", "1h", time.Hour},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := clampReauthInterval(discardLoggerForTest(), tc.raw)
+			if got != tc.want {
+				t.Errorf("clampReauthInterval(%q) = %v, want %v", tc.raw, got, tc.want)
+			}
+		})
+	}
+}
 
 // openPeerSocket binds a UDP socket on loopback ephemeral port. The
 // returned addr is the peerAddr to plug into the tunnel so the reactor's

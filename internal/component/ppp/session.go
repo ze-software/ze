@@ -46,6 +46,7 @@ type pppSession struct {
 	echoFailures      uint8
 	authTimeout       time.Duration
 	authFallbackOrder []AuthMethod
+	reauthInterval    time.Duration
 
 	// configuredAuthMethod is the Auth-Protocol value ze will
 	// advertise in its next LCP Configure-Request. Initialized from

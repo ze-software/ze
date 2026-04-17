@@ -69,12 +69,13 @@ var (
 )
 
 // MSCHAPv2Response is a parsed MS-CHAPv2 Response packet (code 2).
-// PeerChallenge and NTResponse are fresh sub-slices of the parser input:
-// the caller may retain them past the read-buffer lifetime by copying.
-// Reserved (8 octets) and Flags (1 octet) are validated as zero and
-// dropped -- they are not exposed because the RFC 2759 Section 5 hash
-// recipes do not take them as input, so passing them downstream would be
-// noise.
+// PeerChallenge and NTResponse are freshly allocated copies (the
+// parser does `make([]byte, N) + copy(...)`), so the caller may
+// retain them past the parser-input buffer's lifetime without any
+// additional copy. Reserved (8 octets) and Flags (1 octet) are
+// validated as zero and dropped -- they are not exposed because the
+// RFC 2759 Section 5 hash recipes do not take them as input, so
+// passing them downstream would be noise.
 type MSCHAPv2Response struct {
 	Identifier    uint8
 	PeerChallenge []byte
@@ -354,44 +355,13 @@ func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 		return false
 	}
 
-	var frame []byte
-	select {
-	case f, ok := <-s.framesIn:
-		if !ok {
-			s.fail("chap-v2: frames channel closed")
-			return false
-		}
-		frame = f
-	case <-s.stopCh:
-		return false
-	case <-s.sessStop:
-		return false
-	}
-	defer putFrameBuf(frame)
-	proto, payload, _, perr := ParseFrame(frame)
-	if perr != nil {
-		s.fail("chap-v2: malformed frame: " + perr.Error())
-		return false
-	}
-	if proto != ProtoCHAP {
-		s.fail("chap-v2: unexpected protocol 0x" +
-			strconv.FormatUint(uint64(proto), 16))
-		return false
-	}
-	resp, perr := ParseMSCHAPv2Response(payload)
-	if perr != nil {
-		s.fail("chap-v2: malformed response: " + perr.Error())
-		return false
-	}
-	// RFC 2759 Section 4 (via RFC 1994 Section 4.1): Response
-	// Identifier MUST match the outstanding Challenge Identifier.
-	// Same fail-immediately behavior as runCHAPAuthPhase; retry loop
-	// is deferred to Phase 9.
-	if resp.Identifier != identifier {
-		s.fail("chap-v2: response identifier 0x" +
-			strconv.FormatUint(uint64(resp.Identifier), 16) +
-			" does not match challenge 0x" +
-			strconv.FormatUint(uint64(identifier), 16))
+	// RFC 2759 Section 4 (via RFC 1994 §4.1): Response Identifier MUST
+	// match the outstanding Challenge Identifier. AC-16: mismatched
+	// Identifiers are silently discarded (handled in waitMSCHAPv2Response).
+	// Structural parse errors (Reserved/Flags non-zero, wrong 49-byte
+	// length) remain hard fails.
+	resp, ok := s.waitMSCHAPv2Response(identifier)
+	if !ok {
 		return false
 	}
 

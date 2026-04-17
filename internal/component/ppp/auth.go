@@ -2,13 +2,14 @@
 // Related: auth_events.go -- AuthMethod enum + EventAuthRequest/Success/Failure
 // Related: session_run.go -- runAuthPhase switch driven by these helpers
 // Related: pap.go -- runPAPAuthPhase consumer of awaitAuthDecision
-// Related: chap.go -- runCHAPAuthPhase consumer of awaitAuthDecision
-// Related: mschapv2.go -- runMSCHAPv2AuthPhase consumer of awaitAuthDecision
+// Related: chap.go -- runCHAPAuthPhase consumer of awaitAuthDecision + waitCHAPResponse
+// Related: mschapv2.go -- runMSCHAPv2AuthPhase consumer of awaitAuthDecision + waitMSCHAPv2Response
 
 package ppp
 
 import (
 	"encoding/binary"
+	"strconv"
 	"time"
 )
 
@@ -232,4 +233,128 @@ func (s *pppSession) awaitAuthDecision(req EventAuthRequest, label string) (auth
 		})
 		return authResponseMsg{}, false
 	}
+}
+
+// waitCHAPLike reads ProtoCHAP frames from framesIn until parse yields
+// a Response whose returned Identifier matches wantID, or s.authTimeout
+// expires. Shared by CHAP-MD5 and MS-CHAPv2 response waits.
+//
+// Implements AC-16 silent-discard (RFC 1994 §4.1): a Response with a
+// mismatched Identifier is dropped with a debug log and the wait
+// continues. A malformed CHAP frame (bad ParseFrame, parse error)
+// tears the session down immediately -- those are peer-misbehavior
+// conditions the Phase 9 retry loop does not paper over.
+//
+// Non-CHAP frames arriving during the wait are routed through
+// s.handleFrame so LCP keepalive (Echo-Request/Reply) and
+// Terminate-Request stay responsive during the initial auth window
+// and, critically, during every Phase 9 periodic re-auth window. If
+// handleFrame returns term=true (LCP FSM reached Closed/Stopped),
+// the wait returns ok=false so the caller aborts auth.
+//
+// parse extracts the method-specific Response struct from a PPP
+// payload and returns (result, identifier, err). The wait uses
+// s.authTimeout as its bound so periodic re-auth never parks
+// indefinitely on a silent peer. On any terminal condition (malformed
+// packet, channel close, stop, timeout) the helper emits
+// EventAuthFailure and calls s.fail so callers may return false
+// directly.
+//
+// label prefixes all fail-reason strings ("chap" or "chap-v2").
+func waitCHAPLike[T any](
+	s *pppSession,
+	label string,
+	wantID uint8,
+	parse func([]byte) (T, uint8, error),
+) (T, bool) {
+	var zero T
+	timeout := s.authTimeout
+	if timeout <= 0 {
+		timeout = defaultAuthTimeout
+	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	for {
+		select {
+		case f, ok := <-s.framesIn:
+			if !ok {
+				s.fail(label + ": frames channel closed")
+				return zero, false
+			}
+			proto, payload, _, perr := ParseFrame(f)
+			if perr != nil {
+				putFrameBuf(f)
+				s.fail(label + ": malformed frame: " + perr.Error())
+				return zero, false
+			}
+			if proto != ProtoCHAP {
+				// LCP / other protocols during the auth wait: let
+				// the main frame handler process them so keepalive
+				// and Terminate-Request stay responsive (critical
+				// for Phase 9 periodic re-auth, where the wait
+				// window recurs for the session's lifetime).
+				// handleFrame re-parses the frame -- negligible
+				// cost; the simpler alternative of routing the
+				// already-parsed payload would need a dedicated
+				// LCP dispatch shim.
+				term := s.handleFrame(f)
+				putFrameBuf(f)
+				if term {
+					return zero, false
+				}
+				continue
+			}
+			resp, gotID, perr := parse(payload)
+			putFrameBuf(f)
+			if perr != nil {
+				s.fail(label + ": malformed response: " + perr.Error())
+				return zero, false
+			}
+			if gotID != wantID {
+				s.logger.Debug(label+": discarding response with mismatched identifier",
+					"got", gotID, "want", wantID)
+				continue
+			}
+			return resp, true
+		case <-s.stopCh:
+			return zero, false
+		case <-s.sessStop:
+			return zero, false
+		case <-timer.C:
+			reason := label + ": timeout awaiting Response for identifier " +
+				strconv.FormatUint(uint64(wantID), 16)
+			s.fail(reason)
+			s.sendAuthEvent(EventAuthFailure{
+				TunnelID:  s.tunnelID,
+				SessionID: s.sessionID,
+				Reason:    "timeout",
+			})
+			return zero, false
+		}
+	}
+}
+
+// waitCHAPResponse is the CHAP-MD5 specialization of waitCHAPLike.
+// Silent-discards Responses whose Identifier differs from wantID per
+// RFC 1994 §4.1 and AC-16.
+func (s *pppSession) waitCHAPResponse(wantID uint8) (CHAPResponse, bool) {
+	return waitCHAPLike(s, "chap", wantID,
+		func(p []byte) (CHAPResponse, uint8, error) {
+			r, err := ParseCHAPResponse(p)
+			return r, r.Identifier, err
+		},
+	)
+}
+
+// waitMSCHAPv2Response is the MS-CHAPv2 specialization of waitCHAPLike.
+// ParseMSCHAPv2Response enforces the RFC 2759 §4 shape (49-byte
+// Response, Reserved/Flags == 0) as hard errors; identifier mismatch
+// is the only case that loops.
+func (s *pppSession) waitMSCHAPv2Response(wantID uint8) (MSCHAPv2Response, bool) {
+	return waitCHAPLike(s, "chap-v2", wantID,
+		func(p []byte) (MSCHAPv2Response, uint8, error) {
+			r, err := ParseMSCHAPv2Response(p)
+			return r, r.Identifier, err
+		},
+	)
 }

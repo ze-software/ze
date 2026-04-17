@@ -135,9 +135,10 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.rs.chan.size", Type: "int", Default: "4096", Description: "Per-source-peer route server worker channel capacity"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.rs.fwd.senders", Type: "int", Default: "4", Description: "Number of concurrent forward sender goroutines"})
 
-	// L2TP PPP authentication (spec-l2tp-6b-auth Phase 3). YANG wiring lands
-	// in spec-l2tp-7-subsystem; until then auth-timeout is env-only.
+	// L2TP PPP authentication (spec-l2tp-6b-auth Phase 3 + Phase 9). YANG
+	// wiring lands in spec-l2tp-7-subsystem; until then these are env-only.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.l2tp.auth.timeout", Type: "duration", Default: "30s", Description: "PPP auth-phase timeout; session fails closed if no AuthResponse within this window"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.l2tp.auth.reauth-interval", Type: "duration", Default: "0s", Description: "PPP periodic re-authentication interval (CHAP/MS-CHAPv2 only); zero disables re-auth"})
 )
 
 // ListenEndpoint represents a parsed ip:port pair from compound listen format.

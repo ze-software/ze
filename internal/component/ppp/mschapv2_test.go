@@ -967,9 +967,13 @@ func TestMSCHAPv2HandlerWireErrors(t *testing.T) {
 			},
 		},
 		{
-			name: "wrong protocol on chanFile",
+			name: "LCP frame during auth wait then close",
 			write: func(t *testing.T, peerEnd net.Conn, _ uint8) {
 				t.Helper()
+				// Phase 9: LCP frames during the MS-CHAPv2 wait route
+				// back through handleFrame for keepalive/Terminate
+				// handling during periodic re-auth. The handler keeps
+				// waiting; closing the pipe terminates it cleanly.
 				buf := make([]byte, 32)
 				off := WriteFrame(buf, 0, ProtoLCP, nil)
 				off += WriteLCPPacket(buf, off,
@@ -977,6 +981,7 @@ func TestMSCHAPv2HandlerWireErrors(t *testing.T) {
 				if _, err := peerEnd.Write(buf[:off]); err != nil {
 					t.Fatalf("peer write: %v", err)
 				}
+				closeConn(peerEnd)
 			},
 		},
 		{
@@ -994,9 +999,14 @@ func TestMSCHAPv2HandlerWireErrors(t *testing.T) {
 			},
 		},
 		{
-			name: "identifier mismatch on response",
+			name: "mismatched-identifier response then close triggers timeout",
 			write: func(t *testing.T, peerEnd net.Conn, challengeID uint8) {
 				t.Helper()
+				// Phase 9 AC-16: mismatched-Identifier Response is
+				// silently discarded. The handler then loops; closing
+				// the pipe terminates it within the subcase's wait.
+				// See TestMSCHAPv2IdentifierMismatchSilentDiscard for
+				// the positive silent-discard-then-match test.
 				mismatch := challengeID + 1
 				pc := bytes.Repeat([]byte{0x55}, mschapv2PeerChallengeLen)
 				nt := bytes.Repeat([]byte{0x66}, mschapv2NTResponseLen)
@@ -1008,6 +1018,7 @@ func TestMSCHAPv2HandlerWireErrors(t *testing.T) {
 				if _, err := peerEnd.Write(buf[:off]); err != nil {
 					t.Fatalf("peer write: %v", err)
 				}
+				closeConn(peerEnd)
 			},
 		},
 		{

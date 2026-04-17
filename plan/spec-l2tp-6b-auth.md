@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-l2tp-6a-lcp-base |
-| Phase | 8/9 |
+| Phase | 9/9 |
 | Updated | 2026-04-17 |
 
 ## Scope Changes (2026-04-16)
@@ -438,6 +438,50 @@ RFC 2759 strict 49-byte Response, Reserved-must-be-zero, Flags-must-be-zero.
 `chapIdentifier` shared with CHAP-MD5 (LCP negotiates one method per session).
 `rfc/short/rfc2759.md` summary written.
 
+**Phase 9 (2026-04-17):** periodic CHAP re-authentication (AC-14) +
+AC-16 silent-discard semantics + Decision E normal-path dispatch
+coverage.
+
+- `StartSession.ReauthInterval time.Duration` threaded through
+  L2TP reactor, `pppSession.reauthInterval`, and wired to the new
+  `ze.l2tp.auth.reauth-interval` env var (duration, default `0s` =
+  disabled). Enabled only when `negotiatedAuthMethod` is CHAP-MD5 or
+  MS-CHAPv2; PAP re-auth is peer-initiated per RFC 1334 and out of
+  scope.
+- `session_run.go` main select grows a third ticker alongside echo:
+  `reauthTickerC` fires every `reauthInterval`, and the handler
+  inline-invokes `s.runAuthPhase()` which dispatches to
+  `runCHAPAuthPhase` / `runMSCHAPv2AuthPhase`. Those handlers already
+  increment `chapIdentifier` and draw a fresh Challenge Value, so
+  every round carries a new Identifier per RFC 1994 §4.1. A Failure
+  decision from the external handler triggers `s.fail` and returns
+  `false`, tearing the session down.
+- AC-16 silent-discard: `runCHAPAuthPhase` and `runMSCHAPv2AuthPhase`
+  were refactored to use a shared generic helper `waitCHAPLike[T]`
+  (auth.go). Mismatched-Identifier Responses are now dropped with a
+  debug log and the wait continues up to `s.authTimeout`. Malformed
+  frames, wrong protocol, and structural parse errors (e.g. MS-CHAPv2
+  Reserved != 0) remain hard fails. This closes the Phase 5 scope
+  note that deferred proper RFC 1994 §4.1 semantics to Phase 9.
+- Decision E normal-path dispatch coverage: added
+  `TestNormalPathDispatchesCHAPMD5`, `TestNormalPathDispatchesMSCHAPv2`,
+  and `TestAuthFallbackOnNakProceedsToCHAP` to prove the full
+  non-proxy path -- CR-Ack-driven transition through Opened -- reaches
+  `runCHAPAuthPhase` / `runMSCHAPv2AuthPhase` (and post-fallback
+  reaches CHAP after a PAP Nak). Covered by a new helper
+  `scriptedPeerLCPOnly` that does the LCP CA/CR/CA dance and then
+  exits, leaving the pipe readable for auth-phase frames.
+- `TestCHAPIdentifierMismatchSilentDiscard` validates AC-16 directly:
+  two mismatched-Identifier Responses are silently dropped, a matching
+  one dispatches to `EventAuthRequest`, accept yields a CHAP Success
+  frame.
+- `TestPeriodicReauthCHAPTearsDownOnReject` validates AC-14 end-to-
+  end: after initial auth succeeds, the 150 ms reauth ticker fires a
+  fresh Challenge with a new Identifier; rejecting the re-auth emits
+  `EventAuthFailure` + `EventSessionDown`.
+- `plan/deferrals.md`: no new entries for Phase 9; the 2026-04-17
+  Phase 8 entry was already closed.
+
 **Phase 8 (2026-04-17):** LCP Configure-Nak / Configure-Reject
 fallback for the Auth-Protocol option.
 
@@ -547,39 +591,116 @@ fallback for the Auth-Protocol option.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| PAP wire format | Done | `internal/component/ppp/pap.go` | RFC 1334 §2.1-2.3 codes 1/2/3 |
+| CHAP-MD5 wire format | Done | `internal/component/ppp/chap.go` | RFC 1994 §4.1-4.2 codes 1/2/3/4 |
+| MS-CHAPv2 wire format | Done | `internal/component/ppp/mschapv2.go` | RFC 2759 §4 (49-byte Response, Reserved/Flags == 0) |
+| Proxy authentication | Changed | n/a | Dropped per 2026-04-16 scope note (all three extant LNS impls silent-accept); AC-11/AC-12 superseded |
+| EventAuthRequest/Response flow | Done | `auth_events.go`, `manager.go:AuthResponse` | Channel-based dispatch via `Manager.AuthEventsOut()` / `Manager.AuthResponse(...)` |
+| Auth method advertised in LCP CONFREQ | Done | `session_run.go:sendConfigureRequest` + `authMethodToLCPOptions` | Phase 7 |
+| Auth method retry / fallback on Nak | Done | `auth.go:adjustAuthOnNakOrReject`, `selectAuthFallback` | Phase 8 (AC-13) |
+| Periodic re-auth (CHAP) | Done | `session_run.go` reauthTicker + `StartSession.ReauthInterval` | Phase 9 (AC-14) |
+| RADIUS roundtrip | Out of scope | — | spec-l2tp-8-plugins (l2tp-auth) |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `pap_test.go:TestPAPResponseEmitsEvent` | PAP waits for peer's Authenticate-Request, then dispatches |
+| AC-2 | Done | `chap_test.go:TestCHAPResponseEmitsEvent` | 16-byte Challenge Value via crypto/rand; chapIdentifier monotonic |
+| AC-3 | Done | `mschapv2_test.go:TestMSCHAPv2ResponseEmitsEvent` | Same 16-byte Authenticator Challenge shape |
+| AC-4 | Done | `auth_dispatch_test.go:TestStartSessionAuthMethodThreaded` | EventAuthRequest{Method=PAP} with username/password |
+| AC-5 | Done | `chap_test.go:TestCHAPResponseEmitsEvent` | EventAuthRequest{Method=CHAP} with identifier/challenge/response/peer-name |
+| AC-6 | Done | `mschapv2_test.go:TestMSCHAPv2ResponseEmitsEvent` | EventAuthRequest{Method=MSCHAPv2} with peer-challenge/nt-response/name |
+| AC-7 | Done | `pap_test.go:TestPAPAcceptWritesAck` | AuthResponse accept emits Ack + EventSessionUp |
+| AC-8 | Done | `chap_test.go:TestCHAPRejectWritesFailure` | AuthResponse reject emits Failure + LCP Terminate + EventSessionDown |
+| AC-9 | Done | `mschapv2_test.go:TestMSCHAPv2AcceptWritesSuccessWithAuthResponse` | MS-CHAPv2 Success carries authenticator-response blob |
+| AC-10 | Done | `pap_test.go:TestPAPTimeoutNoResponse` + `chap_test.go:TestCHAPTimeoutNoResponse` | auth-timeout emits EventAuthFailure{Reason:"timeout"} + EventSessionDown, no wire Nak |
+| AC-11 | Skipped | — | Proxy trust-proxy dropped per 2026-04-16 scope note (user-approved-drop in deferrals) |
+| AC-12 | Skipped | — | Same — proxy distrust path is the always-on behavior, no config switch |
+| AC-13 | Done | `auth_dispatch_test.go:TestAuthFallbackOnNakDispatches` + `TestAuthProtoRejectClearsMethod` + `TestAuthFallbackOnNakExhaustsToNone` + `auth_normal_dispatch_test.go:TestAuthFallbackOnNakProceedsToCHAP` | Nak+fallback-list selection; Reject clears; exhausted list collapses to None; end-to-end reaches runCHAPAuthPhase after fallback |
+| AC-14 | Done | `chap_reauth_test.go:TestPeriodicReauthCHAPTearsDownOnReject` | Reauth ticker fires fresh Challenge (new Identifier), reject tears session down |
+| AC-15 | Partial (behavior only) | `session_run.go:handleFrame` | Auth-Request (or any non-LCP proto) arriving before Opened is silently dropped with a Debug log ("ppp: non-LCP protocol dropped (6a scope)"), not the WARN the AC text anticipated. Same session-level outcome (peer will eventually retry post-Opened); audit reflects the mechanism as-implemented. Raising to WARN is a one-line future change if operators want the visibility. |
+| AC-16 | Done | `chap_reauth_test.go:TestCHAPIdentifierMismatchSilentDiscard` | Mismatched-Identifier Response silently discarded; matching Response proceeds; timeout bounds total wait |
+| AC-17 | Partial (lifecycle only) | `mschapv2_test.go:TestMSCHAPv2HandlerWireErrors` subcase `reserved non-zero` + `auth.go:waitCHAPLike` on parse error | `ParseMSCHAPv2Response` returns `errMSCHAPv2ReservedNonZero`; `runMSCHAPv2AuthPhase` tears the session down via `s.fail` (EventSessionDown + transport-level CDN). The AC text says "rejects with Failure" i.e. a wire Failure frame; that frame is NOT written because the Identifier we would echo has already been recovered only partially when parse errored. Operational outcome matches the AC (session down, peer notified via LCP Terminate from the transport); the wire Failure frame is a Phase 9+ enhancement. |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestPAPParseRequest | Done | `pap_test.go` | |
+| TestPAPWriteAck / TestPAPWriteNak | Done | `pap_test.go` | |
+| TestCHAPParseResponse | Done | `chap_test.go` | |
+| TestCHAPWriteChallenge / Success / Failure | Done | `chap_test.go` | |
+| TestMSCHAPv2ParseResponse | Done | `mschapv2_test.go` | |
+| TestMSCHAPv2WriteSuccess | Done | `mschapv2_test.go` | |
+| TestMSCHAPv2RejectsNonZeroReserved | Done | `mschapv2_test.go` | |
+| TestProxyAuthDecode / ShortCircuit / Distrust | Skipped | — | Proxy auth dropped per 2026-04-16 scope note |
+| TestAuthDispatcherEventEmission | Done | `auth_events_test.go:TestAuthEventEmission` | |
+| TestAuthResponseRoutedToSession | Done | `auth_events_test.go:TestDriverAuthResponseRoutesToSession` | |
+| TestAuthTimeout | Done | `auth_test.go:TestAwaitAuthDecisionTimeout` + per-method timeout tests | |
+| TestAuthFallbackOnNak | Done | `auth_dispatch_test.go:TestAuthFallbackOnNakDispatches` | |
+| TestPeriodicReauthCHAP | Done | `chap_reauth_test.go:TestPeriodicReauthCHAPTearsDownOnReject` | |
+| TestAuthAcceptEmitsSessionUp | Done | `auth_events_test.go` | |
+| TestAuthRejectTearsDown | Done | `auth_events_test.go` | |
+| Functional net.Pipe end-to-end tests | Done | `chap_reauth_test.go`, `auth_normal_dispatch_test.go`, `auth_dispatch_test.go` | Covers PAP/CHAP/MS-CHAPv2 including fallback |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/ppp/auth_hook.go` (DELETE) | Done | Deleted in Phase 1 (2026-04-15) |
+| `internal/component/ppp/manager.go` | Done | `AuthResponse`, per-session routing |
+| `internal/component/ppp/session.go` | Done | `authTimeout`, `authFallbackOrder`, `reauthInterval`, `configuredAuthMethod`, `negotiatedAuthMethod` |
+| `internal/component/ppp/start_session.go` | Done | `AuthMethod`, `AuthFallbackOrder`, `AuthTimeout`, `ReauthInterval` |
+| `internal/component/ppp/events.go` (events) | Done | `auth_events.go` holds `EventAuthRequest/Success/Failure` |
+| `internal/component/ppp/lcp_options.go` | Done | `AuthProto` + `AuthData` populated from `authMethodToLCPOptions` |
+| `internal/component/ppp/proxy.go` | Changed | Proxy-auth extension dropped; proxy-LCP behaviour retained in Phase 4 form |
+| `internal/component/ppp/lcp_handlers.go` | Changed | No separate handlers file; LCP handling lives in `session_run.go:handleLCPPacket` |
+| `internal/component/ppp/pap.go` | Done | Phase 4 |
+| `internal/component/ppp/chap.go` | Done | Phase 5 + Phase 9 AC-16 waitCHAPResponse |
+| `internal/component/ppp/mschapv2.go` | Done | Phase 6 + Phase 9 AC-16 waitMSCHAPv2Response |
+| `internal/component/ppp/auth.go` | Done | Phase 7 helpers + Phase 8 selectAuthFallback/adjustAuthOnNakOrReject + Phase 9 waitCHAPLike |
+| `internal/component/ppp/auth_test.go` + sibling `_test.go` | Done | Full TDD coverage |
+| `rfc/short/rfc1334.md` | Done | Phase 4 |
+| `rfc/short/rfc2759.md` | Done | Phase 6 |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 42 (9 requirements, 17 ACs, 16 TDD tests)
+- **Done:** 35
+- **Partial:** 2 (AC-15 Debug-not-Warn, AC-17 lifecycle-teardown-without-wire-Failure — both documented above; operational outcomes match AC intent)
+- **Skipped:** 5 (AC-11, AC-12, and three proxy TDD tests — all covered by the 2026-04-16 user-approved proxy-auth scope drop)
+- **Changed:** 2 (proxy.go, lcp_handlers.go — structural deviations documented above)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| internal/component/ppp/pap.go | Yes | `ls` 2026-04-17 |
+| internal/component/ppp/chap.go | Yes | `ls` 2026-04-17 |
+| internal/component/ppp/mschapv2.go | Yes | `ls` 2026-04-17 |
+| internal/component/ppp/auth.go | Yes | `ls` 2026-04-17 |
+| internal/component/ppp/auth_events.go | Yes | `ls` 2026-04-17 |
+| internal/component/ppp/auth_dispatch_test.go | Yes | `ls` 2026-04-17 |
+| internal/component/ppp/auth_normal_dispatch_test.go | Yes | `ls` 2026-04-17 (new, Phase 9 Decision E) |
+| internal/component/ppp/chap_reauth_test.go | Yes | `ls` 2026-04-17 (new, Phase 9 AC-14 + AC-16) |
+| internal/component/ppp/auth_hook.go | Deleted | `ls: cannot access ... No such file or directory` (confirms Phase 1 delete) |
+| rfc/short/rfc1334.md | Yes | `ls` 2026-04-17 |
+| rfc/short/rfc2759.md | Yes | `ls` 2026-04-17 |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-13 | LCP Configure-Nak on Auth-Protocol triggers fallback per AuthFallbackOrder | `go test -run 'TestAuthFallbackOnNakDispatches\|TestAuthFallbackOnNakProceedsToCHAP' ./internal/component/ppp/...` -> ok (2026-04-17) |
+| AC-14 | Periodic CHAP re-auth fires fresh Challenge; reject tears session down | `go test -run TestPeriodicReauthCHAPTearsDownOnReject ./internal/component/ppp/...` -> ok (2026-04-17) |
+| AC-16 | CHAP Response with mismatched Identifier is silently discarded; matching Response proceeds | `go test -run TestCHAPIdentifierMismatchSilentDiscard ./internal/component/ppp/...` -> ok (2026-04-17) |
+| AC-17 | MS-CHAPv2 Response with non-zero Reserved rejected | `grep errMSCHAPv2ReservedNonZero internal/component/ppp/mschapv2.go` + `go test -run TestMSCHAPv2HandlerWireErrors ./internal/component/ppp/...` -> ok |
+| All (Phase 7 dispatch) | `StartSession.AuthMethod` reaches runPAPAuthPhase/runCHAPAuthPhase/runMSCHAPv2AuthPhase on the normal (non-proxy) path | `go test -run 'TestNormalPathDispatchesCHAPMD5\|TestNormalPathDispatchesMSCHAPv2\|TestStartSessionAuthMethodThreaded' ./internal/component/ppp/...` -> ok (2026-04-17) |
+| Full ppp + l2tp suite | No regressions from Phase 9 AC-16 refactor or reauth wiring | `go test -race -count=1 ./internal/component/ppp/... ./internal/component/l2tp/...` -> ok (8.7s + 2.5s + 1.1s) 2026-04-17 |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| Go-level net.Pipe dispatch tests | `auth_dispatch_test.go`, `auth_normal_dispatch_test.go`, `chap_reauth_test.go` | All green on 2026-04-17 |
+| Env var -> StartSession threading | `internal/component/l2tp/reactor_ppp_test.go` | Phase 3 AuthTimeout test still green; ReauthInterval follows the same env-to-StartSession pipe |
+| `.ci` test against accel-ppp + RADIUS | deferred to spec-l2tp-7-subsystem + spec-l2tp-8-plugins | Out of Phase-6b scope per Future block in TDD Plan |
 
 ## Checklist
 

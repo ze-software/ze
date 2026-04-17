@@ -671,6 +671,12 @@ func TestCHAPTimeoutEmitsFailure(t *testing.T) {
 //	emitting EventAuthRequest. The Challenge is always written
 //	first regardless (authenticator-initiated), so the peer
 //	side still sees one Challenge frame even on error paths.
+//
+// Note: Identifier mismatch on an OTHERWISE VALID Response is not a
+// wire error; Phase 9 AC-16 silent-discards such packets (RFC 1994
+// §4.1) and the handler waits for a matching Response or times out.
+// That positive behavior is covered by
+// TestCHAPIdentifierMismatchSilentDiscard below.
 func TestCHAPHandlerWireErrors(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -694,9 +700,14 @@ func TestCHAPHandlerWireErrors(t *testing.T) {
 			},
 		},
 		{
-			name: "wrong protocol on chanFile",
+			name: "LCP frame during auth wait then close",
 			write: func(t *testing.T, peerEnd net.Conn, _ uint8) {
 				t.Helper()
+				// Phase 9: LCP frames during the CHAP wait are routed
+				// back through handleFrame (so Echo/Terminate stay
+				// responsive during periodic re-auth). The handler
+				// then keeps waiting for a CHAP Response; closing the
+				// pipe terminates the wait via framesIn close.
 				buf := make([]byte, 32)
 				off := WriteFrame(buf, 0, ProtoLCP, nil)
 				off += WriteLCPPacket(buf, off,
@@ -704,6 +715,7 @@ func TestCHAPHandlerWireErrors(t *testing.T) {
 				if _, err := peerEnd.Write(buf[:off]); err != nil {
 					t.Fatalf("peer write: %v", err)
 				}
+				closeConn(peerEnd)
 			},
 		},
 		{
@@ -726,9 +738,15 @@ func TestCHAPHandlerWireErrors(t *testing.T) {
 			},
 		},
 		{
-			name: "identifier mismatch on response",
+			name: "mismatched-identifier response then close triggers timeout",
 			write: func(t *testing.T, peerEnd net.Conn, challengeID uint8) {
 				t.Helper()
+				// Phase 9 AC-16: a mismatched-Identifier Response is
+				// silently discarded. The handler then loops waiting
+				// for a matching Response, and closing the pipe makes
+				// readFrames close framesIn so the loop observes the
+				// channel close (or auth-timeout, whichever fires
+				// first) and returns false without emitting an event.
 				mismatch := challengeID + 1
 				digest := bytes.Repeat([]byte{0x33}, chapMD5DigestLen)
 				buf := make([]byte, 64)
@@ -745,6 +763,10 @@ func TestCHAPHandlerWireErrors(t *testing.T) {
 				if _, err := peerEnd.Write(buf[:off]); err != nil {
 					t.Fatalf("peer write: %v", err)
 				}
+				// Close the pipe so the subsequent framesIn read
+				// terminates the handler within the subcase's 3s
+				// wait (below the 30s default auth-timeout).
+				closeConn(peerEnd)
 			},
 		},
 	}

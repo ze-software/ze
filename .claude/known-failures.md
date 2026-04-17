@@ -162,4 +162,98 @@ it does not catch logic errors in the egress-filter code paths.
 **Hypothesis:** The observer dispatches a `dispatch-command` event to `ze-plugin-engine` and awaits a response within a timeout. Under load (full `ze-verify` runs many other suites concurrently), the dispatch response may not arrive in time. The observer protocol likely needs a longer per-call timeout, or the test needs to gate on a readiness signal before dispatching.
 **Parked.** Estimated 15-30 min investigation: grep `dispatch-command` handling in `ze-plugin-engine` and the observer's timeout config.
 
+## addpath + fib-vpp-* failures under make ze-verify-fast -- LOGGED 2026-04-17
+
+**Files:**
+- `test/encode/addpath.ci` (index `0` in `bin/ze-test bgp encode`)
+- `test/plugin/fib-vpp-coexist-with-fib-kernel.ci` (index `103`)
+- `test/plugin/fib-vpp-plugin-load.ci` (index `104`)
+- Also `exabgp-test`: `conf-addpath` retry failure
+
+**Symptom (observed during spec-l2tp-6b-auth Phase 9 closeout):**
+- `TEST FAILURE: 0 addpath` -- `mismatch`, raw peer output shows only
+  "listening on 127.0.0.1:1790 / new connection from ..." (no wire data
+  captured in the 3000-char snippet).
+- `TEST FAILURE: 103 / 104 fib-vpp-*` -- `timeout` with
+  `expected messages: 0 / received messages: 0` (neither side received
+  anything within the window).
+- `FAIL  3 suite(s) failed: encode plugin parse` followed by
+  `FAIL: exabgp-test` retry of `conf-addpath`.
+
+**Why unrelated to Phase 9:** Phase 9 touches only
+`internal/component/{ppp,l2tp,config}`. The addpath encode path is
+`internal/plugins/bgp-*` and `internal/component/bgp/message`; the
+fib-vpp tests are `internal/component/fib/*` + VPP subsystems. None of
+those files were edited in the Phase 9 work, and the isolated suites
+`go test ./internal/component/ppp/... ./internal/component/l2tp/...`
+all pass green.
+
+**Hypothesis:**
+- addpath / conf-addpath: recent BGP peer YANG refactor (`be93b950`,
+  `edc8bd55`) reshaped `connect-mode -> connect/accept`, and the exabgp
+  migrate path + encode fixture may still reference the old shape.
+- fib-vpp-*: VPP plugin tests likely require a VPP binary or kernel
+  modules not present in this dev environment, or there's a plugin-
+  load race with the recent `6b7f5db9` auto-load wiring.
+
+**Next steps to try:**
+- Run `bin/ze-test bgp encode addpath -v` in isolation and diff the
+  captured vs expected hex.
+- Check `test/plugin/fib-vpp-*.ci` timeout directives and verify VPP
+  is runnable in the test harness.
+- If fib-vpp tests require real VPP, gate them behind a build tag or
+  a skip-when-missing check.
+
+**Parked.** Estimated >10 min per failure; not on the Phase 9
+critical path.
+
+## PPP LCP handleLCPPacket re-enters afterLCPOpen on Echo frames -- LOGGED 2026-04-17
+
+**File:** `internal/component/ppp/session_run.go` around line 696-726,
+combined with `internal/component/ppp/lcp_fsm.go:392-393`.
+
+**Symptom:** When an LCP Echo-Request / Echo-Reply arrives in the
+Opened state, `LCPDoTransition(Opened, RXR)` returns
+`{NewState: Opened, Actions: [SER]}`. `handleLCPPacket`'s
+`if tr.NewState == LCPStateOpened { ... afterLCPOpen() }` branch has
+NO guard for `cur != LCPStateOpened`, so it re-enters afterLCPOpen on
+every Echo-Request / Echo-Reply in Opened. That re-emits EventLCPUp
+and re-runs `runAuthPhase` inline.
+
+**Discovery:** Surfaced while writing a Phase 9 regression test for
+/ze-review ISSUE 1 (LCP-during-reauth). The test panicked on nil
+`s.ops.setMRU` because afterLCPOpen was being called recursively
+from `handleLCPPacket` via `waitCHAPLike -> handleFrame -> handleLCPPacket`
+when the test injected an LCP Echo-Request. Stack trace:
+
+```
+panic: runtime error: invalid memory address or nil pointer dereference
+ session_run.go:423 in afterLCPOpen
+ session_run.go:718 in handleLCPPacket  <-- Opened-branch re-entry
+ session_run.go:589 in handleFrame
+ auth.go:300 in waitCHAPLike
+ chap.go:262 in runCHAPAuthPhase
+```
+
+**Why production seems to work:** afterLCPOpen's side effects
+(setMRU, SetMTU, SetAdminUp) are idempotent; runAuthPhase emits
+EventAuthRequest but the always-accept responder in the l2tp-auth
+plugin would just accept again. So operationally a "burst" of
+re-auth events fires every Echo but the session limps on. Likely
+produces stray EventAuthRequest / EventSessionUp events visible to
+plugins and in logs.
+
+**Fix:** Guard the Opened-branch in `handleLCPPacket` with
+`if cur != LCPStateOpened && tr.NewState == LCPStateOpened {`.
+Or separate "transition to Opened" from "stayed in Opened" in the
+FSM return value.
+
+**Related:** The FSM's mapping `(Opened, RXR) -> SER` is itself
+suspect for Echo-Reply and Discard-Request inputs (SER means "Send
+Echo-Reply" which is only the correct response to Echo-REQUEST). A
+clean fix handles Echo-Reply and Echo-Request on distinct FSM events.
+
+**Parked.** Not on the Phase 9 critical path; Phase 9 regression test
+rewritten to use IPCP (0x8021) which handleFrame drops cleanly.
+
 Remove entries once fixed.

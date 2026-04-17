@@ -376,6 +376,7 @@ func (d *Driver) spawnSession(start StartSession) {
 		echoFailures:         start.EchoFailures,
 		authTimeout:          start.AuthTimeout,
 		authFallbackOrder:    fallback,
+		reauthInterval:       start.ReauthInterval,
 		configuredAuthMethod: start.AuthMethod,
 		backend:              d.backend,
 		ops:                  d.ops,

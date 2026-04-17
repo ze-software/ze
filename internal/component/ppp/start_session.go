@@ -76,6 +76,16 @@ type StartSession struct {
 	// recognize this option at all" (RFC 1661 §5.4).
 	AuthFallbackOrder []AuthMethod
 
+	// ReauthInterval enables periodic re-authentication after the
+	// initial auth succeeds (RFC 1994 Section 2.3: CHAP "MAY be used
+	// to re-authenticate at any time during the connection"; spec AC-14).
+	// Zero disables re-auth. Only honored for CHAP-MD5 and MS-CHAPv2;
+	// PAP re-auth is peer-initiated per RFC 1334 and is not in scope.
+	// On tick, ze sends a fresh Challenge with a new Identifier and
+	// runs the exchange inline in the session main loop. A Failure
+	// decision from the auth handler tears the session down.
+	ReauthInterval time.Duration
+
 	// Proxy LCP bytes from L2TP ICCN AVPs (RFC 2661 Section 18).
 	// When all three are present, the LCP FSM short-circuits to the
 	// Opened state with the proxied options. Empty slices mean no

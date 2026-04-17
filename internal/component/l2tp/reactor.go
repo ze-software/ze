@@ -42,6 +42,44 @@ var _ = [5]ppp.Event{
 	ppp.EventSessionRejected{},
 }
 
+// reauthIntervalFloor is the minimum PPP periodic re-auth interval the
+// reactor will honor from operator config. Below this floor a re-auth
+// storm (millisecond-scale Challenge round-trips) would starve the
+// session of useful throughput and potentially dominate the log.
+// Operators requesting a value below this floor are clamped up with a
+// WARN. Programmatic callers (tests constructing `ppp.StartSession`
+// directly) bypass this check because they are expected to know what
+// they are doing.
+const reauthIntervalFloor = 5 * time.Second
+
+// clampReauthInterval parses the operator-supplied
+// ze.l2tp.auth.reauth-interval env value, applies the safety floor,
+// and returns the duration to thread into StartSession.ReauthInterval.
+// An empty string or a zero/negative parsed value disables re-auth
+// (returns 0); a malformed duration logs a WARN and disables re-auth.
+// A positive value below reauthIntervalFloor is clamped up with a
+// WARN. No parse-success, no clamp, no log.
+func clampReauthInterval(logger *slog.Logger, raw string) time.Duration {
+	if raw == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		logger.Warn("l2tp: invalid ze.l2tp.auth.reauth-interval; disabling re-auth",
+			"value", raw, "err", err)
+		return 0
+	}
+	if d <= 0 {
+		return 0
+	}
+	if d < reauthIntervalFloor {
+		logger.Warn("l2tp: ze.l2tp.auth.reauth-interval below safety floor; clamping",
+			"value", raw, "floor", reauthIntervalFloor.String())
+		return reauthIntervalFloor
+	}
+	return d
+}
+
 // peerKey uniquely identifies a tunnel during SCCRQ retransmit dedup.
 // RFC 2661 S24.17 allows multiple tunnels between the same IP pair, so
 // peer address alone is insufficient; the peer's Assigned Tunnel ID AVP
@@ -753,6 +791,15 @@ func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		}
 	}
 
+	// ze.l2tp.auth.reauth-interval (spec-l2tp-6b-auth Phase 9). Zero
+	// disables periodic CHAP re-auth (default). Same inline-parse
+	// pattern as auth.timeout so operator typos are visible at WARN.
+	// A positive value below reauthIntervalFloor (5s) is clamped up
+	// to that floor with a WARN: values in the microsecond or
+	// millisecond range would create a reauth storm that starves the
+	// session of useful throughput.
+	reauthInterval := clampReauthInterval(r.logger, env.Get("ze.l2tp.auth.reauth-interval"))
+
 	start := ppp.StartSession{
 		TunnelID:            ksucc.localTID,
 		SessionID:           ksucc.localSID,
@@ -762,6 +809,7 @@ func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		LNSMode:             ksucc.lnsMode,
 		PeerAddr:            peerAddr,
 		AuthTimeout:         authTimeout,
+		ReauthInterval:      reauthInterval,
 		ProxyLCPInitialRecv: ksucc.proxyInitialRecvLCPConfReq,
 		ProxyLCPLastSent:    ksucc.proxyLastSentLCPConfReq,
 		ProxyLCPLastRecv:    ksucc.proxyLastRecvLCPConfReq,

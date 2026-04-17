@@ -15,7 +15,6 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
-	"strconv"
 )
 
 // CHAP packet codes from RFC 1994 Section 4. The authenticator drives
@@ -260,46 +259,8 @@ func (s *pppSession) runCHAPAuthPhase() bool {
 		return false
 	}
 
-	var frame []byte
-	select {
-	case f, ok := <-s.framesIn:
-		if !ok {
-			s.fail("chap: frames channel closed")
-			return false
-		}
-		frame = f
-	case <-s.stopCh:
-		return false
-	case <-s.sessStop:
-		return false
-	}
-	defer putFrameBuf(frame)
-	proto, payload, _, perr := ParseFrame(frame)
-	if perr != nil {
-		s.fail("chap: malformed frame: " + perr.Error())
-		return false
-	}
-	if proto != ProtoCHAP {
-		s.fail("chap: unexpected protocol 0x" +
-			strconv.FormatUint(uint64(proto), 16))
-		return false
-	}
-	resp, perr := ParseCHAPResponse(payload)
-	if perr != nil {
-		s.fail("chap: malformed response: " + perr.Error())
-		return false
-	}
-	// RFC 1994 Section 4.1: the Response Identifier MUST match the
-	// outstanding Challenge Identifier. A mismatched Identifier is a
-	// silently-discarded stale or forged packet; we fail the session
-	// rather than spin because Phase 5 does not implement the retry
-	// loop (TODO phase-9: retransmit the Challenge until a matching
-	// Response arrives or a retry counter expires).
-	if resp.Identifier != identifier {
-		s.fail("chap: response identifier 0x" +
-			strconv.FormatUint(uint64(resp.Identifier), 16) +
-			" does not match challenge 0x" +
-			strconv.FormatUint(uint64(identifier), 16))
+	resp, ok := s.waitCHAPResponse(identifier)
+	if !ok {
 		return false
 	}
 

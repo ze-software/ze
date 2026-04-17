@@ -224,6 +224,44 @@ func (s *pppSession) run(start StartSession) {
 	}
 	echoID := uint8(0)
 
+	// Periodic CHAP re-authentication (spec-l2tp-6b-auth AC-14, Phase 9).
+	// Enabled only when reauthInterval > 0 AND the negotiated method
+	// supports authenticator-initiated challenges (CHAP-MD5 / MS-CHAPv2).
+	// PAP is peer-initiated per RFC 1334, so ze cannot force a fresh
+	// exchange -- reauth for PAP is silently skipped.
+	//
+	// Started alongside echoTickerC: after initial auth succeeds and
+	// LCP reaches Opened, both tickers are live on the main select.
+	// On tick, the main loop calls the same runXAuthPhase handler used
+	// for initial auth (drawing a fresh Challenge value + incrementing
+	// chapIdentifier, so every round carries a new Identifier per
+	// RFC 1994 §4.1).
+	var (
+		reauthTicker  *time.Ticker
+		reauthTickerC <-chan time.Time
+	)
+	startReauthTicker := func() {
+		if s.reauthInterval <= 0 || reauthTicker != nil {
+			return
+		}
+		s.mu.Lock()
+		method := s.negotiatedAuthMethod
+		s.mu.Unlock()
+		if method != AuthMethodCHAPMD5 && method != AuthMethodMSCHAPv2 {
+			return
+		}
+		reauthTicker = time.NewTicker(s.reauthInterval)
+		reauthTickerC = reauthTicker.C
+	}
+	defer func() {
+		if reauthTicker != nil {
+			reauthTicker.Stop()
+		}
+	}()
+	if isProxy {
+		startReauthTicker()
+	}
+
 	for {
 		select {
 		case <-s.stopCh:
@@ -266,6 +304,19 @@ func (s *pppSession) run(start StartSession) {
 				return
 			}
 
+		case <-reauthTickerC:
+			// spec-l2tp-6b-auth AC-14: fire a fresh CHAP Challenge
+			// on interval. runAuthPhase dispatches on
+			// negotiatedAuthMethod (CHAP-MD5 or MS-CHAPv2, guarded
+			// by startReauthTicker), so it increments chapIdentifier
+			// and draws a new challenge value per round. Blocking
+			// call -- while re-auth is in flight, echo / frame
+			// handling pauses; re-auth must complete within
+			// s.authTimeout or the session fails closed.
+			if !s.runAuthPhase() {
+				return
+			}
+
 		case frame, ok := <-frames:
 			if !ok {
 				// readFrames exited and closed the channel without
@@ -296,6 +347,11 @@ func (s *pppSession) run(start StartSession) {
 					negoTimerC = nil
 				}
 				echoTickerC = echoTicker.C
+				// Initial auth has completed (afterLCPOpen ran
+				// from handleLCPPacket's Opened branch). Enable
+				// periodic re-auth now that we know the negotiated
+				// method; no-op for PAP / None.
+				startReauthTicker()
 			}
 		}
 	}
