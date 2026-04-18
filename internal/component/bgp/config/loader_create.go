@@ -28,10 +28,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
-// ze.bgp.tcp.port is a runtime-only env var for the test infrastructure.
+// ze.test.bgp.port is a runtime-only env var for the test infrastructure.
 // It creates a global listener so the ze-test peer can connect to ze.
-// This is NOT the ExaBGP "bgp > listen" config leaf (removed from YANG).
-const envKeyTCPPort = "ze.bgp.tcp.port"
+const envKeyTCPPort = "ze.test.bgp.port"
 
 // initRedistribute parses redistribute import rules from the config tree
 // and installs the global evaluator. Called during reactor creation.
@@ -57,21 +56,14 @@ var _ = coreenv.MustRegister(coreenv.EnvEntry{
 
 // CreateReactorFromTree creates a Reactor directly from a parsed config tree.
 func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plugins []reactor.PluginConfig, store storage.Storage) (*reactor.Reactor, error) {
-	// Prune inactive containers and list entries before reading any config values.
-	// PeersFromConfigTree also prunes (idempotent), but we need to prune early
-	// so that ExtractEnvironment and BGP field extraction see the pruned tree.
+	// Pruning + env plumbing already happened in the top-level loader
+	// (config.ParseTreeWithYANG calls PruneInactive -> ApplyEnvConfig). The
+	// BGP reactor consumes the pruned tree directly; no second extraction.
 	pruneSchema, err := config.YANGSchema()
 	if err != nil {
-		return nil, fmt.Errorf("load schema for inactive pruning: %w", err)
+		return nil, fmt.Errorf("load schema: %w", err)
 	}
-	config.PruneInactive(tree, pruneSchema)
-
-	// Load environment with config block values (if any)
-	envValues := config.ExtractEnvironment(tree)
-	env, err := config.LoadEnvironmentWithConfig(envValues)
-	if err != nil {
-		return nil, fmt.Errorf("load environment: %w", err)
-	}
+	_ = pruneSchema // kept available for listener validation below
 
 	// Extract global BGP settings directly from tree
 	var routerID uint32
@@ -185,22 +177,22 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		LocalAS:                   localAS,
 		ConfigDir:                 configDir,
 		ConfigTree:                tree.ToMap(),
-		MaxSessions:               env.TCP.Attempts, // tcp.attempts: exit after N sessions (0=unlimited)
 		ConfiguredFamilies:        configuredFamilies,
 		ConfiguredCustomEvents:    configuredCustomEvents,
 		ConfiguredCustomSendTypes: configuredCustomSendTypes,
 		ConfiguredPaths:           config.CollectContainerPaths(tree),
 		Plugins:                   plugins,
 		Hub:                       hubPtr,
-		RecentUpdateMax:           env.Reactor.CacheMax,
+		RecentUpdateMax:           coreenv.GetInt("ze.bgp.reactor.cache-max", 1000000),
 	}
 
 	r := reactor.New(reactorCfg)
 
-	// Start pprof HTTP server from config environment block.
+	// Start pprof HTTP server from ze.pprof env var (set by ApplyEnvConfig
+	// from the YANG `environment/pprof` leaf, or directly by the operator).
 	// CLI --pprof flag takes precedence (started earlier in main.go).
-	if env.Debug.Pprof != "" {
-		startPprofServer(env.Debug.Pprof)
+	if addr := coreenv.Get("ze.pprof"); addr != "" {
+		startPprofServer(addr)
 	}
 
 	// Start Prometheus metrics HTTP server from telemetry config block.
@@ -250,15 +242,16 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 
 	// Inject chaos wrappers from config environment block.
 	// CLI flags (--chaos-seed) override this via SetClock/SetDialer/SetListenerFactory after load.
-	if env.Chaos.Seed != 0 {
-		resolved := chaos.ResolveSeed(env.Chaos.Seed)
+	if seed := coreenv.GetInt64("ze.bgp.chaos.seed", 0); seed != 0 {
+		resolved := chaos.ResolveSeed(seed)
+		rate := chaosRateFromEnv()
 		chaosLogger := slogutil.Logger("chaos")
-		chaosCfg := chaos.ChaosConfig{Seed: resolved, Rate: env.Chaos.Rate, Logger: chaosLogger}
+		chaosCfg := chaos.ChaosConfig{Seed: resolved, Rate: rate, Logger: chaosLogger}
 		clock, dialer, lf := chaos.NewChaosWrappers(clock.RealClock{}, &network.RealDialer{}, network.RealListenerFactory{}, chaosCfg)
 		r.SetClock(clock)
 		r.SetDialer(dialer)
 		r.SetListenerFactory(lf)
-		chaosLogger.Info("chaos self-test mode enabled (config)", "seed", resolved, "rate", env.Chaos.Rate)
+		chaosLogger.Info("chaos self-test mode enabled (config)", "seed", resolved, "rate", rate)
 	}
 
 	// Add peers
@@ -269,6 +262,21 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	}
 
 	return r, nil
+}
+
+// chaosRateFromEnv returns ze.bgp.chaos.rate as a float64.
+// Falls back to 0.1 (YANG default) when unset or malformed.
+func chaosRateFromEnv() float64 {
+	const defaultRate = 0.1
+	raw := coreenv.Get("ze.bgp.chaos.rate")
+	if raw == "" {
+		return defaultRate
+	}
+	v, err := strconv.ParseFloat(raw, 64)
+	if err != nil || v < 0 || v > 1 {
+		return defaultRate
+	}
+	return v
 }
 
 // createReloadFunc creates a ReloadFunc that parses config files.

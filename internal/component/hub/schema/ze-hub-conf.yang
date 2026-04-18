@@ -18,9 +18,6 @@ module ze-hub-conf {
             description "Daemon settings";
             leaf pid { type string; description "PID file path"; }
             leaf user { type string; default "zeuser"; description "System user for privilege drop"; }
-            leaf daemonize { type boolean; description "Run as background daemon"; }
-            leaf drop { type boolean; default true; description "Drop privileges after startup"; }
-            leaf umask { type string; default "0137"; description "File creation mask (octal)"; }
         }
 
         container log {
@@ -56,9 +53,6 @@ module ze-hub-conf {
                 description "Plugin stderr relay level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL (case-insensitive)";
             }
 
-            // Short log format (Ze-native, not ExaBGP legacy)
-            leaf short { type boolean; default true; description "Use short log format"; }
-
             // Subsystem-specific log levels (any key allowed)
             // Syntax: <subsystem-path> <level>;
             // Example: bgp.routes debug;
@@ -66,41 +60,26 @@ module ze-hub-conf {
             ze:allow-unknown-fields;
         }
 
-        container api {
-            description "API settings";
-            leaf ack { type boolean; default true; description "Acknowledge API commands"; }
-            leaf chunk { type int32; default 1; description "Max lines before yield"; }
-            leaf encoder {
-                type enumeration {
-                    enum json { description "JSON encoding"; }
-                    enum text { description "Human-readable text encoding"; }
-                }
-                default "json";
-                description "Encoder type";
-            }
-            leaf compact { type boolean; description "Compact JSON for INET"; }
-            leaf respawn { type boolean; default true; description "Respawn dead processes"; }
-            leaf terminate { type boolean; description "Terminate if process dies"; }
-            leaf cli { type boolean; default true; description "Create CLI named pipe"; }
-        }
-
-        container debug {
-            description "Debug settings";
-            leaf pdb { type boolean; description "Enable Python debugger (legacy)"; }
-            leaf memory { type boolean; description "Track memory usage"; }
-            leaf configuration { type boolean; description "Debug configuration parsing"; }
-            leaf selfcheck { type boolean; description "Run internal consistency checks"; }
-            leaf route { type string; description "Debug specific route prefix"; }
-            leaf defensive { type boolean; description "Enable defensive checks"; }
-            leaf rotate { type boolean; description "Rotate debug output files"; }
-            leaf timing { type boolean; description "Log operation timing"; }
-            leaf pprof { type string; description "pprof HTTP server address (e.g. :6060)"; }
-        }
+        // pprof HTTP server address (top-level leaf under environment).
+        // Consumed by startPprofServer via env var `ze.pprof`.
+        leaf pprof { type string; description "pprof HTTP server address (e.g. :6060). Empty disables pprof."; }
 
         container chaos {
             description "Chaos fault injection settings";
             leaf seed { type int64; description "PRNG seed (0 = disabled)"; }
             leaf rate { type string; default "0.1"; description "Fault probability per operation (0.0-1.0)"; }
+        }
+
+        container exabgp {
+            description "ExaBGP compatibility settings for the migration bridge";
+            container api {
+                description "ExaBGP bridge API settings";
+                leaf ack {
+                    type boolean;
+                    default true;
+                    description "Emit done/error ack lines on plugin stdin after each dispatched command";
+                }
+            }
         }
     }
 }

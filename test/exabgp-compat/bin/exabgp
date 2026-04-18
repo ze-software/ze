@@ -102,7 +102,7 @@ def get_exabgp_env_vars() -> dict:
     env_vars = {}
 
     # TCP port - check Ze native var first, then ExaBGP compat vars
-    port = (os.environ.get('ze_bgp_tcp_port') or
+    port = (os.environ.get('ze_test_bgp_port') or
             os.environ.get('exabgp.tcp.port') or
             os.environ.get('exabgp_tcp_port'))
     if port:
@@ -345,8 +345,8 @@ def main():
         # Add environment-based options
         env_vars = get_exabgp_env_vars()
         if env_vars.get('port'):
-            # Ze reads ze_bgp_tcp_port to override peer port (see loader.go:388)
-            os.environ['ze_bgp_tcp_port'] = env_vars['port']
+            # Ze reads ze_test_bgp_port to override peer port (see loader.go:388)
+            os.environ['ze_test_bgp_port'] = env_vars['port']
 
         # For tests: exit after first session so test can complete
         # (Ze doesn't know it's in a test and would otherwise keep running)

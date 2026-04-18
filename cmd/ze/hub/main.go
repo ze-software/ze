@@ -428,6 +428,19 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		return 1
 	}
 
+	// Write PID file BEFORE dropping privileges so operator-supplied paths
+	// in root-owned directories (e.g. /var/run/ze.pid) accept the create.
+	// writePIDFile chowns to ze.user when set so removePIDFile succeeds at
+	// shutdown (running post-drop).
+	pidPath, pidErr := writePIDFile()
+	if pidErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", pidErr)
+		apiServer.Stop()
+		_ = eng.Stop(startCtx)
+		return 1
+	}
+	defer removePIDFile(pidPath)
+
 	if err := dropPrivileges(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: drop privileges: %v\n", err)
 		apiServer.Stop()

@@ -1,5 +1,6 @@
-# Test: ze config completion — environment children
-# VALIDATES: Environment container shows all sub-containers
+# Test: ze config completion — environment children (post spec-env-cleanup)
+# VALIDATES: Environment container shows surviving sub-containers.
+# Retired (spec-env-cleanup 2026-04): tcp, cache, api, debug.
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -16,8 +17,8 @@ cmd=foreground:seq=1:exec=ze config completion --context environment --input set
 expect=exit:code=0
 expect=stdout:contains=daemon
 expect=stdout:contains=log
-expect=stdout:contains=debug
-expect=stdout:contains=tcp
-expect=stdout:contains=api
-expect=stdout:contains=cache
+expect=stdout:contains=bgp
 expect=stdout:contains=reactor
+expect=stdout:contains=chaos
+expect=stdout:contains=exabgp
+expect=stdout:contains=pprof

@@ -22,12 +22,6 @@ EOF_PEER
 
 # Initial ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {
@@ -73,12 +67,6 @@ EOF_CONF
 
 # Rewritten config (different router-id triggers peer restart via peerSettingsEqual)
 tmpfs=config2.conf:terminator=EOF_CONF2
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {

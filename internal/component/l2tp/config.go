@@ -24,36 +24,6 @@ var (
 		Description: "Log level for the L2TP subsystem",
 		Private:     true,
 	})
-	_ = env.MustRegister(env.EnvEntry{
-		Key:         "ze.l2tp.enabled",
-		Type:        "bool",
-		Default:     "true",
-		Description: "Enable the L2TP subsystem (overrides YANG l2tp/enabled; true when l2tp{} block exists)",
-	})
-	_ = env.MustRegister(env.EnvEntry{
-		Key:         "ze.l2tp.max-tunnels",
-		Type:        "int",
-		Default:     "0",
-		Description: "Maximum concurrent L2TP tunnels (0 = unbounded)",
-	})
-	_ = env.MustRegister(env.EnvEntry{
-		Key:         "ze.l2tp.hello-interval",
-		Type:        "int",
-		Default:     "60",
-		Description: "Seconds of peer silence before sending HELLO",
-	})
-	_ = env.MustRegister(env.EnvEntry{
-		Key:         "ze.l2tp.shared-secret",
-		Type:        "string",
-		Description: "Shared secret for CHAP-MD5 tunnel authentication (RFC 2661 S4.2)",
-		Secret:      true,
-	})
-	_ = env.MustRegister(env.EnvEntry{
-		Key:         "ze.l2tp.max-sessions",
-		Type:        "int",
-		Default:     "0",
-		Description: "Maximum concurrent sessions per tunnel (0 = unbounded)",
-	})
 	// Test-only: skip the modprobe l2tp_ppp / pppol2tp probe at Start.
 	// The .ci test harness sets this so show-l2tp-empty.ci can verify
 	// the CLI wiring without CAP_NET_ADMIN. Production paths leave it

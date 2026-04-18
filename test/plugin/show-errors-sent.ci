@@ -113,12 +113,6 @@ EOF_RUN
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 plugin {
 	external show-errors-sent-test {
 		run ./show-errors-sent-test.run

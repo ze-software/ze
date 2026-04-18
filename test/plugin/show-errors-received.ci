@@ -122,12 +122,6 @@ EOF_RUN
 
 # ze bgp configuration: peer1 connects to ze-peer, which sends NOTIFICATION.
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 plugin {
 	external show-errors-received-test {
 		run ./show-errors-received-test.run

@@ -57,20 +57,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
 )
 
-// Env var registrations (also in internal/component/config/environment.go for centralized docs).
-var (
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.chan.size", Type: "int", Default: "256", Description: "Per-destination forward worker channel capacity"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.write.deadline", Type: "duration", Default: "30s", Description: "TCP write deadline for forward pool batch writes"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: "int", Default: "0", Description: "Overflow MixedBufMux byte budget override (0 = auto-sized from peer prefix maximums)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.maxbytes", Type: "int64", Default: "0", Description: "Combined byte budget for 4K+64K buffer pools (0 = unlimited)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.batch.limit", Type: "int", Default: "1024", Description: "Max items per forward batch, bounds writeMu hold time (0 = unlimited)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.teardown.grace", Type: "duration", Default: "5s", Description: "Grace period at >95% pool + >2x weight before forced teardown"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.headroom", Type: "int64", Default: "0", Description: "Extra bytes beyond auto-sized pool baseline (0 = no extra)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.safety.valve", Type: "duration", Default: "5m", Description: "Safety valve duration for UPDATE cache gap-based eviction"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.read.size", Type: "int", Default: "65536", Description: "Per-session TCP read buffer size (bytes)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.write.size", Type: "int", Default: "16384", Description: "Per-session TCP write buffer size (bytes)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.metrics.interval", Type: "duration", Default: "10s", Description: "Periodic metrics refresh interval"})
-)
+// Reactor env var registrations (ze.fwd.*, ze.buf.*, ze.cache.safety.valve,
+// ze.metrics.interval) are centralized in
+// internal/component/config/environment.go.
 
 // reactorLogger is the reactor subsystem logger (lazy initialization).
 // Controlled by ze.log.bgp.reactor environment variable.
@@ -129,11 +118,6 @@ type Config struct {
 	// RecentUpdateMax is the maximum number of cached updates (soft limit).
 	// Default: 1000000. Zero means no limit (not recommended).
 	RecentUpdateMax int
-
-	// MaxSessions limits how many peer sessions can complete before shutdown.
-	// When > 0, reactor stops after this many sessions end (useful for testing).
-	// Default: 0 (unlimited - run forever).
-	MaxSessions int
 
 	// ConfiguredFamilies lists all address families configured on peers.
 	// Used for deferred auto-loading of family plugins after explicit plugins register.
@@ -273,10 +257,8 @@ type Reactor struct {
 	peerObservers []PeerLifecycleObserver
 	observersMu   sync.RWMutex
 
-	running        bool
-	startTime      time.Time
-	sessionCount   int32 // Number of completed sessions (for MaxSessions)
-	sessionCountMu sync.Mutex
+	running   bool
+	startTime time.Time
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -952,6 +934,20 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 			r.mu.Lock()
 			r.abortStartup()
 			return err
+		}
+
+		// Staged announcement gate: block peer startup for
+		// ze.bgp.announce.delay (default 0s) after the reactor is otherwise
+		// Ready. Useful for staggering route emission across restarts.
+		if delay := env.GetDuration("ze.bgp.announce.delay", 0); delay > 0 {
+			reactorLogger().Info("announce-delay: holding peer start", "delay", delay)
+			select {
+			case <-r.clock.After(delay):
+			case <-r.ctx.Done():
+				r.mu.Lock()
+				r.abortStartup()
+				return r.ctx.Err()
+			}
 		}
 
 		// Start all peers (passive peers wait for incoming connections).

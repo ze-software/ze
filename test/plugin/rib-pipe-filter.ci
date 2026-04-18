@@ -257,12 +257,6 @@ plugin {
 	}
 }
 
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {

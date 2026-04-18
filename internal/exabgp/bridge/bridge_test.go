@@ -1241,21 +1241,24 @@ func TestMuxConnCommandFormatting(t *testing.T) {
 
 	pluginReader := strings.NewReader(pluginOutput)
 	var zeBuf strings.Builder
+	var pluginAckBuf strings.Builder
 	zeOut := &syncWriter{w: &zeBuf}
 	pending := newPendingResponses()
 
 	b := NewBridge([]string{"echo"})
 	b.running = true
 
-	// pluginToZebgp blocks on flush response. Signal from a goroutine
-	// after a brief delay so the flush unblocks.
+	// pluginToZebgp blocks on dispatch ack, then the flush response.
+	// Signal both from a goroutine so each wait unblocks.
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		pending.signal(2) // flush ID (dispatch=1, flush=2)
+		pending.signal(1, pendingResult{ok: true}) // dispatch ack
+		time.Sleep(10 * time.Millisecond)
+		pending.signal(2, pendingResult{ok: true}) // flush
 	}()
 
 	ctx := context.Background()
-	b.pluginToZebgp(ctx, pluginReader, zeOut, pending)
+	b.pluginToZebgp(ctx, pluginReader, &pluginAckBuf, zeOut, pending)
 
 	// The output to ze should have both dispatch-command and peer-flush.
 	zeOutput := zeBuf.String()
@@ -1426,6 +1429,7 @@ func TestFlushBlocksUntilResponse(t *testing.T) {
 
 	pluginReader := strings.NewReader(pluginOutput)
 	var zeBuf strings.Builder
+	var pluginAckBuf strings.Builder
 	zeOut := &syncWriter{w: &zeBuf}
 	pending := newPendingResponses()
 
@@ -1436,8 +1440,12 @@ func TestFlushBlocksUntilResponse(t *testing.T) {
 	go func() {
 		defer close(done)
 		ctx := context.Background()
-		b.pluginToZebgp(ctx, pluginReader, zeOut, pending)
+		b.pluginToZebgp(ctx, pluginReader, &pluginAckBuf, zeOut, pending)
 	}()
+
+	// Ack the dispatch first so pluginToZebgp reaches the flush wait.
+	time.Sleep(20 * time.Millisecond)
+	pending.signal(1, pendingResult{ok: true})
 
 	// pluginToZebgp should NOT finish yet -- it's blocked on flush.
 	select {
@@ -1448,7 +1456,7 @@ func TestFlushBlocksUntilResponse(t *testing.T) {
 	}
 
 	// Signal the flush response.
-	pending.signal(2) // flush ID
+	pending.signal(2, pendingResult{ok: true}) // flush ID
 
 	// Now it should finish.
 	select {
@@ -1467,15 +1475,20 @@ func TestPendingResponseSignalAndWait(t *testing.T) {
 
 	// Register and signal immediately.
 	ch := p.register(42)
-	assert.True(t, p.signal(42))
-	assert.NoError(t, p.wait(context.Background(), ch))
+	assert.True(t, p.signal(42, pendingResult{ok: true}))
+	res, err := p.wait(context.Background(), 42, ch)
+	assert.NoError(t, err)
+	assert.True(t, res.ok)
 
 	// Signal without registration returns false.
-	assert.False(t, p.signal(99))
+	assert.False(t, p.signal(99, pendingResult{ok: true}))
 
-	// Wait with canceled context returns error.
+	// Wait with canceled context returns error and removes the waiter.
 	ch2 := p.register(100)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	assert.Error(t, p.wait(ctx, ch2))
+	_, err = p.wait(ctx, 100, ch2)
+	assert.Error(t, err)
+	// Leak check: a late signal on id=100 must find no waiter now.
+	assert.False(t, p.signal(100, pendingResult{ok: true}), "timed-out waiter should have been removed from the map")
 }

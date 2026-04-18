@@ -140,9 +140,6 @@ plugin {
 }
 
 environment {
-	tcp {
-		attempts 3
-	}
 	looking-glass {
 		enabled true
 		server main {

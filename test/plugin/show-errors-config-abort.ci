@@ -131,12 +131,6 @@ EOF_RUN
 
 # Initial ze config: plugin + BGP peer. router-id 1.2.3.4.
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 plugin {
 	external show-errors-config-abort-test {
 		run ./show-errors-config-abort-test.run
@@ -186,12 +180,6 @@ EOF_CONF
 # the plugin receives a config-verify RPC for the reload. Plugin block
 # unchanged so the transaction participant list matches the active set.
 tmpfs=config2.conf:terminator=EOF_CONF2
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 plugin {
 	external show-errors-config-abort-test {
 		run ./show-errors-config-abort-test.run

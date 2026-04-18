@@ -22,7 +22,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
-// Env var registration for config directory and SSH overrides.
+// Env var registration. ze.config.dir is also registered in cmd/ze/main.go,
+// but completion tests in sibling packages (cmd/ze/completion) construct the
+// SSH client without pulling cmd/ze in -- keep the duplicate so env.Get
+// doesn't FATAL. See plan/learned/476 for the prior decision.
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.config.dir", Type: "string", Description: "Override default config directory"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.host", Type: "string", Default: "127.0.0.1", Description: "Override SSH host"})

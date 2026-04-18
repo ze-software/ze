@@ -100,9 +100,6 @@ plugin {
 }
 
 environment {
-	tcp {
-		attempts 3
-	}
 	api-server {
 		rest {
 			enabled true;

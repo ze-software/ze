@@ -163,45 +163,53 @@ func MapEnvToZe(entries []ExaEnvEntry) string {
 
 // mapEnvKnownKey handles a single env key, writing output to b or appending to configLines.
 // Returns true if the key was recognized, false otherwise.
-// Adding a new case to the switch is sufficient -- no separate list to update.
+//
+// Post spec-env-cleanup: surviving ExaBGP keys emit a Ze YANG block; dropped
+// keys emit `# <key> = <value> -- no longer supported` so the operator can
+// audit the file.
 func mapEnvKnownKey(fullKey, value string, b *strings.Builder, configLines *[]string) bool {
 	logPrefix := sectionLog + "."
 
+	// Surviving keys -- emit YANG under `environment { ... }`.
 	switch fullKey {
-	case "tcp.bind", "tcp.port":
-		fmt.Fprintf(b, "# %s = %s -- per-peer config in Ze, not global\n", fullKey, value)
-		return true
-
-	case "bgp.connect", "bgp.accept":
-		fmt.Fprintf(b, "# %s = %s -- per-peer config in Ze\n", fullKey, value)
-		return true
-
-	case "debug.pdb":
-		fmt.Fprintf(b, "# %s = %s -- Python-only, not applicable to Ze\n", fullKey, value)
-		return true
-
-	case logPrefix + "level", logPrefix + "destination":
-		// Handled by merged log block in MapEnvToZe.
-		return true
-
-	case logPrefix + "enable", logPrefix + "all", logPrefix + "short":
-		fmt.Fprintf(b, "# %s = %s -- Ze uses per-subsystem levels\n", fullKey, value)
-		return true
-
 	case "daemon.user":
 		*configLines = append(*configLines, fmt.Sprintf("environment {\n    daemon {\n        user %s;\n    }\n}", value))
 		return true
-
-	case "api.encoder":
-		*configLines = append(*configLines, fmt.Sprintf("# api.encoder = %s -- Ze uses JSON format", value))
+	case "daemon.pid":
+		*configLines = append(*configLines, fmt.Sprintf("environment {\n    daemon {\n        pid %s;\n    }\n}", value))
 		return true
-
-	case "api.respawn":
-		*configLines = append(*configLines, fmt.Sprintf("# api.respawn = %s -- Ze manages plugin lifecycle", value))
+	case "bgp.openwait":
+		*configLines = append(*configLines, fmt.Sprintf("environment {\n    bgp {\n        openwait %s;\n    }\n}", value))
 		return true
+	case "tcp.delay":
+		// ExaBGP tcp.delay was minutes; Ze announce-delay is a duration.
+		*configLines = append(*configLines, fmt.Sprintf("environment {\n    bgp {\n        announce-delay %sm;  # converted from tcp.delay (minutes)\n    }\n}", value))
+		return true
+	case "debug.pprof":
+		*configLines = append(*configLines, fmt.Sprintf("environment {\n    pprof %s;\n}", value))
+		return true
+	case "api.ack":
+		*configLines = append(*configLines, fmt.Sprintf("environment {\n    exabgp {\n        api {\n            ack %s;\n        }\n    }\n}", value))
+		return true
+	}
 
-	case "daemon.drop", "daemon.daemonize", "daemon.pid", "cache.attributes", "cache.nexthops":
-		fmt.Fprintf(b, "# %s = %s -- not applicable to Ze\n", fullKey, value)
+	// Log-level + destination are handled by the merged log block in MapEnvToZe.
+	if fullKey == logPrefix+"level" || fullKey == logPrefix+"destination" {
+		return true
+	}
+
+	// Dropped keys -- explain to the operator.
+	dropped := map[string]bool{
+		"tcp.bind": true, "tcp.port": true, "tcp.attempts": true, "tcp.acl": true, "tcp.once": true, "tcp.connections": true,
+		"bgp.connect": true, "bgp.accept": true,
+		"debug.pdb": true, "debug.memory": true, "debug.configuration": true, "debug.selfcheck": true, "debug.route": true, "debug.defensive": true, "debug.rotate": true, "debug.timing": true,
+		"daemon.drop": true, "daemon.daemonize": true, "daemon.umask": true,
+		"cache.attributes": true, "cache.nexthops": true,
+		"api.chunk": true, "api.encoder": true, "api.compact": true, "api.respawn": true, "api.terminate": true, "api.cli": true,
+		logPrefix + "enable": true, logPrefix + "all": true, logPrefix + "short": true,
+	}
+	if dropped[fullKey] {
+		fmt.Fprintf(b, "# %s = %s -- no longer supported\n", fullKey, value)
 		return true
 	}
 

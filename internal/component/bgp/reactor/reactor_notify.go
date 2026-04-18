@@ -128,19 +128,6 @@ func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
 
 	// Cross-component consumers receive (bgp, state) via the EventBus.
 	r.emitPeerStateEvent(peer, "down", reason)
-
-	// Track session count for MaxSessions feature (tcp.once/tcp.attempts)
-	if r.config.MaxSessions > 0 {
-		r.sessionCountMu.Lock()
-		r.sessionCount++
-		count := r.sessionCount
-		r.sessionCountMu.Unlock()
-
-		if int(count) >= r.config.MaxSessions {
-			// MaxSessions reached - trigger shutdown
-			go r.Stop()
-		}
-	}
 }
 
 // emitCongestionEvent emits a congestion state change event to subscribed plugins.

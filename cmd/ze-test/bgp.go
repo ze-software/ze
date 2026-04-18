@@ -1,4 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md — test runner CLI
+// Related: vpp.go -- shared test-runner infrastructure and CLI parser
 
 package main
 
@@ -505,18 +506,29 @@ func runClientOnly(ctx context.Context, cli *runCLIFlags, tests *runner.Encoding
 	fmt.Printf("\nServer should be running. If not:\n")
 	fmt.Printf("   ze-test bgp %s --server %s --port %d\n\n", cli.command, cli.client, port)
 
-	// Build client env
-	// Set tcp.attempts=1 so ze bgp exits after the session ends (instead of reconnecting)
+	// Build client env. Press Ctrl+C when the peer has finished validating;
+	// the client sends SIGTERM to ze so it shuts down gracefully.
 	zeDir := filepath.Dir(zePath)
 	existingPath := os.Getenv("PATH")
 	clientEnv := append(os.Environ(),
-		fmt.Sprintf("ze_bgp_tcp_port=%d", port),
+		fmt.Sprintf("ze_test_bgp_port=%d", port),
 		fmt.Sprintf("PATH=%s:%s", zeDir, existingPath),
-		"ze_bgp_tcp_attempts=1", // Exit after first session ends
 	)
 
-	// Run ze bgp (blocks until stopped)
+	// Run ze bgp (blocks until stopped).
+	// Override CommandContext's default Kill with SIGTERM so ze shuts down
+	// cleanly when the user Ctrl+Cs (canceling ctx).
+	//
+	// exec doc: Cancel is invoked only after Start succeeds, so Process is
+	// guaranteed non-nil at call time. Guard defensively in case that changes.
 	clientCmd := exec.CommandContext(ctx, zePath, "server", configPath) //nolint:gosec // test runner, paths from temp dir
+	clientCmd.Cancel = func() error {
+		if clientCmd.Process == nil {
+			return nil
+		}
+		return clientCmd.Process.Signal(syscall.SIGTERM)
+	}
+	clientCmd.WaitDelay = 5 * time.Second
 	clientCmd.Env = clientEnv
 	clientCmd.Stdout = os.Stdout
 	clientCmd.Stderr = os.Stderr

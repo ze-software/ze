@@ -2,204 +2,73 @@
 
 ## TL;DR
 
-Ze-specific feature to set environment variables from the config file:
-
-```
-environment {
-    log { level DEBUG; }
-    tcp { attempts 3; }
-    api { encoder text; }
-}
-```
-
-Priority: **OS env > config block > defaults**
-<!-- source: internal/component/config/environment.go -- LoadEnvironmentWithConfig priority order -->
-
-## Syntax
-
-```
-environment {
-    <section> {
-        <option> <value>;
-    }
-}
-```
-
-### Available Sections and Options
-
-<!-- source: internal/component/config/environment.go -- loadDefaults(), envOptions -->
-
-| Section | Option | Type | Range/Values | Default |
-|---------|--------|------|--------------|---------|
-| **daemon** | pid | string | - | "" |
-| | user | string | - | "zeuser" |
-| | daemonize | bool | - | false |
-| | drop | bool | - | true |
-| | umask | octal | - | 0o137 |
-| **log** | level | enum | DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL | INFO |
-| | destination | string | - | "stdout" |
-| | short | bool | - | true |
-| **tcp** | attempts | int | 0-1000 | 0 |
-| | delay | int | - | 0 |
-| | acl | bool | - | false |
-| | once | bool | - | false (legacy alias) |
-| | connections | int | 0-1000 | (legacy alias for attempts) |
-| **bgp** | openwait | int | 1-3600 | 60 |
-| **cache** | attributes | bool | - | true |
-| **api** | ack | bool | - | true |
-| | chunk | int | - | 1 |
-| | encoder | enum | json, text | "json" |
-| | compact | bool | - | false |
-| | respawn | bool | - | true |
-| | terminate | bool | - | false |
-| | cli | bool | - | true |
-| **reactor** | speed | float | 0.1-10.0 | 1.0 |
-| | cache-ttl | int | 0-3600 | 60 |
-| | cache-max | int | 0+ | 1000000 |
-| **debug** | pdb | bool | - | false |
-| | memory | bool | - | false |
-| | configuration | bool | - | false |
-| | selfcheck | bool | - | false |
-| | route | string | - | "" |
-| | defensive | bool | - | false |
-| | rotate | bool | - | false |
-| | timing | bool | - | false |
-| | pprof | string | - | "" |
-| **chaos** | seed | int64 | - | 0 |
-| | rate | float | 0.0-1.0 | 0.1 |
-<!-- source: internal/component/config/environment.go -- loadDefaults, envOptions -->
-
-### Value Types
-
-| Type | Valid Values |
-|------|-------------|
-| bool | `true`, `false`, `1`, `0`, `yes`, `no`, `on`, `off`, `enable`, `disable` |
-| enum | Case-insensitive (e.g., `DEBUG`, `debug`, `Debug` all valid) |
-| int | Decimal integer |
-| float | Decimal number (e.g., `1.5`, `0.1`) |
-| octal | Octal number (with or without leading 0) |
-| string | Quoted for spaces (e.g., `"/path/with spaces/file"`) |
-<!-- source: internal/component/config/environment.go -- parseBoolStrict, parseIntStrict, parseFloatStrict, parseOctalStrict -->
-
-## Priority Order
-
-1. **OS environment variable** (dot notation): `ze.bgp.log.level=DEBUG`
-2. **OS environment variable** (underscore notation): `ze_bgp_log_level=DEBUG`
-3. **Config file** environment block
-4. **Defaults**
-<!-- source: internal/component/config/environment.go -- LoadEnvironmentWithConfig -->
-
-## Strict Validation
-
-Ze uses **strict validation** - invalid values cause startup failure:
-
-```bash
-# These will cause Ze to refuse to start:
-ze.bgp.tcp.attempts=abc       # Invalid: not a number
-ze.bgp.tcp.attempts=99999     # Invalid: out of range (0-1000)
-ze.bgp.log.level=BOGUS        # Invalid: unknown level
-ze.bgp.bgp.openwait=maybe     # Invalid: not a number
-```
-<!-- source: internal/component/config/environment.go -- validatePort, validateLogLevel, validateEncoder -->
-
-### Migration Helper
-
-Before upgrading, validate your environment variables:
-
-```bash
-ze config validate --limit environment
-```
-
-This will report any invalid environment variables that would cause startup failure.
-
-## Examples
-
-### Basic Configuration
-
-```
-environment {
-    log {
-        level DEBUG;
-        short true;
-    }
-    tcp {
-        attempts 3;
-    }
-}
-
-bgp {
-    router-id 192.0.2.1;
-    local { as 65000; }
-
-    peer my-peer {
-        remote { ip 192.0.2.2; as 65001; }
-    }
-}
-```
-
-### Full Configuration
+YANG container `environment { }` sets env vars from the config file:
 
 ```
 environment {
     daemon {
-        user ze;
-        daemonize true;
-    }
-    log {
-        level INFO;
-        destination /var/log/ze.bgp.log;
-    }
-    tcp {
-        attempts 3;
+        pid "/run/ze.pid";
+        user "zeuser";
     }
     bgp {
-        openwait 120;
+        openwait 60;
+        announce-delay 5s;
     }
-    api {
-        encoder json;
-        cli true;
+    pprof ":6060";
+    log {
+        level INFO;
+        bgp.routes debug;
+    }
+    exabgp {
+        api {
+            ack false;
+        }
+    }
+    chaos {
+        seed 0;
+        rate "0.1";
     }
     reactor {
-        speed 1.0;
+        cache-ttl 60;
     }
 }
 ```
 
-### OS Environment Override
+Priority: **OS env > config block > YANG default**.
 
-```bash
-# Config file sets attempts=3, but OS env overrides to 1
-export ze.bgp.tcp.attempts=1
-ze bgp run config.conf
-```
+The config loader maps `environment/log/*` to env vars via
+`slogutil.ApplyLogConfig` and everything else via `config.ApplyEnvConfig`.
+Each leaf writes the target env var at startup (never overwriting a
+pre-existing OS env var).
+<!-- source: internal/component/config/apply_env.go -- ApplyEnvConfig, envPlumbingTable -->
+<!-- source: internal/core/slogutil/slogutil.go -- ApplyLogConfig -->
 
-## Differences from ExaBGP
+## Sections
 
-| Feature | ExaBGP | Ze |
-|---------|--------|-------|
-| Environment source | Separate INI file (`exabgp.env`) | Config block + OS env |
-| Invalid values | Silent fallback to default | Strict error, refuse to start |
-| Validation | None | Enums and ranges validated |
-| Migration helper | None | `ze config validate --limit environment` |
-<!-- source: internal/component/config/environment.go -- SetConfigValue error handling -->
+| Section | Option | Env var | Default | Notes |
+|---------|--------|---------|---------|-------|
+| `daemon` | `pid` | `ze.pid.file` | "" | Hub writes PID file, removes at clean shutdown |
+| `daemon` | `user` | `ze.user` | "zeuser" | User for privilege drop |
+| `log` | `level`, `backend`, `destination`, `relay` | `ze.log.*` | per-leaf | Owned by `slogutil.ApplyLogConfig` |
+| `log` | `<subsystem>` | `ze.log.<subsystem>` | per-subsystem | `log { bgp.routes debug; }` -> `ze.log.bgp.routes=debug` |
+| `bgp` | `openwait` | `ze.bgp.openwait` | 120 | Seconds to wait for peer OPEN (1-3600) |
+| `bgp` | `announce-delay` | `ze.bgp.announce.delay` | 0s | Duration to delay first UPDATE after reactor Ready |
+| `pprof` | (top-level leaf) | `ze.pprof` | "" | pprof HTTP server address, e.g. `:6060` |
+| `chaos` | `seed` | `ze.bgp.chaos.seed` | 0 | PRNG seed (0 = disabled) |
+| `chaos` | `rate` | `ze.bgp.chaos.rate` | "0.1" | Fault probability (0.0-1.0) |
+| `reactor` | `speed`, `cache-ttl`, `cache-max`, `update-groups` | `ze.bgp.reactor.*` | per-leaf | Reactor tuning |
+| `exabgp/api` | `ack` | `exabgp.api.ack` | true | ExaBGP bridge ack emission |
+<!-- source: internal/component/hub/schema/ze-hub-conf.yang -- environment container -->
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- environment augment -->
 
-## Multiple Environment Blocks
+## Retired Keys
 
-Multiple environment blocks are **merged** (not overwritten):
+The ExaBGP-compat containers `environment/tcp`, `environment/cache`,
+`environment/api`, `environment/debug` were removed in 2026-04.
+Operators with legacy ExaBGP INI configs can convert via
+`ze exabgp migrate --env <file>`: surviving keys become YANG blocks,
+dropped keys become `# <key> -- no longer supported` comments.
+<!-- source: internal/exabgp/migration/env.go -- mapEnvKnownKey -->
 
-```
-environment {
-    log { level DEBUG; }
-}
-environment {
-    tcp { attempts 3; }
-}
-# Result: log.level=DEBUG AND tcp.attempts=3
-```
-
-However, for clarity, use a single environment block.
-
-## Related
-
-- [environment.md](environment.md) - OS environment variable reference
-- [syntax.md](syntax.md) - Config file syntax overview
+See [environment-variables.md](../../guide/environment-variables.md)
+for the retiree list and rename table.

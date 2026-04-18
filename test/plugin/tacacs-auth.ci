@@ -78,7 +78,7 @@ environment {
 ZECONF
 
 # BGP port derived from PID so concurrent tests do not collide
-export ze_bgp_tcp_port=$((10000 + ($$ % 50000)))
+export ze_test_bgp_port=$((10000 + ($$ % 50000)))
 
 # Start daemon, capturing stderr to a file so we can replay it to the script's
 # stderr after the auth attempt (so .ci runner's stderr patterns match).

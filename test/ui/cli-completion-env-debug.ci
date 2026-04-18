@@ -1,5 +1,7 @@
-# Test: ze config completion — environment debug fields
-# VALIDATES: Debug container shows its leaf children
+# Test: ze config completion — environment top-level leaves (post spec-env-cleanup)
+# VALIDATES: Top-level `environment/pprof` leaf is reachable via completion.
+# Note: The old `environment/debug` container was retired along with every
+# ExaBGP-compat debug flag. `pprof` is now a direct leaf under environment.
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -12,9 +14,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context environment/debug --input set+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context environment --input set+ test.conf
 expect=exit:code=0
-expect=stdout:contains=pdb
-expect=stdout:contains=memory
 expect=stdout:contains=pprof
-expect=stdout:contains=defensive

@@ -1,6 +1,6 @@
-# Test: ze config completion — environment tcp fields (bgp augment)
-# VALIDATES: TCP container from bgp-conf augment shows its fields
-# Note: port removed (ExaBGP legacy; Ze uses per-peer config)
+# Test: ze config completion — environment bgp fields (post spec-env-cleanup)
+# VALIDATES: bgp container (from bgp-conf augment) shows openwait + announce-delay
+# Note: `tcp` container retired -- ze has no global ExaBGP-style listen port.
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -13,8 +13,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context environment/tcp --input set+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context environment/bgp --input set+ test.conf
 expect=exit:code=0
-expect=stdout:contains=attempts
-expect=stdout:contains=delay
-expect=stdout:contains=acl
+expect=stdout:contains=openwait
+expect=stdout:contains=announce-delay

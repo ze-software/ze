@@ -13,12 +13,6 @@ EOF_PEER
 
 # Initial config: one working peer
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {
@@ -63,12 +57,6 @@ EOF_CONF
 
 # Bad config: broken peer (missing required remote section)
 tmpfs=bad-config.conf:terminator=EOF_BAD
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer broken {
 		session {

@@ -27,12 +27,6 @@ EOF_PEER
 
 # Initial ze bgp configuration (one route)
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {
@@ -78,12 +72,6 @@ EOF_CONF
 
 # Rewritten config (two routes - count change triggers restart on first SIGHUP)
 tmpfs=config2.conf:terminator=EOF_CONF2
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {

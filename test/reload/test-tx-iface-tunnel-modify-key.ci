@@ -12,12 +12,6 @@ EOF_PEER
 
 # Initial config: BGP peer + gre tunnel with key 1
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {
@@ -74,12 +68,6 @@ EOF_CONF
 
 # Updated config: same gre tunnel name, key 2
 tmpfs=config2.conf:terminator=EOF_CONF2
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {

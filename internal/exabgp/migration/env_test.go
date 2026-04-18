@@ -87,8 +87,10 @@ func TestParseExaBGPEnv(t *testing.T) {
 	}
 }
 
-// TestEnvListenerMapping verifies tcp.bind/port produce comments.
-// VALIDATES: AC-5 -- tcp.port/bind emit comments.
+// TestEnvListenerMapping verifies tcp.bind/port produce "no longer supported"
+// comments after spec-env-cleanup.
+//
+// VALIDATES: Listener keys emit drop comments (migrator does not translate).
 // PREVENTS: Listener keys silently converted to invalid Ze config.
 func TestEnvListenerMapping(t *testing.T) {
 	entries := []ExaEnvEntry{
@@ -99,7 +101,7 @@ func TestEnvListenerMapping(t *testing.T) {
 	output := MapEnvToZe(entries)
 	assert.Contains(t, output, "# tcp.bind")
 	assert.Contains(t, output, "# tcp.port")
-	assert.Contains(t, output, "per-peer")
+	assert.Contains(t, output, "no longer supported")
 }
 
 // TestEnvLogMapping verifies per-topic booleans mapped to subsystem levels.
@@ -133,8 +135,10 @@ func TestEnvLogMapping(t *testing.T) {
 	}
 }
 
-// TestEnvCommentOnly verifies unsupported keys produce comments.
-// VALIDATES: AC-7 -- `debug.pdb = true` -> output contains comment about Python-only.
+// TestEnvCommentOnly verifies unsupported keys produce "no longer supported"
+// drop comments.
+//
+// VALIDATES: AC-23 `debug.pdb = true` -> output contains the drop comment.
 // PREVENTS: Unsupported keys silently dropped without user notice.
 func TestEnvCommentOnly(t *testing.T) {
 	tests := []struct {
@@ -142,11 +146,10 @@ func TestEnvCommentOnly(t *testing.T) {
 		section string
 		key     string
 		value   string
-		want    string
 	}{
-		{"debug.pdb", "debug", "pdb", "true", "Python-only"},
-		{"bgp.connect", "bgp", "connect", "true", "per-peer"},
-		{"bgp.accept", "bgp", "accept", "true", "per-peer"},
+		{"debug.pdb", "debug", "pdb", "true"},
+		{"bgp.connect", "bgp", "connect", "true"},
+		{"bgp.accept", "bgp", "accept", "true"},
 	}
 
 	for _, tt := range tests {
@@ -156,29 +159,31 @@ func TestEnvCommentOnly(t *testing.T) {
 			}
 			output := MapEnvToZe(entries)
 			assert.Contains(t, output, "#")
-			assert.Contains(t, output, tt.want)
+			assert.Contains(t, output, "no longer supported")
 		})
 	}
 }
 
-// TestEnvSwitchBranches verifies all explicitly handled env keys produce correct output.
-// VALIDATES: Each case in mapEnvKnownKey produces expected output.
-// PREVENTS: Switch branches silently producing wrong or missing output.
-func TestEnvSwitchBranches(t *testing.T) {
+// TestEnvDroppedComment verifies dropped ExaBGP keys emit the
+// "no longer supported" comment rather than disappearing silently.
+//
+// VALIDATES: AC-23/AC-24 drop-comment format.
+// PREVENTS: Operators unaware that their config line is ignored.
+func TestEnvDroppedComment(t *testing.T) {
 	tests := []struct {
 		name    string
 		section string
 		key     string
 		value   string
-		want    string
 	}{
-		{"daemon.drop", "daemon", "drop", "true", "not applicable"},
-		{"daemon.daemonize", "daemon", "daemonize", "true", "not applicable"},
-		{"daemon.pid", "daemon", "pid", "/var/run/exabgp.pid", "not applicable"},
-		{"cache.attributes", "cache", "attributes", "true", "not applicable"},
-		{"cache.nexthops", "cache", "nexthops", "true", "not applicable"},
-		{"api.encoder", "api", "encoder", "json", "Ze uses JSON format"},
-		{"api.respawn", "api", "respawn", "true", "Ze manages plugin lifecycle"},
+		{"daemon.drop", "daemon", "drop", "true"},
+		{"daemon.daemonize", "daemon", "daemonize", "true"},
+		{"daemon.umask", "daemon", "umask", "0137"},
+		{"cache.attributes", "cache", "attributes", "true"},
+		{"cache.nexthops", "cache", "nexthops", "true"},
+		{"api.encoder", "api", "encoder", "json"},
+		{"api.respawn", "api", "respawn", "true"},
+		{"tcp.attempts", "tcp", "attempts", "3"},
 	}
 
 	for _, tt := range tests {
@@ -187,8 +192,43 @@ func TestEnvSwitchBranches(t *testing.T) {
 				{Section: tt.section, Key: tt.key, Value: tt.value},
 			}
 			output := MapEnvToZe(entries)
-			assert.Contains(t, output, tt.want,
-				"output for %s.%s should contain %q", tt.section, tt.key, tt.want)
+			assert.Contains(t, output, "# "+tt.section+"."+tt.key)
+			assert.Contains(t, output, "no longer supported")
+		})
+	}
+}
+
+// TestEnvSurvivingKey verifies surviving keys produce YANG config blocks.
+//
+// VALIDATES: AC-20 `bgp.openwait` -> YANG `environment { bgp { openwait ...; } }`.
+// VALIDATES: AC-21 `tcp.delay` -> `environment { bgp { announce-delay ...m; } }`.
+// VALIDATES: AC-22 `daemon.user` -> YANG `environment { daemon { user ...; } }`.
+func TestEnvSurvivingKey(t *testing.T) {
+	tests := []struct {
+		name    string
+		section string
+		key     string
+		value   string
+		wantAll []string
+	}{
+		{"daemon.user", "daemon", "user", "nobody", []string{"environment", "daemon", "user", "nobody"}},
+		{"daemon.pid", "daemon", "pid", "/var/run/ze.pid", []string{"environment", "daemon", "pid", "/var/run/ze.pid"}},
+		{"bgp.openwait", "bgp", "openwait", "60", []string{"environment", "bgp", "openwait", "60"}},
+		{"tcp.delay converts to minutes", "tcp", "delay", "5", []string{"environment", "bgp", "announce-delay", "5m"}},
+		{"debug.pprof", "debug", "pprof", ":6060", []string{"environment", "pprof", ":6060"}},
+		{"api.ack", "api", "ack", "false", []string{"environment", "exabgp", "api", "ack", "false"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entries := []ExaEnvEntry{
+				{Section: tt.section, Key: tt.key, Value: tt.value},
+			}
+			output := MapEnvToZe(entries)
+			for _, want := range tt.wantAll {
+				assert.Contains(t, output, want,
+					"output for %s.%s should contain %q", tt.section, tt.key, want)
+			}
 		})
 	}
 }
@@ -270,11 +310,12 @@ func TestEnvFullFile(t *testing.T) {
 	assert.Len(t, entries, 8)
 
 	output := MapEnvToZe(entries)
-	// Should have comments for tcp.bind, tcp.port, debug.pdb
+	// Should have drop comments for tcp.bind, tcp.port, debug.pdb.
 	assert.Contains(t, output, "# tcp.bind")
 	assert.Contains(t, output, "# tcp.port")
-	assert.Contains(t, output, "Python-only")
-	// Should have config entries
+	assert.Contains(t, output, "# debug.pdb")
+	assert.Contains(t, output, "no longer supported")
+	// Should have subsystem log entries.
 	assert.Contains(t, output, "bgp.wire debug")
 	assert.Contains(t, output, "plugin.bgp-rib disabled")
 }

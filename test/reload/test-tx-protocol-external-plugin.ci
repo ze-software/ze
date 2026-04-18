@@ -49,12 +49,6 @@ plugin {
 	}
 }
 
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {
@@ -107,12 +101,6 @@ plugin {
 	external bgp-watchdog {
 		use bgp-watchdog
 		encoder json
-	}
-}
-
-environment {
-	tcp {
-		attempts 3
 	}
 }
 

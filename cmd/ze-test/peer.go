@@ -16,14 +16,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/peer"
 )
 
-// Register ze.bgp.tcp.port so env.GetInt doesn't abort.
-// The full ze.bgp.* prefix is registered in internal/component/config,
-// but ze-test doesn't import that package.
+// ze.test.bgp.port is a test-only env var: ze-test peer listens on it, and the
+// ze-test harness sets it when launching ze as a BGP client (see cmd/ze-test/bgp.go).
+// Private so it does not show up in `ze env list`.
 var _ = env.MustRegister(env.EnvEntry{
-	Key:         "ze.bgp.tcp.port",
+	Key:         "ze.test.bgp.port",
 	Type:        "int",
 	Default:     "179",
-	Description: "BGP TCP port (used by ze-test peer)",
+	Description: "BGP TCP port used by ze-test peer and the ze-test runner (test infrastructure)",
+	Private:     true,
 })
 
 func peerCmd() int {
@@ -95,7 +96,7 @@ func parsePeerFlags() (*peer.Config, bool) {
 		return nil, true
 	}
 
-	port := env.GetInt("ze.bgp.tcp.port", 179)
+	port := env.GetInt("ze.test.bgp.port", 179)
 
 	config := &peer.Config{Output: os.Stdout}
 
@@ -238,7 +239,7 @@ Modes:
   --mode inject   Stream a bulk UPDATE image after OPEN (stress tests)
 
 Options:
-  --port N           Port to bind (default: 179, or ze_bgp_tcp_port env)
+  --port N           Port to bind (default: 179, or ze_test_bgp_port env)
   --asn N            ASN to use (0 = extract from peer OPEN)
   --ipv6             Bind using IPv6
   --decode           Decode messages to human-readable format

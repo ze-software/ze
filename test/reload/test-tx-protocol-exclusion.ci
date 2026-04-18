@@ -15,24 +15,12 @@ EOF_PEER
 
 # Initial config (no peers)
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 }
 EOF_CONF
 
 # First reload config (adds peer)
 tmpfs=config2.conf:terminator=EOF_CONF2
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {

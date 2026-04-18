@@ -780,21 +780,18 @@ module ze-bgp-conf {
 
     // BGP-owned environment settings — augment hub's environment container
     augment "/hub:environment" {
-        container tcp {
-            description "TCP settings";
-            leaf attempts { type int32; description "TCP connection attempts before giving up"; }
-            leaf delay { type int32; description "Delay between TCP connection attempts in seconds"; }
-            leaf acl { type boolean; description "Enable TCP ACL filtering"; }
-        }
-
         container bgp {
             description "BGP protocol settings";
-            leaf openwait { type int32; default "120"; description "Seconds to wait for OPEN after TCP connect"; }
-        }
-
-        container cache {
-            description "Cache settings";
-            leaf attributes { type boolean; default true; description "Cache path attributes for deduplication"; }
+            leaf openwait {
+                type int32 { range "1..3600"; }
+                default "120";
+                description "Seconds to wait for peer OPEN after TCP connect";
+            }
+            leaf announce-delay {
+                type string;
+                default "0s";
+                description "Delay between reactor Ready and first UPDATE (duration, 0s-1h)";
+            }
         }
 
         container reactor {

@@ -79,9 +79,6 @@ environment {
 			port 0;
 		}
 	}
-	tcp {
-		attempts 3
-	}
 }
 
 bgp {

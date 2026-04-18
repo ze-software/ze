@@ -15,21 +15,10 @@ EOF_PEER
 
 # Initial ze config (no bgp section -- BGP plugin does not load)
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
 EOF_CONF
 
 # Rewritten config (bgp section added -- triggers autoLoadForNewConfigPaths)
 tmpfs=config2.conf:terminator=EOF_CONF2
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {

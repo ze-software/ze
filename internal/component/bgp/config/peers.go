@@ -220,7 +220,7 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 		}
 	}
 
-	// Step 4: Apply port override from ze.bgp.tcp.port env var (test infrastructure).
+	// Step 4: Apply port override from ze.test.bgp.port env var (test infrastructure).
 	applyPortOverride(peers)
 
 	// Step 5: Validate connection mode.
@@ -578,9 +578,8 @@ func filterChainContains(chain []string, name string) bool {
 	return false
 }
 
-// applyPortOverride overrides peer remote port from ze.bgp.tcp.port env var.
+// applyPortOverride overrides peer remote port from ze.test.bgp.port env var.
 // This is a runtime-only mechanism for the test infrastructure (not YANG config).
-// The ExaBGP config leaf "bgp > listen" and env vars bgp.connect/bgp.accept are removed.
 func applyPortOverride(peers []*reactor.PeerSettings) {
 	p := coreenv.Get(envKeyTCPPort)
 	if p == "" {

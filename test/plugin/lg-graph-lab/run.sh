@@ -34,7 +34,7 @@ sed -e "s/\${LG_PORT}/$LG_PORT/" -e "s/\${LG_IP}/0.0.0.0/" "$SCRIPT_DIR/ze-bgp.c
 cd "$WORKDIR"
 PYTHONPATH="$REPO_ROOT/test/scripts" \
 PATH="$REPO_ROOT/bin:$PATH" \
-ze_bgp_tcp_port="$BGP_PORT" \
+ze_test_bgp_port="$BGP_PORT" \
 "$REPO_ROOT/bin/ze" "$WORKDIR/ze-bgp.conf" &
 ZE_PID=$!
 cd "$REPO_ROOT"

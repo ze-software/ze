@@ -27,12 +27,6 @@ EOF_PEER
 
 # Initial config: one BGP peer, no wireguard
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {
@@ -77,12 +71,6 @@ EOF_CONF
 
 # Updated config: same BGP peer + wireguard wg0 with one peer
 tmpfs=config2.conf:terminator=EOF_CONF2
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {

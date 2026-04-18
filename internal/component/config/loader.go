@@ -103,8 +103,16 @@ func ParseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, error
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
+	// Prune inactive containers and list entries before extracting environment
+	// values: `inactive:` is the operator's way to comment out a subtree, and
+	// extracting it here would set env vars the operator explicitly disabled.
+	// Env-level plumbing that depends on the full tree happens downstream in
+	// CreateReactorFromTree (and runs after this prune).
+	PruneInactive(tree, schema)
+
 	envValues := ExtractEnvironment(tree)
 	slogutil.ApplyLogConfig(envValues)
+	ApplyEnvConfig(envValues)
 
 	return tree, nil
 }

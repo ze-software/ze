@@ -1,237 +1,181 @@
 # Ze Environment Variables
 
 **Source:** `internal/component/config/environment.go`
-<!-- source: internal/component/config/environment.go -- Environment struct, loadDefaults() -->
-**Purpose:** Complete reference of all ze environment variables
+<!-- source: internal/component/config/environment.go -- env var registrations -->
+**Purpose:** Reference of ze environment variables.
 
 ---
 
 ## Overview
 
-Ze uses environment variables for daemon and BGP subsystem configuration.
+Ze environment variables are registered centrally in
+`internal/component/config/environment.go` and in each owning package
+(reactor, L2TP, privilege drop, SSH). Every runtime lookup via
+`internal/core/env.Get*` MUST hit a registered key; unregistered keys
+abort the process.
 
-**Two variable families:**
+Each YANG `environment/<section>/<option>` leaf also has a matching env
+var so the operator can override it at runtime. The config file path
+sets the env var at startup via `slogutil.ApplyLogConfig` (log keys) or
+`config.ApplyEnvConfig` (everything else).
+<!-- source: internal/component/config/apply_env.go -- ApplyEnvConfig -->
 
-| Family | Format | Purpose |
-|--------|--------|---------|
-| Top-level | `ze.<option>` / `ze_<option>` | Daemon-wide settings (privilege drop) |
-| BGP subsystem | `ze.bgp.<section>.<option>` / `ze_bgp_<section>_<option>` | BGP and process settings |
+**Priority:** OS env var > config file `environment { }` block > default.
 
-**Priority:** env var (dot) > env var (underscore) > config file `environment { }` block > default.
-
-**Strict validation:** Invalid values cause startup failure (not silent defaults).
-<!-- source: internal/component/config/environment.go -- LoadEnvironmentWithConfig, loadFromEnvStrict -->
+An existing OS env var is NEVER overwritten by the config file value.
+<!-- source: internal/component/config/apply_env.go -- lookupPlumbValue -->
 
 ---
 
 ## Top-Level Variables
 
-| Variable | Underscore | Type | Default | Description |
-|----------|------------|------|---------|-------------|
-| `ze.user` | `ze_user` | string | (none) | User to drop to after port binding |
-| `ze.group` | `ze_group` | string | (primary group of user) | Group to drop to after port binding |
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `ze.user` | string | (unset) | User to drop to after port binding |
+| `ze.group` | string | (user's primary group) | Group to drop to after port binding |
+| `ze.pid.file` | string | (unset) | PID file path written at hub startup, removed at clean shutdown |
+| `ze.pprof` | string | (unset) | pprof HTTP server address (e.g. `:6060`); empty disables |
+| `ze.ready.file` | string | (unset) | Test infrastructure: signal file written when hub is ready |
+| `ze.config.dir` | string | (unset) | Override default config directory |
+<!-- source: internal/component/config/environment.go -- env var registrations -->
+<!-- source: cmd/ze/hub/pidfile.go -- writePIDFile, removePIDFile -->
 
 When `ze.user` is not set, no privilege dropping occurs.
-See `internal/core/privilege/` for implementation.
-<!-- source: internal/core/privilege/ -- privilege dropping implementation -->
+<!-- source: internal/core/privilege/drop.go -- DropConfigFromEnv -->
 
 ---
 
-## BGP Subsystem Variables
+## BGP Protocol Variables
 
-All BGP variables use the `ze.bgp.<section>.<option>` format.
-They can also be set via the config file `environment { <section> { <option> <value> } }` block.
+| Variable | YANG Path | Default | Description |
+|----------|-----------|---------|-------------|
+| `ze.bgp.openwait` | `environment/bgp/openwait` | 120 (seconds) | Seconds to wait for peer OPEN after TCP connect (1-3600) |
+| `ze.bgp.announce.delay` | `environment/bgp/announce-delay` | 0s (duration) | Delay between reactor Ready and first UPDATE (staged announcement gate) |
+<!-- source: internal/component/bgp/reactor/session_connection.go -- openwait consumer -->
+<!-- source: internal/component/bgp/reactor/reactor.go -- announce-delay consumer -->
 
-### daemon
+## BGP Reactor Tuning
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ze.bgp.daemon.pid` | string | (none) | PID file location |
-| `ze.bgp.daemon.user` | string | "zeuser" | Legacy user field (prefer `ze.user`) |
-| `ze.bgp.daemon.daemonize` | bool | false | Run in background |
-| `ze.bgp.daemon.drop` | bool | true | Drop privileges after startup |
-| `ze.bgp.daemon.umask` | octal | 0137 | Umask for created files |
-<!-- source: internal/component/config/environment.go -- DaemonEnv struct, loadDefaults -->
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ze.bgp.reactor.speed` | "1.0" | Reactor loop time multiplier (0.1-10.0) |
+| `ze.bgp.reactor.cache-ttl` | 60 | UPDATE cache TTL in seconds (0=immediate) |
+| `ze.bgp.reactor.cache-max` | 1000000 | UPDATE cache max entries (0=unlimited) |
+| `ze.bgp.reactor.update-groups` | true | Cross-peer UPDATE grouping |
 
-### log
+## Chaos Fault Injection
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ze.bgp.log.level` | string | "INFO" | Syslog level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL |
-| `ze.bgp.log.destination` | string | "stdout" | stdout, stderr, syslog, or filename |
-| `ze.bgp.log.short` | bool | true | Short format |
-<!-- source: internal/component/config/environment.go -- LogEnv struct, loadDefaults -->
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ze.bgp.chaos.seed` | 0 | PRNG seed (0 = disabled, -1 = time-based) |
+| `ze.bgp.chaos.rate` | "0.1" | Fault probability per operation (0.0-1.0) |
 
-Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (handled by `slogutil.ApplyLogConfig()`). Subsystem names follow `<domain>.<component>` convention (e.g. `bgp.reactor`, `plugin.server`). Run `ze env` for the full list.
+## Forward Pool / Buffers
 
-Color output can be forced on or off via `ze.log.color=true|false`, which overrides TTY detection. The `--color` and `--no-color` CLI flags set this variable. System conventions `NO_COLOR` (no-color.org) and `TERM=dumb` always take precedence.
-<!-- source: internal/core/slogutil/color.go -- UseColor -->
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ze.fwd.chan.size` | 256 | Per-destination forward worker channel capacity |
+| `ze.fwd.write.deadline` | 30s | TCP write deadline for forward pool batch writes |
+| `ze.fwd.pool.size` | 0 | Overflow MixedBufMux byte budget (0 = auto) |
+| `ze.fwd.pool.maxbytes` | 0 | Combined byte budget for 4K+64K buffer pools (0 = unlimited) |
+| `ze.fwd.batch.limit` | 1024 | Max items per forward batch |
+| `ze.fwd.teardown.grace` | 5s | Grace period before forced teardown |
+| `ze.fwd.pool.headroom` | 0 | Extra bytes beyond auto-sized pool baseline |
+| `ze.buf.read.size` | 65536 | Per-session TCP read buffer size |
+| `ze.buf.write.size` | 16384 | Per-session TCP write buffer size |
+| `ze.cache.safety.valve` | 5m | UPDATE cache gap-based eviction duration |
+| `ze.metrics.interval` | 10s | Periodic metrics refresh interval |
 
-### tcp
+## Route Server
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ze.bgp.tcp.attempts` | int | 0 | Exit after N sessions complete (0 = unlimited) |
-| `ze.bgp.tcp.delay` | int | 0 | Delay announcements by N minutes |
-| `ze.bgp.tcp.acl` | bool | false | Experimental ACL |
-| `ze.bgp.tcp.once` | bool | false | Legacy alias: sets attempts=1 |
-| `ze.bgp.tcp.connections` | int | - | Legacy alias for attempts |
-<!-- source: internal/component/config/environment.go -- TCPEnv struct, envOptions["tcp"], validatePort -->
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ze.rs.chan.size` | 4096 | Per-source-peer worker channel capacity |
+| `ze.rs.fwd.senders` | 4 | Concurrent forward sender goroutines |
 
-### bgp
-<!-- source: internal/component/config/environment.go -- BGPEnv struct -->
+---
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ze.bgp.bgp.openwait` | int | 120 | Seconds to wait for OPEN (1-3600) |
-<!-- source: internal/component/config/environment.go -- BGPEnv struct, validateOpenWait -->
+## Log Variables
 
-### cache
-
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ze.bgp.cache.attributes` | bool | true | Cache attributes |
-<!-- source: internal/component/config/environment.go -- CacheEnv struct, loadDefaults -->
-
-### api
-<!-- source: internal/component/config/environment.go -- APIEnv struct, loadDefaults() -->
-
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ze.bgp.api.ack` | bool | true | Acknowledge API commands |
-| `ze.bgp.api.chunk` | int | 1 | Max lines before yield |
-| `ze.bgp.api.encoder` | string | "json" | Encoder: json or text |
-| `ze.bgp.api.compact` | bool | false | Compact JSON for INET |
-| `ze.bgp.api.respawn` | bool | true | Respawn dead processes |
-| `ze.bgp.api.terminate` | bool | false | Terminate if process dies |
-| `ze.bgp.api.cli` | bool | true | Create CLI named pipe |
-<!-- source: internal/component/config/environment.go -- APIEnv struct, loadDefaults -->
-
-### reactor
-
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ze.bgp.reactor.speed` | float | 1.0 | Reactor loop time multiplier (0.1-10.0) |
-| `ze.bgp.reactor.cache-ttl` | int | 60 | UPDATE cache TTL in seconds (0-3600) |
-| `ze.bgp.reactor.cache-max` | int | 1000000 | UPDATE cache max entries (0 = unlimited) |
-| `ze.bgp.reactor.update-groups` | bool | true | Cross-peer UPDATE grouping (build once, send to all peers with same encoding context) |
-<!-- source: internal/component/config/environment.go -- ReactorEnv struct, loadDefaults, validateSpeed -->
-
-### debug
-
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ze.bgp.debug.pdb` | bool | false | Enable pdb on errors (N/A in Go) |
-| `ze.bgp.debug.memory` | bool | false | Memory debug |
-| `ze.bgp.debug.configuration` | bool | false | Raise on config errors |
-| `ze.bgp.debug.selfcheck` | bool | false | Self-check config |
-| `ze.bgp.debug.route` | string | "" | Decode route from config |
-| `ze.bgp.debug.defensive` | bool | false | Generate random faults |
-| `ze.bgp.debug.rotate` | bool | false | Rotate config on reload |
-| `ze.bgp.debug.timing` | bool | false | Reactor timing analysis |
-| `ze.bgp.debug.pprof` | string | "" | pprof HTTP server address (e.g. ":6060") |
-<!-- source: internal/component/config/environment.go -- DebugEnv struct -->
-
-### chaos
-
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ze.bgp.chaos.seed` | int64 | 0 | PRNG seed (0 = disabled, -1 = time-based) |
-| `ze.bgp.chaos.rate` | float | 0.1 | Fault probability per operation (0.0-1.0) |
-<!-- source: internal/component/config/environment.go -- ChaosEnv struct, validateChaosRate -->
+See [logging.md](../logging.md) for the full list. Config-block
+`environment { log { level X; <subsystem> Y; } }` is plumbed to
+`ze.log.*` env vars by `slogutil.ApplyLogConfig`.
+<!-- source: internal/core/slogutil/slogutil.go -- ApplyLogConfig -->
 
 ---
 
 ## Listener Service Variables
 
-Listener services (web, MCP, looking glass) use compound `ip:port` format instead of separate host/port variables. Multiple endpoints can be specified with comma separation.
-<!-- source: internal/component/config/environment.go -- ListenEndpoint, ParseCompoundListen -->
+Listener services (web, MCP, looking glass, API) use compound
+`ip:port` format (multiple endpoints comma-separated, IPv6 bracket
+notation supported). See [configuration.md](../../guide/configuration.md).
 
-### web
-
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ze.web.listen` | string | `0.0.0.0:3443` | Listen address: `ip:port[,ip:port]` (e.g., `0.0.0.0:3443`) |
-| `ze.web.enabled` | bool | false | Enable web server (uses default endpoint if listen not set) |
-| `ze.web.insecure` | bool | false | Disable web authentication |
-<!-- source: internal/component/config/environment.go -- web server env var registrations -->
-
-### mcp
-
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ze.mcp.listen` | string | `127.0.0.1:8080` | Listen address: `ip:port` (e.g., `127.0.0.1:8080`) |
-| `ze.mcp.enabled` | bool | false | Enable MCP server (defaults to `127.0.0.1:8080`) |
-| `ze.mcp.token` | string | (empty) | Bearer token for MCP authentication (secret: cleared from OS env after first read) |
-<!-- source: internal/component/config/environment.go -- MCP server env var registrations -->
-
-### looking-glass
-
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ze.looking-glass.listen` | string | `0.0.0.0:8443` | Listen address: `ip:port` (e.g., `0.0.0.0:8443`) |
-| `ze.looking-glass.enabled` | bool | false | Enable looking glass server |
-| `ze.looking-glass.tls` | bool | false | Enable TLS for looking glass |
-<!-- source: internal/component/config/environment.go -- looking glass env var registrations -->
-
-### Compound Listen Format
-
-The compound listen format supports:
-- Single IPv4 endpoint: `0.0.0.0:3443`
-- Multiple endpoints: `0.0.0.0:3443,127.0.0.1:8080`
-- IPv6 bracket notation: `[::1]:3443`
-- Port range: 1-65535
-<!-- source: internal/component/config/environment.go -- ParseCompoundListen -->
+| Family | Listen | Enabled | Secret |
+|--------|--------|---------|--------|
+| Web | `ze.web.listen` | `ze.web.enabled`, `ze.web.insecure` | - |
+| MCP | `ze.mcp.listen` | `ze.mcp.enabled` | `ze.mcp.token` |
+| Looking glass | `ze.looking-glass.listen` | `ze.looking-glass.enabled`, `ze.looking-glass.tls` | - |
+| API REST | `ze.api-server.rest.listen` | `ze.api-server.rest.enabled` | `ze.api-server.token` |
+| API gRPC | `ze.api-server.grpc.listen` | `ze.api-server.grpc.enabled` | `ze.api-server.token` |
 
 ---
 
-## Config File Syntax
+## L2TP
 
-Environment variables can also be set in the config file:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ze.l2tp.auth.timeout` | 30s | PPP auth-phase timeout |
+| `ze.l2tp.auth.reauth-interval` | 0s | PPP periodic re-auth interval (0 disables) |
+| `ze.l2tp.ncp.enable-ipcp` | true | Enable IPCP NCP |
+| `ze.l2tp.ncp.enable-ipv6cp` | true | Enable IPv6CP NCP |
+| `ze.l2tp.ncp.ip-timeout` | 30s | NCP phase wait for IP handler response |
+| `ze.log.l2tp` | warn | L2TP subsystem log level (private) |
+| `ze.l2tp.skip-kernel-probe` | false | Test-only: skip kernel module probe (private) |
 
-```
-environment {
-    log {
-        level DEBUG
-    }
-    tcp {
-        attempts 3
-    }
-    daemon {
-        user zeuser
-    }
-}
-```
-<!-- source: internal/component/config/environment.go -- SetConfigValue -->
+---
 
-See [environment-block.md](environment-block.md) for the full config block syntax.
+## ExaBGP Bridge
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `exabgp.api.ack` | true | Bridge emits `done`/`error` lines on plugin stdin after each dispatched command |
+
+The bridge subprocess reads `exabgp.api.ack` via `os.Getenv` because it
+runs before Ze's env registry is initialized. The parent Ze process
+writes it via `config.ApplyEnvConfig` when the operator sets
+`environment { exabgp { api { ack <bool>; } } }`.
+<!-- source: internal/exabgp/bridge/bridge_ack.go -- ackMode -->
+
+---
+
+## Test Infrastructure
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ze.test.bgp.port` | 179 | BGP TCP port (ze-test peer + ze-test harness; private) |
+| `ze.bfd.test-parallel` | false | BFD parallel test mode (private) |
 
 ---
 
 ## Boolean Values
 
-Accepted: `true`, `false`, `yes`, `no`, `on`, `off`, `enable`, `disable`, `1`, `0`.
-Any other value causes a startup error.
-<!-- source: internal/component/config/environment.go -- parseBoolStrict -->
+Accepted: `true`/`false`, `yes`/`no`, `on`/`off`, `enable`/`disable`, `1`/`0`.
 
 ---
 
 ## Env Var Registry
 
-All Ze environment variables are registered via `env.MustRegister()` at package init time.
-Calling `env.Get()` with an unregistered key aborts the process.
+All Ze env vars are registered via `env.MustRegister()` at package init
+time. Calling `env.Get()` with an unregistered key aborts the process.
 <!-- source: internal/core/env/registry.go -- MustRegister, EnvEntry -->
 
 **Registration flags:**
 
 | Flag | Meaning |
 |------|---------|
-| `Private` | Hidden from `ze env list` and autocomplete (e.g., auth tokens) |
-| `Secret` | Cleared from OS environment after first `env.Get()` read. Value stays in the in-process cache for subsequent reads, but is removed from `/proc/<pid>/environ`. Used for sensitive credentials like plugin auth tokens. |
-
-A var can be both `Private` and `Secret` (e.g., `ze.plugin.hub.token`).
-<!-- source: internal/core/env/env.go -- Get, clearSecretFromEnv -->
+| `Private` | Hidden from `ze env list` (tokens, test-only keys) |
+| `Secret` | Cleared from OS environment after first `env.Get()`; value remains in the in-process cache |
 
 ---
 
-**Last Updated:** 2026-03-29
+**Last Updated:** 2026-04-18

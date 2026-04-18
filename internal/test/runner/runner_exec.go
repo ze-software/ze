@@ -193,7 +193,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 
 	// Start peer (server)
 	peerEnv := append(os.Environ(),
-		fmt.Sprintf("ze_bgp_tcp_port=%d", rec.Port),
+		fmt.Sprintf("ze_test_bgp_port=%d", rec.Port),
 	)
 	peerCmd := exec.CommandContext(testCtx, r.testPath, peerArgs...) //nolint:gosec // test runner, paths from temp dir
 	peerCmd.Env = peerEnv
@@ -250,7 +250,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	zeDir := filepath.Dir(r.zePath)
 	existingPath := os.Getenv("PATH")
 	clientEnv := append(os.Environ(),
-		fmt.Sprintf("ze_bgp_tcp_port=%d", rec.Port),
+		fmt.Sprintf("ze_test_bgp_port=%d", rec.Port),
 		// NOTE: ze_bgp_tcp_bind removed - listeners now derived from peer LocalAddress
 		fmt.Sprintf("PATH=%s:%s", zeDir, existingPath),
 		"SLOG_LEVEL=DEBUG",            // Enable debug logging for tracing
@@ -590,11 +590,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			fmt.Sprintf("PATH=%s:%s", zeDir, existingPath),
 			"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load
 		)
-		// Only set ze_bgp_tcp_port for ze and ze-peer binaries. Other processes
+		// Only set ze_test_bgp_port for ze and ze-peer binaries. Other processes
 		// (e.g., ze-chaos --in-process) manage their own port configuration and
 		// the override breaks their mock network setup.
 		if binName == "ze" || binName == binNameZePeer {
-			proc.Env = append(proc.Env, fmt.Sprintf("ze_bgp_tcp_port=%d", rec.Port))
+			proc.Env = append(proc.Env, fmt.Sprintf("ze_test_bgp_port=%d", rec.Port))
 		}
 		// Point ze at the test syslog server when one was started. Uses the
 		// ze.log.backend / ze.log.destination convention from slogutil.go.

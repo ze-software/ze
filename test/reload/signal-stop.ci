@@ -16,12 +16,6 @@ EOF_PEER
 
 # ze bgp configuration (tmpfs required so daemon.pid is written to tmpfs dir)
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 1
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {

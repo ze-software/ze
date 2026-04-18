@@ -15,12 +15,6 @@ EOF_PEER
 
 # Initial config: one peer, working
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {
@@ -65,12 +59,6 @@ EOF_CONF
 
 # Bad config: invalid (missing required fields)
 tmpfs=bad-config.conf:terminator=EOF_BAD
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer broken {
 		session {

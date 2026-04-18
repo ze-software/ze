@@ -110,9 +110,6 @@ environment {
 			port 2223;
 		}
 	}
-	tcp {
-		attempts 3
-	}
 }
 
 bgp {

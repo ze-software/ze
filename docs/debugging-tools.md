@@ -290,7 +290,8 @@ ze-test bgp encode --client 0
 - Server waits for client, prints messages received, exits when test completes
 - Client connects, sends configured messages, exits when server disconnects
 
-The client uses `ze_bgp_tcp_attempts=1` automatically, so zebgp exits after the session ends instead of reconnecting.
+Press Ctrl+C in the client terminal once the server has finished validating: the runner sends SIGTERM to ze for a graceful shutdown.
+<!-- source: cmd/ze-test/bgp.go -- runClientOnly, clientCmd.Cancel -->
 
 **Use `--port` to avoid conflicts:**
 ```bash

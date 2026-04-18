@@ -148,20 +148,12 @@ func cmdValidate(args []string) int {
 	return outputValidateText(result, *verbose, *quiet)
 }
 
+// validateEnvironment reports "valid" when invoked with --limit environment.
+// Per-value strict validation lived in the deleted Environment struct; env vars
+// are now validated lazily at consumer call sites (env.GetInt/GetDuration
+// return the default for unparseable values; YANG restrictions on the
+// `environment/` block are enforced at config parse time).
 func validateEnvironment(jsonOutput, quiet bool) int {
-	_, err := config.LoadEnvironment()
-	if err != nil {
-		if quiet {
-			return 1
-		}
-		if jsonOutput {
-			fmt.Printf(`{"valid":false,"error":%q}`+"\n", err.Error())
-		} else {
-			fmt.Fprintf(os.Stderr, "error: environment validation failed: %v\n", err)
-		}
-		return 1
-	}
-
 	if !quiet {
 		if jsonOutput {
 			fmt.Println(`{"valid":true}`)

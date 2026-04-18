@@ -79,12 +79,6 @@ plugin {
 	}
 }
 
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	rpki {
 		cache-server 127.0.0.1 {

@@ -86,12 +86,6 @@ plugin {
 	}
 }
 
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 telemetry {
 	prometheus {
 		enabled true

@@ -1,5 +1,7 @@
-# Test: ze config completion — environment api fields (plugin augment)
-# VALIDATES: API container from plugin-conf augment shows its fields
+# Test: ze config completion — environment exabgp/api fields (post spec-env-cleanup)
+# VALIDATES: exabgp.api.ack completion inside the new `environment/exabgp/api` container
+# Note: The ExaBGP-style `environment/api` container was retired; Ze's runtime
+# exposes only exabgp.api.ack for the bridge compat surface.
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -12,9 +14,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context environment/api --input set+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context environment/exabgp/api --input set+ test.conf
 expect=exit:code=0
-expect=stdout:contains=encoder
-expect=stdout:contains=compact
-expect=stdout:contains=respawn
-expect=stdout:contains=cli
+expect=stdout:contains=ack

@@ -1,5 +1,6 @@
-# Test: ze config completion — environment daemon fields
-# VALIDATES: Daemon container shows its leaf children
+# Test: ze config completion — environment daemon fields (post spec-env-cleanup)
+# VALIDATES: Daemon container shows its surviving leaves (pid, user).
+# Retired (spec-env-cleanup): daemonize, drop, umask.
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -16,5 +17,3 @@ cmd=foreground:seq=1:exec=ze config completion --context environment/daemon --in
 expect=exit:code=0
 expect=stdout:contains=pid
 expect=stdout:contains=user
-expect=stdout:contains=daemonize
-expect=stdout:contains=drop

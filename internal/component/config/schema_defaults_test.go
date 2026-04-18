@@ -178,7 +178,7 @@ func TestEnvironmentSchemaChildren(t *testing.T) {
 	children := c.Children()
 	t.Logf("environment children: %v", children)
 
-	for _, name := range []string{"daemon", "log", "debug", "tcp", "bgp", "cache", "api", "reactor", "chaos"} {
+	for _, name := range []string{"daemon", "log", "bgp", "reactor", "chaos", "exabgp"} {
 		assert.NotNil(t, c.Get(name), "environment/%s must exist in schema", name)
 	}
 }
@@ -208,25 +208,17 @@ func TestYANGDefaultsMatchRFC(t *testing.T) {
 		{"bgp/peer/connection/remote/accept", "true", "RFC 4271 Section 8.1.1"},
 		{"bgp/peer/connection/local/connect", "true", "RFC 4271 Section 8.1.1"},
 		{"bgp/peer/session/family/prefix/teardown", "true", "RFC 4486"},
-		// Environment (ze-hub-conf.yang + ze-bgp-conf.yang augment)
+		// Environment (ze-hub-conf.yang + ze-bgp-conf.yang augment).
 		{"environment/daemon/user", "zeuser", "ze-hub-conf.yang"},
-		{"environment/daemon/drop", "true", "ze-hub-conf.yang"},
-		{"environment/daemon/umask", "0137", "ze-hub-conf.yang"},
-		// environment/log/enable removed (ExaBGP legacy boolean)
 		{"environment/log/level", "INFO", "ze-hub-conf.yang"},
 		{"environment/log/destination", "stdout", "ze-hub-conf.yang"},
-		{"environment/log/short", "true", "ze-hub-conf.yang"},
-		{"environment/bgp/openwait", "120", "ze-bgp-conf.yang"},
-		{"environment/cache/attributes", "true", "ze-bgp-conf.yang"},
-		{"environment/api/ack", "true", "ze-bgp-conf.yang"},
-		{"environment/api/chunk", "1", "ze-bgp-conf.yang"},
-		{"environment/api/encoder", "json", "ze-bgp-conf.yang"},
-		{"environment/api/respawn", "true", "ze-bgp-conf.yang"},
-		{"environment/api/cli", "true", "ze-bgp-conf.yang"},
-		{"environment/reactor/speed", "1.0", "ze-bgp-conf.yang"},
-		{"environment/reactor/cache-ttl", "60", "ze-bgp-conf.yang"},
-		{"environment/reactor/cache-max", "1000000", "ze-bgp-conf.yang"},
-		{"environment/chaos/rate", "0.1", "ze-bgp-conf.yang"},
+		{"environment/bgp/openwait", "120", "ze-bgp-conf.yang augment"},
+		{"environment/bgp/announce-delay", "0s", "ze-bgp-conf.yang augment"},
+		{"environment/exabgp/api/ack", "true", "ze-hub-conf.yang"},
+		{"environment/reactor/speed", "1.0", "ze-bgp-conf.yang augment"},
+		{"environment/reactor/cache-ttl", "60", "ze-bgp-conf.yang augment"},
+		{"environment/reactor/cache-max", "1000000", "ze-bgp-conf.yang augment"},
+		{"environment/chaos/rate", "0.1", "ze-hub-conf.yang"},
 	}
 
 	for _, tt := range tests {

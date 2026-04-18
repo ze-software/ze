@@ -46,7 +46,7 @@ environment {
 }
 ZECONF
 
-export ze_bgp_tcp_port=$((10000 + ($$ % 50000)))
+export ze_test_bgp_port=$((10000 + ($$ % 50000)))
 
 ze tacacs-local-only.conf 2>daemon.log &
 DAEMON_PID=$!

@@ -181,9 +181,6 @@ plugin {
 }
 
 environment {
-	tcp {
-		attempts 3
-	}
 	log { level WARNING; }
 }
 

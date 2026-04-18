@@ -12,12 +12,6 @@ EOF_PEER
 
 # ze bgp configuration: peer1 has stale updated timestamp (2024-01-01)
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {

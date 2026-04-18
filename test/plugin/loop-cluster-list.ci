@@ -19,9 +19,6 @@ environment {
 	log {
 		level debug
 	}
-	tcp {
-		attempts 3
-	}
 }
 
 bgp {

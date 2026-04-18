@@ -6,8 +6,8 @@ environment {
 	log {
 		level info
 	}
-	tcp {
-		attempts 3
+	bgp {
+		openwait 60
 	}
 }
 bgp {

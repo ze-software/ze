@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -77,7 +78,7 @@ type Subsystem struct {
 func NewSubsystem(p Parameters) *Subsystem {
 	return &Subsystem{
 		params: p,
-		logger: slog.Default().With("subsystem", SubsystemName),
+		logger: slogutil.Logger(SubsystemName),
 	}
 }
 

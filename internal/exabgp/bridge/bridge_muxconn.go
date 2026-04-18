@@ -97,32 +97,40 @@ func IsRouteCommand(command string) bool {
 	return strings.Contains(command, "update text")
 }
 
+// pendingResult captures the outcome of a dispatched request: success or
+// the error message sent back as the MuxConn error payload.
+type pendingResult struct {
+	ok      bool
+	errText string
+}
+
 // pendingResponses tracks in-flight RPC requests that need a response.
 // The command goroutine registers a channel before sending the request,
 // then blocks on it. The event goroutine signals the channel when the
 // response arrives.
 type pendingResponses struct {
 	mu      sync.Mutex
-	waiters map[uint64]chan struct{}
+	waiters map[uint64]chan pendingResult
 }
 
 func newPendingResponses() *pendingResponses {
-	return &pendingResponses{waiters: make(map[uint64]chan struct{})}
+	return &pendingResponses{waiters: make(map[uint64]chan pendingResult)}
 }
 
 // register creates a channel for the given request ID. MUST be called before
 // the request is sent (before the response can arrive).
-func (p *pendingResponses) register(id uint64) chan struct{} {
-	ch := make(chan struct{}, 1)
+func (p *pendingResponses) register(id uint64) chan pendingResult {
+	ch := make(chan pendingResult, 1)
 	p.mu.Lock()
 	p.waiters[id] = ch
 	p.mu.Unlock()
 	return ch
 }
 
-// signal delivers the response for the given request ID, if anyone is waiting.
-// Returns true if a waiter was found and signaled.
-func (p *pendingResponses) signal(id uint64) bool {
+// signal delivers a result for the given request ID. Returns true if a
+// waiter was found and signaled. Callers must pass pendingResult{ok: true}
+// for plain "ok" responses and {ok: false, errText: ...} for errors.
+func (p *pendingResponses) signal(id uint64, result pendingResult) bool {
 	p.mu.Lock()
 	ch, found := p.waiters[id]
 	if found {
@@ -130,18 +138,25 @@ func (p *pendingResponses) signal(id uint64) bool {
 	}
 	p.mu.Unlock()
 	if found {
-		close(ch)
+		ch <- result
 	}
 	return found
 }
 
 // wait blocks until the response arrives or the context is canceled.
-func (p *pendingResponses) wait(ctx context.Context, ch chan struct{}) error {
+// Returns the pendingResult on success or a zero-value result plus ctx.Err().
+//
+// id is the request ID registered via p.register; on ctx cancel we remove
+// the waiter so a late signal does not leak a map entry.
+func (p *pendingResponses) wait(ctx context.Context, id uint64, ch chan pendingResult) (pendingResult, error) {
 	select {
-	case <-ch:
-		return nil
+	case r := <-ch:
+		return r, nil
 	case <-ctx.Done():
-		return ctx.Err()
+		p.mu.Lock()
+		delete(p.waiters, id)
+		p.mu.Unlock()
+		return pendingResult{}, ctx.Err()
 	}
 }
 

@@ -30,12 +30,6 @@ plugin {
 	}
 }
 
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {
@@ -88,12 +82,6 @@ plugin {
 	external persist {
 		use bgp-persist
 		encoder json
-	}
-}
-
-environment {
-	tcp {
-		attempts 3
 	}
 }
 

@@ -79,12 +79,6 @@ EOF_RUN
 
 # ze bgp configuration: peer1 has stale prefix data (2024-01-01)
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 plugin {
 	external show-warnings-test {
 		run ./show-warnings-test.run

@@ -16,12 +16,6 @@ EOF_PEER
 
 # Initial config: valid wireguard wg0
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {
@@ -77,12 +71,6 @@ EOF_CONF
 
 # Updated config: peer public-key is garbage. Reload must reject.
 tmpfs=config2.conf:terminator=EOF_CONF2
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {

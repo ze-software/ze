@@ -1640,10 +1640,12 @@ class EncodingTests(Tests):
         # Use provided port or fall back to test config
         actual_port = port if port is not None else test.conf['port']
 
-        # Ze needs ze_bgp_tcp_port to override peer connection port
-        # and ze_bgp_bgp_accept=false to only dial out (no bind/listen)
+        # Ze needs ze_test_bgp_port to override peer connection port.
+        # bgp.accept is per-peer config in Ze (retired from environment block
+        # by spec-env-cleanup), so the INI-compat test sets it in the peer
+        # config directly instead of via env var.
         config = {
-            'env': f'ze_bgp_tcp_port={actual_port} ze_bgp_bgp_accept=false',
+            'env': f'ze_test_bgp_port={actual_port}',
             'exabgp': Path.EXABGP,
             'confs': ' \\\n    '.join(test.conf['confs']),
         }

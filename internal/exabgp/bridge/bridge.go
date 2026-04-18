@@ -351,6 +351,10 @@ type Bridge struct {
 	// nextRequestID generates unique MuxConn request IDs for dispatch commands.
 	nextRequestID atomic.Uint64
 
+	// ack captures the exabgp.api.ack mode snapshot from os.Getenv at
+	// construction; drives post-dispatch done/error emission on plugin stdin.
+	ack ackMode
+
 	// Families to declare during startup (ZeBGP format: "ipv4/unicast")
 	Families []string
 
@@ -366,6 +370,7 @@ func NewBridge(pluginCmd []string) *Bridge {
 	return &Bridge{
 		pluginCmd: pluginCmd,
 		Families:  []string{"ipv4/unicast"}, // Default family
+		ack:       newAckMode(),
 	}
 }
 
@@ -455,7 +460,7 @@ func (b *Bridge) Run(ctx context.Context) error {
 	// Plugin stdout -> ZeBGP stdout (translate commands, wrap in MuxConn dispatch + flush)
 	go func() {
 		defer wg.Done()
-		b.pluginToZebgp(ctx, b.stdout, zeOut, pending)
+		b.pluginToZebgp(ctx, b.stdout, b.stdin, zeOut, pending)
 	}()
 
 	// Plugin stderr -> ZeBGP stderr (pass through)
@@ -511,9 +516,14 @@ func (b *Bridge) zebgpToPluginWithScanner(ctx context.Context, scanner *bufio.Sc
 		case "ze-plugin-callback:deliver-event":
 			b.handleDeliverEvent(id, payload, pluginW, zeOut)
 
-		case "ok", "error": // response to a dispatch or flush we sent
-			if !pending.signal(id) {
-				slog.Debug("zebgp->plugin: orphaned response", "id", id, "verb", verb)
+		case "ok": // response to a dispatch or flush we sent
+			if !pending.signal(id, pendingResult{ok: true}) {
+				slog.Debug("zebgp->plugin: orphaned ok", "id", id)
+			}
+
+		case "error":
+			if !pending.signal(id, pendingResult{ok: false, errText: payload}) {
+				slog.Debug("zebgp->plugin: orphaned error", "id", id)
 			}
 
 		default: // unknown verb -- ack to avoid stalling ze
@@ -590,8 +600,11 @@ func (b *Bridge) translateAndForward(eventStr string, pluginW io.Writer) {
 // pluginToZebgp reads ExaBGP text commands from the plugin, translates them to ze
 // commands, wraps each in MuxConn dispatch-command format, writes to ze stdout,
 // and injects a peer-flush RPC after route commands (blocking until the flush completes).
-func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, zeOut *syncWriter, pending *pendingResponses) {
+// When exabgp.api.ack is enabled (the default), the bridge emits `done\n` /
+// `error <msg>\n` on the plugin's stdin once ze has acknowledged each dispatch.
+func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, pluginW io.Writer, zeOut *syncWriter, pending *pendingResponses) {
 	const flushTimeout = 30 * time.Second
+	const dispatchAckTimeout = 30 * time.Second
 
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
@@ -619,7 +632,16 @@ func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, zeOut *syncWrit
 
 		// Wrap in MuxConn dispatch-command format with unique request ID.
 		reqID := b.nextRequestID.Add(1)
+		ackCh := pending.register(reqID)
 		zeOut.Fprintln(formatDispatchRequest(reqID, zebgpCmd))
+
+		// Wait for ze to ack the dispatch before emitting done/error back
+		// to the plugin. A bounded timeout keeps the bridge from stalling
+		// indefinitely if ze drops the response line.
+		ackCtx, ackCancel := context.WithTimeout(ctx, dispatchAckTimeout)
+		result, ackErr := pending.wait(ackCtx, reqID, ackCh)
+		ackCancel()
+		b.emitAck(pluginW, reqID, result, ackErr)
 
 		// For route commands, inject a flush and block until the forward pool drains.
 		if IsRouteCommand(zebgpCmd) {
@@ -630,7 +652,7 @@ func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, zeOut *syncWrit
 				zeOut.Fprintln(formatFlushRequest(flushID, peerAddr))
 
 				flushCtx, cancel := context.WithTimeout(ctx, flushTimeout)
-				if err := pending.wait(flushCtx, flushCh); err != nil {
+				if _, err := pending.wait(flushCtx, flushID, flushCh); err != nil {
 					slog.Warn("plugin->zebgp: flush wait error",
 						"error", err, "peer", peerAddr)
 				}

@@ -94,9 +94,6 @@ environment {
 			port 2222;
 		}
 	}
-	tcp {
-		attempts 3
-	}
 }
 
 bgp {

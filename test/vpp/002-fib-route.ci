@@ -137,7 +137,7 @@ def main() -> int:
 
     # The runner substitutes $PORT in exec strings; the driver takes it
     # as argv[1] so it can pass the same port to ze-peer and to ze's
-    # ze_bgp_tcp_port env var.
+    # ze_test_bgp_port env var.
     if len(sys.argv) < 2:
         sys.stderr.write("driver: expected port as argv[1]\n")
         return 1
@@ -212,7 +212,7 @@ def main() -> int:
         env["ze.log.vpp"] = "info"
         env["ze.log.fib.vpp"] = "debug"
         env["ze.log.bgp"] = "info"
-        env["ze_bgp_tcp_port"] = str(port)
+        env["ze_test_bgp_port"] = str(port)
         ze = subprocess.Popen(
             ["ze", "-"],
             stdin=subprocess.PIPE,

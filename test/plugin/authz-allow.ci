@@ -91,7 +91,7 @@ environment {
 ZECONF
 
 # Use a PID-derived high port for BGP to avoid needing root for port 179
-export ze_bgp_tcp_port=$((10000 + ($$ % 50000)))
+export ze_test_bgp_port=$((10000 + ($$ % 50000)))
 
 # Start daemon, capture stderr to parse SSH port
 ze authz-allow.conf 2>daemon.log &

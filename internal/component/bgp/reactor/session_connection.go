@@ -283,7 +283,13 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 		return err
 	}
 
-	// Start hold timer (for waiting for peer's OPEN).
+	// Arm the OPEN-wait bound. ze.bgp.openwait (default 120s) is the maximum
+	// time we wait for the peer's OPEN message. RFC 4271 §8.2.2 suggests "a
+	// large value" for the OpenSent hold timer; we borrow the hold-timer
+	// plumbing to enforce openwait. processOpen/Established state resets the
+	// hold timer to the negotiated value once the peer's OPEN arrives.
+	openWait := env.GetDuration("ze.bgp.openwait", 120*time.Second)
+	s.timers.SetHoldTime(openWait)
 	s.timers.StartHoldTimer()
 
 	return nil

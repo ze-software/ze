@@ -19,12 +19,6 @@ EOF_PEER
 
 # Initial ze bgp configuration (valid)
 stdin=ze-bgp:terminator=EOF_CONF
-environment {
-	tcp {
-		attempts 3
-	}
-}
-
 bgp {
 	peer peer1 {
 		connection {
