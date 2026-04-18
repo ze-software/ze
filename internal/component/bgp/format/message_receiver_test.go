@@ -291,6 +291,122 @@ func TestDecodeNotificationInvalid(t *testing.T) {
 	}
 }
 
+// TestDecodeOpenAddPathReceive verifies AddPath capability formatting.
+//
+// VALIDATES: formatCapability emits "ipv4/unicast receive" for AddPathReceive,
+// "ipv6/unicast send-receive" for AddPathBoth, and skips entries with AddPathNone.
+// PREVENTS: byte-drift when migrating formatCapability off fmt.Sprintf.
+func TestDecodeOpenAddPathReceive(t *testing.T) {
+	// OPEN with AddPath cap (code 69) carrying three tuples:
+	//   ipv4/unicast receive (mode=1)
+	//   ipv6/unicast both    (mode=3)
+	//   ipv4/multicast none  (mode=0, must be skipped)
+	openBytes := []byte{
+		0x04,       // version 4
+		0xfd, 0xe9, // AS 65001
+		0x00, 0x5a, // hold 90
+		0x01, 0x02, 0x03, 0x04, // router id 1.2.3.4
+		0x10, // opt param len = 16
+		// Optional Parameter type=2 (Capabilities), length=14
+		0x02, 0x0e,
+		// AddPath capability code=69 (0x45), length=12
+		0x45, 0x0c,
+		0x00, 0x01, 0x01, 0x01, // ipv4/unicast receive
+		0x00, 0x02, 0x01, 0x03, // ipv6/unicast both
+		0x00, 0x01, 0x02, 0x00, // ipv4/multicast none (skipped)
+	}
+
+	decoded := DecodeOpen(openBytes)
+
+	require.Len(t, decoded.Capabilities, 2, "none mode must be skipped: %+v", decoded.Capabilities)
+	require.Equal(t, DecodedCapability{Code: 69, Name: "addpath", Value: "ipv4/unicast receive"}, decoded.Capabilities[0])
+	require.Equal(t, DecodedCapability{Code: 69, Name: "addpath", Value: "ipv6/unicast send-receive"}, decoded.Capabilities[1])
+}
+
+// TestDecodeNotification_UnknownSubcode verifies the "Subcode(N)" fallback.
+//
+// VALIDATES: notificationSubcodeString and the per-error-code helpers all emit
+// byte-identical "Subcode(99)" for unmapped subcodes across the 5 fallback sites.
+// PREVENTS: byte-drift in the migrated decode.go fallbacks.
+func TestDecodeNotification_UnknownSubcode(t *testing.T) {
+	tests := []struct {
+		name      string
+		errorCode message.NotifyErrorCode
+		want      string
+	}{
+		{"open_default", message.NotifyOpenMessage, "Subcode(99)"},
+		{"update_default", message.NotifyUpdateMessage, "Subcode(99)"},
+		{"header_default", message.NotifyMessageHeader, "Subcode(99)"},
+		{"fsm_default", message.NotifyFSMError, "Subcode(99)"},
+		{"toplevel_default", message.NotifyHoldTimerExpired, "Subcode(99)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			notifyBytes := []byte{byte(tt.errorCode), 99}
+
+			decoded := DecodeNotification(notifyBytes)
+
+			require.Equal(t, uint8(tt.errorCode), decoded.ErrorCode)
+			require.Equal(t, uint8(99), decoded.ErrorSubcode)
+			require.Equal(t, tt.want, decoded.ErrorSubcodeName)
+		})
+	}
+}
+
+// TestDecodeRouteRefresh_UnknownSubtype verifies the "unknown(N)" fallback.
+//
+// VALIDATES: DecodeRouteRefresh emits "unknown(99)" for an unmapped subtype.
+// PREVENTS: byte-drift when migrating DecodeRouteRefresh off fmt.Sprintf.
+func TestDecodeRouteRefresh_UnknownSubtype(t *testing.T) {
+	// ROUTE-REFRESH body: AFI(2) + Subtype(1) + SAFI(1)
+	body := []byte{
+		0x00, 0x01, // AFI=1 (ipv4)
+		0x63, // Subtype=99 (unknown)
+		0x01, // SAFI=1 (unicast)
+	}
+
+	decoded := DecodeRouteRefresh(body)
+
+	require.Equal(t, uint16(1), decoded.AFI)
+	require.Equal(t, uint8(1), decoded.SAFI)
+	require.Equal(t, uint8(99), decoded.Subtype)
+	require.Equal(t, "unknown(99)", decoded.SubtypeName)
+	require.Equal(t, "ipv4/unicast", decoded.Family)
+}
+
+// TestDecodeNegotiated_UnknownAfiSafi verifies the afiSafiToFamily / afiToString fallbacks.
+//
+// VALIDATES: NegotiatedToDecoded emits "afi(99)/safi(99)" for an unknown family
+// and "afi(99)" for an unknown next-hop AFI in ExtendedNextHop.
+// PREVENTS: byte-drift when migrating afiSafiToFamily / afiToString off fmt.Sprintf.
+func TestDecodeNegotiated_UnknownAfiSafi(t *testing.T) {
+	// Build a Negotiated with an unknown AFI/SAFI family + an extended-nexthop
+	// tuple whose NextHopAFI is unknown.
+	caps := []capability.Capability{
+		&capability.Multiprotocol{AFI: 99, SAFI: 99},
+		&capability.Multiprotocol{AFI: 1, SAFI: 1},
+		&capability.ExtendedNextHop{
+			Families: []capability.ExtendedNextHopFamily{
+				{NLRIAFI: 1, NLRISAFI: 1, NextHopAFI: 99},
+			},
+		},
+	}
+	neg := capability.Negotiate(caps, caps, 65001, 65001)
+
+	decoded := NegotiatedToDecoded(neg)
+
+	require.Contains(t, decoded.Families, "afi(99)/safi(99)", "unknown family must format as afi(N)/safi(N): %v", decoded.Families)
+	require.Contains(t, decoded.Families, "ipv4/unicast", "known family must still format normally: %v", decoded.Families)
+	require.Equal(t, "afi(99)", decoded.ExtendedNextHop["ipv4/unicast"], "unknown next-hop AFI must format as afi(N)")
+
+	// Direct exercise of the afi(99)/<known-safi> path (matches Mistake Log scope).
+	mixedCaps := []capability.Capability{&capability.Multiprotocol{AFI: 99, SAFI: 1}}
+	negMixed := capability.Negotiate(mixedCaps, mixedCaps, 65001, 65001)
+	decodedMixed := NegotiatedToDecoded(negMixed)
+	require.Contains(t, decodedMixed.Families, "afi(99)/unicast", "afi(99)/unicast: %v", decodedMixed.Families)
+}
+
 // TestNegotiatedToDecoded verifies conversion from capability.Negotiated to DecodedNegotiated.
 //
 // VALIDATES: All fields converted correctly including families, ADD-PATH, and extended NH.

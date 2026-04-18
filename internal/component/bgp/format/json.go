@@ -3,8 +3,8 @@
 package format
 
 import (
+	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
@@ -161,11 +161,7 @@ func (e *JSONEncoder) Notification(peer *plugin.PeerInfo, notify DecodedNotifica
 	inner["code"] = notify.ErrorCode
 	inner["subcode"] = notify.ErrorSubcode
 
-	dataHex := ""
-	if len(notify.Data) > 0 {
-		dataHex = fmt.Sprintf("%x", notify.Data)
-	}
-	inner["data"] = dataHex
+	inner["data"] = string(hex.AppendEncode(nil, notify.Data))
 
 	// Human-readable names (hyphenated per json-format.md)
 	if notify.ErrorCodeName != "" {

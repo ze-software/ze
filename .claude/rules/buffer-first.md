@@ -55,3 +55,16 @@ Pool `New` func, session buffer creation, cached encoding, result copies to call
 5. Type has `WriteTo`? → Use it
 
 Enforced by `block-encoding-alloc.sh` (exit 2). Audit: `/ze-find-alloc`. Fix: `/ze-fix-alloc file:line`.
+
+## Text/JSON Format Generation
+
+A sibling hook `block-format-alloc.sh` (exit 2) guards the BGP text/JSON
+format-generation files migrated by fmt-0 and fmt-2-json-append: every file
+that emits OPEN / NOTIFICATION / ROUTE-REFRESH / NEGOTIATED text or JSON is
+allowlisted, and `fmt.Sprintf`, `fmt.Fprintf`, `strings.Builder`,
+`strings.Join`, `strings.NewReplacer`, `strings.ReplaceAll`,
+`strconv.FormatUint`, `strconv.FormatInt` are rejected at Write/Edit time.
+Allowed helpers: `strconv.AppendUint`, `netip.Addr.AppendTo`,
+`hex.AppendEncode`, or a local `[N]byte` scratch plus `append`. `json.go`
+is intentionally excluded while its `map[string]any` + `json.Marshal`
+idiom remains.

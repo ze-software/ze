@@ -3,7 +3,8 @@
 package format
 
 import (
-	"fmt"
+	"encoding/hex"
+	"strconv"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 
@@ -106,13 +107,15 @@ func parseCapabilitiesFromOptParams(optParams []byte) ([]DecodedCapability, uint
 
 // formatCapability returns structured capability data.
 // Most capabilities return a single entry, but AddPath/ExtendedNextHop return one per family.
+// The post-switch fallback path covers unknown / plugin-decoded capabilities.
 func formatCapability(cap capability.Capability) []DecodedCapability {
 	code := uint8(cap.Code())
 	switch c := cap.(type) {
 	case *capability.Multiprotocol:
-		return []DecodedCapability{{Code: code, Name: "multiprotocol", Value: fmt.Sprintf("%s/%s", c.AFI, c.SAFI)}}
+		return []DecodedCapability{{Code: code, Name: "multiprotocol", Value: joinFamily(c.AFI.String(), c.SAFI.String())}}
 	case *capability.ASN4:
-		return []DecodedCapability{{Code: code, Name: "asn4", Value: fmt.Sprintf("%d", c.ASN)}}
+		var sb [16]byte
+		return []DecodedCapability{{Code: code, Name: "asn4", Value: string(strconv.AppendUint(sb[:0], uint64(c.ASN), 10))}}
 	case *capability.ExtendedMessage:
 		return []DecodedCapability{{Code: code, Name: "extended-message"}}
 	case *capability.AddPath:
@@ -133,7 +136,7 @@ func formatCapability(cap capability.Capability) []DecodedCapability {
 			results = append(results, DecodedCapability{
 				Code:  code,
 				Name:  "addpath",
-				Value: fmt.Sprintf("%s/%s %s", f.AFI, f.SAFI, mode),
+				Value: joinFamilyMode(f.AFI.String(), f.SAFI.String(), mode),
 			})
 		}
 		return results
@@ -144,15 +147,38 @@ func formatCapability(cap capability.Capability) []DecodedCapability {
 			results = append(results, DecodedCapability{
 				Code:  code,
 				Name:  "extended-nexthop",
-				Value: fmt.Sprintf("%s/%s %s", f.NLRIAFI, f.NLRISAFI, f.NextHopAFI),
+				Value: joinFamilyMode(f.NLRIAFI.String(), f.NLRISAFI.String(), f.NextHopAFI.String()),
 			})
 		}
 		return results
-	default: // Unknown or plugin-decoded capability
-		buf := make([]byte, cap.Len())
-		cap.WriteTo(buf, 0)
-		return []DecodedCapability{{Code: code, Name: fmt.Sprintf("unknown-%d", code), Value: fmt.Sprintf("%x", buf)}}
 	}
+	// Unknown / plugin-decoded capability.
+	buf := make([]byte, cap.Len())
+	cap.WriteTo(buf, 0)
+	var nameSB [16]byte
+	nameOut := append(nameSB[:0], "unknown-"...)
+	nameOut = strconv.AppendUint(nameOut, uint64(code), 10)
+	return []DecodedCapability{{Code: code, Name: string(nameOut), Value: hex.EncodeToString(buf)}}
+}
+
+// joinFamily builds "afi/safi" using stack scratch (no fmt reflection).
+func joinFamily(afi, safi string) string {
+	var sb [32]byte
+	out := append(sb[:0], afi...)
+	out = append(out, '/')
+	out = append(out, safi...)
+	return string(out)
+}
+
+// joinFamilyMode builds "afi/safi mode" using stack scratch (no fmt reflection).
+func joinFamilyMode(afi, safi, mode string) string {
+	var sb [64]byte
+	out := append(sb[:0], afi...)
+	out = append(out, '/')
+	out = append(out, safi...)
+	out = append(out, ' ')
+	out = append(out, mode...)
+	return string(out)
 }
 
 // DecodedNotification holds parsed NOTIFICATION message contents for API formatting.
@@ -193,6 +219,7 @@ func DecodeNotification(body []byte) DecodedNotification {
 const subcodeUnspecific = "Unspecific"
 
 // notificationSubcodeString returns human-readable subcode name.
+// Unmapped error codes fall through to the Subcode(N) fallback.
 func notificationSubcodeString(code message.NotifyErrorCode, subcode uint8) string {
 	switch code { //nolint:exhaustive // Only some codes have specific subcode strings
 	case message.NotifyCease:
@@ -205,12 +232,20 @@ func notificationSubcodeString(code message.NotifyErrorCode, subcode uint8) stri
 		return headerSubcodeString(subcode)
 	case message.NotifyFSMError:
 		return fsmSubcodeString(subcode)
-	default:
-		if subcode == 0 {
-			return subcodeUnspecific
-		}
-		return fmt.Sprintf("Subcode(%d)", subcode)
 	}
+	if subcode == 0 {
+		return subcodeUnspecific
+	}
+	return subcodeFallback(subcode)
+}
+
+// subcodeFallback formats "Subcode(N)" without fmt reflection.
+func subcodeFallback(subcode uint8) string {
+	var sb [16]byte
+	out := append(sb[:0], "Subcode("...)
+	out = strconv.AppendUint(out, uint64(subcode), 10)
+	out = append(out, ')')
+	return string(out)
 }
 
 func openSubcodeString(subcode uint8) string {
@@ -231,9 +266,8 @@ func openSubcodeString(subcode uint8) string {
 		return "Unsupported Capability"
 	case message.NotifyOpenRoleMismatch:
 		return "Role Mismatch"
-	default:
-		return fmt.Sprintf("Subcode(%d)", subcode)
 	}
+	return subcodeFallback(subcode)
 }
 
 func updateSubcodeString(subcode uint8) string {
@@ -260,9 +294,8 @@ func updateSubcodeString(subcode uint8) string {
 		return "Invalid Network Field"
 	case message.NotifyUpdateMalformedASPath:
 		return "Malformed AS_PATH"
-	default:
-		return fmt.Sprintf("Subcode(%d)", subcode)
 	}
+	return subcodeFallback(subcode)
 }
 
 func headerSubcodeString(subcode uint8) string {
@@ -275,9 +308,8 @@ func headerSubcodeString(subcode uint8) string {
 		return "Bad Message Length"
 	case message.NotifyHeaderBadType:
 		return "Bad Message Type"
-	default:
-		return fmt.Sprintf("Subcode(%d)", subcode)
 	}
+	return subcodeFallback(subcode)
 }
 
 func fsmSubcodeString(subcode uint8) string {
@@ -290,9 +322,8 @@ func fsmSubcodeString(subcode uint8) string {
 		return "Receive Unexpected Message in OpenConfirm State"
 	case message.NotifyFSMUnexpectedEstablished:
 		return "Receive Unexpected Message in Established State"
-	default:
-		return fmt.Sprintf("Subcode(%d)", subcode)
 	}
+	return subcodeFallback(subcode)
 }
 
 // DecodedRouteRefresh holds parsed ROUTE-REFRESH message data.
@@ -314,17 +345,7 @@ func DecodeRouteRefresh(body []byte) DecodedRouteRefresh {
 		return DecodedRouteRefresh{}
 	}
 
-	var subtypeName string
-	switch rr.Subtype {
-	case message.RouteRefreshNormal:
-		subtypeName = "refresh"
-	case message.RouteRefreshBoRR:
-		subtypeName = "borr"
-	case message.RouteRefreshEoRR:
-		subtypeName = "eorr"
-	default:
-		subtypeName = fmt.Sprintf("unknown(%d)", rr.Subtype)
-	}
+	subtypeName := refreshSubtypeName(uint8(rr.Subtype))
 
 	return DecodedRouteRefresh{
 		AFI:         uint16(rr.AFI),
@@ -333,6 +354,23 @@ func DecodeRouteRefresh(body []byte) DecodedRouteRefresh {
 		SubtypeName: subtypeName,
 		Family:      afiSafiToFamily(uint16(rr.AFI), uint8(rr.SAFI)),
 	}
+}
+
+// refreshSubtypeName maps ROUTE-REFRESH subtype to name, with "unknown(N)" fallback.
+func refreshSubtypeName(subtype uint8) string {
+	switch message.RouteRefreshSubtype(subtype) {
+	case message.RouteRefreshNormal:
+		return "refresh"
+	case message.RouteRefreshBoRR:
+		return "borr"
+	case message.RouteRefreshEoRR:
+		return "eorr"
+	}
+	var sb [16]byte
+	out := append(sb[:0], "unknown("...)
+	out = strconv.AppendUint(out, uint64(subtype), 10)
+	out = append(out, ')')
+	return string(out)
 }
 
 // DecodedNegotiated holds negotiated capabilities for API formatting.
@@ -421,43 +459,62 @@ func NegotiatedToDecoded(neg *capability.Negotiated) DecodedNegotiated {
 	}
 }
 
-// afiToString converts AFI to string name.
+// afiToString converts AFI to string name; unknown values format as "afi(N)".
 func afiToString(afi capability.AFI) string {
 	switch afi {
 	case 1:
 		return "ipv4"
 	case 2:
 		return "ipv6"
-	default:
-		return fmt.Sprintf("afi(%d)", afi)
 	}
+	return appendAfiFallback(uint16(afi))
 }
 
-// afiSafiToFamily converts AFI/SAFI to family string.
+// afiSafiToFamily converts AFI/SAFI to family string; unknown values format as "afi(N)"/"safi(N)".
 func afiSafiToFamily(afi uint16, safi uint8) string {
-	var afiName string
+	return joinFamily(afiNameOrFallback(afi), safiNameOrFallback(safi))
+}
+
+// afiNameOrFallback returns the registered name for known AFI values, "afi(N)" otherwise.
+func afiNameOrFallback(afi uint16) string {
 	switch afi {
 	case 1:
-		afiName = "ipv4"
+		return "ipv4"
 	case 2:
-		afiName = "ipv6"
-	default:
-		afiName = fmt.Sprintf("afi(%d)", afi)
+		return "ipv6"
 	}
+	return appendAfiFallback(afi)
+}
 
-	var safiName string
+// safiNameOrFallback returns the registered name for known SAFI values, "safi(N)" otherwise.
+func safiNameOrFallback(safi uint8) string {
 	switch safi {
 	case 1:
-		safiName = bgptypes.SAFINameUnicast
+		return bgptypes.SAFINameUnicast
 	case 2:
-		safiName = bgptypes.SAFINameMulticast
+		return bgptypes.SAFINameMulticast
 	case 4:
-		safiName = "mpls-labels"
+		return "mpls-labels"
 	case 128:
-		safiName = bgptypes.SAFINameMPLSVPN
-	default:
-		safiName = fmt.Sprintf("safi(%d)", safi)
+		return bgptypes.SAFINameMPLSVPN
 	}
+	return appendSafiFallback(safi)
+}
 
-	return afiName + "/" + safiName
+// appendAfiFallback formats "afi(N)" without fmt reflection.
+func appendAfiFallback(afi uint16) string {
+	var sb [16]byte
+	out := append(sb[:0], "afi("...)
+	out = strconv.AppendUint(out, uint64(afi), 10)
+	out = append(out, ')')
+	return string(out)
+}
+
+// appendSafiFallback formats "safi(N)" without fmt reflection.
+func appendSafiFallback(safi uint8) string {
+	var sb [16]byte
+	out := append(sb[:0], "safi("...)
+	out = strconv.AppendUint(out, uint64(safi), 10)
+	out = append(out, ')')
+	return string(out)
 }

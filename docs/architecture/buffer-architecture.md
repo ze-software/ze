@@ -12,7 +12,7 @@
 |-------|--------|-------------|
 | Phase 1 | ✅ Done | Core iterator types (`NLRIIterator`, `AttrIterator`, `ASPathIterator`) |
 | Phase 2 | ✅ Done | WireUpdate integration (iterator methods) |
-| Phase 3 | ✅ Done | Direct formatting functions (FormatPrefixFromBytes, FormatASPathJSON, etc.) |
+| Phase 3 | ✅ Done | Direct formatting functions (iterator-based AS_PATH / communities / NLRI emission in `text.go`, `text_json.go`, `text_update.go`) |
 | Phase 4 | ✅ Done | RIB migration (Route.AttrIterator, Route.ASPathIterator) |
 | Phase 5 | ✅ Done | Deprecate parsed types (PathAttributes, RouteUpdate, UpdateInfo) |
 | Phase 6 | ✅ Done | RouteJSON, Builder done; PathAttributes removed (see `plan/learned/105-pathattributes-removal.md`) |

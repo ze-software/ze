@@ -363,6 +363,52 @@ func TestJSONEncoderNotification(t *testing.T) {
 	assert.Equal(t, "Administrative Shutdown", payload["subcode-name"])
 }
 
+// TestJSONEncoderNotification_HexData verifies the exact hex bytes emitted in the
+// "data" field across empty and non-empty inputs.
+//
+// VALIDATES: JSONEncoder.Notification emits lowercase hex with no "0x" prefix,
+// empty string for nil/empty Data; matches hex.AppendEncode output exactly.
+// PREVENTS: byte-drift when migrating json.go off fmt.Sprintf("%x", ...).
+func TestJSONEncoderNotification_HexData(t *testing.T) {
+	enc := NewJSONEncoder("6.0.0")
+
+	peer := plugin.PeerInfo{
+		Address:      netip.MustParseAddr("10.0.0.1"),
+		LocalAddress: netip.MustParseAddr("10.0.0.2"),
+		LocalAS:      65001,
+		PeerAS:       65002,
+	}
+
+	tests := []struct {
+		name string
+		data []byte
+		want string
+	}{
+		{"empty", nil, ""},
+		{"single_byte", []byte{0xab}, "ab"},
+		{"mixed", []byte{0x00, 0x12, 0xde, 0xad, 0xbe, 0xef}, "0012deadbeef"},
+		{"all_high_bits", []byte{0xff, 0xfe, 0xfd}, "fffefd"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			notify := DecodedNotification{
+				ErrorCode:    6,
+				ErrorSubcode: 0,
+				Data:         tt.data,
+			}
+
+			out := enc.Notification(&peer, notify, "received", 1)
+
+			var result map[string]any
+			require.NoError(t, json.Unmarshal([]byte(out), &result), "JSON must be valid: %s", out)
+
+			payload := getEventPayload(t, result)
+			assert.Equal(t, tt.want, payload["data"], "data field must be exact lowercase hex (no 0x prefix)")
+		})
+	}
+}
+
 // TestJSONEncoderNotificationMinimal verifies minimal NOTIFICATION JSON.
 //
 // VALIDATES: ze-bgp JSON NOTIFICATION without shutdown message still has required fields.
