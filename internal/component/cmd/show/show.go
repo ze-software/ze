@@ -55,39 +55,9 @@ func init() {
 			WireMethod: "ze-show:system-date",
 			Handler:    handleShowSystemDate,
 		},
-		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:host-cpu",
-			Handler:    handleShowHostCPU,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:host-nic",
-			Handler:    handleShowHostNIC,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:host-dmi",
-			Handler:    handleShowHostDMI,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:host-memory",
-			Handler:    handleShowHostMemory,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:host-thermal",
-			Handler:    handleShowHostThermal,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:host-storage",
-			Handler:    handleShowHostStorage,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:host-kernel",
-			Handler:    handleShowHostKernel,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:host-all",
-			Handler:    handleShowHostAll,
-		},
 	)
+	// ze-show:host-* RPCs are registered from host.go's own init()
+	// via a loop over host.SectionNames(). See rules/derive-not-hardcode.md.
 }
 
 // handleShowWarnings returns the snapshot of all active warnings on the report bus.
