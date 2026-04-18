@@ -2,8 +2,8 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
-| Depends | - |
+| Status | design |
+| Depends | spec-l2tp-7c-redistribute |
 | Phase | - |
 | Updated | 2026-04-18 |
 
@@ -45,14 +45,205 @@ Model: routes are events; `redistribute` is a filtered subscription.
 - [ ] `docs/architecture/core-design.md` -- redistribute registry position, plugin isolation
 - [ ] `.claude/patterns/plugin.md` -- new plugin structural template
 - [ ] `.claude/rules/plugin-design.md` -- proximity principle, import rules, YANG requirement
-  -> Constraint: plugins MUST NOT import sibling plugin packages -- use DispatchCommand
+  -> Constraint: plugins MUST NOT import sibling plugin packages -- use DispatchCommand or text commands
+  -> Constraint: Stage-5 subscription callback goes in `OnStarted`; cross-plugin dispatch at startup goes in `OnAllPluginsReady`
+  -> Constraint: plugin `Name` uses hyphen (`bgp-redistribute`); subsystem log key uses dot (`bgp.redistribute`)
 - [ ] `plan/learned/541-policy-framework.md` -- why redistribute was split core/component
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfc4271.md` -- UPDATE message + NEXT_HOP semantics
   -> Constraint: NEXT_HOP MUST be a valid unicast address reachable by the peer; satisfied by existing `resolveNextHop`
 
-**Key insights:** (filled during RESEARCH phase)
+### Source files (re-read 2026-04-18)
+- [x] `internal/component/bgp/redistribute/filter.go` -- `IngressFilter` uses `redistribute.Global().Accept(route, "")` on UPDATE payload; `Origin="bgp"`, `Source="ibgp"|"ebgp"`.
+  -> Constraint: unchanged. Two subscribers (IngressFilter + new plugin) read the same global evaluator.
+- [x] `internal/component/config/redistribute/{evaluator,route,registry}.go` -- `Global()` returns `*Evaluator` (atomic.Pointer), `Accept(route, importingProtocol)` RW-locked; `ImportRule{Source, Families}` (empty Families = all); `RegisterSource(RouteSource{Name, Protocol})`; `SourceNames()` returns sorted source names (e.g. `["connected","ebgp","ibgp","l2tp","static"]`).
+  -> Constraint: `SourceNames()` returns redistribute *source* names, NOT `(namespace, event-type)` pairs. There is NO registry that maps source name -> typed EventBus handle. The spec's "iterate SourceNames and resolve typed handle" step requires a new mapping to exist.
+- [x] `internal/plugins/sysrib/sysrib.go` + `register.go` -- reference pattern. `ConfigureEventBus` callback stores bus in `atomic.Pointer[ze.EventBus]`; `OnStarted` starts `go s.run(ctx)`; `run` calls `ribevents.BestChange.Subscribe(eb, handler)` + `ReplayRequest.Subscribe`; blocks on `<-ctx.Done()`.
+  -> Constraint: follow this shape exactly (package-level `loggerPtr`/`eventBusPtr`, `setLogger`/`setEventBus`/`getEventBus`, `OnStarted` spawns one goroutine, subscriptions inside `run`).
+- [x] `internal/core/events/typed.go` + `pkg/ze/eventbus.go` -- `events.Register[T](ns, et)` returns `*Event[T]` with `Emit(bus, payload)` and `Subscribe(bus, func(T))`. Subscribe wrapper does `p.(T)` assertion; **mismatch logs a warn and drops silently**. Payload must be a concrete (non-interface) Go type registered at init.
+  -> Constraint: to drive a typed handle from outside the engine (Python `emit-event` RPC, external plugin process), payload is a JSON `any` on the bus -- type assertion to `*RouteChangeBatch` FAILS and the event is dropped with a warn. Typed handles + external producer test plugins are incompatible without a raw-bus fallback.
+- [x] `internal/component/bgp/plugins/rib/rib.go:499-518` -- `updateRoute(peerSelector, command)` calls `r.plugin.UpdateRoute(ctx, peerSelector, command)` with a 10s context timeout; no return check beyond `logger().Warn` on error.
+- [x] `internal/component/plugin/server/dispatch.go:546-594` -- `handleUpdateRouteDirect` prefixes the command with `peer <selector> ` when it is not a known dispatcher prefix; `"*"` fan-out is resolved by the dispatcher across every up peer.
+- [x] `internal/component/bgp/format.go:19-106` -- canonical `FormatAnnounceCommand` / `FormatWithdrawCommand` shape.
+  -> Constraint: ze's announce command text is `update text origin <origin> [as-path ...] [med N] ... nhop <addr|self> nlri <afi>/<safi> add <prefix>`. Withdraw is `update text nlri <afi>/<safi> del <prefix>`. The spec's earlier claim of `announce <prefix> origin incomplete next-hop self` is WRONG and has been corrected in Data Flow.
+- [x] `internal/component/bgp/plugins/cmd/update/update_wire.go:209-211` -- the token `nhop self` sets `bgptypes.NewNextHopSelf()`; reactor's `resolveNextHop(NextHopSelf, fam)` substitutes `p.settings.LocalAddress`.
+  -> Constraint: per-peer NEXT_HOP is achieved via `nhop self` in the text command (NOT `next-hop self`); reactor handles substitution.
+- [x] `internal/component/l2tp/` -- subsystem exists. `redistribute.go` registers `l2tp` source. `route_observer.go` tracks subscriber addresses but emits NO EventBus events today. No `(l2tp, route-change)` handle is registered.
+  -> Constraint: the producer half of this feature does not exist yet. `spec-l2tp-7c-redistribute` is the dependency that adds the observer emission.
+- [x] `test/scripts/ze_api.py` -- Python test-plugin SDK. Has `subscribe()` for receiving events; has NO `emit_event()` helper. External plugins can call `emit-event` RPC via the generic path, but the engine converts the JSON payload into a value the typed handle will reject (see typed.go constraint above).
+  -> Constraint: a Python fakeproto emitting synthetic `(fakeproto, route-change)` events via `emit-event` RPC will NOT drive a typed `*RouteChangeBatch` subscriber. Wiring tests must either (a) use an in-process Go test fixture that emits directly, (b) have the consumer subscribe via raw `bus.Subscribe` with a JSON payload contract, or (c) wait for a real producer (L2TP-7c) before writing `.ci` wiring tests.
+
+**Key insights (RESEARCH 2026-04-18):**
+
+1. **Producer is absent.** No protocol currently emits `(<protocol>, route-change)` events. L2TP is the first candidate (spec-l2tp-7c, skeleton). Without a producer, bgp-redistribute ships as dead code exercised only by test fixtures.
+
+2. **Command text syntax in the original spec is wrong.** ze's canonical announce command is `update text origin incomplete nhop self nlri <afi>/<safi> add <prefix>`, NOT `announce <prefix> origin incomplete next-hop self`. Withdraw: `update text nlri <afi>/<safi> del <prefix>`. The `nhop self` keyword is what triggers reactor per-peer `LocalAddress` substitution.
+
+3. **Payload shape + handle resolution is undecided.** `RouteChangeBatch`/`RouteChangeEntry` do not exist anywhere in code. `SourceNames()` returns string names with no handle mapping. Three candidate designs:
+   - **(A) Shared type + central handle registry.** New `internal/core/redistevents/` package owns `RouteChangeBatch` and a `RegisterProducerHandle(protocol, *Event[*RouteChangeBatch])` registry. Each producer calls `events.Register[*RouteChangeBatch]("<protocol>","route-change")` at init and adds the handle. bgp-redistribute iterates the registry on startup.
+   - **(B) Raw bus subscribe-by-name.** bgp-redistribute iterates `redistribute.SourceNames()`, filters non-BGP protocols via `LookupSource`, subscribes via raw `bus.Subscribe(protocol, "route-change", fn(any))` and parses JSON itself. Works with external producers but loses type safety -- violates `plugin-design.md` "Subscribers MUST type-assert via the typed handle".
+   - **(C) Single shared handle.** One `events.Register[*RouteChangeBatch]("redistribute","route-change")`; batch carries `Protocol` field. Producers emit on a single (ns, et); subscriber filters by `batch.Protocol`. Simpler registry, but couples all protocols to a shared namespace.
+   - Default recommendation: (A). Keeps typed handles and scales to per-protocol registration without coupling producers to each other.
+
+4. **Reference pattern is sysrib.** `ConfigureEventBus` callback + package-level `atomic.Pointer[ze.EventBus]` + `OnStarted` spawns `go s.run(ctx)` + typed handle Subscribe + block on `<-ctx.Done()`.
+
+5. **Plugin placement:** `internal/component/bgp/plugins/redistribute/` is correct -- the plugin emits BGP UPDATEs via `UpdateRoute`, so it is BGP-specific in function. Registering under `internal/plugins/` would hide the BGP coupling.
+
+6. **Wiring tests under typed handles are constrained.** Python `emit-event` cannot drive typed subscribers. Options: (i) in-process Go test fixture, (ii) .ci tests that wait for the real L2TP producer to land, (iii) switch to approach (B) raw bus and accept the type-safety loss.
+
+## Research Decisions (agreed 2026-04-18)
+
+-> Decision: **Handle resolution = approach (A), per-protocol
+   producer declaration (value-types-only registry).**
+   New package `internal/core/redistevents/` owns the shared payload
+   type (`RouteChangeBatch`/`RouteChangeEntry`, value types only, no
+   cross-plugin pointers), the numeric `ProtocolID` registry, and a
+   "which protocols have a producer" declaration table. Each producer
+   calls `events.Register[*RouteChangeBatch](name, "route-change")`
+   inside its own package to obtain its LOCAL handle, then calls
+   `redistevents.RegisterProducer(id)` to declare existence. Consumer
+   enumerates `redistevents.Producers()` on `OnStarted`, filters out
+   its own protocol, and for each remaining ID calls
+   `events.Register[*RouteChangeBatch](ProtocolName(id), "route-change")`
+   in its own package to obtain its OWN local handle, then subscribes.
+   No plugin holds a pointer allocated by another plugin. See
+   "Protocol registry" table below for the exact surface.
+   Rationale: (B) violates `buffer-first.md` by JSON-unmarshaling per
+   delivery whenever the producer is an external plugin process
+   (5-7 heap allocations per event on the hot path). (C) wastes
+   dispatch cycles proportional to total subscribers on the shared
+   namespace; scales poorly. (A) matches dispatch cost to registered
+   interest and gives an enumerable producer declaration for
+   diagnostics, while the value-types-only registry preserves plugin
+   isolation (see cross-boundary coupling table below).
+
+-> Decision: **Ship bgp-redistribute standalone with an in-process Go-side
+   fake producer.** A minimal test-only internal plugin (`fakeredist`,
+   loaded only in `.ci` tests) registers a `RouteChangeBatch` handle via
+   the registry and emits synthetic events on a trigger command. BGP
+   real-traffic coverage arrives later via `spec-l2tp-7c-redistribute`
+   without reopening this spec.
+
+-> Decision: **Command text shape corrected.** Announce:
+   `update text origin <origin> nhop <addr|self> nlri <afi>/<safi> add <prefix>`.
+   Withdraw: `update text nlri <afi>/<safi> del <prefix>`. `nhop self`
+   triggers reactor per-peer `LocalAddress` substitution
+   (`internal/component/bgp/plugins/cmd/update/update_wire.go:209-211`
+   + `internal/component/bgp/reactor/peer.go:562-591`).
+
+-> Decision: **Event payload is self-contained, no strings, no pointers
+   across plugin/component boundaries.**
+
+   **HARD RULE (no exceptions):** payload fields MUST be value types
+   only. No `*RouteSource`, no pointer into any registry, no pointer
+   into data owned by another plugin or component. Pointers across
+   boundaries are rejected the same way a goto is rejected: they create
+   non-local coupling invisible at the call site.
+
+   Strings on the hot path are rejected for the same reason they are
+   elsewhere in ze (per-event allocation, slow equality compare, escape
+   to heap inside slices).
+
+### Payload field types (value types only; no strings, no cross-boundary pointers)
+
+| Type | Field | Representation | Rationale |
+|------|-------|----------------|-----------|
+| `RouteChangeBatch` | Protocol | numeric `ProtocolID` (uint16), registered once at init in `internal/core/redistevents/` | Self-contained value; integer eq on the hot path; zero cross-boundary pointer. Consumer translates ID back to a name only if it needs one (diagnostics) via a local registry call, not via dereferencing shared state |
+| `RouteChangeBatch` | Family | existing `family.Family` value type (AFI uint16 + SAFI uint8) | Matches ze's canonical family form everywhere else; integer eq; no alloc |
+| `RouteChangeBatch` | Entries | slice of fixed-size `RouteChangeEntry` value records | Pool-friendly; no pointer escape via string fields |
+| `RouteChangeEntry` | Action | uint8 enum -- `ActionUnspecified=0`, `ActionAdd=1`, `ActionRemove=2` | Integer eq; zero value is invalid so corruption is visible |
+| `RouteChangeEntry` | Prefix | `netip.Prefix` value type | Fixed size; compares are cheap; no alloc |
+| `RouteChangeEntry` | NextHop | `netip.Addr` value type; zero `Addr` means consumer uses reactor's `nhop self` | No boolean flag needed; zero-value sentinel keeps struct fixed-size |
+| `RouteChangeEntry` | Metric | uint32 (reserved for future use) | Fixed size |
+
+BLOCKING for implementation:
+- NO `string Protocol`, `string Family`, or `string Action` on the batch or entry.
+- NO `*RouteSource`, `*anypackage.AnyStruct`, or any pointer field that carries the consumer into another plugin or component's memory.
+- The payload is fully self-describing via value types only.
+
+### Protocol registry (new, in `internal/core/redistevents/`)
+
+`ProtocolID` is a uint16 alias. The registry stores VALUE TYPES ONLY --
+no handle pointers, no producer-allocated pointers of any kind.
+Producers and consumers each build their OWN typed handles locally
+using `events.Register[*RouteChangeBatch](name, "route-change")` in
+their own package; the `events` registry's duplicate-registration
+guard accepts independent Register calls from different packages with
+the same `(namespace, eventType, T)` tuple because this is a
+CONTRACT guard, not shared mutable state.
+
+| Surface | Stores / returns | Purpose |
+|---------|------------------|---------|
+| `RegisterProtocol(name string) ProtocolID` | stores `{id, name}` as value fields | Called from producer `init()`. Idempotent. IDs start at 1; 0 is `ProtocolUnspecified` (invalid). Sorted lookup table internally. |
+| `RegisterProducer(id ProtocolID)` | marks the ID as "has producer" (a bit, not a pointer) | Called from producer `init()` AFTER the producer's local `events.Register` call. Declares producer existence. |
+| `Producers() []ProtocolID` | fresh slice of IDs, value types only | Consumer enumeration at `OnStarted`. |
+| `ProtocolName(id ProtocolID) string` | copy of the stored name | Consumer namespace lookup for building its own local handle; also diagnostic output. Called outside the hot path. |
+| `ProtocolIDOf(name string) (ProtocolID, bool)` | ID by value | Consumer calls at startup to learn canonical IDs it cares about (e.g. `ProtocolIDOf("bgp")` to filter out its own protocol). |
+
+### Cross-boundary coupling surface after this design
+
+| Surface | Data crossing the boundary | Cross-plugin pointer? |
+|---------|----------------------------|----------------------|
+| `redistevents` registry | `ProtocolID` (uint16), immutable name strings, "has producer" bit | No. All value types. |
+| Bus `Subscribe` call | consumer-owned function closure, passed to the bus | No. Closure is consumer-owned; bus owns the subscription table. |
+| Event payload (`*RouteChangeBatch`) | bus-owned pointer, synchronous read-only access during dispatch per `eventbus.go` contract; every field is a value type | No. Pointer comes from the bus, not from another plugin's memory. |
+| Type identity | both plugins import `internal/core/redistevents/` for the `RouteChangeBatch` / `RouteChangeEntry` / `RouteAction` / `ProtocolID` type DEFINITIONS | Type definitions are the shared contract, the same way both plugins importing `family.Family` share a type but not state. Not cross-plugin memory access. |
+
+BLOCKING: the registry returns no pointer types. `Producers()` returns
+`[]ProtocolID`, not `[]*anything`. Consumer constructs its own handle
+locally via `events.Register[*RouteChangeBatch](name, "route-change")`
+and subscribes on that handle. Producer does the same in its own
+package.
+
+### Pool semantics
+
+Per eventbus.go contract, subscribers run synchronously and MUST NOT
+retain the payload. `RouteChangeBatch` is therefore safe to release to a
+`sync.Pool` immediately after `handle.Emit` returns. The batch backing
+slice (`Entries`) is also recycled. Typical producer lifecycle:
+acquire → fill fields → append entries → emit → release.
+
+All Entries element fields are value types (no pointer escape), so the
+backing array stays stable in the pool.
+
+### Hot-path allocation target
+
+| Step | Target |
+|------|--------|
+| Producer acquire/release batch | 0 heap allocations (sync.Pool) |
+| Producer populate fields | 0 (value types) |
+| Producer append Entries (≤ cap) | 0 |
+| `handle.Emit` in-process | 0 (shared pointer fan-out) |
+| `handle.Emit` with external subscriber | 1 JSON marshal per Emit (bus-internal, amortized across all external subs) |
+| Subscriber typed-handle assertion | 0 |
+| `configredist.Accept(route, "bgp")` | 0 (RedistRoute stack-allocated) |
+| `b.Family.String()` for evaluator call | 1 string alloc per batch (existing evaluator API takes string) -- SEE DEFERRAL BELOW |
+| Entries iteration | 0 (range by pointer via `&b.Entries[i]`) |
+
+### Deferred to follow-up spec
+
+| What | Why deferred | Destination |
+|------|--------------|-------------|
+| `Evaluator.AcceptFamily(family.Family, ...)` API -- removes the one remaining per-batch `Family.String()` allocation in the consumer hot path | Scope creep: touches `internal/component/config/redistribute/evaluator.go` + all callers including the existing `IngressFilter` path. Landing it here enlarges the change and delays redistribute. Performance impact of a single per-batch string allocation is negligible at steady state | a new spec, to be filed when this spec is closed |
+
+## Open Research Questions (block DESIGN gate)
+
+1. Fake-producer placement. Two candidates:
+   - (a) `internal/testplugins/fakeredist/` (new top-level test plugin
+     package; blank-import guarded by a build tag or only wired in test
+     binaries).
+   - (b) `test/plugin/fakeredist/` (alongside `.ci` fixtures but still a
+     Go package; unusual location).
+   - (c) `internal/plugins/fakeredist/` with `Private: true` style gating,
+     relying on config to not load it in production.
+2. Explicit nexthop support (resolved): `RouteChangeEntry.NextHop` is a
+   `netip.Addr` value; zero `Addr` sentinel means the consumer emits
+   `nhop self` and relies on reactor per-peer substitution. Non-zero
+   `Addr` from the producer is passed through as an explicit `nhop
+   <addr>` in the command text. Producers that have no address to supply
+   simply leave the field zero. No follow-up spec needed; the
+   field is present from v1 and producers opt in when they have a value.
 
 ## Current Behavior (MANDATORY)
 
