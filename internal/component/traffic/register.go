@@ -224,6 +224,9 @@ func runEngine(conn net.Conn) int {
 		if err := validateBackendGate(sections, cfg.Backend); err != nil {
 			return err
 		}
+		if err := RunVerifier(cfg.Backend, cfg.Interfaces); err != nil {
+			return fmt.Errorf("traffic-control backend %q: %w", cfg.Backend, err)
+		}
 		pendingCfg = cfg
 		log.Debug("traffic-control config verified", "backend", cfg.Backend)
 		return nil

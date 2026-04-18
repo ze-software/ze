@@ -49,12 +49,28 @@ type Backend interface {
 // config that omits the backend leaf.
 func DefaultBackendName() string { return defaultBackendName }
 
-// backendsMu protects the backends map and activeBackend.
+// Verifier is a stateless pre-apply check specific to a backend. It is
+// called during OnConfigVerify with the parsed desired state; returning
+// an error rejects the commit before the backend is loaded. Verifiers are
+// optional -- a backend without a verifier accepts any config that passed
+// YANG-level validation.
+//
+// This exists alongside the schema-level `ze:backend` YANG gate because
+// the gate annotates LEAVES (a single type), not individual ENUM VALUES.
+// Rejecting "qdisc hfsc but accepting qdisc htb" under the vpp backend
+// requires per-value logic, which lives in a Verifier.
+type Verifier func(desired map[string]InterfaceQoS) error
+
+// backendsMu protects the backends map, activeBackend, and verifiers.
 var backendsMu sync.Mutex
 
 // backends maps backend names to factory functions. Populated by
 // RegisterBackend calls in init() from backend packages.
 var backends = map[string]func() (Backend, error){}
+
+// verifiers maps backend names to verifier functions. Populated by
+// RegisterVerifier calls in init(). Missing names mean "no extra checks".
+var verifiers = map[string]Verifier{}
 
 // activeBackend is the currently loaded backend. Set by LoadBackend
 // during OnConfigure. Nil until a backend is loaded.
@@ -72,6 +88,35 @@ func RegisterBackend(name string, factory func() (Backend, error)) error {
 	}
 	backends[name] = factory
 	return nil
+}
+
+// RegisterVerifier registers an optional commit-time verifier for a backend.
+// Called from init() in backend packages that need to reject configs which
+// reference unsupported qdisc or filter types before Apply runs. Duplicate
+// registrations are rejected.
+func RegisterVerifier(name string, v Verifier) error {
+	backendsMu.Lock()
+	defer backendsMu.Unlock()
+
+	if _, exists := verifiers[name]; exists {
+		return fmt.Errorf("traffic: verifier for backend %q already registered", name)
+	}
+	verifiers[name] = v
+	return nil
+}
+
+// RunVerifier invokes the registered verifier for backendName against the
+// parsed desired state. Returns nil if no verifier is registered (i.e. the
+// backend accepts anything the YANG schema already allowed) or if the
+// verifier reports no issue.
+func RunVerifier(backendName string, desired map[string]InterfaceQoS) error {
+	backendsMu.Lock()
+	v, ok := verifiers[backendName]
+	backendsMu.Unlock()
+	if !ok {
+		return nil
+	}
+	return v(desired)
 }
 
 // LoadBackend creates and activates the named backend. Called by the traffic

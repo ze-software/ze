@@ -122,6 +122,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/netlink"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/vpp"
 
 	// Event namespace packages -- events.RegisterNamespace registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
@@ -136,4 +137,3 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 )
-

@@ -1,0 +1,84 @@
+# Test: VPP backend reports a clear error when VPP is not running at Apply.
+# VALIDATES: spec-fw-7 AC-9 -- backend.Apply calls Connector.WaitConnected
+#            with a 5 second deadline (Decision 1 in the spec); when the VPP
+#            daemon is not reachable, the timeout surfaces as a "vpp not
+#            connected" message in the daemon log so the operator knows to
+#            start VPP and retry.
+# PREVENTS: regression where a missing VPP silently no-ops Apply (the classic
+#           "feature not wired" trap from memory.md) or where the error
+#           message omits actionable context.
+#
+# Scope note: the test config only declares `backend vpp` without any qdisc
+# or filter under the interface, so the Verifier passes and the flow reaches
+# backend.Apply. Without a running VPP the connector's IsConnected stays
+# false and WaitConnected returns an error after the 5s timeout.
+#
+# Runtime: waits ~6s for the 5s timeout + margin. Longer than the other
+# traffic .ci tests but unavoidable because the timeout is part of the
+# behavior under test.
+
+tmpfs=wait.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Hold the test open long enough for Apply's 5s WaitConnected to fire
+and for register.go to log the resulting error."""
+import time
+
+time.sleep(6.0)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+
+traffic-control {
+	backend vpp
+	interface eth0 {
+		qdisc {
+			type htb
+			class rate-limit {
+				rate 10mbit
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.traffic:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 wait.py:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=vpp not connected

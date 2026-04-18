@@ -1,0 +1,78 @@
+# Test: VPP backend rejects hfsc qdisc at OnConfigVerify.
+# VALIDATES: spec-fw-7 AC-7 -- the trafficvpp Verifier registered via
+#            traffic.RegisterVerifier("vpp", Verify) runs during the
+#            traffic component's OnConfigVerify and rejects qdisc types
+#            that have no VPP equivalent (hfsc here; same path covers
+#            fq / sfq / fq_codel / netem / clsact / ingress).
+# PREVENTS: regression where an unsupported qdisc silently passes verify
+#           and surfaces only at Apply time, breaking the promise that
+#           operators learn about rejection before `commit` lands.
+#
+# Scope note: the Verifier runs at daemon config-verify time (not offline
+# `ze config validate`, which per memory.md does not invoke plugin
+# OnConfigVerify callbacks). This test boots ze with the bad config and
+# asserts the rejection log line appears in stderr.
+
+tmpfs=wait.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Sleep long enough for ze to read config, attempt verify, log the
+rejection, then exit. Daemon-side verify runs at reload; the initial
+OnConfigure flow follows the same path."""
+import time
+
+time.sleep(2.5)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+
+traffic-control {
+	backend vpp
+	interface eth0 {
+		qdisc {
+			type hfsc
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.traffic:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=not supported by backend vpp

@@ -105,6 +105,44 @@ func (c *Connector) IsConnected() bool {
 	return c.connected
 }
 
+// WaitConnected blocks until the Connector reports connected, or the timeout
+// elapses, or ctx is canceled. Returns nil on success, ctx.Err() on cancel,
+// and a timeout error on deadline. Callers that need a synchronous guarantee
+// before calling NewChannel use this to smooth over cold-boot races where ze
+// and VPP start together but VPP has not yet accepted API clients.
+//
+// Implementation polls IsConnected at a 50ms interval; this is coarse enough
+// to avoid burning CPU on a warm cache and fine enough that a 5-second wait
+// loses at most ~50ms of latency. No condition variable because Connect can
+// happen from any goroutine and we do not want to re-architect the mutex.
+func (c *Connector) WaitConnected(ctx context.Context, timeout time.Duration) error {
+	if timeout <= 0 {
+		return fmt.Errorf("govpp WaitConnected: timeout must be > 0")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if c.IsConnected() {
+		return nil
+	}
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+	tick := time.NewTicker(50 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-deadline.C:
+			return fmt.Errorf("govpp WaitConnected: not connected after %s", timeout)
+		case <-tick.C:
+			if c.IsConnected() {
+				return nil
+			}
+		}
+	}
+}
+
 // Close disconnects from VPP. Safe to call multiple times.
 func (c *Connector) Close() {
 	c.mu.Lock()

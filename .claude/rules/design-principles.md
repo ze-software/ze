@@ -15,6 +15,7 @@ Rationale: `.claude/rationale/design-principles.md`
 | Design for change | Isolate volatility behind stable interfaces |
 | Fail-mode awareness | Every external call can fail. Every input can be malformed |
 | Do it right | Ze does the hard thing properly -- zero-copy, pool dedup, buffer-first. Never trade correctness for speed of implementation |
+| Exact or reject | If a backend or translator cannot apply EXACTLY what the operator's config asks for, verify/commit MUST fail with a clear error. No silent approximation, truncation, or "best-effort" mapping. See `rules/exact-or-reject.md` |
 | Durability over velocity | Optimize for "never revisit this code" not "get to commit fast". Missing edge cases, shallow tests, unwired features all create rework. Rework wastes more of the user's time than thoroughness ever could |
 | Encapsulation onion | Networking protocols are nested encapsulations. Allocate one buffer at the outermost layer and slice inward with specialized data-manipulation types (WireUpdate, PackContext). Each layer peels the onion by narrowing the window -- never by copying into a new buffer. Currently BGP-only; the pattern holds for any future protocol layer |
 | Buffer-first encoding | The write side of the onion: all wire encoding writes into pooled, bounded buffers via `WriteTo(buf, off) int`. No `append`, no `make` in helpers, no `buildFoo() []byte`. Pool buffer size = RFC max = bounded encoding space. Mechanical details: `rules/buffer-first.md` |

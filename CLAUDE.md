@@ -76,6 +76,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Start a session | `rules/session-start.md` |
 | Design or implement anything | `rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
 | Write any code | `rules/before-writing-code.md`, relevant `.claude/patterns/` |
+| Write a backend or config translator | `rules/exact-or-reject.md` -- no silent approximation, lossy translation rejects at verify |
 | Touch wire encoding | `rules/buffer-first.md` |
 | Touch registration | `.claude/patterns/registration.md` |
 | Add CLI/web/plugin/config | `.claude/patterns/{cli-command,web-endpoint,plugin,config-option}.md` |
@@ -83,6 +84,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Implement an RFC | `rules/rfc-compliance.md`, `rfc/short/` |
 | Write a spec | `rules/planning.md`, `plan/TEMPLATE.md` |
 | Commit | `rules/git-safety.md` -- `make ze-verify` |
+| Delete / overwrite any user-visible file | `rules/never-destroy-work.md` -- ask first, always |
 | Look up anything | `.claude/INDEX.md` (keyword->doc, keyword->RFC) |
 | Understand architecture | `docs/architecture/core-design.md` |
 | Check past decisions | `.claude/LEARNED-INDEX.md` -> `plan/learned/` |

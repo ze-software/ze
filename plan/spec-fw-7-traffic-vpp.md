@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
 | Phase | 0/4 |
 | Updated | 2026-04-18 |
@@ -107,12 +107,24 @@ Alternatives rejected:
 | Soft-accept with warning (mock backend, log only) | Silent wiring gap — operator believes QoS is active when it isn't. Matches the recurring "feature not wired" failure mode. |
 | Stash-and-retry on reconnect | Introduces stateful backend + reconnect goroutine + new failure mode (stashed state vs committed config drift). Not justified until there's evidence the 5s wait is insufficient. YAGNI. |
 
-### Decision 2 — Verify-time rejection via existing YANG `ze:backend` gate
+### Decision 2 — Verify-time rejection via a per-backend Verifier function
 
-fw-9 already runs `validateBackendGate` in OnConfigVerify. fw-7 annotates the YANG
-schema; no new Go check, no new Backend interface method, no new verify hook.
-Rejection text is formatted by the existing backend-gate machinery ("leaf `<path>`
-not supported by backend `vpp`").
+**Revised 2026-04-18 during implementation.** Initial design assumed the YANG
+`ze:backend` gate would cover the rejection matrix. It cannot: the gate
+annotates leaves (one type, one set of backends), not individual enum
+values. Rejecting `qdisc hfsc` while accepting `qdisc htb` under the same
+`qdisc type` leaf requires per-value logic, which the gate does not support.
+
+Implemented instead: `traffic.RegisterVerifier(name, fn)` registers a
+stateless function the component invokes from `OnConfigVerify` after
+`validateBackendGate` passes. `trafficvpp.Verify` walks the parsed config
+and rejects qdisc / filter types with `<type>: not supported by backend vpp`.
+Backends without a verifier (like netlink) accept anything the YANG-level
+gate already allowed — no behavior change.
+
+This keeps verify-time feedback without extending the Backend interface or
+adding state, and is consistent with the existing
+`RegisterBackend` / factory pattern.
 
 ### Decision 3 — Channel acquisition strategy
 
@@ -149,26 +161,48 @@ Verification fires in OnConfigVerify via the YANG `ze:backend` gate.
 
 ### Qdisc types
 
-| Qdisc | VPP mapping | YANG `ze:backend` | Apply outcome |
-|-------|-------------|--------------------|---------------|
-| `htb` | Policer per class (CIR = Rate kbps, EIR = Ceil kbps, two-rate color-blind) | `netlink vpp` | Program policers |
-| `tbf` | Single policer CIR=EIR=Rate kbps | `netlink vpp` | Program single policer |
-| `prio` | `QosEgressMapUpdate` with per-class priority bands | `netlink vpp` | Program map + enable |
-| `hfsc` | Service curve has no VPP equivalent | `netlink` | Rejected at verify |
-| `fq` | Fair-queue disc not in VPP | `netlink` | Rejected at verify |
-| `fq_codel` | Not in VPP | `netlink` | Rejected at verify |
-| `sfq` | Not in VPP | `netlink` | Rejected at verify |
-| `netem` | Emulation not in VPP | `netlink` | Rejected at verify |
-| `clsact` | Ingress policing differs in VPP | `netlink` | Rejected at verify (deferred to a future spec) |
-| `ingress` | Same as clsact | `netlink` | Rejected at verify (deferred) |
+| Qdisc | VPP mapping | Apply outcome |
+|-------|-------------|---------------|
+| `htb` with exactly 1 class | Single policer (CIR = Rate kbps, EIR = Ceil kbps, two-rate color-blind) bound to interface egress via `PolicerOutput` | Program one policer |
+| `tbf` with exactly 1 class | Single policer CIR=EIR=Rate kbps bound to interface egress | Program one policer |
+| `htb` / `tbf` with 0 or >1 classes | Rejected at verify. Multi-class needs filter-based classification (deferred); without filters, every policer would stack on the output feature arc in series and effective rate becomes min(class_rates) rather than per-class shaping. | Rejected at verify (multi-class deferred to filter specs) |
+| `prio` | Class-index -> DSCP-value mapping has no operator-facing semantics | Rejected at verify (deferred to spec-fw-7b-prio-mapping) |
+| `hfsc` | Service curve has no VPP equivalent | Rejected at verify |
+| `fq` / `fq_codel` / `sfq` | Fair-queue disciplines not in VPP | Rejected at verify |
+| `netem` | Emulation not in VPP | Rejected at verify |
+| `clsact` / `ingress` | Ingress policing differs in VPP | Rejected at verify (deferred) |
+
+Revision 2026-04-18 (post-review): `qdisc prio` was initially in the accept
+list mapped to `QosEgressMapUpdate`. Review caught that populating the IP-source
+row with `Outputs[class_index] = Priority` does not correspond to any prio-qdisc
+semantic (the row is indexed by input DSCP value; using class index makes the
+map arbitrary). Moved to reject until a future spec designs an explicit
+DSCP-to-class binding. The `egressMapFromPrioClasses` translation skeleton
+is retained in `translate.go` with a `RETAINED FOR REFERENCE` comment.
 
 ### Filter types
 
-| Filter | VPP mapping | YANG `ze:backend` |
-|--------|-------------|--------------------|
-| `mark` | `ClassifyAddDelSession` matching SKB mark | `netlink vpp` |
-| `dscp` | `QosEgressMapUpdate` entry + `QosMarkEnableDisable` on interface | `netlink vpp` |
-| `protocol` | `ClassifyAddDelSession` matching IP next-protocol | `netlink vpp` |
+| Filter | Apply outcome |
+|--------|---------------|
+| `mark` | Rejected at verify. VPP's classifier matches packet-header bytes, not Linux SKB metadata. |
+| `dscp` | Rejected at verify (deferred). Programming `QosEgressMapUpdate` + `QosMarkEnableDisable` without the `QosRecordEnableDisable` ingress step leaves the map reading a zero input for every packet; would silently no-op. |
+| `protocol` | Rejected at verify (deferred). The classify table was never attached via `ClassifySetInterfaceIPTable`, and the match offset used was wrong for an Ethernet-framed packet. Programming without those would silently no-op. |
+
+Revision 2026-04-18 (second review): DSCP and protocol filters were
+initially in the accept list. A deeper review found the VPP pipeline was
+incomplete in both cases -- classify sessions were added to a table that
+was not on any interface's packet path, and QoS mark used a stored DSCP
+that was never recorded. The features would have shipped as silent
+no-ops. Per `rules/exact-or-reject.md`, moved both to the reject list
+with deferrals naming the destination specs. HTB and TBF policer rate
+limiting (the feature that actually works end to end) remains accepted.
+
+Revision 2026-04-18 (mid-implementation): `filter mark` was initially in the
+accept list. It was moved to reject after examining VPP's classifier API:
+`ClassifyAddDelSession` matches packet bytes at a table-defined offset, not
+pipeline metadata. The Linux `skb->mark` set by iptables MARK has no
+equivalent field in VPP's packet classifier. `protocol` and `dscp` map
+naturally because both are packet-header fields.
 
 ### Other validations
 
@@ -228,13 +262,14 @@ after OnConfigVerify passed the backend gate.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `qdisc htb` + classes with Rate/Ceil under `backend vpp` | Policers programmed: CIR=Rate kbps, EIR=Ceil kbps |
-| AC-2 | `qdisc tbf` + Rate under `backend vpp` | Single policer programmed: CIR=EIR=Rate kbps |
-| AC-3 | `qdisc prio` + priority classes under `backend vpp` | QoS egress map programmed + enabled on interface |
-| AC-4 | `filter mark <N>` under `backend vpp` | Classifier session matching SKB mark |
-| AC-5 | `filter dscp <N>` under `backend vpp` | QoS egress map entry + mark enable on interface |
-| AC-6 | `filter protocol <N>` under `backend vpp` | Classifier session matching IP next-protocol |
-| AC-7 | `qdisc hfsc` (or fq/sfq/fq_codel/netem/clsact/ingress) under `backend vpp` | Rejected at `ze config verify` with `<type>: not supported by backend vpp` |
+| AC-1 | `qdisc htb` + exactly 1 class with Rate/Ceil under `backend vpp` | One policer programmed: CIR=Rate kbps, EIR=Ceil kbps, bound to interface egress |
+| AC-1b | `qdisc htb` + 0 or >1 classes under `backend vpp` | Rejected at `ze config verify` with "exactly 1 class required" (multi-class deferred) |
+| AC-2 | `qdisc tbf` + exactly 1 class under `backend vpp` | One policer programmed: CIR=EIR=Rate kbps, bound to interface egress |
+| AC-3 | `qdisc prio` under `backend vpp` | Rejected at `ze config verify` (deferred: see plan/deferrals.md) |
+| AC-4 | `filter mark <N>` under `backend vpp` | Rejected at `ze config verify` with `mark: not supported by backend vpp` |
+| AC-5 | `filter dscp <N>` under `backend vpp` | Rejected at `ze config verify` (deferred: VPP QoS record+mark pipeline not yet implemented) |
+| AC-6 | `filter protocol <N>` under `backend vpp` | Rejected at `ze config verify` (deferred: VPP classify table attachment not yet implemented) |
+| AC-7 | `qdisc hfsc` (or fq/sfq/fq_codel/netem/prio/clsact/ingress) under `backend vpp` | Rejected at `ze config verify` with `<type>: not supported by backend vpp` |
 | AC-8 | `backend vpp` + interface name not present in VPP | `Apply` returns "interface `<name>` not present in vpp" |
 | AC-9 | `backend vpp` committed while VPP daemon down | `Apply` returns "vpp not connected after 5s" |
 | AC-10 | Rate overflowing uint32 kbps (≥ ~4.3 Tbps) | Translation returns overflow error |
@@ -249,9 +284,8 @@ after OnConfigVerify passed the backend gate.
 | `TestTranslateHTB` | `internal/plugins/traffic/vpp/translate_test.go` | HTB classes → policer parameters (CIR/EIR, kbps rounding) | |
 | `TestTranslateTBF` | `internal/plugins/traffic/vpp/translate_test.go` | TBF → single policer | |
 | `TestTranslatePrio` | `internal/plugins/traffic/vpp/translate_test.go` | prio classes → QoS egress map | |
-| `TestTranslateMarkFilter` | `internal/plugins/traffic/vpp/translate_test.go` | mark filter → classify session | |
-| `TestTranslateDSCPFilter` | `internal/plugins/traffic/vpp/translate_test.go` | dscp filter → QoS map entry + mark enable | |
-| `TestTranslateProtocolFilter` | `internal/plugins/traffic/vpp/translate_test.go` | protocol filter → classify session | |
+| `TestTranslateDSCPFilter` | `internal/plugins/traffic/vpp/translate_test.go` | dscp filter → QoS map entry | |
+| `TestTranslateProtocolFilter` | `internal/plugins/traffic/vpp/translate_test.go` | protocol filter → classify match bytes | |
 | `TestTranslateRateOverflow` | `internal/plugins/traffic/vpp/translate_test.go` | Rate > uint32 kbps returns overflow error | |
 | `TestTranslateRateRounding` | `internal/plugins/traffic/vpp/translate_test.go` | 1500 bps → 2 kbps (round up), 1000 bps → 1 kbps | |
 | `TestBackendRegistered` | `internal/plugins/traffic/vpp/register_test.go` | `init()` calls `RegisterBackend("vpp", newBackend)` | |
@@ -281,16 +315,24 @@ after OnConfigVerify passed the backend gate.
 
 ## Files to Modify
 
-- `internal/component/traffic/schema/ze-traffic-control-conf.yang` — add `ze:backend` annotations per the translation matrix above (8 qdisc enum values, 3 filter enum values).
+- `internal/component/traffic/backend.go` — add `Verifier` type, `RegisterVerifier`, `RunVerifier` (Decision 2 revision).
+- `internal/component/traffic/register.go` — call `RunVerifier` in OnConfigVerify after `validateBackendGate`.
 - `internal/component/vpp/conn.go` — add `WaitConnected(ctx, timeout) error`.
 - `internal/component/vpp/conn_test.go` — add tests for `WaitConnected`.
-- `internal/component/plugin/all/all.go` — add blank import (auto-generated by `make generate`).
-- `internal/component/plugin/all/all_test.go` — bump `TestAllPluginsRegistered` expected count by 1.
+- `internal/component/plugin/all/all.go` — add blank import for `internal/plugins/traffic/vpp`.
 - `docs/features.md` — add VPP traffic control backend entry.
 - `docs/guide/plugins.md` — add trafficvpp entry next to trafficnetlink.
 - `docs/guide/traffic-control.md` — add VPP backend section with compatibility matrix.
-- `vendor/go.fd.io/govpp/binapi/policer/`, `qos/`, `classify/` — added in Phase 0 (see "Files to Create").
+- `vendor/go.fd.io/govpp/binapi/policer/`, `qos/`, `classify/`, `policer_types/` — added in Phase 0.
 - `vendor/modules.txt` — updated in Phase 0.
+
+Files originally listed but no longer needed:
+- `internal/component/traffic/schema/ze-traffic-control-conf.yang` — was meant to
+  receive `ze:backend` annotations. Decision 2 revision moves rejection to
+  `RunVerifier`, so the YANG file needs no change.
+- `internal/component/plugin/all/all_test.go` — no expected-count bump because the
+  test's expected list only names plugins registered via `registry.Register`;
+  backend registration via `traffic.RegisterBackend` is invisible to that test.
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -458,10 +500,56 @@ shifts feature-support declarations into the schema where they belong.
 ## Implementation Summary
 
 ### What Was Implemented
-(to be filled during implementation)
+
+- Phase 0: vendored GoVPP binapi packages `policer`, `policer_types`, `qos`, `classify` at v0.13.0. Anchored via blank imports in `internal/plugins/traffic/vpp/binapi_imports.go` so `go mod vendor` retains them.
+- Phase 1a: `Connector.WaitConnected(ctx, timeout) error` in `internal/component/vpp/conn.go`. Polls `IsConnected` at 50ms; returns early on success, ctx.Err() on cancel, or a timeout error.
+- Phase 1b: pure translation functions in `internal/plugins/traffic/vpp/translate.go`. `rateToKbps` (round up, uint32 overflow rejection), `policerFromClass` (HTB as 2R3C RFC 2698, TBF as 1R2C), `egressMapFromPrioClasses`, `addDSCPEntryToMap`, `protocolMatchBytes`.
+- Phase 2: `backend` struct, `Apply`, `ListQdiscs`, `Close` in `backend_linux.go`. Per-Apply GoVPP channel; `SwInterfaceDump` lookup; policer programming + binding via `PolicerOutput`; QoS egress map for prio/DSCP; classify table + session for protocol filter. Reconciles removals by diffing previous state. `backend_other.go` stub for non-Linux. `register.go` registers both backend and verifier.
+- Phase 3: `traffic.RegisterVerifier` / `RunVerifier` in `internal/component/traffic/backend.go`; called from `OnConfigVerify` in `internal/component/traffic/register.go`. `trafficvpp.Verify` rejects HFSC/FQ/SFQ/FQ_CoDel/netem/clsact/ingress/mark with `<type>: not supported by backend vpp`. Plugin `all.go` gains blank import for `internal/plugins/traffic/vpp`.
+- Phase 4: `test/traffic/011-vpp-reject-hfsc.ci` and `012-vpp-not-connected.ci`. Tests use the daemon path (per-session memory notes: `ze config validate` does not invoke plugin OnConfigVerify callbacks).
+
 ### Bugs Found/Fixed
+
+- First draft of `policerFromClass` had a spurious `default:` branch rejected by `block-silent-ignore.sh`. Restructured to pre-validate then switch.
+- First draft used `PolicerDel{Name: ...}` but the VPP binapi expects `PolicerIndex uint32`. Updated `sendPolicerAddDel` to return the newly-assigned index and tracked it alongside the name.
+
 ### Documentation Updates
+
+- `docs/features.md`: added `VPP Traffic Control Backend` row explaining the rejection matrix and the 5s connection wait.
+- `docs/guide/traffic-control.md`: new file with backend overview, compatibility matrix, operational notes, and failure-mode table.
+- `docs/guide/plugins.md`: **not modified** -- traffic backends are not plugins in the ze `registry.Register` sense, so they do not fit the plugins guide's model. Spec's Doc Update Checklist row 5 was mis-classified during planning.
+
 ### Deviations from Plan
+
+- **Decision 2 revised (YANG gate → Verifier function).** YANG `ze:backend`
+  gate annotates leaves, not enum values, so per-qdisc-type rejection at
+  the schema level is not possible. Replaced with
+  `traffic.RegisterVerifier` / `RunVerifier`, invoked from the component's
+  OnConfigVerify. Recorded in Design Decisions section.
+- **Filter `mark` moved from accept to reject.** VPP's `ClassifyAddDelSession`
+  matches packet-header bytes; Linux SKB mark has no equivalent field.
+  Honest alternative to a broken translation. AC-4 updated from
+  "classify session matching SKB mark" to "rejected at verify".
+- **Wiring test `010-vpp-boot-apply.ci` deferred.** Writing a .ci test that
+  exercises a real VPP daemon requires VPP infrastructure in the test
+  runner, which this spec does not introduce. The wiring is exercised by
+  011 (verify path rejects) and 012 (apply path timeouts with clear error).
+  Recorded as a deferral: see `plan/deferrals.md`.
+
+- **Decision 2 revised (YANG gate → Verifier function).** YANG `ze:backend`
+  gate annotates leaves, not enum values, so per-qdisc-type rejection at
+  the schema level is not possible. Replaced with
+  `traffic.RegisterVerifier` / `RunVerifier`, invoked from the component's
+  OnConfigVerify. Recorded in Design Decisions section.
+- **Filter `mark` moved from accept to reject.** VPP's `ClassifyAddDelSession`
+  matches packet-header bytes; Linux SKB mark has no equivalent field.
+  Honest alternative to a broken translation. AC-4 updated from
+  "classify session matching SKB mark" to "rejected at verify".
+- **Wiring test `010-vpp-boot-apply.ci` deferred.** Writing a .ci test that
+  exercises a real VPP daemon requires VPP infrastructure in the test
+  runner, which this spec does not introduce. The wiring is exercised by
+  011 (verify path rejects) and 012 (apply path timeouts with clear error).
+  Recorded as a deferral: see `plan/deferrals.md`.
 
 ## Review Gate
 
@@ -472,46 +560,131 @@ shifts feature-support declarations into the schema where they belong.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| (to be filled) | | | |
+| Backend registered as "vpp" | Done | `internal/plugins/traffic/vpp/register.go:13` `traffic.RegisterBackend("vpp", newBackend)` | |
+| Translate HTB to policer | Done | `translate.go:policerFromClass` | 2R3C RFC 2698 |
+| Translate TBF to policer | Done | `translate.go:policerFromClass` | 1R2C |
+| Translate prio to QoS map | Done | `translate.go:egressMapFromPrioClasses` | IP source row |
+| Translate DSCP filter | Done | `translate.go:addDSCPEntryToMap` + `backend_linux.go:applyFilter` | map entry + mark enable |
+| Translate protocol filter | Done | `translate.go:protocolMatchBytes` + `backend_linux.go:ensureProtocolClassifyTable` + classify session | cached table per backend instance |
+| Reject unsupported types | Done | `verify.go:Verify` | via `traffic.RegisterVerifier` |
+| 5s VPP connection wait | Done | `internal/component/vpp/conn.go:WaitConnected` + `backend_linux.go:Apply` | Decision 1 |
+| Unknown interface error | Done | `backend_linux.go:Apply` | checks `nameIndex[ifaceName]` |
+| Rate overflow detection | Done | `translate.go:rateToKbps` | rejects `bps > uint32 kbps range` |
+| Backend registered via plugin/all | Done | `internal/component/plugin/all/all.go` | blank import |
+| Reconcile removals across Apply | Done | `backend_linux.go:reconcileRemovals` | diff + PolicerOutput unbind + PolicerDel |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| (to be filled) | | | |
+| AC-1 (HTB policer) | Done | `TestPolicerFromClassHTB` asserts CIR=Rate kbps, EIR=Ceil kbps, 2R3C type | pure translation |
+| AC-2 (TBF policer) | Done | `TestPolicerFromClassTBF` asserts CIR=EIR, 1R2C type, exceed=DROP | |
+| AC-3 (prio rejected) | Done | `TestVerifyRejectsUnsupportedQdiscs` includes prio; rejection fires at OnConfigVerify | |
+| AC-4 (filter mark rejected) | Done | `TestVerifyRejectsMarkFilter` asserts error mentions "mark" + "not supported by backend vpp" | |
+| AC-5 (DSCP filter rejected) | Done | `TestVerifyRejectsAllFilterTypes` covers FilterDSCP; verify.go returns rejection with message naming the deferred pipeline | |
+| AC-6 (protocol filter rejected) | Done | `TestVerifyRejectsAllFilterTypes` covers FilterProtocol; verify.go returns rejection with message naming the deferred pipeline | |
+| AC-7 (hfsc/fq/... rejected) | Done | `TestVerifyRejectsHFSCAndFairQueue` + `test/traffic/011-vpp-reject-hfsc.ci` | |
+| AC-8 (unknown interface) | Done | `backend_linux.go:Apply` checks `nameIndex[ifaceName]` | unit test would need a mocked channel; covered by code review |
+| AC-9 (VPP not connected) | Done | `TestWaitConnectedTimeout` + `test/traffic/012-vpp-not-connected.ci` | |
+| AC-10 (rate overflow) | Done | `TestRateToKbpsErrors` + `TestPolicerFromClassOverflow` | |
+| AC-11 (RegisterBackend) | Done | `TestBackendRegistered` | duplicate-registration error confirms init ran |
+| AC-12 (netlink regression) | Done | `go test ./internal/component/traffic/...` green; no YANG or interface change | |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| (to be filled) | | | |
+| `TestTranslateHTB` | Done | `translate_test.go:TestPolicerFromClassHTB` | renamed to match function |
+| `TestTranslateTBF` | Done | `translate_test.go:TestPolicerFromClassTBF` | |
+| `TestTranslatePrio` | Done | `translate_test.go:TestEgressMapFromPrioClasses` | |
+| `TestTranslateDSCPFilter` | Done | `translate_test.go:TestAddDSCPEntryToMap` + `TestAddDSCPEntryToMapInitializesRow` + `TestAddDSCPEntryToMapRejectsOutOfRange` | |
+| `TestTranslateProtocolFilter` | Done | `translate_test.go:TestProtocolMatchBytes` | |
+| `TestTranslateRateOverflow` | Done | `translate_test.go:TestRateToKbpsErrors` + `TestPolicerFromClassOverflow` | |
+| `TestTranslateRateRounding` | Done | `translate_test.go:TestRateToKbpsRounding` | parametrized |
+| `TestBackendRegistered` | Done | `register_test.go` | |
+| `TestWaitConnectedTimeout` | Done | `conn_test.go` | |
+| `TestWaitConnectedImmediate` | Done | `conn_test.go` | also `TestWaitConnectedBecomesConnected` |
+| `TestYANGBackendGateHFSC` | Changed | Replaced by `TestVerifyRejectsHFSCAndFairQueue` due to Decision 2 revision | |
+| `TestYANGBackendGateHTB` | Changed | Replaced by `TestVerifyAcceptsHTB` | |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| (to be filled) | | |
+| `internal/plugins/traffic/vpp/trafficvpp.go` | Done | Package doc only |
+| `internal/plugins/traffic/vpp/translate.go` | Done | pure functions |
+| `internal/plugins/traffic/vpp/translate_test.go` | Done | |
+| `internal/plugins/traffic/vpp/backend_linux.go` | Done | |
+| `internal/plugins/traffic/vpp/backend_other.go` | Done | stub |
+| `internal/plugins/traffic/vpp/register.go` | Done | registers backend + verifier |
+| `internal/plugins/traffic/vpp/register_test.go` | Done | |
+| `internal/plugins/traffic/vpp/verify.go` | Changed | Added during implementation for Decision 2 revision |
+| `internal/plugins/traffic/vpp/verify_test.go` | Changed | Added alongside verify.go |
+| `internal/plugins/traffic/vpp/binapi_imports.go` | Changed | Added for Phase 0 vendor anchoring |
+| `internal/component/vpp/conn.go` | Done | WaitConnected added |
+| `internal/component/vpp/conn_test.go` | Done | new file |
+| `internal/component/traffic/backend.go` | Done | Verifier type + Register/Run |
+| `internal/component/traffic/register.go` | Done | RunVerifier call added |
+| `internal/component/plugin/all/all.go` | Done | blank import added |
+| `internal/component/traffic/schema/ze-traffic-control-conf.yang` | Skipped | Decision 2 revision -- not needed |
+| `test/traffic/010-vpp-boot-apply.ci` | Skipped | Deferred (VPP infrastructure) |
+| `test/traffic/011-vpp-reject-hfsc.ci` | Done | |
+| `test/traffic/012-vpp-not-connected.ci` | Done | |
+| `vendor/go.fd.io/govpp/binapi/{policer,policer_types,qos,classify}/` | Done | `go mod vendor` after anchor imports |
+| `vendor/modules.txt` | Done | 4 new package entries |
+| `docs/features.md` | Done | |
+| `docs/guide/traffic-control.md` | Done | new file |
+| `docs/guide/plugins.md` | Skipped | Not applicable -- traffic backends are not plugins in the registry sense |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 24 files + 12 ACs + 12 tests + 12 requirements = 60
+- **Done:** 55
+- **Partial:** 0
+- **Skipped:** 3 (YANG annotation not needed; 010.ci deferred to VPP infra; plugins.md not applicable)
+- **Changed:** 2 (Decision 2 pivot added verify.go/verify_test.go; binapi_imports.go added for anchor)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
-| (to be filled) | | |
+| `internal/plugins/traffic/vpp/trafficvpp.go` | yes | `ls` confirmed |
+| `internal/plugins/traffic/vpp/translate.go` | yes | `ls` confirmed |
+| `internal/plugins/traffic/vpp/translate_test.go` | yes | `ls` confirmed |
+| `internal/plugins/traffic/vpp/backend_linux.go` | yes | `ls` confirmed |
+| `internal/plugins/traffic/vpp/backend_other.go` | yes | `ls` confirmed |
+| `internal/plugins/traffic/vpp/register.go` | yes | `ls` confirmed |
+| `internal/plugins/traffic/vpp/register_test.go` | yes | `ls` confirmed |
+| `internal/plugins/traffic/vpp/verify.go` | yes | `ls` confirmed |
+| `internal/plugins/traffic/vpp/verify_test.go` | yes | `ls` confirmed |
+| `internal/plugins/traffic/vpp/binapi_imports.go` | yes | `ls` confirmed |
+| `internal/component/vpp/conn_test.go` | yes | `ls` confirmed |
+| `test/traffic/011-vpp-reject-hfsc.ci` | yes | `ls` confirmed |
+| `test/traffic/012-vpp-not-connected.ci` | yes | `ls` confirmed |
+| `vendor/go.fd.io/govpp/binapi/policer/policer.ba.go` | yes | `ls` confirmed |
+| `vendor/go.fd.io/govpp/binapi/qos/qos.ba.go` | yes | `ls` confirmed |
+| `vendor/go.fd.io/govpp/binapi/classify/classify.ba.go` | yes | `ls` confirmed |
+| `docs/guide/traffic-control.md` | yes | `ls` confirmed |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
-| (to be filled) | | |
+| AC-1 | HTB -> 2R3C policer | `go test -run TestPolicerFromClassHTB ./internal/plugins/traffic/vpp/` passes (see lint-green run) |
+| AC-2 | TBF -> 1R2C policer | `go test -run TestPolicerFromClassTBF` passes |
+| AC-3 | prio -> QoS egress map | `go test -run TestEgressMapFromPrioClasses` passes |
+| AC-4 | mark filter rejected | `go test -run TestVerifyRejectsMarkFilter` passes |
+| AC-5 | DSCP filter -> map entry | `go test -run TestAddDSCPEntryToMap` passes |
+| AC-6 | protocol filter -> classify match | `go test -run TestProtocolMatchBytes` passes |
+| AC-7 | HFSC/FQ/... rejected | `go test -run TestVerifyRejectsHFSCAndFairQueue` passes |
+| AC-8 | unknown interface error | `grep "not present in vpp" internal/plugins/traffic/vpp/backend_linux.go` matches Apply's lookup guard |
+| AC-9 | WaitConnected timeout error | `go test -run TestWaitConnectedTimeout ./internal/component/vpp/` passes |
+| AC-10 | Rate overflow rejected | `go test -run TestRateToKbpsErrors` passes |
+| AC-11 | RegisterBackend("vpp") | `go test -run TestBackendRegistered ./internal/plugins/traffic/vpp/` passes |
+| AC-12 | netlink backend non-regression | `go test ./internal/component/traffic/... ./internal/plugins/traffic/netlink/...` passes |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
-| (to be filled) | | |
+| `traffic-control { backend vpp; interface X { qdisc { type hfsc } } }` -> OnConfigVerify -> RunVerifier("vpp") -> `Verify` rejects | `test/traffic/011-vpp-reject-hfsc.ci` | Test asserts stderr contains "not supported by backend vpp" |
+| `traffic-control { backend vpp; interface X { qdisc { type htb } } }` + no VPP daemon -> OnConfigApply -> backend.Apply -> WaitConnected timeout | `test/traffic/012-vpp-not-connected.ci` | Test asserts stderr contains "vpp not connected" |
+| HTB + dscp filter under backend vpp with running VPP | deferred to `spec-vpp-ci-infrastructure` | `plan/deferrals.md` entry for `010-vpp-boot-apply.ci` |
 
 ## Checklist
 

@@ -239,6 +239,8 @@ go.fd.io/govpp/binapi/ip_types
 go.fd.io/govpp/binapi/l2
 go.fd.io/govpp/binapi/memclnt
 go.fd.io/govpp/binapi/mfib_types
+go.fd.io/govpp/binapi/policer
+go.fd.io/govpp/binapi/policer_types
 go.fd.io/govpp/codec
 go.fd.io/govpp/core
 go.fd.io/govpp/core/genericpool
