@@ -118,17 +118,27 @@ ze-unit-test-cover:
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
 
+# Per-suite wall-clock cap. A stuck subprocess that holds an output pipe open
+# can make ze-test's own cmd.Wait() block indefinitely after SIGKILL; `timeout`
+# runs the suite in its own process group and signals the whole group on
+# expiry, so leaked grandchildren (ze daemons, tacacs-mocks) die with it.
+# Exit code 124 from timeout is treated as a suite failure like any other.
+# Override: make ze-functional-test ZE_SUITE_TIMEOUT=1200s
+ZE_SUITE_TIMEOUT ?= 600s
+ZE_SUITE_KILL_AFTER ?= 10s
+SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
+
 # Run ze functional tests (all types, continue on failure to show all results)
 ze-functional-test: bin/ze bin/ze-test
 	@failed=0; failed_names=""; \
-	bin/ze-test bgp encode --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }encode"; }; \
-	bin/ze-test bgp plugin --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }plugin"; }; \
-	bin/ze-test bgp parse --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }parse"; }; \
-	bin/ze-test bgp decode --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }decode"; }; \
-	bin/ze-test bgp reload --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }reload"; }; \
-	bin/ze-test ui --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }ui"; }; \
-	bin/ze-test editor || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }editor"; }; \
-	bin/ze-test managed --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }managed"; }; \
+	$(SUITE_RUN) bin/ze-test bgp encode --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }encode"; }; \
+	$(SUITE_RUN) bin/ze-test bgp plugin --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }plugin"; }; \
+	$(SUITE_RUN) bin/ze-test bgp parse --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }parse"; }; \
+	$(SUITE_RUN) bin/ze-test bgp decode --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }decode"; }; \
+	$(SUITE_RUN) bin/ze-test bgp reload --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }reload"; }; \
+	$(SUITE_RUN) bin/ze-test ui --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }ui"; }; \
+	$(SUITE_RUN) bin/ze-test editor || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }editor"; }; \
+	$(SUITE_RUN) bin/ze-test managed --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }managed"; }; \
 	if [ $$failed -gt 0 ]; then \
 		printf "\n════════════════════════════════════════\n"; \
 		printf "\033[31mFAIL  %d suite(s) failed: %s\033[0m\n" $$failed "$$failed_names"; \
@@ -143,33 +153,36 @@ ze-functional-test: bin/ze bin/ze-test
 		printf "\033[32mPASS  all 8 suites\033[0m\n\n"; \
 	fi
 
-# Run ze functional test suites individually
+# Run ze functional test suites individually. Same SUITE_RUN wall-clock cap
+# as the combined ze-functional-test target (see ZE_SUITE_TIMEOUT above) so a
+# stuck suite invoked directly from the CLI also gets process-group-killed
+# instead of wedging indefinitely.
 ze-encode-test: bin/ze-test
-	@bin/ze-test bgp encode --all
+	@$(SUITE_RUN) bin/ze-test bgp encode --all
 
 ze-plugin-test: bin/ze-test
-	@bin/ze-test bgp plugin --all
+	@$(SUITE_RUN) bin/ze-test bgp plugin --all
 
 ze-decode-test: bin/ze-test
-	@bin/ze-test bgp decode --all
+	@$(SUITE_RUN) bin/ze-test bgp decode --all
 
 ze-parse-test: bin/ze-test
-	@bin/ze-test bgp parse --all
+	@$(SUITE_RUN) bin/ze-test bgp parse --all
 
 ze-reload-test: bin/ze-test
-	@bin/ze-test bgp reload --all
+	@$(SUITE_RUN) bin/ze-test bgp reload --all
 
 ze-ui-test: bin/ze-test
-	@bin/ze-test ui --all
+	@$(SUITE_RUN) bin/ze-test ui --all
 
 ze-editor-test: bin/ze-test
-	@bin/ze-test editor
+	@$(SUITE_RUN) bin/ze-test editor
 
 ze-web-test: bin/ze bin/ze-test
-	@bin/ze-test web
+	@$(SUITE_RUN) bin/ze-test web
 
 ze-managed-test: bin/ze-test
-	@bin/ze-test managed --all
+	@$(SUITE_RUN) bin/ze-test managed --all
 
 # Run ze fuzz tests (all targets, 15s each)
 # Note: multiple fuzz tests per package require individual enumeration (-fuzz=. fails with "matches more than one").
