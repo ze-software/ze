@@ -52,6 +52,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"fib-kernel",
 		"fib-p4",
 		"fib-vpp",
+		"firewall",
 		"interface",
 		"loop",
 		"ntp",

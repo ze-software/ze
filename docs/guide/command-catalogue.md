@@ -112,7 +112,7 @@ Every other verb (`clear`, `reset`, `restart`, `flush`, `inject`,
 | `generate wireguard keypair` | `generate wireguard keypair` (already domain-after-verb, kept) |
 | `reset ip bgp <addr>` | `peer <addr> teardown` |
 | `clear ip bgp <addr> soft in` | `route-refresh <family>` (today) |
-| `clear interfaces counters eth0` | `interface eth0 counters clear` (planned) |
+| `clear interfaces counters eth0` | `clear interface eth0 counters` (shipped; `clear` verb added 2026-04-18) |
 | `show configuration` | `config dump` |
 | `request security pki ...` | `pki <verb> ...` (planned) |
 
@@ -164,9 +164,9 @@ internal; kernel / VPP FIB view is not yet exposed.
 
 | Command (generic) | VyOS | Junos | Nokia | Arista | FRR | Ze command | Ze status | Backend | Notes |
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
-| IPv4 routing table | `show ip route` | `show route` | `show router route-table` | `show ip route` | `show ip route` | | planned | nl+vpp-fib | |
+| IPv4 routing table | `show ip route` | `show route` | `show router route-table` | `show ip route` | `show ip route` | `show ip route` | shipped | nl+vpp-if | Kernel FIB view via netlink RouteList; VPP rejects (kernel FIB not authoritative under VPP). Covers IPv4+IPv6 in one call. `--limit N` caps response (default 100 000 rows). |
 | IPv6 routing table | `show ipv6 route` | `show route table inet6.0` | `show router route-table ipv6` | `show ipv6 route` | `show ipv6 route` | | planned | nl+vpp-fib | |
-| Route for prefix | `show ip route <prefix>` | `show route <prefix>` | `show router route-table <prefix>` | `show ip route <prefix>` | `show ip route <prefix>` | | planned | nl+vpp-fib | |
+| Route for prefix | `show ip route <prefix>` | `show route <prefix>` | `show router route-table <prefix>` | `show ip route <prefix>` | `show ip route <prefix>` | `show ip route <prefix>` | shipped | nl+vpp-if | Exact-match filter; `default` matches 0.0.0.0/0 and ::/0; invalid CIDRs reject |
 | Route by protocol | `show ip route bgp` / `static` / `connected` | `show route protocol <proto>` | `show router route-table protocol bgp` | `show ip route bgp` | `show ip route bgp` | | planned | nl+vpp-fib | RTPROT filter |
 | Route summary counts | `show ip route summary` | `show route summary` | `show router route-table summary` | `show ip route summary` | `show ip route summary` | | planned | nl+vpp-fib | |
 | FIB (forwarding) table | ~ | `show route forwarding-table` | `show router fib` | `show ip route vrf` (close) | `show fib` | | planned | nl+vpp-fib | Separates RIB from FIB |
@@ -185,7 +185,7 @@ Interface state, counters, addressing, type-specific details.
 | Filter by type | `show interfaces ethernet` / `bridge` / `vxlan` / ... | `show interfaces terse | match <type>` | ~ | `show interfaces type ...` | - | `show interface type <type>` | shipped | nl+vpp-if | |
 | Filter by error counters | `show interfaces counters error` (dup below) | `show interfaces extensive | match errors` | - | - | - | `show interface errors` | shipped | nl+vpp-if | |
 | Interface counters | `show interfaces counters` | inside extensive | `show port statistics` | `show interfaces counters` | `show interface counters` | part of `show interface` | shipped | nl+vpp-if | |
-| Counter reset | `clear interfaces counters [name]` | `clear interfaces statistics [name]` | `clear router statistics` | `clear counters [name]` | `clear counters [name]` | | planned | nl+vpp-if | |
+| Counter reset | `clear interfaces counters [name]` | `clear interfaces statistics [name]` | `clear router statistics` | `clear counters [name]` | `clear counters [name]` | `clear interface [<name>] counters` | shipped | nl+vpp-if | Linux netlink has no generic reset -- baseline-delta fallback stored in iface component; VPP real reset pending sw_interface_clear_stats |
 | Interface IP addresses | `show interfaces ethernet <name> address` | shown in terse | `show router interface <name> address` | `show ip interface` | `show ip interface` | `show interface <name>` | shipped | nl+vpp-if | |
 | Interface MAC table (bridge) | `show bridge <br>` | `show ethernet-switching table` | `show service fdb` | `show mac address-table` | `show bridge` | | planned | nl+vpp-if | Requires bridge FDB dump |
 | Interface errors only | `show interfaces counters error` | `show interfaces extensive | match errors` | `show port statistics error` | `show interfaces counters errors` | `show interface errors` | | planned | nl+vpp-if | Filter existing counters |
@@ -210,7 +210,7 @@ ARP (v4) and NDP (v6) neighbor cache inspection and manipulation.
 
 | Command (generic) | VyOS | Junos | Nokia | Arista | FRR | Ze command | Ze status | Backend | Notes |
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
-| IPv4 ARP table | `show ip arp` | `show arp` | `show router arp` | `show arp` | `show arp` | | planned | nl+vpp-nbr | |
+| IPv4 ARP table | `show ip arp` | `show arp` | `show router arp` | `show arp` | `show arp` | `show ip arp` | shipped | nl+vpp-if | Returns IPv4 ARP + IPv6 ND; `--family ipv4\|ipv6` narrows; unknown positional args reject. VPP rejects pending ip_neighbor_dump wiring. |
 | IPv6 neighbor table | `show ipv6 neighbors` | `show ipv6 neighbors` | `show router neighbor` | `show ipv6 neighbors` | `show ipv6 neighbors` | | planned | nl+vpp-nbr | |
 | ARP flush per entry | `force arp interface <i> address <ip>` | `clear arp hostname <ip>` | `clear router arp <ip>` | `clear arp <ip>` | `clear arp <ip>` | | planned | nl+vpp-nbr | |
 | ARP flush all | `clear arp` | `clear arp` | `clear router arp` | `clear arp` | `clear arp` | | planned | nl+vpp-nbr | |
@@ -223,9 +223,9 @@ Stateful filter and ACL visibility.
 
 | Command (generic) | VyOS | Junos | Nokia | Arista | FRR | Ze command | Ze status | Backend | Notes |
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
-| Show firewall ruleset | `show firewall name <n>` | `show firewall filter <n>` | `show filter ip-filter <n>` | `show ip access-lists <n>` | - | `firewall show` | partial | nft (shipped) / vpp-acl (planned) | VPP rejects today. |
-| Show firewall counters | `show firewall statistics` | `show firewall counter <c>` | `show filter ip-filter <n> counters` | `show ip access-lists <n>` | - | part of firewall show | shipped | nft | |
-| Show firewall groups (address / network / port) | `show firewall group <g>` | `show security address-book <g>` | `show service l3-vprn <svc> interface prefix-list` | - | - | | planned | config | Ze's firewall model has no named-set primitive today; needs YANG + parser additions (`address-group`, `network-group`, `port-group`) before a handler can land |
+| Show firewall ruleset | `show firewall name <n>` | `show firewall filter <n>` | `show filter ip-filter <n>` | `show ip access-lists <n>` | - | `show firewall ruleset <n>` | shipped | nft (shipped) / vpp-acl (planned) | Joins applied desired state with per-rule counters from kernel; every rule auto-carries an anonymous counter + term name via `Rule.UserData`. VPP-active rejects under exact-or-reject. |
+| Show firewall counters | `show firewall statistics` | `show firewall counter <c>` | `show filter ip-filter <n> counters` | `show ip access-lists <n>` | - | part of `show firewall ruleset <n>` | shipped | nft | Counters returned inline per-term in the ruleset response |
+| Show firewall groups (address / network / port) | `show firewall group <g>` | `show security address-book <g>` | `show service l3-vprn <svc> interface prefix-list` | - | - | `show firewall group [<g>]` | shipped | config | Reads from applied `firewall.Set` snapshot; bare form lists known group names, named form returns members. Group typing still derives from `SetType` (ipv4, ipv6, inet-service, ifname, ...); purpose-specific address-/network-/port-group YANG is a future refinement. |
 | Active conntrack / flow table | `show conntrack` / `show conntrack table` | `show security flow session` | `show filter ip-filter <n> session` | `show flow-tracker hardware` | - | | planned | nl(conntrack) / vpp-stats | |
 | NAT rules view | `show nat source rules` / `destination rules` | `show security nat source rule all` | `show service nat` | `show ip nat translations` | - | | planned | nft / vpp-acl | |
 | NAT translations / pool | `show nat source translations` | `show security nat source pool all` | `show service nat pool` | `show ip nat translations` | - | | planned | nft / vpp-acl | |

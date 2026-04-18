@@ -1,0 +1,12 @@
+module ze-cli-clear-api {
+  namespace "urn:ze:cli:clear:api";
+  prefix cli-clear;
+
+  description
+    "Ze clear verb RPCs -- reset per-object operational state without
+     changing configuration. Think kernel counters, ARP entries, BGP
+     session stats. Differs from `del` in that nothing is removed from
+     the running config -- only accumulated runtime state is zeroed.";
+
+  rpc interface-counters { description "Reset RX/TX counters on one or all interfaces"; }
+}

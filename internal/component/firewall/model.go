@@ -663,12 +663,35 @@ type Set struct {
 	Elements []SetElement
 }
 
+// Validate checks that the set has a valid name. Type 0 is rejected so
+// an uninitialised Set cannot slip through OnConfigVerify.
+func (s Set) Validate() error {
+	if err := ValidateName(s.Name); err != nil {
+		return fmt.Errorf("firewall: set: %w", err)
+	}
+	if s.Type == 0 {
+		return fmt.Errorf("firewall: set %q: type required", s.Name)
+	}
+	return nil
+}
+
 // Flowtable represents an nftables flowtable for hardware offload.
 type Flowtable struct {
 	Name     string
 	Hook     ChainHook
 	Priority int32
 	Devices  []string
+}
+
+// Validate checks that the flowtable has a valid name and hook.
+func (f Flowtable) Validate() error {
+	if err := ValidateName(f.Name); err != nil {
+		return fmt.Errorf("firewall: flowtable: %w", err)
+	}
+	if !f.Hook.Valid() {
+		return fmt.Errorf("firewall: flowtable %q: hook required", f.Name)
+	}
+	return nil
 }
 
 // ChainCounters holds per-term counter values for a chain.

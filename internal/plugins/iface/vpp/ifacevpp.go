@@ -436,6 +436,29 @@ func (b *vppBackendImpl) GetStats(_ string) (*iface.InterfaceStats, error) {
 	return nil, errNotSupported("GetStats (pending GoVPP stats API wiring)")
 }
 
+// ListNeighbors is not yet wired on the VPP backend. `ip_neighbor_dump`
+// is the GoVPP call that would populate this; until it is implemented,
+// reject under exact-or-reject rather than return an empty result.
+func (b *vppBackendImpl) ListNeighbors(_ int) ([]iface.NeighborInfo, error) {
+	return nil, errNotSupported("ListNeighbors (pending GoVPP ip_neighbor_dump wiring)")
+}
+
+// ListKernelRoutes is intentionally rejected on the VPP backend: when VPP
+// is programmed as the dataplane, the kernel FIB does NOT reflect the
+// authoritative forwarding state (VPP owns it). Showing kernel routes
+// here would mislead operators. ip_route_v2_dump is the correct source
+// but is not yet wired in this codebase.
+func (b *vppBackendImpl) ListKernelRoutes(_ string, _ int) ([]iface.KernelRoute, error) {
+	return nil, errNotSupported("ListKernelRoutes (VPP FIB dump pending ip_route_v2_dump wiring; kernel FIB is not authoritative under VPP)")
+}
+
+// ResetCounters on VPP would call sw_interface_clear_stats. Until the
+// GoVPP binding is wired, reject under exact-or-reject so the operator
+// sees why `clear interface counters` on VPP does nothing yet.
+func (b *vppBackendImpl) ResetCounters(_ string) error {
+	return errNotSupported("ResetCounters (pending GoVPP sw_interface_clear_stats wiring)")
+}
+
 // --- Bridge operations ---
 
 func (b *vppBackendImpl) BridgeAddPort(bridgeName, portName string) error {

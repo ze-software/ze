@@ -1,20 +1,10 @@
-// Design: docs/features/interfaces.md — Interface name validation
-// Overview: iface.go — shared types and topic constants
+// Design: docs/features/interfaces.md -- Linux-specific bounds (VLAN / MTU)
 
 //go:build linux
 
 package iface
 
-import (
-	"fmt"
-	"strings"
-)
-
-// Interface name length limits (Linux kernel IFNAMSIZ = 16, including NUL).
-const (
-	minIfaceNameLen = 1
-	maxIfaceNameLen = 15
-)
+import "fmt"
 
 // VLAN ID range per IEEE 802.1Q.
 const (
@@ -39,28 +29,6 @@ func validateVLANID(id int) error {
 func validateMTU(mtu int) error {
 	if mtu < minMTU || mtu > maxMTU {
 		return fmt.Errorf("iface: mtu %d not in [%d, %d]", mtu, minMTU, maxMTU)
-	}
-	return nil
-}
-
-// ValidateIfaceName checks that name is a valid Linux interface name.
-// Linux kernel forbids '/' and NUL in interface names (IFNAMSIZ).
-// We also reject ".." sequences to prevent path traversal in sysctl writes.
-// Exported so backend implementations can use it.
-func ValidateIfaceName(name string) error {
-	n := len(name)
-	if n < minIfaceNameLen || n > maxIfaceNameLen {
-		return fmt.Errorf("iface: name %q length %d not in [%d, %d]",
-			name, n, minIfaceNameLen, maxIfaceNameLen)
-	}
-	for i := range n {
-		c := name[i]
-		if c == '/' || c == 0 || c == ' ' || c == '\t' || c == '\n' || c == '\r' {
-			return fmt.Errorf("iface: name %q contains forbidden character", name)
-		}
-	}
-	if strings.Contains(name, "..") {
-		return fmt.Errorf("iface: name %q contains path traversal sequence", name)
 	}
 	return nil
 }

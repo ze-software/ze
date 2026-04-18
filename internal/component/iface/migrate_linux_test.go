@@ -84,6 +84,15 @@ func (m *mockMigrateBackend) RemoveRoute(_, _, _ string, _ int) error {
 func (m *mockMigrateBackend) ListRoutes(_, _ string) ([]RouteInfo, error) {
 	return nil, fmt.Errorf("mock: not supported")
 }
+func (m *mockMigrateBackend) ListNeighbors(_ int) ([]NeighborInfo, error) {
+	return nil, fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) ListKernelRoutes(_ string, _ int) ([]KernelRoute, error) {
+	return nil, fmt.Errorf("mock: not supported")
+}
+func (m *mockMigrateBackend) ResetCounters(_ string) error {
+	return fmt.Errorf("mock: not supported")
+}
 func (m *mockMigrateBackend) StartMonitor(_ ze.EventBus) error {
 	return fmt.Errorf("mock: not supported")
 }

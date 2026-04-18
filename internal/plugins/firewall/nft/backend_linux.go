@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/nftables"
+	"github.com/google/nftables/expr"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
 )
@@ -116,13 +117,42 @@ func (b *backend) applyChain(t *nftables.Table, chain *firewall.Chain) error {
 		if err != nil {
 			return fmt.Errorf("term %q: %w", chain.Terms[i].Name, err)
 		}
+		// Ensure the rule carries at least one counter expression so
+		// `show firewall ruleset` can always report per-rule packet/
+		// byte counts. If the operator already declared an explicit
+		// `counter` action (lowered to an expr.Counter in exprs), use
+		// theirs -- prepending a second one would give us two Counter
+		// exprs on the wire and readRuleCounter would silently pick
+		// whichever comes first, making any named/explicit counter
+		// inaccessible.
+		var allExprs []expr.Any
+		if hasCounterExpr(exprs) {
+			allExprs = exprs
+		} else {
+			allExprs = make([]expr.Any, 0, len(exprs)+1)
+			allExprs = append(allExprs, &expr.Counter{})
+			allExprs = append(allExprs, exprs...)
+		}
 		b.conn.AddRule(&nftables.Rule{
-			Table: t,
-			Chain: c,
-			Exprs: exprs,
+			Table:    t,
+			Chain:    c,
+			Exprs:    allExprs,
+			UserData: []byte(chain.Terms[i].Name),
 		})
 	}
 	return nil
+}
+
+// hasCounterExpr reports whether the lowered expression list already
+// contains a counter expression -- avoids double-Counter rules when the
+// operator declared `counter` explicitly in the term's `then` block.
+func hasCounterExpr(exprs []expr.Any) bool {
+	for _, e := range exprs {
+		if _, ok := e.(*expr.Counter); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (b *backend) applySet(t *nftables.Table, s *firewall.Set) error {
@@ -177,7 +207,11 @@ func (b *backend) ListTables() ([]firewall.Table, error) {
 	return result, nil
 }
 
-// GetCounters returns per-term counter values for a table.
+// GetCounters returns per-term packet/byte counter values for a table.
+// Each rule carries its term name in UserData (set by applyChain) and
+// an anonymous counter expression as its first Expr (also set by
+// applyChain). readRuleCounters decodes both; rules lacking either
+// (e.g. inserted out-of-band) surface with empty Name and zeroes.
 func (b *backend) GetCounters(tableName string) ([]firewall.ChainCounters, error) {
 	tables, err := b.conn.ListTables()
 	if err != nil {
@@ -205,10 +239,36 @@ func (b *backend) GetCounters(tableName string) ([]firewall.ChainCounters, error
 		if c.Table.Name != tableName {
 			continue
 		}
+		rules, err := b.conn.GetRules(target, c)
+		if err != nil {
+			return nil, fmt.Errorf("firewallnft: get rules for chain %q: %w", c.Name, err)
+		}
 		cc := firewall.ChainCounters{Chain: c.Name}
+		for _, r := range rules {
+			cc.Terms = append(cc.Terms, readRuleCounter(r))
+		}
 		result = append(result, cc)
 	}
 	return result, nil
+}
+
+// readRuleCounter extracts the term name (from Rule.UserData) and the
+// first Counter expression's packet/byte values. Rules programmed
+// outside ze (no UserData, no Counter) return a zero-valued TermCounter
+// with an empty Name; the caller still sees them so the list of rules
+// and the list of terms stay aligned by index.
+func readRuleCounter(r *nftables.Rule) firewall.TermCounter {
+	tc := firewall.TermCounter{Name: string(r.UserData)}
+	for _, e := range r.Exprs {
+		ctr, ok := e.(*expr.Counter)
+		if !ok {
+			continue
+		}
+		tc.Packets = ctr.Packets
+		tc.Bytes = ctr.Bytes
+		break
+	}
+	return tc
 }
 
 // Close releases resources. nftables.Conn has no explicit close.

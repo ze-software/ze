@@ -188,6 +188,9 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 
 	if ethMap, ok := ifaceMap["ethernet"].(map[string]any); ok {
 		for name, v := range ethMap {
+			if err := ValidateIfaceName(name); err != nil {
+				return nil, fmt.Errorf("ethernet: %w", err)
+			}
 			m, _ := v.(map[string]any)
 			cfg.Ethernet = append(cfg.Ethernet, parseIfaceEntry(name, m))
 		}
@@ -195,6 +198,9 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 
 	if dummyMap, ok := ifaceMap["dummy"].(map[string]any); ok {
 		for name, v := range dummyMap {
+			if err := ValidateIfaceName(name); err != nil {
+				return nil, fmt.Errorf("dummy: %w", err)
+			}
 			m, _ := v.(map[string]any)
 			cfg.Dummy = append(cfg.Dummy, parseIfaceEntry(name, m))
 		}
@@ -202,9 +208,15 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 
 	if vethMap, ok := ifaceMap["veth"].(map[string]any); ok {
 		for name, v := range vethMap {
+			if err := ValidateIfaceName(name); err != nil {
+				return nil, fmt.Errorf("veth: %w", err)
+			}
 			m, _ := v.(map[string]any)
 			entry := vethEntry{ifaceEntry: parseIfaceEntry(name, m)}
 			if peer, ok := m["peer"].(string); ok {
+				if err := ValidateIfaceName(peer); err != nil {
+					return nil, fmt.Errorf("veth %q peer: %w", name, err)
+				}
 				entry.Peer = peer
 			}
 			cfg.Veth = append(cfg.Veth, entry)
@@ -213,6 +225,9 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 
 	if brMap, ok := ifaceMap["bridge"].(map[string]any); ok {
 		for name, v := range brMap {
+			if err := ValidateIfaceName(name); err != nil {
+				return nil, fmt.Errorf("bridge: %w", err)
+			}
 			m, _ := v.(map[string]any)
 			entry := bridgeEntry{ifaceEntry: parseIfaceEntry(name, m)}
 			if stp, ok := m["stp"].(string); ok {
@@ -231,6 +246,9 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 
 	if tunMap, ok := ifaceMap["tunnel"].(map[string]any); ok {
 		for name, v := range tunMap {
+			if err := ValidateIfaceName(name); err != nil {
+				return nil, fmt.Errorf("tunnel: %w", err)
+			}
 			m, _ := v.(map[string]any)
 			entry, err := parseTunnelEntry(name, m)
 			if err != nil {
@@ -242,6 +260,9 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 
 	if wgMap, ok := ifaceMap["wireguard"].(map[string]any); ok {
 		for name, v := range wgMap {
+			if err := ValidateIfaceName(name); err != nil {
+				return nil, fmt.Errorf("wireguard: %w", err)
+			}
 			m, _ := v.(map[string]any)
 			entry, err := parseWireguardEntry(name, m)
 			if err != nil {

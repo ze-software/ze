@@ -21,6 +21,18 @@ import (
 // completed its GoVPP handshake. The netlink backend never returns it.
 var ErrBackendNotReady = errors.New("iface: backend not ready")
 
+// ErrCountersNotResettable indicates the backend cannot physically zero
+// RX/TX counters in the kernel (Linux has no generic reset; only a few
+// drivers support ETHTOOL_* resets). The iface dispatch layer catches
+// this sentinel from Backend.ResetCounters and falls back to a
+// baseline-delta model: the current counter values are captured as a
+// per-interface baseline, and GetStats/GetInterface subsequently
+// report `current - baseline` so the operator sees "since last clear"
+// values. Backends that CAN reset counters (VPP's
+// sw_interface_clear_stats) return nil on success and this sentinel
+// is not used.
+var ErrCountersNotResettable = errors.New("iface: backend cannot reset counters (use baseline-delta)")
+
 // vppBackendName is the string key ifacevpp registers under via
 // iface.RegisterBackend. Exposed as a named constant so the
 // reconcileOnVPPReady handler can gate on "is the active backend vpp?"
@@ -110,6 +122,26 @@ type Backend interface {
 	// Query.
 	ListInterfaces() ([]InterfaceInfo, error)
 	GetInterface(name string) (*InterfaceInfo, error)
+	// ListNeighbors returns the kernel neighbor table (IPv4 ARP + IPv6 ND).
+	// family is one of NeighborFamilyAny / NeighborFamilyIPv4 / NeighborFamilyIPv6
+	// declared in iface.go; backends translate to their native constants.
+	ListNeighbors(family int) ([]NeighborInfo, error)
+
+	// ListKernelRoutes returns up to `limit` entries from the kernel's
+	// routing table. filterPrefix, when non-empty, restricts the result
+	// to the exact CIDR match (e.g. "10.0.0.0/8"). Empty returns
+	// everything. limit == 0 means unbounded; positive values cap the
+	// Go-side slice so a full-DFZ dump on a busy daemon cannot turn a
+	// single read into a multi-hundred-megabyte allocation.
+	// VPP backends should reject under exact-or-reject rather than return
+	// kernel routes (the VPP fastpath FIB is authoritative on that backend).
+	ListKernelRoutes(filterPrefix string, limit int) ([]KernelRoute, error)
+
+	// ResetCounters zeros RX/TX counters for the named interface, or for
+	// every managed interface when name == "". Linux netlink has no
+	// generic counter-reset syscall and MUST reject under exact-or-reject;
+	// VPP implements this via sw_interface_clear_stats (pending wiring).
+	ResetCounters(name string) error
 
 	// Bridge operations.
 	BridgeAddPort(bridgeName, portName string) error

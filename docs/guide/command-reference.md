@@ -372,6 +372,142 @@ whose `RxErrors`, `RxDropped`, `TxErrors`, `TxDropped` counters are all
 zero. The response includes only the four counter fields per interface
 for compact diffing across snapshots.
 
+### show ip
+
+Kernel routing and neighbor tables. Both commands dispatch through the
+iface backend; on the netlink backend they read the live kernel state,
+on VPP they reject under exact-or-reject since the kernel FIB/ARP table
+is not the authoritative forwarding source there.
+
+```
+ze show ip arp                         # Kernel neighbor table (IPv4 ARP + IPv6 ND)
+ze show ip arp --family ipv4           # IPv4 only
+ze show ip arp --family ipv6           # IPv6 only
+ze show ip route                       # Full kernel routing table (all protocols)
+ze show ip route <cidr>                # Filter to an exact CIDR match
+ze show ip route default                # Default route(s) (0.0.0.0/0, ::/0)
+```
+
+**`show ip arp`** returns per-entry `address`, `mac-address`, `device`,
+`family`, and `state` (reachable, stale, delay, probe, failed,
+permanent, noarp, incomplete). Unresolved entries (no IP) are skipped.
+FAILED and INCOMPLETE entries are kept with an empty MAC so operators
+can diagnose neighbor discovery problems.
+
+**`show ip route`** renders the `protocol` field by name for well-known
+values (kernel, static, bgp, ra, dhcp, zebra, ze for RTPROT_ZE=250, plus
+ospf/isis/rip/eigrp/babel) and as a decimal string otherwise. Connected
+routes have an empty `nexthop`; the `source` field carries the
+preferred-source IP when the kernel reports one.
+
+<!-- source: internal/component/cmd/show/ip.go -- handleShowArp, handleShowIPRoute -->
+<!-- source: internal/plugins/iface/netlink/neighbor_linux.go -- ListNeighbors -->
+<!-- source: internal/plugins/iface/netlink/route_linux.go -- ListKernelRoutes -->
+
+### show firewall
+
+Firewall (nftables) introspection. Requires the `firewall { ... }`
+section in config so the firewall plugin loads and applies a backend;
+without it the handlers reject under exact-or-reject.
+
+```
+ze show firewall ruleset <name>         # Rules + per-term counters for table <name>
+ze show firewall group                  # List all known group names (applied sets)
+ze show firewall group <name>           # Elements of a named group
+```
+
+**`show firewall ruleset`** joins the applied desired state (chains +
+terms) with kernel counters read back via the nft backend's `GetCounters`
+call. Every rule is auto-instrumented with an anonymous counter
+expression when applied; the term name is stored in nftables'
+`Rule.UserData` and recovered on readback so the join is explicit (not
+index-based). Rejects when no firewall backend is loaded or when the
+active backend is not `nft`.
+
+**`show firewall group`** reads from the applied-state snapshot, not
+the kernel -- groups (nftables named sets) are part of the desired
+state the operator typed into config. Calling with no argument returns
+`{ name, tables[], members }` per group; a positional name returns the
+raw elements.
+
+<!-- source: internal/component/cmd/show/firewall.go -- handleShowFirewallRuleset, handleShowFirewallGroup -->
+<!-- source: internal/component/firewall/engine.go -- runEngine; OnConfigApply stores LastApplied -->
+<!-- source: internal/plugins/firewall/nft/backend_linux.go -- applyChain (UserData + auto Counter), readRuleCounter -->
+
+### show system uptime
+
+```
+ze show system uptime        # Daemon start time and uptime duration
+```
+
+Returns `start-time` (RFC3339) and `uptime` (truncated to seconds).
+Returns an error when the daemon is not running (context is nil or the
+reactor is absent).
+
+<!-- source: internal/component/cmd/show/show.go -- handleShowUptime -->
+
+### show bgp summary
+
+```
+ze show bgp summary                  # Every configured peer
+ze show bgp ipv4 summary             # Expanded to ipv4/unicast
+ze show bgp ipv6 summary             # Expanded to ipv6/unicast
+ze show bgp l2vpn summary            # Expanded to l2vpn/evpn
+ze show bgp <afi>/<safi> summary     # Full AFI/SAFI form (e.g. ipv4/vpn)
+```
+
+The family argument is validated against the families any peer has
+actually negotiated; unknown or un-negotiated families reject with the
+sorted set of currently-negotiated families so the operator sees
+exactly what is reachable on the running daemon.
+
+<!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- handleBgpSummary -->
+
+### ping / traceroute
+
+```
+ze ping <target> [--count N] [--interface IF]
+ze traceroute <target> [--probes N] [--interface IF]
+```
+
+Thin wrappers over the OS's `ping` and `traceroute` binaries.
+
+<!-- source: cmd/ze/diag/diag.go -- RunPing, RunTraceroute -->
+
+### clear interface counters
+
+```
+ze clear interface counters                # Reset counters on every managed interface
+ze clear interface <name> counters         # Reset counters on one interface
+```
+
+Grammar parallels `ze show interface <name> counters` -- name before the
+`counters` subfield. Bare `ze clear interface counters` (no name) clears
+all interfaces. The handler also tolerates `clear interface counters
+<name>` and `clear interface <name>` for scripting convenience, but
+the canonical form is `clear interface <name> counters`. Errors in
+argument shape (unknown trailing keyword, three or more tokens) reject
+with the usage line rather than silently defaulting to "all".
+
+The `clear` verb resets runtime/operational state without touching
+configuration. Backends that expose a real counter-reset syscall
+(VPP's `sw_interface_clear_stats`, once wired) zero the kernel
+counters directly. Linux netlink has no generic counter-reset, so ze
+falls back to a per-interface baseline: the current raw counter
+values are captured, and every subsequent `show interface [counters]`
+read subtracts the baseline before returning so the operator sees
+"since last clear" deltas.
+
+Wrap detection: if a subsequent read observes a raw counter lower than
+its baseline (interface bounce, driver reload, delete+recreate), ze
+treats it as a kernel-level reset, drops the baseline, and returns
+the raw value. Subsequent reads resume from the kernel's new zero
+without underflow.
+
+<!-- source: internal/component/iface/cmd/clear.go -- handleClearInterfaceCounters -->
+<!-- source: internal/component/iface/counters.go -- baselineStore, applyBaseline (wrap rebases) -->
+<!-- source: internal/component/iface/dispatch.go -- ResetCounters, GetStats/ListInterfaces/GetInterface apply baseline -->
+
 **migrate flags (dispatched to running daemon via SSH):**
 
 | Flag | Purpose |

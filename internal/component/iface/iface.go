@@ -125,6 +125,46 @@ type RouteInfo struct {
 	Metric      int    `json:"metric"`
 }
 
+// NeighborInfo describes a kernel neighbor-table entry (IPv4 ARP or
+// IPv6 ND). Backends produce this shape from their respective neighbor
+// sources (netlink NeighList on Linux; GoVPP ip_neighbor_dump on VPP;
+// unsupported elsewhere). See Backend.ListNeighbors.
+type NeighborInfo struct {
+	Address string `json:"address"`               // IP address
+	MAC     string `json:"mac-address,omitempty"` // hardware address (may be empty for INCOMPLETE/FAILED)
+	Device  string `json:"device"`                // interface name (resolved from link index)
+	Family  string `json:"family"`                // "ipv4" or "ipv6"
+	State   string `json:"state"`                 // reachable, stale, delay, probe, failed, permanent, noarp, incomplete
+}
+
+// Neighbor family selector for Backend.ListNeighbors. The backend
+// translates to its native family constant; 0 means both families.
+const (
+	NeighborFamilyAny  = 0
+	NeighborFamilyIPv4 = 4
+	NeighborFamilyIPv6 = 6
+)
+
+// KernelRoute describes one entry in the kernel's routing table, dumped
+// by Backend.ListKernelRoutes. Unlike RouteInfo (which is per-interface,
+// used by IPv6 RA default-route cleanup), this shape covers every route
+// the kernel can report: protocol (bgp / static / kernel / zebra / ra /
+// dhcp / ze), metric, device, and source-address fields.
+//
+// The `protocol` field renders numeric RTPROT_* values as strings when
+// the value is well-known (bgp, static, kernel, zebra, ra, dhcp, ze);
+// unknown values surface as the decimal number so the operator still
+// gets a disambiguating hint.
+type KernelRoute struct {
+	Destination string `json:"destination"`       // CIDR (e.g., "10.0.0.0/8", "::/0", "default")
+	NextHop     string `json:"nexthop,omitempty"` // gateway IP; empty for connected routes
+	Device      string `json:"device,omitempty"`  // egress interface name
+	Protocol    string `json:"protocol"`          // bgp, static, kernel, ze, dhcp, ra, zebra, or decimal
+	Metric      int    `json:"metric"`
+	Family      string `json:"family"`           // "ipv4" or "ipv6"
+	Source      string `json:"source,omitempty"` // IFA_LOCAL-style preferred source, if set
+}
+
 // RouterEventPayload is the JSON payload for router discovery/loss events.
 // Emitted by the netlink monitor when a neighbor's NTF_ROUTER flag changes.
 type RouterEventPayload struct {

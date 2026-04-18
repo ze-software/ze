@@ -51,11 +51,16 @@ func (s *stubBackend) GetMACAddress(_ string) (string, error)                 { 
 func (s *stubBackend) GetStats(_ string) (*iface.InterfaceStats, error)       { return nil, unsupported() }
 func (s *stubBackend) ListInterfaces() ([]iface.InterfaceInfo, error)         { return nil, unsupported() }
 func (s *stubBackend) GetInterface(_ string) (*iface.InterfaceInfo, error)    { return nil, unsupported() }
-func (s *stubBackend) BridgeAddPort(_, _ string) error                        { return unsupported() }
-func (s *stubBackend) BridgeDelPort(_ string) error                           { return unsupported() }
-func (s *stubBackend) BridgeSetSTP(_ string, _ bool) error                    { return unsupported() }
-func (s *stubBackend) SetupMirror(_, _ string, _, _ bool) error               { return unsupported() }
-func (s *stubBackend) RemoveMirror(_ string) error                            { return unsupported() }
-func (s *stubBackend) StartMonitor(_ ze.EventBus) error                       { return unsupported() }
-func (s *stubBackend) StopMonitor()                                           {}
-func (s *stubBackend) Close() error                                           { return nil }
+func (s *stubBackend) ListNeighbors(_ int) ([]iface.NeighborInfo, error)      { return nil, unsupported() }
+func (s *stubBackend) ListKernelRoutes(_ string, _ int) ([]iface.KernelRoute, error) {
+	return nil, unsupported()
+}
+func (s *stubBackend) ResetCounters(_ string) error             { return unsupported() }
+func (s *stubBackend) BridgeAddPort(_, _ string) error          { return unsupported() }
+func (s *stubBackend) BridgeDelPort(_ string) error             { return unsupported() }
+func (s *stubBackend) BridgeSetSTP(_ string, _ bool) error      { return unsupported() }
+func (s *stubBackend) SetupMirror(_, _ string, _, _ bool) error { return unsupported() }
+func (s *stubBackend) RemoveMirror(_ string) error              { return unsupported() }
+func (s *stubBackend) StartMonitor(_ ze.EventBus) error         { return unsupported() }
+func (s *stubBackend) StopMonitor()                             {}
+func (s *stubBackend) Close() error                             { return nil }

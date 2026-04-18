@@ -527,6 +527,7 @@ dispatch:
 var yangVerbs = map[string]bool{
 	"show": true, "set": true, "del": true,
 	"update": true, "validate": true, "monitor": true,
+	"clear": true,
 }
 
 // isYANGVerb returns true if the argument is a YANG verb that should be

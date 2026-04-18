@@ -1,0 +1,33 @@
+module ze-cli-clear-cmd {
+    namespace "urn:ze:cli:clear:cmd";
+    prefix cliclearcmd;
+    import ze-extensions { prefix ze; }
+    description "Clear command tree -- reset runtime counters/state without touching config";
+    revision 2026-04-18 { description "Initial revision"; }
+
+    container clear {
+        config false;
+        description "Reset runtime/operational state. Unlike `del`, config is untouched.";
+
+        container interface {
+            config false;
+            ze:command "ze-clear:interface-counters";
+            description "Reset interface runtime state. Canonical form:
+                         `clear interface <name> counters`. Bare
+                         `clear interface counters` (no name) clears every
+                         managed interface. Backends that cannot physically
+                         reset counters in the kernel fall back to a
+                         baseline-delta stored in user space (Linux netlink);
+                         VPP's sw_interface_clear_stats zeros the hardware
+                         counters directly once wired.";
+
+            container counters {
+                config false;
+                ze:command "ze-clear:interface-counters";
+                description "Reset RX/TX counters. Placed after the interface
+                             name so the grammar parallels
+                             `show interface <name> counters`.";
+            }
+        }
+    }
+}

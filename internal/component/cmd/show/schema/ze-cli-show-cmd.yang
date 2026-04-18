@@ -329,5 +329,39 @@ module ze-cli-show-cmd {
                 description "Show only interfaces with non-zero Rx/Tx error or drop counters";
             }
         }
+
+        container ip {
+            config false;
+            description "IP layer introspection (ARP/ND, routing table)";
+
+            container arp {
+                config false;
+                ze:command "ze-show:ip-arp";
+                description "Kernel neighbor table: IPv4 ARP and IPv6 ND entries. Optional --family ipv4|ipv6 narrows the dump.";
+            }
+
+            container route {
+                config false;
+                ze:command "ze-show:ip-route";
+                description "Kernel routing table. Optional positional CIDR (or 'default') narrows the dump. Rejects when VPP is the iface backend (kernel FIB is not authoritative under VPP).";
+            }
+        }
+
+        container firewall {
+            config false;
+            description "Firewall (nftables) introspection";
+
+            container ruleset {
+                config false;
+                ze:command "ze-show:firewall-ruleset";
+                description "Rules in a named table with per-term packet/byte counters. Usage: show firewall ruleset <name>. Rejects when no firewall backend is loaded or the active backend is not nft.";
+            }
+
+            container group {
+                config false;
+                ze:command "ze-show:firewall-group";
+                description "Members of a named firewall set (ze's firewall group). No argument lists all known groups; a positional name returns the set elements. Reads from the last applied config -- does not talk to the kernel.";
+            }
+        }
     }
 }

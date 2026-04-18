@@ -95,6 +95,43 @@ func ListRoutes(ifaceName, destCIDR string) ([]RouteInfo, error) {
 	return b.ListRoutes(ifaceName, destCIDR)
 }
 
+// ListNeighbors returns the kernel neighbor table via the active backend.
+// family is one of NeighborFamilyAny / NeighborFamilyIPv4 / NeighborFamilyIPv6.
+func ListNeighbors(family int) ([]NeighborInfo, error) {
+	b, err := backendOrErr()
+	if err != nil {
+		return nil, err
+	}
+	return b.ListNeighbors(family)
+}
+
+// ListKernelRoutes returns up to `limit` entries from the kernel's
+// routing table via the active backend. filterPrefix (non-empty)
+// narrows the dump to a single CIDR. limit == 0 means unbounded.
+func ListKernelRoutes(filterPrefix string, limit int) ([]KernelRoute, error) {
+	b, err := backendOrErr()
+	if err != nil {
+		return nil, err
+	}
+	return b.ListKernelRoutes(filterPrefix, limit)
+}
+
+// ResetCounters zeros RX/TX counters for the named interface (or every
+// managed interface when name == "") via the active backend. Backends
+// that cannot physically clear counters in the kernel (Linux netlink)
+// trigger a baseline-delta fallback: the current values become a
+// per-interface baseline and GetStats/ListInterfaces/GetInterface
+// subtract that baseline before returning. Wrap detection (raw < baseline)
+// automatically rebases the baseline to zero so a subsequent kernel-level
+// reset does not poison the delta view. See counters.go.
+func ResetCounters(name string) error {
+	b, err := backendOrErr()
+	if err != nil {
+		return err
+	}
+	return resetCountersViaBackend(b, name)
+}
+
 func ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft int) error {
 	b, err := backendOrErr()
 	if err != nil {
@@ -145,7 +182,12 @@ func GetStats(iface string) (*InterfaceStats, error) {
 	if err != nil {
 		return nil, err
 	}
-	return b.GetStats(iface)
+	s, err := b.GetStats(iface)
+	if err != nil {
+		return nil, err
+	}
+	baselines.applyBaseline(iface, s)
+	return s, nil
 }
 
 func ListInterfaces() ([]InterfaceInfo, error) {
@@ -153,7 +195,14 @@ func ListInterfaces() ([]InterfaceInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return b.ListInterfaces()
+	ifs, err := b.ListInterfaces()
+	if err != nil {
+		return nil, err
+	}
+	for i := range ifs {
+		baselines.applyBaseline(ifs[i].Name, ifs[i].Stats)
+	}
+	return ifs, nil
 }
 
 func GetInterface(name string) (*InterfaceInfo, error) {
@@ -161,7 +210,14 @@ func GetInterface(name string) (*InterfaceInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return b.GetInterface(name)
+	info, err := b.GetInterface(name)
+	if err != nil {
+		return nil, err
+	}
+	if info != nil {
+		baselines.applyBaseline(info.Name, info.Stats)
+	}
+	return info, nil
 }
 
 func BridgeAddPort(bridge, port string) error {

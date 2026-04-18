@@ -1992,6 +1992,18 @@ func (b *fakeBackend) ListRoutes(_, _ string) ([]RouteInfo, error) {
 	return b.staleRoutes, nil
 }
 
+func (b *fakeBackend) ListNeighbors(_ int) ([]NeighborInfo, error) {
+	return nil, nil
+}
+
+func (b *fakeBackend) ListKernelRoutes(_ string, _ int) ([]KernelRoute, error) {
+	return nil, nil
+}
+
+func (b *fakeBackend) ResetCounters(_ string) error {
+	return nil
+}
+
 func (b *fakeBackend) ListInterfaces() ([]InterfaceInfo, error) {
 	if b.listErr != nil {
 		return nil, b.listErr

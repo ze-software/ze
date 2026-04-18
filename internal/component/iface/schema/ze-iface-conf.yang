@@ -324,7 +324,16 @@ module ze-iface-conf {
     }
 
     container interface {
-        description "Network interface configuration";
+        description "Network interface configuration.
+
+                     Interface names MUST NOT be one of the CLI reserved
+                     keywords: brief, scan, type, errors, counters. These
+                     collide with the `show interface` / `clear interface`
+                     command grammar (e.g. `show interface counters` would
+                     be ambiguous if an interface were literally named
+                     `counters`). Reserved names are rejected by
+                     iface.ValidateIfaceName at apply time with a clear
+                     error; the kernel does not enforce this on its own.";
 
         leaf backend {
             type string;
