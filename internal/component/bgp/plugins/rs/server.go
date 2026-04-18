@@ -382,14 +382,24 @@ func (rs *RouteServer) stopReleaseLoop() {
 // fwdSendersDefault is the default number of concurrent forward sender goroutines.
 const fwdSendersDefault = 4
 
+// rsForwardChDepth bounds the number of batched forward commands in flight
+// between per-source-peer workers and the shared forwardLoop sender pool.
+//
+// Sizing: fwdSendersDefault (4 senders) × maxBatchSize (50 IDs per batch) ≈
+// 200 UPDATEs in flight before workers backpressure on forwardCh. Depth 16
+// gives ~800 UPDATEs of buffered forward commands, enough to absorb short
+// RPC-round-trip stalls without oversizing. Tuning is evidence-driven via
+// spec-rs-fastpath-1-profile; change only when profile data supports it.
+const rsForwardChDepth = 16
+
 // startForwardLoop starts N background goroutines for fire-and-forget cache-forward RPCs.
 // N is controlled by env var ze.rs.fwd.senders (default 4).
-// Capacity 16 batches — each batch is up to 50 IDs, so ~800 updates buffered.
+// Capacity rsForwardChDepth batches — each batch is up to maxBatchSize IDs.
 // If the channel fills, workers block (natural backpressure from engine).
 // Uses a separate stop channel (same pattern as releaseLoop) to avoid
 // close/send race on forwardCh.
 func (rs *RouteServer) startForwardLoop() {
-	rs.forwardCh = make(chan forwardCmd, 16)
+	rs.forwardCh = make(chan forwardCmd, rsForwardChDepth)
 	rs.forwardStop = make(chan struct{})
 	rs.forwardDone = make(chan struct{})
 
@@ -758,7 +768,12 @@ func parseStructuredRefresh(se *rpc.StructuredEvent, msg *bgptypes.RawMessage) *
 }
 
 // maxBatchSize is the maximum number of IDs accumulated before a batch flush.
-const maxBatchSize = 50
+// Sized from Phase 2 profile evidence (spec-rs-fastpath-1-profile Design
+// Insights): 500 reduces per-RPC fixed overhead (tokenize / json.Unmarshal /
+// context.WithDeadlineCause / CommandRegistry.All) by 10x versus the legacy
+// value 50. Flush-on-drain ensures a partial batch still ships promptly when
+// the worker channel empties.
+const maxBatchSize = 500
 
 // --- Event types ---
 

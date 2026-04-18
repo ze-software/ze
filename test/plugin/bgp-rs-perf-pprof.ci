@@ -1,0 +1,102 @@
+# bgp-rs-perf-pprof -- verify --pprof wiring used by the perf benchmark harness.
+#
+# VALIDATES: spec-rs-fastpath-1-profile AC-1 -- the ze daemon starts an HTTP
+# pprof endpoint on 127.0.0.1:<port> when invoked with --pprof, matching what
+# test/perf/run.py relies on for CPU / heap / allocs profile capture.
+# PREVENTS: silent regression where --pprof stops listening, which would hide
+# any future performance bottleneck the harness exists to surface.
+
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python observer plugin fetches the pprof index page from inside the ze
+# process via the localhost pprof endpoint, confirming the HTTP server is up.
+# Uses runtime_fail (ze_api) to report assertion failure through the
+# ZE-OBSERVER-FAIL sentinel so the runner catches it -- never sys.exit(1).
+tmpfs=pprof-probe.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import sys
+import time
+import urllib.request
+from ze_api import API, runtime_fail
+
+def dispatch(api, command):
+    api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Give the pprof HTTP server a moment to start (goroutine spawned in
+    # cmd/ze/pprof.go:startPprof).
+    time.sleep(1.0)
+
+    url = "http://127.0.0.1:$PORT2/debug/pprof/"
+    try:
+        body = urllib.request.urlopen(url, timeout=5).read().decode("utf-8", "replace")
+    except Exception as e:
+        runtime_fail(f"pprof endpoint not reachable: {e}")
+        return
+
+    # The index page links to the standard profiles; require at least the
+    # three the perf harness captures.
+    missing = [p for p in ("profile", "heap", "allocs") if p not in body]
+    if missing:
+        runtime_fail(f"pprof index missing profiles: {missing}")
+        return
+
+    print("OK: pprof endpoint responded with expected profile links", file=sys.stderr)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external rs {
+        use bgp-rs
+    }
+    external pprof-probe {
+        run ./pprof-probe.run
+        encoder json
+    }
+}
+bgp {
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+                accept false
+            }
+            local {
+                ip 127.0.0.1
+            }
+        }
+        session {
+            asn {
+                local 65001
+                remote 65001
+            }
+            router-id 10.0.0.2
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        process pprof-probe {
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --pprof 127.0.0.1:$PORT2 -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+expect=stderr:pattern=pprof server listening on 127.0.0.1:

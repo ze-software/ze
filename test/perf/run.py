@@ -24,6 +24,11 @@ Environment:
     DUT_SEED        - route generation seed (default: 42)
     DUT_REPEAT      - benchmark iterations (default: 3)
     NO_BUILD        - skip Docker image builds when set (e.g. NO_BUILD=1)
+    PPROF           - enable ze --pprof endpoint + capture CPU/heap/allocs profiles
+    PPROF_PORT      - pprof port inside the ze container (default: 6060)
+    PPROF_CPU_SECONDS - CPU profile window in seconds (default: 30)
+    PPROF_DIR       - profile output dir (default: tmp/perf-run/pprof/<routes>/)
+    GCTRACE         - set GODEBUG=gctrace=1 on the ze container and archive its stderr
 """
 
 import argparse
@@ -33,6 +38,7 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -58,6 +64,17 @@ DUT_ROUTES = int(os.environ.get("DUT_ROUTES", "100000"))
 DUT_SEED = int(os.environ.get("DUT_SEED", "42"))
 DUT_REPEAT = int(os.environ.get("DUT_REPEAT", "3"))
 NO_BUILD = bool(os.environ.get("NO_BUILD"))
+# PPROF=1: enable ze --pprof endpoint and capture CPU + heap + allocs profiles
+# into PPROF_DIR (default tmp/perf-run/pprof/<routes>/). Only affects the ze DUT.
+PPROF = bool(os.environ.get("PPROF"))
+PPROF_DIR = os.environ.get(
+    "PPROF_DIR", os.path.join(PROJECT_ROOT, "tmp", "perf-run", "pprof")
+)
+PPROF_PORT = int(os.environ.get("PPROF_PORT", "6060"))
+PPROF_CPU_SECONDS = int(os.environ.get("PPROF_CPU_SECONDS", "30"))
+# GCTRACE=1: set GODEBUG=gctrace=1 on the ze container, archive its stderr
+# into PPROF_DIR/<routes>/gctrace.log for GC analysis. Independent of PPROF.
+GCTRACE = bool(os.environ.get("GCTRACE"))
 
 # Each DUT: name, image, ip, port, sender_port (0=use port), receiver_port (0=use port)
 DUTS = [
@@ -410,11 +427,18 @@ def start_dut(dut):
 
     extra = []
     if name == "ze":
-        extra = ["/etc/ze/bgp.conf"]
+        if PPROF:
+            extra += ["--pprof", f"127.0.0.1:{PPROF_PORT}"]
+        extra += ["/etc/ze/bgp.conf"]
+
+    env_flags = []
+    if name == "ze" and GCTRACE:
+        env_flags += ["-e", "GODEBUG=gctrace=1"]
 
     cmd = (
         ["run", "-d", "--name", cname, "--network", NETWORK, "--ip", dut["ip"]]
         + caps
+        + env_flags
         + volume_map[name]
         + [dut["image"]]
         + extra
@@ -458,6 +482,78 @@ def wait_dut_ready(dut_name, timeout_s=30):
     print(f"  error: {dut_name} did not start within {timeout_s}s", file=sys.stderr)
     docker("logs", cname, "--tail", "20", check=False, timeout=10)
     return False
+
+
+def pprof_fetch(cname, endpoint, out_path, timeout_s):
+    """Fetch a pprof profile from inside a running container.
+
+    ze binds pprof to 127.0.0.1 inside the container (cmd/ze/pprof.go
+    isLocalhostPprof), so the capture runs `docker exec python3` to fetch
+    over container-local loopback. The python3 stdlib `urllib.request` is
+    available in the ze-interop Alpine image (python3 installed in
+    test/interop/Dockerfile.ze).
+    """
+    url = f"http://127.0.0.1:{PPROF_PORT}/debug/pprof/{endpoint}"
+    script = (
+        "import urllib.request, sys;"
+        f"sys.stdout.buffer.write(urllib.request.urlopen({url!r}).read())"
+    )
+    try:
+        with open(out_path, "wb") as f:
+            subprocess.run(
+                ["docker", "exec", cname, "python3", "-c", script],
+                check=True,
+                stdout=f,
+                timeout=timeout_s,
+            )
+        return True
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        print(f"  pprof capture {endpoint} failed: {e}", file=sys.stderr)
+        return False
+
+
+def pprof_capture_thread(cname, out_dir):
+    """Background capture: wait briefly for warmup, then pull CPU + heap + allocs.
+
+    Runs in a thread alongside run_perf(). The CPU profile window
+    (PPROF_CPU_SECONDS) should overlap with the measurement phase of
+    ze-perf. Heap/allocs are snapshots taken after the CPU window closes.
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    # Let the warmup iteration settle before starting the CPU profile so
+    # the capture covers steady-state forwarding, not session setup.
+    time.sleep(5)
+    print(f"  pprof: capturing CPU profile for {PPROF_CPU_SECONDS}s -> {out_dir}")
+    pprof_fetch(
+        cname,
+        f"profile?seconds={PPROF_CPU_SECONDS}",
+        os.path.join(out_dir, "cpu.pprof"),
+        timeout_s=PPROF_CPU_SECONDS + 30,
+    )
+    print("  pprof: capturing heap snapshot")
+    pprof_fetch(cname, "heap", os.path.join(out_dir, "heap.pprof"), timeout_s=15)
+    print("  pprof: capturing allocs snapshot")
+    pprof_fetch(cname, "allocs", os.path.join(out_dir, "allocs.pprof"), timeout_s=15)
+    print("  pprof: capturing goroutine snapshot")
+    pprof_fetch(
+        cname, "goroutine", os.path.join(out_dir, "goroutine.pprof"), timeout_s=15
+    )
+
+
+def save_container_stderr(cname, out_path):
+    """Archive the container's stderr (gctrace output lives here when GCTRACE=1)."""
+    try:
+        with open(out_path, "wb") as f:
+            subprocess.run(
+                ["docker", "logs", cname],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=f,
+                timeout=30,
+            )
+        return True
+    except subprocess.TimeoutExpired:
+        return False
 
 
 def run_perf(dut):
@@ -737,7 +833,33 @@ def main():
             continue
 
         result_file = os.path.join(RESULTS_DIR, f"{name}.json")
-        if run_perf(dut):
+
+        # Profile capture runs in parallel with run_perf for the ze DUT.
+        capture_thread = None
+        capture_out_dir = None
+        if name == "ze" and PPROF:
+            capture_out_dir = os.path.join(PPROF_DIR, str(DUT_ROUTES))
+            capture_thread = threading.Thread(
+                target=pprof_capture_thread,
+                args=(container_name(name), capture_out_dir),
+                daemon=True,
+            )
+            capture_thread.start()
+
+        ok = run_perf(dut)
+
+        if capture_thread is not None:
+            capture_thread.join(timeout=PPROF_CPU_SECONDS + 60)
+
+        # Archive gctrace stderr (GCTRACE=1) before stopping the container.
+        if name == "ze" and GCTRACE:
+            gctrace_dir = capture_out_dir or os.path.join(PPROF_DIR, str(DUT_ROUTES))
+            os.makedirs(gctrace_dir, exist_ok=True)
+            save_container_stderr(
+                container_name(name), os.path.join(gctrace_dir, "gctrace.log")
+            )
+
+        if ok:
             print(f"  PASS")
             passed += 1
             result_files.append(result_file)

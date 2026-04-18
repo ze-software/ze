@@ -5,7 +5,7 @@
 | Status | design |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-04-17 |
+| Updated | 2026-04-18 |
 
 ## Post-Compaction Recovery
 
@@ -173,7 +173,7 @@ Umbrella-level ACs are set **after** child 1 produces profiling evidence. Until 
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | 100k IPv4 routes via `test/perf/run.py` | TBD — set after child 1 profile, with rationale in Design Insights. Floor: at least 200k rps and ≤ 50 ms first-route (matches today's 10k-route behaviour). |
+| AC-1 | 100k IPv4 routes via `test/perf/run.py` | Throughput ≥ 400,000 rps (≈ 50 % of bird's 780k), first-route ≤ 50 ms. Floor: ≥ 200,000 rps and ≤ 50 ms first-route if the 400k target proves unreachable after child 3. Rationale: child 1 profile (2026-04-18) identified the rs → engine text-RPC round-trip as the dominant cost (60 % of allocations, 43 % of CPU consumed by GC). Removing the RPC (child 3) + moving adj-rib-in off the hot path (child 2) should raise throughput by ≥ 10× from today's 33k rps. See `plan/spec-rs-fastpath-1-profile.md` Design Insights. |
 | AC-2 | 10k IPv4 routes | Throughput and latency unchanged or better vs 2026-04-17 baseline (204k rps, 2 ms first-route, 49 ms convergence). |
 | AC-3 | Scaling sweep 10k/25k/50k/75k/100k | No superlinear cliff. Throughput stays within ±25 % across the sweep. |
 | AC-4 | All existing `test/*` tests | Pass unchanged. |

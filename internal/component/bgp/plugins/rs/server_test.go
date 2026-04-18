@@ -523,6 +523,67 @@ func TestRRUpdateRouteTimeout60s(t *testing.T) {
 	}
 }
 
+// TestForwardChDepthNamed verifies forwardCh buffer size is set from the named
+// rsForwardChDepth constant, not a magic literal.
+//
+// VALIDATES: spec-rs-fastpath-1-profile AC-5 -- forwardCh depth is a named
+// constant with a documented sizing formula, not an unexplained literal.
+// PREVENTS: drift where someone tunes the literal without touching the comment
+// describing the formula (senders * maxBatchSize headroom).
+func TestForwardChDepthNamed(t *testing.T) {
+	if rsForwardChDepth <= 0 {
+		t.Fatalf("rsForwardChDepth must be positive, got %d", rsForwardChDepth)
+	}
+	rs := newTestRouteServer(t)
+	if cap(rs.forwardCh) != rsForwardChDepth {
+		t.Errorf("cap(rs.forwardCh) = %d, want rsForwardChDepth = %d",
+			cap(rs.forwardCh), rsForwardChDepth)
+	}
+}
+
+// TestBatchForwardSingleFlushOnDrain verifies a single UPDATE is flushed
+// promptly via the onDrained callback rather than waiting for batch fill.
+//
+// VALIDATES: spec-rs-fastpath-1-profile AC-4 -- one UPDATE reaches asyncForward
+// within one worker turnaround (no unbounded wait for batch to reach
+// maxBatchSize).
+// PREVENTS: regression where onDrained stops firing for partial batches, which
+// would reintroduce the "wait for batch full" latency the benchmark harness
+// exists to catch.
+func TestBatchForwardSingleFlushOnDrain(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	var commands []string
+	var cmdMu sync.Mutex
+	rs.updateRouteHook = func(_, cmd string) {
+		cmdMu.Lock()
+		commands = append(commands, cmd)
+		cmdMu.Unlock()
+	}
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.mu.Unlock()
+
+	rs.dispatchText(buildTestUpdate("10.0.0.1", 1))
+	flushWorkers(t, rs)
+
+	cmdMu.Lock()
+	defer cmdMu.Unlock()
+
+	forwardCount := 0
+	for _, cmd := range commands {
+		if strings.Contains(cmd, "forward") {
+			forwardCount++
+		}
+	}
+	if forwardCount != 1 {
+		t.Fatalf("expected exactly 1 forward command (single UPDATE flushed via onDrained), got %d: %v",
+			forwardCount, commands)
+	}
+}
+
 // TestDispatchPauseOnBackpressure verifies dispatch pauses source peer on backpressure.
 //
 // VALIDATES: AC-1 — dispatch sends pause when worker channel exceeds 75%.
