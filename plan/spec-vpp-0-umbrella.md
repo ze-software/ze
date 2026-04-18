@@ -12,8 +12,8 @@
 **Re-read these after context compaction:**
 1. This spec file
 2. `.claude/rules/planning.md`
-3. `internal/plugins/fibkernel/` — existing FIB backend pattern
-4. `internal/plugins/fibp4/` — noop FIB backend template
+3. `internal/plugins/fib/kernel/` — existing FIB backend pattern
+4. `internal/plugins/fib/p4/` — noop FIB backend template
 5. `internal/component/iface/backend.go` — Backend interface pattern
 6. Child specs: `spec-vpp-1-*` through `spec-vpp-6-*`
 
@@ -54,7 +54,7 @@ push/swap/pop from BGP, SRv6 steering, per-prefix VPP counters, multipath with u
 | Decision | Detail |
 |----------|--------|
 | GoVPP binary API, no CGo | GoVPP's socket client is pure Go. No CGo dependency. |
-| Component + plugin split | `internal/component/vpp/` for lifecycle (component). `internal/plugins/fibvpp/` for FIB (standalone plugin, same pattern as fibkernel/fibp4). `internal/plugins/ifacevpp/` for interfaces (backend plugin for iface component). |
+| Component + plugin split | `internal/component/vpp/` for lifecycle (component). `internal/plugins/fib/vpp/` for FIB (standalone plugin, same pattern as fibkernel/fibp4). `internal/plugins/iface/vpp/` for interfaces (backend plugin for iface component). |
 | Ze owns VPP process lifecycle | Ze execs VPP, supervises (restart with backoff), and shuts down cleanly. No systemd dependency. Required for gokrazy appliance (no init system). |
 | Connection sharing: bus + direct import | EventBus `("vpp", "connected/disconnected/reconnected")` for lifecycle notifications. Direct import `vpp.Channel()` for GoVPP API calls. `Dependencies: ["rib", "vpp"]` for startup ordering. |
 | fib-kernel and fib-vpp coexist | fib-kernel programs kernel routes for local services (SSH, web UI). fib-vpp programs VPP's FIB for transit traffic. |
@@ -104,8 +104,8 @@ No CGo. GoVPP's socket client is pure Go.
 
 | Abstraction | Location | How it is used |
 |------------|----------|--------------|
-| `routeBackend` interface | `internal/plugins/fibkernel/` | 5 methods: add/del/replace/list/close |
-| fib-p4 plugin (template) | `internal/plugins/fibp4/` | Same pattern, noop backend, ready to copy |
+| `routeBackend` interface | `internal/plugins/fib/kernel/` | 5 methods: add/del/replace/list/close |
+| fib-p4 plugin (template) | `internal/plugins/fib/p4/` | Same pattern, noop backend, ready to copy |
 | `iface.Backend` interface | `internal/component/iface/backend.go` | 30+ methods, pluggable via RegisterBackend |
 | EventBus subscribe | `pkg/ze/eventbus.go` | Subscribe("system-rib", "best-change", handler) |
 | Plugin registration | `internal/plugin/registry.go` | init() + registry.Register() |
@@ -119,7 +119,7 @@ No CGo. GoVPP's socket client is pure Go.
 | `spec-vpp-2-fib.md` | fib-vpp plugin: IPv4/IPv6 route programming via GoVPP, batch optimization, replay recovery | vpp-1 | ~1200 |
 | `spec-vpp-3-mpls.md` | MPLS label push/swap/pop from BGP labels, sysRIB label extension. **Deferred**: sysRIB event payload needs labels field first. | vpp-2 + sysRIB label spec | ~600 |
 | `spec-vpp-4-iface.md` | VPP interface backend: iface.Backend implementation, LCP pairs, naming | vpp-1 | ~2000 |
-| `spec-vpp-5-features.md` | VPP-native features: L2XC, bridge domains, VXLAN, policers, ACLs, SRv6, sFlow | vpp-4 | ~500-800 each |
+| ~~`spec-vpp-5-features.md`~~ | ~~VPP-native features: L2XC, bridge domains, VXLAN, policers, ACLs, SRv6, sFlow~~ Retired 2026-04-17 as design dead-end. VPP is a backend for ze abstractions (iface/firewall/traffic), not a separate config surface. Features re-homed: Bridge → existing `iface { bridge ... }` (ifacevpp backend extension). VXLAN → new `case vxlan` under existing `iface { tunnel }` discriminator. Policer/ACL → already owned by spec-fw-6/spec-fw-7. L2XC/SRv6/sFlow deferred pending per-component design. | - | - |
 | `spec-vpp-6-telemetry.md` | VPP telemetry: stats segment polling, per-prefix/interface/node counters, Prometheus | vpp-1 | ~600 |
 | `spec-vpp-7-test-harness.md` | Python GoVPP-API stub + `test/vpp/` runner + `vpp.external` config leaf; unlocks the seven umbrella `test/vpp/NNN-*.ci` wiring tests without needing real VPP or DPDK in CI | vpp-1, vpp-2 | ~1000 |
 
@@ -135,7 +135,10 @@ Phase vpp-4 (interface backend) makes ze the single configuration authority. Wit
 VPP interfaces are managed separately (vppcfg or manual vppctl). With it, `ze config edit`
 handles everything.
 
-Phases vpp-5 and vpp-6 are incremental value adds. Each feature in vpp-5 is independent.
+Phase vpp-6 is an incremental value add. vpp-5 was retired (see Child Specs table): VPP
+features are exposed through ze's existing component abstractions (iface, firewall,
+traffic), not through a parallel VPP-native config surface. Whether a given backend
+supports a requested feature is enforced at commit time via `spec-backend-feature-gate`.
 
 Phase vpp-7 (test harness) is the coverage backstop for every VPP phase: the
 umbrella wiring-test rows for vpp-1..vpp-6 all resolve to `.ci` files under
@@ -155,10 +158,10 @@ so subsequent VPP work has green wiring evidence, not just unit tests.
 - [ ] `docs/architecture/core-design.md` - component/plugin architecture
   → Constraint: components under `internal/component/`, plugins under `internal/plugins/`
   → Decision: backend interface pattern (component defines interface, plugin implements)
-- [ ] `internal/plugins/fibkernel/` - existing FIB backend pattern
+- [ ] `internal/plugins/fib/kernel/` - existing FIB backend pattern
   → Constraint: routeBackend interface with add/del/replace/list/close
   → Decision: FIB plugins subscribe to (system-rib, best-change) events via EventBus
-- [ ] `internal/plugins/fibp4/` - noop FIB backend template
+- [ ] `internal/plugins/fib/p4/` - noop FIB backend template
   → Constraint: same registration + event subscription pattern, ready to copy for fibvpp
 - [ ] `internal/component/iface/backend.go` - pluggable Backend interface
   → Constraint: Backend registered via RegisterBackend in init(), 30+ methods
@@ -196,17 +199,17 @@ so subsequent VPP work has green wiring evidence, not just unit tests.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/fibkernel/fibkernel.go` — FIB kernel plugin: subscribes to (system-rib, best-change), programs kernel routes via netlink
+- [ ] `internal/plugins/fib/kernel/fibkernel.go` — FIB kernel plugin: subscribes to (system-rib, best-change), programs kernel routes via netlink
   → Constraint: same event subscription pattern for fibvpp
-- [ ] `internal/plugins/fibkernel/register.go` — Registration with Dependencies: ["rib", "sysctl"]
+- [ ] `internal/plugins/fib/kernel/register.go` — Registration with Dependencies: ["rib", "sysctl"]
   → Constraint: fibvpp registration with Dependencies: ["rib", "vpp"]
-- [ ] `internal/plugins/fibkernel/backend.go` — routeBackend interface: addRoute, delRoute, replaceRoute, listZeRoutes, close
+- [ ] `internal/plugins/fib/kernel/backend.go` — routeBackend interface: addRoute, delRoute, replaceRoute, listZeRoutes, close
   → Constraint: fibvpp backend extends with batch operations and MPLS
-- [ ] `internal/plugins/fibp4/fibp4.go` — noop FIB backend, same structure as fibkernel
+- [ ] `internal/plugins/fib/p4/fibp4.go` — noop FIB backend, same structure as fibkernel
   → Constraint: copy pattern for fibvpp
 - [ ] `internal/component/iface/backend.go` — Backend interface with RegisterBackend/LoadBackend/GetBackend
   → Constraint: same pattern for ifacevpp
-- [ ] `internal/plugins/ifacenetlink/register.go` — init() calls iface.RegisterBackend("netlink", factory)
+- [ ] `internal/plugins/iface/netlink/register.go` — init() calls iface.RegisterBackend("netlink", factory)
   → Constraint: ifacevpp registers as "vpp" backend
 - [ ] `pkg/ze/eventbus.go` — EventBus interface: Emit, Subscribe
   → Constraint: fibvpp subscribes to (system-rib, best-change) events
@@ -219,8 +222,8 @@ so subsequent VPP work has green wiring evidence, not just unit tests.
 
 **Behavior to change:**
 - Add new VPP component (`internal/component/vpp/`)
-- Add fib-vpp plugin (`internal/plugins/fibvpp/`)
-- Add iface-vpp plugin (`internal/plugins/ifacevpp/`)
+- Add fib-vpp plugin (`internal/plugins/fib/vpp/`)
+- Add iface-vpp plugin (`internal/plugins/iface/vpp/`)
 - Add GoVPP as new dependency
 
 ## Data Flow (MANDATORY)
@@ -249,7 +252,7 @@ so subsequent VPP work has green wiring evidence, not just unit tests.
 | ifacevpp → VPP | GoVPP binary API (SwInterfaceAddDelAddress, etc.) | [ ] |
 
 ### Integration Points
-- `internal/plugins/fibkernel/` — same event subscription pattern, coexists with fibvpp
+- `internal/plugins/fib/kernel/` — same event subscription pattern, coexists with fibvpp
 - `internal/component/iface/backend.go` — Backend interface that ifacevpp implements
 - `pkg/ze/eventbus.go` — EventBus for (system-rib, best-change) events
 - `internal/plugin/registry.go` — Plugin registration for vpp component, fibvpp, ifacevpp
@@ -271,7 +274,6 @@ Umbrella spec delegates wiring tests to child specs. Each child has its own wiri
 | sysRIB best-change event | → | fibvpp IPRouteAddDel via GoVPP | spec-vpp-2 wiring tests |
 | sysRIB best-change with labels | → | fibvpp MplsRouteAddDel via GoVPP | spec-vpp-3 wiring tests |
 | iface YANG config with vpp backend | → | ifacevpp Backend methods via GoVPP | spec-vpp-4 wiring tests |
-| VPP-specific YANG config (L2XC, VXLAN, etc.) | → | feature-specific GoVPP API calls | spec-vpp-5 wiring tests |
 | VPP stats polling interval | → | stats segment read, Prometheus metrics | spec-vpp-6 wiring tests |
 
 ## Acceptance Criteria
@@ -332,7 +334,7 @@ Delegated to child specs. Each child has its own test plan.
 | Coexistence | `test/vpp/007-coexist.ci` | fib-kernel + fib-vpp both active, both program routes | |
 
 ### Future (if deferring any tests)
-- VPP-specific features (L2XC, VXLAN, etc.) deferred to spec-vpp-5
+- VPP-specific feature tests moved to per-component specs: bridge (ifacevpp extension), VXLAN (iface tunnel case), L2XC/SRv6/sFlow (TBD)
 - Advanced telemetry tests deferred to spec-vpp-6
 
 ## Files to Modify
@@ -371,11 +373,11 @@ All files delegated to child specs. Summary:
 | Child spec | Files |
 |------------|-------|
 | vpp-1 | `internal/component/vpp/` (vpp.go, config.go, startupconf.go, dpdk.go, conn.go, register.go, schema/) |
-| vpp-2 | `internal/plugins/fibvpp/` (fibvpp.go, backend.go, register.go, schema/) |
-| vpp-3 | `internal/plugins/fibvpp/mpls.go`, `internal/plugins/fibvpp/mpls_test.go` |
-| vpp-4 | `internal/plugins/ifacevpp/` (ifacevpp.go, naming.go, register.go) |
+| vpp-2 | `internal/plugins/fib/vpp/` (fibvpp.go, backend.go, register.go, schema/) |
+| vpp-3 | `internal/plugins/fib/vpp/mpls.go`, `internal/plugins/fib/vpp/mpls_test.go` |
+| vpp-4 | `internal/plugins/iface/vpp/` (ifacevpp.go, naming.go, register.go) |
 | vpp-5 | Feature-specific files within vpp component or plugins |
-| vpp-6 | `internal/plugins/fibvpp/stats.go`, `internal/component/vpp/telemetry.go` |
+| vpp-6 | `internal/plugins/fib/vpp/stats.go`, `internal/component/vpp/telemetry.go` |
 
 ## Implementation Steps
 
@@ -406,17 +408,17 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 2. **Phase: fib-vpp core (vpp-2)** — route programming
    - Tests: event processing, batch optimization, replay recovery
-   - Files: `internal/plugins/fibvpp/` (4 files)
+   - Files: `internal/plugins/fib/vpp/` (4 files)
    - Verify: tests fail → implement → tests pass
 
 3. **Phase: MPLS labels (vpp-3)** — label operations from BGP
    - Tests: push/swap/pop operations, sysRIB label extension
-   - Files: `internal/plugins/fibvpp/mpls.go`
+   - Files: `internal/plugins/fib/vpp/mpls.go`
    - Verify: tests fail → implement → tests pass
 
 4. **Phase: VPP interface backend (vpp-4)** — iface.Backend implementation
    - Tests: all Backend interface methods, naming, LCP pairs
-   - Files: `internal/plugins/ifacevpp/` (4 files)
+   - Files: `internal/plugins/iface/vpp/` (4 files)
    - Verify: tests fail → implement → tests pass
 
 5. **Phase: VPP features (vpp-5)** — L2XC, VXLAN, policers, ACLs, SRv6, sFlow
@@ -447,11 +449,11 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | VPP component exists | `ls internal/component/vpp/` |
-| fib-vpp plugin exists | `ls internal/plugins/fibvpp/` |
-| iface-vpp plugin exists | `ls internal/plugins/ifacevpp/` |
+| fib-vpp plugin exists | `ls internal/plugins/fib/vpp/` |
+| iface-vpp plugin exists | `ls internal/plugins/iface/vpp/` |
 | YANG module registers | `grep -r "yang.RegisterModule" internal/component/vpp/` |
-| Plugin registration works | `grep -r "registry.Register" internal/plugins/fibvpp/ internal/plugins/ifacevpp/` |
-| Backend registration works | `grep -r "RegisterBackend" internal/plugins/ifacevpp/` |
+| Plugin registration works | `grep -r "registry.Register" internal/plugins/fib/vpp/ internal/plugins/iface/vpp/` |
+| Backend registration works | `grep -r "RegisterBackend" internal/plugins/iface/vpp/` |
 | VPP starts from config | functional .ci test |
 | Routes in VPP FIB | functional .ci test |
 | fib-kernel + fib-vpp coexist | functional .ci test |
@@ -483,9 +485,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 |---------|---------|---------|
 | `internal/component/vpp/` | VPP lifecycle: startup, shutdown, health, config | go.fd.io/govpp |
 | `internal/component/vpp/schema/` | `ze-vpp-conf.yang` | None |
-| `internal/plugins/fibvpp/` | FIB backend: route/MPLS programming via GoVPP | go.fd.io/govpp (ip, mpls binapi) |
-| `internal/plugins/fibvpp/schema/` | `ze-fib-vpp-conf.yang` augmenting /fib:fib | None |
-| `internal/plugins/ifacevpp/` | Interface backend: iface.Backend via GoVPP | go.fd.io/govpp (interfaces, lcp binapi) |
+| `internal/plugins/fib/vpp/` | FIB backend: route/MPLS programming via GoVPP | go.fd.io/govpp (ip, mpls binapi) |
+| `internal/plugins/fib/vpp/schema/` | `ze-fib-vpp-conf.yang` augmenting /fib:fib | None |
+| `internal/plugins/iface/vpp/` | Interface backend: iface.Backend via GoVPP | go.fd.io/govpp (interfaces, lcp binapi) |
 
 ## YANG Config Shape
 

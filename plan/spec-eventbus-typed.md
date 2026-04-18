@@ -91,9 +91,9 @@ Not applicable — internal interface refactor, no wire format change.
 - [ ] `internal/component/plugin/server/dispatch.go:347-383` — `deliverEvent(emitter, ns, et, direction, peerAddress, event string) (int, error)`. Validates event, dispatches engine handlers via deferred `dispatchEngineEvent`, queries `subscriptions.GetMatching` for plugin-process subs, calls `p.Deliver(process.EventDelivery{Output: event})` for each.
 - [ ] `internal/component/bgp/plugins/rib/rib_bestchange.go:302-321` — `publishBestChanges`: constructs `bestChangeBatch{...}`, calls `json.Marshal(batch)`, casts `string(payload)`, calls `eb.Emit`.
 - [ ] `internal/plugins/sysrib/sysrib.go:355-383` — `publishChanges`: same shape (marshals `outgoingBatch`, calls Emit). Subscribes to `(rib, best-change)` via `eb.Subscribe(ns, et, func(payload string) { s.processEvent(payload) })`. `processEvent` re-parses JSON into an internal form.
-- [ ] `internal/plugins/fibkernel/fibkernel.go:296` — `eb.Subscribe(sysribevents.Namespace, sysribevents.EventBestChange, func(payload string) { ... })`, parses JSON inside the handler.
-- [ ] `internal/plugins/fibvpp/fibvpp.go:239`, `internal/plugins/fibp4/fibp4.go:184` — same shape as fibkernel.
-- [ ] 8 test stubs implement EventBus with `func(string, string, string) (int, error)` emit and `func(_, _ string, _ func(string)) func()` subscribe. Files: `pkg/ze/ze_test.go`, `internal/plugins/sysrib/sysrib_test.go`, `internal/component/bgp/plugins/rib/rib_bestchange_test.go`, `internal/component/iface/migrate_linux_test.go`, `internal/component/iface/integration_helpers_linux_test.go`, `internal/plugins/ifacenetlink/monitor_linux_test.go`, `internal/plugins/ntp/ntp_test.go`, `internal/component/plugin/manager/manager_test.go`.
+- [ ] `internal/plugins/fib/kernel/fibkernel.go:296` — `eb.Subscribe(sysribevents.Namespace, sysribevents.EventBestChange, func(payload string) { ... })`, parses JSON inside the handler.
+- [ ] `internal/plugins/fib/vpp/fibvpp.go:239`, `internal/plugins/fib/p4/fibp4.go:184` — same shape as fibkernel.
+- [ ] 8 test stubs implement EventBus with `func(string, string, string) (int, error)` emit and `func(_, _ string, _ func(string)) func()` subscribe. Files: `pkg/ze/ze_test.go`, `internal/plugins/sysrib/sysrib_test.go`, `internal/component/bgp/plugins/rib/rib_bestchange_test.go`, `internal/component/iface/migrate_linux_test.go`, `internal/component/iface/integration_helpers_linux_test.go`, `internal/plugins/iface/netlink/monitor_linux_test.go`, `internal/plugins/ntp/ntp_test.go`, `internal/component/plugin/manager/manager_test.go`.
 
 **Emit / Subscribe inventory** (all must be updated):
 
@@ -236,23 +236,23 @@ None deferred.
 - `internal/plugins/sysrib/events/events.go` — document payload types.
 - `internal/plugins/sysrib/sysrib.go` — publishChanges + replayBest pass `*outgoingBatch`; Subscribe handler type-asserts `*BestChangeBatch`.
 - `internal/plugins/sysrib/sysrib_test.go` — stub + assertions.
-- `internal/plugins/fibkernel/fibkernel.go` — Subscribe handler type-asserts `*outgoingBatch`; drop JSON unmarshal.
-- `internal/plugins/fibkernel/monitor.go` — Emit call site passes struct.
-- `internal/plugins/fibvpp/fibvpp.go` — same as fibkernel.
-- `internal/plugins/fibvpp/register.go` — Subscribe on vpp events.
-- `internal/plugins/fibp4/fibp4.go` — same as fibkernel.
+- `internal/plugins/fib/kernel/fibkernel.go` — Subscribe handler type-asserts `*outgoingBatch`; drop JSON unmarshal.
+- `internal/plugins/fib/kernel/monitor.go` — Emit call site passes struct.
+- `internal/plugins/fib/vpp/fibvpp.go` — same as fibkernel.
+- `internal/plugins/fib/vpp/register.go` — Subscribe on vpp events.
+- `internal/plugins/fib/p4/fibp4.go` — same as fibkernel.
 - `internal/component/bgp/server/events.go` — Emit call site.
 - `internal/component/bgp/reactor/reactor.go` — 4 Emit call sites.
 - `internal/component/bgp/reactor/reactor_iface.go` — Emit + 2 Subscribes.
 - `internal/component/iface/register.go` — 6 Subscribes + 3 Emits.
 - `internal/component/iface/config.go` — 3 Emits.
 - `internal/component/iface/migrate_linux.go` — 1 Subscribe.
-- `internal/plugins/ifacenetlink/monitor_linux.go` — Emit.
-- `internal/plugins/ifacedhcp/dhcp_linux.go` — Emit.
+- `internal/plugins/iface/netlink/monitor_linux.go` — Emit.
+- `internal/plugins/iface/dhcp/dhcp_linux.go` — Emit.
 - `internal/plugins/sysctl/register.go` — 6 Subscribes + 8 Emits.
 - `internal/plugins/ntp/ntp.go` — 1 Subscribe + 1 Emit.
 - `internal/component/vpp/vpp.go` — Emit.
-- **Test stubs** (8 files): `pkg/ze/ze_test.go`, `internal/plugins/sysrib/sysrib_test.go`, `internal/component/bgp/plugins/rib/rib_bestchange_test.go`, `internal/component/iface/migrate_linux_test.go`, `internal/component/iface/integration_helpers_linux_test.go`, `internal/plugins/ifacenetlink/monitor_linux_test.go`, `internal/plugins/ntp/ntp_test.go`, `internal/component/plugin/manager/manager_test.go`. Each gains a `var _ ze.EventBus = (*stub)(nil)` assertion.
+- **Test stubs** (8 files): `pkg/ze/ze_test.go`, `internal/plugins/sysrib/sysrib_test.go`, `internal/component/bgp/plugins/rib/rib_bestchange_test.go`, `internal/component/iface/migrate_linux_test.go`, `internal/component/iface/integration_helpers_linux_test.go`, `internal/plugins/iface/netlink/monitor_linux_test.go`, `internal/plugins/ntp/ntp_test.go`, `internal/component/plugin/manager/manager_test.go`. Each gains a `var _ ze.EventBus = (*stub)(nil)` assertion.
 
 ### Integration Checklist
 
@@ -449,9 +449,9 @@ typed chain confirms read-only access:
 | Subscriber | File | Behavior |
 |------------|------|----------|
 | `sysrib.processEvent` | `internal/plugins/sysrib/sysrib.go` | reads `batch.Protocol`, `batch.Family`, ranges over `batch.Changes`; copies fields into internal `protocolRoute` map |
-| `fibkernel.processEvent` | `internal/plugins/fibkernel/fibkernel.go` | reads `batch.Changes`, copies prefix/next-hop into `installed` map |
-| `fibvpp.processEvent` | `internal/plugins/fibvpp/fibvpp.go` | same shape; reads only |
-| `fibp4.processEvent` | `internal/plugins/fibp4/fibp4.go` | same shape; reads only |
+| `fibkernel.processEvent` | `internal/plugins/fib/kernel/fibkernel.go` | reads `batch.Changes`, copies prefix/next-hop into `installed` map |
+| `fibvpp.processEvent` | `internal/plugins/fib/vpp/fibvpp.go` | same shape; reads only |
+| `fibp4.processEvent` | `internal/plugins/fib/p4/fibp4.go` | same shape; reads only |
 
 No subscriber mutates the received `*BestChangeBatch` or its `Changes`
 slice. If a future subscriber needs mutable state derived from a payload,
@@ -519,16 +519,16 @@ it must copy.
 | `internal/component/bgp/plugins/rib/rib.go` | Done | typed ReplayRequest.Subscribe |
 | `internal/plugins/sysrib/events/events.go` | Done | exports BestChangeBatch + handles |
 | `internal/plugins/sysrib/sysrib.go` | Done | typed Subscribe + Emit; processEvent takes *BestChangeBatch |
-| `internal/plugins/fibkernel/fibkernel.go` | Done | typed Subscribe + nil-check guard |
-| `internal/plugins/fibvpp/fibvpp.go` | Done | typed Subscribe; tests use parseBatch helper |
-| `internal/plugins/fibvpp/register.go` | Changed | only legacy events; kept on AsString shim |
-| `internal/plugins/fibp4/fibp4.go` | Done | typed Subscribe + nil-check guard |
+| `internal/plugins/fib/kernel/fibkernel.go` | Done | typed Subscribe + nil-check guard |
+| `internal/plugins/fib/vpp/fibvpp.go` | Done | typed Subscribe; tests use parseBatch helper |
+| `internal/plugins/fib/vpp/register.go` | Changed | only legacy events; kept on AsString shim |
+| `internal/plugins/fib/p4/fibp4.go` | Done | typed Subscribe + nil-check guard |
 | `internal/component/bgp/server/events.go`, `internal/component/bgp/reactor/reactor*.go` | Changed | low-frequency events; kept on AsString shim |
 | `internal/component/iface/register.go`, `config.go`, `migrate_linux.go` | Changed | kept on AsString shim |
-| `internal/plugins/ifacenetlink/monitor_linux.go`, `internal/plugins/ifacedhcp/dhcp_linux.go` | Changed | low-frequency events; kept on AsString shim |
+| `internal/plugins/iface/netlink/monitor_linux.go`, `internal/plugins/iface/dhcp/dhcp_linux.go` | Changed | low-frequency events; kept on AsString shim |
 | `internal/plugins/sysctl/register.go` | Changed | kept on AsString shim |
 | `internal/plugins/ntp/ntp.go` | Changed | kept on AsString shim |
-| `internal/plugins/fibvpp/register.go`, `internal/plugins/fibkernel/monitor.go` | Changed | low-frequency; AsString |
+| `internal/plugins/fib/vpp/register.go`, `internal/plugins/fib/kernel/monitor.go` | Changed | low-frequency; AsString |
 | `internal/component/vpp/vpp.go` | Changed | low-frequency; signature updated |
 | 8 test stubs | Done | each has `var _ ze.EventBus = (*stub)(nil)` |
 

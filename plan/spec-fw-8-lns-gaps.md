@@ -14,7 +14,7 @@
 2. `.claude/rules/planning.md`
 3. `internal/component/firewall/model.go` -- match/action types and interface markers
 4. `internal/component/firewall/config.go` -- from-block and then-block parsing
-5. `internal/plugins/firewallnft/lower_linux.go` -- nftables expression lowering
+5. `internal/plugins/firewall/nft/lower_linux.go` -- nftables expression lowering
 6. `internal/component/firewall/schema/ze-firewall-conf.yang` -- YANG schema
 7. `internal/component/firewall/cmd/show.go` -- CLI formatting
 8. `internal/component/iface/register.go` -- component registration pattern (registry.Register)
@@ -48,7 +48,7 @@ ruleset and does not run at boot or on config reload.
 - [ ] `internal/component/firewall/config.go` -- parseFromBlock and parseThenBlock
   --> Constraint: from-block builds []Match, then-block builds []Action
   --> Decision: new config keys parsed in same pattern as existing ones
-- [ ] `internal/plugins/firewallnft/lower_linux.go` -- lowerMatch and lowerAction type switches
+- [ ] `internal/plugins/firewall/nft/lower_linux.go` -- lowerMatch and lowerAction type switches
   --> Constraint: every match/action type needs a case in the type switch or returns error
   --> Decision: lowering produces []expr.Any for nftables kernel programming
 - [ ] `internal/component/firewall/schema/ze-firewall-conf.yang` -- from-block and then-block groupings
@@ -89,7 +89,7 @@ No rfc/short/ entries needed; the type numbers are well-known constants.
   --> Constraint: Match interface requires matchMarker() method
 - [ ] `internal/component/firewall/config.go` -- parseFromBlock handles 11 keys (source-address through dscp), no icmp-type or wildcard flag; parseThenBlock handles verdicts and NAT but no exclude concept
   --> Constraint: config JSON comes from YANG tree, keys are lowercase hyphenated
-- [ ] `internal/plugins/firewallnft/lower_linux.go` -- lowerMatch has 10 cases (MatchSourceAddress through MatchDSCP), MatchInputInterface does exact 16-byte comparison; lowerAction has 15 cases
+- [ ] `internal/plugins/firewall/nft/lower_linux.go` -- lowerMatch has 10 cases (MatchSourceAddress through MatchDSCP), MatchInputInterface does exact 16-byte comparison; lowerAction has 15 cases
   --> Constraint: ifnameBytes pads to 16 bytes; Cmp uses CmpOpEq (exact match only)
 - [ ] `internal/component/firewall/schema/ze-firewall-conf.yang` -- from-block grouping has 11 leaves, no icmp-type
 - [ ] `internal/component/firewall/cmd/show.go` -- formatMatch has 11 cases, formatAction has 15 cases
@@ -212,10 +212,10 @@ commit is an implementation choice for this spec's author.
 | `TestParseInterfaceWildcard` | `internal/component/firewall/config_test.go` | Trailing `*` sets Wildcard=true, strips `*` from Name | |
 | `TestParseInterfaceExact` | `internal/component/firewall/config_test.go` | No `*` keeps Wildcard=false (regression) | |
 | `TestParseNATExclude` | `internal/component/firewall/config_test.go` | "exclude" key in then-block produces Return action | |
-| `TestLowerICMPType` | `internal/plugins/firewallnft/lower_linux_test.go` | MatchICMPType produces Payload(Transport,0,1)+Cmp(type) | |
-| `TestLowerICMPv6Type` | `internal/plugins/firewallnft/lower_linux_test.go` | MatchICMPv6Type produces Payload(Transport,0,1)+Cmp(type) | |
-| `TestLowerInterfaceWildcard` | `internal/plugins/firewallnft/lower_linux_test.go` | Wildcard produces prefix-length comparison, not 16-byte | |
-| `TestLowerInterfaceExact` | `internal/plugins/firewallnft/lower_linux_test.go` | Non-wildcard produces 16-byte exact match (regression) | |
+| `TestLowerICMPType` | `internal/plugins/firewall/nft/lower_linux_test.go` | MatchICMPType produces Payload(Transport,0,1)+Cmp(type) | |
+| `TestLowerICMPv6Type` | `internal/plugins/firewall/nft/lower_linux_test.go` | MatchICMPv6Type produces Payload(Transport,0,1)+Cmp(type) | |
+| `TestLowerInterfaceWildcard` | `internal/plugins/firewall/nft/lower_linux_test.go` | Wildcard produces prefix-length comparison, not 16-byte | |
+| `TestLowerInterfaceExact` | `internal/plugins/firewall/nft/lower_linux_test.go` | Non-wildcard produces 16-byte exact match (regression) | |
 | `TestFormatICMPType` | `internal/component/firewall/cmd/show_test.go` | formatMatch displays "icmp type echo-request" | |
 | `TestFormatICMPv6Type` | `internal/component/firewall/cmd/show_test.go` | formatMatch displays "icmpv6 type echo-request" | |
 | `TestFormatInterfaceWildcard` | `internal/component/firewall/cmd/show_test.go` | formatMatch displays "input interface l2tp*" | |
@@ -246,7 +246,7 @@ commit is an implementation choice for this spec's author.
 - `internal/component/firewall/model.go` -- add MatchICMPType, MatchICMPv6Type types; add Wildcard field to MatchInputInterface, MatchOutputInterface
 - `internal/component/firewall/config.go` -- add icmp-type, icmpv6-type parsing in parseFromBlock; wildcard detection on interface names; exclude key in parseThenBlock
 - `internal/component/firewall/schema/ze-firewall-conf.yang` -- add icmp-type and icmpv6-type leaves to from-block grouping; add exclude leaf to then-block grouping
-- `internal/plugins/firewallnft/lower_linux.go` -- add MatchICMPType and MatchICMPv6Type cases in lowerMatch; modify MatchInputInterface/MatchOutputInterface cases for wildcard
+- `internal/plugins/firewall/nft/lower_linux.go` -- add MatchICMPType and MatchICMPv6Type cases in lowerMatch; modify MatchInputInterface/MatchOutputInterface cases for wildcard
 - `internal/component/firewall/cmd/show.go` -- add MatchICMPType, MatchICMPv6Type, wildcard cases in formatMatch
 - `internal/component/firewall/model_test.go` -- add tests for new match types
 - `internal/component/firewall/config_test.go` -- add tests for new config parsing
@@ -282,7 +282,7 @@ commit is an implementation choice for this spec's author.
 
 - `internal/component/firewall/register.go` -- component reactor, registry.Register in init(), RunEngine with SDK 5-stage protocol
 - `internal/component/firewall/register_test.go` -- registration tests
-- `internal/plugins/firewallnft/lower_linux_test.go` -- lowering tests for new types (if not already present)
+- `internal/plugins/firewall/nft/lower_linux_test.go` -- lowering tests for new types (if not already present)
 - `test/firewall/010-icmp-type.ci` -- functional test
 - `test/firewall/011-iface-wildcard.ci` -- functional test
 - `test/firewall/012-nat-exclude.ci` -- functional test
@@ -357,8 +357,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Wildcard field on MatchInputInterface | `grep "Wildcard" internal/component/firewall/model.go` |
 | icmp-type in config parser | `grep "icmp-type" internal/component/firewall/config.go` |
 | exclude in config parser | `grep "exclude" internal/component/firewall/config.go` |
-| ICMP lowering in firewallnft | `grep "MatchICMPType" internal/plugins/firewallnft/lower_linux.go` |
-| Wildcard lowering in firewallnft | `grep "Wildcard" internal/plugins/firewallnft/lower_linux.go` |
+| ICMP lowering in firewallnft | `grep "MatchICMPType" internal/plugins/firewall/nft/lower_linux.go` |
+| Wildcard lowering in firewallnft | `grep "Wildcard" internal/plugins/firewall/nft/lower_linux.go` |
 | register.go exists | `ls internal/component/firewall/register.go` |
 | Functional tests exist | `ls test/firewall/01*.ci` |
 

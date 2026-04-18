@@ -165,11 +165,11 @@ ze --plugins
 | `sysctl` | Kernel tunable management: three-layer precedence (config > transient > default), restore on stop. Named profiles (dsr, router, hardened, multihomed, proxy) for interface units. User-defined profiles. | -- (Bus events, CLI commands) |
 <!-- source: internal/plugins/sysctl/register.go -- sysctl registration -->
 <!-- source: internal/component/iface/register.go -- iface registration -->
-<!-- source: internal/plugins/ifacenetlink/register.go -- iface-netlink backend registration -->
-<!-- source: internal/plugins/ifacedhcp/register.go -- iface-dhcp registration -->
+<!-- source: internal/plugins/iface/netlink/register.go -- iface-netlink backend registration -->
+<!-- source: internal/plugins/iface/dhcp/register.go -- iface-dhcp registration -->
 <!-- source: internal/plugins/sysrib/register.go -- rib plugin registration -->
-<!-- source: internal/plugins/fibp4/register.go -- fib-p4 registration -->
-<!-- source: internal/plugins/fibkernel/register.go -- fib-kernel registration -->
+<!-- source: internal/plugins/fib/p4/register.go -- fib-p4 registration -->
+<!-- source: internal/plugins/fib/kernel/register.go -- fib-kernel registration -->
 
 The `iface` plugin defines a `Backend` interface and loads a backend by name (YANG
 `backend` leaf, default `netlink`). The `iface-netlink` backend handles all Linux
@@ -200,8 +200,8 @@ via netlink (Linux). Uses a custom rtm_protocol ID (RTPROT_ZE=250) to identify
 ze-installed routes. Crash recovery marks existing ze routes as stale at startup
 and sweeps them after reconvergence. A kernel route monitor detects external
 changes and re-asserts ze routes when overwritten.
-<!-- source: internal/plugins/fibkernel/fibkernel.go -- fibKernel, startupSweep, sweepStale -->
-<!-- source: internal/plugins/fibkernel/monitor_linux.go -- kernel route monitor -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- fibKernel, startupSweep, sweepStale -->
+<!-- source: internal/plugins/fib/kernel/monitor_linux.go -- kernel route monitor -->
 
 Bus topics in the FIB pipeline:
 
@@ -212,8 +212,8 @@ Bus topics in the FIB pipeline:
 | `fib/external-change` | `fib-kernel` | monitoring | External route change on ze-managed prefix |
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeTopic -->
 <!-- source: internal/plugins/sysrib/sysrib.go -- system-rib topic -->
-<!-- source: internal/plugins/fibkernel/monitor.go -- externalChangeTopic -->
-<!-- source: internal/plugins/fibkernel/fibkernel.go -- system-rib/best-change subscription -->
+<!-- source: internal/plugins/fib/kernel/monitor.go -- externalChangeTopic -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- system-rib/best-change subscription -->
 
 Bus topics in the sysctl pipeline:
 

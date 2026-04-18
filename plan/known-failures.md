@@ -347,7 +347,7 @@ files.
 **Symptom:** `golangci-lint` flags `field pppoxFD is unused (unused)` during
 `make ze-verify-fast` Phase 1. Fails the whole verify.
 **Why unrelated to spec-iface-vpp-ready-gate:** the ready-gate spec only
-touches `internal/component/iface/*`, `internal/plugins/ifacevpp/*`, and
+touches `internal/component/iface/*`, `internal/plugins/iface/vpp/*`, and
 `test/vpp/006-iface-create.ci`. `kernel_other_types.go` is l2tp session's
 uncommitted work (see `spec-l2tp-6c-ncp` in `tmp/session/selected-spec`).
 **Fix owner:** the spec-l2tp-6c-ncp session. Either wire pppoxFD into a

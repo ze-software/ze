@@ -14,7 +14,7 @@
 2. `.claude/rules/planning.md`
 3. `internal/component/firewall/model.go` -- match/action types (reused here)
 4. `internal/component/firewall/config.go` -- from-block parsing pattern (reused here)
-5. `internal/plugins/firewallnft/lower_linux.go` -- nftables expression lowering (extended here)
+5. `internal/plugins/firewall/nft/lower_linux.go` -- nftables expression lowering (extended here)
 6. `vendor/github.com/vishvananda/netlink/rule.go` -- ip rule management API
 7. `ze/lns.conf` lines 179-201 -- VyOS Surfprotect policy routing config
 
@@ -94,7 +94,7 @@ set protocols static table 100 route 0.0.0.0/0 interface tun100
 - [ ] `internal/component/firewall/config.go` -- from-block/then-block parsing
   --> Constraint: parseFromBlock and parseThenBlock patterns
   --> Decision: policy routing config uses same from-block syntax for consistency
-- [ ] `internal/plugins/firewallnft/lower_linux.go` -- nftables expression lowering
+- [ ] `internal/plugins/firewall/nft/lower_linux.go` -- nftables expression lowering
   --> Constraint: lowerMatch and lowerAction type switches
   --> Decision: new action types (SetTable, SetTCPMSS) need lowering cases
 - [ ] `internal/component/firewall/backend.go` -- Backend interface
@@ -126,7 +126,7 @@ Not protocol work. Policy routing is a Linux kernel feature.
 **Source files read:**
 - [ ] `internal/component/firewall/model.go` -- 18 match types, 24 action types. No MatchTCPFlags, no SetTable action, no SetTCPMSS action
 - [ ] `internal/component/firewall/config.go` -- parseThenBlock has no "table" or "tcp-mss" key handling
-- [ ] `internal/plugins/firewallnft/lower_linux.go` -- no TCPFlags, SetTable, or SetTCPMSS lowering
+- [ ] `internal/plugins/firewall/nft/lower_linux.go` -- no TCPFlags, SetTable, or SetTCPMSS lowering
 - [ ] `internal/component/firewall/schema/ze-firewall-conf.yang` -- no tcp-flags in from-block, no table/tcp-mss in then-block
 - [ ] No ip rule management anywhere in ze
 - [ ] No policy routing component exists
@@ -203,7 +203,7 @@ it owns (by priority range or mark range) for reconciliation.
 ### Integration Points
 - `internal/component/firewall/` -- reuses match types, action types, and Backend for nftables
 - `internal/component/firewall/model.go` -- new types added here (MatchTCPFlags, SetTable, SetTCPMSS)
-- `internal/plugins/firewallnft/lower_linux.go` -- new lowering cases added here
+- `internal/plugins/firewall/nft/lower_linux.go` -- new lowering cases added here
 - `vendor/github.com/vishvananda/netlink` -- RuleAdd/RuleDel for ip rules
 - `internal/component/staticroute/` -- populates tables referenced by SetTable actions
 
@@ -369,8 +369,8 @@ policy {
 | `TestParsePolicyConfigTCPMSS` | `internal/component/policyroute/config_test.go` | "tcp-mss 1436" in then-block parsed | |
 | `TestPolicyToFirewallTable` | `internal/component/policyroute/translate_test.go` | PolicyRoute translated to firewall.Table | |
 | `TestMarkAllocation` | `internal/component/policyroute/marks_test.go` | Unique marks allocated for different table IDs | |
-| `TestLowerTCPFlags` | `internal/plugins/firewallnft/lower_linux_test.go` | MatchTCPFlags produces Payload(13,1)+Bitwise+Cmp | |
-| `TestLowerSetTCPMSS` | `internal/plugins/firewallnft/lower_linux_test.go` | SetTCPMSS produces Exthdr MSS write | |
+| `TestLowerTCPFlags` | `internal/plugins/firewall/nft/lower_linux_test.go` | MatchTCPFlags produces Payload(13,1)+Bitwise+Cmp | |
+| `TestLowerSetTCPMSS` | `internal/plugins/firewall/nft/lower_linux_test.go` | SetTCPMSS produces Exthdr MSS write | |
 | `TestFormatTCPFlags` | `internal/component/firewall/cmd/show_test.go` | formatMatch displays "tcp flags syn" | |
 | `TestFormatSetTCPMSS` | `internal/component/firewall/cmd/show_test.go` | formatAction displays "tcp-mss 1436" | |
 | `TestPolicyRegistration` | `internal/component/policyroute/register_test.go` | registry.Register succeeds | |
@@ -403,7 +403,7 @@ policy {
 - `internal/component/firewall/model.go` -- add MatchTCPFlags, SetTCPMSS types
 - `internal/component/firewall/config.go` -- add tcp-flags in parseFromBlock, tcp-mss in parseThenBlock
 - `internal/component/firewall/schema/ze-firewall-conf.yang` -- add tcp-flags to from-block, tcp-mss to then-block
-- `internal/plugins/firewallnft/lower_linux.go` -- add MatchTCPFlags and SetTCPMSS lowering
+- `internal/plugins/firewall/nft/lower_linux.go` -- add MatchTCPFlags and SetTCPMSS lowering
 - `internal/component/firewall/cmd/show.go` -- add MatchTCPFlags and SetTCPMSS formatting
 
 ### Integration Checklist

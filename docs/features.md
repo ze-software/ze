@@ -27,7 +27,7 @@ Ze is a BGP daemon written in Go.
 | Route Installation | FIB pipeline: protocol RIB best-path tracking, system RIB selection by admin distance, kernel route programming via netlink (RTPROT_ZE=250), crash recovery via stale-mark-sweep, external change monitoring |
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeEntry, publishBestChanges -->
 <!-- source: internal/plugins/sysrib/sysrib.go -- system-rib topic, admin distance selection -->
-<!-- source: internal/plugins/fibkernel/fibkernel.go -- fibKernel, netlink backend, stale sweep -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- fibKernel, netlink backend, stale sweep -->
 | [CLI Commands](features/cli-commands.md) | Protocol tools, config management, schema discovery, daemon control, AS topology graph |
 | [API Commands](features/api-commands.md) | Peer management, route updates, RIB operations, event subscription |
 | [Configuration Reload](features/config-reload.md) | Live reload via SIGHUP with automatic reconciliation |
@@ -57,7 +57,7 @@ Ze is a BGP daemon written in Go.
 | VPP Data Plane | Manages VPP lifecycle (startup, crash recovery, DPDK NIC binding), programs FIB routes via GoVPP binary API, and polls VPP's stats segment for per-interface, per-node, and system-wide Prometheus metrics. Configurable poll interval. `vpp.external=true` switches ze into connect-only mode for systemd-managed / container-sidecar deployments and the `ze-test vpp` stub harness. |
 <!-- source: internal/component/vpp/vpp.go -- VPPManager lifecycle + External branch -->
 <!-- source: internal/component/vpp/telemetry.go -- stats poller, Prometheus metrics -->
-<!-- source: internal/plugins/fibvpp/fibvpp.go -- FIB route programming -->
+<!-- source: internal/plugins/fib/vpp/fibvpp.go -- FIB route programming -->
 <!-- source: test/scripts/vpp_stub.py -- Python GoVPP API stub for ze-test vpp -->
 | L2TPv2 Tunnels | RFC 2661 L2TPv2 tunnel lifecycle: LNS-side SCCRQ/SCCRP/SCCCN handshake, CHAP-MD5 challenge/response authentication, HELLO keepalive with configurable interval, peer StopCCN teardown with post-teardown retention window, tie-breaker resolution for simultaneous open. Single UDP listener with reactor/timer goroutine pair, reliable delivery with sliding window and congestion avoidance. |
 | [TACACS+ AAA](guide/tacacs.md) | RFC 8907 TACACS+ client for SSH login: PAP authentication, ordered server failover with per-server timeout, MD5 pseudo-pad body encryption, priv-lvl-to-profile mapping, command accounting (START/STOP records on every dispatched CLI command), and explicit-reject vs unreachable distinction so wrong-password TACACS+ replies do NOT silently fall through to local bcrypt. Runs as a pluggable `aaa.Authenticator` so local bcrypt remains the fallback when every TACACS+ server is unreachable. |

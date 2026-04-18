@@ -111,7 +111,7 @@ These are top-level plugins that own config roots and manage OS or routing resou
 
 | Field | Value |
 |-------|-------|
-| Location | `internal/plugins/fibkernel/register.go` |
+| Location | `internal/plugins/fib/kernel/register.go` |
 | Description | Programs OS routes from system RIB via netlink/route socket |
 | ConfigRoots | `fib.kernel` |
 | WantsConfig | `fib.kernel` |
@@ -136,7 +136,7 @@ These are top-level plugins that own config roots and manage OS or routing resou
 
 | Field | Value |
 |-------|-------|
-| Location | `internal/plugins/fibp4/register.go` |
+| Location | `internal/plugins/fib/p4/register.go` |
 | Description | Programs P4 switch forwarding entries from system RIB |
 | ConfigRoots | `fib.p4` |
 | WantsConfig | `fib.p4` |
@@ -160,7 +160,7 @@ These are top-level plugins that own config roots and manage OS or routing resou
 
 | Field | Value |
 |-------|-------|
-| Location | `internal/plugins/ifacedhcp/register.go` |
+| Location | `internal/plugins/iface/dhcp/register.go` |
 | Description | DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal |
 | ConfigRoots | - |
 | WantsConfig | `interface` (planned -- not yet wired) |
@@ -190,7 +190,7 @@ pattern from the transaction protocol).
 
 | Field | Value |
 |-------|-------|
-| Location | `internal/plugins/ifacenetlink/register.go` |
+| Location | `internal/plugins/iface/netlink/register.go` |
 | Description | Netlink backend for interface plugin (Linux) |
 | ConfigRoots | - |
 | Dependencies | - |

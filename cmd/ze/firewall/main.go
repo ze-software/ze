@@ -13,7 +13,7 @@ import (
 	fwcmd "codeberg.org/thomas-mangin/ze/internal/component/firewall/cmd"
 
 	// Register the nft backend so fwpkg.LoadBackend("nft") resolves.
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/firewallnft"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/firewall/nft"
 )
 
 // Run executes the firewall subcommand. Returns exit code.

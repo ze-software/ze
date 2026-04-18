@@ -703,8 +703,8 @@ a pluggable backend architecture. It is cross-cutting infrastructure, not BGP-sp
 |---------|-------------|
 | **Backend interface** | `Backend` (33 methods) in `backend.go`: lifecycle, address, sysctl, mirror, monitor |
 | **Backend selection** | YANG `backend` leaf (default: `netlink`). `RegisterBackend`/`LoadBackend` in `backend.go` |
-| **Netlink backend** | `internal/plugins/ifacenetlink/`: all Linux operations via `github.com/vishvananda/netlink` |
-| **DHCP plugin** | `internal/plugins/ifacedhcp/`: DHCPv4/v6 client lifecycle, separate from backend |
+| **Netlink backend** | `internal/plugins/iface/netlink/`: all Linux operations via `github.com/vishvananda/netlink` |
+| **DHCP plugin** | `internal/plugins/iface/dhcp/`: DHCPv4/v6 client lifecycle, separate from backend |
 | **Dispatch layer** | `dispatch.go`: package-level functions delegating to active backend |
 | **Events** | `interface/created`, `interface/deleted`, `interface/up`, `interface/down`, `interface/addr/*`, `interface/dhcp/*` |
 | **Unit model** | JunOS-style two-layer: physical interface + logical units (VLANs) |
@@ -716,7 +716,7 @@ imports the component -- all communication flows through the Bus.
 
 <!-- source: internal/component/iface/backend.go -- Backend interface, RegisterBackend, LoadBackend -->
 <!-- source: internal/component/iface/iface.go -- topic constants and payload types -->
-<!-- source: internal/plugins/ifacenetlink/monitor_linux.go -- netlink monitor -->
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- netlink monitor -->
 <!-- source: internal/component/iface/register.go -- plugin registration -->
 
 ---
@@ -864,8 +864,8 @@ bgp-rib/best-change/bgp  ──>  System RIB (rib plugin)
 ```
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeTopic, best-path tracking -->
 <!-- source: internal/plugins/sysrib/sysrib.go -- system-rib topic, admin distance selection -->
-<!-- source: internal/plugins/fibkernel/fibkernel.go -- fibKernel, netlink backend, stale sweep -->
-<!-- source: internal/plugins/fibkernel/monitor_linux.go -- kernel route change monitor -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- fibKernel, netlink backend, stale sweep -->
+<!-- source: internal/plugins/fib/kernel/monitor_linux.go -- kernel route change monitor -->
 
 ### BGP RIB Best-Path Tracking
 
@@ -893,10 +893,10 @@ routes are distinguishable from other routing daemons. On startup, existing ze r
 are marked stale; after reconvergence, stale routes are swept. A kernel route monitor
 detects external modifications (other daemons, manual changes) and re-asserts ze routes
 when overwritten.
-<!-- source: internal/plugins/fibkernel/fibkernel.go -- routeBackend, startupSweep, sweepStale -->
-<!-- source: internal/plugins/fibkernel/backend_linux.go -- netlink backend, RTPROT_ZE -->
-<!-- source: internal/plugins/fibkernel/monitor_linux.go -- kernel route change detection -->
-<!-- source: internal/plugins/fibkernel/register.go -- fib-kernel plugin registration -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- routeBackend, startupSweep, sweepStale -->
+<!-- source: internal/plugins/fib/kernel/backend_linux.go -- netlink backend, RTPROT_ZE -->
+<!-- source: internal/plugins/fib/kernel/monitor_linux.go -- kernel route change detection -->
+<!-- source: internal/plugins/fib/kernel/register.go -- fib-kernel plugin registration -->
 
 ### Sysctl
 

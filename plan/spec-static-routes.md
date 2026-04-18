@@ -12,8 +12,8 @@
 **Re-read these after context compaction:**
 1. This spec file
 2. `.claude/rules/planning.md`
-3. `internal/plugins/fibkernel/backend_linux.go` -- netlink route programming (current, single-table)
-4. `internal/plugins/fibkernel/register.go` -- plugin registration pattern for FIB plugins
+3. `internal/plugins/fib/kernel/backend_linux.go` -- netlink route programming (current, single-table)
+4. `internal/plugins/fib/kernel/register.go` -- plugin registration pattern for FIB plugins
 5. `internal/component/iface/register.go` -- component registration pattern (registry.Register)
 
 ## Task
@@ -43,13 +43,13 @@ source of truth.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `internal/plugins/fibkernel/backend_linux.go` -- netlink route programming
+- [ ] `internal/plugins/fib/kernel/backend_linux.go` -- netlink route programming
   --> Constraint: uses netlink.Route with Dst, Gw, Protocol fields; does NOT set Table field
   --> Decision: buildRoute creates route with rtprotZE=250
-- [ ] `internal/plugins/fibkernel/register.go` -- plugin registration pattern
+- [ ] `internal/plugins/fib/kernel/register.go` -- plugin registration pattern
   --> Constraint: registry.Registration with Name, YANG, ConfigRoots, RunEngine
   --> Decision: SDK 5-stage protocol (verify/apply/rollback/started/command)
-- [ ] `internal/plugins/fibkernel/fibkernel.go` -- crash recovery pattern
+- [ ] `internal/plugins/fib/kernel/fibkernel.go` -- crash recovery pattern
   --> Constraint: stale-mark-then-sweep using custom rtm_protocol
   --> Decision: RTPROT_ZE=250 identifies ze-installed routes
 - [ ] `vendor/github.com/vishvananda/netlink/route.go` -- netlink.Route struct
@@ -76,11 +76,11 @@ Not protocol work. Linux routing tables are a kernel concept, not an RFC feature
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/fibkernel/backend_linux.go` -- buildRoute does NOT set Table, so routes go to main table. Uses net.ParseCIDR for prefix, net.ParseIP for next-hop. No interface-based route support.
+- [ ] `internal/plugins/fib/kernel/backend_linux.go` -- buildRoute does NOT set Table, so routes go to main table. Uses net.ParseCIDR for prefix, net.ParseIP for next-hop. No interface-based route support.
   --> Constraint: routeBackend interface: addRoute(prefix, nextHop string), delRoute(prefix), replaceRoute(prefix, nextHop), listZeRoutes(), close()
-- [ ] `internal/plugins/fibkernel/register.go` -- ConfigRoots: ["fib.kernel"], RunEngine: SDK 5-stage protocol
+- [ ] `internal/plugins/fib/kernel/register.go` -- ConfigRoots: ["fib.kernel"], RunEngine: SDK 5-stage protocol
   --> Constraint: OnConfigVerify/OnConfigApply/OnConfigRollback/OnStarted/OnExecuteCommand
-- [ ] `internal/plugins/fibkernel/schema/ze-fib-conf.yang` -- minimal config: flush-on-stop (bool), sweep-delay (uint16)
+- [ ] `internal/plugins/fib/kernel/schema/ze-fib-conf.yang` -- minimal config: flush-on-stop (bool), sweep-delay (uint16)
 - [ ] No static route component exists anywhere in ze
 
 **Behavior to preserve:**

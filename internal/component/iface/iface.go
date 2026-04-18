@@ -11,8 +11,8 @@
 //
 // It manages OS network interfaces through a pluggable backend architecture.
 // The Backend interface defines all OS-specific operations. The netlink backend
-// (internal/plugins/ifacenetlink) handles Linux. DHCP is a separate plugin
-// (internal/plugins/ifacedhcp). All interface types use a JunOS-style
+// (internal/plugins/iface/netlink) handles Linux. DHCP is a separate plugin
+// (internal/plugins/iface/dhcp). All interface types use a JunOS-style
 // two-layer model: physical interface + logical units.
 package iface
 

@@ -46,7 +46,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/web/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/core/ipc/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibp4/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/p4/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/schema"
 )

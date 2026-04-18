@@ -13,7 +13,7 @@ package fibkernel
 import (
 	"encoding/json"
 
-	fibevents "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel/events"
+	fibevents "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/events"
 )
 
 // externalChangeEvent is the JSON payload for (fib, external-change).

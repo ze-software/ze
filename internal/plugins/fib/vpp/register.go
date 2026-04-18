@@ -13,7 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	fibvppschema "codeberg.org/thomas-mangin/ze/internal/plugins/fibvpp/schema"
+	fibvppschema "codeberg.org/thomas-mangin/ze/internal/plugins/fib/vpp/schema"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"

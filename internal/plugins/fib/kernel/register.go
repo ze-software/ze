@@ -11,8 +11,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	fibevents "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel/events"
-	fibschema "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel/schema"
+	fibevents "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/events"
+	fibschema "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/schema"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )

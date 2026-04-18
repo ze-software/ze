@@ -13,7 +13,7 @@ import (
 	tccmd "codeberg.org/thomas-mangin/ze/internal/component/traffic/cmd"
 
 	// Register the tc backend so tcpkg.LoadBackend("tc") resolves.
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/trafficnetlink"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/netlink"
 )
 
 // Run executes the traffic-control subcommand. Returns exit code.

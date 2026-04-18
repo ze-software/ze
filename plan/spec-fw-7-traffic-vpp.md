@@ -111,10 +111,10 @@ trafficvpp gets the GoVPP connection via direct import of `internal/component/vp
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestTranslateHTBToPolicer` | `internal/plugins/trafficvpp/translate_test.go` | ze HTB → VPP policer parameters |
-| `TestTranslateFilterToClassifier` | `internal/plugins/trafficvpp/translate_test.go` | ze filter → VPP classifier |
-| `TestTranslateDSCPToQoSMap` | `internal/plugins/trafficvpp/translate_test.go` | ze DSCP → VPP QoS egress map |
-| `TestBackendRegistration` | `internal/plugins/trafficvpp/register_test.go` | RegisterBackend("vpp") |
+| `TestTranslateHTBToPolicer` | `internal/plugins/traffic/vpp/translate_test.go` | ze HTB → VPP policer parameters |
+| `TestTranslateFilterToClassifier` | `internal/plugins/traffic/vpp/translate_test.go` | ze filter → VPP classifier |
+| `TestTranslateDSCPToQoSMap` | `internal/plugins/traffic/vpp/translate_test.go` | ze DSCP → VPP QoS egress map |
+| `TestBackendRegistration` | `internal/plugins/traffic/vpp/register_test.go` | RegisterBackend("vpp") |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -150,12 +150,12 @@ No existing files modified.
 
 ## Files to Create
 
-- `internal/plugins/trafficvpp/trafficvpp.go` — package doc, logger
-- `internal/plugins/trafficvpp/backend_linux.go` — Apply implementation via GoVPP
-- `internal/plugins/trafficvpp/backend_other.go` — stub
-- `internal/plugins/trafficvpp/translate.go` — ze types → VPP policer/classifier/QoS map
-- `internal/plugins/trafficvpp/translate_test.go` — translation tests
-- `internal/plugins/trafficvpp/register.go` — init() RegisterBackend("vpp", factory)
+- `internal/plugins/traffic/vpp/trafficvpp.go` — package doc, logger
+- `internal/plugins/traffic/vpp/backend_linux.go` — Apply implementation via GoVPP
+- `internal/plugins/traffic/vpp/backend_other.go` — stub
+- `internal/plugins/traffic/vpp/translate.go` — ze types → VPP policer/classifier/QoS map
+- `internal/plugins/traffic/vpp/translate_test.go` — translation tests
+- `internal/plugins/traffic/vpp/register.go` — init() RegisterBackend("vpp", factory)
 - `test/traffic/010-vpp-boot-apply.ci` — functional test
 
 ## Implementation Steps
@@ -192,7 +192,7 @@ No existing files modified.
 ### Deliverables Checklist (/implement stage 9)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| trafficvpp plugin compiles | `go build ./internal/plugins/trafficvpp/...` |
+| trafficvpp plugin compiles | `go build ./internal/plugins/traffic/vpp/...` |
 | Translation covers HTB/HFSC | unit test output |
 | RegisterBackend("vpp") works | unit test |
 

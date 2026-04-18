@@ -169,7 +169,7 @@ Phases are strictly ordered. Each phase must be complete before the next begins.
 - [ ] `internal/component/bgp/redistribute/registry.go` -- redistribute source registration
 - [ ] `internal/component/plugin/registry/registry.go` -- plugin Registration struct fields
 - [ ] `internal/plugins/sysrib/sysrib.go` -- system RIB route selection
-- [ ] `internal/plugins/fibkernel/fibkernel.go` -- FIB kernel route programming
+- [ ] `internal/plugins/fib/kernel/fibkernel.go` -- FIB kernel route programming
 
 **Behavior to preserve:**
 - Existing event namespaces and types unchanged

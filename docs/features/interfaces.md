@@ -134,19 +134,19 @@ JunOS-style two-layer model: physical interfaces with logical units.
 <!-- source: internal/component/iface/dispatch.go — package-level functions delegating to backend -->
 <!-- source: internal/component/iface/iface.go — bus topics, payload types, InterfaceStats -->
 <!-- source: internal/component/iface/migrate_linux.go — MigrateInterface 5-phase protocol -->
-<!-- source: internal/plugins/ifacenetlink/manage_linux.go — CreateDummy, CreateVeth, CreateBridge, etc. -->
-<!-- source: internal/plugins/ifacenetlink/tunnel_linux.go — CreateTunnel for 8 tunnel kinds via Gretun/Gretap/Iptun/Sittun/Ip6tnl -->
-<!-- source: internal/plugins/ifacenetlink/wireguard_linux.go — CreateWireguardDevice (netlink), ConfigureWireguardDevice and GetWireguardDevice (wgctrl) -->
-<!-- source: internal/plugins/ifacenetlink/monitor_linux.go — netlink multicast subscription -->
-<!-- source: internal/plugins/ifacenetlink/bridge_linux.go — bridge ports, STP via sysfs -->
-<!-- source: internal/plugins/ifacenetlink/sysctl_linux.go — per-interface sysctl writes -->
-<!-- source: internal/plugins/ifacenetlink/mirror_linux.go — traffic mirroring via tc -->
-<!-- source: internal/plugins/ifacevpp/ifacevpp.go — VPP Backend implementation (lazy GoVPP channel) -->
-<!-- source: internal/plugins/ifacevpp/query.go — ListInterfaces/GetInterface/Get/SetMACAddress via SwInterfaceDump and SwInterfaceSetMacAddress -->
-<!-- source: internal/plugins/ifacevpp/monitor.go — StartMonitor via WantInterfaceEvents + SubscribeNotification -->
-<!-- source: internal/plugins/ifacevpp/naming.go — ze short name <-> VPP SwIfIndex bidirectional map -->
-<!-- source: internal/plugins/ifacedhcp/dhcp_v4_linux.go — DHCPv4 worker -->
-<!-- source: internal/plugins/ifacedhcp/dhcp_v6_linux.go — DHCPv6 worker -->
+<!-- source: internal/plugins/iface/netlink/manage_linux.go — CreateDummy, CreateVeth, CreateBridge, etc. -->
+<!-- source: internal/plugins/iface/netlink/tunnel_linux.go — CreateTunnel for 8 tunnel kinds via Gretun/Gretap/Iptun/Sittun/Ip6tnl -->
+<!-- source: internal/plugins/iface/netlink/wireguard_linux.go — CreateWireguardDevice (netlink), ConfigureWireguardDevice and GetWireguardDevice (wgctrl) -->
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go — netlink multicast subscription -->
+<!-- source: internal/plugins/iface/netlink/bridge_linux.go — bridge ports, STP via sysfs -->
+<!-- source: internal/plugins/iface/netlink/sysctl_linux.go — per-interface sysctl writes -->
+<!-- source: internal/plugins/iface/netlink/mirror_linux.go — traffic mirroring via tc -->
+<!-- source: internal/plugins/iface/vpp/ifacevpp.go — VPP Backend implementation (lazy GoVPP channel) -->
+<!-- source: internal/plugins/iface/vpp/query.go — ListInterfaces/GetInterface/Get/SetMACAddress via SwInterfaceDump and SwInterfaceSetMacAddress -->
+<!-- source: internal/plugins/iface/vpp/monitor.go — StartMonitor via WantInterfaceEvents + SubscribeNotification -->
+<!-- source: internal/plugins/iface/vpp/naming.go — ze short name <-> VPP SwIfIndex bidirectional map -->
+<!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go — DHCPv4 worker -->
+<!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go — DHCPv6 worker -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go — BGP integration -->
 
 ## Architecture
@@ -299,7 +299,7 @@ out of scope for v1; see `plan/deferrals.md`.
 
 <!-- source: internal/component/iface/schema/ze-iface-conf.yang -- list tunnel, choice kind, tunnel-v4-endpoints / tunnel-v6-endpoints groupings -->
 <!-- source: internal/component/iface/tunnel.go -- TunnelKind enum, TunnelSpec struct -->
-<!-- source: internal/plugins/ifacenetlink/tunnel_linux.go -- CreateTunnel switch and per-kind builders -->
+<!-- source: internal/plugins/iface/netlink/tunnel_linux.go -- CreateTunnel switch and per-kind builders -->
 
 ## Tunnel Reload Behaviour
 

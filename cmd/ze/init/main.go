@@ -30,7 +30,7 @@ import (
 	// returns "no backend loaded" and every detected interface
 	// (ethernet, dummy, veth, bridge, tunnel, wireguard) is silently
 	// dropped from the initial ze.conf.
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink"
 )
 
 // Key aliases for readability (from zefs key registry).

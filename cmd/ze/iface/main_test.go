@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	zeIface "codeberg.org/thomas-mangin/ze/internal/component/iface"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink"
 	"codeberg.org/thomas-mangin/ze/internal/test/testcond"
 )
 

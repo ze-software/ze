@@ -17,7 +17,7 @@
 5. `internal/component/plugin/server/` -- plugin server and hub
 6. `internal/component/plugin/inprocess.go` -- plugin runner (per-VRF spawning)
 7. `internal/component/iface/register.go` -- component registration pattern
-8. `internal/plugins/fibkernel/register.go` -- FIB plugin pattern
+8. `internal/plugins/fib/kernel/register.go` -- FIB plugin pattern
 9. Child specs: `spec-vrf-1-*` through `spec-vrf-N-*`
 
 ## Task
@@ -108,7 +108,7 @@ Phases are strictly ordered within dependencies. Independent specs (5, 7) can pr
   --> Constraint: creates net.Conn pair, calls RunEngine(conn). VRF orchestrator reuses this
 - [ ] `internal/core/events/bus.go` -- EventBus
   --> Constraint: topic-based pub/sub with prefix matching
-- [ ] `internal/plugins/fibkernel/backend_linux.go` -- route programming
+- [ ] `internal/plugins/fib/kernel/backend_linux.go` -- route programming
   --> Constraint: netlink.Route.Table field exists but unused (defaults to main table)
 - [ ] `vendor/github.com/vishvananda/netlink/link.go` -- VRF device creation
   --> Constraint: netlink.Vrf{Table: N} for VRF device type

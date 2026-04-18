@@ -14,7 +14,7 @@
 2. `.claude/rules/planning.md`
 3. `plan/spec-vpp-0-umbrella.md` — parent spec
 4. `plan/spec-vpp-2-fib.md` — fib-vpp plugin this extends
-5. `internal/plugins/fibvpp/` — files from vpp-2
+5. `internal/plugins/fib/vpp/` — files from vpp-2
 
 ## Task
 
@@ -41,7 +41,7 @@ unique capability.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `internal/plugins/fibvpp/` — fib-vpp plugin from spec-vpp-2
+- [ ] `internal/plugins/fib/vpp/` — fib-vpp plugin from spec-vpp-2
   → Constraint: MPLS extends existing backend interface and event processing
 - [ ] `internal/plugins/bgp-nlri-labeled/` — BGP labeled unicast NLRI parser
   → Constraint: ze already parses MPLS labels from BGP UPDATE messages
@@ -65,9 +65,9 @@ unique capability.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/fibvpp/fibvpp.go` — fib-vpp event processing (from spec-vpp-2)
+- [ ] `internal/plugins/fib/vpp/fibvpp.go` — fib-vpp event processing (from spec-vpp-2)
   → Constraint: extend processEvent to handle labels field in payload
-- [ ] `internal/plugins/fibvpp/backend.go` — vppBackend interface (from spec-vpp-2)
+- [ ] `internal/plugins/fib/vpp/backend.go` — vppBackend interface (from spec-vpp-2)
   → Constraint: extend with MPLS methods: addMPLSRoute, delMPLSRoute, enableMPLS, disableMPLS
 - [ ] `internal/plugins/bgp-nlri-labeled/` — labeled unicast NLRI parsing
   → Constraint: labels already extracted from BGP UPDATE wire format
@@ -111,7 +111,7 @@ unique capability.
 
 ### Integration Points
 - `internal/plugins/bgp-nlri-labeled/` — source of label information
-- `internal/plugins/fibvpp/` — extended backend and event processing
+- `internal/plugins/fib/vpp/` — extended backend and event processing
 - sysRIB event payload — labels field added
 - GoVPP mpls binapi — MplsRouteAddDel, MplsTableAddDel
 
@@ -147,14 +147,14 @@ unique capability.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestProcessEventWithLabels` | `internal/plugins/fibvpp/mpls_test.go` | Event with labels field → MPLS backend methods called | |
-| `TestProcessEventWithoutLabels` | `internal/plugins/fibvpp/mpls_test.go` | Event without labels → standard IP route (no MPLS) | |
-| `TestMPLSPush` | `internal/plugins/fibvpp/mpls_test.go` | Label push: IPRouteAddDel with LabelStack in FibPath | |
-| `TestMPLSSwap` | `internal/plugins/fibvpp/mpls_test.go` | Label swap: MplsRouteAddDel with in/out labels | |
-| `TestMPLSPop` | `internal/plugins/fibvpp/mpls_test.go` | Label pop: MplsRouteAddDel with pop action | |
-| `TestMPLSDelete` | `internal/plugins/fibvpp/mpls_test.go` | MPLS route deletion | |
-| `TestMPLSInterfaceEnable` | `internal/plugins/fibvpp/mpls_test.go` | MPLS enabled on VPP interface | |
-| `TestMPLSLabelRange` | `internal/plugins/fibvpp/mpls_test.go` | Label 0-1048575 accepted, >1048575 rejected | |
+| `TestProcessEventWithLabels` | `internal/plugins/fib/vpp/mpls_test.go` | Event with labels field → MPLS backend methods called | |
+| `TestProcessEventWithoutLabels` | `internal/plugins/fib/vpp/mpls_test.go` | Event without labels → standard IP route (no MPLS) | |
+| `TestMPLSPush` | `internal/plugins/fib/vpp/mpls_test.go` | Label push: IPRouteAddDel with LabelStack in FibPath | |
+| `TestMPLSSwap` | `internal/plugins/fib/vpp/mpls_test.go` | Label swap: MplsRouteAddDel with in/out labels | |
+| `TestMPLSPop` | `internal/plugins/fib/vpp/mpls_test.go` | Label pop: MplsRouteAddDel with pop action | |
+| `TestMPLSDelete` | `internal/plugins/fib/vpp/mpls_test.go` | MPLS route deletion | |
+| `TestMPLSInterfaceEnable` | `internal/plugins/fib/vpp/mpls_test.go` | MPLS enabled on VPP interface | |
+| `TestMPLSLabelRange` | `internal/plugins/fib/vpp/mpls_test.go` | Label 0-1048575 accepted, >1048575 rejected | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -174,8 +174,8 @@ unique capability.
 
 ## Files to Modify
 
-- `internal/plugins/fibvpp/fibvpp.go` — extend processEvent for labels
-- `internal/plugins/fibvpp/backend.go` — extend vppBackend interface with MPLS methods
+- `internal/plugins/fib/vpp/fibvpp.go` — extend processEvent for labels
+- `internal/plugins/fib/vpp/backend.go` — extend vppBackend interface with MPLS methods
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -203,8 +203,8 @@ unique capability.
 
 ## Files to Create
 
-- `internal/plugins/fibvpp/mpls.go` — MPLS route programming via GoVPP mpls.RPCService
-- `internal/plugins/fibvpp/mpls_test.go` — MPLS tests
+- `internal/plugins/fib/vpp/mpls.go` — MPLS route programming via GoVPP mpls.RPCService
+- `internal/plugins/fib/vpp/mpls_test.go` — MPLS tests
 - `test/vpp/005-mpls-push.ci` — MPLS functional test
 
 ## Implementation Steps
@@ -261,9 +261,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Deliverables Checklist (/implement stage 9)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| MPLS backend methods | `grep "addMPLSRoute\|delMPLSRoute\|enableMPLS" internal/plugins/fibvpp/mpls.go` |
-| Labels in event processing | `grep "labels\|Labels" internal/plugins/fibvpp/fibvpp.go` |
-| MPLS tests | `go test -run TestMPLS internal/plugins/fibvpp/` |
+| MPLS backend methods | `grep "addMPLSRoute\|delMPLSRoute\|enableMPLS" internal/plugins/fib/vpp/mpls.go` |
+| Labels in event processing | `grep "labels\|Labels" internal/plugins/fib/vpp/fibvpp.go` |
+| MPLS tests | `go test -run TestMPLS internal/plugins/fib/vpp/` |
 | Functional test | `ls test/vpp/005-mpls-push.ci` |
 
 ### Security Review Checklist (/implement stage 10)

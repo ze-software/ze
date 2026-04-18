@@ -127,7 +127,7 @@ var rpcDirs = []string{
 // across all known plugin directories. Any register.go that is NOT in a
 // schema/ subdirectory is treated as a plugin registration: this catches
 // plugins registering via plugin/registry as well as those registering via
-// component-local mechanisms (e.g. iface.RegisterBackend in ifacenetlink).
+// component-local mechanisms (e.g. iface.RegisterBackend in iface/netlink).
 func discoverPlugins(root, module string) ([]string, error) {
 	var plugins []string
 

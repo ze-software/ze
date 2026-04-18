@@ -13,7 +13,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink"
 )
 
 // ensureBackendForIntegration loads the netlink backend if not already loaded.

@@ -472,7 +472,7 @@ ze-integration-iface-test:
 # Tests actual netlink route programming in isolated network namespaces.
 ze-integration-fib-test:
 	@echo "Running FIB kernel integration tests (requires CAP_NET_ADMIN)..."
-	$(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/fibkernel/...
+	$(GO) test -tags integration -count=1 -race -timeout 120s ./internal/plugins/fib/kernel/...
 
 # Run all integration tests (requires CAP_NET_ADMIN / root).
 ze-integration-test: ze-integration-iface-test ze-integration-fib-test

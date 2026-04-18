@@ -17,7 +17,7 @@ import (
 	// below resolves. Without this blank import, every subcommand that
 	// calls into the backend (show, create, delete, unit, addr, migrate)
 	// fails with "iface: no backend loaded".
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ifacenetlink"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink"
 )
 
 // Run executes the interface subcommand with the given arguments.

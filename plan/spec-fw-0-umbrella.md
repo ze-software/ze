@@ -25,8 +25,8 @@ Two new components, four new plugins (two Linux backends, two VPP backends):
 
 | Component | Linux plugin | VPP plugin |
 |-----------|-------------|------------|
-| `internal/component/firewall/` | `internal/plugins/firewallnft/` | `internal/plugins/firewallvpp/` |
-| `internal/component/traffic/` | `internal/plugins/trafficnetlink/` | `internal/plugins/trafficvpp/` |
+| `internal/component/firewall/` | `internal/plugins/firewall/nft/` | `internal/plugins/firewallvpp/` |
+| `internal/component/traffic/` | `internal/plugins/traffic/netlink/` | `internal/plugins/trafficvpp/` |
 
 ## Child Specs
 
@@ -79,9 +79,9 @@ Not protocol work. No RFCs apply.
 **Source files read:**
 - [ ] `internal/component/iface/backend.go` — Backend interface with RegisterBackend/LoadBackend/GetBackend
   → Constraint: same pattern for firewall and traffic backends
-- [ ] `internal/plugins/ifacenetlink/register.go` — init() calls iface.RegisterBackend("netlink", factory)
+- [ ] `internal/plugins/iface/netlink/register.go` — init() calls iface.RegisterBackend("netlink", factory)
   → Constraint: firewallnft registers as "nft", trafficnetlink registers as "tc"
-- [ ] `internal/plugins/fibkernel/backend.go` — simpler backend without RegisterBackend
+- [ ] `internal/plugins/fib/kernel/backend.go` — simpler backend without RegisterBackend
   → Constraint: fibkernel uses direct interface, not registration. Firewall uses registration like iface.
 - [ ] `vendor/github.com/vishvananda/netlink/qdisc.go` — tc types already vendored
   → Constraint: HTB, HFSC, FQ, FQ_CoDel, SFQ, TBF, Netem, Prio, Clsact, Ingress available
@@ -168,13 +168,13 @@ All decisions from `/ze-design` session 2026-04-13:
 | # | Decision | Resolved | Rationale |
 |---|----------|----------|-----------|
 | 1 | Scope | Reconciler, boot-time tables. Ze owns `ze_*`, lachesis owns its own. | User requirement |
-| 2 | Firewall placement | `internal/component/firewall/` + `internal/plugins/firewallnft/` | Matches iface/ifacenetlink. Single responsibility. |
+| 2 | Firewall placement | `internal/component/firewall/` + `internal/plugins/firewall/nft/` | Matches iface/ifacenetlink. Single responsibility. |
 | 3 | Firewall backend | `Apply(desired []Table) error` + `ListTables() ([]Table, error)` + `GetCounters(table) ([]ChainCounters, error)` | Plugin owns reconciliation. Read methods for CLI. Matches iface Backend pattern. |
 | 4 | Data model | Abstract firewall concepts. Term = Name + `[]Match` + `[]Action`. 42 types (18 match, 16 action, 8 modifier). | VPP backend shouldn't reverse-engineer nftables register chains. Complexity in nft backend (lowering) not every future backend. |
 | 5a | Scope includes tc | Firewall (nftables) + traffic control (tc). | VoIP needs both sides. |
 | 5b | Firewall config syntax | Hybrid: Junos structure (named terms, from/then) + ze naming + nftables concepts (table/chain/hook/set/flowtable). | Structural safety (from/then prevents mis-ordering), named rules for logging/counters, full nftables power. |
 | 5c | tc config syntax | `traffic-control { interface X { qdisc htb { class name { rate, ceil, priority, match mark } } } }` | User approved. |
-| 6 | Traffic control placement | `internal/component/traffic/` + `internal/plugins/trafficnetlink/` | Separate kernel subsystem, separate library. |
+| 6 | Traffic control placement | `internal/component/traffic/` + `internal/plugins/traffic/netlink/` | Separate kernel subsystem, separate library. |
 | 7 | Traffic backend | `Apply(desired map[string]InterfaceQoS) error` + `ListQdiscs(iface) (InterfaceQoS, error)` | Consistent with firewall. Read method for CLI. |
 | 8 | Table ownership | All ze tables prefixed `ze_`. Plugin manages only `ze_*`, deletes orphans, never touches others. | Config truth + prefix safety. |
 | 9 | Config reload | Apply on startup (OnStarted) + reload (OnConfigReload). Same code path. | Box must boot with firewall. |
@@ -277,8 +277,8 @@ All files delegated to child specs. Summary:
 | Child spec | Files |
 |------------|-------|
 | fw-1 | `internal/component/firewall/model.go`, `internal/component/firewall/backend.go`, `internal/component/traffic/model.go`, `internal/component/traffic/backend.go` |
-| fw-2 | `internal/plugins/firewallnft/` (5-6 files) |
-| fw-3 | `internal/plugins/trafficnetlink/` (4-5 files) |
+| fw-2 | `internal/plugins/firewall/nft/` (5-6 files) |
+| fw-3 | `internal/plugins/traffic/netlink/` (4-5 files) |
 | fw-4 | `internal/component/firewall/schema/`, `internal/component/traffic/schema/`, config parsers |
 | fw-5 | `internal/component/firewall/cmd/`, `internal/component/traffic/cmd/` |
 | fw-6 | `internal/plugins/firewallvpp/` (deferred) |
@@ -350,10 +350,10 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 |-------------|---------------------|
 | firewall component exists | `ls internal/component/firewall/` |
 | traffic component exists | `ls internal/component/traffic/` |
-| firewallnft plugin exists | `ls internal/plugins/firewallnft/` |
-| trafficnetlink plugin exists | `ls internal/plugins/trafficnetlink/` |
+| firewallnft plugin exists | `ls internal/plugins/firewall/nft/` |
+| trafficnetlink plugin exists | `ls internal/plugins/traffic/netlink/` |
 | YANG modules register | `grep -r "yang.RegisterModule" internal/component/firewall/ internal/component/traffic/` |
-| Backend registration works | `grep -r "RegisterBackend" internal/plugins/firewallnft/ internal/plugins/trafficnetlink/` |
+| Backend registration works | `grep -r "RegisterBackend" internal/plugins/firewall/nft/ internal/plugins/traffic/netlink/` |
 | ze_* tables in kernel after boot | functional .ci test |
 | Non-ze_* tables untouched | functional .ci test |
 
@@ -385,12 +385,12 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | `internal/component/firewall/` | Data model, YANG config, parsing, dispatch | None (pure Go) |
 | `internal/component/firewall/schema/` | `ze-firewall-conf.yang` | None |
 | `internal/component/firewall/cmd/` | CLI commands | None |
-| `internal/plugins/firewallnft/` | nftables backend, reconciler | `github.com/google/nftables` |
+| `internal/plugins/firewall/nft/` | nftables backend, reconciler | `github.com/google/nftables` |
 | `internal/plugins/firewallvpp/` | VPP ACL/classifier backend | `go.fd.io/govpp` |
 | `internal/component/traffic/` | Data model, YANG config, parsing, dispatch | None (pure Go) |
 | `internal/component/traffic/schema/` | `ze-traffic-control-conf.yang` | None |
 | `internal/component/traffic/cmd/` | CLI commands | None |
-| `internal/plugins/trafficnetlink/` | tc backend, reconciler | `github.com/vishvananda/netlink` (vendored) |
+| `internal/plugins/traffic/netlink/` | tc backend, reconciler | `github.com/vishvananda/netlink` (vendored) |
 | `internal/plugins/trafficvpp/` | VPP policer/scheduler backend | `go.fd.io/govpp` |
 
 ## Config Syntax Overview

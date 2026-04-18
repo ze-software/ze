@@ -9,7 +9,7 @@ a VPP-native interface backend, and VPP-native features (L2XC, bridge
 domains, VXLAN, policers, ACLs, SRv6, sFlow) are designed but not yet
 wired.
 <!-- source: internal/component/vpp/vpp.go -- VPPManager lifecycle -->
-<!-- source: internal/plugins/fibvpp/fibvpp.go -- processEvent installs, updates, withdraws -->
+<!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent installs, updates, withdraws -->
 <!-- source: internal/component/vpp/telemetry.go -- stats poller -->
 
 ## Why this matters
@@ -67,9 +67,9 @@ routes into VPP's FIB via the GoVPP binary API, so transit packets
 are forwarded by VPP at DPDK speed. Both plugins subscribe to the
 `(system-rib, best-change)` event on the EventBus and react
 independently.
-<!-- source: internal/plugins/fibvpp/register.go -- Dependencies: ["rib", "vpp"] -->
-<!-- source: internal/plugins/fibvpp/fibvpp.go -- Subscribe to BestChangeBatch -->
-<!-- source: internal/plugins/fibkernel/fibkernel.go -- parallel backend for the kernel -->
+<!-- source: internal/plugins/fib/vpp/register.go -- Dependencies: ["rib", "vpp"] -->
+<!-- source: internal/plugins/fib/vpp/fibvpp.go -- Subscribe to BestChangeBatch -->
+<!-- source: internal/plugins/fib/kernel/fibkernel.go -- parallel backend for the kernel -->
 
 BGP sessions themselves still use Linux sockets. VPP's Linux Control
 Plane (LCP) plugin mirrors every VPP interface as a TAP device in a
@@ -208,13 +208,13 @@ fib {
 | `fib.vpp.table-id` | uint32 | `0` | VRF table ID. `0` is the default VRF. |
 | `fib.vpp.batch-size` | uint16 | `256` | Max routes per GoVPP batch. |
 | `fib.vpp.batch-interval-ms` | uint16 | `10` | Max milliseconds to wait before dispatching a partial batch. |
-<!-- source: internal/plugins/fibvpp/schema/ze-fib-vpp-conf.yang -- augments /fib:fib -->
+<!-- source: internal/plugins/fib/vpp/schema/ze-fib-vpp-conf.yang -- augments /fib:fib -->
 
 `fib-vpp` depends on the `vpp` subsystem and on the RIB plugin. If VPP
 is disabled or the GoVPP channel fails to open, the plugin falls back to
 a noop backend and logs a warning instead of blocking the rest of ze.
-<!-- source: internal/plugins/fibvpp/register.go -- Dependencies: ["rib", "vpp"] -->
-<!-- source: internal/plugins/fibvpp/register.go -- mockBackend fallback when connector is nil -->
+<!-- source: internal/plugins/fib/vpp/register.go -- Dependencies: ["rib", "vpp"] -->
+<!-- source: internal/plugins/fib/vpp/register.go -- mockBackend fallback when connector is nil -->
 
 ## System prerequisites
 
@@ -248,7 +248,7 @@ Two places expose VPP state through ze:
 <!-- source: internal/component/vpp/telemetry.go -- newVPPMetrics, poller.run -->
 2. **The `fib-vpp show` command.** Dumps the routes `fib-vpp` believes
    it has installed in VPP, as JSON `[{"prefix": ..., "next-hop": ...}, ...]`.
-<!-- source: internal/plugins/fibvpp/fibvpp.go -- showInstalled -->
+<!-- source: internal/plugins/fib/vpp/fibvpp.go -- showInstalled -->
 
 Direct VPP introspection (`vppctl show int`, `vppctl show ip fib`) is
 still available through the CLI socket ze writes to `/run/vpp/cli.sock`.
