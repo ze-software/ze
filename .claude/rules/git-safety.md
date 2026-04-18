@@ -15,8 +15,13 @@ Rationale: `.claude/rationale/git-safety.md`
 3. **`chmod +x tmp/commit-SESSION.sh` in the same turn you write it.** User runs it
    directly (`./tmp/commit-...sh`), not via `bash`. Same rule for every script you hand
    the user (`tmp/delete-SESSION.sh`, any ad-hoc helper): executable bit set at creation.
-4. Report what was done and what is left (including deferred).
-5. The user reviews and runs `./tmp/commit-SESSION.sh` themselves.
+4. **Never follow a script path with `.`, `,`, `:`, or `)` in chat output.** The user
+   copy-pastes the path straight from the response, and trailing punctuation becomes
+   part of the pasted string and breaks the command. Put the path at the end of a line
+   on its own, or follow it with a space and a word. Applies to every path/URL/command
+   you hand the user, not just commit scripts.
+5. Report what was done and what is left (including deferred).
+6. The user reviews and runs `./tmp/commit-SESSION.sh` themselves.
 
 **Script format:**
 ```bash
