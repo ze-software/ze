@@ -166,6 +166,17 @@
         ]
       },
       {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-source-edit-spec-not-in-progress.sh",
+            "timeout": 5000,
+            "blocking": true
+          }
+        ]
+      },
+      {
         "matcher": "Write",
         "hooks": [
           {

@@ -10,8 +10,9 @@ See also: `/ze-debug` (investigate failures), `/ze-commit` (prepare commit after
    - Report "ze-verify-fast already running (pid N), waiting for it to finish"
    - Wait for it to complete (the make target handles this automatically)
    - Read `tmp/ze-verify.log` for the results
-2. **Run verification:** Execute `make ze-verify-fast` with 180s timeout. Output is auto-captured to `tmp/ze-verify.log`.
+2. **Run verification:** Execute `make ze-verify-fast` with 240s timeout. Output is auto-captured to `tmp/ze-verify.log`.
    - Custom log path: `make ze-verify-fast ZE_VERIFY_LOG=tmp/ze-verify-myname.log`
+   - Race detector lives in `make ze-verify` (the full, sequential variant), NOT in fast. Run `make ze-verify` before commit to get -race coverage.
 3. **Parse results:** On failure, search the log:
    - `grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-verify.log`
    - Also check exit code
@@ -46,7 +47,7 @@ See also: `/ze-debug` (investigate failures), `/ze-commit` (prepare commit after
 
 ## Fallback
 
-If `make ze-verify-fast` times out (180s), fall back to running stages separately:
+If `make ze-verify-fast` times out (240s), fall back to running stages separately:
 1. `make ze-lint` (60s timeout)
 2. `make ze-unit-test` (120s timeout)
 3. `make ze-functional-test` (120s timeout)

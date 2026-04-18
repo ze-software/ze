@@ -87,8 +87,9 @@ Do NOT flag these as "identity wrappers adding no value."
 ### Spec Status Updated at End Instead of Beginning (RECURRING, ZERO TOLERANCE)
 - Specs stay in `design` or `ready` during entire implementation, only moved to `in-progress` at the end.
 - This is backward. Status must reflect current reality, not be a completion checkbox.
-- Root cause: treated status update as a bookkeeping step to do "when convenient" instead of BLOCKING first action.
-- **Rule:** `rules/planning.md` "When to Update (BLOCKING)". Status transitions happen at the START of the phase. `/ze-implement` step 2 is BLOCKING: edit the spec file to `in-progress` before doing anything else. `/ze-spec` sets `design` when research starts, `ready` when spec is approved.
+- Root cause: treated status update as a bookkeeping step to do "when convenient" instead of BLOCKING first action. Documentation alone (`/ze-implement` step 2 BLOCKING text) was not enough -- the rule was repeatedly missed.
+- **Enforcement (2026-04-18):** hook `block-source-edit-spec-not-in-progress.sh` (PreToolUse Write/Edit/MultiEdit, exit 2) now blocks edits to `internal/`, `pkg/`, `cmd/`, `test/`, and `plan/learned/` when the session-selected spec has Status `skeleton`, `design`, or `ready`. Spec file itself is always editable (so you can flip the status). Learned summary is blocked too -- catches the "developed first, flipped later" pattern.
+- **Rule:** `rules/planning.md` "When to Update (BLOCKING)". Status transitions happen at the START of the phase. `/ze-implement` step 2 edits the spec file to `in-progress` before doing anything else. `/ze-spec` sets `design` when research starts, `ready` when spec is approved.
 
 ### Feature Not Wired (RECURRING — multiple specs, ZERO TOLERANCE)
 - Write logic + unit tests, claim "done", but feature is NOT reachable from reactor/CLI/config.

@@ -48,7 +48,9 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 
 Paste command output as evidence. "Should work" is not evidence.
 
-**BLOCKING:** `make ze-verify-fast` (timeout 180s) is the ONLY acceptable verification before claiming done. Output auto-captured to `tmp/ze-verify.log`. See `rules/git-safety.md` for the full pre-commit workflow.
+**BLOCKING:** `make ze-verify-fast` (timeout 240s) is the ONLY acceptable verification before claiming done. Output auto-captured to `tmp/ze-verify.log`. See `rules/git-safety.md` for the full pre-commit workflow.
+
+Race coverage: `ze-verify-fast` does NOT run `-race` (it lives in `make ze-verify`, the full sequential variant). Run `make ze-verify` before commit when reactor concurrency or any race-sensitive code changed.
 
 ## Learned Summary Verification
 

@@ -184,7 +184,7 @@ Tests organized by concern in `test/editor/`: `commands/`, `completion/`, `lifec
 |---------|---------|-----|
 | Default | 15000ms | Bash tool default |
 | `make ze-unit-test` | 120s | Longer than default |
-| `make ze-verify-fast` | 180s | Parallel lint + unit + functional + exabgp |
+| `make ze-verify-fast` | 240s | Lint -> unit (no -race) -> functional+exabgp parallel. Use `make ze-verify` for -race coverage. |
 
 ## Common Flaky Test Causes
 

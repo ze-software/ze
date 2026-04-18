@@ -69,7 +69,11 @@ so in the commit summary. If unsure, run it.
 
 ### Step 1: If `ze-verify` applies (BLOCKING)
 
-**`make ze-verify-fast` (timeout 180s). Not `go test`, not any subset.**
+**`make ze-verify-fast` (timeout 240s). Not `go test`, not any subset.**
+
+Race detector lives in `make ze-verify` (the full sequential variant), NOT in
+`ze-verify-fast`. Run `make ze-verify` before commit when touching reactor
+concurrency code or any path where data races matter.
 
 `make ze-verify-fast` must pass before presenting the commit script. Fix what fails.
 Output is auto-captured to `tmp/ze-verify.log`; on failure, a short index
@@ -79,7 +83,7 @@ is written to `tmp/ze-verify-failures.log` (read this FIRST, not the full log).
 [ ] 0. Run `scripts/dev/verify-status.sh check`. If it prints `FRESH`, the last PASS
       covered this exact tree -- skip step 1 and note the timestamp in the commit summary.
       If `STALE`, continue to step 1.
-[ ] 1. Run `make ze-verify-fast` (180s timeout). On failure read
+[ ] 1. Run `make ze-verify-fast` (240s timeout). On failure read
       tmp/ze-verify-failures.log first; fall back to tmp/ze-verify.log for detail.
 [ ] 2. If failures caused by current work: fix them before proceeding. Re-run.
       If pre-existing failures: do not block current work. Fix them after the primary task
