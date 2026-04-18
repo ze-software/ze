@@ -66,6 +66,7 @@ var _ = func() {
 	_ = ok.lnsMode
 	_ = ok.sequencing
 	_ = ok.fds
+	_ = ok.fds.pppoxFD
 	_ = ok.proxyInitialRecvLCPConfReq
 	_ = ok.proxyLastSentLCPConfReq
 	_ = ok.proxyLastRecvLCPConfReq
