@@ -36,6 +36,17 @@
     ],
     "PreToolUse": [
       {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-until-lsp.sh",
+            "timeout": 5000,
+            "blocking": true
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {

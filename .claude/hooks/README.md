@@ -4,13 +4,14 @@ Automated enforcement of `.claude/rules/` requirements.
 
 ## Summary
 
-**Total: 35 hooks** (24 blocking, 11 advisory)
+**Total: 36 hooks** (25 blocking, 11 advisory)
 
 ## All Hooks
 
 | Hook | Trigger | Rule | Mode |
 |------|---------|------|------|
 | `session-start.sh` | SessionStart | - | Advisory |
+| `block-until-lsp.sh` | PreToolUse:.* | session-start.md | **Blocking** |
 | `compaction-reminder.sh` | UserPromptSubmit | post-compaction.md | Advisory |
 | `pre-compact-save.sh` | PreCompact | post-compaction.md | Advisory |
 | `session-end-summary.sh` | Stop | - | Advisory |
@@ -88,6 +89,7 @@ Automated enforcement of `.claude/rules/` requirements.
 | Hook | What it does |
 |------|-------------|
 | `session-start.sh` | Status summary at session start |
+| `block-until-lsp.sh` | Refuses every tool call until `ToolSearch select:LSP` loads the LSP tool |
 | `pre-compact-save.sh` | Auto-save session state before compaction |
 | `session-end-summary.sh` | Append git state summary at session end |
 | `compaction-reminder.sh` | Re-read reminder after compaction |
