@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Depends | spec-l2tp-7c-redistribute |
 | Phase | - |
 | Updated | 2026-04-18 |
@@ -227,23 +227,19 @@ backing array stays stable in the pool.
 |------|--------------|-------------|
 | `Evaluator.AcceptFamily(family.Family, ...)` API -- removes the one remaining per-batch `Family.String()` allocation in the consumer hot path | Scope creep: touches `internal/component/config/redistribute/evaluator.go` + all callers including the existing `IngressFilter` path. Landing it here enlarges the change and delays redistribute. Performance impact of a single per-batch string allocation is negligible at steady state | a new spec, to be filed when this spec is closed |
 
-## Open Research Questions (block DESIGN gate)
+## Open Research Questions (resolved)
 
-1. Fake-producer placement. Two candidates:
-   - (a) `internal/testplugins/fakeredist/` (new top-level test plugin
-     package; blank-import guarded by a build tag or only wired in test
-     binaries).
-   - (b) `test/plugin/fakeredist/` (alongside `.ci` fixtures but still a
-     Go package; unusual location).
-   - (c) `internal/plugins/fakeredist/` with `Private: true` style gating,
-     relying on config to not load it in production.
-2. Explicit nexthop support (resolved): `RouteChangeEntry.NextHop` is a
-   `netip.Addr` value; zero `Addr` sentinel means the consumer emits
-   `nhop self` and relies on reactor per-peer substitution. Non-zero
-   `Addr` from the producer is passed through as an explicit `nhop
-   <addr>` in the command text. Producers that have no address to supply
-   simply leave the field zero. No follow-up spec needed; the
-   field is present from v1 and producers opt in when they have a value.
+All research questions are now closed. Decisions captured in Research
+Decisions and Design Alternatives sections above.
+
+1. ~~Fake-producer placement~~ -> **(a) `internal/test/plugins/fakeredist/`**.
+   See Alt-5.
+2. ~~Explicit nexthop support~~ -> **resolved**: `RouteChangeEntry.NextHop`
+   is a `netip.Addr` value; zero-Addr sentinel = consumer emits `nhop
+   self`. Non-zero Addr is passed through as explicit `nhop <addr>` in
+   the command text. Producers that have no address leave the field
+   zero. Field is present from v1; producers opt in when they have a
+   value. AC-11 covers this.
 
 ## Current Behavior (MANDATORY)
 
@@ -267,123 +263,313 @@ backing array stays stable in the pool.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- EventBus `(<protocol>, route-change)` typed handle, subscribed at plugin startup.
+- EventBus typed subscription per non-BGP producer. Consumer builds its
+  own local typed handle via `events.Register[*RouteChangeBatch](name, "route-change")` in its own package for each enumerated non-BGP
+  `ProtocolID`. No handle pointer crosses a plugin boundary.
 
-### Event payload shape (batched)
-| Field | Type | Notes |
-|-------|------|-------|
-| `Protocol` | string | "l2tp", "connected", ... (matches `RouteSource.Name`) |
-| `Family` | string | "ipv4/unicast", "ipv6/unicast" |
-| `Entries` | `[]RouteChangeEntry` | One batch per family per emission |
+### Event payload shape (batched, value types only)
 
-| `RouteChangeEntry` field | Type | Notes |
-|---|---|---|
-| `Action` | enum | `add` / `remove` |
-| `Prefix` | netip.Prefix | |
-| `NextHop` | netip.Addr (optional) | For locally-originated: invalid/zero -> egress synthesizes `next-hop self`. Non-zero is ignored for non-BGP sources (egress always uses self). |
-| `Metric` | uint32 | Reserved for future use (not consulted in this spec) |
-| `Metadata` | map[string]any | Free-form; ignored for non-BGP sources in this spec |
+| Field on `RouteChangeBatch` | Type | Size | Notes |
+|------------------------------|------|------|-------|
+| `Protocol` | `redistevents.ProtocolID` (uint16) | 2B | Registered at producer init; 0 = unspecified (invalid) |
+| `Family` | `family.Family` (AFI uint16 + SAFI uint8) | 3B padded | Canonical ze family value type |
+| `Entries` | `[]RouteChangeEntry` | slice header 24B | Fixed-size elements; pool-friendly backing array |
+
+| Field on `RouteChangeEntry` | Type | Size | Notes |
+|-----------------------------|------|------|-------|
+| `Action` | `redistevents.RouteAction` (uint8 enum) | 1B | 0=Unspecified (invalid), 1=Add, 2=Remove |
+| `Prefix` | `netip.Prefix` | ~24B | Value type |
+| `NextHop` | `netip.Addr` | 16B | Zero-value sentinel = consumer emits `nhop self` |
+| `Metric` | `uint32` | 4B | Reserved for future use; unused in this spec |
+
+BLOCKING: no string fields, no pointers, no `map[string]any`. The earlier
+Metadata field is removed -- free-form maps force per-event heap
+allocation and cannot be validated.
 
 ### Transformation Path
-1. Engine delivers a batch to bgp-redistribute's callback.
-2. For each entry: build `RedistRoute{Origin: batch.Protocol, Source: batch.Protocol, Family: batch.Family}`.
-3. Consult `redistribute.Global().Accept(route, "bgp")`. If nil evaluator or Accept=false: skip.
-4. For accepted `add`: build command text `announce <prefix> origin incomplete next-hop self` and call `plugin.UpdateRoute(ctx, "*", command)`.
-5. For accepted `remove`: command text `withdraw <prefix>`; same dispatch path.
-6. Engine resolves `"*"` to every up BGP peer, prepends `peer <addr> ` (`dispatch.go:566`), dispatcher hands the final text to the per-peer reactor, which parses the announce + runs `resolveNextHop(Self, family) -> conn.LocalAddr().IP` per peer.
-7. Each peer gets an UPDATE with its own NEXT_HOP.
+
+1. Bus delivers the batch pointer to the consumer's typed-handle wrapper;
+   the wrapper performs the type assertion once and calls the handler.
+2. Handler filters by protocol: `if b.Protocol == bgpID { return }` (one
+   uint16 compare; `bgpID` is learned once at consumer startup via
+   `redistevents.ProtocolIDOf("bgp")` and cached in a package-level
+   variable).
+3. Handler reads `configredist.Global()`. If nil, return.
+4. Handler looks up the protocol name once per batch
+   (`redistevents.ProtocolName(b.Protocol)`) and builds a `RedistRoute{Origin: name, Source: name, Family: b.Family.String()}` on the stack.
+   The `Family.String()` allocation is the only per-batch string
+   allocation on the hot path; see Deferred for the follow-up fix.
+5. Handler calls `ev.Accept(route, "bgp")`. If false, return.
+6. For each entry (range by pointer to avoid copy):
+   - Action==Add: build command text `update text origin incomplete nhop
+     <self|addr> nlri <fam> add <prefix>`. `<addr>` is used when
+     `entry.NextHop` is non-zero; `self` otherwise.
+   - Action==Remove: build command text `update text nlri <fam> del <prefix>`.
+7. Handler calls `plugin.UpdateRoute(ctx, "*", command)` per entry.
+8. Engine dispatcher prefixes `peer <addr>` per up peer; reactor parses
+   the text, `nhop self` resolves to the peer's `LocalAddress` via
+   existing `resolveNextHop`.
+9. Each peer emits an UPDATE with its own NEXT_HOP.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Protocol producer -> this plugin | typed EventBus handle | [ ] unit test with fake bus |
-| This plugin -> reactor | `update-route` RPC (text command) | [ ] functional test |
+| Protocol producer -> redistevents registry | value-type registration (`RegisterProtocol`, `RegisterProducer`) | [ ] unit test in `redistevents_test.go` |
+| Producer -> bus | producer's local typed handle `Emit(bus, *batch)` | [ ] unit test with in-process fake producer |
+| Bus -> consumer | consumer's local typed handle `Subscribe(bus, handler)` | [ ] unit test |
+| Consumer -> reactor | `plugin.UpdateRoute(ctx, "*", command)` | [ ] functional test |
 | Reactor -> wire | `resolveNextHop` substitutes Self per peer | [ ] functional test with 2 peers |
 
 ### Integration Points
-- `internal/core/events/` (or each protocol's events subpackage) -- typed route-change handle per protocol. L2TP adds its handle in spec-l2tp-7c.
-- `redistribute.Global()` evaluator -- read-only on the hot path.
-- `plugin.UpdateRoute` RPC -- identical path bgp-rib uses today.
+- `internal/core/redistevents/` (NEW) -- owns payload types, `ProtocolID`, registry; value-types-only surface.
+- `configredist.Global()` evaluator -- read via atomic load; lock-free on the hot path.
+- `plugin.UpdateRoute` RPC -- identical path bgp-rib uses today. No changes to the RPC.
 
 ### Architectural Verification
-- [ ] No direct import of any protocol producer package (l2tp, iface, ...)
-- [ ] No import of `bgp/plugins/rib` either -- both plugins call `UpdateRoute` independently
-- [ ] Plugin disabled = no route redistribution; no effect on bgp-rib or reactor
-- [ ] Evaluator read is lock-free on hot path (atomic.Pointer)
+- [ ] No direct import of any protocol producer package (l2tp, iface, ...).
+- [ ] No import of `bgp/plugins/rib` either -- both plugins call `UpdateRoute` independently.
+- [ ] Consumer holds no pointer allocated by another plugin (payload fields are value types; producer handle is NOT exposed by the registry).
+- [ ] Plugin disabled = no route redistribution; no effect on bgp-rib or reactor.
+- [ ] Evaluator read is lock-free on hot path (atomic.Pointer).
+- [ ] Event handle construction is idempotent (`events.Register` accepts duplicate (namespace, eventType, T) calls from different packages).
+
+## Design Alternatives
+
+### Alt-1: Subscription lifecycle
+
+| Option | Behavior | Trade-offs |
+|--------|----------|-----------|
+| (i) Subscribe once at `OnStarted` to every non-BGP producer found in `redistevents.Producers()` | Simplest. Mirrors sysrib. Evaluator atomic swap handles reload semantics without touching subscriptions. | Assumes producers register at init (before OnStarted). True today: `init()` runs before any plugin starts. |
+| (ii) Re-enumerate producers on every config reload | Handles dynamically loaded producers. | Producers don't register at runtime in ze today. Adds complexity without a real use case. |
+
+**Chosen:** (i). Producer registration is init-time by construction. A
+runtime-pluggable producer would require plugin-loader changes outside
+this spec's scope.
+
+### Alt-2: Dispatch granularity
+
+| Option | Behavior | Trade-offs |
+|--------|----------|-----------|
+| (a) Per-entry `UpdateRoute` call | One RPC per prefix change. Matches existing bgp-rib/rr/watchdog pattern exactly. | N RPC calls per batch of N entries. Each call is a direct-bridge call in-process (no socket I/O), so overhead is small. |
+| (b) Batched `UpdateRoute` using multi-prefix text (`nlri <fam> add <p1> <p2> ...`) | One RPC per accepted-subset-per-family. | Evaluator `Accept` is per-entry; mixed accept/reject within a batch forces splitting. Command-text parser supports multiple prefixes for identical attributes; cross-family mixing is not supported. Complexity > saving. |
+
+**Chosen:** (a). The per-entry pattern is uniform with existing plugins.
+If profiling later shows RPC overhead dominates, switch to (b) is
+mechanical (group consecutive accepted entries with identical attrs).
+
+### Alt-3: Callback placement
+
+| Option | When | Trade-offs |
+|--------|------|-----------|
+| (x) `OnStarted(ctx)` spawns `go run(ctx)` | Stage 5 ready. Local goroutine subscribes + blocks on `<-ctx.Done()`. | Matches sysrib exactly. |
+| (y) `OnAllPluginsReady` | After all plugins loaded, dispatcher registry frozen. | Only needed when doing cross-plugin `DispatchCommand` at startup. We don't. |
+
+**Chosen:** (x). Per `plugin-design.md` "OnStarted vs OnAllPluginsReady",
+subscription callbacks go in `OnStarted`.
+
+### Alt-4: Family.String allocation on hot path
+
+| Option | Behavior | Trade-offs |
+|--------|----------|-----------|
+| (p) Keep per-batch `Family.String()` for the existing `Evaluator.Accept` API | 1 string alloc per batch. Zero API change. | Small cost at batch cadence. |
+| (q) Add `Evaluator.AcceptFamily(family.Family, ...)` now | Zero allocs on hot path. | Touches `configredist.Evaluator` + both subscribers (IngressFilter too). Cross-cutting change. |
+
+**Chosen:** (p) for this spec; (q) deferred to a follow-up spec. The
+per-batch allocation cost is negligible at steady state and the
+cross-cutting change is scope creep.
+
+### Alt-5: Fake-producer placement
+
+| Option | Location | Trade-offs |
+|--------|----------|-----------|
+| (a) `internal/test/plugins/fakeredist/` | Fits under existing `internal/test/` namespace (alongside `ci`, `decode`, `peer`, `runner`, `sim`, `syslog`, `testcond`, `tmpfs`). Clearly test-only by virtue of its parent. | Adds a `plugins/` subtree inside `internal/test/`; smaller novelty than a new top-level `internal/testplugins/` would have been. |
+| (b) `test/plugin/fakeredist/` | Alongside `.ci` fixtures. | Mixes Go package with non-Go test artifacts; unusual for ze. |
+| (c) `internal/plugins/fakeredist/` with a `Private: true` style gate | Same place as real plugins, flagged hidden. | Relies on config hygiene to keep it out of production. Previous precedent in ze for test-only plugins is limited. |
+
+**Chosen:** (a) `internal/test/plugins/fakeredist/`. Parent directory
+`internal/test/` already houses test infrastructure; a `plugins/`
+subtree there is the smallest-novelty move. Blank-imported only by
+the test binary's aggregator (`internal/test/plugins/all/`), never
+by `internal/component/plugin/all/all.go`.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| Test-only fixture emits `(fakeproto, route-change)` add-entry with matching `import` rule | -> | bgp-redistribute filter accept -> UpdateRoute announce -> reactor -> UPDATE on wire | `test/plugin/bgp-redistribute-announce.ci` |
-| Same event but NO matching rule | -> | filter rejects -> no UpdateRoute call | `test/plugin/bgp-redistribute-filtered-out.ci` |
-| Two peers with distinct local addresses, matching rule | -> | single event -> two UPDATEs with distinct NEXT_HOPs | `test/plugin/bgp-redistribute-nexthop-self.ci` |
-| Remove entry after add | -> | UpdateRoute withdraw -> WITHDRAWN_ROUTES on wire | `test/plugin/bgp-redistribute-withdraw.ci` |
+| fakeredist plugin dispatches `fakeredist emit add ipv4/unicast 10.0.0.1/32` with matching `import fakeredist` rule | -> | producer emits batch -> consumer filter accept -> UpdateRoute announce -> reactor -> UPDATE on wire | `test/plugin/bgp-redistribute-announce.ci` |
+| Same trigger, NO matching rule | -> | evaluator rejects -> no UpdateRoute call | `test/plugin/bgp-redistribute-filtered-out.ci` |
+| Two peers with distinct local addresses, matching rule | -> | single trigger -> two UPDATEs with distinct NEXT_HOPs | `test/plugin/bgp-redistribute-nexthop-self.ci` |
+| `fakeredist emit remove ipv4/unicast 10.0.0.1/32` after an add | -> | UpdateRoute withdraw -> WITHDRAWN_ROUTES on wire | `test/plugin/bgp-redistribute-withdraw.ci` |
 
-Tests use a minimal Python test-plugin inside `tmpfs=*.run` that obtains an
-SDK handle to the EventBus and emits synthetic `(fakeproto, route-change)`
-batches. `fakeproto` is registered as a `RouteSource` by the same fixture at
-startup.
+Tests load the `fakeredist` test plugin as an internal in-process
+plugin (blank-imported by the ze-test binary's plugin-all equivalent).
+`fakeredist` registers its `ProtocolID` + typed handle at init,
+registers `fakeredist` as a `redistribute.RouteSource`, and exposes a
+CLI command that translates a line of `add|remove <family> <prefix>`
+into a single-entry batch `Emit`.
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Plugin loaded; `(fakeproto, route-change)` handle registered; `redistribute.Global()` nil | No announcements; no panic on events |
-| AC-2 | Evaluator has `import fakeproto { family ipv4/unicast; }` rule; add-batch with `/32` IPv4 entry | `update-route` dispatched with selector `*`, command starts `announce <prefix> origin incomplete next-hop self` |
-| AC-3 | Same as AC-2 but family is `ipv6/unicast` | Dispatched; `/128` IPv6 command |
+| AC-1 | Plugin loaded; `fakeredist` producer registered; `redistribute.Global()` nil | No announcements; no panic on events |
+| AC-2 | Evaluator has `import fakeredist { family ipv4/unicast; }` rule; add-batch with `/32` IPv4 entry | `update-route` dispatched with selector `*`, command text is `update text origin incomplete nhop self nlri ipv4/unicast add <prefix>` |
+| AC-3 | Same as AC-2 but family is `ipv6/unicast`, `/128` entry | Dispatched; command text uses `ipv6/unicast`; `/128` prefix |
 | AC-4 | Add-batch for family NOT in the import rule's family list | No dispatch |
-| AC-5 | Add-batch for source NOT in any import rule | No dispatch |
-| AC-6 | Source whose `RouteSource.Protocol == "bgp"` emits a route-change event | **Not handled** by this plugin; existing IngressFilter path handles BGP-sourced redistribute |
-| AC-7 | Two BGP peers up with distinct local session addresses; accepted event | Each peer's UPDATE carries NEXT_HOP = its own local session address |
-| AC-8 | Remove-batch for a previously announced entry | `update-route` dispatched with `withdraw <prefix>` |
+| AC-5 | Add-batch for protocol NOT in any import rule | No dispatch |
+| AC-6 | Producer whose registered protocol name is `"bgp"` emits a route-change event (hypothetical; BGP is a consumer, not a producer of this event) | **Not subscribed** by this plugin; ProtocolID filter skips the BGP-ID batch if one ever arrives. IngressFilter handles BGP-sourced redistribution separately. |
+| AC-7 | Two BGP peers up with distinct local session addresses; accepted event with `NextHop` zero | Each peer's UPDATE carries NEXT_HOP = its own local session address (`resolveNextHop` fires per peer) |
+| AC-8 | Remove-batch for a previously announced entry | `update-route` dispatched with `update text nlri <fam> del <prefix>` |
 | AC-9 | Config reload adds an import rule while plugin running | Subsequent events matching the new rule are announced; no plugin restart needed |
 | AC-10 | Config reload removes an import rule | Previously-accepted events no longer trigger announce; in-flight routes already in Adj-RIB-Out remain (withdraw is only driven by source remove-events) |
+| AC-11 | Add-batch with non-zero `NextHop` (e.g., 192.0.2.1) | Command text uses `nhop 192.0.2.1`, not `nhop self`; reactor passes the explicit address through without peer substitution |
+| AC-12 | Two batches in close succession on the same (Protocol, Family): (add /32 A, remove /32 A) | Two dispatches in order: announce then withdraw. No reordering, no dedup at this layer. |
+| AC-13 | Burst of N=500 accepted add events within one `fakeredist emit-burst` invocation | All 500 events dispatched; no pool-grow warnings; no dropped events; peer receives all 500 UPDATEs (or a compacted subset with identical content if bgp-rib batches them upstream). No timeouts on any `UpdateRoute` call. |
+| AC-14 | Metric counters after a known event sequence | `ze_bgp_redistribute_events_received` equals the number of emitted batches; `ze_bgp_redistribute_announcements` equals the number of accepted `add` entries; `ze_bgp_redistribute_withdrawals` equals the number of accepted `remove` entries; `ze_bgp_redistribute_filtered_protocol_total` equals the number of batches filtered by the BGP-protocol skip (batch cadence); `ze_bgp_redistribute_filtered_rule_total` equals the number of entries rejected by the evaluator (entry cadence). All counters monotonically non-decreasing. |
+
+## Failure Mode Analysis
+
+| Failure mode | Trigger | Effect | Mitigation |
+|--------------|---------|--------|-----------|
+| Bus payload type mismatch | Producer code drift: emits `*WrongType` | `events.Event[T].Subscribe` wrapper logs warn, drops event | Compile-time safe for in-process producers; warn log surfaces publisher/consumer skew in tests |
+| Nil EventBus on `OnStarted` | `ConfigureEventBus` never called | `getEventBus() == nil`, plugin logs warn, run returns | Same pattern as sysrib; test coverage |
+| Evaluator nil during dispatch | Config reload between subscribe and callback, or plugin starts before config loaded | `configredist.Global()` returns nil; handler returns without dispatch | Read via atomic load; no lock; always safe |
+| Reactor UpdateRoute error | RPC timeout, peer list empty, dispatcher error | Handler logs warn (same shape as bgp-rib's `updateRoute`); batch processing continues | 10s context timeout matches bgp-rib; no state mutation on failure |
+| Unknown ProtocolID on incoming batch | Corrupted payload (impossible via typed handle; defense in depth) | `ProtocolName(id) == ""`; handler skips the batch with a warn | Zero-value Action is ActionUnspecified which also triggers skip |
+| Entries slice aliased across emits (producer bug) | Producer re-uses backing array after Emit returns without copying | Consumer still in synchronous dispatch - safe. If consumer retains, UB. | eventbus.go contract states "MUST treat as read-only". Consumer does not retain. |
+| Out-of-order add/remove from producer | Producer emits remove before add (for the same prefix) | Consumer dispatches withdraw of an unannounced prefix; reactor tolerates no-op withdrawal | No state here; idempotent at the wire level. Producer bugs surface in bgp-rib rejection logs |
+| NextHop family mismatch (IPv4 addr for IPv6 family) | Producer supplies a wrong NextHop | `resolveNextHop` rejects when explicit NH; `nhop self` path is unaffected | Existing `canUseNextHopFor` check catches this at reactor |
+| Reload triggers subscription churn | Config reload re-registers producers (won't happen today; producers are init-only) | No subscribers re-register either | Subscription is OnStarted-only; no reload path |
+| Concurrent producer Emits during consumer Subscribe | Consumer starting while producer already running | Bus subscription is thread-safe; events before subscribe are lost | Producer replay is not in scope here. For real-traffic producers (L2TP), replay is a separate concern handled by the producer if needed |
+| Many protocols register with same ProtocolID by accident | `RegisterProtocol` returns an existing ID for existing names, so duplicates with different payloads are impossible | N/A | Registry is idempotent on name |
+| Family.String allocation pressure | Very high batch rate | 1 alloc per batch; sustained MB/s rates possible under pathological bursts | Deferred to follow-up: `Evaluator.AcceptFamily(family.Family)` |
+
+## Triple Challenge
+
+### Simplicity
+- Is this the minimum change that achieves the goal? Yes. The plugin is
+  one file + `register.go` + tests. The shared package is one file of
+  types + one file of registry + its tests. No abstraction beyond the
+  concrete need.
+- Alternative considered: reuse `sysrib`'s `best-change` subscription
+  instead of a new event type. Rejected because sysrib operates on
+  FIB-admin-distance semantics over the system RIB; redistribute operates
+  on import-rule semantics over per-protocol route lifecycles. They are
+  different filters over different event sources.
+
+### Uniformity
+- Same plugin pattern as sysrib (ConfigureEventBus, OnStarted,
+  package-level atomic pointers, long-lived goroutine).
+- Same command-text API as bgp-rib, rr, watchdog (`update text ... nhop
+  self ... nlri <fam> add|del <prefix>`). No new command vocabulary.
+- Same registration pattern as `internal/core/family/` (central registry,
+  value-type lookups).
+- New: `internal/testplugins/` top-level directory. First occupant is
+  `fakeredist`. Precedent for future test-only internal plugins.
+
+### Performance
+- Per-event heap allocations on the hot path: 0 from the payload
+  (batch + entries pooled on producer side); 1 `Family.String()` per
+  batch (consumer-side, deferred fix).
+- Dispatch cost: typed-handle assertion (1 `p.(T)`), per-batch
+  protocol filter (1 uint16 eq), evaluator accept (RW-lock read, 1-N
+  import-rule walks), per-entry command build + RPC.
+- Zero-copy fan-out: bus delivers the same batch pointer to every
+  subscriber synchronously; no copy per subscriber.
+- No cross-boundary pointer holds -- registry returns value types, both
+  sides build local typed handles, payload is value-typed.
+- RPC overhead: each `UpdateRoute` call is a direct-bridge in-process
+  call (no socket I/O); function-call overhead, not syscall overhead.
+- Burst exercise: `bgp-redistribute-burst.ci` drives 500 sequential
+  emits. If the pool seed is correctly sized, `batchPool.New` fires at
+  most once at warm-up. If it fires repeatedly, that is a sizing bug
+  surfaced by the test.
+- Metric assertion: `bgp-redistribute-metrics.ci` catches counter
+  drift from reality (a past ze failure mode -- see recurring "metrics
+  never asserted" pattern in `rules/memory.md` / mistake log).
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
+
+#### `internal/core/redistevents/` (new package)
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestSubscribe_BGPSources_Ignored` | `internal/component/bgp/plugins/redistribute/redistribute_test.go` | Plugin skips BGP-protocol sources at subscription time | |
-| `TestSubscribe_NonBGPSources_Handled` | same | Plugin subscribes to each registered non-BGP source | |
-| `TestHandleBatch_AcceptedAddDispatches` | same | Accepted add entries produce UpdateRoute calls with correct command text | |
-| `TestHandleBatch_RejectedAddDoesNothing` | same | Rejected entries: zero UpdateRoute calls | |
-| `TestHandleBatch_RemoveDispatchesWithdraw` | same | Remove entries use `withdraw` command | |
-| `TestHandleBatch_NoEvaluator_Noop` | same | Global()==nil: no dispatches | |
-| `TestHandleBatch_ReloadApplies` | same | Evaluator swap mid-run: next call uses new rules | |
-| `TestAttrSynthesis` | same | Synthesized announce text carries `origin incomplete`, no `aspath`, `next-hop self` | |
+| `TestRegisterProtocol_Idempotent` | `redistevents_test.go` | Same name twice returns same ID; IDs start at 1 | |
+| `TestRegisterProtocol_DistinctNames` | same | Distinct names allocate distinct IDs | |
+| `TestProtocolName_Unknown` | same | Unknown ID returns empty string, no panic | |
+| `TestProtocolIDOf_Unknown` | same | Unknown name returns 0, false | |
+| `TestRegisterProducer_Idempotent` | same | Calling twice for same ID is a no-op | |
+| `TestProducers_Snapshot` | same | Returns copied slice of IDs; callers modifying the slice do not affect the registry | |
+| `TestRouteAction_ZeroValueInvalid` | same | `ActionUnspecified` is distinct from Add/Remove | |
+| `TestBatchPoolReuse` | same | Release clears fields; Acquire returns clean batch | |
+
+#### `internal/component/bgp/plugins/redistribute/` (consumer plugin)
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestSubscribe_SkipsOwnProtocol` | `redistribute_test.go` | On OnStarted, consumer skips `ProtocolIDOf("bgp")` when iterating `Producers()` | |
+| `TestSubscribe_NonBGPProducers` | same | Consumer subscribes via its own local `events.Register` handle for each non-BGP producer | |
+| `TestHandleBatch_AcceptedAddDispatches` | same | Accepted add entries produce `UpdateRoute` calls with canonical text `update text origin incomplete nhop self nlri <fam> add <prefix>` | |
+| `TestHandleBatch_ExplicitNextHop` | same | Non-zero `entry.NextHop` produces `nhop <addr>` instead of `nhop self` | |
+| `TestHandleBatch_RejectedAddNoop` | same | Rejected entries: zero UpdateRoute calls | |
+| `TestHandleBatch_RemoveDispatches` | same | Remove entries use `update text nlri <fam> del <prefix>` | |
+| `TestHandleBatch_NoEvaluator_Noop` | same | `configredist.Global()==nil`: no dispatches, no panic | |
+| `TestHandleBatch_ReloadApplies` | same | Evaluator atomic swap mid-run: next call uses new rules | |
+| `TestHandleBatch_BGPSourceSkipped` | same | Batch with `Protocol == ProtocolIDOf("bgp")` is filtered out at handler entry | |
+| `TestHandleBatch_UnknownProtocol` | same | Batch with unregistered ProtocolID is skipped with a warn, no dispatch | |
+| `TestCommandText_AllFamilies` | same | Table-driven: IPv4 /32, IPv6 /128, /24, /64 render the expected text | |
+
+#### `internal/test/plugins/fakeredist/` (test-only producer)
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestInit_RegistersProtocol` | `fakeredist_test.go` | init() registers protocol name and producer | |
+| `TestCommand_EmitAdd` | same | `fakeredist emit add ipv4/unicast 10.0.0.1/32` builds a one-entry batch and calls `RouteChange.Emit` | |
+| `TestCommand_EmitRemove` | same | `fakeredist emit remove ipv4/unicast 10.0.0.1/32` same with Action=Remove | |
+| `TestCommand_EmitBurst` | same | `fakeredist emit-burst 500 add ipv4/unicast 10.0.0.0/24` builds 500 sequential single-entry batches and emits them; no allocations beyond the pool-seeded capacity on the happy path | |
+| `TestCommand_BadArgs` | same | Invalid family / prefix / burst count returns an error status, no Emit | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| n/a (no numeric surface; command text is string) | | | | |
+| `ProtocolID` | uint16 0-65535 | 1 (first allocated), 65535 (max) | 0 (`ProtocolUnspecified`) | overflow beyond uint16 is impossible (type-bounded) |
+| `RouteAction` | enum 0-2 | 1 (Add), 2 (Remove) | 0 (`ActionUnspecified`) | ≥3 rejected by handler (warn + skip) |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `bgp-redistribute-announce` | `test/plugin/bgp-redistribute-announce.ci` | Fixture emits matching route event; peer receives UPDATE with synthesized attrs | |
-| `bgp-redistribute-filtered-out` | `test/plugin/bgp-redistribute-filtered-out.ci` | Fixture emits event without matching rule; peer receives nothing | |
+| `bgp-redistribute-announce` | `test/plugin/bgp-redistribute-announce.ci` | fakeredist plugin emits matching add event; peer receives UPDATE with synthesized attrs | |
+| `bgp-redistribute-filtered-out` | `test/plugin/bgp-redistribute-filtered-out.ci` | fakeredist emits event without matching rule; peer receives nothing | |
 | `bgp-redistribute-nexthop-self` | `test/plugin/bgp-redistribute-nexthop-self.ci` | Two peers, distinct local addrs; each UPDATE carries its own NEXT_HOP | |
-| `bgp-redistribute-withdraw` | `test/plugin/bgp-redistribute-withdraw.ci` | Remove event after add produces WITHDRAWN_ROUTES | |
+| `bgp-redistribute-withdraw` | `test/plugin/bgp-redistribute-withdraw.ci` | fakeredist emits remove after add; peer receives WITHDRAWN_ROUTES | |
+| `bgp-redistribute-explicit-nhop` | `test/plugin/bgp-redistribute-explicit-nhop.ci` | fakeredist emit with explicit NextHop; peer receives UPDATE with that NEXT_HOP, not the peer's LocalAddress | |
+| `bgp-redistribute-burst` | `test/plugin/bgp-redistribute-burst.ci` | `fakeredist emit-burst 500 add ipv4/unicast 10.0.0.0/24` drives 500 sequential emissions; peer receives all 500 UPDATEs (or equivalent batched form); no pool-grow warnings; no UpdateRoute timeouts | |
+| `bgp-redistribute-metrics` | `test/plugin/bgp-redistribute-metrics.ci` | Known event sequence (N accepted adds, M filtered, K removes); `curl` the Prometheus endpoint or parse `ze metrics show` output; assert each of the four counters matches the expected value | |
 
 ### Future (if deferring any tests)
 - Per-peer redistribute config (different import rules per peer) -- out of scope here; separate spec when per-peer YANG lands.
 - Intra-BGP egress redistribution (`redistribute ibgp` as egress advertisement vs current ingress-ACL semantics) -- out of scope; the current IngressFilter keeps its meaning.
 - Policy transformations (set-localpref, community-tag on redistribute) -- out of scope; route-map/policy is a separate feature.
+- `Evaluator.AcceptFamily(family.Family, ...)` to remove the per-batch `Family.String()` allocation -- deferred to follow-up spec.
 
 ## Files to Modify
-- `internal/component/plugin/all/all.go` -- blank import of the new plugin package
+- `internal/component/plugin/all/all.go` -- blank import of the new `bgp-redistribute` plugin package
+- `cmd/ze-test/` binary's plugin-all equivalent (or a new `internal/test/plugins/all/` that test binaries blank-import) -- wire in `fakeredist` for test builds only
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| Plugin registration | [x] | `internal/component/bgp/plugins/redistribute/register.go` |
+| Core payload/registry package | [x] NEW | `internal/core/redistevents/` (types, ProtocolID registry, pool) |
+| Consumer plugin registration | [x] NEW | `internal/component/bgp/plugins/redistribute/register.go` |
+| Consumer plugin logic | [x] NEW | `internal/component/bgp/plugins/redistribute/redistribute.go` |
+| Test-only producer | [x] NEW | `internal/test/plugins/fakeredist/` (package + register + CLI) |
+| Blank import in production `all.go` | [x] | `internal/component/plugin/all/all.go` (`bgp-redistribute` only, NOT `fakeredist`) |
+| Blank import in test `all.go` | [x] | test-binary plugin-all (`fakeredist` here, never in production) |
 | YANG schema | [ ] no (reads existing `redistribute` container; no new leaves) | -- |
-| CLI commands | [ ] no | -- |
-| EventBus subscription | [x] | new plugin, uses existing typed-handle infrastructure |
-| Functional tests | [x] | four `.ci` files above |
-| bgp-redistribute status/metrics | [x] | simple Prometheus counters: `ze_bgp_redistribute_events_received`, `ze_bgp_redistribute_announcements`, `ze_bgp_redistribute_withdrawals`, `ze_bgp_redistribute_filtered_total` |
+| CLI commands (production) | [ ] no | -- |
+| CLI commands (test fixture) | [x] | `fakeredist` registers `fakeredist emit ...` via CommandDecl for `.ci` driving |
+| EventBus subscription | [x] | consumer plugin, via local `events.Register` handle per enumerated producer |
+| Functional tests | [x] | seven `.ci` files above (announce, filtered-out, nexthop-self, withdraw, explicit-nhop, burst, metrics) |
+| bgp-redistribute status/metrics | [x] | Prometheus counters: `ze_bgp_redistribute_events_received` (batch cadence), `ze_bgp_redistribute_announcements` (accepted-add entry cadence), `ze_bgp_redistribute_withdrawals` (accepted-remove entry cadence), `ze_bgp_redistribute_filtered_protocol_total` (BGP-protocol skip, batch cadence), `ze_bgp_redistribute_filtered_rule_total` (evaluator reject, entry cadence) |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
@@ -397,18 +583,29 @@ startup.
 | 7 | Wire format changed? | [ ] no | -- |
 | 8 | Plugin SDK/protocol changed? | [ ] no | -- |
 | 9 | RFC behavior implemented? | [ ] no | -- |
-| 10 | Test infrastructure changed? | [x] | `docs/functional-tests.md` -- fixture-producer pattern (Python emits events via SDK) |
+| 10 | Test infrastructure changed? | [x] | `docs/functional-tests.md` -- in-process test-only plugin pattern via `internal/testplugins/`; first occupant is `fakeredist` |
 | 11 | Affects daemon comparison? | [x] | `docs/comparison.md` -- BGP redistribute parity for non-BGP sources |
-| 12 | Internal architecture changed? | [x] | `docs/architecture/core-design.md` -- redistribute now has egress subscriber |
+| 12 | Internal architecture changed? | [x] | `docs/architecture/core-design.md` -- new cross-protocol route-change event surface in `internal/core/redistevents/`; bgp-redistribute as egress subscriber |
 
 ## Files to Create
-- `internal/component/bgp/plugins/redistribute/redistribute.go`
-- `internal/component/bgp/plugins/redistribute/register.go`
+- `internal/core/redistevents/events.go` -- type definitions (`RouteChangeBatch`, `RouteChangeEntry`, `RouteAction`, `ProtocolID`) + constants
+- `internal/core/redistevents/registry.go` -- `RegisterProtocol`, `RegisterProducer`, `Producers`, `ProtocolName`, `ProtocolIDOf`
+- `internal/core/redistevents/pool.go` -- `AcquireBatch` / `ReleaseBatch`
+- `internal/core/redistevents/redistevents_test.go`
+- `internal/component/bgp/plugins/redistribute/redistribute.go` -- consumer plugin logic (subscribe, handleBatch, command builder)
+- `internal/component/bgp/plugins/redistribute/register.go` -- consumer plugin registration
 - `internal/component/bgp/plugins/redistribute/redistribute_test.go`
+- `internal/testplugins/fakeredist/fakeredist.go` -- test-only in-process producer
+- `internal/testplugins/fakeredist/register.go`
+- `internal/testplugins/fakeredist/fakeredist_test.go`
+- `internal/testplugins/all/all.go` -- test-binary blank-import aggregator (mirrors `internal/component/plugin/all/all.go` pattern, test-only)
 - `test/plugin/bgp-redistribute-announce.ci`
 - `test/plugin/bgp-redistribute-filtered-out.ci`
 - `test/plugin/bgp-redistribute-nexthop-self.ci`
 - `test/plugin/bgp-redistribute-withdraw.ci`
+- `test/plugin/bgp-redistribute-explicit-nhop.ci`
+- `test/plugin/bgp-redistribute-burst.ci`
+- `test/plugin/bgp-redistribute-metrics.ci`
 
 ## Implementation Steps
 
@@ -423,26 +620,54 @@ startup.
 | 6-12 | Standard flow |
 
 ### Implementation Phases
-1. **Phase: plugin skeleton** -- `register.go` + empty `RunEngine`; registry test count bumped; blank import added. `make generate` + `TestAllPluginsRegistered`.
-2. **Phase: subscribe to non-BGP protocol route-change handles** -- iterate `redistribute.SourceNames()`, filter out `Protocol == "bgp"`, resolve typed handle, subscribe on `OnStarted` (or `OnAllPluginsReady`). Unit tests with mock bus.
-3. **Phase: handleBatch core** -- filter via evaluator, synthesize command text, dispatch via `plugin.UpdateRoute`. Unit tests cover every AC branch.
-4. **Phase: metrics** -- four counters; register via ConfigureMetrics.
-5. **Phase: functional tests** -- four `.ci` files; fixture-producer plugin emits synthetic events.
-6. **Phase: docs** -- update listed files; add `<!-- source: -->` anchors.
-7. **Phase: learned summary** -- write on completion.
-8. **Full verification** -- `make ze-verify-fast`.
+
+1. **Phase 1: core `redistevents` package.**
+   - Create `internal/core/redistevents/events.go` with `ProtocolID`, `RouteAction`, `RouteChangeBatch`, `RouteChangeEntry`. Tests FAIL (no registry yet).
+   - Add `registry.go` with `RegisterProtocol`, `RegisterProducer`, `Producers`, `ProtocolName`, `ProtocolIDOf`. Tests PASS.
+   - Add `pool.go` with `AcquireBatch` / `ReleaseBatch`. Pool-reuse test PASS.
+   - Gate: `go test ./internal/core/redistevents/...` green.
+2. **Phase 2: consumer plugin skeleton.**
+   - Create `internal/component/bgp/plugins/redistribute/register.go` with empty `RunEngine`.
+   - Blank-import in `internal/component/plugin/all/all.go`.
+   - Bump `TestAllPluginsRegistered` expected count.
+   - `make generate` + unit test green.
+3. **Phase 3: consumer subscribe + handleBatch.**
+   - Implement `run(ctx)`: enumerate `Producers()`, skip BGP-ID, build local typed handles, subscribe. Unit tests with a bus stub FAIL then PASS.
+   - Implement `handleBatch`: evaluator lookup, RedistRoute construction, per-entry dispatch via `plugin.UpdateRoute`. Unit tests for every AC branch FAIL then PASS.
+   - Implement command-text builder: offset-writes into a scratch buffer, string conversion at the UpdateRoute boundary only. Unit tests for all command-text variants PASS.
+4. **Phase 4: test-only producer `fakeredist`.**
+   - Create `internal/test/plugins/fakeredist/` with registration, typed-handle, and `CommandDecl` for `fakeredist emit add|remove <family> <prefix> [<nexthop>]`.
+   - Create `internal/testplugins/all/all.go` blank-import aggregator.
+   - Wire `internal/testplugins/all` into `cmd/ze-test/` (or equivalent test binary).
+   - Unit tests for fakeredist command parsing + emission PASS.
+5. **Phase 5: functional `.ci` tests.**
+   - Write the seven `.ci` files (announce, filtered-out, nexthop-self, withdraw, explicit-nhop, burst, metrics).
+   - Add a `fakeredist emit-burst <N> <add|remove> <family> <prefix>` CommandDecl to the test producer; each invocation emits N single-entry batches sequentially with prefix auto-incremented from the base.
+   - Burst test asserts all N UPDATEs are received at the peer (or, if bgp-rib batches them before the reactor, that the aggregate prefix count matches N).
+   - Metrics test drives a known event sequence and scrapes `ze metrics show` (or the Prometheus `/metrics` endpoint) to assert counter values.
+   - Run via `bin/ze-test bgp plugin N`. Validate each AC's wire effect against `ze-peer` output.
+6. **Phase 6: metrics.**
+   - Register `ze_bgp_redistribute_events_received` (batch cadence), `_announcements` (entry cadence), `_withdrawals` (entry cadence), `_filtered_protocol_total` (batch cadence), `_filtered_rule_total` (entry cadence) via `ConfigureMetrics`.
+   - Unit tests verify each counter increments at the expected cadence for a known sequence.
+7. **Phase 7: docs.**
+   - Update files listed in Documentation Update Checklist. Add `<!-- source: -->` anchors.
+8. **Phase 8: learned summary.**
+   - Write on completion per TEMPLATE.md format.
+9. **Full verification** -- `make ze-verify-fast`.
 
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has implementation + test |
-| Correctness | Evaluator consulted per entry; BGP-source protocols skipped at subscription |
-| Naming | Command text matches reactor's parser (`announce <prefix> origin incomplete next-hop self`) |
-| Data flow | Plugin reads EventBus, writes UpdateRoute; no other couplings |
-| Rule: no-layering | No parallel redistribute path; the existing IngressFilter unchanged |
-| Rule: plugin-design | No import of sibling plugin packages; DispatchCommand for cross-plugin if ever needed |
-| Rule: buffer-first | Command text assembled by append on a scratch buffer (RFC 4271 max line length); no fmt.Sprintf on hot path |
-| Rule: goroutine-lifecycle | Subscription callback is long-lived (EventBus callback); no per-event goroutines |
+| Correctness | Evaluator consulted per batch; BGP-ID filtered at handler entry; `ActionUnspecified` and unknown ProtocolID skipped with warn |
+| Naming | Command text exactly matches ze's canonical `update text origin <o> [attrs...] nhop <addr\|self> nlri <afi>/<safi> add <prefix>` / `update text nlri <afi>/<safi> del <prefix>`. Round-trip test: parser accepts what the builder emits |
+| Data flow | Plugin reads EventBus, writes UpdateRoute; no direct import of any producer plugin; no import of `bgp/plugins/rib` |
+| No cross-boundary pointers | Event payload carries only value types; registry returns value types; consumer builds its own local handle |
+| Rule: no-layering | No parallel redistribute path; existing IngressFilter unchanged |
+| Rule: plugin-design | No import of sibling plugin packages; `OnStarted` (not `OnAllPluginsReady`) since no cross-plugin dispatch at startup |
+| Rule: buffer-first | Command text assembled by offset writes on a scratch buffer (RFC 4271 max line length). `strings.Builder` is acceptable here (matches `internal/component/bgp/format.go`), but `fmt.Sprintf` is forbidden on the hot path |
+| Rule: goroutine-lifecycle | Subscription callback is long-lived; no per-event goroutines; `run(ctx)` blocks on `<-ctx.Done()` |
+| Rule: self-documenting | Command text in code references `internal/component/bgp/format.go` FormatAnnounceCommand / FormatWithdrawCommand as the canonical shape |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
@@ -484,6 +709,12 @@ startup.
 |----------|---------------|-------------|
 | Merge into `bgp-rib` plugin | Violates single-responsibility; bgp-rib already owns Adj-RIB-In/best-path/Adj-RIB-Out | New plugin `bgp-redistribute` |
 | Per-peer subscriber instance | Current config is global; per-peer structure buys nothing until per-peer YANG lands | Single subscriber, per-peer fan-out via `UpdateRoute "*"` |
+| Payload field `Source *redistribute.RouteSource` (pointer into shared registry) | Cross-boundary pointer: consumer plugin would hold a pointer into data registered by the producer's init, even though the backing lives in shared core. User rejected: "NO POINTER. YOU ARE NOT ALLOWED TO POKE INTO OTHER PLUGIN OR COMPONENT CODE." | Numeric `ProtocolID uint16` registered in `internal/core/redistevents/`; name lookup via local value-returning API |
+| Registry returning `map[ProtocolID]*Event[*RouteChangeBatch]` handles | Same class of violation: handle pointers are producer-allocated; consumer iterating the registry would hold pointers across the boundary | Registry returns value types only (`[]ProtocolID`, `(ProtocolID, bool)`, `string`). Consumer and producer each build their own local typed handle via `events.Register`, which is idempotent on the (namespace, eventType, T) contract |
+| Approach (B) raw `bus.Subscribe` with JSON payload | Per-delivery JSON unmarshal when producer is external plugin process -- 5-7 heap allocations per event violates `buffer-first.md` | Approach (A): typed handle per protocol |
+| Approach (C) single shared `(redistribute, route-change)` namespace | Dispatches every event to every subscriber on that one key; scales as subscribers × protocols | Approach (A): per-protocol key; subscribers receive only their registered interests |
+| Original command text `announce <prefix> origin incomplete next-hop self` | Syntax not recognized by ze's announce parser; the canonical form is `update text origin <o> ... nhop <addr\|self> nlri <afi>/<safi> add <prefix>` | Adopt the canonical form as shown in `internal/component/bgp/format.go` |
+| Python `emit-event` fake producer for `.ci` tests | External plugin JSON payload arrives as `json.RawMessage`; typed-handle subscribers fail the assertion and drop with a warn | In-process `internal/test/plugins/fakeredist/` producer with a `fakeredist emit` CommandDecl driven from `.ci` |
 
 ### Escalation Candidates
 | Mistake | Frequency | Proposed rule | Action |
