@@ -6,10 +6,9 @@ import (
 	"encoding/hex"
 	"strconv"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // DecodedCapability holds structured capability data for API formatting.
@@ -108,14 +107,18 @@ func parseCapabilitiesFromOptParams(optParams []byte) ([]DecodedCapability, uint
 // formatCapability returns structured capability data.
 // Most capabilities return a single entry, but AddPath/ExtendedNextHop return one per family.
 // The post-switch fallback path covers unknown / plugin-decoded capabilities.
+// All Value strings are built via family.AppendTo into a stack scratch, so only
+// the final string() conversion allocates.
 func formatCapability(cap capability.Capability) []DecodedCapability {
 	code := uint8(cap.Code())
+	var sb [64]byte
 	switch c := cap.(type) {
 	case *capability.Multiprotocol:
-		return []DecodedCapability{{Code: code, Name: "multiprotocol", Value: joinFamily(c.AFI.String(), c.SAFI.String())}}
+		out := family.Family{AFI: c.AFI, SAFI: c.SAFI}.AppendTo(sb[:0])
+		return []DecodedCapability{{Code: code, Name: "multiprotocol", Value: string(out)}}
 	case *capability.ASN4:
-		var sb [16]byte
-		return []DecodedCapability{{Code: code, Name: "asn4", Value: string(strconv.AppendUint(sb[:0], uint64(c.ASN), 10))}}
+		out := strconv.AppendUint(sb[:0], uint64(c.ASN), 10)
+		return []DecodedCapability{{Code: code, Name: "asn4", Value: string(out)}}
 	case *capability.ExtendedMessage:
 		return []DecodedCapability{{Code: code, Name: "extended-message"}}
 	case *capability.AddPath:
@@ -133,10 +136,13 @@ func formatCapability(cap capability.Capability) []DecodedCapability {
 			case capability.AddPathBoth:
 				mode = "send-receive"
 			}
+			out := family.Family{AFI: f.AFI, SAFI: f.SAFI}.AppendTo(sb[:0])
+			out = append(out, ' ')
+			out = append(out, mode...)
 			results = append(results, DecodedCapability{
 				Code:  code,
 				Name:  "addpath",
-				Value: joinFamilyMode(f.AFI.String(), f.SAFI.String(), mode),
+				Value: string(out),
 			})
 		}
 		return results
@@ -144,10 +150,13 @@ func formatCapability(cap capability.Capability) []DecodedCapability {
 		// Return one entry per family
 		var results []DecodedCapability
 		for _, f := range c.Families {
+			out := family.Family{AFI: f.NLRIAFI, SAFI: f.NLRISAFI}.AppendTo(sb[:0])
+			out = append(out, ' ')
+			out = f.NextHopAFI.AppendTo(out)
 			results = append(results, DecodedCapability{
 				Code:  code,
 				Name:  "extended-nexthop",
-				Value: joinFamilyMode(f.NLRIAFI.String(), f.NLRISAFI.String(), f.NextHopAFI.String()),
+				Value: string(out),
 			})
 		}
 		return results
@@ -155,30 +164,9 @@ func formatCapability(cap capability.Capability) []DecodedCapability {
 	// Unknown / plugin-decoded capability.
 	buf := make([]byte, cap.Len())
 	cap.WriteTo(buf, 0)
-	var nameSB [16]byte
-	nameOut := append(nameSB[:0], "unknown-"...)
-	nameOut = strconv.AppendUint(nameOut, uint64(code), 10)
-	return []DecodedCapability{{Code: code, Name: string(nameOut), Value: hex.EncodeToString(buf)}}
-}
-
-// joinFamily builds "afi/safi" using stack scratch (no fmt reflection).
-func joinFamily(afi, safi string) string {
-	var sb [32]byte
-	out := append(sb[:0], afi...)
-	out = append(out, '/')
-	out = append(out, safi...)
-	return string(out)
-}
-
-// joinFamilyMode builds "afi/safi mode" using stack scratch (no fmt reflection).
-func joinFamilyMode(afi, safi, mode string) string {
-	var sb [64]byte
-	out := append(sb[:0], afi...)
-	out = append(out, '/')
-	out = append(out, safi...)
-	out = append(out, ' ')
-	out = append(out, mode...)
-	return string(out)
+	name := append(sb[:0], "unknown-"...)
+	name = strconv.AppendUint(name, uint64(code), 10)
+	return []DecodedCapability{{Code: code, Name: string(name), Value: hex.EncodeToString(buf)}}
 }
 
 // DecodedNotification holds parsed NOTIFICATION message contents for API formatting.
@@ -352,7 +340,7 @@ func DecodeRouteRefresh(body []byte) DecodedRouteRefresh {
 		SAFI:        uint8(rr.SAFI),
 		Subtype:     uint8(rr.Subtype),
 		SubtypeName: subtypeName,
-		Family:      afiSafiToFamily(uint16(rr.AFI), uint8(rr.SAFI)),
+		Family:      family.Family{AFI: rr.AFI, SAFI: rr.SAFI}.String(),
 	}
 }
 
@@ -418,14 +406,14 @@ func NegotiatedToDecoded(neg *capability.Negotiated) DecodedNegotiated {
 	families := neg.Families()
 	familyStrs := make([]string, 0, len(families))
 	for _, f := range families {
-		familyStrs = append(familyStrs, afiSafiToFamily(uint16(f.AFI), uint8(f.SAFI)))
+		familyStrs = append(familyStrs, f.String())
 	}
 
 	// Convert ADD-PATH (separate send/receive)
 	var addPathSend, addPathRecv []string
 	for _, f := range families {
 		mode := neg.AddPathMode(f)
-		famStr := afiSafiToFamily(uint16(f.AFI), uint8(f.SAFI))
+		famStr := f.String()
 		if mode == capability.AddPathSend || mode == capability.AddPathBoth {
 			addPathSend = append(addPathSend, famStr)
 		}
@@ -442,8 +430,7 @@ func NegotiatedToDecoded(neg *capability.Negotiated) DecodedNegotiated {
 			if extNH == nil {
 				extNH = make(map[string]string)
 			}
-			famStr := afiSafiToFamily(uint16(f.AFI), uint8(f.SAFI))
-			extNH[famStr] = afiToString(nhAFI)
+			extNH[f.String()] = nhAFI.String()
 		}
 	}
 
@@ -457,64 +444,4 @@ func NegotiatedToDecoded(neg *capability.Negotiated) DecodedNegotiated {
 		AddPathReceive:  addPathRecv,
 		ExtendedNextHop: extNH,
 	}
-}
-
-// afiToString converts AFI to string name; unknown values format as "afi(N)".
-func afiToString(afi capability.AFI) string {
-	switch afi {
-	case 1:
-		return "ipv4"
-	case 2:
-		return "ipv6"
-	}
-	return appendAfiFallback(uint16(afi))
-}
-
-// afiSafiToFamily converts AFI/SAFI to family string; unknown values format as "afi(N)"/"safi(N)".
-func afiSafiToFamily(afi uint16, safi uint8) string {
-	return joinFamily(afiNameOrFallback(afi), safiNameOrFallback(safi))
-}
-
-// afiNameOrFallback returns the registered name for known AFI values, "afi(N)" otherwise.
-func afiNameOrFallback(afi uint16) string {
-	switch afi {
-	case 1:
-		return "ipv4"
-	case 2:
-		return "ipv6"
-	}
-	return appendAfiFallback(afi)
-}
-
-// safiNameOrFallback returns the registered name for known SAFI values, "safi(N)" otherwise.
-func safiNameOrFallback(safi uint8) string {
-	switch safi {
-	case 1:
-		return bgptypes.SAFINameUnicast
-	case 2:
-		return bgptypes.SAFINameMulticast
-	case 4:
-		return "mpls-labels"
-	case 128:
-		return bgptypes.SAFINameMPLSVPN
-	}
-	return appendSafiFallback(safi)
-}
-
-// appendAfiFallback formats "afi(N)" without fmt reflection.
-func appendAfiFallback(afi uint16) string {
-	var sb [16]byte
-	out := append(sb[:0], "afi("...)
-	out = strconv.AppendUint(out, uint64(afi), 10)
-	out = append(out, ')')
-	return string(out)
-}
-
-// appendSafiFallback formats "safi(N)" without fmt reflection.
-func appendSafiFallback(safi uint8) string {
-	var sb [16]byte
-	out := append(sb[:0], "safi("...)
-	out = strconv.AppendUint(out, uint64(safi), 10)
-	out = append(out, ')')
-	return string(out)
 }

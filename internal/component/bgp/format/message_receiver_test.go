@@ -375,11 +375,11 @@ func TestDecodeRouteRefresh_UnknownSubtype(t *testing.T) {
 	require.Equal(t, "ipv4/unicast", decoded.Family)
 }
 
-// TestDecodeNegotiated_UnknownAfiSafi verifies the afiSafiToFamily / afiToString fallbacks.
+// TestDecodeNegotiated_UnknownAfiSafi verifies the family-package fallback for unknown AFI/SAFI.
 //
-// VALIDATES: NegotiatedToDecoded emits "afi(99)/safi(99)" for an unknown family
-// and "afi(99)" for an unknown next-hop AFI in ExtendedNextHop.
-// PREVENTS: byte-drift when migrating afiSafiToFamily / afiToString off fmt.Sprintf.
+// VALIDATES: NegotiatedToDecoded emits "afi-99/safi-99" for an unknown family
+// and "afi-99" for an unknown next-hop AFI (family-package registry fallback).
+// PREVENTS: Regression if decode.go reintroduces its own fallback format.
 func TestDecodeNegotiated_UnknownAfiSafi(t *testing.T) {
 	// Build a Negotiated with an unknown AFI/SAFI family + an extended-nexthop
 	// tuple whose NextHopAFI is unknown.
@@ -396,15 +396,15 @@ func TestDecodeNegotiated_UnknownAfiSafi(t *testing.T) {
 
 	decoded := NegotiatedToDecoded(neg)
 
-	require.Contains(t, decoded.Families, "afi(99)/safi(99)", "unknown family must format as afi(N)/safi(N): %v", decoded.Families)
+	require.Contains(t, decoded.Families, "afi-99/safi-99", "unknown family must format as afi-N/safi-N: %v", decoded.Families)
 	require.Contains(t, decoded.Families, "ipv4/unicast", "known family must still format normally: %v", decoded.Families)
-	require.Equal(t, "afi(99)", decoded.ExtendedNextHop["ipv4/unicast"], "unknown next-hop AFI must format as afi(N)")
+	require.Equal(t, "afi-99", decoded.ExtendedNextHop["ipv4/unicast"], "unknown next-hop AFI must format as afi-N")
 
-	// Direct exercise of the afi(99)/<known-safi> path (matches Mistake Log scope).
+	// Mixed known-SAFI + unknown-AFI: family-package fallback emits "afi-99/unicast".
 	mixedCaps := []capability.Capability{&capability.Multiprotocol{AFI: 99, SAFI: 1}}
 	negMixed := capability.Negotiate(mixedCaps, mixedCaps, 65001, 65001)
 	decodedMixed := NegotiatedToDecoded(negMixed)
-	require.Contains(t, decodedMixed.Families, "afi(99)/unicast", "afi(99)/unicast: %v", decodedMixed.Families)
+	require.Contains(t, decodedMixed.Families, "afi-99/unicast", "afi-99/unicast: %v", decodedMixed.Families)
 }
 
 // TestNegotiatedToDecoded verifies conversion from capability.Negotiated to DecodedNegotiated.

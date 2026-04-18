@@ -121,6 +121,47 @@ func TestFamilyStringFallback(t *testing.T) {
 	})
 }
 
+// TestAppendTo verifies AppendTo methods for AFI, SAFI, Family match String() output.
+//
+// VALIDATES: AppendTo emits byte-identical output to String() for both known and unknown
+// values; appends into an existing buffer without reallocating when capacity is sufficient.
+// PREVENTS: Regression if AppendTo and String() drift apart.
+func TestAppendTo(t *testing.T) {
+	withCleanRegistry(t, func() {
+		_, err := RegisterFamily(AFIIPv4, SAFIUnicast, "ipv4", "unicast")
+		require.NoError(t, err)
+
+		// Known AFI / SAFI / Family: AppendTo matches String.
+		afi := AFIIPv4
+		safi := SAFIUnicast
+		fam := Family{AFI: afi, SAFI: safi}
+		assert.Equal(t, afi.String(), string(afi.AppendTo(nil)))
+		assert.Equal(t, safi.String(), string(safi.AppendTo(nil)))
+		assert.Equal(t, fam.String(), string(fam.AppendTo(nil)))
+
+		// Unknown fallback: "afi-N", "safi-N", "afi-N/safi-N".
+		unkAFI := AFI(9999)
+		unkSAFI := SAFI(99)
+		unkFam := Family{AFI: unkAFI, SAFI: unkSAFI}
+		assert.Equal(t, "afi-9999", string(unkAFI.AppendTo(nil)))
+		assert.Equal(t, "safi-99", string(unkSAFI.AppendTo(nil)))
+		assert.Equal(t, "afi-9999/safi-99", string(unkFam.AppendTo(nil)))
+
+		// Extending an existing buffer preserves its prefix.
+		prefix := []byte("prefix:")
+		got := fam.AppendTo(prefix)
+		assert.Equal(t, "prefix:ipv4/unicast", string(got))
+
+		// Capacity reuse: when the buffer has capacity, AppendTo writes in place.
+		buf := make([]byte, 0, 64)
+		buf = append(buf, "x:"...)
+		before := &buf[0]
+		buf = fam.AppendTo(buf)
+		assert.Equal(t, "x:ipv4/unicast", string(buf))
+		assert.Same(t, before, &buf[0], "AppendTo must reuse the caller's buffer when capacity permits")
+	})
+}
+
 // TestParseFamilyRegistered verifies LookupFamily returns registered families.
 //
 // VALIDATES: AC-6 -- ParseFamily("ipv4/flow") after registration returns Family{1, 133}, true.

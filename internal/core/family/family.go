@@ -11,6 +11,8 @@
 //   - Family: <AFI, SAFI> tuple identifying NLRI semantics
 package family
 
+import "strconv"
+
 // AFI represents Address Family Identifier.
 // RFC 4760 Section 3: AFI is a 2-octet field in MP_REACH_NLRI/MP_UNREACH_NLRI.
 // Values are assigned by IANA Address Family Numbers registry.
@@ -33,6 +35,17 @@ func (a AFI) String() string {
 		return s
 	}
 	return afiStringFallback(a)
+}
+
+// AppendTo appends the registered AFI name (or "afi-N" fallback) to buf and
+// returns the extended slice. No intermediate allocation -- known values copy
+// straight from the registered name into buf.
+func (a AFI) AppendTo(buf []byte) []byte {
+	if s := lookupAFIName(a); s != "" {
+		return append(buf, s...)
+	}
+	buf = append(buf, "afi-"...)
+	return strconv.AppendUint(buf, uint64(a), 10)
 }
 
 // SAFI represents Subsequent Address Family Identifier.
@@ -68,6 +81,16 @@ func (s SAFI) String() string {
 	return safiStringFallback(s)
 }
 
+// AppendTo appends the registered SAFI name (or "safi-N" fallback) to buf and
+// returns the extended slice. No intermediate allocation.
+func (s SAFI) AppendTo(buf []byte) []byte {
+	if name := lookupSAFIName(s); name != "" {
+		return append(buf, name...)
+	}
+	buf = append(buf, "safi-"...)
+	return strconv.AppendUint(buf, uint64(s), 10)
+}
+
 // Family combines AFI and SAFI to identify an address family.
 // RFC 4760 Section 3: The combination of <AFI, SAFI> identifies the semantics
 // of the Network Layer Reachability Information that follows.
@@ -95,4 +118,17 @@ func (f Family) String() string {
 		return s
 	}
 	return f.AFI.String() + "/" + f.SAFI.String()
+}
+
+// AppendTo appends the family name to buf and returns the extended slice.
+// Known families copy straight from the packed back-store into buf (one memcpy,
+// no intermediate allocation). Unknown families recurse into AFI.AppendTo +
+// '/' + SAFI.AppendTo.
+func (f Family) AppendTo(buf []byte) []byte {
+	if s := lookupFamilyString(f); s != "" {
+		return append(buf, s...)
+	}
+	buf = f.AFI.AppendTo(buf)
+	buf = append(buf, '/')
+	return f.SAFI.AppendTo(buf)
 }
