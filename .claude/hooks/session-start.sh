@@ -147,7 +147,9 @@ if [ -n "$FOUND_STATE" ]; then
 fi
 
 # Blocking reminders
-echo "Warning: BLOCKING: ToolSearch select:LSP -- load BEFORE any work"
+echo "Warning: BLOCKING (no task-type exception): ToolSearch query=\"select:LSP\" MUST be your FIRST tool call."
+echo "Warning:   Do NOT skip because the task looks shell-only, docs-only, or trivial."
+echo "Warning:   See rules/session-start.md 'LSP Load (step 1) -- no-exceptions clause'."
 echo "Warning: RULE: Read spec + source files BEFORE writing any code"
 
 # Suggest /ze-status when no spec is selected
