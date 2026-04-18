@@ -32,7 +32,6 @@ import (
 // Env var registrations (also in internal/component/config/environment.go for centralized docs).
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.rs.chan.size", Type: "int", Default: "4096", Description: "Per-source-peer route server worker channel capacity"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.rs.fwd.senders", Type: "int", Default: "4", Description: "Number of concurrent forward sender goroutines"})
 )
 
 // statusDone is the command response status for successful operations.
@@ -138,24 +137,10 @@ type RouteServer struct {
 	// Written by dispatch (OnEvent goroutine), read by worker handler.
 	fwdCtx sync.Map
 
-	// releaseCh is a buffered channel for async cache release.
-	// Workers send msgIDs here instead of blocking on synchronous RPCs.
-	// A background releaseLoop goroutine drains the channel.
-	releaseCh   chan uint64
-	releaseStop chan struct{} // signal releaseLoop to exit
-	releaseDone chan struct{} // closed when releaseLoop exits
-
 	// batches holds per-worker batch state for accumulating forward RPCs.
 	// Each worker goroutine has its own batch (keyed by workerKey).
 	// No concurrent access per key — each worker is single-goroutine.
 	batches sync.Map // workerKey → *forwardBatch
-
-	// forwardCh is a buffered channel for fire-and-forget cache-forward RPCs.
-	// flushBatch sends commands here instead of calling updateRoute directly.
-	// A background forwardLoop goroutine drains the channel and calls updateRoute.
-	forwardCh   chan forwardCmd
-	forwardStop chan struct{} // signal forwardLoop to exit
-	forwardDone chan struct{} // closed when forwardLoop exits
 
 	// withdrawalMu protects the withdrawals map.
 	withdrawalMu sync.Mutex
@@ -171,6 +156,15 @@ type RouteServer struct {
 	// dispatchCommandHook is called instead of SDK DispatchCommand for test inspection.
 	// Nil in production (zero overhead).
 	dispatchCommandHook func(command string) (string, string, error)
+
+	// forwardCachedHook is called instead of Plugin.ForwardCached for tests that
+	// want to observe (ids, destinations) without a real engine connection.
+	// rs-fastpath-3. Nil in production.
+	forwardCachedHook func(ids []uint64, destinations []string)
+
+	// releaseCachedHook is called instead of Plugin.ReleaseCached for tests.
+	// rs-fastpath-3. Nil in production.
+	releaseCachedHook func(ids []uint64)
 
 	// stopping is set when the plugin is shutting down.
 	// Used to downgrade RPC errors from ERROR to DEBUG during teardown.
@@ -200,13 +194,10 @@ func RunRouteServer(conn net.Conn) int {
 	// Default: 4096. Invalid/zero/negative values use default (guard in newWorkerPool).
 	rrChanSize := env.GetInt("ze.rs.chan.size", 4096)
 
-	// Start async cache release goroutine before worker pool (workers call releaseCache).
-	rs.startReleaseLoop()
-	defer rs.stopReleaseLoop()
-
-	// Start fire-and-forget forward sender before worker pool (workers call asyncForward).
-	rs.startForwardLoop()
-	defer rs.stopForwardLoop()
+	// rs-fastpath-3: former async release + forward sender goroutines are gone.
+	// Workers now call p.ForwardCached / p.ReleaseCached directly; those RPCs
+	// bypass the update-route tokenise path (19.4 % alloc) and are cheap
+	// enough to issue synchronously from the per-source worker.
 
 	// Create worker pool for parallel UPDATE forwarding.
 	// Each source peer gets its own worker goroutine (lazy creation, idle cooldown).
@@ -334,128 +325,31 @@ func RunRouteServer(conn net.Conn) int {
 	return 0
 }
 
-// releaseCache enqueues an async cache release for a non-forwarded UPDATE.
-// Must be called when CacheConsumer: true and we decide not to forward,
-// otherwise the entry blocks eviction of subsequent cache entries.
-// Non-blocking: sends msgID to the releaseLoop goroutine via buffered channel.
-// Falls back to synchronous RPC if the channel is full.
+// releaseCache acks a cached UPDATE for this plugin (rs) via the reactor-owned
+// fast path (rs-fastpath-3). Replaces the legacy async text-RPC
+// ("cache N release") path; since ForwardCached / ReleaseCached bypass the
+// tokenise step, the call is cheap enough to issue synchronously from the
+// per-source worker without a separate sender goroutine.
 func (rs *RouteServer) releaseCache(msgID uint64) {
 	if msgID == 0 {
 		return
 	}
-	select {
-	case rs.releaseCh <- msgID:
-	default: // Channel full — release synchronously to avoid dropping.
-		logger().Warn("release channel full, falling back to sync", "msgID", msgID)
-		rs.updateRoute("*", fmt.Sprintf("cache %d release", msgID))
+	if rs.releaseCachedHook != nil {
+		rs.releaseCachedHook([]uint64{msgID})
+		return
 	}
-}
-
-// startReleaseLoop starts the background goroutine for async cache release.
-// Uses a separate stop channel instead of closing releaseCh to avoid a race
-// between close(releaseCh) and sends from PeerDown'd workers whose
-// happens-before chain runs through a different goroutine path.
-func (rs *RouteServer) startReleaseLoop() {
-	rs.releaseCh = make(chan uint64, 256)
-	rs.releaseStop = make(chan struct{})
-	rs.releaseDone = make(chan struct{})
-	go func() {
-		defer close(rs.releaseDone)
-		for {
-			select {
-			case msgID := <-rs.releaseCh:
-				rs.updateRoute("*", fmt.Sprintf("cache %d release", msgID))
-			case <-rs.releaseStop:
-				// Drain remaining buffered items before exiting.
-				for {
-					select {
-					case msgID := <-rs.releaseCh:
-						rs.updateRoute("*", fmt.Sprintf("cache %d release", msgID))
-					default: // buffer empty — drain complete
-						return
-					}
-				}
-			}
+	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
+	defer cancel()
+	err := rs.plugin.ReleaseCached(ctx, []uint64{msgID})
+	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
+		if rs.stopping.Load() {
+			logger().Debug("release-cached failed (shutting down)", "msgID", msgID, "error", err)
+		} else if isConnectionError(err) {
+			logger().Warn("release-cached failed (peer disconnected)", "msgID", msgID, "error", err)
+		} else {
+			logger().Error("release-cached failed", "msgID", msgID, "error", err)
 		}
-	}()
-}
-
-// stopReleaseLoop signals the release goroutine to stop and waits for it to exit.
-func (rs *RouteServer) stopReleaseLoop() {
-	close(rs.releaseStop)
-	<-rs.releaseDone
-}
-
-// fwdSendersDefault is the default number of concurrent forward sender goroutines.
-const fwdSendersDefault = 4
-
-// rsForwardChDepth bounds the number of batched forward commands in flight
-// between per-source-peer workers and the shared forwardLoop sender pool.
-//
-// Sizing: fwdSendersDefault (4 senders) × maxBatchSize (50 IDs per batch) ≈
-// 200 UPDATEs in flight before workers backpressure on forwardCh. Depth 16
-// gives ~800 UPDATEs of buffered forward commands, enough to absorb short
-// RPC-round-trip stalls without oversizing. Tuning is evidence-driven via
-// spec-rs-fastpath-1-profile; change only when profile data supports it.
-const rsForwardChDepth = 16
-
-// startForwardLoop starts N background goroutines for fire-and-forget cache-forward RPCs.
-// N is controlled by env var ze.rs.fwd.senders (default 4).
-// Capacity rsForwardChDepth batches — each batch is up to maxBatchSize IDs.
-// If the channel fills, workers block (natural backpressure from engine).
-// Uses a separate stop channel (same pattern as releaseLoop) to avoid
-// close/send race on forwardCh.
-func (rs *RouteServer) startForwardLoop() {
-	rs.forwardCh = make(chan forwardCmd, rsForwardChDepth)
-	rs.forwardStop = make(chan struct{})
-	rs.forwardDone = make(chan struct{})
-
-	numSenders := env.GetInt("ze.rs.fwd.senders", fwdSendersDefault)
-	if numSenders <= 0 {
-		numSenders = fwdSendersDefault
 	}
-
-	var wg sync.WaitGroup
-	wg.Add(numSenders)
-
-	for range numSenders {
-		go func() {
-			defer wg.Done()
-			for {
-				select {
-				case cmd := <-rs.forwardCh:
-					rs.updateRoute(cmd.peer, cmd.cmd)
-				case <-rs.forwardStop:
-					// Drain remaining buffered items before exiting.
-					for {
-						select {
-						case cmd := <-rs.forwardCh:
-							rs.updateRoute(cmd.peer, cmd.cmd)
-						default: // buffer empty — drain complete
-							return
-						}
-					}
-				}
-			}
-		}()
-	}
-
-	go func() {
-		wg.Wait()
-		close(rs.forwardDone)
-	}()
-}
-
-// stopForwardLoop signals all forward sender goroutines to stop and waits for them to exit.
-func (rs *RouteServer) stopForwardLoop() {
-	close(rs.forwardStop)
-	<-rs.forwardDone
-}
-
-// asyncForward enqueues a forward RPC for the background sender goroutine.
-// Blocks if the channel is full (natural backpressure when engine is slow).
-func (rs *RouteServer) asyncForward(peer, cmd string) {
-	rs.forwardCh <- forwardCmd{peer: peer, cmd: cmd}
 }
 
 // dispatchCommand calls DispatchCommand via the SDK or the test hook.

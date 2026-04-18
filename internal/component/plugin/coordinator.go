@@ -321,3 +321,23 @@ func (c *Coordinator) UnregisterCacheConsumer(name string) {
 		r.UnregisterCacheConsumer(name)
 	}
 }
+
+// ForwardUpdatesDirect forwards cached UPDATEs to explicit destinations.
+// Returns ErrNoReactor when no BGP reactor is registered.
+func (c *Coordinator) ForwardUpdatesDirect(updateIDs []uint64, destinations []netip.AddrPort, pluginName string) error {
+	r := c.getReactor()
+	if r == nil {
+		return ErrNoReactor
+	}
+	return r.ForwardUpdatesDirect(updateIDs, destinations, pluginName)
+}
+
+// ReleaseUpdates acks cached UPDATEs for pluginName without forwarding.
+// Returns ErrNoReactor when no BGP reactor is registered.
+func (c *Coordinator) ReleaseUpdates(updateIDs []uint64, pluginName string) error {
+	r := c.getReactor()
+	if r == nil {
+		return ErrNoReactor
+	}
+	return r.ReleaseUpdates(updateIDs, pluginName)
+}

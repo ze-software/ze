@@ -5,8 +5,10 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"net/netip"
 	"reflect"
 	"strings"
 	"sync"
@@ -88,6 +90,12 @@ func (s *Server) dispatchPluginRPC(proc *process.Process, conn *plugipc.PluginCo
 		return
 	case "ze-plugin-engine:emit-event":
 		s.handleEmitEventRPC(proc, conn, req)
+		return
+	case "ze-plugin-engine:forward-cached":
+		s.handleForwardCachedRPC(proc, conn, req)
+		return
+	case "ze-plugin-engine:release-cached":
+		s.handleReleaseCachedRPC(proc, conn, req)
 		return
 	}
 
@@ -530,6 +538,10 @@ func (s *Server) dispatchPluginRPCDirect(proc *process.Process, method string, p
 		return s.handleUnsubscribeEventsDirect(proc)
 	case "ze-plugin-engine:emit-event":
 		return s.handleEmitEventDirect(proc, params)
+	case "ze-plugin-engine:forward-cached":
+		return s.handleForwardCachedDirect(proc, params)
+	case "ze-plugin-engine:release-cached":
+		return s.handleReleaseCachedDirect(proc, params)
 	}
 
 	// Try registered RPC handlers (codec RPCs, etc.)
@@ -709,6 +721,148 @@ func (s *Server) wireBridgeDispatch(proc *process.Process) {
 	proc.Bridge().SetDispatchCommand(func(command string) (status, data string, err error) {
 		return s.dispatchCommand(proc, command)
 	})
+	// rs-fastpath-3: typed fast paths for forward-cached + release-cached.
+	proc.Bridge().SetForwardCached(func(_ context.Context, ids []uint64, destinations []string) error {
+		return s.forwardCached(proc, ids, destinations)
+	})
+	proc.Bridge().SetReleaseCached(func(_ context.Context, ids []uint64) error {
+		return s.releaseCached(proc, ids)
+	})
+}
+
+// handleForwardCachedRPC handles ze-plugin-engine:forward-cached from a plugin
+// (pipe path). rs-fastpath-3.
+func (s *Server) handleForwardCachedRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
+	var input rpc.ForwardCachedInput
+	if err := json.Unmarshal(req.Params, &input); err != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, "invalid forward-cached params: "+err.Error()); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+	if err := s.forwardCached(proc, input.IDs, input.Destinations); err != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+	if sendErr := conn.SendResult(s.ctx, req.ID, nil); sendErr != nil {
+		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
+	}
+}
+
+// handleForwardCachedDirect is the bridge (no-socket-I/O) variant of
+// handleForwardCachedRPC. rs-fastpath-3.
+func (s *Server) handleForwardCachedDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
+	var input rpc.ForwardCachedInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		return nil, &rpc.RPCCallError{Message: "invalid forward-cached params: " + err.Error()}
+	}
+	if err := s.forwardCached(proc, input.IDs, input.Destinations); err != nil {
+		return nil, &rpc.RPCCallError{Message: err.Error()}
+	}
+	return nil, nil
+}
+
+// handleReleaseCachedRPC handles ze-plugin-engine:release-cached from a plugin
+// (pipe path). rs-fastpath-3.
+func (s *Server) handleReleaseCachedRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
+	var input rpc.ReleaseCachedInput
+	if err := json.Unmarshal(req.Params, &input); err != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, "invalid release-cached params: "+err.Error()); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+	if err := s.releaseCached(proc, input.IDs); err != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+	if sendErr := conn.SendResult(s.ctx, req.ID, nil); sendErr != nil {
+		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
+	}
+}
+
+// handleReleaseCachedDirect is the bridge variant of handleReleaseCachedRPC.
+// rs-fastpath-3.
+func (s *Server) handleReleaseCachedDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
+	var input rpc.ReleaseCachedInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		return nil, &rpc.RPCCallError{Message: "invalid release-cached params: " + err.Error()}
+	}
+	if err := s.releaseCached(proc, input.IDs); err != nil {
+		return nil, &rpc.RPCCallError{Message: err.Error()}
+	}
+	return nil, nil
+}
+
+// forwardCached is the shared implementation of the forward-cached RPC. It
+// parses destination strings into netip.AddrPort values and delegates to the
+// reactor's ForwardUpdatesDirect cache-consumer fast path. Malformed
+// destinations are logged and dropped; the remaining destinations proceed.
+// rs-fastpath-3.
+func (s *Server) forwardCached(proc *process.Process, ids []uint64, destinations []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	rc, ok := s.reactor.(plugin.ReactorCacheCoordinator)
+	if !ok {
+		return errors.New("forward-cached: no reactor available")
+	}
+	addrPorts := parseForwardDestinations(proc.Name(), destinations)
+	return rc.ForwardUpdatesDirect(ids, addrPorts, proc.Name())
+}
+
+// releaseCached is the shared implementation of the release-cached RPC.
+// rs-fastpath-3.
+func (s *Server) releaseCached(proc *process.Process, ids []uint64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	rc, ok := s.reactor.(plugin.ReactorCacheCoordinator)
+	if !ok {
+		return errors.New("release-cached: no reactor available")
+	}
+	return rc.ReleaseUpdates(ids, proc.Name())
+}
+
+// parseForwardDestinations converts "addr" or "addr:port" strings to
+// netip.AddrPort values. Malformed destinations are logged at WARN and
+// dropped -- they cannot correspond to a real peer, so silently forwarding
+// to "nothing" would mask caller bugs. Bare IPs produce port 0, which the
+// reactor expands to every peer with that address.
+//
+// If the input is non-empty but EVERY entry is malformed, a summary WARN
+// fires so the operator sees "all destinations dropped" as a distinct
+// signal from the per-entry drops. The caller propagates the reactor's
+// ErrNoDestinations back to the plugin.
+func parseForwardDestinations(plugin string, dst []string) []netip.AddrPort {
+	if len(dst) == 0 {
+		return nil
+	}
+	out := make([]netip.AddrPort, 0, len(dst))
+	for _, s := range dst {
+		if s == "" {
+			continue
+		}
+		if ap, err := netip.ParseAddrPort(s); err == nil {
+			out = append(out, ap)
+			continue
+		}
+		if addr, err := netip.ParseAddr(s); err == nil {
+			out = append(out, netip.AddrPortFrom(addr, 0))
+			continue
+		}
+		logger().Warn("forward-cached: dropping malformed destination",
+			"plugin", plugin, "destination", s)
+	}
+	if len(out) == 0 {
+		logger().Warn("forward-cached: every destination was malformed, refusing to broadcast",
+			"plugin", plugin, "count", len(dst))
+	}
+	return out
 }
 
 // cleanupProcess handles cleanup when a process exits.

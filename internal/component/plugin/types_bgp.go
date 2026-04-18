@@ -146,7 +146,9 @@ type ReactorPeerController interface {
 	FlushForwardPoolPeer(ctx context.Context, addr string) error
 }
 
-// ReactorCacheCoordinator manages BGP cache consumer registration and cleanup.
+// ReactorCacheCoordinator manages BGP cache consumer registration, forwarding,
+// and release. The fast-path methods (ForwardUpdatesDirect, ReleaseUpdates)
+// bypass the text-command tokenise path used by the legacy update-route RPC.
 type ReactorCacheCoordinator interface {
 	// RegisterCacheConsumer initializes tracking for a cache-consumer plugin.
 	// unordered=false: FIFO consumer (cumulative ack -- existing behavior).
@@ -158,6 +160,20 @@ type ReactorCacheCoordinator interface {
 	// UnregisterCacheConsumer removes a cache-consumer plugin and adjusts pending counts.
 	// Called when a cache-consumer plugin disconnects or exits.
 	UnregisterCacheConsumer(name string)
+
+	// ForwardUpdatesDirect forwards a batch of cached UPDATEs to an explicit
+	// destination list, one cached update per ID. Reuses the same per-destination
+	// pipeline as ForwardUpdate (egress filters, EBGP wire cache, copy-on-modify).
+	// pluginName identifies the cache consumer; after forwarding each id is acked
+	// for that consumer (FIFO or unordered per the consumer registration).
+	// Returns error only if NO id could be dispatched at all -- missing ids log a
+	// BUG warning and continue (rs-fastpath-3 AC-7a).
+	ForwardUpdatesDirect(updateIDs []uint64, destinations []netip.AddrPort, pluginName string) error
+
+	// ReleaseUpdates acks a batch of cached UPDATEs for pluginName without
+	// forwarding. Used when the plugin decided not to forward (e.g. empty target
+	// list). Missing ids log and continue.
+	ReleaseUpdates(updateIDs []uint64, pluginName string) error
 }
 
 // ReactorLifecycle is the full BGP reactor interface composed from focused

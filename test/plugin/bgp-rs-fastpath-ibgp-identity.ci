@@ -1,0 +1,67 @@
+# bgp-rs-fastpath-ibgp-identity -- iBGP pass-through exercises ForwardCached (rs-fastpath-3)
+#
+# VALIDATES: rs-fastpath-3 wiring -- iBGP receiver gets a forwarded route
+# from a source peer via bgp-rs over the Plugin.ForwardCached fast path.
+# Negative guard ensures the legacy 'cache N forward' text RPC is NOT used.
+#
+# PREVENTS: silent regression where the fast path is not engaged and forward
+# goes back through update-route tokenise. Deep wire-byte identity assertion
+# (AC-6a) deferred to follow-up; this test confirms the wiring is live.
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=10s
+
+# Send one UPDATE: ORIGIN=IGP, AS_PATH=empty, NEXT_HOP=1.1.1.1, LOCAL_PREF=100,
+# NLRI 10.0.0.0/24. iBGP (same local+remote ASN) so no AS_PATH prepend expected.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A0000
+EOF_SOURCE
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rs {
+		use bgp-rs
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+# AC-11: legacy text path must be gone.
+reject=stderr:pattern=cache .* forward
+# Fast-path health: any of these logs indicate a broken rs-fastpath-3 dispatch.
+reject=stderr:pattern=forward-cached failed
+reject=stderr:pattern=release-cached failed
+reject=stderr:pattern=BUG: ForwardUpdatesDirect

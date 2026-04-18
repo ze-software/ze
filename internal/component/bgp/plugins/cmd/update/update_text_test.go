@@ -1184,6 +1184,10 @@ func (m *mockReactorBatch) SignalPluginStartupComplete()                        
 func (m *mockReactorBatch) SignalPeerAPIReady(_ string)                                  {}
 func (m *mockReactorBatch) RegisterCacheConsumer(_ string, _ bool)                       {}
 func (m *mockReactorBatch) UnregisterCacheConsumer(_ string)                             {}
+func (m *mockReactorBatch) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string) error {
+	return nil
+}
+func (m *mockReactorBatch) ReleaseUpdates(_ []uint64, _ string) error { return nil }
 func (m *mockReactorBatch) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) error {
 	return nil
 }

@@ -91,7 +91,6 @@ When `ze.user` is not set, no privilege dropping occurs.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ze.rs.chan.size` | 4096 | Per-source-peer worker channel capacity |
-| `ze.rs.fwd.senders` | 4 | Concurrent forward sender goroutines |
 
 ---
 

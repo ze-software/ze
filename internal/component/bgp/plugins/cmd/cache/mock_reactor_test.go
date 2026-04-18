@@ -66,6 +66,10 @@ func (m *mockReactor) SignalPeerAPIReady(_ string)  {}
 
 func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool) {}
 func (m *mockReactor) UnregisterCacheConsumer(_ string)       {}
+func (m *mockReactor) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string) error {
+	return nil
+}
+func (m *mockReactor) ReleaseUpdates(_ []uint64, _ string) error { return nil }
 
 // --- BGPReactor: route operations (stubs) ---
 

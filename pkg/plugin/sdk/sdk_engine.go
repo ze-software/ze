@@ -37,6 +37,41 @@ func (p *Plugin) UpdateRouteWithMeta(ctx context.Context, peerSelector, command 
 	return out.PeersAffected, out.RoutesSent, nil
 }
 
+// ForwardCached forwards cached UPDATEs identified by updateIDs to the listed
+// destination peers. Bypasses the update-route tokenise path (rs-fastpath-3).
+//
+// destinations are peer IP address strings; the engine parses them once at the
+// reactor boundary and maps them to resolved peers. updateIDs must have been
+// delivered to this plugin via its event subscription while CacheConsumer is
+// true -- the engine acks each id for this plugin after forwarding (FIFO on
+// FIFO consumers, per-entry on CacheConsumerUnordered consumers).
+//
+// Returns an error when the reactor cannot look up any of the updateIDs or
+// the request cannot be dispatched. Individual per-destination failures are
+// logged and do not fail the call.
+func (p *Plugin) ForwardCached(ctx context.Context, updateIDs []uint64, destinations []string) error {
+	// Fast path: typed DirectBridge dispatch (no JSON serialization).
+	if p.bridge != nil && p.bridge.HasForwardCached() {
+		return p.bridge.ForwardCached(ctx, updateIDs, destinations)
+	}
+	// Slow path: JSON-based RPC (external plugins or pre-startup).
+	input := &rpc.ForwardCachedInput{IDs: updateIDs, Destinations: destinations}
+	_, err := p.callEngineWithResult(ctx, "ze-plugin-engine:forward-cached", input)
+	return err
+}
+
+// ReleaseCached acks the listed cached updateIDs for this plugin without
+// forwarding to peers. Symmetric with ForwardCached for the "decided not to
+// forward" path. rs-fastpath-3.
+func (p *Plugin) ReleaseCached(ctx context.Context, updateIDs []uint64) error {
+	if p.bridge != nil && p.bridge.HasReleaseCached() {
+		return p.bridge.ReleaseCached(ctx, updateIDs)
+	}
+	input := &rpc.ReleaseCachedInput{IDs: updateIDs}
+	_, err := p.callEngineWithResult(ctx, "ze-plugin-engine:release-cached", input)
+	return err
+}
+
 // DispatchCommand dispatches a command through the engine's command dispatcher.
 // Returns the status and data from the target handler's response. This enables
 // inter-plugin communication: the engine routes the command to the target plugin

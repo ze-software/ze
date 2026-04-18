@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -45,26 +44,23 @@ func newIntegrationRouteServer(t *testing.T) (*RouteServer, *rpc.Conn) {
 		peers:       make(map[string]*PeerState),
 		withdrawals: make(map[string]map[string]withdrawalInfo),
 	}
-	rs.startReleaseLoop()
-	rs.startForwardLoop()
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
 		rs.processForward(key, item.msgID)
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
 	t.Cleanup(func() {
 		rs.workers.Stop()
-		rs.stopForwardLoop()
-		rs.stopReleaseLoop()
 	})
 
 	return rs, engineConn
 }
 
 // TestRedistribution_ForwardReachesEngine verifies that UPDATE events dispatched
-// to the route server produce correctly ordered cache-forward SDK RPCs that
-// arrive at the engine side of the connection.
+// to the route server produce correctly ordered forward-cached SDK RPCs that
+// arrive at the engine side of the connection (rs-fastpath-3).
 //
-// VALIDATES: Full path: event → parse → handleUpdate → channel → worker →
-// forwardUpdate → SDK RPC → engine receives "cache N forward peer1,peer2".
+// VALIDATES: Full path: event -> parse -> handleUpdate -> channel -> worker ->
+// flushBatch -> Plugin.ForwardCached -> engine receives
+// "ze-plugin-engine:forward-cached" with IDs + destinations.
 // PREVENTS: Silent RPC failures masking a broken redistribution path.
 func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 	rs, engineConn := newIntegrationRouteServer(t)
@@ -85,7 +81,6 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	// Dispatch 3 UPDATE events from peer 10.0.0.1.
 	for i := 1; i <= 3; i++ {
 		input := fmt.Sprintf(
 			"peer 10.0.0.1 remote as 65001 received update %d origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
@@ -94,9 +89,6 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 		rs.dispatchText(input)
 	}
 
-	// Read RPCs from the engine side. With batch accumulation, the 3 UPDATEs
-	// may arrive as a single batch RPC (e.g., "cache 1,2,3 forward ...").
-	// Read until all 3 message IDs are accounted for.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -107,49 +99,28 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 			t.Fatalf("read RPC (have %d IDs): %v", len(allIDs), err)
 		}
 
-		if req.Method != "ze-plugin-engine:update-route" {
-			t.Errorf("method = %q, want ze-plugin-engine:update-route", req.Method)
+		if req.Method != "ze-plugin-engine:forward-cached" {
+			t.Errorf("method = %q, want ze-plugin-engine:forward-cached", req.Method)
 		}
 
-		var input rpc.UpdateRouteInput
+		var input rpc.ForwardCachedInput
 		if err := json.Unmarshal(req.Params, &input); err != nil {
 			t.Fatalf("unmarshal params: %v", err)
 		}
 
-		// Parse "cache <ids> forward <selector>" -- ids may be comma-separated.
-		parts := strings.Fields(input.Command)
-		if len(parts) < 3 || parts[0] != "cache" || parts[2] != "forward" {
-			t.Fatalf("unexpected command format: %q", input.Command)
-		}
+		allIDs = append(allIDs, input.IDs...)
 
-		idStr := parts[1]
-		selectorStr := parts[3]
-
-		for s := range strings.SplitSeq(idStr, ",") {
-			id, parseErr := strconv.ParseUint(s, 10, 64)
-			if parseErr != nil {
-				t.Fatalf("invalid ID %q in command: %v", s, parseErr)
-			}
-			allIDs = append(allIDs, id)
-		}
-
-		// Verify selector contains both targets (order may vary).
-		peers := strings.Split(selectorStr, ",")
+		peers := append([]string(nil), input.Destinations...)
 		sort.Strings(peers)
 		if len(peers) != 2 || peers[0] != "10.0.0.2" || peers[1] != "10.0.0.3" {
-			t.Errorf("selector = %q, want 10.0.0.2,10.0.0.3", selectorStr)
+			t.Errorf("destinations = %v, want [10.0.0.2 10.0.0.3]", peers)
 		}
 
-		// Send success response so the worker unblocks.
-		if err := engineConn.SendResult(ctx, req.ID, rpc.UpdateRouteOutput{
-			PeersAffected: 2,
-			RoutesSent:    2,
-		}); err != nil {
+		if err := engineConn.SendResult(ctx, req.ID, nil); err != nil {
 			t.Fatalf("send response: %v", err)
 		}
 	}
 
-	// Verify all 3 message IDs arrived in order.
 	if len(allIDs) != 3 {
 		t.Fatalf("expected 3 IDs, got %d: %v", len(allIDs), allIDs)
 	}
@@ -161,14 +132,14 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 }
 
 // TestRedistribution_ReleaseReachesEngine verifies that an UPDATE with no NLRI
-// produces a cache-release SDK RPC that reaches the engine.
+// produces a release-cached SDK RPC that reaches the engine (rs-fastpath-3).
 //
-// VALIDATES: Release path: empty UPDATE → channel → worker → releaseCache → SDK RPC.
+// VALIDATES: Release path: empty UPDATE -> channel -> worker -> releaseCache
+// -> Plugin.ReleaseCached -> engine receives "ze-plugin-engine:release-cached".
 // PREVENTS: Cache entries stuck forever when no targets exist.
 func TestRedistribution_ReleaseReachesEngine(t *testing.T) {
 	rs, engineConn := newIntegrationRouteServer(t)
 
-	// Dispatch UPDATE with no NLRI → should trigger release.
 	input := "peer 10.0.0.1 remote as 65001 received update 42"
 	rs.dispatchText(input)
 
@@ -180,16 +151,20 @@ func TestRedistribution_ReleaseReachesEngine(t *testing.T) {
 		t.Fatalf("read RPC: %v", err)
 	}
 
-	var rpcInput rpc.UpdateRouteInput
+	if req.Method != "ze-plugin-engine:release-cached" {
+		t.Errorf("method = %q, want ze-plugin-engine:release-cached", req.Method)
+	}
+
+	var rpcInput rpc.ReleaseCachedInput
 	if err := json.Unmarshal(req.Params, &rpcInput); err != nil {
 		t.Fatalf("unmarshal params: %v", err)
 	}
 
-	if rpcInput.Command != "cache 42 release" {
-		t.Errorf("command = %q, want %q", rpcInput.Command, "cache 42 release")
+	if len(rpcInput.IDs) != 1 || rpcInput.IDs[0] != 42 {
+		t.Errorf("IDs = %v, want [42]", rpcInput.IDs)
 	}
 
-	if err := engineConn.SendResult(ctx, req.ID, rpc.UpdateRouteOutput{}); err != nil {
+	if err := engineConn.SendResult(ctx, req.ID, nil); err != nil {
 		t.Fatalf("send response: %v", err)
 	}
 }
@@ -230,20 +205,23 @@ func TestRedistribution_FamilyFiltering(t *testing.T) {
 		t.Fatalf("read RPC: %v", err)
 	}
 
-	var rpcInput rpc.UpdateRouteInput
+	if req.Method != "ze-plugin-engine:forward-cached" {
+		t.Errorf("method = %q, want ze-plugin-engine:forward-cached", req.Method)
+	}
+
+	var rpcInput rpc.ForwardCachedInput
 	if err := json.Unmarshal(req.Params, &rpcInput); err != nil {
 		t.Fatalf("unmarshal params: %v", err)
 	}
 
-	// Should forward to 10.0.0.2 only (not 10.0.0.3 which lacks ipv6/unicast).
-	expected := "cache 7 forward 10.0.0.2"
-	if rpcInput.Command != expected {
-		t.Errorf("command = %q, want %q", rpcInput.Command, expected)
+	if len(rpcInput.IDs) != 1 || rpcInput.IDs[0] != 7 {
+		t.Errorf("IDs = %v, want [7]", rpcInput.IDs)
+	}
+	if len(rpcInput.Destinations) != 1 || rpcInput.Destinations[0] != "10.0.0.2" {
+		t.Errorf("destinations = %v, want [10.0.0.2] (10.0.0.3 lacks ipv6/unicast)", rpcInput.Destinations)
 	}
 
-	if err := engineConn.SendResult(ctx, req.ID, rpc.UpdateRouteOutput{
-		PeersAffected: 1, RoutesSent: 1,
-	}); err != nil {
+	if err := engineConn.SendResult(ctx, req.ID, nil); err != nil {
 		t.Fatalf("send response: %v", err)
 	}
 }

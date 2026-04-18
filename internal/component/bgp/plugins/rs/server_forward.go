@@ -5,24 +5,27 @@
 package rs
 
 import (
-	"fmt"
+	"context"
 	"sort"
-	"strconv"
 	"strings"
 )
 
 // forwardBatch accumulates forward items for batch RPC.
 // Per-worker state: no concurrent access for a given workerKey.
+//
+// Invariants:
+//   - targetBuf is a scratch buffer reused by selectForwardTargets each call;
+//     its contents are valid only until the next selectForwardTargets call.
+//   - targets is the immutable destination snapshot that applies to every id
+//     in the current batch. Populated on the first accumulate of a new batch
+//     and cleared (together with ids + selector) on every flush. The snapshot
+//     is independent of targetBuf's backing array, so a later targetBuf
+//     refresh cannot corrupt in-flight batch state.
 type forwardBatch struct {
 	ids       []uint64
-	selector  string   // comma-joined target peers
-	targetBuf []string // reusable buffer for selectForwardTargets
-}
-
-// forwardCmd is a single fire-and-forget forward RPC to be sent by the background sender.
-type forwardCmd struct {
-	peer string
-	cmd  string
+	selector  string   // comma-joined target peers (batch.targets joined for equality check)
+	targetBuf []string // scratch buffer for selectForwardTargets (not batch state)
+	targets   []string // immutable destination snapshot for this batch (rs-fastpath-3)
 }
 
 // selectForwardTargets returns peers that should receive an UPDATE with the given families.
@@ -82,39 +85,51 @@ func (rs *RouteServer) batchForwardUpdate(key workerKey, sourcePeer string, msgI
 		rs.flushBatch(batch)
 		batch.ids = batch.ids[:0]
 		batch.selector = ""
+		batch.targets = batch.targets[:0]
 	}
 
 	batch.ids = append(batch.ids, msgID)
 	batch.selector = sel
+	// Snapshot the destination list for the current selector. Reuse the
+	// underlying array across flushes via batch.targets (reset on flush).
+	if len(batch.targets) == 0 {
+		batch.targets = append(batch.targets[:0], targets...)
+	}
 
 	// Flush on batch full.
 	if len(batch.ids) >= maxBatchSize {
 		rs.flushBatch(batch)
 		batch.ids = batch.ids[:0]
 		batch.selector = ""
+		batch.targets = batch.targets[:0]
 	}
 }
 
-// flushBatch sends a single batched cache-forward RPC for all accumulated IDs.
-// Uses asyncForward (fire-and-forget) so the worker goroutine doesn't block
-// waiting for the engine's RPC response.
+// flushBatch sends the accumulated IDs via the reactor-owned ForwardCached
+// primitive (rs-fastpath-3). Bypasses the text-command tokenise path; the
+// engine dispatches directly to the reactor adapter.
 func (rs *RouteServer) flushBatch(batch *forwardBatch) {
 	if len(batch.ids) == 0 {
 		return
 	}
 
-	// Single ID — use existing format (no comma).
-	if len(batch.ids) == 1 {
-		rs.asyncForward("*", fmt.Sprintf("cache %d forward %s", batch.ids[0], batch.selector))
+	if rs.forwardCachedHook != nil {
+		rs.forwardCachedHook(batch.ids, batch.targets)
 		return
 	}
 
-	// Multiple IDs — comma-separated batch format.
-	idStrs := make([]string, len(batch.ids))
-	for i, id := range batch.ids {
-		idStrs[i] = strconv.FormatUint(id, 10)
+	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
+	defer cancel()
+	err := rs.plugin.ForwardCached(ctx, batch.ids, batch.targets)
+	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
+		if rs.stopping.Load() {
+			logger().Debug("forward-cached failed (shutting down)", "ids", len(batch.ids), "error", err)
+		} else if isConnectionError(err) {
+			logger().Warn("forward-cached failed (peer disconnected)", "ids", len(batch.ids), "error", err)
+		} else {
+			logger().Error("forward-cached failed", "ids", len(batch.ids), "error", err)
+		}
 	}
-	rs.asyncForward("*", fmt.Sprintf("cache %s forward %s", strings.Join(idStrs, ","), batch.selector))
 }
 
 // flushWorkerBatch flushes the batch for a given worker key.
@@ -131,4 +146,5 @@ func (rs *RouteServer) flushWorkerBatch(key workerKey) {
 	rs.flushBatch(batch)
 	batch.ids = batch.ids[:0]
 	batch.selector = ""
+	batch.targets = batch.targets[:0]
 }

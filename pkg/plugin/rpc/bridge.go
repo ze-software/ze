@@ -51,6 +51,10 @@ type DirectBridge struct {
 	hasDispatchCmd    atomic.Bool            // set atomically when dispatchCommand is written
 	emitEvent         EmitEventHandler       // Typed fast path (no JSON)
 	hasEmitEvent      atomic.Bool            // set atomically when emitEvent is written
+	forwardCached     ForwardCachedHandler   // Typed fast path (no JSON) -- rs-fastpath-3
+	hasForwardCached  atomic.Bool            // set atomically when forwardCached is written
+	releaseCached     ReleaseCachedHandler   // Typed fast path (no JSON) -- rs-fastpath-3
+	hasReleaseCached  atomic.Bool            // set atomically when releaseCached is written
 	callbackCh        chan BridgeCallback    // Engine->plugin callbacks (replaces pipe after startup)
 	closeOnce         sync.Once              // Guards callbackCh close (Stop may be called multiple times)
 	ready             atomic.Bool
@@ -224,6 +228,70 @@ func (b *DirectBridge) EmitEvent(namespace, eventType, direction, peerAddress, e
 // HasEmitEvent reports whether the typed emit-event handler is set.
 func (b *DirectBridge) HasEmitEvent() bool {
 	return b.ready.Load() && b.hasEmitEvent.Load()
+}
+
+// ForwardCachedHandler is the typed handler for forward-cached via DirectBridge.
+// Skips JSON entirely -- takes native Go slices. rs-fastpath-3.
+//
+// ctx is checked before dispatch; a canceled context short-circuits the call.
+// Engine-side handlers may also honor ctx for long-running dispatch paths,
+// though the current reactor path completes promptly.
+type ForwardCachedHandler func(ctx context.Context, ids []uint64, destinations []string) error
+
+// SetForwardCached registers the engine-side typed forward-cached handler.
+// Called by the engine after startup alongside SetDispatchRPC.
+func (b *DirectBridge) SetForwardCached(fn ForwardCachedHandler) {
+	b.forwardCached = fn
+	b.hasForwardCached.Store(fn != nil)
+}
+
+// ForwardCached calls the engine's typed forward-cached handler directly.
+// Returns ctx.Err() when ctx is already canceled before dispatch, or the
+// handler's error otherwise. Not-set returns an error without dispatching.
+func (b *DirectBridge) ForwardCached(ctx context.Context, ids []uint64, destinations []string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !b.hasForwardCached.Load() {
+		return errors.New("forward-cached handler not set")
+	}
+	return b.forwardCached(ctx, ids, destinations)
+}
+
+// HasForwardCached reports whether the typed forward-cached handler is set.
+func (b *DirectBridge) HasForwardCached() bool {
+	return b.ready.Load() && b.hasForwardCached.Load()
+}
+
+// ReleaseCachedHandler is the typed handler for release-cached via DirectBridge.
+// Skips JSON entirely -- takes native Go slices. rs-fastpath-3.
+//
+// ctx is checked before dispatch; a canceled context short-circuits the call.
+type ReleaseCachedHandler func(ctx context.Context, ids []uint64) error
+
+// SetReleaseCached registers the engine-side typed release-cached handler.
+// Called by the engine after startup alongside SetDispatchRPC.
+func (b *DirectBridge) SetReleaseCached(fn ReleaseCachedHandler) {
+	b.releaseCached = fn
+	b.hasReleaseCached.Store(fn != nil)
+}
+
+// ReleaseCached calls the engine's typed release-cached handler directly.
+// Returns ctx.Err() when ctx is already canceled before dispatch, or the
+// handler's error otherwise. Not-set returns an error without dispatching.
+func (b *DirectBridge) ReleaseCached(ctx context.Context, ids []uint64) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if !b.hasReleaseCached.Load() {
+		return errors.New("release-cached handler not set")
+	}
+	return b.releaseCached(ctx, ids)
+}
+
+// HasReleaseCached reports whether the typed release-cached handler is set.
+func (b *DirectBridge) HasReleaseCached() bool {
+	return b.ready.Load() && b.hasReleaseCached.Load()
 }
 
 // DispatchRPC calls the engine's RPC handler directly. Returns error if

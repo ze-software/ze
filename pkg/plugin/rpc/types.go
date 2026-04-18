@@ -241,6 +241,21 @@ type UpdateRouteOutput struct {
 	RoutesSent    uint32 `json:"routes-sent"`
 }
 
+// ForwardCachedInput is the input for ze-plugin-engine:forward-cached.
+// Bypasses the text-command tokenise path used by update-route.
+// Destinations are peer IP addresses (strings); the engine parses them once
+// at the reactor boundary. Plugin name is taken from the caller process.
+type ForwardCachedInput struct {
+	IDs          []uint64 `json:"ids"`
+	Destinations []string `json:"destinations"`
+}
+
+// ReleaseCachedInput is the input for ze-plugin-engine:release-cached.
+// Acks the listed IDs for the calling plugin without forwarding to peers.
+type ReleaseCachedInput struct {
+	IDs []uint64 `json:"ids"`
+}
+
 // DispatchCommandInput is the input for ze-plugin-engine:dispatch-command.
 // Plugins use this to invoke commands through the engine's command dispatcher,
 // enabling inter-plugin communication via the standard routing mechanism.

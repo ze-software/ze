@@ -201,3 +201,7 @@ func (m *mockReactor) SignalPluginStartupComplete()       {}
 func (m *mockReactor) SignalPeerAPIReady(string)          {}
 func (m *mockReactor) RegisterCacheConsumer(string, bool) {}
 func (m *mockReactor) UnregisterCacheConsumer(string)     {}
+func (m *mockReactor) ForwardUpdatesDirect([]uint64, []netip.AddrPort, string) error {
+	return nil
+}
+func (m *mockReactor) ReleaseUpdates([]uint64, string) error { return nil }

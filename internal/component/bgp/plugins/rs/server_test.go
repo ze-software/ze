@@ -3,6 +3,7 @@ package rs
 import (
 	"fmt"
 	"net"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -36,28 +37,21 @@ func newTestRouteServer(t *testing.T) *RouteServer {
 		peers:       make(map[string]*PeerState),
 		withdrawals: make(map[string]map[string]withdrawalInfo),
 	}
-	rs.startReleaseLoop()
-	rs.startForwardLoop()
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
 		rs.processForward(key, item.msgID)
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
 	t.Cleanup(func() {
 		rs.workers.Stop()
-		rs.stopForwardLoop()
-		rs.stopReleaseLoop()
 	})
 	return rs
 }
 
 // flushWorkers stops and recreates the worker pool, ensuring all pending
-// items are processed. Also drains the forward loop so async forward RPCs
-// are fully delivered before the test checks hook-captured commands.
+// items are processed. rs-fastpath-3 removed the fire-and-forget sender
+// goroutines; workers now call ForwardCached / ReleaseCached synchronously.
 func flushWorkers(t *testing.T, rs *RouteServer) {
 	t.Helper()
 	rs.workers.Stop()
-	// Drain forward loop: close channel → goroutine processes remaining → restart.
-	rs.stopForwardLoop()
-	rs.startForwardLoop()
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
 		rs.processForward(key, item.msgID)
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
@@ -523,21 +517,24 @@ func TestRRUpdateRouteTimeout60s(t *testing.T) {
 	}
 }
 
-// TestForwardChDepthNamed verifies forwardCh buffer size is set from the named
-// rsForwardChDepth constant, not a magic literal.
+// TestRSForwardPlumbingDeleted pins the rs-fastpath-3 "no layering" decision:
+// after switching to ForwardCached / ReleaseCached, none of the legacy
+// fire-and-forget plumbing lives on the RouteServer struct. Referencing any
+// of these fields via reflect must fail.
 //
-// VALIDATES: spec-rs-fastpath-1-profile AC-5 -- forwardCh depth is a named
-// constant with a documented sizing formula, not an unexplained literal.
-// PREVENTS: drift where someone tunes the literal without touching the comment
-// describing the formula (senders * maxBatchSize headroom).
-func TestForwardChDepthNamed(t *testing.T) {
-	if rsForwardChDepth <= 0 {
-		t.Fatalf("rsForwardChDepth must be positive, got %d", rsForwardChDepth)
-	}
+// VALIDATES: AC-11 -- grep guard that the deleted names do not return on the
+// struct. PREVENTS: regression where someone re-introduces a parallel sender
+// pool alongside the fast path.
+func TestRSForwardPlumbingDeleted(t *testing.T) {
 	rs := newTestRouteServer(t)
-	if cap(rs.forwardCh) != rsForwardChDepth {
-		t.Errorf("cap(rs.forwardCh) = %d, want rsForwardChDepth = %d",
-			cap(rs.forwardCh), rsForwardChDepth)
+	v := reflect.ValueOf(rs).Elem()
+	for _, name := range []string{
+		"forwardCh", "forwardStop", "forwardDone",
+		"releaseCh", "releaseStop", "releaseDone",
+	} {
+		if v.FieldByName(name).IsValid() {
+			t.Errorf("rs-fastpath-3: RouteServer field %q must be deleted", name)
+		}
 	}
 }
 
@@ -553,11 +550,11 @@ func TestForwardChDepthNamed(t *testing.T) {
 func TestBatchForwardSingleFlushOnDrain(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	var commands []string
+	var forwardCalls int
 	var cmdMu sync.Mutex
-	rs.updateRouteHook = func(_, cmd string) {
+	rs.forwardCachedHook = func(_ []uint64, _ []string) {
 		cmdMu.Lock()
-		commands = append(commands, cmd)
+		forwardCalls++
 		cmdMu.Unlock()
 	}
 
@@ -572,15 +569,9 @@ func TestBatchForwardSingleFlushOnDrain(t *testing.T) {
 	cmdMu.Lock()
 	defer cmdMu.Unlock()
 
-	forwardCount := 0
-	for _, cmd := range commands {
-		if strings.Contains(cmd, "forward") {
-			forwardCount++
-		}
-	}
-	if forwardCount != 1 {
-		t.Fatalf("expected exactly 1 forward command (single UPDATE flushed via onDrained), got %d: %v",
-			forwardCount, commands)
+	if forwardCalls != 1 {
+		t.Fatalf("expected exactly 1 ForwardCached call (single UPDATE flushed via onDrained), got %d",
+			forwardCalls)
 	}
 }
 
@@ -987,11 +978,18 @@ func TestReleaseCacheAsync(t *testing.T) {
 func TestBatchForwardAccumulation(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	var commands []string
+	type forwardCall struct {
+		ids     []uint64
+		targets []string
+	}
+	var calls []forwardCall
 	var cmdMu sync.Mutex
-	rs.updateRouteHook = func(_, cmd string) {
+	rs.forwardCachedHook = func(ids []uint64, targets []string) {
 		cmdMu.Lock()
-		commands = append(commands, cmd)
+		calls = append(calls, forwardCall{
+			ids:     append([]uint64(nil), ids...),
+			targets: append([]string(nil), targets...),
+		})
 		cmdMu.Unlock()
 	}
 
@@ -1010,39 +1008,28 @@ func TestBatchForwardAccumulation(t *testing.T) {
 		rs.processForward(key, item.msgID)
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
 
-	// Dispatch 5 UPDATEs (all same source, same targets).
 	for i := uint64(1); i <= 5; i++ {
 		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
 	}
 
-	// Release gate: worker processes all 5 items sequentially with items 2-5
-	// already in the channel, so onDrained only fires after item 5 — producing
-	// a single batch flush with all 5 IDs.
 	close(gate)
 	flushWorkers(t, rs)
 
 	cmdMu.Lock()
 	defer cmdMu.Unlock()
 
-	// Count forward RPCs and check for batch (comma-separated IDs).
-	forwardCount := 0
+	if len(calls) >= 5 {
+		t.Errorf("expected fewer than 5 ForwardCached calls (batched), got %d", len(calls))
+	}
 	hasBatch := false
-	for _, cmd := range commands {
-		if strings.Contains(cmd, "forward") {
-			forwardCount++
-			// Check if the ID portion contains a comma (batch).
-			parts := strings.Fields(cmd)
-			if len(parts) >= 2 && strings.Contains(parts[1], ",") {
-				hasBatch = true
-			}
+	for _, c := range calls {
+		if len(c.ids) > 1 {
+			hasBatch = true
+			break
 		}
 	}
-
-	if forwardCount >= 5 {
-		t.Errorf("expected fewer than 5 forward RPCs (batched), got %d", forwardCount)
-	}
 	if !hasBatch {
-		t.Error("expected at least one batch forward command with comma-separated IDs")
+		t.Error("expected at least one ForwardCached call with multiple IDs")
 	}
 }
 
@@ -1085,26 +1072,34 @@ func TestSelectForwardTargetsDeterministic(t *testing.T) {
 	}
 }
 
-// TestBatchForwardFireAndForget verifies worker doesn't block on forward RPC.
+// TestRSFlushCallsForwardCached verifies AC-11: rs's flushBatch invokes
+// Plugin.ForwardCached with the accumulated IDs and the per-batch target
+// snapshot. rs-fastpath-3 replaces the old asyncForward text RPC path.
 //
-// VALIDATES: AC-11 — worker continues processing without waiting for RPC response.
-// PREVENTS: Worker goroutine blocked on synchronous updateRoute during batch flush.
-func TestBatchForwardFireAndForget(t *testing.T) {
+// VALIDATES: AC-11 -- rs's flush goes through the reactor-owned fast path,
+// not through the text update-route dispatcher.
+// PREVENTS: regression where flushBatch silently falls back to the legacy
+// path and the profile hotspot (tokenise 19.4 %) reappears.
+func TestRSFlushCallsForwardCached(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	// Block forward RPCs to prove workers don't wait for responses.
-	// The hook runs inside updateRoute — with sync forward it blocks
-	// the worker goroutine; with async forward it blocks the background
-	// sender goroutine instead.
-	blockForward := make(chan struct{})
-	var forwardCmds []string
+	type call struct {
+		ids     []uint64
+		targets []string
+	}
+	var calls []call
 	var cmdMu sync.Mutex
+	rs.forwardCachedHook = func(ids []uint64, targets []string) {
+		cmdMu.Lock()
+		calls = append(calls, call{
+			ids:     append([]uint64(nil), ids...),
+			targets: append([]string(nil), targets...),
+		})
+		cmdMu.Unlock()
+	}
 	rs.updateRouteHook = func(_, cmd string) {
-		if strings.Contains(cmd, "forward") {
-			<-blockForward
-			cmdMu.Lock()
-			forwardCmds = append(forwardCmds, cmd)
-			cmdMu.Unlock()
+		if strings.Contains(cmd, "cache ") && strings.Contains(cmd, " forward ") {
+			t.Errorf("rs-fastpath-3: legacy 'cache N forward' text RPC fired instead of ForwardCached: %q", cmd)
 		}
 	}
 
@@ -1113,52 +1108,25 @@ func TestBatchForwardFireAndForget(t *testing.T) {
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
 	rs.mu.Unlock()
 
-	// Dispatch 5 UPDATEs with distinct prefixes from the same source peer.
-	for i := uint64(1); i <= 5; i++ {
-		rs.dispatchText(fmt.Sprintf(
-			"peer 10.0.0.1 remote as 65001 received update %d origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
-			i, i,
-		))
+	for i := uint64(1); i <= 3; i++ {
+		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
 	}
+	flushWorkers(t, rs)
 
-	// Workers.Stop() drains all items. With synchronous forward, the worker
-	// goroutine blocks in onDrained → flushBatch → updateRoute → hook, so
-	// Stop() hangs. With fire-and-forget, asyncForward returns immediately.
-	stopDone := make(chan struct{})
-	go func() {
-		rs.workers.Stop()
-		close(stopDone)
-	}()
+	cmdMu.Lock()
+	defer cmdMu.Unlock()
 
-	select {
-	case <-stopDone:
-		// Workers stopped promptly — fire-and-forget confirmed.
-	case <-time.After(2 * time.Second):
-		close(blockForward) // Unblock hook so test can clean up.
-		<-stopDone
-		t.Fatal("workers.Stop() blocked — forward RPC not fire-and-forget (AC-11)")
+	if len(calls) == 0 {
+		t.Fatal("expected at least one ForwardCached call, got 0")
 	}
-
-	// Workers completed — verify withdrawal map has all routes.
-	rs.withdrawalMu.Lock()
-	wdLen := len(rs.withdrawals["10.0.0.1"])
-	rs.withdrawalMu.Unlock()
-	if wdLen != 5 {
-		t.Errorf("expected 5 withdrawal entries, got %d", wdLen)
+	for _, c := range calls {
+		if len(c.ids) == 0 {
+			t.Error("ForwardCached call carried no IDs")
+		}
+		if len(c.targets) == 0 {
+			t.Error("ForwardCached call carried no destinations")
+		}
 	}
-
-	// Unblock forward RPCs and verify background sender processes them.
-	close(blockForward)
-	require.Eventually(t, func() bool {
-		cmdMu.Lock()
-		defer cmdMu.Unlock()
-		return len(forwardCmds) > 0
-	}, 2*time.Second, time.Millisecond, "expected forward RPCs processed by background sender")
-
-	// Recreate worker pool for cleanup (Stop() was called above).
-	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
-		rs.processForward(key, item.msgID)
-	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
 }
 
 // buildTestUpdate creates a minimal text-format UPDATE event for testing dispatch.

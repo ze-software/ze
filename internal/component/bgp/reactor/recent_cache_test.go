@@ -1578,3 +1578,134 @@ func TestConcurrentAddAckWithBackground(t *testing.T) {
 
 	wg.Wait()
 }
+
+// --- rs-fastpath-3: pending-never-expires invariant (spec AC-10) ---
+
+// TestPendingCacheNeverExpires pins the CacheConsumer + CacheConsumerUnordered
+// contract that bgp-rs's batch accumulator depends on: a msgID accepted via
+// Activate(id, count > 0) cannot expire from recentUpdates via the safety
+// valve scan until the consumer explicitly acks it, as long as (a) no later
+// entry is fully acked (frontier case) or (b) the retained time is within
+// the safety valve window.
+//
+// VALIDATES: AC-10 — rs may hold msgIDs in a batch up to maxBatchSize=500
+// without risk of cache eviction. Future cache refactors cannot silently
+// regress this load-bearing invariant.
+// PREVENTS: Silent UPDATE loss if the gap scan starts evicting pending-consumer
+// entries unconditionally (would break rs's fast-path batch accumulator).
+func TestPendingCacheNeverExpires(t *testing.T) {
+	const batchSize = 500 // matches rs maxBatchSize
+
+	t.Run("frontier_no_acks_survives_forever", func(t *testing.T) {
+		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		fc := sim.NewFakeClock(start)
+
+		cache := NewRecentUpdateCache(batchSize + 100)
+		defer cache.Stop()
+		cache.SetClock(fc)
+		cache.SetSafetyValveDuration(10 * time.Second)
+
+		// Mimic rs registration: unordered consumer so per-entry acks only.
+		cache.RegisterConsumer("rs")
+		cache.SetConsumerUnordered("rs")
+
+		// Seed full-sized batch. Each entry has one pending consumer (rs).
+		for i := uint64(1); i <= batchSize; i++ {
+			cache.Add(newTestUpdate(i))
+			cache.Activate(i, 1)
+		}
+		require.Equal(t, batchSize, cache.Len(), "all entries activated")
+
+		// Advance far past safety valve; run gap scan repeatedly.
+		// No later entry is fully acked -> every entry is at the frontier ->
+		// isGapEvictable must return false for all of them.
+		for range 5 {
+			fc.Add(time.Hour)
+			cache.runGapScan()
+		}
+		require.Equal(t, batchSize, cache.Len(),
+			"all pending entries must survive when no later entry is acked")
+
+		// Explicit acks are the only release path. Drain the whole batch.
+		for i := uint64(1); i <= batchSize; i++ {
+			require.NoError(t, cache.Ack(i, "rs"), "Ack(%d)", i)
+		}
+		require.Equal(t, 0, cache.Len(), "entries evict only after consumer ack")
+	})
+
+	t.Run("gap_within_valve_survives", func(t *testing.T) {
+		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		fc := sim.NewFakeClock(start)
+
+		cache := NewRecentUpdateCache(100)
+		defer cache.Stop()
+		cache.SetClock(fc)
+		cache.SetSafetyValveDuration(5 * time.Minute)
+
+		cache.RegisterConsumer("rs")
+		cache.SetConsumerUnordered("rs")
+
+		// Add 5 entries with one consumer each.
+		for i := uint64(1); i <= 5; i++ {
+			cache.Add(newTestUpdate(i))
+			cache.Activate(i, 1)
+		}
+
+		// Ack highest entry (id=5) to create a "gap" (entries 1-4 are now
+		// "passed over" from the gap scan's perspective).
+		require.NoError(t, cache.Ack(5, "rs"))
+		require.False(t, cache.Contains(5), "acked entry evicted")
+
+		// Advance time, but stay INSIDE the safety valve window.
+		fc.Add(1 * time.Minute)
+		cache.runGapScan()
+
+		// The four "passed over" entries must still survive because the
+		// retained time has not exceeded the safety valve. This is the
+		// window rs relies on to flush its batch.
+		for i := uint64(1); i <= 4; i++ {
+			require.True(t, cache.Contains(i),
+				"entry %d must survive within safety valve window", i)
+		}
+	})
+
+	t.Run("consumer_ack_is_only_release_within_valve", func(t *testing.T) {
+		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		fc := sim.NewFakeClock(start)
+
+		cache := NewRecentUpdateCache(100)
+		defer cache.Stop()
+		cache.SetClock(fc)
+		cache.SetSafetyValveDuration(time.Hour)
+
+		cache.RegisterConsumer("rs")
+		cache.SetConsumerUnordered("rs")
+
+		for i := uint64(1); i <= 10; i++ {
+			cache.Add(newTestUpdate(i))
+			cache.Activate(i, 1)
+		}
+
+		// Ack some, leave others pending.
+		for _, id := range []uint64{3, 7, 9} {
+			require.NoError(t, cache.Ack(id, "rs"))
+			require.False(t, cache.Contains(id))
+		}
+
+		// Advance time but stay within the valve.
+		fc.Add(5 * time.Minute)
+		cache.runGapScan()
+
+		// Non-acked entries must still be present.
+		for _, id := range []uint64{1, 2, 4, 5, 6, 8, 10} {
+			require.True(t, cache.Contains(id),
+				"pending entry %d must survive; only explicit Ack releases within valve", id)
+		}
+
+		// Finish draining.
+		for _, id := range []uint64{1, 2, 4, 5, 6, 8, 10} {
+			require.NoError(t, cache.Ack(id, "rs"))
+		}
+		require.Equal(t, 0, cache.Len())
+	})
+}
