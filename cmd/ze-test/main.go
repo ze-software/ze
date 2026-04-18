@@ -14,6 +14,7 @@
 //	ze-test syslog [flags]         Run syslog server for testing
 //	ze-test mcp [flags]            MCP client (send commands to daemon via MCP)
 //	ze-test vpp [flags]            Run VPP stub-backed functional tests (test/vpp/*.ci)
+//	ze-test traffic [flags]        Run traffic-control functional tests (test/traffic/*.ci)
 //	ze-test text-plugin            Run minimal text-mode plugin (for .ci tests)
 package main
 
@@ -72,6 +73,8 @@ func main() {
 		os.Exit(webCmd())
 	case "vpp":
 		os.Exit(vppCmd())
+	case "traffic":
+		os.Exit(trafficCmd())
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", cmd)
 		printUsage()
@@ -101,6 +104,7 @@ Commands:
   peeringdb    Deterministic PeeringDB mock server (ASN-derived prefix counts)
   syslog       Run syslog server for testing
   vpp          Run VPP stub-backed functional tests (test/vpp/*.ci)
+  traffic      Run traffic-control functional tests (test/traffic/*.ci)
   text-plugin  Run minimal text-mode plugin (for .ci tests)
 
 Run 'ze-test <command> --help' for command-specific help.

@@ -1,0 +1,23 @@
+# Test: `ze config validate` gates the traffic-control subtree via the CLI's
+# build-tagged default helper.
+# VALIDATES: spec-fw-9 AC-4 -- the offline CLI runs the backend feature gate
+#            on traffic-control and falls back to trafficDefaultBackend()
+#            when the user omits the `backend` leaf. On Linux that helper
+#            returns "tc" so validation succeeds; on non-Linux it returns
+#            "" and the walker's empty-backend guard fires -- mirroring
+#            the daemon's reload-time diagnostic. This .ci exercises the
+#            Linux branch end-to-end.
+# PREVENTS: regression where the `traffic-control` row falls out of the
+#           gated-components table and the CLI silently accepts configs
+#           the daemon would later reject at commit time, OR where the
+#           trafficDefaultBackend() helper drifts from the runtime
+#           default (caught in addition by default_backend_traffic_test.go).
+
+stdin=config:terminator=EOF_CONF
+traffic-control {
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

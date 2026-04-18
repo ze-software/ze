@@ -108,6 +108,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/watchdog"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor/filter"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/vpp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bfd"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fibkernel"
@@ -135,3 +136,4 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 )
+

@@ -57,6 +57,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"ntp",
 		"rib",
 		"sysctl",
+		"traffic",
 		"vpp",
 	}
 

@@ -766,10 +766,20 @@ Table ownership: ze tables are prefixed `ze_*`. Backends only touch `ze_*` table
 modify tables owned by other software (e.g., Lachesis). Apply receives the full desired state
 and reconciles against the kernel atomically.
 
+The traffic component also has its own reactor (`internal/component/traffic/register.go`, spec-fw-9):
+`init()` calls `registry.Register(Name="traffic", ConfigRoots=["traffic-control"])`, and `runEngine`
+uses the SDK 5-stage protocol (`OnConfigure`, `OnConfigVerify`, `OnConfigApply`, `OnConfigRollback`)
+to drive the active backend's `Apply` on boot and on every SIGHUP reload, with `sdk.Journal` recording
+a rollback Apply when the reload fails. The backend feature gate (`config.ValidateBackendFeaturesJSON`)
+runs in both `OnConfigure` and `OnConfigVerify`, so tc-only feature annotations land as a one-line
+declaration once `spec-fw-7-traffic-vpp` introduces a second backend. Firewall will follow the same
+pattern in `spec-fw-8`.
+
 <!-- source: internal/component/firewall/model.go -- Table, Chain, Term, Match, Action types -->
 <!-- source: internal/component/firewall/backend.go -- Backend interface, RegisterBackend -->
 <!-- source: internal/component/traffic/model.go -- InterfaceQoS, Qdisc, TrafficClass types -->
 <!-- source: internal/component/traffic/backend.go -- Backend interface, RegisterBackend -->
+<!-- source: internal/component/traffic/register.go -- runEngine, OnConfigure, OnConfigApply, validateBackendGate -->
 
 ---
 

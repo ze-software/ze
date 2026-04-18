@@ -490,11 +490,16 @@ discovered OS interfaces when editing config interactively.
 
 ### Backend Capability Errors
 
-The `interface` (and, in upcoming releases, `firewall` and `traffic-control`)
-components carry a `backend` leaf. The YANG schema annotates feature nodes
+The `interface` and `traffic-control` components (and, in upcoming releases,
+`firewall`) carry a `backend` leaf. The YANG schema annotates feature nodes
 with a list of supporting backends via the `ze:backend` extension. When the
 config selects a backend that does not implement a used feature, commit and
 `ze config validate` reject the config before any Apply call runs.
+
+For `traffic-control` today the gate enforces only the "no backend configured"
+case (non-Linux startup, or an explicit empty `backend` leaf); per-feature
+annotations for tc-specific qdiscs and filter types land with
+`spec-fw-7-traffic-vpp` when a second backend exists to reject against.
 
 Example: the `bridge`, `tunnel`, `wireguard`, `veth`, and `mirror` nodes are
 annotated `ze:backend "netlink"`. Selecting `backend vpp` while using any of

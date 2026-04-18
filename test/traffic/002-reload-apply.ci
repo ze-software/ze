@@ -1,0 +1,132 @@
+# Test: Traffic plugin reactor re-applies on SIGHUP reload.
+# VALIDATES: spec-fw-9 AC-2 -- OnConfigVerify accepts a changed config and
+#            OnConfigApply calls backend.Apply with the new desired state.
+#            The reactor emits "traffic-control config reloaded" when the
+#            journal records the apply successfully.
+# PREVENTS: regression where a SIGHUP that mutates the traffic-control block
+#           leaves the reactor silent (verify/apply/journal never wired).
+#
+# Scope note (spec-fw-9 deviation, see plan/deferrals.md): assertion is on the
+# reactor's log line, not on actual tc state. Kernel-state verification via
+# `tc qdisc show` is deferred to an integration test that runs with
+# CAP_NET_ADMIN. The reload semantic under test is "remove the traffic-control
+# section": a deletion the reactor handles by applying an empty desired state.
+
+tmpfs=reload.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Wait for ze to be ready, rewrite the config to remove traffic-control,
+send SIGHUP, then SIGTERM for a clean exit."""
+import os
+import shutil
+import signal
+import sys
+import time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    print("ERROR: daemon.pid or daemon.ready never appeared", file=sys.stderr)
+    sys.exit(1)
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.3)
+shutil.copy("config2.conf", "ze-bgp.conf")
+os.kill(pid, signal.SIGHUP)
+
+time.sleep(2.0)
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+
+traffic-control {
+	backend tc
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+
+traffic-control {
+}
+EOF_CONF2
+
+option=env:var=ze.log.traffic:value=debug
+
+cmd=background:seq=1:exec=python3 reload.py
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=traffic-control config reloaded

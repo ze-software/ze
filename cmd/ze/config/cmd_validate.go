@@ -261,6 +261,7 @@ func runValidation(input, path string) *validationResult {
 		defaultB string
 	}{
 		{root: "interface", leafPath: "/interface/backend", defaultB: ifaceDefaultBackend()},
+		{root: "traffic-control", leafPath: "/traffic-control/backend", defaultB: trafficDefaultBackend()},
 	} {
 		container := tree.GetContainer(gated.root)
 		if container == nil {

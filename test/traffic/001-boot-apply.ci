@@ -1,0 +1,73 @@
+# Test: Traffic plugin component reactor runs OnConfigure at boot.
+# VALIDATES: spec-fw-9 AC-1 -- ze boots with traffic-control config; the
+#            reactor in internal/component/traffic/register.go loads the
+#            configured backend and calls Apply with the desired state.
+# PREVENTS: regression where the traffic-control section parses but never
+#           reaches the plugin's reactor (the pre-fw-9 state -- config accepted,
+#           nothing programmed).
+#
+# Scope note (spec-fw-9 deviation, see plan/deferrals.md): this test validates
+# the wiring via the log line emitted by register.go. Verifying real tc qdisc
+# state via `tc qdisc show` is deferred because CI runners do not grant
+# CAP_NET_ADMIN reliably; the trafficnetlink backend's netlink Apply is still
+# covered by internal/plugins/trafficnetlink/*_linux_test.go.
+
+tmpfs=wait.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Hold the test open long enough for ze (running in background) to
+reach OnConfigure and emit the traffic-control log line. Background
+processes do not receive the ZE_READY_FILE marker, so the wait is a
+plain sleep instead of a readiness poll."""
+import time
+
+time.sleep(2.5)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+
+traffic-control {
+	backend tc
+}
+EOF_CONF
+
+option=env:var=ze.log.traffic:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=traffic-control config applied
