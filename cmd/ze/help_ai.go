@@ -12,6 +12,7 @@ import (
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -163,12 +164,20 @@ func printCLICommands() {
 }
 
 // cliSubcommands returns the CLI subcommand tree.
-// Verb commands (show, set, del, etc.) are generated from the YANG tree.
-// Root commands (completion, exabgp, etc.) are listed statically.
+//
+// Two dynamic sources, no static list:
+//  1. YANG verb tree (show, set, del, update, route-refresh, ...).
+//     These are the daemon-side dispatch verbs.
+//  2. cmdutil.ListRootCommands(): top-level `ze <name>` subcommands
+//     registered at startup from cmd/ze/main.go.
+//
+// Verb commands that also appear as root commands (duplicates) are
+// de-duplicated: the root-command metadata wins because it carries a
+// richer description and sub-path hint.
 func cliSubcommands() []cliCmd {
+	seen := map[string]bool{}
 	var cmds []cliCmd
 
-	// Dynamic: verb commands from YANG tree.
 	yangTree := cli.YANGCommandTree()
 	if yangTree != nil {
 		for _, name := range sortedChildren(yangTree) {
@@ -182,25 +191,16 @@ func cliSubcommands() []cliCmd {
 				mode = "read-only"
 			}
 			cmds = append(cmds, cliCmd{name, mode, desc, "ze " + name + " help"})
+			seen[name] = true
 		}
 	}
 
-	// Static: root commands that stay outside the verb tree.
-	cmds = append(cmds,
-		cliCmd{"bgp", "offline", "BGP protocol tools", "decode <hex>, encode <route>, plugin"},
-		cliCmd{"cli", "daemon", "Interactive CLI for running daemons", "-c <cmd> for single command"},
-		cliCmd{"completion", "offline", "Shell completion scripts", "bash, zsh, fish, nushell"},
-		cliCmd{"config", "offline", "Configuration management", "edit, set, migrate, rollback, archive, import, rename"},
-		cliCmd{"data", "offline", "ZeFS blob store management", "import, rm, ls, cat"},
-		cliCmd{"exabgp", "offline", "ExaBGP bridge tools", "plugin, migrate"},
-		cliCmd{"init", "setup", "Bootstrap database with SSH credentials", "--managed for fleet mode, --force to replace"},
-		cliCmd{"interface", "offline", "Manage OS network interfaces", "create, delete, unit, addr, migrate"},
-		cliCmd{"plugin", "offline", "Plugin system", "<plugin-name> for plugin CLI, test for debugging"},
-		cliCmd{"signal", "daemon", "Send signals to daemon via SSH", "reload, stop, restart, quit"},
-		cliCmd{"start", "setup", "Start daemon from database config", "--web <port>, --insecure-web, --mcp <port>"},
-		cliCmd{"status", "daemon", "Check if daemon is running", "exit 0 = running, 1 = not"},
-		cliCmd{"help", "offline", "Show help", "--ai [--cli|--api|--mcp|--dispatch|--all]"},
-	)
+	for _, rc := range cmdregistry.ListRoot() {
+		if seen[rc.Name] {
+			continue // YANG verb already covered the slot
+		}
+		cmds = append(cmds, cliCmd{rc.Name, rc.Meta.Mode, rc.Meta.Description, rc.Meta.Subs})
+	}
 
 	return cmds
 }

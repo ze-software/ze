@@ -60,6 +60,12 @@ type PeerInfo struct {
 	KeepalivesSent     uint32
 	EORReceived        uint32
 	EORSent            uint32
+
+	// NegotiatedFamilies is the list of "afi/safi" strings that completed
+	// RFC 4760 multiprotocol negotiation with this peer. Empty until OPEN
+	// exchange finishes. Used by `show bgp <family> summary` to scope the
+	// summary table to peers carrying a given address family.
+	NegotiatedFamilies []string
 }
 
 // PeerCapabilityConfig holds BGP capability configuration for a peer.

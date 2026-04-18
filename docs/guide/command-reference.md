@@ -4,6 +4,10 @@ Ze commands fall into two categories: **shell commands** that run locally
 and **runtime commands** sent to the running daemon via SSH.
 <!-- source: cmd/ze/main.go -- main dispatch -->
 
+For the forward-looking cross-vendor roadmap (which commands VyOS /
+Junos / Nokia / Arista expose and ze's status per row), see
+[`command-catalogue.md`](command-catalogue.md).
+
 ## Shell Commands
 
 Run directly from the terminal. No daemon required (except `ze signal`, `ze status`,
@@ -255,6 +259,87 @@ warnings collapse to a count line pointing at `show warnings`.
 
 <!-- source: internal/component/bgp/config/loader.go -- collectPrefixWarnings -->
 
+### ze show system
+
+Daemon process introspection. Three sibling commands surface the Go
+runtime state for the running ze process. Available via daemon SSH
+(online RPC); YANG registration only.
+
+```
+ze show system memory              # runtime.MemStats (alloc, heap, GC) + hardware enrichment
+ze show system cpu                 # goroutine count, logical CPUs, GOMAXPROCS + hardware
+ze show system date                # wall-clock time: RFC3339, Unix, timezone
+```
+
+Each response is a flat JSON map with kebab-case keys:
+
+| Command | Top-level keys |
+|---------|----------------|
+| `show system memory` | `alloc`, `total-alloc`, `sys`, `heap-alloc`, `heap-sys`, `heap-in-use`, `heap-objects`, `stack-in-use`, `num-gc`, `gc-cpu-pct`, `hardware` (optional: physical memory + ECC from `host.DetectMemory()`) |
+| `show system cpu` | `num-cpu`, `num-goroutines`, `max-procs`, `go-version`, `hardware` (optional: `host.DetectCPU()`) |
+| `show system date` | `time` (RFC3339), `unix`, `unix-nano`, `timezone`, `utc-offset-secs` |
+
+The `hardware` subobject under `memory` and `cpu` mirrors the data
+returned by `show host memory` / `show host cpu`. Both paths are
+correct; pick `show system *` when you want runtime-first with hardware
+as context, `show host *` when you want hardware-first.
+
+<!-- source: internal/component/cmd/show/system.go -- handleShowSystemMemory/CPU/Date -->
+
+### ze host show
+
+Host hardware inventory. Read-only, no daemon required. Walks sysfs/procfs
+(and issues best-effort `ethtool` ioctls for NIC firmware/rings) to produce
+a structured JSON description of the machine. Defaults to JSON output for
+pipeline consumption (`jq`, Prometheus scrapers, SNMP shims); use
+`--text` for human-readable summaries.
+
+```
+ze host show                       # Full inventory (all sections), JSON
+ze host show cpu                   # CPU only
+ze host show nic                   # Physical NICs (virtual interfaces filtered)
+ze host show dmi                   # DMI/SMBIOS board identity
+ze host show memory                # /proc/meminfo + ECC counters (edac)
+ze host show thermal               # hwmon sensors + per-CPU throttle counts
+ze host show storage               # Block devices + NVMe firmware
+ze host show kernel                # Kernel release, cmdline, microcode, arch flags
+ze host show all                   # Every section in one payload
+ze host show --text cpu            # Human-readable summary
+```
+
+<!-- source: cmd/ze/host/host.go -- RunShow, validSections -->
+<!-- source: internal/component/host/inventory.go -- Inventory struct and types -->
+
+The same sections are also available as RPCs over `ze cli` to a running
+daemon: `show host cpu`, `show host nic`, etc. Online and offline paths
+share the same detection library; the JSON shapes are identical.
+
+**Sections:**
+
+| Section | Fields (kebab-case keys) |
+|---------|--------------------------|
+| `cpu` | `vendor`, `model-name`, `family`, `model`, `stepping`, `logical-cpus`, `physical-cores`, `threads-per-core`, `hybrid`, `scaling-driver`, `hwp-available`, `base-freq-mhz`, `max-freq-mhz`, `microcode`, `cores[]` with per-core `role` (`performance`/`efficient`/`uniform`), `current-freq-mhz`, `core-throttle-count`, `package-throttle-count` |
+| `nic` | Per physical interface: `name`, `driver`, `pci-vendor`, `pci-device`, `mac`, `link-speed-mbps`, `duplex`, `carrier`, `rx-queues`, `tx-queues`, `ring-rx`, `ring-tx`, `firmware-version` |
+| `dmi` | `system-vendor`, `system-product`, `board-*`, `bios-*`, `chassis-*` |
+| `memory` | `total-bytes`, `free-bytes`, `available-bytes`, `buffers-bytes`, `cached-bytes`, `swap-total-bytes`, `swap-free-bytes`, `ecc-correctable-errors`, `ecc-uncorrectable-errors`, `ecc-present` |
+| `thermal` | `sensors[]` (hwmon: `name`, `device`, `temp-mc`, `alarm`), `throttle[]` (per-CPU `core-throttle-count`, `package-throttle-count`) |
+| `storage` | `devices[]` with `name`, `size-bytes`, `model`, `serial`, `transport` (`nvme`/`sata`/`mmc`/`virtio`/`unknown`), `rotational`, `nvme-firmware-version` (NVMe only) |
+| `kernel` | `release`, `version`, `architecture`, `cmdline`, `boot-time` (RFC3339), `boot-time-unix`, `microcode-revision`, `arch-flags[]` (security-relevant subset: `smep`, `smap`, `ibt`, `user_shstk`, `ibrs`, `ibrs_enhanced`, `ssbd`) |
+
+All temperatures are reported in **millicelsius** (kernel hwmon convention).
+All sizes in **bytes**. All frequencies in **MHz**. Unreadable sysfs files
+are omitted from the JSON rather than returning `null` or an empty string.
+Permission errors are recorded in the inventory's `errors[]` array.
+
+**Virtual interface filtering**: `ze host show nic` only reports physical
+interfaces. The filter is structural (presence of
+`/sys/class/net/<n>/device/`) rather than a driver-name allowlist, so
+new virtual drivers (wireguard, ipvlan, etc.) are filtered uniformly.
+
+**Platform**: Linux only. Darwin and other platforms return
+`ErrUnsupported` per section; `ze host show` reports "unsupported on this
+platform" with exit 0 so scripts can probe gracefully.
+
 ### ze interface
 
 OS network interface management (standalone, no daemon needed for most commands).
@@ -262,7 +347,11 @@ Show uses the verb syntax: `ze show interface`.
 
 ```
 ze show interface                  # List all interfaces (also via daemon SSH)
+ze show interface brief            # One-line-per-interface summary
 ze show interface <name>           # Show details for one interface
+ze show interface <name> counters  # Counters only for named interface
+ze show interface type <type>      # Filter by type (ethernet, bridge, vxlan, wireguard, ...)
+ze show interface errors           # Interfaces with non-zero Rx/Tx error or drop counters
 ze show interface --json           # JSON output
 ze interface create dummy <name>   # Create a dummy interface
 ze interface create veth <n> <p>   # Create a veth pair
@@ -273,6 +362,15 @@ ze interface addr add <name> unit <id> <cidr>      # Add IP address
 ze interface addr del <name> unit <id> <cidr>      # Remove IP address
 ze interface migrate ...           # Make-before-break migration (requires daemon)
 ```
+
+**`show interface type <type>`** is case-insensitive; unknown types reject
+with the sorted list of types actually present on the system. Empty-Type
+interfaces are hidden from both the response and the valid-types list.
+
+**`show interface errors`** skips interfaces without stats and interfaces
+whose `RxErrors`, `RxDropped`, `TxErrors`, `TxDropped` counters are all
+zero. The response includes only the four counter fields per interface
+for compact diffing across snapshots.
 
 **migrate flags (dispatched to running daemon via SSH):**
 
@@ -687,7 +785,8 @@ Many commands take a `peer <selector>` argument:
 | `peer <sel> detail` | read-only | Detailed peer info (config, state, counters, `prefix-updated` date, `prefix-stale` warning) |
 | `peer <sel> capabilities` | read-only | Negotiated capabilities |
 | `peer <sel> statistics` | read-only | Per-peer update statistics with rates |
-| `bgp summary` | read-only | BGP summary table |
+| `bgp summary` | read-only | BGP summary table (all peers) |
+| `bgp summary <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
 | `peer <sel> pause` | write | Pause read loop (flow control) |
 | `peer <sel> resume` | write | Resume read loop |
 | `peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |

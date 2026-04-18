@@ -21,6 +21,82 @@ module ze-cli-show-cmd {
             description "Show daemon start time and uptime duration";
         }
 
+        container system {
+            config false;
+            description "Daemon process metadata";
+
+            container memory {
+                config false;
+                ze:command "ze-show:system-memory";
+                description "Show Go runtime memory statistics (alloc, heap, GC)";
+            }
+
+            container cpu {
+                config false;
+                ze:command "ze-show:system-cpu";
+                description "Show goroutine count, logical CPU count, GOMAXPROCS";
+            }
+
+            container date {
+                config false;
+                ze:command "ze-show:system-date";
+                description "Show current wall-clock time in the daemon's timezone";
+            }
+        }
+
+        container host {
+            config false;
+            description "Hardware inventory: CPU, NICs, DMI, memory, thermal, storage, kernel";
+
+            container cpu {
+                config false;
+                ze:command "ze-show:host-cpu";
+                description "Show CPU inventory: vendor, model, topology, hybrid layout, scaling driver, frequencies, throttle counts";
+            }
+
+            container nic {
+                config false;
+                ze:command "ze-show:host-nic";
+                description "Show physical network interfaces: driver, PCI IDs, link speed, queue counts, firmware version (virtual interfaces excluded)";
+            }
+
+            container dmi {
+                config false;
+                ze:command "ze-show:host-dmi";
+                description "Show DMI/SMBIOS board identity: system vendor, board, BIOS, chassis";
+            }
+
+            container memory {
+                config false;
+                ze:command "ze-show:host-memory";
+                description "Show physical memory sizes and ECC error counters (when edac driver present)";
+            }
+
+            container thermal {
+                config false;
+                ze:command "ze-show:host-thermal";
+                description "Show hwmon temperature sensors and per-CPU thermal-throttle counters";
+            }
+
+            container storage {
+                config false;
+                ze:command "ze-show:host-storage";
+                description "Show block devices: size, model, transport (nvme/sata/mmc/virtio), rotational, NVMe firmware";
+            }
+
+            container kernel {
+                config false;
+                ze:command "ze-show:host-kernel";
+                description "Show Linux kernel release, cmdline, microcode revision, boot time, and security-relevant CPU flags";
+            }
+
+            container all {
+                config false;
+                ze:command "ze-show:host-all";
+                description "Show the full host hardware inventory (all sections in one JSON response)";
+            }
+        }
+
         container warnings {
             config false;
             ze:command "ze-show:warnings";
@@ -221,7 +297,7 @@ module ze-cli-show-cmd {
         container interface {
             config false;
             ze:command "ze-show:interface";
-            description "List OS network interfaces";
+            description "List OS network interfaces (brief, type, errors dispatch to the same WireMethod; handler branches on args).";
 
             container brief {
                 config false;
@@ -239,6 +315,18 @@ module ze-cli-show-cmd {
                              standalone CLI (ze interface scan --config) is not
                              available via the daemon path; use the standalone
                              binary for config-syntax output.";
+            }
+
+            container type {
+                config false;
+                ze:command "ze-show:interface";
+                description "Filter the interface list by type (ethernet, bridge, vxlan, wireguard, tunnel, bond, ...). Usage: show interface type <type>";
+            }
+
+            container errors {
+                config false;
+                ze:command "ze-show:interface";
+                description "Show only interfaces with non-zero Rx/Tx error or drop counters";
             }
         }
     }

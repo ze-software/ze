@@ -6,6 +6,10 @@ package peer
 import (
 	"fmt"
 	"net/netip"
+	"regexp"
+	"slices"
+	"sort"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -19,28 +23,83 @@ func init() {
 	)
 }
 
-// handleBgpSummary returns a BGP summary table with per-peer statistics.
-// Similar to FRR's "show bgp summary" — aggregate totals plus per-peer rows.
-func handleBgpSummary(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	reactor := ctx.Reactor()
-	if reactor == nil {
+// maxFamilyArgLen caps the address-family argument echoed back in
+// rejection messages so an unbounded operator string cannot be mirrored
+// into the JSON response envelope.
+const maxFamilyArgLen = 32
+
+// familyArgRE constrains the address-family argument to the shape of
+// an AFI/SAFI or a short form: lowercase letters, digits, slash,
+// hyphen. Blocks shell meta, whitespace, and control chars from
+// reaching the rejection message.
+var familyArgRE = regexp.MustCompile(`^[a-z0-9/_-]+$`)
+
+// handleBgpSummary returns a BGP summary table with per-peer
+// statistics. Similar to FRR's "show bgp summary" — aggregate totals
+// plus per-peer rows.
+//
+// With no arguments: every configured peer appears in the table.
+//
+// With one argument: the argument is an AFI/SAFI string (full form
+// like "ipv4/unicast" / "l2vpn/evpn", or one of the shorthands
+// `ipv4`, `ipv6`, `l2vpn` which expand to `ipv4/unicast`,
+// `ipv6/unicast`, `l2vpn/evpn` respectively). Only peers that have
+// completed RFC 4760 multiprotocol negotiation for the requested
+// family appear in the table. Unknown or un-negotiated families
+// reject with the sorted set of families any peer has actually
+// negotiated, so the operator sees exactly what is reachable on the
+// current daemon.
+//
+// Any other shorthand (e.g. `bgp-ls`, IPv4/VPN, labeled-unicast)
+// requires the full `afi/safi` form — the shorthand table is
+// deliberately small to avoid masking typos.
+func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	if ctx == nil || ctx.Reactor() == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "reactor not available",
 		}, fmt.Errorf("reactor not available")
 	}
 
+	var familyFilter string
+	if len(args) > 0 {
+		if err := validateFamilyArg(args[0]); err != nil {
+			return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+		}
+		familyFilter = expandFamilyShorthand(args[0])
+	}
+
+	reactor := ctx.Reactor()
 	allPeers := reactor.Peers()
 	stats := reactor.Stats()
 
+	// Single pass over allPeers: build the `peers[]` rows, count
+	// established-in-filter, and collect the set of families any peer
+	// has negotiated. The family set is only consumed when the filter
+	// does not match any peer (rejectFamily); building it here avoids
+	// a second iteration in the reject path.
 	established := 0
-	peerRows := make([]map[string]any, len(allPeers))
+	matched := false
+	peerRows := make([]map[string]any, 0, len(allPeers))
+	var seen map[string]struct{}
+	if familyFilter != "" {
+		seen = make(map[string]struct{})
+	}
 	for i := range allPeers {
 		p := &allPeers[i]
+		if familyFilter != "" {
+			for _, f := range p.NegotiatedFamilies {
+				seen[f] = struct{}{}
+			}
+			if !slices.Contains(p.NegotiatedFamilies, familyFilter) {
+				continue
+			}
+			matched = true
+		}
 		if p.State == "established" {
 			established++
 		}
-		peerRows[i] = map[string]any{
+		peerRows = append(peerRows, map[string]any{
 			"address":             p.Address.String(),
 			"name":                p.Name,
 			"description":         p.GroupName,
@@ -53,26 +112,96 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, _ []string) (*plugin.Res
 			"keepalives-sent":     p.KeepalivesSent,
 			"eor-received":        p.EORReceived,
 			"eor-sent":            p.EORSent,
-		}
+		})
+	}
+	if familyFilter != "" && !matched {
+		return rejectFamily(familyFilter, seen)
 	}
 
-	// Convert uint32 router-id to dotted-quad IP string.
+	// Convert uint32 router-id to dotted-quad IP string. Note: 0 renders
+	// as 0.0.0.0 before the reactor has chosen a router-id; inherited
+	// behavior, not a regression.
 	rid := stats.RouterID
 	routerID := netip.AddrFrom4([4]byte{byte(rid >> 24), byte(rid >> 16), byte(rid >> 8), byte(rid)}).String()
 
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"summary": map[string]any{
-				"router-id":         routerID,
-				"local-as":          stats.LocalAS, // global BGP local AS, kept as "local-as" for summary context
-				"uptime":            stats.Uptime.String(),
-				"peers-configured":  len(allPeers),
-				"peers-established": established,
-				"peers":             peerRows,
-			},
-		},
-	}, nil
+	summary := map[string]any{
+		"router-id":         routerID,
+		"local-as":          stats.LocalAS, // global BGP local AS, kept as "local-as" for summary context
+		"uptime":            stats.Uptime.String(),
+		"peers-configured":  len(allPeers),
+		"peers-established": established,
+		"peers":             peerRows,
+	}
+	if familyFilter != "" {
+		summary["family"] = familyFilter
+		summary["peers-in-family"] = len(peerRows)
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: map[string]any{"summary": summary}}, nil
+}
+
+// validateFamilyArg caps length + charset on the operator-supplied
+// address-family argument before it reaches any formatter or log.
+//
+// Ordering matters: the length check runs BEFORE strings.ToLower so a
+// malicious caller cannot force a multi-megabyte allocation by passing
+// a huge input (ToLower would otherwise allocate a full copy before we
+// ever reach the charset check). Do not reorder.
+func validateFamilyArg(in string) error {
+	if in == "" {
+		return fmt.Errorf("family argument is empty")
+	}
+	if len(in) > maxFamilyArgLen {
+		return fmt.Errorf("family argument too long (%d > %d chars)", len(in), maxFamilyArgLen)
+	}
+	lowered := strings.ToLower(in)
+	if !familyArgRE.MatchString(lowered) {
+		return fmt.Errorf("invalid family %q: expected afi/safi (e.g. ipv4/unicast)", in)
+	}
+	return nil
+}
+
+// rejectFamily builds the exact-or-reject error naming the families
+// actually negotiated on the current daemon so the operator sees the
+// concrete valid set. `seen` is the set populated during the single
+// handleBgpSummary pass over peers; callers never pass it nil when a
+// filter was active.
+func rejectFamily(wanted string, seen map[string]struct{}) (*plugin.Response, error) {
+	known := make([]string, 0, len(seen))
+	for f := range seen {
+		known = append(known, f)
+	}
+	sort.Strings(known)
+	msg := fmt.Sprintf("unknown or un-negotiated family %q", wanted)
+	if len(known) == 0 {
+		msg += "; no peer has completed negotiation"
+	} else {
+		msg += "; currently negotiated: " + strings.Join(known, ", ")
+	}
+	return &plugin.Response{Status: plugin.StatusError, Data: msg}, nil
+}
+
+// expandFamilyShorthand accepts three operator-friendly short forms:
+//
+//	"ipv4"  -> "ipv4/unicast"
+//	"ipv6"  -> "ipv6/unicast"
+//	"l2vpn" -> "l2vpn/evpn"
+//
+// The shorthand table is intentionally small; any other family
+// (bgp-ls, flowspec, labeled-unicast, per-VRF SAFIs, etc.) requires
+// the full afi/safi form so a typo like `bgplb` cannot be mis-expanded
+// to a valid-looking family. Input is compared case-insensitive; the
+// caller validates the returned string against actually-negotiated
+// families.
+func expandFamilyShorthand(in string) string {
+	switch strings.ToLower(in) {
+	case "ipv4":
+		return "ipv4/unicast"
+	case "ipv6":
+		return "ipv6/unicast"
+	case "l2vpn":
+		return "l2vpn/evpn"
+	}
+	return in
 }
 
 // handleBgpPeerCapabilities returns negotiated capabilities for matched peers.

@@ -250,19 +250,102 @@ The YANG path maps directly: `show bgp peer` = container nesting = WireMethod `z
 | Stdin | `-` means stdin. Use `os.Stdin` when filename is `-` |
 | JSON output | `--json` flag. Default is human-readable text |
 
-## Local Command Registration (daemon startup)
+## Command Registration (BLOCKING)
 
-Some offline commands are also available inside the daemon. Registered at startup:
+Every subcommand package owns a `register.go` file whose `init()` registers
+its root command + any local (daemon-side or offline-shortcut) commands
+with the process-wide registry in `cmd/ze/internal/cmdregistry`. **Do not**
+register commands from `cmd/ze/main.go`; its dispatch switch consumes what
+was registered at init time.
+
+### Why a dedicated registry package
+
+`cmdregistry` is a leaf package (no dependencies on anything else under
+`cmd/ze/`). `cmdutil` imports `cli` for tree-walking, so `cli` and
+everything else that imports `cmdutil` would cycle if they tried to
+register back into `cmdutil`. Routing all registration through
+`cmdregistry` breaks the cycle.
+
+`cmdutil.RegisterLocalCommand` still exists as a thin passthrough for
+callers that already use it; new code should call `cmdregistry` directly.
+
+### Per-package `register.go` template
 
 ```go
-cmdutil.RegisterLocalCommand("show version", func(_ []string) int {
-    printVersion()
-    return 0
-})
-cmdutil.RegisterLocalCommand("show bgp decode", func(args []string) int {
-    return bgp.Run(append([]string{"decode"}, args...))
-})
+// cmd/ze/<pkg>/register.go
+package <pkg>
+
+import "codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+
+func init() {
+    // 1. Root command metadata for `ze <name>`.
+    cmdregistry.RegisterRoot("<name>", cmdregistry.Meta{
+        Description: "<short one-liner>",
+        Mode:        "offline",           // or "daemon", "setup", "read-only"
+        Subs:        "<example sub-paths>", // shown in help
+    })
+
+    // 2. Local shortcuts dispatched by path (e.g. `ze show <pkg> <op>`).
+    cmdregistry.MustRegisterLocal("show <pkg> <op>", func(args []string) int {
+        return Run(append([]string{"<op>"}, args...))
+    })
+}
 ```
+
+### Registry API
+
+| Call | Use |
+|------|-----|
+| `cmdregistry.RegisterRoot(name, Meta)` | Top-level `ze <name>` subcommand metadata. Display-only; dispatch stays in `main.go` (switch case or `LookupLocal` fallback) |
+| `cmdregistry.RegisterLocal(path, handler)` | Path-keyed local handler (`"ping"`, `"show bgp decode"`). Error-returning; use in non-init setup |
+| `cmdregistry.MustRegisterLocal(path, handler)` | Panicking variant, for `init()` use |
+| `cmdregistry.RegisterLocalMeta(path, handler, meta)` | Local handler + display metadata |
+| `cmdregistry.MustRegisterLocalMeta(path, handler, meta)` | Panicking variant |
+| `cmdregistry.LookupLocal(words)` | Longest-prefix handler lookup; used by `main.go`'s fallback dispatch |
+| `cmdregistry.ListLocal()` / `ListRoot()` | Enumerate everything; used by `help --ai` |
+| `cmdregistry.HasLocal(path)` / `ResetForTest()` | Test helpers |
+
+### Registration shape per command class
+
+| Command shape | Example | Register |
+|---------------|---------|----------|
+| Root `ze <name> ...` | `ze bgp decode` | `RegisterRoot("bgp", ...)` in `cmd/ze/bgp/register.go`; dispatched by `main.go` switch to `bgp.Run(args[1:])` |
+| Bare verb | `ze ping <target>` | `RegisterRoot("ping", ...)` + `MustRegisterLocal("ping", RunPing)`; dispatched via `main.go`'s `LookupLocal` fallback |
+| `show X` offline shortcut | `ze show bgp decode` | `MustRegisterLocal("show bgp decode", wrapper)` in the owning package; reached via YANG tree or `LookupLocal` |
+| Online RPC | `show peer <sel> detail` | `pluginserver.RegisterRPCs(...)` in the plugin's `init()` (see Online Command section above). Independent of `cmdregistry` |
+
+### Storage-dependent local commands
+
+If a handler needs the blob store, accept a resolver thunk and expose a
+`BindStorage...` setter rather than opening the store from `init()`
+(storage is configured only after global flag parsing).
+
+```go
+// cmd/ze/config/register.go
+type StorageResolver func() storage.Storage
+
+func BindStorageCommands(resolve StorageResolver) {
+    cmdregistry.MustRegisterLocal("show config history", func(args []string) int {
+        store := resolve()
+        defer store.Close() //nolint:errcheck
+        return RunWithStorage(store, append([]string{"history"}, args...))
+    })
+}
+```
+
+`cmd/ze/main.go` calls `zeconfig.BindStorageCommands(resolveStorage)`
+after parsing global flags.
+
+### How `help --ai` consumes the registry
+
+`cmd/ze/help_ai.go:cliSubcommands()` enumerates:
+
+1. YANG verb subtree (show, set, del, update, ...).
+2. `cmdregistry.ListRoot()` for top-level subcommands.
+
+De-dupe on root-name collisions. No static list. Adding a new
+subcommand package means adding its `register.go`; help picks it up
+automatically.
 
 ## Reference Implementations
 
@@ -272,6 +355,9 @@ cmdutil.RegisterLocalCommand("show bgp decode", func(args []string) int {
 | Map dispatch | `cmd/ze/config/main.go` | Many subcommands, storage-aware |
 | Map dispatch (simple) | `cmd/ze/data/main.go` | Stateless subcommands |
 | Registry dispatch | `cmd/ze/plugin/main.go` | Plugin CLI routing |
+| **Root + local registration** | `cmd/ze/bgp/register.go` | Canonical `register.go` shape |
+| **Bare-verb registration** | `cmd/ze/diag/register.go` | Multiple root names in one init() (ping, traceroute, generate) |
+| **Storage-bound local** | `cmd/ze/config/register.go` | `BindStorageCommands(resolve)` for blob-store-dependent handlers |
 | Online RPC | `internal/component/cmd/show/show.go` | Read-only verb |
 | Online RPC | `internal/component/cmd/set/set.go` | Write verb |
 
@@ -285,6 +371,10 @@ cmdutil.RegisterLocalCommand("show bgp decode", func(args []string) int {
 [ ] Errors to stderr, proper exit codes (0/1/2)
 [ ] Register in parent dispatch (switch/map/registry)
 [ ] Unknown subcommand: suggest + usage + return 1
+[ ] register.go: cmdregistry.RegisterRoot(<name>, Meta{...}) for `ze <name>`
+[ ] register.go: cmdregistry.MustRegisterLocal(<path>, handler) for every `show X` / bare-verb shortcut
+[ ] If storage-dependent: expose BindStorageCommands(resolve); main.go calls after flag parse
+[ ] If only registered (no main.go switch case): confirm main.go's LookupLocal fallback will route it
 [ ] If online: YANG tree with ze:command extension
 [ ] If online: WireMethod in kebab-case matching YANG
 [ ] If online: RequiresSelector set correctly

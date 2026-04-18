@@ -29,6 +29,7 @@
 | [Plugins](plugins.md) | Which plugins you need, how to load and bind them |
 | [CLI Reference](cli.md) | Interactive CLI, runtime commands, peer/route/cache operations |
 | [Command Reference](command-reference.md) | Complete reference for all shell and runtime commands |
+| [Command Catalogue](command-catalogue.md) | Cross-vendor roadmap: VyOS/Junos/Nokia/Arista commands vs ze status and backend requirements |
 | [Config Editor](config-editor.md) | Interactive NOS-like editor with YANG tab completion |
 | [Config Archive](config-archive.md) | Archive configs to local/remote destinations on commit or schedule |
 | [Config Reload](config-reload.md) | Live reload, what changes live vs. requires restart |

@@ -13,51 +13,36 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 )
 
 // LocalHandler is a function that handles a command locally (in-process),
-// without connecting to the daemon. Used for offline commands like version
-// and completion that are registered in the YANG command tree.
-type LocalHandler func(args []string) int
+// without connecting to the daemon. Kept as a type alias so callers that
+// imported `cmdutil.LocalHandler` continue to compile.
+type LocalHandler = cmdregistry.LocalHandler
 
-// localHandlers maps CLI command paths (space-joined, e.g. "show version")
-// to local handler functions. Commands registered here run in-process
-// instead of being dispatched via SSH to the daemon.
-// MUST be populated at startup before any concurrent use of RunCommand.
-var localHandlers = make(map[string]LocalHandler)
-
-// RegisterLocalCommand registers a handler for a CLI command path that
-// runs in-process. The path is the full CLI path (e.g., "show version").
-// Called at startup to register in-process commands before dispatch.
+// RegisterLocalCommand is a thin passthrough to the cmdregistry package.
+// cmdutil historically owned this registry but cannot own it now because
+// cmdutil imports cli (for BuildCommandTree), which would create an
+// import cycle when each subcommand package's register.go registers
+// itself. The canonical owner is cmdregistry (leaf package, no cmd/ze
+// deps); cmdutil forwards for source-compatibility with old callers.
 func RegisterLocalCommand(path string, handler LocalHandler) error {
-	if path == "" {
-		return fmt.Errorf("RegisterLocalCommand: empty path")
-	}
-	if handler == nil {
-		return fmt.Errorf("RegisterLocalCommand: nil handler for %q", path)
-	}
-	localHandlers[path] = handler
-	return nil
+	return cmdregistry.RegisterLocal(path, handler)
 }
 
-// matchLocalHandler finds the longest prefix of words that matches a local handler.
-// Returns the handler and remaining words as args (plus selector if present).
-// Returns nil handler if no match.
+// matchLocalHandler is a thin adapter over cmdregistry.LookupLocal that
+// re-applies the selector-as-trailing-arg convention used by RunCommand.
 func matchLocalHandler(words []string, selector string) (LocalHandler, []string) {
-	// Try longest prefix first: "show bgp decode" before "show bgp" before "show".
-	for i := len(words); i > 0; i-- {
-		path := strings.Join(words[:i], " ")
-		if handler, ok := localHandlers[path]; ok {
-			var args []string
-			args = append(args, words[i:]...)
-			if selector != "" {
-				args = append(args, selector)
-			}
-			return handler, args
-		}
+	handler, args := cmdregistry.LookupLocal(words)
+	if handler == nil {
+		return nil, nil
 	}
-	return nil, nil
+	if selector != "" {
+		args = append(args, selector)
+	}
+	return handler, args
 }
 
 // RunCommand extracts flags, validates command words against the tree,

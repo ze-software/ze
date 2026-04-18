@@ -341,33 +341,18 @@ entry in `.claude/rules/memory.md`).
 here -- Claude sessions must not edit another session's uncommitted
 files.
 
-## l2tp/kernel_other_types.go: unused field pppoxFD -- LOGGED 2026-04-17
-
-**File:** `internal/component/l2tp/kernel_other_types.go:18`
-**Symptom:** `golangci-lint` flags `field pppoxFD is unused (unused)` during
-`make ze-verify-fast` Phase 1. Fails the whole verify.
-**Why unrelated to spec-iface-vpp-ready-gate:** the ready-gate spec only
-touches `internal/component/iface/*`, `internal/plugins/iface/vpp/*`, and
-`test/vpp/006-iface-create.ci`. `kernel_other_types.go` is l2tp session's
-uncommitted work (see `spec-l2tp-6c-ncp` in `tmp/session/selected-spec`).
-**Fix owner:** the spec-l2tp-6c-ncp session. Either wire pppoxFD into a
-reader/writer or remove the field. Sessions must not edit each other's
-in-progress files per the top-level handover.
-
-## Coordinator missing ForwardUpdatesDirect -- LOGGED 2026-04-18
-
-**File:** `internal/component/plugin/coordinator.go:114`
-**Symptom:** `make ze-verify-fast` (and `go build ./...`) fails with:
-  `cannot use c (variable of type *Coordinator) as ReactorLifecycle value in return statement: *Coordinator does not implement ReactorLifecycle (missing method ForwardUpdatesDirect)`
-The `ReactorLifecycle` interface in `internal/component/plugin/types_bgp.go:171` was
-extended with `ForwardUpdatesDirect(updateIDs []uint64, destinations []netip.AddrPort, pluginName string) error`; `*Coordinator` has not yet been updated.
-**Why unrelated to spec-fw-7b-backend-hardening:** this spec only touches
-`internal/component/traffic/*` and `internal/plugins/traffic/*`. The interface
-extension is in-progress work from a parallel session (spec-rs-fastpath-3-passthrough,
-confirmed by the matching uncommitted edits in `git status`: `types_bgp.go`,
-`pkg/plugin/rpc/bridge.go`, `pkg/plugin/rpc/types.go`, `pkg/plugin/sdk/sdk_engine.go`).
-**Fix owner:** the spec-rs-fastpath-3-passthrough session. Implement
-`ForwardUpdatesDirect` on `*Coordinator` or roll back the interface change.
-Sessions must not edit each other's in-progress files.
-
 Remove entries once fixed.
+
+## 2026-04-18 -- BGP config: `remote: accept` direction-placement broke functional `.ci` suite
+
+After commit `7991bc294` ("config(bgp): direction-based placement of connect/accept") moved the `accept` leaf between container scopes, many existing `.ci` test configs still write `remote { accept ... }` and the parser rejects with "unknown field in remote: accept (line 6)". This makes the daemon refuse to load, so every `.ci` test that relies on the daemon starting reports `FAIL: SSH server did not start (no address in daemon.log)`.
+
+**Affected suites (5 of 8 in `make ze-verify-fast`):** encode, plugin, parse, reload, ui. Plus exabgp-test downstream.
+
+**Representative failure line (`tmp/ze-verify-func.log`):**
+
+    error: load config: parse config: line 6: unknown field in remote: accept (line 6)
+
+**Root cause hypothesis:** `.ci` configs under `test/` were not updated to the new `connect`/`accept` placement. Needs a mechanical sweep across `test/plugin/*.ci`, `test/parse/*.ci`, and any sibling directories to move `accept <bool>` under its new parent.
+
+**Destination spec:** none yet; warrants a `spec-bgp-accept-placement-ci-sweep` or inclusion in whichever spec made the placement change. Not caused by spec-op-1-easy-wins (verified: my changes touch show/system, show/interface, bgp/summary, cmd/ze/diag; no BGP config schema writes).

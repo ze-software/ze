@@ -120,6 +120,13 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 		if estAt := p.EstablishedAt(); !estAt.IsZero() {
 			info.Uptime = a.r.clock.Now().Sub(estAt)
 		}
+		if neg := p.negotiated.Load(); neg != nil {
+			fams := neg.Families()
+			info.NegotiatedFamilies = make([]string, 0, len(fams))
+			for _, f := range fams {
+				info.NegotiatedFamilies = append(info.NegotiatedFamilies, f.String())
+			}
+		}
 		result = append(result, info)
 	}
 	return result

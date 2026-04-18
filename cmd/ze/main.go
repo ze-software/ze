@@ -30,6 +30,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
 	zeiface "codeberg.org/thomas-mangin/ze/cmd/ze/iface"
 	zeinit "codeberg.org/thomas-mangin/ze/cmd/ze/init"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdutil"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
@@ -63,6 +64,16 @@ import (
 	// to avoid import cycles: format → plugin → all → bgp-rs → format.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 
+	// Blank import: diag's init() registers ping/traceroute/generate
+	// wireguard keypair with cmdregistry. Not referenced by main()
+	// directly because dispatch goes through the registry fallback.
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/diag"
+
+	// Blank import: host's init() registers `host show` with
+	// cmdregistry. Dispatch via the registry fallback — there is no
+	// daemon dependency on this side (sysfs/procfs read-only).
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/host"
+
 	// Import all AAA backends so their init() fires and aaa.Default
 	// contains the backend factories before the hub calls aaa.Default.Build.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/aaa/all"
@@ -93,109 +104,47 @@ func printVersion(extended bool) {
 	}
 }
 
+// registerLocalCommands wires the small set of local commands that
+// belong to main itself (not to any subcommand package). Other local
+// commands are registered by their owning package's init() via
+// cmdregistry -- see e.g. cmd/ze/bgp/register.go, cmd/ze/diag/register.go.
+// Root commands (`ze bgp`, `ze ping`, ...) are also registered by
+// their package's init() for the same reason; main.go's dispatch
+// switch stays, but help enumeration is driven by the registry.
+//
+// Storage-dependent config subcommands are bound here via
+// zeconfig.BindStorageCommands because the blob store is opened only
+// after global flag parsing.
 func registerLocalCommands() {
-	localCmds := []struct {
-		path    string
-		handler cmdutil.LocalHandler
-	}{
-		// Version.
-		{"show version", func(args []string) int {
-			printVersion(slices.Contains(args, "--extended"))
-			return 0
-		}},
-		// BGP offline tools.
-		{"show bgp decode", func(args []string) int {
-			return bgp.Run(append([]string{"decode"}, args...))
-		}},
-		{"show bgp encode", func(args []string) int {
-			return bgp.Run(append([]string{"encode"}, args...))
-		}},
-		// Environment variables.
-		{"show env list", func(args []string) int {
-			return zeenv.Run(append([]string{"list"}, args...))
-		}},
-		{"show env get", func(args []string) int {
-			return zeenv.Run(append([]string{"get"}, args...))
-		}},
-		{"show env registered", func(args []string) int {
-			return zeenv.Run(append([]string{"registered"}, args...))
-		}},
-		// Schema discovery.
-		{"show schema list", func(args []string) int {
-			return schema.Run(append([]string{"list"}, args...), nil)
-		}},
-		{"show schema methods", func(args []string) int {
-			return schema.Run(append([]string{"methods"}, args...), nil)
-		}},
-		{"show schema events", func(args []string) int {
-			return schema.Run(append([]string{"events"}, args...), nil)
-		}},
-		{"show schema handlers", func(args []string) int {
-			return schema.Run(append([]string{"handlers"}, args...), nil)
-		}},
-		{"show schema protocol", func(_ []string) int {
-			return schema.Run([]string{"protocol"}, nil)
-		}},
-		// YANG analysis.
-		{"show yang tree", func(args []string) int {
-			return zeyang.Run(append([]string{"tree"}, args...))
-		}},
-		{"show yang completion", func(args []string) int {
-			return zeyang.Run(append([]string{"completion"}, args...))
-		}},
-		{"show yang doc", func(args []string) int {
-			return zeyang.Run(append([]string{"doc"}, args...))
-		}},
-		// Data store inspection (read-only).
-		{"show data ls", func(args []string) int {
-			return zedata.Run(append([]string{"ls"}, args...))
-		}},
-		{"show data cat", func(args []string) int {
-			return zedata.Run(append([]string{"cat"}, args...))
-		}},
-		{"show data registered", func(args []string) int {
-			return zedata.Run(append([]string{"registered"}, args...))
-		}},
-		// Configuration inspection (read-only).
-		{"show config dump", func(args []string) int {
-			return zeconfig.Run(append([]string{"dump"}, args...))
-		}},
-		{"show config diff", func(args []string) int {
-			return zeconfig.Run(append([]string{"diff"}, args...))
-		}},
-		{"show config history", func(args []string) int {
-			store := resolveStorage()
-			defer store.Close() //nolint:errcheck // best-effort
-			return zeconfig.RunWithStorage(store, append([]string{"history"}, args...))
-		}},
-		{"show config ls", func(args []string) int {
-			store := resolveStorage()
-			defer store.Close() //nolint:errcheck // best-effort
-			return zeconfig.RunWithStorage(store, append([]string{"ls"}, args...))
-		}},
-		{"show config cat", func(args []string) int {
-			store := resolveStorage()
-			defer store.Close() //nolint:errcheck // best-effort
-			return zeconfig.RunWithStorage(store, append([]string{"cat"}, args...))
-		}},
-		{"show config fmt", func(args []string) int {
-			return zeconfig.Run(append([]string{"fmt"}, args...))
-		}},
-		// Config validation.
-		{"validate config", func(args []string) int {
-			return zeconfig.Run(append([]string{"validate"}, args...))
-		}},
-		// Interface (read-only).
-		{"show interface", func(args []string) int {
-			return zeiface.Run(append([]string{"show"}, args...))
-		}},
-	}
-	for _, cmd := range localCmds {
-		if err := cmdutil.RegisterLocalCommand(cmd.path, cmd.handler); err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			os.Exit(1)
-		}
-	}
+	// Commands specific to cmd/ze/main (no subcommand package home).
+	cmdregistry.MustRegisterLocalMeta("show version", func(args []string) int {
+		printVersion(slices.Contains(args, "--extended"))
+		return 0
+	}, cmdregistry.Meta{
+		Description: "Show version and build date",
+		Mode:        "offline",
+	})
+
+	// Root commands that live in main() itself (not a package).
+	cmdregistry.RegisterRoot("start", cmdregistry.Meta{
+		Description: "Start daemon from database config",
+		Mode:        "setup",
+		Subs:        "--web <port>, --insecure-web, --mcp <port>",
+	})
+	cmdregistry.RegisterRoot("version", cmdregistry.Meta{
+		Description: "Show version and build date",
+		Mode:        "offline",
+		Subs:        "--extended",
+	})
+	cmdregistry.RegisterRoot("help", cmdregistry.Meta{
+		Description: "Show help",
+		Mode:        "offline",
+		Subs:        "--ai [--cli|--api|--mcp|--dispatch|--all]",
+	})
+
+	// Storage-dependent config subcommands are bound here because the
+	// blob store is opened only after global flag parsing.
+	zeconfig.BindStorageCommands(resolveStorage)
 }
 
 func main() {
@@ -549,6 +498,15 @@ dispatch:
 		case config.ConfigTypeBGP, config.ConfigTypeHub, config.ConfigTypeUnknown:
 			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken))
 		}
+	}
+
+	// Registry fallback: root-level commands registered via cmdregistry
+	// (ping, traceroute, generate wireguard keypair, ...) whose init()
+	// wired a handler. Longest-prefix match on the raw argv so that
+	// multi-word commands ("generate wireguard keypair") win over
+	// shorter prefixes.
+	if handler, remaining := cmdregistry.LookupLocal(args); handler != nil {
+		os.Exit(handler(remaining))
 	}
 
 	// Unknown command

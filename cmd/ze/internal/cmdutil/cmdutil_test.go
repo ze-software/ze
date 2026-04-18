@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 )
 
 // VALIDATES: ExtractOutputFormat removes trailing format keyword.
@@ -129,7 +130,7 @@ func TestSuggestFromTree(t *testing.T) {
 // PREVENTS: local handler registration silently failing.
 func TestRegisterLocalCommandAndDispatch(t *testing.T) {
 	// Clean up after test.
-	defer func() { localHandlers = make(map[string]LocalHandler) }()
+	defer cmdregistry.ResetForTest()
 
 	called := false
 	err := RegisterLocalCommand("test cmd", func(_ []string) int {
@@ -140,9 +141,12 @@ func TestRegisterLocalCommandAndDispatch(t *testing.T) {
 		t.Fatalf("RegisterLocalCommand returned error: %v", err)
 	}
 
-	handler, ok := localHandlers["test cmd"]
-	if !ok {
-		t.Fatal("handler not found in localHandlers map")
+	if !cmdregistry.HasLocal("test cmd") {
+		t.Fatal("handler not found in cmdregistry")
+	}
+	handler, _ := cmdregistry.LookupLocal([]string{"test", "cmd"})
+	if handler == nil {
+		t.Fatal("LookupLocal returned nil")
 	}
 	code := handler(nil)
 	if !called {
@@ -159,7 +163,7 @@ func TestRegisterLocalCommandEmptyPath(t *testing.T) {
 	err := RegisterLocalCommand("", func(_ []string) int { return 0 })
 	if err == nil {
 		t.Error("expected error for empty path, got nil")
-		delete(localHandlers, "") // cleanup
+		cmdregistry.ResetForTest() // cleanup
 	}
 }
 
@@ -169,14 +173,14 @@ func TestRegisterLocalCommandNilHandler(t *testing.T) {
 	err := RegisterLocalCommand("test nil", nil)
 	if err == nil {
 		t.Error("expected error for nil handler, got nil")
-		delete(localHandlers, "test nil") // cleanup
+		cmdregistry.ResetForTest() // cleanup
 	}
 }
 
 // VALIDATES: RegisterLocalCommand overwrites existing entry.
 // PREVENTS: stale handlers persisting after re-registration.
 func TestRegisterLocalCommandOverwrite(t *testing.T) {
-	defer func() { localHandlers = make(map[string]LocalHandler) }()
+	defer cmdregistry.ResetForTest()
 
 	first := false
 	second := false
@@ -195,7 +199,10 @@ func TestRegisterLocalCommandOverwrite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler := localHandlers["overwrite"]
+	handler, _ := cmdregistry.LookupLocal([]string{"overwrite"})
+	if handler == nil {
+		t.Fatal("LookupLocal returned nil after overwrite")
+	}
 	code := handler(nil)
 	if first {
 		t.Error("first handler was called after overwrite")
@@ -211,7 +218,7 @@ func TestRegisterLocalCommandOverwrite(t *testing.T) {
 // VALIDATES: matchLocalHandler finds longest prefix and passes remaining args.
 // PREVENTS: wrong prefix matching or lost arguments.
 func TestMatchLocalHandler(t *testing.T) {
-	defer func() { localHandlers = make(map[string]LocalHandler) }()
+	defer cmdregistry.ResetForTest()
 
 	// Register handlers for testing.
 	short := func(_ []string) int { return 1 }

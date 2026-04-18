@@ -8,7 +8,7 @@ module ze-peer-cmd {
     container summary {
         config false;
         ze:command "ze-bgp:summary";
-        description "Show BGP summary (peer table with statistics)";
+        description "Show BGP summary; optional AFI/SAFI argument scopes the table (shorthands ipv4, ipv6, l2vpn).";
     }
 
     container peer {

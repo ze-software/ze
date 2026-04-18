@@ -2,6 +2,7 @@ package peer
 
 import (
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -97,6 +98,154 @@ func TestBgpSummaryNoPeers(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, 0, summary["peers-configured"])
 	assert.Equal(t, 0, summary["peers-established"])
+}
+
+// TestBgpSummary_FilterByFamily verifies summary-family handler returns
+// only peers that have negotiated the requested family.
+//
+// VALIDATES: `show bgp <family> summary` filters on NegotiatedFamilies.
+// PREVENTS: returning peers that never negotiated the family.
+func TestBgpSummary_FilterByFamily(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address:            netip.MustParseAddr("192.0.2.1"),
+				PeerAS:             65001,
+				State:              "established",
+				NegotiatedFamilies: []string{"ipv4/unicast", "ipv6/unicast"},
+			},
+			{
+				Address:            netip.MustParseAddr("192.0.2.2"),
+				PeerAS:             65002,
+				State:              "established",
+				NegotiatedFamilies: []string{"ipv4/unicast"},
+			},
+			{
+				Address:            netip.MustParseAddr("192.0.2.3"),
+				PeerAS:             65003,
+				State:              "idle",
+				NegotiatedFamilies: nil,
+			},
+		},
+		stats: plugin.ReactorStats{PeerCount: 3, RouterID: 0x0a000001, LocalAS: 65000},
+	}
+	ctx := newTestContext(reactor)
+
+	resp, err := handleBgpSummary(ctx, []string{"ipv6/unicast"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	summary, ok := data["summary"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "ipv6/unicast", summary["family"])
+	assert.Equal(t, 3, summary["peers-configured"])
+	assert.Equal(t, 1, summary["peers-in-family"])
+
+	peers, ok := summary["peers"].([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, peers, 1)
+	assert.Equal(t, "192.0.2.1", peers[0]["address"])
+}
+
+// TestBgpSummary_FamilyShorthand verifies that "ipv4"/"ipv6"/"l2vpn"
+// short forms expand correctly.
+func TestBgpSummary_FamilyShorthand(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address:            netip.MustParseAddr("192.0.2.1"),
+				State:              "established",
+				NegotiatedFamilies: []string{"ipv4/unicast"},
+			},
+		},
+		stats: plugin.ReactorStats{PeerCount: 1},
+	}
+	ctx := newTestContext(reactor)
+
+	resp, err := handleBgpSummary(ctx, []string{"ipv4"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	summary, ok := data["summary"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "ipv4/unicast", summary["family"])
+}
+
+// TestBgpSummary_UnknownFamilyRejects verifies the handler rejects an
+// un-negotiated family with the valid-list in the error message.
+//
+// VALIDATES: exact-or-reject rule; operator gets the concrete valid set.
+func TestBgpSummary_UnknownFamilyRejects(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address:            netip.MustParseAddr("192.0.2.1"),
+				State:              "established",
+				NegotiatedFamilies: []string{"ipv4/unicast"},
+			},
+		},
+	}
+	ctx := newTestContext(reactor)
+
+	resp, err := handleBgpSummary(ctx, []string{"ipv6/unicast"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	msg, ok := resp.Data.(string)
+	require.True(t, ok)
+	assert.Contains(t, msg, "ipv6/unicast")
+	assert.Contains(t, msg, "ipv4/unicast")
+}
+
+// TestBgpSummary_NilReactor covers the guard at the top of
+// handleBgpSummary. Covers both nil ctx and ctx with nil Reactor().
+//
+// VALIDATES: daemon-not-running path; no nil-pointer dereference.
+func TestBgpSummary_NilReactor(t *testing.T) {
+	t.Run("nil ctx", func(t *testing.T) {
+		resp, err := handleBgpSummary(nil, nil)
+		require.Error(t, err)
+		assert.Equal(t, plugin.StatusError, resp.Status)
+		assert.Equal(t, "reactor not available", resp.Data)
+	})
+	t.Run("nil reactor on ctx", func(t *testing.T) {
+		resp, err := handleBgpSummary(newTestContext(nil), nil)
+		require.Error(t, err)
+		assert.Equal(t, plugin.StatusError, resp.Status)
+		assert.Equal(t, "reactor not available", resp.Data)
+	})
+}
+
+// TestBgpSummary_FamilyArgValidation covers the boundary + charset
+// guard on the address-family argument. Each case asserts StatusError
+// + a non-empty Data string without a reactor call.
+//
+// VALIDATES: ISSUE #2 from /ze-review -- unbounded operator string is
+// rejected at the boundary before it lands in the response envelope.
+func TestBgpSummary_FamilyArgValidation(t *testing.T) {
+	ctx := newTestContext(&mockReactor{})
+	cases := []struct {
+		name string
+		arg  string
+	}{
+		{"empty", ""},
+		{"too long", strings.Repeat("a", maxFamilyArgLen+1)},
+		{"shell meta", "ipv4;rm -rf /"},
+		{"whitespace", "ipv4 unicast"},
+		{"control char", "ipv4\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := handleBgpSummary(ctx, []string{tc.arg})
+			require.NoError(t, err)
+			assert.Equal(t, plugin.StatusError, resp.Status)
+			msg, ok := resp.Data.(string)
+			require.True(t, ok)
+			assert.NotEmpty(t, msg)
+		})
+	}
 }
 
 // TestPeerCapabilitiesHandler verifies capabilities handler returns negotiated data.

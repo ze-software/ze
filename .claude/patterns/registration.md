@@ -102,14 +102,33 @@ Custom validators for YANG leaves that need runtime validation beyond enum/range
 **Validation:** `CheckAllValidatorsRegistered()` panics if any `ze:validate` name has no handler
 **YANG ref:** `ze:validate "name"` on leaf. Pipe-separated for multiple: `"a|b"`.
 
-### CLI Local Command Registry
+### CLI Command Registry
 
-Offline commands available inside the daemon without SSH dispatch.
+Root subcommand metadata (`ze bgp`, `ze ping`, ...) and offline local
+command handlers (`show bgp decode`, `ping`, ...). Every subcommand
+package under `cmd/ze/` owns a `register.go` whose `init()` registers
+itself; `cmd/ze/main.go` imports the packages for side-effects and the
+registry is populated before dispatch.
 
-**Location:** `cmd/ze/internal/cmdutil/cmdutil.go`
-**Registration:** `cmdutil.RegisterLocalCommand(path, handler)` in startup code
-**Query:** `RunCommand()` checks local handlers first, longest-prefix match
-**Count:** 16 commands (version, decode, encode, env, schema, yang, data, config)
+**Location:** `cmd/ze/internal/cmdregistry/registry.go`
+**Registration:**
+- `cmdregistry.RegisterRoot(name, Meta)` for `ze <name>` metadata
+- `cmdregistry.MustRegisterLocal(path, handler)` for path-keyed handlers
+- `cmdregistry.MustRegisterLocalMeta(path, handler, meta)` when the handler also wants display metadata
+
+**Query:**
+- `cmdregistry.LookupLocal(words)` -- longest-prefix handler lookup (used by `RunCommand` and `main.go`'s dispatch fallback)
+- `cmdregistry.ListRoot()` / `ListLocal()` -- used by `help --ai`
+
+**Cycle avoidance:** `cmdutil` imports `cli` for tree walking. A
+subcommand package that imports `cmdutil` from its `register.go` would
+cycle through `cli -> cmdutil -> cli`. `cmdregistry` is a leaf package
+(stdlib-only), so every `register.go` can import it safely.
+`cmdutil.RegisterLocalCommand` remains as a thin passthrough to
+`cmdregistry.RegisterLocal` for backward compatibility.
+
+**Pattern guidance:** `.claude/patterns/cli-command.md` -- "Command
+Registration (BLOCKING)" section.
 
 ### Attribute Name Registry
 
