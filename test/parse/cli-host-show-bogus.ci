@@ -1,0 +1,15 @@
+# Test: ze host show bogus rejects with exit 1 and valid-section list
+# VALIDATES: AC-19 of spec-host-0-inventory.md -- unknown section name
+#            rejected with the valid sections listed, so operators get
+#            a clear error rather than a silent empty response.
+# PREVENTS: the exact-or-reject rule being violated by an accept-all
+#           fallback.
+stdin=config:terminator=EOF_CONF
+bgp { }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze host show bogus
+expect=exit:code=1
+expect=stderr:contains=unknown section
+expect=stderr:contains=cpu
+expect=stderr:contains=kernel

@@ -1,0 +1,25 @@
+# Test: ze host show cpu returns CPU inventory JSON without daemon
+# VALIDATES: AC-1, AC-18 of spec-host-0-inventory.md -- offline host
+#            show cpu routes through cmdregistry into cmd/ze/host and
+#            produces JSON containing the logical-cpus field sourced
+#            from /proc/cpuinfo + sysfs on Linux.
+# PREVENTS: regressions where host show silently requires a daemon
+#           connection, or where the JSON output drops its canonical
+#           kebab-case fields.
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer p1 {
+		connection {
+			remote { ip 127.0.0.1 }
+			local  { ip 127.0.0.1 }
+		}
+		session { asn { local 65533 remote 65533 } }
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze host show cpu
+expect=exit:code=0
+expect=stdout:contains="logical-cpus"
+expect=stdout:contains="vendor"
+expect=stdout:contains="hybrid"

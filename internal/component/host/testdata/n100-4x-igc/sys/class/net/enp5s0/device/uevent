@@ -1,0 +1,2 @@
+DRIVER=igc
+PCI_ID=8086:125C

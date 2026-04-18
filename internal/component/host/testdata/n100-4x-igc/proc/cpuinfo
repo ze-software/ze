@@ -1,0 +1,60 @@
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 190
+model name	: Intel(R) N100
+stepping	: 0
+microcode	: 0x1c
+cpu MHz		: 1700.000
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 4
+core id		: 0
+cpu cores	: 4
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx lm constant_tsc aes xsave avx rdrand sse4_1 sse4_2 popcnt hwp hwp_notify hwp_act_window hwp_epp smep smap ibt user_shstk ibrs
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 190
+model name	: Intel(R) N100
+stepping	: 0
+microcode	: 0x1c
+cpu MHz		: 1700.000
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 4
+core id		: 1
+cpu cores	: 4
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx lm constant_tsc aes xsave avx rdrand sse4_1 sse4_2 popcnt hwp hwp_notify hwp_act_window hwp_epp smep smap ibt user_shstk ibrs
+
+processor	: 2
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 190
+model name	: Intel(R) N100
+stepping	: 0
+microcode	: 0x1c
+cpu MHz		: 1700.000
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 4
+core id		: 2
+cpu cores	: 4
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx lm constant_tsc aes xsave avx rdrand sse4_1 sse4_2 popcnt hwp hwp_notify hwp_act_window hwp_epp smep smap ibt user_shstk ibrs
+
+processor	: 3
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 190
+model name	: Intel(R) N100
+stepping	: 0
+microcode	: 0x1c
+cpu MHz		: 1700.000
+cache size	: 6144 KB
+physical id	: 0
+siblings	: 4
+core id		: 3
+cpu cores	: 4
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx lm constant_tsc aes xsave avx rdrand sse4_1 sse4_2 popcnt hwp hwp_notify hwp_act_window hwp_epp smep smap ibt user_shstk ibrs
+

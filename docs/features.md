@@ -42,6 +42,10 @@ Ze is a BGP daemon written in Go.
 | [Looking Glass](features/looking-glass.md) | Public BGP looking glass with birdwatcher API and AS path graphs |
 | [AI-First Design](features/ai-first.md) | Self-describing CLI-as-API with MCP transport for AI assistants |
 | [Self-Documenting System](features/introspection.md) | Runtime introspection of plugins, env vars, RPCs, schemas, commands |
+| Host Inventory | Structured hardware inventory for ISP fleet monitoring: CPU (vendor, topology, hybrid P/E layout, scaling driver, frequencies, throttle counts), physical NICs (driver, PCI IDs, link speed, queue counts, firmware, rings), DMI board identity, memory with ECC counters, hwmon thermal sensors + per-CPU throttle, block devices with NVMe firmware, kernel release/cmdline/microcode/arch flags. Read-only sysfs/procfs, no daemon required. Online via `show host cpu`/`nic`/..., offline via `ze host show`; JSON by default for pipeline consumption. |
+<!-- source: internal/component/host/inventory.go -- Inventory struct, Detector, DetectCPU/NICs/DMI/Memory/Thermal/Storage/Kernel/Host -->
+<!-- source: internal/component/cmd/show/host.go -- online `show host *` RPCs -->
+<!-- source: cmd/ze/host/host.go -- offline `ze host show` with --text flag -->
 | Operational Report Bus | Cross-subsystem `ze show warnings` and `ze show errors` commands: single place to surface prefix-threshold crossings, stale route data, BGP NOTIFICATIONs sent/received, unexpected session drops. State-based warnings + event-based error ring, login banner reads the same source. |
 <!-- source: internal/core/report/report.go -- Issue, RaiseWarning, RaiseError, Warnings, Errors -->
 <!-- source: internal/component/cmd/show/show.go -- handleShowWarnings, handleShowErrors -->

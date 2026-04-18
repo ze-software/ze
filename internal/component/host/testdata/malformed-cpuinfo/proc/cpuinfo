@@ -1,0 +1,20 @@
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+THIS-LINE-HAS-NO-COLON-AND-SHOULD-BE-SKIPPED
+model name	: Dummy Parser Test CPU
+stepping	: 0
+core id		: 0
+cpu cores	: 1
+flags		: fpu sse hwp
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 6
+: value-with-empty-key-should-skip
+model name	: Dummy Parser Test CPU
+stepping	: 0
+core id		: 1
+cpu cores	: 1
+flags		: fpu sse hwp
+

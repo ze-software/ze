@@ -1,0 +1,14 @@
+# Test: ze host show kernel returns release + cmdline from /proc
+# VALIDATES: AC-9 of spec-host-0-inventory.md -- kernel section reports
+#            Linux release string, cmdline, and the security-filtered
+#            arch-flags list.
+# PREVENTS: regressions where /proc/version or /proc/cmdline parsing
+#           silently drops the release.
+stdin=config:terminator=EOF_CONF
+bgp { }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze host show kernel
+expect=exit:code=0
+expect=stdout:contains="release"
+expect=stdout:contains="architecture"

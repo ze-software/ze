@@ -1,0 +1,112 @@
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 151
+model name	: 12th Gen Intel(R) Core(TM) i7-12700
+stepping	: 2
+microcode	: 0x29
+cpu MHz		: 3600.000
+physical id	: 0
+siblings	: 8
+core id		: 0
+cpu cores	: 8
+flags		: fpu tsc msr aes avx hwp smep smap ibt user_shstk ibrs
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 151
+model name	: 12th Gen Intel(R) Core(TM) i7-12700
+stepping	: 2
+microcode	: 0x29
+cpu MHz		: 3600.000
+physical id	: 0
+siblings	: 8
+core id		: 1
+cpu cores	: 8
+flags		: fpu tsc msr aes avx hwp smep smap ibt user_shstk ibrs
+
+processor	: 2
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 151
+model name	: 12th Gen Intel(R) Core(TM) i7-12700
+stepping	: 2
+microcode	: 0x29
+cpu MHz		: 3600.000
+physical id	: 0
+siblings	: 8
+core id		: 2
+cpu cores	: 8
+flags		: fpu tsc msr aes avx hwp smep smap ibt user_shstk ibrs
+
+processor	: 3
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 151
+model name	: 12th Gen Intel(R) Core(TM) i7-12700
+stepping	: 2
+microcode	: 0x29
+cpu MHz		: 3600.000
+physical id	: 0
+siblings	: 8
+core id		: 3
+cpu cores	: 8
+flags		: fpu tsc msr aes avx hwp smep smap ibt user_shstk ibrs
+
+processor	: 4
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 151
+model name	: 12th Gen Intel(R) Core(TM) i7-12700
+stepping	: 2
+microcode	: 0x29
+cpu MHz		: 2600.000
+physical id	: 0
+siblings	: 8
+core id		: 4
+cpu cores	: 8
+flags		: fpu tsc msr aes avx hwp smep smap ibt user_shstk ibrs
+
+processor	: 5
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 151
+model name	: 12th Gen Intel(R) Core(TM) i7-12700
+stepping	: 2
+microcode	: 0x29
+cpu MHz		: 2600.000
+physical id	: 0
+siblings	: 8
+core id		: 5
+cpu cores	: 8
+flags		: fpu tsc msr aes avx hwp smep smap ibt user_shstk ibrs
+
+processor	: 6
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 151
+model name	: 12th Gen Intel(R) Core(TM) i7-12700
+stepping	: 2
+microcode	: 0x29
+cpu MHz		: 2600.000
+physical id	: 0
+siblings	: 8
+core id		: 6
+cpu cores	: 8
+flags		: fpu tsc msr aes avx hwp smep smap ibt user_shstk ibrs
+
+processor	: 7
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 151
+model name	: 12th Gen Intel(R) Core(TM) i7-12700
+stepping	: 2
+microcode	: 0x29
+cpu MHz		: 2600.000
+physical id	: 0
+siblings	: 8
+core id		: 7
+cpu cores	: 8
+flags		: fpu tsc msr aes avx hwp smep smap ibt user_shstk ibrs
+
