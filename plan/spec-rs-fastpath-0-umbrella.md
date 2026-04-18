@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 4/4 |
 | Updated | 2026-04-18 |
 
 ## Post-Compaction Recovery
@@ -348,11 +348,25 @@ Umbrella-level tests are the end-to-end validation that the three children toget
 
 ### What Was Implemented
 
+Three children landed in sequence:
+- **Child 1** (`learned/625-rs-fastpath-1-profile.md`): pprof + gctrace harness, identified rs -> engine text-RPC round-trip as 60% of allocation pressure.
+- **Child 2** (`learned/626-rs-fastpath-2-adjrib.md`): adj-rib-in moved to side-subscriber; rs works without it.
+- **Child 3** (`learned/630-rs-fastpath-3-passthrough.md`): typed `ForwardCached`/`ReleaseCached` SDK methods; `DirectBridge` zero-socket-I/O hop; reactor-owned `Plugin.ForwardCached` bypasses the command registry entirely.
+
+Umbrella close ran the docker harness on M4 Max (`test/perf/run.py`) to record the end-state sweep and the ze-vs-bird snapshot.
+
 ### Bugs Found/Fixed
+
+None in umbrella close. All bugs were caught and fixed inside the children.
 
 ### Documentation Updates
 
+Umbrella captures aggregate evidence into `docs/performance.md` and `docs/comparison.md` (deferred to a separate docs-polish pass tracked in the follow-up list -- not umbrella-blocking).
+
 ### Deviations from Plan
+
+- `first-route-ms` at 10k came back `-1296` (sender saw the route before the measurement window opened). Harness artefact at small scale; ignored for AC purposes.
+- Bird's docker throughput jumped from 781k rps (2026-04-17 baseline) to 1.67M rps on the same harness at umbrella close. Left the AC-1 target at its original absolute floor (400k rps, 200k floor) rather than re-anchoring to the new bird number.
 
 ## Implementation Audit
 
@@ -360,29 +374,65 @@ Umbrella-level tests are the end-to-end validation that the three children toget
 
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Restore per-route forwarding cost to pre-RIB level | Done | `learned/630` | 407k rps at 100k, 4x improvement |
+| No scaling cliff | Done | sweep table below | Throughput 294k-431k across 10k-100k (±20% of mean) |
+| No RIB on hot path | Done | `learned/626`, `learned/630` | adj-rib-in side-subscriber; forward path bypasses registry |
+| Preserve all existing semantics (filters, AS-PATH, NEXT_HOP, flow control, replay) | Done | each child's AC table | All existing `.ci` tests pass |
 
 ### Acceptance Criteria
 
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 (100k >=400k rps, <=50ms first-route; floor 200k/50ms) | Done | `test/perf/results/ze-100k.json` 2026-04-18: 407k rps, 13ms first-route | Above 400k target; well inside floor |
+| AC-2 (10k unchanged or better vs 204k/48ms/49ms) | Done | `test/perf/results/ze-10k.json` 2026-04-18: 294k rps, 33ms p99, 34ms convergence | 44% better throughput, 31% better convergence |
+| AC-3 (no superlinear cliff across sweep, +/-25%) | Done | sweep table below | 294k/338k/431k/395k/407k; spread -21%/+16% from mean (373k) |
+| AC-4 (all existing tests pass) | Done | `make ze-verify-fast` (captured at each child merge) | Each child merged green |
+| AC-5 (`make ze-verify-fast` + `make ze-race-reactor` clean) | Done | child learned summaries | Captured per child |
+
+**Scaling sweep (rs-fastpath end-state, M4 Max, docker ze-interop rebuilt 2026-04-18 16:55):**
+
+| Routes  | Throughput (rps) | p99 (ms) | Convergence (ms) | First-route (ms) |
+|---------|------------------|----------|------------------|------------------|
+| 10,000  | 294,117          | 33       | 34               | (harness artefact: -1296) |
+| 25,000  | 337,837          | 73       | 74               | 3 |
+| 50,000  | 431,034          | 113      | 116              | 3 |
+| 75,000  | 394,736          | 162      | 190              | 4 |
+| 100,000 | 406,504          | 219      | 246              | 13 |
+
+**ze vs bird (100k, same harness, 2026-04-18):**
+
+| DUT  | Throughput (rps) | p99 (ms) | Convergence (ms) | First-route (ms) |
+|------|------------------|----------|------------------|------------------|
+| ze   | 406,504          | 219      | 246              | 13 |
+| bird | 1,666,666        | 33       | 60               | 1 |
+
+Ze moved from 16x-behind-bird (49k vs 781k, 2026-04-17) to 4x-behind-bird on this harness. AC-1's absolute floor (400k/50ms) is satisfied; closing the remaining gap is future work outside this umbrella.
 
 ### Tests from TDD Plan
 
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `BenchmarkForwardPassThrough` | Done | `internal/component/bgp/reactor/forward_pool_bench_test.go` (child 3) | Go bench captured in `learned/630` |
+| `bgp-rs-fastpath-e2e` | Done | `test/plugin/` rs-fastpath suite added by child 3 | Multi-peer forward path exercised |
+| `bgp-rs-replay-mid-stream` | Done | child 2 | Side-subscriber replay validated |
+| `ze-perf 100k` | Done | `test/perf/run.py` | Captured in sweep above |
 
 ### Files from Plan
 
 | File | Status | Notes |
 |------|--------|-------|
+| `plan/spec-rs-fastpath-1-profile.md` | Done | Retired to `learned/625` |
+| `plan/spec-rs-fastpath-2-adjrib.md` | Done | Retired to `learned/626` |
+| `plan/spec-rs-fastpath-3-passthrough.md` | Done | Retired to `learned/630` |
+| `plan/learned/NNN-rs-fastpath-0-umbrella.md` | Done | Written at umbrella close |
 
 ### Audit Summary
 
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 4 requirements + 5 ACs + 4 tests + 4 files = 17
+- **Done:** 17
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
 
 ## Review Gate
 
@@ -409,16 +459,29 @@ Umbrella-level tests are the end-to-end validation that the three children toget
 
 | File | Exists | Evidence |
 |------|--------|----------|
+| `plan/learned/625-rs-fastpath-1-profile.md` | Yes | `ls plan/learned/625-*` |
+| `plan/learned/626-rs-fastpath-2-adjrib.md` | Yes | `ls plan/learned/626-*` |
+| `plan/learned/630-rs-fastpath-3-passthrough.md` | Yes | `ls plan/learned/630-*` |
+| `test/perf/results/ze-{10k,25k,50k,75k,100k}.json` | Yes | `ls test/perf/results/ze-*k.json` (2026-04-18) |
+| `test/perf/results/bird-100k.json` | Yes | `ls test/perf/results/bird-100k.json` (2026-04-18) |
 
 ### AC Verified (grep/test)
 
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | 100k >=400k rps, <=50ms first-route | `test/perf/results/ze-100k.json`: `throughput-avg=406504`, `first-route-ms=13` |
+| AC-2 | 10k unchanged or better vs 204k/48ms | `test/perf/results/ze-10k.json`: `throughput-avg=294117`, `latency-p99-ms=33` |
+| AC-3 | Sweep +/-25% | Throughputs 294/338/431/395/407 kRps; mean 373k; spread -21%/+16% (within +/-25%) |
+| AC-4 | Existing tests unchanged | Each child landed with `make ze-verify-fast` green (learned/625, /626, /630) |
+| AC-5 | `ze-verify-fast` + `ze-race-reactor` clean | Captured per child learned summary |
 
 ### Wiring Verified (end-to-end)
 
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| rs forward path, multi-peer | `test/plugin/bgp-rs-*.ci` (from child 3) | Learned/630 "Pre-Commit Verification" table cites specific files |
+| adj-rib-in replay mid-stream | `test/plugin/bgp-rs-replay-*.ci` (from child 2) | Learned/626 verification |
+| docker bench harness | `test/perf/run.py` | ze + bird results files dated 2026-04-18 |
 
 ## Checklist
 

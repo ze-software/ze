@@ -370,6 +370,24 @@ The cache commands enable route reflection via API:
 5. Cache entries expire after configurable TTL (default 60s) unless retained
 <!-- source: internal/component/bgp/reactor/reactor.go -- cache forward -->
 
+#### Fast-path typed SDK (rs-fastpath-3)
+
+The text-RPC `bgp cache <id> forward <sel>` path tokenises, parses, and walks the command registry on every call. Plugins that forward many cached UPDATEs per second (route server, future route reflector) use a typed SDK pair instead:
+
+```go
+Plugin.ForwardCached(ctx, ids []uint64, destinations []netip.AddrPort) error
+Plugin.ReleaseCached(ctx, ids []uint64) error
+```
+
+Both methods round-trip via `DirectBridge` when the plugin is in-process (zero socket I/O, no tokenisation, no command-registry lookup) and fall back to the `ze-plugin-engine:forward-cached` / `:release-cached` JSON-RPC over the pipe when the plugin is out-of-process. The engine handler is `reactorAPIAdapter.ForwardUpdatesDirect` / `ReleaseUpdates`.
+
+Destinations are peer addresses (`netip.AddrPort`). Port-0 entries match any peer instance with the same address. Cap: 4096 destinations per call (override via `ze.fwd.dest.cap`); exceeding the cap is an explicit error, not silent truncation. Empty destination list returns an error too, guarding against an accidental wildcard broadcast — use `ReleaseCached` to ack without forwarding.
+
+Per-source ordering, egress filter chains, AS-PATH prepend, next-hop policy, replay-on-new-peer, and every other forwarding invariant are preserved. Only the transport differs from the text-RPC path.
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.ForwardCached, Plugin.ReleaseCached -->
+<!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.ForwardCached, SetForwardCached -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdatesDirect, ReleaseUpdates, maxForwardDestinations -->
+
 ### Log Commands (Ze)
 
 ```

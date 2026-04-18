@@ -517,6 +517,20 @@ func TestRRUpdateRouteTimeout60s(t *testing.T) {
 	}
 }
 
+// TestForwardCachedTimeout10s pins the fast-path timeout (rs-fastpath-3
+// follow-up). ForwardCached / ReleaseCached are synchronous per-source
+// DirectBridge calls with no socket or tokenise step; 10s is plenty for a
+// deadlock trip-wire, and stops the fast path from inheriting the legacy
+// text-RPC 60s budget that was sized for concurrent socket contention.
+//
+// VALIDATES: forwardCachedTimeout = 10s.
+// PREVENTS: the fast path silently reinheriting updateRouteTimeout's 60s.
+func TestForwardCachedTimeout10s(t *testing.T) {
+	if forwardCachedTimeout != 10*time.Second {
+		t.Errorf("forwardCachedTimeout = %v, want 10s", forwardCachedTimeout)
+	}
+}
+
 // TestRSForwardPlumbingDeleted pins the rs-fastpath-3 "no layering" decision:
 // after switching to ForwardCached / ReleaseCached, none of the legacy
 // fire-and-forget plumbing lives on the RouteServer struct. Referencing any

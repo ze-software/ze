@@ -7,7 +7,7 @@
 | bgp-rib | Route Information Base -- stores received/sent routes |
 | bgp-adj-rib-in | Adj-RIB-In -- raw hex replay of received routes |
 | bgp-persist | Route persistence across restarts |
-| bgp-rs | Route server -- client-to-client route reflection (RFC 7947) |
+| bgp-rs | Route server -- client-to-client route reflection (RFC 7947). Forwards via the typed `Plugin.ForwardCached` / `ReleaseCached` fast path (rs-fastpath-3): DirectBridge in-process, `ze-plugin-engine:forward-cached` JSON-RPC for out-of-process plugins. No text-RPC tokenise on the hot path. `bgp-adj-rib-in` is an optional dep; when absent, forwarding still works and replay-on-peer-up is disabled with a WARN. |
 | bgp-watchdog | Deferred route announcement with named watchdog groups |
 | bgp-healthcheck | Service healthcheck with FSM-controlled route announcement/withdrawal via watchdog groups. [Guide](guide/healthcheck.md) |
 

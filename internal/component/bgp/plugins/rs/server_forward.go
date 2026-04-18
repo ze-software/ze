@@ -118,7 +118,7 @@ func (rs *RouteServer) flushBatch(batch *forwardBatch) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), forwardCachedTimeout)
 	defer cancel()
 	err := rs.plugin.ForwardCached(ctx, batch.ids, batch.targets)
 	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook

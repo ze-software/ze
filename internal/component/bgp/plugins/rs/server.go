@@ -40,10 +40,19 @@ const statusDone = "done"
 // statusError is the command response status for failed operations.
 const statusError = "error"
 
-// updateRouteTimeout is the context deadline for updateRoute RPC calls.
-// Set to 60s (was 10s) as defense-in-depth against transient congestion
-// when many concurrent workers send update-route RPCs.
+// updateRouteTimeout is the context deadline for the legacy text-RPC
+// updateRoute path. 60s (was 10s) as defense-in-depth against transient
+// congestion when many concurrent workers send update-route RPCs over
+// sockets. Only the text-RPC path uses this.
 const updateRouteTimeout = 60 * time.Second
+
+// forwardCachedTimeout is the context deadline for the fast-path
+// ForwardCached / ReleaseCached calls (rs-fastpath-3). These go through
+// DirectBridge (no socket, no tokenisation, no concurrent-text-RPC
+// contention) and return synchronously per source. 10s is still plenty:
+// a normal call completes in milliseconds; the timeout exists only to
+// surface a deadlock, not to absorb queue pressure.
+const forwardCachedTimeout = 10 * time.Second
 
 // replayConvergenceMax is the maximum number of delta replay iterations.
 // Each iteration catches routes that adj-rib-in processed since the previous
@@ -338,7 +347,7 @@ func (rs *RouteServer) releaseCache(msgID uint64) {
 		rs.releaseCachedHook([]uint64{msgID})
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), forwardCachedTimeout)
 	defer cancel()
 	err := rs.plugin.ReleaseCached(ctx, []uint64{msgID})
 	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook

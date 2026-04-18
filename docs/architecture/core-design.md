@@ -522,11 +522,36 @@ Receive UPDATE → Assign msg-id → Ingress filters (set meta) → Cache WireUp
                                                                         ▼
                                                                Plugin decides
                                                                         │
-                                                                        ▼
-                          "bgp cache 123 forward" → Lookup cache → Egress filters (read meta, write mods) → Apply mods → Send wire
+                     ┌──────────────────── slow path (text RPC) ───────┴──── fast path (typed SDK) ────┐
+                     ▼                                                                                  ▼
+          "bgp cache 123 forward <sel>" → tokenise → command registry → ForwardUpdate     Plugin.ForwardCached(ids, destinations) → DirectBridge → ForwardUpdatesDirect
+                     │                                                                                  │
+                     └──────────────────────────── ForwardUpdate (shared core) ─────────────────────────┘
+                                                                │
+                                                                ▼
+                                Lookup cache → Egress filters (read meta, write mods) → Apply mods → Send wire
 ```
 
+**Slow path** (`bgp cache <id> forward <sel>`) still exists for ad-hoc and external
+callers. Tokenises the text command, walks the plugin command registry, dispatches
+to `ForwardUpdate`.
+
+**Fast path** (rs-fastpath-3) is used by high-throughput plugin forwarders (route
+server today; route reflector / redistribute next). `Plugin.ForwardCached(ctx,
+ids, destinations)` goes through `DirectBridge` when the plugin is in-process
+(zero socket I/O, zero tokenisation, zero registry walk) and falls back to
+`ze-plugin-engine:forward-cached` JSON-RPC over the pipe for out-of-process
+plugins. The engine entry point is `reactorAPIAdapter.ForwardUpdatesDirect`, which
+builds a selector from the `netip.AddrPort` list once, de-dupes IDs, and calls
+`ForwardUpdate` per id. Symmetric `ReleaseCached` handles the "decided not to
+forward" ack path. Destinations are capped at `ze.fwd.dest.cap` (default 4096).
+Both paths share the same egress filter chain, AS-PATH prepend, next-hop policy,
+and replay-on-new-peer invariants.
+
 <!-- source: internal/component/plugin/registry/registry.go -- ModAccumulator, EgressFilterFunc, IngressFilterFunc -->
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.ForwardCached, Plugin.ReleaseCached -->
+<!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.ForwardCached, SetForwardCached -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdatesDirect, ReleaseUpdates, maxForwardDestinations -->
 
 ### Route Metadata and Modification Accumulator
 

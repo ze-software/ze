@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
+	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
@@ -22,6 +23,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 )
@@ -1011,10 +1013,16 @@ func rewriteASPathOverride(data []byte, peerAS, localAS uint32, asn4 bool) []byt
 
 // maxForwardDestinations caps how many destinations a single ForwardUpdatesDirect
 // call may resolve. Prevents unbounded allocation under a buggy or malicious
-// plugin. 4096 matches the typical upper bound on BGP peer count; well above
-// practical multi-hundred-peer deployments. Exceeding the cap is an explicit
-// error, not a silent truncation (rs-fastpath-3 rules/exact-or-reject).
-const maxForwardDestinations = 4096
+// plugin. Default 4096 matches the typical upper bound on BGP peer count; well
+// above practical multi-hundred-peer deployments. Exceeding the cap is an
+// explicit error, not a silent truncation (rs-fastpath-3 rules/exact-or-reject).
+// Override via `ze.fwd.dest.cap` for very-large deployments.
+var _ = env.MustRegister(env.EnvEntry{
+	Key: "ze.fwd.dest.cap", Type: "int", Default: "4096",
+	Description: "Max destinations per Plugin.ForwardCached call (bounds per-call allocation)",
+})
+
+var maxForwardDestinations = env.GetInt("ze.fwd.dest.cap", 4096)
 
 // errNoDestinations is returned by ForwardUpdatesDirect when the caller
 // supplies an empty (or entirely invalid) destination list. Callers that
@@ -1051,10 +1059,14 @@ var errNoDestinations = errors.New("forward-cached: empty destination list (use 
 // error. At least one id processed returns nil (per-id dispatch failures
 // are logged and do not fail the batch).
 //
-// TODO(rs-fastpath-3): fully extract ForwardUpdate's per-destination loop
-// into a shared helper so this entry point stops re-entering ForwardUpdate.
-// Current wrapper preserves every invariant via a selector match; perf meets
-// AC-9 but leaves headroom on the table.
+// TODO(rs-fastpath-followup): hoist the peer-map walk + source-info lookup
+// out of ForwardUpdate into a `forwardUpdateCore(matchingPeers, srcInfo,
+// update, id)` helper; call resolve once per Direct batch, core N times.
+// Saves ~100×(N-1) peer-map iterations per batch. NOT a drop-in refactor:
+// pre-resolving matchingPeers at batch start caches the peer set for the
+// full batch, so peers that join/leave mid-flush (50ms window) would be
+// missed where today ForwardUpdate re-walks the map per id. Needs a design
+// call + spec before landing. AC-1 met today via the selector-match wrapper.
 func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destinations []netip.AddrPort, pluginName string) error {
 	if len(updateIDs) == 0 {
 		return nil
@@ -1221,6 +1233,30 @@ func dedupIDsMapFrom(ids []uint64, seen map[uint64]struct{}, start int) []uint64
 	return out
 }
 
+// selectorScratch holds the three per-call working buffers used by
+// destinationsToSelector: dedup set, unique slice, and selector-string
+// builder. Pooled to drop the per-call allocation churn on the rs fast
+// path (rs-fastpath-3 follow-up).
+type selectorScratch struct {
+	seen map[netip.Addr]struct{}
+	uniq []netip.Addr
+	buf  []byte
+}
+
+// selectorScratchPool amortizes destinationsToSelector's working buffers
+// across calls. Initial capacity 64 covers the common multi-peer batch
+// size; larger batches grow naturally via append, and sync.Pool may drop
+// outsized scratches under GC pressure.
+var selectorScratchPool = sync.Pool{
+	New: func() any {
+		return &selectorScratch{
+			seen: make(map[netip.Addr]struct{}, 64),
+			uniq: make([]netip.Addr, 0, 64),
+			buf:  make([]byte, 0, 64*40),
+		}
+	},
+}
+
 // destinationsToSelector builds a selector.Selector matching the given
 // destination addresses. Port-zero entries expand to any peer instance with
 // the same address (rs plugin default). selector.Parse matches on Addr only,
@@ -1236,37 +1272,41 @@ func destinationsToSelector(destinations []netip.AddrPort) (*selector.Selector, 
 	if len(destinations) == 0 {
 		return nil, errNoDestinations
 	}
+	s, _ := selectorScratchPool.Get().(*selectorScratch)
+	defer func() {
+		clear(s.seen)
+		s.uniq = s.uniq[:0]
+		s.buf = s.buf[:0]
+		selectorScratchPool.Put(s)
+	}()
 	// De-dup on the address component. Strip zones so selector.Parse
 	// (which wraps netip.ParseAddr and rejects zone-scoped literals when
 	// the scope is unknown) doesn't choke on fe80::1%eth0-style inputs.
-	seen := make(map[netip.Addr]struct{}, len(destinations))
-	uniq := make([]netip.Addr, 0, len(destinations))
 	for _, d := range destinations {
 		addr := d.Addr().WithZone("")
 		if !addr.IsValid() {
 			continue
 		}
-		if _, dup := seen[addr]; dup {
+		if _, dup := s.seen[addr]; dup {
 			continue
 		}
-		seen[addr] = struct{}{}
-		uniq = append(uniq, addr)
+		s.seen[addr] = struct{}{}
+		s.uniq = append(s.uniq, addr)
 	}
-	if len(uniq) == 0 {
+	if len(s.uniq) == 0 {
 		return nil, errNoDestinations
 	}
 	// Sort for deterministic selector string (log output stays stable
 	// across calls with the same destination set, simplifies debugging).
 	// slices.SortFunc avoids the reflection overhead of sort.Slice.
-	slices.SortFunc(uniq, func(a, b netip.Addr) int { return a.Compare(b) })
+	slices.SortFunc(s.uniq, func(a, b netip.Addr) int { return a.Compare(b) })
 	// 40 bytes per addr covers IPv6 full form (39) + comma. Minor
 	// over-alloc for IPv4; still bounded at maxForwardDestinations.
-	buf := make([]byte, 0, len(uniq)*40)
-	for i, addr := range uniq {
+	for i, addr := range s.uniq {
 		if i > 0 {
-			buf = append(buf, ',')
+			s.buf = append(s.buf, ',')
 		}
-		buf = addr.AppendTo(buf)
+		s.buf = addr.AppendTo(s.buf)
 	}
-	return selector.Parse(string(buf))
+	return selector.Parse(string(s.buf))
 }
