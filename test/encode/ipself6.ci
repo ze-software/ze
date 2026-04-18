@@ -15,10 +15,10 @@ bgp {
 			connection {
 				remote {
 					ip ::1
-					accept false
 				}
 				local {
 					ip ::1
+					accept false
 				}
 			}
 			session {

@@ -32,6 +32,8 @@ bgp {
 	group gr-peers {
 		connection {
 			remote {
+			}
+			local {
 				accept false
 			}
 		}

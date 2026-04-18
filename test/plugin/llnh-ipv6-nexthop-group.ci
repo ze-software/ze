@@ -19,6 +19,8 @@ bgp {
 	group llnh-peers {
 		connection {
 			remote {
+			}
+			local {
 				accept false
 			}
 		}

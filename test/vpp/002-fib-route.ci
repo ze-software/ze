@@ -44,8 +44,8 @@ CONFIG_TEMPLATE = """environment {
 bgp {
 \tpeer peer1 {
 \t\tconnection {
-\t\t\tremote { ip 127.0.0.1; accept false; }
-\t\t\tlocal  { ip 127.0.0.1; }
+\t\t\tremote { ip 127.0.0.1; }
+\t\t\tlocal  { ip 127.0.0.1; accept false; }
 \t\t}
 \t\tsession {
 \t\t\tasn { local 1; remote 1; }

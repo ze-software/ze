@@ -19,8 +19,8 @@ cat > tacacs-local-only.conf <<'ZECONF'
 bgp {
 	peer peer1 {
 		connection {
-			remote { ip 127.0.0.1; accept false; }
-			local  { ip 127.0.0.1; }
+			remote { ip 127.0.0.1; }
+			local  { ip 127.0.0.1; accept false; }
 		}
 		session { asn { local 65533; remote 65533; } }
 	}

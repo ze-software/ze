@@ -22,6 +22,8 @@ bgp {
 	group test {
 		connection {
 			remote {
+			}
+			local {
 				accept false
 			}
 		}

@@ -142,10 +142,10 @@ bgp {
 		connection {
 			remote {
 				ip 127.0.0.1
-				accept false
 			}
 			local {
 				ip 127.0.0.1
+				accept false
 			}
 		}
 		session {
@@ -212,10 +212,10 @@ bgp {
 		connection {
 			remote {
 				ip 127.0.0.1
-				accept false
 			}
 			local {
 				ip 127.0.0.1
+				accept false
 			}
 		}
 		session {

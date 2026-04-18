@@ -110,11 +110,11 @@ bgp {
     peer test {
         connection {
             remote {
-                ip 127.0.0.1;
-                accept false;
+                ip 127.0.0.1
             }
             local {
-                ip 127.0.0.1;
+                ip 127.0.0.1
+                accept false
             }
         }
         session {
