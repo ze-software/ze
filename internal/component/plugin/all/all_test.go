@@ -147,10 +147,13 @@ func TestFamilyMappings(t *testing.T) {
 	}
 }
 
-// TestBgpRSDependsOnAdjRibIn verifies bgp-rs declares its dependency.
+// TestBgpRSDependsOnAdjRibIn verifies bgp-rs still declares its relationship
+// with bgp-adj-rib-in after the spec-rs-fastpath-2-adjrib soft-dep refactor.
 //
-// VALIDATES: bgp-rs has Dependencies containing "bgp-adj-rib-in".
-// PREVENTS: bgp-rs starting without adj-rib-in, causing silent replay failure.
+// VALIDATES: bgp-rs has OptionalDependencies containing "bgp-adj-rib-in".
+// PREVENTS: accidental removal of the relationship -- which would let bgp-rs
+// silently start without the replay-on-peer-up capability and without the
+// soft-dep resolver pulling adj-rib-in in when it is registered.
 func TestBgpRSDependsOnAdjRibIn(t *testing.T) {
 	reg := registry.Lookup("bgp-rs")
 	if reg == nil {
@@ -158,8 +161,11 @@ func TestBgpRSDependsOnAdjRibIn(t *testing.T) {
 		return
 	}
 
-	if !slices.Contains(reg.Dependencies, "bgp-adj-rib-in") {
-		t.Errorf("bgp-rs Dependencies=%v, want to contain bgp-adj-rib-in", reg.Dependencies)
+	if slices.Contains(reg.Dependencies, "bgp-adj-rib-in") {
+		t.Errorf("bgp-rs Dependencies=%v must NOT contain bgp-adj-rib-in (moved to OptionalDependencies by spec-rs-fastpath-2-adjrib)", reg.Dependencies)
+	}
+	if !slices.Contains(reg.OptionalDependencies, "bgp-adj-rib-in") {
+		t.Errorf("bgp-rs OptionalDependencies=%v, want to contain bgp-adj-rib-in", reg.OptionalDependencies)
 	}
 }
 

@@ -1220,6 +1220,94 @@ func TestHandleStateUpReplay(t *testing.T) {
 	}
 }
 
+// TestRSSoftDepSkipsReplay verifies that when adj-rib-in is absent (soft-dep
+// not loaded) and the replay dispatch fails with ErrUnknownCommand, bgp-rs
+// skips the convergence replay loop, still clears the Replaying flag, and
+// still sends EOR so the newly-connected peer receives end-of-RIB markers.
+//
+// VALIDATES: spec-rs-fastpath-2-adjrib AC-6 -- graceful no-op when
+// OptionalDependencies entry bgp-adj-rib-in is missing at run time.
+// PREVENTS: bgp-rs unusable without bgp-adj-rib-in (would defeat the
+// soft-dep refactor), or peer stuck with Replaying=true and no EOR.
+func TestRSSoftDepSkipsReplay(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	// eorCh closes when the first "eor" command hits updateRouteHook -- the
+	// terminal side effect of replayForPeer's fallback path. Using an explicit
+	// signal avoids polling-based Eventually checks that would be fragile on
+	// slow CI runners.
+	eorCh := make(chan struct{})
+	var eorOnce sync.Once
+
+	var dispatchCount atomic.Int32
+	rs.dispatchCommandHook = func(_ string) (string, string, error) {
+		dispatchCount.Add(1)
+		// Matches the engine's ErrUnknownCommand string propagated across the
+		// plugin IPC boundary when adj-rib-in is not registered.
+		return statusError, "", fmt.Errorf("unknown command: adj-rib-in replay")
+	}
+
+	var mu sync.Mutex
+	var updateCmds []string
+	rs.updateRouteHook = func(peer, cmd string) {
+		mu.Lock()
+		updateCmds = append(updateCmds, peer+": "+cmd)
+		mu.Unlock()
+		if strings.Contains(cmd, "eor") {
+			eorOnce.Do(func() { close(eorCh) })
+		}
+	}
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{
+		Address:  "10.0.0.1",
+		Up:       true,
+		Families: map[string]bool{"ipv4/unicast": true},
+	}
+	rs.mu.Unlock()
+
+	rs.handleStateUp("10.0.0.1")
+
+	// Wait for the terminal EOR signal (or fail on a generous timeout). Once
+	// EOR has fired, replayForPeer has completed its fallback path and both
+	// Replaying and the dispatch count are in their final state.
+	select {
+	case <-eorCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for EOR after replay fallback")
+	}
+
+	// Replaying must have been cleared by the same code path that produced EOR.
+	rs.mu.RLock()
+	p := rs.peers["10.0.0.1"]
+	replaying := p != nil && p.Replaying
+	rs.mu.RUnlock()
+	if replaying {
+		t.Errorf("Replaying flag should have been cleared by the fallback path")
+	}
+
+	// Expect exactly one dispatch attempt (the initial replay), not the full
+	// convergence loop.
+	if got := dispatchCount.Load(); got != 1 {
+		t.Errorf("expected 1 dispatch attempt, got %d (soft-dep fallback should skip convergence)", got)
+	}
+
+	// Spot-check the accumulated update commands to confirm at least one EOR
+	// matches the peer+family we configured.
+	mu.Lock()
+	defer mu.Unlock()
+	gotEOR := false
+	for _, cmd := range updateCmds {
+		if strings.Contains(cmd, "10.0.0.1:") && strings.Contains(cmd, "ipv4/unicast eor") {
+			gotEOR = true
+			break
+		}
+	}
+	if !gotEOR {
+		t.Errorf("expected EOR for 10.0.0.1 ipv4/unicast, got: %v", updateCmds)
+	}
+}
+
 // TestReplayingPeerIncludedInForwardTargets verifies that a replaying peer IS included
 // in selectForwardTargets. BGP UPDATE duplicates are idempotent, so forwarding to a
 // replaying peer is safe and prevents route loss when all peers connect simultaneously.
@@ -1832,16 +1920,26 @@ func TestReplayForPeer_NoFamilies_NoEOR(t *testing.T) {
 		"expected no EOR commands for peer without families")
 }
 
-// TestReplayForPeer_FailedReplay_NoEOR verifies no EOR sent when replay fails.
+// TestReplayForPeer_FailedReplay_SendsEOR verifies EOR IS sent after a
+// replay dispatch failure, so peers do not hang waiting for end-of-RIB.
 //
-// VALIDATES: AC-5 error path — failed replay does not send EOR.
-// PREVENTS: EOR sent before any routes were actually replayed.
-func TestReplayForPeer_FailedReplay_NoEOR(t *testing.T) {
+// VALIDATES: spec-rs-fastpath-2-adjrib -- replayForPeer's error branch now
+// uniformly calls sendEOR regardless of failure kind (missing-dep, IPC
+// timeout, engine error). Previous behavior (no EOR on failure) left
+// EOR-gated peers stuck in initial-sync whenever replay dispatch failed.
+// PREVENTS: regression to the pre-refactor asymmetric-EOR behavior.
+//
+// Superseded: the pre-refactor TestReplayForPeer_FailedReplay_NoEOR
+// asserted the opposite invariant, which was itself the bug we resolved.
+func TestReplayForPeer_FailedReplay_SendsEOR(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.dispatchCommandHook = func(cmd string) (string, string, error) {
 		return statusError, "", fmt.Errorf("replay failed")
 	}
+
+	eorCh := make(chan struct{})
+	var eorOnce sync.Once
 
 	var mu sync.Mutex
 	var commands []string
@@ -1849,6 +1947,9 @@ func TestReplayForPeer_FailedReplay_NoEOR(t *testing.T) {
 		mu.Lock()
 		commands = append(commands, cmd)
 		mu.Unlock()
+		if strings.Contains(cmd, "eor") {
+			eorOnce.Do(func() { close(eorCh) })
+		}
 	}
 
 	rs.mu.Lock()
@@ -1861,16 +1962,22 @@ func TestReplayForPeer_FailedReplay_NoEOR(t *testing.T) {
 
 	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
 
-	// No EOR should be sent after a failed replay.
-	require.Never(t, func() bool {
-		mu.Lock()
-		defer mu.Unlock()
-		for _, cmd := range commands {
-			if strings.Contains(cmd, "eor") {
-				return true
-			}
+	select {
+	case <-eorCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected EOR after failed replay (unified-error-path behavior)")
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	gotEOR := false
+	for _, cmd := range commands {
+		if strings.Contains(cmd, "ipv4/unicast eor") {
+			gotEOR = true
+			break
 		}
-		return false
-	}, 200*time.Millisecond, 5*time.Millisecond,
-		"expected no EOR after failed replay")
+	}
+	if !gotEOR {
+		t.Errorf("expected ipv4/unicast EOR in commands, got: %v", commands)
+	}
 }

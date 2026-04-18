@@ -123,13 +123,42 @@ plugins in later phases are loaded.
 | `Families` | []string | No | Address families ("afi/safi") |
 | `CapabilityCodes` | []uint8 | No | Capability codes decoded |
 | `ConfigRoots` | []string | No | Config roots plugin wants |
-| `Dependencies` | []string | No | Plugin names that must also be loaded (auto-expanded) |
+| `Dependencies` | []string | No | Plugin names that MUST also be loaded. Missing name → `ErrMissingDependency`. |
+| `OptionalDependencies` | []string | No | Plugin names the owner uses when loaded but can run without. Missing name is silently skipped (no error). Owner must handle runtime absence gracefully. |
 | `YANG` | string | No | YANG schema content |
 | `InProcessNLRIDecoder` | func | No | NLRI decode |
 | `InProcessNLRIEncoder` | func | No | NLRI encode |
 | `EventTypes` | []string | No | Event types this plugin produces (registered at startup) |
 | `SendTypes` | []string | No | Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup. |
 | `Features` | string | No | Space-separated flags ("nlri yang capa") |
+
+## Optional Dependencies
+
+Plugins that USE another plugin when it is present but can run without it
+declare the relationship as `OptionalDependencies` rather than `Dependencies`.
+Example: `bgp-rs` uses `bgp-adj-rib-in` for replay-on-peer-up when present,
+and disables replay (with a one-shot WARN log) when it is not.
+
+| Field | Semantics |
+|-------|-----------|
+| `Dependencies` | Hard. Resolver returns `ErrMissingDependency` when the named plugin is not registered. Startup fails. |
+| `OptionalDependencies` | Soft. Resolver pulls the plugin in if registered, silently skips if not. No error. Owner MUST detect absence at run time and fall back cleanly. |
+
+Validation at registration is the same for both fields: empty string or
+self-dependency is rejected.
+
+Cycle detection and `TopologicalTiers` walk both kinds of edges when BOTH
+endpoints appear in the resolved name set, so startup ordering is preserved
+whenever the optional dep is actually present.
+
+Graceful fallback is the owner's responsibility. The pattern used by `bgp-rs`:
+
+1. Dispatch the command targeting the optional dep normally.
+2. If the response returns the engine's `ErrUnknownCommand` (propagated as a
+   string across the plugin IPC boundary), treat it as the "plugin absent"
+   signal.
+3. Use `sync.Once` to log one `WARN` per process lifetime; skip the feature
+   (e.g. replay convergence loop) and continue with the rest of the flow.
 
 ## Family Registration (BLOCKING)
 

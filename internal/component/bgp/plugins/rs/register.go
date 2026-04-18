@@ -11,11 +11,14 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:         "bgp-rs",
-		Description:  "Route Server",
-		RFCs:         []string{"7947"},
-		Dependencies: []string{"bgp-adj-rib-in"},
-		RunEngine:    RunRouteServer,
+		Name:        "bgp-rs",
+		Description: "Route Server",
+		RFCs:        []string{"7947"},
+		// bgp-adj-rib-in is optional: bgp-rs uses it for replay-on-peer-up
+		// when present, and gracefully disables replay with a one-shot WARN
+		// when absent. See spec-rs-fastpath-2-adjrib learned summary.
+		OptionalDependencies: []string{"bgp-adj-rib-in"},
+		RunEngine:            RunRouteServer,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},

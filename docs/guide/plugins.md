@@ -406,11 +406,18 @@ Plugins can declare dependencies on other plugins. The engine starts plugins in 
 ```
 # bgp-gr depends on bgp-rib
 # bgp-rpki depends on bgp-adj-rib-in
-# bgp-rs depends on bgp-adj-rib-in
+# bgp-rs optionally uses bgp-adj-rib-in
 ```
 
-Dependencies are declared in the plugin's registration, not in config. The engine resolves them automatically.
-<!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies -->
+Dependencies are declared in the plugin's registration, not in config. The engine resolves them automatically. Two kinds:
+
+| Kind | Field | Behaviour if missing |
+|------|-------|----------------------|
+| Hard | `Dependencies` | Startup fails with `ErrMissingDependency`. |
+| Optional | `OptionalDependencies` | Silently skipped. Plugin owner handles runtime absence (typically a one-shot WARN + feature disabled). |
+
+`bgp-rs` uses `bgp-adj-rib-in` optionally: when both are loaded, replay-on-peer-up works; when `bgp-adj-rib-in` is absent, forwarding still works and a single WARN log announces that replay is disabled.
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies + Registration.OptionalDependencies -->
 
 ## Debugging Plugins
 

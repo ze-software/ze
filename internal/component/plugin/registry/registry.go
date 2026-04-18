@@ -42,10 +42,20 @@ type Registration struct {
 	Families        []string // Address families handled (e.g., ["ipv4/flow", "ipv6/flow"])
 	CapabilityCodes []uint8  // Capability codes decoded (e.g., [73] for FQDN)
 	ConfigRoots     []string // Config roots wanted (e.g., ["bgp"])
-	Dependencies    []string // Plugin names that must also be loaded (e.g., ["bgp-adj-rib-in"])
-	EventTypes      []string // Event types this plugin produces (e.g., ["update-rpki"]). Registered dynamically at startup.
-	SendTypes       []string // Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup.
-	YANG            string   // YANG schema content (empty if none)
+	Dependencies    []string // Plugin names that MUST also be loaded. Missing => ErrMissingDependency.
+	// OptionalDependencies are plugin names the owner uses when they are loaded
+	// but can run without. Semantics vs Dependencies: ResolveDependencies pulls
+	// an optional dep in if it is registered, but silently skips it if not --
+	// no ErrMissingDependency. TopologicalTiers + cycle detection treat optional
+	// deps the same as hard deps when both endpoints are in the resolved set, so
+	// startup ordering is preserved when the optional dep is present. Owners are
+	// responsible for a graceful fallback (log + skip) when the optional dep is
+	// absent at run time. Example: bgp-rs uses bgp-adj-rib-in for replay-on-
+	// peer-up; without it, replay is disabled but forwarding still works.
+	OptionalDependencies []string
+	EventTypes           []string // Event types this plugin produces (e.g., ["update-rpki"]). Registered dynamically at startup.
+	SendTypes            []string // Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup.
+	YANG                 string   // YANG schema content (empty if none)
 
 	// FilterTypes lists the YANG filter list names this plugin owns (e.g.,
 	// ["prefix-list"]). Used by the policy filter chain to resolve short chain
@@ -208,6 +218,14 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 		}
 		if dep == reg.Name {
 			return fmt.Errorf("%w: plugin %q", ErrSelfDependency, reg.Name)
+		}
+	}
+	for _, dep := range reg.OptionalDependencies {
+		if dep == "" {
+			return fmt.Errorf("%w: plugin %q optional dep", ErrEmptyDependency, reg.Name)
+		}
+		if dep == reg.Name {
+			return fmt.Errorf("%w: plugin %q optional dep", ErrSelfDependency, reg.Name)
 		}
 	}
 	// Filter types must be globally unique across plugins so chain refs
@@ -821,6 +839,17 @@ func ResolveDependencies(requested []string) ([]string, error) {
 			seen[dep] = true
 			result = append(result, dep)
 		}
+		// Optional deps: include if registered, silently skip if not. No error.
+		for _, dep := range reg.OptionalDependencies {
+			if seen[dep] {
+				continue
+			}
+			if _, depOK := plugins[dep]; !depOK {
+				continue
+			}
+			seen[dep] = true
+			result = append(result, dep)
+		}
 	}
 
 	// Cycle detection: walk dependency chains looking for back-edges.
@@ -851,7 +880,25 @@ func detectCycles(names []string) error {
 		color[name] = gray
 		reg, ok := plugins[name]
 		if ok {
+			// Cycle detection walks ALL declared deps (hard + optional) so the
+			// resolved graph stays acyclic regardless of which kind each edge
+			// uses. Optional-dep edges only affect the walk when both endpoints
+			// are in the resolved name set (i.e., the optional dep was
+			// registered and pulled in earlier).
 			for _, dep := range reg.Dependencies {
+				if !nameSet[dep] {
+					continue
+				}
+				switch color[dep] {
+				case gray:
+					return fmt.Errorf("%w: %s → %s", ErrCircularDependency, name, dep)
+				case white:
+					if err := visit(dep); err != nil {
+						return err
+					}
+				}
+			}
+			for _, dep := range reg.OptionalDependencies {
 				if !nameSet[dep] {
 					continue
 				}
@@ -910,6 +957,15 @@ func TopologicalTiers(names []string) ([][]string, error) {
 			continue // External plugin — no known deps, stays at in-degree 0
 		}
 		for _, dep := range reg.Dependencies {
+			if nameSet[dep] {
+				deps[name] = append(deps[name], dep)
+				inDegree[name]++
+			}
+		}
+		// Optional deps contribute to ordering only when the dep is also in
+		// the resolved set; otherwise they are absent at run time and cannot
+		// constrain startup order.
+		for _, dep := range reg.OptionalDependencies {
 			if nameSet[dep] {
 				deps[name] = append(deps[name], dep)
 				inDegree[name]++

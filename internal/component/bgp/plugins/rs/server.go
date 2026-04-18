@@ -175,6 +175,13 @@ type RouteServer struct {
 	// stopping is set when the plugin is shutting down.
 	// Used to downgrade RPC errors from ERROR to DEBUG during teardown.
 	stopping atomic.Bool
+
+	// adjRibInMissingOnce gates the "bgp-adj-rib-in not loaded" WARN to at most
+	// one emission per RouteServer instance. Replay is attempted on every
+	// peer-up; without the gate, every new peer would produce a duplicate
+	// warning. Instance-scoped (not package-level) so tests can create fresh
+	// RouteServers that each get a clean Once.
+	adjRibInMissingOnce sync.Once
 }
 
 // RunRouteServer runs the Route Server plugin using the SDK RPC protocol.

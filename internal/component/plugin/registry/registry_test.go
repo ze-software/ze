@@ -698,6 +698,187 @@ func TestResolveDependencies_MissingDep(t *testing.T) {
 	}
 }
 
+// TestResolveDependenciesOptionalPresent verifies optional deps are pulled in
+// like hard deps when the named plugin IS registered.
+//
+// VALIDATES: spec-rs-fastpath-2-adjrib AC-1 -- OptionalDependencies behave
+// identically to Dependencies when the target plugin exists.
+// PREVENTS: optional dep silently skipped when it is actually available
+// (would defeat the "auto-load when present" intent).
+func TestResolveDependenciesOptionalPresent(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regA := validReg("a")
+	regA.OptionalDependencies = []string{"b"}
+	regB := validReg("b")
+
+	for _, r := range []Registration{regA, regB} {
+		if err := Register(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result, err := ResolveDependencies([]string{"a"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	has := make(map[string]bool)
+	for _, n := range result {
+		has[n] = true
+	}
+	if !has["a"] || !has["b"] {
+		t.Errorf("expected [a, b] resolved, got %v", result)
+	}
+}
+
+// TestResolveDependenciesOptionalAbsent verifies optional deps are silently
+// skipped (no error) when the named plugin is NOT registered.
+//
+// VALIDATES: spec-rs-fastpath-2-adjrib AC-2 -- absence of optional dep does
+// NOT fail resolution. Owner is responsible for a graceful fallback.
+// PREVENTS: optional dep treated as hard dep (would reintroduce the
+// ErrMissingDependency case this feature is designed to avoid).
+func TestResolveDependenciesOptionalAbsent(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regA := validReg("a")
+	regA.OptionalDependencies = []string{"not-registered"}
+
+	if err := Register(regA); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := ResolveDependencies([]string{"a"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result) != 1 || result[0] != "a" {
+		t.Errorf("expected [a] (optional dep skipped), got %v", result)
+	}
+}
+
+// TestResolveDependenciesMixedDeps verifies a plugin can declare both hard
+// and optional deps simultaneously. Hard deps still fail when absent;
+// optional deps are picked up when present.
+//
+// VALIDATES: coexistence of Dependencies and OptionalDependencies on the
+// same Registration.
+// PREVENTS: regression where adding OptionalDependencies breaks the
+// hard-dep code path.
+func TestResolveDependenciesMixedDeps(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regA := validReg("a")
+	regA.Dependencies = []string{"hard"}
+	regA.OptionalDependencies = []string{"soft", "missing-soft"}
+	regHard := validReg("hard")
+	regSoft := validReg("soft")
+
+	for _, r := range []Registration{regA, regHard, regSoft} {
+		if err := Register(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result, err := ResolveDependencies([]string{"a"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	has := make(map[string]bool)
+	for _, n := range result {
+		has[n] = true
+	}
+	if !has["a"] || !has["hard"] || !has["soft"] {
+		t.Errorf("expected [a, hard, soft] (missing-soft skipped), got %v", result)
+	}
+	if has["missing-soft"] {
+		t.Errorf("missing-soft should be skipped (not registered), got %v", result)
+	}
+}
+
+// TestTopologicalTiersOptionalDep verifies tier ordering honors optional
+// deps when the target plugin IS in the resolved name set.
+//
+// VALIDATES: spec-rs-fastpath-2-adjrib -- optional dep constrains startup
+// order identically to hard dep when present.
+// PREVENTS: rs starting before adj-rib-in in mixed-dep deployments.
+func TestTopologicalTiersOptionalDep(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regB := validReg("b")
+	regA := validReg("a")
+	regA.OptionalDependencies = []string{"b"}
+
+	for _, r := range []Registration{regA, regB} {
+		if err := Register(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tiers, err := TopologicalTiers([]string{"a", "b"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(tiers) != 2 {
+		t.Fatalf("expected 2 tiers, got %d: %v", len(tiers), tiers)
+	}
+	if len(tiers[0]) != 1 || tiers[0][0] != "b" {
+		t.Errorf("tier 0: expected [b], got %v", tiers[0])
+	}
+	if len(tiers[1]) != 1 || tiers[1][0] != "a" {
+		t.Errorf("tier 1: expected [a], got %v", tiers[1])
+	}
+}
+
+// TestResolveDependenciesOptionalSelf rejects an optional self-dependency at
+// Register time, matching hard-dep behavior.
+func TestResolveDependenciesOptionalSelf(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regA := validReg("a")
+	regA.OptionalDependencies = []string{"a"}
+
+	err := Register(regA)
+	if !errors.Is(err, ErrSelfDependency) {
+		t.Errorf("expected ErrSelfDependency, got %v", err)
+	}
+}
+
+// TestResolveDependenciesOptionalEmpty rejects an empty optional-dep string.
+func TestResolveDependenciesOptionalEmpty(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regA := validReg("a")
+	regA.OptionalDependencies = []string{""}
+
+	err := Register(regA)
+	if !errors.Is(err, ErrEmptyDependency) {
+		t.Errorf("expected ErrEmptyDependency, got %v", err)
+	}
+}
+
+// TestResolveDependenciesOptionalCycle rejects a cycle that runs through an
+// optional edge when both endpoints are in the resolved name set.
+func TestResolveDependenciesOptionalCycle(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regA := validReg("a")
+	regA.OptionalDependencies = []string{"b"}
+	regB := validReg("b")
+	regB.Dependencies = []string{"a"}
+
+	for _, r := range []Registration{regA, regB} {
+		if err := Register(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	_, err := ResolveDependencies([]string{"a"})
+	if !errors.Is(err, ErrCircularDependency) {
+		t.Errorf("expected ErrCircularDependency through optional edge, got %v", err)
+	}
+}
+
 // --- TopologicalTiers tests ---
 
 // TestTopologicalTiers verifies correct tier assignment for a direct dependency.

@@ -317,24 +317,50 @@ func (s *Server) autoStopForRemovedConfigPaths(removedRoots []string) {
 	}
 }
 
+// collectOrphanCandidates returns the set of plugin names that the stopped
+// plugins depended on (hard or optional). Pure helper -- no process state,
+// no side effects -- so it can be unit-tested without the full server wiring.
+// Takes a lookup function so tests can inject a registry stub.
+//
+// An optional dep is collected identically to a hard dep: if plugin X was
+// pulled in only because plugin Y declared it optionally and Y is now gone,
+// X is orphan-eligible.
+func collectOrphanCandidates(stopped map[string]bool, lookup func(string) *registry.Registration) map[string]bool {
+	candidates := make(map[string]bool)
+	for name := range stopped {
+		reg := lookup(name)
+		if reg == nil {
+			continue
+		}
+		for _, dep := range reg.Dependencies {
+			candidates[dep] = true
+		}
+		for _, dep := range reg.OptionalDependencies {
+			candidates[dep] = true
+		}
+	}
+	return candidates
+}
+
+// pluginDependsOn reports whether plugin `dependent` declares `candidate` in
+// either its hard or optional dependency list. Pure helper for testability.
+func pluginDependsOn(reg *registry.Registration, candidate string) bool {
+	if reg == nil {
+		return false
+	}
+	return slices.Contains(reg.Dependencies, candidate) ||
+		slices.Contains(reg.OptionalDependencies, candidate)
+}
+
 // stopOrphanedDependencies stops dependency-only plugins that have no remaining dependents.
 // Loops until no more orphans are found (handles transitive dependency chains).
-// Skips explicitly configured plugins.
+// Skips explicitly configured plugins. Walks both `Dependencies` (hard) and
+// `OptionalDependencies` (soft) via `collectOrphanCandidates` + `pluginDependsOn`.
 func (s *Server) stopOrphanedDependencies(pm *process.ProcessManager, stopped map[string]bool) {
 	for {
 		newlyStopped := false
 
-		// Collect all dependencies of stopped plugins.
-		candidates := make(map[string]bool)
-		for name := range stopped {
-			reg := registry.Lookup(name)
-			if reg == nil {
-				continue
-			}
-			for _, dep := range reg.Dependencies {
-				candidates[dep] = true
-			}
-		}
+		candidates := collectOrphanCandidates(stopped, registry.Lookup)
 
 		for candidate := range candidates {
 			if stopped[candidate] {
@@ -354,8 +380,7 @@ func (s *Server) stopOrphanedDependencies(pm *process.ProcessManager, stopped ma
 				if stopped[p.Name()] || p.Name() == candidate {
 					continue
 				}
-				reg := registry.Lookup(p.Name())
-				if reg != nil && slices.Contains(reg.Dependencies, candidate) {
+				if pluginDependsOn(registry.Lookup(p.Name()), candidate) {
 					hasDependent = true
 					break
 				}

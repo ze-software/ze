@@ -8,8 +8,31 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 )
+
+// errUnknownCommandMarker is the engine's ErrUnknownCommand text ("unknown
+// command"), surfaced here as a string sentinel because errors cross the
+// plugin IPC boundary as serialized strings and lose their wrap chain --
+// errors.Is cannot reach through to the sentinel declared in
+// internal/component/plugin/server/command.go. If that text ever changes, the
+// soft-dep fallback silently reverts to ERROR logging; the
+// TestRSSoftDepSkipsReplay unit test uses the same marker and would start
+// failing, which is the detection signal.
+const errUnknownCommandMarker = "unknown command"
+
+// isDispatchUnknownCommand reports whether err from rs.dispatchCommand comes
+// from the engine's ErrUnknownCommand -- i.e. no plugin handled the command.
+// Used as the soft-dep "adj-rib-in is not loaded" signal in replayForPeer.
+// Caller is responsible for knowing that the only command rs dispatches is
+// "adj-rib-in replay ..."; this helper does not re-verify the command text.
+func isDispatchUnknownCommand(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), errUnknownCommandMarker)
+}
 
 // handleState processes peer state changes.
 // ze-bgp JSON: {"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"up"}}.
@@ -95,14 +118,35 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 	cmd := fmt.Sprintf("adj-rib-in replay %s 0", peerAddr)
 	status, data, err := rs.dispatchCommand(ctx, cmd)
 	if err != nil || status != statusDone {
-		logger().Error("replay failed", "peer", peerAddr, "command", cmd, "status", status, "error", err)
-		// Still add to forward targets so peer gets new routes going forward.
-		// Only if this goroutine's generation is still current.
+		// Graceful soft-dep fallback: when bgp-adj-rib-in is an
+		// OptionalDependencies entry that was not registered at build time,
+		// DispatchCommand returns ErrUnknownCommand ("unknown command ..."). Log
+		// one WARN per RouteServer instance (sync.Once) and skip the replay
+		// loop instead of spamming ERROR for every peer-up. Other replay
+		// failures (IPC timeout, engine error) get an ERROR log so they stay
+		// visible.
+		if isDispatchUnknownCommand(err) {
+			rs.adjRibInMissingOnce.Do(func() {
+				logger().Warn("bgp-adj-rib-in not loaded; replay-on-peer-up disabled (optional dependency)")
+			})
+		} else {
+			logger().Error("replay failed", "peer", peerAddr, "command", cmd, "status", status, "error", err)
+		}
+		// Clear Replaying so the peer is included in forward targets for any
+		// UPDATE arriving from now on. Only if this goroutine's generation is
+		// still current (a rapid reconnect spawns a newer goroutine that owns
+		// the transition).
 		rs.mu.Lock()
 		if p := rs.peers[peerAddr]; p != nil && p.ReplayGen == gen {
 			p.Replaying = false
 		}
 		rs.mu.Unlock()
+		// Always send EOR when replay terminates -- the peer needs per-family
+		// end-of-RIB markers to finish its initial sync regardless of whether
+		// the replay itself succeeded, failed transiently, or was skipped
+		// because adj-rib-in is not loaded. Without this, any replay-failure
+		// path left the peer waiting for EOR that would never come.
+		rs.sendEOR(peerAddr, gen)
 		return
 	}
 
