@@ -187,7 +187,8 @@ func RunBMPPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
 			{Name: "bmp sessions", Description: "Show BMP receiver sessions"},

@@ -4,6 +4,7 @@
 package traffic
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -32,7 +33,13 @@ func init() { //nolint:gochecknoinits // logger bootstrap only
 // Caller MUST call CloseBackend when done.
 type Backend interface {
 	// Apply receives full desired state and reconciles qdiscs/classes/filters.
-	Apply(desired map[string]InterfaceQoS) error
+	// The ctx is propagated from the component's plugin lifecycle: backends that
+	// can interrupt long-running kernel/IPC calls MUST honor cancellation so a
+	// daemon SIGTERM does not block on an unreachable service (e.g. VPP).
+	// Backends whose underlying library has no ctx-aware API may ignore it.
+	//
+	// ctx MUST NOT be nil. Callers pass context.Background() as the floor.
+	Apply(ctx context.Context, desired map[string]InterfaceQoS) error
 
 	// ListQdiscs returns current tc state for an interface. For CLI show.
 	ListQdiscs(ifaceName string) (InterfaceQoS, error)

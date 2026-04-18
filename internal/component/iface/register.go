@@ -4,7 +4,6 @@
 package iface
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -492,7 +491,8 @@ func runEngine(conn net.Conn) int {
 		return nil
 	})
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
 		WantsConfig:  []string{"interface"},
 		VerifyBudget: 2,

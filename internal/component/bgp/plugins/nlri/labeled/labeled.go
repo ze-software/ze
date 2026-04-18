@@ -7,7 +7,6 @@ package labeled
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -35,7 +34,8 @@ func RunLabeledPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-nlri-labeled", conn)
 	defer func() { _ = p.Close() }()
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
 			{Name: "ipv4/mpls-label", Mode: "decode", AFI: 1, SAFI: 4},

@@ -354,4 +354,20 @@ uncommitted work (see `spec-l2tp-6c-ncp` in `tmp/session/selected-spec`).
 reader/writer or remove the field. Sessions must not edit each other's
 in-progress files per the top-level handover.
 
+## Coordinator missing ForwardUpdatesDirect -- LOGGED 2026-04-18
+
+**File:** `internal/component/plugin/coordinator.go:114`
+**Symptom:** `make ze-verify-fast` (and `go build ./...`) fails with:
+  `cannot use c (variable of type *Coordinator) as ReactorLifecycle value in return statement: *Coordinator does not implement ReactorLifecycle (missing method ForwardUpdatesDirect)`
+The `ReactorLifecycle` interface in `internal/component/plugin/types_bgp.go:171` was
+extended with `ForwardUpdatesDirect(updateIDs []uint64, destinations []netip.AddrPort, pluginName string) error`; `*Coordinator` has not yet been updated.
+**Why unrelated to spec-fw-7b-backend-hardening:** this spec only touches
+`internal/component/traffic/*` and `internal/plugins/traffic/*`. The interface
+extension is in-progress work from a parallel session (spec-rs-fastpath-3-passthrough,
+confirmed by the matching uncommitted edits in `git status`: `types_bgp.go`,
+`pkg/plugin/rpc/bridge.go`, `pkg/plugin/rpc/types.go`, `pkg/plugin/sdk/sdk_engine.go`).
+**Fix owner:** the spec-rs-fastpath-3-passthrough session. Implement
+`ForwardUpdatesDirect` on `*Coordinator` or roll back the interface change.
+Sessions must not edit each other's in-progress files.
+
 Remove entries once fixed.

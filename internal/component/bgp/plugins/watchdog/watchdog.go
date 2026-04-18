@@ -139,7 +139,8 @@ func RunWatchdogPlugin(conn net.Conn) int {
 	})
 
 	logger().Info("watchdog plugin starting")
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{"bgp"},
 		Commands: []sdk.CommandDecl{

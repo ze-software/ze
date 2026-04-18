@@ -1,4 +1,5 @@
 // Design: plan/spec-fw-7-traffic-vpp.md -- VPP traffic backend
+// Related: ops.go -- vppOps interface consumed by applyWithOps / applyAll / applyInterface / reconcileRemovals
 
 //go:build linux
 
@@ -72,12 +73,14 @@ func newBackend() (traffic.Backend, error) {
 // for each named interface. On error, any VPP state this call programmed
 // is undone via the undo list, leaving VPP in its pre-Apply state so the
 // component's journal rollback can re-apply the previous desired cleanly.
-func (b *backend) Apply(desired map[string]traffic.InterfaceQoS) error {
+//
+// ctx is propagated from the traffic component's plugin lifecycle. A canceled
+// ctx short-circuits WaitConnected so a daemon shutdown is not blocked for the
+// full waitConnectedTimeout when VPP is unreachable. WaitConnected applies its
+// own timeout on top of the caller's ctx.
+func (b *backend) Apply(ctx context.Context, desired map[string]traffic.InterfaceQoS) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-
-	ctx, cancel := context.WithTimeout(context.Background(), waitConnectedTimeout)
-	defer cancel()
 
 	conn := b.connector()
 	if conn == nil {
@@ -97,7 +100,16 @@ func (b *backend) Apply(desired map[string]traffic.InterfaceQoS) error {
 	// handle it (propagate vs warn-only via logger()).
 	defer ch.Close()
 
-	nameIndex, err := dumpInterfaceIndex(ch)
+	return b.applyWithOps(&govppOps{ch: ch}, desired)
+}
+
+// applyWithOps runs the Apply pipeline against a vppOps seam. Split from Apply
+// so unit tests can inject a scripted fakeOps without touching the ctx /
+// connector / channel lifecycle logic.
+//
+// Called with b.mu held.
+func (b *backend) applyWithOps(ops vppOps, desired map[string]traffic.InterfaceQoS) error {
+	nameIndex, err := ops.dumpInterfaces()
 	if err != nil {
 		return fmt.Errorf("traffic-vpp: %w", err)
 	}
@@ -105,7 +117,7 @@ func (b *backend) Apply(desired map[string]traffic.InterfaceQoS) error {
 	newOutputPolicers := make(map[string]map[string]uint32)
 	newQdiscTypes := make(map[string]traffic.QdiscType, len(desired))
 	var undo []func()
-	applyErr := b.applyAll(ch, nameIndex, desired, newOutputPolicers, newQdiscTypes, &undo)
+	applyErr := b.applyAll(ops, nameIndex, desired, newOutputPolicers, newQdiscTypes, &undo)
 	if applyErr != nil {
 		// Undo what this Apply programmed so VPP returns to its pre-Apply
 		// state before the component's journal rollback re-applies the
@@ -121,7 +133,7 @@ func (b *backend) Apply(desired map[string]traffic.InterfaceQoS) error {
 	// VPP-side absence (e.g. after a VPP restart the cached indexes are
 	// stale); those deletions log a warning and continue instead of
 	// failing the whole Apply.
-	b.reconcileRemovals(ch, nameIndex, newOutputPolicers)
+	b.reconcileRemovals(ops, nameIndex, newOutputPolicers)
 
 	b.interfaceOutputPolicers = newOutputPolicers
 	b.interfaceQdiscTypes = newQdiscTypes
@@ -136,7 +148,7 @@ func (b *backend) Apply(desired map[string]traffic.InterfaceQoS) error {
 //
 // Called with b.mu held.
 func (b *backend) applyAll(
-	ch api.Channel,
+	ops vppOps,
 	nameIndex map[string]interface_types.InterfaceIndex,
 	desired map[string]traffic.InterfaceQoS,
 	newOutputPolicers map[string]map[string]uint32,
@@ -148,7 +160,7 @@ func (b *backend) applyAll(
 		if !ok {
 			return fmt.Errorf("interface %q not present in vpp", ifaceName)
 		}
-		if err := b.applyInterface(ch, ifaceName, swIfIndex, qos, newOutputPolicers, newQdiscTypes, undo); err != nil {
+		if err := b.applyInterface(ops, ifaceName, swIfIndex, qos, newOutputPolicers, newQdiscTypes, undo); err != nil {
 			return fmt.Errorf("interface %q: %w", ifaceName, err)
 		}
 	}
@@ -172,7 +184,7 @@ func (b *backend) applyAll(
 //
 // Called with b.mu held.
 func (b *backend) applyInterface(
-	ch api.Channel,
+	ops vppOps,
 	ifaceName string,
 	swIfIndex interface_types.InterfaceIndex,
 	desired traffic.InterfaceQoS,
@@ -208,14 +220,14 @@ func (b *backend) applyInterface(
 			return fmt.Errorf("class %q: %w", cls.Name, err)
 		}
 		p.Name = name
-		policerIdx, err := sendPolicerAddDel(ch, &p)
+		policerIdx, err := ops.policerAddDel(&p)
 		if err != nil {
 			return fmt.Errorf("class %q: %w", cls.Name, err)
 		}
 		if !isUpdate {
 			addedIdx := policerIdx
 			*undo = append(*undo, func() {
-				_ = sendPolicerDel(ch, addedIdx)
+				_ = ops.policerDel(addedIdx)
 			})
 		}
 
@@ -224,12 +236,12 @@ func (b *backend) applyInterface(
 		// across PolicerAddDel upserts because the binding references
 		// the name, not the index.
 		if !isUpdate {
-			if err := sendPolicerOutput(ch, name, swIfIndex, true); err != nil {
+			if err := ops.policerOutput(name, swIfIndex, true); err != nil {
 				return fmt.Errorf("class %q: %w", cls.Name, err)
 			}
 			boundName, boundIdx := name, swIfIndex
 			*undo = append(*undo, func() {
-				_ = sendPolicerOutput(ch, boundName, boundIdx, false)
+				_ = ops.policerOutput(boundName, boundIdx, false)
 			})
 		}
 		thisIfacePolicers[name] = policerIdx
@@ -265,7 +277,7 @@ func (b *backend) applyInterface(
 //
 // Called with b.mu held.
 func (b *backend) reconcileRemovals(
-	ch api.Channel,
+	ops vppOps,
 	nameIndex map[string]interface_types.InterfaceIndex,
 	newOutputPolicers map[string]map[string]uint32,
 ) {
@@ -278,7 +290,7 @@ func (b *backend) reconcileRemovals(
 				continue
 			}
 			if ifacePresent {
-				if err := sendPolicerOutput(ch, name, swIfIndex, false); err != nil {
+				if err := ops.policerOutput(name, swIfIndex, false); err != nil {
 					lg.Warn("traffic-vpp: unbind stale policer failed (treating as already gone)",
 						"policer", name, "iface", ifaceName, "err", err)
 				}
@@ -286,7 +298,7 @@ func (b *backend) reconcileRemovals(
 			// Always attempt PolicerDel: interface-absent means VPP
 			// already auto-unbinded, but the named policer entity
 			// persists until explicitly deleted.
-			if err := sendPolicerDel(ch, policerIdx); err != nil {
+			if err := ops.policerDel(policerIdx); err != nil {
 				lg.Warn("traffic-vpp: delete stale policer failed (treating as already gone)",
 					"policer", name, "idx", policerIdx, "iface-present", ifacePresent, "err", err)
 			}
@@ -334,13 +346,23 @@ func policerName(ifaceName, className string) string {
 	return fmt.Sprintf("ze/%s/%s", ifaceName, className)
 }
 
-// dumpInterfaceIndex walks SwInterfaceDump and returns a name->sw_if_index
+// govppOps is the production adapter that implements vppOps on top of a
+// live GoVPP api.Channel. Stateless by design -- the channel is the only
+// field, and each method is a direct wrap around a single VPP RPC with
+// retval decoding. Tests substitute a fakeOps that records calls.
+//
+// See `ops.go` for the interface definition.
+type govppOps struct {
+	ch api.Channel
+}
+
+// dumpInterfaces walks SwInterfaceDump and returns a name->sw_if_index
 // map for every interface VPP currently knows about. Called once per
 // Apply; sw_if_index values change on interface recreate so the lookup
 // must not be cached across Applys.
-func dumpInterfaceIndex(ch api.Channel) (map[string]interface_types.InterfaceIndex, error) {
+func (g *govppOps) dumpInterfaces() (map[string]interface_types.InterfaceIndex, error) {
 	req := &interfaces.SwInterfaceDump{SwIfIndex: ^interface_types.InterfaceIndex(0)}
-	rctx := ch.SendMultiRequest(req)
+	rctx := g.ch.SendMultiRequest(req)
 	out := make(map[string]interface_types.InterfaceIndex)
 	for {
 		d := &interfaces.SwInterfaceDetails{}
@@ -356,13 +378,13 @@ func dumpInterfaceIndex(ch api.Channel) (map[string]interface_types.InterfaceInd
 	return out, nil
 }
 
-// sendPolicerAddDel wraps PolicerAddDel with retval checking. Retval != 0
-// is decoded via api.RetvalToVPPApiError so the caller sees VPP's named
-// error (e.g. ENOMEM, INVALID_VALUE) instead of a raw integer. Returns
-// the index VPP assigned to the policer (required by PolicerDel).
-func sendPolicerAddDel(ch api.Channel, req *policer.PolicerAddDel) (uint32, error) {
+// policerAddDel wraps PolicerAddDel with retval checking. Retval != 0 is
+// decoded via api.RetvalToVPPApiError so the caller sees VPP's named error
+// (e.g. ENOMEM, INVALID_VALUE) instead of a raw integer. Returns the index
+// VPP assigned to the policer (required by policerDel).
+func (g *govppOps) policerAddDel(req *policer.PolicerAddDel) (uint32, error) {
 	reply := &policer.PolicerAddDelReply{}
-	if err := ch.SendRequest(req).ReceiveReply(reply); err != nil {
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
 		return 0, fmt.Errorf("PolicerAddDel: %w", err)
 	}
 	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
@@ -371,12 +393,12 @@ func sendPolicerAddDel(ch api.Channel, req *policer.PolicerAddDel) (uint32, erro
 	return reply.PolicerIndex, nil
 }
 
-// sendPolicerDel removes a policer by its VPP-assigned index. Used during
+// policerDel removes a policer by its VPP-assigned index. Used during
 // reconciliation to clean up policers no longer referenced.
-func sendPolicerDel(ch api.Channel, policerIndex uint32) error {
-	req := &policer.PolicerDel{PolicerIndex: policerIndex}
+func (g *govppOps) policerDel(index uint32) error {
+	req := &policer.PolicerDel{PolicerIndex: index}
 	reply := &policer.PolicerDelReply{}
-	if err := ch.SendRequest(req).ReceiveReply(reply); err != nil {
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
 		return fmt.Errorf("PolicerDel: %w", err)
 	}
 	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {
@@ -385,13 +407,13 @@ func sendPolicerDel(ch api.Channel, policerIndex uint32) error {
 	return nil
 }
 
-// sendPolicerOutput binds (apply=true) or unbinds (apply=false) a policer
-// by name to an interface's output. This is the mechanism by which a
+// policerOutput binds (apply=true) or unbinds (apply=false) a policer by
+// name to an interface's output. This is the mechanism by which a
 // configured class rate actually limits egress traffic.
-func sendPolicerOutput(ch api.Channel, name string, swIfIndex interface_types.InterfaceIndex, apply bool) error {
+func (g *govppOps) policerOutput(name string, swIfIndex interface_types.InterfaceIndex, apply bool) error {
 	req := &policer.PolicerOutput{Name: name, SwIfIndex: swIfIndex, Apply: apply}
 	reply := &policer.PolicerOutputReply{}
-	if err := ch.SendRequest(req).ReceiveReply(reply); err != nil {
+	if err := g.ch.SendRequest(req).ReceiveReply(reply); err != nil {
 		return fmt.Errorf("PolicerOutput: %w", err)
 	}
 	if apiErr := api.RetvalToVPPApiError(reply.Retval); apiErr != nil {

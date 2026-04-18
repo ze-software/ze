@@ -11,7 +11,6 @@
 package role
 
 import (
-	"context"
 	"log/slog"
 	"net"
 	"sync"
@@ -184,7 +183,8 @@ func RunRolePlugin(conn net.Conn) int {
 		return result
 	})
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{"bgp"},
 	})

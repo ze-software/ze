@@ -9,7 +9,6 @@
 package aigp
 
 import (
-	"context"
 	"log/slog"
 	"net"
 	"sync/atomic"
@@ -39,7 +38,8 @@ func RunAIGPPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-aigp", conn)
 	defer func() { _ = p.Close() }()
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{}); err != nil {
 		logger().Error("aigp plugin failed", "error", err)
 		return 1

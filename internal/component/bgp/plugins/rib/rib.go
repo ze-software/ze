@@ -458,7 +458,8 @@ func RunRIBPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		// WantsConfig: receive the bgp subtree in Stage 2 so OnConfigure can
 		// read multipath config (maximum-paths, relax-as-path).

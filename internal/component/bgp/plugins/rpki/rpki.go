@@ -197,7 +197,8 @@ func RunRPKIPlugin(conn net.Conn) int {
 
 	p.SetStartupSubscriptions([]string{"update direction received"}, nil, "full")
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
 			{Name: "rpki status"},

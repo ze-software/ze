@@ -7,7 +7,6 @@ package rtc
 
 import (
 	"bufio"
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -36,7 +35,8 @@ func RunRTCPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-nlri-rtc", conn)
 	defer func() { _ = p.Close() }()
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
 			{Name: "ipv4/rtc", Mode: "decode", AFI: 1, SAFI: 132},

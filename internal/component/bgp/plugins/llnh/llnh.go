@@ -11,7 +11,6 @@ package llnh
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -74,7 +73,8 @@ func RunLLNHPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{"bgp"},
 	})

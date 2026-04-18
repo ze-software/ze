@@ -7,7 +7,6 @@ package mup
 
 import (
 	"bufio"
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -36,7 +35,8 @@ func RunMUPPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-nlri-mup", conn)
 	defer func() { _ = p.Close() }()
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
 			{Name: "ipv4/mup", Mode: "decode", AFI: 1, SAFI: 85},

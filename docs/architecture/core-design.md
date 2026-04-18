@@ -755,7 +755,7 @@ interface and data model.
 | Component | Package | Backend interface | Linux plugin | VPP plugin |
 |-----------|---------|-------------------|-------------|------------|
 | Firewall | `internal/component/firewall/` | `Apply([]Table)`, `ListTables()`, `GetCounters()` | `firewallnft` (google/nftables) | `firewallvpp` (GoVPP) |
-| Traffic | `internal/component/traffic/` | `Apply(map[string]InterfaceQoS)`, `ListQdiscs()` | `trafficnetlink` (vishvananda/netlink) | `trafficvpp` (GoVPP) |
+| Traffic | `internal/component/traffic/` | `Apply(ctx, map[string]InterfaceQoS)`, `ListQdiscs()` | `trafficnetlink` (vishvananda/netlink) | `trafficvpp` (GoVPP) |
 
 The firewall data model uses 42 abstract expression types (18 match, 16 action, 8 modifier)
 that model firewall concepts (MatchSourceAddress, Accept, SetMark), not nftables register
@@ -774,6 +774,21 @@ a rollback Apply when the reload fails. The backend feature gate (`config.Valida
 runs in both `OnConfigure` and `OnConfigVerify`, so tc-only feature annotations land as a one-line
 declaration once `spec-fw-7-traffic-vpp` introduces a second backend. Firewall will follow the same
 pattern in `spec-fw-8`.
+
+`Backend.Apply` accepts a `context.Context` as its first parameter, plumbed from the traffic
+component's plugin lifetime. The `trafficvpp` backend honors the caller's ctx for its
+`conn.WaitConnected` call so a SIGTERM mid-reload does not block for the full VPP-reach timeout
+when VPP is unreachable. The `trafficnetlink` backend accepts but does not use the ctx because
+vishvananda/netlink's tc syscalls have no ctx-aware variant. For unit-testing, `trafficvpp` uses a
+narrow unexported `vppOps` interface (dump/policerAddDel/policerDel/policerOutput) that the
+`govppOps` adapter implements on top of `api.Channel`; tests substitute a scripted `fakeOps` to
+exercise the create/update/undo/reconcile/orphan branches without a running VPP daemon.
+
+<!-- source: internal/component/traffic/backend.go -- Backend.Apply(ctx, desired) interface -->
+<!-- source: internal/plugins/traffic/vpp/ops.go -- vppOps interface (dumpInterfaces, policerAddDel, policerDel, policerOutput) -->
+<!-- source: internal/plugins/traffic/vpp/backend_linux.go -- govppOps adapter, applyWithOps, and WaitConnected honoring caller ctx -->
+<!-- source: internal/plugins/traffic/vpp/apply_test.go -- fakeOps + Apply-path unit tests -->
+<!-- source: internal/component/traffic/register.go -- runCtx synthesized from plugin lifetime, threaded to Backend.Apply call sites -->
 
 <!-- source: internal/component/firewall/model.go -- Table, Chain, Term, Match, Action types -->
 <!-- source: internal/component/firewall/backend.go -- Backend interface, RegisterBackend -->

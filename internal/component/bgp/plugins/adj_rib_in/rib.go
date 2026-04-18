@@ -171,7 +171,8 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 	// Subscribe to received events with format=full (includes raw hex bytes).
 	p.SetStartupSubscriptions([]string{"update direction received", "state"}, nil, "full")
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
 			{Name: "adj-rib-in status"},

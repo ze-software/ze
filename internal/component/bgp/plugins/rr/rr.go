@@ -159,7 +159,8 @@ func RunRouteReflector(conn net.Conn) int {
 
 	p.SetEncoding("text")
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	defer rr.stopping.Store(true)
 	err := p.Run(ctx, sdk.Registration{
 		CacheConsumer:          true,

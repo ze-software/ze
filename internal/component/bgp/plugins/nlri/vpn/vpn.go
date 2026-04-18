@@ -7,7 +7,6 @@ package vpn
 
 import (
 	"bufio"
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -44,7 +43,8 @@ func RunVPNPlugin(conn net.Conn) int {
 
 	p.OnDecodeNLRI(DecodeNLRIHex)
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
 			{Name: "ipv4/mpls-vpn", Mode: "decode", AFI: 1, SAFI: 128},

@@ -166,7 +166,35 @@ bin/ze-test vpp -a
 ```
 <!-- source: cmd/ze-test/vpp.go -- vppCmd wires EncodingTests to test/vpp/ -->
 
-### 6. Decode Tests (`test/decode/`)
+### 6. Backend Apply-Path Unit Tests (Go `_test.go`)
+
+Backends that talk to an out-of-process IPC surface (VPP GoVPP, a netconf server,
+any future RPC-backed kernel) expose a narrow unexported operation interface
+(`vppOps`, `netconfOps`, ...) with only the methods the Apply path needs. The
+production adapter wraps the live transport; unit tests substitute a scripted
+fake that records calls and can fail on the Nth request.
+
+`internal/plugins/traffic/vpp/` is the reference implementation:
+
+- `ops.go` defines `vppOps` (4 methods: `dumpInterfaces`, `policerAddDel`,
+  `policerDel`, `policerOutput`).
+- `backend_linux.go` exposes an internal `applyWithOps(ops, desired)` entry
+  point and a `govppOps{ch api.Channel}` production adapter; `Apply`
+  constructs a `govppOps` around the channel it opened and calls
+  `applyWithOps`.
+- `apply_test.go` defines `fakeOps` (records a `[]string` of labeled calls,
+  supports `failOnNthAddDel` for deterministic partial-failure tests) and
+  covers the create/update/undo/reconcile/orphan branches without a running
+  VPP daemon.
+
+Use this pattern when adding a new backend whose Apply path would otherwise
+require full-stack integration tests to cover every undo / reconcile branch.
+
+<!-- source: internal/plugins/traffic/vpp/ops.go -- vppOps interface -->
+<!-- source: internal/plugins/traffic/vpp/backend_linux.go -- applyWithOps, govppOps adapter -->
+<!-- source: internal/plugins/traffic/vpp/apply_test.go -- fakeOps + 7 tests -->
+
+### 7. Decode Tests (`test/decode/`)
 
 BGP message decoding tests - verify wire bytes decode to expected JSON.
 

@@ -152,7 +152,8 @@ func runFibVPPPlugin(conn net.Conn) int {
 		return "error", "", fmt.Errorf("unknown command: %s", command)
 	})
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig:  []string{"fib/vpp"},
 		VerifyBudget: 1,

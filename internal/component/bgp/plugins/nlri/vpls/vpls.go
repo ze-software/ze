@@ -7,7 +7,6 @@ package vpls
 
 import (
 	"bufio"
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -39,7 +38,8 @@ func RunVPLSPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-nlri-vpls", conn)
 	defer func() { _ = p.Close() }()
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
 			{Name: familyVPLS, Mode: "decode", AFI: 25, SAFI: 65},

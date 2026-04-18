@@ -202,7 +202,8 @@ func RunGRPlugin(conn net.Conn) int {
 		return gp.handleEvent(event)
 	})
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{"bgp"},
 	})

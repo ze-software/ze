@@ -12,7 +12,6 @@ package route_refresh
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -64,7 +63,8 @@ func RunRouteRefreshPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{"bgp"},
 	})

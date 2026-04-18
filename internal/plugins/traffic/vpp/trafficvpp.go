@@ -25,11 +25,13 @@ import (
 // slog subsystem so reconciliation warnings and other diagnostics reach
 // the operator through ze's normal logging surface. Stored atomically
 // so a future consumer can swap handlers without races.
+//
+// Kept in the cross-platform package doc file so the init stays tied to
+// package bootstrap; `logger()` lives in logger_linux.go next to its only
+// caller (backend_linux.go) so the unused-symbol check stays clean on
+// non-Linux builds.
 var loggerPtr atomic.Pointer[slog.Logger]
 
 func init() { //nolint:gochecknoinits // logger bootstrap only
 	loggerPtr.Store(slogutil.Logger("traffic.vpp"))
 }
-
-// logger returns the package-level slog.Logger, never nil.
-func logger() *slog.Logger { return loggerPtr.Load() }

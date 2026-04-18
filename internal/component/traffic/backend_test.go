@@ -1,6 +1,7 @@
 package traffic
 
 import (
+	"context"
 	"errors"
 	"testing"
 )
@@ -140,6 +141,6 @@ type fakeBackend struct {
 	closed bool
 }
 
-func (f *fakeBackend) Apply(map[string]InterfaceQoS) error     { return nil }
-func (f *fakeBackend) ListQdiscs(string) (InterfaceQoS, error) { return f.qos, nil }
-func (f *fakeBackend) Close() error                            { f.closed = true; return nil }
+func (f *fakeBackend) Apply(context.Context, map[string]InterfaceQoS) error { return nil }
+func (f *fakeBackend) ListQdiscs(string) (InterfaceQoS, error)              { return f.qos, nil }
+func (f *fakeBackend) Close() error                                         { f.closed = true; return nil }

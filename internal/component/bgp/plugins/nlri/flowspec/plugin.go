@@ -12,7 +12,6 @@
 package flowspec
 
 import (
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -48,7 +47,8 @@ func RunFlowSpecPlugin(conn net.Conn) int {
 	p.OnEncodeNLRI(EncodeNLRIHex)
 	p.OnDecodeNLRI(DecodeNLRIHex)
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
 			{Name: "ipv4/flow", Mode: "both", AFI: 1, SAFI: 133},

@@ -5,6 +5,7 @@
 package trafficnetlink
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/vishvananda/netlink"
@@ -23,7 +24,13 @@ func newBackend() (traffic.Backend, error) {
 // named interface: replace root qdisc, rebuild classes and filters.
 // Cleanup of interfaces removed from config is the caller's responsibility
 // (the component must track previous state and call QdiscDel for removed interfaces).
-func (b *backend) Apply(desired map[string]traffic.InterfaceQoS) error {
+//
+// ctx is accepted for interface parity with other backends but is NOT honored:
+// vishvananda/netlink's tc operations are synchronous CGO-free syscalls with no
+// ctx-aware variants. A SIGTERM mid-Apply will wait for the in-flight syscall
+// to return (all syscalls here are fast in practice). Do not drop the parameter
+// -- the interface would regress and tests rely on the signature.
+func (b *backend) Apply(_ context.Context, desired map[string]traffic.InterfaceQoS) error {
 	for name, qos := range desired {
 		link, err := netlink.LinkByName(name)
 		if err != nil {

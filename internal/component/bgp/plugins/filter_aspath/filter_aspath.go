@@ -20,7 +20,6 @@
 package filter_aspath
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"sync/atomic"
@@ -72,7 +71,8 @@ func RunFilterAsPath(conn net.Conn) int {
 		return handleFilterUpdate(in), nil
 	})
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{"bgp"},
 	}); err != nil {

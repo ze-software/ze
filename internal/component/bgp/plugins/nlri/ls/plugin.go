@@ -5,7 +5,6 @@ package ls
 
 import (
 	"bufio"
-	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -68,7 +67,8 @@ func RunBGPLSPlugin(conn net.Conn) int {
 		return string(jsonBytes), nil
 	})
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
 			{Name: "bgp-ls/bgp-ls", Mode: "decode", AFI: 16388, SAFI: 71},

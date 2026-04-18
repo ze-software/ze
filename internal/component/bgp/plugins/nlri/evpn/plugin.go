@@ -7,7 +7,6 @@ package evpn
 
 import (
 	"bufio"
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -44,7 +43,8 @@ func RunEVPNPlugin(conn net.Conn) int {
 
 	p.OnDecodeNLRI(DecodeNLRIHex)
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
 			{Name: "l2vpn/evpn", Mode: "decode", AFI: 25, SAFI: 70},

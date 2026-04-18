@@ -3,7 +3,6 @@
 package ifacedhcp
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
@@ -72,7 +71,8 @@ func runDHCPPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("iface-dhcp", conn)
 	defer func() { _ = p.Close() }()
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{}); err != nil {
 		log.Error("iface-dhcp plugin failed", "error", err)
 		return 1

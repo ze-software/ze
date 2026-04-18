@@ -115,7 +115,8 @@ func runVPPEngine(conn net.Conn) int {
 		return nil
 	})
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{"vpp"},
 	}); err != nil {

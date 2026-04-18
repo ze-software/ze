@@ -159,6 +159,17 @@ func runEngine(conn net.Conn) int {
 	p := sdk.NewWithConn("traffic", conn)
 	defer func() { _ = p.Close() }()
 
+	// runCtx is the plugin-lifetime context captured by the OnConfigure /
+	// OnConfigApply closures and threaded into backend.Apply. The SDK's
+	// OnConfigApply does not carry a ctx, so we synthesize one from
+	// sdk.SignalContext: on SIGINT/SIGTERM runCtx cancels and any in-flight
+	// Apply's WaitConnected (trafficvpp) unblocks immediately. Internal
+	// (goroutine) plugins still get the right behavior -- ze's own signal
+	// handler closes the SDK pipe which returns p.Run; runCtx cancellation
+	// in that case is a no-op belt-and-braces safety net.
+	runCtx, stopSignalNotify := sdk.SignalContext()
+	defer stopSignalNotify()
+
 	// pendingCfg carries the verified reload config from OnConfigVerify into
 	// OnConfigApply. Cleared when OnConfigApply consumes it.
 	var pendingCfg *trafficConfig
@@ -197,7 +208,7 @@ func runEngine(conn net.Conn) int {
 		log.Info("traffic-control backend loaded", "backend", cfg.Backend)
 
 		b := GetBackend()
-		if err := b.Apply(cfg.Interfaces); err != nil {
+		if err := b.Apply(runCtx, cfg.Interfaces); err != nil {
 			return fmt.Errorf("traffic-control config apply: %w", err)
 		}
 		activeCfg.Store(cfg)
@@ -266,7 +277,7 @@ func runEngine(conn net.Conn) int {
 		j := sdk.NewJournal()
 		err := j.Record(
 			func() error {
-				if applyErr := b.Apply(cfg.Interfaces); applyErr != nil {
+				if applyErr := b.Apply(runCtx, cfg.Interfaces); applyErr != nil {
 					return fmt.Errorf("traffic-control reload: %w", applyErr)
 				}
 				return nil
@@ -280,7 +291,7 @@ func runEngine(conn net.Conn) int {
 				if previousCfg != nil {
 					desired = previousCfg.Interfaces
 				}
-				if rollbackErr := b.Apply(desired); rollbackErr != nil {
+				if rollbackErr := b.Apply(runCtx, desired); rollbackErr != nil {
 					return fmt.Errorf("traffic-control rollback: %w", rollbackErr)
 				}
 				return nil

@@ -1,7 +1,6 @@
 package ntp
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
@@ -147,7 +146,8 @@ func runNTPPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	ctx := context.Background()
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
 		WantsConfig:  []string{"environment"},
 		VerifyBudget: 2,
