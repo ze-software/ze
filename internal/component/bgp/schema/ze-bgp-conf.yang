@@ -233,10 +233,10 @@ module ze-bgp-conf {
                     type zt:port;
                     description "Local bind port";
                 }
-                leaf connect {
+                leaf accept {
                     type boolean;
                     default true;
-                    description "Initiate outbound TCP connections to this peer (RFC 4271 Section 8.1.1)";
+                    description "Accept inbound TCP connections at this local endpoint (RFC 4271 Section 8.1.1)";
                 }
             }
 
@@ -250,10 +250,10 @@ module ze-bgp-conf {
                     type zt:port;
                     description "Remote connection port";
                 }
-                leaf accept {
+                leaf connect {
                     type boolean;
                     default true;
-                    description "Accept inbound TCP connections from this peer (RFC 4271 Section 8.1.1)";
+                    description "Initiate outbound TCP connections to this remote endpoint (RFC 4271 Section 8.1.1)";
                 }
             }
 

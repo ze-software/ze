@@ -43,11 +43,11 @@ func TestValidateTree_ValidConfig(t *testing.T) {
 			"peer1": map[string]any{
 				"connection": map[string]any{
 					"remote": map[string]any{
-						"ip": "192.0.2.2",
+						"ip":      "192.0.2.2",
+						"connect": false,
 					},
 					"local": map[string]any{
-						"ip":      "192.0.2.1",
-						"connect": false,
+						"ip": "192.0.2.1",
 					},
 				},
 				"session": map[string]any{
@@ -84,11 +84,11 @@ func TestValidateTree_EnumViolation(t *testing.T) {
 			"peer1": map[string]any{
 				"connection": map[string]any{
 					"remote": map[string]any{
-						"ip": "192.0.2.2",
+						"ip":      "192.0.2.2",
+						"connect": "invalid-value",
 					},
 					"local": map[string]any{
-						"ip":      "192.0.2.1",
-						"connect": "invalid-value",
+						"ip": "192.0.2.1",
 					},
 				},
 				"session": map[string]any{

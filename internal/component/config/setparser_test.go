@@ -689,7 +689,7 @@ func TestParseInlineArgs(t *testing.T) {
 		"session", "asn", "remote", "65001",
 		"session", "asn", "local", "65000",
 		"timer", "receive-hold-time", "90",
-		"connection", "local", "connect", "false",
+		"connection", "remote", "connect", "false",
 	})
 	require.NoError(t, err)
 
@@ -703,12 +703,12 @@ func TestParseInlineArgs(t *testing.T) {
 	assert.Equal(t, "65001", asn["remote"])
 	assert.Equal(t, "65000", asn["local"])
 
-	// Verify connection.local.connect
+	// Verify connection.remote.connect
 	connection, ok := m["connection"].(map[string]any)
 	require.True(t, ok, "connection should be a map")
-	connLocal, ok := connection["local"].(map[string]any)
-	require.True(t, ok, "connection.local should be a map")
-	assert.Equal(t, "false", connLocal["connect"])
+	connRemote, ok := connection["remote"].(map[string]any)
+	require.True(t, ok, "connection.remote should be a map")
+	assert.Equal(t, "false", connRemote["connect"])
 
 	// Verify timer container with receive-hold-time leaf
 	timer, ok := m["timer"].(map[string]any)

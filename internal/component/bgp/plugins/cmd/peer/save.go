@@ -132,13 +132,13 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 			}
 		}
 		if !p.Connect {
-			if err := ed.SetValue(connLocalPath, "connect", "false"); err != nil {
-				return saveFieldError(p.Address, "connection local connect", err)
+			if err := ed.SetValue(connRemotePath, "connect", "false"); err != nil {
+				return saveFieldError(p.Address, "connection remote connect", err)
 			}
 		}
 		if !p.Accept {
-			if err := ed.SetValue(connRemotePath, "accept", "false"); err != nil {
-				return saveFieldError(p.Address, "connection remote accept", err)
+			if err := ed.SetValue(connLocalPath, "accept", "false"); err != nil {
+				return saveFieldError(p.Address, "connection local accept", err)
 			}
 		}
 

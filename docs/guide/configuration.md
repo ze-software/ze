@@ -30,7 +30,7 @@ bgp {
         timer {
             receive-hold-time 180;
         }
-        local { connect false; }   # passive: don't initiate outbound
+        remote { connect false; }   # passive: don't initiate outbound
 
         capability {
             asn4;
@@ -91,8 +91,8 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `router-id` | BGP router ID | Yes (or inherited) |
 | `description` | Human-readable description | No |
 | `timer { }` | Timer container: `receive-hold-time` (seconds, 0 or 3-65535, default 90), `send-hold-time` (seconds, 0 or 480-65535, default 0), `connect-retry` (seconds, default 120) | No |
-| `local { connect }` | Initiate outbound TCP connections: `true` or `false` (default: true) | No |
-| `remote { accept }` | Accept inbound TCP connections: `true` or `false` (default: true) | No |
+| `remote { connect }` | Initiate outbound TCP connections: `true` or `false` (default: true) | No |
+| `local { accept }` | Accept inbound TCP connections: `true` or `false` (default: true) | No |
 | `port` | TCP port | No (default: 179) |
 | `md5-password` | TCP MD5 authentication | No |
 | `ttl-security` | Minimum TTL for incoming packets | No |

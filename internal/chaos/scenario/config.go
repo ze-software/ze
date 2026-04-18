@@ -166,15 +166,15 @@ func writeFullPeerBlock(b *strings.Builder, params ConfigParams, p PeerProfile) 
 	fmt.Fprintf(b, "        description \"chaos-peer-%d\";\n", p.Index)
 
 	// Connection container — transport-level settings.
+	// All chaos peers are passive from Ze's perspective: Ze never dials out.
+	// This avoids needing loopback aliases for the fake peer addresses.
 	fmt.Fprintf(b, "        connection {\n")
 	fmt.Fprintf(b, "            remote {\n")
 	fmt.Fprintf(b, "                ip %s;\n", peerAddr)
+	fmt.Fprintf(b, "                connect false;\n")
 	fmt.Fprintf(b, "            }\n")
 	fmt.Fprintf(b, "            local {\n")
 	fmt.Fprintf(b, "                ip %s;\n", params.LocalAddr)
-	// All chaos peers are passive from Ze's perspective: Ze never dials out.
-	// This avoids needing loopback aliases for the fake peer addresses.
-	fmt.Fprintf(b, "                connect false;\n")
 	if p.ZePort > 0 {
 		fmt.Fprintf(b, "                port %d;\n", p.ZePort)
 	}

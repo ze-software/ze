@@ -252,8 +252,8 @@ bgp {
         peer <name> {
             # Connection (transport-level)
             connection {
-                remote { ip <ip>; port <port>; accept <bool>; }
-                local { ip <ip>; port <port>; connect <bool>; }
+                remote { ip <ip>; port <port>; connect <bool>; }
+                local { ip <ip>; port <port>; accept <bool>; }
                 md5 { password <string>; ip <ip>; }
                 ttl { max <0-255>; set <0-255>; min <0-255>; }
                 link-local <bool>;
@@ -304,8 +304,8 @@ Peer configuration is organized into nested containers by concern.
 
 | Keyword | Type | Description |
 |---------|------|-------------|
-| `connection { local { ip; port; connect; } }` | container | Local address (`auto` or IP), bind port, initiate connections (default: true) |
-| `connection { remote { ip; port; accept; } }` | container | Peer IP address, connection port, accept connections (default: true) |
+| `connection { local { ip; port; accept; } }` | container | Local address (`auto` or IP), bind port, accept inbound connections (default: true) |
+| `connection { remote { ip; port; connect; } }` | container | Peer IP address, connection port, initiate outbound connections (default: true) |
 | `connection { md5 { password; ip; } }` | container | TCP MD5 authentication (RFC 2385) |
 | `connection { ttl { max; set; min; } }` | container | GTSM max (RFC 5082), outgoing TTL, minimum incoming TTL |
 | `connection { link-local; }` | bool | Auto-discover IPv6 link-local for TCP |

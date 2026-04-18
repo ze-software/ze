@@ -355,16 +355,16 @@ func buildValidationSummary(bgpTree map[string]any, tree *config.Tree) *validati
 				continue
 			}
 			connect := true
-			if localMap, ok := peer["local"].(map[string]any); ok {
-				if v, ok := localMap["connect"]; ok {
+			if remoteMap, ok := peer["remote"].(map[string]any); ok {
+				if v, ok := remoteMap["connect"]; ok {
 					if b, err := config.ParseBoolStrict(fmt.Sprint(v)); err == nil {
 						connect = b
 					}
 				}
 			}
 			accept := true
-			if remoteMap, ok := peer["remote"].(map[string]any); ok {
-				if v, ok := remoteMap["accept"]; ok {
+			if localMap, ok := peer["local"].(map[string]any); ok {
+				if v, ok := localMap["accept"]; ok {
 					if b, err := config.ParseBoolStrict(fmt.Sprint(v)); err == nil {
 						accept = b
 					}

@@ -13,8 +13,8 @@ Peers are keyed by name (`peer <name> { }`) with IP and AS in nested containers:
 | `router-id` | Per-peer router ID override | Optional (or inherited) |
 | `name` | Peer key (must start with letter) | Required |
 | `hold-time` | Hold timer (0 or 3-65535 seconds) | 1-2 rejected |
-| `local { connect; }` | Initiate outbound connections (boolean) | Default: true |
-| `remote { accept; }` | Accept inbound connections (boolean) | Default: true |
+| `remote { connect; }` | Initiate outbound connections (boolean) | Default: true |
+| `local { accept; }` | Accept inbound connections (boolean) | Default: true |
 | `md5-password` | TCP MD5 authentication | Optional |
 | `outgoing-ttl` | TTL for outgoing packets | Optional |
 | `ttl-security` | Minimum TTL for incoming packets | Optional |

@@ -20,8 +20,8 @@ import (
 func TestParsePeerFromTree(t *testing.T) {
 	tree := map[string]any{
 		"connection": map[string]any{
-			"remote": map[string]any{"ip": "192.0.2.1"},
-			"local":  map[string]any{"ip": "192.168.1.1", "connect": "false"},
+			"remote": map[string]any{"ip": "192.0.2.1", "connect": "false"},
+			"local":  map[string]any{"ip": "192.168.1.1"},
 		},
 		"session": map[string]any{
 			"asn":        map[string]any{"remote": "65001", "local": "65000"},
@@ -144,7 +144,7 @@ func TestParsePeerFromTreeInvalid(t *testing.T) {
 			name:     "connect_and_accept_both_false",
 			peerName: "peer1",
 			tree: map[string]any{
-				"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1", "accept": "false"}, "local": map[string]any{"ip": "auto", "connect": "false"}},
+				"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1", "connect": "false"}, "local": map[string]any{"ip": "auto", "accept": "false"}},
 				"session":    map[string]any{"asn": map[string]any{"remote": "65001"}},
 			},
 			wantErr: "connect and accept cannot both be false",
@@ -890,7 +890,7 @@ func TestPeersFromTree(t *testing.T) {
 				"timer":      map[string]any{"receive-hold-time": "180"},
 			},
 			"peer2": map[string]any{
-				"connection": map[string]any{"remote": map[string]any{"ip": "192.0.2.2"}, "local": map[string]any{"ip": "auto", "connect": "false"}},
+				"connection": map[string]any{"remote": map[string]any{"ip": "192.0.2.2", "connect": "false"}, "local": map[string]any{"ip": "auto"}},
 				"session":    map[string]any{"asn": map[string]any{"remote": "65002"}},
 			},
 		},
@@ -1200,7 +1200,7 @@ func TestConnectionModeIsActiveIsPassive(t *testing.T) {
 // PREVENTS: Dead peer config that neither connects nor accepts.
 func TestConnectionModeBothFalseRejected(t *testing.T) {
 	tree := map[string]any{
-		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1", "accept": "false"}, "local": map[string]any{"ip": "auto", "connect": "false"}},
+		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1", "connect": "false"}, "local": map[string]any{"ip": "auto", "accept": "false"}},
 		"session":    map[string]any{"asn": map[string]any{"remote": "65001"}},
 	}
 	_, err := parsePeerFromTree("peer1", tree, 65000, 0x01020304)

@@ -158,15 +158,15 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		}
 	}
 
-	// Connection mode from connection > local > connect and connection > remote > accept.
+	// Connection mode from connection > remote > connect and connection > local > accept.
 	if connMap != nil {
-		if connLocalMap, ok := mapMap(connMap, "local"); ok {
-			if v, ok := mapBool(connLocalMap, "connect"); ok {
+		if connRemoteMap != nil {
+			if v, ok := mapBool(connRemoteMap, "connect"); ok {
 				ps.Connection.Connect = v
 			}
 		}
-		if connRemoteMap != nil {
-			if v, ok := mapBool(connRemoteMap, "accept"); ok {
+		if connLocalMap, ok := mapMap(connMap, "local"); ok {
+			if v, ok := mapBool(connLocalMap, "accept"); ok {
 				ps.Connection.Accept = v
 			}
 		}

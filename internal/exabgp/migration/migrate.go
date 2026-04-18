@@ -327,7 +327,7 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 			if key == "local-link-local" {
 				outKey = "link-local"
 			}
-			// ExaBGP "passive true" -> Ze connection { local { connect false } } (handled in copySimpleFields)
+			// ExaBGP "passive true" -> Ze connection { remote { connect false } } (handled in copySimpleFields)
 			if key == "passive" {
 				merged.Set("passive", v)
 				continue
@@ -374,7 +374,7 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 //   - local-as -> session > asn > local
 //   - local-address -> connection > local > ip
 //   - router-id -> session > router-id
-//   - passive -> connection > local > connect false, connection > remote > accept true
+//   - passive -> connection > remote > connect false, connection > local > accept true
 //   - ttl-security -> connection > ttl > max
 //   - md5-password -> connection > md5 > password
 //   - group-updates -> behavior > group-updates
@@ -494,7 +494,7 @@ func copySimpleFields(src, dst *config.Tree) {
 		}
 	}
 
-	// Fields that move into connection > local: local-address -> ip, passive -> connect false.
+	// Fields that move into connection > local: local-address -> ip, passive -> accept true.
 	localAddr, hasLocalAddr := src.Get("local-address")
 	passive, hasPassive := src.Get("passive")
 	isPassive := hasPassive && passive == configTrue
@@ -513,11 +513,11 @@ func copySimpleFields(src, dst *config.Tree) {
 			localContainer.Set("ip", localAddr)
 		}
 		if isPassive {
-			localContainer.Set("connect", "false")
+			localContainer.Set("accept", "true")
 		}
 	}
 
-	// Passive also sets connection > remote > accept true.
+	// Passive also sets connection > remote > connect false.
 	if isPassive {
 		connContainer := dst.GetContainer("connection")
 		if connContainer == nil {
@@ -529,7 +529,7 @@ func copySimpleFields(src, dst *config.Tree) {
 			remoteContainer = config.NewTree()
 			connContainer.SetContainer("remote", remoteContainer)
 		}
-		remoteContainer.Set("accept", "true")
+		remoteContainer.Set("connect", "false")
 	}
 }
 

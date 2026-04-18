@@ -654,13 +654,13 @@ func parsePeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 				settings.ConnectRetry = time.Duration(cr) * time.Second
 			}
 		}
-		if localMap, ok := fields["local"].(map[string]any); ok {
-			if v, ok := localMap["connect"].(string); ok {
+		if remoteMap, ok := fields["remote"].(map[string]any); ok {
+			if v, ok := remoteMap["connect"].(string); ok {
 				settings.Connection.Connect = v == "true"
 			}
 		}
-		if remoteMap, ok := fields["remote"].(map[string]any); ok {
-			if v, ok := remoteMap["accept"].(string); ok {
+		if localMap, ok := fields["local"].(map[string]any); ok {
+			if v, ok := localMap["accept"].(string); ok {
 				settings.Connection.Accept = v == "true"
 			}
 		}

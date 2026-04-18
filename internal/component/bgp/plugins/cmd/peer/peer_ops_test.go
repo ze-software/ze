@@ -230,7 +230,7 @@ func TestHandlerPeerAddAllOptions(t *testing.T) {
 		"connection", "local", "ip", "10.0.0.1",
 		"session", "router-id", "1.2.3.4",
 		"timer", "receive-hold-time", "90",
-		"connection", "local", "connect", "false",
+		"connection", "remote", "connect", "false",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -241,7 +241,7 @@ func TestHandlerPeerAddAllOptions(t *testing.T) {
 	assert.Equal(t, "10.0.0.1", treeString(pt, "connection", "local", "ip"))
 	assert.Equal(t, "1.2.3.4", treeString(pt, "session", "router-id"))
 	assert.Equal(t, "90", treeString(pt, "timer", "receive-hold-time"))
-	assert.Equal(t, "false", treeString(pt, "connection", "local", "connect"))
+	assert.Equal(t, "false", treeString(pt, "connection", "remote", "connect"))
 }
 
 // TestHandlerPeerAddMissingASN verifies peer add requires remote AS.
@@ -448,7 +448,7 @@ func TestSetPeerWithFullConfig(t *testing.T) {
 		"session", "asn", "remote", "65001",
 		"session", "router-id", "1.2.3.4",
 		"timer", "receive-hold-time", "180",
-		"connection", "local", "connect", "false",
+		"connection", "remote", "connect", "false",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -457,7 +457,7 @@ func TestSetPeerWithFullConfig(t *testing.T) {
 	assert.Equal(t, "65001", treeString(pt, "session", "asn", "remote"))
 	assert.Equal(t, "1.2.3.4", treeString(pt, "session", "router-id"))
 	assert.Equal(t, "180", treeString(pt, "timer", "receive-hold-time"))
-	assert.Equal(t, "false", treeString(pt, "connection", "local", "connect"))
+	assert.Equal(t, "false", treeString(pt, "connection", "remote", "connect"))
 }
 
 // TestSetPeerWithLocalOverrides verifies local as + local ip via config syntax.

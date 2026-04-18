@@ -60,10 +60,10 @@ bgp {
         connection {
             remote {
                 ip 192.0.2.2
+                connect false
             }
             local {
                 ip 192.168.1.1
-                connect false
             }
         }
         session {
@@ -169,10 +169,10 @@ bgp {
         connection {
             remote {
                 ip 192.0.2.1
+                connect false
             }
             local {
                 ip 192.168.1.1
-                connect false
             }
         }
         session {
