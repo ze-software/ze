@@ -12,8 +12,11 @@ Rationale: `.claude/rationale/git-safety.md`
 2. Write a commit script to `tmp/commit-SESSION.sh` where SESSION = 8-char unique ID
    (e.g., `head -c4 /dev/urandom | xxd -p` at session start). The script contains
    the `git add` commands, the commit message as a heredoc, and the `git commit` command.
-3. Report what was done and what is left (including deferred).
-4. The user reviews and runs `bash tmp/commit-SESSION.sh` themselves.
+3. **`chmod +x tmp/commit-SESSION.sh` in the same turn you write it.** User runs it
+   directly (`./tmp/commit-...sh`), not via `bash`. Same rule for every script you hand
+   the user (`tmp/delete-SESSION.sh`, any ad-hoc helper): executable bit set at creation.
+4. Report what was done and what is left (including deferred).
+5. The user reviews and runs `./tmp/commit-SESSION.sh` themselves.
 
 **Script format:**
 ```bash
