@@ -143,6 +143,52 @@ func (p *Provider) SetRoot(root string, tree map[string]any) {
 	}
 }
 
+// Roots returns the names of every root currently stored. Order is
+// unspecified. Useful for callers computing diffs (e.g. the SIGHUP
+// path that has to remove orphaned roots when they disappear from
+// a freshly-loaded tree).
+func (p *Provider) Roots() []string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	out := make([]string, 0, len(p.roots))
+	for k := range p.roots {
+		out = append(out, k)
+	}
+	return out
+}
+
+// DeleteRoot removes a root and notifies any watchers with an empty
+// tree so subsystems observe the disappearance. Used by the SIGHUP
+// path when a root is absent from a freshly-loaded config. No-op if
+// the root is not present.
+func (p *Provider) DeleteRoot(root string) {
+	p.mu.Lock()
+	if _, ok := p.roots[root]; !ok {
+		p.mu.Unlock()
+		return
+	}
+	delete(p.roots, root)
+	type notification struct {
+		ch     chan ze.ConfigChange
+		change ze.ConfigChange
+	}
+	notifications := make([]notification, 0, len(p.watchers[root]))
+	for _, ch := range p.watchers[root] {
+		notifications = append(notifications, notification{
+			ch:     ch,
+			change: ze.ConfigChange{Root: root, Tree: map[string]any{}},
+		})
+	}
+	p.mu.Unlock()
+
+	for _, n := range notifications {
+		if !trySend(n.ch, n.change) {
+			tryDrain(n.ch)
+			n.ch <- n.change
+		}
+	}
+}
+
 // Get returns the config subtree for a root name.
 // Returns empty map if the root does not exist.
 func (p *Provider) Get(root string) (map[string]any, error) {

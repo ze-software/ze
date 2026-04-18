@@ -1,0 +1,247 @@
+# Test: SIGHUP reload applies a changed `hello-interval` to the
+#       running subsystem's effective config.
+#
+# VALIDATES: spec-l2tp-7 AC-13 -- hello-interval is hot-applied by
+#            Subsystem.Reload. Proves the diff-apply path (reactor
+#            setHelloInterval + s.params update) is reached by a
+#            real SIGHUP, and the new value surfaces through
+#            EffectiveConfig to `show l2tp config`.
+# PREVENTS:  regression where reload parses the new value but never
+#            stores it (silent no-op Reload).
+#
+# Runs under test/plugin/ so the TLS plugin hub is configured; an
+# L2TP-only SIGHUP scenario still needs a BGP peer in config to
+# trigger hub setup (see plan/learned/620 "Gotchas").
+
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=reload-hello-interval.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Dispatch show l2tp config before and after SIGHUP, assert change.
+
+Handshake with trigger.sh:
+  1. Observer reads initial config (hello-interval=45), creates
+     `observer.initial-ok` marker.
+  2. trigger.sh waits for that marker, swaps the config, SIGHUPs,
+     creates `reload.done`.
+  3. Observer polls `reload.done`, then polls show l2tp config until
+     hello-interval changes (or times out).
+"""
+
+import json
+import os
+import time
+
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def read_interval(api, label):
+    r = None
+    for _ in range(40):
+        r = dispatch(api, 'show l2tp config')
+        if r.get('status') == 'done':
+            break
+        time.sleep(0.1)
+    if r is None or r.get('status') != 'done':
+        runtime_fail(f'{label}: show l2tp config: status={r.get("status") if r else "nil"}')
+    try:
+        cfg = json.loads(r.get('data', '') or '{}')
+    except json.JSONDecodeError as exc:
+        runtime_fail(f'{label}: json: {exc}')
+        return 0
+    return cfg.get('hello-interval')
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(1.0)
+
+    before = read_interval(api, 'before')
+    if before != 45:
+        runtime_fail(f'before SIGHUP: hello-interval={before!r} want 45')
+
+    # Tell trigger.sh that the initial read completed so it can fire the
+    # SIGHUP now without racing our first dispatch.
+    with open('observer.initial-ok', 'w') as f:
+        f.write('ok')
+
+    # Wait for trigger.sh to confirm it sent SIGHUP.
+    for _ in range(100):
+        if os.path.exists('reload.done'):
+            break
+        time.sleep(0.1)
+    else:
+        runtime_fail('trigger.sh never created reload.done marker')
+
+    # Reload is asynchronous. Poll show l2tp config until the value
+    # changes, up to ~5s.
+    after = None
+    for _ in range(50):
+        after = read_interval(api, 'after')
+        if after == 90:
+            break
+        time.sleep(0.1)
+    if after != 90:
+        runtime_fail(f'after SIGHUP: hello-interval={after!r} want 90 (reload did not apply)')
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# The second config text that trigger.sh copies over ze-bgp.conf
+# before SIGHUP. Only hello-interval changes (45 -> 90).
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external reload-hello-interval-test {
+		run ./reload-hello-interval.run
+		encoder json
+	}
+}
+
+environment {
+	log {
+		l2tp debug
+	}
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+l2tp {
+	enabled true
+	hello-interval 90
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process reload-hello-interval-test {
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+# Wait for daemon to register signal handlers AND the observer to
+# complete its initial read, then swap config and SIGHUP.
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+while [ ! -f observer.initial-ok ]; do sleep 0.1; done
+cp config2.conf ze-bgp.conf
+kill -HUP $(cat daemon.pid)
+touch reload.done
+EOF_TRIGGER
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external reload-hello-interval-test {
+		run ./reload-hello-interval.run
+		encoder json
+	}
+}
+
+environment {
+	log {
+		l2tp debug
+	}
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+l2tp {
+	enabled true
+	hello-interval 45
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process reload-hello-interval-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=l2tp reload: hello-interval updated

@@ -1,0 +1,232 @@
+# Test: SIGHUP reload rejects a listener-endpoint change with WARN
+#       and leaves the live listener untouched.
+#
+# VALIDATES: spec-l2tp-7 AC-15 -- listener endpoint changes require
+#            a restart (cannot hot-rebind). Subsystem.Reload must
+#            log a WARN naming the rejection and leave the bound
+#            endpoints unchanged; `show l2tp listeners` must still
+#            return the original address/port pair.
+# PREVENTS:  silent acceptance of a listener rebind which would
+#            tear down the UDP socket and drop any in-flight
+#            tunnels, or silently ignore the change with no log.
+
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=reload-listener-rejected.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Verify the listener stays on its original port after a SIGHUP that
+attempted to change it, and the reject WARN was logged.
+
+Configuration uses a pair of ports passed in via $PORT2 and $PORT3.
+The initial config binds to $PORT2; config2 switches to $PORT3. The
+reload must reject the change and keep binding to $PORT2.
+"""
+
+import json
+import os
+import time
+
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def read_listener_port(api, label):
+    r = None
+    for _ in range(40):
+        r = dispatch(api, 'show l2tp listeners')
+        if r.get('status') == 'done':
+            break
+        time.sleep(0.1)
+    if r is None or r.get('status') != 'done':
+        runtime_fail(f'{label}: show l2tp listeners: status={r.get("status") if r else "nil"}')
+    try:
+        lns = json.loads(r.get('data', '') or '[]')
+    except json.JSONDecodeError as exc:
+        runtime_fail(f'{label}: json: {exc}')
+        return 0
+    if len(lns) != 1:
+        runtime_fail(f'{label}: listener count={len(lns)} want 1: {lns!r}')
+    return lns[0].get('port')
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(1.0)
+
+    initial_port = read_listener_port(api, 'before')
+    if not isinstance(initial_port, int) or initial_port == 0:
+        runtime_fail(f'before SIGHUP: bad initial port={initial_port!r}')
+
+    with open('observer.initial-ok', 'w') as f:
+        f.write('ok')
+
+    for _ in range(100):
+        if os.path.exists('reload.done'):
+            break
+        time.sleep(0.1)
+    else:
+        runtime_fail('trigger.sh never created reload.done marker')
+
+    # Listener rejects hot-rebind; poll briefly so the daemon has a
+    # chance to process the SIGHUP, then confirm the port is unchanged.
+    time.sleep(0.5)
+    after_port = read_listener_port(api, 'after')
+    if after_port != initial_port:
+        runtime_fail(f'after SIGHUP: listener port changed {initial_port}->{after_port}; expected no change')
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# Post-SIGHUP config: switches the listener to $PORT3. The reload
+# must reject this change with WARN and keep the original $PORT2.
+tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external reload-listener-rejected-test {
+		run ./reload-listener-rejected.run
+		encoder json
+	}
+}
+
+environment {
+	log {
+		l2tp debug
+	}
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT3
+		}
+	}
+}
+
+l2tp {
+	enabled true
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process reload-listener-rejected-test {
+		}
+	}
+}
+EOF_CONF2
+
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
+while [ ! -f observer.initial-ok ]; do sleep 0.1; done
+cp config2.conf ze-bgp.conf
+kill -HUP $(cat daemon.pid)
+touch reload.done
+EOF_TRIGGER
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external reload-listener-rejected-test {
+		run ./reload-listener-rejected.run
+		encoder json
+	}
+}
+
+environment {
+	log {
+		l2tp debug
+	}
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+l2tp {
+	enabled true
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process reload-listener-rejected-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=l2tp reload: listener endpoint change ignored

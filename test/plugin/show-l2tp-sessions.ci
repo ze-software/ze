@@ -1,0 +1,313 @@
+# Test: `show l2tp sessions` returns the established session after
+#       a full SCCRQ/SCCCN + ICRQ/ICCN control-plane handshake.
+#
+# VALIDATES: spec-l2tp-7 AC-16 -- session list surfaces per-session
+#            fields (local-sid, remote-sid, tunnel-local-tid, state)
+#            after the control-plane negotiation completes. PPP-layer
+#            fields (username, assigned-addr) remain empty because
+#            this test drives only the L2TP control plane, not PPP.
+# PREVENTS:  regression where session enumeration returns an empty
+#            list even though the tunnel owns one, or where session
+#            lookup traverses a stale reactor pool.
+
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+option=env:var=TEST_SECRET:value=sessions-secret
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=l2tp-session-peer.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Establish an L2TP tunnel + session (ICRQ/ICCN), then idle."""
+import hashlib
+import os
+import socket
+import struct
+import sys
+import time
+
+if len(sys.argv) < 2:
+    print("usage: l2tp-session-peer.py <port> [tunnel-id] [session-id]", file=sys.stderr)
+    sys.exit(2)
+
+TARGET = ("127.0.0.1", int(sys.argv[1]))
+PEER_TID = int(sys.argv[2], 0) if len(sys.argv) > 2 else 0x0123
+PEER_SID = int(sys.argv[3], 0) if len(sys.argv) > 3 else 500
+SECRET = os.environ.get("TEST_SECRET", "").encode("utf-8")
+PEER_CHALLENGE = bytes.fromhex("00112233445566778899aabbccddeeff")
+
+
+def avp(mandatory, attr_type, value):
+    flags = 0x8000 if mandatory else 0
+    return struct.pack("!HHH", flags | (6 + len(value)), 0, attr_type) + value
+
+
+def l2tp_ctrl(dest_tid, dest_sid, ns, nr, body):
+    total = 12 + len(body)
+    hdr = struct.pack("!HHHHHH", 0xC802, total, dest_tid, dest_sid, ns, nr)
+    return hdr + body
+
+
+def parse_avps(body):
+    out = {}
+    off = 0
+    while off + 6 <= len(body):
+        word, vendor, atype = struct.unpack("!HHH", body[off:off + 6])
+        length = word & 0x03FF
+        if length < 6 or off + length > len(body):
+            break
+        if vendor == 0:
+            out[atype] = body[off + 6:off + length]
+        off += length
+    return out
+
+
+def build_sccrq():
+    body = b""
+    body += avp(True, 0, struct.pack("!H", 1))
+    body += avp(True, 2, b"\x01\x00")
+    body += avp(True, 3, struct.pack("!I", 0x3))
+    body += avp(True, 4, struct.pack("!I", 0x0))
+    body += avp(True, 7, f"py-peer-{PEER_TID}".encode("ascii"))
+    body += avp(True, 9, struct.pack("!H", PEER_TID))
+    body += avp(True, 10, struct.pack("!H", 8))
+    if SECRET:
+        body += avp(True, 11, PEER_CHALLENGE)
+    return l2tp_ctrl(0, 0, 0, 0, body)
+
+
+def build_scccn(dest_tid, ns, nr, response):
+    body = b""
+    body += avp(True, 0, struct.pack("!H", 3))
+    if response is not None:
+        body += avp(True, 13, response)
+    return l2tp_ctrl(dest_tid, 0, ns, nr, body)
+
+
+def build_icrq(dest_tid, ns, nr):
+    body = b""
+    body += avp(True, 0, struct.pack("!H", 10))
+    body += avp(True, 14, struct.pack("!H", PEER_SID))
+    body += avp(True, 15, struct.pack("!I", 42))
+    return l2tp_ctrl(dest_tid, 0, ns, nr, body)
+
+
+def build_iccn(dest_tid, dest_sid, ns, nr):
+    body = b""
+    body += avp(True, 0, struct.pack("!H", 12))
+    body += avp(True, 24, struct.pack("!I", 10_000_000))
+    body += avp(True, 19, struct.pack("!I", 2))
+    return l2tp_ctrl(dest_tid, dest_sid, ns, nr, body)
+
+
+def recv(sock):
+    data, _ = sock.recvfrom(1500)
+    if len(data) < 12:
+        return None, None
+    _, length, tid, sid, ns, nr = struct.unpack("!HHHHHH", data[:12])
+    return parse_avps(data[12:length]), (tid, sid, ns, nr)
+
+
+def main():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", 0))
+    sock.settimeout(0.25)
+    time.sleep(0.05)
+
+    # Tunnel handshake.
+    sccrp_avps = None
+    for _ in range(40):
+        try:
+            sock.sendto(build_sccrq(), TARGET)
+            sccrp_avps, _ = recv(sock)
+            if sccrp_avps:
+                break
+        except (socket.timeout, ConnectionRefusedError, OSError):
+            continue
+    if not sccrp_avps:
+        print(f"ERROR[{PEER_TID}]: no SCCRP", file=sys.stderr)
+        return 1
+    tid_bytes = sccrp_avps.get(9)
+    if tid_bytes is None:
+        print(f"ERROR[{PEER_TID}]: SCCRP missing TID", file=sys.stderr)
+        return 1
+    local_tid = struct.unpack("!H", tid_bytes)[0]
+
+    response = None
+    if SECRET:
+        our_challenge = sccrp_avps.get(11)
+        if our_challenge is None:
+            print(f"ERROR[{PEER_TID}]: SCCRP missing Challenge", file=sys.stderr)
+            return 1
+        response = hashlib.md5(bytes([3]) + SECRET + our_challenge).digest()
+
+    sock.settimeout(1.0)
+    sock.sendto(build_scccn(local_tid, 1, 1, response), TARGET)
+    try:
+        sock.recvfrom(1500)
+    except (socket.timeout, OSError):
+        pass
+
+    # Session handshake.
+    time.sleep(0.05)
+    sock.sendto(build_icrq(local_tid, 2, 1), TARGET)
+    icrp_avps, _ = recv(sock)
+    if icrp_avps is None:
+        print(f"ERROR[{PEER_TID}]: no ICRP", file=sys.stderr)
+        return 1
+    sid_bytes = icrp_avps.get(14)
+    if sid_bytes is None:
+        print(f"ERROR[{PEER_TID}]: ICRP missing SID", file=sys.stderr)
+        return 1
+    ze_sid = struct.unpack("!H", sid_bytes)[0]
+    try:
+        sock.recvfrom(1500)
+    except (socket.timeout, OSError):
+        pass
+    sock.sendto(build_iccn(local_tid, ze_sid, 3, 2), TARGET)
+    try:
+        sock.recvfrom(1500)
+    except (socket.timeout, OSError):
+        pass
+    print(f"OK[{PEER_TID}]: session established local_sid={PEER_SID} remote_sid={ze_sid}")
+    sys.stdout.flush()
+
+    deadline = time.time() + 15.0
+    sock.settimeout(0.2)
+    while time.time() < deadline:
+        if os.path.exists("peer.exit"):
+            break
+        try:
+            sock.recvfrom(1500)
+        except (socket.timeout, OSError):
+            pass
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF_PY
+
+tmpfs=show-l2tp-sessions.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Poll `show l2tp sessions` until the session appears."""
+import json
+import time
+
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    sessions = None
+    for _ in range(150):
+        r = dispatch(api, 'show l2tp sessions')
+        if r.get('status') == 'done':
+            try:
+                ss = json.loads(r.get('data', '') or '[]')
+            except json.JSONDecodeError:
+                ss = []
+            if isinstance(ss, list) and len(ss) >= 1:
+                sessions = ss
+                break
+        time.sleep(0.1)
+    if sessions is None:
+        runtime_fail('session never appeared in `show l2tp sessions`')
+
+    s = sessions[0]
+    for key in ('local-sid', 'remote-sid', 'tunnel-local-tid', 'state'):
+        if key not in s:
+            runtime_fail(f'session missing key {key!r}: keys={sorted(s.keys())}')
+    if s.get('remote-sid') != 500:
+        runtime_fail(f'session remote-sid={s.get("remote-sid")!r} want 500')
+
+    with open('peer.exit', 'w') as f:
+        f.write('ok')
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external show-l2tp-sessions-test {
+		run ./show-l2tp-sessions.run
+		encoder json
+	}
+}
+
+environment {
+	log {
+		l2tp debug
+	}
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+l2tp {
+	enabled true
+	shared-secret sessions-secret
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process show-l2tp-sessions-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=python3 l2tp-session-peer.py $PORT2 0x0123 500
+cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=tunnel now established

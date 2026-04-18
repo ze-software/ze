@@ -1,0 +1,259 @@
+# Test: `show l2tp statistics` reports tunnels-active and
+#       sessions-active counters after a real handshake.
+#
+# VALIDATES: spec-l2tp-7 AC-10 -- protocol statistics surface the
+#            aggregate active-tunnel and active-session counts as
+#            fresh values (not zero-initialized stubs).
+# PREVENTS:  regression where the handler returns hard-coded zeros,
+#            or reports stale counters from a prior sampling window.
+
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+option=env:var=TEST_SECRET:value=stats-secret
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=l2tp-peer.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Establish an L2TP tunnel with ze, then idle until signalled."""
+import hashlib
+import os
+import socket
+import struct
+import sys
+import time
+
+if len(sys.argv) < 2:
+    print("usage: l2tp-peer.py <port> [tunnel-id]", file=sys.stderr)
+    sys.exit(2)
+
+TARGET = ("127.0.0.1", int(sys.argv[1]))
+PEER_TID = int(sys.argv[2], 0) if len(sys.argv) > 2 else 0x0123
+SECRET = os.environ.get("TEST_SECRET", "").encode("utf-8")
+PEER_CHALLENGE = bytes.fromhex("00112233445566778899aabbccddeeff")
+
+
+def avp(mandatory, attr_type, value):
+    flags = 0x8000 if mandatory else 0
+    return struct.pack("!HHH", flags | (6 + len(value)), 0, attr_type) + value
+
+
+def build_sccrq():
+    body = b""
+    body += avp(True, 0, struct.pack("!H", 1))
+    body += avp(True, 2, b"\x01\x00")
+    body += avp(True, 3, struct.pack("!I", 0x3))
+    body += avp(True, 4, struct.pack("!I", 0x0))
+    body += avp(True, 7, b"py-peer")
+    body += avp(True, 9, struct.pack("!H", PEER_TID))
+    body += avp(True, 10, struct.pack("!H", 8))
+    if SECRET:
+        body += avp(True, 11, PEER_CHALLENGE)
+    total = 12 + len(body)
+    hdr = struct.pack("!HHHHHH", 0xC802, total, 0, 0, 0, 0)
+    return hdr + body
+
+
+def parse_avps(body):
+    out = {}
+    off = 0
+    while off + 6 <= len(body):
+        word, vendor, atype = struct.unpack("!HHH", body[off:off + 6])
+        length = word & 0x03FF
+        if length < 6 or off + length > len(body):
+            break
+        if vendor == 0:
+            out[atype] = body[off + 6:off + length]
+        off += length
+    return out
+
+
+def build_scccn(dest_tid, ns, nr, response):
+    body = b""
+    body += avp(True, 0, struct.pack("!H", 3))
+    if response is not None:
+        body += avp(True, 13, response)
+    total = 12 + len(body)
+    hdr = struct.pack("!HHHHHH", 0xC802, total, dest_tid, 0, ns, nr)
+    return hdr + body
+
+
+def main():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", 0))
+    sock.settimeout(0.25)
+    time.sleep(0.05)
+    sccrp = None
+    for _ in range(40):
+        try:
+            sock.sendto(build_sccrq(), TARGET)
+            data, _ = sock.recvfrom(1500)
+            sccrp = data
+            break
+        except (socket.timeout, ConnectionRefusedError, OSError):
+            continue
+    if sccrp is None:
+        print("ERROR: no SCCRP", file=sys.stderr)
+        return 1
+    _, length, _, _, _, _ = struct.unpack("!HHHHHH", sccrp[:12])
+    avps = parse_avps(sccrp[12:length])
+    tid_bytes = avps.get(9)
+    if tid_bytes is None:
+        print("ERROR: SCCRP missing AssignedTID", file=sys.stderr)
+        return 1
+    local_tid = struct.unpack("!H", tid_bytes)[0]
+
+    response = None
+    if SECRET:
+        our_challenge = avps.get(11)
+        if our_challenge is None:
+            print("ERROR: SCCRP missing Challenge", file=sys.stderr)
+            return 1
+        response = hashlib.md5(bytes([3]) + SECRET + our_challenge).digest()
+
+    sock.settimeout(1.0)
+    sock.sendto(build_scccn(local_tid, 1, 1, response), TARGET)
+    try:
+        sock.recvfrom(1500)
+    except (socket.timeout, OSError):
+        pass
+    print(f"OK: tunnel established local_tid={PEER_TID} remote_tid={local_tid}")
+    sys.stdout.flush()
+
+    deadline = time.time() + 15.0
+    sock.settimeout(0.2)
+    while time.time() < deadline:
+        if os.path.exists("peer.exit"):
+            break
+        try:
+            sock.recvfrom(1500)
+        except (socket.timeout, OSError):
+            pass
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF_PY
+
+tmpfs=show-l2tp-statistics.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Dispatch show l2tp statistics, assert active tunnel count >= 1."""
+import json
+import time
+
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    stats = None
+    for _ in range(100):
+        r = dispatch(api, 'show l2tp statistics')
+        if r.get('status') == 'done':
+            try:
+                s = json.loads(r.get('data', '') or '{}')
+            except json.JSONDecodeError:
+                s = {}
+            if s.get('tunnels-active', 0) >= 1:
+                stats = s
+                break
+        time.sleep(0.1)
+    if stats is None:
+        runtime_fail('statistics never reported tunnels-active >= 1')
+
+    if stats.get('tunnels-active') != 1:
+        runtime_fail(f'statistics tunnels-active={stats.get("tunnels-active")!r} want 1')
+    if 'sessions-active' not in stats:
+        runtime_fail(f'statistics missing sessions-active: keys={sorted(stats.keys())}')
+
+    with open('peer.exit', 'w') as f:
+        f.write('ok')
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external show-l2tp-statistics-test {
+		run ./show-l2tp-statistics.run
+		encoder json
+	}
+}
+
+environment {
+	log {
+		l2tp debug
+	}
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT2
+		}
+	}
+}
+
+l2tp {
+	enabled true
+	shared-secret stats-secret
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process show-l2tp-statistics-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=python3 l2tp-peer.py $PORT2 0x0123
+cmd=foreground:seq=3:exec=ze -:stdin=ze-conf:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=tunnel now established

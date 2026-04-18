@@ -369,8 +369,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// fall back to a direct filesystem read. Without this fallback, SIGHUP
 	// reload fails with "read file/active/...: file does not exist" on any
 	// daemon started with a filesystem path that is not a blob key.
+	// loadConfigFromDisk re-reads the config path and parses it. Used as
+	// both the plugin server's ConfigLoader (SIGHUP diff + plugin reload)
+	// and directly by doReload so subsystems see the freshly loaded tree
+	// without depending on the plugin server's internal diff/short-circuit
+	// behavior.
+	var loadConfigFromDisk func() (map[string]any, error)
 	if configPath != "" && configPath != "-" {
-		apiServer.SetConfigLoader(func() (map[string]any, error) {
+		loadConfigFromDisk = func() (map[string]any, error) {
 			reloadData, readErr := store.ReadFile(configPath)
 			if readErr != nil && storage.IsBlobStorage(store) {
 				reloadData, readErr = os.ReadFile(configPath) //nolint:gosec // daemon operator supplied path
@@ -383,7 +389,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				return nil, loadErr
 			}
 			return result.Tree.ToMap(), nil
-		})
+		}
+		apiServer.SetConfigLoader(loadConfigFromDisk)
 	}
 
 	// apiServer implements ze.EventBus via its Emit/Subscribe methods, so the
@@ -594,9 +601,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
-	// SIGHUP reload worker: re-reads config from disk, auto-loads/stops plugins.
+	// SIGHUP reload worker: re-reads config from disk, auto-loads/stops plugins,
+	// refreshes the shared ConfigProvider, then notifies every registered
+	// subsystem so it can hot-apply diff-able knobs.
 	reloadCh := make(chan os.Signal, 1)
-	go handleSIGHUPReload(reloadCh, apiServer)
+	go handleSIGHUPReload(reloadCh, apiServer, eng, configProvider, loadConfigFromDisk)
 
 	if stdinOpen {
 		go monitorStdinEOF(sigCh)
@@ -681,14 +690,16 @@ func waitForServerDone(s *pluginserver.Server, doneCh chan struct{}) {
 }
 
 // handleSIGHUPReload is the SIGHUP reload worker. Reads signals from reloadCh,
-// triggers config reload via the plugin server's ReloadFromDisk.
+// triggers plugin-level reload via ReloadFromDisk, refreshes the shared
+// ConfigProvider with the freshly loaded tree, then fans Reload out to every
+// registered subsystem (engine.Reload) so diff-able knobs hot-apply.
 // If a transaction is in progress (lock held), the SIGHUP is queued and replayed
 // after the current reload completes.
 // Lifecycle goroutine (one-time, runs for daemon lifetime).
-func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server) {
+func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, load func() (map[string]any, error)) {
 	for range reloadCh {
 		fmt.Fprintf(os.Stderr, "received SIGHUP, reloading config...\n")
-		if err := doReload(s); err != nil {
+		if err := doReload(s, eng, cp, load); err != nil {
 			if errors.Is(err, pluginserver.ErrReloadInProgress) {
 				fmt.Fprintf(os.Stderr, "transaction in progress, queuing SIGHUP...\n")
 				s.QueueSIGHUP()
@@ -699,7 +710,7 @@ func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server) {
 		// After reload completes, drain any queued SIGHUP.
 		if s.DrainSIGHUP() {
 			fmt.Fprintf(os.Stderr, "replaying queued SIGHUP...\n")
-			if err := doReload(s); err != nil {
+			if err := doReload(s, eng, cp, load); err != nil {
 				fmt.Fprintf(os.Stderr, "queued reload error: %v\n", err)
 			}
 		}
@@ -707,10 +718,74 @@ func handleSIGHUPReload(reloadCh <-chan os.Signal, s *pluginserver.Server) {
 }
 
 // doReload performs a single config reload with a 30-second timeout.
-func doReload(s *pluginserver.Server) error {
+//
+// The load/plugin-apply/provider-refresh/subsystem-reload sequence runs in
+// lock-step from a SINGLE tree snapshot:
+//
+//  1. load() reads and parses the config file once.
+//  2. ReloadConfig(ctx, newTree) drives the plugin-server diff + plugin
+//     verify/apply path with that tree (public API that accepts a
+//     pre-parsed tree, so we don't re-read the file).
+//  3. The shared ConfigProvider is refreshed root-by-root from the same
+//     tree: new/changed roots are SetRoot'd, orphan roots (present in
+//     cp but absent from newTree) get an empty map so watchers see the
+//     removal.
+//  4. engine.Reload(ctx) fans the refreshed provider out to every
+//     registered subsystem so they hot-apply diff-able knobs (e.g.,
+//     l2tp shared-secret / hello-interval).
+//
+// Keeping the tree single-sourced eliminates the race where the file
+// changes between the plugin-server read and the subsystem read, and
+// avoids redundant I/O + YANG parse on every SIGHUP.
+func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, load func() (map[string]any, error)) error {
 	reloadCtx, reloadCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer reloadCancel()
-	return s.ReloadFromDisk(reloadCtx)
+
+	if load == nil {
+		// stdin-config daemons have no reload source. Fall back to the
+		// plugin server's own ReloadFromDisk (which also errors if no
+		// loader is configured) so the error message stays familiar.
+		return s.ReloadFromDisk(reloadCtx)
+	}
+
+	newTree, loadErr := load()
+	if loadErr != nil {
+		return fmt.Errorf("reload: parse config: %w", loadErr)
+	}
+
+	if err := s.ReloadConfig(reloadCtx, newTree); err != nil {
+		return err
+	}
+
+	if cp != nil {
+		priorRoots := cp.Roots()
+		existing := make(map[string]struct{}, len(priorRoots))
+		for _, k := range priorRoots {
+			existing[k] = struct{}{}
+		}
+		for root, subtree := range newTree {
+			sub, ok := subtree.(map[string]any)
+			if !ok {
+				continue
+			}
+			cp.SetRoot(root, sub)
+			delete(existing, root)
+		}
+		// Any root left in `existing` disappeared from the new tree.
+		// DeleteRoot removes the entry entirely (not just emptied) so
+		// the next reload does not re-run the orphan path for the same
+		// root and re-fire watcher notifications.
+		for orphan := range existing {
+			cp.DeleteRoot(orphan)
+		}
+	}
+
+	if eng != nil {
+		if err := eng.Reload(reloadCtx); err != nil {
+			return fmt.Errorf("subsystem reload: %w", err)
+		}
+	}
+	return nil
 }
 
 // waitLoop dispatches signals: SIGHUP to reloadCh, others trigger shutdown return.

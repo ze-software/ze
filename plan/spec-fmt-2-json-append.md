@@ -5,7 +5,7 @@
 | Status | ready |
 | Depends | spec-fmt-0-append (completed, see `plan/learned/614-fmt-0-append.md`) |
 | Phase | - |
-| Updated | 2026-04-17 |
+| Updated | 2026-04-18 |
 
 ## Post-Compaction Recovery
 
@@ -17,7 +17,11 @@
 5. `internal/component/bgp/format/decode.go` — primary migration target
 6. `internal/component/bgp/format/json.go` — one-line migration
 7. `internal/component/bgp/format/format_buffer.go` — dead code being deleted
-8. `.claude/hooks/block-encoding-alloc.sh` — model for the new hook
+8. `internal/component/bgp/format/message_receiver_test.go` and `json_test.go` — existing test coverage
+9. `internal/component/bgp/server/events.go` (lines 340-393) — primary consumer
+10. `internal/component/bgp/reactor/reactor_notify.go` (line 106) — second consumer of `NegotiatedToDecoded`
+11. `docs/architecture/buffer-architecture.md` — Phase 3 row to rewrite
+12. `.claude/hooks/block-encoding-alloc.sh` — model for the new hook
 
 ## Task
 
@@ -26,13 +30,16 @@ package and install a PreToolUse hook that enforces fmt-0's banned-pattern
 discipline across every file that fmt-0 migrated. Scope is deliberately the
 "S2+S4" slice of the original fmt-2 proposal:
 
-1. **Delete dead code.** `internal/component/bgp/format/format_buffer.go` and
-   its test file contain seven `Format*JSON(io.Writer)` helpers plus
-   `FormatPrefixFromBytes`. Repo-wide grep shows **zero production callers**
-   anywhere outside the file itself and its test. fmt-0 rewrote the JSON
-   emission path (`text_json.go appendFilterResultJSON`) without touching
-   these helpers, and `text_json.go` has never called them. The file is
-   dead; delete it.
+1. **Delete dead code.** `internal/component/bgp/format/format_buffer.go`
+   contains five `Format*JSON(io.Writer)` helpers (`FormatASPathJSON`,
+   `FormatCommunitiesJSON`, `FormatOriginJSON`, `FormatMEDJSON`,
+   `FormatLocalPrefJSON` — together holding seven `fmt.Fprintf(w, ...)`
+   call sites) plus `FormatPrefixFromBytes` and `wellKnownCommunityName`.
+   Repo-wide grep shows **zero production callers** anywhere outside the
+   file itself and its test file. fmt-0 rewrote the JSON emission path
+   (`text_json.go appendFilterResultJSON`) without touching these helpers,
+   and `text_json.go` has never called them. The file is dead; delete it
+   along with its test file.
 2. **Migrate `decode.go` off `fmt.Sprintf`.** 14 sites in `formatCapability`,
    `notificationSubcodeString` family, `DecodeRouteRefresh`, `afiToString`,
    and `afiSafiToFamily`. Output bytes must stay identical — existing tests
@@ -44,12 +51,31 @@ discipline across every file that fmt-0 migrated. Scope is deliberately the
    `JSONEncoder` to buffer-first is a separate effort (unfiled).
 4. **Install `.claude/hooks/block-format-alloc.sh`.** A PreToolUse hook
    modeled on `block-encoding-alloc.sh` that rejects Write/Edit of a fixed
-   allowlist of `format/*.go` and `reactor/filter_format.go` files
-   containing `fmt.Sprintf`, `fmt.Fprintf`, `strings.Join`, `strings.Builder`,
-   `strings.NewReplacer`, `strings.ReplaceAll`, `strconv.FormatUint`,
-   `strconv.FormatInt`. fmt-0 left the guard as hand-maintained discipline
-   on three files; this hook makes it mechanical and extends it to cover
-   `decode.go` once migrated.
+   allowlist of files containing `fmt.Sprintf`, `fmt.Fprintf`,
+   `strings.Join`, `strings.Builder`, `strings.NewReplacer`,
+   `strings.ReplaceAll`, `strconv.FormatUint`, `strconv.FormatInt`. The
+   allowlist is:
+   - `internal/component/bgp/reactor/filter_format.go` (fmt-0)
+   - `internal/component/bgp/attribute/text.go` (fmt-0)
+   - `internal/component/bgp/format/text.go` (fmt-0)
+   - `internal/component/bgp/format/text_json.go` (fmt-0)
+   - `internal/component/bgp/format/text_update.go` (fmt-0)
+   - `internal/component/bgp/format/text_human.go` (already clean)
+   - `internal/component/bgp/format/summary.go` (already clean)
+   - `internal/component/bgp/format/codec.go` (already clean)
+   - `internal/component/bgp/format/decode.go` (added by this spec after migration)
+   
+   `json.go` is intentionally excluded — its `map[string]any` + `json.Marshal`
+   idiom is out of scope for this spec (S3 tier).
+   
+   fmt-0 left the guard as hand-maintained discipline on three files; this
+   hook makes it mechanical and extends it to cover every other file fmt-0
+   and fmt-2 touch. `strings.NewReplacer` and `strings.ReplaceAll` are
+   defensive additions (no current occurrences in any allowlisted file —
+   banning pre-empts reintroduction). The hook is named
+   `block-format-alloc.sh` despite including `reactor/filter_format.go`
+   and `attribute/text.go` in its allowlist because the scope is
+   "text/JSON format generation" across all three package paths.
 
 Out of scope:
 - Rewriting `JSONEncoder` buffer-first (the S3 tier — large scope, cold path,
@@ -63,7 +89,7 @@ Out of scope:
 ### Architecture Docs
 - [ ] `.claude/rules/buffer-first.md` — Append shape and banned-pattern discipline
   → Constraint: No `make` in wire-encoding helpers; caller owns buffer.
-  → Constraint: banned primitives list (`fmt.Sprintf`, `strings.Builder`, `strings.Join`, `strings.NewReplacer`, `strings.ReplaceAll`, `strconv.FormatUint`, `strconv.FormatInt`) — `decode.go` becomes a newly-guarded file.
+  → Constraint: banned primitives list (`fmt.Sprintf`, `fmt.Fprintf`, `strings.Builder`, `strings.Join`, `strings.NewReplacer`, `strings.ReplaceAll`, `strconv.FormatUint`, `strconv.FormatInt`) — `decode.go` becomes a newly-guarded file. Must match the Task step-4 list exactly.
 - [ ] `plan/learned/614-fmt-0-append.md` — idiom fmt-2 extends
   → Decision: Signature idiom is `AppendXxx(buf []byte, args...) []byte` for text generation; helpers use `strconv.AppendUint`, `netip.Addr.AppendTo`, `hex.AppendEncode`.
   → Decision: Hand-maintained banned-pattern list of three files (`reactor/filter_format.go`, `format/text.go`, `attribute/text.go`) — this spec graduates that list to a real hook.
@@ -128,13 +154,26 @@ None.
   → Constraint: the `map[string]any` + `json.Marshal` idiom is preserved
   (out-of-scope for this spec). Only the hex-formatting site changes.
 - [ ] `internal/component/bgp/format/message_receiver_test.go` (455L) —
-  existing tests for `DecodeOpen`, `DecodeNotification`, `DecodeRouteRefresh`,
+  existing tests for `DecodeOpen`, `DecodeNotification`,
   `NegotiatedToDecoded`. Includes `DecodedCapability` equality assertions
   (`Value: "ipv4/unicast"`, `"0200"`, `"65536"`) that are the byte-level
-  regression guard.
+  regression guard. No existing `TestDecodeRouteRefresh` — the new
+  fallback test for route-refresh is the first direct coverage.
   → Constraint: do not weaken any existing assertion; add new tests for the
   fallback branches (`"Subcode(N)"`, `"unknown(N)"`, `"afi(N)"`,
   `"safi(N)"`).
+- [ ] `internal/component/bgp/format/json_test.go` (2083L) — existing
+  JSONEncoder tests: `TestJSONEncoderStateUp`, `StateDown`,
+  `StateConnected`, `ValidJSON`, `SpecialCharacters`, `IPv6`,
+  `TestAPIOutputIncludesMsgID`, and `TestJSONEncoderNotification`
+  (locate by name, not by line number). The existing
+  `TestJSONEncoderNotification` feeds a non-empty `notify.Data` and
+  asserts `payload["data"]` is `NotEmpty` — it does not pin the exact
+  hex string, so it is not a sufficient regression guard for the
+  `fmt.Sprintf("%x", …)` → `hex.AppendEncode` swap.
+  → Constraint: the new `TestJSONEncoderNotification_HexData` must assert
+  the exact hex output (lowercase, no `0x`) against a known
+  `notify.Data` byte slice, covering both empty and non-empty inputs.
 - [ ] `internal/component/bgp/server/events.go` (lines 340-393) —
   `formatMessageForSubscription` dispatches on encoding mode. Text mode
   calls `format.AppendOpen(buf, peer, DecodedOpen, ...)` etc.; JSON mode
@@ -176,12 +215,21 @@ None.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- Production: `bgp/server/events.go formatMessageForSubscription` is the
-  sole production consumer of `DecodeOpen` / `DecodeNotification` /
-  `DecodeRouteRefresh` / `JSONEncoder.*`. Called per non-UPDATE BGP
-  message received or sent on a peer subscription.
+- Production consumers of the migrated `decode.go` surface:
+  - `bgp/server/events.go formatMessageForSubscription` (lines 340-393)
+    calls `DecodeOpen`, `DecodeNotification`, `DecodeRouteRefresh`, and
+    dispatches to `AppendOpen/AppendNotification/AppendRouteRefresh`
+    (text mode) or `JSONEncoder.Open/Notification/RouteRefresh` (JSON
+    mode). Fires per non-UPDATE BGP message received or sent on a peer
+    subscription.
+  - `bgp/reactor/reactor_notify.go:106` calls `NegotiatedToDecoded` on
+    peer-established events and feeds `JSONEncoder.Negotiated` via the
+    event dispatcher. This is the SECOND consumer of
+    `NegotiatedToDecoded` and therefore of `afiSafiToFamily` /
+    `afiToString`. Migration must preserve byte-identical output on
+    this path too.
 - The 5 `Format*JSON(io.Writer)` helpers in `format_buffer.go`: zero
-  production callers.
+  production callers (confirmed by repo-wide grep).
 
 ### Transformation Path
 1. Wire bytes arrive → message reactor classifies into OPEN / NOTIFICATION /
@@ -208,14 +256,16 @@ None.
 - `text.go` (`AppendOpen`, `AppendNotification`, `AppendRouteRefresh`) —
   zero-copy consumer of `DecodedXxx.*` string fields. Must see
   byte-identical strings after migration.
-- `json.go` (`JSONEncoder.Open`, `.Notification`, `.RouteRefresh`) — reads
-  the same string fields into `map[string]any`. Must see byte-identical
-  strings after migration.
-- `events.go formatMessageForSubscription` — the sole call-site glue,
-  untouched by this spec.
-- `message_receiver_test.go` — existing byte-level assertions act as the
-  regression guard; new tests cover fallback paths that currently lack
-  direct coverage.
+- `json.go` (`JSONEncoder.Open`, `.Notification`, `.RouteRefresh`,
+  `.Negotiated`) — reads the same string fields into `map[string]any`.
+  Must see byte-identical strings after migration.
+- `events.go formatMessageForSubscription` — call-site glue for
+  OPEN/NOTIFICATION/ROUTE-REFRESH/KEEPALIVE, untouched by this spec.
+- `reactor_notify.go notifyPeerEstablished` (line 106) — call-site glue
+  for NEGOTIATED, untouched by this spec.
+- `message_receiver_test.go` and `json_test.go` — existing byte-level
+  assertions act as the regression guard; new tests cover fallback paths
+  that currently lack direct coverage.
 
 ### Architectural Verification
 - [ ] No bypassed layers — data continues through `events.go` →
@@ -232,32 +282,29 @@ None.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | BGP peer subscription, text mode, OPEN received | → | `DecodeOpen` → `AppendOpen` with migrated `formatCapability` | `TestDecodeOpenWithCapabilities` in `internal/component/bgp/format/message_receiver_test.go` |
-| BGP peer subscription, JSON mode, NOTIFICATION received | → | `DecodeNotification` → `JSONEncoder.Notification` with migrated `notificationSubcodeString` + migrated hex on `notify.Data` | `TestDecodeNotification` + new `TestDecodeNotification_UnknownSubcode` in `message_receiver_test.go` |
-| Edit attempt introducing `fmt.Sprintf` in `decode.go` | → | `.claude/hooks/block-format-alloc.sh` | `test/hooks/format-alloc-hook.sh` (new — smoke test of the hook via piped JSON stdin) |
+| BGP peer subscription, JSON mode, NOTIFICATION received | → | `DecodeNotification` → `JSONEncoder.Notification` with migrated `notificationSubcodeString` (subcode-name path) + migrated hex on `notify.Data` (JSON data-field path) | subcode path: `TestDecodeNotification` + new `TestDecodeNotification_UnknownSubcode` in `message_receiver_test.go`; hex path: new `TestJSONEncoderNotification_HexData` in `json_test.go` |
+| Edit attempt introducing `fmt.Sprintf` in `decode.go` | → | `.claude/hooks/block-format-alloc.sh` | `scripts/dev/test-hook-block-format-alloc.sh` (new — smoke test of the hook via piped JSON stdin) |
+| Peer-negotiated event, JSON mode | → | `NegotiatedToDecoded` → `JSONEncoder.Negotiated` with migrated `afiSafiToFamily` | new `TestDecodeNegotiated_UnknownAfiSafi` in `message_receiver_test.go` |
 
-The first two are the existing production wiring via
-`formatMessageForSubscription`; the migration preserves their output
-bytes, so the existing test coverage is the wiring test. The third row
-is the wiring test for the new hook itself: a shell smoke-test that
-pipes crafted Write-tool JSON through the hook and asserts exit 2 on
-banned patterns, exit 0 on clean content.
+Rows 1, 2, and 4 are the existing production wiring (`formatMessageForSubscription` for row 1-2, `notifyPeerEstablished` for row 4); the migration preserves their output bytes, so the Go unit test coverage is the wiring guard. Row 3 is the wiring test for the new hook itself: a shell smoke-test that pipes crafted Write-tool JSON through the hook and asserts exit 2 on banned patterns, exit 0 on clean content.
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `internal/component/bgp/format/format_buffer.go` and `format_buffer_test.go` are deleted from the tree | Both paths absent; `git log --diff-filter=D` shows the deletion commit |
-| AC-2 | `decode.go` is grepped for `fmt\.(Sprintf\|Fprintf)`, `strings\.(Join\|Builder\|NewReplacer\|ReplaceAll)`, `strconv\.(FormatUint\|FormatInt)` | zero matches |
-| AC-3 | `json.go` is grepped for `fmt\.(Sprintf\|Fprintf)` | zero matches |
+| AC-1 | `internal/component/bgp/format/format_buffer.go` and `format_buffer_test.go` are deleted from the tree | Both paths absent (`test ! -e …`); `git log --diff-filter=D` shows the deletion commit |
+| AC-2 | `decode.go` is grepped for `fmt\.(Sprintf|Fprintf)`, `strings\.(Join|Builder|NewReplacer|ReplaceAll)`, `strconv\.(FormatUint|FormatInt)` (ERE, unescaped alternation) | zero matches |
+| AC-3 | `json.go` is grepped for `fmt\.(Sprintf|Fprintf)` (ERE, unescaped alternation) | zero matches |
 | AC-4 | `TestDecodeOpenWithCapabilities` runs against the migrated `formatCapability` | passes unmodified; `DecodedCapability.Value` strings byte-identical (`"ipv4/unicast"`, `"0200"`, `"65536"`) |
-| AC-5 | `TestDecodeNotification_UnknownSubcode` (new) feeds an OPEN-category NOTIFICATION with subcode 99 | `ErrorSubcodeName == "Subcode(99)"` |
+| AC-5 | `TestDecodeNotification_UnknownSubcode` (new, table-driven over 5 error codes — NotifyOpenMessage, NotifyUpdateMessage, NotifyMessageHeader, NotifyFSMError, and an unmapped error-code that hits the `notificationSubcodeString` default) feeds subcode 99 for each | every case: `ErrorSubcodeName == "Subcode(99)"` |
 | AC-6 | `TestDecodeRouteRefresh_UnknownSubtype` (new) feeds ROUTE-REFRESH with subtype 99 | `SubtypeName == "unknown(99)"` |
-| AC-7 | `TestAfiSafiToFamily_Unknown` (new) calls `afiSafiToFamily(99, 99)` via `NegotiatedToDecoded` with a family whose AFI/SAFI are unknown | Family string `"afi(99)/safi(99)"` |
+| AC-7 | `TestDecodeNegotiated_UnknownAfiSafi` (new) exercises `afiSafiToFamily(99, 99)` via `NegotiatedToDecoded` with an unknown AFI/SAFI family | Family string `"afi(99)/safi(99)"`; also verifies `afiToString(99)` returns `"afi(99)"` |
 | AC-8 | Hook `block-format-alloc.sh` receives a Write PreToolUse event for `internal/component/bgp/format/decode.go` with new content containing `fmt.Sprintf("%d", x)` | Exit 2, stderr explains banned pattern + filename |
-| AC-9 | Hook receives the same Write event but file path is `internal/component/bgp/format/json.go` and content contains `json.Marshal(...)` | Exit 0 (json.go is intentionally out of scope; hook does not block `json.Marshal`) |
+| AC-9 | Hook receives a Write event for `internal/component/bgp/format/json.go` with content containing `json.Marshal(...)` or `map[string]any` | Exit 0 (`json.go` intentionally out of scope; hook does not block `json.Marshal`) |
 | AC-10 | `make ze-verify-fast` runs with the full migration and hook registered | passes; `tmp/ze-verify.log` shows no new failures |
-| AC-11 | `plan/deferrals.md` entry for `spec-fmt-2-json-append` is updated | Status column shows `done`, Destination column names `spec-fmt-2-json-append` (or its learned summary) |
-| AC-12 | `.claude/settings.json` lists `block-format-alloc.sh` in the PreToolUse section for Write + Edit | grep confirms the hook registration entry |
+| AC-11 | `plan/deferrals.md` entry for `spec-fmt-2-json-append` is updated | Status column changes from `open` to `done`; Destination column stays as `spec-fmt-2-json-append` |
+| AC-12 | `.claude/settings.json` lists `block-format-alloc.sh` in the PreToolUse section for Write + Edit | grep confirms the hook registration entry (matcher `Write|Edit`, path `$CLAUDE_PROJECT_DIR/.claude/hooks/block-format-alloc.sh`) |
+| AC-13 | `docs/architecture/buffer-architecture.md` Phase 3 row is updated to reflect that `FormatPrefixFromBytes` / `Format*JSON` are deleted (row removed or re-worded) | `grep -E 'FormatPrefixFromBytes|FormatASPathJSON|FormatCommunitiesJSON|FormatOriginJSON|FormatMEDJSON|FormatLocalPrefJSON' docs/architecture/buffer-architecture.md` returns no matches |
 
 ## 🧪 TDD Test Plan
 
@@ -267,26 +314,37 @@ banned patterns, exit 0 on clean content.
 | `TestDecodeOpenWithCapabilities` (existing, preserved) | `internal/component/bgp/format/message_receiver_test.go` | AC-4 — `Multiprotocol` / `ASN4` / unknown-cap `Value` strings byte-identical | |
 | `TestDecodeOpenAddPathReceive` (new) | `internal/component/bgp/format/message_receiver_test.go` | Addpath receive + send-receive emit `"ipv4/unicast receive"` / `"ipv4/unicast send-receive"`; `none` mode skipped | |
 | `TestDecodeNotification` (existing, preserved) | `internal/component/bgp/format/message_receiver_test.go` | Known-subcode path unchanged | |
-| `TestDecodeNotification_UnknownSubcode` (new) | `internal/component/bgp/format/message_receiver_test.go` | AC-5 — `"Subcode(99)"` fallback byte-identical across all 5 subcode functions (Open, Update, Header, FSM, default) | |
+| `TestDecodeNotification_UnknownSubcode` (new, table-driven) | `internal/component/bgp/format/message_receiver_test.go` | AC-5 — `"Subcode(99)"` fallback byte-identical across 5 fallback sites: `notificationSubcodeString` default, `openSubcodeString` default, `updateSubcodeString` default, `headerSubcodeString` default, `fsmSubcodeString` default. Implemented as `t.Run` subtests over 5 `(errorCode, expected)` table rows | |
 | `TestDecodeRouteRefresh_UnknownSubtype` (new) | `internal/component/bgp/format/message_receiver_test.go` | AC-6 — `"unknown(99)"` fallback byte-identical | |
 | `TestNegotiatedToDecoded` (existing, preserved) | `internal/component/bgp/format/message_receiver_test.go` | Known AFI/SAFI family strings unchanged | |
-| `TestAfiSafiToFamily_Unknown` (new) | `internal/component/bgp/format/message_receiver_test.go` | AC-7 — `"afi(99)/safi(99)"` and `"afi(99)/unicast"` fallbacks byte-identical | |
-| `TestJSONEncoderNotification_HexData` (new) | `internal/component/bgp/format/text_test.go` or adjacent | AC-3 support — `JSONEncoder.Notification` with non-empty `notify.Data` emits lowercase hex in `"data"` field | |
-| `TestFormatAllocHook_BlocksBannedInDecode` (new, shell) | `test/hooks/format-alloc-hook.sh` | AC-8 — piping crafted Write JSON with `fmt.Sprintf` for `decode.go` to the hook yields exit 2 | |
-| `TestFormatAllocHook_AllowsInJsonGo` (new, shell) | `test/hooks/format-alloc-hook.sh` | AC-9 — same input but for `json.go` with `json.Marshal` yields exit 0 | |
+| `TestDecodeNegotiated_UnknownAfiSafi` (new) | `internal/component/bgp/format/message_receiver_test.go` | AC-7 — `"afi(99)/safi(99)"`, `"afi(99)/unicast"`, and `"afi(99)"` fallbacks byte-identical for both `afiSafiToFamily` and `afiToString` paths | |
+| `TestJSONEncoderNotification_HexData` (new) | `internal/component/bgp/format/json_test.go` (next to existing `TestJSONEncoderNotification`) | AC-3 support — `JSONEncoder.Notification` with empty and non-empty `notify.Data` emits exact lowercase hex (no `0x` prefix, empty string for nil data) in `"data"` field. Pins exact bytes where existing test only asserts `NotEmpty` | |
+| `TestFormatAllocHook_BlocksBannedInDecode` (new, shell) | `scripts/dev/test-hook-block-format-alloc.sh` | AC-8 — piping crafted Write JSON with `fmt.Sprintf` for `decode.go` to the hook yields exit 2 | |
+| `TestFormatAllocHook_AllowsInJsonGo` (new, shell) | `scripts/dev/test-hook-block-format-alloc.sh` | AC-9 — same input but for `json.go` with `json.Marshal` yields exit 0 | |
 
 ### Boundary Tests
 Not applicable — no numeric input ranges are introduced by this spec.
 
 ### Functional Tests
-No new user-facing feature; existing `.ci` tests that exercise OPEN /
-NOTIFICATION subscription in text and JSON modes act as the functional
-regression guard.
+No new user-facing feature is introduced; this is a pure refactor plus a
+new developer hook. Repo survey (`grep -l` across `test/plugin/*.ci`,
+`test/integration/*.ci`) confirms **no existing `.ci` test exercises
+non-UPDATE subscription formatting** (OPEN capability strings, NOTIFICATION
+`"data"` hex field, ROUTE-REFRESH subtype names, NEGOTIATED family
+strings). `test/plugin/api-subscribe.ci` covers the `subscribe` dispatch
+itself but subscribes to `update` events only.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| existing OPEN-subscribe coverage | `test/plugin/*.ci` exercising peer OPEN via subscription | Operator subscribes to peer events, receives OPEN with capabilities rendered byte-identical pre/post migration | |
-| existing NOTIFICATION-subscribe coverage | `test/plugin/*.ci` exercising NOTIFICATION | Operator sees NOTIFICATION `"data"` field with lowercase hex identical pre/post migration | |
+| (intentionally none) | n/a | No `.ci` coverage exists for non-UPDATE subscription byte-level output. The Go unit tests in `message_receiver_test.go` and `json_test.go` are the byte-level regression guard. Creating a new `.ci` for the cold non-UPDATE path is explicitly out of scope for this pure-refactor spec. | |
+
+Per `rules/integration-completeness.md`, `.ci` functional coverage is
+required for new user-facing features. This spec introduces no new
+user-facing behavior — output bytes and dispatch paths are unchanged —
+so the Go unit tests serve as the integration guard. No deferral is
+recorded because there is no identified future consumer that needs
+`.ci` coverage for non-UPDATE subscription output; if one emerges, a
+new spec can introduce the test at that point.
 
 ### Future
 None planned.
@@ -295,9 +353,15 @@ None planned.
 
 - `internal/component/bgp/format/decode.go` — replace 14 `fmt.Sprintf` call sites with local scratch (`[32]byte` or `[64]byte`) + `strconv.AppendUint` / `append(buf, x.String()...)` / `hex.AppendEncode` + single `string(scratch[:n])` at each assignment. Drop `fmt` import. Add `strconv`, `encoding/hex` imports as needed.
 - `internal/component/bgp/format/json.go` — replace line 166 `fmt.Sprintf("%x", notify.Data)` with `string(hex.AppendEncode(nil, notify.Data))`. Drop `fmt` import if no other site uses it (there is no other `fmt` usage in this file — safe drop). Add `encoding/hex` import.
-- `internal/component/bgp/format/message_receiver_test.go` — add 5 new tests (addpath-receive, unknown-subcode-across-families, unknown-route-refresh-subtype, unknown-afi-safi, JSON-encoder hex data).
-- `.claude/settings.json` — register `block-format-alloc.sh` under the PreToolUse Write + Edit sections (adjacent to `block-encoding-alloc.sh`).
-- `plan/deferrals.md` — mark the fmt-2-json-append deferral entry `done`.
+- `internal/component/bgp/format/message_receiver_test.go` — add 4 new tests (addpath-receive, unknown-subcode-across-families table-driven, unknown-route-refresh-subtype, unknown-afi-safi).
+- `internal/component/bgp/format/json_test.go` — add 1 new test (`TestJSONEncoderNotification_HexData`) next to existing `TestJSONEncoderNotification` (currently at line 308, but reference by test name, not line number).
+- `.claude/settings.json` — register `block-format-alloc.sh` under the PreToolUse Write + Edit sections (adjacent to `block-encoding-alloc.sh`); matcher string `"Write|Edit"`, command `"$CLAUDE_PROJECT_DIR/.claude/hooks/block-format-alloc.sh"`.
+- `docs/architecture/buffer-architecture.md` — update the Phase 3 "Direct formatting functions" row to remove references to `FormatPrefixFromBytes`, `FormatASPathJSON`, `FormatCommunitiesJSON`, `FormatOriginJSON`, `FormatMEDJSON`, `FormatLocalPrefJSON` (functions being deleted by AC-1).
+- `plan/deferrals.md` — change the `spec-fmt-2-json-append` entry Status column from `open` to `done`.
+
+### Files to Delete
+- `internal/component/bgp/format/format_buffer.go` — dead code (225L).
+- `internal/component/bgp/format/format_buffer_test.go` — tests of dead code (225L); permitted by `rules/no-test-deletion.md` exception ("testing removed functionality") and explicitly approved by the user at the SCOPE gate.
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -305,7 +369,9 @@ None planned.
 | YANG schema (new RPCs) | [ ] No | n/a |
 | CLI commands/flags | [ ] No | n/a |
 | Editor autocomplete | [ ] No | n/a |
-| Functional test for new RPC/API | [ ] No — existing `.ci` OPEN/NOTIFICATION coverage preserved | n/a |
+| Functional test for new RPC/API | [ ] No — pure refactor, no new user-facing behaviour; Go unit tests are the byte-level regression guard (see Functional Tests section for rationale) | n/a |
+| Hook registration | [ ] Yes | `.claude/settings.json` (PreToolUse Write + Edit) |
+| Dev-script test host | [ ] Yes — smoke test for the new hook | `scripts/dev/test-hook-block-format-alloc.sh` |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
@@ -319,21 +385,16 @@ None planned.
 | 7 | Wire format changed? | [ ] No | n/a |
 | 8 | Plugin SDK/protocol changed? | [ ] No | n/a |
 | 9 | RFC behavior implemented? | [ ] No | n/a |
-| 10 | Test infrastructure changed? | [ ] Yes — hook reference list | `docs/functional-tests.md` (if the doc enumerates hooks) or `.claude/rules/buffer-first.md` (mention the new hook near the existing `block-encoding-alloc.sh` note) |
+| 10 | Test infrastructure changed? | [ ] Yes — new hook + new smoke-test script | `.claude/rules/buffer-first.md` (mention `block-format-alloc.sh` near the existing `block-encoding-alloc.sh` note) |
 | 11 | Affects daemon comparison? | [ ] No | n/a |
-| 12 | Internal architecture changed? | [ ] No | n/a |
+| 12 | Internal architecture changed? | [ ] Yes — architecture doc references deleted functions | `docs/architecture/buffer-architecture.md` (Phase 3 row rewritten to drop the `Format*JSON` / `FormatPrefixFromBytes` references) |
 | 13 | Route metadata? | [ ] No | n/a |
 
 ## Files to Create
 
-- `.claude/hooks/block-format-alloc.sh` — new PreToolUse hook (~120 LOC); file-path allowlist + banned-pattern grep + exit-2 on match; skip `_test.go`.
-- `test/hooks/format-alloc-hook.sh` — smoke test invoking the hook with crafted stdin JSON to verify AC-8 and AC-9. If `test/hooks/` does not exist, place alongside other hook tests or under `test/ci/hooks/`.
+- `.claude/hooks/block-format-alloc.sh` — new PreToolUse hook (~120 LOC); file-path allowlist + banned-pattern grep + exit-2 on match; skip `_test.go`; model after `block-encoding-alloc.sh`.
+- `scripts/dev/test-hook-block-format-alloc.sh` — smoke test invoking the hook with crafted stdin JSON to verify AC-8 and AC-9. Lives alongside existing dev utilities (`scripts/dev/verify-lock.sh`, `verify-status.sh`, `verify-summary.sh`) since no dedicated hook-test directory convention exists in the repo; this is the minimum-churn location.
 - `plan/learned/NNN-fmt-2-json-append.md` — learned summary (written at completion, not up front).
-
-## Files to Delete
-
-- `internal/component/bgp/format/format_buffer.go` — dead code (225L).
-- `internal/component/bgp/format/format_buffer_test.go` — tests of dead code (225L); permitted by `rules/no-test-deletion.md` exception ("testing removed functionality") and explicitly approved by the user at the SCOPE gate.
 
 ## Implementation Steps
 
@@ -361,40 +422,44 @@ None planned.
    - Files: the two files above.
    - Verify: `go build ./...` passes (no compile errors means no hidden caller existed); `make ze-verify-fast` runs; no test count regression beyond the removed `format_buffer_test.go` cases.
 
-2. **Phase: add fallback-path tests to `message_receiver_test.go`** — write `TestDecodeOpenAddPathReceive`, `TestDecodeNotification_UnknownSubcode`, `TestDecodeRouteRefresh_UnknownSubtype`, `TestAfiSafiToFamily_Unknown`, `TestJSONEncoderNotification_HexData` against the unmigrated `decode.go` / `json.go`. All must PASS against current code (they assert existing behavior).
+2. **Phase: characterization tests** — write `TestDecodeOpenAddPathReceive`, `TestDecodeNotification_UnknownSubcode` (table-driven), `TestDecodeRouteRefresh_UnknownSubtype`, `TestDecodeNegotiated_UnknownAfiSafi` in `message_receiver_test.go`, and `TestJSONEncoderNotification_HexData` in `json_test.go`. These are characterization tests (red-green-refactor does not apply — we are pinning existing behavior to detect byte drift during migration). All must PASS against the current unmigrated `decode.go` / `json.go`; a failure here indicates the test is mis-specified, not a code bug.
    - Tests: all 5 listed above.
-   - Files: `message_receiver_test.go` plus one adjacent test file for the JSON encoder case.
+   - Files: `message_receiver_test.go`, `json_test.go`.
    - Verify: `go test ./internal/component/bgp/format/...` passes. Tests now form the byte-level regression guard before migration.
 
 3. **Phase: migrate `decode.go`** — replace each `fmt.Sprintf` site in order.
    - Tests from phase 2 + existing `TestDecodeOpenWithCapabilities`, `TestDecodeNotification`, `TestNegotiatedToDecoded`.
    - Files: `decode.go`.
-   - Verify: all phase-2 and existing tests still pass with zero diff; `grep 'fmt\.Sprintf' decode.go` returns zero.
+   - Verify: all phase-2 and existing tests still pass with zero diff; `grep -E 'fmt\.(Sprintf|Fprintf)' decode.go` returns zero (ERE, unescaped `|`).
 
 4. **Phase: migrate `json.go:166`** — swap `fmt.Sprintf("%x", …)` for `hex.AppendEncode`.
    - Tests: `TestJSONEncoderNotification_HexData` from phase 2.
    - Files: `json.go`.
-   - Verify: test passes; `grep 'fmt\.Sprintf' json.go` returns zero; `grep 'encoding/hex' json.go` present.
+   - Verify: test passes; `grep -E 'fmt\.(Sprintf|Fprintf)' json.go` returns zero; `grep 'encoding/hex' json.go` present.
 
-5. **Phase: install `block-format-alloc.sh`** — write the hook, register it in `.claude/settings.json`, write the smoke test.
-   - Tests: `test/hooks/format-alloc-hook.sh` covering AC-8 (blocks) + AC-9 (allows json.go).
-   - Files: `.claude/hooks/block-format-alloc.sh`, `.claude/settings.json`, `test/hooks/format-alloc-hook.sh`.
-   - Verify: smoke test passes; real Write of a test file under `decode.go` fails with exit 2; Write of the new migrated `decode.go` passes.
+5. **Phase: update buffer-architecture doc** — remove or rewrite the Phase 3 row referencing the deleted `Format*JSON` / `FormatPrefixFromBytes` helpers.
+   - Files: `docs/architecture/buffer-architecture.md`.
+   - Verify: `grep -E 'FormatPrefixFromBytes|FormatASPathJSON|FormatCommunitiesJSON|FormatOriginJSON|FormatMEDJSON|FormatLocalPrefJSON' docs/architecture/buffer-architecture.md` returns zero.
 
-6. **Phase: close deferrals + docs** — mark the `plan/deferrals.md` fmt-2-json-append entry `done`; update `.claude/rules/buffer-first.md` or `docs/functional-tests.md` with a line naming the new hook.
-   - Files: `plan/deferrals.md`, one doc file.
-   - Verify: `grep -n fmt-2-json-append plan/deferrals.md` shows `done`.
+6. **Phase: install `block-format-alloc.sh`** — write the hook, register it in `.claude/settings.json`, write the smoke test.
+   - Tests: `scripts/dev/test-hook-block-format-alloc.sh` covering AC-8 (blocks) + AC-9 (allows json.go).
+   - Files: `.claude/hooks/block-format-alloc.sh`, `.claude/settings.json`, `scripts/dev/test-hook-block-format-alloc.sh`.
+   - Verify: smoke test passes; piping a Write-event JSON for `decode.go` with `fmt.Sprintf` yields exit 2; piping the same for `json.go` with `json.Marshal` yields exit 0.
 
-7. **Full verification** — `make ze-verify-fast` from a cold state.
+7. **Phase: close deferral + docs** — flip the `plan/deferrals.md` fmt-2-json-append entry Status to `done`; add a line to `.claude/rules/buffer-first.md` near the existing `block-encoding-alloc.sh` mention naming the new hook.
+   - Files: `plan/deferrals.md`, `.claude/rules/buffer-first.md`.
+   - Verify: `grep -n fmt-2-json-append plan/deferrals.md` shows `done`; `grep block-format-alloc .claude/rules/buffer-first.md` matches.
 
-8. **Complete spec** — fill Implementation Summary, Implementation Audit, Pre-Commit Verification, Review Gate; write `plan/learned/NNN-fmt-2-json-append.md`.
+8. **Full verification** — `make ze-verify-fast` from a cold state.
+
+9. **Complete spec** — fill Implementation Summary, Implementation Audit, Pre-Commit Verification, Review Gate; write `plan/learned/NNN-fmt-2-json-append.md`.
 
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-1..AC-12 has implementation + test evidence; no deferrals. |
-| Correctness | `DecodedCapability.Value`, `ErrorSubcodeName`, `SubtypeName`, `Family` string formats byte-identical (run `TestDecodeOpenWithCapabilities`, `TestDecodeNotification`, `TestNegotiatedToDecoded` unmodified and confirm pass). |
-| Naming | Hook named `block-format-alloc.sh` (matches `block-encoding-alloc.sh` convention). Skip calling the hook `format-alloc-guard.sh` or other invented names. |
+| Completeness | Every AC-1..AC-13 has implementation + test evidence; no deferrals. |
+| Correctness | `DecodedCapability.Value`, `ErrorSubcodeName`, `SubtypeName`, `Family` string formats byte-identical on BOTH consumer paths: `formatMessageForSubscription` (events.go) AND `notifyPeerEstablished` (reactor_notify.go:106). Run `TestDecodeOpenWithCapabilities`, `TestDecodeNotification`, `TestNegotiatedToDecoded` unmodified and confirm pass. |
+| Naming | Hook named `block-format-alloc.sh` (matches `block-encoding-alloc.sh` convention: `block-<area>-<concern>.sh`). |
 | Data flow | `decode.go` imports shrink (`fmt` out, `strconv` + `encoding/hex` in). No new dependency between `format/` and other packages. |
 | Rule: no-layering | `format_buffer.go` fully deleted; no transitional "legacy" file. |
 | Rule: no-test-deletion | Test deletion is `format_buffer_test.go` only; approval from SCOPE gate recorded here. |
@@ -405,12 +470,13 @@ None planned.
 |-------------|---------------------|
 | `format_buffer.go` deleted | `test ! -e internal/component/bgp/format/format_buffer.go` |
 | `format_buffer_test.go` deleted | `test ! -e internal/component/bgp/format/format_buffer_test.go` |
-| `decode.go` fmt-clean | `! grep -E 'fmt\.(Sprintf\|Fprintf)\|strings\.(Join\|Builder\|NewReplacer\|ReplaceAll)\|strconv\.FormatUint\|strconv\.FormatInt' internal/component/bgp/format/decode.go` |
-| `json.go` fmt-clean | `! grep -E 'fmt\.(Sprintf\|Fprintf)' internal/component/bgp/format/json.go` |
+| `decode.go` fmt-clean | `! grep -E 'fmt\.(Sprintf|Fprintf)|strings\.(Join|Builder|NewReplacer|ReplaceAll)|strconv\.(FormatUint|FormatInt)' internal/component/bgp/format/decode.go` (unescaped `|` in ERE) |
+| `json.go` fmt-clean | `! grep -E 'fmt\.(Sprintf|Fprintf)' internal/component/bgp/format/json.go` (unescaped `|` in ERE) |
 | Hook present + executable | `test -x .claude/hooks/block-format-alloc.sh` |
 | Hook registered | `grep -q block-format-alloc .claude/settings.json` |
-| Smoke test present | `test -x test/hooks/format-alloc-hook.sh` |
+| Smoke test present | `test -x scripts/dev/test-hook-block-format-alloc.sh` |
 | Deferral closed | `grep -E 'fmt-2-json-append.*done' plan/deferrals.md` |
+| Doc updated | `! grep -E 'FormatPrefixFromBytes|FormatASPathJSON|FormatCommunitiesJSON|FormatOriginJSON|FormatMEDJSON|FormatLocalPrefJSON' docs/architecture/buffer-architecture.md` |
 | `make ze-verify-fast` green | inspect `tmp/ze-verify.log` tail |
 
 ### Security Review Checklist (/implement stage 11)
@@ -462,8 +528,9 @@ None planned.
   allowlisting; `block-panic-error.sh` uses a content-pattern allowlist
   instead.
 - Per `plan/learned/614`, fmt-0's "hand-maintained" guard across three files
-  survived because the surface area was small. Extending it to eight files
-  without a mechanical hook would almost certainly regress.
+  survived because the surface area was small. Extending it to the nine
+  files this spec covers (see Task step 4 allowlist) without a mechanical
+  hook would almost certainly regress.
 
 ## RFC Documentation
 
@@ -550,14 +617,14 @@ _(to be filled by /ze-implement)_
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-12 all demonstrated
+- [ ] AC-1..AC-13 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] `make ze-verify-fast` passes
 - [ ] Migration code integrated (`decode.go`, `json.go`, new hook registered)
-- [ ] Integration completeness proven end-to-end via existing `.ci` coverage
-- [ ] Architecture docs updated (hook mentioned)
+- [ ] Integration completeness proven via Go unit tests (no `.ci` coverage exists for non-UPDATE subscription formatting; see Functional Tests section rationale)
+- [ ] Architecture docs updated (`buffer-architecture.md` Phase 3 row; `buffer-first.md` hook reference)
 - [ ] Critical Review passes
 
 ### Quality Gates (SHOULD pass — defer with user approval)
@@ -573,11 +640,11 @@ _(to be filled by /ze-implement)_
 - [ ] Minimal coupling — no new cross-package imports
 
 ### TDD
-- [ ] Tests written BEFORE migration (phase 2)
-- [ ] Tests FAIL on a bad migration (verified by the reference-case assertions)
-- [ ] Tests PASS after migration
+- [ ] Tests written — characterization tests added in phase 2 BEFORE any decode.go / json.go migration edits
+- [ ] Tests FAIL — deliberately perturb one migrated case and confirm the characterization test fails (byte-drift guard working)
+- [ ] Tests PASS — after migration, full suite passes with byte-identical output
 - [ ] Boundary tests — N/A
-- [ ] Functional tests — existing `.ci` coverage
+- [ ] Functional tests — N/A (pure refactor; Go unit tests are the regression guard, per Functional Tests section)
 
 ### Completion (BLOCKING — before ANY commit)
 - [ ] Critical Review passes
