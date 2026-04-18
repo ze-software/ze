@@ -6,10 +6,14 @@
 - NEVER run `git push`. Not to main, not to any branch, not from any worktree.
 - There is no scenario where pushing is acceptable. The user pushes manually.
 
-## git commit is FORBIDDEN -- prepare message only
-- NEVER run `git commit`. Write the commit message to `/tmp/commit-msg-SESSION.txt` instead.
-- Run `git add` to stage files. Then tell the user "ready to commit."
-- The user runs `git commit -F /tmp/commit-msg-SESSION.txt` themselves.
+## git commit, git add, git rm: FORBIDDEN from the Bash tool
+- NEVER invoke `git commit`, `git add`, `git rm`, `git restore --staged`,
+  or `git stash` from a Bash tool call. Sessions share staging; cross-commits
+  result. Commit only via a script the user triggers.
+- Script pattern (add + commit + `-F message-file`, no heredocs) lives in
+  `rules/git-safety.md` under "Commit Rules". Read it before writing any
+  commit script.
+- Never `--no-verify`, never `--no-gpg-sign`.
 
 ## Destructive git commands are FORBIDDEN
 - NEVER: `git reset`, `git checkout -- <file>`, `git restore`, `git clean`, `git revert`
@@ -80,6 +84,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Touch wire encoding | `rules/buffer-first.md` |
 | Touch registration | `.claude/patterns/registration.md` |
 | Add CLI/web/plugin/config | `.claude/patterns/{cli-command,web-endpoint,plugin,config-option}.md` |
+| Write help text, usage strings, error messages, or docs that enumerate things | `rules/derive-not-hardcode.md` -- derive from the registry/map, never re-hardcode; return structured data, not pre-formatted strings |
 | Write tests | `rules/testing.md`, `rules/tdd.md` |
 | Implement an RFC | `rules/rfc-compliance.md`, `rfc/short/` |
 | Write a spec | `rules/planning.md`, `plan/TEMPLATE.md` |

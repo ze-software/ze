@@ -4,44 +4,79 @@ Rationale: `.claude/rationale/git-safety.md`
 
 ## Commit Rules
 
-**NEVER run `git commit` or `git push`.** These commands are in the deny list and blocked by hooks.
+**FORBIDDEN from the Bash tool:** `git commit`, `git add`, `git rm`,
+`git restore --staged`, `git stash`. (The underlying CLAUDE.md DANGER
+section matches; this is the operational detail.)
+
+**Why.** Multiple Claude sessions share this repo's staging area. A
+`git add` I run from the Bash tool is instantly visible to every other
+session's `git commit`; sessions cross-commit files on the wrong
+feature. The only way to prevent that is to package add + commit into
+a single shell invocation the user triggers, so both happen back-to-
+back with no cross-session window.
 
 **Commit workflow:**
-1. **Do NOT run `git add`.** Multiple Claude sessions share the staging area; `git add`
-   from one session contaminates others.
-2. Write a commit script to `tmp/commit-SESSION.sh` where SESSION = 8-char unique ID
-   (e.g., `head -c4 /dev/urandom | xxd -p` at session start). The script contains
-   the `git add` commands, the commit message as a heredoc, and the `git commit` command.
-3. **`chmod +x tmp/commit-SESSION.sh` in the same turn you write it.** User runs it
-   directly (`./tmp/commit-...sh`), not via `bash`. Same rule for every script you hand
-   the user (`tmp/delete-SESSION.sh`, any ad-hoc helper): executable bit set at creation.
-4. **Never follow a script path with `.`, `,`, `:`, or `)` in chat output.** The user
-   copy-pastes the path straight from the response, and trailing punctuation becomes
-   part of the pasted string and breaks the command. Put the path at the end of a line
-   on its own, or follow it with a space and a word. Applies to every path/URL/command
-   you hand the user, not just commit scripts.
-5. Report what was done and what is left (including deferred).
-6. The user reviews and runs `./tmp/commit-SESSION.sh` themselves.
+1. Pick an 8-char session ID (`head -c4 /dev/urandom | xxd -p` at
+   session start) and reuse it across every script and message file
+   for this session.
+2. Write one `tmp/commit-msg-<SESSION>-<tag>.txt` per commit (plain
+   text). **No heredocs.** macOS `/bin/bash` (3.2) mis-parses backticks
+   inside `$(cat <<'EOF' ... EOF)` even with single-quoted delimiters,
+   and real commit messages have backticks for filenames. Always
+   `git commit -F <file>`.
+3. Write `tmp/commit-<SESSION>.sh`. Per logical commit: one `git add
+   <explicit files>` line (or block) immediately followed by
+   `git commit -F tmp/commit-msg-<SESSION>-<tag>.txt`. For
+   spec-preservation (code + spec deletion), two pairs: code in the
+   first, `git rm <spec>` + `git add <learned-summary>` in the second.
+4. `chmod +x tmp/commit-<SESSION>.sh` in the same turn you write it.
+   Every script handed to the user (`tmp/delete-SESSION.sh`, any
+   ad-hoc helper) gets the executable bit set at creation. User runs
+   the script directly (`./tmp/commit-<SESSION>.sh`), not via `bash`.
+5. Never follow a script path with `.`, `,`, `:`, or `)` in chat
+   output. Users copy-paste the path; trailing punctuation breaks the
+   command. Put the path at the end of a line on its own, or follow
+   it with a space + word. Applies to every path/URL/command you hand
+   the user, not just commit scripts.
+6. Report what was done and what is left (including deferred). The
+   user decides when to commit.
+
+**`git commit` inside the script is fine.** The user triggers the
+script; I never invoke these commands from a Bash tool call. The ban
+is on my direct invocations, not on what the script does once the user
+runs it.
 
 **Script format:**
 ```bash
 #!/bin/bash
 set -e
-git add file1.go file2.go file3_test.go
-git commit -m "$(cat <<'EOF'
-type: subject line
+cd "$(git rev-parse --show-toplevel)"
 
-Body explaining why.
-EOF
-)"
+# Commit A
+git add file1.go file2.go file3_test.go
+git commit -F tmp/commit-msg-<SESSION>-a.txt
+
+# Commit B (optional; e.g., spec-preservation)
+git rm plan/spec-<name>.md
+git add plan/learned/NNN-<name>.md
+git commit -F tmp/commit-msg-<SESSION>-b.txt
 ```
 
-**Unstaging files:** `git restore --staged <file>` is allowed. All other `git restore` variants are forbidden.
+**Unstaging files:** `git restore --staged <file>` IS allowed inside a
+commit script, not as a Bash tool call. All other `git restore`
+variants remain forbidden.
 
-**Never suggest, ask about, or hint at committing.** Complete ALL work first (testing, spec,
-docs, learned summary). Then report what was done and what is left (including deferred).
-The user decides when to commit. Banned phrases: "ready to commit?", "shall I commit?",
-"we could commit now", "want me to commit?".
+**Never suggest, ask about, or hint at committing.** Complete ALL work
+first (testing, spec, docs, learned summary). Then report what was
+done and what is left (including deferred). The user decides when to
+commit. Banned phrases: "ready to commit?", "shall I commit?", "we
+could commit now", "want me to commit?".
+
+**Hook bypasses are banned.** Never `--no-verify`, never
+`--no-gpg-sign`. On GPG failure (`gpg failed to sign the data` /
+`cannot open /dev/tty`), ask the user to run
+`! echo test | gpg --clearsign` at the prompt to unlock the agent,
+then re-run the script.
 
 ## Commit Granularity
 
