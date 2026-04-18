@@ -120,6 +120,33 @@ The lock is held only during the verify run; it releases automatically when the 
 exits (success or failure). Stale locks are handled by `flock` (fd-backed, not PID-backed),
 so there is no cleanup needed after a crash.
 
+### Running ze-verify in the Background (BLOCKING)
+
+**`make ze-verify-fast` MUST be invoked foreground with a 240s timeout. Do not use
+`run_in_background`. Do not write a polling loop. Do not `pgrep`/`stat`/`flock`-watch.**
+
+`ze-verify-fast` finishes in well under the 240s Bash timeout in normal cases. Running
+it foreground means the tool result IS the completion signal -- no polling needed,
+no missed notifications, log is ready to read when Bash returns.
+
+If a previous run is still going (lock held), `verify-lock.sh` blocks the second
+invocation inside the same foreground Bash call until the lock releases. You still
+do not need to poll.
+
+| Anti-pattern | What actually happens | Do instead |
+|--------------|-----------------------|------------|
+| `run_in_background: true` + `until pgrep -f ze-verify-fast; do sleep 2; done` | The polling loop becomes the "running" task; you never see the completion notification for the real verify run | Foreground Bash call, 240s timeout, read log on return |
+| `run_in_background: true` + `stat -c %Y` mtime check on `tmp/ze-verify.log` | Log is written continuously during the run; mtime never "settles" in a way the loop detects reliably | Foreground Bash call |
+| `run_in_background: true` then assume you'll be notified | You will be -- but a concurrent polling/sleep loop in Bash can swallow that notification. Just run foreground | Foreground Bash call |
+
+Only legitimate reasons to background `ze-verify-fast`:
+- You genuinely have independent work to do for >60s while it runs (rare -- usually you just need the result).
+- The run is expected to exceed 240s (use full `make ze-verify` in that case, not fast).
+
+In both cases: launch with `run_in_background: true` and **stop**. Do nothing else related
+to the verify run. The runtime will notify you when it exits; read the log then. No polling
+loop, ever.
+
 ### Step 2: Always (regardless of ze-verify)
 
 ```
