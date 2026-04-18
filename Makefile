@@ -11,7 +11,7 @@
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test
 .PHONY: ze-sync-vendor-web ze-check-vendor-web
 .PHONY: check ze-setup
-.PHONY: ze-gokrazy ze-gokrazy-deps ze-gokrazy-run
+.PHONY: ze-gokrazy ze-gokrazy-deps ze-gokrazy-run ze-kernel ze-kernel-clean
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
 export GOCACHE := $(CURDIR)/tmp/go-cache
@@ -748,6 +748,65 @@ ze-gokrazy-run:
 		-nographic -serial mon:stdio \
 		-nic user,model=e1000,hostfwd=tcp::28080-:8080,hostfwd=tcp::2222-:22
 
+# ---------------------------------------------------------------------------
+# Custom kernel build (overrides the rtr7/kernel pin used by ze-gokrazy)
+# ---------------------------------------------------------------------------
+# ze-gokrazy normally uses the rtr7/kernel version pinned in
+# gokrazy/ze/builddir/github.com/rtr7/kernel/go.mod. ze-kernel builds a
+# different Linux version from kernel.org and points gokrazy at it via a
+# local-path replace directive.
+#
+# Usage:
+#   make ze-kernel                          -- build the pinned version (default KVER)
+#   make ze-kernel KVER=7.0                 -- build mainline 7.0
+#   make ze-kernel KVER=6.19.13             -- build latest 6.19 stable
+#   make ze-gokrazy USER=x PASS=y ...       -- picks up the custom kernel automatically
+#   make ze-kernel-clean                    -- drop replace, rm tmp/kernel, back to pin
+#
+# Prerequisite: docker. Source is shallow-cloned from github.com/rtr7/kernel
+# into tmp/kernel/ (gitignored). The rtr7 _build/ scaffolding (patches,
+# config.addendum.txt) is reused; _build/upstream-url.txt is rewritten to the
+# tarball URL for KVER. Build takes ~5 min.
+
+KVER                 ?= 6.19.11
+KVER_MAJOR           := $(firstword $(subst ., ,$(KVER)))
+KERNEL_DIR           := tmp/kernel
+KERNEL_UPSTREAM_URL  := https://cdn.kernel.org/pub/linux/kernel/v$(KVER_MAJOR).x/linux-$(KVER).tar.xz
+KERNEL_BUILDDIR_MOD  := gokrazy/ze/builddir/github.com/rtr7/kernel
+
+ze-kernel:
+	@command -v docker >/dev/null || { echo "error: docker not found (install Docker Desktop)"; exit 1; }
+	@command -v git >/dev/null    || { echo "error: git not found"; exit 1; }
+	@if [ ! -d $(KERNEL_DIR)/.git ]; then \
+		echo "--- Cloning rtr7/kernel (shallow) ---"; \
+		mkdir -p tmp; \
+		git clone --depth=1 https://github.com/rtr7/kernel $(KERNEL_DIR); \
+	else \
+		echo "--- Reusing $(KERNEL_DIR)/ ---"; \
+	fi
+	@echo "--- Setting upstream to linux-$(KVER) ---"
+	@echo "$(KERNEL_UPSTREAM_URL)" > $(KERNEL_DIR)/_build/upstream-url.txt
+	@if [ ! -x $(KERNEL_DIR)/_build/gokr-rebuild-kernel ]; then \
+		echo "--- Installing gokr-rebuild-kernel ---"; \
+		GOBIN=$(CURDIR)/$(KERNEL_DIR)/_build $(GO) install github.com/gokrazy/autoupdate/cmd/gokr-rebuild-kernel@latest; \
+	fi
+	@echo "--- Building kernel ($(KVER), ~5 min via docker) ---"
+	@cd $(KERNEL_DIR)/_build && ./gokr-rebuild-kernel
+	@echo "--- Wiring gokrazy to use $(CURDIR)/$(KERNEL_DIR) ---"
+	@cd $(KERNEL_BUILDDIR_MOD) && $(GO) mod edit -replace=github.com/rtr7/kernel=$(CURDIR)/$(KERNEL_DIR)
+	@echo ""
+	@echo "Custom kernel: $$(ls $(KERNEL_DIR)/lib/modules 2>/dev/null | head -1)"
+	@ls -lh $(KERNEL_DIR)/vmlinuz 2>/dev/null || true
+	@echo "Next: make ze-gokrazy USER=... PASS=..."
+
+ze-kernel-clean:
+	@if [ -f $(KERNEL_BUILDDIR_MOD)/go.mod ]; then \
+		echo "--- Dropping kernel replace directive ---"; \
+		cd $(KERNEL_BUILDDIR_MOD) && $(GO) mod edit -dropreplace=github.com/rtr7/kernel 2>/dev/null || true; \
+	fi
+	@rm -rf $(KERNEL_DIR)
+	@echo "ze-gokrazy will now use the pinned rtr7/kernel."
+
 # Clean build artifacts
 clean:
 	@echo "Cleaning..."
@@ -759,7 +818,7 @@ ze-clean-tmp:
 	@echo "Cleaning tmp/ scratch files older than 24h..."
 	@find tmp/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
 	@find tmp/ -maxdepth 1 -type d -not -name tmp -not -name session \
-		-not -name go-cache -not -name golangci-lint-cache \
+		-not -name go-cache -not -name golangci-lint-cache -not -name kernel \
 		-mmin +1440 -exec rm -rf {} + 2>/dev/null || true
 	@find tmp/session/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
 	@echo "Done. $$(ls -1 tmp/ 2>/dev/null | wc -l | tr -d ' ') entries remain."
@@ -906,6 +965,8 @@ help:
 	@echo "  ze-gokrazy-deps          - One-time: download gokrazy system packages into Go module cache"
 	@echo "  ze-gokrazy USER=x PASS=y - Build bootable VM image with Ze + SSH credentials"
 	@echo "  ze-gokrazy-run           - Boot the VM image in QEMU (Ctrl-A X to quit)"
+	@echo "  ze-kernel KVER=7.0       - Build a custom Linux kernel (mainline or stable) for ze-gokrazy"
+	@echo "  ze-kernel-clean          - Drop the custom kernel, revert to the pinned rtr7/kernel"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "  ze-setup              - Install dev tools (goimports, golangci-lint, protoc plugins)"
