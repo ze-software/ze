@@ -1,7 +1,7 @@
 .PHONY: all build ze chaos test analyse clean fmt vet tidy generate help
 .PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-race-reactor ze-test ze-verify ze-ci
 .PHONY: ze-lint-changed ze-unit-test-changed ze-verify-changed ze-verify-fast ze-clean-tmp
-.PHONY: _ze-verify-impl _ze-verify-fast-impl _ze-verify-changed-impl _ze-chaos-verify-impl
+.PHONY: _ze-verify-impl _ze-verify-changed-impl _ze-chaos-verify-impl
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test ze-managed-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-all ze-all-test
@@ -36,8 +36,8 @@ ZE_VERSION := $(shell date +%y.%m.%d)
 ZE_BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 ZE_LDFLAGS := -X main.version=$(ZE_VERSION) -X main.buildDate=$(ZE_BUILD_DATE)
 
-# CPU limit: leave 3 cores free (minimum 1). Used as GOMAXPROCS for tests and
-# concurrent stages in ze-verify-fast so parallel stages do not starve the system.
+# CPU limit: leave 3 cores free (minimum 1). Used as GOMAXPROCS for tests so
+# parallel stages do not starve the system.
 GO_TEST_PROCS := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); p=$$(( n - 3 )); [ $$p -lt 1 ] && p=1; echo $$p)
 GO_TEST = GOMAXPROCS=$(GO_TEST_PROCS) go test
 
@@ -271,79 +271,11 @@ ze-verify:
 _ze-verify-impl: ze-lint ze-unit-test ze-functional-test ze-exabgp-test
 	@echo "Ze verification passed"
 
-# Fast verify: lint -> unit (no race) -> functional+exabgp parallel.
-# Race detector lives in `ze-verify` (via ze-unit-test), NOT here. -race is 3-10x
-# heavier on CPU and memory; running it next to two daemon-spawning suites
-# starved every stage in the previous "all-three-parallel" layout. The current
-# layout is monotonic in load: lint (CPU only), then plain unit tests, then the
-# two daemon-heavy suites in parallel. Use `make ze-verify` for the full -race
-# coverage before commit.
-#
-# Output: serial phases stream live via `tee -a`; parallel phase buffers each
-# stage to tmp/.ze-*.log and folds into ZE_VERIFY_LOG when each completes.
-# Trap kills backgrounded children so a Claude timeout cannot orphan bin/ze.
-# Override log path: make ze-verify-fast ZE_VERIFY_LOG=tmp/my-verify.log
-# Wrapped in the shared verify lock (see ze-verify).
+# ze-verify-fast is an alias for ze-verify. Kept for compatibility with existing
+# scripts, rules, and hooks that still invoke it. Log path still overridable via
+# ZE_VERIFY_LOG for callers that expect it.
 ZE_VERIFY_LOG ?= tmp/ze-verify.log
-ze-verify-fast: bin/ze bin/ze-test
-	@scripts/dev/verify-lock.sh ze-verify-fast $(MAKE) --no-print-directory _ze-verify-fast-impl
-
-_ze-verify-fast-impl:
-	@mkdir -p tmp
-	@rm -f tmp/ze-verify-failures.log tmp/ze-verify-lint.log tmp/ze-verify-unit.log tmp/ze-verify-func.log tmp/ze-verify-exabgp.log
-	@: > "$(ZE_VERIFY_LOG)"
-	@trap 'jobs -p 2>/dev/null | xargs -r kill 2>/dev/null || true' EXIT INT TERM; \
-	echo "Running ze-verify-fast (lint -> unit -> func+exabgp; GOMAXPROCS=$(GO_TEST_PROCS); race in ze-verify only)..." | tee -a "$(ZE_VERIFY_LOG)"; \
-	echo "--- Phase 1: lint ---" | tee -a "$(ZE_VERIFY_LOG)"; \
-	if ! golangci-lint run ./cmd/ze/... ./cmd/ze-test/... ./internal/... ./pkg/... ./parked/... ./test/... 2>&1 | tee -a "$(ZE_VERIFY_LOG)" tmp/ze-verify-lint.log; then \
-		scripts/dev/verify-summary.sh tmp/ze-verify-failures.log lint tmp/ze-verify-lint.log; \
-		printf "\n\033[31mFAIL  ze-verify-fast: lint\033[0m\n" | tee -a "$(ZE_VERIFY_LOG)"; \
-		printf "Failures: tmp/ze-verify-failures.log\n"; \
-		printf "Full log: $(ZE_VERIFY_LOG)\n"; \
-		scripts/dev/verify-status.sh write 1; \
-		exit 1; \
-	fi; \
-	rm -f tmp/ze-verify-lint.log; \
-	echo "--- Phase 2: unit (no -race; use ze-verify for race coverage) ---" | tee -a "$(ZE_VERIFY_LOG)"; \
-	if ! GOMAXPROCS=$(GO_TEST_PROCS) go test $(ZE_PACKAGES) 2>&1 | tee -a "$(ZE_VERIFY_LOG)" tmp/ze-verify-unit.log; then \
-		scripts/dev/verify-summary.sh tmp/ze-verify-failures.log unit-test tmp/ze-verify-unit.log; \
-		printf "\n\033[31mFAIL  ze-verify-fast: unit\033[0m\n" | tee -a "$(ZE_VERIFY_LOG)"; \
-		printf "Failures: tmp/ze-verify-failures.log\n"; \
-		printf "Full log: $(ZE_VERIFY_LOG)\n"; \
-		scripts/dev/verify-status.sh write 1; \
-		exit 1; \
-	fi; \
-	rm -f tmp/ze-verify-unit.log; \
-	echo "--- Phase 3: functional + exabgp (parallel, GOMAXPROCS=$(GO_TEST_PROCS)) ---" | tee -a "$(ZE_VERIFY_LOG)"; \
-	export GOMAXPROCS=$(GO_TEST_PROCS); \
-	FAIL=0; \
-	$(MAKE) --no-print-directory ze-functional-test > tmp/.ze-func.log 2>&1 & FUNC_PID=$$!; \
-	uv run --with psutil --with paramiko ./test/exabgp-compat/bin/functional encoding --timeout 60 > tmp/.ze-exabgp.log 2>&1 & EXABGP_PID=$$!; \
-	if ! wait $$FUNC_PID; then \
-		echo "FAIL: functional-test" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); \
-		mv tmp/.ze-func.log tmp/ze-verify-func.log; \
-		cat tmp/ze-verify-func.log >> "$(ZE_VERIFY_LOG)"; \
-		scripts/dev/verify-summary.sh tmp/ze-verify-failures.log functional-test tmp/ze-verify-func.log; \
-	else \
-		cat tmp/.ze-func.log >> "$(ZE_VERIFY_LOG)"; rm -f tmp/.ze-func.log; \
-	fi; \
-	if ! wait $$EXABGP_PID; then \
-		echo "FAIL: exabgp-test" | tee -a "$(ZE_VERIFY_LOG)"; FAIL=$$((FAIL + 1)); \
-		mv tmp/.ze-exabgp.log tmp/ze-verify-exabgp.log; \
-		cat tmp/ze-verify-exabgp.log >> "$(ZE_VERIFY_LOG)"; \
-		scripts/dev/verify-summary.sh tmp/ze-verify-failures.log exabgp-test tmp/ze-verify-exabgp.log; \
-	else \
-		cat tmp/.ze-exabgp.log >> "$(ZE_VERIFY_LOG)"; rm -f tmp/.ze-exabgp.log; \
-	fi; \
-	if [ $$FAIL -gt 0 ]; then \
-		printf "\n\033[31mFAIL  ze-verify-fast: %d stage(s) failed\033[0m\n" $$FAIL | tee -a "$(ZE_VERIFY_LOG)"; \
-		printf "Failures: tmp/ze-verify-failures.log\n"; \
-		printf "Full log: $(ZE_VERIFY_LOG)\n"; \
-		scripts/dev/verify-status.sh write 1; \
-		exit 1; \
-	fi; \
-	printf "\n\033[32mPASS  ze-verify-fast: all stages\033[0m\n" | tee -a "$(ZE_VERIFY_LOG)"; \
-	scripts/dev/verify-status.sh write 0
+ze-verify-fast: ze-verify
 
 # --- Scoped targets (parallel-safe: only lint/test packages with changed .go files) ---
 
