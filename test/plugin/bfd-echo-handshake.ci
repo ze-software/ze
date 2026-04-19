@@ -10,6 +10,12 @@
 #            is never observed.
 
 option=env:var=ze.bfd.test-parallel:value=true
+# RFC 5881 Section 5 requires TTL=255 on received BFD control/echo packets.
+# The engine enforces this via the IP_RECVTTL cmsg; the non-Linux transport
+# stub (udp_other.go) returns 0 (see parseReceivedTTL) which makes ze fail
+# closed and drop every BFD packet. The test cannot pass until a darwin/BSD
+# equivalent is implemented, so skip on darwin per rules/os-specific-tests.md.
+option=skip-os:value=darwin
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=20s
