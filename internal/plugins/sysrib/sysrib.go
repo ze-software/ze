@@ -10,11 +10,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"sync"
 	"sync/atomic"
 
 	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -56,6 +60,20 @@ func setLogger(l *slog.Logger) {
 		loggerPtr.Store(l)
 	}
 }
+
+// locRIBPtr stores the shared cross-protocol Loc-RIB. When set,
+// sysrib consumes locrib.OnChange notifications instead of subscribing to
+// the BGP-specific (rib, best-change) EventBus stream. Nil restores the
+// legacy path for tests and environments that have not wired a Loc-RIB.
+var locRIBPtr atomic.Pointer[locrib.RIB]
+
+// SetLocRIB wires the shared Loc-RIB. Safe to call once at plugin setup;
+// passing nil reverts to the legacy EventBus-subscription path.
+func SetLocRIB(r *locrib.RIB) {
+	locRIBPtr.Store(r)
+}
+
+func getLocRIB() *locrib.RIB { return locRIBPtr.Load() }
 
 // eventBusPtr stores the EventBus instance.
 var eventBusPtr atomic.Pointer[ze.EventBus]
@@ -394,7 +412,11 @@ func (s *sysRIB) replayBest() {
 	logger().Info("sysrib: replay published", "families", len(changesByFamily))
 }
 
-// run subscribes to protocol RIB events and blocks until ctx is canceled.
+// run consumes best-path changes and blocks until ctx is canceled. In-process
+// setups wire a shared Loc-RIB via SetLocRIB; sysrib reacts to its OnChange
+// callback. Forked setups (each plugin in its own process) leave Loc-RIB
+// unwired because processes cannot share a struct; sysrib falls back to the
+// BGP EventBus stream. Both wire the same downstream emission.
 func (s *sysRIB) run(ctx context.Context) {
 	eb := getEventBus()
 	if eb == nil {
@@ -402,14 +424,44 @@ func (s *sysRIB) run(ctx context.Context) {
 		return
 	}
 
-	// Subscribe to (bgp-rib, best-change) via the typed handle. The handler
-	// receives *BestChangeBatch directly; no JSON round-trip.
-	unsubBest := ribevents.BestChange.Subscribe(eb, func(batch *incomingBatch) {
-		fam, changes := s.processEvent(batch)
-		if len(changes) > 0 {
-			publishChanges(changes, fam)
+	var unsubBest func()
+	source := "eventbus"
+	if loc := getLocRIB(); loc != nil {
+		source = "locrib"
+		unsubBest = loc.OnChange(func(c locrib.Change) {
+			batch := changeToBatch(c)
+			if batch == nil {
+				return
+			}
+			fam, changes := s.processEvent(batch)
+			if len(changes) > 0 {
+				publishChanges(changes, fam)
+			}
+		})
+		// Snapshot existing state so prefixes inserted before OnChange
+		// was registered are carried into sysrib. A live Change arriving
+		// between subscribe and this walk is idempotent on processEvent
+		// (upsert semantics).
+		for _, fam := range loc.Families() {
+			loc.Iterate(fam, func(pfx netip.Prefix, g locrib.PathGroup) bool {
+				if g.Best < 0 || g.Best >= len(g.Paths) {
+					return true
+				}
+				s.replayPath(fam, pfx, g.Paths[g.Best])
+				return true
+			})
 		}
-	})
+	} else {
+		unsubBest = ribevents.BestChange.Subscribe(eb, func(batch *incomingBatch) {
+			fam, changes := s.processEvent(batch)
+			if len(changes) > 0 {
+				publishChanges(changes, fam)
+			}
+		})
+		if _, err := ribevents.ReplayRequest.Emit(eb); err != nil {
+			logger().Warn("sysrib: replay-request emit failed", "error", err)
+		}
+	}
 	defer unsubBest()
 
 	// Subscribe to (system-rib, replay-request) from downstream consumers
@@ -417,13 +469,7 @@ func (s *sysRIB) run(ctx context.Context) {
 	unsubReplay := sysribevents.ReplayRequest.Subscribe(eb, s.replayBest)
 	defer unsubReplay()
 
-	// Request full-table replay from protocol RIBs so we populate even if
-	// they started before us. Signal event, no payload.
-	if _, err := ribevents.ReplayRequest.Emit(eb); err != nil {
-		logger().Warn("sysrib: replay-request emit failed", "error", err)
-	}
-
-	logger().Info("sysrib: running")
+	logger().Info("sysrib: running", "source", source)
 	<-ctx.Done()
 	logger().Info("sysrib: stopped")
 }
@@ -457,4 +503,82 @@ func (s *sysRIB) showRIB() (string, error) {
 		return "", err
 	}
 	return string(data), nil
+}
+
+// changeToBatch converts a locrib.Change into the BestChangeBatch shape
+// sysrib's processEvent consumes. One Change -> one single-entry batch.
+// Returns nil for unspecified / unrecognized ChangeKind.
+func changeToBatch(c locrib.Change) *incomingBatch {
+	var action string
+	switch c.Kind {
+	case locrib.ChangeAdd:
+		action = ribevents.BestChangeAdd
+	case locrib.ChangeUpdate:
+		action = ribevents.BestChangeUpdate
+	case locrib.ChangeRemove:
+		action = ribevents.BestChangeWithdraw
+	case locrib.ChangeUnspecified:
+		return nil
+	default:
+		return nil
+	}
+	var nextHop string
+	var priority int
+	var metric uint32
+	if c.Kind != locrib.ChangeRemove {
+		if c.Best.NextHop.IsValid() {
+			nextHop = c.Best.NextHop.String()
+		}
+		priority = int(c.Best.AdminDistance)
+		metric = c.Best.Metric
+	}
+	return &incomingBatch{
+		Protocol: redistevents.ProtocolName(c.Best.Source),
+		Family:   c.Family.String(),
+		Changes: []incomingChange{{
+			Action:       action,
+			Prefix:       c.Prefix.String(),
+			NextHop:      nextHop,
+			Priority:     priority,
+			Metric:       metric,
+			ProtocolType: protocolTypeFromPath(c.Best),
+		}},
+	}
+}
+
+// replayPath seeds sysrib with an already-present best from locrib at startup.
+// Runs the change through processEvent as a synthetic Add so admin-distance
+// overrides and downstream emission work the same as any live change.
+func (s *sysRIB) replayPath(fam family.Family, pfx netip.Prefix, p locrib.Path) {
+	batch := changeToBatch(locrib.Change{
+		Family: fam,
+		Prefix: pfx,
+		Kind:   locrib.ChangeAdd,
+		Best:   p,
+	})
+	if batch == nil {
+		return
+	}
+	famStr, changes := s.processEvent(batch)
+	if len(changes) > 0 {
+		publishChanges(changes, famStr)
+	}
+}
+
+// protocolTypeFromPath derives the sysrib protocol-type label for a locrib
+// Path. sysrib's adminDist overrides key on "ebgp" / "ibgp" / "static", so
+// BGP paths are specialised from AdminDistance (20=ebgp, 200=ibgp); every
+// other source returns its registered canonical name.
+func protocolTypeFromPath(p locrib.Path) string {
+	name := redistevents.ProtocolName(p.Source)
+	if name != "bgp" {
+		return name
+	}
+	switch p.AdminDistance {
+	case 20:
+		return "ebgp"
+	case 200:
+		return "ibgp"
+	}
+	return "bgp"
 }

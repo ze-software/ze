@@ -1,12 +1,18 @@
 package sysrib
 
 import (
+	"context"
+	"net/netip"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 )
 
@@ -535,4 +541,108 @@ func (j *testJournal) Rollback() []error {
 
 func (j *testJournal) Discard() {
 	j.entries = nil
+}
+
+// TestSysRIBConsumesLocRIB validates Phase 3d wiring: sysrib.run()
+// subscribes to locrib.OnChange (via SetLocRIB) and translates each Change
+// into a BestChangeBatch processed by the existing arbiter.
+//
+// VALIDATES: Loc-RIB Insert/Remove propagates through sysrib to the
+// downstream (system-rib, best-change) event stream, with correct admin-
+// distance and next-hop carried across the boundary.
+// PREVENTS: sysrib silently ignoring Loc-RIB activity after the
+// ribevents.BestChange subscription was removed in Phase 3d.
+func TestSysRIBConsumesLocRIB(t *testing.T) {
+	redistevents.ResetForTest()
+	bgpID := redistevents.RegisterProtocol("bgp")
+
+	bus := newTestEventBus()
+	setEventBus(bus)
+	t.Cleanup(clearEventBus)
+
+	loc := locrib.NewRIB()
+	SetLocRIB(loc)
+	t.Cleanup(func() { SetLocRIB(nil) })
+
+	s := newSysRIB()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() { s.run(ctx); close(done) }()
+
+	// Wait for run() to have registered the OnChange callback before
+	// triggering a Loc-RIB insert. A short busy-wait is enough because the
+	// only work run() does before subscribing is a few nil-checks.
+	waitFor(t, 500*time.Millisecond, func() bool {
+		_, ok := loc.Best(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"))
+		_ = ok
+		return len(captureSysribEvents(bus)) == 0
+	})
+
+	pfx := netip.MustParsePrefix("10.0.0.0/24")
+	loc.Insert(family.IPv4Unicast, pfx, locrib.Path{
+		Source:        bgpID,
+		Instance:      0,
+		NextHop:       netip.MustParseAddr("192.0.2.1"),
+		AdminDistance: 20,
+		Metric:        50,
+	})
+
+	waitFor(t, 500*time.Millisecond, func() bool {
+		return len(captureSysribEvents(bus)) > 0
+	})
+
+	events := captureSysribEvents(bus)
+	require.NotEmpty(t, events, "sysrib should have published downstream")
+	batch, ok := events[0].Payload.(*sysribevents.BestChangeBatch)
+	require.True(t, ok, "payload must be *sysribevents.BestChangeBatch, got %T", events[0].Payload)
+	require.Len(t, batch.Changes, 1)
+	assert.Equal(t, "add", batch.Changes[0].Action)
+	assert.Equal(t, "10.0.0.0/24", batch.Changes[0].Prefix)
+	assert.Equal(t, "192.0.2.1", batch.Changes[0].NextHop)
+	assert.Equal(t, "bgp", batch.Changes[0].Protocol)
+
+	// Withdraw flows through the same path.
+	loc.Remove(family.IPv4Unicast, pfx, bgpID, 0)
+	waitFor(t, 500*time.Millisecond, func() bool {
+		for _, e := range captureSysribEvents(bus) {
+			if b, ok := e.Payload.(*sysribevents.BestChangeBatch); ok {
+				for _, c := range b.Changes {
+					if c.Action == "withdraw" && c.Prefix == "10.0.0.0/24" {
+						return true
+					}
+				}
+			}
+		}
+		return false
+	})
+
+	cancel()
+	<-done
+}
+
+// waitFor polls cond until it returns true or timeout elapses.
+func waitFor(t *testing.T, timeout time.Duration, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if cond() {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// captureSysribEvents returns every sysrib-namespace event seen by bus.
+func captureSysribEvents(bus *testEventBus) []testEvent {
+	bus.mu.Lock()
+	defer bus.mu.Unlock()
+	out := make([]testEvent, 0, len(bus.events))
+	for _, e := range bus.events {
+		if e.Namespace == sysribevents.Namespace {
+			out = append(out, e)
+		}
+	}
+	return out
 }
