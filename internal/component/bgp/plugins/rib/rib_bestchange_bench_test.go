@@ -28,7 +28,7 @@ func BenchmarkBestPathRecordHeapFootprint(b *testing.B) {
 		b.Run(fmt.Sprintf("N=%d", n), func(b *testing.B) {
 			for range b.N {
 				fam := family.Family{AFI: 1, SAFI: 1}
-				store := ribstore.NewStore[bestPathRecord](fam, false)
+				store := ribstore.NewStore[bestPathRecord](fam)
 				interner := newBestPrevInterner()
 				// Pre-intern a small realistic cardinality (2k peers, 256 NHs,
 				// 16 metrics) so the per-record cost is dominated by the
@@ -63,21 +63,19 @@ func BenchmarkBestPathRecordHeapFootprint(b *testing.B) {
 				runtime.GC()
 				runtime.ReadMemStats(&beforeMs)
 
-				nlri := make([]byte, 5)
 				for i := range n {
 					// Distinct /24 per iteration up to 16M prefixes.
-					nlri[0] = 24
-					nlri[1] = byte(i >> 16)
-					nlri[2] = byte(i >> 8)
-					nlri[3] = byte(i)
-					nlri[4] = 0
+					pfx := netip.PrefixFrom(
+						netip.AddrFrom4([4]byte{byte(i >> 16), byte(i >> 8), byte(i), 0}),
+						24,
+					)
 					rec := packBestPath(
 						metricIdxs[i%len(metricIdxs)],
 						peerIdxs[i%len(peerIdxs)],
 						nhIdxs[i%len(nhIdxs)],
 						flagEBGP,
 					)
-					store.Insert(nlri[:4], rec)
+					store.Insert(pfx, rec)
 				}
 				runtime.GC()
 				var afterMs runtime.MemStats

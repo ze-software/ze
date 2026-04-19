@@ -238,36 +238,146 @@ func (r bestPathRecord) resolve(interner *bestPrevInterner, action, prefix strin
 }
 
 // bestPrevStore holds the previously-recorded best path per prefix for one
-// family. It carries both a non-ADD-PATH trie-backed Store and an ADD-PATH
-// map-backed Store so a family can host peers with mixed ADD-PATH capability
-// without key collision -- AP peers advertise NLRIs with a 4-byte path-id
-// prefix which the trie cannot key on, while non-AP peers use bare prefix
-// bytes which the map would conflate with other path-ids.
+// family. It carries both a non-ADD-PATH BART-backed Store and an ADD-PATH
+// BART-backed Store so a family can host peers with mixed ADD-PATH capability
+// without key collision -- pathID=0 from a non-AP peer must not be conflated
+// with a real AP-advertised pathID=0 from a different peer. Both backends are
+// prefix-keyed (netip.Prefix); under AP the per-prefix value is a small
+// path-id map (bestPrevSet), matching the pathSet pattern used by FamilyRIB.
 type bestPrevStore struct {
-	trie *store.Store[bestPathRecord] // addPath=false backend
-	ap   *store.Store[bestPathRecord] // addPath=true backend
+	direct *store.Store[bestPathRecord] // non-AP: one record per prefix
+	multi  *store.Store[bestPrevSet]    // AP: per-prefix path-id -> record map
+}
+
+// bestPrevSet holds the per-path-id bestPathRecord list for one prefix under
+// ADD-PATH. Typically 1-4 entries; a linear scan beats a hash map at that
+// size and keeps the BART fringe-node memory shape tight.
+type bestPrevSet struct {
+	entries []bestPrevEntry
+}
+
+type bestPrevEntry struct {
+	pathID uint32
+	rec    bestPathRecord
+}
+
+func (s *bestPrevSet) lookup(pathID uint32) (bestPathRecord, bool) {
+	for i := range s.entries {
+		if s.entries[i].pathID == pathID {
+			return s.entries[i].rec, true
+		}
+	}
+	return 0, false
+}
+
+func (s *bestPrevSet) upsert(pathID uint32, rec bestPathRecord) {
+	for i := range s.entries {
+		if s.entries[i].pathID == pathID {
+			s.entries[i].rec = rec
+			return
+		}
+	}
+	s.entries = append(s.entries, bestPrevEntry{pathID: pathID, rec: rec})
+}
+
+func (s *bestPrevSet) remove(pathID uint32) bool {
+	for i := range s.entries {
+		if s.entries[i].pathID != pathID {
+			continue
+		}
+		last := len(s.entries) - 1
+		s.entries[i] = s.entries[last]
+		s.entries = s.entries[:last]
+		return true
+	}
+	return false
 }
 
 // newBestPrevStore creates a bestPrevStore for a family. Both backends are
-// allocated eagerly so mixed-mode sessions (some peers ADD-PATH-capable, some
-// not, for the same family) route each call to the correct key space without
-// collision. The empty backend pays only a small idle cost (one map header
-// or one empty trie root) regardless of which keys the family ends up using
-// -- accepted trade-off for correctness on mixed sessions. See the
-// rib-bart-bestprev design decision log entry D2.
+// allocated eagerly so mixed-mode sessions route each call to the correct
+// key space without collision. The empty backend pays only a small idle cost
+// (one empty BART root) regardless of which keys the family ends up using --
+// accepted trade-off for correctness on mixed sessions.
 func newBestPrevStore(fam family.Family) *bestPrevStore {
 	return &bestPrevStore{
-		trie: store.NewStore[bestPathRecord](fam, false),
-		ap:   store.NewStore[bestPathRecord](fam, true),
+		direct: store.NewStore[bestPathRecord](fam),
+		multi:  store.NewStore[bestPrevSet](fam),
 	}
 }
 
-// pick returns the backend store for the given addPath flag.
-func (s *bestPrevStore) pick(addPath bool) *store.Store[bestPathRecord] {
+// parsePrevKey splits wire NLRI bytes under the given addPath flag into
+// (pathID, prefix). Returns ok=false when bytes are malformed.
+func parsePrevKey(fam family.Family, nlriBytes []byte, addPath bool) (uint32, netip.Prefix, bool) {
 	if addPath {
-		return s.ap
+		if len(nlriBytes) < 4 {
+			return 0, netip.Prefix{}, false
+		}
+		pathID := uint32(nlriBytes[0])<<24 |
+			uint32(nlriBytes[1])<<16 |
+			uint32(nlriBytes[2])<<8 |
+			uint32(nlriBytes[3])
+		pfx, ok := store.NLRIToPrefix(fam, nlriBytes[4:])
+		return pathID, pfx, ok
 	}
-	return s.trie
+	pfx, ok := store.NLRIToPrefix(fam, nlriBytes)
+	return 0, pfx, ok
+}
+
+// lookup returns the previously-recorded best path for (nlriBytes, addPath).
+func (s *bestPrevStore) lookup(fam family.Family, nlriBytes []byte, addPath bool) (bestPathRecord, bool) {
+	pathID, pfx, ok := parsePrevKey(fam, nlriBytes, addPath)
+	if !ok {
+		return 0, false
+	}
+	if !addPath {
+		return s.direct.Lookup(pfx)
+	}
+	ps, exists := s.multi.Lookup(pfx)
+	if !exists {
+		return 0, false
+	}
+	return ps.lookup(pathID)
+}
+
+// insert stores rec for (nlriBytes, addPath). Overwrites any previous record
+// at the same key.
+func (s *bestPrevStore) insert(fam family.Family, nlriBytes []byte, addPath bool, rec bestPathRecord) {
+	pathID, pfx, ok := parsePrevKey(fam, nlriBytes, addPath)
+	if !ok {
+		return
+	}
+	if !addPath {
+		s.direct.Insert(pfx, rec)
+		return
+	}
+	ps, _ := s.multi.Lookup(pfx)
+	ps.upsert(pathID, rec)
+	s.multi.Insert(pfx, ps)
+}
+
+// delete removes the record at (nlriBytes, addPath). Returns true when a
+// record existed.
+func (s *bestPrevStore) delete(fam family.Family, nlriBytes []byte, addPath bool) bool {
+	pathID, pfx, ok := parsePrevKey(fam, nlriBytes, addPath)
+	if !ok {
+		return false
+	}
+	if !addPath {
+		return s.direct.Delete(pfx)
+	}
+	ps, exists := s.multi.Lookup(pfx)
+	if !exists {
+		return false
+	}
+	if !ps.remove(pathID) {
+		return false
+	}
+	if len(ps.entries) == 0 {
+		s.multi.Delete(pfx)
+	} else {
+		s.multi.Insert(pfx, ps)
+	}
+	return true
 }
 
 // prefixBytesForDisplay returns the NLRI bytes suitable for wirePrefixToString.
@@ -331,17 +441,16 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	candidates := r.gatherCandidates(fam, nlriBytes)
 	newBest := SelectBest(candidates)
 
-	store := r.bestPrev[fam]
-	if store == nil && newBest == nil {
+	prevStore := r.bestPrev[fam]
+	if prevStore == nil && newBest == nil {
 		return bestChangeEntry{}, false
 	}
-	if store == nil {
-		store = newBestPrevStore(fam)
-		r.bestPrev[fam] = store
+	if prevStore == nil {
+		prevStore = newBestPrevStore(fam)
+		r.bestPrev[fam] = prevStore
 	}
-	backend := store.pick(addPath)
 
-	prev, havePrev := backend.Lookup(nlriBytes)
+	prev, havePrev := prevStore.lookup(fam, nlriBytes, addPath)
 
 	if newBest == nil {
 		// No candidates remain -- withdraw if we had a previous best.
@@ -352,7 +461,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		if prefix == "" {
 			return bestChangeEntry{}, false
 		}
-		backend.Delete(nlriBytes)
+		prevStore.delete(fam, nlriBytes, addPath)
 		return bestChangeEntry{
 			Action: ribevents.BestChangeWithdraw,
 			Prefix: prefix,
@@ -404,7 +513,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	}
 	newRec := packBestPath(metricIdx, peerIdx, nhIdx, flags)
 
-	backend.Insert(nlriBytes, newRec)
+	prevStore.insert(fam, nlriBytes, addPath, newRec)
 	action := ribevents.BestChangeAdd
 	if havePrev {
 		action = ribevents.BestChangeUpdate
@@ -518,27 +627,33 @@ func (r *RIBManager) replayBestPaths() {
 
 	r.mu.RLock()
 	changesByFamily := make(map[string][]bestChangeEntry, len(r.bestPrev))
-	for fam, store := range r.bestPrev {
+	for fam, prevStore := range r.bestPrev {
 		famStr := fam.String()
 		// Replay is a cold path fired on late-subscriber replay-request.
-		// Presize to the exact final length so a 1M-entry family commits
-		// one allocation instead of paying multiple geometric-growth
-		// cycles. Upfront commitment is acceptable because the batch is
+		// Count AP entries (one per path-id) before allocating so a 1M-entry
+		// family commits one allocation instead of paying multiple geometric-
+		// growth cycles. Upfront commitment is acceptable because the batch is
 		// emitted and released in the same function; GC reclaims immediately.
-		changes := make([]bestChangeEntry, 0, store.trie.Len()+store.ap.Len())
-		appendEntry := func(nlriBytes []byte, rec bestPathRecord, addPath bool) {
-			prefix := wirePrefixToString(prefixBytesForDisplay(nlriBytes, addPath), famStr)
+		apCount := 0
+		prevStore.multi.Iterate(func(_ netip.Prefix, ps bestPrevSet) bool {
+			apCount += len(ps.entries)
+			return true
+		})
+		changes := make([]bestChangeEntry, 0, prevStore.direct.Len()+apCount)
+		appendRec := func(rec bestPathRecord, prefix string) {
 			if prefix == "" {
 				return
 			}
 			changes = append(changes, rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, prefix))
 		}
-		store.trie.Iterate(func(nlriBytes []byte, rec bestPathRecord) bool {
-			appendEntry(nlriBytes, rec, false)
+		prevStore.direct.Iterate(func(pfx netip.Prefix, rec bestPathRecord) bool {
+			appendRec(rec, pfx.String())
 			return true
 		})
-		store.ap.Iterate(func(nlriBytes []byte, rec bestPathRecord) bool {
-			appendEntry(nlriBytes, rec, true)
+		prevStore.multi.Iterate(func(pfx netip.Prefix, ps bestPrevSet) bool {
+			for i := range ps.entries {
+				appendRec(ps.entries[i].rec, pfx.String())
+			}
 			return true
 		})
 		if len(changes) > 0 {

@@ -1,15 +1,60 @@
 // Design: docs/architecture/plugin/rib-storage-design.md -- RIB storage internals
 // Detail: familyrib_map.go -- map-based FamilyRIB fallback (build tag: maprib)
 // Detail: familyrib_bart.go -- default BART trie FamilyRIB (build tag: !maprib)
-// Related: nlrikey.go -- NLRIKey type used as map key
+// Related: pathset.go -- per-prefix path-id bookkeeping used under ADD-PATH
 
 package storage
 
 import (
+	"net/netip"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
+	"codeberg.org/thomas-mangin/ze/internal/core/rib/store"
 )
+
+// parseNLRIKey splits wire NLRI bytes into (pathID, prefix). Under ADD-PATH
+// the first 4 bytes carry a path-id (RFC 7911); otherwise the whole slice is
+// prefix-len + address bytes. Returns ok=false when the bytes are malformed
+// or the family does not map to a netip.Prefix (non-IP AFIs).
+func (r *FamilyRIB) parseNLRIKey(nlriBytes []byte) (uint32, netip.Prefix, bool) {
+	if r.addPath {
+		if len(nlriBytes) < 4 {
+			return 0, netip.Prefix{}, false
+		}
+		pathID := uint32(nlriBytes[0])<<24 |
+			uint32(nlriBytes[1])<<16 |
+			uint32(nlriBytes[2])<<8 |
+			uint32(nlriBytes[3])
+		pfx, ok := store.NLRIToPrefix(r.fam, nlriBytes[4:])
+		return pathID, pfx, ok
+	}
+	pfx, ok := store.NLRIToPrefix(r.fam, nlriBytes)
+	return 0, pfx, ok
+}
+
+// buildNLRIBytes reconstructs wire NLRI bytes for (pathID, pfx) into buf.
+// Under ADD-PATH the first 4 bytes are the path-id. buf must be at least
+// 21 bytes (4 path-id + 1 prefix-len + 16 IPv6). Returns nil if buf is
+// too small or pfx is an invalid zero-value.
+func (r *FamilyRIB) buildNLRIBytes(pathID uint32, pfx netip.Prefix, buf []byte) []byte {
+	if !r.addPath {
+		return store.PrefixToNLRIInto(pfx, buf)
+	}
+	if len(buf) < 4 {
+		return nil
+	}
+	buf[0] = byte(pathID >> 24)
+	buf[1] = byte(pathID >> 16)
+	buf[2] = byte(pathID >> 8)
+	buf[3] = byte(pathID)
+	tail := store.PrefixToNLRIInto(pfx, buf[4:])
+	if tail == nil {
+		return nil
+	}
+	return buf[:4+len(tail)]
+}
 
 // entriesEqual checks if two RouteEntries have the same attribute handles.
 // Used for no-op detection (same NLRI + same attrs = skip).

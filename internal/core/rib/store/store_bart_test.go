@@ -3,6 +3,7 @@
 package store
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,22 +11,25 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
-// TestStoreTrieDropsMalformed verifies the trie backend rejects NLRI with an
-// invalid prefix length -- length is stored nowhere, Len stays zero. This
-// behavior is trie-specific; the map backend (under -tags maprib) accepts any
-// bytes because NLRIKey is a fixed-size copy.
+// TestBARTMasksPrefix verifies the BART backend normalizes prefixes to their
+// canonical masked form. 10.0.0.1/24 and 10.0.0.0/24 map to the same slot;
+// re-inserting via either address returns the same entry. This is BART trie
+// behavior; the map backend (under -tags maprib) treats them as distinct keys
+// because netip.Prefix comparison keys on the full address.
 //
-// VALIDATES: AC-6 -- trie backend rejects malformed NLRI.
-// PREVENTS: Corrupted wire bytes creating a phantom entry the map-only backend
-// would otherwise store and serve back on lookup.
-func TestStoreTrieDropsMalformed(t *testing.T) {
-	s := NewStore[int](family.IPv4Unicast, false)
-	malformed := []byte{33, 0, 0, 0, 0} // prefix-len 33 invalid for IPv4
-	s.Insert(malformed, 1)
-	assert.Equal(t, 0, s.Len(), "trie backend drops malformed input")
+// VALIDATES: trie backend masks off host bits in the prefix key.
+// PREVENTS: caller relying on host-bit preservation (a latent portability bug
+// across the !maprib / maprib backends).
+func TestBARTMasksPrefix(t *testing.T) {
+	s := NewStore[int](family.IPv4Unicast)
 
-	_, ok := s.Lookup(malformed)
-	assert.False(t, ok)
-	assert.False(t, s.Delete(malformed))
-	assert.False(t, s.Modify(malformed, func(*int) {}))
+	unmasked := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 0, 0, 1}), 24)
+	masked := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 0, 0, 0}), 24)
+
+	s.Insert(unmasked, 1)
+	assert.Equal(t, 1, s.Len(), "insert with host bits set produces one entry")
+
+	v, ok := s.Lookup(masked)
+	assert.True(t, ok, "lookup via canonical form finds the entry BART masked to")
+	assert.Equal(t, 1, v)
 }

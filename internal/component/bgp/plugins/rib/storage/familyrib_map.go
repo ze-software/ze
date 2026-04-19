@@ -1,131 +1,280 @@
 //go:build maprib
 
 // Design: docs/architecture/plugin/rib-storage-design.md -- RIB storage internals (map-only fallback)
-// Overview: familyrib.go -- shared helpers (entriesEqual, ToWireBytes, wire helpers)
+// Overview: familyrib.go -- shared nlri<->prefix helpers and docstrings
 
 package storage
 
 import (
+	"net/netip"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/store"
 )
 
 // FamilyRIB stores routes with per-attribute-type deduplication under the
-// `maprib` build tag. All entries route through a map keyed by NLRIKey;
-// store.Store[T] is the underlying storage primitive. The public API matches
-// the default (BART-backed) variant byte-for-byte.
+// `maprib` build tag. Semantics and public API match familyrib_bart.go; the
+// backend differs (map keyed by netip.Prefix instead of BART trie).
 type FamilyRIB struct {
-	store *store.Store[RouteEntry]
+	fam     family.Family
+	addPath bool
+	direct  *store.Store[RouteEntry]
+	multi   *store.Store[pathSet]
 }
 
 // NewFamilyRIB creates a FamilyRIB for the given address family.
 func NewFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
-	return &FamilyRIB{store: store.NewStore[RouteEntry](fam, addPath)}
+	r := &FamilyRIB{fam: fam, addPath: addPath}
+	if addPath {
+		r.multi = store.NewStore[pathSet](fam)
+	} else {
+		r.direct = store.NewStore[RouteEntry](fam)
+	}
+	return r
 }
 
-// Insert adds a route with its attributes to the RIB. Parses attributes into
-// per-type pools for fine-grained deduplication. If the NLRI already exists,
-// performs implicit withdraw (releases the old entry) unless the new
-// attributes are bit-identical, in which case the new handles are released
-// and the old entry is retained with its stale flag cleared.
+// Insert adds a route with its attributes to the RIB.
 func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 	newEntry, err := ParseAttributes(attrBytes)
 	if err != nil {
 		return
 	}
+	pathID, pfx, ok := r.parseNLRIKey(nlriBytes)
+	if !ok {
+		newEntry.Release()
+		return
+	}
 
-	if oldEntry, exists := r.store.Lookup(nlriBytes); exists {
+	if r.addPath {
+		r.insertMulti(pfx, pathID, newEntry)
+		return
+	}
+
+	if oldEntry, exists := r.direct.Lookup(pfx); exists {
 		if entriesEqual(oldEntry, newEntry) {
 			oldEntry.StaleLevel = StaleLevelFresh
-			r.store.Insert(nlriBytes, oldEntry)
+			r.direct.Insert(pfx, oldEntry)
 			newEntry.Release()
 			return
 		}
 		oldEntry.Release()
 	}
-
-	r.store.Insert(nlriBytes, newEntry)
+	r.direct.Insert(pfx, newEntry)
 }
 
-// Remove withdraws an NLRI from the RIB. Returns true if the NLRI existed.
+func (r *FamilyRIB) insertMulti(pfx netip.Prefix, pathID uint32, newEntry RouteEntry) {
+	if ps, exists := r.multi.Lookup(pfx); exists {
+		if oldEntry, have := ps.lookup(pathID); have && entriesEqual(oldEntry, newEntry) {
+			oldEntry.StaleLevel = StaleLevelFresh
+			ps.upsert(pathID, oldEntry)
+			r.multi.Insert(pfx, ps)
+			newEntry.Release()
+			return
+		}
+		replaced, ok := ps.upsert(pathID, newEntry)
+		r.multi.Insert(pfx, ps)
+		if ok {
+			replaced.Release()
+		}
+		return
+	}
+	var ps pathSet
+	ps.upsert(pathID, newEntry)
+	r.multi.Insert(pfx, ps)
+}
+
 func (r *FamilyRIB) Remove(nlriBytes []byte) bool {
-	entry, exists := r.store.Lookup(nlriBytes)
+	pathID, pfx, ok := r.parseNLRIKey(nlriBytes)
+	if !ok {
+		return false
+	}
+	if !r.addPath {
+		entry, exists := r.direct.Lookup(pfx)
+		if !exists {
+			return false
+		}
+		entry.Release()
+		return r.direct.Delete(pfx)
+	}
+	ps, exists := r.multi.Lookup(pfx)
 	if !exists {
 		return false
 	}
-	entry.Release()
-	return r.store.Delete(nlriBytes)
+	removed, ok := ps.remove(pathID)
+	if !ok {
+		return false
+	}
+	removed.Release()
+	if ps.len() == 0 {
+		r.multi.Delete(pfx)
+	} else {
+		r.multi.Insert(pfx, ps)
+	}
+	return true
 }
 
-// LookupEntry finds the RouteEntry for an NLRI. The returned entry is a copy.
 func (r *FamilyRIB) LookupEntry(nlriBytes []byte) (RouteEntry, bool) {
-	return r.store.Lookup(nlriBytes)
+	pathID, pfx, ok := r.parseNLRIKey(nlriBytes)
+	if !ok {
+		return RouteEntry{}, false
+	}
+	if !r.addPath {
+		return r.direct.Lookup(pfx)
+	}
+	ps, exists := r.multi.Lookup(pfx)
+	if !exists {
+		return RouteEntry{}, false
+	}
+	return ps.lookup(pathID)
 }
 
-// Len returns the total number of routes in the RIB.
-func (r *FamilyRIB) Len() int { return r.store.Len() }
+func (r *FamilyRIB) Len() int {
+	if !r.addPath {
+		return r.direct.Len()
+	}
+	n := 0
+	r.multi.Iterate(func(_ netip.Prefix, ps pathSet) bool {
+		n += ps.len()
+		return true
+	})
+	return n
+}
 
-// IterateEntry calls fn for each route with its NLRI bytes and RouteEntry.
-// Stops if fn returns false.
 func (r *FamilyRIB) IterateEntry(fn func(nlriBytes []byte, entry RouteEntry) bool) {
-	r.store.Iterate(fn)
+	if !r.addPath {
+		var buf [21]byte
+		r.direct.Iterate(func(pfx netip.Prefix, entry RouteEntry) bool {
+			nlri := r.buildNLRIBytes(0, pfx, buf[:])
+			if nlri == nil {
+				return true
+			}
+			return fn(nlri, entry)
+		})
+		return
+	}
+	var buf [21]byte
+	r.multi.Iterate(func(pfx netip.Prefix, ps pathSet) bool {
+		for i := range ps.entries {
+			nlri := r.buildNLRIBytes(ps.entries[i].pathID, pfx, buf[:])
+			if nlri == nil {
+				continue
+			}
+			if !fn(nlri, ps.entries[i].entry) {
+				return false
+			}
+		}
+		return true
+	})
 }
 
-// Release frees all RouteEntry handles and clears the RIB. The backing
-// Store is reset in place rather than replaced.
 func (r *FamilyRIB) Release() {
-	r.store.ModifyAll(func(e *RouteEntry) { e.Release() })
-	r.store.Reset()
+	if !r.addPath {
+		r.direct.ModifyAll(func(e *RouteEntry) { e.Release() })
+		r.direct.Reset()
+		return
+	}
+	r.multi.ModifyAll(func(ps *pathSet) { ps.releaseAll() })
+	r.multi.Reset()
 }
 
-// ModifyEntry calls fn with a pointer to the entry for the given NLRI.
 func (r *FamilyRIB) ModifyEntry(nlriBytes []byte, fn func(entry *RouteEntry)) bool {
-	return r.store.Modify(nlriBytes, fn)
+	pathID, pfx, ok := r.parseNLRIKey(nlriBytes)
+	if !ok {
+		return false
+	}
+	if !r.addPath {
+		return r.direct.Modify(pfx, fn)
+	}
+	return r.multi.Modify(pfx, func(ps *pathSet) {
+		ps.modify(pathID, fn)
+	})
 }
 
-// ModifyAll calls fn with a pointer to each entry.
 func (r *FamilyRIB) ModifyAll(fn func(entry *RouteEntry)) {
-	r.store.ModifyAll(fn)
+	if !r.addPath {
+		r.direct.ModifyAll(fn)
+		return
+	}
+	r.multi.ModifyAll(func(ps *pathSet) {
+		for i := range ps.entries {
+			fn(&ps.entries[i].entry)
+		}
+	})
 }
 
-// Family returns the address family of this RIB.
-func (r *FamilyRIB) Family() family.Family { return r.store.Family() }
+func (r *FamilyRIB) Family() family.Family { return r.fam }
 
-// HasAddPath returns whether ADD-PATH is enabled.
-func (r *FamilyRIB) HasAddPath() bool { return r.store.AddPath() }
+func (r *FamilyRIB) HasAddPath() bool { return r.addPath }
 
-// MarkStale sets StaleLevel on all routes in this family.
 func (r *FamilyRIB) MarkStale(level uint8) {
 	r.ModifyAll(func(entry *RouteEntry) { entry.StaleLevel = level })
 }
 
-// PurgeStale deletes all routes where StaleLevel > 0, releasing pool handles.
-// Returns the number of routes purged.
 func (r *FamilyRIB) PurgeStale() int {
-	var stale [][]byte
-	r.IterateEntry(func(nlriBytes []byte, entry RouteEntry) bool {
-		if entry.StaleLevel > StaleLevelFresh {
-			cp := make([]byte, len(nlriBytes))
-			copy(cp, nlriBytes)
-			stale = append(stale, cp)
+	if !r.addPath {
+		var stalePfx []netip.Prefix
+		r.direct.Iterate(func(pfx netip.Prefix, entry RouteEntry) bool {
+			if entry.StaleLevel > StaleLevelFresh {
+				stalePfx = append(stalePfx, pfx)
+			}
+			return true
+		})
+		for _, pfx := range stalePfx {
+			if entry, ok := r.direct.Lookup(pfx); ok {
+				entry.Release()
+				r.direct.Delete(pfx)
+			}
+		}
+		return len(stalePfx)
+	}
+	type staleKey struct {
+		pfx    netip.Prefix
+		pathID uint32
+	}
+	var stale []staleKey
+	r.multi.Iterate(func(pfx netip.Prefix, ps pathSet) bool {
+		for i := range ps.entries {
+			if ps.entries[i].entry.StaleLevel > StaleLevelFresh {
+				stale = append(stale, staleKey{pfx: pfx, pathID: ps.entries[i].pathID})
+			}
 		}
 		return true
 	})
-	for _, nlri := range stale {
-		if entry, ok := r.store.Lookup(nlri); ok {
-			entry.Release()
-			r.store.Delete(nlri)
+	for _, k := range stale {
+		ps, ok := r.multi.Lookup(k.pfx)
+		if !ok {
+			continue
+		}
+		removed, ok := ps.remove(k.pathID)
+		if !ok {
+			continue
+		}
+		removed.Release()
+		if ps.len() == 0 {
+			r.multi.Delete(k.pfx)
+		} else {
+			r.multi.Insert(k.pfx, ps)
 		}
 	}
 	return len(stale)
 }
 
-// StaleCount returns the number of routes with StaleLevel > 0.
 func (r *FamilyRIB) StaleCount() int {
 	count := 0
-	r.IterateEntry(func(_ []byte, entry RouteEntry) bool {
-		if entry.StaleLevel > StaleLevelFresh {
-			count++
+	if !r.addPath {
+		r.direct.Iterate(func(_ netip.Prefix, entry RouteEntry) bool {
+			if entry.StaleLevel > StaleLevelFresh {
+				count++
+			}
+			return true
+		})
+		return count
+	}
+	r.multi.Iterate(func(_ netip.Prefix, ps pathSet) bool {
+		for i := range ps.entries {
+			if ps.entries[i].entry.StaleLevel > StaleLevelFresh {
+				count++
+			}
 		}
 		return true
 	})

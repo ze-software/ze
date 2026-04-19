@@ -1,61 +1,55 @@
 //go:build maprib
 
-// Design: docs/architecture/plugin/rib-storage-design.md -- generic NLRI-keyed store (map-only fallback)
-// Related: store_bart.go -- default BART+map dispatch under `!maprib`
-// Related: nlrikey.go -- NLRIKey is the sole key type under maprib
+// Design: docs/architecture/plugin/rib-storage-design.md -- generic prefix-keyed store (map-only fallback)
+// Related: store_bart.go -- default BART backend under `!maprib`
 
 package store
 
 import (
+	"net/netip"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Store is the map-only Store variant enabled via `go build -tags maprib`.
-// Both ADD-PATH and non-ADD-PATH sessions route through the same map keyed by
-// NLRIKey. The public surface matches the default (BART-backed) variant; only
-// the backend differs.
+// Keys are netip.Prefix; the public surface matches the default (BART-backed)
+// variant.
 //
 // Concurrency: NOT safe for concurrent use. Callers own synchronization.
 //
-// Iteration contract: the nlriBytes slice passed to Iterate / ModifyAll
-// callbacks is valid only for the duration of that single callback. Callbacks
-// MUST copy if the slice needs to outlive the call. Callbacks MUST NOT call
-// Insert, Delete, or Modify on the same Store during iteration.
+// Iteration contract: the pfx passed to Iterate / ModifyAll callbacks is a
+// value; callbacks may retain it. Callbacks MUST NOT call Insert, Delete, or
+// Modify on the same Store during iteration.
 type Store[T any] struct {
-	fam     family.Family
-	addPath bool
-	routes  map[NLRIKey]T
+	fam    family.Family
+	routes map[netip.Prefix]T
 }
 
 // NewStore creates a Store for the given family using map-only storage.
-// The addPath argument is retained for API symmetry with the default variant
-// but does not change the backend.
-func NewStore[T any](fam family.Family, addPath bool) *Store[T] {
-	return &Store[T]{
-		fam:     fam,
-		addPath: addPath,
-		routes:  make(map[NLRIKey]T),
+func NewStore[T any](fam family.Family) *Store[T] {
+	return &Store[T]{fam: fam, routes: make(map[netip.Prefix]T)}
+}
+
+// Insert stores v under pfx. An invalid Prefix is silently ignored.
+func (s *Store[T]) Insert(pfx netip.Prefix, v T) {
+	if !pfx.IsValid() {
+		return
 	}
+	s.routes[pfx] = v
 }
 
-// Insert stores v under nlriBytes.
-func (s *Store[T]) Insert(nlriBytes []byte, v T) {
-	s.routes[NewNLRIKey(nlriBytes)] = v
-}
-
-// Lookup returns the value stored for nlriBytes. Returns (zero, false) if absent.
-func (s *Store[T]) Lookup(nlriBytes []byte) (T, bool) {
-	v, ok := s.routes[NewNLRIKey(nlriBytes)]
+// Lookup returns the value stored for pfx. Returns (zero, false) if absent.
+func (s *Store[T]) Lookup(pfx netip.Prefix) (T, bool) {
+	v, ok := s.routes[pfx]
 	return v, ok
 }
 
-// Delete removes the entry for nlriBytes. Returns true when an entry existed.
-func (s *Store[T]) Delete(nlriBytes []byte) bool {
-	key := NewNLRIKey(nlriBytes)
-	if _, ok := s.routes[key]; !ok {
+// Delete removes the entry for pfx. Returns true when an entry existed.
+func (s *Store[T]) Delete(pfx netip.Prefix) bool {
+	if _, ok := s.routes[pfx]; !ok {
 		return false
 	}
-	delete(s.routes, key)
+	delete(s.routes, pfx)
 	return true
 }
 
@@ -63,45 +57,39 @@ func (s *Store[T]) Delete(nlriBytes []byte) bool {
 func (s *Store[T]) Len() int { return len(s.routes) }
 
 // Iterate visits every entry. A callback return of false stops iteration.
-func (s *Store[T]) Iterate(fn func(nlriBytes []byte, v T) bool) {
-	for key, v := range s.routes {
-		if !fn(key.Bytes(), v) {
+func (s *Store[T]) Iterate(fn func(pfx netip.Prefix, v T) bool) {
+	for pfx, v := range s.routes {
+		if !fn(pfx, v) {
 			return
 		}
 	}
 }
 
-// Modify calls fn with a pointer to the entry for nlriBytes. Mutations are
-// persisted on return. Returns false if the entry is absent.
-func (s *Store[T]) Modify(nlriBytes []byte, fn func(*T)) bool {
-	key := NewNLRIKey(nlriBytes)
-	v, ok := s.routes[key]
+// Modify calls fn with a pointer to the entry for pfx. Mutations persist.
+// Returns false if the entry is absent.
+func (s *Store[T]) Modify(pfx netip.Prefix, fn func(*T)) bool {
+	v, ok := s.routes[pfx]
 	if !ok {
 		return false
 	}
 	fn(&v)
-	s.routes[key] = v
+	s.routes[pfx] = v
 	return true
 }
 
 // ModifyAll visits every entry with pointer access; mutations persist.
 func (s *Store[T]) ModifyAll(fn func(*T)) {
-	for key, v := range s.routes {
+	for pfx, v := range s.routes {
 		fn(&v)
-		s.routes[key] = v
+		s.routes[pfx] = v
 	}
 }
 
-// Reset clears every entry. Under maprib the backend is always the same map,
-// so this simply rebuilds an empty one. Callers that need per-entry cleanup
-// must run ModifyAll first.
+// Reset clears every entry. Callers that need per-entry cleanup must run
+// ModifyAll first.
 func (s *Store[T]) Reset() {
-	s.routes = make(map[NLRIKey]T)
+	s.routes = make(map[netip.Prefix]T)
 }
 
 // Family returns the family this store was constructed for.
 func (s *Store[T]) Family() family.Family { return s.fam }
-
-// AddPath reports whether the caller requested ADD-PATH semantics. Under
-// maprib the backend is always a map, so the flag is informational only.
-func (s *Store[T]) AddPath() bool { return s.addPath }
