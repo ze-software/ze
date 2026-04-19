@@ -28,7 +28,7 @@ Agreed in the 2026-04-19 conversation.
 |---|---|---|
 | 1 | One unified Loc-RIB store across protocols. No opaque blob per source. BGP candidates use the existing `attrpool` (per-attribute dedup, refcounted). Non-BGP candidates carry small typed fields inline (metric, tag, distance, flags). | Avoids the zebra-style `(prefix -> nexthops + protocol blob)` pattern. Keeps attribute dedup on the BGP hot path. |
 | 2 | Adj-RIB-In stored per peer (pre-policy). Loc-RIB is the merged store. Adj-RIB-Out is computed at send time from Loc-RIB through the per-peer export chain — not stored. | Matches RFC 4271 three-tier model. `show bgp neighbor X advertised-routes` re-runs the export chain at query time. BIRD-equivalent behavior. |
-| 3 | RS / RR fast path preserved. RIB is on the path, but the per-peer output worker skips the rebuild when the export filter is a no-op. The change event carries the `ContextID` and the pooled buffer reference. | Keeps `reactor_api_forward.go` machinery relevant. RIB becomes authoritative without killing the zero-copy forward path. |
+| 3 | ~~RS / RR fast path preserved. RIB is on the path, but the per-peer output worker skips the rebuild when the export filter is a no-op. The change event carries the `ContextID` and the pooled buffer reference.~~ | **Cancelled (2026-04-20, commit c645540e2).** Wrong model. RS does not go through locrib for forwarding -- it is a forward-all dispatcher (`rs/server_forward.go:34-56`); per-peer egress (filters, RFC 4456 RR injection, next-hop, AS-override, EBGP prepend) lives in `reactor_api_forward.go:380-540` and is driven by the receive-path trigger. The receive path is also load-bearing for the inbound filter pipeline (`reactor_notify.go:302-353` ingress filters with `IngressFilterFunc.modifiedPayload`; `reactor_notify.go:357+` import policy filter chain). Two triggers (StructuredEvent for forwarders, `locrib.OnChange` for state trackers) coexist by design. The "change event carries `ContextID` + pooled buffer reference" half landed as `Change.Forward` (`internal/core/rib/locrib/forward_handle.go`), but only as state-tracker infra (sysrib mirror, route archive), NOT as a forwarder mechanism. See `plan/design-rib-rs-fastpath.md` "Two-Trigger Model" and `docs/architecture/core-design.md` "Ingress Filter Pipeline". |
 | 4 | N parallel RIB workers, sharded by prefix hash. Each shard owns a disjoint slice of the prefix space; operations on a given prefix always land on the same shard. | Today's RIB is single-writer under one `sync.RWMutex` (`rib.go:246`). Sharding is additive, not a move — see deferred. |
 | 5 | BART is the prefix index for every case. Path-id moves from the store key into the value layer (a per-prefix candidate list). Kills the ADD-PATH map fallback (`store_bart.go:37-43`). | BART is already vendored (`github.com/gaissmai/bart`) and is the default (`familyrib_bart.go`, build tag `!maprib`). |
 | 6 | Each peer already runs its own goroutine. Confirmed at `peer.go:673` (`go p.run()`). Processing (filter chain, RIB apply) stays on shared workers so one full-feed peer does not starve customer peers. | Not a change — factual answer to the question raised. |
@@ -39,8 +39,8 @@ Carry into later specs. Not part of the initial reorganization.
 
 | Topic | Why deferred |
 |---|---|
-| N-shard worker model | Behavior change to the Loc-RIB manager, not a file move. Land after the reorganization compiles and tests pass. |
-| Unified-with-skip RS / RR path | Requires the change event to carry `ContextID` + pooled buffer ref, and a "will my filter modify?" decision per peer. Touches `reactor_api_forward.go` + filter chain. Separate spec. |
+| N-shard worker model | Behavior change to the Loc-RIB manager, not a file move. Land after the reorganization compiles and tests pass. Has its own design doc: `plan/design-rib-shard.md`. |
+| ~~Unified-with-skip RS / RR path~~ | ~~Requires the change event to carry `ContextID` + pooled buffer ref, and a "will my filter modify?" decision per peer. Touches `reactor_api_forward.go` + filter chain. Separate spec.~~ **Cancelled (2026-04-20).** Same wrong model as Decision 3. The "will my filter modify?" decision per peer already exists in `reactor_api_forward.go:380-540` and runs at forward time, driven by the receive-path trigger. There is nothing to move. See cancelled rows in `plan/deferrals.md`. |
 | Non-prefix SAFIs (flow, EVPN, MVPN, MUP, RTC, bgp-ls) | BART keys on `netip.Prefix`. These need family-specific indexes behind a common `FamilyIndex` interface. One spec per family as the need arises. |
 
 ## Current state
@@ -147,7 +147,7 @@ Each phase compiles and tests pass before the next starts. If a phase
 breaks something, it rolls back cleanly because the moves are
 mechanical.
 
-### Phase 1 — extract the generic store (moves only)
+### Phase 1 — extract the generic store (moves only) -- DONE
 
 Three files with no BGP imports move from `bgp/plugins/rib/storage/`
 to `internal/core/rib/store/`:
@@ -165,7 +165,14 @@ circular import risk because `core/family` is leaf-level.
 
 Zero behavior change. `make ze-verify-fast` must pass.
 
-### Phase 2 — collapse the ADD-PATH branch
+### Phase 2 — collapse the ADD-PATH branch -- DONE
+
+`internal/core/rib/store/store_bart.go:30-33` is now `Store{fam, trie}`
+with no ADD-PATH bifurcation. Path-id moved into BGP's value layer as
+`pathSet` (`internal/component/bgp/plugins/rib/storage/familyrib.go:46`
+declares `multi *store.Store[pathSet]`). `store_bart.go:17-22` documents
+the contract: callers needing per-path-id semantics put a path-id -> T
+map in the value layer, keeping `Store` itself generic and non-branching.
 
 One-file surgical edit to `store_bart.go` (after the Phase 1 move).
 The `trie *bart.Table[T]` OR `routes map[NLRIKey]T` bifurcation
@@ -186,7 +193,7 @@ Behavior change: ADD-PATH sessions now get a real trie (LPM,
 iteration, no hash collisions). Test with `bgp plugin` cases that
 exercise ADD-PATH.
 
-### Phase 3 — add `locrib` (new, thin)
+### Phase 3 — add `locrib` (new, thin) -- DONE
 
 New package `internal/core/rib/locrib/`:
 
@@ -214,9 +221,14 @@ packages plus the new `locrib/` directory.
 ### Phase 4 and beyond (deferred)
 
 - Shard the Loc-RIB manager by prefix hash. Requires a shard table,
-  per-shard locks, and a fan-out iterator for cross-shard queries.
-- Unified-with-skip RS / RR fast path: carry `ContextID` + buffer ref
-  on change events; output worker decides to skip rebuild.
+  per-shard locks, and a fan-out iterator for cross-shard queries. See
+  `plan/design-rib-shard.md`.
+- ~~Unified-with-skip RS / RR fast path: carry `ContextID` + buffer ref
+  on change events; output worker decides to skip rebuild.~~
+  **Cancelled (2026-04-20).** Wrong model -- see Decision 3 and the
+  cancelled deferred row above. The infrastructure that would have
+  served it (`Change.Forward` carrying a buffer handle) shipped as
+  state-tracker infra in `c645540e2`; it does not drive forwarders.
 - Non-prefix SAFIs: `FamilyIndex` interface behind which BART sits for
   prefix-shaped families and specialized indexes sit for flow / EVPN /
   MVPN / MUP / RTC / bgp-ls.
@@ -237,14 +249,18 @@ Flagged so reviewers know what to verify.
 
 ## Open questions
 
-1. Where does per-path-id live on the entry? Options: (a) `[]Candidate`
-   with `pathID` on each BGP candidate (flat, simple); (b)
-   `map[pathID]*Candidate` keyed per (source, peer); (c) per-source
-   sub-list. (a) is the simplest and fastest for the common case.
-2. Best-path across sources: admin-distance table (Cisco-style) or
-   configurable tiebreaker order? FRR uses distance + per-protocol
-   rules; BIRD leaves it to filters. Likely answer: admin-distance
-   table with sensible defaults, overridable via YANG.
+1. ~~Where does per-path-id live on the entry?~~ **Resolved.** Option (a)
+   at both layers: locrib's `PathGroup.Paths []Path` keyed by
+   `(Source, Instance)` (`internal/core/rib/locrib/entry.go:14-22`);
+   BGP storage's `pathSet` per prefix in
+   `multi *store.Store[pathSet]` for ADD-PATH families.
+2. ~~Best-path across sources: admin-distance table or configurable?~~
+   **Resolved as admin-distance table.** `Path.AdminDistance uint8`
+   (`internal/core/rib/locrib/candidate.go:43`); `selectBest`
+   (`entry.go:74-96`) orders by AdminDistance then Metric. Cisco /
+   Juniper defaults documented on the field. YANG override remains
+   future work but is additive.
 3. Non-prefix SAFIs: land the `FamilyIndex` interface in Phase 3 (even
    unused for prefix families), or introduce it only when the first
    non-prefix family is added? Leaning toward the second — YAGNI.
+   Still open; current code stays YAGNI.
