@@ -35,13 +35,13 @@ RESET='\033[0m'
 
 ERRORS=()
 
-# Check for legacy log package import
-if echo "$CONTENT" | grep -qE '"log"'; then
-    # Make sure it's not "log/slog"
-    if ! echo "$CONTENT" | grep -qE '"log/slog"'; then
-        ERRORS+=("Legacy log package import detected")
-        ERRORS+=("→ Use 'log/slog' instead of 'log'")
-    fi
+# Check for legacy log package import. Match only actual Go import lines
+# (either single-line `import "log"` or a line inside an import block,
+# optionally with a blank/underscore/named alias). Avoids false positives on
+# struct tags (`json:"log"`), map keys (`m["log"]`), and prose comments.
+if echo "$CONTENT" | grep -qE '^[[:space:]]*(import[[:space:]]+)?(_[[:space:]]+|[a-zA-Z][a-zA-Z0-9_]*[[:space:]]+)?"log"[[:space:]]*$'; then
+    ERRORS+=("Legacy log package import detected")
+    ERRORS+=("→ Use 'log/slog' instead of 'log'")
 fi
 
 # Check for log.Print/Printf/Println/Fatal usage

@@ -61,11 +61,15 @@ if command -v gofmt &> /dev/null; then
     gofmt -w "$FILE_PATH" 2>/dev/null || true
 fi
 
-# Run goimports if available (auto-fix).
+# Run goimports if available (grouping only).
 # -local matches golangci-lint's goimports.local-prefixes setting
 # to maintain consistent 3-group import ordering (stdlib / third-party / local).
+# -format-only: group imports but DO NOT add or remove them. Silent removal
+# of a freshly-added import on a partial Edit causes "undefined" compile
+# errors on the next Edit. Let the linter flag unused imports explicitly
+# instead of deleting them behind the author's back.
 if command -v goimports &> /dev/null; then
-    goimports -local codeberg.org/thomas-mangin/ze -w "$FILE_PATH" 2>/dev/null || true
+    goimports -local codeberg.org/thomas-mangin/ze -format-only -w "$FILE_PATH" 2>/dev/null || true
 fi
 
 # Run golangci-lint if available

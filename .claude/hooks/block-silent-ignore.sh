@@ -45,13 +45,12 @@ RESET='\033[0m'
 
 ERRORS=()
 
-# Check for silent ignore patterns
+# Check for silent ignore patterns (comments + explicit continues/returns)
 SILENT_PATTERNS=(
     'continue[[:space:]]*//[[:space:]]*ignore'
     'return[[:space:]]*nil[[:space:]]*//[[:space:]]*ignore'
     '//[[:space:]]*silently[[:space:]]*ignore'
     '//[[:space:]]*skip[[:space:]]*unknown'
-    'default:[[:space:]]*$'  # Empty default in switch (may silently ignore)
 )
 
 for pattern in "${SILENT_PATTERNS[@]}"; do
@@ -67,10 +66,37 @@ for pattern in "${SILENT_PATTERNS[@]}"; do
     fi
 done
 
-# Check for swallowing errors in config parsing
+# Empty default: case (body is nothing but a closing brace, optionally
+# preceded by blank lines or comments). A default: with a real body is
+# NOT flagged. Body on the same line (`default: return ...`) is NOT
+# flagged. Only the silently-ignore-unknown shape is caught.
+EMPTY_DEFAULT=$(echo "$CONTENT" | awk '
+    /^[[:space:]]*default:[[:space:]]*$/ {
+        in_default = 1
+        default_line = NR
+        next
+    }
+    in_default {
+        if (/^[[:space:]]*$/ || /^[[:space:]]*\/\//) next
+        if (/^[[:space:]]*}[[:space:]]*$/) {
+            print "line " default_line ": empty default: (silent ignore)"
+        }
+        in_default = 0
+    }
+')
+if [[ -n "$EMPTY_DEFAULT" ]]; then
+    ERRORS+=("Empty default case (silently ignores unknown values):")
+    while IFS= read -r line; do
+        [[ -n "$line" ]] && ERRORS+=("  $line")
+    done <<< "$EMPTY_DEFAULT"
+fi
+
+# Config parsing: additionally forbid `default: break` and `default: //` on
+# the same line (config MUST fail on unknown keys). Empty default: is already
+# caught above; this catches the explicit-break shapes.
 if [[ "$FILE_PATH" =~ /config/ ]]; then
-    if echo "$CONTENT" | grep -qE 'default:[[:space:]]*//|default:[[:space:]]*break|default:[[:space:]]*$'; then
-        ERRORS+=("Config parsing with empty default case")
+    if echo "$CONTENT" | grep -qE 'default:[[:space:]]*(//|break[[:space:]]*$)'; then
+        ERRORS+=("Config parsing with break/comment-only default case")
         ERRORS+=("→ Must fail on unknown keys, not silently ignore")
     fi
 fi

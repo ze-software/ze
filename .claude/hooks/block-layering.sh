@@ -36,10 +36,9 @@ ERRORS=()
 PATTERNS=(
     "backwards.?compatib"
     "backward.?compatib"
-    "for.?compatibility"
-    "legacy.?support"
-    "fallback.?to"
-    "hybrid.?approach"
+    "legacy.?(code|format|shim|layer|path|support)"
+    "fallback.?to.?(old|legacy|previous|pre[-_])"
+    "hybrid.?(approach|system|layer)"
     "gradual.?migration"
     "temporary.?shim"
     "compat.?layer"
