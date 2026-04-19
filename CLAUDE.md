@@ -89,6 +89,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Implement an RFC | `rules/rfc-compliance.md`, `rfc/short/` |
 | Write a spec | `rules/planning.md`, `plan/TEMPLATE.md` |
 | Commit | `rules/git-safety.md` -- `make ze-verify` |
+| Run any test/build/lint command | `rules/bash-output.md` -- no pipes, read log after |
 | Delete / overwrite any user-visible file | `rules/never-destroy-work.md` -- ask first, always |
 | Look up anything | `.claude/INDEX.md` (keyword->doc, keyword->RFC) |
 | Understand architecture | `docs/architecture/core-design.md` |
