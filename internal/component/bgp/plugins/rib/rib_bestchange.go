@@ -421,6 +421,12 @@ func nextHopString(a netip.Addr) string {
 // checkBestPathChange evaluates the best path for a prefix after an insert or remove.
 // Compares with the previous best and returns a change entry if the best path changed.
 // addPath indicates whether nlriBytes includes a 4-byte path-ID prefix.
+// forward is an optional ForwardHandle for the source UPDATE wire bytes;
+// propagated to locrib.InsertForward on the Insert branch so Change
+// subscribers can forward the buffer without rebuilding. Pass nil when
+// no handle is available. Remove-induced withdrawals bypass forward
+// -- r.locRIB.Remove takes no handle because Remove carries no source
+// buffer by design (see design-rib-rs-fastpath.md).
 // Caller MUST hold r.mu (write lock).
 //
 // Returns (entry, true) when a change occurred; (zero, false) when unchanged,
@@ -438,7 +444,7 @@ func nextHopString(a netip.Addr) string {
 //  2. Otherwise compute the display prefix (malformed NLRI bails without
 //     mutation).
 //  3. Intern the winner's fields, pack, store, and emit.
-func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, addPath bool) (bestChangeEntry, bool) {
+func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, addPath bool, forward locrib.ForwardHandle) (bestChangeEntry, bool) {
 	candidates := r.gatherCandidates(fam, nlriBytes)
 	newBest := SelectBest(candidates)
 
@@ -530,13 +536,13 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			if isEBGP {
 				distance = 20
 			}
-			r.locRIB.Insert(fam, pfx, locrib.Path{
+			r.locRIB.InsertForward(fam, pfx, locrib.Path{
 				Source:        bgpProtocolID,
 				Instance:      pathID,
 				NextHop:       nextHop,
 				AdminDistance: distance,
 				Metric:        newBest.MED,
-			})
+			}, forward)
 		}
 	}
 	action := ribevents.BestChangeAdd

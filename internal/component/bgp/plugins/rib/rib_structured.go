@@ -72,6 +72,16 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		attrBytes = msg.AttrsWire.Packed()
 	}
 
+	// Wrap the UPDATE wire bytes in a locrib.ForwardHandle so Change
+	// subscribers can retain the payload past this handler's return.
+	// Subscribers that call AddRef inside their ChangeHandler trigger a
+	// sync.Once copy of RawBytes into an owned buffer; subscriber-free
+	// UPDATEs pay the handle alloc but no byte copy. Created outside
+	// r.mu because it is lock-independent -- the lock protects RIB
+	// state, not handle construction. Returns nil when RawBytes is
+	// empty (InsertForward then dispatches Forward == nil).
+	forward := newForwardHandle(msg.RawBytes)
+
 	// Get encoding context for add-path flags.
 	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
 
@@ -169,7 +179,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// UPDATE almost always belong to one family, so one grow-free append per batch.
 	changesByFamily := make(map[string][]bestChangeEntry)
 	for _, ap := range affected {
-		change, ok := r.checkBestPathChange(ap.fam, ap.nlriBytes, ap.addPath)
+		change, ok := r.checkBestPathChange(ap.fam, ap.nlriBytes, ap.addPath, forward)
 		if !ok {
 			continue
 		}
