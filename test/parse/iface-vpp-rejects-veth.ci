@@ -1,0 +1,25 @@
+# Test: veth is rejected under backend vpp
+# VALIDATES: the commit-time feature gate rejects a veth list entry when
+#            the active backend is vpp. VPP does not expose veth pairs --
+#            its peering primitives are memif (shared-memory) and TAP
+#            (kernel-managed), so a veth under backend vpp would land on
+#            ifacevpp.CreateVeth which returns errNotSupported("CreateVeth
+#            (VPP uses memif/TAP, not veth)").
+# PREVENTS: vpp receiving an Apply call for CreateVeth; silent-wrong path
+#           where the verifier accepts a veth config that no VPP deployment
+#           can actually produce.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+	veth v0 {
+		mac-address 02:00:00:00:00:01;
+		peer v0-peer;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=/interface/veth
+expect=stderr:contains="vpp"
+expect=stderr:contains=netlink

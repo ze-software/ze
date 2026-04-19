@@ -1,0 +1,26 @@
+# Test: dhcp { enabled true } is accepted under the default netlink backend
+# VALIDATES: the backend feature gate lets a DHCPv4 client through when the
+#            active backend is netlink. Regression guard paired with
+#            iface-vpp-rejects-dhcp.
+# PLATFORM: dhcp is ze:os "linux" in the YANG; schema walker prunes it on
+#           non-linux. This test is linux-only (same as the existing
+#           dhcp-config-enabled.ci in this directory).
+# PREVENTS: accidentally annotating dhcp with the wrong backend name, which
+#           would silently reject valid netlink configs.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink;
+	ethernet eth0 {
+		mac-address 02:00:00:00:00:99;
+		unit 0 {
+			dhcp {
+				enabled true;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

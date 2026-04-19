@@ -1,0 +1,23 @@
+# Test: tunnel is accepted under the default netlink backend
+# VALIDATES: the backend feature gate lets tunnel through when the active
+#            backend is netlink. Regression guard paired with
+#            iface-vpp-rejects-tunnel.
+# PREVENTS: accidentally annotating tunnel with the wrong backend name,
+#           which would silently reject valid netlink configs.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink;
+	tunnel t0 {
+		encapsulation {
+			gre {
+				local { ip 192.0.2.1; }
+				remote { ip 198.51.100.1; }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

@@ -203,6 +203,7 @@ module ze-iface-conf {
 
             container dhcp {
                 ze:os "linux";
+                ze:backend "netlink";
                 description "DHCPv4 client configuration";
 
                 leaf enabled {
@@ -224,6 +225,7 @@ module ze-iface-conf {
 
             container dhcpv6 {
                 ze:os "linux";
+                ze:backend "netlink";
                 description "DHCPv6 client configuration";
 
                 leaf enabled {

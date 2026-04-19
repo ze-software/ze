@@ -1,0 +1,20 @@
+# Test: veth is accepted under the default netlink backend
+# VALIDATES: the backend feature gate lets veth through when the active
+#            backend is netlink -- regression guard paired with
+#            iface-vpp-rejects-veth to confirm the ze:backend annotation
+#            gates on the list entry without breaking the happy path.
+# PREVENTS: accidentally annotating veth with the wrong backend name,
+#           which would silently reject valid netlink configs.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink;
+	veth v0 {
+		mac-address 02:00:00:00:00:01;
+		peer v0-peer;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

@@ -1,0 +1,33 @@
+# Test: unit with dhcp { enabled true } is rejected under backend vpp
+# VALIDATES: the commit-time feature gate rejects a unit that enables the
+#            DHCPv4 client when the active backend is vpp. The Linux DHCP
+#            client pipeline installs a lease-aware address via netlink's
+#            RTM_NEWADDR with valid_lft / preferred_lft (see iface.Backend
+#            ReplaceAddressWithLifetime) and writes a kernel default route
+#            -- neither primitive exists on VPP's SwInterfaceAddDelAddress
+#            path, so address lifetimes silently reduce to "add and hope"
+#            without the rejection.
+# PREVENTS: a silent-wrong path where the verifier accepts `dhcp { enabled
+#           true }` under backend vpp and the daemon only fails (or worse,
+#           silently loses the lifetime) when the DHCP client starts.
+# PLATFORM: dhcp / dhcpv6 containers carry ze:os "linux" so the schema
+#           walker prunes them on other platforms; this test is linux-only.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+	ethernet eth0 {
+		mac-address 02:00:00:00:00:99;
+		unit 0 {
+			dhcp {
+				enabled true;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=/interface/ethernet/eth0/unit/0/dhcp
+expect=stderr:contains="vpp"
+expect=stderr:contains=netlink

@@ -1,0 +1,26 @@
+# Test: wireguard is rejected under backend vpp
+# VALIDATES: the commit-time feature gate rejects a wireguard list entry
+#            when the active backend is vpp. The VPP wireguard plugin is
+#            a separate optional component that is not yet vendored or
+#            wired through GoVPP, so the netdev cannot be created, the
+#            private key cannot be programmed, and the peer set cannot
+#            land -- ifacevpp.CreateWireguardDevice and friends all
+#            return errNotSupported.
+# PREVENTS: a silent-wrong path where the verifier accepts wireguard under
+#           backend vpp and the daemon only fails at Apply time, long after
+#           the operator committed the config.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+	wireguard wg0 {
+		listen-port 51820;
+		private-key "aHZkc2ZqaHZra2hkZnZoamtkc2Zoa2RoaGRma2poZmg=";
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=/interface/wireguard
+expect=stderr:contains="vpp"
+expect=stderr:contains=netlink
