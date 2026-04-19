@@ -82,9 +82,6 @@ func (r *Reactor) notifyPeerEstablished(peer *Peer) {
 	for _, obs := range observers {
 		obs.OnPeerEstablished(peer)
 	}
-
-	// Cross-component consumers receive (bgp, state) via the EventBus.
-	r.emitPeerStateEvent(peer, "up", "")
 }
 
 // notifyPeerNegotiated sends negotiated capabilities to subscribed plugins.
@@ -105,9 +102,6 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 
 	decoded := format.NegotiatedToDecoded(neg)
 	r.eventDispatcher.OnPeerNegotiated(&peerInfo, decoded)
-
-	// Cross-component consumers receive (bgp, negotiated) via the EventBus.
-	r.emitPeerNegotiatedEvent(peer)
 }
 
 // notifyPeerClosed calls all observers when peer leaves Established.
@@ -125,9 +119,6 @@ func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
 	for _, obs := range observers {
 		obs.OnPeerClosed(peer, reason)
 	}
-
-	// Cross-component consumers receive (bgp, state) via the EventBus.
-	r.emitPeerStateEvent(peer, "down", reason)
 }
 
 // emitCongestionEvent emits a congestion state change event to subscribed plugins.

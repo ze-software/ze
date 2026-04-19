@@ -575,45 +575,6 @@ func (r *Reactor) ReconcilePeersWithJournal(bgpTree map[string]any, j registry.C
 	return a.reconcilePeersJournaled(newPeers, "apply config diff", j)
 }
 
-// emitPeerStateEvent emits a (bgp, state) event with the peer address,
-// state ("up"/"down"), and optional close reason. No-op if no EventBus.
-func (r *Reactor) emitPeerStateEvent(peer *Peer, state, reason string) {
-	if r.eventBus == nil {
-		return
-	}
-	payload := map[string]string{
-		"peer":  peer.settings.Address.String(),
-		"state": state,
-	}
-	if reason != "" {
-		payload["reason"] = reason
-	}
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return
-	}
-	if _, err := r.eventBus.Emit(bgpevents.Namespace, bgpevents.EventState, string(data)); err != nil {
-		reactorLogger().Debug("emit bgp state failed", "error", err)
-	}
-}
-
-// emitPeerNegotiatedEvent emits a (bgp, negotiated) event with the peer
-// address. No-op if no EventBus.
-func (r *Reactor) emitPeerNegotiatedEvent(peer *Peer) {
-	if r.eventBus == nil {
-		return
-	}
-	data, err := json.Marshal(map[string]string{
-		"peer": peer.settings.Address.String(),
-	})
-	if err != nil {
-		return
-	}
-	if _, err := r.eventBus.Emit(bgpevents.Namespace, bgpevents.EventNegotiated, string(data)); err != nil {
-		reactorLogger().Debug("emit bgp negotiated failed", "error", err)
-	}
-}
-
 // emitCongestionEventBus emits a (bgp, congested) or (bgp, resumed) event
 // depending on eventType. eventType MUST be bgpevents.EventCongested or
 // bgpevents.EventResumed. No-op if no EventBus.
