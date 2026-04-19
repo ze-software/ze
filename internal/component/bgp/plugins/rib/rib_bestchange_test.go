@@ -15,6 +15,7 @@ import (
 	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 )
 
 // testEvent records one event emitted on the in-memory test EventBus.
@@ -728,4 +729,47 @@ func TestBestPathResolve(t *testing.T) {
 	zeroRec := packBestPath(metricIdx, peerIdx, zeroNHIdx, 0)
 	zeroEntry := zeroRec.resolve(ir, ribevents.BestChangeWithdraw, "")
 	assert.Empty(t, zeroEntry.NextHop)
+}
+
+// TestLocRIBMirror validates that BGP best-path changes are mirrored into
+// the shared cross-protocol Loc-RIB (Phase 3b of plan/design-rib-unified.md).
+//
+// VALIDATES: SetLocRIB + checkBestPathChange publish the BGP best as a
+// locrib.Path; withdrawal removes it.
+// PREVENTS: Silent drift between BGP's internal best-path state and the
+// unified Loc-RIB that non-BGP consumers observe.
+func TestLocRIBMirror(t *testing.T) {
+	r := newTestRIBManager(t)
+	loc := locrib.NewRIB()
+	r.SetLocRIB(loc)
+
+	peerAddr := "192.0.2.1"
+	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+
+	fam := family.Family{AFI: 1, SAFI: 1}
+	prefix := ipv4Prefix(24, 10, 0, 0)
+	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
+
+	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
+
+	r.mu.Lock()
+	_, ok := r.checkBestPathChange(fam, prefix, false)
+	r.mu.Unlock()
+	require.True(t, ok)
+
+	best, found := loc.Best(fam, netip.MustParsePrefix("10.0.0.0/24"))
+	require.True(t, found, "Loc-RIB must carry the BGP best after checkBestPathChange")
+	assert.Equal(t, uint8(20), best.AdminDistance, "eBGP AdminDistance")
+	assert.Equal(t, "192.168.1.1", best.NextHop.String())
+
+	// Withdraw: remove the route from the adj-rib-in, then re-run bestpath.
+	r.ribInPool[peerAddr].Remove(fam, prefix)
+	r.mu.Lock()
+	_, ok = r.checkBestPathChange(fam, prefix, false)
+	r.mu.Unlock()
+	require.True(t, ok)
+
+	_, found = loc.Best(fam, netip.MustParsePrefix("10.0.0.0/24"))
+	assert.False(t, found, "Loc-RIB must drop the prefix after BGP withdraws its best")
 }

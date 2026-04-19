@@ -34,6 +34,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -231,6 +233,17 @@ type RIBManager struct {
 	// Protected by r.mu (same lock as bestPrev).
 	bestPathInterner *bestPrevInterner
 
+	// locRIB holds a reference to the cross-protocol unified Loc-RIB
+	// (internal/core/rib/locrib). Every BGP best-path change is mirrored
+	// here so sysrib / FIB / other non-BGP consumers see a consistent view
+	// across BGP, static, kernel, OSPF, etc. The BGP-internal bestPrev
+	// state above remains authoritative for BGP replay, show commands, and
+	// BGP-only consumers.
+	//
+	// May be nil in tests that do not wire a Loc-RIB; callers that touch
+	// this field MUST nil-check first.
+	locRIB *locrib.RIB
+
 	// maximumPaths is the configured N for multipath/ECMP selection.
 	// Populated from bgp/multipath/maximum-paths in the Stage 2 configure callback.
 	// Default 1 = single best-path behavior (RFC 4271 §9.1.2, no ECMP).
@@ -339,6 +352,21 @@ func (r *RIBManager) updateMetrics() {
 		m.poolDedupHits.With(entry.name).Set(float64(pm.InternHits))
 		m.poolSlotsUsed.With(entry.name).Set(float64(pm.LiveSlots))
 	}
+}
+
+// bgpProtocolID is the canonical ProtocolID for BGP under the shared
+// redistevents registry. Registered at package init so every RIBManager
+// shares the same numeric identity when it publishes into Loc-RIB.
+var bgpProtocolID = redistevents.RegisterProtocol("bgp")
+
+// SetLocRIB wires the shared cross-protocol Loc-RIB into the RIBManager.
+// Every BGP best-path change will be mirrored into loc so non-BGP
+// consumers (sysrib, FIB, observability) can see one consistent view.
+// Safe to call once at plugin setup; nil disables the mirror.
+func (r *RIBManager) SetLocRIB(loc *locrib.RIB) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.locRIB = loc
 }
 
 // NewRIBManager returns a fully-initialized RIBManager bound to the given SDK

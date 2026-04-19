@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/store"
 )
 
@@ -462,6 +463,13 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			return bestChangeEntry{}, false
 		}
 		prevStore.delete(fam, nlriBytes, addPath)
+		// Mirror the withdrawal into the shared Loc-RIB so non-BGP
+		// consumers see one consistent view across protocols.
+		if r.locRIB != nil {
+			if pathID, pfx, ok := parsePrevKey(fam, nlriBytes, addPath); ok {
+				r.locRIB.Remove(fam, pfx, bgpProtocolID, pathID)
+			}
+		}
 		return bestChangeEntry{
 			Action: ribevents.BestChangeWithdraw,
 			Prefix: prefix,
@@ -514,6 +522,23 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	newRec := packBestPath(metricIdx, peerIdx, nhIdx, flags)
 
 	prevStore.insert(fam, nlriBytes, addPath, newRec)
+	// Mirror into the shared Loc-RIB. AdminDistance follows the classical
+	// Cisco/Juniper defaults (eBGP=20, iBGP=200); Metric carries MED.
+	if r.locRIB != nil {
+		if pathID, pfx, ok := parsePrevKey(fam, nlriBytes, addPath); ok {
+			distance := uint8(200) // iBGP
+			if isEBGP {
+				distance = 20
+			}
+			r.locRIB.Insert(fam, pfx, locrib.Path{
+				Source:        bgpProtocolID,
+				Instance:      pathID,
+				NextHop:       nextHop,
+				AdminDistance: distance,
+				Metric:        newBest.MED,
+			})
+		}
+	}
 	action := ribevents.BestChangeAdd
 	if havePrev {
 		action = ribevents.BestChangeUpdate
