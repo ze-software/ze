@@ -1190,20 +1190,21 @@ func TestHandleReceived_PoolStorage_IPv6(t *testing.T) {
 	assert.Equal(t, 1, r.ribInPool["::1"].Len(), "should have 1 IPv6 route in pool")
 }
 
-// TestHandleReceived_PoolStorage_SkipsEVPN verifies EVPN is skipped.
+// TestHandleReceived_PoolStorage_StoresEVPN verifies EVPN NLRIs reach the
+// opaque-map FamilyRIB via the nlrisplit registry (Phase 3g).
 //
-// VALIDATES: Non-unicast families are not processed by pool storage.
-// PREVENTS: EVPN wire format being corrupted by splitNLRIs().
-func TestHandleReceived_PoolStorage_SkipsEVPN(t *testing.T) {
+// VALIDATES: EVPN NLRIs parse through SplitEVPN and land in PeerRIB.
+// PREVENTS: Phase-2's regression of silently dropping non-CIDR NLRIs.
+func TestHandleReceived_PoolStorage_StoresEVPN(t *testing.T) {
 	r := newTestRIBManager(t)
 	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 
-	// EVPN NLRI (will be skipped - not simple prefix format)
+	// One valid EVPN NLRI: route-type=2, length=3, body deadbe.
 	event := &Event{
 		Message:       &MessageInfo{Type: "update", ID: 401},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"l2vpn/evpn": "0203deadbeef"}, // Fake EVPN bytes
+		RawNLRI:       map[string]string{"l2vpn/evpn": "0203deadbe"},
 		FamilyOps: map[string][]FamilyOperation{
 			"l2vpn/evpn": {{Action: "add", NLRIs: []any{"type2:00:11:22:33:44:55"}}},
 		},
@@ -1211,10 +1212,9 @@ func TestHandleReceived_PoolStorage_SkipsEVPN(t *testing.T) {
 
 	r.handleReceived(event)
 
-	// Should not crash, and pool should be empty (EVPN skipped)
-	if peerRIB := r.ribInPool["10.0.0.1"]; peerRIB != nil {
-		assert.Equal(t, 0, peerRIB.Len(), "EVPN should be skipped, pool should be empty")
-	}
+	peerRIB := r.ribInPool["10.0.0.1"]
+	require.NotNil(t, peerRIB, "PeerRIB should be created for EVPN peer")
+	assert.Equal(t, 1, peerRIB.Len(), "one EVPN NLRI should be stored")
 }
 
 // TestStatusJSON_WithPoolStorage verifies status includes pool route counts.

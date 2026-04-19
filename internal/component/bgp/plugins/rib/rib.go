@@ -28,6 +28,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri/nlrisplit"
 	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
@@ -714,10 +715,8 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 			continue
 		}
 
-		// LIMITATION: splitNLRIs() only works for simple prefix formats (IPv4/IPv6 unicast).
-		// EVPN, VPN, FlowSpec have different wire formats and would be corrupted.
-		if !isSimplePrefixFamily(fam) {
-			logger().Debug("pool: skipping non-unicast family", "peer", peerAddr, "family", familyStr)
+		if !nlrisplit.Supported(fam) {
+			logger().Debug("pool: no splitter for family", "peer", peerAddr, "family", familyStr)
 			continue
 		}
 
@@ -732,8 +731,11 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 			peerRIB.SetAddPath(fam, true)
 		}
 
-		// Split concatenated NLRIs and insert each.
-		prefixes := splitNLRIs(nlriBytes, addPath)
+		// Split concatenated NLRIs and insert each via the family-registered splitter.
+		prefixes, err := nlrisplit.Split(fam, nlriBytes, addPath)
+		if err != nil {
+			logger().Warn("pool: split error, inserting parsed prefix", "peer", peerAddr, "family", familyStr, "error", err, "parsed", len(prefixes))
+		}
 		for _, wirePrefix := range prefixes {
 			peerRIB.Insert(fam, attrBytes, wirePrefix)
 		}
@@ -753,8 +755,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 			continue
 		}
 
-		// Same limitation as announcements
-		if !isSimplePrefixFamily(fam) {
+		if !nlrisplit.Supported(fam) {
 			continue
 		}
 
@@ -766,7 +767,10 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 		// Split and remove each.
 		// RFC 7911: ADD-PATH per-family flag from negotiated capabilities (via format=full JSON).
 		addPath := event.AddPath[familyStr]
-		withdrawns := splitNLRIs(wdBytes, addPath)
+		withdrawns, err := nlrisplit.Split(fam, wdBytes, addPath)
+		if err != nil {
+			logger().Warn("pool: withdrawal split error", "peer", peerAddr, "family", familyStr, "error", err, "parsed", len(withdrawns))
+		}
 		for _, wd := range withdrawns {
 			peerRIB.Remove(fam, wd)
 		}

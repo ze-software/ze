@@ -382,7 +382,7 @@ func (s *bestPrevStore) delete(fam family.Family, nlriBytes []byte, addPath bool
 }
 
 // prefixBytesForDisplay returns the NLRI bytes suitable for wirePrefixToString.
-// For ADD-PATH, strips the 4-byte path-ID prefix that splitNLRIs includes.
+// For ADD-PATH, strips the 4-byte path-ID prefix that nlrisplit includes.
 func prefixBytesForDisplay(nlriBytes []byte, addPath bool) []byte {
 	if addPath && len(nlriBytes) > 4 {
 		return nlriBytes[4:]
