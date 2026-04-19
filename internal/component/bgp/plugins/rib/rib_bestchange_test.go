@@ -123,7 +123,7 @@ func TestRIBBestChangePublish(t *testing.T) {
 
 	// Check best-path change under lock.
 	r.mu.Lock()
-	change, ok := r.checkBestPathChange(fam, prefix, false)
+	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	r.mu.Unlock()
 
 	require.True(t, ok, "should detect new best path")
@@ -169,7 +169,7 @@ func TestRIBBestChangeNoPublishSameBest(t *testing.T) {
 
 	// First check: detects new best.
 	r.mu.Lock()
-	_, ok1 := r.checkBestPathChange(fam, prefix, false)
+	_, ok1 := r.checkBestPathChange(fam, prefix, false, nil)
 	r.mu.Unlock()
 	require.True(t, ok1)
 
@@ -178,7 +178,7 @@ func TestRIBBestChangeNoPublishSameBest(t *testing.T) {
 
 	// Second check: same best, no change.
 	r.mu.Lock()
-	_, ok2 := r.checkBestPathChange(fam, prefix, false)
+	_, ok2 := r.checkBestPathChange(fam, prefix, false, nil)
 	r.mu.Unlock()
 	assert.False(t, ok2, "no change when best path is unchanged")
 }
@@ -202,14 +202,14 @@ func TestRIBBestChangeWithdraw(t *testing.T) {
 
 	// Establish best path.
 	r.mu.Lock()
-	r.checkBestPathChange(fam, prefix, false)
+	r.checkBestPathChange(fam, prefix, false, nil)
 	r.mu.Unlock()
 
 	// Withdraw the route.
 	r.ribInPool[peerAddr].Remove(fam, prefix)
 
 	r.mu.Lock()
-	change, ok := r.checkBestPathChange(fam, prefix, false)
+	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	r.mu.Unlock()
 
 	require.True(t, ok, "should detect withdraw")
@@ -244,7 +244,7 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 	// Establish best paths for all prefixes.
 	r.mu.Lock()
 	for _, p := range prefixes {
-		r.checkBestPathChange(fam, p, false)
+		r.checkBestPathChange(fam, p, false, nil)
 	}
 	r.mu.Unlock()
 
@@ -257,7 +257,7 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 	r.mu.Lock()
 	var changes []bestChangeEntry
 	for _, p := range prefixes {
-		if change, ok := r.checkBestPathChange(fam, p, false); ok {
+		if change, ok := r.checkBestPathChange(fam, p, false, nil); ok {
 			changes = append(changes, change)
 		}
 	}
@@ -298,7 +298,7 @@ func TestRIBBestChangeEBGPMetadata(t *testing.T) {
 	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	r.mu.Lock()
-	change, ok := r.checkBestPathChange(fam, prefix, false)
+	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	r.mu.Unlock()
 
 	require.True(t, ok)
@@ -329,7 +329,7 @@ func TestRIBBestChangeIBGPMetadata(t *testing.T) {
 	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	r.mu.Lock()
-	change, ok := r.checkBestPathChange(fam, prefix, false)
+	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	r.mu.Unlock()
 
 	require.True(t, ok)
@@ -353,7 +353,7 @@ func TestRIBBestChangeEBGPPriority(t *testing.T) {
 	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	r.mu.Lock()
-	change, ok := r.checkBestPathChange(fam, prefix, false)
+	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	r.mu.Unlock()
 
 	require.True(t, ok)
@@ -377,7 +377,7 @@ func TestRIBBestChangeIBGPPriority(t *testing.T) {
 	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	r.mu.Lock()
-	change, ok := r.checkBestPathChange(fam, prefix, false)
+	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	r.mu.Unlock()
 
 	require.True(t, ok)
@@ -400,7 +400,7 @@ func TestRIBBestChangeUpdate(t *testing.T) {
 	r.ribInPool[peer1].Insert(fam, makeAttrBytes([4]byte{10, 0, 0, 1}), prefix)
 
 	r.mu.Lock()
-	change1, ok1 := r.checkBestPathChange(fam, prefix, false)
+	change1, ok1 := r.checkBestPathChange(fam, prefix, false, nil)
 	r.mu.Unlock()
 	require.True(t, ok1)
 	assert.Equal(t, ribevents.BestChangeAdd, change1.Action)
@@ -412,7 +412,7 @@ func TestRIBBestChangeUpdate(t *testing.T) {
 	r.ribInPool[peer2].Insert(fam, makeAttrBytes([4]byte{10, 0, 0, 2}), prefix)
 
 	r.mu.Lock()
-	change2, ok2 := r.checkBestPathChange(fam, prefix, false)
+	change2, ok2 := r.checkBestPathChange(fam, prefix, false, nil)
 	r.mu.Unlock()
 
 	require.True(t, ok2, "should detect best-path update")
@@ -441,7 +441,7 @@ func TestRIBReplayOnSubscribe(t *testing.T) {
 	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	r.mu.Lock()
-	r.checkBestPathChange(fam, prefix, false)
+	r.checkBestPathChange(fam, prefix, false, nil)
 	r.mu.Unlock()
 
 	// Clear emitted events from the initial insert.
@@ -639,7 +639,7 @@ func TestBestPrevInternerOverflow(t *testing.T) {
 
 		require.NotPanics(t, func() {
 			r.mu.Lock()
-			entry, ok := r.checkBestPathChange(fam, prefix, false)
+			entry, ok := r.checkBestPathChange(fam, prefix, false, nil)
 			r.mu.Unlock()
 			assert.False(t, ok, "overflow returns (zero, false)")
 			assert.Equal(t, bestChangeEntry{}, entry)
@@ -754,7 +754,7 @@ func TestLocRIBMirror(t *testing.T) {
 	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
 
 	r.mu.Lock()
-	_, ok := r.checkBestPathChange(fam, prefix, false)
+	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	r.mu.Unlock()
 	require.True(t, ok)
 
@@ -766,10 +766,236 @@ func TestLocRIBMirror(t *testing.T) {
 	// Withdraw: remove the route from the adj-rib-in, then re-run bestpath.
 	r.ribInPool[peerAddr].Remove(fam, prefix)
 	r.mu.Lock()
-	_, ok = r.checkBestPathChange(fam, prefix, false)
+	_, ok = r.checkBestPathChange(fam, prefix, false, nil)
 	r.mu.Unlock()
 	require.True(t, ok)
 
 	_, found = loc.Best(fam, netip.MustParsePrefix("10.0.0.0/24"))
 	assert.False(t, found, "Loc-RIB must drop the prefix after BGP withdraws its best")
+}
+
+// TestLocRIBMirrorPropagatesForwardHandle validates that when rib passes a
+// non-nil ForwardHandle to checkBestPathChange, the resulting locrib Change
+// dispatched to subscribers carries that handle.
+//
+// VALIDATES: design-rib-rs-fastpath.md -- producer side is wired.
+// PREVENTS: a subscriber seeing nil Forward when rib supplied a handle,
+// which would regress the feature back to "library only" state.
+func TestLocRIBMirrorPropagatesForwardHandle(t *testing.T) {
+	r := newTestRIBManager(t)
+	loc := locrib.NewRIB()
+	r.SetLocRIB(loc)
+
+	var seen []locrib.Change
+	loc.OnChange(func(c locrib.Change) { seen = append(seen, c) })
+
+	peerAddr := "192.0.2.1"
+	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+
+	fam := family.Family{AFI: 1, SAFI: 1}
+	prefix := ipv4Prefix(24, 10, 0, 0)
+	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
+
+	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
+
+	// Simulate the wire buffer as handleReceivedStructured would see it.
+	wire := []byte{0xde, 0xad, 0xbe, 0xef, 0x01, 0x02, 0x03}
+	forward := newForwardHandle(wire)
+	require.NotNil(t, forward, "non-empty wire bytes must produce a handle")
+
+	r.mu.Lock()
+	_, ok := r.checkBestPathChange(fam, prefix, false, forward)
+	r.mu.Unlock()
+	require.True(t, ok)
+
+	require.Len(t, seen, 1, "BGP best-change must produce exactly one locrib Change")
+	assert.Equal(t, locrib.ChangeAdd, seen[0].Kind)
+	assert.Same(t, forward, seen[0].Forward, "Change must carry the handle rib passed in")
+
+	// End-to-end: subscriber AddRef inside the handler, then reads the
+	// retained bytes via the ForwardBytes optional interface. Proves
+	// the locrib interface + rib implementation compose.
+	seen[0].Forward.AddRef()
+	reader, ok := seen[0].Forward.(locrib.ForwardBytes)
+	require.True(t, ok, "rib handle must satisfy locrib.ForwardBytes")
+	assert.Equal(t, wire, reader.Bytes(), "subscriber reads the retained wire payload")
+	seen[0].Forward.Release()
+}
+
+// TestForwardHandleEmptyBytes documents that an empty wire buffer
+// yields a nil ForwardHandle; rib never dispatches a non-nil handle
+// pointing at zero bytes.
+//
+// VALIDATES: newForwardHandle "no wire payload" short-circuit.
+// PREVENTS: a subscriber AddRef-ing on a handle whose materialized
+// copy would be empty.
+func TestForwardHandleEmptyBytes(t *testing.T) {
+	assert.Nil(t, newForwardHandle(nil))
+	assert.Nil(t, newForwardHandle([]byte{}))
+	assert.NotNil(t, newForwardHandle([]byte{1}))
+}
+
+// TestForwardHandleRefcount validates the AddRef / Release contract:
+// N AddRefs + N Releases drive the refcount back to zero, and Release
+// beyond AddRef is permitted (goes negative, observable).
+//
+// VALIDATES: ribForwardHandle refcount semantics.
+// PREVENTS: silent drift between the refcount value and subscriber
+// lifetime; catches a future change that moves AddRef logic around.
+func TestForwardHandleRefcount(t *testing.T) {
+	h, ok := newForwardHandle([]byte{0xaa, 0xbb}).(*ribForwardHandle)
+	require.True(t, ok, "newForwardHandle must return *ribForwardHandle")
+	assert.Zero(t, h.refs.Load(), "fresh handle starts at zero refs")
+
+	h.AddRef()
+	h.AddRef()
+	h.AddRef()
+	assert.Equal(t, int32(3), h.refs.Load())
+
+	h.Release()
+	h.Release()
+	h.Release()
+	assert.Zero(t, h.refs.Load(), "N AddRefs + N Releases returns to zero")
+
+	// Unbalanced Release is not defended against -- documenting current
+	// behavior so a future guard change updates this assertion.
+	h.Release()
+	assert.Equal(t, int32(-1), h.refs.Load(), "over-Release goes negative silently")
+}
+
+// TestForwardHandleBytesLazyCopy validates that the first AddRef copies
+// source into an owned buffer, Bytes returns that copy, and the source
+// slice is not aliased into buf.
+//
+// VALIDATES: ForwardBytes contract -- subscribers can read the wire
+// bytes after AddRef without relying on the unsafe source slice.
+// PREVENTS: regressions that silently alias source (reused after the
+// producing handler returns) instead of copying.
+func TestForwardHandleBytesLazyCopy(t *testing.T) {
+	source := []byte{0x01, 0x02, 0x03, 0x04}
+	h, ok := newForwardHandle(source).(*ribForwardHandle)
+	require.True(t, ok)
+
+	// Before AddRef, Bytes returns nil.
+	assert.Nil(t, h.Bytes(), "Bytes before AddRef must be nil")
+
+	h.AddRef()
+	got := h.Bytes()
+	require.NotNil(t, got)
+	assert.Equal(t, source, got, "Bytes returns the copied payload")
+
+	// Mutate source to prove buf is not aliased.
+	source[0] = 0xff
+	assert.Equal(t, byte(0x01), h.Bytes()[0], "buf must not alias source")
+
+	// Second AddRef does NOT re-copy (sync.Once).
+	h.AddRef()
+	assert.Same(t, &got[0], &h.Bytes()[0], "subsequent AddRef reuses buf")
+
+	h.Release()
+	h.Release()
+	// Bytes after full Release still returns the copy (GC decides
+	// lifetime; Release does not zero buf).
+	assert.Equal(t, byte(0x01), h.Bytes()[0])
+}
+
+// TestObserveForwardHandlesLogsOnNonNil captures the observer's log
+// output via a buffer-backed slog handler and verifies the observer
+// emits "forward-handle observed" only when Change.Forward is non-nil.
+// Asserts on the log message itself -- the observer's only externally
+// visible effect.
+//
+// VALIDATES: observeForwardHandles actually logs the expected line.
+// PREVENTS: regression where the observer silently no-ops (would have
+// passed the previous counter-only assertion that did not look at log
+// output).
+func TestObserveForwardHandlesLogsOnNonNil(t *testing.T) {
+	var buf bytes.Buffer
+	prev := logger()
+	SetLogger(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	defer SetLogger(prev)
+
+	loc := locrib.NewRIB()
+	unsub := observeForwardHandles(loc)
+	defer unsub()
+
+	p := locrib.Path{
+		Source:        bgpProtocolID,
+		Instance:      1,
+		NextHop:       netip.MustParseAddr("192.0.2.1"),
+		AdminDistance: 20,
+	}
+
+	// Insert WITHOUT a forward handle (non-BGP producer case): no log.
+	loc.Insert(famUnicast(), netip.MustParsePrefix("10.0.0.0/24"), p)
+	assert.NotContains(t, buf.String(), "forward-handle observed",
+		"observer must stay silent when Change.Forward is nil")
+
+	// InsertForward WITH a handle (BGP producer case): single log line.
+	p2 := p
+	p2.Instance = 2
+	loc.InsertForward(famUnicast(), netip.MustParsePrefix("10.1.0.0/24"), p2,
+		newForwardHandle([]byte{0x01, 0x02}))
+	out := buf.String()
+	assert.Contains(t, out, "forward-handle observed")
+	assert.Contains(t, out, "prefix=10.1.0.0/24")
+	assert.Contains(t, out, "kind=add")
+}
+
+// TestObserveForwardHandlesQuietWhenDebugOff validates the Enabled()
+// gate: when the package logger filters out debug, the observer does
+// nothing, and none of the Change fields are string-formatted.
+//
+// VALIDATES: debug-off path has zero formatting cost.
+// PREVENTS: accidental removal of the Enabled() pre-check.
+func TestObserveForwardHandlesQuietWhenDebugOff(t *testing.T) {
+	var buf bytes.Buffer
+	prev := logger()
+	// Level higher than debug -- observer must skip entirely.
+	SetLogger(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo})))
+	defer SetLogger(prev)
+
+	loc := locrib.NewRIB()
+	unsub := observeForwardHandles(loc)
+	defer unsub()
+
+	loc.InsertForward(famUnicast(), netip.MustParsePrefix("10.2.0.0/24"),
+		locrib.Path{Source: bgpProtocolID, Instance: 1, NextHop: netip.MustParseAddr("192.0.2.1"), AdminDistance: 20},
+		newForwardHandle([]byte{0xaa}))
+	assert.Empty(t, buf.String(), "observer must not emit at info level")
+}
+
+// famUnicast returns ipv4 unicast for the observer test without
+// pulling in a full family-registry setup.
+func famUnicast() family.Family { return family.Family{AFI: 1, SAFI: 1} }
+
+// TestForwardHandleConcurrentAddRef validates that parallel AddRefs
+// all see the same materialized buf and the final refcount matches
+// the number of AddRefs.
+//
+// VALIDATES: sync.Once copy is visible to every goroutine that
+// AddRef-ed.
+// PREVENTS: data race on buf under concurrent AddRef.
+func TestForwardHandleConcurrentAddRef(t *testing.T) {
+	source := make([]byte, 256)
+	for i := range source {
+		source[i] = byte(i)
+	}
+	h, ok := newForwardHandle(source).(*ribForwardHandle)
+	require.True(t, ok)
+
+	const goroutines = 32
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			h.AddRef()
+			got := h.Bytes()
+			assert.Equal(t, source, got)
+		}()
+	}
+	wg.Wait()
+	assert.Equal(t, int32(goroutines), h.refs.Load())
 }

@@ -1,5 +1,7 @@
 // Design: plan/design-rib-unified.md -- Phase 3c (Loc-RIB change notifications)
+// Design: plan/design-rib-rs-fastpath.md -- Change.Forward handle for zero-copy forwarding
 // Related: manager.go -- RIB.Insert / RIB.Remove dispatch to subscribed ChangeHandlers
+// Related: forward_handle.go -- ForwardHandle interface carried by Change.Forward
 
 package locrib
 
@@ -34,7 +36,9 @@ const (
 	ChangeRemove ChangeKind = 3
 )
 
-// String returns a diagnostic form for logs. Never used on the hot path.
+// String returns a diagnostic form for logs. Not used on the
+// production hot path (warn/info); diagnostic subscribers that enable
+// bgp.rib=debug explicitly opt into per-Change formatting cost.
 func (k ChangeKind) String() string {
 	switch k {
 	case ChangeAdd:
@@ -58,12 +62,27 @@ type Change struct {
 	// Best is the selected path after the mutation. Valid for Add and
 	// Update; zero Path for Remove.
 	Best Path
+	// Forward is an optional handle to the producer's wire buffer. When
+	// non-nil, a subscriber that wants to forward the Change without
+	// rebuilding from Best may AddRef the handle and retain it past the
+	// handler. Populated on ChangeAdd / ChangeUpdate emitted by
+	// InsertForward. Nil for non-BGP producers, always nil for
+	// ChangeRemove, and also nil for a ChangeUpdate synthesized by
+	// Remove (fallback to next-best) because PathGroup paths do not
+	// retain per-path buffers today.
+	Forward ForwardHandle
 }
 
 // ChangeHandler is invoked synchronously from Insert/Remove when the best
 // path for a prefix changes. Handlers MUST NOT call RIB mutators on the
 // same RIB during their invocation -- the RIB's write lock is held. Cheap,
 // non-blocking handlers only; offload heavy work to a goroutine.
+//
+// When Change.Forward is non-nil, the handler runs while the producer
+// still holds its reference on the backing buffer. A handler that wants
+// to forward the buffer MUST call Forward.AddRef before returning;
+// Release happens later (typically off-lock from the handler's own
+// worker). See ForwardHandle for the full lifetime contract.
 type ChangeHandler func(c Change)
 
 // subscriberList stores ChangeHandlers in a copy-on-write slice so Insert /

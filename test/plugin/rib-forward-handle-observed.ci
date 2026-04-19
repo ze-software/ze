@@ -1,0 +1,140 @@
+# Test: rib forward-handle observer fires on a real BGP UPDATE
+# VALIDATES: design-rib-rs-fastpath end-to-end wiring --
+#   handleReceivedStructured creates a ribForwardHandle,
+#   checkBestPathChange passes it to locrib.InsertForward,
+#   locrib dispatches a Change with non-nil Forward to subscribers,
+#   observeForwardHandles logs it at debug level.
+# PREVENTS: silent regression of the producer wiring on the full
+#   wire-to-locrib path through the daemon.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+
+# Peer sends one IPv4 UPDATE for 192.168.1.0/24
+# (ORIGIN=IGP, AS_PATH empty, NEXT_HOP=10.0.0.1, LOCAL_PREF=100).
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+
+# Wait for ze's End-of-RIB to confirm the session survived past UPDATE
+# processing; without this the peer may close TCP before ze's debug
+# logger writes the "forward-handle observed" line.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Observer: poll for peer established, poll for the route to appear in
+# the RIB (proves the UPDATE was parsed + processed), then dispatch
+# daemon shutdown. No hardcoded sleeps: the test finishes as soon as
+# ze has observably processed the UPDATE.
+tmpfs=shutdown.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import time
+from ze_api import API, runtime_fail
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Poll until peer session is established.
+    for _ in range(40):
+        time.sleep(0.1)
+        result = dispatch(api, 'peer peer1 detail')
+        if result.get('status') == 'done' and 'established' in result.get('data', '').lower():
+            break
+    else:
+        runtime_fail('peer1 never reached established state')
+
+    # Poll until the UPDATE's prefix has landed in the BGP best-path
+    # table. checkBestPathChange drives the best-path update AND the
+    # locrib.InsertForward call that fires the observer; seeing the
+    # prefix here guarantees the observer's log has already been
+    # emitted (same goroutine, same code path).
+    for _ in range(40):
+        time.sleep(0.1)
+        result = dispatch(api, 'bgp rib show best')
+        if '192.168.1.0/24' in result.get('data', ''):
+            break
+    else:
+        runtime_fail('192.168.1.0/24 never appeared in bgp rib show best')
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	log {
+		bgp.rib debug
+	}
+}
+
+plugin {
+	external shutdown-after-update {
+		run ./shutdown.run
+		encoder json
+	}
+	external bgp-rib {
+		use bgp-rib
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+
+		process shutdown-after-update {
+		}
+		process bgp-rib {
+			receive [ state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+
+expect=exit:code=0
+# Single-line regex: "forward-handle observed" and prefix=192.168.1.0/24
+# MUST appear on the same log line, proving this one Change carried
+# the handle (not just that both strings exist somewhere in stderr).
+expect=stderr:pattern=forward-handle observed.*prefix=192\.168\.1\.0/24.*kind=add
+
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

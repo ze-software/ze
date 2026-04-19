@@ -2,6 +2,7 @@ package locrib
 
 import (
 	"net/netip"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,13 +27,12 @@ var (
 	pfx   = netip.MustParsePrefix("10.0.0.0/24")
 )
 
-func pathStatic(metric uint32) Path {
+func pathStatic() Path {
 	return Path{
 		Source:        idStatic,
 		Instance:      0,
 		NextHop:       netip.MustParseAddr("192.0.2.1"),
 		AdminDistance: 1,
-		Metric:        metric,
 	}
 }
 
@@ -75,7 +75,7 @@ func TestInsertSelectsByAdminDistance(t *testing.T) {
 	assert.Equal(t, idBGP, best.Source)
 
 	// Static trumps BGP.
-	best, changed = r.Insert(famV4, pfx, pathStatic(0))
+	best, changed = r.Insert(famV4, pfx, pathStatic())
 	require.True(t, changed)
 	assert.Equal(t, idStatic, best.Source)
 
@@ -113,7 +113,7 @@ func TestUpsertReplacesSameSourceInstance(t *testing.T) {
 // surfaces the next-best Path.
 func TestRemoveFallsBackToNextBest(t *testing.T) {
 	r := NewRIB()
-	r.Insert(famV4, pfx, pathStatic(0))
+	r.Insert(famV4, pfx, pathStatic())
 	r.Insert(famV4, pfx, pathBGP(1, 10))
 
 	best, changed := r.Remove(famV4, pfx, idStatic, 0)
@@ -137,7 +137,7 @@ func TestRemoveAbsent(t *testing.T) {
 // TestBestAndLookup verify the read-only accessors.
 func TestBestAndLookup(t *testing.T) {
 	r := NewRIB()
-	r.Insert(famV4, pfx, pathStatic(0))
+	r.Insert(famV4, pfx, pathStatic())
 	r.Insert(famV4, pfx, pathBGP(1, 10))
 
 	best, ok := r.Best(famV4, pfx)
@@ -197,7 +197,7 @@ func TestOnChangeFires(t *testing.T) {
 	assert.Equal(t, idBGP, changes[0].Best.Source)
 
 	// Replacing best with a lower-distance path => Update.
-	r.Insert(famV4, pfx, pathStatic(0))
+	r.Insert(famV4, pfx, pathStatic())
 	require.Len(t, changes, 2)
 	assert.Equal(t, ChangeUpdate, changes[1].Kind)
 	assert.Equal(t, idStatic, changes[1].Best.Source)
@@ -228,4 +228,192 @@ func TestOnChangeFires(t *testing.T) {
 	unsub()
 	r.Insert(famV4, pfx, pathBGP(1, 10))
 	assert.Len(t, changes, 4, "unsubscribed handler must not fire")
+}
+
+// countingHandle is a ForwardHandle used by the fastpath tests. AddRef /
+// Release increment counters so tests can assert the reactor-side
+// refcount contract without dragging the reactor into locrib.
+type countingHandle struct {
+	addRefs  atomic.Int32
+	releases atomic.Int32
+}
+
+func (h *countingHandle) AddRef()  { h.addRefs.Add(1) }
+func (h *countingHandle) Release() { h.releases.Add(1) }
+
+// bytesHandle also satisfies the optional ForwardBytes interface,
+// exercising the type-assertion path subscribers use to read wire
+// payload.
+type bytesHandle struct {
+	countingHandle
+	payload []byte
+}
+
+func (h *bytesHandle) Bytes() []byte { return h.payload }
+
+// TestInsertLeavesForwardNil validates that the legacy Insert entry point
+// dispatches Changes with Forward == nil. Non-BGP producers rely on this.
+//
+// VALIDATES: design-rib-rs-fastpath.md -- non-BGP producers leave Forward nil.
+// PREVENTS: accidental handle propagation from refactors that change Insert.
+func TestInsertLeavesForwardNil(t *testing.T) {
+	r := NewRIB()
+	var last Change
+	r.OnChange(func(c Change) { last = c })
+
+	r.Insert(famV4, pfx, pathStatic())
+
+	assert.Equal(t, ChangeAdd, last.Kind)
+	assert.Nil(t, last.Forward, "Insert without handle must leave Change.Forward nil")
+}
+
+// TestInsertForwardPropagates validates that InsertForward places the
+// handle on ChangeAdd and ChangeUpdate dispatches.
+//
+// VALIDATES: design-rib-rs-fastpath.md -- BGP producer populates Forward.
+// PREVENTS: a subscriber seeing a nil handle when BGP supplied one.
+func TestInsertForwardPropagates(t *testing.T) {
+	r := NewRIB()
+	var seen []Change
+	r.OnChange(func(c Change) { seen = append(seen, c) })
+
+	h1 := &countingHandle{}
+	r.InsertForward(famV4, pfx, pathBGP(1, 50), h1)
+	require.Len(t, seen, 1)
+	assert.Equal(t, ChangeAdd, seen[0].Kind)
+	assert.Same(t, h1, seen[0].Forward, "Add must carry the handle")
+
+	// Update with a new handle replaces the forward on the next Change.
+	h2 := &countingHandle{}
+	r.InsertForward(famV4, pfx, pathStatic(), h2)
+	require.Len(t, seen, 2)
+	assert.Equal(t, ChangeUpdate, seen[1].Kind)
+	assert.Same(t, h2, seen[1].Forward, "Update must carry the new handle")
+
+	// locrib does NOT AddRef / Release on the hot path -- subscribers do.
+	assert.Zero(t, h1.addRefs.Load(), "locrib must not AddRef")
+	assert.Zero(t, h1.releases.Load(), "locrib must not Release")
+	assert.Zero(t, h2.addRefs.Load(), "locrib must not AddRef")
+	assert.Zero(t, h2.releases.Load(), "locrib must not Release")
+}
+
+// TestInsertForwardNilHandle documents that a nil handle is legal and
+// passes through as nil on the dispatched Change.
+//
+// VALIDATES: InsertForward is equivalent to Insert when handle is nil.
+// PREVENTS: forced-handle regressions that would alloc on non-forward paths.
+func TestInsertForwardNilHandle(t *testing.T) {
+	r := NewRIB()
+	var last Change
+	r.OnChange(func(c Change) { last = c })
+
+	r.InsertForward(famV4, pfx, pathBGP(1, 50), nil)
+	assert.Equal(t, ChangeAdd, last.Kind)
+	assert.Nil(t, last.Forward)
+}
+
+// TestInsertForwardSubscriberAddRef exercises the documented contract: a
+// subscriber that wants to retain the buffer past dispatch calls AddRef
+// from within the handler; Release happens later.
+//
+// VALIDATES: subscribers own the retention decision; locrib does not.
+// PREVENTS: regressions that move AddRef into locrib and break producers
+// that don't want an extra ref on the hot path.
+func TestInsertForwardSubscriberAddRef(t *testing.T) {
+	r := NewRIB()
+	h := &countingHandle{}
+
+	r.OnChange(func(c Change) {
+		if c.Forward != nil {
+			c.Forward.AddRef()
+		}
+	})
+
+	r.InsertForward(famV4, pfx, pathBGP(1, 50), h)
+
+	assert.Equal(t, int32(1), h.addRefs.Load(), "subscriber AddRef must fire exactly once")
+	assert.Zero(t, h.releases.Load(), "subscriber had not Released yet")
+}
+
+// TestInsertForwardBytesOptional validates that a ForwardHandle that
+// also implements ForwardBytes is reachable by a subscriber via type
+// assertion, and that the Bytes() contract is visible through the
+// interface alone (no rib-package import needed).
+//
+// VALIDATES: ForwardBytes optional capability.
+// PREVENTS: a subscriber being forced to import the producer's package
+// to read the retained wire bytes.
+func TestInsertForwardBytesOptional(t *testing.T) {
+	r := NewRIB()
+	h := &bytesHandle{payload: []byte{0xde, 0xad, 0xbe, 0xef}}
+
+	var got []byte
+	r.OnChange(func(c Change) {
+		if c.Forward == nil {
+			return
+		}
+		c.Forward.AddRef()
+		if reader, ok := c.Forward.(ForwardBytes); ok {
+			got = reader.Bytes()
+		}
+	})
+
+	r.InsertForward(famV4, pfx, pathBGP(1, 50), h)
+	assert.Equal(t, h.payload, got, "subscriber must read the retained payload via ForwardBytes")
+}
+
+// TestInsertForwardRemoveCarriesNoHandle validates that a ChangeRemove
+// triggered from Insert carries no handle, per design scope.
+//
+// VALIDATES: Remove-shaped changes cannot share a producer's wire buffer.
+// PREVENTS: a subscriber assuming Forward is live on Remove and derefing.
+func TestInsertForwardRemoveCarriesNoHandle(t *testing.T) {
+	r := NewRIB()
+	var seen []Change
+	r.OnChange(func(c Change) { seen = append(seen, c) })
+
+	r.InsertForward(famV4, pfx, pathBGP(1, 50), &countingHandle{})
+	r.Remove(famV4, pfx, idBGP, 1)
+
+	require.Len(t, seen, 2)
+	assert.Equal(t, ChangeRemove, seen[1].Kind)
+	assert.Nil(t, seen[1].Forward, "Remove carries no forward handle")
+}
+
+// BenchmarkLocribInsert establishes the no-handle Insert baseline. Each
+// iteration upserts the best path for a distinct prefix so the hot path
+// is "new prefix -> ChangeAdd dispatch".
+func BenchmarkLocribInsert(b *testing.B) {
+	r := NewRIB()
+	p := pathBGP(1, 50)
+	for i := range b.N {
+		pfx := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, byte(i >> 16), byte(i >> 8), byte(i)}), 24)
+		r.Insert(famV4, pfx, p)
+	}
+}
+
+// BenchmarkLocribInsertForwardNil exercises InsertForward with a nil
+// handle. Compared against BenchmarkLocribInsert, delta is the extra
+// interface-valued argument on the insert path. Design gate: within 3
+// percent of BenchmarkLocribInsert.
+func BenchmarkLocribInsertForwardNil(b *testing.B) {
+	r := NewRIB()
+	p := pathBGP(1, 50)
+	for i := range b.N {
+		pfx := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, byte(i >> 16), byte(i >> 8), byte(i)}), 24)
+		r.InsertForward(famV4, pfx, p, nil)
+	}
+}
+
+// BenchmarkLocribInsertForwardHandle measures InsertForward with a
+// handle attached. locrib itself does not AddRef / Release on the hot
+// path, so the delta vs. the nil-handle variant should be near zero.
+func BenchmarkLocribInsertForwardHandle(b *testing.B) {
+	r := NewRIB()
+	p := pathBGP(1, 50)
+	h := &countingHandle{}
+	for i := range b.N {
+		pfx := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, byte(i >> 16), byte(i >> 8), byte(i)}), 24)
+		r.InsertForward(famV4, pfx, p, h)
+	}
 }

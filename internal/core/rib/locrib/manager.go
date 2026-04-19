@@ -1,6 +1,8 @@
 // Design: plan/design-rib-unified.md -- Phase 3 (unified Loc-RIB)
+// Design: plan/design-rib-rs-fastpath.md -- InsertForward threads a ForwardHandle to Change subscribers
 // Related: candidate.go -- Path value type
 // Related: entry.go -- PathGroup, selectBest
+// Related: forward_handle.go -- ForwardHandle interface
 
 package locrib
 
@@ -62,7 +64,39 @@ func (r *RIB) familyStore(fam family.Family) *store.Store[PathGroup] {
 // is the newly-selected best Path after the insert, and changed reports
 // whether the best differs from the pre-insert best. When the prefix is new
 // or had no valid best, changed is true whenever the inserted Path is valid.
+//
+// Insert dispatches Change events without a ForwardHandle. Producers that
+// have a wire buffer to share with subscribers call InsertForward instead.
 func (r *RIB) Insert(fam family.Family, prefix netip.Prefix, p Path) (Path, bool) {
+	return r.insert(fam, prefix, p, nil)
+}
+
+// InsertForward is Insert with an attached ForwardHandle. The handle is
+// placed on ChangeAdd / ChangeUpdate events dispatched by this insert, so
+// subscribers can forward the producer's wire buffer without rebuilding
+// from Best.
+//
+// The caller MUST hold a reference to the handle's backing buffer for the
+// duration of this call. Subscribers that retain the buffer past dispatch
+// MUST AddRef before returning from the handler.
+//
+// No handle is propagated on ChangeRemove (Remove means no valid best; the
+// subscriber must produce a withdrawal without a source buffer).
+//
+// Nil contract. To pass "no handle," use untyped nil (or call Insert
+// instead). A typed-nil concrete handle packed into the interface
+// (`(*myHandle)(nil)`) is stored as-is; subscribers doing the standard
+// `if c.Forward != nil { c.Forward.AddRef() }` guard will see the
+// interface as non-nil and panic on method dispatch. See ForwardHandle.
+//
+// Status: as of landing, no production code calls InsertForward. The
+// BGP producer wiring is tracked in plan/deferrals.md. The method and
+// its tests exist so the first producer has a stable interface to call.
+func (r *RIB) InsertForward(fam family.Family, prefix netip.Prefix, p Path, forward ForwardHandle) (Path, bool) {
+	return r.insert(fam, prefix, p, forward)
+}
+
+func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward ForwardHandle) (Path, bool) {
 	if !p.Valid() || !prefix.IsValid() {
 		return Path{}, false
 	}
@@ -93,11 +127,11 @@ func (r *RIB) Insert(fam family.Family, prefix netip.Prefix, p Path) (Path, bool
 		return Path{}, hadBest
 	}
 	if !hadBest {
-		r.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeAdd, Best: newBest})
+		r.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeAdd, Best: newBest, Forward: forward})
 		return newBest, true
 	}
 	if prevBest != newBest {
-		r.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest})
+		r.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, Forward: forward})
 		return newBest, true
 	}
 	return newBest, false

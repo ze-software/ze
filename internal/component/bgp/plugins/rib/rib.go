@@ -245,6 +245,12 @@ type RIBManager struct {
 	// this field MUST nil-check first.
 	locRIB *locrib.RIB
 
+	// unsubForwardObs releases the forward-handle observability
+	// subscription registered by SetLocRIB. Nil when no locRIB is wired
+	// or when a previous SetLocRIB cleared it. Called from SetLocRIB
+	// before rewiring to a different locRIB.
+	unsubForwardObs func()
+
 	// maximumPaths is the configured N for multipath/ECMP selection.
 	// Populated from bgp/multipath/maximum-paths in the Stage 2 configure callback.
 	// Default 1 = single best-path behavior (RFC 4271 §9.1.2, no ECMP).
@@ -363,11 +369,24 @@ var bgpProtocolID = redistevents.RegisterProtocol("bgp")
 // SetLocRIB wires the shared cross-protocol Loc-RIB into the RIBManager.
 // Every BGP best-path change will be mirrored into loc so non-BGP
 // consumers (sysrib, FIB, observability) can see one consistent view.
+// Also registers the forward-handle observability subscriber so
+// operators can see (at debug level) when a Change carries a non-nil
+// Forward (i.e., the BGP producer attached a wire-byte handle).
 // Safe to call once at plugin setup; nil disables the mirror.
 func (r *RIBManager) SetLocRIB(loc *locrib.RIB) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.locRIB == loc {
+		return
+	}
+	if r.unsubForwardObs != nil {
+		r.unsubForwardObs()
+		r.unsubForwardObs = nil
+	}
 	r.locRIB = loc
+	if loc != nil {
+		r.unsubForwardObs = observeForwardHandles(loc)
+	}
 }
 
 // NewRIBManager returns a fully-initialized RIBManager bound to the given SDK
