@@ -5,9 +5,86 @@ import (
 	"testing"
 
 	"go.fd.io/govpp/api"
+	interfaces "go.fd.io/govpp/binapi/interface"
+	"go.fd.io/govpp/binapi/interface_types"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
+
+// TestResetCountersAllInterfaces verifies the empty-name path sends a
+// single SwInterfaceClearStats request with the "all interfaces" sentinel
+// SwIfIndex (~0), matching VPP's semantics for clear-all.
+// VALIDATES: ResetCounters("") emits a clear-all request.
+// PREVENTS: regression to the old errNotSupported stub.
+func TestResetCountersAllInterfaces(t *testing.T) {
+	ch := &routeChannel{}
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+	b.populate.Do(func() {}) // mark populated so ensureChannel short-circuits
+
+	if err := b.ResetCounters(""); err != nil {
+		t.Fatalf("ResetCounters: %v", err)
+	}
+	req, ok := ch.lastRequest.(*interfaces.SwInterfaceClearStats)
+	if !ok {
+		t.Fatalf("lastRequest type: got %T, want *SwInterfaceClearStats", ch.lastRequest)
+	}
+	want := interface_types.InterfaceIndex(^uint32(0))
+	if req.SwIfIndex != want {
+		t.Errorf("SwIfIndex: got %#x, want %#x (clear-all sentinel)", req.SwIfIndex, want)
+	}
+}
+
+// TestResetCountersSingleInterface verifies the named-interface path
+// resolves the ze name to its SwIfIndex and sends that index (not the
+// sentinel) in the request.
+// VALIDATES: ResetCounters(name) targets the resolved SwIfIndex.
+// PREVENTS: silently clearing the wrong interface (or all of them).
+func TestResetCountersSingleInterface(t *testing.T) {
+	ch := &routeChannel{}
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+	b.names.Add("xe3", 3, "xe3")
+
+	if err := b.ResetCounters("xe3"); err != nil {
+		t.Fatalf("ResetCounters: %v", err)
+	}
+	req, ok := ch.lastRequest.(*interfaces.SwInterfaceClearStats)
+	if !ok {
+		t.Fatalf("lastRequest type: got %T, want *SwInterfaceClearStats", ch.lastRequest)
+	}
+	if req.SwIfIndex != 3 {
+		t.Errorf("SwIfIndex: got %d, want 3", req.SwIfIndex)
+	}
+}
+
+// TestResetCountersUnknownInterface rejects before issuing any VPP request.
+// VALIDATES: unknown name fails fast with a descriptive error.
+// PREVENTS: silently succeeding when the operator typos an interface name.
+func TestResetCountersUnknownInterface(t *testing.T) {
+	ch := &routeChannel{}
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+	b.populate.Do(func() {})
+
+	err := b.ResetCounters("xe99")
+	if err == nil {
+		t.Fatal("expected error for unknown interface, got nil")
+	}
+	if _, ok := ch.lastRequest.(*interfaces.SwInterfaceClearStats); ok {
+		t.Error("SwInterfaceClearStats should NOT be sent for unknown interface")
+	}
+}
+
+// TestResetCountersRetvalError propagates a non-zero retval.
+// VALIDATES: VPP-reported failures surface as Go errors (not silent success).
+// PREVENTS: silent counter-clear failure masked as a good return.
+func TestResetCountersRetvalError(t *testing.T) {
+	ch := &routeChannel{clearReply: clearStatsReply{retval: -17}}
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+	b.populate.Do(func() {})
+
+	if err := b.ResetCounters(""); err == nil {
+		t.Fatal("expected error for retval=-17, got nil")
+	}
+}
 
 // fakeConnector is a minimal vppConnector for ensureChannel sentinel tests.
 type fakeConnector struct {

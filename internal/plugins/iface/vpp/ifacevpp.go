@@ -2,6 +2,8 @@
 // Detail: naming.go -- ze name to VPP SwIfIndex bidirectional map
 // Detail: query.go -- ListInterfaces, GetInterface, Get/SetMACAddress
 // Detail: monitor.go -- interface event delivery via WantInterfaceEvents
+// Detail: fib.go -- ListKernelRoutes via ip_route_v2_dump
+// Detail: neighbor.go -- ListNeighbors via ip_neighbor_dump
 //
 // ifacevpp implements iface.Backend for VPP via GoVPP binary API.
 // Registered via iface.RegisterBackend("vpp", factory) in init().
@@ -25,6 +27,12 @@ import (
 	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
+
+// allSwIfIndex is the VPP sentinel meaning "match every interface". Passed to
+// sw_interface_clear_stats to clear counters on every interface in one call
+// (binapi field is a uint32 cast of ~0, matching the same convention used by
+// sw_interface_dump in query.go).
+const allSwIfIndex = interface_types.InterfaceIndex(^uint32(0))
 
 // nextBridgeDomainID is an auto-incrementing bridge domain ID counter.
 var nextBridgeDomainID atomic.Uint32
@@ -436,27 +444,34 @@ func (b *vppBackendImpl) GetStats(_ string) (*iface.InterfaceStats, error) {
 	return nil, errNotSupported("GetStats (pending GoVPP stats API wiring)")
 }
 
-// ListNeighbors is not yet wired on the VPP backend. `ip_neighbor_dump`
-// is the GoVPP call that would populate this; until it is implemented,
-// reject under exact-or-reject rather than return an empty result.
-func (b *vppBackendImpl) ListNeighbors(_ int) ([]iface.NeighborInfo, error) {
-	return nil, errNotSupported("ListNeighbors (pending GoVPP ip_neighbor_dump wiring)")
-}
-
-// ListKernelRoutes is intentionally rejected on the VPP backend: when VPP
-// is programmed as the dataplane, the kernel FIB does NOT reflect the
-// authoritative forwarding state (VPP owns it). Showing kernel routes
-// here would mislead operators. ip_route_v2_dump is the correct source
-// but is not yet wired in this codebase.
-func (b *vppBackendImpl) ListKernelRoutes(_ string, _ int) ([]iface.KernelRoute, error) {
-	return nil, errNotSupported("ListKernelRoutes (VPP FIB dump pending ip_route_v2_dump wiring; kernel FIB is not authoritative under VPP)")
-}
-
-// ResetCounters on VPP would call sw_interface_clear_stats. Until the
-// GoVPP binding is wired, reject under exact-or-reject so the operator
-// sees why `clear interface counters` on VPP does nothing yet.
-func (b *vppBackendImpl) ResetCounters(_ string) error {
-	return errNotSupported("ResetCounters (pending GoVPP sw_interface_clear_stats wiring)")
+// ResetCounters on VPP is wired to sw_interface_clear_stats. When name is
+// empty every interface is cleared in one call (VPP semantics: sw_if_index
+// == ~0 means "clear all"). When a name is supplied only that interface's
+// counters are zeroed. Unlike netlink (which returns
+// iface.ErrCountersNotResettable and falls back to baseline-delta), VPP
+// truly clears the counters, so we return nil on success and the dispatch
+// layer skips the baseline path.
+func (b *vppBackendImpl) ResetCounters(name string) error {
+	req := &interfaces.SwInterfaceClearStats{SwIfIndex: allSwIfIndex}
+	if name != "" {
+		idx, err := b.resolveIndex(name)
+		if err != nil {
+			return err
+		}
+		req.SwIfIndex = idx
+	} else {
+		if err := b.ensureChannel(); err != nil {
+			return err
+		}
+	}
+	reply := &interfaces.SwInterfaceClearStatsReply{}
+	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
+		return fmt.Errorf("ifacevpp: SwInterfaceClearStats: %w", err)
+	}
+	if reply.Retval != 0 {
+		return fmt.Errorf("ifacevpp: SwInterfaceClearStats retval=%d", reply.Retval)
+	}
+	return nil
 }
 
 // --- Bridge operations ---

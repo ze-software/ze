@@ -122,7 +122,7 @@ JunOS-style two-layer model: physical interfaces with logical units.
 | **Platform** | Pluggable backend interface | have | |
 | | Linux netlink backend (default) | have | |
 | | YANG `backend` leaf (config-driven selection) | have | |
-| | VPP backend (ifacevpp, via GoVPP) | have | VXLAN/GRE/IPIP/LCP/stats/mirror pending third-party vendoring |
+| | VPP backend (ifacevpp, via GoVPP) | have | ResetCounters via sw_interface_clear_stats; ListKernelRoutes via ip_route_v2_dump (VPP FIB is authoritative); ListNeighbors via ip_neighbor_dump; VXLAN/GRE/IPIP/LCP/stats-socket/mirror/STP pending third-party vendoring |
 | | macOS / Darwin | missing | lower |
 | | FreeBSD / OpenBSD | missing | lower |
 | | systemd-networkd | missing | lower |
@@ -145,6 +145,7 @@ JunOS-style two-layer model: physical interfaces with logical units.
 <!-- source: internal/plugins/iface/vpp/query.go — ListInterfaces/GetInterface/Get/SetMACAddress via SwInterfaceDump and SwInterfaceSetMacAddress -->
 <!-- source: internal/plugins/iface/vpp/monitor.go — StartMonitor via WantInterfaceEvents + SubscribeNotification -->
 <!-- source: internal/plugins/iface/vpp/naming.go — ze short name <-> VPP SwIfIndex bidirectional map -->
+<!-- source: internal/plugins/iface/vpp/fib.go — ListKernelRoutes via ip_route_v2_dump over both v4 and v6 tables -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go — DHCPv4 worker -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go — DHCPv6 worker -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go — BGP integration -->
