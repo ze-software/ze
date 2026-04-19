@@ -6,7 +6,8 @@ import (
 	"runtime"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	ribstore "codeberg.org/thomas-mangin/ze/internal/core/rib/store"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
@@ -27,7 +28,7 @@ func BenchmarkBestPathRecordHeapFootprint(b *testing.B) {
 		b.Run(fmt.Sprintf("N=%d", n), func(b *testing.B) {
 			for range b.N {
 				fam := family.Family{AFI: 1, SAFI: 1}
-				store := storage.NewStore[bestPathRecord](fam, false)
+				store := ribstore.NewStore[bestPathRecord](fam, false)
 				interner := newBestPrevInterner()
 				// Pre-intern a small realistic cardinality (2k peers, 256 NHs,
 				// 16 metrics) so the per-record cost is dominated by the

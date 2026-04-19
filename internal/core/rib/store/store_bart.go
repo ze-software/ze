@@ -2,10 +2,9 @@
 
 // Design: docs/architecture/plugin/rib-storage-design.md -- generic NLRI-keyed store
 // Related: store_map.go -- map-only fallback under `-tags maprib`
-// Related: familyrib_bart.go -- wraps *Store[RouteEntry] plus pool-handle lifecycle
 // Related: nlrikey.go -- NLRIToPrefix / PrefixToNLRI / NLRIKey used as backend keys
 
-package storage
+package store
 
 import (
 	"github.com/gaissmai/bart"

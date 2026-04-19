@@ -1,6 +1,6 @@
 //go:build !maprib
 
-package storage
+package store
 
 import (
 	"testing"

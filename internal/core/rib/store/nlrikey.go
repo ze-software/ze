@@ -1,7 +1,8 @@
 // Design: docs/architecture/plugin/rib-storage-design.md -- RIB storage internals
-// Related: familyrib.go -- uses NLRIKey as map key (ADD-PATH) and NLRIToPrefix (BART)
+// Related: store_bart.go -- BART trie backend (non-ADD-PATH)
+// Related: store_map.go -- map backend (ADD-PATH, or -tags maprib)
 
-package storage
+package store
 
 import (
 	"net/netip"

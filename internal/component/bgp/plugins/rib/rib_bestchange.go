@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/rib/store"
 )
 
 // bestChangeEntry is an alias for the exported event payload entry type so
@@ -243,8 +244,8 @@ func (r bestPathRecord) resolve(interner *bestPrevInterner, action, prefix strin
 // prefix which the trie cannot key on, while non-AP peers use bare prefix
 // bytes which the map would conflate with other path-ids.
 type bestPrevStore struct {
-	trie *storage.Store[bestPathRecord] // addPath=false backend
-	ap   *storage.Store[bestPathRecord] // addPath=true backend
+	trie *store.Store[bestPathRecord] // addPath=false backend
+	ap   *store.Store[bestPathRecord] // addPath=true backend
 }
 
 // newBestPrevStore creates a bestPrevStore for a family. Both backends are
@@ -256,13 +257,13 @@ type bestPrevStore struct {
 // rib-bart-bestprev design decision log entry D2.
 func newBestPrevStore(fam family.Family) *bestPrevStore {
 	return &bestPrevStore{
-		trie: storage.NewStore[bestPathRecord](fam, false),
-		ap:   storage.NewStore[bestPathRecord](fam, true),
+		trie: store.NewStore[bestPathRecord](fam, false),
+		ap:   store.NewStore[bestPathRecord](fam, true),
 	}
 }
 
 // pick returns the backend store for the given addPath flag.
-func (s *bestPrevStore) pick(addPath bool) *storage.Store[bestPathRecord] {
+func (s *bestPrevStore) pick(addPath bool) *store.Store[bestPathRecord] {
 	if addPath {
 		return s.ap
 	}

@@ -2,31 +2,30 @@
 
 // Design: docs/architecture/plugin/rib-storage-design.md -- RIB storage internals
 // Overview: familyrib.go -- shared helpers (entriesEqual, ToWireBytes, wire helpers)
-// Related: store_bart.go -- generic Store[T] backing this wrapper
-// Related: nlrikey.go -- NLRIKey / NLRIToPrefix / PrefixToNLRI used by Store[T]
 
 package storage
 
 import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/rib/store"
 )
 
 // FamilyRIB stores routes with per-attribute-type deduplication. Each route
 // has its own RouteEntry with handles to individual attribute pools; routes
 // sharing common attributes (e.g., same ORIGIN) share pool entries.
 //
-// Backed by a generic *Store[RouteEntry] which dispatches between a BART trie
-// (non-ADD-PATH) and a map keyed by NLRIKey (ADD-PATH). Pool-handle lifecycle
-// (Release, MarkStale, PurgeStale, StaleCount) is layered on top of the
-// storage primitives here, because Store[T] is pure storage and knows nothing
-// about RouteEntry semantics.
+// Backed by a generic *store.Store[RouteEntry] which dispatches between a BART
+// trie (non-ADD-PATH) and a map keyed by NLRIKey (ADD-PATH). Pool-handle
+// lifecycle (Release, MarkStale, PurgeStale, StaleCount) is layered on top of
+// the storage primitives here, because Store[T] is pure storage and knows
+// nothing about RouteEntry semantics.
 type FamilyRIB struct {
-	store *Store[RouteEntry]
+	store *store.Store[RouteEntry]
 }
 
 // NewFamilyRIB creates a FamilyRIB for the given address family.
 func NewFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
-	return &FamilyRIB{store: NewStore[RouteEntry](fam, addPath)}
+	return &FamilyRIB{store: store.NewStore[RouteEntry](fam, addPath)}
 }
 
 // Insert adds a route with its attributes to the RIB. Parses attributes into

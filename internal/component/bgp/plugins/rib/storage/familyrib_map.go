@@ -2,26 +2,25 @@
 
 // Design: docs/architecture/plugin/rib-storage-design.md -- RIB storage internals (map-only fallback)
 // Overview: familyrib.go -- shared helpers (entriesEqual, ToWireBytes, wire helpers)
-// Related: store_map.go -- generic Store[T] (map-only) backing this wrapper
-// Related: nlrikey.go -- NLRIKey is the sole key type under maprib
 
 package storage
 
 import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/rib/store"
 )
 
 // FamilyRIB stores routes with per-attribute-type deduplication under the
 // `maprib` build tag. All entries route through a map keyed by NLRIKey;
-// Store[T] is the underlying storage primitive. The public API matches the
-// default (BART-backed) variant byte-for-byte.
+// store.Store[T] is the underlying storage primitive. The public API matches
+// the default (BART-backed) variant byte-for-byte.
 type FamilyRIB struct {
-	store *Store[RouteEntry]
+	store *store.Store[RouteEntry]
 }
 
 // NewFamilyRIB creates a FamilyRIB for the given address family.
 func NewFamilyRIB(fam family.Family, addPath bool) *FamilyRIB {
-	return &FamilyRIB{store: NewStore[RouteEntry](fam, addPath)}
+	return &FamilyRIB{store: store.NewStore[RouteEntry](fam, addPath)}
 }
 
 // Insert adds a route with its attributes to the RIB. Parses attributes into

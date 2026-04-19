@@ -2,10 +2,9 @@
 
 // Design: docs/architecture/plugin/rib-storage-design.md -- generic NLRI-keyed store (map-only fallback)
 // Related: store_bart.go -- default BART+map dispatch under `!maprib`
-// Related: familyrib_map.go -- wraps *Store[RouteEntry] plus pool-handle lifecycle under maprib
 // Related: nlrikey.go -- NLRIKey is the sole key type under maprib
 
-package storage
+package store
 
 import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"

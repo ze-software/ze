@@ -522,7 +522,7 @@ func isSimplePrefixFamilyNLRI(fam family.Family) bool {
 // 5.3 requires treat-as-withdraw for over-length prefixes, enforced in
 // internal/component/bgp/message/rfc7606.go during UPDATE parse. By the time
 // bytes reach this helper they are guaranteed in-range, so an asymmetry with
-// storage.NLRIToPrefix (which rejects over-length) is unreachable in
+// store.NLRIToPrefix (which rejects over-length) is unreachable in
 // practice.
 func wirePrefixToString(wire []byte, family string) string {
 	if len(wire) == 0 {
