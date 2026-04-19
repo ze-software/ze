@@ -34,10 +34,12 @@ func StoreLastApplied(tables []Table) {
 	lastApplied.Store(&cp)
 }
 
-// deepCopyTables returns an independent copy of the table tree. Only
-// the leaf `Match` / `Action` values are shared -- they are interface
-// values carrying small value types (netip.Prefix, port ranges, string
-// names) that are themselves immutable, so aliasing them is safe.
+// deepCopyTables returns an independent copy of the table tree. Each
+// Match and Action is copied by value; any slice field carried by a
+// Match (today: MatchSourcePort.Ranges, MatchDestinationPort.Ranges) is
+// duplicated via cloneMatch so readers of LastApplied() cannot alias
+// the desired-state backing array. Leaf value types (netip.Prefix,
+// strings, ints) are immutable and safe to share.
 func deepCopyTables(src []Table) []Table {
 	dst := make([]Table, len(src))
 	for i := range src {
@@ -64,7 +66,9 @@ func deepCopyTables(src []Table) []Table {
 						nt := Term{Name: t.Name}
 						if len(t.Matches) > 0 {
 							nt.Matches = make([]Match, len(t.Matches))
-							copy(nt.Matches, t.Matches)
+							for mi, m := range t.Matches {
+								nt.Matches[mi] = cloneMatch(m)
+							}
 						}
 						if len(t.Actions) > 0 {
 							nt.Actions = make([]Action, len(t.Actions))
@@ -100,6 +104,30 @@ func deepCopyTables(src []Table) []Table {
 			}
 		}
 	}
+	return dst
+}
+
+// cloneMatch returns a deep copy of a Match value. Matches that carry a
+// slice field (MatchSourcePort, MatchDestinationPort) get a fresh backing
+// array so the snapshot stored in lastApplied cannot be mutated through a
+// reader's alias. Matches composed of value-type fields only (addresses,
+// strings, scalar enums) pass through unchanged.
+func cloneMatch(m Match) Match {
+	switch v := m.(type) {
+	case MatchSourcePort:
+		return MatchSourcePort{Ranges: cloneRanges(v.Ranges)}
+	case MatchDestinationPort:
+		return MatchDestinationPort{Ranges: cloneRanges(v.Ranges)}
+	}
+	return m
+}
+
+func cloneRanges(src []PortRange) []PortRange {
+	if len(src) == 0 {
+		return nil
+	}
+	dst := make([]PortRange, len(src))
+	copy(dst, src)
 	return dst
 }
 
