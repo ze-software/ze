@@ -4,6 +4,7 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	configyang "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
 )
 
 // yangSectionsToValidate lists config sections that get YANG tree validation.
@@ -254,6 +256,7 @@ func runValidation(input, path string) *validationResult {
 	}{
 		{root: "interface", leafPath: "/interface/backend", defaultB: ifaceDefaultBackend()},
 		{root: "traffic-control", leafPath: "/traffic-control/backend", defaultB: trafficDefaultBackend()},
+		{root: "firewall", leafPath: "/firewall/backend", defaultB: firewallDefaultBackend()},
 	} {
 		container := tree.GetContainer(gated.root)
 		if container == nil {
@@ -269,6 +272,27 @@ func runValidation(input, path string) *validationResult {
 			result.Errors = append(result.Errors, validationError{
 				Message: ge.Error(),
 			})
+		}
+	}
+
+	// Firewall semantic validation (Term/action cross-refs, named-counter
+	// rejection, SetDSCP-on-non-IPv4 guard). Mirrors what the firewall
+	// plugin runs in OnConfigVerify so `ze config validate` surfaces the
+	// same rejections without a running daemon. Kept separate from the
+	// generic backend gate because it validates wiring inside the parsed
+	// firewall model, not ze:backend annotations on the schema.
+	if container := tree.GetContainer("firewall"); container != nil {
+		rootMap := map[string]any{"firewall": container.ToMap()}
+		data, err := json.Marshal(rootMap)
+		if err != nil {
+			result.Valid = false
+			result.Errors = append(result.Errors, validationError{Message: fmt.Sprintf("firewall: %v", err)})
+		} else if tables, perr := firewall.ParseFirewallConfig(string(data)); perr != nil {
+			result.Valid = false
+			result.Errors = append(result.Errors, validationError{Message: perr.Error()})
+		} else if verr := firewall.ValidateTables(tables); verr != nil {
+			result.Valid = false
+			result.Errors = append(result.Errors, validationError{Message: verr.Error()})
 		}
 	}
 

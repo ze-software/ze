@@ -13,14 +13,63 @@ import (
 	"log/slog"
 	"net"
 	"strings"
+	"sync"
 	"sync/atomic"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 // configRootFirewall is the YANG config root the firewall plugin owns.
 // The YANG container name and this constant MUST match.
 const configRootFirewall = "firewall"
+
+// backendLeafPath is surfaced in backend-gate error text so operators
+// know where to change the backend leaf.
+const backendLeafPath = "/firewall/backend"
+
+// backendGateSchema caches the config schema used by validateBackendGate.
+// Built lazily on first commit/verify -- YANG load is paid only when a
+// gate-enforcing RPC fires.
+var (
+	backendGateSchemaOnce sync.Once
+	backendGateSchema     *config.Schema
+	backendGateSchemaErr  error
+)
+
+// validateBackendGate runs the ze:backend commit-time feature check.
+// Mirrors iface and traffic so the daemon commit path and offline
+// `ze config validate` emit the same diagnostics. Until firewall YANG
+// grows feature annotations (follow-up for the VPP backend in
+// spec-fw-6), the walker is effectively a no-op that costs one schema
+// load; the plumbing is in place so the annotations can land as a
+// one-line addition when fw-6 defines the nft/vpp feature matrix.
+func validateBackendGate(sections []sdk.ConfigSection, activeBackend string) error {
+	backendGateSchemaOnce.Do(func() {
+		backendGateSchema, backendGateSchemaErr = config.YANGSchema()
+	})
+	if backendGateSchemaErr != nil {
+		return fmt.Errorf("firewall backend gate: schema load: %w", backendGateSchemaErr)
+	}
+	for _, s := range sections {
+		if s.Root != configRootFirewall {
+			continue
+		}
+		errs := config.ValidateBackendFeaturesJSON(
+			s.Data, backendGateSchema,
+			configRootFirewall, activeBackend, backendLeafPath,
+		)
+		if len(errs) == 0 {
+			return nil
+		}
+		msgs := make([]string, 0, len(errs))
+		for _, e := range errs {
+			msgs = append(msgs, e.Error())
+		}
+		return fmt.Errorf("firewall commit rejected:\n  %s", strings.Join(msgs, "\n  "))
+	}
+	return nil
+}
 
 // firewallConfig carries parsed firewall state from OnConfigVerify into
 // OnConfigApply. Backend is the selected backend name; Tables is the
@@ -130,6 +179,13 @@ func runEngine(conn net.Conn) int {
 			return fmt.Errorf("firewall: no backend configured and no OS default available")
 		}
 
+		if err := validateBackendGate(sections, cfg.Backend); err != nil {
+			return err
+		}
+		if err := ValidateTables(cfg.Tables); err != nil {
+			return err
+		}
+
 		if err := LoadBackend(cfg.Backend); err != nil {
 			return fmt.Errorf("firewall backend %q: %w", cfg.Backend, err)
 		}
@@ -158,25 +214,11 @@ func runEngine(conn net.Conn) int {
 		if cfg.Backend == "" {
 			return fmt.Errorf("firewall: no backend configured and no OS default available")
 		}
-		for i := range cfg.Tables {
-			if err := cfg.Tables[i].Validate(); err != nil {
-				return err
-			}
-			for j := range cfg.Tables[i].Chains {
-				if err := cfg.Tables[i].Chains[j].Validate(); err != nil {
-					return fmt.Errorf("table %q: %w", cfg.Tables[i].Name, err)
-				}
-			}
-			for j := range cfg.Tables[i].Sets {
-				if err := cfg.Tables[i].Sets[j].Validate(); err != nil {
-					return fmt.Errorf("table %q: %w", cfg.Tables[i].Name, err)
-				}
-			}
-			for j := range cfg.Tables[i].Flowtables {
-				if err := cfg.Tables[i].Flowtables[j].Validate(); err != nil {
-					return fmt.Errorf("table %q: %w", cfg.Tables[i].Name, err)
-				}
-			}
+		if err := validateBackendGate(sections, cfg.Backend); err != nil {
+			return err
+		}
+		if err := ValidateTables(cfg.Tables); err != nil {
+			return err
 		}
 		pendingCfg = cfg
 		log.Debug("firewall config verified", "backend", cfg.Backend, "tables", len(cfg.Tables))
