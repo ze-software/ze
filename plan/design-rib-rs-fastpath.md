@@ -1,78 +1,54 @@
-# Plan: RS/RR unified-with-skip fast path
+# Plan: locrib state-tracker zero-copy access
 
-Working design document. Precedes a formal spec.
+Working design document. Implementation log of what landed; the
+original "retire the receive-path trigger" framing was based on a
+wrong model of how ze handles RS/RR and per-peer filtering. Section
+"Two-Trigger Model" below documents the actual design; the rest of
+the document is the implementation log of the additive `Change.Forward`
+handle that fits within it.
 
-## Why
+## Two-Trigger Model (the actual design)
 
-Route-server (RS) and parts of route-reflector (RR) mode forward an
-incoming UPDATE to many egress peers byte-for-byte. Today
-`internal/component/bgp/reactor/reactor_api_forward.go` (~1.3K lines,
-~51KB; the largest file in reactor by design) preserves that
-zero-copy forward: one wire buffer received from peer A is shared
-across every egress peer B...N that needs no attribute rewrite.
-`bgpctx.ContextID` identifies "this buffer, unchanged"; the
-forward-pool refcounts it and releases once the last peer has sent.
+Every received UPDATE flows through one filter pipeline in the reactor
+(see `docs/architecture/core-design.md` "Ingress Filter Pipeline"):
+in-process ingress filters first (may modify wire bytes via
+`IngressFilterFunc.modifiedPayload`), then external-plugin import
+policy filters (`PolicyFilterChain` direction `import`, may modify via
+`ModAccumulator`). The post-filter `WireUpdate` is cached and a
+`StructuredEvent` is dispatched once.
 
-Phase 3b now mirrors BGP best-path into the cross-protocol Loc-RIB.
-If the RS/RR forward path also has to round-trip through the RIB on
-every UPDATE -- parse attributes, Insert into Loc-RIB, emit a change
-event, rebuild the outbound UPDATE from Loc-RIB state for each egress
-peer -- we lose the zero-copy property. A full-feed RS with 20 peers
-pays ~20 rebuilds per prefix that would otherwise have been a single
-byte copy.
+Two consumer categories subscribe:
 
-Goal: keep the RIB authoritative (Loc-RIB sees the route, sysrib /
-FIB / observability work correctly) without regressing the RS/RR hot
-path. Per-peer rebuild is skipped when the export filter for that
-peer is a no-op -- same behaviour the forward-pool already gives us
-today.
+| Category | Examples | Trigger | What they need |
+|----------|----------|---------|----------------|
+| Forwarders | RS, RR, future bgp-mirror | StructuredEvent (per received UPDATE) | every received UPDATE, then per-peer egress decision (egress filters, RFC 4456 RR injection, next-hop, AS-override, EBGP prepend) in `reactor_api_forward.go` |
+| State trackers | rib plugin, then `locrib.OnChange` consumers (sysrib, FIB, observability, future archive) | StructuredEvent for the rib plugin; `locrib.OnChange` for downstream consumers | best-path-change events; optionally the wire bytes via `Change.Forward.(ForwardBytes).Bytes()` |
 
-## Scope
+These two needs do not collapse. Forwarders fire per received UPDATE
+(including duplicates that don't change best); state trackers fire per
+best-change. Locrib stores ONE best per (family, prefix); turning it
+into a per-received-path event source would require it to store every
+received path, which is not what a Loc-RIB is.
 
-**In scope (this design):** the additive piece that makes zero-copy
-forwarding possible for Loc-RIB Change subscribers. Adds an optional
-forward handle to `locrib.Change`; BGP populates it on Insert; any
-subscriber that wants to forward without rebuild can take a ref and
-hand the buffer to the send path.
+The receive-path trigger is **load-bearing for the filter pipeline**:
+ingress filters run there, before caching, before either consumer
+category sees the bytes. It cannot be retired without re-homing the
+filter pipeline, which would be a cross-component refactor with no
+benefit.
 
-**Out of scope (explicitly deferred):**
+## What this document delivered
 
-- **RS/RR per-peer best-path.** RS mode computes per-peer best-paths
-  (each client sees a different view via per-peer import filters);
-  `locrib` tracks one global best. Driving RS forwarding from global
-  Change events would drop updates where the global best didn't move
-  but a per-peer view did. RS/RR forwarding therefore stays on the
-  existing receive-path trigger. A separate design for per-peer
-  best-change events is prerequisite to moving RS/RR off that path.
-- **Retiring the old forward trigger.** Until RS/RR has a correct
-  Change-driven path, the receive-path forward trigger stays. The
-  "single trigger" end-state from earlier drafts of this design is
-  blocked on the per-peer piece.
+An additive optional handle on `locrib.Change` so state-tracker
+consumers downstream of the rib plugin can access the post-filter wire
+bytes without going back to the StructuredEvent path. Lets a future
+sysrib mirror, route archive, or RR cluster-list extractor see the
+bytes that BGP saw, gated on the consumer calling `AddRef` to retain
+past the handler invocation.
 
-## Shape
-
-Two pieces:
-
-1. **Change events carry an optional forward handle.** `locrib.Change`
-   gains a `Forward ForwardHandle` field (opaque interface satisfied
-   by the reactor's buffer type). BGP producers populate it on Insert;
-   non-BGP producers (static, kernel) leave it nil. Subscribers that
-   don't need it ignore it; no ref / alloc cost for non-users.
-2. **Subscribers that want to forward do the per-peer decision
-   off-lock.** `ChangeHandler` runs under the RIB write lock
-   (`locrib/manager.go:38-40`: "MUST NOT re-enter Insert/Remove on the
-   same RIB and should defer any heavy work to a goroutine"). The
-   reactor's subscriber takes a ref on the handle, enqueues a work
-   item on the existing reactor worker channel, and returns. The
-   worker later performs the per-peer "filter modifies?" check; no-op
-   peers get the original buffer, modifying peers get a rebuild. Both
-   feed the existing forward-pool send path.
-
-Step 1 is additive to Phase 3c. Step 2 is where the real work lives;
-it touches `reactor/forward_build.go`, `reactor/filter_chain.go`, and
-the Change-event subscriber that feeds the per-peer send path.
-`ChangeRemove` has no handle (Remove means no valid best); the worker
-produces a WITHDRAW from `Change.Prefix` + family alone.
+This does NOT change forwarder behaviour: RS / RR still subscribe to
+StructuredEvent and call `ForwardCached` / `ForwardUpdatesDirect`
+through the reactor's per-peer egress path. The forward fast-path is
+unchanged.
 
 ## Extending locrib.Change
 
@@ -89,97 +65,66 @@ not need to hold a ref on the RIB's hot path; the handle is populated
 from a buffer already refcounted by the forward pool for the duration
 of the Insert call.
 
-## Per-peer decision: "will my filter modify this?"
-
-`reactor/filter_chain.go` already tracks whether a filter "modifies"
-per-peer (next-hop rewrite, AS-path prepend, attribute strip). Today
-`forward_build.go` uses that signal to pick between "forward
-unchanged" and "rebuild". The same signal answers our question:
-
-- Filter is a no-op AND peer negotiated the same capabilities as the
-  source peer AND no attribute rewrite is configured -> pass the
-  original `Change.Buffer` to the per-peer send path.
-- Otherwise -> rebuild from Loc-RIB entry's Path list through export
-  chain, then pass the rebuilt buffer to the same send path.
-
-The send path (`forward_pool` refcount + per-peer TCP writer) is
-agnostic to which branch produced the buffer. It keeps doing what it
-does today.
-
-Migration: today the path-through decision happens in forward_build
-against the receive-buffer. After this change it happens against the
-Loc-RIB change event. Both take the same inputs; the rebuild trigger
-just moves up the stack. The writer does not move.
-
 ## Ordering vs. buffer refcount
 
-Today the forward path holds the only references; the pool releases
-when the last peer has sent.
+`ChangeHandler` runs synchronously under the locrib write lock
+(`internal/core/rib/locrib/manager.go:38-40`: "MUST NOT re-enter
+Insert/Remove on the same RIB and should defer any heavy work to a
+goroutine"). The `ribForwardHandle.AddRef` path is therefore in the
+lock; it must be cheap. The current implementation is a sync.Once
+copy + atomic increment -- the once.Do fires synchronously while the
+producing handler still holds the source bytes (which are
+`bgptypes.RawMessage.RawBytes`, valid only while the handler runs).
 
-After this change the Loc-RIB Insert call holds a ref for the
-duration of dispatch. `ChangeHandler` runs under the write lock, so
-dispatch is bounded by the time it takes every subscriber to
-`AddRef()` + enqueue + return. None of the subscribers do TCP I/O
-under the lock (explicitly forbidden by
-`locrib/manager.go:38-40`). Subscribers that want to retain the
-buffer past dispatch hold their own ref; subscribers that don't
-touch `Forward` pay no cost.
+After AddRef returns, the handle's owned buffer is safe for the
+subscriber's worker to read off-lock. `Release` is an atomic decrement;
+the handle becomes GC-eligible once all AddRefs are matched.
 
-When Insert returns, BGP releases its own ref. The buffer stays
-alive until the last AddRef-ing subscriber releases. Contract
-matches existing forward-pool semantics.
+Subscribers that don't touch `Forward` pay only the nil-check cost
+inside their own handler; locrib does not AddRef on their behalf.
 
 ## What this is NOT
 
-- **Not** route-server being implemented. RS/RR already exist.
-- **Not** a replacement for `forward_build` or `forward_pool`. Both
-  stay. `forward_build` is the rebuild producer on the modify branch;
-  `forward_pool` is the refcount + per-peer TCP writer on both
-  branches.
-- **Not** a new write path. The TCP writer is untouched. Only the
-  decision site and the buffer source move.
-- **Not** about packet receive / parse. Wire decode is upstream of
-  this change and unaffected.
+- **Not** a replacement for the receive-path trigger. The receive
+  path is the filter pipeline entry (see "Two-Trigger Model" above)
+  and stays.
+- **Not** a per-peer event source. Locrib still tracks one global
+  best per (family, prefix); `Change.Forward` carries the post-filter
+  wire bytes that produced that best, not per-peer views.
+- **Not** a new write path. RS / RR / future forwarders still go
+  through `reactor_api_forward.go`'s `ForwardUpdate` /
+  `ForwardUpdatesDirect`. State trackers do not write to peers.
+- **Not** about packet receive / parse. Wire decode and the ingress
+  filter pipeline both run upstream and are unaffected.
 
-## Migration steps
+## What was implemented
 
-Phase ordering matches the scope split above. Steps 1-3 are this
-design; steps 4-5 are the deferred per-peer piece.
-
-1. **Add `ForwardHandle` interface + Change field.** New file
-   `internal/core/rib/locrib/forward_handle.go` holds the interface.
-   `change.go` grows a `Forward ForwardHandle` field. Zero value is
-   nil; non-BGP producers leave it nil. Unit test confirms nil-handle
-   dispatch works.
-2. **Reactor buffer satisfies the interface.** `forward_pool`'s
-   shared buffer type gets the `AddRef() / Release()` and
-   `SourceContextID() bgpctx.ContextID` methods. Existing refcount
-   logic is reused; no new allocation path.
-3. **BGP populates Change.Forward on Insert.** Wired via
-   `ribForwardHandle` (`internal/component/bgp/plugins/rib/forward_handle.go`),
-   created once per received UPDATE in `handleReceivedStructured`
-   and threaded through `checkBestPathChange` into
-   `locrib.InsertForward`. Implementation is sync.Once copy-on-AddRef
-   with a `Bytes()` accessor exposed via the optional
-   `locrib.ForwardBytes` interface. Subscriber-free UPDATEs pay one
-   handle struct alloc and zero byte copies; retaining subscribers
-   pay one bounded copy.
-
-### Deferred (per-peer design prerequisite)
-
-4. **Change-subscriber → worker-channel hand-off.** A future
-   subscriber in the reactor takes a ref, enqueues on the existing
-   worker channel, and returns. The worker does the per-peer
-   decision off-lock.
-5. **Consolidate triggers.** Once RS/RR can be driven from per-peer
-   Change events, the receive-path trigger can be retired. Until
-   then, RS/RR stays on its existing path and this design coexists
-   with it for non-RS/RR subscribers (sysrib, future single-view
-   forwarding).
-
-Steps 4-5 are intentionally out of scope for this spec. Landing them
-prematurely would break RS correctness (per-peer filter views not
-expressed in global Change events).
+1. **`ForwardHandle` interface + `Change.Forward` field**
+   (`internal/core/rib/locrib/forward_handle.go`,
+   `internal/core/rib/locrib/change.go`). Opaque, refcount-only on
+   the locrib side. Optional `ForwardBytes` sidecar interface for the
+   retained-bytes accessor.
+2. **`InsertForward` method**
+   (`internal/core/rib/locrib/manager.go`). Sibling of `Insert`;
+   threads the handle into the dispatched `Change` for `ChangeAdd` /
+   `ChangeUpdate`. `ChangeRemove` carries `Forward == nil` (no source
+   buffer to share).
+3. **`ribForwardHandle` producer**
+   (`internal/component/bgp/plugins/rib/forward_handle.go`). sync.Once
+   copy of `RawMessage.RawBytes` on first `AddRef`; atomic refcount;
+   `Bytes()` accessor satisfying `ForwardBytes`. Subscriber-free
+   UPDATEs pay one handle alloc and zero byte copies; retaining
+   subscribers pay one bounded copy.
+4. **rib plugin wiring**
+   (`internal/component/bgp/plugins/rib/rib_structured.go`,
+   `rib_bestchange.go`). One handle per received UPDATE, threaded
+   through `checkBestPathChange` into `locrib.InsertForward`.
+5. **Observer subscriber**
+   (`internal/component/bgp/plugins/rib/forward_observer.go`,
+   `rib.go::SetLocRIB`). First real `OnChange` consumer that nil-checks
+   `Change.Forward`; logs at debug level when present. Functional `.ci`
+   test (`test/plugin/rib-forward-handle-observed.ci`) drives a real
+   BGP UPDATE through the daemon and asserts the observer line.
 
 ## Files touched (this design)
 
@@ -237,21 +182,41 @@ The RS/RR hot-path benchmarks (`BenchmarkRSForwardNoOp`,
 `BenchmarkRSForwardWithPrepend`) are deferred together with the
 per-peer subscriber.
 
-## Deferred
+## Cancelled (was deferred under the wrong model)
 
-- **Per-peer Change-driven subscriber + trigger retirement.**
-  Prerequisite: per-peer best-path Change events (see Scope).
-- **RR-specific cluster-list / originator-id rewrites** still require
-  a rebuild. The skip path applies only when the filter is a true
-  no-op.
-- **MP-BGP families with Label-Stack / RD rewrite** need the same
-  "filter modifies?" check extended to the rewrite layer. Add per
-  family as needed; the infrastructure is the same.
+- **"Retire the receive-path forward trigger."** The receive path
+  hosts the ingress filter pipeline
+  (`reactor_notify.go:302-353` in-process ingress filters that may
+  modify wire bytes via `IngressFilterFunc.modifiedPayload`;
+  `reactor_notify.go:357+` import policy filter chain via
+  `PolicyFilterChain` / `ModAccumulator`). Filtering and modify happen
+  before caching. Retiring the receive trigger would require re-homing
+  the filter pipeline; there is no benefit in doing so. Two triggers
+  serve two consumer categories by design; see "Two-Trigger Model".
+- **"Per-peer Change-driven subscriber."** The framing assumed RS
+  needed per-peer best-path events from locrib. RS does not compute
+  per-peer best-paths -- it forward-alls every received UPDATE, and
+  per-peer egress logic (filters, RR injection, next-hop, AS-override,
+  EBGP prepend) lives in `reactor_api_forward.go:380-540`. Driving
+  forward from `locrib.OnChange` would lose duplicates that don't
+  shift the global best; the receive-path trigger is the right shape
+  for forwarders.
+
+## Open work (genuinely incomplete in the current per-peer egress)
+
+- **RR-specific cluster-list / originator-id rewrites.** Today
+  `reactor_api_forward.go:463-485` injects ORIGINATOR_ID and prepends
+  CLUSTER_LIST when reflecting between iBGP peers; full RFC 4456
+  per-peer cluster-list rewriting (including loop detection on
+  outbound) is partial. Extend the existing per-peer `ModAccumulator`
+  hook in the egress path; no new infra needed.
+- **MP-BGP families with Label-Stack / RD rewrite.** Per-peer rewrite
+  hooks for non-CIDR families (VPN, EVPN, MUP) are missing from the
+  egress chain. Same shape as the existing handlers; add per family.
 - **Per-peer Adj-RIB-Out materialisation** (design doc Phase 3 agreed
-  "compute at send time, don't store"): this handle is the mechanism
-  that makes that affordable. `show bgp neighbor X advertised-routes`
-  runs the export chain on demand; the skip path keeps normal
-  forwarding fast.
+  "compute at send time, don't store"). `show bgp neighbor X
+  advertised-routes` runs the export chain on demand. Independent of
+  the changes in this design.
 
 ## Open questions
 
@@ -259,10 +224,6 @@ per-peer subscriber.
    locrib Change events (replay in `rib_bestchange.go` iterates
    `bestPrev` directly). They coexist; `bestPrev` stays authoritative
    for BGP consumers.
-2. **Race coverage.** Handle lifetime crosses the locrib write-lock
-   boundary. `make ze-race-reactor` must pass with the new subscriber
-   test that AddRef-s inside the handler and Release-s later on a
-   goroutine.
-3. **Non-BGP forward handles.** Kernel / static producers leave
+2. **Non-BGP forward handles.** Kernel / static producers leave
    `Forward` nil today. Revisit if a protocol producer gains a
    forward-shaped payload (e.g. OSPF LSA originator).

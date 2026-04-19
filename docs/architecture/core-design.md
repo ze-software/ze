@@ -517,13 +517,23 @@ Text command → ParseUpdate() → WireUpdate → Send to peer
 ### Forwarding Path
 
 ```
-Receive UPDATE → Assign msg-id → Ingress filters (set meta) → Cache WireUpdate+Meta → API event
-                                                                        │
-                                                                        ▼
-                                                               Plugin decides
-                                                                        │
-                     ┌──────────────────── slow path (text RPC) ───────┴──── fast path (typed SDK) ────┐
-                     ▼                                                                                  ▼
+Receive UPDATE → Assign msg-id → Ingress filter pipeline → Cache WireUpdate+Meta → StructuredEvent dispatched ONCE
+                                  (set meta AND/OR             (post-filter bytes              │
+                                   modify wire bytes,           are canonical)         ┌───────┴────────┐
+                                   see "Ingress Filter                                 ▼                 ▼
+                                   Pipeline" below)                              forwarders        state trackers
+                                                                                 (RS, RR, ...)     (rib plugin)
+                                                                                 │                 │
+                                                                                 │                 ├─ update bestPrev
+                                                                                 │                 ├─ mirror best to locrib
+                                                                                 │                 └─ Change subscribers
+                                                                                 │                    (sysrib, FIB,
+                                                                                 │                     observability;
+                                                                                 │                     may take wire via
+                                                                                 │                     ForwardHandle.Bytes())
+                                                                                 ▼
+                     ┌──────────────────── slow path (text RPC) ───────┬──── fast path (typed SDK) ────┐
+                     ▼                                                  ▼                              ▼
           "bgp cache 123 forward <sel>" → tokenise → command registry → ForwardUpdate     Plugin.ForwardCached(ids, destinations) → DirectBridge → ForwardUpdatesDirect
                      │                                                                                  │
                      └──────────────────────────── ForwardUpdate (shared core) ─────────────────────────┘
@@ -531,6 +541,16 @@ Receive UPDATE → Assign msg-id → Ingress filters (set meta) → Cache WireUp
                                                                 ▼
                                 Lookup cache → Egress filters (read meta, write mods) → Apply mods → Send wire
 ```
+
+Two consumer categories. **Forwarders** (route server, route reflector, future
+mirror) need every received UPDATE to make a per-peer forwarding decision.
+**State trackers** (BGP RIB plugin, then locrib subscribers like sysrib / FIB)
+need only best-path-change events. Both subscribe to the same StructuredEvent
+dispatch from the reactor; the reactor fires it once per received UPDATE
+(post-ingress-filter). Forwarders go through the slow / fast paths shown above;
+state trackers consume the cached `WireUpdate` and emit `locrib.Change` events
+for downstream best-change consumers. The two trigger shapes coexist by design:
+forwarder needs differ from state-tracker needs (per-event vs. per-best-change).
 
 **Slow path** (`bgp cache <id> forward <sel>`) still exists for ad-hoc and external
 callers. Tokenises the text command, walks the plugin command registry, dispatches
@@ -552,6 +572,43 @@ and replay-on-new-peer invariants.
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.ForwardCached, Plugin.ReleaseCached -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.ForwardCached, SetForwardCached -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdatesDirect, ReleaseUpdates, maxForwardDestinations -->
+
+### Ingress Filter Pipeline
+
+Per-peer inbound filtering runs in the reactor on every received UPDATE,
+**before** the bytes are cached and **before** the StructuredEvent is dispatched.
+Two filter chains run in order:
+
+1. **In-process ingress filters** (`reactor.ingressFilters`, registered via
+   `registry.IngressFilters()`). Signature
+   `func(source PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modifiedPayload []byte)`.
+   `accept=false` drops the route (no caching, no dispatch). A non-nil
+   `modifiedPayload` REPLACES the original bytes for caching and downstream
+   delivery; the reactor builds a fresh `WireUpdate` over the modified payload
+   and updates `RawMessage.RawBytes / WireUpdate / AttrsWire`. The modified
+   buffer is heap-allocated (not pool-backed).
+
+2. **External-plugin import policy filter chain** (`peer.settings.ImportFilters`,
+   resolved via `redistribution { import [...] }` config). Runs `PolicyFilterChain`
+   with `direction="import"`. Returns `Accept` / `Reject` / `Modify`. `Reject`
+   drops the route. `Modify` produces a modified text representation, which the
+   reactor converts to wire-attribute mod operations (`ModAccumulator`) and
+   applies via the same `buildModifiedPayload` progressive build used on the
+   egress path. The result replaces the cached `WireUpdate`.
+
+After both chains run, the cached `WireUpdate` is the **canonical post-filter
+representation** that every downstream consumer sees: forwarders read it from
+the recent-updates cache when they call `ForwardUpdate` / `ForwardUpdatesDirect`;
+state trackers read it via the StructuredEvent's `RawMessage` pointer.
+
+Copy semantics: every modify produces a new buffer (heap or pool-backed
+depending on path); the original wire buffer is released when the
+`ReceivedUpdate` cache entry is evicted or all consumers have ack'd. The
+"copy on modify" principle (`rules/design-principles.md`) applies to ingress
+filtering as well as egress.
+
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- ingress filter chain (line ~302) and import policy filter chain (line ~357) -->
+<!-- source: internal/component/plugin/registry/registry_bgp_filter.go -- IngressFilterFunc contract -->
 
 ### Route Metadata and Modification Accumulator
 
