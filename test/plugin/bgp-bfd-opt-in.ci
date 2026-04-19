@@ -61,10 +61,10 @@ bgp {
 \t\tconnection {
 \t\t\tlocal {
 \t\t\t\tip 127.0.0.1
+\t\t\t\taccept false
 \t\t\t}
 \t\t\tremote {
 \t\t\t\tip 127.0.0.254
-\t\t\t\taccept false
 \t\t\t}
 \t\t\tbfd {
 \t\t\t\tenabled true

@@ -1,5 +1,5 @@
 # Test: ze config completion -- boolean value hints (connect)
-# VALIDATES: Boolean leaf in local container shows true/false values
+# VALIDATES: Boolean leaf in remote container shows true/false values
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -27,7 +27,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/connection/local --input set+connect+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/connection/remote --input set+connect+ test.conf
 expect=exit:code=0
 expect=stdout:contains=true
 expect=stdout:contains=false

@@ -21,11 +21,25 @@ import (
 	"errors"
 	"fmt"
 	"syscall"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // errBindToDeviceUnsupported is returned by applySocketOptions on non-Linux
 // builds when the caller asks for a device binding.
 var errBindToDeviceUnsupported = errors.New("bfd: SO_BINDTODEVICE is Linux-only")
+
+// bfdTestParallelEnv enables SO_REUSEPORT on the BFD UDP socket so parallel
+// .ci tests on developer machines (macOS, BSD) can co-bind the fixed RFC 5881
+// / 5883 ports. The Linux build registers the same key in udp_linux.go; this
+// file mirrors the registration so `env.GetBool` does not abort the process on
+// non-Linux platforms.
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         "ze.bfd.test-parallel",
+	Type:        "bool",
+	Description: "Test-only: enable SO_REUSEPORT on the BFD UDP socket so parallel .ci tests can co-bind the RFC ports.",
+	Private:     true,
+})
 
 // applySocketOptions applies IP_TTL=255 on the outbound path so non-Linux
 // developer builds still produce RFC 5881 Section 5 compliant traffic.
@@ -38,11 +52,19 @@ func applySocketOptions(c syscall.RawConn, device string) error {
 	if device != "" {
 		return errBindToDeviceUnsupported
 	}
+	testParallel := env.GetBool("ze.bfd.test-parallel", false)
 	var innerErr error
 	controlErr := c.Control(func(fd uintptr) {
+		ifd := int(fd)
+		if testParallel {
+			if err := syscall.SetsockoptInt(ifd, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1); err != nil {
+				innerErr = fmt.Errorf("setsockopt SO_REUSEPORT: %w", err)
+				return
+			}
+		}
 		// RFC 5881 Section 5: "The TTL or Hop Limit of the transmitted
 		// packet MUST be 255."
-		if err := syscall.SetsockoptInt(int(fd), syscall.IPPROTO_IP, syscall.IP_TTL, 255); err != nil {
+		if err := syscall.SetsockoptInt(ifd, syscall.IPPROTO_IP, syscall.IP_TTL, 255); err != nil {
 			innerErr = fmt.Errorf("setsockopt IP_TTL=255: %w", err)
 		}
 	})
@@ -62,9 +84,17 @@ func applySocketOptionsV6(c syscall.RawConn, device string) error {
 	if device != "" {
 		return errBindToDeviceUnsupported
 	}
+	testParallel := env.GetBool("ze.bfd.test-parallel", false)
 	var innerErr error
 	controlErr := c.Control(func(fd uintptr) {
-		if err := syscall.SetsockoptInt(int(fd), syscall.IPPROTO_IPV6, syscall.IPV6_UNICAST_HOPS, 255); err != nil {
+		ifd := int(fd)
+		if testParallel {
+			if err := syscall.SetsockoptInt(ifd, syscall.SOL_SOCKET, syscall.SO_REUSEPORT, 1); err != nil {
+				innerErr = fmt.Errorf("setsockopt SO_REUSEPORT: %w", err)
+				return
+			}
+		}
+		if err := syscall.SetsockoptInt(ifd, syscall.IPPROTO_IPV6, syscall.IPV6_UNICAST_HOPS, 255); err != nil {
 			innerErr = fmt.Errorf("setsockopt IPV6_UNICAST_HOPS=255: %w", err)
 		}
 	})
