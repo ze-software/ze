@@ -2,6 +2,7 @@
 # AC-2: sysctl-profile [ dsr hardened ] accepted by config validate.
 stdin=config:terminator=EOF_CONF
 interface {
+    backend netlink
     ethernet eth0 {
         unit 0 {
             sysctl-profile [ dsr hardened ]

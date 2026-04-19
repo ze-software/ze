@@ -2,6 +2,7 @@
 # AC: interface { dhcp-auto true } accepted by config validate.
 stdin=config:terminator=EOF_CONF
 interface {
+    backend netlink
     dhcp-auto true
 }
 EOF_CONF
