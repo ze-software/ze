@@ -1,5 +1,6 @@
 // Design: docs/guide/mcp/overview.md -- MCP JSON-RPC HTTP handler
 // Detail: tools.go -- auto-generated MCP tools from command registry
+// Related: streamable.go -- Streamable HTTP transport (MCP 2025-06-18)
 
 // Package mcp provides an HTTP handler that speaks MCP (Model Context Protocol)
 // JSON-RPC, wrapping Ze's command dispatcher to let AI assistants control BGP.
@@ -26,7 +27,7 @@ const maxRequestBody = 1 << 20
 // This matches the signature of reactor.ExecuteCommand.
 type CommandDispatcher func(command string) (string, error)
 
-// Handler returns an HTTP handler that speaks MCP JSON-RPC.
+// Handler returns an HTTP handler that speaks MCP JSON-RPC (2024-11-05 profile).
 // Each POST carries a JSON-RPC request; the response is a JSON-RPC response.
 // Validates Content-Type to prevent CSRF from browser origins.
 //
@@ -34,6 +35,9 @@ type CommandDispatcher func(command string) (string, error)
 // If commands is non-nil, tools/list dynamically generates tools from registered
 // commands. New YANG commands appear as MCP tools without code changes.
 // If commands is nil, only the handcrafted tools are exposed.
+//
+// For the 2025-06-18 Streamable HTTP profile (sessions, SSE, GET/DELETE),
+// use NewStreamable instead.
 func Handler(dispatch CommandDispatcher, commands CommandLister, token string) http.Handler {
 	s := &server{dispatch: dispatch, commands: commands}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

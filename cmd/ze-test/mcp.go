@@ -5,10 +5,12 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -132,31 +134,38 @@ Options:
 	return 0
 }
 
-// mcpClient sends MCP JSON-RPC requests over HTTP.
+// mcpClient sends MCP JSON-RPC requests over Streamable HTTP (MCP 2025-06-18).
+//
+// The session id is assigned by the server at initialize and echoed on every
+// subsequent request via the Mcp-Session-Id header.
 type mcpClient struct {
-	addr  string
-	token string // Bearer token (empty = no auth)
-	id    int
+	addr      string
+	token     string // Bearer token (empty = no auth)
+	id        int
+	sessionID string // populated by initialize()
 }
 
-// waitReady retries connecting to the MCP endpoint until it responds.
+// endpoint is the Streamable HTTP MCP endpoint path.
+const endpoint = "/mcp"
+
+// waitReady retries until a TCP connection to the MCP listener succeeds.
+//
+// Intentionally does NOT send an HTTP request: the Streamable transport
+// creates a session on every successful `initialize`, so a probe that
+// completes the round trip would leak an orphan session per test run.
 func (c *mcpClient) waitReady(timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	interval := 100 * time.Millisecond
+	dialer := &net.Dialer{Timeout: 500 * time.Millisecond}
 
 	for time.Now().Before(deadline) {
-		probeReq, err := http.NewRequest(http.MethodPost, "http://"+c.addr+"/", //nolint:noctx // short-lived test tool
-			bytes.NewReader([]byte(`{"jsonrpc":"2.0","id":0,"method":"initialize","params":{}}`)))
-		if err != nil {
-			return fmt.Errorf("build probe: %w", err)
-		}
-		probeReq.Header.Set("Content-Type", "application/json")
-		if c.token != "" {
-			probeReq.Header.Set("Authorization", "Bearer "+c.token)
-		}
-		resp, doErr := http.DefaultClient.Do(probeReq)
-		if doErr == nil {
-			_ = resp.Body.Close() //nolint:errcheck // probe only
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		conn, err := dialer.DialContext(ctx, "tcp", c.addr)
+		cancel()
+		if err == nil {
+			if closeErr := conn.Close(); closeErr != nil {
+				return fmt.Errorf("close probe: %w", closeErr)
+			}
 			return nil
 		}
 		time.Sleep(interval)
@@ -180,10 +189,15 @@ func (c *mcpClient) waitEstablished(timeout time.Duration) error {
 	return fmt.Errorf("no peer established after %v", timeout)
 }
 
-// initialize sends the MCP handshake.
+// initialize sends the MCP handshake and captures the session id from the
+// Mcp-Session-Id response header (required by MCP 2025-06-18).
 func (c *mcpClient) initialize() error {
-	_, err := c.send("initialize", json.RawMessage(`{}`))
-	return err
+	sid, _, err := c.sendRaw("initialize", json.RawMessage(`{"protocolVersion":"2025-06-18","capabilities":{}}`))
+	if err != nil {
+		return err
+	}
+	c.sessionID = sid
+	return nil
 }
 
 // callTool calls a named MCP tool with JSON arguments.
@@ -244,8 +258,18 @@ func (c *mcpClient) extractText(result json.RawMessage) (string, error) {
 	return text, nil
 }
 
-// send makes a JSON-RPC request and returns the result.
+// send makes a JSON-RPC request and returns the result. Callers outside of
+// initialize() use this wrapper; initialize uses sendRaw to capture the
+// assigned session id.
 func (c *mcpClient) send(method string, params json.RawMessage) (json.RawMessage, error) {
+	_, result, err := c.sendRaw(method, params)
+	return result, err
+}
+
+// sendRaw performs the HTTP round trip and returns (assigned session id, result, err).
+// The session id is non-empty only for the initialize response; every other
+// request echoes the cached c.sessionID on outgoing requests.
+func (c *mcpClient) sendRaw(method string, params json.RawMessage) (string, json.RawMessage, error) {
 	c.id++
 	reqBody, err := json.Marshal(map[string]any{
 		"jsonrpc": "2.0",
@@ -254,43 +278,47 @@ func (c *mcpClient) send(method string, params json.RawMessage) (json.RawMessage
 		"params":  params,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return "", nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, "http://"+c.addr+"/", bytes.NewReader(reqBody)) //nolint:noctx // short-lived test tool
+	req, err := http.NewRequest(http.MethodPost, "http://"+c.addr+endpoint, bytes.NewReader(reqBody)) //nolint:noctx // short-lived test tool
 	if err != nil {
-		return nil, fmt.Errorf("build request: %w", err)
+		return "", nil, fmt.Errorf("build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
+	if c.sessionID != "" {
+		req.Header.Set("Mcp-Session-Id", c.sessionID)
+		req.Header.Set("MCP-Protocol-Version", "2025-06-18")
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("HTTP request: %w", err)
+		return "", nil, fmt.Errorf("HTTP request: %w", err)
 	}
 	defer resp.Body.Close() //nolint:errcheck // best-effort cleanup
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
+		return "", nil, fmt.Errorf("read response: %w", err)
 	}
 
 	// Parse response as map to avoid camelCase struct tags.
 	var rpcResp map[string]any
 	if err := json.Unmarshal(body, &rpcResp); err != nil {
-		return nil, fmt.Errorf("parse response: %w", err)
+		return "", nil, fmt.Errorf("parse response: %w", err)
 	}
 
 	if errObj, ok := rpcResp["error"].(map[string]any); ok {
 		code, _ := errObj["code"].(float64)
 		msg, _ := errObj["message"].(string)
-		return nil, fmt.Errorf("RPC error %d: %s", int(code), msg)
+		return "", nil, fmt.Errorf("RPC error %d: %s", int(code), msg)
 	}
 
 	resultBytes, err := json.Marshal(rpcResp["result"])
 	if err != nil {
-		return nil, fmt.Errorf("marshal result: %w", err)
+		return "", nil, fmt.Errorf("marshal result: %w", err)
 	}
-	return resultBytes, nil
+	return resp.Header.Get("Mcp-Session-Id"), resultBytes, nil
 }

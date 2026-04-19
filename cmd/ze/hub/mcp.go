@@ -96,16 +96,28 @@ func wireRPC(wire string) string {
 //
 // Bind is all-or-nothing: if ANY listener fails to bind, the already-bound
 // listeners are closed and the function returns nil.
+//
+// Speaks the MCP 2025-06-18 Streamable HTTP profile (sessions, SSE, GET/DELETE).
 func startMCPServer(addrs []string, dispatch zemcp.CommandDispatcher, commands zemcp.CommandLister, token string) *http.Server {
 	if len(addrs) == 0 {
 		fmt.Fprintln(os.Stderr, "warning: MCP server disabled: no listen addresses")
 		return nil
 	}
 
+	handler, err := zemcp.NewStreamable(zemcp.StreamableConfig{
+		Dispatch: dispatch,
+		Commands: commands,
+		Token:    token,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: MCP server disabled: %v\n", err)
+		return nil
+	}
+
 	srv := &http.Server{
 		// Addr is informational; multi-listener serving uses Serve(ln).
 		Addr:              addrs[0],
-		Handler:           zemcp.Handler(dispatch, commands, token),
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,
