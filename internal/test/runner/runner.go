@@ -215,7 +215,11 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 	allSuccess := true
 	for res := range results {
 		if res.success {
-			res.record.State = StateSuccess
+			// Preserve StateSkip set by runTest's option=skip-os path
+			// so the summary reports SKIP instead of PASS.
+			if res.record.State != StateSkip {
+				res.record.State = StateSuccess
+			}
 		} else {
 			if res.record.State != StateTimeout {
 				res.record.State = StateFail

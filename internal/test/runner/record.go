@@ -146,6 +146,11 @@ type Record struct {
 	// HTTP checks for web endpoint assertions
 	HTTPChecks []HTTPCheck // http= assertions in seq order
 	HTTPWaits  []HTTPCheck // http=wait readiness polls (run before checks)
+
+	// Skip reason: when non-empty, the runner skips the test without executing
+	// it and reports the reason (e.g. option=skip-os:value=darwin on non-Linux
+	// platforms). Set at parse time and persists across Activate() calls.
+	SkipReason string
 }
 
 // RunCommand represents a process to run during test execution.

@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -29,6 +30,11 @@ type ParsingTest struct {
 	ExpectError  string
 	ExpectRegex  *regexp.Regexp // Compiled regex if ExpectError starts with "regex:"
 	IsRegexMatch bool           // True if using regex matching
+
+	// SkipReason: when non-empty, the runner reports SKIP without
+	// invoking `ze config validate`. Set by option=skip-os:value=<list>
+	// when the current GOOS is in the list.
+	SkipReason string
 
 	// Results
 	Output string
@@ -239,6 +245,21 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
 			continue
 		}
 
+		// Parse option=skip-os:value=<os-list>. Uses the same semantics as
+		// record_parse.go (encoding tests): if the current GOOS appears in
+		// the comma-separated value, record a SkipReason so the runner
+		// reports SKIP instead of running `ze config validate`. See
+		// rules/os-specific-tests.md.
+		if after, ok := strings.CutPrefix(trimmed, "option=skip-os:value="); ok {
+			for skipOS := range strings.SplitSeq(after, ",") {
+				if strings.TrimSpace(skipOS) == runtime.GOOS {
+					test.SkipReason = fmt.Sprintf("skip-os=%s (current GOOS=%s)", after, runtime.GOOS)
+					break
+				}
+			}
+			continue
+		}
+
 		// Skip other lines (cmd:, etc.)
 	}
 
@@ -307,13 +328,16 @@ func (r *ParsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 
 	// Add tests to runner
 	for _, test := range selected {
-		runner.AddTest(test.Name, test, func(runCtx context.Context, t *ParsingTest) (bool, error) {
+		rec := runner.AddTest(test.Name, test, func(runCtx context.Context, t *ParsingTest) (bool, error) {
 			success := r.runTest(runCtx, t)
 			if !success {
 				return false, t.Error
 			}
 			return true, nil
 		})
+		// Propagate per-test SkipReason (from option=skip-os) onto the
+		// Record so ParallelRunner.Run honors it without running the test.
+		rec.SkipReason = test.SkipReason
 	}
 
 	// Set failure callback for verbose output with reproduction command

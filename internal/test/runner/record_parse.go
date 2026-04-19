@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -276,6 +277,25 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		}
 		// Store as KEY=VALUE for environment setting
 		r.EnvVars = append(r.EnvVars, fmt.Sprintf("%s=%s", varName, value))
+
+	case "skip-os":
+		value := kv["value"]
+		if value == "" {
+			return fmt.Errorf("option:skip-os missing value=")
+		}
+		// Record a skip reason when the current GOOS is in the skip list.
+		// The .ci format has no build tags, so OS-specific features (e.g.
+		// Linux-only IP_RECVTTL for BFD echo) gate at parse time. The runner
+		// honors SkipReason regardless of whether the user selected the test
+		// by name -- asking for an unsupported test on the wrong OS reports
+		// SKIP (with reason), never FAIL. Multiple skip-os options
+		// accumulate; any match skips.
+		for skipOS := range strings.SplitSeq(value, ",") {
+			if strings.TrimSpace(skipOS) == runtime.GOOS {
+				r.SkipReason = fmt.Sprintf("skip-os=%s (current GOOS=%s)", value, runtime.GOOS)
+				return nil
+			}
+		}
 
 	default:
 		return fmt.Errorf("unknown option type %q", optType)

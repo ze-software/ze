@@ -3,6 +3,7 @@ package runner
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -635,4 +636,91 @@ func TestParseHTTPWait(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestParseCIOptionSkipOS verifies option=skip-os sets SkipReason when the
+// current GOOS matches, and leaves it empty otherwise. The list is
+// comma-separated; any match wins.
+//
+// VALIDATES: option=skip-os:value=darwin produces a SKIP on darwin without
+// running the test, and a no-op on other OSes. Matches the contract
+// documented in .claude/rules/os-specific-tests.md.
+// PREVENTS: a feature stubbed on one OS (e.g. IP_RECVTTL on darwin) causing
+// spurious test failures when the .ci runs everywhere by default.
+func TestParseCIOptionSkipOS(t *testing.T) {
+	tests := []struct {
+		name       string
+		skipValue  string
+		wantSkip   bool
+		wantReason string
+	}{
+		{
+			name:      "current-os-matches",
+			skipValue: runtime.GOOS,
+			wantSkip:  true,
+		},
+		{
+			name:      "other-os-single",
+			skipValue: "plan9",
+			wantSkip:  false,
+		},
+		{
+			name:      "current-os-in-list",
+			skipValue: "plan9," + runtime.GOOS + ",solaris",
+			wantSkip:  true,
+		},
+		{
+			name:      "other-os-list",
+			skipValue: "plan9, solaris",
+			wantSkip:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ResetNickCounter()
+
+			tmpDir := t.TempDir()
+			ciFile := filepath.Join(tmpDir, "test.ci")
+			confFile := filepath.Join(tmpDir, "test.conf")
+
+			ciContent := "option=file:path=test.conf\noption=skip-os:value=" + tt.skipValue + "\n"
+			require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
+			require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
+
+			et := NewEncodingTests(tmpDir)
+			require.NoError(t, et.parseAndAdd(ciFile))
+
+			rec := et.GetByNick("0")
+			require.NotNil(t, rec)
+
+			if tt.wantSkip {
+				assert.NotEmpty(t, rec.SkipReason, "SkipReason should be set when GOOS matches")
+				assert.Contains(t, rec.SkipReason, runtime.GOOS)
+			} else {
+				assert.Empty(t, rec.SkipReason, "SkipReason should be empty when GOOS does not match")
+			}
+		})
+	}
+}
+
+// TestParseCIOptionSkipOSMissingValue verifies that option=skip-os without
+// a value= key produces a clear parse error. Silently accepting it would
+// let an author write a test that runs everywhere when they intended to
+// skip a specific OS.
+func TestParseCIOptionSkipOSMissingValue(t *testing.T) {
+	ResetNickCounter()
+
+	tmpDir := t.TempDir()
+	ciFile := filepath.Join(tmpDir, "test.ci")
+	confFile := filepath.Join(tmpDir, "test.conf")
+
+	ciContent := "option=file:path=test.conf\noption=skip-os\n"
+	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
+	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
+
+	et := NewEncodingTests(tmpDir)
+	err := et.parseAndAdd(ciFile)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "skip-os")
 }

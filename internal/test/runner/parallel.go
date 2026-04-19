@@ -134,6 +134,15 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 			sem <- struct{}{}        // Acquire
 			defer func() { <-sem }() // Release
 
+			// option=skip-os matches the current GOOS: mark skip without
+			// running. Keeps the signal meaningful (feature is stubbed on
+			// this OS, not "it regressed") -- see rules/os-specific-tests.md.
+			if t.Record.SkipReason != "" {
+				t.Record.State = StateSkip
+				results <- result{test: t, passed: true, err: nil}
+				return
+			}
+
 			t.Record.State = StateRunning
 			t.Record.StartTime = time.Now()
 

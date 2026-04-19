@@ -129,6 +129,15 @@ func waitReady(ctx context.Context, path string, timeout time.Duration) {
 
 // runTest executes a single test.
 func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) bool {
+	// option=skip-os matched the current GOOS at parse time: report SKIP
+	// without touching any subprocess or port. The feature under test is
+	// stubbed on this platform (see rules/os-specific-tests.md); running
+	// it would produce a meaningless failure.
+	if rec.SkipReason != "" {
+		rec.State = StateSkip
+		return true
+	}
+
 	rec.State = StateStarting
 	rec.StartTime = time.Now()
 

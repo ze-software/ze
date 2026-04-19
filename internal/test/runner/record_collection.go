@@ -156,6 +156,21 @@ func (ts *Tests) FailedNicks() []string {
 	return result
 }
 
+// SkippedNicks returns nicks of skipped tests (option=skip-os match).
+func (ts *Tests) SkippedNicks() []string {
+	ts.mu.RLock()
+	defer ts.mu.RUnlock()
+
+	var result []string
+	for _, nick := range ts.ordered {
+		r := ts.byNick[nick]
+		if r.State == StateSkip {
+			result = append(result, nick)
+		}
+	}
+	return result
+}
+
 // TimedOutNicks returns nicks of timed out tests.
 func (ts *Tests) TimedOutNicks() []string {
 	ts.mu.RLock()

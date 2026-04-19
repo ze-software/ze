@@ -263,15 +263,18 @@ const summaryWidth = 79
 //	pass  42/42  100.0%  3.2s
 //	fail  40/42  95.2%  3.2s  failed 2 [A, B]  timeout 1 [C]
 func (d *Display) Summary() {
-	passed, failed, timedOut, _ := d.tests.Summary()
+	passed, failed, timedOut, skipped := d.tests.Summary()
 	total := passed + failed + timedOut
-	if total == 0 {
+	if total == 0 && skipped == 0 {
 		return
 	}
 
 	elapsed := time.Since(d.startTime)
 	allPassed := failed == 0 && timedOut == 0
-	rate := float64(passed) / float64(total) * 100
+	rate := 100.0
+	if total > 0 {
+		rate = float64(passed) / float64(total) * 100
+	}
 
 	var b strings.Builder
 
@@ -291,6 +294,11 @@ func (d *Display) Summary() {
 	if timedOut > 0 {
 		nicks := d.tests.TimedOutNicks()
 		fmt.Fprintf(&b, "  %s %d [%s]", d.colors.Yellow("timeout"), timedOut, strings.Join(nicks, ", "))
+	}
+
+	if skipped > 0 {
+		nicks := d.tests.SkippedNicks()
+		fmt.Fprintf(&b, "  %s %d [%s]", d.colors.Gray("skip"), skipped, strings.Join(nicks, ", "))
 	}
 
 	d.println(b.String())
