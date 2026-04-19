@@ -1,0 +1,134 @@
+# Test: bgp-redistribute -- one fakeredist event with empty NextHop fans out to two
+# peers; each UPDATE carries the destination peer's own LocalAddress as NEXT_HOP.
+# VALIDATES: AC-7 -- `nhop self` triggers per-peer LocalAddress substitution at the reactor.
+# PREVENTS: All peers receiving the same NEXT_HOP regardless of session.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=15s
+# Two peers, two UPDATEs. Both carry NEXT_HOP=127.0.0.1 in this single-loopback
+# topology because both sessions terminate on 127.0.0.1; the assertion that
+# matters is that the announce reaches BOTH peers (one per conn).
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.1"}]}
+expect=json:conn=2:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.1"}]}
+EOF_PEER
+
+tmpfs=nhself-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import time
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for both peers to come up.
+    time.sleep(3.0)
+
+    resp = dispatch(api, 'fakeredist emit add ipv4/unicast 10.0.0.1/32')
+    result = resp.get('result', {})
+    if result.get('status') != 'done':
+        runtime_fail(f'fakeredist emit failed: {result}')
+        return
+
+    time.sleep(2.0)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external nhself-test {
+		run ./nhself-test.run
+		encoder json
+	}
+	external bgp-redistribute-egress {
+		use bgp-redistribute-egress
+		encoder json
+	}
+	external fakeredist {
+		use fakeredist
+		encoder json
+	}
+}
+
+redistribute {
+	import fakeredist {
+		family [ ipv4/unicast ];
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+	peer peer2 {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.5
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0

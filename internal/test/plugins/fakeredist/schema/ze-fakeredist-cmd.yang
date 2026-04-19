@@ -1,0 +1,34 @@
+module ze-fakeredist-cmd {
+    namespace "urn:ze:test:fakeredist:cmd";
+    prefix fakeredistcmd;
+    import ze-extensions { prefix ze; }
+    description "Test-only synthetic redistribute producer command tree.
+                 Hidden behind ze:hidden so it does not pollute the
+                 production CLI completion when an operator runs
+                 `ze cli` against a daemon that loaded fakeredist.";
+    revision 2026-04-19 { description "Initial revision."; }
+
+    container fakeredist {
+        ze:hidden true;
+        config false;
+        description "Fakeredist test commands";
+
+        container emit {
+            config false;
+            ze:command "ze-fakeredist-api:fakeredist-emit";
+            description "Emit one synthetic route-change batch";
+        }
+
+        container emit-burst {
+            config false;
+            ze:command "ze-fakeredist-api:fakeredist-emit-burst";
+            description "Emit N synthetic batches sequentially";
+        }
+
+        container help {
+            config false;
+            ze:command "ze-fakeredist-api:fakeredist-help";
+            description "Print the fakeredist command surface";
+        }
+    }
+}

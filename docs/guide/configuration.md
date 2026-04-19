@@ -238,6 +238,38 @@ a filter that declares `overrides`.
 See [Redistribution Guide](redistribution.md) for details.
 <!-- source: plan/spec-redistribution-filter.md -- redistribution filter config design -->
 
+## Cross-Protocol Redistribute (egress)
+
+The `redistribute { import <source> { ... } }` block has TWO consumers:
+
+| Consumer | Purpose |
+|----------|---------|
+| BGP `IngressFilter` | Ingress ACL: when the source is `ibgp` or `ebgp`, gates received UPDATEs from intra-BGP sources. |
+| `bgp-redistribute-egress` plugin | Egress: when the source is non-BGP (`l2tp`, `connected`, future `static` / `ospf` / `isis`), turns route-change events from that protocol into BGP UPDATEs sent to peers. |
+
+```
+redistribute {
+    import ebgp { family [ ipv4/unicast ipv4/vpn ]; }    # intra-BGP ACL
+    import l2tp;                                          # egress, all families
+    import connected { family [ ipv4/unicast ]; }         # egress, IPv4 unicast only
+}
+```
+
+Both consumers read the same `redistribute.Global()` evaluator, so a single
+config block governs both behaviors. The producer side (per-protocol route-
+change events) lives in each protocol component; the egress consumer
+(`bgp-redistribute-egress`) enumerates non-BGP producers at startup and subscribes.
+
+The egress consumer auto-loads when `redistribute {}` is present in the
+config (it claims `ConfigRoots: ["redistribute"]`). No `plugin { external
+bgp-redistribute-egress { ... } }` block is required. The intra-BGP
+IngressFilter rides the registry's filter chain at init time and needs no
+plugin spin-up.
+
+<!-- source: internal/component/config/redistribute/evaluator.go -- shared Global evaluator -->
+<!-- source: internal/component/bgp/redistribute/filter.go -- ingress ACL consumer -->
+<!-- source: internal/component/bgp/plugins/redistribute/redistribute.go -- egress consumer -->
+
 ### Prefix-List Filter
 
 Named prefix-list filters live under `bgp { policy { prefix-list NAME { ... } } }`

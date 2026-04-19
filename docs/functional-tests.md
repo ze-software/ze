@@ -101,6 +101,32 @@ Dynamic route tests - routes injected via scripts using the process API.
 - `*.conf` - ZeBGP configuration (includes `process` block)
 - `*.run` - Script that sends API commands
 
+### Test-Only Internal Plugins (`internal/test/plugins/`)
+
+Some `.ci` tests need a synthetic Go-side producer to drive features that
+have no real producer yet (e.g., bgp-redistribute waiting for L2TP route
+events). These plugins live under `internal/test/plugins/<name>/` and
+register at init() so they appear in the production daemon's plugin
+registry. They do nothing until invoked via `ze.fakeredist`-style config or
+via a `.ci` test's dispatch-command.
+
+First occupant: `internal/test/plugins/fakeredist/`. Pattern:
+
+| File | Role |
+|------|------|
+| `fakeredist.go` | Package state, command parser, batch builder/emitter |
+| `register.go` | Plugin registration + `OnExecuteCommand` dispatcher |
+| `fakeredist_test.go` | Unit tests for the command surface |
+
+The aggregator at `internal/test/plugins/all/all.go` blank-imports every
+test-only internal plugin. Production also imports the individual packages
+from `internal/component/plugin/all/all.go` because `.ci` tests run
+production `bin/ze`; the runtime cost is one registry entry per test plugin
+and zero overhead until invoked.
+
+<!-- source: internal/test/plugins/fakeredist/register.go -- pattern reference -->
+<!-- source: internal/component/plugin/all/all.go -- production aggregator import -->
+
 ### 4. Reload Tests (`test/reload/`)
 
 Config reload tests - verify SIGHUP-triggered reload behavior end-to-end.

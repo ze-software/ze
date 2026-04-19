@@ -68,6 +68,19 @@ Last updated: 2026-03-25
 | BGP Roles (RFC 9234) | Yes | No | Yes | Yes | No | No | No | No | Yes | Yes | Partial |
 | Prefix Limit (RFC 4486) | Yes | Yes | Yes | No | No | Yes | Yes | No | Yes | Yes | Yes |
 
+## Cross-Protocol Redistribute
+
+Ze advertises locally-originated routes from non-BGP protocols (L2TP today;
+future connected / static / OSPF / ISIS) into BGP via the
+`bgp-redistribute-egress` plugin. Operators enable it per-source via
+`redistribute { import <source> { family [...]; } }`. The same config block
+also drives the intra-BGP `IngressFilter` ACL when the source is `ibgp` /
+`ebgp`. Per-peer NEXT_HOP substitution (`nhop self`) is automatic; explicit
+producer-supplied NEXT_HOP is passed through verbatim.
+
+<!-- source: internal/component/bgp/plugins/redistribute/redistribute.go -- consumer -->
+<!-- source: internal/core/redistevents/events.go -- producer-shared payload -->
+
 ## Policy & Route Manipulation
 
 Ze takes a programmable approach to policy: external plugin filters manipulate routes

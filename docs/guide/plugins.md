@@ -251,6 +251,43 @@ Filters can declare `overrides` to remove default filters from the chain
 
 <!-- source: plan/spec-redistribution-filter.md -- redistribution filter design -->
 
+### Cross-Protocol Redistribute (`bgp-redistribute-egress`)
+
+`bgp-redistribute-egress` is the single subscriber that turns non-BGP protocol
+route-change events into BGP UPDATE announcements. Unlike the redistribution
+filter chain above (which gates intra-BGP traffic), `bgp-redistribute-egress` lets
+operators advertise locally-originated routes from other protocols (L2TP
+sessions today, future connected / static / OSPF / ISIS) to BGP peers.
+
+Config:
+
+```
+redistribute {
+    import l2tp { family [ ipv4/unicast ipv6/unicast ]; }
+    import fakeredist;          # all families
+}
+```
+
+Each `import <source>` enables one non-BGP protocol. The import rule's
+`source` is the protocol's canonical name registered via
+`redistribute.RegisterSource`. Per-source `family` lists narrow which
+address families are advertised; an empty list means "all families".
+
+The egress consumer **auto-loads** when `redistribute {}` appears in the
+config. No `plugin { external bgp-redistribute-egress { use bgp-redistribute-egress } }`
+block is required. Add an explicit block only if you need to override
+plugin defaults (encoder, respawn policy, etc).
+
+Reactor per-peer NEXT_HOP substitution applies: when the producer leaves
+`NextHop` zero, the reactor stamps each peer's local session address as the
+NEXT_HOP. Producers that have an explicit address pass it through verbatim.
+
+Counters: `ze_bgp_redistribute_events_received`, `_announcements`,
+`_withdrawals`, `_filtered_protocol_total`, `_filtered_rule_total`.
+
+<!-- source: internal/component/bgp/plugins/redistribute/redistribute.go -- consumer plugin -->
+<!-- source: internal/core/redistevents/registry.go -- ProtocolID + producer registration -->
+
 ### Prefix-List Filter (`bgp-filter-prefix`)
 
 `bgp-filter-prefix` is a built-in filter plugin that matches IPv4 and IPv6

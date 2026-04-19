@@ -73,6 +73,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeredist/schema"
 
 	// Plugin packages — plugin + schema registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugin"
@@ -98,6 +99,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/vpls"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/vpn"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/persist"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/redistribute"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/role"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh"
@@ -125,6 +127,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/netlink"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/vpp"
+	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeredist"
 
 	// Event namespace packages -- events.RegisterNamespace registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/transaction"

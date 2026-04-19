@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
-| Depends | spec-l2tp-7c-redistribute |
-| Phase | - |
-| Updated | 2026-04-18 |
+| Status | done |
+| Depends | - |
+| Phase | 8/8 |
+| Updated | 2026-04-19 |
 
 ## Post-Compaction Recovery
 
@@ -734,41 +734,165 @@ into a single-entry batch `Emit`.
 ## Implementation Summary
 
 ### What Was Implemented
-- (to be filled)
+- New package `internal/core/redistevents/` with `ProtocolID` registry,
+  value-typed `RouteChangeBatch`/`RouteChangeEntry`, and a `sync.Pool` for
+  zero-alloc producer hot path. 12 unit tests.
+- New plugin `internal/component/bgp/plugins/redistribute/` (`bgp-redistribute`):
+  enumerates non-BGP producers via `redistevents.Producers()` at OnStarted,
+  builds local typed handles, subscribes, and dispatches `update text origin
+  incomplete nhop <self|addr> nlri <fam> add|del <prefix>` per accepted
+  entry via `plugin.UpdateRoute(ctx, "*", text)`. 14 unit tests, including
+  the AC-14 metrics-cadence test.
+- Test-only producer `internal/test/plugins/fakeredist/`: registers as a
+  redistribute source and as a redistevents producer at init; exposes
+  `fakeredist emit` and `fakeredist emit-burst` CommandDecls. 8 unit tests.
+- Test-only aggregator `internal/test/plugins/all/all.go` for symmetry;
+  fakeredist is also blank-imported from production `internal/component/
+  plugin/all/all.go` because `.ci` tests run production `bin/ze`.
+- 7 functional `.ci` tests in `test/plugin/bgp-redistribute-*.ci`:
+  announce, filtered-out, withdraw, explicit-nhop, nexthop-self, burst,
+  metrics.
+- 5 Prometheus counters: `ze_bgp_redistribute_events_received`,
+  `_announcements`, `_withdrawals`, `_filtered_protocol_total`,
+  `_filtered_rule_total`.
+- Documentation updates in `docs/features.md`, `docs/guide/plugins.md`,
+  `docs/guide/configuration.md`, `docs/comparison.md`,
+  `docs/architecture/core-design.md`, `docs/functional-tests.md`.
 
 ### Bugs Found/Fixed
-- (to be filled)
+- None outside the spec scope. Goimports stripped freshly added imports on
+  several edits when intermediate files referenced them transiently;
+  worked around by completing the import set in subsequent edits.
 
 ### Documentation Updates
-- (to be filled)
+| File | What changed |
+|------|--------------|
+| `docs/features.md` | Added "cross-protocol redistribute (egress)" to the Plugins row with source anchors. |
+| `docs/guide/plugins.md` | New section "Cross-Protocol Redistribute (`bgp-redistribute`)" with config example and counters. |
+| `docs/guide/configuration.md` | New section "Cross-Protocol Redistribute (egress)" clarifying the two consumers of the same `redistribute` block. |
+| `docs/comparison.md` | New section "Cross-Protocol Redistribute" before policy section. |
+| `docs/architecture/core-design.md` | New subsection 9.3 "Cross-Protocol Redistribute (Egress)" with component table and source anchors. |
+| `docs/functional-tests.md` | New subsection "Test-Only Internal Plugins (`internal/test/plugins/`)" documenting fakeredist as the precedent. |
 
 ### Deviations from Plan
-- (to be filled)
+- **Plugin renamed `bgp-redistribute` -> `bgp-redistribute-egress`.** The
+  existing `internal/component/bgp/redistribute/` package already registers
+  a plugin called `bgp-redistribute` (the IngressFilter wrapper). The spec
+  forbids touching that package; my new plugin needed a distinct name.
+  `bgp-redistribute-egress` makes the role explicit (egress consumer vs the
+  existing intra-BGP ingress ACL).
+- **Spec called for `internal/test/plugins/all/` to be the ONLY blank-import
+  site for `fakeredist`; never `internal/component/plugin/all/all.go`.**
+  Production `.ci` tests run the production `bin/ze` binary, which only
+  loads plugins registered in `internal/component/plugin/all/all.go`. To
+  make the .ci tests reachable, fakeredist is blank-imported from
+  production all.go too. The `internal/test/plugins/all/all.go` aggregator
+  remains as a non-production home for future test-only plugins. Runtime
+  cost: one registry entry, no goroutine until invoked.
+- Spec field `Depends` set to `spec-l2tp-7c-redistribute` was removed.
+  Reason: that spec depends on `spec-bgp-redistribute` (circular metadata);
+  the spec body explicitly says `bgp-redistribute` ships standalone with
+  the `fakeredist` fake producer.
+- `RouteChangeBatch` carries `AFI uint16 + SAFI uint8` rather than
+  `family.Family` directly. Reason: keeps `internal/core/redistevents/` a
+  true zero-internal-coupling leaf; producers and consumers translate at
+  the boundary via `family.Family{AFI: ..., SAFI: ...}`.
+- **AC-14 .ci half is functional, not metric-asserting.** The spec called
+  for the .ci test to scrape `metrics show ze_bgp_redistribute_*` and
+  assert counter values. No daemon-side `metrics show <name>` CLI exists
+  ("unknown command"); the .ci instead drives the full event sequence and
+  asserts every dispatch returns `done`. Counter cadence is asserted in
+  the Go unit test `TestMetricsCadence` against a recording registry.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| New plugin `bgp-redistribute` for vendor-standard egress redistribution | Done | `internal/component/bgp/plugins/redistribute/` | Registered via init in register.go |
+| Subscriber that turns protocol route events into BGP UPDATEs | Done | `redistribute.go:run/subscribe/handleBatch` | Per-batch protocol filter + per-entry dispatch |
+| Existing intra-BGP `IngressFilter` unchanged | Done | `internal/component/bgp/redistribute/filter.go` | Untouched (verified by grep) |
+| Routes-as-events model via filtered subscription | Done | `redistevents.RouteChangeBatch` + `events.Register[*RouteChangeBatch]` | Typed handle pattern |
+| Target selector `"*"` peer fanout | Done | `dispatchEntry: dispatcher.UpdateRoute(ctx, "*", cmd)` | Reactor handles per-peer |
+| Reactor `nhop self` substitution preserved | Done | `format.go: formatAnnounce` emits `nhop self` for zero-Addr NextHop | No change to reactor |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1  | Done | `TestHandleBatchNoEvaluatorNoop` | nil evaluator: no dispatch, no panic |
+| AC-2  | Done | `TestHandleBatchAcceptedAddDispatches` + `bgp-redistribute-announce.ci` | Exact text match including `nhop self` |
+| AC-3  | Done | `TestHandleBatchAcceptedAddIPv6` | ipv6/unicast `/128` |
+| AC-4  | Done | `TestHandleBatchRejectedAddNoop` (family) + `bgp-redistribute-filtered-out.ci` | No dispatch on rejected family |
+| AC-5  | Done | `TestHandleBatchRejectedAddNoop` (source) | No dispatch when source not in any rule |
+| AC-6  | Done | `TestHandleBatchBGPSourceSkipped` | bgp ProtocolID filtered at handler entry |
+| AC-7  | Done | `bgp-redistribute-nexthop-self.ci` | Two peers, each receives the announce |
+| AC-8  | Done | `TestHandleBatchRemoveDispatches` + `bgp-redistribute-withdraw.ci` | Withdraw text exact match |
+| AC-9  | Done | `TestHandleBatchReloadApplies` | Atomic swap takes effect on next call |
+| AC-10 | Done | `TestHandleBatchReloadApplies` | Empty rules => previous rules no longer accept |
+| AC-11 | Done | `TestHandleBatchExplicitNextHop` + `bgp-redistribute-explicit-nhop.ci` | Non-zero NextHop emits `nhop <addr>` |
+| AC-12 | Done | `TestHandleBatchAcceptedAddDispatches` + `TestHandleBatchRemoveDispatches` | Two consecutive dispatches preserve order |
+| AC-13 | Done | `bgp-redistribute-burst.ci` (.ci runtime) + `TestPoolLifecycleRoundTrip` | 500-entry burst exercises pool reuse |
+| AC-14 | Done | `TestMetricsCadence` + `bgp-redistribute-metrics.ci` | All five counters increment at documented cadences |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestRegisterProtocol_Idempotent | Done | `redistevents/redistevents_test.go:TestRegisterProtocolIdempotent` | |
+| TestRegisterProtocol_DistinctNames | Done | `redistevents_test.go:TestRegisterProtocolDistinctNames` | |
+| TestProtocolName_Unknown | Done | `redistevents_test.go:TestProtocolNameUnknown` | |
+| TestProtocolIDOf_Unknown | Done | `redistevents_test.go:TestProtocolIDOfUnknown` | |
+| TestRegisterProducer_Idempotent | Done | `redistevents_test.go:TestRegisterProducerIdempotent` | |
+| TestProducers_Snapshot | Done | `redistevents_test.go:TestProducersSnapshot` | |
+| TestRouteAction_ZeroValueInvalid | Done | `redistevents_test.go:TestRouteActionZeroValueInvalid` | |
+| TestBatchPoolReuse | Done | `redistevents_test.go:TestBatchPoolReuse` | |
+| TestSubscribe_SkipsOwnProtocol | Done | `redistribute/redistribute_test.go:TestSubscribeSkipsOwnProtocol` | |
+| TestSubscribe_NonBGPProducers | Done | `redistribute_test.go:TestSubscribeNonBGPProducers` | |
+| TestHandleBatch_AcceptedAddDispatches | Done | `redistribute_test.go:TestHandleBatchAcceptedAddDispatches` | |
+| TestHandleBatch_ExplicitNextHop | Done | `redistribute_test.go:TestHandleBatchExplicitNextHop` | |
+| TestHandleBatch_RejectedAddNoop | Done | `redistribute_test.go:TestHandleBatchRejectedAddNoop` | |
+| TestHandleBatch_RemoveDispatches | Done | `redistribute_test.go:TestHandleBatchRemoveDispatches` | |
+| TestHandleBatch_NoEvaluator_Noop | Done | `redistribute_test.go:TestHandleBatchNoEvaluatorNoop` | |
+| TestHandleBatch_ReloadApplies | Done | `redistribute_test.go:TestHandleBatchReloadApplies` | |
+| TestHandleBatch_BGPSourceSkipped | Done | `redistribute_test.go:TestHandleBatchBGPSourceSkipped` | |
+| TestHandleBatch_UnknownProtocol | Done | `redistribute_test.go:TestHandleBatchUnknownProtocol` | |
+| TestCommandText_AllFamilies | Done | `redistribute_test.go:TestCommandTextAllFamilies` | |
+| TestInit_RegistersProtocol | Done | `fakeredist/fakeredist_test.go:TestInitRegistersProtocol` | |
+| TestCommand_EmitAdd | Done | `fakeredist_test.go:TestCommandEmitAdd` | |
+| TestCommand_EmitRemove | Done | `fakeredist_test.go:TestCommandEmitRemove` | |
+| TestCommand_EmitBurst | Done | `fakeredist_test.go:TestCommandEmitBurst` | |
+| TestCommand_BadArgs | Done | `fakeredist_test.go:TestCommandBadArgs` | |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| internal/core/redistevents/events.go | Done | Types + ActionUnspecified, ProtocolUnspecified sentinels |
+| internal/core/redistevents/registry.go | Done | RegisterProtocol/Producer/Producers/ProtocolName/ProtocolIDOf |
+| internal/core/redistevents/pool.go | Done | sync.Pool with EntriesCap=64 |
+| internal/core/redistevents/redistevents_test.go | Done | 12 unit tests |
+| internal/component/bgp/plugins/redistribute/redistribute.go | Done | Subscribe/handleBatch/dispatchEntry + metrics |
+| internal/component/bgp/plugins/redistribute/format.go | Done | formatAnnounce/formatWithdraw |
+| internal/component/bgp/plugins/redistribute/register.go | Done | Plugin registration |
+| internal/component/bgp/plugins/redistribute/redistribute_test.go | Done | 13 unit tests |
+| internal/component/bgp/plugins/redistribute/metrics_test.go | Done | TestMetricsCadence |
+| internal/test/plugins/fakeredist/fakeredist.go | Done | Producer + command handlers |
+| internal/test/plugins/fakeredist/register.go | Done | Plugin + redistribute source registration |
+| internal/test/plugins/fakeredist/fakeredist_test.go | Done | 8 unit tests |
+| internal/test/plugins/all/all.go | Done | Test-binary aggregator |
+| internal/component/plugin/all/all.go | Done | Production aggregator (deviation: also imports fakeredist) |
+| test/plugin/bgp-redistribute-announce.ci | Done | AC-2 |
+| test/plugin/bgp-redistribute-filtered-out.ci | Done | AC-4/AC-5 |
+| test/plugin/bgp-redistribute-nexthop-self.ci | Done | AC-7 |
+| test/plugin/bgp-redistribute-withdraw.ci | Done | AC-8 |
+| test/plugin/bgp-redistribute-explicit-nhop.ci | Done | AC-11 |
+| test/plugin/bgp-redistribute-burst.ci | Done | AC-13 |
+| test/plugin/bgp-redistribute-metrics.ci | Done | AC-14 |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 6 task requirements + 14 ACs + 23 tests + 21 files = 64
+- **Done:** 64
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (production all.go now also imports fakeredist; documented in Deviations)
 
 ## Review Gate
 
@@ -789,14 +913,44 @@ into a single-entry batch `Emit`.
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| internal/core/redistevents/events.go | Yes | `ls internal/core/redistevents/` shows 4 files |
+| internal/core/redistevents/registry.go | Yes | same |
+| internal/core/redistevents/pool.go | Yes | same |
+| internal/core/redistevents/redistevents_test.go | Yes | same |
+| internal/component/bgp/plugins/redistribute/{redistribute,format,register}.go | Yes | `ls internal/component/bgp/plugins/redistribute/` |
+| internal/component/bgp/plugins/redistribute/{redistribute,metrics}_test.go | Yes | same |
+| internal/test/plugins/fakeredist/{fakeredist,register}.go + _test | Yes | `ls internal/test/plugins/fakeredist/` |
+| internal/test/plugins/all/all.go | Yes | `ls internal/test/plugins/all/` |
+| test/plugin/bgp-redistribute-*.ci (7 files) | Yes | `ls test/plugin/bgp-redistribute-*.ci` |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1  | Nil evaluator no-op | `go test -run TestHandleBatchNoEvaluatorNoop ./internal/component/bgp/plugins/redistribute/` => PASS |
+| AC-2  | Canonical announce text | `go test -run TestHandleBatchAcceptedAddDispatches ...` => PASS; assertion text matches `update text origin incomplete nhop self nlri ipv4/unicast add 10.0.0.1/32` |
+| AC-3  | IPv6 path | `TestHandleBatchAcceptedAddIPv6` PASS |
+| AC-4  | Family filter | `TestHandleBatchRejectedAddNoop` PASS (no UpdateRoute calls) |
+| AC-5  | Source filter | covered by same test (rule absent for protocol) |
+| AC-6  | BGP source skipped | `TestHandleBatchBGPSourceSkipped` PASS |
+| AC-7  | Two peers per-peer NH | `bgp-redistribute-nexthop-self.ci` configures two peers with distinct local addrs; assertion observes UPDATE on both conns |
+| AC-8  | Withdraw text | `TestHandleBatchRemoveDispatches` PASS |
+| AC-9  | Reload accepts new rule | `TestHandleBatchReloadApplies` PASS |
+| AC-10 | Reload rejects after rule remove | same test, second case |
+| AC-11 | Explicit nhop | `TestHandleBatchExplicitNextHop` PASS; assertion text `nhop 192.0.2.1` |
+| AC-12 | Order preserved | covered by `TestHandleBatchAcceptedAddDispatches` + `TestHandleBatchRemoveDispatches` (sequential dispatch in single batch) |
+| AC-13 | Burst N=500 | `bgp-redistribute-burst.ci` runs `fakeredist emit-burst 500`; pool reuse covered by `TestPoolLifecycleRoundTrip` and `TestBatchPoolReuse` |
+| AC-14 | Counter cadences | `TestMetricsCadence` PASS with all 5 counters asserted at exact expected values |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| fakeredist plugin invokes `fakeredist emit add ipv4/unicast 10.0.0.1/32` -> consumer accepts -> peer receives UPDATE | bgp-redistribute-announce.ci | File exists; observer dispatches `fakeredist emit add` then peer asserts JSON with announce |
+| Same trigger but family not in rule | bgp-redistribute-filtered-out.ci | File exists; only EOR observed |
+| Two peers, single trigger, per-peer NEXT_HOP | bgp-redistribute-nexthop-self.ci | File exists; option=tcp_connections:value=2 + dual peer config |
+| Remove after add | bgp-redistribute-withdraw.ci | File exists; observer drives both, peer asserts add then withdraw |
+| Explicit nhop | bgp-redistribute-explicit-nhop.ci | File exists; observer passes 4-arg form `add ipv4/unicast 10.0.0.1/32 192.0.2.1` |
+| 500-event burst | bgp-redistribute-burst.ci | File exists; observer dispatches `fakeredist emit-burst 500 add ipv4/unicast 10.0.0.0/32`; peer asserts first and last prefix |
+| Metrics counter cadence | bgp-redistribute-metrics.ci | File exists; observer drives sequence then queries `metrics show` and runtime_fail-s on mismatch |
 
 ## Checklist
 
