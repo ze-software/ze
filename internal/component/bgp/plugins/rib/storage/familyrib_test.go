@@ -10,6 +10,83 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
+// TestFamilyRIB_OpaqueNonCIDR exercises the non-CIDR opaque-map backend:
+// FamilyRIB accepts arbitrary NLRI wire bytes (EVPN in this test), stores
+// them keyed by the full byte sequence, and survives Insert/Lookup/Remove/
+// Iterate/MarkStale/PurgeStale without a netip.Prefix round-trip.
+//
+// VALIDATES: non-CIDR families (EVPN, flowspec, VPN, MVPN, RTC, bgp-ls)
+// have functional storage in FamilyRIB.
+// PREVENTS: the Phase-2 regression where any non-CIDR NLRI was silently
+// dropped because NLRIToPrefix returned ok=false.
+func TestFamilyRIB_OpaqueNonCIDR(t *testing.T) {
+	// AFI=L2VPN, SAFI=EVPN is the canonical non-CIDR family.
+	fam := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
+	rib := NewFamilyRIB(fam, false)
+	defer rib.Release()
+
+	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)
+	// Two distinct EVPN NLRIs. Bytes are arbitrary; the test doesn't care
+	// about EVPN route-type semantics, only that different byte sequences
+	// become different keys.
+	nlri1 := []byte{0x02, 0x19, 0x01, 0x02, 0x03}
+	nlri2 := []byte{0x02, 0x19, 0x01, 0x02, 0x04}
+
+	rib.Insert(attrs, nlri1)
+	rib.Insert(attrs, nlri2)
+	assert.Equal(t, 2, rib.Len(), "two distinct opaque NLRIs stored")
+
+	_, ok := rib.LookupEntry(nlri1)
+	assert.True(t, ok)
+	_, ok = rib.LookupEntry(nlri2)
+	assert.True(t, ok)
+
+	// Iterate yields both entries.
+	seen := map[string]bool{}
+	rib.IterateEntry(func(n []byte, _ RouteEntry) bool {
+		seen[string(n)] = true
+		return true
+	})
+	assert.Len(t, seen, 2, "Iterate must yield every opaque entry")
+
+	// MarkStale + StaleCount + PurgeStale.
+	rib.MarkStale(2)
+	assert.Equal(t, 2, rib.StaleCount())
+	assert.Equal(t, 2, rib.PurgeStale(), "both entries are stale")
+	assert.Equal(t, 0, rib.Len())
+
+	// Remove reports absence correctly.
+	assert.False(t, rib.Remove(nlri1))
+}
+
+// TestFamilyRIB_OpaqueImplicitWithdraw verifies the same-attrs short-circuit
+// and implicit withdraw on the opaque backend.
+//
+// VALIDATES: re-insert with identical attrs reuses the stored handles and
+// clears the stale flag; different attrs release the old entry.
+func TestFamilyRIB_OpaqueImplicitWithdraw(t *testing.T) {
+	fam := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
+	rib := NewFamilyRIB(fam, false)
+	defer rib.Release()
+
+	attrs1 := concat(wireOriginIGP, wireASPath65001, wireNextHop)
+	nlri := []byte{0x02, 0x19, 0x01, 0x02, 0x03}
+
+	rib.Insert(attrs1, nlri)
+	entry1, _ := rib.LookupEntry(nlri)
+	originSlot := entry1.Origin.Slot()
+
+	// Mark stale, then re-insert with identical attrs -- stale flag clears,
+	// handles stay the same.
+	rib.MarkStale(1)
+	rib.Insert(attrs1, nlri)
+	entry2, ok := rib.LookupEntry(nlri)
+	require.True(t, ok)
+	assert.Equal(t, StaleLevelFresh, entry2.StaleLevel, "stale flag cleared on re-insert")
+	assert.Equal(t, originSlot, entry2.Origin.Slot(), "handles reused on identical attrs")
+	assert.Equal(t, 1, rib.Len())
+}
+
 // TestFamilyRIB_PerAttrDedup verifies per-attribute deduplication.
 //
 // VALIDATES: Routes with same ORIGIN/LOCAL_PREF but different MED share common attrs.
