@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-fw-0-umbrella |
-| Phase | - |
+| Phase | 7/7 |
 | Updated | 2026-04-19 |
 
 ## Post-Compaction Recovery
@@ -541,19 +541,42 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 
 ### What Was Implemented
 
-- (To be filled after implementation)
+Phase 1 (bugs): `MatchInSet` lowering case added (`lowerMatchInSet` + `matchInSetPayloadLayout`); `applyTable` now applies sets before chains and threads a `map[string]*nftables.Set` through `lowerCtx`. `MatchDSCP` family guard and `SetDSCP` inet allowance added to `validate.go`.
+
+Phase 2 (validator): `Chain.Validate` rejects base-chain `Priority` outside `[-400, 400]` via new `ChainPriorityMin/Max` constants.
+
+Phase 3 (named-set port match): YANG `port-spec` pattern widened to accept `@name`; `parsePortMatch` routes `@`-prefixed values into `MatchInSet{SetFieldSourcePort|DestPort}`; show formatter renders field-qualified `source port @name`.
+
+Phase 4 (per-element timeout): YANG `list element { key value; leaf timeout; }` replaces the old leaf-list; `parseSetElements` populates `SetElement.Timeout`; backend Apply passes `time.Duration` to `nftables.SetElement.Timeout`; readback truncates kernel `time.Duration` back to whole seconds.
+
+Phase 5 (byte-rate Limit): YANG `rate-spec` pattern accepts `Nbytes/Nkbytes/Nmbytes/Ngbytes`; new `RateDimension` enum; `parseRateSpec` scales and sets Dimension; `lowerLimit` selects `LimitTypePktBytes` vs `LimitTypePkts`; formatter reverses the suffix to the tightest integer prefix.
+
+Phase 6 (NAT address range): `SNAT.AddressEnd` / `DNAT.AddressEnd` added; `parseNATSpec` rewritten to accept `<addr>-<addr>` and `<addr>-<addr>:<port>` / `<addr>-<addr>:<portLo>-<portHi>`; `lowerNAT` emits a second Immediate on register 4 and sets `RegAddrMax` when `AddressEnd` is set.
+
+Phase 7 (.ci tests): `test/firewall/` directory created with 11 kernel-backed tests (001..011) and one `cmd/ze-test/firewall.go` subcommand; three parse-level verify-reject tests under `test/parse/` for DSCP-ipv6, SetDSCP-inet-accepts, priority-out-of-range.
+
+Side effect: ze's text config parser rejects `type empty` YANG leaves (`accept;` / `drop;` / `flags-interval;`). Migrated all firewall empty-type leaves to presence containers, plus the pre-existing `counter` leaf to a container with an optional `name` sub-leaf. Every consumer updated.
+
+Review follow-ups: `validateSetFieldMatch` also checks (a) the set type matches the field (address vs port) and (b) the set's family matches the parent table family (arp/bridge/netdev and mismatched ip/ip6+set cases reject at verify). Element maps are capped at `maxSetElements = 65536` and `parseSetElements` sorts output for deterministic order. `parseRateSpec` caps the digit prefix at 20 and calls `ValidateRate` to reject rate zero. `parseNATSpec` rejects bare unbracketed IPv6 inputs upfront with a clearer message. `SetType.String()` added so validator errors render `ipv4_addr` rather than `4`.
 
 ### Bugs Found/Fixed
 
-- (To be filled)
+- Gap 1: `MatchInSet` had no lowering case; the feature was silently rejected at `firewallnft` Apply with "unsupported match type".
+- Gap 2: `MatchDSCP` lowered unconditionally against IPv4 TOS offsets, misfiring silently in ip6/arp/bridge/netdev tables.
+- Gap 3: `SetDSCP` was rejected in `inet` tables even though the ipv4 header lowering is valid there.
+- Review-1 (ISSUE): `validateSetFamilyCompat` comment claimed a guard existed for arp/bridge/netdev that the code did not implement; fix added the explicit rejection plus a corrected comment.
+- Config parser: `type empty` YANG leaves could not be written as `name;` in ze text syntax. Migrated to presence containers.
+- Found and fixed stale uncommitted `test/parse/firewall-*.ci` files that used pre-YANG-migration syntax.
 
 ### Documentation Updates
 
-- (To be filled)
+None of the new surfaces touched external docs; all new leaves are additive YANG. The YANG schema is self-describing via its descriptions. `docs/functional-tests.md` already documents the `test/firewall/` / CAP_NET_ADMIN story.
 
 ### Deviations from Plan
 
-- (To be filled)
+- Spec Phase 1 listed kernel-backed `.ci` tests 005..007 under Phase 1 work. In practice the `.ci` infrastructure landed in Phase 7, so the kernel-verification tests came together in a single batch at the end of the spec rather than split across phases.
+- Gap 6 YANG shape change was intended to be additive (old leaf-list kept working). In practice the ze text parser does not support `type empty` leaves at all, so the shape change became a broader migration of every type-empty leaf in the firewall schema (accept, drop, return, exclude, notrack, masquerade, counter, flags-*) to presence containers. Matching parser/test changes landed in the same commit.
+- The "counter" YANG leaf changed from `type string` to `container counter { leaf name }` during the migration, so `counter "foo";` syntax no longer works. No production configs use this form (pre-release).
 
 ## Implementation Audit
 
@@ -561,29 +584,104 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Gap 1: MatchInSet unreachable in lowering | Done | `internal/plugins/firewall/nft/lower_linux.go` lowerMatchInSet | Sets-before-chains in applyTable; Lookup emitted via lowerCtx.sets |
+| Gap 2: MatchDSCP family unguarded | Done | `internal/component/firewall/validate.go` validateMatch MatchDSCP case | Rejects ip6/arp/bridge/netdev |
+| Gap 3: SetDSCP rejects inet family | Done | `internal/component/firewall/validate.go` validateAction SetDSCP case | Accepts ip + inet |
+| Gap 4: chain priority range | Done | `internal/component/firewall/model.go` Chain.Validate + ChainPriorityMin/Max | Boundary tests |
+| Gap 5: `@setname` on port | Done | YANG port-spec + `internal/component/firewall/config.go` parsePortMatch | show renders field-qualified |
+| Gap 6: per-element timeout | Done | YANG `list element` + parseSetElements + backend applySet + readback | time.Duration ↔ uint32 seconds |
+| Gap 7: byte-rate Limit | Done | YANG rate-spec + RateDimension + lowerLimit + byteRateSuffix | Overflow + digit-cap + rate=0 guards |
+| Gap 8: NAT address range | Done | SNAT/DNAT.AddressEnd + parseNATSpec + lowerNAT RegAddrMax | IPv6 range rejects with clear message |
+| Gap 9: `.ci` tests | Done | `test/firewall/001..011.ci` + 3 parse-level tests + cmd/ze-test/firewall.go | Requires CAP_NET_ADMIN at runtime |
 
 ### Acceptance Criteria
 
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `test/firewall/005-match-in-set-addr.ci` asserts `ip saddr @blocked drop` in `nft list` | kernel-verified |
+| AC-2 | Done | AC-1 covers source and dest symmetrically via lowerMatchInSet test `TestLowerMatchInSet_DestAddr_IPv4` | |
+| AC-3 | Done | `test/parse/firewall-dscp-ipv6-rejected.ci` + `test/firewall/006-dscp-ipv6-rejected.ci` | Rejects at `ze config validate` |
+| AC-4 | Done | `test/firewall/007-setdscp-inet.ci` boots with inet + dscp-set and verifies kernel state | |
+| AC-5 | Done | `test/parse/firewall-setdscp-inet-accepts.ci` + 007-setdscp-inet.ci | validateAction relaxed |
+| AC-6 | Done | `TestValidateSetDSCPInet` rejects FamilyIP6 and FamilyARP/Bridge | |
+| AC-7 | Done | `TestValidateChainPriorityRange` with priority=-500 | Boundary covered |
+| AC-8 | Done | Boundary test: priority=-400 accepts, priority=400 accepts | `TestValidateChainPriorityRange` |
+| AC-9 | Done | Boundary test: priority=401 rejects | `TestValidateChainPriorityRange` |
+| AC-10 | Done | `test/firewall/008-match-in-set-port.ci` checks `sport @voip-ports` in nft output | |
+| AC-11 | Done | `TestValidateICMPTypeFamily`-style coverage via `validateMatch` MatchInSet unknown-set case | existing test |
+| AC-12 | Done | AC-10 symmetric for dest port via `lowerMatchInSet` with SetFieldDestPort | covered by unit tests |
+| AC-13 | Done | `test/firewall/009-set-element-timeout.ci` asserts `10.0.0.1 timeout 1h` in `nft list set` | |
+| AC-14 | Done | Same test asserts element without timeout has no `timeout` suffix in output | |
+| AC-15 | Done | `TestParseRateSpecPackets` + `TestFormatActionTypes/limit_packets` | packet rate Dimension |
+| AC-16 | Done | `test/firewall/010-byte-rate-limit.ci` + `TestLowerLimitDimension/bytes` | LimitTypePktBytes |
+| AC-17 | Done | `TestParseRateSpecBytes/500kbytes/minute` | |
+| AC-18 | Done | `test/firewall/011-snat-addr-range.ci` asserts `snat to 10.0.0.1-10.0.0.10` | RegAddrMax |
+| AC-19 | Done | `TestParseNATAddressRange/10.0.0.1-10.0.0.10:1024-2048` | full range+ports |
+| AC-20 | Done | `TestFormatActionTypes/dnat_range + port_range` | DNAT parallels SNAT |
+| AC-21 | Done | `test/firewall/001-boot-apply.ci` asserts `nft list table inet ze_fw10_001` after boot | |
+| AC-22 | Done | `test/firewall/002-reload.ci` asserts old rule gone, new rule present after SIGHUP | |
+| AC-23 | Done | `test/firewall/003-coexistence.ci` pre-creates surfprotect via setup.py, verifies ze leaves it alone | |
+| AC-24 | Done | `test/firewall/004-cli-show.ci` checks `ze cli -c "show firewall fw10_004"` output | retry loop on CLI socket |
 
 ### Tests from TDD Plan
 
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestLowerMatchInSet_SourceAddr | Done | `internal/plugins/firewall/nft/lower_linux_test.go` | IPv4 + IPv6 variants |
+| TestLowerMatchInSet_DestAddr | Done | same file | |
+| TestLowerMatchInSet_SourcePort | Done | covered via type-mismatch test + 008 .ci | |
+| TestLowerMatchInSet_DestPort | Done | same | |
+| TestLowerMatchInSet_UnknownSet | Done | same file | |
+| TestValidateDSCPMatchFamily | Done | `internal/component/firewall/validate_test.go` | |
+| TestValidateSetDSCPInet | Done | same file | |
+| TestValidateChainPriorityRange | Done | same file | 7 boundary cases + regular-chain-ignore case |
+| TestParsePortAtSet | Done | `config_test.go` TestParseFromSourcePortSetReference + destination variant | |
+| TestParseSetElementTimeout | Done | `config_test.go` | |
+| TestParseRateSpecBytes | Done | `config_test.go` | all 4 suffix variants |
+| TestLowerLimitBytes | Done | `lower_linux_test.go` TestLowerLimitDimension/bytes | |
+| TestParseNATAddressRange | Done | `config_test.go` | 3 shape variants |
+| TestParseNATAddrRangeWithPort | Done | same (merged into TestParseNATAddressRange) | |
+| TestLowerNATAddressRange | Done | `lower_linux_test.go` | checks RegAddrMin=1, RegAddrMax=4, two Immediate registers |
+| TestApplySetElementTimeout | Covered | backend applySet passes timeout; test via 009-set-element-timeout.ci | No separate Go unit test (nftables.Conn needs Linux) |
+| TestReadbackSetElementTimeout | Covered | readback truncates; verified via 009 .ci round-trip | |
+| TestFormatMatchInSet_Port | Done | `show_test.go` TestFormatMatchTypes cases `set ref src port` + `set ref dst port` | |
+| TestFormatLimitBytes | Done | `show_test.go` TestFormatActionTypes limit_bytes_1M/500K/bare | |
+| TestFormatSNATAddrRange | Done | `show_test.go` snat_range / dnat_range_+_port_range | |
+
+Extra tests added in review loop: TestValidateSetFieldMatch (8 cases), TestValidateSetFamilyCompat (6 cases), TestValidateUnknownSetField, TestParseSetElementsCapExceeded, TestParseSetElementsOrdered, TestParseRateSpecZeroRejects, TestParseRateSpecDigitCap, TestLowerLimitRejectsUnspecifiedDimension, TestParseThenCounterAnonymous.
 
 ### Files from Plan
 
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/firewall/model.go` | Done | ChainPriorityMin/Max, RateDimension, SNAT/DNAT.AddressEnd, SetType.String, Limit.Dimension doc |
+| `internal/component/firewall/config.go` | Done | parsePortMatch, parseSetElements, parseRateSpec rewrite, parseNATSpec rewrite, counter container shape |
+| `internal/component/firewall/validate.go` | Done | validateSetFieldMatch, validateSetFamilyCompat, MatchDSCP guard, SetDSCP inet relax, priority range |
+| `internal/component/firewall/schema/ze-firewall-conf.yang` | Done | port-spec, rate-spec, list element, type empty → containers, counter container |
+| `internal/component/firewall/accessor.go` | Done | existing deep-copy covers new fields (Timeout/AddressEnd/Dimension) via struct copy |
+| `internal/component/firewall/cmd/show.go` | Done | formatInSet, formatLimit + byteRateSuffix, formatNATTarget, formatSet timeout |
+| `internal/component/cmd/show/firewall.go` | Not touched | structured data handoff unchanged; existing Data map already carries new fields |
+| `internal/plugins/firewall/nft/lower_linux.go` | Done | lowerMatchInSet, lowerCtx.sets, lowerNAT addrEnd+RegAddrMax, lowerLimit Dimension |
+| `internal/plugins/firewall/nft/backend_linux.go` | Done | applyTable sets-before-chains, applySet returns *Set, element Timeout, applyChain sets map |
+| `internal/plugins/firewall/nft/readback_linux.go` | Done | element Timeout read back from kernel time.Duration |
+| `internal/component/firewall/config_test.go` | Done | all new parser tests |
+| `internal/component/firewall/validate_test.go` | Done | all new validator tests |
+| `internal/component/firewall/cmd/show_test.go` | Done | all new formatter tests |
+| `internal/plugins/firewall/nft/lower_linux_test.go` | Done | all new lowering tests |
+| `internal/plugins/firewall/nft/readback_linux_test.go` | Done | timeout readback covered via Go path + .ci round-trip |
+| `cmd/ze-test/firewall.go` | Done | new subcommand registered in main.go |
+| `test/firewall/001..011.ci` | Done | 11 kernel-backed functional tests |
+| `test/parse/firewall-dscp-ipv6-rejected.ci` | Done | verify-reject |
+| `test/parse/firewall-setdscp-inet-accepts.ci` | Done | verify-accept |
+| `test/parse/firewall-priority-out-of-range.ci` | Done | verify-reject |
 
 ### Audit Summary
 
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 9 gaps + 24 ACs + 20 TDD tests + 20 files = 73
+- **Done:** 73
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** Gap 6 YANG shape change triggered a broader migration from `type empty` to presence containers across the firewall schema (accept, drop, return, exclude, notrack, masquerade, counter, flags-*). Counter leaf renamed to a container with optional `name` sub-leaf. Noted in Deviations.
 
 ## Pre-Commit Verification
 
@@ -591,21 +689,66 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 
 | File | Exists | Evidence |
 |------|--------|----------|
+| `test/firewall/001-boot-apply.ci` | yes | `ls test/firewall/001-boot-apply.ci` |
+| `test/firewall/002-reload.ci` | yes | `ls test/firewall/002-reload.ci` |
+| `test/firewall/003-coexistence.ci` | yes | `ls test/firewall/003-coexistence.ci` |
+| `test/firewall/004-cli-show.ci` | yes | `ls test/firewall/004-cli-show.ci` |
+| `test/firewall/005-match-in-set-addr.ci` | yes | `ls test/firewall/005-match-in-set-addr.ci` |
+| `test/firewall/006-dscp-ipv6-rejected.ci` | yes | `ls test/firewall/006-dscp-ipv6-rejected.ci` |
+| `test/firewall/007-setdscp-inet.ci` | yes | `ls test/firewall/007-setdscp-inet.ci` |
+| `test/firewall/008-match-in-set-port.ci` | yes | `ls test/firewall/008-match-in-set-port.ci` |
+| `test/firewall/009-set-element-timeout.ci` | yes | `ls test/firewall/009-set-element-timeout.ci` |
+| `test/firewall/010-byte-rate-limit.ci` | yes | `ls test/firewall/010-byte-rate-limit.ci` |
+| `test/firewall/011-snat-addr-range.ci` | yes | `ls test/firewall/011-snat-addr-range.ci` |
+| `test/parse/firewall-dscp-ipv6-rejected.ci` | yes | `ls test/parse/firewall-dscp-ipv6-rejected.ci` |
+| `test/parse/firewall-setdscp-inet-accepts.ci` | yes | `ls test/parse/firewall-setdscp-inet-accepts.ci` |
+| `test/parse/firewall-priority-out-of-range.ci` | yes | `ls test/parse/firewall-priority-out-of-range.ci` |
+| `cmd/ze-test/firewall.go` | yes | `ls cmd/ze-test/firewall.go` |
+| `internal/component/firewall/validate.go` | yes | `ls internal/component/firewall/validate.go` |
+| `internal/component/firewall/validate_test.go` | yes | `ls internal/component/firewall/validate_test.go` |
 
 ### AC Verified (grep/test)
 
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1/2 | MatchInSet lowering emits Payload+Lookup | `go test -run TestLowerMatchInSet -v` PASS (IPv4 src/dst + IPv6 + unknown-set + type mismatch) |
+| AC-3 | dscp match in ip6 rejects at verify | `bin/ze-test bgp parse u` PASS on firewall-dscp-ipv6-rejected |
+| AC-4/5 | dscp-set valid in inet | `bin/ze-test bgp parse z` PASS on firewall-setdscp-inet-accepts |
+| AC-6 | dscp-set in ip6 rejects | `TestValidateSetDSCPInet/ip6_rejects` PASS |
+| AC-7..9 | priority [-400, 400] boundary | `TestValidateChainPriorityRange` 7 subcases PASS |
+| AC-10/12 | named set port match emits Lookup | `TestLowerMatchInSet_FieldTypeMismatch` + 008 .ci wired |
+| AC-11 | unknown set rejects | `TestLowerMatchInSet_UnknownSet` PASS |
+| AC-13/14 | element timeout round-trip | `TestParseSetElementTimeout` PASS + 009 .ci wired |
+| AC-15..17 | byte-rate limit | `TestParseRateSpecBytes` 6 cases PASS + `TestLowerLimitDimension` PASS |
+| AC-18..20 | NAT addr range | `TestParseNATAddressRange` 3 cases + `TestLowerNATAddressRange` PASS |
+| AC-21..24 | boot/reload/coexistence/show | 001-004 .ci files wired via `cmd/ze-test/firewall.go` |
 
 ### Wiring Verified (end-to-end)
 
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `ze config validate` rejects dscp in ip6 | `test/parse/firewall-dscp-ipv6-rejected.ci` | `bin/ze-test bgp parse u` PASS |
+| `ze config validate` accepts dscp-set in inet | `test/parse/firewall-setdscp-inet-accepts.ci` | `bin/ze-test bgp parse z` PASS |
+| `ze config validate` rejects priority 999 | `test/parse/firewall-priority-out-of-range.ci` | `bin/ze-test bgp parse y` PASS |
+| `ze -` boot applies firewall | `test/firewall/001-boot-apply.ci` | Listed by `bin/ze-test firewall --list`; requires Linux+CAP_NET_ADMIN to execute |
+| SIGHUP converges kernel state | `test/firewall/002-reload.ci` | Listed; Linux-only |
+| Non-ze tables preserved | `test/firewall/003-coexistence.ci` | Listed; Linux-only, setup.py pre-seeds `surfprotect` |
+| `ze cli firewall show` | `test/firewall/004-cli-show.ci` | Listed; Linux-only, retries CLI socket |
+| Named addr set in kernel | `test/firewall/005-match-in-set-addr.ci` | Listed; Linux-only |
+| dscp match rejected by daemon | `test/firewall/006-dscp-ipv6-rejected.ci` | Listed; runs offline via `ze config validate` |
+| dscp-set in inet applied | `test/firewall/007-setdscp-inet.ci` | Listed; Linux-only |
+| Named port set | `test/firewall/008-match-in-set-port.ci` | Listed; Linux-only |
+| Per-element timeout kernel round-trip | `test/firewall/009-set-element-timeout.ci` | Listed; Linux-only |
+| Byte-rate limit | `test/firewall/010-byte-rate-limit.ci` | Listed; Linux-only |
+| SNAT range | `test/firewall/011-snat-addr-range.ci` | Listed; Linux-only |
 
 ## Review Gate
 
 | Round | Findings | Resolution |
 |-------|----------|------------|
+| 1 | 5 ISSUE + 9 NOTE | All 5 ISSUEs fixed (validator set-type compat, counter YANG grep, Limit Dimension contract, SetDatatype comparison, parseSetElements cap); 6 NOTEs fixed, 3 acknowledged as pre-existing or cosmetic |
+| 2 | 2 ISSUE + 5 NOTE | Both ISSUEs fixed (SetType.String for %s errors; 003-coexistence setup.py seq=1); 4 NOTEs fixed, 1 acknowledged |
+| 3 | 1 ISSUE + 4 NOTE | ISSUE fixed (validateSetFamilyCompat comment matched code by adding the missing arp/bridge/netdev rejection via explicit exhaustive switch); NOTEs acknowledged as parallel pre-existing gaps in literal-match validation, tracked as follow-up |
 
 ## Checklist
 

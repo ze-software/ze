@@ -1,0 +1,34 @@
+# Test: `dscp` match in an ip6 table rejects via `ze config validate`.
+# VALIDATES: spec-fw-10 AC-3 -- validateMatch rejects MatchDSCP unless
+#            the parent table family is ip or inet; the daemon's
+#            OnConfigVerify shares the same ValidateTables path so
+#            the reject applies both offline (this test) and at
+#            daemon boot.
+# PREVENTS: a regression where the offline CLI validate path stops
+#           running ValidateTables for the firewall section.
+#
+# Offline test (no daemon, no netlink), the daemon-side equivalent is
+# exercised implicitly: ValidateTables is called from OnConfigVerify.
+
+stdin=config:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table fw10_006 {
+		family ip6;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term reclassify {
+				from { dscp ef; }
+				then { accept; }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=dscp match is IPv4-only

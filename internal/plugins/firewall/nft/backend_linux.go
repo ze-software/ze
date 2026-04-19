@@ -1,4 +1,6 @@
 // Design: docs/architecture/core-design.md -- nftables backend Linux implementation
+// Related: readback_linux.go -- ListTables' kernel read-back path
+// Related: lower_linux.go -- forward lowering helpers
 
 //go:build linux
 
@@ -7,6 +9,7 @@ package firewallnft
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
@@ -72,48 +75,72 @@ func (b *backend) Apply(desired []firewall.Table) error {
 }
 
 func (b *backend) applyTable(tbl *firewall.Table) error {
-	family := lowerFamily(tbl.Family)
+	family, err := lowerFamily(tbl.Family)
+	if err != nil {
+		return err
+	}
 	t := b.conn.AddTable(&nftables.Table{
 		Name:   tbl.Name,
 		Family: family,
 	})
 
+	// Sets are applied BEFORE chains so that chain rules that reference
+	// them via MatchInSet can resolve the set's ID/Name from the map
+	// below when lowering expressions. google/nftables assigns each
+	// *nftables.Set a monotonically increasing ID inside AddSet; by the
+	// time applyChain runs its Lookup expressions, the IDs are stable.
+	sets := make(map[string]*nftables.Set, len(tbl.Sets))
+	for i := range tbl.Sets {
+		ns, err := b.applySet(t, &tbl.Sets[i])
+		if err != nil {
+			return fmt.Errorf("set %q: %w", tbl.Sets[i].Name, err)
+		}
+		sets[tbl.Sets[i].Name] = ns
+	}
+
 	for i := range tbl.Chains {
-		if err := b.applyChain(t, &tbl.Chains[i]); err != nil {
+		if err := b.applyChain(t, sets, &tbl.Chains[i]); err != nil {
 			return fmt.Errorf("chain %q: %w", tbl.Chains[i].Name, err)
 		}
 	}
 
-	for i := range tbl.Sets {
-		if err := b.applySet(t, &tbl.Sets[i]); err != nil {
-			return fmt.Errorf("set %q: %w", tbl.Sets[i].Name, err)
-		}
-	}
-
 	for i := range tbl.Flowtables {
-		b.applyFlowtable(t, &tbl.Flowtables[i])
+		if err := b.applyFlowtable(t, &tbl.Flowtables[i]); err != nil {
+			return fmt.Errorf("flowtable %q: %w", tbl.Flowtables[i].Name, err)
+		}
 	}
 
 	return nil
 }
 
-func (b *backend) applyChain(t *nftables.Table, chain *firewall.Chain) error {
+func (b *backend) applyChain(t *nftables.Table, sets map[string]*nftables.Set, chain *firewall.Chain) error {
 	c := &nftables.Chain{
 		Name:  chain.Name,
 		Table: t,
 	}
 	if chain.IsBase {
-		hooknum := lowerHook(chain.Hook)
-		policy := lowerPolicy(chain.Policy)
-		c.Type = lowerChainType(chain.Type)
+		hooknum, err := lowerHook(chain.Hook)
+		if err != nil {
+			return err
+		}
+		policy, err := lowerPolicy(chain.Policy)
+		if err != nil {
+			return err
+		}
+		chainType, err := lowerChainType(chain.Type)
+		if err != nil {
+			return err
+		}
+		c.Type = chainType
 		c.Hooknum = hooknum
 		c.Priority = nftables.ChainPriorityRef(nftables.ChainPriority(chain.Priority))
 		c.Policy = &policy
 	}
 	b.conn.AddChain(c)
 
+	ctx := &lowerCtx{conn: b.conn, table: t, sets: sets}
 	for i := range chain.Terms {
-		exprs, err := lowerTerm(&chain.Terms[i])
+		exprs, err := lowerTerm(ctx, &chain.Terms[i])
 		if err != nil {
 			return fmt.Errorf("term %q: %w", chain.Terms[i].Name, err)
 		}
@@ -155,29 +182,50 @@ func hasCounterExpr(exprs []expr.Any) bool {
 	return false
 }
 
-func (b *backend) applySet(t *nftables.Table, s *firewall.Set) error {
+// applySet registers the set on the nftables connection and returns the
+// *nftables.Set so applyTable can expose it to applyChain via the sets
+// map. The returned pointer carries the kernel-assigned ID (allocated
+// inside conn.AddSet) that expr.Lookup needs.
+func (b *backend) applySet(t *nftables.Table, s *firewall.Set) (*nftables.Set, error) {
+	keyType, err := lowerSetType(s.Type)
+	if err != nil {
+		return nil, err
+	}
 	nftSet := &nftables.Set{
 		Name:     s.Name,
 		Table:    t,
-		KeyType:  lowerSetType(s.Type),
+		KeyType:  keyType,
 		Interval: s.Flags&firewall.SetFlagInterval != 0,
 	}
 	var elements []nftables.SetElement
 	for _, e := range s.Elements {
 		key, err := encodeSetElementKey(s.Type, e.Value)
 		if err != nil {
-			return fmt.Errorf("element %q: %w", e.Value, err)
+			return nil, fmt.Errorf("element %q: %w", e.Value, err)
 		}
-		elements = append(elements, nftables.SetElement{Key: key})
+		el := nftables.SetElement{Key: key}
+		// Per-element timeout reaches the kernel as time.Duration.
+		// Zero stays zero (no timeout) so unset elements keep the
+		// prior behaviour. The set itself must carry flags-timeout
+		// for the kernel to honour any per-element timeout; that
+		// flag is applied at set construction above via the Flags
+		// field on the parent firewall.Set.
+		if e.Timeout != 0 {
+			el.Timeout = time.Duration(e.Timeout) * time.Second
+		}
+		elements = append(elements, el)
 	}
 	if err := b.conn.AddSet(nftSet, elements); err != nil {
-		return fmt.Errorf("add set: %w", err)
+		return nil, fmt.Errorf("add set: %w", err)
 	}
-	return nil
+	return nftSet, nil
 }
 
-func (b *backend) applyFlowtable(t *nftables.Table, ft *firewall.Flowtable) {
-	hooknum := lowerFlowtableHook(ft.Hook)
+func (b *backend) applyFlowtable(t *nftables.Table, ft *firewall.Flowtable) error {
+	hooknum, err := lowerFlowtableHook(ft.Hook)
+	if err != nil {
+		return err
+	}
 	b.conn.AddFlowtable(&nftables.Flowtable{
 		Table:    t,
 		Name:     ft.Name,
@@ -185,26 +233,17 @@ func (b *backend) applyFlowtable(t *nftables.Table, ft *firewall.Flowtable) {
 		Priority: nftables.FlowtablePriorityRef(nftables.FlowtablePriority(ft.Priority)),
 		Devices:  ft.Devices,
 	})
+	return nil
 }
 
-// ListTables returns current ze_* tables from the kernel.
+// ListTables returns current ze_* tables from the kernel, each populated
+// with its chains (and per-chain term names), sets (including elements),
+// and flowtables. Term matches/actions are intentionally left empty:
+// the forward lowering is not bijective, so faithfully reversing it is
+// not possible without extra metadata beyond what nftables stores.
+// Operators who need the full rule body consult config.
 func (b *backend) ListTables() ([]firewall.Table, error) {
-	tables, err := b.conn.ListTables()
-	if err != nil {
-		return nil, fmt.Errorf("firewallnft: list tables: %w", err)
-	}
-
-	var result []firewall.Table
-	for _, t := range tables {
-		if !strings.HasPrefix(t.Name, zeTablePrefix) {
-			continue
-		}
-		result = append(result, firewall.Table{
-			Name:   t.Name,
-			Family: raiseFamily(t.Family),
-		})
-	}
-	return result, nil
+	return b.readTables()
 }
 
 // GetCounters returns per-term packet/byte counter values for a table.

@@ -275,26 +275,45 @@ type MatchSourceAddress struct{ Prefix netip.Prefix }
 // MatchDestinationAddress matches packets by destination IP prefix.
 type MatchDestinationAddress struct{ Prefix netip.Prefix }
 
-// MatchSourcePort matches packets by source port or port range.
-type MatchSourcePort struct {
-	Port    uint16
-	PortEnd uint16 // 0 = single port
+// PortRange is a single port (Lo==Hi) or contiguous range (Lo<Hi).
+type PortRange struct {
+	Lo uint16
+	Hi uint16
 }
 
-// MatchDestinationPort matches packets by destination port or port range.
+// MatchSourcePort matches packets by source port. Ranges holds one or more
+// single-port or range entries; len>1 lowers to an nftables anonymous set.
+type MatchSourcePort struct {
+	Ranges []PortRange
+}
+
+// MatchDestinationPort matches packets by destination port. Ranges holds one
+// or more single-port or range entries; len>1 lowers to an nftables anonymous
+// set so `destination port 22,80,443` and `destination port 5060-5061,16384-32767`
+// both express the operator's intent exactly.
 type MatchDestinationPort struct {
-	Port    uint16
-	PortEnd uint16 // 0 = single port
+	Ranges []PortRange
 }
 
 // MatchProtocol matches packets by L4 protocol name.
 type MatchProtocol struct{ Protocol string }
 
 // MatchInputInterface matches packets by input interface name.
-type MatchInputInterface struct{ Name string }
+// A trailing `*` in the config (e.g. `l2tp*`) sets Wildcard=true and
+// strips the `*` from Name, producing a prefix match against the first
+// len(Name) bytes of the kernel's 16-byte IFNAMSIZ-padded name rather
+// than the full exact compare.
+type MatchInputInterface struct {
+	Name     string
+	Wildcard bool
+}
 
 // MatchOutputInterface matches packets by output interface name.
-type MatchOutputInterface struct{ Name string }
+// See MatchInputInterface for Wildcard semantics.
+type MatchOutputInterface struct {
+	Name     string
+	Wildcard bool
+}
 
 // MatchConnState matches packets by connection tracking state bitmask.
 type MatchConnState struct{ States ConnState }
@@ -314,66 +333,13 @@ type MatchMark struct {
 // MatchDSCP matches packets by DSCP value (0-63).
 type MatchDSCP struct{ Value uint8 }
 
-// MatchConnBytes matches packets by cumulative connection byte count.
-type MatchConnBytes struct {
-	Bytes uint64
-	Over  bool // true = over threshold, false = under
-}
+// MatchICMPType matches packets by ICMPv4 type byte. Values follow
+// IANA assignments (echo-request=8, echo-reply=0, etc.).
+type MatchICMPType struct{ Type uint8 }
 
-// MatchConnLimit matches packets by concurrent connection count.
-type MatchConnLimit struct {
-	Count uint32
-	Flags uint32
-}
-
-// FibResult selects which FIB lookup result to check.
-type FibResult uint8
-
-const (
-	FibResultOIF  FibResult = iota // output interface
-	FibResultAddr                  // address type
-)
-
-// MatchFib matches using a FIB lookup result.
-type MatchFib struct {
-	Result FibResult
-	Flags  uint32
-}
-
-// SocketKey selects which socket attribute to check.
-type SocketKey uint8
-
-const (
-	SocketTransparent SocketKey = iota
-	SocketMark
-	SocketWildcard
-)
-
-// MatchSocket matches based on an associated socket attribute.
-type MatchSocket struct {
-	Key   SocketKey
-	Level uint32
-}
-
-// RtKey selects which routing attribute to check.
-type RtKey uint8
-
-const (
-	RtClassID RtKey = iota
-	RtNexthop
-	RtMTU
-	RtTCPMSS
-)
-
-// MatchRt matches based on a routing attribute.
-type MatchRt struct{ Key RtKey }
-
-// MatchExtHdr matches an IPv6 extension header.
-type MatchExtHdr struct {
-	Type   uint8
-	Field  uint32
-	Offset uint32
-}
+// MatchICMPv6Type matches packets by ICMPv6 type byte (echo-request=128,
+// neighbor-solicit=135, etc.).
+type MatchICMPv6Type struct{ Type uint8 }
 
 // SetFieldType identifies which packet field is used for set lookups.
 type SetFieldType uint8
@@ -391,7 +357,9 @@ type MatchInSet struct {
 	MatchField SetFieldType
 }
 
-// Interface compliance: all 18 match types implement Match.
+// Interface compliance: every Match type implements Match. Keep this list
+// exhaustive with the struct definitions above -- a markerless type compiles
+// but silently fails the `m.(Match)` assertion at runtime.
 func (MatchSourceAddress) matchMarker()      {}
 func (MatchDestinationAddress) matchMarker() {}
 func (MatchSourcePort) matchMarker()         {}
@@ -403,13 +371,9 @@ func (MatchConnState) matchMarker()          {}
 func (MatchConnMark) matchMarker()           {}
 func (MatchMark) matchMarker()               {}
 func (MatchDSCP) matchMarker()               {}
-func (MatchConnBytes) matchMarker()          {}
-func (MatchConnLimit) matchMarker()          {}
-func (MatchFib) matchMarker()                {}
-func (MatchSocket) matchMarker()             {}
-func (MatchRt) matchMarker()                 {}
-func (MatchExtHdr) matchMarker()             {}
 func (MatchInSet) matchMarker()              {}
+func (MatchICMPType) matchMarker()           {}
+func (MatchICMPv6Type) matchMarker()         {}
 
 // --- Action types (16) ---
 
@@ -434,20 +398,24 @@ type Goto struct{ Target string }
 // Return returns from the current chain to the caller.
 type Return struct{}
 
-// SNAT applies source NAT.
+// SNAT applies source NAT. A zero AddressEnd means single-address NAT;
+// a non-zero AddressEnd programs a source-address range via the NAT
+// expression's RegAddrMax register.
 type SNAT struct {
-	Address netip.Addr
-	Port    uint16
-	PortEnd uint16
-	Flags   uint32
+	Address    netip.Addr
+	AddressEnd netip.Addr
+	Port       uint16
+	PortEnd    uint16
+	Flags      uint32
 }
 
-// DNAT applies destination NAT.
+// DNAT applies destination NAT. AddressEnd works the same as SNAT.AddressEnd.
 type DNAT struct {
-	Address netip.Addr
-	Port    uint16
-	PortEnd uint16
-	Flags   uint32
+	Address    netip.Addr
+	AddressEnd netip.Addr
+	Port       uint16
+	PortEnd    uint16
+	Flags      uint32
 }
 
 // Masquerade applies source NAT using the outgoing interface address.
@@ -463,37 +431,11 @@ type Redirect struct {
 	Flags uint32
 }
 
-// Queue sends the packet to a userspace queue.
-type Queue struct {
-	Num   uint16
-	Total uint16
-	Flags uint32
-}
-
 // Notrack disables connection tracking for the packet.
 type Notrack struct{}
 
-// TProxy redirects the packet to a transparent proxy.
-type TProxy struct {
-	Address netip.Addr
-	Port    uint16
-}
-
-// Duplicate sends a copy of the packet to another destination.
-type Duplicate struct {
-	Address netip.Addr
-	Device  string
-}
-
 // FlowOffload offloads the connection to a flowtable for hardware acceleration.
 type FlowOffload struct{ FlowtableName string }
-
-// Synproxy handles TCP SYN proxying.
-type Synproxy struct {
-	MSS    uint16
-	Wscale uint8
-	Flags  uint32
-}
 
 // --- Modifier types (8, also implement Action) ---
 
@@ -516,31 +458,54 @@ type SetDSCP struct{ Value uint8 }
 type Counter struct{ Name string }
 
 // Log logs the packet with a prefix and severity level.
+//
+// Level, Group, and Snaplen are pointers so the operator can distinguish
+// "not set" (kernel default applies) from "explicitly zero" (emerg level
+// for Level, group 0 for Group, no truncation for Snaplen). A bare
+// `uint32` would collapse both cases to zero and silently remap
+// `level 0` (emerg) to the kernel default (warning).
 type Log struct {
 	Prefix  string
-	Level   uint32
-	Group   uint16
-	Snaplen uint32
+	Level   *uint32
+	Group   *uint16
+	Snaplen *uint32
 }
 
-// Limit applies a rate limit.
+// RateDimension distinguishes packet-per-unit from byte-per-unit rate
+// limits. Zero (unspecified) is rejected at lowering so a Limit built
+// outside the parser surfaces the missing dimension instead of silently
+// programming a packet rate.
+type RateDimension uint8
+
+const (
+	rateDimensionUnspecified RateDimension = iota
+	RateDimensionPackets
+	RateDimensionBytes
+)
+
+// Limit applies a rate limit. Rate is expressed in the unit pair
+// (Dimension, Unit): packets/second, bytes/second, mbytes/minute, etc.
+// For byte rates the caller has already scaled the numeric prefix
+// (kbytes=1024, mbytes=1024^2, gbytes=1024^3) so Rate is a plain
+// bytes-per-unit value when Dimension==RateDimensionBytes.
+//
+// Callers MUST set Dimension to either RateDimensionPackets or
+// RateDimensionBytes. parseRateSpec does this for all
+// operator-originated Limits; programmatic callers (tests, direct
+// constructors) must set it explicitly. The zero value
+// (rateDimensionUnspecified) is rejected at lowering so a silent
+// "default to packets" cannot hide a missing assignment.
 type Limit struct {
-	Rate  uint64
-	Unit  string // "second", "minute", "hour", "day"
-	Over  bool
-	Burst uint32
+	Rate      uint64
+	Unit      string // "second", "minute", "hour", "day"
+	Dimension RateDimension
+	Over      bool
+	Burst     uint32
 }
 
-// Quota applies a byte quota.
-type Quota struct {
-	Bytes uint64
-	Flags uint32
-}
-
-// SecMark applies a security mark.
-type SecMark struct{ Name string }
-
-// Interface compliance: all 16 action + 8 modifier types implement Action.
+// Interface compliance: every Action type implements Action. Keep this list
+// exhaustive with the struct definitions above -- a markerless type compiles
+// but silently fails the `a.(Action)` assertion at runtime.
 func (Accept) actionMarker()      {}
 func (Drop) actionMarker()        {}
 func (Reject) actionMarker()      {}
@@ -551,20 +516,14 @@ func (SNAT) actionMarker()        {}
 func (DNAT) actionMarker()        {}
 func (Masquerade) actionMarker()  {}
 func (Redirect) actionMarker()    {}
-func (Queue) actionMarker()       {}
 func (Notrack) actionMarker()     {}
-func (TProxy) actionMarker()      {}
-func (Duplicate) actionMarker()   {}
 func (FlowOffload) actionMarker() {}
-func (Synproxy) actionMarker()    {}
 func (SetMark) actionMarker()     {}
 func (SetConnMark) actionMarker() {}
 func (SetDSCP) actionMarker()     {}
 func (Counter) actionMarker()     {}
 func (Log) actionMarker()         {}
 func (Limit) actionMarker()       {}
-func (Quota) actionMarker()       {}
-func (SecMark) actionMarker()     {}
 
 // --- Set types ---
 
@@ -579,6 +538,27 @@ const (
 	SetTypeMark                           // mark
 	SetTypeIfname                         // ifname
 )
+
+// String returns the nft-native name for the set type (ipv4_addr,
+// inet_service, etc.) so verify-time error messages render the same
+// token operators wrote in the config rather than a bare integer.
+func (s SetType) String() string {
+	switch s {
+	case SetTypeIPv4:
+		return "ipv4_addr"
+	case SetTypeIPv6:
+		return "ipv6_addr"
+	case SetTypeEther:
+		return "ether_addr"
+	case SetTypeInetService:
+		return "inet_service"
+	case SetTypeMark:
+		return "mark"
+	case SetTypeIfname:
+		return "ifname"
+	}
+	return fmt.Sprintf("unknown(%d)", uint8(s))
+}
 
 // SetFlags are bitmask flags for set behavior.
 type SetFlags uint8
@@ -629,6 +609,17 @@ type Chain struct {
 	Terms    []Term
 }
 
+// ChainPriorityMin and ChainPriorityMax bound the base-chain priority
+// leaf. The kernel accepts any int32 and silently clamps outside its
+// internal reserved ranges; surfacing [-400, 400] at verify gives
+// operators a clear diagnostic for a common typo (e.g. 500 vs 50).
+// Well-known nftables priorities (raw -300, mangle -150, filter 0,
+// security 50, nat-srcpost 100, nat-dstpre -100) all fit comfortably.
+const (
+	ChainPriorityMin int32 = -400
+	ChainPriorityMax int32 = 400
+)
+
 // Validate checks chain consistency. Base chains require type, hook, and policy.
 func (c Chain) Validate() error {
 	if err := ValidateName(c.Name); err != nil {
@@ -643,6 +634,10 @@ func (c Chain) Validate() error {
 		}
 		if !c.Policy.Valid() {
 			return fmt.Errorf("firewall: base chain %q: policy required", c.Name)
+		}
+		if c.Priority < ChainPriorityMin || c.Priority > ChainPriorityMax {
+			return fmt.Errorf("firewall: base chain %q: priority %d out of range %d..%d",
+				c.Name, c.Priority, ChainPriorityMin, ChainPriorityMax)
 		}
 	}
 	return nil

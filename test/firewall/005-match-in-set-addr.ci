@@ -1,0 +1,66 @@
+# Test: A `@setname` match on source-address programs a real nftables
+# Lookup expression against the set registered on the table.
+# VALIDATES: spec-fw-10 AC-1 -- MatchInSet{SetFieldSourceAddr} is
+#            lowered by lower_linux.go's lowerMatchInSet into
+#            Payload(Network,12,4) + Lookup{SetID,SetName}. Before
+#            spec-fw-10, lowerMatch had no case for MatchInSet; the
+#            backend Apply aborted with "unsupported match type" so
+#            the feature was dead on the operator's side despite the
+#            parser accepting the config.
+# PREVENTS: a regression where `source-address "@blocked"` silently
+#           falls back to accepting traffic.
+#
+# Requires CAP_NET_ADMIN.
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, signal, subprocess, sys, time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+out = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_005"], text=True)
+sys.stdout.write(out)
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table fw10_005 {
+		family inet;
+		set blocked {
+			type ipv4;
+			element 10.0.0.1 {}
+			element 10.0.0.2 {}
+		}
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term block-known {
+				from { source-address "@blocked"; }
+				then { drop; }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=firewall config applied
+expect=stdout:contains=set blocked
+expect=stdout:contains=ip saddr @blocked drop

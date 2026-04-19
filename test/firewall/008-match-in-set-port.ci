@@ -1,0 +1,65 @@
+# Test: A `@setname` match on source-port programs an inet_service set
+# Lookup against the set registered on the table.
+# VALIDATES: spec-fw-10 AC-10 -- MatchInSet{SetFieldSourcePort} lowers
+#            to Payload(Transport,0,2) + Lookup on the inet_service
+#            set. Before spec-fw-10, the parser did not even accept
+#            `@` prefixes on port leaves; the YANG port-spec pattern
+#            was extended to include @name, and config.go now routes
+#            the value through parsePortMatch.
+# PREVENTS: a regression where `source-port "@voip-ports"` is parsed
+#           back into a MatchSourcePort with a bad Ranges slice.
+#
+# Requires CAP_NET_ADMIN.
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, signal, subprocess, sys, time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+out = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_008"], text=True)
+sys.stdout.write(out)
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table fw10_008 {
+		family inet;
+		set voip-ports {
+			type inet-service;
+			element 5060 {}
+			element 5061 {}
+		}
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term voip-match {
+				from { source-port "@voip-ports"; }
+				then { accept; }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=firewall config applied
+expect=stdout:contains=set voip-ports
+expect=stdout:contains=sport @voip-ports

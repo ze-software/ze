@@ -1,0 +1,36 @@
+# Test: `dscp` match in an ip6 table rejects at verify with a clear
+# message naming the IPv4-only constraint.
+# VALIDATES: spec-fw-10 gap-2 -- validateMatch rejects MatchDSCP when
+#            the parent table family is ip6/arp/bridge/netdev. The
+#            offset-1 network-header read lowerDSCPMatch emits hits
+#            the IPv4 TOS byte only; in ip6 it would read the low
+#            nibble of traffic-class + high nibble of flow-label and
+#            silently misfire.
+# PREVENTS: an operator writing `from { dscp ef; }` in an `ip6` table
+#           and wondering why matching traffic is never classified.
+stdin=config:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table v6 {
+		family ip6;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term mark-ef {
+				from {
+					dscp ef;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=dscp match is IPv4-only

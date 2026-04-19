@@ -1,0 +1,34 @@
+# Test: `dscp-set` action in an inet table is accepted at verify.
+# VALIDATES: spec-fw-10 gap-3 -- validateAction relaxed so SetDSCP is
+#            valid in FamilyIP AND FamilyInet. Previously inet was
+#            rejected because the check was `!= FamilyIP`, forcing
+#            operators to duplicate filter rules into an ip-only
+#            table just to reclassify DSCP on IPv4 packets passing
+#            through an inet chain.
+# PREVENTS: a regression that re-tightens the family check back to
+#           ip-only.
+stdin=config:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table mixed {
+		family inet;
+		chain forward {
+			type filter;
+			hook forward;
+			priority 0;
+			policy accept;
+			term classify-voip {
+				from {
+					destination-port 5060;
+				}
+				then {
+					dscp-set ef;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

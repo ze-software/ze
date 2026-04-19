@@ -1,0 +1,37 @@
+# Test: a term with a named counter is rejected at commit time, not later
+# at Apply time when the backend hits the kernel.
+# VALIDATES: exact-or-reject -- named counters are not yet supported by the
+#            nft backend and the verifier rejects them with the term path in
+#            the message, rather than accepting the commit and failing at
+#            Apply with a nested error.
+# PREVENTS: a config that names a counter passing verify and then tripping
+#           an opaque "unsupported action type" at the next reload.
+stdin=config:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term allow-ssh {
+				from {
+					destination-port 22;
+				}
+				then {
+					counter {
+						name "ssh-hits";
+					}
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=named counter

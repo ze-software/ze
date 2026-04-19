@@ -1,0 +1,60 @@
+# Test: An SNAT action with `to "<lo>-<hi>"` programs the NAT
+# expression with RegAddrMax set, which `nft list` renders as an
+# IP range in the `snat to` target.
+# VALIDATES: spec-fw-10 AC-18 -- parseNATSpec accepts the range form
+#            and populates SNAT.AddressEnd; lowerNAT emits an extra
+#            Immediate on register 4 and sets nat.RegAddrMax=4.
+# PREVENTS: the pre-fix behaviour where the range was rejected by
+#           the parser and the operator had to fall back to a single
+#           source address.
+#
+# Requires CAP_NET_ADMIN.
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, signal, subprocess, sys, time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+out = subprocess.check_output(["nft", "list", "table", "ip", "ze_fw10_011"], text=True)
+sys.stdout.write(out)
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table fw10_011 {
+		family ip;
+		chain postrouting {
+			type nat;
+			hook postrouting;
+			priority 100;
+			policy accept;
+			term pool-snat {
+				from { source-address 192.168.0.0/24; }
+				then {
+					snat { to "10.0.0.1-10.0.0.10"; }
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=firewall config applied
+expect=stdout:contains=snat to 10.0.0.1-10.0.0.10

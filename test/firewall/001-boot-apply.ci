@@ -1,0 +1,72 @@
+# Test: Firewall component reactor programs an ze_* table in the kernel at boot.
+# VALIDATES: spec-fw-10 AC-21 -- ze boots with a firewall config; the
+#            reactor in internal/component/firewall/engine.go loads the
+#            nft backend, Apply() flushes the ze_fw10_001 table into the
+#            kernel, and `nft list table` reports the programmed rule.
+# PREVENTS: a regression where the firewall section parses but
+#           never reaches the backend (pre-wiring state -- config
+#           accepted, nothing programmed in the kernel).
+#
+# Requires CAP_NET_ADMIN on the test host. Without it, the nft backend
+# Apply() fails with EPERM and the "firewall config applied" log line
+# never appears, so the expect on stderr fails too.
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Wait for ze to reach post-Apply, snapshot nft state, send SIGTERM."""
+import os
+import signal
+import subprocess
+import sys
+import time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    print("ERROR: daemon.pid/ready never appeared", file=sys.stderr)
+    sys.exit(1)
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+
+out = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_001"], text=True)
+sys.stdout.write(out)
+
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table fw10_001 {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term allow-ssh {
+				from {
+					destination-port 22;
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=firewall config applied
+expect=stdout:contains=table inet ze_fw10_001
+expect=stdout:contains=tcp dport 22 accept

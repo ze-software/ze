@@ -1,0 +1,31 @@
+# Test: base-chain priority outside [-400, 400] rejects at verify.
+# VALIDATES: spec-fw-10 gap-4 -- Chain.Validate rejects values beyond
+#            ChainPriorityMin/ChainPriorityMax. Well-known nftables
+#            priorities (filter 0, mangle -150, nat-srcpost 100) all
+#            fit; a typo like `priority 999` would otherwise reach the
+#            kernel, which silently clamps into its reserved bands.
+# PREVENTS: a rule firing at an unexpected chain-evaluation order
+#           because the operator wrote the wrong number of digits.
+stdin=config:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 999;
+			policy drop;
+			term x {
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=out of range

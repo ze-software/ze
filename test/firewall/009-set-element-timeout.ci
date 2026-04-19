@@ -1,0 +1,66 @@
+# Test: Per-element `timeout` leaf reaches the kernel and is visible
+# when `nft list table` reads the set back.
+# VALIDATES: spec-fw-10 AC-13 -- the YANG shape changed from leaf-list
+#            of strings to `list element { key value; leaf timeout; }`.
+#            parseSetElements populates SetElement.Timeout, applySet
+#            passes the uint32 to nftables.SetElement.Timeout as a
+#            time.Duration, and readback_linux.go truncates it back to
+#            whole seconds for the model.
+# PREVENTS: a regression where the timeout disappears somewhere along
+#           the parse -> apply -> readback chain.
+#
+# Requires CAP_NET_ADMIN.
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, signal, subprocess, sys, time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+out = subprocess.check_output(["nft", "list", "set", "inet", "ze_fw10_009", "transient"], text=True)
+sys.stdout.write(out)
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table fw10_009 {
+		family inet;
+		set transient {
+			type ipv4;
+			flags-timeout;
+			element 10.0.0.1 { timeout 3600; }
+			element 10.0.0.2 {}
+		}
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term block {
+				from { source-address "@transient"; }
+				then { drop; }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=firewall config applied
+expect=stdout:contains=10.0.0.1 timeout 1h
+expect=stdout:contains=10.0.0.2

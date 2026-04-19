@@ -1,0 +1,66 @@
+# Test: A byte-rate `limit-rate` action programs nftables'
+# LimitTypePktBytes with the scaled Rate.
+# VALIDATES: spec-fw-10 AC-16 -- YANG rate-spec accepts the Nbytes /
+#            Nkbytes / Nmbytes / Ngbytes suffix, parseRateSpec scales
+#            the number and sets Limit.Dimension = RateDimensionBytes,
+#            and lowerLimit selects expr.LimitTypePktBytes.
+# PREVENTS: a byte-rate limit silently collapsing to a packet rate
+#           (the pre-fix behaviour where the suffix was rejected by
+#           the YANG pattern; any caller that side-stepped the parser
+#           would have produced a packet rule).
+#
+# Requires CAP_NET_ADMIN.
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, signal, subprocess, sys, time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+out = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_010"], text=True)
+sys.stdout.write(out)
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table fw10_010 {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term rate-limit {
+				from { destination-port 80; }
+				then {
+					limit-rate {
+						rate "1mbytes/second";
+						burst "5";
+					}
+					accept;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=firewall config applied
+expect=stdout:contains=limit rate
+expect=stdout:contains=bytes/second

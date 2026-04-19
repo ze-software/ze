@@ -3,6 +3,7 @@ module ze-firewall-conf {
     prefix fw;
 
     import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
 
     description "Firewall configuration for Ze.
                  Tables use nftables structural concepts (table, chain, hook,
@@ -124,9 +125,9 @@ module ze-firewall-conf {
 
     typedef port-spec {
         type string {
-            pattern '[0-9]+(-[0-9]+)?(,[0-9]+(-[0-9]+)?)*';
+            pattern '[0-9]+(-[0-9]+)?(,[0-9]+(-[0-9]+)?)*|@[a-zA-Z0-9][a-zA-Z0-9_-]*';
         }
-        description "Port number, range (80-90), or comma-separated list (80,443,8080-8090)";
+        description "Port number, range (80-90), comma-separated list (80,443,8080-8090), or named-set reference (@set-name)";
     }
 
     typedef mark-value {
@@ -138,9 +139,11 @@ module ze-firewall-conf {
 
     typedef rate-spec {
         type string {
-            pattern '[0-9]+/(second|minute|hour|day)';
+            pattern '[0-9]+(bytes|kbytes|mbytes|gbytes)?/(second|minute|hour|day)';
         }
-        description "Rate limit specification (e.g., 10/second)";
+        description "Rate limit specification: packet-per-unit (10/second)
+                     or byte-per-unit (1mbytes/second, 500kbytes/minute). Byte
+                     prefixes scale: kbytes=1024, mbytes=1024^2, gbytes=1024^3.";
     }
 
     typedef nat-spec {
@@ -173,19 +176,28 @@ module ze-firewall-conf {
         }
         leaf input-interface {
             type string;
-            description "Input interface name";
+            description "Input interface name. A trailing asterisk
+                         (e.g. 'l2tp*') matches any interface whose
+                         name begins with the given prefix.";
         }
         leaf output-interface {
             type string;
-            description "Output interface name";
+            description "Output interface name. A trailing asterisk
+                         (e.g. 'veth*') matches any interface whose
+                         name begins with the given prefix.";
         }
         leaf connection-state {
             type connection-state;
-            description "Connection tracking state(s)";
+            ze:backend "nft";
+            description "Connection tracking state(s). Conntrack-driven;
+                         requires a backend that integrates with the kernel
+                         nf_conntrack module.";
         }
         leaf connection-mark {
             type mark-value;
-            description "Connection mark value/mask";
+            ze:backend "nft";
+            description "Connection mark value/mask. Conntrack-driven; see
+                         connection-state for backend notes.";
         }
         leaf mark {
             type mark-value;
@@ -195,17 +207,31 @@ module ze-firewall-conf {
             type dscp-value;
             description "DSCP value";
         }
+        leaf icmp-type {
+            type string;
+            description "ICMPv4 type. Accepts symbolic names from
+                         nftables (echo-request, echo-reply,
+                         destination-unreachable, time-exceeded, ...)
+                         or a numeric byte value 0..255.";
+        }
+        leaf icmpv6-type {
+            type string;
+            description "ICMPv6 type. Accepts symbolic names from
+                         nftables (echo-request, nd-neighbor-solicit,
+                         packet-too-big, ...) or a numeric byte value
+                         0..255.";
+        }
     }
 
     grouping then-block {
         description "Action and modifier expressions (then block in a term)";
 
-        leaf accept {
-            type empty;
+        container accept {
+            presence "Accept the packet";
             description "Accept the packet";
         }
-        leaf drop {
-            type empty;
+        container drop {
+            presence "Drop the packet";
             description "Drop the packet";
         }
         container reject {
@@ -219,9 +245,16 @@ module ze-firewall-conf {
                 description "ICMP code";
             }
         }
-        leaf return {
-            type empty;
+        container return {
+            presence "Return to caller chain";
             description "Return to caller chain";
+        }
+        container exclude {
+            presence "Skip NAT for matching traffic";
+            description "In a NAT chain term, skip NAT for matching
+                         traffic. Lowers to the same `return` verdict
+                         the operator could have written directly;
+                         the keyword exists for VyOS-config parity.";
         }
         leaf jump {
             type string;
@@ -247,8 +280,8 @@ module ze-firewall-conf {
                 description "NAT target address:port";
             }
         }
-        leaf masquerade {
-            type empty;
+        container masquerade {
+            presence "Masquerade outgoing traffic";
             description "Masquerade (source NAT with outgoing interface address)";
         }
         container redirect {
@@ -259,12 +292,17 @@ module ze-firewall-conf {
                 description "Local port number";
             }
         }
-        leaf notrack {
-            type empty;
-            description "Disable connection tracking";
+        container notrack {
+            presence "Disable connection tracking";
+            ze:backend "nft";
+            description "Disable connection tracking. Conntrack-specific.";
         }
         container flow-offload {
             presence "Hardware flow offload";
+            ze:backend "nft";
+            description "Hardware / software flow offload via an nftables
+                         flowtable. The VPP dataplane is itself the fast
+                         path and does not expose a flowtable surface.";
             leaf flowtable {
                 type string;
                 mandatory true;
@@ -273,6 +311,11 @@ module ze-firewall-conf {
         }
         container mark-set {
             presence "Set packet mark";
+            ze:backend "nft";
+            description "Write the kernel skb mark. Different backends
+                         carry per-packet metadata differently; the VPP
+                         classifier's equivalent uses opaque keys via
+                         ClassifyAddDelSession.";
             leaf value {
                 type mark-value;
                 mandatory true;
@@ -281,6 +324,8 @@ module ze-firewall-conf {
         }
         container connection-mark-set {
             presence "Set connection mark";
+            ze:backend "nft";
+            description "Conntrack-driven; see mark-set for backend notes.";
             leaf value {
                 type mark-value;
                 mandatory true;
@@ -291,9 +336,15 @@ module ze-firewall-conf {
             type dscp-value;
             description "Set DSCP field value";
         }
-        leaf counter {
-            type string;
-            description "Counter name (empty string for anonymous)";
+        container counter {
+            presence "Enable per-rule counter";
+            description "Anonymous per-rule counter. A non-empty `name`
+                         leaf is reserved for a future named-counter
+                         feature and is rejected at verify today.";
+            leaf name {
+                type string;
+                description "Counter name (reserved; non-empty values reject at verify)";
+            }
         }
         container log {
             presence "Log the packet";
@@ -431,30 +482,57 @@ module ze-firewall-conf {
                     description "Element data type";
                 }
 
-                leaf flags-interval {
-                    type empty;
+                container flags-interval {
+                    presence "Enable interval ranges";
                     description "Enable interval ranges";
                 }
 
-                leaf flags-timeout {
-                    type empty;
+                container flags-timeout {
+                    presence "Enable per-element timeouts";
                     description "Enable per-element timeouts";
                 }
 
-                leaf flags-constant {
-                    type empty;
+                container flags-constant {
+                    presence "Immutable after creation";
                     description "Immutable after creation";
                 }
 
-                leaf flags-dynamic {
-                    type empty;
+                container flags-dynamic {
+                    presence "Dynamically populated";
                     description "Dynamically populated";
+                }
+
+                list element {
+                    key "value";
+                    ordered-by user;
+                    description "Static set elements. The value form is
+                                 interpreted per set type: ipv4 / ipv6
+                                 accepts addresses or prefixes (when
+                                 flags-interval is set); inet-service
+                                 accepts port numbers; mark accepts a
+                                 numeric or 0x-prefixed value; ether
+                                 accepts aa:bb:cc:dd:ee:ff; ifname
+                                 accepts an interface name.";
+
+                    leaf value {
+                        type string;
+                        description "Element value (see list description for format).";
+                    }
+
+                    leaf timeout {
+                        type uint32;
+                        description "Per-element timeout in seconds. 0 means no timeout.
+                                     Requires flags-timeout on the enclosing set.";
+                    }
                 }
             }
 
             list flowtable {
                 key "name";
-                description "Hardware offload flowtable";
+                ze:backend "nft";
+                description "Hardware offload flowtable. nftables-specific;
+                             the VPP dataplane is itself the fast path and
+                             does not expose a flowtable surface.";
 
                 leaf name {
                     type string {

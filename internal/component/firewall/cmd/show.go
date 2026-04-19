@@ -6,10 +6,29 @@ package cmd
 import (
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
 )
+
+// formatNATTarget renders the `to` leaf of a NAT action in the shape
+// the operator typed. A zero AddressEnd renders a single address; a
+// set AddressEnd renders `lo-hi`. Port suffix is appended only when
+// Port is non-zero, and a non-zero PortEnd yields a range.
+func formatNATTarget(addr, addrEnd netip.Addr, port, portEnd uint16) string {
+	addrStr := addr.String()
+	if addrEnd.IsValid() {
+		addrStr = fmt.Sprintf("%s-%s", addr, addrEnd)
+	}
+	if port == 0 {
+		return addrStr
+	}
+	if portEnd == 0 {
+		return fmt.Sprintf("%s:%d", addrStr, port)
+	}
+	return fmt.Sprintf("%s:%d-%d", addrStr, port, portEnd)
+}
 
 // logKeyword is the config keyword for the log action, accessed via variable
 // to avoid triggering the legacy-log-import hook on the raw string literal.
@@ -83,15 +102,19 @@ func formatMatch(m firewall.Match) string {
 	case firewall.MatchDestinationAddress:
 		return fmt.Sprintf("destination address %s", v.Prefix)
 	case firewall.MatchSourcePort:
-		return formatPort("source port", v.Port, v.PortEnd)
+		return formatPort("source port", v.Ranges)
 	case firewall.MatchDestinationPort:
-		return formatPort("destination port", v.Port, v.PortEnd)
+		return formatPort("destination port", v.Ranges)
 	case firewall.MatchProtocol:
 		return fmt.Sprintf("protocol %s", v.Protocol)
 	case firewall.MatchInputInterface:
-		return fmt.Sprintf("input interface %s", v.Name)
+		return fmt.Sprintf("input interface %s", formatIface(v.Name, v.Wildcard))
 	case firewall.MatchOutputInterface:
-		return fmt.Sprintf("output interface %s", v.Name)
+		return fmt.Sprintf("output interface %s", formatIface(v.Name, v.Wildcard))
+	case firewall.MatchICMPType:
+		return fmt.Sprintf("icmp type %d", v.Type)
+	case firewall.MatchICMPv6Type:
+		return fmt.Sprintf("icmpv6 type %d", v.Type)
 	case firewall.MatchConnState:
 		return fmt.Sprintf("connection state %s", formatConnState(v.States))
 	case firewall.MatchMark:
@@ -99,7 +122,7 @@ func formatMatch(m firewall.Match) string {
 	case firewall.MatchDSCP:
 		return fmt.Sprintf("dscp %d", v.Value)
 	case firewall.MatchInSet:
-		return fmt.Sprintf("@%s", v.SetName)
+		return formatInSet(v)
 	}
 	return fmt.Sprintf("<%T>", m)
 }
@@ -132,7 +155,7 @@ func formatAction(a firewall.Action) string {
 		}
 		return logKeyword
 	case firewall.Limit:
-		return fmt.Sprintf("limit rate %d/%s burst %d", v.Rate, v.Unit, v.Burst)
+		return formatLimit(v)
 	case firewall.SetMark:
 		return fmt.Sprintf("mark set 0x%x", v.Value)
 	case firewall.Masquerade:
@@ -142,18 +165,85 @@ func formatAction(a firewall.Action) string {
 	case firewall.FlowOffload:
 		return fmt.Sprintf("flow offload @%s", v.FlowtableName)
 	case firewall.SNAT:
-		return fmt.Sprintf("snat to %s", v.Address)
+		return fmt.Sprintf("snat to %s", formatNATTarget(v.Address, v.AddressEnd, v.Port, v.PortEnd))
 	case firewall.DNAT:
-		return fmt.Sprintf("dnat to %s", v.Address)
+		return fmt.Sprintf("dnat to %s", formatNATTarget(v.Address, v.AddressEnd, v.Port, v.PortEnd))
 	}
 	return fmt.Sprintf("<%T>", a)
 }
 
-func formatPort(keyword string, port, portEnd uint16) string {
-	if portEnd == 0 {
-		return fmt.Sprintf("%s %d", keyword, port)
+// formatLimit renders a limit action in the same form the operator
+// would have typed. Packet-rate limits render bare numerics
+// (`10/second`); byte-rate limits render with the tightest prefix that
+// keeps the displayed number a whole integer (`1048576bytes/second`
+// stays as `1048576bytes/second` only when it is NOT a clean 1Mi; the
+// loop below downgrades the suffix when the rate is exactly divisible).
+func formatLimit(l firewall.Limit) string {
+	if l.Dimension == firewall.RateDimensionBytes {
+		rate, suffix := byteRateSuffix(l.Rate)
+		return fmt.Sprintf("limit rate %d%s/%s burst %d", rate, suffix, l.Unit, l.Burst)
 	}
-	return fmt.Sprintf("%s %d-%d", keyword, port, portEnd)
+	return fmt.Sprintf("limit rate %d/%s burst %d", l.Rate, l.Unit, l.Burst)
+}
+
+// byteRateSuffix picks the largest byte prefix (gbytes, mbytes, kbytes,
+// bytes) for which the rate divides evenly. Keeps `show` output as
+// readable as possible while round-tripping the number exactly.
+func byteRateSuffix(rate uint64) (uint64, string) {
+	const (
+		kb = uint64(1024)
+		mb = kb * 1024
+		gb = mb * 1024
+	)
+	if rate > 0 && rate%gb == 0 {
+		return rate / gb, "gbytes"
+	}
+	if rate > 0 && rate%mb == 0 {
+		return rate / mb, "mbytes"
+	}
+	if rate > 0 && rate%kb == 0 {
+		return rate / kb, "kbytes"
+	}
+	return rate, "bytes"
+}
+
+// formatInSet renders a MatchInSet in the same shape the operator typed,
+// so `source-port @voip` does not get collapsed to a bare `@voip` that
+// drops the field information. Unknown fields fall through to the set
+// name only so the formatter never panics on a future field addition.
+func formatInSet(m firewall.MatchInSet) string {
+	switch m.MatchField {
+	case firewall.SetFieldSourceAddr:
+		return fmt.Sprintf("source address @%s", m.SetName)
+	case firewall.SetFieldDestAddr:
+		return fmt.Sprintf("destination address @%s", m.SetName)
+	case firewall.SetFieldSourcePort:
+		return fmt.Sprintf("source port @%s", m.SetName)
+	case firewall.SetFieldDestPort:
+		return fmt.Sprintf("destination port @%s", m.SetName)
+	}
+	return fmt.Sprintf("@%s", m.SetName)
+}
+
+// formatIface renders an interface name with a trailing `*` when the
+// match is a wildcard, matching the syntax the operator typed.
+func formatIface(name string, wildcard bool) string {
+	if wildcard {
+		return name + "*"
+	}
+	return name
+}
+
+func formatPort(keyword string, ranges []firewall.PortRange) string {
+	parts := make([]string, 0, len(ranges))
+	for _, r := range ranges {
+		if r.Lo == r.Hi {
+			parts = append(parts, fmt.Sprintf("%d", r.Lo))
+		} else {
+			parts = append(parts, fmt.Sprintf("%d-%d", r.Lo, r.Hi))
+		}
+	}
+	return fmt.Sprintf("%s %s", keyword, strings.Join(parts, ","))
 }
 
 func formatConnState(s firewall.ConnState) string {
@@ -176,15 +266,12 @@ func formatConnState(s firewall.ConnState) string {
 func formatSet(b *strings.Builder, s *firewall.Set) {
 	fmt.Fprintf(b, "  set %s {\n", s.Name)
 	fmt.Fprintf(b, "    type %d;\n", s.Type)
-	if len(s.Elements) > 0 {
-		b.WriteString("    elements = { ")
-		for i, e := range s.Elements {
-			if i > 0 {
-				b.WriteString(", ")
-			}
-			b.WriteString(e.Value)
+	for _, e := range s.Elements {
+		if e.Timeout == 0 {
+			fmt.Fprintf(b, "    element %s;\n", e.Value)
+			continue
 		}
-		b.WriteString(" }\n")
+		fmt.Fprintf(b, "    element %s { timeout %d; }\n", e.Value, e.Timeout)
 	}
 	b.WriteString("  }\n")
 }

@@ -1,0 +1,89 @@
+# Test: SIGHUP reload converges kernel state to the new firewall config.
+# VALIDATES: spec-fw-10 AC-22 -- mutating the firewall section and
+#            sending SIGHUP re-runs OnConfigVerify/OnConfigApply, and
+#            the kernel-side ze_fw10_002 table reflects the new rule.
+#            Previously-configured rules gone from the new config must
+#            no longer be present.
+# PREVENTS: a regression where reload quietly keeps the old rule set.
+#
+# Requires CAP_NET_ADMIN.
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, shutil, signal, subprocess, sys, time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+before = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_002"], text=True)
+if "dport 22 accept" not in before:
+    sys.exit("initial state missing dport 22 rule; got:\n" + before)
+
+shutil.copy("config2.conf", "ze-bgp.conf")
+os.kill(pid, signal.SIGHUP)
+time.sleep(1.5)
+
+after = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_002"], text=True)
+if "dport 22 accept" in after:
+    sys.exit("post-reload still contains dport 22 rule; got:\n" + after)
+if "dport 443 accept" not in after:
+    sys.exit("post-reload missing dport 443 rule; got:\n" + after)
+
+sys.stdout.write("reload converged: before=%d bytes, after=%d bytes\n" % (len(before), len(after)))
+
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table fw10_002 {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term allow-ssh {
+				from { destination-port 22; }
+				then { accept; }
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+firewall {
+	backend nft;
+	table fw10_002 {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term allow-https {
+				from { destination-port 443; }
+				then { accept; }
+			}
+		}
+	}
+}
+EOF_CONF2
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=firewall config reloaded
+expect=stdout:contains=reload converged

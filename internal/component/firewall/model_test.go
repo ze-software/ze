@@ -8,6 +8,11 @@ import (
 
 func repeatByte(b byte, n int) string { return strings.Repeat(string(b), n) }
 
+// ptrUint32 returns a pointer to the given uint32 -- used for Log fields
+// where nil means "not set" and a non-nil value (including 0) is the
+// operator's explicit choice.
+func ptrUint32(v uint32) *uint32 { return &v }
+
 // Phase 1: Enums and base types.
 
 func TestTableFamily(t *testing.T) {
@@ -140,8 +145,10 @@ func TestPolicy(t *testing.T) {
 
 // Phase 2: Expression interface and concrete types.
 
-// VALIDATES: AC-3 "Every abstract match type has a concrete Match implementation (18 types)".
-// PREVENTS: missing Match implementation for any abstract type.
+// VALIDATES: every reachable Match type (parsed by config, lowered by the nft
+// backend, or both) implements the Match interface via matchMarker.
+// PREVENTS: a new Match type added to the data model without the marker, which
+// would compile but silently fail the m.(Match) assertion.
 func TestMatchTypes(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	matches := []struct {
@@ -150,8 +157,8 @@ func TestMatchTypes(t *testing.T) {
 	}{
 		{"MatchSourceAddress", MatchSourceAddress{Prefix: prefix}},
 		{"MatchDestinationAddress", MatchDestinationAddress{Prefix: prefix}},
-		{"MatchSourcePort", MatchSourcePort{Port: 80}},
-		{"MatchDestinationPort", MatchDestinationPort{Port: 443, PortEnd: 445}},
+		{"MatchSourcePort", MatchSourcePort{Ranges: []PortRange{{Lo: 80, Hi: 80}}}},
+		{"MatchDestinationPort", MatchDestinationPort{Ranges: []PortRange{{Lo: 443, Hi: 445}}}},
 		{"MatchProtocol", MatchProtocol{Protocol: "tcp"}},
 		{"MatchInputInterface", MatchInputInterface{Name: "eth0"}},
 		{"MatchOutputInterface", MatchOutputInterface{Name: "eth1"}},
@@ -159,16 +166,12 @@ func TestMatchTypes(t *testing.T) {
 		{"MatchConnMark", MatchConnMark{Value: 0x10, Mask: 0xFF}},
 		{"MatchMark", MatchMark{Value: 0x20, Mask: 0xFF}},
 		{"MatchDSCP", MatchDSCP{Value: 46}},
-		{"MatchConnBytes", MatchConnBytes{Bytes: 1024, Over: true}},
-		{"MatchConnLimit", MatchConnLimit{Count: 100}},
-		{"MatchFib", MatchFib{Result: FibResultOIF}},
-		{"MatchSocket", MatchSocket{Key: SocketTransparent}},
-		{"MatchRt", MatchRt{Key: RtClassID}},
-		{"MatchExtHdr", MatchExtHdr{Type: 0}},
+		{"MatchICMPType", MatchICMPType{Type: 8}},
+		{"MatchICMPv6Type", MatchICMPv6Type{Type: 128}},
 		{"MatchInSet", MatchInSet{SetName: "blocked", MatchField: SetFieldSourceAddr}},
 	}
-	if len(matches) != 18 {
-		t.Fatalf("expected 18 match types, got %d", len(matches))
+	if len(matches) != 14 {
+		t.Fatalf("expected 14 match types, got %d", len(matches))
 	}
 	for _, tt := range matches {
 		t.Run(tt.name, func(t *testing.T) {
@@ -177,14 +180,15 @@ func TestMatchTypes(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-4 "Every abstract action/modifier type has a concrete Action implementation (24 types)".
-// PREVENTS: missing Action implementation for any abstract type.
+// VALIDATES: every reachable Action type (parsed by config, lowered by the nft
+// backend, or both) implements the Action interface via actionMarker.
+// PREVENTS: a new Action type added to the data model without the marker, which
+// would compile but silently fail the a.(Action) assertion.
 func TestActionTypes(t *testing.T) {
 	actions := []struct {
 		name   string
 		action Action
 	}{
-		// 16 action types
 		{"Accept", Accept{}},
 		{"Drop", Drop{}},
 		{"Reject", Reject{Type: "icmp", Code: 3}},
@@ -195,24 +199,17 @@ func TestActionTypes(t *testing.T) {
 		{"DNAT", DNAT{Address: netip.MustParseAddr("10.0.0.1"), Port: 80}},
 		{"Masquerade", Masquerade{}},
 		{"Redirect", Redirect{Port: 8080}},
-		{"Queue", Queue{Num: 0, Total: 4}},
 		{"Notrack", Notrack{}},
-		{"TProxy", TProxy{Address: netip.MustParseAddr("127.0.0.1"), Port: 9090}},
-		{"Duplicate", Duplicate{Address: netip.MustParseAddr("10.0.0.2"), Device: "eth1"}},
 		{"FlowOffload", FlowOffload{FlowtableName: "ft0"}},
-		{"Synproxy", Synproxy{MSS: 1460, Wscale: 7}},
-		// 8 modifier types
 		{"SetMark", SetMark{Value: 0x10, Mask: 0xFFFFFFFF}},
 		{"SetConnMark", SetConnMark{Value: 0x20, Mask: 0xFF}},
 		{"SetDSCP", SetDSCP{Value: 46}},
 		{"Counter", Counter{Name: "my-counter"}},
-		{"Log", Log{Prefix: "INPUT-DROP: ", Level: 4}},
-		{"Limit", Limit{Rate: 10, Unit: "second", Burst: 5}},
-		{"Quota", Quota{Bytes: 1000000}},
-		{"SecMark", SecMark{Name: "http_t"}},
+		{"Log", Log{Prefix: "INPUT-DROP: ", Level: ptrUint32(4)}},
+		{"Limit", Limit{Rate: 10, Unit: "second", Burst: 5, Dimension: RateDimensionPackets}},
 	}
-	if len(actions) != 24 {
-		t.Fatalf("expected 24 action types, got %d", len(actions))
+	if len(actions) != 18 {
+		t.Fatalf("expected 18 action types, got %d", len(actions))
 	}
 	for _, tt := range actions {
 		t.Run(tt.name, func(t *testing.T) {
@@ -240,7 +237,7 @@ func TestTableConstruction(t *testing.T) {
 				Terms: []Term{
 					{
 						Name:    "allow-ssh",
-						Matches: []Match{MatchDestinationPort{Port: 22}},
+						Matches: []Match{MatchDestinationPort{Ranges: []PortRange{{Lo: 22, Hi: 22}}}},
 						Actions: []Action{Accept{}},
 					},
 				},

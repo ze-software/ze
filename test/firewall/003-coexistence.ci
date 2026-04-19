@@ -1,0 +1,87 @@
+# Test: Lachesis coexistence -- a non-ze_* table pre-existing in the
+# kernel is untouched by ze's reconcile loop at boot.
+# VALIDATES: spec-fw-10 AC-23 -- Apply() only deletes kernel tables
+#            that (a) carry the ze_ prefix AND (b) are absent from the
+#            operator's new desired state. Other operators' tables are
+#            out of scope.
+# PREVENTS: a regression where ze flushes the whole namespace and
+#           wipes the network's other firewall (lachesis, nftables-
+#           administered by hand, etc.).
+#
+# Requires CAP_NET_ADMIN (for `nft add table`).
+#
+# Sequencing: the `surfprotect` table is created by a foreground
+# pre-setup script BEFORE ze launches in the background. Otherwise ze
+# could complete its Apply+scan before the driver's `nft add` runs, and
+# the assertion "ze didn't touch surfprotect" would degrade to "ze
+# didn't retroactively touch surfprotect" -- weaker than the AC.
+
+tmpfs=setup.py:mode=755:terminator=EOF_SETUP
+#!/usr/bin/env python3
+import subprocess, sys
+# Idempotent: a stale surfprotect from a prior crashed run would
+# otherwise make `nft add table` fail with EEXIST.
+subprocess.call(["nft", "delete", "table", "inet", "surfprotect"],
+                stderr=subprocess.DEVNULL)
+subprocess.check_call(["nft", "add", "table", "inet", "surfprotect"])
+subprocess.check_call(["nft", "add", "chain", "inet", "surfprotect", "input"])
+subprocess.check_call(["nft", "add", "rule", "inet", "surfprotect", "input", "ip", "saddr", "10.0.0.1", "accept"])
+EOF_SETUP
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, signal, subprocess, sys, time
+
+try:
+    for _ in range(200):
+        if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+            break
+        time.sleep(0.05)
+    else:
+        sys.exit("daemon readiness files missing")
+
+    with open("daemon.pid") as f:
+        pid = int(f.read().strip())
+
+    time.sleep(0.5)
+    # ze_fw10_003 must be programmed, surfprotect must still be present
+    # (surfprotect was created by setup.py BEFORE ze started).
+    ze_table = subprocess.check_output(["nft", "list", "table", "inet", "ze_fw10_003"], text=True)
+    surf_table = subprocess.check_output(["nft", "list", "table", "inet", "surfprotect"], text=True)
+    sys.stdout.write("ZE:\n" + ze_table + "\nSURF:\n" + surf_table)
+
+    os.kill(pid, signal.SIGTERM)
+finally:
+    subprocess.call(["nft", "delete", "table", "inet", "surfprotect"],
+                    stderr=subprocess.DEVNULL)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table fw10_003 {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term local-only {
+				from { source-address 127.0.0.1/32; }
+				then { accept; }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=foreground:seq=1:exec=python3 setup.py:timeout=5s
+cmd=background:seq=2:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=python3 driver.py:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=firewall config applied
+expect=stdout:contains=table inet ze_fw10_003
+expect=stdout:contains=table inet surfprotect
+expect=stdout:contains=ip saddr 10.0.0.1 accept

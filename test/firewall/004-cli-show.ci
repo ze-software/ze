@@ -1,0 +1,73 @@
+# Test: `ze cli firewall show <table>` returns structured JSON derived
+# from the applied kernel state.
+# VALIDATES: spec-fw-10 AC-24 -- the CLI show handler reads the
+#            read-back path (firewallnft.ListTables) and renders chains
+#            + term names through the structured Data map, so the pipe
+#            framework and `| json` consumers see the applied shape.
+# PREVENTS: show returning a stale in-memory copy or empty when the
+#           table is programmed.
+#
+# Requires CAP_NET_ADMIN so nft list ruleset can read the kernel.
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import os, signal, subprocess, sys, time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    sys.exit("daemon readiness files missing")
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+# The CLI bridge talks to the daemon over its configured unix socket.
+# The socket may not be up immediately after daemon.ready fires (ready
+# gates on OnConfigure, the CLI listener initialises separately), so
+# retry for up to ~5s before giving up.
+last_err = None
+out = None
+for _ in range(50):
+    try:
+        out = subprocess.check_output(
+            ["ze", "cli", "-c", "show firewall fw10_004"],
+            text=True, stderr=subprocess.STDOUT)
+        break
+    except subprocess.CalledProcessError as e:
+        last_err = e
+        time.sleep(0.1)
+if out is None:
+    sys.exit("ze cli never became ready: %s" % last_err.output)
+sys.stdout.write(out)
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table fw10_004 {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term allow-https {
+				from { destination-port 443; }
+				then { accept; }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.firewall:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=15s
+expect=exit:code=0
+expect=stdout:contains=fw10_004
+expect=stdout:contains=allow-https

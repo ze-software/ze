@@ -1,0 +1,31 @@
+# Test: jump to a chain that doesn't exist in the same table is rejected at
+# commit time with a clear message naming the bad target.
+# VALIDATES: cross-reference check in ValidateTables surfaces dangling jump
+#            targets before the kernel rejects them at Apply.
+# PREVENTS: a typo in a chain name silently disabling an entire term's flow.
+stdin=config:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term ssh {
+				from {
+					destination-port 22;
+				}
+				then {
+					jump audit-ssh;
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=audit-ssh

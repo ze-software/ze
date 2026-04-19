@@ -1,0 +1,73 @@
+# Test: basic firewall config with chain, term, set, and anonymous port list
+# parses and validates under the default nft backend.
+# VALIDATES: firewall component reactor is wired (fw-8 Gap 4); YANG schema
+#            loads; parser accepts comma-list ports, icmp-type, NAT exclude,
+#            named sets with static elements; cross-reference checks resolve.
+# PREVENTS: a regression where the firewall config path stops reaching the
+#           engine, or a schema change leaves valid operator input rejected.
+stdin=config:terminator=EOF_CONF
+firewall {
+	backend nft;
+	table wan {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy drop;
+			term allow-established {
+				from {
+					connection-state established,related;
+				}
+				then {
+					counter;
+					accept;
+				}
+			}
+			term allow-ssh {
+				from {
+					destination-port 22;
+				}
+				then {
+					accept;
+				}
+			}
+			term voip {
+				from {
+					protocol udp;
+					destination-port 5060-5061,16384-32767;
+				}
+				then {
+					accept;
+				}
+			}
+			term allow-ping {
+				from {
+					icmp-type echo-request;
+				}
+				then {
+					accept;
+				}
+			}
+			term blocked {
+				from {
+					source-address @blocked-hosts;
+				}
+				then {
+					drop;
+				}
+			}
+		}
+		set blocked-hosts {
+			type ipv4;
+			flags-interval;
+			element 10.0.0.0/8 {}
+			element 192.168.1.0/24 {}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid
