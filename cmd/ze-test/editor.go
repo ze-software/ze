@@ -15,6 +15,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
 
+var _ = register("editor", "Run editor functional tests (.et files)", editorCmd)
+
 func editorCmd() int {
 	if err := editorMain(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err) //nolint:errcheck // terminal output

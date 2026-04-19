@@ -15,6 +15,8 @@ import (
 // textPluginCmd runs a minimal external plugin for functional testing.
 // Uses the unified #id verb [json] protocol.
 // Registers for update events and logs them to stderr.
+var _ = register("text-plugin", "Run minimal text-mode plugin (for .ci tests)", textPluginCmd)
+
 func textPluginCmd() int {
 	p, err := sdk.NewFromEnv("text-test")
 	if err != nil {

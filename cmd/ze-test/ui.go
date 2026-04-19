@@ -11,6 +11,8 @@ import (
 // ErrTestsFailed is returned when one or more tests fail.
 var ErrTestsFailed = errors.New("tests failed")
 
+var _ = register("ui", "Run UI functional tests (completion, CLI)", uiCmd)
+
 func uiCmd() int {
 	if err := runCISubcommand(ciRunnerConfig{
 		Name:        "ui",

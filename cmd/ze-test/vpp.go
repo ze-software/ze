@@ -23,6 +23,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
 
+var _ = register("vpp", "Run VPP stub-backed functional tests (test/vpp/*.ci)", vppCmd)
+
 func vppCmd() int {
 	if err := vppMain(); err != nil {
 		if !errors.Is(err, errTestsFailed) {

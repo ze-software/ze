@@ -14,6 +14,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/syslog"
 )
 
+var _ = register("syslog", "Run syslog server for testing", syslogCmd)
+
 func syslogCmd() int {
 	port := flag.Int("port", 0, "port to listen on (0 = dynamic)")
 	pattern := flag.String("pattern", "", "regex pattern to match (exits on match)")

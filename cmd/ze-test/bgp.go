@@ -29,6 +29,8 @@ const (
 	cmdChaosWeb = "chaos-web"
 )
 
+var _ = register("bgp", "Run BGP functional tests (encoding, plugin, decoding, parsing)", bgpCmd)
+
 func bgpCmd() int {
 	if err := bgpMain(); err != nil {
 		if !errors.Is(err, errTestsFailed) {

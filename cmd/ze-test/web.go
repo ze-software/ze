@@ -17,6 +17,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
 
+var _ = register("web", "Run web browser functional tests (.wb files)", webCmd)
+
 func webCmd() int {
 	if err := webMain(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)

@@ -11,6 +11,8 @@ import (
 // .ci runner over test/traffic/*.ci files. Tests validate that ze boots with
 // a traffic-control config, applies the backend's Apply call, and reapplies
 // on SIGHUP reload.
+var _ = register("traffic", "Run traffic-control functional tests (test/traffic/*.ci)", trafficCmd)
+
 func trafficCmd() int {
 	if err := runCISubcommand(ciRunnerConfig{
 		Name:        "traffic",

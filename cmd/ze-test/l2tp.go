@@ -9,6 +9,8 @@ import (
 
 // l2tpCmd dispatches the "ze-test l2tp" subcommand. It runs the shared .ci
 // runner over test/l2tp/*.ci files.
+var _ = register("l2tp", "Run L2TPv2 functional tests (listener, tunnel FSM, handshake)", l2tpCmd)
+
 func l2tpCmd() int {
 	if err := runCISubcommand(ciRunnerConfig{
 		Name:        "l2tp",

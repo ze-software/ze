@@ -13,6 +13,8 @@ import (
 // backend (nft on Linux) without tripping a verify-time validator. Kernel-
 // side `nft list tables` checks require CAP_NET_ADMIN and are tracked as a
 // deferral on spec-fw-10.
+var _ = register("firewall", "Run firewall functional tests (test/firewall/*.ci)", firewallCmd)
+
 func firewallCmd() int {
 	if err := runCISubcommand(ciRunnerConfig{
 		Name:        "firewall",

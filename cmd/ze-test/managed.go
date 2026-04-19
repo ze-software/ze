@@ -7,6 +7,8 @@ import (
 	"os"
 )
 
+var _ = register("managed", "Run managed config tests (hub, auth, fleet)", managedCmd)
+
 func managedCmd() int {
 	if err := runCISubcommand(ciRunnerConfig{
 		Name:        "managed",

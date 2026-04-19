@@ -25,6 +25,8 @@ import (
 //	wait <duration> -- pause (e.g. "wait 1s")
 //
 // Retries the MCP connection with backoff until the server is ready.
+var _ = register("mcp", "MCP client (send commands to daemon via MCP endpoint)", mcpCmd)
+
 func mcpCmd() int {
 	fs := flag.NewFlagSet("ze-test mcp", flag.ContinueOnError)
 	port := fs.String("port", "", "MCP server port (required)")

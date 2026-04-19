@@ -26,6 +26,8 @@ import (
 	"time"
 )
 
+var _ = register("peeringdb", "Deterministic PeeringDB mock server (ASN-derived prefix counts)", peeringdbCmd)
+
 func peeringdbCmd() int {
 	fs := flag.NewFlagSet("ze-test peeringdb", flag.ExitOnError)
 

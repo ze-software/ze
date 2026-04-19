@@ -27,6 +27,8 @@ var _ = env.MustRegister(env.EnvEntry{
 	Private:     true,
 })
 
+var _ = register("peer", "BGP test peer (sink/echo/check modes)", peerCmd)
+
 func peerCmd() int {
 	config, ok := parsePeerFlags()
 	if config == nil {

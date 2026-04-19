@@ -23,6 +23,8 @@ import (
 	mdns "github.com/miekg/dns"
 )
 
+var _ = register("cymru", "Deterministic Cymru DNS mock server (ASN to TXT responses)", cymruCmd)
+
 func cymruCmd() int {
 	fs := flag.NewFlagSet("ze-test cymru", flag.ExitOnError)
 

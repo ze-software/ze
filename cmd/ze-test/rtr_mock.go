@@ -75,6 +75,8 @@ func (v *vrpList) Set(s string) error {
 	return nil
 }
 
+var _ = register("rtr-mock", "Mock RTR cache server (explicit VRPs for RPKI testing)", rtrMockCmd)
+
 func rtrMockCmd() int {
 	var (
 		port   int

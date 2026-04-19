@@ -69,6 +69,8 @@ func (s *stringSliceFlag) String() string { return strings.Join(*s, ",") }
 
 func (s *stringSliceFlag) Set(v string) error { *s = append(*s, v); return nil }
 
+var _ = register("tacacs-mock", "Mock TACACS+ server (RFC 8907) for AAA testing", tacacsMockCmd)
+
 func tacacsMockCmd() int {
 	var (
 		port       int

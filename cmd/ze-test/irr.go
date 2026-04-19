@@ -25,6 +25,8 @@ import (
 	"strings"
 )
 
+var _ = register("irr", "Deterministic IRR whois mock server (AS-SET expansion, prefix lookup)", irrCmd)
+
 func irrCmd() int {
 	fs := flag.NewFlagSet("ze-test irr", flag.ExitOnError)
 

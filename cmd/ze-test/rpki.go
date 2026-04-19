@@ -39,6 +39,8 @@ type rpkiServer struct {
 	serial     uint32
 }
 
+var _ = register("rpki", "Deterministic RPKI mock server (IP modulo for validation state)", rpkiCmd)
+
 func rpkiCmd() int {
 	fs := flag.NewFlagSet("ze-test rpki", flag.ExitOnError)
 
