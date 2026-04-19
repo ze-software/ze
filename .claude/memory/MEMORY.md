@@ -28,6 +28,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 
 ## Feedback (workflow)
 
+- [feedback_no_taskoutput_polling.md](feedback_no_taskoutput_polling.md) - Never stack TaskOutput polls on long bg jobs; check verify-lock queue first, read log file directly
 - [feedback_workflow_cycle.md](feedback_workflow_cycle.md) - Standard cycle: /ze-implement -> work -> /ze-review -> fix -> /ze-commit -> repeat
 - [feedback_verify_specs_against_code.md](feedback_verify_specs_against_code.md) - Never trust spec "What Remains"; grep code before reporting progress
 - [feedback_no_cross_boundary_pointers.md](feedback_no_cross_boundary_pointers.md) - Event/IPC payloads MUST be self-contained value types; no pointers into another plugin or component's memory, even via shared core
