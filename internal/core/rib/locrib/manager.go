@@ -7,6 +7,7 @@ package locrib
 import (
 	"net/netip"
 	"sync"
+	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
@@ -23,12 +24,27 @@ import (
 type RIB struct {
 	mu       sync.RWMutex
 	families map[family.Family]*store.Store[PathGroup]
+	subs     subscriberList
+	nextSub  atomic.Uint64
 }
 
 // NewRIB creates an empty Loc-RIB. Families are created lazily on first
 // Insert.
 func NewRIB() *RIB {
 	return &RIB{families: make(map[family.Family]*store.Store[PathGroup])}
+}
+
+// OnChange registers fn to receive a Change every time the best path for a
+// prefix is added, updated, or removed. Handlers run synchronously under the
+// write lock, so fn MUST NOT re-enter Insert/Remove on the same RIB and
+// should defer any heavy work to a goroutine. Returns a function that, when
+// called, removes fn; further changes after unsubscribe do not invoke fn.
+func (r *RIB) OnChange(fn ChangeHandler) func() {
+	if fn == nil {
+		return func() {}
+	}
+	id := r.nextSub.Add(1)
+	return r.subs.subscribe(fn, id)
 }
 
 // familyStore returns the prefix store for fam, creating it on demand.
@@ -71,9 +87,17 @@ func (r *RIB) Insert(fam family.Family, prefix netip.Prefix, p Path) (Path, bool
 	}
 
 	if !newHad {
+		if hadBest {
+			r.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeRemove})
+		}
 		return Path{}, hadBest
 	}
-	if !hadBest || prevBest != newBest {
+	if !hadBest {
+		r.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeAdd, Best: newBest})
+		return newBest, true
+	}
+	if prevBest != newBest {
+		r.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest})
 		return newBest, true
 	}
 	return newBest, false
@@ -120,9 +144,13 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 	}
 
 	if !newHad {
+		if hadBest {
+			r.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeRemove})
+		}
 		return Path{}, hadBest
 	}
 	if prevBest != newBest {
+		r.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest})
 		return newBest, true
 	}
 	return newBest, false

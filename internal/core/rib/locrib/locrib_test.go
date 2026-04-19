@@ -182,3 +182,50 @@ func TestFamilies(t *testing.T) {
 	r.Insert(famV4, pfx, pathBGP(1, 10))
 	assert.Equal(t, []family.Family{famV4}, r.Families())
 }
+
+// TestOnChangeFires validates that Insert/Remove invoke subscribed handlers
+// with the correct ChangeKind and Best.
+func TestOnChangeFires(t *testing.T) {
+	r := NewRIB()
+	var changes []Change
+	unsub := r.OnChange(func(c Change) { changes = append(changes, c) })
+
+	// First insert on a new prefix => Add.
+	r.Insert(famV4, pfx, pathBGP(1, 10))
+	require.Len(t, changes, 1)
+	assert.Equal(t, ChangeAdd, changes[0].Kind)
+	assert.Equal(t, idBGP, changes[0].Best.Source)
+
+	// Replacing best with a lower-distance path => Update.
+	r.Insert(famV4, pfx, pathStatic(0))
+	require.Len(t, changes, 2)
+	assert.Equal(t, ChangeUpdate, changes[1].Kind)
+	assert.Equal(t, idStatic, changes[1].Best.Source)
+
+	// Inserting a worse BGP path behind Static => no change.
+	r.Insert(famV4, pfx, pathBGP(2, 5))
+	assert.Len(t, changes, 2, "worse path must not fire a change")
+
+	// Removing the best falls back to next-best => Update.
+	// BGP(2, metric=5) wins over BGP(1, metric=10) on the metric tiebreak.
+	r.Remove(famV4, pfx, idStatic, 0)
+	require.Len(t, changes, 3)
+	assert.Equal(t, ChangeUpdate, changes[2].Kind)
+	assert.Equal(t, idBGP, changes[2].Best.Source)
+	assert.Equal(t, uint32(2), changes[2].Best.Instance)
+
+	// Removing a non-best path fires nothing.
+	r.Remove(famV4, pfx, idBGP, 1)
+	assert.Len(t, changes, 3, "removing a non-best path must not fire")
+
+	// Removing the last path => Remove.
+	r.Remove(famV4, pfx, idBGP, 2)
+	require.Len(t, changes, 4)
+	assert.Equal(t, ChangeRemove, changes[3].Kind)
+	assert.Equal(t, Path{}, changes[3].Best)
+
+	// Unsubscribe stops delivery.
+	unsub()
+	r.Insert(famV4, pfx, pathBGP(1, 10))
+	assert.Len(t, changes, 4, "unsubscribed handler must not fire")
+}
