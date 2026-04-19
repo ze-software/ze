@@ -94,3 +94,6 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Look up anything | `.claude/INDEX.md` (keyword->doc, keyword->RFC) |
 | Understand architecture | `docs/architecture/core-design.md` |
 | Check past decisions | `.claude/LEARNED-INDEX.md` -> `plan/learned/` |
+| Understand why the code is shaped this way | `plan/learned/DESIGN-HISTORY.md` |
+| Check if you are about to hit a known trap | `plan/learned/RECURRING-PATTERNS.md` |
+| Understand why a hook rejected your code | `plan/learned/HOOK-FRICTION.md` |

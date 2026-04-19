@@ -3,6 +3,16 @@
 Curated index of `plan/learned/` summaries that capture structural decisions, patterns, and gotchas.
 Task-completion-only summaries (the majority) are omitted. Full list: `ls plan/learned/`.
 
+Three meta-summaries sit alongside the numbered per-spec summaries. Read the one that
+matches your question first — each one points at the specific numbered summaries that
+hold the full record, so one file of reading replaces hundreds.
+
+| Question | File |
+|----------|------|
+| "Why is the code as it is?" | `plan/learned/DESIGN-HISTORY.md` — design evolution by subsystem, abandoned approaches, load-bearing invariants |
+| "Am I about to fall into a known trap?" | `plan/learned/RECURRING-PATTERNS.md` — patterns that recurred 5+ times, with avoid-it-by and recover-if-you-hit-it |
+| "Why did this hook reject my code?" | `plan/learned/HOOK-FRICTION.md` — every hook false positive with verified workaround |
+
 ## Core Architecture
 
 System boundaries, component design, lifecycle patterns, subsystem separation.
