@@ -440,3 +440,125 @@ and `wg(8)`.
 | `interface/dhcp/lease-expired` | Lease timeout | name, unit, address, prefix-length, router, dns, lease-time |
 
 <!-- source: internal/component/iface/iface.go — Topic* constants, *Payload structs -->
+
+## Backend Implementations
+
+The `Backend` interface declares 33 methods. Three implementations ship in
+tree; coverage varies per platform and dataplane. The table below lists
+each method against the backend and whether it is wired or returns an
+error. `err` means the method is implemented as a stub that rejects every
+call with a descriptive error. `real` means the method drives the
+underlying mechanism. Cells with a footnote carry a caveat.
+
+| Category | Method | netlink (Linux) | VPP | stub (non-Linux) |
+|---|---|---|---|---|
+| **Lifecycle** | `CreateDummy` | real | real (CreateLoopback) | err |
+| | `CreateVeth` | real | err (VPP uses memif/TAP) | err |
+| | `CreateBridge` | real | real (BridgeDomainAddDelV2) | err |
+| | `CreateVLAN` | real | real (CreateVlanSubif) | err |
+| | `CreateTunnel` | real [1] | err (pending GoVPP tunnel API) | err |
+| | `CreateWireguardDevice` | real (rtnetlink) | err (requires VPP wg plugin) | err |
+| | `ConfigureWireguardDevice` | real (wgctrl) | err (requires VPP wg plugin) | err |
+| | `GetWireguardDevice` | real (wgctrl) | err (requires VPP wg plugin) | err |
+| | `DeleteInterface` | real | real (DeleteLoopback/DeleteSubif) | err |
+| **Address** | `AddAddress` | real | real (SwInterfaceAddDelAddress) | err |
+| | `RemoveAddress` | real | real (SwInterfaceAddDelAddress) | err |
+| | `ReplaceAddressWithLifetime` | real | partial [2] | err |
+| | `AddAddressP2P` | real | err (PPP NCP not supported yet) | err |
+| **Route** | `AddRoute` | real | err (use fib-vpp plugin) | err |
+| | `RemoveRoute` | real | err (use fib-vpp plugin) | err |
+| | `ListRoutes` | real | err (use fib-vpp plugin) | err |
+| | `ListKernelRoutes` | real | err [3] | err |
+| **Link state** | `SetAdminUp` | real | real (SwInterfaceSetFlags) | err |
+| | `SetAdminDown` | real | real (SwInterfaceSetFlags) | err |
+| **Properties** | `SetMTU` | real | real (SwInterfaceSetMtu) | err |
+| | `SetMACAddress` | real | real (SwInterfaceSetMacAddress) | err |
+| | `GetMACAddress` | real | real (via SwInterfaceDump) | err |
+| | `GetStats` | real | err (pending GoVPP stats API) | err |
+| | `ResetCounters` | real [4] | err (pending sw_interface_clear_stats) | err |
+| **Query** | `ListInterfaces` | real | real (SwInterfaceDump) | err |
+| | `GetInterface` | real | real (SwInterfaceDump) | err |
+| | `ListNeighbors` | real | err (pending ip_neighbor_dump) | err |
+| **Bridge** | `BridgeAddPort` | real | real (SwInterfaceSetL2Bridge) | err |
+| | `BridgeDelPort` | real | real (SwInterfaceSetL2Bridge) | err |
+| | `BridgeSetSTP` | real (sysfs) | err (VPP STP varies by version) | err |
+| **Mirror** | `SetupMirror` | real (tc mirred) | err (pending SpanEnableDisableL2) | err |
+| | `RemoveMirror` | real | err (pending SpanEnableDisableL2) | err |
+| **Monitor** | `StartMonitor` | real (netlink multicast) | real (WantInterfaceEvents) | err |
+| | `StopMonitor` | real | real | no-op |
+| | `Close` | real | real | no-op |
+
+[1] `CreateTunnel` rejects an unknown kind with `unsupported tunnel kind
+<k>`. Valid kinds are gre, gretap, ip6gre, ip6gretap, ipip, sit, ip6tnl,
+ipip6.
+
+[2] VPP has no kernel-style address lifetimes. The VPP backend ignores
+the `validLft`/`preferredLft` arguments and installs the address without
+an expiry, matching the exact-or-reject rule only when the operator does
+not actually need DHCP lease-aware behaviour on VPP. DHCP runs against
+the netlink backend today.
+
+[3] On VPP the kernel FIB is not authoritative; the VPP backend rejects
+`ListKernelRoutes` rather than return misleading data. A VPP FIB dump via
+`ip_route_v2_dump` is the correct replacement and is not yet wired.
+
+[4] Linux netlink has no generic counter-reset syscall. The netlink
+backend returns `iface.ErrCountersNotResettable` and the dispatch layer
+falls back to a per-interface baseline-delta model: the current values
+become a baseline and `GetStats` / `ListInterfaces` / `GetInterface`
+subtract the baseline before returning, so the operator sees
+"since last clear" values.
+
+### Netlink (Linux, default)
+
+Pure netlink via `vishvananda/netlink`, with WireGuard peer/key
+operations via `golang.zx2c4.com/wireguard/wgctrl`. Every method is
+implemented; the only caveats are `CreateTunnel` rejecting unknown kinds
+and `ResetCounters` using baseline-delta (both noted above). No
+iproute2 shell-outs. Non-Linux builds of this package compile into the
+stub backend described below.
+
+<!-- source: internal/plugins/iface/netlink/manage_linux.go -- CreateDummy/CreateVeth/CreateBridge/CreateVLAN/Delete/AddAddress/RemoveAddress/ReplaceAddressWithLifetime/AddAddressP2P/SetAdminUp/SetAdminDown/SetMTU -->
+<!-- source: internal/plugins/iface/netlink/tunnel_linux.go -- CreateTunnel switch over 8 kinds -->
+<!-- source: internal/plugins/iface/netlink/wireguard_linux.go -- CreateWireguardDevice/ConfigureWireguardDevice/GetWireguardDevice -->
+<!-- source: internal/plugins/iface/netlink/bridge_linux.go -- BridgeAddPort/BridgeDelPort/BridgeSetSTP -->
+<!-- source: internal/plugins/iface/netlink/mirror_linux.go -- SetupMirror/RemoveMirror via tc -->
+<!-- source: internal/plugins/iface/netlink/route_linux.go -- AddRoute/RemoveRoute/ListRoutes/ListKernelRoutes -->
+<!-- source: internal/plugins/iface/netlink/neighbor_linux.go -- ListNeighbors, ResetCounters returning ErrCountersNotResettable -->
+<!-- source: internal/plugins/iface/netlink/show_linux.go -- ListInterfaces/GetInterface/GetStats -->
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- StartMonitor/StopMonitor -->
+<!-- source: internal/component/iface/counters.go -- ResetCounters baseline-delta fallback -->
+
+### VPP (opt-in, via GoVPP)
+
+Selected by the `backend vpp` leaf. 17 methods drive the VPP binary API
+through GoVPP; 16 return `errNotSupported` with a string naming the
+missing GoVPP call or the plugin gap. The channel to VPP is acquired
+lazily on first method call; before the first successful acquire, every
+method returns `iface.ErrBackendNotReady` so the reconciliation phase can
+retry.
+
+Use the VPP backend when VPP owns the dataplane. Use netlink elsewhere.
+Routes, stats, counter reset, neighbour table, mirrors, and STP are the
+main gaps against feature parity.
+
+<!-- source: internal/plugins/iface/vpp/ifacevpp.go -- full Backend implementation, errNotSupported reasons per method -->
+<!-- source: internal/plugins/iface/vpp/query.go -- ListInterfaces/GetInterface/GetMACAddress/SetMACAddress via SwInterfaceDump, SwInterfaceSetMacAddress -->
+<!-- source: internal/plugins/iface/vpp/monitor.go -- StartMonitor/StopMonitor via WantInterfaceEvents + SubscribeNotification -->
+<!-- source: internal/plugins/iface/vpp/naming.go -- ze short name <-> VPP SwIfIndex map -->
+
+### Stub (non-Linux)
+
+On darwin, macOS, BSD, and Windows the netlink backend package compiles
+to a stub whose constructor succeeds but whose every method returns
+`"interface management not supported on <GOOS>"`. `StopMonitor` and
+`Close` are no-ops. The stub exists so the rest of the daemon can load
+and the binary remains testable on developer machines; real interface
+management requires Linux.
+
+The stub never installs itself as the default silently. A macOS daemon
+that actually tries `ze interface show` or any config-driven
+reconciliation sees the explicit error and rejects under
+exact-or-reject.
+
+<!-- source: internal/plugins/iface/netlink/backend_other.go -- stubBackend, unsupported() returning "not supported on <GOOS>" -->
