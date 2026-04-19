@@ -2,6 +2,7 @@ package host
 
 import (
 	"errors"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -65,6 +66,9 @@ func TestSectionList_Format(t *testing.T) {
 // returns a non-Unsupported error the caller can surface). Fixture
 // drives sysfs/procfs reads, so every section runs a real code path.
 func TestDetectSection_DispatchesEachSection(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("fixture drives sysfs/procfs reads; detectors are Linux-only (cpu_other.go etc. return ErrUnsupported at build time)")
+	}
 	d := &Detector{Root: "testdata/n100-4x-igc"}
 	for _, name := range SectionNames() {
 		t.Run(name, func(t *testing.T) {
