@@ -3,6 +3,8 @@
 package iface
 
 import (
+	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -12,24 +14,78 @@ import (
 	ifacecmd "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 )
 
+// maxIfaceNameLen matches IFNAMSIZ (16 bytes including the NUL) so the
+// CLI rejects over-long names with a clear message before the kernel
+// returns a less specific EINVAL. Mirrors the early-validation done
+// for MTU and MAC on these same handlers.
+const maxIfaceNameLen = 15
+
+// validateIfaceName enforces the IFNAMSIZ bound. Empty names are
+// rejected; length > 15 is rejected with a message naming the limit.
+// Deeper character-set checks are left to the netlink backend, which
+// surfaces the kernel's own reject reason.
+func validateIfaceName(name string) error {
+	if name == "" {
+		return fmt.Errorf("interface name must not be empty")
+	}
+	if len(name) > maxIfaceNameLen {
+		return fmt.Errorf("interface name %q exceeds %d-byte limit (IFNAMSIZ)", name, maxIfaceNameLen)
+	}
+	return nil
+}
+
+// hasHelpFlag scans args for a help token anywhere in the slice. The
+// flag package only recognizes `-h` / `--help` BEFORE the first
+// positional, so `ze interface up eth0 --help` would otherwise miss
+// the flag entirely. Scanning first closes the review I4 gap.
+func hasHelpFlag(args []string) bool {
+	for _, a := range args {
+		if a == "-h" || a == "--help" {
+			return true
+		}
+	}
+	return false
+}
+
+// parseNameOnly runs a flag.FlagSet expecting exactly one positional
+// argument (the interface name). Scans for `--help` / `-h` anywhere
+// in args up front; the flag package's own ErrHelp handles the case
+// where help appears before a positional. Returns name, exit code,
+// and whether the caller should proceed: true = use name, false =
+// exit with the returned code (help = 0, shape error = 1).
+func parseNameOnly(verb string, args []string, usage func()) (string, int, bool) {
+	if hasHelpFlag(args) {
+		usage()
+		return "", 0, false
+	}
+	fs := flag.NewFlagSet("ze interface "+verb, flag.ContinueOnError)
+	fs.Usage = usage
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return "", 0, false
+		}
+		return "", 1, false
+	}
+	rest := fs.Args()
+	if len(rest) != 1 {
+		fmt.Fprintf(os.Stderr, "error: %s requires exactly one argument: <name>\n", verb)
+		usage()
+		return "", 1, false
+	}
+	if err := validateIfaceName(rest[0]); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return "", 1, false
+	}
+	return rest[0], 0, true
+}
+
 // cmdUp brings an interface administratively up.
 // Returns exit code.
 func cmdUp(args []string) int {
-	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "error: up requires one argument: <name>\n")
-		upDownUsage("up")
-		return 1
+	name, code, ok := parseNameOnly("up", args, func() { upDownUsage("up") })
+	if !ok {
+		return code
 	}
-	if args[0] == "help" || args[0] == "-h" || args[0] == "--help" { //nolint:goconst // consistent pattern across cmd files
-		upDownUsage("up")
-		return 0
-	}
-	if len(args) != 1 {
-		fmt.Fprintf(os.Stderr, "error: up requires exactly one argument: <name>\n")
-		upDownUsage("up")
-		return 1
-	}
-	name := args[0]
 	if err := ifacepkg.SetAdminUp(name); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -41,21 +97,10 @@ func cmdUp(args []string) int {
 // cmdDown brings an interface administratively down.
 // Returns exit code.
 func cmdDown(args []string) int {
-	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "error: down requires one argument: <name>\n")
-		upDownUsage("down")
-		return 1
+	name, code, ok := parseNameOnly("down", args, func() { upDownUsage("down") })
+	if !ok {
+		return code
 	}
-	if args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
-		upDownUsage("down")
-		return 0
-	}
-	if len(args) != 1 {
-		fmt.Fprintf(os.Stderr, "error: down requires exactly one argument: <name>\n")
-		upDownUsage("down")
-		return 1
-	}
-	name := args[0]
 	if err := ifacepkg.SetAdminDown(name); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -66,24 +111,35 @@ func cmdDown(args []string) int {
 
 // cmdMTU sets the MTU on an interface. Validates 68..65535 before
 // reaching the backend; mirrors the daemon-side handler's validation
-// so both entry points reject identically.
+// so both entry points reject identically. Uses hasHelpFlag + FlagSet
+// so `--help` / `-h` are recognized anywhere in args.
 func cmdMTU(args []string) int {
-	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+	if hasHelpFlag(args) {
 		mtuUsage()
-		if len(args) == 0 {
-			return 1
-		}
 		return 0
 	}
-	if len(args) != 2 {
+	fs := flag.NewFlagSet("ze interface mtu", flag.ContinueOnError)
+	fs.Usage = mtuUsage
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 1
+	}
+	rest := fs.Args()
+	if len(rest) != 2 {
 		fmt.Fprintf(os.Stderr, "error: mtu requires exactly two arguments: <name> <mtu>\n")
 		mtuUsage()
 		return 1
 	}
-	name := args[0]
-	mtu, err := strconv.Atoi(args[1])
+	name := rest[0]
+	if err := validateIfaceName(name); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+	mtu, err := strconv.Atoi(rest[1])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: invalid MTU %q: %v\n", args[1], err)
+		fmt.Fprintf(os.Stderr, "error: invalid MTU %q: %v\n", rest[1], err)
 		return 1
 	}
 	if mtu < ifacecmd.MTUMin || mtu > ifacecmd.MTUMax {
@@ -99,22 +155,34 @@ func cmdMTU(args []string) int {
 }
 
 // cmdMAC sets the MAC address on an interface. Validates the format
-// via ifacecmd.IsValidMACAddress before calling the backend.
+// via ifacecmd.IsValidMACAddress before calling the backend. Uses
+// hasHelpFlag + FlagSet so `--help` / `-h` are recognized anywhere
+// in args.
 func cmdMAC(args []string) int {
-	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+	if hasHelpFlag(args) {
 		macUsage()
-		if len(args) == 0 {
-			return 1
-		}
 		return 0
 	}
-	if len(args) != 2 {
+	fs := flag.NewFlagSet("ze interface mac", flag.ContinueOnError)
+	fs.Usage = macUsage
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 1
+	}
+	rest := fs.Args()
+	if len(rest) != 2 {
 		fmt.Fprintf(os.Stderr, "error: mac requires exactly two arguments: <name> <mac>\n")
 		macUsage()
 		return 1
 	}
-	name := args[0]
-	mac := args[1]
+	name := rest[0]
+	if err := validateIfaceName(name); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+	mac := rest[1]
 	if !ifacecmd.IsValidMACAddress(mac) {
 		fmt.Fprintf(os.Stderr, "error: invalid MAC address %q (expected xx:xx:xx:xx:xx:xx)\n", mac)
 		return 1

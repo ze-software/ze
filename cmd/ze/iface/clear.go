@@ -3,6 +3,8 @@
 package iface
 
 import (
+	"errors"
+	"flag"
 	"fmt"
 	"os"
 
@@ -37,17 +39,34 @@ func cmdClear(args []string) int {
 // Backends that cannot reset kernel counters fall back to a per-iface
 // baseline inside iface.ResetCounters -- from the operator's view the
 // counters read zero immediately on the next `show interface`.
+//
+// Uses hasHelpFlag + FlagSet so `--help` / `-h` are recognized
+// anywhere in args (including after a positional interface name).
+// Interface names are length-checked up front against IFNAMSIZ.
 func cmdClearCounters(args []string) int {
+	if hasHelpFlag(args) {
+		clearUsage()
+		return 0
+	}
+	fs := flag.NewFlagSet("ze interface clear counters", flag.ContinueOnError)
+	fs.Usage = clearUsage
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 1
+	}
+	rest := fs.Args()
 	name := ""
-	switch len(args) {
+	switch len(rest) {
 	case 0:
 		// clear all
 	case 1:
-		if args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
-			clearUsage()
-			return 0
+		if err := validateIfaceName(rest[0]); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
 		}
-		name = args[0]
+		name = rest[0]
 	default:
 		fmt.Fprintf(os.Stderr, "error: clear counters accepts at most one argument: [<name>]\n")
 		clearUsage()

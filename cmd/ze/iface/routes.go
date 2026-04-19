@@ -82,7 +82,15 @@ func cmdRoutes(args []string) int {
 
 	// Request one extra row so we can flag truncation without a second
 	// call. Same pattern as handleShowIPRoute in internal/component/cmd/show.
-	routes, err := ifacepkg.ListKernelRoutes(filter, *limit+1)
+	// Clamp against int overflow: the backend treats limit <= 0 as
+	// unbounded, so *limit == math.MaxInt would overflow to MinInt and
+	// silently lift the cap. The clamp keeps the cap meaningful even
+	// with a pathological --limit.
+	backendLimit := *limit + 1
+	if *limit > 1<<30 { // arbitrary sane ceiling; 1 B rows = ~O(GiB) anyway
+		backendLimit = *limit
+	}
+	routes, err := ifacepkg.ListKernelRoutes(filter, backendLimit)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1

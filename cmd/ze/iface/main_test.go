@@ -364,15 +364,20 @@ func TestCmdUp(t *testing.T) {
 
 	// VALIDATES: up subcommand usage gate and help surface.
 	// PREVENTS: regressions where a bogus argument count silently
-	// reaches the backend.
+	// reaches the backend, or where `--help` stops working after a
+	// positional argument (now handled by the shared parseNameOnly).
 	tests := []struct {
 		name string
 		args []string
 		want int
 	}{
 		{name: "nil args", args: nil, want: 1},
-		{name: "help", args: []string{"help"}, want: 0},
+		{name: "double dash help", args: []string{"--help"}, want: 0},
+		{name: "dash h", args: []string{"-h"}, want: 0},
+		{name: "help after name", args: []string{"eth0", "--help"}, want: 0},
 		{name: "too many", args: []string{"a", "b"}, want: 1},
+		{name: "empty name", args: []string{""}, want: 1},
+		{name: "name too long", args: []string{"this-name-is-way-too-long-for-a-link"}, want: 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -393,8 +398,12 @@ func TestCmdDown(t *testing.T) {
 		want int
 	}{
 		{name: "nil args", args: nil, want: 1},
-		{name: "help", args: []string{"help"}, want: 0},
+		{name: "double dash help", args: []string{"--help"}, want: 0},
+		{name: "dash h", args: []string{"-h"}, want: 0},
+		{name: "help after name", args: []string{"eth0", "--help"}, want: 0},
 		{name: "too many", args: []string{"a", "b"}, want: 1},
+		{name: "empty name", args: []string{""}, want: 1},
+		{name: "name too long", args: []string{"this-name-is-way-too-long-for-a-link"}, want: 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -465,17 +474,22 @@ func TestCmdMAC(t *testing.T) {
 func TestCmdClear(t *testing.T) {
 	t.Parallel()
 
-	// VALIDATES: clear-verb usage gate + dispatch to counters.
-	// PREVENTS: regressions where an unknown subject silently
-	// reaches the backend.
+	// VALIDATES: clear-verb usage gate + dispatch to counters, including
+	// the `--help` flag working anywhere (even after a positional name,
+	// where a literal interface named "help" would otherwise collide).
+	// PREVENTS: regressions where an unknown subject silently reaches
+	// the backend, or where --help after a name gets misparsed.
 	tests := []struct {
 		name string
 		args []string
 		want int
 	}{
 		{name: "nil args", args: nil, want: 1},
-		{name: "help", args: []string{"help"}, want: 0},
+		{name: "help at root", args: []string{"help"}, want: 0},
+		{name: "double dash help at root", args: []string{"--help"}, want: 0},
 		{name: "unknown subject", args: []string{"bogus"}, want: 1},
+		{name: "counters help after flag", args: []string{"counters", "--help"}, want: 0},
+		{name: "counters empty name", args: []string{"counters", ""}, want: 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

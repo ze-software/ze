@@ -337,26 +337,26 @@ module ze-cli-show-cmd {
             container arp {
                 config false;
                 ze:command "ze-show:ip-arp";
-                description "Kernel neighbor table: IPv4 ARP and IPv6 ND entries. Optional --family ipv4|ipv6 narrows the dump.";
+                description "Kernel neighbor table: IPv4 ARP and IPv6 ND entries. Optional --family ipv4|ipv6 narrows the dump. Equivalent to the top-level `show neighbors`; the two surface the same data and differ only in argument shape (--family vs positional).";
             }
 
             container route {
                 config false;
                 ze:command "ze-show:ip-route";
-                description "Kernel routing table. Optional positional CIDR (or 'default') narrows the dump. Rejects when VPP is the iface backend (kernel FIB is not authoritative under VPP).";
+                description "Kernel routing table. Optional positional CIDR (or 'default') narrows the dump. Rejects when VPP is the iface backend (kernel FIB is not authoritative under VPP). Equivalent to the top-level `show kernel-routes`; same handler, same flags.";
             }
         }
 
         container neighbors {
             config false;
             ze:command "ze-show:neighbors";
-            description "Kernel neighbor table (ARP/ND) via the iface backend. Optional positional 'ipv4', 'ipv6', or 'any' narrows the dump.";
+            description "Kernel neighbor table (ARP/ND) via the iface backend. Optional positional 'ipv4', 'ipv6', or 'any' narrows the dump. Top-level shortcut for `show ip arp`; use whichever reads better in your session.";
         }
 
         container kernel-routes {
             config false;
             ze:command "ze-show:kernel-routes";
-            description "Kernel routing table via the iface backend. Optional positional CIDR (or 'default') narrows the dump; --limit N caps the response size. Rejects when VPP is the iface backend.";
+            description "Kernel routing table via the iface backend. Optional positional CIDR (or 'default') narrows the dump; --limit N caps the response size. Rejects when VPP is the iface backend. Top-level shortcut for `show ip route`; same handler.";
         }
 
         container firewall {

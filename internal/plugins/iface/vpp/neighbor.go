@@ -25,11 +25,15 @@ const allNeighborSwIfIndex = interface_types.InterfaceIndex(^uint32(0))
 // Neighbor state names emitted in iface.NeighborInfo.State. The
 // vocabulary matches the netlink backend's neighStateString output so
 // operators see identical strings across backends. VPP exposes fewer
-// NUD-equivalent flags than Linux (only STATIC / NO_FIB_ENTRY), so on
-// this backend only statePermanent and stateReachable are produced.
+// NUD-equivalent flags than Linux (only STATIC / NO_FIB_ENTRY); within
+// that constraint we emit statePermanent for STATIC entries,
+// stateIncomplete when the MAC has not yet resolved (all-zero MAC,
+// matches netlink's NUD_INCOMPLETE convention), and stateReachable for
+// everything else.
 const (
-	statePermanent = "permanent"
-	stateReachable = "reachable"
+	statePermanent  = "permanent"
+	stateReachable  = "reachable"
+	stateIncomplete = "incomplete"
 )
 
 // ListNeighbors returns the VPP neighbor cache (IPv4 ARP + IPv6 ND) via
@@ -97,20 +101,31 @@ func neighborFamilies(family int) ([]ip_types.AddressFamily, error) {
 // the caller can skip it without dropping the whole reply. lookupName
 // resolves a SwIfIndex to a ze interface name; when absent the Device
 // field is left empty (matches fib.go's policy on unmapped ports).
+//
+// An all-zero MAC means the entry is pending resolution: MAC is left
+// empty AND a stateReachable classification is downgraded to
+// stateIncomplete so the column pair stays self-consistent (an empty
+// MAC with state "reachable" is contradictory). STATIC entries keep
+// their "permanent" label regardless of MAC -- VPP allows static
+// entries with a placeholder MAC and that is still administratively
+// permanent.
 func neighborToInfo(n *ip_neighbor.IPNeighbor, lookupName func(uint32) (string, bool)) (iface.NeighborInfo, bool) {
 	addr, fam := neighborAddrString(n.IPAddress)
 	if addr == "" {
 		return iface.NeighborInfo{}, false
 	}
+	var zeroMAC [6]uint8
+	unresolved := n.MacAddress == zeroMAC
+	state := neighborStateName(n.Flags)
+	if unresolved && state == stateReachable {
+		state = stateIncomplete
+	}
 	entry := iface.NeighborInfo{
 		Address: addr,
 		Family:  fam,
-		State:   neighborStateName(n.Flags),
+		State:   state,
 	}
-	// Zero MAC means the entry has not resolved yet (INCOMPLETE / no
-	// reply): leave MAC empty -- mirrors netlink backend convention.
-	var zeroMAC [6]uint8
-	if n.MacAddress != zeroMAC {
+	if !unresolved {
 		entry.MAC = net.HardwareAddr(n.MacAddress[:]).String()
 	}
 	if name, ok := lookupName(uint32(n.SwIfIndex)); ok {

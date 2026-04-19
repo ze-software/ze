@@ -329,14 +329,22 @@ func TestListNeighborsMultiEntry(t *testing.T) {
 	if len(got) != 4 {
 		t.Fatalf("len: got %d, want 4", len(got))
 	}
-	// Last entry has zero MAC -> MAC field must be empty.
+	// Last entry has zero MAC -> MAC field must be empty AND state must
+	// be "incomplete" (downgraded from the default "reachable") so the
+	// two columns stay self-consistent.
 	if got[3].MAC != "" {
 		t.Errorf("entry 3 MAC: got %q, want empty (zero MAC = unresolved)", got[3].MAC)
 	}
-	// First three have real MACs.
+	if got[3].State != "incomplete" {
+		t.Errorf("entry 3 State: got %q, want incomplete (zero MAC)", got[3].State)
+	}
+	// First three have real MACs and stay on "reachable".
 	for i := range 3 {
 		if got[i].MAC == "" {
 			t.Errorf("entry %d MAC: empty, want non-empty", i)
+		}
+		if got[i].State != "reachable" {
+			t.Errorf("entry %d State: got %q, want reachable", i, got[i].State)
 		}
 	}
 }

@@ -6,7 +6,6 @@ package ifacevpp
 
 import (
 	"fmt"
-	"net"
 	"net/netip"
 	"strconv"
 
@@ -189,23 +188,24 @@ func prefixToString(p ip_types.Prefix) (string, string) {
 // fibNhString renders the next-hop address stored in a FibPathNh's union
 // according to the path's protocol. Connected/directly-attached paths have
 // an all-zero next-hop and produce an empty string (netlink backend uses
-// the same convention).
+// the same convention). Uses AddressUnion.GetIP4 / GetIP6 so the codec's
+// versioned decode runs (mirrors neighbor.go); reading XXX_UnionData
+// directly would silently misbehave if GoVPP grew a length prefix or
+// union tag on the field.
 func fibNhString(nh *fib_types.FibPathNh, proto fib_types.FibPathNhProto) string {
 	switch proto {
 	case fib_types.FIB_API_PATH_NH_PROTO_IP4:
-		var ip4 [4]byte
-		copy(ip4[:], nh.Address.XXX_UnionData[:4])
-		if ip4 == ([4]byte{}) {
+		ip4 := nh.Address.GetIP4()
+		if ip4 == (ip_types.IP4Address{}) {
 			return ""
 		}
-		return net.IP(ip4[:]).String()
+		return netip.AddrFrom4(ip4).String()
 	case fib_types.FIB_API_PATH_NH_PROTO_IP6:
-		var ip6 [16]byte
-		copy(ip6[:], nh.Address.XXX_UnionData[:16])
-		if ip6 == ([16]byte{}) {
+		ip6 := nh.Address.GetIP6()
+		if ip6 == (ip_types.IP6Address{}) {
 			return ""
 		}
-		return net.IP(ip6[:]).String()
+		return netip.AddrFrom16(ip6).String()
 	case fib_types.FIB_API_PATH_NH_PROTO_MPLS,
 		fib_types.FIB_API_PATH_NH_PROTO_ETHERNET,
 		fib_types.FIB_API_PATH_NH_PROTO_BIER:
