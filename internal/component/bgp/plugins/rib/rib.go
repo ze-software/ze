@@ -407,6 +407,10 @@ func RunRIBPlugin(conn net.Conn) int {
 	registerBuiltinCommands()
 
 	r := NewRIBManager(p)
+	// Wire the process-wide Loc-RIB so BGP best-path changes mirror into
+	// the cross-protocol store. locrib.Default() returns nil in forked
+	// plugin subprocesses; SetLocRIB is nil-safe (mirroring is disabled).
+	r.SetLocRIB(locrib.Default())
 
 	// Structured event handler for DirectBridge delivery.
 	// Eliminates JSON round-trip: reads peer metadata from StructuredEvent fields,

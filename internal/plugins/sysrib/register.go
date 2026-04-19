@@ -10,6 +10,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 	sysribschema "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/schema"
@@ -61,6 +62,12 @@ func runSysRIBPlugin(conn net.Conn) int {
 
 	p := sdk.NewWithConn("rib", conn)
 	defer func() { _ = p.Close() }()
+
+	// Wire the process-wide Loc-RIB so sysrib's run() picks the
+	// cross-protocol OnChange source when in-process plugins share a
+	// singleton; returns nil in forked subprocesses, leaving the
+	// EventBus fallback path active.
+	SetLocRIB(locrib.Default())
 
 	s := newSysRIB()
 
