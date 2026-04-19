@@ -347,6 +347,18 @@ module ze-cli-show-cmd {
             }
         }
 
+        container neighbors {
+            config false;
+            ze:command "ze-show:neighbors";
+            description "Kernel neighbor table (ARP/ND) via the iface backend. Optional positional 'ipv4', 'ipv6', or 'any' narrows the dump.";
+        }
+
+        container kernel-routes {
+            config false;
+            ze:command "ze-show:kernel-routes";
+            description "Kernel routing table via the iface backend. Optional positional CIDR (or 'default') narrows the dump; --limit N caps the response size. Rejects when VPP is the iface backend.";
+        }
+
         container firewall {
             config false;
             description "Firewall (nftables) introspection";

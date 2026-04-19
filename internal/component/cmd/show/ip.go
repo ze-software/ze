@@ -118,9 +118,17 @@ func handleShowArp(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 // returning an empty result. "default" is accepted as a synonym for the
 // 0.0.0.0/0 / ::/0 entries.
 func handleShowIPRoute(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	const usage = "usage: show ip route [<cidr>|default] [--limit N]"
+	return dumpKernelRoutes(args, "usage: show ip route [<cidr>|default] [--limit N]", defaultIPRouteLimit)
+}
+
+// dumpKernelRoutes implements the shared argument parsing + truncation
+// envelope for `show ip route` and `show kernel-routes`. Both entry
+// points dump the same data; only their verb paths and usage strings
+// differ. `defaultLimit` lets callers pick a cap appropriate for their
+// audience (interactive operator vs. programmatic scrape).
+func dumpKernelRoutes(args []string, usage string, defaultLimit int) (*plugin.Response, error) {
 	filter := ""
-	limit := defaultIPRouteLimit
+	limit := defaultLimit
 	for i := 0; i < len(args); i++ {
 		switch {
 		case args[i] == "--limit":

@@ -46,7 +46,10 @@ func Run(args []string) int {
 	// Validate subcommand BEFORE touching the backend. Otherwise a bogus
 	// subcommand triggers LoadBackend + defer CloseBackend, mutating
 	// package-global state that parallel unit tests rely on.
-	known := []string{"show", "scan", "create", "delete", "unit", "addr", "migrate"}
+	known := []string{
+		"show", "scan", "create", "delete", "unit", "addr", "migrate",
+		"up", "down", "mtu", "mac", "neighbors", "routes", "clear",
+	}
 	if !slices.Contains(known, subcmd) {
 		fmt.Fprintf(os.Stderr, "error: unknown interface subcommand: %s\n", subcmd)
 		if s := suggest.Command(subcmd, append(known, "help")); s != "" {
@@ -81,6 +84,20 @@ func Run(args []string) int {
 		return cmdAddr(subArgs)
 	case "migrate":
 		return cmdMigrate(subArgs)
+	case "up":
+		return cmdUp(subArgs)
+	case "down":
+		return cmdDown(subArgs)
+	case "mtu":
+		return cmdMTU(subArgs)
+	case "mac":
+		return cmdMAC(subArgs)
+	case "neighbors":
+		return cmdNeighbors(subArgs)
+	case "routes":
+		return cmdRoutes(subArgs)
+	case "clear":
+		return cmdClear(subArgs)
 	}
 	// Unreachable: known-subcommand gate above.
 	return 1
@@ -97,7 +114,15 @@ func usage() {
 				{Name: "scan [--config|--json|--yaml]", Desc: "Scan OS for interfaces and classify by Ze type"},
 				{Name: "create dummy <name>", Desc: "Create a dummy interface"},
 				{Name: "create veth <name> <peer>", Desc: "Create a veth pair"},
+				{Name: "create bridge <name>", Desc: "Create a Linux bridge"},
 				{Name: "delete <name>", Desc: "Delete an interface"},
+				{Name: "up <name>", Desc: "Bring an interface administratively up"},
+				{Name: "down <name>", Desc: "Bring an interface administratively down"},
+				{Name: "mtu <name> <mtu>", Desc: "Set the MTU on an interface (68..65535)"},
+				{Name: "mac <name> <mac>", Desc: "Set the MAC address on an interface"},
+				{Name: "neighbors [ipv4|ipv6]", Desc: "List kernel neighbor table (ARP + ND)"},
+				{Name: "routes [cidr] [--limit N]", Desc: "List kernel routing table entries"},
+				{Name: "clear counters [name]", Desc: "Clear RX/TX counters (all or one)"},
 				{Name: "unit add <name> <id> [vlan-id <vid>]", Desc: "Add a logical unit (VLAN subinterface)"},
 				{Name: "unit del <name> <id>", Desc: "Delete a logical unit"},
 				{Name: "addr add <name> unit <id> <cidr>", Desc: "Add an IP address to a unit"},
@@ -111,7 +136,18 @@ func usage() {
 			"ze interface show eth0",
 			"ze interface create dummy lo1",
 			"ze interface create veth ze0 ze1",
+			"ze interface create bridge br0",
 			"ze interface delete lo1",
+			"ze interface up eth0",
+			"ze interface down eth0",
+			"ze interface mtu eth0 9000",
+			"ze interface mac eth0 02:00:00:00:00:01",
+			"ze interface neighbors",
+			"ze interface neighbors ipv6",
+			"ze interface routes",
+			"ze interface routes 10.0.0.0/8",
+			"ze interface clear counters",
+			"ze interface clear counters eth0",
 			"ze interface unit add eth0 100 vlan-id 100",
 			"ze interface unit del eth0 100",
 			"ze interface addr add eth0 unit 0 10.0.0.1/24",

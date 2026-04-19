@@ -359,6 +359,187 @@ func TestParseIfaceUnit(t *testing.T) {
 	}
 }
 
+func TestCmdUp(t *testing.T) {
+	t.Parallel()
+
+	// VALIDATES: up subcommand usage gate and help surface.
+	// PREVENTS: regressions where a bogus argument count silently
+	// reaches the backend.
+	tests := []struct {
+		name string
+		args []string
+		want int
+	}{
+		{name: "nil args", args: nil, want: 1},
+		{name: "help", args: []string{"help"}, want: 0},
+		{name: "too many", args: []string{"a", "b"}, want: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := cmdUp(tt.args); got != tt.want {
+				t.Errorf("cmdUp(%v) = %d, want %d", tt.args, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCmdDown(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		args []string
+		want int
+	}{
+		{name: "nil args", args: nil, want: 1},
+		{name: "help", args: []string{"help"}, want: 0},
+		{name: "too many", args: []string{"a", "b"}, want: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := cmdDown(tt.args); got != tt.want {
+				t.Errorf("cmdDown(%v) = %d, want %d", tt.args, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCmdMTU(t *testing.T) {
+	t.Parallel()
+
+	// VALIDATES: MTU boundary + arg-count validation.
+	// PREVENTS: regressions where out-of-range MTU is sent to the
+	// backend or missing args silently default.
+	tests := []struct {
+		name string
+		args []string
+		want int
+	}{
+		{name: "nil args", args: nil, want: 1},
+		{name: "help", args: []string{"--help"}, want: 0},
+		{name: "only name", args: []string{"eth0"}, want: 1},
+		{name: "non-numeric mtu", args: []string{"eth0", "abc"}, want: 1},
+		{name: "below min", args: []string{"eth0", "67"}, want: 1},
+		{name: "above max", args: []string{"eth0", "65536"}, want: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := cmdMTU(tt.args); got != tt.want {
+				t.Errorf("cmdMTU(%v) = %d, want %d", tt.args, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCmdMAC(t *testing.T) {
+	t.Parallel()
+
+	// VALIDATES: MAC format validation catches malformed input before
+	// the backend syscall.
+	// PREVENTS: regressions where an invalid MAC would reach the
+	// backend and fail with a less specific error.
+	tests := []struct {
+		name string
+		args []string
+		want int
+	}{
+		{name: "nil args", args: nil, want: 1},
+		{name: "help", args: []string{"--help"}, want: 0},
+		{name: "only name", args: []string{"eth0"}, want: 1},
+		{name: "invalid mac", args: []string{"eth0", "not-a-mac"}, want: 1},
+		{name: "invalid mac too short", args: []string{"eth0", "02:00:00:00:00"}, want: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := cmdMAC(tt.args); got != tt.want {
+				t.Errorf("cmdMAC(%v) = %d, want %d", tt.args, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCmdClear(t *testing.T) {
+	t.Parallel()
+
+	// VALIDATES: clear-verb usage gate + dispatch to counters.
+	// PREVENTS: regressions where an unknown subject silently
+	// reaches the backend.
+	tests := []struct {
+		name string
+		args []string
+		want int
+	}{
+		{name: "nil args", args: nil, want: 1},
+		{name: "help", args: []string{"help"}, want: 0},
+		{name: "unknown subject", args: []string{"bogus"}, want: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := cmdClear(tt.args); got != tt.want {
+				t.Errorf("cmdClear(%v) = %d, want %d", tt.args, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCmdNeighbors(t *testing.T) {
+	t.Parallel()
+
+	// VALIDATES: neighbors subcommand family parsing.
+	// PREVENTS: regressions where an unknown family silently
+	// returns "all".
+	tests := []struct {
+		name string
+		args []string
+		want int
+	}{
+		{name: "help", args: []string{"--help"}, want: 0},
+		{name: "unknown family", args: []string{"ipv7"}, want: 1},
+		{name: "too many args", args: []string{"ipv4", "extra"}, want: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := cmdNeighbors(tt.args); got != tt.want {
+				t.Errorf("cmdNeighbors(%v) = %d, want %d", tt.args, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCmdRoutes(t *testing.T) {
+	t.Parallel()
+
+	// VALIDATES: routes subcommand argument validation (invalid
+	// prefix, non-positive --limit).
+	// PREVENTS: regressions where a malformed prefix reaches the
+	// backend and returns an empty result.
+	tests := []struct {
+		name string
+		args []string
+		want int
+	}{
+		{name: "help", args: []string{"--help"}, want: 0},
+		{name: "invalid prefix", args: []string{"not-a-prefix"}, want: 1},
+		{name: "zero limit", args: []string{"--limit", "0"}, want: 1},
+		{name: "negative limit", args: []string{"--limit", "-1"}, want: 1},
+		{name: "too many args", args: []string{"10.0.0.0/8", "extra"}, want: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := cmdRoutes(tt.args); got != tt.want {
+				t.Errorf("cmdRoutes(%v) = %d, want %d", tt.args, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestCmdMigrate(t *testing.T) {
 	t.Parallel()
 

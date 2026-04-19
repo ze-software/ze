@@ -26,8 +26,10 @@ func cmdCreate(args []string) int {
 		return cmdCreateDummy(args[1:])
 	case "veth": //nolint:goconst // CLI dispatch strings, constants in internal/component/iface
 		return cmdCreateVeth(args[1:])
+	case "bridge": //nolint:goconst // CLI dispatch strings, constants in internal/component/iface
+		return cmdCreateBridge(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "error: unknown interface type: %s (expected dummy or veth)\n", args[0])
+		fmt.Fprintf(os.Stderr, "error: unknown interface type: %s (expected dummy, veth, or bridge)\n", args[0])
 		createUsage()
 		return 1
 	}
@@ -68,6 +70,23 @@ func cmdCreateVeth(args []string) int {
 	return 0
 }
 
+func cmdCreateBridge(args []string) int {
+	if len(args) != 1 {
+		fmt.Fprintf(os.Stderr, "error: create bridge requires exactly one argument: <name>\n")
+		createUsage()
+		return 1
+	}
+
+	name := args[0]
+	if err := mgr.CreateBridge(name); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+
+	fmt.Printf("created bridge interface %s\n", name)
+	return 0
+}
+
 func createUsage() {
 	p := helpfmt.Page{
 		Command: "ze interface create",
@@ -77,11 +96,13 @@ func createUsage() {
 			{Title: "Types", Entries: []helpfmt.HelpEntry{
 				{Name: "dummy <name>", Desc: "Create a dummy interface and bring it up"},
 				{Name: "veth <name> <peer>", Desc: "Create a veth pair and bring both ends up"},
+				{Name: "bridge <name>", Desc: "Create a Linux bridge interface"},
 			}},
 		},
 		Examples: []string{
 			"ze interface create dummy lo1",
 			"ze interface create veth ze0 ze1",
+			"ze interface create bridge br0",
 		},
 	}
 	p.Write()

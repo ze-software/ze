@@ -11,7 +11,7 @@ func init() {
 	cmdregistry.RegisterRoot("interface", cmdregistry.Meta{
 		Description: "Manage OS network interfaces",
 		Mode:        "offline",
-		Subs:        "create, delete, unit, addr, migrate, scan",
+		Subs:        "show, scan, create, delete, up, down, mtu, mac, neighbors, routes, clear, unit, addr, migrate",
 	})
 	cmdregistry.MustRegisterLocal("show interface", func(args []string) int {
 		return Run(append([]string{"show"}, args...))

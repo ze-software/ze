@@ -21,10 +21,40 @@ module ze-iface-cmd {
             description "Create a veth pair";
         }
 
+        container create-bridge {
+            config false;
+            ze:command "ze-iface:interface-create-bridge";
+            description "Create a Linux bridge interface";
+        }
+
         container delete {
             config false;
             ze:command "ze-iface:interface-delete";
             description "Delete an interface";
+        }
+
+        container up {
+            config false;
+            ze:command "ze-iface:interface-up";
+            description "Bring an interface administratively up";
+        }
+
+        container down {
+            config false;
+            ze:command "ze-iface:interface-down";
+            description "Bring an interface administratively down";
+        }
+
+        container mtu {
+            config false;
+            ze:command "ze-iface:interface-mtu";
+            description "Set the MTU on an interface (68..65535)";
+        }
+
+        container mac {
+            config false;
+            ze:command "ze-iface:interface-mac";
+            description "Set the MAC address on an interface";
         }
 
         container addr-add {

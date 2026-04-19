@@ -1,0 +1,19 @@
+# Test: `ze interface help` lists the new operator subcommands.
+#
+# VALIDATES: offline CLI entry points up/down/mtu/mac/neighbors/routes/
+#            clear/create-bridge are registered in the known-subcommand
+#            gate AND surfaced in the usage table, so operators can
+#            discover them via `ze interface help` or `ze interface`.
+# PREVENTS: regressions where an offline subcommand is added but the
+#           usage table is not updated, or the registration goes silent.
+
+cmd=foreground:seq=1:exec=ze interface help
+expect=exit:code=0
+expect=stdout:contains=create bridge
+expect=stdout:contains=up <name>
+expect=stdout:contains=down <name>
+expect=stdout:contains=mtu <name>
+expect=stdout:contains=mac <name>
+expect=stdout:contains=neighbors
+expect=stdout:contains=routes
+expect=stdout:contains=clear counters
