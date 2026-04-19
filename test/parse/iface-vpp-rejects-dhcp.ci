@@ -12,6 +12,7 @@
 #           silently loses the lifetime) when the DHCP client starts.
 # PLATFORM: dhcp / dhcpv6 containers carry ze:os "linux" so the schema
 #           walker prunes them on other platforms; this test is linux-only.
+option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
 	backend vpp;

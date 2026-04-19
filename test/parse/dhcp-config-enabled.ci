@@ -1,7 +1,12 @@
 # Valid config: DHCPv4 enabled on ethernet unit
 # AC-1: dhcp { enabled true } accepted by config validate.
+# PLATFORM: the `dhcp` container is `ze:os "linux"`; the YANG walker
+# prunes it on non-Linux so the parser rejects it as unknown. Skip on
+# darwin per rules/os-specific-tests.md.
+option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
+    backend netlink
     ethernet eth0 {
         unit 0 {
             dhcp {

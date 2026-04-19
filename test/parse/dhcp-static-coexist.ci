@@ -1,7 +1,11 @@
 # Valid config: DHCP and static address on same unit
 # AC-15: Static IP alongside DHCP, both accepted.
+# PLATFORM: the `dhcp` container is `ze:os "linux"`; skipped on darwin
+# per rules/os-specific-tests.md.
+option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
+    backend netlink
     ethernet eth0 {
         unit 0 {
             address [10.0.0.1/24]

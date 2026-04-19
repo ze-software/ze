@@ -6,14 +6,19 @@
 # PREVENTS: regressions where host show silently requires a daemon
 #           connection, or where the JSON output drops its canonical
 #           kebab-case fields.
+# PLATFORM: host inventory reads /proc/cpuinfo + sysfs; the darwin
+# detector (cpu_other.go) returns ErrUnsupported at build time so the
+# underlying feature cannot succeed. Skip on darwin per
+# rules/os-specific-tests.md.
+option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer p1 {
 		connection {
-			remote { ip 127.0.0.1 }
-			local  { ip 127.0.0.1 }
+			remote { ip 127.0.0.1; }
+			local  { ip 127.0.0.1; }
 		}
-		session { asn { local 65533 remote 65533 } }
+		session { asn { local 65533; remote 65533; } }
 	}
 }
 EOF_CONF

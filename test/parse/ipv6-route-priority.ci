@@ -3,6 +3,7 @@
 # AC-3: unit without route-priority uses kernel default (no ze intervention).
 stdin=config:terminator=EOF_CONF
 interface {
+    backend netlink
     ethernet eth0 {
         unit 0 {
             route-priority 5

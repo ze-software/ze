@@ -7,6 +7,7 @@
 #           dhcp-config-enabled.ci in this directory).
 # PREVENTS: accidentally annotating dhcp with the wrong backend name, which
 #           would silently reject valid netlink configs.
+option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
 	backend netlink;

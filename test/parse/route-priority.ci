@@ -3,6 +3,7 @@
 # AC-2: unit without route-priority uses default 0.
 stdin=config:terminator=EOF_CONF
 interface {
+    backend netlink
     ethernet eth0 {
         unit 0 {
             route-priority 5

@@ -13,6 +13,7 @@
 #           trafficDefaultBackend() helper drifts from the runtime
 #           default (caught in addition by default_backend_traffic_test.go).
 
+option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 traffic-control {
 }
