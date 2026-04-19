@@ -39,11 +39,11 @@ var (
 
 // validateBackendGate runs the ze:backend commit-time feature check.
 // Mirrors iface and traffic so the daemon commit path and offline
-// `ze config validate` emit the same diagnostics. Until firewall YANG
-// grows feature annotations (follow-up for the VPP backend in
-// spec-fw-6), the walker is effectively a no-op that costs one schema
-// load; the plumbing is in place so the annotations can land as a
-// one-line addition when fw-6 defines the nft/vpp feature matrix.
+// `ze config validate` emit the same diagnostics. The firewall YANG
+// currently carries seven `ze:backend "nft"` annotations (connection-
+// state / connection-mark matches and five action/modifier fields), so
+// the gate actively rejects non-nft backends that attempt to configure
+// those features -- it is not a placeholder.
 func validateBackendGate(sections []sdk.ConfigSection, activeBackend string) error {
 	backendGateSchemaOnce.Do(func() {
 		backendGateSchema, backendGateSchemaErr = config.YANGSchema()

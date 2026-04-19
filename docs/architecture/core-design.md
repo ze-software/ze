@@ -760,13 +760,15 @@ in the diagnostic.
 | **Schema reader** | `getBackendExtension` in `yang_schema.go` mirrors `getOSExtension`; stores the de-duplicated name list on the schema `Node` (`LeafNode.Backend`, `ContainerNode.Backend`, `ListNode.Backend`). |
 | **Walker** | `config.ValidateBackendFeatures(tree, schema, root, activeBackend, backendLeafPath)` descends the parsed JSON tree alongside the schema and emits one error per YANG path where the node's annotation excludes the active backend. |
 | **Narrowest wins** | A descendant annotation that accepts the active backend suppresses an outer annotation that rejects it, so per-case overrides work. |
-| **Wiring** | iface plugin calls the gate in `OnConfigure` (startup) and `OnConfigVerify` (reload). `ze config validate` calls the same helper so offline validation matches daemon commit. Runtime `errNotSupported` returns in `ifacevpp` stay as defence-in-depth. |
-| **Initial coverage** | iface: `bridge`, `tunnel`, `wireguard`, `veth`, `mirror` annotated `ze:backend "netlink"`. firewall and traffic carry a `leaf backend` default (`nft`, `tc`); per-feature annotations land when fw-3 and fw-5 implement the declarative Apply paths. |
+| **Wiring** | iface, firewall, and traffic plugins call the gate in `OnConfigure` (startup) and `OnConfigVerify` (reload). `ze config validate` calls the same helper so offline validation matches daemon commit. Runtime `errNotSupported` returns in `ifacevpp` stay as defence-in-depth. |
+| **Initial coverage** | iface: `bridge`, `tunnel`, `wireguard`, `veth`, `mirror` annotated `ze:backend "netlink"`. firewall: seven `ze:backend "nft"` annotations on conntrack-driven matches (`connection-state`, `connection-mark`) and nft-only action/modifier leaves. traffic: carries a `leaf backend` default (`tc`); per-feature annotations land with `spec-fw-7-traffic-vpp`. |
 
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension backend -->
 <!-- source: internal/component/config/yang_schema.go -- getBackendExtension, Backend population on LeafNode/ContainerNode/ListNode -->
 <!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures, walkBackendNode, walkBackendListEntry -->
 <!-- source: internal/component/iface/register.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
+<!-- source: internal/component/firewall/engine.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
+<!-- source: internal/component/traffic/register.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
 <!-- source: cmd/ze/config/cmd_validate.go -- runValidation, backend-gate loop over gated components -->
 
 ---
