@@ -23,7 +23,7 @@ import (
 // Carries enough to filter and serialize without re-reading the RIB.
 type RouteItem struct {
 	Peer      string
-	Family    string
+	Family    family.Family
 	Prefix    string
 	Direction string // "received" or "sent"
 
@@ -103,11 +103,10 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 		}
 
 		peerRIB.Iterate(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
-			familyStr := formatFamily(fam)
 			prefixStr := formatNLRIAsPrefix(fam, nlriBytes)
 			s.items = append(s.items, RouteItem{
 				Peer:       peer,
-				Family:     familyStr,
+				Family:     fam,
 				Prefix:     prefixStr,
 				Direction:  "received",
 				HasInEntry: true,
@@ -343,12 +342,14 @@ func (f *pathFilter) Meta() PipelineMeta {
 // familyFilter filters routes by address family.
 type familyFilter struct {
 	upstream PipelineIterator
-	family   string
+	family   family.Family
+	match    string // original pattern for unregistered/fallback matching
 	count    int
 }
 
-func newFamilyFilter(upstream PipelineIterator, family string) *familyFilter {
-	return &familyFilter{upstream: upstream, family: family}
+func newFamilyFilter(upstream PipelineIterator, familyPattern string) *familyFilter {
+	f, _ := family.LookupFamily(familyPattern)
+	return &familyFilter{upstream: upstream, family: f, match: familyPattern}
 }
 
 func (f *familyFilter) Next() (RouteItem, bool) {
@@ -357,7 +358,7 @@ func (f *familyFilter) Next() (RouteItem, bool) {
 		if !ok {
 			return RouteItem{}, false
 		}
-		if item.Family == f.family {
+		if item.Family == f.family || item.Family.String() == f.match {
 			f.count++
 			return item, true
 		}
@@ -468,7 +469,7 @@ func (f *matchFilter) matches(item RouteItem) bool {
 	if strings.Contains(strings.ToLower(item.Peer), f.pattern) {
 		return true
 	}
-	if strings.Contains(strings.ToLower(item.Family), f.pattern) {
+	if strings.Contains(strings.ToLower(item.Family.String()), f.pattern) {
 		return true
 	}
 
@@ -654,8 +655,8 @@ func (ps *prefixSummaryTerminal) drain() {
 		count++
 
 		prefixLen := extractPrefixLength(item.Prefix)
-		fam := item.Family
-		if fam == "" {
+		fam := item.Family.String()
+		if item.Family == (family.Family{}) {
 			fam = "unknown"
 		}
 

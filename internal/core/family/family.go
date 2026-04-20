@@ -170,3 +170,21 @@ func (f Family) AppendTo(buf []byte) []byte {
 	buf = append(buf, '/')
 	return f.SAFI.AppendTo(buf)
 }
+
+// MarshalText renders the family as its canonical "<afi>/<safi>" name so
+// JSON/Text encoders reuse the registered spelling without custom wrappers.
+// Unregistered families fall back to the afi-N/safi-N form via AppendTo.
+func (f Family) MarshalText() ([]byte, error) {
+	return f.AppendTo(nil), nil
+}
+
+// UnmarshalText parses a canonical family name ("ipv4/unicast", etc.) into
+// a Family. Returns an error for unregistered names.
+func (f *Family) UnmarshalText(data []byte) error {
+	v, ok := LookupFamily(string(data))
+	if !ok {
+		return fmt.Errorf("family: unregistered family %q", string(data))
+	}
+	*f = v
+	return nil
+}

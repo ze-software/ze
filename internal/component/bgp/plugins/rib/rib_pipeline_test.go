@@ -65,7 +65,7 @@ func TestRouteItemFromInbound(t *testing.T) {
 	item, ok := src.Next()
 	require.True(t, ok, "expected at least one item")
 	assert.Equal(t, "192.0.2.1", item.Peer)
-	assert.Equal(t, "ipv4/unicast", item.Family)
+	assert.Equal(t, family.IPv4Unicast, item.Family)
 	assert.Equal(t, "10.0.0.0/24", item.Prefix)
 	assert.Equal(t, "received", item.Direction)
 	assert.NotNil(t, item.InEntry)
@@ -79,9 +79,9 @@ func TestRouteItemFromInbound(t *testing.T) {
 // PREVENTS: Path filter accepting routes without the specified AS in the path.
 func TestFilterPath(t *testing.T) {
 	items := []RouteItem{
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", OutRoute: &Route{ASPath: []uint32{64501, 64502}}},
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", OutRoute: &Route{ASPath: []uint32{64503}}},
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.2.0/24", OutRoute: &Route{ASPath: []uint32{64501}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{ASPath: []uint32{64501, 64502}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{ASPath: []uint32{64503}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.2.0/24", OutRoute: &Route{ASPath: []uint32{64501}}},
 	}
 
 	src := &sliceSource{items: items}
@@ -107,13 +107,13 @@ func TestFilterPath(t *testing.T) {
 // PREVENTS: Routes from non-matching families leaking through.
 func TestFilterFamily(t *testing.T) {
 	items := []RouteItem{
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
-		{Peer: "p1", Family: "ipv6/unicast", Prefix: "2001:db8::/32"},
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
+		{Peer: "p1", Family: family.IPv6Unicast, Prefix: "2001:db8::/32"},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24"},
 	}
 
 	src := &sliceSource{items: items}
-	f := newFamilyFilter(src, "ipv4/unicast")
+	f := newFamilyFilter(src, family.IPv4Unicast.String())
 
 	var results []RouteItem
 	for {
@@ -135,9 +135,9 @@ func TestFilterFamily(t *testing.T) {
 // PREVENTS: Prefix filter matching unrelated prefixes.
 func TestFilterPrefix(t *testing.T) {
 	items := []RouteItem{
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "172.16.0.0/24"},
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "172.16.0.0/24"},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24"},
 	}
 
 	src := &sliceSource{items: items}
@@ -163,9 +163,9 @@ func TestFilterPrefix(t *testing.T) {
 // PREVENTS: Routes without the specified community passing through.
 func TestFilterCommunity(t *testing.T) {
 	items := []RouteItem{
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", OutRoute: &Route{Communities: []string{"65000:100", "65000:200"}}},
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", OutRoute: &Route{Communities: []string{"65001:100"}}},
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.2.0/24", OutRoute: &Route{Communities: []string{"65000:100"}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{Communities: []string{"65000:100", "65000:200"}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{Communities: []string{"65001:100"}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.2.0/24", OutRoute: &Route{Communities: []string{"65000:100"}}},
 	}
 
 	src := &sliceSource{items: items}
@@ -191,9 +191,9 @@ func TestFilterCommunity(t *testing.T) {
 // PREVENTS: match only working on serialized JSON text.
 func TestFilterMatch(t *testing.T) {
 	items := []RouteItem{
-		{Peer: "192.0.2.1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
-		{Peer: "192.0.2.2", Family: "ipv6/unicast", Prefix: "2001:db8::/32"},
-		{Peer: "192.0.2.3", Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
+		{Peer: "192.0.2.1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
+		{Peer: "192.0.2.2", Family: family.IPv6Unicast, Prefix: "2001:db8::/32"},
+		{Peer: "192.0.2.3", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24"},
 	}
 
 	src := &sliceSource{items: items}
@@ -223,9 +223,9 @@ func TestFilterMatch(t *testing.T) {
 // PREVENTS: count terminal serializing routes instead of just counting.
 func TestTerminalCount(t *testing.T) {
 	items := []RouteItem{
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.2.0/24"},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24"},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.2.0/24"},
 	}
 
 	src := &sliceSource{items: items}
@@ -245,8 +245,8 @@ func TestTerminalCount(t *testing.T) {
 // PREVENTS: Routes being dropped during JSON serialization.
 func TestTerminalJSON(t *testing.T) {
 	items := []RouteItem{
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", Direction: "received"},
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", Direction: "received"},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", Direction: "received"},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", Direction: "received"},
 	}
 
 	src := &sliceSource{items: items}
@@ -283,7 +283,7 @@ func TestBuildPipeline(t *testing.T) {
 	}{
 		{"count terminal", []string{"count"}, false},
 		{"path then count", []string{"path", "64501", "count"}, false},
-		{"family filter", []string{"family", "ipv4/unicast"}, true},
+		{"family filter", []string{"family", family.IPv4Unicast.String()}, true},
 		{"no args = json default", nil, true},
 	}
 
@@ -364,9 +364,9 @@ func TestShowPipelineBothDirections(t *testing.T) {
 
 	// Add outbound route
 	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
-		"ipv4/unicast": {
+		family.IPv4Unicast.String(): {
 			"172.16.0.0/24": {
-				Family: "ipv4/unicast", Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
+				Family: family.IPv4Unicast, Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
 			},
 		},
 	}
@@ -394,9 +394,9 @@ func TestShowPipelineReceivedScope(t *testing.T) {
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
-		"ipv4/unicast": {
+		family.IPv4Unicast.String(): {
 			"172.16.0.0/24": {
-				Family: "ipv4/unicast", Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
+				Family: family.IPv4Unicast, Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
 			},
 		},
 	}
@@ -423,9 +423,9 @@ func TestShowPipelineSentScope(t *testing.T) {
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
-		"ipv4/unicast": {
+		family.IPv4Unicast.String(): {
 			"172.16.0.0/24": {
-				Family: "ipv4/unicast", Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
+				Family: family.IPv4Unicast, Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
 			},
 		},
 	}
@@ -446,17 +446,17 @@ func TestShowPipelineComposed(t *testing.T) {
 
 	med100 := uint32(100)
 	r.ribOut["192.0.2.1"] = map[string]map[string]*Route{
-		"ipv4/unicast": {
+		family.IPv4Unicast.String(): {
 			"10.0.0.0/24": {
-				Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "10.0.0.1",
+				Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1",
 				ASPath: []uint32{64501, 64502}, Communities: []string{"65000:100"}, MED: &med100,
 			},
 			"10.0.1.0/24": {
-				Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "10.0.0.1",
+				Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "10.0.0.1",
 				ASPath: []uint32{64501}, Communities: []string{"65001:200"}, MED: &med100,
 			},
 			"10.0.2.0/24": {
-				Family: "ipv4/unicast", Prefix: "10.0.2.0/24", NextHop: "10.0.0.1",
+				Family: family.IPv4Unicast, Prefix: "10.0.2.0/24", NextHop: "10.0.0.1",
 				ASPath: []uint32{64503}, Communities: []string{"65000:100"}, MED: &med100,
 			},
 		},
@@ -566,8 +566,8 @@ func TestFilterMatchCrossField(t *testing.T) {
 			name:    "match AS path value",
 			pattern: "64501",
 			items: []RouteItem{
-				{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", OutRoute: &Route{ASPath: []uint32{64501, 64502}}},
-				{Peer: "p2", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", OutRoute: &Route{ASPath: []uint32{64503}}},
+				{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{ASPath: []uint32{64501, 64502}}},
+				{Peer: "p2", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{ASPath: []uint32{64503}}},
 			},
 			want: 1,
 		},
@@ -575,8 +575,8 @@ func TestFilterMatchCrossField(t *testing.T) {
 			name:    "match community value",
 			pattern: "65000:100",
 			items: []RouteItem{
-				{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", OutRoute: &Route{Communities: []string{"65000:100"}}},
-				{Peer: "p2", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", OutRoute: &Route{Communities: []string{"65001:200"}}},
+				{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{Communities: []string{"65000:100"}}},
+				{Peer: "p2", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{Communities: []string{"65001:200"}}},
 			},
 			want: 1,
 		},
@@ -584,8 +584,8 @@ func TestFilterMatchCrossField(t *testing.T) {
 			name:    "match origin value",
 			pattern: "igp",
 			items: []RouteItem{
-				{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", OutRoute: &Route{Origin: "igp"}},
-				{Peer: "p2", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", OutRoute: &Route{Origin: "egp"}},
+				{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{Origin: "igp"}},
+				{Peer: "p2", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{Origin: "egp"}},
 			},
 			want: 1,
 		},
@@ -593,8 +593,8 @@ func TestFilterMatchCrossField(t *testing.T) {
 			name:    "match MED value",
 			pattern: "100",
 			items: []RouteItem{
-				{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", OutRoute: &Route{MED: &med100}},
-				{Peer: "p2", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", OutRoute: &Route{}},
+				{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{MED: &med100}},
+				{Peer: "p2", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{}},
 			},
 			want: 1,
 		},
@@ -602,8 +602,8 @@ func TestFilterMatchCrossField(t *testing.T) {
 			name:    "match local-pref value",
 			pattern: "200",
 			items: []RouteItem{
-				{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", OutRoute: &Route{LocalPreference: &localPref200}},
-				{Peer: "p2", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", OutRoute: &Route{}},
+				{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{LocalPreference: &localPref200}},
+				{Peer: "p2", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{}},
 			},
 			want: 1,
 		},
@@ -752,9 +752,9 @@ func TestShowPipelineExplicitSentReceived(t *testing.T) {
 
 	// Add outbound route
 	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
-		"ipv4/unicast": {
+		family.IPv4Unicast.String(): {
 			"172.16.0.0/24": {
-				Family: "ipv4/unicast", Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
+				Family: family.IPv4Unicast, Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
 			},
 		},
 	}
@@ -863,9 +863,9 @@ func TestBestPipeline_Empty(t *testing.T) {
 // PREVENTS: Graph terminal producing empty or JSON output instead of text graph.
 func TestGraphTerminal(t *testing.T) {
 	items := []RouteItem{
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", Direction: "received",
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", Direction: "received",
 			OutRoute: &Route{ASPath: []uint32{64501, 64502, 64503}}},
-		{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", Direction: "received",
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", Direction: "received",
 			OutRoute: &Route{ASPath: []uint32{64504, 64502, 64503}}},
 	}
 

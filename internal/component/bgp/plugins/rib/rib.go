@@ -717,7 +717,7 @@ func (r *RIBManager) handleSent(event *Event) {
 					key := outRouteKey(prefix, pathID)
 					r.ribOut[peerAddr][famStr][key] = &Route{
 						MsgID:               msgID,
-						Family:              famStr,
+						Family:              fam,
 						Prefix:              prefix,
 						PathID:              pathID,
 						NextHop:             op.NextHop,

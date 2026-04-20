@@ -262,13 +262,12 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	}
 
 	// Process IPv4 unicast announces (legacy NLRI section).
-	ipv4Family := family.Family{AFI: 1, SAFI: 1}
+	ipv4Family := family.IPv4Unicast
 	nextHop := extractNextHop(msg.AttrsWire)
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
-		familyStr := ipv4Family.String()
-		r.storeSentNLRIs(peerAddr, familyStr, nlriData, addPath, msgID, nextHop,
+		r.storeSentNLRIs(peerAddr, ipv4Family, nlriData, addPath, msgID, nextHop,
 			core.origin, core.asPath, core.med, core.localPref, comm.communities, comm.largeCommunities, comm.extCommunities,
 			rawAttrsHex, se.Meta)
 	}
@@ -277,20 +276,18 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	wdData, err := wu.Withdrawn()
 	if err == nil && len(wdData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
-		familyStr := ipv4Family.String()
-		r.removeSentNLRIs(peerAddr, familyStr, wdData, addPath)
+		r.removeSentNLRIs(peerAddr, ipv4Family.String(), wdData, addPath)
 	}
 
 	// Process MP_REACH_NLRI announces.
 	mpReach, err := wu.MPReach()
 	if err == nil && mpReach != nil {
 		fam := mpReach.Family()
-		familyStr := fam.String()
 		mpNextHop := mpReach.NextHop().String()
 		nlriBytes := mpReach.NLRIBytes()
 		if len(nlriBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
-			r.storeSentNLRIs(peerAddr, familyStr, nlriBytes, addPath, msgID, mpNextHop,
+			r.storeSentNLRIs(peerAddr, fam, nlriBytes, addPath, msgID, mpNextHop,
 				core.origin, core.asPath, core.med, core.localPref, comm.communities, comm.largeCommunities, comm.extCommunities,
 				rawAttrsHex, se.Meta)
 		}
@@ -300,24 +297,24 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	mpUnreach, err := wu.MPUnreach()
 	if err == nil && mpUnreach != nil {
 		fam := mpUnreach.Family()
-		familyStr := fam.String()
 		wdBytes := mpUnreach.WithdrawnBytes()
 		if len(wdBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
-			r.removeSentNLRIs(peerAddr, familyStr, wdBytes, addPath)
+			r.removeSentNLRIs(peerAddr, fam.String(), wdBytes, addPath)
 		}
 	}
 }
 
 // storeSentNLRIs walks NLRI bytes and stores Route entries in ribOut.
 // Caller must hold write lock.
-func (r *RIBManager) storeSentNLRIs(peerAddr, family string, nlriData []byte, addPath bool,
+func (r *RIBManager) storeSentNLRIs(peerAddr string, fam family.Family, nlriData []byte, addPath bool,
 	msgID uint64, nextHop, origin string, asPath []uint32, med, localPref *uint32,
 	communities, largeCommunities, extCommunities []string,
 	rawAttrsHex string, meta map[string]any) {
 
-	if r.ribOut[peerAddr][family] == nil {
-		r.ribOut[peerAddr][family] = make(map[string]*Route)
+	famStr := fam.String()
+	if r.ribOut[peerAddr][famStr] == nil {
+		r.ribOut[peerAddr][famStr] = make(map[string]*Route)
 	}
 
 	iter := nlri.NewNLRIIterator(nlriData, addPath)
@@ -326,14 +323,14 @@ func (r *RIBManager) storeSentNLRIs(peerAddr, family string, nlriData []byte, ad
 		if !ok {
 			break
 		}
-		prefix := wirePrefixToString(wirePrefix, family)
+		prefix := wirePrefixToString(wirePrefix, famStr)
 		if prefix == "" {
 			continue
 		}
 		key := outRouteKey(prefix, pathID)
-		r.ribOut[peerAddr][family][key] = &Route{
+		r.ribOut[peerAddr][famStr][key] = &Route{
 			MsgID:               msgID,
-			Family:              family,
+			Family:              fam,
 			Prefix:              prefix,
 			PathID:              pathID,
 			NextHop:             nextHop,

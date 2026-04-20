@@ -13,17 +13,19 @@ package bgp
 import (
 	"fmt"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Route represents a stored route with full path attributes.
 // RFC 7911: PathID is included when ADD-PATH is negotiated.
 type Route struct {
-	MsgID     uint64    `json:"msg-id,omitempty"`
-	Family    string    `json:"family"`
-	Prefix    string    `json:"prefix"`
-	PathID    uint32    `json:"path-id,omitempty"` // RFC 7911: ADD-PATH path identifier
-	NextHop   string    `json:"next-hop"`
-	Timestamp time.Time `json:"timestamp,omitzero"`
+	MsgID     uint64        `json:"msg-id,omitempty"`
+	Family    family.Family `json:"family"`
+	Prefix    string        `json:"prefix"`
+	PathID    uint32        `json:"path-id,omitempty"` // RFC 7911: ADD-PATH path identifier
+	NextHop   string        `json:"next-hop"`
+	Timestamp time.Time     `json:"timestamp,omitzero"`
 
 	// Path attributes for full route resend.
 	Origin              string   `json:"origin,omitempty"`

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // VALIDATES: announce command sends update text for withdrawn routes
@@ -733,7 +734,7 @@ func newTestEntryWithRoute(announceCmd, withdrawCmd string, med *uint32) *PoolEn
 	entry.Route = bgp.Route{
 		Origin:  "igp",
 		NextHop: "1.2.3.4",
-		Family:  "ipv4/unicast",
+		Family:  family.IPv4Unicast,
 		Prefix:  "10.0.0.0/24",
 		MED:     med,
 	}

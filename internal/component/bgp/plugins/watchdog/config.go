@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // parseConfig extracts per-peer watchdog route pools from a BGP config JSON tree.
@@ -215,7 +216,12 @@ func parseNLRIEntries(nlriMap map[string]any, base *bgp.Route, initiallyWithdraw
 
 	for familyKey, nlriData := range nlriMap {
 		// Strip #N suffix from duplicate family keys
-		fam := stripKeySuffix(familyKey)
+		famStr := stripKeySuffix(familyKey)
+		fam, ok := family.LookupFamily(famStr)
+		if !ok {
+			logger().Warn("unknown family in watchdog NLRI entry", "family", famStr)
+			continue
+		}
 
 		nlriTree, ok := nlriData.(map[string]any)
 		if !ok {

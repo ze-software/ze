@@ -93,7 +93,7 @@ func TestInboundShowWithAttributes(t *testing.T) {
 
 	route := requireFirstRoute(t, r.showPipeline("*", []string{"received"}), "adj-rib-in", "192.0.2.1")
 
-	assert.Equal(t, "ipv4/unicast", route["family"])
+	assert.Equal(t, family.IPv4Unicast.String(), route["family"])
 	assert.Equal(t, "10.0.0.0/24", route["prefix"])
 	assert.Equal(t, "10.0.0.1", route["next-hop"])
 	assert.Equal(t, "igp", route["origin"])
@@ -152,9 +152,9 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 	med := uint32(100)
 	localPref := uint32(200)
 	r.ribOut["192.0.2.1"] = map[string]map[string]*Route{
-		"ipv4/unicast": {
+		family.IPv4Unicast.String(): {
 			"10.0.0.0/24": {
-				Family:           "ipv4/unicast",
+				Family:           family.IPv4Unicast,
 				Prefix:           "10.0.0.0/24",
 				NextHop:          "10.0.0.1",
 				Origin:           "igp",
@@ -169,7 +169,7 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 
 	route := requireFirstRoute(t, r.showPipeline("*", []string{"sent"}), "adj-rib-out", "192.0.2.1")
 
-	assert.Equal(t, "ipv4/unicast", route["family"])
+	assert.Equal(t, family.IPv4Unicast.String(), route["family"])
 	assert.Equal(t, "10.0.0.0/24", route["prefix"])
 	assert.Equal(t, "10.0.0.1", route["next-hop"])
 	assert.Equal(t, "igp", route["origin"])
@@ -219,11 +219,11 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 	assert.Len(t, allRoutes, 2, "expected both routes without filter")
 
 	// With family filter: only IPv4
-	filteredRoutes := requirePeerRoutes(t, r.showPipeline("*", []string{"received", "family", "ipv4/unicast"}), "adj-rib-in", "192.0.2.1")
+	filteredRoutes := requirePeerRoutes(t, r.showPipeline("*", []string{"received", "family", family.IPv4Unicast.String()}), "adj-rib-in", "192.0.2.1")
 	require.Len(t, filteredRoutes, 1, "expected only IPv4 route")
 	first, ok := filteredRoutes[0].(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, "ipv4/unicast", first["family"])
+	assert.Equal(t, family.IPv4Unicast.String(), first["family"])
 }
 
 // TestInboundShowPrefixFilter verifies prefix filter restricts results.
@@ -259,9 +259,9 @@ func TestOutboundShowMinimalAttributes(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
-		"ipv4/unicast": {
+		family.IPv4Unicast.String(): {
 			"10.0.0.0/24": {
-				Family:  "ipv4/unicast",
+				Family:  family.IPv4Unicast,
 				Prefix:  "10.0.0.0/24",
 				NextHop: "10.0.0.1",
 			},
@@ -271,7 +271,7 @@ func TestOutboundShowMinimalAttributes(t *testing.T) {
 	route := requireFirstRoute(t, r.showPipeline("*", []string{"sent"}), "adj-rib-out", "192.0.2.2")
 
 	// Only family, prefix, next-hop should be present
-	assert.Equal(t, "ipv4/unicast", route["family"])
+	assert.Equal(t, family.IPv4Unicast.String(), route["family"])
 	assert.Equal(t, "10.0.0.0/24", route["prefix"])
 	assert.Equal(t, "10.0.0.1", route["next-hop"])
 

@@ -2,6 +2,8 @@ package watchdog
 
 import (
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // VALIDATES: OnConfigure extracts watchdog routes from JSON config tree
@@ -508,7 +510,7 @@ func TestPoolEntryStoresRoute(t *testing.T) {
 	entry := pool.Routes()[0]
 
 	// Route must be stored
-	if entry.Route.Family != "ipv4/unicast" {
+	if entry.Route.Family != family.IPv4Unicast {
 		t.Errorf("Route.Family = %q, want ipv4/unicast", entry.Route.Family)
 	}
 	if entry.Route.Prefix != "10.0.0.0/24" {
@@ -551,7 +553,7 @@ func TestPoolEntryStoresRouteNoMED(t *testing.T) {
 	pool := peerPools["10.0.0.1"].GetPool("dns")
 	entry := pool.Routes()[0]
 
-	if entry.Route.Family != "ipv4/unicast" {
+	if entry.Route.Family != family.IPv4Unicast {
 		t.Errorf("Route.Family = %q, want ipv4/unicast", entry.Route.Family)
 	}
 	if entry.Route.MED != nil {

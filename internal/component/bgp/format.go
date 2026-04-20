@@ -84,7 +84,7 @@ func formatAnnounceText(route *Route) string {
 
 	// NLRI with family and optional modifiers (RFC 7911, RFC 4364).
 	sb.WriteString(" nlri ")
-	sb.WriteString(route.Family)
+	sb.WriteString(route.Family.String())
 	writeNLRIModifiers(&sb, route)
 	sb.WriteString(" add ")
 	sb.WriteString(route.Prefix)
@@ -97,7 +97,7 @@ func formatAnnounceText(route *Route) string {
 func FormatWithdrawCommand(route *Route) string {
 	var sb strings.Builder
 	sb.WriteString("update text nlri ")
-	sb.WriteString(route.Family)
+	sb.WriteString(route.Family.String())
 	writeNLRIModifiers(&sb, route)
 	sb.WriteString(" del ")
 	sb.WriteString(route.Prefix)

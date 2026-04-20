@@ -4,7 +4,19 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
+
+// mustFamily looks up a registered family by name or fails the test.
+func mustFamily(t *testing.T, name string) family.Family {
+	t.Helper()
+	f, ok := family.LookupFamily(name)
+	if !ok {
+		t.Fatalf("family.LookupFamily(%q) missing; call family.RegisterTestFamilies in TestMain", name)
+	}
+	return f
+}
 
 // TestFormatAnnounceCommand_MinimalRoute verifies command with only required fields.
 //
@@ -12,7 +24,7 @@ import (
 // PREVENTS: Missing required fields in replay commands.
 func TestFormatAnnounceCommand_MinimalRoute(t *testing.T) {
 	route := &Route{
-		Family:  "ipv4/unicast",
+		Family:  family.IPv4Unicast,
 		Prefix:  "10.0.0.0/24",
 		NextHop: "10.0.0.1",
 	}
@@ -29,7 +41,7 @@ func TestFormatAnnounceCommand_FullAttributes(t *testing.T) {
 	med := uint32(100)
 	localPref := uint32(200)
 	route := &Route{
-		Family:          "ipv4/unicast",
+		Family:          family.IPv4Unicast,
 		Prefix:          "10.0.0.0/24",
 		NextHop:         "10.0.0.1",
 		Origin:          "igp",
@@ -55,7 +67,7 @@ func TestFormatAnnounceCommand_FullAttributes(t *testing.T) {
 // PREVENTS: Path-id silently dropped, breaking ADD-PATH replay.
 func TestFormatAnnounceCommand_WithPathID(t *testing.T) {
 	route := &Route{
-		Family:  "ipv4/unicast",
+		Family:  family.IPv4Unicast,
 		Prefix:  "10.0.0.0/24",
 		NextHop: "10.0.0.1",
 		PathID:  42,
@@ -71,7 +83,7 @@ func TestFormatAnnounceCommand_WithPathID(t *testing.T) {
 // PREVENTS: IPv6 handling broken in component package.
 func TestFormatAnnounceCommand_IPv6(t *testing.T) {
 	route := &Route{
-		Family:  "ipv6/unicast",
+		Family:  family.IPv6Unicast,
 		Prefix:  "2001:db8::/32",
 		NextHop: "::1",
 		Origin:  "igp",
@@ -87,7 +99,7 @@ func TestFormatAnnounceCommand_IPv6(t *testing.T) {
 // PREVENTS: Extended community types silently dropped.
 func TestFormatAnnounceCommand_ExtendedCommunities(t *testing.T) {
 	route := &Route{
-		Family:              "ipv4/unicast",
+		Family:              family.IPv4Unicast,
 		Prefix:              "10.0.0.0/24",
 		NextHop:             "10.0.0.1",
 		LargeCommunities:    []string{"65001:0:100"},
@@ -105,7 +117,7 @@ func TestFormatAnnounceCommand_ExtendedCommunities(t *testing.T) {
 // PREVENTS: VPN watchdog routes missing route distinguisher or labels.
 func TestFormatAnnounceCommand_VPN(t *testing.T) {
 	route := &Route{
-		Family:  "ipv4/mpls-vpn",
+		Family:  mustFamily(t, "ipv4/mpls-vpn"),
 		Prefix:  "10.0.0.0/24",
 		NextHop: "10.0.0.1",
 		Origin:  "igp",
@@ -123,7 +135,7 @@ func TestFormatAnnounceCommand_VPN(t *testing.T) {
 // PREVENTS: nhop self resolved prematurely instead of by engine per-peer.
 func TestFormatAnnounceCommand_NhopSelf(t *testing.T) {
 	route := &Route{
-		Family:  "ipv4/unicast",
+		Family:  family.IPv4Unicast,
 		Prefix:  "10.0.0.0/24",
 		NextHop: "self",
 		Origin:  "igp",
@@ -145,22 +157,22 @@ func TestFormatWithdrawCommand(t *testing.T) {
 	}{
 		{
 			name:  "basic ipv4",
-			route: &Route{Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
+			route: &Route{Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
 			want:  "update text nlri ipv4/unicast del 10.0.0.0/24",
 		},
 		{
 			name:  "ipv6",
-			route: &Route{Family: "ipv6/unicast", Prefix: "2001:db8:1::/48"},
+			route: &Route{Family: family.IPv6Unicast, Prefix: "2001:db8:1::/48"},
 			want:  "update text nlri ipv6/unicast del 2001:db8:1::/48",
 		},
 		{
 			name:  "with path-id",
-			route: &Route{Family: "ipv4/unicast", Prefix: "10.0.0.0/24", PathID: 42},
+			route: &Route{Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", PathID: 42},
 			want:  "update text nlri ipv4/unicast path-information 42 del 10.0.0.0/24",
 		},
 		{
 			name:  "vpn with rd and label",
-			route: &Route{Family: "ipv4/mpls-vpn", Prefix: "10.0.0.0/24", RD: "65000:100", Labels: []uint32{1000}},
+			route: &Route{Family: mustFamily(t, "ipv4/mpls-vpn"), Prefix: "10.0.0.0/24", RD: "65000:100", Labels: []uint32{1000}},
 			want:  "update text nlri ipv4/mpls-vpn rd 65000:100 label 1000 del 10.0.0.0/24",
 		},
 	}

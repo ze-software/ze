@@ -86,7 +86,7 @@ func newBestSource(r *RIBManager, selector string, stashCandidates map[string][]
 
 		item := RouteItem{
 			Peer:      best.PeerAddr,
-			Family:    rk.familyS,
+			Family:    rk.fam,
 			Prefix:    rk.prefixS,
 			Direction: "received",
 		}
@@ -124,7 +124,7 @@ func newBestSource(r *RIBManager, selector string, stashCandidates map[string][]
 	// Sort by family then prefix for stable output.
 	sort.Slice(items, func(i, j int) bool {
 		if items[i].Family != items[j].Family {
-			return items[i].Family < items[j].Family
+			return family.FamilyLess(items[i].Family, items[j].Family)
 		}
 		return items[i].Prefix < items[j].Prefix
 	})
@@ -336,14 +336,14 @@ func (rt *bestReasonTerminal) drain() {
 		if !ok {
 			break
 		}
-		candidates := rt.candidatesByKey[bestRouteKey(item.Family, item.Prefix)]
+		candidates := rt.candidatesByKey[bestRouteKey(item.Family.String(), item.Prefix)]
 		exp := SelectBestExplain(candidates)
 		if exp == nil {
 			continue // defensive: prefix reached the terminal but has no candidates
 		}
 
 		entry := reasonEntry{
-			Family:     item.Family,
+			Family:     item.Family.String(),
 			Prefix:     item.Prefix,
 			WinnerPeer: exp.Winner.PeerAddr,
 			Candidates: make([]string, len(exp.Candidates)),
@@ -407,7 +407,7 @@ func (bt *bestJSONTerminal) drain() {
 			break
 		}
 		br := bestResult{
-			Family:         item.Family,
+			Family:         item.Family.String(),
 			Prefix:         item.Prefix,
 			BestPeer:       item.Peer,
 			MultipathPeers: item.MultipathPeers,
