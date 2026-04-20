@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestParseEvent_ZeBGPUpdateFormat verifies parsing of ze-bgp JSON update events.
@@ -33,8 +35,8 @@ func TestParseEvent_ZeBGPUpdateFormat(t *testing.T) {
 	assert.Equal(t, "igp", event.Origin)
 	assert.Equal(t, []uint32{65001}, event.ASPath)
 
-	require.Contains(t, event.FamilyOps, "ipv4/unicast")
-	ops := event.FamilyOps["ipv4/unicast"]
+	require.Contains(t, event.FamilyOps, family.IPv4Unicast)
+	ops := event.FamilyOps[family.IPv4Unicast]
 	require.Len(t, ops, 1)
 	assert.Equal(t, "add", ops[0].Action)
 	assert.Equal(t, "10.0.0.1", ops[0].NextHop)
@@ -79,14 +81,14 @@ func TestParseEvent_FormatFullRawFields(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, "40010100", event.RawAttributes)
-		require.Contains(t, event.RawNLRI, "ipv4/unicast")
-		assert.Equal(t, "180a0000", event.RawNLRI["ipv4/unicast"])
-		require.Contains(t, event.RawWithdrawn, "ipv4/unicast")
-		assert.Equal(t, "180a0100", event.RawWithdrawn["ipv4/unicast"])
+		require.Contains(t, event.RawNLRI, family.IPv4Unicast)
+		assert.Equal(t, "180a0000", event.RawNLRI[family.IPv4Unicast])
+		require.Contains(t, event.RawWithdrawn, family.IPv4Unicast)
+		assert.Equal(t, "180a0100", event.RawWithdrawn[family.IPv4Unicast])
 
 		assert.Equal(t, []byte{0x40, 0x01, 0x01, 0x00}, event.GetRawAttributesBytes())
-		assert.Equal(t, []byte{0x18, 0x0a, 0x00, 0x00}, event.GetRawNLRIBytes("ipv4/unicast"))
-		assert.Nil(t, event.GetRawNLRIBytes("ipv6/unicast"), "missing family returns nil")
+		assert.Equal(t, []byte{0x18, 0x0a, 0x00, 0x00}, event.GetRawNLRIBytes(family.IPv4Unicast))
+		assert.Nil(t, event.GetRawNLRIBytes(family.IPv6Unicast), "missing family returns nil")
 	})
 
 	// Raw at bgp level (sibling of update) — actual format from formatFullFromResult.
@@ -106,14 +108,14 @@ func TestParseEvent_FormatFullRawFields(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, "40010100", event.RawAttributes)
-		require.Contains(t, event.RawNLRI, "ipv4/unicast")
-		assert.Equal(t, "180a0000", event.RawNLRI["ipv4/unicast"])
-		require.Contains(t, event.RawWithdrawn, "ipv4/unicast")
-		assert.Equal(t, "180a0100", event.RawWithdrawn["ipv4/unicast"])
+		require.Contains(t, event.RawNLRI, family.IPv4Unicast)
+		assert.Equal(t, "180a0000", event.RawNLRI[family.IPv4Unicast])
+		require.Contains(t, event.RawWithdrawn, family.IPv4Unicast)
+		assert.Equal(t, "180a0100", event.RawWithdrawn[family.IPv4Unicast])
 
 		assert.Equal(t, []byte{0x40, 0x01, 0x01, 0x00}, event.GetRawAttributesBytes())
-		assert.Equal(t, []byte{0x18, 0x0a, 0x00, 0x00}, event.GetRawNLRIBytes("ipv4/unicast"))
-		assert.Nil(t, event.GetRawNLRIBytes("ipv6/unicast"), "missing family returns nil")
+		assert.Equal(t, []byte{0x18, 0x0a, 0x00, 0x00}, event.GetRawNLRIBytes(family.IPv4Unicast))
+		assert.Nil(t, event.GetRawNLRIBytes(family.IPv6Unicast), "missing family returns nil")
 	})
 }
 
@@ -136,8 +138,8 @@ func TestParseEvent_AddPathField(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NotNil(t, event.AddPath, "AddPath map should be populated")
-		assert.True(t, event.AddPath["ipv4/unicast"], "IPv4 unicast should be true")
-		_, hasIPv6 := event.AddPath["ipv6/unicast"]
+		assert.True(t, event.AddPath[family.IPv4Unicast], "IPv4 unicast should be true")
+		_, hasIPv6 := event.AddPath[family.IPv6Unicast]
 		assert.False(t, hasIPv6, "IPv6 unicast should be absent")
 	})
 
@@ -217,8 +219,8 @@ func TestParseEvent_MultipleFamilies(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, event.FamilyOps, 2)
-	assert.Contains(t, event.FamilyOps, "ipv4/unicast")
-	assert.Contains(t, event.FamilyOps, "ipv6/unicast")
+	assert.Contains(t, event.FamilyOps, family.IPv4Unicast)
+	assert.Contains(t, event.FamilyOps, family.IPv6Unicast)
 }
 
 // TestParseEvent_InvalidJSON verifies error on malformed input.

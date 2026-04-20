@@ -180,9 +180,12 @@ type familyOperation struct {
 }
 
 // updateWithdrawalMapText updates the withdrawal map from text-parsed NLRI operations.
-// Caller must hold rr.withdrawalMu.
-func (rr *RouteReflector) updateWithdrawalMapText(sourcePeer string, ops map[string][]familyOperation) {
-	for famName, familyOps := range ops {
+// Caller must hold rr.withdrawalMu. The incoming map is keyed by family.Family;
+// withdrawalInfo.Family still carries the registered name text because it is
+// re-emitted verbatim as a dispatched command argument.
+func (rr *RouteReflector) updateWithdrawalMapText(sourcePeer string, ops map[family.Family][]familyOperation) {
+	for fam, familyOps := range ops {
+		famName := fam.String()
 		for _, op := range familyOps {
 			switch op.action {
 			case actionAdd:
@@ -215,8 +218,9 @@ func (rr *RouteReflector) updateWithdrawalMapText(sourcePeer string, ops map[str
 // Key-dispatch loop processes keywords sequentially, resolving aliases via textparse.ResolveAlias:
 // - Attribute keywords (origin, path, pref, etc.): skip value(s)
 // - "nlri": consume family, extract action (add/del) and collect NLRI tokens until next keyword.
-func parseTextNLRIOps(text string) map[string][]familyOperation {
-	result := make(map[string][]familyOperation)
+// The returned map is keyed by family.Family; unregistered family names are dropped.
+func parseTextNLRIOps(text string) map[family.Family][]familyOperation {
+	result := make(map[family.Family][]familyOperation)
 	s := textparse.NewScanner(strings.TrimRight(text, "\n"))
 
 	// Skip header: peer <addr> remote as <n> <dir> update <id>
@@ -237,8 +241,12 @@ func parseTextNLRIOps(text string) map[string][]familyOperation {
 			s.Next() // consume the address
 
 		case textparse.KWNLRI:
-			fam, ok := s.Next()
-			if !ok || !strings.Contains(fam, "/") {
+			famTok, ok := s.Next()
+			if !ok || !strings.Contains(famTok, "/") {
+				continue
+			}
+			fam, famOK := family.LookupFamily(famTok)
+			if !famOK {
 				continue
 			}
 

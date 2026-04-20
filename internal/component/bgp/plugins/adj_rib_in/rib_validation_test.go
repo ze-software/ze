@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
 )
 
@@ -38,9 +39,9 @@ func TestPendingRouteStorage(t *testing.T) {
 		Message:       &bgp.MessageInfo{Type: "update", ID: 100},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]bgp.FamilyOperation{
-			"ipv4/unicast": {
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]bgp.FamilyOperation{
+			family.IPv4Unicast: {
 				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
@@ -58,7 +59,7 @@ func TestPendingRouteStorage(t *testing.T) {
 	key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	pr, ok := r.pending[key]
 	require.True(t, ok, "pending route should exist for key %s", key)
-	assert.Equal(t, "ipv4/unicast", pr.route.Family)
+	assert.Equal(t, family.IPv4Unicast, pr.route.Family)
 	assert.Equal(t, "40010100", pr.route.AttrHex)
 	assert.Equal(t, "0a000001", pr.route.NHopHex)
 	assert.Equal(t, "180a0000", pr.route.NLRIHex)
@@ -78,10 +79,10 @@ func TestAcceptPendingRoute(t *testing.T) {
 	key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
-		family:     "ipv4/unicast",
+		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",
 		routeKey:   bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0),
-		route:      &RawRoute{Family: "ipv4/unicast", AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
+		route:      &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
 		receivedAt: time.Now(),
 		state:      ValidationPending,
 	}
@@ -124,10 +125,10 @@ func TestRejectPendingRoute(t *testing.T) {
 	key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
-		family:     "ipv4/unicast",
+		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",
 		routeKey:   bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0),
-		route:      &RawRoute{Family: "ipv4/unicast", AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
+		route:      &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
 		receivedAt: time.Now(),
 		state:      ValidationPending,
 	}
@@ -159,9 +160,9 @@ func TestPassthroughWithoutValidation(t *testing.T) {
 		Message:       &bgp.MessageInfo{Type: "update", ID: 100},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]bgp.FamilyOperation{
-			"ipv4/unicast": {
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]bgp.FamilyOperation{
+			family.IPv4Unicast: {
 				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
@@ -193,10 +194,10 @@ func TestPendingTimeout(t *testing.T) {
 	key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
-		family:     "ipv4/unicast",
+		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",
 		routeKey:   bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0),
-		route:      &RawRoute{Family: "ipv4/unicast", AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
+		route:      &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
 		receivedAt: time.Now().Add(-200 * time.Millisecond), // Already expired
 		state:      ValidationPending,
 	}
@@ -234,7 +235,7 @@ func TestRevalidateInstalledRoute(t *testing.T) {
 	// Pre-populate an installed route
 	m := seqmap.New[string, *RawRoute]()
 	m.Put(bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0), 1, &RawRoute{
-		Family:          "ipv4/unicast",
+		Family:          family.IPv4Unicast,
 		AttrHex:         "40010100",
 		NHopHex:         "0a000001",
 		NLRIHex:         "180a0000",
@@ -273,7 +274,7 @@ func TestRejectAlreadyInstalled(t *testing.T) {
 	// Pre-populate installed route (not pending)
 	m := seqmap.New[string, *RawRoute]()
 	m.Put(bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0), 1, &RawRoute{
-		Family: "ipv4/unicast", AttrHex: "40010100",
+		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
 	r.ribIn["10.0.0.1"] = m
@@ -303,20 +304,20 @@ func TestMultiplePendingRoutes(t *testing.T) {
 	key1 := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key1] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
-		family:     "ipv4/unicast",
+		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",
 		routeKey:   bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0),
-		route:      &RawRoute{Family: "ipv4/unicast", AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
+		route:      &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
 		receivedAt: now,
 		state:      ValidationPending,
 	}
 	key2 := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.1.0/24", 0))
 	r.pending[key2] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
-		family:     "ipv4/unicast",
+		family:     family.IPv4Unicast,
 		prefix:     "10.0.1.0/24",
 		routeKey:   bgp.RouteKey("ipv4/unicast", "10.0.1.0/24", 0),
-		route:      &RawRoute{Family: "ipv4/unicast", AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0001"},
+		route:      &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0001"},
 		receivedAt: now,
 		state:      ValidationPending,
 	}
@@ -370,10 +371,10 @@ func TestValidationStateField(t *testing.T) {
 			key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 			r.pending[key] = &PendingRoute{
 				peerAddr:   "10.0.0.1",
-				family:     "ipv4/unicast",
+				family:     family.IPv4Unicast,
 				prefix:     "10.0.0.0/24",
 				routeKey:   bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0),
-				route:      &RawRoute{Family: "ipv4/unicast", AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
+				route:      &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
 				receivedAt: time.Now(),
 				state:      ValidationPending,
 			}
@@ -417,10 +418,10 @@ func TestPeerDownClearsPending(t *testing.T) {
 	key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
-		family:     "ipv4/unicast",
+		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",
 		routeKey:   bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0),
-		route:      &RawRoute{Family: "ipv4/unicast", AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
+		route:      &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
 		receivedAt: time.Now(),
 		state:      ValidationPending,
 	}
@@ -486,10 +487,10 @@ func TestSweepExpiredMixed(t *testing.T) {
 	key1 := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key1] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
-		family:     "ipv4/unicast",
+		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",
 		routeKey:   bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0),
-		route:      &RawRoute{Family: "ipv4/unicast", AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
+		route:      &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
 		receivedAt: time.Now().Add(-200 * time.Millisecond),
 		state:      ValidationPending,
 	}
@@ -497,10 +498,10 @@ func TestSweepExpiredMixed(t *testing.T) {
 	key2 := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.1.0/24", 0))
 	r.pending[key2] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
-		family:     "ipv4/unicast",
+		family:     family.IPv4Unicast,
 		prefix:     "10.0.1.0/24",
 		routeKey:   bgp.RouteKey("ipv4/unicast", "10.0.1.0/24", 0),
-		route:      &RawRoute{Family: "ipv4/unicast", AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0001"},
+		route:      &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0001"},
 		receivedAt: time.Now().Add(10 * time.Second), // Far in the future
 		state:      ValidationPending,
 	}
@@ -534,17 +535,17 @@ func TestClearPeerPendingPreservesOthers(t *testing.T) {
 	// Pending route for peer 1
 	key1 := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key1] = &PendingRoute{
-		peerAddr: "10.0.0.1", family: "ipv4/unicast", prefix: "10.0.0.0/24",
+		peerAddr: "10.0.0.1", family: family.IPv4Unicast, prefix: "10.0.0.0/24",
 		routeKey: bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0),
-		route:    &RawRoute{Family: "ipv4/unicast", AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
+		route:    &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
 		state:    ValidationPending,
 	}
 	// Pending route for peer 2
 	key2 := pendingKey("10.0.0.2", bgp.RouteKey("ipv4/unicast", "10.0.1.0/24", 0))
 	r.pending[key2] = &PendingRoute{
-		peerAddr: "10.0.0.2", family: "ipv4/unicast", prefix: "10.0.1.0/24",
+		peerAddr: "10.0.0.2", family: family.IPv4Unicast, prefix: "10.0.1.0/24",
 		routeKey: bgp.RouteKey("ipv4/unicast", "10.0.1.0/24", 0),
-		route:    &RawRoute{Family: "ipv4/unicast", AttrHex: "40010100", NHopHex: "0a000002", NLRIHex: "180a0001"},
+		route:    &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000002", NLRIHex: "180a0001"},
 		state:    ValidationPending,
 	}
 	r.mu.Unlock()
@@ -579,10 +580,10 @@ func TestWithdrawalRemovesPending(t *testing.T) {
 	key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
-		family:     "ipv4/unicast",
+		family:     family.IPv4Unicast,
 		prefix:     "10.0.0.0/24",
 		routeKey:   bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0),
-		route:      &RawRoute{Family: "ipv4/unicast", AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
+		route:      &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
 		receivedAt: time.Now(),
 		state:      ValidationPending,
 	}
@@ -592,9 +593,9 @@ func TestWithdrawalRemovesPending(t *testing.T) {
 	withdraw := &bgp.Event{
 		Message:      &bgp.MessageInfo{Type: "update", ID: 101},
 		Peer:         testPeerJSON(t),
-		RawWithdrawn: map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]bgp.FamilyOperation{
-			"ipv4/unicast": {
+		RawWithdrawn: map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]bgp.FamilyOperation{
+			family.IPv4Unicast: {
 				{Action: "del", NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},

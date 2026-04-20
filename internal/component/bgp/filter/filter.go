@@ -216,7 +216,7 @@ func (f NLRIFilter) IsEmpty() bool {
 // This is the RFC-correct structure: each AFI/SAFI has its own next-hop.
 // RFC 7911: NLRIs preserve path-id when ADD-PATH is negotiated.
 type FamilyNLRI struct {
-	Family  string      // e.g., "ipv4/unicast", "ipv6/unicast"
+	Family  family.Family
 	NextHop netip.Addr  // next-hop for this family
 	NLRIs   []nlri.NLRI // NLRIs with path-id (replaces Prefixes)
 }
@@ -246,7 +246,7 @@ func (r FilterResult) AnnouncedByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 			continue
 		}
 		result = append(result, FamilyNLRI{
-			Family:  fam.String(),
+			Family:  fam,
 			NextHop: mp.NextHop(),
 			NLRIs:   nlris,
 		})
@@ -260,7 +260,7 @@ func (r FilterResult) AnnouncedByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 			filterLogger().Debug("IPv4 NLRI parse error", "error", err)
 		} else if len(nlris) > 0 {
 			result = append(result, FamilyNLRI{
-				Family:  (family.IPv4Unicast).String(),
+				Family:  family.IPv4Unicast,
 				NextHop: r.IPv4Announced.NextHop(),
 				NLRIs:   nlris,
 			})
@@ -294,7 +294,7 @@ func (r FilterResult) WithdrawnByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 			continue
 		}
 		result = append(result, FamilyNLRI{
-			Family: fam.String(),
+			Family: fam,
 			NLRIs:  nlris,
 		})
 	}
@@ -307,7 +307,7 @@ func (r FilterResult) WithdrawnByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 			filterLogger().Debug("IPv4 withdrawn parse error", "error", err)
 		} else if len(nlris) > 0 {
 			result = append(result, FamilyNLRI{
-				Family: (family.IPv4Unicast).String(),
+				Family: family.IPv4Unicast,
 				NLRIs:  nlris,
 			})
 		}

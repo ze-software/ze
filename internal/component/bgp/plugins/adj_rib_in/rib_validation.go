@@ -6,6 +6,8 @@ package adj_rib_in
 import (
 	"fmt"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Validation state constants (RFC 6811 + internal states).
@@ -23,7 +25,7 @@ const defaultValidationTimeout = 30 * time.Second
 // PendingRoute stores a route awaiting validation.
 type PendingRoute struct {
 	peerAddr   string
-	family     string
+	family     family.Family
 	prefix     string
 	routeKey   string    // Key for insertion into installed seqmap
 	route      *RawRoute // The raw route data

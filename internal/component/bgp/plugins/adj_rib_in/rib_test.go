@@ -10,9 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+// ipv4VPN is the ipv4/mpls-vpn family for tests (registered via TestMain).
+var ipv4VPN = family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
 
 // newTestManager creates an AdjRIBInManager with closed SDK connections for unit testing.
 // The SDK plugin is initialized but connections are closed, so RPC calls (updateRoute)
@@ -62,9 +66,9 @@ func TestStoreReceivedRoute(t *testing.T) {
 		Message:       &bgp.MessageInfo{Type: "update", ID: 100},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]bgp.FamilyOperation{
-			"ipv4/unicast": {
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]bgp.FamilyOperation{
+			family.IPv4Unicast: {
 				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
@@ -86,7 +90,7 @@ func TestStoreReceivedRoute(t *testing.T) {
 	})
 	require.NotNil(t, route)
 
-	assert.Equal(t, "ipv4/unicast", route.Family)
+	assert.Equal(t, family.IPv4Unicast, route.Family)
 	assert.Equal(t, "40010100", route.AttrHex, "raw attributes should be stored as-is")
 	assert.Equal(t, "0a000001", route.NHopHex, "next-hop 10.0.0.1 as wire hex")
 	assert.Equal(t, "180a0000", route.NLRIHex, "NLRI wire bytes as hex")
@@ -109,9 +113,9 @@ func TestStoreAllFamilies(t *testing.T) {
 		Message:       &bgp.MessageInfo{Type: "update", ID: 200},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/mpls-vpn": "deadbeef"},
-		FamilyOps: map[string][]bgp.FamilyOperation{
-			"ipv4/mpls-vpn": {
+		RawNLRI:       map[family.Family]string{ipv4VPN: "deadbeef"},
+		FamilyOps: map[family.Family][]bgp.FamilyOperation{
+			ipv4VPN: {
 				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
@@ -129,7 +133,7 @@ func TestStoreAllFamilies(t *testing.T) {
 		return true
 	})
 	require.NotNil(t, route)
-	assert.Equal(t, "ipv4/mpls-vpn", route.Family)
+	assert.Equal(t, ipv4VPN, route.Family)
 	assert.Equal(t, "deadbeef", route.NLRIHex,
 		"complex family must use raw NLRI blob, not computed prefix bytes")
 }
@@ -147,9 +151,9 @@ func TestRemoveWithdrawnRoute(t *testing.T) {
 		Message:       &bgp.MessageInfo{Type: "update", ID: 100},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]bgp.FamilyOperation{
-			"ipv4/unicast": {
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]bgp.FamilyOperation{
+			family.IPv4Unicast: {
 				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
@@ -162,9 +166,9 @@ func TestRemoveWithdrawnRoute(t *testing.T) {
 		Message: &bgp.MessageInfo{Type: "update", ID: 101},
 		Peer:    peerJSON,
 		// Withdrawals may have raw-withdrawn but not raw-attributes
-		RawWithdrawn: map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]bgp.FamilyOperation{
-			"ipv4/unicast": {
+		RawWithdrawn: map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]bgp.FamilyOperation{
+			family.IPv4Unicast: {
 				{Action: "del", NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
@@ -183,7 +187,7 @@ func TestReplayAllSources(t *testing.T) {
 	// Store routes from peer A
 	m1 := seqmap.New[string, *RawRoute]()
 	m1.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
-		Family: "ipv4/unicast", AttrHex: "40010100",
+		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
 	r.ribIn["10.0.0.1"] = m1
@@ -191,7 +195,7 @@ func TestReplayAllSources(t *testing.T) {
 	// Store routes from peer B
 	m2 := seqmap.New[string, *RawRoute]()
 	m2.Put("ipv4/unicast:10.0.1.0/24", 2, &RawRoute{
-		Family: "ipv4/unicast", AttrHex: "40010100",
+		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000002", NLRIHex: "180a0001",
 	})
 	r.ribIn["10.0.0.2"] = m2
@@ -199,7 +203,7 @@ func TestReplayAllSources(t *testing.T) {
 	// Store routes from target peer X (should be excluded)
 	m3 := seqmap.New[string, *RawRoute]()
 	m3.Put("ipv4/unicast:10.0.2.0/24", 3, &RawRoute{
-		Family: "ipv4/unicast", AttrHex: "40010100",
+		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000003", NLRIHex: "180a0002",
 	})
 	r.ribIn["10.0.0.3"] = m3
@@ -227,15 +231,15 @@ func TestReplayFromIndex(t *testing.T) {
 
 	m := seqmap.New[string, *RawRoute]()
 	m.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
-		Family: "ipv4/unicast", AttrHex: "40010100",
+		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
 	m.Put("ipv4/unicast:10.0.1.0/24", 5, &RawRoute{
-		Family: "ipv4/unicast", AttrHex: "40010100",
+		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0001",
 	})
 	m.Put("ipv4/unicast:10.0.2.0/24", 10, &RawRoute{
-		Family: "ipv4/unicast", AttrHex: "40010100",
+		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0002",
 	})
 	r.ribIn["10.0.0.1"] = m
@@ -254,7 +258,7 @@ func TestReplayReturnsLastIndex(t *testing.T) {
 
 	m := seqmap.New[string, *RawRoute]()
 	m.Put("ipv4/unicast:10.0.0.0/24", 42, &RawRoute{
-		Family: "ipv4/unicast", AttrHex: "40010100",
+		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
 	r.ribIn["10.0.0.1"] = m
@@ -278,9 +282,9 @@ func TestSequenceIndexMonotonic(t *testing.T) {
 			Message:       &bgp.MessageInfo{Type: "update", ID: uint64(100 + i)},
 			Peer:          peerJSON,
 			RawAttributes: "40010100",
-			RawNLRI:       map[string]string{"ipv4/unicast": nlriHex[i]},
-			FamilyOps: map[string][]bgp.FamilyOperation{
-				"ipv4/unicast": {
+			RawNLRI:       map[family.Family]string{family.IPv4Unicast: nlriHex[i]},
+			FamilyOps: map[family.Family][]bgp.FamilyOperation{
+				family.IPv4Unicast: {
 					{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{prefix}},
 				},
 			},
@@ -315,7 +319,7 @@ func TestClearPeerOnDown(t *testing.T) {
 	// Pre-populate routes
 	m := seqmap.New[string, *RawRoute]()
 	m.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
-		Family: "ipv4/unicast", AttrHex: "40010100",
+		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
 	r.ribIn["10.0.0.1"] = m
@@ -366,7 +370,7 @@ func TestNHopToHex(t *testing.T) {
 // PREVENTS: Malformed commands that engine can't parse.
 func TestReplayCommandFormat(t *testing.T) {
 	route := &RawRoute{
-		Family:  "ipv4/unicast",
+		Family:  family.IPv4Unicast,
 		AttrHex: "400101004002060201000000c8",
 		NHopHex: "0a000001",
 		NLRIHex: "180a0000",
@@ -384,12 +388,12 @@ func TestHandleCommand_Status(t *testing.T) {
 	r := newTestManager(t)
 
 	m1 := seqmap.New[string, *RawRoute]()
-	m1.Put("k1", 1, &RawRoute{Family: "ipv4/unicast"})
-	m1.Put("k2", 2, &RawRoute{Family: "ipv4/unicast"})
+	m1.Put("k1", 1, &RawRoute{Family: family.IPv4Unicast})
+	m1.Put("k2", 2, &RawRoute{Family: family.IPv4Unicast})
 	r.ribIn["10.0.0.1"] = m1
 
 	m2 := seqmap.New[string, *RawRoute]()
-	m2.Put("k3", 3, &RawRoute{Family: "ipv6/unicast"})
+	m2.Put("k3", 3, &RawRoute{Family: family.IPv6Unicast})
 	r.ribIn["10.0.0.2"] = m2
 
 	status, data, err := r.handleCommand("adj-rib-in status", "")
@@ -412,7 +416,7 @@ func TestHandleCommand_Show(t *testing.T) {
 
 	m := seqmap.New[string, *RawRoute]()
 	m.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
-		Family:  "ipv4/unicast",
+		Family:  family.IPv4Unicast,
 		AttrHex: "40010100",
 		NHopHex: "0a000001",
 		NLRIHex: "180a0000",
@@ -438,9 +442,9 @@ func TestMultipleNLRIsPerUpdate(t *testing.T) {
 		Message:       &bgp.MessageInfo{Type: "update", ID: 100},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000180a0001"},
-		FamilyOps: map[string][]bgp.FamilyOperation{
-			"ipv4/unicast": {
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000180a0001"},
+		FamilyOps: map[family.Family][]bgp.FamilyOperation{
+			family.IPv4Unicast: {
 				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},
 		},
@@ -468,7 +472,7 @@ func TestAdjRibInReplayArgsPassthrough(t *testing.T) {
 	// Store a route from source peer 10.0.0.1
 	m := seqmap.New[string, *RawRoute]()
 	m.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
-		Family: "ipv4/unicast", AttrHex: "40010100",
+		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
 	r.ribIn["10.0.0.1"] = m
@@ -515,7 +519,7 @@ func TestHandleState_PeerUpTriggersReplay(t *testing.T) {
 	// Pre-populate routes from peer A (10.0.0.1)
 	m1 := seqmap.New[string, *RawRoute]()
 	m1.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
-		Family: "ipv4/unicast", AttrHex: "40010100",
+		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
 	r.ribIn["10.0.0.1"] = m1
@@ -523,7 +527,7 @@ func TestHandleState_PeerUpTriggersReplay(t *testing.T) {
 	// Pre-populate routes from peer B (10.0.0.2)
 	m2 := seqmap.New[string, *RawRoute]()
 	m2.Put("ipv4/unicast:10.0.1.0/24", 2, &RawRoute{
-		Family: "ipv4/unicast", AttrHex: "40010100",
+		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000002", NLRIHex: "180a0001",
 	})
 	r.ribIn["10.0.0.2"] = m2
@@ -590,7 +594,7 @@ func TestHandleState_PeerUpSelfExclusion(t *testing.T) {
 	// but tests the exclusion logic).
 	m1 := seqmap.New[string, *RawRoute]()
 	m1.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
-		Family: "ipv4/unicast", AttrHex: "40010100",
+		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
 	r.ribIn["10.0.0.1"] = m1
@@ -598,7 +602,7 @@ func TestHandleState_PeerUpSelfExclusion(t *testing.T) {
 	// Also routes from another peer
 	m2 := seqmap.New[string, *RawRoute]()
 	m2.Put("ipv4/unicast:10.0.1.0/24", 2, &RawRoute{
-		Family: "ipv4/unicast", AttrHex: "40010100",
+		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000002", NLRIHex: "180a0001",
 	})
 	r.ribIn["10.0.0.2"] = m2
@@ -633,9 +637,9 @@ func TestComplexFamilyMultiNLRI(t *testing.T) {
 		Message:       &bgp.MessageInfo{Type: "update", ID: 300},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/mpls-vpn": "aabbccdd11223344"},
-		FamilyOps: map[string][]bgp.FamilyOperation{
-			"ipv4/mpls-vpn": {
+		RawNLRI:       map[family.Family]string{ipv4VPN: "aabbccdd11223344"},
+		FamilyOps: map[family.Family][]bgp.FamilyOperation{
+			ipv4VPN: {
 				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},
 		},

@@ -10,7 +10,10 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
+
+var eventLogger = slogutil.LazyLogger("bgp.event")
 
 // KnownFields are the standard Event fields that are not family operations.
 // Note: "direction" is inside message wrapper, not at root level.
@@ -190,6 +193,10 @@ func parseAttributes(event *Event, attrsData json.RawMessage) {
 }
 
 // parseRawFields extracts raw wire bytes from the "raw" JSON key (format=full).
+// Per-family maps use string keys on the wire (registered "afi/safi" names) and
+// are converted to family.Family keys here. Unknown families are dropped and
+// aggregated into a single debug log per field -- same convention as
+// gr.handleEOR and rs.parseTextUpdateFamilies, minus the per-key spam.
 func parseRawFields(event *Event, rawData json.RawMessage) {
 	var rawFields struct {
 		Attributes string            `json:"attributes,omitempty"`
@@ -202,30 +209,63 @@ func parseRawFields(event *Event, rawData json.RawMessage) {
 			event.RawAttributes = rawFields.Attributes
 		}
 		if len(rawFields.NLRI) > 0 {
-			event.RawNLRI = rawFields.NLRI
+			event.RawNLRI = convertRawFamilyMap(rawFields.NLRI, "raw-nlri")
 		}
 		if len(rawFields.Withdrawn) > 0 {
-			event.RawWithdrawn = rawFields.Withdrawn
+			event.RawWithdrawn = convertRawFamilyMap(rawFields.Withdrawn, "raw-withdrawn")
 		}
 		if len(rawFields.AddPath) > 0 {
-			event.AddPath = rawFields.AddPath
+			event.AddPath = convertRawFamilyMap(rawFields.AddPath, "add-path")
 		}
 	}
 }
 
+// convertRawFamilyMap converts a JSON-decoded "afi/safi" -> value map to a
+// family.Family-keyed map. Unregistered families are dropped and aggregated
+// into a single debug log per call (one log regardless of how many keys
+// were skipped). field names the source map for the log only.
+func convertRawFamilyMap[V any](in map[string]V, field string) map[family.Family]V {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[family.Family]V, len(in))
+	var dropped []string
+	for k, v := range in {
+		fam, ok := family.LookupFamily(k)
+		if !ok {
+			dropped = append(dropped, k)
+			continue
+		}
+		out[fam] = v
+	}
+	if len(dropped) > 0 {
+		eventLogger().Debug("dropped unregistered families", "field", field, "count", len(dropped), "keys", dropped)
+	}
+	return out
+}
+
 // ParseFamilyOps extracts family operations from JSON data into the event.
+// Dynamic keys with the shape "afi/safi" are resolved via family.LookupFamily;
+// unregistered families are dropped and aggregated into a single debug log.
 func ParseFamilyOps(event *Event, data []byte) {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return
 	}
 
+	var dropped []string
 	for key, val := range raw {
 		if KnownFields[key] {
 			continue
 		}
 		// Family keys contain "/" (e.g., "ipv4/unicast", "ipv6/unicast").
 		if !strings.Contains(key, "/") {
+			continue
+		}
+
+		fam, ok := family.LookupFamily(key)
+		if !ok {
+			dropped = append(dropped, key)
 			continue
 		}
 
@@ -236,9 +276,13 @@ func ParseFamilyOps(event *Event, data []byte) {
 		}
 
 		if event.FamilyOps == nil {
-			event.FamilyOps = make(map[string][]FamilyOperation)
+			event.FamilyOps = make(map[family.Family][]FamilyOperation)
 		}
-		event.FamilyOps[key] = ops
+		event.FamilyOps[fam] = ops
+	}
+
+	if len(dropped) > 0 {
+		eventLogger().Debug("dropped unregistered families", "field", "nlri", "count", len(dropped), "keys", dropped)
 	}
 }
 
@@ -261,7 +305,9 @@ type Event struct {
 	// UPDATE fields - new command-style format.
 	// Family operations are parsed from raw JSON (dynamic keys like "ipv4/unicast").
 	// Format: {"ipv4/unicast": [{"next-hop": "...", "action": "add", "nlri": [...]}]}.
-	FamilyOps map[string][]FamilyOperation `json:"-"` // Populated by ParseEvent
+	// Keys are typed family.Family -- the JSON "afi/safi" string is resolved via
+	// family.LookupFamily at parse time and unregistered families are dropped.
+	FamilyOps map[family.Family][]FamilyOperation `json:"-"` // Populated by ParseEvent
 
 	// Path attributes at top level.
 	Origin              string   `json:"origin,omitempty"`
@@ -283,14 +329,16 @@ type Event struct {
 	SAFI family.SAFI `json:"safi,omitempty"`
 
 	// Pool storage raw fields (format=full only).
-	// Hex-encoded wire bytes for pool-based storage.
-	RawAttributes string            `json:"raw-attributes,omitempty"` // Path attributes (without MP_REACH/UNREACH)
-	RawNLRI       map[string]string `json:"raw-nlri,omitempty"`       // family -> hex bytes
-	RawWithdrawn  map[string]string `json:"raw-withdrawn,omitempty"`  // family -> hex bytes
+	// Hex-encoded wire bytes for pool-based storage. The per-family maps use
+	// typed family.Family keys; ParseEvent resolves JSON "afi/safi" strings via
+	// family.LookupFamily and drops entries whose family is not registered.
+	RawAttributes string                   `json:"raw-attributes,omitempty"` // Path attributes (without MP_REACH/UNREACH)
+	RawNLRI       map[family.Family]string `json:"-"`                        // family -> hex bytes; populated by ParseEvent
+	RawWithdrawn  map[family.Family]string `json:"-"`                        // family -> hex bytes; populated by ParseEvent
 
 	// RFC 7911: ADD-PATH per-family flags from negotiated capabilities (format=full only).
 	// When true for a family, NLRI wire bytes include 4-byte path-ID prefix.
-	AddPath map[string]bool `json:"-"` // Populated by parseRawFields from raw.add-path
+	AddPath map[family.Family]bool `json:"-"` // Populated by parseRawFields from raw.add-path
 
 	// RouteMeta carries route-level metadata through events (e.g., "src-role" for OTC filtering).
 	// Set from ReceivedUpdate.Meta on sent events; stored on Route.Meta in ribOut.
@@ -451,11 +499,11 @@ func (e *Event) GetRawAttributesBytes() []byte {
 
 // GetRawNLRIBytes returns decoded NLRI bytes for a specific family.
 // Returns nil if not present or invalid hex.
-func (e *Event) GetRawNLRIBytes(family string) []byte {
+func (e *Event) GetRawNLRIBytes(fam family.Family) []byte {
 	if e.RawNLRI == nil {
 		return nil
 	}
-	hexStr, ok := e.RawNLRI[family]
+	hexStr, ok := e.RawNLRI[fam]
 	if !ok {
 		return nil
 	}
@@ -468,11 +516,11 @@ func (e *Event) GetRawNLRIBytes(family string) []byte {
 
 // GetRawWithdrawnBytes returns decoded withdrawn bytes for a specific family.
 // Returns nil if not present or invalid hex.
-func (e *Event) GetRawWithdrawnBytes(family string) []byte {
+func (e *Event) GetRawWithdrawnBytes(fam family.Family) []byte {
 	if e.RawWithdrawn == nil {
 		return nil
 	}
-	hexStr, ok := e.RawWithdrawn[family]
+	hexStr, ok := e.RawWithdrawn[fam]
 	if !ok {
 		return nil
 	}

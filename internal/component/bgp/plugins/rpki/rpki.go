@@ -410,7 +410,8 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 
 	// Validate each NLRI prefix against the ROA cache.
 	// Collect per-family results for rpki event emission.
-	for famName, ops := range event.FamilyOps {
+	for fam, ops := range event.FamilyOps {
+		famName := fam.String()
 		familyResults := make(map[string]uint8)
 
 		for _, op := range ops {

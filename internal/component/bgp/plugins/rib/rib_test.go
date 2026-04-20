@@ -45,10 +45,10 @@ func TestParseEvent_SentFormat(t *testing.T) {
 	assert.Equal(t, uint64(123), event.GetMsgID())
 	assert.Equal(t, "10.0.0.1", event.GetPeerAddress())
 	assert.NotNil(t, event.FamilyOps)
-	assert.Contains(t, event.FamilyOps, "ipv4/unicast")
-	require.Len(t, event.FamilyOps["ipv4/unicast"], 1)
-	assert.Equal(t, "add", event.FamilyOps["ipv4/unicast"][0].Action)
-	assert.Equal(t, "1.1.1.1", event.FamilyOps["ipv4/unicast"][0].NextHop)
+	assert.Contains(t, event.FamilyOps, family.IPv4Unicast)
+	require.Len(t, event.FamilyOps[family.IPv4Unicast], 1)
+	assert.Equal(t, "add", event.FamilyOps[family.IPv4Unicast][0].Action)
+	assert.Equal(t, "1.1.1.1", event.FamilyOps[family.IPv4Unicast][0].NextHop)
 }
 
 // TestParseEvent_ReceivedFormat verifies parsing of received UPDATE events.
@@ -67,7 +67,7 @@ func TestParseEvent_ReceivedFormat(t *testing.T) {
 	assert.Equal(t, "received", event.GetDirection())
 	assert.Equal(t, "10.0.0.1", event.GetPeerAddress())
 	assert.NotNil(t, event.FamilyOps)
-	assert.Contains(t, event.FamilyOps, "ipv4/unicast")
+	assert.Contains(t, event.FamilyOps, family.IPv4Unicast)
 }
 
 // TestParseEvent_StateFormat verifies parsing of state events.
@@ -112,8 +112,8 @@ func TestHandleSent_StoresRoutes(t *testing.T) {
 		Type:  "sent",
 		MsgID: 100,
 		Peer:  mustMarshal(t, PeerInfoJSON{Address: "10.0.0.1", Remote: PeerRemoteInfo{AS: 65001}}),
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {
 				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},
 		},
@@ -144,8 +144,8 @@ func TestHandleSent_Withdraw(t *testing.T) {
 		Type:  "sent",
 		MsgID: 100,
 		Peer:  mustMarshal(t, PeerInfoJSON{Address: "10.0.0.1", Remote: PeerRemoteInfo{AS: 65001}}),
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {
 				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
@@ -157,8 +157,8 @@ func TestHandleSent_Withdraw(t *testing.T) {
 	withdraw := &Event{
 		Type: "sent",
 		Peer: mustMarshal(t, PeerInfoJSON{Address: "10.0.0.1", Remote: PeerRemoteInfo{AS: 65001}}),
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {
 				{Action: "del", NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
@@ -181,9 +181,9 @@ func TestHandleReceived_StoresRoutes(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 200},
 		Peer:          mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}}),
 		RawAttributes: "40010100", // ORIGIN IGP
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000180a0001"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000180a0001"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {
 				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},
 		},
@@ -220,9 +220,9 @@ func TestHandleReceived_Withdraw(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 200},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {
 				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
@@ -234,9 +234,9 @@ func TestHandleReceived_Withdraw(t *testing.T) {
 	withdraw := &Event{
 		Message:      &MessageInfo{Type: "update", ID: 201},
 		Peer:         peerJSON,
-		RawWithdrawn: map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {
+		RawWithdrawn: map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {
 				{Action: "del", NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
@@ -287,9 +287,9 @@ func TestHandleState_PeerDown(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 100},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(announce)
@@ -334,9 +334,9 @@ func TestStatusJSON(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 100},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000180a0001"}, // 2 NLRIs
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000180a0001"}, // 2 NLRIs
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
 		},
 	}
 	r.handleReceived(event)
@@ -372,8 +372,8 @@ func TestDispatch_RoutesToCorrectHandler(t *testing.T) {
 			event: &Event{
 				Type: "sent",
 				Peer: mustMarshal(t, PeerInfoJSON{Address: "10.0.0.1", Remote: PeerRemoteInfo{AS: 65001}}),
-				FamilyOps: map[string][]FamilyOperation{
-					"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+				FamilyOps: map[family.Family][]FamilyOperation{
+					family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 				},
 			},
 			wantRibIn:  0,
@@ -385,9 +385,9 @@ func TestDispatch_RoutesToCorrectHandler(t *testing.T) {
 				Message:       &MessageInfo{Type: "update"},
 				Peer:          json.RawMessage(`{"address":"10.0.0.1","local":{"address":"","as":0},"remote":{"as":65001}}`),
 				RawAttributes: "40010100",
-				RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-				FamilyOps: map[string][]FamilyOperation{
-					"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+				RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+				FamilyOps: map[family.Family][]FamilyOperation{
+					family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 				},
 			},
 			wantRibIn:  1,
@@ -437,9 +437,9 @@ func TestHandleState_ConcurrentUpDown(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 100},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0001"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.1.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0001"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.1.0/24"}}},
 		},
 	}
 	r.handleReceived(announce)
@@ -594,9 +594,9 @@ func TestHandleCommand_RIBAdjacentStatus(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 100},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(announce)
@@ -630,9 +630,9 @@ func TestHandleCommand_RIBShowReceived(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 100},
 		Peer:          peer1JSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"}, // 10.0.0.0/24
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"}, // 10.0.0.0/24
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(event1)
@@ -643,9 +643,9 @@ func TestHandleCommand_RIBShowReceived(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 101},
 		Peer:          peer2JSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0001"}, // 10.0.1.0/24
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "2.2.2.2", Action: "add", NLRIs: []any{"10.0.1.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0001"}, // 10.0.1.0/24
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "2.2.2.2", Action: "add", NLRIs: []any{"10.0.1.0/24"}}},
 		},
 	}
 	r.handleReceived(event2)
@@ -714,9 +714,9 @@ func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 100},
 		Peer:          peer1JSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(event1)
@@ -727,9 +727,9 @@ func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 101},
 		Peer:          peer2JSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0001"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "2.2.2.2", Action: "add", NLRIs: []any{"10.0.1.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0001"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "2.2.2.2", Action: "add", NLRIs: []any{"10.0.1.0/24"}}},
 		},
 	}
 	r.handleReceived(event2)
@@ -848,9 +848,9 @@ func TestRIBPluginHandleCommandShortNames(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 100},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(announce)
@@ -902,9 +902,9 @@ func TestRIBPluginHandleCommandLegacyNames(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 100},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(announce)
@@ -1056,10 +1056,10 @@ func TestHandleReceived_PoolStorage(t *testing.T) {
 	event := &Event{
 		Message:       &MessageInfo{Type: "update", ID: 300},
 		Peer:          mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}}),
-		RawAttributes: "40010100",                                    // ORIGIN IGP
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"}, // 10.0.0.0/24
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		RawAttributes: "40010100",                                               // ORIGIN IGP
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"}, // 10.0.0.0/24
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 
@@ -1082,9 +1082,9 @@ func TestHandleReceived_PoolStorage_MultipleNLRIs(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 302},
 		Peer:          mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}}),
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000180a0001"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000180a0001"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
 		},
 	}
 
@@ -1106,9 +1106,9 @@ func TestHandleReceived_PoolStorage_Withdraw(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 303},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(announce)
@@ -1118,9 +1118,9 @@ func TestHandleReceived_PoolStorage_Withdraw(t *testing.T) {
 	withdraw := &Event{
 		Message:      &MessageInfo{Type: "update", ID: 304},
 		Peer:         peerJSON,
-		RawWithdrawn: map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{Action: "del", NLRIs: []any{"10.0.0.0/24"}}},
+		RawWithdrawn: map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{Action: "del", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(withdraw)
@@ -1141,9 +1141,9 @@ func TestHandleState_PeerDown_ClearsPoolStorage(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 305},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(announce)
@@ -1178,9 +1178,9 @@ func TestHandleReceived_PoolStorage_IPv6(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 400},
 		Peer:          peerJSON,
 		RawAttributes: "40010100", // ORIGIN IGP
-		RawNLRI:       map[string]string{"ipv6/unicast": "2020010db8"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv6/unicast": {{NextHop: "::1", Action: "add", NLRIs: []any{"2001:db8::/32"}}},
+		RawNLRI:       map[family.Family]string{family.IPv6Unicast: "2020010db8"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv6Unicast: {{NextHop: "::1", Action: "add", NLRIs: []any{"2001:db8::/32"}}},
 		},
 	}
 
@@ -1204,9 +1204,9 @@ func TestHandleReceived_PoolStorage_StoresEVPN(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 401},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"l2vpn/evpn": "0203deadbe"},
-		FamilyOps: map[string][]FamilyOperation{
-			"l2vpn/evpn": {{Action: "add", NLRIs: []any{"type2:00:11:22:33:44:55"}}},
+		RawNLRI:       map[family.Family]string{(family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}): "0203deadbe"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			(family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}): {{Action: "add", NLRIs: []any{"type2:00:11:22:33:44:55"}}},
 		},
 	}
 
@@ -1230,9 +1230,9 @@ func TestStatusJSON_WithPoolStorage(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 306},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000180a0001"}, // 2 NLRIs
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000180a0001"}, // 2 NLRIs
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
 		},
 	}
 	r.handleReceived(event)
@@ -1255,9 +1255,9 @@ func TestHandleCommand_InboundShow_PoolStorage(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 307},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"}, // 10.0.0.0/24
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"}, // 10.0.0.0/24
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(event)
@@ -1287,9 +1287,9 @@ func TestHandleCommand_InboundEmpty_PoolStorage(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 308},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(event)
@@ -1510,9 +1510,9 @@ func TestParseEvent_NewBGPFormat(t *testing.T) {
 	assert.Equal(t, "igp", event.Origin)
 
 	// Verify NLRI operations
-	require.Contains(t, event.FamilyOps, "ipv4/unicast")
-	require.Len(t, event.FamilyOps["ipv4/unicast"], 1)
-	assert.Equal(t, "add", event.FamilyOps["ipv4/unicast"][0].Action)
+	require.Contains(t, event.FamilyOps, family.IPv4Unicast)
+	require.Len(t, event.FamilyOps[family.IPv4Unicast], 1)
+	assert.Equal(t, "add", event.FamilyOps[family.IPv4Unicast][0].Action)
 }
 
 // TestParseEvent_NewBGPFormatState verifies state events in new format.
@@ -1567,7 +1567,7 @@ func TestParseEvent_NewBGPFormatWithRaw(t *testing.T) {
 	// Verify raw fields are populated
 	assert.Equal(t, "40010100", event.RawAttributes)
 	require.NotNil(t, event.RawNLRI)
-	assert.Equal(t, "180a0000", event.RawNLRI["ipv4/unicast"])
+	assert.Equal(t, "180a0000", event.RawNLRI[family.IPv4Unicast])
 }
 
 // TestParseEvent_NewRIBFormat verifies parsing of ze-bgp JSON RIB event format.
@@ -1630,10 +1630,10 @@ func TestHandleReceived_AddPathNLRI(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 300},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "0000002a180a00000000002b180a0001"},
-		AddPath:       map[string]bool{"ipv4/unicast": true},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "0000002a180a00000000002b180a0001"},
+		AddPath:       map[family.Family]bool{family.IPv4Unicast: true},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {
 				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},
 		},
@@ -1667,10 +1667,10 @@ func TestHandleReceived_AddPathWithdraw(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 300},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
-		RawNLRI:       map[string]string{"ipv4/unicast": "0000002a180a0000"},
-		AddPath:       map[string]bool{"ipv4/unicast": true},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "0000002a180a0000"},
+		AddPath:       map[family.Family]bool{family.IPv4Unicast: true},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {
 				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
@@ -1686,10 +1686,10 @@ func TestHandleReceived_AddPathWithdraw(t *testing.T) {
 	withdraw := &Event{
 		Message:      &MessageInfo{Type: "update", ID: 301},
 		Peer:         peerJSON,
-		RawWithdrawn: map[string]string{"ipv4/unicast": "0000002a180a0000"},
-		AddPath:      map[string]bool{"ipv4/unicast": true},
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {
+		RawWithdrawn: map[family.Family]string{family.IPv4Unicast: "0000002a180a0000"},
+		AddPath:      map[family.Family]bool{family.IPv4Unicast: true},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {
 				{Action: "del", NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
@@ -1722,9 +1722,9 @@ func TestExtractCandidate_PoolWiring(t *testing.T) {
 		Message:       &MessageInfo{Type: "update", ID: 500},
 		Peer:          peerJSON,
 		RawAttributes: rawAttrs,
-		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"}, // 10.0.0.0/24
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"}, // 10.0.0.0/24
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleReceived(event)
@@ -1776,9 +1776,9 @@ func TestPeerMetaCleanup_ClearAndRelease(t *testing.T) {
 			Message:       &MessageInfo{Type: "update", ID: 1},
 			Peer:          peerJSON,
 			RawAttributes: "40010100",
-			RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-			FamilyOps: map[string][]FamilyOperation{
-				"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+			RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+			FamilyOps: map[family.Family][]FamilyOperation{
+				family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 			},
 		}
 		r.handleReceived(event)
@@ -1803,9 +1803,9 @@ func TestPeerMetaCleanup_ClearAndRelease(t *testing.T) {
 			Message:       &MessageInfo{Type: "update", ID: 1},
 			Peer:          peerJSON,
 			RawAttributes: "40010100",
-			RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-			FamilyOps: map[string][]FamilyOperation{
-				"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+			RawNLRI:       map[family.Family]string{family.IPv4Unicast: "180a0000"},
+			FamilyOps: map[family.Family][]FamilyOperation{
+				family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 			},
 		}
 		r.handleReceived(event)
@@ -1834,9 +1834,9 @@ func TestHandleSentPerFamily(t *testing.T) {
 	event := &Event{
 		Message: &MessageInfo{Type: "update", ID: 1},
 		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": uint32(65001)}}),
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
-			"ipv6/unicast": {{NextHop: "::1", Action: "add", NLRIs: []any{"2001:db8::/32"}}},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+			family.IPv6Unicast: {{NextHop: "::1", Action: "add", NLRIs: []any{"2001:db8::/32"}}},
 		},
 	}
 	r.handleSent(event)
@@ -1867,9 +1867,9 @@ func TestHandleSentWithdrawalPerFamily(t *testing.T) {
 	add := &Event{
 		Message: &MessageInfo{Type: "update", ID: 1},
 		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": uint32(65001)}}),
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
-			"ipv6/unicast": {{NextHop: "::1", Action: "add", NLRIs: []any{"2001:db8::/32"}}},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
+			family.IPv6Unicast: {{NextHop: "::1", Action: "add", NLRIs: []any{"2001:db8::/32"}}},
 		},
 	}
 	r.handleSent(add)
@@ -1878,8 +1878,8 @@ func TestHandleSentWithdrawalPerFamily(t *testing.T) {
 	del := &Event{
 		Message: &MessageInfo{Type: "update", ID: 2},
 		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": uint32(65001)}}),
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{Action: "del", NLRIs: []any{"10.0.0.0/24"}}},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{Action: "del", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleSent(del)
@@ -1900,8 +1900,8 @@ func TestHandleSentWithdrawalCleansEmptyMaps(t *testing.T) {
 	add := &Event{
 		Message: &MessageInfo{Type: "update", ID: 1},
 		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": uint32(65001)}}),
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleSent(add)
@@ -1911,8 +1911,8 @@ func TestHandleSentWithdrawalCleansEmptyMaps(t *testing.T) {
 	del := &Event{
 		Message: &MessageInfo{Type: "update", ID: 2},
 		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": uint32(65001)}}),
-		FamilyOps: map[string][]FamilyOperation{
-			"ipv4/unicast": {{Action: "del", NLRIs: []any{"10.0.0.0/24"}}},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {{Action: "del", NLRIs: []any{"10.0.0.0/24"}}},
 		},
 	}
 	r.handleSent(del)

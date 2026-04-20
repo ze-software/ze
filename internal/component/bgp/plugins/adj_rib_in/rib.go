@@ -34,16 +34,11 @@ import (
 )
 
 const (
-	statusDone        = "done"
-	statusError       = "error"
-	stateUp           = "up"
-	stateDown         = "down"
-	familyIPv4Unicast = "ipv4/unicast"
+	statusDone  = "done"
+	statusError = "error"
+	stateUp     = "up"
+	stateDown   = "down"
 )
-
-// familyIPv4UnicastValue is the family.Family value for IPv4 unicast,
-// used by handleReceivedStructured for AddPath context lookups.
-var familyIPv4UnicastValue = family.Family{AFI: 1, SAFI: 1}
 
 // loggerPtr is the package-level logger, disabled by default.
 var loggerPtr atomic.Pointer[slog.Logger]
@@ -69,11 +64,11 @@ func setLogger(l *slog.Logger) {
 // NLRIHex is the individual NLRI wire bytes in hex.
 // Sequence numbers are tracked by the seqmap, not stored in RawRoute.
 type RawRoute struct {
-	Family          string // Address family (e.g. "ipv4/unicast")
-	AttrHex         string // Raw path attributes hex from format=full
-	NHopHex         string // Next-hop as wire hex (e.g. "0a000001" for 10.0.0.1)
-	NLRIHex         string // Individual NLRI wire bytes hex
-	ValidationState uint8  // RPKI validation state (0=NotValidated, 1=Valid, 2=NotFound, 3=Invalid)
+	Family          family.Family // Address family (e.g. family.IPv4Unicast)
+	AttrHex         string        // Raw path attributes hex from format=full
+	NHopHex         string        // Next-hop as wire hex (e.g. "0a000001" for 10.0.0.1)
+	NLRIHex         string        // Individual NLRI wire bytes hex
+	ValidationState uint8         // RPKI validation state (0=NotValidated, 1=Valid, 2=NotFound, 3=Invalid)
 }
 
 // AdjRIBInManager implements the Adj-RIB-In plugin.
@@ -223,17 +218,17 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	}
 
 	// Build family ops + raw NLRI/withdrawn hex from wire sections.
-	event.RawNLRI = make(map[string]string)
-	event.RawWithdrawn = make(map[string]string)
-	event.FamilyOps = make(map[string][]bgp.FamilyOperation)
-	event.AddPath = make(map[string]bool)
+	event.RawNLRI = make(map[family.Family]string)
+	event.RawWithdrawn = make(map[family.Family]string)
+	event.FamilyOps = make(map[family.Family][]bgp.FamilyOperation)
+	event.AddPath = make(map[family.Family]bool)
 
 	// IPv4 unicast announces.
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
-		fam := familyIPv4Unicast
+		fam := family.IPv4Unicast
 		event.RawNLRI[fam] = hex.EncodeToString(nlriData)
-		addPath := ctx != nil && ctx.AddPath(familyIPv4UnicastValue)
+		addPath := ctx != nil && ctx.AddPath(fam)
 		event.AddPath[fam] = addPath
 		event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
 			Action: "add",
@@ -244,9 +239,9 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// IPv4 unicast withdrawals.
 	wdData, err := wu.Withdrawn()
 	if err == nil && len(wdData) > 0 {
-		fam := familyIPv4Unicast
+		fam := family.IPv4Unicast
 		event.RawWithdrawn[fam] = hex.EncodeToString(wdData)
-		addPath := ctx != nil && ctx.AddPath(familyIPv4UnicastValue)
+		addPath := ctx != nil && ctx.AddPath(fam)
 		event.AddPath[fam] = addPath
 		event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
 			Action: "del",
@@ -257,11 +252,11 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// MP_REACH_NLRI announces.
 	mpReach, err := wu.MPReach()
 	if err == nil && mpReach != nil {
-		fam := mpReach.Family().String()
+		fam := mpReach.Family()
 		nlriBytes := mpReach.NLRIBytes()
 		if len(nlriBytes) > 0 {
 			event.RawNLRI[fam] = hex.EncodeToString(nlriBytes)
-			addPath := ctx != nil && ctx.AddPath(mpReach.Family())
+			addPath := ctx != nil && ctx.AddPath(fam)
 			event.AddPath[fam] = addPath
 			nhop := mpReach.NextHop().String()
 			event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
@@ -275,11 +270,11 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// MP_UNREACH_NLRI withdrawals.
 	mpUnreach, err := wu.MPUnreach()
 	if err == nil && mpUnreach != nil {
-		fam := mpUnreach.Family().String()
+		fam := mpUnreach.Family()
 		wdBytes := mpUnreach.WithdrawnBytes()
 		if len(wdBytes) > 0 {
 			event.RawWithdrawn[fam] = hex.EncodeToString(wdBytes)
-			addPath := ctx != nil && ctx.AddPath(mpUnreach.Family())
+			addPath := ctx != nil && ctx.AddPath(fam)
 			event.AddPath[fam] = addPath
 			event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
 				Action: "del",
@@ -296,8 +291,8 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 
 // wireNLRIsToAny walks wire NLRI bytes and returns prefix strings as []any.
 // Uses stack-allocated [16]byte buffer to avoid per-prefix heap allocation.
-func wireNLRIsToAny(data []byte, addPath bool, family string) []any {
-	isIPv6 := len(family) >= 4 && family[:4] == "ipv6"
+func wireNLRIsToAny(data []byte, addPath bool, fam family.Family) []any {
+	isIPv6 := fam.AFI == family.AFIIPv6
 	addrLen := 4
 	if isIPv6 {
 		addrLen = 16
@@ -400,6 +395,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 	defer r.mu.Unlock()
 
 	for fam, ops := range event.FamilyOps {
+		famStr := fam.String()
 		// Split raw NLRI hex into individual prefixes for simple families.
 		// For complex families (VPN, EVPN), splitRawNLRIHex returns nil
 		// and the raw blob is used directly (see switch below).
@@ -427,7 +423,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 					if prefix == "" {
 						continue
 					}
-					routeKey := bgp.RouteKey(fam, prefix, pathID)
+					routeKey := bgp.RouteKey(famStr, prefix, pathID)
 
 					// Get individual NLRI hex from the correct source:
 					// - Simple families: split raw bytes give per-prefix hex
@@ -485,7 +481,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 					if prefix == "" {
 						continue
 					}
-					routeKey := bgp.RouteKey(fam, prefix, pathID)
+					routeKey := bgp.RouteKey(famStr, prefix, pathID)
 					// Remove from pending if present.
 					r.removePending(peerAddr, routeKey)
 					// Remove from installed if present.
@@ -593,13 +589,13 @@ func nhopToHex(ipStr string) string {
 // splitRawNLRIHex splits concatenated raw NLRI hex into individual entries.
 // Only works for simple prefix families (IPv4/IPv6 unicast/multicast).
 // Returns nil for complex families (VPN, EVPN, FlowSpec).
-func splitRawNLRIHex(rawHex, family string) []string {
+func splitRawNLRIHex(rawHex string, fam family.Family) []string {
 	data, err := hex.DecodeString(rawHex)
 	if err != nil || len(data) == 0 {
 		return nil
 	}
 
-	if !isSimplePrefixFamily(family) {
+	if !isSimplePrefixFamily(fam) {
 		return nil
 	}
 
@@ -621,15 +617,18 @@ func splitRawNLRIHex(rawHex, family string) []string {
 
 // isSimplePrefixFamily returns true for families with simple [prefix-len][prefix-bytes] format.
 // Complex families (VPN, EVPN, FlowSpec, etc.) have different NLRI structures.
-func isSimplePrefixFamily(family string) bool {
-	return family == "ipv4/unicast" || family == "ipv4/multicast" ||
-		family == "ipv6/unicast" || family == "ipv6/multicast"
+func isSimplePrefixFamily(fam family.Family) bool {
+	switch fam {
+	case family.IPv4Unicast, family.IPv4Multicast, family.IPv6Unicast, family.IPv6Multicast:
+		return true
+	}
+	return false
 }
 
 // prefixToWireHex converts a text prefix to NLRI wire hex.
 // Only correct for simple prefix families (IPv4/IPv6 unicast/multicast).
 // Called as fallback when raw NLRI bytes are not available.
-func prefixToWireHex(family, prefix string, pathID uint32) string {
+func prefixToWireHex(fam family.Family, prefix string, pathID uint32) string {
 	_, ipnet, err := net.ParseCIDR(prefix)
 	if err != nil {
 		return ""
@@ -639,10 +638,13 @@ func prefixToWireHex(family, prefix string, pathID uint32) string {
 	prefixBytes := (prefixLen + 7) / 8
 
 	var ipBytes net.IP
-	if len(family) >= 4 && family[:4] == "ipv4" {
+	switch fam.AFI {
+	case family.AFIIPv4:
 		ipBytes = ipnet.IP.To4()
-	} else if len(family) >= 4 && family[:4] == "ipv6" {
+	case family.AFIIPv6:
 		ipBytes = ipnet.IP.To16()
+	case family.AFIL2VPN, family.AFIBGPLS:
+		// Complex AFIs handled via raw blob path; prefixToWireHex not called.
 	}
 
 	if ipBytes == nil {

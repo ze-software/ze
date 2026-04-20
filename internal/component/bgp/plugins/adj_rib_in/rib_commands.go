@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // handleCommand processes command requests via SDK execute-command callback.
@@ -71,7 +72,7 @@ func (r *AdjRIBInManager) showJSON(selector string) string {
 		routeList := make([]map[string]any, 0, routes.Len())
 		routes.Range(func(key string, seq uint64, rt *RawRoute) bool {
 			routeMap := map[string]any{
-				"family":           rt.Family,
+				"family":           rt.Family.String(),
 				"key":              key,
 				"nhop-hex":         rt.NHopHex,
 				"attr-hex":         rt.AttrHex,
@@ -202,8 +203,13 @@ func (r *AdjRIBInManager) revalidateCommand(selector string) (string, string, er
 		return statusError, "", fmt.Errorf("revalidate requires: <family> <prefix>")
 	}
 
-	fam := parts[0]
+	famStr := parts[0]
 	prefix := parts[1]
+
+	fam, ok := family.LookupFamily(famStr)
+	if !ok {
+		return statusError, "", fmt.Errorf("unknown family: %s", famStr)
+	}
 
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -216,13 +222,13 @@ func (r *AdjRIBInManager) revalidateCommand(selector string) (string, string, er
 				return true
 			}
 			// Match exact prefix via RouteKey, or all prefixes with "*".
-			if !allPrefixes && !strings.HasPrefix(key, fam+":"+prefix+":") &&
-				key != fam+":"+prefix {
+			if !allPrefixes && !strings.HasPrefix(key, famStr+":"+prefix+":") &&
+				key != famStr+":"+prefix {
 				return true
 			}
 			routes = append(routes, map[string]any{
 				"peer":             peer,
-				"family":           rt.Family,
+				"family":           famStr,
 				"prefix":           prefix,
 				"attr-hex":         rt.AttrHex,
 				"nhop-hex":         rt.NHopHex,
