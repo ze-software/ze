@@ -41,7 +41,7 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
    - Do NOT agree with the spec blindly -- challenge architectural assumptions
 7. **Fix every issue found** in the review
 8. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
-9. **Repeat steps 6-8** until the review finds zero issues and all tests pass. Maximum 2 review passes.
+9. **Repeat steps 6-8** until the review finds zero issues and all tests pass. No cap on review passes -- each fix is new code that needs a fresh review. Stop only when a pass finds nothing.
 10. **Deliverables review:** Use the spec's **Deliverables Checklist** table. For each row:
     - Run the verification method specified in the table
     - Paste evidence (grep output, test output, ls output)
@@ -74,5 +74,5 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
 
 - Do NOT skip the audit step -- re-implementing existing code wastes time
 - Do NOT mark items as deferred/external without asking the user
-- If stuck after 2 review passes, list remaining issues and ask for guidance instead of looping
+- If the same issue reappears after 3 fix attempts (3-Fix Rule, `rules/anti-rationalization.md`), STOP and ask for guidance. Otherwise keep reviewing -- there is no pass limit.
 - If the spec is missing a **Critical Review Checklist**, **Deliverables Checklist**, **Security Review Checklist**, or **Documentation Update Checklist**, STOP and inform the user that the spec needs updating before implementation can proceed

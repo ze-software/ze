@@ -26,4 +26,4 @@ See also: `/ze-audit` (pre-impl: what already exists?), `/ze-review` (code quali
 - Do NOT fix anything. Report findings only.
 - Do NOT review code quality, edge cases, or security -- that is `/ze-review`.
 - After the user reviews your list, they will tell you which to fix.
-- Maximum 2 review passes.
+- No cap on review passes. Keep running fresh passes until one finds nothing. Fixes can break spec alignment; every change deserves a new pass.
