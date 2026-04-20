@@ -75,6 +75,45 @@ var _ = redistevents.RegisterProtocol("bgp") // returns a ProtocolID
 Consumers compare on the ID. Name lookup is a separate call used only
 for diagnostics.
 
+## Minimize Conversions; Intern When You Must
+
+Every `value.String()` is a potential allocation; every `parse(s)` on the
+consumer side undoes the typed representation. Both are waste unless the
+caller is a true output sink. Only two sink categories exist:
+
+| Sink | Mechanism |
+|------|-----------|
+| External wire (JSON, text command) | `MarshalText` / `UnmarshalText` on the typed value -- both sides hold typed, wire stays string |
+| Human output (log, CLI display, error) | `String()` returning an interned literal or registry-backed name |
+
+**Canonical implementation:** `internal/core/family/family.go` --
+`Family.String`, `Family.AppendTo`, `Family.MarshalText`,
+`Family.UnmarshalText`. Registered-name path is zero-alloc via a packed
+back-store + `unsafe.String`. Every new typed enum should add these four
+methods at declaration time. Compile-time enums use const-literal
+switches (Go interns literals); plugin-extensible sets use a packed
+registry like `family`.
+
+**No conversion roundtrips.** If the consumer on the other side of an
+event/RPC parses the string back to a typed value, the field should be
+typed with `MarshalText` attached. Wire format is unchanged; Go-to-Go
+roundtrip cost disappears.
+
+**Banned in `String()`:** `fmt.Sprintf`, `strconv.Itoa`,
+`strconv.FormatUint`, `string([]byte{...})`, `strings.Builder`, `+`
+concatenation. Use const literals (known values) or registry +
+`unsafe.String` (plugin-extensible). Fallback for unregistered values
+uses `strconv.AppendUint` via `AppendTo`, never a fresh allocation.
+
+**`fmt.Sprintf` is not an escape hatch.** It bypasses `AppendTo` and
+`WriteTo` -- even when the type provides a zero-alloc append path,
+`fmt.Sprintf` ignores it and materialises a new string via reflection.
+This applies everywhere, not just in `String()`: anywhere you reach for
+`fmt.Sprintf` to build a string from typed values, you are discarding
+the append path. Build into a caller's buffer with `AppendTo`, or return
+an interned literal. `fmt.Sprintf` is only acceptable for genuinely
+one-shot cold paths (errors, fatal logs, setup code).
+
 ## Where Strings Are OK
 
 External surfaces where the string IS the contract. Convert once at the
@@ -85,7 +124,7 @@ boundary, use the numeric identity internally.
 | Log / diagnostic output | Humans read it; `String()` at emit time |
 | YANG leaf values | YANG type is string enum; parser converts on load |
 | CLI tokens | User-typed; parser converts on dispatch |
-| JSON wire format | External contract; serialiser converts at the boundary |
+| JSON wire format | External contract; attach `MarshalText`/`UnmarshalText` to the typed value so Go holds typed on both sides, wire stays string |
 | Config file tokens | File syntax is string; parser converts on load |
 | Error messages | Human-readable context |
 
@@ -113,6 +152,8 @@ sitting on a hot path:
 2. Is the set extensible by plugins? -> Numeric ID + registry.
 3. Is the string the external contract (YANG / JSON / CLI / log)? -> OK at the boundary only; convert to an internal numeric identity.
 4. None of the above? Still suspect; ask why a string.
+5. Does `String()` call `fmt.Sprintf`, `strconv.Itoa`, or allocate a new string? -> Replace with const literals or a registry lookup backed by `unsafe.String` on a packed store.
+6. Does any consumer parse the emitted string back to typed form? -> Emit typed with `MarshalText`/`UnmarshalText`; don't round-trip through strings.
 
 ## Legacy Call-Outs
 
