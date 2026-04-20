@@ -34,9 +34,19 @@ const (
 
 // BestChangeEntry is one per-prefix entry in a BestChangeBatch. Json tags
 // define the wire format delivered to external plugin processes.
+//
+// AddPath flags whether the entry came from an ADD-PATH-negotiated family
+// (RFC 7911). Consumers MUST read AddPath before interpreting PathID --
+// PathID=0 is a valid identifier under ADD-PATH, and the `omitempty` tag
+// elides it from JSON, so without AddPath the subscriber cannot tell
+// "non-ADD-PATH" from "ADD-PATH with pathID=0". AddPath is always emitted
+// for ADD-PATH entries (including pathID=0) and omitted for everything
+// else.
 type BestChangeEntry struct {
 	Action       string `json:"action"`
 	Prefix       string `json:"prefix"`
+	AddPath      bool   `json:"add-path,omitempty"`
+	PathID       uint32 `json:"path-id,omitempty"`
 	NextHop      string `json:"next-hop,omitempty"`
 	Priority     int    `json:"priority"`
 	Metric       uint32 `json:"metric"`

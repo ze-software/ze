@@ -45,6 +45,30 @@ module ze-bgp-conf {
             }
         }
 
+        container admin-distance {
+            description "Classical admin distance stamped on BGP best-paths when
+                         they are mirrored into the shared Loc-RIB. Lower distance
+                         wins against other protocols for the same prefix.
+                         Defaults follow the Cisco/Juniper convention; RFC 4271
+                         does not mandate values.";
+
+            leaf ebgp {
+                type uint8 {
+                    range "1..255";
+                }
+                default 20;
+                description "Admin distance for routes learned from external BGP peers.";
+            }
+
+            leaf ibgp {
+                type uint8 {
+                    range "1..255";
+                }
+                default 200;
+                description "Admin distance for routes learned from internal BGP peers.";
+            }
+        }
+
         container session {
             description "Global BGP session defaults";
             container asn {

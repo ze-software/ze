@@ -277,6 +277,17 @@ type RIBManager struct {
 	// Populated from bgp/multipath/relax-as-path in the Stage 2 configure callback.
 	relaxASPath atomic.Bool
 
+	// adminDistanceEBGP is the admin distance stamped on best-path mirrors
+	// into the shared Loc-RIB for routes learned from external BGP peers.
+	// Default 20 (Cisco/Juniper convention; RFC 4271 does not mandate a
+	// value). Populated from bgp/admin-distance/ebgp in the Stage 2 configure
+	// callback. YANG enforces the 1..255 range.
+	adminDistanceEBGP atomic.Uint32
+
+	// adminDistanceIBGP is the admin distance stamped on best-path mirrors
+	// for iBGP peers. Default 200; see adminDistanceEBGP.
+	adminDistanceIBGP atomic.Uint32
+
 	// peerMu protects the peer-keyed maps ONLY: ribInPool, ribOut, peerUp,
 	// peerMeta, retainedPeers, grState. bestPrev is sharded (see
 	// bestprev_shard.go) and has its own per-shard locks. bestPathInterner
@@ -463,6 +474,8 @@ func NewRIBManager(plugin *sdk.Plugin) *RIBManager {
 		bestPathInterner: newBestPrevInterner(),
 	}
 	r.maximumPaths.Store(1)
+	r.adminDistanceEBGP.Store(20)
+	r.adminDistanceIBGP.Store(200)
 	return r
 }
 
@@ -532,10 +545,20 @@ func RunRIBPlugin(conn net.Conn) int {
 				r.maximumPaths.Store(uint32(maxP))
 			}
 			r.relaxASPath.Store(relax)
+
+			ebgpAD, ibgpAD := extractAdminDistanceConfig(section.Data)
+			if ebgpAD > 0 {
+				r.adminDistanceEBGP.Store(uint32(ebgpAD))
+			}
+			if ibgpAD > 0 {
+				r.adminDistanceIBGP.Store(uint32(ibgpAD))
+			}
 		}
-		logger().Debug("rib multipath configured",
+		logger().Debug("rib configured",
 			"maximum-paths", r.maximumPaths.Load(),
 			"relax-as-path", r.relaxASPath.Load(),
+			"admin-distance-ebgp", r.adminDistanceEBGP.Load(),
+			"admin-distance-ibgp", r.adminDistanceIBGP.Load(),
 		)
 		return nil
 	})

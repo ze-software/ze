@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -369,6 +370,164 @@ func TestPurgeBestPrevForPeerAddPath(t *testing.T) {
 		totalAfter += d
 	}
 	assert.Equal(t, 1, totalAfter, "only the surviving peer's AP record should remain")
+}
+
+// TestBestChangeEntryPathIDPropagation validates that PathID flows from
+// the ADD-PATH NLRI into the emitted BestChangeEntry on every code path
+// that produces one: Add/Update (checkBestPathChange insert branch),
+// Withdraw via checkBestPathChange (single peer, natural withdraw), and
+// Withdraw via purgeBestPrevForPeer (multi branch, peer-down purge).
+//
+// VALIDATES: ADD-PATH subscribers can distinguish per-path entries on
+// the same prefix because each emitted BestChangeEntry carries its PathID.
+// PREVENTS: the parity gap the handoff flagged (multi-path purge emitted
+// duplicate Prefix strings with no way to tell them apart).
+func TestBestChangeEntryPathIDPropagation(t *testing.T) {
+	bus := newTestEventBus()
+	r := newTestRIBManagerWithBus(bus)
+
+	fam := family.Family{AFI: 1, SAFI: 1}
+	leavingPeer := "192.0.2.30"
+	r.peerUp[leavingPeer] = true
+	r.peerMeta[leavingPeer] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+	r.ribInPool[leavingPeer] = storage.NewPeerRIB(leavingPeer)
+	r.ribInPool[leavingPeer].SetAddPath(fam, true)
+
+	apPrefix := func(pathID uint32, prefLen byte, a, b, c byte) []byte {
+		return []byte{
+			byte(pathID >> 24), byte(pathID >> 16), byte(pathID >> 8), byte(pathID),
+			prefLen, a, b, c,
+		}
+	}
+
+	attrs := makeAttrBytes([4]byte{192, 168, 30, 30})
+
+	// Add path-id 7 for 10.30.0.0/24.
+	nlri7 := apPrefix(7, 24, 10, 30, 0)
+	r.ribInPool[leavingPeer].Insert(fam, attrs, nlri7)
+	addEntry, ok := r.checkBestPathChange(fam, nlri7, true, nil)
+	require.True(t, ok)
+	assert.Equal(t, ribevents.BestChangeAdd, addEntry.Action)
+	assert.Equal(t, "10.30.0.0/24", addEntry.Prefix)
+	assert.Equal(t, uint32(7), addEntry.PathID, "Add must carry ADD-PATH pathID")
+
+	// Natural withdraw (peer still up, attribute removed): Remove from the
+	// PeerRIB then re-run checkBestPathChange. havePrev=true, newBest=nil.
+	r.ribInPool[leavingPeer].Remove(fam, nlri7)
+	withdrawEntry, ok := r.checkBestPathChange(fam, nlri7, true, nil)
+	require.True(t, ok)
+	assert.Equal(t, ribevents.BestChangeWithdraw, withdrawEntry.Action)
+	assert.Equal(t, uint32(7), withdrawEntry.PathID, "natural Withdraw must carry ADD-PATH pathID")
+
+	// Re-seed with two path-ids (11, 22) so the purge multi branch fires.
+	nlri11 := apPrefix(11, 24, 10, 31, 0)
+	nlri22 := apPrefix(22, 24, 10, 31, 0)
+	r.ribInPool[leavingPeer].Insert(fam, attrs, nlri11)
+	r.ribInPool[leavingPeer].Insert(fam, attrs, nlri22)
+	for _, nlri := range [][]byte{nlri11, nlri22} {
+		_, ok := r.checkBestPathChange(fam, nlri, true, nil)
+		require.True(t, ok)
+	}
+
+	// DOWN: purgeBestPrevForPeer multi branch emits one Withdraw per pathID.
+	bus.events = nil // drop prior seed batches so we only see the DOWN batch
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: leavingPeer, State: "down"})
+
+	// Collect every Withdraw entry across emitted batches for 10.31.0.0/24.
+	var withdrawPathIDs []uint32
+	for _, evt := range bus.events {
+		batchPtr, ok := evt.Payload.(*bestChangeBatch)
+		if !ok {
+			continue
+		}
+		for _, c := range batchPtr.Changes {
+			if c.Action != ribevents.BestChangeWithdraw {
+				continue
+			}
+			if c.Prefix == "10.31.0.0/24" {
+				withdrawPathIDs = append(withdrawPathIDs, c.PathID)
+			}
+		}
+	}
+	slices.Sort(withdrawPathIDs)
+	assert.Equal(t, []uint32{11, 22}, withdrawPathIDs,
+		"purge Withdraw must emit distinct pathIDs so subscribers can distinguish them")
+}
+
+// TestBestChangeEntryPathIDNonAddPath pins the contract that non-ADD-PATH
+// families emit PathID=0 (which json:omitempty drops from the wire) -- so
+// adding the PathID field is backwards-compatible with existing
+// subscribers that ignore unknown fields on a plain unicast prefix.
+//
+// VALIDATES: PathID=0 + json:omitempty == unchanged wire format for
+// non-ADD-PATH emissions.
+// PREVENTS: a future rename or tag drift silently breaking the JSON
+// contract with external plugin subscribers.
+func TestBestChangeEntryPathIDNonAddPath(t *testing.T) {
+	bus := newTestEventBus()
+	r := newTestRIBManagerWithBus(bus)
+
+	fam := family.Family{AFI: 1, SAFI: 1}
+	peerAddr := "192.0.2.40"
+	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+	prefix := ipv4Prefix(24, 10, 40, 0)
+	attrs := makeAttrBytes([4]byte{192, 168, 40, 40})
+
+	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
+
+	entry, ok := r.checkBestPathChange(fam, prefix, false, nil)
+	require.True(t, ok)
+	assert.False(t, entry.AddPath, "non-ADD-PATH best-change has AddPath==false")
+	assert.Zero(t, entry.PathID, "non-ADD-PATH best-change emits PathID==0")
+
+	// json.Marshal the payload and confirm BOTH add-path and path-id are
+	// absent (omitempty for a false bool and a zero uint32).
+	raw, err := json.Marshal(entry)
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "path-id",
+		"PathID=0 must be omitted from JSON by omitempty tag")
+	assert.NotContains(t, string(raw), "add-path",
+		"AddPath=false must be omitted from JSON by omitempty tag")
+}
+
+// TestBestChangeEntryAddPathZeroPathID pins the disambiguation contract
+// for ADD-PATH pathID=0: AddPath MUST appear in JSON even though PathID
+// is still elided by omitempty. A subscriber reading the batch can then
+// distinguish "non-ADD-PATH prefix" (no add-path field) from "ADD-PATH
+// prefix with pathID=0" (add-path=true, no path-id field -- pathID
+// implicitly zero).
+//
+// VALIDATES: the AddPath flag disambiguates pathID=0 per RFC 7911 §3.
+// PREVENTS: a subscriber collapsing (prefix, pathID=0) ADD-PATH records
+// with non-ADD-PATH records because the JSON looks identical.
+func TestBestChangeEntryAddPathZeroPathID(t *testing.T) {
+	bus := newTestEventBus()
+	r := newTestRIBManagerWithBus(bus)
+
+	fam := family.Family{AFI: 1, SAFI: 1}
+	peerAddr := "192.0.2.41"
+	r.peerUp[peerAddr] = true
+	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.ribInPool[peerAddr].SetAddPath(fam, true)
+
+	// ADD-PATH NLRI with pathID=0: [00 00 00 00][18 0a 29 00] = 10.41.0.0/24.
+	nlri := []byte{0, 0, 0, 0, 24, 10, 41, 0}
+	attrs := makeAttrBytes([4]byte{192, 168, 41, 41})
+	r.ribInPool[peerAddr].Insert(fam, attrs, nlri)
+
+	entry, ok := r.checkBestPathChange(fam, nlri, true, nil)
+	require.True(t, ok)
+	assert.True(t, entry.AddPath, "ADD-PATH pathID=0 emit carries AddPath=true")
+	assert.Equal(t, uint32(0), entry.PathID, "pathID is exactly 0")
+
+	raw, err := json.Marshal(entry)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), `"add-path":true`,
+		"AddPath=true must appear in JSON so subscribers can tell this apart from a non-ADD-PATH entry")
+	assert.NotContains(t, string(raw), "path-id",
+		"PathID=0 is still elided by omitempty; AddPath carries the disambiguation")
 }
 
 // TestPurgeBestPrevForPeerMultiFamily seeds records in two different
@@ -983,6 +1142,252 @@ func TestBestPrevInternerOverflow(t *testing.T) {
 	})
 }
 
+// TestBestPrevInternerForgetPeer validates that forgetPeer releases a
+// slot, the next internPeer call reuses the reclaimed slot rather than
+// growing the reverse table, and a second forgetPeer for an unknown peer
+// is a silent no-op.
+//
+// VALIDATES: peers[] stays bounded by concurrent-peer count, not by
+// total-peers-ever-seen.
+// PREVENTS: bestPathInterner.peers unbounded growth under high peer churn
+// across a long-running daemon lifetime.
+func TestBestPrevInternerForgetPeer(t *testing.T) {
+	ir := newBestPrevInterner()
+
+	idxA, ok := ir.internPeer("192.0.2.1")
+	require.True(t, ok)
+	_, ok = ir.internPeer("192.0.2.2")
+	require.True(t, ok)
+	require.Len(t, ir.peers, 2, "two distinct peers occupy two slots")
+
+	// Forget A: free-list gains one entry, peers[] stays length-2 but A's
+	// slot is zeroed so the old string can be GC'd.
+	ir.forgetPeer("192.0.2.1")
+	assert.Len(t, ir.peers, 2, "peers slice does not shrink on forget")
+	assert.Equal(t, []uint16{idxA}, ir.peersFree, "A's slot lands on the free-list")
+	assert.Empty(t, ir.peers[idxA], "reclaimed slot must be zeroed for GC")
+	_, present := ir.peerIdx["192.0.2.1"]
+	assert.False(t, present, "forgotten peer is removed from the forward map")
+
+	// Next first-sighting consumes the free-list entry and reuses A's slot.
+	idxC, ok := ir.internPeer("192.0.2.3")
+	require.True(t, ok)
+	assert.Equal(t, idxA, idxC, "newcomer reuses the reclaimed slot")
+	assert.Len(t, ir.peers, 2, "no growth when free-list has an entry")
+	assert.Empty(t, ir.peersFree, "free-list drained")
+
+	// Forgetting a peer that was never interned is a no-op.
+	ir.forgetPeer("198.51.100.99")
+	assert.Empty(t, ir.peersFree, "no slot reclaimed for unknown peer")
+	assert.Len(t, ir.peers, 2)
+}
+
+// TestBestPrevInternerChurnBounded validates that cycling many peers
+// through intern + forget keeps peers[] bounded by the concurrent-peer
+// count, not by the total number of distinct peers seen.
+//
+// VALIDATES: the free-list is consumed in preference to growing peers[],
+// so a daemon that has seen N * K unique peers (N concurrent, K flaps
+// each) still only carries N slots.
+// PREVENTS: the scenario Option D (a) in the handoff flagged: a long-
+// running daemon accumulating slots until it hits the 65536 cap.
+func TestBestPrevInternerChurnBounded(t *testing.T) {
+	ir := newBestPrevInterner()
+
+	const (
+		concurrent = 8
+		flaps      = 50
+	)
+
+	// First wave: intern concurrent peers. peers[] grows to 8.
+	peers := make([]string, concurrent)
+	for i := range concurrent {
+		peers[i] = syntheticPeerKey(i)
+		_, ok := ir.internPeer(peers[i])
+		require.True(t, ok)
+	}
+	require.Len(t, ir.peers, concurrent)
+
+	// Churn: forget all, intern a new batch, repeat. Each cycle should
+	// consume the free-list rather than grow peers[].
+	for f := range flaps {
+		for _, p := range peers {
+			ir.forgetPeer(p)
+		}
+		assert.Len(t, ir.peersFree, concurrent, "cycle %d: forget populates free-list", f)
+		for i := range concurrent {
+			peers[i] = syntheticPeerKey((f+1)*concurrent + i) // new unique strings
+			_, ok := ir.internPeer(peers[i])
+			require.True(t, ok)
+		}
+		assert.Empty(t, ir.peersFree, "cycle %d: intern drains free-list", f)
+		assert.Len(t, ir.peers, concurrent, "cycle %d: peers[] bounded by concurrent count", f)
+	}
+}
+
+// TestPurgeBestPrevForPeerReclaimsInternerSlot is the integration-level
+// assertion: calling purgeBestPrevForPeer (the real DOWN path) reclaims
+// the peer's interner slot so a later peer arriving in the same session
+// can reuse it.
+//
+// VALIDATES: the DOWN handler triggers slot reclaim end-to-end.
+// PREVENTS: a future refactor that detaches forgetPeer from the purge
+// path, leaking slots.
+func TestPurgeBestPrevForPeerReclaimsInternerSlot(t *testing.T) {
+	bus := newTestEventBus()
+	r := newTestRIBManagerWithBus(bus)
+
+	fam := family.Family{AFI: 1, SAFI: 1}
+	peerA := "192.0.2.50"
+	r.peerUp[peerA] = true
+	r.peerMeta[peerA] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+	r.ribInPool[peerA] = storage.NewPeerRIB(peerA)
+
+	prefix := ipv4Prefix(24, 10, 9, 0)
+	attrs := makeAttrBytes([4]byte{192, 168, 9, 9})
+	r.ribInPool[peerA].Insert(fam, attrs, prefix)
+	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
+	require.True(t, ok, "seed must intern peerA and store a bestPrev record")
+
+	idxA, ok := r.bestPathInterner.peerIdxOf(peerA)
+	require.True(t, ok, "peerA must be in the interner forward map after seed")
+
+	// DOWN path: handleStructuredState removes ribInPool entry and calls
+	// purgeBestPrevForPeer which forgetPeers peerA.
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerA, State: "down"})
+
+	_, stillThere := r.bestPathInterner.peerIdxOf(peerA)
+	assert.False(t, stillThere, "purge must release peerA from the forward map")
+	assert.Contains(t, r.bestPathInterner.peersFree, idxA,
+		"peerA's slot must be on the free-list after DOWN")
+
+	// A brand-new peer arrives: it must reuse peerA's slot rather than
+	// extending peers[].
+	peerB := "192.0.2.51"
+	sizeBefore := len(r.bestPathInterner.peers)
+	idxB, ok := r.bestPathInterner.internPeer(peerB)
+	require.True(t, ok)
+	assert.Equal(t, idxA, idxB, "newcomer reuses peerA's reclaimed slot")
+	assert.Equal(t, sizeBefore, len(r.bestPathInterner.peers),
+		"peers[] must not grow when the free-list has an entry")
+}
+
+// TestBestPrevInternerChurnStress runs many concurrent goroutines churning
+// the interner through the full (intern + forget + re-intern + mixed-peer
+// intern) cycle. Two invariants must hold under -race:
+//   - no panic / data race (-race catches illegal interleavings)
+//   - peers[] stays bounded by concurrent-peer cardinality, not by total
+//     intern-count across all cycles (the free-list is honored)
+//
+// This is the "stress test for ISSUE 4" slot: it does not provoke the
+// documented same-best-short-circuit race deterministically (doing so
+// requires intercepting Phase 3 mid-call), but it exercises the exact
+// concurrency surface the race lives on -- forgetPeer, internPeer
+// free-list pop, and bounded peers[] growth -- at a scale that would
+// surface any illegal interleaving.
+//
+// VALIDATES: interner correctness under concurrent churn + reclaim.
+// PREVENTS: a future refactor that introduces a data race, an unbounded
+// growth, or a free-list leak in the reclaim path.
+func TestBestPrevInternerChurnStress(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in -short mode")
+	}
+
+	ir := newBestPrevInterner()
+
+	const (
+		concurrent    = 16
+		iterations    = 500
+		uniquePerWave = 4
+	)
+
+	var wg sync.WaitGroup
+	for g := range concurrent {
+		wg.Add(1)
+		go func(g int) {
+			defer wg.Done()
+			for i := range iterations {
+				// Every goroutine churns its own pool of peer strings so
+				// inter-goroutine sharing is exercised via the interner's
+				// internal locks (peerIdx map mutations concurrent with
+				// reads from other goroutines). Every intern in this
+				// iteration is paired with a matching forget at the end
+				// so the free-list keeps peers[] bounded rather than
+				// letting it grow monotonically with total intern events.
+				base := (g*iterations + i) * uniquePerWave
+				peers := make([]string, uniquePerWave)
+				for k := range uniquePerWave {
+					peers[k] = syntheticPeerKey(base + k)
+				}
+				for _, p := range peers {
+					if _, ok := ir.internPeer(p); !ok {
+						t.Errorf("g=%d i=%d: internPeer(%q) rejected", g, i, p)
+						return
+					}
+				}
+				// Mixed reads that race with other goroutines' writes.
+				for _, p := range peers {
+					if idx, ok := ir.peerIdxOf(p); ok {
+						_ = ir.peerAt(idx)
+					}
+				}
+				for _, p := range peers {
+					ir.forgetPeer(p)
+				}
+			}
+		}(g)
+	}
+	wg.Wait()
+
+	// Invariant: peers[] is bounded by the peak concurrent cardinality
+	// of LIVE peers, NOT by total intern events (32 000 in this test).
+	// With every intern paired to a forget, peers[] should stay within
+	// a small multiple of (concurrent * uniquePerWave) even though the
+	// test interned 32 000 distinct strings. A missing free-list would
+	// grow peers[] to ~32 000 and fail this cap by orders of magnitude.
+	const generousCap = 8 * concurrent * uniquePerWave
+	ir.peersMu.RLock()
+	peersLen := len(ir.peers)
+	liveMapSize := len(ir.peerIdx)
+	freeLen := len(ir.peersFree)
+	ir.peersMu.RUnlock()
+	assert.LessOrEqual(t, peersLen, generousCap,
+		"peers[] must stay bounded by concurrent cardinality, not total-ever-seen")
+	// After the final forget-heavy waves the map is much smaller than
+	// the slice, and the free-list accounts for the difference.
+	assert.Equal(t, peersLen, liveMapSize+freeLen,
+		"peers[] slots == live peerIdx entries + peersFree entries (accounting invariant)")
+}
+
+// TestPurgeBestPrevForPeerReclaimsWithoutRecords validates reclaim on the
+// edge case where the peer was interned (connected, metadata populated,
+// maybe sent OPEN) but never contributed a winning route, so no bestPrev
+// record ever referenced its slot. The slot must still be reclaimed at
+// peer-down so idle flaps do not leak slots.
+//
+// VALIDATES: forgetPeer fires unconditionally at the end of purge.
+// PREVENTS: a daemon where every peer that connects-and-flaps without
+// announcing a winning route accumulates a slot.
+func TestPurgeBestPrevForPeerReclaimsWithoutRecords(t *testing.T) {
+	bus := newTestEventBus()
+	r := newTestRIBManagerWithBus(bus)
+
+	peerAddr := "192.0.2.77"
+	idx, ok := r.bestPathInterner.internPeer(peerAddr)
+	require.True(t, ok)
+	require.Contains(t, r.bestPathInterner.peerIdx, peerAddr)
+
+	// No bestPrev records for this peer. Purge still reclaims the slot.
+	pending := r.purgeBestPrevForPeer(peerAddr)
+	r.emitPurgedWithdraws(pending)
+
+	assert.NotContains(t, r.bestPathInterner.peerIdx, peerAddr,
+		"purge forgetPeers the interned peer even when it had no bestPrev records")
+	assert.Contains(t, r.bestPathInterner.peersFree, idx,
+		"slot lands on the free-list for the next peer")
+}
+
 // syntheticPeerKey builds a guaranteed-unique string for the overflow test
 // without relying on net-parseable IP syntax -- the interner stores strings
 // verbatim, so any distinct input drives a new index.
@@ -1003,24 +1408,28 @@ func TestBestPathResolve(t *testing.T) {
 	metricIdx, _ := ir.internMetric(500)
 
 	ebgpRec := packBestPath(metricIdx, peerIdx, nhIdx, flagEBGP)
-	ebgpEntry := ebgpRec.resolve(ir, ribevents.BestChangeAdd, "10.0.0.0/24")
+	ebgpEntry := ebgpRec.resolve(ir, ribevents.BestChangeAdd, "10.0.0.0/24", 0, false)
 	assert.Equal(t, ribevents.BestChangeAdd, ebgpEntry.Action)
 	assert.Equal(t, "10.0.0.0/24", ebgpEntry.Prefix)
+	assert.False(t, ebgpEntry.AddPath, "non-ADD-PATH entry")
+	assert.Equal(t, uint32(0), ebgpEntry.PathID, "no ADD-PATH → zero PathID")
 	assert.Equal(t, "10.0.0.1", ebgpEntry.NextHop)
 	assert.Equal(t, 20, ebgpEntry.Priority, "eBGP records resolve to priority 20")
 	assert.Equal(t, uint32(500), ebgpEntry.Metric)
 	assert.Equal(t, "ebgp", ebgpEntry.ProtocolType)
 
 	ibgpRec := packBestPath(metricIdx, peerIdx, nhIdx, 0)
-	ibgpEntry := ibgpRec.resolve(ir, ribevents.BestChangeUpdate, "10.0.0.0/24")
+	ibgpEntry := ibgpRec.resolve(ir, ribevents.BestChangeUpdate, "10.0.0.0/24", 7, true)
 	assert.Equal(t, ribevents.BestChangeUpdate, ibgpEntry.Action)
+	assert.True(t, ibgpEntry.AddPath, "ADD-PATH flag propagates through resolve")
+	assert.Equal(t, uint32(7), ibgpEntry.PathID, "ADD-PATH id propagates through resolve")
 	assert.Equal(t, 200, ibgpEntry.Priority, "iBGP records resolve to priority 200")
 	assert.Equal(t, "ibgp", ibgpEntry.ProtocolType)
 
 	// Zero next-hop round-trips to empty string via nextHopString.
 	zeroNHIdx, _ := ir.internNextHop(netip.Addr{})
 	zeroRec := packBestPath(metricIdx, peerIdx, zeroNHIdx, 0)
-	zeroEntry := zeroRec.resolve(ir, ribevents.BestChangeWithdraw, "")
+	zeroEntry := zeroRec.resolve(ir, ribevents.BestChangeWithdraw, "", 0, false)
 	assert.Empty(t, zeroEntry.NextHop)
 }
 

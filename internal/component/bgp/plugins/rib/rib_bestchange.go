@@ -104,10 +104,16 @@ func (r bestPathRecord) IsEBGP() bool { return r&flagEBGP != 0 }
 // promote to Lock. The three locks are independent so unrelated tables do
 // not serialize against each other.
 type bestPrevInterner struct {
-	peersMu            sync.RWMutex
-	peers              []string
-	peerIdx            map[string]uint16
-	peersOverflowed    bool
+	peersMu         sync.RWMutex
+	peers           []string
+	peerIdx         map[string]uint16
+	peersOverflowed bool
+	// peersFree holds reverse-table indices freed by forgetPeer so a later
+	// internPeer can reuse the slot without growing the reverse table.
+	// Prevents unbounded peers[] growth across the cap under long
+	// deployments with high peer churn (ISP-scale route-servers may see
+	// thousands of distinct peer addresses over the life of a process).
+	peersFree          []uint16
 	nextHopsMu         sync.RWMutex
 	nextHops           []netip.Addr
 	nextHopIdx         map[netip.Addr]uint16
@@ -142,10 +148,12 @@ func (b *bestPrevInterner) peerIdxOf(v string) (uint16, bool) {
 }
 
 // internPeer returns the uint16 index for v. On a first sighting, v is
-// appended to the reverse table and assigned the next index. Returns
-// (0, false) only when the reverse table is saturated at 65536 entries --
-// the caller must treat that as a degraded record and not store it. The
-// first saturation logs an slog.Error; subsequent ones are silent.
+// stored in a reclaimed slot when peersFree has one available, otherwise
+// appended to the reverse table with a fresh index. Returns (0, false)
+// only when the reverse table is saturated at 65536 entries AND the
+// free-list is empty -- the caller must treat that as a degraded record
+// and not store it. The first saturation logs an slog.Error; subsequent
+// ones are silent.
 func (b *bestPrevInterner) internPeer(v string) (uint16, bool) {
 	b.peersMu.RLock()
 	idx, ok := b.peerIdx[v]
@@ -158,6 +166,23 @@ func (b *bestPrevInterner) internPeer(v string) (uint16, bool) {
 	if idx, ok := b.peerIdx[v]; ok {
 		return idx, true
 	}
+	if n := len(b.peersFree); n > 0 {
+		idx = b.peersFree[n-1]
+		// Defensive: peers[] never shrinks in any code path today, so
+		// every free-list entry remains in bounds. The guard is here
+		// so a future refactor that adds shrinking/compaction cannot
+		// silently turn a reclaimed slot into an out-of-bounds write.
+		if int(idx) < len(b.peers) {
+			b.peersFree = b.peersFree[:n-1]
+			b.peers[idx] = v
+			b.peerIdx[v] = idx
+			return idx, true
+		}
+		// Stale free-list entry (impossible today): drop it and fall
+		// through to the normal append path rather than writing out of
+		// bounds. Leaves a "hole" in accounting but is safe.
+		b.peersFree = b.peersFree[:n-1]
+	}
 	if len(b.peers) >= internerCap {
 		if !b.peersOverflowed {
 			b.peersOverflowed = true
@@ -169,6 +194,42 @@ func (b *bestPrevInterner) internPeer(v string) (uint16, bool) {
 	b.peers = append(b.peers, v)
 	b.peerIdx[v] = idx
 	return idx, true
+}
+
+// forgetPeer releases v's reverse-table slot so a future internPeer can
+// reuse it. Idempotent: called unconditionally at the end of
+// purgeBestPrevForPeer whether or not any bestPrev records referenced
+// the slot. A peer that was interned but never appeared in a best-path
+// (connected, sent OPEN, went down without contributing a winning
+// route) is still reclaimed here.
+//
+// Edge case: if an in-flight UPDATE Phase 3 for v completes after this
+// forgetPeer call, it re-interns v (likely back into the same slot,
+// because the slot just hit the free-list). Phase 3 then writes a new
+// bestPrev record that will be the only record referencing that slot.
+// A later forgetPeer(v) will reclaim it again. The only way two peers
+// can end up sharing a reclaimed slot is if v's slot is popped by a
+// different peer's internPeer between v's forgetPeer and v's Phase 3
+// re-intern, which requires N back-to-back peer flaps colliding with
+// Phase 3 pipelining -- rare, and at worst produces a spurious "no
+// change" suppression on one prefix that self-corrects on the next
+// UPDATE. Reference-counting would eliminate the window at the cost of
+// per-insert/delete refcount maintenance; that is an intentional
+// deferral (see handoff: rib-sharding, Option D a).
+func (b *bestPrevInterner) forgetPeer(v string) {
+	b.peersMu.Lock()
+	defer b.peersMu.Unlock()
+	idx, ok := b.peerIdx[v]
+	if !ok {
+		return
+	}
+	delete(b.peerIdx, v)
+	// Defensive: idx was assigned by internPeer and peers[] never shrinks
+	// today, so the write is always in bounds. Guard future refactors.
+	if int(idx) < len(b.peers) {
+		b.peers[idx] = ""
+	}
+	b.peersFree = append(b.peersFree, idx)
 }
 
 // internNextHop returns the uint16 index for v; see internPeer for contract.
@@ -285,7 +346,7 @@ func (b *bestPrevInterner) internerSize() (peers, nextHops, metrics int) {
 // Reverse-table lookups go through the bounds-safe accessors, so a record
 // whose indices outlive a reset interner emits zero-valued NextHop/Metric
 // rather than panicking.
-func (r bestPathRecord) resolve(interner *bestPrevInterner, action, prefix string) bestChangeEntry {
+func (r bestPathRecord) resolve(interner *bestPrevInterner, action, prefix string, pathID uint32, addPath bool) bestChangeEntry {
 	priority := 200
 	protoType := protocolTypeIBGP
 	if r.IsEBGP() {
@@ -295,6 +356,8 @@ func (r bestPathRecord) resolve(interner *bestPrevInterner, action, prefix strin
 	return bestChangeEntry{
 		Action:       action,
 		Prefix:       prefix,
+		AddPath:      addPath,
+		PathID:       pathID,
 		NextHop:      nextHopString(interner.nextHopAt(r.NextHopIdx())),
 		Priority:     priority,
 		Metric:       interner.metricAt(r.MetricIdx()),
@@ -479,6 +542,10 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[string][]bestChan
 		// Peer was never interned, so no bestPrev record can reference it.
 		return nil
 	}
+	// Reclaim the interner slot on the way out so peers[] stays bounded
+	// by concurrent-peer count, not by total-peers-ever-seen. Runs even
+	// when bestPrev is nil or no records reference the slot.
+	defer r.bestPathInterner.forgetPeer(peerAddr)
 	if r.bestPrev == nil {
 		return nil
 	}
@@ -503,6 +570,8 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[string][]bestChan
 			})
 			for _, pfx := range directVictims {
 				sh.store.direct.Delete(pfx)
+				// Direct entries are non-ADD-PATH by storage construction;
+				// AddPath and PathID stay at their zero values.
 				changes = append(changes, bestChangeEntry{
 					Action: ribevents.BestChangeWithdraw,
 					Prefix: pfx.String(),
@@ -544,8 +613,10 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[string][]bestChan
 				}
 				for _, pid := range mv.pathIDs {
 					changes = append(changes, bestChangeEntry{
-						Action: ribevents.BestChangeWithdraw,
-						Prefix: mv.prefix.String(),
+						Action:  ribevents.BestChangeWithdraw,
+						Prefix:  mv.prefix.String(),
+						AddPath: true,
+						PathID:  pid,
 					})
 					if r.locRIB != nil {
 						r.locRIB.Remove(fam, mv.prefix, bgpProtocolID, pid)
@@ -699,8 +770,10 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			r.locRIB.Remove(fam, pfx, bgpProtocolID, pathID)
 		}
 		return bestChangeEntry{
-			Action: ribevents.BestChangeWithdraw,
-			Prefix: prefix,
+			Action:  ribevents.BestChangeWithdraw,
+			Prefix:  prefix,
+			AddPath: addPath,
+			PathID:  pathID,
 		}, true
 	}
 
@@ -747,12 +820,13 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	newRec := packBestPath(metricIdx, peerIdx, nhIdx, flags)
 
 	sh.store.insert(fam, nlriBytes, addPath, newRec)
-	// Mirror into the shared Loc-RIB. AdminDistance follows the classical
-	// Cisco/Juniper defaults (eBGP=20, iBGP=200); Metric carries MED.
+	// Mirror into the shared Loc-RIB. AdminDistance is the classical
+	// Cisco/Juniper default (eBGP=20, iBGP=200) unless the operator
+	// overrode it under bgp/admin-distance; Metric carries MED.
 	if r.locRIB != nil {
-		distance := uint8(200) // iBGP
+		distance := uint8(r.adminDistanceIBGP.Load()) //nolint:gosec // YANG 1..255
 		if isEBGP {
-			distance = 20
+			distance = uint8(r.adminDistanceEBGP.Load()) //nolint:gosec // YANG 1..255
 		}
 		r.locRIB.InsertForward(fam, pfx, locrib.Path{
 			Source:        bgpProtocolID,
@@ -766,7 +840,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	if havePrev {
 		action = ribevents.BestChangeUpdate
 	}
-	return newRec.resolve(r.bestPathInterner, action, prefix), true
+	return newRec.resolve(r.bestPathInterner, action, prefix, pathID, addPath), true
 }
 
 // protocolType returns the protocol-type label for a candidate based on
@@ -901,22 +975,22 @@ func (r *RIBManager) replayBestPaths() {
 			sh.mu.RUnlock()
 		}
 		changes := make([]bestChangeEntry, 0, total)
-		appendRec := func(rec bestPathRecord, prefix string) {
+		appendRec := func(rec bestPathRecord, prefix string, pathID uint32, addPath bool) {
 			if prefix == "" {
 				return
 			}
-			changes = append(changes, rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, prefix))
+			changes = append(changes, rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, prefix, pathID, addPath))
 		}
 		for i := range fs.shards {
 			sh := &fs.shards[i]
 			sh.mu.RLock()
 			sh.store.direct.Iterate(func(pfx netip.Prefix, rec bestPathRecord) bool {
-				appendRec(rec, pfx.String())
+				appendRec(rec, pfx.String(), 0, false)
 				return true
 			})
 			sh.store.multi.Iterate(func(pfx netip.Prefix, ps bestPrevSet) bool {
 				for i := range ps.entries {
-					appendRec(ps.entries[i].rec, pfx.String())
+					appendRec(ps.entries[i].rec, pfx.String(), ps.entries[i].pathID, true)
 				}
 				return true
 			})
