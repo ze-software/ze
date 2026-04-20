@@ -44,11 +44,11 @@ func (d *Detector) DetectMemory() (*MemoryInfo, error) {
 // readMeminfo parses /proc/meminfo into MemoryInfo.
 func (d *Detector) readMeminfo() (*MemoryInfo, error) {
 	path := d.procPath("meminfo")
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // path is under /proc root
 	if err != nil {
 		return nil, fmt.Errorf("open %s: %w", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	info := &MemoryInfo{}
 	scanner := bufio.NewScanner(f)

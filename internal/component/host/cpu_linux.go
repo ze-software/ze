@@ -33,11 +33,11 @@ import (
 // the lower is "efficient" (Alder Lake and later).
 func (d *Detector) DetectCPU() (*CPUInfo, error) {
 	path := d.procPath("cpuinfo")
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // path is under /proc root
 	if err != nil {
 		return nil, fmt.Errorf("open %s: %w", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	cpu := &CPUInfo{Vendor: CPUVendorUnknown, ScalingDriver: ScalingDriverUnknown}
 
@@ -247,18 +247,18 @@ func averageCurrentFreqMHz(cores []CoreInfo) int {
 func (d *Detector) fillCoreSysfs(c *CoreInfo) {
 	base := d.sysfsPath("devices/system/cpu", fmt.Sprintf("cpu%d", c.CPU))
 	c.Capacity = readFileInt(filepath.Join(base, "cpu_capacity"))
-	c.CurrentFreqMHz = khzToMHz(readFileInt(filepath.Join(base, "cpufreq/scaling_cur_freq")))
+	c.CurrentFreqMHz = khzToMHz(readFileInt(filepath.Join(base, "cpufreq", "scaling_cur_freq")))
 	//nolint:gosec // throttle counts are small non-negative integers
-	c.CoreThrottleCount = uint64(readFileInt(filepath.Join(base, "thermal_throttle/core_throttle_count")))
+	c.CoreThrottleCount = uint64(readFileInt(filepath.Join(base, "thermal_throttle", "core_throttle_count")))
 	//nolint:gosec // throttle counts are small non-negative integers
-	c.PackageThrottleCount = uint64(readFileInt(filepath.Join(base, "thermal_throttle/package_throttle_count")))
+	c.PackageThrottleCount = uint64(readFileInt(filepath.Join(base, "thermal_throttle", "package_throttle_count")))
 }
 
 // readScalingDriver reads /sys/devices/system/cpu/cpu<N>/cpufreq/scaling_driver
 // and maps to ScalingDriver.
 func (d *Detector) readScalingDriver(cpu int) ScalingDriver {
 	path := d.sysfsPath("devices/system/cpu", fmt.Sprintf("cpu%d", cpu), "cpufreq/scaling_driver")
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // path is under /sys root
 	if err != nil {
 		return ScalingDriverUnknown
 	}
@@ -288,7 +288,7 @@ func (d *Detector) readCPUFreqInt(cpu int, leaf string) int {
 // readFileInt reads a newline-terminated integer file and returns its
 // value; returns 0 on any error (missing file, bad content).
 func readFileInt(path string) int {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // caller-scoped sysfs/procfs paths
 	if err != nil {
 		return 0
 	}

@@ -649,7 +649,7 @@ func TestSelectTargets_NilFamilies_AcceptsAll(t *testing.T) {
 	rs.mu.Unlock()
 
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.0", map[family.Family]bool{family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}: true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.0", map[family.Family]bool{{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}: true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
@@ -671,7 +671,7 @@ func TestSelectTargets_MPWithoutIPv4_DeclinesIPv4Unicast(t *testing.T) {
 	rs.peers["10.0.0.1"] = &PeerState{
 		Address:  "10.0.0.1",
 		Up:       true,
-		Families: map[family.Family]bool{family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true},
+		Families: map[family.Family]bool{{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true},
 	}
 	rs.mu.Unlock()
 
@@ -686,7 +686,7 @@ func TestSelectTargets_MPWithoutIPv4_DeclinesIPv4Unicast(t *testing.T) {
 
 	// l2vpn/evpn should be accepted — it's in the MP caps
 	rs.mu.RLock()
-	targets = rs.selectForwardTargets(nil, "10.0.0.0", map[family.Family]bool{family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true})
+	targets = rs.selectForwardTargets(nil, "10.0.0.0", map[family.Family]bool{{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
@@ -812,7 +812,7 @@ func TestStateUpBeforeOpen_FamiliesNil(t *testing.T) {
 
 	// With nil Families, peer should accept ALL families
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.0", map[family.Family]bool{family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.0", map[family.Family]bool{{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
@@ -873,7 +873,7 @@ func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 
 	// l2vpn/evpn UPDATE should NOT target this peer
 	rs.mu.RLock()
-	targets = rs.selectForwardTargets(nil, "10.0.0.0", map[family.Family]bool{family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true})
+	targets = rs.selectForwardTargets(nil, "10.0.0.0", map[family.Family]bool{{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true})
 	rs.mu.RUnlock()
 	if len(targets) != 0 {
 		t.Errorf("expected 0 targets for l2vpn/evpn, got %d: %v", len(targets), targets)
@@ -993,21 +993,21 @@ func TestPropagation_FourPeers_SevenFamilies(t *testing.T) {
 		{
 			name:      "ipv4/flow from peer1 → only peer3",
 			source:    "10.0.0.1",
-			families:  map[family.Family]bool{family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}: true},
+			families:  map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}: true},
 			wantCount: 1,
 			wantAddrs: []string{"10.0.0.3"},
 		},
 		{
 			name:      "l2vpn/evpn from peer1 → only peer3",
 			source:    "10.0.0.1",
-			families:  map[family.Family]bool{family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true},
+			families:  map[family.Family]bool{{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: true},
 			wantCount: 1,
 			wantAddrs: []string{"10.0.0.3"},
 		},
 		{
 			name:      "ipv6/mpls-vpn from peer1 → only peer4",
 			source:    "10.0.0.1",
-			families:  map[family.Family]bool{family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}: true},
+			families:  map[family.Family]bool{{AFI: family.AFIIPv6, SAFI: family.SAFIVPN}: true},
 			wantCount: 1,
 			wantAddrs: []string{"10.0.0.4"},
 		},
@@ -1021,7 +1021,7 @@ func TestPropagation_FourPeers_SevenFamilies(t *testing.T) {
 		{
 			name:      "ipv4/mpls-vpn from peer2 → only peer1",
 			source:    "10.0.0.2",
-			families:  map[family.Family]bool{family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}: true},
+			families:  map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}: true},
 			wantCount: 1,
 			wantAddrs: []string{"10.0.0.1"},
 		},
@@ -1100,11 +1100,11 @@ func TestPropagation_VPNRoute(t *testing.T) {
 	rs.mu.Lock()
 	rs.peers["10.0.0.1"] = &PeerState{
 		Address: "10.0.0.1", Up: true,
-		Families: map[family.Family]bool{family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}: true},
+		Families: map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}: true},
 	}
 	rs.peers["10.0.0.2"] = &PeerState{
 		Address: "10.0.0.2", Up: true,
-		Families: map[family.Family]bool{family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}: true},
+		Families: map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}: true},
 	}
 	rs.mu.Unlock()
 
@@ -1129,7 +1129,7 @@ func TestPropagation_VPNRoute(t *testing.T) {
 
 	// Verify forward target
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.1", map[family.Family]bool{family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}: true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.1", map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}: true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 || targets[0] != "10.0.0.2" {

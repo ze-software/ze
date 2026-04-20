@@ -131,8 +131,8 @@ func TestParseDriverFromUevent(t *testing.T) {
 
 func nicNames(nics []NICInfo) []string {
 	out := make([]string, len(nics))
-	for i, n := range nics {
-		out[i] = n.Name
+	for i := range nics {
+		out[i] = nics[i].Name
 	}
 	return out
 }

@@ -138,7 +138,7 @@ func TestLowerLogPrefixOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("lowerLog: %v", err)
 	}
-	got := exprs[0].(*expr.Log)
+	got, _ := exprs[0].(*expr.Log)
 	if got.Key != 1<<unix.NFTA_LOG_PREFIX {
 		t.Errorf("Key = %#x, want prefix-only %#x", got.Key, uint32(1<<unix.NFTA_LOG_PREFIX))
 	}
@@ -155,7 +155,7 @@ func TestLowerLogExplicitLevelZero(t *testing.T) {
 	if err != nil {
 		t.Fatalf("lowerLog: %v", err)
 	}
-	got := exprs[0].(*expr.Log)
+	got, _ := exprs[0].(*expr.Log)
 	if got.Key&(1<<unix.NFTA_LOG_LEVEL) == 0 {
 		t.Errorf("NFTA_LOG_LEVEL bit missing for explicit level 0: Key = %#x", got.Key)
 	}
@@ -171,7 +171,7 @@ func TestLowerLogUnsetLeavesDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("lowerLog: %v", err)
 	}
-	got := exprs[0].(*expr.Log)
+	got, _ := exprs[0].(*expr.Log)
 	if got.Key&(1<<unix.NFTA_LOG_LEVEL) != 0 {
 		t.Error("NFTA_LOG_LEVEL set when Level was nil")
 	}
@@ -200,7 +200,7 @@ func TestLowerMasqueradeRejectsUnsupportedFields(t *testing.T) {
 	}
 }
 
-// VALIDATES: Category A -- lowerNAT honours PortEnd via RegProtoMax and
+// VALIDATES: Category A -- lowerNAT honors PortEnd via RegProtoMax and
 // rejects Flags until they are wired through.
 // PREVENTS: an addr:lo-hi SNAT/DNAT silently collapsing to addr:lo.
 func TestLowerNATPortRange(t *testing.T) {
@@ -507,7 +507,7 @@ func TestLowerMasqueradePlain(t *testing.T) {
 // VALIDATES: Category B -- MatchConnMark lowers via Ct(MARK) rather
 // than Meta(MARK), and carries the mask through to the Bitwise step.
 // PREVENTS: the parser accepting `connection-mark 0x10/0xff` and
-// Apply returning "unsupported match type" (the pre-P0 behaviour).
+// Apply returning "unsupported match type" (the pre-P0 behavior).
 func TestLowerMatchConnMark(t *testing.T) {
 	exprs, err := lowerConnMarkMatch(0x10, 0xFF)
 	if err != nil {
@@ -723,7 +723,7 @@ func TestLowerIfaceMatchExactVsWildcard(t *testing.T) {
 	if err != nil {
 		t.Fatalf("lowerIfaceMatch(exact): %v", err)
 	}
-	cExact := exact[1].(*expr.Cmp)
+	cExact, _ := exact[1].(*expr.Cmp)
 	if len(cExact.Data) != 16 {
 		t.Errorf("exact Cmp.Data len = %d, want 16 (IFNAMSIZ)", len(cExact.Data))
 	}
@@ -735,7 +735,7 @@ func TestLowerIfaceMatchExactVsWildcard(t *testing.T) {
 	if err != nil {
 		t.Fatalf("lowerIfaceMatch(wildcard): %v", err)
 	}
-	cWild := wild[1].(*expr.Cmp)
+	cWild, _ := wild[1].(*expr.Cmp)
 	if len(cWild.Data) != 4 {
 		t.Errorf("wildcard Cmp.Data len = %d, want 4 (prefix only)", len(cWild.Data))
 	}

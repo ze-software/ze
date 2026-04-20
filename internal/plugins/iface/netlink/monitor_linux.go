@@ -354,9 +354,9 @@ func addrFamily(cidr string) (string, bool) {
 		return "", false
 	}
 	if ip.To4() != nil {
-		return "ipv4", true
+		return "ipv4", true //nolint:goconst // AFI label; see ifacenetlink.go for siblings
 	}
-	return "ipv6", true
+	return "ipv6", true //nolint:goconst // AFI label; see ifacenetlink.go for siblings
 }
 
 // StartMonitor and StopMonitor implement the iface.Backend interface.

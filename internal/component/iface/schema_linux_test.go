@@ -14,7 +14,7 @@ import (
 // TestIfaceYANGDHCPBackendAnnotation verifies that the unit-level dhcp and
 // dhcpv6 containers carry ze:backend "netlink" so the commit-time feature
 // gate rejects `dhcp { enabled true }` (and the IPv6 counterpart) when the
-// active backend is anything other than netlink -- VPP cannot honour
+// active backend is anything other than netlink -- VPP cannot honor
 // address lifetimes (netlink RTM_NEWADDR valid_lft / preferred_lft are
 // netlink-only).
 //

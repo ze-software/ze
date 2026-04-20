@@ -64,7 +64,7 @@ func TestDetectStorage_BlockDevices(t *testing.T) {
 }
 
 // VALIDATES: transport classification covers common prefixes and
-// defaults to "unknown" for unrecognised names.
+// defaults to "unknown" for unrecognized names.
 func TestClassifyTransport(t *testing.T) {
 	cases := []struct{ name, want string }{
 		{"nvme0n1", "nvme"},

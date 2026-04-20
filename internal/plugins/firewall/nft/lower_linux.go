@@ -80,6 +80,8 @@ func raiseFamily(f nftables.TableFamily) (firewall.TableFamily, error) {
 		return firewall.FamilyBridge, nil
 	case nftables.TableFamilyNetdev:
 		return firewall.FamilyNetdev, nil
+	case nftables.TableFamilyUnspecified:
+		return 0, fmt.Errorf("kernel table family is unspecified")
 	}
 	return 0, fmt.Errorf("unknown kernel table family %d", f)
 }
@@ -173,7 +175,7 @@ type lowerCtx struct {
 // lowerTerm translates a ze Term (matches + actions) into nftables expressions.
 // The context allows helpers that need to register anonymous sets (e.g. a
 // multi-range port match lowers to a Lookup against an anonymous interval set).
-// Pass a nil ctx in contexts that cannot materialise sets; helpers that need
+// Pass a nil ctx in contexts that cannot materialize sets; helpers that need
 // one will reject with a clear error.
 func lowerTerm(ctx *lowerCtx, term *firewall.Term) ([]expr.Any, error) {
 	var exprs []expr.Any
@@ -593,11 +595,12 @@ func lowerLimit(l firewall.Limit) ([]expr.Any, error) {
 		return nil, err
 	}
 	var limitType expr.LimitType
-	if l.Dimension == firewall.RateDimensionPackets {
+	switch l.Dimension {
+	case firewall.RateDimensionPackets:
 		limitType = expr.LimitTypePkts
-	} else if l.Dimension == firewall.RateDimensionBytes {
+	case firewall.RateDimensionBytes:
 		limitType = expr.LimitTypePktBytes
-	} else {
+	default:
 		return nil, fmt.Errorf("limit-rate dimension unset (parseRateSpec bypassed?)")
 	}
 	return []expr.Any{&expr.Limit{
@@ -859,7 +862,7 @@ func lowerCounter(c firewall.Counter) ([]expr.Any, error) {
 
 // lowerLog translates every log field the operator set. google/nftables
 // gates each NFTA_LOG_* attribute on a Key bit; without the bit the
-// attribute is never serialised, which is why the previous Key=0
+// attribute is never serialized, which is why the previous Key=0
 // implementation silently dropped the prefix along with everything
 // else. Level / Group / Snaplen are pointer-valued in the model so
 // `level 0` (emerg) is distinguishable from "operator did not set

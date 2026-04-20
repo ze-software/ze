@@ -138,7 +138,7 @@ type ipv6Sysctl struct {
 // silently apply a default.
 func parseIfaceSections(sections []sdk.ConfigSection) (*ifaceConfig, error) {
 	for _, s := range sections {
-		if s.Root != "interface" {
+		if s.Root != configRootInterface {
 			continue
 		}
 		cfg, err := parseIfaceConfig(s.Data)
@@ -158,7 +158,7 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 		return nil, fmt.Errorf("iface config: unmarshal: %w", err)
 	}
 
-	ifaceMap, ok := root["interface"].(map[string]any)
+	ifaceMap, ok := root[configRootInterface].(map[string]any)
 	if !ok {
 		return &ifaceConfig{Backend: defaultBackendName}, nil
 	}

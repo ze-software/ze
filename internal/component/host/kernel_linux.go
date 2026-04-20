@@ -59,11 +59,11 @@ func (d *Detector) DetectHost() (*HostInfo, error) {
 // readBootTime extracts `btime <unix>` from /proc/stat. Returns ok=false
 // when absent.
 func readBootTime(path string) (int64, bool) {
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // caller-scoped /proc/stat path
 	if err != nil {
 		return 0, false
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -97,11 +97,11 @@ func parseInt64(s string) (int64, bool) {
 // /proc/cpuinfo. All cores report the same revision on uniform CPUs;
 // on hybrid parts the first is the boot CPU which is representative.
 func readMicrocodeRevision(path string) string {
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // caller-scoped /proc/cpuinfo path
 	if err != nil {
 		return ""
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		k, v, ok := strings.Cut(scanner.Text(), ":")
@@ -119,11 +119,11 @@ func readMicrocodeRevision(path string) string {
 // split on whitespace. All cores share the same flags list on uniform
 // CPUs; the boot CPU's flags are representative.
 func readCPUFlags(path string) []string {
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // caller-scoped /proc/cpuinfo path
 	if err != nil {
 		return nil
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		k, v, ok := strings.Cut(scanner.Text(), ":")
@@ -153,7 +153,7 @@ func filterSecurityFlags(all []string) []string {
 // readUptimeSeconds reads /proc/uptime's first field (fractional
 // seconds) and truncates to integer. Returns 0 on error.
 func readUptimeSeconds(path string) uint64 {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // caller-scoped /proc/uptime path
 	if err != nil {
 		return 0
 	}

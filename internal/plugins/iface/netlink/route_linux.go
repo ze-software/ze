@@ -98,11 +98,11 @@ func (b *netlinkBackend) ListKernelRoutes(filterPrefix string, limit int) ([]ifa
 			}
 		}
 
-		fam := "ipv4"
+		fam := "ipv4" //nolint:goconst // AFI label; see ifacenetlink.go for siblings
 		if dst != nil && dst.IP.To4() == nil {
-			fam = "ipv6"
+			fam = "ipv6" //nolint:goconst // AFI label; see ifacenetlink.go for siblings
 		} else if dst == nil && routes[i].Gw != nil && routes[i].Gw.To4() == nil {
-			fam = "ipv6"
+			fam = "ipv6" //nolint:goconst // AFI label; see ifacenetlink.go for siblings
 		}
 
 		entry := iface.KernelRoute{

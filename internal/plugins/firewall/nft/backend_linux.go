@@ -206,8 +206,8 @@ func (b *backend) applySet(t *nftables.Table, s *firewall.Set) (*nftables.Set, e
 		el := nftables.SetElement{Key: key}
 		// Per-element timeout reaches the kernel as time.Duration.
 		// Zero stays zero (no timeout) so unset elements keep the
-		// prior behaviour. The set itself must carry flags-timeout
-		// for the kernel to honour any per-element timeout; that
+		// prior behavior. The set itself must carry flags-timeout
+		// for the kernel to honor any per-element timeout; that
 		// flag is applied at set construction above via the Flags
 		// field on the parent firewall.Set.
 		if e.Timeout != 0 {

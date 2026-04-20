@@ -118,7 +118,8 @@ func (b *backend) fillSets(kt *nftables.Table, t *firewall.Table) error {
 		if err != nil {
 			return fmt.Errorf("firewallnft: get elements for set %q: %w", ks.Name, err)
 		}
-		for _, el := range elems {
+		for i := range elems {
+			el := &elems[i]
 			// Kernel timeout is a time.Duration; truncate to whole
 			// seconds for the ze model's uint32 field. Negative or
 			// sub-second values cannot occur (kernel represents

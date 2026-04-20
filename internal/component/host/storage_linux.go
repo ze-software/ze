@@ -52,13 +52,13 @@ func (d *Detector) readBlockDevice(name, dev string) StorageDevice {
 	s := StorageDevice{
 		Name:       name,
 		SizeBytes:  uint64(dev512) * 512, //nolint:gosec // sector count is non-negative
-		Model:      readFileString(filepath.Join(dev, "device/model")),
-		Serial:     readFileString(filepath.Join(dev, "device/serial")),
-		Rotational: readFileInt(filepath.Join(dev, "queue/rotational")) == 1,
+		Model:      readFileString(filepath.Join(dev, "device", "model")),
+		Serial:     readFileString(filepath.Join(dev, "device", "serial")),
+		Rotational: readFileInt(filepath.Join(dev, "queue", "rotational")) == 1,
 		Transport:  classifyTransport(name),
 	}
 	if strings.HasPrefix(name, "nvme") {
-		s.NVMeFirmware = readFileString(filepath.Join(dev, "device/firmware_rev"))
+		s.NVMeFirmware = readFileString(filepath.Join(dev, "device", "firmware_rev"))
 	}
 	return s
 }

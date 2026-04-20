@@ -87,9 +87,9 @@ func addrList(link netlink.Link) []iface.AddrInfo {
 	}
 	result := make([]iface.AddrInfo, 0, len(addrs))
 	for _, a := range addrs {
-		fam := "ipv4"
+		fam := "ipv4" //nolint:goconst // AFI label; see ifacenetlink.go for siblings
 		if a.IP.To4() == nil {
-			fam = "ipv6"
+			fam = "ipv6" //nolint:goconst // AFI label; see ifacenetlink.go for siblings
 		}
 		ones, _ := a.Mask.Size()
 		result = append(result, iface.AddrInfo{

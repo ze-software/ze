@@ -83,9 +83,9 @@ func (d *Detector) readNICSysfs(name, nicDir string) NICInfo {
 		nic.LinkSpeedMbps = readFileInt(filepath.Join(nicDir, "speed"))
 		nic.Duplex = readFileString(filepath.Join(nicDir, "duplex"))
 	}
-	nic.Driver = parseDriverFromUevent(readFileString(filepath.Join(nicDir, "device/uevent")))
-	nic.PCIVendor = strings.TrimPrefix(readFileString(filepath.Join(nicDir, "device/vendor")), "0x")
-	nic.PCIDevice = strings.TrimPrefix(readFileString(filepath.Join(nicDir, "device/device")), "0x")
+	nic.Driver = parseDriverFromUevent(readFileString(filepath.Join(nicDir, "device", "uevent")))
+	nic.PCIVendor = strings.TrimPrefix(readFileString(filepath.Join(nicDir, "device", "vendor")), "0x")
+	nic.PCIDevice = strings.TrimPrefix(readFileString(filepath.Join(nicDir, "device", "device")), "0x")
 	if nic.PCIVendor != "" {
 		nic.Transport = NICTransportPCI
 	}
@@ -97,9 +97,9 @@ func (d *Detector) readNICSysfs(name, nicDir string) NICInfo {
 // parseDriverFromUevent extracts the DRIVER=<name> line from a netdev's
 // `device/uevent` content. Returns "" when the line is missing.
 func parseDriverFromUevent(content string) string {
-	for _, line := range strings.Split(content, "\n") {
-		if strings.HasPrefix(line, "DRIVER=") {
-			return strings.TrimPrefix(line, "DRIVER=")
+	for line := range strings.SplitSeq(content, "\n") {
+		if name, ok := strings.CutPrefix(line, "DRIVER="); ok {
+			return name
 		}
 	}
 	return ""
@@ -124,7 +124,7 @@ func countQueues(base, prefix string) int {
 // readFileString reads a newline-terminated string file and returns its
 // trimmed content; returns "" on any error.
 func readFileString(path string) string {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // caller-scoped sysfs paths
 	if err != nil {
 		return ""
 	}

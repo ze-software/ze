@@ -76,7 +76,7 @@ func enrichNICEthtool(nic *NICInfo) {
 func ethtoolDrvinfoFW(fd int, ifname string) (string, bool) {
 	var drv unix.EthtoolDrvinfo
 	drv.Cmd = ethtoolGDrvinfo
-	if !ethtoolIoctl(fd, ifname, unsafe.Pointer(&drv)) {
+	if !ethtoolIoctl(fd, ifname, unsafe.Pointer(&drv)) { //nolint:gosec // ETHTOOL ioctl requires raw struct pointer
 		return "", false
 	}
 	return trimCString(drv.Fw_version[:]), true
@@ -87,7 +87,7 @@ func ethtoolDrvinfoFW(fd int, ifname string) (string, bool) {
 func ethtoolRingparam(fd int, ifname string) (rx, tx int, ok bool) {
 	var r ringparam
 	r.cmd = ethtoolGRingparam
-	if !ethtoolIoctl(fd, ifname, unsafe.Pointer(&r)) {
+	if !ethtoolIoctl(fd, ifname, unsafe.Pointer(&r)) { //nolint:gosec // ETHTOOL ioctl requires raw struct pointer
 		return 0, 0, false
 	}
 	return int(r.rxPending), int(r.txPending), true
@@ -105,7 +105,7 @@ func ethtoolIoctl(fd int, ifname string, data unsafe.Pointer) bool {
 	var ifr ifreqEthtool
 	copy(ifr.name[:], ifname)
 	ifr.data = uintptr(data)
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.SIOCETHTOOL), uintptr(unsafe.Pointer(&ifr)))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), uintptr(unix.SIOCETHTOOL), uintptr(unsafe.Pointer(&ifr))) //nolint:gosec // SIOCETHTOOL requires raw ifreq pointer
 	return errno == 0
 }
 

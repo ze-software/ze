@@ -76,7 +76,7 @@ func (d *Detector) detectDMI() (*DMIInfo, error) {
 // records it via recordSysfsErr so the operator can see which path
 // they need read access to.
 func readDMIField(path string) (string, error) {
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(path) //nolint:gosec // caller-scoped /sys/class/dmi path
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return "", nil

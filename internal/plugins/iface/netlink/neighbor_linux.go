@@ -53,9 +53,9 @@ func (b *netlinkBackend) ListNeighbors(family int) ([]iface.NeighborInfo, error)
 		if n.IP == nil || n.IP.IsUnspecified() {
 			continue
 		}
-		fam := "ipv4"
+		fam := "ipv4" //nolint:goconst // AFI label; see ifacenetlink.go for siblings
 		if n.IP.To4() == nil {
-			fam = "ipv6"
+			fam = "ipv6" //nolint:goconst // AFI label; see ifacenetlink.go for siblings
 		}
 		entry := iface.NeighborInfo{
 			Address: n.IP.String(),
