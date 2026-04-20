@@ -815,6 +815,16 @@ func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// JSON-RPC response body (client's reply to a server-initiated request
+	// such as elicitation/create). Has id and result|error, no method.
+	// Routed to the correlation map; returns 202 Accepted with empty body.
+	// Detected BEFORE the notification branch because a response also has
+	// id != nil. See spec-mcp-3-elicitation AC-13 / AC-15b.
+	if req.Method == "" && req.ID != nil {
+		s.handleElicitResponse(w, sess, &req, body)
+		return
+	}
+
 	// Notifications (no id per JSON-RPC 2.0) are acknowledged with 202 per the
 	// MCP 2025-06-18 Streamable HTTP spec; no body is returned. Session
 	// lastSeenAt was already refreshed by registry.Get above.
@@ -823,12 +833,108 @@ func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Bind a per-POST reply sink BEFORE running the method. The sink
+	// starts as jsonReplySink; a tool handler that elicits triggers an
+	// in-place upgrade to sseReplySink (session.UpgradeCurrentSinkToSSE)
+	// so the elicitation/create frame AND the terminal tool result ride
+	// the same HTTP response as SSE events. Non-eliciting handlers leave
+	// the sink untouched; handlePOST then writes the JSON response via
+	// writeJSONResponse as before.
+	jsonSink := newJSONReplySink(w)
+	release, sinkErr := sess.SetActivePostSink(jsonSink)
+	if sinkErr != nil {
+		// Concurrent POST already owns a sink. MCP expects one client per
+		// session, so this is either a misbehaving client or a race in a
+		// multi-client testing setup. Fail fast rather than risk
+		// interleaved frames on the same HTTP response.
+		writeJSONResponse(w, s.fail(req.ID, -32603, "another request is in flight on this session"))
+		return
+	}
+	defer release()
+
 	resp := s.runMethod(sess, &req)
 	if resp == nil {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+
+	// If the handler upgraded the sink during dispatch (i.e. elicited),
+	// the terminal response MUST ride the SSE stream too — otherwise the
+	// client sees the elicit frame but no response. Route via the sink.
+	if sess.CurrentPostSink().IsSSE() {
+		data, err := json.Marshal(resp)
+		if err != nil {
+			// Headers already committed; best-effort.
+			return
+		}
+		_ = sess.CurrentPostSink().WriteFrame(data)
+		return
+	}
 	writeJSONResponse(w, resp)
+}
+
+// handleElicitResponse routes a client's JSON-RPC response body (the reply
+// to a server-initiated elicitation/create) to the pending-correlation
+// channel. Returns 202 Accepted regardless of whether the id matched --
+// AC-15b silently drops unknown-id replies so the server does not leak
+// which elicit ids are live. Malformed action values propagate via
+// ErrElicitMalformed when the suspended Elicit resolves.
+//
+// Both JSON-RPC response shapes are handled:
+//
+//   - Success: {"id":...,"result":{"action":...,"content":...}}. Normal path.
+//   - Error:   {"id":...,"error":{...}}. MCP does not document elicit-error
+//     semantics; we deliver it as an explicit cancel (Action="cancel",
+//     Content=nil) so the suspended handler unblocks via ErrElicitCanceled
+//     rather than ErrElicitMalformed. An RPC-level failure on the reply leg
+//     is the client saying "never mind", not "I broke your protocol."
+//
+// Content-type guards: when action=="accept" and result carries a content
+// key that is not a JSON object, we reject with 400 -- an accept without a
+// parseable content map is a protocol violation the client should see.
+func (s *Streamable) handleElicitResponse(w http.ResponseWriter, sess *session, req *request, body []byte) {
+	// Extract the JSON-RPC id as a string; we only generate string ids
+	// (base64url of 128 random bits) so a non-string id cannot match
+	// anything in the correlations map.
+	var idStr string
+	if req.ID != nil {
+		_ = json.Unmarshal(*req.ID, &idStr)
+	}
+	if idStr == "" {
+		http.Error(w, "id must be a non-empty string", http.StatusBadRequest)
+		return
+	}
+	// Re-parse the body as a generic map to pull result / error without
+	// struct tags (check-json-kebab.sh bans camelCase struct tags).
+	var parsed map[string]any
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		http.Error(w, "malformed JSON", http.StatusBadRequest)
+		return
+	}
+	var action string
+	var content map[string]any
+	if result, ok := parsed["result"].(map[string]any); ok {
+		action, _ = result["action"].(string)
+		if contentRaw, hasContent := result["content"]; hasContent {
+			if contentMap, isMap := contentRaw.(map[string]any); isMap {
+				content = contentMap
+			} else {
+				// Accept with non-object content is a protocol violation.
+				http.Error(w, "result.content must be a JSON object", http.StatusBadRequest)
+				return
+			}
+		}
+	} else if _, hasErr := parsed["error"]; hasErr {
+		// Client returned an error response -- treat as explicit cancel.
+		// This lets the suspended Elicit return ErrElicitCanceled (a
+		// typed sentinel handlers already branch on) instead of
+		// ErrElicitMalformed for what is really "client said no."
+		action = elicitActionCancel
+	}
+	// Unknown action values (including "") are delivered verbatim; Elicit
+	// translates them to ErrElicitMalformed.
+	sess.ResolveElicit(idStr, elicitResponse{Action: action, Content: content})
+	w.WriteHeader(http.StatusAccepted)
 }
 
 // handleGET opens a server-to-client SSE stream bound to an existing session.

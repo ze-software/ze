@@ -283,6 +283,63 @@ func TestElicit_SchemaRejectsEmpty(t *testing.T) {
 	}
 }
 
+// VALIDATES: enum on a non-string-typed property is rejected (MCP spec
+// illustrates enum only under type=string).
+// PREVENTS: a caller writing {"type":"number","enum":[1,2]} expecting
+// it to mean "pick one of these numbers" -- the spec shape is the
+// string+enumNames form and the validator must catch the mistake.
+func TestElicit_SchemaRejectsEnumOnNonString(t *testing.T) {
+	for _, typ := range []string{"number", "integer", "boolean"} {
+		t.Run(typ, func(t *testing.T) {
+			schema := map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"x": map[string]any{
+						"type": typ,
+						"enum": []any{1, 2, 3},
+					},
+				},
+			}
+			if err := validateElicitSchema(schema); !errors.Is(err, ErrElicitSchemaInvalid) {
+				t.Fatalf("want ErrElicitSchemaInvalid for enum on type=%q, got %v", typ, err)
+			}
+		})
+	}
+}
+
+// VALIDATES: CreateWithCapabilities sets the clientElicit flag on the
+// returned session. Regression guard -- earlier drafts mutated the field
+// after insertion into the registry, opening a race window where a GET
+// on the session-id could observe clientElicit=false briefly.
+// PREVENTS: a future refactor moving the capability behind a setter (or
+// into a separate capability struct) silently dropping the flag.
+func TestRegistry_CreateWithCapabilities(t *testing.T) {
+	r := newElicitTestRegistry(t)
+	sess, err := r.CreateWithCapabilities(ProtocolVersion, Identity{}, true)
+	if err != nil {
+		t.Fatalf("CreateWithCapabilities: %v", err)
+	}
+	if !sess.ClientSupportsElicit() {
+		t.Errorf("ClientSupportsElicit() = false, want true")
+	}
+	// Same session id is reachable via registry.Get and carries the flag.
+	got, ok := r.Get(sess.ID())
+	if !ok {
+		t.Fatalf("Get(sess.ID()) missing")
+	}
+	if !got.ClientSupportsElicit() {
+		t.Errorf("registry.Get(id).ClientSupportsElicit() = false, want true")
+	}
+	// Zero (false) case for symmetry.
+	sess2, err := r.CreateWithCapabilities(ProtocolVersion, Identity{}, false)
+	if err != nil {
+		t.Fatalf("CreateWithCapabilities(false): %v", err)
+	}
+	if sess2.ClientSupportsElicit() {
+		t.Errorf("ClientSupportsElicit() = true, want false on clientElicit=false")
+	}
+}
+
 // VALIDATES: AC-15a — handler calls Elicit without the client having
 // declared the elicitation capability.
 // PREVENTS: servers silently sending elicitation/create in violation of

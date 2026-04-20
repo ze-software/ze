@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 3/9 |
+| Phase | 4/9 |
 | Updated | 2026-04-20 |
 
 ## Post-Compaction Recovery

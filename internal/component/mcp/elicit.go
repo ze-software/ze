@@ -154,8 +154,15 @@ func validateElicitProperty(path string, prop map[string]any) error {
 			}
 		}
 	}
-	// Enum (string + enum array) is accepted; no extra validation needed
-	// beyond the primitive-type check above. enumNames is optional.
+	// Enum: per MCP 2025-06-18 elicitation, only string-typed properties
+	// may carry an enum (the spec illustrates it only under type=string).
+	// Rejecting enum on non-string types catches a common mistake where a
+	// caller writes {"type":"number","enum":[1,2]} thinking it means
+	// "pick one of these numbers" -- but the spec shape is the string
+	// variant with enumNames.
+	if _, hasEnum := prop["enum"]; hasEnum && typ != elicitTypeString {
+		return wrapSchemaErr(path, "enum is only supported on type=string")
+	}
 	return nil
 }
 
