@@ -11,13 +11,14 @@
 package mcp
 
 import (
-	"crypto/subtle"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -54,7 +55,7 @@ var errUnsupportedProtocolVersion = errors.New("mcp: unsupported protocol versio
 type StreamableConfig struct {
 	Dispatch       CommandDispatcher
 	Commands       CommandLister
-	Token          string
+	Token          string // AuthMode=Bearer: single shared secret
 	AllowedOrigins []string
 	SessionTTL     time.Duration
 	MaxBodyBytes   int64
@@ -66,6 +67,36 @@ type StreamableConfig struct {
 	// streams indefinitely (their heartbeats otherwise keep lastSeenAt fresh).
 	// Zero disables the lifetime cap. Recommend a value > SessionTTL.
 	MaxSessionLifetime time.Duration
+
+	// AuthMode selects the authentication strategy. AuthUnspecified is
+	// treated as AuthNone so existing callers (Phase 1) that leave this
+	// field zero get permissive behavior plus the legacy Token field.
+	AuthMode AuthMode
+	// BearerList is the per-identity token table (AuthMode=BearerList).
+	BearerList []BearerListEntry
+	// OAuth holds resource-server settings (AuthMode=OAuth). Phase F wires it.
+	OAuth OAuthConfig
+}
+
+// BearerListEntry is one row of the AuthMode=BearerList identity table.
+// Token is sensitive; NewStreamable copies it into the dispatcher and the
+// caller is free to zero the slice afterwards.
+type BearerListEntry struct {
+	Name   string
+	Token  string
+	Scopes []string
+}
+
+// OAuthConfig is the Phase F resource-server configuration. Phase C carries
+// the type so StreamableConfig is stable; Phase F populates the fields.
+type OAuthConfig struct {
+	AuthorizationServer string
+	Audience            string
+	RequiredScopes      []string
+	// MetadataResource is the absolute URL (with scheme + host + path) the
+	// RFC 9728 `/.well-known/oauth-protected-resource` handler returns as
+	// the `resource` field. Set to `cfg.OAuth.Audience` when blank.
+	MetadataResource string
 }
 
 // Streamable is the Streamable HTTP MCP server. Implements http.Handler.
@@ -78,6 +109,13 @@ type Streamable struct {
 	maxBody        int64
 	originSet      map[string]struct{}
 	heartbeatEvery time.Duration // override for tests; 0 → sessionHeartbeatWindow
+	auth           authenticator
+	authMode       AuthMode
+	// oauthIssuer is the AS-reported issuer, populated after a successful
+	// buildAuthForMode run. Used by the RFC 9728 metadata handler so the
+	// advertised authorization_servers[0] matches the value the token
+	// verifier enforces. Empty for non-OAuth modes.
+	oauthIssuer string
 }
 
 // NewStreamable returns a configured Streamable HTTP MCP server. Returns an
@@ -107,12 +145,293 @@ func NewStreamable(cfg StreamableConfig) (*Streamable, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Auth-mode inference for legacy callers: Token set with AuthMode zero
+	// means "single shared bearer" (the Phase-1 behavior).
+	mode := cfg.AuthMode
+	if mode == AuthUnspecified {
+		if cfg.Token != "" {
+			mode = AuthBearer
+		} else {
+			mode = AuthNone
+		}
+	}
+	authRes, err := buildAuthForMode(mode, cfg)
+	if err != nil {
+		return nil, err
+	}
 	return &Streamable{
-		cfg:       cfg,
-		registry:  newSessionRegistry(cfg.SessionTTL, cfg.MaxSessionLifetime, maxSessions),
-		maxBody:   maxB,
-		originSet: originSet,
+		cfg:         cfg,
+		registry:    newSessionRegistry(cfg.SessionTTL, cfg.MaxSessionLifetime, maxSessions),
+		maxBody:     maxB,
+		originSet:   originSet,
+		auth:        authRes.auth,
+		authMode:    mode,
+		oauthIssuer: authRes.canonicalIssuer,
 	}, nil
+}
+
+// buildAuthForMode dispatches across modes. AuthOAuth triggers the one-off
+// AS metadata fetch + JWKS cache construction so the resource server is
+// ready to verify tokens as soon as the listener binds. The fetch is
+// synchronous at startup so a misconfigured AS URL fails the process rather
+// than lurking until the first token arrives.
+//
+// RFC 8414 Section 3.3: the issuer value in the AS metadata document MUST
+// equal the authorization server URL used to fetch it. Enforced here so a
+// misbehaving (or compromised) AS cannot assert an issuer string that
+// differs from the one the operator trusts.
+// authBuildResult bundles what NewStreamable needs to assemble a Streamable.
+// Grouping into a struct keeps buildAuthForMode's signature stable as more
+// fields accumulate (metadata refresh cadence, JWKS cache handle, etc.).
+type authBuildResult struct {
+	// auth is the strategy that runs on every initialize request.
+	auth authenticator
+	// canonicalIssuer is the AS-reported issuer string (empty for non-OAuth
+	// modes). The RFC 9728 metadata handler publishes this so clients see
+	// the same byte-exact form the token verifier enforces.
+	canonicalIssuer string
+}
+
+// buildAuthForMode returns the authentication strategy for the given mode.
+// AuthOAuth performs a synchronous AS-metadata fetch at startup so a
+// misconfigured AS URL fails the daemon rather than lurking until the first
+// token arrives.
+func buildAuthForMode(mode AuthMode, cfg StreamableConfig) (authBuildResult, error) {
+	if mode != AuthOAuth {
+		return authBuildResult{auth: buildAuthenticator(mode, cfg)}, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), defaultASMetadataTimeout)
+	defer cancel()
+	md, err := fetchASMetadata(ctx, nil, cfg.OAuth.AuthorizationServer)
+	if err != nil {
+		return authBuildResult{}, fmt.Errorf("mcp oauth: AS metadata: %w", err)
+	}
+	if md.Issuer == "" {
+		return authBuildResult{}, fmt.Errorf("mcp oauth: AS metadata: empty issuer")
+	}
+	// RFC 8414 §3.3: issuer MUST match the authorization server URL
+	// (URL-canonical compare: scheme + host + optional port elision +
+	// trailing-slash strip).
+	if !sameAuthServer(md.Issuer, cfg.OAuth.AuthorizationServer) {
+		return authBuildResult{}, fmt.Errorf(
+			"mcp oauth: AS metadata issuer %q does not match configured authorization-server %q",
+			md.Issuer, cfg.OAuth.AuthorizationServer,
+		)
+	}
+	// JWKS URI mirror-scheme rule: when the AS is reached over HTTPS, the
+	// JWKS URI MUST also be HTTPS so a passive attacker cannot manipulate
+	// the keyset over cleartext. A malicious (or misconfigured) AS could
+	// otherwise point jwks_uri at plaintext HTTP and undermine signature
+	// verification entirely.
+	if err := validateJWKSURI(cfg.OAuth.AuthorizationServer, md.JWKSURI); err != nil {
+		return authBuildResult{}, fmt.Errorf("mcp oauth: %w", err)
+	}
+	cache := newJWKSCache(md.JWKSURI, nil, 0, 0)
+	// Warm the cache up-front so the first verify does not double-round-trip.
+	if err := cache.Refresh(); err != nil {
+		return authBuildResult{}, fmt.Errorf("mcp oauth: prime JWKS: %w", err)
+	}
+	metadataURL := resourceMetadataURL(cfg.OAuth)
+	a, err := buildOAuthAuthenticator(OAuthConfig{
+		AuthorizationServer: md.Issuer,
+		Audience:            cfg.OAuth.Audience,
+		RequiredScopes:      cfg.OAuth.RequiredScopes,
+		MetadataResource:    cfg.OAuth.MetadataResource,
+	}, cache, metadataURL)
+	if err != nil {
+		return authBuildResult{}, fmt.Errorf("mcp oauth: %w", err)
+	}
+	return authBuildResult{auth: a, canonicalIssuer: md.Issuer}, nil
+}
+
+// Scheme constants for URL validation. Kept unexported because only the
+// oauth paths use them.
+const (
+	schemeHTTP  = "http"
+	schemeHTTPS = "https"
+)
+
+// validateJWKSURI enforces the mirror-scheme rule: when the AS base URL is
+// HTTPS, the JWKS URI MUST also be HTTPS. Otherwise a malicious or
+// misconfigured AS could point jwks_uri at cleartext HTTP and a passive
+// attacker on the JWKS fetch path could substitute a keyset of their
+// choosing, letting any attacker-minted token verify.
+//
+// Non-HTTPS AS configurations (loopback dev only) still require jwks_uri
+// to be an HTTP/HTTPS URL (file://, data://, etc. are rejected).
+func validateJWKSURI(asURL, jwksURL string) error {
+	if jwksURL == "" {
+		return errors.New("AS metadata: jwks_uri missing")
+	}
+	as, err := url.Parse(asURL)
+	if err != nil {
+		return fmt.Errorf("AS URL parse: %w", err)
+	}
+	asScheme := strings.ToLower(as.Scheme)
+	// Fail-closed when the AS URL is not http(s): a typo like `htps://` or
+	// any other scheme would otherwise skip the mirror-scheme guard below
+	// and admit cleartext jwks_uri under a malformed HTTPS config.
+	if asScheme != schemeHTTP && asScheme != schemeHTTPS {
+		return fmt.Errorf("AS URL %q: unsupported scheme %q", asURL, as.Scheme)
+	}
+	jwks, err := url.Parse(jwksURL)
+	if err != nil {
+		return fmt.Errorf("jwks_uri parse: %w", err)
+	}
+	jwksScheme := strings.ToLower(jwks.Scheme)
+	if jwksScheme != schemeHTTP && jwksScheme != schemeHTTPS {
+		return fmt.Errorf("jwks_uri %q: unsupported scheme %q", jwksURL, jwks.Scheme)
+	}
+	if jwks.Host == "" {
+		return fmt.Errorf("jwks_uri %q: missing host", jwksURL)
+	}
+	if asScheme == schemeHTTPS && jwksScheme != schemeHTTPS {
+		return fmt.Errorf("jwks_uri %q must use HTTPS (AS is HTTPS)", jwksURL)
+	}
+	return nil
+}
+
+// sameAuthServer reports whether two authorization-server URLs refer to the
+// same endpoint after RFC-style canonicalization (scheme + host + port +
+// trailing-slash strip). Mirrors canonicalOrigin for consistency.
+func sameAuthServer(a, b string) bool {
+	ka, err := canonicalAuthServerURL(a)
+	if err != nil {
+		return false
+	}
+	kb, err := canonicalAuthServerURL(b)
+	if err != nil {
+		return false
+	}
+	return ka == kb
+}
+
+// normalizeURL returns a scheme://host[:port][path] canonical form.
+// Lowercases scheme + host, elides default http/https ports, collapses
+// repeated slashes in the path and strips trailing slashes, re-brackets
+// IPv6 literals per RFC 3986 §3.2.2, and drops the trailing dot from
+// fully-qualified DNS names. Query / fragment / userinfo are IGNORED
+// (stripped). This is the shared helper for equality-compare normalization
+// of both authorization-server and audience URLs, which per RFC 8414 §3.3
+// and RFC 8707 §2 share canonicalization rules.
+//
+// `https://as.example/`, `https://as.example:443`, `https://AS.EXAMPLE/`,
+// `https://as.example///`, `https://as.example//a///b/` all canonicalize to
+// the expected form. `https://[::1]:443/` canonicalizes to `https://[::1]`.
+func normaliseURL(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", errors.New("empty URL")
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", err
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return "", errors.New("URL must include scheme and host")
+	}
+	scheme := strings.ToLower(u.Scheme)
+	host := strings.ToLower(u.Hostname())
+	port := u.Port()
+	if (scheme == schemeHTTP && port == "80") || (scheme == schemeHTTPS && port == "443") {
+		port = ""
+	}
+	host = strings.TrimRight(host, ".")
+	// IDN normalisation: a spec-compliant AS may emit the issuer as
+	// punycode (`xn--...`) while the operator types the Unicode form, or
+	// vice-versa. Fold both to punycode-ASCII so sameAuthServer /
+	// canonicalAudience match regardless of the input flavor. Skip for
+	// IPv6 literals (host still contains colons at this point).
+	if !strings.Contains(host, ":") && host != "" {
+		if ascii, idnaErr := idna.Lookup.ToASCII(host); idnaErr == nil {
+			host = ascii
+		}
+	}
+	// Collapse repeated slashes, then trim trailing. path.Clean folds `//`
+	// into `/` and also resolves `.`/`..` segments, which is the desired
+	// semantic for issuer/audience identifier comparison.
+	p := path.Clean(u.Path)
+	if p == "." || p == "/" {
+		p = ""
+	} else {
+		p = strings.TrimRight(p, "/")
+	}
+	// IPv6 literals in URL authority MUST be bracketed per RFC 3986 §3.2.2.
+	// url.Hostname() strips the brackets; add them back whenever the host
+	// carries a colon (only possible for an IPv6 literal).
+	if strings.Contains(host, ":") {
+		host = "[" + host + "]"
+	}
+	if port == "" {
+		return scheme + "://" + host + p, nil
+	}
+	return scheme + "://" + host + ":" + port + p, nil
+}
+
+// canonicalAuthServerURL is the strict variant used for authorization-server
+// identifier comparison and metadata document construction: query, fragment,
+// and userinfo are REJECTED because RFC 8414 issuer identifiers forbid them;
+// silently stripping would collapse distinct operator configurations into
+// the same canonical form.
+func canonicalAuthServerURL(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", errors.New("empty URL")
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", err
+	}
+	if u.RawQuery != "" || u.Fragment != "" {
+		return "", errors.New("URL must not carry query or fragment")
+	}
+	if u.User != nil {
+		return "", errors.New("URL must not carry userinfo")
+	}
+	return normaliseURL(raw)
+}
+
+// canonicalAudience returns the RFC 8707 canonical form for resource
+// audience comparison. Lenient vs canonicalAuthServerURL: operator-supplied
+// audiences may carry weird extras that the AS might preserve or strip; we
+// compare on the normalized authority+path and ignore what the URL parser
+// can throw away. Returns the empty string on parse failure so tokens
+// whose `aud` is unparseable never accidentally match a canonicalized
+// configured value.
+func canonicalAudience(raw string) string {
+	out, err := normaliseURL(raw)
+	if err != nil {
+		return ""
+	}
+	return out
+}
+
+// resourceMetadataURL returns the absolute URL of THIS server's RFC 9728
+// protected-resource metadata document. Built from the operator-configured
+// audience / metadata-resource so the URL matches what the client sees as
+// the resource identity.
+//
+// Returns the empty string when neither is set or when the base is
+// unparseable / carries query / fragment / userinfo -- stray shell quoting
+// in config should not produce a malformed URL in 401 challenge headers.
+// Validate() enforces `Audience` is present for auth-mode=oauth so this
+// returns empty only on misconfigured standalone calls.
+func resourceMetadataURL(cfg OAuthConfig) string {
+	base := cfg.MetadataResource
+	if base == "" {
+		base = cfg.Audience
+	}
+	if base == "" {
+		return ""
+	}
+	// canonicalAuthServerURL rejects query/fragment/userinfo; we reuse its
+	// strict canonicalization so a malformed Audience never turns into a
+	// malformed resource_metadata URL the client then tries to fetch.
+	canonical, err := canonicalAuthServerURL(base)
+	if err != nil {
+		return ""
+	}
+	return canonical + OAuthMetadataPath
 }
 
 // heartbeatInterval returns the SSE heartbeat cadence, honoring a test
@@ -132,7 +451,7 @@ func (s *Streamable) heartbeatInterval() time.Duration {
 // form. Each entry MUST be a valid absolute URL or the literal "null"
 // (browser `file://` origin). Trailing slashes and default-port omission are
 // handled so `https://foo.com`, `https://foo.com:443`, and `https://foo.com/`
-// all normalise to the same key.
+// all normalize to the same key.
 func buildOriginSet(origins []string) (map[string]struct{}, error) {
 	set := make(map[string]struct{}, len(origins))
 	for _, raw := range origins {
@@ -152,25 +471,37 @@ func (s *Streamable) Close() {
 
 // ServeHTTP implements http.Handler.
 func (s *Streamable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// RFC 9728 protected-resource metadata is served BEFORE the Origin
+	// allowlist: the document is public by design, carries no session
+	// state, and browser-based OAuth clients discover it cross-origin
+	// from whatever domain hosts the SPA. CORS wildcard + OPTIONS
+	// preflight admit those clients without weakening the Origin check
+	// that protects the JSON-RPC endpoint.
+	if r.URL.Path == OAuthMetadataPath {
+		s.handleResourceMetadata(w, r)
+		return
+	}
+
 	if !s.originAllowed(r) {
 		http.Error(w, "forbidden origin", http.StatusForbidden)
 		return
 	}
 
-	if r.URL.Path == OAuthMetadataPath && r.Method == http.MethodGet {
-		http.NotFound(w, r)
-		return
-	}
 	if r.URL.Path != Endpoint {
+		// 404 on a wrong sub-path also needs CORS headers; the origin
+		// already passed the allowlist above, and a browser client that
+		// probes an unexpected path otherwise sees "CORS error" instead
+		// of the descriptive 404.
+		setMainPathCORS(w, r)
 		http.NotFound(w, r)
 		return
 	}
 
-	if !s.authorized(r) {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-		return
-	}
-
+	// Auth runs on initialize only; subsequent requests are gated by a
+	// valid Mcp-Session-Id, which was issued only after a successful
+	// auth-dispatcher run at create time. The 128-bit session ID is the
+	// per-request token. See spec-mcp-2-remote-oauth "Entry Point (target)"
+	// and AC-11a.
 	switch r.Method {
 	case http.MethodPost:
 		s.handlePOST(w, r)
@@ -178,10 +509,112 @@ func (s *Streamable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.handleGET(w, r)
 	case http.MethodDelete:
 		s.handleDELETE(w, r)
+	case http.MethodOptions:
+		s.handleEndpointPreflight(w, r)
 	default:
-		w.Header().Set("Allow", "POST, GET, DELETE")
+		// Same rationale as the 404 branch: CORS headers on the 405 so a
+		// browser client can read the Allow header and error description.
+		setMainPathCORS(w, r)
+		w.Header().Set("Allow", "POST, GET, DELETE, OPTIONS")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+// Response headers MCP clients need to read cross-origin. The fetch API
+// only exposes CORS-safelisted response headers unless listed here; without
+// Mcp-Session-Id a browser-based client cannot extract the session token
+// from the initialize response, and without WWW-Authenticate it cannot
+// discover the OAuth metadata URL on a 401.
+const corsExposeHeaders = "Mcp-Session-Id, WWW-Authenticate, Retry-After"
+
+// Headers the server accepts on non-safelisted cross-origin requests.
+const corsAllowHeaders = "Authorization, Content-Type, Mcp-Session-Id, MCP-Protocol-Version, Accept"
+
+// setMainPathCORS emits the CORS response headers for the /mcp endpoint's
+// real-request responses (POST / GET / DELETE). Preflight uses a separate
+// header set (see handleEndpointPreflight). Called at the top of every
+// main-path handler: the Origin check in ServeHTTP already admitted the
+// request, so echoing the Origin back is safe. No-op when Origin is absent
+// (non-browser client; CORS does not apply).
+//
+// Must run before the response body is written because `http.Error` and
+// `ResponseWriter.Write` flush headers on first byte.
+func setMainPathCORS(w http.ResponseWriter, r *http.Request) {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return
+	}
+	h := w.Header()
+	h.Set("Access-Control-Allow-Origin", origin)
+	h.Set("Access-Control-Allow-Credentials", "true")
+	h.Set("Access-Control-Expose-Headers", corsExposeHeaders)
+	// Vary: Origin so shared caches do not serve one origin's response to
+	// another. Use Add so it composes with any Vary set by the handler
+	// (SSE handlers currently do not set Vary, but defensive for future
+	// changes like Accept-Encoding).
+	h.Add("Vary", "Origin")
+}
+
+// handleEndpointPreflight responds to a CORS preflight for the main /mcp
+// endpoint. The Origin check has already admitted the request; echo the
+// Origin back (wildcard is not compatible with credentialed requests, and
+// MCP clients send Authorization + session-id headers on POST/DELETE).
+// Methods, headers, and max-age enumerate what the real request may carry.
+//
+// Preflight responses include Vary: Origin so caches keyed by origin do
+// not serve the wrong Access-Control-Allow-Origin to a different caller.
+func (s *Streamable) handleEndpointPreflight(w http.ResponseWriter, r *http.Request) {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		// Preflight requires an Origin header; a non-browser client sending
+		// OPTIONS without Origin is almost certainly misconfigured.
+		w.Header().Set("Allow", "POST, GET, DELETE, OPTIONS")
+		http.Error(w, "preflight requires Origin header", http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Access-Control-Allow-Origin", origin)
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", corsAllowHeaders)
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Max-Age", "600")
+	w.Header().Set("Vary", "Origin")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleResourceMetadata serves the RFC 9728 protected-resource metadata
+// document. Public by design: no auth, CORS wildcard, preflight-friendly.
+// Returns 404 when AuthMode != AuthOAuth so the URL only exists when
+// meaningful. Allowed methods are GET + OPTIONS (preflight); other methods
+// return 405.
+func (s *Streamable) handleResourceMetadata(w http.ResponseWriter, r *http.Request) {
+	// CORS wildcard + preflight. MCP clients running in a browser may be
+	// loaded from a different origin than the MCP server; they need to
+	// fetch the metadata document to discover the authorization server.
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Max-Age", "600")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", "GET, OPTIONS")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if s.authMode != AuthOAuth {
+		http.NotFound(w, r)
+		return
+	}
+	// Publish the AS-reported issuer so the string the client sees in
+	// `authorization_servers[0]` matches the value the token verifier
+	// enforces. buildAuthForMode ran sameAuthServer() so this is
+	// byte-identical to what tokens carry in their `iss` claim.
+	advertised := s.cfg.OAuth
+	advertised.AuthorizationServer = s.oauthIssuer
+	writeResourceMetadata(w, advertised)
 }
 
 // originAllowed reports whether the Origin header is permitted.
@@ -205,7 +638,7 @@ func (s *Streamable) originAllowed(r *http.Request) bool {
 	return ok
 }
 
-// canonicalOrigin normalises a string to scheme://host[:port] (lowercase
+// canonicalOrigin normalizes a string to scheme://host[:port] (lowercase
 // scheme and host, explicit default ports elided, no trailing slash, no path).
 // "null" (browser file:// origin) is preserved as-is.
 func canonicalOrigin(raw string) (string, error) {
@@ -226,7 +659,7 @@ func canonicalOrigin(raw string) (string, error) {
 	scheme := strings.ToLower(u.Scheme)
 	host := strings.ToLower(u.Hostname())
 	// Normalise IDN / punycode so `https://münchen.example.com` and
-	// `https://xn--mnchen-3ya.example.com` canonicalise to the same key.
+	// `https://xn--mnchen-3ya.example.com` canonicalize to the same key.
 	// Only apply to non-bracketed (non-IPv6) hosts.
 	if !strings.Contains(host, ":") && host != "" {
 		if ascii, idnaErr := idna.Lookup.ToASCII(host); idnaErr == nil {
@@ -282,18 +715,45 @@ func isLoopbackOrigin(origin string) bool {
 	return false
 }
 
-// authorized runs the bearer check used when Token is set.
-func (s *Streamable) authorized(r *http.Request) bool {
-	if s.cfg.Token == "" {
-		return true
+// authenticate dispatches to the configured authenticator and attaches the
+// resulting Identity to the request context when successful. Returns a
+// non-nil *authError that the caller renders into a 401 response.
+//
+// Phase 2 policy: identity is bound at initialize. Subsequent requests with
+// a valid Mcp-Session-Id are trusted by session-id validity alone (MCP
+// 2025-06-18 auth is per-session, not per-request). The initialize handler
+// calls this function; other handlers skip the bearer check because the
+// session carries the identity.
+func (s *Streamable) authenticate(r *http.Request) (Identity, *authError) {
+	if s.auth == nil {
+		return Identity{}, nil
 	}
-	auth := r.Header.Get("Authorization")
-	expected := "Bearer " + s.cfg.Token
-	return subtle.ConstantTimeCompare([]byte(auth), []byte(expected)) == 1
+	return s.auth.Authenticate(r)
+}
+
+// writeAuthError renders an authError to the HTTP response, attaching the
+// RFC 6750 / RFC 9728 WWW-Authenticate header when the error carries a
+// Bearer challenge. Cache-Control: no-store per RFC 6750 §5.3 so intermediary
+// caches do not serve stale 401 responses.
+func writeAuthError(w http.ResponseWriter, e *authError) {
+	if e == nil {
+		return
+	}
+	if challenge := e.WWWAuthenticate(); challenge != "" {
+		w.Header().Set("WWW-Authenticate", challenge)
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	status := e.Status
+	if status == 0 {
+		status = http.StatusUnauthorized
+	}
+	http.Error(w, e.Error(), status)
 }
 
 // handlePOST processes a client-initiated JSON-RPC message.
 func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
+	setMainPathCORS(w, r)
 	ct := r.Header.Get("Content-Type")
 	if ct != "" && !strings.HasPrefix(ct, "application/json") {
 		http.Error(w, "unsupported content type", http.StatusUnsupportedMediaType)
@@ -317,7 +777,12 @@ func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Method == "initialize" {
-		sess, err := s.doInitialize(&req)
+		identity, aerr := s.authenticate(r)
+		if aerr != nil {
+			writeAuthError(w, aerr)
+			return
+		}
+		sess, err := s.doInitialize(&req, identity)
 		if err != nil {
 			switch {
 			case errors.Is(err, errSessionLimitReached):
@@ -378,6 +843,7 @@ func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 // would otherwise route each server-sent frame to a non-deterministic
 // receiver, breaking task-status routing and resumability.
 func (s *Streamable) handleGET(w http.ResponseWriter, r *http.Request) {
+	setMainPathCORS(w, r)
 	if !acceptsEventStream(r) {
 		http.Error(w, "GET requires Accept: text/event-stream", http.StatusNotAcceptable)
 		return
@@ -438,6 +904,7 @@ func (s *Streamable) handleGET(w http.ResponseWriter, r *http.Request) {
 
 // handleDELETE terminates a session.
 func (s *Streamable) handleDELETE(w http.ResponseWriter, r *http.Request) {
+	setMainPathCORS(w, r)
 	id := r.Header.Get("Mcp-Session-Id")
 	if id == "" {
 		http.Error(w, "Mcp-Session-Id header required", http.StatusBadRequest)
@@ -450,15 +917,16 @@ func (s *Streamable) handleDELETE(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// doInitialize creates the session for an initialize request.
-// Returns errUnsupportedProtocolVersion when the client's protocolVersion is
-// neither empty nor in supportedProtocolVersions.
-func (s *Streamable) doInitialize(req *request) (*session, error) {
+// doInitialize creates the session for an initialize request, binding the
+// authenticated identity to the session. The identity flows through the
+// registry immutably so later handlers (tasks, elicitation) can scope by it
+// without re-auth.
+func (s *Streamable) doInitialize(req *request, identity Identity) (*session, error) {
 	negotiated, err := parseInitializeProtocolVersion(req)
 	if err != nil {
 		return nil, err
 	}
-	sess, err := s.registry.Create(negotiated)
+	sess, err := s.registry.Create(negotiated, identity)
 	if err != nil {
 		return nil, err
 	}

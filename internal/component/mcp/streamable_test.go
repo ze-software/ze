@@ -447,7 +447,7 @@ func TestStreamableCanonicalOrigin(t *testing.T) {
 
 func TestStreamableOriginCanonicalisedBothSides(t *testing.T) {
 	// Allowlist entry with default port; request with explicit default port.
-	// Both canonicalise to the same key and the request is accepted.
+	// Both canonicalize to the same key and the request is accepted.
 	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
 		AllowedOrigins: []string{"https://friend.example.com:443"},
 	})
@@ -578,7 +578,7 @@ func TestStreamableTouchOnClosedSessionIsNoop(t *testing.T) {
 	r := newSessionRegistry(time.Minute, 0, 0)
 	defer r.Close()
 
-	s, err := r.Create("v1")
+	s, err := r.Create("v1", Identity{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -765,7 +765,7 @@ func TestStreamableSSEResponseHasAntiBufferingHeader(t *testing.T) {
 func TestStreamableIDNOriginMatch(t *testing.T) {
 	// Regression for pass-4 finding 3: an allowlist entry in Unicode form
 	// must match an incoming Origin in punycode (and vice versa), both
-	// canonicalising via idna.Lookup.ToASCII.
+	// canonicalizing via idna.Lookup.ToASCII.
 	got, err := canonicalOrigin("https://münchen.example.com")
 	if err != nil {
 		t.Fatalf("canonicalOrigin unicode: %v", err)

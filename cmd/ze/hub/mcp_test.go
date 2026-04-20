@@ -70,7 +70,7 @@ func TestStartMCPServer_MultiListener(t *testing.T) {
 		fmt.Sprintf("127.0.0.1:%d", ports[1]),
 	}
 
-	srv := startMCPServer(addrs, mockMCPDispatch(), mockMCPCommands(), "")
+	srv := startMCPServer(addrs, mockMCPDispatch(), mockMCPCommands(), zemcp.StreamableConfig{}, "", "")
 	require.NotNil(t, srv, "startMCPServer must return a non-nil server for valid addrs")
 	t.Cleanup(func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -127,7 +127,7 @@ func TestStartMCPServer_BindFailureClosesPartialListeners(t *testing.T) {
 
 	srv := startMCPServer(
 		[]string{firstAddr, squattedAddr},
-		mockMCPDispatch(), mockMCPCommands(), "",
+		mockMCPDispatch(), mockMCPCommands(), zemcp.StreamableConfig{}, "", "",
 	)
 	assert.Nil(t, srv, "startMCPServer must return nil when any bind fails")
 
@@ -144,9 +144,9 @@ func TestStartMCPServer_BindFailureClosesPartialListeners(t *testing.T) {
 
 // TestStartMCPServer_EmptyAddrs verifies the no-addresses path returns nil.
 func TestStartMCPServer_EmptyAddrs(t *testing.T) {
-	srv := startMCPServer(nil, mockMCPDispatch(), mockMCPCommands(), "")
+	srv := startMCPServer(nil, mockMCPDispatch(), mockMCPCommands(), zemcp.StreamableConfig{}, "", "")
 	assert.Nil(t, srv)
 
-	srv = startMCPServer([]string{}, mockMCPDispatch(), mockMCPCommands(), "")
+	srv = startMCPServer([]string{}, mockMCPDispatch(), mockMCPCommands(), zemcp.StreamableConfig{}, "", "")
 	assert.Nil(t, srv)
 }

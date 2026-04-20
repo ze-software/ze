@@ -1,0 +1,22 @@
+# Test: auth-mode=oauth without oauth.authorization-server rejects
+# VALIDATES: spec-mcp-2-remote-oauth AC-6 -- `ze config verify` MUST fail with
+#            a concrete message when oauth is selected but the authorization
+#            server URL is missing.
+# PREVENTS: Silent acceptance leading to a daemon start that 401s every request
+#           because no AS was configured.
+stdin=config:terminator=EOF_CONF
+environment {
+	mcp {
+		enabled true;
+		auth-mode oauth;
+		server main {
+			ip 127.0.0.1;
+			port 8080;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=auth-mode=oauth requires oauth.authorization-server

@@ -1,0 +1,26 @@
+# Test: auth-mode=oauth on a non-loopback listener without TLS rejects
+# VALIDATES: spec-mcp-2-remote-oauth AC-6b -- OAuth requires TLS when the MCP
+#            endpoint binds to a non-loopback address. Cleartext HTTP + Bearer
+#            is never an acceptable OAuth resource-server posture.
+# PREVENTS: Silent acceptance leading to access-token exposure on the wire.
+stdin=config:terminator=EOF_CONF
+environment {
+	mcp {
+		enabled true;
+		bind-remote true;
+		auth-mode oauth;
+		oauth {
+			authorization-server https://as.example/;
+			audience https://mcp.example/;
+		}
+		server main {
+			ip 192.0.2.1;
+			port 443;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners

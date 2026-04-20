@@ -7,6 +7,11 @@ module ze-mcp-conf {
 
     description "MCP (Model Context Protocol) server configuration for Ze";
 
+    revision 2026-04-19 {
+        description "Add bind-remote, auth-mode, oauth, tls, identity[]. Legacy
+                     token leaf preserved; maps to auth-mode=bearer for back-compat.";
+    }
+
     revision 2026-01-01 {
         description "Initial revision";
     }
@@ -23,12 +28,111 @@ module ze-mcp-conf {
                 description "Enable MCP server";
             }
 
+            leaf bind-remote {
+                type boolean;
+                default false;
+                description "Allow binding to non-loopback addresses. Default
+                             (false) keeps the Phase 1 clamp that forces every
+                             server entry to 127.0.0.1. When true, the operator
+                             configured ip is honored, and auth-mode MUST be set
+                             to a non-'none' value (verify-time reject).";
+            }
+
+            leaf auth-mode {
+                type enumeration {
+                    enum none {
+                        description "No authentication. Only permitted on loopback binds.";
+                    }
+                    enum bearer {
+                        description "Single shared bearer token (legacy). Value read from the token leaf.";
+                    }
+                    enum bearer-list {
+                        description "Per-identity bearer tokens. Each identity[] entry names one principal.";
+                    }
+                    enum oauth {
+                        description "OAuth 2.1 resource server. Tokens validated locally against the configured authorization server's JWKS.";
+                    }
+                }
+                description "Authentication strategy. Defaults: if token is set
+                             and auth-mode is absent, auth-mode is inferred as
+                             'bearer' for back-compat; otherwise 'none'.";
+            }
+
             leaf token {
                 type string;
                 ze:sensitive;
-                description "Bearer token for MCP authentication. When set, clients must send
-                             Authorization: Bearer <token> header. Leave empty to allow
-                             unauthenticated access (localhost-only).";
+                description "Bearer token for auth-mode=bearer. When set without
+                             an explicit auth-mode leaf, auth-mode is inferred as
+                             'bearer'. Leave empty when using bearer-list or
+                             oauth.";
+            }
+
+            list identity {
+                key "name";
+                description "Per-identity bearer entries (auth-mode=bearer-list).
+                             Each entry's token grants access to the named principal.
+                             Scopes are attached to the session and visible to
+                             later phases (tasks, elicitation).";
+
+                leaf name {
+                    type string;
+                    description "Principal name (visible in logs, carried on session).";
+                }
+
+                leaf token {
+                    type string;
+                    ze:sensitive;
+                    description "Bearer token value. Compared constant-time.";
+                }
+
+                leaf-list scope {
+                    type string;
+                    description "Optional scopes attached to the session when this identity authenticates.";
+                }
+            }
+
+            container oauth {
+                description "OAuth 2.1 resource-server settings (auth-mode=oauth).
+                             Ze does NOT run an authorization server; it validates
+                             bearer tokens issued by the external AS.";
+
+                leaf authorization-server {
+                    type string;
+                    description "HTTPS URL of the authorization server. The
+                                 resource server reads AS metadata from
+                                 <url>/.well-known/oauth-authorization-server
+                                 (RFC 8414) to discover the jwks_uri.";
+                }
+
+                leaf audience {
+                    type string;
+                    description "Canonical URL identifying this MCP endpoint
+                                 (RFC 8707). Tokens whose 'aud' claim does not
+                                 match are rejected. Must be set explicitly;
+                                 never derived from the request Host header.";
+                }
+
+                leaf-list required-scopes {
+                    type string;
+                    description "Scopes every accepted token must carry. Empty
+                                 list means any valid token is accepted.";
+                }
+            }
+
+            container tls {
+                description "TLS certificate for HTTPS. Required when
+                             auth-mode=oauth on a non-loopback bind.";
+
+                leaf cert {
+                    type string;
+                    description "Path to PEM-encoded certificate file (or a chain).";
+                }
+
+                leaf key {
+                    type string;
+                    ze:sensitive;
+                    description "Path to PEM-encoded private-key file.";
+                }
             }
 
             list server {

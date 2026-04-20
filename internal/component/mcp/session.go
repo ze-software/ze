@@ -50,6 +50,7 @@ type session struct {
 	id              string
 	createdAt       time.Time
 	protocolVersion string
+	identity        Identity
 
 	mu         sync.Mutex
 	lastSeenAt time.Time
@@ -125,14 +126,18 @@ func newSessionRegistry(ttl, maxLifetime time.Duration, maxSessions int) *sessio
 	return r
 }
 
-// Create allocates a new session with a cryptographically random ID and the
-// caller-declared protocol version. Returns errSessionLimitReached when the
-// registry is at maxSessions.
+// Create allocates a new session with a cryptographically random ID, the
+// caller-declared protocol version, and the authenticated identity. The
+// identity is bound once at initialize and is immutable for the life of
+// the session; subsequent requests on the same Mcp-Session-Id are trusted
+// by session-id validity alone (MCP 2025-06-18 auth is per-session, not
+// per-request). Returns errSessionLimitReached when the registry is at
+// maxSessions.
 //
 // The cap check runs BEFORE any allocation so a rejected create costs only a
 // map lookup; a flood against the cap does not burn crypto/rand + chan
 // allocation per attempt.
-func (r *sessionRegistry) Create(protocolVersion string) (*session, error) {
+func (r *sessionRegistry) Create(protocolVersion string, identity Identity) (*session, error) {
 	if r.stopFlag.Load() {
 		return nil, errSessionRegistryClosed
 	}
@@ -154,6 +159,7 @@ func (r *sessionRegistry) Create(protocolVersion string) (*session, error) {
 		createdAt:       now,
 		lastSeenAt:      now,
 		protocolVersion: protocolVersion,
+		identity:        identity,
 		outbound:        make(chan []byte, r.queueSize),
 	}
 	r.mu.Lock()
@@ -279,6 +285,11 @@ func (s *session) ID() string { return s.id }
 
 // ProtocolVersion returns the negotiated protocol version.
 func (s *session) ProtocolVersion() string { return s.protocolVersion }
+
+// Identity returns the authenticated identity bound at session create.
+// The zero Identity (IsAnonymous) indicates AuthMode=None or pre-Phase-2
+// configurations where no identity was attached.
+func (s *session) Identity() Identity { return s.identity }
 
 // Touch refreshes the session's last-seen timestamp so an active long-lived
 // stream (GET /mcp SSE reader) is not reaped by the TTL sweep. No-op on a

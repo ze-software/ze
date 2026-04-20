@@ -276,7 +276,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 		webEnabled = true
 	}
-	if mcpCfg, ok := zeconfig.ExtractMCPConfig(loadResult.Tree); ok {
+	mcpCfg, mcpCfgOK := zeconfig.ExtractMCPConfig(loadResult.Tree)
+	if mcpCfgOK {
 		if len(mcpAddrs) == 0 {
 			mcpAddrs = endpointsToAddrs(mcpCfg.Servers)
 		}
@@ -543,9 +544,16 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
-	var mcpSrv *http.Server
+	var mcpSrv *MCPServerHandle
 	if len(mcpAddrs) > 0 {
-		mcpSrv = startMCPServer(mcpAddrs, dispatch, serverCommandLister(apiServer), mcpToken)
+		mcpStreamCfg := zemcp.StreamableConfig{Token: mcpToken}
+		var mcpTLSCert, mcpTLSKey string
+		if mcpCfgOK {
+			mcpStreamCfg = mcpConfigToStreamable(mcpCfg, mcpStreamCfg)
+			mcpTLSCert = mcpCfg.TLS.Cert
+			mcpTLSKey = mcpCfg.TLS.Key
+		}
+		mcpSrv = startMCPServer(mcpAddrs, dispatch, serverCommandLister(apiServer), mcpStreamCfg, mcpTLSCert, mcpTLSKey)
 	}
 
 	// Start REST/gRPC API servers if configured (env > config file).

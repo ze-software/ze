@@ -42,40 +42,101 @@ The MCP server binds to `127.0.0.1` only. See
 
 ## Authentication
 
-<!-- source: internal/component/mcp/handler.go -- bearer token auth -->
+<!-- source: internal/component/mcp/auth.go -- AuthMode enum + Identity -->
+<!-- source: internal/component/mcp/bearer.go -- bearer / bearer-list strategies -->
+<!-- source: internal/component/mcp/oauth.go -- OAuth 2.1 resource-server strategy -->
 
-By default, the MCP endpoint has no authentication (localhost-only access).
-To require a bearer token, use any of these (same precedence as above):
+MCP supports four authentication modes selected by `environment.mcp.auth-mode`:
 
-**CLI flag:**
-```bash
-ze start --mcp 9718 --mcp-token my-secret-token
-```
+| Mode | Use case | Config |
+|------|----------|--------|
+| `none` | Loopback dev / tunnel-only deployments | No extra leaves |
+| `bearer` | Single shared secret, one trusted caller | `token` leaf |
+| `bearer-list` | Per-identity tokens, many callers, scope-scoped sessions | `identity[]` list |
+| `oauth` | OAuth 2.1 resource server, external AS manages identities | `oauth` container + TLS |
 
-**Environment variable:**
-```bash
-export ze_mcp_token=my-secret-token
-```
+Identity is bound at `initialize` and carried on the session for its lifetime;
+subsequent requests with the assigned `Mcp-Session-Id` header are trusted by
+session-id validity alone.
 
-This env var is registered as `Secret` -- it is cleared from the OS
-environment after first read, preventing exposure via `/proc/<pid>/environ`.
+### bearer (legacy single token)
 
-**Config file:**
 ```
 environment {
     mcp {
         enabled true;
+        auth-mode bearer;
         token my-secret-token;
         server main { ip 127.0.0.1; port 9718; }
     }
 }
 ```
 
-The token leaf is marked `ze:sensitive` -- it is masked in `show config` output.
+Env var `ze.mcp.token` and CLI flag `--mcp-token` still work. The token leaf
+is `ze:sensitive` -- masked in `show config` output. A token set without an
+explicit `auth-mode` infers `bearer` for operators upgrading from pre-Phase-2
+configs.
 
-When set, every MCP request must include the `Authorization: Bearer <token>`
-header. Requests without a valid token receive HTTP 401. The comparison uses
-constant-time comparison to prevent timing side-channel attacks.
+### bearer-list (per-identity tokens)
+
+```
+environment {
+    mcp {
+        enabled true;
+        auth-mode bearer-list;
+        identity alice { token alice-token; scope [ mcp.read mcp.write ]; }
+        identity bob   { token bob-token;   scope [ mcp.read ]; }
+        server main { ip 127.0.0.1; port 9718; }
+    }
+}
+```
+
+Each identity's token is compared constant-time. The matching entry's name +
+scopes ride on the session. Add / remove / rotate identities independently.
+
+### oauth (OAuth 2.1 resource server)
+
+```
+environment {
+    mcp {
+        enabled true;
+        bind-remote true;
+        auth-mode oauth;
+        oauth {
+            authorization-server https://auth.example/;
+            audience             https://mcp.example/;
+            required-scopes      [ mcp.admin ];
+        }
+        tls {
+            cert /etc/ze/mcp.pem;
+            key  /etc/ze/mcp.key;
+        }
+        server main { ip 0.0.0.0; port 443; }
+    }
+}
+```
+
+Tokens are validated locally: RS256 / RS384 / RS512 / ES256 / ES384 signatures
+are verified against JWKS fetched from the authorization server's RFC 8414
+metadata document. HS* (HMAC) and `alg: none` are always rejected.
+`iss` / `aud` / `exp` / `nbf` / scope claims are validated with 60 s leeway.
+
+`ze config validate` rejects internally inconsistent configurations (oauth
+without TLS on a remote bind, oauth without authorization-server, bind-remote
+without auth, etc.) before the daemon starts. See
+[`rules/exact-or-reject.md`](../../.claude/rules/exact-or-reject.md) for the
+contract.
+
+RFC 9728 metadata: when `auth-mode oauth`, the server publishes
+`/.well-known/oauth-protected-resource` listing the authorization server(s)
+and supported scopes. Clients discover the AS through this URL when they hit
+a 401.
+
+### Constant-time comparison
+
+Bearer tokens (both `bearer` and `bearer-list`) use `subtle.ConstantTimeCompare`
+so response timing does not reveal which entry matched (or whether any did).
+The bearer-list scan visits every entry regardless of early match.
 
 ## Protocol
 

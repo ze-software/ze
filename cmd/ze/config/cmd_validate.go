@@ -296,6 +296,16 @@ func runValidation(input, path string) *validationResult {
 		}
 	}
 
+	// MCP semantic validation (auth-mode / bind-remote / oauth / tls
+	// cross-leaf consistency). Mirrors what the MCP component enforces at
+	// startup so `ze config validate` surfaces rejections without a daemon.
+	if mcpCfg, ok := config.ExtractMCPConfig(tree); ok {
+		if verr := mcpCfg.Validate(); verr != nil {
+			result.Valid = false
+			result.Errors = append(result.Errors, validationError{Message: verr.Error()})
+		}
+	}
+
 	// BGP-specific validation only when bgp {} is present.
 	if tree.GetContainer("bgp") != nil {
 		// Resolve templates and get BGP tree as map.

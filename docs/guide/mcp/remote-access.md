@@ -1,14 +1,23 @@
 # MCP Remote Access
 
-Ze's MCP server binds exclusively to `127.0.0.1`. It is not possible to bind it
-to a public interface -- this is a deliberate security decision. By default the
-MCP endpoint has no authentication. To require a bearer token, use `--mcp-token`,
-the `ze.mcp.token` env var, or the `token` leaf in the MCP config block (see
-[overview.md](overview.md#authentication)).
+<!-- source: internal/component/mcp/schema/ze-mcp-conf.yang -- bind-remote, auth-mode, oauth, tls -->
+<!-- source: internal/component/config/loader_extract.go -- MCPListenConfig.Validate -->
 
-To access the MCP server from another machine, use an encrypted tunnel. This page
-covers two approaches: SSH port forwarding (simple, per-session) and WireGuard
-(persistent, site-to-site).
+Ze's MCP server defaults to loopback binding (`127.0.0.1`). Two patterns make
+it reachable from other machines:
+
+1. **Tunnel-based** (recommended for dev): keep MCP on loopback, use SSH or
+   WireGuard as the encrypted transport. Operator does not have to manage
+   TLS certs.
+2. **Native remote**: bind MCP to a non-loopback address with authentication
+   and TLS. Operator-managed certificate; client-side discovery via RFC 9728.
+
+## Option 1: Tunnel-based (loopback binding)
+
+This is the Phase 1 posture. MCP binds `127.0.0.1`, you tunnel from your
+client host. Ze's config verifier accepts `auth-mode none` on loopback, so no
+token is required. Add `auth-mode bearer` if the loopback is shared by
+untrusted local users (e.g., multi-tenant hosts).
 
 ## Starting the MCP Server
 
@@ -204,17 +213,88 @@ Run on both machines. Exchange public keys. Keep private keys secret.
 **Recommendation:** SSH forwarding for ad-hoc access. WireGuard + SSH for
 permanent infrastructure where you already run WireGuard between sites.
 
+## Option 2: Native remote binding
+
+When tunnelling is impractical (many clients, unattended fleets, OAuth-managed
+identities), bind MCP directly to a non-loopback address with TLS and
+authentication:
+
+```
+environment {
+    mcp {
+        enabled true;
+        bind-remote true;
+        auth-mode oauth;
+        oauth {
+            authorization-server https://auth.example/;
+            audience             https://mcp.example/;
+            required-scopes      [ mcp.admin ];
+        }
+        tls {
+            cert /etc/ze/mcp.pem;
+            key  /etc/ze/mcp.key;
+        }
+        server public {
+            ip 0.0.0.0;
+            port 443;
+        }
+    }
+}
+```
+
+Alternatively for smaller deployments, use `auth-mode bearer-list` with
+per-identity tokens:
+
+```
+environment {
+    mcp {
+        enabled true;
+        bind-remote true;
+        auth-mode bearer-list;
+        identity alice { token <long-random-string>; scope [ mcp.read mcp.write ]; }
+        identity bob   { token <long-random-string>; scope [ mcp.read ]; }
+        tls {
+            cert /etc/ze/mcp.pem;
+            key  /etc/ze/mcp.key;
+        }
+        server public {
+            ip 0.0.0.0;
+            port 443;
+        }
+    }
+}
+```
+
+### Config verify rejects unsafe combinations
+
+`ze config validate` rejects at verify time:
+
+| Configuration | Rejection |
+|---------------|-----------|
+| `bind-remote true` + `auth-mode none` | `bind-remote requires auth-mode != none` |
+| `auth-mode oauth` without `oauth.authorization-server` | `auth-mode=oauth requires oauth.authorization-server` |
+| `auth-mode oauth` without `oauth.audience` | `auth-mode=oauth requires oauth.audience` |
+| `auth-mode oauth` + non-loopback listener without TLS | `auth-mode=oauth requires tls.cert and tls.key on non-loopback listeners` |
+| `auth-mode bearer-list` without any `identity` entries | `auth-mode=bearer-list requires at least one identity` |
+
+These are exact-or-reject gates (`rules/exact-or-reject.md`): a misconfigured
+remote endpoint fails the verifier, never silently accepts.
+
 ## Security Notes
 
-- Never bind the MCP server to `0.0.0.0` or a public IP. The `--mcp` flag
-  hardcodes `127.0.0.1` to prevent this.
-- For additional security, configure a bearer token (`--mcp-token` or
-  `ze.mcp.token` env var). Without a token, anyone who can connect can run
-  BGP commands. The tunnel provides transport encryption; the token provides
-  authentication.
-- Use key-based SSH authentication for unattended tunnels. Disable password
-  authentication on routers exposed to the internet.
+- With `bind-remote false` (default), every server entry is force-rewritten
+  to `127.0.0.1` at config extraction time, preserving the Phase 1 loopback
+  clamp even if the operator mistakenly types `0.0.0.0`.
+- For tunnel-based deployments, use key-based SSH authentication for
+  unattended tunnels. Disable password authentication on routers exposed
+  to the internet.
 - With WireGuard + socat, only peers in `AllowedIPs` can reach the socat
   listener. This is your access control boundary.
 - Rotate WireGuard keys periodically. Revoke a peer by removing its `[Peer]`
   block and reloading (`wg syncconf wg0 <(wg-quick strip wg0)`).
+- For native remote deployments, rotate the TLS cert before it expires.
+  Hot-reload is not yet supported; restart the daemon after cert rotation.
+- OAuth access tokens are never logged. `Authorization` headers are scrubbed
+  from debug logs. Token audience is validated on every request (RFC 8707).
+- JWKS refresh is rate-limited to 30 s minimum interval; an unknown-kid
+  spray cannot trigger a JWKS-fetch flood against the AS.

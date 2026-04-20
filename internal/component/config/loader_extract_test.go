@@ -487,3 +487,362 @@ environment {
 	assert.Equal(t, "0.0.0.0", cfg.Servers[0].Host)
 	assert.Equal(t, "8443", cfg.Servers[0].Port)
 }
+
+// -----------------------------------------------------------------------------
+// MCPListenConfig.Validate -- Phase 2 (AC-6, AC-6a, AC-6b, plus extended checks)
+// -----------------------------------------------------------------------------
+
+// TestMCPConfigValidate exercises the exact-or-reject gates applied at
+// `ze config verify` time.
+//
+// VALIDATES: Phase 2 AC-6/6a/6b + bearer-list / oauth sanity.
+// PREVENTS: Silent acceptance of internally inconsistent configs.
+func TestMCPConfigValidate(t *testing.T) {
+	loopback := []ServerEndpoint{{Host: "127.0.0.1", Port: "8080"}}
+	remote := []ServerEndpoint{{Host: "192.0.2.1", Port: "8080"}}
+
+	cases := []struct {
+		name    string
+		cfg     MCPListenConfig
+		wantErr string // empty = expect nil error; non-empty = substring match
+	}{
+		{
+			name:    "empty config ok",
+			cfg:     MCPListenConfig{Servers: loopback},
+			wantErr: "",
+		},
+		{
+			name:    "auth-mode none ok on loopback",
+			cfg:     MCPListenConfig{Servers: loopback, AuthMode: "none"},
+			wantErr: "",
+		},
+		{
+			name:    "AC-6a bind-remote without auth rejects",
+			cfg:     MCPListenConfig{Servers: remote, BindRemote: true, AuthMode: "none"},
+			wantErr: "bind-remote requires auth-mode != none",
+		},
+		{
+			name:    "AC-6a bind-remote with empty auth-mode rejects",
+			cfg:     MCPListenConfig{Servers: remote, BindRemote: true},
+			wantErr: "bind-remote requires auth-mode != none",
+		},
+		{
+			name:    "AC-6 oauth without authorization-server rejects",
+			cfg:     MCPListenConfig{Servers: loopback, AuthMode: "oauth"},
+			wantErr: "requires oauth.authorization-server",
+		},
+		{
+			name: "AC-6 oauth without audience rejects",
+			cfg: MCPListenConfig{
+				Servers:  loopback,
+				AuthMode: "oauth",
+				OAuth:    MCPOAuthConfig{AuthorizationServer: "https://as.example/"},
+			},
+			wantErr: "requires oauth.audience",
+		},
+		{
+			name: "AC-6b oauth on remote without TLS rejects",
+			cfg: MCPListenConfig{
+				Servers:    remote,
+				BindRemote: true,
+				AuthMode:   "oauth",
+				OAuth: MCPOAuthConfig{
+					AuthorizationServer: "https://as.example/",
+					Audience:            "https://mcp.example/",
+				},
+			},
+			wantErr: "requires tls.cert and tls.key on non-loopback listeners",
+		},
+		{
+			name: "oauth on loopback without TLS ok",
+			cfg: MCPListenConfig{
+				Servers:  loopback,
+				AuthMode: "oauth",
+				OAuth: MCPOAuthConfig{
+					AuthorizationServer: "https://as.example/",
+					Audience:            "https://mcp.example/",
+				},
+			},
+			wantErr: "",
+		},
+		{
+			name: "oauth remote with TLS ok",
+			cfg: MCPListenConfig{
+				Servers:    remote,
+				BindRemote: true,
+				AuthMode:   "oauth",
+				OAuth: MCPOAuthConfig{
+					AuthorizationServer: "https://as.example/",
+					Audience:            "https://mcp.example/",
+				},
+				TLS: MCPTLSConfig{Cert: "/etc/ze/cert.pem", Key: "/etc/ze/key.pem"},
+			},
+			wantErr: "",
+		},
+		{
+			name: "tls cert without key rejects",
+			cfg: MCPListenConfig{
+				Servers:  loopback,
+				AuthMode: "oauth",
+				OAuth: MCPOAuthConfig{
+					AuthorizationServer: "https://as.example/",
+					Audience:            "https://mcp.example/",
+				},
+				TLS: MCPTLSConfig{Cert: "/etc/ze/cert.pem"},
+			},
+			wantErr: "cert set without key",
+		},
+		{
+			name:    "bearer without token rejects",
+			cfg:     MCPListenConfig{Servers: loopback, AuthMode: "bearer"},
+			wantErr: "auth-mode=bearer requires token",
+		},
+		{
+			name:    "bearer with token ok",
+			cfg:     MCPListenConfig{Servers: loopback, AuthMode: "bearer", Token: "secret"},
+			wantErr: "",
+		},
+		{
+			name:    "bearer-list empty rejects",
+			cfg:     MCPListenConfig{Servers: loopback, AuthMode: "bearer-list"},
+			wantErr: "requires at least one identity",
+		},
+		{
+			name: "bearer-list missing token rejects",
+			cfg: MCPListenConfig{
+				Servers:    loopback,
+				AuthMode:   "bearer-list",
+				Identities: []MCPIdentity{{Name: "alice"}},
+			},
+			wantErr: "token is required",
+		},
+		{
+			name: "bearer-list duplicate name rejects",
+			cfg: MCPListenConfig{
+				Servers:  loopback,
+				AuthMode: "bearer-list",
+				Identities: []MCPIdentity{
+					{Name: "alice", Token: "t1"},
+					{Name: "alice", Token: "t2"},
+				},
+			},
+			wantErr: "duplicate name",
+		},
+		{
+			name: "bearer-list duplicate token rejects",
+			cfg: MCPListenConfig{
+				Servers:  loopback,
+				AuthMode: "bearer-list",
+				Identities: []MCPIdentity{
+					{Name: "alice", Token: "shared"},
+					{Name: "bob", Token: "shared"},
+				},
+			},
+			wantErr: "shared with another identity",
+		},
+		{
+			name: "bearer-list ok",
+			cfg: MCPListenConfig{
+				Servers:  loopback,
+				AuthMode: "bearer-list",
+				Identities: []MCPIdentity{
+					{Name: "alice", Token: "t1"},
+					{Name: "bob", Token: "t2"},
+				},
+			},
+			wantErr: "",
+		},
+		{
+			name:    "unknown auth-mode rejects",
+			cfg:     MCPListenConfig{Servers: loopback, AuthMode: "bogus"},
+			wantErr: "unknown value",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cfg.Validate()
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
+}
+
+// TestExtractMCPConfig_BindRemotePreservesHost verifies the loopback clamp is
+// suppressed when bind-remote is true.
+//
+// VALIDATES: Phase 2 extract path (bind-remote lifts the Phase-1 clamp).
+// PREVENTS: Silent override of the operator's configured ip.
+func TestExtractMCPConfig_BindRemotePreservesHost(t *testing.T) {
+	input := `
+environment {
+	mcp {
+		enabled true;
+		bind-remote true;
+		auth-mode bearer;
+		token secret-1234;
+		server remote {
+			ip 192.0.2.1;
+			port 8443;
+		}
+	}
+}
+`
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	cfg, ok := ExtractMCPConfig(tree)
+	require.True(t, ok)
+	assert.True(t, cfg.BindRemote)
+	assert.Equal(t, "bearer", cfg.AuthMode)
+	assert.Equal(t, "secret-1234", cfg.Token)
+	require.Len(t, cfg.Servers, 1)
+	assert.Equal(t, "192.0.2.1", cfg.Servers[0].Host)
+	assert.Equal(t, "8443", cfg.Servers[0].Port)
+}
+
+// TestExtractMCPConfig_TokenInfersBearer verifies a legacy config with token
+// set but no auth-mode still works: AuthMode is inferred as "bearer" so the
+// runtime dispatcher routes through the single-token path.
+//
+// VALIDATES: Existing (pre-Phase-2) configs do not break on upgrade.
+// PREVENTS: Silent auth downgrade when auth-mode is absent but token is set.
+func TestExtractMCPConfig_TokenInfersBearer(t *testing.T) {
+	input := `
+environment {
+	mcp {
+		enabled true;
+		token secret-legacy;
+		server main {
+			ip 127.0.0.1;
+			port 8080;
+		}
+	}
+}
+`
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	cfg, ok := ExtractMCPConfig(tree)
+	require.True(t, ok)
+	assert.Equal(t, "bearer", cfg.AuthMode, "token set without auth-mode should infer bearer")
+	assert.Equal(t, "secret-legacy", cfg.Token)
+}
+
+// TestExtractMCPConfig_IdentityList verifies the identity[] list is extracted
+// with name + token + scope leaf-list.
+//
+// VALIDATES: Phase 2 bearer-list extraction (drives AC-10/AC-11 later).
+// PREVENTS: Silent loss of scopes or identity entries.
+func TestExtractMCPConfig_IdentityList(t *testing.T) {
+	input := `
+environment {
+	mcp {
+		enabled true;
+		auth-mode bearer-list;
+		identity alice {
+			token alice-secret;
+			scope [ mcp.read mcp.write ];
+		}
+		identity bob {
+			token bob-secret;
+		}
+		server main {
+			ip 127.0.0.1;
+			port 8080;
+		}
+	}
+}
+`
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	cfg, ok := ExtractMCPConfig(tree)
+	require.True(t, ok)
+	require.Len(t, cfg.Identities, 2)
+	assert.Equal(t, "alice", cfg.Identities[0].Name)
+	assert.Equal(t, "alice-secret", cfg.Identities[0].Token)
+	assert.Equal(t, []string{"mcp.read", "mcp.write"}, cfg.Identities[0].Scopes)
+	assert.Equal(t, "bob", cfg.Identities[1].Name)
+	assert.Equal(t, "bob-secret", cfg.Identities[1].Token)
+	assert.Empty(t, cfg.Identities[1].Scopes)
+}
+
+// TestExtractMCPConfig_OAuthAndTLS verifies the oauth and tls containers are
+// extracted into the config struct.
+//
+// VALIDATES: Phase 2 oauth / tls extraction.
+// PREVENTS: Silent loss of required-scopes leaf-list entries.
+func TestExtractMCPConfig_OAuthAndTLS(t *testing.T) {
+	input := `
+environment {
+	mcp {
+		enabled true;
+		bind-remote true;
+		auth-mode oauth;
+		oauth {
+			authorization-server https://as.example/;
+			audience https://mcp.example/;
+			required-scopes [ mcp.admin mcp.read ];
+		}
+		tls {
+			cert /etc/ze/mcp.pem;
+			key /etc/ze/mcp.key;
+		}
+		server main {
+			ip 192.0.2.1;
+			port 443;
+		}
+	}
+}
+`
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	cfg, ok := ExtractMCPConfig(tree)
+	require.True(t, ok)
+	assert.Equal(t, "oauth", cfg.AuthMode)
+	assert.True(t, cfg.BindRemote)
+	assert.Equal(t, "https://as.example/", cfg.OAuth.AuthorizationServer)
+	assert.Equal(t, "https://mcp.example/", cfg.OAuth.Audience)
+	assert.Equal(t, []string{"mcp.admin", "mcp.read"}, cfg.OAuth.RequiredScopes)
+	assert.Equal(t, "/etc/ze/mcp.pem", cfg.TLS.Cert)
+	assert.Equal(t, "/etc/ze/mcp.key", cfg.TLS.Key)
+	require.NoError(t, cfg.Validate())
+}
+
+// TestExtractMCPConfig_AnyListenerNonLoopback exercises the helper used by
+// Validate to decide whether TLS is required for oauth.
+func TestExtractMCPConfig_AnyListenerNonLoopback(t *testing.T) {
+	cases := []struct {
+		name string
+		cfg  MCPListenConfig
+		want bool
+	}{
+		{"only loopback", MCPListenConfig{Servers: []ServerEndpoint{{Host: "127.0.0.1", Port: "1"}}}, false},
+		{"only ipv6 loopback", MCPListenConfig{Servers: []ServerEndpoint{{Host: "::1", Port: "1"}}}, false},
+		{"mixed", MCPListenConfig{Servers: []ServerEndpoint{{Host: "127.0.0.1", Port: "1"}, {Host: "192.0.2.1", Port: "1"}}}, true},
+		{"only remote", MCPListenConfig{Servers: []ServerEndpoint{{Host: "0.0.0.0", Port: "1"}}}, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, tc.cfg.AnyListenerNonLoopback())
+		})
+	}
+}

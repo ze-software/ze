@@ -1,0 +1,20 @@
+# Test: bind-remote without auth-mode rejects
+# VALIDATES: spec-mcp-2-remote-oauth AC-6a -- binding to a non-loopback
+#            address requires an authentication mode other than "none".
+# PREVENTS: Silent acceptance of an open, remote-reachable MCP endpoint.
+stdin=config:terminator=EOF_CONF
+environment {
+	mcp {
+		enabled true;
+		bind-remote true;
+		server main {
+			ip 192.0.2.1;
+			port 8080;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=bind-remote requires auth-mode != none

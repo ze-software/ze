@@ -10,7 +10,7 @@ func TestSessionRegistryCreateGet(t *testing.T) {
 	r := newSessionRegistry(5*time.Minute, 0, 0)
 	defer r.Close()
 
-	s, err := r.Create("2025-06-18")
+	s, err := r.Create("2025-06-18", Identity{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -33,7 +33,7 @@ func TestSessionRegistryDelete(t *testing.T) {
 	r := newSessionRegistry(5*time.Minute, 0, 0)
 	defer r.Close()
 
-	s, err := r.Create("v1")
+	s, err := r.Create("v1", Identity{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestSessionRegistryGetRefreshesLastSeen(t *testing.T) {
 	fakeNow := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	r.now = func() time.Time { return fakeNow }
 
-	s, err := r.Create("v1")
+	s, err := r.Create("v1", Identity{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -78,8 +78,8 @@ func TestSessionRegistrySweepExpires(t *testing.T) {
 	fakeNow := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	r.now = func() time.Time { return fakeNow }
 
-	s1, _ := r.Create("v1")
-	s2, _ := r.Create("v1")
+	s1, _ := r.Create("v1", Identity{})
+	s2, _ := r.Create("v1", Identity{})
 
 	fakeNow = fakeNow.Add(30 * time.Second)
 	r.sweep()
@@ -106,7 +106,7 @@ func TestSessionRegistryCloseIsIdempotent(t *testing.T) {
 func TestSessionRegistryCreateAfterCloseFails(t *testing.T) {
 	r := newSessionRegistry(time.Minute, 0, 0)
 	r.Close()
-	if _, err := r.Create("v1"); err == nil {
+	if _, err := r.Create("v1", Identity{}); err == nil {
 		t.Fatal("Create after Close returned nil error")
 	}
 }
@@ -115,7 +115,7 @@ func TestSessionSendAndDrain(t *testing.T) {
 	r := newSessionRegistry(time.Minute, 0, 0)
 	defer r.Close()
 
-	s, err := r.Create("v1")
+	s, err := r.Create("v1", Identity{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestSessionSendAfterCloseFails(t *testing.T) {
 	r := newSessionRegistry(time.Minute, 0, 0)
 	defer r.Close()
 
-	s, err := r.Create("v1")
+	s, err := r.Create("v1", Identity{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestSessionSendQueueFull(t *testing.T) {
 	r.queueSize = 2
 	defer r.Close()
 
-	s, err := r.Create("v1")
+	s, err := r.Create("v1", Identity{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -222,13 +222,13 @@ func TestSessionRegistryEnforcesMaxSessions(t *testing.T) {
 	r := newSessionRegistry(time.Minute, 0, 2)
 	defer r.Close()
 
-	if _, err := r.Create("v1"); err != nil {
+	if _, err := r.Create("v1", Identity{}); err != nil {
 		t.Fatalf("first Create: %v", err)
 	}
-	if _, err := r.Create("v1"); err != nil {
+	if _, err := r.Create("v1", Identity{}); err != nil {
 		t.Fatalf("second Create: %v", err)
 	}
-	_, err := r.Create("v1")
+	_, err := r.Create("v1", Identity{})
 	if !errors.Is(err, errSessionLimitReached) {
 		t.Fatalf("third Create: err=%v, want errSessionLimitReached", err)
 	}
@@ -244,7 +244,7 @@ func TestSessionRegistryMaxLifetimeEvictsEvenWhenTouched(t *testing.T) {
 	fakeNow := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	r.now = func() time.Time { return fakeNow }
 
-	s, err := r.Create("v1")
+	s, err := r.Create("v1", Identity{})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -272,7 +272,7 @@ func TestSessionRegistryNegativeMaxSessionsDisablesCap(t *testing.T) {
 	defer r.Close()
 
 	for i := range 10 {
-		if _, err := r.Create("v1"); err != nil {
+		if _, err := r.Create("v1", Identity{}); err != nil {
 			t.Fatalf("Create %d: %v", i, err)
 		}
 	}
