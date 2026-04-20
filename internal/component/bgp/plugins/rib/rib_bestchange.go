@@ -11,6 +11,7 @@ package rib
 
 import (
 	"net/netip"
+	"sync"
 
 	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
@@ -97,15 +98,21 @@ func (r bestPathRecord) IsEBGP() bool { return r&flagEBGP != 0 }
 // avoids the per-UPDATE log flood a saturated deployment would otherwise
 // produce while still surfacing the event once.
 //
-// Concurrency: NOT safe for concurrent use. Callers hold RIBManager.mu for
-// all intern* and reverse-lookup calls.
+// Concurrency: safe for concurrent use. Each reverse table (peers, nextHops,
+// metrics) is guarded by its own sync.RWMutex. Read paths (dedup-hit lookup,
+// reverse lookup) take RLock; mutation paths (first sighting of a value)
+// promote to Lock. The three locks are independent so unrelated tables do
+// not serialize against each other.
 type bestPrevInterner struct {
+	peersMu            sync.RWMutex
 	peers              []string
 	peerIdx            map[string]uint16
 	peersOverflowed    bool
+	nextHopsMu         sync.RWMutex
 	nextHops           []netip.Addr
 	nextHopIdx         map[netip.Addr]uint16
 	nextHopsOverflowed bool
+	metricsMu          sync.RWMutex
 	metrics            []uint32
 	metricIdx          map[uint32]uint16
 	metricsOverflowed  bool
@@ -128,6 +135,14 @@ func newBestPrevInterner() *bestPrevInterner {
 // the caller must treat that as a degraded record and not store it. The
 // first saturation logs an slog.Error; subsequent ones are silent.
 func (b *bestPrevInterner) internPeer(v string) (uint16, bool) {
+	b.peersMu.RLock()
+	idx, ok := b.peerIdx[v]
+	b.peersMu.RUnlock()
+	if ok {
+		return idx, true
+	}
+	b.peersMu.Lock()
+	defer b.peersMu.Unlock()
 	if idx, ok := b.peerIdx[v]; ok {
 		return idx, true
 	}
@@ -138,7 +153,7 @@ func (b *bestPrevInterner) internPeer(v string) (uint16, bool) {
 		}
 		return 0, false
 	}
-	idx := uint16(len(b.peers))
+	idx = uint16(len(b.peers))
 	b.peers = append(b.peers, v)
 	b.peerIdx[v] = idx
 	return idx, true
@@ -148,6 +163,14 @@ func (b *bestPrevInterner) internPeer(v string) (uint16, bool) {
 // The zero netip.Addr (invalid / absent next-hop) is interned like any other
 // value so resolve() round-trips it back to nextHopString("").
 func (b *bestPrevInterner) internNextHop(v netip.Addr) (uint16, bool) {
+	b.nextHopsMu.RLock()
+	idx, ok := b.nextHopIdx[v]
+	b.nextHopsMu.RUnlock()
+	if ok {
+		return idx, true
+	}
+	b.nextHopsMu.Lock()
+	defer b.nextHopsMu.Unlock()
 	if idx, ok := b.nextHopIdx[v]; ok {
 		return idx, true
 	}
@@ -158,7 +181,7 @@ func (b *bestPrevInterner) internNextHop(v netip.Addr) (uint16, bool) {
 		}
 		return 0, false
 	}
-	idx := uint16(len(b.nextHops))
+	idx = uint16(len(b.nextHops))
 	b.nextHops = append(b.nextHops, v)
 	b.nextHopIdx[v] = idx
 	return idx, true
@@ -166,6 +189,14 @@ func (b *bestPrevInterner) internNextHop(v netip.Addr) (uint16, bool) {
 
 // internMetric returns the uint16 index for v; see internPeer for contract.
 func (b *bestPrevInterner) internMetric(v uint32) (uint16, bool) {
+	b.metricsMu.RLock()
+	idx, ok := b.metricIdx[v]
+	b.metricsMu.RUnlock()
+	if ok {
+		return idx, true
+	}
+	b.metricsMu.Lock()
+	defer b.metricsMu.Unlock()
 	if idx, ok := b.metricIdx[v]; ok {
 		return idx, true
 	}
@@ -176,7 +207,7 @@ func (b *bestPrevInterner) internMetric(v uint32) (uint16, bool) {
 		}
 		return 0, false
 	}
-	idx := uint16(len(b.metrics))
+	idx = uint16(len(b.metrics))
 	b.metrics = append(b.metrics, v)
 	b.metricIdx[v] = idx
 	return idx, true
@@ -187,6 +218,8 @@ func (b *bestPrevInterner) internMetric(v uint32) (uint16, bool) {
 // comparison do not panic if an index from an older interner lifetime (or a
 // manually-constructed record in tests) outlives its backing table.
 func (b *bestPrevInterner) peerAt(idx uint16) string {
+	b.peersMu.RLock()
+	defer b.peersMu.RUnlock()
 	if int(idx) >= len(b.peers) {
 		return ""
 	}
@@ -196,6 +229,8 @@ func (b *bestPrevInterner) peerAt(idx uint16) string {
 // nextHopAt returns the original netip.Addr for idx, or the zero Addr if idx
 // is past the reverse-table bounds. See peerAt for rationale.
 func (b *bestPrevInterner) nextHopAt(idx uint16) netip.Addr {
+	b.nextHopsMu.RLock()
+	defer b.nextHopsMu.RUnlock()
 	if int(idx) >= len(b.nextHops) {
 		return netip.Addr{}
 	}
@@ -205,10 +240,27 @@ func (b *bestPrevInterner) nextHopAt(idx uint16) netip.Addr {
 // metricAt returns the original uint32 for idx, or 0 if idx is past the
 // reverse-table bounds. See peerAt for rationale.
 func (b *bestPrevInterner) metricAt(idx uint16) uint32 {
+	b.metricsMu.RLock()
+	defer b.metricsMu.RUnlock()
 	if int(idx) >= len(b.metrics) {
 		return 0
 	}
 	return b.metrics[idx]
+}
+
+// internerSize returns the current size of the named reverse table under its
+// own read lock. Used by updateMetrics.
+func (b *bestPrevInterner) internerSize() (peers, nextHops, metrics int) {
+	b.peersMu.RLock()
+	peers = len(b.peers)
+	b.peersMu.RUnlock()
+	b.nextHopsMu.RLock()
+	nextHops = len(b.nextHops)
+	b.nextHopsMu.RUnlock()
+	b.metricsMu.RLock()
+	metrics = len(b.metrics)
+	b.metricsMu.RUnlock()
+	return
 }
 
 // resolve materializes a bestChangeEntry from a packed record plus an action
@@ -427,7 +479,11 @@ func nextHopString(a netip.Addr) string {
 // no handle is available. Remove-induced withdrawals bypass forward
 // -- r.locRIB.Remove takes no handle because Remove carries no source
 // buffer by design (see design-rib-rs-fastpath.md).
-// Caller MUST hold r.mu (write lock).
+// Caller MUST hold r.mu (write lock). bestPrev now has its own per-shard
+// locking so this function itself does not acquire r.mu, but the internal
+// helpers gatherCandidates and bestCandidateNextHopAddr read r.ribInPool,
+// which is still protected by r.mu. The outer lock stays until those two
+// are made shard-aware in their own pass.
 //
 // Returns (entry, true) when a change occurred; (zero, false) when unchanged,
 // the NLRI is malformed, or an interner table is saturated. On saturation,
@@ -448,16 +504,29 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	candidates := r.gatherCandidates(fam, nlriBytes)
 	newBest := SelectBest(candidates)
 
-	prevStore := r.bestPrev[fam]
-	if prevStore == nil && newBest == nil {
+	// Parse prefix once so we can route to the owning shard. Malformed
+	// NLRI bails before touching any shard, regardless of newBest state
+	// -- we have no way to key the stored record without a prefix.
+	pathID, pfx, prefixOK := parsePrevKey(fam, nlriBytes, addPath)
+	if !prefixOK {
 		return bestChangeEntry{}, false
 	}
-	if prevStore == nil {
-		prevStore = newBestPrevStore(fam)
-		r.bestPrev[fam] = prevStore
-	}
 
-	prev, havePrev := prevStore.lookup(fam, nlriBytes, addPath)
+	// Skip family creation if there is nothing to record AND no previous
+	// state could exist for this family.
+	fs := r.bestPrev.familyShards(fam, false)
+	if fs == nil && newBest == nil {
+		return bestChangeEntry{}, false
+	}
+	if fs == nil {
+		fs = r.bestPrev.familyShards(fam, true)
+	}
+	sh := fs.shardFor(pfx)
+
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+
+	prev, havePrev := sh.store.lookup(fam, nlriBytes, addPath)
 
 	if newBest == nil {
 		// No candidates remain -- withdraw if we had a previous best.
@@ -468,13 +537,11 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		if prefix == "" {
 			return bestChangeEntry{}, false
 		}
-		prevStore.delete(fam, nlriBytes, addPath)
+		sh.store.delete(fam, nlriBytes, addPath)
 		// Mirror the withdrawal into the shared Loc-RIB so non-BGP
 		// consumers see one consistent view across protocols.
 		if r.locRIB != nil {
-			if pathID, pfx, ok := parsePrevKey(fam, nlriBytes, addPath); ok {
-				r.locRIB.Remove(fam, pfx, bgpProtocolID, pathID)
-			}
+			r.locRIB.Remove(fam, pfx, bgpProtocolID, pathID)
 		}
 		return bestChangeEntry{
 			Action: ribevents.BestChangeWithdraw,
@@ -527,23 +594,21 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	}
 	newRec := packBestPath(metricIdx, peerIdx, nhIdx, flags)
 
-	prevStore.insert(fam, nlriBytes, addPath, newRec)
+	sh.store.insert(fam, nlriBytes, addPath, newRec)
 	// Mirror into the shared Loc-RIB. AdminDistance follows the classical
 	// Cisco/Juniper defaults (eBGP=20, iBGP=200); Metric carries MED.
 	if r.locRIB != nil {
-		if pathID, pfx, ok := parsePrevKey(fam, nlriBytes, addPath); ok {
-			distance := uint8(200) // iBGP
-			if isEBGP {
-				distance = 20
-			}
-			r.locRIB.InsertForward(fam, pfx, locrib.Path{
-				Source:        bgpProtocolID,
-				Instance:      pathID,
-				NextHop:       nextHop,
-				AdminDistance: distance,
-				Metric:        newBest.MED,
-			}, forward)
+		distance := uint8(200) // iBGP
+		if isEBGP {
+			distance = 20
 		}
+		r.locRIB.InsertForward(fam, pfx, locrib.Path{
+			Source:        bgpProtocolID,
+			Instance:      pathID,
+			NextHop:       nextHop,
+			AdminDistance: distance,
+			Metric:        newBest.MED,
+		}, forward)
 	}
 	action := ribevents.BestChangeAdd
 	if havePrev {
@@ -656,42 +721,55 @@ func (r *RIBManager) replayBestPaths() {
 		return
 	}
 
-	r.mu.RLock()
-	changesByFamily := make(map[string][]bestChangeEntry, len(r.bestPrev))
-	for fam, prevStore := range r.bestPrev {
+	families := r.bestPrev.familyList()
+	changesByFamily := make(map[string][]bestChangeEntry, len(families))
+	for _, fam := range families {
+		fs := r.bestPrev.familyShards(fam, false)
+		if fs == nil {
+			continue
+		}
 		famStr := fam.String()
-		// Replay is a cold path fired on late-subscriber replay-request.
-		// Count AP entries (one per path-id) before allocating so a 1M-entry
-		// family commits one allocation instead of paying multiple geometric-
-		// growth cycles. Upfront commitment is acceptable because the batch is
-		// emitted and released in the same function; GC reclaims immediately.
-		apCount := 0
-		prevStore.multi.Iterate(func(_ netip.Prefix, ps bestPrevSet) bool {
-			apCount += len(ps.entries)
-			return true
-		})
-		changes := make([]bestChangeEntry, 0, prevStore.direct.Len()+apCount)
+		// Sum direct + AP counts under each shard's read lock so the batch
+		// preallocation is sized correctly. Replay is a cold path fired on
+		// late-subscriber replay-request; the per-shard read locks are held
+		// briefly in series.
+		total := 0
+		for i := range fs.shards {
+			sh := &fs.shards[i]
+			sh.mu.RLock()
+			total += sh.store.direct.Len()
+			sh.store.multi.Iterate(func(_ netip.Prefix, ps bestPrevSet) bool {
+				total += len(ps.entries)
+				return true
+			})
+			sh.mu.RUnlock()
+		}
+		changes := make([]bestChangeEntry, 0, total)
 		appendRec := func(rec bestPathRecord, prefix string) {
 			if prefix == "" {
 				return
 			}
 			changes = append(changes, rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, prefix))
 		}
-		prevStore.direct.Iterate(func(pfx netip.Prefix, rec bestPathRecord) bool {
-			appendRec(rec, pfx.String())
-			return true
-		})
-		prevStore.multi.Iterate(func(pfx netip.Prefix, ps bestPrevSet) bool {
-			for i := range ps.entries {
-				appendRec(ps.entries[i].rec, pfx.String())
-			}
-			return true
-		})
+		for i := range fs.shards {
+			sh := &fs.shards[i]
+			sh.mu.RLock()
+			sh.store.direct.Iterate(func(pfx netip.Prefix, rec bestPathRecord) bool {
+				appendRec(rec, pfx.String())
+				return true
+			})
+			sh.store.multi.Iterate(func(pfx netip.Prefix, ps bestPrevSet) bool {
+				for i := range ps.entries {
+					appendRec(ps.entries[i].rec, pfx.String())
+				}
+				return true
+			})
+			sh.mu.RUnlock()
+		}
 		if len(changes) > 0 {
 			changesByFamily[famStr] = changes
 		}
 	}
-	r.mu.RUnlock()
 
 	for famName, changes := range changesByFamily {
 		batch := &bestChangeBatch{

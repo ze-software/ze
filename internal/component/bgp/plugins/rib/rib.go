@@ -22,6 +22,7 @@ import (
 	"log/slog"
 	"net"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -33,7 +34,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
@@ -111,6 +111,11 @@ type ribMetrics struct {
 	// metrics). Operators can alert on approach to the uint16 cap (65536);
 	// realistic deployments sit in the tens to low hundreds per table.
 	bestpathInternerSize metrics.GaugeVec // labels: table
+
+	// Per-shard depth of the bestPrev sharded store. One series per
+	// (family, shard); useful for confirming hash distribution and for
+	// alerting on a hot shard that does not balance with the others.
+	bestprevShardDepth metrics.GaugeVec // labels: family, shard
 }
 
 // metricsPtr stores RIB metrics gauges, set by SetMetricsRegistry.
@@ -136,9 +141,16 @@ func SetMetricsRegistry(reg metrics.Registry) {
 		bestpathInternerSize: reg.GaugeVec("ze_rib_bestpath_interner_size",
 			"Best-path interner reverse-table entry count (cap 65536 per table).",
 			[]string{"table"}),
+
+		bestprevShardDepth: reg.GaugeVec("ze_rib_bestprev_shard_depth",
+			"Number of stored bestPathRecords per (family, shard).",
+			[]string{"family", "shard"}),
 	}
 	metricsPtr.Store(m)
 }
+
+// bestprevShardLabel formats a bestPrev shard index for the metric label.
+func bestprevShardLabel(idx int) string { return strconv.Itoa(idx) }
 
 // poolNameEntry maps a pool variable to its Prometheus label name.
 type poolNameEntry struct {
@@ -220,18 +232,19 @@ type RIBManager struct {
 	grState map[string]*peerGRState
 
 	// bestPrev tracks the previous best-path per (family, prefix) for change
-	// detection. Each family holds a bestPrevStore pairing a BART-backed trie
-	// (non-ADD-PATH peers) with a map-backed store (ADD-PATH peers), so a
-	// family can host peers with mixed ADD-PATH capability without key
-	// collision. Used by checkBestPathChange after each insert/remove.
-	bestPrev map[family.Family]*bestPrevStore
+	// detection. Sharded by prefix: each family is split across N shards
+	// (default GOMAXPROCS, ze.bgp.rib.bestprev.shards override), each with
+	// its own bestPrevStore and write lock. checkBestPathChange takes only
+	// the owning shard's lock. NOT protected by r.mu.
+	bestPrev *bestPrevShards
 
 	// bestPathInterner dedupes peer address, next-hop, and MED values across
 	// every family's bestPrevStore into uint16 reverse-table indices that are
 	// packed into the stored bestPathRecord. Shared, not per-family, because
 	// realistic deployments use <10^4 unique values per attribute type and
 	// sharing amortizes the dedup maps across hundreds of peers/families.
-	// Protected by r.mu (same lock as bestPrev).
+	// Owns its own per-table sync.RWMutex; safe for concurrent use without
+	// any outer lock.
 	bestPathInterner *bestPrevInterner
 
 	// locRIB holds a reference to the cross-protocol unified Loc-RIB
@@ -270,6 +283,13 @@ type RIBManager struct {
 	// get their GaugeVec label deleted, preventing stale Prometheus series.
 	lastMetricsInPeers  map[string]bool
 	lastMetricsOutPeers map[string]bool
+
+	// lastMetricsBestprev tracks (family, shard) label pairs emitted in
+	// the previous cycle so ze_rib_bestprev_shard_depth series for
+	// vanished combos are actively deleted rather than left stale. Keyed
+	// on a struct so family strings containing separator characters
+	// cannot confuse the split on delete.
+	lastMetricsBestprev map[bestprevLabelKey]bool
 }
 
 // runMetricsLoop periodically updates RIB route count gauges.
@@ -320,16 +340,15 @@ func (r *RIBManager) updateMetrics() {
 		totalOut += count
 	}
 
-	// Best-path interner occupancy. Read under the same RLock as bestPrev
-	// so the snapshot is consistent with the stored record indices.
+	r.mu.RUnlock()
+
+	// Best-path interner occupancy. Read outside r.mu via the interner's
+	// own per-table locks; the snapshot is point-in-time but stable because
+	// reverse tables are append-only (indices never shrink).
 	var internerPeers, internerNextHops, internerMetrics int
 	if r.bestPathInterner != nil {
-		internerPeers = len(r.bestPathInterner.peers)
-		internerNextHops = len(r.bestPathInterner.nextHops)
-		internerMetrics = len(r.bestPathInterner.metrics)
+		internerPeers, internerNextHops, internerMetrics = r.bestPathInterner.internerSize()
 	}
-
-	r.mu.RUnlock()
 
 	// Delete stale peer labels (peers removed since last cycle)
 	for peer := range r.lastMetricsInPeers {
@@ -351,6 +370,31 @@ func (r *RIBManager) updateMetrics() {
 	m.bestpathInternerSize.With("peers").Set(float64(internerPeers))
 	m.bestpathInternerSize.With("nexthops").Set(float64(internerNextHops))
 	m.bestpathInternerSize.With("metrics").Set(float64(internerMetrics))
+
+	// Per-shard depth of the bestPrev sharded store. Walks every family
+	// and every shard under per-shard read locks. Track emitted label
+	// combos so (family, shard) series for a vanished family are deleted
+	// rather than left stale at their last value. Single-goroutine
+	// invariant: updateMetrics is only called from runMetricsLoop, so
+	// r.lastMetricsBestprev needs no mutex.
+	currentBestprev := make(map[bestprevLabelKey]bool)
+	if r.bestPrev != nil {
+		for _, fam := range r.bestPrev.familyList() {
+			depths := r.bestPrev.shardDepth(fam)
+			famStr := fam.String()
+			for shardIdx, depth := range depths {
+				shardStr := bestprevShardLabel(shardIdx)
+				m.bestprevShardDepth.With(famStr, shardStr).Set(float64(depth))
+				currentBestprev[bestprevLabelKey{family: famStr, shard: shardStr}] = true
+			}
+		}
+	}
+	for key := range r.lastMetricsBestprev {
+		if !currentBestprev[key] {
+			m.bestprevShardDepth.Delete(key.family, key.shard)
+		}
+	}
+	r.lastMetricsBestprev = currentBestprev
 
 	// Attribute pool dedup metrics (polled from atomic counters)
 	for _, entry := range poolNames() {
@@ -407,7 +451,7 @@ func NewRIBManager(plugin *sdk.Plugin) *RIBManager {
 		peerMeta:         make(map[string]*PeerMeta),
 		retainedPeers:    make(map[string]bool),
 		grState:          make(map[string]*peerGRState),
-		bestPrev:         make(map[family.Family]*bestPrevStore),
+		bestPrev:         newBestPrevShards(),
 		bestPathInterner: newBestPrevInterner(),
 	}
 	r.maximumPaths.Store(1)

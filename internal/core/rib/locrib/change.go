@@ -101,30 +101,46 @@ type subEntry struct {
 	fn ChangeHandler
 }
 
-// subscribe appends fn and returns a function that removes it.
-func (s *subscriberList) subscribe(fn ChangeHandler, id uint64) func() {
+// appendEntry installs e as the last subscriber. Idempotent: an entry whose
+// id is already present is not re-appended. Used by RIB.OnChange to replicate
+// a registration across every shard's subscriber list.
+func (s *subscriberList) appendEntry(e subEntry) {
 	s.muSubs.Lock()
 	defer s.muSubs.Unlock()
-
 	cur := s.load()
+	for _, c := range cur {
+		if c.id == e.id {
+			return
+		}
+	}
 	next := make([]subEntry, len(cur), len(cur)+1)
 	copy(next, cur)
-	next = append(next, subEntry{id: id, fn: fn})
+	next = append(next, e)
 	s.list.Store(&next)
+}
 
-	return func() {
-		s.muSubs.Lock()
-		defer s.muSubs.Unlock()
-		cur := s.load()
-		next := make([]subEntry, 0, len(cur))
-		for _, e := range cur {
-			if e.id == id {
-				continue
-			}
-			next = append(next, e)
+// removeID drops the entry whose id matches. No-op when absent.
+func (s *subscriberList) removeID(id uint64) {
+	s.muSubs.Lock()
+	defer s.muSubs.Unlock()
+	cur := s.load()
+	next := make([]subEntry, 0, len(cur))
+	for _, e := range cur {
+		if e.id == id {
+			continue
 		}
-		s.list.Store(&next)
+		next = append(next, e)
 	}
+	s.list.Store(&next)
+}
+
+// replace seeds the list with entries (used when a new shard inherits the
+// RIB's current subscriber template). Must be called before the shard is
+// reachable from any concurrent dispatch path.
+func (s *subscriberList) replace(entries []subEntry) {
+	next := make([]subEntry, len(entries))
+	copy(next, entries)
+	s.list.Store(&next)
 }
 
 // dispatch fires every handler with c. Runs under the RIB's write lock.
