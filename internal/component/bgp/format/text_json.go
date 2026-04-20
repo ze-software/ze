@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // appendFilterResultJSON appends FilterResult as JSON to buf (ze-bgp JSON).
@@ -125,19 +126,19 @@ type familyOperation struct {
 func appendFamiliesJSON(buf []byte, announced, withdrawn []bgpfilter.FamilyNLRI) []byte {
 	// Stack-local scan array: typical UPDATE has ≤2 families; 8 covers every
 	// case we see in production while keeping the array on the stack.
-	var seenScratch [8]string
+	var seenScratch [8]family.Family
 	seen := seenScratch[:0]
 
-	contains := func(s string) bool {
-		return slices.Contains(seen, s)
+	contains := func(f family.Family) bool {
+		return slices.Contains(seen, f)
 	}
 
-	writeFamily := func(buf []byte, fam string, isFirst bool) []byte {
+	writeFamily := func(buf []byte, fam family.Family, isFirst bool) []byte {
 		if !isFirst {
 			buf = append(buf, ',')
 		}
 		buf = append(buf, '"')
-		buf = append(buf, fam...)
+		buf = fam.AppendTo(buf)
 		buf = append(buf, `":[`...)
 		opFirst := true
 		// Emit all announced ops for this family (action=add).
@@ -225,7 +226,7 @@ func appendFamiliesJSON(buf []byte, announced, withdrawn []bgpfilter.FamilyNLRI)
 // RFC 7432: EVPN NLRI includes route-type, ESI, etc.
 // RFC 8277: Labeled Unicast NLRI includes labels.
 // RFC 8955: FlowSpec NLRI includes match components.
-func appendNLRIJSONValue(buf []byte, n nlri.NLRI, familyStr string) []byte {
+func appendNLRIJSONValue(buf []byte, n nlri.NLRI, fam family.Family) []byte {
 	// Fast path: concrete in-process NLRI types implement nlri.JSONAppender and
 	// write their JSON directly, skipping wire encode + hex + re-parse + map.
 	if w, ok := n.(nlri.JSONAppender); ok {
@@ -233,6 +234,8 @@ func appendNLRIJSONValue(buf []byte, n nlri.NLRI, familyStr string) []byte {
 	}
 
 	// Fallback: external plugins over RPC. Wire-encode, hex, dispatch via registry.
+	// Registry APIs are string-keyed; stringify the typed family once at this boundary.
+	familyStr := fam.String()
 	if registry.PluginForFamily(familyStr) != "" {
 		hexData := hex.EncodeToString(n.Bytes())
 		decoded, err := registry.DecodeNLRIByFamily(familyStr, hexData)
@@ -306,6 +309,8 @@ func appendAttributesJSON(buf []byte, result bgpfilter.FilterResult) []byte {
 
 // appendFamilyOpsJSON appends family operations as JSON object entries.
 // Shared by appendFilterResultJSON and FormatDecodeUpdateJSON.
+// Map is keyed by canonical family string ("ipv4/unicast"); values are typed
+// family.Family for downstream registry dispatch without re-parse.
 func appendFamilyOpsJSON(buf []byte, familyOps map[string][]familyOperation) []byte {
 	first := true
 	for fam, ops := range familyOps {
@@ -316,6 +321,10 @@ func appendFamilyOpsJSON(buf []byte, familyOps map[string][]familyOperation) []b
 		buf = append(buf, '"')
 		buf = append(buf, fam...)
 		buf = append(buf, `":[`...)
+		// Registered families resolve to a typed Family; unknown name yields
+		// the zero value, which makes appendNLRIJSONValue's registry lookup miss
+		// and fall through to generic wire-encoding paths.
+		famTyped, _ := family.LookupFamily(fam)
 		for i, op := range ops {
 			if i > 0 {
 				buf = append(buf, ',')
@@ -333,7 +342,7 @@ func appendFamilyOpsJSON(buf []byte, familyOps map[string][]familyOperation) []b
 				if j > 0 {
 					buf = append(buf, ',')
 				}
-				buf = appendNLRIJSONValue(buf, n, fam)
+				buf = appendNLRIJSONValue(buf, n, famTyped)
 			}
 			buf = append(buf, `]}`...)
 		}

@@ -616,13 +616,13 @@ func TestFilterResultBothNextHops(t *testing.T) {
 	// Find IPv4 and IPv6 families
 	var gotIPv4, gotIPv6 bool
 	for _, fam := range announced {
-		if fam.Family == "ipv4/unicast" {
+		if fam.Family == family.IPv4Unicast {
 			gotIPv4 = true
 			if fam.NextHop.String() != "10.0.0.1" {
 				t.Errorf("IPv4 NextHop = %v, want 10.0.0.1", fam.NextHop)
 			}
 		}
-		if fam.Family == "ipv6/unicast" {
+		if fam.Family == family.IPv6Unicast {
 			gotIPv6 = true
 			if fam.NextHop.String() != "2001:db8::1" {
 				t.Errorf("IPv6 NextHop = %v, want 2001:db8::1", fam.NextHop)

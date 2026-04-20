@@ -7,6 +7,7 @@ import (
 
 	bgpfilter "codeberg.org/thomas-mangin/ze/internal/component/bgp/filter"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // FormatDecodeUpdateJSON formats a FilterResult as ze-bgp JSON for the decode-update RPC.
@@ -89,15 +90,15 @@ func FormatNLRIsAsJSON(nlris []nlri.NLRI) json.RawMessage {
 	var scratch [512]byte
 	buf := scratch[:0]
 	buf = append(buf, '[')
-	var familyStr string
+	var fam family.Family
 	if len(nlris) > 0 {
-		familyStr = nlris[0].Family().String()
+		fam = nlris[0].Family()
 	}
 	for i, n := range nlris {
 		if i > 0 {
 			buf = append(buf, ',')
 		}
-		buf = appendNLRIJSONValue(buf, n, familyStr)
+		buf = appendNLRIJSONValue(buf, n, fam)
 	}
 	buf = append(buf, ']')
 	result := make([]byte, len(buf))

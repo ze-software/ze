@@ -1215,7 +1215,7 @@ func TestJSONEncoderRDTypes(t *testing.T) {
 
 			// Format using formatNLRIJSONValue (registry-based decode)
 			var sb strings.Builder
-			sb.Write(appendNLRIJSONValue(nil, vpnNLRI, vpnNLRI.Family().String()))
+			sb.Write(appendNLRIJSONValue(nil, vpnNLRI, vpnNLRI.Family()))
 			output := sb.String()
 
 			// Verify RD in JSON output
@@ -1255,7 +1255,7 @@ func TestJSONEncoderEVPN(t *testing.T) {
 
 	// Format using formatNLRIJSONValue (registry-based decode)
 	var sb strings.Builder
-	sb.Write(appendNLRIJSONValue(nil, evpnNLRI, evpnNLRI.Family().String()))
+	sb.Write(appendNLRIJSONValue(nil, evpnNLRI, evpnNLRI.Family()))
 	output := sb.String()
 
 	// Verify all fields (plugin decode format: array with code/name/parsed/raw fields)
@@ -1361,7 +1361,7 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 
 			// Format using formatNLRIJSONValue (routes through registry decoder)
 			var sb strings.Builder
-			sb.Write(appendNLRIJSONValue(nil, lu, lu.Family().String()))
+			sb.Write(appendNLRIJSONValue(nil, lu, lu.Family()))
 			output := sb.String()
 
 			// Verify prefix
@@ -1511,7 +1511,7 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 
 			// Format using formatNLRIJSONValue (registry-based decode)
 			var sb strings.Builder
-			sb.Write(appendNLRIJSONValue(nil, vpnNLRI, vpnNLRI.Family().String()))
+			sb.Write(appendNLRIJSONValue(nil, vpnNLRI, vpnNLRI.Family()))
 			output := sb.String()
 
 			// Verify prefix
@@ -1602,7 +1602,7 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 
 			// Format using formatNLRIJSONValue (registry-based decode)
 			var sb strings.Builder
-			sb.Write(appendNLRIJSONValue(nil, fsv, fsv.Family().String()))
+			sb.Write(appendNLRIJSONValue(nil, fsv, fsv.Family()))
 			output := sb.String()
 
 			// Verify RD with type prefix

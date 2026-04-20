@@ -48,7 +48,7 @@ func appendFilterResultText(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 		buf = append(buf, ' ')
 		buf = fam.NextHop.AppendTo(buf)
 		buf = append(buf, " nlri "...)
-		buf = append(buf, fam.Family...)
+		buf = fam.Family.AppendTo(buf)
 		buf = append(buf, " add "...)
 		buf = appendNLRIList(buf, fam.NLRIs)
 	}
@@ -56,7 +56,7 @@ func appendFilterResultText(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 	// Withdrawn routes: nlri <fam> del <nlri>[,<nlri>]...
 	for _, fam := range withdrawn {
 		buf = append(buf, " nlri "...)
-		buf = append(buf, fam.Family...)
+		buf = fam.Family.AppendTo(buf)
 		buf = append(buf, " del "...)
 		buf = appendNLRIList(buf, fam.NLRIs)
 	}
