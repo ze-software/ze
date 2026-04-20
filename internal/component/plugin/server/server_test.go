@@ -356,8 +356,8 @@ func TestCapabilitiesFromRPC(t *testing.T) {
 
 	input := &rpc.DeclareCapabilitiesInput{
 		Capabilities: []rpc.CapabilityDecl{
-			{Code: 73, Encoding: "text", Payload: "router.example.com"},
-			{Code: 64, Encoding: "hex", Payload: "0078", Peers: []string{"192.168.1.1"}},
+			{Code: 73, Encoding: rpc.CapEncodingText, Payload: "router.example.com"},
+			{Code: 64, Encoding: rpc.CapEncodingHex, Payload: "0078", Peers: []string{"192.168.1.1"}},
 		},
 	}
 
@@ -367,12 +367,12 @@ func TestCapabilitiesFromRPC(t *testing.T) {
 	require.Len(t, caps.Capabilities, 2)
 
 	assert.Equal(t, uint8(73), caps.Capabilities[0].Code)
-	assert.Equal(t, "text", caps.Capabilities[0].Encoding)
+	assert.Equal(t, rpc.CapEncodingText, caps.Capabilities[0].Encoding)
 	assert.Equal(t, "router.example.com", caps.Capabilities[0].Payload)
 	assert.Empty(t, caps.Capabilities[0].Peers)
 
 	assert.Equal(t, uint8(64), caps.Capabilities[1].Code)
-	assert.Equal(t, "hex", caps.Capabilities[1].Encoding)
+	assert.Equal(t, rpc.CapEncodingHex, caps.Capabilities[1].Encoding)
 	assert.Equal(t, "0078", caps.Capabilities[1].Payload)
 	assert.Equal(t, []string{"192.168.1.1"}, caps.Capabilities[1].Peers)
 }
@@ -465,7 +465,7 @@ func TestCapabilitiesFromRPCEdgeCases(t *testing.T) {
 		// Empty payload is valid (e.g., RFC 2918 route-refresh)
 		input := &rpc.DeclareCapabilitiesInput{
 			Capabilities: []rpc.CapabilityDecl{
-				{Code: 2, Encoding: "text", Payload: ""},
+				{Code: 2, Encoding: rpc.CapEncodingText, Payload: ""},
 			},
 		}
 		caps := capabilitiesFromRPC(input)

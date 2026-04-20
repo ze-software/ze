@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // TestConflictDetection verifies command/capability conflict detection.
@@ -43,7 +45,7 @@ func TestCapabilityConflictDetection(t *testing.T) {
 	caps1 := &PluginCapabilities{
 		PluginName: "plugin1",
 		Capabilities: []PluginCapability{
-			{Code: 73, Encoding: "b64", Payload: "dGVzdA=="},
+			{Code: 73, Encoding: rpc.CapEncodingBase64, Payload: "dGVzdA=="},
 		},
 	}
 	require.NoError(t, reg.RegisterCapabilities(caps1))
@@ -52,7 +54,7 @@ func TestCapabilityConflictDetection(t *testing.T) {
 	caps2 := &PluginCapabilities{
 		PluginName: "plugin2",
 		Capabilities: []PluginCapability{
-			{Code: 73, Encoding: "b64", Payload: "b3RoZXI="},
+			{Code: 73, Encoding: rpc.CapEncodingBase64, Payload: "b3RoZXI="},
 		},
 	}
 	err := reg.RegisterCapabilities(caps2)
@@ -128,17 +130,17 @@ func TestFilterDeclarationParse(t *testing.T) {
 		Filters: []FilterRegistration{
 			{
 				Name:       "validate",
-				Direction:  "import",
+				Direction:  rpc.FilterImport,
 				Attributes: []string{"as-path", "origin"},
 				NLRI:       true,
-				OnError:    "reject",
+				OnError:    rpc.OnErrorReject,
 			},
 			{
 				Name:       "log",
-				Direction:  "both",
+				Direction:  rpc.FilterBoth,
 				Attributes: []string{"as-path", "community"},
 				NLRI:       true,
-				OnError:    "accept",
+				OnError:    rpc.OnErrorAccept,
 			},
 		},
 	}
@@ -148,19 +150,19 @@ func TestFilterDeclarationParse(t *testing.T) {
 	// First filter: validate (import only)
 	f0 := reg.Filters[0]
 	assert.Equal(t, "validate", f0.Name)
-	assert.Equal(t, "import", f0.Direction)
+	assert.Equal(t, rpc.FilterImport, f0.Direction)
 	assert.Equal(t, []string{"as-path", "origin"}, f0.Attributes)
 	assert.True(t, f0.NLRI)
 	assert.False(t, f0.Raw)
-	assert.Equal(t, "reject", f0.OnError)
+	assert.Equal(t, rpc.OnErrorReject, f0.OnError)
 	assert.Empty(t, f0.Overrides)
 
 	// Second filter: log (both directions)
 	f1 := reg.Filters[1]
 	assert.Equal(t, "log", f1.Name)
-	assert.Equal(t, "both", f1.Direction)
+	assert.Equal(t, rpc.FilterBoth, f1.Direction)
 	assert.Equal(t, []string{"as-path", "community"}, f1.Attributes)
-	assert.Equal(t, "accept", f1.OnError)
+	assert.Equal(t, rpc.OnErrorAccept, f1.OnError)
 }
 
 // TestFilterDeclarationWithOverrides verifies override declarations.
@@ -173,9 +175,9 @@ func TestFilterDeclarationWithOverrides(t *testing.T) {
 		Filters: []FilterRegistration{
 			{
 				Name:       "relaxed",
-				Direction:  "import",
+				Direction:  rpc.FilterImport,
 				Attributes: []string{"as-path"},
-				OnError:    "accept",
+				OnError:    rpc.OnErrorAccept,
 				Overrides:  []string{"rfc:no-self-as"},
 			},
 		},

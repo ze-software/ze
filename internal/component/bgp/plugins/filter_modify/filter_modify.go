@@ -31,11 +31,6 @@ import (
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
-const (
-	filterActionModify = "modify"
-	filterActionReject = "reject"
-)
-
 var logger = slogutil.LazyLogger("bgp.filter.modify")
 
 // defsByName is the runtime-loaded set of modify definitions.
@@ -88,15 +83,15 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	defsP := defsByName.Load()
 	if defsP == nil {
 		logger().Warn("filter-update before configure", "filter", in.Filter, "peer", in.Peer)
-		return &sdk.FilterUpdateOutput{Action: filterActionReject}
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 	defs := *defsP
 	def, ok := defs[in.Filter]
 	if !ok {
 		logger().Warn("unknown modify", "filter", in.Filter, "peer", in.Peer)
-		return &sdk.FilterUpdateOutput{Action: filterActionReject}
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
 	logger().Info("modify apply", "filter", in.Filter, "peer", in.Peer, "delta", def.delta)
-	return &sdk.FilterUpdateOutput{Action: filterActionModify, Update: def.delta}
+	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: def.delta}
 }

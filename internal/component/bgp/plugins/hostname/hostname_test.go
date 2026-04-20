@@ -76,7 +76,7 @@ func TestExtractHostnameCapabilities(t *testing.T) {
 			if tt.wantCount > 0 {
 				cap := caps[0]
 				assert.Equal(t, uint8(73), cap.Code)
-				assert.Equal(t, "hex", cap.Encoding)
+				assert.Equal(t, sdk.CapEncodingHex, cap.Encoding)
 				assert.NotEmpty(t, cap.Payload)
 				assert.Len(t, cap.Peers, 1)
 

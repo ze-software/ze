@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // TestConfigTreeStructure verifies the config tree format plugins receive.
@@ -187,7 +188,7 @@ func TestHostnamePluginCapabilityInjection(t *testing.T) {
 		Capabilities: []plugin.PluginCapability{
 			{
 				Code:     73,
-				Encoding: "hex",
+				Encoding: rpc.CapEncodingHex,
 				Payload:  "0C6D792D686F73742D6E616D65126D792D646F6D61696E2D6E616D652E636F6D",
 				Peers:    []string{"127.0.0.1"},
 			},
@@ -224,7 +225,7 @@ func TestPerPeerCapabilityParsing(t *testing.T) {
 			name: "with_peer",
 			cap: plugin.PluginCapability{
 				Code:     73,
-				Encoding: "hex",
+				Encoding: rpc.CapEncodingHex,
 				Payload:  "0474657374",
 				Peers:    []string{"192.168.1.1"},
 			},
@@ -235,7 +236,7 @@ func TestPerPeerCapabilityParsing(t *testing.T) {
 			name: "global_no_peer",
 			cap: plugin.PluginCapability{
 				Code:     2,
-				Encoding: "hex",
+				Encoding: rpc.CapEncodingHex,
 				Payload:  "01",
 			},
 			wantCode: 2,

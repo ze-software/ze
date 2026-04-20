@@ -30,11 +30,6 @@ import (
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
-const (
-	filterActionAccept = "accept"
-	filterActionReject = "reject"
-)
-
 var logger = slogutil.LazyLogger("bgp.filter.community.match")
 
 // listsByName is the runtime-loaded set of community-match definitions.
@@ -85,22 +80,22 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	listsP := listsByName.Load()
 	if listsP == nil {
 		logger().Warn("filter-update before configure", "filter", in.Filter, "peer", in.Peer)
-		return &sdk.FilterUpdateOutput{Action: filterActionReject}
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 	lists := *listsP
 	list, ok := lists[in.Filter]
 	if !ok {
 		logger().Warn("unknown community-match", "filter", in.Filter, "peer", in.Peer)
-		return &sdk.FilterUpdateOutput{Action: filterActionReject}
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
 	result := evaluateCommunities(list.entries, in.Update)
 
 	if result == actionAccept {
 		logger().Info("community-match accept", "filter", in.Filter, "peer", in.Peer)
-		return &sdk.FilterUpdateOutput{Action: filterActionAccept}
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
 	}
 
 	logger().Info("community-match reject", "filter", in.Filter, "peer", in.Peer)
-	return &sdk.FilterUpdateOutput{Action: filterActionReject}
+	return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 }

@@ -429,7 +429,7 @@ func TestSDKCapabilities(t *testing.T) {
 	}
 
 	caps := []CapabilityDecl{
-		{Code: 64, Encoding: "hex", Payload: "0001"},
+		{Code: 64, Encoding: CapEncodingHex, Payload: "0001"},
 	}
 	p.SetCapabilities(caps)
 
@@ -460,7 +460,7 @@ func TestSDKCapabilities(t *testing.T) {
 	require.NoError(t, json.Unmarshal(req.Params, &capsInput))
 	require.Len(t, capsInput.Capabilities, 1)
 	assert.Equal(t, uint8(64), capsInput.Capabilities[0].Code)
-	assert.Equal(t, "hex", capsInput.Capabilities[0].Encoding)
+	assert.Equal(t, CapEncodingHex, capsInput.Capabilities[0].Encoding)
 	assert.Equal(t, "0001", capsInput.Capabilities[0].Payload)
 
 	require.NoError(t, engine.mux.SendOK(ctx, req.ID))

@@ -93,3 +93,46 @@ type FilterUpdateInput = rpc.FilterUpdateInput
 
 // FilterUpdateOutput is the output for filter-update (runtime callback).
 type FilterUpdateOutput = rpc.FilterUpdateOutput
+
+// FilterAction is the typed wire decision for a filter-update response.
+type FilterAction = rpc.FilterAction
+
+// FilterAction values: wire form is "accept", "reject", "modify".
+const (
+	FilterUnspecified = rpc.FilterUnspecified
+	FilterAccept      = rpc.FilterAccept
+	FilterReject      = rpc.FilterReject
+	FilterModify      = rpc.FilterModify
+)
+
+// FilterDirection is the typed wire direction for a FilterDecl.
+type FilterDirection = rpc.FilterDirection
+
+// FilterDirection values: wire form is "import", "export", "both".
+const (
+	FilterDirectionUnspecified = rpc.FilterDirectionUnspecified
+	FilterImport               = rpc.FilterImport
+	FilterExport               = rpc.FilterExport
+	FilterBoth                 = rpc.FilterBoth
+)
+
+// OnErrorPolicy is the typed failure policy for a FilterDecl.
+type OnErrorPolicy = rpc.OnErrorPolicy
+
+// OnErrorPolicy values: wire form is "reject", "accept".
+const (
+	OnErrorUnspecified = rpc.OnErrorUnspecified
+	OnErrorReject      = rpc.OnErrorReject
+	OnErrorAccept      = rpc.OnErrorAccept
+)
+
+// CapEncoding is the typed payload encoding for a CapabilityDecl.
+type CapEncoding = rpc.CapEncoding
+
+// CapEncoding values: wire form is "hex", "b64", "text".
+const (
+	CapEncodingUnspecified = rpc.CapEncodingUnspecified
+	CapEncodingHex         = rpc.CapEncodingHex
+	CapEncodingBase64      = rpc.CapEncodingBase64
+	CapEncodingText        = rpc.CapEncodingText
+)

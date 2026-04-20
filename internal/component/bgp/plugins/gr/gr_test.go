@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 // TestExtractGRCapabilities_ParseBGPConfig verifies JSON config parsing.
@@ -91,7 +93,7 @@ func TestExtractGRCapabilities_ParseBGPConfig(t *testing.T) {
 				require.Len(t, caps, 1, "should return exactly one capability")
 				cap := caps[0]
 				assert.Equal(t, uint8(64), cap.Code, "capability code must be 64 (GR)")
-				assert.Equal(t, "hex", cap.Encoding, "encoding must be hex")
+				assert.Equal(t, sdk.CapEncodingHex, cap.Encoding, "encoding must be hex")
 				assert.Equal(t, tt.wantPayload, cap.Payload, "payload hex mismatch")
 				require.Len(t, cap.Peers, 1, "should have exactly one peer")
 				assert.Equal(t, tt.wantPeer, cap.Peers[0], "peer address mismatch")
@@ -151,7 +153,7 @@ func TestExtractGRCapabilities_CapabilityDecl(t *testing.T) {
 			if tt.wantLen > 0 {
 				cap := caps[0]
 				assert.Equal(t, uint8(64), cap.Code, "capability code must be 64 (GR)")
-				assert.Equal(t, "hex", cap.Encoding, "encoding must be hex")
+				assert.Equal(t, sdk.CapEncodingHex, cap.Encoding, "encoding must be hex")
 				assert.Equal(t, tt.wantPayload, cap.Payload, "payload mismatch")
 				require.Len(t, cap.Peers, 1, "should target exactly one peer")
 				assert.Equal(t, tt.wantPeer, cap.Peers[0], "peer mismatch")
@@ -213,7 +215,7 @@ func TestExtractGRCapabilities_MultiplePeers(t *testing.T) {
 	peerPayload := make(map[string]string)
 	for _, cap := range caps {
 		assert.Equal(t, uint8(64), cap.Code)
-		assert.Equal(t, "hex", cap.Encoding)
+		assert.Equal(t, sdk.CapEncodingHex, cap.Encoding)
 		require.Len(t, cap.Peers, 1)
 		peerPayload[cap.Peers[0]] = cap.Payload
 	}
@@ -577,7 +579,7 @@ func TestExtractLLGRCapabilities_Basic(t *testing.T) {
 	caps := extractLLGRCapabilities(jsonStr)
 	require.Len(t, caps, 1)
 	assert.Equal(t, uint8(71), caps[0].Code)
-	assert.Equal(t, "hex", caps[0].Encoding)
+	assert.Equal(t, sdk.CapEncodingHex, caps[0].Encoding)
 	require.Len(t, caps[0].Peers, 1)
 	assert.Equal(t, "192.168.1.1", caps[0].Peers[0])
 	// Verify payload decodes to correct LLST

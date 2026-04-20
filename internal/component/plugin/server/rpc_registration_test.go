@@ -186,8 +186,8 @@ func TestRPCCapabilityToInjector(t *testing.T) {
 
 	input := &rpc.DeclareCapabilitiesInput{
 		Capabilities: []rpc.CapabilityDecl{
-			{Code: 73, Encoding: "b64", Payload: "dGVzdA=="},                          // global
-			{Code: 64, Encoding: "hex", Payload: "0078", Peers: []string{"10.0.0.1"}}, // per-peer
+			{Code: 73, Encoding: rpc.CapEncodingBase64, Payload: "dGVzdA=="},                       // global
+			{Code: 64, Encoding: rpc.CapEncodingHex, Payload: "0078", Peers: []string{"10.0.0.1"}}, // per-peer
 		},
 	}
 

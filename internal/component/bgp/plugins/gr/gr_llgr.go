@@ -209,7 +209,7 @@ func extractLLGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 
 		caps = append(caps, sdk.CapabilityDecl{
 			Code:     llgrCapCode,
-			Encoding: "hex",
+			Encoding: sdk.CapEncodingHex,
 			Payload:  capValue,
 			Peers:    []string{peerAddr},
 		})

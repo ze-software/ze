@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // PluginStage represents the current stage in the plugin startup protocol.
@@ -98,13 +100,13 @@ type PluginRegistration struct {
 // `internal/component/bgp/reactor/filter_format.go` (`isCIDRFamily`) for
 // the full contract.
 type FilterRegistration struct {
-	Name       string   // Filter name (referenced in filter { import/export } blocks)
-	Direction  string   // "import", "export", or "both"
-	Attributes []string // Attribute names to receive
-	NLRI       bool     // Include NLRI list (default true)
-	Raw        bool     // Include raw wire bytes; REQUIRED for non-CIDR families
-	OnError    string   // "reject" (fail-closed) or "accept" (fail-open)
-	Overrides  []string // Default filters this filter replaces
+	Name       string              // Filter name (referenced in filter { import/export } blocks)
+	Direction  rpc.FilterDirection // import / export / both
+	Attributes []string            // Attribute names to receive
+	NLRI       bool                // Include NLRI list (default true)
+	Raw        bool                // Include raw wire bytes; REQUIRED for non-CIDR families
+	OnError    rpc.OnErrorPolicy   // reject (fail-closed) or accept (fail-open)
+	Overrides  []string            // Default filters this filter replaces
 }
 
 // PluginSchemaDecl holds YANG schema declaration from a plugin.
@@ -128,10 +130,10 @@ type SchemaDeclaration struct {
 // PluginCapability represents a capability declaration from Stage 3.
 // Per-peer capabilities use Peers to scope to specific peers.
 type PluginCapability struct {
-	Code     uint8    // Capability type code
-	Encoding string   // Encoding of payload (b64, hex, text)
-	Payload  string   // Encoded capability value
-	Peers    []string // Optional peer addresses (empty = global/all peers)
+	Code     uint8           // Capability type code
+	Encoding rpc.CapEncoding // Payload encoding (hex / b64 / text)
+	Payload  string          // Encoded capability value
+	Peers    []string        // Optional peer addresses (empty = global/all peers)
 }
 
 // PluginCapabilities holds Stage 3 capability declarations.
@@ -405,17 +407,19 @@ func (ci *CapabilityInjector) GetCapabilitiesForPeer(peerAddr string) []Injected
 // Flag-only capabilities (e.g., link-local-nexthop code 77) have no encoding
 // and no payload — they return nil, nil.
 func DecodeCapabilityPayload(cap PluginCapability) ([]byte, error) {
-	if cap.Encoding == "" && cap.Payload == "" {
+	if cap.Encoding == rpc.CapEncodingUnspecified && cap.Payload == "" {
 		return nil, nil
 	}
 
 	switch cap.Encoding {
-	case wireEncB64:
+	case rpc.CapEncodingBase64:
 		return base64.StdEncoding.DecodeString(cap.Payload)
-	case wireEncHex:
+	case rpc.CapEncodingHex:
 		return hex.DecodeString(cap.Payload)
-	case EncodingText:
+	case rpc.CapEncodingText:
 		return []byte(cap.Payload), nil
+	case rpc.CapEncodingUnspecified:
+		return nil, fmt.Errorf("capability encoding unspecified with payload %q", cap.Payload)
 	}
 
 	return nil, fmt.Errorf("unknown encoding: %s", cap.Encoding)

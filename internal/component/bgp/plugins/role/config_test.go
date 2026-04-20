@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 // TestImportDeclaresRole verifies "import" keyword sets the local role.
@@ -360,7 +362,7 @@ func TestExtractRoleCapabilities_ParseBGPConfig(t *testing.T) {
 				require.Len(t, caps, 1, "should return exactly one capability")
 				cap := caps[0]
 				assert.Equal(t, uint8(roleCapCode), cap.Code, "capability code must be 9 (Role)")
-				assert.Equal(t, "hex", cap.Encoding, "encoding must be hex")
+				assert.Equal(t, sdk.CapEncodingHex, cap.Encoding, "encoding must be hex")
 				assert.Equal(t, tt.wantPayload, cap.Payload, "payload hex mismatch")
 				require.Len(t, cap.Peers, 1, "should have exactly one peer")
 				assert.Equal(t, tt.wantPeer, cap.Peers[0], "peer address mismatch")
@@ -388,7 +390,7 @@ func TestExtractRoleCapabilities_MultiplePeers(t *testing.T) {
 	peerPayload := make(map[string]string)
 	for _, cap := range caps {
 		assert.Equal(t, uint8(roleCapCode), cap.Code)
-		assert.Equal(t, "hex", cap.Encoding)
+		assert.Equal(t, sdk.CapEncodingHex, cap.Encoding)
 		require.Len(t, cap.Peers, 1)
 		peerPayload[cap.Peers[0]] = cap.Payload
 	}

@@ -856,8 +856,8 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		if f.NLRI != nil {
 			nlri = *f.NLRI
 		}
-		onError := "reject"
-		if f.OnError != "" {
+		onError := rpc.OnErrorReject
+		if f.OnError != rpc.OnErrorUnspecified {
 			onError = f.OnError
 		}
 		reg.Filters = append(reg.Filters, plugin.FilterRegistration{

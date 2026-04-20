@@ -133,7 +133,7 @@ func TestRPCDeclareCapabilities(t *testing.T) {
 
 	caps := &rpc.DeclareCapabilitiesInput{
 		Capabilities: []rpc.CapabilityDecl{
-			{Code: 64, Encoding: "hex", Payload: "40780078"},
+			{Code: 64, Encoding: rpc.CapEncodingHex, Payload: "40780078"},
 			{Code: 2}, // route-refresh, no payload
 		},
 	}
@@ -893,8 +893,8 @@ func TestCapabilityCodeBoundary(t *testing.T) {
 	// Test boundary values in a DeclareCapabilitiesInput
 	caps := &rpc.DeclareCapabilitiesInput{
 		Capabilities: []rpc.CapabilityDecl{
-			{Code: 0, Encoding: "hex", Payload: ""},
-			{Code: 255, Encoding: "hex", Payload: "FF"},
+			{Code: 0, Encoding: rpc.CapEncodingHex, Payload: ""},
+			{Code: 255, Encoding: rpc.CapEncodingHex, Payload: "FF"},
 		},
 	}
 

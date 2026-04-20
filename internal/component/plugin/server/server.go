@@ -364,36 +364,30 @@ func (s *Server) CallFilterUpdate(ctx context.Context, pluginName string, input 
 	return conn.SendFilterUpdate(ctx, input)
 }
 
-// Filter on-error constants.
-const (
-	FilterOnErrorReject = "reject"
-	FilterOnErrorAccept = "accept"
-)
-
 // FilterOnError returns the declared on-error mode for a named filter.
-// Returns FilterOnErrorReject (fail-closed) if the plugin or filter is not found.
-func (s *Server) FilterOnError(pluginName, filterName string) string {
+// Returns rpc.OnErrorReject (fail-closed) if the plugin or filter is not found.
+func (s *Server) FilterOnError(pluginName, filterName string) rpc.OnErrorPolicy {
 	pm := s.procManager.Load()
 	if pm == nil {
-		return FilterOnErrorReject
+		return rpc.OnErrorReject
 	}
 	proc := pm.GetProcess(pluginName)
 	if proc == nil {
-		return FilterOnErrorReject
+		return rpc.OnErrorReject
 	}
 	reg := proc.Registration()
 	if reg == nil {
-		return FilterOnErrorReject
+		return rpc.OnErrorReject
 	}
 	for _, f := range reg.Filters {
 		if f.Name == filterName {
-			if f.OnError == FilterOnErrorAccept {
-				return FilterOnErrorAccept
+			if f.OnError == rpc.OnErrorAccept {
+				return rpc.OnErrorAccept
 			}
-			return FilterOnErrorReject
+			return rpc.OnErrorReject
 		}
 	}
-	return FilterOnErrorReject
+	return rpc.OnErrorReject
 }
 
 // FilterInfo returns declaration info for a named filter: declared attributes and raw flag.

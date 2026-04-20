@@ -77,13 +77,13 @@ type SchemaDecl struct {
 
 // FilterDecl declares a named route filter the plugin offers.
 type FilterDecl struct {
-	Name       string   `json:"name"`                 // Filter name (config references as <plugin>:<name>)
-	Direction  string   `json:"direction"`            // "import", "export", or "both"
-	Attributes []string `json:"attributes,omitempty"` // Attribute names to receive
-	NLRI       *bool    `json:"nlri,omitempty"`       // Include NLRI list (default true)
-	Raw        bool     `json:"raw,omitempty"`        // Include raw wire bytes
-	OnError    string   `json:"on-error,omitempty"`   // "reject" (fail-closed) or "accept" (fail-open)
-	Overrides  []string `json:"overrides,omitempty"`  // Default filters this filter replaces
+	Name       string          `json:"name"`                 // Filter name (config references as <plugin>:<name>)
+	Direction  FilterDirection `json:"direction"`            // import / export / both
+	Attributes []string        `json:"attributes,omitempty"` // Attribute names to receive
+	NLRI       *bool           `json:"nlri,omitempty"`       // Include NLRI list (default true)
+	Raw        bool            `json:"raw,omitempty"`        // Include raw wire bytes
+	OnError    OnErrorPolicy   `json:"on-error,omitempty"`   // reject (fail-closed) or accept (fail-open)
+	Overrides  []string        `json:"overrides,omitempty"`  // Default filters this filter replaces
 }
 
 // FilterUpdateInput is the input for ze-plugin-callback:filter-update (runtime).
@@ -98,9 +98,9 @@ type FilterUpdateInput struct {
 
 // FilterUpdateOutput is the output for ze-plugin-callback:filter-update.
 type FilterUpdateOutput struct {
-	Action string `json:"action"`           // "accept", "reject", or "modify"
-	Update string `json:"update,omitempty"` // Delta-only modified attributes (only for action=modify)
-	Raw    string `json:"raw,omitempty"`    // Full raw UPDATE body replacement (only for action=modify with raw)
+	Action FilterAction `json:"action"`           // Typed decision; wire form is "accept"/"reject"/"modify"
+	Update string       `json:"update,omitempty"` // Delta-only modified attributes (only for action=modify)
+	Raw    string       `json:"raw,omitempty"`    // Full raw UPDATE body replacement (only for action=modify with raw)
 }
 
 // ConfigSection is a single config section delivered to the plugin.
@@ -121,10 +121,10 @@ type DeclareCapabilitiesInput struct {
 
 // CapabilityDecl declares a BGP capability for OPEN injection.
 type CapabilityDecl struct {
-	Code     uint8    `json:"code"`
-	Encoding string   `json:"encoding,omitempty"` // "hex", "b64", "text"
-	Payload  string   `json:"payload,omitempty"`
-	Peers    []string `json:"peers,omitempty"`
+	Code     uint8       `json:"code"`
+	Encoding CapEncoding `json:"encoding,omitempty"` // hex / b64 / text
+	Payload  string      `json:"payload,omitempty"`
+	Peers    []string    `json:"peers,omitempty"`
 }
 
 // RegistryCommand is a command in the shared registry (Stage 4).

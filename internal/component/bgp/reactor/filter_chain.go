@@ -238,15 +238,15 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 		if err != nil {
 			onError := r.api.FilterOnError(pluginName, filterName)
 			reactorLogger().Warn("policy filter IPC error", "plugin", pluginName, "filter", filterName, "on-error", onError, "error", err)
-			if onError == "accept" {
+			if onError == rpc.OnErrorAccept {
 				return PolicyResponse{Action: PolicyAccept}
 			}
 			return PolicyResponse{Action: PolicyReject}
 		}
 
-		action, parseErr := parsePolicyAction(out.Action)
-		if parseErr != nil {
-			reactorLogger().Warn("policy filter: invalid action", "plugin", pluginName, "filter", filterName, "action", out.Action, "error", parseErr)
+		action, ok := toPolicyAction(out.Action)
+		if !ok {
+			reactorLogger().Warn("policy filter: invalid action", "plugin", pluginName, "filter", filterName, "action", out.Action)
 			return PolicyResponse{Action: PolicyReject} // fail-closed on invalid response
 		}
 
@@ -282,15 +282,19 @@ func validateModifyDelta(delta string, declaredAttrs []string) string {
 	return ""
 }
 
-// parsePolicyAction converts a string action from the wire protocol to PolicyAction.
-func parsePolicyAction(s string) (PolicyAction, error) {
-	switch s {
-	case "accept":
-		return PolicyAccept, nil
-	case "reject":
-		return PolicyReject, nil
-	case "modify":
-		return PolicyModify, nil
+// toPolicyAction maps the plugin's typed FilterAction to the reactor's
+// internal PolicyAction. Returns false for unspecified or unknown values;
+// the caller fails closed (reject) in that case.
+func toPolicyAction(a rpc.FilterAction) (PolicyAction, bool) {
+	switch a {
+	case rpc.FilterAccept:
+		return PolicyAccept, true
+	case rpc.FilterReject:
+		return PolicyReject, true
+	case rpc.FilterModify:
+		return PolicyModify, true
+	case rpc.FilterUnspecified:
+		return PolicyReject, false
 	}
-	return PolicyReject, fmt.Errorf("unknown filter action %q, expected accept/reject/modify", s)
+	return PolicyReject, false
 }

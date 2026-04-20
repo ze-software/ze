@@ -670,7 +670,7 @@ func extractGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 
 		caps = append(caps, sdk.CapabilityDecl{
 			Code:     grCapCode,
-			Encoding: "hex",
+			Encoding: sdk.CapEncodingHex,
 			Payload:  capValue,
 			Peers:    []string{peerAddr},
 		})

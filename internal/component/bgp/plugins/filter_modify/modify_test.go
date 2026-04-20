@@ -244,19 +244,19 @@ func TestHandleFilterUpdate(t *testing.T) {
 	tests := []struct {
 		name       string
 		filterName string
-		wantAction string
+		wantAction sdk.FilterAction
 		wantDelta  string
 	}{
 		{
 			name:       "known_modifier",
 			filterName: "PREFER-LOCAL",
-			wantAction: "modify",
+			wantAction: sdk.FilterModify,
 			wantDelta:  "local-preference 200",
 		},
 		{
 			name:       "unknown_modifier",
 			filterName: "NONEXISTENT",
-			wantAction: "reject",
+			wantAction: sdk.FilterReject,
 			wantDelta:  "",
 		},
 	}
@@ -270,7 +270,7 @@ func TestHandleFilterUpdate(t *testing.T) {
 			}
 			out := handleFilterUpdate(in)
 			if out.Action != tt.wantAction {
-				t.Errorf("action = %q, want %q", out.Action, tt.wantAction)
+				t.Errorf("action = %s, want %s", out.Action, tt.wantAction)
 			}
 			if out.Update != tt.wantDelta {
 				t.Errorf("delta = %q, want %q", out.Update, tt.wantDelta)

@@ -160,7 +160,7 @@ func extractHostnameCapabilities(jsonStr string) []sdk.CapabilityDecl {
 
 		caps = append(caps, sdk.CapabilityDecl{
 			Code:     fqdnCapCode,
-			Encoding: "hex",
+			Encoding: sdk.CapEncodingHex,
 			Payload:  useCfg.encodeValue(),
 			Peers:    []string{peerAddr},
 		})

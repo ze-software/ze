@@ -60,7 +60,7 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 	if addPath != "" {
 		hex := bridge.EncodeAddPathHex(families, addPath)
 		if hex != "" {
-			caps = append(caps, sdk.CapabilityDecl{Code: 69, Encoding: "hex", Payload: hex})
+			caps = append(caps, sdk.CapabilityDecl{Code: 69, Encoding: sdk.CapEncodingHex, Payload: hex})
 		}
 	}
 	if len(caps) > 0 {

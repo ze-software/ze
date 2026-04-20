@@ -149,7 +149,7 @@ func extractSoftverCapabilities(jsonStr string) []sdk.CapabilityDecl {
 
 		caps = append(caps, sdk.CapabilityDecl{
 			Code:     softverCapCode,
-			Encoding: "hex",
+			Encoding: sdk.CapEncodingHex,
 			Payload:  encodeValue(),
 			Peers:    []string{peerAddr},
 		})

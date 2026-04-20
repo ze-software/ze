@@ -28,13 +28,6 @@ import (
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
-// Filter action wire values consumed by reactor/filter_chain.go parsePolicyAction.
-const (
-	filterActionAccept = "accept"
-	filterActionReject = "reject"
-	filterActionModify = "modify"
-)
-
 var logger = slogutil.LazyLogger("bgp.filter.prefix")
 
 // listsByName is the runtime-loaded set of prefix-list definitions, keyed by
@@ -100,13 +93,13 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	listsP := listsByName.Load()
 	if listsP == nil {
 		logger().Warn("filter-update before configure", "filter", in.Filter, "peer", in.Peer)
-		return &sdk.FilterUpdateOutput{Action: filterActionReject}
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 	lists := *listsP
 	list, ok := lists[in.Filter]
 	if !ok {
 		logger().Warn("unknown prefix-list", "filter", in.Filter, "peer", in.Peer)
-		return &sdk.FilterUpdateOutput{Action: filterActionReject}
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
 	nlriField := extractNLRIField(in.Update)
@@ -116,26 +109,26 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	// semantic that routes with no matchable reachability pass through.
 	if len(partition.accepted) == 0 && len(partition.rejected) == 0 && !partition.hadParseError {
 		logger().Info("prefix-list accept", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
-		return &sdk.FilterUpdateOutput{Action: filterActionAccept}
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
 	}
 
 	// Malformed prefix in the text protocol -> fail-closed. Same contract
 	// as evaluateUpdate had before the partition refactor.
 	if partition.hadParseError {
 		logger().Info("prefix-list reject", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField, "reason", "parse-error")
-		return &sdk.FilterUpdateOutput{Action: filterActionReject}
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
 	// All denied: reject the whole update.
 	if len(partition.accepted) == 0 {
 		logger().Info("prefix-list reject", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
-		return &sdk.FilterUpdateOutput{Action: filterActionReject}
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
 	// All accepted: accept without modification.
 	if len(partition.rejected) == 0 {
 		logger().Info("prefix-list accept", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
-		return &sdk.FilterUpdateOutput{Action: filterActionAccept}
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
 	}
 
 	// Mixed: modify. Emit a delta whose nlri block contains only the
@@ -150,7 +143,7 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 		"accepted", len(partition.accepted), "rejected", len(partition.rejected),
 		"nlri", nlriField,
 	)
-	return &sdk.FilterUpdateOutput{Action: filterActionModify, Update: delta}
+	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: delta}
 }
 
 // buildModifyDelta renders the modify delta returned to the engine when some

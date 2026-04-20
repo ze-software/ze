@@ -265,7 +265,7 @@ func extractRoleCapabilities(jsonStr string) []sdk.CapabilityDecl {
 		// RFC 9234 Section 4.1: capability value is single byte
 		caps = append(caps, sdk.CapabilityDecl{
 			Code:     roleCapCode,
-			Encoding: "hex",
+			Encoding: sdk.CapEncodingHex,
 			Payload:  fmt.Sprintf("%02x", value),
 			Peers:    []string{peerAddr},
 		})

@@ -29,12 +29,6 @@ import (
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
-// Filter action wire values consumed by reactor/filter_chain.go parsePolicyAction.
-const (
-	filterActionAccept = "accept"
-	filterActionReject = "reject"
-)
-
 var logger = slogutil.LazyLogger("bgp.filter.aspath")
 
 // listsByName is the runtime-loaded set of as-path-list definitions, keyed by
@@ -95,13 +89,13 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 	listsP := listsByName.Load()
 	if listsP == nil {
 		logger().Warn("filter-update before configure", "filter", in.Filter, "peer", in.Peer)
-		return &sdk.FilterUpdateOutput{Action: filterActionReject}
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 	lists := *listsP
 	list, ok := lists[in.Filter]
 	if !ok {
 		logger().Warn("unknown as-path-list", "filter", in.Filter, "peer", in.Peer)
-		return &sdk.FilterUpdateOutput{Action: filterActionReject}
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 	}
 
 	asPathStr := extractASPathField(in.Update)
@@ -109,9 +103,9 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 
 	if result == actionAccept {
 		logger().Info("as-path-list accept", "filter", in.Filter, "peer", in.Peer, "as-path", asPathStr)
-		return &sdk.FilterUpdateOutput{Action: filterActionAccept}
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
 	}
 
 	logger().Info("as-path-list reject", "filter", in.Filter, "peer", in.Peer, "as-path", asPathStr)
-	return &sdk.FilterUpdateOutput{Action: filterActionReject}
+	return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
 }

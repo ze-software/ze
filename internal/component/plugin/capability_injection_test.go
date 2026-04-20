@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // TestCapabilityDecoding verifies plugin capability payloads are decoded correctly.
@@ -16,7 +18,7 @@ func TestCapabilityDecoding(t *testing.T) {
 	t.Run("b64_encoding", func(t *testing.T) {
 		cap := PluginCapability{
 			Code:     73,
-			Encoding: "b64",
+			Encoding: rpc.CapEncodingBase64,
 			Payload:  base64.StdEncoding.EncodeToString([]byte("router1.example.com")),
 		}
 
@@ -28,7 +30,7 @@ func TestCapabilityDecoding(t *testing.T) {
 	t.Run("hex_encoding", func(t *testing.T) {
 		cap := PluginCapability{
 			Code:     73,
-			Encoding: "hex",
+			Encoding: rpc.CapEncodingHex,
 			Payload:  "74657374", // "test" in hex
 		}
 
@@ -40,7 +42,7 @@ func TestCapabilityDecoding(t *testing.T) {
 	t.Run("text_encoding", func(t *testing.T) {
 		cap := PluginCapability{
 			Code:     73,
-			Encoding: "text",
+			Encoding: rpc.CapEncodingText,
 			Payload:  "router1.example.com",
 		}
 
@@ -52,7 +54,7 @@ func TestCapabilityDecoding(t *testing.T) {
 	t.Run("invalid_b64", func(t *testing.T) {
 		cap := PluginCapability{
 			Code:     73,
-			Encoding: "b64",
+			Encoding: rpc.CapEncodingBase64,
 			Payload:  "not-valid-base64!!!",
 		}
 
@@ -63,7 +65,7 @@ func TestCapabilityDecoding(t *testing.T) {
 	t.Run("invalid_hex", func(t *testing.T) {
 		cap := PluginCapability{
 			Code:     73,
-			Encoding: "hex",
+			Encoding: rpc.CapEncodingHex,
 			Payload:  "not-valid-hex-ZZ",
 		}
 
@@ -77,7 +79,7 @@ func TestCapabilityDecoding(t *testing.T) {
 		// PREVENTS: RFC violation by injecting spurious bytes.
 		cap := PluginCapability{
 			Code:     2,
-			Encoding: "hex",
+			Encoding: rpc.CapEncodingHex,
 			Payload:  "",
 		}
 
@@ -110,7 +112,7 @@ func TestCapabilityInjection(t *testing.T) {
 		caps := &PluginCapabilities{
 			PluginName: "hostname-plugin",
 			Capabilities: []PluginCapability{
-				{Code: 73, Encoding: "b64", Payload: base64.StdEncoding.EncodeToString([]byte("router1.example.com"))},
+				{Code: 73, Encoding: rpc.CapEncodingBase64, Payload: base64.StdEncoding.EncodeToString([]byte("router1.example.com"))},
 			},
 			Done: true,
 		}
@@ -129,8 +131,8 @@ func TestCapabilityInjection(t *testing.T) {
 		caps := &PluginCapabilities{
 			PluginName: "multi-cap-plugin",
 			Capabilities: []PluginCapability{
-				{Code: 73, Encoding: "b64", Payload: base64.StdEncoding.EncodeToString([]byte("host1"))},
-				{Code: 64, Encoding: "b64", Payload: base64.StdEncoding.EncodeToString([]byte{0x00, 0x78})},
+				{Code: 73, Encoding: rpc.CapEncodingBase64, Payload: base64.StdEncoding.EncodeToString([]byte("host1"))},
+				{Code: 64, Encoding: rpc.CapEncodingBase64, Payload: base64.StdEncoding.EncodeToString([]byte{0x00, 0x78})},
 			},
 			Done: true,
 		}
@@ -164,7 +166,7 @@ func TestCapabilityInjection(t *testing.T) {
 		caps1 := &PluginCapabilities{
 			PluginName: "plugin1",
 			Capabilities: []PluginCapability{
-				{Code: 73, Encoding: "b64", Payload: base64.StdEncoding.EncodeToString([]byte("host"))},
+				{Code: 73, Encoding: rpc.CapEncodingBase64, Payload: base64.StdEncoding.EncodeToString([]byte("host"))},
 			},
 			Done: true,
 		}
@@ -173,7 +175,7 @@ func TestCapabilityInjection(t *testing.T) {
 		caps2 := &PluginCapabilities{
 			PluginName: "plugin2",
 			Capabilities: []PluginCapability{
-				{Code: 64, Encoding: "b64", Payload: base64.StdEncoding.EncodeToString([]byte{0x01})},
+				{Code: 64, Encoding: rpc.CapEncodingBase64, Payload: base64.StdEncoding.EncodeToString([]byte{0x01})},
 			},
 			Done: true,
 		}
@@ -194,7 +196,7 @@ func TestCapabilityConflictAtInjection(t *testing.T) {
 	caps1 := &PluginCapabilities{
 		PluginName: "plugin1",
 		Capabilities: []PluginCapability{
-			{Code: 73, Encoding: "b64", Payload: base64.StdEncoding.EncodeToString([]byte("host1"))},
+			{Code: 73, Encoding: rpc.CapEncodingBase64, Payload: base64.StdEncoding.EncodeToString([]byte("host1"))},
 		},
 		Done: true,
 	}
@@ -204,7 +206,7 @@ func TestCapabilityConflictAtInjection(t *testing.T) {
 	caps2 := &PluginCapabilities{
 		PluginName: "plugin2",
 		Capabilities: []PluginCapability{
-			{Code: 73, Encoding: "b64", Payload: base64.StdEncoding.EncodeToString([]byte("host2"))},
+			{Code: 73, Encoding: rpc.CapEncodingBase64, Payload: base64.StdEncoding.EncodeToString([]byte("host2"))},
 		},
 		Done: true,
 	}
