@@ -1,6 +1,7 @@
 package rib
 
 import (
+	"fmt"
 	"net/netip"
 	"sync"
 	"testing"
@@ -55,16 +56,9 @@ func TestBestPrevShardIndexDeterministic(t *testing.T) {
 // PREVENTS: a regression where the sharded bestPrev or the per-table-locked
 // interner silently drops a record under concurrent first-sightings.
 //
-// Note on locking: this test intentionally does NOT hold r.mu across the
-// checkBestPathChange call, even though the production caller in
-// rib_structured.go does. The point is to stress the NEW per-shard
-// locking and the interner's own mutexes under real concurrency. The
-// peer-keyed maps (ribInPool, peerMeta) are populated before the
-// goroutines launch and never mutated afterwards, so gatherCandidates /
-// bestCandidateNextHopAddr's lockless reads on r.ribInPool are safe
-// here even without r.mu. Do NOT copy this pattern into production --
-// rib_structured.go must continue to hold r.mu around the surrounding
-// peerRIB.Insert / peerRIB.Remove work.
+// Locking mirrors production: no outer lock across the hot path.
+// peerRIB.Insert uses PeerRIB's own lock; checkBestPathChange acquires
+// r.peerMu.RLock internally for its brief map read of ribInPool.
 func TestParallelCheckBestPathChangeNoLostWrites(t *testing.T) {
 	const (
 		goroutines = 4
@@ -85,9 +79,7 @@ func TestParallelCheckBestPathChangeNoLostWrites(t *testing.T) {
 			for i := range perRoutine {
 				prefix := []byte{32, 10, byte(g), byte(i >> 8), byte(i)}
 				attrs := makeAttrBytes([4]byte{10, byte(g), byte(i >> 8), byte(i)})
-				r.mu.Lock()
 				peerRIB.Insert(fam, attrs, prefix)
-				r.mu.Unlock()
 				_, ok := r.checkBestPathChange(fam, prefix, false, nil)
 				if !ok {
 					t.Errorf("checkBestPathChange returned (zero, false) for g=%d i=%d", g, i)
@@ -104,4 +96,136 @@ func TestParallelCheckBestPathChangeNoLostWrites(t *testing.T) {
 		total += d
 	}
 	assert.Equal(t, goroutines*perRoutine, total, "every distinct prefix must record one bestPathRecord")
+}
+
+// TestConcurrentDownVsUpdate races a concurrent peer-down against an
+// in-flight UPDATE to assert the new peerMu split survives the window
+// between Phase 1 release and Phase 3 completion. The DOWN path
+// (peerRIB.Release + delete(ribInPool, peer)) may interleave between the
+// UPDATE's Phase 1 and Phase 3; writes in Phase 2 to the local peerRIB
+// pointer then land on an orphan PeerRIB.
+//
+// VALIDATES: neither side crashes, no deadlock, no data race detected by
+// -race. Final state is consistent: either the peer exists with its RIB
+// non-empty, or it is absent (cleared by DOWN).
+// PREVENTS: a regression that re-introduces a coarse lock serializing
+// DOWN behind in-flight UPDATEs, or an unsafe access to a released
+// PeerRIB's internal state.
+func TestConcurrentDownVsUpdate(t *testing.T) {
+	const iterations = 128
+	r := newTestRIBManager(t)
+	fam := family.Family{AFI: 1, SAFI: 1}
+	peerAddr := "10.0.0.42"
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// UPDATE-side: mimic handleReceivedStructured's Phase 1 -> Phase 2 flow
+	// without the full structured-event plumbing. Each iteration lazily
+	// creates the peer slot, writes a route, then triggers best-path.
+	go func() {
+		defer wg.Done()
+		for i := range iterations {
+			r.peerMu.Lock()
+			peerRIB := r.ribInPool[peerAddr]
+			if peerRIB == nil {
+				peerRIB = storage.NewPeerRIB(peerAddr)
+				r.ribInPool[peerAddr] = peerRIB
+			}
+			r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+			r.peerMu.Unlock()
+
+			prefix := []byte{32, 10, 0, 0, byte(i)}
+			attrs := makeAttrBytes([4]byte{10, 0, 0, byte(i)})
+			peerRIB.Insert(fam, attrs, prefix)
+			r.checkBestPathChange(fam, prefix, false, nil)
+		}
+	}()
+
+	// DOWN-side: mimic handleStructuredState's non-retained DOWN path.
+	go func() {
+		defer wg.Done()
+		for range iterations {
+			r.peerMu.Lock()
+			if peerRIB := r.ribInPool[peerAddr]; peerRIB != nil {
+				peerRIB.Release()
+				delete(r.ribInPool, peerAddr)
+			}
+			delete(r.peerMeta, peerAddr)
+			r.peerMu.Unlock()
+		}
+	}()
+
+	wg.Wait()
+
+	// The race's semantics are "eventually consistent", so exact prefix
+	// counts cannot be asserted. What MUST hold: the peer-keyed maps
+	// agree with each other -- both present (peer up) or both absent
+	// (peer cleared). An orphan peerMeta without a ribInPool entry (or
+	// vice versa) would indicate a forgotten map update in one of the
+	// paths.
+	r.peerMu.RLock()
+	_, hasRIB := r.ribInPool[peerAddr]
+	_, hasMeta := r.peerMeta[peerAddr]
+	r.peerMu.RUnlock()
+	assert.Equal(t, hasRIB, hasMeta, "ribInPool and peerMeta must be consistent for this peer")
+}
+
+// TestParallelMultiPeerNoLostWrites is the stress test the design's step 5
+// calls for: N peer goroutines each processing their own UPDATE stream in
+// parallel. Each goroutine lazily creates its own peer slot (brief
+// peerMu.Lock), then runs the UPDATE processing flow with no outer lock.
+// The test asserts every (peer, prefix) pair was recorded in bestPrev
+// exactly once.
+//
+// VALIDATES: the r.peerMu split lets multiple peer goroutines run the
+// UPDATE hot path concurrently. Race detector catches any forgotten
+// lock on peer-keyed maps.
+// PREVENTS: a regression that re-introduces a coarse outer lock across
+// the whole UPDATE handler, collapsing the sharding benefit.
+func TestParallelMultiPeerNoLostWrites(t *testing.T) {
+	const (
+		peers      = 4
+		perRoutine = 128
+	)
+	r := newTestRIBManager(t)
+	fam := family.Family{AFI: 1, SAFI: 1}
+
+	var wg sync.WaitGroup
+	for p := range peers {
+		wg.Add(1)
+		peerAddr := fmt.Sprintf("10.0.0.%d", p+1)
+		go func(p int, peerAddr string) {
+			defer wg.Done()
+
+			// Phase 1: brief lock to create this peer's slot. Matches
+			// rib_structured.go::handleReceivedStructured.
+			r.peerMu.Lock()
+			peerRIB := storage.NewPeerRIB(peerAddr)
+			r.ribInPool[peerAddr] = peerRIB
+			r.peerMeta[peerAddr] = &PeerMeta{PeerASN: uint32(65000 + p + 1), LocalASN: 65000}
+			r.peerMu.Unlock()
+
+			// Phase 2+3: PeerRIB.Insert uses its own lock; checkBestPathChange
+			// takes peerMu.RLock internally for map reads.
+			for i := range perRoutine {
+				prefix := []byte{32, 172, byte(p), byte(i >> 8), byte(i)}
+				attrs := makeAttrBytes([4]byte{172, byte(p), byte(i >> 8), byte(i)})
+				peerRIB.Insert(fam, attrs, prefix)
+				_, ok := r.checkBestPathChange(fam, prefix, false, nil)
+				if !ok {
+					t.Errorf("checkBestPathChange returned (zero, false) for peer=%s i=%d", peerAddr, i)
+					return
+				}
+			}
+		}(p, peerAddr)
+	}
+	wg.Wait()
+
+	depths := r.bestPrev.shardDepth(fam)
+	total := 0
+	for _, d := range depths {
+		total += d
+	}
+	assert.Equal(t, peers*perRoutine, total, "every (peer, prefix) pair must record one bestPathRecord")
 }

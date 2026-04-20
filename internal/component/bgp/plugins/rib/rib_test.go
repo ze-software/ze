@@ -470,9 +470,9 @@ func TestHandleState_ConcurrentUpDown(t *testing.T) {
 	}
 
 	// Verify no panic and state is consistent
-	r.mu.RLock()
+	r.peerMu.RLock()
 	_, hasRibOut := r.ribOut["10.0.0.1"]
-	r.mu.RUnlock()
+	r.peerMu.RUnlock()
 
 	// ribOut should always exist (we never delete it)
 	assert.True(t, hasRibOut, "ribOut should persist through state changes")

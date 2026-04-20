@@ -267,7 +267,7 @@ func (b *bestPrevInterner) internerSize() (peers, nextHops, metrics int) {
 // label and display prefix. The emitted payload priority (20 eBGP / 200 iBGP)
 // and protocol-type ("ebgp"/"ibgp") derive from the packed Flags bit 0, so
 // the single source of truth for protocol class is the stored record rather
-// than a derivable pair of fields. Caller MUST hold at least RIBManager.mu
+// than a derivable pair of fields. The reverse tables are self-locked
 // for reading (the reverse tables are mutated on insert).
 //
 // Reverse-table lookups go through the bounds-safe accessors, so a record
@@ -479,11 +479,10 @@ func nextHopString(a netip.Addr) string {
 // no handle is available. Remove-induced withdrawals bypass forward
 // -- r.locRIB.Remove takes no handle because Remove carries no source
 // buffer by design (see design-rib-rs-fastpath.md).
-// Caller MUST hold r.mu (write lock). bestPrev now has its own per-shard
-// locking so this function itself does not acquire r.mu, but the internal
-// helpers gatherCandidates and bestCandidateNextHopAddr read r.ribInPool,
-// which is still protected by r.mu. The outer lock stays until those two
-// are made shard-aware in their own pass.
+// Safe to call with no outer lock held. gatherCandidates and
+// bestCandidateNextHopAddr take r.peerMu.RLock internally for their brief
+// map reads; bestPrev has its own per-shard locks; bestPathInterner has
+// its own per-table mutexes. Lock order: r.peerMu -> shard.mu.
 //
 // Returns (entry, true) when a change occurred; (zero, false) when unchanged,
 // the NLRI is malformed, or an interner table is saturated. On saturation,
@@ -636,9 +635,13 @@ func (r *RIBManager) protocolType(c *Candidate) string {
 // emission path.
 // For IPv4, reads from the NEXT_HOP attribute (code 3).
 // For IPv6 and other MP families, extracts from MP_REACH_NLRI (code 14) in OtherAttrs.
-// Caller MUST hold r.mu (at least read lock).
+// Acquires r.peerMu.RLock internally for the brief ribInPool read; PeerRIB
+// content reads (peerRIB.Lookup) use PeerRIB's own lock. Safe to call
+// without any outer lock held.
 func (r *RIBManager) bestCandidateNextHopAddr(fam family.Family, nlriBytes []byte, best *Candidate) netip.Addr {
+	r.peerMu.RLock()
 	peerRIB := r.ribInPool[best.PeerAddr]
+	r.peerMu.RUnlock()
 	if peerRIB == nil {
 		return netip.Addr{}
 	}
@@ -714,7 +717,7 @@ func extractMPNextHopAddr(entry storage.RouteEntry) netip.Addr {
 // family. Used when a downstream consumer (e.g. rib) sends
 // (rib, replay-request). The Replay flag in the payload distinguishes a
 // replay batch from a normal incremental change batch.
-// Caller MUST NOT hold r.mu.
+// Caller MUST NOT hold r.peerMu.
 func (r *RIBManager) replayBestPaths() {
 	eb := getEventBus()
 	if eb == nil {

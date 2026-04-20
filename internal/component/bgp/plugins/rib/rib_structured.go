@@ -77,7 +77,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// Subscribers that call AddRef inside their ChangeHandler trigger a
 	// sync.Once copy of RawBytes into an owned buffer; subscriber-free
 	// UPDATEs pay the handle alloc but no byte copy. Created outside
-	// r.mu because it is lock-independent -- the lock protects RIB
+	// r.peerMu because it is lock-independent -- the lock protects RIB
 	// state, not handle construction. Returns nil when RawBytes is
 	// empty (InsertForward then dispatches Forward == nil).
 	forward := newForwardHandle(msg.RawBytes)
@@ -91,26 +91,39 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// the small-UPDATE path (entries are ~40 bytes each).
 	affected := make([]affectedPrefix, 0, 128)
 
-	r.mu.Lock()
-	locked := true
-	defer func() {
-		if locked {
-			r.mu.Unlock()
-		}
-	}()
-
-	// Track peer metadata for best-path comparison and capability lookup.
-	r.peerMeta[peerAddr] = &PeerMeta{
+	// Phase 1: lazily create the peer's slots under a brief write lock.
+	// Only mutates the peer-keyed maps; the rest of UPDATE processing runs
+	// outside peerMu so other peer goroutines can proceed concurrently.
+	//
+	// Race with handleStructuredState DOWN: if a DOWN event lands between
+	// here and Phase 3, that handler takes r.peerMu.Lock, calls
+	// peerRIB.Release, and delete(r.ribInPool, peerAddr). Phase 2 below
+	// keeps writing to the local peerRIB pointer -- those writes land on
+	// an orphan PeerRIB that no future gatherCandidates sees. Semantics
+	// stay correct because Phase 3's checkBestPathChange still emits
+	// withdraws for every prefix whose best came from the now-absent
+	// peer (newBest == nil, havePrev == true). The orphan writes are
+	// wasted work, not lost state.
+	r.peerMu.Lock()
+	// Compare against the cached PeerMeta on a stack-local candidate so
+	// rapid-flap sessions with unchanging (PeerASN, LocalASN, ContextID)
+	// skip both the heap alloc AND the map write. Only when the struct
+	// changes do we take the address (triggering the escape).
+	candidate := PeerMeta{
 		PeerASN:   se.PeerAS,
 		LocalASN:  se.LocalAS,
 		ContextID: wu.SourceCtxID(),
 	}
-
-	// Initialize PeerRIB if needed.
-	if r.ribInPool[peerAddr] == nil {
-		r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
+	if cur := r.peerMeta[peerAddr]; cur == nil || *cur != candidate {
+		m := candidate
+		r.peerMeta[peerAddr] = &m
 	}
 	peerRIB := r.ribInPool[peerAddr]
+	if peerRIB == nil {
+		peerRIB = storage.NewPeerRIB(peerAddr)
+		r.ribInPool[peerAddr] = peerRIB
+	}
+	r.peerMu.Unlock()
 
 	// Process IPv4 unicast announces (legacy NLRI section).
 	ipv4Family := family.Family{AFI: 1, SAFI: 1}
@@ -173,10 +186,15 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		}
 	}
 
-	// Check best-path changes for all affected prefixes (under lock).
-	// Group changes by family so each family gets its own batch with correct metadata.
-	// Preallocate the per-family slices with len(affected) -- all changes in a single
-	// UPDATE almost always belong to one family, so one grow-free append per batch.
+	// Phase 3: best-path change detection. Runs with no r.peerMu held --
+	// gatherCandidates and bestCandidateNextHopAddr acquire peerMu.RLock
+	// internally for their brief map reads. The sharded bestPrev and the
+	// self-locking bestPathInterner handle their own concurrency.
+	//
+	// Group changes by family so each family gets its own batch with
+	// correct metadata. Preallocate the per-family slices with
+	// len(affected) -- all changes in a single UPDATE almost always
+	// belong to one family, so one grow-free append per batch.
 	changesByFamily := make(map[string][]bestChangeEntry)
 	for _, ap := range affected {
 		change, ok := r.checkBestPathChange(ap.fam, ap.nlriBytes, ap.addPath, forward)
@@ -191,10 +209,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		changesByFamily[familyStr] = append(slice, change)
 	}
 
-	r.mu.Unlock()
-	locked = false
-
-	// Publish one batch per family after lock release.
+	// Publish one batch per family.
 	for famName, changes := range changesByFamily {
 		publishBestChanges(changes, famName)
 	}
@@ -239,8 +254,8 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 		rawAttrsHex = hex.EncodeToString(msg.AttrsWire.Packed())
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.peerMu.Lock()
+	defer r.peerMu.Unlock()
 
 	if r.ribOut[peerAddr] == nil {
 		r.ribOut[peerAddr] = make(map[string]map[string]*Route)
@@ -382,9 +397,9 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 		return
 	}
 
-	r.mu.RLock()
+	r.peerMu.RLock()
 	if !r.peerUp[peerAddr] {
-		r.mu.RUnlock()
+		r.peerMu.RUnlock()
 		return
 	}
 
@@ -395,7 +410,7 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 			routesToSend = append(routesToSend, rt)
 		}
 	}
-	r.mu.RUnlock()
+	r.peerMu.RUnlock()
 
 	r.updateRoute(peerAddr, "borr "+famStr)
 	r.sendRoutes(peerAddr, routesToSend)

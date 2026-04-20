@@ -813,8 +813,8 @@ const filterPath = "path"
 // Called by handleCommand for "bgp rib show" with optional scope + filter stages.
 // Returns JSON string result.
 func (r *RIBManager) showPipeline(selector string, args []string) string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
 
 	scope, stages, errMsg := parsePipelineArgs(args)
 	if errMsg != "" {

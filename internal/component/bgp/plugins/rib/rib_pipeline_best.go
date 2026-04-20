@@ -48,6 +48,8 @@ func newBestSource(r *RIBManager, selector string, stashCandidates map[string][]
 	}
 	seen := make(map[string]routeKey) // "familyStr|nlriKey" → routeKey
 
+	// Caller bestPipeline holds r.peerMu.RLock across this function; the
+	// ribInPool iteration below is protected by that outer lock.
 	for peer, peerRIB := range r.ribInPool {
 		if !matchesPeer(peer, selector) {
 			continue
@@ -73,7 +75,10 @@ func newBestSource(r *RIBManager, selector string, stashCandidates map[string][]
 	// multipath siblings when bgp/multipath/maximum-paths > 1).
 	var items []RouteItem
 	for _, rk := range seen {
-		candidates := r.gatherCandidates(rk.fam, []byte(rk.nlriKey))
+		// bestPipeline holds r.peerMu.RLock across this call; use the
+		// Locked variant to avoid a recursive RLock that would deadlock
+		// against a pending writer (Go sync.RWMutex docs).
+		candidates := r.gatherCandidatesLocked(rk.fam, []byte(rk.nlriKey))
 		best, siblings := SelectMultipath(candidates, multipathMax, relaxASPath)
 		if best == nil {
 			continue
@@ -87,6 +92,8 @@ func newBestSource(r *RIBManager, selector string, stashCandidates map[string][]
 		}
 
 		// Attach the pool entry from the winning peer for attribute access.
+		// Caller bestPipeline holds r.peerMu.RLock; this ribInPool read is
+		// protected by that outer lock.
 		if peerRIB := r.ribInPool[best.PeerAddr]; peerRIB != nil {
 			if entry, ok := peerRIB.Lookup(rk.fam, []byte(rk.nlriKey)); ok {
 				item.HasInEntry = true
@@ -145,8 +152,8 @@ func (s *bestSource) Meta() PipelineMeta {
 // Called by handleCommand for "bgp rib show best" with optional filter/terminal stages.
 // Returns JSON string result with "best-path" top-level key.
 func (r *RIBManager) bestPipeline(selector string, args []string) string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
 
 	stages, errMsg := parseBestPipelineArgs(args)
 	if errMsg != "" {

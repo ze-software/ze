@@ -77,9 +77,9 @@ func TestRIBMarkStaleCommandStoresGRState(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify GR state is stored.
-	r.mu.RLock()
+	r.peerMu.RLock()
 	state := r.grState["192.0.2.1"]
-	r.mu.RUnlock()
+	r.peerMu.RUnlock()
 	require.NotNil(t, state, "GR state should be stored for peer")
 	assert.Equal(t, uint16(120), state.RestartTime)
 	assert.False(t, state.StaleAt.IsZero(), "StaleAt should be set")
@@ -385,9 +385,9 @@ func TestGRConsecutiveRestart(t *testing.T) {
 	assert.Equal(t, 1, r.ribInPool["192.0.2.1"].StaleCount(), "1 route should be stale (new cycle)")
 
 	// GR state should reflect the new restart time.
-	r.mu.RLock()
+	r.peerMu.RLock()
 	state := r.grState["192.0.2.1"]
-	r.mu.RUnlock()
+	r.peerMu.RUnlock()
 	require.NotNil(t, state)
 	assert.Equal(t, uint16(90), state.RestartTime, "restart time should be updated to new value")
 }
@@ -478,9 +478,9 @@ func TestRIBMarkStaleStartsExpiryTimer(t *testing.T) {
 	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 
-	r.mu.RLock()
+	r.peerMu.RLock()
 	state := r.grState["192.0.2.1"]
-	r.mu.RUnlock()
+	r.peerMu.RUnlock()
 	require.NotNil(t, state)
 	assert.NotNil(t, state.expiryTimer, "mark-stale should start expiry timer")
 }
@@ -501,18 +501,18 @@ func TestRIBExpiryTimerAutoExpires(t *testing.T) {
 	assert.Equal(t, 2, r.ribInPool["192.0.2.1"].StaleCount())
 
 	// Simulate timer firing by calling autoExpireStale directly.
-	r.mu.RLock()
+	r.peerMu.RLock()
 	state := r.grState["192.0.2.1"]
-	r.mu.RUnlock()
+	r.peerMu.RUnlock()
 	r.autoExpireStale("192.0.2.1", state)
 
 	// All stale routes should be purged.
 	assert.Equal(t, 0, r.ribInPool["192.0.2.1"].Len(), "auto-expire should purge all stale routes")
 
 	// GR state should be cleaned up.
-	r.mu.RLock()
+	r.peerMu.RLock()
 	_, hasState := r.grState["192.0.2.1"]
-	r.mu.RUnlock()
+	r.peerMu.RUnlock()
 	assert.False(t, hasState, "GR state should be cleared after auto-expire")
 }
 
@@ -533,9 +533,9 @@ func TestRIBPurgeStaleStopsTimer(t *testing.T) {
 	require.NoError(t, err)
 
 	// GR state (and timer) should be cleaned up.
-	r.mu.RLock()
+	r.peerMu.RLock()
 	_, hasState := r.grState["192.0.2.1"]
-	r.mu.RUnlock()
+	r.peerMu.RUnlock()
 	assert.False(t, hasState, "GR state should be cleared after full purge")
 }
 
@@ -551,19 +551,19 @@ func TestRIBConsecutiveRestartResetsTimer(t *testing.T) {
 	_, _, err := r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
 
-	r.mu.RLock()
+	r.peerMu.RLock()
 	state1 := r.grState["192.0.2.1"]
 	timer1 := state1.expiryTimer
-	r.mu.RUnlock()
+	r.peerMu.RUnlock()
 	require.NotNil(t, timer1)
 
 	// Second mark-stale with 90s (consecutive restart).
 	_, _, err = r.handleCommand("bgp rib mark-stale", "*", []string{"192.0.2.1", "90"})
 	require.NoError(t, err)
 
-	r.mu.RLock()
+	r.peerMu.RLock()
 	state2 := r.grState["192.0.2.1"]
-	r.mu.RUnlock()
+	r.peerMu.RUnlock()
 	require.NotNil(t, state2)
 	assert.NotNil(t, state2.expiryTimer, "new timer should be set")
 	assert.Equal(t, uint16(90), state2.RestartTime, "restart time should be updated")

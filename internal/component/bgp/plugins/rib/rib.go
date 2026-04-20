@@ -235,7 +235,7 @@ type RIBManager struct {
 	// detection. Sharded by prefix: each family is split across N shards
 	// (default GOMAXPROCS, ze.bgp.rib.bestprev.shards override), each with
 	// its own bestPrevStore and write lock. checkBestPathChange takes only
-	// the owning shard's lock. NOT protected by r.mu.
+	// the owning shard's lock. NOT protected by r.peerMu.
 	bestPrev *bestPrevShards
 
 	// bestPathInterner dedupes peer address, next-hop, and MED values across
@@ -276,7 +276,14 @@ type RIBManager struct {
 	// Populated from bgp/multipath/relax-as-path in the Stage 2 configure callback.
 	relaxASPath atomic.Bool
 
-	mu sync.RWMutex // protects ribInPool, ribOut, peerUp, peerMeta, retainedPeers, grState, bestPrev
+	// peerMu protects the peer-keyed maps ONLY: ribInPool, ribOut, peerUp,
+	// peerMeta, retainedPeers, grState. bestPrev is sharded (see
+	// bestprev_shard.go) and has its own per-shard locks. bestPathInterner
+	// has its own per-table mutexes. Readers take peerMu.RLock for brief
+	// map-level reads, then work on PeerRIB content under PeerRIB's own
+	// lock. Lock order when held together: peerMu (outer) -> shard.mu
+	// (inner). Nobody holds peerMu while acquiring an interner mutex.
+	peerMu sync.RWMutex
 
 	// lastMetricsInPeers / lastMetricsOutPeers track peer labels emitted in the
 	// previous updateMetrics cycle. Peers that disappear from ribInPool/ribOut
@@ -317,7 +324,7 @@ func (r *RIBManager) updateMetrics() {
 		return
 	}
 
-	r.mu.RLock()
+	r.peerMu.RLock()
 
 	currentIn := make(map[string]bool, len(r.ribInPool))
 	totalIn := 0
@@ -340,9 +347,9 @@ func (r *RIBManager) updateMetrics() {
 		totalOut += count
 	}
 
-	r.mu.RUnlock()
+	r.peerMu.RUnlock()
 
-	// Best-path interner occupancy. Read outside r.mu via the interner's
+	// Best-path interner occupancy. Read outside r.peerMu via the interner's
 	// own per-table locks; the snapshot is point-in-time but stable because
 	// reverse tables are append-only (indices never shrink).
 	var internerPeers, internerNextHops, internerMetrics int
@@ -418,8 +425,8 @@ var bgpProtocolID = redistevents.RegisterProtocol("bgp")
 // Forward (i.e., the BGP producer attached a wire-byte handle).
 // Safe to call once at plugin setup; nil disables the mirror.
 func (r *RIBManager) SetLocRIB(loc *locrib.RIB) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.peerMu.Lock()
+	defer r.peerMu.Unlock()
 	if r.locRIB == loc {
 		return
 	}
@@ -656,8 +663,8 @@ func (r *RIBManager) handleSent(event *Event) {
 		return
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.peerMu.Lock()
+	defer r.peerMu.Unlock()
 
 	// Initialize peer's ribOut if needed
 	if r.ribOut[peerAddr] == nil {
@@ -749,8 +756,8 @@ func (r *RIBManager) handleReceived(event *Event) {
 		return
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.peerMu.Lock()
+	defer r.peerMu.Unlock()
 
 	// Track peer metadata for best-path comparison (eBGP/iBGP detection).
 	r.updatePeerMeta(event, peerAddr)
@@ -858,9 +865,9 @@ func (r *RIBManager) handleRefresh(event *Event) {
 		return
 	}
 
-	r.mu.RLock()
+	r.peerMu.RLock()
 	if !r.peerUp[peerAddr] {
-		r.mu.RUnlock()
+		r.peerMu.RUnlock()
 		logger().Debug("refresh request for down peer", "peer", peerAddr)
 		return
 	}
@@ -873,7 +880,7 @@ func (r *RIBManager) handleRefresh(event *Event) {
 			routesToSend = append(routesToSend, rt)
 		}
 	}
-	r.mu.RUnlock()
+	r.peerMu.RUnlock()
 
 	// RFC 7313 Section 4: Send BoRR, routes, EoRR sequence
 	r.updateRoute(peerAddr, "borr "+fam)
@@ -889,7 +896,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	peerAddr := se.PeerAddress
 	state := se.State
 
-	r.mu.Lock()
+	r.peerMu.Lock()
 	wasUp := r.peerUp[peerAddr]
 	isUp := state == "up"
 	r.peerUp[peerAddr] = isUp
@@ -913,9 +920,15 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 				delete(r.ribInPool, peerAddr)
 			}
 			delete(r.peerMeta, peerAddr)
+			// TODO(bestprev-purge): bestPrev is prefix-keyed and still holds
+			// records whose PeerIdx points at this now-departed peer. A
+			// followup UPDATE for each prefix naturally emits the withdraw,
+			// but until then "show bgp rib best" reflects stale state. A
+			// peer-DOWN purge would need to walk every shard across every
+			// family and drop records matching this peer -- separate spec.
 		}
 	}
-	r.mu.Unlock()
+	r.peerMu.Unlock()
 
 	if routesToReplay != nil {
 		r.replayRoutes(peerAddr, routesToReplay)
@@ -930,7 +943,7 @@ func (r *RIBManager) handleState(event *Event) {
 	peerAddr := event.GetPeerAddress()
 	state := event.GetPeerState()
 
-	r.mu.Lock()
+	r.peerMu.Lock()
 	wasUp := r.peerUp[peerAddr]
 	isUp := state == "up"
 	r.peerUp[peerAddr] = isUp
@@ -960,7 +973,7 @@ func (r *RIBManager) handleState(event *Event) {
 			delete(r.peerMeta, peerAddr)
 		}
 	}
-	r.mu.Unlock()
+	r.peerMu.Unlock()
 
 	// I/O operations after releasing lock
 	if routesToReplay != nil {

@@ -37,8 +37,8 @@ const grTimerMargin = 5 * time.Second
 // restart replaced it (new mark-stale created a new state), the callback is stale
 // and must be a no-op — otherwise it would purge the new cycle's routes.
 func (r *RIBManager) autoExpireStale(peerAddr string, owner *peerGRState) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.peerMu.Lock()
+	defer r.peerMu.Unlock()
 
 	// Guard: skip if grState was replaced by a consecutive restart.
 	if r.grState[peerAddr] != owner {
@@ -279,12 +279,12 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error
 		return statusError, "", fmt.Errorf("invalid prefix: %w", err)
 	}
 
-	r.mu.Lock()
+	r.peerMu.Lock()
 	if r.ribInPool[peer] == nil {
 		r.ribInPool[peer] = storage.NewPeerRIB(peer)
 	}
 	r.ribInPool[peer].Insert(fam, attrBytes, nlriBytes)
-	r.mu.Unlock()
+	r.peerMu.Unlock()
 
 	data, _ := json.Marshal(map[string]any{"injected": prefix, "peer": peer, "family": familyStr})
 	return statusDone, string(data), nil
@@ -293,8 +293,12 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, string, error
 // validateIPv6NextHop checks whether an IPv6 next-hop is valid for this peer and family.
 // Real peers (seen in peerMeta): check ExtendedNextHop capability (RFC 8950).
 // Unknown peers (injected, no session): accept with a warning log.
+//
+// Acquires r.peerMu.RLock for the brief peerMeta read.
 func (r *RIBManager) validateIPv6NextHop(peer string, fam family.Family) error {
+	r.peerMu.RLock()
 	meta := r.peerMeta[peer]
+	r.peerMu.RUnlock()
 	if meta == nil {
 		// Unknown peer (injected, no prior session). Accept any valid IP.
 		logger().Warn("peer not known, accepting IPv6 next-hop without capability check", "peer", peer)
@@ -347,9 +351,9 @@ func (r *RIBManager) withdrawRoute(_ string, args []string) (string, string, err
 		return statusError, "", fmt.Errorf("unknown family: %s", familyStr)
 	}
 
-	r.mu.RLock()
+	r.peerMu.RLock()
 	peerRIB := r.ribInPool[peer]
-	r.mu.RUnlock()
+	r.peerMu.RUnlock()
 
 	if peerRIB == nil {
 		return statusError, "", fmt.Errorf("no RIB for peer %s", peer)
@@ -468,7 +472,7 @@ func matchesPeer(peerAddr, selector string) bool {
 
 // inboundEmptyJSON clears Adj-RIB-In routes for matching peers, returns JSON result.
 func (r *RIBManager) inboundEmptyJSON(selector string) string {
-	r.mu.Lock()
+	r.peerMu.Lock()
 	cleared := 0
 
 	for peer, peerRIB := range r.ribInPool {
@@ -480,7 +484,7 @@ func (r *RIBManager) inboundEmptyJSON(selector string) string {
 		delete(r.ribInPool, peer)
 		delete(r.peerMeta, peer)
 	}
-	r.mu.Unlock()
+	r.peerMu.Unlock()
 
 	data, _ := json.Marshal(map[string]any{"cleared": cleared})
 	return string(data)
@@ -490,7 +494,7 @@ func (r *RIBManager) inboundEmptyJSON(selector string) string {
 // If family is non-empty, only routes from that family are resent.
 // Does NOT send "plugin session ready" - that's only for initial reconnect.
 func (r *RIBManager) outboundResendJSON(selector, family string) string {
-	r.mu.RLock()
+	r.peerMu.RLock()
 	var peersToResend []string
 	routesToResend := make(map[string][]*Route)
 
@@ -520,7 +524,7 @@ func (r *RIBManager) outboundResendJSON(selector, family string) string {
 			routesToResend[peer] = routesCopy
 		}
 	}
-	r.mu.RUnlock()
+	r.peerMu.RUnlock()
 
 	// Replay routes outside lock - use sendRoutes, not replayRoutes
 	resent := 0
@@ -555,8 +559,8 @@ func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 
 // statusJSON returns status as JSON.
 func (r *RIBManager) statusJSON() string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
 
 	routesIn := 0
 	staleRoutes := 0
@@ -601,8 +605,8 @@ func (r *RIBManager) statusJSON() string {
 // RFC 4724: Receiving speaker retains routes from restarting peer.
 // Called by bgp-gr plugin via DispatchCommand("bgp rib retain-routes <peer>").
 func (r *RIBManager) retainRoutesJSON(selector string) string {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.peerMu.Lock()
+	defer r.peerMu.Unlock()
 
 	retained := 0
 	for peer := range r.ribInPool {
@@ -621,8 +625,8 @@ func (r *RIBManager) retainRoutesJSON(selector string) string {
 // RFC 4724: Called when restart timer expires or GR completes.
 // Called by bgp-gr plugin via DispatchCommand("bgp rib release-routes <peer>").
 func (r *RIBManager) releaseRoutesJSON(selector string) string {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.peerMu.Lock()
+	defer r.peerMu.Unlock()
 
 	released := 0
 	for peer := range r.retainedPeers {
@@ -676,8 +680,8 @@ func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
 		staleLevel = uint8(lvl)
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.peerMu.Lock()
+	defer r.peerMu.Unlock()
 
 	marked := 0
 	peerRIB := r.ribInPool[peerAddr]
@@ -736,8 +740,8 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, string, error) {
 		familyFilter = args[1]
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.peerMu.Lock()
+	defer r.peerMu.Unlock()
 
 	purged := 0
 	peerRIB := r.ribInPool[peerAddr]
@@ -768,8 +772,8 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, string, error) {
 
 // bestPathStatusJSON returns summary statistics about the best-path computation.
 func (r *RIBManager) bestPathStatusJSON() string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
 
 	totalPeers := len(r.ribInPool)
 	totalRoutes := 0
@@ -785,10 +789,24 @@ func (r *RIBManager) bestPathStatusJSON() string {
 	return string(data)
 }
 
-// gatherCandidates collects best-path candidates for a given (family, nlri) across all peers.
-// Returns extracted Candidate structs ready for SelectBest.
-// Caller must hold at least read lock.
+// gatherCandidates collects best-path candidates for a given (family, nlri)
+// across all peers. Acquires r.peerMu.RLock internally.
+//
+// Go's sync.RWMutex forbids recursive read-locking when a writer is pending
+// (documented deadlock in sync/rwmutex.go), so callers that ALREADY hold
+// r.peerMu.RLock MUST call gatherCandidatesLocked instead. The hot-path
+// caller is checkBestPathChange, which runs with no outer lock held.
 func (r *RIBManager) gatherCandidates(fam family.Family, nlriBytes []byte) []*Candidate {
+	r.peerMu.RLock()
+	defer r.peerMu.RUnlock()
+	return r.gatherCandidatesLocked(fam, nlriBytes)
+}
+
+// gatherCandidatesLocked is gatherCandidates without the internal RLock.
+// Caller MUST hold r.peerMu.RLock for the duration of the call, including
+// across the returned candidates' lifetime if they reference peer state.
+// PeerRIB content reads (peerRIB.Lookup) use PeerRIB's own lock.
+func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte) []*Candidate {
 	var candidates []*Candidate
 	for peer, peerRIB := range r.ribInPool {
 		entry, ok := peerRIB.Lookup(fam, nlriBytes)
@@ -913,8 +931,8 @@ func (r *RIBManager) attachCommunityCommand(args []string) (string, string, erro
 		return statusError, "", fmt.Errorf("invalid community hex %q (must be 8 hex chars = 4 bytes)", commHex)
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.peerMu.Lock()
+	defer r.peerMu.Unlock()
 
 	peerRIB := r.ribInPool[peerAddr]
 	if peerRIB == nil {
@@ -962,8 +980,8 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, string, 
 		return statusError, "", fmt.Errorf("invalid community hex %q (must be 8 hex chars = 4 bytes)", commHex)
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.peerMu.Lock()
+	defer r.peerMu.Unlock()
 
 	peerRIB := r.ribInPool[peerAddr]
 	if peerRIB == nil {
