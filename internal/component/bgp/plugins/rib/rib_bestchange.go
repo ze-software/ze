@@ -129,6 +129,18 @@ func newBestPrevInterner() *bestPrevInterner {
 	}
 }
 
+// peerIdxOf returns the uint16 index for v without mutating the reverse
+// table. Returns (0, false) when v was never interned. Unlike internPeer,
+// this never grows the table -- used by bestPrev purge paths that want to
+// look up a peer that is about to depart without polluting the interner
+// with a slot for a peer that will have no records.
+func (b *bestPrevInterner) peerIdxOf(v string) (uint16, bool) {
+	b.peersMu.RLock()
+	idx, ok := b.peerIdx[v]
+	b.peersMu.RUnlock()
+	return idx, ok
+}
+
 // internPeer returns the uint16 index for v. On a first sighting, v is
 // appended to the reverse table and assigned the next index. Returns
 // (0, false) only when the reverse table is saturated at 65536 entries --
@@ -431,6 +443,120 @@ func (s *bestPrevStore) delete(fam family.Family, nlriBytes []byte, addPath bool
 		s.multi.Insert(pfx, ps)
 	}
 	return true
+}
+
+// purgeBestPrevForPeer walks every bestPrev shard across every family and
+// drops records whose PeerIdx matches peerAddr. For each purged record:
+//   - the matching locrib entry is removed via r.locRIB.Remove so
+//     cross-protocol consumers (sysrib, FIB) see the withdrawal
+//     immediately, not on a delayed next-UPDATE-for-the-prefix trigger;
+//   - a bestChangeEntry with Action=Withdraw is appended to a per-family
+//     batch that is emitted on the bgp-rib EventBus after the shard locks
+//     are released.
+//
+// Caller MUST hold r.peerMu.Lock so no concurrent UPDATE processing for
+// the departing peer can re-insert records while purge is walking. Purge
+// does NOT touch r.peerMu itself; the outer write lock is serialized
+// with UPDATE Phase 1 which is where peer slots are (re-)created.
+//
+// Safe with r.locRIB == nil (skips the mirror step).
+//
+// Cost: one shard.mu.Lock per (family, shard) pair, held across each
+// shard's direct + multi Iterate. For a 1M-prefix table this is O(1M)
+// serial reads across all shards -- call site expects a cold-path
+// peer-down event, not the hot UPDATE path.
+func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) {
+	peerIdx, ok := r.bestPathInterner.peerIdxOf(peerAddr)
+	if !ok {
+		// Peer was never interned, so no bestPrev record can reference it.
+		return
+	}
+	if r.bestPrev == nil {
+		return
+	}
+	eb := getEventBus()
+	for _, fam := range r.bestPrev.familyList() {
+		fs := r.bestPrev.familyShards(fam, false)
+		if fs == nil {
+			continue
+		}
+		famStr := fam.String()
+		var changes []bestChangeEntry
+		for i := range fs.shards {
+			sh := &fs.shards[i]
+			sh.mu.Lock()
+			// direct: collect prefixes to delete, then delete after Iterate.
+			var directVictims []netip.Prefix
+			sh.store.direct.Iterate(func(pfx netip.Prefix, rec bestPathRecord) bool {
+				if rec.PeerIdx() == peerIdx {
+					directVictims = append(directVictims, pfx)
+				}
+				return true
+			})
+			for _, pfx := range directVictims {
+				sh.store.direct.Delete(pfx)
+				changes = append(changes, bestChangeEntry{
+					Action: ribevents.BestChangeWithdraw,
+					Prefix: pfx.String(),
+				})
+				if r.locRIB != nil {
+					r.locRIB.Remove(fam, pfx, bgpProtocolID, 0)
+				}
+			}
+
+			// multi: collect (prefix, pathIDs) to remove.
+			type multiVictim struct {
+				prefix  netip.Prefix
+				pathIDs []uint32
+			}
+			var multiVictims []multiVictim
+			sh.store.multi.Iterate(func(pfx netip.Prefix, ps bestPrevSet) bool {
+				var pathIDs []uint32
+				for _, e := range ps.entries {
+					if e.rec.PeerIdx() == peerIdx {
+						pathIDs = append(pathIDs, e.pathID)
+					}
+				}
+				if len(pathIDs) > 0 {
+					multiVictims = append(multiVictims, multiVictim{prefix: pfx, pathIDs: pathIDs})
+				}
+				return true
+			})
+			for _, mv := range multiVictims {
+				sh.store.multi.Modify(mv.prefix, func(ps *bestPrevSet) {
+					for _, pid := range mv.pathIDs {
+						ps.remove(pid)
+					}
+				})
+				// If every entry was the departing peer's, drop the prefix entry
+				// from the multi store entirely; otherwise the modified pathSet
+				// was already written back by Modify.
+				if ps, exists := sh.store.multi.Lookup(mv.prefix); exists && len(ps.entries) == 0 {
+					sh.store.multi.Delete(mv.prefix)
+				}
+				for _, pid := range mv.pathIDs {
+					changes = append(changes, bestChangeEntry{
+						Action: ribevents.BestChangeWithdraw,
+						Prefix: mv.prefix.String(),
+					})
+					if r.locRIB != nil {
+						r.locRIB.Remove(fam, mv.prefix, bgpProtocolID, pid)
+					}
+				}
+			}
+			sh.mu.Unlock()
+		}
+		if len(changes) > 0 && eb != nil {
+			batch := &bestChangeBatch{
+				Protocol: "bgp",
+				Family:   famStr,
+				Changes:  changes,
+			}
+			if _, err := ribevents.BestChange.Emit(eb, batch); err != nil {
+				logger().Warn("purgeBestPrevForPeer emit failed", "peer", peerAddr, "family", famStr, "error", err)
+			}
+		}
+	}
 }
 
 // prefixBytesForDisplay returns the NLRI bytes suitable for wirePrefixToString.

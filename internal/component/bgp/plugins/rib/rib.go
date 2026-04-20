@@ -920,12 +920,13 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 				delete(r.ribInPool, peerAddr)
 			}
 			delete(r.peerMeta, peerAddr)
-			// TODO(bestprev-purge): bestPrev is prefix-keyed and still holds
-			// records whose PeerIdx points at this now-departed peer. A
-			// followup UPDATE for each prefix naturally emits the withdraw,
-			// but until then "show bgp rib best" reflects stale state. A
-			// peer-DOWN purge would need to walk every shard across every
-			// family and drop records matching this peer -- separate spec.
+			// Purge bestPrev records belonging to the departing peer so
+			// cross-protocol consumers see the withdrawal immediately
+			// (instead of waiting for the next UPDATE per prefix to
+			// trigger the natural "newBest == nil && havePrev" path).
+			// Called under peerMu.Lock so concurrent UPDATE Phase 1 for
+			// this peer cannot re-insert records mid-purge.
+			r.purgeBestPrevForPeer(peerAddr)
 		}
 	}
 	r.peerMu.Unlock()
@@ -971,6 +972,9 @@ func (r *RIBManager) handleState(event *Event) {
 				delete(r.ribInPool, peerAddr)
 			}
 			delete(r.peerMeta, peerAddr)
+			// See handleStructuredState for rationale. Purge under peerMu
+			// so concurrent Phase 1 UPDATE handlers cannot re-seed.
+			r.purgeBestPrevForPeer(peerAddr)
 		}
 	}
 	r.peerMu.Unlock()

@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // testEvent records one event emitted on the in-memory test EventBus.
@@ -147,6 +148,116 @@ func TestRIBBestChangePublish(t *testing.T) {
 	assert.Equal(t, ribevents.BestChangeAdd, batch.Changes[0].Action)
 	assert.Equal(t, "10.0.0.0/24", batch.Changes[0].Prefix)
 	assert.Equal(t, "192.168.1.1", batch.Changes[0].NextHop)
+}
+
+// TestPurgeBestPrevForPeer validates that a peer-down purge drops every
+// bestPrev record belonging to the departing peer, mirrors the
+// withdrawals into locrib, and emits a best-change Withdraw event per
+// purged prefix. Records belonging to a different peer must survive.
+//
+// VALIDATES: bestprev-purge on peer-DOWN; cross-protocol consumers see
+// the withdrawal immediately instead of waiting for a later UPDATE per
+// prefix.
+// PREVENTS: a peer-DOWN handler regression that leaves stale best-path
+// records referencing a departed peer -- the "show bgp rib best"
+// staleness reported at the TODO(bestprev-purge) removal.
+func TestPurgeBestPrevForPeer(t *testing.T) {
+	bus := newTestEventBus()
+	r := newTestRIBManagerWithBus(bus)
+
+	fam := family.Family{AFI: 1, SAFI: 1}
+	leavingPeer := "192.0.2.1"
+	survivingPeer := "192.0.2.2"
+
+	// Seed two bestPrev records for the leaving peer, plus one for the
+	// surviving peer. Go through checkBestPathChange so the interner
+	// learns both peers naturally.
+	r.peerUp[leavingPeer] = true
+	r.peerUp[survivingPeer] = true
+	r.peerMeta[leavingPeer] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[survivingPeer] = &PeerMeta{PeerASN: 65002, LocalASN: 65000}
+	r.ribInPool[leavingPeer] = storage.NewPeerRIB(leavingPeer)
+	r.ribInPool[survivingPeer] = storage.NewPeerRIB(survivingPeer)
+
+	leavingPrefixes := [][]byte{
+		ipv4Prefix(24, 10, 0, 0), // 10.0.0.0/24
+		ipv4Prefix(24, 10, 1, 0), // 10.1.0.0/24
+		ipv4Prefix(24, 10, 2, 0), // 10.2.0.0/24
+	}
+	survivingPrefix := ipv4Prefix(24, 10, 3, 0) // 10.3.0.0/24
+
+	attrsLeaving := makeAttrBytes([4]byte{192, 168, 1, 1})
+	attrsSurviving := makeAttrBytes([4]byte{192, 168, 2, 2})
+
+	for _, p := range leavingPrefixes {
+		r.ribInPool[leavingPeer].Insert(fam, attrsLeaving, p)
+		_, ok := r.checkBestPathChange(fam, p, false, nil)
+		require.True(t, ok, "seed checkBestPathChange must record the prefix")
+	}
+	r.ribInPool[survivingPeer].Insert(fam, attrsSurviving, survivingPrefix)
+	_, ok := r.checkBestPathChange(fam, survivingPrefix, false, nil)
+	require.True(t, ok, "seed surviving prefix must record")
+
+	// Sanity: four bestPrev records total across all shards for fam.
+	depthsBefore := r.bestPrev.shardDepth(fam)
+	totalBefore := 0
+	for _, d := range depthsBefore {
+		totalBefore += d
+	}
+	require.Equal(t, 4, totalBefore, "expected four bestPrev records before purge")
+
+	// Trigger DOWN for the leaving peer. Use handleStructuredState so
+	// the whole DOWN flow runs (ribInPool delete + peerMeta delete +
+	// purge under peerMu).
+	r.handleStructuredState(&rpc.StructuredEvent{
+		PeerAddress: leavingPeer,
+		State:       "down",
+	})
+
+	// The surviving peer's one record must remain; the leaving peer's
+	// three records must be gone. Total: one.
+	depthsAfter := r.bestPrev.shardDepth(fam)
+	totalAfter := 0
+	for _, d := range depthsAfter {
+		totalAfter += d
+	}
+	assert.Equal(t, 1, totalAfter, "only the surviving peer's record should remain")
+
+	// Every purged prefix must have surfaced on the EventBus as a
+	// Withdraw. The surviving prefix must NOT appear.
+	require.GreaterOrEqual(t, bus.eventCount(), 1, "expected at least one best-change event")
+	var withdrawnPrefixes []string
+	bus.mu.Lock()
+	for i := range bus.events {
+		batch, ok := bus.events[i].Payload.(*bestChangeBatch)
+		if !ok {
+			continue
+		}
+		for _, c := range batch.Changes {
+			if c.Action == ribevents.BestChangeWithdraw {
+				withdrawnPrefixes = append(withdrawnPrefixes, c.Prefix)
+			}
+		}
+	}
+	bus.mu.Unlock()
+	assert.ElementsMatch(t,
+		[]string{"10.0.0.0/24", "10.1.0.0/24", "10.2.0.0/24"},
+		withdrawnPrefixes,
+		"purge must emit a Withdraw for every leaving-peer prefix",
+	)
+	assert.NotContains(t, withdrawnPrefixes, "10.3.0.0/24", "surviving prefix must not be withdrawn")
+}
+
+// TestPurgeBestPrevForPeerUnknown validates the no-op path when the peer
+// was never interned (no records could reference it).
+func TestPurgeBestPrevForPeerUnknown(t *testing.T) {
+	bus := newTestEventBus()
+	r := newTestRIBManagerWithBus(bus)
+
+	// No seed -- interner is empty.
+	r.purgeBestPrevForPeer("203.0.113.99")
+
+	assert.Zero(t, bus.eventCount(), "no events for a peer never interned")
 }
 
 // VALIDATES: AC-3 -- BGP UPDATE does not change best path, no event published.
