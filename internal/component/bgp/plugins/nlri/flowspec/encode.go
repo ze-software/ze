@@ -12,6 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // EncodeRoute encodes a FlowSpec route command into UPDATE body bytes and NLRI bytes.
@@ -84,7 +85,7 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 // flowSpecRouteToParams converts FlowSpecRoute to FlowSpecParams.
 func flowSpecRouteToParams(r bgptypes.FlowSpecRoute, nlriBytes []byte) (message.FlowSpecParams, error) {
 	p := message.FlowSpecParams{
-		IsIPv6: r.Family == bgptypes.AFINameIPv6,
+		IsIPv6: r.Family == family.AFIIPv6,
 		NLRI:   nlriBytes,
 	}
 

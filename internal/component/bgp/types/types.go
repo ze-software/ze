@@ -63,7 +63,7 @@ type RouteSpec struct {
 
 // FlowSpecRoute specifies a FlowSpec route for announcement.
 type FlowSpecRoute struct {
-	Family       string          // "ipv4" or "ipv6"
+	Family       family.AFI      // family.AFIIPv4 or family.AFIIPv6
 	DestPrefix   *netip.Prefix   // Destination prefix match
 	SourcePrefix *netip.Prefix   // Source prefix match
 	Protocols    []uint8         // IP protocol numbers

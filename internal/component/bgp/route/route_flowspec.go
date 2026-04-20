@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // ParseFlowSpecArgs parses FlowSpec command arguments.
@@ -18,7 +19,7 @@ import (
 // Example: match destination 10.0.0.0/24 destination-port 80 then discard.
 func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 	var route bgptypes.FlowSpecRoute
-	route.Family = bgptypes.AFINameIPv4 // default
+	route.Family = family.AFIIPv4 // default
 
 	inMatch := false
 	inThen := false
@@ -52,7 +53,7 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 				}
 				route.DestPrefix = &prefix
 				if prefix.Addr().Is6() {
-					route.Family = bgptypes.AFINameIPv6
+					route.Family = family.AFIIPv6
 				}
 				i++
 
@@ -63,7 +64,7 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 				}
 				route.SourcePrefix = &prefix
 				if prefix.Addr().Is6() {
-					route.Family = bgptypes.AFINameIPv6
+					route.Family = family.AFIIPv6
 				}
 				i++
 
