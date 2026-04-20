@@ -317,11 +317,11 @@ func fsmSubcodeString(subcode uint8) string {
 // DecodedRouteRefresh holds parsed ROUTE-REFRESH message data.
 // RFC 2918 (base) and RFC 7313 (Enhanced Route Refresh with subtypes).
 type DecodedRouteRefresh struct {
-	AFI         uint16 // Address Family Identifier
-	SAFI        uint8  // Subsequent AFI
-	Subtype     uint8  // RFC 7313: 0=Normal, 1=BoRR, 2=EoRR
-	SubtypeName string // "refresh", "borr", or "eorr"
-	Family      string // Combined family name (e.g., "ipv4/unicast")
+	AFI         uint16        // Address Family Identifier (raw wire value)
+	SAFI        uint8         // Subsequent AFI (raw wire value)
+	Subtype     uint8         // RFC 7313: 0=Normal, 1=BoRR, 2=EoRR
+	SubtypeName string        // "refresh", "borr", or "eorr"
+	Family      family.Family // Typed family; use String()/AppendTo for human output, AFI/SAFI for structured
 }
 
 // DecodeRouteRefresh parses raw ROUTE-REFRESH message bytes.
@@ -340,7 +340,7 @@ func DecodeRouteRefresh(body []byte) DecodedRouteRefresh {
 		SAFI:        uint8(rr.SAFI),
 		Subtype:     uint8(rr.Subtype),
 		SubtypeName: subtypeName,
-		Family:      family.Family{AFI: rr.AFI, SAFI: rr.SAFI}.String(),
+		Family:      family.Family{AFI: rr.AFI, SAFI: rr.SAFI},
 	}
 }
 

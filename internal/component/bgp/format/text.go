@@ -195,7 +195,7 @@ func AppendRouteRefresh(buf []byte, peer *plugin.PeerInfo, decoded DecodedRouteR
 	buf = append(buf, ' ')
 	buf = strconv.AppendUint(buf, msgID, 10)
 	buf = append(buf, " family "...)
-	buf = append(buf, decoded.Family...)
+	buf = decoded.Family.AppendTo(buf)
 	buf = append(buf, '\n')
 	return buf
 }

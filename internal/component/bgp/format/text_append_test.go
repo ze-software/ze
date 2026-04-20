@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // testPeer is the canonical peer fixture used across parity tests.
@@ -174,7 +175,7 @@ func TestAppendRouteRefresh_Parity(t *testing.T) {
 		SAFI:        1,
 		Subtype:     0,
 		SubtypeName: "refresh",
-		Family:      "ipv4/unicast",
+		Family:      family.IPv4Unicast,
 	}
 	got := string(AppendRouteRefresh(nil, peer, decoded, "received", 9))
 	want := "peer 10.0.0.1 remote as 65001 received refresh 9 family ipv4/unicast\n"

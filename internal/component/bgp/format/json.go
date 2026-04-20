@@ -5,7 +5,6 @@ package format
 import (
 	"encoding/hex"
 	"encoding/json"
-	"strings"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -219,15 +218,10 @@ func (e *JSONEncoder) RouteRefresh(peer *plugin.PeerInfo, decoded DecodedRouteRe
 	setMessageDirection(outer, direction)
 	setMessageID(outer, msgID)
 
-	// Parse family "afi/safi" into separate fields
-	if idx := strings.Index(decoded.Family, "/"); idx >= 0 {
-		inner["afi"] = decoded.Family[:idx]
-		inner["safi"] = decoded.Family[idx+1:]
-	} else {
-		// Fallback if format is unexpected
-		inner["afi"] = decoded.Family
-		inner["safi"] = ""
-	}
+	// AFI / SAFI emitted as their registered names via the typed String()
+	// methods (fallback to "afi-N" / "safi-N" for unregistered values).
+	inner["afi"] = decoded.Family.AFI.String()
+	inner["safi"] = decoded.Family.SAFI.String()
 	return e.marshal(outer)
 }
 

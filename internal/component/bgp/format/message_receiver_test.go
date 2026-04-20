@@ -372,7 +372,7 @@ func TestDecodeRouteRefresh_UnknownSubtype(t *testing.T) {
 	require.Equal(t, uint8(1), decoded.SAFI)
 	require.Equal(t, uint8(99), decoded.Subtype)
 	require.Equal(t, "unknown(99)", decoded.SubtypeName)
-	require.Equal(t, "ipv4/unicast", decoded.Family)
+	require.Equal(t, family.IPv4Unicast, decoded.Family)
 }
 
 // TestDecodeNegotiated_UnknownAfiSafi verifies the family-package fallback for unknown AFI/SAFI.
