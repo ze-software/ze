@@ -51,15 +51,58 @@ type session struct {
 	createdAt       time.Time
 	protocolVersion string
 	identity        Identity
+	clientElicit    bool // client declared capabilities.elicitation={} at initialize
 
-	mu         sync.Mutex
-	lastSeenAt time.Time
+	mu           sync.Mutex
+	lastSeenAt   time.Time
+	correlations map[string]chan elicitResponse // pending server-initiated requests keyed by JSON-RPC id
 
 	sendMu       sync.Mutex  // serializes Send across producers (elicitation, tasks, transport)
 	streamActive atomic.Bool // true while a GET SSE stream holds this session
 	outbound     chan []byte
 	closed       atomic.Bool
+
+	// postMu guards activePostSink. The sink is request-scoped (set at POST
+	// entry, cleared at POST exit) but Elicit reads it from the handler's
+	// goroutine (same goroutine as handlePOST), so the mutex only matters
+	// against late writes during SSE upgrade — it is never held across a
+	// WriteFrame call to avoid inversions with the sink's own locking.
+	postMu         sync.Mutex
+	activePostSink replySink
 }
+
+// replySink is the per-POST frame writer. Two implementations live in
+// streamable.go: jsonReplySink writes a single application/json response;
+// sseReplySink writes text/event-stream frames. Elicit swaps jsonReplySink
+// for sseReplySink on the session when it needs to emit a server-initiated
+// request mid-call.
+type replySink interface {
+	// WriteFrame writes one JSON-RPC frame. For jsonReplySink, only the
+	// first call succeeds (subsequent calls error). For sseReplySink every
+	// call succeeds until Close.
+	WriteFrame(frame []byte) error
+	// IsSSE reports whether the sink already emits SSE frames. Used by
+	// upgrade to avoid re-upgrading an already-SSE sink.
+	IsSSE() bool
+	// UpgradeToSSE replaces this sink with an SSE variant if it is not
+	// already one. The returned sink writes the SSE response headers,
+	// flushes, and is ready for data frames. The caller MUST swap the
+	// returned sink into the session's activePostSink slot.
+	UpgradeToSSE() (replySink, error)
+}
+
+// elicitResponse is the resolved-value type delivered on the per-elicit
+// channel by ResolveElicit. Action is one of "accept", "decline", or
+// "cancel"; Content is populated only for Action=="accept".
+type elicitResponse struct {
+	Action  string
+	Content map[string]any
+}
+
+// Pending-elicit cap per session. Bounds the correlations map so a
+// runaway tool (or malicious client that holds responses back) cannot
+// exhaust memory. 32 is comfortably above any realistic interactive flow.
+const maxPendingElicits = 32
 
 const (
 	sessionIDRawBytes   = 16 // 128 bits of entropy
@@ -137,6 +180,23 @@ func newSessionRegistry(ttl, maxLifetime time.Duration, maxSessions int) *sessio
 // The cap check runs BEFORE any allocation so a rejected create costs only a
 // map lookup; a flood against the cap does not burn crypto/rand + chan
 // allocation per attempt.
+//
+// clientElicit is set from the client's declared capabilities.elicitation
+// at initialize; when false, session.Elicit returns ErrElicitUnsupported
+// without sending a frame.
+func (r *sessionRegistry) CreateWithCapabilities(protocolVersion string, identity Identity, clientElicit bool) (*session, error) {
+	s, err := r.Create(protocolVersion, identity)
+	if err != nil {
+		return nil, err
+	}
+	s.clientElicit = clientElicit
+	return s, nil
+}
+
+// Create allocates a new session with the zero capability flags. Prefer
+// CreateWithCapabilities in code paths that know the client's declared
+// capability set; Create remains for the legacy initialize path that did
+// not parse capabilities.
 func (r *sessionRegistry) Create(protocolVersion string, identity Identity) (*session, error) {
 	if r.stopFlag.Load() {
 		return nil, errSessionRegistryClosed
@@ -278,6 +338,130 @@ func (r *sessionRegistry) sweep() {
 	for _, s := range expired {
 		s.close()
 	}
+}
+
+// ClientSupportsElicit reports whether the session's client declared the
+// elicitation capability at initialize. Call this before session.Elicit:
+// the spec MUSTs that servers not emit elicitation/create without client
+// consent, and Elicit itself also guards — this helper is the cheap pre-check.
+func (s *session) ClientSupportsElicit() bool { return s.clientElicit }
+
+// RegisterElicit creates a fresh pending-elicitation entry and returns its
+// server-generated id plus a channel the caller blocks on. The id is a
+// base64url-encoded 128-bit random value, matching the session-id rationale.
+// Returns ErrElicitTooMany when the per-session cap is reached.
+//
+// The channel is buffered with capacity 1 so ResolveElicit never blocks.
+// Callers MUST either drain the channel or call CancelElicit(id) to prevent
+// a map leak.
+func (s *session) RegisterElicit() (string, <-chan elicitResponse, error) {
+	id, err := generateSessionID() // reuse session-id RNG; 128 bits, base64url
+	if err != nil {
+		return "", nil, err
+	}
+	ch := make(chan elicitResponse, 1)
+	s.mu.Lock()
+	if s.correlations == nil {
+		s.correlations = make(map[string]chan elicitResponse)
+	}
+	if len(s.correlations) >= maxPendingElicits {
+		s.mu.Unlock()
+		return "", nil, ErrElicitTooMany
+	}
+	// Collision on a 128-bit id is vanishingly unlikely but treat it as an
+	// error rather than silently overwriting.
+	if _, exists := s.correlations[id]; exists {
+		s.mu.Unlock()
+		return "", nil, errors.New("mcp: elicit id collision")
+	}
+	s.correlations[id] = ch
+	s.mu.Unlock()
+	return id, ch, nil
+}
+
+// ResolveElicit delivers a client response to the pending-elicitation
+// channel for id and removes the map entry. Returns false when id does not
+// match any pending correlation (AC-15b: silently drop unknown-id replies).
+// The channel write never blocks because correlation channels are buffered.
+func (s *session) ResolveElicit(id string, resp elicitResponse) bool {
+	s.mu.Lock()
+	ch, ok := s.correlations[id]
+	if ok {
+		delete(s.correlations, id)
+	}
+	s.mu.Unlock()
+	if !ok {
+		return false
+	}
+	// Buffered chan cap=1, so this never blocks.
+	ch <- resp
+	return true
+}
+
+// CancelElicit removes a pending correlation without delivering a response.
+// Called on ctx cancel (AC-15c) and by Elicit's defer on any early return.
+// Idempotent: a missing entry is silently tolerated.
+func (s *session) CancelElicit(id string) {
+	s.mu.Lock()
+	delete(s.correlations, id)
+	s.mu.Unlock()
+}
+
+// PendingElicitCount returns the current pending-correlation count. Test
+// helper; also used by the session-close path to reason about leaks.
+func (s *session) PendingElicitCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.correlations)
+}
+
+// SetActivePostSink binds a per-POST reply sink to the session for the
+// duration of one POST handler. Returns a cleanup func the caller MUST
+// defer so the sink is cleared before handlePOST returns. Returns an error
+// if a sink is already bound — concurrent POSTs on the same session would
+// race on frame ordering, so we refuse rather than silently overwrite.
+func (s *session) SetActivePostSink(sink replySink) (func(), error) {
+	s.postMu.Lock()
+	if s.activePostSink != nil {
+		s.postMu.Unlock()
+		return nil, errors.New("mcp: session already has an active POST sink")
+	}
+	s.activePostSink = sink
+	s.postMu.Unlock()
+	return func() {
+		s.postMu.Lock()
+		s.activePostSink = nil
+		s.postMu.Unlock()
+	}, nil
+}
+
+// CurrentPostSink returns the sink currently bound to the active POST, or
+// nil when no POST is being handled. Called by Elicit to write frames.
+func (s *session) CurrentPostSink() replySink {
+	s.postMu.Lock()
+	defer s.postMu.Unlock()
+	return s.activePostSink
+}
+
+// UpgradeCurrentSinkToSSE swaps the active POST's sink from JSON to SSE
+// when it is not already SSE. No-op if already SSE. Returns an error if
+// no POST is active (called outside a handler) or the sink cannot be
+// upgraded (rare; see sseReplySink construction).
+func (s *session) UpgradeCurrentSinkToSSE() error {
+	s.postMu.Lock()
+	defer s.postMu.Unlock()
+	if s.activePostSink == nil {
+		return errors.New("mcp: no active POST to upgrade")
+	}
+	if s.activePostSink.IsSSE() {
+		return nil
+	}
+	upgraded, err := s.activePostSink.UpgradeToSSE()
+	if err != nil {
+		return err
+	}
+	s.activePostSink = upgraded
+	return nil
 }
 
 // ID returns the stable session identifier.
