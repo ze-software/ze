@@ -903,6 +903,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	r.peerUp[peerAddr] = isUp
 
 	var routesToReplay []*Route
+	var pendingPurgeEmits map[string][]bestChangeEntry
 
 	if isUp && !wasUp {
 		delete(r.retainedPeers, peerAddr)
@@ -926,11 +927,17 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 			// (instead of waiting for the next UPDATE per prefix to
 			// trigger the natural "newBest == nil && havePrev" path).
 			// Called under peerMu.Lock so concurrent UPDATE Phase 1 for
-			// this peer cannot re-insert records mid-purge.
-			r.purgeBestPrevForPeer(peerAddr)
+			// this peer cannot re-insert records mid-purge. The purge
+			// itself DOES NOT emit on the EventBus; it returns per-family
+			// batches we dispatch via emitPurgedWithdraws AFTER peerMu
+			// is released (emitting under the write lock could deadlock
+			// any in-process subscriber that re-enters RIBManager).
+			pendingPurgeEmits = r.purgeBestPrevForPeer(peerAddr)
 		}
 	}
 	r.peerMu.Unlock()
+
+	r.emitPurgedWithdraws(pendingPurgeEmits)
 
 	if routesToReplay != nil {
 		r.replayRoutes(peerAddr, routesToReplay)
@@ -951,6 +958,7 @@ func (r *RIBManager) handleState(event *Event) {
 	r.peerUp[peerAddr] = isUp
 
 	var routesToReplay []*Route
+	var pendingPurgeEmits map[string][]bestChangeEntry
 
 	if isUp && !wasUp {
 		// Peer came up - clear retain flag (fresh session replaces stale state).
@@ -973,12 +981,13 @@ func (r *RIBManager) handleState(event *Event) {
 				delete(r.ribInPool, peerAddr)
 			}
 			delete(r.peerMeta, peerAddr)
-			// See handleStructuredState for rationale. Purge under peerMu
-			// so concurrent Phase 1 UPDATE handlers cannot re-seed.
-			r.purgeBestPrevForPeer(peerAddr)
+			// See handleStructuredState for the emit-after-unlock contract.
+			pendingPurgeEmits = r.purgeBestPrevForPeer(peerAddr)
 		}
 	}
 	r.peerMu.Unlock()
+
+	r.emitPurgedWithdraws(pendingPurgeEmits)
 
 	// I/O operations after releasing lock
 	if routesToReplay != nil {
