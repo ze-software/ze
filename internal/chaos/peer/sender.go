@@ -194,28 +194,17 @@ func (s *Sender) BuildFlowSpecRoute(route scenario.FlowSpecRoute) []byte {
 
 // BuildEOR constructs a serialized End-of-RIB marker for the given family.
 // RFC 4724: IPv4 unicast EOR is an empty UPDATE; others use MP_UNREACH_NLRI.
-func BuildEOR(family string) []byte {
-	f, ok := familyToNLRI[family]
+//
+// The family name is resolved via family.LookupFamily; unregistered names
+// return nil so callers emit no EOR (matching the previous behavior when
+// the hardcoded lookup table did not cover the entry).
+func BuildEOR(name string) []byte {
+	fam, ok := family.LookupFamily(name)
 	if !ok {
 		return nil
 	}
-	eor := message.BuildEOR(f)
+	eor := message.BuildEOR(fam)
 	return SerializeMessage(eor)
-}
-
-// familyToNLRI maps family strings to family.Family for EOR construction.
-// SYNC: Must stay in sync with familyToAFISAFI in session.go — both maps
-// must cover the same set of family strings.
-var familyToNLRI = map[string]family.Family{
-	"ipv4/unicast":   {AFI: family.AFIIPv4, SAFI: family.SAFIUnicast},
-	"ipv6/unicast":   {AFI: family.AFIIPv6, SAFI: family.SAFIUnicast},
-	"ipv4/multicast": {AFI: family.AFIIPv4, SAFI: family.SAFIMulticast},
-	"ipv6/multicast": {AFI: family.AFIIPv6, SAFI: family.SAFIMulticast},
-	"ipv4/mpls-vpn":  {AFI: family.AFIIPv4, SAFI: family.SAFIVPN},
-	"ipv6/mpls-vpn":  {AFI: family.AFIIPv6, SAFI: family.SAFIVPN},
-	"l2vpn/evpn":     {AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN},
-	"ipv4/flow":      {AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec},
-	"ipv6/flow":      {AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec},
 }
 
 // BuildEORIPv4Unicast constructs a serialized End-of-RIB marker for ipv4/unicast.
