@@ -111,28 +111,29 @@ func RunGRPlugin(conn net.Conn) int {
 	})
 	// RFC 9494: LLGR callbacks compose generic RIB commands.
 	// LLGR_STALE = 0xFFFF0006, NO_LLGR = 0xFFFF0007 (wire hex).
-	gp.state.onLLGREnter = func(peerAddr, fam string, llst uint32) {
+	gp.state.onLLGREnter = func(peerAddr string, fam family.Family, llst uint32) {
+		famStr := fam.String()
 		// 1. Delete routes with NO_LLGR community
-		gp.dispatchCommand("bgp rib delete-with-community " + peerAddr + " " + fam + " ffff0007")
+		gp.dispatchCommand("bgp rib delete-with-community " + peerAddr + " " + famStr + " ffff0007")
 		// 2. Attach LLGR_STALE community to remaining stale routes
-		gp.dispatchCommand("bgp rib attach-community " + peerAddr + " " + fam + " ffff0006")
+		gp.dispatchCommand("bgp rib attach-community " + peerAddr + " " + famStr + " ffff0006")
 		// 3. Raise stale level to depreference threshold
 		// Raise stale level to 2 (depreference threshold) via mark-stale
 		// with restart-time=0 (no new timer needed, LLST timer handles expiry).
 		gp.dispatchCommand("bgp rib mark-stale " + peerAddr + " 0 2")
 	}
-	gp.state.onLLGREntryDone = func(peerAddr string, families []string) {
+	gp.state.onLLGREntryDone = func(peerAddr string, families []family.Family) {
 		// RFC 9494: readvertise per-fam (not all-fam) to avoid resending unrelated families.
 		for _, fam := range families {
-			gp.dispatchCommand("bgp rib clear out !" + peerAddr + " " + fam)
+			gp.dispatchCommand("bgp rib clear out !" + peerAddr + " " + fam.String())
 		}
 		// Increment LLGR active count for egress filter fast-path.
 		if s := egressState.Load(); s != nil {
 			s.llgrActiveCount.Add(1)
 		}
 	}
-	gp.state.onLLGRFamilyExpired = func(peerAddr, fam string) {
-		gp.dispatchCommand("bgp rib purge-stale " + peerAddr + " " + fam)
+	gp.state.onLLGRFamilyExpired = func(peerAddr string, fam family.Family) {
+		gp.dispatchCommand("bgp rib purge-stale " + peerAddr + " " + fam.String())
 	}
 	gp.state.onLLGRComplete = func(peerAddr string) {
 		gp.dispatchCommand("bgp rib release-routes " + peerAddr)
@@ -353,7 +354,7 @@ func (gp *grPlugin) handleStructuredState(peerAddr, state, reason string) {
 
 		purged, wasInLLGR := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
 		for _, fam := range purged {
-			gp.dispatchCommand("bgp rib purge-stale " + peerAddr + " " + fam)
+			gp.dispatchCommand("bgp rib purge-stale " + peerAddr + " " + fam.String())
 		}
 		if wasInLLGR {
 			if s := egressState.Load(); s != nil {
@@ -514,7 +515,7 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 		purged, wasInLLGR := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
 		for _, fam := range purged {
 			// RFC 4724: purge stale routes for families with F-bit=0 or missing
-			gp.dispatchCommand("bgp rib purge-stale " + peerAddr + " " + fam)
+			gp.dispatchCommand("bgp rib purge-stale " + peerAddr + " " + fam.String())
 		}
 		if wasInLLGR {
 			if s := egressState.Load(); s != nil {
@@ -532,16 +533,21 @@ func (gp *grPlugin) handleEOREvent(peerAddr string, payload map[string]any) {
 		return
 	}
 
-	fam, _ := eorObj["family"].(string)
-	if fam == "" {
+	famStr, _ := eorObj["family"].(string)
+	if famStr == "" {
+		return
+	}
+	fam, ok := family.LookupFamily(famStr)
+	if !ok {
+		logger().Debug("gr: EOR for unregistered family", "peer", peerAddr, "family", famStr)
 		return
 	}
 
 	shouldPurge := gp.state.onEORReceived(peerAddr, fam)
 	if shouldPurge {
 		// RFC 4724: purge only stale routes for this family (selective, not nuclear)
-		gp.dispatchCommand("bgp rib purge-stale " + peerAddr + " " + fam)
-		logger().Debug("gr: EOR received, purging stale routes", "peer", peerAddr, "family", fam)
+		gp.dispatchCommand("bgp rib purge-stale " + peerAddr + " " + famStr)
+		logger().Debug("gr: EOR received, purging stale routes", "peer", peerAddr, "family", famStr)
 	}
 }
 
@@ -581,28 +587,19 @@ func (gp *grPlugin) dispatchCommand(command string) {
 }
 
 // grResultToPeerCap converts a decoded GR wire result to the state machine's
-// capability representation, mapping AFI/SAFI numbers to family strings.
+// capability representation, packing AFI/SAFI numbers into family.Family.
 func grResultToPeerCap(r *grResult) *grPeerCap {
 	cap := &grPeerCap{
 		RestartTime: r.RestartTime,
 		Families:    make([]grCapFamily, 0, len(r.Families)),
 	}
 	for _, f := range r.Families {
-		fam := afiSAFIToFamily(f.AFI, f.SAFI)
-		if fam != "" {
-			cap.Families = append(cap.Families, grCapFamily{
-				Family:       fam,
-				ForwardState: f.ForwardState,
-			})
-		}
+		cap.Families = append(cap.Families, grCapFamily{
+			Family:       family.Family{AFI: family.AFI(f.AFI), SAFI: family.SAFI(f.SAFI)},
+			ForwardState: f.ForwardState,
+		})
 	}
 	return cap
-}
-
-// afiSAFIToFamily converts AFI/SAFI numbers to ze family string format.
-// Delegates to family.Family.String() — single source of truth for family names.
-func afiSAFIToFamily(afi uint16, safi uint8) string {
-	return family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}.String()
 }
 
 // parseGRCapValue extracts a GR capability hex value from a capability map's

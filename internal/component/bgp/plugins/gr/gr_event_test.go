@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -35,9 +36,9 @@ func TestHandleEventOpenCapture(t *testing.T) {
 	require.True(t, ok, "GR capability should be stored for peer")
 	assert.Equal(t, uint16(120), cap.RestartTime)
 	require.Len(t, cap.Families, 2)
-	assert.Equal(t, "ipv4/unicast", cap.Families[0].Family)
+	assert.Equal(t, family.IPv4Unicast, cap.Families[0].Family)
 	assert.True(t, cap.Families[0].ForwardState)
-	assert.Equal(t, "ipv6/unicast", cap.Families[1].Family)
+	assert.Equal(t, family.IPv6Unicast, cap.Families[1].Family)
 	assert.True(t, cap.Families[1].ForwardState)
 }
 
@@ -76,7 +77,7 @@ func TestHandleEventStateDown(t *testing.T) {
 	// Pre-store GR capability (as if OPEN was received earlier)
 	gp.peerCaps["10.0.0.1"] = &grPeerCap{
 		RestartTime: 120,
-		Families:    []grCapFamily{{Family: "ipv4/unicast", ForwardState: true}},
+		Families:    []grCapFamily{{Family: family.IPv4Unicast, ForwardState: true}},
 	}
 
 	event := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","remote":{"as":65001}},"state":"down","reason":"tcp-failure"}}`
@@ -100,7 +101,7 @@ func TestHandleEventStateDownNotification(t *testing.T) {
 
 	gp.peerCaps["10.0.0.1"] = &grPeerCap{
 		RestartTime: 120,
-		Families:    []grCapFamily{{Family: "ipv4/unicast", ForwardState: true}},
+		Families:    []grCapFamily{{Family: family.IPv4Unicast, ForwardState: true}},
 	}
 
 	event := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","remote":{"as":65001}},"state":"down","reason":"notification"}}`
@@ -143,8 +144,8 @@ func TestHandleEventEOR(t *testing.T) {
 	cap := &grPeerCap{
 		RestartTime: 120,
 		Families: []grCapFamily{
-			{Family: "ipv4/unicast", ForwardState: true},
-			{Family: "ipv6/unicast", ForwardState: true},
+			{Family: family.IPv4Unicast, ForwardState: true},
+			{Family: family.IPv6Unicast, ForwardState: true},
 		},
 	}
 	gp.state.onSessionDown("10.0.0.1", cap, nil, false)
@@ -212,8 +213,8 @@ func TestHandleEventStateUp(t *testing.T) {
 	oldCap := &grPeerCap{
 		RestartTime: 120,
 		Families: []grCapFamily{
-			{Family: "ipv4/unicast", ForwardState: true},
-			{Family: "ipv6/unicast", ForwardState: true},
+			{Family: family.IPv4Unicast, ForwardState: true},
+			{Family: family.IPv6Unicast, ForwardState: true},
 		},
 	}
 	gp.state.onSessionDown("10.0.0.1", oldCap, nil, false)
@@ -221,7 +222,7 @@ func TestHandleEventStateUp(t *testing.T) {
 	// New OPEN only has IPv4 with F-bit=1 (IPv6 missing)
 	gp.peerCaps["10.0.0.1"] = &grPeerCap{
 		RestartTime: 120,
-		Families:    []grCapFamily{{Family: "ipv4/unicast", ForwardState: true}},
+		Families:    []grCapFamily{{Family: family.IPv4Unicast, ForwardState: true}},
 	}
 
 	event := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","remote":{"as":65001}},"state":"up"}}`
@@ -274,7 +275,7 @@ func TestHandleOpenEventCapHexDecode(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, uint16(300), cap.RestartTime)
 	require.Len(t, cap.Families, 1)
-	assert.Equal(t, "ipv4/unicast", cap.Families[0].Family)
+	assert.Equal(t, family.IPv4Unicast, cap.Families[0].Family)
 	assert.True(t, cap.Families[0].ForwardState)
 }
 
@@ -308,7 +309,7 @@ func TestHandleEventOpenLLGR(t *testing.T) {
 
 	require.True(t, llgrOK, "LLGR capability should be stored")
 	require.Len(t, llgrCap.Families, 1)
-	assert.Equal(t, "ipv4/unicast", llgrCap.Families[0].Family)
+	assert.Equal(t, family.IPv4Unicast, llgrCap.Families[0].Family)
 	assert.True(t, llgrCap.Families[0].ForwardState)
 	assert.Equal(t, uint32(3600), llgrCap.Families[0].LLST)
 }
@@ -446,7 +447,7 @@ func TestHandleStructuredEventDispatchOpen(t *testing.T) {
 	require.True(t, ok, "GR capability should be stored after structured open dispatch")
 	assert.Equal(t, uint16(120), cap.RestartTime)
 	require.Len(t, cap.Families, 1)
-	assert.Equal(t, "ipv4/unicast", cap.Families[0].Family)
+	assert.Equal(t, family.IPv4Unicast, cap.Families[0].Family)
 	assert.True(t, cap.Families[0].ForwardState)
 }
 
@@ -525,7 +526,7 @@ func TestHandleStructuredOpenValidGR(t *testing.T) {
 		families    [][4]byte // {AFI-high, AFI-low, SAFI, flags}
 		wantTime    uint16
 		wantFams    []struct {
-			family string
+			family family.Family
 			fwdBit bool
 		}
 	}{
@@ -536,10 +537,10 @@ func TestHandleStructuredOpenValidGR(t *testing.T) {
 			families:    [][4]byte{{0x00, 0x01, 0x01, 0x80}},
 			wantTime:    120,
 			wantFams: []struct {
-				family string
+				family family.Family
 				fwdBit bool
 			}{
-				{"ipv4/unicast", true},
+				{family.IPv4Unicast, true},
 			},
 		},
 		{
@@ -552,11 +553,11 @@ func TestHandleStructuredOpenValidGR(t *testing.T) {
 			},
 			wantTime: 300,
 			wantFams: []struct {
-				family string
+				family family.Family
 				fwdBit bool
 			}{
-				{"ipv4/unicast", true},
-				{"ipv6/unicast", false},
+				{family.IPv4Unicast, true},
+				{family.IPv6Unicast, false},
 			},
 		},
 		{
@@ -566,10 +567,10 @@ func TestHandleStructuredOpenValidGR(t *testing.T) {
 			families:    [][4]byte{{0x00, 0x01, 0x01, 0x80}},
 			wantTime:    4095,
 			wantFams: []struct {
-				family string
+				family family.Family
 				fwdBit bool
 			}{
-				{"ipv4/unicast", true},
+				{family.IPv4Unicast, true},
 			},
 		},
 	}
@@ -634,7 +635,7 @@ func TestHandleStructuredOpenValidLLGR(t *testing.T) {
 	require.NotNil(t, grOK, "GR capability should be stored")
 	require.True(t, llgrOK, "LLGR capability should be stored")
 	require.Len(t, llgrCapResult.Families, 1)
-	assert.Equal(t, "ipv4/unicast", llgrCapResult.Families[0].Family)
+	assert.Equal(t, family.IPv4Unicast, llgrCapResult.Families[0].Family)
 	assert.True(t, llgrCapResult.Families[0].ForwardState)
 	assert.Equal(t, uint32(3600), llgrCapResult.Families[0].LLST)
 }
@@ -758,18 +759,18 @@ func TestHandleStructuredOpenGRPlusLLGR(t *testing.T) {
 	require.True(t, grOK, "GR capability should be stored")
 	assert.Equal(t, uint16(240), grResult.RestartTime)
 	require.Len(t, grResult.Families, 2)
-	assert.Equal(t, "ipv4/unicast", grResult.Families[0].Family)
+	assert.Equal(t, family.IPv4Unicast, grResult.Families[0].Family)
 	assert.True(t, grResult.Families[0].ForwardState)
-	assert.Equal(t, "ipv6/unicast", grResult.Families[1].Family)
+	assert.Equal(t, family.IPv6Unicast, grResult.Families[1].Family)
 	assert.True(t, grResult.Families[1].ForwardState)
 
 	// Verify LLGR
 	require.True(t, llgrOK, "LLGR capability should be stored")
 	require.Len(t, llgrResult.Families, 2)
-	assert.Equal(t, "ipv4/unicast", llgrResult.Families[0].Family)
+	assert.Equal(t, family.IPv4Unicast, llgrResult.Families[0].Family)
 	assert.True(t, llgrResult.Families[0].ForwardState)
 	assert.Equal(t, uint32(7200), llgrResult.Families[0].LLST)
-	assert.Equal(t, "ipv6/unicast", llgrResult.Families[1].Family)
+	assert.Equal(t, family.IPv6Unicast, llgrResult.Families[1].Family)
 	assert.True(t, llgrResult.Families[1].ForwardState)
 	assert.Equal(t, uint32(3600), llgrResult.Families[1].LLST)
 }
@@ -905,7 +906,7 @@ func TestHandleStructuredOpenLLGRDeletedWhenPreExisting(t *testing.T) {
 
 	// Pre-populate LLGR state (as if a previous OPEN had both GR+LLGR)
 	gp.peerLLGRCaps["10.0.0.1"] = &llgrPeerCap{
-		Families: []llgrCapFamily{{Family: "ipv4/unicast", ForwardState: true, LLST: 3600}},
+		Families: []llgrCapFamily{{Family: family.IPv4Unicast, ForwardState: true, LLST: 3600}},
 	}
 
 	// New OPEN has only a multiprotocol capability (code 1), no GR or LLGR

@@ -42,9 +42,9 @@ type llgrPeerCap struct {
 
 // llgrCapFamily represents one AFI/SAFI entry in a peer's LLGR capability.
 type llgrCapFamily struct {
-	Family       string // "ipv4/unicast", "ipv6/unicast", etc.
-	ForwardState bool   // F-bit: peer preserved forwarding state during LLGR
-	LLST         uint32 // Long-Lived Stale Time in seconds (0-16777215)
+	Family       family.Family // typed AFI/SAFI identity
+	ForwardState bool          // F-bit: peer preserved forwarding state during LLGR
+	LLST         uint32        // Long-Lived Stale Time in seconds (0-16777215)
 }
 
 // decodeLLGR decodes LLGR capability wire bytes.
@@ -87,20 +87,17 @@ func decodeLLGR(data []byte) (*llgrResult, error) {
 }
 
 // llgrResultToPeerCap converts a decoded LLGR wire result to the state machine's
-// capability representation, mapping AFI/SAFI numbers to family strings.
+// capability representation, packing AFI/SAFI numbers into family.Family.
 func llgrResultToPeerCap(r *llgrResult) *llgrPeerCap {
 	peerCap := &llgrPeerCap{
 		Families: make([]llgrCapFamily, 0, len(r.Families)),
 	}
 	for _, f := range r.Families {
-		famStr := afiSAFIToFamily(f.AFI, f.SAFI)
-		if famStr != "" {
-			peerCap.Families = append(peerCap.Families, llgrCapFamily{
-				Family:       famStr,
-				ForwardState: f.ForwardState,
-				LLST:         f.LLST,
-			})
-		}
+		peerCap.Families = append(peerCap.Families, llgrCapFamily{
+			Family:       family.Family{AFI: family.AFI(f.AFI), SAFI: family.SAFI(f.SAFI)},
+			ForwardState: f.ForwardState,
+			LLST:         f.LLST,
+		})
 	}
 	return peerCap
 }
