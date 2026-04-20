@@ -6,6 +6,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -67,7 +68,7 @@ func TestIngressFilterNoRedistribution(t *testing.T) {
 // PREVENTS: Valid routes rejected.
 func TestIngressFilterEBGPAccepted(t *testing.T) {
 	redistribute.SetGlobal(redistribute.NewEvaluator([]redistribute.ImportRule{
-		{Source: "ebgp", Families: []string{"ipv4/unicast"}},
+		{Source: "ebgp", Families: []family.Family{family.IPv4Unicast}},
 	}))
 	defer redistribute.SetGlobal(nil)
 
@@ -82,7 +83,7 @@ func TestIngressFilterEBGPAccepted(t *testing.T) {
 // PREVENTS: Wrong families leaking through.
 func TestIngressFilterFamilyRejected(t *testing.T) {
 	redistribute.SetGlobal(redistribute.NewEvaluator([]redistribute.ImportRule{
-		{Source: "ebgp", Families: []string{"ipv4/unicast"}},
+		{Source: "ebgp", Families: []family.Family{family.IPv4Unicast}},
 	}))
 	defer redistribute.SetGlobal(nil)
 
@@ -118,7 +119,7 @@ func TestIngressFilterIBGPvsEBGP(t *testing.T) {
 // VALIDATES: familyFromPayload returns ipv4/unicast for standard UPDATEs.
 // PREVENTS: IPv4 unicast misidentified.
 func TestFamilyFromPayloadIPv4(t *testing.T) {
-	assert.Equal(t, "ipv4/unicast", familyFromPayload(buildIPv4Payload()))
+	assert.Equal(t, family.IPv4Unicast, familyFromPayload(buildIPv4Payload()))
 }
 
 // TestFamilyFromPayloadMPReach verifies family extraction from MP_REACH_NLRI.
@@ -130,11 +131,11 @@ func TestFamilyFromPayloadMPReach(t *testing.T) {
 		name string
 		afi  uint16
 		safi uint8
-		want string
+		want family.Family
 	}{
-		{"ipv6/unicast", 2, 1, "ipv6/unicast"},
-		{"ipv4/multicast", 1, 2, "ipv4/multicast"},
-		{"ipv6/multicast", 2, 2, "ipv6/multicast"},
+		{"ipv6/unicast", 2, 1, family.IPv6Unicast},
+		{"ipv4/multicast", 1, 2, family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMulticast}},
+		{"ipv6/multicast", 2, 2, family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIMulticast}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -148,8 +149,8 @@ func TestFamilyFromPayloadMPReach(t *testing.T) {
 // VALIDATES: familyFromPayload defaults to ipv4/unicast on malformed input.
 // PREVENTS: Panic or wrong family on garbage input.
 func TestFamilyFromPayloadMalformed(t *testing.T) {
-	assert.Equal(t, "ipv4/unicast", familyFromPayload(nil))
-	assert.Equal(t, "ipv4/unicast", familyFromPayload([]byte{}))
-	assert.Equal(t, "ipv4/unicast", familyFromPayload([]byte{0}))
-	assert.Equal(t, "ipv4/unicast", familyFromPayload([]byte{0, 0, 0, 0}))
+	assert.Equal(t, family.IPv4Unicast, familyFromPayload(nil))
+	assert.Equal(t, family.IPv4Unicast, familyFromPayload([]byte{}))
+	assert.Equal(t, family.IPv4Unicast, familyFromPayload([]byte{0}))
+	assert.Equal(t, family.IPv4Unicast, familyFromPayload([]byte{0, 0, 0, 0}))
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,9 +30,9 @@ func TestExtractRedistributeRules_Basic(t *testing.T) {
 	redist := NewTree()
 	tree.SetContainer("redistribute", redist)
 
-	// import ebgp { family [ ipv4/unicast ipv4/vpn ]; }
+	// import ebgp { family [ ipv4/unicast ipv4/mpls-vpn ]; }
 	ebgpEntry := NewTree()
-	ebgpEntry.SetSlice("family", []string{"ipv4/unicast", "ipv4/vpn"})
+	ebgpEntry.SetSlice("family", []string{"ipv4/unicast", "ipv4/mpls-vpn"})
 	redist.AddListEntry("import", "ebgp", ebgpEntry)
 
 	// import ibgp;
@@ -42,8 +43,9 @@ func TestExtractRedistributeRules_Basic(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rules, 2)
 
+	ipv4VPN := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
 	assert.Equal(t, "ebgp", rules[0].Source)
-	assert.Equal(t, []string{"ipv4/unicast", "ipv4/vpn"}, rules[0].Families)
+	assert.Equal(t, []family.Family{family.IPv4Unicast, ipv4VPN}, rules[0].Families)
 
 	assert.Equal(t, "ibgp", rules[1].Source)
 	assert.Empty(t, rules[1].Families)
@@ -88,6 +90,27 @@ func TestExtractRedistributeRules_UnknownSource(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown source")
 	assert.Contains(t, err.Error(), "rip")
+}
+
+// TestExtractRedistributeRules_UnknownFamily verifies error on unregistered family.
+//
+// VALIDATES: Unknown family name under a known source produces an error (exact-or-reject).
+// PREVENTS: Silent drop / mistranslation of operator-specified families.
+func TestExtractRedistributeRules_UnknownFamily(t *testing.T) {
+	registerRedistSources(t)
+
+	tree := NewTree()
+	redist := NewTree()
+	tree.SetContainer("redistribute", redist)
+	entry := NewTree()
+	entry.SetSlice("family", []string{"ipv4/unicast", "ipv9/bogus"})
+	redist.AddListEntry("import", "ebgp", entry)
+
+	_, err := ExtractRedistributeRules(tree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown family")
+	assert.Contains(t, err.Error(), "ipv9/bogus")
+	assert.Contains(t, err.Error(), "ebgp")
 }
 
 // TestExtractRedistributeRules_PreservesOrder verifies import rules maintain config order.

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 
@@ -155,7 +156,7 @@ func TestHandleBatchAcceptedAddDispatches(t *testing.T) {
 	id := redistevents.RegisterProtocol("fakeredist")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []string{"ipv4/unicast"}},
+		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
 	}))
 
 	disp := &fakeDispatcher{}
@@ -177,7 +178,7 @@ func TestHandleBatchAcceptedAddIPv6(t *testing.T) {
 	id := redistevents.RegisterProtocol("fakeredist")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []string{"ipv6/unicast"}},
+		{Source: "fakeredist", Families: []family.Family{family.IPv6Unicast}},
 	}))
 
 	disp := &fakeDispatcher{}
@@ -199,7 +200,7 @@ func TestHandleBatchExplicitNextHop(t *testing.T) {
 	id := redistevents.RegisterProtocol("fakeredist")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []string{"ipv4/unicast"}},
+		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
 	}))
 
 	disp := &fakeDispatcher{}
@@ -221,7 +222,7 @@ func TestHandleBatchRejectedAddNoop(t *testing.T) {
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	// Rule limits to ipv6/unicast; we feed an ipv4/unicast batch.
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []string{"ipv6/unicast"}},
+		{Source: "fakeredist", Families: []family.Family{family.IPv6Unicast}},
 	}))
 
 	disp := &fakeDispatcher{}
@@ -239,7 +240,7 @@ func TestHandleBatchRemoveDispatches(t *testing.T) {
 	id := redistevents.RegisterProtocol("fakeredist")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []string{"ipv4/unicast"}},
+		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
 	}))
 
 	disp := &fakeDispatcher{}
@@ -283,7 +284,7 @@ func TestHandleBatchReloadApplies(t *testing.T) {
 	assert.Empty(t, disp.snapshot(), "first call should be rejected by empty rules")
 
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []string{"ipv4/unicast"}},
+		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
 	}))
 
 	handleBatch(context.Background(), disp, bgpID, batch)
@@ -299,7 +300,7 @@ func TestHandleBatchBGPSourceSkipped(t *testing.T) {
 	bgpID := redistevents.RegisterProtocol("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []string{"ipv4/unicast"}},
+		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
 	}))
 
 	disp := &fakeDispatcher{}
@@ -316,7 +317,7 @@ func TestHandleBatchUnknownProtocol(t *testing.T) {
 
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []string{"ipv4/unicast"}},
+		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
 	}))
 
 	disp := &fakeDispatcher{}
@@ -359,7 +360,7 @@ func TestSubscribeNonBGPProducers(t *testing.T) {
 
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []string{"ipv4/unicast"}},
+		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
 	}))
 
 	fakeID := redistevents.RegisterProtocol("fakeredist")

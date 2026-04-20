@@ -3,6 +3,8 @@ package redistribute
 import (
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,7 +14,7 @@ import (
 // PREVENTS: Redistribution loops between protocols.
 func TestAcceptLoopPrevention(t *testing.T) {
 	rule := ImportRule{Source: "ospf"}
-	route := RedistRoute{Origin: "ospf", Family: "ipv4/unicast", Source: "ospf"}
+	route := RedistRoute{Origin: "ospf", Family: family.IPv4Unicast, Source: "ospf"}
 
 	// OSPF route should not be imported back into OSPF
 	assert.False(t, rule.Accept(route, "ospf"))
@@ -36,28 +38,28 @@ func TestAcceptLoopPreventionBGPSubSources(t *testing.T) {
 	}{
 		{
 			name:              "ibgp route blocked from bgp import",
-			route:             RedistRoute{Origin: "bgp", Family: "ipv4/unicast", Source: "ibgp"},
+			route:             RedistRoute{Origin: "bgp", Family: family.IPv4Unicast, Source: "ibgp"},
 			rule:              ImportRule{Source: "ibgp"},
 			importingProtocol: "bgp",
 			want:              false,
 		},
 		{
 			name:              "ebgp route blocked from bgp import",
-			route:             RedistRoute{Origin: "bgp", Family: "ipv4/unicast", Source: "ebgp"},
+			route:             RedistRoute{Origin: "bgp", Family: family.IPv4Unicast, Source: "ebgp"},
 			rule:              ImportRule{Source: "ebgp"},
 			importingProtocol: "bgp",
 			want:              false,
 		},
 		{
 			name:              "ospf route accepted into bgp",
-			route:             RedistRoute{Origin: "ospf", Family: "ipv4/unicast", Source: "ospf"},
+			route:             RedistRoute{Origin: "ospf", Family: family.IPv4Unicast, Source: "ospf"},
 			rule:              ImportRule{Source: "ospf"},
 			importingProtocol: "bgp",
 			want:              true,
 		},
 		{
 			name:              "connected route accepted into bgp",
-			route:             RedistRoute{Origin: "connected", Family: "ipv4/unicast", Source: "connected"},
+			route:             RedistRoute{Origin: "connected", Family: family.IPv4Unicast, Source: "connected"},
 			rule:              ImportRule{Source: "connected"},
 			importingProtocol: "bgp",
 			want:              true,
@@ -76,7 +78,7 @@ func TestAcceptLoopPreventionBGPSubSources(t *testing.T) {
 // PREVENTS: Routes from wrong source leaking through.
 func TestAcceptSourceMismatch(t *testing.T) {
 	rule := ImportRule{Source: "ebgp"}
-	route := RedistRoute{Origin: "bgp", Family: "ipv4/unicast", Source: "ibgp"}
+	route := RedistRoute{Origin: "bgp", Family: family.IPv4Unicast, Source: "ibgp"}
 
 	// ibgp route should not match ebgp rule (even though both have origin "bgp")
 	// Loop prevention fires first here since origin matches importing protocol,
@@ -89,20 +91,23 @@ func TestAcceptSourceMismatch(t *testing.T) {
 // VALIDATES: Routes are filtered by address family when families list is non-empty.
 // PREVENTS: Unwanted families being redistributed.
 func TestAcceptFamilyFilter(t *testing.T) {
+	ipv4VPN := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
+	l2vpnEVPN := family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}
+
 	rule := ImportRule{
 		Source:   "ebgp",
-		Families: []string{"ipv4/unicast", "ipv4/vpn"},
+		Families: []family.Family{family.IPv4Unicast, ipv4VPN},
 	}
 
 	tests := []struct {
 		name   string
-		family string
+		family family.Family
 		want   bool
 	}{
-		{"allowed ipv4/unicast", "ipv4/unicast", true},
-		{"allowed ipv4/vpn", "ipv4/vpn", true},
-		{"blocked ipv6/unicast", "ipv6/unicast", false},
-		{"blocked l2vpn/evpn", "l2vpn/evpn", false},
+		{"allowed ipv4/unicast", family.IPv4Unicast, true},
+		{"allowed ipv4/vpn", ipv4VPN, true},
+		{"blocked ipv6/unicast", family.IPv6Unicast, false},
+		{"blocked l2vpn/evpn", l2vpnEVPN, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -118,7 +123,12 @@ func TestAcceptFamilyFilter(t *testing.T) {
 // PREVENTS: Empty list accidentally rejecting everything.
 func TestAcceptEmptyFamiliesAllowsAll(t *testing.T) {
 	rule := ImportRule{Source: "ospf"}
-	families := []string{"ipv4/unicast", "ipv6/unicast", "l2vpn/evpn", "ipv4/vpn"}
+	families := []family.Family{
+		family.IPv4Unicast,
+		family.IPv6Unicast,
+		{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN},
+		{AFI: family.AFIIPv4, SAFI: family.SAFIVPN},
+	}
 
 	for _, fam := range families {
 		route := RedistRoute{Origin: "ospf", Family: fam, Source: "ospf"}
@@ -132,9 +142,9 @@ func TestAcceptEmptyFamiliesAllowsAll(t *testing.T) {
 // PREVENTS: First-match-only or all-must-match logic errors.
 func TestEvaluateMultipleRules(t *testing.T) {
 	rules := []ImportRule{
-		{Source: "ebgp", Families: []string{"ipv4/unicast"}},
+		{Source: "ebgp", Families: []family.Family{family.IPv4Unicast}},
 		{Source: "ospf"},
-		{Source: "connected", Families: []string{"ipv6/unicast"}},
+		{Source: "connected", Families: []family.Family{family.IPv6Unicast}},
 	}
 
 	tests := []struct {
@@ -145,43 +155,43 @@ func TestEvaluateMultipleRules(t *testing.T) {
 	}{
 		{
 			name:  "ebgp ipv4 accepted",
-			route: RedistRoute{Origin: "bgp", Family: "ipv4/unicast", Source: "ebgp"},
+			route: RedistRoute{Origin: "bgp", Family: family.IPv4Unicast, Source: "ebgp"},
 			proto: "ospf",
 			want:  true,
 		},
 		{
 			name:  "ebgp ipv6 rejected by family filter",
-			route: RedistRoute{Origin: "bgp", Family: "ipv6/unicast", Source: "ebgp"},
+			route: RedistRoute{Origin: "bgp", Family: family.IPv6Unicast, Source: "ebgp"},
 			proto: "ospf",
 			want:  false,
 		},
 		{
 			name:  "ospf any family accepted",
-			route: RedistRoute{Origin: "ospf", Family: "ipv6/unicast", Source: "ospf"},
+			route: RedistRoute{Origin: "ospf", Family: family.IPv6Unicast, Source: "ospf"},
 			proto: "bgp",
 			want:  true,
 		},
 		{
 			name:  "connected ipv6 accepted",
-			route: RedistRoute{Origin: "connected", Family: "ipv6/unicast", Source: "connected"},
+			route: RedistRoute{Origin: "connected", Family: family.IPv6Unicast, Source: "connected"},
 			proto: "bgp",
 			want:  true,
 		},
 		{
 			name:  "connected ipv4 rejected by family filter",
-			route: RedistRoute{Origin: "connected", Family: "ipv4/unicast", Source: "connected"},
+			route: RedistRoute{Origin: "connected", Family: family.IPv4Unicast, Source: "connected"},
 			proto: "bgp",
 			want:  false,
 		},
 		{
 			name:  "loop prevention across all rules",
-			route: RedistRoute{Origin: "bgp", Family: "ipv4/unicast", Source: "ebgp"},
+			route: RedistRoute{Origin: "bgp", Family: family.IPv4Unicast, Source: "ebgp"},
 			proto: "bgp",
 			want:  false,
 		},
 		{
 			name:  "unknown source rejected",
-			route: RedistRoute{Origin: "isis", Family: "ipv4/unicast", Source: "isis"},
+			route: RedistRoute{Origin: "isis", Family: family.IPv4Unicast, Source: "isis"},
 			proto: "bgp",
 			want:  false,
 		},
@@ -198,7 +208,7 @@ func TestEvaluateMultipleRules(t *testing.T) {
 // VALIDATES: Empty rule set rejects all routes.
 // PREVENTS: Nil/empty rules accidentally accepting everything.
 func TestEvaluateEmptyRules(t *testing.T) {
-	route := RedistRoute{Origin: "ospf", Family: "ipv4/unicast", Source: "ospf"}
+	route := RedistRoute{Origin: "ospf", Family: family.IPv4Unicast, Source: "ospf"}
 	assert.False(t, Evaluate(route, nil, "bgp"))
 	assert.False(t, Evaluate(route, []ImportRule{}, "bgp"))
 }

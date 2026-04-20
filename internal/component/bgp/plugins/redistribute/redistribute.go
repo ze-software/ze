@@ -231,10 +231,10 @@ func handleBatch(ctx context.Context, dispatcher routeDispatcher, bgpID redistev
 		return
 	}
 
-	fam := family.Family{AFI: family.AFI(b.AFI), SAFI: family.SAFI(b.SAFI)}.String()
+	famVal := family.Family{AFI: family.AFI(b.AFI), SAFI: family.SAFI(b.SAFI)}
 	route := configredist.RedistRoute{
 		Origin: name,
-		Family: fam,
+		Family: famVal,
 		Source: name,
 	}
 
@@ -249,8 +249,9 @@ func handleBatch(ctx context.Context, dispatcher routeDispatcher, bgpID redistev
 		return
 	}
 
+	famStr := famVal.String()
 	for i := range b.Entries {
-		dispatchEntry(ctx, dispatcher, fam, &b.Entries[i])
+		dispatchEntry(ctx, dispatcher, famStr, &b.Entries[i])
 	}
 }
 

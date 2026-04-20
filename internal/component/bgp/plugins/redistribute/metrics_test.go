@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	configredist "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 
@@ -120,7 +121,7 @@ func TestMetricsCadence(t *testing.T) {
 	bgpID := redistevents.RegisterProtocol("bgp")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
-		{Source: "fakeredist", Families: []string{"ipv4/unicast"}},
+		{Source: "fakeredist", Families: []family.Family{family.IPv4Unicast}},
 	}))
 
 	rec := newRecordingRegistry()

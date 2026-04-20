@@ -41,20 +41,20 @@ func IngressFilter(src registry.PeerFilterInfo, payload []byte, _ map[string]any
 // familyFromPayload extracts the address family from an UPDATE body.
 // If MP_REACH_NLRI (attr 14) is present, returns its AFI/SAFI.
 // Otherwise returns ipv4/unicast (RFC 4271 default).
-func familyFromPayload(payload []byte) string {
+func familyFromPayload(payload []byte) family.Family {
 	// Skip withdrawn routes length (2 bytes) + withdrawn routes.
 	if len(payload) < 4 {
-		return family.IPv4Unicast.String()
+		return family.IPv4Unicast
 	}
 	wdLen := int(binary.BigEndian.Uint16(payload[0:2]))
 	attrStart := 2 + wdLen
 	if attrStart+2 > len(payload) {
-		return family.IPv4Unicast.String()
+		return family.IPv4Unicast
 	}
 	attrTotalLen := int(binary.BigEndian.Uint16(payload[attrStart : attrStart+2]))
 	attrs := payload[attrStart+2:]
 	if len(attrs) < attrTotalLen {
-		return family.IPv4Unicast.String()
+		return family.IPv4Unicast
 	}
 	attrs = attrs[:attrTotalLen]
 
@@ -88,11 +88,11 @@ func familyFromPayload(payload []byte) string {
 			valStart := off + hdrLen
 			afi := family.AFI(binary.BigEndian.Uint16(attrs[valStart : valStart+2]))
 			safi := family.SAFI(attrs[valStart+2])
-			return family.Family{AFI: afi, SAFI: safi}.String()
+			return family.Family{AFI: afi, SAFI: safi}
 		}
 
 		off += hdrLen + attrLen
 	}
 
-	return family.IPv4Unicast.String()
+	return family.IPv4Unicast
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // ExtractRedistributeRules extracts redistribution import rules from a config tree.
@@ -15,7 +16,9 @@ import (
 // optional family filter.
 //
 // Returns nil with no error when the redistribute container is absent or empty.
-// Returns an error when a source name is not in the registry.
+// Returns an error when a source name is not in the registry or when a family
+// name is not registered (exact-or-reject: unknown families MUST NOT silently
+// be dropped or translated).
 func ExtractRedistributeRules(tree *Tree) ([]redistribute.ImportRule, error) {
 	redist := tree.GetContainer("redistribute")
 	if redist == nil {
@@ -35,7 +38,18 @@ func ExtractRedistributeRules(tree *Tree) ([]redistribute.ImportRule, error) {
 			return nil, fmt.Errorf("redistribute: unknown source %q", source)
 		}
 
-		families := entry.Value.GetMultiValues("family")
+		names := entry.Value.GetMultiValues("family")
+		var families []family.Family
+		if len(names) > 0 {
+			families = make([]family.Family, 0, len(names))
+			for _, name := range names {
+				fam, ok := family.LookupFamily(name)
+				if !ok {
+					return nil, fmt.Errorf("redistribute: unknown family %q under source %q", name, source)
+				}
+				families = append(families, fam)
+			}
+		}
 
 		rules = append(rules, redistribute.ImportRule{
 			Source:   source,
