@@ -1,6 +1,6 @@
 #!/bin/bash
 # Extracts a stable session identifier from CLAUDE_CODE_SESSION_ACCESS_TOKEN (JWT).
-# Falls back to PPID if token unavailable.
+# Falls back to walking the process tree for the `claude` ancestor.
 # Usage: source this file, then call _session_id
 
 _session_id() {
@@ -10,15 +10,21 @@ _session_id() {
         # varies across hook subprocesses.
         local pid=$$
         while [ "$pid" -gt 1 ] 2>/dev/null; do
-            # Check argv[0] from /proc/pid/cmdline (first NUL-delimited field)
-            local argv0
-            argv0=$(tr '\0' '\n' < "/proc/$pid/cmdline" 2>/dev/null | head -1)
-            if [ "$argv0" = "claude" ]; then
-                echo "$pid"
-                return
+            local argv0 ppid
+            if [ -r "/proc/$pid/cmdline" ]; then
+                # Linux: /proc/<pid>/cmdline + /proc/<pid>/status
+                argv0=$(tr '\0' '\n' < "/proc/$pid/cmdline" 2>/dev/null | head -1)
+                ppid=$(awk '/^PPid:/ {print $2}' "/proc/$pid/status" 2>/dev/null)
+            else
+                # macOS / BSD: no /proc, use ps
+                argv0=$(ps -o comm= -p "$pid" 2>/dev/null)
+                ppid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
             fi
-            pid=$(awk '/^PPid:/ {print $2}' "/proc/$pid/status" 2>/dev/null)
-            [ -z "$pid" ] && break
+            case "$argv0" in
+                */claude|claude) echo "$pid"; return ;;
+            esac
+            [ -z "$ppid" ] && break
+            pid=$ppid
         done
         echo "$PPID"
         return
