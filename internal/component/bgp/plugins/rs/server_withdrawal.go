@@ -64,7 +64,7 @@ func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 	// Extract families for forward target selection.
 	// Structured path (DirectBridge): read directly from wire, no text parsing.
 	// Text path (fork-mode): parse from text payload.
-	var families map[string]bool
+	var families map[family.Family]bool
 	if ctx.msg != nil {
 		families = extractWireFamilies(ctx.msg)
 	} else {
@@ -94,25 +94,25 @@ func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 // extractWireFamilies extracts address families from a raw UPDATE message.
 // Uses MPReachWire.Family() and MPUnreachWire.Family() (3-byte reads each),
 // and checks for IPv4 body NLRIs. No NLRI parsing needed.
-func extractWireFamilies(msg *bgptypes.RawMessage) map[string]bool {
-	families := make(map[string]bool, 2)
+func extractWireFamilies(msg *bgptypes.RawMessage) map[family.Family]bool {
+	families := make(map[family.Family]bool, 2)
 	wu := msg.WireUpdate
 	if wu == nil {
 		return families
 	}
 
 	if mp, err := wu.MPReach(); err == nil && mp != nil {
-		families[mp.Family().String()] = true
+		families[mp.Family()] = true
 	}
 	if mp, err := wu.MPUnreach(); err == nil && mp != nil {
-		families[mp.Family().String()] = true
+		families[mp.Family()] = true
 	}
 	// Check IPv4 body NLRIs (only present for IPv4 unicast).
 	if body, err := wu.NLRI(); err == nil && len(body) > 0 {
-		families["ipv4/unicast"] = true
+		families[family.IPv4Unicast] = true
 	}
 	if wd, err := wu.Withdrawn(); err == nil && len(wd) > 0 {
-		families["ipv4/unicast"] = true
+		families[family.IPv4Unicast] = true
 	}
 
 	return families

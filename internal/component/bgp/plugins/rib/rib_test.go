@@ -964,8 +964,8 @@ func TestHandleRefresh_InternalState(t *testing.T) {
 	event := &Event{
 		Message: &MessageInfo{Type: "refresh"},
 		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}}),
-		AFI:     "ipv4",
-		SAFI:    "unicast",
+		AFI:     family.AFIIPv4,
+		SAFI:    family.SAFIUnicast,
 	}
 
 	// handleRefresh sends via updateRoute (SDK RPC), which will fail silently on closed pipes.
@@ -996,8 +996,8 @@ func TestHandleRefresh_PeerNotUp(t *testing.T) {
 	event := &Event{
 		Message: &MessageInfo{Type: "refresh"},
 		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}}),
-		AFI:     "ipv4",
-		SAFI:    "unicast",
+		AFI:     family.AFIIPv4,
+		SAFI:    family.SAFIUnicast,
 	}
 
 	// Should not panic, just return early
@@ -1027,8 +1027,8 @@ func TestHandleRefresh_IPv6Family(t *testing.T) {
 	event := &Event{
 		Message: &MessageInfo{Type: "refresh"},
 		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}}),
-		AFI:     "ipv6",
-		SAFI:    "unicast",
+		AFI:     family.AFIIPv6,
+		SAFI:    family.SAFIUnicast,
 	}
 
 	// Should not panic - output goes through SDK RPC
@@ -1459,8 +1459,8 @@ func TestDispatch_RefreshEvents(t *testing.T) {
 			event := &Event{
 				Message: &MessageInfo{Type: tt.eventType},
 				Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}}),
-				AFI:     "ipv4",
-				SAFI:    "unicast",
+				AFI:     family.AFIIPv4,
+				SAFI:    family.SAFIUnicast,
 			}
 
 			// Should not panic
@@ -1943,7 +1943,7 @@ func TestHandleRefreshPerFamily(t *testing.T) {
 	// Request refresh for ipv4/unicast only
 	refreshEvent := &Event{
 		Peer: mustMarshal(t, map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": uint32(65001)}}),
-		AFI:  "ipv4", SAFI: "unicast",
+		AFI:  family.AFIIPv4, SAFI: family.SAFIUnicast,
 	}
 	// handleRefresh sends routes via SDK (closed pipe in test, no-op),
 	// but we can verify it doesn't panic and the ribOut is unchanged.

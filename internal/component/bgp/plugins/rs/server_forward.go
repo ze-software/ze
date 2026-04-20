@@ -8,6 +8,8 @@ import (
 	"context"
 	"sort"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // forwardBatch accumulates forward items for batch RPC.
@@ -31,7 +33,7 @@ type forwardBatch struct {
 // selectForwardTargets returns peers that should receive an UPDATE with the given families.
 // A peer is included if it is up, is not the source, and supports at least one family
 // in the UPDATE (or has nil Families, meaning unknown/all-accepted).
-func (rs *RouteServer) selectForwardTargets(buf []string, sourcePeer string, families map[string]bool) []string {
+func (rs *RouteServer) selectForwardTargets(buf []string, sourcePeer string, families map[family.Family]bool) []string {
 	buf = buf[:0]
 	for addr, peer := range rs.peers {
 		if addr == sourcePeer || !peer.Up {
@@ -60,7 +62,7 @@ func (rs *RouteServer) selectForwardTargets(buf []string, sourcePeer string, fam
 // if the target selector changes (different peer set). Flushes when the batch
 // reaches maxBatchSize items. Partial batches are flushed by the onDrained
 // callback when the worker channel empties.
-func (rs *RouteServer) batchForwardUpdate(key workerKey, sourcePeer string, msgID uint64, families map[string]bool) {
+func (rs *RouteServer) batchForwardUpdate(key workerKey, sourcePeer string, msgID uint64, families map[family.Family]bool) {
 	val, _ := rs.batches.LoadOrStore(key, &forwardBatch{})
 	batch, ok := val.(*forwardBatch)
 	if !ok {

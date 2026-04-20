@@ -9,19 +9,20 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Event represents a parsed BGP event (from text format).
 // Fields are extracted by parseTextState, parseTextOpen, parseTextRefresh.
 type Event struct {
-	Type     string    // Event type: "update", "state", "open", "refresh"
-	MsgID    uint64    // Message ID (for cache-forward)
-	PeerAddr string    // Peer address
-	PeerASN  uint32    // Peer ASN
-	State    string    // State for state events ("up", "down", "connected")
-	Open     *OpenInfo // OPEN: decoded open data
-	AFI      string    // Refresh: AFI
-	SAFI     string    // Refresh: SAFI
+	Type     string      // Event type: "update", "state", "open", "refresh"
+	MsgID    uint64      // Message ID (for cache-forward)
+	PeerAddr string      // Peer address
+	PeerASN  uint32      // Peer ASN
+	State    string      // State for state events ("up", "down", "connected")
+	Open     *OpenInfo   // OPEN: decoded open data
+	AFI      family.AFI  // Refresh: AFI
+	SAFI     family.SAFI // Refresh: SAFI
 }
 
 // FamilyOperation represents a single add or del operation for a family.
@@ -166,18 +167,19 @@ func quickParseTextEvent(text string) (string, uint64, string, string, error) {
 
 // parseTextUpdateFamilies extracts family names from a text UPDATE event.
 // Scans for "nlri" keyword followed by an afi/safi token (the family).
-// Returns a map of family → true for selectForwardTargets compatibility.
-func parseTextUpdateFamilies(text string) map[string]bool {
+// Unregistered family names are dropped -- the engine only forwards for
+// families the registry knows about.
+func parseTextUpdateFamilies(text string) map[family.Family]bool {
 	s := textparse.NewScanner(text)
-	families := make(map[string]bool)
+	families := make(map[family.Family]bool)
 	for !s.Done() {
 		tok, ok := s.Next()
 		if !ok {
 			break
 		}
 		if tok == textparse.KWNLRI {
-			if fam, ok := s.Next(); ok {
-				if strings.Contains(fam, "/") {
+			if famStr, ok := s.Next(); ok {
+				if fam, ok := family.LookupFamily(famStr); ok {
 					families[fam] = true
 				}
 			}
@@ -433,8 +435,12 @@ func parseTextRefresh(text string) *Event {
 		if tok == tokenFamily {
 			if fam, ok := s.Next(); ok {
 				if parts := strings.SplitN(fam, "/", 2); len(parts) == 2 {
-					event.AFI = parts[0]
-					event.SAFI = parts[1]
+					if afi, ok := family.LookupAFI(parts[0]); ok {
+						event.AFI = afi
+					}
+					if safi, ok := family.LookupSAFI(parts[1]); ok {
+						event.SAFI = safi
+					}
 				}
 			}
 			break

@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // errUnknownCommandMarker is the engine's ErrUnknownCommand text ("unknown
@@ -210,7 +212,7 @@ func (rs *RouteServer) sendEOR(peerAddr string, gen uint64) {
 	}
 	families := make([]string, 0, len(p.Families))
 	for f := range p.Families {
-		families = append(families, f)
+		families = append(families, f.String())
 	}
 	rs.mu.RUnlock()
 
@@ -256,7 +258,7 @@ func (rs *RouteServer) handleOpen(event *Event) {
 
 	if event.Open != nil {
 		peer.Capabilities = make(map[string]bool)
-		peer.Families = make(map[string]bool)
+		peer.Families = make(map[family.Family]bool)
 
 		// RFC 4760 Section 1: ipv4/unicast is the implicit default only when
 		// the peer sends no Multiprotocol capability. If the peer advertises
@@ -267,12 +269,14 @@ func (rs *RouteServer) handleOpen(event *Event) {
 			peer.Capabilities[cap.Name] = true
 
 			if cap.Name == "multiprotocol" && cap.Value != "" {
-				peer.Families[cap.Value] = true
+				if fam, ok := family.LookupFamily(cap.Value); ok {
+					peer.Families[fam] = true
+				}
 			}
 		}
 
 		if !hasMP {
-			peer.Families["ipv4/unicast"] = true
+			peer.Families[family.IPv4Unicast] = true
 		}
 	}
 }
@@ -285,11 +289,10 @@ func (rs *RouteServer) handleOpen(event *Event) {
 // the lock during network I/O would block all state updates.
 func (rs *RouteServer) handleRefresh(event *Event) {
 	peerAddr := event.PeerAddr
-	fam := event.AFI + "/" + event.SAFI
-
 	if peerAddr == "" {
 		return
 	}
+	fam := family.Family{AFI: event.AFI, SAFI: event.SAFI}
 
 	rs.mu.RLock()
 	var targets []string
@@ -311,9 +314,10 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 	rs.mu.RUnlock()
 
 	// Send refreshes asynchronously — per-lifecycle goroutine (not hot path).
+	famStr := fam.String()
 	go func() {
 		for _, addr := range targets {
-			rs.updateRoute(addr, "refresh "+fam)
+			rs.updateRoute(addr, "refresh "+famStr)
 		}
 	}()
 }

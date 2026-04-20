@@ -11,7 +11,10 @@
 //   - Family: <AFI, SAFI> tuple identifying NLRI semantics
 package family
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 // AFI represents Address Family Identifier.
 // RFC 4760 Section 3: AFI is a 2-octet field in MP_REACH_NLRI/MP_UNREACH_NLRI.
@@ -46,6 +49,24 @@ func (a AFI) AppendTo(buf []byte) []byte {
 	}
 	buf = append(buf, "afi-"...)
 	return strconv.AppendUint(buf, uint64(a), 10)
+}
+
+// MarshalText renders the AFI as its registered name (e.g. "ipv4"). Makes the
+// type JSON-round-trippable without custom field wrappers.
+func (a AFI) MarshalText() ([]byte, error) {
+	return []byte(a.String()), nil
+}
+
+// UnmarshalText parses a registered AFI name and stores the numeric value.
+// Returns an error for unregistered names; callers typically propagate as
+// parse failure.
+func (a *AFI) UnmarshalText(data []byte) error {
+	v, ok := LookupAFI(string(data))
+	if !ok {
+		return fmt.Errorf("family: unregistered AFI %q", string(data))
+	}
+	*a = v
+	return nil
 }
 
 // SAFI represents Subsequent Address Family Identifier.
@@ -89,6 +110,23 @@ func (s SAFI) AppendTo(buf []byte) []byte {
 	}
 	buf = append(buf, "safi-"...)
 	return strconv.AppendUint(buf, uint64(s), 10)
+}
+
+// MarshalText renders the SAFI as its registered name (e.g. "unicast"). Makes
+// the type JSON-round-trippable without custom field wrappers.
+func (s SAFI) MarshalText() ([]byte, error) {
+	return []byte(s.String()), nil
+}
+
+// UnmarshalText parses a registered SAFI name and stores the numeric value.
+// Returns an error for unregistered names.
+func (s *SAFI) UnmarshalText(data []byte) error {
+	v, ok := LookupSAFI(string(data))
+	if !ok {
+		return fmt.Errorf("family: unregistered SAFI %q", string(data))
+	}
+	*s = v
+	return nil
 }
 
 // Family combines AFI and SAFI to identify an address family.

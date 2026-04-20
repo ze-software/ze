@@ -8,6 +8,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // KnownFields are the standard Event fields that are not family operations.
@@ -275,9 +277,10 @@ type Event struct {
 	Command string   `json:"command,omitempty"`
 	Args    []string `json:"args,omitempty"`
 
-	// Route refresh fields (RFC 7313).
-	AFI  string `json:"afi,omitempty"`
-	SAFI string `json:"safi,omitempty"`
+	// Route refresh fields (RFC 7313). JSON text form uses the registered
+	// AFI/SAFI names (e.g. "ipv4"/"unicast") via family.AFI/SAFI TextMarshaler.
+	AFI  family.AFI  `json:"afi,omitempty"`
+	SAFI family.SAFI `json:"safi,omitempty"`
 
 	// Pool storage raw fields (format=full only).
 	// Hex-encoded wire bytes for pool-based storage.

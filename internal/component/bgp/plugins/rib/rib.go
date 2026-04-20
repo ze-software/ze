@@ -34,6 +34,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
@@ -858,7 +859,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 // SHOULD send BoRR, re-advertise Adj-RIB-Out, then send EoRR.
 func (r *RIBManager) handleRefresh(event *Event) {
 	peerAddr := event.GetPeerAddress()
-	fam := event.AFI + "/" + event.SAFI
+	fam := family.Family{AFI: event.AFI, SAFI: event.SAFI}.String()
 
 	if peerAddr == "" {
 		logger().Warn("refresh event: empty peer address")

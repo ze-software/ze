@@ -662,18 +662,11 @@ func parseStructuredRefresh(se *rpc.StructuredEvent, msg *bgptypes.RawMessage) *
 	if se.PeerAddress == "" || msg.RawBytes == nil || len(msg.RawBytes) < 4 {
 		return nil
 	}
-	afi := uint16(msg.RawBytes[0])<<8 | uint16(msg.RawBytes[1])
-	safi := msg.RawBytes[3]
-	famStr := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}.String()
-	afiStr, safiStr, ok := strings.Cut(famStr, "/")
-	if !ok {
-		return nil
-	}
 	return &Event{
 		Type:     eventRefresh,
 		PeerAddr: se.PeerAddress,
-		AFI:      afiStr,
-		SAFI:     safiStr,
+		AFI:      family.AFI(uint16(msg.RawBytes[0])<<8 | uint16(msg.RawBytes[1])),
+		SAFI:     family.SAFI(msg.RawBytes[3]),
 	}
 }
 

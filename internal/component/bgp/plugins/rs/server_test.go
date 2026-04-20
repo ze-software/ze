@@ -14,6 +14,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -132,7 +133,7 @@ func TestHandleUpdate_MultiFamilyMixed(t *testing.T) {
 	rs.mu.Lock()
 	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true,
-		Families: map[string]bool{"ipv4/unicast": true, "ipv6/unicast": true}}
+		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true}}
 	rs.mu.Unlock()
 
 	// Pre-populate withdrawal map with route that will be withdrawn.
@@ -297,10 +298,10 @@ func TestHandleOpen_ZeBGPFormat(t *testing.T) {
 	if !peer.HasCapability("asn4") {
 		t.Error("missing asn4 capability")
 	}
-	if !peer.SupportsFamily("ipv4/unicast") {
+	if !peer.SupportsFamily(family.IPv4Unicast) {
 		t.Error("missing ipv4/unicast family")
 	}
-	if !peer.SupportsFamily("ipv6/unicast") {
+	if !peer.SupportsFamily(family.IPv6Unicast) {
 		t.Error("missing ipv6/unicast family")
 	}
 }
@@ -342,17 +343,17 @@ func TestFilterUpdateByFamily(t *testing.T) {
 	rs.peers["10.0.0.1"] = &PeerState{
 		Address:  "10.0.0.1",
 		Up:       true,
-		Families: map[string]bool{"ipv4/unicast": true, "ipv6/unicast": true},
+		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
 	rs.peers["10.0.0.2"] = &PeerState{
 		Address:  "10.0.0.2",
 		Up:       true,
-		Families: map[string]bool{"ipv4/unicast": true},
+		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.peers["10.0.0.3"] = &PeerState{
 		Address:  "10.0.0.3",
 		Up:       true,
-		Families: map[string]bool{"ipv4/unicast": true, "ipv6/unicast": true},
+		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
 	rs.mu.Unlock()
 
@@ -386,18 +387,18 @@ func TestFilterRefreshByCapability(t *testing.T) {
 		Address:      "10.0.0.1",
 		Up:           true,
 		Capabilities: map[string]bool{"route-refresh": true},
-		Families:     map[string]bool{"ipv4/unicast": true},
+		Families:     map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.peers["10.0.0.2"] = &PeerState{
 		Address:  "10.0.0.2",
 		Up:       true,
-		Families: map[string]bool{"ipv4/unicast": true},
+		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.peers["10.0.0.3"] = &PeerState{
 		Address:      "10.0.0.3",
 		Up:           true,
 		Capabilities: map[string]bool{"route-refresh": true},
-		Families:     map[string]bool{"ipv4/unicast": true},
+		Families:     map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
 
@@ -421,12 +422,12 @@ func TestFilterReplayByFamily(t *testing.T) {
 	rs.peers["10.0.0.1"] = &PeerState{
 		Address:  "10.0.0.1",
 		Up:       true,
-		Families: map[string]bool{"ipv4/unicast": true},
+		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.peers["10.0.0.2"] = &PeerState{
 		Address:  "10.0.0.2",
 		Up:       true,
-		Families: map[string]bool{"ipv4/unicast": true, "ipv6/unicast": true},
+		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
 	rs.mu.Unlock()
 
@@ -1063,7 +1064,7 @@ func TestSelectForwardTargetsDeterministic(t *testing.T) {
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
 	rs.mu.Unlock()
 
-	families := map[string]bool{"ipv4/unicast": true}
+	families := map[family.Family]bool{family.IPv4Unicast: true}
 
 	// Call 100 times — with unsorted output, Go map randomness would produce
 	// different orderings, causing batch selector mismatches.
@@ -1175,9 +1176,9 @@ func TestHandleStateUpReplay(t *testing.T) {
 
 	rs.mu.Lock()
 	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true,
-		Families: map[string]bool{"ipv4/unicast": true}}
+		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true,
-		Families:     map[string]bool{"ipv4/unicast": true},
+		Families:     map[family.Family]bool{family.IPv4Unicast: true},
 		Capabilities: map[string]bool{"route-refresh": true}}
 	rs.mu.Unlock()
 
@@ -1244,7 +1245,7 @@ func TestRSSoftDepSkipsReplay(t *testing.T) {
 	rs.peers["10.0.0.1"] = &PeerState{
 		Address:  "10.0.0.1",
 		Up:       true,
-		Families: map[string]bool{"ipv4/unicast": true},
+		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
 
@@ -1301,14 +1302,14 @@ func TestReplayingPeerIncludedInForwardTargets(t *testing.T) {
 
 	rs.mu.Lock()
 	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true, Replaying: true,
-		Families: map[string]bool{"ipv4/unicast": true}}
+		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true,
-		Families: map[string]bool{"ipv4/unicast": true}}
+		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	rs.mu.Unlock()
 
 	// A replaying peer SHOULD be in forward targets (duplicates are idempotent).
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(nil, "10.0.0.2", map[string]bool{"ipv4/unicast": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.2", map[family.Family]bool{family.IPv4Unicast: true})
 	rs.mu.RUnlock()
 	if !slices.Contains(targets, "10.0.0.1") {
 		t.Error("replaying peer 10.0.0.1 should be in forward targets")
@@ -1337,7 +1338,7 @@ func TestHandleStateUpDelta(t *testing.T) {
 
 	rs.mu.Lock()
 	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true,
-		Families: map[string]bool{"ipv4/unicast": true}}
+		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	rs.mu.Unlock()
 
 	rs.handleStateUp("10.0.0.1")
@@ -1381,7 +1382,7 @@ func TestHandleStateUpNonBlocking(t *testing.T) {
 
 	rs.mu.Lock()
 	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true,
-		Families: map[string]bool{"ipv4/unicast": true}}
+		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	rs.mu.Unlock()
 
 	// handleStateUp should return immediately even though replay blocks.
@@ -1517,7 +1518,7 @@ func TestReplayGeneration_RapidReconnect(t *testing.T) {
 
 	rs.mu.Lock()
 	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true,
-		Families: map[string]bool{"ipv4/unicast": true}}
+		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	rs.mu.Unlock()
 
 	// First handleStateUp — goroutine A blocks on DispatchCommand.
@@ -1577,7 +1578,7 @@ func TestTextUpdateParseableByFields(t *testing.T) {
 		wantType string
 		wantID   uint64
 		wantPeer string
-		wantFams map[string]bool
+		wantFams map[family.Family]bool
 	}{
 		{
 			name:     "add ipv4",
@@ -1585,7 +1586,7 @@ func TestTextUpdateParseableByFields(t *testing.T) {
 			wantType: eventUpdate,
 			wantID:   42,
 			wantPeer: "10.0.0.1",
-			wantFams: map[string]bool{"ipv4/unicast": true},
+			wantFams: map[family.Family]bool{family.IPv4Unicast: true},
 		},
 		{
 			name:     "del ipv4",
@@ -1593,7 +1594,7 @@ func TestTextUpdateParseableByFields(t *testing.T) {
 			wantType: eventUpdate,
 			wantID:   99,
 			wantPeer: "10.0.0.2",
-			wantFams: map[string]bool{"ipv4/unicast": true},
+			wantFams: map[family.Family]bool{family.IPv4Unicast: true},
 		},
 		{
 			name:     "add ipv6",
@@ -1601,7 +1602,7 @@ func TestTextUpdateParseableByFields(t *testing.T) {
 			wantType: eventUpdate,
 			wantID:   7,
 			wantPeer: "10.0.0.1",
-			wantFams: map[string]bool{"ipv6/unicast": true},
+			wantFams: map[family.Family]bool{family.IPv6Unicast: true},
 		},
 	}
 
@@ -1751,7 +1752,7 @@ func TestSelectForwardTargetsReusesBuffer(t *testing.T) {
 	rs.peers["10.0.0.3"] = &PeerState{Address: "10.0.0.3", Up: true}
 	rs.mu.Unlock()
 
-	families := map[string]bool{"ipv4/unicast": true}
+	families := map[family.Family]bool{family.IPv4Unicast: true}
 
 	// First call: buffer grows from nil.
 	rs.mu.RLock()
@@ -1804,7 +1805,7 @@ func TestReplayForPeer_SendsEOR(t *testing.T) {
 	rs.peers["10.0.0.1"] = &PeerState{
 		Address:  "10.0.0.1",
 		Up:       true,
-		Families: map[string]bool{"ipv4/unicast": true, "ipv6/unicast": true},
+		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
 	rs.mu.Unlock()
 
@@ -1938,7 +1939,7 @@ func TestReplayForPeer_FailedReplay_SendsEOR(t *testing.T) {
 	rs.peers["10.0.0.1"] = &PeerState{
 		Address:  "10.0.0.1",
 		Up:       true,
-		Families: map[string]bool{"ipv4/unicast": true},
+		Families: map[family.Family]bool{family.IPv4Unicast: true},
 	}
 	rs.mu.Unlock()
 

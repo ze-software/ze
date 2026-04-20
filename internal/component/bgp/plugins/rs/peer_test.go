@@ -45,22 +45,22 @@ func TestHasCapability_ExplicitlyFalse(t *testing.T) {
 // PREVENTS: Dropping routes during the window between state-up and OPEN processing.
 func TestSupportsFamily_NilMapAcceptsAll(t *testing.T) {
 	p := &PeerState{Families: nil}
-	assert.True(t, p.SupportsFamily("ipv4/unicast"))
-	assert.True(t, p.SupportsFamily("ipv6/unicast"))
+	assert.True(t, p.SupportsFamily(family.IPv4Unicast))
+	assert.True(t, p.SupportsFamily(family.IPv6Unicast))
 }
 
 // VALIDATES: SupportsFamily returns true for a supported family.
 // PREVENTS: Route filtering on families that were negotiated.
 func TestSupportsFamily_Supported(t *testing.T) {
-	p := &PeerState{Families: map[string]bool{"ipv4/unicast": true, "ipv6/unicast": true}}
-	assert.True(t, p.SupportsFamily("ipv4/unicast"))
+	p := &PeerState{Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true}}
+	assert.True(t, p.SupportsFamily(family.IPv4Unicast))
 }
 
 // VALIDATES: SupportsFamily returns false for an unsupported family.
 // PREVENTS: Sending updates for families the peer cannot process.
 func TestSupportsFamily_Unsupported(t *testing.T) {
-	p := &PeerState{Families: map[string]bool{"ipv4/unicast": true}}
-	assert.False(t, p.SupportsFamily("l2vpn/evpn"))
+	p := &PeerState{Families: map[family.Family]bool{family.IPv4Unicast: true}}
+	assert.False(t, p.SupportsFamily(family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}))
 }
 
 // --- capabilityPresent ---

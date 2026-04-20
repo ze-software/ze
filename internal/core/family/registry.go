@@ -53,6 +53,8 @@ type registry struct {
 	afiNames     map[AFI]string             // immutable snapshot for AFI.String()
 	safiNames    map[SAFI]string            // immutable snapshot for SAFI.String()
 	familyByName map[string]Family          // immutable snapshot for LookupFamily()
+	afiByName    map[string]AFI             // immutable snapshot for LookupAFI()
+	safiByName   map[string]SAFI            // immutable snapshot for LookupSAFI()
 }
 
 // familyRegistration holds one entry collected by RegisterFamily.
@@ -90,6 +92,8 @@ func newEmptyState() *registry {
 		afiNames:     map[AFI]string{},
 		safiNames:    map[SAFI]string{},
 		familyByName: map[string]Family{},
+		afiByName:    map[string]AFI{},
+		safiByName:   map[string]SAFI{},
 	}
 }
 
@@ -156,10 +160,14 @@ func RegisterFamily(afi AFI, safi SAFI, afiStr, safiStr string) (Family, error) 
 		afiNames:     maps.Clone(cur.afiNames),
 		safiNames:    maps.Clone(cur.safiNames),
 		familyByName: maps.Clone(cur.familyByName),
+		afiByName:    maps.Clone(cur.afiByName),
+		safiByName:   maps.Clone(cur.safiByName),
 	}
 	next.afiNames[afi] = afiStr
 	next.safiNames[safi] = safiStr
 	next.familyByName[canonical] = f
+	next.afiByName[afiStr] = afi
+	next.safiByName[safiStr] = safi
 	next.pack, next.idx = buildPack(registrations)
 
 	state.Store(next)
@@ -194,6 +202,22 @@ func RegisteredFamilyNames() []string {
 func LookupFamily(s string) (Family, bool) {
 	f, ok := state.Load().familyByName[s]
 	return f, ok
+}
+
+// LookupAFI looks up an AFI by its registered name (e.g., "ipv4", "ipv6",
+// "l2vpn", "bgp-ls"). Returns the AFI value and true on hit, zero and false
+// on miss. Lock-free: reads from the current state snapshot.
+func LookupAFI(name string) (AFI, bool) {
+	a, ok := state.Load().afiByName[name]
+	return a, ok
+}
+
+// LookupSAFI looks up a SAFI by its registered name (e.g., "unicast",
+// "multicast", "evpn"). Returns the SAFI value and true on hit, zero and
+// false on miss. Lock-free: reads from the current state snapshot.
+func LookupSAFI(name string) (SAFI, bool) {
+	s, ok := state.Load().safiByName[name]
+	return s, ok
 }
 
 // buildPack builds the packed string buffer + AFI/SAFI index from a slice of
