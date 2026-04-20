@@ -1,0 +1,58 @@
+# Test: MCP elicitation decline -- client refuses to supply the missing
+# command; ze_execute fails with a typed decline sentinel surfaced in the
+# tool result.
+#
+# VALIDATES: spec-mcp-3-elicitation AC-14 (decline path).
+# The ze-test mcp client declares capabilities.elicitation={} at initialize,
+# queues a decline reply, then calls ze_execute with command="". The daemon
+# emits elicitation/create over SSE, the client POSTs {"action":"decline"},
+# and the server's session.Elicit returns ErrElicitDeclined. ze_execute
+# surfaces that as a tool error whose text contains "declined".
+#
+# PREVENTS: a decline being treated as an accept-with-empty-content and
+# dispatched (which would silently run an empty command), or the decline
+# not propagating back through the SSE-upgraded reply at all.
+
+stdin=mcp:terminator=EOF_MCP
+elicit-decline
+@ze_execute {"command":""}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT --elicit:stdin=mcp:timeout=15s
+# ze-test mcp prints the RPC error to stderr and returns non-zero when the
+# tool reports an error; the decline message rides there.
+expect=exit:code=1
+expect=stderr:contains=declined

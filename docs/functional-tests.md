@@ -101,6 +101,25 @@ Dynamic route tests - routes injected via scripts using the process API.
 - `*.conf` - ZeBGP configuration (includes `process` block)
 - `*.run` - Script that sends API commands
 
+### 3b. MCP Tests (`test/plugin/mcp-*.ci`, `test/plugin/elicitation-*.ci`)
+
+End-to-end scenarios for the MCP transport. The runner launches a ze
+daemon with `--mcp <port>` in the background and `ze-test mcp` in the
+foreground; assertions come from `expect=exit:code=...` and
+`expect=stdout|stderr:contains=...`.
+
+| File | What it covers |
+|------|----------------|
+| `mcp-announce.ci` | `ze_execute` dispatches a BGP UPDATE via the MCP endpoint, `ze-peer` verifies the wire bytes |
+| `elicitation-accept.ci` | Client declares `capabilities.elicitation={}`, queues an accept reply, `ze_execute` with empty command triggers `elicitation/create` over SSE, accepted command is dispatched |
+| `elicitation-decline.ci` | Same setup, queued decline surfaces as a tool error containing "declined" |
+| `elicitation-no-capability.ci` | Client does NOT declare the capability; the server fails fast with "missing required argument" instead of hanging on an elicit |
+
+The `ze-test mcp` client understands these extra stdin directives for
+elicitation scenarios: `elicit-accept <json>`, `elicit-decline`,
+`elicit-cancel`. Each queues one reply; the client auto-cancels when an
+elicit frame arrives with nothing queued.
+
 ### Test-Only Internal Plugins (`internal/test/plugins/`)
 
 Some `.ci` tests need a synthetic Go-side producer to drive features that

@@ -34,12 +34,22 @@ func mcpCmd() int {
 	port := fs.String("port", "", "MCP server port (required)")
 	token := fs.String("token", "", "Bearer token for MCP authentication")
 	timeout := fs.Duration("timeout", 10*time.Second, "Connection timeout")
+	elicit := fs.Bool("elicit", false, "Declare capabilities.elicitation={} at initialize so the server may send elicitation/create")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze-test mcp --port <port> [--token <token>] [--timeout <duration>]
+		fmt.Fprintf(os.Stderr, `Usage: ze-test mcp --port <port> [--token <token>] [--timeout <duration>] [--elicit]
 
 Send commands to a running Ze daemon via MCP.
 Reads commands from stdin, one per line.
+
+Stdin directives (one per line):
+  <ze command>                     -- sent as ze_execute
+  @<tool> <json args>              -- call a named MCP tool with JSON args
+  wait <duration>                  -- sleep
+  wait-established                 -- poll "peer list" until a peer is Established
+  elicit-accept <json content>     -- queue an accept response for the next elicit
+  elicit-decline                   -- queue a decline response for the next elicit
+  elicit-cancel                    -- queue a cancel response for the next elicit
 
 Options:
 `)
@@ -56,8 +66,14 @@ Options:
 	}
 
 	client := &mcpClient{
-		addr:  "127.0.0.1:" + *port,
-		token: *token,
+		addr:          "127.0.0.1:" + *port,
+		token:         *token,
+		declareElicit: *elicit,
+		// No Timeout: http.Client.Timeout would cut off a valid slow tool
+		// call (or a long-lived SSE stream while Phase 4 tasks stream
+		// progress) before the .ci runner's outer `timeout=` fires. Rely on
+		// the runner's deadline to kill a hung process.
+		http: &http.Client{},
 	}
 
 	// Wait for MCP server to be ready.
@@ -96,6 +112,30 @@ Options:
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
 				return 1
 			}
+			continue
+		}
+
+		// elicit-accept <json>: queue an accept response for the next
+		// elicit. The payload MUST be a JSON object; the MCP server
+		// rejects non-object `result.content` with 400, and surfacing
+		// that to the user as "elicit reply status 400" is cryptic.
+		// Catch the shape error here instead.
+		if contentStr, ok := strings.CutPrefix(line, "elicit-accept "); ok {
+			raw := strings.TrimSpace(contentStr)
+			var probe map[string]any
+			if err := json.Unmarshal([]byte(raw), &probe); err != nil {
+				fmt.Fprintf(os.Stderr, "error: elicit-accept payload must be a JSON object: %v (raw=%q)\n", err, raw)
+				return 1
+			}
+			client.elicitQueue = append(client.elicitQueue, elicitReply{action: "accept", content: json.RawMessage(raw)})
+			continue
+		}
+		if line == "elicit-decline" {
+			client.elicitQueue = append(client.elicitQueue, elicitReply{action: "decline"})
+			continue
+		}
+		if line == "elicit-cancel" {
+			client.elicitQueue = append(client.elicitQueue, elicitReply{action: "cancel"})
 			continue
 		}
 
@@ -139,10 +179,29 @@ Options:
 // The session id is assigned by the server at initialize and echoed on every
 // subsequent request via the Mcp-Session-Id header.
 type mcpClient struct {
-	addr      string
-	token     string // Bearer token (empty = no auth)
-	id        int
-	sessionID string // populated by initialize()
+	addr          string
+	token         string // Bearer token (empty = no auth)
+	id            int
+	sessionID     string // populated by initialize()
+	declareElicit bool   // declare capabilities.elicitation={} at initialize
+
+	// http is a shared client (initialized with no Timeout; see mcpCmd).
+	// Kept as a field rather than http.DefaultClient so future knobs
+	// (cookie jar, custom Transport for TLS, ResponseHeaderTimeout for
+	// time-to-first-byte) can land here without touching every call site.
+	http *http.Client
+
+	// elicitQueue is a FIFO of prepared responses consumed when the server
+	// sends elicitation/create over an SSE-upgraded POST. Each entry is
+	// POSTed back with the elicit id the server chose on arrival.
+	elicitQueue []elicitReply
+}
+
+// elicitReply is one queued response the client will POST back when the
+// server sends elicitation/create. Content is used only when action=="accept".
+type elicitReply struct {
+	action  string
+	content json.RawMessage
 }
 
 // endpoint is the Streamable HTTP MCP endpoint path.
@@ -190,9 +249,15 @@ func (c *mcpClient) waitEstablished(timeout time.Duration) error {
 }
 
 // initialize sends the MCP handshake and captures the session id from the
-// Mcp-Session-Id response header (required by MCP 2025-06-18).
+// Mcp-Session-Id response header (required by MCP 2025-06-18). When
+// declareElicit is set, the params declare capabilities.elicitation={}
+// so the server is allowed to send elicitation/create.
 func (c *mcpClient) initialize() error {
-	sid, _, err := c.sendRaw("initialize", json.RawMessage(`{"protocolVersion":"2025-06-18","capabilities":{}}`))
+	params := json.RawMessage(`{"protocolVersion":"2025-06-18","capabilities":{}}`)
+	if c.declareElicit {
+		params = json.RawMessage(`{"protocolVersion":"2025-06-18","capabilities":{"elicitation":{}}}`)
+	}
+	sid, _, err := c.sendRaw("initialize", params)
 	if err != nil {
 		return err
 	}
@@ -269,11 +334,18 @@ func (c *mcpClient) send(method string, params json.RawMessage) (json.RawMessage
 // sendRaw performs the HTTP round trip and returns (assigned session id, result, err).
 // The session id is non-empty only for the initialize response; every other
 // request echoes the cached c.sessionID on outgoing requests.
+//
+// The response may arrive as application/json (the common case) or as
+// text/event-stream when a tool handler called session.Elicit mid-dispatch;
+// in the SSE case the client reads frames, posts queued elicit responses
+// back to the server, and returns when the terminal response frame with the
+// matching request id arrives.
 func (c *mcpClient) sendRaw(method string, params json.RawMessage) (string, json.RawMessage, error) {
 	c.id++
+	reqID := c.id
 	reqBody, err := json.Marshal(map[string]any{
 		"jsonrpc": "2.0",
-		"id":      c.id,
+		"id":      reqID,
 		"method":  method,
 		"params":  params,
 	})
@@ -286,6 +358,11 @@ func (c *mcpClient) sendRaw(method string, params json.RawMessage) (string, json
 		return "", nil, fmt.Errorf("build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	// Advertise both shapes so the server may upgrade to SSE when a handler
+	// elicits. Without text/event-stream in Accept, conforming servers keep
+	// the response as application/json even after a handler elicits, which
+	// would deadlock the client waiting for a response it cannot receive.
+	req.Header.Set("Accept", "application/json, text/event-stream")
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
@@ -293,11 +370,20 @@ func (c *mcpClient) sendRaw(method string, params json.RawMessage) (string, json
 		req.Header.Set("Mcp-Session-Id", c.sessionID)
 		req.Header.Set("MCP-Protocol-Version", "2025-06-18")
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.http.Do(req)
 	if err != nil {
 		return "", nil, fmt.Errorf("HTTP request: %w", err)
 	}
 	defer resp.Body.Close() //nolint:errcheck // best-effort cleanup
+
+	ct := resp.Header.Get("Content-Type")
+	if strings.HasPrefix(ct, "text/event-stream") {
+		resultBytes, sseErr := c.readSSEResult(resp.Body, reqID)
+		if sseErr != nil {
+			return "", nil, sseErr
+		}
+		return resp.Header.Get("Mcp-Session-Id"), resultBytes, nil
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -321,4 +407,114 @@ func (c *mcpClient) sendRaw(method string, params json.RawMessage) (string, json
 		return "", nil, fmt.Errorf("marshal result: %w", err)
 	}
 	return resp.Header.Get("Mcp-Session-Id"), resultBytes, nil
+}
+
+// readSSEResult consumes SSE frames from body until it receives a JSON-RPC
+// response whose id matches reqID. Server-initiated requests (such as
+// elicitation/create) encountered along the way are answered by POSTing a
+// queued response back to /mcp; when the queue is empty an elicit is
+// canceled automatically so the suspended handler unblocks. Returns the
+// `result` field as raw JSON on success, or a formatted error when the
+// response carries `error`.
+func (c *mcpClient) readSSEResult(body io.Reader, reqID int) (json.RawMessage, error) {
+	scanner := bufio.NewScanner(body)
+	// SSE frames carry single-line JSON by invariant (reply_sink.go
+	// godoc), but MCP frames can be larger than the default 64 KB scanner
+	// buffer -- tool outputs can reach the session's 1 MB cap.
+	scanner.Buffer(make([]byte, 4096), 2*1024*1024)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" || strings.HasPrefix(line, ":") {
+			continue
+		}
+		dataStr, ok := strings.CutPrefix(line, "data: ")
+		if !ok {
+			dataStr, ok = strings.CutPrefix(line, "data:")
+			if !ok {
+				continue
+			}
+		}
+		var frame map[string]any
+		if err := json.Unmarshal([]byte(dataStr), &frame); err != nil {
+			return nil, fmt.Errorf("parse SSE frame: %w (raw=%q)", err, dataStr)
+		}
+		if m, ok := frame["method"].(string); ok && m != "" {
+			if err := c.answerServerRequest(m, frame); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		// Match our outgoing id. Ze always echoes the request id verbatim
+		// via *json.RawMessage, and this client always sends integer ids,
+		// so JSON unmarshal always produces float64 here. A spec-compliant
+		// server MAY emit string ids for its own requests (elicitation/create
+		// uses strings) -- those are handled in the method branch above.
+		if idf, ok := frame["id"].(float64); ok && int(idf) == reqID {
+			if errObj, hasErr := frame["error"].(map[string]any); hasErr {
+				code, _ := errObj["code"].(float64)
+				msg, _ := errObj["message"].(string)
+				return nil, fmt.Errorf("RPC error %d: %s", int(code), msg)
+			}
+			return json.Marshal(frame["result"])
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("SSE read: %w", err)
+	}
+	return nil, fmt.Errorf("SSE stream ended before response to id %d", reqID)
+}
+
+// answerServerRequest dispatches a server-initiated JSON-RPC request frame
+// received over SSE. Only elicitation/create is understood; any other method
+// returns an error since the fixture does not know how to satisfy it.
+func (c *mcpClient) answerServerRequest(method string, frame map[string]any) error {
+	if method != "elicitation/create" {
+		return fmt.Errorf("server-initiated %q not supported", method)
+	}
+	id, _ := frame["id"].(string)
+	if id == "" {
+		return fmt.Errorf("elicitation/create frame missing id")
+	}
+	var reply elicitReply
+	if len(c.elicitQueue) > 0 {
+		reply = c.elicitQueue[0]
+		c.elicitQueue = c.elicitQueue[1:]
+	} else {
+		// Nothing queued -- cancel rather than hang the suspended handler.
+		reply = elicitReply{action: "cancel"}
+	}
+	result := map[string]any{"action": reply.action}
+	if reply.action == "accept" && len(reply.content) > 0 {
+		result["content"] = reply.content
+	}
+	body, err := json.Marshal(map[string]any{
+		"jsonrpc": "2.0",
+		"id":      id,
+		"result":  result,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal elicit reply: %w", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, "http://"+c.addr+endpoint, bytes.NewReader(body)) //nolint:noctx // short-lived test tool
+	if err != nil {
+		return fmt.Errorf("build elicit reply: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	if c.sessionID != "" {
+		req.Header.Set("Mcp-Session-Id", c.sessionID)
+		req.Header.Set("MCP-Protocol-Version", "2025-06-18")
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("POST elicit reply: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck // best-effort cleanup
+	if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("elicit reply status %d", resp.StatusCode)
+	}
+	return nil
 }

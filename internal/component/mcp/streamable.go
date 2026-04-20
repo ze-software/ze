@@ -29,6 +29,11 @@ import (
 // ProtocolVersion is the negotiated MCP protocol version this server speaks.
 const ProtocolVersion = "2025-06-18"
 
+// mimeEventStream is the Content-Type / Accept token for Server-Sent Events
+// streams. Defined once so the POST error, the GET response header, and the
+// Accept-header probe all spell it identically.
+const mimeEventStream = "text/event-stream"
+
 // LegacyProtocolVersion is assumed when a client omits the MCP-Protocol-Version
 // header after initialize (per the 2025-06-18 transports spec).
 const LegacyProtocolVersion = "2025-03-26"
@@ -852,7 +857,7 @@ func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 	}
 	defer release()
 
-	resp := s.runMethod(sess, &req)
+	resp := s.runMethod(r.Context(), sess, &req)
 	if resp == nil {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -951,7 +956,7 @@ func (s *Streamable) handleElicitResponse(w http.ResponseWriter, sess *session, 
 func (s *Streamable) handleGET(w http.ResponseWriter, r *http.Request) {
 	setMainPathCORS(w, r)
 	if !acceptsEventStream(r) {
-		http.Error(w, "GET requires Accept: text/event-stream", http.StatusNotAcceptable)
+		http.Error(w, "GET requires Accept: "+mimeEventStream, http.StatusNotAcceptable)
 		return
 	}
 	id := r.Header.Get("Mcp-Session-Id")
@@ -972,7 +977,7 @@ func (s *Streamable) handleGET(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Content-Type", mimeEventStream)
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	// Defeat buffering by nginx / common CDN fronts; without this the
@@ -1032,11 +1037,35 @@ func (s *Streamable) doInitialize(req *request, identity Identity) (*session, er
 	if err != nil {
 		return nil, err
 	}
-	sess, err := s.registry.Create(negotiated, identity)
+	clientElicit := parseElicitationCapability(req)
+	sess, err := s.registry.CreateWithCapabilities(negotiated, identity, clientElicit)
 	if err != nil {
 		return nil, err
 	}
 	return sess, nil
+}
+
+// parseElicitationCapability reports whether the client declared the
+// elicitation capability (capabilities.elicitation = {}) at initialize.
+// Missing or malformed params -> false (capability not declared). MCP
+// 2025-06-18 requires clients that support elicitation to declare it.
+// Reference: https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation
+func parseElicitationCapability(req *request) bool {
+	if len(req.Params) == 0 {
+		return false
+	}
+	var p map[string]any
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return false
+	}
+	caps, _ := p["capabilities"].(map[string]any)
+	if caps == nil {
+		return false
+	}
+	// Spec shape is elicitation: {}; any map (including empty) counts
+	// as a declaration. A bare null or missing key is "not declared."
+	_, present := caps["elicitation"].(map[string]any)
+	return present
 }
 
 // buildInitializeResult assembles the InitializeResult body.
@@ -1069,16 +1098,18 @@ func (s *Streamable) validateProtocolVersionHeader(r *http.Request) bool {
 	return v == ProtocolVersion || v == LegacyProtocolVersion || v == "2024-11-05"
 }
 
-// runMethod runs a JSON-RPC method handler to completion synchronously.
-func (s *Streamable) runMethod(sess *session, req *request) *response {
-	_ = sess
+// runMethod runs a JSON-RPC method handler to completion synchronously. ctx
+// is the originating HTTP request's context; tool handlers propagate it into
+// blocking calls (notably session.Elicit) so a client disconnect unblocks
+// the handler via ctx.Done().
+func (s *Streamable) runMethod(ctx context.Context, sess *session, req *request) *response {
 	switch req.Method {
 	case "notifications/initialized":
 		return nil
 	case "tools/list":
 		return s.ok(req.ID, map[string]any{"tools": s.allTools()})
 	case "tools/call":
-		return s.callTool(req)
+		return s.callTool(ctx, req, sess)
 	default:
 		return s.fail(req.ID, -32601, fmt.Sprintf("method not found: %s", req.Method))
 	}
@@ -1099,13 +1130,17 @@ func (s *Streamable) allTools() []map[string]any {
 	return result
 }
 
-// callTool executes a tools/call request.
-func (s *Streamable) callTool(req *request) *response {
+// callTool executes a tools/call request. ctx is the originating HTTP
+// request's context; it flows onto runner.ctx so tool handlers that call
+// blocking ops like session.Elicit see client disconnect. sess is the
+// Streamable session bound to the active POST; nil means the POST has no
+// session context and nil-aware handlers degrade gracefully.
+func (s *Streamable) callTool(ctx context.Context, req *request, sess *session) *response {
 	var params callParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		return s.fail(req.ID, -32602, "invalid params: "+err.Error())
 	}
-	runner := &server{dispatch: s.cfg.Dispatch, commands: s.cfg.Commands}
+	runner := &server{dispatch: s.cfg.Dispatch, commands: s.cfg.Commands, session: sess, ctx: ctx}
 	if handler, ok := toolHandlers[params.Name]; ok {
 		return s.ok(req.ID, handler(runner, params.Arguments))
 	}
@@ -1165,7 +1200,7 @@ func acceptsEventStream(r *http.Request) bool {
 	}
 	for part := range strings.SplitSeq(accept, ",") {
 		mediaType := strings.TrimSpace(strings.SplitN(part, ";", 2)[0])
-		if mediaType == "text/event-stream" || mediaType == "*/*" {
+		if mediaType == mimeEventStream || mediaType == "*/*" {
 			return true
 		}
 	}

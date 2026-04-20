@@ -62,7 +62,10 @@ Ze is a BGP daemon written in Go.
 <!-- source: internal/component/config/yang/modules/ze-types.yang -- grouping listener -->
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension listener -->
 <!-- source: internal/component/config/listener.go -- CollectListeners, ValidateListenerConflicts -->
-| [MCP Integration](features/mcp-integration.md) | AI-assisted BGP operations via Model Context Protocol |
+| [MCP Integration](features/mcp-integration.md) | AI-assisted BGP operations via Model Context Protocol (Streamable HTTP 2025-06-18 transport, OAuth 2.1 resource server, server-initiated elicitation for prompting clients mid-dispatch) |
+<!-- source: internal/component/mcp/streamable.go -- Streamable HTTP transport -->
+<!-- source: internal/component/mcp/elicit.go -- server-initiated elicitation -->
+<!-- source: internal/component/mcp/handler.go -- ze_execute handcrafted tool -->
 | [DNS Resolver](features/dns-resolver.md) | Built-in cached DNS resolver for all components |
 | Resolution CLI | Offline `ze resolve` tool for DNS, Team Cymru ASN names, PeeringDB prefix counts, and IRR AS-SET expansion |
 | VPP Data Plane | Manages VPP lifecycle (startup, crash recovery, DPDK NIC binding), programs FIB routes via GoVPP binary API, and polls VPP's stats segment for per-interface, per-node, and system-wide Prometheus metrics. Configurable poll interval. `vpp.external=true` switches ze into connect-only mode for systemd-managed / container-sidecar deployments and the `ze-test vpp` stub harness. |

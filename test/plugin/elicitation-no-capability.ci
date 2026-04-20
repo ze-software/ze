@@ -1,0 +1,54 @@
+# Test: MCP elicitation declined by protocol -- client did NOT declare
+# capabilities.elicitation, so ze_execute's missing-command branch must
+# fail fast instead of emitting elicitation/create to a client that will
+# never answer.
+#
+# VALIDATES: spec-mcp-3-elicitation AC-12 negative path: the server MUST
+# NOT send elicitation/create when the client did not advertise the
+# capability at initialize.
+#
+# PREVENTS: a regression where the server optimistically upgrades to SSE
+# and blocks on a reply that will never come, turning every legacy client
+# into a hang.
+
+stdin=mcp:terminator=EOF_MCP
+@ze_execute {"command":""}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# No --elicit: the client declares no elicitation capability.
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=15s
+expect=exit:code=1
+expect=stderr:contains=missing required argument

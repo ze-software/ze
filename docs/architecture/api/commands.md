@@ -985,4 +985,26 @@ Version hash is truncated SHA-256 (16 hex characters) of config bytes.
 
 ---
 
-**Last Updated:** 2026-03-27
+## MCP Server-Initiated Methods
+
+The MCP Streamable HTTP transport (2025-06-18) lets the server send
+JSON-RPC requests back to the client on the same HTTP body that
+originated a `tools/call`, when the body is upgraded from
+`application/json` to `text/event-stream`. These are distinct from ze's
+own dispatcher commands (above) -- they are part of the MCP protocol
+contract negotiated at `initialize`.
+
+| Method | Direction | Purpose | Capability |
+|--------|-----------|---------|------------|
+| `elicitation/create` | Server -> client | Request a structured response for a field the server does not have. Carries a flat JSON-Schema object describing the expected shape | `capabilities.elicitation` declared by client |
+
+See [MCP Architecture Overview](../mcp/overview.md#capability-negotiation)
+for the capability bit, and [MCP Elicitation Guide](../../guide/mcp/elicitation.md)
+for the accept/decline/cancel semantics.
+
+<!-- source: internal/component/mcp/elicit.go -- session.Elicit -->
+<!-- source: internal/component/mcp/streamable.go -- handleElicitResponse -->
+
+---
+
+**Last Updated:** 2026-04-20

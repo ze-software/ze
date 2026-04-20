@@ -12,6 +12,7 @@
 package mcp
 
 import (
+	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"fmt"
@@ -39,7 +40,6 @@ type CommandDispatcher func(command string) (string, error)
 // For the 2025-06-18 Streamable HTTP profile (sessions, SSE, GET/DELETE),
 // use NewStreamable instead.
 func Handler(dispatch CommandDispatcher, commands CommandLister, token string) http.Handler {
-	s := &server{dispatch: dispatch, commands: commands}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -79,6 +79,10 @@ func Handler(dispatch CommandDispatcher, commands CommandLister, token string) h
 			return
 		}
 
+		// Per-request server so ctx stays scoped to this call. The
+		// 2024-11-05 profile has no session registry; session stays
+		// nil and elicit-capable handlers fall back accordingly.
+		s := &server{dispatch: dispatch, commands: commands, ctx: r.Context()}
 		resp := s.handle(&req)
 		if resp == nil {
 			w.WriteHeader(http.StatusNoContent)
@@ -127,9 +131,32 @@ type callParams struct {
 }
 
 // server handles MCP requests.
+//
+// Lifetime: one *server per HTTP request. The legacy `Handler()` entry
+// point creates it inside the request closure; `Streamable.callTool`
+// creates it per tools/call. ctx and session carry request-scoped state;
+// storing them on the struct keeps the `toolHandlers` map signature
+// compact. DO NOT hoist the construction out of the request scope on
+// either path -- sharing a *server across concurrent requests would race
+// on the ctx/session fields. When a handler needs ctx or session it
+// reads the field directly and degrades on nil (unit tests construct
+// *server directly without either).
 type server struct {
 	dispatch CommandDispatcher
 	commands CommandLister // nil = handcrafted tools only
+	// session carries the active POST's session so tool handlers (notably
+	// ze_execute's missing-command branch) can call session.Elicit. Nil
+	// when dispatch runs outside a session context: the legacy Handler()
+	// entry point, or isolated handler tests. Nil-aware handlers must
+	// degrade gracefully.
+	session *session
+	// ctx is the active HTTP request's context. Tool handlers that call
+	// into session.Elicit (or any other blocking op) MUST pass this ctx
+	// through so a client disconnect unblocks the suspended handler via
+	// ctx.Done() -- otherwise the correlation lingers until the session
+	// TTL sweeps it. Nil on the legacy Handler() path / unit tests; use
+	// context.Background() as the fallback in that case.
+	ctx context.Context //nolint:containedctx // per-request state; see godoc above
 }
 
 // methods maps MCP method names to their handlers.
@@ -173,6 +200,41 @@ var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]a
 		}
 		if s.dispatch == nil {
 			return errResult("dispatcher not available")
+		}
+		// Missing command: if the client declared the elicitation capability,
+		// prompt for one. Otherwise fail fast so the caller re-invokes with a
+		// command instead of blocking on an Elicit that will never be answered.
+		if input.Command == "" {
+			if s.session == nil || !s.session.ClientSupportsElicit() {
+				return errResult("missing required argument: command")
+			}
+			// Prefer the POST's context so a client disconnect unblocks the
+			// suspended handler; fall back to Background when the server was
+			// constructed without one (legacy Handler / unit tests).
+			ctx := s.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			content, err := s.session.Elicit(ctx,
+				"Which ze command would you like to run?",
+				map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"command": map[string]any{
+							"type":        "string",
+							"description": "A ze CLI command, e.g. 'peer list' or 'show bgp summary'",
+						},
+					},
+					"required": []any{"command"},
+				})
+			if err != nil {
+				return errResult("elicit: " + err.Error())
+			}
+			cmd, _ := content["command"].(string)
+			if cmd == "" {
+				return errResult("elicit returned empty command")
+			}
+			input.Command = cmd
 		}
 		result, err := s.dispatch(input.Command)
 		if err != nil {
@@ -295,16 +357,15 @@ func errResult(msg string) map[string]any {
 var handcraftedTools = []map[string]any{
 	{
 		"name":        "ze_execute",
-		"description": "Execute a ze CLI command and return the result",
+		"description": "Execute a ze CLI command and return the result. When invoked under the Streamable HTTP transport with a client that declared capabilities.elicitation, omitting 'command' causes the server to prompt for one via elicitation/create.",
 		"inputSchema": map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"command": map[string]any{
 					"type":        "string",
-					"description": "The ze command to execute (e.g., 'peer list', 'show bgp summary')",
+					"description": "The ze command to execute (e.g., 'peer list', 'show bgp summary'). Optional only when the client supports elicitation.",
 				},
 			},
-			"required": []string{"command"},
 		},
 	},
 }

@@ -26,10 +26,12 @@ migrated to the session-oriented transport.
 
 | File | Concern |
 |------|---------|
-| `handler.go` | JSON-RPC 2.0 types (`request`, `response`, `rpcError`, `callParams`), handcrafted tool catalogue, tool runner helper (`server` struct), legacy `Handler` factory |
+| `handler.go` | JSON-RPC 2.0 types (`request`, `response`, `rpcError`, `callParams`), handcrafted tool catalogue, tool runner helper (`server` struct with optional `*session`), legacy `Handler` factory |
 | `tools.go` | Command-registry -> MCP tool auto-generation: grouping, schema emission, dispatch |
-| `streamable.go` | MCP 2025-06-18 Streamable HTTP dispatcher: POST/GET/DELETE, Origin gate, Bearer check, method dispatch |
-| `session.go` | Session registry (`sessionRegistry`), session state (`session`), TTL garbage collection, SSE outbound queue |
+| `streamable.go` | MCP 2025-06-18 Streamable HTTP dispatcher: POST/GET/DELETE, Origin gate, Bearer check, method dispatch, `handleElicitResponse` correlation router |
+| `session.go` | Session registry (`sessionRegistry`), session state (`session`) with `clientElicit` bit and elicit correlation map, TTL garbage collection, SSE outbound queue |
+| `elicit.go` | `session.Elicit`, schema validator (`validateElicitSchema`), elicit error sentinels |
+| `reply_sink.go` | `replySink` interface + JSON and SSE implementations that let a POST upgrade its reply shape mid-dispatch |
 | `schema/ze-mcp-conf.yang` | YANG configuration: server listener, token |
 
 ## Transport Shape (2025-06-18)
@@ -38,8 +40,9 @@ migrated to the session-oriented transport.
 
 | Method | Path | Body | Purpose |
 |--------|------|------|---------|
-| POST | `/mcp` | JSON-RPC 2.0 request | Client-to-server call. Response is either `application/json` (single JSON response) or `text/event-stream` (SSE frames ending with the JSON response), depending on whether the method requires streaming |
-| GET | `/mcp` + `Accept: text/event-stream` | — | Client opens a server-to-client SSE stream bound to its session. Server pushes notifications and (Phase 3+) server-initiated requests on this stream |
+| POST | `/mcp` | JSON-RPC 2.0 request | Client-to-server call. Response is `application/json` by default; a tool handler that invokes `session.Elicit` upgrades the POST reply in place to `text/event-stream` so the `elicitation/create` request and the terminal tool response ride the same HTTP response body |
+| POST | `/mcp` | JSON-RPC 2.0 response (no `method`) | Client's reply to a server-initiated request (`elicitation/create`). Routed by correlation id to the suspended handler; returns 202 Accepted |
+| GET | `/mcp` + `Accept: text/event-stream` | — | Client opens a server-to-client SSE stream bound to its session for notifications and task status. Elicitation flows do NOT use this stream -- they ride the originating POST's upgraded reply instead |
 | DELETE | `/mcp` | — | Client terminates its session |
 | GET | `/.well-known/oauth-protected-resource` | — | RFC 9728 protected resource metadata. Phase 2 populates; Phase 1 returns 404 |
 
@@ -54,6 +57,27 @@ migrated to the session-oriented transport.
 | `Authorization: Bearer <token>` | Client -> server | Required when `Token` is set. Constant-time compare. Phase 2 replaces the single shared token with per-identity and OAuth modes |
 | `Mcp-Session-Id` | Server -> client (initialize response), then Client -> server (subsequent requests) | 22-char base64url of 128 random bits. Required on every non-initialize request. Returns 404 when absent or expired |
 | `MCP-Protocol-Version` | Client -> server (post-initialize) | Missing header is tolerated and treated as `2025-03-26` per spec; unknown value returns 400 |
+
+## Capability Negotiation
+
+<!-- source: internal/component/mcp/streamable.go -- parseElicitationCapability -->
+<!-- source: internal/component/mcp/session.go -- sessionRegistry.CreateWithCapabilities -->
+
+The server records per-session capability bits at `initialize` from the
+client's `params.capabilities` object. The only bit tracked today is
+`clientElicit`, set from `capabilities.elicitation = {}` per the MCP
+2025-06-18 elicitation spec. Handlers read it via
+`session.ClientSupportsElicit()` before calling `session.Elicit` to keep
+the server from emitting `elicitation/create` to a client that never
+declared support.
+
+| Bit | Source leaf | Consumer |
+|-----|-------------|----------|
+| `clientElicit` | `capabilities.elicitation: {}` | `session.Elicit`, `ze_execute` missing-command branch |
+
+Missing, null, or non-object shapes (`capabilities.elicitation: null`,
+`capabilities.elicitation: false`) are treated as "not declared." Unknown
+capability keys are ignored.
 
 ## Session Lifecycle
 
@@ -119,6 +143,6 @@ list as alternatives to the shared token.
 |-------|------|----------|
 | 1 | `spec-mcp-1-streamable-http.md` | This transport (landed) |
 | 2 | `spec-mcp-2-remote-oauth.md` | Remote binding, OAuth 2.1, per-identity bearer list |
-| 3 | `spec-mcp-3-elicitation.md` | Server-initiated `elicitation/create` on the SSE stream |
+| 3 | `plan/learned/NNN-mcp-3-elicitation.md` | Server-initiated `elicitation/create`; POST reply upgrades to SSE on demand (landed) |
 | 4 | `spec-mcp-4-tasks.md` | Task-augmented `tools/call`, `tasks/*` methods, durable task registry |
 | 5 | `spec-mcp-5-apps.md` | Resources capability, `ui://` UI-resource scheme |

@@ -588,3 +588,85 @@ func waitForElicitID(t *testing.T, sink *mockSink) string {
 	t.Fatalf("no frame arrived within 2s")
 	return ""
 }
+
+// VALIDATES: the ze_execute handler's missing-command branch invokes
+// session.Elicit, receives the accepted command from the client, and
+// dispatches it. End-to-end coverage of the AC-12/AC-13 intent: a real
+// tool handler uses the elicitation API.
+// PREVENTS: a regression where server.session is nil on the dispatch
+// path, the elicit response content is not extracted as `command`, or
+// the handler ignores the elicit result and dispatches empty anyway.
+func TestZeExecute_MissingCommandElicits(t *testing.T) {
+	r := newElicitTestRegistry(t)
+	sess, sink, release := newElicitTestSession(t, r)
+	defer release()
+
+	dispatched := make(chan string, 1)
+	runner := &server{
+		dispatch: func(cmd string) (string, error) {
+			dispatched <- cmd
+			return "executed: " + cmd, nil
+		},
+		session: sess,
+	}
+
+	resultCh := make(chan map[string]any, 1)
+	go func() {
+		resultCh <- toolHandlers["ze_execute"](runner, json.RawMessage(`{"command":""}`))
+	}()
+
+	id := waitForElicitID(t, sink)
+	if !sess.ResolveElicit(id, elicitResponse{
+		Action:  elicitActionAccept,
+		Content: map[string]any{"command": "peer list"},
+	}) {
+		t.Fatalf("ResolveElicit returned false for id %q", id)
+	}
+
+	select {
+	case got := <-dispatched:
+		if got != "peer list" {
+			t.Errorf("dispatched = %q, want 'peer list'", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("dispatch never called after elicit accept")
+	}
+
+	select {
+	case result := <-resultCh:
+		if result["isError"] == true {
+			t.Errorf("result flagged isError: %v", result)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("ze_execute handler did not return")
+	}
+}
+
+// VALIDATES: empty command with no elicit capability fails fast with a
+// clear error rather than blocking forever on an Elicit that will never
+// receive a response.
+// PREVENTS: the handler hanging indefinitely under the legacy transport
+// or a 2025-03-26 client that never declared capabilities.elicitation.
+func TestZeExecute_MissingCommandNoCapability(t *testing.T) {
+	r := newElicitTestRegistry(t)
+	sess, err := r.Create(ProtocolVersion, Identity{})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	runner := &server{
+		dispatch: func(cmd string) (string, error) { return "unreachable", nil },
+		session:  sess,
+	}
+	result := toolHandlers["ze_execute"](runner, json.RawMessage(`{"command":""}`))
+	if result["isError"] != true {
+		t.Errorf("expected isError=true, got %v", result)
+	}
+	content, _ := result["content"].([]map[string]any)
+	if len(content) == 0 {
+		t.Fatalf("result.content empty: %v", result)
+	}
+	text, _ := content[0]["text"].(string)
+	if !strings.Contains(text, "missing required argument") {
+		t.Errorf("expected 'missing required argument' message, got text=%q", text)
+	}
+}

@@ -74,8 +74,29 @@ An AI assistant connected via MCP can:
 
 All without parsing text output -- each tool returns structured data.
 
+## Elicitation (2025-06-18)
+
+Tool handlers may ask the client for missing input mid-dispatch via
+`session.Elicit`. The server upgrades the POST reply to
+`text/event-stream`, sends an `elicitation/create` request over the
+same HTTP body, and resumes the handler when the client POSTs a response
+correlated by id. The client must advertise `capabilities.elicitation`
+at `initialize` for the server to prompt; otherwise handlers fail fast
+with a deterministic error. `ze_execute` illustrates the pattern:
+calling it with `command=""` on an elicit-capable client produces an
+`elicitation/create` asking which ze command to run.
+
+See [MCP Elicitation](../guide/mcp/elicitation.md) for the full flow.
+
+<!-- source: internal/component/mcp/elicit.go -- session.Elicit, schema validator -->
+<!-- source: internal/component/mcp/handler.go -- ze_execute missing-command branch -->
+
 ## Testing
 
-`ze-test mcp` provides a functional test client with `wait-established` synchronization for CI pipelines.
+`ze-test mcp` provides a functional test client with `wait-established`
+synchronization for CI pipelines and -- with `--elicit` plus
+`elicit-accept`/`elicit-decline`/`elicit-cancel` stdin directives --
+covers the server-initiated elicitation flow.
 
-See [MCP Guide](../guide/mcp/overview.md) for details and [MCP Remote Access](../guide/mcp/remote-access.md) for tunneling.
+See [MCP Guide](../guide/mcp/overview.md) for details and
+[MCP Remote Access](../guide/mcp/remote-access.md) for tunneling.

@@ -1,0 +1,56 @@
+# Test: MCP elicitation accept -- ze_execute asks the client for the missing
+# command, client accepts with a concrete one, server dispatches it.
+#
+# VALIDATES: spec-mcp-3-elicitation AC-12 / AC-13.
+# The ze-test mcp client declares capabilities.elicitation={} at initialize,
+# queues an accept reply, then calls ze_execute with command="". The daemon
+# upgrades the POST response to SSE, emits elicitation/create, and receives
+# the POSTed reply. ze_execute dispatches the accepted command ("peer list")
+# and the result (containing the configured peer name) reaches stdout.
+#
+# PREVENTS: regressions where the POST->SSE upgrade fails silently, the
+# elicit correlation id is not echoed back, the accepted content is not
+# extracted as `command`, or the terminal tool result does not ride the
+# upgraded SSE stream.
+
+stdin=mcp:terminator=EOF_MCP
+elicit-accept {"command":"peer list"}
+@ze_execute {"command":""}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT --elicit:stdin=mcp:timeout=15s
+expect=exit:code=0
+expect=stdout:contains=peer1

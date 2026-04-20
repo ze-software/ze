@@ -1005,3 +1005,65 @@ func TestStreamableInitializeCapExhaustion(t *testing.T) {
 		t.Fatal("Retry-After header missing")
 	}
 }
+
+// VALIDATES: capabilities.elicitation = {} in the initialize params flips
+// the session's clientElicit bit on; session.Elicit will therefore proceed
+// instead of returning ErrElicitUnsupported.
+// PREVENTS: a regression where the server sends elicitation/create even
+// though the client never declared support (spec MUST violation).
+func TestStreamable_InitializeReadsClientCapabilities(t *testing.T) {
+	tests := []struct {
+		name         string
+		capabilities map[string]any
+		wantElicit   bool
+	}{
+		{"empty caps", map[string]any{}, false},
+		{"elicitation declared", map[string]any{"elicitation": map[string]any{}}, true},
+		{"other cap only", map[string]any{"tools": map[string]any{}}, false},
+		{"elicitation null", map[string]any{"elicitation": nil}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv, hs, cleanup := newTestStreamable(t, StreamableConfig{
+				Dispatch: func(cmd string) (string, error) { return "ok", nil },
+			})
+			defer cleanup()
+
+			body, err := json.Marshal(map[string]any{
+				"jsonrpc": "2.0",
+				"id":      1,
+				"method":  "initialize",
+				"params": map[string]any{
+					"protocolVersion": ProtocolVersion,
+					"capabilities":    tt.capabilities,
+				},
+			})
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+			defer cancel()
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, hs.URL+Endpoint, strings.NewReader(string(body)))
+			if err != nil {
+				t.Fatalf("NewRequest: %v", err)
+			}
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := hs.Client().Do(req)
+			if err != nil {
+				t.Fatalf("Do: %v", err)
+			}
+			defer closeBody(t, resp.Body)
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("status = %d, want 200", resp.StatusCode)
+			}
+			sid := resp.Header.Get("Mcp-Session-Id")
+			sess, ok := srv.registry.Get(sid)
+			if !ok {
+				t.Fatalf("session %q missing from registry", sid)
+			}
+			if got := sess.ClientSupportsElicit(); got != tt.wantElicit {
+				t.Errorf("ClientSupportsElicit = %v, want %v", got, tt.wantElicit)
+			}
+		})
+	}
+}

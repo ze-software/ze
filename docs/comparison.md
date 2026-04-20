@@ -174,6 +174,8 @@ banner reads the same source, so nothing is silently hidden. See
 | Embeddable library | No | No | No | Yes | No | No | Yes | No | No | No | No |
 | Plugin SDK | Yes | No | No | No | No | No | No | No | No | No | No |
 | External process protocol | Yes | No | No | No | No | No | No | Yes | No | No | No |
+| MCP (Model Context Protocol) server | Yes | No | No | No | No | No | No | No | No | No | No |
+| MCP elicitation (2025-06-18) | Yes | No | No | No | No | No | No | No | No | No | No |
 | SSH CLI access | Yes | No | No | No | No | No | No | No | No | No | Yes |
 
 ## Operations
