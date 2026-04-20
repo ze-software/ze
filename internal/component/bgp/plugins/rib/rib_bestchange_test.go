@@ -255,9 +255,221 @@ func TestPurgeBestPrevForPeerUnknown(t *testing.T) {
 	r := newTestRIBManagerWithBus(bus)
 
 	// No seed -- interner is empty.
-	r.purgeBestPrevForPeer("203.0.113.99")
+	pending := r.purgeBestPrevForPeer("203.0.113.99")
+	r.emitPurgedWithdraws(pending)
 
 	assert.Zero(t, bus.eventCount(), "no events for a peer never interned")
+}
+
+// TestPurgeBestPrevForPeerLocRIB wires a real locrib.RIB and asserts the
+// cross-protocol Loc-RIB is cleaned up alongside the bgp-rib bestPrev.
+//
+// VALIDATES: purgeBestPrevForPeer calls r.locRIB.Remove for every victim
+// so cross-protocol consumers see the withdrawal at DOWN time rather than
+// when a later UPDATE fires.
+// PREVENTS: a regression that skips the locrib mirror (TestPurgeBestPrev-
+// ForPeer uses locRIB == nil, so it could not catch this).
+func TestPurgeBestPrevForPeerLocRIB(t *testing.T) {
+	bus := newTestEventBus()
+	r := newTestRIBManagerWithBus(bus)
+	loc := locrib.NewRIB()
+	r.SetLocRIB(loc)
+
+	fam := family.Family{AFI: 1, SAFI: 1}
+	peerAddr := "192.0.2.10"
+	r.peerUp[peerAddr] = true
+	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
+
+	prefix := ipv4Prefix(24, 10, 7, 0) // 10.7.0.0/24
+	attrs := makeAttrBytes([4]byte{192, 168, 7, 7})
+	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
+	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
+	require.True(t, ok, "seed must record prefix in bestPrev and locrib")
+
+	// Confirm the prefix landed in locrib.
+	parsedPfx := netip.MustParsePrefix("10.7.0.0/24")
+	if _, ok := loc.Lookup(fam, parsedPfx); !ok {
+		t.Fatal("locrib did not receive the BGP best path via the mirror")
+	}
+
+	// Trigger DOWN. Purge must walk + delete from locrib too.
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerAddr, State: "down"})
+
+	if _, ok := loc.Lookup(fam, parsedPfx); ok {
+		t.Fatal("locrib still holds the BGP best path after peer-down purge")
+	}
+}
+
+// TestPurgeBestPrevForPeerAddPath exercises the multi (ADD-PATH) branch
+// of the purge walker. Two path-ids for the same prefix from the leaving
+// peer must both vanish; a third path-id from a surviving peer on the
+// same prefix must remain.
+//
+// VALIDATES: sh.store.multi Iterate + Modify + post-Lookup Delete purge
+// branch in purgeBestPrevForPeer.
+// PREVENTS: dead-code regression on the ADD-PATH side (the original
+// TestPurgeBestPrevForPeer used addPath=false so multi was untouched).
+func TestPurgeBestPrevForPeerAddPath(t *testing.T) {
+	bus := newTestEventBus()
+	r := newTestRIBManagerWithBus(bus)
+
+	fam := family.Family{AFI: 1, SAFI: 1}
+	leavingPeer := "192.0.2.20"
+	survivingPeer := "192.0.2.21"
+	r.peerUp[leavingPeer] = true
+	r.peerUp[survivingPeer] = true
+	r.peerMeta[leavingPeer] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+	r.peerMeta[survivingPeer] = &PeerMeta{PeerASN: 65002, LocalASN: 65000}
+	r.ribInPool[leavingPeer] = storage.NewPeerRIB(leavingPeer)
+	r.ribInPool[survivingPeer] = storage.NewPeerRIB(survivingPeer)
+	// Enable ADD-PATH on the per-peer FamilyRIB so the storage layer
+	// keys inserts by (prefix, pathID) rather than collapsing all
+	// pathIDs onto the same prefix key.
+	r.ribInPool[leavingPeer].SetAddPath(fam, true)
+	r.ribInPool[survivingPeer].SetAddPath(fam, true)
+
+	// ADD-PATH wire NLRI = [pathID(4)][prefLen][octets...].
+	apPrefix := func(pathID uint32, prefLen byte, a, b, c byte) []byte {
+		return []byte{
+			byte(pathID >> 24), byte(pathID >> 16), byte(pathID >> 8), byte(pathID),
+			prefLen, a, b, c,
+		}
+	}
+
+	// Two path-ids from the leaving peer on the same prefix.
+	attrsLeaving := makeAttrBytes([4]byte{192, 168, 20, 20})
+	attrsSurviving := makeAttrBytes([4]byte{192, 168, 21, 21})
+
+	for _, pid := range []uint32{1, 2} {
+		nlri := apPrefix(pid, 24, 10, 20, 0)
+		r.ribInPool[leavingPeer].Insert(fam, attrsLeaving, nlri)
+		_, ok := r.checkBestPathChange(fam, nlri, true, nil)
+		require.True(t, ok, "AP seed %d must record", pid)
+	}
+	// Third path-id from the surviving peer on the same prefix.
+	nlriSurviving := apPrefix(3, 24, 10, 20, 0)
+	r.ribInPool[survivingPeer].Insert(fam, attrsSurviving, nlriSurviving)
+	_, ok := r.checkBestPathChange(fam, nlriSurviving, true, nil)
+	require.True(t, ok, "AP seed surviving must record")
+
+	// Before: three AP entries for the one prefix.
+	depthsBefore := r.bestPrev.shardDepth(fam)
+	totalBefore := 0
+	for _, d := range depthsBefore {
+		totalBefore += d
+	}
+	require.Equal(t, 3, totalBefore, "expected three AP records before purge")
+
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: leavingPeer, State: "down"})
+
+	depthsAfter := r.bestPrev.shardDepth(fam)
+	totalAfter := 0
+	for _, d := range depthsAfter {
+		totalAfter += d
+	}
+	assert.Equal(t, 1, totalAfter, "only the surviving peer's AP record should remain")
+}
+
+// TestPurgeBestPrevForPeerMultiFamily seeds records in two different
+// families and asserts the walker visits both.
+//
+// VALIDATES: familyList iteration covers every family, not just the one
+// under test.
+// PREVENTS: a regression that early-exits after the first family or
+// loops on the wrong familyList snapshot.
+func TestPurgeBestPrevForPeerMultiFamily(t *testing.T) {
+	bus := newTestEventBus()
+	r := newTestRIBManagerWithBus(bus)
+
+	family4 := family.Family{AFI: 1, SAFI: 1} // ipv4/unicast
+	family6 := family.Family{AFI: 2, SAFI: 1} // ipv6/unicast
+	peerAddr := "192.0.2.30"
+	r.peerUp[peerAddr] = true
+	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
+
+	// IPv4 NLRI.
+	v4prefix := ipv4Prefix(24, 10, 30, 0)
+	v4attrs := makeAttrBytes([4]byte{192, 168, 30, 30})
+	r.ribInPool[peerAddr].Insert(family4, v4attrs, v4prefix)
+	_, ok := r.checkBestPathChange(family4, v4prefix, false, nil)
+	require.True(t, ok, "v4 seed must record")
+
+	// IPv6 NLRI: [prefLen(1)][octets...]; /32 = 4 bytes covered by one octet
+	// above the wire min but NLRIToPrefix handles multi-byte v6 addresses.
+	// Use a /64 for realism: prefLen 64 -> 8 octets.
+	v6prefix := []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x30}
+	// IPv6 attrs include an MP_REACH_NLRI; for this test we just need a
+	// seeded route, not wire accuracy. Use the same v4-shaped attrs --
+	// gatherCandidates keys off ribInPool presence, not attr shape.
+	r.ribInPool[peerAddr].Insert(family6, v4attrs, v6prefix)
+	_, ok = r.checkBestPathChange(family6, v6prefix, false, nil)
+	require.True(t, ok, "v6 seed must record")
+
+	// Before: one record per family.
+	totalV4Before := 0
+	for _, d := range r.bestPrev.shardDepth(family4) {
+		totalV4Before += d
+	}
+	totalV6Before := 0
+	for _, d := range r.bestPrev.shardDepth(family6) {
+		totalV6Before += d
+	}
+	require.Equal(t, 1, totalV4Before, "v4 seeded record")
+	require.Equal(t, 1, totalV6Before, "v6 seeded record")
+
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerAddr, State: "down"})
+
+	totalV4After := 0
+	for _, d := range r.bestPrev.shardDepth(family4) {
+		totalV4After += d
+	}
+	totalV6After := 0
+	for _, d := range r.bestPrev.shardDepth(family6) {
+		totalV6After += d
+	}
+	assert.Equal(t, 0, totalV4After, "v4 record must be purged")
+	assert.Equal(t, 0, totalV6After, "v6 record must be purged")
+}
+
+// TestPurgeBestPrevForPeerHandleState drives the non-structured DOWN
+// path (handleState) to confirm the purge is wired there too, not only
+// in handleStructuredState.
+//
+// VALIDATES: both handleState and handleStructuredState call
+// purgeBestPrevForPeer on DOWN.
+// PREVENTS: a regression that wires purge into one DOWN path but
+// forgets the other.
+func TestPurgeBestPrevForPeerHandleState(t *testing.T) {
+	bus := newTestEventBus()
+	r := newTestRIBManagerWithBus(bus)
+
+	fam := family.Family{AFI: 1, SAFI: 1}
+	peerAddr := "192.0.2.40"
+	r.peerUp[peerAddr] = true
+	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
+	r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
+
+	prefix := ipv4Prefix(24, 10, 40, 0)
+	attrs := makeAttrBytes([4]byte{192, 168, 40, 40})
+	r.ribInPool[peerAddr].Insert(fam, attrs, prefix)
+	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
+	require.True(t, ok, "seed must record")
+
+	// Drive the non-structured path. handleState takes *Event with the
+	// peer encoded in Peer (JSON blob) + State.
+	event := &Event{
+		Message: &MessageInfo{Type: "state"},
+		Peer:    mustMarshal(t, map[string]any{"address": peerAddr, "state": "down"}),
+	}
+	r.handleState(event)
+
+	totalAfter := 0
+	for _, d := range r.bestPrev.shardDepth(fam) {
+		totalAfter += d
+	}
+	assert.Equal(t, 0, totalAfter, "handleState DOWN must purge bestPrev too")
 }
 
 // VALIDATES: AC-3 -- BGP UPDATE does not change best path, no event published.

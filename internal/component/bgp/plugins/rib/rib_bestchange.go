@@ -446,18 +446,26 @@ func (s *bestPrevStore) delete(fam family.Family, nlriBytes []byte, addPath bool
 }
 
 // purgeBestPrevForPeer walks every bestPrev shard across every family and
-// drops records whose PeerIdx matches peerAddr. For each purged record:
-//   - the matching locrib entry is removed via r.locRIB.Remove so
-//     cross-protocol consumers (sysrib, FIB) see the withdrawal
-//     immediately, not on a delayed next-UPDATE-for-the-prefix trigger;
-//   - a bestChangeEntry with Action=Withdraw is appended to a per-family
-//     batch that is emitted on the bgp-rib EventBus after the shard locks
-//     are released.
+// drops records whose PeerIdx matches peerAddr. For each purged record
+// the matching locrib entry is removed via r.locRIB.Remove so
+// cross-protocol consumers see the withdrawal immediately, not on a
+// delayed next-UPDATE-for-the-prefix trigger.
+//
+// Returns per-family batches of bestChangeEntry Withdraws. The CALLER
+// MUST emit them on the EventBus AFTER releasing r.peerMu (via
+// emitPurgedWithdraws). Emitting under the outer write lock would
+// serialize every in-process subscriber that touches peer-keyed state
+// behind that lock, risking deadlock against any subscriber that
+// re-enters RIBManager methods.
 //
 // Caller MUST hold r.peerMu.Lock so no concurrent UPDATE processing for
 // the departing peer can re-insert records while purge is walking. Purge
-// does NOT touch r.peerMu itself; the outer write lock is serialized
-// with UPDATE Phase 1 which is where peer slots are (re-)created.
+// does NOT acquire r.peerMu itself.
+//
+// Lock order: r.peerMu (outer, caller) -> bgp-rib shard.mu -> locrib
+// shard.mu (via r.locRIB.Remove). Matches checkBestPathChange's ordering
+// after the 2026-04-20 fix that moved bestCandidateNextHopAddr outside
+// sh.mu so sh.mu never sits above r.peerMu.
 //
 // Safe with r.locRIB == nil (skips the mirror step).
 //
@@ -465,16 +473,16 @@ func (s *bestPrevStore) delete(fam family.Family, nlriBytes []byte, addPath bool
 // shard's direct + multi Iterate. For a 1M-prefix table this is O(1M)
 // serial reads across all shards -- call site expects a cold-path
 // peer-down event, not the hot UPDATE path.
-func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) {
+func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[string][]bestChangeEntry {
 	peerIdx, ok := r.bestPathInterner.peerIdxOf(peerAddr)
 	if !ok {
 		// Peer was never interned, so no bestPrev record can reference it.
-		return
+		return nil
 	}
 	if r.bestPrev == nil {
-		return
+		return nil
 	}
-	eb := getEventBus()
+	var pending map[string][]bestChangeEntry
 	for _, fam := range r.bestPrev.familyList() {
 		fs := r.bestPrev.familyShards(fam, false)
 		if fs == nil {
@@ -546,16 +554,23 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) {
 			}
 			sh.mu.Unlock()
 		}
-		if len(changes) > 0 && eb != nil {
-			batch := &bestChangeBatch{
-				Protocol: "bgp",
-				Family:   famStr,
-				Changes:  changes,
+		if len(changes) > 0 {
+			if pending == nil {
+				pending = make(map[string][]bestChangeEntry)
 			}
-			if _, err := ribevents.BestChange.Emit(eb, batch); err != nil {
-				logger().Warn("purgeBestPrevForPeer emit failed", "peer", peerAddr, "family", famStr, "error", err)
-			}
+			pending[famStr] = changes
 		}
+	}
+	return pending
+}
+
+// emitPurgedWithdraws publishes the per-family Withdraw batches returned
+// by purgeBestPrevForPeer. MUST be called AFTER r.peerMu is released so
+// in-process EventBus subscribers that re-enter RIBManager methods do
+// not deadlock against the outer write lock.
+func (r *RIBManager) emitPurgedWithdraws(pending map[string][]bestChangeEntry) {
+	for famName, changes := range pending {
+		publishBestChanges(changes, famName)
 	}
 }
 
@@ -629,6 +644,21 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	candidates := r.gatherCandidates(fam, nlriBytes)
 	newBest := SelectBest(candidates)
 
+	// Resolve the nextHop and protocol class for the winner BEFORE we take
+	// the shard lock. bestCandidateNextHopAddr acquires r.peerMu.RLock
+	// internally; holding sh.mu across that call would put us on the
+	// wrong side of a peerMu writer (e.g. purgeBestPrevForPeer running
+	// under peerMu.Lock) and deadlock against it. Lock order contract:
+	// r.peerMu -> shard.mu, never shard.mu -> r.peerMu.
+	var (
+		nextHop netip.Addr
+		isEBGP  bool
+	)
+	if newBest != nil {
+		nextHop = r.bestCandidateNextHopAddr(fam, nlriBytes, newBest)
+		isEBGP = r.protocolType(newBest) == protocolTypeEBGP
+	}
+
 	// Parse prefix once so we can route to the owning shard. Malformed
 	// NLRI bails before touching any shard, regardless of newBest state
 	// -- we have no way to key the stored record without a prefix.
@@ -673,9 +703,6 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			Prefix: prefix,
 		}, true
 	}
-
-	nextHop := r.bestCandidateNextHopAddr(fam, nlriBytes, newBest)
-	isEBGP := r.protocolType(newBest) == protocolTypeEBGP
 
 	// Same-best short-circuit: compare raw winner values against the
 	// previous record's unpacked reverse-table entries. Three slice
