@@ -81,7 +81,7 @@ func SetPersistLogger(l *slog.Logger) {
 // StoredRoute represents a route stored in the ribOut for replay.
 type StoredRoute struct {
 	MsgID  uint64
-	Family string
+	Family family.Family
 	Prefix string // Full NLRI string including type keyword (e.g., "prefix 192.168.1.0/24")
 }
 
@@ -90,7 +90,7 @@ type PersistPeer struct {
 	Address  string
 	ASN      uint32
 	Up       bool
-	Families map[string]bool // Negotiated families from OPEN
+	Families map[family.Family]bool // Negotiated families from OPEN
 
 	// replayGen guards against stale replay goroutines on rapid reconnect.
 	// Incremented on each peer-up; replay goroutine checks before sending.
@@ -103,7 +103,7 @@ type PersistPeer struct {
 type PersistServer struct {
 	plugin *sdk.Plugin
 	peers  map[string]*PersistPeer
-	ribOut map[string]map[string]map[string]*StoredRoute // peer → family → prefix → StoredRoute
+	ribOut map[string]map[family.Family]map[string]*StoredRoute // peer → family → prefix → StoredRoute
 	mu     sync.RWMutex
 
 	// updateRouteHook is called instead of updateRoute for test inspection.
@@ -119,7 +119,7 @@ func RunPersistServer(conn net.Conn) int {
 	ps := &PersistServer{
 		plugin: p,
 		peers:  make(map[string]*PersistPeer),
-		ribOut: make(map[string]map[string]map[string]*StoredRoute),
+		ribOut: make(map[string]map[family.Family]map[string]*StoredRoute),
 	}
 
 	// Structured event handler for DirectBridge delivery.
@@ -199,7 +199,7 @@ func (ps *PersistServer) handleSentUpdate(peerAddr string, msgID uint64, text st
 	defer ps.mu.Unlock()
 
 	if ps.ribOut[peerAddr] == nil {
-		ps.ribOut[peerAddr] = make(map[string]map[string]*StoredRoute)
+		ps.ribOut[peerAddr] = make(map[family.Family]map[string]*StoredRoute)
 	}
 
 	for fam, familyOps := range ops {
@@ -279,25 +279,25 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 	msgID := se.MessageID
 
 	// Build fam operations from wire sections.
-	ops := make(map[string][]persistFamilyOp)
+	ops := make(map[family.Family][]persistFamilyOp)
 
 	// IPv4 unicast announces.
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
-		addPath := ctx != nil && ctx.AddPath(family.Family{AFI: 1, SAFI: 1})
+		addPath := ctx != nil && ctx.AddPath(family.IPv4Unicast)
 		nlris := persistWireNLRIs(nlriData, addPath, false)
 		if len(nlris) > 0 {
-			ops["ipv4/unicast"] = append(ops["ipv4/unicast"], persistFamilyOp{Action: "add", NLRIs: nlris})
+			ops[family.IPv4Unicast] = append(ops[family.IPv4Unicast], persistFamilyOp{Action: "add", NLRIs: nlris})
 		}
 	}
 
 	// IPv4 unicast withdrawals.
 	wdData, err := wu.Withdrawn()
 	if err == nil && len(wdData) > 0 {
-		addPath := ctx != nil && ctx.AddPath(family.Family{AFI: 1, SAFI: 1})
+		addPath := ctx != nil && ctx.AddPath(family.IPv4Unicast)
 		nlris := persistWireNLRIs(wdData, addPath, false)
 		if len(nlris) > 0 {
-			ops["ipv4/unicast"] = append(ops["ipv4/unicast"], persistFamilyOp{Action: "del", NLRIs: nlris})
+			ops[family.IPv4Unicast] = append(ops[family.IPv4Unicast], persistFamilyOp{Action: "del", NLRIs: nlris})
 		}
 	}
 
@@ -308,9 +308,9 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 		nlriBytes := mpReach.NLRIBytes()
 		if len(nlriBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
-			nlris := persistWireNLRIs(nlriBytes, addPath, fam.AFI == 2)
+			nlris := persistWireNLRIs(nlriBytes, addPath, fam.AFI == family.AFIIPv6)
 			if len(nlris) > 0 {
-				ops[fam.String()] = append(ops[fam.String()], persistFamilyOp{Action: "add", NLRIs: nlris})
+				ops[fam] = append(ops[fam], persistFamilyOp{Action: "add", NLRIs: nlris})
 			}
 		}
 	}
@@ -322,9 +322,9 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 		wdBytes := mpUnreach.WithdrawnBytes()
 		if len(wdBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
-			nlris := persistWireNLRIs(wdBytes, addPath, fam.AFI == 2)
+			nlris := persistWireNLRIs(wdBytes, addPath, fam.AFI == family.AFIIPv6)
 			if len(nlris) > 0 {
-				ops[fam.String()] = append(ops[fam.String()], persistFamilyOp{Action: "del", NLRIs: nlris})
+				ops[fam] = append(ops[fam], persistFamilyOp{Action: "del", NLRIs: nlris})
 			}
 		}
 	}
@@ -334,7 +334,7 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 	defer ps.mu.Unlock()
 
 	if ps.ribOut[peerAddr] == nil {
-		ps.ribOut[peerAddr] = make(map[string]map[string]*StoredRoute)
+		ps.ribOut[peerAddr] = make(map[family.Family]map[string]*StoredRoute)
 	}
 
 	for fam, familyOps := range ops {
@@ -392,7 +392,7 @@ func (ps *PersistServer) handleOpenStructured(se *rpc.StructuredEvent) {
 		asn = open.ASN4
 	}
 
-	families := make(map[string]bool)
+	families := make(map[family.Family]bool)
 	hasMultiprotocol := false
 
 	// Parse capabilities from optional parameters to find multiprotocol families.
@@ -426,8 +426,7 @@ func (ps *PersistServer) handleOpenStructured(se *rpc.StructuredEvent) {
 				if capCode == 1 && capLen == 4 { // Multiprotocol (code 1)
 					afi := family.AFI(uint16(paramData[capOffset])<<8 | uint16(paramData[capOffset+1]))
 					safi := family.SAFI(paramData[capOffset+3])
-					f := family.Family{AFI: afi, SAFI: safi}.String()
-					families[f] = true
+					families[family.Family{AFI: afi, SAFI: safi}] = true
 					hasMultiprotocol = true
 				} else if capCode == 65 && capLen == 4 { // ASN4 capability
 					asn = uint32(paramData[capOffset])<<24 | uint32(paramData[capOffset+1])<<16 |
@@ -441,7 +440,7 @@ func (ps *PersistServer) handleOpenStructured(se *rpc.StructuredEvent) {
 
 	// RFC 4760: implicit ipv4/unicast if no multiprotocol capability.
 	if !hasMultiprotocol {
-		families["ipv4/unicast"] = true
+		families[family.IPv4Unicast] = true
 	}
 
 	ps.mu.Lock()
@@ -632,18 +631,18 @@ func (ps *PersistServer) replayForPeer(peerAddr string, gen uint64) {
 }
 
 // peerFamilies returns the negotiated families for a peer. Caller must hold ps.mu (read).
-func (ps *PersistServer) peerFamilies(peerAddr string) map[string]bool {
+func (ps *PersistServer) peerFamilies(peerAddr string) map[family.Family]bool {
 	peer := ps.peers[peerAddr]
 	if peer == nil || len(peer.Families) == 0 {
 		return nil
 	}
-	fam := make(map[string]bool, len(peer.Families))
+	fam := make(map[family.Family]bool, len(peer.Families))
 	maps.Copy(fam, peer.Families)
 	return fam
 }
 
 // sendEOR sends End-of-RIB markers for each negotiated family.
-func (ps *PersistServer) sendEOR(peerAddr string, families map[string]bool) {
+func (ps *PersistServer) sendEOR(peerAddr string, families map[family.Family]bool) {
 	for fam := range families {
 		ps.updateRoute(peerAddr, fmt.Sprintf("update text nlri %s eor", fam))
 	}
@@ -670,7 +669,7 @@ func (ps *PersistServer) updateRoute(peer, cmd string) {
 type persistEvent struct {
 	state    string
 	asn      uint32
-	families map[string]bool
+	families map[family.Family]bool
 }
 
 // quickParsePersistEvent extracts event type, message ID, peer address, and full text
@@ -733,8 +732,9 @@ type persistFamilyOp struct {
 }
 
 // parsePersistNLRIOps extracts family operations from a text UPDATE.
-func parsePersistNLRIOps(text string) map[string][]persistFamilyOp {
-	result := make(map[string][]persistFamilyOp)
+// Unknown family names are dropped at the parse boundary.
+func parsePersistNLRIOps(text string) map[family.Family][]persistFamilyOp {
+	result := make(map[family.Family][]persistFamilyOp)
 	s := textparse.NewScanner(strings.TrimRight(text, "\n"))
 
 	// Skip header: peer <addr> remote as <n> <dir> update <id>
@@ -754,8 +754,12 @@ func parsePersistNLRIOps(text string) map[string][]persistFamilyOp {
 			s.Next() // consume the address
 
 		case textparse.KWNLRI:
-			fam, ok := s.Next()
-			if !ok || !strings.Contains(fam, "/") {
+			famStr, ok := s.Next()
+			if !ok {
+				continue
+			}
+			fam, ok := family.LookupFamily(famStr)
+			if !ok {
 				continue
 			}
 
@@ -900,7 +904,7 @@ func parsePersistOpen(text string) *persistEvent {
 	}
 
 	event := &persistEvent{
-		families: make(map[string]bool),
+		families: make(map[family.Family]bool),
 	}
 
 	// remote as <n>
@@ -934,9 +938,11 @@ func parsePersistOpen(text string) *persistEvent {
 			}
 
 			if name == "multiprotocol" {
-				if value, ok := s.Next(); ok && strings.Contains(value, "/") {
-					event.families[value] = true
-					hasMultiprotocol = true
+				if value, ok := s.Next(); ok {
+					if fam, ok := family.LookupFamily(value); ok {
+						event.families[fam] = true
+						hasMultiprotocol = true
+					}
 				}
 			} else {
 				// Peek to consume optional value (not cap/router-id/hold-time).
@@ -949,7 +955,7 @@ func parsePersistOpen(text string) *persistEvent {
 
 	// RFC 4760: implicit ipv4/unicast if no multiprotocol capability.
 	if !hasMultiprotocol {
-		event.families["ipv4/unicast"] = true
+		event.families[family.IPv4Unicast] = true
 	}
 
 	return event

@@ -1,19 +1,27 @@
 package persist
 
 import (
+	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
+
+func TestMain(m *testing.M) {
+	family.RegisterTestFamilies()
+	os.Exit(m.Run())
+}
 
 func newTestPersistServer(t *testing.T) *PersistServer {
 	t.Helper()
 	return &PersistServer{
 		peers:  make(map[string]*PersistPeer),
-		ribOut: make(map[string]map[string]map[string]*StoredRoute),
+		ribOut: make(map[string]map[family.Family]map[string]*StoredRoute),
 	}
 }
 
@@ -63,7 +71,7 @@ func TestPersist_SentUpdate_StoresRoute(t *testing.T) {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 
-	familyRoutes := ps.ribOut["10.0.0.1"]["ipv4/unicast"]
+	familyRoutes := ps.ribOut["10.0.0.1"][family.IPv4Unicast]
 	if familyRoutes == nil {
 		t.Fatal("expected ribOut entry for 10.0.0.1 ipv4/unicast")
 		return
@@ -76,7 +84,7 @@ func TestPersist_SentUpdate_StoresRoute(t *testing.T) {
 	if route.MsgID != 42 {
 		t.Errorf("MsgID = %d, want 42", route.MsgID)
 	}
-	if route.Family != "ipv4/unicast" {
+	if route.Family != family.IPv4Unicast {
 		t.Errorf("Family = %q, want ipv4/unicast", route.Family)
 	}
 
@@ -180,10 +188,10 @@ func TestPersist_PeerUp_ReplaysRoutes(t *testing.T) {
 
 	// Pre-populate ribOut (simulating routes sent before peer went down).
 	ps.mu.Lock()
-	ps.ribOut["10.0.0.1"] = map[string]map[string]*StoredRoute{
-		"ipv4/unicast": {
-			"prefix 192.168.1.0/24": {MsgID: 42, Family: "ipv4/unicast", Prefix: "prefix 192.168.1.0/24"},
-			"prefix 192.168.2.0/24": {MsgID: 43, Family: "ipv4/unicast", Prefix: "prefix 192.168.2.0/24"},
+	ps.ribOut["10.0.0.1"] = map[family.Family]map[string]*StoredRoute{
+		family.IPv4Unicast: {
+			"prefix 192.168.1.0/24": {MsgID: 42, Family: family.IPv4Unicast, Prefix: "prefix 192.168.1.0/24"},
+			"prefix 192.168.2.0/24": {MsgID: 43, Family: family.IPv4Unicast, Prefix: "prefix 192.168.2.0/24"},
 		},
 	}
 	ps.mu.Unlock()
@@ -233,11 +241,11 @@ func TestPersist_PeerUp_SendsEOR(t *testing.T) {
 	ps.peers["10.0.0.1"] = &PersistPeer{
 		Address:  "10.0.0.1",
 		Up:       true,
-		Families: map[string]bool{"ipv4/unicast": true, "ipv6/unicast": true},
+		Families: map[family.Family]bool{family.IPv4Unicast: true, family.IPv6Unicast: true},
 	}
-	ps.ribOut["10.0.0.1"] = map[string]map[string]*StoredRoute{
-		"ipv4/unicast": {
-			"prefix 192.168.1.0/24": {MsgID: 42, Family: "ipv4/unicast", Prefix: "prefix 192.168.1.0/24"},
+	ps.ribOut["10.0.0.1"] = map[family.Family]map[string]*StoredRoute{
+		family.IPv4Unicast: {
+			"prefix 192.168.1.0/24": {MsgID: 42, Family: family.IPv4Unicast, Prefix: "prefix 192.168.1.0/24"},
 		},
 	}
 	ps.mu.Unlock()
@@ -303,10 +311,10 @@ func TestPersist_HandleOpen(t *testing.T) {
 		t.Fatal("expected peer state for 10.0.0.1")
 		return
 	}
-	if !peer.Families["ipv4/unicast"] {
+	if !peer.Families[family.IPv4Unicast] {
 		t.Error("missing ipv4/unicast family")
 	}
-	if !peer.Families["ipv6/unicast"] {
+	if !peer.Families[family.IPv6Unicast] {
 		t.Error("missing ipv6/unicast family")
 	}
 	if peer.ASN != 65001 {
@@ -333,7 +341,7 @@ func TestPersist_HandleOpen_ImplicitIPv4(t *testing.T) {
 		t.Fatal("expected peer state")
 		return
 	}
-	if !peer.Families["ipv4/unicast"] {
+	if !peer.Families[family.IPv4Unicast] {
 		t.Error("expected implicit ipv4/unicast family")
 	}
 }
@@ -360,7 +368,7 @@ func TestPersist_RouteReplacement_ReleasesOld(t *testing.T) {
 	ps.dispatchText("peer 10.0.0.1 remote as 65001 sent update 43 origin igp next-hop 10.0.0.2 nlri ipv4/unicast add prefix 192.168.1.0/24")
 
 	ps.mu.RLock()
-	route := ps.ribOut["10.0.0.1"]["ipv4/unicast"]["prefix 192.168.1.0/24"]
+	route := ps.ribOut["10.0.0.1"][family.IPv4Unicast]["prefix 192.168.1.0/24"]
 	ps.mu.RUnlock()
 
 	if route == nil {
@@ -409,9 +417,9 @@ func TestPersist_NoFamilies_NoEOR(t *testing.T) {
 
 	// Pre-populate ribOut but no OPEN received (no families).
 	ps.mu.Lock()
-	ps.ribOut["10.0.0.1"] = map[string]map[string]*StoredRoute{
-		"ipv4/unicast": {
-			"prefix 192.168.1.0/24": {MsgID: 42, Family: "ipv4/unicast", Prefix: "prefix 192.168.1.0/24"},
+	ps.ribOut["10.0.0.1"] = map[family.Family]map[string]*StoredRoute{
+		family.IPv4Unicast: {
+			"prefix 192.168.1.0/24": {MsgID: 42, Family: family.IPv4Unicast, Prefix: "prefix 192.168.1.0/24"},
 		},
 	}
 	ps.mu.Unlock()
@@ -449,11 +457,11 @@ func TestPersistSentPerFamily(t *testing.T) {
 	if len(peerFamilies) != 2 {
 		t.Fatalf("expected 2 families, got %d", len(peerFamilies))
 	}
-	if len(peerFamilies["ipv4/unicast"]) != 1 {
-		t.Errorf("expected 1 ipv4 route, got %d", len(peerFamilies["ipv4/unicast"]))
+	if len(peerFamilies[family.IPv4Unicast]) != 1 {
+		t.Errorf("expected 1 ipv4 route, got %d", len(peerFamilies[family.IPv4Unicast]))
 	}
-	if len(peerFamilies["ipv6/unicast"]) != 1 {
-		t.Errorf("expected 1 ipv6 route, got %d", len(peerFamilies["ipv6/unicast"]))
+	if len(peerFamilies[family.IPv6Unicast]) != 1 {
+		t.Errorf("expected 1 ipv6 route, got %d", len(peerFamilies[family.IPv6Unicast]))
 	}
 }
 
@@ -467,10 +475,10 @@ func mapKeys(m map[string]*StoredRoute) []string {
 }
 
 // familyKeys returns family keys for error messages.
-func familyKeys(m map[string]map[string]*StoredRoute) []string {
+func familyKeys(m map[family.Family]map[string]*StoredRoute) []string {
 	result := make([]string, 0, len(m))
 	for k := range m {
-		result = append(result, k)
+		result = append(result, k.String())
 	}
 	return result
 }
