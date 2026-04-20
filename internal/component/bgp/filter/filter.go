@@ -172,7 +172,7 @@ type FilterResult struct {
 // Thread-safe: filter is immutable after construction.
 type NLRIFilter struct {
 	Mode     FilterMode
-	Families map[string]bool // e.g., "ipv4/unicast", "ipv6/unicast"
+	Families map[family.Family]bool
 }
 
 // NewNLRIFilterAll returns a filter that includes all families.
@@ -186,7 +186,7 @@ func NewNLRIFilterNone() NLRIFilter {
 }
 
 // NewNLRIFilterSelective returns a filter for specific families.
-func NewNLRIFilterSelective(families map[string]bool) NLRIFilter {
+func NewNLRIFilterSelective(families map[family.Family]bool) NLRIFilter {
 	return NLRIFilter{
 		Mode:     FilterModeSelective,
 		Families: families,
@@ -194,14 +194,14 @@ func NewNLRIFilterSelective(families map[string]bool) NLRIFilter {
 }
 
 // IncludesFamily returns true if the given family should be included.
-func (f NLRIFilter) IncludesFamily(family string) bool {
+func (f NLRIFilter) IncludesFamily(fam family.Family) bool {
 	switch f.Mode {
 	case FilterModeNone:
 		return false
 	case FilterModeAll:
 		return true
 	case FilterModeSelective:
-		return f.Families[family]
+		return f.Families[fam]
 	default:
 		return true
 	}
@@ -450,7 +450,7 @@ func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []by
 	result := FilterResult{}
 
 	// Extract IPv4 unicast NLRI if included
-	if nlriFilter.IncludesFamily("ipv4/unicast") {
+	if nlriFilter.IncludesFamily(family.IPv4Unicast) {
 		ipv4Reach, ipv4Withdraw := extractIPv4SlicesFromBody(body)
 		if ipv4Reach != nil {
 			result.IPv4Announced = ipv4Reach
@@ -465,8 +465,7 @@ func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []by
 		// Zero-copy wireu.MPReachWire
 		if mpRaw, err := wire.GetRaw(attribute.AttrMPReachNLRI); err == nil && mpRaw != nil {
 			mpw := wireu.MPReachWire(mpRaw)
-			famStr := mpw.Family().String()
-			if nlriFilter.IncludesFamily(famStr) {
+			if nlriFilter.IncludesFamily(mpw.Family()) {
 				result.MPReach = append(result.MPReach, mpw)
 			}
 		}
@@ -474,8 +473,7 @@ func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []by
 		// Zero-copy wireu.MPUnreachWire
 		if mpRaw, err := wire.GetRaw(attribute.AttrMPUnreachNLRI); err == nil && mpRaw != nil {
 			mpw := wireu.MPUnreachWire(mpRaw)
-			famStr := mpw.Family().String()
-			if nlriFilter.IncludesFamily(famStr) {
+			if nlriFilter.IncludesFamily(mpw.Family()) {
 				result.MPUnreach = append(result.MPUnreach, mpw)
 			}
 		}

@@ -28,6 +28,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -75,7 +76,7 @@ type peerState struct {
 	ASN          uint32
 	Up           bool
 	ReplayGen    uint64 // Incremented on each state-up, guards stale goroutines
-	Families     map[string]bool
+	Families     map[family.Family]bool
 	Capabilities map[string]bool
 }
 
@@ -298,7 +299,7 @@ func (rr *RouteReflector) handleStructuredOpen(se *rpc.StructuredEvent, msg *bgp
 		asn = open.ASN4
 	}
 
-	families := make(map[string]bool)
+	families := make(map[family.Family]bool)
 	capabilities := make(map[string]bool)
 	hasMP := false
 
@@ -320,7 +321,7 @@ func (rr *RouteReflector) handleStructuredOpen(se *rpc.StructuredEvent, msg *bgp
 					if mp, ok := c.(*capability.Multiprotocol); ok {
 						hasMP = true
 						capabilities["multiprotocol"] = true
-						families[fmt.Sprintf("%s/%s", mp.AFI, mp.SAFI)] = true
+						families[family.Family{AFI: mp.AFI, SAFI: mp.SAFI}] = true
 					}
 					if asn4, ok := c.(*capability.ASN4); ok {
 						asn = asn4.ASN
@@ -335,7 +336,7 @@ func (rr *RouteReflector) handleStructuredOpen(se *rpc.StructuredEvent, msg *bgp
 	// RFC 4760 Section 1: ipv4/unicast is the implicit default only when
 	// the peer sends no Multiprotocol capability.
 	if !hasMP {
-		families["ipv4/unicast"] = true
+		families[family.IPv4Unicast] = true
 	}
 
 	rr.mu.Lock()
@@ -512,7 +513,7 @@ func (rr *RouteReflector) sendEOR(peerAddr string, gen uint64) {
 	}
 	families := make([]string, 0, len(p.Families))
 	for f := range p.Families {
-		families = append(families, f)
+		families = append(families, f.String())
 	}
 	rr.mu.RUnlock()
 
