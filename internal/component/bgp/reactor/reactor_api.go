@@ -23,6 +23,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // addPathSendDirection is the ADD-PATH direction value for families where we send path-IDs.
@@ -52,7 +53,7 @@ func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
 		Accept:       s.Connection.Accept,
 		State:        peer.State().PluginState(),
 	}
-	o.dispatcher.OnPeerStateChange(&peerInfo, "up", "")
+	o.dispatcher.OnPeerStateChange(&peerInfo, rpc.SessionStateUp, "")
 }
 
 func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
@@ -72,7 +73,7 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
 		Accept:       s.Connection.Accept,
 		State:        peer.State().PluginState(),
 	}
-	o.dispatcher.OnPeerStateChange(&peerInfo, "down", reason)
+	o.dispatcher.OnPeerStateChange(&peerInfo, rpc.SessionStateDown, reason)
 }
 
 // reactorAPIAdapter implements plugin.ReactorLifecycle + bgptypes.BGPReactor for the Reactor.

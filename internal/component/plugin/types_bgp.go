@@ -16,6 +16,8 @@ import (
 	"fmt"
 	"net/netip"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // PeerState represents the high-level state of a BGP peer.
@@ -31,15 +33,15 @@ const (
 func (s PeerState) String() string {
 	switch s {
 	case PeerStateStopped:
-		return "Stopped"
+		return "stopped"
 	case PeerStateConnecting:
-		return "Connecting"
+		return "connecting"
 	case PeerStateActive:
-		return "Active"
+		return "active"
 	case PeerStateEstablished:
-		return "Established"
+		return "established"
 	}
-	return fmt.Sprintf("Unknown(%d)", s)
+	return fmt.Sprintf("unknown(%d)", s)
 }
 
 // PeerInfo is a snapshot of BGP peer state for API output.
@@ -249,5 +251,5 @@ type PeerProcessBinding struct {
 // StateChangeReceiver receives BGP peer state change notifications.
 // State events are separate from BGP protocol messages.
 type StateChangeReceiver interface {
-	OnPeerStateChange(peer PeerInfo, state string)
+	OnPeerStateChange(peer PeerInfo, state rpc.SessionState)
 }

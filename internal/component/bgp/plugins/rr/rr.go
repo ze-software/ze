@@ -229,18 +229,18 @@ func (rr *RouteReflector) handleStructuredState(se *rpc.StructuredEvent) {
 		rr.peers[se.PeerAddress] = &peerState{Address: se.PeerAddress}
 	}
 	peer := rr.peers[se.PeerAddress]
-	peer.Up = (se.State == "up")
+	peer.Up = (se.State == rpc.SessionStateUp)
 	peer.ASN = se.PeerAS
 	switch se.State {
-	case "up":
+	case rpc.SessionStateUp:
 		peer.ReplayGen++
 		gen := peer.ReplayGen
 		rr.mu.Unlock()
 		go rr.replayForPeer(se.PeerAddress, gen)
-	case "down":
+	case rpc.SessionStateDown:
 		rr.mu.Unlock()
 		rr.handleStateDown(se.PeerAddress)
-	default: // other states (e.g. "connected") -- no action
+	default: // other states (e.g. connected) -- no action
 		rr.mu.Unlock()
 	}
 }

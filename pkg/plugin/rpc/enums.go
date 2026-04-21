@@ -261,3 +261,52 @@ func (e *CapEncoding) UnmarshalText(data []byte) error {
 	}
 	return nil
 }
+
+const (
+	wireUp   = "up"
+	wireDown = "down"
+)
+
+// SessionState is the typed peer session lifecycle state carried by
+// StructuredEvent.State. Wire form: "up", "down".
+type SessionState uint8
+
+const (
+	SessionStateUnspecified SessionState = 0
+	SessionStateUp          SessionState = 1
+	SessionStateDown        SessionState = 2
+	SessionStateCount       SessionState = 3
+)
+
+func (s SessionState) String() string {
+	switch s {
+	case SessionStateUp:
+		return wireUp
+	case SessionStateDown:
+		return wireDown
+	case SessionStateUnspecified, SessionStateCount:
+		return wireUnspecified
+	}
+	return wireUnspecified
+}
+
+func (s SessionState) AppendTo(buf []byte) []byte { return append(buf, s.String()...) }
+
+func (s SessionState) MarshalText() ([]byte, error) {
+	if s == SessionStateUnspecified || s >= SessionStateCount {
+		return nil, fmt.Errorf("rpc: invalid SessionState %d on the wire", s)
+	}
+	return []byte(s.String()), nil
+}
+
+func (s *SessionState) UnmarshalText(data []byte) error {
+	switch string(data) {
+	case wireUp:
+		*s = SessionStateUp
+	case wireDown:
+		*s = SessionStateDown
+	default:
+		return fmt.Errorf("rpc: unknown session state %q", string(data))
+	}
+	return nil
+}

@@ -330,7 +330,7 @@ type StructuredEvent struct {
 	EventType    string           // "update", "open", "notification", "keepalive", "refresh", "state", "eor", etc.
 	Direction    MessageDirection // DirectionSent / DirectionReceived
 	MessageID    uint64           // Unique message ID (0 for non-message events)
-	State        string           // For state events: "up", "down"
+	State        SessionState     // For state events: SessionStateUp, SessionStateDown
 	Reason       string           // For state events: close reason
 	RawMessage   any              // *types.RawMessage for wire messages, nil for synthetic events
 	Meta         map[string]any   // Route metadata (sent events only)
@@ -358,7 +358,7 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.EventType = ""
 	se.Direction = DirectionUnspecified
 	se.MessageID = 0
-	se.State = ""
+	se.State = SessionStateUnspecified
 	se.Reason = ""
 	se.RawMessage = nil
 	se.Meta = nil

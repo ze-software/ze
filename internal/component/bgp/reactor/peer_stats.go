@@ -201,7 +201,7 @@ func (p *Peer) ClearStats() {
 }
 
 // peerStateNames lists all PeerState.String() values for metric label cleanup.
-var peerStateNames = []string{"Stopped", "Connecting", "Active", "Established", "Unknown"}
+var peerStateNames = []string{"stopped", "connecting", "active", "established", "unknown"}
 
 // notifCodeNames lists all notification code label values produced by
 // notificationCodeLabel. Used for metric cleanup when a peer is removed.

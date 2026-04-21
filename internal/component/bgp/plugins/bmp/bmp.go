@@ -539,8 +539,8 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*senderSession) {
 	peer := peerHeaderFromEvent(se)
 
-	switch se.State {
-	case "up":
+	switch se.State { //nolint:exhaustive // only up/down are actionable for BMP
+	case rpc.SessionStateUp:
 		// Build synthetic OPEN messages from metadata.
 		// RFC 7854 requires OPEN PDUs in Peer Up; we build minimal ones
 		// from PeerAS/LocalAS since raw OPENs aren't in the event system.
@@ -555,7 +555,7 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 				logger().Debug("bmp: sender peer up failed", "collector", ss.name, "error", err)
 			}
 		}
-	case "down":
+	case rpc.SessionStateDown:
 		reason := peerDownReasonFromString(se.Reason)
 		for _, ss := range senders {
 			if err := ss.writePeerDown(peer, reason, nil); err != nil {

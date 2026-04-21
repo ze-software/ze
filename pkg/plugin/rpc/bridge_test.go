@@ -175,7 +175,7 @@ func TestStructuredEventPool(t *testing.T) {
 	se.EventType = "update"
 	se.Direction = DirectionReceived
 	se.MessageID = 42
-	se.State = "up"
+	se.State = SessionStateUp
 	se.Reason = "reconnect"
 	se.RawMessage = "sentinel"
 	se.Meta = map[string]any{"key": "val"}

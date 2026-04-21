@@ -110,9 +110,9 @@ func RunWatchdogPlugin(conn net.Conn) int {
 			if !ok || se.PeerAddress == "" {
 				continue
 			}
-			if se.State == "up" {
+			if se.State == rpc.SessionStateUp {
 				srv.handleStateUp(se.PeerAddress)
-			} else if se.State != "" {
+			} else if se.State != 0 {
 				srv.handleStateDown(se.PeerAddress)
 			}
 		}

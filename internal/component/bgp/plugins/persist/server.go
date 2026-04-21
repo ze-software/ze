@@ -499,7 +499,7 @@ func (ps *PersistServer) handleStructuredState(se *rpc.StructuredEvent) {
 
 	ps.mu.Lock()
 
-	if se.State == persistStateUp {
+	if se.State == rpc.SessionStateUp {
 		peer := ps.peers[peerAddr]
 		if peer == nil {
 			peer = &PersistPeer{Address: peerAddr}
@@ -517,7 +517,7 @@ func (ps *PersistServer) handleStructuredState(se *rpc.StructuredEvent) {
 		return
 	}
 
-	if se.State == persistStateDown {
+	if se.State == rpc.SessionStateDown {
 		if peer := ps.peers[peerAddr]; peer != nil {
 			peer.Up = false
 		}

@@ -14,8 +14,8 @@ import (
 // PREVENTS: Completion output with wrong format or missing selectors.
 func TestCompletionPeersOutput(t *testing.T) {
 	jsonData := `{"peers":{` +
-		`"10.0.0.1":{"name":"upstream","remote-as":65001,"state":"Established"},` +
-		`"10.0.0.2":{"name":"downstream","remote-as":65002,"state":"Established"}` +
+		`"10.0.0.1":{"name":"upstream","remote-as":65001,"state":"established"},` +
+		`"10.0.0.2":{"name":"downstream","remote-as":65002,"state":"established"}` +
 		`}}`
 
 	var buf strings.Builder
@@ -47,9 +47,9 @@ func TestCompletionPeersOutput(t *testing.T) {
 // PREVENTS: Duplicate ASN entries cluttering completion output.
 func TestCompletionPeersASNDedup(t *testing.T) {
 	jsonData := `{"peers":{` +
-		`"10.0.0.1":{"name":"ibgp-a","remote-as":65000,"state":"Established"},` +
-		`"10.0.0.2":{"name":"ibgp-b","remote-as":65000,"state":"Established"},` +
-		`"10.0.1.1":{"name":"ebgp","remote-as":65001,"state":"Established"}` +
+		`"10.0.0.1":{"name":"ibgp-a","remote-as":65000,"state":"established"},` +
+		`"10.0.0.2":{"name":"ibgp-b","remote-as":65000,"state":"established"},` +
+		`"10.0.1.1":{"name":"ebgp","remote-as":65001,"state":"established"}` +
 		`}}`
 
 	var buf strings.Builder
@@ -73,7 +73,7 @@ func TestCompletionPeersASNDedup(t *testing.T) {
 // PREVENTS: Missing completions for unnamed peers.
 func TestCompletionPeersNoName(t *testing.T) {
 	jsonData := `{"peers":{` +
-		`"10.0.0.1":{"remote-as":65001,"state":"Established"}` +
+		`"10.0.0.1":{"remote-as":65001,"state":"established"}` +
 		`}}`
 
 	var buf strings.Builder

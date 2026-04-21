@@ -34,45 +34,45 @@ func TestFormatStateChange(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		state    string
+		state    rpc.SessionState
 		reason   string
 		encoding string
 		want     string
 	}{
 		{
-			name:     "text established",
-			state:    "established",
+			name:     "text up",
+			state:    rpc.SessionStateUp,
 			encoding: plugin.EncodingText,
-			want:     "peer 10.0.0.1 remote as 65001 state established\n",
+			want:     "peer 10.0.0.1 remote as 65001 state up\n",
 		},
 		{
 			name:     "text down no reason",
-			state:    "down",
+			state:    rpc.SessionStateDown,
 			encoding: plugin.EncodingText,
 			want:     "peer 10.0.0.1 remote as 65001 state down\n",
 		},
 		{
 			name:     "text down with reason",
-			state:    "down",
+			state:    rpc.SessionStateDown,
 			reason:   "tcp-failure",
 			encoding: plugin.EncodingText,
 			want:     "peer 10.0.0.1 remote as 65001 state down reason tcp-failure\n",
 		},
 		{
-			name:     "json established",
-			state:    "established",
+			name:     "json up",
+			state:    rpc.SessionStateUp,
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"state":"established"}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"state":"up"}}` + "\n",
 		},
 		{
 			name:     "json down no reason",
-			state:    "down",
+			state:    rpc.SessionStateDown,
 			encoding: plugin.EncodingJSON,
 			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"state":"down"}}` + "\n",
 		},
 		{
 			name:     "json down with reason",
-			state:    "down",
+			state:    rpc.SessionStateDown,
 			reason:   "notification",
 			encoding: plugin.EncodingJSON,
 			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"state":"down","reason":"notification"}}` + "\n",
@@ -106,7 +106,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 				PeerAS:  65001,
 				Name:    "upstream1",
 			},
-			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","name":"upstream1","remote":{"as":65001}},"state":"established"}}` + "\n",
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","name":"upstream1","remote":{"as":65001}},"state":"up"}}` + "\n",
 		},
 		{
 			name: "name and group",
@@ -116,7 +116,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 				Name:      "peer_east",
 				GroupName: "transit",
 			},
-			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.2","group":"transit","name":"peer_east","remote":{"as":65002}},"state":"established"}}` + "\n",
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.2","group":"transit","name":"peer_east","remote":{"as":65002}},"state":"up"}}` + "\n",
 		},
 		{
 			name: "group only",
@@ -125,7 +125,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 				PeerAS:    65003,
 				GroupName: "edge",
 			},
-			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.3","group":"edge","name":"","remote":{"as":65003}},"state":"established"}}` + "\n",
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.3","group":"edge","name":"","remote":{"as":65003}},"state":"up"}}` + "\n",
 		},
 		{
 			name: "no name no group",
@@ -133,13 +133,13 @@ func TestPeerJSONNameGroup(t *testing.T) {
 				Address: netip.MustParseAddr("10.0.0.4"),
 				PeerAS:  65004,
 			},
-			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.4","name":"","remote":{"as":65004}},"state":"established"}}` + "\n",
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.4","name":"","remote":{"as":65004}},"state":"up"}}` + "\n",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := string(AppendStateChange(nil, &tt.peer, "established", "", plugin.EncodingJSON))
+			got := string(AppendStateChange(nil, &tt.peer, rpc.SessionStateUp, "", plugin.EncodingJSON))
 			if got != tt.want {
 				t.Errorf("FormatStateChange() =\n  %s\nwant:\n  %s", got, tt.want)
 			}

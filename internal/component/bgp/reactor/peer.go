@@ -59,15 +59,15 @@ const (
 func (s PeerState) String() string {
 	switch s {
 	case PeerStateStopped:
-		return "Stopped"
+		return "stopped"
 	case PeerStateConnecting:
-		return "Connecting"
+		return "connecting"
 	case PeerStateActive:
-		return "Active"
+		return "active"
 	case PeerStateEstablished:
-		return "Established"
+		return "established"
 	default:
-		return "Unknown"
+		return "unknown"
 	}
 }
 

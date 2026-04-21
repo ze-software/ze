@@ -212,7 +212,7 @@ func TestPurgeBestPrevForPeer(t *testing.T) {
 	// purge under peerMu).
 	r.handleStructuredState(&rpc.StructuredEvent{
 		PeerAddress: leavingPeer,
-		State:       "down",
+		State:       rpc.SessionStateDown,
 	})
 
 	// The surviving peer's one record must remain; the leaving peer's
@@ -295,7 +295,7 @@ func TestPurgeBestPrevForPeerLocRIB(t *testing.T) {
 	}
 
 	// Trigger DOWN. Purge must walk + delete from locrib too.
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerAddr, State: "down"})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerAddr, State: rpc.SessionStateDown})
 
 	if _, ok := loc.Lookup(fam, parsedPfx); ok {
 		t.Fatal("locrib still holds the BGP best path after peer-down purge")
@@ -362,7 +362,7 @@ func TestPurgeBestPrevForPeerAddPath(t *testing.T) {
 	}
 	require.Equal(t, 3, totalBefore, "expected three AP records before purge")
 
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: leavingPeer, State: "down"})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: leavingPeer, State: rpc.SessionStateDown})
 
 	depthsAfter := r.bestPrev.shardDepth(fam)
 	totalAfter := 0
@@ -431,7 +431,7 @@ func TestBestChangeEntryPathIDPropagation(t *testing.T) {
 
 	// DOWN: purgeBestPrevForPeer multi branch emits one Withdraw per pathID.
 	bus.events = nil // drop prior seed batches so we only see the DOWN batch
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: leavingPeer, State: "down"})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: leavingPeer, State: rpc.SessionStateDown})
 
 	// Collect every Withdraw entry across emitted batches for 10.31.0.0/24.
 	var withdrawPathIDs []uint32
@@ -578,7 +578,7 @@ func TestPurgeBestPrevForPeerMultiFamily(t *testing.T) {
 	require.Equal(t, 1, totalV4Before, "v4 seeded record")
 	require.Equal(t, 1, totalV6Before, "v6 seeded record")
 
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerAddr, State: "down"})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerAddr, State: rpc.SessionStateDown})
 
 	totalV4After := 0
 	for _, d := range r.bestPrev.shardDepth(family4) {
@@ -1254,7 +1254,7 @@ func TestPurgeBestPrevForPeerReclaimsInternerSlot(t *testing.T) {
 
 	// DOWN path: handleStructuredState removes ribInPool entry and calls
 	// purgeBestPrevForPeer which forgetPeers peerA.
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerA, State: "down"})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerA, State: rpc.SessionStateDown})
 
 	_, stillThere := r.bestPathInterner.peerIdxOf(peerA)
 	assert.False(t, stillThere, "purge must release peerA from the forward map")

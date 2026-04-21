@@ -54,7 +54,7 @@ func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.St
 }
 
 // getStructuredStateEvent returns a StructuredEvent for a peer state change.
-func getStructuredStateEvent(peer *plugin.PeerInfo, state, reason string) *rpc.StructuredEvent {
+func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reason string) *rpc.StructuredEvent {
 	se := rpc.GetStructuredEvent()
 	se.PeerAddress = peer.Address.String()
 	se.PeerName = peer.Name
@@ -473,7 +473,7 @@ func sortByReverseDependencyTier(procs []*process.Process) {
 // reason is the close reason (empty for "up"): "tcp-failure", "notification", etc.
 // State events are delivered sequentially in reverse dependency order so that
 // plugins with dependencies (e.g., bgp-gr) process before their dependencies (e.g., bgp-rib).
-func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state, reason string) {
+func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.SessionState, reason string) {
 	if s.Context().Err() != nil {
 		return // Server shutting down, skip event delivery
 	}

@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // appendFilterResultJSON appends FilterResult as JSON to buf (ze-bgp JSON).
@@ -468,11 +469,11 @@ func appendAttributeJSON(buf []byte, code attribute.AttributeCode, attr attribut
 // appendStateChangeJSON appends the ze-bgp state-change JSON envelope to buf,
 // terminated by '\n'. reason is only present for "down" events; "up" has no
 // close reason.
-func appendStateChangeJSON(buf []byte, peer *plugin.PeerInfo, state, reason string) []byte {
+func appendStateChangeJSON(buf []byte, peer *plugin.PeerInfo, state rpc.SessionState, reason string) []byte {
 	buf = append(buf, `{"type":"bgp","bgp":{"message":{"type":"state"},`...)
 	buf = appendPeerJSON(buf, peer)
 	buf = append(buf, `,"state":"`...)
-	buf = append(buf, state...)
+	buf = state.AppendTo(buf)
 	if reason != "" {
 		buf = append(buf, `","reason":"`...)
 		buf = append(buf, reason...)

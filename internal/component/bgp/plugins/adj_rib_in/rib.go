@@ -339,12 +339,12 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 	}
 
 	state := se.State
-	if state != stateUp && state != stateDown {
+	if state != rpc.SessionStateUp && state != rpc.SessionStateDown {
 		logger().Debug("ignoring unknown peer state", "peer", peerAddr, "state", state)
 		return
 	}
 
-	isUp := state == stateUp
+	isUp := state == rpc.SessionStateUp
 
 	r.mu.Lock()
 	r.peerUp[peerAddr] = isUp

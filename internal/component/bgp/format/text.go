@@ -15,6 +15,7 @@ import (
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // appendJSONString appends s to buf wrapped in JSON string escaping rules.
@@ -202,9 +203,9 @@ func AppendRouteRefresh(buf []byte, peer *plugin.PeerInfo, decoded DecodedRouteR
 
 // AppendStateChange appends a peer state change event to buf.
 // State events are separate from BGP protocol messages.
-// Common states: "up", "down", "connected", "established".
+// State is SessionStateUp or SessionStateDown.
 // reason is the close reason (empty for "up"): "tcp-failure", "notification", etc.
-func AppendStateChange(buf []byte, peer *plugin.PeerInfo, state, reason, encoding string) []byte {
+func AppendStateChange(buf []byte, peer *plugin.PeerInfo, state rpc.SessionState, reason, encoding string) []byte {
 	if encoding == plugin.EncodingJSON {
 		return appendStateChangeJSON(buf, peer, state, reason)
 	}

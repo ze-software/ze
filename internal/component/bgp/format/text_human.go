@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // appendFilterResultText appends FilterResult as text to buf.
@@ -233,13 +234,13 @@ func appendAttributeText(buf []byte, code attribute.AttributeCode, attr attribut
 // appendStateChangeText appends a peer state change text line to buf,
 // terminated by '\n'.
 // Format: peer <ip> remote as <asn> state <state> [reason <reason>] .
-func appendStateChangeText(buf []byte, peer *plugin.PeerInfo, state, reason string) []byte {
+func appendStateChangeText(buf []byte, peer *plugin.PeerInfo, state rpc.SessionState, reason string) []byte {
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, " remote as "...)
 	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
 	buf = append(buf, " state "...)
-	buf = append(buf, state...)
+	buf = state.AppendTo(buf)
 	if reason != "" {
 		buf = append(buf, " reason "...)
 		buf = append(buf, reason...)

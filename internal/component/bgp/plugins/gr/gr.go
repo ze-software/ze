@@ -329,9 +329,9 @@ func (gp *grPlugin) extractGRCaps(peerAddr string, data []byte, foundGR bool) bo
 }
 
 // handleStructuredState processes a structured state event.
-func (gp *grPlugin) handleStructuredState(peerAddr, state, reason string) {
-	switch state {
-	case "down":
+func (gp *grPlugin) handleStructuredState(peerAddr string, state rpc.SessionState, reason string) {
+	switch state { //nolint:exhaustive // only up/down are actionable for GR
+	case rpc.SessionStateDown:
 		wasNotification := reason == "notification"
 
 		gp.mu.Lock()
@@ -346,7 +346,7 @@ func (gp *grPlugin) handleStructuredState(peerAddr, state, reason string) {
 			gp.dispatchCommand("bgp rib mark-stale " + peerAddr + " " + strconv.FormatUint(uint64(cap.RestartTime), 10))
 		}
 
-	case "up":
+	case rpc.SessionStateUp:
 		gp.mu.Lock()
 		newCap := gp.peerCaps[peerAddr]
 		newLLGRCap := gp.peerLLGRCaps[peerAddr]

@@ -914,7 +914,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 
 	r.peerMu.Lock()
 	wasUp := r.peerUp[peerAddr]
-	isUp := state == "up"
+	isUp := state == rpc.SessionStateUp
 	r.peerUp[peerAddr] = isUp
 
 	var routesToReplay []*Route

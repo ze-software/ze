@@ -13,6 +13,7 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -76,7 +77,7 @@ func (d *EventDispatcher) OnMessageSent(peer *plugin.PeerInfo, msg bgptypes.RawM
 // OnPeerStateChange handles peer state transitions.
 // Called by apiStateObserver when peers are established or closed.
 // reason is the close reason (e.g., "tcp-failure", "notification") — empty for "up".
-func (d *EventDispatcher) OnPeerStateChange(peer *plugin.PeerInfo, state, reason string) {
+func (d *EventDispatcher) OnPeerStateChange(peer *plugin.PeerInfo, state rpc.SessionState, reason string) {
 	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
 		return
 	}

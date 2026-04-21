@@ -138,8 +138,8 @@ func TestUpdatePeerStateMetric_EstablishedTransition(t *testing.T) {
 	// stateTransitions counter should be 1 for Active->Established.
 	transVec := reg.counterVecs["ze_peer_state_transitions_total"]
 	require.NotNil(t, transVec)
-	tc := transVec.get(addr, "Active", "Established")
-	require.NotNil(t, tc, "stateTransitions counter should exist for Active->Established")
+	tc := transVec.get(addr, "active", "established")
+	require.NotNil(t, tc, "stateTransitions counter should exist for active->established")
 	assert.Equal(t, 1.0, tc.Value())
 
 	// sessionFlaps should NOT have been incremented.
@@ -214,9 +214,9 @@ func TestUpdatePeerStateMetric_NonEstablished(t *testing.T) {
 	// stateTransitions should have 3 entries.
 	transVec := reg.counterVecs["ze_peer_state_transitions_total"]
 	require.NotNil(t, transVec)
-	assert.NotNil(t, transVec.get(addr, "Stopped", "Connecting"))
-	assert.NotNil(t, transVec.get(addr, "Connecting", "Active"))
-	assert.NotNil(t, transVec.get(addr, "Active", "Stopped"))
+	assert.NotNil(t, transVec.get(addr, "stopped", "connecting"))
+	assert.NotNil(t, transVec.get(addr, "connecting", "active"))
+	assert.NotNil(t, transVec.get(addr, "active", "stopped"))
 
 	// peerState gauge should reflect last state: Stopped (0).
 	peerStateVec := reg.gaugeVec("ze_peer_state")

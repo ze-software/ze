@@ -98,7 +98,7 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 		p := &peers[i]
 		row := map[string]any{
 			"remote-as": p.PeerAS,
-			"state":     p.State,
+			"state":     p.State.String(),
 			"uptime":    p.Uptime.String(),
 		}
 		if p.Name != "" {
@@ -145,7 +145,7 @@ func HandleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 			"timer":               timer,
 			"connect":             p.Connect,
 			"accept":              p.Accept,
-			"state":               p.State,
+			"state":               p.State.String(),
 			"uptime":              p.Uptime.String(),
 			"updates-received":    p.UpdatesReceived,
 			"updates-sent":        p.UpdatesSent,

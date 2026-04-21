@@ -104,7 +104,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			"name":                p.Name,
 			"description":         p.GroupName,
 			"remote-as":           p.PeerAS,
-			"state":               p.State,
+			"state":               p.State.String(),
 			"uptime":              p.Uptime.String(),
 			"updates-received":    p.UpdatesReceived,
 			"updates-sent":        p.UpdatesSent,
@@ -228,7 +228,7 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, _ []string) (*p
 
 		entry := map[string]any{
 			"peer":  peer.Address.String(),
-			"state": peer.State,
+			"state": peer.State.String(),
 		}
 
 		if caps != nil {
@@ -286,7 +286,7 @@ func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, _ []string) (*plu
 		entry := map[string]any{
 			"address":             p.Address.String(),
 			"remote-as":           p.PeerAS,
-			"state":               p.State,
+			"state":               p.State.String(),
 			"uptime":              p.Uptime.String(),
 			"updates-received":    p.UpdatesReceived,
 			"updates-sent":        p.UpdatesSent,

@@ -130,7 +130,7 @@ func TestHandleSenderStatePeerUp(t *testing.T) {
 		LocalAS:      65000,
 		LocalAddress: "10.0.0.100",
 		EventType:    "state",
-		State:        "up",
+		State:        rpc.SessionStateUp,
 	}
 
 	result := asyncRead(server)
@@ -171,7 +171,7 @@ func TestHandleSenderStatePeerDown(t *testing.T) {
 		PeerAddress: "10.0.0.1",
 		PeerAS:      65001,
 		EventType:   "state",
-		State:       "down",
+		State:       rpc.SessionStateDown,
 		Reason:      "notification",
 	}
 
@@ -203,7 +203,7 @@ func TestHandleSenderNoSenders(t *testing.T) {
 		PeerAddress: "10.0.0.1",
 		PeerAS:      65001,
 		EventType:   "state",
-		State:       "up",
+		State:       rpc.SessionStateUp,
 	}
 
 	// Should not panic.
