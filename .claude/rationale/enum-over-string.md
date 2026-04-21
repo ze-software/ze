@@ -98,6 +98,64 @@ is a valid enum value, bugs are silent. If it is invalid, the first
 compare against `FooAdd` or `FooRemove` fails loud and the bug
 surfaces at its actual source.
 
+## Pattern
+
+```go
+type FooAction uint8
+
+const (
+    FooUnspecified FooAction = 0 // zero invalid -- surfaces corruption
+    FooAdd         FooAction = 1
+    FooRemove      FooAction = 2
+)
+
+func (a FooAction) String() string {
+    switch a {
+    case FooAdd:
+        return "add"
+    case FooRemove:
+        return "remove"
+    default:
+        return "unspecified"
+    }
+}
+```
+
+For plugin-extensible sets (not known at compile time), use a numeric
+ID registered at init (see the ID-pattern section above for the full
+producer/consumer flow):
+
+```go
+type ProtocolID uint16
+var _ = redistevents.RegisterProtocol("bgp") // returns a ProtocolID
+```
+
+## Anti-Patterns
+
+| Anti-pattern | Why wrong | Fix |
+|-------------|-----------|-----|
+| `Protocol string` on an event payload crossing components | Per-emit alloc; contract enforced by convention only | `Protocol ProtocolID` via registry |
+| `Action string // "add" or "remove"` | No compile-time enforcement; typo silent | typed `uint8` enum |
+| `map[string]bool` on the hot path | String rehash per lookup, heap per key | `map[FamilyID]bool` or bitset |
+| `switch state { case "up": ... }` | Compiler cannot detect missing case | typed enum + `exhaustive` lint |
+| `fmt.Sprintf("%s:%d", proto, port)` as a key | Alloc per lookup | struct key or packed `uint64` |
+
+## Legacy Call-Outs
+
+Pre-existing string-on-hot-path cases the rule targets for future
+conversion. These are WITHIN the BGP component (no cross-seam concern);
+the performance argument is what makes them legacy.
+
+| Location | Today | Intended shape |
+|----------|-------|---------------|
+| `rs.peers map[string]*PeerState` | string peer addr key | `map[netip.AddrPort]*PeerState` (matches reactor `fwdKey`) |
+| `rs.withdrawals map[string]map[string]withdrawalInfo` | nested string | integer peer ID + structured route key |
+| `rs.peers[addr].Families map[string]bool` | family name string | `map[family.Family]bool` or bitset |
+| `PeerState.Replaying bool` combined with scattered string state switches | string compares | typed `PeerState` enum |
+
+Converting legacy sites is not required with this rule landing. The
+rule blocks new regressions.
+
 ## Counter-pressure: YAGNI
 
 Not every string needs numeric identity. The rule targets:
