@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // TestBgpSummaryFormat verifies bgp summary handler returns tabular peer data.
@@ -112,13 +113,13 @@ func TestBgpSummary_FilterByFamily(t *testing.T) {
 				Address:            netip.MustParseAddr("192.0.2.1"),
 				PeerAS:             65001,
 				State:              plugin.PeerStateEstablished,
-				NegotiatedFamilies: []string{"ipv4/unicast", "ipv6/unicast"},
+				NegotiatedFamilies: []family.Family{family.IPv4Unicast, family.IPv6Unicast},
 			},
 			{
 				Address:            netip.MustParseAddr("192.0.2.2"),
 				PeerAS:             65002,
 				State:              plugin.PeerStateEstablished,
-				NegotiatedFamilies: []string{"ipv4/unicast"},
+				NegotiatedFamilies: []family.Family{family.IPv4Unicast},
 			},
 			{
 				Address:            netip.MustParseAddr("192.0.2.3"),
@@ -157,7 +158,7 @@ func TestBgpSummary_FamilyShorthand(t *testing.T) {
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
 				State:              plugin.PeerStateEstablished,
-				NegotiatedFamilies: []string{"ipv4/unicast"},
+				NegotiatedFamilies: []family.Family{family.IPv4Unicast},
 			},
 		},
 		stats: plugin.ReactorStats{PeerCount: 1},
@@ -184,7 +185,7 @@ func TestBgpSummary_UnknownFamilyRejects(t *testing.T) {
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
 				State:              plugin.PeerStateEstablished,
-				NegotiatedFamilies: []string{"ipv4/unicast"},
+				NegotiatedFamilies: []family.Family{family.IPv4Unicast},
 			},
 		},
 	}

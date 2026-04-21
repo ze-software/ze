@@ -88,8 +88,8 @@ func TestUpdateMetrics(t *testing.T) {
 	r.ribInPool["10.0.0.1"] = peerRIB
 
 	// Populate ribOut with a peer having routes
-	r.ribOut["10.0.0.2"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.2"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
 			"10.0.1.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.1.0/24"},
 			"10.0.2.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.2.0/24"},
@@ -163,13 +163,13 @@ func TestUpdateMetricsMultiplePeers(t *testing.T) {
 	r.ribInPool["10.0.0.2"] = peer2
 
 	// Two peers in ribOut
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
 		},
 	}
-	r.ribOut["10.0.0.2"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.2"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.1.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.1.0.0/24"},
 			"10.1.1.0/24": {Family: family.IPv4Unicast, Prefix: "10.1.1.0/24"},
 		},
@@ -210,8 +210,8 @@ func TestUpdateMetricsStalePeerCleanup(t *testing.T) {
 	r.ribInPool["10.0.0.1"] = peer1
 	r.ribInPool["10.0.0.2"] = peer2
 
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
 		},
 	}

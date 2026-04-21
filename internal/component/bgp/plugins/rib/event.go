@@ -28,6 +28,10 @@ var (
 	formatRouteCommand = bgp.FormatAnnounceCommand
 	parseNLRIValue     = bgp.ParseNLRIValue
 	routeKey           = bgp.RouteKey
+
+	parseCommunityStrings      = bgp.ParseCommunityStrings
+	parseLargeCommunityStrings = bgp.ParseLargeCommunityStrings
+	parseExtCommunityStrings   = bgp.ParseExtCommunityStrings
 )
 
 // outRouteKey creates a ribOut-specific key without the family prefix.

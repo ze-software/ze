@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"net/netip"
+
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
@@ -65,7 +67,7 @@ func TestFIBP4Install(t *testing.T) {
 	f := newFIBP4(backend)
 
 	payload := makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	})
 	f.processEvent(payload)
 
@@ -80,11 +82,11 @@ func TestFIBP4Remove(t *testing.T) {
 	f := newFIBP4(backend)
 
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionWithdraw, Prefix: "10.0.0.0/24"},
+		{Action: bgptypes.RouteActionWithdraw, Prefix: netip.MustParsePrefix("10.0.0.0/24")},
 	}))
 
 	assert.Contains(t, backend.deleted, "10.0.0.0/24")
@@ -98,11 +100,11 @@ func TestFIBP4Replace(t *testing.T) {
 	f := newFIBP4(backend)
 
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionUpdate, Prefix: "10.0.0.0/24", NextHop: "192.168.2.1", Protocol: "static"},
+		{Action: bgptypes.RouteActionUpdate, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.2.1"), Protocol: "static"},
 	}))
 
 	assert.Equal(t, "192.168.2.1", backend.replaced["10.0.0.0/24"])
@@ -116,8 +118,8 @@ func TestFIBP4FlushOnStop(t *testing.T) {
 	f := newFIBP4(backend)
 
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
-		{Action: bgptypes.RouteActionAdd, Prefix: "172.16.0.0/16", NextHop: "192.168.1.2", Protocol: "static"},
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("172.16.0.0/16"), NextHop: netip.MustParseAddr("192.168.1.2"), Protocol: "static"},
 	}))
 
 	f.flushRoutes()
@@ -133,7 +135,7 @@ func TestFIBP4ShowInstalled(t *testing.T) {
 	f := newFIBP4(backend)
 
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1"), Protocol: "bgp"},
 	}))
 
 	data := f.showInstalled()

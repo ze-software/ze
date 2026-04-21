@@ -51,7 +51,7 @@ func TestFormatAnnounceCommand_FullAttributes(t *testing.T) {
 		ASPath:          []uint32{65001, 65002},
 		MED:             &med,
 		LocalPreference: &localPref,
-		Communities:     []string{"65001:100"},
+		Communities:     []attribute.Community{attribute.Community(65001<<16 | 100)},
 	}
 
 	cmd := FormatAnnounceCommand(route)
@@ -105,13 +105,13 @@ func TestFormatAnnounceCommand_ExtendedCommunities(t *testing.T) {
 		Family:              family.IPv4Unicast,
 		Prefix:              "10.0.0.0/24",
 		NextHop:             "10.0.0.1",
-		LargeCommunities:    []string{"65001:0:100"},
-		ExtendedCommunities: []string{"target:65001:100"},
+		LargeCommunities:    []attribute.LargeCommunity{{GlobalAdmin: 65001, LocalData1: 0, LocalData2: 100}},
+		ExtendedCommunities: []attribute.ExtendedCommunity{{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64}},
 	}
 
 	cmd := FormatAnnounceCommand(route)
 	assert.Contains(t, cmd, "large-community [65001:0:100]")
-	assert.Contains(t, cmd, "extended-community [target:65001:100]")
+	assert.Contains(t, cmd, "extended-community [0002fde900000064]")
 }
 
 // TestFormatAnnounceCommand_VPN verifies VPN route with RD and labels.

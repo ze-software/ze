@@ -129,8 +129,8 @@ func TestRIBBestChangePublish(t *testing.T) {
 
 	require.True(t, ok, "should detect new best path")
 	assert.Equal(t, ribevents.BestChangeAdd, change.Action)
-	assert.Equal(t, "10.0.0.0/24", change.Prefix)
-	assert.Equal(t, "192.168.1.1", change.NextHop)
+	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/24"), change.Prefix)
+	assert.Equal(t, netip.MustParseAddr("192.168.1.1"), change.NextHop)
 	assert.Equal(t, 20, change.Priority, "eBGP should have priority 20")
 
 	// Publish and verify the EventBus event.
@@ -148,8 +148,8 @@ func TestRIBBestChangePublish(t *testing.T) {
 	assert.Equal(t, family.IPv4Unicast, batch.Family)
 	require.Len(t, batch.Changes, 1)
 	assert.Equal(t, ribevents.BestChangeAdd, batch.Changes[0].Action)
-	assert.Equal(t, "10.0.0.0/24", batch.Changes[0].Prefix)
-	assert.Equal(t, "192.168.1.1", batch.Changes[0].NextHop)
+	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/24"), batch.Changes[0].Prefix)
+	assert.Equal(t, netip.MustParseAddr("192.168.1.1"), batch.Changes[0].NextHop)
 }
 
 // TestPurgeBestPrevForPeer validates that a peer-down purge drops every
@@ -228,7 +228,7 @@ func TestPurgeBestPrevForPeer(t *testing.T) {
 	// Every purged prefix must have surfaced on the EventBus as a
 	// Withdraw. The surviving prefix must NOT appear.
 	require.GreaterOrEqual(t, bus.eventCount(), 1, "expected at least one best-change event")
-	var withdrawnPrefixes []string
+	var withdrawnPrefixes []netip.Prefix
 	bus.mu.Lock()
 	for i := range bus.events {
 		batch, ok := bus.events[i].Payload.(*bestChangeBatch)
@@ -243,11 +243,11 @@ func TestPurgeBestPrevForPeer(t *testing.T) {
 	}
 	bus.mu.Unlock()
 	assert.ElementsMatch(t,
-		[]string{"10.0.0.0/24", "10.1.0.0/24", "10.2.0.0/24"},
+		[]netip.Prefix{netip.MustParsePrefix("10.0.0.0/24"), netip.MustParsePrefix("10.1.0.0/24"), netip.MustParsePrefix("10.2.0.0/24")},
 		withdrawnPrefixes,
 		"purge must emit a Withdraw for every leaving-peer prefix",
 	)
-	assert.NotContains(t, withdrawnPrefixes, "10.3.0.0/24", "surviving prefix must not be withdrawn")
+	assert.NotContains(t, withdrawnPrefixes, netip.MustParsePrefix("10.3.0.0/24"), "surviving prefix must not be withdrawn")
 }
 
 // TestPurgeBestPrevForPeerUnknown validates the no-op path when the peer
@@ -409,7 +409,7 @@ func TestBestChangeEntryPathIDPropagation(t *testing.T) {
 	addEntry, ok := r.checkBestPathChange(fam, nlri7, true, nil)
 	require.True(t, ok)
 	assert.Equal(t, ribevents.BestChangeAdd, addEntry.Action)
-	assert.Equal(t, "10.30.0.0/24", addEntry.Prefix)
+	assert.Equal(t, netip.MustParsePrefix("10.30.0.0/24"), addEntry.Prefix)
 	assert.Equal(t, uint32(7), addEntry.PathID, "Add must carry ADD-PATH pathID")
 
 	// Natural withdraw (peer still up, attribute removed): Remove from the
@@ -445,7 +445,7 @@ func TestBestChangeEntryPathIDPropagation(t *testing.T) {
 			if c.Action != ribevents.BestChangeWithdraw {
 				continue
 			}
-			if c.Prefix == "10.31.0.0/24" {
+			if c.Prefix == netip.MustParsePrefix("10.31.0.0/24") {
 				withdrawPathIDs = append(withdrawPathIDs, c.PathID)
 			}
 		}
@@ -687,7 +687,7 @@ func TestRIBBestChangeWithdraw(t *testing.T) {
 
 	require.True(t, ok, "should detect withdraw")
 	assert.Equal(t, ribevents.BestChangeWithdraw, change.Action)
-	assert.Equal(t, "10.0.0.0/24", change.Prefix)
+	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/24"), change.Prefix)
 	assert.Empty(t, change.NextHop, "withdraw should have no next-hop")
 }
 
@@ -874,7 +874,7 @@ func TestRIBBestChangeUpdate(t *testing.T) {
 
 	require.True(t, ok2, "should detect best-path update")
 	assert.Equal(t, ribevents.BestChangeUpdate, change2.Action)
-	assert.Equal(t, "10.0.0.2", change2.NextHop, "should switch to eBGP next-hop")
+	assert.Equal(t, netip.MustParseAddr("10.0.0.2"), change2.NextHop, "should switch to eBGP next-hop")
 	assert.Equal(t, 20, change2.Priority, "eBGP priority")
 	_ = bus
 }
@@ -920,7 +920,7 @@ func TestRIBReplayOnSubscribe(t *testing.T) {
 	assert.True(t, batch.Replay, "replay batch must have Replay=true")
 	require.Len(t, batch.Changes, 1)
 	assert.Equal(t, ribevents.BestChangeAdd, batch.Changes[0].Action)
-	assert.Equal(t, "192.168.1.1", batch.Changes[0].NextHop)
+	assert.Equal(t, netip.MustParseAddr("192.168.1.1"), batch.Changes[0].NextHop)
 }
 
 // VALIDATES: AC-4 -- packed bestPathRecord round-trips through pack/unpack.
@@ -1409,29 +1409,29 @@ func TestBestPathResolve(t *testing.T) {
 	metricIdx, _ := ir.internMetric(500)
 
 	ebgpRec := packBestPath(metricIdx, peerIdx, nhIdx, flagEBGP)
-	ebgpEntry := ebgpRec.resolve(ir, ribevents.BestChangeAdd, "10.0.0.0/24", 0, false)
+	testPfx := netip.MustParsePrefix("10.0.0.0/24")
+	ebgpEntry := ebgpRec.resolve(ir, ribevents.BestChangeAdd, testPfx, 0, false)
 	assert.Equal(t, ribevents.BestChangeAdd, ebgpEntry.Action)
-	assert.Equal(t, "10.0.0.0/24", ebgpEntry.Prefix)
+	assert.Equal(t, testPfx, ebgpEntry.Prefix)
 	assert.False(t, ebgpEntry.AddPath, "non-ADD-PATH entry")
-	assert.Equal(t, uint32(0), ebgpEntry.PathID, "no ADD-PATH → zero PathID")
-	assert.Equal(t, "10.0.0.1", ebgpEntry.NextHop)
+	assert.Equal(t, uint32(0), ebgpEntry.PathID, "no ADD-PATH -> zero PathID")
+	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), ebgpEntry.NextHop)
 	assert.Equal(t, 20, ebgpEntry.Priority, "eBGP records resolve to priority 20")
 	assert.Equal(t, uint32(500), ebgpEntry.Metric)
 	assert.Equal(t, bgptypes.BGPProtocolEBGP, ebgpEntry.ProtocolType)
 
 	ibgpRec := packBestPath(metricIdx, peerIdx, nhIdx, 0)
-	ibgpEntry := ibgpRec.resolve(ir, ribevents.BestChangeUpdate, "10.0.0.0/24", 7, true)
+	ibgpEntry := ibgpRec.resolve(ir, ribevents.BestChangeUpdate, testPfx, 7, true)
 	assert.Equal(t, ribevents.BestChangeUpdate, ibgpEntry.Action)
 	assert.True(t, ibgpEntry.AddPath, "ADD-PATH flag propagates through resolve")
 	assert.Equal(t, uint32(7), ibgpEntry.PathID, "ADD-PATH id propagates through resolve")
 	assert.Equal(t, 200, ibgpEntry.Priority, "iBGP records resolve to priority 200")
 	assert.Equal(t, bgptypes.BGPProtocolIBGP, ibgpEntry.ProtocolType)
 
-	// Zero next-hop round-trips to empty string via nextHopString.
 	zeroNHIdx, _ := ir.internNextHop(netip.Addr{})
 	zeroRec := packBestPath(metricIdx, peerIdx, zeroNHIdx, 0)
-	zeroEntry := zeroRec.resolve(ir, ribevents.BestChangeWithdraw, "", 0, false)
-	assert.Empty(t, zeroEntry.NextHop)
+	zeroEntry := zeroRec.resolve(ir, ribevents.BestChangeWithdraw, netip.Prefix{}, 0, false)
+	assert.Equal(t, netip.Addr{}, zeroEntry.NextHop)
 }
 
 // TestLocRIBMirror validates that BGP best-path changes are mirrored into
@@ -1462,7 +1462,7 @@ func TestLocRIBMirror(t *testing.T) {
 	best, found := loc.Best(fam, netip.MustParsePrefix("10.0.0.0/24"))
 	require.True(t, found, "Loc-RIB must carry the BGP best after checkBestPathChange")
 	assert.Equal(t, uint8(20), best.AdminDistance, "eBGP AdminDistance")
-	assert.Equal(t, "192.168.1.1", best.NextHop.String())
+	assert.Equal(t, netip.MustParseAddr("192.168.1.1"), best.NextHop)
 
 	// Withdraw: remove the route from the adj-rib-in, then re-run bestpath.
 	r.ribInPool[peerAddr].Remove(fam, prefix)

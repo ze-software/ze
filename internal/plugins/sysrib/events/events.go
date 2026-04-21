@@ -6,6 +6,8 @@
 package events
 
 import (
+	"net/netip"
+
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -26,8 +28,8 @@ const (
 // keep working unchanged.
 type BestChangeEntry struct {
 	Action   bgptypes.RouteAction `json:"action"`
-	Prefix   string               `json:"prefix"`
-	NextHop  string               `json:"next-hop,omitempty"`
+	Prefix   netip.Prefix         `json:"prefix"`
+	NextHop  netip.Addr           `json:"next-hop,omitzero"`
 	Protocol string               `json:"protocol"`
 }
 

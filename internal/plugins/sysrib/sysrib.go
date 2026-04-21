@@ -119,7 +119,7 @@ func getEventBus() ze.EventBus {
 type protocolRoute struct {
 	protocol         string
 	protocolType     string // "ebgp", "ibgp", "static", etc. for admin distance lookup
-	nextHop          string
+	nextHop          netip.Addr
 	priority         int // effective admin distance (lower wins)
 	incomingPriority int // original priority from protocol RIB (before override)
 	metric           uint32
@@ -128,7 +128,7 @@ type protocolRoute struct {
 // prefixKey identifies a unique prefix in the system RIB.
 type prefixKey struct {
 	family family.Family
-	prefix string
+	prefix netip.Prefix
 }
 
 // sysRIB selects across protocols by admin distance.
@@ -236,7 +236,7 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 	var outChanges []outgoingChange
 
 	for _, c := range batch.Changes {
-		if c.Prefix == "" {
+		if !c.Prefix.IsValid() {
 			logger().Warn("sysrib: skipping change with empty prefix")
 			continue
 		}
@@ -501,9 +501,9 @@ func (s *sysRIB) showRIB() (string, error) {
 	defer s.mu.RUnlock()
 
 	type entry struct {
-		Prefix   string        `json:"prefix"`
+		Prefix   netip.Prefix  `json:"prefix"`
 		Family   family.Family `json:"family"`
-		NextHop  string        `json:"next-hop"`
+		NextHop  netip.Addr    `json:"next-hop,omitzero"`
 		Protocol string        `json:"protocol"`
 		Priority int           `json:"priority"`
 	}
@@ -543,13 +543,11 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 	default:
 		return nil
 	}
-	var nextHop string
+	var nextHop netip.Addr
 	var priority int
 	var metric uint32
 	if c.Kind != locrib.ChangeRemove {
-		if c.Best.NextHop.IsValid() {
-			nextHop = c.Best.NextHop.String()
-		}
+		nextHop = c.Best.NextHop
 		priority = int(c.Best.AdminDistance)
 		metric = c.Best.Metric
 	}
@@ -558,7 +556,7 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 		Family:   c.Family,
 		Changes: []incomingChange{{
 			Action:       action,
-			Prefix:       c.Prefix.String(),
+			Prefix:       c.Prefix,
 			NextHop:      nextHop,
 			Priority:     priority,
 			Metric:       metric,

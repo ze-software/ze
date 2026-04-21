@@ -7,6 +7,7 @@
 package rib
 
 import (
+	"encoding/hex"
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
@@ -80,13 +81,25 @@ func enrichRouteMapFromRoute(routeMap map[string]any, rt *Route) {
 		routeMap["local-preference"] = *rt.LocalPreference
 	}
 	if len(rt.Communities) > 0 {
-		routeMap["community"] = rt.Communities
+		strs := make([]string, len(rt.Communities))
+		for i, c := range rt.Communities {
+			strs[i] = c.String()
+		}
+		routeMap["community"] = strs
 	}
 	if len(rt.LargeCommunities) > 0 {
-		routeMap["large-community"] = rt.LargeCommunities
+		strs := make([]string, len(rt.LargeCommunities))
+		for i, lc := range rt.LargeCommunities {
+			strs[i] = lc.String()
+		}
+		routeMap["large-community"] = strs
 	}
 	if len(rt.ExtendedCommunities) > 0 {
-		routeMap["extended-community"] = rt.ExtendedCommunities
+		strs := make([]string, len(rt.ExtendedCommunities))
+		for i, ec := range rt.ExtendedCommunities {
+			strs[i] = hex.EncodeToString(ec[:])
+		}
+		routeMap["extended-community"] = strs
 	}
 }
 

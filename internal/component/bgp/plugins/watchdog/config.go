@@ -14,6 +14,7 @@ import (
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	routepkg "codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
@@ -201,15 +202,17 @@ func buildRouteFromAttrs(attrMap map[string]any) bgp.Route {
 	}
 
 	if v := getStringAny(attrMap, "community"); v != "" {
-		route.Communities = splitCommaOrSpace(v)
+		route.Communities = bgp.ParseCommunityStrings(splitCommaOrSpace(v))
 	}
 
 	if v := getStringAny(attrMap, "large-community"); v != "" {
-		route.LargeCommunities = splitCommaOrSpace(v)
+		route.LargeCommunities = bgp.ParseLargeCommunityStrings(splitCommaOrSpace(v))
 	}
 
 	if v := getStringAny(attrMap, "extended-community"); v != "" {
-		route.ExtendedCommunities = splitCommaOrSpace(v)
+		if ecs, _, err := routepkg.ParseExtendedCommunities(splitCommaOrSpace(v)); err == nil {
+			route.ExtendedCommunities = ecs
+		}
 	}
 
 	return route

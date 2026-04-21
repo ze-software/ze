@@ -223,15 +223,49 @@ func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
 	value := after
 
 	switch typePrefix {
+	case "target":
+		return parseRouteTargetExtCommunity(value)
 	case "origin":
 		return parseOriginExtCommunity(value)
 	case "redirect":
 		return parseRedirectExtCommunity(value)
 	case "rate-limit":
 		return parseRateLimitExtCommunity(value)
-	default: // reject unknown extended community type
+	default:
 		return attribute.ExtendedCommunity{}, fmt.Errorf("unknown extended community type: %s", typePrefix)
 	}
+}
+
+// parseRouteTargetExtCommunity parses route target extended community.
+// RFC 4360: Route Target (subtype 0x02).
+// Format: target:ASN:NN (Type 0x00 for 2-byte ASN, Type 0x02 for 4-byte ASN).
+func parseRouteTargetExtCommunity(value string) (attribute.ExtendedCommunity, error) {
+	parts := strings.Split(value, ":")
+	if len(parts) != 2 {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid target format: %s", value)
+	}
+
+	asn, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid ASN in target: %s", parts[0])
+	}
+	num, err := strconv.ParseUint(parts[1], 10, 32)
+	if err != nil {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid value in target: %s", parts[1])
+	}
+
+	if asn <= 0xFFFF {
+		return attribute.ExtendedCommunity{
+			0x00, 0x02,
+			byte(asn >> 8), byte(asn),
+			byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
+		}, nil
+	}
+	return attribute.ExtendedCommunity{
+		0x02, 0x02,
+		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
+		byte(num >> 8), byte(num),
+	}, nil
 }
 
 // parseOriginExtCommunity parses origin extended community.

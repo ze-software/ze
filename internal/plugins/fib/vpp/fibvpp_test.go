@@ -162,15 +162,12 @@ func TestInstalledMapTracking(t *testing.T) {
 }
 
 func TestProcessEventInvalidPrefix(t *testing.T) {
-	// VALIDATES: invalid prefix logged and skipped
-	// PREVENTS: panic on malformed prefix
-	mock := &mockBackend{}
-	f := newFibVPP(mock)
-
-	f.processEvent(parseBatch(t, `{"family":"ipv4/unicast","changes":[{"action":"add","prefix":"not-a-prefix","next-hop":"1.1.1.1","protocol":"bgp"}]}`))
-
-	if len(mock.adds) != 0 {
-		t.Error("should not add route with invalid prefix")
+	// VALIDATES: invalid prefix rejected at JSON parse (netip.Prefix rejects malformed values)
+	// PREVENTS: malformed prefix reaching backend
+	var b incomingBatch
+	err := json.Unmarshal([]byte(`{"family":"ipv4/unicast","changes":[{"action":"add","prefix":"not-a-prefix","next-hop":"1.1.1.1","protocol":"bgp"}]}`), &b)
+	if err == nil {
+		t.Error("should fail to unmarshal invalid prefix")
 	}
 }
 

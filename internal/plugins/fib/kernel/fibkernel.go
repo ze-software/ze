@@ -166,45 +166,45 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 	defer f.mu.Unlock()
 
 	for _, c := range batch.Changes {
-		if c.Prefix == "" {
+		if !c.Prefix.IsValid() {
 			logger().Warn("fib-kernel: skipping change with empty prefix")
 			continue
 		}
 		switch c.Action {
 		case bgptypes.RouteActionAdd:
-			if err := f.backend.addRoute(c.Prefix, c.NextHop); err != nil {
+			if err := f.backend.addRoute(c.Prefix.String(), c.NextHop.String()); err != nil {
 				logger().Error("fib-kernel: add route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
 					m.errors.With("add").Inc()
 				}
 				continue
 			}
-			f.installed[c.Prefix] = c.NextHop
+			f.installed[c.Prefix.String()] = c.NextHop.String()
 			if m := fibMetricsPtr.Load(); m != nil {
 				m.routeInstalls.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
 			}
 		case bgptypes.RouteActionUpdate:
-			if err := f.backend.replaceRoute(c.Prefix, c.NextHop); err != nil {
+			if err := f.backend.replaceRoute(c.Prefix.String(), c.NextHop.String()); err != nil {
 				logger().Error("fib-kernel: replace route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
 					m.errors.With("replace").Inc()
 				}
 				continue
 			}
-			f.installed[c.Prefix] = c.NextHop
+			f.installed[c.Prefix.String()] = c.NextHop.String()
 			if m := fibMetricsPtr.Load(); m != nil {
 				m.routeUpdates.Inc()
 			}
 		case bgptypes.RouteActionWithdraw, bgptypes.RouteActionDel:
-			if err := f.backend.delRoute(c.Prefix); err != nil {
+			if err := f.backend.delRoute(c.Prefix.String()); err != nil {
 				logger().Error("fib-kernel: del route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
 					m.errors.With("delete").Inc()
 				}
 				continue
 			}
-			delete(f.installed, c.Prefix)
+			delete(f.installed, c.Prefix.String())
 			if m := fibMetricsPtr.Load(); m != nil {
 				m.routeRemovals.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))

@@ -347,7 +347,7 @@ func (b *bestPrevInterner) internerSize() (peers, nextHops, metrics int) {
 // Reverse-table lookups go through the bounds-safe accessors, so a record
 // whose indices outlive a reset interner emits zero-valued NextHop/Metric
 // rather than panicking.
-func (r bestPathRecord) resolve(interner *bestPrevInterner, action bgptypes.RouteAction, prefix string, pathID uint32, addPath bool) bestChangeEntry {
+func (r bestPathRecord) resolve(interner *bestPrevInterner, action bgptypes.RouteAction, prefix netip.Prefix, pathID uint32, addPath bool) bestChangeEntry {
 	priority := 200
 	protoType := bgptypes.BGPProtocolIBGP
 	if r.IsEBGP() {
@@ -359,7 +359,7 @@ func (r bestPathRecord) resolve(interner *bestPrevInterner, action bgptypes.Rout
 		Prefix:       prefix,
 		AddPath:      addPath,
 		PathID:       pathID,
-		NextHop:      nextHopString(interner.nextHopAt(r.NextHopIdx())),
+		NextHop:      interner.nextHopAt(r.NextHopIdx()),
 		Priority:     priority,
 		Metric:       interner.metricAt(r.MetricIdx()),
 		ProtocolType: protoType,
@@ -574,7 +574,7 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]b
 				// AddPath and PathID stay at their zero values.
 				changes = append(changes, bestChangeEntry{
 					Action: ribevents.BestChangeWithdraw,
-					Prefix: pfx.String(),
+					Prefix: pfx,
 				})
 				if r.locRIB != nil {
 					r.locRIB.Remove(fam, pfx, bgpProtocolID, 0)
@@ -614,7 +614,7 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]b
 				for _, pid := range mv.pathIDs {
 					changes = append(changes, bestChangeEntry{
 						Action:  ribevents.BestChangeWithdraw,
-						Prefix:  mv.prefix.String(),
+						Prefix:  mv.prefix,
 						AddPath: true,
 						PathID:  pid,
 					})
@@ -759,19 +759,13 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		if !havePrev {
 			return bestChangeEntry{}, false
 		}
-		prefix := wirePrefixToString(prefixBytesForDisplay(nlriBytes, addPath), fam.String())
-		if prefix == "" {
-			return bestChangeEntry{}, false
-		}
 		sh.store.delete(fam, nlriBytes, addPath)
-		// Mirror the withdrawal into the shared Loc-RIB so non-BGP
-		// consumers see one consistent view across protocols.
 		if r.locRIB != nil {
 			r.locRIB.Remove(fam, pfx, bgpProtocolID, pathID)
 		}
 		return bestChangeEntry{
 			Action:  ribevents.BestChangeWithdraw,
-			Prefix:  prefix,
+			Prefix:  pfx,
 			AddPath: addPath,
 			PathID:  pathID,
 		}, true
@@ -791,14 +785,6 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			prev.IsEBGP() == isEBGP {
 			return bestChangeEntry{}, false
 		}
-	}
-
-	// The record has changed (or is brand new). Validate the display
-	// prefix before any interner mutation so a malformed NLRI cannot
-	// grow the reverse tables with unreferenced entries.
-	prefix := wirePrefixToString(prefixBytesForDisplay(nlriBytes, addPath), fam.String())
-	if prefix == "" {
-		return bestChangeEntry{}, false
 	}
 
 	peerIdx, ok := r.bestPathInterner.internPeer(newBest.PeerAddr)
@@ -840,7 +826,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	if havePrev {
 		action = ribevents.BestChangeUpdate
 	}
-	return newRec.resolve(r.bestPathInterner, action, prefix, pathID, addPath), true
+	return newRec.resolve(r.bestPathInterner, action, pfx, pathID, addPath), true
 }
 
 // protocolType returns the protocol-type label for a candidate based on
@@ -974,22 +960,22 @@ func (r *RIBManager) replayBestPaths() {
 			sh.mu.RUnlock()
 		}
 		changes := make([]bestChangeEntry, 0, total)
-		appendRec := func(rec bestPathRecord, prefix string, pathID uint32, addPath bool) {
-			if prefix == "" {
+		appendRec := func(rec bestPathRecord, pfx netip.Prefix, pathID uint32, addPath bool) {
+			if !pfx.IsValid() {
 				return
 			}
-			changes = append(changes, rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, prefix, pathID, addPath))
+			changes = append(changes, rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, pfx, pathID, addPath))
 		}
 		for i := range fs.shards {
 			sh := &fs.shards[i]
 			sh.mu.RLock()
 			sh.store.direct.Iterate(func(pfx netip.Prefix, rec bestPathRecord) bool {
-				appendRec(rec, pfx.String(), 0, false)
+				appendRec(rec, pfx, 0, false)
 				return true
 			})
 			sh.store.multi.Iterate(func(pfx netip.Prefix, ps bestPrevSet) bool {
 				for i := range ps.entries {
-					appendRec(ps.entries[i].rec, pfx.String(), ps.entries[i].pathID, true)
+					appendRec(ps.entries[i].rec, pfx, ps.entries[i].pathID, true)
 				}
 				return true
 			})

@@ -40,10 +40,10 @@ type OpenInfo struct {
 	Capabilities []CapabilityInfo
 }
 
-// capabilityPresent returns true if any capability in the list has the given name.
-func capabilityPresent(caps []CapabilityInfo, name string) bool {
+// capabilityPresent returns true if any capability in the list has the given code.
+func capabilityPresent(caps []CapabilityInfo, code int) bool {
 	for _, c := range caps {
-		if c.Name == name {
+		if c.Code == code {
 			return true
 		}
 	}

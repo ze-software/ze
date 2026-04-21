@@ -96,29 +96,29 @@ func (f *fibP4) processEvent(batch *incomingBatch) {
 	defer f.mu.Unlock()
 
 	for _, c := range batch.Changes {
-		if c.Prefix == "" {
+		if !c.Prefix.IsValid() {
 			logger().Warn("fib-p4: skipping change with empty prefix")
 			continue
 		}
 		switch c.Action {
 		case bgptypes.RouteActionAdd:
-			if err := f.backend.addRoute(c.Prefix, c.NextHop); err != nil {
+			if err := f.backend.addRoute(c.Prefix.String(), c.NextHop.String()); err != nil {
 				logger().Error("fib-p4: add route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
-			f.installed[c.Prefix] = c.NextHop
+			f.installed[c.Prefix.String()] = c.NextHop.String()
 		case bgptypes.RouteActionUpdate:
-			if err := f.backend.replaceRoute(c.Prefix, c.NextHop); err != nil {
+			if err := f.backend.replaceRoute(c.Prefix.String(), c.NextHop.String()); err != nil {
 				logger().Error("fib-p4: replace route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
-			f.installed[c.Prefix] = c.NextHop
+			f.installed[c.Prefix.String()] = c.NextHop.String()
 		case bgptypes.RouteActionWithdraw, bgptypes.RouteActionDel:
-			if err := f.backend.delRoute(c.Prefix); err != nil {
+			if err := f.backend.delRoute(c.Prefix.String()); err != nil {
 				logger().Error("fib-p4: del route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
-			delete(f.installed, c.Prefix)
+			delete(f.installed, c.Prefix.String())
 		case bgptypes.RouteActionUnspecified:
 			logger().Warn("fib-p4: skipping change with unspecified action", "prefix", c.Prefix)
 		}

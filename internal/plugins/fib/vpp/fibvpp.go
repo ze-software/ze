@@ -148,52 +148,36 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 	defer f.mu.Unlock()
 
 	for _, c := range batch.Changes {
-		if c.Prefix == "" {
+		if !c.Prefix.IsValid() {
 			logger().Warn("fib-vpp: skipping change with empty prefix")
 			continue
 		}
-		prefix, err := netip.ParsePrefix(c.Prefix)
-		if err != nil {
-			logger().Warn("fib-vpp: invalid prefix", "prefix", c.Prefix, "error", err)
-			continue
-		}
-
 		switch c.Action {
 		case bgptypes.RouteActionAdd:
-			nextHop, nhErr := netip.ParseAddr(c.NextHop)
-			if nhErr != nil {
-				logger().Warn("fib-vpp: invalid next-hop", "next-hop", c.NextHop, "error", nhErr)
-				continue
-			}
-			if err := f.backend.addRoute(prefix, nextHop); err != nil {
+			if err := f.backend.addRoute(c.Prefix, c.NextHop); err != nil {
 				logger().Error("fib-vpp: add route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
-			f.installed[c.Prefix] = c.NextHop
+			f.installed[c.Prefix.String()] = c.NextHop.String()
 			if m := fibVPPMetricsPtr.Load(); m != nil {
 				m.routeInstalls.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
 			}
 		case bgptypes.RouteActionUpdate:
-			nextHop, nhErr := netip.ParseAddr(c.NextHop)
-			if nhErr != nil {
-				logger().Warn("fib-vpp: invalid next-hop", "next-hop", c.NextHop, "error", nhErr)
-				continue
-			}
-			if err := f.backend.replaceRoute(prefix, nextHop); err != nil {
+			if err := f.backend.replaceRoute(c.Prefix, c.NextHop); err != nil {
 				logger().Error("fib-vpp: replace route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
-			f.installed[c.Prefix] = c.NextHop
+			f.installed[c.Prefix.String()] = c.NextHop.String()
 			if m := fibVPPMetricsPtr.Load(); m != nil {
 				m.routeUpdates.Inc()
 			}
 		case bgptypes.RouteActionWithdraw, bgptypes.RouteActionDel:
-			if err := f.backend.delRoute(prefix); err != nil {
+			if err := f.backend.delRoute(c.Prefix); err != nil {
 				logger().Error("fib-vpp: del route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
-			delete(f.installed, c.Prefix)
+			delete(f.installed, c.Prefix.String())
 			if m := fibVPPMetricsPtr.Load(); m != nil {
 				m.routeRemovals.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))

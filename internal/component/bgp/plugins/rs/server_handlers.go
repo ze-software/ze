@@ -263,7 +263,7 @@ func (rs *RouteServer) handleOpen(event *Event) {
 		// RFC 4760 Section 1: ipv4/unicast is the implicit default only when
 		// the peer sends no Multiprotocol capability. If the peer advertises
 		// MP but omits ipv4/unicast, it explicitly declines it.
-		hasMP := capabilityPresent(event.Open.Capabilities, "multiprotocol")
+		hasMP := capabilityPresent(event.Open.Capabilities, 1) // RFC 4760: multiprotocol
 
 		for _, cap := range event.Open.Capabilities {
 			peer.Capabilities[cap.Name] = true

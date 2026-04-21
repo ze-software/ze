@@ -213,7 +213,7 @@ type RIBManager struct {
 
 	// ribOut stores routes sent TO peers (Adj-RIB-Out), keyed per-family.
 	// Enables per-family operations (route refresh, LLGR readvertisement).
-	ribOut map[string]map[string]map[string]*Route // peerAddr -> family -> prefixKey -> route
+	ribOut map[string]map[family.Family]map[string]*Route // peerAddr -> family -> prefixKey -> route
 
 	// peerUp tracks which peers are currently up
 	peerUp map[string]bool
@@ -466,7 +466,7 @@ func NewRIBManager(plugin *sdk.Plugin) *RIBManager {
 	r := &RIBManager{
 		plugin:           plugin,
 		ribInPool:        make(map[string]*storage.PeerRIB),
-		ribOut:           make(map[string]map[string]map[string]*Route),
+		ribOut:           make(map[string]map[family.Family]map[string]*Route),
 		peerUp:           make(map[string]bool),
 		peerMeta:         make(map[string]*PeerMeta),
 		retainedPeers:    make(map[string]bool),
@@ -693,32 +693,31 @@ func (r *RIBManager) handleSent(event *Event) {
 
 	// Initialize peer's ribOut if needed
 	if r.ribOut[peerAddr] == nil {
-		r.ribOut[peerAddr] = make(map[string]map[string]*Route)
+		r.ribOut[peerAddr] = make(map[family.Family]map[string]*Route)
 	}
 
 	// Process family operations
 	// Format: {"ipv4/unicast": [{"next-hop": "...", "action": "add", "nlri": [...]}]}
 	for fam, ops := range event.FamilyOps {
-		famStr := fam.String()
 		for _, op := range ops {
 			switch op.Action {
 			case "add":
 				// Initialize family map if needed
-				if r.ribOut[peerAddr][famStr] == nil {
-					r.ribOut[peerAddr][famStr] = make(map[string]*Route)
+				if r.ribOut[peerAddr][fam] == nil {
+					r.ribOut[peerAddr][fam] = make(map[string]*Route)
 				}
 				// Store routes with their next-hop
 				for _, nlriVal := range op.NLRIs {
 					prefix, pathID := parseNLRIValue(nlriVal)
 					if prefix == "" {
 						logger().Warn("sent: invalid nlri value",
-							"peer", peerAddr, "family", famStr, "got", fmt.Sprintf("%T", nlriVal))
+							"peer", peerAddr, "family", fam, "got", fmt.Sprintf("%T", nlriVal))
 						continue
 					}
 					key := outRouteKey(prefix, pathID)
 					var origin attribute.Origin
 					_ = origin.UnmarshalText([]byte(event.Origin))
-					r.ribOut[peerAddr][famStr][key] = &Route{
+					r.ribOut[peerAddr][fam][key] = &Route{
 						MsgID:               msgID,
 						Family:              fam,
 						Prefix:              prefix,
@@ -728,16 +727,16 @@ func (r *RIBManager) handleSent(event *Event) {
 						ASPath:              event.ASPath,
 						MED:                 event.MED,
 						LocalPreference:     event.LocalPreference,
-						Communities:         event.Communities,
-						LargeCommunities:    event.LargeCommunities,
-						ExtendedCommunities: event.ExtendedCommunities,
+						Communities:         parseCommunityStrings(event.Communities),
+						LargeCommunities:    parseLargeCommunityStrings(event.LargeCommunities),
+						ExtendedCommunities: parseExtCommunityStrings(event.ExtendedCommunities),
 						RawAttrs:            event.RawAttributes,
 						Meta:                event.RouteMeta,
 					}
 				}
 			case "del":
 				// Remove routes from the family map
-				familyRoutes := r.ribOut[peerAddr][famStr]
+				familyRoutes := r.ribOut[peerAddr][fam]
 				if familyRoutes == nil {
 					continue
 				}
@@ -751,7 +750,7 @@ func (r *RIBManager) handleSent(event *Event) {
 				}
 				// Clean up empty family map
 				if len(familyRoutes) == 0 {
-					delete(r.ribOut[peerAddr], famStr)
+					delete(r.ribOut[peerAddr], fam)
 				}
 				// Clean up empty peer map
 				if len(r.ribOut[peerAddr]) == 0 {
@@ -877,7 +876,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 // SHOULD send BoRR, re-advertise Adj-RIB-Out, then send EoRR.
 func (r *RIBManager) handleRefresh(event *Event) {
 	peerAddr := event.GetPeerAddress()
-	fam := family.Family{AFI: event.AFI, SAFI: event.SAFI}.String()
+	fam := family.Family{AFI: event.AFI, SAFI: event.SAFI}
 
 	if peerAddr == "" {
 		logger().Warn("refresh event: empty peer address")
@@ -902,9 +901,9 @@ func (r *RIBManager) handleRefresh(event *Event) {
 	r.peerMu.RUnlock()
 
 	// RFC 7313 Section 4: Send BoRR, routes, EoRR sequence
-	r.updateRoute(peerAddr, "borr "+fam)
+	r.updateRoute(peerAddr, "borr "+fam.String())
 	r.sendRoutes(peerAddr, routesToSend)
-	r.updateRoute(peerAddr, "eorr "+fam)
+	r.updateRoute(peerAddr, "eorr "+fam.String())
 
 	logger().Debug("completed route refresh", "peer", peerAddr, "family", fam, "routes", len(routesToSend))
 }

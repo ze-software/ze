@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -401,12 +402,13 @@ func (f *prefixFilter) Meta() PipelineMeta {
 // communityFilter filters routes containing a specific community.
 type communityFilter struct {
 	upstream  PipelineIterator
-	community string
+	community attribute.Community
 	count     int
 }
 
-func newCommunityFilter(upstream PipelineIterator, community string) *communityFilter {
-	return &communityFilter{upstream: upstream, community: community}
+func newCommunityFilter(upstream PipelineIterator, communityStr string) *communityFilter {
+	v, _ := attribute.ParseCommunity(communityStr)
+	return &communityFilter{upstream: upstream, community: attribute.Community(v)}
 }
 
 func (f *communityFilter) Next() (RouteItem, bool) {
@@ -428,7 +430,18 @@ func (f *communityFilter) hasCommunity(item RouteItem) bool {
 	}
 	if item.HasInEntry && item.InEntry.HasCommunities() {
 		if data, err := pool.Communities.Get(item.InEntry.Communities); err == nil {
-			return slices.Contains(formatCommunities(data), f.community)
+			return poolContainsCommunity(data, f.community)
+		}
+	}
+	return false
+}
+
+func poolContainsCommunity(data []byte, target attribute.Community) bool {
+	t := uint32(target)
+	for i := 0; i+4 <= len(data); i += 4 {
+		v := uint32(data[i])<<24 | uint32(data[i+1])<<16 | uint32(data[i+2])<<8 | uint32(data[i+3])
+		if v == t {
+			return true
 		}
 	}
 	return false
@@ -488,8 +501,10 @@ func (f *matchFilter) matchOutRoute(rt *Route) bool {
 	if strings.Contains(strings.ToLower(rt.NextHop), f.pattern) {
 		return true
 	}
-	if s := rt.Origin.LowerString(); s != "" && strings.Contains(s, f.pattern) {
-		return true
+	if rt.Origin != nil {
+		if s := rt.Origin.LowerString(); s != "" && strings.Contains(s, f.pattern) {
+			return true
+		}
 	}
 	// AS-path as space-separated ASNs
 	for _, asn := range rt.ASPath {
@@ -499,7 +514,7 @@ func (f *matchFilter) matchOutRoute(rt *Route) bool {
 	}
 	// Communities
 	for _, c := range rt.Communities {
-		if strings.Contains(strings.ToLower(c), f.pattern) {
+		if strings.Contains(strings.ToLower(c.String()), f.pattern) {
 			return true
 		}
 	}

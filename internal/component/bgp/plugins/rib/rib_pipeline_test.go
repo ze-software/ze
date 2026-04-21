@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -164,9 +165,9 @@ func TestFilterPrefix(t *testing.T) {
 // PREVENTS: Routes without the specified community passing through.
 func TestFilterCommunity(t *testing.T) {
 	items := []RouteItem{
-		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{Communities: []string{"65000:100", "65000:200"}}},
-		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{Communities: []string{"65001:100"}}},
-		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.2.0/24", OutRoute: &Route{Communities: []string{"65000:100"}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{Communities: []attribute.Community{attribute.Community(65000<<16 | 100), attribute.Community(65000<<16 | 200)}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{Communities: []attribute.Community{attribute.Community(65001<<16 | 100)}}},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.2.0/24", OutRoute: &Route{Communities: []attribute.Community{attribute.Community(65000<<16 | 100)}}},
 	}
 
 	src := &sliceSource{items: items}
@@ -364,8 +365,8 @@ func TestShowPipelineBothDirections(t *testing.T) {
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	// Add outbound route
-	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["192.0.2.2"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"172.16.0.0/24": {
 				Family: family.IPv4Unicast, Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
 			},
@@ -394,8 +395,8 @@ func TestShowPipelineReceivedScope(t *testing.T) {
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
-	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["192.0.2.2"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"172.16.0.0/24": {
 				Family: family.IPv4Unicast, Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
 			},
@@ -423,8 +424,8 @@ func TestShowPipelineSentScope(t *testing.T) {
 	peerRIB.Insert(fam, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
-	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["192.0.2.2"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"172.16.0.0/24": {
 				Family: family.IPv4Unicast, Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
 			},
@@ -446,19 +447,19 @@ func TestShowPipelineComposed(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	med100 := uint32(100)
-	r.ribOut["192.0.2.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["192.0.2.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {
 				Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1",
-				ASPath: []uint32{64501, 64502}, Communities: []string{"65000:100"}, MED: &med100,
+				ASPath: []uint32{64501, 64502}, Communities: []attribute.Community{attribute.Community(65000<<16 | 100)}, MED: &med100,
 			},
 			"10.0.1.0/24": {
 				Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "10.0.0.1",
-				ASPath: []uint32{64501}, Communities: []string{"65001:200"}, MED: &med100,
+				ASPath: []uint32{64501}, Communities: []attribute.Community{attribute.Community(65001<<16 | 200)}, MED: &med100,
 			},
 			"10.0.2.0/24": {
 				Family: family.IPv4Unicast, Prefix: "10.0.2.0/24", NextHop: "10.0.0.1",
-				ASPath: []uint32{64503}, Communities: []string{"65000:100"}, MED: &med100,
+				ASPath: []uint32{64503}, Communities: []attribute.Community{attribute.Community(65000<<16 | 100)}, MED: &med100,
 			},
 		},
 	}
@@ -576,8 +577,8 @@ func TestFilterMatchCrossField(t *testing.T) {
 			name:    "match community value",
 			pattern: "65000:100",
 			items: []RouteItem{
-				{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{Communities: []string{"65000:100"}}},
-				{Peer: "p2", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{Communities: []string{"65001:200"}}},
+				{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{Communities: []attribute.Community{attribute.Community(65000<<16 | 100)}}},
+				{Peer: "p2", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{Communities: []attribute.Community{attribute.Community(65001<<16 | 200)}}},
 			},
 			want: 1,
 		},
@@ -752,8 +753,8 @@ func TestShowPipelineExplicitSentReceived(t *testing.T) {
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	// Add outbound route
-	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["192.0.2.2"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"172.16.0.0/24": {
 				Family: family.IPv4Unicast, Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
 			},

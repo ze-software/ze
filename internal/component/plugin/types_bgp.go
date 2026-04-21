@@ -17,6 +17,7 @@ import (
 	"net/netip"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -88,11 +89,11 @@ type PeerInfo struct {
 	EORReceived        uint32
 	EORSent            uint32
 
-	// NegotiatedFamilies is the list of "afi/safi" strings that completed
+	// NegotiatedFamilies is the list of address families that completed
 	// RFC 4760 multiprotocol negotiation with this peer. Empty until OPEN
 	// exchange finishes. Used by `show bgp <family> summary` to scope the
 	// summary table to peers carrying a given address family.
-	NegotiatedFamilies []string
+	NegotiatedFamilies []family.Family
 }
 
 // PeerCapabilityConfig holds BGP capability configuration for a peer.

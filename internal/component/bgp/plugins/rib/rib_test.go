@@ -124,12 +124,12 @@ func TestHandleSent_StoresRoutes(t *testing.T) {
 
 	r.handleSent(event)
 
-	require.Contains(t, r.ribOut["10.0.0.1"], family.IPv4Unicast.String())
-	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv4Unicast.String()], 2)
-	assert.Contains(t, r.ribOut["10.0.0.1"][family.IPv4Unicast.String()], "10.0.0.0/24")
-	assert.Contains(t, r.ribOut["10.0.0.1"][family.IPv4Unicast.String()], "10.0.1.0/24")
+	require.Contains(t, r.ribOut["10.0.0.1"], family.IPv4Unicast)
+	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv4Unicast], 2)
+	assert.Contains(t, r.ribOut["10.0.0.1"][family.IPv4Unicast], "10.0.0.0/24")
+	assert.Contains(t, r.ribOut["10.0.0.1"][family.IPv4Unicast], "10.0.1.0/24")
 
-	route := r.ribOut["10.0.0.1"][family.IPv4Unicast.String()]["10.0.0.0/24"]
+	route := r.ribOut["10.0.0.1"][family.IPv4Unicast]["10.0.0.0/24"]
 	assert.Equal(t, "10.0.0.0/24", route.Prefix)
 	assert.Equal(t, "1.1.1.1", route.NextHop)
 	assert.Equal(t, uint64(100), route.MsgID)
@@ -154,7 +154,7 @@ func TestHandleSent_Withdraw(t *testing.T) {
 		},
 	}
 	r.handleSent(announce)
-	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv4Unicast.String()], 1)
+	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv4Unicast], 1)
 
 	// Then withdraw
 	withdraw := &Event{
@@ -256,8 +256,8 @@ func TestHandleState_PeerUp(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Pre-populate ribOut
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 			"10.0.1.0/24": {MsgID: 2, Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "1.1.1.1"},
 		},
@@ -274,7 +274,7 @@ func TestHandleState_PeerUp(t *testing.T) {
 	// Verify internal state: peer is marked as up
 	assert.True(t, r.peerUp["10.0.0.1"], "peer should be marked as up")
 	// ribOut should be preserved (routes are replayed via SDK RPC, not text output)
-	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv4Unicast.String()], 2, "ribOut should still have routes")
+	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv4Unicast], 2, "ribOut should still have routes")
 }
 
 // TestHandleState_PeerDown verifies Adj-RIB-In is cleared on peer down.
@@ -299,8 +299,8 @@ func TestHandleState_PeerDown(t *testing.T) {
 	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
 
 	// Pre-populate ribOut
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.1.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.1.0/24"},
 		},
 	}
@@ -321,7 +321,7 @@ func TestHandleState_PeerDown(t *testing.T) {
 	_, metaExists := r.peerMeta["10.0.0.1"]
 	assert.False(t, metaExists, "peerMeta should be deleted on peer down")
 	// ribOut should be preserved for replay
-	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv4Unicast.String()], 1)
+	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv4Unicast], 1)
 }
 
 // TestStatusJSON verifies status command output.
@@ -344,8 +344,8 @@ func TestStatusJSON(t *testing.T) {
 	}
 	r.handleReceived(event)
 
-	r.ribOut["10.0.0.2"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.2"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {},
 		},
 	}
@@ -428,8 +428,8 @@ func TestHandleState_ConcurrentUpDown(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Pre-populate ribOut
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
 	}
@@ -605,8 +605,8 @@ func TestHandleCommand_RIBAdjacentStatus(t *testing.T) {
 	r.handleReceived(announce)
 
 	r.peerUp["10.0.0.1"] = true
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {},
 			"10.0.1.0/24": {},
 		},
@@ -756,13 +756,13 @@ func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
 func TestHandleCommand_RIBShowSent(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
 	}
-	r.ribOut["10.0.0.2"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.2"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.1.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
 		},
 	}
@@ -781,13 +781,13 @@ func TestHandleCommand_RIBShowSent(t *testing.T) {
 func TestHandleCommand_RIBAdjacentOutboundResend(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
 	}
-	r.ribOut["10.0.0.2"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.2"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.1.0/24": {MsgID: 2, Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
 		},
 	}
@@ -811,8 +811,8 @@ func TestHandleCommand_RIBAdjacentOutboundResend_DownPeer(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Peer has routes but is DOWN
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
 	}
@@ -858,8 +858,8 @@ func TestRIBPluginHandleCommandShortNames(t *testing.T) {
 	}
 	r.handleReceived(announce)
 	r.peerUp["10.0.0.1"] = true
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.1.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
 		},
 	}
@@ -951,12 +951,12 @@ func TestHandleRefresh_InternalState(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Pre-populate ribOut with routes
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 			"10.0.1.0/24": {MsgID: 2, Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", NextHop: "1.1.1.1"},
 		},
-		family.IPv6Unicast.String(): {
+		family.IPv6Unicast: {
 			"2001:db8::/32": {MsgID: 3, Family: family.IPv6Unicast, Prefix: "2001:db8::/32", NextHop: "::1"},
 		},
 	}
@@ -989,8 +989,8 @@ func TestHandleRefresh_PeerNotUp(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Peer has routes but is not up
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
 	}
@@ -1017,11 +1017,11 @@ func TestHandleRefresh_PeerNotUp(t *testing.T) {
 func TestHandleRefresh_IPv6Family(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
-		family.IPv6Unicast.String(): {
+		family.IPv6Unicast: {
 			"2001:db8::/32": {MsgID: 1, Family: family.IPv6Unicast, Prefix: "2001:db8::/32", NextHop: "::1"},
 		},
 	}
@@ -1441,8 +1441,8 @@ func TestWireToPrefix(t *testing.T) {
 func TestDispatch_RefreshEvents(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
 	}
@@ -1847,13 +1847,13 @@ func TestHandleSentPerFamily(t *testing.T) {
 	// Verify per-family structure
 	peerFamilies := r.ribOut["10.0.0.1"]
 	require.Len(t, peerFamilies, 2, "should have 2 family maps")
-	require.Contains(t, peerFamilies, family.IPv4Unicast.String())
-	require.Contains(t, peerFamilies, family.IPv6Unicast.String())
-	assert.Len(t, peerFamilies[family.IPv4Unicast.String()], 1)
-	assert.Len(t, peerFamilies[family.IPv6Unicast.String()], 1)
+	require.Contains(t, peerFamilies, family.IPv4Unicast)
+	require.Contains(t, peerFamilies, family.IPv6Unicast)
+	assert.Len(t, peerFamilies[family.IPv4Unicast], 1)
+	assert.Len(t, peerFamilies[family.IPv6Unicast], 1)
 
 	// Verify route contents
-	rt := peerFamilies[family.IPv4Unicast.String()]["10.0.0.0/24"]
+	rt := peerFamilies[family.IPv4Unicast]["10.0.0.0/24"]
 	require.NotNil(t, rt)
 	assert.Equal(t, family.IPv4Unicast, rt.Family)
 	assert.Equal(t, "10.0.0.0/24", rt.Prefix)
@@ -1888,8 +1888,8 @@ func TestHandleSentWithdrawalPerFamily(t *testing.T) {
 	r.handleSent(del)
 
 	// ipv4 should have 1 route, ipv6 untouched
-	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv4Unicast.String()], 1)
-	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv6Unicast.String()], 1)
+	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv4Unicast], 1)
+	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv6Unicast], 1)
 }
 
 // TestHandleSentWithdrawalCleansEmptyMaps verifies empty maps are removed.
@@ -1934,11 +1934,11 @@ func TestHandleRefreshPerFamily(t *testing.T) {
 	r.peerUp["10.0.0.1"] = true
 
 	// Pre-populate ribOut with two families
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
-		family.IPv6Unicast.String(): {
+		family.IPv6Unicast: {
 			"2001:db8::/32": {MsgID: 2, Family: family.IPv6Unicast, Prefix: "2001:db8::/32", NextHop: "::1"},
 		},
 	}
@@ -1953,8 +1953,8 @@ func TestHandleRefreshPerFamily(t *testing.T) {
 	r.handleRefresh(refreshEvent)
 
 	// ribOut should be unchanged (routes are sent, not removed)
-	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv4Unicast.String()], 1)
-	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv6Unicast.String()], 1)
+	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv4Unicast], 1)
+	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv6Unicast], 1)
 }
 
 // TestHandleStateReplayAllFamilies verifies all families are replayed on peer-up.
@@ -1965,11 +1965,11 @@ func TestHandleStateReplayAllFamilies(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Pre-populate ribOut with two families
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
-		family.IPv6Unicast.String(): {
+		family.IPv6Unicast: {
 			"2001:db8::/32": {MsgID: 2, Family: family.IPv6Unicast, Prefix: "2001:db8::/32", NextHop: "::1"},
 		},
 	}
@@ -1991,11 +1991,11 @@ func TestHandleStateReplayAllFamilies(t *testing.T) {
 func TestOutboundResendAllFamilies(t *testing.T) {
 	r := newTestRIBManager(t)
 	r.peerUp["10.0.0.1"] = true
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
-		family.IPv6Unicast.String(): {
+		family.IPv6Unicast: {
 			"2001:db8::/32": {MsgID: 2, Family: family.IPv6Unicast, Prefix: "2001:db8::/32", NextHop: "::1"},
 		},
 	}
@@ -2016,11 +2016,11 @@ func TestOutboundResendAllFamilies(t *testing.T) {
 func TestOutboundResendSingleFamily(t *testing.T) {
 	r := newTestRIBManager(t)
 	r.peerUp["10.0.0.1"] = true
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 		},
-		family.IPv6Unicast.String(): {
+		family.IPv6Unicast: {
 			"2001:db8::/32": {MsgID: 2, Family: family.IPv6Unicast, Prefix: "2001:db8::/32", NextHop: "::1"},
 		},
 	}
@@ -2040,12 +2040,12 @@ func TestOutboundResendSingleFamily(t *testing.T) {
 // PREVENTS: Per-family restructuring breaking route counts.
 func TestStatusJSONMultiFamilyCount(t *testing.T) {
 	r := newTestRIBManager(t)
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
 			"10.0.1.0/24": {MsgID: 2, Family: family.IPv4Unicast, Prefix: "10.0.1.0/24"},
 		},
-		family.IPv6Unicast.String(): {
+		family.IPv6Unicast: {
 			"2001:db8::/32": {MsgID: 3, Family: family.IPv6Unicast, Prefix: "2001:db8::/32"},
 		},
 	}
@@ -2062,11 +2062,11 @@ func TestStatusJSONMultiFamilyCount(t *testing.T) {
 // PREVENTS: Pipeline missing routes from some families.
 func TestOutboundSourceMultiFamily(t *testing.T) {
 	r := newTestRIBManager(t)
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24"},
 		},
-		family.IPv6Unicast.String(): {
+		family.IPv6Unicast: {
 			"2001:db8::/32": {MsgID: 2, Family: family.IPv6Unicast, Prefix: "2001:db8::/32"},
 		},
 	}
@@ -2121,13 +2121,13 @@ func TestOutboundResendSelectorFromArgs(t *testing.T) {
 	// Two peers, both up, both with routes in ribOut
 	r.peerUp["10.0.0.1"] = true
 	r.peerUp["10.0.0.2"] = true
-	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.1.0.0/24": {MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.1.0.0/24", NextHop: "1.1.1.1"},
 		},
 	}
-	r.ribOut["10.0.0.2"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["10.0.0.2"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.2.0.0/24": {MsgID: 2, Family: family.IPv4Unicast, Prefix: "10.2.0.0/24", NextHop: "2.2.2.2"},
 		},
 	}

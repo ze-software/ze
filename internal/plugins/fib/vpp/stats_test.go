@@ -1,6 +1,7 @@
 package fibvpp
 
 import (
+	"net/netip"
 	"sync"
 	"testing"
 
@@ -82,8 +83,8 @@ func TestFibRouteCount(t *testing.T) {
 
 	// Add two routes.
 	fib.processEvent(makeBatch(
-		incomingChange{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1"},
-		incomingChange{Action: bgptypes.RouteActionAdd, Prefix: "10.0.1.0/24", NextHop: "192.168.1.1"},
+		incomingChange{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.1")},
+		incomingChange{Action: bgptypes.RouteActionAdd, Prefix: netip.MustParsePrefix("10.0.1.0/24"), NextHop: netip.MustParseAddr("192.168.1.1")},
 	))
 
 	installed := reg.gauges["ze_fibvpp_routes_installed"]
@@ -104,7 +105,7 @@ func TestFibRouteCount(t *testing.T) {
 
 	// Update one route.
 	fib.processEvent(makeBatch(
-		incomingChange{Action: bgptypes.RouteActionUpdate, Prefix: "10.0.0.0/24", NextHop: "192.168.1.2"},
+		incomingChange{Action: bgptypes.RouteActionUpdate, Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.168.1.2")},
 	))
 
 	updates := reg.counters["ze_fibvpp_route_updates_total"]
@@ -121,7 +122,7 @@ func TestFibRouteCount(t *testing.T) {
 
 	// Withdraw one route.
 	fib.processEvent(makeBatch(
-		incomingChange{Action: bgptypes.RouteActionWithdraw, Prefix: "10.0.1.0/24"},
+		incomingChange{Action: bgptypes.RouteActionWithdraw, Prefix: netip.MustParsePrefix("10.0.1.0/24")},
 	))
 
 	removals := reg.counters["ze_fibvpp_route_removals_total"]

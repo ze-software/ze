@@ -65,15 +65,15 @@ func TestSupportsFamily_Unsupported(t *testing.T) {
 
 // --- capabilityPresent ---
 
-// VALIDATES: capabilityPresent returns true when a matching capability name exists.
+// VALIDATES: capabilityPresent returns true when a matching capability code exists.
 // PREVENTS: OPEN processing missing a negotiated capability.
 func TestCapabilityPresent_Found(t *testing.T) {
 	caps := []CapabilityInfo{
 		{Code: 2, Name: "route-refresh", Value: ""},
 		{Code: 65, Name: "four-octet-as", Value: "65001"},
 	}
-	assert.True(t, capabilityPresent(caps, "route-refresh"))
-	assert.True(t, capabilityPresent(caps, "four-octet-as"))
+	assert.True(t, capabilityPresent(caps, 2))  // route-refresh
+	assert.True(t, capabilityPresent(caps, 65)) // four-octet-as
 }
 
 // VALIDATES: capabilityPresent returns false when the capability is absent.
@@ -82,14 +82,14 @@ func TestCapabilityPresent_NotFound(t *testing.T) {
 	caps := []CapabilityInfo{
 		{Code: 2, Name: "route-refresh", Value: ""},
 	}
-	assert.False(t, capabilityPresent(caps, "add-path"))
+	assert.False(t, capabilityPresent(caps, 69)) // add-path
 }
 
 // VALIDATES: capabilityPresent handles empty and nil slices.
 // PREVENTS: Panic on OPEN with no capabilities.
 func TestCapabilityPresent_EmptyAndNil(t *testing.T) {
-	assert.False(t, capabilityPresent(nil, "route-refresh"))
-	assert.False(t, capabilityPresent([]CapabilityInfo{}, "route-refresh"))
+	assert.False(t, capabilityPresent(nil, 2))
+	assert.False(t, capabilityPresent([]CapabilityInfo{}, 2))
 }
 
 // --- buildNLRIEntries ---

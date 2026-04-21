@@ -11,6 +11,7 @@
 package bgp
 
 import (
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -29,13 +30,13 @@ type Route struct {
 	Timestamp time.Time     `json:"timestamp,omitzero"`
 
 	// Path attributes for full route resend.
-	Origin              *attribute.Origin `json:"origin,omitempty"`
-	ASPath              []uint32          `json:"as-path,omitempty"`
-	MED                 *uint32           `json:"med,omitempty"`
-	LocalPreference     *uint32           `json:"local-preference,omitempty"`
-	Communities         []string          `json:"communities,omitempty"`
-	LargeCommunities    []string          `json:"large-communities,omitempty"`
-	ExtendedCommunities []string          `json:"extended-communities,omitempty"`
+	Origin              *attribute.Origin             `json:"origin,omitempty"`
+	ASPath              []uint32                      `json:"as-path,omitempty"`
+	MED                 *uint32                       `json:"med,omitempty"`
+	LocalPreference     *uint32                       `json:"local-preference,omitempty"`
+	Communities         []attribute.Community         `json:"communities,omitempty"`
+	LargeCommunities    []attribute.LargeCommunity    `json:"large-communities,omitempty"`
+	ExtendedCommunities []attribute.ExtendedCommunity `json:"extended-communities,omitempty"`
 
 	// RawAttrs is the hex-encoded path attributes from format=full sent events.
 	// When non-empty, FormatAnnounceCommand uses "update hex attr set <hex>" format
@@ -66,4 +67,52 @@ func RouteKey(family, prefix string, pathID uint32) string {
 		return family + ":" + prefix
 	}
 	return fmt.Sprintf("%s:%s:%d", family, prefix, pathID)
+}
+
+// ParseCommunityStrings converts string-form communities ("ASN:Value") to typed values.
+// Invalid entries are silently dropped (source is trusted JSON from ze-bgp).
+func ParseCommunityStrings(ss []string) []attribute.Community {
+	if len(ss) == 0 {
+		return nil
+	}
+	result := make([]attribute.Community, 0, len(ss))
+	for _, s := range ss {
+		v, err := attribute.ParseCommunity(s)
+		if err == nil {
+			result = append(result, attribute.Community(v))
+		}
+	}
+	return result
+}
+
+// ParseLargeCommunityStrings converts string-form large communities ("GA:LD1:LD2") to typed values.
+func ParseLargeCommunityStrings(ss []string) []attribute.LargeCommunity {
+	if len(ss) == 0 {
+		return nil
+	}
+	result := make([]attribute.LargeCommunity, 0, len(ss))
+	for _, s := range ss {
+		lc, err := attribute.ParseLargeCommunity(s)
+		if err == nil {
+			result = append(result, lc)
+		}
+	}
+	return result
+}
+
+// ParseExtCommunityStrings converts hex-encoded extended community strings to typed values.
+func ParseExtCommunityStrings(ss []string) []attribute.ExtendedCommunity {
+	if len(ss) == 0 {
+		return nil
+	}
+	result := make([]attribute.ExtendedCommunity, 0, len(ss))
+	for _, s := range ss {
+		raw, err := hex.DecodeString(s)
+		if err == nil && len(raw) == 8 {
+			var ec attribute.ExtendedCommunity
+			copy(ec[:], raw)
+			result = append(result, ec)
+		}
+	}
+	return result
 }

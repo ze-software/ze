@@ -10,7 +10,6 @@ package rib
 import (
 	"encoding/hex"
 	"net/netip"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
@@ -253,7 +252,7 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	defer r.peerMu.Unlock()
 
 	if r.ribOut[peerAddr] == nil {
-		r.ribOut[peerAddr] = make(map[string]map[string]*Route)
+		r.ribOut[peerAddr] = make(map[family.Family]map[string]*Route)
 	}
 
 	// Process IPv4 unicast announces (legacy NLRI section).
@@ -271,7 +270,7 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	wdData, err := wu.Withdrawn()
 	if err == nil && len(wdData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
-		r.removeSentNLRIs(peerAddr, ipv4Family.String(), wdData, addPath)
+		r.removeSentNLRIs(peerAddr, ipv4Family, wdData, addPath)
 	}
 
 	// Process MP_REACH_NLRI announces.
@@ -295,7 +294,7 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 		wdBytes := mpUnreach.WithdrawnBytes()
 		if len(wdBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
-			r.removeSentNLRIs(peerAddr, fam.String(), wdBytes, addPath)
+			r.removeSentNLRIs(peerAddr, fam, wdBytes, addPath)
 		}
 	}
 }
@@ -304,12 +303,11 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 // Caller must hold write lock.
 func (r *RIBManager) storeSentNLRIs(peerAddr string, fam family.Family, nlriData []byte, addPath bool,
 	msgID uint64, nextHop string, origin attribute.Origin, asPath []uint32, med, localPref *uint32,
-	communities, largeCommunities, extCommunities []string,
+	communities []attribute.Community, largeCommunities []attribute.LargeCommunity, extCommunities []attribute.ExtendedCommunity,
 	rawAttrsHex string, meta map[string]any) {
 
-	famStr := fam.String()
-	if r.ribOut[peerAddr][famStr] == nil {
-		r.ribOut[peerAddr][famStr] = make(map[string]*Route)
+	if r.ribOut[peerAddr][fam] == nil {
+		r.ribOut[peerAddr][fam] = make(map[string]*Route)
 	}
 
 	iter := nlri.NewNLRIIterator(nlriData, addPath)
@@ -318,12 +316,12 @@ func (r *RIBManager) storeSentNLRIs(peerAddr string, fam family.Family, nlriData
 		if !ok {
 			break
 		}
-		prefix := wirePrefixToString(wirePrefix, famStr)
+		prefix := wirePrefixToString(wirePrefix, fam)
 		if prefix == "" {
 			continue
 		}
 		key := outRouteKey(prefix, pathID)
-		r.ribOut[peerAddr][famStr][key] = &Route{
+		r.ribOut[peerAddr][fam][key] = &Route{
 			MsgID:               msgID,
 			Family:              fam,
 			Prefix:              prefix,
@@ -344,8 +342,8 @@ func (r *RIBManager) storeSentNLRIs(peerAddr string, fam family.Family, nlriData
 
 // removeSentNLRIs walks NLRI bytes and removes Route entries from ribOut.
 // Caller must hold write lock.
-func (r *RIBManager) removeSentNLRIs(peerAddr, family string, wdData []byte, addPath bool) {
-	familyRoutes := r.ribOut[peerAddr][family]
+func (r *RIBManager) removeSentNLRIs(peerAddr string, fam family.Family, wdData []byte, addPath bool) {
+	familyRoutes := r.ribOut[peerAddr][fam]
 	if familyRoutes == nil {
 		return
 	}
@@ -356,7 +354,7 @@ func (r *RIBManager) removeSentNLRIs(peerAddr, family string, wdData []byte, add
 		if !ok {
 			break
 		}
-		prefix := wirePrefixToString(wirePrefix, family)
+		prefix := wirePrefixToString(wirePrefix, fam)
 		if prefix == "" {
 			continue
 		}
@@ -365,7 +363,7 @@ func (r *RIBManager) removeSentNLRIs(peerAddr, family string, wdData []byte, add
 	}
 
 	if len(familyRoutes) == 0 {
-		delete(r.ribOut[peerAddr], family)
+		delete(r.ribOut[peerAddr], fam)
 	}
 	if len(r.ribOut[peerAddr]) == 0 {
 		delete(r.ribOut, peerAddr)
@@ -382,7 +380,7 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 	// Route refresh wire: AFI (2) + reserved (1) + SAFI (1) = 4 bytes.
 	afi := uint16(msg.RawBytes[0])<<8 | uint16(msg.RawBytes[1])
 	safi := msg.RawBytes[3]
-	famStr := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}.String()
+	fam := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}
 
 	peerAddr := se.PeerAddress
 	if peerAddr == "" {
@@ -396,7 +394,7 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 	}
 
 	var routesToSend []*Route
-	if familyRoutes := r.ribOut[peerAddr][famStr]; familyRoutes != nil {
+	if familyRoutes := r.ribOut[peerAddr][fam]; familyRoutes != nil {
 		routesToSend = make([]*Route, 0, len(familyRoutes))
 		for _, rt := range familyRoutes {
 			routesToSend = append(routesToSend, rt)
@@ -404,9 +402,9 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 	}
 	r.peerMu.RUnlock()
 
-	r.updateRoute(peerAddr, "borr "+famStr)
+	r.updateRoute(peerAddr, "borr "+fam.String())
 	r.sendRoutes(peerAddr, routesToSend)
-	r.updateRoute(peerAddr, "eorr "+famStr)
+	r.updateRoute(peerAddr, "eorr "+fam.String())
 }
 
 // coreAttrs holds parsed core path attributes from AttrsWire.
@@ -457,9 +455,9 @@ func extractCoreAttrs(attrs *attribute.AttributesWire) coreAttrs {
 
 // communityAttrs holds parsed community attributes from AttrsWire.
 type communityAttrs struct {
-	communities      []string
-	largeCommunities []string
-	extCommunities   []string
+	communities      []attribute.Community
+	largeCommunities []attribute.LargeCommunity
+	extCommunities   []attribute.ExtendedCommunity
 }
 
 // extractCommunityAttrs reads community attributes from AttrsWire.
@@ -471,28 +469,19 @@ func extractCommunityAttrs(attrs *attribute.AttributesWire) communityAttrs {
 
 	if attr, err := attrs.Get(attribute.AttrCommunity); err == nil && attr != nil {
 		if c, ok := attr.(attribute.Communities); ok {
-			result.communities = make([]string, len(c))
-			for i, comm := range c {
-				result.communities[i] = comm.String()
-			}
+			result.communities = []attribute.Community(c)
 		}
 	}
 
 	if attr, err := attrs.Get(attribute.AttrLargeCommunity); err == nil && attr != nil {
 		if lc, ok := attr.(attribute.LargeCommunities); ok {
-			result.largeCommunities = make([]string, len(lc))
-			for i, comm := range lc {
-				result.largeCommunities[i] = comm.String()
-			}
+			result.largeCommunities = []attribute.LargeCommunity(lc)
 		}
 	}
 
 	if attr, err := attrs.Get(attribute.AttrExtCommunity); err == nil && attr != nil {
 		if ec, ok := attr.(attribute.ExtendedCommunities); ok {
-			result.extCommunities = make([]string, len(ec))
-			for i, comm := range ec {
-				result.extCommunities[i] = hex.EncodeToString(comm[:])
-			}
+			result.extCommunities = []attribute.ExtendedCommunity(ec)
 		}
 	}
 
@@ -526,7 +515,7 @@ func extractNextHop(attrs *attribute.AttributesWire) string {
 // bytes reach this helper they are guaranteed in-range, so an asymmetry with
 // store.NLRIToPrefix (which rejects over-length) is unreachable in
 // practice.
-func wirePrefixToString(wire []byte, family string) string {
+func wirePrefixToString(wire []byte, fam family.Family) string {
 	if len(wire) == 0 {
 		return ""
 	}
@@ -541,9 +530,8 @@ func wirePrefixToString(wire []byte, family string) string {
 	var buf [16]byte
 	copy(buf[:], prefixBytes[:byteCount])
 
-	isIPv6 := strings.HasPrefix(family, "ipv6")
 	var addrLen int
-	if isIPv6 {
+	if fam.AFI == family.AFIIPv6 {
 		addrLen = 16
 	} else {
 		addrLen = 4

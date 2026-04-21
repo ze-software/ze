@@ -179,24 +179,27 @@ func formatFilterAttrs(attrs map[string]string) string {
 		"as-path-prepend", "nlri",
 	}
 
-	var parts []string
+	var buf []byte
 	for _, key := range order {
 		val, ok := attrs[key]
 		if !ok {
 			continue
 		}
-		if key == "nlri" {
-			parts = append(parts, val)
-			continue
+		if len(buf) > 0 {
+			buf = append(buf, ' ')
 		}
-		if key == policyAttrAtomicAggregate {
-			parts = append(parts, key)
-			continue
+		switch key {
+		case "nlri":
+			buf = append(buf, val...)
+		case policyAttrAtomicAggregate:
+			buf = append(buf, key...)
+		default:
+			buf = append(buf, key...)
+			buf = append(buf, ' ')
+			buf = append(buf, val...)
 		}
-		parts = append(parts, fmt.Sprintf("%s %s", key, val))
 	}
-
-	return strings.Join(parts, " ")
+	return string(buf)
 }
 
 // policyFilterTimeout is the per-filter IPC timeout (spec: 5 seconds).

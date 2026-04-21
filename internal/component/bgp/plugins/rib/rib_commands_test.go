@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
@@ -151,8 +152,8 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 
 	med := uint32(100)
 	localPref := uint32(200)
-	r.ribOut["192.0.2.1"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["192.0.2.1"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {
 				Family:           family.IPv4Unicast,
 				Prefix:           "10.0.0.0/24",
@@ -161,8 +162,8 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 				ASPath:           []uint32{65001, 65002},
 				MED:              &med,
 				LocalPreference:  &localPref,
-				Communities:      []string{"65000:100"},
-				LargeCommunities: []string{"65000:1:2"},
+				Communities:      []attribute.Community{attribute.Community(65000<<16 | 100)},
+				LargeCommunities: []attribute.LargeCommunity{{GlobalAdmin: 65000, LocalData1: 1, LocalData2: 2}},
 			},
 		},
 	}
@@ -258,8 +259,8 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 func TestOutboundShowMinimalAttributes(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
-		family.IPv4Unicast.String(): {
+	r.ribOut["192.0.2.2"] = map[family.Family]map[string]*Route{
+		family.IPv4Unicast: {
 			"10.0.0.0/24": {
 				Family:  family.IPv4Unicast,
 				Prefix:  "10.0.0.0/24",

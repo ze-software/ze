@@ -5,6 +5,7 @@
 package bgp
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -62,21 +63,36 @@ func formatAnnounceText(route *Route) string {
 	// Communities (use [] for list).
 	if len(route.Communities) > 0 {
 		sb.WriteString(" community [")
-		sb.WriteString(strings.Join(route.Communities, " "))
+		for i, c := range route.Communities {
+			if i > 0 {
+				sb.WriteByte(' ')
+			}
+			sb.WriteString(c.String())
+		}
 		sb.WriteString("]")
 	}
 
 	// Large Communities (use [] for list).
 	if len(route.LargeCommunities) > 0 {
 		sb.WriteString(" large-community [")
-		sb.WriteString(strings.Join(route.LargeCommunities, " "))
+		for i, lc := range route.LargeCommunities {
+			if i > 0 {
+				sb.WriteByte(' ')
+			}
+			sb.WriteString(lc.String())
+		}
 		sb.WriteString("]")
 	}
 
 	// Extended Communities (use [] for list).
 	if len(route.ExtendedCommunities) > 0 {
 		sb.WriteString(" extended-community [")
-		sb.WriteString(strings.Join(route.ExtendedCommunities, " "))
+		for i, ec := range route.ExtendedCommunities {
+			if i > 0 {
+				sb.WriteByte(' ')
+			}
+			sb.WriteString(hex.EncodeToString(ec[:]))
+		}
 		sb.WriteString("]")
 	}
 

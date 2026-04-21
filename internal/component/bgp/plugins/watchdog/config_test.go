@@ -402,7 +402,7 @@ func TestParseConfigAllAttributes(t *testing.T) {
 	pool := peerPools["10.0.0.1"].GetPool("dns")
 	route := pool.Routes()[0]
 
-	want := "update text origin igp as-path [65001 65002] med 50 local-preference 200 community [65000:100 65000:200] large-community [65000:1:2] extended-community [target:65000:100] nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"
+	want := "update text origin igp as-path [65001 65002] med 50 local-preference 200 community [65000:100 65000:200] large-community [65000:1:2] extended-community [0002fde800000064] nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"
 	if route.AnnounceCmd != want {
 		t.Errorf("AnnounceCmd:\n  got  %q\n  want %q", route.AnnounceCmd, want)
 	}

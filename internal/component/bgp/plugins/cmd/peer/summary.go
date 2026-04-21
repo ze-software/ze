@@ -13,6 +13,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 func init() {
@@ -82,16 +83,18 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	matched := false
 	peerRows := make([]map[string]any, 0, len(allPeers))
 	var seen map[string]struct{}
+	var famFilter family.Family
 	if familyFilter != "" {
 		seen = make(map[string]struct{})
+		famFilter, _ = family.LookupFamily(familyFilter)
 	}
 	for i := range allPeers {
 		p := &allPeers[i]
 		if familyFilter != "" {
 			for _, f := range p.NegotiatedFamilies {
-				seen[f] = struct{}{}
+				seen[f.String()] = struct{}{}
 			}
-			if !slices.Contains(p.NegotiatedFamilies, familyFilter) {
+			if !slices.Contains(p.NegotiatedFamilies, famFilter) {
 				continue
 			}
 			matched = true

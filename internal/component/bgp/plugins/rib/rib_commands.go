@@ -493,7 +493,7 @@ func (r *RIBManager) inboundEmptyJSON(selector string) string {
 // outboundResendJSON replays Adj-RIB-Out routes for matching peers, returns JSON result.
 // If family is non-empty, only routes from that family are resent.
 // Does NOT send "plugin session ready" - that's only for initial reconnect.
-func (r *RIBManager) outboundResendJSON(selector, family string) string {
+func (r *RIBManager) outboundResendJSON(selector, famStr string) string {
 	r.peerMu.RLock()
 	var peersToResend []string
 	routesToResend := make(map[string][]*Route)
@@ -506,10 +506,12 @@ func (r *RIBManager) outboundResendJSON(selector, family string) string {
 			continue // Only resend to up peers
 		}
 		var routesCopy []*Route
-		if family != "" {
+		if famStr != "" {
 			// Single family resend
-			for _, rt := range peerFamilies[family] {
-				routesCopy = append(routesCopy, rt)
+			if fam, ok := family.LookupFamily(famStr); ok {
+				for _, rt := range peerFamilies[fam] {
+					routesCopy = append(routesCopy, rt)
+				}
 			}
 		} else {
 			// All families
