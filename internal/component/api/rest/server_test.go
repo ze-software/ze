@@ -20,7 +20,7 @@ import (
 
 // testEngine creates an APIEngine with fake implementations for testing.
 func testEngine() *api.APIEngine {
-	exec := func(_, command string) (string, error) {
+	exec := func(_ context.Context, _ api.CallerIdentity, command string) (string, error) {
 		switch command {
 		case "bgp summary":
 			return `{"peer-count":3}`, nil
@@ -40,7 +40,7 @@ func testEngine() *api.APIEngine {
 		}
 	}
 	auth := func(_, _ string) bool { return true }
-	stream := func(_ context.Context, _, _ string) (<-chan string, func(), error) {
+	stream := func(_ context.Context, _ api.CallerIdentity, _ string) (<-chan string, func(), error) {
 		ch := make(chan string, 2) //nolint:mnd // test events
 		ch <- `{"event":"update"}`
 		ch <- `{"event":"withdraw"}`
@@ -165,6 +165,50 @@ func TestRESTExecute(t *testing.T) {
 	var result api.ExecResult
 	require.NoError(t, json.Unmarshal([]byte(r.Body), &result))
 	assert.Equal(t, "done", result.Status)
+}
+
+// VALIDATES: request context and HTTP remote address reach the API executor.
+// PREVENTS: execute requests losing cancellation or accounting metadata at the REST boundary.
+func TestExecutePropagatesRequestContextAndRemoteAddr(t *testing.T) {
+	type ctxKey struct{}
+
+	var (
+		gotCtx  context.Context
+		gotAuth api.CallerIdentity
+	)
+
+	engine := api.NewAPIEngine(
+		func(ctx context.Context, auth api.CallerIdentity, command string) (string, error) {
+			gotCtx = ctx
+			gotAuth = auth
+			return "ok: " + command, nil
+		},
+		func() []api.CommandMeta {
+			return []api.CommandMeta{{Name: "bgp summary", ReadOnly: true}}
+		},
+		func(_, _ string) bool { return true },
+		nil,
+	)
+
+	openAPI, err := api.OpenAPISchema(engine.ListCommands(""))
+	require.NoError(t, err)
+
+	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}}, engine, nil, func() []byte { return openAPI })
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/execute", strings.NewReader(`{"command":"bgp summary"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.RemoteAddr = "198.51.100.10:4444"
+	req = req.WithContext(context.WithValue(req.Context(), ctxKey{}, "trace-id"))
+
+	rec := httptest.NewRecorder()
+	srv.srv.Handler.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.NotNil(t, gotCtx)
+	assert.Equal(t, "trace-id", gotCtx.Value(ctxKey{}))
+	assert.Equal(t, "api", gotAuth.Username)
+	assert.Equal(t, "198.51.100.10:4444", gotAuth.RemoteAddr)
 }
 
 // VALIDATES: AC-3 -- POST /api/v1/execute without auth returns 401.
@@ -397,8 +441,8 @@ func TestRESTRIBFamilyWhitespace(t *testing.T) {
 // PREVENTS: all requests authenticated as "api" default.
 func TestRESTAuthenticator(t *testing.T) {
 	var seenUser string
-	exec := func(username, _ string) (string, error) {
-		seenUser = username
+	exec := func(_ context.Context, auth api.CallerIdentity, _ string) (string, error) {
+		seenUser = auth.Username
 		return `"ok"`, nil
 	}
 	cmds := func() []api.CommandMeta { return nil }

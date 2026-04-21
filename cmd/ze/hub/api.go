@@ -146,7 +146,10 @@ func buildUserAuthenticator(users []authz.UserConfig) func(string) (string, bool
 		if !ok || username == "" {
 			return "", false
 		}
-		result, err := auth.Authenticate(username, password)
+		result, err := auth.Authenticate(authz.AuthRequest{
+			Username: username,
+			Password: password,
+		})
 		if err != nil || !result.Authenticated {
 			return "", false
 		}
@@ -167,13 +170,18 @@ func buildAPIEngine(server *pluginserver.Server) *api.APIEngine {
 
 // apiExecutor creates an Executor from the plugin server's dispatcher.
 func apiExecutor(s *pluginserver.Server) api.Executor {
-	return func(username, command string) (string, error) {
+	return func(ctx context.Context, auth api.CallerIdentity, command string) (string, error) {
 		d := s.Dispatcher()
 		if d == nil {
 			return "", fmt.Errorf("server not ready")
 		}
-		ctx := &pluginserver.CommandContext{Server: s, Username: username}
-		resp, err := d.Dispatch(ctx, command)
+		cmdCtx := &pluginserver.CommandContext{
+			Server:         s,
+			RequestContext: ctx,
+			Username:       auth.Username,
+			RemoteAddr:     auth.RemoteAddr,
+		}
+		resp, err := d.Dispatch(cmdCtx, command)
 		if err != nil {
 			return "", err
 		}

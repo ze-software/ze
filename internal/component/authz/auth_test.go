@@ -18,7 +18,7 @@ type fakeBackend struct {
 	called bool
 }
 
-func (f *fakeBackend) Authenticate(username, password string) (AuthResult, error) {
+func (f *fakeBackend) Authenticate(AuthRequest) (AuthResult, error) {
 	f.called = true
 	return f.result, f.err
 }
@@ -43,24 +43,24 @@ func TestLocalAuthenticatorCompat(t *testing.T) {
 	}
 
 	// Correct password succeeds.
-	result, err := local.Authenticate("admin", "secret")
+	result, err := local.Authenticate(AuthRequest{Username: "admin", Password: "secret"})
 	assert.NoError(t, err)
 	assert.True(t, result.Authenticated)
 	assert.Equal(t, "local", result.Source)
 	assert.Equal(t, []string{"admin"}, result.Profiles)
 
 	// Wrong password returns ErrAuthRejected.
-	result, err = local.Authenticate("admin", "wrong")
+	result, err = local.Authenticate(AuthRequest{Username: "admin", Password: "wrong"})
 	assert.ErrorIs(t, err, ErrAuthRejected)
 	assert.False(t, result.Authenticated)
 
 	// Unknown user returns ErrAuthRejected.
-	result, err = local.Authenticate("nobody", "secret")
+	result, err = local.Authenticate(AuthRequest{Username: "nobody", Password: "secret"})
 	assert.ErrorIs(t, err, ErrAuthRejected)
 	assert.False(t, result.Authenticated)
 
 	// Empty username returns ErrAuthRejected.
-	result, err = local.Authenticate("", "secret")
+	result, err = local.Authenticate(AuthRequest{Username: "", Password: "secret"})
 	assert.ErrorIs(t, err, ErrAuthRejected)
 	assert.False(t, result.Authenticated)
 }
@@ -76,7 +76,7 @@ func TestChainAuthenticator(t *testing.T) {
 	}
 
 	chain := &ChainAuthenticator{Backends: []Authenticator{first, second}}
-	result, err := chain.Authenticate("user", "pass")
+	result, err := chain.Authenticate(AuthRequest{Username: "user", Password: "pass"})
 
 	assert.NoError(t, err)
 	assert.True(t, result.Authenticated)
@@ -96,7 +96,7 @@ func TestChainFallback(t *testing.T) {
 	}
 
 	chain := &ChainAuthenticator{Backends: []Authenticator{failing, local}}
-	result, err := chain.Authenticate("user", "pass")
+	result, err := chain.Authenticate(AuthRequest{Username: "user", Password: "pass"})
 
 	assert.NoError(t, err)
 	assert.True(t, result.Authenticated)
@@ -112,7 +112,7 @@ func TestChainAllFail(t *testing.T) {
 	second := &fakeBackend{err: fmt.Errorf("server unreachable")}
 
 	chain := &ChainAuthenticator{Backends: []Authenticator{first, second}}
-	result, err := chain.Authenticate("user", "pass")
+	result, err := chain.Authenticate(AuthRequest{Username: "user", Password: "pass"})
 
 	assert.Error(t, err)
 	assert.False(t, result.Authenticated)
@@ -132,7 +132,7 @@ func TestChainRejectNoFallback(t *testing.T) {
 	}
 
 	chain := &ChainAuthenticator{Backends: []Authenticator{tacacs, local}}
-	result, err := chain.Authenticate("user", "wrongpass")
+	result, err := chain.Authenticate(AuthRequest{Username: "user", Password: "wrongpass"})
 
 	assert.ErrorIs(t, err, ErrAuthRejected)
 	assert.False(t, result.Authenticated)
@@ -145,7 +145,7 @@ func TestChainRejectNoFallback(t *testing.T) {
 // PREVENTS: nil pointer or silent pass with empty chain.
 func TestChainNoBackends(t *testing.T) {
 	chain := &ChainAuthenticator{}
-	result, err := chain.Authenticate("user", "pass")
+	result, err := chain.Authenticate(AuthRequest{Username: "user", Password: "pass"})
 
 	assert.Error(t, err)
 	assert.False(t, result.Authenticated)
@@ -158,7 +158,7 @@ func TestChainWrapsLastError(t *testing.T) {
 	first := &fakeBackend{err: connErr}
 
 	chain := &ChainAuthenticator{Backends: []Authenticator{first}}
-	_, err := chain.Authenticate("user", "pass")
+	_, err := chain.Authenticate(AuthRequest{Username: "user", Password: "pass"})
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, connErr), "should wrap the connection error")

@@ -1,9 +1,13 @@
 package server
 
 import (
+	"context"
 	"errors"
+	"net"
 	"net/netip"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
 
@@ -264,6 +269,136 @@ func TestCommandContextAccessors(t *testing.T) {
 	assert.Equal(t, subs, ctx.Subscriptions(), "Subscriptions() should return server's subscriptions")
 }
 
+// VALIDATES: AC-1 -- CommandContext.Context uses request -> server -> background fallback.
+// PREVENTS: request cancellation being dropped before dispatch reaches handlers.
+func TestCommandContextContextFallback(t *testing.T) {
+	serverCtx, serverCancel := context.WithCancel(t.Context())
+	defer serverCancel()
+
+	requestCtx, requestCancel := context.WithCancel(t.Context())
+	defer requestCancel()
+
+	srv := &Server{ctx: serverCtx}
+
+	assert.Same(t, requestCtx, (&CommandContext{Server: srv, RequestContext: requestCtx}).Context())
+	assert.Same(t, serverCtx, (&CommandContext{Server: srv}).Context())
+
+	backgroundCtx := (&CommandContext{}).Context()
+	require.NotNil(t, backgroundCtx)
+	assert.NoError(t, backgroundCtx.Err())
+}
+
+// VALIDATES: AC-2 -- subsystem dispatch derives child work from the caller context.
+// PREVENTS: canceled callers still reaching subsystem RPC handlers through a new root context.
+func TestDispatchSubsystemUsesCommandContextContext(t *testing.T) {
+	t.Parallel()
+
+	engineSide, subsystemSide := net.Pipe()
+	t.Cleanup(func() { _ = engineSide.Close() })
+	t.Cleanup(func() { _ = subsystemSide.Close() })
+
+	proc := process.NewProcess(plugin.PluginConfig{Name: "test-subsystem"})
+	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
+	markProcessRunning(t, proc)
+
+	handler := &SubsystemHandler{proc: proc}
+	subsystemConn := ipc.NewPluginConn(subsystemSide, subsystemSide)
+
+	readCtx, readCancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer readCancel()
+
+	gotRequest := make(chan struct{}, 1)
+	readErrCh := make(chan error, 1)
+	go func() {
+		_, err := subsystemConn.ReadRequest(readCtx)
+		if err != nil {
+			readErrCh <- err
+			return
+		}
+		gotRequest <- struct{}{}
+	}()
+
+	parentCtx, cancelParent := context.WithCancel(context.Background())
+	cancelParent()
+
+	resp, err := NewDispatcher().dispatchSubsystem(&CommandContext{RequestContext: parentCtx}, handler, "show version")
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	msg, ok := resp.Data.(string)
+	require.True(t, ok, "expected string response data, got %T", resp.Data)
+	if !strings.Contains(msg, context.Canceled.Error()) {
+		t.Fatalf("expected canceled error in response, got %q", msg)
+	}
+
+	select {
+	case <-gotRequest:
+		t.Fatal("subsystem received a request despite canceled parent context")
+	case readErr := <-readErrCh:
+		assert.ErrorIs(t, readErr, context.DeadlineExceeded)
+	case <-time.After(time.Second):
+		t.Fatal("subsystem read did not complete")
+	}
+}
+
+// VALIDATES: AC-2 -- plugin RPC routing derives timeout contexts from the caller context.
+// PREVENTS: plugin execute-command requests surviving caller cancellation because they start from Background.
+func TestRouteToProcessUsesParentContextTimeout(t *testing.T) {
+	t.Parallel()
+
+	engineSide, pluginSide := net.Pipe()
+	t.Cleanup(func() { _ = engineSide.Close() })
+	t.Cleanup(func() { _ = pluginSide.Close() })
+
+	proc := process.NewProcess(plugin.PluginConfig{Name: "test-plugin"})
+	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
+	markProcessRunning(t, proc)
+
+	cmd := &RegisteredCommand{
+		Name:      "plugin command",
+		LowerName: "plugin command",
+		Timeout:   time.Second,
+		Process:   proc,
+	}
+
+	pluginConn := ipc.NewPluginConn(pluginSide, pluginSide)
+	readCtx, readCancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer readCancel()
+
+	gotRequest := make(chan struct{}, 1)
+	readErrCh := make(chan error, 1)
+	go func() {
+		_, err := pluginConn.ReadRequest(readCtx)
+		if err != nil {
+			readErrCh <- err
+			return
+		}
+		gotRequest <- struct{}{}
+	}()
+
+	parentCtx, cancelParent := context.WithCancel(context.Background())
+	cancelParent()
+
+	resp, err := NewDispatcher().routeToProcess(&CommandContext{RequestContext: parentCtx}, cmd, nil, "*")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	msg, ok := resp.Data.(string)
+	require.True(t, ok, "expected string response data, got %T", resp.Data)
+	if !strings.Contains(msg, context.Canceled.Error()) {
+		t.Fatalf("expected canceled error in response, got %q", msg)
+	}
+
+	select {
+	case <-gotRequest:
+		t.Fatal("plugin received a request despite canceled parent context")
+	case readErr := <-readErrCh:
+		assert.ErrorIs(t, readErr, context.DeadlineExceeded)
+	case <-time.After(time.Second):
+		t.Fatal("plugin read did not complete")
+	}
+}
+
 // TestDispatcherPluginMatch verifies plugin command dispatch via the registry.
 //
 // VALIDATES: Plugin commands are matched by the dispatcher's plugin registry path.
@@ -417,7 +552,7 @@ func TestDispatchWildcardSelector(t *testing.T) {
 func TestForwardToPluginNotRegistered(t *testing.T) {
 	d := NewDispatcher()
 
-	resp, err := d.ForwardToPlugin("bgp rib status", nil, "*")
+	resp, err := d.ForwardToPlugin(nil, "bgp rib status", nil, "*")
 	require.Error(t, err)
 	assert.Nil(t, resp)
 	assert.True(t, errors.Is(err, ErrUnknownCommand),
@@ -440,7 +575,7 @@ func TestForwardToPluginRegistered(t *testing.T) {
 	})
 
 	// ForwardToPlugin should find the command but fail because process isn't running
-	resp, err := d.ForwardToPlugin("bgp rib status", nil, "*")
+	resp, err := d.ForwardToPlugin(nil, "bgp rib status", nil, "*")
 	require.Error(t, err)
 	assert.False(t, errors.Is(err, ErrUnknownCommand),
 		"command should be found in registry, got: %v", err)
@@ -448,6 +583,62 @@ func TestForwardToPluginRegistered(t *testing.T) {
 	assert.True(t, errors.Is(err, ErrPluginProcessNotRunning),
 		"expected ErrPluginProcessNotRunning, got: %v", err)
 	assert.Nil(t, resp)
+}
+
+// VALIDATES: builtin proxy handlers preserve caller cancellation when forwarding to plugins.
+// PREVENTS: ForwardToPlugin re-rooting proxy commands at context.Background().
+func TestForwardToPluginUsesParentContext(t *testing.T) {
+	t.Parallel()
+
+	engineSide, pluginSide := net.Pipe()
+	t.Cleanup(func() { _ = engineSide.Close() })
+	t.Cleanup(func() { _ = pluginSide.Close() })
+
+	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-rib"})
+	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
+	markProcessRunning(t, proc)
+
+	d := NewDispatcher()
+	d.Registry().Register(proc, []CommandDef{
+		{Name: "bgp rib status", Description: "RIB summary"},
+	})
+
+	pluginConn := ipc.NewPluginConn(pluginSide, pluginSide)
+	readCtx, readCancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer readCancel()
+
+	gotRequest := make(chan struct{}, 1)
+	readErrCh := make(chan error, 1)
+	go func() {
+		_, err := pluginConn.ReadRequest(readCtx)
+		if err != nil {
+			readErrCh <- err
+			return
+		}
+		gotRequest <- struct{}{}
+	}()
+
+	parentCtx, cancelParent := context.WithCancel(context.Background())
+	cancelParent()
+
+	resp, err := d.ForwardToPlugin(&CommandContext{RequestContext: parentCtx}, "bgp rib status", nil, "*")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	msg, ok := resp.Data.(string)
+	require.True(t, ok, "expected string response data, got %T", resp.Data)
+	if !strings.Contains(msg, context.Canceled.Error()) {
+		t.Fatalf("expected canceled error in response, got %q", msg)
+	}
+
+	select {
+	case <-gotRequest:
+		t.Fatal("plugin received a request despite canceled parent context")
+	case readErr := <-readErrCh:
+		assert.ErrorIs(t, readErr, context.DeadlineExceeded)
+	case <-time.After(time.Second):
+		t.Fatal("plugin read did not complete")
+	}
 }
 
 // TestDispatchPeerScopedPluginCommand verifies that "peer <addr> bgp rib show"

@@ -40,6 +40,17 @@ func noopRenderer(w http.ResponseWriter, _ *http.Request) {
 	w.Write([]byte("login page")) //nolint:errcheck // test helper
 }
 
+type recordingAuthenticator struct {
+	request authz.AuthRequest
+	result  authz.AuthResult
+	err     error
+}
+
+func (r *recordingAuthenticator) Authenticate(request authz.AuthRequest) (authz.AuthResult, error) {
+	r.request = request
+	return r.result, r.err
+}
+
 // TestSessionCookieValidation verifies that AuthMiddleware passes requests with
 // a valid session cookie and rejects requests with an invalid or missing cookie.
 // VALIDATES: AC-2 (missing session returns login page), AC-3 (valid session passes)
@@ -202,6 +213,31 @@ func TestBasicAuthForJSONAPI(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, rec.Code)
 		})
 	}
+}
+
+// VALIDATES: web auth passes HTTP remote address into the shared authenticator request.
+// PREVENTS: AAA backends seeing empty rem_addr for browser/API logins.
+func TestAuthMiddlewarePassesRemoteAddrToAuthenticator(t *testing.T) {
+	store := NewSessionStore()
+	authenticator := &recordingAuthenticator{
+		result: authz.AuthResult{Authenticated: true, Source: "test"},
+	}
+
+	handler := AuthMiddleware(store, authenticator, noopRenderer, okHandler())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/status", http.NoBody)
+	req.RemoteAddr = "198.51.100.10:4444"
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", "Basic "+
+		base64.StdEncoding.EncodeToString([]byte("alice:testpass")))
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "alice", authenticator.request.Username)
+	assert.Equal(t, "testpass", authenticator.request.Password)
+	assert.Equal(t, "198.51.100.10:4444", authenticator.request.RemoteAddr)
 }
 
 // TestSecurityHeaders verifies that authenticated responses include all required

@@ -1,14 +1,23 @@
 package server
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"reflect"
+	"sync/atomic"
+	"testing"
+	"unsafe"
+
+	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
 
-// internalBuildTestWireToPath creates a WireMethod->path map from the YANG loader.
-// This is the internal-package version used by benchmarks and tests that need
-// unexported symbols. The external test file (package server_test) has its own
-// version that also imports plugin/all for full registration.
-func internalBuildTestWireToPath() map[string]string {
-	loader, _ := yang.DefaultLoader()
-	return yang.WireMethodToPath(loader)
+func markProcessRunning(t *testing.T, proc *process.Process) {
+	t.Helper()
+
+	field := reflect.ValueOf(proc).Elem().FieldByName("running")
+	require.True(t, field.IsValid(), "process.running field must exist")
+	require.True(t, field.CanAddr(), "process.running field must be addressable")
+
+	running := (*atomic.Bool)(unsafe.Pointer(field.UnsafeAddr()))
+	running.Store(true)
 }

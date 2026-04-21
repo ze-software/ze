@@ -182,7 +182,11 @@ func AuthMiddleware(store *SessionStore, authenticator authz.Authenticator, logi
 
 		// Fall back to Basic Auth for JSON API requests.
 		if username, password, ok := parseBasicAuth(r); ok {
-			if result, err := authenticator.Authenticate(username, password); err == nil && result.Authenticated {
+			if result, err := authenticator.Authenticate(authz.AuthRequest{
+				Username:   username,
+				Password:   password,
+				RemoteAddr: r.RemoteAddr,
+			}); err == nil && result.Authenticated {
 				logger.Debug("basic auth accepted", "username", username)
 				addSecurityHeaders(w)
 				next.ServeHTTP(w, r.WithContext(withUsername(r.Context(), username)))
@@ -215,7 +219,11 @@ func LoginHandler(store *SessionStore, authenticator authz.Authenticator, loginR
 		username := r.FormValue("username")
 		password := r.FormValue("password")
 
-		result, err := authenticator.Authenticate(username, password)
+		result, err := authenticator.Authenticate(authz.AuthRequest{
+			Username:   username,
+			Password:   password,
+			RemoteAddr: r.RemoteAddr,
+		})
 		if err != nil || !result.Authenticated {
 			logger.Warn("login failed", "username", username, "remote", r.RemoteAddr)
 			w.WriteHeader(http.StatusUnauthorized)

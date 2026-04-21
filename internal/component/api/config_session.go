@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/architecture.md -- API config session manager
 // Related: engine.go -- engine that manages config sessions
-// Related: types.go -- shared types (AuthContext)
+// Related: types.go -- shared types (CallerIdentity)
 
 package api
 

@@ -22,7 +22,7 @@ import (
 
 // testEngine creates an APIEngine with fake implementations.
 func testEngine() *api.APIEngine {
-	exec := func(_, command string) (string, error) {
+	exec := func(_ context.Context, _ api.CallerIdentity, command string) (string, error) {
 		switch command {
 		case "bgp summary":
 			return `{"peer-count":3}`, nil
@@ -37,7 +37,7 @@ func testEngine() *api.APIEngine {
 		}
 	}
 	auth := func(_, _ string) bool { return true }
-	stream := func(_ context.Context, _, _ string) (<-chan string, func(), error) {
+	stream := func(_ context.Context, _ api.CallerIdentity, _ string) (<-chan string, func(), error) {
 		ch := make(chan string, 2) //nolint:mnd // test events
 		ch <- `{"event":"update"}`
 		ch <- `{"event":"withdraw"}`
@@ -92,6 +92,12 @@ func startTestServer(t *testing.T, token string) (zepb.ZeServiceClient, zepb.ZeC
 	t.Helper()
 
 	engine := testEngine()
+	return startTestServerWithEngine(t, token, engine)
+}
+
+func startTestServerWithEngine(t *testing.T, token string, engine *api.APIEngine) (zepb.ZeServiceClient, zepb.ZeConfigServiceClient) {
+	t.Helper()
+
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
 		return &fakeEditor{values: make(map[string]string)}, nil
 	})
@@ -140,6 +146,33 @@ func TestGRPCExecute(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.GetStatus())
 	assert.Contains(t, string(resp.GetData()), "peer-count")
+}
+
+// VALIDATES: gRPC Execute extracts the peer address into CallerIdentity.
+// PREVENTS: dispatcher/accounting seeing empty remote address for gRPC callers.
+func TestExecuteUsesPeerRemoteAddr(t *testing.T) {
+	var gotAuth api.CallerIdentity
+
+	engine := api.NewAPIEngine(
+		func(_ context.Context, auth api.CallerIdentity, command string) (string, error) {
+			gotAuth = auth
+			return "ok: " + command, nil
+		},
+		func() []api.CommandMeta {
+			return []api.CommandMeta{{Name: "bgp summary", ReadOnly: true}}
+		},
+		func(_, _ string) bool { return true },
+		nil,
+	)
+
+	ze, _ := startTestServerWithEngine(t, "", engine)
+
+	resp, err := ze.Execute(t.Context(), &zepb.CommandRequest{Command: "bgp summary"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.GetStatus())
+	assert.Equal(t, "api", gotAuth.Username)
+	assert.NotEmpty(t, gotAuth.RemoteAddr)
+	assert.Contains(t, gotAuth.RemoteAddr, "127.0.0.1:")
 }
 
 // VALIDATES: AC-3 -- RPC without auth returns Unauthenticated.
@@ -256,7 +289,9 @@ func TestGRPCExecuteEmptyCommand(t *testing.T) {
 // VALIDATES: Execute with denied auth returns PermissionDenied.
 // PREVENTS: auth bypass in gRPC path.
 func TestGRPCExecutePermissionDenied(t *testing.T) {
-	exec := func(_, _ string) (string, error) { return "", errors.New("should not reach") }
+	exec := func(_ context.Context, _ api.CallerIdentity, _ string) (string, error) {
+		return "", errors.New("should not reach")
+	}
 	cmds := func() []api.CommandMeta { return nil }
 	auth := func(_, _ string) bool { return false }
 	engine := api.NewAPIEngine(exec, cmds, auth, nil)
@@ -319,8 +354,8 @@ func TestGRPCTLSInvalidCert(t *testing.T) {
 // PREVENTS: all gRPC requests authenticated as "api" default.
 func TestGRPCAuthenticator(t *testing.T) {
 	var seenUser string
-	exec := func(username, _ string) (string, error) {
-		seenUser = username
+	exec := func(_ context.Context, auth api.CallerIdentity, _ string) (string, error) {
+		seenUser = auth.Username
 		return `"ok"`, nil
 	}
 	cmds := func() []api.CommandMeta { return nil }

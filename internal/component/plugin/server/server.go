@@ -102,8 +102,9 @@ type Server struct {
 func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) ipc.RPCHandler {
 	return func(_ string, params json.RawMessage) (any, error) {
 		ctx := &CommandContext{
-			Server: s,
-			Peer:   "*",
+			Server:         s,
+			RequestContext: s.Context(),
+			Peer:           "*",
 		}
 
 		var rpcParams RPCParams

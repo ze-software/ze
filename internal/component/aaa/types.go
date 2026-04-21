@@ -76,6 +76,14 @@ type AuthResult struct {
 	Source        string   // backend identifier ("local", "tacacs", ...)
 }
 
+// AuthRequest carries request-scoped authentication input and trusted metadata.
+type AuthRequest struct {
+	Username   string
+	Password   string //nolint:gosec // Transient in-memory auth input passed to backends; never logged or persisted.
+	RemoteAddr string
+	Service    string
+}
+
 // ChainAuthenticator tries backends in order and distinguishes two failure modes:
 //   - Explicit rejection (ErrAuthRejected): stop immediately, do not try next.
 //   - Connection error (any other error): try the next backend.
@@ -86,13 +94,13 @@ type ChainAuthenticator struct {
 }
 
 // Authenticate walks the chain in registration order.
-func (c *ChainAuthenticator) Authenticate(username, password string) (AuthResult, error) {
+func (c *ChainAuthenticator) Authenticate(request AuthRequest) (AuthResult, error) {
 	if len(c.Backends) == 0 {
 		return AuthResult{}, fmt.Errorf("no authentication backends configured")
 	}
 	var lastErr error
 	for _, backend := range c.Backends {
-		result, err := backend.Authenticate(username, password)
+		result, err := backend.Authenticate(request)
 		if err == nil && result.Authenticated {
 			return result, nil
 		}

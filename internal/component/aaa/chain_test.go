@@ -10,13 +10,15 @@ import (
 
 // fakeBackend is a test Authenticator that returns configurable results.
 type fakeBackend struct {
-	result AuthResult
-	err    error
-	called bool
+	result  AuthResult
+	err     error
+	called  bool
+	request AuthRequest
 }
 
-func (f *fakeBackend) Authenticate(_, _ string) (AuthResult, error) {
+func (f *fakeBackend) Authenticate(request AuthRequest) (AuthResult, error) {
 	f.called = true
+	f.request = request
 	return f.result, f.err
 }
 
@@ -37,7 +39,7 @@ func TestChainFirstSuccessWins(t *testing.T) {
 	}
 
 	chain := &ChainAuthenticator{Backends: []Authenticator{first, second}}
-	result, err := chain.Authenticate("user", "pass")
+	result, err := chain.Authenticate(AuthRequest{Username: "user", Password: "pass"})
 
 	assert.NoError(t, err)
 	assert.True(t, result.Authenticated)
@@ -57,7 +59,7 @@ func TestChainFallthroughOnError(t *testing.T) {
 	}
 
 	chain := &ChainAuthenticator{Backends: []Authenticator{failing, local}}
-	result, err := chain.Authenticate("user", "pass")
+	result, err := chain.Authenticate(AuthRequest{Username: "user", Password: "pass"})
 
 	assert.NoError(t, err)
 	assert.True(t, result.Authenticated)
@@ -73,7 +75,7 @@ func TestChainAllFail(t *testing.T) {
 	second := &fakeBackend{err: fmt.Errorf("server unreachable")}
 
 	chain := &ChainAuthenticator{Backends: []Authenticator{first, second}}
-	result, err := chain.Authenticate("user", "pass")
+	result, err := chain.Authenticate(AuthRequest{Username: "user", Password: "pass"})
 
 	assert.Error(t, err)
 	assert.False(t, result.Authenticated)
@@ -93,7 +95,7 @@ func TestChainRejectNoFallback(t *testing.T) {
 	}
 
 	chain := &ChainAuthenticator{Backends: []Authenticator{tacacs, local}}
-	result, err := chain.Authenticate("user", "wrongpass")
+	result, err := chain.Authenticate(AuthRequest{Username: "user", Password: "wrongpass"})
 
 	assert.ErrorIs(t, err, ErrAuthRejected)
 	assert.False(t, result.Authenticated)
@@ -106,7 +108,7 @@ func TestChainRejectNoFallback(t *testing.T) {
 // PREVENTS: nil pointer or silent pass.
 func TestChainNoBackends(t *testing.T) {
 	chain := &ChainAuthenticator{}
-	result, err := chain.Authenticate("user", "pass")
+	result, err := chain.Authenticate(AuthRequest{Username: "user", Password: "pass"})
 
 	assert.Error(t, err)
 	assert.False(t, result.Authenticated)
@@ -119,8 +121,29 @@ func TestChainWrapsLastError(t *testing.T) {
 	first := &fakeBackend{err: connErr}
 
 	chain := &ChainAuthenticator{Backends: []Authenticator{first}}
-	_, err := chain.Authenticate("user", "pass")
+	_, err := chain.Authenticate(AuthRequest{Username: "user", Password: "pass"})
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, connErr), "should wrap the connection error")
+}
+
+// VALIDATES: richer auth request metadata is forwarded unchanged through the chain.
+// PREVENTS: SSH remote address or service being dropped before the TACACS backend sees them.
+func TestChainAuthenticatorForwardsAuthRequest(t *testing.T) {
+	backend := &fakeBackend{
+		result: AuthResult{Authenticated: true, Source: "local"},
+	}
+	request := AuthRequest{
+		Username:   "user",
+		Password:   "pass",
+		RemoteAddr: "203.0.113.5:2222",
+		Service:    "ssh",
+	}
+
+	chain := &ChainAuthenticator{Backends: []Authenticator{backend}}
+	result, err := chain.Authenticate(request)
+
+	assert.NoError(t, err)
+	assert.True(t, result.Authenticated)
+	assert.Equal(t, request, backend.request)
 }

@@ -42,7 +42,7 @@ func TestTacacsAuthenticatorPass(t *testing.T) {
 	}
 
 	auth := NewTacacsAuthenticator(client, privMap, nil)
-	result, err := auth.Authenticate("admin", "secret")
+	result, err := auth.Authenticate(authz.AuthRequest{Username: "admin", Password: "secret"})
 
 	require.NoError(t, err)
 	assert.True(t, result.Authenticated)
@@ -68,7 +68,7 @@ func TestTacacsAuthenticatorPrivLvl1(t *testing.T) {
 	}
 
 	auth := NewTacacsAuthenticator(client, privMap, nil)
-	result, err := auth.Authenticate("user", "pass")
+	result, err := auth.Authenticate(authz.AuthRequest{Username: "user", Password: "pass"})
 
 	require.NoError(t, err)
 	assert.True(t, result.Authenticated)
@@ -88,7 +88,7 @@ func TestTacacsAuthenticatorFail(t *testing.T) {
 	})
 
 	auth := NewTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
-	result, err := auth.Authenticate("admin", "wrong")
+	result, err := auth.Authenticate(authz.AuthRequest{Username: "admin", Password: "wrong"})
 
 	assert.ErrorIs(t, err, authz.ErrAuthRejected)
 	assert.False(t, result.Authenticated)
@@ -114,7 +114,7 @@ func TestTacacsAuthenticatorUnmappedPrivLvl(t *testing.T) {
 	}
 
 	auth := NewTacacsAuthenticator(client, privMap, nil)
-	result, err := auth.Authenticate("user", "pass")
+	result, err := auth.Authenticate(authz.AuthRequest{Username: "user", Password: "pass"})
 
 	assert.ErrorIs(t, err, authz.ErrAuthRejected)
 	assert.False(t, result.Authenticated)
@@ -142,7 +142,7 @@ func TestTacacsAuthenticatorErrorStatus(t *testing.T) {
 	})
 
 	auth := NewTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
-	_, err := auth.Authenticate("admin", "pass")
+	_, err := auth.Authenticate(authz.AuthRequest{Username: "admin", Password: "pass"})
 
 	// ERROR should be a non-ErrAuthRejected error (chain tries next backend).
 	assert.Error(t, err)
@@ -159,9 +159,40 @@ func TestTacacsAuthenticatorConnectionFailure(t *testing.T) {
 	})
 
 	auth := NewTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
-	_, err := auth.Authenticate("admin", "pass")
+	_, err := auth.Authenticate(authz.AuthRequest{Username: "admin", Password: "pass"})
 
 	// Connection failure should be a non-ErrAuthRejected error.
 	assert.Error(t, err)
 	assert.NotErrorIs(t, err, authz.ErrAuthRejected)
+}
+
+// VALIDATES: TACACS auth forwards the SSH remote address into the authen START packet.
+// PREVENTS: rem_addr staying empty even after the AAA request object is widened.
+func TestTacacsAuthenticatorUsesRemoteAddr(t *testing.T) {
+	key := []byte("test-key")
+	var seenRemoteAddr string
+
+	srv := newTestServer(t, key, func(_ PacketHeader, body []byte) []byte {
+		off := 8 + int(body[4]) + int(body[5])
+		seenRemoteAddr = string(body[off : off+int(body[6])])
+		return replyWithPrivLvl(15)(PacketHeader{}, nil)
+	})
+	defer srv.close()
+
+	client := NewTacacsClient(TacacsClientConfig{
+		Servers: []TacacsServer{{Address: srv.addr(), Key: key}},
+		Timeout: 2 * time.Second,
+	})
+
+	auth := NewTacacsAuthenticator(client, map[int][]string{15: {"admin"}}, nil)
+	result, err := auth.Authenticate(authz.AuthRequest{
+		Username:   "admin",
+		Password:   "secret",
+		RemoteAddr: "203.0.113.5:2222",
+		Service:    "ssh",
+	})
+
+	require.NoError(t, err)
+	assert.True(t, result.Authenticated)
+	assert.Equal(t, "203.0.113.5:2222", seenRemoteAddr)
 }

@@ -9,6 +9,16 @@
 
 Ze uses target-first syntax with JSON or text encoding.
 
+### Transport Request Metadata
+
+REST and gRPC remain thin adapters over the shared API engine. `Execute` and
+`Stream` pass the caller's `context.Context` together with trusted auth
+metadata (`Username`, `RemoteAddr`) into the engine; hub wiring then builds
+`pluginserver.CommandContext` for dispatcher/accounting use.
+
+Request bodies and plugin RPC payloads do not carry identity fields. Caller
+identity is injected only by trusted transport wiring.
+
 ### ExaBGP Differences
 
 | Aspect | ExaBGP | Ze |

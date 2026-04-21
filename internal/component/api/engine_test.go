@@ -26,7 +26,7 @@ func fakeCommands() CommandSource {
 
 // fakeExecutor returns an Executor that echoes commands.
 func fakeExecutor() Executor {
-	return func(_, command string) (string, error) {
+	return func(_ context.Context, _ CallerIdentity, command string) (string, error) {
 		switch command {
 		case "bgp summary":
 			return `{"peer-count":3,"established":2}`, nil
@@ -107,7 +107,7 @@ func TestEngineDescribeCommandNotFound(t *testing.T) {
 func TestEngineExecuteDispatch(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
 
-	result, err := eng.Execute(AuthContext{Username: "admin"}, "bgp summary")
+	result, err := eng.Execute(t.Context(), CallerIdentity{Username: "admin"}, "bgp summary")
 	require.NoError(t, err)
 	assert.Equal(t, StatusDone, result.Status)
 
@@ -123,7 +123,7 @@ func TestEngineExecuteDispatch(t *testing.T) {
 func TestEngineExecuteStringOutput(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
 
-	result, err := eng.Execute(AuthContext{Username: "admin"}, "daemon reload")
+	result, err := eng.Execute(t.Context(), CallerIdentity{Username: "admin"}, "daemon reload")
 	require.NoError(t, err)
 	assert.Equal(t, StatusDone, result.Status)
 	assert.Equal(t, "reload initiated", result.Data)
@@ -134,7 +134,7 @@ func TestEngineExecuteStringOutput(t *testing.T) {
 func TestEngineExecuteUnauthorized(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), denyAllAuth(), nil)
 
-	result, err := eng.Execute(AuthContext{Username: "readonly"}, "daemon reload")
+	result, err := eng.Execute(t.Context(), CallerIdentity{Username: "readonly"}, "daemon reload")
 	assert.ErrorIs(t, err, ErrUnauthorized)
 	assert.Equal(t, StatusError, result.Status)
 	assert.Contains(t, result.Error, "authorization denied")
@@ -143,12 +143,12 @@ func TestEngineExecuteUnauthorized(t *testing.T) {
 // VALIDATES: Execute propagates executor errors.
 // PREVENTS: swallowed errors in dispatch path.
 func TestEngineExecuteError(t *testing.T) {
-	errExec := func(_, _ string) (string, error) {
+	errExec := func(_ context.Context, _ CallerIdentity, _ string) (string, error) {
 		return "", errors.New("connection refused")
 	}
 	eng := NewAPIEngine(errExec, fakeCommands(), allowAllAuth(), nil)
 
-	result, err := eng.Execute(AuthContext{Username: "admin"}, "bgp summary")
+	result, err := eng.Execute(t.Context(), CallerIdentity{Username: "admin"}, "bgp summary")
 	require.Error(t, err)
 	assert.Equal(t, StatusError, result.Status)
 	assert.Equal(t, "connection refused", result.Error)
@@ -159,14 +159,14 @@ func TestEngineExecuteError(t *testing.T) {
 func TestEngineExecuteNilAuth(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), nil, nil)
 
-	result, err := eng.Execute(AuthContext{Username: ""}, "bgp summary")
+	result, err := eng.Execute(t.Context(), CallerIdentity{Username: ""}, "bgp summary")
 	require.NoError(t, err)
 	assert.Equal(t, StatusDone, result.Status)
 }
 
 // fakeStream returns a StreamSource that sends N events then closes.
 func fakeStream(events []string) StreamSource {
-	return func(_ context.Context, _, _ string) (<-chan string, func(), error) {
+	return func(_ context.Context, _ CallerIdentity, _ string) (<-chan string, func(), error) {
 		ch := make(chan string, len(events))
 		for _, e := range events {
 			ch <- e
@@ -182,7 +182,7 @@ func TestEngineStream(t *testing.T) {
 	events := []string{`{"type":"update","peer":"10.0.0.1"}`, `{"type":"update","peer":"10.0.0.2"}`}
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), fakeStream(events))
 
-	ch, cancel, err := eng.Stream(t.Context(), AuthContext{Username: "admin"}, "bgp monitor")
+	ch, cancel, err := eng.Stream(t.Context(), CallerIdentity{Username: "admin"}, "bgp monitor")
 	require.NoError(t, err)
 	defer cancel()
 
@@ -198,7 +198,7 @@ func TestEngineStream(t *testing.T) {
 func TestEngineStreamUnauthorized(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), denyAllAuth(), fakeStream(nil))
 
-	_, _, err := eng.Stream(t.Context(), AuthContext{Username: "nobody"}, "bgp monitor")
+	_, _, err := eng.Stream(t.Context(), CallerIdentity{Username: "nobody"}, "bgp monitor")
 	assert.ErrorIs(t, err, ErrUnauthorized)
 }
 
@@ -207,7 +207,7 @@ func TestEngineStreamUnauthorized(t *testing.T) {
 func TestEngineStreamNotSupported(t *testing.T) {
 	eng := NewAPIEngine(fakeExecutor(), fakeCommands(), allowAllAuth(), nil)
 
-	_, _, err := eng.Stream(t.Context(), AuthContext{Username: "admin"}, "bgp monitor")
+	_, _, err := eng.Stream(t.Context(), CallerIdentity{Username: "admin"}, "bgp monitor")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "streaming not supported")
 }

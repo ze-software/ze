@@ -19,9 +19,9 @@ var (
 )
 
 // Executor runs a command and returns its raw output.
-// The username is passed so the implementation can set CommandContext.Username
-// for per-command authorization. The composition root MUST wire this through.
-type Executor func(username, command string) (string, error)
+// The transport context plus caller metadata are passed through so the
+// implementation can build a request-scoped CommandContext.
+type Executor func(ctx context.Context, caller CallerIdentity, command string) (string, error)
 
 // CommandSource returns all available commands with metadata.
 type CommandSource func() []CommandMeta
@@ -34,7 +34,7 @@ type AuthChecker func(username, command string) bool
 // Returns the event channel, a cancel function, and any error.
 // The channel is closed when the stream ends or cancel is called.
 // Caller MUST call the cancel function when done to release resources.
-type StreamSource func(ctx context.Context, username, command string) (<-chan string, func(), error)
+type StreamSource func(ctx context.Context, caller CallerIdentity, command string) (<-chan string, func(), error)
 
 // APIEngine is the shared backend for REST and gRPC transports.
 // Transports call engine methods only -- never the dispatcher directly.
@@ -89,15 +89,15 @@ func (e *APIEngine) DescribeCommand(path string) (CommandMeta, error) {
 
 // Execute runs a command and returns the result.
 // Returns ErrUnauthorized if the auth checker denies the request.
-func (e *APIEngine) Execute(auth AuthContext, command string) (*ExecResult, error) {
-	if e.auth != nil && !e.auth(auth.Username, command) {
+func (e *APIEngine) Execute(ctx context.Context, caller CallerIdentity, command string) (*ExecResult, error) {
+	if e.auth != nil && !e.auth(caller.Username, command) {
 		return &ExecResult{
 			Status: StatusError,
 			Error:  fmt.Sprintf("authorization denied for %q", command),
 		}, ErrUnauthorized
 	}
 
-	output, err := e.executor(auth.Username, command)
+	output, err := e.executor(ctx, caller, command)
 	if err != nil {
 		return &ExecResult{
 			Status: StatusError,
@@ -120,12 +120,12 @@ func (e *APIEngine) Execute(auth AuthContext, command string) (*ExecResult, erro
 // The caller MUST call the returned cancel function when done.
 // Returns ErrUnauthorized if the auth checker denies the request.
 // Returns an error if streaming is not configured.
-func (e *APIEngine) Stream(ctx context.Context, auth AuthContext, command string) (<-chan string, func(), error) {
+func (e *APIEngine) Stream(ctx context.Context, caller CallerIdentity, command string) (<-chan string, func(), error) {
 	if e.stream == nil {
 		return nil, nil, errors.New("streaming not supported")
 	}
-	if e.auth != nil && !e.auth(auth.Username, command) {
+	if e.auth != nil && !e.auth(caller.Username, command) {
 		return nil, nil, ErrUnauthorized
 	}
-	return e.stream(ctx, auth.Username, command)
+	return e.stream(ctx, caller, command)
 }

@@ -86,6 +86,69 @@ func TestDispatchCommandToPlugin(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-6 -- plugin dispatch-command preserves plugin identity while inheriting server context.
+// PREVENTS: plugin JSON or background-rooted dispatch from bypassing identity/accounting metadata.
+func TestHandleDispatchCommandRPCPreservesPluginIdentity(t *testing.T) {
+	t.Parallel()
+
+	pluginSide, engineSide := net.Pipe()
+	t.Cleanup(func() { _ = pluginSide.Close() })
+	t.Cleanup(func() { _ = engineSide.Close() })
+
+	proc := process.NewProcess(plugin.PluginConfig{Name: "identity-check"})
+	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
+
+	serverCtx, serverCancel := context.WithCancel(context.Background())
+	defer serverCancel()
+
+	var (
+		gotUsername string
+		gotContext  context.Context
+	)
+
+	d := NewDispatcher()
+	d.Register("test command", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+		gotUsername = ctx.Username
+		gotContext = ctx.Context()
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "test command")
+
+	s := &Server{
+		subscriptions: NewSubscriptionManager(),
+		dispatcher:    d,
+		ctx:           serverCtx,
+	}
+	s.cancel = serverCancel
+
+	handlerDone := make(chan struct{})
+	go func() {
+		defer close(handlerDone)
+		s.handleSingleProcessCommandsRPC(proc)
+	}()
+
+	pluginConn := rpc.NewConn(pluginSide, pluginSide)
+
+	callCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	result, err := pluginConn.CallRPC(callCtx, "ze-plugin-engine:dispatch-command", &rpc.DispatchCommandInput{Command: "test command"})
+	require.NoError(t, err)
+
+	var output rpc.DispatchCommandOutput
+	require.NoError(t, json.Unmarshal(result, &output))
+	assert.Equal(t, plugin.StatusDone, output.Status)
+	assert.Equal(t, "plugin:identity-check", gotUsername)
+	assert.Same(t, serverCtx, gotContext)
+
+	serverCancel()
+
+	select {
+	case <-handlerDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("handler did not exit")
+	}
+}
+
 // TestDispatchCommandNotFound verifies that dispatching an unknown command
 // returns an error through the dispatch-command RPC.
 //

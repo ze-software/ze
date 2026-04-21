@@ -57,7 +57,7 @@ func TestBundleComposeLocalOnly(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotNil(t, bundle.Authenticator)
-	result, err := bundle.Authenticator.Authenticate("u", "p")
+	result, err := bundle.Authenticator.Authenticate(AuthRequest{Username: "u", Password: "p"})
 	require.NoError(t, err)
 	assert.Equal(t, "local", result.Source)
 	assert.Nil(t, bundle.Authorizer, "no backend contributed an authorizer")
@@ -85,7 +85,7 @@ func TestBundleComposeChainOrder(t *testing.T) {
 	require.NoError(t, err)
 
 	// tacacs rejects; chain MUST stop immediately per AC-2 semantics.
-	_, err = bundle.Authenticator.Authenticate("u", "p")
+	_, err = bundle.Authenticator.Authenticate(AuthRequest{Username: "u", Password: "p"})
 	assert.ErrorIs(t, err, ErrAuthRejected)
 	assert.True(t, tacacs.called)
 	assert.False(t, local.called, "local must not be tried after tacacs rejects")

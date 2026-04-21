@@ -44,33 +44,33 @@ func init() {
 }
 
 func forwardRibStatus(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(cmdRibStatus, args, ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibStatus, args, ctx.PeerSelector())
 }
 
 func forwardRibRoutes(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(cmdRibShow, args, ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibShow, args, ctx.PeerSelector())
 }
 
 func forwardRibBest(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(cmdRibBest, args, ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibBest, args, ctx.PeerSelector())
 }
 
 func forwardRibBestStatus(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(cmdRibBestStatus, args, ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibBestStatus, args, ctx.PeerSelector())
 }
 
 func forwardRibClearIn(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(cmdRibClearIn, args, ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibClearIn, args, ctx.PeerSelector())
 }
 
 func forwardRibClearOut(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(cmdRibClearOut, args, ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibClearOut, args, ctx.PeerSelector())
 }
 
 func forwardRibInject(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(cmdRibInject, args, ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibInject, args, ctx.PeerSelector())
 }
 
 func forwardRibWithdraw(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return ctx.Dispatcher().ForwardToPlugin(cmdRibWithdraw, args, ctx.PeerSelector())
+	return ctx.Dispatcher().ForwardToPlugin(ctx, cmdRibWithdraw, args, ctx.PeerSelector())
 }

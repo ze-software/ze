@@ -20,7 +20,7 @@ var ErrAuthRejected = errors.New("authentication rejected")
 // rejection; (zero, other error) on connection/infrastructure failure.
 // ChainAuthenticator relies on this distinction to decide fallthrough.
 type Authenticator interface {
-	Authenticate(username, password string) (AuthResult, error)
+	Authenticate(request AuthRequest) (AuthResult, error)
 }
 
 // Authorizer decides whether a user may run a command. The bool return

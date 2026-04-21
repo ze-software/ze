@@ -121,10 +121,11 @@ func (s *Server) handleUpdateRouteRPC(proc *process.Process, conn *plugipc.Plugi
 		return
 	}
 	cmdCtx := &CommandContext{
-		Server:  s,
-		Process: proc,
-		Peer:    input.PeerSelector,
-		Meta:    input.Meta,
+		Server:         s,
+		Process:        proc,
+		RequestContext: s.Context(),
+		Peer:           input.PeerSelector,
+		Meta:           input.Meta,
 	}
 	if cmdCtx.Peer == "" {
 		cmdCtx.Peer = "*"
@@ -196,9 +197,10 @@ func (s *Server) handleDispatchCommandRPC(proc *process.Process, conn *plugipc.P
 	// commands. Without this, the empty username causes authz to return Allow for all
 	// commands, bypassing any configured authorization profiles.
 	cmdCtx := &CommandContext{
-		Server:   s,
-		Process:  proc,
-		Username: "plugin:" + proc.Name(),
+		Server:         s,
+		Process:        proc,
+		RequestContext: s.Context(),
+		Username:       "plugin:" + proc.Name(),
 	}
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, input.Command)
@@ -562,10 +564,11 @@ func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawM
 	}
 
 	cmdCtx := &CommandContext{
-		Server:  s,
-		Process: proc,
-		Peer:    input.PeerSelector,
-		Meta:    input.Meta,
+		Server:         s,
+		Process:        proc,
+		RequestContext: s.Context(),
+		Peer:           input.PeerSelector,
+		Meta:           input.Meta,
 	}
 	if cmdCtx.Peer == "" {
 		cmdCtx.Peer = "*"
@@ -624,9 +627,10 @@ func (s *Server) handleDispatchCommandDirect(proc *process.Process, params json.
 // the status/data result. Logs failures with shutdown awareness.
 func (s *Server) dispatchCommand(proc *process.Process, command string) (status, data string, err error) {
 	cmdCtx := &CommandContext{
-		Server:   s,
-		Process:  proc,
-		Username: "plugin:" + proc.Name(),
+		Server:         s,
+		Process:        proc,
+		RequestContext: s.Context(),
+		Username:       "plugin:" + proc.Name(),
 	}
 
 	resp, dispatchErr := s.dispatcher.Dispatch(cmdCtx, command)

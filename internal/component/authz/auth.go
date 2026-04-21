@@ -18,6 +18,7 @@ import (
 type (
 	UserConfig         = aaa.UserCredential
 	AuthResult         = aaa.AuthResult
+	AuthRequest        = aaa.AuthRequest
 	Authenticator      = aaa.Authenticator
 	ChainAuthenticator = aaa.ChainAuthenticator
 )
@@ -40,7 +41,10 @@ type LocalAuthenticator struct {
 // Returns (result, nil) on success, (result, ErrAuthRejected) on failure.
 // Never returns a connection error (local auth has no infrastructure failures).
 // Timing-safe: invokes bcrypt even for unknown users.
-func (a *LocalAuthenticator) Authenticate(username, password string) (AuthResult, error) {
+func (a *LocalAuthenticator) Authenticate(request aaa.AuthRequest) (AuthResult, error) {
+	username := request.Username
+	password := request.Password
+
 	if username == "" {
 		return AuthResult{Source: "local"}, ErrAuthRejected
 	}

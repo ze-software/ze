@@ -271,12 +271,12 @@ func (s *RESTServer) withAuth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// authContext extracts the authenticated username from the request context.
-func (s *RESTServer) authContext(r *http.Request) api.AuthContext {
+// callerIdentity extracts trusted caller metadata from the request.
+func (s *RESTServer) callerIdentity(r *http.Request) api.CallerIdentity {
 	if user, ok := r.Context().Value(usernameKey).(string); ok {
-		return api.AuthContext{Username: user}
+		return api.CallerIdentity{Username: user, RemoteAddr: r.RemoteAddr}
 	}
-	return api.AuthContext{Username: "api"}
+	return api.CallerIdentity{Username: "api", RemoteAddr: r.RemoteAddr}
 }
 
 func (s *RESTServer) handleListCommands(w http.ResponseWriter, r *http.Request) {
@@ -335,7 +335,7 @@ func (s *RESTServer) handleExecute(w http.ResponseWriter, r *http.Request) {
 	}
 	command := cmd.String()
 
-	result, execErr := s.engine.Execute(s.authContext(r), command)
+	result, execErr := s.engine.Execute(r.Context(), s.callerIdentity(r), command)
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
@@ -345,7 +345,7 @@ func (s *RESTServer) handleExecute(w http.ResponseWriter, r *http.Request) {
 
 func (s *RESTServer) handleConvenience(command string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		result, execErr := s.engine.Execute(s.authContext(r), command)
+		result, execErr := s.engine.Execute(r.Context(), s.callerIdentity(r), command)
 		if errors.Is(execErr, api.ErrUnauthorized) {
 			writeError(w, http.StatusForbidden, result.Error)
 			return
@@ -364,7 +364,7 @@ func (s *RESTServer) handlePeerByName(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	result, execErr := s.engine.Execute(s.authContext(r), "peer "+name+" detail")
+	result, execErr := s.engine.Execute(r.Context(), s.callerIdentity(r), "peer "+name+" detail")
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
@@ -383,7 +383,7 @@ func (s *RESTServer) handlePeerAction(action string) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		result, execErr := s.engine.Execute(s.authContext(r), "peer "+name+" "+action)
+		result, execErr := s.engine.Execute(r.Context(), s.callerIdentity(r), "peer "+name+" "+action)
 		if errors.Is(execErr, api.ErrUnauthorized) {
 			writeError(w, http.StatusForbidden, result.Error)
 			return
@@ -403,7 +403,7 @@ func (s *RESTServer) handlePeerRefresh(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	result, execErr := s.engine.Execute(s.authContext(r), "peer "+name+" refresh")
+	result, execErr := s.engine.Execute(r.Context(), s.callerIdentity(r), "peer "+name+" refresh")
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
@@ -431,7 +431,7 @@ func (s *RESTServer) handleRIB(w http.ResponseWriter, r *http.Request) {
 		}
 		command = "rib routes " + path
 	}
-	result, execErr := s.engine.Execute(s.authContext(r), command)
+	result, execErr := s.engine.Execute(r.Context(), s.callerIdentity(r), command)
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
@@ -440,7 +440,7 @@ func (s *RESTServer) handleRIB(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *RESTServer) handleConfigRunning(w http.ResponseWriter, r *http.Request) {
-	result, execErr := s.engine.Execute(s.authContext(r), "show config dump")
+	result, execErr := s.engine.Execute(r.Context(), s.callerIdentity(r), "show config dump")
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
@@ -453,7 +453,7 @@ func (s *RESTServer) handleConfigEnter(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "config sessions not available")
 		return
 	}
-	id, err := s.sessions.Enter(s.authContext(r).Username)
+	id, err := s.sessions.Enter(s.callerIdentity(r).Username)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -479,7 +479,7 @@ func (s *RESTServer) handleConfigSet(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	username := s.authContext(r).Username
+	username := s.callerIdentity(r).Username
 	if err := s.sessions.Set(username, id, req.Path, req.Value); err != nil {
 		writeSessionError(w, err)
 		return
@@ -499,7 +499,7 @@ func (s *RESTServer) handleConfigDeleteOrDiscard(w http.ResponseWriter, r *http.
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	username := s.authContext(r).Username
+	username := s.callerIdentity(r).Username
 	if len(parts) == 1 {
 		if err := s.sessions.Discard(username, id); err != nil {
 			writeSessionError(w, err)
@@ -531,7 +531,7 @@ func (s *RESTServer) handleConfigDiff(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	diff, err := s.sessions.Diff(s.authContext(r).Username, id)
+	diff, err := s.sessions.Diff(s.callerIdentity(r).Username, id)
 	if err != nil {
 		writeSessionError(w, err)
 		return
@@ -554,7 +554,7 @@ func (s *RESTServer) handleConfigCommit(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := s.sessions.Commit(s.authContext(r).Username, id); err != nil {
+	if err := s.sessions.Commit(s.callerIdentity(r).Username, id); err != nil {
 		writeSessionError(w, err)
 		return
 	}
@@ -582,7 +582,7 @@ func (s *RESTServer) handleStream(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "streaming not supported")
 		return
 	}
-	ch, cancel, err := s.engine.Stream(r.Context(), s.authContext(r), command)
+	ch, cancel, err := s.engine.Stream(r.Context(), s.callerIdentity(r), command)
 	if errors.Is(err, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, "unauthorized")
 		return

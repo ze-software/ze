@@ -32,7 +32,7 @@ func (s *stubBackendForSwap) Build(_ aaa.BuildParams) (aaa.Contribution, error) 
 
 type stubAuthn struct{}
 
-func (stubAuthn) Authenticate(_, _ string) (aaa.AuthResult, error) {
+func (stubAuthn) Authenticate(aaa.AuthRequest) (aaa.AuthResult, error) {
 	return aaa.AuthResult{}, errors.New("stub")
 }
 

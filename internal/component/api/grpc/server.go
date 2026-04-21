@@ -21,6 +21,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
@@ -219,6 +220,14 @@ func usernameFromContext(ctx context.Context) string {
 	return defaultUsername
 }
 
+func callerIdentityFromContext(ctx context.Context) api.CallerIdentity {
+	caller := api.CallerIdentity{Username: usernameFromContext(ctx)}
+	if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
+		caller.RemoteAddr = p.Addr.String()
+	}
+	return caller
+}
+
 // wrappedStream overrides ServerStream.Context to inject the authenticated username.
 type wrappedStream struct {
 	grpc.ServerStream
@@ -289,7 +298,7 @@ func (s *zeServiceImpl) Execute(ctx context.Context, req *zepb.CommandRequest) (
 	// Append params as "key value" pairs, same as REST transport.
 	command := buildCommand(req.GetCommand(), req.GetParams())
 
-	result, err := s.engine.Execute(api.AuthContext{Username: usernameFromContext(ctx)}, command)
+	result, err := s.engine.Execute(ctx, callerIdentityFromContext(ctx), command)
 	if errors.Is(err, api.ErrUnauthorized) {
 		return nil, status.Error(codes.PermissionDenied, result.Error)
 	}
@@ -300,7 +309,7 @@ func (s *zeServiceImpl) Stream(req *zepb.CommandRequest, stream zepb.ZeService_S
 	if req.GetCommand() == "" {
 		return status.Error(codes.InvalidArgument, "command is required")
 	}
-	ch, cancel, err := s.engine.Stream(stream.Context(), api.AuthContext{Username: usernameFromContext(stream.Context())}, req.GetCommand())
+	ch, cancel, err := s.engine.Stream(stream.Context(), callerIdentityFromContext(stream.Context()), req.GetCommand())
 	if errors.Is(err, api.ErrUnauthorized) {
 		return status.Error(codes.PermissionDenied, "unauthorized")
 	}
@@ -361,7 +370,7 @@ type zeConfigServiceImpl struct {
 }
 
 func (s *zeConfigServiceImpl) GetRunningConfig(ctx context.Context, _ *zepb.Empty) (*zepb.ConfigResponse, error) {
-	result, err := s.engine.Execute(api.AuthContext{Username: usernameFromContext(ctx)}, "show config dump")
+	result, err := s.engine.Execute(ctx, callerIdentityFromContext(ctx), "show config dump")
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

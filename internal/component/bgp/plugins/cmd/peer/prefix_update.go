@@ -5,6 +5,7 @@ package peer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -24,6 +25,14 @@ const (
 	statusSkipped = "skipped"
 	statusError   = "error"
 )
+
+type prefixLookupClient interface {
+	LookupASN(ctx context.Context, asn uint32) (peeringdb.PrefixCounts, error)
+}
+
+var newPrefixLookupClient = func(baseURL string) prefixLookupClient {
+	return peeringdb.NewPeeringDB(baseURL)
+}
 
 // peerResult holds the outcome of a prefix update attempt for one peer.
 type peerResult struct {
@@ -82,7 +91,8 @@ func HandleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 		}, err
 	}
 
-	client := peeringdb.NewPeeringDB(sc.PeeringDBURL)
+	requestCtx := ctx.Context()
+	client := newPrefixLookupClient(sc.PeeringDBURL)
 	today := time.Now().Format(time.DateOnly)
 
 	var results []peerResult
@@ -99,14 +109,13 @@ func HandleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 			continue
 		}
 
-		// Rate limit: sleep between PeeringDB requests.
-		if i > 0 {
-			time.Sleep(peeringdbRateLimit)
+		counts, lookupErr := lookupPrefixCounts(requestCtx, client, p.PeerAS, i > 0)
+		if errors.Is(lookupErr, context.Canceled) || errors.Is(lookupErr, context.DeadlineExceeded) {
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Data:   lookupErr.Error(),
+			}, lookupErr
 		}
-
-		// TODO: CommandContext does not carry context.Context -- use background.
-		// Rate limiting (sleep above) provides the only cancellation point.
-		counts, lookupErr := client.LookupASN(context.TODO(), p.PeerAS)
 		if lookupErr != nil {
 			result.Status = statusError
 			result.Error = lookupErr.Error()
@@ -150,6 +159,27 @@ func HandleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 			"message": fmt.Sprintf("updated %d of %d peer(s) -- run 'ze config commit' to apply", updated, len(peers)),
 		},
 	}, nil
+}
+
+func lookupPrefixCounts(ctx context.Context, client prefixLookupClient, asn uint32, waitBefore bool) (peeringdb.PrefixCounts, error) {
+	if waitBefore {
+		if err := waitForPeeringDBRateLimit(ctx, peeringdbRateLimit); err != nil {
+			return peeringdb.PrefixCounts{}, err
+		}
+	}
+	return client.LookupASN(ctx, asn)
+}
+
+func waitForPeeringDBRateLimit(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 // updatePeerPrefixConfig applies PeeringDB counts to a single peer's config.

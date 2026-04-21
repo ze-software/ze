@@ -40,11 +40,13 @@ func NewTacacsAuthenticator(client *TacacsClient, privLvlMap map[int][]string, l
 //   - (rejected result, ErrAuthRejected) on FAIL (explicit rejection, chain stops)
 //   - (rejected result, ErrAuthRejected) on PASS with unmapped priv-lvl (AC-18)
 //   - (zero, error) on ERROR status or connection failure (chain tries next backend)
-func (a *TacacsAuthenticator) Authenticate(username, password string) (aaa.AuthResult, error) {
-	// TODO(tacacs): thread remAddr from SSH session when wiring into hub.
-	// Currently empty because the Authenticator interface takes (username, password)
-	// and the SSH remote address is not available at this layer.
-	reply, err := a.client.Authenticate(username, password, "ssh", "")
+func (a *TacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthResult, error) {
+	service := request.Service
+	if service == "" {
+		service = "ssh"
+	}
+
+	reply, err := a.client.Authenticate(request.Username, request.Password, service, request.RemoteAddr)
 	if err != nil {
 		// Connection failure: let chain try next backend.
 		return aaa.AuthResult{}, fmt.Errorf("tacacs: %w", err)
@@ -52,7 +54,7 @@ func (a *TacacsAuthenticator) Authenticate(username, password string) (aaa.AuthR
 
 	// Handle each status explicitly. RFC 8907 Section 5.2.
 	if reply.Status == AuthenStatusPass {
-		return a.handlePass(username, reply)
+		return a.handlePass(request.Username, reply)
 	}
 	if reply.Status == AuthenStatusFail {
 		// Explicit rejection: chain must NOT try next backend.

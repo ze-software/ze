@@ -21,7 +21,7 @@ import (
 func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParams) contract.SessionModelFactory {
 	log := slogutil.Logger("hub.session")
 
-	return func(username string) tea.Model {
+	return func(username, remoteAddr string) tea.Model {
 		// Build command tree for tab completion.
 		cmdTree := buildCommandTree()
 		cmdCompleter := cli.NewCommandCompleter(cmdTree)
@@ -37,7 +37,7 @@ func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParam
 		cliWarnings := warnings
 
 		// Get executors from the server.
-		executor := srv.ExecutorForUser(username)
+		executor := srv.ExecutorForUser(username, remoteAddr)
 
 		// Try to create editor-capable model.
 		if params.ConfigPath != "" && params.Store != nil {

@@ -28,9 +28,11 @@ type ExecResult struct {
 	Error  string `json:"error,omitempty"` // Error message (when status is "error")
 }
 
-// AuthContext carries authentication information for an API request.
-type AuthContext struct {
-	Username string
+// CallerIdentity carries trusted caller metadata for an API request.
+// Populated by the transport after authentication; not an auth credential.
+type CallerIdentity struct {
+	Username   string
+	RemoteAddr string
 }
 
 // Status constants for ExecResult.

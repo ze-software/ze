@@ -88,12 +88,13 @@ type Handler func(ctx *CommandContext, args []string) (*plugin.Response, error)
 // CommandContext provides access to reactor and session state.
 // Dependencies are accessed through Server; per-request state is stored directly.
 type CommandContext struct {
-	Server     *Server          // Gateway to all server state (reactor, dispatcher, etc.)
-	Process    *process.Process // The API process (for session state)
-	Peer       string           // Peer selector: "*" for all, or specific IP. Empty = "*"
-	Username   string           // Authenticated username (empty = no auth, full access)
-	RemoteAddr string           // Remote address of the client (e.g., SSH peer IP:port)
-	Meta       map[string]any   // Route metadata from UpdateRoute RPC; nil if not set.
+	Server         *Server          // Gateway to all server state (reactor, dispatcher, etc.)
+	Process        *process.Process // The API process (for session state)
+	RequestContext context.Context  // Request-scoped context from the trusted transport.
+	Peer           string           // Peer selector: "*" for all, or specific IP. Empty = "*"
+	Username       string           // Authenticated username (empty = no auth, full access)
+	RemoteAddr     string           // Remote address of the client (e.g., SSH peer IP:port)
+	Meta           map[string]any   // Route metadata from UpdateRoute RPC; nil if not set.
 }
 
 // Reactor returns the BGP reactor lifecycle interface via Server.
@@ -137,6 +138,20 @@ func (c *CommandContext) Subscriptions() *SubscriptionManager {
 		return nil
 	}
 	return c.Server.Subscriptions()
+}
+
+// Context returns the request context for this command.
+// Nil-safe: falls back from request -> server -> background.
+func (c *CommandContext) Context() context.Context {
+	if c != nil && c.RequestContext != nil {
+		return c.RequestContext
+	}
+	if c != nil && c.Server != nil {
+		if serverCtx := c.Server.Context(); serverCtx != nil {
+			return serverCtx
+		}
+	}
+	return context.Background()
 }
 
 // RequireReactor returns the reactor or an error response if not available.
@@ -439,25 +454,24 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 }
 
 // dispatchSubsystem routes a command to a forked subsystem process.
-func (d *Dispatcher) dispatchSubsystem(_ *CommandContext, handler *SubsystemHandler, input string) (*plugin.Response, error) {
-	// TODO: Pass context from CommandContext when reactor provides it
-	return handler.Handle(context.Background(), input)
+func (d *Dispatcher) dispatchSubsystem(ctx *CommandContext, handler *SubsystemHandler, input string) (*plugin.Response, error) {
+	return handler.Handle(ctx.Context(), input)
 }
 
 // ForwardToPlugin routes a command to a plugin process by exact name lookup.
 // Used by proxy handlers that bridge CLI builtins to plugin commands.
 // Returns ErrUnknownCommand if the command is not registered (plugin may not be running).
-func (d *Dispatcher) ForwardToPlugin(command string, args []string, peerSelector string) (*plugin.Response, error) {
+func (d *Dispatcher) ForwardToPlugin(cmdCtx *CommandContext, command string, args []string, peerSelector string) (*plugin.Response, error) {
 	cmd := d.registry.Lookup(command)
 	if cmd == nil {
 		return nil, fmt.Errorf("plugin command %q not registered (plugin may not be running): %w", command, ErrUnknownCommand)
 	}
-	return d.routeToProcess(cmd, args, peerSelector)
+	return d.routeToProcess(cmdCtx, cmd, args, peerSelector)
 }
 
 // dispatchPlugin routes a command to a plugin process.
 // lowerInput must already be lowercased by the caller (Dispatch).
-func (d *Dispatcher) dispatchPlugin(_ *CommandContext, input, lowerInput, peerSelector string) (*plugin.Response, error) {
+func (d *Dispatcher) dispatchPlugin(ctx *CommandContext, input, lowerInput, peerSelector string) (*plugin.Response, error) {
 	// Find longest matching plugin command
 	var matchedPlugin *RegisteredCommand
 	var matchedLen int
@@ -493,11 +507,11 @@ func (d *Dispatcher) dispatchPlugin(_ *CommandContext, input, lowerInput, peerSe
 	}
 
 	// Route to process
-	return d.routeToProcess(matchedPlugin, args, peerSelector)
+	return d.routeToProcess(ctx, matchedPlugin, args, peerSelector)
 }
 
 // routeToProcess sends a command request to a plugin process via synchronous RPC.
-func (d *Dispatcher) routeToProcess(cmd *RegisteredCommand, args []string, peerSelector string) (*plugin.Response, error) {
+func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredCommand, args []string, peerSelector string) (*plugin.Response, error) {
 	proc := cmd.Process
 	if proc == nil || !proc.Running() {
 		return nil, ErrPluginProcessNotRunning
@@ -508,10 +522,15 @@ func (d *Dispatcher) routeToProcess(cmd *RegisteredCommand, args []string, peerS
 		return nil, ErrPluginConnectionClosed
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), cmd.Timeout)
+	parentCtx := context.Background()
+	if cmdCtx != nil {
+		parentCtx = cmdCtx.Context()
+	}
+
+	rpcCtx, cancel := context.WithTimeout(parentCtx, cmd.Timeout)
 	defer cancel()
 
-	rpcOut, err := conn.SendExecuteCommand(ctx, "", cmd.Name, args, peerSelector)
+	rpcOut, err := conn.SendExecuteCommand(rpcCtx, "", cmd.Name, args, peerSelector)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Data: "failed to send request: " + err.Error()}, nil
 	}

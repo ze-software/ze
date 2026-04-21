@@ -34,7 +34,7 @@ func TestLocalBackendBuildPropagatesUsers(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, contrib.Authenticator)
 
-	result, err := contrib.Authenticator.Authenticate("admin", "secret")
+	result, err := contrib.Authenticator.Authenticate(aaa.AuthRequest{Username: "admin", Password: "secret"})
 	require.NoError(t, err)
 	assert.True(t, result.Authenticated)
 	assert.Equal(t, "local", result.Source)

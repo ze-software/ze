@@ -282,7 +282,7 @@ func (s *Server) SetLoginWarnings(f LoginWarningsFunc) {
 
 // ExecutorForUser returns a CommandExecutor for the given username.
 // Returns nil if no executor factory is set.
-func (s *Server) ExecutorForUser(username string) CommandExecutor {
+func (s *Server) ExecutorForUser(username, remoteAddr string) CommandExecutor {
 	s.mu.Lock()
 	factory := s.executorFactory
 	s.mu.Unlock()
@@ -292,7 +292,7 @@ func (s *Server) ExecutorForUser(username string) CommandExecutor {
 		}
 		return nil
 	}
-	return factory(username, "")
+	return factory(username, remoteAddr)
 }
 
 // MonitorFactoryFunc returns the monitor factory, or nil if not set.
@@ -364,7 +364,12 @@ func (s *Server) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) 
 			username := ctx.User()
 			remote := ctx.RemoteAddr().String()
 
-			result, err := authenticator.Authenticate(username, pass)
+			result, err := authenticator.Authenticate(authz.AuthRequest{
+				Username:   username,
+				Password:   pass,
+				RemoteAddr: remote,
+				Service:    "ssh",
+			})
 			if err == nil && result.Authenticated {
 				s.logger.Info("SSH auth success",
 					"username", username, "remote", remote,
@@ -637,7 +642,8 @@ func (s *Server) execMiddleware() wish.Middleware {
 // authenticated username (for authorization context). Falls back to config.Executor.
 func (s *Server) teaHandler(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
 	username := sess.User()
-	model := s.createSessionModel(username)
-	s.logger.Info("SSH session started", "user", username, "remote", sess.RemoteAddr().String())
+	remoteAddr := sess.RemoteAddr().String()
+	model := s.createSessionModel(username, remoteAddr)
+	s.logger.Info("SSH session started", "user", username, "remote", remoteAddr)
 	return model, []tea.ProgramOption{}
 }

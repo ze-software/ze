@@ -292,6 +292,7 @@ func TestServerActiveSessionsCounter(t *testing.T) {
 func TestSSHUsesSessionModelFactory(t *testing.T) {
 	factoryCalled := false
 	var receivedUsername string
+	var receivedRemoteAddr string
 
 	cfg := Config{
 		HostKeyPath: t.TempDir() + "/test_host_key",
@@ -300,16 +301,18 @@ func TestSSHUsesSessionModelFactory(t *testing.T) {
 	require.NoError(t, err)
 
 	// Inject a test factory that creates a command-only model.
-	srv.SetSessionModelFactory(func(username string) tea.Model {
+	srv.SetSessionModelFactory(func(username, remoteAddr string) tea.Model {
 		factoryCalled = true
 		receivedUsername = username
+		receivedRemoteAddr = remoteAddr
 		return cli.NewCommandModel()
 	})
 
-	model := srv.createSessionModel("testuser")
+	model := srv.createSessionModel("testuser", "203.0.113.5:2222")
 	require.NotNil(t, model, "factory should return a model")
 	assert.True(t, factoryCalled, "factory should be called")
 	assert.Equal(t, "testuser", receivedUsername)
+	assert.Equal(t, "203.0.113.5:2222", receivedRemoteAddr)
 }
 
 // TestSSHSessionGetsEditor verifies factory receives the username.
@@ -318,17 +321,20 @@ func TestSSHUsesSessionModelFactory(t *testing.T) {
 // PREVENTS: Username lost during factory delegation.
 func TestSSHSessionGetsEditor(t *testing.T) {
 	var receivedUser string
+	var receivedRemoteAddr string
 	cfg := Config{
 		HostKeyPath: t.TempDir() + "/test_host_key",
 	}
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
-	srv.SetSessionModelFactory(func(username string) tea.Model {
+	srv.SetSessionModelFactory(func(username, remoteAddr string) tea.Model {
 		receivedUser = username
+		receivedRemoteAddr = remoteAddr
 		return cli.NewCommandModel()
 	})
-	srv.createSessionModel("alice")
+	srv.createSessionModel("alice", "198.51.100.1:22")
 	assert.Equal(t, "alice", receivedUser)
+	assert.Equal(t, "198.51.100.1:22", receivedRemoteAddr)
 }
 
 // TestSSHSessionFallbackWithoutConfig verifies nil factory returns nil model.
@@ -342,8 +348,71 @@ func TestSSHSessionFallbackWithoutConfig(t *testing.T) {
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
 	// No factory set -- createSessionModel should return nil.
-	model := srv.createSessionModel("alice")
+	model := srv.createSessionModel("alice", "198.51.100.1:22")
 	assert.Nil(t, model)
+}
+
+// VALIDATES: SSH exec commands keep the session remote address when building the executor.
+// PREVENTS: exec accounting/authorization seeing an empty client address.
+func TestSSHExecCommandPropagatesRemoteAddr(t *testing.T) {
+	cfg := Config{
+		HostKeyPath: t.TempDir() + "/test_host_key",
+	}
+
+	srv, err := NewServer(cfg)
+	require.NoError(t, err)
+
+	var (
+		gotUser       string
+		gotRemoteAddr string
+		gotCommand    string
+	)
+
+	srv.SetExecutorFactory(func(username, remoteAddr string) CommandExecutor {
+		gotUser = username
+		gotRemoteAddr = remoteAddr
+		return func(input string) (string, error) {
+			gotCommand = input
+			return "ok", nil
+		}
+	})
+
+	exec := srv.ExecutorForUser("alice", "203.0.113.5:2222")
+	require.NotNil(t, exec)
+
+	output, err := exec("show version")
+	require.NoError(t, err)
+	assert.Equal(t, "ok", output)
+	assert.Equal(t, "alice", gotUser)
+	assert.Equal(t, "203.0.113.5:2222", gotRemoteAddr)
+	assert.Equal(t, "show version", gotCommand)
+}
+
+// VALIDATES: interactive SSH sessions preserve remote address into the injected session factory.
+// PREVENTS: TUI command mode dropping peer identity while exec mode keeps it.
+func TestCreateSessionModelPreservesRemoteAddr(t *testing.T) {
+	cfg := Config{
+		HostKeyPath: t.TempDir() + "/test_host_key",
+	}
+
+	srv, err := NewServer(cfg)
+	require.NoError(t, err)
+
+	var (
+		gotUser       string
+		gotRemoteAddr string
+	)
+
+	srv.SetSessionModelFactory(func(username, remoteAddr string) tea.Model {
+		gotUser = username
+		gotRemoteAddr = remoteAddr
+		return cli.NewCommandModel()
+	})
+
+	model := srv.createSessionModel("alice", "203.0.113.5:2222")
+	require.NotNil(t, model)
+	assert.Equal(t, "alice", gotUser)
+	assert.Equal(t, "203.0.113.5:2222", gotRemoteAddr)
 }
 
 // TestLoginWarningsStalePeers verifies SetLoginWarnings stores the function.

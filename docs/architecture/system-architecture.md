@@ -25,6 +25,18 @@ In hub mode, Ze runs as a **hub process** (`ze`) that orchestrates separate **pl
 - Independent development and testing
 - Third-party extensibility
 
+### Request Metadata Ownership
+
+Request-scoped metadata is owned by the transport wiring, not by command
+payloads. REST, gRPC, SSH exec, and SSH interactive sessions extract trusted
+caller information (`username`, `remoteAddr`, request cancellation context)
+at the edge, then pass it through the shared API engine or dispatcher.
+
+The hub composition root converts that metadata into
+`pluginserver.CommandContext`; builtin handlers, subsystem dispatch, and plugin
+RPC routing derive child contexts from it. Plugin JSON payloads and command
+strings do not carry or override identity metadata.
+
 ```
                            ┌─────────────────────┐
                            │    ze config.conf   │
