@@ -52,23 +52,23 @@ func loadReservedIfaceNames() {
 	if err != nil || loader == nil {
 		return
 	}
-	w2p := yang.WireMethodToPath(loader)
-	for _, path := range w2p {
-		tokens := strings.Split(path, " ")
-		if len(tokens) < 3 || tokens[1] != "interface" {
+	tree := yang.BuildCommandTree(loader)
+	if tree == nil {
+		return
+	}
+	for _, root := range []string{"show", "clear"} {
+		rootNode := tree.Children[root]
+		if rootNode == nil {
 			continue
 		}
-		if tokens[0] != "show" && tokens[0] != "clear" {
+		ifaceNode := rootNode.Children["interface"]
+		if ifaceNode == nil {
 			continue
 		}
-		name := tokens[2]
-		if name == "" {
-			continue
-		}
-		// First registrant wins the "usage" string so the error
-		// message points at a stable example path.
-		if _, seen := reservedIfaceNames[name]; !seen {
-			reservedIfaceNames[name] = path
+		for name := range ifaceNode.Children {
+			if _, seen := reservedIfaceNames[name]; !seen {
+				reservedIfaceNames[name] = root + " interface " + name
+			}
 		}
 	}
 }

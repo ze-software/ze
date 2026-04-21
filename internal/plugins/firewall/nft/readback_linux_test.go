@@ -63,9 +63,9 @@ func TestRaiseHookNil(t *testing.T) {
 }
 
 // VALIDATES: netdev family disambiguates ingress/egress from the
-// overlapping INET hook numbers (NF_INET_LOCAL_IN and NF_NETDEV_INGRESS
-// are both 0; NF_INET_LOCAL_OUT and NF_NETDEV_EGRESS are both 1).
-// PREVENTS: a netdev-family ingress chain being reported as `input`.
+// overlapping INET hook numbers (NF_INET_PRE_ROUTING and NF_NETDEV_INGRESS
+// are both 0; NF_INET_LOCAL_IN and NF_NETDEV_EGRESS are both 1).
+// PREVENTS: a netdev-family ingress chain being reported as `prerouting`.
 func TestRaiseHookNetdevDisambiguation(t *testing.T) {
 	ingress := nftables.ChainHook(unix.NF_NETDEV_INGRESS)
 	egress := nftables.ChainHook(unix.NF_NETDEV_EGRESS)
@@ -73,14 +73,14 @@ func TestRaiseHookNetdevDisambiguation(t *testing.T) {
 	if got, ok := raiseHook(&ingress, nftables.TableFamilyNetdev); !ok || got != firewall.HookIngress {
 		t.Errorf("netdev 0 = %v (ok=%v), want HookIngress", got, ok)
 	}
-	if got, ok := raiseHook(&ingress, nftables.TableFamilyINet); !ok || got != firewall.HookInput {
-		t.Errorf("inet 0 = %v (ok=%v), want HookInput", got, ok)
+	if got, ok := raiseHook(&ingress, nftables.TableFamilyINet); !ok || got != firewall.HookPrerouting {
+		t.Errorf("inet 0 = %v (ok=%v), want HookPrerouting", got, ok)
 	}
 	if got, ok := raiseHook(&egress, nftables.TableFamilyNetdev); !ok || got != firewall.HookEgress {
 		t.Errorf("netdev 1 = %v (ok=%v), want HookEgress", got, ok)
 	}
-	if got, ok := raiseHook(&egress, nftables.TableFamilyINet); !ok || got != firewall.HookOutput {
-		t.Errorf("inet 1 = %v (ok=%v), want HookOutput", got, ok)
+	if got, ok := raiseHook(&egress, nftables.TableFamilyINet); !ok || got != firewall.HookInput {
+		t.Errorf("inet 1 = %v (ok=%v), want HookInput", got, ok)
 	}
 }
 
