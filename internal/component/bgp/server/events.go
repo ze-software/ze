@@ -45,7 +45,7 @@ func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.St
 	se.PeerAS = peer.PeerAS
 	se.LocalAS = peer.LocalAS
 	se.LocalAddress = peer.LocalAddress.String()
-	se.EventType = messageTypeToEventType(msg.Type)
+	se.EventType = messageTypeToEventKind(msg.Type)
 	se.Direction = msg.Direction
 	se.MessageID = msg.MessageID
 	se.RawMessage = msg
@@ -62,7 +62,7 @@ func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reas
 	se.PeerAS = peer.PeerAS
 	se.LocalAS = peer.LocalAS
 	se.LocalAddress = peer.LocalAddress.String()
-	se.EventType = bgpevents.EventState
+	se.EventType = rpc.EventKindState
 	se.State = state
 	se.Reason = reason
 	return se
@@ -126,19 +126,20 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 		return 0 // Server shutting down, skip event delivery
 	}
 
-	eventType := messageTypeToEventType(msg.Type)
-	if eventType == "" {
+	eventType := messageTypeToEventKind(msg.Type)
+	if eventType == rpc.EventKindUnspecified {
 		logger().Debug("OnMessageReceived: unknown event type", "msgType", msg.Type)
 		return 0
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventType, msg.Direction.String(), peerAddr, peer.Name)
+	eventTypeStr := eventType.String()
+	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventTypeStr, msg.Direction.String(), peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return 0
 	}
-	logger().Debug("OnMessageReceived", "peer", peerAddr, "event", eventType, "dir", msg.Direction, "count", len(procs))
+	logger().Debug("OnMessageReceived", "peer", peerAddr, "event", eventTypeStr, "dir", msg.Direction, "count", len(procs))
 
 	// Pre-format text for text/JSON consumers per distinct format+encoding key.
 	// DirectBridge structured consumers skip text formatting entirely.
@@ -211,7 +212,7 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	if !ok {
 		jsonOutput = formatMessageForSubscription(encoder, peer, msg, "parsed", "json")
 	}
-	monitorDeliver(s, eventType, msg.Direction.String(), peerAddr, peer.Name, jsonOutput)
+	monitorDeliver(s, eventTypeStr, msg.Direction.String(), peerAddr, peer.Name, jsonOutput)
 
 	return cacheCount
 }
@@ -229,18 +230,19 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 
 	// All messages share the same peer → same event type for subscription lookup.
 	// Use the first message to determine event type (all are from same peer delivery goroutine).
-	eventType := messageTypeToEventType(msgs[0].Type)
-	if eventType == "" {
+	eventType := messageTypeToEventKind(msgs[0].Type)
+	if eventType == rpc.EventKindUnspecified {
 		return counts
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventType, msgs[0].Direction.String(), peerAddr, peer.Name)
+	eventTypeStr := eventType.String()
+	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventTypeStr, msgs[0].Direction.String(), peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return counts
 	}
-	logger().Debug("OnMessageBatchReceived", "peer", peerAddr, "event", eventType, "dir", msgs[0].Direction, "procs", len(procs), "msgs", len(msgs))
+	logger().Debug("OnMessageBatchReceived", "peer", peerAddr, "event", eventTypeStr, "dir", msgs[0].Direction, "procs", len(procs), "msgs", len(msgs))
 
 	// Deliver each message: pre-format text for text/JSON consumers,
 	// pass StructuredEvent directly for DirectBridge consumers.
@@ -315,28 +317,28 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 		if !ok {
 			jsonOutput = formatMessageForSubscription(encoder, peer, *msg, "parsed", "json")
 		}
-		monitorDeliver(s, eventType, msg.Direction.String(), peerAddr, peer.Name, jsonOutput)
+		monitorDeliver(s, eventTypeStr, msg.Direction.String(), peerAddr, peer.Name, jsonOutput)
 	}
 
 	return counts
 }
 
-// messageTypeToEventType converts BGP message type to event type string.
-// Returns empty string for unsupported types (caller checks for empty).
-func messageTypeToEventType(msgType message.MessageType) string {
-	switch msgType { //nolint:exhaustive // Only supported types; caller checks empty return
+// messageTypeToEventKind converts BGP message type to typed EventKind.
+// Returns EventKindUnspecified for unsupported types (caller checks for zero).
+func messageTypeToEventKind(msgType message.MessageType) rpc.EventKind {
+	switch msgType { //nolint:exhaustive // Only supported types; caller checks zero return
 	case message.TypeUPDATE:
-		return bgpevents.EventUpdate
+		return rpc.EventKindUpdate
 	case message.TypeOPEN:
-		return bgpevents.EventOpen
+		return rpc.EventKindOpen
 	case message.TypeNOTIFICATION:
-		return bgpevents.EventNotification
+		return rpc.EventKindNotification
 	case message.TypeKEEPALIVE:
-		return bgpevents.EventKeepalive
+		return rpc.EventKindKeepalive
 	case message.TypeROUTEREFRESH:
-		return bgpevents.EventRefresh
-	default: // Unsupported type — caller checks for empty string
-		return ""
+		return rpc.EventKindRefresh
+	default:
+		return rpc.EventKindUnspecified
 	}
 }
 
@@ -387,7 +389,7 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.Peer
 		}
 		return encoder.RouteRefresh(peer, decoded, msg.Direction.String(), msg.MessageID)
 
-	default: // Unsupported type — filtered by messageTypeToEventType before reaching here
+	default: // Unsupported type — filtered by messageTypeToEventKind before reaching here
 		return ""
 	}
 }
@@ -665,18 +667,19 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 		return // Server shutting down, skip event delivery
 	}
 
-	eventType := messageTypeToEventType(msg.Type)
-	if eventType == "" {
+	eventType := messageTypeToEventKind(msg.Type)
+	if eventType == rpc.EventKindUnspecified {
 		return
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventType, events.DirectionSent, peerAddr, peer.Name)
+	eventTypeStr := eventType.String()
+	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventTypeStr, events.DirectionSent, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return
 	}
-	logger().Debug("OnMessageSent", "peer", peerAddr, "type", eventType, "count", len(procs))
+	logger().Debug("OnMessageSent", "peer", peerAddr, "type", eventTypeStr, "count", len(procs))
 
 	isUpdate := msg.Type == message.TypeUPDATE
 
@@ -732,7 +735,7 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 			jsonOutput = formatMessageForSubscription(encoder, peer, msg, "parsed", "json")
 		}
 	}
-	monitorDeliver(s, eventType, events.DirectionSent, peerAddr, peer.Name, jsonOutput)
+	monitorDeliver(s, eventTypeStr, events.DirectionSent, peerAddr, peer.Name, jsonOutput)
 }
 
 // onPeerCongestionChange handles forward-path congestion state transitions.

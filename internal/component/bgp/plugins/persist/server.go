@@ -131,13 +131,13 @@ func RunPersistServer(conn net.Conn) int {
 			if !ok || se.PeerAddress == "" {
 				continue
 			}
-			switch se.EventType {
-			case persistEventState:
+			switch se.EventType { //nolint:exhaustive // only state+update+open handled on structured path
+			case rpc.EventKindState:
 				ps.handleStructuredState(se)
-			case persistEventUpdate:
+			case rpc.EventKindUpdate:
 				ps.handleSentStructured(se)
 				ps.updateStoredRoutesMetric()
-			case persistEventOpen:
+			case rpc.EventKindOpen:
 				ps.handleOpenStructured(se)
 			}
 		}

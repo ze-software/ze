@@ -221,10 +221,10 @@ func RunGRPlugin(conn net.Conn) int {
 // OPEN events decode raw wire bytes via message.UnpackOpen (no format import needed).
 // EOR events are delivered as text via OnEvent (onEORReceived uses text-only delivery).
 func (gp *grPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
-	switch se.EventType {
-	case "state":
+	switch se.EventType { //nolint:exhaustive // GR only handles state+open
+	case rpc.EventKindState:
 		gp.handleStructuredState(se.PeerAddress, se.State, se.Reason)
-	case "open":
+	case rpc.EventKindOpen:
 		if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
 			gp.handleStructuredOpen(se.PeerAddress, msg)
 		} else if se.RawMessage != nil {

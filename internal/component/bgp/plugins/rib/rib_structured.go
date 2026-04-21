@@ -24,21 +24,17 @@ import (
 
 // dispatchStructured routes a StructuredEvent to the appropriate handler.
 func (r *RIBManager) dispatchStructured(se *rpc.StructuredEvent) {
-	switch se.EventType {
-	case "update":
+	switch se.EventType { //nolint:exhaustive // RIB handles update+state+refresh on structured path; borr/eorr are text-only
+	case rpc.EventKindUpdate:
 		if se.Direction == rpc.DirectionSent {
 			r.handleSentStructured(se)
 		} else {
 			r.handleReceivedStructured(se)
 		}
-	case "state":
+	case rpc.EventKindState:
 		r.handleStructuredState(se)
-	case "refresh":
+	case rpc.EventKindRefresh:
 		r.handleRefreshStructured(se)
-	case "borr":
-		logger().Debug("received BoRR marker", "peer", se.PeerAddress)
-	case "eorr":
-		logger().Debug("received EoRR marker", "peer", se.PeerAddress)
 	}
 }
 

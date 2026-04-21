@@ -237,22 +237,22 @@ func RunRouteServer(conn net.Conn) int {
 			if !ok {
 				continue
 			}
-			switch se.EventType {
-			case eventUpdate:
+			switch se.EventType { //nolint:exhaustive // RS handles update+state+open+refresh on structured path
+			case rpc.EventKindUpdate:
 				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
 					rs.dispatchStructured(se.PeerAddress, msg)
 				}
-			case eventState:
+			case rpc.EventKindState:
 				if ev := parseStructuredState(se); ev != nil {
 					rs.handleState(ev)
 				}
-			case eventOpen:
+			case rpc.EventKindOpen:
 				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
 					if ev := parseStructuredOpen(se, msg); ev != nil {
 						rs.handleOpen(ev)
 					}
 				}
-			case eventRefresh:
+			case rpc.EventKindRefresh:
 				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
 					if ev := parseStructuredRefresh(se, msg); ev != nil {
 						rs.handleRefresh(ev)

@@ -116,8 +116,8 @@ func RunRouteReflector(conn net.Conn) int {
 			if !ok {
 				continue
 			}
-			switch se.EventType {
-			case eventUpdate:
+			switch se.EventType { //nolint:exhaustive // only update/state/open are subscribed
+			case rpc.EventKindUpdate:
 				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
 					// Update withdrawal map BEFORE forwarding: the forward path can
 					// trigger cache eviction which frees the pool buffer backing
@@ -127,9 +127,9 @@ func RunRouteReflector(conn net.Conn) int {
 					rr.withdrawalMu.Unlock()
 					rr.forwardUpdate(msg.MessageID)
 				}
-			case eventState:
+			case rpc.EventKindState:
 				rr.handleStructuredState(se)
-			case eventOpen:
+			case rpc.EventKindOpen:
 				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
 					rr.handleStructuredOpen(se, msg)
 				}
@@ -231,7 +231,7 @@ func (rr *RouteReflector) handleStructuredState(se *rpc.StructuredEvent) {
 	peer := rr.peers[se.PeerAddress]
 	peer.Up = (se.State == rpc.SessionStateUp)
 	peer.ASN = se.PeerAS
-	switch se.State {
+	switch se.State { //nolint:exhaustive // only up/down are actionable for RR
 	case rpc.SessionStateUp:
 		peer.ReplayGen++
 		gen := peer.ReplayGen

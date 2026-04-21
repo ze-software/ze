@@ -514,10 +514,10 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 		return
 	}
 
-	switch se.EventType {
-	case "state":
+	switch se.EventType { //nolint:exhaustive // BMP only handles state+update
+	case rpc.EventKindState:
 		bp.handleSenderState(se, senders)
-	case "update":
+	case rpc.EventKindUpdate:
 		// Filter by route-monitoring-policy:
 		// "pre-policy" = received only, "post-policy" = sent only, "all" = both.
 		policy := bp.routeMonitorPolicy

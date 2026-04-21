@@ -133,10 +133,10 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 			if !ok || se.PeerAddress == "" {
 				continue
 			}
-			switch se.EventType {
-			case "state":
+			switch se.EventType { //nolint:exhaustive // only state+update handled on structured path
+			case rpc.EventKindState:
 				r.handleStructuredState(se)
-			case "update":
+			case rpc.EventKindUpdate:
 				r.handleReceivedStructured(se)
 			}
 		}

@@ -112,7 +112,7 @@ func RunWatchdogPlugin(conn net.Conn) int {
 			}
 			if se.State == rpc.SessionStateUp {
 				srv.handleStateUp(se.PeerAddress)
-			} else if se.State != 0 {
+			} else if se.State != rpc.SessionStateUnspecified {
 				srv.handleStateDown(se.PeerAddress)
 			}
 		}

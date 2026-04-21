@@ -327,7 +327,7 @@ type StructuredEvent struct {
 	PeerAS       uint32           // Remote peer AS number
 	LocalAS      uint32           // Local AS number
 	LocalAddress string           // Local address string
-	EventType    string           // "update", "open", "notification", "keepalive", "refresh", "state", "eor", etc.
+	EventType    EventKind        // EventKindUpdate, EventKindOpen, etc.
 	Direction    MessageDirection // DirectionSent / DirectionReceived
 	MessageID    uint64           // Unique message ID (0 for non-message events)
 	State        SessionState     // For state events: SessionStateUp, SessionStateDown
@@ -355,7 +355,7 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.PeerAS = 0
 	se.LocalAS = 0
 	se.LocalAddress = ""
-	se.EventType = ""
+	se.EventType = EventKindUnspecified
 	se.Direction = DirectionUnspecified
 	se.MessageID = 0
 	se.State = SessionStateUnspecified

@@ -263,9 +263,95 @@ func (e *CapEncoding) UnmarshalText(data []byte) error {
 }
 
 const (
-	wireUp   = "up"
-	wireDown = "down"
+	wireUp           = "up"
+	wireDown         = "down"
+	wireUpdate       = "update"
+	wireOpen         = "open"
+	wireNotification = "notification"
+	wireKeepalive    = "keepalive"
+	wireRefresh      = "refresh"
+	wireState        = "state"
+	wireEOR          = "eor"
 )
+
+// EventKind is the typed BGP event kind carried by StructuredEvent.EventType.
+// Wire form: "update", "open", "notification", "keepalive", "refresh", "state", "eor".
+type EventKind uint8
+
+const (
+	EventKindUnspecified  EventKind = 0
+	EventKindUpdate       EventKind = 1
+	EventKindOpen         EventKind = 2
+	EventKindNotification EventKind = 3
+	EventKindKeepalive    EventKind = 4
+	EventKindRefresh      EventKind = 5
+	EventKindState        EventKind = 6
+	EventKindEOR          EventKind = 7
+	EventKindBoRR         EventKind = 8
+	EventKindEoRR         EventKind = 9
+	EventKindCount        EventKind = 10
+)
+
+func (k EventKind) String() string {
+	switch k {
+	case EventKindUpdate:
+		return wireUpdate
+	case EventKindOpen:
+		return wireOpen
+	case EventKindNotification:
+		return wireNotification
+	case EventKindKeepalive:
+		return wireKeepalive
+	case EventKindRefresh:
+		return wireRefresh
+	case EventKindState:
+		return wireState
+	case EventKindEOR:
+		return wireEOR
+	case EventKindBoRR:
+		return "borr"
+	case EventKindEoRR:
+		return "eorr"
+	case EventKindUnspecified, EventKindCount:
+		return wireUnspecified
+	}
+	return wireUnspecified
+}
+
+func (k EventKind) AppendTo(buf []byte) []byte { return append(buf, k.String()...) }
+
+func (k EventKind) MarshalText() ([]byte, error) {
+	if k == EventKindUnspecified || k >= EventKindCount {
+		return nil, fmt.Errorf("rpc: invalid EventKind %d on the wire", k)
+	}
+	return []byte(k.String()), nil
+}
+
+func (k *EventKind) UnmarshalText(data []byte) error {
+	switch string(data) {
+	case wireUpdate:
+		*k = EventKindUpdate
+	case wireOpen:
+		*k = EventKindOpen
+	case wireNotification:
+		*k = EventKindNotification
+	case wireKeepalive:
+		*k = EventKindKeepalive
+	case wireRefresh:
+		*k = EventKindRefresh
+	case wireState:
+		*k = EventKindState
+	case wireEOR:
+		*k = EventKindEOR
+	case "borr":
+		*k = EventKindBoRR
+	case "eorr":
+		*k = EventKindEoRR
+	default:
+		return fmt.Errorf("rpc: unknown event kind %q", string(data))
+	}
+	return nil
+}
 
 // SessionState is the typed peer session lifecycle state carried by
 // StructuredEvent.State. Wire form: "up", "down".

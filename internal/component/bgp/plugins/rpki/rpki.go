@@ -134,7 +134,7 @@ func RunRPKIPlugin(conn net.Conn) int {
 	p.OnStructuredEvent(func(events []any) error {
 		for _, event := range events {
 			se, ok := event.(*rpc.StructuredEvent)
-			if !ok || se.EventType != "update" || se.PeerAddress == "" {
+			if !ok || se.EventType != rpc.EventKindUpdate || se.PeerAddress == "" {
 				continue
 			}
 			rp.handleStructuredUpdate(se)

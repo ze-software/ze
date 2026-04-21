@@ -129,7 +129,7 @@ func TestHandleSenderStatePeerUp(t *testing.T) {
 		PeerAS:       65001,
 		LocalAS:      65000,
 		LocalAddress: "10.0.0.100",
-		EventType:    "state",
+		EventType:    rpc.EventKindState,
 		State:        rpc.SessionStateUp,
 	}
 
@@ -170,7 +170,7 @@ func TestHandleSenderStatePeerDown(t *testing.T) {
 	se := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
 		PeerAS:      65001,
-		EventType:   "state",
+		EventType:   rpc.EventKindState,
 		State:       rpc.SessionStateDown,
 		Reason:      "notification",
 	}
@@ -202,7 +202,7 @@ func TestHandleSenderNoSenders(t *testing.T) {
 	se := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
 		PeerAS:      65001,
-		EventType:   "state",
+		EventType:   rpc.EventKindState,
 		State:       rpc.SessionStateUp,
 	}
 

@@ -172,7 +172,7 @@ func TestStructuredEventPool(t *testing.T) {
 	se.PeerAS = 65001
 	se.LocalAS = 65000
 	se.LocalAddress = "10.0.0.254"
-	se.EventType = "update"
+	se.EventType = EventKindUpdate
 	se.Direction = DirectionReceived
 	se.MessageID = 42
 	se.State = SessionStateUp
@@ -220,7 +220,7 @@ func TestStructuredEventDeliverViaDirectBridge(t *testing.T) {
 	se := &StructuredEvent{
 		PeerAddress: "10.0.0.1",
 		PeerAS:      65001,
-		EventType:   "update",
+		EventType:   EventKindUpdate,
 		Direction:   DirectionReceived,
 		MessageID:   1,
 		RawMessage:  "test-payload",
@@ -234,7 +234,7 @@ func TestStructuredEventDeliverViaDirectBridge(t *testing.T) {
 	require.True(t, ok, "received event must be *StructuredEvent")
 	assert.Equal(t, "10.0.0.1", got.PeerAddress)
 	assert.Equal(t, uint32(65001), got.PeerAS)
-	assert.Equal(t, "update", got.EventType)
+	assert.Equal(t, EventKindUpdate, got.EventType)
 	assert.Equal(t, DirectionReceived, got.Direction)
 	assert.Equal(t, uint64(1), got.MessageID)
 	assert.Equal(t, "test-payload", got.RawMessage)
