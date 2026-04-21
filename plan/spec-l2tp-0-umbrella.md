@@ -97,7 +97,10 @@ to upstream routers.
 | 6b | `spec-l2tp-6b-auth.md` | PPP authentication: PAP (RFC 1334), CHAP-MD5 (RFC 1994), MS-CHAPv2 (RFC 2759), proxy authentication (RFC 2661 §18). `EventAuthRequest`/`Manager.AuthResponse` channel-based dispatch; ze handles wire format only, RADIUS query lives in l2tp-auth plugin (Phase 8). Replaces 6a stub. | l2tp-6a |
 | 6c | `spec-l2tp-6c-ncp.md` | IPCP (RFC 1332) + DNS option (RFC 1877), IPv6CP (RFC 5072, interface identifier only). Parallel NCP execution after auth. `EventIPRequest`/`Manager.IPResponse` channel flow. pppN address via `iface.Backend.AddAddressP2P` (interface extension). `EventSessionIPAssigned` emitted for redistribute integration in Phase 7. | l2tp-6b |
 | 7 | `spec-l2tp-7-subsystem.md` | Ze subsystem wiring: `ze.Subsystem` implementation (Start/Stop/Reload), event namespace (`l2tp`) and event types in `events.go`, YANG schema (`ze-l2tp-conf.yang`), env var registration, CLI commands (`show l2tp tunnels/sessions`, `clear l2tp`), redistribute source registration, config transaction participation, main binary wiring, Prometheus metrics. | l2tp-6c |
-| 8 | `spec-l2tp-8-plugins.md` | L2TP plugins: l2tp-auth (RADIUS authentication, accounting, CoA/DM), l2tp-pool (IPv4/IPv6 address pools, RADIUS-directed selection), l2tp-shaper (TC rules on pppN), l2tp-stats (session counters, Prometheus export). Plugin registration with correct `registry.Registration` fields. | l2tp-7 |
+| 8a | `spec-l2tp-8a-auth-pool.md` | Built-in auth handler (l2tp-auth-local: static user list, PAP/CHAP-MD5/MS-CHAPv2) and static IP pool (l2tp-pool: bitmap-backed IPv4 ranges). Handler registry in l2tp package (RegisterAttrModHandler pattern). Drain goroutines wiring in subsystem. SessionDown EventBus event for pool release. | l2tp-7 |
+| 8b | `spec-l2tp-8b-radius.md` (skeleton) | RADIUS client library + l2tp-auth-radius plugin (Access-Request, Accounting, CoA/DM). RADIUS-directed pool selection via Framed-Pool attribute. | l2tp-8a |
+| 8c | `spec-l2tp-8c-shaper.md` (skeleton) | TC traffic shaping plugin: TBF/HTB rules on pppN interfaces, rate changes from RADIUS CoA. | l2tp-8a |
+| 8 | `spec-l2tp-8-plugins.md` (superseded) | Original combined spec -- split into 8a/8b/8c. l2tp-stats folded into spec-l2tp-10-metrics. | l2tp-7 |
 
 Phases are strictly ordered. Each phase must be complete before the next begins.
 
