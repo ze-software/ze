@@ -41,7 +41,7 @@ All families decode. Most encode. Use `ze --plugins` to see the current state.
 
 ### Plugins
 
-21 built-in plugins covering protocol features and all address families. The plugin lifecycle (5-stage handshake, JSON-RPC IPC, event dispatch) is stable. Plugins can be written in any language.
+Over 40 built-in plugins covering protocol features, all address families, BFD, BMP, route filters, L2TP/PPP, firewall, traffic control, VPP, NTP, sysctl, and TACACS+ AAA. The plugin lifecycle (5-stage handshake, JSON-RPC IPC, event dispatch) is stable. Plugins can be written in any language.
 
 | Plugin | Status |
 |--------|--------|
@@ -91,8 +91,9 @@ All tests run with the race detector enabled.
 
 | Feature | Notes |
 |---------|-------|
-| FIB / kernel integration | Ze does not program system routes. It's a control-plane daemon like ExaBGP, not a forwarding-plane router like FRR or BIRD. This is by design for the current scope, not a missing feature. |
-| BFD | Not implemented. NOTIFICATION subcode 10 (BFD Down) is parsed but BFD sessions are not managed. |
+| MRT dump (RFC 6396) writing | Reading works via `ze-analyse`. Writing is not implemented. |
+| Confederation (RFC 5065) | Not implemented. |
+| ASPA verification | Not implemented. RPKI origin validation only. |
 | Flowspec redirect to VRF | 4-byte ASN with IP redirect (Type 0x82) extended community not yet supported. |
 | Auto plugin discovery | Plugins must be explicitly declared in config. |
 | Multi-instance | Single daemon per config file. |
