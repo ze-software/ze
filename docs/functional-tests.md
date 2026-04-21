@@ -120,6 +120,26 @@ elicitation scenarios: `elicit-accept <json>`, `elicit-decline`,
 `elicit-cancel`. Each queues one reply; the client auto-cancels when an
 elicit frame arrives with nothing queued.
 
+### Forward-Path Claims
+
+Claims about forwarding, per-destination egress filters, or wire-visible
+re-advertisement must drive a real forward path. In practice that means the
+`.ci` file must load a plugin that calls `ForwardUpdate()` or
+`ForwardUpdatesDirect()` (for example `bgp-rs`) and then assert on the
+destination peer with `expect=bgp:...` or another deterministic wire-visible
+signal.
+
+A two-peer setup by itself is not evidence. If no forwarding-capable plugin is
+loaded, a destination `ze-peer` may establish while no egress filter ever runs.
+Those files must be marked `partial` or `blocked` instead of claiming full wire
+coverage.
+
+There is also a known single-`ze-peer` multi-IP timing limitation for some
+multi-destination scenarios. When a test needs one `ze-peer` process to keep
+multiple local-IP sessions alive long enough for deterministic wire assertions
+and that timing remains flaky, the file should name that exact blocker and stay
+`partial`/`blocked` until the fixture support exists.
+
 ### Test-Only Internal Plugins (`internal/test/plugins/`)
 
 Some `.ci` tests need a synthetic Go-side producer to drive features that

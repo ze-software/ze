@@ -285,11 +285,74 @@ bgp {
 
 // TestParseAllConfigFiles verifies all etc/ze/bgp/*.conf files parse.
 //
-// VALIDATES: All example configs are syntactically valid.
+// VALIDATES: Curated native etc/ze/bgp fixtures are syntactically valid, and
+// remaining shipped examples are explicitly classified as legacy exclusions.
 //
-// PREVENTS: Broken example configs shipped with the project.
+// PREVENTS: Blanket skip hiding drift between shipped examples and parser coverage.
 func TestParseAllConfigFiles(t *testing.T) {
-	t.Skip("TODO: Convert etc/ze/bgp/*.conf files from ExaBGP to native Ze syntax")
+	dir := filepath.Join("..", "..", "..", "..", "etc", "ze", "bgp")
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+
+	parsed := 0
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".conf" {
+			continue
+		}
+
+		name := entry.Name()
+		path := filepath.Join(dir, name)
+		if curatedNativeExampleFixtures[name] {
+			parsed++
+			t.Run(name, func(t *testing.T) {
+				r, err := LoadReactorFileWithPlugins(storage.NewFilesystem(), path, nil)
+				require.NoError(t, err)
+				require.NotNil(t, r)
+			})
+			continue
+		}
+
+		reason, ok := legacyExampleFixtureReason(name)
+		require.Truef(t, ok,
+			"unclassified etc/ze/bgp fixture %q; either convert it to native syntax and add it to parser coverage or document its exclusion here",
+			name,
+		)
+		t.Run(name, func(t *testing.T) {
+			t.Logf("excluded from native parser coverage: %s", reason)
+		})
+	}
+
+	require.Equal(t, len(curatedNativeExampleFixtures), parsed, "all curated native fixtures should be exercised")
+}
+
+var curatedNativeExampleFixtures = map[string]bool{
+	"parse-community.conf":        true,
+	"parse-dual-neighbor.conf":    true,
+	"parse-md5.conf":              true,
+	"parse-multiple-process.conf": true,
+	"parse-process.conf":          true,
+	"parse-simple-v4.conf":        true,
+	"parse-simple-v6.conf":        true,
+	"parse-ttl.conf":              true,
+}
+
+func legacyExampleFixtureReason(name string) (string, bool) {
+	switch {
+	case name == "parse-multisession.conf":
+		return "legacy example for ExaBGP multi-session; ze rejects that removed capability in native syntax", true
+	case strings.HasPrefix(name, "api-"):
+		return "legacy ExaBGP-style API example awaiting native conversion", true
+	case strings.HasPrefix(name, "conf-"):
+		return "legacy ExaBGP-style configuration example awaiting native conversion", true
+	case name == "example-healthcheck.conf":
+		return "legacy healthcheck example awaiting native conversion", true
+	case name == "extended-nexthop.conf":
+		return "legacy extended-nexthop example awaiting native conversion", true
+	case name == "unknown-message.conf":
+		return "legacy unknown-message example awaiting native conversion", true
+	default:
+		return "", false
+	}
 }
 
 // TestOldSyntaxHint verifies that old syntax errors include migration hint.

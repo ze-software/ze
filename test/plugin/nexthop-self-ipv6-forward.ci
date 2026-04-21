@@ -1,6 +1,8 @@
 # Test: IPv6 route reflection config acceptance
 # VALIDATES: IPv6 RR client config parses with route-reflector-client + next-hop self
 # VALIDATES: cmd-1 AC-13 -- peer detail shows route-reflector-client and next-hop
+# STATUS: partial -- this file covers config parse and peer detail only; wire
+# forwarding proof remains blocked by the single-ze-peer multi-IP timing issue
 # PREVENTS: IPv6 RR config not parsed, next-hop self not wired for IPv6 peers
 #
 # NOTE: Wire-level forwarding verification (ORIGINATOR_ID in forwarded UPDATE)

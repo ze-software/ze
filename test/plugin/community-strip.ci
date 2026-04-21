@@ -1,15 +1,13 @@
 # Test: Community filter egress stripping
-# VALIDATES: AC-7 -- egress stripping removes configured communities from forwarded UPDATE
-# STATUS: Phase 1 (spec-ci-observer-per-test-audit) -- runtime_fail sentinel
-#         framework wired; AC-7 verification is TODO. See the TODO block at
-#         the bottom of this file for the two redesign paths.
-# PREVENTS: Egress community strip not wired via ModAccumulator
+# VALIDATES: blocked -- this file is harness wiring only; it does not prove AC-7
+# STATUS: blocked -- no plugin in this config calls ForwardUpdate or
+#         ForwardUpdatesDirect, so the configured dest-peer egress filter never runs
+# PREVENTS: false reviewer confidence that community stripping is covered end-to-end
 #
 # Flow:
 # 1. Source peer sends UPDATE with community 65000:200
-# 2. Route is forwarded to dest peer (ARCHITECTURALLY BLOCKED: no forwarding plugin)
-# 3. Community filter strips 65000:200 on egress for dest peer (not yet exercised)
-# 4. Python observer shuts ze down; runtime_fail fires on RPC failure only, not strip
+# 2. Test proves source/dest session orchestration and observer RPC health only
+# 3. No forwarding plugin is loaded, so the dest peer is not evidence for strip behavior
 
 # Source peer (ASN 65001) on 127.0.0.1
 option=env:var=ze.log.bgp.filter.community:value=info
@@ -32,11 +30,11 @@ option=tcp_connections:value=1
 option=timeout:value=20s
 EOF_DEST
 
-# Python test plugin: verify route was forwarded (stripping is via ModAccumulator,
-# verification that the community was removed requires checking dest peer's received wire)
+# Python test plugin: verify harness wiring only. Real strip proof needs a
+# forwarding plugin plus a dest-peer wire assertion.
 tmpfs=test-strip.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-"""Verify community filter egress stripping: route forwarded to dest peer."""
+"""Verify observer wiring only; this file does not prove egress stripping."""
 import json
 import sys
 import time
@@ -70,7 +68,7 @@ def main():
         sys.stderr.flush()
         runtime_fail(msg)
 
-    print(f'INFO: adj-rib-in total={total} (strip verification via stderr)', file=sys.stderr)
+    print(f'INFO: adj-rib-in total={total} (no egress-strip assertion in this file)', file=sys.stderr)
 
     # Verify dest-peer session is established (proves ze connected to second peer).
     dest_result = dispatch(api, 'peer dest-peer detail')
@@ -81,7 +79,7 @@ def main():
         sys.stderr.flush()
         runtime_fail(msg)
 
-    print('OK: dest-peer session established, community strip applied on egress', file=sys.stderr)
+    print('OK: session wiring stayed healthy; egress strip remains blocked in this file', file=sys.stderr)
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()
 
@@ -167,15 +165,9 @@ cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
 cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --mode sink --port $PORT:stdin=dest
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-community --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
-# AC-7 verification is TODO. This test is in "framework-wired" state per
-# spec-ci-observer-per-test-audit phase 1. The runtime_fail sentinel is
-# wired but the test does not yet verify the egress strip itself.
-# Architectural blocker: this test does not load any plugin that calls
-# ForwardUpdate (no bgp-rs / bgp-cache), so the egressFilter never runs
-# for forwarded UPDATEs. Closing the bug requires either loading a forward
-# plugin and asserting on production decision logs, or restructuring the
-# test to use ze-peer check mode for wire-byte verification on the dest.
-# Negative assertions below catch obvious regressions until the redesign:
+# This file intentionally makes no AC-7 claim. With no forwarding plugin
+# (for example bgp-rs) the dest-peer egress filter never executes, so the
+# session checks below are only harness health signals.
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error
 reject=stderr:pattern=treat-as-withdraw

@@ -1,6 +1,8 @@
-# Test: OTC egress filter and ingress stamp from provider
-# VALIDATES: RFC 9234 Section 5 ingress stamp -- route from Provider gets OTC stamped
-# PREVENTS: Missing OTC stamp on routes from upstream causing downstream leaks
+# Test: OTC egress-filter evidence blocked without a forward path
+# VALIDATES: blocked -- this file does not prove OTC stamp or egress behavior
+# STATUS: blocked -- single-peer setup never exercises per-destination egress
+#         filtering, and adj-rib-in status does not prove OTC stamping
+# PREVENTS: false reviewer confidence that RFC 9234 egress behavior is covered
 
 # ze-peer: acts as a provider peer (role capability code 9, value 0=provider)
 stdin=peer:terminator=EOF_PEER
@@ -12,10 +14,11 @@ option=open:value=add-capability:code=9:hex=00
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0029020000000E4001010040020040030401010101180A0000
 EOF_PEER
 
-# Python test plugin: verifies the route was received (stamped with OTC by ingress filter).
+# Python test plugin: verifies observer wiring only. This file does not prove
+# OTC stamping or egress suppression.
 tmpfs=test-egress.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-"""Verify OTC ingress stamp from provider and route acceptance."""
+"""Verify observer wiring only; OTC stamp/egress proof is blocked here."""
 import json
 import sys
 import time
@@ -47,7 +50,7 @@ def main():
         sys.stderr.flush()
         runtime_fail(msg)
 
-    print('OK: route from provider accepted and OTC stamped by ingress filter', file=sys.stderr)
+    print('OK: observer wiring stayed healthy; OTC stamp/egress proof remains blocked', file=sys.stderr)
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()
 
@@ -100,9 +103,9 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
-# AC verification is TODO -- same architectural blocker as community-strip:
-# no forwarding plugin loaded, single peer disconnects before validation
-# gate promotion. Redesign requires Path A or Path B. Negative regressions:
+# This file intentionally makes no OTC egress claim. Without a second
+# destination peer and a forwarding plugin, the per-destination filter path
+# is never exercised and adj-rib-in status cannot prove OTC stamping.
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error
 reject=stderr:pattern=ZE-OBSERVER-FAIL

@@ -1,11 +1,13 @@
 # bgp-rs-fastpath-ebgp-shared -- eBGP prepend via ForwardCached (rs-fastpath-3)
 #
-# VALIDATES: rs-fastpath-3 wiring -- eBGP source peer goes through bgp-rs
-# forwarding via the Plugin.ForwardCached fast path. Legacy 'cache N forward'
-# text RPC must not fire.
+# VALIDATES: rs-fastpath-3 wiring only -- eBGP source peer goes through bgp-rs
+# forwarding via the Plugin.ForwardCached fast path, proven here by clean EOR
+# delivery and absence of legacy 'cache N forward' text-RPC fallback.
 #
 # PREVENTS: silent regression where the fast path is not engaged for eBGP
-# forwarding. Deep A==B byte-equality assertion (AC-6b) deferred to follow-up.
+# forwarding.
+# STATUS: partial -- this file does not compare forwarded UPDATE bytes; deep
+# A==B byte-equality assertion (AC-6b) remains deferred.
 
 stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1
