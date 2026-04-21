@@ -144,7 +144,7 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 		LocalAS:      s.LocalAS,
 		PeerAS:       s.PeerAS,
 		RouterID:     s.RouterID,
-		State:        peer.State().String(),
+		State:        peer.State().PluginState(),
 	}
 	r.mu.RUnlock()
 
@@ -183,7 +183,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			LocalAS:      s.LocalAS,
 			PeerAS:       s.PeerAS,
 			RouterID:     s.RouterID,
-			State:        peer.State().String(),
+			State:        peer.State().PluginState(),
 		}
 		// Increment per-peer counters (lock-free atomics).
 		// Engine counts updates, keepalives, and EOR. NLRI-level counters

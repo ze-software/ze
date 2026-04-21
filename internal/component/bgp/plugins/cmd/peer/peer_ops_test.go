@@ -18,8 +18,8 @@ import (
 func TestHandlerPeerDetailAllPeers(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: "established"},
-			{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002, State: "idle"},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
+			{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002, State: plugin.PeerStateStopped},
 		},
 	}
 	ctx := newTestContext(reactor)
@@ -50,8 +50,8 @@ func TestHandlerPeerDetailAllPeers(t *testing.T) {
 func TestHandlerPeerDetailFilterByIP(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: "established"},
-			{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002, State: "idle"},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
+			{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002, State: plugin.PeerStateStopped},
 		},
 	}
 	ctx := newTestContext(reactor)
@@ -694,7 +694,7 @@ func TestBgpSummaryHandler(t *testing.T) {
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
 				PeerAS:             65001,
-				State:              "established",
+				State:              plugin.PeerStateEstablished,
 				Uptime:             5 * time.Minute,
 				UpdatesReceived:    10,
 				UpdatesSent:        5,
@@ -704,7 +704,7 @@ func TestBgpSummaryHandler(t *testing.T) {
 			{
 				Address: netip.MustParseAddr("192.0.2.2"),
 				PeerAS:  65002,
-				State:   "idle",
+				State:   plugin.PeerStateStopped,
 			},
 		},
 		stats: plugin.ReactorStats{
@@ -765,7 +765,7 @@ func TestBgpPeerCapabilitiesHandler(t *testing.T) {
 			{
 				Address: netip.MustParseAddr("192.0.2.1"),
 				PeerAS:  65001,
-				State:   "established",
+				State:   plugin.PeerStateEstablished,
 			},
 		},
 		peerCaps: &plugin.PeerCapabilitiesInfo{
@@ -816,7 +816,7 @@ func TestBgpPeerCapabilitiesNoPeer(t *testing.T) {
 func TestBgpPeerCapabilitiesNotFound(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: "established"},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
 		},
 	}
 	ctx := newTestContext(reactor)

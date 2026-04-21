@@ -22,7 +22,7 @@ func TestBgpSummaryFormat(t *testing.T) {
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
 				PeerAS:             65001,
-				State:              "established",
+				State:              plugin.PeerStateEstablished,
 				Uptime:             5 * time.Minute,
 				UpdatesReceived:    10,
 				UpdatesSent:        5,
@@ -32,7 +32,7 @@ func TestBgpSummaryFormat(t *testing.T) {
 			{
 				Address: netip.MustParseAddr("192.0.2.2"),
 				PeerAS:  65002,
-				State:   "idle",
+				State:   plugin.PeerStateStopped,
 			},
 		},
 		stats: plugin.ReactorStats{
@@ -111,19 +111,19 @@ func TestBgpSummary_FilterByFamily(t *testing.T) {
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
 				PeerAS:             65001,
-				State:              "established",
+				State:              plugin.PeerStateEstablished,
 				NegotiatedFamilies: []string{"ipv4/unicast", "ipv6/unicast"},
 			},
 			{
 				Address:            netip.MustParseAddr("192.0.2.2"),
 				PeerAS:             65002,
-				State:              "established",
+				State:              plugin.PeerStateEstablished,
 				NegotiatedFamilies: []string{"ipv4/unicast"},
 			},
 			{
 				Address:            netip.MustParseAddr("192.0.2.3"),
 				PeerAS:             65003,
-				State:              "idle",
+				State:              plugin.PeerStateStopped,
 				NegotiatedFamilies: nil,
 			},
 		},
@@ -156,7 +156,7 @@ func TestBgpSummary_FamilyShorthand(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
-				State:              "established",
+				State:              plugin.PeerStateEstablished,
 				NegotiatedFamilies: []string{"ipv4/unicast"},
 			},
 		},
@@ -183,7 +183,7 @@ func TestBgpSummary_UnknownFamilyRejects(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
-				State:              "established",
+				State:              plugin.PeerStateEstablished,
 				NegotiatedFamilies: []string{"ipv4/unicast"},
 			},
 		},
@@ -255,7 +255,7 @@ func TestBgpSummary_FamilyArgValidation(t *testing.T) {
 func TestPeerCapabilitiesHandler(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), State: "established"},
+			{Address: netip.MustParseAddr("192.0.2.1"), State: plugin.PeerStateEstablished},
 		},
 		peerCaps: &plugin.PeerCapabilitiesInfo{
 			Families:             []string{"ipv4/unicast", "ipv6/unicast"},
@@ -299,7 +299,7 @@ func TestPeerShowStatistics(t *testing.T) {
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
 				PeerAS:             65001,
-				State:              "established",
+				State:              plugin.PeerStateEstablished,
 				Uptime:             5 * time.Minute,
 				UpdatesReceived:    1000,
 				UpdatesSent:        500,
@@ -346,7 +346,7 @@ func TestPeerShowStatisticsZeroUptime(t *testing.T) {
 			{
 				Address: netip.MustParseAddr("192.0.2.1"),
 				PeerAS:  65001,
-				State:   "idle",
+				State:   plugin.PeerStateStopped,
 				// Uptime is zero (not established)
 			},
 		},
@@ -373,7 +373,7 @@ func TestPeerShowStatisticsZeroUptime(t *testing.T) {
 func TestPeerCapabilitiesNotEstablished(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), State: "idle"},
+			{Address: netip.MustParseAddr("192.0.2.1"), State: plugin.PeerStateStopped},
 		},
 		peerCaps: nil, // No negotiated caps
 	}

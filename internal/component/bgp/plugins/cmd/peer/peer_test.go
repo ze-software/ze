@@ -51,8 +51,8 @@ func TestBgpHandlerRPCs(t *testing.T) {
 func TestHandlerPeerList(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: "established", Uptime: time.Minute},
-			{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002, State: "idle"},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished, Uptime: time.Minute},
+			{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002, State: plugin.PeerStateStopped},
 		},
 	}
 	ctx := newTestContext(reactor)

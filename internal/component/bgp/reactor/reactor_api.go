@@ -50,7 +50,7 @@ func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
 		RouterID:     s.RouterID,
 		Connect:      s.Connection.Connect,
 		Accept:       s.Connection.Accept,
-		State:        peer.State().String(),
+		State:        peer.State().PluginState(),
 	}
 	o.dispatcher.OnPeerStateChange(&peerInfo, "up", "")
 }
@@ -70,7 +70,7 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
 		RouterID:     s.RouterID,
 		Connect:      s.Connection.Connect,
 		Accept:       s.Connection.Accept,
-		State:        peer.State().String(),
+		State:        peer.State().PluginState(),
 	}
 	o.dispatcher.OnPeerStateChange(&peerInfo, "down", reason)
 }
@@ -102,7 +102,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			ConnectRetry:         s.ConnectRetry,
 			Connect:              s.Connection.Connect,
 			Accept:               s.Connection.Accept,
-			State:                p.State().String(),
+			State:                p.State().PluginState(),
 			UpdatesReceived:      stats.UpdatesReceived,
 			UpdatesSent:          stats.UpdatesSent,
 			KeepalivesReceived:   stats.KeepalivesReceived,

@@ -96,7 +96,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			}
 			matched = true
 		}
-		if p.State == "established" {
+		if p.State == plugin.PeerStateEstablished {
 			established++
 		}
 		peerRows = append(peerRows, map[string]any{

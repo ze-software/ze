@@ -13,9 +13,34 @@ package plugin
 
 import (
 	"context"
+	"fmt"
 	"net/netip"
 	"time"
 )
+
+// PeerState represents the high-level state of a BGP peer.
+type PeerState uint8
+
+const (
+	PeerStateStopped PeerState = iota
+	PeerStateConnecting
+	PeerStateActive
+	PeerStateEstablished
+)
+
+func (s PeerState) String() string {
+	switch s {
+	case PeerStateStopped:
+		return "Stopped"
+	case PeerStateConnecting:
+		return "Connecting"
+	case PeerStateActive:
+		return "Active"
+	case PeerStateEstablished:
+		return "Established"
+	}
+	return fmt.Sprintf("Unknown(%d)", s)
+}
 
 // PeerInfo is a snapshot of BGP peer state for API output.
 type PeerInfo struct {
@@ -31,7 +56,7 @@ type PeerInfo struct {
 	ConnectRetry    time.Duration // Connect retry interval
 	Connect         bool          // Initiate outbound connections
 	Accept          bool          // Accept inbound connections
-	State           string
+	State           PeerState
 	Uptime          time.Duration
 
 	// Route reflection (RFC 4456).

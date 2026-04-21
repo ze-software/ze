@@ -26,7 +26,7 @@ func newDispatchContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandCo
 func TestDispatchBGPPeerList(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: "established", Uptime: time.Minute},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished, Uptime: time.Minute},
 		},
 	}
 	ctx := newDispatchContext(reactor)
@@ -50,7 +50,7 @@ func TestDispatchBGPPeerList(t *testing.T) {
 func TestDispatchBGPPeerDetail(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: "established"},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
 		},
 	}
 	ctx := newDispatchContext(reactor)

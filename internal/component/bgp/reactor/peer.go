@@ -29,6 +29,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
@@ -68,6 +69,10 @@ func (s PeerState) String() string {
 	default:
 		return "Unknown"
 	}
+}
+
+func (s PeerState) PluginState() plugin.PeerState {
+	return plugin.PeerState(s)
 }
 
 // Default reconnect delays.
