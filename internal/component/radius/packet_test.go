@@ -252,6 +252,105 @@ func TestAccountingRequestAuth(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-3/AC-4 -- CoA-Request (code 43) round-trips through encode/decode.
+func TestCoARequestRoundTrip(t *testing.T) {
+	pkt := &Packet{
+		Code:       CodeCoARequest,
+		Identifier: 10,
+		Attrs: []Attr{
+			{Type: AttrAcctSessionID, Value: AttrString("sess-001")},
+			{Type: AttrFilterID, Value: AttrString("10mbit")},
+		},
+	}
+
+	buf := make([]byte, MaxPacketLen)
+	n, err := pkt.EncodeTo(buf, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Set proper CoA authenticator.
+	secret := []byte("coa-secret")
+	auth := AccountingRequestAuth(buf, n, secret)
+	copy(buf[4:4+AuthenticatorLen], auth[:])
+
+	decoded, err := Decode(buf[:n])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decoded.Code != CodeCoARequest {
+		t.Errorf("code: got %d, want %d", decoded.Code, CodeCoARequest)
+	}
+	sessID := decoded.FindAttr(AttrAcctSessionID)
+	if string(sessID) != "sess-001" {
+		t.Errorf("Acct-Session-Id: got %q, want %q", sessID, "sess-001")
+	}
+}
+
+// VALIDATES: AC-6/AC-7 -- Disconnect-Request (code 40) round-trips.
+func TestDisconnectRequestRoundTrip(t *testing.T) {
+	pkt := &Packet{
+		Code:       CodeDisconnectRequest,
+		Identifier: 20,
+		Attrs: []Attr{
+			{Type: AttrAcctSessionID, Value: AttrString("sess-002")},
+		},
+	}
+
+	buf := make([]byte, MaxPacketLen)
+	n, err := pkt.EncodeTo(buf, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	decoded, err := Decode(buf[:n])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decoded.Code != CodeDisconnectRequest {
+		t.Errorf("code: got %d, want %d", decoded.Code, CodeDisconnectRequest)
+	}
+}
+
+// VALIDATES: AC-3 -- CoA request authenticator verification.
+func TestVerifyCoARequestAuth(t *testing.T) {
+	secret := []byte("coa-test-secret")
+	pkt := &Packet{
+		Code:       CodeCoARequest,
+		Identifier: 5,
+		Attrs: []Attr{
+			{Type: AttrAcctSessionID, Value: AttrString("sess-100")},
+		},
+	}
+
+	buf := make([]byte, MaxPacketLen)
+	n, err := pkt.EncodeTo(buf, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Set correct authenticator.
+	auth := AccountingRequestAuth(buf, n, secret)
+	copy(buf[4:4+AuthenticatorLen], auth[:])
+
+	if !VerifyCoARequestAuth(buf[:n], secret) {
+		t.Error("valid CoA auth should verify")
+	}
+
+	// Corrupt one byte.
+	buf[4]++
+	if VerifyCoARequestAuth(buf[:n], secret) {
+		t.Error("corrupted CoA auth should fail verification")
+	}
+}
+
+// VALIDATES: AC-4 -- invalid authenticator on short packet.
+func TestVerifyCoARequestAuthTooShort(t *testing.T) {
+	if VerifyCoARequestAuth(make([]byte, 10), []byte("secret")) {
+		t.Error("short packet should fail verification")
+	}
+}
+
 func TestEncodeAtOffset(t *testing.T) {
 	pkt := &Packet{
 		Code:       CodeAccessRequest,

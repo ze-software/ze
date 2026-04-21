@@ -172,8 +172,25 @@ func VerifyResponseAuth(response []byte, requestAuth [AuthenticatorLen]byte, sec
 	return subtle.ConstantTimeCompare(response[4:4+AuthenticatorLen], expected[:]) == 1
 }
 
+// VerifyCoARequestAuth checks the authenticator of a CoA-Request or
+// Disconnect-Request. RFC 5176 Section 3.5: same formula as
+// Accounting-Request (MD5 over Code+ID+Length+16-zero-octets+Attrs+Secret).
+// Uses constant-time comparison.
+func VerifyCoARequestAuth(data, secret []byte) bool {
+	if len(data) < MinPacketLen {
+		return false
+	}
+	pktLen := int(binary.BigEndian.Uint16(data[2:4]))
+	if pktLen < MinPacketLen || pktLen > len(data) {
+		return false
+	}
+	expected := AccountingRequestAuth(data, pktLen, secret)
+	return subtle.ConstantTimeCompare(data[4:4+AuthenticatorLen], expected[:]) == 1
+}
+
 // AccountingRequestAuth computes the authenticator for an Accounting-Request.
 // RFC 2866 Section 3: MD5(Code+ID+Length+16zero+Attributes+Secret).
+// RFC 5176 Section 3.5: same formula for CoA-Request and Disconnect-Request.
 func AccountingRequestAuth(buf []byte, length int, secret []byte) [AuthenticatorLen]byte {
 	h := md5.New() //nolint:gosec // RFC 2866 mandates MD5
 	h.Write(buf[:4])

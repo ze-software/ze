@@ -49,6 +49,39 @@ type SessionDownPayload struct {
 // plugin to release allocated IP addresses.
 var SessionDown = events.Register[*SessionDownPayload](Namespace, SessionDownEvent)
 
+// SessionUpEvent is the event type string for session-up notifications.
+const SessionUpEvent = "session-up"
+
+// SessionUpPayload carries session identity and the pppN interface name.
+// Emitted by the reactor when PPP LCP, authentication, and all enabled
+// NCPs complete successfully (ppp.EventSessionUp).
+type SessionUpPayload struct {
+	TunnelID  uint16
+	SessionID uint16
+	Interface string
+}
+
+// SessionUp is the typed handle for (l2tp, session-up). Consumed by
+// the shaper plugin to apply TC rules and by stats plugins.
+var SessionUp = events.Register[*SessionUpPayload](Namespace, SessionUpEvent)
+
+// SessionRateChangeEvent is the event type string for rate-change notifications.
+const SessionRateChangeEvent = "session-rate-change"
+
+// SessionRateChangePayload carries updated bandwidth for a session.
+// Emitted by the CoA handler in the RADIUS plugin when a RADIUS server
+// sends a CoA-Request with bandwidth attributes.
+type SessionRateChangePayload struct {
+	TunnelID     uint16
+	SessionID    uint16
+	DownloadRate uint64 // bits per second
+	UploadRate   uint64 // bits per second
+}
+
+// SessionRateChange is the typed handle for (l2tp, session-rate-change).
+// Consumed by the shaper plugin to update TC rules on the session's pppN.
+var SessionRateChange = events.Register[*SessionRateChangePayload](Namespace, SessionRateChangeEvent)
+
 // SessionIPAssignedEvent is the event type string for session-ip-assigned notifications.
 const SessionIPAssignedEvent = "session-ip-assigned"
 

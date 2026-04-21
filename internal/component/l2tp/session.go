@@ -115,6 +115,11 @@ type L2TPSession struct {
 	// (LNS side, true) or handleOCCN (LAC side, false). Used by the
 	// kernel worker to set L2TP_ATTR_LNS_MODE.
 	lnsMode bool
+
+	// pppInterface is the kernel pppN interface name (e.g. "ppp0").
+	// Set by handleKernelSuccess when the PPP session is started.
+	// Used by SessionUp EventBus event so the shaper can apply TC.
+	pppInterface string
 }
 
 // State returns the session's current FSM state.

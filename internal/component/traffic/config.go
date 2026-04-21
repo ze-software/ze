@@ -86,7 +86,7 @@ func parseTrafficClass(name string, m map[string]any) (TrafficClass, error) {
 	tc := TrafficClass{Name: name}
 
 	if rateStr, ok := m["rate"].(string); ok {
-		rate, err := parseRateBps(rateStr)
+		rate, err := ParseRateBps(rateStr)
 		if err != nil {
 			return TrafficClass{}, fmt.Errorf("rate: %w", err)
 		}
@@ -94,7 +94,7 @@ func parseTrafficClass(name string, m map[string]any) (TrafficClass, error) {
 	}
 
 	if ceilStr, ok := m["ceil"].(string); ok {
-		ceil, err := parseRateBps(ceilStr)
+		ceil, err := ParseRateBps(ceilStr)
 		if err != nil {
 			return TrafficClass{}, fmt.Errorf("ceil: %w", err)
 		}
@@ -147,7 +147,7 @@ var rateSuffixes = []struct {
 	{"bps", 8},
 }
 
-func parseRateBps(v string) (uint64, error) {
+func ParseRateBps(v string) (uint64, error) {
 	for _, rs := range rateSuffixes {
 		if strings.HasSuffix(v, rs.suffix) {
 			numStr := v[:len(v)-len(rs.suffix)]

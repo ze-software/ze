@@ -845,6 +845,15 @@ func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		ProxyLCPLastRecv:    ksucc.proxyLastRecvLCPConfReq,
 	}
 
+	ifaceName := fmt.Sprintf("ppp%d", ksucc.fds.unitNum)
+	r.tunnelsMu.Lock()
+	if tunnel, ok := r.tunnelsByLocalID[ksucc.localTID]; ok {
+		if sess := tunnel.lookupSession(ksucc.localSID); sess != nil {
+			sess.pppInterface = ifaceName
+		}
+	}
+	r.tunnelsMu.Unlock()
+
 	select {
 	case r.pppDriver.SessionsIn() <- start:
 	case <-r.stop:
@@ -879,7 +888,10 @@ func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
 		tid, sid, reason = e.TunnelID, e.SessionID, e.Reason
 	case ppp.EventSessionRejected:
 		tid, sid, reason = e.TunnelID, e.SessionID, e.Reason
-	case ppp.EventLCPUp, ppp.EventLCPDown, ppp.EventSessionUp:
+	case ppp.EventLCPUp, ppp.EventLCPDown:
+		return
+	case ppp.EventSessionUp:
+		r.handleSessionUp(e)
 		return
 	}
 	if tid == 0 && sid == 0 {
@@ -974,6 +986,33 @@ func (r *L2TPReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 		}); err != nil {
 			r.logger.Warn("l2tp: session-ip-assigned emit failed", "error", err)
 		}
+	}
+}
+
+// handleSessionUp emits the (l2tp, session-up) EventBus event when a
+// PPP session completes LCP, auth, and all NCPs. The shaper plugin
+// subscribes to this event to apply TC rules on the pppN interface.
+func (r *L2TPReactor) handleSessionUp(ev ppp.EventSessionUp) {
+	if r.eventBus == nil {
+		return
+	}
+	var ifaceName string
+	r.tunnelsMu.Lock()
+	if tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]; ok {
+		if sess := tunnel.lookupSession(ev.SessionID); sess != nil {
+			ifaceName = sess.pppInterface
+		}
+	}
+	r.tunnelsMu.Unlock()
+	if ifaceName == "" {
+		return
+	}
+	if _, err := l2tpevents.SessionUp.Emit(r.eventBus, &l2tpevents.SessionUpPayload{
+		TunnelID:  ev.TunnelID,
+		SessionID: ev.SessionID,
+		Interface: ifaceName,
+	}); err != nil {
+		r.logger.Warn("l2tp: session-up emit failed", "error", err)
 	}
 }
 

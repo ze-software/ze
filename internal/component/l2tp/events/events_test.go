@@ -28,3 +28,15 @@ func TestL2TP_RegisteredAsProducer(t *testing.T) {
 	require.True(t, slices.Contains(prods, ProtocolID),
 		"l2tp ProtocolID must appear in Producers()")
 }
+
+// VALIDATES: AC-1 prerequisite -- SessionUp typed handle exists.
+func TestSessionUpHandle_Registered(t *testing.T) {
+	require.Equal(t, "l2tp", SessionUp.Namespace())
+	require.Equal(t, SessionUpEvent, SessionUp.EventType())
+}
+
+// VALIDATES: SessionRateChange typed handle exists.
+func TestSessionRateChangeHandle_Registered(t *testing.T) {
+	require.Equal(t, "l2tp", SessionRateChange.Namespace())
+	require.Equal(t, SessionRateChangeEvent, SessionRateChange.EventType())
+}

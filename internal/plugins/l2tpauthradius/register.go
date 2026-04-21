@@ -5,11 +5,13 @@
 package l2tpauthradius
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"os"
+	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
@@ -25,6 +27,9 @@ import (
 var (
 	authInstance = newRADIUSAuth()
 	acctInstance = newRADIUSAcct()
+	eventBusMu   sync.Mutex
+	storedBus    ze.EventBus
+	activeCoA    *coaListener
 )
 
 func init() {
@@ -45,6 +50,9 @@ func init() {
 		ConfigureEventBus: func(eb any) {
 			if e, ok := eb.(ze.EventBus); ok {
 				acctInstance.SubscribeEventBus(e)
+				eventBusMu.Lock()
+				storedBus = e
+				eventBusMu.Unlock()
 			}
 		},
 	}
@@ -122,6 +130,28 @@ func runPlugin(conn net.Conn) int {
 		}
 		logger().Info("l2tp-auth-radius: configured",
 			"servers", len(pending.Servers), "timeout", pending.Timeout)
+
+		// Start or restart CoA/DM listener if configured.
+		eventBusMu.Lock()
+		bus := storedBus
+		eventBusMu.Unlock()
+		if activeCoA != nil {
+			if closeErr := activeCoA.Close(); closeErr != nil {
+				logger().Warn("l2tp-auth-radius: CoA listener close failed", "error", closeErr)
+			}
+			activeCoA = nil
+		}
+		if pending.CoAPort > 0 && len(pending.Servers) > 0 {
+			allowed := serverIPs(pending.Servers)
+			cl, coaErr := newCoAListener(pending.CoAPort, pending.Servers[0].SharedKey, bus, allowed)
+			if coaErr != nil {
+				logger().Warn("l2tp-auth-radius: CoA listener failed to start", "error", coaErr)
+			} else {
+				activeCoA = cl
+				logger().Info("l2tp-auth-radius: CoA listener started", "port", pending.CoAPort)
+			}
+		}
+
 		pending = nil
 		return nil
 	})
@@ -139,9 +169,44 @@ func runPlugin(conn net.Conn) int {
 		ApplyBudget:  1,
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)
+		closeCoAListener()
 		return 1
 	}
+	closeCoAListener()
 	return 0
+}
+
+func closeCoAListener() {
+	if activeCoA != nil {
+		if err := activeCoA.Close(); err != nil {
+			logger().Warn("l2tp-auth-radius: CoA listener close failed", "error", err)
+		}
+		activeCoA = nil
+	}
+}
+
+// serverIPs extracts the IP addresses from the configured RADIUS servers
+// for CoA source address filtering.
+func serverIPs(servers []radius.Server) []net.IP {
+	var ips []net.IP
+	for _, srv := range servers {
+		host, _, err := net.SplitHostPort(srv.Address)
+		if err != nil {
+			host = srv.Address
+		}
+		if ip := net.ParseIP(host); ip != nil {
+			ips = append(ips, ip)
+		} else {
+			var resolver net.Resolver
+			addrs, resolveErr := resolver.LookupIPAddr(context.Background(), host)
+			if resolveErr == nil {
+				for _, a := range addrs {
+					ips = append(ips, a.IP)
+				}
+			}
+		}
+	}
+	return ips
 }
 
 // parseConfigFromJSON parses YANG-delivered JSON config.

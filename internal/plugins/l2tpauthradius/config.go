@@ -17,6 +17,7 @@ type radiusConfig struct {
 	Retries       int
 	AcctInterval  time.Duration
 	NASIdentifier string
+	CoAPort       int // RFC 5176 CoA/DM listener port; 0 = disabled
 }
 
 // errNoRADIUSConfig is returned when the config tree has no auth.radius block.
@@ -64,6 +65,14 @@ func parseConfigFromTree(tree map[string]any) (*radiusConfig, error) {
 			return nil, fmt.Errorf("%s: acct-interval must be 60-3600, got %d", Name, v)
 		}
 		cfg.AcctInterval = time.Duration(v) * time.Second
+	}
+
+	if coaPort, ok := radiusBlock["coa-port"].(float64); ok {
+		v := int(coaPort)
+		if v < 1 || v > 65535 {
+			return nil, fmt.Errorf("%s: coa-port must be 1-65535, got %d", Name, v)
+		}
+		cfg.CoAPort = v
 	}
 
 	serverList, ok := radiusBlock["server"]

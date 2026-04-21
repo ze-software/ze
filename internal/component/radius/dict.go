@@ -1,8 +1,11 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- RADIUS attribute dictionary
+// Related: packet.go -- packet encode/decode consuming these codes
+// Related: client.go -- client transport using packet codes
+// Related: attr.go -- attribute encode/decode helpers
 
 package radius
 
-// RADIUS packet codes (RFC 2865 Section 3, RFC 2866 Section 3).
+// RADIUS packet codes (RFC 2865 Section 3, RFC 2866 Section 3, RFC 5176 Section 3).
 const (
 	CodeAccessRequest   = 1
 	CodeAccessAccept    = 2
@@ -10,6 +13,14 @@ const (
 	CodeAccountingReq   = 4
 	CodeAccountingResp  = 5
 	CodeAccessChallenge = 11
+
+	// RFC 5176 Section 3: Dynamic Authorization Extensions (CoA/DM).
+	CodeDisconnectRequest = 40
+	CodeDisconnectACK     = 41
+	CodeDisconnectNAK     = 42
+	CodeCoARequest        = 43
+	CodeCoAACK            = 44
+	CodeCoANAK            = 45
 )
 
 // RADIUS attribute type codes (RFC 2865 Section 5).
@@ -40,6 +51,7 @@ const (
 	AttrCHAPChallenge     = 60
 	AttrNASPortType       = 61
 	AttrFramedPool        = 88
+	AttrErrorCause        = 101 // RFC 5176 Section 3.6
 	AttrVendorSpecific    = 26
 )
 
@@ -75,6 +87,19 @@ const (
 // NAS-Port-Type values (RFC 2865 Section 5.41).
 const (
 	NASPortTypeVirtual = 5
+)
+
+// Error-Cause values (RFC 5176 Section 3.6).
+const (
+	ErrorCauseResidualSession      = 201
+	ErrorCauseInvalidEAPPacket     = 202
+	ErrorCauseUnsupportedAttribute = 401
+	ErrorCauseMissingAttribute     = 402
+	ErrorCauseNASIdentification    = 403
+	ErrorCauseInvalidRequest       = 404
+	ErrorCauseUnsupportedService   = 405
+	ErrorCauseUnsupportedExtension = 406
+	ErrorCauseSessionNotFound      = 503
 )
 
 // Wire constants.

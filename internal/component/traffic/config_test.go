@@ -67,19 +67,19 @@ func TestParseTrafficRateFormats(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseRateBps(tt.rate)
+			got, err := ParseRateBps(tt.rate)
 			if err != nil {
-				t.Fatalf("parseRateBps(%q): %v", tt.rate, err)
+				t.Fatalf("ParseRateBps(%q): %v", tt.rate, err)
 			}
 			if got != tt.want {
-				t.Errorf("parseRateBps(%q) = %d, want %d", tt.rate, got, tt.want)
+				t.Errorf("ParseRateBps(%q) = %d, want %d", tt.rate, got, tt.want)
 			}
 		})
 	}
 }
 
 func TestParseTrafficInvalidRate(t *testing.T) {
-	_, err := parseRateBps("notarate")
+	_, err := ParseRateBps("notarate")
 	if err == nil {
 		t.Fatal("expected error for invalid rate")
 	}
