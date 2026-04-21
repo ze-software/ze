@@ -6,7 +6,7 @@ require (
 	charm.land/bubbles/v2 v2.1.0
 	charm.land/bubbletea/v2 v2.0.2
 	charm.land/lipgloss/v2 v2.0.2
-	charm.land/wish/v2 v2.0.0
+	charm.land/wish/v2 v2.0.1
 	github.com/charmbracelet/colorprofile v0.4.2
 	github.com/charmbracelet/ssh v0.0.0-20250826160808-ebfa259c7309
 	github.com/gaissmai/bart v0.26.1
