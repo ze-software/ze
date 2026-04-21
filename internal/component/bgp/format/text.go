@@ -111,13 +111,13 @@ func appendPeerJSON(buf []byte, peer *plugin.PeerInfo) []byte {
 
 // AppendOpen appends an OPEN message text line to buf, terminated by '\n'.
 // Format: peer <ip> remote as <asn> <direction> open <msg-id> router-id <id> hold-time <t> [cap <code> <name> <value>]* .
-func AppendOpen(buf []byte, peer *plugin.PeerInfo, open DecodedOpen, direction string, msgID uint64) []byte {
+func AppendOpen(buf []byte, peer *plugin.PeerInfo, open DecodedOpen, direction rpc.MessageDirection, msgID uint64) []byte {
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, " remote as "...)
 	buf = strconv.AppendUint(buf, uint64(open.ASN), 10)
 	buf = append(buf, ' ')
-	buf = append(buf, direction...)
+	buf = direction.AppendTo(buf)
 	buf = append(buf, " open "...)
 	buf = strconv.AppendUint(buf, msgID, 10)
 	buf = append(buf, " router-id "...)
@@ -141,13 +141,13 @@ func AppendOpen(buf []byte, peer *plugin.PeerInfo, open DecodedOpen, direction s
 // AppendNotification appends a NOTIFICATION message text line to buf, terminated by '\n'.
 // Format: peer <ip> remote as <asn> <direction> notification <msg-id> code <n> subcode <n> code-name <name> subcode-name <name> data <hex> .
 // Names are hyphenated for single-word parsing (e.g., "Administrative-Shutdown").
-func AppendNotification(buf []byte, peer *plugin.PeerInfo, notify DecodedNotification, direction string, msgID uint64) []byte {
+func AppendNotification(buf []byte, peer *plugin.PeerInfo, notify DecodedNotification, direction rpc.MessageDirection, msgID uint64) []byte {
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, " remote as "...)
 	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
 	buf = append(buf, ' ')
-	buf = append(buf, direction...)
+	buf = direction.AppendTo(buf)
 	buf = append(buf, " notification "...)
 	buf = strconv.AppendUint(buf, msgID, 10)
 	buf = append(buf, " code "...)
@@ -168,13 +168,13 @@ func AppendNotification(buf []byte, peer *plugin.PeerInfo, notify DecodedNotific
 
 // AppendKeepalive appends a KEEPALIVE message text line to buf, terminated by '\n'.
 // Format: peer <ip> remote as <asn> <direction> keepalive <msg-id> .
-func AppendKeepalive(buf []byte, peer *plugin.PeerInfo, direction string, msgID uint64) []byte {
+func AppendKeepalive(buf []byte, peer *plugin.PeerInfo, direction rpc.MessageDirection, msgID uint64) []byte {
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, " remote as "...)
 	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
 	buf = append(buf, ' ')
-	buf = append(buf, direction...)
+	buf = direction.AppendTo(buf)
 	buf = append(buf, " keepalive "...)
 	buf = strconv.AppendUint(buf, msgID, 10)
 	buf = append(buf, '\n')
@@ -184,13 +184,13 @@ func AppendKeepalive(buf []byte, peer *plugin.PeerInfo, direction string, msgID 
 // AppendRouteRefresh appends a ROUTE-REFRESH message text line to buf, terminated by '\n'.
 // RFC 7313: type token is "refresh" (subtype 0), "borr" (subtype 1), or "eorr" (subtype 2).
 // Format: peer <ip> remote as <asn> <direction> <type> <msg-id> family <family> .
-func AppendRouteRefresh(buf []byte, peer *plugin.PeerInfo, decoded DecodedRouteRefresh, direction string, msgID uint64) []byte {
+func AppendRouteRefresh(buf []byte, peer *plugin.PeerInfo, decoded DecodedRouteRefresh, direction rpc.MessageDirection, msgID uint64) []byte {
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, " remote as "...)
 	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
 	buf = append(buf, ' ')
-	buf = append(buf, direction...)
+	buf = direction.AppendTo(buf)
 	buf = append(buf, ' ')
 	buf = append(buf, decoded.SubtypeName...)
 	buf = append(buf, ' ')

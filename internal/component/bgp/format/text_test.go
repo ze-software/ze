@@ -792,17 +792,17 @@ func TestFormatOpenWithDirection(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		direction string
+		direction rpc.MessageDirection
 		want      string
 	}{
 		{
 			name:      "sent",
-			direction: "sent",
+			direction: rpc.DirectionSent,
 			want:      "peer 10.0.0.1 remote as 65001 sent open 42 router-id 1.1.1.1 hold-time 90\n",
 		},
 		{
 			name:      "received",
-			direction: "received",
+			direction: rpc.DirectionReceived,
 			want:      "peer 10.0.0.1 remote as 65001 received open 42 router-id 1.1.1.1 hold-time 90\n",
 		},
 	}
@@ -829,17 +829,17 @@ func TestFormatKeepaliveWithDirection(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		direction string
+		direction rpc.MessageDirection
 		want      string
 	}{
 		{
 			name:      "sent",
-			direction: "sent",
+			direction: rpc.DirectionSent,
 			want:      "peer 10.0.0.1 remote as 65001 sent keepalive 42\n",
 		},
 		{
 			name:      "received",
-			direction: "received",
+			direction: rpc.DirectionReceived,
 			want:      "peer 10.0.0.1 remote as 65001 received keepalive 42\n",
 		},
 	}
@@ -874,17 +874,17 @@ func TestFormatNotificationWithDirection(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		direction string
+		direction rpc.MessageDirection
 		want      string
 	}{
 		{
 			name:      "sent",
-			direction: "sent",
+			direction: rpc.DirectionSent,
 			want:      "peer 10.0.0.1 remote as 65001 sent notification 42 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data \n",
 		},
 		{
 			name:      "received",
-			direction: "received",
+			direction: rpc.DirectionReceived,
 			want:      "peer 10.0.0.1 remote as 65001 received notification 42 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data \n",
 		},
 	}
@@ -1095,7 +1095,7 @@ func TestFormatFilterResultTextEmptyUpdate(t *testing.T) {
 	}
 	// Empty FilterResult: no announced, no withdrawn NLRIs
 	result := bgpfilter.FilterResult{}
-	text := string(appendFilterResultText(nil, &peer, result, 7, "received", nil))
+	text := string(appendFilterResultText(nil, &peer, result, 7, rpc.DirectionReceived, nil))
 	if text == "" {
 		t.Fatal("empty UPDATE should produce a non-empty text line")
 	}

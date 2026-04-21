@@ -8,6 +8,7 @@ import (
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // JSONEncoder produces ze-bgp JSON output.
@@ -80,10 +81,11 @@ func setMessageID(payload map[string]any, msgID uint64) {
 
 // setMessageDirection sets the direction field in the message metadata.
 // Creates the "message" object if it doesn't exist.
-func setMessageDirection(payload map[string]any, direction string) {
-	if direction != "" {
+// Accepts typed rpc.MessageDirection; calls .String() once for the map value.
+func setMessageDirection(payload map[string]any, direction rpc.MessageDirection) {
+	if direction != rpc.DirectionUnspecified {
 		msg := getOrCreateMessage(payload)
-		msg["direction"] = direction
+		msg["direction"] = direction.String()
 	}
 }
 
@@ -151,7 +153,7 @@ func (e *JSONEncoder) EOR(peer *plugin.PeerInfo, family string) string {
 
 // Notification returns JSON for a NOTIFICATION message.
 // Fields in inner payload: code, subcode, data, code-name, subcode-name.
-func (e *JSONEncoder) Notification(peer *plugin.PeerInfo, notify DecodedNotification, direction string, msgID uint64) string {
+func (e *JSONEncoder) Notification(peer *plugin.PeerInfo, notify DecodedNotification, direction rpc.MessageDirection, msgID uint64) string {
 	outer, inner := e.message(peer, "notification")
 	setMessageDirection(outer, direction)
 	setMessageID(outer, msgID)
@@ -175,7 +177,7 @@ func (e *JSONEncoder) Notification(peer *plugin.PeerInfo, notify DecodedNotifica
 
 // Open returns JSON for an OPEN message.
 // Fields in inner payload: asn, router-id, timer { hold-time }, capabilities.
-func (e *JSONEncoder) Open(peer *plugin.PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
+func (e *JSONEncoder) Open(peer *plugin.PeerInfo, open DecodedOpen, direction rpc.MessageDirection, msgID uint64) string {
 	outer, inner := e.message(peer, "open")
 	setMessageDirection(outer, direction)
 	setMessageID(outer, msgID)
@@ -203,7 +205,7 @@ func (e *JSONEncoder) Open(peer *plugin.PeerInfo, open DecodedOpen, direction st
 }
 
 // Keepalive returns JSON for a KEEPALIVE message.
-func (e *JSONEncoder) Keepalive(peer *plugin.PeerInfo, direction string, msgID uint64) string {
+func (e *JSONEncoder) Keepalive(peer *plugin.PeerInfo, direction rpc.MessageDirection, msgID uint64) string {
 	outer, _ := e.message(peer, "keepalive")
 	setMessageDirection(outer, direction)
 	setMessageID(outer, msgID)
@@ -212,7 +214,7 @@ func (e *JSONEncoder) Keepalive(peer *plugin.PeerInfo, direction string, msgID u
 
 // RouteRefresh returns JSON for a ROUTE-REFRESH message.
 // RFC 7313: Type is "refresh" (subtype 0), "borr" (subtype 1), or "eorr" (subtype 2).
-func (e *JSONEncoder) RouteRefresh(peer *plugin.PeerInfo, decoded DecodedRouteRefresh, direction string, msgID uint64) string {
+func (e *JSONEncoder) RouteRefresh(peer *plugin.PeerInfo, decoded DecodedRouteRefresh, direction rpc.MessageDirection, msgID uint64) string {
 	// Use subtype name as event type for proper dispatch
 	outer, inner := e.message(peer, decoded.SubtypeName)
 	setMessageDirection(outer, direction)

@@ -47,7 +47,7 @@ import (
 //
 // messageType is "update" or "sent" -- threaded in so callers do not run
 // strings.Replace surgery on the produced JSON.
-func appendFilterResultJSON(buf []byte, peer *plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext, messageType string, closeEnvelope bool) []byte {
+func appendFilterResultJSON(buf []byte, peer *plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction rpc.MessageDirection, ctx *bgpctx.EncodingContext, messageType string, closeEnvelope bool) []byte {
 	// ze-bgp JSON outer wrapper
 	buf = append(buf, `{"type":"bgp","bgp":{`...)
 
@@ -59,12 +59,9 @@ func appendFilterResultJSON(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 		buf = append(buf, `,"id":`...)
 		buf = strconv.AppendUint(buf, msgID, 10)
 	}
-	if direction != "" {
-		// Defensive escape: direction is bounded today ("received"/"sent")
-		// but the legacy fmt.Sprintf(%q) shape also escaped it; preserve
-		// that property without the fmt dependency.
+	if direction != rpc.DirectionUnspecified {
 		buf = append(buf, `,"direction":"`...)
-		buf = appendJSONString(buf, direction)
+		buf = appendJSONString(buf, direction.String())
 		buf = append(buf, '"')
 	}
 	buf = append(buf, '}', ',')

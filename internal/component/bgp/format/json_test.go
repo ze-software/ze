@@ -325,7 +325,7 @@ func TestJSONEncoderNotification(t *testing.T) {
 		Data:             []byte{0x12, 0x6d, 0x61, 0x69, 0x6e, 0x74, 0x65, 0x6e, 0x61, 0x6e, 0x63, 0x65, 0x20, 0x77, 0x69, 0x6e, 0x64, 0x6f, 0x77},
 	}
 
-	msg := enc.Notification(&peer, notify, "received", 42)
+	msg := enc.Notification(&peer, notify, rpc.DirectionReceived, 42)
 
 	// Parse JSON to verify structure
 	var result map[string]any
@@ -399,7 +399,7 @@ func TestJSONEncoderNotification_HexData(t *testing.T) {
 				Data:         tt.data,
 			}
 
-			out := enc.Notification(&peer, notify, "received", 1)
+			out := enc.Notification(&peer, notify, rpc.DirectionReceived, 1)
 
 			var result map[string]any
 			require.NoError(t, json.Unmarshal([]byte(out), &result), "JSON must be valid: %s", out)
@@ -432,7 +432,7 @@ func TestJSONEncoderNotificationMinimal(t *testing.T) {
 		Data:             nil, // No data
 	}
 
-	msg := enc.Notification(&peer, notify, "received", 0)
+	msg := enc.Notification(&peer, notify, rpc.DirectionReceived, 0)
 
 	var result map[string]any
 	err := json.Unmarshal([]byte(msg), &result)
@@ -479,7 +479,7 @@ func TestJSONEncoderNotificationSent(t *testing.T) {
 		ErrorSubcodeName: "Peer De-configured",
 	}
 
-	msg := enc.Notification(&peer, notify, "sent", 100)
+	msg := enc.Notification(&peer, notify, rpc.DirectionSent, 100)
 
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(msg), &result))

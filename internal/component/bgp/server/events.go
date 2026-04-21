@@ -134,12 +134,13 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 
 	peerAddr := peer.Address.String()
 	eventTypeStr := eventType.String()
-	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventTypeStr, msg.Direction.String(), peerAddr, peer.Name)
+	dirStr := msg.Direction.String()
+	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventTypeStr, dirStr, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return 0
 	}
-	logger().Debug("OnMessageReceived", "peer", peerAddr, "event", eventTypeStr, "dir", msg.Direction, "count", len(procs))
+	logger().Debug("OnMessageReceived", "peer", peerAddr, "event", eventTypeStr, "dir", dirStr, "count", len(procs))
 
 	// Pre-format text for text/JSON consumers per distinct format+encoding key.
 	// DirectBridge structured consumers skip text formatting entirely.
@@ -212,7 +213,7 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	if !ok {
 		jsonOutput = formatMessageForSubscription(encoder, peer, msg, "parsed", "json")
 	}
-	monitorDeliver(s, eventTypeStr, msg.Direction.String(), peerAddr, peer.Name, jsonOutput)
+	monitorDeliver(s, eventTypeStr, dirStr, peerAddr, peer.Name, jsonOutput)
 
 	return cacheCount
 }
@@ -365,29 +366,29 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.Peer
 	case message.TypeOPEN:
 		decoded := format.DecodeOpen(msg.RawBytes)
 		if encoding == plugin.EncodingText {
-			return string(format.AppendOpen(scratchArr[:0], peer, decoded, msg.Direction.String(), msg.MessageID))
+			return string(format.AppendOpen(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
 		}
-		return encoder.Open(peer, decoded, msg.Direction.String(), msg.MessageID)
+		return encoder.Open(peer, decoded, msg.Direction, msg.MessageID)
 
 	case message.TypeNOTIFICATION:
 		decoded := format.DecodeNotification(msg.RawBytes)
 		if encoding == plugin.EncodingText {
-			return string(format.AppendNotification(scratchArr[:0], peer, decoded, msg.Direction.String(), msg.MessageID))
+			return string(format.AppendNotification(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
 		}
-		return encoder.Notification(peer, decoded, msg.Direction.String(), msg.MessageID)
+		return encoder.Notification(peer, decoded, msg.Direction, msg.MessageID)
 
 	case message.TypeKEEPALIVE:
 		if encoding == plugin.EncodingText {
-			return string(format.AppendKeepalive(scratchArr[:0], peer, msg.Direction.String(), msg.MessageID))
+			return string(format.AppendKeepalive(scratchArr[:0], peer, msg.Direction, msg.MessageID))
 		}
-		return encoder.Keepalive(peer, msg.Direction.String(), msg.MessageID)
+		return encoder.Keepalive(peer, msg.Direction, msg.MessageID)
 
 	case message.TypeROUTEREFRESH:
 		decoded := format.DecodeRouteRefresh(msg.RawBytes)
 		if encoding == plugin.EncodingText {
-			return string(format.AppendRouteRefresh(scratchArr[:0], peer, decoded, msg.Direction.String(), msg.MessageID))
+			return string(format.AppendRouteRefresh(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
 		}
-		return encoder.RouteRefresh(peer, decoded, msg.Direction.String(), msg.MessageID)
+		return encoder.RouteRefresh(peer, decoded, msg.Direction, msg.MessageID)
 
 	default: // Unsupported type — filtered by messageTypeToEventKind before reaching here
 		return ""

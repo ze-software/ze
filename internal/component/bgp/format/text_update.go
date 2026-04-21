@@ -17,6 +17,7 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // messageTypeUpdate and messageTypeSent are the two values used as the
@@ -50,16 +51,18 @@ func AppendSentMessage(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessag
 func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, overrideDir, messageType string) []byte {
 	content = content.WithDefaults()
 
-	// Compute effective direction (string form for formatter emitters).
-	direction := msg.Direction.String()
+	// Compute effective typed direction. overrideDir is only non-empty for
+	// AppendSentMessage ("sent"), which maps to rpc.DirectionSent.
+	direction := msg.Direction
 	if overrideDir != "" {
-		direction = overrideDir
+		_ = direction.UnmarshalText([]byte(overrideDir))
 	}
 
 	// Summary format: lightweight NLRI metadata only (skip full attribute parsing).
 	// Must short-circuit before filter setup for performance.
+	// appendSummary still takes string direction (rendering boundary).
 	if content.Format == plugin.FormatSummary && msg.Type == message.TypeUPDATE {
-		return appendSummary(buf, peer, msg.RawBytes, msg.MessageID, direction, messageType)
+		return appendSummary(buf, peer, msg.RawBytes, msg.MessageID, direction.String(), messageType)
 	}
 
 	// Get attribute filter (nil means all)
@@ -94,7 +97,7 @@ func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 		return appendFromFilterResult(buf, peer, msg, content, result, encCtx, direction, messageType)
 	}
 
-	// Non-UPDATE messages: format as raw
+	// Non-UPDATE messages: pass typed direction (no .String() on hot path).
 	return appendNonUpdate(buf, peer, msg, content, direction)
 }
 
@@ -123,7 +126,7 @@ func appendEmptyUpdate(buf []byte, peer *plugin.PeerInfo, content bgptypes.Conte
 // For RAW format, it respects Encoding (JSON or text with raw hex).
 // For structured JSON output of non-UPDATE messages, use Server.formatMessage()
 // which has access to the shared JSONEncoder with proper counter semantics.
-func appendNonUpdate(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, direction string) []byte {
+func appendNonUpdate(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, direction rpc.MessageDirection) []byte {
 	// For parsed format, use dedicated text formatters.
 	if content.Format != plugin.FormatRaw {
 		switch msg.Type { //nolint:exhaustive // only specific types have dedicated formatters
@@ -165,7 +168,7 @@ func appendNonUpdate(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage,
 // appendFromFilterResult appends UPDATE using lazy-parsed FilterResult to buf.
 // This is the optimized path that only parses requested attributes.
 // ctx provides ADD-PATH state per family (nil means no ADD-PATH).
-func appendFromFilterResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction, messageType string) []byte {
+func appendFromFilterResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction rpc.MessageDirection, messageType string) []byte {
 	switch content.Format {
 	case plugin.FormatRaw, plugin.FormatHex:
 		return appendRawFromResult(buf, peer, msg, content, direction, messageType)
@@ -178,18 +181,14 @@ func appendFromFilterResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawM
 
 // appendRawFromResult appends raw hex (does not need FilterResult attributes) to buf.
 // ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update",...},...}}.
-func appendRawFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, direction, messageType string) []byte {
+func appendRawFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, direction rpc.MessageDirection, messageType string) []byte {
 	if content.Encoding == plugin.EncodingJSON {
 		buf = append(buf, `{"type":"bgp","bgp":{"message":{"type":"`...)
 		buf = append(buf, messageType...)
 		buf = append(buf, '"')
-		if direction != "" {
-			// Defensive escape: direction comes from the BGP stack today
-			// ("received"/"sent") but appendJSONString costs nothing on
-			// those short ASCII strings and closes the gap vs. the legacy
-			// fmt.Sprintf(%q) shape if the value ever widens.
+		if direction != rpc.DirectionUnspecified {
 			buf = append(buf, `,"direction":"`...)
-			buf = appendJSONString(buf, direction)
+			buf = appendJSONString(buf, direction.String())
 			buf = append(buf, '"')
 		}
 		buf = append(buf, `},`...)
@@ -203,7 +202,7 @@ func appendRawFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMess
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, ' ')
-	buf = append(buf, direction...)
+	buf = direction.AppendTo(buf)
 	buf = append(buf, " update raw "...)
 	buf = hex.AppendEncode(buf, msg.RawBytes)
 	buf = append(buf, '\n')
@@ -212,7 +211,7 @@ func appendRawFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMess
 
 // appendParsedFromResult appends parsed UPDATE using FilterResult to buf.
 // ctx provides ADD-PATH state per family.
-func appendParsedFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction, messageType string) []byte {
+func appendParsedFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction rpc.MessageDirection, messageType string) []byte {
 	if content.Encoding == plugin.EncodingJSON {
 		return appendFilterResultJSON(buf, peer, result, msg.MessageID, direction, ctx, messageType, true)
 	}
@@ -225,14 +224,14 @@ func appendParsedFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawM
 // Instead of the legacy strings.HasSuffix + slice surgery, this writes the
 // parsed body WITHOUT its final close, then appends `,"raw":{...}`,
 // `,"route-meta":{...}` (if present), and the closing `}}\n` directly.
-func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction, messageType string) []byte {
+func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction rpc.MessageDirection, messageType string) []byte {
 	if content.Encoding != plugin.EncodingJSON {
 		// Text path: parsed body + "peer <ip> <dir> update raw <hex>\n"
 		buf = appendFilterResultText(buf, peer, result, msg.MessageID, direction, ctx)
 		buf = append(buf, "peer "...)
 		buf = peer.Address.AppendTo(buf)
 		buf = append(buf, ' ')
-		buf = append(buf, direction...)
+		buf = direction.AppendTo(buf)
 		buf = append(buf, " update raw "...)
 		buf = hex.AppendEncode(buf, msg.RawBytes)
 		buf = append(buf, '\n')

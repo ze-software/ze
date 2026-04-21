@@ -8,6 +8,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // testPeer is the canonical peer fixture used across parity tests.
@@ -121,7 +122,7 @@ func TestAppendOpen_Parity(t *testing.T) {
 			{Code: 65, Name: "asn4", Value: ""},
 		},
 	}
-	got := string(AppendOpen(nil, peer, open, "received", 42))
+	got := string(AppendOpen(nil, peer, open, rpc.DirectionReceived, 42))
 	want := "peer 10.0.0.1 remote as 65010 received open 42 router-id 1.2.3.4 hold-time 180 cap 1 multi-protocol ipv4/unicast cap 65 asn4\n"
 	if got != want {
 		t.Errorf("AppendOpen:\n got:  %q\n want: %q", got, want)
@@ -141,14 +142,14 @@ func TestAppendNotification_Parity(t *testing.T) {
 		ErrorSubcodeName: "Administrative Shutdown",
 		Data:             []byte{0xDE, 0xAD, 0xBE, 0xEF},
 	}
-	got := string(AppendNotification(nil, peer, notify, "received", 7))
+	got := string(AppendNotification(nil, peer, notify, rpc.DirectionReceived, 7))
 	want := "peer 10.0.0.1 remote as 65001 received notification 7 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data deadbeef\n"
 	if got != want {
 		t.Errorf("AppendNotification:\n got:  %q\n want: %q", got, want)
 	}
 	// Empty data branch: "data " with no hex.
 	notify.Data = nil
-	got = string(AppendNotification(nil, peer, notify, "sent", 8))
+	got = string(AppendNotification(nil, peer, notify, rpc.DirectionSent, 8))
 	want = "peer 10.0.0.1 remote as 65001 sent notification 8 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data \n"
 	if got != want {
 		t.Errorf("AppendNotification (empty data):\n got:  %q\n want: %q", got, want)
@@ -159,7 +160,7 @@ func TestAppendNotification_Parity(t *testing.T) {
 // PREVENTS: drift in KEEPALIVE subscriber text.
 func TestAppendKeepalive_Parity(t *testing.T) {
 	peer := testPeer()
-	got := string(AppendKeepalive(nil, peer, "received", 3))
+	got := string(AppendKeepalive(nil, peer, rpc.DirectionReceived, 3))
 	want := "peer 10.0.0.1 remote as 65001 received keepalive 3\n"
 	if got != want {
 		t.Errorf("AppendKeepalive:\n got:  %q\n want: %q", got, want)
@@ -177,7 +178,7 @@ func TestAppendRouteRefresh_Parity(t *testing.T) {
 		SubtypeName: "refresh",
 		Family:      family.IPv4Unicast,
 	}
-	got := string(AppendRouteRefresh(nil, peer, decoded, "received", 9))
+	got := string(AppendRouteRefresh(nil, peer, decoded, rpc.DirectionReceived, 9))
 	want := "peer 10.0.0.1 remote as 65001 received refresh 9 family ipv4/unicast\n"
 	if got != want {
 		t.Errorf("AppendRouteRefresh:\n got:  %q\n want: %q", got, want)
