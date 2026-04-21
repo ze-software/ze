@@ -14,6 +14,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -99,29 +100,27 @@ func (f *fibP4) processEvent(batch *incomingBatch) {
 			logger().Warn("fib-p4: skipping change with empty prefix")
 			continue
 		}
-		if c.Action != "add" && c.Action != "update" && c.Action != "withdraw" {
-			logger().Warn("fib-p4: unrecognized action", "action", c.Action, "prefix", c.Prefix)
-			continue
-		}
 		switch c.Action {
-		case "add":
+		case bgptypes.RouteActionAdd:
 			if err := f.backend.addRoute(c.Prefix, c.NextHop); err != nil {
 				logger().Error("fib-p4: add route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
 			f.installed[c.Prefix] = c.NextHop
-		case "update":
+		case bgptypes.RouteActionUpdate:
 			if err := f.backend.replaceRoute(c.Prefix, c.NextHop); err != nil {
 				logger().Error("fib-p4: replace route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
 			f.installed[c.Prefix] = c.NextHop
-		case "withdraw":
+		case bgptypes.RouteActionWithdraw, bgptypes.RouteActionDel:
 			if err := f.backend.delRoute(c.Prefix); err != nil {
 				logger().Error("fib-p4: del route failed", "prefix", c.Prefix, "error", err)
 				continue
 			}
 			delete(f.installed, c.Prefix)
+		case bgptypes.RouteActionUnspecified:
+			logger().Warn("fib-p4: skipping change with unspecified action", "prefix", c.Prefix)
 		}
 	}
 }

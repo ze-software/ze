@@ -20,6 +20,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
@@ -169,12 +170,8 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 			logger().Warn("fib-kernel: skipping change with empty prefix")
 			continue
 		}
-		if c.Action != "add" && c.Action != "update" && c.Action != "withdraw" {
-			logger().Warn("fib-kernel: unrecognized action", "action", c.Action, "prefix", c.Prefix)
-			continue
-		}
 		switch c.Action {
-		case "add":
+		case bgptypes.RouteActionAdd:
 			if err := f.backend.addRoute(c.Prefix, c.NextHop); err != nil {
 				logger().Error("fib-kernel: add route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
@@ -187,7 +184,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 				m.routeInstalls.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
 			}
-		case "update":
+		case bgptypes.RouteActionUpdate:
 			if err := f.backend.replaceRoute(c.Prefix, c.NextHop); err != nil {
 				logger().Error("fib-kernel: replace route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
@@ -199,7 +196,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 			if m := fibMetricsPtr.Load(); m != nil {
 				m.routeUpdates.Inc()
 			}
-		case "withdraw":
+		case bgptypes.RouteActionWithdraw, bgptypes.RouteActionDel:
 			if err := f.backend.delRoute(c.Prefix); err != nil {
 				logger().Error("fib-kernel: del route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
@@ -212,6 +209,8 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 				m.routeRemovals.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
 			}
+		case bgptypes.RouteActionUnspecified:
+			logger().Warn("fib-kernel: skipping change with unspecified action", "prefix", c.Prefix)
 		}
 	}
 }

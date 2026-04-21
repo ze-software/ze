@@ -6,6 +6,7 @@
 package events
 
 import (
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
@@ -19,12 +20,15 @@ const (
 	EventReplayRequest = "replay-request" // downstream consumer asking sysrib to replay
 )
 
-// BestChangeEntry is one per-prefix entry in a BestChangeBatch.
+// BestChangeEntry is one per-prefix entry in a BestChangeBatch. Action is the
+// typed wire token; JSON serializes as "add"/"update"/"withdraw" via
+// RouteAction.MarshalText, so FIB consumers that already parse the JSON form
+// keep working unchanged.
 type BestChangeEntry struct {
-	Action   string `json:"action"`
-	Prefix   string `json:"prefix"`
-	NextHop  string `json:"next-hop,omitempty"`
-	Protocol string `json:"protocol"`
+	Action   bgptypes.RouteAction `json:"action"`
+	Prefix   string               `json:"prefix"`
+	NextHop  string               `json:"next-hop,omitempty"`
+	Protocol string               `json:"protocol"`
 }
 
 // BestChangeBatch is the payload of (system-rib, best-change). One batch is

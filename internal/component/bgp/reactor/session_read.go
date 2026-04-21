@@ -20,6 +20,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // ReadAndProcess reads and processes a single message.
@@ -204,7 +205,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 	// Callback returns true if it took ownership of buf (e.g., cached it).
 	var kept bool
 	if s.onMessageReceived != nil {
-		kept = s.onMessageReceived(s.settings.Address, hdr.Type, body, wireUpdate, ctxID, "received", buf, nil)
+		kept = s.onMessageReceived(s.settings.Address, hdr.Type, body, wireUpdate, ctxID, rpc.DirectionReceived, buf, nil)
 	}
 
 	var err error

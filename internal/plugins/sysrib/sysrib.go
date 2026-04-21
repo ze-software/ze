@@ -26,10 +26,15 @@ import (
 )
 
 // sysribMetrics holds Prometheus metrics for the system RIB plugin.
+//
+// routeChanges pre-binds one Counter per bgptypes.RouteAction at init time;
+// the hot path does `m.routeChanges[c.Action].Inc()`, a zero-allocation
+// array index. The underlying CounterVec still emits one time series per
+// action label to Prometheus exposition.
 type sysribMetrics struct {
-	routesBest     metrics.Gauge      // current system best route count
-	routeChanges   metrics.CounterVec // best-path changes emitted (labels: action)
-	eventsReceived metrics.Counter    // protocol RIB events received
+	routesBest     metrics.Gauge
+	routeChanges   [bgptypes.RouteActionCount]metrics.Counter
+	eventsReceived metrics.Counter
 }
 
 // sysribMetricsPtr stores system RIB metrics, set by SetMetricsRegistry.
@@ -38,10 +43,21 @@ var sysribMetricsPtr atomic.Pointer[sysribMetrics]
 // SetMetricsRegistry creates system RIB metrics from the given registry.
 // Called via ConfigureMetrics callback before RunEngine.
 func SetMetricsRegistry(reg metrics.Registry) {
+	routeChangeVec := reg.CounterVec("ze_systemrib_route_changes_total", "Best-path changes emitted.", []string{"action"})
 	m := &sysribMetrics{
 		routesBest:     reg.Gauge("ze_systemrib_routes_best", "Current system-wide best route count."),
-		routeChanges:   reg.CounterVec("ze_systemrib_route_changes_total", "Best-path changes emitted.", []string{"action"}),
 		eventsReceived: reg.Counter("ze_systemrib_events_received_total", "Protocol RIB events received."),
+	}
+	// Pre-bind the actions sysrib actually emits. Unspecified and Del are
+	// never published from a system-RIB best-change, so their slots stay
+	// nil; a publish of one would fall into the nil-guard in the hot-path
+	// increment below.
+	for _, a := range [...]bgptypes.RouteAction{
+		bgptypes.RouteActionAdd,
+		bgptypes.RouteActionUpdate,
+		bgptypes.RouteActionWithdraw,
+	} {
+		m.routeChanges[a] = routeChangeVec.With(a.String())
 	}
 	sysribMetricsPtr.Store(m)
 }
@@ -265,7 +281,9 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 
 	if m := sysribMetricsPtr.Load(); m != nil {
 		for _, c := range outChanges {
-			m.routeChanges.With(c.Action).Inc()
+			if ctr := m.routeChanges[c.Action]; ctr != nil {
+				ctr.Inc()
+			}
 		}
 		m.routesBest.Set(float64(len(s.best)))
 	}
@@ -298,7 +316,9 @@ func (s *sysRIB) reapplyAdminDistances() map[family.Family][]outgoingChange {
 	if m := sysribMetricsPtr.Load(); m != nil {
 		for _, changes := range changesByFamily {
 			for _, c := range changes {
-				m.routeChanges.With(c.Action).Inc()
+				if ctr := m.routeChanges[c.Action]; ctr != nil {
+					ctr.Inc()
+				}
 			}
 		}
 		m.routesBest.Set(float64(len(s.best)))
@@ -318,7 +338,7 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		if prev != nil {
 			delete(s.best, key)
 			return &outgoingChange{
-				Action: "withdraw",
+				Action: bgptypes.RouteActionWithdraw,
 				Prefix: key.prefix,
 			}
 		}
@@ -337,7 +357,7 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 	if prev == nil {
 		s.best[key] = winner
 		return &outgoingChange{
-			Action:   "add",
+			Action:   bgptypes.RouteActionAdd,
 			Prefix:   key.prefix,
 			NextHop:  winner.nextHop,
 			Protocol: winner.protocol,
@@ -354,7 +374,7 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 
 	s.best[key] = winner
 	return &outgoingChange{
-		Action:   "update",
+		Action:   bgptypes.RouteActionUpdate,
 		Prefix:   key.prefix,
 		NextHop:  winner.nextHop,
 		Protocol: winner.protocol,
@@ -391,7 +411,7 @@ func (s *sysRIB) replayBest() {
 	changesByFamily := make(map[family.Family][]outgoingChange)
 	for key, route := range s.best {
 		changesByFamily[key.family] = append(changesByFamily[key.family], outgoingChange{
-			Action:   "add",
+			Action:   bgptypes.RouteActionAdd,
 			Prefix:   key.prefix,
 			NextHop:  route.nextHop,
 			Protocol: route.protocol,

@@ -18,7 +18,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -164,17 +163,10 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 // peerAddr is used to look up full PeerInfo from the peers map.
 // wireUpdate is non-nil for received UPDATE messages (zero-copy path).
 // ctxID is the encoding context for zero-copy decisions.
-// direction is "sent" or "received".
+// direction is rpc.DirectionSent or rpc.DirectionReceived.
 // buf is the pool buffer for received messages (nil for sent).
 // Returns true if buf ownership was taken (caller should not return to pool).
-func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction string, buf BufHandle, meta map[string]any) bool {
-	var typedDirection rpc.MessageDirection
-	switch direction {
-	case events.DirectionSent:
-		typedDirection = rpc.DirectionSent
-	case events.DirectionReceived:
-		typedDirection = rpc.DirectionReceived
-	}
+func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any) bool {
 	r.mu.RLock()
 	receiver := r.messageReceiver
 	peer, hasPeer := r.findPeerByAddr(peerAddr)
@@ -196,7 +188,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		// Increment per-peer counters (lock-free atomics).
 		// Engine counts updates, keepalives, and EOR. NLRI-level counters
 		// (announce vs withdraw per prefix) belong in the RIB plugin.
-		if direction == events.DirectionReceived {
+		if direction == rpc.DirectionReceived {
 			switch msgType { //nolint:exhaustive // only counting updates and keepalives
 			case message.TypeUPDATE:
 				peer.IncrUpdatesReceived()
@@ -258,7 +250,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			Type:       msgType,
 			RawBytes:   wireUpdate.Payload(), // Zero-copy: valid during callback
 			Timestamp:  timestamp,
-			Direction:  typedDirection,
+			Direction:  direction,
 			MessageID:  messageID,
 			WireUpdate: wireUpdate,
 			AttrsWire:  attrsWire, // Derived from WireUpdate
@@ -273,7 +265,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		// The sendingConfigStatic flag is set by sendInitialRoutes during
 		// static route sending and cleared before opQueue drain.
 		sentMeta := meta
-		if direction == events.DirectionSent && hasPeer && peer.sendingConfigStatic.Load() {
+		if direction == rpc.DirectionSent && hasPeer && peer.sendingConfigStatic.Load() {
 			if sentMeta == nil {
 				sentMeta = map[string]any{"config-static": true}
 			} else {
@@ -288,7 +280,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			Type:      msgType,
 			RawBytes:  bytes,
 			Timestamp: timestamp,
-			Direction: typedDirection,
+			Direction: direction,
 			MessageID: messageID,
 			Meta:      sentMeta,
 		}
@@ -310,7 +302,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	// Ingress peer filter chain: reject routes before caching/dispatching.
 	// Only for received UPDATEs. Filter closures check peer role, OTC, etc.
 	var routeMeta map[string]any
-	if direction == events.DirectionReceived && wireUpdate != nil && len(r.ingressFilters) > 0 {
+	if direction == rpc.DirectionReceived && wireUpdate != nil && len(r.ingressFilters) > 0 {
 		src := registry.PeerFilterInfo{
 			Address:  peerAddr,
 			PeerAS:   peerInfo.PeerAS,
@@ -362,7 +354,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 
 	// Policy filter chain: external plugin filters (after in-process filters).
 	// Only for received UPDATEs when the peer has import filters configured.
-	if direction == events.DirectionReceived && wireUpdate != nil && hasPeer {
+	if direction == rpc.DirectionReceived && wireUpdate != nil && hasPeer {
 		if filters := peer.settings.ImportFilters; len(filters) > 0 && r.api != nil {
 			attrsWire, _ := wireUpdate.Attrs()
 			// Stack-local scratch for zero-alloc AppendUpdateForFilter path.
@@ -414,7 +406,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	// If a fast plugin calls "forward" before Activate(), Get() still works
 	// (pending entries are accessible) and Decrement() adjusts the count
 	// (negative is corrected when Activate adds N).
-	if direction == events.DirectionReceived && wireUpdate != nil && buf.Buf != nil {
+	if direction == rpc.DirectionReceived && wireUpdate != nil && buf.Buf != nil {
 		r.recentUpdates.Add(&ReceivedUpdate{
 			WireUpdate:   wireUpdate, // Zero-copy: slices into buf
 			poolBuf:      buf,        // Cache owns buf
@@ -437,11 +429,11 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		if hasPeer {
 			addrStr = peer.addrString
 		}
-		r.emitUpdateNotificationEvent(addrStr, direction)
+		r.emitUpdateNotificationEvent(addrStr, direction.String())
 	}
 
 	// Sent messages: synchronous delivery, no async channel.
-	if direction == events.DirectionSent {
+	if direction == rpc.DirectionSent {
 		receiver.OnMessageSent(&peerInfo, msg)
 		return kept
 	}

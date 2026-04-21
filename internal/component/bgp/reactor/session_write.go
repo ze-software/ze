@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // controlWriteDeadlineMin is the minimum write deadline for control messages.
@@ -90,7 +91,7 @@ func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 	// Body is data after the 19-byte header (16-byte marker + 2-byte length + 1-byte type).
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, msg.Type(), body, nil, s.sendCtxID, "sent", BufHandle{}, nil)
+		_ = s.onMessageReceived(s.settings.Address, msg.Type(), body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil)
 	}
 
 	return nil
@@ -226,7 +227,7 @@ func (s *Session) writeUpdate(update *message.Update) error {
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
 		sessionLogger().Debug("SendUpdate", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "msgLen", n)
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", BufHandle{}, s.sentMeta)
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta)
 	}
 
 	return nil
@@ -258,7 +259,7 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 
 	if s.onMessageReceived != nil {
 		sessionLogger().Debug("SendRawUpdateBody", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "bodyLen", len(body))
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", BufHandle{}, s.sentMeta)
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, s.sentMeta)
 	}
 
 	return nil
@@ -350,7 +351,7 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, localAS uint32, isIBGP,
 	// Notify callback after successful send
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", BufHandle{}, nil)
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil)
 	}
 
 	return nil
@@ -397,7 +398,7 @@ func (s *Session) SendWithdraw(prefix netip.Prefix, addPath bool) error {
 	// Notify callback after successful send
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", BufHandle{}, nil)
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, rpc.DirectionSent, BufHandle{}, nil)
 	}
 
 	return nil

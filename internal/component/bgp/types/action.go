@@ -17,6 +17,11 @@ const (
 	RouteActionDel         RouteAction = 2
 	RouteActionUpdate      RouteAction = 3
 	RouteActionWithdraw    RouteAction = 4
+	// RouteActionCount is one past the highest valid RouteAction. Use as
+	// the size of arrays indexed by RouteAction so per-action caches
+	// (pre-bound metric Counters, dispatch tables, etc.) can be indexed
+	// directly with zero allocation.
+	RouteActionCount = 5
 )
 
 const (

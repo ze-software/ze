@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // acceptWithReader handles net.Pipe's synchronous behavior by reading
@@ -1628,8 +1629,8 @@ func setupEstablishedSessionEBGP(t *testing.T) (*Session, net.Conn, *int, func()
 
 	// Track callback invocations
 	callbackCount := new(int)
-	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, direction string, _ BufHandle, _ map[string]any) bool {
-		if direction == "received" {
+	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection, _ BufHandle, _ map[string]any) bool {
+		if direction == rpc.DirectionReceived {
 			*callbackCount++
 		}
 		return false

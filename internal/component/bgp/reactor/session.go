@@ -34,6 +34,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/source"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // sessionLogger is the session subsystem logger (lazy initialization).
@@ -154,13 +155,13 @@ const sendHoldTimerMin = 8 * time.Minute
 
 // MessageCallback is called when a BGP message is sent or received.
 // peerAddr is the peer's address, msgType is the message type, rawBytes is the body (without header).
-// direction is "sent" or "received".
+// direction is rpc.DirectionSent or rpc.DirectionReceived.
 // wireUpdate is non-nil for UPDATE messages (zero-copy), nil for other types.
 // ctxID is the encoding context for zero-copy decisions.
 // buf is the pool buffer handle for received messages (zero-value for sent).
 // meta is route metadata from ReceivedUpdate (sent events only); nil for received.
 // Returns true if callback took ownership of buf (caller should not return to pool).
-type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction string, buf BufHandle, meta map[string]any) (kept bool)
+type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any) (kept bool)
 
 // Lock hierarchy (acquire in this order; never reverse):
 //

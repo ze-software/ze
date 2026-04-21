@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
+
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
 
 // withNetNS creates an ephemeral network namespace, switches into it,
@@ -100,7 +102,7 @@ func TestNetlinkIntegration_AddRoute(t *testing.T) {
 		f := newFIBKernel(backend)
 
 		event := makeTestEvent([]incomingChange{
-			{Action: "add", Prefix: "10.99.0.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
+			{Action: bgptypes.RouteActionAdd, Prefix: "10.99.0.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
 		})
 		f.processEvent(event)
 
@@ -127,12 +129,12 @@ func TestNetlinkIntegration_RemoveRoute(t *testing.T) {
 
 		// Add then withdraw.
 		f.processEvent(makeTestPayload([]incomingChange{
-			{Action: "add", Prefix: "10.99.1.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
+			{Action: bgptypes.RouteActionAdd, Prefix: "10.99.1.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
 		}))
 		require.Len(t, zeRoutes(t, h), 1)
 
 		f.processEvent(makeTestPayload([]incomingChange{
-			{Action: "withdraw", Prefix: "10.99.1.0/24"},
+			{Action: bgptypes.RouteActionWithdraw, Prefix: "10.99.1.0/24"},
 		}))
 
 		assert.Empty(t, zeRoutes(t, h), "route should be removed from kernel")
@@ -154,12 +156,12 @@ func TestNetlinkIntegration_ReplaceRoute(t *testing.T) {
 
 		// Add initial route.
 		f.processEvent(makeTestPayload([]incomingChange{
-			{Action: "add", Prefix: "10.99.2.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
+			{Action: bgptypes.RouteActionAdd, Prefix: "10.99.2.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
 		}))
 
 		// Update next-hop (still loopback, but verifies replace works).
 		f.processEvent(makeTestPayload([]incomingChange{
-			{Action: "update", Prefix: "10.99.2.0/24", NextHop: "127.0.0.1", Protocol: "static"},
+			{Action: bgptypes.RouteActionUpdate, Prefix: "10.99.2.0/24", NextHop: "127.0.0.1", Protocol: "static"},
 		}))
 
 		routes := zeRoutes(t, h)
@@ -183,8 +185,8 @@ func TestNetlinkIntegration_ListZeRoutes(t *testing.T) {
 
 		// Install two routes.
 		f.processEvent(makeTestPayload([]incomingChange{
-			{Action: "add", Prefix: "10.99.3.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
-			{Action: "add", Prefix: "10.99.4.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
+			{Action: bgptypes.RouteActionAdd, Prefix: "10.99.3.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
+			{Action: bgptypes.RouteActionAdd, Prefix: "10.99.4.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
 		}))
 
 		// List via backend.
@@ -228,7 +230,7 @@ func TestNetlinkIntegration_StartupSweep(t *testing.T) {
 		// Use "update" (replaceRoute) because the route already exists in kernel
 		// from the previous run. "add" would fail with EEXIST.
 		f.processEvent(makeTestPayload([]incomingChange{
-			{Action: "update", Prefix: "10.99.5.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
+			{Action: bgptypes.RouteActionUpdate, Prefix: "10.99.5.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
 		}))
 
 		// Sweep stale routes.
@@ -255,8 +257,8 @@ func TestNetlinkIntegration_FlushRoutes(t *testing.T) {
 		f := newFIBKernel(backend)
 
 		f.processEvent(makeTestPayload([]incomingChange{
-			{Action: "add", Prefix: "10.99.7.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
-			{Action: "add", Prefix: "10.99.8.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
+			{Action: bgptypes.RouteActionAdd, Prefix: "10.99.7.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
+			{Action: bgptypes.RouteActionAdd, Prefix: "10.99.8.0/24", NextHop: "127.0.0.1", Protocol: "bgp"},
 		}))
 		require.Len(t, zeRoutes(t, h), 2)
 

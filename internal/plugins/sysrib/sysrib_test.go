@@ -96,7 +96,7 @@ func TestSysRIBSelectByPriority(t *testing.T) {
 	assert.Equal(t, family.IPv4Unicast, fam)
 
 	require.Len(t, changes, 1)
-	assert.Equal(t, "add", changes[0].Action)
+	assert.Equal(t, bgptypes.RouteActionAdd, changes[0].Action)
 	assert.Equal(t, "10.0.0.0/24", changes[0].Prefix)
 	assert.Equal(t, "192.168.1.1", changes[0].NextHop)
 	assert.Equal(t, "bgp", changes[0].Protocol)
@@ -122,7 +122,7 @@ func TestSysRIBStaticWinsOverBGP(t *testing.T) {
 	}))
 
 	require.Len(t, changes, 1)
-	assert.Equal(t, "update", changes[0].Action)
+	assert.Equal(t, bgptypes.RouteActionUpdate, changes[0].Action)
 	assert.Equal(t, "10.0.0.1", changes[0].NextHop, "static next-hop should win")
 	assert.Equal(t, "static", changes[0].Protocol)
 }
@@ -150,7 +150,7 @@ func TestSysRIBFallback(t *testing.T) {
 	}))
 
 	require.Len(t, changes, 1)
-	assert.Equal(t, "update", changes[0].Action)
+	assert.Equal(t, bgptypes.RouteActionUpdate, changes[0].Action)
 	assert.Equal(t, "192.168.1.1", changes[0].NextHop, "BGP should become system best")
 	assert.Equal(t, "bgp", changes[0].Protocol)
 }
@@ -174,7 +174,7 @@ func TestSysRIBWithdrawAll(t *testing.T) {
 	}))
 
 	require.Len(t, changes, 1)
-	assert.Equal(t, "withdraw", changes[0].Action)
+	assert.Equal(t, bgptypes.RouteActionWithdraw, changes[0].Action)
 	assert.Equal(t, "2001:db8::/32", changes[0].Prefix)
 }
 
@@ -204,7 +204,7 @@ func TestSysRIBPublishChange(t *testing.T) {
 	batch := *batchPtr
 	assert.Equal(t, family.IPv4Unicast, batch.Family)
 	require.Len(t, batch.Changes, 1)
-	assert.Equal(t, "add", batch.Changes[0].Action)
+	assert.Equal(t, bgptypes.RouteActionAdd, batch.Changes[0].Action)
 	assert.Equal(t, "bgp", batch.Changes[0].Protocol)
 }
 
@@ -399,7 +399,7 @@ func TestSysRIBAdminDistanceReload(t *testing.T) {
 	// Should have produced an update change.
 	require.Contains(t, changes, family.IPv4Unicast)
 	require.Len(t, changes[family.IPv4Unicast], 1)
-	assert.Equal(t, "update", changes[family.IPv4Unicast][0].Action)
+	assert.Equal(t, bgptypes.RouteActionUpdate, changes[family.IPv4Unicast][0].Action)
 	assert.Equal(t, "192.168.1.1", changes[family.IPv4Unicast][0].NextHop)
 }
 
@@ -599,7 +599,7 @@ func TestSysRIBConsumesLocRIB(t *testing.T) {
 	batch, ok := events[0].Payload.(*sysribevents.BestChangeBatch)
 	require.True(t, ok, "payload must be *sysribevents.BestChangeBatch, got %T", events[0].Payload)
 	require.Len(t, batch.Changes, 1)
-	assert.Equal(t, "add", batch.Changes[0].Action)
+	assert.Equal(t, bgptypes.RouteActionAdd, batch.Changes[0].Action)
 	assert.Equal(t, "10.0.0.0/24", batch.Changes[0].Prefix)
 	assert.Equal(t, "192.0.2.1", batch.Changes[0].NextHop)
 	assert.Equal(t, "bgp", batch.Changes[0].Protocol)
@@ -610,7 +610,7 @@ func TestSysRIBConsumesLocRIB(t *testing.T) {
 		for _, e := range captureSysribEvents(bus) {
 			if b, ok := e.Payload.(*sysribevents.BestChangeBatch); ok {
 				for _, c := range b.Changes {
-					if c.Action == "withdraw" && c.Prefix == "10.0.0.0/24" {
+					if c.Action == bgptypes.RouteActionWithdraw && c.Prefix == "10.0.0.0/24" {
 						return true
 					}
 				}

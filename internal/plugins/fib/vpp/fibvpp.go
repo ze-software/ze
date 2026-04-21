@@ -17,6 +17,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -151,11 +152,6 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 			logger().Warn("fib-vpp: skipping change with empty prefix")
 			continue
 		}
-		if c.Action != "add" && c.Action != "update" && c.Action != "withdraw" {
-			logger().Warn("fib-vpp: unrecognized action", "action", c.Action, "prefix", c.Prefix)
-			continue
-		}
-
 		prefix, err := netip.ParsePrefix(c.Prefix)
 		if err != nil {
 			logger().Warn("fib-vpp: invalid prefix", "prefix", c.Prefix, "error", err)
@@ -163,7 +159,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 		}
 
 		switch c.Action {
-		case "add":
+		case bgptypes.RouteActionAdd:
 			nextHop, nhErr := netip.ParseAddr(c.NextHop)
 			if nhErr != nil {
 				logger().Warn("fib-vpp: invalid next-hop", "next-hop", c.NextHop, "error", nhErr)
@@ -178,7 +174,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 				m.routeInstalls.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
 			}
-		case "update":
+		case bgptypes.RouteActionUpdate:
 			nextHop, nhErr := netip.ParseAddr(c.NextHop)
 			if nhErr != nil {
 				logger().Warn("fib-vpp: invalid next-hop", "next-hop", c.NextHop, "error", nhErr)
@@ -192,7 +188,7 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 			if m := fibVPPMetricsPtr.Load(); m != nil {
 				m.routeUpdates.Inc()
 			}
-		case "withdraw":
+		case bgptypes.RouteActionWithdraw, bgptypes.RouteActionDel:
 			if err := f.backend.delRoute(prefix); err != nil {
 				logger().Error("fib-vpp: del route failed", "prefix", c.Prefix, "error", err)
 				continue
@@ -202,6 +198,8 @@ func (f *fibVPP) processEvent(batch *incomingBatch) {
 				m.routeRemovals.Inc()
 				m.routesInstalled.Set(float64(len(f.installed)))
 			}
+		case bgptypes.RouteActionUnspecified:
+			logger().Warn("fib-vpp: skipping change with unspecified action", "prefix", c.Prefix)
 		}
 	}
 }

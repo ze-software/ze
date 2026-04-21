@@ -4,9 +4,11 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // mockBackend records route operations for testing.
@@ -71,7 +73,7 @@ func TestFIBKernelInstall(t *testing.T) {
 	f := newFIBKernel(backend)
 
 	payload := makeSysribPayload([]incomingChange{
-		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	})
 	f.processEvent(payload)
 
@@ -88,12 +90,12 @@ func TestFIBKernelRemove(t *testing.T) {
 
 	// Install first.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	}))
 
 	// Withdraw.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: "withdraw", Prefix: "10.0.0.0/24"},
+		{Action: bgptypes.RouteActionWithdraw, Prefix: "10.0.0.0/24"},
 	}))
 
 	assert.Contains(t, backend.deleted, "10.0.0.0/24")
@@ -109,12 +111,12 @@ func TestFIBKernelReplace(t *testing.T) {
 
 	// Install.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	}))
 
 	// Update with new next-hop.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: "update", Prefix: "10.0.0.0/24", NextHop: "192.168.2.1", Protocol: "static"},
+		{Action: bgptypes.RouteActionUpdate, Prefix: "10.0.0.0/24", NextHop: "192.168.2.1", Protocol: "static"},
 	}))
 
 	assert.Equal(t, "192.168.2.1", backend.replaced["10.0.0.0/24"])
@@ -154,7 +156,7 @@ func TestFIBKernelSweepStale(t *testing.T) {
 
 	// Simulate sysrib refreshing one route.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	}))
 
 	// Sweep: 10.0.0.0/24 was refreshed (should survive), 172.16.0.0/16 was not (should be deleted).
@@ -175,8 +177,8 @@ func TestFIBKernelFlushOnStop(t *testing.T) {
 
 	// Install routes.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
-		{Action: "add", Prefix: "172.16.0.0/16", NextHop: "192.168.1.2", Protocol: "static"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "172.16.0.0/16", NextHop: "192.168.1.2", Protocol: "static"},
 	}))
 
 	f.flushRoutes()
@@ -192,7 +194,7 @@ func TestFIBKernelShowInstalled(t *testing.T) {
 	f := newFIBKernel(backend)
 
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	}))
 
 	data := f.showInstalled()
@@ -209,7 +211,7 @@ func TestFIBKernelMonitorReassert(t *testing.T) {
 
 	// Install a route first.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	}))
 
 	// Simulate external change on managed prefix.
@@ -243,7 +245,7 @@ func TestFIBKernelMonitorReassertOnDelete(t *testing.T) {
 
 	// Install a route.
 	f.processEvent(makeSysribPayload([]incomingChange{
-		{Action: "add", Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Protocol: "bgp"},
 	}))
 
 	// Simulate external delete (shown as overwrite with empty next-hop).
