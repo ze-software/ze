@@ -35,7 +35,7 @@ func (a *localAuth) setUsers(users map[string]userEntry) {
 }
 
 // handle is the AuthHandler function registered with the l2tp package.
-func (a *localAuth) handle(req ppp.EventAuthRequest) l2tp.AuthResult {
+func (a *localAuth) handle(req ppp.EventAuthRequest, _ l2tp.AuthRespondFunc) l2tp.AuthResult {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 

@@ -36,7 +36,19 @@ func drainAuth(logger *slog.Logger, ch <-chan ppp.AuthEvent, handler AuthHandler
 			continue
 		}
 
-		resp := callAuthHandler(logger, handler, req)
+		respond := func(accept bool, msg string, blob []byte) error {
+			out <- authDrainResponse{
+				tunnelID:  req.TunnelID,
+				sessionID: req.SessionID,
+				result:    AuthResult{Accept: accept, Message: msg, AuthResponseBlob: blob, Handled: true},
+			}
+			return nil
+		}
+
+		resp := callAuthHandler(logger, handler, req, respond)
+		if resp.Handled {
+			continue
+		}
 		out <- authDrainResponse{
 			tunnelID:  req.TunnelID,
 			sessionID: req.SessionID,
@@ -58,7 +70,13 @@ func startAuthDrain(logger *slog.Logger, d *ppp.Driver, handler AuthHandler) <-c
 			if !ok {
 				continue
 			}
-			r := callAuthHandler(logger, handler, req)
+			respond := func(accept bool, msg string, blob []byte) error {
+				return d.AuthResponse(req.TunnelID, req.SessionID, accept, msg, blob)
+			}
+			r := callAuthHandler(logger, handler, req, respond)
+			if r.Handled {
+				continue
+			}
 			if err := d.AuthResponse(req.TunnelID, req.SessionID, r.Accept, r.Message, r.AuthResponseBlob); err != nil {
 				logger.Warn("l2tp: auth drain response failed",
 					"tunnel", req.TunnelID, "session", req.SessionID, "error", err)
@@ -68,7 +86,7 @@ func startAuthDrain(logger *slog.Logger, d *ppp.Driver, handler AuthHandler) <-c
 	return done
 }
 
-func callAuthHandler(logger *slog.Logger, handler AuthHandler, req ppp.EventAuthRequest) (result AuthResult) {
+func callAuthHandler(logger *slog.Logger, handler AuthHandler, req ppp.EventAuthRequest, respond AuthRespondFunc) (result AuthResult) {
 	if handler == nil {
 		return AuthResult{Accept: true, Message: "no auth handler; accept all"}
 	}
@@ -80,7 +98,7 @@ func callAuthHandler(logger *slog.Logger, handler AuthHandler, req ppp.EventAuth
 		}
 	}()
 
-	return handler(req)
+	return handler(req, respond)
 }
 
 // drainPool reads EventIPRequests from the channel and calls the

@@ -11,7 +11,7 @@ func TestRegisterAuthHandler(t *testing.T) {
 	t.Cleanup(l2tp.UnregisterAuthHandler)
 
 	called := false
-	h := func(req ppp.EventAuthRequest) l2tp.AuthResult {
+	h := func(req ppp.EventAuthRequest, _ l2tp.AuthRespondFunc) l2tp.AuthResult {
 		called = true
 		return l2tp.AuthResult{Accept: true}
 	}
@@ -21,7 +21,7 @@ func TestRegisterAuthHandler(t *testing.T) {
 	if got == nil {
 		t.Fatal("expected non-nil auth handler")
 	}
-	got(ppp.EventAuthRequest{})
+	got(ppp.EventAuthRequest{}, nil)
 	if !called {
 		t.Fatal("registered handler was not called")
 	}

@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-l2tp-8a-auth-pool |
-| Phase | - |
+| Phase | 8/8 |
 | Updated | 2026-04-21 |
 
 ## Post-Compaction Recovery

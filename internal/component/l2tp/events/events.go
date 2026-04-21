@@ -48,3 +48,19 @@ type SessionDownPayload struct {
 // the reactor when a PPP session tears down; consumed by the pool
 // plugin to release allocated IP addresses.
 var SessionDown = events.Register[*SessionDownPayload](Namespace, SessionDownEvent)
+
+// SessionIPAssignedEvent is the event type string for session-ip-assigned notifications.
+const SessionIPAssignedEvent = "session-ip-assigned"
+
+// SessionIPAssignedPayload carries session identity and assigned IP
+// for RADIUS accounting start and other subscribers.
+type SessionIPAssignedPayload struct {
+	TunnelID  uint16
+	SessionID uint16
+	Username  string
+	PeerAddr  string
+}
+
+// SessionIPAssigned is the typed handle for (l2tp, session-ip-assigned).
+// Emitted by the reactor after NCP negotiation assigns an IP to the peer.
+var SessionIPAssigned = events.Register[*SessionIPAssignedPayload](Namespace, SessionIPAssignedEvent)

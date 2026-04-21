@@ -71,6 +71,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/p4/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/vpp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthlocal/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthradius/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tppool/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/schema"
@@ -113,7 +114,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/watchdog"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor/filter"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/firewall"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/vpp"
@@ -126,14 +126,13 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/vpp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthlocal"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthradius"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/l2tppool"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ntp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/netlink"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/vpp"
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakel2tp"
-	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeredist"
 
 	// Event namespace packages -- events.RegisterNamespace registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
@@ -148,3 +147,4 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 )
+

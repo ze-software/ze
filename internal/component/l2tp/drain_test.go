@@ -16,7 +16,7 @@ func TestAuthDrainCallsHandler(t *testing.T) {
 	responded := make(chan authDrainResponse, 1)
 
 	called := false
-	handler := AuthHandler(func(req ppp.EventAuthRequest) AuthResult {
+	handler := AuthHandler(func(req ppp.EventAuthRequest, _ AuthRespondFunc) AuthResult {
 		called = true
 		if req.Username != "alice" {
 			t.Errorf("want username alice, got %s", req.Username)
@@ -61,7 +61,7 @@ func TestAuthDrainPanicRecovery(t *testing.T) {
 	responded := make(chan authDrainResponse, 2)
 
 	callCount := 0
-	handler := AuthHandler(func(req ppp.EventAuthRequest) AuthResult {
+	handler := AuthHandler(func(req ppp.EventAuthRequest, _ AuthRespondFunc) AuthResult {
 		callCount++
 		if callCount == 1 {
 			panic("boom")
@@ -83,6 +83,33 @@ func TestAuthDrainPanicRecovery(t *testing.T) {
 	resp2 := <-responded
 	if !resp2.result.Accept {
 		t.Fatal("second request should succeed after panic recovery")
+	}
+}
+
+func TestAuthDrainHandledSentinel(t *testing.T) {
+	authCh := make(chan ppp.AuthEvent, 1)
+	responded := make(chan authDrainResponse, 1)
+
+	handler := AuthHandler(func(req ppp.EventAuthRequest, respond AuthRespondFunc) AuthResult {
+		go func() {
+			if err := respond(true, "async accept", nil); err != nil {
+				t.Errorf("respond failed: %v", err)
+			}
+		}()
+		return AuthResult{Handled: true}
+	})
+
+	go drainAuth(slog.Default(), authCh, handler, responded)
+
+	authCh <- ppp.EventAuthRequest{TunnelID: 1, SessionID: 2, Username: "bob"}
+	close(authCh)
+
+	resp := <-responded
+	if !resp.result.Handled {
+		t.Fatal("expected Handled=true in drain response")
+	}
+	if !resp.result.Accept {
+		t.Fatal("expected accept via respond callback")
 	}
 }
 

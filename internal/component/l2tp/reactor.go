@@ -964,6 +964,17 @@ func (r *L2TPReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 	if r.routeObserver != nil && addr.IsValid() {
 		r.routeObserver.OnSessionIPUp(ev.SessionID, username, addr)
 	}
+
+	if r.eventBus != nil && addr.IsValid() {
+		if _, err := l2tpevents.SessionIPAssigned.Emit(r.eventBus, &l2tpevents.SessionIPAssignedPayload{
+			TunnelID:  ev.TunnelID,
+			SessionID: ev.SessionID,
+			Username:  username,
+			PeerAddr:  addr.String(),
+		}); err != nil {
+			r.logger.Warn("l2tp: session-ip-assigned emit failed", "error", err)
+		}
+	}
 }
 
 // handleKernelError processes a setup failure reported by the kernel

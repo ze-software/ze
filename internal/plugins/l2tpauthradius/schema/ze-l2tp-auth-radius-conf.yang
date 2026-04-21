@@ -1,0 +1,52 @@
+module ze-l2tp-auth-radius-conf {
+    namespace "urn:ze:l2tp:auth:radius:conf";
+    prefix l2tp-auth-radius;
+    import ze-extensions { prefix ze; }
+
+    description
+        "RADIUS authentication and accounting for L2TP PPP sessions.";
+
+    container l2tp {
+        container auth {
+            container radius {
+                leaf nas-identifier {
+                    type string;
+                    description "NAS-Identifier sent in RADIUS requests.";
+                }
+                leaf timeout {
+                    type uint8 { range "1..30"; }
+                    default 3;
+                    description "Per-request timeout in seconds.";
+                }
+                leaf retries {
+                    type uint8 { range "1..10"; }
+                    default 3;
+                    description "Number of retransmit attempts per server.";
+                }
+                leaf acct-interval {
+                    type uint16 { range "60..3600"; }
+                    default 300;
+                    description "Accounting interim-update interval in seconds.";
+                }
+                list server {
+                    key "address";
+                    ordered-by user;
+                    leaf address {
+                        type string;
+                        description "RADIUS server IP address or hostname.";
+                    }
+                    leaf port {
+                        type uint16 { range "1..65535"; }
+                        default 1812;
+                        description "RADIUS server UDP port.";
+                    }
+                    leaf shared-key {
+                        type string;
+                        ze:sensitive;
+                        description "RADIUS shared secret.";
+                    }
+                }
+            }
+        }
+    }
+}
