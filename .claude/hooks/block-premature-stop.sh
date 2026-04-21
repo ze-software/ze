@@ -46,6 +46,12 @@ PHRASES=(
     "ready for me to"
     "or (leave|skip|ignore) (them|it|this|that)"
     "or should I"
+    # Choice-offering: presenting options instead of deciding
+    "what would you like"
+    "what do you want to do"
+    "or something else"
+    "what.s next"
+    "what next"
 )
 
 for pattern in "${PHRASES[@]}"; do

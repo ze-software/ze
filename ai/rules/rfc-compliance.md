@@ -3,6 +3,15 @@
 Ze MUST be a fully RFC 4271 compliant BGP speaker.
 Rationale: `ai/rationale/rfc-compliance.md`
 
+## RFC Summaries (`rfc/short/`)
+
+RFC summaries are protocol-only reference documents. They must NOT contain
+Ze-specific information: no Ze implementation notes, no Ze file paths, no
+"Ze does/does not" statements, no "for ze" sections. Implementation
+decisions belong in specs (`plan/`), architecture docs (`docs/architecture/`),
+or code comments. A reader should be able to use any `rfc/short/` file
+as a standalone protocol reference with no knowledge of Ze.
+
 ## Before Implementing BGP Features
 
 1. Find RFC in `rfc/` — if missing: `curl -o rfc/full/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
