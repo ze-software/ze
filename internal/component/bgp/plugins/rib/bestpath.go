@@ -16,6 +16,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
 
 // BestStep identifies which stage of the RFC 4271 §9.1.2 decision process
@@ -379,18 +380,13 @@ func comparePairWithReason(a, b *Candidate) (int, BestStep, string) {
 // Protocol-type labels used by both reason narration and best-path change
 // events. Kept as package-level constants so there is a single source of
 // truth for consumers that match JSON field values.
-const (
-	protocolTypeEBGP = "ebgp"
-	protocolTypeIBGP = "ibgp"
-)
-
-// ebgpLabel returns the protocol-type label for the boolean. Kept small so
+// ebgpLabel returns the BGP protocol type for the boolean. Kept small so
 // the comparePairWithReason hot path stays inlineable.
-func ebgpLabel(isEBGP bool) string {
+func ebgpLabel(isEBGP bool) bgptypes.BGPProtocolType {
 	if isEBGP {
-		return protocolTypeEBGP
+		return bgptypes.BGPProtocolEBGP
 	}
-	return protocolTypeIBGP
+	return bgptypes.BGPProtocolIBGP
 }
 
 // compareAddrs compares two IP address strings numerically.

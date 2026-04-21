@@ -71,3 +71,47 @@ func (a *RouteAction) UnmarshalText(data []byte) error {
 	}
 	return nil
 }
+
+// BGPProtocolType distinguishes iBGP from eBGP routes. This is a BGP-internal
+// 2-value classification, not a cross-protocol identity (see redistevents.ProtocolID).
+type BGPProtocolType uint8
+
+const (
+	BGPProtocolUnspecified BGPProtocolType = 0
+	BGPProtocolEBGP        BGPProtocolType = 1
+	BGPProtocolIBGP        BGPProtocolType = 2
+	BGPProtocolCount       BGPProtocolType = 3
+)
+
+func (p BGPProtocolType) String() string {
+	switch p {
+	case BGPProtocolEBGP:
+		return "ebgp"
+	case BGPProtocolIBGP:
+		return "ibgp"
+	case BGPProtocolUnspecified, BGPProtocolCount:
+		return "unspecified"
+	}
+	return "unspecified"
+}
+
+func (p BGPProtocolType) AppendTo(buf []byte) []byte { return append(buf, p.String()...) }
+
+func (p BGPProtocolType) MarshalText() ([]byte, error) {
+	if p == BGPProtocolUnspecified || p >= BGPProtocolCount {
+		return nil, fmt.Errorf("types: invalid BGPProtocolType %d on the wire", p)
+	}
+	return []byte(p.String()), nil
+}
+
+func (p *BGPProtocolType) UnmarshalText(data []byte) error {
+	switch string(data) {
+	case "ebgp":
+		*p = BGPProtocolEBGP
+	case "ibgp":
+		*p = BGPProtocolIBGP
+	default:
+		return fmt.Errorf("types: unknown BGP protocol type %q", string(data))
+	}
+	return nil
+}

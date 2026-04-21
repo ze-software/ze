@@ -349,10 +349,10 @@ func (b *bestPrevInterner) internerSize() (peers, nextHops, metrics int) {
 // rather than panicking.
 func (r bestPathRecord) resolve(interner *bestPrevInterner, action bgptypes.RouteAction, prefix string, pathID uint32, addPath bool) bestChangeEntry {
 	priority := 200
-	protoType := protocolTypeIBGP
+	protoType := bgptypes.BGPProtocolIBGP
 	if r.IsEBGP() {
 		priority = 20
-		protoType = protocolTypeEBGP
+		protoType = bgptypes.BGPProtocolEBGP
 	}
 	return bestChangeEntry{
 		Action:       action,
@@ -727,7 +727,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	)
 	if newBest != nil {
 		nextHop = r.bestCandidateNextHopAddr(fam, nlriBytes, newBest)
-		isEBGP = r.protocolType(newBest) == protocolTypeEBGP
+		isEBGP = r.protocolType(newBest) == bgptypes.BGPProtocolEBGP
 	}
 
 	// Parse prefix once so we can route to the owning shard. Malformed
@@ -847,11 +847,11 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 // ASN comparison. When LocalASN is 0 (unknown, e.g. before OPEN negotiation
 // completes), defaults to ebgp. This is intentional: routes learned before
 // ASN negotiation are assumed external, which is the more common case.
-func (r *RIBManager) protocolType(c *Candidate) string {
+func (r *RIBManager) protocolType(c *Candidate) bgptypes.BGPProtocolType {
 	if c.LocalASN == 0 || c.PeerASN != c.LocalASN {
-		return protocolTypeEBGP
+		return bgptypes.BGPProtocolEBGP
 	}
-	return protocolTypeIBGP
+	return bgptypes.BGPProtocolIBGP
 }
 
 // bestCandidateNextHopAddr extracts the next-hop for the winning candidate's

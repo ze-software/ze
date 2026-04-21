@@ -48,14 +48,14 @@ const (
 // for ADD-PATH entries (including pathID=0) and omitted for everything
 // else.
 type BestChangeEntry struct {
-	Action       bgptypes.RouteAction `json:"action"`
-	Prefix       string               `json:"prefix"`
-	AddPath      bool                 `json:"add-path,omitempty"`
-	PathID       uint32               `json:"path-id,omitempty"`
-	NextHop      string               `json:"next-hop,omitempty"`
-	Priority     int                  `json:"priority"`
-	Metric       uint32               `json:"metric"`
-	ProtocolType string               `json:"protocol-type,omitempty"`
+	Action       bgptypes.RouteAction     `json:"action"`
+	Prefix       string                   `json:"prefix"`
+	AddPath      bool                     `json:"add-path,omitempty"`
+	PathID       uint32                   `json:"path-id,omitempty"`
+	NextHop      string                   `json:"next-hop,omitempty"`
+	Priority     int                      `json:"priority"`
+	Metric       uint32                   `json:"metric"`
+	ProtocolType bgptypes.BGPProtocolType `json:"protocol-type,omitempty"`
 }
 
 // BestChangeBatch is the payload of (bgp-rib, best-change). One batch is

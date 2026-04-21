@@ -234,7 +234,7 @@ func TestSysRIBAdminDistanceOverride(t *testing.T) {
 	s.adminDist = map[string]int{"ebgp": 30, "ibgp": 200}
 
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Priority: 20, ProtocolType: "ebgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Priority: 20, ProtocolType: bgptypes.BGPProtocolEBGP},
 	}))
 
 	key := prefixKey{family: family.IPv4Unicast, prefix: "10.0.0.0/24"}
@@ -256,7 +256,7 @@ func TestSysRIBDefaultAdminDistance(t *testing.T) {
 	s.adminDist = map[string]int{"connected": 0, "static": 10, "ebgp": 20, "ospf": 110, "isis": 115, "ibgp": 200}
 
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Priority: 20, ProtocolType: "ebgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Priority: 20, ProtocolType: bgptypes.BGPProtocolEBGP},
 	}))
 
 	key := prefixKey{family: family.IPv4Unicast, prefix: "10.0.0.0/24"}
@@ -276,7 +276,7 @@ func TestSysRIBAdminDistanceOverrideIBGP(t *testing.T) {
 	s.adminDist = map[string]int{"ebgp": 20, "ibgp": 150}
 
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Priority: 200, ProtocolType: "ibgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Priority: 200, ProtocolType: bgptypes.BGPProtocolIBGP},
 	}))
 
 	key := prefixKey{family: family.IPv4Unicast, prefix: "10.0.0.0/24"}
@@ -297,12 +297,12 @@ func TestSysRIBCrossProtocolSelection(t *testing.T) {
 
 	// eBGP route with configured distance 30.
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Priority: 20, ProtocolType: "ebgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Priority: 20, ProtocolType: bgptypes.BGPProtocolEBGP},
 	}))
 
 	// Static route with configured distance 10.
 	s.processEvent(makePayload("static", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1", Priority: 10, ProtocolType: "static"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1", Priority: 10, ProtocolType: bgptypes.BGPProtocolUnspecified},
 	}))
 
 	key := prefixKey{family: family.IPv4Unicast, prefix: "10.0.0.0/24"}
@@ -323,7 +323,7 @@ func TestSysRIBUnknownProtocolNoOverride(t *testing.T) {
 	s.adminDist = map[string]int{"ebgp": 30, "ibgp": 150}
 
 	s.processEvent(makePayload("ospf", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1", Priority: 110, ProtocolType: "ospf"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1", Priority: 110, ProtocolType: bgptypes.BGPProtocolUnspecified},
 	}))
 
 	key := prefixKey{family: family.IPv4Unicast, prefix: "10.0.0.0/24"}
@@ -343,7 +343,7 @@ func TestSysRIBNoConfigPassthrough(t *testing.T) {
 	// No adminDist set -- simulates no sysrib {} config block.
 
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Priority: 20, ProtocolType: "ebgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Priority: 20, ProtocolType: bgptypes.BGPProtocolEBGP},
 	}))
 
 	key := prefixKey{family: family.IPv4Unicast, prefix: "10.0.0.0/24"}
@@ -367,10 +367,10 @@ func TestSysRIBAdminDistanceReload(t *testing.T) {
 
 	// Install eBGP route (distance 20) and static route (distance 10).
 	s.processEvent(makePayload("bgp", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Priority: 20, ProtocolType: "ebgp"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "192.168.1.1", Priority: 20, ProtocolType: bgptypes.BGPProtocolEBGP},
 	}))
 	s.processEvent(makePayload("static", family.IPv4Unicast, []incomingChange{
-		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1", Priority: 10, ProtocolType: "static"},
+		{Action: bgptypes.RouteActionAdd, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1", Priority: 10, ProtocolType: bgptypes.BGPProtocolUnspecified},
 	}))
 
 	// Static wins (10 < 20).

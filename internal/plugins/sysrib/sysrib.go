@@ -250,8 +250,8 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 		if c.Action == bgptypes.RouteActionAdd || c.Action == bgptypes.RouteActionUpdate {
 			// Use per-change protocol type for admin distance override.
 			// Falls back to batch-level protocol if per-change type is absent.
-			protoType := c.ProtocolType
-			if protoType == "" {
+			protoType := c.ProtocolType.String()
+			if c.ProtocolType == bgptypes.BGPProtocolUnspecified {
 				protoType = proto
 			}
 			priority := s.effectivePriority(protoType, c.Priority)
@@ -562,7 +562,7 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 			NextHop:      nextHop,
 			Priority:     priority,
 			Metric:       metric,
-			ProtocolType: protocolTypeFromPath(c.Best),
+			ProtocolType: bgpProtocolTypeFromPath(c.Best),
 		}},
 	}
 }
@@ -586,20 +586,20 @@ func (s *sysRIB) replayPath(fam family.Family, pfx netip.Prefix, p locrib.Path) 
 	}
 }
 
-// protocolTypeFromPath derives the sysrib protocol-type label for a locrib
-// Path. sysrib's adminDist overrides key on "ebgp" / "ibgp" / "static", so
-// BGP paths are specialised from AdminDistance (20=ebgp, 200=ibgp); every
-// other source returns its registered canonical name.
-func protocolTypeFromPath(p locrib.Path) string {
+// bgpProtocolTypeFromPath derives the BGP protocol type for a locrib Path.
+// Only BGP paths produce a meaningful result; non-BGP sources return
+// BGPProtocolUnspecified (the caller uses the batch-level protocol name
+// for admin-distance lookup in that case).
+func bgpProtocolTypeFromPath(p locrib.Path) bgptypes.BGPProtocolType {
 	name := redistevents.ProtocolName(p.Source)
 	if name != "bgp" {
-		return name
+		return bgptypes.BGPProtocolUnspecified
 	}
 	switch p.AdminDistance {
 	case 20:
-		return "ebgp"
+		return bgptypes.BGPProtocolEBGP
 	case 200:
-		return "ibgp"
+		return bgptypes.BGPProtocolIBGP
 	}
-	return "bgp"
+	return bgptypes.BGPProtocolUnspecified
 }

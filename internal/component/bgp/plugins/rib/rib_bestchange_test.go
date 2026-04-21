@@ -15,6 +15,7 @@ import (
 
 	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -768,14 +769,14 @@ func TestRIBBestChangeEBGPMetadata(t *testing.T) {
 	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
 
 	require.True(t, ok)
-	assert.Equal(t, "ebgp", change.ProtocolType, "eBGP route must have protocol-type 'ebgp'")
+	assert.Equal(t, bgptypes.BGPProtocolEBGP, change.ProtocolType, "eBGP route must have protocol-type ebgp")
 
 	// Verify it survives JSON round-trip (sysrib reads this from payload).
 	data, err := json.Marshal(change)
 	require.NoError(t, err)
 	var decoded bestChangeEntry
 	require.NoError(t, json.Unmarshal(data, &decoded))
-	assert.Equal(t, "ebgp", decoded.ProtocolType)
+	assert.Equal(t, bgptypes.BGPProtocolEBGP, decoded.ProtocolType)
 }
 
 // VALIDATES: AC-7 -- iBGP route has protocol-type "ibgp" in best-change entry.
@@ -797,7 +798,7 @@ func TestRIBBestChangeIBGPMetadata(t *testing.T) {
 	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
 
 	require.True(t, ok)
-	assert.Equal(t, "ibgp", change.ProtocolType, "iBGP route must have protocol-type 'ibgp'")
+	assert.Equal(t, bgptypes.BGPProtocolIBGP, change.ProtocolType, "iBGP route must have protocol-type ibgp")
 }
 
 // VALIDATES: AC-1 (eBGP priority) -- eBGP routes published with priority 20.
@@ -1416,7 +1417,7 @@ func TestBestPathResolve(t *testing.T) {
 	assert.Equal(t, "10.0.0.1", ebgpEntry.NextHop)
 	assert.Equal(t, 20, ebgpEntry.Priority, "eBGP records resolve to priority 20")
 	assert.Equal(t, uint32(500), ebgpEntry.Metric)
-	assert.Equal(t, "ebgp", ebgpEntry.ProtocolType)
+	assert.Equal(t, bgptypes.BGPProtocolEBGP, ebgpEntry.ProtocolType)
 
 	ibgpRec := packBestPath(metricIdx, peerIdx, nhIdx, 0)
 	ibgpEntry := ibgpRec.resolve(ir, ribevents.BestChangeUpdate, "10.0.0.0/24", 7, true)
@@ -1424,7 +1425,7 @@ func TestBestPathResolve(t *testing.T) {
 	assert.True(t, ibgpEntry.AddPath, "ADD-PATH flag propagates through resolve")
 	assert.Equal(t, uint32(7), ibgpEntry.PathID, "ADD-PATH id propagates through resolve")
 	assert.Equal(t, 200, ibgpEntry.Priority, "iBGP records resolve to priority 200")
-	assert.Equal(t, "ibgp", ibgpEntry.ProtocolType)
+	assert.Equal(t, bgptypes.BGPProtocolIBGP, ibgpEntry.ProtocolType)
 
 	// Zero next-hop round-trips to empty string via nextHopString.
 	zeroNHIdx, _ := ir.internNextHop(netip.Addr{})
