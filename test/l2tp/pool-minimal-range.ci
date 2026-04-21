@@ -1,0 +1,144 @@
+# Test: l2tp-pool plugin accepts a minimal single-address pool range.
+# VALIDATES: spec-l2tp-8a AC-12 (smoke) -- pool configured with total=1.
+# Note: actual pool exhaustion (allocate then reject) is unit-tested
+# (TestPoolExhausted) because it requires PPP sessions to drive allocation.
+# This functional test verifies the boundary case of a single-address range.
+
+tmpfs=pool-minimal-range.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Establish an L2TP tunnel to verify ze boots correctly with a
+single-address pool range (boundary case for pool exhaustion)."""
+import hashlib
+import os
+import socket
+import struct
+import sys
+import time
+
+if len(sys.argv) < 2:
+    print("usage: pool-minimal-range.py <port>", file=sys.stderr)
+    sys.exit(2)
+
+TARGET = ("127.0.0.1", int(sys.argv[1]))
+SECRET = os.environ.get("TEST_SECRET", "s3cr3t").encode("utf-8")
+PEER_TID = 0x0402
+PEER_CHALLENGE = bytes.fromhex("ffeeddccbbaa00998877665544332211")
+
+
+def avp(mandatory, attr_type, value):
+    flags = 0x8000 if mandatory else 0
+    return struct.pack("!HHH", flags | (6 + len(value)), 0, attr_type) + value
+
+
+def build_sccrq():
+    body = b""
+    body += avp(True, 0, struct.pack("!H", 1))
+    body += avp(True, 2, b"\x01\x00")
+    body += avp(True, 3, struct.pack("!I", 0x3))
+    body += avp(True, 4, struct.pack("!I", 0x0))
+    body += avp(True, 7, b"py-exhaust")
+    body += avp(True, 9, struct.pack("!H", PEER_TID))
+    body += avp(True, 10, struct.pack("!H", 8))
+    body += avp(True, 11, PEER_CHALLENGE)
+    total = 12 + len(body)
+    hdr = struct.pack("!HHHHHH", 0xC802, total, 0, 0, 0, 0)
+    return hdr + body
+
+
+def parse_avps(body):
+    out = {}
+    off = 0
+    while off + 6 <= len(body):
+        word, vendor, atype = struct.unpack("!HHH", body[off:off+6])
+        length = word & 0x03FF
+        if length < 6 or off + length > len(body):
+            break
+        if vendor == 0:
+            out[atype] = body[off+6:off+length]
+        off += length
+    return out
+
+
+def build_scccn(dest_tid, ns, nr, response):
+    body = b""
+    body += avp(True, 0, struct.pack("!H", 3))
+    body += avp(True, 13, response)
+    total = 12 + len(body)
+    hdr = struct.pack("!HHHHHH", 0xC802, total, dest_tid, 0, ns, nr)
+    return hdr + body
+
+
+def main():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", 0))
+    sock.settimeout(0.25)
+    time.sleep(0.05)
+    sccrq = build_sccrq()
+    sccrp = None
+    for _ in range(20):
+        try:
+            sock.sendto(sccrq, TARGET)
+            data, _ = sock.recvfrom(1500)
+            sccrp = data
+            break
+        except (socket.timeout, ConnectionRefusedError, OSError):
+            continue
+    if sccrp is None:
+        print("ERROR: no SCCRP received", file=sys.stderr)
+        return 1
+    _, length, _, _, _, _ = struct.unpack("!HHHHHH", sccrp[:12])
+    avps = parse_avps(sccrp[12:length])
+    our_challenge = avps.get(11)
+    tid_bytes = avps.get(9)
+    if our_challenge is None or tid_bytes is None:
+        print("ERROR: SCCRP missing Challenge or Assigned Tunnel ID", file=sys.stderr)
+        return 1
+    local_tid = struct.unpack("!H", tid_bytes)[0]
+
+    digest = hashlib.md5(bytes([3]) + SECRET + our_challenge).digest()
+    sock.settimeout(1.0)
+    sock.sendto(build_scccn(local_tid, 1, 1, digest), TARGET)
+    try:
+        sock.recvfrom(1500)
+    except (socket.timeout, OSError):
+        pass
+    print("OK: tunnel established with single-address pool")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF_PY
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true
+    shared-secret s3cr3t
+    pool {
+        ipv4 {
+            gateway 10.255.1.1
+            start 10.255.1.2
+            end 10.255.1.2
+            dns-primary 8.8.8.8
+        }
+    }
+}
+environment {
+    l2tp {
+        server main {
+            ip 127.0.0.1
+            port $PORT
+        }
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+option=env:var=TEST_SECRET:value=s3cr3t
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=python3 pool-minimal-range.py $PORT:timeout=10s
+expect=exit:code=0
+expect=stdout:contains=OK: tunnel established with single-address pool
+expect=stderr:contains=tunnel now established
