@@ -25,10 +25,11 @@ const (
 )
 
 const (
-	routeActionWireAdd      = "add"
-	routeActionWireDel      = "del"
-	routeActionWireUpdate   = "update"
-	routeActionWireWithdraw = "withdraw"
+	routeActionWireAdd         = "add"
+	routeActionWireDel         = "del"
+	routeActionWireUpdate      = "update"
+	routeActionWireWithdraw    = "withdraw"
+	routeActionWireUnspecified = "unspecified"
 )
 
 func (a RouteAction) String() string {
@@ -42,9 +43,9 @@ func (a RouteAction) String() string {
 	case RouteActionWithdraw:
 		return routeActionWireWithdraw
 	case RouteActionUnspecified:
-		return "unspecified"
+		return routeActionWireUnspecified
 	}
-	return "unspecified"
+	return routeActionWireUnspecified
 }
 
 func (a RouteAction) AppendTo(buf []byte) []byte { return append(buf, a.String()...) }
@@ -90,9 +91,9 @@ func (p BGPProtocolType) String() string {
 	case BGPProtocolIBGP:
 		return "ibgp"
 	case BGPProtocolUnspecified, BGPProtocolCount:
-		return "unspecified"
+		return routeActionWireUnspecified
 	}
-	return "unspecified"
+	return routeActionWireUnspecified
 }
 
 func (p BGPProtocolType) AppendTo(buf []byte) []byte { return append(buf, p.String()...) }

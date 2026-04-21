@@ -645,15 +645,6 @@ func (r *RIBManager) emitPurgedWithdraws(pending map[family.Family][]bestChangeE
 	}
 }
 
-// prefixBytesForDisplay returns the NLRI bytes suitable for wirePrefixToString.
-// For ADD-PATH, strips the 4-byte path-ID prefix that nlrisplit includes.
-func prefixBytesForDisplay(nlriBytes []byte, addPath bool) []byte {
-	if addPath && len(nlriBytes) > 4 {
-		return nlriBytes[4:]
-	}
-	return nlriBytes
-}
-
 // parseNextHopAddr converts raw NEXT_HOP attribute bytes into a netip.Addr.
 // Returns the zero Addr (IsValid()==false) on malformed input. Zero-alloc:
 // netip.AddrFrom4 and AddrFrom16 are pure value constructors.
@@ -669,17 +660,6 @@ func parseNextHopAddr(data []byte) netip.Addr {
 		return netip.AddrFrom16(a)
 	}
 	return netip.Addr{}
-}
-
-// nextHopString produces the display form of a best-path next-hop for the
-// BestChangeEntry JSON payload. Returns "" for the zero Addr (absent /
-// malformed). IPv6 is emitted in canonical (RFC 5952) compressed form, which
-// matches ze's other JSON paths in test/encode/*.ci and test/plugin/*.ci.
-func nextHopString(a netip.Addr) string {
-	if !a.IsValid() {
-		return ""
-	}
-	return a.String()
 }
 
 // checkBestPathChange evaluates the best path for a prefix after an insert or remove.
