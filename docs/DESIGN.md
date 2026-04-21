@@ -60,10 +60,6 @@ fault injection.
 
 ## Non-Goals
 
-**FIB manipulation (deferred).** Ze does not currently install routes into the kernel
-forwarding table. FIB integration is planned but not the current focus. For now, Ze is
-a protocol speaker and route injector, like ExaBGP.
-
 **Full routing suite (deferred).** OSPF, IS-IS, LDP, and MPLS control plane are not
 currently in scope. The focus is on getting BGP right first.
 

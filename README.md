@@ -2,9 +2,9 @@
 
 > **Pre-release** -- Ze is under active development and has not been released yet. The core BGP engine works and is extensively tested (8,000+ unit tests, 550+ functional tests, fuzz testing, chaos testing, interop tests against FRR, BIRD, and GoBGP), but some advanced features are still incomplete. APIs and config syntax may change.
 
-Ze turns a Linux server into a networking device. It speaks BGP, manages network interfaces, programs the FIB, and serves a config editor over SSH and a web UI. Everything beyond the core is a plugin. Plugins can be Go modules or external processes in any language. An MCP server can let AI assistants discover all its features (including plugins) and operate them directly.
+Ze is an open-source network operating system for Linux. It speaks BGP, manages network interfaces, programs the FIB, and serves a config editor over SSH and a web UI. Everything beyond the core is a plugin. Plugins can be Go modules or external processes in any language. An MCP server can let AI assistants discover all its features (including plugins) and operate them directly.
 
-The engine is a supervisor that composes a message bus, a config provider, and a plugin manager. It has no knowledge of BGP or any specific protocol. BGP, interface management, and everything else register as subsystems and plugins. Plugins can be Go modules or external processes in any language. An MCP server can let AI assistants discover all its features (including plugins) and operate them directly.
+The engine is a supervisor that composes a message bus, a config provider, and a plugin manager. It has no knowledge of BGP or any specific protocol. BGP, interface management, and everything else register as subsystems and plugins.
 
 It is the successor to [ExaBGP](https://github.com/Exa-Networks/exabgp) to be a fully programmable network stack for device configuration and network automation.
 
@@ -13,9 +13,11 @@ It is the successor to [ExaBGP](https://github.com/Exa-Networks/exabgp) to be a 
 | Component | Role |
 |-----------|------|
 | BGP engine | TCP connections, FSM, message parsing, capability negotiation |
-| Config | YANG-modeled configuration, validation, live reload |
+| Interfaces | Linux network management: ethernet, bridge, VLAN, tunnels, WireGuard, DHCP, NTP |
+| FIB | Route installation into the kernel forwarding table (netlink) or VPP data plane |
+| Config | YANG-modeled configuration with commit, rollback, and live reload |
 | CLI | SSH-accessible interactive editor and command shell |
-| Web UI | Browser-based configuration editor |
+| Web UI | Browser-based configuration editor and admin dashboard |
 | Looking glass | Peer status and route viewer, [birdwatcher](https://github.com/alice-lg/birdwatcher)-compatible API |
 | Telemetry | Prometheus metrics export |
 | MCP | Model Context Protocol server for AI tool integration |
@@ -58,6 +60,17 @@ If you are an ExaBGP user, we would love your feedback on the migration experien
 | Fuzz testing | All external input parsing |
 | Chaos testing | Deterministic replay with [configurable scenarios](docs/guide/chaos-testing.md) |
 
+### Deployment
+
+Ze runs as a daemon under systemd (or any process manager) on any Linux, or as a dedicated appliance image built with [gokrazy](https://gokrazy.org) for purpose-built hardware. Same binary, same config format, same CLI.
+
+| Mode | Description |
+|------|-------------|
+| Any Linux | Standard daemon, integrates with systemd, journald, and your existing tooling. See [Operations](docs/guide/operations.md) |
+| Appliance | Immutable boot image for N100 mini PCs or VMs: read-only root, no shell, automatic supervision. See [VM Appliance](docs/guide/appliance.md) |
+
+You own the config, the plugins, and the hardware. No per-instance licensing, no vendor portal, no cloud dependency.
+
 ## Quick Start
 
 ```bash
@@ -84,6 +97,7 @@ Requires **Go 1.25+**. See the [Quick Start guide](docs/guide/quickstart.md).
 | Understand the internals | [Design Document](docs/DESIGN.md) |
 | Build a route server at an IXP | [Route Reflection](docs/guide/route-reflection.md) (please don't, not yet) |
 | Run Ze in production | [Operations](docs/guide/operations.md) |
+| Build a dedicated network appliance | [VM Appliance](docs/guide/appliance.md) |
 | Compare Ze with other daemons | [Comparison](docs/comparison.md) |
 
 ## Documentation

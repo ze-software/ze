@@ -1,6 +1,6 @@
 # Ze Features
 
-Ze is a BGP daemon written in Go.
+Ze is a network operating system written in Go. It runs on any Linux or as a gokrazy appliance.
 
 | Feature | Description |
 |---------|-------------|

@@ -226,18 +226,21 @@ processes and injects routes from them. It is a route injector/receiver, not a r
 
 ## Positioning
 
-**Ze** is a programmable BGP daemon and the successor to ExaBGP. It targets SDN, route injection,
-monitoring, and route server use cases where external processes need to interact with BGP events.
-A plugin architecture with YANG-modeled schemas allows extending the engine without modifying it.
+**Ze** is an open-source network operating system and the successor to ExaBGP. It runs as a
+daemon on any Linux (systemd or any process manager) or as a dedicated appliance image built
+with gokrazy for purpose-built hardware -- same binary, same config. It speaks BGP, manages
+network interfaces (ethernet, bridge, VLAN, tunnels, WireGuard, DHCP), installs routes into
+the kernel FIB or VPP data plane, and serves a config editor over SSH and a web UI. A plugin
+architecture with YANG-modeled schemas allows extending the engine without modifying it.
 Lazy-parsed wire format and pool-based attribute deduplication reduce memory overhead; when
 encoding contexts match, UPDATEs are forwarded without re-parsing. Written in Go with an
 estimated 10-15% overhead vs. C/Rust (not yet benchmarked at scale; see
 [Performance Trade-offs](DESIGN.md#performance-trade-offs)). ExaBGP configuration files can be
-migrated via `ze config migrate`. Built-in RPKI validation, Prometheus metrics, and structured JSON
-logging. The web UI automatically enriches displayed values using YANG-declared decorators
-(e.g., AS numbers annotated with organization names via Team Cymru DNS).
-No FIB integration or built-in policy language -- policy is implemented by plugins and
-external processes via the JSON event and text command protocol.
+migrated via `ze config migrate`. Built-in RPKI validation, policy filters (prefix-list,
+AS-path regex, community matching, attribute modification), Prometheus metrics, and structured
+JSON logging. The web UI automatically enriches displayed values using YANG-declared decorators
+(e.g., AS numbers annotated with organization names via Team Cymru DNS). External process
+plugins extend policy further via the JSON event and text command protocol.
 <!-- source: internal/component/bgp/wireu/wire_update.go -- lazy-parsed WireUpdate -->
 <!-- source: internal/component/bgp/attrpool/pool.go -- pool-based attribute dedup -->
 <!-- source: internal/component/bgp/context/registry.go -- ContextID encoding context matching -->
