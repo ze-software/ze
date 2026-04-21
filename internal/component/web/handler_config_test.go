@@ -514,6 +514,140 @@ func TestHandleConfigDelete(t *testing.T) {
 		"redirect must go to parent path under /config/edit/")
 }
 
+// TestHandleConfigRename verifies that POST /config/rename/<entry>/ renames a
+// keyed list entry and redirects back to the parent list view.
+func TestHandleConfigRename(t *testing.T) {
+	mgr, schema := newHandlerTestManager(t)
+	handler := HandleConfigRename(mgr, schema)
+
+	err := mgr.CreateEntry("alice", []string{"bgp", "peer", "london"})
+	require.NoError(t, err)
+	err = mgr.SetValue("alice", []string{"bgp", "peer", "london", "connection", "remote"}, "ip", "10.0.0.1")
+	require.NoError(t, err)
+
+	form := url.Values{"new-key": {"paris"}}
+	req := postConfigRequest(t, "/config/rename/bgp/peer/london/", form, "alice")
+	req.Header.Set("HX-Request", "true")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "/config/edit/bgp/peer/", rec.Header().Get("HX-Redirect"))
+
+	tree := mgr.Tree("alice")
+	require.NotNil(t, tree)
+	bgp := tree.GetContainer("bgp")
+	require.NotNil(t, bgp)
+	peers := bgp.GetList("peer")
+	assert.Nil(t, peers["london"])
+	entry := peers["paris"]
+	require.NotNil(t, entry)
+	conn := entry.GetContainer("connection")
+	require.NotNil(t, conn)
+	remote := conn.GetContainer("remote")
+	require.NotNil(t, remote)
+	value, ok := remote.Get("ip")
+	assert.True(t, ok)
+	assert.Equal(t, "10.0.0.1", value)
+}
+
+// TestHandleConfigRenameNormalizesKey verifies rename input is trimmed and lowercased.
+func TestHandleConfigRenameNormalizesKey(t *testing.T) {
+	mgr, schema := newHandlerTestManager(t)
+	handler := HandleConfigRename(mgr, schema)
+
+	err := mgr.CreateEntry("alice", []string{"bgp", "peer", "london"})
+	require.NoError(t, err)
+
+	form := url.Values{"new-key": {" Paris "}}
+	req := postConfigRequest(t, "/config/rename/bgp/peer/london/", form, "alice")
+	req.Header.Set("HX-Request", "true")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	peers := mgr.Tree("alice").GetContainer("bgp").GetList("peer")
+	assert.Nil(t, peers["london"])
+	require.NotNil(t, peers["paris"])
+}
+
+// TestHandleConfigRenameInvalidKey verifies invalid rename targets are rejected before mutation.
+func TestHandleConfigRenameInvalidKey(t *testing.T) {
+	mgr, schema := newHandlerTestManager(t)
+	handler := HandleConfigRename(mgr, schema)
+
+	err := mgr.CreateEntry("alice", []string{"bgp", "peer", "london"})
+	require.NoError(t, err)
+
+	form := url.Values{"new-key": {"bad key"}}
+	req := postConfigRequest(t, "/config/rename/bgp/peer/london/", form, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	peers := mgr.Tree("alice").GetContainer("bgp").GetList("peer")
+	require.NotNil(t, peers["london"])
+}
+
+// TestHandleConfigRenameTargetExists verifies duplicate targets are rejected cleanly.
+func TestHandleConfigRenameTargetExists(t *testing.T) {
+	mgr, schema := newHandlerTestManager(t)
+	handler := HandleConfigRename(mgr, schema)
+
+	err := mgr.CreateEntry("alice", []string{"bgp", "peer", "london"})
+	require.NoError(t, err)
+	err = mgr.CreateEntry("alice", []string{"bgp", "peer", "paris"})
+	require.NoError(t, err)
+
+	form := url.Values{"new-key": {"paris"}}
+	req := postConfigRequest(t, "/config/rename/bgp/peer/london/", form, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusConflict, rec.Code)
+	peers := mgr.Tree("alice").GetContainer("bgp").GetList("peer")
+	require.NotNil(t, peers["london"])
+	require.NotNil(t, peers["paris"])
+}
+
+// TestHandleConfigRenameNonListPathRejected verifies rename targeting a container
+// (not a keyed list entry) is rejected explicitly.
+func TestHandleConfigRenameNonListPathRejected(t *testing.T) {
+	mgr, schema := newHandlerTestManager(t)
+	handler := HandleConfigRename(mgr, schema)
+
+	form := url.Values{"new-key": {"newname"}}
+	req := postConfigRequest(t, "/config/rename/bgp/", form, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Contains(t, rec.Body.String(), "list entry")
+}
+
+// TestHandleConfigRenameNoOpSameKey verifies that renaming to the same key is rejected.
+func TestHandleConfigRenameNoOpSameKey(t *testing.T) {
+	mgr, schema := newHandlerTestManager(t)
+	handler := HandleConfigRename(mgr, schema)
+
+	err := mgr.CreateEntry("alice", []string{"bgp", "peer", "london"})
+	require.NoError(t, err)
+
+	form := url.Values{"new-key": {"london"}}
+	req := postConfigRequest(t, "/config/rename/bgp/peer/london/", form, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Contains(t, rec.Body.String(), "must differ")
+}
+
 // TestHandleConfigDiscard verifies that POST /config/discard discards the
 // user's draft and redirects to /config/edit/.
 //

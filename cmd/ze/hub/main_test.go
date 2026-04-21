@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -34,6 +35,37 @@ func TestRunInvalidConfig(t *testing.T) {
 
 	exit := Run(storage.NewFilesystem(), configPath, nil, 0, -1, false, "", false, "", "")
 	assert.Equal(t, 1, exit)
+}
+
+// TestRunHubConfigRejectsCLIPlugins verifies hub/orchestrator configs reject
+// the global --plugin startup flag with actionable guidance.
+func TestRunHubConfigRejectsCLIPlugins(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "hub.conf")
+	err := os.WriteFile(configPath, []byte("plugin { external demo { } }\n"), 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	origStderr := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	defer func() {
+		os.Stderr = origStderr
+	}()
+
+	exit := Run(storage.NewFilesystem(), configPath, []string{"bgp-rib"}, 0, -1, false, "", false, "", "")
+	assert.Equal(t, 1, exit)
+
+	_ = w.Close()
+	data, readErr := io.ReadAll(r)
+	assert.NoError(t, readErr)
+	assert.Contains(t, string(data), "--plugin")
+	assert.Contains(t, string(data), "plugin { external ... }")
+	_ = r.Close()
 }
 
 // TestReadStdinConfigWithNUL verifies that a NUL sentinel stops reading

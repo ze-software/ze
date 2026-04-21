@@ -387,6 +387,118 @@ func HandleConfigAdd(mgr *EditorManager, schema *config.Schema, renderer *Render
 	}
 }
 
+// HandleConfigRename returns a POST handler for /config/rename/<entry-path>/.
+// It renames a keyed list entry through the per-user session editor and then
+// redirects back to the parent list view.
+func HandleConfigRename(mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		username := GetUsernameFromRequest(r)
+		if username == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		parsed, err := ParseURL(r)
+		if err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+
+		r.Body = http.MaxBytesReader(w, r.Body, 65536)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, fmt.Sprintf("parse form: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		newKey := strings.ToLower(strings.TrimSpace(r.FormValue("new-key")))
+		if newKey == "" {
+			http.Error(w, "missing new-key", http.StatusBadRequest)
+			return
+		}
+		if err := ValidatePathSegments([]string{newKey}); err != nil {
+			http.Error(w, "invalid new key", http.StatusBadRequest)
+			return
+		}
+
+		parentPath, listName, oldKey, err := resolveNamedListEntryPath(schema, parsed.Path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		oldKey = strings.ToLower(oldKey)
+		if newKey == oldKey {
+			http.Error(w, "new key must differ from current key", http.StatusBadRequest)
+			return
+		}
+
+		if err := mgr.RenameListEntry(username, parentPath, listName, oldKey, newKey); err != nil {
+			status := http.StatusBadRequest
+			if strings.Contains(err.Error(), "already exists") {
+				status = http.StatusConflict
+			}
+			http.Error(w, err.Error(), status)
+			return
+		}
+
+		redirectBackOneLevel(w, r, parsed.Path)
+	}
+}
+
+func resolveNamedListEntryPath(schema *config.Schema, fullPath []string) (parentPath []string, listName, key string, err error) {
+	if len(fullPath) < 2 {
+		return nil, "", "", fmt.Errorf("path too short for list entry")
+	}
+
+	var currentSchema schemaGetter = schema
+	lastListIdx := -1
+
+	i := 0
+	for i < len(fullPath) {
+		name := fullPath[i]
+		schemaNode := currentSchema.Get(name)
+		if schemaNode == nil {
+			return nil, "", "", fmt.Errorf("unknown path element: %s", name)
+		}
+
+		switch n := schemaNode.(type) {
+		case *config.ContainerNode:
+			currentSchema = n
+			i++
+		case *config.ListNode:
+			if n.KeyName == "" {
+				return nil, "", "", fmt.Errorf("cannot rename keyless list entries")
+			}
+			if i+1 >= len(fullPath) {
+				return nil, "", "", fmt.Errorf("list %s requires a key", name)
+			}
+			if n.Get(fullPath[i+1]) != nil {
+				return nil, "", "", fmt.Errorf("path does not end at a named list entry")
+			}
+			lastListIdx = i
+			listName = name
+			key = fullPath[i+1]
+			currentSchema = n
+			i += 2
+		case *config.FlexNode:
+			currentSchema = n
+			i++
+		default:
+			return nil, "", "", fmt.Errorf("path does not end at a named list entry")
+		}
+	}
+
+	if lastListIdx == -1 || lastListIdx+2 != len(fullPath) {
+		return nil, "", "", fmt.Errorf("path does not end at a named list entry")
+	}
+
+	return fullPath[:lastListIdx], listName, key, nil
+}
+
 // returnAddError returns the list table with an error notification for HTMX add requests,
 // or a plain HTTP error for non-HTMX requests.
 func returnAddError(w http.ResponseWriter, r *http.Request, renderer *Renderer, schema *config.Schema, mgr *EditorManager, username string, listPath []string, errMsg string) {

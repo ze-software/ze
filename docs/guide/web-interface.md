@@ -79,6 +79,7 @@ URLs follow a verb-first three-tier pattern:
 | Config | `/config/set/<path>` | POST | Set a leaf value |
 | Config | `/config/add/<path>` | POST | Create a list entry (with optional field values) |
 | Config | `/config/add-form/<path>` | GET | Fetch add-entry overlay form |
+| Config | `/config/rename/<path>` | POST | Rename a keyed list entry |
 | Config | `/config/delete/<path>` | POST | Delete a leaf value |
 | Config | `/config/commit/` | GET/POST | View diff and commit changes |
 | Config | `/config/discard/` | POST | Discard pending changes |
@@ -112,7 +113,7 @@ Lists that have YANG `unique` constraints (e.g., `peer` with `unique "remote/ip"
 
 | Column | Behavior |
 |--------|----------|
-| Rename button | Opens a modal to change the entry's key (name) |
+| Rename button | Opens a modal, normalizes the new key, and renames the entry without losing its subtree |
 | Key column (e.g., name) | Clickable link, navigates into the entry's config subtree |
 | Unique field columns (e.g., remote/ip) | Editable inline, saves on blur/Enter/auto-save (1s debounce) |
 | Delete button | Removes the entry after confirmation |
@@ -143,10 +144,11 @@ Each authenticated user gets an independent editor session with its own working 
 
 1. **Browse:** Navigate to a list (e.g., `/show/bgp/peer/`) to see entries in a table.
 2. **Add:** Click `+ new` to create an entry. Fill in the name and unique fields. Values are validated against YANG types (e.g., IP addresses must be valid).
-3. **Edit:** Click an entry name to see its full config. Edit leaf values through inline fields.
-4. **Review:** The commit bar at the bottom shows pending change count. Click "Review & Commit" to see a diff.
-5. **Commit:** Apply changes. Conflicts with other users are detected and reported.
-6. **Discard:** Click "Discard" to abandon all pending changes.
+3. **Rename:** In table views, click the rename button to change an entry key. The new key is trimmed and lowercased, and the existing subtree stays attached to the renamed entry.
+4. **Edit:** Click an entry name to see its full config. Edit leaf values through inline fields.
+5. **Review:** The commit bar at the bottom shows pending change count. Click "Review & Commit" to see a diff.
+6. **Commit:** Apply changes. Conflicts with other users are detected and reported.
+7. **Discard:** Click "Discard" to abandon all pending changes.
 
 ### Validation
 
@@ -165,7 +167,7 @@ Field values are validated server-side against YANG types before being accepted:
 YANG `unique` constraints are enforced: duplicate values are rejected with an error naming the conflicting entry.
 <!-- source: internal/component/web/handler_config_walk.go -- checkUniqueConstraint, validateUniqueOnSet -->
 
-Entry key names are automatically lowercased and trimmed.
+Entry key names are automatically lowercased and trimmed for both add and rename operations.
 
 Duplicate entry keys are rejected. Validation runs before the entry is created, so invalid input never produces a partial entry.
 

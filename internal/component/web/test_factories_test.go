@@ -49,6 +49,9 @@ func (a *testEditorAdapter) SetValue(path []string, key, value string) error {
 func (a *testEditorAdapter) DeleteValue(path []string, key string) error {
 	return a.ed.DeleteValue(path, key)
 }
+func (a *testEditorAdapter) RenameListEntry(parentPath []string, listName, oldKey, newKey string) error {
+	return a.ed.RenameListEntry(parentPath, listName, oldKey, newKey)
+}
 func (a *testEditorAdapter) CommitSession() (*contract.CommitResult, error) {
 	return a.ed.CommitSession()
 }
@@ -61,6 +64,21 @@ func (a *testEditorAdapter) SessionChanges(sessionID string) []contract.SessionC
 	changes := make([]contract.SessionChange, len(entries))
 	for i, e := range entries {
 		changes[i] = contract.SessionChange{Path: e.Path, Previous: e.Entry.Previous, Value: e.Entry.Value}
+	}
+	return changes
+}
+func (a *testEditorAdapter) PendingChanges(sessionID string) []contract.PendingChange {
+	entries := a.ed.PendingChanges(sessionID)
+	changes := make([]contract.PendingChange, len(entries))
+	for i, entry := range entries {
+		changes[i] = contract.PendingChange{
+			Kind:     contract.PendingChangeKind(entry.Kind),
+			Path:     entry.Path,
+			Previous: entry.Previous,
+			Value:    entry.Value,
+			OldPath:  entry.OldPath,
+			NewPath:  entry.NewPath,
+		}
 	}
 	return changes
 }

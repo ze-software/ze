@@ -1218,9 +1218,10 @@ func TestSocketReloadNotifierNoDaemon(t *testing.T) {
 // PREVENTS: Wrong marker or missing annotation for new entries.
 func TestFormatChangeEntryNew(t *testing.T) {
 	var b strings.Builder
-	formatChangeEntry(&b, config.SessionEntry{
+	formatChangeEntry(&b, config.PendingChange{
+		Kind:  config.PendingChangeSet,
 		Path:  "bgp router-id",
-		Entry: config.MetaEntry{Value: "1.2.3.4"},
+		Value: "1.2.3.4",
 	})
 	line := b.String()
 	assert.Contains(t, line, "  + set bgp router-id 1.2.3.4")
@@ -1233,9 +1234,11 @@ func TestFormatChangeEntryNew(t *testing.T) {
 // PREVENTS: Wrong marker or missing previous value for modified entries.
 func TestFormatChangeEntryModified(t *testing.T) {
 	var b strings.Builder
-	formatChangeEntry(&b, config.SessionEntry{
-		Path:  "bgp remote as",
-		Entry: config.MetaEntry{Value: "65002", Previous: "65001"},
+	formatChangeEntry(&b, config.PendingChange{
+		Kind:     config.PendingChangeSet,
+		Path:     "bgp remote as",
+		Value:    "65002",
+		Previous: "65001",
 	})
 	line := b.String()
 	assert.Contains(t, line, "  * set bgp remote as 65002")
@@ -1248,9 +1251,10 @@ func TestFormatChangeEntryModified(t *testing.T) {
 // PREVENTS: Delete rendered as set with empty value.
 func TestFormatChangeEntryDelete(t *testing.T) {
 	var b strings.Builder
-	formatChangeEntry(&b, config.SessionEntry{
-		Path:  "bgp timer receive-hold-time",
-		Entry: config.MetaEntry{Value: "", Previous: "180"},
+	formatChangeEntry(&b, config.PendingChange{
+		Kind:     config.PendingChangeDelete,
+		Path:     "bgp timer receive-hold-time",
+		Previous: "180",
 	})
 	line := b.String()
 	assert.Contains(t, line, "  - delete bgp timer receive-hold-time")

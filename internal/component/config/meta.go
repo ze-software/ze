@@ -6,6 +6,7 @@
 package config
 
 import (
+	"fmt"
 	"maps"
 	"sort"
 	"sync"
@@ -237,6 +238,55 @@ func (mt *MetaTree) GetOrCreateListEntry(key string) *MetaTree {
 	return child
 }
 
+// RenameListEntry renames a list-entry subtree under the named list container.
+// Returns an error if the target key already exists.
+func (mt *MetaTree) RenameListEntry(listName, oldKey, newKey string) error {
+	mt.mu.RLock()
+	listContainer := mt.containers[listName]
+	mt.mu.RUnlock()
+	if listContainer == nil {
+		return nil
+	}
+
+	listContainer.mu.Lock()
+	defer listContainer.mu.Unlock()
+
+	entry, ok := listContainer.lists[oldKey]
+	if !ok {
+		return nil
+	}
+	if _, exists := listContainer.lists[newKey]; exists {
+		return fmt.Errorf("%s already exists in %s", newKey, listName)
+	}
+	listContainer.lists[newKey] = entry
+	delete(listContainer.lists, oldKey)
+	return nil
+}
+
+// Clone returns a deep copy of the metadata tree.
+func (mt *MetaTree) Clone() *MetaTree {
+	if mt == nil {
+		return nil
+	}
+
+	mt.mu.RLock()
+	defer mt.mu.RUnlock()
+
+	clone := NewMetaTree()
+	for name, entries := range mt.entries {
+		copied := make([]MetaEntry, len(entries))
+		copy(copied, entries)
+		clone.entries[name] = copied
+	}
+	for name, child := range mt.containers {
+		clone.containers[name] = child.Clone()
+	}
+	for key, child := range mt.lists {
+		clone.lists[key] = child.Clone()
+	}
+	return clone
+}
+
 // SessionEntries collects all entries matching the given session ID,
 // walking the entire tree recursively. Each result includes the
 // accumulated YANG path to the leaf.
@@ -340,6 +390,9 @@ func (mt *MetaTree) collectSessions(seen map[string]bool) {
 
 	for _, entries := range mt.entries {
 		for _, entry := range entries {
+			if entry.Source == "" {
+				continue
+			}
 			if key := entry.SessionKey(); key != "" {
 				seen[key] = true
 			}

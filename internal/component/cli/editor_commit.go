@@ -76,14 +76,23 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 		return nil, fmt.Errorf("parse draft: %w", err)
 	}
 
-	// Find my changes from the draft metadata.
+	changePath := ChangePath(e.originalPath, e.session.User)
+	_, _, changeOps := e.readChangeFile(guard, changePath)
+
+	// Find my changes from the draft metadata and preserved structural ops.
 	myEntries := draftMeta.SessionEntries(e.session.ID)
-	if len(myEntries) == 0 {
+	myOps := filterStructuralOps(changeOps, e.session.ID)
+	if len(myEntries) == 0 && len(myOps) == 0 {
 		return &CommitResult{Applied: 0}, nil
 	}
 
 	// Check for stale conflicts (committed changed since editing).
 	var conflicts []Conflict
+	for i := range myOps {
+		if conflict := renameStaleConflict(committedTree, e.schema, myOps[i]); conflict != nil {
+			conflicts = append(conflicts, *conflict)
+		}
+	}
 	for _, se := range myEntries {
 		pathParts := strings.Fields(se.Path)
 		myValue := se.Entry.Value
@@ -108,7 +117,10 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	}
 
 	// No conflicts: apply my changes to committed tree.
-	applied := 0
+	if err := applyStructuralOps(committedTree, e.schema, myOps, false); err != nil {
+		return nil, fmt.Errorf("apply rename: %w", err)
+	}
+	applied := len(myOps)
 	for _, se := range myEntries {
 		pathParts := strings.Fields(se.Path)
 		value := se.Entry.Value
@@ -145,7 +157,7 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 
 	// Write committed tree to config.conf.
 	now := time.Now()
-	commitMeta := buildCommitMeta(existingMeta, draftMeta, myEntries, e.session.User, now, e.schema)
+	commitMeta := buildCommitMeta(existingMeta, draftMeta, myEntries, myOps, e.session.User, now, e.schema)
 	committedOutput := config.SerializeSetWithMeta(committedTree, commitMeta, e.schema)
 	if err := guard.WriteFile(e.originalPath, []byte(committedOutput), 0o600); err != nil {
 		return nil, fmt.Errorf("write config: %w", err)
@@ -164,8 +176,7 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 		}
 	}
 
-	// Also clean up change file (should already be gone from SaveDraft, belt and suspenders).
-	changePath := ChangePath(e.originalPath, e.session.User)
+	// Also clean up the per-user change file now that structural ops are committed.
 	guard.Remove(changePath) //nolint:errcheck // Best effort
 
 	// Update in-memory state.
@@ -198,7 +209,7 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 		guard.Remove(changePath) //nolint:errcheck // Best effort
 	} else {
 		// Partial discard: remove matching entries from change file.
-		changeTree, changeMeta := e.readChangeFile(guard, changePath)
+		changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
 
 		myEntries := changeMeta.SessionEntries(e.session.ID)
 		for _, se := range myEntries {
@@ -218,13 +229,20 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 				treeTarget.Delete(leafName)
 			}
 		}
+		filteredOps := changeOps[:0]
+		for i := range changeOps {
+			if changeOps[i].SessionKey() != e.session.ID || !renameMatchesPath(changeOps[i], pathPrefix) {
+				filteredOps = append(filteredOps, changeOps[i])
+			}
+		}
+		changeOps = filteredOps
 
 		// Check if any sessions have remaining entries (not just this session —
 		// ChangePath is per-user, so multiple sessions from the same user share a file).
-		if len(changeMeta.AllSessions()) == 0 {
+		if len(changeMeta.AllSessions()) == 0 && len(changeOps) == 0 {
 			guard.Remove(changePath) //nolint:errcheck // Best effort
 		} else {
-			output := config.SerializeSetWithMeta(changeTree, changeMeta, e.schema)
+			output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
 			if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
 				return fmt.Errorf("discard write change: %w", err)
 			}
@@ -255,7 +273,13 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 
 	// Re-apply remaining changes from change file (if partial discard).
 	if pathPrefix != "" {
-		_, changeMeta := e.readChangeFile(guard, changePath)
+		_, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+		if err := applyStructuralOps(baseTree, e.schema, changeOps, true); err != nil {
+			return fmt.Errorf("discard apply rename: %w", err)
+		}
+		if err := applyStructuralOpsToMeta(baseMeta, e.schema, changeOps, true); err != nil {
+			return fmt.Errorf("discard apply rename meta: %w", err)
+		}
 		for _, sid := range changeMeta.AllSessions() {
 			for _, se := range changeMeta.SessionEntries(sid) {
 				pathParts := strings.Fields(se.Path)
@@ -293,6 +317,41 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 	// Dirty if change file still has entries (partial discard).
 	e.dirty.Store(e.store.Exists(changePath))
 	return nil
+}
+
+func renameStaleConflict(committedTree *config.Tree, schema *config.Schema, op config.StructuralOp) *Conflict {
+	parentPath := strings.Fields(op.ParentPath)
+	target := walkPath(committedTree, schema, parentPath)
+	if target == nil {
+		return &Conflict{
+			Path:       op.SourcePath(),
+			Type:       ConflictStale,
+			MyValue:    op.PendingChange().Summary(),
+			OtherValue: "rename source path missing",
+		}
+	}
+	entries := target.GetList(op.ListName)
+	if entries == nil || entries[op.OldKey] == nil {
+		return &Conflict{
+			Path:       op.SourcePath(),
+			Type:       ConflictStale,
+			MyValue:    op.PendingChange().Summary(),
+			OtherValue: "rename source missing",
+		}
+	}
+	if entries[op.NewKey] != nil {
+		return &Conflict{
+			Path:       op.DestinationPath(),
+			Type:       ConflictStale,
+			MyValue:    op.PendingChange().Summary(),
+			OtherValue: "rename destination already exists",
+		}
+	}
+	return nil
+}
+
+func renameMatchesPath(op config.StructuralOp, pathPrefix string) bool {
+	return pathOverlaps(op.SourcePath(), pathPrefix) || pathOverlaps(op.DestinationPath(), pathPrefix)
 }
 
 // DisconnectSession removes another user's change file.
@@ -388,12 +447,13 @@ func dropPlaintextPasswordEntries(entries []config.SessionEntry) []config.Sessio
 // buildCommitMeta creates metadata for the committed config.conf.
 // Starts from existing committed metadata (preserving prior commit annotations),
 // overlays with the committer's entries, and copies non-session metadata from draft.
-func buildCommitMeta(existingMeta, draftMeta *config.MetaTree, myEntries []config.SessionEntry, user string, commitTime time.Time, schema *config.Schema) *config.MetaTree {
+func buildCommitMeta(existingMeta, draftMeta *config.MetaTree, myEntries []config.SessionEntry, myOps []config.StructuralOp, user string, commitTime time.Time, schema *config.Schema) *config.MetaTree {
 	// Start from existing committed metadata to preserve prior annotations.
-	commitMeta := existingMeta
-	if commitMeta == nil {
-		commitMeta = config.NewMetaTree()
+	commitMeta := config.NewMetaTree()
+	if existingMeta != nil {
+		commitMeta = existingMeta.Clone()
 	}
+	_ = applyStructuralOpsToMeta(commitMeta, schema, myOps, true)
 
 	// For each committed entry, record user and time (no session, no previous).
 	// This overwrites any prior metadata for leaves this session changed.

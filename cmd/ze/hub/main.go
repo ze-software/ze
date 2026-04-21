@@ -135,9 +135,10 @@ func Run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 		// Non-BGP YANG config: auto-load plugins via ConfigRoots.
 		return runYANGConfig(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr, mcpToken)
 	case zeconfig.ConfigTypeHub:
-		// Run hub orchestrator using hub parser
-		// TODO: pass plugins to orchestrator when hub mode supports them
-		_ = plugins // Currently unused in hub mode
+		if len(plugins) > 0 {
+			fmt.Fprintf(os.Stderr, "error: --plugin is not supported with hub/orchestrator configs; use plugin { external ... } in the config file\n")
+			return 1
+		}
 		return runOrchestratorWithData(store, configPath, data)
 	}
 
@@ -1012,6 +1013,7 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	setHandler := zeweb.HandleConfigSet(editorMgr, schema, renderer)
 	addHandler := zeweb.HandleConfigAdd(editorMgr, schema, renderer)
 	addFormHandler := zeweb.HandleConfigAddForm(editorMgr, schema, renderer)
+	renameHandler := zeweb.HandleConfigRename(editorMgr, schema)
 	deleteHandler := zeweb.HandleConfigDelete(editorMgr)
 
 	// SSE broker for live config change notifications.
@@ -1093,6 +1095,7 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	srv.Handle("POST /config/set/", authWrap(setHandler))
 	srv.Handle("POST /config/add/", authWrap(addHandler))
 	srv.Handle("GET /config/add-form/", authWrap(addFormHandler))
+	srv.Handle("POST /config/rename/", authWrap(renameHandler))
 	srv.Handle("GET /config/changes", authWrap(zeweb.HandleConfigChanges(editorMgr, renderer)))
 	srv.Handle("POST /config/delete/", authWrap(deleteHandler))
 	srv.Handle("/config/diff", authWrap(diffHandler))

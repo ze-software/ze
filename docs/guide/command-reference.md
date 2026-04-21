@@ -28,7 +28,7 @@ ze start                         # Start daemon from database
 |------|---------|
 | `-d`, `--debug` | Enable debug logging |
 | `-f <file>` | Use filesystem directly, bypass blob store |
-| `--plugin <name>` | Load plugin before starting (repeatable) |
+| `--plugin <name>` | Load plugin before starting a YANG/native config (repeatable). Hub/orchestrator configs reject this; use `plugin { external ... }` in the config instead. |
 | `--plugins` | List available internal plugins |
 | `--pprof <addr:port>` | Start pprof HTTP server |
 | `-V`, `--version` | Show version (also available as `ze show version`) |

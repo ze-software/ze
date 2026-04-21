@@ -31,6 +31,9 @@ func (a *editorAdapter) SetValue(path []string, key, value string) error {
 func (a *editorAdapter) DeleteValue(path []string, key string) error {
 	return a.ed.DeleteValue(path, key)
 }
+func (a *editorAdapter) RenameListEntry(parentPath []string, listName, oldKey, newKey string) error {
+	return a.ed.RenameListEntry(parentPath, listName, oldKey, newKey)
+}
 func (a *editorAdapter) CommitSession() (*contract.CommitResult, error) {
 	return a.ed.CommitSession()
 }
@@ -47,6 +50,22 @@ func (a *editorAdapter) SessionChanges(sessionID string) []contract.SessionChang
 			Path:     e.Path,
 			Previous: e.Entry.Previous,
 			Value:    e.Entry.Value,
+		}
+	}
+	return changes
+}
+
+func (a *editorAdapter) PendingChanges(sessionID string) []contract.PendingChange {
+	entries := a.ed.PendingChanges(sessionID)
+	changes := make([]contract.PendingChange, len(entries))
+	for i, entry := range entries {
+		changes[i] = contract.PendingChange{
+			Kind:     contract.PendingChangeKind(entry.Kind),
+			Path:     entry.Path,
+			Previous: entry.Previous,
+			Value:    entry.Value,
+			OldPath:  entry.OldPath,
+			NewPath:  entry.NewPath,
 		}
 	}
 	return changes

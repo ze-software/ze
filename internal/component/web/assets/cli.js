@@ -420,6 +420,7 @@
 
   // Rename overlay: shows a modal to rename a list entry key.
   function showRenameOverlay(currentURL, currentKey) {
+    var renameURL = (currentURL || '').replace(/^\/show\//, '/config/rename/');
     var overlay = document.createElement('div');
     overlay.className = 'add-entry-overlay';
     var card = document.createElement('div');
@@ -431,14 +432,41 @@
     input.className = 'add-entry-input';
     input.value = currentKey;
     input.placeholder = 'new name';
+
+    function submitRename() {
+      var newName = input.value.trim().toLowerCase();
+      if (!newName) return;
+      fetch(renameURL, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'HX-Request': 'true'
+        },
+        body: 'new-key=' + encodeURIComponent(newName)
+      }).then(function(r) {
+        var redirect = r.headers.get('HX-Redirect');
+        if (!r.ok) {
+          return r.text().then(function(text) {
+            throw new Error(text || 'Rename failed');
+          });
+        }
+        if (redirect) {
+          window.location.href = redirect;
+          return;
+        }
+        overlay.remove();
+      }).catch(function(err) {
+        window.alert(err.message || 'Rename failed');
+        input.focus();
+        input.select();
+      });
+    }
+
     input.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
         e.preventDefault();
-        var newName = input.value.trim();
-        if (newName && newName !== currentKey) {
-          // TODO: implement rename via API when backend supports it
-          overlay.remove();
-        }
+        submitRename();
       }
       if (e.key === 'Escape') overlay.remove();
     });

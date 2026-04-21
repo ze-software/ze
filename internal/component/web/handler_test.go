@@ -98,6 +98,18 @@ func TestParseURL_ConfigSet(t *testing.T) {
 	assert.Equal(t, []string{"bgp", "peer", "192.168.1.1"}, parsed.Path)
 }
 
+// TestParseURL_ConfigRenameAccepted verifies /config/rename/<path> parsing.
+func TestParseURL_ConfigRenameAccepted(t *testing.T) {
+	r := httptest.NewRequest("POST", "/config/rename/bgp/peer/london/", http.NoBody)
+
+	parsed, err := ParseURL(r)
+	require.NoError(t, err)
+
+	assert.Equal(t, TierConfig, parsed.Tier)
+	assert.Equal(t, "rename", parsed.Verb)
+	assert.Equal(t, []string{"bgp", "peer", "london"}, parsed.Path)
+}
+
 // TestParseURL_ConfigCommit verifies /config/commit parsing with no trailing path.
 // VALIDATES: config verbs with no YANG path produce empty Path slice.
 func TestParseURL_ConfigCommit(t *testing.T) {

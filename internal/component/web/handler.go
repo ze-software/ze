@@ -60,6 +60,7 @@ var configVerbs = map[string]bool{
 	"add-form": true,
 	"changes":  true,
 	"delete":   true,
+	"rename":   true,
 	"commit":   true,
 	"discard":  true,
 	"compare":  true,

@@ -9,7 +9,6 @@ package cli
 import (
 	"fmt"
 
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -58,7 +57,7 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 
 	// Read change file (sparse tree of this user's changes).
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
 
 	// Apply the set to the change tree.
 	changeTarget, err := e.walkOrCreateIn(changeTree, path)
@@ -88,7 +87,7 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	changeMetaTarget.SetEntry(key, entry)
 
 	// Serialize and write change file.
-	output := config.SerializeSetWithMeta(changeTree, changeMeta, e.schema)
+	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
 	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
 		return fmt.Errorf("write-through write: %w", err)
 	}
@@ -121,7 +120,7 @@ func (e *Editor) writeThroughCreate(path []string) error {
 
 	// Read change file.
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
 
 	// Create the path in the change tree (no leaf set).
 	if _, walkErr := e.walkOrCreateIn(changeTree, path); walkErr != nil {
@@ -129,7 +128,7 @@ func (e *Editor) writeThroughCreate(path []string) error {
 	}
 
 	// Serialize and write change file.
-	output := config.SerializeSetWithMeta(changeTree, changeMeta, e.schema)
+	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
 	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
 		return fmt.Errorf("write-through write: %w", err)
 	}
@@ -162,7 +161,7 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 
 	// Read change file.
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta := e.readChangeFile(guard, changePath)
+	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
 
 	// Read committed value for Previous field.
 	metaPath := append(path, key) //nolint:gocritic // intentional new slice
@@ -189,7 +188,7 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 	changeMetaTarget.SetEntry(key, entry)
 
 	// Serialize and write change file.
-	output := config.SerializeSetWithMeta(changeTree, changeMeta, e.schema)
+	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
 	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
 		return fmt.Errorf("write-through write: %w", err)
 	}
@@ -204,23 +203,119 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 	return nil
 }
 
+// writeThroughRename records a structural rename in the per-user change file
+// and immediately rebases any pending subtree edits onto the new key.
+func (e *Editor) writeThroughRename(parentPath []string, listName, oldKey, newKey string) error {
+	guard, err := e.store.AcquireLock(e.originalPath)
+	if err != nil {
+		return fmt.Errorf("write-through lock: %w", err)
+	}
+	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
+	guard.SetModifier(e.session.ID)
+
+	if oldKey == newKey {
+		return fmt.Errorf("new key must differ from current key")
+	}
+
+	working := e.tree.Clone()
+	var validateTarget *config.Tree
+	if len(parentPath) == 0 {
+		validateTarget = working
+	} else {
+		validateTarget = walkPath(working, e.schema, parentPath)
+	}
+	if validateTarget == nil {
+		return fmt.Errorf("path not found")
+	}
+	if err := validateTarget.RenameListEntry(listName, oldKey, newKey); err != nil {
+		return err
+	}
+
+	changePath := ChangePath(e.originalPath, e.session.User)
+	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	proposedOp := config.StructuralOp{
+		Type:       config.StructuralOpRename,
+		User:       e.session.User,
+		Source:     e.session.Origin,
+		Time:       e.session.StartTime,
+		ParentPath: strings.Join(parentPath, " "),
+		ListName:   listName,
+		OldKey:     oldKey,
+		NewKey:     newKey,
+	}
+	if err := e.validateRenameLiveConflict(guard, proposedOp.PendingChange()); err != nil {
+		return err
+	}
+
+	var changeTarget *config.Tree
+	if len(parentPath) == 0 {
+		changeTarget = changeTree
+	} else {
+		changeTarget = walkPath(changeTree, e.schema, parentPath)
+	}
+	if changeTarget != nil {
+		if err := renameTreeListEntry(changeTarget, listName, oldKey, newKey); err != nil {
+			return err
+		}
+	}
+
+	changeMetaTarget := walkMetaReadOnly(changeMeta, e.schema, parentPath)
+	if changeMetaTarget != nil {
+		if err := changeMetaTarget.RenameListEntry(listName, oldKey, newKey); err != nil {
+			return err
+		}
+	}
+
+	changeOps = append(changeOps, proposedOp)
+	changeOps = config.CoalesceRenameOps(changeOps)
+
+	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
+	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
+		return fmt.Errorf("write-through write: %w", err)
+	}
+
+	var target *config.Tree
+	if len(parentPath) == 0 {
+		target = e.tree
+	} else {
+		target = walkPath(e.tree, e.schema, parentPath)
+	}
+	if target == nil {
+		return fmt.Errorf("path not found")
+	}
+	if err := target.RenameListEntry(listName, oldKey, newKey); err != nil {
+		return err
+	}
+
+	metaTarget := walkMetaReadOnly(e.meta, e.schema, parentPath)
+	if metaTarget != nil {
+		if err := metaTarget.RenameListEntry(listName, oldKey, newKey); err != nil {
+			return err
+		}
+	}
+
+	e.dirty.Store(true)
+	e.draftSaved = false
+	return nil
+}
+
 // readChangeFile reads and parses a per-user change file.
-// Returns empty tree and meta if the file does not exist or is corrupt.
-func (e *Editor) readChangeFile(guard storage.WriteGuard, changePath string) (*config.Tree, *config.MetaTree) {
+// Returns empty tree/meta/op collections if the file does not exist or is corrupt.
+func (e *Editor) readChangeFile(guard storage.WriteGuard, changePath string) (*config.Tree, *config.MetaTree, []config.StructuralOp) {
 	data, readErr := guard.ReadFile(changePath)
 	if readErr != nil {
 		// No change file: start with empty sparse tree.
-		return config.NewTree(), config.NewMetaTree()
+		return config.NewTree(), config.NewMetaTree(), nil
 	}
 	parser := config.NewSetParser(e.schema)
-	tree, meta, parseErr := parser.ParseWithMeta(string(data))
+	tree, meta, ops, parseErr := config.ParseChangeFile(string(data), parser)
 	if parseErr != nil {
 		// Corrupt change file (e.g., from a previous bug). Log and start fresh
 		// rather than blocking all future edits.
 		draftLogger.Warn("discarding corrupt change file", "path", changePath, "error", parseErr)
-		return config.NewTree(), config.NewMetaTree()
+		return config.NewTree(), config.NewMetaTree(), nil
 	}
-	return tree, meta
+	return tree, meta, ops
 }
 
 // SaveDraft applies changes from the per-user change file to config.conf.draft.
@@ -238,16 +333,24 @@ func (e *Editor) SaveDraft() error {
 
 	// Read the change file.
 	changePath := ChangePath(e.originalPath, e.session.User)
-	_, changeMeta := e.readChangeFile(guard, changePath)
+	_, changeMeta, changeOps := e.readChangeFile(guard, changePath)
 
 	myEntries := changeMeta.SessionEntries(e.session.ID)
-	if len(myEntries) == 0 {
+	myOps := filterStructuralOps(changeOps, e.session.ID)
+	if len(myEntries) == 0 && len(myOps) == 0 {
 		return nil // Nothing to save.
 	}
 
 	// Read base (draft if exists, else committed).
 	draftPath := DraftPath(e.originalPath)
 	baseTree, baseMeta := e.readDraftOrConfig(guard, draftPath)
+
+	if err := applyStructuralOps(baseTree, e.schema, myOps, true); err != nil {
+		return fmt.Errorf("save apply rename: %w", err)
+	}
+	if err := applyStructuralOpsToMeta(baseMeta, e.schema, myOps, true); err != nil {
+		return fmt.Errorf("save apply rename meta: %w", err)
+	}
 
 	// Apply changes to base.
 	for _, se := range myEntries {
@@ -283,9 +386,12 @@ func (e *Editor) SaveDraft() error {
 		return fmt.Errorf("save write draft: %w", err)
 	}
 
-	// Delete change file. If removal fails, return error to prevent in-memory
-	// state update — an orphaned change file would cause duplicate application.
-	if err := guard.Remove(changePath); err != nil {
+	if len(myOps) > 0 {
+		output := config.SerializeChangeFile(config.NewTree(), config.NewMetaTree(), myOps, e.schema)
+		if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
+			return fmt.Errorf("save preserve rename ops: %w", err)
+		}
+	} else if err := guard.Remove(changePath); err != nil {
 		return fmt.Errorf("save remove change file: %w", err)
 	}
 
@@ -295,6 +401,92 @@ func (e *Editor) SaveDraft() error {
 	e.draftMtime = time.Now()
 	e.draftSaved = true
 	return nil
+}
+
+func renameTreeListEntry(target *config.Tree, listName, oldKey, newKey string) error {
+	entries := target.GetList(listName)
+	if entries == nil || entries[oldKey] == nil {
+		return nil
+	}
+	return target.RenameListEntry(listName, oldKey, newKey)
+}
+
+func filterStructuralOps(ops []config.StructuralOp, sessionID string) []config.StructuralOp {
+	if sessionID == "" {
+		return append([]config.StructuralOp(nil), ops...)
+	}
+	filtered := make([]config.StructuralOp, 0, len(ops))
+	for i := range ops {
+		if ops[i].SessionKey() == sessionID {
+			filtered = append(filtered, ops[i])
+		}
+	}
+	return filtered
+}
+
+func applyStructuralOps(tree *config.Tree, schema *config.Schema, ops []config.StructuralOp, allowAlreadyApplied bool) error {
+	for i := range ops {
+		if ops[i].Type != config.StructuralOpRename {
+			return fmt.Errorf("unsupported structural op %q", ops[i].Type)
+		}
+		parentPath := strings.Fields(ops[i].ParentPath)
+		target := walkPath(tree, schema, parentPath)
+		if target == nil {
+			return fmt.Errorf("path not found: %s", ops[i].ParentPath)
+		}
+		if err := target.RenameListEntry(ops[i].ListName, ops[i].OldKey, ops[i].NewKey); err != nil {
+			if allowAlreadyApplied && renameAlreadyApplied(target, ops[i].ListName, ops[i].OldKey, ops[i].NewKey) {
+				continue
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+func applyStructuralOpsToMeta(meta *config.MetaTree, schema *config.Schema, ops []config.StructuralOp, allowAlreadyApplied bool) error {
+	if meta == nil {
+		return nil
+	}
+	for i := range ops {
+		if ops[i].Type != config.StructuralOpRename {
+			return fmt.Errorf("unsupported structural op %q", ops[i].Type)
+		}
+		parentPath := strings.Fields(ops[i].ParentPath)
+		target := walkMetaReadOnly(meta, schema, parentPath)
+		if target == nil {
+			continue
+		}
+		if err := target.RenameListEntry(ops[i].ListName, ops[i].OldKey, ops[i].NewKey); err != nil {
+			if allowAlreadyApplied && renameMetaAlreadyApplied(target, ops[i].ListName, ops[i].OldKey, ops[i].NewKey) {
+				continue
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+func renameAlreadyApplied(target *config.Tree, listName, oldKey, newKey string) bool {
+	entries := target.GetList(listName)
+	if entries == nil {
+		return false
+	}
+	if entries[oldKey] != nil {
+		return false
+	}
+	return entries[newKey] != nil
+}
+
+func renameMetaAlreadyApplied(target *config.MetaTree, listName, oldKey, newKey string) bool {
+	listMeta := target.GetContainer(listName)
+	if listMeta == nil {
+		return false
+	}
+	if listMeta.GetListEntry(oldKey) != nil {
+		return false
+	}
+	return listMeta.GetListEntry(newKey) != nil
 }
 
 // LoadDraft reads the draft file and loads its content into the editor's in-memory tree.
@@ -322,79 +514,133 @@ func (e *Editor) LoadDraft() bool {
 	return true
 }
 
-// DetectConflicts scans all change files for other users and returns conflicts
-// where another user has a pending change at the same path with a different value.
+// DetectConflicts scans pending changes from other sessions and reports live overlaps.
 func (e *Editor) DetectConflicts() []Conflict {
 	if e.session == nil || e.meta == nil {
 		return nil
 	}
-
-	// List files in config directory.
-	dir := filepath.Dir(e.originalPath)
-	files, err := e.store.List(dir)
-	if err != nil {
+	myChanges := e.PendingChanges(e.session.ID)
+	if len(myChanges) == 0 {
 		return nil
-	}
-
-	prefix := ChangePrefix(e.originalPath)
-	myUser := e.session.User
-
-	// Collect this session's entries from in-memory meta.
-	myEntries := e.meta.SessionEntries(e.session.ID)
-	if len(myEntries) == 0 {
-		return nil
-	}
-
-	// Build lookup of my entries by path.
-	myByPath := make(map[string]string, len(myEntries))
-	for _, se := range myEntries {
-		myByPath[se.Path] = se.Entry.Value
 	}
 
 	var conflicts []Conflict
-
-	for _, f := range files {
-		base := filepath.Base(f)
-		if !strings.HasPrefix(base, prefix) {
+	for _, sid := range e.ActiveSessions() {
+		if sid == e.session.ID {
 			continue
 		}
-		otherUser := strings.TrimPrefix(base, prefix)
-		if otherUser == myUser {
-			continue
-		}
-
-		// Read and parse the other user's change file.
-		data, readErr := e.store.ReadFile(f)
-		if readErr != nil {
-			continue
-		}
-		parser := config.NewSetParser(e.schema)
-		_, otherMeta, parseErr := parser.ParseWithMeta(string(data))
-		if parseErr != nil {
-			continue
-		}
-
-		// Check for overlapping paths with different values.
-		for _, sid := range otherMeta.AllSessions() {
-			for _, otherEntry := range otherMeta.SessionEntries(sid) {
-				myValue, overlap := myByPath[otherEntry.Path]
-				if !overlap {
+		otherUser, _, _ := strings.Cut(sid, "@")
+		for _, mine := range myChanges {
+			for _, other := range e.PendingChanges(sid) {
+				if !pendingChangesConflict(mine, other) {
 					continue
 				}
-				if myValue != otherEntry.Entry.Value {
-					conflicts = append(conflicts, Conflict{
-						Path:       otherEntry.Path,
-						Type:       ConflictLive,
-						MyValue:    myValue,
-						OtherValue: otherEntry.Entry.Value,
-						OtherUser:  otherUser,
-					})
-				}
+				conflicts = append(conflicts, Conflict{
+					Path:       conflictPath(mine, other),
+					Type:       ConflictLive,
+					MyValue:    pendingConflictValue(mine),
+					OtherValue: pendingConflictValue(other),
+					OtherUser:  otherUser,
+				})
 			}
 		}
 	}
 
 	return conflicts
+}
+
+func pendingChangesConflict(a, b config.PendingChange) bool {
+	if a.Kind != config.PendingChangeRename && b.Kind != config.PendingChangeRename {
+		return a.Path == b.Path && a.Value != b.Value
+	}
+	for _, aPath := range a.ConflictPaths() {
+		for _, bPath := range b.ConflictPaths() {
+			if pathOverlaps(aPath, bPath) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (e *Editor) validateRenameLiveConflict(guard storage.WriteGuard, proposed config.PendingChange) error {
+	if e.session == nil {
+		return nil
+	}
+	seen := make(map[string]bool)
+	for _, other := range e.PendingChanges("") {
+		if other.SessionID == "" || other.SessionID == e.session.ID {
+			continue
+		}
+		seen[pendingChangeKey(other)] = true
+		if !pendingChangesConflict(proposed, other) {
+			continue
+		}
+		return fmt.Errorf("pending change conflict with %s at %s", other.SessionID, conflictPath(proposed, other))
+	}
+
+	draftData, err := guard.ReadFile(DraftPath(e.originalPath))
+	if err != nil {
+		return nil //nolint:nilerr // no draft file means no conflict to detect
+	}
+	_, draftMeta, parseErr := config.NewSetParser(e.schema).ParseWithMeta(string(draftData))
+	if parseErr != nil {
+		return nil //nolint:nilerr // unparseable draft means no conflict to detect
+	}
+	for _, sid := range draftMeta.AllSessions() {
+		if sid == e.session.ID {
+			continue
+		}
+		for _, entry := range draftMeta.SessionEntries(sid) {
+			other := config.PendingChangeFromSessionEntry(entry)
+			if seen[pendingChangeKey(other)] {
+				continue
+			}
+			if !pendingChangesConflict(proposed, other) {
+				continue
+			}
+			return fmt.Errorf("pending change conflict with %s at %s", sid, conflictPath(proposed, other))
+		}
+	}
+	return nil
+}
+
+func conflictPath(a, b config.PendingChange) string {
+	for _, aPath := range a.ConflictPaths() {
+		for _, bPath := range b.ConflictPaths() {
+			if pathOverlaps(aPath, bPath) {
+				if len(aPath) >= len(bPath) {
+					return aPath
+				}
+				return bPath
+			}
+		}
+	}
+	if a.Path != "" {
+		return a.Path
+	}
+	return a.NewPath
+}
+
+func pendingConflictValue(change config.PendingChange) string {
+	if change.Kind == config.PendingChangeRename {
+		return change.Summary()
+	}
+	return change.Value
+}
+
+func pathOverlaps(a, b string) bool {
+	return pathHasPrefix(a, b) || pathHasPrefix(b, a)
+}
+
+func pathHasPrefix(path, prefix string) bool {
+	if path == prefix {
+		return true
+	}
+	if prefix == "" || path == "" {
+		return false
+	}
+	return strings.HasPrefix(path, prefix+" ")
 }
 
 // readDraftOrConfig reads and parses the draft file, falling back to config.conf.
@@ -460,7 +706,10 @@ func (e *Editor) AdoptSession(oldSessionID string) error {
 
 	// Find all entries for the old session and rewrite to current session.
 	oldEntries := meta.SessionEntries(oldSessionID)
-	if len(oldEntries) == 0 {
+	changePath := ChangePath(e.originalPath, e.session.User)
+	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+	oldOps := filterStructuralOps(changeOps, oldSessionID)
+	if len(oldEntries) == 0 && len(oldOps) == 0 {
 		return nil // Nothing to adopt.
 	}
 
@@ -483,10 +732,30 @@ func (e *Editor) AdoptSession(oldSessionID string) error {
 		})
 	}
 
+	rewroteOps := false
+	for i := range changeOps {
+		if changeOps[i].SessionKey() != oldSessionID {
+			continue
+		}
+		changeOps[i].User = e.session.User
+		changeOps[i].Source = e.session.Origin
+		changeOps[i].Time = e.session.StartTime
+		rewroteOps = true
+	}
+	changeOps = config.CoalesceRenameOps(changeOps)
+
 	// Serialize and write updated draft.
 	output := config.SerializeSetWithMeta(tree, meta, e.schema)
 	if err := guard.WriteFile(draftPath, []byte(output), 0o600); err != nil {
 		return fmt.Errorf("write draft: %w", err)
+	}
+	changeOutput := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
+	if rewroteOps || strings.TrimSpace(changeOutput) != "" {
+		if err := guard.WriteFile(changePath, []byte(changeOutput), 0o600); err != nil {
+			return fmt.Errorf("write change file: %w", err)
+		}
+	} else {
+		_ = guard.Remove(changePath)
 	}
 
 	// Update in-memory state.

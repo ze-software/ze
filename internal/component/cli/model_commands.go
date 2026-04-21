@@ -967,16 +967,16 @@ func (m *Model) cmdShowChanges(args []string) (commandResult, error) {
 		return m.cmdShowChangesAll()
 	}
 
-	entries := m.editor.SessionChanges(m.editor.SessionID())
-	if len(entries) == 0 {
+	changes := m.editor.PendingChanges(m.editor.SessionID())
+	if len(changes) == 0 {
 		return commandResult{
 			statusMessage: "No pending changes",
 			configView:    m.configViewAtPath(m.contextPath),
 		}, nil
 	}
 
-	msg := fmt.Sprintf("%d pending", len(entries))
-	if len(entries) == 1 {
+	msg := fmt.Sprintf("%d pending", len(changes))
+	if len(changes) == 1 {
 		msg += " change"
 	} else {
 		msg += " changes"
@@ -992,20 +992,21 @@ func (m *Model) cmdShowChanges(args []string) (commandResult, error) {
 }
 
 // formatChangeEntry writes a single change entry with appropriate marker and command.
-// Handles set (new/modified) and delete entries.
-func formatChangeEntry(b *strings.Builder, se config.SessionEntry) {
-	if se.Entry.Value == "" {
-		// Delete: no value in entry, Previous holds what was deleted.
-		fmt.Fprintf(b, "  - delete %s  (was: %s)\n", se.Path, se.Entry.Previous)
-		return
+func formatChangeEntry(b *strings.Builder, change config.PendingChange) {
+	switch change.Kind {
+	case config.PendingChangeDelete:
+		fmt.Fprintf(b, "  - delete %s  (was: %s)\n", change.Path, change.Previous)
+	case config.PendingChangeRename:
+		fmt.Fprintf(b, "  ~ rename %s to %s\n", change.OldPath, change.NewPath)
+	default:
+		marker := '+'
+		annotation := "(new)"
+		if change.Previous != "" {
+			marker = '*'
+			annotation = fmt.Sprintf("(was: %s)", change.Previous)
+		}
+		fmt.Fprintf(b, "  %c set %s %s  %s\n", marker, change.Path, change.Value, annotation)
 	}
-	marker := '+'
-	annotation := "(new)"
-	if se.Entry.Previous != "" {
-		marker = '*'
-		annotation = fmt.Sprintf("(was: %s)", se.Entry.Previous)
-	}
-	fmt.Fprintf(b, "  %c set %s %s  %s\n", marker, se.Path, se.Entry.Value, annotation)
 }
 
 // cmdShowChangesAll displays pending changes summary grouped by session.
@@ -1020,7 +1021,7 @@ func (m *Model) cmdShowChangesAll() (commandResult, error) {
 
 	total := 0
 	for _, sid := range sessions {
-		total += len(m.editor.SessionChanges(sid))
+		total += len(m.editor.PendingChanges(sid))
 	}
 	msg := fmt.Sprintf("%d pending", total)
 	if total == 1 {
@@ -1050,12 +1051,12 @@ func (m *Model) cmdWho() (commandResult, error) {
 		if sid == myID {
 			marker = "* "
 		}
-		entries := m.editor.SessionChanges(sid)
+		changes := m.editor.PendingChanges(sid)
 		changeWord := "changes"
-		if len(entries) == 1 {
+		if len(changes) == 1 {
 			changeWord = "change"
 		}
-		fmt.Fprintf(&b, "%s%s - %d pending %s\n", marker, sid, len(entries), changeWord)
+		fmt.Fprintf(&b, "%s%s - %d pending %s\n", marker, sid, len(changes), changeWord)
 	}
 	return commandResult{output: b.String()}, nil
 }

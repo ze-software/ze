@@ -89,6 +89,25 @@ type SessionChange struct {
 	Value    string
 }
 
+// PendingChangeKind identifies the operator-visible change type.
+type PendingChangeKind string
+
+const (
+	PendingChangeSet    PendingChangeKind = "set"
+	PendingChangeDelete PendingChangeKind = "delete"
+	PendingChangeRename PendingChangeKind = "rename"
+)
+
+// PendingChange is the unified pending-change view used by web diff/count UI.
+type PendingChange struct {
+	Kind     PendingChangeKind
+	Path     string
+	Previous string
+	Value    string
+	OldPath  string
+	NewPath  string
+}
+
 // Editor provides config editing operations for the web UI.
 // Implemented by cli.Editor; consumed by web's EditorManager.
 type Editor interface {
@@ -97,6 +116,7 @@ type Editor interface {
 	CreateEntry(path []string) error
 	SetValue(path []string, key, value string) error
 	DeleteValue(path []string, key string) error
+	RenameListEntry(parentPath []string, listName, oldKey, newKey string) error
 	CommitSession() (*CommitResult, error)
 	Discard() error
 	Diff() string
@@ -105,6 +125,7 @@ type Editor interface {
 	Tree() any
 	ContentAtPath(path []string) string
 	SessionChanges(sessionID string) []SessionChange
+	PendingChanges(sessionID string) []PendingChange
 }
 
 // EditorFactory creates a new Editor backed by storage.

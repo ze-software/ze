@@ -103,6 +103,38 @@ func TestEditorManagerSetValue(t *testing.T) {
 	assert.Equal(t, "10.0.0.1", val, "router-id must have the value we set")
 }
 
+// TestEditorManagerRenameListEntry verifies keyed list renames are serialized
+// through the manager and preserve the entry subtree.
+func TestEditorManagerRenameListEntry(t *testing.T) {
+	mgr := newTestEditorManager(t)
+
+	err := mgr.CreateEntry("alice", []string{"bgp", "peer", "london"})
+	require.NoError(t, err)
+	err = mgr.SetValue("alice", []string{"bgp", "peer", "london", "connection", "remote"}, "ip", "10.0.0.1")
+	require.NoError(t, err)
+
+	err = mgr.RenameListEntry("alice", []string{"bgp"}, "peer", "london", "paris")
+	require.NoError(t, err)
+
+	tree := mgr.Tree("alice")
+	require.NotNil(t, tree)
+	bgp := tree.GetContainer("bgp")
+	require.NotNil(t, bgp)
+	peers := bgp.GetList("peer")
+	require.NotNil(t, peers)
+	assert.Nil(t, peers["london"])
+	entry := peers["paris"]
+	require.NotNil(t, entry)
+	remote := entry.GetContainer("connection")
+	require.NotNil(t, remote)
+	remote = remote.GetContainer("remote")
+	require.NotNil(t, remote)
+	value, ok := remote.Get("ip")
+	assert.True(t, ok)
+	assert.Equal(t, "10.0.0.1", value)
+	assert.Equal(t, 2, mgr.ChangeCount("alice"))
+}
+
 // TestEditorManagerConcurrentAccess verifies that multiple goroutines calling
 // SetValue on the same user do not race. Run with -race.
 //

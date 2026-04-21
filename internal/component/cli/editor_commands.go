@@ -271,11 +271,11 @@ func (e *Editor) DeleteListEntry(path []string, listName, key string) error {
 
 // RenameListEntry renames a list entry key at the given path.
 // The parentPath navigates to the tree containing the list.
-// MetaTree is not updated because rename is blocked in session mode (meta is session-only).
-// If session-mode rename is added later, meta must be updated here too.
+// In session mode, the rename is recorded as a structural op in the per-user
+// change file and the in-memory tree/meta are updated immediately.
 func (e *Editor) RenameListEntry(parentPath []string, listName, oldKey, newKey string) error {
 	if e.session != nil {
-		return fmt.Errorf("rename not supported in session mode")
+		return e.writeThroughRename(parentPath, listName, oldKey, newKey)
 	}
 	var target *config.Tree
 	if len(parentPath) == 0 {

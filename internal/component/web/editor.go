@@ -140,6 +140,19 @@ func (m *EditorManager) DeleteValue(username string, path []string, key string) 
 	return us.editor.DeleteValue(path, key)
 }
 
+// RenameListEntry renames a list entry key in the user's working tree.
+func (m *EditorManager) RenameListEntry(username string, parentPath []string, listName, oldKey, newKey string) error {
+	us, err := m.GetOrCreate(username)
+	if err != nil {
+		return err
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	return us.editor.RenameListEntry(parentPath, listName, oldKey, newKey)
+}
+
 // Commit applies the user's pending changes to the configuration file.
 // Returns a CommitResult describing conflicts or the number of applied changes.
 func (m *EditorManager) Commit(username string) (*contract.CommitResult, error) {
@@ -208,17 +221,24 @@ func (m *EditorManager) Diff(username string) (string, error) {
 		return "", nil
 	}
 
-	entries := us.editor.SessionChanges(sid)
-	if len(entries) == 0 {
+	changes := us.editor.PendingChanges(sid)
+	if len(changes) == 0 {
 		return "", nil
 	}
 
 	var b strings.Builder
-	for _, e := range entries {
-		if e.Previous != "" {
-			fmt.Fprintf(&b, "- %s %s\n+ %s %s\n", e.Path, e.Previous, e.Path, e.Value)
-		} else {
-			fmt.Fprintf(&b, "+ %s %s\n", e.Path, e.Value)
+	for _, change := range changes {
+		switch change.Kind {
+		case contract.PendingChangeRename:
+			fmt.Fprintf(&b, "~ rename %s to %s\n", change.OldPath, change.NewPath)
+		case contract.PendingChangeDelete:
+			fmt.Fprintf(&b, "- %s %s\n", change.Path, change.Previous)
+		default:
+			if change.Previous != "" {
+				fmt.Fprintf(&b, "- %s %s\n+ %s %s\n", change.Path, change.Previous, change.Path, change.Value)
+			} else {
+				fmt.Fprintf(&b, "+ %s %s\n", change.Path, change.Value)
+			}
 		}
 	}
 	return b.String(), nil
@@ -243,7 +263,7 @@ func (m *EditorManager) ChangeCount(username string) int {
 		return 0
 	}
 
-	return len(us.editor.SessionChanges(sid))
+	return len(us.editor.PendingChanges(sid))
 }
 
 // Tree returns the user's working configuration tree for rendering.
@@ -293,7 +313,7 @@ func (m *EditorManager) ActiveSessions() []string {
 		sid := us.editor.SessionID()
 		count := 0
 		if sid != "" {
-			count = len(us.editor.SessionChanges(sid))
+			count = len(us.editor.PendingChanges(sid))
 		}
 		us.mu.Unlock()
 

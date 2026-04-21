@@ -1207,6 +1207,222 @@ func TestEditorWriteThroughDelete(t *testing.T) {
 	}
 }
 
+// TestEditorWriteThroughRenameListEntry verifies session rename writes a
+// structural op and rebases pending subtree edits onto the new key.
+func TestEditorWriteThroughRenameListEntry(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	session := NewEditSession("thomas", "local")
+	ed.SetSession(session)
+
+	err = ed.SetValue([]string{"bgp", "peer", "peer1", "session", "asn"}, "remote", "65002")
+	require.NoError(t, err)
+	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer1", "peer2")
+	require.NoError(t, err)
+
+	changePath := ChangePath(configPath, session.User)
+	changeData, err := os.ReadFile(changePath)
+	require.NoError(t, err)
+
+	changeTree, changeMeta, ops, err := config.ParseChangeFile(string(changeData), config.NewSetParser(ed.schema))
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, "peer1", ops[0].OldKey)
+	assert.Equal(t, "peer2", ops[0].NewKey)
+
+	entries := changeMeta.SessionEntries(session.ID)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "bgp peer peer2 session asn remote", entries[0].Path)
+	assert.Contains(t, string(changeData), "rename bgp peer peer1 to peer2")
+	assert.NotContains(t, string(changeData), "set bgp peer peer1 session asn remote")
+	assert.Contains(t, string(changeData), "set bgp peer peer2 session asn remote 65002")
+
+	changeBGP := changeTree.GetContainer("bgp")
+	require.NotNil(t, changeBGP)
+	require.NotNil(t, changeBGP.GetList("peer")["peer2"])
+
+	bgpTree := ed.tree.GetContainer("bgp")
+	require.NotNil(t, bgpTree)
+	peers := bgpTree.GetList("peer")
+	assert.Nil(t, peers["peer1"])
+	peer2 := peers["peer2"]
+	require.NotNil(t, peer2)
+	conn := peer2.GetContainer("connection")
+	require.NotNil(t, conn)
+	remote := conn.GetContainer("remote")
+	require.NotNil(t, remote)
+	ip, ok := remote.Get("ip")
+	assert.True(t, ok)
+	assert.Equal(t, "1.1.1.1", ip)
+	peerSession := peer2.GetContainer("session")
+	require.NotNil(t, peerSession)
+	remoteASN := peerSession.GetContainer("asn")
+	require.NotNil(t, remoteASN)
+	value, ok := remoteASN.Get("remote")
+	assert.True(t, ok)
+	assert.Equal(t, "65002", value)
+}
+
+// TestEditorWriteThroughRenameChainCoalesced verifies repeated same-session renames collapse.
+func TestEditorWriteThroughRenameChainCoalesced(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	session := NewEditSession("thomas", "local")
+	ed.SetSession(session)
+
+	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer1", "peer2")
+	require.NoError(t, err)
+	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer2", "peer3")
+	require.NoError(t, err)
+
+	changeData, err := os.ReadFile(ChangePath(configPath, session.User))
+	require.NoError(t, err)
+	_, _, ops, err := config.ParseChangeFile(string(changeData), config.NewSetParser(ed.schema))
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, "peer1", ops[0].OldKey)
+	assert.Equal(t, "peer3", ops[0].NewKey)
+}
+
+// TestSaveDraftAppliesRenameListEntry verifies SaveDraft materializes the renamed subtree.
+func TestSaveDraftAppliesRenameListEntry(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	session := NewEditSession("thomas", "local")
+	ed.SetSession(session)
+
+	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer1", "peer2")
+	require.NoError(t, err)
+	err = ed.SaveDraft()
+	require.NoError(t, err)
+
+	draftData, err := os.ReadFile(DraftPath(configPath))
+	require.NoError(t, err)
+	draftContent := string(draftData)
+	assert.NotContains(t, draftContent, " rename ")
+	assert.NotContains(t, draftContent, "set bgp peer peer1")
+	assert.Contains(t, draftContent, "set bgp peer peer2 connection remote ip 1.1.1.1")
+	assert.Contains(t, draftContent, "set bgp peer peer2 session asn remote 65001")
+}
+
+// TestEditorWriteThroughRenameListEntryWithPendingLeafEdits verifies that a
+// rename preserves leaf edits staged under the old key by rebasing them to
+// the new key path in both change tree and metadata.
+func TestEditorWriteThroughRenameListEntryWithPendingLeafEdits(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	session := NewEditSession("thomas", "local")
+	ed.SetSession(session)
+
+	err = ed.SetValue([]string{"bgp", "peer", "peer1", "session", "asn"}, "remote", "65002")
+	require.NoError(t, err)
+	err = ed.SetValue([]string{"bgp", "peer", "peer1", "connection", "remote"}, "ip", "10.99.99.1")
+	require.NoError(t, err)
+
+	err = ed.RenameListEntry([]string{"bgp"}, "peer", "peer1", "renamed")
+	require.NoError(t, err)
+
+	changeData, err := os.ReadFile(ChangePath(configPath, session.User))
+	require.NoError(t, err)
+	content := string(changeData)
+
+	assert.NotContains(t, content, "set bgp peer peer1 ")
+	assert.Contains(t, content, "set bgp peer renamed session asn remote 65002")
+	assert.Contains(t, content, "set bgp peer renamed connection remote ip 10.99.99.1")
+
+	_, changeMeta, ops, err := config.ParseChangeFile(content, config.NewSetParser(ed.schema))
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+
+	entries := changeMeta.SessionEntries(session.ID)
+	require.Len(t, entries, 2)
+	for _, e := range entries {
+		assert.Contains(t, e.Path, "bgp peer renamed ")
+		assert.NotContains(t, e.Path, "peer1")
+	}
+}
+
+// TestEditorRenameListEntryRejectsLiveConflict verifies a rename is rejected
+// before mutating state when another session has pending edits under the entry.
+func TestEditorRenameListEntryRejectsLiveConflict(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed1, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
+	oldSession := NewEditSession("alice", "ssh")
+	ed1.SetSession(oldSession)
+	err = ed1.SetValue([]string{"bgp", "peer", "peer1", "session", "asn"}, "remote", "65009")
+	require.NoError(t, err)
+
+	ed2, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
+	newSession := NewEditSession("bob", "local")
+	ed2.SetSession(newSession)
+
+	err = ed2.RenameListEntry([]string{"bgp"}, "peer", "peer1", "peer2")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "pending change conflict")
+
+	_, statErr := os.Stat(ChangePath(configPath, newSession.User))
+	assert.True(t, os.IsNotExist(statErr), "failed rename should not create a change file")
+
+	bgp := ed2.tree.GetContainer("bgp")
+	require.NotNil(t, bgp)
+	peers := bgp.GetList("peer")
+	require.NotNil(t, peers)
+	require.NotNil(t, peers["peer1"], "conflicting rename must leave the source entry intact")
+	assert.Nil(t, peers["peer2"], "conflicting rename must not create the target entry")
+}
+
+// TestEditorRenameListEntryRejectsSavedDraftConflict verifies rename checks
+// pending draft metadata too, not just live change files.
+func TestEditorRenameListEntryRejectsSavedDraftConflict(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed1, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
+	oldSession := NewEditSession("alice", "ssh")
+	ed1.SetSession(oldSession)
+	err = ed1.SetValue([]string{"bgp", "peer", "peer1", "session", "asn"}, "remote", "65009")
+	require.NoError(t, err)
+	err = ed1.SaveDraft()
+	require.NoError(t, err)
+
+	ed2, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
+	newSession := NewEditSession("bob", "local")
+	ed2.SetSession(newSession)
+
+	err = ed2.RenameListEntry([]string{"bgp"}, "peer", "peer1", "peer2")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "pending change conflict")
+
+	bgp := ed2.tree.GetContainer("bgp")
+	require.NotNil(t, bgp)
+	require.NotNil(t, bgp.GetList("peer")["peer1"])
+	assert.Nil(t, bgp.GetList("peer")["peer2"])
+}
+
 // TestEditorWriteThroughPreservesSessions verifies that write-through creates separate
 // per-user change files for each session.
 //
@@ -3400,6 +3616,56 @@ func TestCommitMetadataUserInConfig(t *testing.T) {
 	assert.NotContains(t, configContent, "^", "committed config should not have Previous markers")
 }
 
+// TestCommitRenameOnlyPreservesExistingMetadata verifies a pure rename keeps
+// previously committed subtree metadata attached to the renamed entry.
+func TestCommitRenameOnlyPreservesExistingMetadata(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed1, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
+	firstSession := NewEditSession("alice", "local")
+	ed1.SetSession(firstSession)
+	err = ed1.SetValue([]string{"bgp", "peer", "peer1", "timer"}, "receive-hold-time", "120")
+	require.NoError(t, err)
+	result, err := ed1.CommitSession()
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.Applied)
+
+	ed2, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
+	renameSession := NewEditSession("bob", "ssh")
+	ed2.SetSession(renameSession)
+	err = ed2.RenameListEntry([]string{"bgp"}, "peer", "peer1", "peer2")
+	require.NoError(t, err)
+	result, err = ed2.CommitSession()
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.Applied)
+
+	configData, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	configContent := string(configData)
+	assert.Contains(t, configContent, "set bgp peer peer2 timer receive-hold-time 120")
+	assert.NotContains(t, configContent, "set bgp peer peer1 timer receive-hold-time 120")
+
+	committedTree, committedMeta, err := parseConfigWithFormat(configContent, ed2.schema)
+	require.NoError(t, err)
+	peer := walkPath(committedTree, ed2.schema, []string{"bgp", "peer", "peer2"})
+	require.NotNil(t, peer)
+	timer := peer.GetContainer("timer")
+	require.NotNil(t, timer)
+	hold, ok := timer.Get("receive-hold-time")
+	require.True(t, ok)
+	assert.Equal(t, "120", hold)
+
+	metaTarget := walkMetaReadOnly(committedMeta, ed2.schema, []string{"bgp", "peer", "peer2", "timer"})
+	require.NotNil(t, metaTarget)
+	entry, ok := metaTarget.GetEntry("receive-hold-time")
+	require.True(t, ok, "metadata should move with the renamed subtree")
+	assert.Equal(t, "alice", entry.User, "prior metadata author should be preserved on pure rename")
+}
+
 // TestCommitOriginalContentUpdated verifies that after commit, the editor's
 // OriginalContent and WorkingContent reflect the newly committed state.
 //
@@ -4687,7 +4953,7 @@ func TestBuildCommitMetaPreservesExisting(t *testing.T) {
 	}
 
 	commitTime := time.Date(2026, 3, 12, 14, 0, 0, 0, time.UTC)
-	result := buildCommitMeta(existingMeta, draftMeta, myEntries, "alice", commitTime, schema)
+	result := buildCommitMeta(existingMeta, draftMeta, myEntries, nil, "alice", commitTime, schema)
 
 	got, ok := result.GetEntry("local-as")
 	require.True(t, ok, "prior commit metadata should be preserved")
@@ -4720,7 +4986,7 @@ func TestBuildCommitMetaDeleteRemoves(t *testing.T) {
 	}
 
 	commitTime := time.Date(2026, 3, 12, 14, 0, 0, 0, time.UTC)
-	result := buildCommitMeta(existingMeta, draftMeta, myEntries, "alice", commitTime, schema)
+	result := buildCommitMeta(existingMeta, draftMeta, myEntries, nil, "alice", commitTime, schema)
 
 	_, ok := result.GetEntry("router-id")
 	assert.False(t, ok, "delete should remove metadata, not create tombstone")
@@ -4740,7 +5006,7 @@ func TestBuildCommitMetaNilExisting(t *testing.T) {
 	}
 
 	commitTime := time.Date(2026, 3, 12, 14, 0, 0, 0, time.UTC)
-	result := buildCommitMeta(nil, draftMeta, myEntries, "alice", commitTime, schema)
+	result := buildCommitMeta(nil, draftMeta, myEntries, nil, "alice", commitTime, schema)
 	require.NotNil(t, result)
 
 	got, ok := result.GetEntry("router-id")
@@ -4890,6 +5156,51 @@ func TestEditorAdoptSession(t *testing.T) {
 	draftContent := string(draftData)
 	assert.NotContains(t, draftContent, "@"+oldSession.Origin+" ", "old session origin should be gone")
 	assert.Contains(t, draftContent, "@"+newSession.Origin, "new session origin should be present")
+}
+
+// TestEditorAdoptSessionRenameOp verifies adoption rewrites preserved rename ops.
+func TestEditorAdoptSessionRenameOp(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed1, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
+
+	oldSession := NewEditSession("thomas", "local")
+	ed1.SetSession(oldSession)
+	err = ed1.RenameListEntry([]string{"bgp"}, "peer", "peer1", "peer2")
+	require.NoError(t, err)
+	err = ed1.SaveDraft()
+	require.NoError(t, err)
+
+	ed2, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
+
+	loaded := ed2.LoadDraft()
+	assert.True(t, loaded, "draft should load successfully")
+
+	newSession := NewEditSession("thomas", "ssh")
+	ed2.SetSession(newSession)
+	err = ed2.AdoptSession(oldSession.ID)
+	require.NoError(t, err)
+
+	changeData, err := os.ReadFile(ChangePath(configPath, newSession.User))
+	require.NoError(t, err)
+	_, _, ops, err := config.ParseChangeFile(string(changeData), config.NewSetParser(ed2.schema))
+	require.NoError(t, err)
+	require.Len(t, ops, 1)
+	assert.Equal(t, newSession.ID, ops[0].SessionKey(), "rename op should be reassigned to the new session")
+
+	result, err := ed2.CommitSession()
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.Applied, "adopted rename should commit as one applied change")
+
+	configData, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	configContent := string(configData)
+	assert.Contains(t, configContent, "set bgp peer peer2 connection remote ip 1.1.1.1")
+	assert.NotContains(t, configContent, "set bgp peer peer1 connection remote ip 1.1.1.1")
 }
 
 // TestEditorAdoptDeclined verifies that declining adoption leaves entries unchanged.

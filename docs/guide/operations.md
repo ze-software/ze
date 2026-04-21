@@ -146,7 +146,7 @@ ze env get ze.log              # details for one var
 |------|---------|
 | `-d`, `--debug` | Enable debug logging (sets `ze.log=debug`) |
 | `-f <file>` | Use filesystem storage (bypass blob database) |
-| `--plugin <name>` | Load additional plugin (repeatable) |
+| `--plugin <name>` | Load additional plugin for YANG/native configs (repeatable). Hub/orchestrator configs reject this; use `plugin { external ... }` in the config instead. |
 | `--pprof <addr:port>` | Start pprof HTTP server for profiling |
 | `--chaos-seed <N>` | Chaos testing seed (0=off, -1=time-based) |
 | `--chaos-rate <0-1>` | Chaos fault probability |
