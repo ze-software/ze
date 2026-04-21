@@ -4,7 +4,7 @@ Automated enforcement of `ai/rules/` requirements.
 
 ## Summary
 
-**Total: 36 hooks** (25 blocking, 11 advisory)
+**Total: 37 hooks** (26 blocking, 11 advisory)
 
 ## All Hooks
 
@@ -14,6 +14,7 @@ Automated enforcement of `ai/rules/` requirements.
 | `block-until-lsp.sh` | PreToolUse:.* | session-start.md | **Blocking** |
 | `compaction-reminder.sh` | UserPromptSubmit | post-compaction.md | Advisory |
 | `pre-compact-save.sh` | PreCompact | post-compaction.md | Advisory |
+| `block-premature-stop.sh` | Stop | - | **Blocking** |
 | `session-end-summary.sh` | Stop | - | Advisory |
 | `block-destructive-git.sh` | PreToolUse:Bash | git-safety.md | **Blocking** |
 | `block-claude-plans.sh` | PreToolUse:Write | documentation.md | **Blocking** |
@@ -91,6 +92,7 @@ Automated enforcement of `ai/rules/` requirements.
 | `session-start.sh` | Status summary at session start |
 | `block-until-lsp.sh` | Refuses every tool call until `ToolSearch select:LSP` loads the LSP tool |
 | `pre-compact-save.sh` | Auto-save session state before compaction |
+| `block-premature-stop.sh` | Blocks stop on ownership-dodging, permission-seeking, premature handoff |
 | `session-end-summary.sh` | Append git state summary at session end |
 | `compaction-reminder.sh` | Re-read reminder after compaction |
 
