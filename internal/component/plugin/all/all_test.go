@@ -58,6 +58,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"firewall",
 		"interface",
 		"l2tp-auth-local",
+		"l2tp-auth-radius",
 		"l2tp-pool",
 		"loop",
 		"ntp",
