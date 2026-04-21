@@ -50,6 +50,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"bgp-rs",
 		"bgp-softver",
 		"bgp-watchdog",
+		"fakel2tp",
 		"fakeredist",
 		"fib-kernel",
 		"fib-p4",

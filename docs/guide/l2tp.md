@@ -111,17 +111,29 @@ explicit restart.
 
 Ze registers `l2tp` as a redistribution source at subsystem Start.
 When a PPP NCP (IPCP or IPv6CP) completes for a session, the
-subsystem's RouteObserver records the assigned peer IP and logs a
-`subscriber route inject`. Session-down logs the matching
-`subscriber routes withdrawn`.
+subsystem's RouteObserver emits a `(l2tp, route-change)` batch on the
+EventBus with the assigned peer IP as a /32 (IPv4) or /128 (IPv6)
+prefix. Session-down emits matching remove batches, one per address
+family that was up.
 
-The actual RIB write path (producing a real BGP UPDATE for the /32 or
-/128) requires a programmatic equivalent to the `bgp rib inject` CLI;
-that path lands in `spec-l2tp-7c-rib-inject`. spec-l2tp-7 delivers the
-source registration, event tracking, and counters.
+The `bgp-redistribute` plugin discovers L2TP as a producer at startup,
+subscribes to its events, and advertises the prefixes to BGP peers when
+a matching import rule is configured:
+
+```
+redistribute {
+    import l2tp {
+        family [ ipv4/unicast ipv6/unicast ];
+    }
+}
+```
+
+Each peer's UPDATE carries `origin=incomplete`, an empty AS-path, and
+`NEXT_HOP` resolved to the peer's local session address.
 
 <!-- source: internal/component/l2tp/redistribute.go — RegisterL2TPSources -->
 <!-- source: internal/component/l2tp/route_observer.go — subscriberRouteObserver -->
+<!-- source: internal/component/l2tp/events/events.go — RouteChange typed handle -->
 
 ## Environment variables
 

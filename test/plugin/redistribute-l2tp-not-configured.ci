@@ -1,0 +1,96 @@
+# Test: redistribute-l2tp -- no import rule means no UPDATE reaches the peer.
+# VALIDATES: AC-7 -- without redistribute import l2tp, event is emitted but
+#            consumer filter rejects; peer receives no UPDATE.
+# PREVENTS: False positive where events leak through without a matching
+#           import rule.
+
+# ze-peer expectations -- peer should receive OPEN but NO UPDATE.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=10s
+EOF_PEER
+
+# Python observer plugin: emit an event, wait, then shut down cleanly.
+tmpfs=l2tp-nocfg-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import time
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    time.sleep(2.0)
+
+    resp = dispatch(api, 'fakel2tp emit add ipv4/unicast 10.0.0.1/32')
+    result = resp.get('result', {})
+    if result.get('status') != 'done':
+        runtime_fail(f'fakel2tp emit failed: {result}')
+        return
+
+    # Wait long enough that if an UPDATE were going to arrive, it would.
+    time.sleep(3.0)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration -- NO redistribute import l2tp block.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external l2tp-nocfg-test {
+		run ./l2tp-nocfg-test.run
+		encoder json
+	}
+	external fakel2tp {
+		use fakel2tp
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
+expect=exit:code=0

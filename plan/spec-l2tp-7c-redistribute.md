@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | spec-bgp-redistribute, spec-l2tp-7-subsystem |
-| Phase | - |
-| Updated | 2026-04-18 |
+| Phase | 7/7 |
+| Updated | 2026-04-21 |
 
 ## Post-Compaction Recovery
 
@@ -280,69 +280,128 @@ spec-l2tp-7. No new RFC constraints introduced by this spec.
 ## Implementation Summary
 
 ### What Was Implemented
-- (to be filled)
+- Typed EventBus handle `(l2tp, route-change)` in `internal/component/l2tp/events/events.go`
+- Observer emission: add-batch on IPCP/IPv6CP up, remove-batch on session-down (per-family)
+- Subsystem wiring: `Start` passes EventBus to observer constructor
+- fakel2tp test plugin for .ci functional tests (same pattern as fakeredist)
+- 3 .ci tests: redistribute-l2tp-announce, redistribute-l2tp-not-configured, redistribute-l2tp-withdraw
+- 6 new unit tests for observer emission + 3 handle registration tests
 
 ### Bugs Found/Fixed
-- (to be filled)
+- Pre-existing: exhaustive-switch lint in fib-kernel, fib-p4, fib-vpp (missing RouteActionDel/Unspecified cases)
+- Pre-existing: enum-over-string build errors in session_write.go and reactor_test.go (string "sent"/"received" where rpc.MessageDirection expected)
+- Pool semantics: test stubs must deep-copy RouteChangeBatch in Emit because ReleaseBatch zeroes it
 
 ### Documentation Updates
-- (to be filled)
+- `docs/features.md` -- L2TP row updated with redistribute capability
+- `docs/guide/l2tp.md` -- Redistribute section rewritten with config example
 
 ### Deviations from Plan
-- (to be filled)
+- fakel2tp test plugin created (not in original spec's Files to Create) -- required for .ci tests since no synthetic session event producer existed
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Typed EventBus handle | Done | internal/component/l2tp/events/events.go | RouteChange handle registered at package init |
+| Observer emits add-batch on IP-up | Done | internal/component/l2tp/route_observer.go:156 | emitAdd helper |
+| Observer emits remove-batch on down | Done | internal/component/l2tp/route_observer.go:174 | emitRemove per family |
+| Subsystem passes bus to observer | Done | internal/component/l2tp/subsystem.go:128 | bus arg added |
+| .ci tests (announce, not-configured, withdraw) | Done | test/plugin/redistribute-l2tp-*.ci | All 3 pass |
+| Doc updates | Done | docs/features.md, docs/guide/l2tp.md | Redistribute section rewritten |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | TestObserver_OnSessionIPUp_EmitsBatch_IPv4 | Asserts Protocol, AFI=1, SAFI=1, Action=add, Prefix=/32 |
+| AC-2 | Done | TestObserver_OnSessionIPUp_EmitsBatch_IPv6 | Asserts AFI=2, SAFI=1, Action=add, Prefix=/128 |
+| AC-3 | Done | TestObserver_OnSessionDown_EmitsRemoveBatches_PerFamily | Two remove-batches, one per family |
+| AC-4 | Done | TestObserver_OnSessionDown_IPv4Only | One remove-batch for ipv4/unicast only |
+| AC-5 | Done | TestObserver_NilBus_StillTracksState | State tracked, no panic |
+| AC-6 | Done | redistribute-l2tp-announce.ci | Peer receives UPDATE with /32 + NEXT_HOP + origin=incomplete |
+| AC-7 | Done | redistribute-l2tp-not-configured.ci | No UPDATE reaches peer without import rule |
+| AC-8 | N/A | -- | Two-peer distinct NEXT_HOP: requires multi-peer .ci; covered by bgp-redistribute's own AC |
+| AC-9 | Done | redistribute-l2tp-withdraw.ci | Peer receives WITHDRAWN_ROUTES for /32 |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestObserver_OnSessionIPUp_EmitsBatch_IPv4 | Done | route_observer_test.go | |
+| TestObserver_OnSessionIPUp_EmitsBatch_IPv6 | Done | route_observer_test.go | |
+| TestObserver_OnSessionDown_EmitsRemoveBatches_PerFamily | Done | route_observer_test.go | |
+| TestObserver_OnSessionDown_NoEmission_IfNothingUp | Done | route_observer_test.go | |
+| TestObserver_NilBus_StillTracksState | Done | route_observer_test.go | |
+| TestRouteChangeHandle_Registered | Done | events/events_test.go | |
+| redistribute-l2tp-announce | Done | test/plugin/ | |
+| redistribute-l2tp-not-configured | Done | test/plugin/ | |
+| redistribute-l2tp-withdraw | Done | test/plugin/ | |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| internal/component/l2tp/events/events.go | Created | Typed handle + protocol/producer registration |
+| internal/component/l2tp/events/events_test.go | Created | 3 tests |
+| internal/component/l2tp/route_observer.go | Modified | Bus field, emit helpers, family helpers |
+| internal/component/l2tp/subsystem.go | Modified | Pass bus to observer |
+| test/plugin/redistribute-l2tp-announce.ci | Created | |
+| test/plugin/redistribute-l2tp-not-configured.ci | Created | |
+| test/plugin/redistribute-l2tp-withdraw.ci | Created | |
+| internal/test/plugins/fakel2tp/ | Created | Test plugin (deviation: not in original plan) |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 25
+- **Done:** 24
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (AC-8 N/A -- multi-peer NEXT_HOP is bgp-redistribute's concern)
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   |          |         |          |        |
+| 1 | NOTE | AC-8 (multi-peer NEXT_HOP) not tested with dedicated .ci | spec | N/A -- covered by bgp-redistribute's own multi-peer tests |
 
 ### Fixes applied
-- (to be filled)
+- None needed (NOTE-only)
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded above
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| internal/component/l2tp/events/events.go | Yes | File created, go vet passes |
+| internal/component/l2tp/events/events_test.go | Yes | 3 tests pass |
+| test/plugin/redistribute-l2tp-announce.ci | Yes | ze-test bgp plugin 216 passes |
+| test/plugin/redistribute-l2tp-not-configured.ci | Yes | ze-test bgp plugin 217 passes |
+| test/plugin/redistribute-l2tp-withdraw.ci | Yes | ze-test bgp plugin 218 passes |
+| internal/test/plugins/fakel2tp/fakel2tp.go | Yes | go vet passes |
+| internal/test/plugins/fakel2tp/register.go | Yes | Plugin registered in all.go |
+| plan/learned/641-l2tp-7c-redistribute.md | Yes | Written |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | IPCP-up emits ipv4/unicast batch | TestObserver_OnSessionIPUp_EmitsBatch_IPv4 passes (route_observer_test.go) |
+| AC-2 | IPv6CP-up emits ipv6/unicast batch | TestObserver_OnSessionIPUp_EmitsBatch_IPv6 passes |
+| AC-3 | Teardown emits per-family remove | TestObserver_OnSessionDown_EmitsRemoveBatches_PerFamily passes |
+| AC-4 | IPv4-only teardown emits one batch | TestObserver_OnSessionDown_IPv4Only passes |
+| AC-5 | Nil bus no panic | TestObserver_NilBus_StillTracksState passes |
+| AC-6 | Peer receives UPDATE /32 | redistribute-l2tp-announce.ci passes (6.3s) |
+| AC-7 | No import = no UPDATE | redistribute-l2tp-not-configured.ci passes (6.2s) |
+| AC-9 | Teardown = WITHDRAWN | redistribute-l2tp-withdraw.ci passes (6.1s) |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| IPCP-up + redistribute import l2tp | redistribute-l2tp-announce.ci | Yes -- peer receives UPDATE |
+| Same, no import rule | redistribute-l2tp-not-configured.ci | Yes -- no UPDATE |
+| Session teardown after announce | redistribute-l2tp-withdraw.ci | Yes -- peer receives WITHDRAWN |
 
 ## Checklist
 

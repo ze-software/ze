@@ -1,0 +1,22 @@
+module ze-fakel2tp-api {
+  namespace "urn:ze:test:fakel2tp:api";
+  prefix "fakel2tp-api";
+
+  organization "Ze Project";
+  description "Test-only synthetic L2TP route producer RPCs.
+               fakel2tp emits route-change events on the l2tp namespace
+               so .ci tests can exercise the bgp-redistribute consumer
+               without a real L2TP subsystem.";
+  revision 2026-04-21 {
+    description "Initial revision -- emit / help.";
+  }
+
+  rpc fakel2tp-emit {
+    description "Emit one synthetic L2TP route-change batch.
+                 Args: <add|remove> <family> <prefix>.";
+  }
+
+  rpc fakel2tp-help {
+    description "Print the fakel2tp command surface.";
+  }
+}

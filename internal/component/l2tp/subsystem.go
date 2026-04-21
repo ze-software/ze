@@ -90,7 +90,7 @@ func (s *Subsystem) Name() string { return SubsystemName }
 // of the tunnel work wires the actual UDP listener.
 //
 // MUST be called before Stop/Reload.
-func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvider) error {
+func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvider) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -125,7 +125,7 @@ func (s *Subsystem) Start(ctx context.Context, _ ze.EventBus, _ ze.ConfigProvide
 	// into every reactor below so session IP-up / session-down
 	// transitions drive subscriber route inject / withdraw.
 	RegisterL2TPSources()
-	s.routeObserver = newSubscriberRouteObserver(s.logger)
+	s.routeObserver = newSubscriberRouteObserver(s.logger, bus)
 
 	// Phase 5: probe kernel modules before binding listeners.
 	// AC-1/AC-2: on Linux, modprobe l2tp_ppp or pppol2tp must succeed.

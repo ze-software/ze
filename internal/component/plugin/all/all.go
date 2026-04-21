@@ -73,6 +73,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakel2tp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeredist/schema"
 
 	// Plugin packages — plugin + schema registration.
@@ -127,6 +128,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/netlink"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/vpp"
+	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakel2tp"
 	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeredist"
 
 	// Event namespace packages -- events.RegisterNamespace registration.

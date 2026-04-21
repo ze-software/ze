@@ -1,0 +1,27 @@
+module ze-fakel2tp-cmd {
+    namespace "urn:ze:test:fakel2tp:cmd";
+    prefix fakel2tpcmd;
+    import ze-extensions { prefix ze; }
+    description "Test-only synthetic L2TP route producer command tree.
+                 Hidden behind ze:hidden so it does not pollute the
+                 production CLI completion.";
+    revision 2026-04-21 { description "Initial revision."; }
+
+    container fakel2tp {
+        ze:hidden true;
+        config false;
+        description "Fakel2tp test commands";
+
+        container emit {
+            config false;
+            ze:command "ze-fakel2tp-api:fakel2tp-emit";
+            description "Emit one synthetic L2TP route-change batch";
+        }
+
+        container help {
+            config false;
+            ze:command "ze-fakel2tp-api:fakel2tp-help";
+            description "Print the fakel2tp command surface";
+        }
+    }
+}

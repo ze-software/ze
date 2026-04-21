@@ -1,5 +1,6 @@
 // Design: docs/architecture/l2tp.md -- redistribute source registration
 // Related: subsystem.go -- Start path calls RegisterL2TPSources
+// Related: events/events.go -- typed EventBus handle for route-change
 
 package l2tp
 
