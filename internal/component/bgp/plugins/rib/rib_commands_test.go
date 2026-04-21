@@ -157,7 +157,7 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 				Family:           family.IPv4Unicast,
 				Prefix:           "10.0.0.0/24",
 				NextHop:          "10.0.0.1",
-				Origin:           "igp",
+				Origin:           originPtr(OriginIGP),
 				ASPath:           []uint32{65001, 65002},
 				MED:              &med,
 				LocalPreference:  &localPref,

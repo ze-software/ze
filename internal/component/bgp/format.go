@@ -31,9 +31,11 @@ func formatAnnounceText(route *Route) string {
 	sb.WriteString("update text")
 
 	// Origin.
-	if route.Origin != "" {
-		sb.WriteString(" origin ")
-		sb.WriteString(route.Origin)
+	if route.Origin != nil {
+		if s := route.Origin.LowerString(); s != "" {
+			sb.WriteString(" origin ")
+			sb.WriteString(s)
+		}
 	}
 
 	// AS-Path (use [] for list).

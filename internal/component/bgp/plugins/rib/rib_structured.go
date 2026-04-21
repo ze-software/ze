@@ -303,7 +303,7 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 // storeSentNLRIs walks NLRI bytes and stores Route entries in ribOut.
 // Caller must hold write lock.
 func (r *RIBManager) storeSentNLRIs(peerAddr string, fam family.Family, nlriData []byte, addPath bool,
-	msgID uint64, nextHop, origin string, asPath []uint32, med, localPref *uint32,
+	msgID uint64, nextHop string, origin attribute.Origin, asPath []uint32, med, localPref *uint32,
 	communities, largeCommunities, extCommunities []string,
 	rawAttrsHex string, meta map[string]any) {
 
@@ -329,7 +329,7 @@ func (r *RIBManager) storeSentNLRIs(peerAddr string, fam family.Family, nlriData
 			Prefix:              prefix,
 			PathID:              pathID,
 			NextHop:             nextHop,
-			Origin:              origin,
+			Origin:              &origin,
 			ASPath:              asPath,
 			MED:                 med,
 			LocalPreference:     localPref,
@@ -411,7 +411,7 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 
 // coreAttrs holds parsed core path attributes from AttrsWire.
 type coreAttrs struct {
-	origin    string
+	origin    attribute.Origin
 	asPath    []uint32
 	med       *uint32
 	localPref *uint32
@@ -425,16 +425,8 @@ func extractCoreAttrs(attrs *attribute.AttributesWire) coreAttrs {
 	}
 
 	if attr, err := attrs.Get(attribute.AttrOrigin); err == nil && attr != nil {
-		o, ok := attr.(attribute.Origin)
-		if ok {
-			switch o {
-			case attribute.OriginIGP:
-				result.origin = "igp"
-			case attribute.OriginEGP:
-				result.origin = "egp"
-			case attribute.OriginIncomplete:
-				result.origin = "incomplete"
-			}
+		if o, ok := attr.(attribute.Origin); ok {
+			result.origin = o
 		}
 	}
 

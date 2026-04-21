@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
@@ -28,13 +29,13 @@ type Route struct {
 	Timestamp time.Time     `json:"timestamp,omitzero"`
 
 	// Path attributes for full route resend.
-	Origin              string   `json:"origin,omitempty"`
-	ASPath              []uint32 `json:"as-path,omitempty"`
-	MED                 *uint32  `json:"med,omitempty"`
-	LocalPreference     *uint32  `json:"local-preference,omitempty"`
-	Communities         []string `json:"communities,omitempty"`
-	LargeCommunities    []string `json:"large-communities,omitempty"`
-	ExtendedCommunities []string `json:"extended-communities,omitempty"`
+	Origin              *attribute.Origin `json:"origin,omitempty"`
+	ASPath              []uint32          `json:"as-path,omitempty"`
+	MED                 *uint32           `json:"med,omitempty"`
+	LocalPreference     *uint32           `json:"local-preference,omitempty"`
+	Communities         []string          `json:"communities,omitempty"`
+	LargeCommunities    []string          `json:"large-communities,omitempty"`
+	ExtendedCommunities []string          `json:"extended-communities,omitempty"`
 
 	// RawAttrs is the hex-encoded path attributes from format=full sent events.
 	// When non-empty, FormatAnnounceCommand uses "update hex attr set <hex>" format

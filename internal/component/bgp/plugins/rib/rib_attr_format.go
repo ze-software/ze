@@ -65,8 +65,10 @@ func enrichRouteMapFromEntry(routeMap map[string]any, entry storage.RouteEntry) 
 // enrichRouteMapFromRoute adds path attributes from a Route (Adj-RIB-Out) to a route map.
 // Only non-empty/non-nil attributes are added.
 func enrichRouteMapFromRoute(routeMap map[string]any, rt *Route) {
-	if rt.Origin != "" {
-		routeMap["origin"] = rt.Origin
+	if rt.Origin != nil {
+		if s := rt.Origin.LowerString(); s != "" {
+			routeMap["origin"] = s
+		}
 	}
 	if len(rt.ASPath) > 0 {
 		routeMap["as-path"] = rt.ASPath

@@ -5,8 +5,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
+
+func ptrOrigin(o attribute.Origin) *attribute.Origin { return &o }
 
 // mustFamily looks up a registered family by name or fails the test.
 func mustFamily(t *testing.T, name string) family.Family {
@@ -44,7 +47,7 @@ func TestFormatAnnounceCommand_FullAttributes(t *testing.T) {
 		Family:          family.IPv4Unicast,
 		Prefix:          "10.0.0.0/24",
 		NextHop:         "10.0.0.1",
-		Origin:          "igp",
+		Origin:          ptrOrigin(attribute.OriginIGP),
 		ASPath:          []uint32{65001, 65002},
 		MED:             &med,
 		LocalPreference: &localPref,
@@ -86,7 +89,7 @@ func TestFormatAnnounceCommand_IPv6(t *testing.T) {
 		Family:  family.IPv6Unicast,
 		Prefix:  "2001:db8::/32",
 		NextHop: "::1",
-		Origin:  "igp",
+		Origin:  ptrOrigin(attribute.OriginIGP),
 	}
 
 	cmd := FormatAnnounceCommand(route)
@@ -120,7 +123,7 @@ func TestFormatAnnounceCommand_VPN(t *testing.T) {
 		Family:  mustFamily(t, "ipv4/mpls-vpn"),
 		Prefix:  "10.0.0.0/24",
 		NextHop: "10.0.0.1",
-		Origin:  "igp",
+		Origin:  ptrOrigin(attribute.OriginIGP),
 		RD:      "65000:100",
 		Labels:  []uint32{1000},
 	}
@@ -138,7 +141,7 @@ func TestFormatAnnounceCommand_NhopSelf(t *testing.T) {
 		Family:  family.IPv4Unicast,
 		Prefix:  "10.0.0.0/24",
 		NextHop: "self",
-		Origin:  "igp",
+		Origin:  ptrOrigin(attribute.OriginIGP),
 	}
 
 	cmd := FormatAnnounceCommand(route)

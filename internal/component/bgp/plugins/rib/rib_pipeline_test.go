@@ -585,8 +585,8 @@ func TestFilterMatchCrossField(t *testing.T) {
 			name:    "match origin value",
 			pattern: "igp",
 			items: []RouteItem{
-				{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{Origin: "igp"}},
-				{Peer: "p2", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{Origin: "egp"}},
+				{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", OutRoute: &Route{Origin: originPtr(OriginIGP)}},
+				{Peer: "p2", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", OutRoute: &Route{Origin: originPtr(OriginEGP)}},
 			},
 			want: 1,
 		},

@@ -858,7 +858,7 @@ func (r *RIBManager) extractCandidate(peerAddr string, entry storage.RouteEntry)
 	// ORIGIN (type 1): 1 byte (0=IGP, 1=EGP, 2=INCOMPLETE).
 	if entry.HasOrigin() {
 		if data, err := pool.Origin.Get(entry.Origin); err == nil && len(data) > 0 {
-			c.Origin = data[0]
+			c.Origin = attribute.Origin(data[0])
 		}
 	}
 

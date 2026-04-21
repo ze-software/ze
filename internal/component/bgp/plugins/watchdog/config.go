@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
@@ -173,7 +174,12 @@ func collectWatchdogRoutes(updateMap map[string]any, peerAddr string, pools *Poo
 func buildRouteFromAttrs(attrMap map[string]any) bgp.Route {
 	var route bgp.Route
 
-	route.Origin = getStringAny(attrMap, "origin")
+	if v := getStringAny(attrMap, "origin"); v != "" {
+		var o attribute.Origin
+		if err := o.UnmarshalText([]byte(v)); err == nil {
+			route.Origin = &o
+		}
+	}
 	route.NextHop = getStringAny(attrMap, "next-hop")
 
 	if v := getStringAny(attrMap, "local-preference"); v != "" {

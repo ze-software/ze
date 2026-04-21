@@ -488,7 +488,7 @@ func (f *matchFilter) matchOutRoute(rt *Route) bool {
 	if strings.Contains(strings.ToLower(rt.NextHop), f.pattern) {
 		return true
 	}
-	if strings.Contains(strings.ToLower(rt.Origin), f.pattern) {
+	if s := rt.Origin.LowerString(); s != "" && strings.Contains(s, f.pattern) {
 		return true
 	}
 	// AS-path as space-separated ASNs

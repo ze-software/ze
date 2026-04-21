@@ -44,12 +44,56 @@ var originNames = map[Origin]string{
 	OriginIncomplete: "INCOMPLETE",
 }
 
+// originTextNames maps Origin values to lowercase wire/JSON names.
+var originTextNames = map[Origin]string{
+	OriginIGP:        "igp",
+	OriginEGP:        "egp",
+	OriginIncomplete: "incomplete",
+}
+
+// originFromText maps lowercase wire/JSON names to Origin values.
+var originFromText = map[string]Origin{
+	"igp":        OriginIGP,
+	"egp":        OriginEGP,
+	"incomplete": OriginIncomplete,
+}
+
 // String returns the human-readable origin name ("IGP", "EGP", or "INCOMPLETE").
 func (o Origin) String() string {
 	if name, ok := originNames[o]; ok {
 		return name
 	}
 	return fmt.Sprintf("UNKNOWN(%d)", o)
+}
+
+// MarshalText returns the lowercase wire/JSON name ("igp", "egp", "incomplete").
+// Implements encoding.TextMarshaler for JSON wire compatibility.
+func (o Origin) MarshalText() ([]byte, error) {
+	if name, ok := originTextNames[o]; ok {
+		return []byte(name), nil
+	}
+	return nil, fmt.Errorf("unknown origin value %d", o)
+}
+
+// UnmarshalText parses a lowercase wire/JSON name ("igp", "egp", "incomplete").
+// Implements encoding.TextUnmarshaler for JSON wire compatibility.
+func (o *Origin) UnmarshalText(text []byte) error {
+	v, ok := originFromText[string(text)]
+	if !ok {
+		return fmt.Errorf("unknown origin %q", text)
+	}
+	*o = v
+	return nil
+}
+
+// LowerString returns the lowercase wire/JSON name ("igp", "egp", "incomplete").
+// Returns "" for unknown values. This is a non-allocating accessor for hot paths
+// that need the wire name without the MarshalText allocation.
+func (o Origin) LowerString() string {
+	if name, ok := originTextNames[o]; ok {
+		return name
+	}
+	return ""
 }
 
 // Code returns AttrOrigin (Type Code 1 per RFC 4271 Section 4.3).

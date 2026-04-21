@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"net"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
@@ -67,27 +68,28 @@ func (s BestStep) String() string {
 	return "unknown-step"
 }
 
-// ORIGIN values per RFC 4271 §4.3.
+// ORIGIN value aliases for use within the rib package.
+// These are typed attribute.Origin values, not raw bytes.
 const (
-	OriginIGP        byte = 0
-	OriginEGP        byte = 1
-	OriginIncomplete byte = 2
+	OriginIGP        = attribute.OriginIGP
+	OriginEGP        = attribute.OriginEGP
+	OriginIncomplete = attribute.OriginIncomplete
 )
 
 // Candidate holds extracted attribute values for best-path comparison.
 // Built from pool handles by the caller -- this struct has no pool dependency.
 type Candidate struct {
-	PeerAddr     string          // peer IP address (tiebreak step 8)
-	PeerASN      uint32          // peer's AS number
-	LocalASN     uint32          // local AS number (0 = unknown)
-	LocalPref    uint32          // LOCAL_PREF value (default 100 if absent)
-	ASPathLen    int             // AS_PATH length (AS_SET counts as 1)
-	FirstAS      uint32          // first AS in path (for MED neighbor comparison)
-	Origin       byte            // ORIGIN: 0=IGP, 1=EGP, 2=INCOMPLETE
-	MED          uint32          // MED value (default 0 if absent)
-	OriginatorID string          // ORIGINATOR_ID as IP string (RFC 4456, Router ID tiebreak)
-	StaleLevel   uint8           // Route staleness level (0=fresh; plugin-defined higher levels)
-	ASPathHandle attrpool.Handle // AS_PATH pool handle (for content-equal multipath comparison)
+	PeerAddr     string           // peer IP address (tiebreak step 8)
+	PeerASN      uint32           // peer's AS number
+	LocalASN     uint32           // local AS number (0 = unknown)
+	LocalPref    uint32           // LOCAL_PREF value (default 100 if absent)
+	ASPathLen    int              // AS_PATH length (AS_SET counts as 1)
+	FirstAS      uint32           // first AS in path (for MED neighbor comparison)
+	Origin       attribute.Origin // ORIGIN: 0=IGP, 1=EGP, 2=INCOMPLETE
+	MED          uint32           // MED value (default 0 if absent)
+	OriginatorID string           // ORIGINATOR_ID as IP string (RFC 4456, Router ID tiebreak)
+	StaleLevel   uint8            // Route staleness level (0=fresh; plugin-defined higher levels)
+	ASPathHandle attrpool.Handle  // AS_PATH pool handle (for content-equal multipath comparison)
 }
 
 // SelectBest selects the best route from a list of candidates.

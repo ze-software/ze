@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
@@ -731,8 +732,9 @@ func TestWildcardNonexistentPool(t *testing.T) {
 // newTestEntryWithRoute creates a PoolEntry with a Route for MED override tests.
 func newTestEntryWithRoute(announceCmd, withdrawCmd string, med *uint32) *PoolEntry {
 	entry := NewPoolEntry("10.0.0.0/24#0", announceCmd, withdrawCmd)
+	igp := attribute.OriginIGP
 	entry.Route = bgp.Route{
-		Origin:  "igp",
+		Origin:  &igp,
 		NextHop: "1.2.3.4",
 		Family:  family.IPv4Unicast,
 		Prefix:  "10.0.0.0/24",

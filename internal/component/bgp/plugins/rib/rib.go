@@ -27,6 +27,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri/nlrisplit"
@@ -715,13 +716,15 @@ func (r *RIBManager) handleSent(event *Event) {
 						continue
 					}
 					key := outRouteKey(prefix, pathID)
+					var origin attribute.Origin
+					_ = origin.UnmarshalText([]byte(event.Origin))
 					r.ribOut[peerAddr][famStr][key] = &Route{
 						MsgID:               msgID,
 						Family:              fam,
 						Prefix:              prefix,
 						PathID:              pathID,
 						NextHop:             op.NextHop,
-						Origin:              event.Origin,
+						Origin:              &origin,
 						ASPath:              event.ASPath,
 						MED:                 event.MED,
 						LocalPreference:     event.LocalPreference,
