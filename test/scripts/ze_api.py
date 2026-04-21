@@ -153,6 +153,9 @@ class API:
         # Pending events from deliver-batch (returned one per read_line call)
         self._pending_events: list[str] = []
 
+        # Set when the engine sends ze-plugin-callback:post-startup
+        self._post_startup_received = False
+
         # Install SIGPIPE handler
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
@@ -933,6 +936,11 @@ class API:
                 # Filter handled; loop back to read next event.
                 continue
 
+            if method == "ze-plugin-callback:post-startup":
+                self._post_startup_received = True
+                self._respond_ok(req_id)
+                continue
+
             # Other callbacks -- respond OK and skip, loop back.
             self._respond_ok(req_id)
             continue
@@ -1023,6 +1031,24 @@ class API:
             return True
         except RuntimeError:
             return False
+
+    def wait_for_post_startup(self, timeout: float = 10.0) -> bool:
+        """Wait for the engine's post-startup callback.
+
+        All plugins have completed their 5-stage handshake and the dispatcher
+        command registry is frozen. Safe to dispatch cross-plugin commands.
+
+        Returns True if received, False on timeout.
+        """
+        import time
+
+        deadline = time.monotonic() + timeout
+        while not self._post_startup_received and not self._shutdown:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            self.read_line(timeout=min(remaining, 0.5))
+        return self._post_startup_received
 
     def wait_for_shutdown(self, timeout: float = 5.0) -> None:
         """Wait for shutdown signal from ZeBGP.

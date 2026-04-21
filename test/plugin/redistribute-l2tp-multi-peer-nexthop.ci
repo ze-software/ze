@@ -1,0 +1,153 @@
+# Test: redistribute-l2tp-multi-peer-nexthop -- Two BGP peers get distinct NEXT_HOP.
+# VALIDATES: AC-1 -- peer1 (local 127.0.0.1) receives NEXT_HOP=127.0.0.1;
+#            peer2 (local 127.0.0.2) receives NEXT_HOP=127.0.0.2.
+# PREVENTS: resolveNextHop regression where all peers get the same NEXT_HOP
+#           regardless of their local session address.
+
+# ze-peer 1 (127.0.0.1) expectations
+stdin=peer1:terminator=EOF_PEER1
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.1"}]}
+EOF_PEER1
+
+# ze-peer 2 (127.0.0.2) expectations
+stdin=peer2:terminator=EOF_PEER2
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.2","remote":{"as":65533}},"origin":"incomplete","ipv4/unicast":[{"action":"add","nlri":["10.0.0.1/32"],"next-hop":"127.0.0.2"}]}
+EOF_PEER2
+
+# Python observer: wait for all plugins ready, drive fakel2tp emit, shut down.
+tmpfs=l2tp-nexthop-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import time
+from ze_api import API, runtime_fail
+
+
+def dispatch(api, command):
+    return api._call_engine('ze-plugin-engine:dispatch-command', {'command': command}) or {}
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for engine post-startup: all plugins loaded, BGP connecting.
+    if not api.wait_for_post_startup(timeout=10.0):
+        runtime_fail('post-startup callback never received')
+        return
+
+    # Brief pause for BGP sessions to reach established after plugins ready.
+    time.sleep(1.0)
+
+    resp = dispatch(api, 'fakel2tp emit add ipv4/unicast 10.0.0.1/32')
+    result = resp.get('result', {})
+    if result.get('status') != 'done':
+        runtime_fail(f'fakel2tp emit failed: {result}')
+        return
+
+    # Give reactor time to fan out the UPDATE to both peers.
+    time.sleep(2.0)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration: two peers with distinct local addresses
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external l2tp-nexthop-test {
+		run ./l2tp-nexthop-test.run
+		encoder json
+	}
+	external bgp-redistribute-egress {
+		use bgp-redistribute-egress
+		encoder json
+	}
+	external fakel2tp {
+		use fakel2tp
+		encoder json
+	}
+}
+
+redistribute {
+	import l2tp {
+		family [ ipv4/unicast ];
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+
+	peer peer2 {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration: two ze-peer instances on different loopback addresses
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer1
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=peer2
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL
