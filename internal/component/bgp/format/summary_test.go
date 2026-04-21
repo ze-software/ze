@@ -13,6 +13,7 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // parseSummaryJSON parses summary format JSON and returns the bgp payload.
@@ -88,7 +89,7 @@ func summaryMsg(body []byte, msgID uint64) bgptypes.RawMessage {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 		MessageID:  msgID,
 	}
 }
@@ -266,7 +267,7 @@ func TestFormatSummaryNonUpdate(t *testing.T) {
 	msg := bgptypes.RawMessage{
 		Type:      message.TypeOPEN,
 		RawBytes:  openBody,
-		Direction: "received",
+		Direction: rpc.DirectionReceived,
 		MessageID: 6,
 	}
 
@@ -367,7 +368,7 @@ func TestFormatSummaryMalformed(t *testing.T) {
 	msg := bgptypes.RawMessage{
 		Type:      message.TypeUPDATE,
 		RawBytes:  body,
-		Direction: "received",
+		Direction: rpc.DirectionReceived,
 		MessageID: 10,
 	}
 

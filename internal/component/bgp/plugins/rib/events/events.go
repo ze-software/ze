@@ -10,7 +10,9 @@
 package events
 
 import (
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Namespace is the event namespace for the BGP RIB plugin.
@@ -25,11 +27,14 @@ const (
 	EventReplayRequest = "replay-request" // downstream consumer asking for full table replay
 )
 
-// BestChangeAction values for BestChangeEntry.Action.
+// BestChangeAction values for BestChangeEntry.Action. Aliases on the typed
+// bgptypes.RouteAction so consumers that already imported these names keep
+// compiling. Wire form ("add"/"update"/"withdraw") is preserved via
+// RouteAction.MarshalText.
 const (
-	BestChangeAdd      = "add"
-	BestChangeUpdate   = "update"
-	BestChangeWithdraw = "withdraw"
+	BestChangeAdd      = bgptypes.RouteActionAdd
+	BestChangeUpdate   = bgptypes.RouteActionUpdate
+	BestChangeWithdraw = bgptypes.RouteActionWithdraw
 )
 
 // BestChangeEntry is one per-prefix entry in a BestChangeBatch. Json tags
@@ -43,14 +48,14 @@ const (
 // for ADD-PATH entries (including pathID=0) and omitted for everything
 // else.
 type BestChangeEntry struct {
-	Action       string `json:"action"`
-	Prefix       string `json:"prefix"`
-	AddPath      bool   `json:"add-path,omitempty"`
-	PathID       uint32 `json:"path-id,omitempty"`
-	NextHop      string `json:"next-hop,omitempty"`
-	Priority     int    `json:"priority"`
-	Metric       uint32 `json:"metric"`
-	ProtocolType string `json:"protocol-type,omitempty"`
+	Action       bgptypes.RouteAction `json:"action"`
+	Prefix       string               `json:"prefix"`
+	AddPath      bool                 `json:"add-path,omitempty"`
+	PathID       uint32               `json:"path-id,omitempty"`
+	NextHop      string               `json:"next-hop,omitempty"`
+	Priority     int                  `json:"priority"`
+	Metric       uint32               `json:"metric"`
+	ProtocolType string               `json:"protocol-type,omitempty"`
 }
 
 // BestChangeBatch is the payload of (bgp-rib, best-change). One batch is
@@ -58,7 +63,7 @@ type BestChangeEntry struct {
 // a full-table replay batch from an incremental change batch.
 type BestChangeBatch struct {
 	Protocol string            `json:"protocol"`         // always "bgp" for the BGP RIB plugin
-	Family   string            `json:"family"`           // e.g. "ipv4/unicast"
+	Family   family.Family     `json:"family"`           // typed family; JSON "ipv4/unicast" etc. via MarshalText
 	Replay   bool              `json:"replay,omitempty"` // true for full-table replay batches
 	Changes  []BestChangeEntry `json:"changes"`
 }

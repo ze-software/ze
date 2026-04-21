@@ -8,6 +8,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // RawMessage represents a BGP message sent or received.
@@ -19,7 +20,7 @@ type RawMessage struct {
 	MessageID  uint64                    // Unique ID for all message types
 	AttrsWire  *attribute.AttributesWire // Lazy attribute parsing (nil if not UPDATE or parse failed)
 	WireUpdate *wireu.WireUpdate         // UPDATE wire wrapper (nil if not UPDATE)
-	Direction  string                    // "sent" or "received"
+	Direction  rpc.MessageDirection      // DirectionSent / DirectionReceived
 	ParseError error                     // Non-nil if lazy parsing failed
 	Meta       map[string]any            // Route metadata from ReceivedUpdate (sent events only)
 }

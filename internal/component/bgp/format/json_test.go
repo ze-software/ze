@@ -22,6 +22,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // getBGPPayload extracts the bgp payload from ze-bgp JSON format.
@@ -525,7 +526,7 @@ func TestFormatMessageNotificationText_Parsed(t *testing.T) {
 		Type:      message.TypeNOTIFICATION,
 		RawBytes:  rawBytes,
 		MessageID: 42,
-		Direction: "received",
+		Direction: rpc.DirectionReceived,
 	}
 
 	// Even with plugin.EncodingJSON, FormatMessage returns text for non-UPDATE
@@ -565,7 +566,7 @@ func TestFormatMessageIgnoresEncodingForParsedNonUpdate(t *testing.T) {
 		Type:      message.TypeNOTIFICATION,
 		RawBytes:  []byte{0x04, 0x00}, // Hold Timer Expired
 		MessageID: 1,
-		Direction: "received",
+		Direction: rpc.DirectionReceived,
 	}
 
 	// Request JSON encoding with parsed format
@@ -666,7 +667,7 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 	}
 
 	content := bgptypes.ContentConfig{
@@ -726,7 +727,7 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 	}
 
 	content := bgptypes.ContentConfig{
@@ -789,7 +790,7 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 	}
 
 	content := bgptypes.ContentConfig{
@@ -856,7 +857,7 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 	}
 
 	content := bgptypes.ContentConfig{
@@ -927,7 +928,7 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 	}
 
 	content := bgptypes.ContentConfig{
@@ -1111,7 +1112,7 @@ func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 	}
 
 	content := bgptypes.ContentConfig{
@@ -1771,7 +1772,7 @@ func TestEventJSONHasTopLevelType(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 		MessageID:  123,
 	}
 
@@ -1873,7 +1874,7 @@ func TestEventJSONMessageMetadata(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 		MessageID:  456,
 	}
 
@@ -2032,7 +2033,7 @@ func TestEventJSONNestedStructure(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 	}
 
 	content := bgptypes.ContentConfig{
@@ -2102,7 +2103,7 @@ func TestEventJSONRawSection(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 	}
 
 	content := bgptypes.ContentConfig{

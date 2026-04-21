@@ -19,6 +19,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // safeIngressFilter calls an ingress filter with panic recovery.
@@ -167,6 +168,13 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 // buf is the pool buffer for received messages (nil for sent).
 // Returns true if buf ownership was taken (caller should not return to pool).
 func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction string, buf BufHandle, meta map[string]any) bool {
+	var typedDirection rpc.MessageDirection
+	switch direction {
+	case events.DirectionSent:
+		typedDirection = rpc.DirectionSent
+	case events.DirectionReceived:
+		typedDirection = rpc.DirectionReceived
+	}
 	r.mu.RLock()
 	receiver := r.messageReceiver
 	peer, hasPeer := r.findPeerByAddr(peerAddr)
@@ -250,7 +258,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			Type:       msgType,
 			RawBytes:   wireUpdate.Payload(), // Zero-copy: valid during callback
 			Timestamp:  timestamp,
-			Direction:  direction,
+			Direction:  typedDirection,
 			MessageID:  messageID,
 			WireUpdate: wireUpdate,
 			AttrsWire:  attrsWire, // Derived from WireUpdate
@@ -280,7 +288,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			Type:      msgType,
 			RawBytes:  bytes,
 			Timestamp: timestamp,
-			Direction: direction,
+			Direction: typedDirection,
 			MessageID: messageID,
 			Meta:      sentMeta,
 		}

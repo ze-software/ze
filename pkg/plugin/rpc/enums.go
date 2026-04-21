@@ -24,8 +24,53 @@ const (
 	wireHex         = "hex"
 	wireBase64      = "b64"
 	wireText        = "text"
+	wireSent        = "sent"
+	wireReceived    = "received"
 	wireUnspecified = "unspecified"
 )
+
+// MessageDirection is the typed wire direction of a BGP message from the
+// reactor's perspective. Wire form: "sent", "received".
+type MessageDirection uint8
+
+const (
+	DirectionUnspecified MessageDirection = 0
+	DirectionSent        MessageDirection = 1
+	DirectionReceived    MessageDirection = 2
+)
+
+func (d MessageDirection) String() string {
+	switch d {
+	case DirectionSent:
+		return wireSent
+	case DirectionReceived:
+		return wireReceived
+	case DirectionUnspecified:
+		return wireUnspecified
+	}
+	return wireUnspecified
+}
+
+func (d MessageDirection) AppendTo(buf []byte) []byte { return append(buf, d.String()...) }
+
+func (d MessageDirection) MarshalText() ([]byte, error) {
+	if d == DirectionUnspecified {
+		return nil, fmt.Errorf("rpc: unspecified MessageDirection is invalid on the wire")
+	}
+	return []byte(d.String()), nil
+}
+
+func (d *MessageDirection) UnmarshalText(data []byte) error {
+	switch string(data) {
+	case wireSent:
+		*d = DirectionSent
+	case wireReceived:
+		*d = DirectionReceived
+	default:
+		return fmt.Errorf("rpc: unknown message direction %q", string(data))
+	}
+	return nil
+}
 
 // FilterAction is the typed wire decision returned by a filter plugin
 // via FilterUpdateOutput.Action. Wire form: "accept", "reject", "modify".

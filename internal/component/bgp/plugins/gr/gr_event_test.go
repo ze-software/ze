@@ -434,7 +434,7 @@ func TestHandleStructuredEventDispatchOpen(t *testing.T) {
 		PeerAddress: "10.0.0.1",
 		PeerAS:      65001,
 		EventType:   "open",
-		Direction:   "received",
+		Direction:   rpc.DirectionReceived,
 		RawMessage:  &bgptypes.RawMessage{RawBytes: openBody},
 	}
 
@@ -791,7 +791,7 @@ func TestHandleStructuredEventNonOpenType(t *testing.T) {
 		PeerAddress: "10.0.0.1",
 		PeerAS:      65001,
 		EventType:   "keepalive",
-		Direction:   "received",
+		Direction:   rpc.DirectionReceived,
 		RawMessage:  &bgptypes.RawMessage{RawBytes: []byte{0x04}},
 	}
 
@@ -823,7 +823,7 @@ func TestHandleStructuredEventOpenWrongRawMessageType(t *testing.T) {
 		PeerAddress: "10.0.0.1",
 		PeerAS:      65001,
 		EventType:   "open",
-		Direction:   "received",
+		Direction:   rpc.DirectionReceived,
 		RawMessage:  "not a RawMessage", // wrong type
 	}
 

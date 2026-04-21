@@ -50,8 +50,8 @@ func AppendSentMessage(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessag
 func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, overrideDir, messageType string) []byte {
 	content = content.WithDefaults()
 
-	// Compute effective direction
-	direction := msg.Direction
+	// Compute effective direction (string form for formatter emitters).
+	direction := msg.Direction.String()
 	if overrideDir != "" {
 		direction = overrideDir
 	}

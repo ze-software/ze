@@ -26,7 +26,7 @@ import (
 func (r *RIBManager) dispatchStructured(se *rpc.StructuredEvent) {
 	switch se.EventType {
 	case "update":
-		if se.Direction == "sent" {
+		if se.Direction == rpc.DirectionSent {
 			r.handleSentStructured(se)
 		} else {
 			r.handleReceivedStructured(se)
@@ -195,23 +195,22 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// correct metadata. Preallocate the per-family slices with
 	// len(affected) -- all changes in a single UPDATE almost always
 	// belong to one family, so one grow-free append per batch.
-	changesByFamily := make(map[string][]bestChangeEntry)
+	changesByFamily := make(map[family.Family][]bestChangeEntry)
 	for _, ap := range affected {
 		change, ok := r.checkBestPathChange(ap.fam, ap.nlriBytes, ap.addPath, forward)
 		if !ok {
 			continue
 		}
-		familyStr := ap.fam.String()
-		slice, seen := changesByFamily[familyStr]
+		slice, seen := changesByFamily[ap.fam]
 		if !seen {
 			slice = make([]bestChangeEntry, 0, len(affected))
 		}
-		changesByFamily[familyStr] = append(slice, change)
+		changesByFamily[ap.fam] = append(slice, change)
 	}
 
 	// Publish one batch per family.
-	for famName, changes := range changesByFamily {
-		publishBestChanges(changes, famName)
+	for fam, changes := range changesByFamily {
+		publishBestChanges(changes, fam)
 	}
 }
 

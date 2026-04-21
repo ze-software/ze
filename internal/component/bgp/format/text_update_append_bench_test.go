@@ -8,6 +8,7 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // buildBenchUpdate builds a representative UPDATE fixture (INET prefix +
@@ -37,7 +38,7 @@ func buildBenchUpdate(tb testing.TB) (plugin.PeerInfo, bgptypes.RawMessage, bgpt
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 		MessageID:  42,
 	}
 	content := bgptypes.ContentConfig{

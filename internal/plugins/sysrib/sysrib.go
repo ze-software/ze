@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 
 	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
@@ -110,7 +111,7 @@ type protocolRoute struct {
 
 // prefixKey identifies a unique prefix in the system RIB.
 type prefixKey struct {
-	family string
+	family family.Family
 	prefix string
 }
 
@@ -197,16 +198,16 @@ func (s *sysRIB) effectivePriority(protocolType string, incomingPriority int) in
 // EventBus. Returns the outgoing changes the caller should publish on the
 // (sysrib, best-change) channel, plus the family the changes belong to.
 // batch is the typed payload delivered by the bgp-rib BestChange handle.
-func (s *sysRIB) processEvent(batch *incomingBatch) (string, []outgoingChange) {
+func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingChange) {
 	if batch == nil {
 		logger().Warn("sysrib: nil batch")
-		return "", nil
+		return family.Family{}, nil
 	}
 	proto := batch.Protocol
 	fam := batch.Family
-	if proto == "" || fam == "" {
+	if proto == "" || (fam == family.Family{}) {
 		logger().Warn("sysrib: event missing protocol or family")
-		return "", nil
+		return family.Family{}, nil
 	}
 
 	if m := sysribMetricsPtr.Load(); m != nil {
@@ -223,14 +224,14 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (string, []outgoingChange) {
 			logger().Warn("sysrib: skipping change with empty prefix")
 			continue
 		}
-		if c.Action != "add" && c.Action != "update" && c.Action != "withdraw" {
+		if c.Action != bgptypes.RouteActionAdd && c.Action != bgptypes.RouteActionUpdate && c.Action != bgptypes.RouteActionWithdraw {
 			logger().Warn("sysrib: unrecognized action", "action", c.Action, "prefix", c.Prefix)
 			continue
 		}
 
 		key := prefixKey{family: fam, prefix: c.Prefix}
 
-		if c.Action == "add" || c.Action == "update" {
+		if c.Action == bgptypes.RouteActionAdd || c.Action == bgptypes.RouteActionUpdate {
 			// Use per-change protocol type for admin distance override.
 			// Falls back to batch-level protocol if per-change type is absent.
 			protoType := c.ProtocolType
@@ -250,7 +251,7 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (string, []outgoingChange) {
 				incomingPriority: c.Priority,
 				metric:           c.Metric,
 			}
-		} else if c.Action == "withdraw" && s.routes[key] != nil {
+		} else if c.Action == bgptypes.RouteActionWithdraw && s.routes[key] != nil {
 			delete(s.routes[key], proto)
 			if len(s.routes[key]) == 0 {
 				delete(s.routes, key)
@@ -275,7 +276,7 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (string, []outgoingChange) {
 // reapplyAdminDistances recalculates effective priorities for all stored routes
 // using the current adminDist map, then recomputes best for each prefix.
 // Returns outgoing changes grouped by family. Caller MUST NOT hold s.mu.
-func (s *sysRIB) reapplyAdminDistances() map[string][]outgoingChange {
+func (s *sysRIB) reapplyAdminDistances() map[family.Family][]outgoingChange {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -287,7 +288,7 @@ func (s *sysRIB) reapplyAdminDistances() map[string][]outgoingChange {
 	}
 
 	// Recompute best for all prefixes; collect changes by family.
-	changesByFamily := make(map[string][]outgoingChange)
+	changesByFamily := make(map[family.Family][]outgoingChange)
 	for key := range s.routes {
 		if change := s.recomputeBest(key); change != nil {
 			changesByFamily[key.family] = append(changesByFamily[key.family], *change)
@@ -363,14 +364,14 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 // publishChanges emits one event on (system-rib, best-change) via the
 // typed BestChange handle. In-process FIB plugins receive the *BestChangeBatch
 // directly; external plugin processes receive JSON marshaled by the bus.
-func publishChanges(changes []outgoingChange, family string) {
+func publishChanges(changes []outgoingChange, fam family.Family) {
 	eb := getEventBus()
 	if eb == nil {
 		return
 	}
 
 	batch := &outgoingBatch{
-		Family:  family,
+		Family:  fam,
 		Changes: changes,
 	}
 	if _, err := sysribevents.BestChange.Emit(eb, batch); err != nil {
@@ -387,7 +388,7 @@ func (s *sysRIB) replayBest() {
 	}
 
 	s.mu.RLock()
-	changesByFamily := make(map[string][]outgoingChange)
+	changesByFamily := make(map[family.Family][]outgoingChange)
 	for key, route := range s.best {
 		changesByFamily[key.family] = append(changesByFamily[key.family], outgoingChange{
 			Action:   "add",
@@ -480,11 +481,11 @@ func (s *sysRIB) showRIB() (string, error) {
 	defer s.mu.RUnlock()
 
 	type entry struct {
-		Prefix   string `json:"prefix"`
-		Family   string `json:"family"`
-		NextHop  string `json:"next-hop"`
-		Protocol string `json:"protocol"`
-		Priority int    `json:"priority"`
+		Prefix   string        `json:"prefix"`
+		Family   family.Family `json:"family"`
+		NextHop  string        `json:"next-hop"`
+		Protocol string        `json:"protocol"`
+		Priority int           `json:"priority"`
 	}
 
 	entries := make([]entry, 0, len(s.best))
@@ -509,7 +510,7 @@ func (s *sysRIB) showRIB() (string, error) {
 // sysrib's processEvent consumes. One Change -> one single-entry batch.
 // Returns nil for unspecified / unrecognized ChangeKind.
 func changeToBatch(c locrib.Change) *incomingBatch {
-	var action string
+	var action bgptypes.RouteAction
 	switch c.Kind {
 	case locrib.ChangeAdd:
 		action = ribevents.BestChangeAdd
@@ -534,7 +535,7 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 	}
 	return &incomingBatch{
 		Protocol: redistevents.ProtocolName(c.Best.Source),
-		Family:   c.Family.String(),
+		Family:   c.Family,
 		Changes: []incomingChange{{
 			Action:       action,
 			Prefix:       c.Prefix.String(),

@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // RouteItem is a single route yielded by the pipeline iterator.
@@ -25,7 +26,7 @@ type RouteItem struct {
 	Peer      string
 	Family    family.Family
 	Prefix    string
-	Direction string // "received" or "sent"
+	Direction rpc.MessageDirection // DirectionReceived / DirectionSent
 
 	// Exactly one of these is set, depending on Direction.
 	HasInEntry bool               // true when InEntry is populated
@@ -108,7 +109,7 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 				Peer:       peer,
 				Family:     fam,
 				Prefix:     prefixStr,
-				Direction:  "received",
+				Direction:  rpc.DirectionReceived,
 				HasInEntry: true,
 				InEntry:    entry,
 			})
@@ -143,7 +144,7 @@ func newOutboundSource(r *RIBManager, selector string) *outboundSource {
 					Peer:      peer,
 					Family:    rt.Family,
 					Prefix:    rt.Prefix,
-					Direction: "sent",
+					Direction: rpc.DirectionSent,
 					OutRoute:  rt,
 				})
 			}
@@ -731,7 +732,7 @@ func (jt *jsonTerminal) drain() {
 		}
 
 		routeMap := serializeRouteItem(item)
-		if item.Direction == "received" {
+		if item.Direction == rpc.DirectionReceived {
 			pr.received = append(pr.received, routeMap)
 		} else {
 			pr.sent = append(pr.sent, routeMap)

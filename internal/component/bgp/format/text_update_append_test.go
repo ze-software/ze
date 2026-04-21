@@ -13,6 +13,7 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // VALIDATES: AC-2 -- AppendSentMessage emits `"message":{"type":"sent"` in
@@ -47,7 +48,7 @@ func TestAppendSentMessage_TypeIsSent(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received", // deliberately wrong to prove AppendSentMessage overrides it
+		Direction:  rpc.DirectionReceived, // deliberately wrong to prove AppendSentMessage overrides it
 		MessageID:  42,
 	}
 
@@ -126,7 +127,7 @@ func TestAppendSentMessage_NoStringsReplaceSurgery(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 		MessageID:  7,
 	}
 	content := bgptypes.ContentConfig{

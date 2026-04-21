@@ -78,7 +78,7 @@ func buildBenchUpdate() (*plugin.PeerInfo, bgptypes.RawMessage) {
 	msg := bgptypes.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   payload,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 		MessageID:  42,
 		AttrsWire:  attrsWire,
 		WireUpdate: wu,

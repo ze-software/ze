@@ -527,9 +527,9 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 		switch {
 		case policy == "all":
 			bp.handleSenderUpdate(se, senders)
-		case policy == "pre-policy" && se.Direction == "received":
+		case policy == "pre-policy" && se.Direction == rpc.DirectionReceived:
 			bp.handleSenderUpdate(se, senders)
-		case policy == "post-policy" && se.Direction == "sent":
+		case policy == "post-policy" && se.Direction == rpc.DirectionSent:
 			bp.handleSenderUpdate(se, senders)
 		}
 	}
@@ -607,7 +607,7 @@ func peerHeaderFromEvent(se *rpc.StructuredEvent) PeerHeader {
 
 	// RFC 8671: set O flag for Adj-RIB-Out (sent direction).
 	// Also set L flag (post-policy) since sent updates have passed export policy.
-	if se.Direction == "sent" {
+	if se.Direction == rpc.DirectionSent {
 		ph.Flags |= PeerFlagO | PeerFlagL
 	}
 

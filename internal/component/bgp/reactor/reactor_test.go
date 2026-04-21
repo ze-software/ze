@@ -11,6 +11,7 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1501,7 +1502,7 @@ func TestNotifyMessageReceiverSentAttrsWire(t *testing.T) {
 
 	// Verify AttrsWire is set
 	require.NotNil(t, sentMsg.AttrsWire, "AttrsWire should be created for sent UPDATE with ctxID")
-	require.Equal(t, "sent", sentMsg.Direction, "Direction should be 'sent'")
+	require.Equal(t, rpc.DirectionSent, sentMsg.Direction, "Direction should be 'sent'")
 
 	// Verify AttrsWire can parse attributes
 	origin, err := sentMsg.AttrsWire.Get(attribute.AttrOrigin)

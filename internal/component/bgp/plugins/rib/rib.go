@@ -918,7 +918,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	r.peerUp[peerAddr] = isUp
 
 	var routesToReplay []*Route
-	var pendingPurgeEmits map[string][]bestChangeEntry
+	var pendingPurgeEmits map[family.Family][]bestChangeEntry
 
 	if isUp && !wasUp {
 		delete(r.retainedPeers, peerAddr)
@@ -973,7 +973,7 @@ func (r *RIBManager) handleState(event *Event) {
 	r.peerUp[peerAddr] = isUp
 
 	var routesToReplay []*Route
-	var pendingPurgeEmits map[string][]bestChangeEntry
+	var pendingPurgeEmits map[family.Family][]bestChangeEntry
 
 	if isUp && !wasUp {
 		// Peer came up - clear retain flag (fresh session replaces stale state).

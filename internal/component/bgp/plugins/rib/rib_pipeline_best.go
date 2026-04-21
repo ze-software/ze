@@ -12,6 +12,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // --- Best-path source ---
@@ -88,7 +89,7 @@ func newBestSource(r *RIBManager, selector string, stashCandidates map[string][]
 			Peer:      best.PeerAddr,
 			Family:    rk.fam,
 			Prefix:    rk.prefixS,
-			Direction: "received",
+			Direction: rpc.DirectionReceived,
 		}
 
 		// Attach the pool entry from the winning peer for attribute access.

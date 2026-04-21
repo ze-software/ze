@@ -21,6 +21,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // newTestProcWithConn creates a Process with a working ConnB and delivery goroutine for testing.
@@ -82,7 +83,7 @@ func newTestServer(t *testing.T) *pluginserver.Server {
 func keepaliveMsg() bgptypes.RawMessage {
 	return bgptypes.RawMessage{
 		Type:      message.TypeKEEPALIVE,
-		Direction: "received",
+		Direction: rpc.DirectionReceived,
 	}
 }
 

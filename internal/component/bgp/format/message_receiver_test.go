@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // TestRawMessageType verifies RawMessage struct exists with expected fields.
@@ -501,7 +502,7 @@ func TestFormatFullAddPathFlags(t *testing.T) {
 			RawBytes:   body,
 			AttrsWire:  attrsWire,
 			WireUpdate: wireUpdate,
-			Direction:  "received",
+			Direction:  rpc.DirectionReceived,
 		}
 
 		content := bgptypes.ContentConfig{
@@ -545,7 +546,7 @@ func TestFormatFullAddPathFlags(t *testing.T) {
 			RawBytes:   body,
 			AttrsWire:  attrsWire,
 			WireUpdate: wireUpdate,
-			Direction:  "received",
+			Direction:  rpc.DirectionReceived,
 		}
 
 		content := bgptypes.ContentConfig{

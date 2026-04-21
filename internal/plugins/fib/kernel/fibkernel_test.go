@@ -4,6 +4,7 @@ import (
 	"sync"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -57,7 +58,7 @@ func (m *mockBackend) close() error { return nil }
 // Returns *incomingBatch — the shape the typed handle carries on the bus.
 func makeSysribPayload(changes []incomingChange) *incomingBatch {
 	return &incomingBatch{
-		Family:  "ipv4/unicast",
+		Family:  family.IPv4Unicast,
 		Changes: changes,
 	}
 }

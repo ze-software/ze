@@ -321,19 +321,19 @@ func (b *DirectBridge) DispatchRPC(method string, params json.RawMessage) (json.
 // Pooled via GetStructuredEvent/PutStructuredEvent — callers MUST return via
 // PutStructuredEvent after all consumers have processed the event.
 type StructuredEvent struct {
-	PeerAddress  string         // Source peer address string
-	PeerName     string         // Peer name from config
-	PeerGroup    string         // Peer group name from config
-	PeerAS       uint32         // Remote peer AS number
-	LocalAS      uint32         // Local AS number
-	LocalAddress string         // Local address string
-	EventType    string         // "update", "open", "notification", "keepalive", "refresh", "state", "eor", etc.
-	Direction    string         // "sent" or "received"
-	MessageID    uint64         // Unique message ID (0 for non-message events)
-	State        string         // For state events: "up", "down"
-	Reason       string         // For state events: close reason
-	RawMessage   any            // *types.RawMessage for wire messages, nil for synthetic events
-	Meta         map[string]any // Route metadata (sent events only)
+	PeerAddress  string           // Source peer address string
+	PeerName     string           // Peer name from config
+	PeerGroup    string           // Peer group name from config
+	PeerAS       uint32           // Remote peer AS number
+	LocalAS      uint32           // Local AS number
+	LocalAddress string           // Local address string
+	EventType    string           // "update", "open", "notification", "keepalive", "refresh", "state", "eor", etc.
+	Direction    MessageDirection // DirectionSent / DirectionReceived
+	MessageID    uint64           // Unique message ID (0 for non-message events)
+	State        string           // For state events: "up", "down"
+	Reason       string           // For state events: close reason
+	RawMessage   any              // *types.RawMessage for wire messages, nil for synthetic events
+	Meta         map[string]any   // Route metadata (sent events only)
 }
 
 // GetStructuredEvent returns a StructuredEvent from the pool.
@@ -356,7 +356,7 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.LocalAS = 0
 	se.LocalAddress = ""
 	se.EventType = ""
-	se.Direction = ""
+	se.Direction = DirectionUnspecified
 	se.MessageID = 0
 	se.State = ""
 	se.Reason = ""

@@ -133,7 +133,7 @@ func TestRIBBestChangePublish(t *testing.T) {
 	assert.Equal(t, 20, change.Priority, "eBGP should have priority 20")
 
 	// Publish and verify the EventBus event.
-	publishBestChanges([]bestChangeEntry{change}, fam.String())
+	publishBestChanges([]bestChangeEntry{change}, fam)
 
 	evt := bus.lastEvent()
 	require.NotNil(t, evt)
@@ -144,7 +144,7 @@ func TestRIBBestChangePublish(t *testing.T) {
 	require.True(t, ok, "expected *bestChangeBatch payload, got %T", evt.Payload)
 	batch := *batchPtr
 	assert.Equal(t, "bgp", batch.Protocol)
-	assert.Equal(t, "ipv4/unicast", batch.Family)
+	assert.Equal(t, family.IPv4Unicast, batch.Family)
 	require.Len(t, batch.Changes, 1)
 	assert.Equal(t, ribevents.BestChangeAdd, batch.Changes[0].Action)
 	assert.Equal(t, "10.0.0.0/24", batch.Changes[0].Prefix)
@@ -733,7 +733,7 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 
 	// Publish as single batch.
 	require.Len(t, changes, 3, "should have 3 withdraw changes")
-	publishBestChanges(changes, fam.String())
+	publishBestChanges(changes, fam)
 
 	// Verify single event with 3 withdrawals.
 	assert.Equal(t, 1, bus.eventCount(), "should be a single batch event")

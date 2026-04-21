@@ -7,6 +7,7 @@ package events
 
 import (
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 // Namespace is the event namespace for the system RIB plugin.
@@ -30,7 +31,7 @@ type BestChangeEntry struct {
 // emitted per family. The Replay flag distinguishes full-table replay from
 // incremental changes.
 type BestChangeBatch struct {
-	Family  string            `json:"family"`
+	Family  family.Family     `json:"family"`
 	Replay  bool              `json:"replay,omitempty"`
 	Changes []BestChangeEntry `json:"changes"`
 }

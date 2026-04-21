@@ -133,7 +133,7 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventType, msg.Direction, peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventType, msg.Direction.String(), peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return 0
@@ -200,7 +200,7 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	// RFC 4724 Section 2: detect EOR markers in received UPDATEs.
 	// EOR is delivered as a separate event so plugins can subscribe to "eor" independently.
 	isUpdate := msg.Type == message.TypeUPDATE
-	if isUpdate && msg.Direction == events.DirectionReceived && msg.WireUpdate != nil {
+	if isUpdate && msg.Direction == rpc.DirectionReceived && msg.WireUpdate != nil {
 		if fam, ok := msg.WireUpdate.IsEOR(); ok {
 			onEORReceived(s, peer, fam.String())
 		}
@@ -211,7 +211,7 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	if !ok {
 		jsonOutput = formatMessageForSubscription(encoder, peer, msg, "parsed", "json")
 	}
-	monitorDeliver(s, eventType, msg.Direction, peerAddr, peer.Name, jsonOutput)
+	monitorDeliver(s, eventType, msg.Direction.String(), peerAddr, peer.Name, jsonOutput)
 
 	return cacheCount
 }
@@ -235,7 +235,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventType, msgs[0].Direction, peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventType, msgs[0].Direction.String(), peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return counts
@@ -304,7 +304,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 		}
 
 		// RFC 4724 Section 2: detect EOR markers in received UPDATEs.
-		if isUpdate && msg.Direction == events.DirectionReceived && msg.WireUpdate != nil {
+		if isUpdate && msg.Direction == rpc.DirectionReceived && msg.WireUpdate != nil {
 			if fam, ok := msg.WireUpdate.IsEOR(); ok {
 				onEORReceived(s, peer, fam.String())
 			}
@@ -315,7 +315,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 		if !ok {
 			jsonOutput = formatMessageForSubscription(encoder, peer, *msg, "parsed", "json")
 		}
-		monitorDeliver(s, eventType, msg.Direction, peerAddr, peer.Name, jsonOutput)
+		monitorDeliver(s, eventType, msg.Direction.String(), peerAddr, peer.Name, jsonOutput)
 	}
 
 	return counts
@@ -363,29 +363,29 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer *plugin.Peer
 	case message.TypeOPEN:
 		decoded := format.DecodeOpen(msg.RawBytes)
 		if encoding == plugin.EncodingText {
-			return string(format.AppendOpen(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
+			return string(format.AppendOpen(scratchArr[:0], peer, decoded, msg.Direction.String(), msg.MessageID))
 		}
-		return encoder.Open(peer, decoded, msg.Direction, msg.MessageID)
+		return encoder.Open(peer, decoded, msg.Direction.String(), msg.MessageID)
 
 	case message.TypeNOTIFICATION:
 		decoded := format.DecodeNotification(msg.RawBytes)
 		if encoding == plugin.EncodingText {
-			return string(format.AppendNotification(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
+			return string(format.AppendNotification(scratchArr[:0], peer, decoded, msg.Direction.String(), msg.MessageID))
 		}
-		return encoder.Notification(peer, decoded, msg.Direction, msg.MessageID)
+		return encoder.Notification(peer, decoded, msg.Direction.String(), msg.MessageID)
 
 	case message.TypeKEEPALIVE:
 		if encoding == plugin.EncodingText {
-			return string(format.AppendKeepalive(scratchArr[:0], peer, msg.Direction, msg.MessageID))
+			return string(format.AppendKeepalive(scratchArr[:0], peer, msg.Direction.String(), msg.MessageID))
 		}
-		return encoder.Keepalive(peer, msg.Direction, msg.MessageID)
+		return encoder.Keepalive(peer, msg.Direction.String(), msg.MessageID)
 
 	case message.TypeROUTEREFRESH:
 		decoded := format.DecodeRouteRefresh(msg.RawBytes)
 		if encoding == plugin.EncodingText {
-			return string(format.AppendRouteRefresh(scratchArr[:0], peer, decoded, msg.Direction, msg.MessageID))
+			return string(format.AppendRouteRefresh(scratchArr[:0], peer, decoded, msg.Direction.String(), msg.MessageID))
 		}
-		return encoder.RouteRefresh(peer, decoded, msg.Direction, msg.MessageID)
+		return encoder.RouteRefresh(peer, decoded, msg.Direction.String(), msg.MessageID)
 
 	default: // Unsupported type — filtered by messageTypeToEventType before reaching here
 		return ""

@@ -16,6 +16,7 @@ import (
 	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/store"
@@ -346,7 +347,7 @@ func (b *bestPrevInterner) internerSize() (peers, nextHops, metrics int) {
 // Reverse-table lookups go through the bounds-safe accessors, so a record
 // whose indices outlive a reset interner emits zero-valued NextHop/Metric
 // rather than panicking.
-func (r bestPathRecord) resolve(interner *bestPrevInterner, action, prefix string, pathID uint32, addPath bool) bestChangeEntry {
+func (r bestPathRecord) resolve(interner *bestPrevInterner, action bgptypes.RouteAction, prefix string, pathID uint32, addPath bool) bestChangeEntry {
 	priority := 200
 	protoType := protocolTypeIBGP
 	if r.IsEBGP() {
@@ -536,7 +537,7 @@ func (s *bestPrevStore) delete(fam family.Family, nlriBytes []byte, addPath bool
 // shard's direct + multi Iterate. For a 1M-prefix table this is O(1M)
 // serial reads across all shards -- call site expects a cold-path
 // peer-down event, not the hot UPDATE path.
-func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[string][]bestChangeEntry {
+func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]bestChangeEntry {
 	peerIdx, ok := r.bestPathInterner.peerIdxOf(peerAddr)
 	if !ok {
 		// Peer was never interned, so no bestPrev record can reference it.
@@ -549,13 +550,12 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[string][]bestChan
 	if r.bestPrev == nil {
 		return nil
 	}
-	var pending map[string][]bestChangeEntry
+	var pending map[family.Family][]bestChangeEntry
 	for _, fam := range r.bestPrev.familyList() {
 		fs := r.bestPrev.familyShards(fam, false)
 		if fs == nil {
 			continue
 		}
-		famStr := fam.String()
 		var changes []bestChangeEntry
 		for i := range fs.shards {
 			sh := &fs.shards[i]
@@ -627,9 +627,9 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[string][]bestChan
 		}
 		if len(changes) > 0 {
 			if pending == nil {
-				pending = make(map[string][]bestChangeEntry)
+				pending = make(map[family.Family][]bestChangeEntry)
 			}
-			pending[famStr] = changes
+			pending[fam] = changes
 		}
 	}
 	return pending
@@ -639,9 +639,9 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[string][]bestChan
 // by purgeBestPrevForPeer. MUST be called AFTER r.peerMu is released so
 // in-process EventBus subscribers that re-enter RIBManager methods do
 // not deadlock against the outer write lock.
-func (r *RIBManager) emitPurgedWithdraws(pending map[string][]bestChangeEntry) {
-	for famName, changes := range pending {
-		publishBestChanges(changes, famName)
+func (r *RIBManager) emitPurgedWithdraws(pending map[family.Family][]bestChangeEntry) {
+	for fam, changes := range pending {
+		publishBestChanges(changes, fam)
 	}
 }
 
@@ -952,13 +952,12 @@ func (r *RIBManager) replayBestPaths() {
 	}
 
 	families := r.bestPrev.familyList()
-	changesByFamily := make(map[string][]bestChangeEntry, len(families))
+	changesByFamily := make(map[family.Family][]bestChangeEntry, len(families))
 	for _, fam := range families {
 		fs := r.bestPrev.familyShards(fam, false)
 		if fs == nil {
 			continue
 		}
-		famStr := fam.String()
 		// Sum direct + AP counts under each shard's read lock so the batch
 		// preallocation is sized correctly. Replay is a cold path fired on
 		// late-subscriber replay-request; the per-shard read locks are held
@@ -997,7 +996,7 @@ func (r *RIBManager) replayBestPaths() {
 			sh.mu.RUnlock()
 		}
 		if len(changes) > 0 {
-			changesByFamily[famStr] = changes
+			changesByFamily[fam] = changes
 		}
 	}
 
@@ -1021,7 +1020,7 @@ func (r *RIBManager) replayBestPaths() {
 // RIB lock is released. In-process subscribers receive *BestChangeBatch
 // directly; external plugin processes receive the JSON marshaling that the
 // bus produces lazily (only when at least one external subscriber exists).
-func publishBestChanges(changes []bestChangeEntry, family string) {
+func publishBestChanges(changes []bestChangeEntry, fam family.Family) {
 	eb := getEventBus()
 	if eb == nil {
 		return
@@ -1029,7 +1028,7 @@ func publishBestChanges(changes []bestChangeEntry, family string) {
 
 	batch := &bestChangeBatch{
 		Protocol: "bgp",
-		Family:   family,
+		Family:   fam,
 		Changes:  changes,
 	}
 	if _, err := ribevents.BestChange.Emit(eb, batch); err != nil {

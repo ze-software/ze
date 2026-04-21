@@ -173,7 +173,7 @@ func TestStructuredEventPool(t *testing.T) {
 	se.LocalAS = 65000
 	se.LocalAddress = "10.0.0.254"
 	se.EventType = "update"
-	se.Direction = "received"
+	se.Direction = DirectionReceived
 	se.MessageID = 42
 	se.State = "up"
 	se.Reason = "reconnect"
@@ -221,7 +221,7 @@ func TestStructuredEventDeliverViaDirectBridge(t *testing.T) {
 		PeerAddress: "10.0.0.1",
 		PeerAS:      65001,
 		EventType:   "update",
-		Direction:   "received",
+		Direction:   DirectionReceived,
 		MessageID:   1,
 		RawMessage:  "test-payload",
 	}
@@ -235,7 +235,7 @@ func TestStructuredEventDeliverViaDirectBridge(t *testing.T) {
 	assert.Equal(t, "10.0.0.1", got.PeerAddress)
 	assert.Equal(t, uint32(65001), got.PeerAS)
 	assert.Equal(t, "update", got.EventType)
-	assert.Equal(t, "received", got.Direction)
+	assert.Equal(t, DirectionReceived, got.Direction)
 	assert.Equal(t, uint64(1), got.MessageID)
 	assert.Equal(t, "test-payload", got.RawMessage)
 }

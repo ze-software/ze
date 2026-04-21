@@ -11,6 +11,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 var eventLogger = slogutil.LazyLogger("bgp.event")
@@ -355,9 +356,9 @@ type FamilyOperation struct {
 
 // MessageInfo contains message wrapper for received events.
 type MessageInfo struct {
-	Type      string `json:"type"`
-	ID        uint64 `json:"id,omitempty"`
-	Direction string `json:"direction,omitempty"`
+	Type      string               `json:"type"`
+	ID        uint64               `json:"id,omitempty"`
+	Direction rpc.MessageDirection `json:"direction,omitempty"`
 }
 
 // GetEventType returns unified event type.
@@ -380,7 +381,7 @@ func (e *Event) GetMsgID() uint64 {
 // GetDirection returns the direction from message wrapper.
 func (e *Event) GetDirection() string {
 	if e.Message != nil {
-		return e.Message.Direction
+		return e.Message.Direction.String()
 	}
 	return ""
 }

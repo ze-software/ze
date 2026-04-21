@@ -4,6 +4,7 @@ import (
 	"sync"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 )
 
@@ -63,7 +64,7 @@ func (r *fibTestRegistry) HistogramVec(_, _ string, _ []float64, _ []string) met
 
 func makeBatch(changes ...incomingChange) *incomingBatch {
 	return &incomingBatch{
-		Family:  "ipv4/unicast",
+		Family:  family.IPv4Unicast,
 		Changes: changes,
 	}
 }

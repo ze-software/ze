@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // testEncCtx is an empty encoding context for tests (no ADD-PATH).
@@ -282,7 +283,7 @@ func TestFormatMessageText(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 	}
 
 	content := bgptypes.ContentConfig{
@@ -343,7 +344,7 @@ func TestFormatMessageJSON(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 	}
 
 	content := bgptypes.ContentConfig{
@@ -476,7 +477,7 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 	msg := bgptypes.RawMessage{
 		Type:      message.TypeOPEN,
 		RawBytes:  openBody,
-		Direction: "received",
+		Direction: rpc.DirectionReceived,
 	}
 
 	content := bgptypes.ContentConfig{
@@ -511,7 +512,7 @@ func TestFormatNonUpdateKeepalive(t *testing.T) {
 	msg := bgptypes.RawMessage{
 		Type:      message.TypeKEEPALIVE,
 		RawBytes:  []byte{}, // KEEPALIVE has no body
-		Direction: "received",
+		Direction: rpc.DirectionReceived,
 	}
 
 	content := bgptypes.ContentConfig{
@@ -1052,7 +1053,7 @@ func TestFormatHexMatchesRaw(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 	}
 
 	// FormatRaw output
@@ -1136,7 +1137,7 @@ func TestFormatMessageTextEncoding(t *testing.T) {
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
-		Direction:  "received",
+		Direction:  rpc.DirectionReceived,
 	}
 
 	textContent := bgptypes.ContentConfig{

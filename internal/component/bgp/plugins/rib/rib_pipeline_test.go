@@ -9,6 +9,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // --- Phase 1: Path matching ---
@@ -67,7 +68,7 @@ func TestRouteItemFromInbound(t *testing.T) {
 	assert.Equal(t, "192.0.2.1", item.Peer)
 	assert.Equal(t, family.IPv4Unicast, item.Family)
 	assert.Equal(t, "10.0.0.0/24", item.Prefix)
-	assert.Equal(t, "received", item.Direction)
+	assert.Equal(t, rpc.DirectionReceived, item.Direction)
 	assert.NotNil(t, item.InEntry)
 }
 
@@ -245,8 +246,8 @@ func TestTerminalCount(t *testing.T) {
 // PREVENTS: Routes being dropped during JSON serialization.
 func TestTerminalJSON(t *testing.T) {
 	items := []RouteItem{
-		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", Direction: "received"},
-		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", Direction: "received"},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", Direction: rpc.DirectionReceived},
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", Direction: rpc.DirectionReceived},
 	}
 
 	src := &sliceSource{items: items}
@@ -863,9 +864,9 @@ func TestBestPipeline_Empty(t *testing.T) {
 // PREVENTS: Graph terminal producing empty or JSON output instead of text graph.
 func TestGraphTerminal(t *testing.T) {
 	items := []RouteItem{
-		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", Direction: "received",
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", Direction: rpc.DirectionReceived,
 			OutRoute: &Route{ASPath: []uint32{64501, 64502, 64503}}},
-		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", Direction: "received",
+		{Peer: "p1", Family: family.IPv4Unicast, Prefix: "10.0.1.0/24", Direction: rpc.DirectionReceived,
 			OutRoute: &Route{ASPath: []uint32{64504, 64502, 64503}}},
 	}
 

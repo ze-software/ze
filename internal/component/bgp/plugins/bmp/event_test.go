@@ -54,7 +54,7 @@ func TestPeerHeaderFromEventAdjRIBOut(t *testing.T) {
 	se := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
 		PeerAS:      65001,
-		Direction:   "sent",
+		Direction:   rpc.DirectionSent,
 	}
 
 	ph := peerHeaderFromEvent(se)
@@ -71,7 +71,7 @@ func TestPeerHeaderFromEventAdjRIBIn(t *testing.T) {
 	se := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
 		PeerAS:      65001,
-		Direction:   "received",
+		Direction:   rpc.DirectionReceived,
 	}
 
 	ph := peerHeaderFromEvent(se)
