@@ -67,6 +67,7 @@ type Subsystem struct {
 	timers        []*tunnelTimer
 	kernelWorkers []*kernelWorker
 	pppDrivers    []*ppp.Driver
+	drainDones    []<-chan struct{} // auth + pool drain goroutine completion
 	// routeObserver tracks subscriber routes (session IP-up / down).
 	// One instance per subsystem; installed into every reactor at
 	// Start. See spec-l2tp-7 "Redistribute" and route_observer.go.
@@ -167,6 +168,9 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		// into every reactor so EventSessionIPAssigned and
 		// EventSessionDown drive inject / withdraw.
 		reactor.SetRouteObserver(s.routeObserver)
+		// spec-l2tp-8a: install EventBus so reactor can emit
+		// (l2tp, session-down) for pool release.
+		reactor.SetEventBus(bus)
 
 		// Phase 5: wire the kernel worker BEFORE starting the reactor so
 		// SetKernelWorker's writes happen-before the reactor goroutine
@@ -205,6 +209,22 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 				s.unwindLocked()
 				return startErr
 			}
+			// spec-l2tp-8a: spawn auth and pool drain goroutines
+			// after pppDriver.Start() so the channels are live.
+			// Driver.Stop() closes the channels, causing the drains
+			// to exit; we wait for them in unwindLocked/Stop.
+			authH := GetAuthHandler()
+			poolH := GetPoolHandler()
+			if authH == nil {
+				s.logger.Warn("l2tp: no auth handler registered; all sessions will be accepted")
+			}
+			if poolH == nil {
+				s.logger.Error("l2tp: no pool handler registered; all IP requests will be rejected")
+			}
+			s.drainDones = append(s.drainDones,
+				startAuthDrain(s.logger, pppDriver, authH),
+				startPoolDrain(s.logger, pppDriver, poolH),
+			)
 		}
 		if worker != nil {
 			worker.Start()
@@ -283,11 +303,18 @@ func (s *Subsystem) unwindLocked() {
 	}
 	// PPP drivers: close every active session's chan fd (blocking reads
 	// return EBADF, per-session goroutines exit), wait for them.
+	// Driver.Stop closes AuthEventsOut/IPEventsOut channels, causing
+	// drain goroutines to exit.
 	for _, d := range s.pppDrivers {
 		if d != nil {
 			d.Stop()
 		}
 	}
+	// Wait for drain goroutines to finish after channels are closed.
+	for _, done := range s.drainDones {
+		<-done
+	}
+	s.drainDones = nil
 	// Kernel workers: SignalStop first to break any in-flight
 	// setupSession out of its successCh/errCh channel-send select BEFORE
 	// TeardownAll acquires w.mu; otherwise a blocked report would hold
@@ -353,6 +380,10 @@ func (s *Subsystem) Stop(_ context.Context) error {
 			d.Stop()
 		}
 	}
+	for _, done := range s.drainDones {
+		<-done
+	}
+	s.drainDones = nil
 	// Same SignalStop-first pattern as unwindLocked: release w.mu holders
 	// before TeardownAll acquires the lock.
 	for _, kw := range s.kernelWorkers {

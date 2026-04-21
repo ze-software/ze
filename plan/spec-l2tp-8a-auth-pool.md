@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-l2tp-7-subsystem |
-| Phase | - |
+| Phase | 6/7 |
 | Updated | 2026-04-21 |
 
 ## Post-Compaction Recovery

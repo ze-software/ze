@@ -6,6 +6,8 @@ package l2tp
 
 import (
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 // setSharedSecret updates the per-reactor tunnel-default shared secret.
@@ -52,4 +54,10 @@ func (r *L2TPReactor) SetRouteObserver(obs RouteObserver) {
 		return
 	}
 	r.routeObserver = obs
+}
+
+// SetEventBus installs the EventBus for emitting (l2tp, session-down)
+// events. MUST be called before Start().
+func (r *L2TPReactor) SetEventBus(bus ze.EventBus) {
+	r.eventBus = bus
 }

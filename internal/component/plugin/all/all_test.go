@@ -57,6 +57,8 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"fib-vpp",
 		"firewall",
 		"interface",
+		"l2tp-auth-local",
+		"l2tp-pool",
 		"loop",
 		"ntp",
 		"rib",

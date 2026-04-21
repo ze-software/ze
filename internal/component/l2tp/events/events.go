@@ -33,3 +33,18 @@ func registerProducer() bool {
 // observer emits via this handle; bgp-redistribute subscribes via its
 // own local handle bound to the same (namespace, eventType, T) tuple.
 var RouteChange = events.Register[*redistevents.RouteChangeBatch](Namespace, redistevents.EventType)
+
+// SessionDownEvent is the event type string for session-down notifications.
+const SessionDownEvent = "session-down"
+
+// SessionDownPayload carries the tunnel/session IDs of a torn-down session.
+// Pool plugins subscribe to release allocated addresses.
+type SessionDownPayload struct {
+	TunnelID  uint16
+	SessionID uint16
+}
+
+// SessionDown is the typed handle for (l2tp, session-down). Emitted by
+// the reactor when a PPP session tears down; consumed by the pool
+// plugin to release allocated IP addresses.
+var SessionDown = events.Register[*SessionDownPayload](Namespace, SessionDownEvent)

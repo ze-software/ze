@@ -15,8 +15,10 @@ import (
 	"sync"
 	"time"
 
+	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 // pppDriverIface is the subset of *ppp.Driver the reactor uses. Defined
@@ -157,6 +159,10 @@ type L2TPReactor struct {
 	// OnSessionDown at session teardown time. nil when no observer is
 	// installed (tests, subsystem disabled).
 	routeObserver RouteObserver
+
+	// spec-l2tp-8a: EventBus for emitting (l2tp, session-down) events.
+	// Set by subsystem via SetEventBus before Start.
+	eventBus ze.EventBus
 
 	mu      sync.Mutex
 	stop    chan struct{}
@@ -902,6 +908,17 @@ func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
 	// even if the outbound send blocks.
 	if r.routeObserver != nil {
 		r.routeObserver.OnSessionDown(sid)
+	}
+
+	// spec-l2tp-8a: emit (l2tp, session-down) so the pool plugin
+	// can release the allocated IP address.
+	if r.eventBus != nil {
+		if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
+			TunnelID:  tid,
+			SessionID: sid,
+		}); err != nil {
+			r.logger.Warn("l2tp: session-down emit failed", "error", err)
+		}
 	}
 
 	r.logger.Info("l2tp: PPP requested session teardown; sending CDN",
