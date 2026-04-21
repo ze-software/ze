@@ -288,6 +288,33 @@ Auto-populated: CLI dispatch, plugin runners, YANG schemas, config roots, family
 
 External plugins connect back to the engine's TLS listener. Auth is stage 0: `#0 auth {"token":"...","name":"..."}`. Each forked plugin receives a unique random token bound to its name. A plugin cannot use its token to impersonate another. The token is cleared from the OS environment after first read (`Secret: true` on the env registration). The engine also passes its TLS certificate SHA-256 fingerprint via `ZE_PLUGIN_CERT_FP` so the SDK verifies the server identity during the TLS handshake.
 
+## DirectBridge: Choosing the Right Communication Pattern (BLOCKING)
+
+DirectBridge (`pkg/plugin/rpc/bridge.go`) provides typed direct function calls
+between the engine and internal plugins, bypassing JSON serialization and socket
+I/O entirely. It supports multiple communication patterns. Before designing any
+new core-to-plugin communication, read DirectBridge and check whether it already
+covers your use case.
+
+Design history: `plan/learned/294-inprocess-direct-transport.md`
+
+| Pattern | Mechanism | Use when |
+|---------|-----------|----------|
+| Async broadcast (one-to-many) | EventBus (`pkg/ze/eventbus.go`) | A component notifies zero or more listeners about a state change. No return value needed. Example: `(l2tp, session-down)`, `(bgp-rib, best-change)`. |
+| Sync request/response (one-to-one) | DirectBridge typed handler | Core calls a plugin function with typed args and waits for a typed result. Example: `ForwardCached`, `DispatchCommand`, `EmitEvent`. |
+| Structured event delivery | DirectBridge `DeliverStructured` | Engine delivers pre-parsed event data to internal plugins (zero JSON). Example: `StructuredEvent` for BGP UPDATEs. |
+| Text command dispatch | `DispatchCommand` (via bridge or pipe) | Plugin sends a text command to the engine's command registry. Slow path for ad-hoc or external callers. |
+
+**Anti-pattern:** Proposing a new direct-call mechanism when DirectBridge already
+provides typed handler slots. The bridge struct has `Set*`/`Has*`/call triplets
+for each fast-path handler. Adding a new one follows the same pattern (function
+type + `atomic.Bool` + `Set`/`Has`/call methods).
+
+**Anti-pattern:** Using EventBus for request/response. EventBus is pub/sub with
+no return channel. Emitting a request event and subscribing for a response event
+adds complexity (correlation IDs, timeouts, two event registrations) that a
+direct function call avoids entirely.
+
 ## Structured Event Delivery (DirectBridge)
 
 Internal plugins that register `OnStructuredEvent` receive `*rpc.StructuredEvent` instead of formatted text. The engine delivers pre-extracted peer metadata + `RawMessage` pointer, eliminating JSON formatting on the engine side and `ParseEvent` on the plugin side.

@@ -182,6 +182,12 @@ status, data, err := p.DispatchCommand(ctx, "rib routes 10.0.0.0/24")
 
 The engine routes by prefix to the owning plugin's CLIHandler.
 
+## Core-to-Plugin Communication
+
+For choosing between EventBus and DirectBridge, see
+`rules/plugin-design.md` "DirectBridge: Choosing the Right Communication Pattern".
+Short version: EventBus for async broadcast, DirectBridge for sync request/response.
+
 ## Optional Capabilities
 
 ### Route Filters

@@ -146,6 +146,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | environment, env vars | `config/environment.md`, `config/environment-block.md` |
 | web, dashboard, UI | `web-interface.md`, `web-components.md`, `chaos-web-dashboard.md` |
 | subsystem, wiring, plugin manager | `subsystem-wiring.md`, `plugin-manager-wiring.md` |
+| bridge, direct call, request/response, sync handler | `core-design.md` (section 9), `rules/plugin-design.md` (DirectBridge), `plan/learned/294-inprocess-direct-transport.md` |
 | forward pool, congestion | `forward-congestion-pool.md`, `congestion-industry.md` |
 | hub, API commands | `hub-architecture.md`, `hub-api-commands.md` |
 | cache, update cache | `update-cache.md`, `update-density-analysis.md` |
