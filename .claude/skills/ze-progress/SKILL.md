@@ -32,7 +32,7 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
    - For every Wiring Test row: check that the named `.ci` or Go test exists and exercises the path.
    - If anything is `Partial` or `Missing`: STAGE = 1. Go to step 9.
 5. **Stage 2 -- Deferrals:** Read `plan/deferrals.md`. Filter rows where `Source` references the spec filename (or a task from this spec) AND `Status` is `open`.
-   - If any open row exists: STAGE = 2. Before reporting, apply the **Verify Before Deferring** rule (`rules/deferral-tracking.md`): grep the repo for the deferred thing. If it already exists, flag the deferral as resolvable-now. Go to step 9.
+   - If any open row exists: STAGE = 2. Before reporting, apply the **Verify Before Deferring** rule (`ai/rules/deferral-tracking.md`): grep the repo for the deferred thing. If it already exists, flag the deferral as resolvable-now. Go to step 9.
 6. **Stage 3 -- Review:** Determine whether a review has been run since the most recent code change:
    - Most recent code change: `git diff --name-only HEAD~1 HEAD` plus any uncommitted changes from `git status`.
    - Most recent review: look for a review artifact in this session (conversation history) or in recent commits/messages mentioning `/ze-review`, `/ze-review-spec`, `/ze-review-deep`.
@@ -106,7 +106,7 @@ Pick exactly ONE action based on the reported stage. Do not chain recommendation
 | 2 (genuine) | Ask user: implement now, move to another spec, or drop with `user-approved-drop` | Open deferrals cannot silently survive spec closure |
 | 3 | `/ze-review` (or `/ze-review-spec` for conformance, `/ze-review-deep` for exhaustive) | Uncommitted code without a post-edit review is a known failure mode |
 | 4 | `/ze-verify` then `/ze-commit` | Commit A must include the completed spec file with its audit tables filled -- this preserves it in git history |
-| 5 | Write `plan/learned/NNN-<stem>.md`, stage `git rm plan/spec-<name>.md` + the new learned file, then `/ze-commit` | Two-commit rule (`rules/spec-preservation.md`): never delete a spec without committing it first |
+| 5 | Write `plan/learned/NNN-<stem>.md`, stage `git rm plan/spec-<name>.md` + the new learned file, then `/ze-commit` | Two-commit rule (`ai/rules/spec-preservation.md`): never delete a spec without committing it first |
 | done | "Spec complete. `/ze-spec` to pick the next one." | Nothing pending |
 
 ## Rules

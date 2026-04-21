@@ -56,7 +56,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     done
     echo "" >&2
     echo -e "  ${YELLOW}Format: //nolint:linter // reason for disabling${RESET}" >&2
-    echo -e "  ${YELLOW}See .claude/rules/quality.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/quality.md${RESET}" >&2
     exit 2
 fi
 

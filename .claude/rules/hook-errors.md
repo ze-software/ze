@@ -1,7 +1,7 @@
 # Hook Errors
 
 **BLOCKING:** Fix hook validation errors before proceeding.
-Rationale: `.claude/rationale/hook-errors.md`
+Rationale: `ai/rationale/hook-errors.md`
 
 | Exit Code | Meaning | Action |
 |-----------|---------|--------|

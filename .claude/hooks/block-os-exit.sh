@@ -59,7 +59,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     done
     echo "" >&2
     echo -e "  ${YELLOW}Return exit codes, never os.Exit() in handlers${RESET}" >&2
-    echo -e "  ${YELLOW}See .claude/rules/cli-patterns.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/cli-patterns.md${RESET}" >&2
     exit 2
 fi
 

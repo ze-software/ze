@@ -62,7 +62,7 @@ Checks that the .claude system is consistent with the codebase. Reports findings
 
 ### 5a. Stale file references
 
-Scan `.claude/rules/*.md`, `.claude/skills/*/SKILL.md`, and `.claude/rationale/*.md` for file path references (backtick-quoted paths like `internal/foo/bar.go` or `docs/guide/thing.md`). For each path found:
+Scan `.claude/rules/*.md`, `.claude/skills/*/SKILL.md`, and `ai/rationale/*.md` for file path references (backtick-quoted paths like `internal/foo/bar.go` or `docs/guide/thing.md`). For each path found:
 - Does the file exist? If not: **STALE REF** -- the rule/skill references a deleted file.
 
 Only check paths that look like project files (contain `/` and end in `.go`, `.md`, `.yang`, `.sh`, or a directory pattern). Skip URLs, rule references like `rules/foo.md`, and relative `.claude/` paths.
@@ -74,7 +74,7 @@ Scan all `.claude/skills/*/SKILL.md` for `/ze-` references. For each:
 
 ### 5c. INDEX.md link check
 
-For each entry in `.claude/INDEX.md` that points to a `docs/` file:
+For each entry in `ai/INDEX.md` that points to a `docs/` file:
 - Does the target file exist? If not: **BROKEN INDEX LINK**.
 
 ### 5d. Memory staleness (quick)

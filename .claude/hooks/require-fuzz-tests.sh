@@ -57,7 +57,7 @@ if [[ "$HAS_PARSE" -gt 0 ]]; then
         echo -e "${YELLOW}⚠️  Wire format parsing without fuzz tests: $(basename "$FILE_PATH")${RESET}" >&2
         echo -e "  ${YELLOW}→ Found Parse* functions but no Fuzz* tests${RESET}" >&2
         echo -e "  ${YELLOW}→ Add: func FuzzParseName(f *testing.F) { ... }${RESET}" >&2
-        echo -e "  ${YELLOW}→ See .claude/rules/tdd.md (Fuzzing section)${RESET}" >&2
+        echo -e "  ${YELLOW}→ See ai/rules/tdd.md (Fuzzing section)${RESET}" >&2
     fi
 fi
 

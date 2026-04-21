@@ -59,7 +59,7 @@ If this RFC adds features that ExaBGP users might rely on, check if migration su
 [ ] If yes: is API bridge update needed? (internal/exabgp/bridge/)
 ```
 
-See `.claude/rules/compatibility.md` for architecture details.
+See `ai/rules/compatibility.md` for architecture details.
 
 ### 0.4 Spec Creation
 

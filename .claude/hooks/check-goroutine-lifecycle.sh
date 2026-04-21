@@ -58,7 +58,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     echo "" >&2
     echo -e "  ${YELLOW}Pattern: channel + worker. Start -> create chan + start worker. Hot path -> enqueue${RESET}" >&2
     echo -e "  ${YELLOW}go func() is OK for: component startup, test helpers, ProcessManager.Stop()${RESET}" >&2
-    echo -e "  ${YELLOW}See .claude/rules/goroutine-lifecycle.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/goroutine-lifecycle.md${RESET}" >&2
     exit 2
 fi
 

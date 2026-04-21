@@ -97,7 +97,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     echo -e "  ${YELLOW}  logger.Debug(\"message\", \"key\", value)${RESET}" >&2
     echo -e "  ${YELLOW}${RESET}" >&2
     echo -e "  ${YELLOW}Enable at runtime: ze.log.subsystem=debug${RESET}" >&2
-    echo -e "  ${YELLOW}See .claude/rules/go-standards.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/go-standards.md${RESET}" >&2
     exit 2
 fi
 

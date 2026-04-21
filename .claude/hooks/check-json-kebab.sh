@@ -56,7 +56,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     done
     echo "" >&2
     echo -e "  ${YELLOW}All JSON keys must be lowercase kebab-case: json:\"my-field\"${RESET}" >&2
-    echo -e "  ${YELLOW}See .claude/rules/json-format.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/json-format.md${RESET}" >&2
     exit 2
 fi
 

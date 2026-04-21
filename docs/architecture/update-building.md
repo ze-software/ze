@@ -261,7 +261,7 @@ modifying any `Build*` method or consuming a returned `*Update`.
 ### Why scratch, not `make`
 
 Every `Update.PathAttributes` and `Update.NLRI` is a wire-facing variable-size byte
-slice. Per `.claude/rules/design-principles.md` ("No `make` where pools exist"), such
+slice. Per `ai/rules/design-principles.md` ("No `make` where pools exist"), such
 allocations must come from a bounded pool. The builder's `scratch` IS that pool: one
 buffer per builder, sized to `wire.StandardMaxSize` (4096) on first use, grown on
 demand for Extended Message peers.

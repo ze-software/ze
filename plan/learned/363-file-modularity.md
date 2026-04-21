@@ -28,7 +28,7 @@ Split all files over 1000 lines into single-concern files, add `// Related:` cro
 
 ## Files
 
-- `.claude/rules/file-modularity.md` — rule codifying the pattern
-- `.claude/rules/related-refs.md` — cross-reference format and rules
+- `ai/rules/file-modularity.md` — rule codifying the pattern
+- `ai/rules/related-refs.md` — cross-reference format and rules
 - `.claude/hooks/require-related-refs.sh` — enforcement hook
 - `plan/learned/221-file-splitting.md` — predecessor summary

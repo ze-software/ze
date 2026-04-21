@@ -14,7 +14,7 @@
 2. `.claude/rules/planning.md` - workflow rules
 3. `internal/component/bgp/plugins/rib/` - current RIB + `rib inject` path
 4. `internal/component/bgp/reactor/` - how routes enter the engine
-5. `.claude/patterns/plugin.md` - plugin shape
+5. `ai/patterns/plugin.md` - plugin shape
 
 ## Task
 
@@ -42,8 +42,8 @@ Out of scope:
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - engine + plugin model
 - [ ] `docs/architecture/meta/README.md` - route metadata keys (the synthetic peer must set sensible ones)
-- [ ] `.claude/patterns/plugin.md`, `.claude/patterns/config-option.md`
-- [ ] `.claude/rules/design-principles.md`
+- [ ] `ai/patterns/plugin.md`, `ai/patterns/config-option.md`
+- [ ] `ai/rules/design-principles.md`
   → Constraint: lazy over eager; the subscription path must not allocate new
   structs per prefix if the wire format can be iterated lazily.
 

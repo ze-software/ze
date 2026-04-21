@@ -54,9 +54,9 @@ Two new components, four new plugins (two Linux backends, two VPP backends):
 - [ ] `plan/spec-vpp-0-umbrella.md` - VPP integration spec set
   → Constraint: VPP backends depend on vpp-1 (lifecycle management)
   → Decision: ACL and Policer/QoS are owned by firewallvpp (spec-fw-6) and trafficvpp (spec-fw-7), not by a separate VPP-native YANG surface. Replaces the original spec-vpp-5-features plan, retired 2026-04-17.
-- [ ] `.claude/patterns/registration.md` - registration pattern
+- [ ] `ai/patterns/registration.md` - registration pattern
   → Constraint: init() + registry.Register() pattern for plugins
-- [ ] `.claude/patterns/config-option.md` - config option pattern
+- [ ] `ai/patterns/config-option.md` - config option pattern
   → Constraint: YANG leaf + env var registration for every config option
 - [ ] `rules/config-design.md` - config design rules
   → Constraint: fail on unknown keys, no version numbers, listener grouping pattern

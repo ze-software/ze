@@ -52,7 +52,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     done
     echo "" >&2
     echo -e "  ${YELLOW}Tests must be permanent, not throwaway${RESET}" >&2
-    echo -e "  ${YELLOW}See .claude/rules/testing.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/testing.md${RESET}" >&2
     exit 2
 fi
 

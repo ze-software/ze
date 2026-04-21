@@ -100,9 +100,9 @@ Phases are strictly ordered within dependencies. Independent specs (5, 7) can pr
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` -- overall architecture, reactor, plugin model
   --> Constraint: reactor is the central event loop; plugins connect via hub
-- [ ] `.claude/rules/plugin-design.md` -- plugin registration, 5-stage protocol, proximity principle
+- [ ] `ai/rules/plugin-design.md` -- plugin registration, 5-stage protocol, proximity principle
   --> Constraint: registration via `init()` in `register.go`, blank import is only coupling
-- [ ] `.claude/rules/goroutine-lifecycle.md` -- goroutine patterns
+- [ ] `ai/rules/goroutine-lifecycle.md` -- goroutine patterns
   --> Constraint: long-lived workers only, no per-event goroutines in hot paths
 - [ ] `internal/component/plugin/inprocess.go` -- plugin runner
   --> Constraint: creates net.Conn pair, calls RunEngine(conn). VRF orchestrator reuses this

@@ -61,7 +61,7 @@ if [[ ${#WARNINGS[@]} -gt 0 ]]; then
         echo -e "  ${YELLOW}${warn}${RESET}" >&2
     done
     echo -e "  ${YELLOW}→ Consider extending existing tests instead${RESET}" >&2
-    echo -e "  ${YELLOW}→ See .claude/rules/before-writing-code.md${RESET}" >&2
+    echo -e "  ${YELLOW}→ See ai/rules/before-writing-code.md${RESET}" >&2
 fi
 
 exit 0

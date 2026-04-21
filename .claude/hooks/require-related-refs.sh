@@ -3,7 +3,7 @@
 # Blocking (exit 2) — prevents writing .go files without back-references when siblings reference them
 # Also blocks stale refs (pointing to non-existent files)
 # Keywords: // Detail: (hub→leaf), // Overview: (leaf→hub), // Related: (peer↔peer)
-# See .claude/rules/related-refs.md
+# See ai/rules/related-refs.md
 
 set -e
 
@@ -84,7 +84,7 @@ if [[ -n "$SIBLINGS_REF_ME" ]]; then
             [[ -n "$sib" ]] && echo -e "  ${RED}→${RESET}   $(basename "$sib")" >&2
         done <<< "$SIBLINGS_REF_ME"
         echo -e "  ${RED}→${RESET} Add back-reference: // Overview: / // Detail: / // Related:" >&2
-        echo -e "  ${RED}→${RESET} See .claude/rules/related-refs.md" >&2
+        echo -e "  ${RED}→${RESET} See ai/rules/related-refs.md" >&2
         exit 2
     fi
 fi

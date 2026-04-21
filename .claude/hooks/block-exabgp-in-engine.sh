@@ -71,7 +71,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     done
     echo "" >&2
     echo -e "  ${YELLOW}ExaBGP compatibility is external tools only${RESET}" >&2
-    echo -e "  ${YELLOW}See .claude/rules/compatibility.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/compatibility.md${RESET}" >&2
     exit 2
 fi
 

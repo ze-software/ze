@@ -76,13 +76,13 @@ for a handful of legacy tests.
 
 ### Ze Rules
 
-- [ ] `.claude/rules/goroutine-lifecycle.md`
+- [ ] `ai/rules/goroutine-lifecycle.md`
   -> Constraint: task workers are per-task (per-lifecycle), bounded by per-identity cap; OK per the rule's "goroutine per lifecycle" allowance
-- [ ] `.claude/rules/enum-over-string.md`
+- [ ] `ai/rules/enum-over-string.md`
   -> Constraint: task state is a typed `uint8` enum with `MarshalText`/`UnmarshalText` (zero-invalid); no string comparisons on hot path
 - [ ] `.claude/rules/memory.md`
   -> Constraint: `CallToolResult` stored in the registry is a value type (map/slice); no pointers into session or request structs
-- [ ] `.claude/rules/integration-completeness.md`
+- [ ] `ai/rules/integration-completeness.md`
   -> Constraint: a `.ci` functional test MUST exercise the full POST-task / poll / resume / cancel / result path with a real YANG command declared `taskSupport: required`
 
 **Key insights:**

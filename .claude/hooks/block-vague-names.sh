@@ -40,7 +40,7 @@ if [[ -n "$VAGUE_NAMES" ]]; then
         [[ -n "$line" ]] && echo -e "  ${YELLOW}$line${RESET}" >&2
     done <<< "$VAGUE_NAMES"
     echo -e "  ${YELLOW}→ Use precise names: wireBytes, peerConfig, parseResult${RESET}" >&2
-    echo -e "  ${YELLOW}→ See .claude/rules/design-principles.md${RESET}" >&2
+    echo -e "  ${YELLOW}→ See ai/rules/design-principles.md${RESET}" >&2
 fi
 
 exit 0

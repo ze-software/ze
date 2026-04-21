@@ -52,5 +52,5 @@ echo "$UNASSIGNED" >&2
 echo "" >&2
 echo -e "  ${YELLOW}Every open deferral must name a receiving spec or be cancelled.${RESET}" >&2
 echo -e "  ${YELLOW}Update the Destination column in plan/deferrals.md${RESET}" >&2
-echo -e "  ${YELLOW}See .claude/rules/deferral-tracking.md${RESET}" >&2
+echo -e "  ${YELLOW}See ai/rules/deferral-tracking.md${RESET}" >&2
 exit 2

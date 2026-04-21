@@ -31,7 +31,7 @@ LINES=$(wc -l < "$FILE_PATH" | tr -d ' ')
 if [[ "$LINES" -gt 1000 ]]; then
     echo -e "${RED}${BOLD}⚠️  File too large: $(basename "$FILE_PATH") ($LINES lines > 1000)${RESET}" >&2
     echo -e "  ${YELLOW}Almost certainly needs splitting by responsibility${RESET}" >&2
-    echo -e "  ${YELLOW}See .claude/rules/file-modularity.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/file-modularity.md${RESET}" >&2
     exit 1
 elif [[ "$LINES" -gt 600 ]]; then
     echo -e "${YELLOW}⚠️  File growing: $(basename "$FILE_PATH") ($LINES lines > 600)${RESET}" >&2

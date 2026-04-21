@@ -124,7 +124,7 @@ metadata document. HS* (HMAC) and `alg: none` are always rejected.
 `ze config validate` rejects internally inconsistent configurations (oauth
 without TLS on a remote bind, oauth without authorization-server, bind-remote
 without auth, etc.) before the daemon starts. See
-[`rules/exact-or-reject.md`](../../.claude/rules/exact-or-reject.md) for the
+[`rules/exact-or-reject.md`](../../ai/rules/exact-or-reject.md) for the
 contract.
 
 RFC 9728 metadata: when `auth-mode oauth`, the server publishes

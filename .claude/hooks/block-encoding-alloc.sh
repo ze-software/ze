@@ -2,8 +2,8 @@
 # PreToolUse hook: Block per-call allocations in wire-facing code
 # BLOCKING: All wire encoding must use pooled buffers, not make()/append()/Bytes()/Pack().
 # References:
-#   .claude/rules/buffer-first.md          -- mechanical reference
-#   .claude/rules/design-principles.md     -- "No make where pools exist", "Pool strategy by goroutine shape"
+#   ai/rules/buffer-first.md          -- mechanical reference
+#   ai/rules/design-principles.md     -- "No make where pools exist", "Pool strategy by goroutine shape"
 #   plan/learned/603-make-pool-audit.md    -- 2026-04-16 audit that expanded scope to TACACS+, plugin-rpc,
 #                                              BGP forward_build, BMP sender, BFD Verify, L2TP reliable
 
@@ -47,7 +47,7 @@ fi
 # by the MAKE_ALLOW regex or carries a `// pool-fallback` opt-in comment.
 # Coverage of the other migrated subsystems (bmp/sender, filter_community,
 # bgp/nlri) is enforced by:
-#   - the design rules in `.claude/rules/design-principles.md`
+#   - the design rules in `ai/rules/design-principles.md`
 #   - the per-subsystem pool helpers (calling `make` instead is obvious in review)
 #   - `/ze-find-alloc` for periodic auditing
 IS_ENCODE=0
@@ -154,7 +154,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     echo -e "  ${YELLOW}Pool buffer = RFC max length = bounded encoding space.${RESET}" >&2
     echo -e "  ${YELLOW}If a per-call make IS a legit sync.Pool fallback or one-shot${RESET}" >&2
     echo -e "  ${YELLOW}init, add '// pool-fallback' on the same line as the make call.${RESET}" >&2
-    echo -e "  ${YELLOW}Rules: .claude/rules/{buffer-first,design-principles}.md${RESET}" >&2
+    echo -e "  ${YELLOW}Rules: ai/rules/{buffer-first,design-principles}.md${RESET}" >&2
     exit 2
 fi
 

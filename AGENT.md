@@ -2,7 +2,7 @@
 
 Instructions for AI agents working on this codebase. All rules live in `.claude/rules/` as markdown files. Read them — they apply to you too.
 
-For architecture docs and RFC navigation, see `.claude/INDEX.md`.
+For architecture docs and RFC navigation, see `ai/INDEX.md`.
 
 ## Before You Do Anything
 
@@ -97,7 +97,7 @@ make ze-test              # All tests: lint + unit + functional + exabgp + chaos
 
 ## Key Architecture
 
-Ze is a BGP daemon with a plugin architecture. Read `docs/architecture/core-design.md` for the full design, or `.claude/rules/architecture-summary.md` for a condensed overview.
+Ze is a BGP daemon with a plugin architecture. Read `docs/architecture/core-design.md` for the full design, or `ai/rules/architecture-summary.md` for a condensed overview.
 
 **Critical concepts:**
 - Engine and plugins communicate over Unix socket pairs using YANG RPC (NUL-framed JSON)
@@ -107,7 +107,7 @@ Ze is a BGP daemon with a plugin architecture. Read `docs/architecture/core-desi
 
 ## Reference Paths
 
-- Architecture docs: `docs/architecture/` (see `.claude/INDEX.md` for full map)
+- Architecture docs: `docs/architecture/` (see `ai/INDEX.md` for full map)
 - RFC summaries: `rfc/short/` (implementation-ready)
 - Full RFCs: `rfc/full/`
 - Spec system: `plan/spec-*.md` (active), `plan/learned/` (summaries)

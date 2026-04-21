@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `.claude/rules/compatibility.md` - plugin-API contract, internal is free
+3. `ai/rules/compatibility.md` - plugin-API contract, internal is free
 4. `internal/component/api/types.go` - existing domain types
 5. `internal/component/api/engine.go` - engine signature
 6. `internal/component/api/grpc/server.go` - gRPC transport (reference)
@@ -70,7 +70,7 @@ that is missing, not the piece that is broken.
   dispatch and adds a domain layer over it.
 - Generating these types from the proto. Hand-written domain types are the
   point: they decouple from the proto shape.
-- Versioning. The plugin-API contract rule in `.claude/rules/compatibility.md`
+- Versioning. The plugin-API contract rule in `ai/rules/compatibility.md`
   is about `pkg/`. This spec is `internal/`, so free to change.
 
 ## Required Reading
@@ -78,7 +78,7 @@ that is missing, not the piece that is broken.
 ### Architecture Docs
 - [ ] `docs/architecture/api/architecture.md` - API engine design
   → Decision: transports are thin adapters, engine owns logic.
-- [ ] `.claude/rules/design-principles.md` - "No identity wrappers" rule
+- [ ] `ai/rules/design-principles.md` - "No identity wrappers" rule
   → Constraint: a domain type must transform, not just re-export.
 
 ## Current Behavior (MANDATORY)

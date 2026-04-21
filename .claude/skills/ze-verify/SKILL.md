@@ -11,7 +11,7 @@ See also: `/ze-debug` (investigate failures), `/ze-commit` (prepare commit after
    - Wait for it to complete (the make target handles this automatically)
    - Read `tmp/ze-verify.log` for the results
 2. **Run verification:** Execute `make ze-verify-fast` **foreground** with 240s timeout. Output is auto-captured to `tmp/ze-verify.log`.
-   - **Do NOT use `run_in_background`. Do NOT write a polling loop (`until ... sleep 2; done`, `pgrep`, `stat`).** The foreground Bash return IS the completion signal. A polling loop becomes "the running task" and swallows the real completion notification. See `rules/git-safety.md` "Running ze-verify in the Background (BLOCKING)".
+   - **Do NOT use `run_in_background`. Do NOT write a polling loop (`until ... sleep 2; done`, `pgrep`, `stat`).** The foreground Bash return IS the completion signal. A polling loop becomes "the running task" and swallows the real completion notification. See `ai/rules/git-safety.md` "Running ze-verify in the Background (BLOCKING)".
    - Custom log path: `make ze-verify-fast ZE_VERIFY_LOG=tmp/ze-verify-myname.log`
    - Race detector lives in `make ze-verify` (the full, sequential variant), NOT in fast. Run `make ze-verify` before commit to get -race coverage.
 3. **Parse results:** On failure, search the log:

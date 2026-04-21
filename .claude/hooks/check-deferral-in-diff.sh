@@ -88,5 +88,5 @@ for hit in "${HITS[@]}"; do
 done
 echo "" >&2
 echo -e "  ${YELLOW}Record each deferral in plan/deferrals.md before committing.${RESET}" >&2
-echo -e "  ${YELLOW}See .claude/rules/deferral-tracking.md${RESET}" >&2
+echo -e "  ${YELLOW}See ai/rules/deferral-tracking.md${RESET}" >&2
 exit 2

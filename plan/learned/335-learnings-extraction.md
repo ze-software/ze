@@ -29,4 +29,4 @@ Replace 339 completed specs in `plan/done/` (5.6 MB, 117K lines) with concise kn
 
 - Created: `plan/learned/*.md` (339 summaries + METHODOLOGY.md)
 - Deleted: `plan/done/` (339 full specs)
-- Updated: `.claude/rules/planning.md`, `implementation-audit.md`, `documentation.md`, `file-modularity.md`, `CLAUDE.md`, `AGENT.md`, `plan/TEMPLATE.md`, `.claude/commands/spec.md`, `.claude/docs/README.md`, `.claude/rationale/` (3 files), `docs/architecture/` (7 files), `plan/spec-*.md` (14 files), `docs/contributing/rfc-implementation-guide.md`
+- Updated: `.claude/rules/planning.md`, `implementation-audit.md`, `documentation.md`, `file-modularity.md`, `CLAUDE.md`, `AGENT.md`, `plan/TEMPLATE.md`, `.claude/commands/spec.md`, `.claude/docs/README.md`, `ai/rationale/` (3 files), `docs/architecture/` (7 files), `plan/spec-*.md` (14 files), `docs/contributing/rfc-implementation-guide.md`

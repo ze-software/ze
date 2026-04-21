@@ -175,6 +175,6 @@ to follow-up specs that design the missing VPP pipelines.
 - `vendor/modules.txt` -- 4 new package lines
 - `test/traffic/011-vpp-reject-hfsc.ci`, `012-vpp-not-connected.ci` -- functional tests
 - `docs/features.md`, `docs/guide/traffic-control.md` -- user docs
-- `.claude/rules/exact-or-reject.md`, `.claude/rationale/exact-or-reject.md` -- new project-wide rule surfaced by review
-- `.claude/rules/design-principles.md`, `CLAUDE.md` -- cross-reference the new rule
+- `ai/rules/exact-or-reject.md`, `ai/rationale/exact-or-reject.md` -- new project-wide rule surfaced by review
+- `ai/rules/design-principles.md`, `CLAUDE.md` -- cross-reference the new rule
 - `plan/deferrals.md` -- closed 2 fw-9 deferrals (ze:backend annotations superseded), opened 4 new deferrals (010-vpp-boot-apply.ci VPP infra, filter mark VPP-native metadata match, qdisc prio mapping design, IPv6 protocol classify)

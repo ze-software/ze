@@ -1,0 +1,72 @@
+# Implementation Audit
+
+**BLOCKING:** Before marking any spec done, complete line-by-line audit comparing spec to implementation.
+Rationale: `ai/rationale/implementation-audit.md`
+
+## When
+
+Before: writing summary to `plan/learned/`, claiming "done", asking to commit.
+
+## Process
+
+1. Extract all requirements from spec: task items, AC-N assertions, TDD tests, files listed
+2. Verify each with status: ✅ Done (file:line), ⚠️ Partial, ❌ Skipped, 🔄 Changed
+3. Fill audit table in spec (template in `plan/TEMPLATE.md`)
+
+## Approval Required
+
+- ⚠️ Partial: document what's missing, ASK user
+- ❌ Skipped: explain why, ASK user
+- 🔄 Changed: document deviation (no approval needed if improvement)
+
+## Cannot Mark Done Until
+
+```
+[ ] Every Task requirement has a status
+[ ] Every AC-N has status + "Demonstrated By" evidence
+[ ] Every TDD test has a status
+[ ] Every file in plan has a status
+[ ] All Partial/Skipped have user approval
+[ ] Integration points verified (YANG, CLI, docs)
+[ ] Wiring Test table complete — every row has a test name, none deferred
+[ ] Audit Summary totals accurate
+```
+
+## Evidence Standards
+
+| Claim | Acceptable Evidence | NOT Acceptable |
+|-------|-------------------|----------------|
+| Feature works | Test name + output | "make ze-verify passes" |
+| Feature is wired in | Wiring test that exercises entry→feature path | Unit test with mock/fake entry point |
+| AC-N done (wiring) | Functional test name exercising full path | Unit test in isolation |
+| AC-N done (logic) | Unit test name + file:line, assertion matches AC text | "should work" |
+| AC-N done (behavior) | Test asserts the AC's expected behavior directly | Test asserts mechanism (e.g., "no error" as proxy for "rejected") |
+
+## AC Evidence Verification (BLOCKING)
+
+For each AC-N, quote the expected behavior from the AC table, then name the test and its assertion. The assertion must verify the BEHAVIOR, not just the mechanism. See `rules/tdd.md` "AC-Linked Tests" for the full behavior-vs-mechanism table and mechanical check.
+
+
+## Pre-Commit Verification (BLOCKING)
+
+**Do NOT trust the audit.** After filling the audit, independently re-verify every item.
+This is a separate section in the spec (see `TEMPLATE.md`). It requires FRESH evidence:
+
+| Table | What to verify | How |
+|-------|---------------|-----|
+| Files Exist | Every file from "Files to Create" | `ls -la <path>` — paste output |
+| AC Verified | Every AC-N | grep, test output, or ls — NOT a copy from audit |
+| Wiring Verified | Every wiring test row | Read the .ci file, confirm it tests the claimed path |
+
+**NOT acceptable:** "Already checked in audit", "should work", empty cells.
+
+## Red Flags
+
+- AC-N with no test or evidence
+- Can't find where feature was implemented
+- TDD test from plan doesn't exist
+- File from "Files to Create" wasn't created
+- New RPCs without functional tests
+- New CLI commands without usage text
+- Learned summary admits incompleteness ("not wired", "infrastructure only")
+- Commit message says "library and interface only"

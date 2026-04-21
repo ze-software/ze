@@ -69,7 +69,7 @@ For every markdown link `[text](path)` or `[text](path#anchor)`:
 For every fenced code block tagged with a language (` ```go `, ` ```bash `, ` ```json `):
 - `go`: check that referenced types, functions, and methods exist in the codebase (`Grep`)
 - `bash`: check that referenced commands (`ze`, `make ze-*`) exist
-- `json`: check that field names match `rules/json-format.md` conventions (kebab-case)
+- `json`: check that field names match `ai/rules/json-format.md` conventions (kebab-case)
 
 **3d. Terminology consistency**
 
@@ -80,7 +80,7 @@ Check against project naming rules:
 
 **3e. Cross-reference completeness (architecture docs only)**
 
-For each architecture doc: does `.claude/INDEX.md` have an entry pointing to it?
+For each architecture doc: does `ai/INDEX.md` have an entry pointing to it?
 For each INDEX.md entry: does the target file exist?
 
 ### 4. Accuracy checks
@@ -255,12 +255,12 @@ After each fix, re-run the mechanical check for that file to confirm the fix is 
 ## Rules
 
 - Do NOT fix anything before presenting the report and getting user approval.
-- Read the actual source code before writing or correcting any documentation. Never describe code from memory. (`rules/documentation.md` Source Anchors)
+- Read the actual source code before writing or correcting any documentation. Never describe code from memory. (`ai/rules/documentation.md` Source Anchors)
 - Every factual claim in a fix must have a source anchor.
 - Preserve existing document structure and style when making fixes.
 - Do not add features, examples, or sections beyond what was identified as missing.
 - For large scopes (full `docs/`), use parallel Agent tool calls to review different areas simultaneously.
-- When reviewing architecture docs, check `.claude/INDEX.md` entries point to the right file.
+- When reviewing architecture docs, check `ai/INDEX.md` entries point to the right file.
 
 ## Parallelization
 

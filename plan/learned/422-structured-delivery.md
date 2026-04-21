@@ -43,5 +43,5 @@ Internal plugins (rib, adj-rib-in, rs, gr, rpki, watchdog, persist) received BGP
 - `internal/component/bgp/plugins/watchdog/watchdog.go` -- structured state
 - `internal/component/bgp/plugins/persist/server.go` -- structured state + UPDATE + OPEN
 - `docs/architecture/api/process-protocol.md` -- documented structured delivery path
-- `.claude/rules/plugin-design.md` -- StructuredEvent field table
+- `ai/rules/plugin-design.md` -- StructuredEvent field table
 - `docs/architecture/core-design.md` -- updated receive path diagram

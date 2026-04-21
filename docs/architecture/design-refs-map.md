@@ -2,7 +2,7 @@
 
 Authoritative mapping from source directory to the `// Design:` annotation
 that files in that directory should carry. Enforced by
-`.claude/rules/design-doc-references.md` (BLOCKING for all `.go` source files
+`ai/rules/design-doc-references.md` (BLOCKING for all `.go` source files
 that are not test, generated, register, embed, or doc files).
 
 This file replaces the `dirMapping` table that lived in the one-shot
@@ -184,6 +184,6 @@ add the annotation to the new files.
 ## Notes
 
 - The mapping uses longest-prefix match: a file in `internal/plugins/bgp-rib/storage` picks the storage entry, not the parent `bgp-rib` entry.
-- Exempt files (per `.claude/rules/design-doc-references.md`): `*_test.go`, `*_gen.go`, `register.go`, `embed.go`, `doc.go`.
+- Exempt files (per `ai/rules/design-doc-references.md`): `*_test.go`, `*_gen.go`, `register.go`, `embed.go`, `doc.go`.
 - When a directory is added to the source tree, add it here in the same commit, then add the annotation to the new files in the same commit.
 - The `// Design: (none — ...)` form is used for directories where no architecture document applies; the parenthesised reason is required.

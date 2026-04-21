@@ -26,5 +26,5 @@ Audit all Len()-then-WriteTo() call sites, enforce skip-and-backfill as the cano
 - `internal/component/bgp/attribute/attribute.go` — `WriteAttrToWithLen()` function
 - `internal/component/bgp/message/update_split.go` — uses pre-computed length instead of double Len()
 - `internal/component/bgp/reactor/reactor_wire.go` — skip-and-backfill pattern documentation comment
-- `.claude/rules/buffer-first.md` — documents pattern, bans Len-then-WriteTo in hot paths
+- `ai/rules/buffer-first.md` — documents pattern, bans Len-then-WriteTo in hot paths
 - `.claude/hooks/block-encoding-alloc.sh` — check 6: Len()-then-WriteTo() detection

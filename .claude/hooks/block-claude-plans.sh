@@ -17,7 +17,7 @@ if [[ "$FILE_PATH" =~ \.claude/plans/ ]]; then
     echo "❌ BLOCKED: Do not use .claude/plans/" >&2
     echo "" >&2
     echo "Create spec at: plan/spec-<task>.md" >&2
-    echo "Use template from: .claude/rules/planning.md" >&2
+    echo "Use template from: ai/rules/planning.md" >&2
     exit 2  # BLOCKING
 fi
 
@@ -48,7 +48,7 @@ fi
 if [[ "$FILE_PATH" =~ plan/spec-.*\.md ]]; then
     echo "📚 REQUIRED READING before writing spec:" >&2
     echo "" >&2
-    echo "1. Re-read .claude/rules/planning.md (has keyword→doc mapping)" >&2
+    echo "1. Re-read ai/rules/planning.md (has keyword→doc mapping)" >&2
     echo "2. Read docs/architecture/core-design.md (always required)" >&2
     echo "3. Match task keywords to docs in planning.md table" >&2
     echo "4. Read ALL matched architecture docs" >&2

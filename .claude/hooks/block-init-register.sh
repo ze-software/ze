@@ -77,7 +77,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     done
     echo "" >&2
     echo -e "  ${YELLOW}Explicit > Implicit: Use explicit registration calls${RESET}" >&2
-    echo -e "  ${YELLOW}See .claude/rules/design-principles.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/design-principles.md${RESET}" >&2
     exit 2
 fi
 

@@ -60,7 +60,7 @@ enforcement whenever the race triggered.
   now has a well-defined, documented place to put it (`OnAllPluginsReady`),
   regardless of which startup phase the plugin happens to load in.
 - `OnStarted` is now explicitly documented (in
-  `docs/architecture/api/process-protocol.md`, `.claude/rules/plugin-design.md`,
+  `docs/architecture/api/process-protocol.md`, `ai/rules/plugin-design.md`,
   and the godoc on `OnStarted`) as "local setup only; do NOT dispatch to other
   plugins from here". Future inter-plugin dispatches from `OnStarted` will be
   caught at review time, not by silent race.
@@ -126,5 +126,5 @@ enforcement whenever the race triggered.
 - `docs/architecture/api/process-protocol.md` -- Post row in the stage table,
   "Post-Startup Callback" paragraph, "Cross-Plugin DispatchCommand from Startup"
   rule
-- `.claude/rules/plugin-design.md` -- Post row in the stage table, new
+- `ai/rules/plugin-design.md` -- Post row in the stage table, new
   "OnStarted vs OnAllPluginsReady (BLOCKING)" section

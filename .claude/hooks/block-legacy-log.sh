@@ -48,7 +48,7 @@ fi
 if echo "$CONTENT" | grep -qE '(^|[^[:alnum:]_])log\.(Print|Printf|Println|Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)([^[:alnum:]_]|$)'; then
     ERRORS+=("Legacy log.Print/Fatal/Panic usage detected")
     ERRORS+=("→ Use slog.Info/Warn/Error/Debug instead")
-    ERRORS+=("→ See .claude/rules/go-standards.md")
+    ERRORS+=("→ See ai/rules/go-standards.md")
 fi
 
 if [[ ${#ERRORS[@]} -gt 0 ]]; then

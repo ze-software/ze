@@ -37,7 +37,7 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
 6. **Critical review:** Use the spec's **Critical Review Checklist** table. For each row:
    - Verify the "What to verify" column against the actual implementation
    - Document pass/fail for each check
-   - Also apply generic checks from `rules/quality.md` (Correctness, Simplicity, Consistency, Completeness, Quality, Tests)
+   - Also apply generic checks from `ai/rules/quality.md` (Correctness, Simplicity, Consistency, Completeness, Quality, Tests)
    - Do NOT agree with the spec blindly -- challenge architectural assumptions
 7. **Fix every issue found** in the review
 8. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
@@ -66,7 +66,7 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
     - Answer Yes or No. Every Yes MUST name the file and describe the update needed.
     - Do NOT say "update the docs." Name the specific file, the specific section, and what to add.
     - Categories: feature list, user guide, config syntax, CLI reference, API/RPC docs, plugin SDK, wire format, RFC compliance, comparison table, test infrastructure, architecture design.
-    - If the spec has no Documentation Update Checklist, use `rules/planning.md` "Documentation Update Checklist" as the reference and fill it for the spec.
+    - If the spec has no Documentation Update Checklist, use `ai/rules/planning.md` "Documentation Update Checklist" as the reference and fill it for the spec.
     - Write the doc updates. Include them in the commit.
 14. **Present summary:** List all changes made (files modified/created, tests added, docs updated, issues found and fixed). Ask user to commit.
 
@@ -74,5 +74,5 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
 
 - Do NOT skip the audit step -- re-implementing existing code wastes time
 - Do NOT mark items as deferred/external without asking the user
-- If the same issue reappears after 3 fix attempts (3-Fix Rule, `rules/anti-rationalization.md`), STOP and ask for guidance. Otherwise keep reviewing -- there is no pass limit.
+- If the same issue reappears after 3 fix attempts (3-Fix Rule, `ai/rules/anti-rationalization.md`), STOP and ask for guidance. Otherwise keep reviewing -- there is no pass limit.
 - If the spec is missing a **Critical Review Checklist**, **Deliverables Checklist**, **Security Review Checklist**, or **Documentation Update Checklist**, STOP and inform the user that the spec needs updating before implementation can proceed

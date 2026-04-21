@@ -166,9 +166,9 @@ so subsequent VPP work has green wiring evidence, not just unit tests.
 - [ ] `internal/component/iface/backend.go` - pluggable Backend interface
   → Constraint: Backend registered via RegisterBackend in init(), 30+ methods
   → Decision: ifacevpp implements same interface, registered as "vpp" backend
-- [ ] `.claude/patterns/registration.md` - registration pattern
+- [ ] `ai/patterns/registration.md` - registration pattern
   → Constraint: init() + registry.Register() pattern for plugins
-- [ ] `.claude/patterns/config-option.md` - config option pattern
+- [ ] `ai/patterns/config-option.md` - config option pattern
   → Constraint: YANG leaf + env var registration for every config option
 - [ ] `rules/config-design.md` - config design rules
   → Constraint: fail on unknown keys, no version numbers, listener grouping pattern

@@ -214,7 +214,7 @@ fi
 # Exception: Markdown tables and examples of text output are allowed
 CODE_BLOCKS=$(grep -cE '```(go|python|rust|java|c|cpp|javascript|typescript)' "$FILE_PATH" 2>/dev/null | head -1 || echo "0")
 if [[ "$CODE_BLOCKS" -gt 0 ]]; then
-    ERRORS+=("Specs MUST NOT contain code blocks. Found $CODE_BLOCKS code block(s). Use tables/prose instead (see .claude/rules/spec-no-code.md)")
+    ERRORS+=("Specs MUST NOT contain code blocks. Found $CODE_BLOCKS code block(s). Use tables/prose instead (see ai/rules/spec-no-code.md)")
 fi
 
 # Also check for inline code that looks like function definitions (outside of code blocks)

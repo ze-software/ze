@@ -46,7 +46,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     done
     echo "" >&2
     echo -e "  ${YELLOW}Where does new code go in 'utils'? Nowhere good.${RESET}" >&2
-    echo -e "  ${YELLOW}See .claude/rules/design-principles.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/design-principles.md${RESET}" >&2
     exit 2
 fi
 

@@ -33,7 +33,7 @@ if echo "$CONTENT" | grep -qE 'exclude-rules:|exclude:|issues-exclude:|skip-file
     if echo "$CONTENT" | grep -qE '^[[:space:]]*-[[:space:]]*(path|text|linters|source):'; then
         ERRORS+=("Adding linter exclusions")
         ERRORS+=("→ Fix the code instead of excluding it")
-        ERRORS+=("→ See .claude/rules/quality.md")
+        ERRORS+=("→ See ai/rules/quality.md")
     fi
 fi
 

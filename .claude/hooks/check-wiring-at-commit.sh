@@ -45,7 +45,7 @@ if [[ -z "$CI_FILES" ]]; then
     echo "" >&2
     echo -e "  ${YELLOW}No .ci functional tests in this commit.${RESET}" >&2
     echo -e "  ${YELLOW}Is this feature reachable by a user through config/CLI/API?${RESET}" >&2
-    echo -e "  ${YELLOW}See .claude/rules/integration-completeness.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/integration-completeness.md${RESET}" >&2
     # Exit 1 = warning, not blocking (refactors/bugfixes may be legitimately code-only)
     exit 1
 fi

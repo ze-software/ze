@@ -51,7 +51,7 @@ if [[ "$TOOL_NAME" == "Write" && ! -f "$FILE_PATH" ]]; then
         echo -e "  ${RED}✗${RESET} Expected test: $TEST_FILE" >&2
         echo "" >&2
         echo -e "  ${YELLOW}TDD requires: test FAIL → implement → test PASS${RESET}" >&2
-        echo -e "  ${YELLOW}See .claude/rules/tdd.md${RESET}" >&2
+        echo -e "  ${YELLOW}See ai/rules/tdd.md${RESET}" >&2
         exit 1
     fi
 fi

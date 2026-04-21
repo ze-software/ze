@@ -67,7 +67,7 @@ package allocates a `[]byte` on the hot path. Callers typically:
 3. Write the header last via `WriteControlHeader` so the total length is known.
 4. Send the filled slice, then `PutBuf` the pointer.
 
-See `.claude/rules/buffer-first.md` for the mechanical rules this package
+See `ai/rules/buffer-first.md` for the mechanical rules this package
 implements.
 
 ## Hidden AVP cipher (RFC 2661 Section 4.3)

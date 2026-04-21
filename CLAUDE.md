@@ -11,7 +11,7 @@
   or `git stash` from a Bash tool call. Sessions share staging; cross-commits
   result. Commit only via a script the user triggers.
 - Script pattern (add + commit + `-F message-file`, no heredocs) lives in
-  `rules/git-safety.md` under "Commit Rules". Read it before writing any
+  `ai/rules/git-safety.md` under "Commit Rules". Read it before writing any
   commit script.
 - Never `--no-verify`, never `--no-gpg-sign`.
 
@@ -78,22 +78,22 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Action | Read first |
 |--------|-----------|
 | Start a session | `rules/session-start.md` |
-| Design or implement anything | `rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
-| Write any code | `rules/before-writing-code.md`, relevant `.claude/patterns/` |
-| Write a backend or config translator | `rules/exact-or-reject.md` -- no silent approximation, lossy translation rejects at verify |
-| Touch wire encoding | `rules/buffer-first.md` |
-| Touch registration | `.claude/patterns/registration.md` |
-| Add CLI/web/plugin/config | `.claude/patterns/{cli-command,web-endpoint,plugin,config-option}.md` |
-| Write help text, usage strings, error messages, or docs that enumerate things | `rules/derive-not-hardcode.md` -- derive from the registry/map, never re-hardcode; return structured data, not pre-formatted strings |
-| Write tests | `rules/testing.md`, `rules/tdd.md` |
-| Implement an RFC | `rules/rfc-compliance.md`, `rfc/short/` |
-| Write a spec | `rules/planning.md`, `plan/TEMPLATE.md` |
-| Commit | `rules/git-safety.md` -- `make ze-verify` |
+| Design or implement anything | `ai/rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
+| Write any code | `ai/rules/before-writing-code.md`, relevant `ai/patterns/` |
+| Write a backend or config translator | `ai/rules/exact-or-reject.md` -- no silent approximation, lossy translation rejects at verify |
+| Touch wire encoding | `ai/rules/buffer-first.md` |
+| Touch registration | `ai/patterns/registration.md` |
+| Add CLI/web/plugin/config | `ai/patterns/{cli-command,web-endpoint,plugin,config-option}.md` |
+| Write help text, usage strings, error messages, or docs that enumerate things | `ai/rules/derive-not-hardcode.md` -- derive from the registry/map, never re-hardcode; return structured data, not pre-formatted strings |
+| Write tests | `ai/rules/testing.md`, `ai/rules/tdd.md` |
+| Implement an RFC | `ai/rules/rfc-compliance.md`, `rfc/short/` |
+| Write a spec | `ai/rules/planning.md`, `plan/TEMPLATE.md` |
+| Commit | `ai/rules/git-safety.md` -- `make ze-verify` |
 | Run any test/build/lint command | `rules/bash-output.md` -- no pipes, read log after |
-| Delete / overwrite any user-visible file | `rules/never-destroy-work.md` -- ask first, always |
-| Look up anything | `.claude/INDEX.md` (keyword->doc, keyword->RFC) |
+| Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first, always |
+| Look up anything | `ai/INDEX.md` (keyword->doc, keyword->RFC) |
 | Understand architecture | `docs/architecture/core-design.md` |
-| Check past decisions | `.claude/LEARNED-INDEX.md` -> `plan/learned/` |
+| Check past decisions | `ai/LEARNED-INDEX.md` -> `plan/learned/` |
 | Understand why the code is shaped this way | `plan/learned/DESIGN-HISTORY.md` |
 | Check if you are about to hit a known trap | `plan/learned/RECURRING-PATTERNS.md` |
 | Understand why a hook rejected your code | `plan/learned/HOOK-FRICTION.md` |

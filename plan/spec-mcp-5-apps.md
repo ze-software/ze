@@ -70,11 +70,11 @@ negotiation plumbing in `doInitialize`.
 
 ### Ze Rules
 
-- [ ] `.claude/rules/derive-not-hardcode.md`
+- [ ] `ai/rules/derive-not-hardcode.md`
   -> Constraint: list of UI resources derived from the embedded `fs.FS`; no hardcoded URI list
-- [ ] `.claude/rules/json-format.md`
+- [ ] `ai/rules/json-format.md`
   -> Constraint: MCP-dialect exemption applies -- resource content is returned under camelCase `mimeType` and `blob` keys per external spec
-- [ ] `.claude/rules/goroutine-lifecycle.md`
+- [ ] `ai/rules/goroutine-lifecycle.md`
   -> Constraint: serving a resource is synchronous under the POST handler; no new goroutines
 
 **Key insights:**

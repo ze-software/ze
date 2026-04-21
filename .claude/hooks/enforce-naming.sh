@@ -78,7 +78,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
         echo -e "  ${RED}✗${RESET} $err" >&2
     done
     echo "" >&2
-    echo -e "  ${YELLOW}See .claude/rules/documentation.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/documentation.md${RESET}" >&2
     exit 1
 fi
 

@@ -77,7 +77,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
         echo -e "  ${RED}x${RESET} $err" >&2
     done
     echo "" >&2
-    echo -e "  ${YELLOW}See .claude/rules/planning.md (keyword->doc mapping)${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/planning.md (keyword->doc mapping)${RESET}" >&2
     exit 1
 fi
 

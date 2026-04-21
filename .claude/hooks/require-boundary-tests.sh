@@ -73,7 +73,7 @@ if [[ ${#WARNINGS[@]} -gt 0 ]]; then
         echo -e "  ${YELLOW}$warn${RESET}" >&2
     done
     echo -e "  ${YELLOW}→ Add tests for: last valid, first invalid below, first invalid above${RESET}" >&2
-    echo -e "  ${YELLOW}→ See .claude/rules/tdd.md${RESET}" >&2
+    echo -e "  ${YELLOW}→ See ai/rules/tdd.md${RESET}" >&2
 fi
 
 exit 0

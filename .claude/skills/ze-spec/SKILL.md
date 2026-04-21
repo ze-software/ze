@@ -40,7 +40,7 @@ See also: `/ze-design` (stress-test a design), `/ze-explore` (research a topic),
 1. ASK the user what feature/task they want to spec (if not provided as argument)
 2. Search `plan/spec-*.md` for related active specs
 3. Search `plan/learned/*.md` for completed related work
-4. Check `.claude/INDEX.md` for relevant architecture docs
+4. Check `ai/INDEX.md` for relevant architecture docs
 5. Present:
    - Related specs found (if any)
    - Whether this overlaps or extends existing work
@@ -82,7 +82,7 @@ If an annotation wouldn't help someone make a design choice, it's too vague. Rew
 
 #### Process
 
-1. Read `.claude/INDEX.md` -- identify relevant architecture docs
+1. Read `ai/INDEX.md` -- identify relevant architecture docs
 2. For each relevant doc:
    - Read it
    - Write `→ Decision:` or `→ Constraint:` annotation in spec under reading entry
@@ -91,7 +91,7 @@ If an annotation wouldn't help someone make a design choice, it's too vague. Rew
    - What each file does, key functions, patterns used
    - Behavior that must be preserved (unless user says otherwise)
    - Write `→ Constraint:` noting preservation requirements
-4. Trace data flow per `rules/data-flow-tracing.md`
+4. Trace data flow per `ai/rules/data-flow-tracing.md`
 5. RFC check: verify `rfc/short/rfcNNNN.md` summaries exist for referenced RFCs
 6. Fill the spec's **Key Insights** summary (minimal context to resume after compaction)
 7. Present research findings to user:
@@ -213,7 +213,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
 - **Never tick `[ ]` to `[x]` in spec files** -- track progress in per-spec session state
 - **`→ Decision:` / `→ Constraint:` annotations are the knowledge** -- they survive compaction
 - Each GATE must use `AskUserQuestion` -- never auto-proceed past a gate
-- Style: tables and prose, never code snippets in specs (`rules/spec-no-code.md`)
-- All research findings go into spec exhaustively (`rules/planning.md`)
-- Append-only editing for existing specs (`rules/spec-preservation.md`)
+- Style: tables and prose, never code snippets in specs (`ai/rules/spec-no-code.md`)
+- All research findings go into spec exhaustively (`ai/rules/planning.md`)
+- Append-only editing for existing specs (`ai/rules/spec-preservation.md`)
 - One spec at a time -- `tmp/session/selected-spec` tracks which

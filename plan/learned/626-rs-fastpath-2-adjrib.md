@@ -20,7 +20,7 @@ Second child of the `rs-fastpath` umbrella. The umbrella's premise for this phas
 - **Behaviour change in error paths:** `replayForPeer` now always terminates with `sendEOR(peerAddr, gen)` regardless of how the replay ended (success, missing-dep, IPC timeout, engine error). Pre-refactor, transient replay failures left the peer without EOR -- the peer would be excluded from forward targets (Replaying=true was cleared, but no EOR was sent), leaving peers that gate on EOR stuck in initial-sync. This is an improvement but WAS a silent change in observable wire behaviour; peers that previously never received EOR on a replay error now do. `sendEOR` internally checks `p.ReplayGen == gen` + `len(p.Families) > 0`, so stale-generation and new-peer races are handled.
 - **Config-reload teardown now handles optional deps.** `stopOrphanedDependencies` walks both `Dependencies` and `OptionalDependencies` via the new `collectOrphanCandidates` + `pluginDependsOn` helpers. Without this, a minimal deployment (bgp-rs as the only user of adj-rib-in) would leak adj-rib-in across config-reload teardowns of bgp-rs.
 - **Forward-path performance unchanged in practice.** The expected perf win was small to begin with (<1 % allocation share) and absent unless the operator also excludes `adj-rib-in` from the registered set. Recorded honestly in the spec's audit and in the umbrella's AC-1 rationale.
-- **Constraint for future plugin authors:** when declaring an `OptionalDependencies` entry, the owner MUST provide a run-time fallback for absence. bgp-rs's one-shot WARN + skip pattern is documented in `.claude/rules/plugin-design.md` as the reference template.
+- **Constraint for future plugin authors:** when declaring an `OptionalDependencies` entry, the owner MUST provide a run-time fallback for absence. bgp-rs's one-shot WARN + skip pattern is documented in `ai/rules/plugin-design.md` as the reference template.
 - **Bigger performance win remains deferred:** `bgp-rib`'s 25.7 % CPU cost is still on the table; child 3's zero-copy pass-through targets the more structural `sdk.UpdateRoute` RPC round-trip, not the subscriber side. A future spec may re-examine `bgp-rib`'s ConfigRoots-based auto-load if profile evidence warrants.
 
 ## Gotchas
@@ -42,6 +42,6 @@ Second child of the `rs-fastpath` umbrella. The umbrella's premise for this phas
 - `internal/component/bgp/plugins/rs/server_handlers.go` -- `errUnknownCommandMarker` const + `isDispatchUnknownCommand` helper + unified `sendEOR`-on-every-error-path fallback in `replayForPeer`.
 - `internal/component/bgp/plugins/rs/server_test.go` -- `TestRSSoftDepSkipsReplay` using channel-based sync (not polling) + spot-check on the EOR command text.
 - `internal/component/plugin/all/all_test.go` -- `TestBgpRSDependsOnAdjRibIn` updated to assert new field placement.
-- `.claude/rules/plugin-design.md` -- `OptionalDependencies` table row + "Optional Dependencies" section (graceful-fallback pattern).
+- `ai/rules/plugin-design.md` -- `OptionalDependencies` table row + "Optional Dependencies" section (graceful-fallback pattern).
 - `docs/guide/plugins.md` -- Dependencies section rewritten with hard/optional split + bgp-rs example.
 - `plan/deferrals.md` -- three rows: async-storage deferral, `.ci` functional test deferral, `bgp-rib`'s ConfigRoots auto-load as a separate open question.

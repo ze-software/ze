@@ -2,7 +2,7 @@
 
 ## Context
 
-Two design rules added to `.claude/rules/design-principles.md` ("No `make`
+Two design rules added to `ai/rules/design-principles.md` ("No `make`
 where pools exist", "Pool strategy by goroutine shape") established that
 every variable-size `make([]byte, N)` on a wire-facing path must come
 from a bounded pool, and codified two pool shapes (single-backing ring
@@ -135,5 +135,5 @@ commits across this session and parallel sessions.
   buffers (parallel session, commit `b39b8eb4`)
 - `plan/audits/make-pool-2026-04-16.{csv,md}` -- the original audit
   artifact (preserved for reference)
-- `.claude/rules/design-principles.md` -- two new rules: "No make
+- `ai/rules/design-principles.md` -- two new rules: "No make
   where pools exist", "Pool strategy by goroutine shape"

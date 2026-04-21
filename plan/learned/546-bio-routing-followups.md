@@ -12,7 +12,7 @@ all five and removed the handoff. Three commits landed:
   `spec-docs-1-canonical`).
 - `6be9a0c3` -- Section E: FSM HoldTimer restart refactor.
 - `7e0bfdd1` -- Sections B/C/D: gRPC domain-types spec, pull-metrics
-  decision doc, five style bullets in `.claude/rules/go-standards.md`.
+  decision doc, five style bullets in `ai/rules/go-standards.md`.
 
 ## Section E -- FSM HoldTimer restart (the one that actually changed code)
 
@@ -152,7 +152,7 @@ Section D was to add five advisory bullets to a coding-standards file
 if one existed. My first glob for
 `**/{coding-standards,STYLE,CONTRIBUTING,contributing,go-standards}*.md`
 returned nothing, which almost led to the "skip per original prompt"
-branch. The file actually exists at `.claude/rules/go-standards.md`
+branch. The file actually exists at `ai/rules/go-standards.md`
 and was missed because `.claude/` is hidden and my glob pattern did
 not force-match it.
 
@@ -257,7 +257,7 @@ of check.
 **Commit `7e0bfdd1` (Sections B/C/D, 4 files):**
 - `plan/spec-arch-1-grpc-types.md` (new)
 - `plan/decision-pull-model-metrics.md` (new)
-- `.claude/rules/go-standards.md` (added "Style patterns to prefer"
+- `ai/rules/go-standards.md` (added "Style patterns to prefer"
   section)
 - `plan/handoff-bio-routing-followups.md` (closed sections B/C/D
   in place)

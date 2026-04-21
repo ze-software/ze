@@ -199,7 +199,7 @@ In the interim:
 This decision does not block adopting the pull model later. None of the
 current push-model code survives in the pull-model end state, so there is
 no "combine them" trap. When the refactor happens, it replaces the whole
-push model in one sitting (no-layering rule, `.claude/rules/no-layering.md`).
+push model in one sitting (no-layering rule, `ai/rules/no-layering.md`).
 
 ## What this decision is not
 

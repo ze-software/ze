@@ -1,7 +1,7 @@
 # Session Start
 
 **BLOCKING:** Complete before any work.
-Rationale: `.claude/rationale/session-start.md`
+Rationale: `ai/rationale/session-start.md`
 
 ## Checklist
 

@@ -118,7 +118,7 @@ and scans `docs/`/`scripts/` for references to packages that no longer exist.
 
 ## See also
 
-- `.claude/rules/documentation.md` -- canonical documentation rules
+- `ai/rules/documentation.md` -- canonical documentation rules
   including the BLOCKING Documentation Update Checklist for specs
 - `.claude/hooks/check-doc-drift.sh` -- PreToolUse hook that runs
   `check-doc-drift` (advisory, exit 1) on every `git commit`

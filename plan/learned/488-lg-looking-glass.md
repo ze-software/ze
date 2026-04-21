@@ -42,5 +42,5 @@ Ze had no built-in looking glass. Network operators at IXPs need public, read-on
 - `docs/features.md` + `docs/features/*.md` -- restructured into index + 13 feature pages
 - `docs/guide/looking-glass.md` -- user guide
 - `docs/architecture/web-interface.md` -- LG architecture section
-- `.claude/rules/json-format.md` -- snake_case exception
+- `ai/rules/json-format.md` -- snake_case exception
 - `test/parse/lg-config.ci`, `test/parse/lg-disabled.ci` -- functional tests

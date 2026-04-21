@@ -23,7 +23,7 @@ Ze is a Network OS in Go (BGP, CLI, web, plugins). Key constraints:
 - JSON keys: kebab-case (exception: lg/handler_api.go for birdwatcher compat)
 - Config pipeline: File -> Tree -> ResolveBGPTree() -> map[string]any -> PeersFromTree()
 - Goroutines: long-lived workers on channels, never per-event
-- Rules: .claude/rules/ (buffer-first.md, design-principles.md, plugin-design.md)
+- Rules: ai/rules/ (buffer-first.md, design-principles.md, plugin-design.md)
 - Branch: $BRANCH
 EOF
 

@@ -46,7 +46,7 @@ plugin that bothered to read them.
   for non-CIDR families, added a dedicated "Non-CIDR Families in the Filter
   Text Protocol" section in `docs/architecture/api/process-protocol.md` with
   a matrix table of CIDR vs non-CIDR handling, and replicated the matrix in
-  `.claude/rules/plugin-design.md` so future filter authors hit the rule
+  `ai/rules/plugin-design.md` so future filter authors hit the rule
   during `before-writing-code` checks.
 - **Rejected: emitting per-family text encoders for each non-CIDR family.**
   Would require the engine to implement EVPN route type 1..5 text format,
@@ -122,5 +122,5 @@ plugin that bothered to read them.
   updated with the Raw=true requirement
 - `docs/architecture/api/process-protocol.md` -- new "Non-CIDR Families in
   the Filter Text Protocol" section + matrix table
-- `.claude/rules/plugin-design.md` -- new "Non-CIDR Families" subsection
+- `ai/rules/plugin-design.md` -- new "Non-CIDR Families" subsection
   under Runtime Filter Declaration + matrix table

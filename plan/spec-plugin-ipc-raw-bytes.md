@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file
 2. `.claude/rules/planning.md` -- workflow rules
-3. `.claude/rules/compatibility.md` -- plugin API backwards compatibility post-release
+3. `ai/rules/compatibility.md` -- plugin API backwards compatibility post-release
 4. `pkg/plugin/rpc/types.go` -- `FilterUpdateInput.Update string` (current contract)
 5. `internal/component/plugin/server/events.go` -- `formatCache` string consumers
 
@@ -30,7 +30,7 @@ after spec-fmt-0-append eliminated all internal `string` conversions.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `.claude/rules/compatibility.md`
+- [ ] `ai/rules/compatibility.md`
   -> Constraint: post-release, the plugin API contract is frozen. This
      change MUST be bundled with an SDK version bump and a migration note
      in the plugin authoring guide.

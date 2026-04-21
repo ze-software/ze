@@ -4,7 +4,7 @@
 # BLOCKING: All text+JSON formatting in these files must use Append idiom
 # (strconv.AppendUint, netip.Addr.AppendTo, hex.AppendEncode, etc.).
 # References:
-#   .claude/rules/buffer-first.md                -- Append shape + banned-pattern discipline
+#   ai/rules/buffer-first.md                -- Append shape + banned-pattern discipline
 #   plan/learned/614-fmt-0-append.md             -- idiom fmt-2 extends (hand-maintained guard over 3 files)
 #   plan/learned/NNN-fmt-2-json-append.md        -- graduates the guard to a real hook over 9 files
 
@@ -96,7 +96,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     echo -e "  ${YELLOW}This file is gated by the fmt-0 / fmt-2-json-append Append-idiom hook.${RESET}" >&2
     echo -e "  ${YELLOW}Allowed helpers: strconv.AppendUint, netip.Addr.AppendTo,${RESET}" >&2
     echo -e "  ${YELLOW}hex.AppendEncode, or a local [N]byte scratch + append.${RESET}" >&2
-    echo -e "  ${YELLOW}Rules: .claude/rules/buffer-first.md${RESET}" >&2
+    echo -e "  ${YELLOW}Rules: ai/rules/buffer-first.md${RESET}" >&2
     exit 2
 fi
 

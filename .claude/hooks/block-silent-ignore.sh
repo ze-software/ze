@@ -110,7 +110,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     echo "" >&2
     echo -e "  ${YELLOW}Errors must be handled, not silently ignored${RESET}" >&2
     echo -e "  ${YELLOW}Config must fail on unknown keys${RESET}" >&2
-    echo -e "  ${YELLOW}See .claude/rules/config-design.md, go-standards.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/config-design.md, go-standards.md${RESET}" >&2
     exit 2
 fi
 

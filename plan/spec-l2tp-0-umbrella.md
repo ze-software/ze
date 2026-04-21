@@ -136,11 +136,11 @@ Phases are strictly ordered. Each phase must be complete before the next begins.
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` -- subsystem, plugin, event bus patterns
   -> Constraint: subsystem implements `ze.Subsystem`, plugins use `registry.Registration`
-- [ ] `.claude/rules/plugin-design.md` -- plugin registration, 5-stage protocol
+- [ ] `ai/rules/plugin-design.md` -- plugin registration, 5-stage protocol
   -> Constraint: `RunEngine func(conn net.Conn) int`, `CLIHandler` required
-- [ ] `.claude/rules/buffer-first.md` -- wire encoding patterns
+- [ ] `ai/rules/buffer-first.md` -- wire encoding patterns
   -> Constraint: no `append()`, no `make()` in encoding helpers
-- [ ] `.claude/rules/goroutine-lifecycle.md` -- concurrency patterns
+- [ ] `ai/rules/goroutine-lifecycle.md` -- concurrency patterns
   -> Constraint: reactor pattern, no goroutine-per-tunnel
 - [ ] `docs/research/l2tpv2-implementation-guide.md` -- protocol spec (THIS IS THE PRIMARY REFERENCE)
 - [ ] `docs/research/l2tpv2-ze-integration.md` -- ze integration design

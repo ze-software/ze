@@ -1,7 +1,7 @@
 #!/bin/bash
 # PostToolUse hook: Suggest // RFC: header when BGP code references RFCs
 # Non-blocking (exit 0) — advisory only, since not all files need RFC refs
-# See .claude/rules/design-doc-references.md
+# See ai/rules/design-doc-references.md
 
 set -e
 

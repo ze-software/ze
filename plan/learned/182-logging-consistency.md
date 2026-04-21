@@ -33,4 +33,4 @@ migrate printf-style `internal/trace/` package to slog, add config-file log sett
 - `internal/component/bgp/reactor/` (reactor, peer, session) — trace replaced, loggers added
 - `internal/component/config/loader.go` — trace replaced, configLogger added
 - `internal/trace/` — deleted
-- `.claude/rules/go-standards.md` — logging section rewritten
+- `ai/rules/go-standards.md` — logging section rewritten

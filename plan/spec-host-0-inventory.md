@@ -13,7 +13,7 @@
 
 1. This spec file
 2. `.claude/rules/planning.md`
-3. `.claude/patterns/cli-command.md`
+3. `ai/patterns/cli-command.md`
 4. `internal/component/cmd/show/show.go`, `system.go` — existing show handlers
 5. `internal/component/iface/` — `DiscoverInterfaces`, `ListInterfaces`
 
@@ -80,16 +80,16 @@ on darwin.
   → Decision: host detection is a **component** (infrastructure),
     not a plugin (domain policy), per the component/plugin split.
   → Constraint: place under `internal/component/host/`.
-- [ ] `.claude/patterns/cli-command.md` — registration pattern.
+- [ ] `ai/patterns/cli-command.md` — registration pattern.
   → Constraint: online handlers register via `pluginserver.RegisterRPCs` in
     `init()`; signature `func(*pluginserver.CommandContext, []string) (*plugin.Response, error)`.
-- [ ] `.claude/rules/exact-or-reject.md` — boundary behavior.
+- [ ] `ai/rules/exact-or-reject.md` — boundary behavior.
   → Constraint: unknown `show host <arg>` rejects with the valid list.
-- [ ] `.claude/rules/json-format.md` — kebab-case JSON keys.
+- [ ] `ai/rules/json-format.md` — kebab-case JSON keys.
   → Constraint: all new response fields use kebab-case.
-- [ ] `.claude/rules/naming.md` — "ze" naming discipline.
+- [ ] `ai/rules/naming.md` — "ze" naming discipline.
   → Decision: component called `host` (ubiquitous, no ze-prefix needed).
-- [ ] `.claude/rules/memory.md` / `.claude/rules/enum-over-string.md` —
+- [ ] `.claude/rules/memory.md` / `ai/rules/enum-over-string.md` —
     cross-boundary pointer + string rules.
   → Constraint: detection structs are self-contained value types.
     No pointers into borrowed buffers. Discrete fields (CPU vendor,

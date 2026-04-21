@@ -196,7 +196,7 @@ Add full AIGP (RFC 7311) support to Ze: wire parsing, encoding, JSON formatting,
 | 5 | Plugin added/changed? | [ ] | `docs/guide/plugins.md` |
 | 6 | Has a user guide page? | [ ] | `docs/guide/<topic>.md` |
 | 7 | Wire format changed? | [ ] | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | [ ] | `.claude/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` |
+| 8 | Plugin SDK/protocol changed? | [ ] | `ai/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` |
 | 9 | RFC behavior implemented? | [ ] | `rfc/short/rfcNNNN.md` |
 | 10 | Test infrastructure changed? | [ ] | `docs/functional-tests.md` |
 | 11 | Affects daemon comparison? | [ ] | `docs/comparison.md` |

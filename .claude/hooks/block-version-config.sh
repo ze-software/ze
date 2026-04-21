@@ -52,7 +52,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
         echo -e "  ${RED}✗${RESET} $err" >&2
     done
     echo "" >&2
-    echo -e "  ${YELLOW}See .claude/rules/config-design.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/config-design.md${RESET}" >&2
     exit 2
 fi
 

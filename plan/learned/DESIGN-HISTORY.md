@@ -7,7 +7,7 @@ points at the specific learned summaries that hold the full record, so
 you need to read one file instead of 638.
 
 See also: `METHODOLOGY.md` (how individual summaries are written),
-`../../.claude/LEARNED-INDEX.md` (curated index by topic).
+`../../ai/LEARNED-INDEX.md` (curated index by topic).
 
 ## How to read this document
 
@@ -974,7 +974,7 @@ Engine code: zero ExaBGP format awareness.
 - **"Why does the code require invariant Z?"** — search "Load-bearing
   invariants" for Z. The table names the enforcement site and the
   summary that records the reasoning.
-- **Still unclear?** — fall back to `../../.claude/LEARNED-INDEX.md`
+- **Still unclear?** — fall back to `../../ai/LEARNED-INDEX.md`
   for the curated topic index, then read the specific summary.
 
 The summaries under `plan/learned/NNN-*.md` remain the authority.

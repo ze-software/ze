@@ -64,7 +64,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     echo "" >&2
     echo -e "  ${YELLOW}Ze has no users - no backwards compatibility needed${RESET}" >&2
     echo -e "  ${YELLOW}DELETE old code, don't layer new on top${RESET}" >&2
-    echo -e "  ${YELLOW}See .claude/rules/no-layering.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/no-layering.md${RESET}" >&2
     exit 2
 fi
 

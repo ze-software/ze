@@ -1,7 +1,7 @@
 # Post-Compaction Recovery
 
 **BLOCKING:** Complete before writing any code after compaction.
-Rationale: `.claude/rationale/post-compaction.md`
+Rationale: `ai/rationale/post-compaction.md`
 
 ## Tier 1 — Always
 

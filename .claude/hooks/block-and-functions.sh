@@ -50,7 +50,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     done
     echo "" >&2
     echo -e "  ${YELLOW}Each function should do ONE thing${RESET}" >&2
-    echo -e "  ${YELLOW}See .claude/rules/design-principles.md${RESET}" >&2
+    echo -e "  ${YELLOW}See ai/rules/design-principles.md${RESET}" >&2
     exit 1
 fi
 

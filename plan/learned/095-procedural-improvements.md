@@ -17,5 +17,5 @@ Audit pending specs for status, delete a stale 941-line CLAUDE_CONTINUATION.md, 
 
 ## Files
 - `TODO.md` — created as central spec/debt tracker
-- `.claude/INDEX.md`, `.claude/hooks/validate-spec.sh`, `.claude/commands/rfc-summarisation.md` — new infrastructure
+- `ai/INDEX.md`, `.claude/hooks/validate-spec.sh`, `.claude/commands/rfc-summarisation.md` — new infrastructure
 - `plan/CLAUDE_CONTINUATION.md` — deleted (941 lines, all stale)

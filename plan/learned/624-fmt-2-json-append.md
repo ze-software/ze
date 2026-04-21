@@ -112,7 +112,7 @@ sites and graduate the guard to a real PreToolUse hook.
   `internal/component/bgp/format/message_receiver_test.go` (4 new tests),
   `internal/component/bgp/format/json_test.go` (1 new hex test),
   `docs/architecture/buffer-architecture.md` (Phase 3 row rewritten),
-  `.claude/rules/buffer-first.md` (new hook noted),
+  `ai/rules/buffer-first.md` (new hook noted),
   `.claude/settings.json` (hook registered),
   `plan/deferrals.md` (fmt-2-json-append entry closed).
 - Created: `.claude/hooks/block-format-alloc.sh`,

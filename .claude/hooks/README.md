@@ -1,6 +1,6 @@
 # Claude Hooks
 
-Automated enforcement of `.claude/rules/` requirements.
+Automated enforcement of `ai/rules/` requirements.
 
 ## Summary
 

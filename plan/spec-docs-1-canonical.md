@@ -11,7 +11,7 @@
 
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
-2. `.claude/rules/documentation.md` - source anchors, update checklist
+2. `ai/rules/documentation.md` - source anchors, update checklist
 3. `docs/` - current layout (architecture, guide, contributing, features, plugin-development)
 4. `docs/DESIGN.md` - existing top-level architectural overview
 5. Project wiki (if reachable) - to decide what to cherry-pick
@@ -57,7 +57,7 @@ Out of scope:
 - [ ] `docs/DESIGN.md` - existing top-level design doc (may merge or supersede)
 - [ ] `docs/guide/configuration.md` - existing config guide (source material)
 - [ ] `docs/guide/plugins.md` - existing plugin guide (source material)
-- [ ] `.claude/rules/documentation.md` - source anchors, every factual claim
+- [ ] `ai/rules/documentation.md` - source anchors, every factual claim
   needs an HTML anchor comment
 
 ### RFC Summaries
@@ -195,7 +195,7 @@ No Go unit tests.
 4. **Phase: FSM entry** - `docs/bgp-fsm.md`, referencing RFC 4271 and the FSM
    source file.
 5. **Phase: Plugin entry** - `docs/plugin-overview.md`, cherry-picked from
-   `docs/guide/plugins.md` and `.claude/patterns/plugin.md`.
+   `docs/guide/plugins.md` and `ai/patterns/plugin.md`.
 6. **Phase: README link** - point the README at `docs/architecture.md`.
 7. **Phase: Link check** - run `make ze-doc-test`; add a link-check helper if
    not already present.

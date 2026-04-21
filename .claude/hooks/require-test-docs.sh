@@ -38,7 +38,7 @@ if [[ "$TEST_COUNT" -gt 0 ]]; then
         echo -e "  ${YELLOW}→ Add VALIDATES: and PREVENTS: comments to tests${RESET}" >&2
         echo -e "  ${YELLOW}→ Format: // VALIDATES: [what correct behavior looks like]${RESET}" >&2
         echo -e "  ${YELLOW}→ Format: // PREVENTS: [what bug this catches]${RESET}" >&2
-        echo -e "  ${YELLOW}→ See .claude/rules/tdd.md${RESET}" >&2
+        echo -e "  ${YELLOW}→ See ai/rules/tdd.md${RESET}" >&2
     fi
 fi
 

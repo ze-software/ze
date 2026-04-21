@@ -10,7 +10,7 @@ RFC 8907, a `LocalAuthorizer` interface inside `internal/component/tacacs/
 authorizer.go` whose only implementation was `*authz.Store`, and direct
 `tacacs` package imports from `cmd/ze/hub/`. The hub knew the word "tacacs",
 which broke the small-core-plus-registration pattern documented in
-`.claude/patterns/registration.md`. With RADIUS and LDAP backends likely to
+`ai/patterns/registration.md`. With RADIUS and LDAP backends likely to
 follow, the second copy of the same mistake would have cemented the wrong
 shape. The goal was to introduce a VFS-shaped AAA layer (`internal/component/
 aaa/`) that owns the three interfaces and a backend registry, with `authz`

@@ -1,7 +1,7 @@
 #!/bin/bash
 # PreToolUse hook: Require // Design: comment in .go files
 # Blocking (exit 2) — prevents writing .go files without Design references
-# See .claude/rules/design-doc-references.md
+# See ai/rules/design-doc-references.md
 
 set -e
 
@@ -67,5 +67,5 @@ echo -e "${RED}${BOLD}✘ BLOCKED: Missing // Design: comment${RESET}" >&2
 echo "" >&2
 echo -e "  ${RED}!${RESET} File: $FILE_PATH" >&2
 echo -e "  ${RED}→${RESET} Add: // Design: docs/architecture/<doc>.md — topic" >&2
-echo -e "  ${RED}→${RESET} See .claude/rules/design-doc-references.md" >&2
+echo -e "  ${RED}→${RESET} See ai/rules/design-doc-references.md" >&2
 exit 2

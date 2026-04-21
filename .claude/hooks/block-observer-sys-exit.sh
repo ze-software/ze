@@ -4,7 +4,7 @@
 # WARNING (exit 1): Python observer block uses sys.exit(1) without runtime_fail.
 # This is a silent false-positive: the runner checks ze's exit code, ze has
 # already exited 0 from the clean shutdown by the time sys.exit(1) runs.
-# See .claude/rules/testing.md "Observer-Exit Antipattern" and the cmd-4 fix
+# See ai/rules/testing.md "Observer-Exit Antipattern" and the cmd-4 fix
 # (1fc98747).
 #
 # The hook is non-blocking (exit 1) so legitimate edits to known-broken files
@@ -71,7 +71,7 @@ echo -e "       sentinel that runner_validate.go detects as a failure." >&2
 echo -e "    2. Add expect=stderr:pattern=<production log line> on the daemon's" >&2
 echo -e "       own decision log (preferred -- tests production code path)." >&2
 echo "" >&2
-echo -e "  ${YELLOW}See:${RESET} .claude/rules/testing.md \"Observer-Exit Antipattern\"" >&2
+echo -e "  ${YELLOW}See:${RESET} ai/rules/testing.md \"Observer-Exit Antipattern\"" >&2
 echo -e "  ${YELLOW}Reference fix:${RESET} 1fc98747 (cmd-4 prefix filter)" >&2
 
 # Non-blocking warning so legitimate migrations can proceed.
