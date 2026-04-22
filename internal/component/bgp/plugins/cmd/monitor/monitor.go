@@ -154,9 +154,9 @@ func buildSubscriptions(opts *monitorOpts) []*pluginserver.Subscription {
 		eventTypes = allBGPEventTypes
 	}
 
-	dir := events.DirectionBoth
+	dir := events.DirBoth
 	if opts.direction != "" {
-		dir = opts.direction
+		dir = events.ParseDirection(opts.direction)
 	}
 
 	var peerFilter *pluginserver.PeerFilter
@@ -164,11 +164,12 @@ func buildSubscriptions(opts *monitorOpts) []*pluginserver.Subscription {
 		peerFilter = &pluginserver.PeerFilter{Selector: opts.peer}
 	}
 
+	bgpNS := events.LookupNamespaceID(bgpevents.Namespace)
 	subs := make([]*pluginserver.Subscription, len(eventTypes))
 	for i, et := range eventTypes {
 		subs[i] = &pluginserver.Subscription{
-			Namespace:  bgpevents.Namespace,
-			EventType:  et,
+			Namespace:  bgpNS,
+			EventType:  events.LookupEventTypeID(et),
 			Direction:  dir,
 			PeerFilter: peerFilter,
 		}

@@ -243,9 +243,9 @@ func BuildEventMonitorSubscriptions(opts *EventMonitorOpts) []*Subscription {
 		peerFilter = &PeerFilter{Selector: opts.Peer}
 	}
 
-	direction := opts.Direction
-	if direction == "" {
-		direction = events.DirectionBoth
+	dir := events.ParseDirection(opts.Direction)
+	if dir == events.DirUnspecified {
+		dir = events.DirBoth
 	}
 
 	all := allEventTypes()
@@ -262,6 +262,7 @@ func BuildEventMonitorSubscriptions(opts *EventMonitorOpts) []*Subscription {
 
 	var subs []*Subscription
 	for ns, types := range all {
+		nsID := events.LookupNamespaceID(ns)
 		for _, et := range types {
 			if len(included) > 0 && !included[et] {
 				continue
@@ -270,9 +271,9 @@ func BuildEventMonitorSubscriptions(opts *EventMonitorOpts) []*Subscription {
 				continue
 			}
 			subs = append(subs, &Subscription{
-				Namespace:  ns,
-				EventType:  et,
-				Direction:  direction,
+				Namespace:  nsID,
+				EventType:  events.LookupEventTypeID(et),
+				Direction:  dir,
 				PeerFilter: peerFilter,
 			})
 		}

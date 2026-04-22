@@ -24,9 +24,9 @@ import (
 func TestParseSubscriptionBasic(t *testing.T) {
 	sub, err := ParseSubscription([]string{"bgp", "event", "update"})
 	require.NoError(t, err)
-	assert.Equal(t, bgpevents.Namespace, sub.Namespace)
-	assert.Equal(t, bgpevents.EventUpdate, sub.EventType)
-	assert.Equal(t, events.DirectionBoth, sub.Direction)
+	assert.Equal(t, bgpevents.Namespace, sub.Namespace.String())
+	assert.Equal(t, bgpevents.EventUpdate, sub.EventType.String())
+	assert.Equal(t, events.DirBoth, sub.Direction)
 	assert.Nil(t, sub.PeerFilter)
 	assert.Empty(t, sub.PluginFilter)
 }
@@ -38,8 +38,8 @@ func TestParseSubscriptionBasic(t *testing.T) {
 func TestParseSubscriptionWithPeer(t *testing.T) {
 	sub, err := ParseSubscription([]string{"peer", "10.0.0.1", "bgp", "event", "update"})
 	require.NoError(t, err)
-	assert.Equal(t, bgpevents.Namespace, sub.Namespace)
-	assert.Equal(t, bgpevents.EventUpdate, sub.EventType)
+	assert.Equal(t, bgpevents.Namespace, sub.Namespace.String())
+	assert.Equal(t, bgpevents.EventUpdate, sub.EventType.String())
 	require.NotNil(t, sub.PeerFilter)
 	assert.Equal(t, "10.0.0.1", sub.PeerFilter.Selector)
 }
@@ -73,8 +73,8 @@ func TestParseSubscriptionWithPeerExclude(t *testing.T) {
 func TestParseSubscriptionWithPlugin(t *testing.T) {
 	sub, err := ParseSubscription([]string{"plugin", "rib-cache", "bgp-rib", "event", "cache"})
 	require.NoError(t, err)
-	assert.Equal(t, "bgp-rib", sub.Namespace)
-	assert.Equal(t, "cache", sub.EventType)
+	assert.Equal(t, "bgp-rib", sub.Namespace.String())
+	assert.Equal(t, "cache", sub.EventType.String())
 	assert.Equal(t, "rib-cache", sub.PluginFilter)
 	assert.Nil(t, sub.PeerFilter)
 }
@@ -87,11 +87,11 @@ func TestParseSubscriptionWithDirection(t *testing.T) {
 	tests := []struct {
 		name      string
 		args      []string
-		direction string
+		direction events.Direction
 	}{
-		{"received", []string{"bgp", "event", "update", "direction", "received"}, "received"},
-		{"sent", []string{"bgp", "event", "update", "direction", "sent"}, "sent"},
-		{"both", []string{"bgp", "event", "update", "direction", "both"}, "both"},
+		{"received", []string{"bgp", "event", "update", "direction", "received"}, events.DirReceived},
+		{"sent", []string{"bgp", "event", "update", "direction", "sent"}, events.DirSent},
+		{"both", []string{"bgp", "event", "update", "direction", "both"}, events.DirBoth},
 	}
 
 	for _, tt := range tests {
@@ -110,9 +110,9 @@ func TestParseSubscriptionWithDirection(t *testing.T) {
 func TestParseSubscriptionFull(t *testing.T) {
 	sub, err := ParseSubscription([]string{"peer", "10.0.0.1", "bgp", "event", "update", "direction", "sent"})
 	require.NoError(t, err)
-	assert.Equal(t, bgpevents.Namespace, sub.Namespace)
-	assert.Equal(t, bgpevents.EventUpdate, sub.EventType)
-	assert.Equal(t, events.DirectionSent, sub.Direction)
+	assert.Equal(t, bgpevents.Namespace, sub.Namespace.String())
+	assert.Equal(t, bgpevents.EventUpdate, sub.EventType.String())
+	assert.Equal(t, events.DirSent, sub.Direction)
 	require.NotNil(t, sub.PeerFilter)
 	assert.Equal(t, "10.0.0.1", sub.PeerFilter.Selector)
 }
@@ -233,101 +233,101 @@ func TestSubscriptionMatches(t *testing.T) {
 	tests := []struct {
 		name      string
 		sub       *Subscription
-		namespace string
-		eventType string
-		direction string
+		namespace events.NamespaceID
+		eventType events.EventTypeID
+		direction events.Direction
 		peer      string
 		peerName  string
 		want      bool
 	}{
 		{
 			name:      "exact_match",
-			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth},
-			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1",
+			sub:       &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth},
+			namespace: events.LookupNamespaceID("bgp"), eventType: events.LookupEventTypeID("update"), direction: events.DirReceived, peer: "10.0.0.1",
 			want: true,
 		},
 		{
 			name:      "direction_received_match",
-			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionReceived},
-			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1",
+			sub:       &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirReceived},
+			namespace: events.LookupNamespaceID("bgp"), eventType: events.LookupEventTypeID("update"), direction: events.DirReceived, peer: "10.0.0.1",
 			want: true,
 		},
 		{
 			name:      "direction_received_no_match",
-			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionReceived},
-			namespace: "bgp", eventType: "update", direction: "sent", peer: "10.0.0.1",
+			sub:       &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirReceived},
+			namespace: events.LookupNamespaceID("bgp"), eventType: events.LookupEventTypeID("update"), direction: events.DirSent, peer: "10.0.0.1",
 			want: false,
 		},
 		{
 			name:      "namespace_mismatch",
-			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth},
-			namespace: "bgp-rib", eventType: "update", direction: "received", peer: "10.0.0.1",
+			sub:       &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth},
+			namespace: events.LookupNamespaceID("bgp-rib"), eventType: events.LookupEventTypeID("update"), direction: events.DirReceived, peer: "10.0.0.1",
 			want: false,
 		},
 		{
 			name:      "event_mismatch",
-			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth},
-			namespace: "bgp", eventType: "state", direction: "received", peer: "10.0.0.1",
+			sub:       &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth},
+			namespace: events.LookupNamespaceID("bgp"), eventType: events.LookupEventTypeID("state"), direction: events.DirReceived, peer: "10.0.0.1",
 			want: false,
 		},
 		{
 			name:      "peer_filter_match",
-			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "10.0.0.1"}},
-			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1",
+			sub:       &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth, PeerFilter: &PeerFilter{Selector: "10.0.0.1"}},
+			namespace: events.LookupNamespaceID("bgp"), eventType: events.LookupEventTypeID("update"), direction: events.DirReceived, peer: "10.0.0.1",
 			want: true,
 		},
 		{
 			name:      "peer_filter_no_match",
-			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "10.0.0.1"}},
-			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.2",
+			sub:       &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth, PeerFilter: &PeerFilter{Selector: "10.0.0.1"}},
+			namespace: events.LookupNamespaceID("bgp"), eventType: events.LookupEventTypeID("update"), direction: events.DirReceived, peer: "10.0.0.2",
 			want: false,
 		},
 		{
 			name:      "peer_glob_match",
-			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "*"}},
-			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1",
+			sub:       &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth, PeerFilter: &PeerFilter{Selector: "*"}},
+			namespace: events.LookupNamespaceID("bgp"), eventType: events.LookupEventTypeID("update"), direction: events.DirReceived, peer: "10.0.0.1",
 			want: true,
 		},
 		{
 			name:      "peer_exclude_match",
-			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "!10.0.0.1"}},
-			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.2",
+			sub:       &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth, PeerFilter: &PeerFilter{Selector: "!10.0.0.1"}},
+			namespace: events.LookupNamespaceID("bgp"), eventType: events.LookupEventTypeID("update"), direction: events.DirReceived, peer: "10.0.0.2",
 			want: true,
 		},
 		{
 			name:      "peer_exclude_no_match",
-			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "!10.0.0.1"}},
-			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1",
+			sub:       &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth, PeerFilter: &PeerFilter{Selector: "!10.0.0.1"}},
+			namespace: events.LookupNamespaceID("bgp"), eventType: events.LookupEventTypeID("update"), direction: events.DirReceived, peer: "10.0.0.1",
 			want: false,
 		},
 		{
 			name:      "peer_name_match",
-			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "upstream-1"}},
-			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1", peerName: "upstream-1",
+			sub:       &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth, PeerFilter: &PeerFilter{Selector: "upstream-1"}},
+			namespace: events.LookupNamespaceID("bgp"), eventType: events.LookupEventTypeID("update"), direction: events.DirReceived, peer: "10.0.0.1", peerName: "upstream-1",
 			want: true,
 		},
 		{
 			name:      "peer_name_no_match",
-			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "upstream-1"}},
-			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1", peerName: "downstream-2",
+			sub:       &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth, PeerFilter: &PeerFilter{Selector: "upstream-1"}},
+			namespace: events.LookupNamespaceID("bgp"), eventType: events.LookupEventTypeID("update"), direction: events.DirReceived, peer: "10.0.0.1", peerName: "downstream-2",
 			want: false,
 		},
 		{
 			name:      "peer_name_exclude_by_name",
-			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "!upstream-1"}},
-			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1", peerName: "upstream-1",
+			sub:       &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth, PeerFilter: &PeerFilter{Selector: "!upstream-1"}},
+			namespace: events.LookupNamespaceID("bgp"), eventType: events.LookupEventTypeID("update"), direction: events.DirReceived, peer: "10.0.0.1", peerName: "upstream-1",
 			want: false,
 		},
 		{
 			name:      "peer_name_exclude_passes",
-			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "!upstream-1"}},
-			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1", peerName: "downstream-2",
+			sub:       &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth, PeerFilter: &PeerFilter{Selector: "!upstream-1"}},
+			namespace: events.LookupNamespaceID("bgp"), eventType: events.LookupEventTypeID("update"), direction: events.DirReceived, peer: "10.0.0.1", peerName: "downstream-2",
 			want: true,
 		},
 		{
 			name:      "peer_ip_filter_matches_addr_not_name",
-			sub:       &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "10.0.0.1"}},
-			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1", peerName: "upstream-1",
+			sub:       &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth, PeerFilter: &PeerFilter{Selector: "10.0.0.1"}},
+			namespace: events.LookupNamespaceID("bgp"), eventType: events.LookupEventTypeID("update"), direction: events.DirReceived, peer: "10.0.0.1", peerName: "upstream-1",
 			want: true,
 		},
 	}
@@ -352,7 +352,7 @@ func TestSubscriptionManagerAddRemove(t *testing.T) {
 	sm := NewSubscriptionManager()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test"})
 
-	sub := &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth}
+	sub := &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth}
 
 	// Add subscription
 	sm.Add(proc, sub)
@@ -380,25 +380,25 @@ func TestSubscriptionManagerGetMatching(t *testing.T) {
 	proc3 := process.NewProcess(plugin.PluginConfig{Name: "proc3"})
 
 	// proc1 subscribes to updates
-	sm.Add(proc1, &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth})
+	sm.Add(proc1, &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth})
 
 	// proc2 subscribes to state
-	sm.Add(proc2, &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventState, Direction: events.DirectionBoth})
+	sm.Add(proc2, &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventState), Direction: events.DirBoth})
 
 	// proc3 subscribes to updates from specific peer
-	sm.Add(proc3, &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth, PeerFilter: &PeerFilter{Selector: "10.0.0.1"}})
+	sm.Add(proc3, &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth, PeerFilter: &PeerFilter{Selector: "10.0.0.1"}})
 
 	// Update from 10.0.0.1 should match proc1 and proc3
-	matches := sm.GetMatching(bgpevents.Namespace, "update", "received", "10.0.0.1", "")
+	matches := sm.GetMatching(events.LookupNamespaceID(bgpevents.Namespace), events.LookupEventTypeID("update"), events.DirReceived, "10.0.0.1", "")
 	assert.Len(t, matches, 2)
 
 	// Update from 10.0.0.2 should only match proc1
-	matches = sm.GetMatching(bgpevents.Namespace, "update", "received", "10.0.0.2", "")
+	matches = sm.GetMatching(events.LookupNamespaceID(bgpevents.Namespace), events.LookupEventTypeID("update"), events.DirReceived, "10.0.0.2", "")
 	assert.Len(t, matches, 1)
 	assert.Equal(t, "proc1", matches[0].Name())
 
 	// State event should only match proc2
-	matches = sm.GetMatching(bgpevents.Namespace, "state", "", "10.0.0.1", "")
+	matches = sm.GetMatching(events.LookupNamespaceID(bgpevents.Namespace), events.LookupEventTypeID("state"), events.DirUnspecified, "10.0.0.1", "")
 	assert.Len(t, matches, 1)
 	assert.Equal(t, "proc2", matches[0].Name())
 }
@@ -420,9 +420,9 @@ func TestSubscriptionManagerConcurrency(t *testing.T) {
 		wg.Go(func() {
 			for range iterations {
 				sm.Add(proc, &Subscription{
-					Namespace: bgpevents.Namespace,
-					EventType: bgpevents.EventUpdate,
-					Direction: events.DirectionBoth,
+					Namespace: events.LookupNamespaceID(bgpevents.Namespace),
+					EventType: events.LookupEventTypeID(bgpevents.EventUpdate),
+					Direction: events.DirBoth,
 				})
 			}
 		})
@@ -432,7 +432,7 @@ func TestSubscriptionManagerConcurrency(t *testing.T) {
 	for range goroutines {
 		wg.Go(func() {
 			for range iterations {
-				_ = sm.GetMatching(bgpevents.Namespace, "update", "received", "10.0.0.1", "")
+				_ = sm.GetMatching(events.LookupNamespaceID(bgpevents.Namespace), events.LookupEventTypeID("update"), events.DirReceived, "10.0.0.1", "")
 			}
 		})
 	}
@@ -449,8 +449,8 @@ func TestSubscriptionManagerClearProcess(t *testing.T) {
 	sm := NewSubscriptionManager()
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test"})
 
-	sm.Add(proc, &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth})
-	sm.Add(proc, &Subscription{Namespace: bgpevents.Namespace, EventType: bgpevents.EventState, Direction: events.DirectionBoth})
+	sm.Add(proc, &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth})
+	sm.Add(proc, &Subscription{Namespace: events.LookupNamespaceID(bgpevents.Namespace), EventType: events.LookupEventTypeID(bgpevents.EventState), Direction: events.DirBoth})
 	assert.Equal(t, 2, sm.Count(proc))
 
 	sm.ClearProcess(proc)
@@ -472,7 +472,7 @@ func TestValidBgpEventTypes(t *testing.T) {
 		t.Run(eventType, func(t *testing.T) {
 			sub, err := ParseSubscription([]string{"bgp", "event", eventType})
 			require.NoError(t, err)
-			assert.Equal(t, eventType, sub.EventType)
+			assert.Equal(t, eventType, sub.EventType.String())
 		})
 	}
 }
@@ -488,7 +488,7 @@ func TestValidRibEventTypes(t *testing.T) {
 		t.Run(eventType, func(t *testing.T) {
 			sub, err := ParseSubscription([]string{"bgp-rib", "event", eventType})
 			require.NoError(t, err)
-			assert.Equal(t, eventType, sub.EventType)
+			assert.Equal(t, eventType, sub.EventType.String())
 		})
 	}
 }

@@ -22,11 +22,11 @@ const (
 
 // Subscription represents an event subscription.
 type Subscription struct {
-	Namespace    string      // "bgp" or "bgp-rib"
-	EventType    string      // "update", "state", etc.
-	Direction    string      // "received", "sent", "both" (empty = both)
-	PeerFilter   *PeerFilter // nil = all peers
-	PluginFilter string      // plugin name filter (empty = all)
+	Namespace    events.NamespaceID // compact ID assigned at registration time
+	EventType    events.EventTypeID // compact ID assigned at registration time
+	Direction    events.Direction   // typed enum (DirReceived, DirSent, DirBoth)
+	PeerFilter   *PeerFilter        // nil = all peers
+	PluginFilter string             // plugin name filter (empty = all)
 }
 
 // PeerFilter specifies which peers to filter.
@@ -50,29 +50,21 @@ func (pf *PeerFilter) Matches(peerAddr, peerName string) bool {
 
 // Matches returns true if this subscription matches the event.
 // peerAddr is the peer's IP address; peerName is the configured peer name (may be empty).
-func (s *Subscription) Matches(namespace, eventType, direction, peerAddr, peerName string) bool {
-	// Namespace must match
-	if s.Namespace != namespace {
+func (s *Subscription) Matches(ns events.NamespaceID, et events.EventTypeID, dir events.Direction, peerAddr, peerName string) bool {
+	if s.Namespace != ns {
 		return false
 	}
-
-	// Event type must match
-	if s.EventType != eventType {
+	if s.EventType != et {
 		return false
 	}
-
-	// Direction filter (only for events that have direction)
-	if direction != "" && s.Direction != events.DirectionBoth && s.Direction != direction {
+	if dir != events.DirUnspecified && s.Direction != events.DirBoth && s.Direction != dir {
 		return false
 	}
-
-	// Peer filter
 	if s.PeerFilter != nil {
 		if !s.PeerFilter.Matches(peerAddr, peerName) {
 			return false
 		}
 	}
-
 	return true
 }
 
@@ -145,14 +137,14 @@ func (sm *SubscriptionManager) ClearProcess(proc *process.Process) {
 
 // GetMatching returns all processes with subscriptions matching the event.
 // peerName is the configured peer name (may be empty for non-BGP events or emit-event RPCs).
-func (sm *SubscriptionManager) GetMatching(namespace, eventType, direction, peerAddr, peerName string) []*process.Process {
+func (sm *SubscriptionManager) GetMatching(ns events.NamespaceID, et events.EventTypeID, dir events.Direction, peerAddr, peerName string) []*process.Process {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
 	var result []*process.Process
 	for proc, subs := range sm.subscriptions {
 		for _, sub := range subs {
-			if sub.Matches(namespace, eventType, direction, peerAddr, peerName) {
+			if sub.Matches(ns, et, dir, peerAddr, peerName) {
 				result = append(result, proc)
 				break // Only add proc once, even if multiple subs match
 			}
@@ -176,7 +168,7 @@ func (sm *SubscriptionManager) GetSubscriptions(proc *process.Process) []*Subscr
 // Format: [peer <sel> | plugin <name>] <namespace> event <type> [direction received|sent|both].
 func ParseSubscription(args []string) (*Subscription, error) {
 	sub := &Subscription{
-		Direction: events.DirectionBoth,
+		Direction: events.DirBoth,
 	}
 
 	i := 0
@@ -208,7 +200,7 @@ func ParseSubscription(args []string) (*Subscription, error) {
 	if !events.IsValidNamespace(ns) {
 		return nil, fmt.Errorf("invalid namespace: %s (valid: %s)", ns, events.ValidNamespaceNames())
 	}
-	sub.Namespace = ns
+	sub.Namespace = events.LookupNamespaceID(ns)
 	i++
 
 	// "event" keyword
@@ -225,7 +217,7 @@ func ParseSubscription(args []string) (*Subscription, error) {
 	if err := validateEventType(ns, eventType); err != nil {
 		return nil, err
 	}
-	sub.EventType = eventType
+	sub.EventType = events.LookupEventTypeID(eventType)
 	i++
 
 	// Optional direction
@@ -236,7 +228,7 @@ func ParseSubscription(args []string) (*Subscription, error) {
 		dir := args[i+1]
 		switch dir {
 		case events.DirectionReceived, events.DirectionSent, events.DirectionBoth:
-			sub.Direction = dir
+			sub.Direction = events.ParseDirection(dir)
 		default:
 			return nil, fmt.Errorf("invalid direction: %s (valid: received, sent, both)", dir)
 		}

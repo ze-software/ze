@@ -24,7 +24,7 @@ func TestMonitorManagerAddRemove(t *testing.T) {
 	mm := NewMonitorManager()
 
 	mc := NewMonitorClient(t.Context(), "test-1", []*Subscription{
-		{Namespace: "bgp", EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth},
+		{Namespace: events.LookupNamespaceID("bgp"), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth},
 	}, 256)
 
 	mm.Add(mc)
@@ -48,17 +48,17 @@ func TestMonitorManagerGetMatching(t *testing.T) {
 
 	// Monitor 1: subscribes to updates from all peers.
 	mc1 := NewMonitorClient(ctx, "all-updates", []*Subscription{
-		{Namespace: "bgp", EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth},
+		{Namespace: events.LookupNamespaceID("bgp"), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth},
 	}, 256)
 
 	// Monitor 2: subscribes to state events only.
 	mc2 := NewMonitorClient(ctx, "state-only", []*Subscription{
-		{Namespace: "bgp", EventType: bgpevents.EventState, Direction: events.DirectionBoth},
+		{Namespace: events.LookupNamespaceID("bgp"), EventType: events.LookupEventTypeID(bgpevents.EventState), Direction: events.DirBoth},
 	}, 256)
 
 	// Monitor 3: subscribes to updates from specific peer.
 	mc3 := NewMonitorClient(ctx, "peer-updates", []*Subscription{
-		{Namespace: "bgp", EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth,
+		{Namespace: events.LookupNamespaceID("bgp"), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth,
 			PeerFilter: &PeerFilter{Selector: "10.0.0.1"}},
 	}, 256)
 
@@ -105,7 +105,7 @@ func TestMonitorManagerCleanup(t *testing.T) {
 	mm := NewMonitorManager()
 
 	mc := NewMonitorClient(t.Context(), "cleanup-test", []*Subscription{
-		{Namespace: "bgp", EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth},
+		{Namespace: events.LookupNamespaceID("bgp"), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth},
 	}, 256)
 
 	mm.Add(mc)
@@ -130,11 +130,11 @@ func TestMonitorDelivery(t *testing.T) {
 	ctx := t.Context()
 
 	mc1 := NewMonitorClient(ctx, "receiver", []*Subscription{
-		{Namespace: "bgp", EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth},
+		{Namespace: events.LookupNamespaceID("bgp"), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth},
 	}, 256)
 
 	mc2 := NewMonitorClient(ctx, "non-receiver", []*Subscription{
-		{Namespace: "bgp", EventType: bgpevents.EventState, Direction: events.DirectionBoth},
+		{Namespace: events.LookupNamespaceID("bgp"), EventType: events.LookupEventTypeID(bgpevents.EventState), Direction: events.DirBoth},
 	}, 256)
 
 	mm.Add(mc1)
@@ -169,7 +169,7 @@ func TestMonitorBackpressure(t *testing.T) {
 
 	// Use small buffer to test backpressure.
 	mc := NewMonitorClient(t.Context(), "slow-client", []*Subscription{
-		{Namespace: "bgp", EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth},
+		{Namespace: events.LookupNamespaceID("bgp"), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth},
 	}, 2) // tiny buffer
 
 	mm.Add(mc)
@@ -201,7 +201,7 @@ func TestMonitorManagerConcurrency(t *testing.T) {
 	for i := range goroutines {
 		wg.Go(func() {
 			mc := NewMonitorClient(ctx, fmt.Sprintf("client-%d", i), []*Subscription{
-				{Namespace: "bgp", EventType: bgpevents.EventUpdate, Direction: events.DirectionBoth},
+				{Namespace: events.LookupNamespaceID("bgp"), EventType: events.LookupEventTypeID(bgpevents.EventUpdate), Direction: events.DirBoth},
 			}, 256)
 			mm.Add(mc)
 		})

@@ -342,7 +342,7 @@ func TestBuildSubscriptions(t *testing.T) {
 		name        string
 		opts        *monitorOpts
 		wantCount   int
-		wantDir     string
+		wantDir     events.Direction
 		wantPeerNil bool
 		wantPeerSel string
 	}{
@@ -350,21 +350,21 @@ func TestBuildSubscriptions(t *testing.T) {
 			name:        "no_filters_subscribes_all_events",
 			opts:        &monitorOpts{},
 			wantCount:   len(allBGPEventTypes),
-			wantDir:     events.DirectionBoth,
+			wantDir:     events.DirBoth,
 			wantPeerNil: true,
 		},
 		{
 			name:        "specific_events",
 			opts:        &monitorOpts{eventTypes: []string{"update", "state"}},
 			wantCount:   2,
-			wantDir:     events.DirectionBoth,
+			wantDir:     events.DirBoth,
 			wantPeerNil: true,
 		},
 		{
 			name:        "with_peer_filter",
 			opts:        &monitorOpts{peer: "10.0.0.1"},
 			wantCount:   len(allBGPEventTypes),
-			wantDir:     events.DirectionBoth,
+			wantDir:     events.DirBoth,
 			wantPeerNil: false,
 			wantPeerSel: "10.0.0.1",
 		},
@@ -372,14 +372,14 @@ func TestBuildSubscriptions(t *testing.T) {
 			name:        "with_direction",
 			opts:        &monitorOpts{direction: "received"},
 			wantCount:   len(allBGPEventTypes),
-			wantDir:     "received",
+			wantDir:     events.DirReceived,
 			wantPeerNil: true,
 		},
 		{
 			name:        "all_filters",
 			opts:        &monitorOpts{peer: "10.0.0.2", eventTypes: []string{"update"}, direction: "sent"},
 			wantCount:   1,
-			wantDir:     "sent",
+			wantDir:     events.DirSent,
 			wantPeerNil: false,
 			wantPeerSel: "10.0.0.2",
 		},
@@ -391,7 +391,7 @@ func TestBuildSubscriptions(t *testing.T) {
 			require.Len(t, subs, tt.wantCount)
 
 			for _, sub := range subs {
-				assert.Equal(t, "bgp", sub.Namespace, "namespace should be bgp")
+				assert.Equal(t, "bgp", sub.Namespace.String(), "namespace should be bgp")
 				assert.Equal(t, tt.wantDir, sub.Direction, "direction mismatch")
 				if tt.wantPeerNil {
 					assert.Nil(t, sub.PeerFilter, "peer filter should be nil")

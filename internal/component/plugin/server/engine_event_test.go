@@ -8,8 +8,12 @@ import (
 	"testing"
 
 	txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+func nsID(s string) events.NamespaceID { return events.LookupNamespaceID(s) }
+func etID(s string) events.EventTypeID { return events.LookupEventTypeID(s) }
 
 // mustString type-asserts to string for tests that passed string payloads.
 // Uses t.Helper so the failure points at the caller, not this helper.
@@ -31,7 +35,7 @@ func TestEngineSubscribersRegisterAndDispatch(t *testing.T) {
 		mu       sync.Mutex
 		received []string
 	)
-	id := subs.register("config", "verify-ok", func(p any) {
+	id := subs.register(nsID("config"), etID("verify-ok"), func(p any) {
 		mu.Lock()
 		received = append(received, mustString(t, p))
 		mu.Unlock()
@@ -40,8 +44,8 @@ func TestEngineSubscribersRegisterAndDispatch(t *testing.T) {
 		t.Fatalf("register returned id 0, expected non-zero")
 	}
 
-	subs.dispatch("config", "verify-ok", `{"plugin":"bgp"}`)
-	subs.dispatch("config", "verify-ok", `{"plugin":"iface"}`)
+	subs.dispatch(nsID("config"), etID("verify-ok"), `{"plugin":"bgp"}`)
+	subs.dispatch(nsID("config"), etID("verify-ok"), `{"plugin":"iface"}`)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -59,11 +63,11 @@ func TestEngineSubscribersUnregister(t *testing.T) {
 	subs := newEngineEventSubscribers()
 
 	var calls int
-	id := subs.register("config", "apply-ok", func(_ any) { calls++ })
+	id := subs.register(nsID("config"), etID("apply-ok"), func(_ any) { calls++ })
 
-	subs.dispatch("config", "apply-ok", `first`)
-	subs.unregister("config", "apply-ok", id)
-	subs.dispatch("config", "apply-ok", `second`)
+	subs.dispatch(nsID("config"), etID("apply-ok"), `first`)
+	subs.unregister(nsID("config"), etID("apply-ok"), id)
+	subs.dispatch(nsID("config"), etID("apply-ok"), `second`)
 
 	if calls != 1 {
 		t.Errorf("expected 1 call after unregister, got %d", calls)
@@ -76,10 +80,10 @@ func TestEngineSubscribersMultipleHandlersForSameEvent(t *testing.T) {
 	subs := newEngineEventSubscribers()
 
 	var calls1, calls2 int
-	subs.register("config", "rollback-ok", func(_ any) { calls1++ })
-	subs.register("config", "rollback-ok", func(_ any) { calls2++ })
+	subs.register(nsID("config"), etID("rollback-ok"), func(_ any) { calls1++ })
+	subs.register(nsID("config"), etID("rollback-ok"), func(_ any) { calls2++ })
 
-	subs.dispatch("config", "rollback-ok", `payload`)
+	subs.dispatch(nsID("config"), etID("rollback-ok"), `payload`)
 
 	if calls1 != 1 || calls2 != 1 {
 		t.Errorf("expected each handler called once, got %d and %d", calls1, calls2)
@@ -91,7 +95,7 @@ func TestEngineSubscribersMultipleHandlersForSameEvent(t *testing.T) {
 func TestEngineSubscribersDispatchUnknownNoop(t *testing.T) {
 	subs := newEngineEventSubscribers()
 	// Dispatching to an event with no handlers must not panic.
-	subs.dispatch("config", "verify-ok", `payload`)
+	subs.dispatch(nsID("config"), etID("verify-ok"), `payload`)
 }
 
 // VALIDATES: a handler that unregisters itself during dispatch does not deadlock.
@@ -101,12 +105,12 @@ func TestEngineSubscribersDispatchUnknownNoop(t *testing.T) {
 func TestEngineSubscribersHandlerCanUnregisterDuringDispatch(t *testing.T) {
 	subs := newEngineEventSubscribers()
 	var id uint64
-	id = subs.register("config", "committed", func(_ any) {
-		subs.unregister("config", "committed", id)
+	id = subs.register(nsID("config"), etID("committed"), func(_ any) {
+		subs.unregister(nsID("config"), etID("committed"), id)
 	})
-	subs.dispatch("config", "committed", `payload`)
+	subs.dispatch(nsID("config"), etID("committed"), `payload`)
 	// Second dispatch should not call the handler (unregistered).
-	subs.dispatch("config", "committed", `payload`)
+	subs.dispatch(nsID("config"), etID("committed"), `payload`)
 }
 
 // VALIDATES: when handler A unregisters peer handler B during dispatch, B is
@@ -122,14 +126,14 @@ func TestEngineSubscribersMidDispatchUnregisterTakesEffectNextDispatch(t *testin
 	var bCalls int
 
 	// Handler B records each invocation.
-	bID = subs.register("config", "applied", func(_ any) { bCalls++ })
+	bID = subs.register(nsID("config"), etID("applied"), func(_ any) { bCalls++ })
 
 	// Handler A unregisters B when invoked.
-	subs.register("config", "applied", func(_ any) {
-		subs.unregister("config", "applied", bID)
+	subs.register(nsID("config"), etID("applied"), func(_ any) {
+		subs.unregister(nsID("config"), etID("applied"), bID)
 	})
 
-	subs.dispatch("config", "applied", `payload`)
+	subs.dispatch(nsID("config"), etID("applied"), `payload`)
 	// During this single dispatch, both A and B were in the local snapshot.
 	// Even though A unregistered B, the snapshot still contained B, so B fired
 	// exactly once. Map iteration order is randomized, so we check the count
@@ -138,7 +142,7 @@ func TestEngineSubscribersMidDispatchUnregisterTakesEffectNextDispatch(t *testin
 		t.Errorf("first dispatch: expected B called once, got %d", bCalls)
 	}
 
-	subs.dispatch("config", "applied", `payload`)
+	subs.dispatch(nsID("config"), etID("applied"), `payload`)
 	// On the second dispatch, B is gone from the registry; it should not fire.
 	if bCalls != 1 {
 		t.Errorf("second dispatch: expected B count still 1, got %d", bCalls)
@@ -150,12 +154,12 @@ func TestEngineSubscribersMidDispatchUnregisterTakesEffectNextDispatch(t *testin
 func TestEngineSubscribersRegisterNilHandler(t *testing.T) {
 	subs := newEngineEventSubscribers()
 
-	id := subs.register("config", "verify-ok", nil)
+	id := subs.register(nsID("config"), etID("verify-ok"), nil)
 	if id != 0 {
 		t.Errorf("register(nil) returned id %d, want 0", id)
 	}
 	// Dispatch must not panic even though we attempted to register nil.
-	subs.dispatch("config", "verify-ok", `payload`)
+	subs.dispatch(nsID("config"), etID("verify-ok"), `payload`)
 }
 
 // VALIDATES: unregister(0) is a no-op (does not panic, does not affect other handlers).
@@ -165,10 +169,10 @@ func TestEngineSubscribersUnregisterZeroIsNoop(t *testing.T) {
 	subs := newEngineEventSubscribers()
 
 	var calls int
-	subs.register("config", "verify-ok", func(_ any) { calls++ })
+	subs.register(nsID("config"), etID("verify-ok"), func(_ any) { calls++ })
 
-	subs.unregister("config", "verify-ok", 0)
-	subs.dispatch("config", "verify-ok", `payload`)
+	subs.unregister(nsID("config"), etID("verify-ok"), 0)
+	subs.dispatch(nsID("config"), etID("verify-ok"), `payload`)
 
 	if calls != 1 {
 		t.Errorf("expected handler still active after unregister(0), got %d calls", calls)
@@ -183,10 +187,10 @@ func TestEngineSubscribersHandlerPanicRecovered(t *testing.T) {
 	subs := newEngineEventSubscribers()
 
 	var afterCalls int
-	subs.register("config", "verify-ok", func(_ any) {
+	subs.register(nsID("config"), etID("verify-ok"), func(_ any) {
 		panic("boom")
 	})
-	subs.register("config", "verify-ok", func(_ any) {
+	subs.register(nsID("config"), etID("verify-ok"), func(_ any) {
 		afterCalls++
 	})
 
@@ -194,7 +198,7 @@ func TestEngineSubscribersHandlerPanicRecovered(t *testing.T) {
 	// "after" handler is observed at least once after the panicking one.
 	// Each dispatch must complete without re-raising the panic.
 	for range 20 {
-		subs.dispatch("config", "verify-ok", `payload`)
+		subs.dispatch(nsID("config"), etID("verify-ok"), `payload`)
 	}
 	if afterCalls != 20 {
 		t.Errorf("expected 20 calls to non-panicking handler, got %d", afterCalls)
@@ -209,13 +213,13 @@ func TestServerSubscribeEngineEventUnsub(t *testing.T) {
 	var calls int
 	unsub := s.SubscribeEngineEvent(txevents.Namespace, "verify-ok", func(_ any) { calls++ })
 
-	s.dispatchEngineEvent("config", "verify-ok", `payload`)
+	s.dispatchEngineEvent(nsID("config"), etID("verify-ok"), `payload`)
 	if calls != 1 {
 		t.Fatalf("expected 1 call before unsub, got %d", calls)
 	}
 
 	unsub()
-	s.dispatchEngineEvent("config", "verify-ok", `payload`)
+	s.dispatchEngineEvent(nsID("config"), etID("verify-ok"), `payload`)
 	if calls != 1 {
 		t.Errorf("expected 1 call after unsub, got %d", calls)
 	}
@@ -248,7 +252,7 @@ func TestServerSubscribeEngineEventNilHandler(t *testing.T) {
 	unsub()
 
 	// Verify nothing was actually registered: dispatch must be a no-op.
-	s.dispatchEngineEvent("config", "verify-ok", `payload`)
+	s.dispatchEngineEvent(nsID("config"), etID("verify-ok"), `payload`)
 	// No assertion needed beyond not panicking.
 }
 
@@ -334,7 +338,7 @@ func TestServerEmitEngineEventRejectsEmpty(t *testing.T) {
 // minimal Server and triggers deliverEvent.
 func TestServerDispatchEngineEventNilRegistry(t *testing.T) {
 	s := &Server{} // engineSubscribers is nil
-	s.dispatchEngineEvent("config", "verify-ok", `payload`)
+	s.dispatchEngineEvent(nsID("config"), etID("verify-ok"), `payload`)
 }
 
 // VALIDATES: engine subscribers in different namespaces with the same event
@@ -345,15 +349,15 @@ func TestEngineSubscribersNamespaceIsolation(t *testing.T) {
 	subs := newEngineEventSubscribers()
 
 	var configCalls, bgpCalls int
-	subs.register("config", "update", func(_ any) { configCalls++ })
-	subs.register("bgp", "update", func(_ any) { bgpCalls++ })
+	subs.register(nsID("config"), etID("update"), func(_ any) { configCalls++ })
+	subs.register(nsID("bgp"), etID("update"), func(_ any) { bgpCalls++ })
 
-	subs.dispatch("config", "update", `payload`)
+	subs.dispatch(nsID("config"), etID("update"), `payload`)
 	if configCalls != 1 || bgpCalls != 0 {
 		t.Errorf("after config dispatch: configCalls=%d bgpCalls=%d, want 1 0", configCalls, bgpCalls)
 	}
 
-	subs.dispatch("bgp", "update", `payload`)
+	subs.dispatch(nsID("bgp"), etID("update"), `payload`)
 	if configCalls != 1 || bgpCalls != 1 {
 		t.Errorf("after bgp dispatch: configCalls=%d bgpCalls=%d, want 1 1", configCalls, bgpCalls)
 	}
@@ -529,16 +533,16 @@ func TestEngineSubscribersConcurrentRegisterDispatch(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range iters {
-				id := subs.register("config", "verify-ok", func(_ any) {
+				id := subs.register(nsID("config"), etID("verify-ok"), func(_ any) {
 					atomic.AddInt64(&dispatched, 1)
 				})
-				subs.unregister("config", "verify-ok", id)
+				subs.unregister(nsID("config"), etID("verify-ok"), id)
 			}
 		}()
 		go func() {
 			defer wg.Done()
 			for range iters {
-				subs.dispatch("config", "verify-ok", `payload`)
+				subs.dispatch(nsID("config"), etID("verify-ok"), `payload`)
 			}
 		}()
 	}

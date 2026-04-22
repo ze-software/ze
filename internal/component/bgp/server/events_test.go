@@ -106,9 +106,9 @@ func TestParallelPluginFanOut(t *testing.T) {
 		proc.SetCacheConsumer(true)
 
 		srv.Subscriptions().Add(proc, &pluginserver.Subscription{
-			Namespace: "bgp",
-			EventType: bgpevents.EventKeepalive,
-			Direction: events.DirectionBoth,
+			Namespace: events.LookupNamespaceID("bgp"),
+			EventType: events.LookupEventTypeID(bgpevents.EventKeepalive),
+			Direction: events.DirBoth,
 		})
 
 		go mockPluginResponder(t.Context(), pluginConn, pluginDelay)
@@ -143,9 +143,9 @@ func TestPartialDeliveryFailure(t *testing.T) {
 	proc1, pluginConn1 := newTestProcWithConn(t, "good-1")
 	proc1.SetCacheConsumer(true)
 	srv.Subscriptions().Add(proc1, &pluginserver.Subscription{
-		Namespace: "bgp",
-		EventType: bgpevents.EventKeepalive,
-		Direction: events.DirectionBoth,
+		Namespace: events.LookupNamespaceID("bgp"),
+		EventType: events.LookupEventTypeID(bgpevents.EventKeepalive),
+		Direction: events.DirBoth,
 	})
 	go mockPluginResponder(t.Context(), pluginConn1, 0)
 
@@ -153,9 +153,9 @@ func TestPartialDeliveryFailure(t *testing.T) {
 	proc2, pluginConn2 := newTestProcWithConn(t, "broken")
 	proc2.SetCacheConsumer(true)
 	srv.Subscriptions().Add(proc2, &pluginserver.Subscription{
-		Namespace: "bgp",
-		EventType: bgpevents.EventKeepalive,
-		Direction: events.DirectionBoth,
+		Namespace: events.LookupNamespaceID("bgp"),
+		EventType: events.LookupEventTypeID(bgpevents.EventKeepalive),
+		Direction: events.DirBoth,
 	})
 	// Close plugin side — engine's SendDeliverEvent will fail
 	if err := pluginConn2.Close(); err != nil {
@@ -166,9 +166,9 @@ func TestPartialDeliveryFailure(t *testing.T) {
 	proc3, pluginConn3 := newTestProcWithConn(t, "good-2")
 	proc3.SetCacheConsumer(true)
 	srv.Subscriptions().Add(proc3, &pluginserver.Subscription{
-		Namespace: "bgp",
-		EventType: bgpevents.EventKeepalive,
-		Direction: events.DirectionBoth,
+		Namespace: events.LookupNamespaceID("bgp"),
+		EventType: events.LookupEventTypeID(bgpevents.EventKeepalive),
+		Direction: events.DirBoth,
 	})
 	go mockPluginResponder(t.Context(), pluginConn3, 0)
 
@@ -209,9 +209,9 @@ func TestPreFormatOptimization(t *testing.T) {
 		proc.SetCacheConsumer(true)
 
 		srv.Subscriptions().Add(proc, &pluginserver.Subscription{
-			Namespace: "bgp",
-			EventType: bgpevents.EventKeepalive,
-			Direction: events.DirectionBoth,
+			Namespace: events.LookupNamespaceID("bgp"),
+			EventType: events.LookupEventTypeID(bgpevents.EventKeepalive),
+			Direction: events.DirBoth,
 		})
 
 		captureCh := captures[i]
@@ -281,9 +281,9 @@ func TestOnMessageBatchReceivedSingle(t *testing.T) {
 	proc.SetCacheConsumer(true)
 
 	srv.Subscriptions().Add(proc, &pluginserver.Subscription{
-		Namespace: "bgp",
-		EventType: bgpevents.EventKeepalive,
-		Direction: events.DirectionBoth,
+		Namespace: events.LookupNamespaceID("bgp"),
+		EventType: events.LookupEventTypeID(bgpevents.EventKeepalive),
+		Direction: events.DirBoth,
 	})
 	go mockPluginResponder(t.Context(), pluginConn, 0)
 
@@ -311,9 +311,9 @@ func TestOnMessageBatchReceivedMultiple(t *testing.T) {
 	proc.SetCacheConsumer(true)
 
 	srv.Subscriptions().Add(proc, &pluginserver.Subscription{
-		Namespace: "bgp",
-		EventType: bgpevents.EventKeepalive,
-		Direction: events.DirectionBoth,
+		Namespace: events.LookupNamespaceID("bgp"),
+		EventType: events.LookupEventTypeID(bgpevents.EventKeepalive),
+		Direction: events.DirBoth,
 	})
 	go mockPluginResponder(t.Context(), pluginConn, 0)
 
@@ -367,9 +367,9 @@ func TestOnMessageBatchReceivedCacheCount(t *testing.T) {
 		proc, pluginConn := newTestProcWithConn(t, fmt.Sprintf("cache-%d", i))
 		proc.SetCacheConsumer(true)
 		srv.Subscriptions().Add(proc, &pluginserver.Subscription{
-			Namespace: "bgp",
-			EventType: bgpevents.EventKeepalive,
-			Direction: events.DirectionBoth,
+			Namespace: events.LookupNamespaceID("bgp"),
+			EventType: events.LookupEventTypeID(bgpevents.EventKeepalive),
+			Direction: events.DirBoth,
 		})
 		go mockPluginResponder(t.Context(), pluginConn, 0)
 	}
@@ -377,9 +377,9 @@ func TestOnMessageBatchReceivedCacheCount(t *testing.T) {
 	proc3, pluginConn3 := newTestProcWithConn(t, "non-cache")
 	// proc3 is NOT a cache consumer (default)
 	srv.Subscriptions().Add(proc3, &pluginserver.Subscription{
-		Namespace: "bgp",
-		EventType: bgpevents.EventKeepalive,
-		Direction: events.DirectionBoth,
+		Namespace: events.LookupNamespaceID("bgp"),
+		EventType: events.LookupEventTypeID(bgpevents.EventKeepalive),
+		Direction: events.DirBoth,
 	})
 	go mockPluginResponder(t.Context(), pluginConn3, 0)
 

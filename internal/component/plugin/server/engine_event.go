@@ -7,6 +7,8 @@ package server
 
 import (
 	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 // EngineEventHandler is invoked when a stream event matches an engine
@@ -31,8 +33,8 @@ type engineEventSubscribers struct {
 
 // engineSubKey identifies an engine subscription by namespace and event type.
 type engineSubKey struct {
-	Namespace string
-	EventType string
+	Namespace events.NamespaceID
+	EventType events.EventTypeID
 }
 
 func newEngineEventSubscribers() *engineEventSubscribers {
@@ -44,7 +46,7 @@ func newEngineEventSubscribers() *engineEventSubscribers {
 // register adds a handler and returns its unique id (always non-zero on success).
 // Returns 0 without storing anything if handler is nil; callers must treat 0
 // as a registration failure. The caller MUST hold no other locks (acquires mu).
-func (e *engineEventSubscribers) register(namespace, eventType string, handler EngineEventHandler) uint64 {
+func (e *engineEventSubscribers) register(ns events.NamespaceID, et events.EventTypeID, handler EngineEventHandler) uint64 {
 	if handler == nil {
 		return 0
 	}
@@ -52,7 +54,7 @@ func (e *engineEventSubscribers) register(namespace, eventType string, handler E
 	defer e.mu.Unlock()
 	e.nextID++
 	id := e.nextID
-	key := engineSubKey{Namespace: namespace, EventType: eventType}
+	key := engineSubKey{Namespace: ns, EventType: et}
 	if _, ok := e.handlers[key]; !ok {
 		e.handlers[key] = make(map[uint64]EngineEventHandler)
 	}
@@ -61,13 +63,13 @@ func (e *engineEventSubscribers) register(namespace, eventType string, handler E
 }
 
 // unregister removes a handler by id. No-op if id is unknown or zero.
-func (e *engineEventSubscribers) unregister(namespace, eventType string, id uint64) {
+func (e *engineEventSubscribers) unregister(ns events.NamespaceID, et events.EventTypeID, id uint64) {
 	if id == 0 {
 		return
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	key := engineSubKey{Namespace: namespace, EventType: eventType}
+	key := engineSubKey{Namespace: ns, EventType: et}
 	if m, ok := e.handlers[key]; ok {
 		delete(m, id)
 		if len(m) == 0 {
@@ -90,9 +92,9 @@ func (e *engineEventSubscribers) unregister(namespace, eventType string, id uint
 // Each handler invocation is wrapped in a deferred recover so a single
 // panicking handler does not abort the loop or propagate the panic out
 // to the emitter. Panics are logged via the package logger.
-func (e *engineEventSubscribers) dispatch(namespace, eventType string, payload any) {
+func (e *engineEventSubscribers) dispatch(ns events.NamespaceID, et events.EventTypeID, payload any) {
 	e.mu.RLock()
-	key := engineSubKey{Namespace: namespace, EventType: eventType}
+	key := engineSubKey{Namespace: ns, EventType: et}
 	m, ok := e.handlers[key]
 	if !ok || len(m) == 0 {
 		e.mu.RUnlock()
@@ -105,28 +107,28 @@ func (e *engineEventSubscribers) dispatch(namespace, eventType string, payload a
 	e.mu.RUnlock()
 
 	for _, h := range handlers {
-		invokeEngineHandler(namespace, eventType, payload, h)
+		invokeEngineHandler(ns, et, payload, h)
 	}
 }
 
 // hasSubscribers reports whether any handler is registered for the given
 // (namespace, eventType). Used by deliverEvent to skip the typed-payload
 // decode when no engine subscriber would consume it.
-func (e *engineEventSubscribers) hasSubscribers(namespace, eventType string) bool {
+func (e *engineEventSubscribers) hasSubscribers(ns events.NamespaceID, et events.EventTypeID) bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	m, ok := e.handlers[engineSubKey{Namespace: namespace, EventType: eventType}]
+	m, ok := e.handlers[engineSubKey{Namespace: ns, EventType: et}]
 	return ok && len(m) > 0
 }
 
 // invokeEngineHandler runs a single handler with panic recovery.
 // Extracted so the dispatch loop is straight-line and the deferred
 // recover scope is exactly one handler invocation.
-func invokeEngineHandler(namespace, eventType string, payload any, h EngineEventHandler) {
+func invokeEngineHandler(ns events.NamespaceID, et events.EventTypeID, payload any, h EngineEventHandler) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger().Error("engine event handler panicked",
-				"namespace", namespace, "event-type", eventType, "panic", r)
+				"namespace", ns, "event-type", et, "panic", r)
 		}
 	}()
 	h(payload)
@@ -205,9 +207,11 @@ func (s *Server) SubscribeEngineEvent(namespace, eventType string, handler Engin
 			"namespace", namespace, "event-type", eventType)
 		return func() {}
 	}
-	id := s.engineSubscribers.register(namespace, eventType, handler)
+	nsID := events.LookupNamespaceID(namespace)
+	etID := events.LookupEventTypeID(eventType)
+	id := s.engineSubscribers.register(nsID, etID, handler)
 	return func() {
-		s.engineSubscribers.unregister(namespace, eventType, id)
+		s.engineSubscribers.unregister(nsID, etID, id)
 	}
 }
 
@@ -216,9 +220,9 @@ func (s *Server) SubscribeEngineEvent(namespace, eventType string, handler Engin
 // (namespace, eventType) pair is already validated by deliverEvent before
 // the defer is registered, so this method does no further validation
 // beyond the nil-check on the registry.
-func (s *Server) dispatchEngineEvent(namespace, eventType string, payload any) {
+func (s *Server) dispatchEngineEvent(ns events.NamespaceID, et events.EventTypeID, payload any) {
 	if s.engineSubscribers == nil {
 		return
 	}
-	s.engineSubscribers.dispatch(namespace, eventType, payload)
+	s.engineSubscribers.dispatch(ns, et, payload)
 }

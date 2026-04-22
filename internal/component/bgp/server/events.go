@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"sync"
 
 	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
@@ -32,6 +33,46 @@ var logger = slogutil.LazyLogger("bgp.server")
 // Set by EventDispatcher.SetEventBus(). Package-level to avoid threading
 // through the onMessageReceived → onEORReceived call chain.
 var eorEventBus ze.EventBus //nolint:gochecknoglobals // EventBus reference set once at startup
+
+// bgpEventIDs caches typed IDs for the BGP namespace so hot-path event
+// delivery avoids per-call string-to-ID lookups and mutex acquisition.
+// Populated once on first use (after init() has registered all events).
+var bgpEventIDs struct { //nolint:gochecknoglobals // cached IDs populated once at first use
+	once      sync.Once
+	namespace events.NamespaceID
+	kinds     [rpc.EventKindCount]events.EventTypeID
+}
+
+func initBGPEventIDs() {
+	bgpEventIDs.once.Do(func() {
+		bgpEventIDs.namespace = events.LookupNamespaceID(bgpevents.Namespace)
+		for k := rpc.EventKindUpdate; k < rpc.EventKindCount; k++ {
+			bgpEventIDs.kinds[k] = events.LookupEventTypeID(k.String())
+		}
+	})
+}
+
+func bgpNS() events.NamespaceID {
+	initBGPEventIDs()
+	return bgpEventIDs.namespace
+}
+
+func eventKindToID(k rpc.EventKind) events.EventTypeID {
+	initBGPEventIDs()
+	return bgpEventIDs.kinds[k]
+}
+
+func rpcDirToDir(d rpc.MessageDirection) events.Direction {
+	switch d {
+	case rpc.DirectionSent:
+		return events.DirSent
+	case rpc.DirectionReceived:
+		return events.DirReceived
+	case rpc.DirectionUnspecified:
+		return events.DirUnspecified
+	}
+	return events.DirUnspecified
+}
 
 // monitorFormatKey is the format+encoding cache key for CLI monitors (always json+parsed).
 const monitorFormatKey = "parsed+json"
@@ -135,7 +176,7 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	peerAddr := peer.Address.String()
 	eventTypeStr := eventType.String()
 	dirStr := msg.Direction.String()
-	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventTypeStr, dirStr, peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpNS(), eventKindToID(eventType), rpcDirToDir(msg.Direction), peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return 0
@@ -238,7 +279,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 
 	peerAddr := peer.Address.String()
 	eventTypeStr := eventType.String()
-	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventTypeStr, msgs[0].Direction.String(), peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpNS(), eventKindToID(eventType), rpcDirToDir(msgs[0].Direction), peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return counts
@@ -468,7 +509,7 @@ func onPeerStateChange(s *pluginserver.Server, peer *plugin.PeerInfo, state rpc.
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, bgpevents.EventState, "", peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpNS(), events.LookupEventTypeID(bgpevents.EventState), events.DirUnspecified, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return
@@ -554,7 +595,7 @@ func onPeerNegotiated(s *pluginserver.Server, encoder *format.JSONEncoder, peer 
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, bgpevents.EventNegotiated, "", peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpNS(), events.LookupEventTypeID(bgpevents.EventNegotiated), events.DirUnspecified, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return
@@ -582,7 +623,7 @@ func onEORReceived(s *pluginserver.Server, peer *plugin.PeerInfo, family string)
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, bgpevents.EventEOR, events.DirectionReceived, peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpNS(), events.LookupEventTypeID(bgpevents.EventEOR), events.DirReceived, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return
@@ -661,7 +702,7 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer *pl
 
 	peerAddr := peer.Address.String()
 	eventTypeStr := eventType.String()
-	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventTypeStr, events.DirectionSent, peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpNS(), eventKindToID(eventType), events.DirSent, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return
@@ -734,7 +775,7 @@ func onPeerCongestionChange(s *pluginserver.Server, peer *plugin.PeerInfo, event
 	}
 
 	peerAddr := peer.Address.String()
-	procs := s.Subscriptions().GetMatching(bgpevents.Namespace, eventType, "", peerAddr, peer.Name)
+	procs := s.Subscriptions().GetMatching(bgpNS(), events.LookupEventTypeID(eventType), events.DirUnspecified, peerAddr, peer.Name)
 	hasMonitors := s.Monitors().Count() > 0
 	if len(procs) == 0 && !hasMonitors {
 		return

@@ -130,7 +130,7 @@ func TestBuildEventMonitorSubscriptionsExclude(t *testing.T) {
 
 	var eventTypes []string
 	for _, s := range subs {
-		eventTypes = append(eventTypes, s.EventType)
+		eventTypes = append(eventTypes, s.EventType.String())
 	}
 	assert.NotContains(t, eventTypes, "keepalive")
 	assert.Contains(t, eventTypes, "update")
@@ -146,7 +146,7 @@ func TestBuildEventMonitorSubscriptionsDirection(t *testing.T) {
 	subs := BuildEventMonitorSubscriptions(opts)
 	require.NotEmpty(t, subs)
 	for _, s := range subs {
-		assert.Equal(t, events.DirectionReceived, s.Direction,
+		assert.Equal(t, events.DirReceived, s.Direction,
 			"all subscriptions should have direction=received, got %s for %s/%s", s.Direction, s.Namespace, s.EventType)
 	}
 }
@@ -169,7 +169,7 @@ func TestBuildEventMonitorSubscriptionsDefault(t *testing.T) {
 
 	var types []string
 	for _, s := range subs {
-		types = append(types, s.EventType)
+		types = append(types, s.EventType.String())
 	}
 	// Must include types that the old hardcoded allBGPEventTypes missed.
 	assert.Contains(t, types, "congested", "should include congested (was missing from old list)")
@@ -305,7 +305,7 @@ func TestBuildEventMonitorSubscriptionsDefaultDirection(t *testing.T) {
 	subs := BuildEventMonitorSubscriptions(opts)
 	require.NotEmpty(t, subs)
 	for _, s := range subs {
-		assert.Equal(t, events.DirectionBoth, s.Direction)
+		assert.Equal(t, events.DirBoth, s.Direction)
 	}
 }
 

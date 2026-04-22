@@ -8,6 +8,8 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
 
 // MonitorClient represents an active monitor session.
@@ -81,13 +83,17 @@ func (mm *MonitorManager) Count() int {
 // A monitor matches if any of its subscriptions match.
 // peerName is the configured peer name (may be empty).
 func (mm *MonitorManager) GetMatching(namespace, eventType, direction, peerAddr, peerName string) []*MonitorClient {
+	nsID := events.LookupNamespaceID(namespace)
+	etID := events.LookupEventTypeID(eventType)
+	dirID := events.ParseDirection(direction)
+
 	mm.mu.RLock()
 	defer mm.mu.RUnlock()
 
 	var result []*MonitorClient
 	for _, mc := range mm.monitors {
 		for _, sub := range mc.subscriptions {
-			if sub.Matches(namespace, eventType, direction, peerAddr, peerName) {
+			if sub.Matches(nsID, etID, dirID, peerAddr, peerName) {
 				result = append(result, mc)
 				break // Only add monitor once, even if multiple subs match
 			}
@@ -101,12 +107,16 @@ func (mm *MonitorManager) GetMatching(namespace, eventType, direction, peerAddr,
 // and the dropped counter is incremented (backpressure).
 // peerName is the configured peer name (may be empty).
 func (mm *MonitorManager) Deliver(namespace, eventType, direction, peerAddr, peerName, output string) {
+	nsID := events.LookupNamespaceID(namespace)
+	etID := events.LookupEventTypeID(eventType)
+	dirID := events.ParseDirection(direction)
+
 	mm.mu.RLock()
 	defer mm.mu.RUnlock()
 
 	for _, mc := range mm.monitors {
 		for _, sub := range mc.subscriptions {
-			if sub.Matches(namespace, eventType, direction, peerAddr, peerName) {
+			if sub.Matches(nsID, etID, dirID, peerAddr, peerName) {
 				mc.enqueue(output)
 				break // Deliver once per monitor
 			}

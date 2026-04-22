@@ -254,14 +254,14 @@ func responseToDispatchOutput(resp *plugin.Response) *rpc.DispatchCommandOutput 
 }
 
 // parseEventString splits an event string like "update direction sent" into
-// (eventType, direction). If no "direction" keyword is present, returns DirectionBoth.
+// (eventType, direction). If no "direction" keyword is present, returns DirBoth.
 // This mirrors the text protocol's ParseSubscription logic for RPC event strings.
-func parseEventString(event string) (string, string) {
+func parseEventString(event string) (events.EventTypeID, events.Direction) {
 	parts := strings.Fields(event)
 	if len(parts) >= 3 && parts[1] == "direction" {
-		return parts[0], parts[2]
+		return events.LookupEventTypeID(parts[0]), events.ParseDirection(parts[2])
 	}
-	return event, events.DirectionBoth
+	return events.LookupEventTypeID(event), events.DirBoth
 }
 
 // registerSubscriptions registers event subscriptions for a process.
@@ -274,10 +274,11 @@ func (s *Server) registerSubscriptions(proc *process.Process, input *rpc.Subscri
 		proc.SetEncoding(input.Encoding)
 	}
 
+	bgpNS := events.LookupNamespaceID(bgpevents.Namespace)
 	for _, event := range input.Events {
 		eventType, direction := parseEventString(event)
 		sub := &Subscription{
-			Namespace: bgpevents.Namespace,
+			Namespace: bgpNS,
 			EventType: eventType,
 			Direction: direction,
 		}
@@ -381,6 +382,11 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 		return 0, &rpc.RPCCallError{Message: "unknown event: " + namespace + "/" + eventType}
 	}
 
+	// Convert strings to typed IDs once; all internal matching uses integers.
+	nsID := events.LookupNamespaceID(namespace)
+	etID := events.LookupEventTypeID(eventType)
+	dirID := events.ParseDirection(direction)
+
 	// Compute the engine payload lazily. If the raw payload is a string,
 	// the event has a registered typed payload, AND at least one engine
 	// subscriber is listening, unmarshal once so typed engine subscribers
@@ -395,7 +401,7 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 	// lazy-decode benefit on events emitted only to external plugins.
 	enginePayload := payload
 	if raw, ok := payload.(string); ok && s.engineSubscribers != nil &&
-		s.engineSubscribers.hasSubscribers(namespace, eventType) {
+		s.engineSubscribers.hasSubscribers(nsID, etID) {
 		if decoded, decodedOK := tryDecodeTypedPayload(namespace, eventType, raw); decodedOK {
 			enginePayload = decoded
 		}
@@ -405,13 +411,13 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 	// SubscriptionManager is initialized. They are a parallel registry.
 	// Deferred so engine handlers run AFTER plugin process delivery, and so
 	// they fire even if a plugin subscriber panics.
-	defer s.dispatchEngineEvent(namespace, eventType, enginePayload)
+	defer s.dispatchEngineEvent(nsID, etID, enginePayload)
 
 	if s.subscriptions == nil {
 		return 0, nil
 	}
 
-	procs := s.subscriptions.GetMatching(namespace, eventType, direction, peerAddress, "")
+	procs := s.subscriptions.GetMatching(nsID, etID, dirID, peerAddress, "")
 	if len(procs) == 0 {
 		return 0, nil
 	}

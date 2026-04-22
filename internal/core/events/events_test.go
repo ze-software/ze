@@ -295,3 +295,57 @@ func TestRegisterNamespaceDuplicateIsMerge(t *testing.T) {
 		t.Fatal("original event types should survive merge")
 	}
 }
+
+func TestTypedIDAssignment(t *testing.T) {
+	nsID := LookupNamespaceID("bgp")
+	if nsID == NamespaceUnknown {
+		t.Fatal("bgp namespace should have a non-zero ID after registration")
+	}
+	if nsID.String() != "bgp" {
+		t.Fatalf("bgp namespace ID String() = %q, want %q", nsID.String(), "bgp")
+	}
+
+	etID := LookupEventTypeID("update")
+	if etID == EventTypeUnknown {
+		t.Fatal("update event type should have a non-zero ID after registration")
+	}
+	if etID.String() != "update" {
+		t.Fatalf("update event type ID String() = %q, want %q", etID.String(), "update")
+	}
+
+	if LookupNamespaceID("bgp") != nsID {
+		t.Fatal("same namespace string must return same ID")
+	}
+	if LookupEventTypeID("update") != etID {
+		t.Fatal("same event type string must return same ID")
+	}
+
+	if LookupNamespaceID("nonexistent") != NamespaceUnknown {
+		t.Fatal("unregistered namespace should return NamespaceUnknown")
+	}
+	if LookupEventTypeID("nonexistent") != EventTypeUnknown {
+		t.Fatal("unregistered event type should return EventTypeUnknown")
+	}
+}
+
+func TestDirectionParsing(t *testing.T) {
+	tests := []struct {
+		input string
+		want  Direction
+	}{
+		{"received", DirReceived},
+		{"sent", DirSent},
+		{"both", DirBoth},
+		{"", DirUnspecified},
+		{"invalid", DirUnspecified},
+	}
+	for _, tt := range tests {
+		got := ParseDirection(tt.input)
+		if got != tt.want {
+			t.Errorf("ParseDirection(%q) = %d, want %d", tt.input, got, tt.want)
+		}
+		if tt.want != DirUnspecified && got.String() != tt.input {
+			t.Errorf("Direction(%d).String() = %q, want %q", got, got.String(), tt.input)
+		}
+	}
+}

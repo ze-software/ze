@@ -1,4 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md -- event bus namespace and type registry
+// Related: ids.go -- typed NamespaceID/EventTypeID/Direction populated by registration here
+// Related: typed.go -- Event[T]/SignalEvent generic handles that call RegisterNamespace
 //
 // Package events defines the event namespace and type constants used by ze's
 // event bus, plus the runtime registry for namespace/event validation.
@@ -32,6 +34,20 @@ var eventsMu sync.RWMutex
 // Populated dynamically by components calling RegisterNamespace from init().
 // Protected by eventsMu for concurrent access.
 var ValidEvents = map[string]map[string]bool{}
+
+// ID lookup maps below are protected by eventsMu (same as ValidEvents).
+// All writes happen at init() time via RegisterNamespace/RegisterEventType;
+// at runtime both ID lookups and ValidEvents reads share the RLock with
+// no writer contention.
+var (
+	namespaceIDs               = map[string]NamespaceID{}
+	namespaceNames             = map[NamespaceID]string{}
+	nextNS         NamespaceID = 1
+
+	eventTypeIDs               = map[string]EventTypeID{}
+	eventTypeNames             = map[EventTypeID]string{}
+	nextET         EventTypeID = 1
+)
 
 // IsValidEvent returns true if the event type is valid in the given namespace.
 // Safe for concurrent use.
@@ -151,6 +167,26 @@ func RegisterNamespace(namespace string, eventTypes ...string) error {
 	for _, e := range eventTypes {
 		m[e] = true
 	}
+
+	// ID assignment under the same eventsMu already held above.
+	if _, ok := namespaceIDs[namespace]; !ok {
+		if nextNS == 0 {
+			return fmt.Errorf("namespace ID overflow (max 255)")
+		}
+		namespaceIDs[namespace] = nextNS
+		namespaceNames[nextNS] = namespace
+		nextNS++
+	}
+	for _, e := range eventTypes {
+		if _, ok := eventTypeIDs[e]; !ok {
+			if nextET == 0 {
+				return fmt.Errorf("event type ID overflow (max 65535)")
+			}
+			eventTypeIDs[e] = nextET
+			eventTypeNames[nextET] = e
+			nextET++
+		}
+	}
 	return nil
 }
 
@@ -173,6 +209,16 @@ func RegisterEventType(namespace, eventType string) error {
 		return fmt.Errorf("unknown namespace: %s (valid: %s)", namespace, validNamespaceNamesLocked())
 	}
 	evts[eventType] = true
+
+	// ID assignment under the same eventsMu already held above.
+	if _, ok := eventTypeIDs[eventType]; !ok {
+		if nextET == 0 {
+			return fmt.Errorf("event type ID overflow (max 65535)")
+		}
+		eventTypeIDs[eventType] = nextET
+		eventTypeNames[nextET] = eventType
+		nextET++
+	}
 	return nil
 }
 
