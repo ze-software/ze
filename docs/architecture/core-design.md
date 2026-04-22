@@ -568,6 +568,23 @@ forward" ack path. Destinations are capped at `ze.fwd.dest.cap` (default 4096).
 Both paths share the same egress filter chain, AS-PATH prepend, next-hop policy,
 and replay-on-new-peer invariants.
 
+**Batched cache retains (rs-gap-0):** `ForwardUpdate` accumulates per-peer
+dispatch items during the egress loop and calls `RetainN(id, peerCount)` once
+per id instead of per-peer `Retain` calls, reducing cache-lock acquisitions.
+
+**Outbound attribute buckets (rs-gap-0):** The forward-pool batch handler
+(`fwdBatchHandler`) groups queued items with byte-identical path attributes
+and merges their NLRIs into fewer outbound UPDATEs before writing to TCP.
+This reduces per-message header overhead and write-syscall count for the
+grouped-input route-server benchmark. Items with per-peer modifications
+(copy-on-modify) or the parsed-update path bypass bucketing.
+
+**bgp-rs dispatch (rs-gap-0):** Work items carry source peer, raw message,
+and text payload directly instead of round-tripping through a `sync.Map`.
+Peer-down route inventory (withdrawal map) uses extract-then-forward: NLRI
+records are extracted as compact `netip.Prefix` values before forwarding,
+then string keys are produced off the forward critical path.
+
 <!-- source: internal/component/plugin/registry/registry.go -- ModAccumulator, EgressFilterFunc, IngressFilterFunc -->
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.ForwardCached, Plugin.ReleaseCached -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.ForwardCached, SetForwardCached -->

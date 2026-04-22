@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 5/5 |
 | Updated | 2026-04-22 |
 
 ## Post-Compaction Recovery
@@ -370,16 +370,19 @@ Add `// RFC NNNN Section X.Y` comments above any new code that enforces:
 ## Implementation Summary
 
 ### What Was Implemented
-- Design phase only, nothing implemented yet
+- Phase 1: Removed `fwdCtx sync.Map` indirection from both structured and text dispatch paths. `workItem` now carries `sourcePeer`, `msg`, and `textPayload` directly.
+- Phase 2: Created `server_inventory.go` with extract-then-forward design. NLRI records extracted as `netip.Prefix` values (zero string allocation) before forwarding. Withdrawal map updated after forwarding with string keys produced off the forward critical path.
+- Phase 3: Replaced per-peer `Retain()` calls in `ForwardUpdate` with a single `RetainN(id, peerCount)` per id using a pending dispatch buffer.
+- Phase 4: Created `forward_bucket.go` with outbound attribute bucket grouping. `fwdBatchHandler` merges queued items with identical path attributes into fewer outbound UPDATEs before TCP writes. Respects negotiated message-size limits. Items with copy-on-modify or parsed-update path bypass bucketing.
 
 ### Bugs Found/Fixed
-- None yet
+- None
 
 ### Documentation Updates
-- None yet
+- `docs/architecture/core-design.md`: Added rs-gap-0 sections documenting batched retains, outbound buckets, and direct dispatch
 
 ### Deviations from Plan
-- None yet
+- Phase 4 bucket merge operates at the batch handler level (fwdBatchHandler) rather than between ForwardUpdate and dispatch. This is simpler and avoids duplicating the complex egress filter chain.
 
 ## Implementation Audit
 

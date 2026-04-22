@@ -149,6 +149,13 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 		_ = conn.SetWriteDeadline(time.Time{})
 	}()
 
+	// Bucket merge: group items with identical post-egress attrs into fewer
+	// outbound UPDATEs with packed NLRIs. Reduces per-message header overhead
+	// and TCP write syscall count.
+	nc := peer.negotiated.Load()
+	extMsg := nc != nil && nc.ExtendedMessage
+	items = fwdBucketMerge(items, fwdBucketMaxBodySize(extMsg))
+
 	for i := range items {
 		session.sentMeta = items[i].meta // Route metadata for sent event callbacks.
 		for _, body := range items[i].rawBodies {

@@ -25,36 +25,30 @@ func nlriKey(nlri string) string {
 }
 
 // processForward handles a forwarding work item in a worker goroutine.
-// Loads pre-parsed payload from fwdCtx, performs full parse, forwards
-// the UPDATE to compatible peers, then updates the withdrawal map.
-// Forward-first ordering minimizes UPDATE delivery latency — the withdrawal
-// map is only needed for withdrawal tracking on peer-down, not for forwarding.
-func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
-	val, ok := rs.fwdCtx.LoadAndDelete(msgID)
-	if !ok {
-		return
-	}
-	ctx, ok := val.(*forwardCtx)
-	if !ok {
-		rs.releaseCache(msgID)
-		return
-	}
-
+// Reads source peer and payload directly from the work item (no sync.Map lookup).
+//
+// Extract-then-forward design (buffer lifetime safety):
+//  1. Extract families and compact NLRI records BEFORE forwarding (wire buffer
+//     may be freed by cache eviction after ForwardCached).
+//  2. Forward the UPDATE via batchForwardUpdate.
+//  3. Update the withdrawal map AFTER forwarding using the pre-extracted records,
+//     keeping per-prefix string-keyed map maintenance off the forward critical path.
+func (rs *RouteServer) processForward(key workerKey, item workItem) {
 	// Guard: release cache entry on any early return or panic.
 	// forwardUpdate handles the entry when reached (forward or release),
 	// so the flag prevents double-release on the normal path.
 	forwarded := false
 	defer func() {
 		if !forwarded {
-			rs.releaseCache(msgID)
+			rs.releaseCache(item.msgID)
 		}
 	}()
 
-	// If the source peer is down, skip withdrawal map update and forward — handleStateDown
+	// If the source peer is down, skip withdrawal map update and forward -- handleStateDown
 	// will withdraw all routes. This prevents PeerDown from blocking while
 	// workers process queued UPDATEs for a peer that is already gone.
 	rs.mu.RLock()
-	peer := rs.peers[ctx.sourcePeer]
+	peer := rs.peers[item.sourcePeer]
 	peerDown := peer == nil || !peer.Up
 	rs.mu.RUnlock()
 	if peerDown {
@@ -65,30 +59,38 @@ func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 	// Structured path (DirectBridge): read directly from wire, no text parsing.
 	// Text path (fork-mode): parse from text payload.
 	var families map[family.Family]bool
-	if ctx.msg != nil {
-		families = extractWireFamilies(ctx.msg)
+	if item.msg != nil {
+		families = extractWireFamilies(item.msg)
 	} else {
-		families = parseTextUpdateFamilies(ctx.textPayload)
+		families = parseTextUpdateFamilies(item.textPayload)
 	}
 	if len(families) == 0 {
 		return
 	}
 
-	// Update withdrawal map BEFORE forwarding: the forward path can trigger
-	// cache eviction (asyncForward → ForwardUpdate → Ack → evictLocked) which
-	// frees the pool buffer backing ctx.msg.WireUpdate. Reading WireUpdate
-	// after the forward would be a use-after-free race.
+	// Extract compact NLRI records BEFORE forwarding. For wire UPDATEs, uses
+	// netip.PrefixFrom (zero string allocation per prefix). String keys are
+	// deferred to the withdrawal map update after forwarding.
+	var wireRecords *[]nlriRecord
+	if item.msg != nil {
+		wireRecords = extractWireNLRIRecords(item.msg)
+	}
+
+	// Forward first -- minimizes UPDATE delivery latency.
+	forwarded = true
+	rs.batchForwardUpdate(key, item.sourcePeer, item.msgID, families)
+
+	// Update withdrawal map AFTER forwarding using pre-extracted data.
+	// String keys are produced here, off the forward critical path.
 	rs.withdrawalMu.Lock()
-	if ctx.msg != nil {
-		rs.updateWithdrawalMapWire(ctx.sourcePeer, ctx.msg)
+	if wireRecords != nil {
+		rs.applyNLRIRecords(item.sourcePeer, *wireRecords)
 	} else {
-		rs.updateWithdrawalMapText(ctx.sourcePeer, parseTextNLRIOps(ctx.textPayload))
+		rs.updateWithdrawalMapText(item.sourcePeer, parseTextNLRIOps(item.textPayload))
 	}
 	rs.withdrawalMu.Unlock()
 
-	// Accumulate forward in per-worker batch (flushed on batch-full or channel drain).
-	forwarded = true
-	rs.batchForwardUpdate(key, ctx.sourcePeer, msgID, families)
+	returnNLRIRecords(wireRecords)
 }
 
 // extractWireFamilies extracts address families from a raw UPDATE message.

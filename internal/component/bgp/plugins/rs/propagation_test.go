@@ -46,7 +46,7 @@ func newIntegrationRouteServer(t *testing.T) (*RouteServer, *rpc.Conn) {
 		withdrawals: make(map[string]map[string]withdrawalInfo),
 	}
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
-		rs.processForward(key, item.msgID)
+		rs.processForward(key, item)
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
 	t.Cleanup(func() {
 		rs.workers.Stop()
@@ -320,15 +320,7 @@ func TestForwardWorker_ReleaseInOrder(t *testing.T) {
 	var mu sync.Mutex
 	var items []recordedItem
 	rs.workers = newWorkerPool(func(_ workerKey, item workItem) {
-		val, ok := rs.fwdCtx.LoadAndDelete(item.msgID)
-		if !ok {
-			return
-		}
-		ctx, ok := val.(*forwardCtx)
-		if !ok {
-			return
-		}
-		families := parseTextUpdateFamilies(ctx.textPayload)
+		families := parseTextUpdateFamilies(item.textPayload)
 		isRelease := len(families) == 0
 		mu.Lock()
 		items = append(items, recordedItem{msgID: item.msgID, release: isRelease})

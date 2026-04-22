@@ -108,18 +108,6 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
-// forwardCtx holds the source peer and event data for a cached UPDATE.
-// sourcePeer is extracted at dispatch time (cheap) to avoid re-parsing in the worker
-// and to make source-exclusion data flow explicit.
-// For DirectBridge delivery: msg is set (raw wire data, no text parsing needed).
-// For fork-mode delivery: textPayload is set (deferred text parsing by worker).
-// Stored in RouteServer.fwdCtx (sync.Map) keyed by msgID (uint64).
-type forwardCtx struct {
-	sourcePeer  string
-	textPayload string
-	msg         *bgptypes.RawMessage
-}
-
 // withdrawalInfo stores the minimum information needed to send withdrawal
 // commands when a source peer goes down. Only family+prefix are needed
 // for "update text nlri <family> del <prefix>" commands.
@@ -141,10 +129,6 @@ type RouteServer struct {
 	// pausedPeers tracks source peers for which we have sent a pause RPC.
 	// Protected by mu. Nil until wireFlowControl is called.
 	pausedPeers map[string]bool
-
-	// fwdCtx stores forwarding context (forwardCtx) keyed by msgID (uint64).
-	// Written by dispatch (OnEvent goroutine), read by worker handler.
-	fwdCtx sync.Map
 
 	// batches holds per-worker batch state for accumulating forward RPCs.
 	// Each worker goroutine has its own batch (keyed by workerKey).
@@ -212,12 +196,11 @@ func RunRouteServer(conn net.Conn) int {
 	// Each source peer gets its own worker goroutine (lazy creation, idle cooldown).
 	// FIFO ordering is preserved per source peer.
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
-		rs.processForward(key, item.msgID)
+		rs.processForward(key, item)
 	}, poolConfig{
 		chanSize:    rrChanSize,
 		idleTimeout: 5 * time.Second,
 		onItemDrop: func(item workItem) {
-			rs.fwdCtx.Delete(item.msgID)
 			rs.releaseCache(item.msgID)
 		},
 		onDrained: rs.flushWorkerBatch,
@@ -470,11 +453,10 @@ func (rs *RouteServer) dispatchText(text string) {
 		if peerAddr == "" {
 			return
 		}
-		rs.fwdCtx.Store(msgID, &forwardCtx{sourcePeer: peerAddr, textPayload: payload})
 		key := workerKey{sourcePeer: peerAddr}
-		if !rs.workers.Dispatch(key, workItem{msgID: msgID}) {
+		item := workItem{msgID: msgID, sourcePeer: peerAddr, textPayload: payload}
+		if !rs.workers.Dispatch(key, item) {
 			logger().Error("dispatch dropped (pool stopped)", "msgID", msgID, "source-peer", peerAddr)
-			rs.fwdCtx.Delete(msgID)
 			rs.releaseCache(msgID)
 			return
 		}
@@ -528,11 +510,10 @@ func (rs *RouteServer) dispatchStructured(peerAddr string, msg *bgptypes.RawMess
 	if peerAddr == "" {
 		return
 	}
-	rs.fwdCtx.Store(msgID, &forwardCtx{sourcePeer: peerAddr, msg: msg})
 	key := workerKey{sourcePeer: peerAddr}
-	if !rs.workers.Dispatch(key, workItem{msgID: msgID}) {
+	item := workItem{msgID: msgID, sourcePeer: peerAddr, msg: msg}
+	if !rs.workers.Dispatch(key, item) {
 		logger().Error("dispatch dropped (pool stopped)", "msgID", msgID, "source-peer", peerAddr)
-		rs.fwdCtx.Delete(msgID)
 		rs.releaseCache(msgID)
 		return
 	}

@@ -39,7 +39,7 @@ func newTestRouteServer(t *testing.T) *RouteServer {
 		withdrawals: make(map[string]map[string]withdrawalInfo),
 	}
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
-		rs.processForward(key, item.msgID)
+		rs.processForward(key, item)
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
 	t.Cleanup(func() {
 		rs.workers.Stop()
@@ -54,7 +54,7 @@ func flushWorkers(t *testing.T, rs *RouteServer) {
 	t.Helper()
 	rs.workers.Stop()
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
-		rs.processForward(key, item.msgID)
+		rs.processForward(key, item)
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
 }
 
@@ -846,9 +846,9 @@ func TestPauseRPCFailure(t *testing.T) {
 	}
 }
 
-// TestDispatchPassesPreParsedPayload verifies dispatchText stores text payload in forwardCtx.
+// TestDispatchPassesPreParsedPayload verifies dispatchText carries text payload in workItem directly.
 //
-// VALIDATES: AC-6 — forwardCtx contains text payload for deferred parsing.
+// VALIDATES: AC-2 -- workItem carries text payload for deferred parsing (no fwdCtx).
 // PREVENTS: Missing payload in worker context.
 func TestDispatchPassesPreParsedPayload(t *testing.T) {
 	rs := newTestRouteServer(t)
@@ -857,35 +857,40 @@ func TestDispatchPassesPreParsedPayload(t *testing.T) {
 	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
 	rs.mu.Unlock()
 
-	// Stop workers so items stay in fwdCtx (not consumed by processForward).
+	// Replace workers to capture the workItem directly.
 	rs.workers.Stop()
-	rs.workers = newWorkerPool(func(_ workerKey, _ workItem) {
-		// Do nothing — keep fwdCtx intact for inspection.
+	var captured workItem
+	var capturedMu sync.Mutex
+	var capturedOK bool
+	rs.workers = newWorkerPool(func(_ workerKey, item workItem) {
+		capturedMu.Lock()
+		captured = item
+		capturedOK = true
+		capturedMu.Unlock()
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
 	t.Cleanup(func() { rs.workers.Stop() })
 
 	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 42 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
 
-	// Wait for worker to process the no-op handler.
-	var val any
 	require.Eventually(t, func() bool {
-		var ok bool
-		val, ok = rs.fwdCtx.Load(uint64(42))
-		return ok
-	}, 2*time.Second, time.Millisecond, "fwdCtx not found for msgID 42")
-	ctx, ok := val.(*forwardCtx)
-	if !ok {
-		t.Fatal("fwdCtx wrong type")
-	}
+		capturedMu.Lock()
+		defer capturedMu.Unlock()
+		return capturedOK
+	}, 2*time.Second, time.Millisecond, "workItem not captured")
 
-	// textPayload should contain the text event with peer and update keywords.
-	if ctx.textPayload == "" {
+	capturedMu.Lock()
+	defer capturedMu.Unlock()
+
+	if captured.sourcePeer != "10.0.0.1" {
+		t.Errorf("expected sourcePeer 10.0.0.1, got %s", captured.sourcePeer)
+	}
+	if captured.textPayload == "" {
 		t.Fatal("expected textPayload to be populated")
 	}
-	if !strings.Contains(ctx.textPayload, "peer") {
+	if !strings.Contains(captured.textPayload, "peer") {
 		t.Error("textPayload should contain peer keyword")
 	}
-	if !strings.Contains(ctx.textPayload, "update") {
+	if !strings.Contains(captured.textPayload, "update") {
 		t.Error("textPayload should contain update keyword")
 	}
 }
@@ -949,7 +954,7 @@ func TestWithdrawalMapConsistency(t *testing.T) {
 
 	// Simulate peer down.
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
-		rs.processForward(key, item.msgID)
+		rs.processForward(key, item)
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
 
 	rs.dispatchText("peer 10.0.0.1 remote as 65001 state down")
@@ -1020,7 +1025,7 @@ func TestBatchForwardAccumulation(t *testing.T) {
 	rs.workers.Stop()
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
 		<-gate
-		rs.processForward(key, item.msgID)
+		rs.processForward(key, item)
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
 
 	for i := uint64(1); i <= 5; i++ {

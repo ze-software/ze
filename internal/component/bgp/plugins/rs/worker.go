@@ -8,6 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
 
 // workerKey identifies a per-source-peer worker goroutine.
@@ -16,8 +18,14 @@ type workerKey struct {
 }
 
 // workItem represents a unit of work dispatched to a worker.
+// Carries forward context directly to avoid sync.Map indirection.
+// For DirectBridge delivery: msg is set (raw wire data).
+// For fork-mode delivery: textPayload is set (deferred text parsing by worker).
 type workItem struct {
-	msgID uint64
+	msgID       uint64
+	sourcePeer  string
+	msg         *bgptypes.RawMessage
+	textPayload string
 }
 
 // poolConfig holds configuration for a workerPool.
@@ -28,7 +36,7 @@ type poolConfig struct {
 
 	// onItemDrop is called for each work item discarded during PeerDown or Stop
 	// when overflow items remain. Callers use this to clean up associated state
-	// (e.g., fwdCtx entries, cache refs). Nil means no cleanup.
+	// (e.g., cache refs). Nil means no cleanup.
 	onItemDrop func(workItem)
 
 	// onDrained is called after processing an item when the channel and overflow
@@ -136,7 +144,7 @@ func newWorkerPool(handler func(key workerKey, item workItem), cfg poolConfig) *
 // Never blocks: if the channel is full, the item goes to an overflow buffer
 // and a drain goroutine feeds it into the channel as space opens.
 // Returns true if the item was enqueued, false if the pool is stopped.
-// Callers must clean up associated state (e.g., fwdCtx, cache entries) on false.
+// Callers must clean up associated state (e.g., cache entries) on false.
 func (wp *workerPool) Dispatch(key workerKey, item workItem) bool {
 	wp.mu.Lock()
 	if wp.stopped {
