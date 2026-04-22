@@ -47,11 +47,11 @@ the receiver.
 - **Ze** -- Go BGP daemon, goroutine-based, kernel TCP stack.
   Config: passive peers, route-reflector plugin (bgp-rs), 1M prefix limit per family.
   Transport: kernel TCP (standard Docker networking).
-- **FRR** (Free Range Routing) -- C BGP daemon, kernel TCP stack.
-  Config: passive peers, PERMIT route-maps in/out (no filtering).
-  Transport: kernel TCP (standard Docker networking).
 - **BIRD** -- C BGP daemon, kernel TCP stack.
   Config: passive peers, import/export all (no filtering).
+  Transport: kernel TCP (standard Docker networking).
+- **FRR** (Free Range Routing) -- C BGP daemon, kernel TCP stack.
+  Config: passive peers, PERMIT route-maps in/out (no filtering).
   Transport: kernel TCP (standard Docker networking).
 - **GoBGP** -- Go BGP daemon, kernel TCP stack.
   Config: passive peers, default accept policy.
@@ -68,6 +68,9 @@ the receiver.
   JVM: 2GB heap with ZGC (low-pause garbage collector).
   Transport: rawInt bridge (UDP encapsulation between Docker eth0 and freeRtr's
   virtual interface layer) -- adds latency vs kernel TCP used by other DUTs.
+- **OpenBGPd** -- C BGP daemon (OpenBSD portable), kernel TCP stack.
+  Config: passive peers, allow from/to any (no filtering).
+  Transport: kernel TCP (standard Docker networking).
 
 Config files: `test/perf/configs/`
 
@@ -81,6 +84,7 @@ Config files: `test/perf/configs/`
 | ze | 91ms | 27ms | 1,098,901 | 461,693 | 20ms | 81ms | 27ms | 81ms | 0 |
 | rustbgpd | 179ms | 5ms | 558,659 | 15,247 | 90ms | 151ms | 12ms | 152ms | 0 |
 | rustybgp | 252ms | 14ms | 396,825 | 20,283 | 120ms | 233ms | 13ms | 235ms | 0 |
+| openbgpd | 472ms | 0ms | 211,864 | 0 | 217ms | 461ms | 0ms | 466ms | 0 |
 | frr | 537ms | 10ms | 186,219 | 3,764 | 412ms | 532ms | 10ms | 532ms | 0 |
 | gobgp | 1,147ms | 13ms | 87,183 | 1,031 | 585ms | 1,118ms | 14ms | 1,125ms | 0 |
 | freertr | 2,294ms | 146ms | 43,591 | 7,872 | 727ms | 1,992ms | 619ms | 2,294ms | 0 |
@@ -114,7 +118,7 @@ with fresh results:
 # Build ze-perf and all DUT Docker images, then run benchmarks
 python3 test/perf/run.py --build --test
 
-# Or test specific DUTs (available: ze, bird, frr, gobgp, rustbgpd, rustybgp, freertr)
+# Or test specific DUTs (available: ze, bird, frr, gobgp, rustbgpd, rustybgp, freertr, openbgpd)
 python3 test/perf/run.py --build --test ze bird
 
 # Regenerate this document from existing results

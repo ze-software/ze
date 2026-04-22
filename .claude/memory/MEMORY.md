@@ -43,6 +43,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - [feedback_no_em_dashes.md](feedback_no_em_dashes.md) - Never use em dashes in English text (AI writing tell)
 - [feedback_memory_is_in_repo.md](feedback_memory_is_in_repo.md) - ~/.claude/projects/.../memory/ is the repo's .claude/memory/. Always commit memory changes.
 - [feedback_never_strip_context_param.md](feedback_never_strip_context_param.md) - "Clean unused context" = remove dead `import "context"` only, never strip `ctx context.Context` parameters
+- [feedback_read_before_overwrite.md](feedback_read_before_overwrite.md) - Never modify files not under git control without explicit authorization
 
 ## Moved to .claude/rules/ (2026-04-05)
 

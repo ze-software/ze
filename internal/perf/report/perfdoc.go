@@ -177,7 +177,7 @@ with fresh results:
 `+"```bash\n"+`# Build ze-perf and all DUT Docker images, then run benchmarks
 python3 test/perf/run.py --build --test
 
-# Or test specific DUTs (available: ze, bird, frr, gobgp, rustbgpd, rustybgp, freertr)
+# Or test specific DUTs (available: ze, bird, frr, gobgp, rustbgpd, rustybgp, freertr, openbgpd)
 python3 test/perf/run.py --build --test ze bird
 
 # Regenerate this document from existing results
@@ -218,6 +218,10 @@ var dutSetupNotes = map[string]string{
 
 	"rustybgp": `**RustyBGP** -- Rust BGP daemon, kernel TCP stack.
   Config: passive peers, default policy.
+  Transport: kernel TCP (standard Docker networking).`,
+
+	"openbgpd": `**OpenBGPd** -- C BGP daemon (OpenBSD portable), kernel TCP stack.
+  Config: passive peers, allow from/to any (no filtering).
   Transport: kernel TCP (standard Docker networking).`,
 
 	"freertr": `**freeRtr** -- Java BGP daemon with its own TCP/IP stack.

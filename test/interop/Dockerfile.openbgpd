@@ -1,0 +1,12 @@
+# OpenBGPd (portable) for interoperability testing.
+# Alpine ships openbgpd in its community repository.
+
+FROM alpine:3.21
+
+RUN apk add --no-cache openbgpd tini && \
+    addgroup -S _bgpd && \
+    adduser -S -G _bgpd -H -D _bgpd && \
+    mkdir -p /home/_bgpd /var/run
+
+ENTRYPOINT ["tini", "--", "bgpd"]
+CMD ["-f", "/etc/bgpd.conf", "-d"]

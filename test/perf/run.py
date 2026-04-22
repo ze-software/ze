@@ -14,7 +14,7 @@ Arguments:
     --build         Build/pull Docker images for selected DUTs
     --test          Run benchmarks (images must already exist)
     DUT ...         Optional DUT names to filter (default: all)
-                    Available: ze, frr, bird, gobgp, rustbgpd, rustybgp, freertr
+                    Available: ze, frr, bird, gobgp, rustbgpd, rustybgp, freertr, openbgpd
 
 Environment:
     FRR_IMAGE       - FRR Docker image (default: quay.io/frrouting/frr:10.3.1)
@@ -59,6 +59,18 @@ RUSTBGPD_IMAGE = os.environ.get("RUSTBGPD_IMAGE", "rustbgpd-interop")
 FREERTR_DIR = os.environ.get(
     "FREERTR_DIR",
     os.path.abspath(os.path.join(PROJECT_ROOT, "..", "..", "..", "m36", "freeRtr")),
+)
+OPENBGPD_DIR = os.environ.get(
+    "OPENBGPD_DIR",
+    os.path.abspath(
+        os.path.join(
+            os.path.expanduser("~"),
+            "Code",
+            "github.com",
+            "openbgpd-portable",
+            "openbgpd-portable",
+        )
+    ),
 )
 DUT_ROUTES = int(os.environ.get("DUT_ROUTES", "100000"))
 DUT_SEED = int(os.environ.get("DUT_SEED", "42"))
@@ -131,6 +143,14 @@ DUTS = [
         "name": "freertr",
         "image": "freertr-interop",
         "ip": "172.31.0.8",
+        "port": 179,
+        "sender_port": 0,
+        "receiver_port": 0,
+    },
+    {
+        "name": "openbgpd",
+        "image": "openbgpd-interop",
+        "ip": "172.31.0.9",
         "port": 179,
         "sender_port": 0,
         "receiver_port": 0,
@@ -381,6 +401,28 @@ def build_images(needed_duts):
             except subprocess.CalledProcessError:
                 print("  warning: freeRtr image build failed")
 
+    if "openbgpd" in needed:
+        print("Building OpenBGPd image...")
+        if not os.path.isdir(OPENBGPD_DIR):
+            print(f"  warning: OpenBGPd source not found at {OPENBGPD_DIR}")
+            print("  set OPENBGPD_DIR to the openbgpd-portable repository root")
+        else:
+            try:
+                docker(
+                    "buildx",
+                    "build",
+                    "--load",
+                    "-t",
+                    "openbgpd-interop",
+                    "-f",
+                    os.path.join(INTEROP_DIR, "Dockerfile.openbgpd"),
+                    OPENBGPD_DIR,
+                    "--quiet",
+                    timeout=300,
+                )
+            except subprocess.CalledProcessError:
+                print("  warning: OpenBGPd image build failed")
+
 
 def container_name(dut_name):
     return f"ze-perf-{dut_name}-{SUFFIX}"
@@ -417,6 +459,7 @@ def start_dut(dut):
             "-v",
             f"{CONFIGS_DIR}/freertr-sw.txt:/etc/freertr/freertr-sw.txt:ro",
         ],
+        "openbgpd": ["-v", f"{CONFIGS_DIR}/openbgpd.conf:/etc/bgpd.conf:ro"],
     }
 
     caps = ["--cap-add", "NET_ADMIN"]
@@ -424,6 +467,8 @@ def start_dut(dut):
         caps += ["--cap-add", "SYS_ADMIN"]
     if name == "freertr":
         caps += ["--cap-add", "NET_RAW"]
+    if name == "openbgpd":
+        caps += ["--cap-add", "SYS_CHROOT"]
 
     extra = []
     if name == "ze":
