@@ -38,9 +38,9 @@ type StartSession struct {
 	// default (1500).
 	MaxMRU uint16
 
-	// Echo configuration. EchoInterval == 0 disables LCP Echo
-	// keepalive. EchoFailures is the consecutive no-reply count that
-	// triggers session teardown.
+	// Echo configuration. EchoInterval <= 0 uses the default (10s).
+	// EchoFailures is the consecutive no-reply count that triggers
+	// session teardown.
 	EchoInterval time.Duration
 	EchoFailures uint8
 

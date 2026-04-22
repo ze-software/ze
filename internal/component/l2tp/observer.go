@@ -177,10 +177,9 @@ type Observer struct {
 
 	sessions map[uint16]*eventRing
 
-	logins    map[string]*lruEntry
-	lruHead   *lruEntry
-	lruTail   *lruEntry
-	maxLogins int
+	logins  map[string]*lruEntry
+	lruHead *lruEntry
+	lruTail *lruEntry
 
 	unsubs []func()
 }
@@ -200,7 +199,6 @@ func NewObserver(cfg ObserverConfig) *Observer {
 		samplePool: newSampleRingPool(cfg.MaxLogins, cfg.BucketCount),
 		sessions:   make(map[uint16]*eventRing),
 		logins:     make(map[string]*lruEntry),
-		maxLogins:  cfg.MaxLogins,
 	}
 }
 
@@ -246,16 +244,19 @@ func (o *Observer) RecordEcho(login string, now time.Time, rtt time.Duration) {
 	entry.current.addEcho(rtt)
 }
 
-// SetLoginState updates the CQM bucket state for a login.
+// SetLoginState updates the CQM bucket state for a login, creating
+// the entry if it does not yet exist (e.g. SessionIPAssigned arrives
+// before the first echo).
 func (o *Observer) SetLoginState(login string, state BucketState) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	if entry, ok := o.logins[login]; ok {
-		entry.state = state
-		entry.current.State = state
-		o.promoteEntry(entry)
+	entry := o.touchLogin(login, time.Now())
+	if entry == nil {
+		return
 	}
+	entry.state = state
+	entry.current.State = state
 }
 
 // SessionEvents returns a snapshot of the per-session event ring.
@@ -344,12 +345,20 @@ func (o *Observer) maybeCloseBucket(entry *lruEntry, now time.Time) {
 		entry.current.State = entry.state
 		return
 	}
-	for now.Sub(entry.current.Start) >= BucketInterval {
+	// Cap iterations at ring capacity+1 to avoid spinning when the
+	// time gap is large (e.g. system suspend). Beyond the cap, empty
+	// buckets would just overwrite each other in the ring anyway.
+	ringCap := len(entry.ring.buckets) + 1
+	for i := 0; now.Sub(entry.current.Start) >= BucketInterval && i < ringCap; i++ {
 		entry.ring.append(entry.current)
 		entry.current = CQMBucket{
 			Start: entry.current.Start.Add(BucketInterval),
 			State: entry.state,
 		}
+	}
+	if now.Sub(entry.current.Start) >= BucketInterval {
+		skip := now.Sub(entry.current.Start) / BucketInterval
+		entry.current.Start = entry.current.Start.Add(skip * BucketInterval)
 	}
 }
 
@@ -413,7 +422,9 @@ func (s *Subsystem) wireObserverSubscriptions(bus ze.EventBus) {
 			TunnelID:  p.TunnelID,
 			SessionID: p.SessionID,
 		})
-		obs.SetLoginState(p.Username, BucketStateEstablished)
+		if p.Username != "" {
+			obs.SetLoginState(p.Username, BucketStateEstablished)
+		}
 	}))
 
 	obs.AddUnsub(l2tpevents.EchoRTT.Subscribe(bus, func(p *l2tpevents.EchoRTTPayload) {
