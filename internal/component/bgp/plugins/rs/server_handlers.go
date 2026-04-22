@@ -61,8 +61,15 @@ func (rs *RouteServer) handleState(event *Event) {
 	}
 }
 
+// withdrawalBatchSize is the number of prefixes per batched withdrawal RPC.
+// Batching reduces per-RPC overhead (tokenize, JSON, command registry) from
+// 100k individual calls to ~200 batched calls for a typical 100k-route teardown.
+// Sized to keep each text command under ~50KB while providing 500x fewer RPCs.
+const withdrawalBatchSize = 500
+
 // handleStateDown processes peer session teardown.
-// Sends withdrawals asynchronously — per-lifecycle goroutine (not hot path).
+// Sends withdrawals asynchronously -- per-lifecycle goroutine (not hot path).
+// Batches withdrawal RPCs by family to reduce GC pressure from text-RPC overhead.
 func (rs *RouteServer) handleStateDown(peerAddr string) {
 	// Drain workers first: in-flight forwards may update the withdrawal map.
 	// PeerDown waits for all workers to finish, so after this call no more
@@ -75,11 +82,43 @@ func (rs *RouteServer) handleStateDown(peerAddr string) {
 	delete(rs.withdrawals, peerAddr)
 	rs.withdrawalMu.Unlock()
 
-	go func() {
-		for _, info := range entries {
-			rs.updateRoute("!"+peerAddr, fmt.Sprintf("update text nlri %s del %s", info.Family, info.Prefix))
+	go rs.sendBatchedWithdrawals(peerAddr, entries)
+}
+
+// sendBatchedWithdrawals groups withdrawal entries by family and sends them
+// in batched text RPCs. Each batch packs up to withdrawalBatchSize prefixes
+// into a single "update text nlri <family> del <prefix1> del <prefix2> ..."
+// command, reducing the number of RPC roundtrips by ~500x compared to
+// one-prefix-per-RPC.
+func (rs *RouteServer) sendBatchedWithdrawals(peerAddr string, entries map[string]withdrawalInfo) {
+	if len(entries) == 0 {
+		return
+	}
+
+	// Group by family for batched commands.
+	byFamily := make(map[string][]string)
+	for _, info := range entries {
+		byFamily[info.Family] = append(byFamily[info.Family], info.Prefix)
+	}
+
+	selector := "!" + peerAddr
+	var buf strings.Builder
+
+	for fam, prefixes := range byFamily {
+		for i := 0; i < len(prefixes); i += withdrawalBatchSize {
+			end := min(i+withdrawalBatchSize, len(prefixes))
+			batch := prefixes[i:end]
+
+			buf.Reset()
+			buf.WriteString("update text nlri ")
+			buf.WriteString(fam)
+			for _, p := range batch {
+				buf.WriteString(" del ")
+				buf.WriteString(p)
+			}
+			rs.updateRoute(selector, buf.String())
 		}
-	}()
+	}
 }
 
 // handleStateUp processes peer session establishment.

@@ -1421,7 +1421,7 @@ func TestWithdrawalOnPeerDown(t *testing.T) {
 		mu.Lock()
 		commands = append(commands, peer+": "+cmd)
 		mu.Unlock()
-		if int(count.Add(1)) >= 2 {
+		if int(count.Add(1)) >= 1 {
 			select {
 			case <-done:
 			default:
@@ -1459,10 +1459,10 @@ func TestWithdrawalOnPeerDown(t *testing.T) {
 
 	found0, found1 := false, false
 	for _, cmd := range cmdsCopy {
-		if strings.Contains(cmd, "nlri ipv4/unicast del prefix 10.0.0.0/24") {
+		if strings.Contains(cmd, "del prefix 10.0.0.0/24") {
 			found0 = true
 		}
-		if strings.Contains(cmd, "nlri ipv4/unicast del prefix 10.0.1.0/24") {
+		if strings.Contains(cmd, "del prefix 10.0.1.0/24") {
 			found1 = true
 		}
 	}
