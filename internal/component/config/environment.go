@@ -85,6 +85,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.cache-ttl", Type: "int", Default: "60", Description: "Update cache TTL in seconds (0=immediate)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.cache-max", Type: "int", Default: "1000000", Description: "Update cache max entries (0=unlimited)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.update-groups", Type: "bool", Default: "true", Description: "Cross-peer UPDATE grouping"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.coalesce", Type: "bool", Default: "true", Description: "Coalesce consecutive IPv4 unicast UPDATEs sharing identical attributes"})
 
 	// Chaos (hub YANG `environment/chaos`).
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.chaos.seed", Type: "int64", Description: "PRNG seed for chaos fault injection (0 = disabled)"})

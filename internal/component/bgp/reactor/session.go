@@ -307,6 +307,12 @@ type Session struct {
 	// Started when session enters ESTABLISHED, stopped on close.
 	sendHoldTimer clock.Timer
 	sendHoldMu    sync.Mutex // protects sendHoldTimer
+
+	// coalesce holds a pending IPv4 unicast UPDATE whose NLRIs may be extended
+	// by subsequent UPDATEs with identical path attributes. Only used when
+	// ze.bgp.reactor.coalesce=true. Accessed only from the read goroutine (no lock).
+	coalesce        coalesceState
+	coalesceEnabled bool
 }
 
 // NewSession creates a new BGP session for a peer.
@@ -325,15 +331,16 @@ func NewSession(settings *PeerSettings) *Session {
 	}
 
 	s := &Session{
-		settings:     settings,
-		fsm:          fsm.New(),
-		timers:       fsm.NewTimers(),
-		clock:        clock.RealClock{},
-		dialer:       dialer,
-		writeBuf:     wire.NewSessionBuffer(false), // Start with 4096, resize if Extended Message
-		errChan:      make(chan error, 2),          // Buffer 2: normal error + teardown
-		done:         make(chan struct{}),
-		prefixCounts: &prefixCounts{counts: make(map[uint32]int64), warned: make(map[uint32]bool)},
+		settings:        settings,
+		fsm:             fsm.New(),
+		timers:          fsm.NewTimers(),
+		clock:           clock.RealClock{},
+		dialer:          dialer,
+		writeBuf:        wire.NewSessionBuffer(false), // Start with 4096, resize if Extended Message
+		errChan:         make(chan error, 2),          // Buffer 2: normal error + teardown
+		done:            make(chan struct{}),
+		prefixCounts:    &prefixCounts{counts: make(map[uint32]int64), warned: make(map[uint32]bool)},
+		coalesceEnabled: coalesceEnabled(),
 	}
 
 	// Configure FSM connection mode: passive if active bit is NOT set.
@@ -619,6 +626,8 @@ func (s *Session) Run(ctx context.Context) error {
 		s.Resume() // Unblock pause gate if paused.
 	}()
 
+	defer s.resetCoalesce()
+
 	for {
 		// Backpressure pause gate: if paused, block until resumed or shutdown.
 		// Fast path: atomic load returns false, zero overhead when not paused.
@@ -649,9 +658,13 @@ func (s *Session) Run(ctx context.Context) error {
 		}
 
 		// ReadFull blocks until data arrives or conn is closed by cancel goroutine.
-		err := s.readAndProcessMessage(conn, bufReader)
+		var err error
+		if s.coalesceEnabled {
+			err = s.readAndProcessCoalesced(conn, bufReader)
+		} else {
+			err = s.readAndProcessMessage(conn, bufReader)
+		}
 		if err != nil {
-			// Connection was closed — check if a specific reason was set.
 			if errors.Is(err, ErrConnectionClosed) {
 				if reason := s.closeReason.Load(); reason != nil {
 					return *reason
