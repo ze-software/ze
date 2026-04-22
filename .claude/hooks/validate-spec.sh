@@ -45,8 +45,8 @@ else
     # Validate Status value
     SPEC_STATUS=$(sed -n 's/^| Status | *\([a-z-]*\).*/\1/p' "$FILE_PATH" | head -1)
     case "$SPEC_STATUS" in
-        skeleton|design|ready|in-progress|blocked|deferred) ;;
-        *) ERRORS+=("Invalid Status '$SPEC_STATUS'. Must be: skeleton, design, ready, in-progress, blocked, deferred") ;;
+        skeleton|design|ready|in-progress|blocked|deferred|done) ;;
+        *) ERRORS+=("Invalid Status '$SPEC_STATUS'. Must be: skeleton, design, ready, in-progress, blocked, deferred, done") ;;
     esac
     # Check Updated field exists and has a date
     if ! grep -qE '^\| Updated \| *[0-9]{4}-[0-9]{2}-[0-9]{2}' "$FILE_PATH"; then

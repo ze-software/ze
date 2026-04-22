@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Depends | spec-l2tp-6c-ncp, spec-l2tp-7-subsystem |
 | Phase | 5/5 (YANG schema + verification) |
-| Updated | 2026-04-21 |
+| Updated | 2026-04-22 |
 
 ## Post-Compaction Recovery
 
