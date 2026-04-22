@@ -245,22 +245,34 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 	}
 	logger().Debug("OnMessageBatchReceived", "peer", peerAddr, "event", eventTypeStr, "dir", msgs[0].Direction, "procs", len(procs), "msgs", len(msgs))
 
-	// Deliver each message: pre-format text for text/JSON consumers,
-	// pass StructuredEvent directly for DirectBridge consumers.
-	// Stack-allocated cache is reused across batch iterations.
+	// Pipelined delivery: deliver ALL messages to ALL subscribers first, then
+	// collect results per message. This prevents slow subscribers (e.g.,
+	// adj-rib-in doing per-NLRI storage) from serializing fast subscribers
+	// (e.g., bgp-rs doing sub-microsecond dispatch). Each subscriber's
+	// deliveryLoop drains multiple events from its channel concurrently.
 	isUpdate := msgs[0].Type == message.TypeUPDATE
 	var fmtCache formatCache
-	results := make(chan process.EventResult, len(procs))
 
+	// Per-message result channels so results can be mapped back correctly.
+	type msgDelivery struct {
+		results chan process.EventResult
+		sent    int
+		pooled  [4]*rpc.StructuredEvent
+		pooledN int
+	}
+	deliveries := make([]msgDelivery, len(msgs))
+
+	// Phase 1: deliver all messages to all subscriber channels (non-blocking
+	// into each subscriber's buffered delivery channel).
 	for i := range msgs {
 		msg := &msgs[i]
+		d := &deliveries[i]
+		d.results = make(chan process.EventResult, len(procs))
 
-		// Pre-format text for text/JSON consumers per distinct format+encoding key.
-		// DirectBridge structured consumers skip text formatting entirely.
 		fmtCache.reset()
 		for _, proc := range procs {
 			if proc.HasStructuredHandler() {
-				continue // DirectBridge — no text formatting needed
+				continue
 			}
 			cacheKey := proc.FormatCacheKey()
 			if _, ok := fmtCache.get(cacheKey); !ok {
@@ -268,31 +280,42 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 			}
 		}
 
-		var pooled [4]*rpc.StructuredEvent
-		pooledN := 0
-		sent := 0
 		for _, proc := range procs {
 			var delivery process.EventDelivery
 			if proc.HasStructuredHandler() {
 				se := getStructuredEvent(peer, msg)
-				delivery = process.EventDelivery{Event: se, Result: results}
-				if pooledN < len(pooled) {
-					pooled[pooledN] = se
-					pooledN++
+				delivery = process.EventDelivery{Event: se, Result: d.results}
+				if d.pooledN < len(d.pooled) {
+					d.pooled[d.pooledN] = se
+					d.pooledN++
 				}
 			} else {
 				output, _ := fmtCache.get(proc.FormatCacheKey())
-				delivery = process.EventDelivery{Output: output, Result: results}
+				delivery = process.EventDelivery{Output: output, Result: d.results}
 			}
 			if !proc.Deliver(delivery) {
 				continue
 			}
-			sent++
+			d.sent++
 		}
 
+		// Deliver to CLI monitors per message (non-blocking, no result wait).
+		jsonOutput, ok := fmtCache.get(monitorFormatKey)
+		if !ok {
+			jsonOutput = formatMessageForSubscription(encoder, peer, *msg, "parsed", "json")
+		}
+		monitorDeliver(s, eventTypeStr, msg.Direction.String(), peerAddr, peer.Name, jsonOutput)
+	}
+
+	// Phase 2: collect results per message. By this point, all messages have
+	// been delivered to subscriber channels. Subscribers process them
+	// concurrently on their own deliveryLoop goroutines. Fast subscribers
+	// (bgp-rs) complete while slow subscribers (adj-rib-in) are still working.
+	for i := range deliveries {
+		d := &deliveries[i]
 		var cacheCount int
-		for range sent {
-			r := <-results
+		for range d.sent {
+			r := <-d.results
 			if r.Err != nil && s.Context().Err() == nil {
 				logger().Error("OnMessageBatchReceived write failed", "proc", r.ProcName, "err", r.Err)
 			} else if r.CacheConsumer {
@@ -301,24 +324,15 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 		}
 		counts[i] = cacheCount
 
-		// Return pooled StructuredEvents after all consumers are done.
-		for j := range pooledN {
-			rpc.PutStructuredEvent(pooled[j])
+		for j := range d.pooledN {
+			rpc.PutStructuredEvent(d.pooled[j])
 		}
 
-		// RFC 4724 Section 2: detect EOR markers in received UPDATEs.
-		if isUpdate && msg.Direction == rpc.DirectionReceived && msg.WireUpdate != nil {
-			if fam, ok := msg.WireUpdate.IsEOR(); ok {
+		if isUpdate && msgs[i].Direction == rpc.DirectionReceived && msgs[i].WireUpdate != nil {
+			if fam, ok := msgs[i].WireUpdate.IsEOR(); ok {
 				onEORReceived(s, peer, fam.String())
 			}
 		}
-
-		// Deliver to CLI monitors per message.
-		jsonOutput, ok := fmtCache.get(monitorFormatKey)
-		if !ok {
-			jsonOutput = formatMessageForSubscription(encoder, peer, *msg, "parsed", "json")
-		}
-		monitorDeliver(s, eventTypeStr, msg.Direction.String(), peerAddr, peer.Name, jsonOutput)
 	}
 
 	return counts
