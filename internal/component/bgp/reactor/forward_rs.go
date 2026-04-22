@@ -6,12 +6,73 @@ package reactor
 
 import (
 	"net/netip"
+	"time"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
+
+// tryDirectWrite attempts to write the UPDATE directly to the destination
+// peer's TCP socket from the caller's goroutine (source peer's read goroutine),
+// bypassing the forward pool channel send and goroutine context switch.
+//
+// Returns true if the write was handled (success or peer not ready to receive).
+// Returns false if the session is unavailable or the write lock is contended
+// (caller should fall back to forward pool dispatch).
+func tryDirectWrite(item *fwdItem) bool {
+	peer := item.peer
+	if peer == nil {
+		return false
+	}
+
+	peer.mu.RLock()
+	session := peer.session
+	peer.mu.RUnlock()
+	if session == nil {
+		return false
+	}
+
+	session.mu.RLock()
+	state := session.fsm.State()
+	conn := session.conn
+	session.mu.RUnlock()
+	if state != fsm.StateEstablished || conn == nil {
+		return true
+	}
+
+	if !session.writeMu.TryLock() {
+		return false
+	}
+	defer session.writeMu.Unlock()
+
+	if err := conn.SetWriteDeadline(session.clock.Now().Add(fwdWriteDeadline())); err != nil {
+		return true
+	}
+	defer func() {
+		session.sentMeta = nil
+		_ = conn.SetWriteDeadline(time.Time{})
+	}()
+
+	session.sentMeta = item.meta
+	for _, body := range item.rawBodies {
+		if err := session.writeRawUpdateBody(body); err != nil {
+			return true
+		}
+	}
+	for _, update := range item.updates {
+		if err := session.writeUpdate(update); err != nil {
+			return true
+		}
+	}
+	if err := session.flushWrites(); err != nil {
+		return true
+	}
+	session.resetSendHoldTimer()
+	return true
+}
 
 // reactorForwardRS forwards a received UPDATE to all RS-eligible peers directly
 // from notifyMessageReceiver, bypassing the plugin dispatch chain.
@@ -338,13 +399,24 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	}
 
 	// Batch retain + dispatch.
+	// Try direct write first: acquire session.writeMu via TryLock and write
+	// from this goroutine (source peer's read goroutine), eliminating the
+	// channel send and worker goroutine context switch. Falls back to
+	// TryDispatch/DispatchOverflow when TryLock fails or session unavailable.
 	if len(pending) > 0 {
 		r.recentUpdates.RetainN(updateID, len(pending))
 		for i := range pending {
 			pending[i].item.done = func() { r.recentUpdates.Release(updateID) }
-			if r.fwdPool.TryDispatch(pending[i].key, pending[i].item) {
+			switch {
+			case tryDirectWrite(&pending[i].item):
+				pending[i].item.done()
+				if pending[i].item.peerBufIdx > 0 && pending[i].item.peerPoolRef != nil {
+					pending[i].item.peerPoolRef.Return(pending[i].item.peerBufIdx)
+				}
 				r.fwdPool.RecordForwarded(sourcePeerAddr)
-			} else if r.fwdPool.DispatchOverflow(pending[i].key, pending[i].item) {
+			case r.fwdPool.TryDispatch(pending[i].key, pending[i].item):
+				r.fwdPool.RecordForwarded(sourcePeerAddr)
+			case r.fwdPool.DispatchOverflow(pending[i].key, pending[i].item):
 				r.fwdPool.RecordOverflowed(sourcePeerAddr)
 			}
 		}
