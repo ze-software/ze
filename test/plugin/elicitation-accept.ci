@@ -14,6 +14,7 @@
 # upgraded SSE stream.
 
 stdin=mcp:terminator=EOF_MCP
+wait-peers
 elicit-accept {"command":"peer list"}
 @ze_execute {"command":""}
 EOF_MCP

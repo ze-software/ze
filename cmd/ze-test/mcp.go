@@ -47,6 +47,7 @@ Stdin directives (one per line):
   @<tool> <json args>              -- call a named MCP tool with JSON args
   wait <duration>                  -- sleep
   wait-established                 -- poll "peer list" until a peer is Established
+  wait-peers                       -- poll "peer list" until at least one peer exists
   elicit-accept <json content>     -- queue an accept response for the next elicit
   elicit-decline                   -- queue a decline response for the next elicit
   elicit-cancel                    -- queue a cancel response for the next elicit
@@ -109,6 +110,15 @@ Options:
 		// wait-established: poll "show bgp peer" until at least one peer is Established.
 		if line == "wait-established" {
 			if err := client.waitEstablished(*timeout); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				return 1
+			}
+			continue
+		}
+
+		// wait-peers: poll "peer list" until at least one peer is configured.
+		if line == "wait-peers" {
+			if err := client.waitPeers(*timeout); err != nil {
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
 				return 1
 			}
@@ -246,6 +256,21 @@ func (c *mcpClient) waitEstablished(timeout time.Duration) error {
 		time.Sleep(200 * time.Millisecond)
 	}
 	return fmt.Errorf("no peer established after %v", timeout)
+}
+
+// waitPeers polls "peer list" via MCP until the result contains at least one
+// peer name (non-empty JSON object). Used by tests that need the BGP config
+// to be applied but don't need an established session.
+func (c *mcpClient) waitPeers(timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		result, err := c.execute("peer list")
+		if err == nil && !strings.Contains(result, `"peers":{}`) && strings.Contains(result, `"peers":{`) {
+			return nil
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	return fmt.Errorf("no peers configured after %v", timeout)
 }
 
 // initialize sends the MCP handshake and captures the session id from the
