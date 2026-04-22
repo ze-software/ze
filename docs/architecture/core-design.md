@@ -542,6 +542,14 @@ Receive UPDATE → Assign msg-id → Ingress filter pipeline → Cache WireUpdat
                                 Lookup cache → Egress filters (read meta, write mods) → Apply mods → Send wire
 ```
 
+Three forwarding paths exist. The **reactor RS fast path** (rs-gap-1) runs
+inline in `notifyMessageReceiver` on the session read goroutine, after cache
+Add but before `deliverChan` enqueue. It calls the egress pipeline directly
+(`reactorForwardRS` in `forward_rs.go`), bypassing plugin dispatch, bgp-rs
+workers, and ForwardCached entirely. Peers with `ExportFilters` fall back to
+the plugin path via `FastPathSkipped` on `RawMessage`. Enabled per peer group
+via `PeerSettings.RSFastPath`.
+
 Two consumer categories. **Forwarders** (route server, route reflector, future
 mirror) need every received UPDATE to make a per-peer forwarding decision.
 **State trackers** (BGP RIB plugin, then locrib subscribers like sysrib / FIB)

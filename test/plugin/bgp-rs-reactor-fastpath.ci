@@ -1,0 +1,131 @@
+# bgp-rs-reactor-fastpath -- reactor-native RS forwarding (rs-gap-1)
+#
+# VALIDATES: AC-2 -- UPDATEs forwarded directly from notifyMessageReceiver
+# via reactorForwardRS, bypassing plugin dispatch chain.
+# VALIDATES: AC-8 -- reactorForwardRS exists and is called.
+#
+# PREVENTS: silent regression where rs-fast-path config is ignored and
+# forwarding falls back to the bgp-rs ForwardCached chain.
+#
+# Two eBGP peers: source (65001) sends one UPDATE, receiver (65002) must
+# get the forwarded UPDATE via the reactor fast path. The reject rules
+# verify no ForwardCached fallback was used.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=15s
+
+# Source peer (conn=1): send one UPDATE with NLRI 10.0.0.0/24.
+# ORIGIN=IGP, AS_PATH=[65001] (4-byte), NEXT_HOP=1.1.1.1, LOCAL_PREF=100
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040101010140050400000064180A0000
+
+# Receiver peer (conn=2): expect the forwarded UPDATE containing NLRI 10.0.0.0/24.
+# The RS prepends local AS 65000 to AS_PATH. Use contains= to match the
+# NLRI bytes (180A0000 = /24 10.0.0.0) without requiring exact byte match
+# on the full UPDATE (AS_PATH length changes after prepend).
+expect=bgp:conn=2:seq=1:contains=180A0000
+
+# Both peers receive EOR.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Observer: shut down cleanly after forwarding completes.
+tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import time
+from ze_api import API
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(2.0)
+    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'daemon shutdown'})
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rs {
+		use bgp-rs
+	}
+	external shutdown-after-up {
+		run ./shutdown-after-up.run
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+			rs-fast-path enable
+		}
+	}
+	peer receiver-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+			rs-fast-path enable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=forward-cached failed
+reject=stderr:pattern=release-cached failed
+reject=stderr:pattern=BUG: ForwardUpdatesDirect

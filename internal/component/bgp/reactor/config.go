@@ -203,6 +203,13 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		}
 	}
 
+	// RS fast path from behavior > rs-fast-path.
+	if behaviorMap != nil {
+		if v, ok := mapBool(behaviorMap, "rs-fast-path"); ok {
+			ps.RSFastPath = v
+		}
+	}
+
 	// Local address from connection > local > ip (required).
 	var localAddrStr string
 	if connMap != nil {

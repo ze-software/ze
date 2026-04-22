@@ -98,6 +98,7 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `ttl-security` | Minimum TTL for incoming packets | No |
 | `outgoing-ttl` | TTL for outgoing packets | No |
 | `group-updates` | Enable/disable UPDATE grouping | No (default: enable) |
+| `rs-fast-path` | Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding) | No (default: disable) |
 <!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/schema/ze-bgp-conf.yang -- peer settings, container timer -->
 
 ## Capabilities

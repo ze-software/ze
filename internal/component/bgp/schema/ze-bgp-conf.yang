@@ -657,6 +657,12 @@ module ze-bgp-conf {
                 type boolean;
                 description "Auto-flush routes";
             }
+
+            leaf rs-fast-path {
+                type boolean;
+                default false;
+                description "Reactor-native RS forwarding";
+            }
         }
 
         // Basic peer identification

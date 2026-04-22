@@ -3,6 +3,7 @@
 package types
 
 import (
+	"net/netip"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
@@ -23,6 +24,15 @@ type RawMessage struct {
 	Direction  rpc.MessageDirection      // DirectionSent / DirectionReceived
 	ParseError error                     // Non-nil if lazy parsing failed
 	Meta       map[string]any            // Route metadata from ReceivedUpdate (sent events only)
+
+	// ReactorForwarded is true when reactorForwardRS already forwarded this
+	// UPDATE to eligible RS peers. bgp-rs checks this to skip ForwardCached.
+	ReactorForwarded bool
+
+	// FastPathSkipped lists destination peers that the reactor fast path
+	// skipped (e.g. because they have ExportFilters). bgp-rs forwards to
+	// only these peers via ForwardCached when ReactorForwarded is true.
+	FastPathSkipped []netip.AddrPort
 }
 
 // IsAsyncSafe reports whether this message's RawBytes can be safely used after

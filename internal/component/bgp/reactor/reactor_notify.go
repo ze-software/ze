@@ -438,6 +438,23 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		return kept
 	}
 
+	// Reactor RS fast path: forward UPDATE directly from the session read
+	// goroutine, bypassing the delivery goroutine and plugin dispatch chain.
+	// Runs after cache Add (buffer lifetime via cache entry) and before
+	// deliverChan enqueue (plugins still get fire-and-forget delivery).
+	// Activate is NOT called here -- the delivery goroutine calls it after
+	// OnMessageBatchReceived returns the cache consumer count.
+	if kept && hasPeer && peer.settings.RSFastPath && msgType == message.TypeUPDATE {
+		update, ok := r.recentUpdates.Get(messageID)
+		if ok {
+			skipped := reactorForwardRS(r, update, messageID, peerAddr)
+			msg.ReactorForwarded = true
+			if len(skipped) > 0 {
+				msg.FastPathSkipped = skipped
+			}
+		}
+	}
+
 	// Received UPDATE with per-peer delivery channel: enqueue for async delivery.
 	// The delivery goroutine (started by Peer.runOnce) drains a batch and calls
 	// OnMessageBatchReceived + Activate per message. This decouples the TCP read

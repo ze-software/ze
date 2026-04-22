@@ -329,8 +329,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	// Pre-compute send operations per peer, then dispatch to pool.
 	// CPU work (split/context comparison/lazy parsing) is fast and done here.
 	// TCP writes happen asynchronously in per-peer workers.
-	var parsedUpdate *message.Update
-	var parsedWire *wireu.WireUpdate
+	var parseCache fwdParseCache
 	var dispatchedCount int
 
 	// Pending dispatch buffer: accumulate items during the per-peer loop,
@@ -589,105 +588,22 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		}
 
 		{
-			// Calculate update size for this peer's wire version (header + body)
-			updateSize := message.HeaderLen + len(peerWire.Payload())
-
-			// Check if UPDATE exceeds peer's max message size
-			if updateSize > maxMsgSize {
-				// Wire-level split: get source context for per-family ADD-PATH lookup
-				srcCtxID := peerWire.SourceCtxID()
-				srcCtx := bgpctx.Registry.Get(srcCtxID) // May be nil if not registered
-
-				maxBodySize := maxMsgSize - message.HeaderLen
-				splits, err := wireu.SplitWireUpdate(peerWire, maxBodySize, srcCtx)
-				if err != nil {
-					fwdLogger().Warn("forward split failed",
-						"peer", peer.Settings().Address,
-						"err", err,
-					)
-					continue
-				}
-				for _, split := range splits {
-					item.rawBodies = append(item.rawBodies, split.Payload())
-				}
-			} else {
-				// Zero-copy path: use raw bytes when contexts match
-				// Both must be non-zero (registered) and equal
-				srcCtxID := peerWire.SourceCtxID()
-				if srcCtxID != 0 && destCtxID != 0 && srcCtxID == destCtxID {
-					item.rawBodies = append(item.rawBodies, peerWire.Payload())
-				} else {
-					// Re-encode path: parse (lazily) and send.
-					// Reset cached parse if wire version changed (IBGP vs EBGP use different payloads).
-					if parsedUpdate == nil || parsedWire != peerWire {
-						var parseErr error
-						parsedUpdate, parseErr = message.UnpackUpdate(peerWire.Payload())
-						if parseErr != nil {
-							fwdLogger().Warn("parsing cached update",
-								"peer", peer.Settings().Address, "error", parseErr)
-							continue // Skip this peer, consistent with split failures
-						}
-						parsedWire = peerWire
-					}
-
-					// Check repacked size - may differ from original due to ASN4 encoding changes
-					// Size = Header(19) + WithdrawnLen(2) + Withdrawn + AttrLen(2) + Attrs + NLRI
-					repackedSize := message.HeaderLen + 4 + len(parsedUpdate.WithdrawnRoutes) +
-						len(parsedUpdate.PathAttributes) + len(parsedUpdate.NLRI)
-					if repackedSize > maxMsgSize {
-						// Split via parsed UPDATE using destination's ADD-PATH state.
-						// RFC 7911: ADD-PATH is negotiated per AFI/SAFI, so determine
-						// the UPDATE's dominant family and query that.
-						destSendCtx := peer.SendContext()
-						addPath := addPathForUpdate(destSendCtx, parsedUpdate)
-
-						// Chunks are retained in item.updates (possibly cached and
-						// iterated later), so deep-copy each one out of splitter
-						// scratch before appending. Wrap the splitter use in a
-						// closure so the defer returns it to the pool even if
-						// the callback panics.
-						splitErr := func() error {
-							splitter := message.GetSplitter()
-							defer message.PutSplitter(splitter)
-							return splitter.Split(parsedUpdate, maxMsgSize, addPath, func(c *message.Update) error {
-								item.updates = append(item.updates, &message.Update{
-									WithdrawnRoutes: append([]byte(nil), c.WithdrawnRoutes...),
-									PathAttributes:  append([]byte(nil), c.PathAttributes...),
-									NLRI:            append([]byte(nil), c.NLRI...),
-								})
-								return nil
-							})
-						}()
-						if splitErr != nil {
-							fwdLogger().Warn("forward split failed",
-								"peer", peer.Settings().Address,
-								"err", splitErr,
-							)
-							continue
-						}
-					} else {
-						item.updates = append(item.updates, parsedUpdate)
-					}
-				}
+			body, ok := buildFwdBody(peerWire, maxMsgSize, destCtxID, peer, peer.Settings().Address, &parseCache)
+			if !ok {
+				continue
 			}
+			item.rawBodies = body.rawBodies
+			item.updates = body.updates
+			item.supersedeKey = body.supersedeKey
+			item.withdrawal = body.withdrawal
 
-			// rs-fastpath-3: compute supersedeKey + withdrawal once per unique
-			// rawBody here (cache-miss path), before storing to the cache, so
-			// subsequent cache hits can reuse these derived values.
-			// Route superseding key (AC-23): FNV hash of raw body content.
-			// Zero for re-encode path items (updates only, no raw bodies).
-			item.supersedeKey = fwdSupersedeKey(item.rawBodies)
-			// Withdrawal flag (AC-25): true if item contains only withdrawals.
-			item.withdrawal = fwdIsWithdrawal(&item)
-
-			// Store in cache for subsequent group members with same context.
 			if groupsEnabled {
 				cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage}
 				fwdBodyCache[cacheKey] = &fwdBodyCacheEntry{
-					rawBodies:    item.rawBodies,
-					updates:      item.updates,
-					supersedeKey: item.supersedeKey,
-					withdrawal:   item.withdrawal,
+					rawBodies:    body.rawBodies,
+					updates:      body.updates,
+					supersedeKey: body.supersedeKey,
+					withdrawal:   body.withdrawal,
 				}
 			}
 		}

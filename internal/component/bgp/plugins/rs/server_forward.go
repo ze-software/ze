@@ -6,11 +6,81 @@ package rs
 
 import (
 	"context"
+	"net/netip"
 	"sort"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
+
+// batchForwardUpdateSkipped forwards a cached UPDATE to only the peers that
+// the reactor fast path skipped (those with ExportFilters). Called when
+// ReactorForwarded is true and FastPathSkipped is non-empty.
+func (rs *RouteServer) batchForwardUpdateSkipped(key workerKey, sourcePeer string, msgID uint64, families map[family.Family]bool, skipped []netip.AddrPort) {
+	val, _ := rs.batches.LoadOrStore(key, &forwardBatch{})
+	batch, ok := val.(*forwardBatch)
+	if !ok {
+		rs.releaseCache(msgID)
+		return
+	}
+
+	// Build target list from skipped peers only (excluding source).
+	rs.mu.RLock()
+	batch.targetBuf = batch.targetBuf[:0]
+	for _, addrPort := range skipped {
+		addr := addrPort.Addr().String()
+		if addr == sourcePeer {
+			continue
+		}
+		peer := rs.peers[addr]
+		if peer == nil || !peer.Up {
+			continue
+		}
+		if peer.Families != nil {
+			hasAny := false
+			for fam := range families {
+				if peer.SupportsFamily(fam) {
+					hasAny = true
+					break
+				}
+			}
+			if !hasAny {
+				continue
+			}
+		}
+		batch.targetBuf = append(batch.targetBuf, addr)
+	}
+	rs.mu.RUnlock()
+	targets := batch.targetBuf
+
+	if len(targets) == 0 {
+		rs.releaseCache(msgID)
+		return
+	}
+
+	sort.Strings(targets)
+	sel := strings.Join(targets, ",")
+
+	if batch.selector != "" && batch.selector != sel {
+		rs.flushBatch(batch)
+		batch.ids = batch.ids[:0]
+		batch.selector = ""
+		batch.targets = batch.targets[:0]
+	}
+
+	batch.ids = append(batch.ids, msgID)
+	batch.selector = sel
+	if len(batch.targets) == 0 {
+		batch.targets = append(batch.targets[:0], targets...)
+	}
+
+	if len(batch.ids) >= maxBatchSize {
+		rs.flushBatch(batch)
+		batch.ids = batch.ids[:0]
+		batch.selector = ""
+		batch.targets = batch.targets[:0]
+	}
+}
 
 // forwardBatch accumulates forward items for batch RPC.
 // Per-worker state: no concurrent access for a given workerKey.

@@ -323,6 +323,13 @@ type PeerSettings struct {
 	// Default: true (reduces UPDATE count from O(routes) to O(routes/capacity)).
 	GroupUpdates bool
 
+	// RSFastPath enables reactor-native RS forwarding for this peer's group.
+	// When true, received UPDATEs are forwarded directly from notifyMessageReceiver
+	// via reactorForwardRS, bypassing the plugin dispatch -> bgp-rs -> ForwardCached
+	// chain. Peers with ExportFilters are excluded from the fast path and fall
+	// back to bgp-rs ForwardCached.
+	RSFastPath bool
+
 	// IgnoreFamilyMismatch ignores NLRI for non-negotiated AFI/SAFI instead of error.
 	// RFC 4760 Section 6: speaker MAY treat non-negotiated AFI/SAFI as error.
 	// Default false = error (RFC-correct), true = log warning and skip.

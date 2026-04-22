@@ -76,9 +76,20 @@ func (rs *RouteServer) processForward(key workerKey, item workItem) {
 		wireRecords = extractWireNLRIRecords(item.msg)
 	}
 
-	// Forward first -- minimizes UPDATE delivery latency.
+	// Reactor fast path: when ReactorForwarded is set, the reactor already
+	// forwarded this UPDATE to eligible peers. Skip ForwardCached but still
+	// update the withdrawal map for peer-down correctness.
+	// If FastPathSkipped is non-empty, forward to only those peers.
 	forwarded = true
-	rs.batchForwardUpdate(key, item.sourcePeer, item.msgID, families)
+	reactorHandled := item.msg != nil && item.msg.ReactorForwarded
+	switch {
+	case !reactorHandled:
+		rs.batchForwardUpdate(key, item.sourcePeer, item.msgID, families)
+	case len(item.msg.FastPathSkipped) > 0:
+		rs.batchForwardUpdateSkipped(key, item.sourcePeer, item.msgID, families, item.msg.FastPathSkipped)
+	default:
+		rs.releaseCache(item.msgID)
+	}
 
 	// Update withdrawal map AFTER forwarding using pre-extracted data.
 	// String keys are produced here, off the forward critical path.

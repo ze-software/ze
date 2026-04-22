@@ -12,7 +12,7 @@ Ze is a network operating system written in Go. It runs on any Linux or as a gok
 <!-- source: cmd/ze/hub/pidfile.go -- writePIDFile, removePIDFile -->
 <!-- source: internal/exabgp/bridge/bridge_ack.go -- exabgp.api.ack -->
 | [Interfaces](features/interfaces.md) | Linux interface management via netlink: ethernet, dummy, veth, bridge, loopback, VLAN, 8 tunnel kinds (GRE, GRETAP, IP6GRE, IP6GRETAP, IPIP, SIT, IP6TNL, IPIP6), and WireGuard (declarative peers with `$9$`-encoded keys); DHCP (config-driven, routes, DNS, NTP discovery), NTP client (clock sync, RTC, time persistence), monitoring, migration, mirroring |
-| [Plugins](features/plugins.md) | RIB, route server, graceful restart, RPKI, healthcheck, community filters, prefix-list filters, AS-path filters, community-match filters, route attribute modifiers, BMP (RFC 7854), interface monitoring, cross-protocol redistribute (egress) |
+| [Plugins](features/plugins.md) | RIB, route server (with reactor-native RS fast path for direct UPDATE forwarding), graceful restart, RPKI, healthcheck, community filters, prefix-list filters, AS-path filters, community-match filters, route attribute modifiers, BMP (RFC 7854), interface monitoring, cross-protocol redistribute (egress) |
 <!-- source: internal/component/bgp/plugins/redistribute/redistribute.go -- bgp-redistribute consumer -->
 <!-- source: internal/core/redistevents/events.go -- RouteChangeBatch shared payload -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- bgp-filter-prefix -->

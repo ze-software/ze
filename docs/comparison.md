@@ -205,6 +205,9 @@ banner reads the same source, so nothing is silently hidden. See
 **Update groups:** Ze automatically groups peers by encoding context (ContextID) and builds each UPDATE once per group, fanning out the wire bytes to all members. No configuration needed. FRR requires explicit peer-group assignment for update group optimization. BIRD batches updates in its write loop but does not have a cross-peer build-sharing mechanism.
 <!-- source: internal/component/bgp/reactor/update_group.go -- automatic grouping by sendCtxID -->
 
+**Reactor RS fast path:** For route-server deployments, Ze can forward UPDATEs directly from the session read goroutine, bypassing the plugin dispatch chain entirely. This reduces the number of boundary crossings from 6 to 1 (wire to forward pool), approaching BIRD's 2-hop architecture. Enabled via `rs-fast-path` in the peer group behavior config.
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS -->
+
 ## Best-Path Selection
 
 ExaBGP does not perform best-path selection -- it forwards all received routes to external
