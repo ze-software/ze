@@ -67,6 +67,48 @@ module ze-l2tp-conf {
                  recommends 60s; values above 3600 (one hour) are
                  rejected because they effectively disable keepalive.";
         }
+
+        leaf cqm-enabled {
+            type boolean;
+            default false;
+            description
+                "Enable the CQM (Customer Quality Monitor) observer.
+                 When true, pre-allocates per-session event rings and
+                 per-login sample rings at subsystem start, and overrides
+                 the PPP echo interval to 1s for RTT measurement.";
+        }
+
+        leaf max-logins {
+            type uint32 {
+                range "1..1000000";
+            }
+            default 1000;
+            description
+                "Maximum concurrent PPP logins tracked by the CQM observer.
+                 Controls the size of the pre-allocated sample ring pool.
+                 When exceeded, the least recently used login's data is evicted.";
+        }
+
+        leaf event-ring-size-per-session {
+            type uint16 {
+                range "16..4096";
+            }
+            default 256;
+            description
+                "Number of events in each per-session event ring.
+                 When full, oldest events are overwritten.";
+        }
+
+        leaf sample-retention-seconds {
+            type uint32 {
+                range "100..86400";
+            }
+            default 86400;
+            description
+                "Duration of CQM sample retention per login, in seconds.
+                 Divided by the 100-second bucket interval to determine
+                 ring capacity. Default 86400 (24 hours) = 864 buckets.";
+        }
     }
 
     container environment {

@@ -41,7 +41,7 @@ func (s L2TPSessionState) String() string {
 	case L2TPSessionEstablished:
 		return "established"
 	}
-	return "unknown"
+	return stateUnknown
 }
 
 // L2TPSession carries one call's state within a tunnel. NOT safe for

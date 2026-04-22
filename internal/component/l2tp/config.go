@@ -64,6 +64,8 @@ const (
 	DefaultListenIP   = "0.0.0.0"
 	DefaultListenPort = 1701
 	DefaultHelloSecs  = 60
+
+	configTrue = "true"
 )
 
 // Parameters is the parsed L2TP subsystem configuration.
@@ -80,6 +82,12 @@ type Parameters struct {
 	// S4.2). Empty means peers that include a Challenge AVP in SCCRQ will
 	// be rejected with StopCCN Result Code 4 (Not Authorized).
 	SharedSecret string
+
+	// CQM observer parameters (spec-l2tp-9-observer).
+	CQMEnabled              bool
+	MaxLogins               int
+	EventRingSizePerSession int
+	SampleRetentionSeconds  int
 }
 
 // ExtractParameters pulls L2TP configuration out of the parsed config tree.
@@ -107,7 +115,7 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 	}
 
 	if v, ok := l2tpRoot.Get("enabled"); ok {
-		p.Enabled = v == "true"
+		p.Enabled = v == configTrue
 	}
 
 	if v, ok := l2tpRoot.Get("max-tunnels"); ok {
@@ -139,6 +147,44 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 
 	if v, ok := l2tpRoot.Get("shared-secret"); ok {
 		p.SharedSecret = v
+	}
+
+	// CQM observer (spec-l2tp-9-observer).
+	if v, ok := l2tpRoot.Get("cqm-enabled"); ok {
+		p.CQMEnabled = v == configTrue
+	}
+	p.MaxLogins = 1000
+	if v, ok := l2tpRoot.Get("max-logins"); ok {
+		n, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return Parameters{}, fmt.Errorf("l2tp max-logins: %w", err)
+		}
+		if n == 0 || n > 1000000 {
+			return Parameters{}, fmt.Errorf("l2tp max-logins: must be 1-1000000")
+		}
+		p.MaxLogins = int(n)
+	}
+	p.EventRingSizePerSession = 256
+	if v, ok := l2tpRoot.Get("event-ring-size-per-session"); ok {
+		n, err := strconv.ParseUint(v, 10, 16)
+		if err != nil {
+			return Parameters{}, fmt.Errorf("l2tp event-ring-size-per-session: %w", err)
+		}
+		if n < 16 || n > 4096 {
+			return Parameters{}, fmt.Errorf("l2tp event-ring-size-per-session: must be 16-4096")
+		}
+		p.EventRingSizePerSession = int(n)
+	}
+	p.SampleRetentionSeconds = 86400
+	if v, ok := l2tpRoot.Get("sample-retention-seconds"); ok {
+		n, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return Parameters{}, fmt.Errorf("l2tp sample-retention-seconds: %w", err)
+		}
+		if n < 100 || n > 86400 {
+			return Parameters{}, fmt.Errorf("l2tp sample-retention-seconds: must be 100-86400")
+		}
+		p.SampleRetentionSeconds = int(n)
 	}
 
 	// Listener endpoints from environment { l2tp { server ... } }.

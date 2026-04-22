@@ -8,6 +8,8 @@
 package events
 
 import (
+	"time"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 )
@@ -38,10 +40,12 @@ var RouteChange = events.Register[*redistevents.RouteChangeBatch](Namespace, red
 const SessionDownEvent = "session-down"
 
 // SessionDownPayload carries the tunnel/session IDs of a torn-down session.
-// Pool plugins subscribe to release allocated addresses.
+// Pool plugins subscribe to release allocated addresses; the CQM observer
+// uses Username to transition the login's bucket state to "down".
 type SessionDownPayload struct {
 	TunnelID  uint16
 	SessionID uint16
+	Username  string
 }
 
 // SessionDown is the typed handle for (l2tp, session-down). Emitted by
@@ -81,6 +85,47 @@ type SessionRateChangePayload struct {
 // SessionRateChange is the typed handle for (l2tp, session-rate-change).
 // Consumed by the shaper plugin to update TC rules on the session's pppN.
 var SessionRateChange = events.Register[*SessionRateChangePayload](Namespace, SessionRateChangeEvent)
+
+// EchoRTTEvent is the event type string for echo round-trip time notifications.
+const EchoRTTEvent = "echo-rtt"
+
+// EchoRTTPayload carries one LCP echo round-trip measurement.
+// Emitted by the reactor on each Echo-Reply; consumed by the CQM
+// aggregator to build 100s min/avg/max/loss buckets.
+type EchoRTTPayload struct {
+	TunnelID  uint16
+	SessionID uint16
+	RTT       time.Duration
+	Username  string
+}
+
+// EchoRTT is the typed handle for (l2tp, echo-rtt).
+var EchoRTT = events.Register[*EchoRTTPayload](Namespace, EchoRTTEvent)
+
+// TunnelUpEvent is the event type string for tunnel-up notifications.
+const TunnelUpEvent = "tunnel-up"
+
+// TunnelUpPayload carries tunnel identity when a tunnel reaches established.
+type TunnelUpPayload struct {
+	TunnelID     uint16
+	PeerAddr     string
+	PeerHostName string
+}
+
+// TunnelUp is the typed handle for (l2tp, tunnel-up).
+var TunnelUp = events.Register[*TunnelUpPayload](Namespace, TunnelUpEvent)
+
+// TunnelDownEvent is the event type string for tunnel-down notifications.
+const TunnelDownEvent = "tunnel-down"
+
+// TunnelDownPayload carries tunnel identity and reason on teardown.
+type TunnelDownPayload struct {
+	TunnelID uint16
+	Reason   string
+}
+
+// TunnelDown is the typed handle for (l2tp, tunnel-down).
+var TunnelDown = events.Register[*TunnelDownPayload](Namespace, TunnelDownEvent)
 
 // SessionIPAssignedEvent is the event type string for session-ip-assigned notifications.
 const SessionIPAssignedEvent = "session-ip-assigned"

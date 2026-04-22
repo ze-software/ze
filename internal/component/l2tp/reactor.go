@@ -36,12 +36,13 @@ type pppDriverIface interface {
 // expected to treat this assertion as a checklist: the length MUST
 // equal the number of ppp.Event cases handled in handlePPPEvent. When
 // spec-6b adds EventAuthRequest etc., bump the length AND add a case.
-var _ = [5]ppp.Event{
+var _ = [6]ppp.Event{
 	ppp.EventLCPUp{},
 	ppp.EventLCPDown{},
 	ppp.EventSessionUp{},
 	ppp.EventSessionDown{},
 	ppp.EventSessionRejected{},
+	ppp.EventEchoRTT{},
 }
 
 // reauthIntervalFloor is the minimum PPP periodic re-auth interval the
@@ -96,11 +97,12 @@ type peerKey struct {
 // hardcodes host name and capabilities; phase 7 wires them through
 // YANG).
 type ReactorParams struct {
-	MaxTunnels    uint16        // 0 = unbounded (by this knob; uint16 still caps at 65535)
-	MaxSessions   uint16        // 0 = unbounded per-tunnel session limit
-	HelloInterval time.Duration // peer silence before HELLO; 0 = no keepalive
-	Defaults      TunnelDefaults
-	Clock         func() time.Time // injected for tests; time.Now if nil
+	MaxTunnels      uint16        // 0 = unbounded (by this knob; uint16 still caps at 65535)
+	MaxSessions     uint16        // 0 = unbounded per-tunnel session limit
+	HelloInterval   time.Duration // peer silence before HELLO; 0 = no keepalive
+	CQMEchoInterval time.Duration // when >0, overrides PPP echo interval for CQM sampling
+	Defaults        TunnelDefaults
+	Clock           func() time.Time // injected for tests; time.Now if nil
 }
 
 // L2TPReactor is the single goroutine that owns the tunnel map and
@@ -350,6 +352,7 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 	}
 	tunnel.peerAddr = pkt.from
 	now := r.params.Clock()
+	stateBefore := tunnel.state
 	outbound := tunnel.Process(hdr, payload, now, r.params.Defaults, sccrq)
 	// lastActivity is set inside Process only when the engine delivers
 	// at least one new message (not on duplicates/out-of-window).
@@ -370,8 +373,33 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 			newDeadline = helloDeadline
 		}
 	}
+	// spec-l2tp-9: capture tunnel info for event emission after unlock.
+	stateAfter := tunnel.state
 	localTID := tunnel.localTID
+	peerAddr := tunnel.peerAddr.String()
+	peerHostName := tunnel.peerHostName
 	r.tunnelsMu.Unlock()
+
+	// spec-l2tp-9 AC-1: emit tunnel lifecycle events after releasing lock.
+	if r.eventBus != nil {
+		if stateBefore != L2TPTunnelEstablished && stateAfter == L2TPTunnelEstablished {
+			if _, err := l2tpevents.TunnelUp.Emit(r.eventBus, &l2tpevents.TunnelUpPayload{
+				TunnelID:     localTID,
+				PeerAddr:     peerAddr,
+				PeerHostName: peerHostName,
+			}); err != nil {
+				r.logger.Warn("l2tp: tunnel-up emit failed", "error", err)
+			}
+		}
+		if stateBefore != L2TPTunnelClosed && stateAfter == L2TPTunnelClosed {
+			if _, err := l2tpevents.TunnelDown.Emit(r.eventBus, &l2tpevents.TunnelDownPayload{
+				TunnelID: localTID,
+				Reason:   "peer",
+			}); err != nil {
+				r.logger.Warn("l2tp: tunnel-down emit failed", "error", err)
+			}
+		}
+	}
 
 	// Phase 5: enqueue kernel events after releasing the lock.
 	r.enqueueKernelEvents(setupEvents, teardownEvents)
@@ -426,6 +454,7 @@ func (r *L2TPReactor) handleTick(tr tickReq) {
 
 	// Run engine.Tick for retransmission.
 	result := tunnel.engine.Tick(now)
+	stateBefore := tunnel.state
 	var outbound []sendRequest
 
 	if result.TeardownRequired {
@@ -464,8 +493,19 @@ func (r *L2TPReactor) handleTick(tr tickReq) {
 		}
 	}
 
+	stateAfter := tunnel.state
 	localTID := tunnel.localTID
 	r.tunnelsMu.Unlock()
+
+	// spec-l2tp-9: emit tunnel-down when tick-driven teardown closes the tunnel.
+	if r.eventBus != nil && stateBefore != L2TPTunnelClosed && stateAfter == L2TPTunnelClosed {
+		if _, err := l2tpevents.TunnelDown.Emit(r.eventBus, &l2tpevents.TunnelDownPayload{
+			TunnelID: localTID,
+			Reason:   "retransmit-timeout",
+		}); err != nil {
+			r.logger.Warn("l2tp: tunnel-down emit failed", "error", err)
+		}
+	}
 
 	// Phase 5: enqueue kernel teardown events after releasing the lock.
 	r.enqueueKernelEvents(nil, append(reapTeardowns, tickTeardowns...))
@@ -843,6 +883,7 @@ func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		ProxyLCPInitialRecv: ksucc.proxyInitialRecvLCPConfReq,
 		ProxyLCPLastSent:    ksucc.proxyLastSentLCPConfReq,
 		ProxyLCPLastRecv:    ksucc.proxyLastRecvLCPConfReq,
+		EchoInterval:        r.params.CQMEchoInterval,
 	}
 
 	ifaceName := fmt.Sprintf("ppp%d", ksucc.fds.unitNum)
@@ -873,6 +914,13 @@ func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 // set at the count the reactor knows about; bumping the count in a
 // future spec forces the author to handle the new type here too.
 func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
+	// spec-l2tp-9: EventEchoRTT carries LCP echo round-trip time
+	// for CQM aggregation. Relay to EventBus.
+	if echoRTT, ok := ev.(ppp.EventEchoRTT); ok {
+		r.handleEchoRTT(echoRTT)
+		return
+	}
+
 	// spec-l2tp-7 Phase 6: EventSessionIPAssigned drives the route
 	// observer. Handled before the teardown switch so it does not
 	// accidentally reach the "unknown ppp.Event" fallback.
@@ -911,6 +959,7 @@ func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
 		r.tunnelsMu.Unlock()
 		return
 	}
+	username := sess.username
 	now := r.params.Clock()
 	outbound := tunnel.teardownSession(sess, cdnResultGeneralError, now, r.logger)
 	r.tunnelsMu.Unlock()
@@ -928,6 +977,7 @@ func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
 		if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
 			TunnelID:  tid,
 			SessionID: sid,
+			Username:  username,
 		}); err != nil {
 			r.logger.Warn("l2tp: session-down emit failed", "error", err)
 		}
@@ -1013,6 +1063,30 @@ func (r *L2TPReactor) handleSessionUp(ev ppp.EventSessionUp) {
 		Interface: ifaceName,
 	}); err != nil {
 		r.logger.Warn("l2tp: session-up emit failed", "error", err)
+	}
+}
+
+// handleEchoRTT relays a PPP echo round-trip measurement to the
+// EventBus for CQM aggregation (spec-l2tp-9-observer AC-3).
+func (r *L2TPReactor) handleEchoRTT(ev ppp.EventEchoRTT) {
+	if r.eventBus == nil {
+		return
+	}
+	var username string
+	r.tunnelsMu.Lock()
+	if tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]; ok {
+		if sess := tunnel.lookupSession(ev.SessionID); sess != nil {
+			username = sess.username
+		}
+	}
+	r.tunnelsMu.Unlock()
+	if _, err := l2tpevents.EchoRTT.Emit(r.eventBus, &l2tpevents.EchoRTTPayload{
+		TunnelID:  ev.TunnelID,
+		SessionID: ev.SessionID,
+		RTT:       ev.RTT,
+		Username:  username,
+	}); err != nil {
+		r.logger.Warn("l2tp: echo-rtt emit failed", "error", err)
 	}
 }
 

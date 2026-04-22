@@ -39,7 +39,7 @@ func (s L2TPTunnelState) String() string {
 	case L2TPTunnelClosed:
 		return "closed"
 	}
-	return "unknown"
+	return stateUnknown
 }
 
 // L2TPTunnel carries one control connection's state. NOT safe for

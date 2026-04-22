@@ -4,7 +4,10 @@
 
 package ppp
 
-import "net/netip"
+import (
+	"net/netip"
+	"time"
+)
 
 // Event is the sealed sum type emitted on Manager.EventsOut. The
 // transport (l2tp today) reads this channel in its select loop and
@@ -102,6 +105,18 @@ type EventSessionDown struct {
 }
 
 func (EventSessionDown) isPPPEvent() {}
+
+// EventEchoRTT is emitted when an LCP Echo-Reply is received,
+// carrying the round-trip time measured from the most recent
+// Echo-Request. The L2TP reactor relays this to the EventBus
+// for CQM aggregation (spec-l2tp-9-observer).
+type EventEchoRTT struct {
+	TunnelID  uint16
+	SessionID uint16
+	RTT       time.Duration
+}
+
+func (EventEchoRTT) isPPPEvent() {}
 
 // EventSessionRejected is emitted when a StartSession is refused
 // before any per-session goroutine starts. The refusal reasons are

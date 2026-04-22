@@ -653,6 +653,14 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 		s.mu.Lock()
 		s.echoOutstanding = 0
 		s.mu.Unlock()
+		// RFC 1661 Section 5.8: emit RTT for CQM aggregation.
+		if !s.lastEchoSentAt.IsZero() {
+			s.sendEvent(EventEchoRTT{
+				TunnelID:  s.tunnelID,
+				SessionID: s.sessionID,
+				RTT:       time.Since(s.lastEchoSentAt),
+			})
+		}
 	}
 
 	optsBad := false
@@ -931,6 +939,7 @@ func (s *pppSession) sendEchoRequest(id uint8) bool {
 	defer putFrameBuf(buf)
 	off := WriteFrame(buf, 0, ProtoLCP, nil)
 	off += WriteLCPEcho(buf, off, LCPEchoRequest, id, s.magic, nil)
+	s.lastEchoSentAt = time.Now()
 	return s.writeFrame(buf[:off])
 }
 

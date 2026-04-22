@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
@@ -72,6 +73,9 @@ type Subsystem struct {
 	// One instance per subsystem; installed into every reactor at
 	// Start. See spec-l2tp-7 "Redistribute" and route_observer.go.
 	routeObserver *subscriberRouteObserver
+	// observer tracks per-session events and per-login CQM samples.
+	// Created at Start when CQMEnabled; nil otherwise.
+	observer *Observer
 }
 
 // NewSubsystem constructs an L2TP subsystem from parsed Parameters. The returned
@@ -85,6 +89,24 @@ func NewSubsystem(p Parameters) *Subsystem {
 
 // Name implements ze.Subsystem.
 func (s *Subsystem) Name() string { return SubsystemName }
+
+// cqmEchoInterval returns the PPP echo interval override for CQM sampling.
+// Returns 0 (no override) when CQM is disabled.
+func (s *Subsystem) cqmEchoInterval() time.Duration {
+	if !s.params.CQMEnabled {
+		return 0
+	}
+	d := 1 * time.Second
+	if raw := env.Get("ze.l2tp.cqm.echo-interval"); raw != "" {
+		if parsed, err := time.ParseDuration(raw); err == nil && parsed > 0 {
+			d = parsed
+		} else {
+			s.logger.Warn("l2tp: invalid ze.l2tp.cqm.echo-interval; falling back to 1s",
+				"value", raw)
+		}
+	}
+	return d
+}
 
 // Start implements ze.Subsystem. It is a no-op when Enabled=false or when
 // no listener addresses are configured. Phase 3 logs the intent; phase 2
@@ -128,6 +150,26 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	RegisterL2TPSources()
 	s.routeObserver = newSubscriberRouteObserver(s.logger, bus)
 
+	// spec-l2tp-9: create the CQM observer when enabled.
+	if s.params.CQMEnabled {
+		bucketCount := max(s.params.SampleRetentionSeconds/100, 1)
+		maxSess := int(s.params.MaxSessions)
+		if maxSess == 0 {
+			maxSess = 1000
+		}
+		s.observer = NewObserver(ObserverConfig{
+			MaxSessions:   maxSess,
+			EventRingSize: s.params.EventRingSizePerSession,
+			MaxLogins:     s.params.MaxLogins,
+			BucketCount:   bucketCount,
+		})
+		s.wireObserverSubscriptions(bus)
+		s.logger.Info("l2tp: CQM observer started",
+			"max-logins", s.params.MaxLogins,
+			"event-ring-size", s.params.EventRingSizePerSession,
+			"bucket-count", bucketCount)
+	}
+
 	// Phase 5: probe kernel modules before binding listeners.
 	// AC-1/AC-2: on Linux, modprobe l2tp_ppp or pppol2tp must succeed.
 	// On non-Linux, probeKernelModules() is a no-op (returns nil).
@@ -152,9 +194,10 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			return fmt.Errorf("l2tp: bind %s: %w", addr, err)
 		}
 		reactor := NewL2TPReactor(ln, s.logger, ReactorParams{
-			MaxTunnels:    s.params.MaxTunnels,
-			MaxSessions:   s.params.MaxSessions,
-			HelloInterval: s.params.HelloInterval,
+			MaxTunnels:      s.params.MaxTunnels,
+			MaxSessions:     s.params.MaxSessions,
+			HelloInterval:   s.params.HelloInterval,
+			CQMEchoInterval: s.cqmEchoInterval(),
 			Defaults: TunnelDefaults{
 				// HostName left empty; reactor applies "ze" default.
 				// Phase 7 will wire a YANG leaf for operator-controlled hostname.
@@ -401,6 +444,10 @@ func (s *Subsystem) Stop(_ context.Context) error {
 		if err := l.Stop(); err != nil {
 			errs = append(errs, err)
 		}
+	}
+	if s.observer != nil {
+		s.observer.Stop()
+		s.observer = nil
 	}
 	s.pppDrivers = nil
 	s.kernelWorkers = nil

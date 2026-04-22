@@ -140,7 +140,8 @@ type pppSession struct {
 	state                LCPState
 	negotiatedMRU        uint16
 	negotiatedAuthMethod AuthMethod
-	echoOutstanding      uint8 // count of unanswered Echo-Request
+	echoOutstanding      uint8     // count of unanswered Echo-Request
+	lastEchoSentAt       time.Time // wall-clock of most recent Echo-Request; goroutine-owned
 
 	// NCP state, goroutine-owned after session spawn; no lock needed
 	// because every writer is the session goroutine. Snapshot under

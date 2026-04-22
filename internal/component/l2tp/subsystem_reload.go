@@ -66,6 +66,24 @@ func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
 		rejected++
 	}
 
+	// CQM observer parameters are restart-only (pools pre-allocated at Start).
+	if prev.CQMEnabled != next.CQMEnabled {
+		s.logger.Warn("l2tp reload: 'cqm-enabled' change ignored; restart ze to apply")
+		rejected++
+	}
+	if prev.MaxLogins != next.MaxLogins {
+		s.logger.Warn("l2tp reload: 'max-logins' change ignored; restart ze to apply")
+		rejected++
+	}
+	if prev.EventRingSizePerSession != next.EventRingSizePerSession {
+		s.logger.Warn("l2tp reload: 'event-ring-size-per-session' change ignored; restart ze to apply")
+		rejected++
+	}
+	if prev.SampleRetentionSeconds != next.SampleRetentionSeconds {
+		s.logger.Warn("l2tp reload: 'sample-retention-seconds' change ignored; restart ze to apply")
+		rejected++
+	}
+
 	// Hot-apply: shared-secret.
 	if prev.SharedSecret != next.SharedSecret {
 		s.params.SharedSecret = next.SharedSecret
@@ -136,7 +154,7 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 		HelloInterval: time.Duration(DefaultHelloSecs) * time.Second,
 	}
 	if v, ok := l2tpRoot["enabled"].(string); ok {
-		p.Enabled = v == "true"
+		p.Enabled = v == configTrue
 	}
 	if v, ok := l2tpRoot["shared-secret"].(string); ok {
 		p.SharedSecret = v
@@ -164,6 +182,42 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 			return Parameters{}, fmt.Errorf("max-sessions: %w", perr)
 		}
 		p.MaxSessions = uint16(n)
+	}
+	if v, ok := l2tpRoot["cqm-enabled"].(string); ok {
+		p.CQMEnabled = v == configTrue
+	}
+	p.MaxLogins = 1000
+	if v, ok := l2tpRoot["max-logins"].(string); ok {
+		n, perr := strconv.ParseUint(v, 10, 32)
+		if perr != nil {
+			return Parameters{}, fmt.Errorf("max-logins: %w", perr)
+		}
+		if n == 0 || n > 1000000 {
+			return Parameters{}, fmt.Errorf("max-logins: must be 1-1000000")
+		}
+		p.MaxLogins = int(n)
+	}
+	p.EventRingSizePerSession = 256
+	if v, ok := l2tpRoot["event-ring-size-per-session"].(string); ok {
+		n, perr := strconv.ParseUint(v, 10, 16)
+		if perr != nil {
+			return Parameters{}, fmt.Errorf("event-ring-size-per-session: %w", perr)
+		}
+		if n < 16 || n > 4096 {
+			return Parameters{}, fmt.Errorf("event-ring-size-per-session: must be 16-4096")
+		}
+		p.EventRingSizePerSession = int(n)
+	}
+	p.SampleRetentionSeconds = 86400
+	if v, ok := l2tpRoot["sample-retention-seconds"].(string); ok {
+		n, perr := strconv.ParseUint(v, 10, 32)
+		if perr != nil {
+			return Parameters{}, fmt.Errorf("sample-retention-seconds: %w", perr)
+		}
+		if n < 100 || n > 86400 {
+			return Parameters{}, fmt.Errorf("sample-retention-seconds: must be 100-86400")
+		}
+		p.SampleRetentionSeconds = int(n)
 	}
 	env, err := cfg.Get("environment")
 	if err != nil {
