@@ -103,6 +103,13 @@ module ze-types {
         description "TCP/UDP port number";
     }
 
+    typedef rate {
+        type string {
+            pattern '[0-9]+(bit|kbit|mbit|gbit|bps|kbps|mbps|gbps)';
+        }
+        description "Traffic rate string (for example 10mbit, 100kbit, 1gbps)";
+    }
+
     typedef prefix-ipv4 {
         type string {
             pattern '(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}'

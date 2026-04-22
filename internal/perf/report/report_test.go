@@ -2,6 +2,7 @@ package report
 
 import (
 	"bytes"
+	"io"
 	"strings"
 	"testing"
 
@@ -276,4 +277,131 @@ func TestMarkdownGroupsByFamily(t *testing.T) {
 	if !strings.Contains(out, "force-mp") {
 		t.Error("missing force-mp annotation")
 	}
+}
+
+// VALIDATES: "comparison outputs keep the latest result per DUT in each group"
+// PREVENTS: duplicated DUT rows in markdown, HTML, and performance.md reports.
+func TestComparisonOutputsKeepLatestResultPerDUT(t *testing.T) {
+	results := []perf.Result{
+		{
+			DUTName:             "ze",
+			DUTVersion:          "0.2.0",
+			Family:              "ipv4/unicast",
+			Timestamp:           "2026-03-20T11:00:00Z",
+			ConvergenceMs:       300,
+			ConvergenceStddevMs: 1,
+			ThroughputAvg:       1000,
+			ThroughputAvgStddev: 10,
+			LatencyP50Ms:        100,
+			LatencyP99Ms:        200,
+			LatencyP99StddevMs:  5,
+			LatencyMaxMs:        210,
+			Routes:              100000,
+			RoutesSent:          100000,
+			RoutesReceived:      100000,
+			Repeat:              3,
+			WarmupRuns:          1,
+		},
+		{
+			DUTName:             "bird",
+			DUTVersion:          "2.0.0",
+			Family:              "ipv4/unicast",
+			Timestamp:           "2026-03-20T10:30:00Z",
+			ConvergenceMs:       250,
+			ConvergenceStddevMs: 2,
+			ThroughputAvg:       1100,
+			ThroughputAvgStddev: 11,
+			LatencyP50Ms:        90,
+			LatencyP99Ms:        180,
+			LatencyP99StddevMs:  4,
+			LatencyMaxMs:        190,
+			Routes:              100000,
+			RoutesSent:          100000,
+			RoutesReceived:      100000,
+			Repeat:              3,
+			WarmupRuns:          1,
+		},
+		{
+			DUTName:             "ze",
+			DUTVersion:          "0.1.0",
+			Family:              "ipv4/unicast",
+			Timestamp:           "2026-03-20T10:00:00Z",
+			ConvergenceMs:       400,
+			ConvergenceStddevMs: 3,
+			ThroughputAvg:       900,
+			ThroughputAvgStddev: 12,
+			LatencyP50Ms:        110,
+			LatencyP99Ms:        220,
+			LatencyP99StddevMs:  6,
+			LatencyMaxMs:        230,
+			Routes:              100000,
+			RoutesSent:          100000,
+			RoutesReceived:      100000,
+			Repeat:              3,
+			WarmupRuns:          1,
+		},
+	}
+
+	tests := []struct {
+		name      string
+		render    func([]perf.Result, io.Writer) error
+		rowPrefix string
+		want      string
+		dontWant  string
+		count     string
+	}{
+		{
+			name:      "markdown",
+			render:    Markdown,
+			rowPrefix: "| ze |",
+			want:      "| ze | 0.2.0 | 300ms |",
+			dontWant:  "| ze | 0.1.0 | 400ms |",
+			count:     "| ze |",
+		},
+		{
+			name:      "html",
+			render:    HTML,
+			rowPrefix: "<tr><td>ze</td>",
+			want:      "<tr><td>ze</td><td>0.2.0</td>",
+			dontWant:  "<tr><td>ze</td><td>0.1.0</td>",
+			count:     "<tr><td>ze</td>",
+		},
+		{
+			name:      "performance doc",
+			render:    PerformanceDoc,
+			rowPrefix: "| ze |",
+			want:      "| ze | 300ms | 1ms | 1,000 | 10 | 100ms | 200ms | 5ms | 210ms | 0 |",
+			dontWant:  "| ze | 400ms | 3ms | 900 | 12 | 110ms | 220ms | 6ms | 230ms | 0 |",
+			count:     "| ze |",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+
+			if err := tt.render(results, &buf); err != nil {
+				t.Fatalf("render error: %v", err)
+			}
+
+			out := buf.String()
+
+			if got := strings.Count(out, tt.count); got != 1 {
+				t.Fatalf("expected exactly one ze row, got %d\n%s", got, out)
+			}
+
+			if !strings.Contains(out, tt.want) {
+				t.Fatalf("missing latest ze result %q\n%s", tt.want, out)
+			}
+
+			if strings.Contains(out, tt.dontWant) {
+				t.Fatalf("found stale ze result %q\n%s", tt.dontWant, out)
+			}
+
+			if !strings.Contains(out, tt.rowPrefix) {
+				t.Fatalf("missing ze row prefix %q\n%s", tt.rowPrefix, out)
+			}
+		})
+	}
+
 }

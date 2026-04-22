@@ -13,6 +13,8 @@ import (
 // PerformanceDoc writes a full docs/performance.md document with disclaimers,
 // environment details, and comparison tables from benchmark results.
 func PerformanceDoc(results []perf.Result, w io.Writer) error {
+	results = latestComparisonResults(results)
+
 	if _, err := fmt.Fprint(w, `# Performance Comparison
 
 > **All benchmarks are lies.**
@@ -200,9 +202,9 @@ var dutSetupNotes = map[string]string{
   Config: passive peers, default accept policy.
   Transport: kernel TCP (standard Docker networking).`,
 
-	"rustbgpd": `**rustbgpd** -- Rust BGP daemon, kernel TCP stack.
-  Config: passive peers, default policy.
-  Transport: kernel TCP (standard Docker networking).`,
+	"rustbgpd": "**rustbgpd** -- Rust BGP daemon, kernel TCP stack.\n" +
+		"  Config: passive peers, route_server_client enabled.\n" +
+		"  Transport: kernel TCP (standard Docker networking).",
 
 	"rustybgp": `**RustyBGP** -- Rust BGP daemon, kernel TCP stack.
   Config: passive peers, default policy.

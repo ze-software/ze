@@ -56,6 +56,7 @@ func TestLoader_ZeTypesModule(t *testing.T) {
 	assert.True(t, typedefNames["asn"], "asn typedef should exist")
 	assert.True(t, typedefNames["asn2"], "asn2 typedef should exist")
 	assert.True(t, typedefNames["port"], "port typedef should exist")
+	assert.True(t, typedefNames["rate"], "rate typedef should exist")
 	assert.True(t, typedefNames["ip-address"], "ip-address typedef should exist")
 	assert.True(t, typedefNames["ipv4-address"], "ipv4-address typedef should exist")
 	assert.True(t, typedefNames["ipv6-address"], "ipv6-address typedef should exist")

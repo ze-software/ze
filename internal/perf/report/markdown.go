@@ -16,8 +16,58 @@ type groupKey struct {
 	ForceMP bool
 }
 
+type comparisonKey struct {
+	DUTName string
+	Family  string
+	ForceMP bool
+}
+
+type selectedResult struct {
+	result perf.Result
+	index  int
+}
+
+// latestComparisonResults keeps the newest result for each DUT within a
+// comparison table group. RFC3339 timestamps sort lexicographically, so string
+// comparison is enough here.
+func latestComparisonResults(results []perf.Result) []perf.Result {
+	selected := make(map[comparisonKey]selectedResult)
+
+	for i := range results {
+		key := comparisonKey{
+			DUTName: results[i].DUTName,
+			Family:  results[i].Family,
+			ForceMP: results[i].ForceMP,
+		}
+
+		prev, ok := selected[key]
+		if !ok || results[i].Timestamp > prev.result.Timestamp ||
+			(results[i].Timestamp == prev.result.Timestamp && i > prev.index) {
+			selected[key] = selectedResult{result: results[i], index: i}
+		}
+	}
+
+	ordered := make([]selectedResult, 0, len(selected))
+	for key := range selected {
+		ordered = append(ordered, selected[key])
+	}
+
+	sort.SliceStable(ordered, func(i, j int) bool {
+		return ordered[i].index < ordered[j].index
+	})
+
+	deduped := make([]perf.Result, len(ordered))
+	for i := range ordered {
+		deduped[i] = ordered[i].result
+	}
+
+	return deduped
+}
+
 // groupResults groups results by Family + ForceMP combination.
 func groupResults(results []perf.Result) map[groupKey][]perf.Result {
+	results = latestComparisonResults(results)
+
 	groups := make(map[groupKey][]perf.Result)
 
 	for i := range results {

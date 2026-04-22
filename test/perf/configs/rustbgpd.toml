@@ -11,9 +11,11 @@ address = "172.31.0.10"
 remote_asn = 65001
 hold_time = 90
 families = ["ipv4_unicast"]
+route_server_client = true
 
 [[neighbors]]
 address = "172.31.0.11"
 remote_asn = 65002
 hold_time = 90
 families = ["ipv4_unicast"]
+route_server_client = true

@@ -192,14 +192,60 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		senderPort = cfg.SenderPort
 	}
 
-	// Connect receiver first.
 	receiverAddr := net.JoinHostPort(cfg.DUTAddr, fmt.Sprintf("%d", receiverPort))
+	senderDUTAddr := net.JoinHostPort(cfg.DUTAddr, fmt.Sprintf("%d", senderPort))
 
-	receiverConn, err := connectBGP(ctx, cfg.ReceiverAddr, receiverAddr, cfg.ConnectTimeout, cfg.PassiveListen)
-	if err != nil {
-		return IterationResult{}, fmt.Errorf("connecting receiver: %w", err)
+	type connResult struct {
+		conn net.Conn
+		err  error
 	}
+
+	var receiverConn net.Conn
+	var senderConn net.Conn
+	var err error
+
+	if cfg.PassiveListen {
+		receiverCh := make(chan connResult, 1)
+		senderCh := make(chan connResult, 1)
+
+		go func() {
+			conn, err := connectBGP(ctx, cfg.ReceiverAddr, receiverAddr, cfg.ConnectTimeout, true)
+			receiverCh <- connResult{conn: conn, err: err}
+		}()
+
+		go func() {
+			conn, err := connectBGP(ctx, cfg.SenderAddr, senderDUTAddr, cfg.ConnectTimeout, true)
+			senderCh <- connResult{conn: conn, err: err}
+		}()
+
+		receiverRes := <-receiverCh
+		if receiverRes.err != nil {
+			return IterationResult{}, fmt.Errorf("connecting receiver: %w", receiverRes.err)
+		}
+		receiverConn = receiverRes.conn
+
+		senderRes := <-senderCh
+		if senderRes.err != nil {
+			_ = receiverConn.Close()
+			return IterationResult{}, fmt.Errorf("connecting sender: %w", senderRes.err)
+		}
+		senderConn = senderRes.conn
+	} else {
+		// Connect receiver first.
+		receiverConn, err = connectBGP(ctx, cfg.ReceiverAddr, receiverAddr, cfg.ConnectTimeout, false)
+		if err != nil {
+			return IterationResult{}, fmt.Errorf("connecting receiver: %w", err)
+		}
+
+		senderConn, err = connectBGP(ctx, cfg.SenderAddr, senderDUTAddr, cfg.ConnectTimeout, false)
+		if err != nil {
+			_ = receiverConn.Close()
+			return IterationResult{}, fmt.Errorf("connecting sender: %w", err)
+		}
+	}
+
 	defer func() { _ = receiverConn.Close() }()
+	defer func() { _ = senderConn.Close() }()
 
 	receiverCfg := SessionConfig{
 		ASN:      uint32(cfg.ReceiverASN), //nolint:gosec // CLI-validated range
@@ -220,15 +266,6 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	if err := receiverConn.SetDeadline(time.Time{}); err != nil {
 		return IterationResult{}, fmt.Errorf("clearing receiver deadline: %w", err)
 	}
-
-	// Connect sender.
-	senderDUTAddr := net.JoinHostPort(cfg.DUTAddr, fmt.Sprintf("%d", senderPort))
-
-	senderConn, err := connectBGP(ctx, cfg.SenderAddr, senderDUTAddr, cfg.ConnectTimeout, cfg.PassiveListen)
-	if err != nil {
-		return IterationResult{}, fmt.Errorf("connecting sender: %w", err)
-	}
-	defer func() { _ = senderConn.Close() }()
 
 	senderCfg := SessionConfig{
 		ASN:      uint32(cfg.SenderASN), //nolint:gosec // CLI-validated range
@@ -494,17 +531,13 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	}, nil
 }
 
-// connectBGP establishes a BGP TCP connection. When passiveListen is true,
-// it races two strategies:
-// 1. Dial out to remoteAddr from localAddr (standard client behavior)
-// 2. Listen on localAddr:179 for inbound connection from the DUT
+// connectBGP establishes a BGP TCP connection.
 //
-// Some implementations (e.g., rustbgpd) only respond to peers they can actively
-// connect to. By also listening, ze-perf works with both active and passive DUTs.
-// The first connection to succeed wins; the other is cleaned up.
-//
-// When passiveListen is false, only the dial strategy is used. This avoids
-// requiring root privileges to bind port 179.
+// When passiveListen is false, ze-perf dials out to remoteAddr from localAddr.
+// When passiveListen is true, ze-perf listens on localAddr:179 and waits for
+// the DUT to initiate the session. This matches the CLI flag semantics and
+// avoids opening a competing outbound connection that can trigger collision
+// handling in implementations that actively connect to their peers.
 func connectBGP(ctx context.Context, localAddr, remoteAddr string, timeout time.Duration, passiveListen bool) (net.Conn, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -527,76 +560,32 @@ func connectBGP(ctx context.Context, localAddr, remoteAddr string, timeout time.
 		return tuneTCP(conn)
 	}
 
-	// Optionally start listener for inbound connections BEFORE dialing out.
-	// This ensures DUTs that actively connect (e.g., rustbgpd) find a listener.
+	// Passive-listen mode waits for the DUT to connect to us on the well-known
+	// BGP port. This requires root or CAP_NET_BIND_SERVICE.
 	listenAddr := net.JoinHostPort(localAddr, "179")
 
 	var lc net.ListenConfig
 
-	listener, listenErr := lc.Listen(ctx, "tcp", listenAddr)
+	listener, err := lc.Listen(ctx, "tcp", listenAddr)
+	if err != nil {
+		return nil, fmt.Errorf("listening on %s: %w", listenAddr, err)
+	}
+	defer listener.Close() //nolint:errcheck // cleanup
 
-	// Dial out to the DUT.
-	dialer := net.Dialer{LocalAddr: local, Timeout: timeout}
+	go func() {
+		<-ctx.Done()
+		_ = listener.Close()
+	}()
 
-	conn, dialErr := dialer.DialContext(ctx, "tcp", remoteAddr)
-
-	// Decide which connection path to use.
-	switch {
-	case dialErr == nil && listenErr != nil:
-		// Dial succeeded, no listener. Use dialed connection directly.
-		return tuneTCP(conn)
-
-	case dialErr != nil && listenErr != nil:
-		return nil, fmt.Errorf("connecting to %s: dial: %w, listen: %w", remoteAddr, dialErr, listenErr)
-
-	case dialErr != nil && listener == nil:
-		return nil, fmt.Errorf("dialing %s: %w", remoteAddr, dialErr)
-
-	case dialErr == nil && listener != nil:
-		// Dial succeeded at TCP level. Probe whether the DUT actually responds with BGP data.
-		// Some DUTs (e.g., rustbgpd) accept TCP but don't send OPEN until their own outbound
-		// connect succeeds. If the probe times out, fall back to the listened connection.
-		if err := conn.SetReadDeadline(time.Now().Add(3 * time.Second)); err == nil { //nolint:mnd // probe timeout
-			probe := make([]byte, 1)
-
-			_, probeErr := conn.Read(probe)
-			if probeErr == nil {
-				// DUT responded. Replay the probed byte via prefixedConn.
-				if err := conn.SetReadDeadline(time.Time{}); err != nil {
-					conn.Close()     //nolint:errcheck // cleanup
-					listener.Close() //nolint:errcheck // cleanup
-					return nil, fmt.Errorf("clearing deadline: %w", err)
-				}
-
-				listener.Close() //nolint:errcheck // cleanup
-
-				return &prefixedConn{Conn: conn, prefix: probe}, nil
-			}
-
-			// Dial connection is unresponsive. Close it and wait for inbound.
-			conn.Close() //nolint:errcheck // switching to listener path
-		} else {
-			// SetReadDeadline failed. Close dialed conn, fall through to listener.
-			conn.Close() //nolint:errcheck // switching to listener path
+	inConn, err := listener.Accept()
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("accepting inbound from DUT: %w", ctx.Err())
 		}
-
-	case dialErr != nil && listener != nil:
-		// Dial failed but listener is up. Fall through to accept inbound.
+		return nil, fmt.Errorf("accepting inbound from DUT: %w", err)
 	}
 
-	// Wait for inbound connection on the listener.
-	if listener != nil {
-		defer listener.Close() //nolint:errcheck // cleanup
-
-		inConn, err := listener.Accept()
-		if err != nil {
-			return nil, fmt.Errorf("accepting inbound from DUT: %w", err)
-		}
-
-		return tuneTCP(inConn)
-	}
-
-	return nil, fmt.Errorf("no connection to %s", remoteAddr)
+	return tuneTCP(inConn)
 }
 
 // tuneTCP applies the same socket options ze uses in production:
@@ -627,35 +616,6 @@ func tuneTCP(conn net.Conn) (net.Conn, error) {
 	}
 
 	return conn, nil
-}
-
-// prefixedConn wraps a net.Conn and prepends previously-read bytes to the next Read.
-// Used when a probe byte was read to test connection liveness.
-type prefixedConn struct {
-	net.Conn
-	prefix []byte
-	done   bool
-}
-
-func (c *prefixedConn) Read(b []byte) (int, error) {
-	if !c.done && len(c.prefix) > 0 {
-		n := copy(b, c.prefix)
-		c.prefix = c.prefix[n:]
-
-		if len(c.prefix) == 0 {
-			c.done = true
-		}
-
-		// If there's room, read more from the underlying connection.
-		if n < len(b) {
-			m, err := c.Conn.Read(b[n:])
-			return n + m, err
-		}
-
-		return n, nil
-	}
-
-	return c.Conn.Read(b)
 }
 
 // keepaliveLoop sends KEEPALIVE messages every 30 seconds until ctx is canceled.
