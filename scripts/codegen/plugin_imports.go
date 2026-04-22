@@ -111,6 +111,7 @@ var pluginDirs = []string{
 	"internal/component/traffic",
 	"internal/component/vpp",
 	"internal/plugins",
+	"internal/test/plugins",
 }
 
 // rpcDirs lists directories that contain RPC command packages.

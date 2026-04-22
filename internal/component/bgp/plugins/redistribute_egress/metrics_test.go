@@ -1,4 +1,4 @@
-package redistribute
+package redistributeegress
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// recordingCounter tracks Inc / Add calls for a single counter.
 type recordingCounter struct {
 	value atomic.Int64
 }
@@ -24,7 +23,6 @@ func (r *recordingCounter) Inc()          { r.value.Add(1) }
 func (r *recordingCounter) Add(v float64) { r.value.Add(int64(v)) }
 func (r *recordingCounter) Get() int64    { return r.value.Load() }
 
-// recordingRegistry returns recordingCounter / no-op everything else.
 type recordingRegistry struct {
 	mu       sync.Mutex
 	counters map[string]*recordingCounter
@@ -97,7 +95,6 @@ type nopHistogramVec struct{}
 func (nopHistogramVec) With(...string) metrics.Histogram { return nopHistogram{} }
 func (nopHistogramVec) Delete(...string) bool            { return false }
 
-// resetMetricsState wipes registries and metrics pointer for a clean per-test slate.
 func resetMetricsState(t *testing.T) {
 	t.Helper()
 	redistevents.ResetForTest()
@@ -146,6 +143,5 @@ func TestMetricsCadence(t *testing.T) {
 	assert.Equal(t, int64(1), rec.value("ze_bgp_redistribute_filtered_protocol_total"))
 	assert.Equal(t, int64(1), rec.value("ze_bgp_redistribute_filtered_rule_total"), "ipv6/unicast batch had 1 entry")
 
-	// Sanity: dispatcher saw exactly the 3 adds + 1 remove (4 calls total).
 	assert.Len(t, disp.snapshot(), 4)
 }

@@ -1,7 +1,6 @@
 // Design: docs/architecture/core-design.md -- redistribute ingress filter
-// Related: bgp.go -- BGP source registration
 
-package redistribute
+package redistributeingress
 
 import (
 	"encoding/binary"
@@ -17,7 +16,7 @@ import (
 func IngressFilter(src registry.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
 	ev := redistribute.Global()
 	if ev == nil {
-		return true, nil // No redistribution configured: accept all.
+		return true, nil
 	}
 
 	fam := familyFromPayload(payload)
@@ -32,17 +31,10 @@ func IngressFilter(src registry.PeerFilterInfo, payload []byte, _ map[string]any
 		Source: source,
 	}
 
-	// Intra-BGP: importing protocol is empty to skip loop prevention.
-	// Loop prevention applies when importing across protocols (e.g., OSPF -> BGP),
-	// not when filtering within BGP (ibgp/ebgp source + family selection).
 	return ev.Accept(route, ""), nil
 }
 
-// familyFromPayload extracts the address family from an UPDATE body.
-// If MP_REACH_NLRI (attr 14) is present, returns its AFI/SAFI.
-// Otherwise returns ipv4/unicast (RFC 4271 default).
 func familyFromPayload(payload []byte) family.Family {
-	// Skip withdrawn routes length (2 bytes) + withdrawn routes.
 	if len(payload) < 4 {
 		return family.IPv4Unicast
 	}
@@ -58,7 +50,6 @@ func familyFromPayload(payload []byte) family.Family {
 	}
 	attrs = attrs[:attrTotalLen]
 
-	// Walk attributes looking for MP_REACH_NLRI (type code 14).
 	const mpReachCode = 14
 	off := 0
 	for off+2 < len(attrs) {
@@ -67,7 +58,7 @@ func familyFromPayload(payload []byte) family.Family {
 
 		var attrLen int
 		var hdrLen int
-		if flags&0x10 != 0 { // Extended length
+		if flags&0x10 != 0 {
 			if off+4 > len(attrs) {
 				break
 			}

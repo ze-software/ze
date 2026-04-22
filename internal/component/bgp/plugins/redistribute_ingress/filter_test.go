@@ -1,4 +1,4 @@
-package redistribute
+package redistributeingress
 
 import (
 	"encoding/binary"
@@ -11,9 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// buildIPv4Payload builds a minimal UPDATE body with only IPv4 unicast NLRI.
 func buildIPv4Payload() []byte {
-	// withdrawn len=0, attr len=0, NLRI: 24 10.0.0.0
 	return []byte{
 		0, 0, // withdrawn routes length
 		0, 0, // total path attribute length
@@ -21,20 +19,16 @@ func buildIPv4Payload() []byte {
 	}
 }
 
-// buildMPReachPayload builds an UPDATE body with MP_REACH_NLRI for the given AFI/SAFI.
 func buildMPReachPayload(afi uint16, safi uint8) []byte {
-	// withdrawn=0, attrs with MP_REACH_NLRI (code 14)
-	// attr value: AFI(2) + SAFI(1) + NH len(1) + NH(4) + reserved(1) + NLRI
-	nhLen := byte(4) // IPv4 next-hop
+	nhLen := byte(4)
 	attrValue := []byte{
 		byte(afi >> 8), byte(afi), safi,
 		nhLen, 10, 0, 0, 1, // next-hop 10.0.0.1
 		0,               // reserved
 		24, 192, 168, 1, // NLRI: /24 192.168.1.0
 	}
-	// Attribute header: flags=0xC0 (optional, transitive), code=14, extended-length
 	var attr []byte
-	attr = append(attr, 0xC0|0x10, 14) // flags + code
+	attr = append(attr, 0xC0|0x10, 14)
 	attr = binary.BigEndian.AppendUint16(attr, uint16(len(attrValue)))
 	attr = append(attr, attrValue...)
 
@@ -42,18 +36,15 @@ func buildMPReachPayload(afi uint16, safi uint8) []byte {
 	binary.BigEndian.PutUint16(attrTotalLen, uint16(len(attr)))
 
 	var payload []byte
-	payload = append(payload, 0, 0)            // withdrawn routes length
-	payload = append(payload, attrTotalLen...) // total path attribute length
-	payload = append(payload, attr...)         // attributes
+	payload = append(payload, 0, 0)
+	payload = append(payload, attrTotalLen...)
+	payload = append(payload, attr...)
 	return payload
 }
 
-// TestIngressFilterNoRedistribution verifies all routes pass when no redistribution is configured.
-//
 // VALIDATES: IngressFilter returns true when Global() is nil.
 // PREVENTS: Redistribution blocking routes when not configured.
 func TestIngressFilterNoRedistribution(t *testing.T) {
-	// Ensure no global evaluator is set (default state).
 	redistribute.SetGlobal(nil)
 
 	src := registry.PeerFilterInfo{LocalAS: 65000, PeerAS: 65001}
@@ -62,8 +53,6 @@ func TestIngressFilterNoRedistribution(t *testing.T) {
 	assert.Nil(t, modified)
 }
 
-// TestIngressFilterEBGPAccepted verifies ebgp routes pass when redistribution allows them.
-//
 // VALIDATES: IngressFilter accepts ebgp ipv4/unicast when import rule matches.
 // PREVENTS: Valid routes rejected.
 func TestIngressFilterEBGPAccepted(t *testing.T) {
@@ -72,13 +61,11 @@ func TestIngressFilterEBGPAccepted(t *testing.T) {
 	}))
 	defer redistribute.SetGlobal(nil)
 
-	src := registry.PeerFilterInfo{LocalAS: 65000, PeerAS: 65001} // eBGP
+	src := registry.PeerFilterInfo{LocalAS: 65000, PeerAS: 65001}
 	accept, _ := IngressFilter(src, buildIPv4Payload(), make(map[string]any))
 	assert.True(t, accept)
 }
 
-// TestIngressFilterFamilyRejected verifies routes are rejected when family doesn't match.
-//
 // VALIDATES: IngressFilter rejects ipv6/unicast when only ipv4/unicast is allowed.
 // PREVENTS: Wrong families leaking through.
 func TestIngressFilterFamilyRejected(t *testing.T) {
@@ -87,14 +74,11 @@ func TestIngressFilterFamilyRejected(t *testing.T) {
 	}))
 	defer redistribute.SetGlobal(nil)
 
-	src := registry.PeerFilterInfo{LocalAS: 65000, PeerAS: 65001} // eBGP
-	// IPv6 unicast (AFI=2, SAFI=1)
+	src := registry.PeerFilterInfo{LocalAS: 65000, PeerAS: 65001}
 	accept, _ := IngressFilter(src, buildMPReachPayload(2, 1), make(map[string]any))
 	assert.False(t, accept)
 }
 
-// TestIngressFilterIBGPvsEBGP verifies source detection from peer AS numbers.
-//
 // VALIDATES: IngressFilter correctly identifies ibgp (same AS) vs ebgp (different AS).
 // PREVENTS: ibgp/ebgp source mismatch.
 func TestIngressFilterIBGPvsEBGP(t *testing.T) {
@@ -103,27 +87,21 @@ func TestIngressFilterIBGPvsEBGP(t *testing.T) {
 	}))
 	defer redistribute.SetGlobal(nil)
 
-	// iBGP peer (same AS) should match "ibgp" rule
 	ibgpSrc := registry.PeerFilterInfo{LocalAS: 65000, PeerAS: 65000}
 	accept, _ := IngressFilter(ibgpSrc, buildIPv4Payload(), make(map[string]any))
 	assert.True(t, accept)
 
-	// eBGP peer (different AS) should not match "ibgp" rule
 	ebgpSrc := registry.PeerFilterInfo{LocalAS: 65000, PeerAS: 65001}
 	accept, _ = IngressFilter(ebgpSrc, buildIPv4Payload(), make(map[string]any))
 	assert.False(t, accept)
 }
 
-// TestFamilyFromPayloadIPv4 verifies family extraction for IPv4 unicast UPDATEs.
-//
 // VALIDATES: familyFromPayload returns ipv4/unicast for standard UPDATEs.
 // PREVENTS: IPv4 unicast misidentified.
 func TestFamilyFromPayloadIPv4(t *testing.T) {
 	assert.Equal(t, family.IPv4Unicast, familyFromPayload(buildIPv4Payload()))
 }
 
-// TestFamilyFromPayloadMPReach verifies family extraction from MP_REACH_NLRI.
-//
 // VALIDATES: familyFromPayload returns correct family from MP_REACH_NLRI attribute.
 // PREVENTS: Multi-protocol families misidentified.
 func TestFamilyFromPayloadMPReach(t *testing.T) {
@@ -144,8 +122,6 @@ func TestFamilyFromPayloadMPReach(t *testing.T) {
 	}
 }
 
-// TestFamilyFromPayloadMalformed verifies graceful handling of malformed payloads.
-//
 // VALIDATES: familyFromPayload defaults to ipv4/unicast on malformed input.
 // PREVENTS: Panic or wrong family on garbage input.
 func TestFamilyFromPayloadMalformed(t *testing.T) {

@@ -1,4 +1,4 @@
-package redistribute
+package redistributeegress
 
 import (
 	"context"
@@ -21,8 +21,6 @@ type recordedDispatch struct {
 	command  string
 }
 
-// fakeDispatcher records every UpdateRoute call. Returns nil by default;
-// tests can wire failNext to simulate dispatcher errors.
 type fakeDispatcher struct {
 	mu    sync.Mutex
 	calls []recordedDispatch
@@ -43,14 +41,12 @@ func (f *fakeDispatcher) snapshot() []recordedDispatch {
 	return out
 }
 
-// testBusSubscription is one handler attached to (namespace, eventType).
 type testBusSubscription struct {
 	ns      string
 	et      string
 	handler func(any)
 }
 
-// testBus is a minimal ze.EventBus stub that delivers events synchronously.
 type testBus struct {
 	mu   sync.Mutex
 	subs []*testBusSubscription
@@ -95,8 +91,6 @@ func (b *testBus) Subscribe(ns, et string, handler func(any)) func() {
 	}
 }
 
-// resetState wipes registries that this test touches and the package-level
-// pointers. Each test calls this in t.Cleanup so cases do not leak.
 func resetState(t *testing.T) {
 	t.Helper()
 	redistevents.ResetForTest()
@@ -109,10 +103,6 @@ func resetState(t *testing.T) {
 	})
 }
 
-// addBatch builds a single-entry add unicast batch for the given protocol /
-// AFI. SAFI is always unicast in tests; if a future test needs a non-unicast
-// case, add a sibling helper rather than re-introducing the rarely-varying
-// parameter.
 func addBatch(p redistevents.ProtocolID, afi uint16, prefix, nh string) *redistevents.RouteChangeBatch {
 	pp := netip.MustParsePrefix(prefix)
 	var addr netip.Addr
@@ -127,8 +117,6 @@ func addBatch(p redistevents.ProtocolID, afi uint16, prefix, nh string) *rediste
 	}
 }
 
-// removeBatch builds a single-entry remove unicast batch. See addBatch for
-// the SAFI-always-unicast rationale.
 func removeBatch(p redistevents.ProtocolID, afi uint16, prefix string) *redistevents.RouteChangeBatch {
 	pp := netip.MustParsePrefix(prefix)
 	return &redistevents.RouteChangeBatch{
@@ -139,8 +127,6 @@ func removeBatch(p redistevents.ProtocolID, afi uint16, prefix string) *redistev
 	}
 }
 
-// fakeFamilyV4Unicast / fakeFamilyV6Unicast use the canonical AFI/SAFI
-// constants registered by family.MustRegister at init().
 const (
 	afiIPv4    = 1
 	afiIPv6    = 2
@@ -220,7 +206,6 @@ func TestHandleBatchRejectedAddNoop(t *testing.T) {
 
 	id := redistevents.RegisterProtocol("fakeredist")
 	require.NoError(t, configredist.RegisterSource(configredist.RouteSource{Name: "fakeredist", Protocol: "fakeredist"}))
-	// Rule limits to ipv6/unicast; we feed an ipv4/unicast batch.
 	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
 		{Source: "fakeredist", Families: []family.Family{family.IPv6Unicast}},
 	}))
@@ -322,7 +307,6 @@ func TestHandleBatchUnknownProtocol(t *testing.T) {
 
 	disp := &fakeDispatcher{}
 	bgpID, _ := redistevents.ProtocolIDOf("bgp")
-	// Protocol=99 was never registered.
 	handleBatch(context.Background(), disp, bgpID, addBatch(redistevents.ProtocolID(99), afiIPv4, "10.0.0.1/32", ""))
 
 	assert.Empty(t, disp.snapshot())
@@ -335,7 +319,7 @@ func TestSubscribeSkipsOwnProtocol(t *testing.T) {
 	resetState(t)
 
 	bgpID := redistevents.RegisterProtocol("bgp")
-	redistevents.RegisterProducer(bgpID) // hypothetical: BGP somehow registered as producer
+	redistevents.RegisterProducer(bgpID)
 	fakeID := redistevents.RegisterProtocol("fakeredist")
 	redistevents.RegisterProducer(fakeID)
 
@@ -377,7 +361,6 @@ func TestSubscribeNonBGPProducers(t *testing.T) {
 		}
 	}()
 
-	// Emit via the bus on the same (ns, et) the consumer subscribed to.
 	_, err := bus.Emit("fakeredist", redistevents.EventType, addBatch(fakeID, afiIPv4, "10.0.0.1/32", ""))
 	require.NoError(t, err)
 

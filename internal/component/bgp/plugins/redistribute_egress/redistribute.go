@@ -1,13 +1,12 @@
 // Design: docs/architecture/core-design.md -- bgp-redistribute egress consumer
-// Related: format.go -- canonical announce/withdraw command-text builders
 //
-// Package redistribute implements the bgp-redistribute plugin: the single
-// EventBus subscriber that turns non-BGP protocol route-change events into
-// BGP UPDATE announcements.
+// Package redistributeegress implements the bgp-redistribute-egress plugin:
+// the single EventBus subscriber that turns non-BGP protocol route-change
+// events into BGP UPDATE announcements.
 //
 // Architecture (see plan/spec-bgp-redistribute.md):
 //
-//	protocol producer --(redistevents.RouteChangeBatch)--> EventBus --> bgp-redistribute
+//	protocol producer --(redistevents.RouteChangeBatch)--> EventBus --> bgp-redistribute-egress
 //	   |                                                                      |
 //	   +---- L2TP, connected, future static/OSPF/ISIS ----+                   |
 //	                                                       |                   v
@@ -27,7 +26,7 @@
 // `events.Register[*RouteChangeBatch](name, redistevents.EventType)`, and
 // subscribes. No handle pointer crosses a plugin boundary.
 
-package redistribute
+package redistributeegress
 
 import (
 	"context"
@@ -45,18 +44,11 @@ import (
 )
 
 // Name is the canonical plugin name registered with the plugin registry.
-// Hyphenated form per plugin-design.md. The "-egress" suffix distinguishes
-// this consumer (cross-protocol egress) from the existing
-// `bgp-redistribute` plugin in `internal/component/bgp/redistribute/`,
-// which registers the intra-BGP IngressFilter on the same evaluator.
 const Name = "bgp-redistribute-egress"
 
 // Subsystem is the dotted log subsystem key used by slogutil.
 const Subsystem = "bgp.redistribute.egress"
 
-// loggerPtr is the package-level logger, disabled by default. setLogger
-// installs the engine's logger for this plugin via the registration's
-// ConfigureEngineLogger callback.
 var loggerPtr atomic.Pointer[slog.Logger]
 
 func init() {
@@ -71,8 +63,6 @@ func setLogger(l *slog.Logger) {
 	}
 }
 
-// eventBusPtr stores the EventBus instance. Set by ConfigureEventBus before
-// RunEngine. Read by run() at startup.
 var eventBusPtr atomic.Pointer[ze.EventBus]
 
 func setEventBus(eb ze.EventBus) {
@@ -89,10 +79,6 @@ func getEventBus() ze.EventBus {
 	return *p
 }
 
-// pluginMetrics holds Prometheus counters for bgp-redistribute. Counters
-// are filled by the metrics registration in metrics.go; the empty struct is
-// reserved here so unit tests that exercise run() without a metrics registry
-// still find a non-nil pointer.
 type pluginMetrics struct {
 	eventsReceived        metrics.Counter
 	announcements         metrics.Counter
@@ -101,9 +87,6 @@ type pluginMetrics struct {
 	filteredRuleTotal     metrics.Counter
 }
 
-// metricsPtr stores the metrics struct, set by setMetricsRegistry via
-// ConfigureMetrics. nil is a valid value (handlers no-op when nil) so
-// internal-mode plugins without metrics still work.
 var metricsPtr atomic.Pointer[pluginMetrics]
 
 func setMetricsRegistry(reg metrics.Registry) {
@@ -117,36 +100,16 @@ func setMetricsRegistry(reg metrics.Registry) {
 	metricsPtr.Store(m)
 }
 
-// getMetrics returns the active counter set, or nil. Hot-path callers must
-// nil-check before incrementing.
 func getMetrics() *pluginMetrics { return metricsPtr.Load() }
 
-// updateRouteTimeout is the per-call deadline for plugin.UpdateRoute. Matches
-// bgp-rib's existing 10s timeout (rib.go:502); kept short so a stalled
-// dispatcher cannot back up the consumer goroutine.
 const updateRouteTimeout = 10 * time.Second
 
-// routeDispatcher is the slice of *sdk.Plugin we depend on. Extracting it
-// as an interface lets tests inject a fake without standing up a full SDK
-// instance and connection pair.
 type routeDispatcher interface {
 	UpdateRoute(ctx context.Context, peerSelector, command string) (uint32, uint32, error)
 }
 
-// bgpProtocolName is the canonical name for BGP in the redistevents
-// registry. Looked up once at run() startup; if the lookup fails (BGP did
-// not register) the consumer treats every protocol as non-BGP, which is
-// safe because BGP does not produce route-change events today (consumer,
-// not producer).
 const bgpProtocolName = "bgp"
 
-// run is the long-lived consumer goroutine. Enumerates non-BGP producers
-// from the redistevents registry, builds local typed handles, subscribes,
-// then blocks on ctx.Done() until shutdown. Subscription cleanup happens
-// via defer.
-//
-// dispatcher is the engine-side route injector (typically *sdk.Plugin).
-// Decoupled from sdk so unit tests can inject a recording fake.
 func run(ctx context.Context, dispatcher routeDispatcher) {
 	bus := getEventBus()
 	if bus == nil {
@@ -168,11 +131,6 @@ func run(ctx context.Context, dispatcher routeDispatcher) {
 	logger().Info(Name + ": stopped")
 }
 
-// subscribe enumerates registered producers, skipping BGP, and registers
-// per-protocol typed handlers on the bus. Returns the unsubscribe functions
-// so run() can defer them. Each consumer-side events.Register call obtains
-// a LOCAL handle bound to the same (namespace, eventType, T) tuple the
-// producer registered -- no handle pointer crosses a plugin boundary.
 func subscribe(ctx context.Context, dispatcher routeDispatcher, bus ze.EventBus, bgpID redistevents.ProtocolID) []func() {
 	prods := redistevents.Producers()
 	out := make([]func(), 0, len(prods))
@@ -193,12 +151,6 @@ func subscribe(ctx context.Context, dispatcher routeDispatcher, bus ze.EventBus,
 	return out
 }
 
-// handleBatch is the per-event handler. Filters by protocol, consults the
-// global redistribute evaluator, and dispatches one UpdateRoute RPC per
-// accepted entry.
-//
-// The handler runs synchronously on the bus dispatcher thread per the
-// EventBus contract (see eventbus.go); MUST NOT retain b past return.
 func handleBatch(ctx context.Context, dispatcher routeDispatcher, bgpID redistevents.ProtocolID, b *redistevents.RouteChangeBatch) {
 	if m := getMetrics(); m != nil {
 		m.eventsReceived.Inc()
@@ -226,8 +178,6 @@ func handleBatch(ctx context.Context, dispatcher routeDispatcher, bgpID redistev
 
 	ev := configredist.Global()
 	if ev == nil {
-		// No redistribute config -- drop. Common when the operator has not
-		// enabled redistribute at all.
 		return
 	}
 
@@ -239,8 +189,6 @@ func handleBatch(ctx context.Context, dispatcher routeDispatcher, bgpID redistev
 	}
 
 	if !ev.Accept(route, bgpProtocolName) {
-		// Whole batch rejected by the evaluator -- count one rule-rejection
-		// per entry so the counter reflects entries-not-dispatched.
 		if m := getMetrics(); m != nil {
 			for range b.Entries {
 				m.filteredRuleTotal.Inc()
@@ -255,11 +203,6 @@ func handleBatch(ctx context.Context, dispatcher routeDispatcher, bgpID redistev
 	}
 }
 
-// dispatchEntry builds the command text for one entry and fires the
-// UpdateRoute RPC with a bounded per-call timeout. Unknown / unspecified
-// actions are dropped with a warn; invalid prefixes are likewise dropped at
-// the consumer rather than letting "invalid Prefix" leak into the announce
-// command text and trip the reactor's parser.
 func dispatchEntry(ctx context.Context, dispatcher routeDispatcher, fam string, entry *redistevents.RouteChangeEntry) {
 	if !entry.Prefix.IsValid() {
 		logger().Warn(Name+": skipping entry with invalid prefix", "action", entry.Action)
@@ -278,10 +221,6 @@ func dispatchEntry(ctx context.Context, dispatcher routeDispatcher, fam string, 
 	}
 }
 
-// buildCommand returns the announce/withdraw text for one entry plus an OK
-// flag. ok=false signals an unrecognized action. Counter increments for the
-// happy paths happen here so the test fixture sees them even when the
-// dispatcher fails the RPC.
 func buildCommand(fam string, entry *redistevents.RouteChangeEntry) (string, bool) {
 	if entry.Action == redistevents.ActionAdd {
 		if m := getMetrics(); m != nil {

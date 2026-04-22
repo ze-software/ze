@@ -104,7 +104,8 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/vpls"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/vpn"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/persist"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/redistribute"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/redistribute_egress"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/redistribute_ingress"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/role"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh"
@@ -151,3 +152,4 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 )
+

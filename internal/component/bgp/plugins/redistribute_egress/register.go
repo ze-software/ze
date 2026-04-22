@@ -1,4 +1,4 @@
-package redistribute
+package redistributeegress
 
 import (
 	"context"
@@ -14,16 +14,8 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:        Name,
-		Description: "Egress redistribute: turns non-BGP protocol route events into BGP UPDATEs",
-		// Auto-load on the `redistribute {}` config root. Operators who
-		// configure `redistribute { import <source> { ... } }` get the
-		// egress consumer started without an explicit `plugin { external
-		// bgp-redistribute-egress { use bgp-redistribute-egress } }` block.
-		// The intra-BGP IngressFilter wrapper at
-		// internal/component/bgp/redistribute/ deliberately does NOT
-		// claim this root -- its callback is registered at init() and
-		// rides the filter chain regardless of plugin load.
+		Name:         Name,
+		Description:  "Egress redistribute: turns non-BGP protocol route events into BGP UPDATEs",
 		ConfigRoots:  []string{"redistribute"},
 		Dependencies: []string{"bgp"},
 		RunEngine:    runPlugin,
@@ -53,8 +45,6 @@ func init() {
 	}
 }
 
-// runPlugin is the engine-mode entry point. Wires the SDK callbacks and
-// blocks on p.Run until shutdown.
 func runPlugin(conn net.Conn) int {
 	logger().Debug(Name + " plugin starting (RPC)")
 
