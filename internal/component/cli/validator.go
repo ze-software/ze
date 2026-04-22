@@ -287,7 +287,7 @@ func (v *ConfigValidator) validatePeer(peerAddr, groupName string, peerTree, gro
 					setHint = "set bgp peer " + peerAddr + " " + strings.Join(reqPath, " ") + " <value>"
 				}
 				*warns = append(*warns, ConfigValidationError{
-					Line:     findPeerLine(lines, peerAddr),
+					Line:     findDeepestParentLine(lines, peerAddr, reqPath, peerTree),
 					Message:  fmt.Sprintf("peer %s: missing required field %q (%s)", peerAddr, fieldStr, setHint),
 					Severity: severityWarning,
 				})
@@ -456,6 +456,30 @@ func findPeerLine(lines []string, addr string) int {
 		}
 	}
 	return 0
+}
+
+// findDeepestParentLine finds the source line of the deepest existing parent
+// container for a missing required field. Falls back to the peer header line
+// if no intermediate container exists.
+func findDeepestParentLine(lines []string, peerAddr string, reqPath []string, peerTree *config.Tree) int {
+	peerLine := findPeerLine(lines, peerAddr)
+	if peerLine == 0 || peerTree == nil || len(reqPath) < 2 {
+		return peerLine
+	}
+
+	bestLine := peerLine
+	current := peerTree
+	for _, seg := range reqPath[:len(reqPath)-1] {
+		child := current.GetContainer(seg)
+		if child == nil {
+			break
+		}
+		if line := findFieldInPeer(lines, peerAddr, seg); line > 0 {
+			bestLine = line
+		}
+		current = child
+	}
+	return bestLine
 }
 
 // findFieldInPeer returns the 1-based line number of a field inside a peer block.
