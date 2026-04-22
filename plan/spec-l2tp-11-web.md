@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Depends | spec-l2tp-9-observer, spec-l2tp-10-metrics |
 | Phase | 7/7 |
 | Updated | 2026-04-22 |
