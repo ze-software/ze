@@ -56,6 +56,12 @@ var (
 		Default:     "30s",
 		Description: "Duration the NCP phase waits for an IP handler response (spec-l2tp-6c-ncp AC-17)",
 	})
+	_ = env.MustRegister(env.EnvEntry{
+		Key:         "ze.l2tp.metrics.poll-interval",
+		Type:        "string",
+		Default:     "30s",
+		Description: "Interval between pppN interface stats reads for Prometheus counters",
+	})
 )
 
 // Default listener values. Phase 3 only implements a single well-known-port

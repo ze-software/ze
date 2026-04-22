@@ -66,6 +66,7 @@ type SessionSnapshot struct {
 	RemoteSID          uint16
 	TunnelLocalTID     uint16
 	State              string
+	StateNum           int
 	CreatedAt          time.Time
 	Username           string
 	AssignedAddr       netip.Addr
@@ -76,6 +77,7 @@ type SessionSnapshot struct {
 	SequencingRequired bool
 	LNSMode            bool
 	KernelSetupNeeded  bool
+	PppInterface       string
 }
 
 // Snapshot returns a deep copy of the reactor's current state.
@@ -155,6 +157,7 @@ func sessionSnapshot(tunnelTID uint16, s *L2TPSession) SessionSnapshot {
 		RemoteSID:          s.remoteSID,
 		TunnelLocalTID:     tunnelTID,
 		State:              s.state.String(),
+		StateNum:           int(s.state),
 		CreatedAt:          s.createdAt,
 		Username:           s.username,
 		AssignedAddr:       s.assignedAddr,
@@ -165,6 +168,7 @@ func sessionSnapshot(tunnelTID uint16, s *L2TPSession) SessionSnapshot {
 		SequencingRequired: s.sequencingRequired,
 		LNSMode:            s.lnsMode,
 		KernelSetupNeeded:  s.kernelSetupNeeded,
+		PppInterface:       s.pppInterface,
 	}
 }
 

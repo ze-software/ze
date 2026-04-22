@@ -182,6 +182,8 @@ type Observer struct {
 	lruTail *lruEntry
 
 	unsubs []func()
+
+	expectedEchoesPerBucket uint16
 }
 
 // ObserverConfig holds observer construction parameters.
@@ -190,15 +192,21 @@ type ObserverConfig struct {
 	EventRingSize int
 	MaxLogins     int
 	BucketCount   int
+	EchoInterval  time.Duration
 }
 
 // NewObserver creates an observer with pre-allocated ring pools.
 func NewObserver(cfg ObserverConfig) *Observer {
+	var expected uint16
+	if cfg.EchoInterval > 0 {
+		expected = uint16(BucketInterval / cfg.EchoInterval)
+	}
 	return &Observer{
-		eventPool:  newEventRingPool(cfg.MaxSessions, cfg.EventRingSize),
-		samplePool: newSampleRingPool(cfg.MaxLogins, cfg.BucketCount),
-		sessions:   make(map[uint16]*eventRing),
-		logins:     make(map[string]*lruEntry),
+		eventPool:               newEventRingPool(cfg.MaxSessions, cfg.EventRingSize),
+		samplePool:              newSampleRingPool(cfg.MaxLogins, cfg.BucketCount),
+		expectedEchoesPerBucket: expected,
+		sessions:                make(map[uint16]*eventRing),
+		logins:                  make(map[string]*lruEntry),
 	}
 }
 
@@ -350,6 +358,7 @@ func (o *Observer) maybeCloseBucket(entry *lruEntry, now time.Time) {
 	// buckets would just overwrite each other in the ring anyway.
 	ringCap := len(entry.ring.buckets) + 1
 	for i := 0; now.Sub(entry.current.Start) >= BucketInterval && i < ringCap; i++ {
+		observeCQMBucket(entry.login, entry.current, o.expectedEchoesPerBucket)
 		entry.ring.append(entry.current)
 		entry.current = CQMBucket{
 			Start: entry.current.Start.Add(BucketInterval),
@@ -369,6 +378,7 @@ func (o *Observer) evictLRU() {
 	}
 	o.removeEntry(victim)
 	delete(o.logins, victim.login)
+	deleteLoginMetrics(victim.login)
 	o.samplePool.release(victim.ring)
 }
 

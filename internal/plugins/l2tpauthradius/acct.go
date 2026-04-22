@@ -27,12 +27,13 @@ type acctSession struct {
 
 // radiusAcct manages RADIUS accounting lifecycle.
 type radiusAcct struct {
-	mu       sync.Mutex
-	sessions map[sessionKey]*acctSession
-	client   *radius.Client
-	nasID    string
-	interval time.Duration
-	nextSess uint32
+	mu         sync.Mutex
+	sessions   map[sessionKey]*acctSession
+	client     *radius.Client
+	nasID      string
+	interval   time.Duration
+	nextSess   uint32
+	serverAddr string
 }
 
 type sessionKey struct {
@@ -47,11 +48,12 @@ func newRADIUSAcct() *radiusAcct {
 	}
 }
 
-func (a *radiusAcct) setClient(c *radius.Client, nasID string, interval time.Duration) {
+func (a *radiusAcct) setClient(c *radius.Client, nasID string, interval time.Duration, serverAddr string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.client = c
 	a.nasID = nasID
+	a.serverAddr = serverAddr
 	if interval > 0 {
 		a.interval = interval
 	}
@@ -136,20 +138,32 @@ func (a *radiusAcct) onSessionDown(payload *l2tpevents.SessionDownPayload) {
 }
 
 func (a *radiusAcct) sendAcctStart(client *radius.Client, sess *acctSession, nasID string) {
+	a.mu.Lock()
+	sAddr := a.serverAddr
+	a.mu.Unlock()
+	incAcctSent(sAddr, sAddr)
 	pkt := a.buildAcctPacket(sess, nasID, radius.AcctStatusStart, 0)
-	a.sendAcct(client, pkt, "start", sess)
+	a.sendAcctPacket(client, pkt, "start", sess)
 }
 
 func (a *radiusAcct) sendAcctStop(client *radius.Client, sess *acctSession, nasID string) {
+	a.mu.Lock()
+	sAddr := a.serverAddr
+	a.mu.Unlock()
+	incAcctSent(sAddr, sAddr)
 	duration := uint32(time.Since(sess.startTime).Seconds())
 	pkt := a.buildAcctPacket(sess, nasID, radius.AcctStatusStop, duration)
-	a.sendAcct(client, pkt, "stop", sess)
+	a.sendAcctPacket(client, pkt, "stop", sess)
 }
 
-func (a *radiusAcct) sendAcctInterim(client *radius.Client, sess *acctSession, nasID string) {
+func (a *radiusAcct) sendAcctInterimUpdate(client *radius.Client, sess *acctSession, nasID string) {
+	a.mu.Lock()
+	sAddr := a.serverAddr
+	a.mu.Unlock()
+	incInterimSent(sAddr, sAddr)
 	duration := uint32(time.Since(sess.startTime).Seconds())
 	pkt := a.buildAcctPacket(sess, nasID, radius.AcctStatusInterimUpdate, duration)
-	a.sendAcct(client, pkt, "interim", sess)
+	a.sendAcctPacket(client, pkt, "interim", sess)
 }
 
 func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, statusType uint8, sessionTime uint32) *radius.Packet {
@@ -181,7 +195,7 @@ func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, statusType
 	}
 }
 
-func (a *radiusAcct) sendAcct(client *radius.Client, pkt *radius.Packet, purpose string, sess *acctSession) {
+func (a *radiusAcct) sendAcctPacket(client *radius.Client, pkt *radius.Packet, purpose string, sess *acctSession) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -202,7 +216,7 @@ func (a *radiusAcct) interimLoop(ctx context.Context, client *radius.Client, ses
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			a.sendAcctInterim(client, sess, nasID)
+			a.sendAcctInterimUpdate(client, sess, nasID)
 		}
 	}
 }

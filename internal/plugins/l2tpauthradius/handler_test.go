@@ -95,7 +95,7 @@ func setupAuth(t *testing.T, sharedKey []byte, code uint8) (*radiusAuth, *fakeRe
 	}
 
 	a := newRADIUSAuth()
-	a.swapClient(client, "test-nas")
+	a.swapClient(client, "test-nas", addr)
 
 	resp := newFakeResponder()
 
@@ -218,7 +218,7 @@ func TestRADIUSAuthTimeout(t *testing.T) {
 	defer client.Close() //nolint:errcheck // test cleanup
 
 	a := newRADIUSAuth()
-	a.swapClient(client, "test-nas")
+	a.swapClient(client, "test-nas", dead.LocalAddr().String())
 	resp := newFakeResponder()
 
 	result := a.handle(ppp.EventAuthRequest{

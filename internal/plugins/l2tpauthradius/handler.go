@@ -15,9 +15,10 @@ import (
 
 // radiusAuth holds the RADIUS client and implements the auth handler.
 type radiusAuth struct {
-	mu     sync.RWMutex
-	client *radius.Client
-	nasID  string
+	mu         sync.RWMutex
+	client     *radius.Client
+	nasID      string
+	serverAddr string
 }
 
 func newRADIUSAuth() *radiusAuth {
@@ -25,12 +26,13 @@ func newRADIUSAuth() *radiusAuth {
 }
 
 // swapClient replaces the client and returns the old one (caller closes it).
-func (a *radiusAuth) swapClient(c *radius.Client, nasID string) *radius.Client {
+func (a *radiusAuth) swapClient(c *radius.Client, nasID, serverAddr string) *radius.Client {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	old := a.client
 	a.client = c
 	a.nasID = nasID
+	a.serverAddr = serverAddr
 	return old
 }
 
@@ -41,6 +43,7 @@ func (a *radiusAuth) handle(req ppp.EventAuthRequest, respond l2tp.AuthRespondFu
 	a.mu.RLock()
 	client := a.client
 	nasID := a.nasID
+	sAddr := a.serverAddr
 	a.mu.RUnlock()
 
 	if client == nil {
@@ -49,6 +52,7 @@ func (a *radiusAuth) handle(req ppp.EventAuthRequest, respond l2tp.AuthRespondFu
 		return l2tp.AuthResult{Accept: false, Message: "no RADIUS client"}
 	}
 
+	incAuthSent(sAddr, sAddr)
 	go a.doRADIUS(req, client, nasID, respond)
 	return l2tp.AuthResult{Handled: true}
 }
@@ -82,7 +86,13 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	resp, err := client.SendToServers(ctx, pkt)
+
+	a.mu.RLock()
+	srvAddr := a.serverAddr
+	a.mu.RUnlock()
+
 	if err != nil {
+		setRadiusUp(srvAddr, srvAddr, false)
 		logger().Warn("l2tp-auth-radius: RADIUS request failed",
 			"tunnel", req.TunnelID, "session", req.SessionID, "error", err)
 		if respErr := respond(false, "RADIUS unreachable", nil); respErr != nil {
@@ -90,6 +100,7 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 		}
 		return
 	}
+	setRadiusUp(srvAddr, srvAddr, true)
 
 	switch resp.Code {
 	case radius.CodeAccessAccept:

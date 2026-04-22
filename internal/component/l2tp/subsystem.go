@@ -15,8 +15,10 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -76,6 +78,9 @@ type Subsystem struct {
 	// observer tracks per-session events and per-login CQM samples.
 	// Created at Start when CQMEnabled; nil otherwise.
 	observer *Observer
+	// statsPoller periodically reads pppN interface counters for Prometheus.
+	// Created at Start when metrics registry is available; nil otherwise.
+	statsPoller *l2tpStatsPoller
 }
 
 // NewSubsystem constructs an L2TP subsystem from parsed Parameters. The returned
@@ -162,6 +167,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			EventRingSize: s.params.EventRingSizePerSession,
 			MaxLogins:     s.params.MaxLogins,
 			BucketCount:   bucketCount,
+			EchoInterval:  s.cqmEchoInterval(),
 		})
 		s.wireObserverSubscriptions(bus)
 		s.logger.Info("l2tp: CQM observer started",
@@ -310,6 +316,17 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		s.pppDrivers = append(s.pppDrivers, pppDriver)
 		s.logger.Info("L2TP listener bound", "address", ln.Addr().String())
 	}
+	// spec-l2tp-10: bind Prometheus metrics and start the stats poller.
+	if reg, ok := registry.GetMetricsRegistry().(metrics.Registry); ok {
+		bindL2TPMetrics(reg)
+		pollInterval := parsePollInterval()
+		poller := newL2TPStatsPoller(s.reactors, pollInterval)
+		poller.start()
+		s.statsPoller = poller
+		s.logger.Info("l2tp: metrics bound and stats poller started",
+			"poll-interval", pollInterval)
+	}
+
 	s.started = true
 	// Publish the Service so CLI handlers (internal/component/cmd/l2tp/)
 	// can reach the subsystem without importing it directly. Cleared in
@@ -381,6 +398,10 @@ func (s *Subsystem) unwindLocked() {
 			errs = append(errs, err)
 		}
 	}
+	if s.statsPoller != nil {
+		s.statsPoller.stop()
+		s.statsPoller = nil
+	}
 	s.pppDrivers = nil
 	s.kernelWorkers = nil
 	s.timers = nil
@@ -444,6 +465,10 @@ func (s *Subsystem) Stop(_ context.Context) error {
 		if err := l.Stop(); err != nil {
 			errs = append(errs, err)
 		}
+	}
+	if s.statsPoller != nil {
+		s.statsPoller.stop()
+		s.statsPoller = nil
 	}
 	if s.observer != nil {
 		s.observer.Stop()

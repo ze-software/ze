@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	schema "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthradius/schema"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -46,6 +47,11 @@ func init() {
 		RunEngine:   runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureMetrics: func(reg any) {
+			if r, ok := reg.(metrics.Registry); ok {
+				bindRADIUSMetrics(r)
+			}
 		},
 		ConfigureEventBus: func(eb any) {
 			if e, ok := eb.(ze.EventBus); ok {
@@ -123,8 +129,12 @@ func runPlugin(conn net.Conn) int {
 		if err != nil {
 			return fmt.Errorf("%s: create client: %w", Name, err)
 		}
-		oldClient := authInstance.swapClient(client, pending.NASIdentifier)
-		acctInstance.setClient(client, pending.NASIdentifier, pending.AcctInterval)
+		var primaryAddr string
+		if len(pending.Servers) > 0 {
+			primaryAddr = pending.Servers[0].Address
+		}
+		oldClient := authInstance.swapClient(client, pending.NASIdentifier, primaryAddr)
+		acctInstance.setClient(client, pending.NASIdentifier, pending.AcctInterval, primaryAddr)
 		if oldClient != nil {
 			oldClient.Close() //nolint:errcheck // best-effort on replaced client
 		}
