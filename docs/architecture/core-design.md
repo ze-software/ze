@@ -1096,7 +1096,7 @@ Cross-component coupling follows a strict hierarchy:
 | config | plugin, plugin/registry, command |
 | hub | everything (orchestrator) |
 | iface | config/yang, plugin, plugin/registry |
-| l2tp | config/yang (schema registration only) |
+| l2tp | config/yang, plugin/server (CLI RPCs), events (observer, route-change), web (handler_l2tp) |
 | ssh | cli, authz, config, plugin/server |
 | web | cli, authz, config |
 

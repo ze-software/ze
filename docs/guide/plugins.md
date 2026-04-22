@@ -171,6 +171,27 @@ ze --plugins
 <!-- source: internal/plugins/fib/p4/register.go -- fib-p4 registration -->
 <!-- source: internal/plugins/fib/kernel/register.go -- fib-kernel registration -->
 
+### L2TP
+
+| Plugin | Description |
+|--------|-------------|
+| `l2tp-auth-local` | Static user/password authentication for L2TP PPP sessions (PAP/CHAP-MD5/MS-CHAPv2) |
+| `l2tp-auth-radius` | RADIUS authentication (Access-Request), accounting (Start/Stop/Interim-Update), and CoA/DM listener |
+| `l2tp-pool` | Bitmap-backed IPv4 address pool with RADIUS-directed pool selection (Framed-Pool attribute) |
+| `l2tp-shaper` | TC traffic shaping (TBF/HTB) on pppN interfaces with RADIUS CoA rate updates |
+
+These plugins register via the L2TP handler registry (`RegisterAuthHandler`,
+`RegisterPoolHandler`) at init time. Only one auth handler is active at a
+time (last registered wins). The pool and shaper plugins subscribe to
+session lifecycle events via the EventBus.
+
+See [L2TP guide](l2tp.md) for configuration details.
+
+<!-- source: internal/plugins/l2tpauthlocal/register.go -->
+<!-- source: internal/plugins/l2tpauthradius/register.go -->
+<!-- source: internal/plugins/l2tppool/register.go -->
+<!-- source: internal/plugins/l2tpshaper/register.go -->
+
 The `iface` plugin defines a `Backend` interface and loads a backend by name (YANG
 `backend` leaf, default `netlink`). The `iface-netlink` backend handles all Linux
 interface operations. `iface-dhcp` is a separate plugin for DHCP client lifecycle.

@@ -1065,7 +1065,8 @@ If namespace creation fails (missing `CAP_NET_ADMIN`), the test is skipped with 
 
 ## L2TP Tests
 
-L2TP functional tests (`test/l2tp/`) verify tunnel lifecycle over real loopback UDP.
+L2TP functional tests (`test/l2tp/`) verify tunnel lifecycle, session
+negotiation, authentication, IP pool, and teardown over real loopback UDP.
 Run with `make ze-l2tp-test` or `bin/ze-test l2tp`.
 
 ```bash
@@ -1073,19 +1074,42 @@ ze-test l2tp --list    # List available tests
 ze-test l2tp --all     # Run all tests
 ```
 
+### Tunnel lifecycle
+
 | Test | File | What it verifies |
 |------|------|-----------------|
 | SCCRQ handshake | `test/l2tp/handshake-sccrq.ci` | Python client sends SCCRQ hex, receives SCCRP |
 | Full handshake | `test/l2tp/handshake-full.ci` | SCCRQ/SCCRP/SCCCN/ZLB exchange with challenge/response |
 | Bad challenge | `test/l2tp/bad-challenge-response.ci` | Wrong challenge response triggers StopCCN RC=4 |
 
-Config parsing tests live in `test/parse/`:
+### Session lifecycle
+
+| Test | File | What it verifies |
+|------|------|-----------------|
+| Incoming session (LNS) | `test/l2tp/session-incoming-lns.ci` | ICRQ/ICRP/ICCN exchange establishes session |
+| CDN teardown | `test/l2tp/session-cdn-teardown.ci` | CDN tears down one session cleanly |
+| StopCCN cascade | `test/l2tp/session-stopccn-cascade.ci` | StopCCN tears down tunnel and all its sessions |
+
+### Authentication and IP pool
+
+| Test | File | What it verifies |
+|------|------|-----------------|
+| Auth + pool | `test/l2tp/session-auth-pool.ci` | Full session with auth-local + pool allocation |
+| Auth-local config | `test/l2tp/auth-local-config.ci` | Static user config parsed and auth works |
+| RADIUS basic | `test/l2tp/auth-radius-basic.ci` | RADIUS Access-Request sent, session authenticated |
+| RADIUS reject | `test/l2tp/auth-radius-reject.ci` | RADIUS Access-Reject fails the session |
+| Pool basic | `test/l2tp/pool-basic.ci` | Pool allocates and releases addresses |
+| Pool minimal range | `test/l2tp/pool-minimal-range.ci` | Single-address pool boundary case |
+| Re-auth interval | `test/l2tp/reauth-interval-clamp.ci` | Safety floor clamps the re-auth interval |
+
+### Config parsing
 
 | Test | File | What it verifies |
 |------|------|-----------------|
 | Minimal config | `test/parse/l2tp-minimal.ci` | `l2tp { server main { port 1701 } }` parses |
 | Bad port | `test/parse/l2tp-bad-port.ci` | `port 0` rejected |
 | Unknown field | `test/parse/l2tp-unknown-field.ci` | Unknown key rejected with suggestion |
+| Max sessions | `test/parse/l2tp-max-sessions.ci` | `max-sessions` value accepted |
 
 <!-- source: cmd/ze-test/l2tp.go -- l2tpCmd runner dispatch -->
 <!-- source: internal/test/runner/record_parse.go -- .ci discovery and directive parsing -->

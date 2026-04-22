@@ -241,8 +241,10 @@ Stateful filter and ACL visibility.
 | IPsec tunnel state | `show vpn ipsec sa` | `show security ipsec security-associations` | `show ipsec security-association` | `show ip security ipsec` | - | | scope | - | |
 | OpenVPN status | `show openvpn server-status` | - | - | - | - | | scope | - | |
 | WireGuard peer status | `show interfaces wireguard` | - | - | - | - | | planned | nl | Once WG monitor lands |
-| L2TP tunnel / session | `show interfaces l2tpv3` | `show services l2tp tunnel` | `show l2tp tunnel` | - | - | | partial | config | spec-l2tp-* |
-| L2TP redistribute status | - | - | - | - | - | ze-specific; L2TP session → BGP | shipped | bgp+config | spec-l2tp-7c-redistribute |
+| L2TP tunnel / session | `show interfaces l2tpv3` | `show services l2tp tunnel` | `show l2tp tunnel` | - | - | | shipped | config+nl | `show l2tp tunnels/sessions`, `clear l2tp tunnel/session teardown` |
+| L2TP redistribute status | - | - | - | - | - | ze-specific; L2TP session to BGP | shipped | bgp+config | `redistribute { import l2tp }` |
+| L2TP web UI / CQM | - | - | - | - | - | ze-specific; Firebrick-style CQM | shipped | web | `/l2tp` session list, detail, uPlot CQM graph, SSE live updates |
+| L2TP RADIUS auth/acct | - | - | - | - | - | ze-specific; RFC 2865/2866/5176 | shipped | plugin | `l2tp-auth-radius` plugin with CoA/DM |
 | PPPoE subscriber list | `show pppoe-server sessions` | `show subscribers` | `show subscriber-mgmt subscriber` | - | - | | scope | - | |
 | SSL VPN | - | `show security ike security-associations` | - | - | - | | scope | - | |
 
