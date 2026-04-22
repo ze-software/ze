@@ -6,7 +6,6 @@ package reactor
 
 import (
 	"net/netip"
-	"time"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
@@ -15,63 +14,59 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
-// tryDirectWrite attempts to write the UPDATE directly to the destination
-// peer's TCP socket from the caller's goroutine (source peer's read goroutine),
+// tryDirectWriteNoFlush writes UPDATE bodies directly to the destination peer's
+// TCP bufWriter from the caller's goroutine (source peer's read goroutine),
 // bypassing the forward pool channel send and goroutine context switch.
 //
-// Returns true if the write was handled (success or peer not ready to receive).
-// Returns false if the session is unavailable or the write lock is contended
-// (caller should fall back to forward pool dispatch).
-func tryDirectWrite(item *fwdItem) bool {
+// Does NOT flush or set write deadlines. The caller batches flushes via
+// Session.flushFwdDirty when the source bufReader has no more data.
+//
+// Returns (handled, dstSession):
+//   - (true, session): wrote to bufWriter; session needs deferred flush
+//   - (true, nil): peer not ready; skip (caller must call done)
+//   - (false, nil): TryLock failed or no session; fall back to pool
+func tryDirectWriteNoFlush(item *fwdItem) (bool, *Session) {
 	peer := item.peer
 	if peer == nil {
-		return false
+		return false, nil
 	}
 
 	peer.mu.RLock()
 	session := peer.session
 	peer.mu.RUnlock()
 	if session == nil {
-		return false
+		return false, nil
 	}
 
 	session.mu.RLock()
 	state := session.fsm.State()
-	conn := session.conn
 	session.mu.RUnlock()
-	if state != fsm.StateEstablished || conn == nil {
-		return true
+	if state != fsm.StateEstablished {
+		return true, nil
 	}
 
 	if !session.writeMu.TryLock() {
-		return false
+		return false, nil
 	}
-	defer session.writeMu.Unlock()
-
-	if err := conn.SetWriteDeadline(session.clock.Now().Add(fwdWriteDeadline())); err != nil {
-		return true
-	}
-	defer func() {
-		session.sentMeta = nil
-		_ = conn.SetWriteDeadline(time.Time{})
-	}()
 
 	session.sentMeta = item.meta
 	for _, body := range item.rawBodies {
 		if err := session.writeRawUpdateBody(body); err != nil {
-			return true
+			session.sentMeta = nil
+			session.writeMu.Unlock()
+			return true, session
 		}
 	}
 	for _, update := range item.updates {
 		if err := session.writeUpdate(update); err != nil {
-			return true
+			session.sentMeta = nil
+			session.writeMu.Unlock()
+			return true, session
 		}
 	}
-	if err := session.flushWrites(); err != nil {
-		return true
-	}
-	session.resetSendHoldTimer()
-	return true
+	session.sentMeta = nil
+	session.writeMu.Unlock()
+	return true, session
 }
 
 // reactorForwardRS forwards a received UPDATE to all RS-eligible peers directly
@@ -83,7 +78,16 @@ func tryDirectWrite(item *fwdItem) bool {
 //
 // Buffer lifetime: callers must ensure the cache entry for updateID exists.
 // This function calls RetainN before dispatch; each fwdItem.done() calls Release.
-func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourcePeerAddr netip.Addr) []netip.AddrPort {
+func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer) []netip.AddrPort {
+	// Get source session for deferred flush tracking.
+	// Stable because we're on this session's read goroutine; RLock for formal correctness.
+	var srcSession *Session
+	if sourcePeer != nil {
+		sourcePeer.mu.RLock()
+		srcSession = sourcePeer.session
+		sourcePeer.mu.RUnlock()
+	}
+
 	r.mu.RLock()
 	var peersBuf [16]*Peer
 	matchingPeers := peersBuf[:0]
@@ -225,23 +229,23 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	var pendingBuf [16]pendingFwd
 	pending := pendingBuf[:0]
 
-	// Group-aware body cache.
+	// Group-aware body cache: stack-allocated slots avoid per-UPDATE map allocation.
+	// Typical RS deployments have 1-2 unique body cache keys (shared encoding context).
 	type fwdBodyCacheKey struct {
 		destCtxID bgpctx.ContextID
 		wire      *wireu.WireUpdate
 		extended  bool
 	}
-	type fwdBodyCacheEntry struct {
-		rawBodies    [][]byte
-		updates      []*message.Update
-		supersedeKey uint64
-		withdrawal   bool
+	type fwdBodyCacheSlot struct {
+		key        fwdBodyCacheKey
+		rawBodies  [][]byte
+		updates    []*message.Update
+		supersedeK uint64
+		withdrawal bool
 	}
 	groupsEnabled := r.updateGroups != nil && r.updateGroups.Enabled()
-	var fwdBodyCache map[fwdBodyCacheKey]*fwdBodyCacheEntry
-	if groupsEnabled {
-		fwdBodyCache = make(map[fwdBodyCacheKey]*fwdBodyCacheEntry)
-	}
+	var bodySlots [4]fwdBodyCacheSlot
+	var bodySlotCount int
 
 	var parseCache fwdParseCache
 
@@ -361,11 +365,14 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		destCtxID := peer.SendContextID()
 		if groupsEnabled {
 			cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage}
-			if cached, ok := fwdBodyCache[cacheKey]; ok {
-				item.rawBodies = cached.rawBodies
-				item.updates = cached.updates
-				item.supersedeKey = cached.supersedeKey
-				item.withdrawal = cached.withdrawal
+			for j := range bodySlotCount {
+				if bodySlots[j].key != cacheKey {
+					continue
+				}
+				item.rawBodies = bodySlots[j].rawBodies
+				item.updates = bodySlots[j].updates
+				item.supersedeKey = bodySlots[j].supersedeK
+				item.withdrawal = bodySlots[j].withdrawal
 				goto dispatch
 			}
 		}
@@ -380,14 +387,15 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			item.supersedeKey = body.supersedeKey
 			item.withdrawal = body.withdrawal
 
-			if groupsEnabled {
-				cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage}
-				fwdBodyCache[cacheKey] = &fwdBodyCacheEntry{
-					rawBodies:    body.rawBodies,
-					updates:      body.updates,
-					supersedeKey: body.supersedeKey,
-					withdrawal:   body.withdrawal,
+			if groupsEnabled && bodySlotCount < len(bodySlots) {
+				bodySlots[bodySlotCount] = fwdBodyCacheSlot{
+					key:        fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage},
+					rawBodies:  body.rawBodies,
+					updates:    body.updates,
+					supersedeK: body.supersedeKey,
+					withdrawal: body.withdrawal,
 				}
+				bodySlotCount++
 			}
 		}
 	dispatch:
@@ -399,21 +407,25 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	}
 
 	// Batch retain + dispatch.
-	// Try direct write first: acquire session.writeMu via TryLock and write
-	// from this goroutine (source peer's read goroutine), eliminating the
-	// channel send and worker goroutine context switch. Falls back to
-	// TryDispatch/DispatchOverflow when TryLock fails or session unavailable.
+	// Write to destination bufWriters without flushing (pure memory copies).
+	// Dirty sessions are tracked on srcSession.fwdDirty for deferred flush
+	// when the source bufReader has no more data (natural batch boundary).
+	// Falls back to TryDispatch/DispatchOverflow when TryLock fails.
 	if len(pending) > 0 {
 		r.recentUpdates.RetainN(updateID, len(pending))
 		for i := range pending {
 			pending[i].item.done = func() { r.recentUpdates.Release(updateID) }
+			handled, dstSession := tryDirectWriteNoFlush(&pending[i].item)
 			switch {
-			case tryDirectWrite(&pending[i].item):
+			case handled:
 				pending[i].item.done()
 				if pending[i].item.peerBufIdx > 0 && pending[i].item.peerPoolRef != nil {
 					pending[i].item.peerPoolRef.Return(pending[i].item.peerBufIdx)
 				}
 				r.fwdPool.RecordForwarded(sourcePeerAddr)
+				if dstSession != nil && srcSession != nil {
+					srcSession.appendFwdDirty(dstSession)
+				}
 			case r.fwdPool.TryDispatch(pending[i].key, pending[i].item):
 				r.fwdPool.RecordForwarded(sourcePeerAddr)
 			case r.fwdPool.DispatchOverflow(pending[i].key, pending[i].item):

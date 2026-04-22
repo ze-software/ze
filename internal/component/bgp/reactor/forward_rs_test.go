@@ -1,6 +1,8 @@
 package reactor
 
 import (
+	"bufio"
+	"net"
 	"net/netip"
 	"sync"
 	"sync/atomic"
@@ -8,6 +10,8 @@ import (
 	"time"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 
@@ -87,7 +91,7 @@ func TestReactorForwardRSBasic(t *testing.T) {
 		fwdPool: testPool,
 	}
 
-	skipped := reactorForwardRS(r, update, 42, netip.MustParseAddr("10.0.0.1"))
+	skipped := reactorForwardRS(r, update, 42, netip.MustParseAddr("10.0.0.1"), src)
 
 	// Wait for both dispatches.
 	for range 2 {
@@ -164,7 +168,7 @@ func TestReactorForwardRSFallback(t *testing.T) {
 		fwdPool: testPool,
 	}
 
-	skipped := reactorForwardRS(r, update, 50, netip.MustParseAddr("10.0.0.1"))
+	skipped := reactorForwardRS(r, update, 50, netip.MustParseAddr("10.0.0.1"), src)
 
 	select {
 	case <-done:
@@ -248,7 +252,7 @@ func TestReactorForwardRSEBGPPrepend(t *testing.T) {
 		fwdPool: testPool,
 	}
 
-	reactorForwardRS(r, update, 60, netip.MustParseAddr("10.0.0.1"))
+	reactorForwardRS(r, update, 60, netip.MustParseAddr("10.0.0.1"), src)
 
 	select {
 	case <-done:
@@ -317,7 +321,7 @@ func TestReactorForwardRSBufferLifetime(t *testing.T) {
 		fwdPool: testPool,
 	}
 
-	reactorForwardRS(r, update, 70, netip.MustParseAddr("10.0.0.1"))
+	reactorForwardRS(r, update, 70, netip.MustParseAddr("10.0.0.1"), src)
 
 	// Entry should still exist in cache (retained by pending workers).
 	_, exists := cache.Get(70)
@@ -416,7 +420,7 @@ func TestReactorForwardRSRouteReflection(t *testing.T) {
 		fwdPool: testPool,
 	}
 
-	reactorForwardRS(r, update, 80, netip.MustParseAddr("10.0.0.1"))
+	reactorForwardRS(r, update, 80, netip.MustParseAddr("10.0.0.1"), src)
 
 	select {
 	case <-done:
@@ -483,7 +487,7 @@ func TestReactorForwardRSCacheLifetime(t *testing.T) {
 		fwdPool: testPool,
 	}
 
-	reactorForwardRS(r, update, 90, netip.MustParseAddr("10.0.0.1"))
+	reactorForwardRS(r, update, 90, netip.MustParseAddr("10.0.0.1"), src)
 
 	select {
 	case <-done:
@@ -493,4 +497,190 @@ func TestReactorForwardRSCacheLifetime(t *testing.T) {
 
 	// After worker done(), entry should still be accessible (consumer count not exhausted
 	// by the fast path -- Activate was called externally with count=1).
+}
+
+// makeRSPeerWithSession creates an established peer with a real session backed
+// by a net.Pipe connection and bufWriter. Returns the peer, session, and the
+// reader end of the pipe (caller reads from it to verify flushed data).
+func makeRSPeerWithSession(t *testing.T, addr string, peerAS uint32, ctx *bgpctx.EncodingContext, ctxID bgpctx.ContextID) (*Peer, *Session, net.Conn) {
+	t.Helper()
+	peer := makeRSPeer(t, addr, peerAS, ctx, ctxID)
+
+	session := NewSession(peer.settings)
+	require.NoError(t, session.fsm.Event(fsm.EventManualStart))
+	require.NoError(t, session.fsm.Event(fsm.EventTCPConnectionConfirmed))
+	require.NoError(t, session.fsm.Event(fsm.EventBGPOpen))
+	require.NoError(t, session.fsm.Event(fsm.EventKeepaliveMsg))
+	require.Equal(t, fsm.StateEstablished, session.fsm.State())
+
+	server, client := net.Pipe()
+	t.Cleanup(func() {
+		server.Close() //nolint:errcheck // test cleanup
+		client.Close() //nolint:errcheck // test cleanup
+	})
+
+	session.mu.Lock()
+	session.conn = server
+	session.bufWriter = bufio.NewWriterSize(server, 16384)
+	session.mu.Unlock()
+
+	peer.mu.Lock()
+	peer.session = session
+	peer.mu.Unlock()
+
+	return peer, session, client
+}
+
+func TestReactorForwardRSDirectWrite(t *testing.T) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID := bgpctx.Registry.Register(ctx)
+
+	body := []byte{0, 0, 0, 0}
+
+	src, srcSession, _ := makeRSPeerWithSession(t, "10.0.0.1", 65001, ctx, ctxID)
+	dst, dstSession, dstReader := makeRSPeerWithSession(t, "10.0.0.2", 65002, ctx, ctxID)
+
+	item := fwdItem{
+		peer:      dst,
+		rawBodies: [][]byte{body},
+	}
+
+	handled, sess := tryDirectWriteNoFlush(&item)
+	require.True(t, handled, "direct write should succeed")
+	require.Equal(t, dstSession, sess, "should return destination session for deferred flush")
+
+	// Data is in bufWriter but NOT flushed to TCP yet.
+	require.NoError(t, dstReader.SetReadDeadline(time.Now().Add(10*time.Millisecond)))
+	buf := make([]byte, 1)
+	_, readErr := dstReader.Read(buf)
+	require.Error(t, readErr, "data should not be flushed to TCP yet")
+	require.NoError(t, dstReader.SetReadDeadline(time.Time{}))
+
+	// Track dirty session and flush.
+	srcSession.appendFwdDirty(dstSession)
+	require.Len(t, srcSession.fwdDirty, 1)
+
+	// Read concurrently: net.Pipe is synchronous (write blocks until read).
+	readDone := make(chan int, 1)
+	go func() {
+		result := make([]byte, 64)
+		n, _ := dstReader.Read(result)
+		readDone <- n
+	}()
+
+	srcSession.flushFwdDirty()
+	require.Empty(t, srcSession.fwdDirty, "dirty list should be cleared after flush")
+
+	select {
+	case n := <-readDone:
+		require.Equal(t, message.HeaderLen+len(body), n)
+	case <-time.After(time.Second):
+		t.Fatal("timeout reading flushed data")
+	}
+
+	_ = src // keep source peer alive
+}
+
+func TestReactorForwardRSDirectWriteTryLockFails(t *testing.T) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID := bgpctx.Registry.Register(ctx)
+
+	_, dstSession, _ := makeRSPeerWithSession(t, "10.0.0.2", 65002, ctx, ctxID)
+
+	// Hold writeMu so TryLock fails.
+	dstSession.writeMu.Lock()
+
+	peer := &Peer{}
+	peer.mu.Lock()
+	peer.session = dstSession
+	peer.mu.Unlock()
+
+	item := fwdItem{
+		peer:      peer,
+		rawBodies: [][]byte{{0, 0, 0, 0}},
+	}
+
+	handled, sess := tryDirectWriteNoFlush(&item)
+	require.False(t, handled, "should fail when TryLock cannot acquire")
+	require.Nil(t, sess)
+
+	dstSession.writeMu.Unlock()
+}
+
+func TestFlushFwdDirtyRetainsLockedSessions(t *testing.T) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID := bgpctx.Registry.Register(ctx)
+
+	_, srcSession, _ := makeRSPeerWithSession(t, "10.0.0.1", 65001, ctx, ctxID)
+	_, dst1Session, dst1Reader := makeRSPeerWithSession(t, "10.0.0.2", 65002, ctx, ctxID)
+	_, dst2Session, dst2Reader := makeRSPeerWithSession(t, "10.0.0.3", 65003, ctx, ctxID)
+
+	body := []byte{0, 0, 0, 0}
+
+	// Write data to both destinations directly under writeMu.
+	dst1Session.writeMu.Lock()
+	dst1Session.sentMeta = nil
+	require.NoError(t, dst1Session.writeRawUpdateBody(body))
+	dst1Session.writeMu.Unlock()
+
+	dst2Session.writeMu.Lock()
+	dst2Session.sentMeta = nil
+	require.NoError(t, dst2Session.writeRawUpdateBody(body))
+	dst2Session.writeMu.Unlock()
+
+	srcSession.appendFwdDirty(dst1Session)
+	srcSession.appendFwdDirty(dst2Session)
+	require.Len(t, srcSession.fwdDirty, 2)
+
+	// Hold dst2's writeMu so flushFwdDirty can't flush it.
+	dst2Session.writeMu.Lock()
+
+	// Read dst1 concurrently: net.Pipe is synchronous.
+	dst1Done := make(chan int, 1)
+	go func() {
+		result := make([]byte, 64)
+		n, _ := dst1Reader.Read(result)
+		dst1Done <- n
+	}()
+
+	srcSession.flushFwdDirty()
+
+	// dst1 flushed and removed; dst2 retained (TryLock failed).
+	require.Len(t, srcSession.fwdDirty, 1)
+	require.Equal(t, dst2Session, srcSession.fwdDirty[0])
+
+	select {
+	case n := <-dst1Done:
+		require.Equal(t, message.HeaderLen+len(body), n)
+	case <-time.After(time.Second):
+		t.Fatal("timeout reading dst1 flushed data")
+	}
+
+	// Release dst2 and flush again with concurrent read.
+	dst2Session.writeMu.Unlock()
+	dst2Done := make(chan int, 1)
+	go func() {
+		result := make([]byte, 64)
+		n, _ := dst2Reader.Read(result)
+		dst2Done <- n
+	}()
+
+	srcSession.flushFwdDirty()
+	require.Empty(t, srcSession.fwdDirty, "dirty list should be empty after second flush")
+
+	select {
+	case n := <-dst2Done:
+		require.Equal(t, message.HeaderLen+len(body), n)
+	case <-time.After(time.Second):
+		t.Fatal("timeout reading dst2 flushed data")
+	}
+}
+
+func TestAppendFwdDirtyDeduplicates(t *testing.T) {
+	s := &Session{}
+	dst := &Session{}
+	s.appendFwdDirty(dst)
+	s.appendFwdDirty(dst)
+	s.appendFwdDirty(dst)
+	require.Len(t, s.fwdDirty, 1)
 }

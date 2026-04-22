@@ -447,7 +447,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	if kept && hasPeer && peer.settings.RSFastPath && msgType == message.TypeUPDATE {
 		update, ok := r.recentUpdates.Get(messageID)
 		if ok {
-			skipped := reactorForwardRS(r, update, messageID, peerAddr)
+			skipped := reactorForwardRS(r, update, messageID, peerAddr, peer)
 			msg.ReactorForwarded = true
 			if len(skipped) > 0 {
 				msg.FastPathSkipped = skipped

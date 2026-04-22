@@ -8,6 +8,7 @@ package reactor
 import (
 	"net"
 	"net/netip"
+	"slices"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
@@ -275,6 +276,54 @@ func (s *Session) flushWrites() error {
 		return err
 	}
 	return nil
+}
+
+// appendFwdDirty tracks a destination session that has unflushed RS fast path
+// writes. Deduplicates so each session appears at most once per batch.
+// Only called from this session's read goroutine (no synchronization needed).
+func (s *Session) appendFwdDirty(dst *Session) {
+	if slices.Contains(s.fwdDirty, dst) {
+		return
+	}
+	s.fwdDirty = append(s.fwdDirty, dst)
+}
+
+// flushFwdDirty flushes all destination sessions that have pending RS fast
+// path writes. Called when the source bufReader has no more data (natural
+// batch boundary) or on read loop exit.
+//
+// For each dirty session: acquires writeMu via TryLock, sets write deadline,
+// flushes bufWriter, clears deadline, resets send hold timer. Sessions where
+// TryLock fails are retained for the next flush cycle.
+func (s *Session) flushFwdDirty() {
+	if len(s.fwdDirty) == 0 {
+		return
+	}
+	deadline := s.clock.Now().Add(fwdWriteDeadline())
+	kept := 0
+	for _, dst := range s.fwdDirty {
+		dst.mu.RLock()
+		conn := dst.conn
+		state := dst.fsm.State()
+		dst.mu.RUnlock()
+		if state != fsm.StateEstablished || conn == nil {
+			continue
+		}
+		if !dst.writeMu.TryLock() {
+			s.fwdDirty[kept] = dst
+			kept++
+			continue
+		}
+		_ = conn.SetWriteDeadline(deadline)
+		_ = dst.flushWrites()
+		_ = conn.SetWriteDeadline(time.Time{})
+		dst.resetSendHoldTimer()
+		dst.writeMu.Unlock()
+	}
+	for i := kept; i < len(s.fwdDirty); i++ {
+		s.fwdDirty[i] = nil
+	}
+	s.fwdDirty = s.fwdDirty[:kept]
 }
 
 // SendUpdate sends a pre-built BGP UPDATE message.

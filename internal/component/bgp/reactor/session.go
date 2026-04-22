@@ -255,6 +255,12 @@ type Session struct {
 	// MUST NOT be read outside writeMu. Zero-value (nil) for non-forward writes.
 	sentMeta map[string]any
 
+	// fwdDirty tracks destination sessions with unflushed writes from the RS
+	// fast path (tryDirectWriteNoFlush). Flushed by flushFwdDirty when the
+	// source bufReader has no more data. Only accessed from this session's
+	// read goroutine -- no synchronization needed.
+	fwdDirty []*Session
+
 	// sourceID identifies the peer in the source registry.
 	// Set by Peer at creation time.
 	sourceID source.SourceID
@@ -664,6 +670,15 @@ func (s *Session) Run(ctx context.Context) error {
 		} else {
 			err = s.readAndProcessMessage(conn, bufReader)
 		}
+
+		// Flush RS fast path writes when no more source data is available.
+		// bufReader.Buffered() == 0 is the natural batch boundary (same
+		// signal used by UPDATE coalescing). On error, flush unconditionally
+		// so data does not sit in destination bufWriters.
+		if err != nil || bufReader.Buffered() == 0 {
+			s.flushFwdDirty()
+		}
+
 		if err != nil {
 			if errors.Is(err, ErrConnectionClosed) {
 				if reason := s.closeReason.Load(); reason != nil {
