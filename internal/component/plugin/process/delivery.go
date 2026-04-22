@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // Env var registration for delivery timeout.
@@ -186,6 +187,12 @@ func (p *Process) deliverBatch(batch []EventDelivery, eventsBuf []string, timeou
 			// since no caller is waiting to collect them. This covers sent
 			// event delivery which uses nil Result to avoid re-entrant deadlock.
 			logger().Warn("event delivery failed (fire-and-forget)", "plugin", p.config.Name, "error", batchErr)
+		}
+		// Return pooled StructuredEvent after the handler is done with it.
+		// Moved here from the dispatcher (events.go) so fire-and-forget
+		// delivery can recycle SEs without waiting for result collection.
+		if se, ok := req.Event.(*rpc.StructuredEvent); ok {
+			rpc.PutStructuredEvent(se)
 		}
 	}
 
