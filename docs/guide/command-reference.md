@@ -1081,6 +1081,49 @@ When fib-kernel is loaded, it automatically enables IPv4 and IPv6 forwarding as 
 <!-- source: internal/plugins/sysctl/register.go -- OnExecuteCommand, CommandDecl -->
 <!-- source: internal/core/sysctl/profiles.go -- ProfileDef, builtinProfiles -->
 
+### L2TPv2 (Operational)
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `show l2tp` | run | L2TP subsystem summary (tunnel/session counts) |
+| `show l2tp tunnels` | run | List all active L2TP tunnels |
+| `show l2tp tunnel <tid>` | run | Show one tunnel by local tunnel ID |
+| `show l2tp sessions` | run | List all active L2TP sessions |
+| `show l2tp session <sid>` | run | Show one session by local session ID |
+| `show l2tp statistics` | run | Protocol counters |
+| `show l2tp listeners` | run | Bound UDP listener endpoints |
+| `show l2tp config` | run | Effective runtime configuration |
+| `clear l2tp tunnel teardown <tid>` | run | Send StopCCN for one tunnel |
+| `clear l2tp tunnel teardown-all` | run | Send StopCCN for every tunnel |
+| `clear l2tp session teardown <sid> [reason <text...>] [cause <code>]` | run | Send CDN for one session with optional audit reason and disconnect cause |
+| `clear l2tp session teardown-all` | run | Send CDN for every session |
+
+The `clear l2tp session teardown` command accepts optional keyword arguments:
+- `reason <text...>`: free-text audit reason, recorded in the per-session event ring
+- `cause <code>`: RADIUS Disconnect-Cause value (uint16), recorded alongside the reason
+
+<!-- source: internal/component/cmd/l2tp/schema/ze-l2tp-cmd.yang -->
+<!-- source: internal/component/cmd/l2tp/l2tp.go -- handleSessionTeardown, parseKeywordArgs -->
+
+### L2TPv2 Web UI
+
+The web interface at `/l2tp` provides session management and CQM graphing.
+
+| URL | Method | Purpose |
+|-----|--------|---------|
+| `/l2tp` | GET | Session list with sortable columns |
+| `/l2tp/<sid>` | GET | Session detail: state, PPP options, CQM chart, event timeline, disconnect |
+| `/l2tp/<login>/samples` | GET | CQM buckets as columnar JSON (uPlot data shape) |
+| `/l2tp/<login>/samples.csv` | GET | CQM buckets as CSV download |
+| `/l2tp/<login>/samples/stream` | GET | SSE stream pushing new CQM buckets every 100s |
+| `/l2tp/<sid>/disconnect` | POST | Disconnect session (requires `reason` form field; optional `cause`) |
+
+Disconnect is gated by authz: the `clear` prefix is denied in the built-in read-only profile.
+The CQM chart uses vendored uPlot rendered client-side with CSS color variables
+(`--color-l2tp-established`, `--color-l2tp-negotiating`, `--color-l2tp-down`).
+
+<!-- source: internal/component/web/handler_l2tp.go -->
+
 ### L2TPv2 (Offline Tools)
 
 | Command | Access | Purpose |

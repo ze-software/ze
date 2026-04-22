@@ -237,14 +237,27 @@ func handleSessionTeardown(_ *pluginserver.CommandContext, args []string) (*plug
 	if svc == nil {
 		return errResponse(errSubsystemUnavailable), nil
 	}
+	actor, reason, cause := parseKeywordArgs(args)
+	if reason != "" || cause != 0 || actor != "" {
+		if _, exists := svc.LookupSession(sid); exists {
+			svc.RecordDisconnect(sid, actor, reason, cause)
+		}
+	}
 	if err := svc.TeardownSession(sid); err != nil {
 		return errResponse(err), nil
 	}
-	return jsonResponse("l2tp session teardown", map[string]any{
+	result := map[string]any{
 		"action":     "session-teardown",
 		"session-id": int(sid),
 		"status":     "sent",
-	})
+	}
+	if reason != "" {
+		result["reason"] = reason
+	}
+	if cause != 0 {
+		result["cause"] = int(cause)
+	}
+	return jsonResponse("l2tp session teardown", result)
 }
 
 func handleSessionTeardownAll(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
@@ -364,6 +377,51 @@ func parseIDArg(args []string, fieldName string) (uint16, error) {
 		return 0, fmt.Errorf("l2tp: invalid %s 0 (reserved by RFC 2661)", fieldName)
 	}
 	return uint16(n), nil
+}
+
+// parseKeywordArgs scans args after the first positional (the ID) for
+// keyword-prefixed optional arguments: `actor <name>`, `reason <text...>`,
+// and `cause <code>`. Text after "reason" is collected until the next
+// keyword or end of args. "actor" and "cause" expect a single value each.
+func parseKeywordArgs(args []string) (actor, reason string, cause uint32) {
+	const (
+		kwActor  = "actor"
+		kwReason = "reason"
+		kwCause  = "cause"
+	)
+	// Skip the first positional arg (the ID).
+	started := false
+	var reasonParts []string
+	collecting := ""
+	for _, a := range args {
+		if a == "" || strings.HasPrefix(a, "-") {
+			continue
+		}
+		if !started {
+			started = true
+			continue
+		}
+		switch {
+		case a == kwActor:
+			collecting = kwActor
+		case a == kwReason:
+			collecting = kwReason
+		case a == kwCause:
+			collecting = kwCause
+		case collecting == kwActor:
+			actor = a
+			collecting = ""
+		case collecting == kwReason:
+			reasonParts = append(reasonParts, a)
+		case collecting == kwCause:
+			if n, err := strconv.ParseUint(a, 10, 32); err == nil {
+				cause = uint32(n)
+			}
+			collecting = ""
+		}
+	}
+	reason = strings.Join(reasonParts, " ")
+	return actor, reason, cause
 }
 
 // jsonResponse marshals payload into a plugin.StatusDone response.

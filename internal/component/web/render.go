@@ -71,6 +71,7 @@ type Renderer struct {
 	login      *template.Template
 	config     map[string]*template.Template // keyed by template name (e.g., "container.html")
 	fragments  *template.Template            // parsed fragment templates (detail, sidebar, pathbar, oob)
+	l2tp       map[string]*template.Template // L2TP page templates (list.html, detail.html)
 	assets     fs.FS
 	decorators *DecoratorRegistry // optional: resolves display-time annotations for decorated leaves
 }
@@ -175,6 +176,20 @@ func NewRenderer() (*Renderer, error) {
 		return nil, fmt.Errorf("parse fragment templates: %w", err)
 	}
 
+	// Parse L2TP page templates.
+	l2tpTemplateNames := []string{"list.html", "detail.html"}
+	l2tpTemplates := make(map[string]*template.Template, len(l2tpTemplateNames))
+	for _, name := range l2tpTemplateNames {
+		t, parseErr := template.New(name).Funcs(funcMap).ParseFS(
+			templatesFS,
+			"templates/l2tp/"+name,
+		)
+		if parseErr != nil {
+			return nil, fmt.Errorf("parse l2tp template %s: %w", name, parseErr)
+		}
+		l2tpTemplates[name] = t
+	}
+
 	assets, err := fs.Sub(assetsFS, "assets")
 	if err != nil {
 		return nil, fmt.Errorf("embedded assets sub-fs: %w", err)
@@ -185,6 +200,7 @@ func NewRenderer() (*Renderer, error) {
 		login:     login,
 		config:    configTemplates,
 		fragments: fragments,
+		l2tp:      l2tpTemplates,
 		assets:    assets,
 	}, nil
 }
@@ -194,6 +210,21 @@ func NewRenderer() (*Renderer, error) {
 func (r *Renderer) RenderFragment(name string, data any) template.HTML {
 	var buf bytes.Buffer
 	if err := r.fragments.ExecuteTemplate(&buf, name, data); err != nil {
+		return ""
+	}
+	return template.HTML(buf.String()) //nolint:gosec // trusted template output
+}
+
+// RenderL2TPTemplate renders a named L2TP template to a string.
+func (r *Renderer) RenderL2TPTemplate(name string, data any) template.HTML {
+	t, ok := r.l2tp[name]
+	if !ok {
+		serverLogger.Warn("l2tp template not found", "name", name)
+		return ""
+	}
+	var buf bytes.Buffer
+	if err := t.Execute(&buf, data); err != nil {
+		serverLogger.Warn("l2tp template execute", "name", name, "error", err)
 		return ""
 	}
 	return template.HTML(buf.String()) //nolint:gosec // trusted template output

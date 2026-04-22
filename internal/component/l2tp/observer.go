@@ -24,6 +24,7 @@ const (
 	ObserverEventSessionDown
 	ObserverEventSessionIPAssigned
 	ObserverEventEchoRTT
+	ObserverEventDisconnectRequested
 )
 
 func (t ObserverEventType) String() string {
@@ -40,6 +41,8 @@ func (t ObserverEventType) String() string {
 		return "session-ip-assigned"
 	case ObserverEventEchoRTT:
 		return "echo-rtt"
+	case ObserverEventDisconnectRequested:
+		return "disconnect-requested"
 	default:
 		return stateUnknown
 	}
@@ -52,6 +55,9 @@ type ObserverEvent struct {
 	TunnelID  uint16
 	SessionID uint16
 	RTT       time.Duration
+	Actor     string
+	Reason    string
+	Cause     uint32
 }
 
 // eventRing is a circular buffer of ObserverEvent records.

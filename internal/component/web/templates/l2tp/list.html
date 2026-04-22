@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L2TP Sessions</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/htmx.min.js"></script>
+</head>
+<body>
+<div class="layout">
+<nav class="breadcrumb-bar">
+  <a href="/">ze</a> / <a href="/l2tp">l2tp</a>
+</nav>
+<main class="content-area">
+  <h2>L2TP Sessions</h2>
+  <p>Tunnels: {{.TunnelCount}} | Sessions: {{.SessionCount}}</p>
+  {{if .Sessions}}
+  <table class="l2tp-table" id="session-table">
+    <thead>
+      <tr>
+        <th>SID</th>
+        <th>Tunnel</th>
+        <th>Username</th>
+        <th>Address</th>
+        <th>Peer</th>
+        <th>Interface</th>
+        <th>State</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Sessions}}
+      <tr>
+        <td><a href="/l2tp/{{.LocalSID}}">{{.LocalSID}}</a></td>
+        <td>{{.TunnelTID}}</td>
+        <td>{{.Username}}</td>
+        <td>{{.AssignedAddr}}</td>
+        <td>{{.PeerAddr}}</td>
+        <td>{{.Interface}}</td>
+        <td>{{.State}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p>No active sessions.</p>
+  {{end}}
+</main>
+</div>
+</body>
+</html>

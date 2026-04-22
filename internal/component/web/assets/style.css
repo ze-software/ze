@@ -27,6 +27,9 @@
   --diff-del-text: #f85149;
   --diff-change: #2a2a1a;
   --diff-change-text: #d29922;
+  --color-l2tp-established: #22c55e;
+  --color-l2tp-negotiating: #f59e0b;
+  --color-l2tp-down: #a855f7;
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
   --font-mono: "Fira Code", "Cascadia Code", "JetBrains Mono", "Consolas", monospace;
   --radius: 6px;

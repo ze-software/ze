@@ -27,6 +27,9 @@ type Service interface {
 	TeardownSession(localSID uint16) error
 	TeardownAllTunnels() int
 	TeardownAllSessions() int
+	SessionEvents(sessionID uint16) []ObserverEvent
+	LoginSamples(login string) []CQMBucket
+	RecordDisconnect(sessionID uint16, actor, reason string, cause uint32)
 }
 
 // Compile-time guarantee that *Subsystem implements Service.

@@ -4,14 +4,19 @@ module ze-l2tp-cmd {
 
     import ze-extensions    { prefix ze; }
     import ze-cli-show-cmd  { prefix clishowcmd; }
+    import ze-cli-clear-cmd { prefix cliclearcmd; }
 
     description
         "L2TP CLI command tree. Augments the global `show` verb with
          an `l2tp` sub-tree so operators type `show l2tp`, `show l2tp
-         tunnels`, etc. Top-level `l2tp` tree carries destructive
-         operations (`l2tp tunnel teardown`, `l2tp session
-         teardown`). Each leaf container maps to a ze-l2tp-api RPC
-         via the ze:command extension.";
+         tunnels`, etc. Augments `clear` with destructive operations
+         (`clear l2tp tunnel teardown`, `clear l2tp session teardown`).
+         Each leaf container maps to a ze-l2tp-api RPC via the
+         ze:command extension.";
+
+    revision 2026-04-22 {
+        description "Move destructive tree from top-level l2tp to clear verb (spec-l2tp-11-web).";
+    }
 
     revision 2026-04-17 {
         description "Initial revision (spec-l2tp-7-subsystem).";
@@ -71,46 +76,47 @@ module ze-l2tp-cmd {
     }
 
     // -----------------------------------------------------------------
-    // Destructive tree: `l2tp tunnel teardown ...`, `l2tp session
-    // teardown ...`. Placed at top level (not under `show`) because
-    // they mutate live state. BGP `peer teardown` is the precedent
-    // for this layout.
+    // Destructive tree: `clear l2tp tunnel teardown ...`, `clear l2tp
+    // session teardown ...`. Under `clear` verb because they reset
+    // runtime/operational state without touching config.
     // -----------------------------------------------------------------
-    container l2tp {
-        config false;
-        description "L2TP destructive operations.";
-
-        container tunnel {
+    augment "/cliclearcmd:clear" {
+        container l2tp {
             config false;
-            description "Tunnel-scoped destructive operations.";
+            description "L2TP destructive operations.";
 
-            container teardown {
+            container tunnel {
                 config false;
-                ze:command "ze-l2tp-api:tunnel-teardown";
-                description "Send StopCCN administrative for one tunnel.";
+                description "Tunnel-scoped destructive operations.";
+
+                container teardown {
+                    config false;
+                    ze:command "ze-l2tp-api:tunnel-teardown";
+                    description "Send StopCCN administrative for one tunnel.";
+                }
+
+                container teardown-all {
+                    config false;
+                    ze:command "ze-l2tp-api:tunnel-teardown-all";
+                    description "Send StopCCN administrative for every tunnel.";
+                }
             }
 
-            container teardown-all {
+            container session {
                 config false;
-                ze:command "ze-l2tp-api:tunnel-teardown-all";
-                description "Send StopCCN administrative for every tunnel.";
-            }
-        }
+                description "Session-scoped destructive operations.";
 
-        container session {
-            config false;
-            description "Session-scoped destructive operations.";
+                container teardown {
+                    config false;
+                    ze:command "ze-l2tp-api:session-teardown";
+                    description "Send CDN administrative for one session.";
+                }
 
-            container teardown {
-                config false;
-                ze:command "ze-l2tp-api:session-teardown";
-                description "Send CDN administrative for one session.";
-            }
-
-            container teardown-all {
-                config false;
-                ze:command "ze-l2tp-api:session-teardown-all";
-                description "Send CDN administrative for every session.";
+                container teardown-all {
+                    config false;
+                    ze:command "ze-l2tp-api:session-teardown-all";
+                    description "Send CDN administrative for every session.";
+                }
             }
         }
     }

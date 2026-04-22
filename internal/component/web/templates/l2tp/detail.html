@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L2TP Session {{.Session.LocalSID}}</title>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="/assets/uPlot.min.css">
+<script src="/assets/htmx.min.js"></script>
+<script src="/assets/uPlot.min.js"></script>
+</head>
+<body>
+<div class="layout">
+<nav class="breadcrumb-bar">
+  <a href="/">ze</a> / <a href="/l2tp">l2tp</a> / <span>{{.Session.LocalSID}}</span>
+</nav>
+<main class="content-area">
+  <h2>Session {{.Session.LocalSID}}</h2>
+
+  <section class="l2tp-session-info">
+    <table class="l2tp-detail-table">
+      <tr><th>Username</th><td>{{.Session.Username}}</td></tr>
+      <tr><th>State</th><td>{{.Session.State}}</td></tr>
+      <tr><th>Address</th><td>{{.Session.AssignedAddr}}</td></tr>
+      <tr><th>Interface</th><td>{{.Session.PppInterface}}</td></tr>
+      <tr><th>Tunnel</th><td>{{.Session.TunnelLocalTID}}</td></tr>
+      <tr><th>Family</th><td>{{.Session.Family}}</td></tr>
+    </table>
+  </section>
+
+  {{if .Login}}
+  <section class="l2tp-chart">
+    <h3>CQM Graph</h3>
+    <div id="cqm-chart"></div>
+    <p><a href="/l2tp/{{.Login}}/samples.csv">Download CSV</a></p>
+  </section>
+  {{end}}
+
+  <section class="l2tp-events">
+    <h3>Event Timeline</h3>
+    {{if .Events}}
+    <table class="l2tp-table">
+      <thead><tr><th>Time</th><th>Type</th><th>Details</th></tr></thead>
+      <tbody>
+      {{range .Events}}
+      <tr>
+        <td>{{.Timestamp.Format "2006-01-02 15:04:05"}}</td>
+        <td>{{.Type}}</td>
+        <td>
+          {{if .Actor}}actor: {{.Actor}}{{end}}
+          {{if .Reason}}reason: {{.Reason}}{{end}}
+          {{if .RTT}}rtt: {{.RTT}}{{end}}
+        </td>
+      </tr>
+      {{end}}
+      </tbody>
+    </table>
+    {{else}}
+    <p>No events recorded.</p>
+    {{end}}
+  </section>
+
+  <section class="l2tp-disconnect">
+    <h3>Disconnect</h3>
+    <form method="POST" action="/l2tp/{{.Session.LocalSID}}/disconnect"
+          onsubmit="return confirm('Disconnect session {{.Session.LocalSID}}?')">
+      <label for="reason">Reason (required):</label>
+      <input type="text" id="reason" name="reason" required maxlength="256" placeholder="maintenance window">
+      <label for="cause">Disconnect Cause (optional):</label>
+      <input type="number" id="cause" name="cause" min="0" max="65535" placeholder="0">
+      <button type="submit" class="btn btn-danger">Disconnect</button>
+    </form>
+  </section>
+</main>
+</div>
+
+{{if .Login}}
+<script src="/assets/l2tp-chart.js"></script>
+<script>
+  initCQMChart("cqm-chart", "{{.Login}}");
+</script>
+{{end}}
+</body>
+</html>

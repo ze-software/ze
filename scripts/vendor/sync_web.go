@@ -1,6 +1,6 @@
 // Design: (none -- build tool)
 //
-// sync_web copies vendored web assets from third_party/web/{htmx,ze}/ to all
+// sync_web copies vendored web assets from third_party/web/{htmx,ze,uplot}/ to all
 // consumer directories. Used by `make ze-sync-vendor-web`.
 //
 // Source of truth: third_party/web/. See third_party/web/MANIFEST.md.
@@ -30,6 +30,8 @@ var assets = []asset{
 	{"third_party/web/htmx", "htmx.min.js"},
 	{"third_party/web/htmx", "sse.js"},
 	{"third_party/web/ze", "ze.svg"},
+	{"third_party/web/uplot", "uPlot.min.js"},
+	{"third_party/web/uplot", "uPlot.min.css"},
 }
 
 var consumers = []string{

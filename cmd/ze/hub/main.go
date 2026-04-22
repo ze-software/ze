@@ -1102,6 +1102,15 @@ func startWebServer(store storage.Storage, listenAddrs []string, insecureWeb boo
 	srv.Handle("/config/diff-close", authWrap(diffCloseHandler))
 	srv.Handle("/config/commit", authWrap(commitHandler))
 	srv.Handle("POST /config/discard", authWrap(discardHandler))
+	// L2TP web UI: session list, detail, CQM chart feeds, disconnect.
+	l2tpHandlers := &zeweb.L2TPHandlers{Renderer: renderer, Dispatch: dispatch}
+	srv.Handle("GET /l2tp", authWrap(l2tpHandlers.HandleL2TPList()))
+	srv.Handle("GET /l2tp/{sid}", authWrap(l2tpHandlers.HandleL2TPDetail()))
+	srv.Handle("POST /l2tp/{sid}/disconnect", authWrap(l2tpHandlers.HandleL2TPDisconnect()))
+	srv.Handle("GET /l2tp/{login}/samples", authWrap(zeweb.HandleL2TPSamplesJSON()))
+	srv.Handle("GET /l2tp/{login}/samples.csv", authWrap(zeweb.HandleL2TPSamplesCSV()))
+	srv.Handle("GET /l2tp/{login}/samples/stream", authWrap(zeweb.HandleL2TPSamplesSSE()))
+
 	if env.IsEnabled("ze.gokrazy.enabled") {
 		srv.Handle("/gokrazy/", authWrap(zegokrazy.Handler(env.Get("ze.gokrazy.socket"))))
 		zeweb.SetGokrazyEnabled()

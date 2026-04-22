@@ -47,6 +47,9 @@ func (f *fakeService) LookupSession(id uint16) (l2tppkg.SessionSnapshot, bool) {
 	}
 	return l2tppkg.SessionSnapshot{}, false
 }
+func (f *fakeService) SessionEvents(_ uint16) []l2tppkg.ObserverEvent   { return nil }
+func (f *fakeService) LoginSamples(_ string) []l2tppkg.CQMBucket        { return nil }
+func (f *fakeService) RecordDisconnect(_ uint16, _, _ string, _ uint32) {}
 
 // publishFake wires fake into the service locator and returns a
 // deferred unpublish.
@@ -209,4 +212,36 @@ func TestHandleConfigRedactsSecret(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(responseString(t, resp)), &got))
 	require.Equal(t, "<set>", got["shared-secret"])
 	require.Equal(t, float64(60), got["hello-interval"])
+}
+
+func TestParseKeywordArgs_ReasonAndCause(t *testing.T) {
+	args := []string{"42", "reason", "maintenance", "window", "cause", "6"}
+	actor, reason, cause := parseKeywordArgs(args)
+	require.Equal(t, "", actor)
+	require.Equal(t, "maintenance window", reason)
+	require.Equal(t, uint32(6), cause)
+}
+
+func TestParseKeywordArgs_ReasonOnly(t *testing.T) {
+	args := []string{"42", "reason", "scheduled"}
+	actor, reason, cause := parseKeywordArgs(args)
+	require.Equal(t, "", actor)
+	require.Equal(t, "scheduled", reason)
+	require.Equal(t, uint32(0), cause)
+}
+
+func TestParseKeywordArgs_Empty(t *testing.T) {
+	args := []string{"42"}
+	actor, reason, cause := parseKeywordArgs(args)
+	require.Equal(t, "", actor)
+	require.Equal(t, "", reason)
+	require.Equal(t, uint32(0), cause)
+}
+
+func TestParseKeywordArgs_ActorReasonCause(t *testing.T) {
+	args := []string{"42", "actor", "web", "reason", "maintenance", "cause", "6"}
+	actor, reason, cause := parseKeywordArgs(args)
+	require.Equal(t, "web", actor)
+	require.Equal(t, "maintenance", reason)
+	require.Equal(t, uint32(6), cause)
 }

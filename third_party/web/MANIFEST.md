@@ -12,6 +12,8 @@ Source of truth: files in this directory. Consumer copies are synced via `script
 | ze.svg | - | `docs/logo/ze.svg` (project logo with Exa gradient) | 2026-03-31 |
 | swagger-ui/swagger-ui.css | 5.32.2 | https://unpkg.com/swagger-ui-dist@5.32.2/swagger-ui.css | 2026-04-11 |
 | swagger-ui/swagger-ui-bundle.js | 5.32.2 | https://unpkg.com/swagger-ui-dist@5.32.2/swagger-ui-bundle.js | 2026-04-11 |
+| uplot/uPlot.min.js | 1.6.32 | https://unpkg.com/uplot@1.6.32/dist/uPlot.iife.min.js | 2026-04-22 |
+| uplot/uPlot.min.css | 1.6.32 | https://unpkg.com/uplot@1.6.32/dist/uPlot.min.css | 2026-04-22 |
 
 ## Consumers
 

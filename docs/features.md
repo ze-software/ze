@@ -40,7 +40,7 @@ Ze is a network operating system written in Go. It runs on any Linux or as a gok
 | [Configuration Reload](features/config-reload.md) | Live reload via SIGHUP with automatic reconciliation |
 | [Fleet Management](features/fleet-management.md) | Centralized config distribution over TLS |
 | [Performance Benchmarking](features/benchmarking.md) | Cross-implementation latency benchmarking with ze-perf |
-| [Web Interface](features/web-interface.md) | HTTPS config editor with YANG-driven UI and CLI bar |
+| [Web Interface](features/web-interface.md) | HTTPS config editor with YANG-driven UI, CLI bar, and L2TP session management (CQM graph, event timeline, disconnect) |
 | [Looking Glass](features/looking-glass.md) | Public BGP looking glass with birdwatcher API and AS path graphs |
 | [AI-First Design](features/ai-first.md) | Self-describing CLI-as-API with MCP transport for AI assistants |
 | [Self-Documenting System](features/introspection.md) | Runtime introspection of plugins, env vars, RPCs, schemas, commands |
