@@ -126,6 +126,19 @@ Never commit with lint issues. Never commit without test evidence when code chan
 `git reset`, `git revert`, `git checkout -- <file>`, `git restore`,
 `git stash drop`, `git push --force`.
 
+## Branch Changes Are Forbidden
+
+Stay on the branch you started on. Never change branches, create
+branches, delete branches, rename branches, or integrate branches from
+an AI tool call.
+
+Forbidden branch-changing commands include `git switch`, `git checkout
+<branch>`, `git branch`, `git rebase`, `git merge`, and
+`git cherry-pick`.
+
+If branch movement or integration is needed, stop and ask the user to do
+it manually.
+
 ## Before Destructive Actions
 
 Save: `git diff > backups/work-$(date +%Y%m%d-%H%M%S).patch`,
@@ -138,8 +151,8 @@ tell the user, STOP.
 
 ## Branch Integration
 
-Worktree branches land on main via `git rebase <branch>`, never
-`git merge`. Linear history.
+When the user integrates a worktree branch manually, it lands on main
+via `git rebase <branch>`, never `git merge`. Linear history.
 
 ## GPG Signing
 
