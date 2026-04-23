@@ -35,6 +35,7 @@ type TelemetryConfig struct {
 	Enabled   bool
 	Endpoints []Endpoint
 	Path      string
+	Prefix    string
 }
 
 // Server serves Prometheus metrics over HTTP on one or more listeners.
@@ -146,6 +147,12 @@ func ExtractTelemetryConfig(tree map[string]any) TelemetryConfig {
 	cfg.Path, _ = prom["path"].(string)
 	if cfg.Path == "" {
 		cfg.Path = "/metrics"
+	}
+
+	// Extract prefix (default: netdata).
+	cfg.Prefix, _ = prom["prefix"].(string)
+	if cfg.Prefix == "" {
+		cfg.Prefix = "netdata"
 	}
 
 	// Read every server list entry in alphabetical key order. ToMap() loses

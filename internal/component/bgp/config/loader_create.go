@@ -22,6 +22,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/telemetry/collector"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
@@ -210,6 +211,8 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 			}
 			r.SetMetricsRegistry(reg)
 			registry.SetMetricsRegistry(reg)
+
+			collector.StartOSCollectors(reg, telemetryCfg.Prefix, configLogger())
 		}
 	}
 

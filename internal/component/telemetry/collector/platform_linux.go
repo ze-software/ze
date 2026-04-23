@@ -1,0 +1,31 @@
+// Design: docs/architecture/core-design.md — Netdata-compatible OS metric collection
+
+//go:build linux
+
+package collector
+
+import "github.com/prometheus/procfs"
+
+func registerPlatformCollectors(m *Manager) {
+	fs, err := procfs.NewDefaultFS()
+	if err != nil {
+		m.logger.Warn("procfs unavailable, OS collectors disabled", "error", err)
+		return
+	}
+
+	m.Register(newCPUCollector(fs, m.interval))
+	m.Register(newMemoryCollector(fs))
+	m.Register(newLoadAvgCollector(fs))
+	m.Register(newNetDevCollector(fs, m.interval))
+	m.Register(newDiskStatsCollector(m.interval))
+	m.Register(newStatCollector(fs, m.interval))
+	m.Register(newUptimeCollector())
+	m.Register(newEntropyCollector(fs))
+	m.Register(newFileNRCollector())
+	m.Register(newPressureCollector(fs))
+	m.Register(newSockStatCollector(fs))
+	m.Register(newSoftNetCollector(fs, m.interval))
+	m.Register(newSNMPCollector(fs, m.interval))
+	m.Register(newConntrackCollector(fs, m.interval))
+	m.Register(newVMStatCollector(m.interval))
+}

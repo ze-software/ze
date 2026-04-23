@@ -48,6 +48,12 @@ module ze-telemetry-conf {
                 default "/metrics";
                 description "HTTP path for metrics endpoint";
             }
+
+            leaf prefix {
+                type string;
+                default "netdata";
+                description "Metric name prefix for OS collectors (e.g. netdata, node)";
+            }
         }
     }
 }

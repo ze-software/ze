@@ -353,6 +353,26 @@ func TestExtractTelemetryConfig_MultipleServers(t *testing.T) {
 	assert.Equal(t, 19273, cfg.Endpoints[1].Port)
 }
 
+// TestExtractTelemetryConfig_Prefix verifies the prefix field is extracted from
+// the config tree, defaulting to "netdata" when absent.
+func TestExtractTelemetryConfig_Prefix(t *testing.T) {
+	// Default prefix when not specified.
+	cfg := metrics.ExtractTelemetryConfig(map[string]any{
+		"telemetry": map[string]any{
+			"prometheus": map[string]any{"enabled": "true"},
+		},
+	})
+	assert.Equal(t, "netdata", cfg.Prefix)
+
+	// Custom prefix.
+	cfg = metrics.ExtractTelemetryConfig(map[string]any{
+		"telemetry": map[string]any{
+			"prometheus": map[string]any{"enabled": "true", "prefix": "node"},
+		},
+	})
+	assert.Equal(t, "node", cfg.Prefix)
+}
+
 // TestServer_MultiListener verifies Server.Start binds every endpoint and
 // both listeners serve the same metrics handler.
 //
