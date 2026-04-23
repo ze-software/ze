@@ -106,6 +106,12 @@ Graceful restart, route refresh, capability negotiation, session management.
 - [574](plan/learned/574-bgp-4-bmp.md) -- BMP receiver + sender (RFC 7854), config-as-strings, synthetic OPENs
 - [647](plan/learned/647-bmp-5-sender-compliance.md) -- BMP sender compliance: real OPENs, Route Mirroring, ribout dedup
 
+## Observability
+
+Metrics, telemetry, Prometheus exporters, third-party format compatibility.
+
+- [653](plan/learned/653-netdata-os-collectors.md) -- Netdata-compatible OS collector framework, 138 metrics, counter-wrap protection, per-collector config via YANG, verify names against source not summaries
+
 ## Testing
 
 Test patterns, infrastructure, chaos testing.
