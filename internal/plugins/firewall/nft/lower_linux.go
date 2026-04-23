@@ -229,6 +229,8 @@ func lowerMatch(ctx *lowerCtx, m firewall.Match) ([]expr.Any, error) {
 		return lowerICMPTypeMatch(v.Type)
 	case firewall.MatchInSet:
 		return lowerMatchInSet(ctx, v)
+	case firewall.MatchTCPFlags:
+		return lowerTCPFlagsMatch(v.Flags, v.Mask)
 	}
 	return nil, fmt.Errorf("unsupported match type %T", m)
 }
@@ -697,6 +699,36 @@ func lowerSetDSCP(dscp uint8) ([]expr.Any, error) {
 			Len:            1,
 			CsumType:       expr.CsumTypeInet,
 			CsumOffset:     10,
+		},
+	}, nil
+}
+
+// lowerTCPFlagsMatch matches TCP header flags. TCP flags occupy byte 13
+// of the TCP header (offset from transport header base). The mask
+// selects which flag bits to inspect; the value specifies which of those
+// bits must be set. nftables equivalent: `tcp flags & <mask> == <flags>`.
+func lowerTCPFlagsMatch(flags, mask firewall.TCPFlags) ([]expr.Any, error) {
+	if mask == 0 {
+		mask = flags
+	}
+	return []expr.Any{
+		&expr.Payload{
+			DestRegister: 1,
+			Base:         expr.PayloadBaseTransportHeader,
+			Offset:       13,
+			Len:          1,
+		},
+		&expr.Bitwise{
+			SourceRegister: 1,
+			DestRegister:   1,
+			Len:            1,
+			Mask:           []byte{byte(mask)},
+			Xor:            []byte{0},
+		},
+		&expr.Cmp{
+			Op:       expr.CmpOpEq,
+			Register: 1,
+			Data:     []byte{byte(flags)},
 		},
 	}, nil
 }

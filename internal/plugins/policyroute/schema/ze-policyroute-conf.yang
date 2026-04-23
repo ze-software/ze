@@ -1,0 +1,137 @@
+module ze-policyroute-conf {
+    namespace "urn:ze:policyroute:conf";
+    prefix policyroute;
+
+    import ze-extensions { prefix ze; }
+
+    description
+        "Policy-based routing configuration for Ze.
+         Steers packets to alternate routing tables or next-hops
+         based on L3/L4 match criteria. Implemented via nftables
+         packet marking and ip rule table selection.";
+
+    revision 2026-04-23 {
+        description "Initial revision.";
+    }
+
+    container policy {
+        description "Policy routing configuration.";
+
+        list route {
+            key "name";
+            description "A named policy route applied to ingress interfaces.";
+
+            leaf name {
+                type string;
+                description "Policy route name.";
+            }
+
+            leaf-list interface {
+                type string;
+                description
+                    "Ingress interface(s) to match. A trailing '*' enables
+                     prefix (wildcard) matching (e.g. 'l2tp*').";
+            }
+
+            list rule {
+                key "name";
+                ordered-by user;
+                description "Ordered list of match/action rules.";
+
+                leaf name {
+                    type string;
+                    description "Rule name.";
+                }
+
+                leaf order {
+                    type uint32;
+                    description
+                        "Evaluation order (lower values first). Rules with
+                         equal order are sorted by name. If omitted,
+                         defaults to 0.";
+                }
+
+                container from {
+                    description "Packet match criteria.";
+
+                    leaf source-address {
+                        type string;
+                        ze:validate "ipv4-prefix|ipv6-prefix|set-ref";
+                        description "Source IP prefix or @set reference.";
+                    }
+
+                    leaf destination-address {
+                        type string;
+                        ze:validate "ipv4-prefix|ipv6-prefix|set-ref";
+                        description "Destination IP prefix or @set reference.";
+                    }
+
+                    leaf source-port {
+                        type string;
+                        ze:validate "port-spec";
+                        description "Source port or port range (e.g. '80,443').";
+                    }
+
+                    leaf destination-port {
+                        type string;
+                        ze:validate "port-spec";
+                        description "Destination port or port range.";
+                    }
+
+                    leaf protocol {
+                        type string;
+                        description "L4 protocol name (tcp, udp, icmp).";
+                    }
+
+                    leaf tcp-flags {
+                        type string;
+                        description
+                            "Comma-separated TCP flags to match
+                             (fin, syn, rst, psh, ack, urg).";
+                    }
+                }
+
+                container then {
+                    description "Action for matching packets.";
+
+                    leaf accept {
+                        type empty;
+                        description "Skip this policy (packet routes normally).";
+                    }
+
+                    leaf drop {
+                        type empty;
+                        description "Drop matching packets.";
+                    }
+
+                    leaf table {
+                        type uint32 {
+                            range "1..999|3000..max";
+                        }
+                        description
+                            "Route matching packets via this kernel routing
+                             table. Range 1000-2999 is reserved for ze
+                             internal use (VRF and policy-routing auto tables).";
+                    }
+
+                    leaf next-hop {
+                        type string;
+                        ze:validate "ipv4-address|ipv6-address";
+                        description
+                            "Redirect matching packets to this next-hop.
+                             Ze auto-allocates a kernel routing table
+                             from range 2000-2999 and manages the default
+                             route, fwmark, and ip rule internally.";
+                    }
+
+                    leaf tcp-mss {
+                        type uint16 {
+                            range "1..65535";
+                        }
+                        description "Clamp TCP MSS to this value (bytes).";
+                    }
+                }
+            }
+        }
+    }
+}

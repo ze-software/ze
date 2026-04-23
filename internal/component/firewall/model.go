@@ -255,6 +255,18 @@ const (
 	ConnStateInvalid                           // invalid
 )
 
+// TCPFlags is a bitmask for TCP header flags (byte 13 of TCP header).
+type TCPFlags uint8
+
+const (
+	TCPFlagFIN TCPFlags = 0x01
+	TCPFlagSYN TCPFlags = 0x02
+	TCPFlagRST TCPFlags = 0x04
+	TCPFlagPSH TCPFlags = 0x08
+	TCPFlagACK TCPFlags = 0x10
+	TCPFlagURG TCPFlags = 0x20
+)
+
 // --- Match and Action interfaces ---
 
 // Match marks a type as a firewall match expression (from block).
@@ -357,6 +369,14 @@ type MatchInSet struct {
 	MatchField SetFieldType
 }
 
+// MatchTCPFlags matches packets by TCP header flags. Flags is the
+// bitmask of flags that must be set; Mask selects which flags to check.
+// If Mask is zero it defaults to Flags (exact match on those flags).
+type MatchTCPFlags struct {
+	Flags TCPFlags
+	Mask  TCPFlags
+}
+
 // Interface compliance: every Match type implements Match. Keep this list
 // exhaustive with the struct definitions above -- a markerless type compiles
 // but silently fails the `m.(Match)` assertion at runtime.
@@ -374,6 +394,7 @@ func (MatchDSCP) matchMarker()               {}
 func (MatchInSet) matchMarker()              {}
 func (MatchICMPType) matchMarker()           {}
 func (MatchICMPv6Type) matchMarker()         {}
+func (MatchTCPFlags) matchMarker()           {}
 
 // --- Action types (16) ---
 

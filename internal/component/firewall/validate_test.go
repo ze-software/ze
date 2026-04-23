@@ -123,7 +123,7 @@ func TestParsePortSpecCapExceeded(t *testing.T) {
 		parts[i] = "1" // same port repeated; point is the count, not validity
 	}
 	spec := strings.Join(parts, ",")
-	_, err := parsePortSpec(spec)
+	_, err := ParsePortSpec(spec)
 	if err == nil || !strings.Contains(err.Error(), "more than") {
 		t.Fatalf("expected cap rejection, got %v", err)
 	}
@@ -135,7 +135,7 @@ func TestParsePortSpecCapExceeded(t *testing.T) {
 	for i := range distinct {
 		distinct[i] = itoa(i*2 + 1)
 	}
-	if _, err := parsePortSpec(strings.Join(distinct, ",")); err != nil {
+	if _, err := ParsePortSpec(strings.Join(distinct, ",")); err != nil {
 		t.Fatalf("%d-entry spec must accept, got %v", maxPortRanges, err)
 	}
 }
@@ -158,7 +158,7 @@ func TestParsePortSpecOverlapAndAdjacency(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := parsePortSpec(tt.spec)
+			_, err := ParsePortSpec(tt.spec)
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Fatalf("expected %q in error, got %v", tt.want, err)
 			}

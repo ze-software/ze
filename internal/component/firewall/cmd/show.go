@@ -123,6 +123,8 @@ func formatMatch(m firewall.Match) string {
 		return fmt.Sprintf("dscp %d", v.Value)
 	case firewall.MatchInSet:
 		return formatInSet(v)
+	case firewall.MatchTCPFlags:
+		return fmt.Sprintf("tcp flags %s", formatTCPFlags(v.Flags))
 	}
 	return fmt.Sprintf("<%T>", m)
 }
@@ -234,6 +236,26 @@ func formatInSet(m firewall.MatchInSet) string {
 		return fmt.Sprintf("destination port @%s", m.SetName)
 	}
 	return fmt.Sprintf("@%s", m.SetName)
+}
+
+func formatTCPFlags(flags firewall.TCPFlags) string {
+	var names []string
+	for _, pair := range []struct {
+		flag firewall.TCPFlags
+		name string
+	}{
+		{firewall.TCPFlagFIN, "fin"},
+		{firewall.TCPFlagSYN, "syn"},
+		{firewall.TCPFlagRST, "rst"},
+		{firewall.TCPFlagPSH, "psh"},
+		{firewall.TCPFlagACK, "ack"},
+		{firewall.TCPFlagURG, "urg"},
+	} {
+		if flags&pair.flag != 0 {
+			names = append(names, pair.name)
+		}
+	}
+	return strings.Join(names, ",")
 }
 
 // formatIface renders an interface name with a trailing `*` when the

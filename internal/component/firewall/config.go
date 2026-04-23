@@ -301,6 +301,14 @@ func parseFromBlock(m map[string]any) ([]Match, error) {
 		matches = append(matches, MatchDSCP{Value: dscpVal})
 	}
 
+	if v, ok := m["tcp-flags"].(string); ok {
+		flags, mask, err := ParseTCPFlags(v)
+		if err != nil {
+			return nil, fmt.Errorf("tcp-flags: %w", err)
+		}
+		matches = append(matches, MatchTCPFlags{Flags: flags, Mask: mask})
+	}
+
 	return matches, nil
 }
 
@@ -532,7 +540,7 @@ func parsePortMatch(v string, isSource bool) (Match, error) {
 		}
 		return MatchInSet{SetName: setName, MatchField: field}, nil
 	}
-	ranges, err := parsePortSpec(v)
+	ranges, err := ParsePortSpec(v)
 	if err != nil {
 		return nil, err
 	}
@@ -558,7 +566,9 @@ const maxPortRanges = 128
 // port of 0, a list exceeding maxPortRanges entries, or overlapping /
 // adjacent ranges all reject at parse so the operator gets a clear
 // message instead of an opaque nftables kernel error at Apply.
-func parsePortSpec(v string) ([]PortRange, error) {
+// ParsePortSpec accepts a YANG port-spec string ("22", "80-90", "22,80,443",
+// or "5060-5061,16384-32767") and returns the canonical []PortRange.
+func ParsePortSpec(v string) ([]PortRange, error) {
 	if v == "" {
 		return nil, fmt.Errorf("empty port spec")
 	}
@@ -873,7 +883,7 @@ func parseNATSpec(v string) (addr, addrEnd netip.Addr, port, portEnd uint16, err
 	if portPart == "" {
 		return addr, addrEnd, 0, 0, nil
 	}
-	ranges, perr := parsePortSpec(portPart)
+	ranges, perr := ParsePortSpec(portPart)
 	if perr != nil {
 		return netip.Addr{}, netip.Addr{}, 0, 0, fmt.Errorf("invalid NAT port %q: %w", portPart, perr)
 	}
@@ -885,6 +895,35 @@ func parseNATSpec(v string) (addr, addrEnd netip.Addr, port, portEnd uint16, err
 		return addr, addrEnd, r.Lo, 0, nil
 	}
 	return addr, addrEnd, r.Lo, r.Hi, nil
+}
+
+// tcpFlagNames maps symbolic TCP flag names to bitmask values.
+var tcpFlagNames = map[string]TCPFlags{
+	"fin": TCPFlagFIN,
+	"syn": TCPFlagSYN,
+	"rst": TCPFlagRST,
+	"psh": TCPFlagPSH,
+	"ack": TCPFlagACK,
+	"urg": TCPFlagURG,
+}
+
+// ParseTCPFlags parses a comma-separated list of TCP flag names
+// (e.g. "syn", "syn,ack") into a bitmask. The mask defaults to the
+// flags value (exact match on those flags).
+func ParseTCPFlags(v string) (TCPFlags, TCPFlags, error) {
+	var flags TCPFlags
+	for name := range strings.SplitSeq(v, ",") {
+		name = strings.TrimSpace(strings.ToLower(name))
+		f, ok := tcpFlagNames[name]
+		if !ok {
+			return 0, 0, fmt.Errorf("unknown TCP flag %q", name)
+		}
+		flags |= f
+	}
+	if flags == 0 {
+		return 0, 0, fmt.Errorf("empty TCP flags")
+	}
+	return flags, flags, nil
 }
 
 // parseInterfaceSpec strips a trailing `*` wildcard marker from an

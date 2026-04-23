@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-fw-8-lns-gaps (interface wildcard, component reactor pattern), spec-static-routes (table 100 populated) |
-| Phase | - |
-| Updated | 2026-04-15 |
+| Phase | 1/7 |
+| Updated | 2026-04-23 |
 
 ## Post-Compaction Recovery
 
@@ -160,37 +160,70 @@ Not protocol work. Policy routing is a Linux kernel feature.
    - Table name: `ze_pr_surfprotect` (type route, hook prerouting, priority -150)
    - Interface match: each rule prepended with MatchInputInterface{Name:"l2tp", Wildcard:true}
    - "set table 100" becomes SetMark{Value: allocated_mark} + register ip rule
+   - "next-hop 10.0.0.1" becomes SetMark{Value: allocated_mark} + auto-allocate table from 2000-2999 + add default route via 10.0.0.1 in that table + register ip rule
    - "accept" becomes Accept (skip this policy, packet routes normally)
    - "drop" becomes Drop
    - "set tcp-mss 1436" becomes SetTCPMSS{Size: 1436}
 5. Component calls firewall.GetBackend().Apply() for the nftables table
 6. Component calls netlink RuleAdd for fwmark-to-table ip rules
-7. On reload: reconcile both nftables tables and ip rules
+7. Component calls netlink RouteAdd for auto-allocated tables (next-hop action only)
+8. On reload: reconcile nftables tables, ip rules, and auto-managed routes
+9. On shutdown: clean up ip rules and auto-managed routes
 
-### Mark Allocation
+### Reserved Ranges
 
-Each "set table N" action in a policy route needs a unique fwmark value. The component
-allocates marks from a reserved range:
+Ze reserves ranges for kernel routing tables and fwmarks to prevent collisions
+between user config, VRF auto-allocation, and policy routing internals.
+
+#### Kernel Routing Tables
 
 | Range | Owner | Purpose |
 |-------|-------|---------|
-| 0x50000-0x5FFFF | policy routing | fwmark values for table routing |
-| Other | user | user-controlled marks in firewall config |
+| 1-252 | user | Explicit table IDs in config (`then { table 100; }`, `vrf X { table 100; }`) |
+| 253-255 | kernel | default (253), main (254), local (255) |
+| 256-999 | user | Explicit table IDs (extended range) |
+| 1000-1999 | ze VRF | Auto-allocated VRF tables (VRF without explicit `table N` in config) |
+| 2000-2999 | ze policy-routing | Auto-allocated tables for `then { next-hop }` actions |
 
-Allocation: deterministic hash of policy-name + table-id to a mark value in the range.
-Or sequential allocation tracked in the component state. The mark value is internal;
-users never see it.
+User-specified table IDs in config are validated to reject 1000-2999 (ze-reserved).
+VRF and policy-routing ranges do not overlap by construction.
+
+#### Fwmarks
+
+| Range | Owner | Purpose |
+|-------|-------|---------|
+| 0x50000-0x5FFFF | ze policy-routing | fwmark values for table/next-hop steering |
+| other | user | user-controlled marks in firewall config |
+
+### Mark Allocation
+
+Each "set table N" or "next-hop X" action in a policy route needs a unique fwmark value.
+The component allocates marks from the 0x50000-0x5FFFF range.
+
+Allocation: deterministic hash of policy-name + table-id (or next-hop address) to a mark
+value in the range. Or sequential allocation tracked in the component state. The mark
+value is internal; users never see it.
 
 ### ip Rule Management
 
-For each unique "set table N" action, the component creates one ip rule:
+For each unique "set table N" or "next-hop X" action, the component creates one ip rule:
 
 ```
 ip rule add fwmark 0x50001 lookup table 100 priority 100
 ```
 
-Rules are created at Apply time and removed on cleanup. The component tracks which rules
-it owns (by priority range or mark range) for reconciliation.
+For "next-hop X", the table is auto-allocated from range 2000-2999 and populated:
+
+```
+ip route add default via 10.0.0.1 table 2000
+ip rule add fwmark 0x50002 lookup table 2000 priority 101
+```
+
+Multiple rules pointing to the same next-hop share a single auto-allocated table
+(keyed by next-hop address). This avoids wasting kernel tables.
+
+Rules and auto-managed routes are created at Apply time and removed on cleanup.
+The component tracks which rules and tables it owns for reconciliation.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -198,13 +231,14 @@ it owns (by priority range or mark range) for reconciliation.
 | Config --> Component | YANG tree JSON via SDK OnConfigure | [ ] |
 | Component --> Firewall backend | firewall.GetBackend().Apply([]Table) | [ ] |
 | Component --> Kernel ip rules | netlink.RuleAdd / netlink.RuleDel | [ ] |
+| Component --> Kernel routes (next-hop) | netlink.RouteAdd / netlink.RouteDel | [ ] |
 | Firewall backend --> Kernel nftables | google/nftables (existing) | [ ] |
 
 ### Integration Points
 - `internal/component/firewall/` -- reuses match types, action types, and Backend for nftables
 - `internal/component/firewall/model.go` -- new types added here (MatchTCPFlags, SetTable, SetTCPMSS)
 - `internal/plugins/firewall/nft/lower_linux.go` -- new lowering cases added here
-- `vendor/github.com/vishvananda/netlink` -- RuleAdd/RuleDel for ip rules
+- `vendor/github.com/vishvananda/netlink` -- RuleAdd/RuleDel for ip rules, RouteAdd/RouteDel for auto-managed tables
 - `internal/component/staticroute/` -- populates tables referenced by SetTable actions
 
 ### Architectural Verification
@@ -314,8 +348,33 @@ policy {
             }
         }
     }
+
+    route redirect-alt-gw {
+        interface "eth1"
+
+        rule web-to-alt {
+            from {
+                destination-port 80,443
+                protocol tcp
+            }
+            then {
+                next-hop 10.0.0.1
+            }
+        }
+    }
 }
 ```
+
+### next-hop action
+
+`then { next-hop <ip>; }` redirects matching traffic to a specific next-hop without
+requiring the user to create a static routing table. The component auto-manages:
+- A kernel routing table (allocated from range 2000-2999)
+- A default route via the specified next-hop in that table
+- An fwmark + ip rule to steer marked packets to that table
+
+Multiple rules targeting the same next-hop address share a single auto-allocated table.
+The table and its routes are cleaned up when the policy is removed or reloaded.
 
 ### Key differences from firewall config
 
@@ -323,7 +382,8 @@ policy {
 |--------|----------|---------------|
 | Table creation | Explicit (user defines table/chain/hook) | Implicit (component creates ze_pr_* table, type route, hook prerouting) |
 | Interface binding | Per-rule match | Per-policy (all rules in a policy share the interface match) |
-| "table N" action | Not supported | Translated to fwmark + ip rule |
+| "table N" action | Not supported | Translated to fwmark + ip rule (user pre-populates table via static routes) |
+| "next-hop X" action | Not supported | Auto-allocates table from 2000-2999, adds default route, fwmark + ip rule |
 | "tcp-mss N" action | Not supported | Translates to nftables TCP option write |
 | "accept" meaning | Accept packet | Skip this policy (packet routes normally, no mark applied) |
 
@@ -335,7 +395,8 @@ policy {
 | Config with "set table 100" action | --> | Mark allocation, SetMark in nftables, ip rule created | `test/policy/002-set-table.ci` |
 | Config with tcp-flags syn match | --> | MatchTCPFlags lowered to Payload+Bitwise+Cmp | `test/policy/003-tcp-flags.ci` |
 | Config with tcp-mss action | --> | SetTCPMSS lowered to Exthdr write | `test/policy/004-tcp-mss.ci` |
-| Config reload changes policy | --> | Reconcile nftables + ip rules | `test/policy/005-reload.ci` |
+| Config with "next-hop 10.0.0.1" action | --> | Auto-allocate table, add route, fwmark + ip rule | `test/policy/005-next-hop.ci` |
+| Config reload changes policy | --> | Reconcile nftables + ip rules + auto tables | `test/policy/006-reload.ci` |
 
 ## Acceptance Criteria
 
@@ -354,6 +415,10 @@ policy {
 | AC-11 | Rule with `from { destination-address @DstBypass; }` | Set reference resolved via existing firewall set mechanism |
 | AC-12 | ze boots with policy + static route config | Traffic matching policy rules is forwarded via table 100 through tun100 |
 | AC-13 | Rule with `from { tcp-flags syn,ack; }` | Matches packets with both SYN and ACK set |
+| AC-14 | Rule with `then { next-hop 10.0.0.1; }` | Table auto-allocated from 2000-2999, default route via 10.0.0.1 added, fwmark + ip rule created |
+| AC-15 | Two rules with same `next-hop 10.0.0.1` | Share a single auto-allocated table (no duplicate routes) |
+| AC-16 | Config reload removes next-hop action | Auto-allocated table cleaned up (route removed, ip rule removed) |
+| AC-17 | User specifies `table 1500` (ze-reserved range) | Config rejected with validation error |
 
 ## TDD Test Plan
 
@@ -367,8 +432,12 @@ policy {
 | `TestParsePolicyConfig` | `internal/component/policyroute/config_test.go` | Policy route JSON to PolicyRoute struct | |
 | `TestParsePolicyConfigTable` | `internal/component/policyroute/config_test.go` | "table 100" in then-block parsed | |
 | `TestParsePolicyConfigTCPMSS` | `internal/component/policyroute/config_test.go` | "tcp-mss 1436" in then-block parsed | |
+| `TestParsePolicyConfigNextHop` | `internal/component/policyroute/config_test.go` | "next-hop 10.0.0.1" in then-block parsed | |
+| `TestParsePolicyConfigRejectReservedTable` | `internal/component/policyroute/config_test.go` | "table 1500" rejected (ze-reserved range 1000-2999) | |
 | `TestPolicyToFirewallTable` | `internal/component/policyroute/translate_test.go` | PolicyRoute translated to firewall.Table | |
+| `TestPolicyNextHopToFirewallTable` | `internal/component/policyroute/translate_test.go` | next-hop action translated to fwmark + auto-allocated table | |
 | `TestMarkAllocation` | `internal/component/policyroute/marks_test.go` | Unique marks allocated for different table IDs | |
+| `TestTableAllocation` | `internal/component/policyroute/marks_test.go` | Auto tables allocated from 2000-2999, same next-hop reuses table | |
 | `TestLowerTCPFlags` | `internal/plugins/firewall/nft/lower_linux_test.go` | MatchTCPFlags produces Payload(13,1)+Bitwise+Cmp | |
 | `TestLowerSetTCPMSS` | `internal/plugins/firewall/nft/lower_linux_test.go` | SetTCPMSS produces Exthdr MSS write | |
 | `TestFormatTCPFlags` | `internal/component/firewall/cmd/show_test.go` | formatMatch displays "tcp flags syn" | |
@@ -380,7 +449,7 @@ policy {
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
 | TCP MSS | 1-65535 | 65535 | 0 (invalid) | 65536 (parse error, uint16) |
-| Table ID (in then-block) | 1-4294967295 | 4294967295 | 0 (invalid, 0 = main table, use direct routing instead) | N/A (uint32) |
+| Table ID (in then-block) | 1-999, 3000+ | 999 (last before reserved) | 0 (invalid) | 1000-2999 (ze-reserved, rejected) |
 | TCP flags | 0x01-0x3F | 0x3F (all flags) | 0 (no flags, rejected) | 0x40+ (invalid bits) |
 | fwmark range | 0x50000-0x5FFFF | 0x5FFFF | N/A (internal) | N/A (internal) |
 | ip rule priority | internal | internal | N/A | N/A |
@@ -393,7 +462,8 @@ policy {
 | Set table | `test/policy/002-set-table.ci` | "table 100" action creates fwmark rule + ip rule | |
 | TCP flags | `test/policy/003-tcp-flags.ci` | tcp-flags syn matched in nftables | |
 | TCP MSS | `test/policy/004-tcp-mss.ci` | tcp-mss 1436 clamped in nftables | |
-| Reload | `test/policy/005-reload.ci` | Policy change reconciled | |
+| Next-hop | `test/policy/005-next-hop.ci` | next-hop auto-allocates table, adds route + ip rule | |
+| Reload | `test/policy/006-reload.ci` | Policy change reconciled (tables, rules, auto routes) | |
 
 ### Future (if deferring any tests)
 - None. All tests required for LNS replacement.
@@ -439,8 +509,8 @@ policy {
 - `internal/component/policyroute/model.go` -- PolicyRoute, PolicyRule structs
 - `internal/component/policyroute/config.go` -- config JSON to PolicyRoute parsing
 - `internal/component/policyroute/translate.go` -- PolicyRoute to firewall.Table translation
-- `internal/component/policyroute/marks.go` -- fwmark allocation for table routing
-- `internal/component/policyroute/rules_linux.go` -- ip rule management via netlink
+- `internal/component/policyroute/marks.go` -- fwmark + table allocation for table/next-hop routing
+- `internal/component/policyroute/rules_linux.go` -- ip rule + auto-managed route management via netlink
 - `internal/component/policyroute/rules_other.go` -- noop for non-Linux
 - `internal/component/policyroute/register.go` -- registry.Register, RunEngine
 - `internal/component/policyroute/schema/ze-policy-conf.yang` -- YANG schema
@@ -457,7 +527,8 @@ policy {
 - `test/policy/002-set-table.ci` -- functional test
 - `test/policy/003-tcp-flags.ci` -- functional test
 - `test/policy/004-tcp-mss.ci` -- functional test
-- `test/policy/005-reload.ci` -- functional test
+- `test/policy/005-next-hop.ci` -- functional test
+- `test/policy/006-reload.ci` -- functional test
 
 ## Implementation Steps
 
@@ -481,17 +552,17 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: tests fail --> implement --> tests pass
 
 2. **Phase: Policy route data model** -- PolicyRoute, PolicyRule structs
-   - Tests: TestParsePolicyConfig, TestParsePolicyConfigTable, TestParsePolicyConfigTCPMSS
+   - Tests: TestParsePolicyConfig, TestParsePolicyConfigTable, TestParsePolicyConfigTCPMSS, TestParsePolicyConfigNextHop, TestParsePolicyConfigRejectReservedTable
    - Files: policyroute/model.go, policyroute/config.go, ze-policy-conf.yang
    - Verify: tests fail --> implement --> tests pass
 
 3. **Phase: Translation layer** -- PolicyRoute to firewall.Table
-   - Tests: TestPolicyToFirewallTable
+   - Tests: TestPolicyToFirewallTable, TestPolicyNextHopToFirewallTable
    - Files: policyroute/translate.go
    - Verify: tests fail --> implement --> tests pass
 
-4. **Phase: Mark allocation + ip rules** -- fwmark management and netlink rules
-   - Tests: TestMarkAllocation
+4. **Phase: Mark + table allocation, ip rules, auto routes** -- fwmark management, table allocation for next-hop, netlink rules and routes
+   - Tests: TestMarkAllocation, TestTableAllocation
    - Files: policyroute/marks.go, policyroute/rules_linux.go, policyroute/rules_other.go
    - Verify: tests fail --> implement --> tests pass
 
@@ -512,12 +583,16 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | Every AC-N (AC-1 through AC-13) has implementation with file:line |
+| Completeness | Every AC-N (AC-1 through AC-17) has implementation with file:line |
 | Correctness | TCP flags byte offset is 13 in TCP header; MSS option type is 2; fwmark values unique |
-| Naming | Config keys: tcp-flags, tcp-mss, table, policy, route (lowercase hyphenated) |
-| Data flow | Config --> PolicyRoute --> translate to Table --> firewall backend Apply + netlink RuleAdd |
+| Naming | Config keys: tcp-flags, tcp-mss, table, next-hop, policy, route (lowercase hyphenated) |
+| Data flow | Config --> PolicyRoute --> translate to Table --> firewall backend Apply + netlink RuleAdd + RouteAdd |
 | Mark isolation | Policy routing marks in 0x50000-0x5FFFF range, no collision with user marks |
+| Table isolation | Auto-allocated tables in 2000-2999, VRF tables in 1000-1999, user tables outside both ranges |
+| Range validation | User-specified table IDs in 1000-2999 rejected at config parse time |
 | ip rule cleanup | All ze-created ip rules removed on shutdown / config change |
+| Auto route cleanup | Routes in auto-allocated tables removed on shutdown / config change |
+| Next-hop dedup | Same next-hop address reuses same auto-allocated table |
 | Interface wildcard | l2tp* prepended to every rule in the policy (not just first rule) |
 
 ### Deliverables Checklist (/implement stage 9)
@@ -529,18 +604,24 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | policyroute component exists | `ls internal/component/policyroute/` |
 | Translation produces firewall.Table | `grep "firewall.Table" internal/component/policyroute/translate.go` |
 | ip rule management | `grep "RuleAdd\|RuleDel" internal/component/policyroute/rules_linux.go` |
+| Auto route management | `grep "RouteAdd\|RouteDel" internal/component/policyroute/rules_linux.go` |
 | Mark allocation | `grep "0x50000" internal/component/policyroute/marks.go` |
+| Table allocation | `grep "2000" internal/component/policyroute/marks.go` |
+| Range validation | `grep "1000\|2999" internal/component/policyroute/config.go` |
 | Functional tests | `ls test/policy/*.ci` |
 
 ### Security Review Checklist (/implement stage 10)
 
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | TCP MSS validated (1-65535); table ID validated (1+); tcp-flags bitmask validated |
-| Mark range | Policy marks cannot overlap with user marks; range enforced |
+| Input validation | TCP MSS validated (1-65535); table ID validated (not 0, not 1000-2999, not 253-255); tcp-flags bitmask validated; next-hop is valid IP |
+| Mark range | Policy marks cannot overlap with user marks; 0x50000-0x5FFFF enforced |
+| Table range | Auto tables in 2000-2999; user tables reject 1000-2999; VRF tables in 1000-1999 |
 | ip rule priority | Priority chosen to not conflict with system rules (default, main, local) |
 | ip rule cleanup | Stale ip rules cleaned up on shutdown to prevent route leaks |
+| Auto route cleanup | Routes in auto-allocated tables cleaned up on shutdown to prevent stale forwarding |
 | Table reference | Table ID in "set table N" should match a table populated by static routes (warning if not) |
+| Next-hop reachability | No reachability check at config time (deferred to runtime, like Nokia primary/secondary -- future) |
 
 ### Failure Routing
 
@@ -564,6 +645,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | 5 | Deterministic mark allocation from reserved range | Prevents mark collisions with user firewall rules. Reserved range 0x50000-0x5FFFF gives 65536 possible marks, more than enough. Deterministic (hash of policy+table) means marks are stable across restarts. |
 | 6 | Policy route creates nftables table with ze_pr_ prefix | Distinct from ze_ firewall tables. Easy to identify policy routing tables vs firewall tables. Both managed by the same firewallnft backend. |
 | 7 | TCP MSS clamping via nftables Exthdr, not iptables TCPMSS target | nftables is the ze standard. Exthdr can write TCP options. No need for legacy iptables/xtables. |
+| 8 | `next-hop` action auto-manages a kernel table (Nokia-inspired) | Users shouldn't need to create a static routing table just to redirect to a next-hop. The component allocates a table from 2000-2999, adds a default route, and manages the fwmark + ip rule. Same mechanism as `table N` but fully automated. |
+| 9 | Reserved table ranges: VRF 1000-1999, policy-routing 2000-2999 | Prevents collisions between user-configured tables, VRF auto-allocation, and policy routing auto-allocation. User-specified table IDs validated to reject reserved ranges. |
+| 10 | Same next-hop shares a table | Multiple rules targeting the same next-hop address share one auto-allocated table. Avoids wasting kernel routing tables and keeps the ip rule table clean. |
 
 ## Mistake Log
 

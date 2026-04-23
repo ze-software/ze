@@ -191,8 +191,8 @@ func runEngine(conn net.Conn) int {
 		}
 		log.Info("firewall backend loaded", "backend", cfg.Backend)
 
-		b := GetBackend()
-		if err := b.Apply(cfg.Tables); err != nil {
+		RegisterTables("firewall", cfg.Tables)
+		if err := ApplyAll(); err != nil {
 			return fmt.Errorf("firewall config apply: %w", err)
 		}
 		StoreLastApplied(cfg.Tables)
@@ -253,11 +253,11 @@ func runEngine(conn net.Conn) int {
 			log.Info("firewall backend loaded", "backend", desiredBackend)
 		}
 
-		b := GetBackend()
 		j := sdk.NewJournal()
 		err := j.Record(
 			func() error {
-				if applyErr := b.Apply(cfg.Tables); applyErr != nil {
+				RegisterTables("firewall", cfg.Tables)
+				if applyErr := ApplyAll(); applyErr != nil {
 					return fmt.Errorf("firewall reload: %w", applyErr)
 				}
 				StoreLastApplied(cfg.Tables)
@@ -268,7 +268,8 @@ func runEngine(conn net.Conn) int {
 				if previousCfg != nil {
 					desired = previousCfg.Tables
 				}
-				if rollbackErr := b.Apply(desired); rollbackErr != nil {
+				RegisterTables("firewall", desired)
+				if rollbackErr := ApplyAll(); rollbackErr != nil {
 					return fmt.Errorf("firewall rollback: %w", rollbackErr)
 				}
 				StoreLastApplied(desired)
