@@ -207,8 +207,11 @@ happened; no clear API). Both commands query the same in-process report
 bus and return newest-first JSON snapshots.
 
 ```
-ze show warnings                  # JSON: {"warnings": [...], "count": N}
-ze show errors                    # JSON: {"errors":   [...], "count": N}
+ze show warnings                       # JSON: {"warnings": [...], "count": N}
+ze show warnings source bgp            # only warnings from the bgp subsystem
+ze show errors                         # JSON: {"errors":   [...], "count": N}
+ze show errors source l2tp             # only errors from the l2tp subsystem
+ze show errors source l2tp count 5     # last 5 errors from l2tp
 ```
 
 **Issue shape** (every entry in both responses):
@@ -371,6 +374,17 @@ interfaces are hidden from both the response and the valid-types list.
 whose `RxErrors`, `RxDropped`, `TxErrors`, `TxDropped` counters are all
 zero. The response includes only the four counter fields per interface
 for compact diffing across snapshots.
+
+### show traffic
+
+Traffic control (TC) state. Queries the active TC backend for qdisc, class,
+and filter state per interface. Returns "traffic control not available on
+this platform" when no TC backend is loaded (e.g. on macOS).
+
+```
+ze show traffic                   # Summary of all interfaces with qdiscs
+ze show traffic <ifname>          # Detail for one interface
+```
 
 ### show ip
 
@@ -1102,6 +1116,12 @@ When fib-kernel is loaded, it automatically enables IPv4 and IPv6 forwarding as 
 | `show l2tp statistics` | run | Protocol counters |
 | `show l2tp listeners` | run | Bound UDP listener endpoints |
 | `show l2tp config` | run | Effective runtime configuration |
+| `show l2tp observer <sid>` | run | Per-session event ring snapshot (timestamps, types, RTT, reasons) |
+| `show l2tp observer all` | run | Summary of all active session event rings |
+| `show l2tp cqm <login>` | run | Per-login CQM bucket history (100s echo RTT/loss aggregates) |
+| `show l2tp cqm summary` | run | Aggregate CQM state across all tracked logins |
+| `show l2tp echo <login>` | run | Current echo state for a login (RTT, loss ratio, interval) |
+| `show l2tp reliable <tid>` | run | Reliable transport window state (Ns, Nr, cwnd, retransmits) |
 | `clear l2tp tunnel teardown <tid>` | run | Send StopCCN for one tunnel |
 | `clear l2tp tunnel teardown-all` | run | Send StopCCN for every tunnel |
 | `clear l2tp session teardown <sid> [reason <text...>] [cause <code>]` | run | Send CDN for one session with optional audit reason and disconnect cause |
@@ -1176,7 +1196,8 @@ Streaming command: use in interactive `ze cli` or via SSH.
 |---------|--------|---------|
 | `metrics show` | read-only | Prometheus text format metrics |
 | `metrics list` | read-only | List metric names |
-<!-- source: internal/component/cmd/metrics/ -- metrics show/list RPCs -->
+| `metrics pool` | read-only | Per-attribute-pool occupancy, dedup rates, and aggregate totals (13 BGP pools) |
+<!-- source: internal/component/cmd/metrics/ -- metrics show/list/pool RPCs -->
 
 ### Logging
 

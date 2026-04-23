@@ -238,16 +238,34 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, erro
 	}, nil
 }
 
-// handleSystemSubsystemList returns available subsystems.
-func handleSystemSubsystemList(_ *CommandContext, _ []string) (*plugin.Response, error) {
-	// For now, bgp is always available
-	// Future: query reactor for enabled subsystems
-	subsystems := []string{"bgp"}
+// handleSystemSubsystemList returns available subsystems with their state.
+func handleSystemSubsystemList(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+	if ctx == nil || ctx.Server == nil {
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data:   map[string]any{"subsystems": []any{}, "count": 0},
+		}, nil
+	}
+	pm := ctx.Server.ProcessManager()
+	if pm == nil {
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data:   map[string]any{"subsystems": []any{}, "count": 0},
+		}, nil
+	}
+	procs := pm.AllProcesses()
+	out := make([]map[string]any, 0, len(procs))
+	for _, p := range procs {
+		out = append(out, map[string]any{
+			"name":          p.Name(),
+			"stage":         p.Stage().String(),
+			"running":       p.Running(),
+			"command-count": len(p.RegisteredCommands()),
+		})
+	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"subsystems": subsystems,
-		},
+		Data:   map[string]any{"subsystems": out, "count": len(out)},
 	}, nil
 }
 

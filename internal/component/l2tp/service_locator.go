@@ -29,6 +29,10 @@ type Service interface {
 	TeardownAllSessions() int
 	SessionEvents(sessionID uint16) []ObserverEvent
 	LoginSamples(login string) []CQMBucket
+	SessionSummaries() []SessionSummary
+	LoginSummaries() []LoginSummary
+	EchoState(login string) *LoginEchoState
+	ReliableStats(localTID uint16) *ReliableStats
 	RecordDisconnect(sessionID uint16, actor, reason string, cause uint32)
 }
 

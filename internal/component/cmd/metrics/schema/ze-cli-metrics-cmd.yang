@@ -20,5 +20,11 @@ module ze-cli-metrics-cmd {
             ze:command "ze-bgp:metrics-list";
             description "List metric names";
         }
+
+        container pool {
+            config false;
+            ze:command "ze-bgp:pool-stats";
+            description "Per-attribute pool occupancy and dedup rates";
+        }
     }
 }

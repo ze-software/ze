@@ -109,6 +109,12 @@ module ze-cli-show-cmd {
             description "Show recent operator-visible error events from all subsystems (report bus ring buffer)";
         }
 
+        container traffic {
+            config false;
+            ze:command "ze-show:traffic";
+            description "Show traffic control (qdisc/class/filter) state per interface";
+        }
+
         container bgp {
             config false;
             description "BGP introspection";

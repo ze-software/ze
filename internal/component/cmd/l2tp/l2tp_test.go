@@ -49,6 +49,10 @@ func (f *fakeService) LookupSession(id uint16) (l2tppkg.SessionSnapshot, bool) {
 }
 func (f *fakeService) SessionEvents(_ uint16) []l2tppkg.ObserverEvent   { return nil }
 func (f *fakeService) LoginSamples(_ string) []l2tppkg.CQMBucket        { return nil }
+func (f *fakeService) SessionSummaries() []l2tppkg.SessionSummary       { return nil }
+func (f *fakeService) LoginSummaries() []l2tppkg.LoginSummary           { return nil }
+func (f *fakeService) EchoState(_ string) *l2tppkg.LoginEchoState       { return nil }
+func (f *fakeService) ReliableStats(_ uint16) *l2tppkg.ReliableStats    { return nil }
 func (f *fakeService) RecordDisconnect(_ uint16, _, _ string, _ uint32) {}
 
 // publishFake wires fake into the service locator and returns a

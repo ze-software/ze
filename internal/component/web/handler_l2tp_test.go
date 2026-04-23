@@ -59,6 +59,10 @@ func (f *fakeL2TPService) LoginSamples(login string) []l2tp.CQMBucket {
 	}
 	return nil
 }
+func (f *fakeL2TPService) SessionSummaries() []l2tp.SessionSummary    { return nil }
+func (f *fakeL2TPService) LoginSummaries() []l2tp.LoginSummary        { return nil }
+func (f *fakeL2TPService) EchoState(_ string) *l2tp.LoginEchoState    { return nil }
+func (f *fakeL2TPService) ReliableStats(_ uint16) *l2tp.ReliableStats { return nil }
 func (f *fakeL2TPService) RecordDisconnect(sid uint16, actor, reason string, cause uint32) {
 	f.disconnects = append(f.disconnects, fakeDisconnect{SID: sid, Actor: actor, Reason: reason, Cause: cause})
 }

@@ -8,12 +8,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 )
 
@@ -55,15 +57,22 @@ func init() {
 			WireMethod: "ze-show:system-date",
 			Handler:    handleShowSystemDate,
 		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:traffic",
+			Handler:    handleShowTraffic,
+		},
 	)
 	// ze-show:host-* RPCs are registered from host.go's own init()
 	// via a loop over host.SectionNames(). See rules/derive-not-hardcode.md.
 }
 
 // handleShowWarnings returns the snapshot of all active warnings on the report bus.
-// Used by `ze show warnings`. Output is a JSON object with a sorted list and count.
-func handleShowWarnings(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+// Optional args: "source <name>" filters by source.
+func handleShowWarnings(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	issues := report.Warnings()
+	if source := extractSourceFilter(args); source != "" {
+		issues = filterIssuesBySource(issues, source)
+	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: map[string]any{
@@ -74,16 +83,114 @@ func handleShowWarnings(_ *pluginserver.CommandContext, _ []string) (*plugin.Res
 }
 
 // handleShowErrors returns the most-recent error events on the report bus,
-// newest first. Used by `ze show errors`. The bus retains up to errorCap
-// events; this handler returns all retained events.
-func handleShowErrors(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+// newest first. Optional args: "source <name>" filters by source,
+// "count <N>" limits results.
+func handleShowErrors(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	issues := report.Errors(0)
+	if source := extractSourceFilter(args); source != "" {
+		issues = filterIssuesBySource(issues, source)
+	}
+	if limit := extractCountFilter(args); limit > 0 && limit < len(issues) {
+		issues = issues[:limit]
+	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"errors": issues,
 			"count":  len(issues),
 		},
+	}, nil
+}
+
+func extractSourceFilter(args []string) string {
+	for i, a := range args {
+		if a == "source" && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+	return ""
+}
+
+func extractCountFilter(args []string) int {
+	for i, a := range args {
+		if a == "count" && i+1 < len(args) {
+			n, err := strconv.Atoi(args[i+1])
+			if err == nil && n > 0 {
+				return n
+			}
+		}
+	}
+	return 0
+}
+
+func filterIssuesBySource(issues []report.Issue, source string) []report.Issue {
+	filtered := make([]report.Issue, 0, len(issues))
+	for i := range issues {
+		if strings.EqualFold(issues[i].Source, source) {
+			filtered = append(filtered, issues[i])
+		}
+	}
+	return filtered
+}
+
+func handleShowTraffic(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	backend := traffic.GetBackend()
+	if backend == nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   "traffic control not available on this platform",
+		}, nil
+	}
+	ifaces, err := iface.ListInterfaces()
+	if err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+	}
+	ifName := ""
+	for _, a := range args {
+		if a != "" && !strings.HasPrefix(a, "-") {
+			ifName = a
+			break
+		}
+	}
+	if ifName != "" {
+		qos, qErr := backend.ListQdiscs(ifName)
+		if qErr != nil {
+			return &plugin.Response{Status: plugin.StatusError, Data: qErr.Error()}, nil //nolint:nilerr // operational error in Response
+		}
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data: map[string]any{
+				"interface":     qos.Interface,
+				"qdisc":         qos.Qdisc.Type.String(),
+				"class-count":   len(qos.Qdisc.Classes),
+				"default-class": qos.Qdisc.DefaultClass,
+			},
+		}, nil
+	}
+	rows := make([]map[string]any, 0, len(ifaces))
+	for i := range ifaces {
+		qos, qErr := backend.ListQdiscs(ifaces[i].Name)
+		if qErr != nil {
+			rows = append(rows, map[string]any{
+				"interface": ifaces[i].Name,
+				"error":     qErr.Error(),
+			})
+			continue
+		}
+		filterCount := 0
+		for j := range qos.Qdisc.Classes {
+			filterCount += len(qos.Qdisc.Classes[j].Filters)
+		}
+		rows = append(rows, map[string]any{
+			"interface":    qos.Interface,
+			"qdisc":        qos.Qdisc.Type.String(),
+			"class-count":  len(qos.Qdisc.Classes),
+			"filter-count": filterCount,
+		})
+	}
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   map[string]any{"interfaces": rows, "count": len(rows)},
 	}, nil
 }
 

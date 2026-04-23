@@ -133,3 +133,5 @@ Reusable lessons extracted from gotchas sections across summaries.
 - (275) Concurrent sends racing with channel close require WaitGroup coordination to avoid panic
 - (647) Early return in event handler blocks housekeeping (caching, cleanup) that must run regardless of sender state
 - (647) KEEPALIVE has nil RawBytes; check RawMessage != nil, not RawBytes != nil, for messages with no body
+- (652) Verify "does not exist" claims during child spec RESEARCH; umbrella assumed show interface was missing but it was fully implemented
+- (652) subsystem-list was hardcoded to ["bgp"]; always check stub implementations before assuming real data flows

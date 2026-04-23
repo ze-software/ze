@@ -52,7 +52,8 @@ Ze is a network operating system written in Go. It runs on any Linux or as a gok
 <!-- source: internal/component/host/inventory.go -- Inventory struct, Detector, DetectCPU/NICs/DMI/Memory/Thermal/Storage/Kernel/Host -->
 <!-- source: internal/component/cmd/show/host.go -- online `show host *` RPCs -->
 <!-- source: cmd/ze/host/host.go -- offline `ze host show` with --text flag -->
-| Operational Report Bus | Cross-subsystem `ze show warnings` and `ze show errors` commands: single place to surface prefix-threshold crossings, stale route data, BGP NOTIFICATIONs sent/received, unexpected session drops. State-based warnings + event-based error ring, login banner reads the same source. |
+| Operational Report Bus | Cross-subsystem `ze show warnings` and `ze show errors` commands with `source <name>` filtering: single place to surface prefix-threshold crossings, stale route data, BGP NOTIFICATIONs sent/received, unexpected session drops. State-based warnings + event-based error ring, login banner reads the same source. |
+| Runtime Diagnostics | Production debugging via CLI and MCP: `show l2tp observer` (per-session event ring), `show l2tp cqm` (per-login echo RTT/loss buckets), `show l2tp echo` (current echo state), `show l2tp reliable` (reliable transport Ns/Nr/cwnd), `show traffic` (TC qdisc/class state), `metrics pool` (BGP attribute pool occupancy and dedup rates), enhanced `subsystem-list` (real plugin state). All auto-exposed as MCP tools for AI-assisted troubleshooting. |
 <!-- source: internal/core/report/report.go -- Issue, RaiseWarning, RaiseError, Warnings, Errors -->
 <!-- source: internal/component/cmd/show/show.go -- handleShowWarnings, handleShowErrors -->
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- raisePrefixThreshold, RaisePrefixStale, raiseNotificationError, raiseSessionDropped -->

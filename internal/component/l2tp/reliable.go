@@ -243,6 +243,35 @@ type ReliableEngine struct {
 	retention time.Duration
 }
 
+// ReliableStats is a point-in-time snapshot of the reliable engine state.
+type ReliableStats struct {
+	NextSendSeq     uint16
+	NextRecvSeq     uint16
+	PeerNr          uint16
+	Outstanding     int
+	RetransmitCount int
+	CWND            uint16
+	SSThresh        uint16
+	PeerRWS         uint16
+}
+
+// Stats returns a snapshot of the engine's sequencing and congestion state.
+func (e *ReliableEngine) Stats() ReliableStats {
+	s := ReliableStats{
+		NextSendSeq:     e.nextSendSeq,
+		NextRecvSeq:     e.nextRecvSeq,
+		PeerNr:          e.peerNr,
+		Outstanding:     len(e.rtmsQueue),
+		RetransmitCount: e.attempts,
+	}
+	if e.win != nil {
+		s.CWND = e.win.cwnd
+		s.SSThresh = e.win.ssthresh
+		s.PeerRWS = e.win.peerRWS
+	}
+	return s
+}
+
 // NewReliableEngine constructs an engine with the supplied config. Zero
 // fields are populated with defaults. RecvWindow and InitialPeerRWS are
 // clamped to RecvWindowMax (32768) because advertising or assuming a

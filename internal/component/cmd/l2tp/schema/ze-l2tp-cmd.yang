@@ -72,6 +72,30 @@ module ze-l2tp-cmd {
                 ze:command "ze-l2tp-api:config";
                 description "Show effective L2TP runtime configuration.";
             }
+
+            container observer {
+                config false;
+                ze:command "ze-l2tp-api:observer";
+                description "Show per-session event ring (session ID or 'all').";
+            }
+
+            container cqm {
+                config false;
+                ze:command "ze-l2tp-api:cqm";
+                description "Show per-login CQM bucket history (login or 'summary').";
+            }
+
+            container echo {
+                config false;
+                ze:command "ze-l2tp-api:echo";
+                description "Show current echo state for a login.";
+            }
+
+            container reliable {
+                config false;
+                ze:command "ze-l2tp-api:reliable";
+                description "Show reliable transport window state for a tunnel.";
+            }
         }
     }
 

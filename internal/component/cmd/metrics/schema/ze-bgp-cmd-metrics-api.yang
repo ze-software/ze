@@ -15,4 +15,8 @@ module ze-bgp-cmd-metrics-api {
     rpc metrics-list {
         description "List metric names only.";
     }
+
+    rpc pool-stats {
+        description "Show per-attribute-pool occupancy and dedup rates.";
+    }
 }

@@ -5,6 +5,7 @@
 package l2tp
 
 import (
+	"slices"
 	"sync"
 	"time"
 
@@ -300,6 +301,114 @@ func (o *Observer) LoginSamples(login string) []CQMBucket {
 		return []CQMBucket{}
 	}
 	return snap
+}
+
+// SessionSummary is a compact view of one session's event ring.
+type SessionSummary struct {
+	SessionID     uint16
+	EventCount    int
+	LastEventType string
+	LastEventTime time.Time
+}
+
+// SessionSummaries returns a summary of every active session event ring.
+func (o *Observer) SessionSummaries() []SessionSummary {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	out := make([]SessionSummary, 0, len(o.sessions))
+	for sid, ring := range o.sessions {
+		s := SessionSummary{SessionID: sid, EventCount: ring.count}
+		if ring.count > 0 {
+			last := ring.events[(ring.head-1+len(ring.events))%len(ring.events)]
+			s.LastEventType = last.Type.String()
+			s.LastEventTime = last.Timestamp
+		}
+		out = append(out, s)
+	}
+	slices.SortFunc(out, func(a, b SessionSummary) int {
+		return int(a.SessionID) - int(b.SessionID)
+	})
+	return out
+}
+
+// LoginSummary is a compact view of one login's CQM state.
+type LoginSummary struct {
+	Login       string
+	BucketCount int
+	LastState   string
+	EchoCount   uint16
+	AvgRTT      time.Duration
+}
+
+// LoginSummaries returns a summary of every tracked login.
+func (o *Observer) LoginSummaries() []LoginSummary {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	out := make([]LoginSummary, 0, len(o.logins))
+	for login, entry := range o.logins {
+		s := LoginSummary{
+			Login:       login,
+			BucketCount: entry.ring.count,
+			LastState:   entry.current.State.String(),
+			EchoCount:   entry.current.EchoCount,
+			AvgRTT:      entry.current.AvgRTT(),
+		}
+		out = append(out, s)
+	}
+	slices.SortFunc(out, func(a, b LoginSummary) int {
+		if a.Login < b.Login {
+			return -1
+		}
+		if a.Login > b.Login {
+			return 1
+		}
+		return 0
+	})
+	return out
+}
+
+// LoginEchoState returns the current echo state for a login.
+type LoginEchoState struct {
+	Login        string
+	LastRTT      time.Duration
+	LossRatio    float64
+	EchoInterval time.Duration
+	BucketState  string
+}
+
+// EchoState returns the current echo state for a login derived from CQM.
+// Returns nil when the login is unknown.
+func (o *Observer) EchoState(login string) *LoginEchoState {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	entry, ok := o.logins[login]
+	if !ok {
+		return nil
+	}
+	state := &LoginEchoState{
+		Login:       login,
+		BucketState: entry.current.State.String(),
+	}
+	if o.expectedEchoesPerBucket > 0 {
+		state.EchoInterval = BucketInterval / time.Duration(o.expectedEchoesPerBucket)
+	}
+	if entry.current.EchoCount > 0 {
+		state.LastRTT = entry.current.AvgRTT()
+	}
+	if o.expectedEchoesPerBucket > 0 {
+		received := float64(entry.current.EchoCount)
+		expected := float64(o.expectedEchoesPerBucket)
+		if expected > 0 {
+			state.LossRatio = 1.0 - (received / expected)
+			if state.LossRatio < 0 {
+				state.LossRatio = 0
+			}
+		}
+	}
+	return state
 }
 
 // AddUnsub registers an unsubscribe function to be called on Stop.

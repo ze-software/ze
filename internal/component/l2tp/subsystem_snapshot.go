@@ -221,6 +221,58 @@ func (s *Subsystem) LoginSamples(login string) []CQMBucket {
 	return obs.LoginSamples(login)
 }
 
+// SessionSummaries returns a summary of all active session event rings.
+// Returns nil when the observer is not enabled.
+func (s *Subsystem) SessionSummaries() []SessionSummary {
+	s.mu.Lock()
+	obs := s.observer
+	s.mu.Unlock()
+	if obs == nil {
+		return nil
+	}
+	return obs.SessionSummaries()
+}
+
+// LoginSummaries returns a summary of all tracked logins.
+// Returns nil when the observer is not enabled.
+func (s *Subsystem) LoginSummaries() []LoginSummary {
+	s.mu.Lock()
+	obs := s.observer
+	s.mu.Unlock()
+	if obs == nil {
+		return nil
+	}
+	return obs.LoginSummaries()
+}
+
+// ReliableStats returns the reliable engine state for a tunnel.
+// Returns nil when the subsystem is not started or the tunnel doesn't exist.
+func (s *Subsystem) ReliableStats(localTID uint16) *ReliableStats {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.started {
+		return nil
+	}
+	for _, r := range s.reactors {
+		if stats := r.ReliableStats(localTID); stats != nil {
+			return stats
+		}
+	}
+	return nil
+}
+
+// EchoState returns the current echo state for a login.
+// Returns nil when the observer is not enabled or the login is unknown.
+func (s *Subsystem) EchoState(login string) *LoginEchoState {
+	s.mu.Lock()
+	obs := s.observer
+	s.mu.Unlock()
+	if obs == nil {
+		return nil
+	}
+	return obs.EchoState(login)
+}
+
 // RecordDisconnect records a disconnect-requested event on the per-session
 // event ring. No-op when the observer is not enabled.
 func (s *Subsystem) RecordDisconnect(sessionID uint16, actor, reason string, cause uint32) {

@@ -118,6 +118,87 @@ module ze-l2tp-api {
     }
 
     // -----------------------------------------------------------------
+    // Diagnostic operations (spec-diag-1-runtime-state).
+    // -----------------------------------------------------------------
+
+    rpc observer {
+        description
+            "Return per-session event ring snapshot. With a session-id
+             argument, returns the full event list. With 'all', returns
+             a summary of every active session ring.";
+        input {
+            leaf session-id {
+                type uint16;
+                description "Local session ID (1..65535), or omit for 'all'.";
+            }
+        }
+        output {
+            leaf observer {
+                type string;
+                description "JSON array of events or session summaries.";
+            }
+        }
+    }
+
+    rpc cqm {
+        description
+            "Return per-login CQM bucket history. With a login argument,
+             returns the bucket list. With 'summary', returns aggregate
+             state across all tracked logins.";
+        input {
+            leaf login {
+                type string;
+                description "Login name, or 'summary' for aggregate view.";
+            }
+        }
+        output {
+            leaf cqm {
+                type string;
+                description "JSON array of CQM buckets or login summaries.";
+            }
+        }
+    }
+
+    rpc echo {
+        description
+            "Return current echo state for a login derived from CQM
+             buckets: last RTT, loss ratio, echo interval, bucket state.";
+        input {
+            leaf login {
+                type string;
+                mandatory true;
+                description "Login name.";
+            }
+        }
+        output {
+            leaf echo {
+                type string;
+                description "JSON object with echo state.";
+            }
+        }
+    }
+
+    rpc reliable {
+        description
+            "Return reliable transport window state for a tunnel:
+             Ns, Nr, peer-Nr, outstanding count, retransmit count,
+             cwnd, ssthresh, peer receive window size.";
+        input {
+            leaf tunnel-id {
+                type uint16;
+                mandatory true;
+                description "Local tunnel ID (1..65535).";
+            }
+        }
+        output {
+            leaf reliable {
+                type string;
+                description "JSON object with reliable transport state.";
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------
     // Destructive operations. All send either StopCCN (tunnel) or CDN
     // (session) with administrative Result Code and return a status
     // message.

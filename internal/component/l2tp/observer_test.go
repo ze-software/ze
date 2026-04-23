@@ -171,3 +171,87 @@ func TestObserverEventTypeString(t *testing.T) {
 	require.Equal(t, "session-down", ObserverEventSessionDown.String())
 	require.Equal(t, "unknown", ObserverEventType(0).String())
 }
+
+func TestObserverEventSnapshot(t *testing.T) {
+	obs := NewObserver(testObserverConfig())
+	now := time.Now()
+
+	obs.RecordEvent(ObserverEvent{
+		Timestamp: now, Type: ObserverEventSessionUp,
+		SessionID: 42, TunnelID: 1,
+	})
+	obs.RecordEvent(ObserverEvent{
+		Timestamp: now.Add(time.Second), Type: ObserverEventEchoRTT,
+		SessionID: 42, TunnelID: 1, RTT: 5 * time.Millisecond,
+	})
+
+	events := obs.SessionEvents(42)
+	require.Len(t, events, 2)
+	require.Equal(t, ObserverEventSessionUp, events[0].Type)
+	require.Equal(t, ObserverEventEchoRTT, events[1].Type)
+	require.Equal(t, uint16(42), events[0].SessionID)
+	require.Equal(t, 5*time.Millisecond, events[1].RTT)
+}
+
+func TestObserverSnapshotNonExistent(t *testing.T) {
+	obs := NewObserver(testObserverConfig())
+	require.Nil(t, obs.SessionEvents(9999))
+}
+
+func TestSessionSummaries(t *testing.T) {
+	obs := NewObserver(testObserverConfig())
+	now := time.Now()
+
+	obs.RecordEvent(ObserverEvent{Timestamp: now, Type: ObserverEventSessionUp, SessionID: 10})
+	obs.RecordEvent(ObserverEvent{Timestamp: now, Type: ObserverEventSessionUp, SessionID: 20})
+	obs.RecordEvent(ObserverEvent{Timestamp: now.Add(time.Second), Type: ObserverEventEchoRTT, SessionID: 10})
+
+	summaries := obs.SessionSummaries()
+	require.Len(t, summaries, 2)
+
+	byID := map[uint16]SessionSummary{}
+	for _, s := range summaries {
+		byID[s.SessionID] = s
+	}
+	require.Equal(t, 2, byID[10].EventCount)
+	require.Equal(t, "echo-rtt", byID[10].LastEventType)
+	require.Equal(t, 1, byID[20].EventCount)
+	require.Equal(t, "session-up", byID[20].LastEventType)
+}
+
+func TestLoginSummaries(t *testing.T) {
+	cfg := testObserverConfig()
+	cfg.EchoInterval = 10 * time.Second
+	obs := NewObserver(cfg)
+	now := time.Now()
+
+	obs.RecordEcho("alice", now, 10*time.Millisecond)
+	obs.RecordEcho("bob", now, 20*time.Millisecond)
+
+	summaries := obs.LoginSummaries()
+	require.Len(t, summaries, 2)
+
+	byLogin := map[string]LoginSummary{}
+	for _, s := range summaries {
+		byLogin[s.Login] = s
+	}
+	require.Equal(t, uint16(1), byLogin["alice"].EchoCount)
+	require.Equal(t, uint16(1), byLogin["bob"].EchoCount)
+}
+
+func TestEchoState(t *testing.T) {
+	cfg := testObserverConfig()
+	cfg.EchoInterval = 10 * time.Second
+	obs := NewObserver(cfg)
+	now := time.Now()
+
+	obs.RecordEcho("alice", now, 15*time.Millisecond)
+
+	state := obs.EchoState("alice")
+	require.NotNil(t, state)
+	require.Equal(t, "alice", state.Login)
+	require.Equal(t, 15*time.Millisecond, state.LastRTT)
+	require.Equal(t, 10*time.Second, state.EchoInterval)
+
+	require.Nil(t, obs.EchoState("nonexistent"))
+}

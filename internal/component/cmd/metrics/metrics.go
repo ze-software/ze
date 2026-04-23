@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -22,6 +24,7 @@ func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:metrics-values", Handler: handleMetricsValues},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:metrics-list", Handler: handleMetricsList},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:pool-stats", Handler: handlePoolStats},
 	)
 }
 
@@ -149,4 +152,60 @@ func extractMetricNames(text string) []string {
 	sort.Strings(names)
 
 	return names
+}
+
+var poolNames = [...]string{
+	"origin", "as-path", "local-pref", "med", "next-hop",
+	"communities", "large-communities", "ext-communities",
+	"cluster-list", "originator-id", "atomic-aggregate",
+	"aggregator", "other-attrs",
+}
+
+func handlePoolStats(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	pools := pool.AllPools()
+	rows := make([]map[string]any, 0, len(pools))
+	var totalLive, totalDead int32
+	var totalLiveBytes, totalDeadBytes int64
+	var totalIntern, totalHits int64
+	for i, p := range pools {
+		m := p.Metrics()
+		name := "unknown"
+		if i < len(poolNames) {
+			name = poolNames[i]
+		}
+		rows = append(rows, map[string]any{
+			"name":       name,
+			"live-slots": m.LiveSlots,
+			"dead-slots": m.DeadSlots,
+			"live-bytes": m.LiveBytes,
+			"dead-bytes": m.DeadBytes,
+			"intern":     m.InternTotal,
+			"hits":       m.InternHits,
+			"dedup-rate": formatDedup(m),
+		})
+		totalLive += m.LiveSlots
+		totalDead += m.DeadSlots
+		totalLiveBytes += m.LiveBytes
+		totalDeadBytes += m.DeadBytes
+		totalIntern += m.InternTotal
+		totalHits += m.InternHits
+	}
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"pools":            rows,
+			"count":            len(rows),
+			"total-live-slots": totalLive,
+			"total-dead-slots": totalDead,
+			"total-live-bytes": totalLiveBytes,
+			"total-dead-bytes": totalDeadBytes,
+			"total-intern":     totalIntern,
+			"total-hits":       totalHits,
+		},
+	}, nil
+}
+
+func formatDedup(m attrpool.Metrics) string {
+	rate := m.DeduplicationRate()
+	return fmt.Sprintf("%.1f%%", rate*100)
 }

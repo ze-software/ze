@@ -224,6 +224,19 @@ func (r *L2TPReactor) LookupSession(localSID uint16) (SessionSnapshot, bool) {
 	return SessionSnapshot{}, false
 }
 
+// ReliableStats returns a snapshot of the reliable engine state for a
+// tunnel. Returns nil when the tunnel does not exist.
+func (r *L2TPReactor) ReliableStats(localTID uint16) *ReliableStats {
+	r.tunnelsMu.Lock()
+	defer r.tunnelsMu.Unlock()
+	t, ok := r.tunnelsByLocalID[localTID]
+	if !ok {
+		return nil
+	}
+	stats := t.engine.Stats()
+	return &stats
+}
+
 // FormatFraming renders an RFC 2661 Framing Capabilities bitmap as a
 // human-readable string for CLI output. "-" when zero.
 func FormatFraming(v uint32) string {

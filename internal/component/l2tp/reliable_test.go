@@ -721,3 +721,44 @@ func TestEnqueueDefensiveCopy(t *testing.T) {
 		t.Errorf("engine bytes aliased caller buffer: got %x, want %x", sent[12+6], bodyCopy[6])
 	}
 }
+
+func TestReliableStats(t *testing.T) {
+	e := newTestEngine()
+	now := time.Unix(0, 0)
+
+	_, err := e.Enqueue(0, messageTypeAVP(6), now)
+	if err != nil {
+		t.Fatalf("Enqueue: %v", err)
+	}
+
+	s := e.Stats()
+	if s.NextSendSeq != 1 {
+		t.Errorf("NextSendSeq = %d, want 1", s.NextSendSeq)
+	}
+	if s.NextRecvSeq != 0 {
+		t.Errorf("NextRecvSeq = %d, want 0", s.NextRecvSeq)
+	}
+	if s.Outstanding != 1 {
+		t.Errorf("Outstanding = %d, want 1", s.Outstanding)
+	}
+	if s.CWND == 0 {
+		t.Error("CWND = 0, want > 0")
+	}
+	if s.PeerRWS == 0 {
+		t.Error("PeerRWS = 0, want > 0")
+	}
+}
+
+func TestReliableStatsZeroState(t *testing.T) {
+	e := newTestEngine()
+	s := e.Stats()
+	if s.NextSendSeq != 0 {
+		t.Errorf("NextSendSeq = %d, want 0", s.NextSendSeq)
+	}
+	if s.Outstanding != 0 {
+		t.Errorf("Outstanding = %d, want 0", s.Outstanding)
+	}
+	if s.RetransmitCount != 0 {
+		t.Errorf("RetransmitCount = %d, want 0", s.RetransmitCount)
+	}
+}

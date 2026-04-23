@@ -222,3 +222,57 @@ func TestHandleShowInterfaceBrief(t *testing.T) {
 		assert.True(t, hasCount, "should have count key")
 	}
 }
+
+func TestWarningsFilterBySource(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	report.RaiseWarning("bgp", "prefix-threshold", "10.0.0.1", "v4 over", nil)
+	report.RaiseWarning("l2tp", "echo-loss", "user1", "high loss", nil)
+	report.RaiseWarning("bgp", "prefix-stale", "10.0.0.2", "stale", nil)
+
+	resp, err := handleShowWarnings(nil, []string{"source", "bgp"})
+	require.NoError(t, err)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, 2, data["count"])
+
+	resp2, err := handleShowWarnings(nil, []string{"source", "l2tp"})
+	require.NoError(t, err)
+	data2, ok := resp2.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, 1, data2["count"])
+}
+
+func TestWarningsNoFilter(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	report.RaiseWarning("bgp", "test", "peer1", "msg", nil)
+	report.RaiseWarning("l2tp", "test", "user1", "msg", nil)
+
+	resp, err := handleShowWarnings(nil, nil)
+	require.NoError(t, err)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, 2, data["count"])
+}
+
+func TestErrorsFilterBySource(t *testing.T) {
+	report.ResetForTest()
+	defer report.ResetForTest()
+
+	report.RaiseError("bgp", "decode-fail", "10.0.0.1", "bad update", nil)
+	report.RaiseError("l2tp", "tunnel-fail", "peer1", "timeout", nil)
+	report.RaiseError("bgp", "hold-timer", "10.0.0.2", "expired", nil)
+	report.RaiseError("l2tp", "session-fail", "peer2", "cdn received", nil)
+
+	resp, err := handleShowErrors(nil, []string{"source", "l2tp", "count", "1"})
+	require.NoError(t, err)
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	issues, ok2 := data["errors"].([]report.Issue)
+	require.True(t, ok2, "errors should be []report.Issue")
+	assert.Equal(t, 1, len(issues))
+	assert.Equal(t, "l2tp", issues[0].Source)
+}

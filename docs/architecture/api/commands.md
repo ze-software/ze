@@ -130,9 +130,10 @@ the bus from buggy or malicious producers.
 |------------|---------|----------------|
 | `ze-show:warnings` | `handleShowWarnings` in `internal/component/cmd/show/show.go` | `{"warnings": [Issue, ...], "count": N}` |
 | `ze-show:errors` | `handleShowErrors` in `internal/component/cmd/show/show.go` | `{"errors": [Issue, ...], "count": N}` |
+| `ze-show:traffic` | `handleShowTraffic` in `internal/component/cmd/show/show.go` | `{"interfaces": [...], "count": N}` or single interface detail |
 
-Both handlers return a non-nil empty slice when the bus is empty
-(for consistent JSON: `[]` rather than `null`).
+Both warnings/errors handlers accept optional `source <name>` filter and
+errors accepts `count <N>` limit. Return a non-nil empty slice when empty.
 
 <!-- source: internal/component/cmd/show/show.go -- handleShowWarnings, handleShowErrors -->
 <!-- source: internal/component/cmd/show/schema/ze-cli-show-cmd.yang -- top-level warnings / errors containers -->
@@ -413,9 +414,15 @@ Levels: `debug`, `info`, `warn`, `err`. Changes take effect immediately via `slo
 ```
 bgp metrics values        # Dump Prometheus text format output
 bgp metrics list          # List metric names only (no values)
+bgp metrics pool          # Per-attribute pool occupancy and dedup rates
 ```
 
 Requires telemetry to be enabled in config (`telemetry { prometheus { ... } }`). Returns error if metrics registry is not available.
+
+`metrics pool` returns 13 per-attribute pools (Origin, AS-Path, LocalPref, MED, NextHop,
+Communities, LargeCommunities, ExtCommunities, ClusterList, OriginatorID, AtomicAggregate,
+Aggregator, OtherAttrs) with live/dead slots, bytes, intern count, dedup hit rate.
+
 <!-- source: internal/component/cmd/metrics/schema/ -- ze-bgp-cmd-metrics-api.yang -->
 
 ### Peer Selectors
@@ -886,7 +893,8 @@ bgp
 │   └── set               # Set subsystem log level at runtime
 ├── metrics
 │   ├── values            # Show Prometheus metrics (text format)
-│   └── list              # List metric names
+│   ├── list              # List metric names
+│   └── pool              # Per-attribute pool occupancy and dedup rates
 └── plugin
     ├── encoding
     ├── format

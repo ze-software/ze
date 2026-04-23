@@ -46,6 +46,10 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:statistics", Handler: handleStatistics},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:listeners", Handler: handleListeners},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:config", Handler: handleConfig},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:observer", Handler: handleObserver},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:cqm", Handler: handleCQM},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:echo", Handler: handleEcho},
+		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:reliable", Handler: handleReliable},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:tunnel-teardown", Handler: handleTunnelTeardown},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:tunnel-teardown-all", Handler: handleTunnelTeardownAll},
 		pluginserver.RPCRegistration{WireMethod: "ze-l2tp-api:session-teardown", Handler: handleSessionTeardown},
@@ -191,6 +195,188 @@ func handleConfig(_ *pluginserver.CommandContext, _ []string) (*plugin.Response,
 		"listeners":      listenAddrs,
 	}
 	return jsonResponse("l2tp config", payload)
+}
+
+// -----------------------------------------------------------------
+// Diagnostic handlers (spec-diag-1-runtime-state)
+// -----------------------------------------------------------------
+
+func handleObserver(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	svc := l2tp.LookupService()
+	if svc == nil {
+		return errResponse(errSubsystemUnavailable), nil
+	}
+	arg := firstPositionalArg(args)
+	if arg == "all" || arg == "" {
+		summaries := svc.SessionSummaries()
+		if summaries == nil {
+			return errResponse(fmt.Errorf("l2tp: observer not enabled (CQM disabled)")), nil
+		}
+		out := make([]map[string]any, 0, len(summaries))
+		for i := range summaries {
+			s := &summaries[i]
+			m := map[string]any{
+				"session-id":  int(s.SessionID),
+				"event-count": s.EventCount,
+			}
+			if s.EventCount > 0 {
+				m["last-event-type"] = s.LastEventType
+				m["last-event-time"] = s.LastEventTime.UTC().Format("2006-01-02T15:04:05Z07:00")
+			}
+			out = append(out, m)
+		}
+		return jsonResponse("l2tp observer", map[string]any{
+			"sessions": out,
+			"count":    len(out),
+		})
+	}
+	sid, err := parseIDArg(args, "session-id")
+	if err != nil {
+		return errResponse(err), nil
+	}
+	events := svc.SessionEvents(sid)
+	if events == nil {
+		return errResponse(fmt.Errorf("l2tp: no observer data for session %d", sid)), nil
+	}
+	out := make([]map[string]any, 0, len(events))
+	for i := range events {
+		ev := &events[i]
+		m := map[string]any{
+			"timestamp":  ev.Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
+			"type":       ev.Type.String(),
+			"tunnel-id":  int(ev.TunnelID),
+			"session-id": int(ev.SessionID),
+		}
+		if ev.RTT > 0 {
+			m["rtt-ms"] = float64(ev.RTT.Microseconds()) / 1000.0
+		}
+		if ev.Actor != "" {
+			m["actor"] = ev.Actor
+		}
+		if ev.Reason != "" {
+			m["reason"] = ev.Reason
+		}
+		if ev.Cause != 0 {
+			m["cause"] = int(ev.Cause)
+		}
+		out = append(out, m)
+	}
+	return jsonResponse("l2tp observer", map[string]any{
+		"session-id": int(sid),
+		"events":     out,
+		"count":      len(out),
+	})
+}
+
+func handleCQM(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	svc := l2tp.LookupService()
+	if svc == nil {
+		return errResponse(errSubsystemUnavailable), nil
+	}
+	arg := firstPositionalArg(args)
+	if arg == "all" || arg == "summary" || arg == "" {
+		summaries := svc.LoginSummaries()
+		if summaries == nil {
+			return errResponse(fmt.Errorf("l2tp: observer not enabled (CQM disabled)")), nil
+		}
+		out := make([]map[string]any, 0, len(summaries))
+		for i := range summaries {
+			s := &summaries[i]
+			out = append(out, map[string]any{
+				"login":        s.Login,
+				"bucket-count": s.BucketCount,
+				"last-state":   s.LastState,
+				"echo-count":   int(s.EchoCount),
+				"avg-rtt-ms":   float64(s.AvgRTT.Microseconds()) / 1000.0,
+			})
+		}
+		return jsonResponse("l2tp cqm", map[string]any{
+			"logins": out,
+			"count":  len(out),
+		})
+	}
+	buckets := svc.LoginSamples(arg)
+	if buckets == nil {
+		return errResponse(fmt.Errorf("l2tp: no CQM data for login %q", arg)), nil
+	}
+	out := make([]map[string]any, 0, len(buckets))
+	for i := range buckets {
+		b := &buckets[i]
+		out = append(out, map[string]any{
+			"start":      b.Start.UTC().Format("2006-01-02T15:04:05Z07:00"),
+			"state":      b.State.String(),
+			"echo-count": int(b.EchoCount),
+			"min-rtt-ms": float64(b.MinRTT.Microseconds()) / 1000.0,
+			"max-rtt-ms": float64(b.MaxRTT.Microseconds()) / 1000.0,
+			"avg-rtt-ms": float64(b.AvgRTT().Microseconds()) / 1000.0,
+		})
+	}
+	return jsonResponse("l2tp cqm", map[string]any{
+		"login":   arg,
+		"buckets": out,
+		"count":   len(out),
+	})
+}
+
+func handleEcho(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	svc := l2tp.LookupService()
+	if svc == nil {
+		return errResponse(errSubsystemUnavailable), nil
+	}
+	login := firstPositionalArg(args)
+	if login == "" {
+		return errResponse(fmt.Errorf("l2tp: missing login argument")), nil
+	}
+	state := svc.EchoState(login)
+	if state == nil {
+		return errResponse(fmt.Errorf("l2tp: no echo data for login %q", login)), nil
+	}
+	m := map[string]any{
+		"login":        state.Login,
+		"last-rtt-ms":  float64(state.LastRTT.Microseconds()) / 1000.0,
+		"bucket-state": state.BucketState,
+	}
+	if state.EchoInterval > 0 {
+		m["echo-interval"] = state.EchoInterval.String()
+		m["loss-ratio"] = state.LossRatio
+	}
+	return jsonResponse("l2tp echo", m)
+}
+
+func handleReliable(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	tid, err := parseIDArg(args, "tunnel-id")
+	if err != nil {
+		return errResponse(err), nil
+	}
+	svc := l2tp.LookupService()
+	if svc == nil {
+		return errResponse(errSubsystemUnavailable), nil
+	}
+	stats := svc.ReliableStats(tid)
+	if stats == nil {
+		return errResponse(fmt.Errorf("l2tp: no tunnel with local-tid=%d", tid)), nil
+	}
+	return jsonResponse("l2tp reliable", map[string]any{
+		"tunnel-id":        int(tid),
+		"ns":               int(stats.NextSendSeq),
+		"nr":               int(stats.NextRecvSeq),
+		"peer-nr":          int(stats.PeerNr),
+		"outstanding":      stats.Outstanding,
+		"retransmit-count": stats.RetransmitCount,
+		"cwnd":             int(stats.CWND),
+		"ssthresh":         int(stats.SSThresh),
+		"peer-rws":         int(stats.PeerRWS),
+	})
+}
+
+// firstPositionalArg returns the first non-empty, non-flag argument.
+func firstPositionalArg(args []string) string {
+	for _, a := range args {
+		if a != "" && !strings.HasPrefix(a, "-") {
+			return a
+		}
+	}
+	return ""
 }
 
 // -----------------------------------------------------------------
