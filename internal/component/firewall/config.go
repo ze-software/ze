@@ -363,6 +363,17 @@ func parseThenBlock(m map[string]any) ([]Action, error) {
 		actions = append(actions, SetDSCP{Value: dscpVal})
 	}
 
+	if v, ok := m["tcp-mss-set"].(string); ok {
+		mss, err := strconv.ParseUint(v, 10, 16)
+		if err != nil {
+			return nil, fmt.Errorf("tcp-mss-set: invalid value %q: %w", v, err)
+		}
+		if mss == 0 {
+			return nil, fmt.Errorf("tcp-mss-set: value must be 1-65535, got 0")
+		}
+		actions = append(actions, SetTCPMSS{Size: uint16(mss)})
+	}
+
 	// Actions (terminals and NAT).
 	if foMap, ok := m["flow-offload"].(map[string]any); ok {
 		ftName, _ := foMap["flowtable"].(string)

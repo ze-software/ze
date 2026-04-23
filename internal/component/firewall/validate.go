@@ -268,6 +268,11 @@ func validateAction(tbl *Table, ch *Chain, term *Term, a Action, chains, flowtab
 			return fmt.Errorf("table %q chain %q term %q: dscp-set is IPv4-only; move to a table with family ip or inet (got %s)",
 				tbl.Name, ch.Name, term.Name, tbl.Family)
 		}
+	case SetTCPMSS:
+		if tbl.Family != FamilyIP && tbl.Family != FamilyIP6 && tbl.Family != FamilyInet {
+			return fmt.Errorf("table %q chain %q term %q: tcp-mss-set requires family ip, ip6, or inet (got %s)",
+				tbl.Name, ch.Name, term.Name, tbl.Family)
+		}
 	}
 	return nil
 }

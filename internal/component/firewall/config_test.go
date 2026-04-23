@@ -1077,6 +1077,39 @@ func TestParseNamedSet(t *testing.T) {
 	}
 }
 
+// VALIDATES: tcp-mss-set parses to SetTCPMSS with the given size.
+func TestParseThenTCPMSSSet(t *testing.T) {
+	data := `{"firewall":{"table":{"wan":{"family":"inet","chain":{"fwd":{"term":{"clamp":{"then":{"tcp-mss-set":"1400"}}}}}}}}}`
+	tables, err := ParseFirewallConfig(data)
+	if err != nil {
+		t.Fatalf("ParseFirewallConfig: %v", err)
+	}
+	got := firstAction(t, tables)
+	mss, ok := got.(SetTCPMSS)
+	if !ok {
+		t.Fatalf("action type = %T, want SetTCPMSS", got)
+	}
+	if mss.Size != 1400 {
+		t.Errorf("SetTCPMSS.Size = %d, want 1400", mss.Size)
+	}
+}
+
+// VALIDATES: tcp-mss-set rejects zero.
+func TestParseThenTCPMSSSetZeroRejects(t *testing.T) {
+	data := `{"firewall":{"table":{"wan":{"family":"inet","chain":{"fwd":{"term":{"clamp":{"then":{"tcp-mss-set":"0"}}}}}}}}}`
+	if _, err := ParseFirewallConfig(data); err == nil {
+		t.Fatal("tcp-mss-set 0 must reject")
+	}
+}
+
+// VALIDATES: tcp-mss-set rejects non-numeric values.
+func TestParseThenTCPMSSSetInvalidRejects(t *testing.T) {
+	data := `{"firewall":{"table":{"wan":{"family":"inet","chain":{"fwd":{"term":{"clamp":{"then":{"tcp-mss-set":"abc"}}}}}}}}}`
+	if _, err := ParseFirewallConfig(data); err == nil {
+		t.Fatal("tcp-mss-set abc must reject")
+	}
+}
+
 func TestParseFlowtable(t *testing.T) {
 	data := `{"firewall":{"table":{"wan":{"family":"inet","flowtable":{"ft0":{"hook":"ingress","priority":"-100","device":["eth0","eth1"]}}}}}}`
 	tables, err := ParseFirewallConfig(data)

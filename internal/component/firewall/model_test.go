@@ -204,12 +204,13 @@ func TestActionTypes(t *testing.T) {
 		{"SetMark", SetMark{Value: 0x10, Mask: 0xFFFFFFFF}},
 		{"SetConnMark", SetConnMark{Value: 0x20, Mask: 0xFF}},
 		{"SetDSCP", SetDSCP{Value: 46}},
+		{"SetTCPMSS", SetTCPMSS{Size: 1400}},
 		{"Counter", Counter{Name: "my-counter"}},
 		{"Log", Log{Prefix: "INPUT-DROP: ", Level: ptrUint32(4)}},
 		{"Limit", Limit{Rate: 10, Unit: "second", Burst: 5, Dimension: RateDimensionPackets}},
 	}
-	if len(actions) != 18 {
-		t.Fatalf("expected 18 action types, got %d", len(actions))
+	if len(actions) != 19 {
+		t.Fatalf("expected 19 action types, got %d", len(actions))
 	}
 	for _, tt := range actions {
 		t.Run(tt.name, func(t *testing.T) {

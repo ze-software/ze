@@ -454,6 +454,9 @@ type SetConnMark struct {
 // SetDSCP sets the DSCP field.
 type SetDSCP struct{ Value uint8 }
 
+// SetTCPMSS clamps the TCP Maximum Segment Size option.
+type SetTCPMSS struct{ Size uint16 }
+
 // Counter increments a named or anonymous counter.
 type Counter struct{ Name string }
 
@@ -521,6 +524,7 @@ func (FlowOffload) actionMarker() {}
 func (SetMark) actionMarker()     {}
 func (SetConnMark) actionMarker() {}
 func (SetDSCP) actionMarker()     {}
+func (SetTCPMSS) actionMarker()   {}
 func (Counter) actionMarker()     {}
 func (Log) actionMarker()         {}
 func (Limit) actionMarker()       {}

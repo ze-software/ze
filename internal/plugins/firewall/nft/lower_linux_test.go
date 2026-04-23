@@ -606,6 +606,55 @@ func TestLowerSetDSCP(t *testing.T) {
 	}
 }
 
+// VALIDATES: SetTCPMSS lowers to Immediate(r1, mss) + Exthdr(write,
+// tcp option 2, offset 2, len 2). This is the nftables equivalent of
+// `tcp option maxseg size set <mss>`.
+func TestLowerSetTCPMSS(t *testing.T) {
+	exprs, err := lowerSetTCPMSS(1400)
+	if err != nil {
+		t.Fatalf("lowerSetTCPMSS: %v", err)
+	}
+	if len(exprs) != 2 {
+		t.Fatalf("len = %d, want 2 (Immediate + Exthdr)", len(exprs))
+	}
+	imm, ok := exprs[0].(*expr.Immediate)
+	if !ok {
+		t.Fatalf("exprs[0] = %T, want *expr.Immediate", exprs[0])
+	}
+	if imm.Register != 1 {
+		t.Errorf("Immediate.Register = %d, want 1", imm.Register)
+	}
+	if len(imm.Data) != 2 || imm.Data[0] != 0x05 || imm.Data[1] != 0x78 {
+		t.Errorf("Immediate.Data = %v, want [0x05 0x78] for MSS 1400", imm.Data)
+	}
+	exthdr, ok := exprs[1].(*expr.Exthdr)
+	if !ok {
+		t.Fatalf("exprs[1] = %T, want *expr.Exthdr", exprs[1])
+	}
+	if exthdr.SourceRegister != 1 {
+		t.Errorf("Exthdr.SourceRegister = %d, want 1", exthdr.SourceRegister)
+	}
+	if exthdr.Type != 2 {
+		t.Errorf("Exthdr.Type = %d, want 2 (TCP MSS option kind)", exthdr.Type)
+	}
+	if exthdr.Offset != 2 {
+		t.Errorf("Exthdr.Offset = %d, want 2 (past kind+length)", exthdr.Offset)
+	}
+	if exthdr.Len != 2 {
+		t.Errorf("Exthdr.Len = %d, want 2 (MSS is uint16)", exthdr.Len)
+	}
+	if exthdr.Op != expr.ExthdrOpTcpopt {
+		t.Errorf("Exthdr.Op = %v, want ExthdrOpTcpopt", exthdr.Op)
+	}
+}
+
+// VALIDATES: SetTCPMSS rejects zero MSS.
+func TestLowerSetTCPMSSZeroRejects(t *testing.T) {
+	if _, err := lowerSetTCPMSS(0); err == nil {
+		t.Error("lowerSetTCPMSS(0) must reject")
+	}
+}
+
 // VALIDATES: Category B -- SetDSCP rejects out-of-range values rather
 // than truncating. 64 occupies bit 6 which would spill into the ECN
 // field once shifted.

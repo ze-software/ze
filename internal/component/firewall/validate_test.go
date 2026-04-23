@@ -448,6 +448,42 @@ func TestValidateSetDSCPInet(t *testing.T) {
 	}
 }
 
+// VALIDATES: SetTCPMSS family restrictions: ip, ip6, inet accept;
+// arp, bridge, netdev reject.
+func TestValidateSetTCPMSSFamily(t *testing.T) {
+	tests := []struct {
+		name    string
+		family  TableFamily
+		wantErr string
+	}{
+		{"ip accepts", FamilyIP, ""},
+		{"ip6 accepts", FamilyIP6, ""},
+		{"inet accepts", FamilyInet, ""},
+		{"arp rejects", FamilyARP, "tcp-mss-set requires family ip, ip6, or inet"},
+		{"bridge rejects", FamilyBridge, "tcp-mss-set requires family ip, ip6, or inet"},
+		{"netdev rejects", FamilyNetdev, "tcp-mss-set requires family ip, ip6, or inet"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tbl := makeTable(tt.family)
+			tbl.Chains[0].Terms[0].Actions = []Action{SetTCPMSS{Size: 1400}}
+			err := ValidateTables([]Table{tbl})
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("expected accept, got %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("error %q does not contain %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 // itoa is a tiny, allocation-free uint -> decimal helper used by the
 // cap boundary test. strconv import would be the only other consumer,
 // not worth it here.

@@ -336,6 +336,12 @@ module ze-firewall-conf {
             type dscp-value;
             description "Set DSCP field value";
         }
+        leaf tcp-mss-set {
+            type uint16 {
+                range "1..65535";
+            }
+            description "Clamp TCP Maximum Segment Size option to the given value";
+        }
         container counter {
             presence "Enable per-rule counter";
             description "Anonymous per-rule counter. A non-empty `name`

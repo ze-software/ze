@@ -332,6 +332,8 @@ func lowerAction(a firewall.Action) ([]expr.Any, error) {
 		return lowerSetConnMark(v.Value, v.Mask)
 	case firewall.SetDSCP:
 		return lowerSetDSCP(v.Value)
+	case firewall.SetTCPMSS:
+		return lowerSetTCPMSS(v.Size)
 	case firewall.FlowOffload:
 		return []expr.Any{&expr.FlowOffload{Name: v.FlowtableName}}, nil
 	case firewall.SNAT:
@@ -695,6 +697,28 @@ func lowerSetDSCP(dscp uint8) ([]expr.Any, error) {
 			Len:            1,
 			CsumType:       expr.CsumTypeInet,
 			CsumOffset:     10,
+		},
+	}, nil
+}
+
+// lowerSetTCPMSS clamps the TCP MSS option to the given value. The
+// nftables equivalent is `tcp option maxseg size set <mss>`. TCP MSS
+// is option kind 2; the 2-byte size field sits at byte offset 2
+// within the option (after the 1-byte kind and 1-byte length fields).
+func lowerSetTCPMSS(mss uint16) ([]expr.Any, error) {
+	if mss == 0 {
+		return nil, fmt.Errorf("tcp-mss-set: value must be 1-65535, got 0")
+	}
+	mssBytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(mssBytes, mss)
+	return []expr.Any{
+		&expr.Immediate{Register: 1, Data: mssBytes},
+		&expr.Exthdr{
+			SourceRegister: 1,
+			Type:           2, // TCP option kind: MSS
+			Offset:         2, // past kind (1 byte) + length (1 byte)
+			Len:            2,
+			Op:             expr.ExthdrOpTcpopt,
 		},
 	}, nil
 }

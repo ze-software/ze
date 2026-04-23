@@ -158,6 +158,17 @@ func formatAction(a firewall.Action) string {
 		return formatLimit(v)
 	case firewall.SetMark:
 		return fmt.Sprintf("mark set 0x%x", v.Value)
+	case firewall.SetConnMark:
+		return fmt.Sprintf("connection-mark set 0x%x", v.Value)
+	case firewall.SetDSCP:
+		return fmt.Sprintf("dscp set %d", v.Value)
+	case firewall.SetTCPMSS:
+		return fmt.Sprintf("tcp-mss set %d", v.Size)
+	case firewall.Redirect:
+		if v.Port != 0 {
+			return fmt.Sprintf("redirect to %d", v.Port)
+		}
+		return "redirect"
 	case firewall.Masquerade:
 		return "masquerade"
 	case firewall.Notrack:
