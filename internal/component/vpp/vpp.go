@@ -28,6 +28,7 @@ var loggerPtr atomic.Pointer[slog.Logger]
 func init() {
 	d := slogutil.DiscardLogger()
 	loggerPtr.Store(d)
+	setGovppLoggers(d)
 }
 
 func logger() *slog.Logger { return loggerPtr.Load() }
@@ -36,6 +37,7 @@ func logger() *slog.Logger { return loggerPtr.Load() }
 func SetVPPLogger(l *slog.Logger) {
 	if l != nil {
 		loggerPtr.Store(l)
+		setGovppLoggers(l)
 	}
 }
 
