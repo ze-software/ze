@@ -1,24 +1,34 @@
-# Test: OTC egress-filter evidence blocked without a forward path
-# VALIDATES: blocked -- this file does not prove OTC stamp or egress behavior
-# STATUS: blocked -- single-peer setup never exercises per-destination egress
-#         filtering, and adj-rib-in status does not prove OTC stamping
-# PREVENTS: false reviewer confidence that RFC 9234 egress behavior is covered
+# Test: OTC egress filter suppresses provider route toward another provider
+# VALIDATES: RFC 9234 Section 5 egress rule -- route learned from a Provider is not exported to another Provider
+# PREVENTS: provider-learned routes leaking to provider-class neighbors
 
 # ze-peer: acts as a provider peer (role capability code 9, value 0=provider)
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
-# Add role capability: code 9, value 00 (provider)
+# Drop ze-peer's default mirrored role then advertise Provider (0x00).
+option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=00
 # Send UPDATE without OTC: ORIGIN=IGP, AS_PATH=empty, NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0029020000000E4001010040020040030401010101180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: verifies observer wiring only. This file does not prove
-# OTC stamping or egress suppression.
+# Dest peer (Provider, ASN 65002) on 127.0.0.2. If egress suppression works,
+# it should see only EOR and no UPDATE.
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=00
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_DEST
+
+# Python test plugin: keeps the daemon alive while the destination EOR-only
+# assertion proves suppression.
 tmpfs=test-egress.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-"""Verify observer wiring only; OTC stamp/egress proof is blocked here."""
+"""Keep the daemon alive while the dest peer proves OTC egress suppression."""
 import json
 import sys
 import time
@@ -39,7 +49,8 @@ def main():
     # Wait for session and UPDATE processing.
     time.sleep(3.0)
 
-    # Query adj-rib-in: route should be stored (ingress stamp accepted the route).
+    # Query adj-rib-in for diagnostic context. The destination EOR-only assertion
+    # is the actual egress-suppression proof.
     result = dispatch(api, 'adj-rib-in status')
     data = json.loads(result.get('data', '{}'))
     total = data.get('total-routes', -1)
@@ -50,7 +61,7 @@ def main():
         sys.stderr.flush()
         runtime_fail(msg)
 
-    print('OK: observer wiring stayed healthy; OTC stamp/egress proof remains blocked', file=sys.stderr)
+    print('OK: EOR-only destination assertion verified OTC egress suppression', file=sys.stderr)
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()
 
@@ -58,7 +69,7 @@ if __name__ == '__main__':
     main()
 EOF_RUN
 
-# ze configuration: local role = customer, peer is provider, export default
+# ze configuration: local role = customer, source/dest peers are providers
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-egress {
@@ -96,16 +107,41 @@ bgp {
 			receive [ update state ]
 		}
 	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		role {
+			import customer
+			export default
+		}
+	}
 }
 EOF_CONF
 
 # Process orchestration
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
-# This file intentionally makes no OTC egress claim. Without a second
-# destination peer and a forwarding plugin, the per-destination filter path
-# is never exercised and adj-rib-in status cannot prove OTC stamping.
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error
 reject=stderr:pattern=ZE-OBSERVER-FAIL

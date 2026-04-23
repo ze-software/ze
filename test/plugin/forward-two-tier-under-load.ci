@@ -1,20 +1,15 @@
 # Test: two-tier dispatch delivers all routes under load with overflow
-# VALIDATES: AC-10/AC-11/AC-12 -- burst exceeding per-peer pool triggers
-#   overflow dispatch, all routes delivered without loss
-# STATUS: Phase 6 (spec-ci-observer-per-test-audit) -- runtime_fail wired;
-#         AC verification is TODO. Same architectural blocker as
-#         forward-overflow-two-tier / community-strip: this test loads only
-#         bgp-adj-rib-in and does NOT load any plugin that calls
-#         ForwardUpdate, so the two-tier dispatch path is never exercised.
+# VALIDATES: AC-10/AC-11/AC-12 -- burst exceeding channel capacity triggers
+#   overflow dispatch, all routes delivered without loss and in order
 # PREVENTS: routes dropped during overflow, two-tier dispatch path untested
 #   end-to-end through real reactor
 #
 # Flow:
 # 1. ze.fwd.chan.size=2 forces a tiny per-worker channel (overflow guaranteed)
 # 2. Source peer sends 80 UPDATEs in a burst
-# 3. Routes would forward through ze to dest peer in the designed behaviour
-# 4. Python observer smoke-checks metrics registration
-# 5. AC-10/AC-11/AC-12 cannot be verified without a forwarding plugin
+# 3. Destination peer asserts all 80 NLRIs arrive in order, then EOR
+# 4. Python observer smoke-checks metric registration while the tiny channel
+#    and full destination delivery prove the overflow path was taken
 
 # Source peer (ASN 65001) -- sends 80 prefixes in a burst
 option=env:var=ze.log.bgp.reactor.session:value=debug
@@ -104,15 +99,98 @@ action=send:conn=1:seq=77:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001
 action=send:conn=1:seq=78:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040101010140050400000064180A004D
 action=send:conn=1:seq=79:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040101010140050400000064180A004E
 action=send:conn=1:seq=80:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040101010140050400000064180A004F
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_SOURCE
 
-# Dest peer (ASN 65002) -- sink mode, accepts everything
+# Dest peer (ASN 65002) -- verify every forwarded route plus EOR
 stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=20s
+expect=bgp:conn=1:seq=1:contains=180A0000
+expect=bgp:conn=1:seq=2:contains=180A0001
+expect=bgp:conn=1:seq=3:contains=180A0002
+expect=bgp:conn=1:seq=4:contains=180A0003
+expect=bgp:conn=1:seq=5:contains=180A0004
+expect=bgp:conn=1:seq=6:contains=180A0005
+expect=bgp:conn=1:seq=7:contains=180A0006
+expect=bgp:conn=1:seq=8:contains=180A0007
+expect=bgp:conn=1:seq=9:contains=180A0008
+expect=bgp:conn=1:seq=10:contains=180A0009
+expect=bgp:conn=1:seq=11:contains=180A000A
+expect=bgp:conn=1:seq=12:contains=180A000B
+expect=bgp:conn=1:seq=13:contains=180A000C
+expect=bgp:conn=1:seq=14:contains=180A000D
+expect=bgp:conn=1:seq=15:contains=180A000E
+expect=bgp:conn=1:seq=16:contains=180A000F
+expect=bgp:conn=1:seq=17:contains=180A0010
+expect=bgp:conn=1:seq=18:contains=180A0011
+expect=bgp:conn=1:seq=19:contains=180A0012
+expect=bgp:conn=1:seq=20:contains=180A0013
+expect=bgp:conn=1:seq=21:contains=180A0014
+expect=bgp:conn=1:seq=22:contains=180A0015
+expect=bgp:conn=1:seq=23:contains=180A0016
+expect=bgp:conn=1:seq=24:contains=180A0017
+expect=bgp:conn=1:seq=25:contains=180A0018
+expect=bgp:conn=1:seq=26:contains=180A0019
+expect=bgp:conn=1:seq=27:contains=180A001A
+expect=bgp:conn=1:seq=28:contains=180A001B
+expect=bgp:conn=1:seq=29:contains=180A001C
+expect=bgp:conn=1:seq=30:contains=180A001D
+expect=bgp:conn=1:seq=31:contains=180A001E
+expect=bgp:conn=1:seq=32:contains=180A001F
+expect=bgp:conn=1:seq=33:contains=180A0020
+expect=bgp:conn=1:seq=34:contains=180A0021
+expect=bgp:conn=1:seq=35:contains=180A0022
+expect=bgp:conn=1:seq=36:contains=180A0023
+expect=bgp:conn=1:seq=37:contains=180A0024
+expect=bgp:conn=1:seq=38:contains=180A0025
+expect=bgp:conn=1:seq=39:contains=180A0026
+expect=bgp:conn=1:seq=40:contains=180A0027
+expect=bgp:conn=1:seq=41:contains=180A0028
+expect=bgp:conn=1:seq=42:contains=180A0029
+expect=bgp:conn=1:seq=43:contains=180A002A
+expect=bgp:conn=1:seq=44:contains=180A002B
+expect=bgp:conn=1:seq=45:contains=180A002C
+expect=bgp:conn=1:seq=46:contains=180A002D
+expect=bgp:conn=1:seq=47:contains=180A002E
+expect=bgp:conn=1:seq=48:contains=180A002F
+expect=bgp:conn=1:seq=49:contains=180A0030
+expect=bgp:conn=1:seq=50:contains=180A0031
+expect=bgp:conn=1:seq=51:contains=180A0032
+expect=bgp:conn=1:seq=52:contains=180A0033
+expect=bgp:conn=1:seq=53:contains=180A0034
+expect=bgp:conn=1:seq=54:contains=180A0035
+expect=bgp:conn=1:seq=55:contains=180A0036
+expect=bgp:conn=1:seq=56:contains=180A0037
+expect=bgp:conn=1:seq=57:contains=180A0038
+expect=bgp:conn=1:seq=58:contains=180A0039
+expect=bgp:conn=1:seq=59:contains=180A003A
+expect=bgp:conn=1:seq=60:contains=180A003B
+expect=bgp:conn=1:seq=61:contains=180A003C
+expect=bgp:conn=1:seq=62:contains=180A003D
+expect=bgp:conn=1:seq=63:contains=180A003E
+expect=bgp:conn=1:seq=64:contains=180A003F
+expect=bgp:conn=1:seq=65:contains=180A0040
+expect=bgp:conn=1:seq=66:contains=180A0041
+expect=bgp:conn=1:seq=67:contains=180A0042
+expect=bgp:conn=1:seq=68:contains=180A0043
+expect=bgp:conn=1:seq=69:contains=180A0044
+expect=bgp:conn=1:seq=70:contains=180A0045
+expect=bgp:conn=1:seq=71:contains=180A0046
+expect=bgp:conn=1:seq=72:contains=180A0047
+expect=bgp:conn=1:seq=73:contains=180A0048
+expect=bgp:conn=1:seq=74:contains=180A0049
+expect=bgp:conn=1:seq=75:contains=180A004A
+expect=bgp:conn=1:seq=76:contains=180A004B
+expect=bgp:conn=1:seq=77:contains=180A004C
+expect=bgp:conn=1:seq=78:contains=180A004D
+expect=bgp:conn=1:seq=79:contains=180A004E
+expect=bgp:conn=1:seq=80:contains=180A004F
+expect=bgp:conn=1:seq=81:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_DEST
 
-# Python test plugin: verify routes delivered and overflow exercised
+# Python test plugin: smoke-checks metric registration while the dest peer proves
+# every UPDATE was delivered.
 tmpfs=two-tier-load-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Test: two-tier dispatch under load with overflow verification."""
@@ -149,7 +227,7 @@ def main():
 
     print(f'OK: {total} routes in adj-rib-in', file=sys.stderr)
 
-    # Verify two-tier pool metrics exist.
+    # Verify two-tier metrics exist.
     r = dispatch(api, 'metrics values')
     data_str = r.get('data', '{}')
     try:
@@ -169,7 +247,7 @@ def main():
         sys.stderr.flush()
         runtime_fail(msg)
 
-    print(f'OK: two-tier metrics present', file=sys.stderr)
+    print('OK: two-tier metrics present', file=sys.stderr)
 
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()
@@ -263,12 +341,9 @@ option=env:var=ZE_FWD_CHAN_SIZE:value=2
 
 # Process orchestration
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --mode sink --port $PORT:stdin=dest
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
-# AC verification is TODO -- same architectural blocker as community-strip
-# and forward-overflow-two-tier. Redesign path is Path A (load
-# --plugin ze.bgp-rs) or Path B (ze-peer check mode). Negative regressions:
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error
 reject=stderr:pattern=treat-as-withdraw

@@ -1,24 +1,16 @@
 # Test: two-tier overflow pool delivers all routes under burst
-# VALIDATES: AC-10/AC-11 -- overflow items use MixedBufMux handles
+# VALIDATES: AC-10/AC-11 -- overflow dispatch preserves ordering and delivery
 # VALIDATES: AC-12 -- pool exhaustion does not drop routes
-# STATUS: Phase 5 (spec-ci-observer-per-test-audit) -- runtime_fail wired;
-#         AC verification is TODO. Same architectural blocker as
-#         community-strip: this test loads only bgp-adj-rib-in and does
-#         NOT load any plugin that calls ForwardUpdate (e.g. bgp-rs or
-#         bgp-cache), so the forward pool is never exercised and adj-rib-in
-#         receives routes via a path affected by the rpki validation gate.
-#         Negative regression assertions catch obvious breaks until the
-#         redesign chooses Path A (load a forwarding plugin) or Path B
-#         (switch dest peer to ze-peer check mode).
 # PREVENTS: routes silently dropped during overflow, pool handle leaks
 #
 # Flow:
-# 1. Source peer sends 50 UPDATEs (burst exceeds per-peer pool of 64 slots)
-# 2. Routes would forward through ze to dest peer in the designed behaviour
-# 3. Python observer queries metrics for ze_bgp_pool_used_ratio (smoke check)
-# 4. AC-10/AC-11/AC-12 cannot be verified without a forwarding plugin
+# 1. Force a tiny forward-worker channel (`ZE_FWD_CHAN_SIZE=2`) so overflow is guaranteed
+# 2. Source peer sends 50 UPDATEs in a burst
+# 3. Destination peer asserts all 50 NLRIs arrive in order, then EOR
+# 4. Python observer smoke-checks metric registration while the tiny channel
+#    and full destination delivery prove the overflow path was taken
 
-# Source peer (ASN 65001) -- sends 100 prefixes in a burst
+# Source peer (ASN 65001) -- sends 50 prefixes in a burst
 option=env:var=ze.log.bgp.reactor.session:value=debug
 stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1
@@ -79,15 +71,68 @@ action=send:conn=1:seq=47:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003002000000154001
 action=send:conn=1:seq=48:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A002F00
 action=send:conn=1:seq=49:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A003000
 action=send:conn=1:seq=50:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040101010140050400000064180A003100
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_SOURCE
 
-# Dest peer (ASN 65002) -- sink mode, accepts everything
+# Dest peer (ASN 65002) -- verify every forwarded route plus EOR
 stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=20s
+expect=bgp:conn=1:seq=1:contains=180A000000
+expect=bgp:conn=1:seq=2:contains=180A000100
+expect=bgp:conn=1:seq=3:contains=180A000200
+expect=bgp:conn=1:seq=4:contains=180A000300
+expect=bgp:conn=1:seq=5:contains=180A000400
+expect=bgp:conn=1:seq=6:contains=180A000500
+expect=bgp:conn=1:seq=7:contains=180A000600
+expect=bgp:conn=1:seq=8:contains=180A000700
+expect=bgp:conn=1:seq=9:contains=180A000800
+expect=bgp:conn=1:seq=10:contains=180A000900
+expect=bgp:conn=1:seq=11:contains=180A000A00
+expect=bgp:conn=1:seq=12:contains=180A000B00
+expect=bgp:conn=1:seq=13:contains=180A000C00
+expect=bgp:conn=1:seq=14:contains=180A000D00
+expect=bgp:conn=1:seq=15:contains=180A000E00
+expect=bgp:conn=1:seq=16:contains=180A000F00
+expect=bgp:conn=1:seq=17:contains=180A001000
+expect=bgp:conn=1:seq=18:contains=180A001100
+expect=bgp:conn=1:seq=19:contains=180A001200
+expect=bgp:conn=1:seq=20:contains=180A001300
+expect=bgp:conn=1:seq=21:contains=180A001400
+expect=bgp:conn=1:seq=22:contains=180A001500
+expect=bgp:conn=1:seq=23:contains=180A001600
+expect=bgp:conn=1:seq=24:contains=180A001700
+expect=bgp:conn=1:seq=25:contains=180A001800
+expect=bgp:conn=1:seq=26:contains=180A001900
+expect=bgp:conn=1:seq=27:contains=180A001A00
+expect=bgp:conn=1:seq=28:contains=180A001B00
+expect=bgp:conn=1:seq=29:contains=180A001C00
+expect=bgp:conn=1:seq=30:contains=180A001D00
+expect=bgp:conn=1:seq=31:contains=180A001E00
+expect=bgp:conn=1:seq=32:contains=180A001F00
+expect=bgp:conn=1:seq=33:contains=180A002000
+expect=bgp:conn=1:seq=34:contains=180A002100
+expect=bgp:conn=1:seq=35:contains=180A002200
+expect=bgp:conn=1:seq=36:contains=180A002300
+expect=bgp:conn=1:seq=37:contains=180A002400
+expect=bgp:conn=1:seq=38:contains=180A002500
+expect=bgp:conn=1:seq=39:contains=180A002600
+expect=bgp:conn=1:seq=40:contains=180A002700
+expect=bgp:conn=1:seq=41:contains=180A002800
+expect=bgp:conn=1:seq=42:contains=180A002900
+expect=bgp:conn=1:seq=43:contains=180A002A00
+expect=bgp:conn=1:seq=44:contains=180A002B00
+expect=bgp:conn=1:seq=45:contains=180A002C00
+expect=bgp:conn=1:seq=46:contains=180A002D00
+expect=bgp:conn=1:seq=47:contains=180A002E00
+expect=bgp:conn=1:seq=48:contains=180A002F00
+expect=bgp:conn=1:seq=49:contains=180A003000
+expect=bgp:conn=1:seq=50:contains=180A003100
+expect=bgp:conn=1:seq=51:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_DEST
 
-# Python test plugin: verify all routes forwarded
+# Python test plugin: smoke-checks metric registration while the dest peer proves
+# every UPDATE was delivered.
 tmpfs=overflow-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Test: overflow pool delivers all routes under burst."""
@@ -122,9 +167,9 @@ def main():
         sys.stderr.flush()
         runtime_fail(msg)
 
-    print(f'OK: {total} routes accepted and forwarded through overflow pool', file=sys.stderr)
+    print(f'OK: {total} routes accepted', file=sys.stderr)
 
-    # Verify pool metrics exist.
+    # Verify overflow-related metrics are registered.
     r = dispatch(api, 'metrics values')
     data_str = r.get('data', '{}')
     try:
@@ -133,12 +178,12 @@ def main():
         data = {}
     metrics = data.get('metrics', '')
     if 'ze_bgp_pool_used_ratio' not in metrics:
-        msg = f'ze_bgp_pool_used_ratio not in metrics output'
+        msg = 'ze_bgp_pool_used_ratio not in metrics output'
         print(f'FAIL: {msg}', file=sys.stderr)
         sys.stderr.flush()
         runtime_fail(msg)
 
-    print(f'OK: pool metrics present', file=sys.stderr)
+    print('OK: overflow metrics present', file=sys.stderr)
 
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()
@@ -147,7 +192,7 @@ if __name__ == '__main__':
     main()
 EOF_RUN
 
-# ze configuration: source -> ze (RS) -> dest, with overflow pool
+# ze configuration: source -> ze -> dest, with guaranteed overflow
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external overflow-test {
@@ -226,18 +271,14 @@ bgp {
 }
 EOF_CONF
 
+# Force small channel size so overflow is guaranteed with 50 routes.
+option=env:var=ZE_FWD_CHAN_SIZE:value=2
+
 # Process orchestration
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --mode sink --port $PORT:stdin=dest
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
-# AC verification is TODO (same architectural blocker as community-strip):
-# this test does not load bgp-rs / bgp-cache / any plugin that calls
-# ForwardUpdate, so the forward pool is never exercised. The burst of 50
-# UPDATEs is received and queued but never propagated to dest-peer.
-# Redesign path: load --plugin ze.bgp-rs to enable forwarding, then assert
-# on "forward batch flushed" / "pool_used_ratio > 0" / dest-peer wire bytes.
-# Negative regressions catch obvious breaks:
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error
 reject=stderr:pattern=treat-as-withdraw

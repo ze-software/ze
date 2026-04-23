@@ -9,12 +9,23 @@ option=timeout:value=15s
 # No role capability added -- this peer is "unknown/untagged"
 # Send UPDATE: ORIGIN=IGP, AS_PATH=empty, NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0029020000000E4001010040020040030401010101180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: verifies route is received from untagged peer.
+# Dest peer: with no role config on the source, the route should be forwarded
+# normally and must not gain OTC filtering behavior.
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE840030401010101180A0000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_DEST
+
+# Python test plugin: keeps the daemon alive while the destination wire
+# assertion proves backward-compatible forwarding.
 tmpfs=test-unknown.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-"""Verify routes from untagged peer are accepted when no role is configured."""
+"""Keep the daemon alive while the dest peer verifies untagged forwarding."""
 import json
 import sys
 import time
@@ -46,7 +57,7 @@ def main():
         sys.stderr.flush()
         runtime_fail(msg)
 
-    print('OK: route from untagged peer accepted (no OTC filtering)', file=sys.stderr)
+    print('OK: route from untagged peer accepted while dest wire assertion verified forwarding', file=sys.stderr)
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()
 
@@ -54,7 +65,7 @@ if __name__ == '__main__':
     main()
 EOF_RUN
 
-# ze configuration: no role config for this peer (backward compatible)
+# ze configuration: no role config for either peer (backward compatible)
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-unknown {
@@ -88,14 +99,36 @@ bgp {
 			receive [ update state ]
 		}
 	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
 }
 EOF_CONF
 
 # Process orchestration
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
-# AC verification is TODO -- architectural blocker (community-strip).
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error
 reject=stderr:pattern=ZE-OBSERVER-FAIL

@@ -22,12 +22,26 @@ option=open:value=add-capability:code=9:hex=03
 #     OTC=65001: C0 23 04 0000FDE9
 #   attr_len = 4+9+15+7 = 35 = 0x23
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A02000000234001010040020602010000FDE9900E0C000102040101010100180A0000C023040000FDE9
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: verifies the multicast route with OTC was NOT rejected.
+# Dest peer (Customer, ASN 65002) also negotiates multicast. The route should
+# forward unchanged with OTC still present because OTC processing is out of scope
+# for non-unicast families.
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=03
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000274001010040020A02020000FDE80000FDE9900E0C000102040101010100180A0000C023040000FDE9
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_DEST
+
+# Python test plugin: keeps the daemon alive while the destination wire
+# assertion proves multicast bypasses OTC processing.
 tmpfs=test-scope.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-"""Verify non-unicast routes bypass OTC processing (multicast with OTC from Customer accepted)."""
+"""Keep the daemon alive while the dest peer verifies OTC bypass for multicast."""
 import json
 import sys
 import time
@@ -60,7 +74,7 @@ def main():
         sys.stderr.flush()
         runtime_fail(msg)
 
-    print('OK: multicast route with OTC accepted (OTC scope = unicast only)', file=sys.stderr)
+    print('OK: multicast route with OTC accepted while dest wire assertion verified bypass', file=sys.stderr)
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()
 
@@ -68,7 +82,7 @@ if __name__ == '__main__':
     main()
 EOF_RUN
 
-# ze configuration: Provider with Customer peer, ipv4/multicast enabled
+# ze configuration: Provider with two Customer peers, ipv4/multicast enabled
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external test-scope {
@@ -106,14 +120,42 @@ bgp {
 			receive [ update state ]
 		}
 	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				ipv4/multicast { prefix { maximum 10000; } }
+			}
+		}
+
+		role {
+			import provider
+			export default
+		}
+	}
 }
 EOF_CONF
 
 # Process orchestration
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
-# AC verification is TODO -- architectural blocker (community-strip).
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error
 reject=stderr:pattern=ZE-OBSERVER-FAIL

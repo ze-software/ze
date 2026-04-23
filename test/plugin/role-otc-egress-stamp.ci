@@ -1,6 +1,6 @@
-# Test: OTC egress stamping -- two-peer test proving route forwarded to Customer
-# VALIDATES: RFC 9234 Section 5 egress stamp -- route from Customer forwarded to another Customer
-# PREVENTS: OTC egress stamping not wired, route not reaching destination peer
+# Test: OTC egress stamping -- route to Customer is re-advertised with OTC
+# VALIDATES: RFC 9234 Section 5 egress stamp -- route from Customer forwarded to another Customer with OTC
+# PREVENTS: OTC egress stamping not wired, wrong ASN used for stamping, route not reaching destination peer
 # NOTE: Two-peer test using --bind for separate loopback addresses
 
 # Source peer (Customer, ASN 65001) on 127.0.0.1
@@ -12,21 +12,25 @@ option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=03
 # Send UPDATE without OTC: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_SOURCE
 
-# Dest peer (Customer, ASN 65002) on 127.0.0.2 -- sink mode accepts any UPDATE
+# Dest peer (Customer, ASN 65002) on 127.0.0.2 -- expect OTC-stamped UPDATE
 stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=20s
 # Role capability: drop default (Provider mirror) then add Customer (0x03).
 option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=03
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE80000FDE940030401010101C023040000FDE8180A0000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_DEST
 
-# Python test plugin: verifies route accepted AND forwarded to dest peer
+# Python test plugin: keeps the daemon alive while the destination wire
+# assertion proves OTC stamping.
 tmpfs=test-stamp.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-"""Verify OTC egress stamping: route from Customer forwarded to second Customer peer."""
+"""Keep the daemon alive while the dest peer verifies OTC egress stamping."""
 import json
 import sys
 import time
@@ -69,7 +73,7 @@ def main():
         sys.stderr.flush()
         runtime_fail(msg)
 
-    print('OK: dest-peer session established, route forwarded with OTC stamp', file=sys.stderr)
+    print('OK: dest-peer session established while dest wire assertion verified OTC stamp', file=sys.stderr)
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()
 
@@ -147,10 +151,9 @@ EOF_CONF
 
 # Process orchestration: two ze-peer instances on different loopback addresses
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
-cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --mode sink --port $PORT:stdin=dest
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
-# AC verification is TODO -- architectural blocker (community-strip).
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error
 reject=stderr:pattern=ZE-OBSERVER-FAIL
