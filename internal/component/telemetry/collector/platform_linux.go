@@ -37,4 +37,8 @@ func registerPlatformCollectors(m *Manager) {
 	m.Register(newSoftNetPerCPUCollector(fs, m.interval))
 	m.Register(newNetIfaceCollector())
 	m.Register(newCPUIdleCollector(m.interval))
+	m.Register(newConntrackExpectCollector(m.interval))
+	m.Register(newSCTPCollector(m.interval))
+	m.Register(newIPVSCollector(fs, m.interval))
+	m.Register(newWirelessCollector(fs))
 }

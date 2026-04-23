@@ -16,11 +16,14 @@ type netDevCollector struct {
 	fs       procfs.FS
 	interval time.Duration
 
-	bandwidth metrics.GaugeVec
-	packets   metrics.GaugeVec
-	errors    metrics.GaugeVec
-	drops     metrics.GaugeVec
-	sysNet    metrics.GaugeVec
+	bandwidth  metrics.GaugeVec
+	packets    metrics.GaugeVec
+	errors     metrics.GaugeVec
+	drops      metrics.GaugeVec
+	fifo       metrics.GaugeVec
+	compressed metrics.GaugeVec
+	events     metrics.GaugeVec
+	sysNet     metrics.GaugeVec
 
 	prev      procfs.NetDev
 	prevIface map[string]struct{}
@@ -39,6 +42,9 @@ func (c *netDevCollector) Init(reg metrics.Registry, prefix string) {
 	c.packets = reg.GaugeVec(prefix+"_net_packets_packets_persec_average", "Network Packets", labels)
 	c.errors = reg.GaugeVec(prefix+"_net_errors_errors_persec_average", "Network Errors", labels)
 	c.drops = reg.GaugeVec(prefix+"_net_drops_drops_persec_average", "Network Drops", labels)
+	c.fifo = reg.GaugeVec(prefix+"_net_fifo_errors_average", "Network FIFO Errors", labels)
+	c.compressed = reg.GaugeVec(prefix+"_net_compressed_packets_persec_average", "Network Compressed", labels)
+	c.events = reg.GaugeVec(prefix+"_net_events_events_persec_average", "Network Events", labels)
 	c.sysNet = reg.GaugeVec(prefix+"_system_net_kilobits_persec_average", "System Total Network Bandwidth", labels)
 }
 
@@ -83,6 +89,16 @@ func (c *netDevCollector) Collect() error {
 		c.drops.With(chart, "inbound", family).Set(float64(safeDelta(cur.RxDropped, prev.RxDropped)) / secs)
 		c.drops.With(chart, "outbound", family).Set(float64(safeDelta(cur.TxDropped, prev.TxDropped)) / secs)
 
+		c.fifo.With(chart, "receive", family).Set(float64(safeDelta(cur.RxFIFO, prev.RxFIFO)) / secs)
+		c.fifo.With(chart, "transmit", family).Set(float64(safeDelta(cur.TxFIFO, prev.TxFIFO)) / secs)
+
+		c.compressed.With(chart, "received", family).Set(float64(safeDelta(cur.RxCompressed, prev.RxCompressed)) / secs)
+		c.compressed.With(chart, "sent", family).Set(float64(safeDelta(cur.TxCompressed, prev.TxCompressed)) / secs)
+
+		c.events.With(chart, "frames", family).Set(float64(safeDelta(cur.RxFrame, prev.RxFrame)) / secs)
+		c.events.With(chart, "collisions", family).Set(float64(safeDelta(cur.TxCollisions, prev.TxCollisions)) / secs)
+		c.events.With(chart, "carrier", family).Set(float64(safeDelta(cur.TxCarrier, prev.TxCarrier)) / secs)
+
 		// system.net aggregate: skip loopback only (Netdata includes all others)
 		if iface != "lo" {
 			totalRxDelta += rxDelta
@@ -103,10 +119,17 @@ func (c *netDevCollector) Collect() error {
 		for _, dim := range []string{"received", "sent"} {
 			c.bandwidth.Delete(chart, dim, family)
 			c.packets.Delete(chart, dim, family)
+			c.compressed.Delete(chart, dim, family)
 		}
 		for _, dim := range []string{"inbound", "outbound"} {
 			c.errors.Delete(chart, dim, family)
 			c.drops.Delete(chart, dim, family)
+		}
+		for _, dim := range []string{"receive", "transmit"} {
+			c.fifo.Delete(chart, dim, family)
+		}
+		for _, dim := range []string{"frames", "collisions", "carrier"} {
+			c.events.Delete(chart, dim, family)
 		}
 	}
 
