@@ -12,10 +12,18 @@ import (
 	"strings"
 	"time"
 
+	"bufio"
+	"context"
+	"net/http"
+	"net/http/httptest"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 )
 
@@ -60,6 +68,18 @@ func init() {
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:traffic",
 			Handler:    handleShowTraffic,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:l2tp-health",
+			Handler:    handleShowL2TPHealth,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:bgp-health",
+			Handler:    handleShowBGPHealth,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:metrics-query",
+			Handler:    handleShowMetricsQuery,
 		},
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:event-recent",
@@ -209,6 +229,147 @@ func handleShowTraffic(_ *pluginserver.CommandContext, args []string) (*plugin.R
 		Status: plugin.StatusDone,
 		Data:   map[string]any{"interfaces": rows, "count": len(rows)},
 	}, nil
+}
+
+func handleShowL2TPHealth(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	svc := l2tp.LookupService()
+	if svc == nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: "l2tp subsystem not running"}, nil
+	}
+	summaries := svc.LoginSummaries()
+	if summaries == nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: "observer not enabled (CQM disabled)"}, nil
+	}
+	rows := make([]map[string]any, 0, len(summaries))
+	for i := range summaries {
+		s := &summaries[i]
+		rows = append(rows, map[string]any{
+			"login":        s.Login,
+			"last-state":   s.LastState,
+			"echo-count":   int(s.EchoCount),
+			"avg-rtt-ms":   float64(s.AvgRTT.Microseconds()) / 1000.0,
+			"bucket-count": s.BucketCount,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		ri, _ := rows[i]["avg-rtt-ms"].(float64)
+		rj, _ := rows[j]["avg-rtt-ms"].(float64)
+		return ri > rj
+	})
+	degraded := 0
+	for _, r := range rows {
+		if st, _ := r["last-state"].(string); st != "established" {
+			degraded++
+		}
+	}
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   map[string]any{"logins": rows, "count": len(rows), "degraded": degraded},
+	}, nil
+}
+
+func handleShowBGPHealth(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	if ctx == nil || ctx.Reactor() == nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: "reactor not available"}, nil
+	}
+	peers := ctx.Reactor().Peers()
+	rows := make([]map[string]any, 0, len(peers))
+	notEstablished := 0
+	for i := range peers {
+		p := &peers[i]
+		state := p.State.String()
+		if p.State != plugin.PeerStateEstablished {
+			notEstablished++
+		}
+		row := map[string]any{
+			"peer":   p.Address.String(),
+			"state":  state,
+			"as":     p.PeerAS,
+			"uptime": p.Uptime.Truncate(time.Second).String(),
+		}
+		rows = append(rows, row)
+	}
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   map[string]any{"peers": rows, "count": len(rows), "not-established": notEstablished},
+	}, nil
+}
+
+func handleShowMetricsQuery(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	reg := registry.GetMetricsRegistry()
+	if reg == nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: "metrics not available"}, nil
+	}
+	promReg, ok := reg.(*metrics.PrometheusRegistry)
+	if !ok {
+		return &plugin.Response{Status: plugin.StatusError, Data: "metrics not available"}, nil
+	}
+	metricName := ""
+	labelFilters := make(map[string]string)
+	for _, a := range args {
+		if a == "" || strings.HasPrefix(a, "-") {
+			continue
+		}
+		if metricName == "" {
+			metricName = a
+			continue
+		}
+		if parts := strings.SplitN(a, "=", 2); len(parts) == 2 {
+			labelFilters[parts[0]] = parts[1]
+		}
+	}
+	if metricName == "" {
+		return &plugin.Response{Status: plugin.StatusError, Data: "usage: metrics-query <name> [label=value ...]"}, nil
+	}
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", http.NoBody)
+	if err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, nil //nolint:nilerr // operational error in Response
+	}
+	rec := httptest.NewRecorder()
+	promReg.Handler().ServeHTTP(rec, req)
+	text := rec.Body.String()
+
+	matched := filterMetricLines(text, metricName, labelFilters)
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   map[string]any{"metric": metricName, "series": matched, "count": len(matched)},
+	}, nil
+}
+
+func filterMetricLines(text, name string, labelFilters map[string]string) []map[string]any {
+	var results []map[string]any
+	scanner := bufio.NewScanner(strings.NewReader(text))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if !strings.HasPrefix(line, name) {
+			continue
+		}
+		rest := line[len(name):]
+		if rest != "" && rest[0] != '{' && rest[0] != ' ' {
+			continue
+		}
+		if len(labelFilters) > 0 {
+			match := true
+			for k, v := range labelFilters {
+				want := k + `="` + v + `"`
+				if !strings.Contains(line, want) {
+					match = false
+					break
+				}
+			}
+			if !match {
+				continue
+			}
+		}
+		results = append(results, map[string]any{"line": line})
+	}
+	if results == nil {
+		results = []map[string]any{}
+	}
+	return results
 }
 
 func handleShowEventRecent(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

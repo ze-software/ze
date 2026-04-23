@@ -115,6 +115,24 @@ module ze-cli-show-cmd {
             description "Show traffic control (qdisc/class/filter) state per interface";
         }
 
+        container l2tp-health {
+            config false;
+            ze:command "ze-show:l2tp-health";
+            description "Show L2TP session health sorted by echo loss ratio";
+        }
+
+        container bgp-health {
+            config false;
+            ze:command "ze-show:bgp-health";
+            description "Show BGP peer health sorted by state and activity";
+        }
+
+        container metrics-query {
+            config false;
+            ze:command "ze-show:metrics-query";
+            description "Query Prometheus metrics by name with optional label filter";
+        }
+
         container event {
             config false;
             description "Event history";

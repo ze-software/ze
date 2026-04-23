@@ -10,4 +10,7 @@ module ze-cli-show-api {
   rpc traffic { description "Show traffic control state per interface"; }
   rpc event-recent { description "Show recent events from global event ring"; }
   rpc event-namespaces { description "Show registered event namespaces with counts"; }
+  rpc l2tp-health { description "Show L2TP session health sorted by echo loss"; }
+  rpc bgp-health { description "Show BGP peer health sorted by state and activity"; }
+  rpc metrics-query { description "Query Prometheus metrics by name and label filter"; }
 }
