@@ -35,4 +35,6 @@ func registerPlatformCollectors(m *Manager) {
 	m.Register(newCPUFreqCollector(m.interval))
 	m.Register(newNetstatCollector(fs, m.interval))
 	m.Register(newSoftNetPerCPUCollector(fs, m.interval))
+	m.Register(newNetIfaceCollector())
+	m.Register(newCPUIdleCollector(m.interval))
 }

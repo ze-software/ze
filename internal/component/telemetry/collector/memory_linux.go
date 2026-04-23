@@ -5,6 +5,11 @@
 package collector
 
 import (
+	"bufio"
+	"os"
+	"strconv"
+	"strings"
+
 	"github.com/prometheus/procfs"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
@@ -13,20 +18,23 @@ import (
 type memoryCollector struct {
 	fs procfs.FS
 
-	ram        metrics.GaugeVec
-	swap       metrics.GaugeVec
-	available  metrics.GaugeVec
-	committed  metrics.GaugeVec
-	kernel     metrics.GaugeVec
-	slab       metrics.GaugeVec
-	thp        metrics.GaugeVec
-	writeback  metrics.GaugeVec
-	hugepages  metrics.GaugeVec
-	reclaiming metrics.GaugeVec
-	swapCached metrics.GaugeVec
-	cma        metrics.GaugeVec
-	directmaps metrics.GaugeVec
-	hwcorrupt  metrics.GaugeVec
+	ram          metrics.GaugeVec
+	swap         metrics.GaugeVec
+	available    metrics.GaugeVec
+	committed    metrics.GaugeVec
+	kernel       metrics.GaugeVec
+	slab         metrics.GaugeVec
+	thp          metrics.GaugeVec
+	writeback    metrics.GaugeVec
+	hugepages    metrics.GaugeVec
+	reclaiming   metrics.GaugeVec
+	swapCached   metrics.GaugeVec
+	cma          metrics.GaugeVec
+	directmaps   metrics.GaugeVec
+	hwcorrupt    metrics.GaugeVec
+	zswap        metrics.GaugeVec
+	zswapChecked bool
+	zswapAvail   bool
 }
 
 func newMemoryCollector(fs procfs.FS) *memoryCollector {
@@ -51,6 +59,7 @@ func (c *memoryCollector) Init(reg metrics.Registry, prefix string) {
 	c.cma = reg.GaugeVec(prefix+"_mem_cma_MiB_average", "CMA Memory", labels)
 	c.directmaps = reg.GaugeVec(prefix+"_mem_directmaps_MiB_average", "Direct Maps", labels)
 	c.hwcorrupt = reg.GaugeVec(prefix+"_mem_hwcorrupt_MiB_average", "Hardware Corrupted", labels)
+	c.zswap = reg.GaugeVec(prefix+"_mem_zswap_MiB_average", "Zswap Usage", labels)
 }
 
 const mibDiv = 1024 * 1024
@@ -135,5 +144,44 @@ func (c *memoryCollector) Collect() error {
 
 	c.hwcorrupt.With("mem.hwcorrupt", "HardwareCorrupted", "ecc").Set(toMiB(m.HardwareCorrupted))
 
+	if !c.zswapChecked {
+		c.zswapChecked = true
+		z, zd := readZswapFromMeminfo()
+		c.zswapAvail = z > 0 || zd > 0
+	}
+	if c.zswapAvail {
+		zswapKB, zswappedKB := readZswapFromMeminfo()
+		c.zswap.With("mem.zswap", "zswap", "zswap").Set(float64(zswapKB) / 1024)
+		c.zswap.With("mem.zswap", "zswapped", "zswap").Set(float64(zswappedKB) / 1024)
+	}
+
 	return nil
+}
+
+func readZswapFromMeminfo() (zswapKB, zswappedKB uint64) {
+	f, err := os.Open("/proc/meminfo")
+	if err != nil {
+		return 0, 0
+	}
+	defer func() { _ = f.Close() }()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "Zswap:") {
+			zswapKB = parseMeminfoKB(line)
+		} else if strings.HasPrefix(line, "Zswapped:") {
+			zswappedKB = parseMeminfoKB(line)
+		}
+	}
+	return
+}
+
+func parseMeminfoKB(line string) uint64 {
+	fields := strings.Fields(line)
+	if len(fields) < 2 {
+		return 0
+	}
+	v, _ := strconv.ParseUint(fields[1], 10, 64)
+	return v
 }

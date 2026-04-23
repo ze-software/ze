@@ -23,6 +23,7 @@ type snmp6Collector struct {
 	udpErrors  metrics.GaugeVec
 	mcast      metrics.GaugeVec
 	fragsOut   metrics.GaugeVec
+	fragsIn    metrics.GaugeVec
 
 	prev  procfs.ProcSnmp6
 	first bool
@@ -43,6 +44,7 @@ func (c *snmp6Collector) Init(reg metrics.Registry, prefix string) {
 	c.udpErrors = reg.GaugeVec(prefix+"_ipv6_udperrors_events_persec_average", "IPv6 UDP Errors", labels)
 	c.mcast = reg.GaugeVec(prefix+"_ipv6_mcast_kilobits_persec_average", "IPv6 Multicast Bandwidth", labels)
 	c.fragsOut = reg.GaugeVec(prefix+"_ipv6_fragsout_packets_persec_average", "IPv6 Fragments Out", labels)
+	c.fragsIn = reg.GaugeVec(prefix+"_ipv6_fragsin_packets_persec_average", "IPv6 Fragments Reassembly", labels)
 }
 
 func (c *snmp6Collector) Collect() error {
@@ -96,6 +98,11 @@ func (c *snmp6Collector) Collect() error {
 	c.fragsOut.With("ipv6.fragsout", "ok", "fragments6").Set(safeDeltaF64(cur.Ip6.FragOKs, c.prev.Ip6.FragOKs) / secs)
 	c.fragsOut.With("ipv6.fragsout", "failed", "fragments6").Set(safeDeltaF64(cur.Ip6.FragFails, c.prev.Ip6.FragFails) / secs)
 	c.fragsOut.With("ipv6.fragsout", "all", "fragments6").Set(safeDeltaF64(cur.Ip6.FragCreates, c.prev.Ip6.FragCreates) / secs)
+
+	c.fragsIn.With("ipv6.fragsin", "ok", "fragments6").Set(safeDeltaF64(cur.Ip6.ReasmOKs, c.prev.Ip6.ReasmOKs) / secs)
+	c.fragsIn.With("ipv6.fragsin", "failed", "fragments6").Set(safeDeltaF64(cur.Ip6.ReasmFails, c.prev.Ip6.ReasmFails) / secs)
+	c.fragsIn.With("ipv6.fragsin", "timeout", "fragments6").Set(safeDeltaF64(cur.Ip6.ReasmTimeout, c.prev.Ip6.ReasmTimeout) / secs)
+	c.fragsIn.With("ipv6.fragsin", "all", "fragments6").Set(safeDeltaF64(cur.Ip6.ReasmReqds, c.prev.Ip6.ReasmReqds) / secs)
 
 	c.prev = cur
 	return nil

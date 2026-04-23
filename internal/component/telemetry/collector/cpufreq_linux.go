@@ -112,3 +112,11 @@ func readSysUint64(path string) uint64 {
 	v, _ := strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64)
 	return v
 }
+
+func readSysStr(path string) string {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}

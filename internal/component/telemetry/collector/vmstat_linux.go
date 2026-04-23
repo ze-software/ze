@@ -18,14 +18,16 @@ import (
 type vmstatCollector struct {
 	interval time.Duration
 
-	pgfaults metrics.GaugeVec
-	pgio     metrics.GaugeVec
-	swapio   metrics.GaugeVec
-	oomKill  metrics.GaugeVec
-	numa     metrics.GaugeVec
-	balloon  metrics.GaugeVec
-	zswapio  metrics.GaugeVec
-	ksmCow   metrics.GaugeVec
+	pgfaults  metrics.GaugeVec
+	pgio      metrics.GaugeVec
+	swapio    metrics.GaugeVec
+	oomKill   metrics.GaugeVec
+	numa      metrics.GaugeVec
+	balloon   metrics.GaugeVec
+	zswapio   metrics.GaugeVec
+	ksmCow    metrics.GaugeVec
+	thpFaults metrics.GaugeVec
+	thpCollap metrics.GaugeVec
 
 	prev  map[string]uint64
 	first bool
@@ -47,6 +49,8 @@ func (c *vmstatCollector) Init(reg metrics.Registry, prefix string) {
 	c.balloon = reg.GaugeVec(prefix+"_mem_balloon_KiB_persec_average", "Memory Balloon", labels)
 	c.zswapio = reg.GaugeVec(prefix+"_mem_zswapio_KiB_persec_average", "Zswap I/O", labels)
 	c.ksmCow = reg.GaugeVec(prefix+"_mem_ksm_cow_KiB_persec_average", "KSM CoW", labels)
+	c.thpFaults = reg.GaugeVec(prefix+"_mem_thp_faults_events_persec_average", "THP Faults", labels)
+	c.thpCollap = reg.GaugeVec(prefix+"_mem_thp_collapse_events_persec_average", "THP Collapse", labels)
 }
 
 func (c *vmstatCollector) Collect() error {
@@ -93,6 +97,13 @@ func (c *vmstatCollector) Collect() error {
 
 	c.ksmCow.With("mem.ksm_cow", "swapin", "ksm").Set(float64(safeDelta(cur["ksm_swpin_copy"], c.prev["ksm_swpin_copy"])) / secs)
 	c.ksmCow.With("mem.ksm_cow", "write", "ksm").Set(float64(safeDelta(cur["cow_ksm"], c.prev["cow_ksm"])) / secs)
+
+	c.thpFaults.With("mem.thp_faults", "alloc", "hugepages").Set(float64(safeDelta(cur["thp_fault_alloc"], c.prev["thp_fault_alloc"])) / secs)
+	c.thpFaults.With("mem.thp_faults", "fallback", "hugepages").Set(float64(safeDelta(cur["thp_fault_fallback"], c.prev["thp_fault_fallback"])) / secs)
+	c.thpFaults.With("mem.thp_faults", "fallback_charge", "hugepages").Set(float64(safeDelta(cur["thp_fault_fallback_charge"], c.prev["thp_fault_fallback_charge"])) / secs)
+
+	c.thpCollap.With("mem.thp_collapse", "alloc", "hugepages").Set(float64(safeDelta(cur["thp_collapse_alloc"], c.prev["thp_collapse_alloc"])) / secs)
+	c.thpCollap.With("mem.thp_collapse", "failed", "hugepages").Set(float64(safeDelta(cur["thp_collapse_alloc_failed"], c.prev["thp_collapse_alloc_failed"])) / secs)
 
 	c.prev = cur
 	return nil
