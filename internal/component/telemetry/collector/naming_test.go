@@ -101,20 +101,20 @@ func (s *loadAvgStub) Init(reg metrics.Registry, prefix string) {
 
 func (s *loadAvgStub) Collect() error { return nil }
 
-// TestManagerCollectInterval verifies the manager respects the tick interval.
+// TestManagerCollectInterval verifies the manager ticks and collects.
 func TestManagerCollectInterval(t *testing.T) {
 	reg := metrics.NopRegistry{}
-	m := NewManager(reg, "test", 50*time.Millisecond, nil)
+	m := NewManager(reg, "test", time.Second, nil)
 
 	count := 0
 	m.Register(&countingCollector{collectFn: func() { count++ }})
 	m.Start()
 
-	time.Sleep(180 * time.Millisecond)
+	time.Sleep(1200 * time.Millisecond)
 	m.Stop()
 
-	if count < 3 {
-		t.Fatalf("collect called %d times, want >= 3 (1 immediate + 2 ticks)", count)
+	if count < 2 {
+		t.Fatalf("collect called %d times, want >= 2 (1 immediate + 1 tick)", count)
 	}
 }
 

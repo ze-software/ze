@@ -24,6 +24,10 @@ type snmpCollector struct {
 	tcpConnections metrics.GaugeVec
 	udpPackets     metrics.GaugeVec
 	udpErrors      metrics.GaugeVec
+	icmp           metrics.GaugeVec
+	icmpMsg        metrics.GaugeVec
+	ipFragsOut     metrics.GaugeVec
+	ipFragsIn      metrics.GaugeVec
 
 	prev  procfs.ProcSnmp
 	first bool
@@ -45,6 +49,10 @@ func (c *snmpCollector) Init(reg metrics.Registry, prefix string) {
 	c.tcpConnections = reg.GaugeVec(prefix+"_ipv4_tcpsock_active_connections_average", "TCP Active Connections", labels)
 	c.udpPackets = reg.GaugeVec(prefix+"_ipv4_udppackets_packets_persec_average", "UDP Packets", labels)
 	c.udpErrors = reg.GaugeVec(prefix+"_ipv4_udperrors_events_persec_average", "UDP Errors", labels)
+	c.icmp = reg.GaugeVec(prefix+"_ipv4_icmp_packets_persec_average", "ICMP Packets", labels)
+	c.icmpMsg = reg.GaugeVec(prefix+"_ipv4_icmpmsg_packets_persec_average", "ICMP Messages", labels)
+	c.ipFragsOut = reg.GaugeVec(prefix+"_ipv4_fragsout_packets_persec_average", "IPv4 Fragments Sent", labels)
+	c.ipFragsIn = reg.GaugeVec(prefix+"_ipv4_fragsin_packets_persec_average", "IPv4 Fragments Reassembly", labels)
 }
 
 func ptrVal(v *float64) float64 {
@@ -64,7 +72,6 @@ func (c *snmpCollector) Collect() error {
 		return err
 	}
 
-	// TCP current connections (gauge, not rate)
 	c.tcpConnections.With("ipv4.tcpsock", "connections", "tcp").Set(ptrVal(cur.Tcp.CurrEstab))
 
 	if c.first {
@@ -74,46 +81,56 @@ func (c *snmpCollector) Collect() error {
 	}
 
 	secs := c.interval.Seconds()
+	p := c.prev
 
-	// IPv4 packets
-	c.ipv4Packets.With("ipv4.packets", "received", "packets").Set(safeDeltaF64(cur.Ip.InReceives, c.prev.Ip.InReceives) / secs)
-	c.ipv4Packets.With("ipv4.packets", "sent", "packets").Set(safeDeltaF64(cur.Ip.OutRequests, c.prev.Ip.OutRequests) / secs)
-	c.ipv4Packets.With("ipv4.packets", "forwarded", "packets").Set(safeDeltaF64(cur.Ip.ForwDatagrams, c.prev.Ip.ForwDatagrams) / secs)
-	c.ipv4Packets.With("ipv4.packets", "delivered", "packets").Set(safeDeltaF64(cur.Ip.InDelivers, c.prev.Ip.InDelivers) / secs)
+	c.ipv4Packets.With("ipv4.packets", "received", "packets").Set(safeDeltaF64(cur.Ip.InReceives, p.Ip.InReceives) / secs)
+	c.ipv4Packets.With("ipv4.packets", "sent", "packets").Set(safeDeltaF64(cur.Ip.OutRequests, p.Ip.OutRequests) / secs)
+	c.ipv4Packets.With("ipv4.packets", "forwarded", "packets").Set(safeDeltaF64(cur.Ip.ForwDatagrams, p.Ip.ForwDatagrams) / secs)
+	c.ipv4Packets.With("ipv4.packets", "delivered", "packets").Set(safeDeltaF64(cur.Ip.InDelivers, p.Ip.InDelivers) / secs)
 
-	// IPv4 errors
-	c.ipv4Errors.With("ipv4.errors", "InDiscards", "errors").Set(safeDeltaF64(cur.Ip.InDiscards, c.prev.Ip.InDiscards) / secs)
-	c.ipv4Errors.With("ipv4.errors", "OutDiscards", "errors").Set(safeDeltaF64(cur.Ip.OutDiscards, c.prev.Ip.OutDiscards) / secs)
-	c.ipv4Errors.With("ipv4.errors", "InHdrErrors", "errors").Set(safeDeltaF64(cur.Ip.InHdrErrors, c.prev.Ip.InHdrErrors) / secs)
-	c.ipv4Errors.With("ipv4.errors", "InAddrErrors", "errors").Set(safeDeltaF64(cur.Ip.InAddrErrors, c.prev.Ip.InAddrErrors) / secs)
-	c.ipv4Errors.With("ipv4.errors", "InUnknownProtos", "errors").Set(safeDeltaF64(cur.Ip.InUnknownProtos, c.prev.Ip.InUnknownProtos) / secs)
-	c.ipv4Errors.With("ipv4.errors", "OutNoRoutes", "errors").Set(safeDeltaF64(cur.Ip.OutNoRoutes, c.prev.Ip.OutNoRoutes) / secs)
+	c.ipv4Errors.With("ipv4.errors", "InDiscards", "errors").Set(safeDeltaF64(cur.Ip.InDiscards, p.Ip.InDiscards) / secs)
+	c.ipv4Errors.With("ipv4.errors", "OutDiscards", "errors").Set(safeDeltaF64(cur.Ip.OutDiscards, p.Ip.OutDiscards) / secs)
+	c.ipv4Errors.With("ipv4.errors", "InHdrErrors", "errors").Set(safeDeltaF64(cur.Ip.InHdrErrors, p.Ip.InHdrErrors) / secs)
+	c.ipv4Errors.With("ipv4.errors", "InAddrErrors", "errors").Set(safeDeltaF64(cur.Ip.InAddrErrors, p.Ip.InAddrErrors) / secs)
+	c.ipv4Errors.With("ipv4.errors", "InUnknownProtos", "errors").Set(safeDeltaF64(cur.Ip.InUnknownProtos, p.Ip.InUnknownProtos) / secs)
+	c.ipv4Errors.With("ipv4.errors", "OutNoRoutes", "errors").Set(safeDeltaF64(cur.Ip.OutNoRoutes, p.Ip.OutNoRoutes) / secs)
 
-	// TCP packets
-	c.tcpPackets.With("ipv4.tcppackets", "received", "tcp").Set(safeDeltaF64(cur.Tcp.InSegs, c.prev.Tcp.InSegs) / secs)
-	c.tcpPackets.With("ipv4.tcppackets", "sent", "tcp").Set(safeDeltaF64(cur.Tcp.OutSegs, c.prev.Tcp.OutSegs) / secs)
+	c.tcpPackets.With("ipv4.tcppackets", "received", "tcp").Set(safeDeltaF64(cur.Tcp.InSegs, p.Tcp.InSegs) / secs)
+	c.tcpPackets.With("ipv4.tcppackets", "sent", "tcp").Set(safeDeltaF64(cur.Tcp.OutSegs, p.Tcp.OutSegs) / secs)
 
-	// TCP errors
-	c.tcpErrors.With("ipv4.tcperrors", "InErrs", "tcp").Set(safeDeltaF64(cur.Tcp.InErrs, c.prev.Tcp.InErrs) / secs)
-	c.tcpErrors.With("ipv4.tcperrors", "InCsumErrors", "tcp").Set(safeDeltaF64(cur.Tcp.InCsumErrors, c.prev.Tcp.InCsumErrors) / secs)
-	c.tcpErrors.With("ipv4.tcperrors", "RetransSegs", "tcp").Set(safeDeltaF64(cur.Tcp.RetransSegs, c.prev.Tcp.RetransSegs) / secs)
+	c.tcpErrors.With("ipv4.tcperrors", "InErrs", "tcp").Set(safeDeltaF64(cur.Tcp.InErrs, p.Tcp.InErrs) / secs)
+	c.tcpErrors.With("ipv4.tcperrors", "InCsumErrors", "tcp").Set(safeDeltaF64(cur.Tcp.InCsumErrors, p.Tcp.InCsumErrors) / secs)
+	c.tcpErrors.With("ipv4.tcperrors", "RetransSegs", "tcp").Set(safeDeltaF64(cur.Tcp.RetransSegs, p.Tcp.RetransSegs) / secs)
 
-	// TCP handshake
-	c.tcpHandshake.With("ipv4.tcphandshake", "EstabResets", "tcp").Set(safeDeltaF64(cur.Tcp.EstabResets, c.prev.Tcp.EstabResets) / secs)
-	c.tcpHandshake.With("ipv4.tcphandshake", "ActiveOpens", "tcp").Set(safeDeltaF64(cur.Tcp.ActiveOpens, c.prev.Tcp.ActiveOpens) / secs)
-	c.tcpHandshake.With("ipv4.tcphandshake", "PassiveOpens", "tcp").Set(safeDeltaF64(cur.Tcp.PassiveOpens, c.prev.Tcp.PassiveOpens) / secs)
-	c.tcpHandshake.With("ipv4.tcphandshake", "AttemptFails", "tcp").Set(safeDeltaF64(cur.Tcp.AttemptFails, c.prev.Tcp.AttemptFails) / secs)
+	c.tcpHandshake.With("ipv4.tcphandshake", "EstabResets", "tcp").Set(safeDeltaF64(cur.Tcp.EstabResets, p.Tcp.EstabResets) / secs)
+	c.tcpHandshake.With("ipv4.tcphandshake", "ActiveOpens", "tcp").Set(safeDeltaF64(cur.Tcp.ActiveOpens, p.Tcp.ActiveOpens) / secs)
+	c.tcpHandshake.With("ipv4.tcphandshake", "PassiveOpens", "tcp").Set(safeDeltaF64(cur.Tcp.PassiveOpens, p.Tcp.PassiveOpens) / secs)
+	c.tcpHandshake.With("ipv4.tcphandshake", "AttemptFails", "tcp").Set(safeDeltaF64(cur.Tcp.AttemptFails, p.Tcp.AttemptFails) / secs)
 
-	// UDP packets
-	c.udpPackets.With("ipv4.udppackets", "received", "udp").Set(safeDeltaF64(cur.Udp.InDatagrams, c.prev.Udp.InDatagrams) / secs)
-	c.udpPackets.With("ipv4.udppackets", "sent", "udp").Set(safeDeltaF64(cur.Udp.OutDatagrams, c.prev.Udp.OutDatagrams) / secs)
+	c.udpPackets.With("ipv4.udppackets", "received", "udp").Set(safeDeltaF64(cur.Udp.InDatagrams, p.Udp.InDatagrams) / secs)
+	c.udpPackets.With("ipv4.udppackets", "sent", "udp").Set(safeDeltaF64(cur.Udp.OutDatagrams, p.Udp.OutDatagrams) / secs)
 
-	// UDP errors
-	c.udpErrors.With("ipv4.udperrors", "InErrors", "udp").Set(safeDeltaF64(cur.Udp.InErrors, c.prev.Udp.InErrors) / secs)
-	c.udpErrors.With("ipv4.udperrors", "NoPorts", "udp").Set(safeDeltaF64(cur.Udp.NoPorts, c.prev.Udp.NoPorts) / secs)
-	c.udpErrors.With("ipv4.udperrors", "RcvbufErrors", "udp").Set(safeDeltaF64(cur.Udp.RcvbufErrors, c.prev.Udp.RcvbufErrors) / secs)
-	c.udpErrors.With("ipv4.udperrors", "SndbufErrors", "udp").Set(safeDeltaF64(cur.Udp.SndbufErrors, c.prev.Udp.SndbufErrors) / secs)
-	c.udpErrors.With("ipv4.udperrors", "InCsumErrors", "udp").Set(safeDeltaF64(cur.Udp.InCsumErrors, c.prev.Udp.InCsumErrors) / secs)
+	c.udpErrors.With("ipv4.udperrors", "InErrors", "udp").Set(safeDeltaF64(cur.Udp.InErrors, p.Udp.InErrors) / secs)
+	c.udpErrors.With("ipv4.udperrors", "NoPorts", "udp").Set(safeDeltaF64(cur.Udp.NoPorts, p.Udp.NoPorts) / secs)
+	c.udpErrors.With("ipv4.udperrors", "RcvbufErrors", "udp").Set(safeDeltaF64(cur.Udp.RcvbufErrors, p.Udp.RcvbufErrors) / secs)
+	c.udpErrors.With("ipv4.udperrors", "SndbufErrors", "udp").Set(safeDeltaF64(cur.Udp.SndbufErrors, p.Udp.SndbufErrors) / secs)
+	c.udpErrors.With("ipv4.udperrors", "InCsumErrors", "udp").Set(safeDeltaF64(cur.Udp.InCsumErrors, p.Udp.InCsumErrors) / secs)
+
+	c.icmp.With("ipv4.icmp", "InMsgs", "icmp").Set(safeDeltaF64(cur.Icmp.InMsgs, p.Icmp.InMsgs) / secs)
+	c.icmp.With("ipv4.icmp", "OutMsgs", "icmp").Set(safeDeltaF64(cur.Icmp.OutMsgs, p.Icmp.OutMsgs) / secs)
+	c.icmp.With("ipv4.icmp", "InErrors", "icmp").Set(safeDeltaF64(cur.Icmp.InErrors, p.Icmp.InErrors) / secs)
+	c.icmp.With("ipv4.icmp", "OutErrors", "icmp").Set(safeDeltaF64(cur.Icmp.OutErrors, p.Icmp.OutErrors) / secs)
+
+	c.icmpMsg.With("ipv4.icmpmsg", "InType3", "icmp").Set(safeDeltaF64(cur.IcmpMsg.InType3, p.IcmpMsg.InType3) / secs)
+	c.icmpMsg.With("ipv4.icmpmsg", "OutType3", "icmp").Set(safeDeltaF64(cur.IcmpMsg.OutType3, p.IcmpMsg.OutType3) / secs)
+
+	c.ipFragsOut.With("ipv4.fragsout", "ok", "fragments").Set(safeDeltaF64(cur.Ip.FragOKs, p.Ip.FragOKs) / secs)
+	c.ipFragsOut.With("ipv4.fragsout", "failed", "fragments").Set(safeDeltaF64(cur.Ip.FragFails, p.Ip.FragFails) / secs)
+	c.ipFragsOut.With("ipv4.fragsout", "all", "fragments").Set(safeDeltaF64(cur.Ip.FragCreates, p.Ip.FragCreates) / secs)
+
+	c.ipFragsIn.With("ipv4.fragsin", "ok", "fragments").Set(safeDeltaF64(cur.Ip.ReasmOKs, p.Ip.ReasmOKs) / secs)
+	c.ipFragsIn.With("ipv4.fragsin", "failed", "fragments").Set(safeDeltaF64(cur.Ip.ReasmFails, p.Ip.ReasmFails) / secs)
+	c.ipFragsIn.With("ipv4.fragsin", "all", "fragments").Set(safeDeltaF64(cur.Ip.ReasmReqds, p.Ip.ReasmReqds) / secs)
 
 	c.prev = cur
 	return nil

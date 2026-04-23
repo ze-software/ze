@@ -32,4 +32,7 @@ func registerPlatformCollectors(m *Manager) {
 	m.Register(newDiskSpaceCollector())
 	m.Register(newSoftIRQsCollector(fs, m.interval))
 	m.Register(newSockStat6Collector(fs))
+	m.Register(newCPUFreqCollector(m.interval))
+	m.Register(newNetstatCollector(fs, m.interval))
+	m.Register(newSoftNetPerCPUCollector(fs, m.interval))
 }
