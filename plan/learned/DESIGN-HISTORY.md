@@ -710,10 +710,16 @@ tests. Prometheus metrics at `/metrics`.
 
 ---
 
-## Sub-protocols: BFD, L2TP, VPP, Firewall, Interface, Host, Gokrazy
+## Sub-protocols: BFD, BMP, L2TP, VPP, Firewall, Interface, Host, Gokrazy
 
 ### Current shape
 
+- **BMP** (`internal/component/bgp/plugins/bmp`): RFC 7854 receiver +
+  sender as DirectBridge plugin. Receiver decodes all 7 message types.
+  Sender streams Initiation, Peer Up (real OPEN PDUs), Route Monitoring
+  (Adj-RIB-In/Out with per-peer FNV-64a dedup), Route Mirroring
+  (verbatim BGP PDUs in TLV type 0), Peer Down, Stats Report, Termination.
+  Config via YANG, reconnect with exponential backoff.
 - **Interface management** (`internal/component/iface`): backend-split
   (netlink/mock/VPP), monitor via netlink subscription, manage
   (add/remove/addr/unit/create/delete), BGP react on addr events, DHCP
@@ -788,6 +794,9 @@ Host + Gokrazy: [577](577-gokrazy-2-ntp.md),
 [581](581-sysctl-0-plugin.md), [583](583-sysctl-1-profiles.md),
 [631](631-host-0-inventory.md).
 
+BMP: [574](574-bgp-4-bmp.md),
+[647](647-bmp-5-sender-compliance.md).
+
 ### Abandoned approaches
 
 - **BFD `Session`, `Engine`, `Clock` generic type names** (555) —
@@ -807,6 +816,11 @@ Host + Gokrazy: [577](577-gokrazy-2-ntp.md),
   for it causes boot hang.
 - **Firewall `DefaultBackendName` exported** (633) — collided with
   iface/traffic; removed export.
+- **BMP synthetic 29-byte OPENs** (574, 647) — no capabilities,
+  collectors could not analyze negotiated features; replaced with
+  event-based OPEN caching.
+- **BMP ribout dedup keyed by messageID** (574) — messageID is unique
+  per UPDATE, so dedup never fired; replaced with attribute-hash dedup.
 
 ### Load-bearing invariants
 
@@ -820,6 +834,7 @@ Host + Gokrazy: [577](577-gokrazy-2-ntp.md),
 | `SetKernelWorker` must be called BEFORE `reactor.Start()` | L2TP kernel worker | Reactor goroutine reads `r.kernelErrCh`; write after Start races. ([599](599-l2tp-5-kernel.md)) |
 | `/proc/meminfo` values are in kB, not bytes | host inventory | Convert at parse time; field names carry `-bytes` suffix. ([631](631-host-0-inventory.md)) |
 | `unsafe.Pointer` for RTC ioctl triggers gosec G103 | ntp plugin | Unavoidable for kernel ioctl. Document with `//nolint:gosec` + reason. ([577](577-gokrazy-2-ntp.md)) |
+| BMP OPEN cache + dedup cleanup must run before senders-empty check | `bmp/bmp.go:handleStructuredEvent` | Peers establish before collectors connect; early return loses OPEN PDUs. ([647](647-bmp-5-sender-compliance.md)) |
 
 ---
 

@@ -314,7 +314,7 @@ some goroutine calls `conn.Read(y)` on the paired endpoint. Sequential
 goroutine.
 
 **Evidence.** 210 (yang-ipc-plugin), 264 (bgp-chaos-inprocess),
-459 (plugin-tcp-transport), 609 (l2tp-6b-auth).
+459 (plugin-tcp-transport), 609 (l2tp-6b-auth), 647 (bmp-5-sender-compliance).
 
 **Avoid it by.** One of:
 1. Start the reader goroutine before any `Write` call.

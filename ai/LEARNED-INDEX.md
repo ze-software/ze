@@ -103,6 +103,8 @@ Graceful restart, route refresh, capability negotiation, session management.
 - [254](plan/learned/254-rfc7606-enforcement.md) -- RFC 7606 treat-as-withdraw enforcement
 - [369](plan/learned/369-bgp-graceful-restart-design.md) -- Graceful restart state machine design
 - [375](plan/learned/375-ebgp-route-refresh-design.md) -- Route refresh design (RFC 2918/7313)
+- [574](plan/learned/574-bgp-4-bmp.md) -- BMP receiver + sender (RFC 7854), config-as-strings, synthetic OPENs
+- [647](plan/learned/647-bmp-5-sender-compliance.md) -- BMP sender compliance: real OPENs, Route Mirroring, ribout dedup
 
 ## Testing
 
@@ -129,3 +131,5 @@ Reusable lessons extracted from gotchas sections across summaries.
 - (253) Import cycles in test files reveal over-tight coupling; use external test packages
 - (266) SSE debounce in HTTP layer prevents blocking the main event loop
 - (275) Concurrent sends racing with channel close require WaitGroup coordination to avoid panic
+- (647) Early return in event handler blocks housekeeping (caching, cleanup) that must run regardless of sender state
+- (647) KEEPALIVE has nil RawBytes; check RawMessage != nil, not RawBytes != nil, for messages with no body
