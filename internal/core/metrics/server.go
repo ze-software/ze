@@ -32,11 +32,18 @@ func (e Endpoint) JoinHostPort() string {
 // Entries are returned in YANG list key order (sorted alphabetically when
 // the configuration tree does not preserve order, e.g. after ToMap()).
 type TelemetryConfig struct {
-	Enabled   bool
-	Endpoints []Endpoint
-	Path      string
-	Prefix    string
-	Interval  int
+	Enabled    bool
+	Endpoints  []Endpoint
+	Path       string
+	Prefix     string
+	Interval   int
+	Collectors map[string]CollectorConfig
+}
+
+// CollectorConfig holds per-collector overrides from the YANG list.
+type CollectorConfig struct {
+	Enabled  bool
+	Interval int
 }
 
 // Server serves Prometheus metrics over HTTP on one or more listeners.
@@ -161,6 +168,27 @@ func ExtractTelemetryConfig(tree map[string]any) TelemetryConfig {
 	if intervalStr, ok := prom["interval"].(string); ok {
 		if n, err := strconv.Atoi(intervalStr); err == nil && n >= 1 && n <= 60 {
 			cfg.Interval = n
+		}
+	}
+
+	// Parse per-collector overrides from the YANG list.
+	cfg.Collectors = make(map[string]CollectorConfig)
+	if collMap, ok := prom["collector"].(map[string]any); ok {
+		for name, v := range collMap {
+			entry, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
+			cc := CollectorConfig{Enabled: true}
+			if enabledStr, ok := entry["enabled"].(string); ok && enabledStr == "false" {
+				cc.Enabled = false
+			}
+			if intervalStr, ok := entry["interval"].(string); ok {
+				if n, err := strconv.Atoi(intervalStr); err == nil && n >= 1 && n <= 60 {
+					cc.Interval = n
+				}
+			}
+			cfg.Collectors[name] = cc
 		}
 	}
 

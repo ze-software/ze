@@ -213,7 +213,14 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 			r.SetMetricsRegistry(reg)
 			registry.SetMetricsRegistry(reg)
 
-			collector.StartOSCollectors(reg, telemetryCfg.Prefix, time.Duration(telemetryCfg.Interval)*time.Second, configLogger())
+			overrides := make(map[string]collector.CollectorOverride, len(telemetryCfg.Collectors))
+			for name, cc := range telemetryCfg.Collectors {
+				overrides[name] = collector.CollectorOverride{
+					Enabled:  cc.Enabled,
+					Interval: time.Duration(cc.Interval) * time.Second,
+				}
+			}
+			collector.StartOSCollectors(reg, telemetryCfg.Prefix, time.Duration(telemetryCfg.Interval)*time.Second, overrides, configLogger())
 		}
 	}
 

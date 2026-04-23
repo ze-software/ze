@@ -396,6 +396,52 @@ func TestExtractTelemetryConfig_Interval(t *testing.T) {
 	assert.Equal(t, 1, extract("abc"))
 }
 
+// TestExtractTelemetryConfig_Collectors verifies per-collector overrides
+// are parsed from the YANG list.
+func TestExtractTelemetryConfig_Collectors(t *testing.T) {
+	cfg := metrics.ExtractTelemetryConfig(map[string]any{
+		"telemetry": map[string]any{
+			"prometheus": map[string]any{
+				"enabled": "true",
+				"collector": map[string]any{
+					"diskspace": map[string]any{
+						"enabled": "false",
+					},
+					"cpu": map[string]any{
+						"interval": "5",
+					},
+					"snmp6": map[string]any{
+						"enabled":  "true",
+						"interval": "10",
+					},
+				},
+			},
+		},
+	})
+
+	assert.Len(t, cfg.Collectors, 3)
+
+	ds := cfg.Collectors["diskspace"]
+	assert.False(t, ds.Enabled)
+	assert.Equal(t, 0, ds.Interval)
+
+	cpu := cfg.Collectors["cpu"]
+	assert.True(t, cpu.Enabled)
+	assert.Equal(t, 5, cpu.Interval)
+
+	snmp6 := cfg.Collectors["snmp6"]
+	assert.True(t, snmp6.Enabled)
+	assert.Equal(t, 10, snmp6.Interval)
+
+	// No collector list -> empty map.
+	cfg2 := metrics.ExtractTelemetryConfig(map[string]any{
+		"telemetry": map[string]any{
+			"prometheus": map[string]any{"enabled": "true"},
+		},
+	})
+	assert.Empty(t, cfg2.Collectors)
+}
+
 // TestServer_MultiListener verifies Server.Start binds every endpoint and
 // both listeners serve the same metrics handler.
 //
