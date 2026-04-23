@@ -41,4 +41,7 @@ func registerPlatformCollectors(m *Manager) {
 	m.Register(newSCTPCollector(m.interval))
 	m.Register(newIPVSCollector(fs, m.interval))
 	m.Register(newWirelessCollector(fs))
+	m.Register(newMDStatCollector(fs))
+	m.Register(newZFSCollector(m.interval))
+	m.Register(newBtrfsCollector())
 }
