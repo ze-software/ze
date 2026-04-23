@@ -100,6 +100,12 @@ module ze-bmp-conf {
                     description "Which routes to stream: pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out, RFC 8671), or all";
                 }
 
+                leaf route-mirroring {
+                    type boolean;
+                    default false;
+                    description "Enable Route Mirroring (RFC 7854 S4.7): stream verbatim copies of all BGP messages to collectors";
+                }
+
                 leaf statistics-timeout {
                     type uint16 {
                         range "0..65535";

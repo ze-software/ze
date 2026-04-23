@@ -1,0 +1,267 @@
+# Test: BMP sender emits Peer Up with real OPEN PDUs (not synthetic).
+# VALIDATES: AC-1 -- Peer Up contains actual negotiated OPEN messages
+#            with capabilities, not the minimal 29-byte synthetic OPENs.
+# VALIDATES: AC-13 -- BuildSyntheticOpen removed; real OPENs come from
+#            event subscription caching.
+# PREVENTS:  sending capability-less OPEN PDUs to BMP collectors, which
+#            breaks collector capability analysis (RFC 7854 S4.10).
+#
+# Flow:
+# 1. Start a Python BMP collector listener on $PORT2.
+# 2. Start ze as BMP sender, peered with ze-peer.
+# 3. ze-peer connects; ze caches sent/received OPENs from OPEN events,
+#    then sends Peer Up with the cached real OPENs to the collector.
+# 4. Collector validates Peer Up OPEN PDUs: marker present, length > 29
+#    (real OPENs have capabilities), type byte == 1 (OPEN).
+# 5. Test matches the sentinel on stderr.
+
+option=env:var=ze.log.bgp.bmp:value=info
+option=timeout:value=20s
+
+tmpfs=bmp-shutdown.run:mode=755:terminator=EOF_OBS
+#!/usr/bin/env python3
+"""Observer: wait for the bmp-collector to signal via the .collector-done
+marker file, then dispatch daemon shutdown."""
+import os
+import time
+from ze_api import API
+
+
+MARKER = '.collector-done'
+DEADLINE_SECONDS = 15.0
+
+
+def dispatch(api, command):
+    api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    deadline = time.time() + DEADLINE_SECONDS
+    while time.time() < deadline:
+        if os.path.exists(MARKER):
+            break
+        time.sleep(0.1)
+    time.sleep(0.3)
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_OBS
+
+tmpfs=bmp-collector.py:mode=755:terminator=EOF_COLLECTOR
+#!/usr/bin/env python3
+"""BMP collector: accept one ze connection, validate Peer Up OPEN PDUs."""
+import socket
+import struct
+import sys
+import time
+
+BMP_PORT = $PORT2
+VALID_SENTINEL = "BMP-COLLECTOR: valid-peer-up-open"
+INVALID_SENTINEL = "BMP-COLLECTOR: invalid-pdu"
+DONE_SENTINEL = "BMP-COLLECTOR: done"
+
+MSG_PEER_UP = 3
+MSG_INITIATION = 4
+
+BGP_OPEN = 1
+BGP_MARKER = b"\xff" * 16
+MIN_REAL_OPEN_LEN = 30  # 29-byte synthetic has no capabilities
+
+
+def log(msg):
+    print(msg, file=sys.stderr, flush=True)
+
+
+def read_exact(sock, n):
+    buf = b""
+    while len(buf) < n:
+        chunk = sock.recv(n - len(buf))
+        if not chunk:
+            return None
+        buf += chunk
+    return buf
+
+
+def validate_bgp_open(label, pdu):
+    """Validate a BGP OPEN PDU has marker, correct type, and capabilities."""
+    if len(pdu) < 29:
+        log(f"{INVALID_SENTINEL}: {label} too short ({len(pdu)} bytes)")
+        return False
+    if pdu[:16] != BGP_MARKER:
+        log(f"{INVALID_SENTINEL}: {label} marker mismatch")
+        return False
+    length = struct.unpack("!H", pdu[16:18])[0]
+    if length != len(pdu):
+        log(f"{INVALID_SENTINEL}: {label} length={length} but have {len(pdu)} bytes")
+        return False
+    if pdu[18] != BGP_OPEN:
+        log(f"{INVALID_SENTINEL}: {label} type={pdu[18]} (want {BGP_OPEN})")
+        return False
+    if length < MIN_REAL_OPEN_LEN:
+        log(f"{INVALID_SENTINEL}: {label} length={length} looks synthetic (no capabilities)")
+        return False
+    return True
+
+
+def parse_peer_up(payload):
+    """Parse Peer Up: PeerHeader(42) + LocalAddr(16) + LocalPort(2) + RemotePort(2) + SentOpen + RecvOpen."""
+    peer_up_fixed = 42 + 16 + 2 + 2  # peer header + local addr + ports
+    if len(payload) < peer_up_fixed + 29:
+        log(f"{INVALID_SENTINEL}: peer up too short ({len(payload)} bytes)")
+        return None, None
+
+    off = peer_up_fixed
+    # Sent OPEN: read length from BGP header.
+    if len(payload) < off + 19:
+        log(f"{INVALID_SENTINEL}: no sent OPEN")
+        return None, None
+    sent_len = struct.unpack("!H", payload[off + 16:off + 18])[0]
+    if len(payload) < off + sent_len:
+        log(f"{INVALID_SENTINEL}: sent OPEN truncated")
+        return None, None
+    sent_open = payload[off:off + sent_len]
+    off += sent_len
+
+    # Received OPEN.
+    if len(payload) < off + 19:
+        log(f"{INVALID_SENTINEL}: no received OPEN")
+        return sent_open, None
+    recv_len = struct.unpack("!H", payload[off + 16:off + 18])[0]
+    if len(payload) < off + recv_len:
+        log(f"{INVALID_SENTINEL}: received OPEN truncated")
+        return sent_open, None
+    recv_open = payload[off:off + recv_len]
+    return sent_open, recv_open
+
+
+def main():
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", BMP_PORT))
+    srv.listen(1)
+    srv.settimeout(15.0)
+    log(f"BMP-COLLECTOR: listening on {BMP_PORT}")
+
+    try:
+        conn, _ = srv.accept()
+    except socket.timeout:
+        log(f"{INVALID_SENTINEL}: no connection accepted before timeout")
+        sys.exit(1)
+
+    conn.settimeout(10.0)
+    got_valid = False
+    deadline = time.time() + 10.0
+    while time.time() < deadline:
+        header = read_exact(conn, 6)
+        if header is None:
+            break
+        version, length, msg_type = struct.unpack("!BIB", header)
+        if version != 3:
+            log(f"{INVALID_SENTINEL}: BMP version={version}")
+            break
+        if length < 6 or length > 65535:
+            log(f"{INVALID_SENTINEL}: BMP length={length}")
+            break
+        payload = read_exact(conn, length - 6)
+        if payload is None:
+            break
+        if msg_type == MSG_PEER_UP:
+            sent_open, recv_open = parse_peer_up(payload)
+            if sent_open is None or recv_open is None:
+                break
+            if not validate_bgp_open("sent-open", sent_open):
+                break
+            if not validate_bgp_open("recv-open", recv_open):
+                break
+            log(f"{VALID_SENTINEL}: sent={len(sent_open)}B recv={len(recv_open)}B")
+            got_valid = True
+            break
+    log(DONE_SENTINEL)
+    conn.close()
+    srv.close()
+    try:
+        with open(".collector-done", "w") as f:
+            f.write("1\n")
+    except OSError as e:
+        log(f"BMP-COLLECTOR: marker write failed: {e}")
+    sys.exit(0 if got_valid else 1)
+
+
+if __name__ == "__main__":
+    main()
+EOF_COLLECTOR
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=update:value=send-route:prefix=10.20.30.0/24:origin-as=65001:next-hop=101.1.101.1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+    bmp {
+        enabled true;
+    }
+}
+bgp {
+    router-id 1.2.3.5;
+    bmp {
+        sender {
+            collector test-collector {
+                address 127.0.0.1;
+                port $PORT2;
+            }
+            route-monitoring-policy all;
+        }
+    }
+    peer test-peer {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 65000;
+                remote 65001;
+            }
+            router-id 1.2.3.5;
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        behavior {
+            group-updates disable;
+        }
+    }
+}
+plugin {
+    external bmp-shutdown {
+        run ./bmp-shutdown.run;
+        encoder json;
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=python3 ./bmp-collector.py
+cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
+expect=exit:code=0
+expect=stderr:pattern=BMP-COLLECTOR: listening on
+expect=stderr:pattern=BMP-COLLECTOR: valid-peer-up-open
+reject=stderr:pattern=BMP-COLLECTOR: invalid-pdu

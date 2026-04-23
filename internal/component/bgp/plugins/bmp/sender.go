@@ -355,6 +355,38 @@ func (ss *senderSession) writeStatisticsReport(peer PeerHeader, stats []StatEntr
 	return ss.writeMsg(buf[:n])
 }
 
+// writeRouteMirroring encodes and sends a BMP Route Mirroring message.
+// RFC 7854 Section 4.7: wraps a complete BGP PDU in TLV type 0.
+// bgpBody is the message body without the 19-byte BGP header; the header
+// is synthesized inline (same pattern as writeRouteMonitoring).
+func (ss *senderSession) writeRouteMirroring(peer PeerHeader, msgType message.MessageType, bgpBody []byte) error {
+	bgpPDULen := message.HeaderLen + len(bgpBody)
+	tlvLen := TLVHeaderSize + bgpPDULen
+	total := CommonHeaderSize + PeerHeaderSize + tlvLen
+	buf, err := ss.scratchFor(total)
+	if err != nil {
+		return err
+	}
+
+	off := CommonHeaderSize
+	off += WritePeerHeader(buf, off, peer)
+
+	// TLV type 0 = BGP Message (RFC 7854 S4.7).
+	binary.BigEndian.PutUint16(buf[off:], MirrorTLVBGPMsg)
+	binary.BigEndian.PutUint16(buf[off+2:], uint16(bgpPDULen)) //nolint:gosec // bgpPDULen bounded by scratch size
+	off += TLVHeaderSize
+
+	// Synthesize BGP message header (RFC 4271 S4.1): Marker(16) + Length(2) + Type(1).
+	copy(buf[off:], message.Marker[:])
+	binary.BigEndian.PutUint16(buf[off+message.MarkerLen:], uint16(bgpPDULen)) //nolint:gosec // bounded
+	buf[off+message.MarkerLen+2] = byte(msgType)
+	off += message.HeaderLen
+	copy(buf[off:], bgpBody)
+
+	WriteCommonHeader(buf, 0, CommonHeader{Version: Version, Length: uint32(total), Type: MsgRouteMirroring}) //nolint:gosec // bounded
+	return ss.writeMsg(buf[:total])
+}
+
 // makeStatGauge creates a StatEntry with a uint64 gauge value.
 func makeStatGauge(typ uint16, value uint64) StatEntry {
 	v := make([]byte, 8)

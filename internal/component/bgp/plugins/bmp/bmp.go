@@ -10,6 +10,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash"
+	"hash/fnv"
 	"io"
 	"log/slog"
 	"net"
@@ -32,6 +34,10 @@ const maxBMPMsgSize = 65535
 // sessionReadDeadline is the read deadline for receiver sessions.
 // Ensures sessions are interruptible on shutdown.
 const sessionReadDeadline = 30 * time.Second
+
+// maxDedupPerPeer caps the dedup hash set per peer to bound memory.
+// A full Internet table is ~1M prefixes; 100k covers realistic churn.
+const maxDedupPerPeer = 100_000
 
 // loggerPtr is the package-level logger, disabled by default.
 var loggerPtr atomic.Pointer[slog.Logger]
@@ -68,6 +74,7 @@ type listenerConfig struct {
 type senderConfig struct {
 	Collectors            map[string]collectorConfig `json:"collector"`
 	RouteMonitoringPolicy string                     `json:"route-monitoring-policy"`
+	RouteMirroring        string                     `json:"route-mirroring"`
 	StatisticsTimeout     string                     `json:"statistics-timeout"`
 }
 
@@ -95,6 +102,14 @@ type bgpSenderSection struct {
 	} `json:"bgp"`
 }
 
+// openPair caches the actual BGP OPEN PDU bytes for a peer.
+// Populated by OPEN message events, consumed by Peer Up on state change.
+// RFC 7854 Section 4.10: Peer Up MUST include sent and received OPEN PDUs.
+type openPair struct {
+	sent     []byte // complete BGP OPEN (marker + length + type + body)
+	received []byte // complete BGP OPEN (marker + length + type + body)
+}
+
 // BMPPlugin implements the bgp-bmp plugin.
 // It manages both receiver (TCP listener for inbound BMP) and
 // sender (outbound TCP to collectors) functionality.
@@ -112,6 +127,22 @@ type BMPPlugin struct {
 	// Sender state.
 	senders            []*senderSession
 	routeMonitorPolicy string // "pre-policy", "post-policy", "all"
+	routeMirroring     bool
+
+	// openCache stores real OPEN PDUs per peer for Peer Up messages.
+	// Key is peer address string. Populated by OPEN message events,
+	// consumed by state events. Protected by mu.
+	openCache map[string]*openPair
+
+	// dedupState tracks per-peer UPDATE body hashes for Route Monitoring dedup.
+	// Key: peer address. Value: set of FNV-64 hashes of RawBytes.
+	// Cleared per-peer on peer-down. Protected by mu.
+	// Capped at maxDedupPerPeer entries per peer to bound memory.
+	dedupState map[string]map[uint64]struct{}
+
+	// dedupHasher is pre-allocated FNV-64a hasher, reused via Reset().
+	// Safe without locking: event handler is serial per senderSession.
+	dedupHasher hash.Hash64
 
 	// stopCh signals all background goroutines to stop.
 	stopCh chan struct{}
@@ -125,9 +156,12 @@ func RunBMPPlugin(conn net.Conn) int {
 	defer closeLog(p, "plugin")
 
 	bp := &BMPPlugin{
-		plugin: p,
-		state:  newBMPState(),
-		stopCh: make(chan struct{}),
+		plugin:      p,
+		state:       newBMPState(),
+		openCache:   make(map[string]*openPair),
+		dedupState:  make(map[string]map[uint64]struct{}),
+		dedupHasher: fnv.New64a(),
+		stopCh:      make(chan struct{}),
 	}
 
 	defer func() {
@@ -154,9 +188,20 @@ func RunBMPPlugin(conn net.Conn) int {
 		return nil
 	})
 
-	// Subscribe to peer state (up/down), received updates (Adj-RIB-In, pre-policy),
-	// and sent updates (Adj-RIB-Out, post-policy, RFC 8671) for BMP sender.
-	p.SetStartupSubscriptions([]string{"state", "update direction received", "update direction sent"}, nil, "full")
+	// Subscribe to peer state (up/down), received/sent updates, and OPEN messages.
+	// OPEN subscriptions cache real OPEN PDUs for Peer Up (RFC 7854 S4.10).
+	// Notification/keepalive/refresh subscriptions support Route Mirroring (RFC 7854 S4.7).
+	// All subscribed unconditionally: config loads after subscriptions, and
+	// route-mirroring can be toggled via config reload. Cost is one type-check
+	// per event when mirroring is disabled.
+	p.SetStartupSubscriptions([]string{
+		"state",
+		"update direction received", "update direction sent",
+		"open direction received", "open direction sent",
+		"notification direction received", "notification direction sent",
+		"keepalive direction received", "keepalive direction sent",
+		"refresh direction received", "refresh direction sent",
+	}, nil, "full")
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
@@ -179,6 +224,7 @@ func RunBMPPlugin(conn net.Conn) int {
 				if snd.RouteMonitoringPolicy != "" {
 					bp.routeMonitorPolicy = snd.RouteMonitoringPolicy
 				}
+				bp.routeMirroring = snd.RouteMirroring == "true"
 				if len(snd.Collectors) > 0 {
 					bp.startSender(snd)
 				}
@@ -506,6 +552,20 @@ func (bp *BMPPlugin) processRouteMirroring(remote string, m *RouteMirroring) {
 
 // handleStructuredEvent processes a reactor event and forwards it to all sender sessions.
 func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
+	// Maintain internal state regardless of whether senders are connected.
+	// Peers may establish before any collector connects (AC-3).
+	switch se.EventType { //nolint:exhaustive // only open and state need pre-sender work
+	case rpc.EventKindOpen:
+		bp.cacheOpenPDU(se)
+	case rpc.EventKindState:
+		if se.State == rpc.SessionStateDown {
+			bp.mu.Lock()
+			delete(bp.openCache, se.PeerAddress)
+			delete(bp.dedupState, se.PeerAddress)
+			bp.mu.Unlock()
+		}
+	}
+
 	bp.mu.RLock()
 	senders := bp.senders
 	bp.mu.RUnlock()
@@ -514,9 +574,13 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 		return
 	}
 
-	switch se.EventType { //nolint:exhaustive // BMP only handles state+update
+	switch se.EventType { //nolint:exhaustive // BMP handles state, update, open, notification, keepalive, refresh
 	case rpc.EventKindState:
 		bp.handleSenderState(se, senders)
+	case rpc.EventKindOpen:
+		if bp.routeMirroring {
+			bp.handleSenderMirror(se, senders)
+		}
 	case rpc.EventKindUpdate:
 		// Filter by route-monitoring-policy:
 		// "pre-policy" = received only, "post-policy" = sent only, "all" = both.
@@ -532,7 +596,49 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 		case policy == "post-policy" && se.Direction == rpc.DirectionSent:
 			bp.handleSenderUpdate(se, senders)
 		}
+		if bp.routeMirroring {
+			bp.handleSenderMirror(se, senders)
+		}
+	case rpc.EventKindNotification, rpc.EventKindKeepalive, rpc.EventKindRefresh:
+		if bp.routeMirroring {
+			bp.handleSenderMirror(se, senders)
+		}
 	}
+}
+
+// cacheOpenPDU caches a real BGP OPEN PDU from an OPEN message event.
+// RawMessage.RawBytes is the OPEN body (no 19-byte BGP header); we synthesize
+// the full BGP OPEN PDU (marker + length + type + body) for Peer Up.
+// Non-UPDATE RawBytes are independently allocated copies (reactor_notify.go),
+// safe to hold beyond the event handler.
+func (bp *BMPPlugin) cacheOpenPDU(se *rpc.StructuredEvent) {
+	rawBytes, msgType := rawUpdateBytes(se)
+	if rawBytes == nil || msgType != message.TypeOPEN {
+		return
+	}
+
+	// RFC 7854 S4.10: Peer Up includes complete BGP OPEN messages.
+	// Build full PDU: 16-byte marker + 2-byte length + 1-byte type + body.
+	pduLen := message.HeaderLen + len(rawBytes)
+	pdu := make([]byte, pduLen)
+	copy(pdu, message.Marker[:])
+	pdu[message.MarkerLen] = byte(pduLen >> 8)     //nolint:gosec // pduLen bounded by maxBMPMsgSize
+	pdu[message.MarkerLen+1] = byte(pduLen & 0xFF) //nolint:gosec // pduLen bounded by maxBMPMsgSize
+	pdu[message.MarkerLen+2] = byte(message.TypeOPEN)
+	copy(pdu[message.HeaderLen:], rawBytes)
+
+	bp.mu.Lock()
+	pair, ok := bp.openCache[se.PeerAddress]
+	if !ok {
+		pair = &openPair{}
+		bp.openCache[se.PeerAddress] = pair
+	}
+	if se.Direction == rpc.DirectionSent {
+		pair.sent = pdu
+	} else {
+		pair.received = pdu
+	}
+	bp.mu.Unlock()
 }
 
 // handleSenderState sends Peer Up or Peer Down to all collectors.
@@ -541,11 +647,21 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 
 	switch se.State { //nolint:exhaustive // only up/down are actionable for BMP
 	case rpc.SessionStateUp:
-		// Build synthetic OPEN messages from metadata.
-		// RFC 7854 requires OPEN PDUs in Peer Up; we build minimal ones
-		// from PeerAS/LocalAS since raw OPENs aren't in the event system.
-		sentOpen := BuildSyntheticOpen(uint16(min(se.LocalAS, 65535)), 0) //nolint:gosec // AS clamped to uint16
-		recvOpen := BuildSyntheticOpen(uint16(min(se.PeerAS, 65535)), 0)  //nolint:gosec // AS clamped to uint16
+		// RFC 7854 S4.10: Peer Up MUST include sent and received OPEN PDUs.
+		// Use cached real OPENs from OPEN message events.
+		bp.mu.RLock()
+		pair := bp.openCache[se.PeerAddress]
+		bp.mu.RUnlock()
+
+		var sentOpen, recvOpen []byte
+		if pair != nil {
+			sentOpen = pair.sent
+			recvOpen = pair.received
+		}
+		if sentOpen == nil || recvOpen == nil {
+			logger().Warn("bmp: OPEN cache miss for peer, skipping Peer Up", "peer", se.PeerAddress)
+			return
+		}
 
 		var localAddr [16]byte
 		parseIPInto(se.LocalAddress, &localAddr)
@@ -565,14 +681,60 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 	}
 }
 
+// handleSenderMirror sends a Route Mirroring message wrapping the verbatim
+// BGP PDU to all collectors. RFC 7854 Section 4.7: TLV type 0 carries the
+// complete BGP message (marker + length + type + body).
+// Unlike Route Monitoring, nil body is valid (e.g. KEEPALIVE = header only).
+func (bp *BMPPlugin) handleSenderMirror(se *rpc.StructuredEvent, senders []*senderSession) {
+	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
+	if !ok || msg == nil {
+		return
+	}
+
+	peer := peerHeaderFromEvent(se)
+	rawBytes := msg.RawBytes
+	msgType := msg.Type
+	for _, ss := range senders {
+		if err := ss.writeRouteMirroring(peer, msgType, rawBytes); err != nil {
+			logger().Debug("bmp: sender route mirroring failed", "collector", ss.name, "error", err)
+		}
+	}
+}
+
 // handleSenderUpdate sends Route Monitoring to all collectors.
 // Handles both received (pre-policy, Adj-RIB-In) and sent (post-policy,
 // Adj-RIB-Out per RFC 8671) updates. The O flag in the Per-Peer Header
 // distinguishes the two directions.
+// Per-NLRI dedup: suppresses Route Monitoring when the UPDATE body hash
+// is unchanged for a given peer (AC-7). Different attributes pass (AC-8).
 func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*senderSession) {
 	rawBytes, msgType := rawUpdateBytes(se)
 	if rawBytes == nil {
 		return
+	}
+
+	if bp.dedupState != nil {
+		if bp.dedupHasher == nil {
+			bp.dedupHasher = fnv.New64a()
+		}
+		bp.dedupHasher.Reset()
+		bp.dedupHasher.Write(rawBytes)
+		sum := bp.dedupHasher.Sum64()
+
+		bp.mu.Lock()
+		peerMap, ok := bp.dedupState[se.PeerAddress]
+		if !ok {
+			peerMap = make(map[uint64]struct{})
+			bp.dedupState[se.PeerAddress] = peerMap
+		}
+		if _, dup := peerMap[sum]; dup {
+			bp.mu.Unlock()
+			return
+		}
+		if len(peerMap) < maxDedupPerPeer {
+			peerMap[sum] = struct{}{}
+		}
+		bp.mu.Unlock()
 	}
 
 	peer := peerHeaderFromEvent(se)
